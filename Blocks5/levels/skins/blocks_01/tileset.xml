@@ -1,0 +1,54 @@
+<?xml version="1.0" ?>
+<TileSet image="tileset.png" tileWidth="16" tileHeight="16">
+  <Tile id="M" x="0" y="0" type="1" />
+  <Tile id="m" x="16" y="0" type="1" />
+  <Tile id="." x="32" y="0" type="0" />
+  <Tile id="n" x="48" y="0" type="2" destroyTime="100" />
+  <Tile id="A" x="64" y="0" type="1" />
+  <Tile id="0" x="0" y="16" type="0" />
+  <Tile id="1" x="16" y="16" type="0" />
+  <Tile id="2" x="32" y="16" type="0" />
+  <Tile id="3" x="0" y="32" type="0" />
+  <Tile id="4" x="16" y="32" type="0" />
+  <Tile id="5" x="32" y="32" type="0" />
+  <Tile id="6" x="0" y="48" type="0" />
+  <Tile id="7" x="16" y="48" type="0" />
+  <Tile id="8" x="32" y="48" type="0" />
+  <Tile id="a" x="48" y="16" type="0" />
+  <Tile id="b" x="64" y="16" type="0" />
+  <Tile id="c" x="48" y="32" type="0" />
+  <Tile id="d" x="64" y="32" type="0" />
+  <Tile id="e" x="48" y="48" type="3" />
+  <Tile id="f" x="64" y="48" type="3" />
+  <Tile id="g" x="80" y="0" type="3" />
+  <Tile id="h" x="80" y="48" type="3" />
+  <Tile id="B" x="0" y="64" type="1" />
+  <Tile id="C" x="16" y="64" type="2" destroyTime="100" />
+  <Tile id="D" x="32" y="64" type="1" />
+  <Tile id="E" x="48" y="64" type="1" />
+  <Tile id="F" x="0" y="80" type="1" />
+  <Tile id="G" x="16" y="80" type="2" destroyTime="100" />
+  <Tile id="H" x="32" y="80" type="1" />
+  <Tile id="I" x="48" y="80" type="1" />
+  <Tile id="J" x="64" y="80" type="1" />
+  <Tile id="K" x="80" y="80" type="1" />
+  <Tile id="L" x="96" y="80" type="1" />
+  <Tile id="N" x="112" y="80" type="0" />
+  <Tile id="O" x="0" y="96" type="1" />
+  <Tile id="P" x="16" y="96" type="1" />
+  <Tile id="Q" x="32" y="96" type="1" />
+  <Tile id="R" x="48" y="96" type="1" />
+  <Tile id="S" x="64" y="96" type="1" />
+  <Tile id="T" x="80" y="96" type="1" />
+  <Tile id="U" x="96" y="96" type="1" />
+  <Tile id="V" x="112" y="96" type="1" />
+  <Tile id="W" x="0" y="112" type="1" />
+  <Tile id="X" x="16" y="112" type="1" />
+  <Tile id="Y" x="32" y="112" type="1" />
+  <Tile id="Z" x="48" y="112" type="1" />
+  <Tile id="i" x="64" y="112" type="1" />
+  <Tile id="j" x="80" y="112" type="1" />
+  <Tile id="k" x="96" y="112" type="2" />
+  <Tile id="x" x="96" y="0" type="0" />
+  <Tile id="y" x="96" y="48" type="3" />
+</TileSet>

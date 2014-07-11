@@ -1,0 +1,38 @@
+<?xml version="1.0" ?><Level width="40" height="25" numLayers="2" numDiamondsNeeded="0" electricityOn="0" nightVision="0" lightColorR="255" lightColorG="255" lightColorB="255" musicFilename=""><Layer><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row></Layer><Layer><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row><Row>                                        </Row></Layer>
+
+<Object type="E_Value" x="0" y="0" value="0" dir="0" />
+<Object type="E_Value" x="0" y="1" value="1" dir="0" />
+<Object type="E_ValueSwitch" x="0" y="2" value="0" dir="0" />
+<Object type="E_PulseSwitch" x="1" y="0" pulseValue="0" dir="0" />
+<Object type="E_PulseSwitch" x="1" y="1" pulseValue="1" dir="0" />
+<Object type="E_Clock" x="1" y="2" dir="0" />
+<Object type="E_PulsePanel" x="2" y="0" pulseValue="0" dir="0" />
+<Object type="E_PulsePanel" x="2" y="1" pulseValue="1" dir="0" />
+
+<Object type="E_LightBulb" x="4" y="0" dir="0" />
+<Object type="E_HexDigit" x="4" y="1" dir="0" />
+<Object type="E_Barrage" x="4" y="2" dir="0" />
+
+<Object type="E_Gate" x="6" y="0" subType="0" dir="0" />
+<Object type="E_Gate" x="6" y="1" subType="1" dir="0" />
+<Object type="E_Gate" x="7" y="0" subType="2" dir="0" />
+<Object type="E_Gate" x="7" y="1" subType="3" dir="0" />
+<Object type="E_Gate" x="8" y="0" subType="4" dir="0" />
+<Object type="E_Gate" x="8" y="1" subType="5" dir="0" />
+<Object type="E_Gate" x="9" y="0" subType="7" dir="0" />
+<Object type="E_Gate" x="9" y="1" subType="6" dir="0" />
+
+<Object type="E_FlipFlop" x="11" y="0" subType="0" value="0" dir="0" />
+<Object type="E_FlipFlop" x="11" y="1" subType="1" value="0" dir="0" />
+<Object type="E_FlipFlop" x="11" y="2" subType="2" value="0" dir="0" />
+
+<Object type="E_LightBarrierReceiver" x="13" y="0" dir="2" />
+<Object type="LightBarrierSender" x="13" y="2" dir="0" />
+
+<Object type="E_Multiplexer" x="15" y="0" dir="0" />
+
+<Object type="BlockZero" x="17" y="0" />
+<Object type="BlockOne" x="17" y="1" />
+<Object type="E_BlockDetector" x="17" y="2" />
+
+</Level>

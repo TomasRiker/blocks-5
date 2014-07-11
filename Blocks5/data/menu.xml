@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Dialog>
+	<Element name="Menu" x="0" y="0" w="640" h="480">
+		<StaticText name="Version" x="5" y="5">
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<Button name="StartGame" x="20" y="105" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_START_GAME</Title>
+			<Image u="0" v="0" u2="72" v2="0">buttons.png</Image>
+		</Button>
+		<Button name="LevelEditor" x="105" y="90" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_LEVEL_EDITOR</Title>
+			<Image u="0" v="72" u2="72" v2="72">buttons.png</Image>
+		</Button>
+		<Button name="CampaignEditor" x="190" y="85" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_CAMPAIGN_EDITOR</Title>
+			<Image u="0" v="144" u2="72" v2="144">buttons.png</Image>
+		</Button>
+		<Button name="Options" x="470" y="60" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$OPTIONS</Title>
+			<Image u="0" v="216" u2="72" v2="216">buttons.png</Image>
+		</Button>
+		<Button name="Help" x="550" y="90" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$HELP</Title>
+			<Image u="0" v="288" u2="72" v2="288">buttons.png</Image>
+		</Button>
+		<Button name="Quit" x="555" y="385" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_QUIT</Title>
+			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+		</Button>
+		<Button name="Donate" x="330" y="5" w="100" h="43">
+			<ExtendedStyle />
+			<Title></Title>
+			<Image>$MM_DONATE_BUTTON_FILENAME</Image>
+		</Button>
+		<Element name="DonatePane" w="640" h="480">
+			<Hidden />
+			<Fill r="0" g="0" b="0" a="0.5" />
+			<Window name="Donate" w="400" h="300">
+				<Title>$MM_DONATE</Title>
+				<Center />
+				<StaticImage name="Static1" x="1" y="27" w="398" h="270">
+					<Deactivated />
+					<Image>$MM_DONATE_BACKGROUND_FILENAME</Image>
+				</StaticImage>
+				<Button name="NoThanks" x="200" y="260" w="100" h="30">
+					<Title>$MM_DONATE_NO_THANKS</Title>
+				</Button>
+				<Button name="Donate" x="310" y="260" w="80" h="30">
+					<Title>$MM_DONATE_DONATE</Title>
+				</Button>
+			</Window>
+		</Element>
+	</Element>
+</Dialog>

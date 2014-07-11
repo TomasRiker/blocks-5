@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "blocks5", "Blocks5\Blocks5.vcproj", "{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pwencrypt", "PWEncrypt\PWEncrypt.vcproj", "{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "showuserdir", "ShowUserDir\ShowUserDir.vcproj", "{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}.Debug|Win32.Build.0 = Debug|Win32
+		{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}.Release|Win32.ActiveCfg = Release|Win32
+		{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}.Release|Win32.Build.0 = Release|Win32
+		{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}.Debug|Win32.Build.0 = Debug|Win32
+		{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}.Release|Win32.ActiveCfg = Release|Win32
+		{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}.Release|Win32.Build.0 = Release|Win32
+		{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}.Debug|Win32.Build.0 = Debug|Win32
+		{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}.Release|Win32.ActiveCfg = Release|Win32
+		{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

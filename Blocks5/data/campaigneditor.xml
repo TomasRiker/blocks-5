@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Dialog>
+	<StaticText name="Static1" x="75" y="30">
+		<Text>$CE_MENU_FILENAME</Text>
+	</StaticText>
+	<EditBox name="Filename" x="165" y="30" w="255" h="20">
+		<TabStop id="0" />
+		<Text></Text>
+	</EditBox>
+	<Button name="Search" x="425" y="30" w="20" h="20">
+		<Title>...</Title>
+	</Button>
+	<Button name="Load" x="20" y="55" w="135" h="30">
+		<Title>$CE_MENU_LOAD</Title>
+	</Button>
+	<Button name="Save" x="165" y="55" w="135" h="30">
+		<Title>$CE_MENU_SAVE</Title>
+	</Button>
+	<Button name="New" x="310" y="55" w="135" h="30">
+		<Title>$CE_MENU_NEW</Title>
+	</Button>
+	<Button name="Quit" x="455" y="55" w="135" h="30">
+		<Title>$CE_MENU_QUIT</Title>
+	</Button>
+
+	<Button name="Add" x="280" y="205" w="20" h="20">
+		<Title>»</Title>
+    <ToolTip>$CE_ADD_LEVEL</ToolTip>
+	</Button>
+	<Button name="Remove" x="280" y="235" w="20" h="20">
+		<Title>«</Title>
+    <ToolTip>$CE_REMOVE_LEVEL</ToolTip>
+	</Button>
+	<Button name="Up" x="570" y="140" w="50" h="20">
+		<Title>$CE_LEVEL_UP</Title>
+	</Button>
+	<Button name="Down" x="570" y="170" w="50" h="20">
+		<Title>$CE_LEVEL_DOWN</Title>
+	</Button>
+	<StaticText name="Static2" x="20" y="120">
+		<Text>$CE_AVAILABLE_LEVELS</Text>
+	</StaticText>
+	<ListBox name="AvailableLevels" x="20" y="140" w="250" h="198">
+		<SubmitButton>Add</SubmitButton>
+	</ListBox>
+	<StaticText name="Static3" x="310" y="120">
+		<Text>$CE_CAMPAIGN_LEVELS</Text>
+	</StaticText>
+	<ListBox name="CampaignLevels" x="310" y="140" w="250" h="198">
+		<SubmitButton>Remove</SubmitButton>
+	</ListBox>
+
+	<StaticText name="Static4" x="20" y="360">
+		<Text>$CE_TITLE</Text>
+	</StaticText>
+	<EditBox name="Title" x="20" y="380" w="250" h="20">
+		<TabStop id="1" />
+		<Text></Text>
+	</EditBox>
+	<StaticText name="Static5" x="310" y="360">
+		<Text>$CE_DESCRIPTION</Text>
+	</StaticText>
+	<MultiLineEditBox name="Description" x="310" y="380" w="310" h="80">
+		<TabStop id="2" />
+		<Text></Text>
+	</MultiLineEditBox>
+	<StaticText name="NumUnlockedLevels" x="20" y="410">
+		<Text></Text>
+	</StaticText>
+	<Button name="NumUnlockedLevels-" x="210" y="410" w="20" h="20">
+		<Title>-</Title>
+	</Button>
+	<Button name="NumUnlockedLevels+" x="230" y="410" w="20" h="20">
+		<Title>+</Title>
+	</Button>
+  <CheckBox name="BonusLevel" x="20" y="435" w="14" h="14">
+    <Title>$CE_USE_BONUS_LEVEL</Title>
+  </CheckBox>
+
+	<Element name="MessageBoxPane" w="640" h="480">
+		<Hidden />
+		<Window name="MessageBox" w="450" h="120">
+			<Title>$CE_MSG_TITLE</Title>
+			<Center />
+			<StaticText name="Text1" x="10" y="30">
+				<Hidden />
+				<Text>$CE_MSG_TEXT1</Text>
+			</StaticText>
+			<StaticText name="Text2" x="10" y="30">
+				<Hidden />
+				<Text>$CE_MSG_TEXT2</Text>
+			</StaticText>
+			<Button name="Yes" x="10" y="80" w="135" h="30">
+				<Title>$YES</Title>
+			</Button>
+			<Button name="No" x="305" y="80" w="135" h="30">
+				<Title>$NO</Title>
+			</Button>
+		</Window>
+	</Element>
+	<Element name="SearchPane" w="640" h="480">
+		<Hidden />
+		<Window name="Search" w="300" h="300">
+			<Title>$SEARCH</Title>
+			<Center />
+			<Button name="Select" x="10" y="260" w="135" h="30">
+				<Title>$SELECT</Title>
+			</Button>
+			<Button name="Cancel" x="155" y="260" w="135" h="30">
+				<Title>$CANCEL</Title>
+			</Button>
+			<ListBox name="Files" x="10" y="30" w="280" h="220">
+				<SubmitButton>Select</SubmitButton>
+			</ListBox>
+		</Window>
+	</Element>
+</Dialog>

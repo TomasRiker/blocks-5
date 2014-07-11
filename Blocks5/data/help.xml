@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Dialog>
+	<Window name="Help" w="600" h="440">
+		<Title>$HELP</Title>
+		<Center />
+		<Hidden />
+		<EditBox name="Dummy" x="10" y="35" w="580" h="355">
+			<Deactivated />
+			<Text></Text>
+		</EditBox>
+		<Element name="Page" x="12" y="35" w="580" h="355">
+			<StaticText name="Text" x="5" y="5" w="560">
+				<Text></Text>
+				<WordWrap />
+			</StaticText>
+		</Element>
+		<Button name="PreviousPage" x="540" y="400" w="20" h="20">
+			<Title></Title>
+			<Image u="40" v="80">icons.png</Image>
+		</Button>
+		<Button name="NextPage" x="570" y="400" w="20" h="20">
+			<Title></Title>
+			<Image u="80" v="80">icons.png</Image>
+		</Button>
+		<Button name="OK" x="10" y="395" w="90" h="30">
+			<Title>$OK</Title>
+		</Button>
+	</Window>
+</Dialog>

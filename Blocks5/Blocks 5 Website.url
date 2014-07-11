@@ -1,0 +1,10 @@
+[DEFAULT]
+BASEURL=http://www.aegypten-im-internet.de/index.htm
+
+[InternetShortcut]
+URL=http://www.scherfgen-software.net/blocks5/
+Modified=40618F9F4DEFC301CF
+HotKey=0
+IDList=
+[{000214A0-0000-0000-C000-000000000046}]
+Prop3=19,2

@@ -1,0 +1,1945 @@
+// ********************
+// HOW TO USE THIS FILE
+// ********************
+//
+// For every string that needs localization, there's a string identifier
+// that begins with the dollar sign ($).
+// After that, the different localizations follow after a language tag.
+//
+// Available language tags are:
+// §en: for English
+// §de: for German
+// §fr: for French
+// §es: for Spanish
+//
+// The paragraph character (¶) can be used to insert newlines!
+
+// *******
+// GENERAL
+// *******
+
+$YES
+// For dialog boxes
+§en:Yes
+§de:Ja
+
+$NO
+// For dialog boxes
+§en:No
+§de:Nein
+
+$OK
+// For dialog boxes
+§en:OK
+§de:OK
+
+$CANCEL
+// For dialog boxes
+§en:Cancel
+§de:Abbrechen
+
+$SEARCH
+// For file dialogs
+§en:Search
+§de:Durchsuchen
+
+$SELECT
+// For file dialogs
+§en:Select
+§de:Auswählen
+
+$OPTIONS
+// Caption of button to show options and of options window
+§en:Options
+§de:Optionen
+
+$HELP
+// Caption of button to show help and of help window
+§en:Help
+§de:Hilfe
+
+$LOADING
+// Message displayed in the beginning when the game is loading
+§en:Loading ... Please wait ...
+§de:Lade ... Bitte warten ...
+
+$FEATURE_NOT_IN_DEMO
+// Text informing the user that a feature is not available in the demo version
+§en:This feature is not available in the demo version.
+§de:Dieses Feature steht in der Demo-Version nicht zur Verfügung.
+
+$FILES_MISSING
+// Text displayed when skin files are missing
+§en:The following files are missing:
+§de:Es fehlen die folgenden Dateien:
+
+// *********
+// MAIN MENU
+// *********
+
+$MM_START_GAME
+// Caption of button for starting the game
+§en:Start Game
+§de:Spiel starten
+
+$MM_LEVEL_EDITOR
+// Caption of button for entering the level editor
+§en:Level Editor
+§de:Level-Editor
+
+$MM_CAMPAIGN_EDITOR
+// Caption of button for entering the campaign editor
+§en:Campaign Editor
+§de:Kampagnen-Editor
+
+$MM_QUIT
+// Caption of button for exiting the game
+§en:Quit
+§de:Beenden
+
+$MM_DONATE
+§en:Do you like this game?
+§de:Magst du dieses Spiel?
+
+$MM_DONATE_BUTTON_FILENAME
+§en:donate_button_en.png
+§de:donate_button_de.png
+
+$MM_DONATE_BACKGROUND_FILENAME
+§en:donate_en.png
+§de:donate_de.png
+
+$MM_DONATE_DONATE
+§en:Donate
+§de:Spenden
+
+$MM_DONATE_NO_THANKS
+§en:No, thanks
+§de:Nein, danke
+
+// *******
+// OPTIONS
+// *******
+
+$O_LANGUAGE
+// Caption of language selection
+§en:Language:
+§de:Sprache:
+
+$O_LANGUAGE_ENGLISH
+// Name of English language
+§en:English
+§de:Englisch
+
+$O_LANGUAGE_GERMAN
+// Name of German language
+§en:German
+§de:Deutsch
+
+$O_VOLUME
+// Caption of volume settings
+§en:Volume:
+§de:Lautstärke:
+
+$O_VOLUME_EFFECTS
+// Caption of sound effect volume slider
+§en:Effects:
+§de:Effekte:
+
+$O_VOLUME_MUSIC
+// Caption of music volume slider
+§en:Music:
+§de:Musik:
+
+$O_DETAILS
+// Caption of detail settings
+§en:Details:
+§de:Details:
+
+$O_DETAILS_LOW
+// Caption of low details radio button
+§en:Low
+§de:Niedrig
+
+$O_DETAILS_MEDIUM
+// Caption of medium details radio button
+§en:Medium
+§de:Mittel
+
+$O_DETAILS_HIGH
+// Caption of high details radio button
+§en:High
+§de:Hoch
+
+$O_CONTROLS
+// Caption of the controls section
+§en:Controls:
+§de:Steuerung:
+
+$O_RESET_CONTROLS
+// Reset controls
+§en:Reset
+§de:Zurücksetzen
+
+$O_PRIMARY_KEY
+// Primary key
+§en:Primary:
+§de:Primär:
+
+$O_SECONDARY_KEY
+// Secondary key
+§en:Secondary:
+§de:Sekundär:
+
+$O_NOT_ASSIGNED
+// not assigned
+§en:Not assigned
+§de:Nicht zugewiesen
+
+// *******
+// ACTIONS
+// *******
+$A_LEFT
+// left
+§en:Left
+§de:Links
+
+$A_RIGHT
+// right
+§en:Right
+§de:Rechts
+
+$A_UP
+// up
+§en:Up
+§de:Hoch
+
+$A_DOWN
+// down
+§en:Down
+§de:Runter
+
+$A_PLANT_BOMB
+// plant bomb
+§en:Plant bomb
+§de:Bombe legen und zünden
+
+$A_PUT_DOWN_BOMB
+// put down bomb
+§en:Put down bomb
+§de:Bombe ablegen
+
+$A_SWITCH_CHARACTER
+// switch character
+§en:Switch character
+§de:Spielfigur wechseln
+
+$A_SAVE_IN_HOTEL
+// save in hotel
+§en:Save in hotel
+§de:Im Hotel speichern
+
+$A_RESTART_LEVEL
+// restart level
+§en:Restart level
+§de:Level neu starten
+
+$A_RESTART_FROM_HOTEL
+// restart from hotel
+§en:Restart from hotel
+§de:Vom Hotel aus neu starten
+
+$A_PAUSE
+// pause
+§en:Pause
+§de:Pause
+
+$A_TOGGLE_MUTE
+// toggle mute
+§en:Toggle mute
+§de:Ton ein/aus
+
+$A_CAPTURE_SCREENSHOT
+// capture a screenshot
+§en:Take screenshot
+§de:Screenshot aufnehmen
+
+$A_TOGGLE_CAPTURE_VIDEO
+// start/stop recording video
+§en:Capture video start/stop
+§de:Videoaufnahme Start/Stopp
+
+// ***************
+// LEVEL SELECTION
+// ***************
+
+$LS_SELECT_CAMPAIGN
+// Text prompting the user to select a campaign
+§en:Select a Campaign:
+§de:Wähle eine Kampagne:
+
+$LS_CAMPAIGN_DESCRIPTION
+// Caption of campaign description text
+§en:Description:
+§de:Beschreibung:
+
+$LS_PROGRESS
+// Caption of campaign progress bar
+§en:Progress:
+§de:Fortschritt:
+
+$LS_SELECT_LEVEL
+// Text prompting the user to select a level
+§en:Select a Level:
+§de:Wähle einen Level:
+
+$LS_FIRST_LEVEL
+// Tool tip of button for navigating to the first level
+§en:Go to first level
+§de:Zum ersten Level gehen
+
+$LS_PREVIOUS_LEVEL
+// Tool tip of button for navigating to the previous level
+§en:Previous level
+§de:Vorheriger Level
+
+$LS_NEXT_LEVEL
+// Tool tip of button for navigating to the next level
+§en:Next level
+§de:Nächster Level
+
+$LS_LAST_LEVEL
+// Tool tip of button for navigating to the last level
+§en:Go to last level
+§de:Zum letzten Level gehen
+
+$LS_NEXT_LEVEL_TO_DO
+// Tool tip of button for navigating to the next level that hasn't been solved yet
+§en:Go to next unfinished level
+§de:Gehe zum nächsten noch¶nicht geschafften Level
+
+$LS_PLAY_LEVEL
+// Caption of button for playing the selected level
+§en:Play Level
+§de:Level spielen
+
+$LS_QUIT
+// Caption of button for returning to the main menu
+§en:Back
+§de:Zurück
+
+$LS_LEVEL_LOCKED
+// Text informing the user that the selected level is locked
+§en:This level is locked.¶Each time you complete a level,¶another one is unlocked.
+§de:Dieser Level ist noch nicht freigeschaltet.¶Mit jedem geschafften Level wird ein¶weiterer Level freigeschaltet.
+
+$LS_BONUS_LEVEL_LOCKED
+// Text informing the user that the current level is a bonus level and that it is locked
+§en:This is a bonus level.¶All other levels have to be¶completed to unlock this level.
+§de:Dies ist ein Bonus-Level.¶Er wird erst freigeschaltet, wenn alle¶anderen Levels geschafft wurden.
+
+$LS_NOTE
+// Text telling the user that there is more than one level he can play
+§en:<h>Important note:</h>¶If you are stuck in one level, you can play another one.¶The following levels are unlocked, but haven't been solved yet:
+§de:<h>Wichtiger Hinweis:</h>¶Wenn du in einem Level nicht weiterkommst, kannst du auch einen anderen spielen.¶Die folgenden Levels sind freigeschaltet, aber noch nicht geschafft:
+
+// ****
+// GAME
+// ****
+
+$G_SHOW_MENU
+// Caption of button for showing menu
+§en:Menu
+§de:Menü
+
+$G_MENU_TITLE
+// Title of the menu window
+§en:... what now?
+§de:... und was jetzt?
+
+$G_MENU_CONTINUE
+// Caption of button to continue playing
+§en:Continue
+§de:Weiterspielen
+
+$G_MENU_RESTART
+// Caption of button to restart level
+§en:Restart Level (F5)
+§de:Level neu starten (F5)
+
+$G_MENU_RESTART_FROM_HOTEL
+// Caption of button to restart level from hotel
+§en:Restart from Hotel (F10)
+§de:Vom Hotel aus neu starten (F10)
+
+$G_MENU_RETURN_TO_LEVEL_SELECTION
+// Caption of button to return to level selection
+§en:Return to Level Selection
+§de:Zurück zur Levelauswahl
+
+$G_MENU_RETURN_TO_LEVEL_EDITOR
+// Caption of button to return to level editor
+§en:Return to Level Editor
+§de:Zurück zum Level-Editor
+
+$G_HOTEL_WELCOME
+// Text displayed when the player enters a hotel
+§en:Welcome to the Hotel Blockofornia!¶Press the Return/Enter key now¶to save your progress in this level.
+§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt Return/Enter, um den¶Spielstand zwischenzuspeichern.
+
+$G_HOTEL_GOODBYE
+// Text displayed when the player saved in a hotel
+§en:Thanks for your stay.¶See you soon!
+§de:Herzlichen Dank für Ihren Besuch.¶Bis bald!
+
+$G_CENSORED
+// Text displayed when the player gets eaten by an enemy
+§en:Censored
+§de:Zensiert
+
+// ************
+// LEVEL EDITOR
+// ************
+
+$LE_LAYER
+// Current layer selection
+§en:Layer
+§de:Layer
+
+$LE_DIAMONDS
+// Number of diamonds needed
+§en:Diamonds
+§de:Diamanten
+
+$LE_ELECTRICITY
+// Caption of electricity checkbox
+§en:Electricity
+§de:Elektrizität
+
+$LE_RELOAD_GRAPHICS
+// Tool tip of button for reloading graphics
+§en:Reload graphics (F10)
+§de:Grafiken neu laden (F10)
+
+$LE_UNDO
+// Tool tip of undo button
+§en:Undo (Ctrl+Y)
+§de:Rückgängig (Strg+Z)
+
+$LE_REDO
+// Tool tip of redo button
+§en:Redo (Ctrl+Z)
+§de:Wiederherstellen (Strg+Y)
+
+$LE_SETTINGS
+// Caption of button to show settings and title of settings window
+§en:Settings
+§de:Einstellungen
+
+$LE_MENU
+// Caption of button to show menu and title of menu window
+§en:Menu
+§de:Menü
+
+$LE_CATEGORY1
+// Title of object category 1
+§en:Tiles
+§de:Tiles
+
+$LE_CATEGORY2
+// Title of object category 2
+§en:Objects
+§de:Objekte
+
+$LE_CATEGORY3
+// Title of object category 3
+§en:Switches
+§de:Schalter
+
+$LE_CATEGORY4
+// Title of object category 4
+§en:Rails
+§de:Schienen
+
+$LE_CATEGORY5
+// Title of object category 5
+§en:Electronics
+§de:Elektronik
+
+$LE_MODE1
+// Title of drawing mode 1
+§en:Pen
+§de:Zeichenstift
+
+$LE_MODE2
+// Title of drawing mode 2
+§en:Modify objects
+§de:Objekte modifizieren
+
+$LE_MODE3
+// Title of drawing mode 3
+§en:Rectangle tool
+§de:Rechteck-Werkzeug
+
+$LE_MODE4
+// Title of drawing mode 4
+§en:Transition tool
+§de:Übergang-Werkzeug
+
+$LE_MODE5
+// Title of drawing mode 5
+§en:Select
+§de:Auswählen
+
+$LE_MODE6
+// Title of drawing mode 6
+§en:Pipette
+§de:Pipette
+
+$LE_MODE7
+// Title of drawing mode 7
+§en:Soldering iron
+§de:Lötkolben
+
+$LE_DEFAULT_HINT_TEXT#
+// Default text for hints
+§en:English Text
+§de:Deutscher Text
+
+$LE_MENU_FILENAME
+// Caption of filename edit box in menu
+§en:Filename:
+§de:Dateiname:
+
+$LE_MENU_LOAD
+// Caption of button for loading a level
+§en:Load
+§de:Laden
+
+$LE_MENU_SAVE
+// Caption of button for saving the current level
+§en:Save (Ctrl+S)
+§de:Speichern (Strg+S)
+
+$LE_MENU_NEW
+// Caption of button for creating a new level
+§en:New Level
+§de:Neuer Level
+
+$LE_MENU_PLAY
+// Caption of button for playing the current level
+§en:Play Level (F5)
+§de:Level spielen (F5)
+
+$LE_MENU_CLEAR
+// Caption of button for clearing the current level
+§en:Clear Level
+§de:Level leeren
+
+$LE_MENU_QUIT
+// Caption of button for leaving the level editor
+§en:Leave Editor
+§de:Editor verlassen
+
+$LE_SETTINGS_TITLE
+// Caption of the level title edit box
+§en:Title:
+§de:Titel:
+
+$LE_SETTINGS_NIGHT_VISION
+// Caption of the night vision checkbox
+§en:Night Vision
+§de:Nachtsicht
+
+$LE_SETTINGS_RAIN
+// Caption of the rain checkbox
+§en:Rain
+§de:Regen
+
+$LE_SETTINGS_THUNDERSTORM
+// Caption of the thunderstorm checkbox
+§en:Thunderstorm
+§de:Gewitter
+
+$LE_SETTINGS_CLOUDS
+// Caption of the clouds checkbox
+§en:Clouds
+§de:Wolken
+
+$LE_SETTINGS_SNOW
+// Caption of the snow checkbox
+§en:Snow
+§de:Schnee
+
+$LE_SETTINGS_LIGHT_COLOR
+// Caption of the light color selection
+§en:Light Color:
+§de:Lichtfarbe:
+
+$LE_SETTINGS_RED
+// Caption of the red slider
+§en:Red
+§de:Rot
+
+$LE_SETTINGS_GREEN
+// Caption of the green slider
+§en:Green
+§de:Grün
+
+$LE_SETTINGS_BLUE
+// Caption of the blue slider
+§en:Blue
+§de:Blau
+
+$LE_SETTINGS_MUSIC
+// Caption of the music filename edit box
+§en:Music (File in "levels" directory, OGG format):
+§de:Musik (Datei im "levels"-Ordner, OGG-Format):
+
+$LE_SETTINGS_EDIT_GRAPHICS_STYLE
+// Caption of the graphics style selection
+§en:Edit Graphics Style:
+§de:Grafikstil bearbeiten:
+
+$LE_EDIT_HINT
+// Title of the edit hint window
+§en:Edit Hint
+§de:Hinweis bearbeiten
+
+$LE_MSG_CONFIRM
+// Title of message box asking the user if he is sure
+§en:Confirm
+§de:Bestätigen
+
+$LE_MSG_TEXT1
+// Text asking the user if he wants to discard his changes
+§en:Your level was changed and has not been saved.¶Continue anyway?
+§de:Der Level wurde verändert und noch nicht gespeichert.¶Trotzdem fortfahren?
+
+$LE_MSG_TEXT2
+// Text asking the user if he wants to overwrite an existing level file
+§en:This level file already exists.¶Do you want it to be overwritten?
+§de:Diese Level-Datei existiert bereits.¶Soll sie überschrieben werden?
+
+$LE_ERROR_LOADING
+// Error message displayed when loading of level failed
+§en:ERROR: The level could not be loaded.
+§de:FEHLER: Der Level konnte nicht geladen werden.
+
+$LE_ERROR_FILE_DOESNT_EXIST
+// Error message displayed when the selected file doesn't exist
+§en:ERROR: This file does not exist.
+§de:FEHLER: Die Datei existiert nicht.
+
+$LE_ERROR_SAVING
+// Error message displayed when saving of level failed
+§en:ERROR: The level could not be saved.
+§de:FEHLER: Der Level konnte nicht gespeichert werden.
+
+$LE_ERROR_INVALID_CONNECTION
+// Error message displayed when the user tried to create an invalid connection between two electronics parts
+§en:Invalid connection!
+§de:Ungültige Verbindung!
+
+$LE_INFO_LEVEL_SAVED
+// Info message displayed when the current level has been saved
+§en:Level saved.
+§de:Level gespeichert.
+
+$LE_INFO_GRAPHICS_RELOADED
+// Info message displayed when the graphics have been reloaded
+§en:Graphics have been reloaded.
+§de:Grafiken wurden neu geladen.
+
+// *********************
+// TOOL TIPS FOR OBJECTS
+// *********************
+
+$TT_PLAYER1
+// Name of character 1 (yellow)
+§en:Player (Bob)
+§de:Spielfigur (Bob)
+
+$TT_PLAYER2
+// Name of character 2 (red)
+§en:Player (M.C. Tomato)
+§de:Spielfigur (M.C. Tomato)
+
+$TT_PLAYER3
+// Name of character 3 (green)
+§en:Player (Horace)
+§de:Spielfigur (Horace)
+
+$TT_EXIT
+// Tool tip for exit
+§en:Exit
+§de:Ausgang
+
+$TT_BLOCK
+// Tool tip for normal blocks
+§en:Block¶(gravity)
+§de:Block¶(Gravitation)
+
+$TT_ARMORED_BLOCK
+// Tool tip for armored block
+§en:Armored block¶(gravity)
+§de:Gepanzerter Block¶(Gravitation)
+
+$TT_ACTIVATOR_BLOCK
+// Tool tip for activator block
+§en:Activator block¶(gravity)
+§de:Aktivator-Block¶(Gravitation)
+
+$TT_ARMORED_ACTIVATOR_BLOCK
+// Tool tip for armored activator block
+§en:Armored activator block¶(gravity)
+§de:Aktivator-Block¶(Gravitation)
+
+$TT_BLOCK_ZERO
+// Tool tip for zero block
+§en:Logic zero block¶(gravity)
+§de:Logischer Null-Block¶(Gravitation)
+
+$TT_BLOCK_ONE
+// Tool tip for one block
+§en:Logic one block¶(gravity)
+§de:Logischer Eins-Block¶(Gravitation)
+
+$TT_BOX
+// Tool tip for box
+§en:Box¶(no gravity)
+§de:Kiste¶(keine Gravitation)
+
+$TT_ARMORED_BOX
+// Tool tip for armored box
+§en:Armored box¶(no gravity)
+§de:Gepanzerte Kiste¶(keine Gravitation)
+
+$TT_ICE_BOX
+// Tool tip for ice box
+§en:Ice block¶(no gravity; puts fire out)
+§de:Eisblock¶(keine Gravitation; löscht Feuer)
+
+$TT_SPIKE
+// Tool tip for spike
+§en:Spikes¶(gravity; deadly when falling)
+§de:Speere¶(Gravitation; tödlich, wenn sie fallen)
+
+$TT_AMBOS
+// Tool tip for ambos
+§en:Ambos¶(gravity; deadly)
+§de:Amboss¶(Gravitation; tödlich)
+
+$TT_GRASS
+// Tool tip for grass
+§en:Grass
+§de:Gras
+
+$TT_DIAMOND
+// Tool tip for diamond
+§en:Diamond
+§de:Diamant
+
+$TT_CONVEYOR_BELT
+// Tool tip for conveyor belt
+§en:Conveyor belt
+§de:Fließband
+
+$TT_ARROW
+// Tool tip for arrow
+§en:Arrow¶(entry only in this direction)
+§de:Pfeil¶(Eintritt nur in diese Richtung)
+
+$TT_TELEPORTER
+// Tool tip for teleporter that teleports everything
+§en:Universal teleporter¶(click and drag)
+§de:Universeller Teleporter¶(Klicken und ziehen)
+
+$TT_TELEPORTER_NO_PLAYER
+// Tool tip for teleporter that teleports everything but players and enemies
+§en:Teleporter - no players and enemies¶(click and drag)
+§de:Teleporter - keine Spieler/Gegner¶(Klicken und ziehen)
+
+$TT_ELECTRICITY_SWITCH
+// Tool tip for electricity switch
+§en:Electricity switch
+§de:Stromschalter
+
+$TT_ELECTRICITY_PANEL
+// Tool tip for electricity panel
+§en:Electricity panel
+§de:Strom-Bodenplatte
+
+$TT_LIGHT_SWITCH
+// Tool tip for light switch
+§en:Light switch
+§de:Lichtschalter
+
+$TT_LIGHT_PANEL
+// Tool tip for light panel
+§en:Light panel
+§de:Licht-Bodenplatte
+
+$TT_MAGNET
+// Tool tip for magnet
+§en:Magnet¶(Turns all arrows)
+§de:Magnet¶(dreht alle Pfeile)
+
+$TT_DIAMOND_MACHINE
+// Tool tip for diamond machine
+§en:Diamond machine¶(converts blocks with gravity to diamonds)
+§de:Diamantenmaschine¶(verwandelt Blöcke mit Gravitation in Diamanten)
+
+$TT_BOMB
+// Tool tip for bomb
+§en:Bomb
+§de:Bombe
+
+$TT_LASER
+// Tool tip for laser
+§en:Laser emitter
+§de:Laser
+
+$TT_MIRROR_LASER
+// Tool tip for mirror
+§en:Mirror¶(no gravity; reflects laser beams)
+§de:Spiegel¶(keine Gravitation; reflektiert Laserstrahlen)
+
+$TT_MIRROR_CANNON
+§en:Armor plate¶(no gravity; deflects cannon projectiles, at most 3 times)
+§de:Panzerplatte¶(keine Gravitation; lenkt Kanonengeschosse ab, höchstens 3-mal)
+
+$TT_BARRAGE_A
+// Tool tip for barrage type A
+§en:Barrage type A
+§de:Hindernis Typ A
+
+$TT_BARRAGE_A_SWITCH
+// Tool tip for barrage type A switch
+§en:Barrage switch type A¶(lowers/raises barrages of this color)
+§de:Hindernis-Schalter Typ A¶(fährt Hindernisse dieser Farbe herein/heraus)
+
+$TT_BARRAGE_B
+// Tool tip for barrage type B
+§en:Barrage type B
+§de:Hindernis Typ B
+
+$TT_BARRAGE_B_PANEL
+// Tool tip for barrage type B panel
+§en:Barrage panel type B¶(lowers/raises barrages of this color)
+§de:Hindernis-Bodenplatte Typ B¶(fährt Hindernisse dieser Farbe herein/heraus)
+
+$TT_HINT
+// Tool tip for hint
+§en:Hint
+§de:Hinweiszettel
+
+$TT_FIRE
+// Tool tip for fire
+§en:Fire¶(destroys unarmored blocks/boxes)
+§de:Feuer¶(verbrennt ungeschützte Blöcke/Kisten)
+
+$TT_LAVA
+// Tool tip for lava
+§en:Lava¶(destroys objects)
+§de:Lava¶(verbrennt Objekte)
+
+$TT_PLATFORM
+// Tool tip for moving platform (elevator)
+§en:Platform¶(rides on rails)
+§de:Plattform¶(fährt auf Schienen)
+
+$TT_RAILS_STRAIGHT
+// Tool tip for straight rails
+§en:Rails (straight)
+§de:Schienen (Gerade)
+
+$TT_RAILS_CORNER
+// Tool tip for corner
+§en:Rails (corner)
+§de:Schienen (Kurve)
+
+$TT_RAILS_JUNCTION
+// Tool tip for junction
+§en:Rails (junction)
+§de:Schienen (Kreuzung)
+
+$TT_RAILS_T_JUNCTION
+// Tool tip for T-junction
+§en:Rails (T-junction)
+§de:Schienen (T-Stück)
+
+$TT_RAILS_DAMAGED
+// Tool tip for damaged rails
+§en:Rails (damaged)
+§de:Schienen (beschädigt)
+
+$TT_RAILS_TURN_OFF_LEFT
+// Tool tip for rails turning off left
+§en:Rails (turn off left)
+§de:Schienen (nach links abbiegen)
+
+$TT_RAILS_TURN_OFF_RIGHT
+// Tool tip for rails turning off right
+§en:Rails (turn off right)
+§de:Schienen (nach rechts abbiegen)
+
+$TT_ENEMY1
+// Tool tip for enemy type 1 (insect)
+§en:Enemy (insect)
+§de:Gegner (Insekt)
+
+$TT_ENEMY2
+// Tool tip for enemy type 2 (devil's face)
+§en:Enemy (devil's face)
+§de:Gegner (Teufelsfratze)
+
+$TT_EYE
+// Tool tip for eye
+§en:Eye¶(spawns enemies)
+§de:Auge¶(erzeugt Gegner)
+
+$TT_CANNON
+// Tool tip for cannon
+§en:Cannon
+§de:Kanone
+
+$TT_CANNON_FIRE_TRIGGER
+// Tool tip for cannon firing trigger
+§en:Cannon trigger (fire)¶(fires all cannons of this color)
+§de:Kanonenschalter (Feuer)¶(feuert alle Kanonen dieser Farbe ab)
+
+$TT_CANNON_ROTATE_TRIGGER
+// Tool tip for cannon rotating trigger
+§en:Cannon trigger (rotate)¶(rotates all cannons of this color)
+§de:Kanonenschalter (drehen)¶(dreht alle Kanonen dieser Farbe)
+
+$TT_CANNON_FIRE_PANEL
+// Tool tip for cannon firing panel
+§en:Cannon panel (fire)¶(fires all cannons of this color)
+§de:Kanonen-Bodenplatte (Feuer)¶(feuert alle Kanonen dieser Farbe ab)
+
+$TT_TOXIC_WASTE
+// Tool tip for toxic waste
+§en:Toxic waste¶(no gravity; toxic gas is released upon destruction)
+§de:Giftmüll¶(keine Gravitation; bei Zerstörung tritt Giftgas aus)
+
+$TT_MASK
+// Tool tip for mask
+§en:NBC mask¶(protects against toxic gas)
+§de:ABC-Schutzmaske¶(schützt vor Giftgas)
+
+$TT_SYRINGE
+// Tool tip for syringe
+§en:Syringe¶(heals temporarily)
+§de:Spritze¶(hilft kurzzeitig gegen Giftgas)
+
+$TT_HOTEL
+// Tool tip for hotel
+§en:Hotel¶(allows to save within the level)
+§de:Hotel¶(erlaubt das Speichern im Level)
+
+$TT_VALUE_ZERO
+// Tool tip for electronic value zero
+§en:Logic zero
+§de:Logische Null
+
+$TT_VALUE_ONE
+// Tool tip for electronic value one
+§en:Logic one
+§de:Logische Eins
+
+$TT_VALUE_SWITCH
+// Tool tip for switchable electronic value
+§en:Switch zero/one
+§de:Schalter Null/Eins
+
+$TT_PULSE_TRIGGER_ZERO
+// Tool tip for pulse trigger of value zero
+§en:Pulse trigger¶(normally one)
+§de:Impuls-Taster¶(normal Eins)
+
+$TT_PULSE_TRIGGER_ONE
+// Tool tip for pulse trigger of value one
+§en:Pulse trigger¶(normally zero)
+§de:Impuls-Taster¶(normal Null)
+
+$TT_PULSE_PANEL_ZERO
+// Tool tip for pulse panel of value zero
+§en:Pulse panel¶(normally one)
+§de:Impuls-Bodenplatte¶(normal Eins)
+
+$TT_PULSE_PANEL_ONE
+// Tool tip for pulse panel of value one
+§en:Pulse panel¶(normally zero)
+§de:Impuls-Bodenplatte¶(normal Null)
+
+$TT_CLOCK
+// Tool tip for clock
+§en:Clock
+§de:Taktgeber
+
+$TT_LIGHT_BULB
+// Tool tip for light bulb
+§en:Light bulb
+§de:Glühbirne
+
+$TT_HEX_DIGIT_DISPLAY
+// Tool tip for hexadecimal digit display
+§en:Hexadecimal digit display
+§de:Hexadezimal-Ziffernanzeige
+
+$TT_ELECTRONIC_BARRAGE
+// Tool tip for electronic barrage
+§en:Electronically controlled barrage
+§de:Elektronisch gesteuertes Hindernis
+
+$TT_LIGHT_BARRIER_SENDER
+// Tool tip for light barrier (sender)
+§en:Light barrier (sender)
+§de:Lichtschranke (Sender)
+
+$TT_LIGHT_BARRIER_RECEIVER
+// Tool tip for light barrier (receiver)
+§en:Light barrier (receiver)
+§de:Lichtschranke (Empfänger)
+
+$TT_MULTIPLEXER
+// Tool tip for multiplexer
+§en:Multiplexer
+§de:Multiplexer
+
+$TT_BLOCK_DETECTOR
+// Tool tip for block detector
+§en:Block detector
+§de:Block-Detektor
+
+$TT_GATE_AND
+// Tool tip for AND gate
+§en:AND gate
+§de:Und-Gatter (AND)
+
+$TT_GATE_NAND
+// Tool tip for NAND gate
+§en:NAND gate
+§de:Nicht-Und-Gatter (NAND)
+
+$TT_GATE_OR
+// Tool tip for OR gate
+§en:OR gate
+§de:Oder-Gatter (OR)
+
+$TT_GATE_NOR
+// Tool tip for NOR gate
+§en:NOR gate
+§de:Nicht-Oder-Gatter (NOR)
+
+$TT_GATE_XOR
+// Tool tip for XOR gate
+§en:XOR gate
+§de:Antivalenz-Gatter (XOR)
+
+$TT_GATE_XNOR
+// Tool tip for XNOR gate
+§en:XNOR gate
+§de:Äquivalenz-Gatter (XNOR)
+
+$TT_GATE_NOT
+// Tool tip for NOT gate
+§en:NOT gate
+§de:Nicht-Gatter (NOT)
+
+$TT_GATE_PASS_THROUGH
+// Tool tip for simple pass-through gate (doesn't modify signal)
+§en:Simple connection¶(pass through)
+§de:Einfache Verbindung¶(verändert Signal nicht)
+
+$TT_FLIP_FLOP_RS
+// Tool tip for RS flip-flop
+§en:RS flip-flop, level-triggered
+§de:RS-Flipflop, pegelgesteuert
+
+$TT_FLIP_FLOP_D
+// Tool tip for D flip-flop
+§en:D flip-flop, edge-triggered
+§de:D-Flipflop, flankengesteuert
+
+$TT_FLIP_FLOP_JK
+// Tool tip for JK flip-flop
+§en:JK flip-flop, edge-triggered
+§de:JK-Flipflop, flankengesteuert
+
+// ***************
+// CAMPAIGN EDITOR
+// ***************
+
+$CE_UNLOCKED_LEVELS
+// Number of unlocked levels displayed in campaign editor
+§en:Unlocked Levels
+§de:Freigeschaltete Levels
+
+$CE_ADD_LEVEL
+// Tool tip of button for adding the selected level
+§en:Add level to campaign
+§de:Level zur Kampagne hinzufügen
+
+$CE_REMOVE_LEVEL
+// Tool tip of button for removing the selected level
+§en:Remove level from campaign
+§de:Level aus der Kampagne entfernen
+
+$CE_LEVEL_UP
+// Caption of button for moving the selected level up
+§en:Up
+§de:Hoch
+
+$CE_LEVEL_DOWN
+// Caption of button for moving the selected level down
+§en:Down
+§de:Runter
+
+$CE_AVAILABLE_LEVELS
+// Caption of the available levels list
+§en:Available Levels:
+§de:Verfügbare Levels:
+
+$CE_CAMPAIGN_LEVELS
+// Caption of the campaign levels list
+§en:Campaign:
+§de:Kampagne:
+
+$CE_TITLE
+// Caption of the campaign title edit box
+§en:Title:
+§de:Titel:
+
+$CE_DESCRIPTION
+// Caption of the campaign description edit box
+§en:Description:
+§de:Beschreibung:
+
+$CE_DEFAULT_CAMPAIGN_TITLE
+// Default value for campaign name
+§en:Unnamed Campaign
+§de:Unbenannte Kampagne
+
+$CE_DEFAULT_CAMPAIGN_DESCRIPTION#
+// Default value for campaign description
+§en:English Description
+§de:Deutsche Beschreibung
+
+$CE_USE_BONUS_LEVEL
+// Caption of bonus level checkbox
+§en:Last level is bonus level
+§de:Letzter Level ist Bonus-Level
+
+$CE_MENU_FILENAME
+// Caption of filename edit box in menu
+§en:Filename:
+§de:Dateiname:
+
+$CE_MENU_LOAD
+// Caption of button for loading a campaign
+§en:Load
+§de:Laden
+
+$CE_MENU_SAVE
+// Caption of button for saving the current campaign
+§en:Save
+§de:Speichern
+
+$CE_MENU_NEW
+// Caption of button for creating a new campaign
+§en:New Campaign
+§de:Neue Kampagne
+
+$CE_MENU_QUIT
+// Caption of button for leaving the campaign editor
+§en:Leave Editor
+§de:Editor verlassen
+
+$CE_MSG_TITLE
+// Title of message box asking the user if he is sure
+§en:Confirm
+§de:Bestätigen
+
+$CE_MSG_TEXT1
+// Text asking the user if he wants to discard his changes
+§en:Your campaign was changed and has not been saved.¶Continue anyway?
+§de:Die Kampagne wurde verändert und noch nicht gespeichert.¶Trotzdem fortfahren?
+
+$CE_MSG_TEXT2
+// Text asking the user if he wants to overwrite an existing campaign file
+§en:This campaign file already exists.¶Do you want it to be overwritten?
+§de:Diese Kampagnen-Datei existiert bereits.¶Soll sie überschrieben werden?
+
+$CE_ERROR_LOADING
+// Error message displayed when loading of campaign failed
+§en:ERROR: The campaign could not be loaded.
+§de:FEHLER: Die Kampagne konnte nicht geladen werden.
+
+$CE_ERROR_SAVING
+// Error message displayed when saving of the current campaign failed
+§en:ERROR: The campaign could not be saved.
+§de:FEHLER: Die Kampagne konnte nicht gespeichert werden.
+
+$CE_ERROR_LEVELS_MISSING
+// Error message displayed when the original levels of a campaign are missing
+§en:ERROR: The campaign could not be loaded because the original level files are missing.
+§de:FEHLER: Die Kampagne wurde nicht geladen, da die Original-Level-Dateien fehlen.
+
+$CE_INFO_CAMPAIGN_SAVED
+// Info message displayed when the current campaign has been saved
+§en:Campaign saved.
+§de:Kampagne gespeichert.
+
+// *******
+// CREDITS
+// *******
+
+$C_THANKS_FOR_PLAYING
+// First text displayed in the credits
+§en:Thank you for playing Blocks 5!
+§de:Danke, dass du Blocks 5 gespielt hast!
+
+$C_PROGRAMMING
+// Caption of programmer list
+§en:Programmer
+§de:Programmierung
+
+$C_GRAPHICS
+// Caption of list of people who made the graphics
+§en:Graphics
+§de:Grafik
+
+$C_SOUND_EFFECTS
+// Caption of list of people who made the sound effects
+§en:Sound Effects
+§de:Soundeffekte
+
+$C_MUSIC
+// Caption of list of people who made the music
+§en:Music
+§de:Musik
+
+$C_TESTERS
+// Caption of testers list
+§en:Testers
+§de:Testspieler
+
+$C_TESTERS_SPPRO
+// Caption of testers from the spieleprogrammierer.de community
+§en:spieleprogrammierer Community
+§de:spieleprogrammierer-Community
+
+$C_STAY_TUNED
+// Final message in credits
+§en:Stay tuned for the next adventure!
+§de:Bis zum nächsten Abenteuer!
+
+// ****
+// HELP
+// ****
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE1
+// Help page 1
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>Goal</h>
+To complete a level, a certain number of diamonds have to be collected. Then, the exit will appear, which you have to reach.
+You will get all important information by reading the hints lying around.
+
+<h>Controls (standard)</h>
+Move			Arrow keys
+Plant bomb		Shift + arrow key for direction
+Put bomb down		Ctrl + arrow key for direction
+Change player		Tab or click at player
+Restart level		F5
+Restart from hotel		F10
+Mute on/off		F1
+Save screenshot		F11
+Start/stop recording video	F12
+Show menu		Escape
+Pause			P or Break
+// --------------------------------------------------------------------------------
+§de:<h>Spielziel</h>
+In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
+Alle wichtigen Informationen erhältst du im Spiel, indem du die Zettel liest, die in den Levels verteilt sind.
+
+<h>Steuerung (Standard)</h>
+Bewegen			Pfeiltasten
+Bombe legen und zünden	Shift + Pfeiltaste für Richtung
+Bombe ablegen		Strg + Pfeiltaste für Richtung
+Spielfigur wechseln		Tab oder Figur anklicken
+Level neu starten		F5
+Vom Hotel aus neu starten	F10
+Ton aus/ein		F1
+Screenshot speichern		F11
+Videoaufnahme starten/stoppen	F12
+Menü aufrufen		Escape
+Pause			P oder Pause
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE2
+// Help page 2
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>The Level Editor</h>
+With the level editor, you can create your own levels.
+A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, for example, blocks, diamonds, grass, players or enemies.
+
+At the screen's bottom, you can choose the layer you want to work on. It is important to understand how the layers work. Layer 0 is for ground tiles (like lawn, sand or holes). A wall placed on layer 0 won't act like a wall: the player can walk trough. A "real" wall always has to be placed on layer 1!
+
+You also see 5 categories: Tiles, Objects, Switches, Rails and Electronics. Here you can select what tile/object you want to place in the level. Simply click at one of these categories and choose the desired tile/object.
+// --------------------------------------------------------------------------------
+§de:<h>Der Level-Editor</h>
+Mit dem Level-Editor kannst du eigene Levels erzeugen.
+Levels bestehen aus zwei Ebenen (Layer), auf denen so genannte Tiles platziert werden, und aus einer Reihe von Objekten. Tiles sind Boden, Löcher oder (zerstörbare) Mauern. Sie können sich nicht bewegen. Objekte sind beispielsweise Blöcke, Diamanten, Gras, Spielfiguren oder Gegner.
+
+Am unteren Bildschirmrand kannst du einstellen, auf welchem Layer du arbeiten möchtest. Es ist wichtig, die Layer genau zu verstehen. Auf Layer 0 befinden sich die Boden-Tiles (z.B. Rasen, Sand oder auch Löcher). Durch eine Mauer auf Layer 0 kann der Spieler einfach hindurch laufen. Eine "echte" Mauer muss sich immer auf Layer 1 befinden!
+
+Unten gibt es 5 Kategorien: Tiles, Objekte, Schalter, Schienen und Elektronik. Hier kannst du wählen, welches Tile/Objekt du im Level platzieren willst. Klicke dazu eine der Kategorien an, und wähle dann das gewünschte Tile oder Objekt.
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE3
+// Help page 3
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>The Tools</h>
+Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (for example a laser on a platform), hold the Shift key while drawing.
+
+Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold the Shift key while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding Shift). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
+
+Rectangle: Draws a rectangle using the selected tile/object. Press the right mouse button to erase the selected area.
+
+Transition: Helps you drawing transitions between two types of ground on layer 0 (like lawn and sand).
+// --------------------------------------------------------------------------------
+§de:<h>Die Werkzeuge</h>
+Zeichenstift: Zeichnet das gewählte Tile/Objekt. Die rechte Maustaste dient als Radiergummi. Achte bei Tiles darauf, dass du sie auf den richtigen Layer setzt! Objekte sind hingegen keinem Layer zugeordnet. Um mehrere Objekte übereinander zu setzen (z.B. einen Laser auf eine Plattform), halte Shift gedrückt.
+
+Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Objekt dazu einfach an. Manche Objekte lassen sich auf zwei Arten verändern. Halte dazu gleichzeitig die Shift-Taste gedrückt. Beispiel: Bei Kanonen kannst du durch normales Modifizieren die Farbe ändern. Beim Modifizieren mit Shift dreht sich die Kanone. Bei Hinweiszetteln kannst du durch Modifizieren den Text verändern und bei Teleportern durch Klicken und Ziehen den Zielort.
+
+Rechteck: Zeichnet ein Rechteck mit dem gewählten Tile/Objekt. Mit der rechten Maustaste wird der entsprechende Bereich geleert.
+
+Übergang: Hilft dir beim Zeichnen von Übergängen zwischen zwei Bodentypen auf Layer 0 (zum Beispiel Rasen und Sand).
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE4
+// Help page 4
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>The Tools (2)</h>
+Select: Allows you to select a certain area. You can then copy it by pressing Ctrl+C or move it around with the arrow keys. Press Del to clear the area. Ctrl+V pastes at the selection's top left corner. Press Ctrl+X to cut (copy and clear). If you want to move a single object, just place the cursor on it and move it around using the arrow keys.
+
+Pipette: Click at a tile/object in your level. It will then be used for the pen tool. With objects, all modifications will be adopted.
+
+Soldering iron: Use this tool to create connections between electronics parts. Simply click at the pins that you want to connect. The right mouse button deletes all connections at the selected pin. Attention: For every input, there should be exactly one output! Inputs are shown in green, outputs in red.
+// --------------------------------------------------------------------------------
+§de:<h>Die Werkzeuge (2)</h>
+Auswählen: Hiermit kannst du einen Bereich auswählen, um ihn dann beispielsweise mit Strg+C zu kopieren oder mit den Pfeiltasten zu bewegen. Mit Entf kannst du den gewählten Bereich leeren. Strg+V fügt bei der linken oberen Auswahlecke ein, und Strg+X schneidet aus (kopieren und leeren). Um ein einzelnes Objekt zu verschieben, reicht es, den Mauszeiger auf das Objekt zu setzen. Dann kannst du es mit den Pfeiltasten bewegen.
+
+Pipette: Klicke auf ein Tile/Objekt im Level, das dann genau so mit Hilfe des Zeichenstifts gezeichnet werden soll. Es werden alle Veränderungen, die du mit dem Modifizieren-Werkzeug gemacht hast, übernommen.
+
+Lötkolben: Hiermit kannst du Verbindungen zwischen elektronischen Bauteilen erzeugen. Klicke dazu die beiden zu verbindenden Pins nacheinander an. Die rechte Maustaste löscht alle Verbindungen am gewählten Pin. Achtung: Es gehört immer genau ein Ausgang zu einem Eingang! Eingänge sind grün gezeichnet, Ausgänge rot.
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE5
+// Help page 5
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>Keys</h>
+Change tool		1, 2, 3, 4, 5, 6, 7
+Change layer		L
+Move object under cursor	Arrow keys
+Copy selection		Ctrl+C
+Paste (at selection's corner)	Ctrl+V
+Clear selection		Del
+Cut selection		Ctrl+X
+Save			Ctrl+S
+Play level			F5
+Reload graphics		F10
+
+<h>Skins</h>
+With skins, you can change almost every piece of graphics in the game. In the "Settings" window, you can enter a skin name for each graphics file. If you don't enter a name, the standard skin will be chosen for this file. Skins are zip archives that contain the customized files. As an example, you will find the skin "space" in the "levels/skins" directory. Other skins you can use are "blocks_02" (ice world) and "blocks_03" (technics world).
+// --------------------------------------------------------------------------------
+§de:<h>Tastenkombinationen</h>
+Werkzeug wechseln		1, 2, 3, 4, 5, 6, 7
+Layer wechseln		L
+Objekt unter Maus verschieben	Pfeiltasten
+Auswahl kopieren		Strg+C
+Einfügen (Ecke der Auswahl)	Strg+V
+Auswahl löschen		Entf
+Auswahl ausschneiden		Strg+X
+Speichern			Strg+S
+Level spielen		F5
+Grafiken neu laden		F10
+
+<h>Skins</h>
+Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Dateien, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt) und "blocks_03" (Technik-Welt).
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$H_HELP_PAGE6
+// Help page 6
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+§en:<h>Encrypted Skins</h>
+Skin zip archives may be encrypted so that their content can't be accessed by everyone. Virtually all zip tools support encryption. If you decide to encrypt your skin archive, you also have to include an unencrypted(!) file named "password.txt" containing the encrypted password. Use the tool "pwencrypt.exe", which resides in the same directory as "blocks5.exe" to encrypt the password.
+
+<h>Custom Music</h>
+In the "Settings" window, you can enter the name of a music file that the user should hear while playing the level. The file must be encoded in the OGG file format. Codecs can be found on the internet using a search engine. Music files have to be placed inside the "levels" directory.
+// --------------------------------------------------------------------------------
+§de:<h>Skins mit Passwort</h>
+Skin-Zip-Archive können auch verschlüsselt gespeichert werden, damit die Grafiken nicht für jeden zugänglich sind. Praktisch alle Programme zum Erzeugen von Zip-Archiven unterstützen auch Verschlüsselung. Wenn das Archiv verschlüsselt wird, muss sich darin ebenfalls eine unverschlüsselte(!) Datei namens "password.txt" befinden. In diese Datei wird das zur Entschlüsselung benötigte Passwort verschlüsselt gespeichert. Zur Verschlüsselung des Passworts benutzt du das Programm "pwencrypt.exe", das sich im selben Verzeichnis befindet wie "blocks5.exe".
+
+<h>Eigene Musikstücke</h>
+Im Fenster "Einstellungen" lässt sich der Dateiname eines Musikstücks eintragen, das bei diesem Level im Hintergrund gespielt werden soll. Das Musikstück muss hierzu in das OGG-Dateiformat konvertiert werden. Codecs für dieses Dateiformat findet man über Suchmaschinen. Musikdateien müssen im Ordner "levels" liegen.
+
+// ************
+// LEVEL TITLES
+// ************
+
+$LEVEL_EXAMPLE_01
+// Title of example level 01
+§en:Example Level 01
+§de:Beispiel-Level 01
+
+$LEVEL_EXAMPLE_02
+// Title of example level 02
+§en:Example Level 02
+§de:Beispiel-Level 02
+
+$LEVEL_BLOCKS_01
+// Title of level 01 of campaign "blocks"
+§en:The Journey Begins
+§de:Die Reise beginnt
+
+$LEVEL_BLOCKS_02
+// Title of level 02 of campaign "blocks"
+§en:Bombs and Teleporters
+§de:Bomben und Teleporter
+
+$LEVEL_BLOCKS_03
+// Title of level 03 of campaign "blocks"
+§en:The Maze
+§de:Das Labyrinth
+
+$LEVEL_BLOCKS_04
+// Title of level 04 of campaign "blocks"
+§en:Teleporter Madness
+§de:Teleporterwahnsinn
+
+$LEVEL_BLOCKS_05
+// Title of level 05 of campaign "blocks"
+§en:Teamwork
+§de:Teamwork
+
+$LEVEL_BLOCKS_06
+// Title of level 06 of campaign "blocks"
+§en:Lasers Again!
+§de:Schon wieder Laser!
+
+$LEVEL_BLOCKS_07
+// Title of level 07 of campaign "blocks"
+§en:Not Quite Easy
+§de:Nicht ganz einfach
+
+$LEVEL_BLOCKS_08
+// Title of level 08 of campaign "blocks"
+§en:In a Hurry
+§de:Rettung in letzter Sekunde
+
+$LEVEL_BLOCKS_09
+// Title of level 09 of campaign "blocks"
+§en:The Ancient Ruin
+§de:Die antike Ruine
+
+$LEVEL_BLOCKS_10
+// Title of level 10 of campaign "blocks"
+§en:A Maze Again!
+§de:Schon wieder ein Labyrinth!
+
+$LEVEL_BLOCKS_11
+// Title of level 11 of campaign "blocks"
+§en:The Pharao's Tomb
+§de:Das Grab des Pharaos
+
+$LEVEL_BLOCKS_12
+// Title of level 12 of campaign "blocks"
+§en:The Temple of Fire
+§de:Der Tempel des Feuers
+
+$LEVEL_BLOCKS_13
+// Title of level 13 of campaign "blocks"
+§en:Above the Abyss
+§de:Über dem Abgrund
+
+$LEVEL_BLOCKS_14
+// Title of level 14 of campaign "blocks"
+§en:The Laser Barrier
+§de:Die Laserbarriere
+
+$LEVEL_BLOCKS_15
+// Title of level 15 of campaign "blocks"
+§en:The Railway
+§de:Schienenverkehr
+
+$LEVEL_BLOCKS_16
+// Title of level 16 of campaign "blocks"
+§en:Master Thief Smi Ley
+§de:Der Meisterdieb Smi Ley
+
+$LEVEL_BLOCKS_17
+// Title of level 17 of campaign "blocks"
+§en:Arena of Insects
+§de:Insektenarena
+
+$LEVEL_BLOCKS_18
+// Title of level 18 of campaign "blocks"
+§en:Deep Inside the Pyramid
+§de:Tief in der Pyramide
+
+$LEVEL_BLOCKS_19
+// Title of level 19 of campaign "blocks"
+§en:Ode to the Original
+§de:Ode an das Original
+
+$LEVEL_BLOCKS_20
+// Title of level 20 of campaign "blocks"
+§en:The Place That Sends You Mad
+§de:Das Haus, das Verrückte macht
+
+$LEVEL_BLOCKS_21
+// Title of level 21 of campaign "blocks"
+§en:Laser Show
+§de:Lasershow
+
+$LEVEL_BLOCKS_22
+// Title of level 22 of campaign "blocks"
+§en:Friend or Foe?
+§de:Freund oder Feind?
+
+$LEVEL_BLOCKS_23
+// Title of level 23 of campaign "blocks"
+§en:Welcome to the Machine!
+§de:Welcome to the Machine!
+
+$LEVEL_BLOCKS_24
+// Title of level 24 of campaign "blocks"
+§en:Cannons
+§de:Kanonen
+
+$LEVEL_BLOCKS_25
+// Title of level 25 of campaign "blocks"
+§en:Blocman
+§de:Blocman
+
+$LEVEL_BLOCKS_26
+// Title of level 26 of campaign "blocks"
+§en:An Unusual Mine
+§de:Das etwas andere Bergwerk
+
+$LEVEL_BLOCKS_27
+// Title of level 27 of campaign "blocks"
+§en:A Toxic Surprise
+§de:Eine giftige Überraschung
+
+$LEVEL_BLOCKS_28
+// Title of level 28 of campaign "blocks"
+§en:Doorway to the Underworld
+§de:Der Eingang zur Unterwelt
+
+$LEVEL_BLOCKS_29
+// Title of level 29 of campaign "blocks"
+§en:Time is Running Fast
+§de:Wettlauf mit der Zeit
+
+$LEVEL_BLOCKS_30
+// Title of level 30 of campaign "blocks"
+§en:The Lion's Den
+§de:Die Höhle des Löwen
+
+$LEVEL_BLOCKS_31
+// Title of level 31 of campaign "blocks"
+§en:Escaping out of the Volcano
+§de:Flucht aus dem Vulkan
+
+$LEVEL_BLOCKS_32
+// Title of level 32 of campaign "blocks"
+§en:The Village
+§de:Das Dorf
+
+$LEVEL_BLOCKS_33
+// Title of level 33 of campaign "blocks"
+§en:A Slithery Affair
+§de:Eine rutschige Angelegenheit
+
+$LEVEL_BLOCKS_34
+// Title of level 34 of campaign "blocks"
+§en:The Ice Palace
+§de:Der Eispalast
+
+$LEVEL_BLOCKS_35
+// Title of level 35 of campaign "blocks"
+§en:Bomb Curling
+§de:Bomben-Curling
+
+$LEVEL_BLOCKS_36
+// Title of level 36 of campaign "blocks"
+§en:The Eye of Terror
+§de:Das Auge des Schreckens
+
+$LEVEL_BLOCKS_37
+// Title of level 37 of campaign "blocks"
+§en:Escaping
+§de:Die Flucht
+
+$LEVEL_BLOCKS_38
+// Title of level 38 of campaign "blocks"
+§en:Hang on!
+§de:Durchhalten!
+
+$LEVEL_BLOCKS_39
+// Title of level 39 of campaign "blocks"
+§en:Space Station Sigma Star
+§de:Raumbasis Sigma-Stern
+
+$LEVEL_BLOCKS_40
+// Title of level 40 of campaign "blocks"
+§en:Electronic Chaos
+§de:Elektronisches Chaos
+
+$LEVEL_BLOCKS_41
+// Title of level 41 of campaign "blocks"
+§en:The Code
+§de:Der Code
+
+$LEVEL_BLOCKS_42
+// Title of level 42 of campaign "blocks"
+§en:The Final
+§de:Das Finale
+
+// ********************************
+// CAMPAIGN TITLES AND DESCRIPTIONS
+// ********************************
+
+$CAMPAIGN_TITLE_BLOCKS
+// Title of campaign "blocks"
+§en:Blocks
+§de:Blocks
+
+$CAMPAIGN_DESCRIPTION_BLOCKS
+// Description of campaign "blocks"
+§en:The official Blocks levels. You should play this campaign first.
+§de:Die offiziellen Blocks-Levels. Du solltest diese Kampagne zuerst spielen.
+
+// *****
+// HINTS
+// *****
+// ATTENTION: Hint texts may not exceed a certain length (that can't be expressed
+// ========== in number of characters). The very first hint, in German, is just
+//            as long as a hint text can be without being displayed off the screen.
+
+$HINT_BLOCKS_01_01
+// Hint text 01 for level 01 of campaign "blocks"
+§en:Welcome to Blocks!
+In order to solve each level, a certain number of diamonds need to be collected. When you collect the last diamond, the exit appears, which you have to reach.
+The blue blocks fall down, the brown boxes don't. You can push them simply by walking against them. You can also push multiple blocks/boxes in a row.
+Grass stops blocks and boxes, but you can collect it to make the way free.
+// --------------------------------------------------------------------------------
+§de:Herzlich Willkommen zu Blocks!
+Ziel jedes Levels ist es, die benötigte Anzahl von Diamanten einzusammeln und dann den Ausgang zu erreichen, der beim Einsammeln des letzten Diamanten erscheint.
+Die blauen Blöcke fallen nach unten, die braunen Kisten nicht. Beide kannst du verschieben, indem du einfach gegen sie läufst. Du kannst auch mehrere Blöcke und Kisten in einer Reihe schieben.
+Das Gras hält Blöcke und Kisten auf. Du kannst es einsammeln, um den Weg freizumachen.
+
+$HINT_BLOCKS_02_01
+// Hint text 01 for level 02 of campaign "blocks"
+§en:The wall down there doesn't look particularly stable ...
+You plant a bomb by holding down Shift and then pressing the arrow key for the desired direction at the same time. The place where you want to plant the bomb has to be free, of course. Bombs can be pushed once lit up. You can also put a bomb down (without lighting it up) by pressing Ctrl and an arrow key.
+// --------------------------------------------------------------------------------
+§de:Die Mauer da unten sieht nicht gerade stabil aus ...
+Du legst eine Bombe, indem du Shift gedrückt hältst und dann die Pfeiltaste für die Richtung drückst, in die du die Bombe legen willst. Die Stelle, ab die du die Bombe legen möchtest, muss natürlich frei sein. Angezündete Bomben kannst du auch noch wegschieben.
+Um eine Bombe abzulegen, ohne sie anzuzünden, halte Strg gedrückt, und drücke dann die entsprechende Pfeiltaste.
+
+$HINT_BLOCKS_02_02
+// Hint text 02 for level 02 of campaign "blocks"
+§en:In this level, you can collect bombs.
+Bombs destroy blocks, boxes, grass and damaged walls as well as yourself in the surrounding 3x3 fields. Always use bombs with care and don't waste them!
+
+You will also encounter electric machines, like the teleporter above you. They won't work until you find the electricity switch.
+// --------------------------------------------------------------------------------
+§de:In diesem Level kannst du Bomben einsammeln.
+Blöcke, Kisten, Gras, brüchige Mauern und du selbst können weggesprengt werden. Die Sprengwirkung ist auf die umliegenden 3x3 Felder begrenzt. Setze die Bomben vorsichtig und sparsam ein!
+
+Außerdem findest du hier elektrische Maschinen, wie zum Beispiel den Teleporter über dir. Sie funktionieren aber erst, wenn du den Strom einschaltest.
+
+$HINT_BLOCKS_02_03
+// Hint text 03 for level 02 of campaign "blocks"
+§en:This is an electricity switch. Use it to activate/deactivate electricity in this level. With electricity switched on, you can step onto the teleporter platform, and the conveyor belt will start working.
+// --------------------------------------------------------------------------------
+§de:Dies ist ein Stromschalter. Betätige ihn, um den Strom im Level ein- oder auszuschalten. Mit eingeschaltetem Strom kannst du nun den Teleporter benutzen, außerdem springt das Fließband an.
+
+$HINT_BLOCKS_03_01
+// Hint text 01 for level 03 of campaign "blocks"
+§en:Well, at least the weather is better now, but this place looks very confusing!
+// --------------------------------------------------------------------------------
+§de:Naja, zumindest ist das Wetter jetzt besser. Dafür sieht es hier aber sehr verwirrend aus!
+
+$HINT_BLOCKS_04_01
+// Hint text 01 for level 04 of campaign "blocks"
+§en:There are two types of teleporters. The blue ones can teleport all kinds of objects, except the player. This doesn't apply to the purple teleporters - they can also be used by the player.
+// --------------------------------------------------------------------------------
+§de:Es gibt zwei Arten von Teleportern. Die blauen können alle Objekte außer der Spielfigur teleportieren. Die violetten können auch von der Spielfigur benutzt werden.
+
+$HINT_BLOCKS_04_02
+// Hint text 02 for level 04 of campaign "blocks"
+§en:That thing down there is a diamond machine. It can transform a block (not a box!) into a diamond. For this to be done, the block must rest on the diamond machine, and electricity needs to be switched on.
+// --------------------------------------------------------------------------------
+§de:Das da unten ist eine Diamantenmaschine. Sie kann einen Block (keine Kiste!) in einen Diamanten umwandeln. Dazu muss der Block direkt auf der Diamantenmaschine liegen, und der Strom muss eingeschaltet sein.
+
+$HINT_BLOCKS_04_03
+// Hint text 03 for level 04 of campaign "blocks"
+§en:Good luck!
+// --------------------------------------------------------------------------------
+§de:Viel Glück!
+
+$HINT_BLOCKS_05_01
+// Hint text 01 for level 05 of campaign "blocks"
+§en:This is a laser. It vaporizes (nearly) everything that dares to come into its way - as long as electricity is on. The legend tells that there are some objects that can resist the laser beam, and that they have some kind of metallic shield around them ...
+// --------------------------------------------------------------------------------
+§de:Dies ist ein Laser. Er verdampft (fast) alles, was ihm in den Weg kommt - solange der Strom eingeschaltet ist. Es soll aber auch einige Objekte geben, die dem Strahl widerstehen können. Ein solches Objekt erkennt man angeblich daran, dass es einen metallenen Schutzschild besitzt ...
+
+$HINT_BLOCKS_05_02
+// Hint text 02 for level 05 of campaign "blocks"
+§en:In this level, there are multiple characters. To change the active character, either press the Tab key or click at the character that you want to control.
+This level can only be solved with "teamwork"!
+// --------------------------------------------------------------------------------
+§de:In diesem Level gibt es mehrere Spielfiguren. Um die Spielfigur zu wechseln, drücke Tab oder klicke die entsprechende Spielfigur mit der Maus an.
+Dieser Level kann nur mit "Teamwork" gelöst werden.
+
+$HINT_BLOCKS_06_01
+// Hint text 01 for level 06 of campaign "blocks"
+§en:You can use the mirror to reflect laser beams. By the way, the laser emitters are not well protected against their own beams, also they don't like bombs very much ...
+// --------------------------------------------------------------------------------
+§de:Den Spiegel kannst du benutzen, um Laserstrahlen abzulenken. Die Laser sind übrigens selbst weder gegen Laserstrahlen noch gegen Bomben geschützt ...
+
+$HINT_BLOCKS_07_01
+// Hint text 01 for level 07 of campaign "blocks"
+§en:The hotel on your left side allows you to save your progress in this level. Just walk into the hotel and press the Return/Enter key.
+If you wish to restart from the hotel later, press F10 or click on the according button in the menu.
+// --------------------------------------------------------------------------------
+§de:Das Hotel links von dir erlaubt es dir, deinen Spielstand zwischenzuspeichern. Gehe dazu zum Hotel, und drücke dann die Return/Enter-Taste.
+Um später wieder von dort aus zu starten, drücke F10, oder klicke den entsprechenden Button im Menü an.
+
+$HINT_BLOCKS_08_01
+// Hint text 01 for level 08 of campaign "blocks"
+§en:Bombs can - just like blocks or boxes - be teleported by the blue teleporters. Also remember that you can put a bomb down without lighting it up by pressing Ctrl + arrow key.
+// --------------------------------------------------------------------------------
+§de:Bomben können - wie Blöcke oder Kisten - von den blauen Teleportern teleportiert werden. Denke daran, dass du eine Bombe auch ablegen kannst, ohne sie anzuzünden, indem du Strg + Pfeiltaste drückst.
+
+$HINT_BLOCKS_10_01
+// Hint text 01 for level 10 of campaign "blocks"
+§en:Look at the level carefully as long as the sun is still shining ...
+In the darkness, you might get lost!
+// --------------------------------------------------------------------------------
+§de:Schau dir den Level gut an, so lange die Sonne noch scheint ...
+In der Dunkelheit kann es schnell unübersichtlich werden!
+
+$HINT_BLOCKS_12_01
+// Hint text 01 for level 12 of campaign "blocks"
+§en:Did you know? Fire can be extinguished by water - no matter if in liquid or solid state.
+// --------------------------------------------------------------------------------
+§de:Man munkelt, Feuer könne mit Wasser gelöscht werden - egal ob in flüssiger oder fester Form.
+
+$HINT_BLOCKS_13_01
+// Hint text 01 for level 13 of campaign "blocks"
+§en:Here we have platforms moving on rails. They are the only way to traverse the abyss. The platforms only work when electricity is on.
+
+In order to avoid falling down, you should better step on the platforms a bit earlier. This way, chances of surviving this trip are better.
+// --------------------------------------------------------------------------------
+§de:Hier gibt es Plattformen, die auf Schienen fahren. Sie sind der einzige Weg, den Abgrund zu überwinden. Die Plattformen benötigen Strom zum Fahren.
+
+Um Abstürze zu vermeiden, solltest du lieber immer etwas früher auf eine Plattform steigen, dann klappt es eher als wenn du zu spät draufsteigst.
+
+$HINT_BLOCKS_13_02
+// Hint text 02 for level 13 of campaign "blocks"
+§en:You expected something interesting here, didn't you?
+// --------------------------------------------------------------------------------
+§de:Hast du hier etwas Interessantes erwartet?
+
+$HINT_BLOCKS_14_01
+// Hint text 01 for level 14 of campaign "blocks"
+§en:You can temporarily use the box as a shield, but you could even try to use it more than once. Also remember that laser emitters can destroy each other!
+// --------------------------------------------------------------------------------
+§de:Die Kiste kannst du kurzzeitig als Schutzschild benutzen. Du könntest auch versuchen, sie mehr als nur einmal zu verwenden. Denke auch daran, dass Laser sich gegenseitig zerstören können!
+
+$HINT_BLOCKS_16_01
+// Hint text 01 for level 16 of campaign "blocks"
+§en:You are the formidable master thief Smi Ley. Your mission: to steal the precious crown jewels of King Alfonso the seventh. On your way to the central treasure chamber, you'll have to overcome three major security barriers. Then you'll have to get to the exit.
+
+Good luck!
+// --------------------------------------------------------------------------------
+§de:Du bist der gefürchtete Meisterdieb Smi Ley. Deine Mission: Reiße dir die Kronjuwelen des Königs Alfonso dem Siebten unter den Nagel. Um in die zentrale Schatzkammer zu gelangen, wirst du drei Sicherheitslinien durchbrechen müssen. Danach musst du unbeschadet den Ausgang erreichen.
+
+Viel Glück!
+
+$HINT_BLOCKS_17_01
+// Hint text 01 for level 17 of campaign "blocks"
+§en:ATTENTION!
+
+These insects are in a bad mood and haven't had breakfast yet. This is why they are very aggressive and hungry. Please stay away from them.
+
+The Mayor
+// --------------------------------------------------------------------------------
+§de:ACHTUNG!
+
+Diese Insekten haben schlecht geschlafen und nicht gefrühstückt. Sie sind daher äußerst aggressiv und hungrig. Bitte halten Sie sich von ihnen fern. Eltern haften für ihre Kinder!
+
+Der Bürgermeister
+
+$HINT_BLOCKS_18_01
+// Hint text 01 for level 18 of campaign "blocks"
+§en:The switch for opening the gray door must be hidden somewhere around ...
+// --------------------------------------------------------------------------------
+§de:Der Schalter zum Öffnen des grauen Tors muss hier irgendwo versteckt sein ...
+
+$HINT_BLOCKS_20_01
+// Hint text 01 for level 20 of campaign "blocks"
+§en:Elevator to the second floor:
+Press this button!
+// --------------------------------------------------------------------------------
+§de:Aufzug zum ersten Stock:
+Hier drücken!
+
+$HINT_BLOCKS_20_02
+// Hint text 02 for level 20 of campaign "blocks"
+§en:Welcome to the Place That Sends You Mad!
+
+Your task is really simple:
+
+It is just an administrative formality. You have to obtain the Permit A38 (in the form of a diamond).
+
+All the best!
+// --------------------------------------------------------------------------------
+§de:Willkommen im Haus, das Verrückte macht!
+
+Ihre Aufgabe ist ganz simpel:
+
+Es handelt sich lediglich um eine Formalität verwaltungstechnischer Art. Besorgen Sie den Passierschein A38 (in Form eines Diamanten)!
+
+Viel Erfolg!
+
+$HINT_BLOCKS_20_03
+// Hint text 03 for level 20 of campaign "blocks"
+§en:There you got your permit!
+And now get out of here!
+// --------------------------------------------------------------------------------
+§de:Da haben sie Ihren Passierschein!
+Und nun verschwinden Sie!
+
+$HINT_BLOCKS_20_04
+// Hint text 04 for level 20 of campaign "blocks"
+§en:Emergency Exit
+// --------------------------------------------------------------------------------
+§de:Notausgang
+
+$HINT_BLOCKS_20_05
+// Hint text 05 for level 20 of campaign "blocks"
+§en:Elevator to the first floor:
+Press this button!
+// --------------------------------------------------------------------------------
+§de:Aufzug zum Erdgeschoss:
+Hier drücken!
+
+$HINT_BLOCKS_22_01
+// Hint text 01 for level 22 of campaign "blocks"
+§en:I wonder if these insects could be useful to us in any way. One thing is clear: They don't taste very good.
+// --------------------------------------------------------------------------------
+§de:Diese Insekten müssen doch für irgendetwas zu gebrauchen sein ... Gut schmecken tun sie jedenfalls nicht.
+
+$HINT_BLOCKS_23_01
+// Hint text 01 for level 23 of campaign "blocks"
+§en:"Welcome to the Machine!"
+
+This diamond factory type DF1337-Z has two inputs which can be used to program it. When you are done, enter the bunker and turn on electricity.
+// --------------------------------------------------------------------------------
+§de:"Welcome to the Machine!"
+
+Diese Diamantfabrik vom Typ DF1337-Z besitzt zwei Eingänge, über die sie programmiert werden kann. Wenn du fertig bist, begib dich in den Schutzraum und aktiviere den Strom.
+
+$HINT_BLOCKS_24_01
+// Hint text 01 for level 24 of campaign "blocks"
+§en:These 42 mm cannons can be both helpful and dangerous ...
+// --------------------------------------------------------------------------------
+§de:Diese 42 mm-Kanonen können sowohl hilfreich als auch gefährlich sein ...
+
+$HINT_BLOCKS_27_01
+// Hint text 01 for level 27 of campaign "blocks"
+§en:Welcome to our dumping ground for radioactive toxic waste! We wish you a pleasant stay.
+// --------------------------------------------------------------------------------
+§de:Willkommen auf der städtischen Deponie für radioaktiven Giftmüll! Wir wünschen Ihnen einen angenehmen Aufenthalt.
+
+$HINT_BLOCKS_32_01
+// Hint text 01 for level 32 of campaign "blocks"
+§en:The House of the Rising Sun
+// --------------------------------------------------------------------------------
+§de:Das Haus der aufgehenden Sonne
+
+$HINT_BLOCKS_32_02
+// Hint text 02 for level 32 of campaign "blocks"
+§en:The House of the Devils
+// --------------------------------------------------------------------------------
+§de:Das Haus der Teufel
+
+$HINT_BLOCKS_32_03
+// Hint text 03 for level 32 of campaign "blocks"
+§en:The House of Decision
+// --------------------------------------------------------------------------------
+§de:Das Haus der Entscheidung
+
+$HINT_BLOCKS_32_04
+// Hint text 04 for level 32 of campaign "blocks"
+§en:The Abandoned Warehouse
+// --------------------------------------------------------------------------------
+§de:Das verlassene Lagerhaus
+
+$HINT_BLOCKS_32_05
+// Hint text 05 for level 32 of campaign "blocks"
+§en:Delivery to the Devil Family
+§deLieferung für Familie Teufel
+
+$HINT_BLOCKS_33_01
+// Hint text 01 for level 33 of campaign "blocks"
+§en:ATTENTION! Clear ice!
+// --------------------------------------------------------------------------------
+§de:VORSICHT! Glatteis!
+
+$HINT_BLOCKS_39_01
+// Hint text 01 for level 39 of campaign "blocks"
+§en:Welcome to the Space Station Sigma Star!
+You will have to master your last, most difficult quests here.
+// --------------------------------------------------------------------------------
+§de:Willkommen auf der Raumbasis Sigma-Stern!
+Hier wirst du dich den letzten, härtesten Prüfungen stellen müssen.
+
+$HINT_BLOCKS_39_02
+// Hint text 02 for level 39 of campaign "blocks"
+§en:Welcome to Engineering! Play around with the switches and gates to make yourself familiar with them.
+// --------------------------------------------------------------------------------
+§de:Willkommen im Maschinenraum! Spiele ein bisschen mit den Schaltern und den logischen Gattern herum, um dich mit ihnen vertraut zu machen.
+
+$HINT_BLOCKS_41_01
+// Hint text 01 for level 41 of campaign "blocks"
+§en:The Captain lost the security code for the airlock. You have to find it in order to leave this space station.
+// --------------------------------------------------------------------------------
+§de:Der Captain hat den Sicherheitscode für die Luftschleuse verschlampt. Um diese Raumstation zu verlassen, musst du ihn unbedingt finden.
+
+$HINT_BLOCKS_41_02
+// Hint text 02 for level 41 of campaign "blocks".
+// ATTENTION: All words must begin with the first letter of the word "zero" or "one"
+// ========== in the given language, and in the correct order. This is a binary code!
+//            So, in English, all words begin with "z" or "o".
+//            The binary code is "01110101".
+§en:Zappa on one occasion zapped onto zipline organisms.
+// --------------------------------------------------------------------------------
+§de:Neun Elefanten erfanden einen nicht elementaren nächtlichen Eierkuchen.
+
+// *************
+// DO NOT MODIFY
+// *************
+$END_OF_FILE
+// ***********

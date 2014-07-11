@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Dialog>
+	<Button name="Layer" x="10" y="405" w="65" h="20">
+		<Title></Title>
+		<ToolTip>§de:Aktiven Layer wechseln§en:Change active layer</ToolTip>
+	</Button>
+	<StaticText name="NumDiamondsNeeded" x="90" y="409">
+		<Text></Text>
+	</StaticText>
+	<Button name="NumDiamondsNeeded-" x="195" y="405" w="20" h="20">
+		<Title>-</Title>
+	</Button>
+	<Button name="NumDiamondsNeeded+" x="215" y="405" w="20" h="20">
+		<Title>+</Title>
+	</Button>
+	<CheckBox name="ElectricityOn" x="250" y="408" w="14" h="14">
+		<Title>$LE_ELECTRICITY</Title>
+	</CheckBox>
+	<Button name="Refresh" x="365" y="405" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_RELOAD_GRAPHICS</ToolTip>
+		<Image u="80" v="40">icons.png</Image>
+	</Button>
+	<Button name="Undo" x="390" y="405" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_UNDO</ToolTip>
+		<Image u="0" v="40">icons.png</Image>
+	</Button>
+	<Button name="Redo" x="415" y="405" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_REDO</ToolTip>
+		<Image u="40" v="40">icons.png</Image>
+	</Button>
+	<Button name="ShowSettings" x="445" y="405" w="100" h="20">
+		<Title>$LE_SETTINGS</Title>
+	</Button>
+	<Button name="ShowMenu" x="550" y="405" w="80" h="20">
+		<Title>$LE_MENU</Title>
+	</Button>
+	<RadioButton name="Cat0" x="10" y="430" w="65" h="15">
+		<Title>$LE_CATEGORY1</Title>
+		<Group>0</Group>
+		<ButtonLook />
+		<Font>tooltip_font.xml</Font>
+	</RadioButton>
+	<RadioButton name="Cat1" x="76" y="430" w="65" h="15">
+		<Title>$LE_CATEGORY2</Title>
+		<Group>0</Group>
+		<ButtonLook />
+		<Font>tooltip_font.xml</Font>
+	</RadioButton>
+	<RadioButton name="Cat2" x="10" y="446" w="65" h="15">
+		<Title>$LE_CATEGORY3</Title>
+		<Group>0</Group>
+		<ButtonLook />
+		<Font>tooltip_font.xml</Font>
+	</RadioButton>
+	<RadioButton name="Cat3" x="76" y="446" w="65" h="15">
+		<Title>$LE_CATEGORY4</Title>
+		<Group>0</Group>
+		<ButtonLook />
+		<Font>tooltip_font.xml</Font>
+	</RadioButton>
+	<RadioButton name="Cat4" x="10" y="462" w="65" h="15">
+		<Title>$LE_CATEGORY5</Title>
+		<Group>0</Group>
+		<ButtonLook />
+		<Font>tooltip_font.xml</Font>
+	</RadioButton>
+	<RadioButton name="Mode0" x="150" y="430" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE1</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="0" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode1" x="150" y="452" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE2</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="40" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode2" x="172" y="430" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE3</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="80" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode3" x="172" y="452" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE4</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="120" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode4" x="194" y="430" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE5</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="160" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode5" x="194" y="452" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE6</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="200" v="0">icons.png</Image>
+	</RadioButton>
+	<RadioButton name="Mode6" x="216" y="430" w="20" h="20">
+		<Title></Title>
+		<ToolTip>$LE_MODE7</ToolTip>
+		<Group>1</Group>
+		<ButtonLook />
+		<Image u="120" v="40">icons.png</Image>
+	</RadioButton>
+	<Element name="MenuPane" w="640" h="480">
+		<Hidden />
+		<Window name="Menu" w="320" h="285">
+			<Title>$LE_MENU</Title>
+			<Center />
+			<StaticText name="Static1" x="10" y="30">
+				<Text>$LE_MENU_FILENAME</Text>
+			</StaticText>
+			<EditBox name="Filename" x="10" y="50" w="275" h="20">
+				<Text></Text>
+			</EditBox>
+			<Button name="Search" x="290" y="50" w="20" h="20">
+				<Title>...</Title>
+			</Button>
+			<Button name="Load" x="10" y="75" w="145" h="30">
+				<Title>$LE_MENU_LOAD</Title>
+			</Button>
+			<Button name="Save" x="165" y="75" w="145" h="30">
+				<Title>$LE_MENU_SAVE</Title>
+			</Button>
+			<Button name="New" x="10" y="110" w="145" h="30">
+				<Title>$LE_MENU_NEW</Title>
+			</Button>
+			<Button name="Play" x="10" y="150" w="145" h="30">
+				<Title>$LE_MENU_PLAY</Title>
+			</Button>
+			<Button name="Help" x="165" y="150" w="145" h="30">
+				<Title>$HELP</Title>
+			</Button>
+			<Button name="Clear" x="10" y="190" w="145" h="30">
+				<Title>$LE_MENU_CLEAR</Title>
+			</Button>
+			<Button name="OK" x="10" y="240" w="145" h="30">
+				<Title>$OK</Title>
+			</Button>
+			<Button name="Quit" x="165" y="240" w="145" h="30">
+				<Title>$LE_MENU_QUIT</Title>
+			</Button>
+		</Window>
+		<Button name="Quit" x="570" y="5" w="70" h="70">
+			<ExtendedStyle />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_QUIT</Title>
+			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+		</Button>
+	</Element>
+	<Element name="SettingsPane" w="640" h="480">
+		<Hidden />
+		<Window name="Settings" w="390" h="455">
+			<Title>$LE_SETTINGS</Title>
+			<Center />
+			<StaticText name="Static6" x="10" y="30">
+				<Text>$LE_SETTINGS_TITLE</Text>
+			</StaticText>
+			<EditBox name="Title" x="10" y="50" w="370" h="20">
+				<TabStop id="0" />
+				<Text></Text>
+			</EditBox>
+			<CheckBox name="NightVision" x="10" y="80" w="14" h="14">
+				<Title>$LE_SETTINGS_NIGHT_VISION</Title>
+			</CheckBox>
+			<CheckBox name="Rain" x="140" y="80" w="14" h="14">
+				<Title>$LE_SETTINGS_RAIN</Title>
+			</CheckBox>
+			<CheckBox name="Thunderstorm" x="140" y="100" w="14" h="14">
+				<Title>$LE_SETTINGS_THUNDERSTORM</Title>
+			</CheckBox>
+			<CheckBox name="Clouds" x="270" y="80" w="14" h="14">
+				<Title>$LE_SETTINGS_CLOUDS</Title>
+			</CheckBox>
+			<CheckBox name="Snow" x="270" y="100" w="14" h="14">
+				<Title>$LE_SETTINGS_SNOW</Title>
+			</CheckBox>
+			<StaticText name="Static1" x="10" y="110">
+				<Text>$LE_SETTINGS_LIGHT_COLOR</Text>
+			</StaticText>
+			<StaticText name="Static2" x="10" y="130"><Text>$LE_SETTINGS_RED</Text></StaticText>
+			<StaticText name="LightColorRValue" x="350" y="130"><Text></Text></StaticText>
+			<ScrollBar name="LightColorR" x="60" y="130" w="280" h="16"><Receiver>LightColorRValue</Receiver><AreaSize>275</AreaSize><PageSize>20</PageSize></ScrollBar>
+			<StaticText name="Static3" x="10" y="150"><Text>$LE_SETTINGS_GREEN</Text></StaticText>
+			<StaticText name="LightColorGValue" x="350" y="150"><Text></Text></StaticText>
+			<ScrollBar name="LightColorG" x="60" y="150" w="280" h="16"><Receiver>LightColorGValue</Receiver><AreaSize>275</AreaSize><PageSize>20</PageSize></ScrollBar>
+			<StaticText name="Static4" x="10" y="170"><Text>$LE_SETTINGS_BLUE</Text></StaticText>
+			<StaticText name="LightColorBValue" x="350" y="170"><Text></Text></StaticText>
+			<ScrollBar name="LightColorB" x="60" y="170" w="280" h="16"><Receiver>LightColorBValue</Receiver><AreaSize>275</AreaSize><PageSize>20</PageSize></ScrollBar>
+			<StaticText name="Static5" x="10" y="200">
+				<Text>$LE_SETTINGS_MUSIC</Text>
+			</StaticText>
+			<EditBox name="MusicFilename" x="10" y="220" w="370" h="20">
+				<TabStop id="1" />
+				<Text></Text>
+			</EditBox>
+			<StaticText name="Static6" x="10" y="250" w="200" h="30">
+				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
+			</StaticText>
+			<StaticText name="Static7" x="10" y="275"><Text>tileset.xml:</Text></StaticText>
+			<StaticText name="Static8" x="10" y="297"><Text>sprites.png:</Text></StaticText>
+			<StaticText name="Static9" x="10" y="319"><Text>particles.png:</Text></StaticText>
+			<StaticText name="Static10" x="10" y="341"><Text>background.png:</Text></StaticText>
+			<StaticText name="Static15" x="10" y="363"><Text>rain.png:</Text></StaticText>
+			<StaticText name="Static17" x="10" y="385"><Text>snow.png:</Text></StaticText>
+			<StaticText name="Static11" x="215" y="275"><Text>hint.png:</Text></StaticText>
+			<StaticText name="Static12" x="215" y="297"><Text>hintfont.xml:</Text></StaticText>
+			<StaticText name="Static13" x="215" y="319"><Text>noise.png:</Text></StaticText>
+			<StaticText name="Static14" x="215" y="341"><Text>shine.png:</Text></StaticText>
+			<StaticText name="Static16" x="215" y="363"><Text>clouds.png:</Text></StaticText>
+			<EditBox name="Skin0" x="130" y="275" w="70" h="20"><TabStop id="2" /><Text></Text></EditBox>
+			<EditBox name="Skin1" x="130" y="297" w="70" h="20"><TabStop id="3" /><Text></Text></EditBox>
+			<EditBox name="Skin2" x="130" y="319" w="70" h="20"><TabStop id="4" /><Text></Text></EditBox>
+			<EditBox name="Skin3" x="130" y="341" w="70" h="20"><TabStop id="5" /><Text></Text></EditBox>
+			<EditBox name="Skin8" x="130" y="363" w="70" h="20"><TabStop id="6" /><Text></Text></EditBox>
+			<EditBox name="Skin10" x="130" y="385" w="70" h="20"><TabStop id="7" /><Text></Text></EditBox>
+			<EditBox name="Skin4" x="310" y="275" w="70" h="20"><TabStop id="8" /><Text></Text></EditBox>
+			<EditBox name="Skin5" x="310" y="297" w="70" h="20"><TabStop id="9" /><Text></Text></EditBox>
+			<EditBox name="Skin6" x="310" y="319" w="70" h="20"><TabStop id="10" /><Text></Text></EditBox>
+			<EditBox name="Skin7" x="310" y="341" w="70" h="20"><TabStop id="11" /><Text></Text></EditBox>
+			<EditBox name="Skin9" x="310" y="363" w="70" h="20"><TabStop id="12" /><Text></Text></EditBox>
+			<Button name="OK" x="10" y="415" w="135" h="30">
+				<Title>$OK</Title>
+			</Button>
+			<Button name="Cancel" x="155" y="415" w="135" h="30">
+				<Title>$CANCEL</Title>
+			</Button>
+		</Window>
+	</Element>
+	<Element name="EditHintPane" w="640" h="480">
+		<Hidden />
+		<Window name="EditHint" y="270" w="400" h="200">
+			<Title>$LE_EDIT_HINT</Title>
+			<HCenter />
+			<MultiLineEditBox name="Text" x="10" y="30" w="380" h="120"></MultiLineEditBox>
+			<Button name="OK" x="10" y="160" w="135" h="30">
+				<Title>$OK</Title>
+			</Button>
+			<Button name="Cancel" x="255" y="160" w="135" h="30">
+				<Title>$CANCEL</Title>
+			</Button>
+		</Window>
+	</Element>
+	<Element name="MessageBoxPane" w="640" h="480">
+		<Hidden />
+		<Window name="MessageBox" w="420" h="120">
+			<Title>$LE_MSG_CONFIRM</Title>
+			<Center />
+			<StaticText name="Text1" x="10" y="30">
+				<Hidden />
+				<Text>$LE_MSG_TEXT1</Text>
+			</StaticText>
+			<StaticText name="Text2" x="10" y="30">
+				<Hidden />
+				<Text>$LE_MSG_TEXT2</Text>
+			</StaticText>
+			<Button name="Yes" x="10" y="80" w="135" h="30">
+				<Title>$YES</Title>
+			</Button>
+			<Button name="No" x="275" y="80" w="135" h="30">
+				<Title>$NO</Title>
+			</Button>
+		</Window>
+	</Element>
+	<Element name="SearchPane" w="640" h="480">
+		<Hidden />
+		<Window name="Search" w="300" h="300">
+			<Title>$SEARCH</Title>
+			<Center />
+			<Button name="Select" x="10" y="260" w="135" h="30">
+				<Title>$SELECT</Title>
+			</Button>
+			<Button name="Cancel" x="155" y="260" w="135" h="30">
+				<Title>$CANCEL</Title>
+			</Button>
+			<ListBox name="Files" x="10" y="30" w="280" h="220">
+				<SubmitButton>Select</SubmitButton>
+			</ListBox>
+		</Window>
+	</Element>
+</Dialog>

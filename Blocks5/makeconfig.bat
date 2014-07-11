@@ -1,0 +1,1 @@
+IF NOT EXIST config.xml COPY _config_%1.xml config.xml
