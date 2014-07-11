@@ -1,0 +1,74 @@
+<?xml version="1.0" ?><Level title="§en:Unnamed Level§de:Unbenannter Level" skin0="" skin1="" skin2="" skin3="" skin4="" skin5="" skin6="" skin7="" skin8="" skin9="" skin10="" width="40" height="25" numLayers="2" numDiamondsNeeded="10" electricityOn="0" nightVision="0" raining="0" clouds="0" snowing="0" thunderstorm="0" lightColorR="255" lightColorG="255" lightColorB="255" musicFilename=""><Layer><Row>........................................</Row><Row>.NNN.NNNNNNNNNNNNNNNN...NNNN.NN.NNN.NNN.</Row><Row>.NNN..NNNNNNNNNNNNNNNNN.NNNN.NN.NNN.NNN.</Row><Row>.NNNNNNNNNNNNNNNNNNNNNN.N..NNN..NNNNNNN.</Row><Row>.......NN......N..NNNNN.NNNNNNN...N.....</Row><Row>.NNNNN.NN.NN.NNNN.NNNNNNNNNNNNNNNNNNNNN.</Row><Row>.NNNNN.NNNNNNNNNN.NNNNNNNN.NNNNN....NNN.</Row><Row>.NNNNNNNN.NN.NNNN.NNNNNNNN.NNN.NNNN.NNN.</Row><Row>.......NN.NN.NNNN.NNNNNNNN.NNN.NNNN.NNN.</Row><Row>..................NNNNNNNN..............</Row><Row>.......0111112.NN.NNNNNNNNN.01111111111.</Row><Row>..012..3444445.NNNNNNNNNNNNAd4444444444.</Row><Row>..345..d444445.NN.NNNNNNNNNN44444444444.</Row><Row>..345.34444445.NN.NNN.......b44444444444</Row><Row>..345.34444445.NN.NNN.NNNNN.344444444444</Row><Row>..345..b444445....NNN.NNNNN.344444444444</Row><Row>..345..344444cANNNNNN.NNNNN.3444AAAA4444</Row><Row>..345..3444444NNNNNNN.NNNNN.3444A..A4444</Row><Row>..345..344444a....NNN.NNNNN.3444A..A444.</Row><Row>..345..344a778.NN.NNNNNNNNN.3444AAAA444.</Row><Row>.......3445....NN.NNN...N...34444444444.</Row><Row>.......3445....NN.NNNNNNNNN.34444444444.</Row><Row>...7...3445....NNNNNN.NNNNN.34444444444.</Row><Row>.......3445....NN.NNN.NNNNN.34444444444.</Row><Row>........................................</Row></Layer><Layer><Row>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</Row><Row>A   M              KPQQRK   M  M   M   A</Row><Row>A   M              LU  WL   M  M   M   A</Row><Row>A                  LU  WLMM   MM   n   A</Row><Row>AMMMMMM  MMMMMM MM JZ  jJ      MMM MMMMA</Row><Row>A     M  M  M    M                 n   A</Row><Row>A     M   n      M        MMM M MMMM   A</Row><Row>A        M  M    M        M   M    M   A</Row><Row>A     M  M  M    M        M   M    M   A</Row><Row>AAAAAAAAAAAAAAAMMM        MAAAAAAAAAAAAA</Row><Row>A     A       A  M         A           M</Row><Row>A M M A       A            A           M</Row><Row>A     A       A  M                     M</Row><Row>A             A  M   MMMMMMA           M</Row><Row>A M M         A  M   M     A           M</Row><Row>A     A       AMMM   M     A           M</Row><Row>A     A       A      M     A           M</Row><Row>A M M A              M     A           M</Row><Row>A     A       AMMM   M     A           M</Row><Row>A     A       A  M         A           M</Row><Row>A MMM A       A  M   MMM MMA           M</Row><Row>A M M A       A  M         A           M</Row><Row>A M M A       A      M     A           M</Row><Row>A     A       A  M   M     A           M</Row><Row>AAAAAAAMMMMMMMAAAAAAAAAAAAAAMMMMMMMMMMMM</Row></Layer><Object type="ElectricityPanel" x="27" y="1" subType="0" /><Object type="ElectricityPanel" x="27" y="2" subType="1" /><Object type="Barrage2Panel" x="25" y="2" subType="1" color="1" /><Object type="Barrage2Panel" x="36" y="3" subType="1" color="5" /><Object type="Barrage2Panel" x="36" y="5" subType="1" color="5" /><Object type="Barrage2Panel" x="22" y="19" subType="1" color="2" /><Object type="Barrage2Panel" x="15" y="20" subType="1" color="4" /><Object type="Barrage2Panel" x="22" y="21" subType="1" color="3" /><Object type="Arrow" x="4" y="3" dir="1" /><Object type="Arrow" x="15" y="4" dir="0" /><Object type="Arrow" x="28" y="12" dir="3" /><Object type="Arrow" x="6" y="13" dir="3" /><Object type="Arrow" x="6" y="14" dir="1" /><Object type="Arrow" x="21" y="21" dir="3" /><Object type="Exit" x="8" y="22" /><Object type="Teleporter" x="25" y="1" targetX="3" targetY="21" subType="0" /><Object type="Hint" x="29" y="1"><Text><![CDATA[§en:English Text
+§de:Ein lustiger Mann mit einem Vollbart spricht zu dir:
+
+"Och? Wat is dat denn?
+Bringt dat mir ein neues Mainboard oder vielleicht ne Monitor?"]]></Text></Object><Object type="Hint" x="3" y="1"><Text><![CDATA[§en:English Text
+§de:In diesem Raum riecht es irgendwie streng und in der Ecke sitzt jemand, der dich erschrocken anblickt:
+
+"He Sie!
+
+Wo kommen Sie denn plötzlich her?
+
+Sagen Sie mal: Lesen Sie zufällig Stuckrad-Barre?"]]></Text></Object><Object type="Hint" x="21" y="2"><Text><![CDATA[§en:English Text
+§de:Ein Mann in einem blauen Kittel spricht zu dir:
+
+"He!
+Was läufst du hier durch die Blumen?
+Du willst wohl ein paar hinter die Horchlöffel haben!"]]></Text></Object><Object type="Hint" x="28" y="3"><Text><![CDATA[§en:English Text
+§de:Willkommen in Klasse 8
+
+Dein neuer Sportlehrer Herr Vielhaber will gleich mal dein sportliches Können auf die Probe stellen:
+
+Eine Runde Hopserlauf gegen Igor Insekt!]]></Text></Object><Object type="Hint" x="33" y="5"><Text><![CDATA[§en:English Text
+§de:Hier gelangst du in Klasse 11
+
+Hoffentlich hast du in der 10 richtig gewählt.
+
+Was, wenn nicht?
+Tja, weiß keiner.]]></Text></Object><Object type="Teleporter" x="5" y="5" targetX="1" targetY="1" subType="0" /><Object type="Hint" x="10" y="5"><Text><![CDATA[§en:English Text
+§de:Ein dünner Mann springt von seinem Stuhl auf, lässt seine Zigarre fallen und flucht:
+
+"Scheiße!
+
+Jetz iss mir ad widder so ne Ömmes explodiert!"]]></Text></Object><Object type="Hint" x="18" y="5"><Text><![CDATA[§en:English Text
+§de:Dieser Trakt ist nur für Oberstufenschüler frei!
+
+Hinter diesem Tor absolvierst du die Klassen 12 und 13]]></Text></Object><Object type="Hint" x="29" y="6"><Text><![CDATA[§en:English Text
+§de:Hier gelangst du in die 7. Klasse
+
+Die wird dich weiter in deiner Schullaufbahn bringen.
+
+Mit deinem neuen Klassenlehrer Herrn de Jong schaffst du das schon.]]></Text></Object><Object type="Hint" x="31" y="6"><Text><![CDATA[§en:English Text
+§de:Hier gelangst du in die Klasse 10
+
+Am Ende dieser Klasse musst du eine Entscheidung über deine weitere Schullaufbahn in der Oberstufe treffen.
+
+Du darfst nur einmal wählen!
+Überlegs dir gut!]]></Text></Object><Object type="Fire" x="6" y="7" /><Object type="Hint" x="17" y="11"><Text><![CDATA[§en:English Text
+§de:Hier kommst du in die Klasse 5
+
+Herrn Fettweiß, deinen Klassenlehrer, hast du bis zum Ende der Klasse 6.
+
+Zur Belohnung für deine tolle Mitarbeit schenkt er dir die ersten beiden Punkte für dein Abi. 
+
+Außerdem wirst du dir den Weg in die nächste Klasse öffnen...]]></Text></Object><Object type="Hint" x="7" y="12"><Text><![CDATA[§en:English Text
+§de:Wenn du Bock hast, darfst du gerne noch ein paar Ründchen laufen.]]></Text></Object><Object type="Hint" x="27" y="12"><Text><![CDATA[§en:English Text
+§de:Liebe neue Schüler!
+
+Willkommen am Emil-Fischer-Gymnasium der Stadt Euskirchen!
+
+Zum erfolgreichen Bestehen der Abiturprüfung müsst ihr alle 9 Jahrgangstufen erfolgreich durchlaufen und dazu noch die Abiprüfung bestehen.
+
+Ich wünsche euch allen eine schöne und erfolgreiche Zeit an unserer Schule!
+
+Euer Karl Schaeben]]></Text></Object><Object type="Hint" x="21" y="19"><Text><![CDATA[§en:English Text
+§de:Du solltest bis hierhin alle Punkte beisammen haben, aber du musst noch in die mündliche Abiprüfung zu Frau Koenen.
+
+Ob du bestanden hast, erfährst du erst im Direktorenzimmer und hier kannst du dir deinen letzten Punkt fürs Abi abholen.
+
+Wenn du den letzten Punkt geholt hast, dann steht dir die Tür nach draußen offen.]]></Text></Object><Object type="Teleporter" x="3" y="21" targetX="25" targetY="1" subType="0" /><Object type="Hint" x="17" y="22"><Text><![CDATA[§en:English Text
+§de:Hier geht's in die Klasse 9
+
+Herr Berg, dein neuer Klassenlehrer gibt dir sehr anspruchsvolle Aufgaben. Doch die wirst du locker schaffen. Du hast schließlich schon in der Grundschule gelernt, wie man mit Holzbuntstiften umgeht.
+
+Doch zu Beginn gibt es gleich einen Direktorenwechsel.]]></Text></Object><Object type="Grass" x="20" y="1" /><Object type="Grass" x="21" y="1" /><Object type="Grass" x="22" y="1" /><Object type="Grass" x="23" y="1" /><Object type="Grass" x="20" y="2" /><Object type="Grass" x="22" y="2" /><Object type="Grass" x="23" y="2" /><Object type="Grass" x="38" y="2" /><Object type="Grass" x="21" y="3" /><Object type="Grass" x="23" y="3" /><Object type="Grass" x="22" y="3" /><Object type="Grass" x="20" y="3" /><Object type="Grass" x="38" y="3" /><Object type="Grass" x="22" y="4" /><Object type="Grass" x="21" y="4" /><Object type="Grass" x="20" y="4" /><Object type="Grass" x="23" y="4" /><Object type="Grass" x="38" y="5" /><Object type="Grass" x="38" y="6" /><Object type="Grass" x="38" y="7" /><Object type="Grass" x="33" y="17" /><Object type="Grass" x="34" y="17" /><Object type="Grass" x="34" y="18" /><Object type="Grass" x="33" y="18" /><Object type="ElectricitySwitch" x="38" y="1" /><Object type="Box" x="30" y="1" /><Object type="Diamond" x="32" y="1" /><Object type="Barrage2" x="33" y="1" up="1" color="5" /><Object type="Hotel" x="18" y="1" /><Object type="Block2" x="5" y="1" /><Object type="Barrage2" x="32" y="2" up="1" color="5" /><Object type="Barrage2" x="33" y="2" up="1" color="5" /><Object type="Box" x="5" y="2" /><Object type="Barrage" x="27" y="3" up="1" color="4" /><Object type="Barrage2" x="18" y="4" up="1" color="5" /><Object type="IceBox" x="15" y="6" /><Object type="ToxicWaste" x="9" y="6" /><Object type="Barrage2" x="2" y="7" up="1" color="5" /><Object type="Barrage" x="29" y="7" up="1" color="5" /><Object type="Block2" x="1" y="7" /><Object type="BarrageSwitch" x="27" y="7" color="4" /><Object type="Barrage" x="31" y="7" up="1" color="3" /><Object type="Diamond" x="27" y="8" /><Object type="DiamondMachine" x="4" y="8" /><Object type="CannonSwitch" x="32" y="8" subType="0" color="0" /><Object type="CannonSwitch" x="34" y="8" subType="0" color="1" /><Object type="Diamond" x="31" y="8" /><Object type="Diamond" x="14" y="8" /><Object type="Diamond" x="15" y="8" /><Object type="LightSwitch" x="38" y="8" /><Object type="Mask" x="10" y="8" /><Object type="Syringe" x="11" y="8" /><Object type="CannonSwitch" x="8" y="8" subType="0" color="2" /><Object type="Box" x="5" y="8" /><Object type="Enemy" x="2" y="10" subType="0" dir="0" /><Object type="Diamond" x="1" y="10" /><Object type="BarrageSwitch" x="15" y="10" color="5" /><Object type="Diamond" x="15" y="12" /><Object type="Diamond" x="15" y="13" /><Object type="Enemy" x="26" y="14" subType="1" dir="0" /><Object type="Barrage2" x="24" y="14" up="1" color="4" /><Object type="Barrage2" x="24" y="15" up="1" color="4" /><Object type="Barrage2" x="22" y="16" up="1" color="2" /><Object type="Barrage2" x="23" y="16" up="1" color="2" /><Object type="Barrage2" x="25" y="16" up="1" color="2" /><Object type="Barrage2" x="26" y="16" up="1" color="2" /><Object type="Barrage2" x="24" y="16" up="1" color="2" /><Object type="Barrage2" x="14" y="17" up="1" color="3" /><Object type="Box" x="22" y="18" /><Object type="Diamond" x="15" y="19" /><Object type="Box" x="23" y="19" /><Object type="BarrageSwitch" x="16" y="20" color="3" /><Object type="Box" x="24" y="20" /><Object type="Barrage2" x="16" y="21" up="1" color="1" /><Object type="Barrage2" x="15" y="21" up="1" color="1" /><Object type="Diamond" x="25" y="21" /><Object type="ConveyorBelt" x="3" y="8" dir="1" /><Object type="ConveyorBelt" x="1" y="8" dir="1" /><Object type="ConveyorBelt" x="2" y="8" dir="1" /><Object type="Player" x="34" y="12" character="0" active="1" /><Object type="Player" x="22" y="14" character="2" active="0" /><Object type="Cannon" x="31" y="3" color="0" dir="1" /><Object type="Cannon" x="1" y="4" color="0" dir="2" /><Object type="Cannon" x="17" y="5" color="1" dir="1" /><Object type="Cannon" x="6" y="6" color="2" dir="1" /><Object type="Cannon" x="12" y="8" color="0" dir="1" /><Object type="Cannon" x="17" y="8" color="1" dir="3" /></Level>

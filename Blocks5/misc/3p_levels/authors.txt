@@ -1,0 +1,11 @@
+big_muff: 60seconds, level_9, stormy, antik, 4gewinnt, gladiator2
+Lemming: crazyhouse, burglary, schiessstand, schiessstand2, festung
+Abrexxes: tutorial, tutorial2, lab, frogger, boulderdash, pacman, spaceinvaders
+Anfänger: level_100, blocks
+Fred: test
+babelfish: breakout, lasershow, gladiator (+ music)
+CodingCat: fallen_tempel, factory3, hectic
+DarkHunter: thief (campaign), hell (campaign), easy (campaign), arena of hell, arena of heaven
+ThomasS: platform, subtraktion, katzundmaus
+Eckehard Kirmas: haha, gravitation, credits
+Tobias Roesener: das_haus_das_verrückte_macht, rennstrecke, emil, emil_winter, emil_katakomben, getränkemarkt
