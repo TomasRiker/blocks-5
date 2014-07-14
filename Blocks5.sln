@@ -1,11 +1,11 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "blocks5", "Blocks5\Blocks5.vcproj", "{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Blocks5", "Blocks5\Blocks5.vcxproj", "{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pwencrypt", "PWEncrypt\PWEncrypt.vcproj", "{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PWEncrypt", "PWEncrypt\PWEncrypt.vcxproj", "{91901E50-8C00-41ED-9B5C-BD0C5AA5DAB5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "showuserdir", "ShowUserDir\ShowUserDir.vcproj", "{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShowUserDir", "ShowUserDir\ShowUserDir.vcxproj", "{B6B7D344-B72F-4935-89D3-ABF1AC01BD18}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,0 +1,758 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Game">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Game objects">
+      <UniqueIdentifier>{9d443daa-d836-4f1d-a70d-7c461c13ab83}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine">
+      <UniqueIdentifier>{95c25f39-f9d0-493f-8cb5-853f2e05c1c4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MiniZip">
+      <UniqueIdentifier>{c87f76a3-8db8-4505-b5b2-b5c6183eecae}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\campaign.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debriscolordb.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_campaigneditor.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_credits.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_game.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_leveleditor.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_loading.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_menu.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gs_selectlevel.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\help.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\level.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lightning.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\options.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\progressdb.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stackwalker.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tileset.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\activatorblock.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\arrow.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\barrage.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\barrage2.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\barrage2panel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\barrageswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bomb.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cannon.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cannonpanel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cannonswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\conveyorbelt.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\damage.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\diamondmachine.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_barrage.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_blockdetector.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_clock.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_flipflop.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_gate.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_hexdigit.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_lightbarrierreceiver.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_lightbulb.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_multiplexer.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_pulsepanel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_pulseswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_value.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\e_valueswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\electricitypanel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\electricityswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\electronics.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\elevator.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\enemy.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\exit.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\eye.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fire.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hint.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hotel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\laser.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lava.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lightbarriersender.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lightpanel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lightswitch.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\magnet.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mirror.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\object.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\panel.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pin.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\player.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\presets.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\projectile.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rail.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stdobject.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\teleporter.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\toxicgas.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\toxicwaste.cpp">
+      <Filter>Game objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\as_ogg.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\as_wav.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\audiostream.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_blend.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_camera.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_colorblend.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_cube.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_mosaic.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_slices.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_star.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cf_zoom.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crossfade.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\file.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\file_archived.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\file_real.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filesystem.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\font.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gamestate.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_button.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_checkbox.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_editbox.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_element.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_listbox.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_multilineeditbox.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_radiobutton.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_scrollbar.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_staticimage.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_statictext.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gui_window.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hq2x.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\linedrawer.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\particlesystem.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sound.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\soundinstance.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\streamedsound.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\texture.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\util.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\videorecorder.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\unzip.c">
+      <Filter>MiniZip</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
+      <Filter>MiniZip</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\ioapi.c">
+      <Filter>MiniZip</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\iowin32.c">
+      <Filter>MiniZip</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\campaign.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\debriscolordb.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_campaigneditor.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_credits.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_game.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_leveleditor.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_loading.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_menu.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gs_selectlevel.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\help.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\level.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lightning.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\options.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\progressdb.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource1.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stackwalker.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tileset.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\activatorblock.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\arrow.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\barrage.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\barrage2.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\barrage2panel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\barrageswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bomb.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cannon.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cannonpanel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cannonswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\conveyorbelt.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\damage.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\diamondmachine.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_barrage.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_blockdetector.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_clock.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_flipflop.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_gate.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_hexdigit.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_lightbarrierreceiver.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_lightbulb.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_multiplexer.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_pulsepanel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_pulseswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_value.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\e_valueswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\electricitypanel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\electricityswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\electronics.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\elevator.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\enemy.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\exit.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\eye.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fire.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\hint.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\hotel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\laser.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lava.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lightbarriersender.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lightpanel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lightswitch.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\magnet.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mirror.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\object.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\panel.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pin.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\player.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\presets.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\projectile.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rail.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stdobject.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\teleporter.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\toxicgas.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\toxicwaste.h">
+      <Filter>Game objects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\as_ogg.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\as_wav.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\audiostream.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_all.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_blend.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_camera.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_colorblend.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_cube.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_mosaic.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_slices.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_star.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_zoom.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\crossfade.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\file.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\file_archived.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\file_real.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filesystem.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\font.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gamestate.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_all.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_button.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_checkbox.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_editbox.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_element.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_listbox.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_multilineeditbox.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_radiobutton.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_scrollbar.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_staticimage.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_statictext.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gui_window.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\hq2x.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\linedrawer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\manager.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mtrand.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parameterblock.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\particlesystem.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pch.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\singleton.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sound.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\soundinstance.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\streamedsound.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\texture.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\typedefs.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\util.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vec.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\videorecorder.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\unzip.h">
+      <Filter>MiniZip</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\zip.h">
+      <Filter>MiniZip</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\ioapi.h">
+      <Filter>MiniZip</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\iowin32.h">
+      <Filter>MiniZip</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\crypt.h">
+      <Filter>MiniZip</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="src\icon1.ico">
+      <Filter>Game</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\resources.rc">
+      <Filter>Game</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

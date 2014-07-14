@@ -1,0 +1,389 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3E0FB11B-564B-4D73-8D3C-5246C2A66E8F}</ProjectGuid>
+    <RootNamespace>Blocks5</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>11.0.61030.0</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>blocks5</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>blocks5</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>libs\zlib-1.2.8\contrib\minizip;libs\zlib-1.2.8;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\OpenAL-1.1\include;libs\libvorbis-1.3.4\include;libs\libogg-1.3.2\include;libs\ffmpeg-0.6\include;libs\msinttypes-r26;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ZLIB_DLL;TIXML_USE_STL;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxmld_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlib.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <EnableUAC>false</EnableUAC>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention />
+      <TargetMachine>MachineX86</TargetMachine>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <AdditionalIncludeDirectories>libs\zlib-1.2.8\contrib\minizip;libs\zlib-1.2.8;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\OpenAL-1.1\include;libs\libvorbis-1.3.4\include;libs\libogg-1.3.2\include;libs\ffmpeg-0.6\include;libs\msinttypes-r26;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ZLIB_DLL;TIXML_USE_STL;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0;_SECURE_SCL_THROWS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxml_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlib.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <EnableUAC>false</EnableUAC>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention />
+      <TargetMachine>MachineX86</TargetMachine>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\ioapi.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\iowin32.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\unzip.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\campaign.cpp" />
+    <ClCompile Include="src\debriscolordb.cpp" />
+    <ClCompile Include="src\gs_campaigneditor.cpp" />
+    <ClCompile Include="src\gs_credits.cpp" />
+    <ClCompile Include="src\gs_game.cpp" />
+    <ClCompile Include="src\gs_leveleditor.cpp" />
+    <ClCompile Include="src\gs_loading.cpp" />
+    <ClCompile Include="src\gs_menu.cpp" />
+    <ClCompile Include="src\gs_selectlevel.cpp" />
+    <ClCompile Include="src\help.cpp" />
+    <ClCompile Include="src\level.cpp" />
+    <ClCompile Include="src\lightning.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\options.cpp" />
+    <ClCompile Include="src\progressdb.cpp" />
+    <ClCompile Include="src\stackwalker.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\tileset.cpp" />
+    <ClCompile Include="src\activatorblock.cpp" />
+    <ClCompile Include="src\arrow.cpp" />
+    <ClCompile Include="src\barrage.cpp" />
+    <ClCompile Include="src\barrage2.cpp" />
+    <ClCompile Include="src\barrage2panel.cpp" />
+    <ClCompile Include="src\barrageswitch.cpp" />
+    <ClCompile Include="src\bomb.cpp" />
+    <ClCompile Include="src\cannon.cpp" />
+    <ClCompile Include="src\cannonpanel.cpp" />
+    <ClCompile Include="src\cannonswitch.cpp" />
+    <ClCompile Include="src\conveyorbelt.cpp" />
+    <ClCompile Include="src\damage.cpp" />
+    <ClCompile Include="src\diamondmachine.cpp" />
+    <ClCompile Include="src\e_barrage.cpp" />
+    <ClCompile Include="src\e_blockdetector.cpp" />
+    <ClCompile Include="src\e_clock.cpp" />
+    <ClCompile Include="src\e_flipflop.cpp" />
+    <ClCompile Include="src\e_gate.cpp" />
+    <ClCompile Include="src\e_hexdigit.cpp" />
+    <ClCompile Include="src\e_lightbarrierreceiver.cpp" />
+    <ClCompile Include="src\e_lightbulb.cpp" />
+    <ClCompile Include="src\e_multiplexer.cpp" />
+    <ClCompile Include="src\e_pulsepanel.cpp" />
+    <ClCompile Include="src\e_pulseswitch.cpp" />
+    <ClCompile Include="src\e_value.cpp" />
+    <ClCompile Include="src\e_valueswitch.cpp" />
+    <ClCompile Include="src\electricitypanel.cpp" />
+    <ClCompile Include="src\electricityswitch.cpp" />
+    <ClCompile Include="src\electronics.cpp" />
+    <ClCompile Include="src\elevator.cpp" />
+    <ClCompile Include="src\enemy.cpp" />
+    <ClCompile Include="src\exit.cpp" />
+    <ClCompile Include="src\eye.cpp" />
+    <ClCompile Include="src\fire.cpp" />
+    <ClCompile Include="src\hint.cpp" />
+    <ClCompile Include="src\hotel.cpp" />
+    <ClCompile Include="src\laser.cpp" />
+    <ClCompile Include="src\lava.cpp" />
+    <ClCompile Include="src\lightbarriersender.cpp" />
+    <ClCompile Include="src\lightpanel.cpp" />
+    <ClCompile Include="src\lightswitch.cpp" />
+    <ClCompile Include="src\magnet.cpp" />
+    <ClCompile Include="src\mirror.cpp" />
+    <ClCompile Include="src\object.cpp" />
+    <ClCompile Include="src\panel.cpp" />
+    <ClCompile Include="src\pin.cpp" />
+    <ClCompile Include="src\player.cpp" />
+    <ClCompile Include="src\presets.cpp" />
+    <ClCompile Include="src\projectile.cpp" />
+    <ClCompile Include="src\rail.cpp" />
+    <ClCompile Include="src\stdobject.cpp" />
+    <ClCompile Include="src\teleporter.cpp" />
+    <ClCompile Include="src\toxicgas.cpp" />
+    <ClCompile Include="src\toxicwaste.cpp" />
+    <ClCompile Include="src\as_ogg.cpp" />
+    <ClCompile Include="src\as_wav.cpp" />
+    <ClCompile Include="src\audiostream.cpp" />
+    <ClCompile Include="src\cf_blend.cpp" />
+    <ClCompile Include="src\cf_camera.cpp" />
+    <ClCompile Include="src\cf_colorblend.cpp" />
+    <ClCompile Include="src\cf_cube.cpp" />
+    <ClCompile Include="src\cf_mosaic.cpp" />
+    <ClCompile Include="src\cf_slices.cpp" />
+    <ClCompile Include="src\cf_star.cpp" />
+    <ClCompile Include="src\cf_zoom.cpp" />
+    <ClCompile Include="src\crossfade.cpp" />
+    <ClCompile Include="src\engine.cpp" />
+    <ClCompile Include="src\file.cpp" />
+    <ClCompile Include="src\file_archived.cpp" />
+    <ClCompile Include="src\file_real.cpp" />
+    <ClCompile Include="src\filesystem.cpp" />
+    <ClCompile Include="src\font.cpp" />
+    <ClCompile Include="src\gamestate.cpp" />
+    <ClCompile Include="src\gui.cpp" />
+    <ClCompile Include="src\gui_button.cpp" />
+    <ClCompile Include="src\gui_checkbox.cpp" />
+    <ClCompile Include="src\gui_editbox.cpp" />
+    <ClCompile Include="src\gui_element.cpp" />
+    <ClCompile Include="src\gui_listbox.cpp" />
+    <ClCompile Include="src\gui_multilineeditbox.cpp" />
+    <ClCompile Include="src\gui_radiobutton.cpp" />
+    <ClCompile Include="src\gui_scrollbar.cpp" />
+    <ClCompile Include="src\gui_staticimage.cpp" />
+    <ClCompile Include="src\gui_statictext.cpp" />
+    <ClCompile Include="src\gui_window.cpp" />
+    <ClCompile Include="src\hq2x.cpp" />
+    <ClCompile Include="src\linedrawer.cpp" />
+    <ClCompile Include="src\particlesystem.cpp" />
+    <ClCompile Include="src\pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\sound.cpp" />
+    <ClCompile Include="src\soundinstance.cpp" />
+    <ClCompile Include="src\streamedsound.cpp" />
+    <ClCompile Include="src\texture.cpp" />
+    <ClCompile Include="src\util.cpp" />
+    <ClCompile Include="src\videorecorder.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\crypt.h" />
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\ioapi.h" />
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\iowin32.h" />
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\unzip.h" />
+    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\zip.h" />
+    <ClInclude Include="src\campaign.h" />
+    <ClInclude Include="src\debriscolordb.h" />
+    <ClInclude Include="src\gs_campaigneditor.h" />
+    <ClInclude Include="src\gs_credits.h" />
+    <ClInclude Include="src\gs_game.h" />
+    <ClInclude Include="src\gs_leveleditor.h" />
+    <ClInclude Include="src\gs_loading.h" />
+    <ClInclude Include="src\gs_menu.h" />
+    <ClInclude Include="src\gs_selectlevel.h" />
+    <ClInclude Include="src\help.h" />
+    <ClInclude Include="src\level.h" />
+    <ClInclude Include="src\lightning.h" />
+    <ClInclude Include="src\options.h" />
+    <ClInclude Include="src\progressdb.h" />
+    <ClInclude Include="src\resource1.h" />
+    <ClInclude Include="src\stackwalker.h" />
+    <ClInclude Include="src\tileset.h" />
+    <ClInclude Include="src\activatorblock.h" />
+    <ClInclude Include="src\arrow.h" />
+    <ClInclude Include="src\barrage.h" />
+    <ClInclude Include="src\barrage2.h" />
+    <ClInclude Include="src\barrage2panel.h" />
+    <ClInclude Include="src\barrageswitch.h" />
+    <ClInclude Include="src\bomb.h" />
+    <ClInclude Include="src\cannon.h" />
+    <ClInclude Include="src\cannonpanel.h" />
+    <ClInclude Include="src\cannonswitch.h" />
+    <ClInclude Include="src\conveyorbelt.h" />
+    <ClInclude Include="src\damage.h" />
+    <ClInclude Include="src\diamondmachine.h" />
+    <ClInclude Include="src\e_barrage.h" />
+    <ClInclude Include="src\e_blockdetector.h" />
+    <ClInclude Include="src\e_clock.h" />
+    <ClInclude Include="src\e_flipflop.h" />
+    <ClInclude Include="src\e_gate.h" />
+    <ClInclude Include="src\e_hexdigit.h" />
+    <ClInclude Include="src\e_lightbarrierreceiver.h" />
+    <ClInclude Include="src\e_lightbulb.h" />
+    <ClInclude Include="src\e_multiplexer.h" />
+    <ClInclude Include="src\e_pulsepanel.h" />
+    <ClInclude Include="src\e_pulseswitch.h" />
+    <ClInclude Include="src\e_value.h" />
+    <ClInclude Include="src\e_valueswitch.h" />
+    <ClInclude Include="src\electricitypanel.h" />
+    <ClInclude Include="src\electricityswitch.h" />
+    <ClInclude Include="src\electronics.h" />
+    <ClInclude Include="src\elevator.h" />
+    <ClInclude Include="src\enemy.h" />
+    <ClInclude Include="src\exit.h" />
+    <ClInclude Include="src\eye.h" />
+    <ClInclude Include="src\fire.h" />
+    <ClInclude Include="src\hint.h" />
+    <ClInclude Include="src\hotel.h" />
+    <ClInclude Include="src\laser.h" />
+    <ClInclude Include="src\lava.h" />
+    <ClInclude Include="src\lightbarriersender.h" />
+    <ClInclude Include="src\lightpanel.h" />
+    <ClInclude Include="src\lightswitch.h" />
+    <ClInclude Include="src\magnet.h" />
+    <ClInclude Include="src\mirror.h" />
+    <ClInclude Include="src\object.h" />
+    <ClInclude Include="src\panel.h" />
+    <ClInclude Include="src\pin.h" />
+    <ClInclude Include="src\player.h" />
+    <ClInclude Include="src\presets.h" />
+    <ClInclude Include="src\projectile.h" />
+    <ClInclude Include="src\rail.h" />
+    <ClInclude Include="src\stdobject.h" />
+    <ClInclude Include="src\teleporter.h" />
+    <ClInclude Include="src\toxicgas.h" />
+    <ClInclude Include="src\toxicwaste.h" />
+    <ClInclude Include="src\as_ogg.h" />
+    <ClInclude Include="src\as_wav.h" />
+    <ClInclude Include="src\audiostream.h" />
+    <ClInclude Include="src\cf_all.h" />
+    <ClInclude Include="src\cf_blend.h" />
+    <ClInclude Include="src\cf_camera.h" />
+    <ClInclude Include="src\cf_colorblend.h" />
+    <ClInclude Include="src\cf_cube.h" />
+    <ClInclude Include="src\cf_mosaic.h" />
+    <ClInclude Include="src\cf_slices.h" />
+    <ClInclude Include="src\cf_star.h" />
+    <ClInclude Include="src\cf_zoom.h" />
+    <ClInclude Include="src\crossfade.h" />
+    <ClInclude Include="src\engine.h" />
+    <ClInclude Include="src\file.h" />
+    <ClInclude Include="src\file_archived.h" />
+    <ClInclude Include="src\file_real.h" />
+    <ClInclude Include="src\filesystem.h" />
+    <ClInclude Include="src\font.h" />
+    <ClInclude Include="src\gamestate.h" />
+    <ClInclude Include="src\gui.h" />
+    <ClInclude Include="src\gui_all.h" />
+    <ClInclude Include="src\gui_button.h" />
+    <ClInclude Include="src\gui_checkbox.h" />
+    <ClInclude Include="src\gui_editbox.h" />
+    <ClInclude Include="src\gui_element.h" />
+    <ClInclude Include="src\gui_listbox.h" />
+    <ClInclude Include="src\gui_multilineeditbox.h" />
+    <ClInclude Include="src\gui_radiobutton.h" />
+    <ClInclude Include="src\gui_scrollbar.h" />
+    <ClInclude Include="src\gui_staticimage.h" />
+    <ClInclude Include="src\gui_statictext.h" />
+    <ClInclude Include="src\gui_window.h" />
+    <ClInclude Include="src\hq2x.h" />
+    <ClInclude Include="src\linedrawer.h" />
+    <ClInclude Include="src\manager.h" />
+    <ClInclude Include="src\mtrand.h" />
+    <ClInclude Include="src\parameterblock.h" />
+    <ClInclude Include="src\particlesystem.h" />
+    <ClInclude Include="src\pch.h" />
+    <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\singleton.h" />
+    <ClInclude Include="src\sound.h" />
+    <ClInclude Include="src\soundinstance.h" />
+    <ClInclude Include="src\streamedsound.h" />
+    <ClInclude Include="src\texture.h" />
+    <ClInclude Include="src\typedefs.h" />
+    <ClInclude Include="src\util.h" />
+    <ClInclude Include="src\vec.h" />
+    <ClInclude Include="src\videorecorder.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="src\icon1.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\resources.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>
