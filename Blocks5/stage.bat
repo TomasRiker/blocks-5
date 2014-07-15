@@ -1,9 +1,8 @@
 IF EXIST stage RMDIR /S /Q stage
 IF NOT EXIST stage MKDIR stage
-COPY avcodec-52.dll stage
-COPY avcore-0.dll stage
-COPY avformat-52.dll stage
-COPY avutil-50.dll stage
+COPY avcodec-53.dll stage
+COPY avformat-53.dll stage
+COPY avutil-51.dll stage
 COPY "Blocks 5 Website.url" stage
 COPY ..\Release\blocks5.exe stage
 tools\upx.exe -9 stage\blocks5.exe
@@ -25,7 +24,7 @@ COPY sdl.dll stage
 COPY sdl_image.dll stage
 COPY ..\Release\showuserdir.exe stage
 tools\upx.exe -9 stage\showuserdir.exe
-COPY swscale-0.dll stage
+COPY swscale-2.dll stage
 COPY update_checker_disable.bat stage
 COPY update_checker_enable.bat stage
 COPY vcredist_x86.exe stage

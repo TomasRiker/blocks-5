@@ -113,7 +113,7 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	}
 
 	// Datei öffnen
-	if(url_fopen(&p_avFormatContext->pb, videoFilename.c_str(), URL_WRONLY) < 0)
+	if(avio_open(&p_avFormatContext->pb, videoFilename.c_str(), AVIO_FLAG_WRITE) < 0)
 	{
 		printfLog("+ ERROR: Could not create video file: \"%s\"!\n", videoFilename.c_str());
 		error = true;
@@ -358,7 +358,7 @@ int VideoRecorder::threadProc()
 	av_write_trailer(p_avFormatContext);
 
 	// Datei schließen
-	url_fclose(p_avFormatContext->pb);
+	avio_close(p_avFormatContext->pb);
 
 	return 0;
 }
