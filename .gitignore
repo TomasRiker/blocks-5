@@ -4,5 +4,6 @@ ipch
 Blocks5/stage
 *.zip
 *.vcxproj.user
+*.opensdf
 *.sdf
 *.suo
