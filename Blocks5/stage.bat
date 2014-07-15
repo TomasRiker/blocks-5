@@ -1,12 +1,12 @@
 IF EXIST stage RMDIR /S /Q stage
-MKDIR stage
+IF NOT EXIST stage MKDIR stage
 COPY avcodec-52.dll stage
 COPY avcore-0.dll stage
 COPY avformat-52.dll stage
 COPY avutil-50.dll stage
 COPY "Blocks 5 Website.url" stage
 COPY ..\Release\blocks5.exe stage
-tools\upx\upx.exe -9 stage\blocks5.exe
+tools\upx.exe -9 stage\blocks5.exe
 COPY data.zip stage
 COPY "Donate (de).url" stage
 COPY "Donate (en).url" stage
@@ -19,12 +19,12 @@ COPY makeconfig.bat stage
 COPY oalinst.exe stage
 COPY ogg.dll stage
 COPY ..\Release\pwencrypt.exe stage
-tools\upx\upx.exe -9 stage\pwencrypt.exe
+tools\upx.exe -9 stage\pwencrypt.exe
 COPY readme.txt stage
 COPY sdl.dll stage
 COPY sdl_image.dll stage
 COPY ..\Release\showuserdir.exe stage
-tools\upx\upx.exe -9 stage\showuserdir.exe
+tools\upx.exe -9 stage\showuserdir.exe
 COPY swscale-0.dll stage
 COPY update_checker_disable.bat stage
 COPY update_checker_enable.bat stage

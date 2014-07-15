@@ -134,7 +134,8 @@ void encryptPassword(const char* p_in,
 	}
 
 	// Füll-Bytes anhängen
-	out[index++] = 0 ^ 0xB6;
+	out[index] = 0;
+	out[index++] ^= 0xB6;
 	srand(sum);
 	while(index % 4) out[index++] = rand() % 256;
 	out[index] = 0;

@@ -19,6 +19,7 @@
 #include <vorbis/vorbisfile.h>
 #include <tinyxml.h>
 #include <sigslot.h>
+#include <MersenneTwister.h>
 
 #define __STDC_CONSTANT_MACROS
 
@@ -34,6 +35,5 @@ extern "C"
 #include "vec.h"
 #include "typedefs.h"
 #include "util.h"
-#include "mtrand.h"
 
 #endif
