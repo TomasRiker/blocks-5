@@ -1,0 +1,8 @@
+Debug
+Release
+ipch
+Blocks5/stage
+*.zip
+*.vcxproj.user
+*.sdf
+*.suo
