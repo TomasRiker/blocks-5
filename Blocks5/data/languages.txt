@@ -1900,7 +1900,7 @@ $HINT_BLOCKS_32_04
 $HINT_BLOCKS_32_05
 // Hint text 05 for level 32 of campaign "blocks"
 §en:Delivery to the Devil Family
-§deLieferung für Familie Teufel
+§de:Lieferung für Familie Teufel
 
 $HINT_BLOCKS_33_01
 // Hint text 01 for level 33 of campaign "blocks"
