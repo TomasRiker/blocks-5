@@ -2,6 +2,7 @@ Debug
 Release
 ipch
 Blocks5/stage
+Thumbs.db
 *.zip
 *.vcxproj.user
 *.opensdf
