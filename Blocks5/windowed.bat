@@ -1,1 +1,1 @@
-blocks5.exe -windowed
+START blocks5.exe -windowed

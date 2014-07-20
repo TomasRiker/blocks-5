@@ -1,1 +1,1 @@
-blocks5.exe -hq2x
+START blocks5.exe -hq2x
