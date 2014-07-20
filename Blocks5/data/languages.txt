@@ -1652,7 +1652,7 @@ $HINT_BLOCKS_02_01
 You plant a bomb by holding down Shift and then pressing the arrow key for the desired direction at the same time. The place where you want to plant the bomb has to be free, of course. Bombs can be pushed once lit up. You can also put a bomb down (without lighting it up) by pressing Ctrl and an arrow key.
 // --------------------------------------------------------------------------------
 §de:Die Mauer da unten sieht nicht gerade stabil aus ...
-Du legst eine Bombe, indem du Shift gedrückt hältst und dann die Pfeiltaste für die Richtung drückst, in die du die Bombe legen willst. Die Stelle, ab die du die Bombe legen möchtest, muss natürlich frei sein. Angezündete Bomben kannst du auch noch wegschieben.
+Du legst eine Bombe, indem du Shift gedrückt hältst und dann die Pfeiltaste für die Richtung drückst, in die du die Bombe legen willst. Die Stelle, an die du die Bombe legen möchtest, muss natürlich frei sein. Angezündete Bomben kannst du auch noch wegschieben.
 Um eine Bombe abzulegen, ohne sie anzuzünden, halte Strg gedrückt, und drücke dann die entsprechende Pfeiltaste.
 
 $HINT_BLOCKS_02_02
