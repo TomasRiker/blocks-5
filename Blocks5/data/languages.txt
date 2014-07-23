@@ -401,6 +401,10 @@ $G_CENSORED
 // LEVEL EDITOR
 // ************
 
+$LE_CHANGE_ACTIVE_LAYER
+§de:Aktiven Layer wechseln
+§en:Change active layer
+
 $LE_LAYER
 // Current layer selection
 §en:Layer

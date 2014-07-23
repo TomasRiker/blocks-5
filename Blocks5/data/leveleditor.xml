@@ -2,7 +2,7 @@
 <Dialog>
 	<Button name="Layer" x="10" y="405" w="65" h="20">
 		<Title></Title>
-		<ToolTip>§de:Aktiven Layer wechseln§en:Change active layer</ToolTip>
+		<ToolTip>$LE_CHANGE_ACTIVE_LAYER</ToolTip>
 	</Button>
 	<StaticText name="NumDiamondsNeeded" x="90" y="409">
 		<Text></Text>
