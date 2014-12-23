@@ -162,7 +162,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	// Wann wurde zuletzt nach einer Spende gefragt?
 	FileSystem& fs = FileSystem::inst();
-	const std::string lastAskedForDonationStr = fs.readStringFromFile(fs.getAppHomeDirectory() + ".donation_asked");
+	const std::string lastAskedForDonationStr = fs.fileExists(fs.getAppHomeDirectory() + ".donation_asked") ? fs.readStringFromFile(fs.getAppHomeDirectory() + ".donation_asked") : "";
 	if(lastAskedForDonationStr != "disable")
 	{
 		const uint lastAskedForDonation = static_cast<uint>(atoi(lastAskedForDonationStr.c_str()));

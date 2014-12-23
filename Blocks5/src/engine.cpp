@@ -393,7 +393,7 @@ bool Engine::init(const std::string& windowCaption,
 	volumeChanged = false;
 
 	FileSystem& fs = FileSystem::inst();
-	const std::string timePlayedStr = fs.readStringFromFile(fs.getAppHomeDirectory() + ".time_played");
+	const std::string timePlayedStr = fs.fileExists(fs.getAppHomeDirectory() + ".time_played") ? fs.readStringFromFile(fs.getAppHomeDirectory() + ".time_played") : "";
 	if(!timePlayedStr.empty()) timePlayed = static_cast<uint>(atoi(timePlayedStr.c_str()));
 
 	initialized = true;
@@ -1960,8 +1960,8 @@ void Engine::loadStringDB(const std::string& filename)
 
 	for(uint i = 0; i < file.length(); i++)
 	{
-		char c = file[i];
-		if(c == '\r')
+		const char c = file[i];
+		if(c == '\r' || c == '\n')
 		{
 			// Zeile ist fertig!
 
@@ -2023,8 +2023,8 @@ void Engine::loadStringDB(const std::string& filename)
 
 			line = "";
 
-			// \n überspringen
-			i++;
+			// \n nach \r überspringen
+			if(c == '\r') i++;
 		}
 		else
 		{

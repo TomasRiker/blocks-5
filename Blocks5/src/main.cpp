@@ -172,12 +172,12 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			success &= fs.copyFile("config.xml", homeDirectory + "config.xml");
+			if (fs.fileExists("config.xml")) success &= fs.copyFile("config.xml", homeDirectory + "config.xml");
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
 			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
 
 			std::list<std::string> fileList(fs.listDirectory("levels"));
 			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/") + *it, homeDirectory + "levels/" + *it);
@@ -228,21 +228,21 @@ int runTheGame(int argc,
 			fs.deleteFile(homeDirectory + "updates.no");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
 			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
 
 			success &= fs.createDirectory(homeDirectory + "videos");
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 
-			if(!success) errorMsg = "Could not initialize the \"video\" folder!";
+			if(!success) errorMsg = "Could not migrate all settings!";
 		}
 		else if(versionInitialized == "1.0.73")
 		{
 			fs.deleteFile(homeDirectory + "updates.no");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
 			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			if (fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
 
-			if(!success) errorMsg = "Could not copy the update checker status!";
+			if(!success) errorMsg = "Could not migrate all settings!";
 		}
 
 		if(success)
@@ -281,6 +281,7 @@ int runTheGame(int argc,
 		if(quit) return 0;
 	}
 
+	if (!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
 	const std::string updateCheckerStatus(fs.readStringFromFile(homeDirectory + ".update_checker"));
 	if(!updateCheckerStatus.empty() && updateCheckerStatus[0] == '1')
 	{
@@ -320,7 +321,9 @@ int runTheGame(int argc,
 
 	// Daten aus dem verschlüsselten Archiv lesen
 	fs.pushCurrentDir("data.zip[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]");
-//	fs.pushCurrentDir("data");
+	
+	// Alternativ: Daten aus dem lokalen Verzeichnis lesen
+	// fs.pushCurrentDir("data");
 
 	// Fortschritt laden
 	ProgressDB::inst().load();
