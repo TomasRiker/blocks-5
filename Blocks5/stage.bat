@@ -1,5 +1,7 @@
 IF EXIST stage RMDIR /S /Q stage
 IF NOT EXIST stage MKDIR stage
+COPY _config_de.xml stage
+COPY _config_en.xml stage
 COPY avcodec-53.dll stage
 COPY avformat-53.dll stage
 COPY avutil-51.dll stage
