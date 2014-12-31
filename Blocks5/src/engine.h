@@ -35,8 +35,18 @@ struct VirtualKey
 	int key;
 	int axis;
 	bool positive;
+	int hat;
+	int hatDir;
 
 	bool down;
+
+	VirtualKey()
+		: device(-1)
+		, key(-1)
+		, axis(-1)
+		, hat(-1)
+	{
+	}
 };
 
 class Engine : public Singleton<Engine>

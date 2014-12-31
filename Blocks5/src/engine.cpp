@@ -82,7 +82,6 @@ bool Engine::init(const std::string& windowCaption,
 		VirtualKey vk;
 		const char* p_name = SDL_GetKeyName(static_cast<SDLKey>(k));
 		vk.name = std::string("Keyboard ") + (p_name ? p_name : "???");
-		vk.device = -1;
 		vk.key = k;
 		vk.down = false;
 		virtualKeys.push_back(vk);
@@ -120,7 +119,6 @@ bool Engine::init(const std::string& windowCaption,
 				str << "Joystick" << index + 1 << " A" << a + 1 << "-";
 				vk.name = str.str();
 				vk.device = index;
-				vk.key = -1;
 				vk.axis = a;
 				vk.positive = false;
 				virtualKeys.push_back(vk);
@@ -129,9 +127,52 @@ bool Engine::init(const std::string& windowCaption,
 				str << "Joystick" << index + 1 << " A" << a + 1 << "+";
 				vk.name = str.str();
 				vk.device = index;
-				vk.key = -1;
 				vk.axis = a;
 				vk.positive = true;
+				virtualKeys.push_back(vk);
+			}
+
+			// alle Hats mit allen Richtungen als VK einfügen
+			int nh = SDL_JoystickNumHats(p_joystick);
+			for(int h = 0; h < nh; ++h)
+			{
+				VirtualKey vk;
+
+				std::ostringstream str;
+				str << "Joystick" << index + 1 << " H" << h + 1;
+				vk.device = index;
+				vk.hat = h;
+
+				vk.name = str.str() + "N";
+				vk.hatDir = SDL_HAT_UP;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "NE";
+				vk.hatDir = SDL_HAT_RIGHTUP;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "E";
+				vk.hatDir = SDL_HAT_RIGHT;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "SE";
+				vk.hatDir = SDL_HAT_RIGHTDOWN;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "S";
+				vk.hatDir = SDL_HAT_DOWN;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "SW";
+				vk.hatDir = SDL_HAT_LEFTDOWN;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "W";
+				vk.hatDir = SDL_HAT_LEFT;
+				virtualKeys.push_back(vk);
+
+				vk.name = str.str() + "NW";
+				vk.hatDir = SDL_HAT_LEFTUP;
 				virtualKeys.push_back(vk);
 			}
 
@@ -1470,7 +1511,12 @@ void Engine::updateVKs()
 		{
 			// Joystick
 			SDL_Joystick* p_joystick = joysticks[vk.device];
-			if(vk.key == -1)
+			if(vk.key != -1)
+			{
+				// Knopf
+				vk.down = SDL_JoystickGetButton(p_joystick, vk.key) ? true : false;
+			}
+			else if(vk.axis != -1)
 			{
 				// Achse
 				int value = SDL_JoystickGetAxis(p_joystick, vk.axis);
@@ -1485,10 +1531,10 @@ void Engine::updateVKs()
 					else vk.down = value <= -10000;
 				}
 			}
-			else
+			else if(vk.hat != -1)
 			{
-				// Knopf
-				vk.down = SDL_JoystickGetButton(p_joystick, vk.key) ? true : false;
+				// Hat
+				vk.down = SDL_JoystickGetHat(p_joystick, vk.hat) == vk.hatDir;
 			}
 		}
 	}
