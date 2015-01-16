@@ -5,7 +5,7 @@
 | |_) | | (_) | (__|   <\__ \  ___) |
 |____/|_|\___/ \___|_|\_\___/ |____/
 
-== Bob's Amazing Adventures == v1.1.1
+== Bob's Amazing Adventures == v1.1.2
 
     by David Scherfgen
         Website ... http://www.scherfgen-software.net/blocks5/
@@ -25,6 +25,10 @@ help is probably a good idea.
 
 Changelog
 =========
+1.1.2 ... - Joystick hats can now be used to play the game.
+
+          - Recompiled all libraries with Visual C++ 2013.
+
 1.1.1 ... - The default key for screenshots is now F11.
 
           - Added default secondary keys for some actions.
