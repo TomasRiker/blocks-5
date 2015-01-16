@@ -18,7 +18,7 @@
 #include <wininet.h>
 #endif
 
-const char* p_localVersion = "1.1.1";
+const char* p_localVersion = "1.1.2";
 
 class MyStackWalker : public StackWalker
 {
