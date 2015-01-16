@@ -57,7 +57,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>libs\zlib-1.2.8\contrib\minizip;libs\zlib-1.2.8;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\OpenAL-1.1\include;libs\libvorbis-1.3.4\include;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>ZLIB_DLL;TIXML_USE_STL;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TIXML_USE_STL;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -67,7 +67,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxmld_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlib.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxmld_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstatd.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -84,7 +84,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>libs\zlib-1.2.8\contrib\minizip;libs\zlib-1.2.8;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\OpenAL-1.1\include;libs\libvorbis-1.3.4\include;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>ZLIB_DLL;TIXML_USE_STL;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0;_SECURE_SCL_THROWS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TIXML_USE_STL;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0;_SECURE_SCL_THROWS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -95,7 +95,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxml_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlib.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;tinyxml_stl.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstat.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
