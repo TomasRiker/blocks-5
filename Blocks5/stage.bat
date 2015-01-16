@@ -1,5 +1,6 @@
 IF EXIST stage RMDIR /S /Q stage
 IF NOT EXIST stage MKDIR stage
+COPY .update_checker stage
 COPY _config_de.xml stage
 COPY _config_en.xml stage
 COPY avcodec-53.dll stage
@@ -7,6 +8,7 @@ COPY avformat-53.dll stage
 COPY avutil-51.dll stage
 COPY "Blocks 5 Website.url" stage
 COPY ..\Release\blocks5.exe stage
+COPY config.xml stage
 COPY data.zip stage
 COPY "Donate (de).url" stage
 COPY "Donate (en).url" stage
