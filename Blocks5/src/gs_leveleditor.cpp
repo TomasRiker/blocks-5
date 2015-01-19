@@ -1059,6 +1059,21 @@ void GS_LevelEditor::onRender()
 	// Level rendern
 	p_level->render();
 
+	Vec2i p = engine.getCursorPosition() / 16;
+	if(p.x < p_level->getSize().x && p.y < p_level->getSize().y)
+	{
+		// aktuelles Tile hervorheben
+		glBegin(GL_LINE_LOOP);
+		p *= 16;
+		glColor4d(1.0, 0.75, 0.75, 1.0);
+		glVertex2i(p.x, p.y);
+		glColor4d(1.0, 0.15, 0.15, 1.0);
+		glVertex2i(p.x + 16, p.y);
+		glVertex2i(p.x + 16, p.y + 16);
+		glVertex2i(p.x, p.y + 16);
+		glEnd();
+	}
+
 	if(currentMode == 6)
 	{
 		// ausgewählten Pin und Start-Pin hervorheben
