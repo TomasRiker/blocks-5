@@ -99,6 +99,7 @@ void Texture::reload()
 		glGetDoublev(GL_TEXTURE_MATRIX, matrix);
 		glPopMatrix();
 		glPopAttrib();
+
 	}
 }
 

@@ -12,6 +12,8 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 
+extern "C" void emscripten_glMatrixMode(GLenum mode);
+
 // (immediate-mode variants moved to gl_immediate.cpp)
 
 GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble* params) {
@@ -34,11 +36,51 @@ GLAPI void   GLAPIENTRY glEndList(void)              {}
 GLAPI void   GLAPIENTRY glCallList(GLuint)           {}
 GLAPI void   GLAPIENTRY glDeleteLists(GLuint, GLsizei) {}
 
-// --- 3. Odds and ends --------------------------------------------------------
-// The game brackets state changes with push/pop in 6 files. No-op means state
-// leaks across those brackets; harmless for a link probe, revisit for fidelity.
-GLAPI void GLAPIENTRY glPushAttrib(GLbitfield) {}
-GLAPI void GLAPIENTRY glPopAttrib(void)        {}
+// --- 3. The attribute stack --------------------------------------------------
+// Emscripten implements neither glPushAttrib nor glPopAttrib, and leaving them
+// as no-ops is not survivable. Texture::bind() does:
+//
+//     glPushAttrib(GL_TRANSFORM_BIT);
+//     glMatrixMode(GL_TEXTURE);
+//     glLoadMatrixd(matrix);
+//     glPopAttrib();              // this is what puts the mode back
+//
+// so with no-ops the matrix mode stays GL_TEXTURE after the first texture is
+// bound, and every glPushMatrix/glTranslated in the game from then on
+// transforms texture coordinates instead of geometry. Nothing errors; the
+// screen just goes black.
+//
+// The game uses three masks: GL_TRANSFORM_BIT (6 sites, all bracketing a
+// GL_TEXTURE matrix edit), GL_ENABLE_BIT (2 sites, both bracketing
+// glDisable(GL_TEXTURE_2D)) and GL_ALL_ATTRIB_BITS (1 site, in the disabled
+// hq2x path). Only the matrix mode has to be restored: Emscripten's glEnable /
+// glDisable return early for GL_TEXTURE_2D and for every cap outside WebGL's
+// set (see the capability switch in libglemu.js), so the enable state those
+// two sites touch is not real state to begin with.
+static GLenum g_matrixMode = GL_MODELVIEW;
+static GLenum g_attribStack[16];
+static int    g_attribDepth = 0;
+
+GLAPI void GLAPIENTRY glMatrixMode(GLenum mode)
+{
+    g_matrixMode = mode;
+    emscripten_glMatrixMode(mode);
+}
+
+GLAPI void GLAPIENTRY glPushAttrib(GLbitfield)
+{
+    if (g_attribDepth < (int)(sizeof(g_attribStack) / sizeof(g_attribStack[0])))
+        g_attribStack[g_attribDepth] = g_matrixMode;
+    ++g_attribDepth;   // still counted when overflowing, so pops stay paired
+}
+
+GLAPI void GLAPIENTRY glPopAttrib(void)
+{
+    if (g_attribDepth <= 0) return;
+    --g_attribDepth;
+    if (g_attribDepth < (int)(sizeof(g_attribStack) / sizeof(g_attribStack[0])))
+        glMatrixMode(g_attribStack[g_attribDepth]);
+}
 // Dashed selection rectangles in the level editor: lines draw solid instead.
 GLAPI void GLAPIENTRY glLineStipple(GLint, GLushort) {}
 // engine.cpp uses these for the hq2x upscale blit, which is disabled anyway.
