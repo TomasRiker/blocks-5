@@ -8,7 +8,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
 DEPS="${BLOCKS5_DEPS:-/home/user/deps}"
-OUT="$HERE/build"
+OUT="$HERE/build-asan"
 source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
@@ -20,7 +20,7 @@ INC="-I$GAME/src -I$HERE
      -I$DEPS/vorbis/include -I$DEPS/vorbis/lib -I$DEPS/ogg/include -I$DEPS/zlib -I$DEPS/stb
      -I$GAME/libs/zlib-1.2.8/contrib/minizip"
 
-CFLAGS="-O2 -DTIXML_USE_STL -DBLOCKS5_NO_FFMPEG -sUSE_SDL=1 $INC"
+CFLAGS="-O1 -fsanitize=address -DTIXML_USE_STL -DBLOCKS5_NO_FFMPEG -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 
 # Game sources, minus the four that cannot come along:
@@ -46,21 +46,8 @@ for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $DEPS/tinyxm
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
 compile() { # $1=file $2=flags
   local o="$OUT/obj/$(echo "$1" | md5sum | cut -c1-12)-$(basename "$1").o"
-  local d="$o.d"
-  # Reuse the object only if it is newer than the source AND every header the
-  # source pulled in last time. Without the header check, editing a header that
-  # changes a class layout (engine.h's key tables, say) leaves every unmodified
-  # .cpp compiled against the old layout: the link then merges vague-linkage
-  # statics at two different sizes and the singletons overlap in memory. That
-  # bug looks like random corruption a long way from its cause.
-  if [ -f "$o" ] && [ -f "$d" ] && [ "$o" -nt "$1" ]; then
-      local stale=0 dep
-      for dep in $(sed -e 's/^[^:]*://' -e 's/\\$//' "$d"); do
-          [ -e "$dep" ] && [ "$dep" -nt "$o" ] && { stale=1; break; }
-      done
-      [ $stale -eq 0 ] && { echo "$o"; return 0; }
-  fi
-  if ! emcc -c "$1" -o "$o" -MMD -MF "$d" $2 2> "$o.log"; then
+  if [ -f "$o" ] && [ "$o" -nt "$1" ]; then echo "$o"; return 0; fi
+  if ! emcc -c "$1" -o "$o" $2 2> "$o.log"; then
       echo "FAILED: $1" >&2; head -20 "$o.log" >&2; return 1
   fi
   echo "$o"
@@ -91,9 +78,9 @@ PRELOAD="--preload-file $WEBROOT@/"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
 em++ $OBJS -o "$OUT/blocks5.html" \
-  -O2 -sASSERTIONS=1 -sUSE_SDL=1 -lopenal \
+  -O1 -g2 -fsanitize=address -sASSERTIONS=2 -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
-  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=268435456 \
+  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=536870912 -sSTACK_SIZE=5242880 \
   -sEXIT_RUNTIME=0 -lidbfs.js --pre-js $HERE/pre.js \
   $PRELOAD \
   2>&1 | tail -30

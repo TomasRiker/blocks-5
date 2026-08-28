@@ -20,7 +20,7 @@ Engine::Engine()
 {
 	initialized = false;
 
-	for(int i = 0; i < 512; i++)
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
 		buttonData[i] = 0;
@@ -658,20 +658,28 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_KEYDOWN:
-				keyData[event.key.keysym.sym] |= (1 | 2);
+				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+					keyData[event.key.keysym.sym] |= (1 | 2);
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_KEYUP:
-				keyData[event.key.keysym.sym] &= ~1;
-				keyData[event.key.keysym.sym] |= 4;
+				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+				{
+					keyData[event.key.keysym.sym] &= ~1;
+					keyData[event.key.keysym.sym] |= 4;
+				}
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				buttonData[event.button.button] |= (1 | 2);
+				if(event.button.button < NUM_KEY_SLOTS)
+					buttonData[event.button.button] |= (1 | 2);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				buttonData[event.button.button] &= ~1;
-				buttonData[event.button.button] |= 4;
+				if(event.button.button < NUM_KEY_SLOTS)
+				{
+					buttonData[event.button.button] &= ~1;
+					buttonData[event.button.button] |= 4;
+				}
 				break;
 			case SDL_MOUSEMOTION:
 				cursorPosition = Vec2i(event.motion.x, event.motion.y);
@@ -713,7 +721,7 @@ void Engine::mainLoopIteration()
 
 #ifdef RECORD
 			bool output = false;
-			for(int i = 0; i < 512; i++)
+			for(int i = 0; i < NUM_KEY_SLOTS; i++)
 			{
 				if(keyData[i])
 				{
@@ -731,7 +739,7 @@ void Engine::mainLoopIteration()
 #endif
 
 			// Tastatur- und Mausdaten zurücksetzen
-			for(int i = 0; i < 512; i++)
+			for(int i = 0; i < NUM_KEY_SLOTS; i++)
 			{
 #ifdef RECORD
 				if(output && keyData[i])
@@ -1386,22 +1394,26 @@ void Engine::stopMusic()
 
 bool Engine::isKeyDown(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 1 ? true : false;
 }
 
 bool Engine::wasKeyPressed(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 2 ? true : false;
 }
 
 bool Engine::wasKeyReleased(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 4 ? true : false;
 }
 
 void Engine::setKeyDown(SDLKey key,
 						bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 1;
 	else keyData[key] &= ~1;
 }
@@ -1409,6 +1421,7 @@ void Engine::setKeyDown(SDLKey key,
 void Engine::setKeyPressed(SDLKey key,
 						   bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 2;
 	else keyData[key] &= ~2;
 }
@@ -1416,6 +1429,7 @@ void Engine::setKeyPressed(SDLKey key,
 void Engine::setKeyReleased(SDLKey key,
 							bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 4;
 	else keyData[key] &= ~4;
 }
@@ -1423,21 +1437,25 @@ void Engine::setKeyReleased(SDLKey key,
 void Engine::setKeyData(SDLKey key,
 						int data)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	keyData[key] = data;
 }
 
 bool Engine::isButtonDown(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 1 ? true : false;
 }
 
 bool Engine::wasButtonPressed(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 2 ? true : false;
 }
 
 bool Engine::wasButtonReleased(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 4 ? true : false;
 }
 

@@ -171,8 +171,16 @@ private:
 	ALCcontext* p_audioContext;
 	uint logicRate;
 	bool modal;
-	int keyData[512];
-	int buttonData[512];
+	// These tables are indexed directly by SDL keysym. SDL 1.2's keysyms stop at
+	// SDLK_LAST (323), so 512 slots were enough on Windows, but other SDL headers
+	// number the same keys differently - Emscripten's use SDL2-style values
+	// (scancode | 1<<10), which puts SDLK_LSHIFT at 1249 and SDLK_F7 at 1088.
+	// Indexing a 512-entry table with those silently corrupts whatever follows it
+	// in this object. Size for the largest keysym any supported SDL defines, and
+	// range-check every index before use.
+	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 with SDL 1.2, 1536 with Emscripten's headers
+	int keyData[NUM_KEY_SLOTS];
+	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	stdext::hash_map<std::string, Action*> actions;
