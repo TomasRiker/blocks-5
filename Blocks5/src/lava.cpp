@@ -232,7 +232,7 @@ void Lava::onUpdate()
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 
-	if(!(random() % 20))
+	if(!(randomInt() % 20))
 	{
 		// Dampf
 		p.lifetime = random(20, 30);

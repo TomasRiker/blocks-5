@@ -57,7 +57,7 @@ void ToxicGas::onRemove()
 
 void ToxicGas::onUpdate()
 {
-	if(!(random() % 3))
+	if(!(randomInt() % 3))
 	{
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
@@ -66,7 +66,7 @@ void ToxicGas::onUpdate()
 		p.lifetime = random(10, 20);
 		p.damping = 0.96f;
 		p.gravity = -0.005f;
-		if(random() % 2) p.positionOnTexture = Vec2b(0, 64);
+		if(randomInt() % 2) p.positionOnTexture = Vec2b(0, 64);
 		else p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = position * 16 + Vec2i(random(2, 14), random(2, 14));
@@ -78,7 +78,7 @@ void ToxicGas::onUpdate()
 		p.deltaRotation = random(-0.05f, 0.05f);
 		p.size = 0.01f;
 		p.deltaSize = random(0.05f, 0.25f);
-		if(random() % 2) p_particleSystem->addParticle(p);
+		if(randomInt() % 2) p_particleSystem->addParticle(p);
 		else p_fireParticleSystem->addParticle(p);
 	}
 

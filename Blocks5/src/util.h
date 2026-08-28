@@ -23,7 +23,7 @@ template<typename T> const T& clamp(const T& value,
 int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
-int random();
+int randomInt();
 int random(int min, int max);
 float random(float min, float max);
 double random(double min, double max);

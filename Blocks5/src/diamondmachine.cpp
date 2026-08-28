@@ -65,7 +65,7 @@ void DiamondMachine::onUpdate()
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.3f, 0.5f);
 					p.deltaSize = random(0.01f, 0.05f);
-					if(random() % 2) p_particleSystem->addParticle(p);
+					if(randomInt() % 2) p_particleSystem->addParticle(p);
 					else p_fireParticleSystem->addParticle(p);
 
 					counter++;

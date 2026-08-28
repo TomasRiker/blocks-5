@@ -175,7 +175,7 @@ void Bomb::onUpdate()
 					p.deltaRotation = random(-0.025f, 0.025f);
 					p.size = random(0.3f, 0.7f);
 					p.deltaSize = random(0.01f, 0.02f);
-					if(random() % 3) p_particleSystem->addParticle(p);
+					if(randomInt() % 3) p_particleSystem->addParticle(p);
 					else p_fireParticleSystem->addParticle(p);
 				}
 

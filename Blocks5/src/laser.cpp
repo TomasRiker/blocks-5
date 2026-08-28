@@ -340,7 +340,7 @@ void Laser::onUpdate()
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.1f, 0.2f);
 				p.deltaSize = random(-0.01f, -0.005f);
-				if(random() % 2) p_particleSystem->addParticle(p);
+				if(randomInt() % 2) p_particleSystem->addParticle(p);
 				else p_fireParticleSystem->addParticle(p);
 			}
 

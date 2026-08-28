@@ -55,7 +55,7 @@ std::string setFilenameExtension(const std::string& filename,
 	}
 }
 
-int random()
+int randomInt()
 {
 	return mt.randInt(0x7FFFFFFF);
 }

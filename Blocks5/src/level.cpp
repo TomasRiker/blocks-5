@@ -1033,7 +1033,7 @@ void Level::update()
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.25f, 0.8f);
 				p.deltaSize = random(0.0f, 0.01f);
-				if(random() % 2) p_particleSystem->addParticle(p);
+				if(randomInt() % 2) p_particleSystem->addParticle(p);
 				else p_fireParticleSystem->addParticle(p);
 			}
 		}

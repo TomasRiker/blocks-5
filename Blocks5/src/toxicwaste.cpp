@@ -44,7 +44,7 @@ void ToxicWaste::onExplosion()
 		p.lifetime = random(150, 300);
 		p.damping = 0.96f;
 		p.gravity = -0.005f;
-		if(random() % 2) p.positionOnTexture = Vec2b(0, 64);
+		if(randomInt() % 2) p.positionOnTexture = Vec2b(0, 64);
 		else p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = position * 16 + Vec2i(random(6, 10), random(6, 10));

@@ -219,10 +219,8 @@ int runTheGame(int argc,
 									"Continue",
 									MB_OK | MB_ICONINFORMATION);
 					}
-				}
-#else
-				}  // the _WIN32 branch above closes this block inside the #ifdef
 #endif
+				}
 			}
 			else
 			{
@@ -316,13 +314,10 @@ int runTheGame(int argc,
 				ShellExecuteA(0, "open", "Blocks 5 Website.url", NULL, NULL, SW_SHOWNORMAL);
 				return 0;
 			}
-		}
-#elif defined(__EMSCRIPTEN__)
-		}  // closes the version check; the _WIN32 branch closes it inside the #ifdef
-		// no update prompt in the browser build
-#else
+#elif !defined(__EMSCRIPTEN__)
 #error NOT IMPLEMENTED
 #endif
+		}
 	}
 	else
 	{

@@ -985,7 +985,7 @@ void Engine::update()
 	if(!(wurst % 40))
 	{
 		const char* s[] = {"GS_LevelEditor", "GS_SelectLevel", "GS_CampaignEditor"};
-		pushGameState(s[random() % 3]);
+		pushGameState(s[randomInt() % 3]);
 	}
 	else if(!((wurst + 20) % 40)) popGameState();
 	wurst++;

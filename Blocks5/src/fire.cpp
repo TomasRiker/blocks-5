@@ -51,7 +51,7 @@ void Fire::onUpdate()
 	p.deltaRotation = random(-0.1f, 0.1f);
 	p.size = random(0.5f, 0.9f);
 	p.deltaSize = random(-0.015f, -0.0075f);
-	if(random() % 2) p_particleSystem->addParticle(p);
+	if(randomInt() % 2) p_particleSystem->addParticle(p);
 	else p_fireParticleSystem->addParticle(p);
 
 	// Befindet sich ein Objekt auf dem Feuer?
@@ -90,7 +90,7 @@ void Fire::onUpdate()
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.5f, 1.5f);
 					p.deltaSize = random(0.01f, 0.05f);
-					if(random() % 2) p_particleSystem->addParticle(p);
+					if(randomInt() % 2) p_particleSystem->addParticle(p);
 					else p_fireParticleSystem->addParticle(p);
 				}
 
@@ -114,7 +114,7 @@ void Fire::onUpdate()
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.6f, 0.9f);
 						p.deltaSize = random(0.01f, 0.02f);
-						if(random() % 2) p_particleSystem->addParticle(p);
+						if(randomInt() % 2) p_particleSystem->addParticle(p);
 						else p_fireParticleSystem->addParticle(p);
 					}
 

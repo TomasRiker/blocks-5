@@ -142,7 +142,7 @@ void Enemy::onUpdate()
 
 			if(contamination < 50)
 			{
-				if(random() % 2) r = 0;
+				if(randomInt() % 2) r = 0;
 			}
 
 			interest /= 2;
@@ -245,7 +245,7 @@ void Enemy::onUpdate()
 	}
 	else if(subType == 1)
 	{
-		if(random() % 2) anim++;
+		if(randomInt() % 2) anim++;
 
 		if(moveCounter-- <= 0)
 		{
@@ -254,7 +254,7 @@ void Enemy::onUpdate()
 
 			if(contamination < 50)
 			{
-				if(random() % 2) r = 0;
+				if(randomInt() % 2) r = 0;
 			}
 
 			interest /= 2;
@@ -330,7 +330,7 @@ void Enemy::onUpdate()
 
 		if(height == 0.0)
 		{
-			if(!(random() % 25))
+			if(!(randomInt() % 25))
 			{
 				vy = random(40.0, 80.0);
 				height = 0.5;
@@ -350,7 +350,7 @@ void Enemy::onUpdate()
 
 		int pr = 700;
 		if(interest >= 10000) pr = 350;
-		if(!(random() % pr))
+		if(!(randomInt() % pr))
 		{
 			// Lachen abspielen
 			Engine::inst().playSound("enemy2_laugh.ogg", false, 0.15, -100);
@@ -358,7 +358,7 @@ void Enemy::onUpdate()
 
 		if(interest >= 40000)
 		{
-			if(!(random() % 200))
+			if(!(randomInt() % 200))
 			{
 				// Knurren abspielen
 				Engine::inst().playSound("enemy2_growl.ogg", false, 0.15, -100);
@@ -387,7 +387,7 @@ void Enemy::onUpdate()
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.5f, 0.9f);
 			p.deltaSize = random(0.0075f, 0.015f);
-			if(random() % 2) p_particleSystem->addParticle(p);
+			if(randomInt() % 2) p_particleSystem->addParticle(p);
 			else p_fireParticleSystem->addParticle(p);
 		}
 	}

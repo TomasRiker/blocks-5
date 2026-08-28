@@ -10,12 +10,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-// POSIX declares `long random(void)` in <stdlib.h>; the game declares its own
-// `int random()` in util.h, which MSVC never saw because its CRT has no such
-// function. stdlib.h is pulled in above FIRST, so this rename only ever hits
-// the game's own declaration, definition and call sites.
-#define random blocks5_random
-
 // The game uses MSVC's stdext::hash_map/hash_multimap in 11 files (41 uses),
 // always in the two-argument form, so plain aliases to the standard containers
 // are behaviour-compatible here: every use is order-independent, and the one
