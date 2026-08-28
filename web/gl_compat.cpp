@@ -193,13 +193,3 @@ GLAPI void GLAPIENTRY glLineStipple(GLint, GLushort) {}
 // engine.cpp uses these for the hq2x upscale blit, which is disabled anyway.
 GLAPI void GLAPIENTRY glRasterPos2i(GLint, GLint) {}
 GLAPI void GLAPIENTRY glDrawPixels(GLsizei, GLsizei, GLenum, GLenum, const GLvoid*) {}
-
-// --- GLU tessellator - STUB (cf_star.cpp: one crossfade effect) --------------
-GLAPI GLUtesselator* GLAPIENTRY gluNewTess(void)                          { return (GLUtesselator*)0; }
-GLAPI void GLAPIENTRY gluDeleteTess(GLUtesselator*)                       {}
-GLAPI void GLAPIENTRY gluTessCallback(GLUtesselator*, GLenum, _GLUfuncptr) {}
-GLAPI void GLAPIENTRY gluTessBeginPolygon(GLUtesselator*, GLvoid*)        {}
-GLAPI void GLAPIENTRY gluTessBeginContour(GLUtesselator*)                 {}
-GLAPI void GLAPIENTRY gluTessVertex(GLUtesselator*, GLdouble*, GLvoid*)   {}
-GLAPI void GLAPIENTRY gluTessEndContour(GLUtesselator*)                   {}
-GLAPI void GLAPIENTRY gluTessEndPolygon(GLUtesselator*)                   {}

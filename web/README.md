@@ -38,9 +38,13 @@ Amputated: video capture (`videorecorder_stub.cpp`), the hq2x upscaler
 (hand-written x86 assembly), the SEH crash handler, and the update checker.
 
 Not yet done: audio starts muted until the first click, because browsers block
-`AudioContext` without a user gesture. The `lightning.cpp` and `cf_star.cpp`
-display lists are still stubbed, so the thunderstorm bolt and the star-wipe
-crossfade do not draw.
+`AudioContext` without a user gesture.
+
+No display lists remain. All four sites re-emit their geometry directly: the
+tilemap and the glyph cache under `#ifdef __EMSCRIPTEN__` (the Windows build
+keeps its compiled lists), the thunderstorm bolt likewise, and the star wipe on
+both toolchains - `CF_Star` lost its GLU tessellator as well, since the star is
+a fixed shape a triangle fan covers exactly.
 
 ## The pieces
 

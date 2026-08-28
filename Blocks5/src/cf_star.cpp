@@ -1,47 +1,44 @@
 #include "pch.h"
 #include "cf_star.h"
 
-typedef void (APIENTRY *TESS_CALLBACK_FN)(void);
+// Der Stern hat 5 Zacken, Aussenradius 1.0 und Innenradius 0.4. Früher wurde
+// diese konkave Kontur einmalig mit dem GLU-Tesselator zerlegt und in eine
+// Display-Liste gebacken - beides gibt es in WebGL nicht. Weil der Mittelpunkt
+// im Kern des Polygons liegt (Innenradius > 0), deckt ein Dreiecksfächer vom
+// Mittelpunkt aus den Stern exakt ab: 10 Dreiecke, kein Tesselator, keine Liste.
 
 CF_Star::CF_Star()
 {
-	p_tess = gluNewTess();
-	gluTessCallback(p_tess, GLU_TESS_BEGIN, reinterpret_cast<TESS_CALLBACK_FN>(glBegin));
-	gluTessCallback(p_tess, GLU_TESS_END, reinterpret_cast<TESS_CALLBACK_FN>(glEnd));
-	gluTessCallback(p_tess, GLU_TESS_VERTEX, reinterpret_cast<TESS_CALLBACK_FN>(glVertex2dv));
-
-	// Stern erzeugen
-	starList = glGenLists(1);
-	glNewList(starList, GL_COMPILE);
-	gluTessBeginPolygon(p_tess, 0);
-	gluTessBeginContour(p_tess);
-
-	const int n = 5;
-	const double outerRadius = 1.0;
-	const double innerRadius = 0.4;
-	const double angleStep = 6.283185307179586476925286766559 / (2 * n);
-	double xyz[n * 2][3];
-
-	double angle = 0.0;
-	for(int i = 0; i < 2 * n; i++)
-	{
-		double radius = (i % 2) ? innerRadius : outerRadius;
-		xyz[i][0] = sin(angle) * radius;
-		xyz[i][1] = -cos(angle) * radius;
-		xyz[i][2] = 0.0;
-		gluTessVertex(p_tess, xyz[i], xyz[i]);
-		angle += angleStep;
-	}
-
-	gluTessEndContour(p_tess);
-	gluTessEndPolygon(p_tess);
-	glEndList();
 }
 
 CF_Star::~CF_Star()
 {
-	gluDeleteTess(p_tess);
-	glDeleteLists(starList, 1);
+}
+
+void CF_Star::renderStar()
+{
+	const int n = 5;
+	const double outerRadius = 1.0;
+	const double innerRadius = 0.4;
+	const double angleStep = 6.283185307179586476925286766559 / (2 * n);
+
+	Vec2d v[2 * n];
+	double angle = 0.0;
+	for(int i = 0; i < 2 * n; i++)
+	{
+		double radius = (i % 2) ? innerRadius : outerRadius;
+		v[i] = Vec2d(sin(angle) * radius, -cos(angle) * radius);
+		angle += angleStep;
+	}
+
+	glBegin(GL_TRIANGLES);
+	for(int i = 0; i < 2 * n; i++)
+	{
+		glVertex2d(0.0, 0.0);
+		glVertex2dv(v[i]);
+		glVertex2dv(v[(i + 1) % (2 * n)]);
+	}
+	glEnd();
 }
 
 void CF_Star::render(double t,
@@ -76,7 +73,7 @@ void CF_Star::render(double t,
 	glScaled(size, size, 1.0);
 	glRotated(t * 180.0, 0.0, 0.0, 1.0);
 	glColor4d(0.0, 0.0, 0.0, 1.0);
-	glCallList(starList);
+	renderStar();
 
 	// Stern in den Stencil-Buffer zeichnen
 	glEnable(GL_STENCIL_TEST);
@@ -84,7 +81,7 @@ void CF_Star::render(double t,
 	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
 	glScaled(0.9, 0.9, 1.0);
 	glColor4d(0.0, 0.0, 0.0, 1.0);
-	glCallList(starList);
+	renderStar();
 
 	glPopMatrix();
 
