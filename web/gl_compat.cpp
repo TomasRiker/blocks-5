@@ -14,6 +14,8 @@
 #include <cstring>
 
 extern "C" void emscripten_glMatrixMode(GLenum mode);
+extern "C" void emscripten_glEnable(GLenum cap);
+extern "C" void emscripten_glDisable(GLenum cap);
 extern "C" void emscripten_glPixelStorei(GLenum pname, GLint param);
 extern "C" void emscripten_glTexImage2D(GLenum target, GLint level, GLint internalFormat,
                                         GLsizei width, GLsizei height, GLint border,
@@ -93,16 +95,44 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 // transforms texture coordinates instead of geometry. Nothing errors; the
 // screen just goes black.
 //
+// GL_ENABLE_BIT matters too. An earlier version of this file claimed it did
+// not, on the grounds that Emscripten's glEnable returns early for
+// GL_TEXTURE_2D. That reading was wrong: libglemu.js wraps glEnable TWICE.
+// GLImmediate.setupHooks installs the outer wrapper, which calls
+// TexEnvJIT.hook_enable(cap) and only then the inner GLEmulation one where the
+// early return lives. The hook clears enabled_tex2D, and the generated
+// fixed-function shader then drops its texture2D() call entirely - so
+// glDisable(GL_TEXTURE_2D) IS real state and has to be restored. lava.cpp:150
+// and teleporter.cpp:37 both depend on that.
+//
 // The game uses three masks: GL_TRANSFORM_BIT (6 sites, all bracketing a
 // GL_TEXTURE matrix edit), GL_ENABLE_BIT (2 sites, both bracketing
 // glDisable(GL_TEXTURE_2D)) and GL_ALL_ATTRIB_BITS (1 site, in the disabled
-// hq2x path). Only the matrix mode has to be restored: Emscripten's glEnable /
-// glDisable return early for GL_TEXTURE_2D and for every cap outside WebGL's
-// set (see the capability switch in libglemu.js), so the enable state those
-// two sites touch is not real state to begin with.
+// hq2x path), so the mask is honoured rather than ignored.
 static GLenum g_matrixMode = GL_MODELVIEW;
-static GLenum g_attribStack[16];
-static int    g_attribDepth = 0;
+
+// The capabilities this game actually toggles, so a saved frame stays small.
+static const GLenum kTrackedCaps[] = {
+    GL_TEXTURE_2D, GL_BLEND, GL_ALPHA_TEST, GL_SCISSOR_TEST,
+    GL_STENCIL_TEST, GL_CULL_FACE, GL_LINE_SMOOTH, GL_POINT_SMOOTH
+};
+static const int kNumTrackedCaps = (int)(sizeof(kTrackedCaps) / sizeof(kTrackedCaps[0]));
+
+struct AttribFrame
+{
+    GLbitfield mask;
+    GLenum     matrixMode;
+    bool       enabled[8];
+};
+static AttribFrame g_attribStack[16];
+static int  g_attribDepth = 0;
+static bool g_capEnabled[8] = { false, false, false, false, false, false, false, false };
+
+static int trackedCapIndex(GLenum cap)
+{
+    for (int i = 0; i < kNumTrackedCaps; ++i) if (kTrackedCaps[i] == cap) return i;
+    return -1;
+}
 
 GLAPI void GLAPIENTRY glMatrixMode(GLenum mode)
 {
@@ -110,10 +140,29 @@ GLAPI void GLAPIENTRY glMatrixMode(GLenum mode)
     emscripten_glMatrixMode(mode);
 }
 
-GLAPI void GLAPIENTRY glPushAttrib(GLbitfield)
+GLAPI void GLAPIENTRY glEnable(GLenum cap)
+{
+    const int i = trackedCapIndex(cap);
+    if (i >= 0) g_capEnabled[i] = true;
+    emscripten_glEnable(cap);
+}
+
+GLAPI void GLAPIENTRY glDisable(GLenum cap)
+{
+    const int i = trackedCapIndex(cap);
+    if (i >= 0) g_capEnabled[i] = false;
+    emscripten_glDisable(cap);
+}
+
+GLAPI void GLAPIENTRY glPushAttrib(GLbitfield mask)
 {
     if (g_attribDepth < (int)(sizeof(g_attribStack) / sizeof(g_attribStack[0])))
-        g_attribStack[g_attribDepth] = g_matrixMode;
+    {
+        AttribFrame& f = g_attribStack[g_attribDepth];
+        f.mask = mask;
+        f.matrixMode = g_matrixMode;
+        for (int i = 0; i < kNumTrackedCaps; ++i) f.enabled[i] = g_capEnabled[i];
+    }
     ++g_attribDepth;   // still counted when overflowing, so pops stay paired
 }
 
@@ -121,9 +170,24 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 {
     if (g_attribDepth <= 0) return;
     --g_attribDepth;
-    if (g_attribDepth < (int)(sizeof(g_attribStack) / sizeof(g_attribStack[0])))
-        glMatrixMode(g_attribStack[g_attribDepth]);
+    if (g_attribDepth >= (int)(sizeof(g_attribStack) / sizeof(g_attribStack[0]))) return;
+
+    const AttribFrame& f = g_attribStack[g_attribDepth];
+    if (f.mask & (GL_TRANSFORM_BIT | GL_ALL_ATTRIB_BITS))
+        glMatrixMode(f.matrixMode);
+    if (f.mask & (GL_ENABLE_BIT | GL_ALL_ATTRIB_BITS))
+        for (int i = 0; i < kNumTrackedCaps; ++i)
+            if (f.enabled[i] != g_capEnabled[i])
+                f.enabled[i] ? glEnable(kTrackedCaps[i]) : glDisable(kTrackedCaps[i]);
 }
+
+// Emscripten implements glReadBuffer and glDrawBuffer as abort(), so one call
+// takes the whole runtime down. GL_BACK is the only buffer WebGL has, which
+// makes a no-op exactly right. Engine::screenshot() reaches them today; the
+// video recorder and hq2x paths do too, once those features come back.
+GLAPI void GLAPIENTRY glReadBuffer(GLenum) {}
+GLAPI void GLAPIENTRY glDrawBuffer(GLenum) {}
+
 // Dashed selection rectangles in the level editor: lines draw solid instead.
 GLAPI void GLAPIENTRY glLineStipple(GLint, GLushort) {}
 // engine.cpp uses these for the hq2x upscale blit, which is disabled anyway.

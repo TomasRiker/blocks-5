@@ -333,6 +333,16 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("  hq2x:             %s\n", useHQ2X ? "On" : "Off");
 	printfLog("  ============================================================\n");
 
+#ifdef __EMSCRIPTEN__
+	// glBlendFuncSeparate is core in GLES2/WebGL, but the GL_EXT_blend_func_separate
+	// extension string is not advertised, so the probe below can never pass. Left
+	// alone, glExtBlendFuncSeparate stays null, which costs separate alpha blending
+	// and makes Engine::init force GUI opacity to 1.0 - the GUI stops fading.
+	glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(&glBlendFuncSeparate);
+	printfLog("  Separate blending is core in WebGL; using it directly.\n");
+	printfLog("  ============================================================\n");
+#endif
+
 	// Extensions abfragen
 	const char* p_extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
 	if(strstr(p_extensions, "GL_EXT_blend_func_separate"))
@@ -875,12 +885,26 @@ void Engine::mainLoopIteration()
 
 		// warten, wenn noch genug Zeit ist
 		uint dt = end - start;
+#ifdef __EMSCRIPTEN__
+		// This runs inside a requestAnimationFrame callback, which already paces
+		// the frame, so there is nothing to wait for - blocking would just stall
+		// the page. The logic clock still has to advance by the real time between
+		// callbacks though, not by the time spent inside one: on the native path
+		// the SDL_Delay below is what makes up that difference, and dropping it
+		// without this leaves dt at about a millisecond and runs the game ~20x slow.
+		{
+			static Uint32 lastFrameEnd = 0;
+			if(lastFrameEnd) dt = end - lastFrameEnd;
+			lastFrameEnd = end;
+		}
+#else
 		if(timeToProcess + dt < logicRate)
 		{
 			SDL_Delay(logicRate - (timeToProcess + dt));
 			end = SDL_GetTicks();
 			dt = end - start;
 		}
+#endif
 
 		timeToProcess += dt;
 		timeToProcess = min<uint>(250, timeToProcess);
@@ -1137,6 +1161,14 @@ void Engine::drawOverlays()
 
 void Engine::screenshot()
 {
+#ifdef __EMSCRIPTEN__
+	// GL_BGR is not an accepted glReadPixels format in WebGL 1, and Emscripten
+	// implements SDL_SaveBMP_RW as abort(), so this path cannot work as written
+	// and taking it down the old route would kill the runtime. Saving a file from
+	// a browser needs a download anyway, which is a separate piece of work.
+	printfLog("Screenshots are not supported in the web build.\n");
+	return;
+#endif
 	char* p_temp = new char[displaySize.x * displaySize.y * 3];
 
 	glReadBuffer(GL_BACK);
