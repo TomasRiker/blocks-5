@@ -42,7 +42,10 @@ private:
 	struct Vertex
 	{
 		Vec2f position;
-		Vec2i uv;
+		// Float, not int: GL_INT is not a valid vertex-attribute type in WebGL /
+		// GLES2, and these are texture pixel coordinates well inside float's exact
+		// integer range. Same 8 bytes, so the vertex layout is unchanged.
+		Vec2f uv;
 		Vec4f color;
 	};
 #endif

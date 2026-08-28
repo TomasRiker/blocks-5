@@ -46,7 +46,7 @@ void ParticleSystem::render()
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->position);
-	glTexCoordPointer(2, GL_INT, sizeof(Vertex), &p_vertexBuffer->uv);
+	glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->uv);
 	glColorPointer(4, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->color);
 	Vertex* p_vertex = p_vertexBuffer;
 #else

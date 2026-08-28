@@ -1,10 +1,10 @@
 # Blocks 5 — WebAssembly port (spike)
 
-An Emscripten build of the game. **Status: it compiles, links, boots, and runs its
-main loop in a browser — but the screen is still black.** This is a feasibility
-spike, not a finished port. Everything here is additive: the Visual Studio build
-is untouched, and every change to `Blocks5/src` sits behind `#ifdef __EMSCRIPTEN__`
-or is a standards-conformance fix that MSVC also accepts.
+An Emscripten build of the game. **Status: it renders and plays.** The menu,
+level select and gameplay all draw correctly in a browser, with no GL errors.
+Everything here is additive: the Visual Studio build is untouched, and every
+change to `Blocks5/src` sits behind `#ifdef __EMSCRIPTEN__` or is a
+standards-conformance or bug fix that MSVC also accepts.
 
 ## Building
 
@@ -29,15 +29,18 @@ HTTP — `file://` will not work.
 
 ## What this build does and doesn't do
 
-Working: boot, config, the user directory (on IDBFS, so saves persist), SDL video,
-OpenGL context, OpenAL, GUI init, texture loading straight out of the encrypted
-`data.zip`, the fixed-timestep main loop running frame after frame.
+Working: boot, config, the user directory (on IDBFS, so saves persist), SDL
+video, OpenGL, OpenAL, texture loading straight out of the encrypted `data.zip`,
+the fixed-timestep main loop, mouse and keyboard input, and rendering — tile
+layers, sprites, fonts, the GUI, particles and weather.
 
-Not working: **nothing renders yet.** A clear-colour probe confirms the canvas,
-context and buffer swap are all live, so the remaining problem is in the draw
-path, not the plumbing. Also amputated: video capture (`videorecorder_stub.cpp`),
-the hq2x upscaler (hand-written x86 assembly), the SEH crash handler, and the
-update checker.
+Amputated: video capture (`videorecorder_stub.cpp`), the hq2x upscaler
+(hand-written x86 assembly), the SEH crash handler, and the update checker.
+
+Not yet done: audio starts muted until the first click, because browsers block
+`AudioContext` without a user gesture. The `lightning.cpp` and `cf_star.cpp`
+display lists are still stubbed, so the thunderstorm bolt and the star-wipe
+crossfade do not draw.
 
 ## The pieces
 
@@ -69,20 +72,28 @@ names of preloaded files, so it cannot do that at all. This build therefore does
 not link Emscripten's SDL_image; it supplies `IMG_Load_RW` itself and decodes with
 stb_image. `texture.cpp` and `engine.cpp` are untouched.
 
-## Next steps
+## What was actually wrong
 
-1. **Find why nothing draws.** The pipeline is confirmed live, so suspect the
-   immediate-mode shim's interaction with texture binding and the blend state.
-2. **`glPushAttrib`/`glPopAttrib` are no-ops** (`gl_compat.cpp`), so state leaks
-   across the 9 pairs that use them — 6 of which only need
-   `glMatrixMode(GL_MODELVIEW)` on pop, and 2 only `glEnable(GL_TEXTURE_2D)`.
-   This is a silent failure and a prime suspect for the black screen.
-3. **`particlesystem.cpp:49`** passes `GL_INT` to `glTexCoordPointer`, which WebGL
-   rejects; and `glDrawArrays(GL_QUADS, …)` (there and in `linedrawer.cpp`) is not
-   a valid GLES2 primitive.
-4. **Display lists** are handled in `level.cpp` and `font.cpp` by re-emitting, but
-   `lightning.cpp` and `cf_star.cpp` are still stubbed and invisible.
-5. **`texture.cpp`** reads back the texture matrix with `glGetDoublev`, which is
-   approximated; it could just compute the matrix in C++.
-6. **Audio needs a user gesture** — the browser blocks `AudioContext` until a
-   click, so sound should start behind the first input.
+Worth recording, because none of it was predictable from reading the code.
+
+1. **`glPushAttrib`/`glPopAttrib` as no-ops turned the screen black.**
+   `Texture::bind()` brackets a `glMatrixMode(GL_TEXTURE)` edit with them, so the
+   matrix mode stayed `GL_TEXTURE` after the first texture bind and every
+   `glPushMatrix`/`glTranslated` in the game transformed texture coordinates
+   instead of geometry. Nothing errored.
+2. **`SDL_BlitSurface` is implemented on a 2D canvas.** It `drawImage`s from a
+   source canvas, which only exists for surfaces Emscripten's own SDL created
+   from an image. Every surface this game blits is written directly in memory, so
+   the blit copied nothing and every texture uploaded fully transparent.
+3. **Emscripten numbers keysyms SDL2-style** (`scancode | 1<<10`), so `SDLK_F7`
+   is 1088 and `SDLK_LSHIFT` 1249, against `Engine`'s 512-entry key tables. The
+   overflow read back as Shift+F7, which is the unlock-all-levels cheat.
+4. **`GL_INT` is not a valid vertex-attribute type in WebGL**, and
+   **`GL_UNPACK_ROW_LENGTH` does not exist** — both silently ignored after
+   raising `INVALID_ENUM`.
+
+Emscripten's own legacy-GL texturing, texture matrices and immediate mode were
+all fine; each was ruled out with a standalone 40-line test program before
+suspicion moved on. That is the technique worth reusing: when the whole port
+misbehaves, isolate the platform feature in a program small enough to be
+obviously correct.

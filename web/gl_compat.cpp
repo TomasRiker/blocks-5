@@ -11,8 +11,13 @@
 //   3. odds and ends        - stubbed or approximated; see the note on each.
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <cstring>
 
 extern "C" void emscripten_glMatrixMode(GLenum mode);
+extern "C" void emscripten_glPixelStorei(GLenum pname, GLint param);
+extern "C" void emscripten_glTexImage2D(GLenum target, GLint level, GLint internalFormat,
+                                        GLsizei width, GLsizei height, GLint border,
+                                        GLenum format, GLenum type, const GLvoid* pixels);
 
 // (immediate-mode variants moved to gl_immediate.cpp)
 
@@ -35,6 +40,44 @@ GLAPI void   GLAPIENTRY glNewList(GLuint, GLenum)    {}
 GLAPI void   GLAPIENTRY glEndList(void)              {}
 GLAPI void   GLAPIENTRY glCallList(GLuint)           {}
 GLAPI void   GLAPIENTRY glDeleteLists(GLuint, GLsizei) {}
+
+// --- Unpack row length -------------------------------------------------------
+// texture.cpp uploads a sub-rectangle of an SDL surface by setting
+// GL_UNPACK_ROW_LENGTH to the surface pitch. WebGL 1.0 has no such parameter and
+// raises INVALID_ENUM, then ignores it - so a surface whose pitch is wider than
+// the texture would upload skewed. In practice SDL's 32-bit surfaces are always
+// tightly packed, so this has not bitten, but relying on that silently is how
+// you get a bug that only appears on someone else's machine. Track the value and
+// repack the rows ourselves on the rare upload where it actually differs.
+static GLint g_unpackRowLength = 0;
+
+GLAPI void GLAPIENTRY glPixelStorei(GLenum pname, GLint param)
+{
+    if (pname == GL_UNPACK_ROW_LENGTH) { g_unpackRowLength = param; return; }
+    emscripten_glPixelStorei(pname, param);
+}
+
+GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFormat,
+                                   GLsizei width, GLsizei height, GLint border,
+                                   GLenum format, GLenum type, const GLvoid* p_pixels)
+{
+    const bool packed = (g_unpackRowLength == 0 || g_unpackRowLength == width);
+    if (packed || !p_pixels || format != GL_RGBA || type != GL_UNSIGNED_BYTE)
+    {
+        emscripten_glTexImage2D(target, level, internalFormat, width, height, border, format, type, p_pixels);
+        return;
+    }
+
+    // Rows are strided: copy them into a tight buffer first.
+    const unsigned char* p_src = static_cast<const unsigned char*>(p_pixels);
+    unsigned char* p_tight = new unsigned char[(size_t)width * height * 4];
+    for (int y = 0; y < height; ++y)
+        memcpy(p_tight + (size_t)y * width * 4,
+               p_src + (size_t)y * g_unpackRowLength * 4,
+               (size_t)width * 4);
+    emscripten_glTexImage2D(target, level, internalFormat, width, height, border, format, type, p_tight);
+    delete[] p_tight;
+}
 
 // --- 3. The attribute stack --------------------------------------------------
 // Emscripten implements neither glPushAttrib nor glPopAttrib, and leaving them
