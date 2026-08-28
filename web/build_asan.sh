@@ -80,6 +80,7 @@ echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 em++ $OBJS -o "$OUT/blocks5.html" \
   -O1 -g2 -fsanitize=address -sASSERTIONS=2 -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
+  -Wl,--wrap=SDL_CreateRGBSurface \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=536870912 -sSTACK_SIZE=5242880 \
   -sEXIT_RUNTIME=0 -lidbfs.js --pre-js $HERE/pre.js \
   $PRELOAD \

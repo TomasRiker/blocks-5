@@ -92,3 +92,74 @@ void hq2x_32(unsigned char*, unsigned char*, unsigned long, unsigned long, unsig
 } // extern "C"
 
 int InitLUTs(void) { return 0; }
+
+// --- SDL_PixelFormat completion ---------------------------------------------
+// SDL.makeSurface (emsdk src/lib/libsdl.js:352) _malloc()s the SDL_PixelFormat
+// and writes only 8 of its members: format, palette, BitsPerPixel,
+// BytesPerPixel and the four masks (libsdl.js:385-393). Rloss..Aloss (byte
+// offsets 28-31) and Rshift..Ashift (32-35) are never written and hold whatever
+// the allocator's previous tenant left - 0/0/0/0 on a pristine heap, but
+// measured as 171/171/171/171 and 120/120/120/120 once dlmalloc starts
+// recycling blocks. Nothing in libsdl.js ever reads those fields, so completing
+// them here cannot disturb the JS layer.
+//
+// Texture::getPixel (texture.cpp:281-284) is the source of every debris colour,
+// via DebrisColorDB's alpha-weighted mean of a sprite's 16x16 cell. Read as 0,
+// green comes out 256x and blue 65536x too large and both clamp, so debris is a
+// cyan-white wash whose only variation is the red level. Read as garbage,
+// wasm's i32.shr_u masks the shift count mod 32 (120 & 31 == 24) and debris
+// comes out solid black.
+//
+// wasm-ld's --wrap fixes all five call sites - texture.cpp:66/181/227,
+// engine.cpp:259, img_load.cpp:51 - with no game-code edit: references to
+// SDL_CreateRGBSurface are redirected to __wrap_SDL_CreateRGBSurface, and
+// __real_ back to the original, so the module still imports Emscripten's JS
+// implementation and the surface stays registered in SDL.surfaces. A
+// hand-rolled C++ replacement would break SDL_FreeSurface, which dereferences
+// SDL.surfaces[surf] (libsdl.js:484).
+//
+// REQUIRES -Wl,--wrap=SDL_CreateRGBSurface on the link line of BOTH build.sh
+// and build_asan.sh. Without it wasm-ld silently garbage-collects this function
+// as unreferenced and the bug returns with no error and no warning.
+extern "C" SDL_Surface* __real_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
+                                                    Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask);
+
+static Uint8 maskShift(Uint32 mask)
+{
+    if (!mask) return 0;
+    Uint8 shift = 0;
+    while (!(mask & 1u)) { mask >>= 1; ++shift; }
+    return shift;
+}
+
+static Uint8 maskLoss(Uint32 mask)
+{
+    if (!mask) return 8;               // real SDL leaves loss at 8 for an absent channel
+    mask >>= maskShift(mask);
+    Uint8 bits = 0;
+    while (mask & 1u) { mask >>= 1; ++bits; }
+    return bits >= 8 ? 0 : (Uint8)(8 - bits);
+}
+
+extern "C" SDL_Surface* __wrap_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
+                                                    Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask)
+{
+    SDL_Surface* p_surface = __real_SDL_CreateRGBSurface(flags, width, height, depth,
+                                                         rMask, gMask, bMask, aMask);
+    if (!p_surface || !p_surface->format) return p_surface;
+
+    // The game always passes 0x000000ff/0x0000ff00/0x00ff0000/0xff000000,
+    // so this yields shifts 0/8/16/24 and losses 0/0/0/0.
+    SDL_PixelFormat* p_format = p_surface->format;
+    p_format->Rshift = maskShift(p_format->Rmask);
+    p_format->Gshift = maskShift(p_format->Gmask);
+    p_format->Bshift = maskShift(p_format->Bmask);
+    p_format->Ashift = maskShift(p_format->Amask);
+    p_format->Rloss  = maskLoss(p_format->Rmask);
+    p_format->Gloss  = maskLoss(p_format->Gmask);
+    p_format->Bloss  = maskLoss(p_format->Bmask);
+    p_format->Aloss  = maskLoss(p_format->Amask);
+    p_format->refcount = 1;            // makeSurface leaves these two uninitialised
+    p_format->next     = 0;
+    return p_surface;
+}
