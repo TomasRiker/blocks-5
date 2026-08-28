@@ -90,12 +90,17 @@ PRELOAD="--preload-file $WEBROOT@/"
 [ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run zip_data.bat or the zip -P equivalent)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
+# -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
+# struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's
+# default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
+# campaign, saving progress - clobbered the stack and trapped with "table index
+# is out of bounds". Reads were unaffected, which is why it stayed hidden.
 em++ $OBJS -o "$OUT/blocks5.html" \
   -O2 -sASSERTIONS=1 -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
   -Wl,--wrap=SDL_CreateRGBSurface \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=268435456 \
-  -sEXIT_RUNTIME=0 -lidbfs.js --pre-js $HERE/pre.js \
+  -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \
   $PRELOAD \
   2>&1 | tail -30
 [ -f "$OUT/blocks5.wasm" ] && echo "### LINK OK -> $OUT/blocks5.wasm ($(du -h "$OUT/blocks5.wasm" | cut -f1)) ###" || echo "### LINK FAILED ###"
