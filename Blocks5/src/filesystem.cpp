@@ -6,6 +6,11 @@
 #ifdef _WIN32
 #include <Shlobj.h>
 #endif
+#ifdef __EMSCRIPTEN__
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cerrno>
+#endif
 
 FileSystem::FileSystem()
 {
@@ -50,6 +55,9 @@ std::string FileSystem::getAppHomeDirectory() const
 	char path[256];
 	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
 	return std::string(path) + "/Blocks 5/";
+#elif defined(__EMSCRIPTEN__)
+	// Mounted as IDBFS by the shell so saves and custom levels survive a reload.
+	return "/blocks5_home/";
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -162,6 +170,9 @@ bool FileSystem::createDirectory(const std::string& directory)
 	BOOL result = CreateDirectoryA(directory.c_str(), 0);
 	if(!result && GetLastError() == ERROR_ALREADY_EXISTS) return true;
 	else return result != 0;
+#elif defined(__EMSCRIPTEN__)
+	if(::mkdir(directory.c_str(), 0755) == 0) return true;
+	return errno == EEXIST;
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -171,6 +182,8 @@ bool FileSystem::deleteDirectory(const std::string& directory)
 {
 #ifdef _WIN32
 	return RemoveDirectoryA(directory.c_str()) != 0;
+#elif defined(__EMSCRIPTEN__)
+	return ::rmdir(directory.c_str()) == 0;
 #else
 #error NOT IMPLEMENTED
 #endif

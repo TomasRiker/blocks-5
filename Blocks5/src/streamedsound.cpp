@@ -67,9 +67,16 @@ void StreamedSound::play(bool loop)
 	// abspielen
 	alSourcePlay(sourceID);
 
-	// Thread erzeugen
 	finish = false;
+#ifdef __EMSCRIPTEN__
+	// SDL threads abort on the web platform, so decoding is driven from update().
+	// p_thread doubles as the "is playing" flag the rest of the class tests.
+	for(int i = 1; i < 4; i++) stream(buffers[i]);
+	p_thread = reinterpret_cast<SDL_Thread*>(1);
+#else
+	// Thread erzeugen
 	p_thread = SDL_CreateThread(streamedSoundThreadProc, this);
+#endif
 }
 
 void StreamedSound::stop()
@@ -80,7 +87,9 @@ void StreamedSound::stop()
 
 	// Thread beenden
 	finish = true;
+#ifndef __EMSCRIPTEN__
 	SDL_WaitThread(p_thread, 0);
+#endif
 	p_thread = 0;
 
 	// Soundquelle löschen
@@ -164,6 +173,11 @@ bool StreamedSound::update()
 {
 	if(Engine::inst().wasVolumeChanged()) setVolume(getVolume());
 
+#ifdef __EMSCRIPTEN__
+	// No decoder thread here - keep the queue fed from the frame.
+	if(p_thread && !finish) pumpBuffers();
+#endif
+
 	if(volumeSlideSpeed > 0.0)
 	{
 		double currentVolume = getVolume();
@@ -206,34 +220,41 @@ int StreamedSound::threadProc()
 
 	while(!finish)
 	{
-		// Irgendwelche Puffer fertig?
-		int n = 0;
-		alGetSourcei(sourceID, AL_BUFFERS_PROCESSED, &n);
-		if(n > 0)
-		{
-			// Puffer holen
-			uint* p_buffers = new uint[n];
-			alSourceUnqueueBuffers(sourceID, n, p_buffers);
-
-			// diese Puffer wieder auffüllen
-			for(int i = 0; i < n; i++) stream(p_buffers[i]);
-
-			delete[] p_buffers;
-		}
-
-		// Wie viele Puffer sind in der Warteschlange?
-		n = 0;
-		alGetSourcei(sourceID, AL_BUFFERS_QUEUED, &n);
-		if(!n)
-		{
-			// Sound neu abspielen
-			alSourcePlay(sourceID);
-		}
-
+		pumpBuffers();
 		SDL_Delay(10);
 	}
 
 	return 0;
+}
+
+// One poll of the OpenAL buffer queue: recycle whatever has been played and
+// refill it. On Windows the decoder thread calls this every 10 ms; in the
+// browser there are no threads, so update() calls it once per frame instead.
+void StreamedSound::pumpBuffers()
+{
+	// Irgendwelche Puffer fertig?
+	int n = 0;
+	alGetSourcei(sourceID, AL_BUFFERS_PROCESSED, &n);
+	if(n > 0)
+	{
+		// Puffer holen
+		uint* p_buffers = new uint[n];
+		alSourceUnqueueBuffers(sourceID, n, p_buffers);
+
+		// diese Puffer wieder auffüllen
+		for(int i = 0; i < n; i++) stream(p_buffers[i]);
+
+		delete[] p_buffers;
+	}
+
+	// Wie viele Puffer sind in der Warteschlange?
+	n = 0;
+	alGetSourcei(sourceID, AL_BUFFERS_QUEUED, &n);
+	if(!n)
+	{
+		// Sound neu abspielen
+		alSourcePlay(sourceID);
+	}
 }
 
 void StreamedSound::stream(uint bufferID)

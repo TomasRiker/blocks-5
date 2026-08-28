@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "engine.h"
 #include "gamestate.h"
 #include "soundinstance.h"
@@ -339,7 +342,7 @@ bool Engine::init(const std::string& windowCaption,
 		{
 			printfLog("  Extension GL_EXT_blend_func_separate is available.\n");
 			printfLog("  ============================================================\n");
-			glExtBlendFuncSeparate = static_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(p_proc);
+			glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(p_proc);
 		}
 	}
 
@@ -396,7 +399,9 @@ bool Engine::init(const std::string& windowCaption,
 
 	alcProcessContext(p_audioContext);
 
+#ifndef BLOCKS5_NO_FFMPEG
 	av_register_all();
+#endif
 
 	printfLog("* Initializing GUI ...\n");
 	if(!GUI::inst().init())
@@ -407,11 +412,17 @@ bool Engine::init(const std::string& windowCaption,
 
 	// OpenGL-Einstellungen setzen
 	glViewport(0, 0, width, height);
+#ifndef __EMSCRIPTEN__
+	// GL_SMOOTH is the default; emscripten's GL emulation aborts on this call.
 	glShadeModel(GL_SMOOTH);
+#endif
 	glEnable(GL_BLEND);
 	glEnable(GL_POINT_SMOOTH);
+#ifndef __EMSCRIPTEN__
+	// Neither hint target exists in WebGL (both raise INVALID_ENUM).
 	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+#endif
 
 	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	if(!glExtBlendFuncSeparate) GUI::inst().setOpacity(1.0);
@@ -522,13 +533,33 @@ void Engine::exit()
 // #define RECORD
 // #define PROFILE_VIDEO_CAPTURE
 
+#ifdef __EMSCRIPTEN__
+// A browser tab cannot host a blocking game loop: each frame has to be handed
+// back so the page can paint and deliver input. emscripten_set_main_loop calls
+// one iteration per animation frame, which means the loop's state can no longer
+// live in locals, so it moves to file scope here. (The other option - ASYNCIFY
+// plus emscripten_sleep - could not rewind this particular loop reliably.)
+namespace
+{
+	bool   active = true;
+	bool   done = false;
+	Uint32 timeToProcess = 0;
+	uint   timeProcessed = 1;
+	uint   firstEventRecorded = ~0u;
+}
+
+static void emMainLoopIteration(void* p_engine);
+#endif
+
 void Engine::mainLoop()
 {
+#ifndef __EMSCRIPTEN__
 	bool active = true;
 	bool done = false;
 	Uint32 timeToProcess = 0;
 	uint timeProcessed = 1;
 	uint firstEventRecorded = ~0;
+#endif
 
 	// Cursor-Position abfragen
 	SDL_GetMouseState(&cursorPosition.x, &cursorPosition.y);
@@ -539,8 +570,20 @@ void Engine::mainLoop()
 	FILE* p_out = fopen("keyboard.dat", "wb");
 #endif
 
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop_arg(emMainLoopIteration, this, 0, 1);
+}
+
+void Engine::mainLoopIteration()
+{
+	// do/while(0) so the body's `continue` and `break` still mean
+	// "end this frame", exactly as they did inside the real loop.
 	do
 	{
+#else
+	do
+	{
+#endif
 		Uint32 start = SDL_GetTicks();
 
 		// OpenGL-Fehler aufgetreten?
@@ -834,12 +877,22 @@ void Engine::mainLoop()
 		timeToProcess += dt;
 		timeToProcess = min<uint>(250, timeToProcess);
 
+#ifdef __EMSCRIPTEN__
+	} while(0);
+}
+
+static void emMainLoopIteration(void* p_engine)
+{
+	static_cast<Engine*>(p_engine)->mainLoopIteration();
+}
+#else
 	} while(!done);
 
 #ifdef RECORD
 	fclose(p_out);
 #endif
 }
+#endif
 
 // #define PROFILE_ENGINE_RENDER
 
@@ -1494,7 +1547,11 @@ void Engine::updateVKs()
 {
 	// Tastatur und Joysticks abfragen
 	SDL_PumpEvents();
+#ifdef __EMSCRIPTEN__
+	Uint8* p_keys = SDL_GetKeyboardState(0);
+#else
 	Uint8* p_keys = SDL_GetKeyState(0);
+#endif
 	SDL_JoystickUpdate();
 
 	for(std::vector<VirtualKey>::iterator it = virtualKeys.begin();

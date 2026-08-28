@@ -1155,6 +1155,27 @@ void Level::renderTiles(int layer,
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);
 
+#ifdef __EMSCRIPTEN__
+	// WebGL has no display lists, so the tile mesh is re-emitted every frame
+	// instead of being compiled once and replayed. A shipped 40x25 level is
+	// 1000 quads per layer, which is cheap enough at 50 fps.
+	{
+		p_tileSet->beginRender();
+
+		for(int x = 0; x < size.x; x++)
+		{
+			for(int y = 0; y < size.y; y++)
+			{
+				Vec2i p(x, y);
+				uint tileID = getTileAt(layer, p);
+				const TileSet::TileInfo& tileInfo = p_tileSet->getTileInfo(tileID);
+				p_tileSet->renderTile(tileID, p * 16);
+			}
+		}
+
+		p_tileSet->endRender();
+	}
+#else
 	// Muss dieser Layer neu gezeichnet werden?
 	if(layerDirty & (1 << layer))
 	{
@@ -1182,6 +1203,7 @@ void Level::renderTiles(int layer,
 	}
 
 	glCallList(layerListBase + layer);
+#endif
 
 	glPopMatrix();
 }

@@ -1,4 +1,8 @@
 #include "pch.h"
+#ifdef __EMSCRIPTEN__
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 #include "file_real.h"
 #include "filesystem.h"
 
@@ -56,6 +60,19 @@ File_Real::File_Real(const std::string& filename,
 			} while(FindNextFileA(find, &findData));
 
 			FindClose(find);
+		}
+#elif defined(__EMSCRIPTEN__)
+		if(DIR* p_dir = ::opendir(filename.c_str()))
+		{
+			while(struct dirent* p_ent = ::readdir(p_dir))
+			{
+				const std::string entry(p_ent->d_name);
+				if(entry == "." || entry == "..") continue;
+				struct stat st;
+				if(::stat((filename + "/" + entry).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+				directory.push_back(entry);
+			}
+			::closedir(p_dir);
 		}
 #else
 #error NOT IMPLEMENTED

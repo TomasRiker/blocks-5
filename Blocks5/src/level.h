@@ -5,6 +5,8 @@
 
 /*** Klasse für einen Level ***/
 
+class Object;
+class Player;
 class Texture;
 class Font;
 class TileSet;

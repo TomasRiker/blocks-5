@@ -2,7 +2,12 @@
 #include "particlesystem.h"
 #include "engine.h"
 #include "texture.h"
+#ifdef __EMSCRIPTEN__
+#define _mm_prefetch(a, h) ((void)0)
+#define _MM_HINT_T1 0
+#else
 #include <xmmintrin.h>
+#endif
 
 ParticleSystem::ParticleSystem(Texture* p_sprites)
 {

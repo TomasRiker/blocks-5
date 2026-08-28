@@ -11,7 +11,9 @@
 #include "gui.h"
 #include "cf_all.h"
 #include "progressdb.h"
+#ifndef __EMSCRIPTEN__
 #include "stackwalker.h"
+#endif
 
 #ifdef _WIN32
 #include <shellapi.h>
@@ -20,6 +22,7 @@
 
 const char* p_localVersion = "1.1.2";
 
+#ifndef __EMSCRIPTEN__
 class MyStackWalker : public StackWalker
 {
 public:
@@ -44,6 +47,7 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
+#endif // !__EMSCRIPTEN__
 
 std::string getCurrentVersion()
 {
@@ -103,6 +107,8 @@ std::string getCurrentVersion()
 	HANDLE thread = CreateThread(0, 0, Task::threadProc, &task, 0, &threadID);
 	WaitForSingleObject(thread, 2000);
 	return task.finished ? task.currentVersion : "";
+#elif defined(__EMSCRIPTEN__)
+	return "";  // no update check in the browser build
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -214,6 +220,8 @@ int runTheGame(int argc,
 									MB_OK | MB_ICONINFORMATION);
 					}
 				}
+#else
+				}  // the _WIN32 branch above closes this block inside the #ifdef
 #endif
 			}
 			else
@@ -309,6 +317,9 @@ int runTheGame(int argc,
 				return 0;
 			}
 		}
+#elif defined(__EMSCRIPTEN__)
+		}  // closes the version check; the _WIN32 branch closes it inside the #ifdef
+		// no update prompt in the browser build
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -420,7 +431,7 @@ int main(int argc,
 {
 	// TODO: http://blog.kalmbachnet.de/?postid=75 beachten (StackWalker-Homepage: http://stackwalker.codeplex.com/releases/view/35258)
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(__EMSCRIPTEN__)
 	return runTheGame(argc, pp_argv);
 #else
 	__try

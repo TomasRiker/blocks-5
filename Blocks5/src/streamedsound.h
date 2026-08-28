@@ -36,6 +36,7 @@ private:
 	~StreamedSound();
 
 	int threadProc();
+	void pumpBuffers();   // one poll of the OpenAL queue
 	void stream(uint bufferID);
 
 	static bool forceReload() { return true; }

@@ -13,7 +13,7 @@ public:
 	void exit()
 	{
 		// alle noch geladenen Objekte löschen
-		for(stdext::hash_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
+		for(typename stdext::hash_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
 		{
 #ifdef _DEBUG
 			printfLog("> INFO: Resource \"%s\" is being released automatically ...\n",
@@ -29,12 +29,12 @@ public:
 	T* find(const std::string& filename) const
 	{
 		typedef stdext::hash_multimap<std::string, T*> mapType;
-		std::pair<mapType::const_iterator, mapType::const_iterator> range = items.equal_range(filename);
+		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range = items.equal_range(filename);
 
 		// neueste Ressource suchen
 		uint newestTimestamp = 0;
 		T* p_newestResource = 0;
-		for(mapType::const_iterator i = range.first; i != range.second; ++i)
+		for(typename mapType::const_iterator i = range.first; i != range.second; ++i)
 		{
 			if(!p_newestResource || i->second->getTimestamp() > newestTimestamp)
 			{
@@ -90,8 +90,8 @@ public:
 #endif
 
 		// Objekt löschen
-		std::pair<stdext::hash_multimap<std::string, T*>::iterator, stdext::hash_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
-		for(stdext::hash_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
+		std::pair<typename stdext::hash_multimap<std::string, T*>::iterator, typename stdext::hash_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
+		for(typename stdext::hash_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
 		{
 			if(i->second == p_item)
 			{
@@ -109,7 +109,7 @@ public:
 		unsigned int counter = 0;
 
 		typedef stdext::hash_multimap<std::string, T*> mapType;
-		std::pair<mapType::const_iterator, mapType::const_iterator> range;
+		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range;
 
 		if(filename.empty())
 		{
@@ -123,7 +123,7 @@ public:
 			range = items.equal_range(filename);
 		}
 
-		for(mapType::const_iterator i = range.first; i != range.second; ++i)
+		for(typename mapType::const_iterator i = range.first; i != range.second; ++i)
 		{
 #ifdef _DEBUG
 			printfLog("> INFO: Resource \"%s\" is being reloaded ...\n",

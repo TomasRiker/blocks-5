@@ -7,7 +7,12 @@
 #include "options.h"
 #include "help.h"
 #include "filesystem.h"
+#ifdef _WIN32
 #include <shellapi.h>
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 extern const char* p_localVersion;
 
@@ -97,7 +102,11 @@ void GS_Menu::onRender()
 
 void GS_Menu::onUpdate()
 {
+#ifdef __EMSCRIPTEN__
+	Uint8* p_keyStates = SDL_GetKeyboardState(0);
+#else
 	Uint8* p_keyStates = SDL_GetKeyState(0);
+#endif
 	if(p_keyStates[SDLK_c] &&
 	   (p_keyStates[SDLK_LSHIFT] ||
 	    p_keyStates[SDLK_RSHIFT]))
@@ -298,7 +307,11 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		{
 			gui["Menu.DonatePane"]->hide();
 			std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
+			#ifdef __EMSCRIPTEN__
+			emscripten_run_script(("window.open('" + urlPath + "')").c_str());
+#else
 			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
+#endif
 		}
 	}
 }

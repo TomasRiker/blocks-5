@@ -167,12 +167,14 @@ void Font::renderText(const std::string& text,
 		cached = false;
 	}
 
+#ifndef __EMSCRIPTEN__
 	if(!cached)
 	{
 		glNewList(listBase + listIndex, GL_COMPILE);
 		renderTextPure(text);
 		glEndList();
 	}
+#endif
 
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
@@ -192,14 +194,22 @@ void Font::renderText(const std::string& text,
 			glColor4dv(shadowColor);
 			glPushMatrix();
 			glTranslated(samples[i].x, samples[i].y, 0.0);
+#ifdef __EMSCRIPTEN__
+			renderTextPure(text);   // no display lists in WebGL - draw it again
+#else
 			glCallList(listBase + listIndex);
+#endif
 			glPopMatrix();
 		}
 	}
 
 	// String zeichnen
 	glColor4dv(color);
+#ifdef __EMSCRIPTEN__
+	renderTextPure(text);
+#else
 	glCallList(listBase + listIndex);
+#endif
 
 	glPopMatrix();
 }

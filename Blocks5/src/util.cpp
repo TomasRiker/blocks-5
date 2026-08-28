@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "util.h"
 #include "engine.h"
 #include "filesystem.h"
@@ -332,6 +335,8 @@ double getExactTime()
 	LARGE_INTEGER t;
 	QueryPerformanceCounter(&t);
 	return (t.QuadPart - startTime.QuadPart) * invFrequency;
+#elif defined(__EMSCRIPTEN__)
+	return emscripten_get_now() * 0.001;
 #else
 #error NOT IMPLEMENTED
 #endif

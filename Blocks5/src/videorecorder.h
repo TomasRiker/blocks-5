@@ -35,9 +35,11 @@ private:
 	const uint fps;
 	uint8_t* p_videoInputBuffer;
 	short* p_audioInputBuffer;
+#ifndef BLOCKS5_NO_FFMPEG
 	AVFormatContext* p_avFormatContext;
 	AVFrame* p_frameYUV;
 	SwsContext* p_swScaleContext;
+#endif
 	uint8_t* p_videoOutputBuffer;
 	uint8_t* p_audioOutputBuffer;
 	uint audioOutputBufferSize;

@@ -57,6 +57,9 @@ public:
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen, bool useHQ2X);
 	void exit();
 	void mainLoop();
+#ifdef __EMSCRIPTEN__
+	void mainLoopIteration();   // one frame, driven by the browser
+#endif
 	void render();
 	void update();
 	void updateSounds();

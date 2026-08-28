@@ -6,6 +6,7 @@
 #include "resource.h"
 
 class AudioStream;
+class SoundInstance;
 
 class Sound : public Resource<Sound>
 {
