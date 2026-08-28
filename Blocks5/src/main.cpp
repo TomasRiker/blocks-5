@@ -385,10 +385,18 @@ int runTheGame(int argc,
 	// Engine-Aktionen festlegen
 	p_action = engine.registerAction("$A_TOGGLE_MUTE", engine.getKeyboardVK(SDLK_F1));
 	p_action->delay = INT_MAX;
+#ifndef __EMSCRIPTEN__
+	// Screenshots und Videoaufnahme gibt es im Web-Build nicht (Engine::screenshot
+	// kehrt dort sofort zurueck, VideoRecorder ist ein Stub), deshalb werden diese
+	// beiden Aktionen gar nicht erst registriert - sonst stuenden sie nutzlos in
+	// der Tastenbelegungsliste der Optionen. Die Abfragen in Engine::update
+	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen und
+	// wasActionPressed() faengt das ab, liefert also dauerhaft false.
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->delay = INT_MAX;
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));
 	p_action->delay = INT_MAX;
+#endif
 
 	if(!engine.init("Blocks 5", "window.png", 640, 480, fullScreen, useHQ2X))
 	{

@@ -34,8 +34,11 @@ video, OpenGL, OpenAL, texture loading straight out of the encrypted `data.zip`,
 the fixed-timestep main loop, mouse and keyboard input, and rendering — tile
 layers, sprites, fonts, the GUI, particles and weather.
 
-Amputated: video capture (`videorecorder_stub.cpp`), the hq2x upscaler
-(hand-written x86 assembly), the SEH crash handler, and the update checker.
+Amputated: video capture (`videorecorder_stub.cpp`), screenshots
+(`Engine::screenshot` returns early), the hq2x upscaler
+(hand-written x86 assembly), the SEH crash handler, and the update checker. The
+$A_CAPTURE_SCREENSHOT and $A_TOGGLE_CAPTURE_VIDEO actions are not registered
+under `__EMSCRIPTEN__`, so F11/F12 no longer appear in Options -> Controls.
 
 Not yet done: audio starts muted until the first click, because browsers block
 `AudioContext` without a user gesture.
