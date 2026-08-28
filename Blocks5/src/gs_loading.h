@@ -34,6 +34,11 @@ private:
 	bool soundPlayed;
 	double logoSize;
 	double logoSizeVel;
+#ifdef __EMSCRIPTEN__
+	bool waitingForClick;   // Browser blockiert den Ton bis zur ersten Geste
+	int waitTime;           // Wartezeit in ms, treibt auch das Pulsieren
+	int gestureTime;        // waitTime der ersten Eingabe, sonst -1
+#endif
 };
 
 #endif

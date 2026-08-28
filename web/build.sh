@@ -29,7 +29,7 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 #   hq2x         - links a prebuilt x86 .obj
 #   pch          - the Create-PCH translation unit, unused here
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|hq2x|pch)\.cpp$')
-SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/img_load.cpp $HERE/web_transfer.cpp"
+SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/img_load.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp"
 CSRCS="$GAME/libs/zlib-1.2.8/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.2.8/contrib/minizip/unzip.c
        $GAME/libs/zlib-1.2.8/contrib/minizip/zip.c

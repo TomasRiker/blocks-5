@@ -2017,6 +2017,12 @@ $IMPORT_CLICK_AGAIN
 §en:Please click the button again.
 §de:Bitte den Knopf noch einmal anklicken.
 
+$WEB_CLICK_TO_START
+// Prompt shown by the browser build before the intro, because a browser
+// will not play any sound until the page has been clicked once
+§en:Click to start¶Your browser needs this to play sound.
+§de:Zum Starten klicken¶Der Browser braucht das für den Ton.
+
 // *************
 // DO NOT MODIFY
 // *************

@@ -40,8 +40,8 @@ Amputated: video capture (`videorecorder_stub.cpp`), screenshots
 $A_CAPTURE_SCREENSHOT and $A_TOGGLE_CAPTURE_VIDEO actions are not registered
 under `__EMSCRIPTEN__`, so F11/F12 no longer appear in Options -> Controls.
 
-Not yet done: audio starts muted until the first click, because browsers block
-`AudioContext` without a user gesture.
+Sound is gated on a click, because browsers refuse to start an `AudioContext`
+without one - see below.
 
 No display lists remain. All four sites re-emit their geometry directly: the
 tilemap and the glyph cache under `#ifdef __EMSCRIPTEN__` (the Windows build
@@ -60,6 +60,8 @@ a fixed shape a triangle fan covers exactly.
 | `img_load.cpp` | replaces SDL_image with stb_image (see below) |
 | `platform_stubs.cpp` | SDL cursors, SDL surface locking, hq2x |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits |
+| `web_transfer.cpp` | the download/file-picker bridge behind Export and Import |
+| `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
 | `pre.js` | mounts IDBFS at `/blocks5_home` and flushes it periodically |
 
 Two of those deserve explanation.
@@ -78,6 +80,34 @@ the game's own virtual filesystem, which hands SDL_image a synthesised
 names of preloaded files, so it cannot do that at all. This build therefore does
 not link Emscripten's SDL_image; it supplies `IMG_Load_RW` itself and decodes with
 stb_image. `texture.cpp` and `engine.cpp` are untouched.
+
+## Click to start
+
+A browser will not let a page start an `AudioContext` that was created without a
+user gesture; it comes up `suspended` and stays that way. `Engine::init` opens
+OpenAL long before anyone has touched the page, so without a gate the logo jingle
+and the menu music were scheduled into a dead context and simply lost - the game
+came up silent, with nothing on screen to explain why.
+
+Emscripten does hang a resume on the first `mousedown`/`keydown`/`touchstart`
+(`autoResumeAudioContext` in `libcore.js`), but it registers those listeners with
+`{once: true}` and never checks whether the resume succeeded, so the one chance
+can be spent for nothing. And it does not help with the real problem, which is
+that the player is given no reason to click.
+
+So `GS_Loading` now holds before the intro, on a black screen, showing a centred
+`$WEB_CLICK_TO_START`. It only does this when `WebAudio::isSuspended()` says the
+browser is actually blocking - a context that is already running (Firefox, or
+Chrome started with `--autoplay-policy=no-user-gesture-required`) sees no prompt
+at all. Any mouse button or key calls `WebAudio::resume()` as well, so a spent
+`{once: true}` listener costs nothing. The hold ends as soon as the context
+reports `running`, which also covers a click that landed beside the canvas and
+was seen only by the browser; if a gesture has been seen but no answer arrives
+within two seconds, the game starts anyway, on the grounds that a silent game
+beats a screen that never moves.
+
+The logo is deliberately not drawn during the hold: its entrance is timed to the
+jingle, and both now begin together, one second after the click.
 
 ## Getting levels in and out
 

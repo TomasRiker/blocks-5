@@ -6,6 +6,9 @@
 #include "sound.h"
 #include "gui.h"
 #include "cf_all.h"
+#ifdef __EMSCRIPTEN__
+#include "web_audio.h"
+#endif
 
 GS_Loading::GS_Loading() : GameState("GS_Loading"), engine(Engine::inst())
 {
@@ -19,6 +22,39 @@ void GS_Loading::onRender()
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+#ifdef __EMSCRIPTEN__
+	if(waitingForClick)
+	{
+		// Sanftes Pulsieren, damit die Zeile nicht wie ein eingefrorenes
+		// Standbild wirkt. Das Logo bleibt aus: sein Auftritt gehoert zum
+		// Vorspann und laeuft erst mit dem Jingle zusammen los.
+		const Vec4d color(1.0, 1.0, 1.0, 0.65 + 0.35 * sin(waitTime * 0.004));
+		const std::string text = localizeString("$WEB_CLICK_TO_START");
+
+		Vec2i dim;
+		p_font->measureText(text, &dim, 0);
+
+		// Jede Zeile fuer sich zentrieren - renderText setzt nach einem
+		// Umbruch wieder bei position.x an, also linksbuendig.
+		int y = 240 - dim.y / 2;
+		for(size_t begin = 0; begin <= text.length(); )
+		{
+			size_t end = text.find_first_of("\n\xB6", begin);
+			if(end == std::string::npos) end = text.length();
+
+			const std::string line = text.substr(begin, end - begin);
+			Vec2i lineDim;
+			p_font->measureText(line, &lineDim, 0);
+			p_font->renderText(line, Vec2i(320 - lineDim.x / 2, y), color);
+
+			y += lineDim.y;
+			begin = end + 1;
+		}
+
+		return;
+	}
+#endif
 
 	glPushMatrix();
 	glLoadIdentity();
@@ -57,6 +93,47 @@ void GS_Loading::onRender()
 
 void GS_Loading::onUpdate()
 {
+#ifdef __EMSCRIPTEN__
+	if(waitingForClick)
+	{
+		waitTime += 20;
+
+		// Jede Eingabe zaehlt als Geste. Emscripten haengt selbst einen
+		// Aufwecker an das erste mousedown/keydown/touchstart, verbraucht ihn
+		// aber auch dann, wenn das Aufwecken scheitert (once: true in
+		// autoResumeAudioContext) - hier wird deshalb nachgefasst.
+		// Nur echte Tasten (1-3); 4 und 5 sind das Mausrad, und Scrollen
+		// gilt dem Browser nicht als Geste - es wuerde also nur die
+		// Notbremse unten scharf machen, ohne den Ton freizuschalten.
+		bool input = false;
+		for(uint button = SDL_BUTTON_LEFT; button <= SDL_BUTTON_RIGHT; button++)
+			if(engine.wasButtonPressed(button)) input = true;
+
+		SDL_KeyboardEvent keyEvent;
+		while(engine.getKeyEvent(&keyEvent))
+			if(keyEvent.type == SDL_KEYDOWN) input = true;
+
+		if(input)
+		{
+			WebAudio::resume();
+			if(gestureTime < 0) gestureTime = waitTime;
+		}
+
+		// Weiter, sobald der Ton freigegeben ist - auch dann, wenn der Klick
+		// neben die Zeichenflaeche ging und nur der Browser ihn gesehen hat.
+		// Bleibt die Antwort nach einer Geste zwei Sekunden lang aus, wird
+		// trotzdem gestartet: ein stummes Spiel ist besser als ein
+		// Bildschirm, der nie weitergeht.
+		if(!WebAudio::isSuspended() ||
+		   (gestureTime >= 0 && waitTime - gestureTime >= 2000))
+		{
+			waitingForClick = false;
+		}
+
+		return;
+	}
+#endif
+
 	time += 20;
 
 	if(time >= 1000)
@@ -105,6 +182,12 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	logoSizeVel = 0.0;
 	load = 0;
 	soundPlayed = false;
+
+#ifdef __EMSCRIPTEN__
+	waitingForClick = WebAudio::isSuspended();
+	waitTime = 0;
+	gestureTime = -1;
+#endif
 }
 
 void GS_Loading::onLeave(const ParameterBlock& context)
