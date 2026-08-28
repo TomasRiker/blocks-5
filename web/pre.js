@@ -15,8 +15,31 @@ Module['preRun'].push(function () {
     console.warn('[blocks5] could not mount IDBFS:', e);
   }
 });
-// Flush the user directory back to IndexedDB periodically.
+// A single coalescing syncfs driver. FS.syncfs warns when calls overlap
+// (libfs.js:615-626) and IDBFS reconciles a whole mount per run, so a request
+// arriving mid-flight sets a "dirty again" bit instead of starting a second
+// pass. Both the periodic flush and WebTransfer::syncHome() go through here.
+Module['b5_sync'] = (function () {
+  var running = false, again = false;
+  function run() {
+    running = true; again = false;
+    try {
+      FS.syncfs(false, function (err) {
+        running = false;
+        if (err) console.warn('[blocks5] IDBFS sync failed:', err);
+        if (again) run();
+      });
+    } catch (e) { running = false; console.warn('[blocks5] IDBFS sync threw:', e); }
+  }
+  return function () { if (running) again = true; else run(); };
+})();
+
 Module['postRun'] = Module['postRun'] || [];
 Module['postRun'].push(function () {
-  setInterval(function () { try { FS.syncfs(false, function () {}); } catch (e) {} }, 5000);
+  setInterval(Module['b5_sync'], 5000);
+  // A tab can be discarded without warning; pagehide is the last reliable hook.
+  window.addEventListener('pagehide', Module['b5_sync']);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) Module['b5_sync']();
+  });
 });

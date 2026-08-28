@@ -79,6 +79,36 @@ names of preloaded files, so it cannot do that at all. This build therefore does
 not link Emscripten's SDL_image; it supplies `IMG_Load_RW` itself and decodes with
 stb_image. `texture.cpp` and `engine.cpp` are untouched.
 
+## Getting levels in and out
+
+The Level Editor and Campaign Editor each gained an **Export...** and
+**Import...** button, present only in the web build (the desktop build hides
+them - there the files are already in `My Documents\Blocks 5\`).
+
+Export hands the browser a Blob and clicks a hidden `<a download>`. A level is
+serialised exactly as Save would write it, so it need not be saved first; a
+campaign ships the password-protected zip the editor already produces, byte for
+byte, which is why an imported campaign is immediately playable.
+
+Import opens an `<input type="file">`, reads it with a FileReader, and writes it
+to a staging path *outside* `/blocks5_home` - so a file that fails validation
+never reaches IndexedDB. The completion is handed back to C++ through
+`EMSCRIPTEN_KEEPALIVE` functions the JS calls, and each editor polls once per
+logic tick; the handoff is tagged with a channel so a dialog resolving after the
+user has switched editors is not consumed by the wrong one. The browser's
+filename is only ever a *suggestion*: `sanitizeFilenameStem` (unguarded, in
+util.cpp) reduces it to `[A-Za-z0-9_-]`, at most 64 characters, and C composes
+every destination path. JS never does. A level is validated by parsing it and
+checking for a `<Level>` root; a campaign by opening the archive and requiring a
+`campaign.xml` that loads with at least one level. On success the import forces
+an `FS.syncfs` so it is durable immediately rather than up to five seconds later.
+
+Two honest limitations. An imported campaign **plays but does not open in the
+campaign editor** - the editor only lists campaigns whose levels also exist
+loose in `levels/`. And a campaign zip carries its levels and music but **not its
+skins**, so a campaign built on a custom skin renders with the missing-skin
+fallback unless the skin zip is shared separately.
+
 ## What was actually wrong
 
 Worth recording, because none of it was predictable from reading the code.

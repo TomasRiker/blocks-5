@@ -60,6 +60,33 @@ int randomInt()
 	return mt.randInt(0x7FFFFFFF);
 }
 
+std::string sanitizeFilenameStem(const std::string& untrusted,
+								 const std::string& fallback)
+{
+	// nur den Basisnamen betrachten
+	std::string name(untrusted);
+	const size_t cut = name.find_last_of("/\\:");
+	if(cut != std::string::npos) name = name.substr(cut + 1);
+
+	// Erweiterung abschneiden - die bestimmt der Aufrufer, nicht die Datei
+	const size_t dot = name.find_last_of('.');
+	if(dot != std::string::npos) name = name.substr(0, dot);
+
+	std::string result;
+	for(size_t i = 0; i < name.length() && result.length() < 64; i++)
+	{
+		const char c = name[i];
+		const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+						(c >= '0' && c <= '9') || c == '_' || c == '-';
+		result += ok ? c : '_';
+	}
+
+	while(!result.empty() && result[0] == '_') result.erase(0, 1);
+	while(!result.empty() && result[result.length() - 1] == '_') result.resize(result.length() - 1);
+
+	return result.empty() ? fallback : result;
+}
+
 int random(int min,
 		   int max)
 {

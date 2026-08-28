@@ -23,6 +23,13 @@ template<typename T> const T& clamp(const T& value,
 int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
+
+// Macht aus einem beliebigen - auch von aussen eingeschleusten - Dateinamen
+// einen sicheren Namensteil: nur der Basisname, nur [A-Za-z0-9_-], keine
+// Punkte, nie leer, hoechstens 64 Zeichen. Das Ergebnis kann nie aus seinem
+// Verzeichnis ausbrechen; die Erweiterung legt der Aufrufer fest.
+std::string sanitizeFilenameStem(const std::string& untrusted,
+                                 const std::string& fallback = "imported");
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);

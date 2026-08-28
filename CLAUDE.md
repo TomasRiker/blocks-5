@@ -112,8 +112,9 @@ to the executable.
 
 **Localization.** Any user-facing string starting with `$` is an ID resolved against
 `data/languages.txt` by `Engine::localizeString` / the free `loadString` helper. In that file a
-`$ID` line is followed by per-language bodies tagged `¶en:`, `¶de:`, `¶fr:`, `¶es:` (0xB6 in
-Latin-1); a bare `¶` inserts a newline. Missing translations fall back to English. Level titles,
+`$ID` line is followed by per-language bodies tagged `§en:`, `§de:`, `§fr:`, `§es:` — that
+prefix is the section sign, 0xA7 in Latin-1, not the pilcrow. A separate character, `¶`
+(0xB6), inserts a newline inside a body. Missing translations fall back to English. Level titles,
 tooltips and menu captions in XML all use these IDs.
 
 **Level file format.** A level is XML: `<Level>` attributes for size, skins, weather, light

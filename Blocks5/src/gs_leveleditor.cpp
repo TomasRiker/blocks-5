@@ -13,6 +13,9 @@
 #include "cf_all.h"
 #include "filesystem.h"
 #include "help.h"
+#ifdef __EMSCRIPTEN__
+#include "web_transfer.h"
+#endif
 
 class LevelEditorGUI : public GUI_Element, public sigslot::has_slots<>
 {
@@ -67,6 +70,20 @@ public:
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.OK"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
+
+		// Export/Import gibt es nur im Browser; auf dem Desktop liegen die
+		// Dateien ohnehin schon in "Eigene Dateien\Blocks 5\".
+		{
+			GUI_Element* p_export = getChild("MenuPane.Menu.Export");
+			GUI_Element* p_import = getChild("MenuPane.Menu.Import");
+#ifdef __EMSCRIPTEN__
+			if(p_export) static_cast<GUI_Button*>(p_export)->connectClicked(this, &LevelEditorGUI::handleClick);
+			if(p_import) static_cast<GUI_Button*>(p_import)->connectClicked(this, &LevelEditorGUI::handleClick);
+#else
+			if(p_export) p_export->hide();
+			if(p_import) p_import->hide();
+#endif
+		}
 
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->connectChanged(this, &LevelEditorGUI::handleClick);
@@ -866,6 +883,43 @@ public:
 				}
 			}
 		}
+#ifdef __EMSCRIPTEN__
+		else if(name == "LevelEditor.MenuPane.Menu.Export")
+		{
+			// Der Browser bekommt genau das, was "Save" schreiben wuerde - der
+			// Level muss dafuer nicht erst gespeichert worden sein.
+			std::string filename = static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->getText();
+			const std::string downloadName = sanitizeFilenameStem(filename, "level") + ".xml";
+
+			TiXmlDocument* p_doc = editor.p_level->save();
+			std::string xml;
+			xml << *p_doc;
+			delete p_doc;
+
+			if(WebTransfer::downloadString(xml, downloadName))
+			{
+				editor.messageText = "$LE_INFO_LEVEL_EXPORTED";
+				editor.messageCounter = 100;
+				editor.messageType = 0;
+			}
+			else
+			{
+				editor.messageText = "$LE_ERROR_SAVING";
+				editor.messageCounter = 200;
+				editor.messageType = 1;
+			}
+		}
+		else if(name == "LevelEditor.MenuPane.Menu.Import")
+		{
+			// 1 MiB - der groesste mitgelieferte Level hat 24 KB.
+			if(!WebTransfer::openPicker(WebTransfer::CHANNEL_LEVEL, ".xml", 1048576u, "/blocks5_import.xml"))
+			{
+				editor.messageText = "$IMPORT_CLICK_AGAIN";
+				editor.messageCounter = 150;
+				editor.messageType = 1;
+			}
+		}
+#endif
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
 		{
 			getChild("MenuPane")->hide();
@@ -1035,6 +1089,80 @@ public:
 			}
 		}
 	}
+
+#ifdef __EMSCRIPTEN__
+	// Wird jeden Logik-Tick aufgerufen und holt das Ergebnis des asynchronen
+	// Dateidialogs ab.
+	void pollImport()
+	{
+		std::string untrustedName;
+		const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_LEVEL, untrustedName);
+		if(status == WebTransfer::IMPORT_IDLE) return;
+
+		FileSystem& fs = FileSystem::inst();
+		const std::string staging("/blocks5_import.xml");
+
+		if(status != WebTransfer::IMPORT_OK)
+		{
+			fs.deleteFile(staging);
+			if(status == WebTransfer::IMPORT_CANCELLED) return;   // stillschweigend
+			editor.messageText = (status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
+							   : (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$LE_ERROR_IMPORT_INVALID"
+							   : "$IMPORT_FAILED";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+
+		// 1. Inhalt pruefen, BEVOR irgendetwas ins Benutzerverzeichnis geht.
+		//    Nur parsen, nicht Level::load() - das wuerde Objekte bauen und
+		//    Texturen anfordern, nur um eine Datei zu pruefen.
+		TiXmlDocument doc;
+		doc.SetCondenseWhiteSpace(false);
+		doc.Parse(fs.readStringFromFile(staging).c_str());
+		if(doc.Error() || !doc.FirstChildElement("Level"))
+		{
+			fs.deleteFile(staging);
+			editor.messageText = "$LE_ERROR_IMPORT_INVALID";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+
+		// 2. Zielnamen selbst bilden. Der Name aus dem Browser ist nur ein
+		//    Vorschlag und wird nie als Pfad benutzt.
+		const std::string dir(fs.getAppHomeDirectory() + "levels/");
+		const std::string stem(sanitizeFilenameStem(untrustedName));
+		std::string name(stem + ".xml");
+		for(int n = 2; n <= 99 && fs.fileExists(dir + name); n++)
+		{
+			char temp[128] = "";
+			sprintf(temp, "%s_%d.xml", stem.c_str(), n);   // stem <= 64 Zeichen
+			name = temp;
+		}
+
+		if(!fs.copyFile(staging, dir + name))
+		{
+			fs.deleteFile(staging);
+			editor.messageText = "$IMPORT_FAILED";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+		fs.deleteFile(staging);
+
+		// 3. Sofort nach IndexedDB durchschreiben - sonst waere der Import bis
+		//    zu fuenf Sekunden lang nur im Arbeitsspeicher.
+		WebTransfer::syncHome();
+
+		// 4. Namen anbieten, aber nicht automatisch laden: der Editor koennte
+		//    ungespeicherte Aenderungen enthalten.
+		static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(name);
+		editor.messageText = "$LE_INFO_LEVEL_IMPORTED";
+		editor.messageCounter = 150;
+		editor.messageType = 0;
+	}
+#endif
 
 private:
 	GS_LevelEditor& editor;
@@ -1239,6 +1367,11 @@ void GS_LevelEditor::onUpdate()
 	// alte Objekte löschen, neue Objekte hinzufügen
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
+
+#ifdef __EMSCRIPTEN__
+	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
+	if(GUI_Element* p_gui = gui["LevelEditor"]) static_cast<LevelEditorGUI*>(p_gui)->pollImport();
+#endif
 
 	if(messageCounter) messageCounter--;
 }

@@ -139,6 +139,9 @@
 			<Button name="New" x="10" y="110" w="145" h="30">
 				<Title>$LE_MENU_NEW</Title>
 			</Button>
+			<Button name="Export" x="165" y="110" w="145" h="30">
+				<Title>$LE_MENU_EXPORT</Title>
+			</Button>
 			<Button name="Play" x="10" y="150" w="145" h="30">
 				<Title>$LE_MENU_PLAY</Title>
 			</Button>
@@ -147,6 +150,9 @@
 			</Button>
 			<Button name="Clear" x="10" y="190" w="145" h="30">
 				<Title>$LE_MENU_CLEAR</Title>
+			</Button>
+			<Button name="Import" x="165" y="190" w="145" h="30">
+				<Title>$LE_MENU_IMPORT</Title>
 			</Button>
 			<Button name="OK" x="10" y="240" w="145" h="30">
 				<Title>$OK</Title>

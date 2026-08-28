@@ -1942,6 +1942,81 @@ $HINT_BLOCKS_41_02
 // --------------------------------------------------------------------------------
 §de:Neun Elefanten erfanden einen nicht elementaren nächtlichen Eierkuchen.
 
+$LE_MENU_EXPORT
+// Level editor: button that downloads the level to the host (web build)
+§en:Export...
+§de:Exportieren...
+
+$LE_MENU_IMPORT
+// Level editor: button that uploads a level file from the host (web build)
+§en:Import...
+§de:Importieren...
+
+$LE_INFO_LEVEL_EXPORTED
+// Info shown after the level was handed to the browser
+§en:Level exported.
+§de:Level exportiert.
+
+$LE_INFO_LEVEL_IMPORTED
+// Info shown after a level file was imported
+§en:Level imported.
+§de:Level importiert.
+
+$LE_ERROR_IMPORT_INVALID
+// Error shown when an imported file is not a level file
+§en:ERROR: This is not a valid level file.
+§de:FEHLER: Das ist keine gültige Level-Datei.
+
+$CE_MENU_EXPORT
+// Campaign editor: button that downloads the campaign (web build)
+§en:Export...
+§de:Exportieren...
+
+$CE_MENU_IMPORT
+// Campaign editor: button that uploads a campaign file (web build)
+§en:Import...
+§de:Importieren...
+
+$CE_INFO_CAMPAIGN_EXPORTED
+// Info shown after the campaign was handed to the browser
+§en:Campaign exported.
+§de:Kampagne exportiert.
+
+$CE_INFO_CAMPAIGN_IMPORTED
+// Info shown after a campaign file was imported
+§en:Campaign imported. It can be played, but not edited.
+§de:Kampagne importiert. Sie kann gespielt, aber nicht bearbeitet werden.
+
+$CE_ERROR_IMPORT_INVALID
+// Error shown when an imported file is not a campaign file
+§en:ERROR: This is not a valid campaign file.
+§de:FEHLER: Das ist keine gültige Kampagnen-Datei.
+
+$IMPORT_FAILED
+// Error shown when an imported file could not be written
+§en:ERROR: The import failed.
+§de:FEHLER: Der Import ist fehlgeschlagen.
+
+$IMPORT_NOTHING_TO_EXPORT
+// Error shown when export is pressed with nothing saved yet
+§en:ERROR: Save it first, then export.
+§de:FEHLER: Erst speichern, dann exportieren.
+
+$IMPORT_CANCELLED
+// Info shown when the user closed the file dialog without choosing
+§en:Import cancelled.
+§de:Import abgebrochen.
+
+$IMPORT_TOO_BIG
+// Error shown when the chosen file is larger than the limit
+§en:ERROR: That file is too large.
+§de:FEHLER: Diese Datei ist zu groß.
+
+$IMPORT_CLICK_AGAIN
+// Error shown when the browser refused to open the file dialog
+§en:Please click the button again.
+§de:Bitte den Knopf noch einmal anklicken.
+
 // *************
 // DO NOT MODIFY
 // *************
