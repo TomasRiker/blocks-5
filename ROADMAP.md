@@ -590,6 +590,43 @@ Win32 window style directly:
 
 Going back to windowed is the same three lines with the saved style and rectangle.
 
+Five details make that safe rather than merely plausible, all checked in the
+vendored source rather than assumed:
+
+- **SDL will not fight the style.** `DIB_ResizeWindow` passes
+  `GetWindowLong(SDL_Window, GWL_STYLE)` to `AdjustWindowRectEx`
+  (`SDL_dibvideo.c:547`) — it reads the window's *current* style rather than
+  deriving one from the flags, so with `WS_POPUP` set it computes a zero border
+  and the client area is exactly the size asked for.
+- **SDL will not re-impose one either.** The block that turns flags into
+  `WS_POPUP` / `WS_THICKFRAME` is at `SDL_dibvideo.c:802-832`, past the early
+  return, so it runs only on the slow path. After the first mode set the game
+  never takes the slow path again, and the style stays whatever it was last set
+  to.
+- **The event loop does not run away.** Step 4's `SDL_SetVideoMode` reaches
+  `DIB_ResizeWindow`, which issues its own `SetWindowPos`, which fires another
+  `WM_WINDOWPOSCHANGED`, which calls `SDL_PrivateResize` again. That terminates
+  because `SDL_PrivateResize` keeps a `last_resize` and returns immediately on a
+  repeat (`SDL_resize.c:43-46`); it also pulls pending `SDL_VIDEORESIZE` events
+  out of the queue before posting, which coalesces a drag.
+- **SDL will not move the window out from under you.** `DIB_ResizeWindow` ends in
+  `SetWindowPos(SDL_Window, HWND_NOTOPMOST, x, y, ...)`, and with no
+  `SDL_FULLSCREEN` flag and no `SDL_VIDEO_WINDOW_POS` / `SDL_VIDEO_CENTERED` in
+  the environment, `x` and `y` come from `SDL_windowX`/`SDL_windowY` — which
+  `WM_WINDOWPOSCHANGED` has just updated from the window's real position
+  (`SDL_sysevents.c:596-601`). At (0,0) both are zero, the `else` branch adds
+  `SWP_NOMOVE`, and the window is left alone; on a secondary monitor they hold
+  that monitor's origin and the window lands there. Worth verifying on a
+  multi-monitor setup rather than trusting, and re-applying the position after
+  if it ever disagrees. `HWND_NOTOPMOST` is the right answer either way — a
+  borderless fullscreen window should not be topmost, or alt-tab stops working.
+- **Telling SDL the new size is not optional.** `SDL_PrivateMouseMotion` clamps
+  to `SDL_MouseMaxX`/`SDL_MouseMaxY` (`SDL_mouse.c:136-150`, `:206-221`). Change
+  the Win32 window without informing SDL and the cursor stays clipped to the old,
+  smaller area — which is why step 4 exists at all. Both `SDL_PrivateResize`
+  (`SDL_resize.c:52`) and `SDL_SetVideoMode` (`SDL_video.c:653`) set the range, so
+  the path is covered twice over.
+
 **There is therefore only one code path — "the window changed size" — and
 fullscreen is just a particular size plus a style flip.** That is the whole
 answer to the reload problem: nothing is ever destroyed, so nothing has to be
