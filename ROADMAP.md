@@ -346,19 +346,15 @@ game ships needs a Visual C++ redistributable any more:
     pwencrypt.exe   static CRT      /MT
     showuserdir.exe static CRT      /MT
     OpenAL32.dll    msvcrt.dll      OS-provided
-    avcodec-53.dll  msvcrt.dll      OS-provided
-    avformat-53.dll msvcrt.dll      OS-provided
-    avutil-51.dll   msvcrt.dll      OS-provided
-    swscale-2.dll   msvcrt.dll      OS-provided
 
 `hq2x32.obj`, the one foreign object file linked directly into the exe, carries
 no `/DEFAULTLIB` or `/FAILIFMISMATCH` directive and no CRT references at all —
 its only undefined symbols are `_LUT16to32` and `_RGBtoYUV`, both defined in
-`src/hq2x.cpp` — so it did not stand in the way of `/MT`. The ffmpeg and OpenAL
-DLLs carry their own CRT across the boundary, but they always did, and nothing
-allocates on one side and frees on the other: every `av_free` in
-`videorecorder.cpp` pairs with an ffmpeg-side allocation, and the file handle
-stays inside `avio_open`.
+`src/hq2x.cpp` — so it did not stand in the way of `/MT`. `OpenAL32.dll` is
+now the only DLL beside the executables, and it carries its own CRT across the
+boundary as it always did; nothing allocates on one side and frees on the other,
+because the game calls only core AL/ALC entry points and never takes ownership of
+an OpenAL-side allocation.
 
 The one thing given up is that a statically linked CRT no longer picks up
 Windows Update's servicing of the shared one. For a single-player puzzle game
