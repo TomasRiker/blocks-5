@@ -32,8 +32,6 @@ REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
 REM  v120 still builds and remains the reference. Anything newer additionally
 REM  needs, and now has:
-REM    - _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS, because src\pch.h includes
-REM      ^<hash_map^> and from VS2015 on that is a hard error, not a warning
 REM    - __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS among the project
 REM      defines rather than in pch.h. libs\msinttypes-r26 shadows the real
 REM      ^<stdint.h^>; from VS2015 on the STL pulls that shim in from ^<vector^>,
@@ -44,7 +42,10 @@ REM    - SDL 1.2.15's own src\main\win32\SDL_win32_main.c compiled from source
 REM      in place of libs\bin\sdlmain.lib. That library is pre-UCRT and imports
 REM      __iob_func, which the Universal CRT removed, so it linked only on v120
 REM
-REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has.
+REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
+REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
+REM  hash_multimap were replaced by the standard unordered containers, which
+REM  every supported toolset from v120 on has.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS

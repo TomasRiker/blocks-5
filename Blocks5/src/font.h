@@ -65,7 +65,7 @@ private:
 	uint listBase;
 	uint numLists;
 	uint listFree;
-	stdext::hash_map<std::string, StringCacheEntry> stringCache;
+	std::unordered_map<std::string, StringCacheEntry> stringCache;
 	std::stack<Options> optionsStack;
 };
 

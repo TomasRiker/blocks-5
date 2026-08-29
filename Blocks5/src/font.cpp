@@ -118,7 +118,7 @@ void Font::renderText(const std::string& text,
 	uint listIndex;
 
 	// Haben wir diesen String schon im Cache?
-	stdext::hash_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
+	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
 	if(entry != stringCache.end())
 	{
 		// Ja, ist schon im Cache!
@@ -143,8 +143,8 @@ void Font::renderText(const std::string& text,
 		{
 			// Der älteste Eintrag wird überschrieben.
 			uint minTime = ~0;
-			stdext::hash_map<std::string, StringCacheEntry>::iterator oldestEntry;
-			for(stdext::hash_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
+			std::unordered_map<std::string, StringCacheEntry>::iterator oldestEntry;
+			for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
 			{
 				if(i->second.lastTimeUsed < minTime)
 				{

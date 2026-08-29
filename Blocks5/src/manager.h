@@ -13,7 +13,7 @@ public:
 	void exit()
 	{
 		// alle noch geladenen Objekte löschen
-		for(typename stdext::hash_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
+		for(typename std::unordered_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
 		{
 #ifdef _DEBUG
 			printfLog("> INFO: Resource \"%s\" is being released automatically ...\n",
@@ -28,7 +28,7 @@ public:
 
 	T* find(const std::string& filename) const
 	{
-		typedef stdext::hash_multimap<std::string, T*> mapType;
+		typedef std::unordered_multimap<std::string, T*> mapType;
 		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range = items.equal_range(filename);
 
 		// neueste Ressource suchen
@@ -90,8 +90,8 @@ public:
 #endif
 
 		// Objekt löschen
-		std::pair<typename stdext::hash_multimap<std::string, T*>::iterator, typename stdext::hash_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
-		for(typename stdext::hash_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
+		std::pair<typename std::unordered_multimap<std::string, T*>::iterator, typename std::unordered_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
+		for(typename std::unordered_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
 		{
 			if(i->second == p_item)
 			{
@@ -108,7 +108,7 @@ public:
 	{
 		unsigned int counter = 0;
 
-		typedef stdext::hash_multimap<std::string, T*> mapType;
+		typedef std::unordered_multimap<std::string, T*> mapType;
 		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range;
 
 		if(filename.empty())
@@ -136,7 +136,7 @@ public:
 		return counter;
 	}
 
-	const stdext::hash_multimap<std::string, T*>& getItems() const
+	const std::unordered_multimap<std::string, T*>& getItems() const
 	{
 		return items;
 	}
@@ -151,7 +151,7 @@ private:
 		exit();
 	}
 
-	stdext::hash_multimap<std::string, T*> items;
+	std::unordered_multimap<std::string, T*> items;
 };
 
 #endif

@@ -88,17 +88,16 @@ libvorbis and `SDL_win32_main.c` were moved to source builds:
 | Binary | What it is | Notes |
 | --- | --- | --- |
 | `libs/bin/sdl.lib` + `sdl.dll` | SDL 1.2.15 | tree already holds `libs/SDL-1.2.15/include` and one source file |
-| `libs/bin/SDL_image.lib` + `sdl_image.dll` | SDL_image 1.2.12 | pulls `libpng15-15.dll`, `zlib1.dll` |
 | `libs/bin/av*.lib`, `swscale.lib` + 4 DLLs | ffmpeg 0.8 (2011) | only used by `videorecorder.cpp` |
 | `libs/bin/hq2x32.obj` | see item 2 | |
 | `libs/bin/OpenAL32.lib` + `OpenAL32.dll` | OpenAL Soft 1.25.2 | LGPL, *must* stay a DLL |
 
-**SDL_image is the easy win.** `WebBuild/img_load.cpp` already replaces it with
-`stb_image.h`, which is vendored in `libs/stb`. Doing the same on Windows drops
-three DLLs (`sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`) and two import
-libraries in one move. It also fixes a latent bug: the shipped `sdl_image.dll`
-imports `libjpeg-8.dll`, `libtiff-5.dll` and `libwebp-2.dll`, none of which are
-anywhere in the tree — anything that took those code paths would already fail.
+**SDL_image is done.** `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
+stb_image for both builds, and `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`
+and `libs/bin/SDL_image.lib` are gone. It also retired a latent bug: SDL_image
+1.2 loads its codecs with `LoadLibrary` at runtime, and `sdl_image.dll` asks for
+`libjpeg-8.dll`, `libtiff-5.dll` and `libwebp-2.dll`, none of which were ever in
+the tree — only PNG had ever worked.
 
 **ffmpeg is indeed overkill.** It is used for exactly one thing: writing an AVI
 with one video and one PCM-ish audio stream, through `avcodec_encode_video` /
@@ -128,14 +127,19 @@ into this item.
 already probes `Platforms\Win32\PlatformToolsets\<ts>` and falls back through
 vswhere, so a newer toolset mostly needs testing and adding to the known list.
 
-The one thing that will eventually break, and is worth fixing before it does:
-`pch.h` includes `<hash_map>` and the tree uses `stdext::hash_map` in
-`parameterblock.h`, `gs_menu.h`, `presets.cpp` and `Engine::stringDB`. That
-header has been a hard `static_assert` error since VS2015 and is only compiling
-today because `_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` is in the project
-defines. It is a Microsoft extension that will be removed outright. Replacing
-those handful of uses with `std::unordered_map` is mechanical, kills the define,
-and removes the tree's single most likely future build break.
+The `<hash_map>` problem is dealt with: the 41 `stdext::hash_map` /
+`hash_multimap` uses across 12 files are `std::unordered_map` /
+`std::unordered_multimap` now, the header is out of `pch.h`, and
+`_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` is out of the project defines.
+
+That also made the tree far easier to check without MSVC: **106 of the 111
+sources in `Blocks5/src` now pass `i686-w64-mingw32-g++ -fsyntax-only`** against
+the real `pch.h`. The five that do not are `main.cpp` (SEH `__except`),
+`filesystem.cpp` (includes `Shlobj.h`, lowercase on case-sensitive systems) and
+`panel.cpp` / `e_pulsepanel.cpp` / `teleporter.cpp`, which call `std::find`
+without including `<algorithm>` — MSVC and libc++ pull it in transitively,
+libstdc++ does not. Those last four are also exactly what a Linux build will trip
+over first, so they belong to item 5.
 
 Smaller conformance items already visible in the Emscripten build's warnings:
 `register` in `libs/mtrand-1.1/MersenneTwister.h` (removed in C++17), string
@@ -170,6 +174,12 @@ and `stackwalker.cpp` is already excluded from non-Windows builds.
 `WebBuild/platform_stubs.cpp` is worth reading first for a different reason: it
 is the list of SDL 1.2 entry points a non-Windows build turned out to need
 shimmed, and its `hq2x_32` no-op is item 2 in miniature.
+
+A mingw sweep already names the first four things a GCC-based build will reject:
+`filesystem.cpp` includes `Shlobj.h` where the file is `shlobj.h`, and
+`panel.cpp`, `e_pulsepanel.cpp` and `teleporter.cpp` call `std::find` without
+including `<algorithm>`. Everything else in `Blocks5/src` except `main.cpp`'s SEH
+block already parses.
 
 What still needs deciding:
 
@@ -269,18 +279,15 @@ neither.
 Checked, rather than assumed — of the DLLs the game ships:
 
     sdl.dll         MSVCR120.dll     <- needs the 2013 redistributable
-    sdl_image.dll   MSVCR120.dll     <- needs the 2013 redistributable
     OpenAL32.dll    msvcrt.dll       ok, OS-provided
     avcodec-53.dll  msvcrt.dll       ok
     avformat-53.dll msvcrt.dll       ok
     avutil-51.dll   msvcrt.dll       ok
     swscale-2.dll   msvcrt.dll       ok
-    libpng15-15.dll msvcrt.dll       ok
-    zlib1.dll       msvcrt.dll       ok
 
-So only **two** files actually require a redistributable, plus the game's own
-executables, which link the CRT dynamically because the projects use the default
-`/MD`.
+So exactly **one** file still requires a redistributable — `sdl_image.dll` was
+the other one and is gone — plus the game's own executables, which link the CRT
+dynamically because the projects use the default `/MD`.
 
 That makes this smaller than it looks:
 
@@ -289,9 +296,8 @@ That makes this smaller than it looks:
   `/DEFAULTLIB` or `/FAILIFMISMATCH` directive and no CRT references at all (its
   only undefined symbols are `_LUT16to32` and `_RGBtoYUV`, both defined in
   `src/hq2x.cpp`), so it does not stand in the way.
-- Deal with `sdl.dll` and `sdl_image.dll` — which is item 3. SDL_image goes away
-  entirely if stb_image replaces it; SDL itself needs rebuilding from source or
-  the SDL2 move.
+- Deal with `sdl.dll` — which is item 3. SDL needs rebuilding from source, or the
+  SDL2 move.
 
 When both are done, `vcredist_x86.exe` (6.5 MB), the `InstallVC2013Runtime` task
 and its four message strings come out of `Blocks5/setup/Blocks 5.iss` — the same
@@ -304,14 +310,14 @@ How these connect
                           ├─> 5 (Linux: the __asm block blocks GCC/Clang)
                           └─> 3 (last non-import binary in libs/bin)
 
-    3 (all from source) ──┬─> 9 (sdl.dll/sdl_image.dll are the only redist users)
+    3 (all from source) ──┬─> 9 (sdl.dll is the last redist user)
                           └─> 5 (Linux needs an ffmpeg answer anyway)
 
     5 (Linux) <────────────── WebBuild/platform_stubs.cpp already does most of it
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
-The two cheapest items with real payoff are probably **stb_image instead of
-SDL_image** (drops three DLLs and fixes a latent missing-import bug) and
-**`std::unordered_map` instead of `stdext::hash_map`** (removes the tree's most
-likely future build break).
+*Done since this list was written:* stb_image in place of SDL_image, which took
+three DLLs and an import library out of the tree, and the standard unordered
+containers in place of `stdext::hash_map`, which removed the most likely future
+build break and got 106 of 111 sources compiling under a non-MSVC compiler.

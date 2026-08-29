@@ -4,21 +4,9 @@
 #define BLOCKS5_COMPAT_H
 #ifndef _MSC_VER
 
-#include <unordered_map>
-#include <unordered_set>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-
-// The game uses MSVC's stdext::hash_map/hash_multimap in 11 files (41 uses),
-// always in the two-argument form, so plain aliases to the standard containers
-// are behaviour-compatible here: every use is order-independent, and the one
-// place that needs ordered iteration (Engine's action list) keeps its own vector.
-namespace stdext {
-    template <class K, class V> using hash_map      = std::unordered_map<K, V>;
-    template <class K, class V> using hash_multimap = std::unordered_multimap<K, V>;
-    template <class K>          using hash_set      = std::unordered_set<K>;
-}
 
 // MSVC CRT spellings used by the game.
 #ifndef _stricmp

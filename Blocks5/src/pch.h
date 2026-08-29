@@ -7,9 +7,7 @@
 #include <vector>
 #include <list>
 #include <stack>
-#ifdef _MSC_VER
-#include <hash_map>
-#endif
+#include <unordered_map>
 #include <set>
 #include <queue>
 #include <SDL.h>

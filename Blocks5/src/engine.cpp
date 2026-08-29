@@ -779,7 +779,7 @@ void Engine::mainLoopIteration()
 			}
 
 			// Aktionsdaten zurücksetzen
-			for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+			for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 				it != actions.end();
 				++it)
 			{
@@ -1060,13 +1060,13 @@ void Engine::update()
 void Engine::updateSounds()
 {
 	// Sounds aktualisieren
-	const stdext::hash_multimap<std::string, Sound*>& sounds = Manager<Sound>::inst().getItems();
-	for(stdext::hash_multimap<std::string, Sound*>::const_iterator i = sounds.begin(); i != sounds.end(); ++i) i->second->update();
+	const std::unordered_multimap<std::string, Sound*>& sounds = Manager<Sound>::inst().getItems();
+	for(std::unordered_multimap<std::string, Sound*>::const_iterator i = sounds.begin(); i != sounds.end(); ++i) i->second->update();
 
 	// gestreamte Sounds aktualisieren
-	const stdext::hash_multimap<std::string, StreamedSound*>& streamedSounds = Manager<StreamedSound>::inst().getItems();
+	const std::unordered_multimap<std::string, StreamedSound*>& streamedSounds = Manager<StreamedSound>::inst().getItems();
 	std::list<StreamedSound*> toBeDeleted;
-	for(stdext::hash_multimap<std::string, StreamedSound*>::const_iterator i = streamedSounds.begin(); i != streamedSounds.end(); ++i)
+	for(std::unordered_multimap<std::string, StreamedSound*>::const_iterator i = streamedSounds.begin(); i != streamedSounds.end(); ++i)
 	{
 		if(!i->second->update())
 		{
@@ -1307,7 +1307,7 @@ void Engine::registerGameState(GameState* p_gs)
 
 GameState* Engine::findGameState(const std::string& gs)
 {
-	stdext::hash_map<std::string, GameState*>::const_iterator i = gameStates.find(gs);
+	std::unordered_map<std::string, GameState*>::const_iterator i = gameStates.find(gs);
 	if(i == gameStates.end()) return 0;
 	else return i->second;
 }
@@ -1523,7 +1523,7 @@ const std::vector<VirtualKey>& Engine::getVKs() const
 	return virtualKeys;
 }
 
-const stdext::hash_map<std::string, Action*>& Engine::getActions() const
+const std::unordered_map<std::string, Action*>& Engine::getActions() const
 {
 	return actions;
 }
@@ -1573,7 +1573,7 @@ void Engine::changeAction(const std::string& name,
 
 Action* Engine::getAction(const std::string& name) const
 {
-	stdext::hash_map<std::string, Action*>::const_iterator it = actions.find(name);
+	std::unordered_map<std::string, Action*>::const_iterator it = actions.find(name);
 	return it == actions.end() ? 0 : it->second;
 }
 
@@ -1655,7 +1655,7 @@ void Engine::updateVKs()
 
 void Engine::updateActions()
 {
-	for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
@@ -1786,7 +1786,7 @@ void Engine::resetActions()
 void Engine::limitActionKeys()
 {
 	// Indizes der Aktionen limitieren
-	for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
@@ -2199,7 +2199,7 @@ std::string Engine::localizeString(const std::string& text)
 		if(text[0] == '$')
 		{
 			// Gibt es diesen String in der Datenbank?
-			stdext::hash_map<std::string, std::string>::const_iterator i = stringDB.find(text);
+			std::unordered_map<std::string, std::string>::const_iterator i = stringDB.find(text);
 			if(i != stringDB.end())
 			{
 				// Ja! Lokalisieren!
@@ -2245,7 +2245,7 @@ std::string Engine::localizeString(const std::string& text)
 
 std::string Engine::loadString(const std::string& id) const
 {
-	stdext::hash_map<std::string, std::string>::const_iterator i = stringDB.find(id);
+	std::unordered_map<std::string, std::string>::const_iterator i = stringDB.find(id);
 	if(i == stringDB.end()) return id;
 	else return i->second;
 }

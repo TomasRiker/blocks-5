@@ -23,12 +23,18 @@ clean clone needs no other preparation. `./build.sh clean` rebuilds from scratch
 
 The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
 are compiled from source here instead — zlib 1.3.1 with its `contrib/minizip`,
-libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2 — plus `stb_image.h` in place of
-SDL_image. The Visual Studio build compiles the same sources from the same
-directories, so the two cannot drift apart; `libs/bin` is down to import
-libraries for SDL, SDL_image, OpenAL and ffmpeg, plus `hq2x32.obj`. Before they were vendored this build
-compiled whatever the upstream clones happened to be at, which was a *different*
-version of every one of them.
+libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2. The Visual Studio build compiles the
+same sources from the same directories, so the two cannot drift apart; `libs/bin`
+is down to import libraries for SDL, OpenAL and ffmpeg, plus `hq2x32.obj`. Before
+they were vendored this build compiled whatever the upstream clones happened to
+be at, which was a *different* version of every one of them.
+
+Image decoding used to be this build's own `img_load.cpp`, because Emscripten's
+`IMG_Load_RW` decodes through the browser and only accepts names of preloaded
+files — it cannot read the synthesised `SDL_RWops` the game hands it for a member
+of a password-protected zip. That file now lives in `Blocks5/src/img_load.cpp` and
+both builds use it: the Visual Studio build dropped SDL_image for the same
+stb_image decoder, so this is no longer a web-only substitution.
 
 The OpenAL headers come from `libs/openal-soft-1.25.2`, the same ones the Visual
 Studio build compiles against, but the implementation behind them here is
@@ -67,17 +73,16 @@ a fixed shape a triangle fan covers exactly.
 | file | what it does |
 |---|---|
 | `build.sh` | the whole build; also stages the runtime tree, mirroring `stage.bat` |
-| `compat.h` | force-included; `stdext::hash_map` → `std::unordered_map`, MSVC CRT spellings, and the `random()` clash with POSIX |
+| `compat.h` | force-included; MSVC CRT spellings and the `random()` clash with POSIX |
 | `gl_immediate.cpp` | intercepts immediate mode and re-emits every attribute per vertex (see below) |
 | `gl_compat.cpp` | the GL entry points Emscripten declares but never implements |
-| `img_load.cpp` | replaces SDL_image with stb_image (see below) |
 | `platform_stubs.cpp` | SDL cursors, SDL surface locking, hq2x |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits |
 | `web_transfer.cpp` | the download/file-picker bridge behind Export and Import |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
 | `pre.js` | mounts IDBFS at `/blocks5_home` and flushes it periodically |
 
-Two of those deserve explanation.
+One of those deserves explanation.
 
 **`gl_immediate.cpp`.** Emscripten's GL emulation computes a block's vertex count
 as `4 * floatsWritten / bytesPerVertex` and asserts the result is whole — which
@@ -86,13 +91,6 @@ this game sets a colour once and then emits four vertices, and 95 of its 119
 `glBegin` blocks are shaped that way. Rather than rewrite them all, this file
 buffers each block and replays it with the current colour and texcoord attached to
 every vertex.
-
-**`img_load.cpp`.** Every texture is read out of a password-protected zip through
-the game's own virtual filesystem, which hands SDL_image a synthesised
-`SDL_RWops`. Emscripten's `IMG_Load_RW` decodes via the browser and only accepts
-names of preloaded files, so it cannot do that at all. This build therefore does
-not link Emscripten's SDL_image; it supplies `IMG_Load_RW` itself and decodes with
-stb_image. `texture.cpp` and `engine.cpp` are untouched.
 
 ## Click to start
 

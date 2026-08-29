@@ -110,7 +110,7 @@ Presets::Presets(Level& level,
 	texCoords["BlockZero"] = Vec2i(160, 576);
 	texCoords["BlockOne"] = Vec2i(192, 576);
 
-	for(stdext::hash_map<std::string, Vec2i>::const_iterator i = texCoords.begin(); i != texCoords.end(); ++i) presetNames.push_back(i->first);
+	for(std::unordered_map<std::string, Vec2i>::const_iterator i = texCoords.begin(); i != texCoords.end(); ++i) presetNames.push_back(i->first);
 }
 
 Presets::~Presets()
@@ -143,7 +143,7 @@ Object* Presets::instancePreset(const std::string& name,
 {
 	Object* p_theObject = 0;
 
-	stdext::hash_map<std::string, Vec2i>::const_iterator it = texCoords.find(name);
+	std::unordered_map<std::string, Vec2i>::const_iterator it = texCoords.find(name);
 	Vec2i t(0, 0);
 	if(it != texCoords.end()) t = it->second;
 

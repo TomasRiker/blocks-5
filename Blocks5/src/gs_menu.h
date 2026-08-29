@@ -37,7 +37,7 @@ private:
 	Options* p_options;
 	Help* p_help;
 	uint time;
-	stdext::hash_map<uint, std::list<uint> > keyData;
+	std::unordered_map<uint, std::list<uint> > keyData;
 };
 
 #endif

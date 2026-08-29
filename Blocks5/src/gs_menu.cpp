@@ -126,7 +126,7 @@ void GS_Menu::onUpdate()
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
 	}
 
-	stdext::hash_map<uint, std::list<uint> >::const_iterator i = keyData.find(time - 500);
+	std::unordered_map<uint, std::list<uint> >::const_iterator i = keyData.find(time - 500);
 	if(i != keyData.end())
 	{
 		const std::list<uint>& list = i->second;

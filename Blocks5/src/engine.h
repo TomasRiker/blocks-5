@@ -104,7 +104,7 @@ public:
 	void unfocusGUI();
 
 	const std::vector<VirtualKey>& getVKs() const;
-	const stdext::hash_map<std::string, Action*>& getActions() const;
+	const std::unordered_map<std::string, Action*>& getActions() const;
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
 	Action* registerAction(const std::string& name, int primary, int secondary = -1);
@@ -183,10 +183,10 @@ private:
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
-	stdext::hash_map<std::string, Action*> actions;
+	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;
 	std::queue<SDL_KeyboardEvent> keyEventQueue;
-	stdext::hash_map<std::string, GameState*> gameStates;
+	std::unordered_map<std::string, GameState*> gameStates;
 	std::stack<GameState*> currentGameStates;
 	uint frameTime;
 	uint time;
@@ -229,7 +229,7 @@ private:
 	Vec2i recordingIconPositionOnTexture;
 	Vec2i recordingIconSize;
 
-	stdext::hash_map<std::string, std::string> stringDB;
+	std::unordered_map<std::string, std::string> stringDB;
 	uint timePlayed;
 	bool doScreenshot;
 };

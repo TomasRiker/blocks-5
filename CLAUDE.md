@@ -24,14 +24,18 @@ checks the toolset, builds `Blocks5.sln` for `Win32`, and then packs `data.zip` 
 **Toolset: v143 by default; v120 still works** (`/toolset:v120`). The tree was pinned to v120
 for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
 TinyXML 2.6.2 is now compiled from vendored source in `libs/tinyxml-2.6.2` and that library is
-gone. Two things make anything newer than v120 work, and both are in the project defines
-because they must precede every include:
+gone. Three things make anything newer than v120 work:
 
-- `_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` — `src/pch.h` includes `<hash_map>`, and from
-  VS2015 on that is a hard `static_assert` error, not a warning.
-- `__STDC_CONSTANT_MACROS` / `__STDC_LIMIT_MACROS` — `libs/msinttypes-r26` shadows the real
-  `<stdint.h>`; from VS2015 on the STL pulls that shim in via `<vector>`, long before
-  `pch.h` could define the macro, and the shim's include guard then locks `INT64_C` out.
+- `__STDC_CONSTANT_MACROS` / `__STDC_LIMIT_MACROS` are in the project defines rather than in
+  `pch.h`, because they must precede every include: `libs/msinttypes-r26` shadows the real
+  `<stdint.h>`, from VS2015 on the STL pulls that shim in via `<vector>` long before `pch.h`
+  could define the macro, and the shim's include guard then locks `INT64_C` out.
+
+- `<hash_map>` is gone. `pch.h` used to include it for `stdext::hash_map` and
+  `hash_multimap`, which from VS2015 on is a hard `static_assert` error and only compiled
+  because `_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` was set. Those 41 uses across 12 files
+  are `std::unordered_map` / `std::unordered_multimap` now — every toolset from v120 on has
+  them, and the define is gone with the header.
 
 - SDL 1.2.15's own `src/main/win32/SDL_win32_main.c` is compiled from source in
   `libs/SDL-1.2.15/` instead of linking `libs/bin/sdlmain.lib`, which was pre-UCRT and
@@ -151,6 +155,13 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
+**Images** are decoded by `img_load.cpp`, not SDL_image. The game needs exactly one
+function from it — `IMG_Load_RW`, called from `texture.cpp` and for the window icon — and
+reads every texture through its own `SDL_RWops` over the encrypted `data.zip`. stb_image
+(`libs/stb`, one header) does that in about eighty lines and drops `sdl_image.dll`,
+`libpng15-15.dll` and `zlib1.dll` from the shipped tree; both builds compile the same file.
+PNG and JPEG are enabled, and every image the game ships is a PNG.
+
 **GUI** (`gui.cpp`, `gui_*.cpp`) is a retained-mode tree loaded from XML dialogs in `data/`
 (`menu.xml`, `leveleditor.xml`, `options.xml`, …). Elements are addressed by dotted path —
 `gui["Menu.DonatePane.Donate.Donate"]` — and wired with `sigslot` (`connectClicked(this,
@@ -188,6 +199,6 @@ filenames, shipped zipped in `levels/campaigns/`.
   macros are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
   both builds (TinyXML, zlib + minizip, libogg, libvorbis, `SDL_win32_main.c`, stb). What is
-  left in `Blocks5/libs/bin` is import libraries — SDL, SDL_image, OpenAL, ffmpeg — plus
+  left in `Blocks5/libs/bin` is import libraries — SDL, OpenAL, ffmpeg — plus
   `hq2x32.obj`, which is a real object file and the one thing there that still carries v120
   code. Import libraries do not pin the toolset; `hq2x32.obj` and the ffmpeg DLLs do.
