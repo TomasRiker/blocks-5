@@ -60,35 +60,43 @@ deliberately breaking a copy of the library:
                                file that has an audio track, logging a loud
                                error if it did not.
 
-WHAT THE FILE LOOKS LIKE COMPARED WITH ffmpeg'S
------------------------------------------------
-ffmpeg's own MP4 muxer, for the same MP3 stream, writes:
+THE DESCRIPTOR IS TIDIED UP AFTERWARDS
+--------------------------------------
+The macro override gets the one byte that decides whether the file plays at all.
+What it cannot reach is the rest of what upstream writes, which is not
+conformant: the reserved low bit of the stream-type byte is left clear, there is
+no SLConfigDescriptor, and forcing the descriptor to appear at all leaves a
+DecoderSpecificInfo that MP3 must not have. None of that is reachable by macro -
+the stream-type byte is a literal, the SLConfigDescriptor would have to be a
+sibling of a descriptor whose length is computed from the caller's data, and
+"descriptor present" and "DSI present" are the same condition in upstream's
+code.
 
-  03 80 80 80 1b 00 01 00 04 80 80 80 0d 6b 15 00 00 00 00 01 f7 12
-  00 01 f7 12 06 80 80 80 01 02
+So videorecorder.cpp fixes it in the finished file instead, in
+makeAudioDescriptorConformant(). The trick that makes this safe is the DSI
+length: videorecorder.cpp passes exactly ONE byte, not zero, and at that length
+upstream's descriptor comes out 23 bytes long - exactly the length of a
+conformant one. The replacement is therefore done in place and not a single box
+size changes anywhere in the file.
 
-minimp4 with the override writes:
+  upstream + override:  03 15 00 00 00 04 10 6b 14 00 06 00 <max:4> <avg:4> 05 01 XX
+  rewritten:            03 15 00 00 00 04 0d 6b 15 00 06 00 <max:4> <avg:4> 06 01 02
+  ffmpeg, for comparison:
+       03 80 80 80 1b 00 01 00 04 80 80 80 0d 6b 15 00 00 00 00 01 f7 12
+       00 01 f7 12 06 80 80 80 01 02
 
-  03 14 00 00 00 04 0f 6b 14 00 06 00 00 00 00 00 00 00 00 00 05 00
+The rewritten form and ffmpeg's are structurally the same descriptor. They still
+differ in three ways, all legal and all informational: ffmpeg encodes the
+descriptor lengths in the four-byte 0x80 0x80 0x80 form rather than the compact
+one, its ES_ID is 1 rather than 0, and its bufferSizeDB is 0 where minimp4
+computes one.
 
-Both declare objectTypeIndication 0x6B, which is what matters, and ffmpeg reads
-the track as mp3 and decodes it cleanly either way. They differ in four
-informational or cosmetic ways, all of them upstream's normal behaviour except
-the last:
-
-  - the descriptor lengths use the compact one-byte form rather than the
-    four-byte 0x80 0x80 0x80 form. Both are legal.
-  - ES_ID is 0 rather than 1, and maxBitrate/avgBitrate are 0 rather than
-    measured.
-  - the reserved low bit of the stream-type byte is clear (0x14, not 0x15), and
-    there is no SLConfigDescriptor. Non-conformant, but it is what every AAC
-    file minimp4 has ever produced looks like.
-  - there is a zero-length DecoderSpecificInfo, which MP3 should not have. That
-    one is an artefact of forcing the descriptor to be written.
-
-If a player ever refuses the audio track, that list is where to look first, and
-a patch to minimp4.h restoring what ffmpeg writes is in this repository's
-history.
+The rewrite verifies the exact 23-byte pattern before touching anything and
+refuses if it does not match, so a future minimp4 that lays the descriptor out
+differently leaves the file alone rather than corrupting it - and the file still
+plays, because the macro override has already put the right codec byte in it.
+That is the reason both mechanisms exist: the override is what makes the file
+work, the rewrite is only polish.
 
 A NOTE ON FRAGMENTS
 -------------------

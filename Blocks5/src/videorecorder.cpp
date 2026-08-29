@@ -35,6 +35,60 @@ namespace
 		if(fseek(p_file, static_cast<long>(offset), SEEK_SET)) return 1;
 		return fwrite(p_buffer, 1, size, p_file) != size;
 	}
+
+	unsigned int readBE32(const unsigned char* p_bytes)
+	{
+		return ((unsigned int)p_bytes[0] << 24) | ((unsigned int)p_bytes[1] << 16) |
+		       ((unsigned int)p_bytes[2] <<  8) |  (unsigned int)p_bytes[3];
+	}
+
+	// Sucht unter den Kindern eines Containers die erste Box eines Typs.
+	const unsigned char* findBox(const unsigned char* p_begin, const unsigned char* p_end,
+								 const char* p_type, unsigned int& boxSize)
+	{
+		while(p_begin + 8 <= p_end)
+		{
+			const unsigned int size = readBE32(p_begin);
+			if(size < 8 || p_begin + size > p_end) return 0;
+			if(!memcmp(p_begin + 4, p_type, 4)) { boxSize = size; return p_begin; }
+			p_begin += size;
+		}
+		return 0;
+	}
+
+	// Der esds-Deskriptor, den minimp4 für eine MP3-Spur schreibt, ist genau so
+	// lang wie ein regelkonformer - deshalb lässt er sich an Ort und Stelle
+	// ersetzen, ohne dass sich eine einzige Boxengröße ändert. Erwartet wird
+	// (Länge 23, X = beliebig):
+	//   03 15 00 00 00 04 10 <OTI> 14 <bufferSize:3> <max:4> <avg:4> 05 01 XX
+	// geschrieben wird stattdessen, wie ffmpeg es auch tut:
+	//   03 15 00 00 00 04 0d <OTI> 15 <bufferSize:3> <max:4> <avg:4> 06 01 02
+	// Das setzt das reservierte Bit im Stream-Type-Byte, wirft die leere
+	// DecoderSpecificInfo weg, die MP3 nicht haben darf, und hängt den
+	// SLConfigDescriptor an, den der Standard verlangt.
+	const int k_descriptorSize = 23;
+
+	bool buildConformantDescriptor(const unsigned char* p_old, unsigned char* p_new, unsigned int bitrate)
+	{
+		if(p_old[0] != 0x03 || p_old[1] != 0x15 ||     // ES_Descriptor, Länge 21
+		   p_old[5] != 0x04 || p_old[6] != 0x10 ||     // DecoderConfigDescriptor, Länge 16
+		   p_old[20] != 0x05 || p_old[21] != 0x01)     // DecoderSpecificInfo, Länge 1
+		{
+			return false;
+		}
+
+		p_new[0] = 0x03; p_new[1] = 0x15;              // ES_Descriptor, Länge bleibt 21
+		p_new[2] = p_old[2]; p_new[3] = p_old[3];      // ES_ID
+		p_new[4] = p_old[4];                           // flags
+		p_new[5] = 0x04; p_new[6] = 0x0d;              // DecoderConfigDescriptor, jetzt Länge 13
+		p_new[7] = p_old[7];                           // objectTypeIndication
+		p_new[8] = (5 << 2) | 1;                       // AudioStream, reserviertes Bit gesetzt
+		p_new[9] = p_old[9]; p_new[10] = p_old[10]; p_new[11] = p_old[11];   // bufferSizeDB
+		for(int i = 0; i < 4; i++) p_new[12 + i] = (unsigned char)(bitrate >> (8 * (3 - i)));  // maxBitrate
+		for(int i = 0; i < 4; i++) p_new[16 + i] = (unsigned char)(bitrate >> (8 * (3 - i)));  // avgBitrate
+		p_new[20] = 0x06; p_new[21] = 0x01; p_new[22] = 0x02;               // SLConfigDescriptor
+		return true;
+	}
 }
 
 struct VideoRecorderImpl
@@ -73,6 +127,7 @@ struct VideoRecorderImpl
 	void convertFrame();
 	void drainAudio();
 	void flushHeldFrame(uint durationTicks);
+	bool makeAudioDescriptorConformant();
 
 	bool error;
 	uint fps;
@@ -188,6 +243,77 @@ void VideoRecorderImpl::drainAudio()
 	}
 }
 
+// Läuft nach MP4E_close über die fertige Datei und ersetzt den esds-Deskriptor
+// der Tonspur durch einen regelkonformen. Ändert nichts an der Länge und damit
+// an keiner Boxengröße; passt das Muster nicht, bleibt alles unangetastet.
+// Die Datei ist dann immer noch abspielbar - der Makro-Hook in
+// libs/minimp4/minimp4_impl.c hat das entscheidende Byte schon richtig gesetzt.
+bool VideoRecorderImpl::makeAudioDescriptorConformant()
+{
+	if(!p_file || audioTrack < 0) return true;
+
+	// oberste Ebene ablaufen und moov finden
+	if(fseek(p_file, 0, SEEK_END)) return false;
+	const long fileSize = ftell(p_file);
+	long offset = 0, moovOffset = -1;
+	unsigned int moovSize = 0;
+	while(offset + 8 <= fileSize)
+	{
+		unsigned char header[8];
+		if(fseek(p_file, offset, SEEK_SET) || fread(header, 1, 8, p_file) != 8) return false;
+		const unsigned int size = readBE32(header);
+		if(size < 8 || offset + (long)size > fileSize) return false;
+		if(!memcmp(header + 4, "moov", 4)) { moovOffset = offset; moovSize = size; break; }
+		offset += size;
+	}
+	if(moovOffset < 0 || moovSize > 4u * 1024u * 1024u) return false;
+
+	std::vector<unsigned char> moov(moovSize);
+	if(fseek(p_file, moovOffset, SEEK_SET) || fread(&moov[0], 1, moovSize, p_file) != moovSize) return false;
+
+	// moov/trak/mdia/minf/stbl/stsd/mp4a/esds - die Tonspur ist die mit mp4a
+	const unsigned char* p_trak = &moov[0] + 8;
+	const unsigned char* p_moovEnd = &moov[0] + moovSize;
+	while(p_trak + 8 <= p_moovEnd)
+	{
+		unsigned int trakSize = 0;
+		p_trak = findBox(p_trak, p_moovEnd, "trak", trakSize);
+		if(!p_trak) return false;
+
+		const unsigned char* p_box = p_trak + 8;
+		const unsigned char* p_end = p_trak + trakSize;
+		unsigned int size = 0;
+		const char* p_chain[] = { "mdia", "minf", "stbl", "stsd" };
+		for(int i = 0; i < 4 && p_box; i++)
+		{
+			const unsigned char* p_found = findBox(p_box, p_end, p_chain[i], size);
+			if(!p_found) { p_box = 0; break; }
+			p_end = p_found + size;
+			// stsd ist eine FullBox mit zusätzlichem Zähler
+			p_box = p_found + (i == 3 ? 16 : 8);
+		}
+
+		const unsigned char* p_mp4a = p_box ? findBox(p_box, p_end, "mp4a", size) : 0;
+		if(p_mp4a)
+		{
+			// AudioSampleEntry: 8 Byte Kopf, dann 28 Byte eigene Felder
+			const unsigned char* p_esds = findBox(p_mp4a + 8 + 28, p_mp4a + size, "esds", size);
+			if(!p_esds) return false;
+			if((int)size - 12 != k_descriptorSize) return false;
+
+			unsigned char replacement[k_descriptorSize];
+			if(!buildConformantDescriptor(p_esds + 12, replacement, audioBitrate)) return false;
+
+			const long payloadOffset = moovOffset + (long)(p_esds + 12 - &moov[0]);
+			if(fseek(p_file, payloadOffset, SEEK_SET)) return false;
+			return fwrite(replacement, 1, k_descriptorSize, p_file) == (size_t)k_descriptorSize;
+		}
+
+		p_trak += trakSize;
+	}
+	return false;
+}
+
 void VideoRecorderImpl::flushHeldFrame(uint durationTicks)
 {
 	if(!haveHeldFrame) return;
@@ -289,6 +415,13 @@ int VideoRecorderImpl::threadProc()
 		printfLog("         this video claims to be AAC but holds MP3 and will not play.\n");
 		printfLog("         See libs/minimp4/minimp4_impl.c - a library update broke it.\n");
 	}
+	if(!makeAudioDescriptorConformant())
+	{
+		// Kein Beinbruch: die Spur ist trotzdem als MP3 gekennzeichnet und spielt.
+		printfLog("- WARNING: Could not tidy the audio descriptor in the recording;\n");
+		printfLog("           minimp4's layout must have changed. See its PROVENANCE.txt.\n");
+	}
+
 	if(p_file) fclose(p_file);
 	p_mux = 0;
 	p_file = 0;
@@ -351,7 +484,9 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	p_impl->p_yuv = new uint8_t[(p_impl->encodedSize.x * p_impl->encodedSize.y * 3) / 2];
 
 	// Datei und Container
-	p_impl->p_file = fopen(videoFilename.c_str(), "wb");
+	// w+b, nicht wb: makeAudioDescriptorConformant() liest die Datei hinterher
+	// noch einmal, um den Tondeskriptor zu ersetzen.
+	p_impl->p_file = fopen(videoFilename.c_str(), "w+b");
 	if(!p_impl->p_file)
 	{
 		printfLog("+ ERROR: Could not create video file: \"%s\"!\n", videoFilename.c_str());
@@ -411,9 +546,12 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 			p_impl->audioTrack = MP4E_add_track(p_impl->p_mux, &audioTrackInfo);
 
 			// minimp4 schreibt den esds-Deskriptor nur, wenn eine Decoder Specific
-			// Info gesetzt ist - die hat AAC, MP3 nicht. Eine leere genügt, und ohne
-			// den Deskriptor stünde nirgends, dass die Spur MP3 ist.
-			if(p_impl->audioTrack >= 0) MP4E_set_dsi(p_impl->p_mux, p_impl->audioTrack, "", 0);
+			// Info gesetzt ist - die hat AAC, MP3 nicht. Ohne den Deskriptor stünde
+			// nirgends, dass die Spur MP3 ist. Genau ein Byte, nicht null: dann ist
+			// der Deskriptor exakt so lang wie ein regelkonformer, und
+			// makeAudioDescriptorConformant() kann ihn hinterher an Ort und Stelle
+			// austauschen, ohne eine einzige Boxengröße anzufassen.
+			if(p_impl->audioTrack >= 0) MP4E_set_dsi(p_impl->p_mux, p_impl->audioTrack, "\0", 1);
 
 			if(p_impl->audioTrack < 0)
 			{

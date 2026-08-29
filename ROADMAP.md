@@ -152,7 +152,12 @@ Two things found while building it, both recorded in the libraries'
   opposite sides of its include guard in one file, so `minimp4_impl.c` includes
   the header twice and redefines the macro in between. Two `#error` guards and a
   runtime counter catch an upgrade that breaks the hook — all three tested by
-  deliberately breaking a copy of the library.
+  deliberately breaking a copy of the library. What the macro cannot reach —
+  a clear reserved bit, a missing `SLConfigDescriptor`, a `DecoderSpecificInfo`
+  that MP3 must not have — `videorecorder.cpp` fixes in the finished file. It
+  passes a one-byte DSI rather than a zero-byte one precisely so that upstream's
+  descriptor comes out the same length as a conformant one, which makes the
+  replacement a pure in-place substitution with no box size changing anywhere.
 - **minih264 and minimp4 collide** if both are instantiated in one translation
   unit — each defines a `bs_t` in its implementation half. Hence the two
   one-line `*_impl.c` files.
