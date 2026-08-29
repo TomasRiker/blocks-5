@@ -13,13 +13,9 @@ COPY data.zip stage
 COPY "Donate (de).url" stage
 COPY "Donate (en).url" stage
 COPY hq2x.bat stage
-COPY libogg.dll stage
 COPY libpng15-15.dll stage
-COPY libvorbis.dll stage
-COPY libvorbisfile.dll stage
 COPY makeconfig.bat stage
 COPY oalinst.exe stage
-COPY ogg.dll stage
 COPY ..\Release\pwencrypt.exe stage
 COPY readme.txt stage
 COPY sdl.dll stage
