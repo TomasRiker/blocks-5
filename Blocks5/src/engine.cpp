@@ -53,7 +53,8 @@ Engine::Engine()
 	fullScreen = false;
 	fullScreenOverride = -1;
 	swallowedReturn = false;
-	windowedSize = Vec2i(0, 0);      // init() setzt das auf screenSize
+	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
+	windowedPosition = Vec2i(-1, -1);
 	savedWindowStyle = 0;
 	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	sharpFitProgram = 0;
@@ -94,9 +95,7 @@ bool Engine::init(const std::string& windowCaption,
 	// beim Start gibt es also kein Vollbild, egal was irgendwo steht.
 	fullScreen = false;
 #endif
-	windowedSize = screenSize;
-
-	// Konfiguration laden
+	// Konfiguration laden. Setzt windowedSize, wenn die Datei etwas dazu sagt.
 	loadConfig();
 
 	if(fullScreenOverride >= 0) fullScreen = (fullScreenOverride != 0);
@@ -222,6 +221,16 @@ bool Engine::init(const std::string& windowCaption,
 
 	limitActionKeys();
 
+	// Jetzt erst, denn getDesktopSize() braucht SDL - und es muss vor dem
+	// ersten SDL_SetVideoMode passieren, weil SDL_GetVideoInfo danach die
+	// Fenster- statt der Desktopgroesse liefert.
+	if(windowedSize.x <= 0 || windowedSize.y <= 0) windowedSize = getDefaultWindowSize();
+	// Ein Fenster, das nicht mehr auf den Bildschirm passt - anderer Rechner,
+	// abgestoepselter Monitor -, wird zurechtgestutzt.
+	const Vec2i desktop = getDesktopSize();
+	if(windowedSize.x > desktop.x || windowedSize.y > desktop.y)
+		windowedSize = getDefaultWindowSize();
+
 	char videoDriver[256] = "";
 	SDL_VideoDriverName(videoDriver, 256);
 	printfLog("  Video driver: %s\n", videoDriver);
@@ -297,6 +306,9 @@ bool Engine::init(const std::string& windowCaption,
 		printfLog("+ ERROR: Could not set video mode (Error: %s).\n", SDL_GetError());
 		return false;
 	}
+
+	// Dorthin, wo es zuletzt stand.
+	restoreWindowPosition();
 
 	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - das Fenster
 	// steht, der Kontext auch.
@@ -492,6 +504,12 @@ bool Engine::init(const std::string& windowCaption,
 void Engine::exit()
 {
 	if(!initialized) return;
+
+	// Fenstergroesse, -position und Vollbildzustand sollen den naechsten Start
+	// erleben, auch wenn der Spieler den Optionsdialog nie geoeffnet hat - der
+	// war bis hierher die einzige Stelle, die je gespeichert hat.
+	rememberWindowPlacement();
+	saveConfig();
 
 	if(p_videoRecorder)
 	{
@@ -1413,6 +1431,59 @@ Vec2i Engine::getDesktopSize() const
 	if(p_info && p_info->current_w > 0 && p_info->current_h > 0)
 		return Vec2i(p_info->current_w, p_info->current_h);
 	return screenSize;
+#endif
+}
+
+Vec2i Engine::getDefaultWindowSize() const
+{
+	// Ganzzahlige Vielfache, damit auch "Scharf" von Anfang an ohne Balken
+	// auskommt. Etwas Rand bleibt fuer Titelzeile und Taskleiste - sonst
+	// klebt das Fenster an den Kanten oder passt gar nicht.
+	const Vec2i desktop = getDesktopSize();
+	int scale = 1;
+	while((scale + 1) * screenSize.x <= desktop.x - 40 &&
+		  (scale + 1) * screenSize.y <= desktop.y - 100) scale++;
+	return screenSize * scale;
+}
+
+void Engine::rememberWindowPlacement()
+{
+	// Im Vollbild steht das Fenster auf (0,0) und ist bildschirmgross - das
+	// waere die falsche Erinnerung. Dann zaehlt, was applyWindowStyle() sich
+	// vor dem Umschalten gemerkt hat.
+#ifdef _WIN32
+	if(fullScreen)
+	{
+		if(savedWindowStyle)
+			windowedPosition = Vec2i(savedWindowRect[0], savedWindowRect[1]);
+		return;
+	}
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window)
+	{
+		RECT r;
+		if(GetWindowRect(info.window, &r)) windowedPosition = Vec2i(r.left, r.top);
+	}
+#endif
+}
+
+void Engine::restoreWindowPosition()
+{
+#ifdef _WIN32
+	if(windowedPosition.x < 0 || windowedPosition.y < 0) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// Nicht auf einen Bildschirm setzen, den es nicht mehr gibt.
+	const Vec2i desktop = getDesktopSize();
+	if(windowedPosition.x > desktop.x - 100 || windowedPosition.y > desktop.y - 100) return;
+
+	SetWindowPos(info.window, HWND_NOTOPMOST, windowedPosition.x, windowedPosition.y,
+				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 #endif
 }
 
@@ -2487,6 +2558,15 @@ void Engine::loadConfig()
 		}
 #endif
 
+		TiXmlElement* p_windowPosition = p_config->FirstChildElement("WindowPosition");
+		if(p_windowPosition)
+		{
+			int x = -1, y = -1;
+			p_windowPosition->QueryIntAttribute("x", &x);
+			p_windowPosition->QueryIntAttribute("y", &y);
+			if(x >= 0 && y >= 0 && x <= 16384 && y <= 16384) windowedPosition = Vec2i(x, y);
+		}
+
 		TiXmlElement* p_windowSize = p_config->FirstChildElement("WindowSize");
 		if(p_windowSize)
 		{
@@ -2583,6 +2663,14 @@ void Engine::saveConfig()
 	p_windowSize->SetAttribute("w", windowedSize.x);
 	p_windowSize->SetAttribute("h", windowedSize.y);
 	p_config->LinkEndChild(p_windowSize);
+
+	if(windowedPosition.x >= 0 && windowedPosition.y >= 0)
+	{
+		TiXmlElement* p_windowPosition = new TiXmlElement("WindowPosition");
+		p_windowPosition->SetAttribute("x", windowedPosition.x);
+		p_windowPosition->SetAttribute("y", windowedPosition.y);
+		p_config->LinkEndChild(p_windowPosition);
+	}
 
 	// Sound-Lautstärke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");
@@ -2859,11 +2947,10 @@ void Engine::setupCursor()
 	// Der Pfeil, doppelt so gross wie frueher. Seit das Fenster beliebig gross
 	// sein darf, wird das 640x480-Bild mitskaliert - der Mauszeiger aber nicht,
 	// den zeichnet das System in Fensterpixeln, und danebengehalten wirkt er
-	// winzig. Neu gerastert, nicht pixelverdoppelt: die Schraege ist wieder
-	// eine saubere 45-Grad-Linie mit Einzelpixelstufen und keine 2x2-Treppe.
-	// Erzeugt aus dem Umriss als Polygon; bei Faktor 1 gibt dieselbe Rechnung
-	// den alten Pfeil bis auf drei Pixel wieder. Groesser als 32x32 geht nicht,
-	// so gross ist ein Win32-Cursor.
+	// winzig. Schlicht pixelverdoppelt, jedes 1x1 wird ein 2x2: derselbe Pfeil
+	// wie eh und je, nur groesser, mit allem was dazugehoert - der Umriss ist
+	// zwei Pixel breit und die Schraege eine 2x2-Treppe. Groesser als 32x32
+	// geht nicht, so gross ist ein Win32-Cursor.
 	const char* p_arrow[] = {
 		/* width height num_colors chars_per_pixel */
 		"    32    32        3            1",
@@ -2872,38 +2959,38 @@ void Engine::setupCursor()
 		". c #ffffff",
 		"  c None",
 		/* pixels */
-		"X                               ",
 		"XX                              ",
-		"X.X                             ",
-		"X..X                            ",
-		"X...X                           ",
-		"X....X                          ",
-		"X.....X                         ",
-		"X......X                        ",
-		"X.......X                       ",
-		"X........X                      ",
-		"X.........X                     ",
-		"X..........X                    ",
-		"X...........X                   ",
-		"X............X                  ",
-		"X.............X                 ",
-		"X..............X                ",
-		"X...............X               ",
-		"X................X              ",
-		"X...............XX              ",
-		"X.............XX                ",
-		"X......X.....X                  ",
-		"X.....X X.....X                 ",
-		"X....X  X.....X                 ",
-		"X...X   X.....X                 ",
-		"X.XX     X.....X                ",
-		"XX       X.....X                ",
-		"X         X.....X               ",
-		"          X.....X               ",
-		"          X.....X               ",
-		"           X.....X              ",
-		"           X.....X              ",
-		"            XXXXX               ",
+		"XX                              ",
+		"XXXX                            ",
+		"XXXX                            ",
+		"XX..XX                          ",
+		"XX..XX                          ",
+		"XX....XX                        ",
+		"XX....XX                        ",
+		"XX......XX                      ",
+		"XX......XX                      ",
+		"XX........XX                    ",
+		"XX........XX                    ",
+		"XX..........XX                  ",
+		"XX..........XX                  ",
+		"XX............XX                ",
+		"XX............XX                ",
+		"XX..............XX              ",
+		"XX..............XX              ",
+		"XX..........XXXXXX              ",
+		"XX..........XXXXXX              ",
+		"XX....XX....XX                  ",
+		"XX....XX....XX                  ",
+		"XX..XX  XX....XX                ",
+		"XX..XX  XX....XX                ",
+		"XXXX    XX....XX                ",
+		"XXXX    XX....XX                ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"            XXXX                ",
+		"            XXXX                ",
 		"0,0"
 	};
 

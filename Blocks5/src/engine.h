@@ -103,6 +103,10 @@ public:
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
 	Vec2i getDesktopSize() const;
+	// Was ein frisch installiertes Spiel als Fenstergroesse bekommt: das
+	// groesste ganzzahlige Vielfache von 640x480, das noch bequem auf den
+	// Bildschirm passt.
+	Vec2i getDefaultWindowSize() const;
 
 	// Der einzige Shader, den das Spiel benutzt: siehe src/sharpfit_shader.h.
 	// Laesst er sich nicht uebersetzen, faellt die Anzeige auf UF_NEAREST
@@ -223,6 +227,9 @@ private:
 	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
 	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
 	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
+	Vec2i windowedPosition;    // dito fuer die Position; (-1,-1) = noch keine
+	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
+	void restoreWindowPosition();     // setzt sie beim Start wieder
 	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
 	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
 	SDL_Surface* p_display;

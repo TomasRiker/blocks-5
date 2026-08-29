@@ -37,7 +37,13 @@ Changelog
             gets black bars where the window does not match.
             Alt+Return switches between the window and full
             screen at any time, and the game remembers which one
-            you left it in, and how big the window was.
+            you left it in, where the window was and how big.
+
+            A fresh installation no longer starts at a tiny
+            640x480. The window opens at the largest whole
+            multiple of that which still fits your screen -
+            twice the size on a Full HD monitor, three times on
+            a 1440p one.
 
             Full screen no longer changes the screen resolution.
             It is a borderless window the size of the desktop,
@@ -66,6 +72,21 @@ Changelog
                              so the picture only grows in whole
                              steps and does not fill the window
               Smooth         plain stretching, blurry
+
+          - The mouse pointer is twice as big. It used to be drawn
+            by Windows at a fixed size while everything around it
+            grew with the window, which left it looking tiny.
+
+          - Alt+F4 now closes the game, stopping a running video
+            recording properly on the way out.
+
+          - Fixed: a hint note could be seen for a fraction of a
+            second at the wrong place before unfolding, usually
+            when stepping onto the same note a second time.
+
+          - Fixed: in the level editor, switching the electricity
+            on or off could not be undone, and undoing it threw
+            away everything that could be redone.
 
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as

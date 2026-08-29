@@ -768,10 +768,27 @@ radio buttons live in `data/options.xml` next to the language flags, their
 captions are `$O_UPSCALER*` in `data/languages.txt` with `§en:` and `§de:`
 bodies, and `<Upscaler>` round-trips through `loadConfig`/`saveConfig`.
 
-`<Fullscreen>` and `<WindowSize>` went in the same way, so the game comes back
-the way it was left. `config.xml` now holds `<Language>`, `<Upscaler>`,
-`<Fullscreen>`, `<WindowSize>`, `<SoundVolume>`, `<MusicVolume>`, `<Details>` and
-`<Controls>`. Since fullscreen is just a window size plus a style flip, that is
+`<Fullscreen>`, `<WindowSize>` and `<WindowPosition>` went in the same way, so the
+game comes back the way it was left. `config.xml` now holds `<Language>`,
+`<Upscaler>`, `<Fullscreen>`, `<WindowSize>`, `<WindowPosition>`, `<SoundVolume>`,
+`<MusicVolume>`, `<Details>` and `<Controls>`.
+
+Persisting them needed a second thing that was easy to miss: `saveConfig` had
+exactly one caller, the options dialog's OK button. Resize the window, quit, and
+the size was gone — the file was never written. `Engine::exit` now calls
+`rememberWindowPlacement()` and `saveConfig()` before it tears anything down, so
+the last thing the player did is what comes back. `rememberWindowPlacement` reads
+the placement off the HWND, except in fullscreen, where the window is at (0,0) and
+desktop-sized and the rect `applyWindowStyle` saved before the style flip is the
+right answer instead. A restored position that no longer lands on a screen — a
+laptop unplugged from a second monitor — is dropped rather than used.
+
+The first-run size used to be 640x480 exactly, which on a modern desktop is a
+postage stamp. `getDefaultWindowSize` picks the largest integer multiple of the
+640x480 frame that leaves 40x100 free for the title bar and the taskbar: 2x on
+1920x1080, 3x on 2560x1440, and 1x only on something genuinely small. Integer
+multiples on purpose — the letterbox is then empty and "sharp" needs no
+resampling at all. The same function catches a stored size that no longer fits. Since fullscreen is just a window size plus a style flip, that is
 one boolean and one `Vec2i`, with no mode list behind either. `-fullscreen` and
 `-windowed` remain startup overrides and beat the file; the compiled-in default
 (windowed in Debug, fullscreen in Release) applies only when neither the file nor

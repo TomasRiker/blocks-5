@@ -166,8 +166,15 @@ style to `WS_POPUP` and the size to the desktop directly, SDL notices through it
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
 place that owns `displaySize` — picks it up. Dragging the border and Alt+Return therefore
 run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
-sees a bare Return. The window and fullscreen state persist as `<WindowSize>` and
-`<Fullscreen>`; `-windowed`/`-fullscreen` override them for one run. In the browser the
+sees a bare Return. Size, position and fullscreen state persist as `<WindowSize>`,
+`<WindowPosition>` and `<Fullscreen>`, written by `Engine::exit` — until then the only
+caller of `saveConfig` was the options dialog's OK, so simply resizing and quitting lost
+the size. `rememberWindowPlacement` reads the placement off the HWND, and in fullscreen
+takes the rect `applyWindowStyle` saved instead, so the remembered window is the windowed
+one. On first run, or when the stored size no longer fits the desktop,
+`getDefaultWindowSize` picks the largest integer multiple of 640x480 leaving 40x100 free —
+2x on 1920x1080, 3x on 2560x1440 — which also means "sharp" starts with no black bars.
+`-windowed`/`-fullscreen` override the flag for one run. In the browser the
 canvas fills the page (`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a
 real DOM keydown — the main loop's own events do not count as a user gesture — and the main
 loop reads the canvas size once a frame, which catches both.
