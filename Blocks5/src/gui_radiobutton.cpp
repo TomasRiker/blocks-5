@@ -160,7 +160,7 @@ void GUI_RadioButton::onMouseLeave(int buttons)
 	mouseOver = false;
 }
 
-void GUI_RadioButton::check()
+void GUI_RadioButton::setChecked()
 {
 	if(checked) return;
 
@@ -177,6 +177,12 @@ void GUI_RadioButton::check()
 			if(p_rb->getGroup() == getGroup()) p_rb->checked = false;
 		}
 	}
+}
+
+void GUI_RadioButton::check()
+{
+	if(checked) return;
+	setChecked();
 
 	// Signal auslösen
 	changed(this);

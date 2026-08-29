@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gui_statictext.h"
+#include "gui.h"
 #include "filesystem.h"
 
 IMPL_CTOR(GUI_StaticText)
@@ -8,6 +9,7 @@ IMPL_CTOR(GUI_StaticText)
 	color = Vec4d(1.0, 1.0, 1.0, 1.0);
 	wordWrap = false;
 	centerText = false;
+	linkedElement = "";
 }
 
 GUI_StaticText::~GUI_StaticText()
@@ -62,4 +64,47 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 	if(p_element->FirstChildElement("WordWrap")) wordWrap = true;
 
 	if(p_element->FirstChildElement("CenterText")) centerText = true;
+
+	e = p_element->FirstChildElement("For");
+	if(e)
+	{
+		const char* p_name = e->GetText();
+		setLinkedElement(p_name ? p_name : "");
+	}
+}
+
+GUI_Element* GUI_StaticText::getLinkedTarget()
+{
+	if(linkedElement.empty() || !p_parent) return 0;
+	return p_parent->getChild(linkedElement);
+}
+
+// Weitergereicht wird der ganze Satz, nicht nur der Klick: die Checkbox schaltet
+// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" haelt, und der
+// Radioknopf ebenso. Nebenbei leuchtet das Ziel auf, solange die Maus ueber der
+// Beschriftung steht, was genau die richtige Rueckmeldung ist.
+void GUI_StaticText::onMouseDown(const Vec2i& position,
+								 int buttons)
+{
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target) p_target->onMouseDown(position, buttons);
+}
+
+void GUI_StaticText::onMouseUp(const Vec2i& position,
+							   int buttons)
+{
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target) p_target->onMouseUp(position, buttons);
+}
+
+void GUI_StaticText::onMouseEnter(int buttons)
+{
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target) p_target->onMouseEnter(buttons);
+}
+
+void GUI_StaticText::onMouseLeave(int buttons)
+{
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target) p_target->onMouseLeave(buttons);
 }

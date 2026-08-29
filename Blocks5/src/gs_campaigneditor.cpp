@@ -447,7 +447,7 @@ public:
 		static_cast<GUI_StaticText*>(getChild("NumUnlockedLevels"))->setText(temp);
 
 		// Bonuslevel aktualisieren
-		static_cast<GUI_CheckBox*>(getChild("BonusLevel"))->check(editor.p_campaign->hasBonusLevel());
+		static_cast<GUI_CheckBox*>(getChild("BonusLevel"))->setChecked(editor.p_campaign->hasBonusLevel());
 
 		// Titel und Beschreibung aktualisieren
 		static_cast<GUI_EditBox*>(getChild("Title"))->setText(editor.p_campaign->getTitle());

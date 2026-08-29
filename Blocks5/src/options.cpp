@@ -50,8 +50,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	Engine& engine = Engine::inst();
 
 	// aktuelle Sprache setzen
-	if(engine.getLanguage() == "en") static_cast<GUI_RadioButton*>(getChild("Options.English"))->check();
-	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->check();
+	if(engine.getLanguage() == "en") static_cast<GUI_RadioButton*>(getChild("Options.English"))->setChecked();
+	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->setChecked();
 
 	// aktuelle Sound-Lautstärke setzen
 	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0 * engine.getSoundVolume()));
@@ -60,9 +60,9 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0 * engine.getMusicVolume()));
 
 	// aktuelle Details setzen
-	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->check();
-	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->check();
-	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->check();
+	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->setChecked();
+	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->setChecked();
+	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->setChecked();
 
 	// Skalierungsfilter, von oben nach unten das Beste zuerst. Ohne Shader gibt
 	// es "Scharf, angepasst" gar nicht erst zu sehen - anzubieten, was die
@@ -78,20 +78,32 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	for(int i = 0; i < 3; i++)
 	{
 		GUI_Element* p_button = getChild(pp_filterNames[i]);
+		// Die Beschriftung ist ein eigenes Element (<For> zeigt zurueck auf den
+		// Knopf), also muss sie mitgehen.
+		GUI_Element* p_label = getChild(std::string(pp_filterNames[i]) + "Label");
 		if(available[i])
 		{
 			p_button->setPosition(Vec2i(p_button->getPosition().x, filterY));
 			p_button->show();
+			if(p_label)
+			{
+				p_label->setPosition(Vec2i(p_label->getPosition().x, filterY + 3));
+				p_label->show();
+			}
 			filterY += 19;
 		}
-		else p_button->hide();
+		else
+		{
+			p_button->hide();
+			if(p_label) p_label->hide();
+		}
 	}
 
 	switch(engine.getEffectiveUpscaleFilter())
 	{
-	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->check(); break;
-	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->check(); break;
-	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->check(); break;
+	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->setChecked(); break;
+	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->setChecked(); break;
+	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->setChecked(); break;
 	}
 
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);

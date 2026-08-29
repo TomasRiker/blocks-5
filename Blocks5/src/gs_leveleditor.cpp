@@ -128,7 +128,11 @@ public:
 		sprintf(s, "%s: %d", localizeString("$LE_DIAMONDS").c_str(), editor.p_level->getNumDiamondsNeeded());
 		static_cast<GUI_StaticText*>(getChild("NumDiamondsNeeded"))->setText(s);
 
-		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->check(editor.p_level->isElectricityOn());
+		// setChecked, nicht check: das hier zieht jedes Bild die Anzeige nach.
+		// Mit check() loeste ein Undo, das den Strom umschaltet, im naechsten
+		// Bild das changed-Signal aus, und der Handler legte prompt einen
+		// neuen Undo-Punkt an und warf die Redo-Liste weg.
+		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->setChecked(editor.p_level->isElectricityOn());
 	}
 
 	void onMouseDown(const Vec2i& position,
@@ -604,9 +608,15 @@ public:
 		}
 		else if(name == "LevelEditor.ElectricityOn")
 		{
-			bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
-			editor.createUndoPoint();
-			editor.p_level->setElectricityOn(on);
+			// Nur wenn sich wirklich etwas aendert - ein Undo-Punkt fuer einen
+			// Zustand, der schon gilt, kostet einen Undo-Schritt und die
+			// gesamte Redo-Liste.
+			const bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
+			if(on != editor.p_level->isElectricityOn())
+			{
+				editor.createUndoPoint();
+				editor.p_level->setElectricityOn(on);
+			}
 		}
 		else if(name == "LevelEditor.Refresh")
 		{
@@ -632,11 +642,11 @@ public:
 		{
 			static_cast<GUI_EditBox*>(getChild("SettingsPane.Settings.Title"))->setText(editor.p_level->getTitle());
 
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->check(editor.p_level->isNightVision());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->check(editor.p_level->isRaining());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Clouds"))->check(editor.p_level->isCloudy());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Snow"))->check(editor.p_level->isSnowing());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Thunderstorm"))->check(editor.p_level->isThunderstorm());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->setChecked(editor.p_level->isNightVision());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->setChecked(editor.p_level->isRaining());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Clouds"))->setChecked(editor.p_level->isCloudy());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Snow"))->setChecked(editor.p_level->isSnowing());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Thunderstorm"))->setChecked(editor.p_level->isThunderstorm());
 
 			const Vec3i& lightColor = editor.p_level->getLightColor();
 			static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorR"))->setScroll(lightColor.r);

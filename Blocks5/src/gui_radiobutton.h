@@ -29,7 +29,10 @@ public:
 	INLINE_GETTER(bool, getButtonLook, buttonLook);
 	INLINE_SETTER(bool, setButtonLook, buttonLook);
 	INLINE_GETTER(bool, isChecked, checked);
+	// check() ist der Benutzerklick: es loest das changed-Signal aus.
+	// setChecked() zieht nur die Anzeige nach.
 	void check();
+	void setChecked();
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);

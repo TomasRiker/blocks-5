@@ -23,7 +23,11 @@ public:
 	INLINE_GETTER(std::string, getTitle, title);
 	INLINE_SETTER(std::string, setTitle, title);
 	INLINE_GETTER(bool, isChecked, checked);
+	// check() ist der Benutzerklick: es loest das changed-Signal aus.
+	// setChecked() ist das Nachziehen der Anzeige und tut das nicht - wer
+	// eine Anzeige aktualisiert, meint keine Eingabe.
 	void check(bool check);
+	void setChecked(bool check) { checked = check; newChecked = check; }
 
 	INLINE_CONNECTOR(connectChanged, changed);
 

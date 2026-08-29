@@ -268,6 +268,20 @@ needs a redistributable, or a second DLL, undoes the whole arrangement.
 &GS_Menu::handleClick)`); a game state that connects signals must derive from
 `sigslot::has_slots<>`, which `GameState` already does.
 
+Two things about the toggles are worth knowing, because getting either wrong is quiet:
+
+- **`check()` means "the user clicked"; `setChecked()` means "the display caught up".** Only
+  the first fires `changed`. Refreshing a checkbox from model state with `check()` makes the
+  handler run as if the player had clicked it — which in the level editor meant an Undo that
+  toggled the electricity immediately produced a *fresh* undo point and threw the redo list
+  away.
+- **A `<StaticText>` can carry `<For>Name</For>`** and forwards its mouse events to that
+  sibling, so clicking the label toggles the checkbox or radio button, as `<label for>` does
+  in a browser. It forwards enter/leave as well as down/up, because a toggle only fires on
+  mouse-up if it believes the cursor is over it. The label needs `w`/`h` in the XML — an
+  element with no size is never hit — and the control it points at should have an empty
+  `<Title></Title>`, or it will draw its own default caption underneath.
+
 **Localization.** Any user-facing string starting with `$` is an ID resolved against
 `data/languages.txt` by `Engine::localizeString` / the free `loadString` helper. In that file a
 `$ID` line is followed by per-language bodies tagged `§en:`, `§de:`, `§fr:`, `§es:` — that

@@ -28,20 +28,32 @@
 		<!-- Die y-Werte setzt Options::show(); hier stehen sie nur der
 		     Vollstaendigkeit halber schon an ihrem Platz. -->
 		<RadioButton name="SharpFit" x="215" y="52" w="16" h="16">
-			<Title>$O_UPSCALER_SHARP_FIT</Title>
+			<Title></Title>
 			<Group>2</Group>
-			<Font>tooltip_font.xml</Font>
 		</RadioButton>
+		<StaticText name="SharpFitLabel" x="241" y="55" w="90" h="14">
+			<Text>$O_UPSCALER_SHARP_FIT</Text>
+			<For>SharpFit</For>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
 		<RadioButton name="Nearest" x="215" y="71" w="16" h="16">
-			<Title>$O_UPSCALER_NEAREST</Title>
+			<Title></Title>
 			<Group>2</Group>
-			<Font>tooltip_font.xml</Font>
 		</RadioButton>
+		<StaticText name="NearestLabel" x="241" y="74" w="90" h="14">
+			<Text>$O_UPSCALER_NEAREST</Text>
+			<For>Nearest</For>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
 		<RadioButton name="Bilinear" x="215" y="90" w="16" h="16">
-			<Title>$O_UPSCALER_BILINEAR</Title>
+			<Title></Title>
 			<Group>2</Group>
-			<Font>tooltip_font.xml</Font>
 		</RadioButton>
+		<StaticText name="BilinearLabel" x="241" y="93" w="90" h="14">
+			<Text>$O_UPSCALER_BILINEAR</Text>
+			<For>Bilinear</For>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
 
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
