@@ -146,15 +146,31 @@ background - two runs of the same build differ *more* from each other than the
 before/after pair does - and gameplay, the stencil light mask, crossfades, the
 scissor-clipped level list and mouse hit-testing all still work.
 
-What is left of this item is the filter itself. `Engine::upscaleFrame` still runs
-hq2x when `-hq2x` is given, now reading the framebuffer instead of the back
-buffer, so nothing regressed while the shader is outstanding.
+**The shader half is done too.** xBR-lv2 is vendored in `libs/xbr` as
+`xbr_lv2.h` — the two stages as C string literals, ported to compile as either
+desktop GLSL 1.10 or GLSL ES 1.00 out of the same source, so Windows and the
+browser run the identical shader. `libs/xbr/PROVENANCE.txt` lists all six changes
+against upstream. Its licence, which this entry used to flag as needing a check,
+is **MIT** — `libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian,
+"Permission is hereby granted, free of charge" — a clear improvement on hq2x's
+statically linked LGPL.
 
-xBR-lv2's licence, which this entry used to flag as needing a check, is **MIT** -
-`libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian, "Permission is hereby
-granted, free of charge". That is a clear improvement on hq2x's statically linked
-LGPL. It is written against `#version 130`, so the browser build needs it ported
-to GLSL ES 1.00.
+Four filters are selectable now, by `<Upscaler>` in `config.xml` or `-filter:` on
+the command line: `nearest`, `bilinear`, `xbr`, `xbr-details`. The last is
+upstream's `small_details` path, which compares texels by luminance alone instead
+of the usual channel mix; it makes the filter engage inside the dithered grass and
+earth tiles that plain xBR leaves pixelated, and leaves glyphs and GUI edges
+alone. If the shader will not compile, `setUpscaleFilter` quietly falls back to
+bilinear.
+
+What is left of this item is hq2x's removal: `src/hq2x.cpp`/`.h`,
+`libs/bin/hq2x32.obj` (the last binary in the tree), the vcxproj
+`AdditionalDependencies` entry, `useHQ2X`/`upscaleFrame`, the `-hq2x` flag,
+`hq2x.bat`, and the WebBuild glob exclusion with its `platform_stubs.cpp` stubs.
+`Engine::upscaleFrame` still runs when `-hq2x` is given, reading the framebuffer
+instead of the back buffer, so nothing regressed in the meantime — but with the
+window size still pinned to a filter (item 10), the two have to come apart
+together.
 
 ### Which filter
 
@@ -498,8 +514,10 @@ Three things the game should do and currently cannot:
   Borderless — a window styled `WS_POPUP` and sized to the desktop, the way most
   games do it now — not an exclusive display-mode change. See below: that choice
   is what keeps the toggle from destroying the GL context.
-- **Switch the upscaling filter while running** — nearest, bilinear, xBR, and
-  whatever else item 2 adds.
+- **Switch the upscaling filter while running.** The four filters exist since
+  item 2 — `nearest`, `bilinear`, `xbr`, `xbr-details` — and `setUpscaleFilter`
+  already takes effect on the next frame; what is missing is a way to reach it
+  from the options dialog rather than from `config.xml` or `-filter:`.
 
 Today `SDL_SetVideoMode` is called exactly once (`engine.cpp:302`), with no
 `SDL_RESIZABLE`, and the mode is decided at startup from `-windowed` /

@@ -96,6 +96,7 @@ extern "C"
 	void glDeleteProgram (GLuint);
 	GLint glGetUniformLocation (GLuint, const GLchar*);
 	void glUniform1i (GLint, GLint);
+	void glUniform1f (GLint, GLfloat);
 	void glUniform2f (GLint, GLfloat, GLfloat);
 	void glEnableVertexAttribArray (GLuint);
 	void glDisableVertexAttribArray (GLuint);
@@ -122,6 +123,7 @@ extern "C"
 #define glExtDeleteProgram            glDeleteProgram
 #define glExtGetUniformLocation       glGetUniformLocation
 #define glExtUniform1i                glUniform1i
+#define glExtUniform1f                glUniform1f
 #define glExtUniform2f                glUniform2f
 #define glExtEnableVertexAttribArray  glEnableVertexAttribArray
 #define glExtDisableVertexAttribArray glDisableVertexAttribArray
@@ -160,6 +162,7 @@ extern PFNGLUSEPROGRAMPROC                  glExtUseProgram;
 extern PFNGLDELETEPROGRAMPROC               glExtDeleteProgram;
 extern PFNGLGETUNIFORMLOCATIONPROC          glExtGetUniformLocation;
 extern PFNGLUNIFORM1IPROC                   glExtUniform1i;
+extern PFNGLUNIFORM1FPROC                   glExtUniform1f;
 extern PFNGLUNIFORM2FPROC                   glExtUniform2f;
 extern PFNGLENABLEVERTEXATTRIBARRAYPROC     glExtEnableVertexAttribArray;
 extern PFNGLDISABLEVERTEXATTRIBARRAYPROC    glExtDisableVertexAttribArray;

@@ -49,6 +49,7 @@ Engine::Engine()
 	xbrProgram = 0;
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
+	xbrSmallDetailsLocation = -1;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -1177,6 +1178,7 @@ bool Engine::createXbrProgram()
 
 	xbrDecalLocation       = glExtGetUniformLocation(xbrProgram, "decal");
 	xbrTextureSizeLocation = glExtGetUniformLocation(xbrProgram, "TextureSize");
+	xbrSmallDetailsLocation = glExtGetUniformLocation(xbrProgram, "small_details");
 
 	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein Puffer
 	// sein. Vier Eckpunkte, jedes Bild neu gefuellt - das kostet nichts und
@@ -1189,7 +1191,7 @@ bool Engine::createXbrProgram()
 		return false;
 	}
 
-	printfLog("  Upscale filters:  nearest, bilinear, xBR\n");
+	printfLog("  Upscale filters:  nearest, bilinear, xBR, xBR (small details)\n");
 	return true;
 }
 
@@ -1199,6 +1201,7 @@ void Engine::destroyXbrProgram()
 	if(xbrProgram) { glExtDeleteProgram(xbrProgram); xbrProgram = 0; }
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
+	xbrSmallDetailsLocation = -1;
 	xbrVertexBuffer = 0;
 }
 
@@ -1206,7 +1209,7 @@ void Engine::setUpscaleFilter(UpscaleFilter filter)
 {
 	// Ohne uebersetztes Programm gibt es kein xBR - dann lieber bilinear als
 	// ein Bild, das gar nicht erst erscheint.
-	if(filter == UF_XBR && !xbrProgram) filter = UF_BILINEAR;
+	if((filter == UF_XBR || filter == UF_XBR_DETAIL) && !xbrProgram) filter = UF_BILINEAR;
 	upscaleFilter = filter;
 }
 
@@ -1344,7 +1347,8 @@ void Engine::presentFrame()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-	if(upscaleFilter == UF_XBR && xbrProgram && xbrVertexBuffer)
+	const bool useXbr = (upscaleFilter == UF_XBR || upscaleFilter == UF_XBR_DETAIL);
+	if(useXbr && xbrProgram && xbrVertexBuffer)
 	{
 		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
 		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
@@ -1369,6 +1373,13 @@ void Engine::presentFrame()
 		if(xbrTextureSizeLocation >= 0) glExtUniform2f(xbrTextureSizeLocation,
 													   static_cast<float>(frameTextureSize.x),
 													   static_cast<float>(frameTextureSize.y));
+		// small_details bestimmt, woran der Shader zwei Texel als "gleich"
+		// erkennt: 0 = gewichtete Mischung aus Helligkeit und Farbe, so wie
+		// xBR es normalerweise macht; 1 = nur die Helligkeit. Damit greift er
+		// auch in gerasterten Flaechen (Gras, Erde), die sonst pixelig bleiben.
+		if(xbrSmallDetailsLocation >= 0)
+			glExtUniform1f(xbrSmallDetailsLocation,
+						   upscaleFilter == UF_XBR_DETAIL ? 1.0f : 0.0f);
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, xbrVertexBuffer);
 		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
@@ -2282,6 +2293,7 @@ void Engine::loadConfig()
 				if(!_stricmp(p_text, "nearest"))       upscaleFilter = UF_NEAREST;
 				else if(!_stricmp(p_text, "bilinear")) upscaleFilter = UF_BILINEAR;
 				else if(!_stricmp(p_text, "xbr"))      upscaleFilter = UF_XBR;
+				else if(!_stricmp(p_text, "xbr-details")) upscaleFilter = UF_XBR_DETAIL;
 			}
 		}
 
@@ -2356,8 +2368,9 @@ void Engine::saveConfig()
 
 	// Skalierungsfilter schreiben
 	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
-	p_upscaler->LinkEndChild(new TiXmlText(upscaleFilter == UF_NEAREST  ? "nearest" :
-										   upscaleFilter == UF_XBR      ? "xbr" : "bilinear"));
+	p_upscaler->LinkEndChild(new TiXmlText(upscaleFilter == UF_NEAREST    ? "nearest" :
+										   upscaleFilter == UF_XBR        ? "xbr" :
+										   upscaleFilter == UF_XBR_DETAIL ? "xbr-details" : "bilinear"));
 	p_config->LinkEndChild(p_upscaler);
 
 	// Sound-Lautstärke schreiben

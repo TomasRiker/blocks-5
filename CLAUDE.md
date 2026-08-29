@@ -84,7 +84,7 @@ untouched (`Build.bat Debug /rebuild /run -windowed -hq2x`). There are **no test
 linter**.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-hq2x`
-(`hq2x.bat`). Debug builds default to windowed + Console subsystem and skip the SEH crash
+(`hq2x.bat`), `-filter:nearest|bilinear|xbr|xbr-details`. Debug builds default to windowed + Console subsystem and skip the SEH crash
 handler; Release defaults to fullscreen + Windows subsystem and dumps a stack trace via
 `StackWalker` on an exception.
 
@@ -114,6 +114,21 @@ ref-counted, keyed by filename, never `new`/`delete`d directly.
 screenshots and video capture. The loop renders as fast as it can but steps logic at a fixed
 `logicRate` of 20 ms (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic
 tick, so gameplay code counts ticks rather than measuring dt.
+
+**Presentation.** The game always renders 640x480 into a framebuffer object
+(`createFrameBuffer`, a 640x480 region of a 1024x512 texture plus a packed depth-stencil
+renderbuffer — `cf_star.cpp` and `level.cpp` both need the stencil), and `presentFrame`
+puts that on the screen as one quad. Every hardcoded coordinate in the tree — the single
+`glViewport`, the `glScissor` calls, the GUI layouts — therefore stays valid whatever size
+the window is. `glextensions.cpp` loads what that needs: ten FBO entry points and
+twenty-five GL 2.0 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback;
+in the browser they are core and the header just `#define`s them through. Four upscale
+filters (`Engine::UpscaleFilter`), chosen by `<Upscaler>` in `config.xml` or `-filter:`:
+`nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`, `xbr` and `xbr-details` run the
+shader in `libs/xbr` — which **must** sample with `GL_NEAREST`, or its edge detection has
+nothing to work with and the output is bilinear at ten times the cost. Without an FBO the
+game renders straight to the back buffer as before; without a shader, xBR degrades to
+bilinear. Neither is fatal.
 
 **Video recording** writes H.264 Baseline video and MP3 audio into an MP4, with no DLL
 involved: `libs/minih264` encodes the video, `libs/shine` the audio, `libs/minimp4` writes the
@@ -250,7 +265,7 @@ filenames, shipped zipped in `levels/campaigns/`.
 
 ### Every local change to a vendored library
 
-Four libraries are patched, in seven files. Everything else is byte-identical to upstream.
+Five libraries are patched, in eight files. Everything else is byte-identical to upstream.
 Each is explained where it lives — in the file itself and in that library's `PROVENANCE.txt`.
 
 | library | file | what |
@@ -261,6 +276,7 @@ Each is explained where it lives — in the file itself and in that library's `P
 | zlib 1.3.1 | `contrib/minizip/iowin32.c` | `IOWIN32_USING_WINRT_API` commented out; this is a desktop build |
 | shine | `l3mdct.c`, `l3subband.c` | `__attribute__((unused))` guarded for MSVC as well as Borland |
 | minimp4 | `minimp4.h` | the `esds` descriptor: real `objectTypeIndication`, optional DSI, reserved bit, `SLConfigDescriptor`, measured bitrate |
+| xBR-lv2 | `xbr_lv2.h` | a port, not a patch: same algorithm, rewritten to compile as GLSL 1.10 *and* GLSL ES 1.00 (no `mat4x3`, 7 varyings fewer, const globals) |
 
 `libogg` and `libvorbis` differ from their git tags only in expanded SVN `$Id$` keywords in
 five headers, which is what marks them as coming from the release tarballs rather than a

@@ -30,6 +30,7 @@ PFNGLUSEPROGRAMPROC                  glExtUseProgram = 0;
 PFNGLDELETEPROGRAMPROC               glExtDeleteProgram = 0;
 PFNGLGETUNIFORMLOCATIONPROC          glExtGetUniformLocation = 0;
 PFNGLUNIFORM1IPROC                   glExtUniform1i = 0;
+PFNGLUNIFORM1FPROC                   glExtUniform1f = 0;
 PFNGLUNIFORM2FPROC                   glExtUniform2f = 0;
 PFNGLENABLEVERTEXATTRIBARRAYPROC     glExtEnableVertexAttribArray = 0;
 PFNGLDISABLEVERTEXATTRIBARRAYPROC    glExtDisableVertexAttribArray = 0;
@@ -123,6 +124,7 @@ bool GLExtensions::init()
 	glExtDeleteProgram            = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(SDL_GL_GetProcAddress("glDeleteProgram"));
 	glExtGetUniformLocation       = reinterpret_cast<PFNGLGETUNIFORMLOCATIONPROC>(SDL_GL_GetProcAddress("glGetUniformLocation"));
 	glExtUniform1i                = reinterpret_cast<PFNGLUNIFORM1IPROC>(SDL_GL_GetProcAddress("glUniform1i"));
+	glExtUniform1f                = reinterpret_cast<PFNGLUNIFORM1FPROC>(SDL_GL_GetProcAddress("glUniform1f"));
 	glExtUniform2f                = reinterpret_cast<PFNGLUNIFORM2FPROC>(SDL_GL_GetProcAddress("glUniform2f"));
 	glExtEnableVertexAttribArray  = reinterpret_cast<PFNGLENABLEVERTEXATTRIBARRAYPROC>(SDL_GL_GetProcAddress("glEnableVertexAttribArray"));
 	glExtDisableVertexAttribArray = reinterpret_cast<PFNGLDISABLEVERTEXATTRIBARRAYPROC>(SDL_GL_GetProcAddress("glDisableVertexAttribArray"));
@@ -148,6 +150,7 @@ bool GLExtensions::init()
 	           glExtDeleteProgram &&
 	           glExtGetUniformLocation &&
 	           glExtUniform1i &&
+	           glExtUniform1f &&
 	           glExtUniform2f &&
 	           glExtEnableVertexAttribArray &&
 	           glExtDisableVertexAttribArray &&

@@ -3,7 +3,7 @@ xBR-lv2
 
 Edge-directed upscaling filter, as a fragment shader. Brings the game's internal
 640x480 frame up to whatever size the window is; see Engine::presentFrame in
-src/engine.cpp and the UF_XBR case there.
+src/engine.cpp and the UF_XBR / UF_XBR_DETAIL cases there.
 
   https://github.com/libretro/glsl-shaders   xbr/shaders/xbr-lv2.glsl
   Hyllian (sergiogdb@gmail.com), 2011-2016
@@ -34,10 +34,23 @@ Every change:
    a strict WebGL 1 implementation that would not link. The seven lines moved
    verbatim into main().
 
-2. The two `if (small_details < 0.5) ... else ...` pairs keep only the live half.
-   small_details is #defined to 0.0, so the else branches were already dead - but
-   they use mat4x3, which does not exist in GLSL ES 1.00, and dead code still has
-   to parse. weighted_distance(), only called from there, went with them.
+2. The two `if (small_details < 0.5) ... else ...` pairs are kept, but written
+   without mat4x3, which does not exist in GLSL ES 1.00. Upstream's
+   `mul(mat4x3(A, B, C, D), w)` is four dot products against the same weight
+   vector, so the two branches differ only in what that vector is - the usual
+   rgbw mix, or y_weight * Y. Hoisting the choice into one `vec3 wgt = ...` and
+   writing the four dots out keeps both paths in a form GLSL ES accepts.
+   weighted_distance(), called only from the small_details half, is kept too.
+
+   small_details is a uniform here, the way RetroArch exposes it when it builds
+   with PARAMETER_UNIFORM, not a #define. Engine::presentFrame sets it to 1.0 for
+   UF_XBR_DETAIL and 0.0 for UF_XBR, so both are selectable at runtime. It
+   decides what makes two texels count as different: the default mix of all three
+   channels, or luminance alone. Luminance alone makes the filter engage inside
+   dithered, low-contrast areas - this game's grass and earth tiles - which it
+   otherwise leaves pixelated. Glyphs and GUI edges are unaffected either way;
+   measured over a rendered frame, roughly a third of pixels differ between the
+   two, essentially all of them in those textured areas.
 
 3. delta, delta_l and delta_u are const. Upstream leaves them mutable globals and
    initialises delta_u from a swizzle of delta_l; GLSL ES requires global
@@ -52,7 +65,7 @@ Every change:
    Emscripten's immediate-mode emulation in the browser build.
 
 6. The libretro uniforms the shader does not use (FrameDirection, FrameCount,
-   OutputSize, InputSize) are gone; decal and TextureSize remain.
+   OutputSize, InputSize) are gone; decal, TextureSize and small_details remain.
 
 There is no #version directive. The default is 110 on desktop GL and 100 on GLSL
 ES, and the source is written to compile as either - `#ifdef GL_ES` guards the

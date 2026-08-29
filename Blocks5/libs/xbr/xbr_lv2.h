@@ -25,9 +25,12 @@
    THE SOFTWARE.
 */
 
-/* Ported from the libretro GLSL version; see PROVENANCE.txt for every change.
+/* Ported from the libretro GLSL version; PROVENANCE.txt lists every change.
    No #version directive: the default is 110 on desktop GL and 100 on GLSL ES,
-   and this source is written to compile as either. */
+   and this source compiles as either.
+
+   small_details is a uniform, the way RetroArch exposes it when it defines
+   PARAMETER_UNIFORM. Both of upstream's paths are here. */
 
 static const char* p_xbrVertexShader =
 	"#ifdef GL_ES\n"
@@ -53,6 +56,7 @@ static const char* p_xbrFragmentShader =
 	"#define FragColor gl_FragColor\n"
 	"#define tex2D texture2D\n"
 	"#define XBR_SCALE 3.0\n"
+	"#define XBR_Y_WEIGHT 48.0\n"
 	"#define XBR_EQ_THRESHOLD 15.0\n"
 	"#define XBR_LV2_COEFFICIENT 2.0\n"
 	"#define lv2_cf XBR_LV2_COEFFICIENT\n"
@@ -60,6 +64,7 @@ static const char* p_xbrFragmentShader =
 	"#define SMOOTH_TIPS\n"
 	"uniform sampler2D decal;\n"
 	"uniform vec2 TextureSize;\n"
+	"uniform float small_details;\n"
 	"varying vec2 texCoord;\n"
 	"const float coef         = 2.0;\n"
 	"const vec3 rgbw          = vec3(14.352, 28.176, 5.472);\n"
@@ -110,6 +115,11 @@ static const char* p_xbrFragmentShader =
 	"vec4 wd(vec4 a, vec4 b, vec4 c, vec4 d, vec4 e, vec4 f, vec4 g, vec4 h)\n"
 	"{\n"
 	"    return (df(a,b) + df(a,c) + df(d,e) + df(d,f) + 4.0*df(g,h));\n"
+	"}\n"
+	"\n"
+	"vec4 weighted_distance(vec4 a, vec4 b, vec4 c, vec4 d, vec4 e, vec4 f, vec4 g, vec4 h, vec4 i, vec4 j, vec4 k, vec4 l)\n"
+	"{\n"
+	"	return (df(a,b) + df(a,c) + df(d,e) + df(d,f) + df(i,j) + df(k,l) + 2.0*df(g,h));\n"
 	"}\n"
 	"\n"
 	"float c_df(vec3 c1, vec3 c2) \n"
@@ -172,9 +182,12 @@ static const char* p_xbrFragmentShader =
 	"    \n"
 	"	vec4 i4, i5, h5, f4;\n"
 	"	\n"
-	"	i4 = vec4(dot(I4,rgbw), dot(C1,rgbw), dot(A0,rgbw), dot(G5,rgbw));\n"
-	"	i5 = vec4(dot(I5,rgbw), dot(C4,rgbw), dot(A1,rgbw), dot(G0,rgbw));\n"
-	"	h5 = vec4(dot(H5,rgbw), dot(F4,rgbw), dot(B1,rgbw), dot(D0,rgbw));\n"
+	"	float y_weight = XBR_Y_WEIGHT;\n"
+	"	\n"
+	"	vec3 wgt = (small_details < 0.5) ? rgbw : (y_weight * Y);\n"
+	"	i4 = vec4(dot(I4,wgt), dot(C1,wgt), dot(A0,wgt), dot(G5,wgt));\n"
+	"	i5 = vec4(dot(I5,wgt), dot(C4,wgt), dot(A1,wgt), dot(G0,wgt));\n"
+	"	h5 = vec4(dot(H5,wgt), dot(F4,wgt), dot(B1,wgt), dot(D0,wgt));\n"
 	"\n"
 	"    // These inequations define the line below which interpolation occurs.\n"
 	"    fx   = (Ao*fp.y+Bo*fp.x); \n"
@@ -204,8 +217,16 @@ static const char* p_xbrFragmentShader =
 	"    vec4 fx60  = clamp((fx_u + delta_u -Cy     )/(2.0*delta_u), 0.0, 1.0);\n"
 	"\n"
 	"    vec4 wd1, wd2;\n"
-	"	wd1 = wd( e, c,  g, i, h5, f4, h, f);\n"
-	"	wd2 = wd( h, d, i5, f, i4,  b, e, i);\n"
+	"	if (small_details < 0.5)\n"
+	"	{\n"
+	"		wd1 = wd( e, c,  g, i, h5, f4, h, f);\n"
+	"		wd2 = wd( h, d, i5, f, i4,  b, e, i);\n"
+	"	}\n"
+	"	else\n"
+	"	{\n"
+	"		wd1 = weighted_distance( e, c, g, i, f4, h5, h, f, b, d, i4, i5);\n"
+	"		wd2 = weighted_distance( h, d, i5, f, b, i4, e, i, g, h5, c, f4);\n"
+	"	}\n"
 	"\n"
 	"    edri  = step(wd1, wd2) * irlv0;\n"
 	"    edr   = step(wd1 + vec4(0.1, 0.1, 0.1, 0.1), wd2) * step(vec4(0.5, 0.5, 0.5, 0.5), irlv1);\n"

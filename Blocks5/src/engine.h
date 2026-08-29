@@ -60,7 +60,8 @@ public:
 	{
 		UF_NEAREST = 0,   // harte Kanten; nur bei ganzzahliger Vergroesserung sinnvoll
 		UF_BILINEAR,      // die Hardware macht es, kostet nichts
-		UF_XBR            // kantengefuehrt, siehe libs/xbr
+		UF_XBR,           // kantengefuehrt, siehe libs/xbr
+		UF_XBR_DETAIL     // dito mit small_details=1: glaettet auch Raster wie das Gras
 	};
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen, bool useHQ2X);
 	void exit();
@@ -245,6 +246,7 @@ private:
 	uint xbrProgram;
 	int xbrDecalLocation;
 	int xbrTextureSizeLocation;
+	int xbrSmallDetailsLocation;
 	uint xbrVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;

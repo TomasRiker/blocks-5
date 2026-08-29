@@ -343,13 +343,30 @@ int runTheGame(int argc,
 	fullScreen = true;
 #endif
 
-	// Argumente parsen
+	// Argumente parsen. -filter: übersteuert den in der config.xml
+	// gespeicherten Skalierungsfilter, aber nur für diesen Start.
+	Engine::UpscaleFilter upscaleFilter = Engine::UF_BILINEAR;
+	bool upscaleFilterGiven = false;
 	for(int i = 0; i < argc; i++)
 	{
 		char* p_arg = pp_argv[i];
 		if(!_stricmp(p_arg, "-windowed")) fullScreen = false;
 		else if(!_stricmp(p_arg, "-fullScreen")) fullScreen = true;
 		else if(!_stricmp(p_arg, "-hq2x")) useHQ2X = true;
+		else if(!_strnicmp(p_arg, "-filter:", 8))
+		{
+			const char* p_name = p_arg + 8;
+			upscaleFilterGiven = true;
+			if(!_stricmp(p_name, "nearest"))          upscaleFilter = Engine::UF_NEAREST;
+			else if(!_stricmp(p_name, "bilinear"))    upscaleFilter = Engine::UF_BILINEAR;
+			else if(!_stricmp(p_name, "xbr"))         upscaleFilter = Engine::UF_XBR;
+			else if(!_stricmp(p_name, "xbr-details")) upscaleFilter = Engine::UF_XBR_DETAIL;
+			else
+			{
+				printfLog("- WARNING: Unknown filter '%s'; known are nearest, bilinear, xbr, xbr-details.\n", p_name);
+				upscaleFilterGiven = false;
+			}
+		}
 	}
 
 	printfLog("Initializing engine ...\n");
@@ -403,6 +420,10 @@ int runTheGame(int argc,
 		printfLog("Error while initializing the engine.\n");
 		return 1;
 	}
+
+	// Erst nach init(): vorher gibt es weder config.xml noch xBR-Programm,
+	// gegen das setUpscaleFilter() gegenprüfen könnte.
+	if(upscaleFilterGiven) engine.setUpscaleFilter(upscaleFilter);
 
 	// Lokalisierung laden
 	engine.loadStringDB("languages.txt");
