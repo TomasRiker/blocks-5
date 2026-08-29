@@ -25,7 +25,7 @@ The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
 are compiled from source here instead — zlib 1.3.1 with its `contrib/minizip`,
 libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2. The Visual Studio build compiles the
 same sources from the same directories, so the two cannot drift apart; `libs/bin`
-is down to one import library for OpenAL, plus `hq2x32.obj`. Before
+is down to one import library for OpenAL, and nothing else. Before
 they were vendored this build compiled whatever the upstream clones happened to
 be at, which was a *different* version of every one of them.
 
@@ -54,8 +54,8 @@ the fixed-timestep main loop, mouse and keyboard input, and rendering — tile
 layers, sprites, fonts, the GUI, particles and weather.
 
 Amputated: video capture (`videorecorder_stub.cpp`), screenshots
-(`Engine::screenshot` returns early), the hq2x upscaler
-(hand-written x86 assembly), the SEH crash handler, and the update checker. The
+(`Engine::screenshot` returns early), the SEH crash handler, and the update
+checker. The
 $A_CAPTURE_SCREENSHOT and $A_TOGGLE_CAPTURE_VIDEO actions are not registered
 under `__EMSCRIPTEN__`, so F11/F12 no longer appear in Options -> Controls.
 
@@ -76,7 +76,7 @@ a fixed shape a triangle fan covers exactly.
 | `compat.h` | force-included; MSVC CRT spellings and the `random()` clash with POSIX |
 | `gl_immediate.cpp` | intercepts immediate mode and re-emits every attribute per vertex (see below) |
 | `gl_compat.cpp` | the GL entry points Emscripten declares but never implements |
-| `platform_stubs.cpp` | SDL cursors, SDL surface locking, hq2x |
+| `platform_stubs.cpp` | SDL cursors, SDL surface locking |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
 | `web_transfer.cpp` | the download/file-picker bridge behind Export and Import |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |

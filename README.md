@@ -32,7 +32,7 @@ everything after it is handed to `blocks5.exe` untouched — that is what keeps 
 switches from colliding with Build.bat's:
 
     Build.bat /run -windowed
-    Build.bat Debug /rebuild /run -windowed -hq2x
+    Build.bat Debug /rebuild /run -fullscreen
 
 To build from the IDE instead, open `Blocks5.sln`, build all three projects, and run
 `zip_data.bat` and `zip_skins.bat` in `Blocks5\` once.

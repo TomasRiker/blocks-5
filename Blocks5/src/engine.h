@@ -63,7 +63,7 @@ public:
 		UF_XBR,           // kantengefuehrt, siehe libs/xbr
 		UF_XBR_DETAIL     // dito mit small_details=1: glaettet auch Raster wie das Gras
 	};
-	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen, bool useHQ2X);
+	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen);
 	void exit();
 	void mainLoop();
 #ifdef __EMSCRIPTEN__
@@ -75,7 +75,6 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
-	void upscaleFrame();
 	void screenshot();
 
 	// Der Bildpuffer, in den das Spiel rendert. Immer 640x480, unabhaengig
@@ -97,8 +96,18 @@ public:
 	bool createXbrProgram();
 	void destroyXbrProgram();
 
+	// getUpscaleFilter() liefert den *Wunsch* - das, was der Spieler gewählt
+	// hat und was in der config.xml steht. getEffectiveUpscaleFilter() liefert,
+	// was tatsächlich gezeichnet wird: ohne übersetztes Programm wird aus xBR
+	// bilinear. Der Wunsch bleibt dabei stehen, damit dieselbe config.xml auf
+	// einer Maschine mit Shadern wieder das Richtige tut.
 	void setUpscaleFilter(UpscaleFilter filter);
 	UpscaleFilter getUpscaleFilter() const { return upscaleFilter; }
+	UpscaleFilter getEffectiveUpscaleFilter() const;
+	// Die Namen, unter denen der Filter in der config.xml steht.
+	static const char* getUpscaleFilterName(UpscaleFilter filter);
+	static UpscaleFilter parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback);
+	bool canUseXbr() const;   // hat die Maschine Shader und Bildpuffer?
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -193,7 +202,6 @@ private:
 
 	bool initialized;
 	bool fullScreen;
-	bool useHQ2X;
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;
@@ -232,8 +240,6 @@ private:
 	double crossfadeDuration;
 	StreamedSound* p_currentMusic;
 	std::string currentMusicFilename;
-	unsigned char* p_hq2xIn;
-	unsigned char* p_hq2xOut;
 	// Bildpuffer. frameTextureSize ist eine Zweierpotenz, weil WebGL 1 und
 	// aeltere Treiber sonst NPOT-Texturen nur eingeschraenkt erlauben; benutzt
 	// wird davon die linke untere Ecke in screenSize.

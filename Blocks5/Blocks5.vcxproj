@@ -67,7 +67,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;hq2x32.obj;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -95,7 +95,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;hq2x32.obj;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -702,7 +702,6 @@
     <ClCompile Include="src\gui_staticimage.cpp" />
     <ClCompile Include="src\gui_statictext.cpp" />
     <ClCompile Include="src\gui_window.cpp" />
-    <ClCompile Include="src\hq2x.cpp" />
     <ClCompile Include="src\img_load.cpp" />
     <ClCompile Include="src\linedrawer.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
@@ -829,7 +828,6 @@
     <ClInclude Include="src\gui_staticimage.h" />
     <ClInclude Include="src\gui_statictext.h" />
     <ClInclude Include="src\gui_window.h" />
-    <ClInclude Include="src\hq2x.h" />
     <ClInclude Include="src\img_load.h" />
     <ClInclude Include="src\linedrawer.h" />
     <ClInclude Include="src\manager.h" />

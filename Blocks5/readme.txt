@@ -32,6 +32,24 @@ Changelog
             screenshots are the only things the browser version
             cannot do. Look on the website for the link.
 
+          - The HQ2X start menu entry is gone, and with it the
+            HQ2X mode. It scaled the picture on the processor,
+            cost about half of the time available for a frame,
+            and changed less than 5% of the pixels. In its place
+            the options now have a "Scaling" setting with four
+            choices: Sharp, Smooth, xBR and xBR (detailed). The
+            two xBR settings reconstruct the edges of the picture
+            instead of just stretching them, and they run on the
+            graphics card, so they are free. They need a card
+            that can run shaders - practically anything made
+            since about 2005; if yours cannot, the two xBR
+            entries are simply not offered.
+
+            The setting is saved, but you will not see much of a
+            difference yet: the game window is still exactly
+            640x480, so there is nothing to scale. That changes
+            with the resizable window in a coming version.
+
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as
             the recording device, which on most machines is the

@@ -16,10 +16,5 @@
 #define _strnicmp strncasecmp
 #endif
 
-// Win32 scalar types that leak into otherwise-portable headers (e.g. src/hq2x.h).
-typedef unsigned long  DWORD;
-typedef unsigned short WORD;
-typedef unsigned char  BYTE;
-
 #endif // !_MSC_VER
 #endif

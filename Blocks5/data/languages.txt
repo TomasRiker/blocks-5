@@ -171,6 +171,31 @@ $O_DETAILS_HIGH
 §en:High
 §de:Hoch
 
+$O_UPSCALER
+// Caption of the upscaling filter section
+§en:Scaling:
+§de:Skalierung:
+
+$O_UPSCALER_NEAREST
+// Caption of the nearest-neighbour scaling radio button
+§en:Sharp
+§de:Scharf
+
+$O_UPSCALER_BILINEAR
+// Caption of the bilinear scaling radio button
+§en:Smooth
+§de:Weich
+
+$O_UPSCALER_XBR
+// Caption of the xBR scaling radio button
+§en:xBR
+§de:xBR
+
+$O_UPSCALER_XBR_DETAILS
+// Caption of the xBR (small details) scaling radio button
+§en:xBR, detailed
+§de:xBR, detailliert
+
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:

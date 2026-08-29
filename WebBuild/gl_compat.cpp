@@ -107,8 +107,8 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 //
 // The game uses three masks: GL_TRANSFORM_BIT (6 sites, all bracketing a
 // GL_TEXTURE matrix edit), GL_ENABLE_BIT (2 sites, both bracketing
-// glDisable(GL_TEXTURE_2D)) and GL_ALL_ATTRIB_BITS (1 site, in the disabled
-// hq2x path), so the mask is honoured rather than ignored.
+// glDisable(GL_TEXTURE_2D)) and GL_ALL_ATTRIB_BITS (1 site, around
+// Engine::presentFrame), so the mask is honoured rather than ignored.
 static GLenum g_matrixMode = GL_MODELVIEW;
 
 // The capabilities this game actually toggles, so a saved frame stays small.
@@ -184,12 +184,9 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 // Emscripten implements glReadBuffer and glDrawBuffer as abort(), so one call
 // takes the whole runtime down. GL_BACK is the only buffer WebGL has, which
 // makes a no-op exactly right. Engine::screenshot() reaches them today; the
-// video recorder and hq2x paths do too, once those features come back.
+// video recorder does too, once that feature comes back.
 GLAPI void GLAPIENTRY glReadBuffer(GLenum) {}
 GLAPI void GLAPIENTRY glDrawBuffer(GLenum) {}
 
 // Dashed selection rectangles in the level editor: lines draw solid instead.
 GLAPI void GLAPIENTRY glLineStipple(GLint, GLushort) {}
-// engine.cpp uses these for the hq2x upscale blit, which is disabled anyway.
-GLAPI void GLAPIENTRY glRasterPos2i(GLint, GLint) {}
-GLAPI void GLAPIENTRY glDrawPixels(GLsizei, GLsizei, GLenum, GLenum, const GLvoid*) {}

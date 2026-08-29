@@ -21,7 +21,7 @@ REM                    packed archives. Nothing else is touched - see the list
 REM                    at :doclean below
 REM    /run [args]     after a successful build, run the game. Everything after
 REM                    /run is passed to blocks5.exe untouched, so it has to come
-REM                    last: Build.bat /run -windowed -hq2x. The game runs with
+REM                    last: Build.bat /run -windowed. The game runs with
 REM                    Blocks5\ as the working directory, because it opens
 REM                    data.zip relative to the current directory
 REM    -h, --help, /?  show a short usage summary
@@ -414,7 +414,7 @@ ECHO.
 ECHO /run runs the game afterwards, with Blocks5\ as the working directory.
 ECHO It must come last: everything after it goes to blocks5.exe untouched.
 ECHO     Build.bat /run -windowed
-ECHO     Build.bat Debug /rebuild /run -windowed -hq2x
+ECHO     Build.bat Debug /rebuild /run -windowed
 ECHO.
 ECHO Open this file in an editor for the toolset notes.
 ECHO.

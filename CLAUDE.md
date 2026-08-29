@@ -80,13 +80,14 @@ stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Rele
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
 correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
 does that for you; it has to come last, because every argument after it goes to `blocks5.exe`
-untouched (`Build.bat Debug /rebuild /run -windowed -hq2x`). There are **no tests and no
+untouched (`Build.bat Debug /rebuild /run -windowed`). There are **no tests and no
 linter**.
 
-Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-hq2x`
-(`hq2x.bat`), `-filter:nearest|bilinear|xbr|xbr-details`. Debug builds default to windowed + Console subsystem and skip the SEH crash
-handler; Release defaults to fullscreen + Windows subsystem and dumps a stack trace via
-`StackWalker` on an exception.
+Command line / launcher scripts: `-windowed` (`windowed.bat`) and `-fullscreen` — that is
+the whole list. The upscaling filter is *not* a switch; it is an in-game option like the
+language, saved as `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
+subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem
+and dumps a stack trace via `StackWalker` on an exception.
 
 Installer: `setup\Blocks 5.iss` (Inno Setup). Version number lives in **four** places that
 must stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in
@@ -258,10 +259,9 @@ filenames, shipped zipped in `levels/campaigns/`.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE`
   macros are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`, each with a `PROVENANCE.txt`
-  giving its upstream, licence, which files are compiled, and what was changed locally. What
-  is left in `Blocks5/libs/bin` is `OpenAL32.lib`, an import library, plus `hq2x32.obj`, which
-  is a real object file and the one thing in the tree that still carries v120 code. An import
-  library does not pin the toolset; `hq2x32.obj` does.
+  giving its upstream, licence, which files are compiled, and what was changed locally. All
+  that is left in `Blocks5/libs/bin` is `OpenAL32.lib`, an import library — no compiled code
+  without source anywhere in the tree, and nothing that pins the toolset.
 
 ### Every local change to a vendored library
 

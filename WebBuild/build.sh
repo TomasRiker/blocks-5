@@ -28,9 +28,8 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 #   stackwalker  - Win32 SEH crash handler
 #   videorecorder- portable now, but nothing here captures audio (replaced by
 #                  videorecorder_stub.cpp)
-#   hq2x         - links a prebuilt x86 .obj
 #   pch          - the Create-PCH translation unit, unused here
-SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|hq2x|pch)\.cpp$')
+SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
 SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/unzip.c

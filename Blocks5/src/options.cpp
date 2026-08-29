@@ -17,6 +17,10 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->connectClicked(this, &Options::handleClick);
@@ -61,6 +65,21 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->check();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->check();
 
+	// Skalierungsfilter. Ohne Shader gibt es die beiden xBR-Einträge gar nicht
+	// erst zu sehen - anzubieten, was die Maschine nicht kann, wäre gelogen.
+	GUI_Element* p_xbr = getChild("Options.Xbr");
+	GUI_Element* p_xbrDetails = getChild("Options.XbrDetails");
+	if(engine.canUseXbr()) { p_xbr->show(); p_xbrDetails->show(); }
+	else                   { p_xbr->hide(); p_xbrDetails->hide(); }
+
+	switch(engine.getEffectiveUpscaleFilter())
+	{
+	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->check(); break;
+	case Engine::UF_XBR:        static_cast<GUI_RadioButton*>(p_xbr)->check(); break;
+	case Engine::UF_XBR_DETAIL: static_cast<GUI_RadioButton*>(p_xbrDetails)->check(); break;
+	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->check(); break;
+	}
+
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
@@ -89,6 +108,13 @@ void Options::handleClick(GUI_Element* p_element)
 		if(static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->isChecked()) engine.setDetails(0);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->isChecked()) engine.setDetails(1);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->isChecked()) engine.setDetails(2);
+
+		// Skalierungsfilter speichern. Wirkt sofort, das nächste Bild kommt
+		// schon durch den neuen Filter auf den Schirm.
+		if(static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
+		else if(static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
+		else if(static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->isChecked()) engine.setUpscaleFilter(Engine::UF_XBR);
+		else if(static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->isChecked()) engine.setUpscaleFilter(Engine::UF_XBR_DETAIL);
 
 		if(name == "Actions")
 		{

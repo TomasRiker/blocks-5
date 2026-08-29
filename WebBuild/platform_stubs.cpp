@@ -82,16 +82,7 @@ extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
     return 0;
 }
 
-// --- hq2x upscaler ----------------------------------------------------------
-// The real implementation is hand-written x86 assembly shipped as a prebuilt
-// .obj (libs/bin/hq2x32.obj), which cannot target wasm. InitLUTs() returning 0
-// makes Engine::init report the -hq2x mode as unavailable and fall back to
-// normal scaling, so hq2x_32 is never reached.
-void hq2x_32(unsigned char*, unsigned char*, unsigned long, unsigned long, unsigned long) {}
-
 } // extern "C"
-
-int InitLUTs(void) { return 0; }
 
 // --- SDL_PixelFormat completion ---------------------------------------------
 // SDL.makeSurface (emsdk src/lib/libsdl.js:352) _malloc()s the SDL_PixelFormat

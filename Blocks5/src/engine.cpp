@@ -15,7 +15,6 @@
 #include "tileset.h"
 #include "crossfade.h"
 #include "filesystem.h"
-#include "hq2x.h"
 #include "videorecorder.h"
 #include "audiocapture.h"
 
@@ -36,8 +35,6 @@ Engine::Engine()
 	crossfadeTime = -1.0;
 	crossfadeDuration = 0.0;
 	glExtBlendFuncSeparate = 0;
-	p_hq2xIn = 0;
-	p_hq2xOut = 0;
 	p_videoRecorder = 0;
 	p_audioCapture = 0;
 	p_muteIconTexture = 0;
@@ -45,7 +42,7 @@ Engine::Engine()
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
 	useFrameBuffer = false;
-	upscaleFilter = UF_BILINEAR;
+	upscaleFilter = UF_XBR_DETAIL;   // Voreinstellung; ohne Shader wird bilinear daraus
 	xbrProgram = 0;
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
@@ -65,8 +62,7 @@ bool Engine::init(const std::string& windowCaption,
 				  const std::string& windowIconFilename,
 				  uint width,
 				  uint height,
-				  bool fullScreen,
-				  bool useHQ2X)
+				  bool fullScreen)
 {
 	if(initialized) return false;
 
@@ -78,7 +74,6 @@ bool Engine::init(const std::string& windowCaption,
 	screenSize = Vec2i(width, height);
 	screenPow2Size = Vec2i(nextPow2(width), nextPow2(height));
 	this->fullScreen = fullScreen;
-	this->useHQ2X = useHQ2X;
 
 	// SDL initialisieren
 	printfLog("* Initializing SDL ...\n");
@@ -214,53 +209,7 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	if(useHQ2X)
-	{
-		// HQ2X initialisieren
-		if(!InitLUTs())
-		{
-			// Kein MMX - dann können wir es sowieso vergessen.
-			useHQ2X = false;
-		}
-		else
-		{
-			p_hq2xIn = new unsigned char[screenSize.x * screenSize.y * 4];
-			p_hq2xOut = new unsigned char[screenSize.x * screenSize.y * 16];
-		}
-	}
-
 	displaySize = Vec2i(width, height);
-	if(useHQ2X)
-	{
-		displaySize.x = width * 2;
-		displaySize.y = height * 2;
-
-		if(fullScreen)
-		{
-			// die nächste passende Auflösung suchen
-			SDL_Rect** pp_modes = SDL_ListModes(0, SDL_OPENGL | SDL_FULLSCREEN);
-			if(pp_modes[0] == reinterpret_cast<SDL_Rect*>(-1))
-			{
-				// Keine Einschränkungen!
-			}
-			else
-			{
-				int i;
-				for(i = 0; pp_modes[i]; i++);
-				for(i--; i >= 0; i--)
-				{
-					// Passt das?
-					if(pp_modes[i]->w >= displaySize.x && pp_modes[i]->h >= displaySize.y)
-					{
-						// Ja.
-						displaySize.x = pp_modes[i]->w;
-						displaySize.y = pp_modes[i]->h;
-						break;
-					}
-				}
-			}
-		}
-	}
 
 	if(!windowIconFilename.empty())
 	{
@@ -343,7 +292,6 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("  Stencil bits:     %d\n", stencil);
 	printfLog("  Double buffering: %s\n", dbuffer ? "On" : "Off");
 	printfLog("  SDL display:      Flags=%x, BPP=%d, Masks=(%x, %x, %x, %x)\n", p_display->flags, p_display->format->BitsPerPixel, p_display->format->Rmask, p_display->format->Gmask, p_display->format->Bmask, p_display->format->Amask);
-	printfLog("  hq2x:             %s\n", useHQ2X ? "On" : "Off");
 	printfLog("  ============================================================\n");
 
 #ifdef __EMSCRIPTEN__
@@ -381,8 +329,7 @@ bool Engine::init(const std::string& windowCaption,
 	{
 		createXbrProgram();
 	}
-	// Jetzt erst gegenprüfen: ohne übersetztes Programm wird aus xBR bilinear.
-	setUpscaleFilter(upscaleFilter);
+	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
 
 	// Texturen für Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
@@ -541,15 +488,6 @@ void Engine::exit()
 	crossfade(0, 0.0);
 	glDeleteTextures(1, &oldImageID);
 	glDeleteTextures(1, &newImageID);
-
-	if(useHQ2X)
-	{
-		// hq2x herunterfahren
-		delete[] p_hq2xIn;
-		delete[] p_hq2xOut;
-		p_hq2xIn = 0;
-		p_hq2xOut = 0;
-	}
 
 	// Joysticks schließen
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
@@ -920,8 +858,8 @@ void Engine::mainLoopIteration()
 			}
 
 			// Bildpuffer auf den Bildschirm bringen
-			if(useHQ2X) upscaleFrame();
-			else        { unbindFrameBuffer(); presentFrame(); }
+			unbindFrameBuffer();
+			presentFrame();
 
 			// gerendertes Frame anzeigen
 			SDL_GL_SwapBuffers();
@@ -1207,10 +1145,45 @@ void Engine::destroyXbrProgram()
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
 {
+	// Nur merken. Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter()
+	// bei jedem Bild neu - beim Laden der config.xml gibt es noch gar keinen
+	// GL-Kontext, gegen den man hier pruefen koennte.
+	upscaleFilter = filter;
+}
+
+const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
+{
+	switch(filter)
+	{
+	case UF_NEAREST:    return "nearest";
+	case UF_XBR:        return "xbr";
+	case UF_XBR_DETAIL: return "xbr-details";
+	default:            return "bilinear";
+	}
+}
+
+Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback)
+{
+	if(!p_name) return fallback;
+	if(!_stricmp(p_name, "nearest"))     return UF_NEAREST;
+	if(!_stricmp(p_name, "bilinear"))    return UF_BILINEAR;
+	if(!_stricmp(p_name, "xbr"))         return UF_XBR;
+	if(!_stricmp(p_name, "xbr-details")) return UF_XBR_DETAIL;
+	return fallback;
+}
+
+bool Engine::canUseXbr() const
+{
+	return useFrameBuffer && xbrProgram != 0 && xbrVertexBuffer != 0;
+}
+
+Engine::UpscaleFilter Engine::getEffectiveUpscaleFilter() const
+{
 	// Ohne uebersetztes Programm gibt es kein xBR - dann lieber bilinear als
 	// ein Bild, das gar nicht erst erscheint.
-	if((filter == UF_XBR || filter == UF_XBR_DETAIL) && !xbrProgram) filter = UF_BILINEAR;
-	upscaleFilter = filter;
+	if((upscaleFilter == UF_XBR || upscaleFilter == UF_XBR_DETAIL) && !canUseXbr())
+		return UF_BILINEAR;
+	return upscaleFilter;
 }
 
 bool Engine::createFrameBuffer()
@@ -1343,12 +1316,12 @@ void Engine::presentFrame()
 	// rekonstruiert die Kanten selbst aus exakten Texeln, und mit bilinear
 	// vorgemischten Nachbarn findet seine Kantenerkennung nichts mehr - das
 	// Ergebnis ist dann kaum von bilinear zu unterscheiden.
-	const GLint filter = (upscaleFilter == UF_BILINEAR) ? GL_LINEAR : GL_NEAREST;
+	const UpscaleFilter effective = getEffectiveUpscaleFilter();
+	const GLint filter = (effective == UF_BILINEAR) ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-	const bool useXbr = (upscaleFilter == UF_XBR || upscaleFilter == UF_XBR_DETAIL);
-	if(useXbr && xbrProgram && xbrVertexBuffer)
+	if(effective == UF_XBR || effective == UF_XBR_DETAIL)
 	{
 		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
 		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
@@ -1379,7 +1352,7 @@ void Engine::presentFrame()
 		// auch in gerasterten Flaechen (Gras, Erde), die sonst pixelig bleiben.
 		if(xbrSmallDetailsLocation >= 0)
 			glExtUniform1f(xbrSmallDetailsLocation,
-						   upscaleFilter == UF_XBR_DETAIL ? 1.0f : 0.0f);
+						   effective == UF_XBR_DETAIL ? 1.0f : 0.0f);
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, xbrVertexBuffer);
 		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
@@ -1413,71 +1386,6 @@ void Engine::presentFrame()
 	glMatrixMode(GL_TEXTURE);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
-
-	glPopAttrib();
-}
-
-// #define PROFILE_HQ2X
-
-void Engine::upscaleFrame()
-{
-	if(!useHQ2X) return;
-
-	// Code für HQ2X
-
-	glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
-	glDrawBuffer(GL_BACK);
-
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_BLEND);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(0.0, displaySize.x, 0.0, displaySize.y);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-
-#ifdef PROFILE_HQ2X
-	BEGIN_PROFILE(HQ2X)
-#endif
-
-	glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_hq2xIn);
-
-	// Gelesen wird aus dem Bildpuffer, gezeichnet wird ins Fenster.
-	unbindFrameBuffer();
-
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	// in 16-Bit umwandeln
-	uint* p_in = reinterpret_cast<uint*>(p_hq2xIn);
-	uint* const p_in_end = p_in + screenSize.x * screenSize.y;
-	ushort* p_out = reinterpret_cast<ushort*>(p_hq2xIn);
-	for(; p_in != p_in_end; p_in++, p_out++)
-	{
-		const uint r = (((*p_in) & 0x00FF0000) >> (16 + 3)) << 11;
-		const uint g = (((*p_in) & 0x0000FF00) >> (8 + 2)) << 5;
-		const uint b = ((*p_in) & 0x000000FF) >> (0 + 3);
-		*p_out = r | g | b;
-	}
-
-	hq2x_32(p_hq2xIn, p_hq2xOut, screenSize.x, screenSize.y, screenSize.x * 8);
-
-	glRasterPos2i(0, displaySize.y - screenSize.y * 2);
-	glDrawPixels(screenSize.x * 2, screenSize.y * 2, GL_RGBA, GL_UNSIGNED_BYTE, p_hq2xOut);
-
-#ifdef PROFILE_HQ2X
-	END_PROFILE(HQ2X)
-#endif
-	
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
 
 	glPopAttrib();
 }
@@ -2138,13 +2046,7 @@ Vec2i Engine::getCursorPosition() const
 {
 	Vec2i position = cursorPosition;
 
-	if(useHQ2X)
-	{
-		int offset = (displaySize.y - screenSize.y * 2) / 2;
-		position.y -= offset;
-		position /= 2;
-	}
-	else if(useFrameBuffer)
+	if(useFrameBuffer)
 	{
 		// Genau die Umkehrung dessen, was presentFrame() zeichnet. Das Rechteck
 		// liegt mittig, deshalb ist der Rand oben so groß wie unten und die
@@ -2174,13 +2076,7 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 	Vec2i temp = Vec2i(clamp(cursorPosition.x, 0, screenSize.x - 1),
 					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
-	if(useHQ2X)
-	{
-		temp *= 2;
-		int offset = (displaySize.y - screenSize.y * 2) / 2;
-		temp.y += offset;
-	}
-	else if(useFrameBuffer)
+	if(useFrameBuffer)
 	{
 		int x, y, w, h;
 		computePresentRect(x, y, w, h);
@@ -2281,21 +2177,11 @@ void Engine::loadConfig()
 			if(p_text) setLanguage(p_text);
 		}
 
-		// Skalierungsfilter lesen. Wird hier nur gemerkt - ob xBR wirklich geht,
-		// steht erst fest, wenn der GL-Kontext da ist und das Programm übersetzt
-		// wurde; init() ruft danach setUpscaleFilter() zum Gegenprüfen.
+		// Skalierungsfilter lesen. Steht nichts da, bleibt die Voreinstellung.
+		// Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter() später -
+		// hier gibt es noch keinen GL-Kontext.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
-		if(p_upscaler)
-		{
-			const char* p_text = p_upscaler->GetText();
-			if(p_text)
-			{
-				if(!_stricmp(p_text, "nearest"))       upscaleFilter = UF_NEAREST;
-				else if(!_stricmp(p_text, "bilinear")) upscaleFilter = UF_BILINEAR;
-				else if(!_stricmp(p_text, "xbr"))      upscaleFilter = UF_XBR;
-				else if(!_stricmp(p_text, "xbr-details")) upscaleFilter = UF_XBR_DETAIL;
-			}
-		}
+		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
 
 		// Sound-Lautstärke lesen
 		TiXmlElement* p_soundVolume = p_config->FirstChildElement("SoundVolume");
@@ -2368,9 +2254,7 @@ void Engine::saveConfig()
 
 	// Skalierungsfilter schreiben
 	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
-	p_upscaler->LinkEndChild(new TiXmlText(upscaleFilter == UF_NEAREST    ? "nearest" :
-										   upscaleFilter == UF_XBR        ? "xbr" :
-										   upscaleFilter == UF_XBR_DETAIL ? "xbr-details" : "bilinear"));
+	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
 	p_config->LinkEndChild(p_upscaler);
 
 	// Sound-Lautstärke schreiben

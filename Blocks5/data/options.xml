@@ -22,6 +22,30 @@
 			<Group>0</Group>
 		</RadioButton>
 
+		<StaticText name="Static11" x="185" y="30">
+			<Text>$O_UPSCALER</Text>
+		</StaticText>
+		<RadioButton name="Nearest" x="185" y="52" w="16" h="16">
+			<Title>$O_UPSCALER_NEAREST</Title>
+			<Group>2</Group>
+			<Font>tooltip_font.xml</Font>
+		</RadioButton>
+		<RadioButton name="Bilinear" x="185" y="71" w="16" h="16">
+			<Title>$O_UPSCALER_BILINEAR</Title>
+			<Group>2</Group>
+			<Font>tooltip_font.xml</Font>
+		</RadioButton>
+		<RadioButton name="Xbr" x="185" y="90" w="16" h="16">
+			<Title>$O_UPSCALER_XBR</Title>
+			<Group>2</Group>
+			<Font>tooltip_font.xml</Font>
+		</RadioButton>
+		<RadioButton name="XbrDetails" x="185" y="109" w="16" h="16">
+			<Title>$O_UPSCALER_XBR_DETAILS</Title>
+			<Group>2</Group>
+			<Font>tooltip_font.xml</Font>
+		</RadioButton>
+
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
 		</StaticText>

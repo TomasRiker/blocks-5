@@ -9,7 +9,6 @@ COPY config.xml stage
 COPY data.zip stage
 COPY "Donate (de).url" stage
 COPY "Donate (en).url" stage
-COPY hq2x.bat stage
 COPY makeconfig.bat stage
 COPY OpenAL32.dll stage
 COPY ..\Release\pwencrypt.exe stage

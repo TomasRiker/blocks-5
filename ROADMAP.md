@@ -43,26 +43,29 @@ Once the game detects its own language, `makeconfig.bat` and the two
 `_config_*.xml` files can go, and the installer loses another moving part.
 
 
-2. Replace HQ2X with something that ships as source
----------------------------------------------------
-`libs/bin/hq2x32.obj` is the last piece of *compiled code* in the tree that is
-not an import library. It is linked straight into the exe
-(`AdditionalDependencies` in `Blocks5.vcxproj`) and exports one function,
-`hq2x_32`. Everything else in `libs/bin` is now an import library for a DLL.
+2. Replace HQ2X with something that ships as source  — **DONE**
+----------------------------------------------------------------
+hq2x is gone from the tree: `src/hq2x.cpp`/`.h`, `libs/bin/hq2x32.obj`, the
+`AdditionalDependencies` entry that linked it, `useHQ2X`, `Engine::upscaleFrame`,
+the `-hq2x` switch, `hq2x.bat`, the installer's HQ2X start-menu entry, and the
+`WebBuild` glob exclusion with its stubs. xBR-lv2 runs as a fragment shader in
+its place, in both builds. The rest of this entry is why, kept because the
+measurements are the argument.
 
-Three separate problems, worth separating:
+Three separate problems, all of them now moot:
 
-- **No source.** The object is MaxSt's hq2x, LGPL 2.1, statically linked. That is
+- **No source.** The object was MaxSt's hq2x, LGPL 2.1, statically linked. That is
   the arrangement we deliberately avoided for OpenAL Soft — static LGPL linking
-  carries relinking obligations that a dynamically shipped DLL does not.
-- **`Blocks5/src/hq2x.cpp` has inline `__asm`.** The glue that builds the two
-  lookup tables ends with an x86 `__asm { cpuid }` block probing for MMX. That is
-  MSVC-x86-only: it blocks x64, it blocks Clang and GCC, and it is why
-  `WebBuild/build.sh` filters `hq2x.cpp` out of the source glob. The MMX probe is
-  also pointless on any CPU made this century.
-- **The browser has no upscaler at all.** `-hq2x` is simply unavailable there
-  (`WebBuild/platform_stubs.cpp` stubs it out), so a 640x480 canvas is scaled by
-  whatever the browser does.
+  carries relinking obligations that a dynamically shipped DLL does not. xBR-lv2
+  is MIT and ships as source.
+- **`Blocks5/src/hq2x.cpp` had inline `__asm`.** The glue that built the two
+  lookup tables ended with an x86 `__asm { cpuid }` block probing for MMX. That is
+  MSVC-x86-only: it blocked x64, it blocked Clang and GCC, and it is why
+  `WebBuild/build.sh` had to filter `hq2x.cpp` out of the source glob. The MMX
+  probe was also pointless on any CPU made this century.
+- **The browser had no upscaler at all.** `-hq2x` was simply unavailable there,
+  so a 640x480 canvas was scaled by whatever the browser does. Both builds now
+  compile the same shader.
 
 ### What hq2x actually buys, measured
 
@@ -111,10 +114,10 @@ in the tree — one `SDL_GL_GetProcAddress` call exists in the whole codebase
    renderbuffer** — `cf_star.cpp` and `level.cpp:625` both use the stencil
    buffer, so a colour-only FBO breaks the star wipe and the light masking. This
    is the one real gotcha.
-3. **Frame bracketing.** `glViewport` is set once at init to 640x480
-   (`engine.cpp:433`) and never changes — even with hq2x on, the game renders
-   into the bottom-left corner of a 1280x960 window. So the FBO pass needs no
-   viewport change at all; only the present pass does.
+3. **Frame bracketing.** `glViewport` is set once at init to 640x480 and never
+   changes — even with hq2x on, the game rendered into the bottom-left corner of
+   a 1280x960 window. So the FBO pass needs no viewport change at all; only the
+   present pass does.
 4. **Replace `upscaleFrame()`** with bind-texture, `glUseProgram`, one quad.
 5. **`glReadBuffer(GL_BACK)` is an error with an FBO bound** — three sites need
    `GL_COLOR_ATTACHMENT0` instead. Easy to miss, and it fails quietly.
@@ -131,10 +134,10 @@ copy inside the GPU:
 | `level.cpp:2261` | the screen, to redraw it through a 65x41 warped grid (toxic haze) |
 | `cf_mosaic.cpp:45`, `gs_credits.cpp:78` | mosaic wipe, credits scroller |
 
-Only three calls cross the bus, all `glReadPixels`: video capture
-(`engine.cpp:850`, per recorded frame), screenshots (`:1177`, on demand), and
-hq2x (`:1116`, **every frame it is on**). hq2x is the only per-frame CPU round
-trip in the renderer.
+Only three calls crossed the bus, all `glReadPixels`: video capture (per
+recorded frame), screenshots (on demand), and hq2x (**every frame it was on**) —
+the only per-frame CPU round trip in the renderer. With hq2x gone, nothing in a
+normal frame reads back at all.
 
 **The FBO half is done.** `src/glextensions.cpp` loads the ten entry points
 (`glGenFramebuffersEXT` first, the core spelling as a fallback; core in WebGL, so
@@ -155,22 +158,26 @@ is **MIT** — `libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian,
 "Permission is hereby granted, free of charge" — a clear improvement on hq2x's
 statically linked LGPL.
 
-Four filters are selectable now, by `<Upscaler>` in `config.xml` or `-filter:` on
-the command line: `nearest`, `bilinear`, `xbr`, `xbr-details`. The last is
-upstream's `small_details` path, which compares texels by luminance alone instead
-of the usual channel mix; it makes the filter engage inside the dithered grass and
-earth tiles that plain xBR leaves pixelated, and leaves glyphs and GUI edges
-alone. If the shader will not compile, `setUpscaleFilter` quietly falls back to
-bilinear.
+Four filters are selectable, and the player picks one in Options -> Scaling,
+exactly like the language — there is no command-line switch for it. The choice is
+saved as `<Upscaler>` in `config.xml`: `nearest`, `bilinear`, `xbr`,
+`xbr-details`. The last is upstream's `small_details` path, which compares texels
+by luminance alone instead of the usual channel mix; it makes the filter engage
+inside the dithered grass and earth tiles that plain xBR leaves pixelated, and
+leaves glyphs and GUI edges alone. **`xbr-details` is the default.**
 
-What is left of this item is hq2x's removal: `src/hq2x.cpp`/`.h`,
-`libs/bin/hq2x32.obj` (the last binary in the tree), the vcxproj
-`AdditionalDependencies` entry, `useHQ2X`/`upscaleFrame`, the `-hq2x` flag,
-`hq2x.bat`, and the WebBuild glob exclusion with its `platform_stubs.cpp` stubs.
-`Engine::upscaleFrame` still runs when `-hq2x` is given, reading the framebuffer
-instead of the back buffer, so nothing regressed in the meantime — but with the
-window size still pinned to a filter (item 10), the two have to come apart
-together.
+Where the machine has no shader or no framebuffer object, `getEffectiveUpscaleFilter()`
+returns bilinear and the two xBR entries are hidden from the dialog rather than
+offered and ignored. The *wish* is kept as the player set it, so the same
+`config.xml` does the right thing again on a machine that can run it —
+`getUpscaleFilter()` is what was chosen, `getEffectiveUpscaleFilter()` is what is
+drawn.
+
+**The setting has no visible effect yet.** `displaySize` is still exactly
+640x480, so `computePresentRect` returns scale 1.0 and all four filters resolve
+to the same pixels — a 1:1 blit. The filter only starts mattering once the window
+can be a different size, which is item 10. Everything below it is in place and
+tested; what is missing is a window to scale into.
 
 ### Which filter
 
@@ -196,10 +203,10 @@ permissive, but it shares hq2x's flat-art premise and would do even less here.
 **Porting hq2x itself to GLSL** — it is a 256-entry pattern table, so a drop-in
 visual match is possible; more code than xBR and locked to exactly 2x.
 
-Whatever replaces it, `hq2x.cpp`'s `__asm` block goes with it. And the
-`SDL_ListModes` search in `engine.cpp:222-252` that hunts for a fullscreen mode
-of at least 1280x960 exists *only* because the filter is locked to exactly 2x —
-see item 10.
+Both are moot now. `hq2x.cpp`'s `__asm` block went with it, and so did the
+`SDL_ListModes` search that hunted for a fullscreen mode of at least 1280x960 —
+it existed *only* because the filter was locked to exactly 2x. The window is a
+plain 640x480 again, whatever the filter; see item 10 for making it resizable.
 
 ### The browser side is easier than it looks
 
@@ -220,18 +227,19 @@ This is also where the change is most visible, since the browser build has no
 upscaler today — and it is the only half that can be tested without Windows.
 
 
-3. Compile every dependency from source
----------------------------------------
+3. Compile every dependency from source  — **DONE**
+---------------------------------------------------
 What is left as a Windows binary:
 
 | Binary | What it is | Notes |
 | --- | --- | --- |
-| `libs/bin/hq2x32.obj` | see item 2 | the last piece of compiled code with no source |
 | `libs/bin/OpenAL32.lib` + `OpenAL32.dll` | OpenAL Soft 1.25.2 | LGPL, *must* stay a DLL |
 
-Everything else is compiled from vendored source: TinyXML, zlib + minizip, libogg,
-libvorbis, stb_image, SDL 1.2.15, minih264, shine, minimp4. `hq2x32.obj` is the
-only thing left to do here, and it is item 2.
+That is the whole list, and it is an import library plus the DLL it imports —
+there is no compiled code without source anywhere in the tree. Everything else is
+built from vendored source: TinyXML, zlib + minizip, libogg, libvorbis,
+stb_image, SDL 1.2.15, minih264, shine, minimp4, xBR-lv2. `hq2x32.obj` was the
+last holdout and went with item 2.
 
 **SDL_image is done** — `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
 stb_image for both builds. It also retired a latent bug: SDL_image 1.2 loads its
@@ -355,7 +363,7 @@ and `stackwalker.cpp` is already excluded from non-Windows builds.
 
 `WebBuild/platform_stubs.cpp` is worth reading first for a different reason: it
 is the list of SDL 1.2 entry points a non-Windows build turned out to need
-shimmed, and its `hq2x_32` no-op is item 2 in miniature.
+shimmed.
 
 A mingw sweep already names the first four things a GCC-based build will reject:
 `filesystem.cpp` includes `Shlobj.h` where the file is `shlobj.h`, and
@@ -464,17 +472,16 @@ The work, in order of payoff:
   texture atlas per tileset; accumulating quads into one vertex buffer and
   issuing a single draw per texture would collapse thousands of calls into a
   handful. This is where the big win is, in both builds.
-- **Kill the readback in `upscaleFrame`.** `glReadPixels` → CPU → upload
-  stalls the pipeline every frame that hq2x is on; the browser console reports
-  it directly. Measured on the real object at 640x480 it is **7.6 ms of CPU per
-  frame** — 45% of a 60 fps budget — before either bus transfer, and item 2 shows
-  it visibly changes under 5% of the pixels. See item 2: the FBO removes all of
-  it, with or without a shader.
-- Then, if it is still worth it, a programmable pipeline for the rest. That is
-  also what a shader upscaler needs, so items 2, 8 and 10 converge here.
+- ~~**Kill the readback in `upscaleFrame`.**~~ Done with item 2. It was
+  `glReadPixels` → CPU → upload, stalling the pipeline every frame hq2x was on:
+  **7.6 ms of CPU per frame**, 45% of a 60 fps budget, before either bus
+  transfer, to visibly change under 5% of the pixels. Nothing in a normal frame
+  reads back now.
+- Then, if it is still worth it, a programmable pipeline for the rest. Items 2, 8
+  and 10 converge here.
 
 Worth measuring before optimising: `BEGIN_PROFILE` / `END_PROFILE` from `util.h`
-are already available, and `PROFILE_HQ2X`, `PROFILE_VIDEO_CONVERSION` and
+are already available, and `PROFILE_VIDEO_CONVERSION` and
 `PROFILE_VIDEO_ENCODING` are existing switches.
 
 
@@ -490,10 +497,10 @@ game ships needs a Visual C++ redistributable any more:
     showuserdir.exe static CRT      /MT
     OpenAL32.dll    msvcrt.dll      OS-provided
 
-`hq2x32.obj`, the one foreign object file linked directly into the exe, carries
-no `/DEFAULTLIB` or `/FAILIFMISMATCH` directive and no CRT references at all —
-its only undefined symbols are `_LUT16to32` and `_RGBtoYUV`, both defined in
-`src/hq2x.cpp` — so it did not stand in the way of `/MT`. `OpenAL32.dll` is
+No foreign object file is linked into the exe any more — `hq2x32.obj` was the
+last one and went with item 2, and it had carried no `/DEFAULTLIB` or
+`/FAILIFMISMATCH` directive and no CRT references, so it had not stood in the way
+of `/MT` either. `OpenAL32.dll` is
 now the only DLL beside the executables, and it carries its own CRT across the
 boundary as it always did; nothing allocates on one side and frees on the other,
 because the game calls only core AL/ALC entry points and never takes ownership of
@@ -514,16 +521,14 @@ Three things the game should do and currently cannot:
   Borderless — a window styled `WS_POPUP` and sized to the desktop, the way most
   games do it now — not an exclusive display-mode change. See below: that choice
   is what keeps the toggle from destroying the GL context.
-- **Switch the upscaling filter while running.** The four filters exist since
-  item 2 — `nearest`, `bilinear`, `xbr`, `xbr-details` — and `setUpscaleFilter`
-  already takes effect on the next frame; what is missing is a way to reach it
-  from the options dialog rather than from `config.xml` or `-filter:`.
+- ~~**Switch the upscaling filter while running.**~~ Done. Options -> Scaling
+  offers all four, the change takes effect on the next frame, and it is saved as
+  `<Upscaler>` in `config.xml`.
 
-Today `SDL_SetVideoMode` is called exactly once (`engine.cpp:302`), with no
-`SDL_RESIZABLE`, and the mode is decided at startup from `-windowed` /
-`-fullscreen` / `-hq2x`. Fullscreen with hq2x additionally walks `SDL_ListModes`
-looking for the smallest mode of at least 1280x960 (`engine.cpp:222-252`), a
-search that exists only because the filter is hardwired to exactly 2x.
+Today `SDL_SetVideoMode` is called exactly once, with no `SDL_RESIZABLE`, and the
+mode is decided at startup from `-windowed` / `-fullscreen`. (Fullscreen used to
+walk `SDL_ListModes` for the smallest mode of at least 1280x960 — a search that
+existed only because hq2x was hardwired to exactly 2x. It went with item 2.)
 
 **The FBO from item 2 is what makes all three cheap.** With the game always
 rendering 640x480 into an offscreen target, every hardcoded coordinate in the
@@ -698,37 +703,31 @@ context survives.
 
 ### Mouse coordinates already have the hook — and a bug
 
-`Engine::getCursorPosition` (`engine.cpp:1795`) and `setCursorPosition` already
-undo the upscale, with a hardcoded `/2` and a y-offset for the hq2x case. That is
-exactly the right place for a general inverse of the letterbox transform; it just
-needs the scale and offset to come from the same rectangle the blit uses.
+`Engine::getCursorPosition` and `setCursorPosition` both run the inverse of the
+letterbox transform now, taking the scale and offset from `computePresentRect` —
+the same rectangle `presentFrame` blits into. Nothing more is needed here when
+the window becomes resizable; the rectangle simply changes.
 
-Two existing defects in that code, both invisible today because the hq2x path is
-only ever exercised at exactly 1280x960 where all the offsets are zero:
-
-- `getCursorPosition` offsets y by `(displaySize.y - screenSize.y * 2) / 2`, i.e.
-  it assumes the image is centred vertically, but `upscaleFrame` places it with
-  `glRasterPos2i(0, displaySize.y - screenSize.y * 2)`, i.e. flush to the top.
-  The two disagree on any fullscreen mode taller than 960.
-- `setCursorPosition` clamps with `clamp(temp.x, 0, temp.x - 1)`, whose upper
-  bound is derived from the value being clamped, so it always returns
-  `temp.x - 1`. Same for y.
+Both had defects that went with the hq2x branch they lived in: the y offset
+assumed the image was centred vertically while `upscaleFrame` placed it flush to
+the top, and `setCursorPosition` clamped with `clamp(temp.x, 0, temp.x - 1)`,
+whose upper bound came from the value being clamped, so it always returned
+`temp.x - 1`.
 
 ### Where the settings live
 
-The filter becomes a mode, not a boolean: `useHQ2X` in `Engine` gives way to an
-enum, the `-hq2x` switch and `hq2x.bat` are replaced by something general, and a
-dropdown joins `data/options.xml` next to the existing video settings. Every new
-caption is a `$ID` in `data/languages.txt` with at least `§en:` and `§de:` bodies.
+The filter is done: `useHQ2X` gave way to `Engine::UpscaleFilter`, the four
+radio buttons live in `data/options.xml` next to the language flags, their
+captions are `$O_UPSCALER*` in `data/languages.txt` with `§en:` and `§de:`
+bodies, and `<Upscaler>` round-trips through `loadConfig`/`saveConfig`.
 
-Note that **none of this is currently persisted at all.** `config.xml` holds
-exactly `<Language>`, `<SoundVolume>`, `<MusicVolume>`, `<Details>` and
-`<Controls>` — `Engine::loadConfig` at `engine.cpp:1893` and `saveConfig` right
-below it read and write nothing else. Windowed vs. fullscreen and hq2x are
-command-line only (`main.cpp:340-343` and `:350-352`), so they reset on every
-launch. So this is not renaming a key: `<Upscaler>`, `<Fullscreen>` and
-`<WindowSize>` all have to be added to both functions, along with the template
-`_config_en.xml` / `_config_de.xml` the installer copies.
+`<Fullscreen>` and `<WindowSize>` still have to be added the same way.
+`config.xml` currently holds `<Language>`, `<Upscaler>`, `<SoundVolume>`,
+`<MusicVolume>`, `<Details>` and `<Controls>` — `Engine::loadConfig` and
+`saveConfig` read and write nothing else — while windowed vs. fullscreen is
+command-line only, so it resets on every launch. Both functions need the two new
+keys, along with the template `_config_en.xml` / `_config_de.xml` the installer
+copies.
 
 Fullscreen and window size want to be persisted in `config.xml` too, so the game
 comes back the way it was left — and since fullscreen is now just a window size
@@ -742,10 +741,10 @@ the same code. That half is testable without Windows.
 
 How these connect
 -----------------
-    2 (HQ2X from source) ─┬─> 8 (shader upscaler, no readback)
-                          ├─> 5 (Linux: the __asm block blocks GCC/Clang)
-                          ├─> 3 (last non-import binary in libs/bin)
-                          └─> 10 (the FBO is the shared prerequisite)
+    2 (xBR, done) ────────┬─> 8 (shader upscaler, no readback)  — the readback is gone
+                          ├─> 5 (Linux: the __asm block no longer blocks GCC/Clang)
+                          ├─> 3 (done: libs/bin is one import library)
+                          └─> 10 (the FBO is the shared prerequisite, and it is in)
 
    10 (window behaviour) ──> no longer needs SDL2: a borderless window styled
                              behind SDL's back keeps the GL context alive
@@ -762,9 +761,10 @@ an increment on it.
 
 *Done since this list was written:* stb_image in place of SDL_image, the standard
 unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
-source, `/MT`, and minih264 + shine + minimp4 in place of ffmpeg — which together
-closed item 9, most of item 3, and the bug that made recorded videos unplayable.
+source, `/MT`, minih264 + shine + minimp4 in place of ffmpeg, and a framebuffer
+object with xBR-lv2 in place of hq2x — which together closed items 2, 3 and 9,
+and the bug that made recorded videos unplayable.
 Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
-four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, ten import libraries and the
-`msinttypes` shim. What ships now is three executables, **one** DLL that needs
-nothing but Windows, and the data.
+four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, `hq2x32.obj`, ten import
+libraries and the `msinttypes` shim. What ships now is three executables, **one**
+DLL that needs nothing but Windows, and the data.
