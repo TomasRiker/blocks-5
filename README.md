@@ -14,6 +14,7 @@ Git and that the game cannot start without.
     Build.bat Debug
     Build.bat /toolset:v120       build with the original Visual Studio 2013 toolset
     Build.bat /stage              also assemble a redistributable tree in Blocks5\stage
+    Build.bat /clean              delete every build product again, and exit
     Build.bat /?                  all options
 
 For a compiler-only setup, "Build Tools for Visual Studio 2022" is enough; no IDE is needed.

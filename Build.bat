@@ -15,6 +15,10 @@ REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
 REM    /stage          also run Blocks5\stage.bat afterwards (Release only)
 REM    /rebuild        clean first, then build
+REM    /clean          delete every build product and exit without building.
+REM                    Both configurations, both the compiler output and the
+REM                    packed archives. Nothing else is touched - see the list
+REM                    at :doclean below
 REM    -h, --help, /?  show a short usage summary
 REM
 REM  ABOUT THE TOOLSET
@@ -53,6 +57,7 @@ SET "TARGET=Build"
 SET "PACKDATA=1"
 SET "OPTIPNG=0"
 SET "DOSTAGE=0"
+SET "DOCLEAN=0"
 
 REM --------------------------------------------------------------- arguments
 :parseargs
@@ -64,6 +69,7 @@ IF /I "%ARG%"=="/nodata"  GOTO opt_nodata
 IF /I "%ARG%"=="/optipng" GOTO opt_optipng
 IF /I "%ARG%"=="/stage"   GOTO opt_stage
 IF /I "%ARG%"=="/rebuild" GOTO opt_rebuild
+IF /I "%ARG%"=="/clean"   GOTO opt_clean
 IF /I "%ARG%"=="/?"       GOTO usage
 IF /I "%ARG%"=="-h"       GOTO usage
 IF /I "%ARG%"=="--help"   GOTO usage
@@ -96,6 +102,10 @@ GOTO parseargs
 SET "TARGET=Rebuild"
 SHIFT
 GOTO parseargs
+:opt_clean
+SET "DOCLEAN=1"
+SHIFT
+GOTO parseargs
 :opt_toolset
 SET "TOOLSET=%ARG:~9%"
 SHIFT
@@ -105,6 +115,8 @@ SET "WINSDK=%ARG:~5%"
 SHIFT
 GOTO parseargs
 :argsdone
+
+IF "%DOCLEAN%"=="1" GOTO doclean
 
 REM v141 and newer resolve the Windows SDK themselves and default to 8.1, which
 REM is usually not installed any more - hence MSB8036. Pass a version for them;
@@ -262,13 +274,98 @@ POPD
 ENDLOCAL
 EXIT /B 0
 
+REM ------------------------------------------------------------------- clean
+REM Everything removed here is a build product: MSBuild writes it, or
+REM zip_data.bat / zip_skins.bat / stage.bat do, and none of it is under version
+REM control. Both configurations go, not just the one named on the command line.
+REM
+REM Deliberately NOT touched:
+REM   *.suo, *.vcxproj.user   the IDE's per-user settings - debugger arguments,
+REM                           working directory. Regenerating those loses work,
+REM                           and they are not compiler output
+REM   levels\campaigns\blocks.zip and misc\3p_campaigns\*.zip
+REM                           shipped files that happen to be archives. This is
+REM                           why the skin archives below are named one by one
+REM                           instead of matched with a wildcard
+REM   My Documents\Blocks 5\   saves, progress, screenshots, videos. Nothing the
+REM                           build ever wrote
+:doclean
+IF NOT EXIST "Blocks5.sln" (
+	ECHO.
+	ECHO ERROR: Blocks5.sln is not next to this script, so this is not the
+	ECHO        Blocks 5 tree - refusing to delete anything.
+	GOTO fail
+)
+
+ECHO.
+ECHO === Cleaning build products ===
+ECHO.
+SET "REMOVED=0"
+SET "CLEANFAILED="
+
+REM OutDir is $(SolutionDir)$(Configuration) and IntDir is $(Configuration)
+REM under each project, so the compiler output lands in eight directories.
+CALL :rmdir "Release"
+CALL :rmdir "Debug"
+CALL :rmdir "Blocks5\Release"
+CALL :rmdir "Blocks5\Debug"
+CALL :rmdir "PWEncrypt\Release"
+CALL :rmdir "PWEncrypt\Debug"
+CALL :rmdir "ShowUserDir\Release"
+CALL :rmdir "ShowUserDir\Debug"
+
+REM stage.bat
+CALL :rmdir "Blocks5\stage"
+
+REM zip_data.bat and zip_skins.bat
+CALL :rmfile "Blocks5\data.zip"
+CALL :rmfile "Blocks5\levels\skins\blocks_01.zip"
+CALL :rmfile "Blocks5\levels\skins\blocks_02.zip"
+CALL :rmfile "Blocks5\levels\skins\blocks_03.zip"
+CALL :rmfile "Blocks5\levels\skins\space.zip"
+
+REM IntelliSense and browse-information caches. Pure caches, rebuilt on demand,
+REM and large enough to be worth removing.
+CALL :rmdir ".vs"
+CALL :rmdir "ipch"
+IF EXIST *.sdf (
+	ECHO     del    *.sdf
+	DEL /F /Q *.sdf
+	SET /A REMOVED+=1
+)
+IF EXIST *.opensdf (
+	ECHO     del    *.opensdf
+	DEL /F /Q *.opensdf
+	SET /A REMOVED+=1
+)
+
+ECHO.
+IF DEFINED CLEANFAILED GOTO cleanfailed
+IF "%REMOVED%"=="0"     ECHO     Nothing to remove - the tree was already clean.
+IF NOT "%REMOVED%"=="0" ECHO     Removed %REMOVED% entries.
+ECHO.
+POPD
+ENDLOCAL
+EXIT /B 0
+
+:cleanfailed
+ECHO ERROR: some build products could not be removed. Close whatever still has
+ECHO        them open - a running blocks5.exe, Visual Studio, an editor - and
+ECHO        run Build.bat /clean again.
+ECHO.
+POPD
+ENDLOCAL
+EXIT /B 1
+
 :usage
 ECHO.
 ECHO Usage: Build.bat [Release^|Debug] [/toolset:vNNN] [/sdk:VERSION]
 ECHO                  [/nodata] [/optipng] [/stage] [/rebuild]
+ECHO        Build.bat /clean
 ECHO.
 ECHO Builds Blocks5.sln for Win32 - v143 by default, v120 and v140 also work -
 ECHO then packs data.zip and the skin archives, which are not in Git.
+ECHO The /clean option removes all of that again, for both configurations.
 ECHO Open this file in an editor for the toolset notes.
 ECHO.
 POPD
@@ -280,3 +377,30 @@ ECHO.
 POPD
 ENDLOCAL
 EXIT /B 1
+
+REM ------------------------------------------------------------ clean helpers
+REM Called, not jumped to, and neither of them does SETLOCAL, so REMOVED and
+REM CLEANFAILED are the caller's variables.
+:rmdir
+IF NOT EXIST "%~1" GOTO :EOF
+ECHO     rmdir  %~1
+RMDIR /S /Q "%~1"
+IF EXIST "%~1" (
+	ECHO            ... could not be removed
+	SET "CLEANFAILED=1"
+	GOTO :EOF
+)
+SET /A REMOVED+=1
+GOTO :EOF
+
+:rmfile
+IF NOT EXIST "%~1" GOTO :EOF
+ECHO     del    %~1
+DEL /F /Q "%~1"
+IF EXIST "%~1" (
+	ECHO            ... could not be deleted
+	SET "CLEANFAILED=1"
+	GOTO :EOF
+)
+SET /A REMOVED+=1
+GOTO :EOF
