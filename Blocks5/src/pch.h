@@ -18,7 +18,7 @@
 #ifdef __EMSCRIPTEN__
 #include <GL/glu.h>
 #endif
-#include <SDL_image.h>
+#include "img_load.h"
 #include <al.h>
 #include <alc.h>
 #include <vorbis/vorbisfile.h>

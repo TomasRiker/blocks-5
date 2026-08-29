@@ -56,7 +56,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TIXML_USE_STL;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;__STDC_CONSTANT_MACROS;__STDC_LIMIT_MACROS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -67,7 +67,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -83,7 +83,7 @@
       <Optimization>Full</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\SDL_image-1.2.12;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\ffmpeg-0.8\include;libs\msinttypes-r26;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TIXML_USE_STL;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;__STDC_CONSTANT_MACROS;__STDC_LIMIT_MACROS;_SECURE_SCL=0;_SECURE_SCL_THROWS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -95,7 +95,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -398,6 +398,7 @@
     <ClCompile Include="src\gui_statictext.cpp" />
     <ClCompile Include="src\gui_window.cpp" />
     <ClCompile Include="src\hq2x.cpp" />
+    <ClCompile Include="src\img_load.cpp" />
     <ClCompile Include="src\linedrawer.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
     <ClCompile Include="src\pch.cpp">
@@ -523,6 +524,7 @@
     <ClInclude Include="src\gui_statictext.h" />
     <ClInclude Include="src\gui_window.h" />
     <ClInclude Include="src\hq2x.h" />
+    <ClInclude Include="src\img_load.h" />
     <ClInclude Include="src\linedrawer.h" />
     <ClInclude Include="src\manager.h" />
     <ClInclude Include="src\parameterblock.h" />
