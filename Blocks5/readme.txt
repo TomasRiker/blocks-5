@@ -25,7 +25,14 @@ help is probably a good idea.
 
 Changelog
 =========
-1.2.0 ... - Video recording now records the game's own sound.
+1.2.0 ... - Blocks 5 can now be played in a web browser, with no
+            installation at all. Your progress, your own levels and
+            your campaigns are stored by the browser, so they
+            survive closing the tab. Recording videos and taking
+            screenshots are the only things the browser version
+            cannot do. Look on the website for the link.
+
+          - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as
             the recording device, which on most machines is the
             microphone. The "Stereo Mix" / "What you hear" setup
