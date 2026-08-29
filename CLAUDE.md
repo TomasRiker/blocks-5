@@ -172,8 +172,12 @@ caller of `saveConfig` was the options dialog's OK, so simply resizing and quitt
 the size. `rememberWindowPlacement` reads the placement off the HWND, and in fullscreen
 takes the rect `applyWindowStyle` saved instead, so the remembered window is the windowed
 one. On first run, or when the stored size no longer fits the desktop,
-`getDefaultWindowSize` picks the largest integer multiple of 640x480 leaving 40x100 free —
-2x on 1920x1080, 3x on 2560x1440 — which also means "sharp" starts with no black bars.
+`getDefaultWindowSize` picks the largest integer multiple of 640x480 that leaves a 120px
+margin in *both* directions — which also means "sharp" starts with no black bars. 120 is
+not a round number chosen by feel: it is the largest margin under which 1920x1080, by far
+the most common desktop, still gets 2x. 2*480 is 960 and 1080-120 is 960, so it fits with
+nothing to spare; at 121 it would drop to 1x. The same value goes horizontally, where it
+is pure slack at every common resolution, because a taskbar is not always at the bottom.
 `-windowed`/`-fullscreen` override the flag for one run. In the browser the
 canvas fills the page (`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a
 real DOM keydown — the main loop's own events do not count as a user gesture — and the main

@@ -41,9 +41,9 @@ Changelog
 
             A fresh installation no longer starts at a tiny
             640x480. The window opens at the largest whole
-            multiple of that which still fits your screen -
-            twice the size on a Full HD monitor, three times on
-            a 1440p one.
+            multiple of that which still leaves room for the
+            taskbar - twice the size on a Full HD screen, four
+            times on a 4K one.
 
             Full screen no longer changes the screen resolution.
             It is a borderless window the size of the desktop,

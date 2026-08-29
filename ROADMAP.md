@@ -785,8 +785,16 @@ laptop unplugged from a second monitor — is dropped rather than used.
 
 The first-run size used to be 640x480 exactly, which on a modern desktop is a
 postage stamp. `getDefaultWindowSize` picks the largest integer multiple of the
-640x480 frame that leaves 40x100 free for the title bar and the taskbar: 2x on
-1920x1080, 3x on 2560x1440, and 1x only on something genuinely small. Integer
+640x480 frame that leaves a 120px margin in both directions for the title bar and
+the taskbar: 2x on 1920x1080 and on 1440p, 3x on 1600p, 4x on 2160p, and 1x on
+anything below Full HD.
+
+120 is derived, not guessed. It is the largest margin at which 1920x1080 still
+reaches 2x: 2*480 is 960, 1080-120 is 960, and it fits with nothing to spare -
+one pixel more and the most common desktop there is would open at 640x480. The
+horizontal margin is the same number, which at every common resolution is slack
+the width never needed; it is there because a taskbar is not always at the bottom
+of the screen. Integer
 multiples on purpose — the letterbox is then empty and "sharp" needs no
 resampling at all. The same function catches a stored size that no longer fits. Since fullscreen is just a window size plus a style flip, that is
 one boolean and one `Vec2i`, with no mode list behind either. `-fullscreen` and

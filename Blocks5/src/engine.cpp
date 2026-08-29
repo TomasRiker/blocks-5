@@ -1439,10 +1439,17 @@ Vec2i Engine::getDefaultWindowSize() const
 	// Ganzzahlige Vielfache, damit auch "Scharf" von Anfang an ohne Balken
 	// auskommt. Etwas Rand bleibt fuer Titelzeile und Taskleiste - sonst
 	// klebt das Fenster an den Kanten oder passt gar nicht.
+	//
+	// Der Rand ist genau so bemessen, dass 1920x1080 - der haeufigste
+	// Bildschirm ueberhaupt - noch die doppelte Groesse bekommt: 2*480 ist 960,
+	// und 1080-120 ist auch 960, das geht gerade eben auf. Ein Pixel mehr Rand,
+	// und es waere die einfache Groesse. Waagerecht derselbe Wert, obwohl dort
+	// viel mehr Platz waere: die Taskleiste steht nicht ueberall unten.
+	const int margin = 120;
 	const Vec2i desktop = getDesktopSize();
 	int scale = 1;
-	while((scale + 1) * screenSize.x <= desktop.x - 40 &&
-		  (scale + 1) * screenSize.y <= desktop.y - 100) scale++;
+	while((scale + 1) * screenSize.x <= desktop.x - margin &&
+		  (scale + 1) * screenSize.y <= desktop.y - margin) scale++;
 	return screenSize * scale;
 }
 
