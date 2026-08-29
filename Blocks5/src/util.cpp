@@ -222,6 +222,24 @@ void decryptPassword(const char* p_in,
 	strcpy(p_out, step2);
 }
 
+bool isSafeMemberName(const std::string& name)
+{
+	if(name.empty() || name.length() > 100) return false;
+	if(name[0] == '.' || name[0] == '~') return false;
+	if(name.find("..") != std::string::npos) return false;
+
+	for(size_t i = 0; i < name.length(); i++)
+	{
+		// Quelldateien sind ISO-8859-1: ohne die Umdeutung nach unsigned
+		// waere jeder Umlaut negativ und fiele durch den Steuerzeichentest.
+		const unsigned char c = static_cast<unsigned char>(name[i]);
+		if(c < 0x20 || c == 0x7F) return false;
+		if(strchr("/\\:<>[]\"|?*", c)) return false;
+	}
+
+	return true;
+}
+
 void clearLog()
 {
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");

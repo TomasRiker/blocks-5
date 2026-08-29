@@ -133,11 +133,49 @@ checking for a `<Level>` root; a campaign by opening the archive and requiring a
 `campaign.xml` that loads with at least one level. On success the import forces
 an `FS.syncfs` so it is durable immediately rather than up to five seconds later.
 
-Two honest limitations. An imported campaign **plays but does not open in the
-campaign editor** - the editor only lists campaigns whose levels also exist
-loose in `levels/`. And a campaign zip carries its levels and music but **not its
-skins**, so a campaign built on a custom skin renders with the missing-skin
-fallback unless the skin zip is shared separately.
+One honest limitation remains: a campaign zip carries its levels and music but
+**not its skins**, so a campaign built on a custom skin renders with the
+missing-skin fallback unless the skin zip is shared separately.
+
+## Opening a campaign that arrived as a zip
+
+An imported campaign used to play but refuse to open in the Campaign Editor, and
+so did the shipped `blocks.zip` - on Windows too. The editor's whole model rests
+on loose files in `levels/`: `Campaign::save` re-reads every level from there,
+the *Available Levels* pane lists what is there, and `originalLevelsExist()`
+refused to load a campaign unless every `<Level>` entry existed there as well.
+Nothing in the tree had ever copied a member back out of a campaign archive.
+(The shipped campaign fails that test because its `campaign.xml` names
+`level_03b.xml` at position 3 while the file shipped loose is `level_03.xml` -
+same bytes, different name.)
+
+The mapping was never actually missing, though: it is the ordinal. `Campaign::save`
+has always written entry *i* as member `level_{i+1}.xml`, and the play path has
+always read it back that way, which is exactly why an imported campaign played.
+So a level is now a `Campaign::LevelRef` - a *source directory* plus a *member
+name*, with the `<Level>` text demoted to a display label. A campaign whose
+entries all exist loose is served from those loose files, bit for bit as before,
+so the local authoring loop (edit a level, reopen the campaign, save) is
+unchanged. Any other campaign is served entirely out of its own archive, and its
+entries are marked *(in campaign file)* in the editor. The choice is made once
+per campaign rather than per entry, so a foreign campaign can never quietly bind
+to a same-named level the player happens to own.
+
+Nothing is written into `levels/`. Saving such a campaign repacks it from the
+archive it came from, which is why `Campaign::save` now builds a sibling
+`~campaignsave.zip` and only then replaces the destination: the old code deleted
+the destination first, which for an archive-backed campaign would have destroyed
+the levels it was about to read. The `musicFilename` attribute is checked with
+the new `isSafeMemberName` (unguarded, in util.cpp) before it is appended to a
+path - it comes out of a foreign file, and the old code concatenated it
+unchecked, which packed whatever it happened to name into a zip the user can
+then export.
+
+What this does not give you: an archive-backed level cannot be opened in the
+Level Editor, which still works on loose files only. And *Available Levels*
+hides any loose file whose name matches a campaign entry, so a player who owns a
+different `level_01.xml` cannot add it to a campaign that already has an entry of
+that name without removing that entry first.
 
 ## What was actually wrong
 

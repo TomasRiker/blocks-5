@@ -30,6 +30,14 @@ std::string setFilenameExtension(const std::string& filename, const std::string&
 // Verzeichnis ausbrechen; die Erweiterung legt der Aufrufer fest.
 std::string sanitizeFilenameStem(const std::string& untrusted,
                                  const std::string& fallback = "imported");
+
+// Prueft, ob ein String unveraendert als Dateiname oder als Name eines
+// Archivmitglieds benutzt werden darf. Abgelehnt wird alles, womit
+// FileSystem::convertPath oder evalRelativePath umgelenkt werden koennten -
+// Trenner, Laufwerksdoppelpunkt, die Archivmarken < > [ ], "..", ein
+// fuehrender Punkt oder eine Tilde, Steuerzeichen. Umlaute und Leerzeichen
+// bleiben erlaubt, damit legitime Namen nicht stillschweigend verschwinden.
+bool isSafeMemberName(const std::string& name);
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);

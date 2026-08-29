@@ -1188,9 +1188,10 @@ $CE_ERROR_SAVING
 §de:FEHLER: Die Kampagne konnte nicht gespeichert werden.
 
 $CE_ERROR_LEVELS_MISSING
-// Error message displayed when the original levels of a campaign are missing
-§en:ERROR: The campaign could not be loaded because the original level files are missing.
-§de:FEHLER: Die Kampagne wurde nicht geladen, da die Original-Level-Dateien fehlen.
+// Error message displayed when a level of a campaign cannot be read at all -
+// neither as a loose file nor as a member of the campaign file
+§en:ERROR: The campaign could not be loaded because level files are missing.
+§de:FEHLER: Die Kampagne wurde nicht geladen, da Level-Dateien fehlen.
 
 $CE_INFO_CAMPAIGN_SAVED
 // Info message displayed when the current campaign has been saved
@@ -1984,8 +1985,8 @@ $CE_INFO_CAMPAIGN_EXPORTED
 
 $CE_INFO_CAMPAIGN_IMPORTED
 // Info shown after a campaign file was imported
-§en:Campaign imported. It can be played, but not edited.
-§de:Kampagne importiert. Sie kann gespielt, aber nicht bearbeitet werden.
+§en:Campaign imported. It can be played and opened in the campaign editor.
+§de:Kampagne importiert. Sie kann gespielt und im Kampagnen-Editor geöffnet werden.
 
 $CE_ERROR_IMPORT_INVALID
 // Error shown when an imported file is not a campaign file
@@ -2022,6 +2023,12 @@ $WEB_CLICK_TO_START
 // will not play any sound until the page has been clicked once
 §en:Click to start¶Your browser needs this to play sound.
 §de:Zum Starten klicken¶Der Browser braucht das für den Ton.
+
+$CE_LEVEL_IN_ARCHIVE
+// Suffix shown in the campaign editor behind a level that is stored inside the
+// campaign file rather than as a loose file in the levels folder
+§en:(in campaign file)
+§de:(in Kampagnendatei)
 
 // *************
 // DO NOT MODIFY
