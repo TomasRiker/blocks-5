@@ -7,98 +7,82 @@ gameplay; see src/videorecorder.cpp.
   https://github.com/lieff/minimp4   commit 5a212a18dba7dca09543bbc7d65619274fd2931a
   CC0 1.0 Universal (LICENSE)
 
-minimp4.h is byte-identical to upstream, CRLF line endings and all. Do not edit
-it - see below for why it does not need editing.
-
 minimp4_impl.c is not upstream: it is the one translation unit that instantiates
-the header, and the place where the library is bent into shape. It has to stay
-separate from minih264's, because both headers define a bitstream struct called
-bs_t inside their implementation halves and the two collide if both are
-instantiated in one file.
+the header. It has to stay separate from minih264's, because both headers define
+a bitstream struct called bs_t inside their implementation halves and the two
+collide if both are instantiated in one file.
 
-THE PROBLEM
------------
-minimp4 writes the 'esds' descriptor of an audio track with the
-objectTypeIndication byte hardcoded to AAC, ignoring the
-object_type_indication field the caller filled into MP4E_track_t. That byte is
-the only thing that tells a demuxer whether an 'mp4a' track holds AAC or MP3 -
-Microsoft's documentation for the MPEG-4 File Source lists that one sample entry
-as meaning "AAC or MP3". So upstream can mux AAC and nothing else: an MP3 track
-comes back out declared as AAC and does not decode.
+LOCAL CHANGES, ALL IN ONE PLACE
+-------------------------------
+minimp4.h is upstream apart from the block that writes the 'esds' descriptor of
+an audio track, plus one helper added next to get_duration(). Everything else,
+CRLF line endings included, is byte-identical.
 
-It also writes the descriptor only when a decoder-specific info blob has been
-set with MP4E_set_dsi, which AAC has and MP3 does not.
+Upstream's descriptor could not describe an MP3 track, and was not conformant
+for any codec:
 
-HOW IT IS SOLVED WITHOUT PATCHING
----------------------------------
-The constant is a macro, and minimp4's declarations and its implementation sit
-on opposite sides of its include guard in the same file - "#endif //MINIMP4_H"
-at line 509, the MINIMP4_IMPLEMENTATION block at 511. So minimp4_impl.c includes
-the header twice: once for the declarations, which is what defines the macro,
-then redefines the macro to read the caller's field, then includes it again for
-the implementation. Upstream uses the macro in exactly one place, which is the
-one that needs changing.
+  - The objectTypeIndication byte was hardcoded to AAC (0x40), ignoring the
+    object_type_indication the caller put in MP4E_track_t. That byte is the only
+    thing telling a demuxer whether an 'mp4a' track holds AAC or MP3 -
+    Microsoft's documentation for the MPEG-4 File Source lists that one sample
+    entry as meaning "AAC or MP3" - so an MP3 track came back out declared as
+    AAC and decoded nowhere. It now uses the field the caller set.
 
-The missing descriptor is the caller's problem, and videorecorder.cpp solves it
-by calling MP4E_set_dsi(mux, track, "", 0). A zero-length blob is enough to make
-the descriptor appear.
+  - The whole descriptor was written only when a DecoderSpecificInfo had been
+    set with MP4E_set_dsi. AAC has one; MP3 has none and per ISO/IEC 14496-1
+    must not have one. So an MP3 track got no esds at all. The descriptor is now
+    always written and the DecoderSpecificInfo only when there is one, which is
+    what both codecs need.
 
-DETECTING THAT IT STILL WORKS AFTER AN UPGRADE
-----------------------------------------------
-Three layers, because no single one covers everything. All were tested by
-deliberately breaking a copy of the library:
+  - The low bit of the streamType byte is "reserved = 1" in the standard and was
+    left clear.
 
-  macro removed or renamed  -> #error at compile time
-  macro no longer 0x40      -> #error at compile time
-  macro used where `tr` is
-    not in scope            -> ordinary compile error, since the replacement
-                               dereferences it
-  macro no longer used at
-    that site               -> NOT visible to the preprocessor. A counter in
-                               minimp4_impl.c is bumped on every expansion, and
-                               videorecorder.cpp checks it moved while closing a
-                               file that has an audio track, logging a loud
-                               error if it did not.
+  - The SLConfigDescriptor is mandatory and was missing entirely.
 
-THE DESCRIPTOR IS TIDIED UP AFTERWARDS
---------------------------------------
-The macro override gets the one byte that decides whether the file plays at all.
-What it cannot reach is the rest of what upstream writes, which is not
-conformant: the reserved low bit of the stream-type byte is left clear, there is
-no SLConfigDescriptor, and forcing the descriptor to appear at all leaves a
-DecoderSpecificInfo that MP3 must not have. None of that is reachable by macro -
-the stream-type byte is a literal, the SLConfigDescriptor would have to be a
-sibling of a descriptor whose length is computed from the caller's data, and
-"descriptor present" and "DSI present" are the same condition in upstream's
-code.
+  - maxBitrate and avgBitrate were hardcoded to zero with a "TODO". They are now
+    measured from the track: get_bitrate_bps() sums the sample sizes and
+    durations that are already in tr->smpl and scales by the track's time scale.
+    That needs no API change and is more honest than a configured figure, since
+    it reports what the file actually contains.
 
-So videorecorder.cpp fixes it in the finished file instead, in
-makeAudioDescriptorConformant(). The trick that makes this safe is the DSI
-length: videorecorder.cpp passes exactly ONE byte, not zero, and at that length
-upstream's descriptor comes out 23 bytes long - exactly the length of a
-conformant one. The replacement is therefore done in place and not a single box
-size changes anywhere in the file.
+An earlier version of this achieved the first point without touching the file,
+by redefining the constant between two inclusions of the header, and then
+rewrote the rest of the descriptor in place after MP4E_close by walking the
+finished file down to the esds box. That worked - it is what shipped first - but
+it cost about 150 lines across minimp4_impl.c and videorecorder.cpp, including a
+binary box walker, a byte-pattern check and a hook-hit counter to notice if the
+macro ever silently stopped being used. All of it existed to avoid a diff. Once
+the tree had accepted small documented patches to shine and SDL, keeping that
+machinery for minimp4 alone stopped making sense.
 
-  upstream + override:  03 15 00 00 00 04 10 6b 14 00 06 00 <max:4> <avg:4> 05 01 XX
-  rewritten:            03 15 00 00 00 04 0d 6b 15 00 06 00 <max:4> <avg:4> 06 01 02
-  ffmpeg, for comparison:
-       03 80 80 80 1b 00 01 00 04 80 80 80 0d 6b 15 00 00 00 00 01 f7 12
-       00 01 f7 12 06 80 80 80 01 02
+VERIFYING IT AFTER AN UPDATE
+----------------------------
+The descriptor is easy to check by hand, and worth checking, because nothing
+about a wrong one is loud - the file still plays as long as the codec byte is
+right. For a 160 kbit/s stereo MP3 track it must come out exactly:
 
-The rewritten form and ffmpeg's are structurally the same descriptor. They still
-differ in three ways, all legal and all informational: ffmpeg encodes the
-descriptor lengths in the four-byte 0x80 0x80 0x80 form rather than the compact
-one, its ES_ID is 1 rather than 0, and its bufferSizeDB is 0 where minimp4
-computes one.
+  03 15 00 00 00 04 0d 6b 15 00 06 00 00 02 71 00 00 02 71 00 06 01 02
+  |     |           |  |  |  |        |           |           |
+  |     |           |  |  |  |        |           |           SLConfigDescriptor
+  |     |           |  |  |  |        |           avgBitrate  (tag 6, len 1, MP4)
+  |     |           |  |  |  |        maxBitrate  = 160000
+  |     |           |  |  |  bufferSizeDB = channels * 6144/8
+  |     |           |  |  streamType 5 (audio) << 2 | reserved 1
+  |     |           |  objectTypeIndication 0x6B = MPEG-1 Layer III
+  |     |           DecoderConfigDescriptor, tag 4, 13 bytes
+  |     ES_ID(2) + flags(1)
+  ES_Descriptor, tag 3, 21 bytes
 
-The rewrite verifies the exact 23-byte pattern before touching anything and
-refuses if it does not match, so a future minimp4 that lays the descriptor out
-differently leaves the file alone rather than corrupting it - and the file still
-plays, because the macro override has already put the right codec byte in it.
-That is the reason both mechanisms exist: the override is what makes the file
-work, the rewrite is only polish.
+An AAC track with a two-byte AudioSpecificConfig gives 27 bytes: the same shape
+with objectTypeIndication 0x40, the DecoderConfigDescriptor grown to 17 bytes,
+and 05 02 <config> before the SLConfigDescriptor.
 
-A NOTE ON FRAGMENTS
--------------------
-MP4E_open takes a "fragmented" flag. Leave it off. Microsoft's MPEG-4 File
-Source documents 'moof' boxes as unsupported before Windows 8.
+Both were checked against the current sources, and a full six-second recording
+regenerated afterwards came out byte-for-byte identical to the one produced by
+the old post-processing route - which is the real evidence that the patch only
+changes where the bytes are written, not which bytes they are.
+
+WHAT IS NOT VENDORED
+--------------------
+Nothing else from the repository: the demuxer half of minimp4.h is compiled in
+because it is the same file, but the game only muxes.

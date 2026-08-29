@@ -963,6 +963,25 @@ static unsigned get_duration(const track_t *tr)
     return sum_duration;
 }
 
+/* Local change - see PROVENANCE.txt. The esds descriptor has maxBitrate and
+   avgBitrate fields that upstream leaves at zero with a TODO. Everything needed
+   to fill them in is right here: the sample sizes, their durations and the
+   track's time scale. Returns bits per second, or 0 for an empty track. */
+static unsigned get_bitrate_bps(const track_t *tr)
+{
+    unsigned i, count = (unsigned)(tr->smpl.bytes/sizeof(sample_t));
+    const sample_t *s = (const sample_t *)tr->smpl.data;
+    uint64_t bytes = 0, duration = 0;
+    for (i = 0; i < count; i++)
+    {
+        bytes    += (uint64_t)s[i].size;
+        duration += (uint64_t)s[i].duration;
+    }
+    if (!duration || !tr->info.time_scale)
+        return 0;
+    return (unsigned)((bytes*8*tr->info.time_scale)/duration);
+}
+
 static int write_pending_data(MP4E_mux_t *mux, track_t *tr)
 {
     // if have pending sample && have at least one sample in the index
@@ -1461,13 +1480,27 @@ static int mp4e_flush_index(MP4E_mux_t *mux)
                             }
 
                                 ATOM_FULL(BOX_esds, 0);
-                                if (tr->vsps.bytes > 0)
                                 {
-                                    int dsi_bytes = tr->vsps.bytes - 2; //  - two bytes size field
-                                    int dsi_size_size = od_size_of_size(dsi_bytes);
-                                    int dcd_bytes = dsi_bytes + dsi_size_size + 1 + (1 + 1 + 3 + 4 + 4);
+                                    /* Local change - see PROVENANCE.txt. Four fixes, all in the
+                                       descriptor this block writes:
+                                         - the objectTypeIndication was hardcoded to AAC, which is
+                                           the only thing distinguishing AAC from MP3 in an 'mp4a'
+                                           track. It now comes from the field the caller set.
+                                         - the DecoderSpecificInfo is written only when there is
+                                           one. AAC has one and must carry it; MP3 has none and
+                                           must not. Upstream wrote the whole descriptor only when
+                                           a DSI had been set, so an MP3 track got no esds at all.
+                                         - the low bit of the streamType byte is 'reserved = 1'
+                                           per ISO/IEC 14496-1; it was left clear.
+                                         - the SLConfigDescriptor is required and was missing.
+                                       maxBitrate and avgBitrate are measured rather than left at
+                                       the zero upstream's TODO leaves behind. */
+                                    int dsi_bytes = tr->vsps.bytes > 2 ? tr->vsps.bytes - 2 : 0; //  - two bytes size field
+                                    int dsi_size_size = dsi_bytes ? od_size_of_size(dsi_bytes) : 0;
+                                    int dcd_bytes = (1 + 1 + 3 + 4 + 4) + (dsi_bytes ? 1 + dsi_size_size + dsi_bytes : 0);
                                     int dcd_size_size = od_size_of_size(dcd_bytes);
-                                    int esd_bytes = dcd_bytes + dcd_size_size + 1 + 3;
+                                    int esd_bytes = 3 + (1 + dcd_size_size + dcd_bytes) + 3; // + SLConfigDescriptor
+                                    unsigned bitrate_bps = get_bitrate_bps(tr);
 
 #define WRITE_OD_LEN(size) if (size > 0x7F) do { size -= 0x7F; WRITE_1(0x00ff); } while (size > 0x7F); WRITE_1(size)
                                     WRITE_1(3); // OD_ESD
@@ -1479,24 +1512,31 @@ static int mp4e_flush_index(MP4E_mux_t *mux)
                                     WRITE_OD_LEN(dcd_bytes);
                                     if (tr->info.track_media_kind == e_audio)
                                     {
-                                        WRITE_1(MP4_OBJECT_TYPE_AUDIO_ISO_IEC_14496_3); // OD_DCD
-                                        WRITE_1(5 << 2); // stream_type == AudioStream
+                                        WRITE_1(tr->info.object_type_indication); // OD_DCD
+                                        WRITE_1((5 << 2) | 1); // stream_type == AudioStream, reserved == 1
                                     } else
                                     {
                                         // http://xhelmboyx.tripod.com/formats/mp4-layout.txt
                                         WRITE_1(208); // 208 = private video
-                                        WRITE_1(32 << 2); // stream_type == user private
+                                        WRITE_1((32 << 2) | 1); // stream_type == user private, reserved == 1
                                     }
                                     WRITE_3(tr->info.u.a.channelcount * 6144/8); // bufferSizeDB in bytes, constant as in reference decoder
-                                    WRITE_4(0); // maxBitrate TODO
-                                    WRITE_4(0); // avg_bitrate_bps TODO
+                                    WRITE_4(bitrate_bps); // maxBitrate
+                                    WRITE_4(bitrate_bps); // avg_bitrate_bps
 
-                                    WRITE_1(5); // OD_DSI
-                                    WRITE_OD_LEN(dsi_bytes);
-                                    for (i = 0; i < dsi_bytes; i++)
+                                    if (dsi_bytes)
                                     {
-                                        WRITE_1(tr->vsps.data[2 + i]);
+                                        WRITE_1(5); // OD_DSI
+                                        WRITE_OD_LEN(dsi_bytes);
+                                        for (i = 0; i < dsi_bytes; i++)
+                                        {
+                                            WRITE_1(tr->vsps.data[2 + i]);
+                                        }
                                     }
+
+                                    WRITE_1(6); // OD_SLC
+                                    WRITE_1(1); // length
+                                    WRITE_1(2); // predefined == MP4
                                 }
                                 END_ATOM;
                             END_ATOM;
