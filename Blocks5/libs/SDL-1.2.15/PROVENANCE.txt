@@ -21,10 +21,11 @@ Every file under src/ and include/ here is byte-identical to that tag, with two
 exceptions, both documented in the files themselves.
 
 1. src/main/win32/SDL_win32_main.c has an #undef UNICODE / #undef _UNICODE
-prologue, because these projects are CharacterSet=Unicode while that file uses
-char buffers with TEXT() literals and GetCommandLine(). SDL shipped it as an ANSI
-translation unit; without the undef the command line collapses to one character
-at run time and -windowed stops working.
+prologue. That file uses char buffers with TEXT() literals and GetCommandLine(),
+so under UNICODE the command line collapses to one character at run time and
+-windowed stops working. Blocks5.vcxproj is CharacterSet=MultiByte now (see
+below), so the undefs do nothing today; they stay as a guard, because this is the
+one file where flipping that setting back would fail silently rather than crash.
 
 2. include/SDL_syswm.h brackets its #include <windows.h> with close_code.h and
 begin_code.h. This is an upstream bug that only modern Windows SDKs expose.

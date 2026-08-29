@@ -60,11 +60,8 @@ gone. Two things make anything newer than v120 work:
   that needed MSVCR120. It needs one include directory, `winmm.lib` and `dxguid.lib` from the
   Windows SDK, and `DECLSPEC=` among the defines (`begin_code.h` guards it with `#ifndef` and
   would otherwise mark every entry point `__declspec(dllexport)`, which is wrong for a static
-  build). `src/main/win32/SDL_win32_main.c` carries the tree's only local change to SDL, an
-  `#undef UNICODE`/`#undef _UNICODE` prologue: the projects are `CharacterSet=Unicode` but that
-  file uses `char` buffers with `TEXT()` literals and `GetCommandLine()`, which the compiler
-  only warns about (C4133) while the command line would collapse to one character at runtime.
-  See `libs/SDL-1.2.15/PROVENANCE.txt`.
+  build). Two files carry local changes; see `libs/SDL-1.2.15/PROVENANCE.txt` and the
+  patch table below.
 
 `PWEncrypt` no longer calls `gets()`, which the Universal CRT removed.
 
@@ -245,8 +242,36 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`) are deliberately CRLF.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE`
   macros are available for timing a block.
-- Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
-  both builds (TinyXML, zlib + minizip, libogg, libvorbis, `SDL_win32_main.c`, stb). What is
-  left in `Blocks5/libs/bin` is `OpenAL32.lib`, an import library, plus `hq2x32.obj`, which is
-  a real object file and the one thing in the tree that still carries v120 code. An import
+- Third-party libraries are vendored under `Blocks5/libs`, each with a `PROVENANCE.txt`
+  giving its upstream, licence, which files are compiled, and what was changed locally. What
+  is left in `Blocks5/libs/bin` is `OpenAL32.lib`, an import library, plus `hq2x32.obj`, which
+  is a real object file and the one thing in the tree that still carries v120 code. An import
   library does not pin the toolset; `hq2x32.obj` does.
+
+### Every local change to a vendored library
+
+Four libraries are patched, in seven files. Everything else is byte-identical to upstream.
+Each is explained where it lives — in the file itself and in that library's `PROVENANCE.txt`.
+
+| library | file | what |
+| --- | --- | --- |
+| SDL 1.2.15 | `src/main/win32/SDL_win32_main.c` | `#undef UNICODE`/`#undef _UNICODE`; inert under MultiByte, kept as a guard |
+| SDL 1.2.15 | `include/SDL_syswm.h` | brackets `#include <windows.h>` out of `#pragma pack(push,4)`, or every `C_ASSERT` in a modern `winnt.h` fails |
+| zlib 1.3.1 | `contrib/minizip/unzip.c` | `NOUNCRYPT` commented out — without it nothing in the password-protected `data.zip` can be read |
+| zlib 1.3.1 | `contrib/minizip/iowin32.c` | `IOWIN32_USING_WINRT_API` commented out; this is a desktop build |
+| shine | `l3mdct.c`, `l3subband.c` | `__attribute__((unused))` guarded for MSVC as well as Borland |
+| minimp4 | `minimp4.h` | the `esds` descriptor: real `objectTypeIndication`, optional DSI, reserved bit, `SLConfigDescriptor`, measured bitrate |
+
+`libogg` and `libvorbis` differ from their git tags only in expanded SVN `$Id$` keywords in
+five headers, which is what marks them as coming from the release tarballs rather than a
+checkout — not a local change. `minih264e_impl.c` and `minimp4_impl.c` are ours by design:
+they are the single translation units that instantiate those two headers.
+
+**Re-checking after a library update.** `raw.githubusercontent.com` is reachable from the
+build environment, so every vendored file can be fetched at its upstream tag and compared.
+Doing that across the whole tree gives 166/169 SDL files identical (plus `SDL_config.h`,
+which is upstream's `SDL_config.h.default` verbatim), 35/37 zlib, 68/71 libvorbis, 20/22
+shine, and stb, OpenAL Soft's headers and `minih264e.h` clean. TinyXML has no upstream git
+repository — only the SourceForge tarball, and the GitHub forks that fill the gap carry
+patches this tree deliberately does not — and sigslot and MersenneTwister have no reachable
+upstream at all, so those three are documented from the tree's own history instead.

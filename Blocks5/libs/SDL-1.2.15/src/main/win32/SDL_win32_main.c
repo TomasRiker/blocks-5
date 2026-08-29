@@ -2,15 +2,19 @@
 	Local change for Blocks 5, and the only one in this file.
 
 	It uses char buffers together with TEXT() literals and GetCommandLine(), so
-	it has to be compiled as an ANSI translation unit. These projects are
-	CharacterSet=Unicode: TEXT("rb") would become a wide literal and
-	GetCommandLine() would return an LPWSTR into a char*, which the compiler
-	only warns about (C4133) while at run time SDL_strlcpy would stop at the
-	first NUL high byte and the command line would collapse to one character -
-	so -windowed and -fullscreen would quietly stop working.
+	it has to be compiled as an ANSI translation unit. Under UNICODE, TEXT("rb")
+	would become a wide literal and GetCommandLine() would return an LPWSTR into
+	a char*, which the compiler only warns about (C4133) while at run time
+	SDL_strlcpy would stop at the first NUL high byte and the command line would
+	collapse to one character - so -windowed and -fullscreen would quietly stop
+	working.
 
-	SDL's own build of SDLmain was an ANSI build, so undefining these restores
-	exactly the behaviour of the sdlmain.lib this file replaces.
+	Blocks5.vcxproj is CharacterSet=MultiByte, so UNICODE is not defined and
+	these undefs currently do nothing. They stay as a guard: the whole of SDL 1.2
+	is ANSI code and breaks the same way if that setting is ever flipped back,
+	and this is the file where the damage would be silent rather than a crash.
+	SDL's own build of SDLmain was an ANSI build too, so this is what the
+	sdlmain.lib being replaced always did.
 */
 #undef UNICODE
 #undef _UNICODE
