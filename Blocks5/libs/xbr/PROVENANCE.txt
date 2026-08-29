@@ -25,8 +25,8 @@ anti-aliased sprites is most of the screen. xBR blends there instead.
 WHAT IS HERE
 ------------
 xbr_lv2.h holds the two shader stages as C string literals. The algorithm body is
-the upstream fragment shader unchanged; only the plumbing around it differs.
-Every change:
+the upstream fragment shader, with two bugs in it fixed (changes 2 and 3); the
+rest of the difference is plumbing. Every change:
 
 1. The seven neighbour-offset vectors t1..t7 are computed in the fragment shader
    instead of being passed as varyings. Upstream needs 7 vec4 varyings plus a
@@ -34,37 +34,67 @@ Every change:
    a strict WebGL 1 implementation that would not link. The seven lines moved
    verbatim into main().
 
-2. The two `if (small_details < 0.5) ... else ...` pairs are kept, but written
-   without mat4x3, which does not exist in GLSL ES 1.00. Upstream's
-   `mul(mat4x3(A, B, C, D), w)` is four dot products against the same weight
-   vector, so the two branches differ only in what that vector is - the usual
-   rgbw mix, or y_weight * Y. Hoisting the choice into one `vec3 wgt = ...` and
-   writing the four dots out keeps both paths in a form GLSL ES accepts.
-   weighted_distance(), called only from the small_details half, is kept too.
+2. **f4 is assigned.** The GLSL version declares `vec4 i4, i5, h5, f4;`, writes
+   i4, i5 and h5, and then reads f4 in three places - the CORNER_C restriction
+   and both branches of wd1/wd2 - without ever writing it. It is simply missing
+   the line the Cg original has:
+
+       float4 f4 = h5.yzwx;
+
+   (common-shaders/xbr/shaders/xbr-lv2.cg:205. The swizzle is right: h5 packs the
+   four rotations of the H5 position, and f4 packs the F4 position, which is the
+   same cycle one step on.) An uninitialised local reads as zero in WebGL, which
+   mandates zero-init, and as whatever the driver leaves behind on desktop GL, so
+   the same build could look different on the two.
+
+   What it did: with f4 = 0, `df(i, f4)` is the luminance of i, 0..48 on this
+   shader's scale, added to wd1 only. `edr = step(wd1 + 0.1, wd2)` then fires far
+   less often than it should, so the filter under-detects edges - and where it
+   does fire, it fires asymmetrically, which is what broke contours into
+   disconnected pieces. Both filters were affected; the small_details path worse,
+   because f4 appears in *both* wd1 and wd2 there and its dominant term is
+   2.0*df(g,h) rather than 4.0*df(g,h), so the spurious term weighs twice as much.
+
+3. **One luma weighting per branch, not two.** Upstream GLSL always computes
+   b, c and e (and with them d, f, g, h, i) with `rgbw` - BT.601 luma times 48 -
+   while the small_details branch computes i4, i5 and h5 with `y_weight * Y`,
+   BT.709 luma times 48. Comparisons like `df(i, h5)`, `df(c, f4)`, `neq(f, i4)`
+   and `eq(b, i4.yzwx)` then compare a BT.601-weighted value against a
+   BT.709-weighted one. The two differ by up to about 6 on a 0..48 scale for
+   saturated colours - large next to the `+0.1` margin in the edr test - so the
+   edge direction picked up a hue-dependent bias. The Cg original uses
+   `XBR_Y_WEIGHT*Y` for every one of them, consistently, and does not have the
+   problem. One `vec3 wgt` now feeds all of them.
+
+   With both fixed, the small_details branch is exactly the Cg algorithm.
+
+4. mat4x3 is gone. Upstream's `mul(mat4x3(A, B, C, D), w)` - with
+   `#define mul(a,b) (b*a)`, so a row vector times a 4-column matrix - is four dot
+   products against the same weight vector. Written out as such it needs no
+   mat4x3, which GLSL ES 1.00 does not have. weighted_distance(), called only from
+   the small_details half, is kept.
 
    small_details is a uniform here, the way RetroArch exposes it when it builds
    with PARAMETER_UNIFORM, not a #define. Engine::presentFrame sets it to 1.0 for
-   UF_XBR_DETAIL and 0.0 for UF_XBR, so both are selectable at runtime. It
-   decides what makes two texels count as different: the default mix of all three
-   channels, or luminance alone. Luminance alone makes the filter engage inside
-   dithered, low-contrast areas - this game's grass and earth tiles - which it
-   otherwise leaves pixelated. Glyphs and GUI edges are unaffected either way;
-   measured over a rendered frame, roughly a third of pixels differ between the
-   two, essentially all of them in those textured areas.
+   UF_XBR_DETAIL and 0.0 for UF_XBR, so both are selectable at runtime. It decides
+   what makes two texels count as different: the BT.601 mix of all three channels,
+   or BT.709 luminance. The two are close enough that the visible difference is
+   small once the bugs above are out of the way - which is worth knowing before
+   spending a menu entry on it.
 
-3. delta, delta_l and delta_u are const. Upstream leaves them mutable globals and
+5. delta, delta_l and delta_u are const. Upstream leaves them mutable globals and
    initialises delta_u from a swizzle of delta_l; GLSL ES requires global
    initialisers to be constant expressions, and a swizzle of another global is
    not one. Same values, written as literals.
 
-4. FragColor gets an alpha. Upstream writes only .xyz and leaves .w undefined.
+6. FragColor gets an alpha. Upstream writes only .xyz and leaves .w undefined.
 
-5. The vertex stage is ours: two attributes and a clip-space passthrough, no
+7. The vertex stage is ours: two attributes and a clip-space passthrough, no
    MVPMatrix. The present quad's corners are computed on the CPU, so the shader
    never touches the fixed-function matrix stack - which also keeps it clear of
    Emscripten's immediate-mode emulation in the browser build.
 
-6. The libretro uniforms the shader does not use (FrameDirection, FrameCount,
+8. The libretro uniforms the shader does not use (FrameDirection, FrameCount,
    OutputSize, InputSize) are gone; decal, TextureSize and small_details remain.
 
 There is no #version directive. The default is 110 on desktop GL and 100 on GLSL
@@ -76,10 +106,15 @@ SAMPLING MUST BE GL_NEAREST
 Worth knowing because getting it wrong is silent. xBR reconstructs edges from
 exact texels; if the texture is sampled with GL_LINEAR its neighbourhood is
 already blurred, the edge detection finds nothing, and the output is
-indistinguishable from plain bilinear. Measured while porting: with GL_LINEAR the
-result was 96.4% pixel-identical to bilinear, with GL_NEAREST it is 96.3%
-identical to nearest and 30.0% to bilinear - which is the signature to expect,
-since xBR leaves flat areas exactly alone and only changes pixels along edges.
+indistinguishable from plain bilinear. Measured on a real frame at 3x: with
+GL_LINEAR the result was 96.4% pixel-identical to bilinear; with GL_NEAREST it is
+59% identical to nearest and 32% to bilinear, for both small_details settings.
+That is the signature to expect.
+
+A number over about 90% identical to nearest means the edge detection is barely
+firing, not that the filter is being conservative. That is exactly what the f4 bug
+above looked like - 96.3% - and it read as plausible until it was checked against
+the Cg original.
 
 XBR_SCALE is 3.0, as upstream. It tunes the edge-slope thresholds rather than
 fixing an output size, so the filter works at any magnification - which is what
@@ -91,3 +126,8 @@ The shader compiles in any WebGL context, so it can be checked without building
 the game: create a context, compile both stages, read the info logs. Beyond that,
 render a real frame through it at 3x and compare against nearest and bilinear -
 the percentages above are what a working port looks like.
+
+Worth doing as well, because it is what caught both bugs: read the upstream Cg
+(common-shaders/xbr/shaders/xbr-lv2.cg) alongside the GLSL. The GLSL port is not
+a faithful translation of it, and where the two disagree the Cg is the one that
+matches what Hyllian published.

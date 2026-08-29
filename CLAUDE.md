@@ -310,7 +310,7 @@ Each is explained where it lives — in the file itself and in that library's `P
 | zlib 1.3.1 | `contrib/minizip/iowin32.c` | `IOWIN32_USING_WINRT_API` commented out; this is a desktop build |
 | shine | `l3mdct.c`, `l3subband.c` | `__attribute__((unused))` guarded for MSVC as well as Borland |
 | minimp4 | `minimp4.h` | the `esds` descriptor: real `objectTypeIndication`, optional DSI, reserved bit, `SLConfigDescriptor`, measured bitrate |
-| xBR-lv2 | `xbr_lv2.h` | a port, not a patch: same algorithm, rewritten to compile as GLSL 1.10 *and* GLSL ES 1.00 (no `mat4x3`, 7 varyings fewer, const globals) |
+| xBR-lv2 | `xbr_lv2.h` | a port, not a patch: rewritten to compile as GLSL 1.10 *and* GLSL ES 1.00 (no `mat4x3`, 7 varyings fewer, const globals), **plus two bug fixes** — the libretro GLSL reads `f4` without ever assigning it, and mixes BT.601 and BT.709 luma in the same comparisons; the Cg original does neither |
 
 `libogg` and `libvorbis` differ from their git tags only in expanded SVN `$Id$` keywords in
 five headers, which is what marks them as coming from the release tarballs rather than a

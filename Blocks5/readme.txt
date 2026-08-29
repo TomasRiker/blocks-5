@@ -65,8 +65,8 @@ Changelog
               Smooth         plain stretching, blurry
               xBR            reconstructs the edges instead of
                              stretching them
-              xBR, detailed  the same, and it also smooths the
-                             finely dotted areas like the grass
+              xBR, detailed  the same, judging colours a little
+                             differently; the difference is small
 
             The last three run on the graphics card and are
             practically free. They need a card that can run

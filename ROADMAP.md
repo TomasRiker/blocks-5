@@ -161,10 +161,13 @@ statically linked LGPL.
 Five filters are selectable, and the player picks one in Options -> Scaling,
 exactly like the language — there is no command-line switch for it. The choice is
 saved as `<Upscaler>` in `config.xml`: `nearest`, `bilinear`, `sharp-fit`, `xbr`,
-`xbr-details`. `xbr-details` is upstream's `small_details` path, which compares
-texels by luminance alone instead of the usual channel mix; it makes the filter
-engage inside the dithered grass and earth tiles that plain xBR leaves pixelated,
-and leaves glyphs and GUI edges alone. **`xbr-details` is the default.**
+`xbr-details`. `xbr-details` is upstream's `small_details` path, which measures
+"same colour" as BT.709 luminance instead of the BT.601 channel mix. **It is the
+default**, but the two are close: after the two bugs described in
+`libs/xbr/PROVENANCE.txt` were fixed they differ on 13–16% of pixels, all of it
+inside dithered areas, and neither is obviously better. Before those fixes
+`xbr-details` broke contours into disconnected pieces, which is what prompted
+looking at it.
 
 `sharp-fit` is `nearest` without the integer-scale restriction, and it is the one
 filter here that is ours rather than vendored — `src/sharpfit_shader.h`, about
