@@ -145,10 +145,20 @@ ECHO ERROR: the v120 (Visual Studio 2013) platform toolset is not installed.
 ECHO        Expected
 ECHO          "%V120PROPS%"
 ECHO.
-ECHO        Install "Visual Studio 2013" or the "Visual C++ Build Tools 2013",
-ECHO        or - in a newer Visual Studio installer - the component
-ECHO        "Visual Studio 2013 (v120) toolset". See the note at the top of
-ECHO        this file for why nothing newer will link.
+ECHO        There is no C++-only build-tools package for 2013. The standalone
+ECHO        "Visual C++ Build Tools" line starts at 2015 (v140), and "Microsoft
+ECHO        Build Tools 2013" is MSBuild plus the C# and VB compilers only - it
+ECHO        has no cl.exe. Newer Visual Studio installers carry no v120
+ECHO        component either; the oldest they offer is v140.
+ECHO.
+ECHO        v120 therefore means installing a Visual Studio 2013 edition -
+ECHO        Express for Windows Desktop is the smallest - from
+ECHO          https://visualstudio.microsoft.com/vs/older-downloads/
+ECHO        A free Dev Essentials account is enough. The IDE never has to be
+ECHO        opened; this script only uses the command-line toolchain.
+ECHO.
+ECHO        See the note at the top of this file for what pins the toolset,
+ECHO        and how little it would take to lift it.
 GOTO fail
 :toolsetok
 
