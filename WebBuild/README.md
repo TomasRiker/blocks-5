@@ -30,6 +30,11 @@ libraries for SDL, SDL_image, OpenAL and ffmpeg, plus `hq2x32.obj`. Before they 
 compiled whatever the upstream clones happened to be at, which was a *different*
 version of every one of them.
 
+The OpenAL headers come from `libs/openal-soft-1.25.2`, the same ones the Visual
+Studio build compiles against, but the implementation behind them here is
+Emscripten's `-lopenal`, not OpenAL Soft — those headers are plain AL/ALC 1.1
+and public domain, so they work against either.
+
 minizip carries two local changes, both deliberate and both load-bearing:
 `NOUNCRYPT` is commented out in `unzip.c`, which is what makes the game's
 password-protected archives readable at all, and `IOWIN32_USING_WINRT_API` is

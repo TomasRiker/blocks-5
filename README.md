@@ -1,7 +1,7 @@
 Blocks 5 - Bob's Amazing Adventures
 ===================================
 
-A 2D tile-based puzzle/action game in C++, on SDL 1.2, OpenGL and OpenAL.
+A 2D tile-based puzzle/action game in C++, on SDL 1.2, OpenGL and OpenAL Soft.
 
 
 Building on Windows
@@ -17,8 +17,7 @@ Git and that the game cannot start without.
     Build.bat /?                  all options
 
 For a compiler-only setup, "Build Tools for Visual Studio 2022" is enough; no IDE is needed.
-The toolset notes at the top of `Build.bat` explain what each version requires — in particular
-that v140 and newer still hit one unresolved symbol from the pre-UCRT `sdlmain.lib`.
+The toolset notes at the top of `Build.bat` explain what each version requires.
 
 The game must run with `Blocks5\` as its working directory, because it opens `data.zip`
 relative to the current directory:
@@ -33,9 +32,8 @@ To build from the IDE instead, open `Blocks5.sln`, build all three projects, and
 Building for the browser
 ------------------------
 `WebBuild/` holds an Emscripten port that runs the game in a browser. `WebBuild/build.sh`
-builds it; `WebBuild/README.md` describes what works, what is left out, and the shims it
-needs. It is not yet reproducible from a clean clone — zlib, libogg, libvorbis and stb are
-still fetched from outside the tree.
+builds it from a clean clone with nothing but the Emscripten SDK; `WebBuild/README.md`
+describes what works, what is left out, and the shims it needs.
 
 
 Layout
@@ -44,6 +42,10 @@ Layout
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer
     WebBuild/       the Emscripten port and its glue
+
+`Blocks5/OpenAL32.dll` is OpenAL Soft, shipped next to the executable, so the game no longer
+depends on Creative's system-wide OpenAL runtime being installed. See
+`Blocks5/libs/openal-soft-1.25.2/PROVENANCE.txt` for where it comes from and how to update it.
 
 The Inno Setup installer script is `Blocks5/setup/Blocks 5.iss`. Its version number has to
 stay in sync with `p_localVersion` in `Blocks5/src/main.cpp` and with `Blocks5/readme.txt`.

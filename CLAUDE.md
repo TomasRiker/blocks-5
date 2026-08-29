@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 Blocks 5 — "Bob's Amazing Adventures", a 2D tile-based puzzle/action game. C++ on SDL 1.2 +
-OpenGL + OpenAL, **Windows/Win32 only**. Non-Windows code paths are literal
+OpenGL + OpenAL Soft, **Windows/Win32 only**. Non-Windows code paths are literal
 `#error NOT IMPLEMENTED` (see `filesystem.cpp`, `main.cpp`), so the tree cannot be compiled or
 run on Linux/macOS — code changes here are edit-and-review only unless you are on Windows with
 Visual Studio. There is also an Emscripten port in `WebBuild/`, which does build and run on
@@ -95,6 +95,15 @@ device uses (float32 or 16/24/32-bit PCM, any channel count, any rate) to the 16
 audio track stays as long as the video. The whole implementation is behind `#ifdef _WIN32` — the
 `#else` half is a stub that fails `open()` — because the Emscripten build globs `src/*.cpp`.
 
+**OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with
+its import library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, which is
+how that distribution is meant to be used without the router. Because the app directory beats
+`system32` in the DLL search order, the game always gets this implementation and never whatever
+Creative's 2009 installer may have left on the machine; `oalinst.exe` and the installer's
+`InstallOpenAL11` task are gone. The game only calls core AL/ALC 1.1 (23 functions, no
+extensions, no `alGetProcAddress`), so the switch needed no source change at all. The DLL is
+LGPL v2 and must stay dynamically linked.
+
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are
@@ -177,6 +186,8 @@ filenames, shipped zipped in `levels/campaigns/`.
   are deliberately CRLF.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE`
   macros are available for timing a block.
-- Third-party libraries are vendored under `Blocks5/libs` with prebuilt import libraries in
-  `Blocks5/libs/bin` (including `hq2x32.obj`, linked directly). Rebuilding one of them is a
-  deliberate act — the toolset must match `v120`.
+- Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
+  both builds (TinyXML, zlib + minizip, libogg, libvorbis, `SDL_win32_main.c`, stb). What is
+  left in `Blocks5/libs/bin` is import libraries — SDL, SDL_image, OpenAL, ffmpeg — plus
+  `hq2x32.obj`, which is a real object file and the one thing there that still carries v120
+  code. Import libraries do not pin the toolset; `hq2x32.obj` and the ffmpeg DLLs do.

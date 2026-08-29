@@ -15,7 +15,7 @@ COPY "Donate (en).url" stage
 COPY hq2x.bat stage
 COPY libpng15-15.dll stage
 COPY makeconfig.bat stage
-COPY oalinst.exe stage
+COPY OpenAL32.dll stage
 COPY ..\Release\pwencrypt.exe stage
 COPY readme.txt stage
 COPY sdl.dll stage
