@@ -7,7 +7,7 @@
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
-DEPS="${BLOCKS5_DEPS:-/home/user/deps}"
+ZLIB="$GAME/libs/zlib-1.2.8"
 OUT="$HERE/build"
 source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
 
@@ -17,7 +17,8 @@ mkdir -p "$OUT/obj"
 INC="-I$GAME/src -I$HERE
      -I$GAME/libs/tinyxml-2.6.2 -I$GAME/libs/sigslot -I$GAME/libs/mtrand-1.1
      -I$GAME/libs/OpenAL-1.1/include
-     -I$DEPS/vorbis/include -I$DEPS/vorbis/lib -I$DEPS/ogg/include -I$DEPS/zlib -I$DEPS/stb
+     -I$GAME/libs/libvorbis-1.3.4/include -I$GAME/libs/libvorbis-1.3.4/lib
+     -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.2.8 -I$GAME/libs/stb
      -I$GAME/libs/zlib-1.2.8/contrib/minizip"
 
 CFLAGS="-O2 -DTIXML_USE_STL -DBLOCKS5_NO_FFMPEG -sUSE_SDL=1 $INC"
@@ -33,13 +34,13 @@ SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.
 CSRCS="$GAME/libs/zlib-1.2.8/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.2.8/contrib/minizip/unzip.c
        $GAME/libs/zlib-1.2.8/contrib/minizip/zip.c
-       $DEPS/zlib/adler32.c $DEPS/zlib/compress.c $DEPS/zlib/crc32.c $DEPS/zlib/deflate.c
-       $DEPS/zlib/infback.c $DEPS/zlib/inffast.c $DEPS/zlib/inflate.c $DEPS/zlib/inftrees.c
-       $DEPS/zlib/trees.c $DEPS/zlib/uncompr.c $DEPS/zlib/zutil.c
-       $DEPS/ogg/src/bitwise.c $DEPS/ogg/src/framing.c"
+       $ZLIB/adler32.c $ZLIB/compress.c $ZLIB/crc32.c $ZLIB/deflate.c
+       $ZLIB/infback.c $ZLIB/inffast.c $ZLIB/inflate.c $ZLIB/inftrees.c
+       $ZLIB/trees.c $ZLIB/uncompr.c $ZLIB/zutil.c
+       $GAME/libs/libogg-1.3.2/src/bitwise.c $GAME/libs/libogg-1.3.2/src/framing.c"
 for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc lsp \
          mapping0 mdct misc psy registry res0 sharedbook smallft synthesis vorbisenc \
-         vorbisfile window; do CSRCS="$CSRCS $DEPS/vorbis/lib/$f.c"; done
+         vorbisfile window; do CSRCS="$CSRCS $GAME/libs/libvorbis-1.3.4/lib/$f.c"; done
 # TinyXML 2.6.2 is vendored in the tree and compiled here exactly as the Visual
 # Studio project compiles it, so both builds run the same parser.
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/tinyxml-2.6.2/$f.cpp"; done

@@ -8,24 +8,25 @@ standards-conformance or bug fix that MSVC also accepts.
 
 ## Building
 
-Needs the Emscripten SDK and four dependencies that this repo only vendors as
-headers (their prebuilt `.lib` files in `libs/bin` are Windows binaries):
+Needs the Emscripten SDK and nothing else — every dependency is vendored in the
+tree.
 
 ```sh
 git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest && emsdk/emsdk activate latest
-
-mkdir -p ~/deps && cd ~/deps
-git clone --depth 1 https://github.com/madler/zlib.git zlib
-git clone --depth 1 https://github.com/xiph/ogg.git ogg
-git clone --depth 1 https://github.com/xiph/vorbis.git vorbis
-git clone --depth 1 https://github.com/jslee02/tinyxml.git tinyxml1   # TinyXML 1 (2.6.2), not tinyxml2
-git clone --depth 1 https://github.com/nothings/stb.git stb
-printf '#ifndef __CONFIG_TYPES_H__\n#define __CONFIG_TYPES_H__\n#include <stdint.h>\ntypedef int16_t ogg_int16_t;\ntypedef uint16_t ogg_uint16_t;\ntypedef int32_t ogg_int32_t;\ntypedef uint32_t ogg_uint32_t;\ntypedef int64_t ogg_int64_t;\ntypedef uint64_t ogg_uint64_t;\n#endif\n' > ogg/include/ogg/config_types.h
+./build.sh
 ```
 
-Then build `data.zip` and the skin archives (the `zip_*.bat` equivalents), and run
-`./build.sh` (`BLOCKS5_DEPS` overrides the dependency root). Serve `build/` over
-HTTP — `file://` will not work.
+Serve `build/` over HTTP; `file://` will not work.
+
+`build.sh` also packs `data.zip` and the skin archives into the staged tree, so a
+clean clone needs no other preparation. `./build.sh clean` rebuilds from scratch.
+
+The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
+are compiled from source here instead, from the same versions the tree's headers
+declare — zlib 1.2.8, libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2 — plus
+`stb_image.h` in place of SDL_image. Before they were vendored this build
+compiled whatever the upstream clones happened to be at, which was a *different*
+version of every one of them, so the two builds quietly disagreed.
 
 ## What this build does and doesn't do
 
