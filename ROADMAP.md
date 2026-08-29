@@ -269,39 +269,34 @@ are already available, and `PROFILE_HQ2X`, `PROFILE_VIDEO_CONVERSION` and
 `PROFILE_VIDEO_ENCODING` are existing switches.
 
 
-9. Stop needing the Visual C++ redistributable
-----------------------------------------------
-The installer still runs `vcredist_x86.exe` under a task labelled "Visual C++
-2013", which is stale twice over: the default toolset is v143 now, so the
-*correct* redistributable would be the 2015-2022 one, and the goal is to need
-neither.
+9. Stop needing the Visual C++ redistributable — done
+-----------------------------------------------------
+The three projects build with `/MT` now, SDL is compiled in rather than loaded
+from a DLL, and `vcredist_x86.exe` (6.5 MB), the `InstallVC2013Runtime` task and
+its four message strings are out of `Blocks5/setup/Blocks 5.iss`. Nothing the
+game ships needs a Visual C++ redistributable any more:
 
-Checked, rather than assumed — of the DLLs the game ships:
+    blocks5.exe     static CRT      /MT
+    pwencrypt.exe   static CRT      /MT
+    showuserdir.exe static CRT      /MT
+    OpenAL32.dll    msvcrt.dll      OS-provided
+    avcodec-53.dll  msvcrt.dll      OS-provided
+    avformat-53.dll msvcrt.dll      OS-provided
+    avutil-51.dll   msvcrt.dll      OS-provided
+    swscale-2.dll   msvcrt.dll      OS-provided
 
-    sdl.dll         MSVCR120.dll     <- needs the 2013 redistributable
-    OpenAL32.dll    msvcrt.dll       ok, OS-provided
-    avcodec-53.dll  msvcrt.dll       ok
-    avformat-53.dll msvcrt.dll       ok
-    avutil-51.dll   msvcrt.dll       ok
-    swscale-2.dll   msvcrt.dll       ok
+`hq2x32.obj`, the one foreign object file linked directly into the exe, carries
+no `/DEFAULTLIB` or `/FAILIFMISMATCH` directive and no CRT references at all —
+its only undefined symbols are `_LUT16to32` and `_RGBtoYUV`, both defined in
+`src/hq2x.cpp` — so it did not stand in the way of `/MT`. The ffmpeg and OpenAL
+DLLs carry their own CRT across the boundary, but they always did, and nothing
+allocates on one side and frees on the other: every `av_free` in
+`videorecorder.cpp` pairs with an ffmpeg-side allocation, and the file handle
+stays inside `avio_open`.
 
-So exactly **one** file still requires a redistributable — `sdl_image.dll` was
-the other one and is gone — plus the game's own executables, which link the CRT
-dynamically because the projects use the default `/MD`.
-
-That makes this smaller than it looks:
-
-- Switch Blocks5, PWEncrypt and ShowUserDir to `/MT`. `hq2x32.obj` — the only
-  foreign object file linked directly into the exe — was checked and carries no
-  `/DEFAULTLIB` or `/FAILIFMISMATCH` directive and no CRT references at all (its
-  only undefined symbols are `_LUT16to32` and `_RGBtoYUV`, both defined in
-  `src/hq2x.cpp`), so it does not stand in the way.
-- Deal with `sdl.dll` — which is item 3. SDL needs rebuilding from source, or the
-  SDL2 move.
-
-When both are done, `vcredist_x86.exe` (6.5 MB), the `InstallVC2013Runtime` task
-and its four message strings come out of `Blocks5/setup/Blocks 5.iss` — the same
-shape as the OpenAL cleanup.
+The one thing given up is that a statically linked CRT no longer picks up
+Windows Update's servicing of the shared one. For a single-player puzzle game
+that is the right trade against shipping a 6.5 MB installer stub.
 
 
 How these connect
@@ -310,14 +305,15 @@ How these connect
                           ├─> 5 (Linux: the __asm block blocks GCC/Clang)
                           └─> 3 (last non-import binary in libs/bin)
 
-    3 (all from source) ──┬─> 9 (sdl.dll is the last redist user)
-                          └─> 5 (Linux needs an ffmpeg answer anyway)
+    3 (all from source) ────> 5 (Linux needs an ffmpeg answer anyway)
 
     5 (Linux) <────────────── WebBuild/platform_stubs.cpp already does most of it
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
-*Done since this list was written:* stb_image in place of SDL_image, which took
-three DLLs and an import library out of the tree, and the standard unordered
-containers in place of `stdext::hash_map`, which removed the most likely future
-build break and got 106 of 111 sources compiling under a non-MSVC compiler.
+*Done since this list was written:* stb_image in place of SDL_image, the standard
+unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
+source, and `/MT` — which together closed item 9 and took `sdl.dll`,
+`sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, `oalinst.exe`,
+`vcredist_x86.exe` and three import libraries out of the tree. What ships now is
+three executables, five DLLs that need nothing but Windows, and the data.

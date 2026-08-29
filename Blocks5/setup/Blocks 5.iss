@@ -23,7 +23,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [CustomMessages]
-english.InstallingVC2013Runtime=Installing Visual C++ 2013 Runtime Libraries ...
 english.Configuring=Configuring Blocks 5 ...
 english.ShowReadme=Show readme file
 english.ShowUserDirectory=Show user directory (screenshots, videos, levels)
@@ -31,10 +30,8 @@ english.WindowedMode=Blocks 5 (windowed mode)
 english.HQ2XMode=Blocks 5 (HQ2X mode - only for fast computers)
 english.VisitBlocks5Website=Visit Blocks 5 Website
 english.UninstallBlocks5=Uninstall Blocks 5
-english.InstallVC2013Runtime=Install Visual C++ 2013 Runtime (game may not work without it)
 english.EnableUpdateChecker=When launching the game, automatically check for updates
 english.ConfigID=en
-german.InstallingVC2013Runtime=Installiere Visual C++ 2013-Laufzeitbibliotheken ...
 german.Configuring=Konfiguriere Blocks 5 ...
 german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
@@ -42,12 +39,10 @@ german.WindowedMode=Blocks 5 (Fenstermodus)
 german.HQ2XMode=Blocks 5 (HQ2X-Modus - nur für schnelle Computer)
 german.VisitBlocks5Website=Blocks 5-Webseite besuchen
 german.UninstallBlocks5=Blocks 5 deinstallieren
-german.InstallVC2013Runtime=Visual C++ 2013-Laufzeitbibliotheken installieren (Spiel funktioniert sonst möglicherweise nicht)
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
 german.ConfigID=de
 
 [Tasks]
-Name: "InstallVC2013Runtime"; Description: "{cm:InstallVC2013Runtime}"
 Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
@@ -67,7 +62,6 @@ Name: "{group}\{cm:UninstallBlocks5}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"; Tasks: CreateDesktopIcon
 
 [Run]
-Filename: "{app}\vcredist_x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "{cm:InstallingVC2013Runtime}"; Tasks: InstallVC2013Runtime
 Filename: "{app}\makeconfig.bat"; Parameters: "{cm:ConfigID}"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_disable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_enable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden; Tasks: EnableUpdateChecker

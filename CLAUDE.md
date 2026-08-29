@@ -167,6 +167,12 @@ reads every texture through its own `SDL_RWops` over the encrypted `data.zip`. s
 `libpng15-15.dll` and `zlib1.dll` from the shipped tree; both builds compile the same file.
 PNG and JPEG are enabled, and every image the game ships is a PNG.
 
+**Deployment.** All three projects link the CRT statically (`/MT`, `/MTd` for Debug), so
+nothing needs a Visual C++ redistributable — the installer has no runtime task at all any
+more. What ships beside the executables is `OpenAL32.dll` and the four ffmpeg DLLs, and those
+import only `msvcrt.dll`, which is part of Windows. Keep it that way: a new dependency that
+needs a redistributable undoes the whole arrangement.
+
 **GUI** (`gui.cpp`, `gui_*.cpp`) is a retained-mode tree loaded from XML dialogs in `data/`
 (`menu.xml`, `leveleditor.xml`, `options.xml`, …). Elements are addressed by dotted path —
 `gui["Menu.DonatePane.Donate.Donate"]` — and wired with `sigslot` (`connectClicked(this,

@@ -45,9 +45,11 @@ Layout
     ShowUserDir/    opens the user data folder in Explorer
     WebBuild/       the Emscripten port and its glue
 
-`Blocks5/OpenAL32.dll` is OpenAL Soft, shipped next to the executable, so the game no longer
-depends on Creative's system-wide OpenAL runtime being installed. See
-`Blocks5/libs/openal-soft-1.25.2/PROVENANCE.txt` for where it comes from and how to update it.
+The game needs no Visual C++ redistributable and no system-wide OpenAL: the three executables
+link the CRT statically, SDL 1.2.15 is compiled in from `Blocks5/libs/SDL-1.2.15/src`, and
+`Blocks5/OpenAL32.dll` is OpenAL Soft shipped beside the executable. The five DLLs that do
+ship import only `msvcrt.dll`, which is part of Windows. Each vendored library has a
+`PROVENANCE.txt` saying where it came from and how to update it.
 
 The Inno Setup installer script is `Blocks5/setup/Blocks 5.iss`. Its version number has to
 stay in sync with `p_localVersion` in `Blocks5/src/main.cpp` and with `Blocks5/readme.txt`.

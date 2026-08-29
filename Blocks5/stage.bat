@@ -21,7 +21,6 @@ COPY ..\Release\showuserdir.exe stage
 COPY swscale-2.dll stage
 COPY update_checker_disable.bat stage
 COPY update_checker_enable.bat stage
-COPY vcredist_x86.exe stage
 COPY windowed.bat stage
 MKDIR stage\levels
 COPY levels\example01.xml stage\levels
