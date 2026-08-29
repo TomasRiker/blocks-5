@@ -40,8 +40,9 @@ CSRCS="$GAME/libs/zlib-1.2.8/contrib/minizip/ioapi.c
 for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc lsp \
          mapping0 mdct misc psy registry res0 sharedbook smallft synthesis vorbisenc \
          vorbisfile window; do CSRCS="$CSRCS $DEPS/vorbis/lib/$f.c"; done
-# TinyXML 1 is linked as a prebuilt .lib on Windows, so its sources are not vendored.
-for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $DEPS/tinyxml1/$f.cpp"; done
+# TinyXML 2.6.2 is vendored in the tree and compiled here exactly as the Visual
+# Studio project compiles it, so both builds run the same parser.
+for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/tinyxml-2.6.2/$f.cpp"; done
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
 compile() { # $1=file $2=flags

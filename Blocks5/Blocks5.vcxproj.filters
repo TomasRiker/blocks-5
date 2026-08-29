@@ -14,6 +14,9 @@
     <Filter Include="MiniZip">
       <UniqueIdentifier>{c87f76a3-8db8-4505-b5b2-b5c6183eecae}</UniqueIdentifier>
     </Filter>
+    <Filter Include="TinyXML">
+      <UniqueIdentifier>{7f2c9a41-3e6d-4b58-9c1a-0d5e8b3f6a24}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\campaign.cpp">
@@ -357,6 +360,18 @@
     </ClCompile>
     <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
       <Filter>MiniZip</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinystr.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxml.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxmlerror.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxmlparser.cpp">
+      <Filter>TinyXML</Filter>
     </ClCompile>
     <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\ioapi.c">
       <Filter>MiniZip</Filter>
