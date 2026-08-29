@@ -20,6 +20,9 @@ namespace GLExtensions
 	bool init();
 
 	bool haveFrameBufferObjects();
+
+	// GL 2.0 / WebGL 1: alles, was der xBR-Filter braucht.
+	bool haveShaders();
 }
 
 // Die Konstanten sind in EXT_framebuffer_object und im GL-3.0-Kern identisch,
@@ -75,6 +78,59 @@ extern "C"
 #define glExtFramebufferRenderbuffer glFramebufferRenderbuffer
 #define glExtCheckFramebufferStatus  glCheckFramebufferStatus
 
+extern "C"
+{
+	GLuint glCreateShader (GLenum);
+	void glShaderSource (GLuint, GLsizei, const GLchar* const*, const GLint*);
+	void glCompileShader (GLuint);
+	void glGetShaderiv (GLuint, GLenum, GLint*);
+	void glGetShaderInfoLog (GLuint, GLsizei, GLsizei*, GLchar*);
+	void glDeleteShader (GLuint);
+	GLuint glCreateProgram (void);
+	void glAttachShader (GLuint, GLuint);
+	void glBindAttribLocation (GLuint, GLuint, const GLchar*);
+	void glLinkProgram (GLuint);
+	void glGetProgramiv (GLuint, GLenum, GLint*);
+	void glGetProgramInfoLog (GLuint, GLsizei, GLsizei*, GLchar*);
+	void glUseProgram (GLuint);
+	void glDeleteProgram (GLuint);
+	GLint glGetUniformLocation (GLuint, const GLchar*);
+	void glUniform1i (GLint, GLint);
+	void glUniform2f (GLint, GLfloat, GLfloat);
+	void glEnableVertexAttribArray (GLuint);
+	void glDisableVertexAttribArray (GLuint);
+	void glVertexAttribPointer (GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
+	void glGenBuffers (GLsizei, GLuint*);
+	void glBindBuffer (GLenum, GLuint);
+	void glBufferData (GLenum, GLsizeiptr, const void*, GLenum);
+	void glDeleteBuffers (GLsizei, const GLuint*);
+}
+
+#define glExtCreateShader             glCreateShader
+#define glExtShaderSource             glShaderSource
+#define glExtCompileShader            glCompileShader
+#define glExtGetShaderiv              glGetShaderiv
+#define glExtGetShaderInfoLog         glGetShaderInfoLog
+#define glExtDeleteShader             glDeleteShader
+#define glExtCreateProgram            glCreateProgram
+#define glExtAttachShader             glAttachShader
+#define glExtBindAttribLocation       glBindAttribLocation
+#define glExtLinkProgram              glLinkProgram
+#define glExtGetProgramiv             glGetProgramiv
+#define glExtGetProgramInfoLog        glGetProgramInfoLog
+#define glExtUseProgram               glUseProgram
+#define glExtDeleteProgram            glDeleteProgram
+#define glExtGetUniformLocation       glGetUniformLocation
+#define glExtUniform1i                glUniform1i
+#define glExtUniform2f                glUniform2f
+#define glExtEnableVertexAttribArray  glEnableVertexAttribArray
+#define glExtDisableVertexAttribArray glDisableVertexAttribArray
+#define glExtVertexAttribPointer      glVertexAttribPointer
+#define glExtGenBuffers               glGenBuffers
+#define glExtBindBuffer               glBindBuffer
+#define glExtBufferData               glBufferData
+#define glExtDeleteBuffers            glDeleteBuffers
+
 #else
 
 extern PFNGLGENFRAMEBUFFERSEXTPROC         glExtGenFramebuffers;
@@ -87,6 +143,31 @@ extern PFNGLDELETERENDERBUFFERSEXTPROC     glExtDeleteRenderbuffers;
 extern PFNGLRENDERBUFFERSTORAGEEXTPROC     glExtRenderbufferStorage;
 extern PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glExtFramebufferRenderbuffer;
 extern PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  glExtCheckFramebufferStatus;
+
+extern PFNGLCREATESHADERPROC                glExtCreateShader;
+extern PFNGLSHADERSOURCEPROC                glExtShaderSource;
+extern PFNGLCOMPILESHADERPROC               glExtCompileShader;
+extern PFNGLGETSHADERIVPROC                 glExtGetShaderiv;
+extern PFNGLGETSHADERINFOLOGPROC            glExtGetShaderInfoLog;
+extern PFNGLDELETESHADERPROC                glExtDeleteShader;
+extern PFNGLCREATEPROGRAMPROC               glExtCreateProgram;
+extern PFNGLATTACHSHADERPROC                glExtAttachShader;
+extern PFNGLBINDATTRIBLOCATIONPROC          glExtBindAttribLocation;
+extern PFNGLLINKPROGRAMPROC                 glExtLinkProgram;
+extern PFNGLGETPROGRAMIVPROC                glExtGetProgramiv;
+extern PFNGLGETPROGRAMINFOLOGPROC           glExtGetProgramInfoLog;
+extern PFNGLUSEPROGRAMPROC                  glExtUseProgram;
+extern PFNGLDELETEPROGRAMPROC               glExtDeleteProgram;
+extern PFNGLGETUNIFORMLOCATIONPROC          glExtGetUniformLocation;
+extern PFNGLUNIFORM1IPROC                   glExtUniform1i;
+extern PFNGLUNIFORM2FPROC                   glExtUniform2f;
+extern PFNGLENABLEVERTEXATTRIBARRAYPROC     glExtEnableVertexAttribArray;
+extern PFNGLDISABLEVERTEXATTRIBARRAYPROC    glExtDisableVertexAttribArray;
+extern PFNGLVERTEXATTRIBPOINTERPROC         glExtVertexAttribPointer;
+extern PFNGLGENBUFFERSPROC                  glExtGenBuffers;
+extern PFNGLBINDBUFFERPROC                  glExtBindBuffer;
+extern PFNGLBUFFERDATAPROC                  glExtBufferData;
+extern PFNGLDELETEBUFFERSPROC               glExtDeleteBuffers;
 
 #endif
 

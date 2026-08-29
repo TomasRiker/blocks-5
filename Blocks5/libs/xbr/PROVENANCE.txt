@@ -1,0 +1,80 @@
+xBR-lv2
+=======
+
+Edge-directed upscaling filter, as a fragment shader. Brings the game's internal
+640x480 frame up to whatever size the window is; see Engine::presentFrame in
+src/engine.cpp and the UF_XBR case there.
+
+  https://github.com/libretro/glsl-shaders   xbr/shaders/xbr-lv2.glsl
+  Hyllian (sergiogdb@gmail.com), 2011-2016
+  MIT ("Permission is hereby granted, free of charge, ..."), kept verbatim at the
+  top of xbr_lv2.h
+
+WHY THIS ONE
+------------
+It replaces hq2x, which had no source in the tree at all - only a prebuilt
+libs/bin/hq2x32.obj carrying x86 MMX assembly - and which is LGPL statically
+linked. MIT is a plain improvement on that, and a shader removes the readback
+that cost 7.6 ms of CPU per frame.
+
+xBR is hq2x's descendant and shares its edge-detection premise, so text and GUI
+keep the look they had. The difference that matters for this game's art: hq2x
+snaps to nearest wherever it finds no pattern, which on photographic tiles and
+anti-aliased sprites is most of the screen. xBR blends there instead.
+
+WHAT IS HERE
+------------
+xbr_lv2.h holds the two shader stages as C string literals. The algorithm body is
+the upstream fragment shader unchanged; only the plumbing around it differs.
+Every change:
+
+1. The seven neighbour-offset vectors t1..t7 are computed in the fragment shader
+   instead of being passed as varyings. Upstream needs 7 vec4 varyings plus a
+   colour and a texcoord; GLSL ES 1.00 only guarantees 8 varying vectors, so on
+   a strict WebGL 1 implementation that would not link. The seven lines moved
+   verbatim into main().
+
+2. The two `if (small_details < 0.5) ... else ...` pairs keep only the live half.
+   small_details is #defined to 0.0, so the else branches were already dead - but
+   they use mat4x3, which does not exist in GLSL ES 1.00, and dead code still has
+   to parse. weighted_distance(), only called from there, went with them.
+
+3. delta, delta_l and delta_u are const. Upstream leaves them mutable globals and
+   initialises delta_u from a swizzle of delta_l; GLSL ES requires global
+   initialisers to be constant expressions, and a swizzle of another global is
+   not one. Same values, written as literals.
+
+4. FragColor gets an alpha. Upstream writes only .xyz and leaves .w undefined.
+
+5. The vertex stage is ours: two attributes and a clip-space passthrough, no
+   MVPMatrix. The present quad's corners are computed on the CPU, so the shader
+   never touches the fixed-function matrix stack - which also keeps it clear of
+   Emscripten's immediate-mode emulation in the browser build.
+
+6. The libretro uniforms the shader does not use (FrameDirection, FrameCount,
+   OutputSize, InputSize) are gone; decal and TextureSize remain.
+
+There is no #version directive. The default is 110 on desktop GL and 100 on GLSL
+ES, and the source is written to compile as either - `#ifdef GL_ES` guards the
+precision qualifiers, which desktop GLSL 1.10 does not accept.
+
+SAMPLING MUST BE GL_NEAREST
+---------------------------
+Worth knowing because getting it wrong is silent. xBR reconstructs edges from
+exact texels; if the texture is sampled with GL_LINEAR its neighbourhood is
+already blurred, the edge detection finds nothing, and the output is
+indistinguishable from plain bilinear. Measured while porting: with GL_LINEAR the
+result was 96.4% pixel-identical to bilinear, with GL_NEAREST it is 96.3%
+identical to nearest and 30.0% to bilinear - which is the signature to expect,
+since xBR leaves flat areas exactly alone and only changes pixels along edges.
+
+XBR_SCALE is 3.0, as upstream. It tunes the edge-slope thresholds rather than
+fixing an output size, so the filter works at any magnification - which is what
+lets the window be any size.
+
+VERIFYING IT AFTER AN UPDATE
+----------------------------
+The shader compiles in any WebGL context, so it can be checked without building
+the game: create a context, compile both stages, read the info logs. Beyond that,
+render a real frame through it at 3x and compare against nearest and bilinear -
+the percentages above are what a working port looks like.

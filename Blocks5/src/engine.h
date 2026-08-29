@@ -55,6 +55,13 @@ class Engine : public Singleton<Engine>
 	friend class Singleton<Engine>;
 
 public:
+	// Wie das intern gerenderte 640x480-Bild auf den Bildschirm kommt.
+	enum UpscaleFilter
+	{
+		UF_NEAREST = 0,   // harte Kanten; nur bei ganzzahliger Vergroesserung sinnvoll
+		UF_BILINEAR,      // die Hardware macht es, kostet nichts
+		UF_XBR            // kantengefuehrt, siehe libs/xbr
+	};
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen, bool useHQ2X);
 	void exit();
 	void mainLoop();
@@ -83,6 +90,14 @@ public:
 	// Wohin im Fenster das 640x480-Bild kommt: mittig, Seitenverhaeltnis
 	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
+
+	// Der xBR-Filter. Laesst er sich nicht uebersetzen, faellt die Anzeige auf
+	// UF_BILINEAR zurueck; das Spiel laeuft in jedem Fall.
+	bool createXbrProgram();
+	void destroyXbrProgram();
+
+	void setUpscaleFilter(UpscaleFilter filter);
+	UpscaleFilter getUpscaleFilter() const { return upscaleFilter; }
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -226,6 +241,11 @@ private:
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
+	UpscaleFilter upscaleFilter;
+	uint xbrProgram;
+	int xbrDecalLocation;
+	int xbrTextureSizeLocation;
+	uint xbrVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;
 	uint lastRecordedFrameTimecode;

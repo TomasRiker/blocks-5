@@ -4,6 +4,7 @@
 #endif
 #include "engine.h"
 #include "glextensions.h"
+#include "xbr_lv2.h"
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
@@ -44,6 +45,10 @@ Engine::Engine()
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
 	useFrameBuffer = false;
+	upscaleFilter = UF_BILINEAR;
+	xbrProgram = 0;
+	xbrDecalLocation = -1;
+	xbrTextureSizeLocation = -1;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -371,6 +376,12 @@ bool Engine::init(const std::string& windowCaption,
 	{
 		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
 	}
+	else if(GLExtensions::haveShaders())
+	{
+		createXbrProgram();
+	}
+	// Jetzt erst gegenprüfen: ohne übersetztes Programm wird aus xBR bilinear.
+	setUpscaleFilter(upscaleFilter);
 
 	// Texturen für Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
@@ -505,6 +516,7 @@ void Engine::exit()
 	GUI::inst().exit();
 
 	// Bildpuffer freigeben, solange der GL-Kontext noch steht
+	destroyXbrProgram();
 	destroyFrameBuffer();
 
 	// Manager herunterfahren
@@ -1108,6 +1120,96 @@ std::string Engine::getBestOpenALDevice()
 	else return p_device;
 }
 
+namespace
+{
+	// Uebersetzt eine Stufe und gibt bei einem Fehler das Log aus.
+	uint compileShaderStage(GLenum type, const char* p_source, const char* p_what)
+	{
+		const uint shader = glExtCreateShader(type);
+		if(!shader) return 0;
+
+		glExtShaderSource(shader, 1, &p_source, 0);
+		glExtCompileShader(shader);
+
+		GLint ok = 0;
+		glExtGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+		if(!ok)
+		{
+			char log[1024] = "";
+			glExtGetShaderInfoLog(shader, sizeof(log) - 1, 0, log);
+			printfLog("- WARNING: Could not compile the %s shader: %s\n", p_what, log);
+			glExtDeleteShader(shader);
+			return 0;
+		}
+		return shader;
+	}
+}
+
+bool Engine::createXbrProgram()
+{
+	const uint vs = compileShaderStage(GL_VERTEX_SHADER, p_xbrVertexShader, "xBR vertex");
+	if(!vs) return false;
+	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_xbrFragmentShader, "xBR fragment");
+	if(!fs) { glExtDeleteShader(vs); return false; }
+
+	xbrProgram = glExtCreateProgram();
+	glExtAttachShader(xbrProgram, vs);
+	glExtAttachShader(xbrProgram, fs);
+	// Feste Plaetze, damit hinterher nichts abgefragt werden muss.
+	glExtBindAttribLocation(xbrProgram, 0, "aPosition");
+	glExtBindAttribLocation(xbrProgram, 1, "aTexCoord");
+	glExtLinkProgram(xbrProgram);
+
+	// Die Stufen haengen jetzt am Programm und werden mit ihm freigegeben.
+	glExtDeleteShader(vs);
+	glExtDeleteShader(fs);
+
+	GLint ok = 0;
+	glExtGetProgramiv(xbrProgram, GL_LINK_STATUS, &ok);
+	if(!ok)
+	{
+		char log[1024] = "";
+		glExtGetProgramInfoLog(xbrProgram, sizeof(log) - 1, 0, log);
+		printfLog("- WARNING: Could not link the xBR program: %s\n", log);
+		destroyXbrProgram();
+		return false;
+	}
+
+	xbrDecalLocation       = glExtGetUniformLocation(xbrProgram, "decal");
+	xbrTextureSizeLocation = glExtGetUniformLocation(xbrProgram, "TextureSize");
+
+	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein Puffer
+	// sein. Vier Eckpunkte, jedes Bild neu gefuellt - das kostet nichts und
+	// erspart es, auf Fenstergroessenaenderungen zu achten.
+	glExtGenBuffers(1, &xbrVertexBuffer);
+	if(!xbrVertexBuffer)
+	{
+		printfLog("- WARNING: Could not create the xBR vertex buffer.\n");
+		destroyXbrProgram();
+		return false;
+	}
+
+	printfLog("  Upscale filters:  nearest, bilinear, xBR\n");
+	return true;
+}
+
+void Engine::destroyXbrProgram()
+{
+	if(xbrVertexBuffer) { glExtDeleteBuffers(1, &xbrVertexBuffer); xbrVertexBuffer = 0; }
+	if(xbrProgram) { glExtDeleteProgram(xbrProgram); xbrProgram = 0; }
+	xbrDecalLocation = -1;
+	xbrTextureSizeLocation = -1;
+	xbrVertexBuffer = 0;
+}
+
+void Engine::setUpscaleFilter(UpscaleFilter filter)
+{
+	// Ohne uebersetztes Programm gibt es kein xBR - dann lieber bilinear als
+	// ein Bild, das gar nicht erst erscheint.
+	if(filter == UF_XBR && !xbrProgram) filter = UF_BILINEAR;
+	upscaleFilter = filter;
+}
+
 bool Engine::createFrameBuffer()
 {
 	if(!GLExtensions::haveFrameBufferObjects()) return false;
@@ -1232,12 +1334,66 @@ void Engine::presentFrame()
 	const double v = static_cast<double>(screenSize.y) / frameTextureSize.y;
 
 	glBindTexture(GL_TEXTURE_2D, frameTextureID);
-	glBegin(GL_QUADS);
-	glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
-	glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
-	glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
-	glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
-	glEnd();
+
+	// Nearest und Bilinear sind reine Filtereinstellungen der Textur, dafuer
+	// braucht es keinen Shader. xBR braucht ebenfalls GL_NEAREST: der Shader
+	// rekonstruiert die Kanten selbst aus exakten Texeln, und mit bilinear
+	// vorgemischten Nachbarn findet seine Kantenerkennung nichts mehr - das
+	// Ergebnis ist dann kaum von bilinear zu unterscheiden.
+	const GLint filter = (upscaleFilter == UF_BILINEAR) ? GL_LINEAR : GL_NEAREST;
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+
+	if(upscaleFilter == UF_XBR && xbrProgram && xbrVertexBuffer)
+	{
+		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
+		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
+		// Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
+		const float x0 = 2.0f * x           / displaySize.x - 1.0f;
+		const float x1 = 2.0f * (x + w)     / displaySize.x - 1.0f;
+		const float y0 = 2.0f * y           / displaySize.y - 1.0f;
+		const float y1 = 2.0f * (y + h)     / displaySize.y - 1.0f;
+		const float fu = static_cast<float>(u), fv = static_cast<float>(v);
+
+		// Zwei Dreiecke als Streifen: Position, dann Texturkoordinate.
+		const float vertices[16] =
+		{
+			x0, y0, 0.0f, 0.0f,
+			x1, y0, fu,   0.0f,
+			x0, y1, 0.0f, fv,
+			x1, y1, fu,   fv
+		};
+
+		glExtUseProgram(xbrProgram);
+		if(xbrDecalLocation >= 0)       glExtUniform1i(xbrDecalLocation, 0);
+		if(xbrTextureSizeLocation >= 0) glExtUniform2f(xbrTextureSizeLocation,
+													   static_cast<float>(frameTextureSize.x),
+													   static_cast<float>(frameTextureSize.y));
+
+		glExtBindBuffer(GL_ARRAY_BUFFER, xbrVertexBuffer);
+		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+		glExtEnableVertexAttribArray(0);
+		glExtEnableVertexAttribArray(1);
+		glExtVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(0));
+		glExtVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(2 * sizeof(float)));
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		glExtDisableVertexAttribArray(0);
+		glExtDisableVertexAttribArray(1);
+		glExtBindBuffer(GL_ARRAY_BUFFER, 0);
+		glExtUseProgram(0);
+	}
+	else
+	{
+		glBegin(GL_QUADS);
+		glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
+		glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
+		glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
+		glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
+		glEnd();
+	}
+
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	glPopMatrix();
@@ -2114,6 +2270,21 @@ void Engine::loadConfig()
 			if(p_text) setLanguage(p_text);
 		}
 
+		// Skalierungsfilter lesen. Wird hier nur gemerkt - ob xBR wirklich geht,
+		// steht erst fest, wenn der GL-Kontext da ist und das Programm übersetzt
+		// wurde; init() ruft danach setUpscaleFilter() zum Gegenprüfen.
+		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
+		if(p_upscaler)
+		{
+			const char* p_text = p_upscaler->GetText();
+			if(p_text)
+			{
+				if(!_stricmp(p_text, "nearest"))       upscaleFilter = UF_NEAREST;
+				else if(!_stricmp(p_text, "bilinear")) upscaleFilter = UF_BILINEAR;
+				else if(!_stricmp(p_text, "xbr"))      upscaleFilter = UF_XBR;
+			}
+		}
+
 		// Sound-Lautstärke lesen
 		TiXmlElement* p_soundVolume = p_config->FirstChildElement("SoundVolume");
 		if(p_soundVolume)
@@ -2182,6 +2353,12 @@ void Engine::saveConfig()
 	TiXmlElement* p_language = new TiXmlElement("Language");
 	p_language->LinkEndChild(new TiXmlText(language));
 	p_config->LinkEndChild(p_language);
+
+	// Skalierungsfilter schreiben
+	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
+	p_upscaler->LinkEndChild(new TiXmlText(upscaleFilter == UF_NEAREST  ? "nearest" :
+										   upscaleFilter == UF_XBR      ? "xbr" : "bilinear"));
+	p_config->LinkEndChild(p_upscaler);
 
 	// Sound-Lautstärke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");
