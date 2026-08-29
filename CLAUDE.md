@@ -81,7 +81,10 @@ stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Rele
 `zip_skins_no_optipng.bat` skip that step. Both require `tools\7za.exe`.
 
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
-correct) because it opens `data.zip` relative to the cwd. There are **no tests and no linter**.
+correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
+does that for you; it has to come last, because every argument after it goes to `blocks5.exe`
+untouched (`Build.bat Debug /rebuild /run -windowed -hq2x`). There are **no tests and no
+linter**.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-hq2x`
 (`hq2x.bat`). Debug builds default to windowed + Console subsystem and skip the SEH crash

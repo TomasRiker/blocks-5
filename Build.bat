@@ -19,6 +19,11 @@ REM    /clean          delete every build product and exit without building.
 REM                    Both configurations, both the compiler output and the
 REM                    packed archives. Nothing else is touched - see the list
 REM                    at :doclean below
+REM    /run [args]     after a successful build, run the game. Everything after
+REM                    /run is passed to blocks5.exe untouched, so it has to come
+REM                    last: Build.bat /run -windowed -hq2x. The game runs with
+REM                    Blocks5\ as the working directory, because it opens
+REM                    data.zip relative to the current directory
 REM    -h, --help, /?  show a short usage summary
 REM
 REM  ABOUT THE TOOLSET
@@ -56,6 +61,8 @@ SET "PACKDATA=1"
 SET "OPTIPNG=0"
 SET "DOSTAGE=0"
 SET "DOCLEAN=0"
+SET "DORUN=0"
+SET "GAMEARGS="
 
 REM --------------------------------------------------------------- arguments
 :parseargs
@@ -68,6 +75,7 @@ IF /I "%ARG%"=="/optipng" GOTO opt_optipng
 IF /I "%ARG%"=="/stage"   GOTO opt_stage
 IF /I "%ARG%"=="/rebuild" GOTO opt_rebuild
 IF /I "%ARG%"=="/clean"   GOTO opt_clean
+IF /I "%ARG%"=="/run"     GOTO opt_run
 IF /I "%ARG%"=="/?"       GOTO usage
 IF /I "%ARG%"=="-h"       GOTO usage
 IF /I "%ARG%"=="--help"   GOTO usage
@@ -104,6 +112,17 @@ GOTO parseargs
 SET "DOCLEAN=1"
 SHIFT
 GOTO parseargs
+REM /run swallows the rest of the command line, so that the game's own
+REM switches cannot collide with Build.bat's. %1 rather than %~1 below: whatever
+REM quoting the caller used is handed on unchanged.
+:opt_run
+SET "DORUN=1"
+SHIFT
+:collectgameargs
+IF "%~1"=="" GOTO argsdone
+SET "GAMEARGS=%GAMEARGS% %1"
+SHIFT
+GOTO collectgameargs
 :opt_toolset
 SET "TOOLSET=%ARG:~9%"
 SHIFT
@@ -114,7 +133,10 @@ SHIFT
 GOTO parseargs
 :argsdone
 
-IF "%DOCLEAN%"=="1" GOTO doclean
+IF "%DOCLEAN%"=="1" (
+	IF "%DORUN%"=="1" ECHO NOTE: /clean deletes and exits; /run is ignored.
+	GOTO doclean
+)
 
 REM v141 and newer resolve the Windows SDK themselves and default to 8.1, which
 REM is usually not installed any more - hence MSB8036. Pass a version for them;
@@ -261,6 +283,7 @@ POPD
 ECHO.
 ECHO === Done ===
 ECHO     %CD%\%CONFIG%\blocks5.exe
+IF "%DORUN%"=="1" GOTO rungame
 ECHO.
 ECHO     Run it with Blocks5\ as the working directory - the game opens
 ECHO     data.zip relative to the current directory:
@@ -268,9 +291,31 @@ ECHO.
 ECHO         cd Blocks5
 ECHO         ..\%CONFIG%\blocks5.exe -windowed
 ECHO.
+ECHO     Or let Build.bat do it:  Build.bat /run -windowed
+ECHO.
 POPD
 ENDLOCAL
 EXIT /B 0
+
+REM -------------------------------------------------------------- /run
+REM Exactly what the message above describes: Blocks5\ as the working directory,
+REM because FileSystem opens data.zip relative to it. A Release build is a
+REM Windows-subsystem binary, so cmd does not wait for it and the prompt comes
+REM back immediately; a Debug build is Console subsystem and does block here.
+:rungame
+IF NOT EXIST "%CONFIG%\blocks5.exe" (
+	ECHO.
+	ECHO ERROR: %CONFIG%\blocks5.exe is not there, so /run has nothing to run.
+	GOTO fail
+)
+ECHO.
+ECHO === Running blocks5.exe%GAMEARGS% ===
+PUSHD Blocks5
+"..\%CONFIG%\blocks5.exe"%GAMEARGS%
+SET "GAMEEXIT=%ERRORLEVEL%"
+POPD
+POPD
+ENDLOCAL & EXIT /B %GAMEEXIT%
 
 REM ------------------------------------------------------------------- clean
 REM Everything removed here is a build product: MSBuild writes it, or
@@ -359,11 +404,18 @@ EXIT /B 1
 ECHO.
 ECHO Usage: Build.bat [Release^|Debug] [/toolset:vNNN] [/sdk:VERSION]
 ECHO                  [/nodata] [/optipng] [/stage] [/rebuild]
+ECHO                  [/run [arguments for the game]]
 ECHO        Build.bat /clean
 ECHO.
 ECHO Builds Blocks5.sln for Win32 - v143 by default, v120 and v140 also work -
 ECHO then packs data.zip and the skin archives, which are not in Git.
 ECHO The /clean option removes all of that again, for both configurations.
+ECHO.
+ECHO /run runs the game afterwards, with Blocks5\ as the working directory.
+ECHO It must come last: everything after it goes to blocks5.exe untouched.
+ECHO     Build.bat /run -windowed
+ECHO     Build.bat Debug /rebuild /run -windowed -hq2x
+ECHO.
 ECHO Open this file in an editor for the toolset notes.
 ECHO.
 POPD

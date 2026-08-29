@@ -15,6 +15,7 @@ Git and that the game cannot start without.
     Build.bat /toolset:v120       build with the original Visual Studio 2013 toolset
     Build.bat /stage              also assemble a redistributable tree in Blocks5\stage
     Build.bat /clean              delete every build product again, and exit
+    Build.bat /run -windowed      build, then run the game with these arguments
     Build.bat /?                  all options
 
 For a compiler-only setup, "Build Tools for Visual Studio 2022" is enough; no IDE is needed.
@@ -25,6 +26,13 @@ relative to the current directory:
 
     cd Blocks5
     ..\Release\blocks5.exe -windowed
+
+`Build.bat /run` does exactly that for you. It has to come last on the command line, because
+everything after it is handed to `blocks5.exe` untouched — that is what keeps the game's own
+switches from colliding with Build.bat's:
+
+    Build.bat /run -windowed
+    Build.bat Debug /rebuild /run -windowed -hq2x
 
 To build from the IDE instead, open `Blocks5.sln`, build all three projects, and run
 `zip_data.bat` and `zip_skins.bat` in `Blocks5\` once.
