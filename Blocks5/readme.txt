@@ -52,26 +52,20 @@ Changelog
             HQ2X mode. It scaled the picture on the processor,
             cost about half of the time available for a frame,
             and changed less than 5% of the pixels. In its place
-            the options now have a "Scaling" setting with five
+            the options now have a "Scaling" setting with three
             choices:
 
-              Sharp          every pixel the same size, so the
-                             picture only grows in whole steps
-                             and does not fill the window
-              Sharp, fitted  the same crisp look, but at any
-                             size: it fills the window and pays
-                             for it with a soft edge about one
-                             pixel wide
+              Sharp, fitted  crisp pixels at any window size.
+                             This is the new default. It needs a
+                             graphics card that can run shaders,
+                             which means anything made since
+                             about 2005; if yours cannot, the
+                             entry is simply not offered and the
+                             game uses "Sharp" instead
+              Sharp          every pixel exactly the same size,
+                             so the picture only grows in whole
+                             steps and does not fill the window
               Smooth         plain stretching, blurry
-              xBR            reconstructs the edges instead of
-                             stretching them
-              xBR, detailed  the same, judging colours a little
-                             differently; the difference is small
-
-            The last three run on the graphics card and are
-            practically free. They need a card that can run
-            shaders - anything made since about 2005; if yours
-            cannot, those entries are simply not offered.
 
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as

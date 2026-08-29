@@ -18,7 +18,7 @@ INC="-I$GAME/src -I$HERE
      -I$GAME/libs/tinyxml-2.6.2 -I$GAME/libs/sigslot -I$GAME/libs/mtrand-1.1
      -I$GAME/libs/openal-soft-1.25.2/include -I$GAME/libs/openal-soft-1.25.2/include/AL
      -I$GAME/libs/libvorbis-1.3.4/include -I$GAME/libs/libvorbis-1.3.4/lib
-     -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.3.1 -I$GAME/libs/stb -I$GAME/libs/xbr
+     -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.3.1 -I$GAME/libs/stb
      -I$GAME/libs/zlib-1.3.1/contrib/minizip"
 
 CFLAGS="-O2 -DTIXML_USE_STL -sUSE_SDL=1 $INC"

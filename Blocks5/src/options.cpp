@@ -20,8 +20,6 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->connectClicked(this, &Options::handleClick);
@@ -66,27 +64,25 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->check();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->check();
 
-	// Skalierungsfilter, von oben nach unten das Beste zuerst. Was die Maschine
-	// nicht kann, wird gar nicht erst gezeigt - anzubieten, was ohnehin nicht
-	// geht, wäre gelogen -, und die übrigen rücken nach oben nach, damit keine
-	// Lücke bleibt.
-	const bool xbrAvailable = engine.canUseXbr();
-	const bool sharpFitAvailable = engine.canUseSharpFit();
-	const char* pp_filterNames[5] =
+	// Skalierungsfilter, von oben nach unten das Beste zuerst. Ohne Shader gibt
+	// es "Scharf, angepasst" gar nicht erst zu sehen - anzubieten, was die
+	// Maschine nicht kann, wäre gelogen -, und die übrigen rücken nach oben
+	// nach, damit keine Lücke bleibt.
+	const char* pp_filterNames[3] =
 	{
-		"Options.XbrDetails", "Options.Xbr", "Options.SharpFit", "Options.Bilinear", "Options.Nearest"
+		"Options.SharpFit", "Options.Nearest", "Options.Bilinear"
 	};
-	const bool available[5] = { xbrAvailable, xbrAvailable, sharpFitAvailable, true, true };
+	const bool available[3] = { engine.canUseSharpFit(), true, true };
 
-	int filterY = 50;
-	for(int i = 0; i < 5; i++)
+	int filterY = 52;
+	for(int i = 0; i < 3; i++)
 	{
 		GUI_Element* p_button = getChild(pp_filterNames[i]);
 		if(available[i])
 		{
 			p_button->setPosition(Vec2i(p_button->getPosition().x, filterY));
 			p_button->show();
-			filterY += 18;
+			filterY += 19;
 		}
 		else p_button->hide();
 	}
@@ -95,8 +91,6 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	{
 	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->check(); break;
 	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->check(); break;
-	case Engine::UF_XBR:        static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->check(); break;
-	case Engine::UF_XBR_DETAIL: static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->check(); break;
 	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->check(); break;
 	}
 
@@ -134,8 +128,6 @@ void Options::handleClick(GUI_Element* p_element)
 		if(static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->isChecked()) engine.setUpscaleFilter(Engine::UF_XBR);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->isChecked()) engine.setUpscaleFilter(Engine::UF_XBR_DETAIL);
 
 		if(name == "Actions")
 		{

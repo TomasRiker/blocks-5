@@ -38,8 +38,24 @@
    nearest heraus.
 
    Kein #version: 110 auf dem Desktop, 100 unter GLSL ES, und der Quelltext
-   uebersetzt als beides. Die Eckpunkte liefert derselbe Vertex-Shader wie fuer
-   xBR (p_xbrVertexShader in libs/xbr/xbr_lv2.h). */
+   uebersetzt als beides. */
+
+/* Die Eckpunkte kommen fertig in Clipkoordinaten aus presentFrame(), es gibt
+   also nichts zu transformieren. Kein Anfassen des Fixed-Function-Zustands, und
+   im Browser damit auch keine Beruehrung mit Emscriptens
+   Immediate-Mode-Nachbau. */
+static const char* p_presentVertexShader =
+	"#ifdef GL_ES\n"
+	"precision highp float;\n"
+	"#endif\n"
+	"attribute vec2 aPosition;\n"
+	"attribute vec2 aTexCoord;\n"
+	"varying vec2 texCoord;\n"
+	"void main()\n"
+	"{\n"
+	"    texCoord = aTexCoord;\n"
+	"    gl_Position = vec4(aPosition, 0.0, 1.0);\n"
+	"}\n";
 
 static const char* p_sharpFitFragmentShader =
 	"#ifdef GL_ES\n"

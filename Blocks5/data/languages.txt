@@ -191,16 +191,6 @@ $O_UPSCALER_SHARP_FIT
 §en:Sharp, fitted
 §de:Scharf, angepasst
 
-$O_UPSCALER_XBR
-// Caption of the xBR scaling radio button
-§en:xBR
-§de:xBR
-
-$O_UPSCALER_XBR_DETAILS
-// Caption of the xBR (small details) scaling radio button
-§en:xBR, detailed
-§de:xBR, detailliert
-
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:

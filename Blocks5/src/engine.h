@@ -60,9 +60,7 @@ public:
 	{
 		UF_NEAREST = 0,   // harte Kanten; nur bei ganzzahliger Vergroesserung sinnvoll
 		UF_BILINEAR,      // die Hardware macht es, kostet nichts
-		UF_SHARP_FIT,     // nearest auf die naechste ganzzahlige Stufe, dann herunter
-		UF_XBR,           // kantengefuehrt, siehe libs/xbr
-		UF_XBR_DETAIL     // dito mit small_details=1: glaettet auch Raster wie das Gras
+		UF_SHARP_FIT      // nearest auf die naechste ganzzahlige Stufe, dann herunter
 	};
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool defaultFullScreen);
 	void exit();
@@ -106,11 +104,9 @@ public:
 	bool isFullScreen() const { return fullScreen; }
 	Vec2i getDesktopSize() const;
 
-	// Der xBR-Filter. Laesst er sich nicht uebersetzen, faellt die Anzeige auf
-	// UF_BILINEAR zurueck; das Spiel laeuft in jedem Fall.
-	bool createXbrProgram();
-	void destroyXbrProgram();
-	// Und der billige Verwandte: ein Fetch, siehe src/sharpfit_shader.h.
+	// Der einzige Shader, den das Spiel benutzt: siehe src/sharpfit_shader.h.
+	// Laesst er sich nicht uebersetzen, faellt die Anzeige auf UF_NEAREST
+	// zurueck; das Spiel laeuft in jedem Fall.
 	bool createSharpFitProgram();
 	void destroySharpFitProgram();
 
@@ -125,8 +121,7 @@ public:
 	// Die Namen, unter denen der Filter in der config.xml steht.
 	static const char* getUpscaleFilterName(UpscaleFilter filter);
 	static UpscaleFilter parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback);
-	bool canUseXbr() const;        // hat die Maschine Shader und Bildpuffer?
-	bool canUseSharpFit() const;
+	bool canUseSharpFit() const;   // hat die Maschine Shader und Bildpuffer?
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -277,16 +272,12 @@ private:
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
 	UpscaleFilter upscaleFilter;
-	uint xbrProgram;
-	int xbrDecalLocation;
-	int xbrTextureSizeLocation;
-	int xbrSmallDetailsLocation;
 	uint sharpFitProgram;
 	int sharpFitDecalLocation;
 	int sharpFitTextureSizeLocation;
 	int sharpFitFrameSizeLocation;
 	int sharpFitPrescaleLocation;
-	uint xbrVertexBuffer;
+	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;
 	uint lastRecordedFrameTimecode;

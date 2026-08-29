@@ -126,8 +126,9 @@ whatever size the window is; only `computePresentRect` changes, and the cursor m
 read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 `glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
-are core and the header just `#define`s them through. Five upscale filters
-(`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`:
+are core and the header just `#define`s them through. Three upscale filters
+(`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`;
+`sharp-fit` is the default where the machine can run it:
 
 - `nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`. `nearest` additionally snaps the
   blit to an integer scale, which is the whole point of choosing it.
@@ -139,15 +140,21 @@ are core and the header just `#define`s them through. Five upscale filters
   result. Verified against a real two-pass: pixel-identical at an integer scale, max channel
   difference 1 (8-bit rounding in the intermediate) at fractional ones. It **must** sample
   with `GL_LINEAR` — the hardware interpolation *is* the filter.
-- `xbr` and `xbr-details` run the shader in `libs/xbr`, which **must** sample with
-  `GL_NEAREST`, or its edge detection has nothing to work with and the output is bilinear at
-  ten times the cost.
 
 Relative cost of one present, measured on a software rasterizer so read it as ratios: nearest
-1.0, bilinear 1.3, sharp-fit 1.75, xBR 10.9. Without an FBO the game renders straight to the
-back buffer as before; without a shader, xBR degrades to bilinear and sharp-fit to nearest
-(`getEffectiveUpscaleFilter`), and the options dialog hides the entries that cannot work.
-Neither is fatal.
+1.0, bilinear 1.3, sharp-fit 1.75. Without an FBO the game renders straight to the back buffer
+as before; without a shader, sharp-fit degrades to nearest (`getEffectiveUpscaleFilter`) and
+the options dialog hides that entry. Neither is fatal.
+
+**xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
+keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
+is airbrushed and photographic. Every decision in xBR is a `step()` against a threshold, which
+is stable when neighbouring texels are either identical or plainly different and is not stable
+when they sit near the threshold. Nudging a frame by 0–3 of 255 — about what the animated level
+does where it shows through a semi-transparent dialog — moved 1% of xBR's output pixels by up
+to 154, all on glyph outlines, while nearest, bilinear and sharp-fit moved by exactly what the
+input moved. That was visible as text flickering. A CRT-style effect is the idea for a
+nostalgic filter instead; see ROADMAP item 11.
 
 **The window.** Resizable, aspect kept, black bars. **SDL's video flags are
 `SDL_OPENGL | SDL_RESIZABLE` for the whole life of the process and must stay that way** —
@@ -299,7 +306,7 @@ filenames, shipped zipped in `levels/campaigns/`.
 
 ### Every local change to a vendored library
 
-Five libraries are patched, in eight files. Everything else is byte-identical to upstream.
+Four libraries are patched, in seven files. Everything else is byte-identical to upstream.
 Each is explained where it lives — in the file itself and in that library's `PROVENANCE.txt`.
 
 | library | file | what |
@@ -310,7 +317,6 @@ Each is explained where it lives — in the file itself and in that library's `P
 | zlib 1.3.1 | `contrib/minizip/iowin32.c` | `IOWIN32_USING_WINRT_API` commented out; this is a desktop build |
 | shine | `l3mdct.c`, `l3subband.c` | `__attribute__((unused))` guarded for MSVC as well as Borland |
 | minimp4 | `minimp4.h` | the `esds` descriptor: real `objectTypeIndication`, optional DSI, reserved bit, `SLConfigDescriptor`, measured bitrate |
-| xBR-lv2 | `xbr_lv2.h` | a port, not a patch: rewritten to compile as GLSL 1.10 *and* GLSL ES 1.00 (no `mat4x3`, 7 varyings fewer, const globals), **plus two bug fixes** — the libretro GLSL reads `f4` without ever assigning it, and mixes BT.601 and BT.709 luma in the same comparisons; the Cg original does neither |
 
 `libogg` and `libvorbis` differ from their git tags only in expanded SVN `$Id$` keywords in
 five headers, which is what marks them as coming from the release tarballs rather than a

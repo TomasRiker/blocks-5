@@ -48,16 +48,20 @@ Once the game detects its own language, `makeconfig.bat` and the two
 hq2x is gone from the tree: `src/hq2x.cpp`/`.h`, `libs/bin/hq2x32.obj`, the
 `AdditionalDependencies` entry that linked it, `useHQ2X`, `Engine::upscaleFrame`,
 the `-hq2x` switch, `hq2x.bat`, the installer's HQ2X start-menu entry, and the
-`WebBuild` glob exclusion with its stubs. xBR-lv2 runs as a fragment shader in
-its place, in both builds. The rest of this entry is why, kept because the
-measurements are the argument.
+`WebBuild` glob exclusion with its stubs. `sharp-fit`, a twenty-line shader of our
+own, runs in its place, in both builds. The rest of this entry is why, kept
+because the measurements are the argument.
+
+**xBR-lv2 was the answer for a while and is also gone; see below.** Its removal is
+the more interesting result of this item, because it says something about the
+game's art rather than about hq2x's licence.
 
 Three separate problems, all of them now moot:
 
 - **No source.** The object was MaxSt's hq2x, LGPL 2.1, statically linked. That is
   the arrangement we deliberately avoided for OpenAL Soft — static LGPL linking
-  carries relinking obligations that a dynamically shipped DLL does not. xBR-lv2
-  is MIT and ships as source.
+  carries relinking obligations that a dynamically shipped DLL does not. Nothing
+  in the tree is linked that way any more.
 - **`Blocks5/src/hq2x.cpp` had inline `__asm`.** The glue that built the two
   lookup tables ended with an x86 `__asm { cpuid }` block probing for MMX. That is
   MSVC-x86-only: it blocked x64, it blocked Clang and GCC, and it is why
@@ -149,36 +153,50 @@ background - two runs of the same build differ *more* from each other than the
 before/after pair does - and gameplay, the stencil light mask, crossfades, the
 scissor-clipped level list and mouse hit-testing all still work.
 
-**The shader half is done too.** xBR-lv2 is vendored in `libs/xbr` as
-`xbr_lv2.h` — the two stages as C string literals, ported to compile as either
-desktop GLSL 1.10 or GLSL ES 1.00 out of the same source, so Windows and the
-browser run the identical shader. `libs/xbr/PROVENANCE.txt` lists all six changes
-against upstream. Its licence, which this entry used to flag as needing a check,
-is **MIT** — `libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian,
-"Permission is hereby granted, free of charge" — a clear improvement on hq2x's
-statically linked LGPL.
+### Why the answer is not an edge-directed filter
 
-Five filters are selectable, and the player picks one in Options -> Scaling,
+xBR-lv2 was vendored in `libs/xbr` for a while — MIT, ported to compile as either
+desktop GLSL 1.10 or GLSL ES 1.00 — and it has been removed again, both variants.
+The reasoning is the same measurement that opens this item, taken one step
+further.
+
+Every decision inside xBR is a `step()` against a threshold: is this texel the
+same colour as that one, is this edge steeper than that one. On flat-shaded pixel
+art those decisions are stable, because neighbouring texels are either identical
+or plainly different. This game's tiles are airbrushed and photographic, so
+neighbouring texels sit *near* the thresholds — and a change too small to see
+flips them. Nudge a frame by 0–3 of 255, about what the animated level does where
+it shows through a semi-transparent dialog, and:
+
+    filter        mean change   pixels moving >8/255   worst pixel
+    nearest          1.5              0.00%                 3
+    bilinear         1.7              0.00%                 3
+    sharp-fit        1.6              0.00%                 3
+    xBR              2.0              1.15%               154
+    xBR detailed     1.9              1.05%               154
+
+The first three move by exactly what the input moved. xBR turns an invisible
+change into 1% of pixels jumping by up to 154, and those pixels are the glyph
+outlines — visible as text flickering over a dialog. The same mechanism smooths
+the dithered grass into strokes, which on photographic tiles reads as smearing
+rather than as reconstruction.
+
+Two bugs in the libretro GLSL had masked this for a while by suppressing the edge
+detection almost entirely (a `f4` that is read without ever being assigned, and
+BT.601 and BT.709 luma mixed in the same comparisons; the Cg original has
+neither). Fixing them made xBR behave correctly and look worse, which is the
+clearest possible statement that the filter does not fit the content.
+
+So both hq2x and xBR — the two edge-directed filters tried here — turned out to be
+answers to a question this game does not ask. What is left is honest scaling:
+`sharp-fit`, `nearest`, `bilinear`.
+
+Three filters are selectable, and the player picks one in Options -> Scaling,
 exactly like the language — there is no command-line switch for it. The choice is
-saved as `<Upscaler>` in `config.xml`: `nearest`, `bilinear`, `sharp-fit`, `xbr`,
-`xbr-details`. `xbr-details` is upstream's `small_details` path, which measures
-"same colour" as BT.709 luminance instead of the BT.601 channel mix. **It is the
-default**, but the two are close: after the two bugs described in
-`libs/xbr/PROVENANCE.txt` were fixed they differ on 13–16% of pixels, all of it
-inside dithered areas, and neither is obviously better. Before those fixes
-`xbr-details` broke contours into disconnected pieces, which is what prompted
-looking at it.
-
-**Open question: xBR may be the wrong filter for this game.** Every decision in it
-is a `step()` against a threshold, which is stable on the flat-shaded pixel art it
-was written for and is not stable on airbrushed, photographic tiles. Nudging a
-frame by 0–3 of 255 — about what the animated level does where it shows through a
-semi-transparent dialog — moves 1% of xBR's output pixels by up to 154, all of
-them on glyph outlines, while `nearest`, `bilinear` and `sharp-fit` move by
-exactly what the input moved and nothing more. That is visible as text flickering
-over a dialog. The numbers and the reasoning are in `libs/xbr/PROVENANCE.txt`. The
-decision to make is whether `xbr-details` should stay the default, or whether
-`sharp-fit` should be — and whether xBR earns two menu rows at all.
+saved as `<Upscaler>` in `config.xml`: `sharp-fit`, `nearest`, `bilinear`.
+**`sharp-fit` is the default** wherever the machine can compile the shader, which
+means GL 2.0, so in practice everywhere; where it cannot, the effective filter is
+`nearest` and the entry is not offered.
 
 `sharp-fit` is `nearest` without the integer-scale restriction, and it is the one
 filter here that is ours rather than vendored — `src/sharpfit_shader.h`, about
@@ -197,7 +215,7 @@ one-pass version does not. The same arithmetic is known as "sharp bilinear" in t
 emulator world (Themaister, libretro); it is derived here rather than copied.
 
 Where the machine has no shader or no framebuffer object, `getEffectiveUpscaleFilter()`
-returns bilinear and the two xBR entries are hidden from the dialog rather than
+returns `nearest` and the `sharp-fit` entry is hidden from the dialog rather than
 offered and ignored. The *wish* is kept as the player set it, so the same
 `config.xml` does the right thing again on a machine that can run it —
 `getUpscaleFilter()` is what was chosen, `getEffectiveUpscaleFilter()` is what is
@@ -212,31 +230,23 @@ people who do not want to make it.
 
 Cost of one present, measured on a software rasterizer at 1280x960, so the numbers
 are only meaningful against each other: nearest 7.3 ms, bilinear 9.7 ms, sharp-fit
-12.8 ms, xBR 79.1 ms. On any real GPU the first three are noise.
+12.8 ms. (xBR, while it was here, cost 79.1 ms.) On any real GPU all three are
+noise.
 
-### Which filter
+### What was considered and rejected
 
-Not an hq2x successor chosen for being newer. The measurement says the frame has
-two regimes and a replacement has to serve both: hard-edged text and GUI, where
-hq2x wins, and anti-aliased photographic tiles, where it degenerates to nearest —
-the wrong answer for downsampled photos.
+The reasoning that led to xBR is worth keeping, because it was right about the
+problem and wrong about the answer. The measurement said the frame has two
+regimes: hard-edged text and GUI, where hq2x wins, and anti-aliased photographic
+tiles, where it degenerates to nearest. xBR looked like it served both — same
+edge-detection premise, but blending along detected edges instead of snapping.
+What that missed is that "anti-aliased photographic" is not a regime an
+edge-directed filter degrades *gracefully* on; it is one where its decisions
+become unstable. See above.
 
-**xBR (the "lv2" formulation), as a single fragment shader at an arbitrary scale
-factor**, is the recommendation. Same edge-detection premise as hq2x, so the text
-and GUI keep the look they have, but it *blends* along detected edges instead of
-snapping, so on the noisy 95% it degrades toward interpolation rather than toward
-nearest. Roughly 150-250 lines of GLSL, no lookup tables, nothing beyond GL 2.0.
-
-Two things to check before committing to it: the licence on whichever port is
-used (Hyllian's shaders vary, some permissive and some GPL — the point of the
-exercise is to improve on statically linked LGPL, not to trade it sideways), and
-whether it turns the rain and the parallax sky to mush, which is where an
-edge-directed filter on photographic content would show it first.
-
-Alternatives that stay on the table: **Scale2x/Scale3x**, much simpler and
-permissive, but it shares hq2x's flat-art premise and would do even less here.
-**Porting hq2x itself to GLSL** — it is a 256-entry pattern table, so a drop-in
-visual match is possible; more code than xBR and locked to exactly 2x.
+**Scale2x/Scale3x** shares hq2x's flat-art premise and would do even less here.
+**Porting hq2x itself to GLSL** — a 256-entry pattern table — would reproduce the
+filter this item set out to replace.
 
 Both are moot now. `hq2x.cpp`'s `__asm` block went with it, and so did the
 `SDL_ListModes` search that hunted for a fullscreen mode of at least 1280x960 —
@@ -273,7 +283,7 @@ What is left as a Windows binary:
 That is the whole list, and it is an import library plus the DLL it imports —
 there is no compiled code without source anywhere in the tree. Everything else is
 built from vendored source: TinyXML, zlib + minizip, libogg, libvorbis,
-stb_image, SDL 1.2.15, minih264, shine, minimp4, xBR-lv2. `hq2x32.obj` was the
+stb_image, SDL 1.2.15, minih264, shine and minimp4. `hq2x32.obj` was the
 last holdout and went with item 2.
 
 **SDL_image is done** — `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
@@ -588,7 +598,7 @@ The letterbox is one calculation, but not the same one for every filter.
   at least 1, times 640x480, centred, with black everywhere else. On a 1920x1080
   window that is 2x, i.e. 1280x960 in the middle with 320-pixel bars either side
   and 60 above and below — deliberately not filling the screen.
-- **Bilinear and xBR take the full fractional scale**, `min(w / 640, h / 480)`,
+- **Bilinear and sharp-fit take the full fractional scale**, `min(w / 640, h / 480)`,
   because both resample properly and an integer scale would only throw away
   screen area.
 
@@ -781,9 +791,45 @@ was: resize, letterbox, cursor mapping, the integer snap, the fullscreen toggle 
 the config round-trip all verified in Chromium.
 
 
+11. A CRT effect
+-----------------
+The idea that replaces xBR, and a much better fit for what a nostalgic filter is
+actually for here. xBR tried to *reconstruct* detail the art never had; a CRT
+effect adds a period-correct presentation on top of the art as drawn, which is
+honest about what it is doing and does not care whether the source is flat-shaded
+or airbrushed.
+
+Nothing about it is decided yet. The pieces such a shader usually has, roughly in
+order of how much they matter:
+
+- **Scanlines** — darken alternate output rows, with the strength scaled by how
+  many output pixels one source row covers, or they alias badly at fractional
+  scales.
+- **A shadow mask or aperture grille** — a per-subpixel RGB pattern. Needs the
+  output to be at least 3x for the pattern to be visible rather than a colour
+  cast.
+- **Barrel distortion and rounded corners** — cheap in the vertex stage or as a
+  texture-coordinate warp; the letterbox rectangle already exists to draw into.
+- **Bloom / halation around bright areas** — the expensive one, and the one that
+  needs a second pass.
+- **Slight horizontal blur**, which is what a real shadow mask does to a scanline.
+
+Two things follow from where the code already is. The framebuffer object and the
+present pass are in place, so this is one more fragment shader in
+`Engine::presentFrame` alongside `sharp-fit`, selected the same way from
+Options -> Scaling and saved under the same `<Upscaler>` key. And whatever it does
+must be a function of the output pixel and the source texel only — no frame-to-
+frame state — or it will flicker the way xBR did.
+
+Worth stealing from rather than inventing: the CRT shaders in
+`libretro/glsl-shaders/crt` (crt-geom, crt-lottes, crt-easymode) are the reference
+implementations, and the same licence check applies as for xBR. crt-easymode is
+the smallest of them and the closest to what a 640x480 game at 2-3x needs.
+
+
 How these connect
 -----------------
-    2 (xBR, done) ────────┬─> 8 (shader upscaler, no readback)  — the readback is gone
+    2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
                           ├─> 5 (Linux: the __asm block no longer blocks GCC/Clang)
                           ├─> 3 (done: libs/bin is one import library)
                           └─> 10 (the FBO is the shared prerequisite, and it is in)
@@ -804,7 +850,7 @@ an increment on it.
 *Done since this list was written:* stb_image in place of SDL_image, the standard
 unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
 source, `/MT`, minih264 + shine + minimp4 in place of ffmpeg, a framebuffer object
-with xBR-lv2 in place of hq2x, and a window that resizes and goes fullscreen
+with a shader upscaler in place of hq2x, and a window that resizes and goes fullscreen
 without ever losing its GL context — which together closed items 2, 3, 9 and 10,
 and the bug that made recorded videos unplayable.
 Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
