@@ -479,6 +479,9 @@ Three things the game should do and currently cannot:
 - **Be resizable**, keeping the 4:3 aspect ratio and letterboxing with black
   bars when the window does not match.
 - **Enter and leave fullscreen while running**, not only via the command line.
+  Borderless — a window styled `WS_POPUP` and sized to the desktop, the way most
+  games do it now — not an exclusive display-mode change. See below: that choice
+  is what keeps the toggle from destroying the GL context.
 - **Switch the upscaling filter while running** — nearest, bilinear, xBR, and
   whatever else item 2 adds.
 
@@ -539,15 +542,18 @@ Three reasons it has to stay that way, not just for tidiness:
   and becomes correct under letterboxing for the first time, because it goes
   through the same inverse transform as everything else.
 
-**Screenshots are the odd one out and need a decision.** `Engine::screenshot`
+**Screenshots go the same way: clean 640x480.** `Engine::screenshot`
 (`engine.cpp:1164`) runs *after* `upscaleFrame()` and reads `displaySize` from
 `GL_BACK`, so today it saves the upscaled image — and once letterboxing exists it
-would save the black bars with it. Reading the FBO instead makes screenshots
-match video at a clean 640x480. That is the better default; the alternative,
-keeping "what you see is what you get", only makes sense if someone actually
-wants the filter's output in the PNG.
+would save the black bars with it. It moves before the blit and reads
+`GL_COLOR_ATTACHMENT0` instead, like the video path. The filter is a display
+setting; it does not belong in the file.
 
-### Resizing is nearly free; the fullscreen toggle is not
+That also simplifies the function: `displaySize.x/y` become `screenSize.x/y`
+throughout, the buffer is a fixed 921,600 bytes, and the row-flip loop stops
+depending on the window.
+
+### Resizing is nearly free, and borderless fullscreen is too
 
 Both facts come out of the vendored SDL, so they are facts about *this* build.
 
@@ -560,33 +566,64 @@ SDL's table (`SDL_video.c:82` vs `:85`). So a resizable window needs
 `SDL_SetVideoMode` with the new size and recomputes the letterbox rectangle, and
 nothing else.
 
-Toggling fullscreen changes `SDL_FULLSCREEN`, so the flags differ, the fast path
-is skipped, and `WIN_GL_ShutDown` runs (`SDL_dibvideo.c:627-630`): **the GL
-context is destroyed and every GL object with it.** `SDL_WM_ToggleFullScreen` is
-not implemented on Windows in SDL 1.2 at all. Two ways out:
+**Real fullscreen is what costs.** Setting `SDL_FULLSCREEN` changes the flags, so
+the fast path is skipped and `WIN_GL_ShutDown` runs (`SDL_dibvideo.c:627-630`):
+the GL context is destroyed and every GL object with it. `SDL_NOFRAME` is no
+better — it is also a flag, and any flag change fails the same test.
+`SDL_WM_ToggleFullScreen` is not implemented on Windows in SDL 1.2 at all.
 
-1. **Rebuild the GL state after the mode change.** Most of the machinery already
-   exists: `Manager<T>::reload()` (`manager.h:107`) reloads every resource of a
-   type from the filesystem and is already used this way for skin changes
-   (`level.cpp:2433-2435`), covering `Texture`, `TileSet` and `Font`. What it does
-   not cover, and what would have to be recreated by hand:
+**So do not ask SDL for it.** Keep the SDL flags constant at
+`SDL_OPENGL | SDL_RESIZABLE` for the entire life of the process, and change the
+Win32 window style directly:
 
-   | | |
-   | --- | --- |
-   | `engine.cpp:362`, `:363` | the two crossfade snapshot textures |
-   | `gui.cpp:471` | the GUI layer texture |
-   | `level.cpp:92` | the toxic-haze warp buffer |
-   | `cf_mosaic.cpp:6`, `gs_credits.cpp:258` | wipe and credits buffers |
-   | `level.cpp:411`, `lightning.cpp:13` | display lists (Windows build only; the tile-layer lists may self-heal via `layerDirty = ~0`) |
+1. `SDL_GetWMInfo` gives the `HWND` (`SDL_syswm.h:147`; `WIN_GetWMInfo` is wired
+   up at `SDL_dibvideo.c:206` and `SDL_syswm.c` is in the compiled subset).
+2. `SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE)` and
+   `SetWindowPos(hwnd, HWND_TOP, 0, 0, screenW, screenH, SWP_FRAMECHANGED)`.
+3. SDL's own `WM_WINDOWPOSCHANGED` handler
+   (`SDL_sysevents.c:576-611`) then posts `SDL_PrivateResize(w, h)` — it gates
+   only on `SDL_RESIZABLE`, not on `SDL_resizing` — which updates the mouse range
+   (`SDL_resize.c:52`) and delivers an ordinary `SDL_VIDEORESIZE`.
+4. The existing resize handler picks that up, calls `SDL_SetVideoMode` with the
+   new size and the same flags, hits the fast path, and the context is never
+   touched.
 
-   Plus the FBO, its stencil renderbuffer and the shader programs from item 2.
-   Doable, but it is a reload of every texture out of `data.zip` on every toggle,
-   so it will not be instant.
+Going back to windowed is the same three lines with the saved style and rectangle.
 
-2. **Move to SDL2**, where `SDL_SetWindowFullscreen` keeps the GL context and
-   `SDL_WINDOW_RESIZABLE` handles the rest. Item 3 already notes that "move to
-   SDL2" is the honest version of the SDL work; this is the strongest concrete
-   argument for it so far.
+**There is therefore only one code path — "the window changed size" — and
+fullscreen is just a particular size plus a style flip.** That is the whole
+answer to the reload problem: nothing is ever destroyed, so nothing has to be
+rebuilt. The table of GL objects that `Manager<T>::reload()` does not cover
+(`engine.cpp:362`/`:363`, `gui.cpp:471`, `level.cpp:92`, `cf_mosaic.cpp:6`,
+`gs_credits.cpp:258`, the display lists at `level.cpp:411` and
+`lightning.cpp:13`, plus the FBO and its stencil renderbuffer) stops being work
+that has to be done and becomes a list to check only if a context is ever lost
+for a reason outside the program's control — a driver reset, an RDP reconnect, a
+driver update mid-session. Those kill a WGL context no matter how the window was
+made; they are rare enough to ignore deliberately, and `Manager<T>::reload()`
+(`manager.h:107`, already used for skin changes at `level.cpp:2433-2435`) is most
+of the recovery if it ever matters.
+
+Three things borderless gains beyond that:
+
+- **No `ChangeDisplaySettings`.** The monitor never switches mode, so alt-tab is
+  instant and does not rearrange the desktop or other windows.
+- **The desktop resolution is what you get** — which is exactly what the FBO
+  wants, since the game renders 640x480 and scales to whatever is there. The
+  `SDL_ListModes` search at `engine.cpp:220-250` disappears entirely.
+- **Nothing is lost by it.** Exclusive fullscreen's remaining advantage is
+  running the monitor at a non-native mode, which this game has no use for; on
+  Windows 10 and later a borderless window that covers the screen gets DWM's
+  independent-flip path and presents as directly as exclusive mode did.
+
+One caveat to design around: SDL's window flags must genuinely never change, so
+the window is created with `SDL_RESIZABLE` even when the game starts
+"fullscreen". Under `WS_POPUP` there is no drag border, so the flag has no
+user-visible effect — it only keeps `SDL_PrivateResize` firing and the fast path
+matching.
+
+The browser needs none of this: the Fullscreen API on the canvas, and the WebGL
+context survives.
 
 ### Mouse coordinates already have the hook — and a bug
 
@@ -616,7 +653,9 @@ dropdown in `data/options.xml` next to the existing video settings, and the
 is a `$ID` in `data/languages.txt` with at least `§en:` and `§de:` bodies.
 
 Fullscreen and window size want to be persisted in `config.xml` too, so the game
-comes back the way it was left.
+comes back the way it was left — and since fullscreen is now just a window size
+plus a style flip, that is one boolean and one `Vec2i`, with no mode list behind
+either. `-fullscreen` and `-windowed` stay as startup overrides.
 
 In the browser none of this needs SDL: the canvas is resized by CSS and the
 Fullscreen API, the WebGL context survives both, and the letterbox arithmetic is
@@ -630,8 +669,8 @@ How these connect
                           ├─> 3 (last non-import binary in libs/bin)
                           └─> 10 (the FBO is the shared prerequisite)
 
-   10 (window behaviour) ──> SDL2, because SDL 1.2 destroys the GL context
-                             on every fullscreen toggle
+   10 (window behaviour) ──> no longer needs SDL2: a borderless window styled
+                             behind SDL's back keeps the GL context alive
 
     3 (all from source) ────> 5 (Linux needs an ffmpeg answer anyway)
 
