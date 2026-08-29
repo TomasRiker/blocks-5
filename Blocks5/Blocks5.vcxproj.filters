@@ -14,6 +14,9 @@
     <Filter Include="MiniZip">
       <UniqueIdentifier>{c87f76a3-8db8-4505-b5b2-b5c6183eecae}</UniqueIdentifier>
     </Filter>
+    <Filter Include="zlib">
+      <UniqueIdentifier>{5c1a8f37-6d24-4b09-a3e8-7f20c4b691ae}</UniqueIdentifier>
+    </Filter>
     <Filter Include="TinyXML">
       <UniqueIdentifier>{7f2c9a41-3e6d-4b58-9c1a-0d5e8b3f6a24}</UniqueIdentifier>
     </Filter>
@@ -358,10 +361,10 @@
     <ClCompile Include="src\videorecorder.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\unzip.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\unzip.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\zip.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
     <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
@@ -379,10 +382,43 @@
     <ClCompile Include="libs\tinyxml-2.6.2\tinyxmlparser.cpp">
       <Filter>TinyXML</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\ioapi.c">
+    <ClCompile Include="libs\zlib-1.3.1\adler32.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\compress.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\crc32.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\deflate.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\infback.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inffast.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inflate.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inftrees.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\trees.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\uncompr.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\zutil.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\ioapi.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\iowin32.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\iowin32.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
   </ItemGroup>
@@ -747,19 +783,19 @@
     <ClInclude Include="src\videorecorder.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\unzip.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\unzip.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\zip.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\zip.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\ioapi.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\ioapi.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\iowin32.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\iowin32.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\crypt.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\crypt.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
   </ItemGroup>

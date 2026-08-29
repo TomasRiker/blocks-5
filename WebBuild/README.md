@@ -22,11 +22,17 @@ Serve `build/` over HTTP; `file://` will not work.
 clean clone needs no other preparation. `./build.sh clean` rebuilds from scratch.
 
 The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
-are compiled from source here instead, from the same versions the tree's headers
-declare — zlib 1.2.8, libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2 — plus
-`stb_image.h` in place of SDL_image. Before they were vendored this build
+are compiled from source here instead — zlib 1.3.1 with its `contrib/minizip`,
+libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2 — plus `stb_image.h` in place of
+SDL_image. The Visual Studio build compiles the same sources from the same
+directories, so the two cannot drift apart. Before they were vendored this build
 compiled whatever the upstream clones happened to be at, which was a *different*
-version of every one of them, so the two builds quietly disagreed.
+version of every one of them.
+
+minizip carries two local changes, both deliberate and both load-bearing:
+`NOUNCRYPT` is commented out in `unzip.c`, which is what makes the game's
+password-protected archives readable at all, and `IOWIN32_USING_WINRT_API` is
+commented out in `iowin32.c`. Everything else is stock.
 
 ## What this build does and doesn't do
 

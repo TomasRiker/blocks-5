@@ -7,7 +7,7 @@
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
-ZLIB="$GAME/libs/zlib-1.2.8"
+ZLIB="$GAME/libs/zlib-1.3.1"
 OUT="$HERE/build-asan"
 source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
 
@@ -18,8 +18,8 @@ INC="-I$GAME/src -I$HERE
      -I$GAME/libs/tinyxml-2.6.2 -I$GAME/libs/sigslot -I$GAME/libs/mtrand-1.1
      -I$GAME/libs/OpenAL-1.1/include
      -I$GAME/libs/libvorbis-1.3.4/include -I$GAME/libs/libvorbis-1.3.4/lib
-     -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.2.8 -I$GAME/libs/stb
-     -I$GAME/libs/zlib-1.2.8/contrib/minizip"
+     -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.3.1 -I$GAME/libs/stb
+     -I$GAME/libs/zlib-1.3.1/contrib/minizip"
 
 CFLAGS="-O1 -fsanitize=address -DTIXML_USE_STL -DBLOCKS5_NO_FFMPEG -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
@@ -31,9 +31,9 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 #   pch          - the Create-PCH translation unit, unused here
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|hq2x|pch)\.cpp$')
 SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/img_load.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp"
-CSRCS="$GAME/libs/zlib-1.2.8/contrib/minizip/ioapi.c
-       $GAME/libs/zlib-1.2.8/contrib/minizip/unzip.c
-       $GAME/libs/zlib-1.2.8/contrib/minizip/zip.c
+CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
+       $GAME/libs/zlib-1.3.1/contrib/minizip/unzip.c
+       $GAME/libs/zlib-1.3.1/contrib/minizip/zip.c
        $ZLIB/adler32.c $ZLIB/compress.c $ZLIB/crc32.c $ZLIB/deflate.c
        $ZLIB/infback.c $ZLIB/inffast.c $ZLIB/inflate.c $ZLIB/inftrees.c
        $ZLIB/trees.c $ZLIB/uncompr.c $ZLIB/zutil.c
