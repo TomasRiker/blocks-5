@@ -17,7 +17,7 @@ copies `_config_en.xml` or `_config_de.xml` to `config.xml` if none exists.
 Anyone who does not run the installer — a zip copy, the browser build — gets
 `<Language>en</Language>` regardless of where they are.
 
-The detection itself is small. `Engine::loadConfig` (`engine.cpp:1899`) already
+The detection itself is small. `Engine::loadConfig` (`engine.cpp:1893`) already
 defaults to `"en"` and reads `<Language>` if present, so the hook is: when the
 config has no `<Language>` element at all, ask the platform instead of falling
 back to English.
@@ -30,7 +30,7 @@ back to English.
 
 Two things make this bigger than it looks:
 
-- `Engine::setLanguage` (`engine.cpp:2031`) hard-rejects anything that is not
+- `Engine::setLanguage` (`engine.cpp:2025`) hard-rejects anything that is not
   `"de"` or `"en"`, and the options dialog (`data/options.xml`) offers exactly
   those two. Detection is pointless until that whitelist is data-driven.
 - `data/languages.txt` looks like it has four languages, but of its 349 string
@@ -165,7 +165,7 @@ permissive, but it shares hq2x's flat-art premise and would do even less here.
 visual match is possible; more code than xBR and locked to exactly 2x.
 
 Whatever replaces it, `hq2x.cpp`'s `__asm` block goes with it. And the
-`SDL_ListModes` search in `engine.cpp:220-250` that hunts for a fullscreen mode
+`SDL_ListModes` search in `engine.cpp:222-252` that hunts for a fullscreen mode
 of at least 1280x960 exists *only* because the filter is locked to exactly 2x —
 see item 10.
 
@@ -403,8 +403,8 @@ pairs naturally with converting the tree to UTF-8: once the comments are
 English, almost nothing needs high bytes any more.
 
 The catch is that "almost" is not "nothing". Some *string literals* genuinely
-carry Latin-1 bytes and are load-bearing — `engine.cpp:2164` compares
-`line[0] == '\xA7'` to parse `data/languages.txt`, `engine.cpp:2212` builds the
+carry Latin-1 bytes and are load-bearing — `engine.cpp:2160` compares
+`line[0] == '\xA7'` to parse `data/languages.txt`, `engine.cpp:2208` builds the
 same section marker, and files like `activatorblock.cpp:61` hold German UI text.
 Converting the sources to UTF-8 changes those literals' bytes. Doing this safely
 means either `/utf-8` plus a UTF-8 BOM for MSVC and matching handling of
@@ -488,7 +488,7 @@ Three things the game should do and currently cannot:
 Today `SDL_SetVideoMode` is called exactly once (`engine.cpp:302`), with no
 `SDL_RESIZABLE`, and the mode is decided at startup from `-windowed` /
 `-fullscreen` / `-hq2x`. Fullscreen with hq2x additionally walks `SDL_ListModes`
-looking for the smallest mode of at least 1280x960 (`engine.cpp:220-250`), a
+looking for the smallest mode of at least 1280x960 (`engine.cpp:222-252`), a
 search that exists only because the filter is hardwired to exactly 2x.
 
 **The FBO from item 2 is what makes all three cheap.** With the game always
@@ -647,7 +647,7 @@ Three things borderless gains beyond that:
   instant and does not rearrange the desktop or other windows.
 - **The desktop resolution is what you get** — which is exactly what the FBO
   wants, since the game renders 640x480 and scales to whatever is there. The
-  `SDL_ListModes` search at `engine.cpp:220-250` disappears entirely.
+  `SDL_ListModes` search at `engine.cpp:222-252` disappears entirely.
 - **Nothing is lost by it.** Exclusive fullscreen's remaining advantage is
   running the monitor at a non-native mode, which this game has no use for; on
   Windows 10 and later a borderless window that covers the screen gets DWM's
@@ -682,12 +682,19 @@ only ever exercised at exactly 1280x960 where all the offsets are zero:
 
 ### Where the settings live
 
-The filter becomes a mode, not a boolean. That means `useHQ2X` in `Engine` gives
-way to an enum, `<HQ2X>` in `config.xml` to something like `<Upscaler>`
-(`Engine::loadConfig`, `engine.cpp:1899`, with the old key still honoured), a
-dropdown in `data/options.xml` next to the existing video settings, and the
-`-hq2x` switch plus `hq2x.bat` replaced by something general. Every new caption
-is a `$ID` in `data/languages.txt` with at least `§en:` and `§de:` bodies.
+The filter becomes a mode, not a boolean: `useHQ2X` in `Engine` gives way to an
+enum, the `-hq2x` switch and `hq2x.bat` are replaced by something general, and a
+dropdown joins `data/options.xml` next to the existing video settings. Every new
+caption is a `$ID` in `data/languages.txt` with at least `§en:` and `§de:` bodies.
+
+Note that **none of this is currently persisted at all.** `config.xml` holds
+exactly `<Language>`, `<SoundVolume>`, `<MusicVolume>`, `<Details>` and
+`<Controls>` — `Engine::loadConfig` at `engine.cpp:1893` and `saveConfig` right
+below it read and write nothing else. Windowed vs. fullscreen and hq2x are
+command-line only (`main.cpp:340-343` and `:350-352`), so they reset on every
+launch. So this is not renaming a key: `<Upscaler>`, `<Fullscreen>` and
+`<WindowSize>` all have to be added to both functions, along with the template
+`_config_en.xml` / `_config_de.xml` the installer copies.
 
 Fullscreen and window size want to be persisted in `config.xml` too, so the game
 comes back the way it was left — and since fullscreen is now just a window size

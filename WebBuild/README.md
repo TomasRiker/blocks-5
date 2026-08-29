@@ -87,7 +87,7 @@ One of those deserves explanation.
 **`gl_immediate.cpp`.** Emscripten's GL emulation computes a block's vertex count
 as `4 * floatsWritten / bytesPerVertex` and asserts the result is whole — which
 only holds if every vertex carries every attribute. Like most fixed-function code,
-this game sets a colour once and then emits four vertices, and 95 of its 119
+this game sets a colour once and then emits four vertices, and most of its 120
 `glBegin` blocks are shaped that way. Rather than rewrite them all, this file
 buffers each block and replays it with the current colour and texcoord attached to
 every vertex.

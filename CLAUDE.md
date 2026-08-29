@@ -6,13 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Blocks 5 — "Bob's Amazing Adventures", a 2D tile-based puzzle/action game. C++ on SDL 1.2 +
 OpenGL + OpenAL Soft, **Windows/Win32 only**. Non-Windows code paths are literal
-`#error NOT IMPLEMENTED` (see `filesystem.cpp`, `main.cpp`), so the tree cannot be compiled or
-run on Linux/macOS — code changes here are edit-and-review only unless you are on Windows with
-Visual Studio. There is also an Emscripten port in `WebBuild/`, which does build and run on
-Linux and is the only way to test a change here without Windows; see `WebBuild/README.md`.
+`#error NOT IMPLEMENTED` (`filesystem.cpp`, `main.cpp`, `file_real.cpp`, `util.cpp`), so the
+tree cannot be compiled or run on Linux/macOS — code changes here are edit-and-review only
+unless you are on Windows with Visual Studio. There is also an Emscripten port in
+`WebBuild/`, which does build and run on Linux and is the only way to test a change here
+without Windows; see `WebBuild/README.md`.
 
-The Windows build is verified on **v143** (Visual Studio 2022 Build Tools): it compiles, links,
-runs windowed, and hq2x works.
+**The Windows build has not been verified since commit `1578fc7`.** That commit recorded a
+clean v143 build (Visual Studio 2022 Build Tools) that compiled, linked, ran windowed and
+did hq2x — but twelve substantial commits have landed on top of it since, none of which has
+been through MSBuild: SDL compiled from source, `/MT`, ffmpeg replaced by
+minih264 + shine + minimp4, stb_image, the standard unordered containers, and OpenAL Soft.
+Everything since has been verified by mingw cross-compilation, by the Emscripten build, and
+by reading. Treat a green MSBuild run as the first thing to establish, not as a given; a
+build failure is expected to be here, not in your change.
 
 ## Build & run
 
@@ -21,8 +28,8 @@ checks the toolset, builds `Blocks5.sln` for `Win32`, and then packs `data.zip` 
 `levels/skins/*.zip`, which are gitignored build products the game cannot start without.
 `Build.bat /?` lists its options.
 
-**Toolset: v143 by default; v120 still works** (`/toolset:v120`). The tree was pinned to v120
-for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
+**Toolset: v143 by default; v140 and v120 also work** (`/toolset:v120`). The tree was pinned
+to v120 for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
 TinyXML 2.6.2 is now compiled from vendored source in `libs/tinyxml-2.6.2` and that library is
 gone. Two things make anything newer than v120 work:
 
@@ -86,7 +93,7 @@ Shared assets derive from `Resource<T>` (`Texture`, `TileSet`, `Font`, `Sound`, 
 obtained through `Manager<T>::inst().request(filename)` / released with `->release()` —
 ref-counted, keyed by filename, never `new`/`delete`d directly.
 
-**Engine** (`engine.cpp`, ~52k) owns the main loop, the window, OpenAL, config, localization,
+**Engine** (`engine.cpp`, ~56k) owns the main loop, the window, OpenAL, config, localization,
 screenshots and video capture. The loop renders as fast as it can but steps logic at a fixed
 `logicRate` of 20 ms (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic
 tick, so gameplay code counts ticks rather than measuring dt.
@@ -175,9 +182,11 @@ PNG and JPEG are enabled, and every image the game ships is a PNG.
 
 **Deployment.** All three projects link the CRT statically (`/MT`, `/MTd` for Debug), so
 nothing needs a Visual C++ redistributable — the installer has no runtime task at all any
-more. Exactly one DLL ships beside the executables, `OpenAL32.dll`, and it imports only
-`msvcrt.dll`, which is part of Windows. Keep it that way: a new dependency that needs a
-redistributable, or a second DLL, undoes the whole arrangement.
+more. Exactly one DLL ships beside the executables, `OpenAL32.dll`, and the only CRT it
+imports is `msvcrt.dll`, which is part of Windows — not a versioned `MSVCR*`/`VCRUNTIME*`
+that would need a redistributable. Its other imports are all core Windows: `KERNEL32`,
+`USER32`, `SHELL32`, `ole32`, `WINMM` and `AVRT`. Keep it that way: a new dependency that
+needs a redistributable, or a second DLL, undoes the whole arrangement.
 
 **GUI** (`gui.cpp`, `gui_*.cpp`) is a retained-mode tree loaded from XML dialogs in `data/`
 (`menu.xml`, `leveleditor.xml`, `options.xml`, …). Elements are addressed by dotted path —
@@ -201,8 +210,9 @@ filenames, shipped zipped in `levels/campaigns/`.
 ## Conventions
 
 - Every `src/*.cpp` uses the precompiled header: `#include "pch.h"` must be the first line
-  (`pch.cpp` is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, OpenAL,
-  TinyXML, sigslot, MersenneTwister, ffmpeg and the core helpers, so don't re-include those.
+  (`pch.cpp` is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, GLU,
+  OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers
+  (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`), so don't re-include those.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj`
   **and** `Blocks5.vcxproj.filters`.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
@@ -210,8 +220,9 @@ filenames, shipped zipped in `levels/campaigns/`.
 - Comments are in German and files are **ISO-8859-1 / CP1252**, not UTF-8. Preserve the existing
   encoding when editing — don't let a tool rewrite a file as UTF-8, and don't "fix" the mojibake
   umlauts, they are correct in the original encoding.
-- Source files use LF; shipped text files (`readme.txt`, `levels/readme.txt`, `data/languages.txt`)
-  are deliberately CRLF.
+- Source files use LF — except vendored third-party ones, which keep whatever they shipped with
+  (`src/stackwalker.*` is CRLF). Shipped text files (`readme.txt`, `levels/readme.txt`,
+  `data/languages.txt`) are deliberately CRLF.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE`
   macros are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
