@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Blocks 5
-AppVersion=1.1.2
+AppVersion=1.2.0
 AppPublisher=Scherfgen-Software
 AppPublisherURL=http://www.scherfgen-software.net/blocks5/
 AppSupportURL=http://www.scherfgen-software.net/blocks5/
@@ -11,7 +11,7 @@ AppUpdatesURL=http://www.scherfgen-software.net/blocks5/
 DefaultDirName={pf}\Blocks 5
 DefaultGroupName=Blocks 5
 AllowNoIcons=yes
-OutputBaseFilename=blocks-5-1.1.2-setup
+OutputBaseFilename=blocks-5-1.2.0-setup
 SetupIconFile=setupicon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes

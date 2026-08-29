@@ -5,7 +5,7 @@
 | |_) | | (_) | (__|   <\__ \  ___) |
 |____/|_|\___/ \___|_|\_\___/ |____/
 
-== Bob's Amazing Adventures == v1.1.2
+== Bob's Amazing Adventures == v1.2.0
 
     by David Scherfgen
         Website ... http://www.scherfgen-software.net/blocks5/
@@ -25,6 +25,31 @@ help is probably a good idea.
 
 Changelog
 =========
+1.2.0 ... - Video recording now records the game's own sound.
+            Until now it recorded whatever Windows had selected as
+            the recording device, which on most machines is the
+            microphone. The "Stereo Mix" / "What you hear" setup
+            described under version 1.1.0 below is no longer needed.
+
+          - Recorded videos are now MP4 files, with H.264 video and
+            MP3 sound, instead of AVI. They play in Windows Media
+            Player, in the Photos app and in any browser without
+            installing a codec pack.
+
+          - The installer no longer has to install the Visual C++
+            runtime or OpenAL. The game brings everything it needs,
+            so the download is smaller and there are fewer steps
+            that can go wrong.
+
+          - The game now always uses its own copy of OpenAL Soft
+            rather than whatever OpenAL happens to be installed on
+            the computer. This should fix sound problems on systems
+            with an old OpenAL installation.
+
+          - Under the hood: every third-party library is now built
+            from source with a current compiler, and twelve DLLs
+            have left the game folder.
+
 1.1.2 ... - Joystick hats can now be used to play the game.
 
           - Recompiled all libraries with Visual C++ 2013.

@@ -20,7 +20,7 @@
 #include <wininet.h>
 #endif
 
-const char* p_localVersion = "1.1.2";
+const char* p_localVersion = "1.2.0";
 
 #ifndef __EMSCRIPTEN__
 class MyStackWalker : public StackWalker
