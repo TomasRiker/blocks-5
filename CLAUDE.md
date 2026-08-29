@@ -8,7 +8,11 @@ Blocks 5 — "Bob's Amazing Adventures", a 2D tile-based puzzle/action game. C++
 OpenGL + OpenAL, **Windows/Win32 only**. Non-Windows code paths are literal
 `#error NOT IMPLEMENTED` (see `filesystem.cpp`, `main.cpp`), so the tree cannot be compiled or
 run on Linux/macOS — code changes here are edit-and-review only unless you are on Windows with
-Visual Studio.
+Visual Studio. There is also an Emscripten port in `WebBuild/`, which does build and run on
+Linux and is the only way to test a change here without Windows; see `WebBuild/README.md`.
+
+The Windows build is verified on **v143** (Visual Studio 2022 Build Tools): it compiles, links,
+runs windowed, and hq2x works.
 
 ## Build & run
 

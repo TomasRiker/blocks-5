@@ -4,8 +4,9 @@ REM  Build.bat - build Blocks 5 from a fresh Git checkout, on the command line.
 REM
 REM  Usage:  Build.bat [Release^|Debug] [options]
 REM
-REM    /toolset:vNNN   platform toolset. Default v143. v120, v140 and v142 are
-REM                    also expected to work; see the note below
+REM    /toolset:vNNN   platform toolset. Default v143, which is the one that
+REM                    has actually been built and run. v120, v140 and v142
+REM                    should work too; see the note below
 REM    /sdk:VERSION    Windows SDK version for v141 and newer. Default 10.0,
 REM                    which MSBuild resolves to the newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
