@@ -12,20 +12,29 @@ unless you are on Windows with Visual Studio. There is also an Emscripten port i
 `WebBuild/`, which does build and run on Linux and is the only way to test a change here
 without Windows; see `WebBuild/README.md`.
 
-**The Windows build is not green yet.** A v143 run on Windows 11 (VS 2022 Community, SDK
-10.0.26100) got through all 122 vendored library sources and stopped there, so the game's own
-114 `src/*.cpp` files — which come after the libraries in `Blocks5.vcxproj` — have still not
-been compiled by MSVC even once. Expect more errors on the next run, and expect them to be
-in the tree rather than in your change.
+**The Windows build compiles and links on v143** (Windows 11, VS 2022 Community, SDK
+10.0.26100). Four things had to be fixed to get there, all in the vendored libraries or the
+project settings, none in the game's own code; each is written up in the relevant
+`libs/*/PROVENANCE.txt`. Three were compile errors: shine's `__attribute__((unused))`, which
+MSVC rejects; `misc.c` in the libvorbis file lists, which is a pthreads debug allocator
+upstream never compiles; and `windows.h` being included inside SDL's `#pragma pack(push,4)`,
+which makes every `C_ASSERT` in a modern `winnt.h` fail.
 
-Three failures from that run are fixed: shine's `__attribute__((unused))`, which MSVC
-rejects; `misc.c` in the libvorbis file lists, which is a pthreads debug allocator upstream
-never compiles; and `windows.h` being included inside SDL's `#pragma pack(push,4)`, which
-makes every `C_ASSERT` in a modern `winnt.h` fail. Each is written up in the relevant
-`libs/*/PROVENANCE.txt`.
-
-`pch.cpp` compiles, which is worth knowing: `pch.h` and everything it pulls in — SDL, GL,
-GLU, OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, stb — parse cleanly under v143.
+**The fourth is a rule, not a one-off: this project must be built as MultiByte, never as
+Unicode.** SDL 1.2 is an ANSI codebase — `char*` throughout, calling `RegisterClass`,
+`LoadLibrary`, `GetLocaleInfo` and the rest unsuffixed. It was a DLL before, built ANSI by
+SDL's own project, so `CharacterSet` here never mattered; now that its 67 sources are
+compiled *inside* `Blocks5.vcxproj`, `Unicode` resolves all of those to the `...W` variants
+and MSVC merely warns (C4133). The first run built fine and then died in `SDL_RegisterApp`
+with an access violation: `GetCodePage` in `SDL_sysevents.c` passes `char buff[8]` and
+`sizeof(buff)` to `GetLocaleInfo`, whose last parameter is a count of *characters* — so
+`GetLocaleInfoW` wrote 16 bytes into 8 and smashed the stack frame. Roughly forty other
+C4133 warnings across the SDL sources were the same bug waiting to happen. The game's own
+code never depended on Unicode: it calls `MessageBoxA`, `ShellExecuteA`, `SHGetFolderPathA`
+and friends explicitly, uses `WinExec` (which has no wide variant), and contains no `TCHAR`,
+`TEXT()` or `wchar_t` outside vendored `stackwalker.cpp`, which is TCHAR-correct either way.
+`SDL_win32_main.c` keeps its `#undef UNICODE` prologue as a guard against this being flipped
+back.
 
 ## Build & run
 
@@ -79,9 +88,11 @@ Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-
 handler; Release defaults to fullscreen + Windows subsystem and dumps a stack trace via
 `StackWalker` on an exception.
 
-Installer: `setup\Blocks 5.iss` (Inno Setup). Version number lives in three places that must
-stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in the
-`.iss`, and `readme.txt`.
+Installer: `setup\Blocks 5.iss` (Inno Setup). Version number lives in **four** places that
+must stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in
+the `.iss`, the banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus
+the two string values in `src/resources.rc`, which is what Explorer shows and what a crash
+log reports. The `.rc` had been missed before and sat at 1.1.1 through the whole of 1.1.2.
 
 The three projects: **Blocks5** (the game), **PWEncrypt** (CLI that encrypts an archive
 password into the bracket form used in paths), **ShowUserDir** (opens the user data folder in

@@ -55,7 +55,8 @@ would need a redistributable. Every vendored library under `Blocks5/libs` has a
 files are compiled, what was changed locally and why, and how to update it.
 
 The Inno Setup installer script is `Blocks5/setup/Blocks 5.iss`. Its version number has to
-stay in sync with `p_localVersion` in `Blocks5/src/main.cpp` and with `Blocks5/readme.txt`.
+stay in sync with `p_localVersion` in `Blocks5/src/main.cpp`, with `Blocks5/readme.txt`, and
+with `FILEVERSION`/`PRODUCTVERSION` in `Blocks5/src/resources.rc`.
 
 Saves, progress, custom levels and screenshots live under `My Documents\Blocks 5\`, never
 next to the executable.

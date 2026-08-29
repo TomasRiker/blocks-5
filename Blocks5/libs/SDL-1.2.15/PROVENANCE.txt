@@ -76,6 +76,43 @@ SDL_yuv_mmx.c is the one to remember if this tree ever grows a GCC build:
 SDL_yuv_sw.c calls into it when __GNUC__ > 2 and SDL_ASSEMBLY_ROUTINES is set,
 which is never true for MSVC and always true for GCC on x86.
 
+THE PROJECT MUST BE BUILT AS MultiByte, NOT Unicode
+---------------------------------------------------
+SDL 1.2 is an ANSI codebase. It stores `char*` everywhere and calls RegisterClass,
+LoadImage, LoadLibrary, GetModuleHandle, GetLocaleInfo, CreateFile and the rest
+unsuffixed, so with UNICODE defined every one of them resolves to the ...W
+variant and receives a narrow string. MSVC does not treat that as an error - it
+warns C4133 and compiles - so the build stays green and the program dies at run
+time.
+
+That is exactly what happened on the first successful v143 build. Blocks5.vcxproj
+was CharacterSet=Unicode, which never mattered while SDL was a DLL built ANSI by
+SDL's own project, and started mattering the moment these 67 sources were
+compiled inside it. The game reached SDL_Init and took an access violation:
+
+    GetCodePage()          SDL_sysevents.c:833
+        char buff[8];
+        GetLocaleInfo(lcid, LOCALE_IDEFAULTANSICODEPAGE, buff, sizeof(buff))
+
+GetLocaleInfoW's last parameter is a count of *characters*, so sizeof(buff) = 8
+means eight wide characters - sixteen bytes into an eight-byte buffer. It smashed
+the frame, and the next inlined call in SDL_RegisterApp faulted. The compiler had
+said so: "SDL_sysevents.c(838,55): warning C4133: incompatible types - from
+'char [8]' to 'LPWSTR'".
+
+Around forty more C4133 warnings across the SDL sources are the same bug not yet
+triggered - narrow paths handed to LoadLibraryW in SDL_sysloadso.c and
+SDL_wingl.c, narrow names to GetEnvironmentVariableW in SDL_getenv.c, narrow
+filenames to CreateFileW in SDL_rwops.c, joystick and CD-ROM names, the window
+title in SDL_dibevents.c.
+
+CharacterSet is MultiByte now, which is what SDL's own VisualC project uses
+(CharacterSet="0") and what the whole program has always been in practice: the
+game calls MessageBoxA, ShellExecuteA, SHGetFolderPathA and GetEnvironmentVariableA
+explicitly, uses WinExec, which has no wide variant at all, and contains no TCHAR,
+TEXT() or wchar_t of its own. If a C4133 warning ever appears in an SDL file
+again, this is the setting to check first.
+
 CONFIGURATION
 -------------
 include/SDL_config.h is upstream's SDL_config.h.default, which dispatches on the
