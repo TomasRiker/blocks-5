@@ -13,19 +13,30 @@ Visual Studio.
 ## Build & run
 
 `Build.bat` at the repo root does the whole thing from a fresh clone — it finds MSBuild,
-checks that the v120 toolset is present, builds `Blocks5.sln` for `Win32`, and then packs
-`data.zip` and `levels/skins/*.zip`, which are gitignored build products the game cannot start
-without. `Build.bat /?` lists its options.
+checks the toolset, builds `Blocks5.sln` for `Win32`, and then packs `data.zip` and
+`levels/skins/*.zip`, which are gitignored build products the game cannot start without.
+`Build.bat /?` lists its options.
 
-The toolset is **v120 (Visual Studio 2013) and cannot be newer**: `libs/bin/tinyxml_STL.lib`
-and `tinyxmld_STL.lib` carry `/FAILIFMISMATCH:"_MSC_VER=1800"`, so any other toolset stops the
-link with LNK2038. They are the only files in `libs/bin` with such a directive — everything
-else is an import library or lock-free C — so rebuilding TinyXML from source is all that
-stands between this tree and a modern toolchain. The reasoning is written out at the top of
-`Build.bat`.
+**Toolset: v143 by default; v120 still works** (`/toolset:v120`). The tree was pinned to v120
+for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
+TinyXML 2.6.2 is now compiled from vendored source in `libs/tinyxml-2.6.2` and that library is
+gone. Two things make anything newer than v120 work, and both are in the project defines
+because they must precede every include:
 
-To build by hand instead: open `Blocks5.sln` in Visual Studio 2013 or later (only `Debug|Win32`
-and `Release|Win32` exist) and build all three projects. Then, from the `Blocks5` directory:
+- `_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` — `src/pch.h` includes `<hash_map>`, and from
+  VS2015 on that is a hard `static_assert` error, not a warning.
+- `__STDC_CONSTANT_MACROS` / `__STDC_LIMIT_MACROS` — `libs/msinttypes-r26` shadows the real
+  `<stdint.h>`; from VS2015 on the STL pulls that shim in via `<vector>`, long before
+  `pch.h` could define the macro, and the shim's include guard then locks `INT64_C` out.
+
+One known gap on v140+: `libs/bin/sdlmain.lib` is pre-UCRT and imports `__iob_func`, which the
+Universal CRT removed, so the link ends with `LNK2019: unresolved external symbol
+__imp____iob_func`. The fix is to compile SDL 1.2.15's own `src/main/win32/SDL_win32_main.c`
+instead — public domain, 402 lines — with `#undef UNICODE`/`#undef _UNICODE` first, since the
+project is `CharacterSet=Unicode` and that file uses `char` buffers with `TEXT()` literals.
+
+To build by hand instead: open `Blocks5.sln` in Visual Studio (only `Debug|Win32` and
+`Release|Win32` exist) and build all three projects. Then, from the `Blocks5` directory:
 
 ```bat
 zip_data.bat     :: pack data\ into the encrypted data.zip the game reads at runtime

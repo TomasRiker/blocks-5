@@ -4,53 +4,56 @@ REM  Build.bat - build Blocks 5 from a fresh Git checkout, on the command line.
 REM
 REM  Usage:  Build.bat [Release^|Debug] [options]
 REM
+REM    /toolset:vNNN   platform toolset. Default v143. v120, v140 and v142 are
+REM                    also expected to work; see the note below
+REM    /sdk:VERSION    Windows SDK version for v141 and newer. Default 10.0,
+REM                    which MSBuild resolves to the newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
 REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
 REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
 REM    /stage          also run Blocks5\stage.bat afterwards (Release only)
 REM    /rebuild        clean first, then build
-REM    /toolset:vNNN   override the platform toolset - read the note below
-REM                    before using this
-REM    /?              show this text
+REM    /?              show a short usage summary
 REM
-REM  WHY v120 (Visual Studio 2013), AND NOTHING NEWER
-REM  ------------------------------------------------
-REM  libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib were compiled by VS2013 and
-REM  carry the linker directive
+REM  ABOUT THE TOOLSET
+REM  -----------------
+REM  This tree was pinned to v120 (Visual Studio 2013) for a decade, not by
+REM  choice but by two files: libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib
+REM  carried /FAILIFMISMATCH:"_MSC_VER=1800", so link.exe refused any other
+REM  toolset with LNK2038. They were the only files in libs\bin with any linker
+REM  directive at all. TinyXML 2.6.2 is now compiled from vendored source
+REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
-REM      /FAILIFMISMATCH:"_MSC_VER=1800"
+REM  v120 still builds and remains the reference. Anything newer additionally
+REM  needs, and now has:
+REM    - _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS, because src\pch.h includes
+REM      ^<hash_map^> and from VS2015 on that is a hard error, not a warning
+REM    - __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS among the project
+REM      defines rather than in pch.h. libs\msinttypes-r26 shadows the real
+REM      ^<stdint.h^>; from VS2015 on the STL pulls that shim in from ^<vector^>,
+REM      before pch.h line 29 could define the macro, and the shim's include
+REM      guard then locks INT64_C and friends out for good
 REM
-REM  which the VS2013 C++ headers emit. Any other toolset makes link.exe stop
-REM  with LNK2038, "mismatch detected for '_MSC_VER'". That is deliberate and
-REM  it is not a warning to wave through: VS2013's C++ ABI is not compatible
-REM  with VS2015 and later, and TinyXML has std::string in its interface. The
-REM  same two libraries also pin the runtime they were built against -
-REM  RuntimeLibrary=MD_DynamicRelease with _ITERATOR_DEBUG_LEVEL=0 for the
-REM  release one, MDd_DynamicDebug with _ITERATOR_DEBUG_LEVEL=2 for the debug
-REM  one - and the projects already match both.
+REM  ONE KNOWN GAP, on v140 and newer only: libs\bin\sdlmain.lib is a pre-UCRT
+REM  static library and imports __iob_func, which the Universal CRT removed. It
+REM  links fine on v120 and will stop with
 REM
-REM  Nothing else in libs\bin pins anything: those two are the only files in it
-REM  that carry a FAILIFMISMATCH directive at all. sdlmain.lib, zlibstat.lib and
-REM  zlibstatd.lib are C static libraries with no _MSC_VER lock; sdl.lib,
-REM  SDL_image.lib, OpenAL32.lib, libogg.lib, libvorbis*.lib and the ffmpeg
-REM  libraries are plain import libraries; and hq2x32.obj references exactly two
-REM  symbols, _LUT16to32 and _RGBtoYUV, both of which this project defines
-REM  itself. So TinyXML alone is what holds the build at VS2013.
+REM      LNK2019: unresolved external symbol __imp____iob_func
 REM
-REM  Moving to a modern toolset therefore means rebuilding those two libraries
-REM  from the TinyXML 2.6.2 sources - only its headers are vendored here - and
-REM  then passing /toolset:v143. Expect zlibstat.lib and sdlmain.lib to want
-REM  legacy_stdio_definitions.lib and a __iob_func shim at that point: both were
-REM  built against the pre-UCRT runtime, and sdlmain.lib imports __iob_func,
-REM  which the UCRT no longer has.
+REM  on anything newer. The fix is to compile SDL 1.2.15's own
+REM  src\main\win32\SDL_win32_main.c instead of linking the library - it is
+REM  public domain and 402 lines - and it is deliberately not done yet, so that
+REM  the first modern build reports compiler errors rather than a silently
+REM  mis-parsed command line. Reaching this error means everything compiled.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS
 PUSHD "%~dp0"
 
 SET "CONFIG=Release"
-SET "TOOLSET="
+SET "TOOLSET=v143"
+SET "WINSDK=10.0"
 SET "TARGET=Build"
 SET "PACKDATA=1"
 SET "OPTIPNG=0"
@@ -70,6 +73,7 @@ IF /I "%ARG%"=="/?"       GOTO usage
 IF /I "%ARG%"=="-h"       GOTO usage
 IF /I "%ARG%"=="--help"   GOTO usage
 IF /I "%ARG:~0,9%"=="/toolset:" GOTO opt_toolset
+IF /I "%ARG:~0,5%"=="/sdk:"     GOTO opt_sdk
 ECHO ERROR: unknown option "%ARG%".
 GOTO usage
 
@@ -101,7 +105,18 @@ GOTO parseargs
 SET "TOOLSET=%ARG:~9%"
 SHIFT
 GOTO parseargs
+:opt_sdk
+SET "WINSDK=%ARG:~5%"
+SHIFT
+GOTO parseargs
 :argsdone
+
+REM v141 and newer resolve the Windows SDK themselves and default to 8.1, which
+REM is usually not installed any more - hence MSB8036. Pass a version for them;
+REM v120 and v140 must NOT get one, they predate the property.
+SET "NEEDSDK=1"
+IF /I "%TOOLSET%"=="v120" SET "NEEDSDK="
+IF /I "%TOOLSET%"=="v140" SET "NEEDSDK="
 
 REM ------------------------------------------------------- locate MSBuild.exe
 REM Quote %ProgramFiles(x86)% everywhere: its value contains parentheses, which
@@ -112,13 +127,15 @@ IF NOT DEFINED PF86 SET "PF86=%ProgramFiles%"
 SET "MSBUILD="
 SET "VSPATH="
 
-REM Prefer Visual Studio 2013's own MSBuild. The projects declare
-REM ToolsVersion 12.0, and the v120 toolset only exists where VS2013 (or its
-REM build tools) is installed, so this is the copy that is certain to match.
-IF EXIST "%PF86%\MSBuild\12.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\12.0\Bin\MSBuild.exe"
+REM Match the MSBuild to the toolset where a matching one is known to exist.
+REM MSBuild 12.0 predates v140 entirely and answers /p:PlatformToolset=v140
+REM with MSB8020, so it is only ever right for v120. vswhere cannot see Visual
+REM C++ Build Tools 2015 at all (microsoft/vswhere#129, wontfix), so a v140-only
+REM machine has to be found by probing MSBuild\14.0 directly.
+IF /I "%TOOLSET%"=="v120" IF EXIST "%PF86%\MSBuild\12.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\12.0\Bin\MSBuild.exe"
+IF /I "%TOOLSET%"=="v140" IF EXIST "%PF86%\MSBuild\14.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\14.0\Bin\MSBuild.exe"
 
-REM Otherwise the newest MSBuild on the machine. It can still drive v120, as
-REM long as VS2013's C++ tools are installed alongside.
+REM Visual Studio 2017 and newer, including the Build Tools, via vswhere.
 SET "VSWHERE=%PF86%\Microsoft Visual Studio\Installer\vswhere.exe"
 IF NOT DEFINED MSBUILD IF EXIST "%VSWHERE%" (
 	FOR /F "usebackq tokens=*" %%I IN (`"%VSWHERE%" -latest -products * -property installationPath`) DO SET "VSPATH=%%I"
@@ -126,55 +143,62 @@ IF NOT DEFINED MSBUILD IF EXIST "%VSWHERE%" (
 IF NOT DEFINED MSBUILD IF DEFINED VSPATH IF EXIST "%VSPATH%\MSBuild\Current\Bin\MSBuild.exe" SET "MSBUILD=%VSPATH%\MSBuild\Current\Bin\MSBuild.exe"
 IF NOT DEFINED MSBUILD IF DEFINED VSPATH IF EXIST "%VSPATH%\MSBuild\15.0\Bin\MSBuild.exe"  SET "MSBUILD=%VSPATH%\MSBuild\15.0\Bin\MSBuild.exe"
 IF NOT DEFINED MSBUILD IF EXIST "%PF86%\MSBuild\14.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\14.0\Bin\MSBuild.exe"
+IF NOT DEFINED MSBUILD IF EXIST "%PF86%\MSBuild\12.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\12.0\Bin\MSBuild.exe"
 
 IF NOT DEFINED MSBUILD (
 	ECHO.
-	ECHO ERROR: could not find MSBuild.exe.
-	ECHO        Looked for VS2013's copy under
+	ECHO ERROR: could not find MSBuild.exe. Looked under
 	ECHO          "%PF86%\MSBuild\12.0\Bin"
-	ECHO        and for a newer Visual Studio via vswhere.
+	ECHO          "%PF86%\MSBuild\14.0\Bin"
+	ECHO        and asked vswhere for a Visual Studio 2017 or newer install.
+	ECHO.
+	ECHO        For a compiler-only setup install "Build Tools for Visual
+	ECHO        Studio 2022" - it needs no IDE and provides v143.
 	GOTO fail
 )
 
-REM ------------------------------------------------- is the v120 toolset here?
-SET "V120PROPS=%PF86%\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.Cpp.v120.props"
-IF DEFINED TOOLSET GOTO toolsetok
-IF EXIST "%V120PROPS%" GOTO toolsetok
+REM ------------------------------------------- is the requested toolset here?
+REM Probe the toolset DIRECTORY, not a props file: the per-toolset files are
+REM Toolset.props and Toolset.targets under Platforms\Win32\PlatformToolsets\.
+REM Only VS2013 and VS2015 register there; VS2017 and newer keep their VCTargets
+REM tree inside the installation, so when MSBuild came from vswhere this probe
+REM is skipped and MSBuild reports MSB8020 itself if the toolset is absent.
+SET "TSDIR="
+IF /I "%TOOLSET%"=="v120" SET "TSDIR=%PF86%\MSBuild\Microsoft.Cpp\v4.0\V120\Platforms\Win32\PlatformToolsets\v120"
+IF /I "%TOOLSET%"=="v140" SET "TSDIR=%PF86%\MSBuild\Microsoft.Cpp\v4.0\V140\Platforms\Win32\PlatformToolsets\v140"
+IF NOT DEFINED TSDIR GOTO toolsetok
+IF DEFINED VSPATH   GOTO toolsetok
+IF EXIST "%TSDIR%"  GOTO toolsetok
 ECHO.
-ECHO ERROR: the v120 (Visual Studio 2013) platform toolset is not installed.
-ECHO        Expected
-ECHO          "%V120PROPS%"
+ECHO ERROR: the %TOOLSET% platform toolset is not installed. Expected
+ECHO          "%TSDIR%"
 ECHO.
-ECHO        There is no C++-only build-tools package for 2013. The standalone
-ECHO        "Visual C++ Build Tools" line starts at 2015 (v140), and "Microsoft
-ECHO        Build Tools 2013" is MSBuild plus the C# and VB compilers only - it
-ECHO        has no cl.exe. Newer Visual Studio installers carry no v120
-ECHO        component either; the oldest they offer is v140.
+ECHO        v120 means a Visual Studio 2013 edition - there has never been a
+ECHO        C++-only build-tools package for 2013. v140 comes from "Microsoft
+ECHO        Visual C++ Build Tools 2015", or as the "MSVC v140" component of a
+ECHO        newer Visual Studio installer.
 ECHO.
-ECHO        v120 therefore means installing a Visual Studio 2013 edition -
-ECHO        Express for Windows Desktop is the smallest - from
-ECHO          https://visualstudio.microsoft.com/vs/older-downloads/
-ECHO        A free Dev Essentials account is enough. The IDE never has to be
-ECHO        opened; this script only uses the command-line toolchain.
-ECHO.
-ECHO        See the note at the top of this file for what pins the toolset,
-ECHO        and how little it would take to lift it.
+ECHO        Unless you specifically need an old toolset, drop the /toolset:
+ECHO        option and install "Build Tools for Visual Studio 2022" instead.
 GOTO fail
 :toolsetok
 
 REM ------------------------------------------------------------------- build
-SET "MSBUILDARGS=/nologo /m /v:minimal /t:%TARGET% /p:Configuration=%CONFIG% /p:Platform=Win32"
-IF DEFINED TOOLSET SET "MSBUILDARGS=%MSBUILDARGS% /p:PlatformToolset=%TOOLSET%"
+SET "MSBUILDARGS=/nologo /m /v:minimal /t:%TARGET% /p:Configuration=%CONFIG% /p:Platform=Win32 /p:PlatformToolset=%TOOLSET%"
+IF DEFINED NEEDSDK SET "MSBUILDARGS=%MSBUILDARGS% /p:WindowsTargetPlatformVersion=%WINSDK%"
 
 ECHO.
-ECHO === Building Blocks5.sln [%CONFIG%^|Win32] ===
+ECHO === Building Blocks5.sln [%CONFIG%^|Win32] with %TOOLSET% ===
 ECHO     MSBuild: %MSBUILD%
-IF DEFINED TOOLSET ECHO     Toolset: %TOOLSET% (overridden)
+IF DEFINED NEEDSDK ECHO     Windows SDK: %WINSDK%
 ECHO.
 "%MSBUILD%" Blocks5.sln %MSBUILDARGS%
 IF ERRORLEVEL 1 (
 	ECHO.
 	ECHO ERROR: the build failed.
+	ECHO        On v140 and newer, "unresolved external symbol __imp____iob_func"
+	ECHO        is expected and is the last remaining gap - see the note at the
+	ECHO        top of this file. Everything else is worth reporting.
 	GOTO fail
 )
 
@@ -248,12 +272,12 @@ EXIT /B 0
 
 :usage
 ECHO.
-ECHO Usage: Build.bat [Release^|Debug] [/nodata] [/optipng] [/stage] [/rebuild]
-ECHO                  [/toolset:vNNN]
+ECHO Usage: Build.bat [Release^|Debug] [/toolset:vNNN] [/sdk:VERSION]
+ECHO                  [/nodata] [/optipng] [/stage] [/rebuild]
 ECHO.
-ECHO Builds Blocks5.sln for Win32 with the v120 (Visual Studio 2013) toolset,
+ECHO Builds Blocks5.sln for Win32 - v143 by default, v120 and v140 also work -
 ECHO then packs data.zip and the skin archives, which are not in Git.
-ECHO Open this file in an editor for why the toolset cannot simply be newer.
+ECHO Open this file in an editor for the toolset notes.
 ECHO.
 POPD
 ENDLOCAL

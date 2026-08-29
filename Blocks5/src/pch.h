@@ -26,7 +26,9 @@
 #include <sigslot.h>
 #include <MersenneTwister.h>
 
+#ifndef __STDC_CONSTANT_MACROS
 #define __STDC_CONSTANT_MACROS
+#endif
 
 #ifndef BLOCKS5_NO_FFMPEG
 extern "C"
