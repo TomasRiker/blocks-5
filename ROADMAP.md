@@ -496,6 +496,57 @@ tree keeps working no matter what size the window is: the one `glViewport`
 the background quad. Only the destination rectangle of the final blit changes,
 and only one place computes it. Without the FBO, every one of those is a bug.
 
+### The blit rectangle depends on the filter
+
+The letterbox is one calculation, but not the same one for every filter.
+
+- **Nearest needs an integer scale.** At a fractional scale, nearest duplicates
+  some source pixels and not others, so the sprites come out with uneven
+  thicknesses and the text goes ragged — the failure it is chosen to avoid. So
+  for nearest the destination size is `floor(min(w / 640, h / 480))` clamped to
+  at least 1, times 640x480, centred, with black everywhere else. On a 1920x1080
+  window that is 2x, i.e. 1280x960 in the middle with 320-pixel bars either side
+  and 60 above and below — deliberately not filling the screen.
+- **Bilinear and xBR take the full fractional scale**, `min(w / 640, h / 480)`,
+  because both resample properly and an integer scale would only throw away
+  screen area.
+
+So the destination rectangle is a function of the window size *and* the selected
+filter, and changing the filter at runtime has to recompute it. One function,
+used by the blit, by the cursor mapping (see below), and by nothing else.
+
+Below 640x480 nearest has no integer scale left. Either clamp the window to a
+640x480 minimum in the `SDL_VIDEORESIZE` handler by re-calling `SDL_SetVideoMode`
+with the clamped size, or let it fall back to bilinear and say so in the options
+dialog. The former is less surprising.
+
+### Video and screenshots stay at 640x480
+
+**Video recording always captures the game's internal 640x480**, never the window
+size. That is what the code does today by accident — the capture at
+`engine.cpp:850` runs *before* `upscaleFrame()`, so it reads the un-upscaled
+render out of the back buffer — and with an FBO it becomes true on purpose:
+capture reads `GL_COLOR_ATTACHMENT0` and is independent of the window entirely.
+
+Three reasons it has to stay that way, not just for tidiness:
+
+- minih264 requires the frame size to be a multiple of 16 (`videorecorder.cpp`
+  centre-crops to enforce it). 640x480 is; an arbitrary resized window is not.
+- The encoder is configured once, at `startRecording`. A window resized
+  mid-recording would change the frame size under it.
+- The cursor is drawn into the capture buffer by hand (`engine.cpp:855`) in
+  640x480 coordinates from `getCursorPosition()`. That keeps working unchanged —
+  and becomes correct under letterboxing for the first time, because it goes
+  through the same inverse transform as everything else.
+
+**Screenshots are the odd one out and need a decision.** `Engine::screenshot`
+(`engine.cpp:1164`) runs *after* `upscaleFrame()` and reads `displaySize` from
+`GL_BACK`, so today it saves the upscaled image — and once letterboxing exists it
+would save the black bars with it. Reading the FBO instead makes screenshots
+match video at a clean 640x480. That is the better default; the alternative,
+keeping "what you see is what you get", only makes sense if someone actually
+wants the filter's output in the PNG.
+
 ### Resizing is nearly free; the fullscreen toggle is not
 
 Both facts come out of the vendored SDL, so they are facts about *this* build.
