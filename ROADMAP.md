@@ -99,19 +99,46 @@ and `libs/bin/SDL_image.lib` are gone. It also retired a latent bug: SDL_image
 the tree — only PNG had ever worked.
 
 **ffmpeg is indeed overkill.** It is used for exactly one thing: writing an AVI
-with one video and one PCM-ish audio stream, through `avcodec_encode_video` /
+with one video and one audio stream, through `avcodec_encode_video` /
 `avcodec_encode_audio` — APIs that were removed from ffmpeg years ago, which is
-why this is pinned at 0.8 from 2011. Three ways out:
+why this is pinned at 0.8 from 2011.
 
-- **Ogg Theora.** `libogg` and `libvorbis` are *already vendored and compiled
-  from source*. Adding libtheora (BSD) gives a fully-source, permissively
-  licensed, modern-container video path, and the audio side is already there.
-  Best fit for what this tree has become.
+Whatever replaces it should also fix something the current output already gets
+wrong: `videorecorder.cpp` takes the AVI muxer's default codecs, which means
+**MPEG-4 Part 2** video. Windows Media Player has never decoded that without a
+third-party codec, so a recorded video does not play on a clean Windows
+installation as things stand. Anything that makes the file *less* playable is a
+step backwards, and that rules out the obvious-looking option:
+
+- ~~**Ogg Theora**~~, tempting because `libogg` and `libvorbis` are already
+  vendored and compiled from source, is the wrong target. Theora has never
+  shipped in any version of Windows and has never been offered as a Store codec
+  extension, so a `.ogv` needs VLC, mpv or a codec pack. It has got worse, not
+  better: Chromium removed Theora decoding in Chrome 123, so Chrome and Edge no
+  longer play it either. Only Firefox still does.
+
+What to aim for instead, in order of preference:
+
+- **H.264 in MP4 through Media Foundation.** Windows has decoded H.264 natively
+  since Windows 7 — Media Player, Films & TV, Photos, every browser, every
+  phone — and it can also *encode* it: `IMFSinkWriter` drives the H.264 and AAC
+  encoder MFTs that ship with the OS. That is `mfplat.lib`, `mfreadwrite.lib` and
+  `mfuuid.lib` from the Windows SDK and **no third-party code at all**, which
+  deletes four DLLs and five import libraries in one move. Same shape as
+  `audiocapture.cpp`: Windows-only, SDK-only, behind `#ifdef _WIN32`. The
+  trade-offs are that it is Windows-only (`videorecorder.cpp` already is — the
+  web build stubs it out and the ffmpeg DLLs are Windows binaries), and that the
+  H.264 licence is Microsoft's problem rather than ours precisely because the
+  encoder is an OS component.
 - **MJPEG in AVI.** A ~300-line public-domain JPEG encoder plus a hand-written
-  AVI writer, with uncompressed PCM audio. Perhaps 600 lines total and no
-  dependency at all. Larger files, plays everywhere.
-- Keep ffmpeg but move to a current release and the `avcodec_send_frame` API.
-  Modernises the code but keeps four DLLs and a large dependency.
+  AVI writer, with uncompressed PCM audio. Perhaps 600 lines and no dependency
+  at all, and it is at least no *less* playable than what ships today. Much
+  larger files, and worth confirming Windows still decodes MJPEG-in-AVI out of
+  the box before committing to it.
+- Keep ffmpeg but move to a current release and the `avcodec_send_frame` API,
+  and pick H.264/MP4 explicitly instead of taking the muxer default. Modernises
+  the code and fixes the playability, but keeps four DLLs and a large
+  dependency.
 
 **SDL is done, but only halfway in spirit.** All 67 files of SDL 1.2.15's Win32
 subset are compiled from `libs/SDL-1.2.15/src` and `sdl.dll` is gone. What that
