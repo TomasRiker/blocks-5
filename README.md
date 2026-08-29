@@ -38,6 +38,7 @@ describes what works, what is left out, and the shims it needs.
 
 Layout
 ------
+    ROADMAP.md      planned work and what stands in the way of each item
     Blocks5/        the game: sources in src/, assets in data/, levels and skins in levels/
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer
