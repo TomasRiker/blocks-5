@@ -147,8 +147,12 @@ Two things found while building it, both recorded in the libraries'
   byte to AAC and only wrote the `esds` descriptor at all when a decoder-specific
   info blob had been set, which MP3 does not have. Since that byte is the only
   thing distinguishing AAC from MP3 in an `'mp4a'` track, the audio came back out
-  declared as AAC and undecodable. `minimp4.h` carries a local patch; the bytes
-  it writes now were checked against ffmpeg's own MP4 muxer.
+  declared as AAC and undecodable. It is fixed **without touching the library**:
+  the constant is a macro, and minimp4's declarations and implementation sit on
+  opposite sides of its include guard in one file, so `minimp4_impl.c` includes
+  the header twice and redefines the macro in between. Two `#error` guards and a
+  runtime counter catch an upgrade that breaks the hook — all three tested by
+  deliberately breaking a copy of the library.
 - **minih264 and minimp4 collide** if both are instantiated in one translation
   unit — each defines a `bs_t` in its implementation half. Hence the two
   one-line `*_impl.c` files.

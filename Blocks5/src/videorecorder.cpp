@@ -8,6 +8,12 @@
 extern "C"
 {
 #include "layer3.h"
+
+// Wird von libs/minimp4/minimp4_impl.c bei jeder Expansion des dortigen
+// Makro-Hooks hochgezählt. Siehe die Erklärung in dieser Datei: nur so lässt
+// sich merken, wenn eine neue minimp4-Version das Makro nicht mehr benutzt und
+// die Tonspur wieder als AAC deklariert würde.
+extern int g_minimp4_audioObjectTypeHookHits;
 }
 
 namespace
@@ -273,9 +279,16 @@ int VideoRecorderImpl::threadProc()
 		if(numBytes > 0) MP4E_put_sample(p_mux, audioTrack, p_mp3, numBytes, audioSamplesPerPass, MP4E_SAMPLE_RANDOM_ACCESS);
 	}
 
-	// Erst hier entstehen die Indextabellen der Datei.
+	// Erst hier entstehen die Indextabellen der Datei - und damit auch der esds.
 	mp4_h26x_write_close(&h264Writer);
+	const int hookHitsBefore = g_minimp4_audioObjectTypeHookHits;
 	if(p_mux) MP4E_close(p_mux);
+	if(audioTrack >= 0 && g_minimp4_audioObjectTypeHookHits == hookHitsBefore)
+	{
+		printfLog("+ ERROR: minimp4 did not use the object-type hook, so the audio track in\n");
+		printfLog("         this video claims to be AAC but holds MP3 and will not play.\n");
+		printfLog("         See libs/minimp4/minimp4_impl.c - a library update broke it.\n");
+	}
 	if(p_file) fclose(p_file);
 	p_mux = 0;
 	p_file = 0;
@@ -396,6 +409,12 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 			audioTrackInfo.time_scale = 48000;
 			audioTrackInfo.u.a.channelcount = 2;
 			p_impl->audioTrack = MP4E_add_track(p_impl->p_mux, &audioTrackInfo);
+
+			// minimp4 schreibt den esds-Deskriptor nur, wenn eine Decoder Specific
+			// Info gesetzt ist - die hat AAC, MP3 nicht. Eine leere genügt, und ohne
+			// den Deskriptor stünde nirgends, dass die Spur MP3 ist.
+			if(p_impl->audioTrack >= 0) MP4E_set_dsi(p_impl->p_mux, p_impl->audioTrack, "", 0);
+
 			if(p_impl->audioTrack < 0)
 			{
 				printfLog("- WARNING: Could not add the audio track; recording without sound.\n");
