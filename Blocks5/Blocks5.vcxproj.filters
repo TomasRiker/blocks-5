@@ -250,6 +250,9 @@
     <ClCompile Include="src\as_wav.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\audiocapture.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\audiostream.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -721,6 +724,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\as_wav.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\audiocapture.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\audiostream.h">

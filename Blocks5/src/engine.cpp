@@ -15,6 +15,7 @@
 #include "filesystem.h"
 #include "hq2x.h"
 #include "videorecorder.h"
+#include "audiocapture.h"
 
 Engine::Engine()
 {
@@ -36,6 +37,7 @@ Engine::Engine()
 	p_hq2xIn = 0;
 	p_hq2xOut = 0;
 	p_videoRecorder = 0;
+	p_audioCapture = 0;
 	p_muteIconTexture = 0;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
@@ -372,8 +374,7 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("* Initializing OpenAL ...\n");
 
 	std::string bestDevice = getBestOpenALDevice();
-	std::string bestCaptureDevice = getBestOpenALCaptureDevice();
-	if(bestDevice == "[NONE]" || bestCaptureDevice == "[NONE]")
+	if(bestDevice == "[NONE]")
 	{
 		printfLog("+ ERROR: Please install current version of OpenAL and audio drivers.\n");
 		return false;
@@ -381,7 +382,6 @@ bool Engine::init(const std::string& windowCaption,
 
 	printfLog("  ============================================================\n");
 	printfLog("  Selected output:  %s\n", bestDevice.c_str());
-	printfLog("  Selected capture: %s\n", bestCaptureDevice.c_str());
 	printfLog("  ============================================================\n");
 
 	p_audioDevice = alcOpenDevice(bestDevice.c_str());
@@ -391,8 +391,21 @@ bool Engine::init(const std::string& windowCaption,
 		return false;
 	}
 
-	p_audioCaptureDevice = alcCaptureOpenDevice(bestCaptureDevice.c_str(), 48000, AL_FORMAT_STEREO16, 48000);
-	if(!p_audioCaptureDevice) printfLog("+ WARNING: Could not open audio capture device. Captured videos will be without audio!\n");
+	// Ton für Videoaufnahmen: OpenAL kann nur Eingangsgeräte aufnehmen, also das
+	// Mikrofon. Aufgenommen werden soll aber das, was das Spiel ausgibt - das macht
+	// AudioCapture über den Loopback-Modus von WASAPI.
+	p_audioCapture = new AudioCapture;
+	if(p_audioCapture->open(48000))
+	{
+		printfLog("  Recording audio from: %s (loopback)\n", p_audioCapture->getDeviceName().c_str());
+		printfLog("  ============================================================\n");
+	}
+	else
+	{
+		delete p_audioCapture;
+		p_audioCapture = 0;
+		printfLog("+ WARNING: Could not open audio capture device. Captured videos will be without audio!\n");
+	}
 
 	p_audioContext = alcCreateContext(p_audioDevice, 0);
 	if(!p_audioContext)
@@ -495,7 +508,8 @@ void Engine::exit()
 	alcMakeContextCurrent(0);
 	alcDestroyContext(p_audioContext);
 	alcCloseDevice(p_audioDevice);
-	if(p_audioCaptureDevice) alcCaptureCloseDevice(p_audioCaptureDevice);
+	delete p_audioCapture;
+	p_audioCapture = 0;
 
 	// Crossfade und Texturen löschen
 	crossfade(0, 0.0);
@@ -998,7 +1012,7 @@ void Engine::update()
 			const std::string filename(FileSystem::inst().getAppHomeDirectory() + "videos/" + videoDateTime + ".avi");
 
 			// Aufnahme starten
-			p_videoRecorder = new VideoRecorder(filename, screenSize, screenSize, 2840000, p_audioCaptureDevice ? 160000 : 0, 30);
+			p_videoRecorder = new VideoRecorder(filename, screenSize, screenSize, 2840000, p_audioCapture ? 160000 : 0, 30);
 			if(p_videoRecorder->getError())
 			{
 				delete p_videoRecorder;
@@ -1070,14 +1084,6 @@ std::string Engine::getBestOpenALDevice()
 {
 	// Standardgerät nehmen
 	const char* p_device = alcGetString(0, ALC_DEFAULT_DEVICE_SPECIFIER);
-	if(!p_device) return "[NONE]";
-	else return p_device;
-}
-
-std::string Engine::getBestOpenALCaptureDevice()
-{
-	// Standardgerät nehmen
-	const char* p_device = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
 	if(!p_device) return "[NONE]";
 	else return p_device;
 }
@@ -2244,9 +2250,9 @@ std::string Engine::loadString(const std::string& id) const
 	else return i->second;
 }
 
-ALCdevice* Engine::getOpenALCaptureDevice()
+AudioCapture* Engine::getAudioCapture()
 {
-	return p_audioCaptureDevice;
+	return p_audioCapture;
 }
 
 void Engine::setupCursor()

@@ -11,6 +11,7 @@ class StreamedSound;
 class Texture;
 class Crossfade;
 class VideoRecorder;
+class AudioCapture;
 
 struct Action
 {
@@ -65,7 +66,6 @@ public:
 	void updateSounds();
 
 	std::string getBestOpenALDevice();
-	std::string getBestOpenALCaptureDevice();
 	void drawOverlays();
 	void upscaleFrame();
 	void screenshot();
@@ -151,7 +151,7 @@ public:
 	std::string localizeString(const std::string& text);
 	std::string loadString(const std::string& id) const;
 
-	ALCdevice* getOpenALCaptureDevice();
+	AudioCapture* getAudioCapture();
 
 	uint getTimePlayed() const { return timePlayed; }
 
@@ -167,7 +167,7 @@ private:
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;
-	ALCdevice* p_audioCaptureDevice;
+	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
 	uint logicRate;
 	bool modal;

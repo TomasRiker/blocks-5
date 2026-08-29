@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "engine.h"
 #include "videorecorder.h"
+#include "audiocapture.h"
 
 VideoRecorder::VideoRecorder(const std::string& videoFilename,
 							 const Vec2i& inputFrameSize,
@@ -244,22 +245,13 @@ bool VideoRecorder::getError() const
 
 int VideoRecorder::threadProc()
 {
-	ALCdevice* p_openALCaptureDevice = 0;
+	AudioCapture* p_audioCapture = 0;
 	int numSamplesReady = 0;
 	if(audioBitrate)
 	{
-		// alle noch im Puffer befindlichen Samples wegwerfen
-		p_openALCaptureDevice = Engine::inst().getOpenALCaptureDevice();
-		alcGetIntegerv(p_openALCaptureDevice, ALC_CAPTURE_SAMPLES, 1, &numSamplesReady);
-		static short tempBuffer[4800][2];
-		while(numSamplesReady > 0)
-		{
-			alcCaptureSamples(p_openALCaptureDevice, tempBuffer, std::min(numSamplesReady, 4800));
-			numSamplesReady -= 4800;
-		}
-
-		// Audioaufnahme beginnen
-		alcCaptureStart(p_openALCaptureDevice);
+		// Audioaufnahme beginnen. start() wirft alles weg, was noch im Puffer liegt.
+		p_audioCapture = Engine::inst().getAudioCapture();
+		if(p_audioCapture) p_audioCapture->start();
 	}
 
 	while(!finish)
@@ -270,18 +262,17 @@ int VideoRecorder::threadProc()
 			BEGIN_PROFILE(videoConversion)
 #endif
 
-			if(audioBitrate)
+			if(p_audioCapture)
 			{
 				// Anzahl verfügbarer Audio-Samples abfragen
-				numSamplesReady = 0;
-				alcGetIntegerv(p_openALCaptureDevice, ALC_CAPTURE_SAMPLES, 1, &numSamplesReady);
+				numSamplesReady = p_audioCapture->getNumSamplesReady();
 
 				// Audio-Pakete kodieren und schreiben
 				AVCodecContext* p_audioCodecContext = p_avFormatContext->streams[1]->codec;
 				while(numSamplesReady >= p_audioCodecContext->frame_size)
 				{
 					// Samples holen und kodieren
-					alcCaptureSamples(p_openALCaptureDevice, p_audioInputBuffer, p_audioCodecContext->frame_size);
+					p_audioCapture->getSamples(p_audioInputBuffer, p_audioCodecContext->frame_size);
 					numSamplesReady -= p_audioCodecContext->frame_size;
 					int audioOutSize = avcodec_encode_audio(p_audioCodecContext, p_audioOutputBuffer, audioOutputBufferSize, p_audioInputBuffer);
 
@@ -348,11 +339,8 @@ int VideoRecorder::threadProc()
 	}
 	*/
 
-	if(audioBitrate)
-	{
-		// Audioaufnahme stoppen
-		alcCaptureStop(p_openALCaptureDevice);
-	}
+	// Audioaufnahme stoppen
+	if(p_audioCapture) p_audioCapture->stop();
 
 	// Trailer schreiben
 	av_write_trailer(p_avFormatContext);

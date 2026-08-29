@@ -87,6 +87,14 @@ screenshots and video capture. The loop renders as fast as it can but steps logi
 `logicRate` of 20 ms (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic
 tick, so gameplay code counts ticks rather than measuring dt.
 
+**Recorded audio** does not come from OpenAL. `alcCaptureOpenDevice` can only open an *input*
+device, so the old code recorded the microphone into every video. `audiocapture.cpp` replaces it
+with WASAPI loopback capture of the default *render* endpoint, converting whatever mix format the
+device uses (float32 or 16/24/32-bit PCM, any channel count, any rate) to the 16-bit stereo
+48 kHz `videorecorder.cpp` wants, and padding real gaps with silence off the QPC clock so the
+audio track stays as long as the video. The whole implementation is behind `#ifdef _WIN32` — the
+`#else` half is a stub that fails `open()` — because the Emscripten build globs `src/*.cpp`.
+
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are

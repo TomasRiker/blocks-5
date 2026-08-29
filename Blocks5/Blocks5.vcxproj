@@ -67,7 +67,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -95,7 +95,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -367,6 +367,7 @@
     <ClCompile Include="src\toxicwaste.cpp" />
     <ClCompile Include="src\as_ogg.cpp" />
     <ClCompile Include="src\as_wav.cpp" />
+    <ClCompile Include="src\audiocapture.cpp" />
     <ClCompile Include="src\audiostream.cpp" />
     <ClCompile Include="src\cf_blend.cpp" />
     <ClCompile Include="src\cf_camera.cpp" />
@@ -489,6 +490,7 @@
     <ClInclude Include="src\toxicwaste.h" />
     <ClInclude Include="src\as_ogg.h" />
     <ClInclude Include="src\as_wav.h" />
+    <ClInclude Include="src\audiocapture.h" />
     <ClInclude Include="src\audiostream.h" />
     <ClInclude Include="src\cf_all.h" />
     <ClInclude Include="src\cf_blend.h" />
