@@ -60,24 +60,132 @@ Three separate problems, worth separating:
   MSVC-x86-only: it blocks x64, it blocks Clang and GCC, and it is why
   `WebBuild/build.sh` filters `hq2x.cpp` out of the source glob. The MMX probe is
   also pointless on any CPU made this century.
-- **The browser has no upscaler at all.** `-hq2x` is simply unavailable there.
+- **The browser has no upscaler at all.** `-hq2x` is simply unavailable there
+  (`WebBuild/platform_stubs.cpp` stubs it out), so a 640x480 canvas is scaled by
+  whatever the browser does.
 
-Options, roughly in increasing order of ambition:
+### What hq2x actually buys, measured
 
-- Recover hq2x from source. Maxim Stepin's C sources exist and there are clean
-  reimplementations; still LGPL, so it would want to be a DLL, or a permissive
-  reimplementation would be needed.
-- Scale2x/Scale3x — much simpler, permissively licensed, plain C, and honest
-  about what it does.
-- **A fragment shader.** This is the interesting one: the upscale happens on the
-  already-rendered frame (`Engine::upscaleFrame`, which today does
-  `glReadPixels` → CPU filter → upload), so it is a natural post-process. A GLSL
-  version runs on the GPU in both builds, deletes the readback stall that shows
-  up as `GPU stall due to ReadPixels` in the browser console, and makes xBR-class
-  filters affordable. It does mean the renderer needs a programmable path, which
-  overlaps with item 8.
+The object still runs. `objcopy -O elf32-i386` converts it from COFF, its only
+undefined symbols are `_LUT16to32` and `_RGBtoYUV` (both in `src/hq2x.cpp`), and
+it links into a 32-bit Linux binary. Fed a real captured game frame through the
+exact RGBA -> RGB565 conversion `Engine::upscaleFrame` does, against a plain
+nearest-2x of the same frame:
 
-Whatever replaces it, `hq2x.cpp`'s `__asm` block goes with it.
+| region | output pixels visibly changed (>8/255) |
+| --- | --- |
+| whole frame | **4.85%** |
+| level-title text | 11.39% |
+| HUD bar (text + GUI) | 8.23% |
+| play area (tiles + rain) | 4.26% |
+| rainy sky | 1.93% |
+
+**95% of the frame is plain nearest-neighbour.** hq2x classifies a 3x3
+neighbourhood by thresholded YUV distance, which only yields a coherent edge on
+flat-coloured, hard-edged art. This game is mostly not that: the tiles are
+photographic, the sprites are airbrushed with anti-aliased edges, and every
+neighbour reads as "different", so no pattern matches and the filter passes the
+pixel through. It earns its keep on the font and the GUI, which *are* two-tone
+hard-edged art — and there it looks better than any interpolating filter.
+
+What that 5% costs, timed on the real object at 640x480:
+
+    RGB565 conversion : 0.343 ms/frame
+    hq2x_32 (MMX)     : 7.258 ms/frame
+    total CPU         : 7.600 ms/frame     (16.7 ms budget at 60 fps)
+
+45% of a frame at 60 fps on a 2.8 GHz Xeon, and that excludes both bus
+transfers: the `glReadPixels` (1.2 MB, a full pipeline flush immediately after
+rendering) and the `glDrawPixels` upload (4.9 MB of 1280x960 RGBA, every frame).
+
+### The prerequisite is an FBO, not a shader
+
+There is currently **zero** shader and **zero** framebuffer-object infrastructure
+in the tree — one `SDL_GL_GetProcAddress` call exists in the whole codebase
+(`engine.cpp:352`, for `glBlendFuncSeparate`). The work, in order:
+
+1. **An extension loader** for ~25 entry points (FBO + GLSL). glad generates a
+   single dependency-free `.c`, which fits both the compile-from-source rule and
+   the one-DLL rule.
+2. **The FBO.** Colour texture at 640x480 plus a **packed depth-stencil
+   renderbuffer** — `cf_star.cpp` and `level.cpp:625` both use the stencil
+   buffer, so a colour-only FBO breaks the star wipe and the light masking. This
+   is the one real gotcha.
+3. **Frame bracketing.** `glViewport` is set once at init to 640x480
+   (`engine.cpp:433`) and never changes — even with hq2x on, the game renders
+   into the bottom-left corner of a 1280x960 window. So the FBO pass needs no
+   viewport change at all; only the present pass does.
+4. **Replace `upscaleFrame()`** with bind-texture, `glUseProgram`, one quad.
+5. **`glReadBuffer(GL_BACK)` is an error with an FBO bound** — three sites need
+   `GL_COLOR_ATTACHMENT0` instead. Easy to miss, and it fails quietly.
+
+The six `glCopyTexSubImage2D` sites need no change: they read the bound
+framebuffer, which becomes the FBO. Worth knowing which they are, because they
+are often mistaken for CPU readbacks and are not — `glCopyTexSubImage2D` is a
+copy inside the GPU:
+
+| site | what it grabs |
+| --- | --- |
+| `gui.cpp:106` | the GUI layer, every frame any element drew |
+| `engine.cpp:802`, `:809`, `:1888` | the before/after images for a crossfade |
+| `level.cpp:2261` | the screen, to redraw it through a 65x41 warped grid (toxic haze) |
+| `cf_mosaic.cpp:45`, `gs_credits.cpp:78` | mosaic wipe, credits scroller |
+
+Only three calls cross the bus, all `glReadPixels`: video capture
+(`engine.cpp:850`, per recorded frame), screenshots (`:1177`, on demand), and
+hq2x (`:1116`, **every frame it is on**). hq2x is the only per-frame CPU round
+trip in the renderer.
+
+Staging note: **do the FBO first with no shader at all** and draw the texture with
+`GL_LINEAR`. That alone deletes the 7.6 ms and both transfers. The shader is then
+a small increment on the same plumbing. Two decisions, not one.
+
+### Which filter
+
+Not an hq2x successor chosen for being newer. The measurement says the frame has
+two regimes and a replacement has to serve both: hard-edged text and GUI, where
+hq2x wins, and anti-aliased photographic tiles, where it degenerates to nearest —
+the wrong answer for downsampled photos.
+
+**xBR (the "lv2" formulation), as a single fragment shader at an arbitrary scale
+factor**, is the recommendation. Same edge-detection premise as hq2x, so the text
+and GUI keep the look they have, but it *blends* along detected edges instead of
+snapping, so on the noisy 95% it degrades toward interpolation rather than toward
+nearest. Roughly 150-250 lines of GLSL, no lookup tables, nothing beyond GL 2.0.
+
+Two things to check before committing to it: the licence on whichever port is
+used (Hyllian's shaders vary, some permissive and some GPL — the point of the
+exercise is to improve on statically linked LGPL, not to trade it sideways), and
+whether it turns the rain and the parallax sky to mush, which is where an
+edge-directed filter on photographic content would show it first.
+
+Alternatives that stay on the table: **Scale2x/Scale3x**, much simpler and
+permissive, but it shares hq2x's flat-art premise and would do even less here.
+**Porting hq2x itself to GLSL** — it is a 256-entry pattern table, so a drop-in
+visual match is possible; more code than xBR and locked to exactly 2x.
+
+Whatever replaces it, `hq2x.cpp`'s `__asm` block goes with it. And the
+`SDL_ListModes` search in `engine.cpp:220-250` that hunts for a fullscreen mode
+of at least 1280x960 exists *only* because the filter is locked to exactly 2x —
+see item 10.
+
+### The browser side is easier than it looks
+
+Verified against the built `WebBuild/build/blocks5.js` rather than assumed.
+Emscripten's `LEGACY_GL_EMULATION` installs its generated fixed-function program
+only when the app has not bound one of its own:
+
+    if(!GL.currProgram){ if(GLImmediate.fixedFunctionProgram!=this.program){ GLctx.useProgram(this.program); ... } }
+
+and its wrapped `glUseProgram` sets `GL.currProgram`. So `glUseProgram(mine)` ->
+draw quad -> `glUseProgram(0)` composes cleanly with the emulation; the two do
+not fight. Framebuffer objects are core in WebGL 1, no extension needed. Use a
+real VBO for the quad rather than `glBegin`, and `gl_immediate.cpp` is bypassed
+entirely. `gl_compat.cpp` only includes `GL/gl.h`, so the GLES2/glext
+declarations have to be added there.
+
+This is also where the change is most visible, since the browser build has no
+upscaler today — and it is the only half that can be tested without Windows.
 
 
 3. Compile every dependency from source
@@ -326,9 +434,12 @@ The work, in order of payoff:
   handful. This is where the big win is, in both builds.
 - **Kill the readback in `upscaleFrame`.** `glReadPixels` → CPU → upload
   stalls the pipeline every frame that hq2x is on; the browser console reports
-  it directly. See item 2 — a shader-based filter removes this entirely.
+  it directly. Measured on the real object at 640x480 it is **7.6 ms of CPU per
+  frame** — 45% of a 60 fps budget — before either bus transfer, and item 2 shows
+  it visibly changes under 5% of the pixels. See item 2: the FBO removes all of
+  it, with or without a shader.
 - Then, if it is still worth it, a programmable pipeline for the rest. That is
-  also what a shader upscaler needs, so items 2 and 8 converge here.
+  also what a shader upscaler needs, so items 2, 8 and 10 converge here.
 
 Worth measuring before optimising: `BEGIN_PROFILE` / `END_PROFILE` from `util.h`
 are already available, and `PROFILE_HQ2X`, `PROFILE_VIDEO_CONVERSION` and
@@ -361,17 +472,125 @@ Windows Update's servicing of the shared one. For a single-player puzzle game
 that is the right trade against shipping a 6.5 MB installer stub.
 
 
+10. A window that behaves like a window
+---------------------------------------
+Three things the game should do and currently cannot:
+
+- **Be resizable**, keeping the 4:3 aspect ratio and letterboxing with black
+  bars when the window does not match.
+- **Enter and leave fullscreen while running**, not only via the command line.
+- **Switch the upscaling filter while running** — nearest, bilinear, xBR, and
+  whatever else item 2 adds.
+
+Today `SDL_SetVideoMode` is called exactly once (`engine.cpp:302`), with no
+`SDL_RESIZABLE`, and the mode is decided at startup from `-windowed` /
+`-fullscreen` / `-hq2x`. Fullscreen with hq2x additionally walks `SDL_ListModes`
+looking for the smallest mode of at least 1280x960 (`engine.cpp:220-250`), a
+search that exists only because the filter is hardwired to exactly 2x.
+
+**The FBO from item 2 is what makes all three cheap.** With the game always
+rendering 640x480 into an offscreen target, every hardcoded coordinate in the
+tree keeps working no matter what size the window is: the one `glViewport`
+(`engine.cpp:433`), `glScissor(280, 480 - 60 - 200, 320, 200)` in
+`gs_selectlevel.cpp:51`, the GUI XML layouts, the 0..640 x 0..480 texcoords on
+the background quad. Only the destination rectangle of the final blit changes,
+and only one place computes it. Without the FBO, every one of those is a bug.
+
+### Resizing is nearly free; the fullscreen toggle is not
+
+Both facts come out of the vendored SDL, so they are facts about *this* build.
+
+`SDL_dibvideo.c:614-625` has a fast path in `DIB_SetVideoMode`: if the flags and
+bpp are unchanged, `SDL_OPENGL` is set and `SDL_FULLSCREEN` is not, it calls
+`DIB_ResizeWindow` and returns — **the GL context survives**. windib is the
+driver the game gets, because `WINDIB_bootstrap` precedes `DIRECTX_bootstrap` in
+SDL's table (`SDL_video.c:82` vs `:85`). So a resizable window needs
+`SDL_RESIZABLE` in the flags, an `SDL_VIDEORESIZE` handler that re-calls
+`SDL_SetVideoMode` with the new size and recomputes the letterbox rectangle, and
+nothing else.
+
+Toggling fullscreen changes `SDL_FULLSCREEN`, so the flags differ, the fast path
+is skipped, and `WIN_GL_ShutDown` runs (`SDL_dibvideo.c:627-630`): **the GL
+context is destroyed and every GL object with it.** `SDL_WM_ToggleFullScreen` is
+not implemented on Windows in SDL 1.2 at all. Two ways out:
+
+1. **Rebuild the GL state after the mode change.** Most of the machinery already
+   exists: `Manager<T>::reload()` (`manager.h:107`) reloads every resource of a
+   type from the filesystem and is already used this way for skin changes
+   (`level.cpp:2433-2435`), covering `Texture`, `TileSet` and `Font`. What it does
+   not cover, and what would have to be recreated by hand:
+
+   | | |
+   | --- | --- |
+   | `engine.cpp:362`, `:363` | the two crossfade snapshot textures |
+   | `gui.cpp:471` | the GUI layer texture |
+   | `level.cpp:92` | the toxic-haze warp buffer |
+   | `cf_mosaic.cpp:6`, `gs_credits.cpp:258` | wipe and credits buffers |
+   | `level.cpp:411`, `lightning.cpp:13` | display lists (Windows build only; the tile-layer lists may self-heal via `layerDirty = ~0`) |
+
+   Plus the FBO, its stencil renderbuffer and the shader programs from item 2.
+   Doable, but it is a reload of every texture out of `data.zip` on every toggle,
+   so it will not be instant.
+
+2. **Move to SDL2**, where `SDL_SetWindowFullscreen` keeps the GL context and
+   `SDL_WINDOW_RESIZABLE` handles the rest. Item 3 already notes that "move to
+   SDL2" is the honest version of the SDL work; this is the strongest concrete
+   argument for it so far.
+
+### Mouse coordinates already have the hook — and a bug
+
+`Engine::getCursorPosition` (`engine.cpp:1795`) and `setCursorPosition` already
+undo the upscale, with a hardcoded `/2` and a y-offset for the hq2x case. That is
+exactly the right place for a general inverse of the letterbox transform; it just
+needs the scale and offset to come from the same rectangle the blit uses.
+
+Two existing defects in that code, both invisible today because the hq2x path is
+only ever exercised at exactly 1280x960 where all the offsets are zero:
+
+- `getCursorPosition` offsets y by `(displaySize.y - screenSize.y * 2) / 2`, i.e.
+  it assumes the image is centred vertically, but `upscaleFrame` places it with
+  `glRasterPos2i(0, displaySize.y - screenSize.y * 2)`, i.e. flush to the top.
+  The two disagree on any fullscreen mode taller than 960.
+- `setCursorPosition` clamps with `clamp(temp.x, 0, temp.x - 1)`, whose upper
+  bound is derived from the value being clamped, so it always returns
+  `temp.x - 1`. Same for y.
+
+### Where the settings live
+
+The filter becomes a mode, not a boolean. That means `useHQ2X` in `Engine` gives
+way to an enum, `<HQ2X>` in `config.xml` to something like `<Upscaler>`
+(`Engine::loadConfig`, `engine.cpp:1899`, with the old key still honoured), a
+dropdown in `data/options.xml` next to the existing video settings, and the
+`-hq2x` switch plus `hq2x.bat` replaced by something general. Every new caption
+is a `$ID` in `data/languages.txt` with at least `§en:` and `§de:` bodies.
+
+Fullscreen and window size want to be persisted in `config.xml` too, so the game
+comes back the way it was left.
+
+In the browser none of this needs SDL: the canvas is resized by CSS and the
+Fullscreen API, the WebGL context survives both, and the letterbox arithmetic is
+the same code. That half is testable without Windows.
+
+
 How these connect
 -----------------
     2 (HQ2X from source) ─┬─> 8 (shader upscaler, no readback)
                           ├─> 5 (Linux: the __asm block blocks GCC/Clang)
-                          └─> 3 (last non-import binary in libs/bin)
+                          ├─> 3 (last non-import binary in libs/bin)
+                          └─> 10 (the FBO is the shared prerequisite)
+
+   10 (window behaviour) ──> SDL2, because SDL 1.2 destroys the GL context
+                             on every fullscreen toggle
 
     3 (all from source) ────> 5 (Linux needs an ffmpeg answer anyway)
 
     5 (Linux) <────────────── WebBuild/platform_stubs.cpp already does most of it
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
+
+The one change under both 2 and 10 is the same 80 lines: render into a
+framebuffer object instead of the back buffer. Everything else in either item is
+an increment on it.
 
 *Done since this list was written:* stb_image in place of SDL_image, the standard
 unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
