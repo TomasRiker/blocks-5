@@ -1,0 +1,42 @@
+stb_image 2.30
+==============
+
+Image decoder. Replaces SDL_image: the game needs exactly one function from it,
+IMG_Load_RW, and src/img_load.cpp supplies that over stb_image for both builds.
+Everything the game draws is loaded through it, straight out of the encrypted
+data.zip via the game's own SDL_RWops.
+
+  https://github.com/nothings/stb   stb_image.h v2.30
+  Public domain (Unlicense) or MIT, dual - the notice is at the end of the file
+
+Byte-identical to upstream. No local changes, and none are wanted: this is a
+single header and the point of it is that it stays droppable.
+
+WHAT IT REPLACED
+----------------
+SDL_image 1.2 loaded its codecs with LoadLibrary at run time and asked for
+libjpeg-8.dll, libtiff-5.dll and libwebp-2.dll, none of which were ever in the
+tree - a latent failure that only showed up for formats the game does not use.
+Dropping it took sdl_image.dll, libpng15-15.dll and zlib1.dll out of the shipped
+tree as well.
+
+HOW IT IS BUILT
+---------------
+Header-only. src/img_load.cpp is the single translation unit that instantiates
+it, and it is the only place STB_IMAGE_IMPLEMENTATION may be defined:
+
+    #define STB_IMAGE_IMPLEMENTATION
+    #define STBI_ONLY_PNG
+    #define STBI_ONLY_JPEG
+    #define STBI_NO_STDIO
+
+PNG and JPEG are the only decoders compiled in - every image the game ships is a
+PNG, and JPEG is there for user-supplied skin art. STBI_NO_STDIO is deliberate:
+nothing may open a file by name, because assets live inside a password-protected
+archive and are only ever read through callbacks.
+
+UPDATING
+--------
+Replace the file. Check the release notes for changes to the stbi_io_callbacks
+struct, which is the only part of the API img_load.cpp depends on beyond
+stbi_load_from_callbacks.

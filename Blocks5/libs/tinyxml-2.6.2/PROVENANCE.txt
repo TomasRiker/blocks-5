@@ -1,0 +1,54 @@
+TinyXML 2.6.2
+=============
+
+The XML parser, and the game is built on it: every level, every GUI dialog, the
+campaign lists, the object palettes and config.xml all go through it. Reached
+through <tinyxml.h>, which pch.h includes for every translation unit.
+
+  TinyXML 2.6.2, Lee Thomason - the canonical tinyxml_2_6_2.tar.gz from
+  SourceForge, http://sourceforge.net/projects/tinyxml/
+  zlib licence, in the header comment of tinyxml.h
+
+This replaced libs/bin/tinyxml_STL.lib and tinyxmld_STL.lib, which were the only
+files in libs/bin carrying a linker directive - /FAILIFMISMATCH:"_MSC_VER=1800",
+the single thing that pinned the whole tree to the Visual Studio 2013 toolset.
+Four source files compile in its place.
+
+NOT THE GITHUB MIRRORS
+----------------------
+TinyXML 1 has no upstream git repository, only the SourceForge tarball, and the
+GitHub copies that fill the gap are forks carrying applied patches. The browser
+build used one of them before these sources were vendored, so for a while the
+two builds were running different parsers.
+
+Diffing this directory against one such mirror shows exactly what those forks
+change, and it is not cosmetic:
+
+  - tinyxml.h gains an unconditional "#ifndef TIXML_USE_STL / #define
+    TIXML_USE_STL", forcing the STL build regardless of what the project says.
+    Not needed here: TIXML_USE_STL is a project-wide define in both
+    Blocks5.vcxproj and WebBuild/build.sh, which is what the canonical header
+    expects.
+
+  - TiXmlBase::EncodeString in tinyxml.cpp is rewritten so that an ampersand is
+    always escaped, instead of passing "&#xA9;"-style character references
+    through unchanged. That is the Debian entity-encoding fix, SourceForge
+    tracker 3031828. It is a genuine upstream bug fix, but it is also a
+    behaviour change to the XML *writer*, and the .lib it would have replaced
+    was built from unpatched upstream.
+
+  - TiXmlAttribute::QueryIntValue gains a negative-value rejection.
+
+The canonical tarball is what is vendored, so both builds now run exactly the
+code the old .lib was built from. Whether to adopt the entity fix is a separate
+decision, on its own merits, for both platforms at once.
+
+WHAT IS HERE
+------------
+tinyxml.cpp, tinyxmlparser.cpp, tinyxmlerror.cpp, tinystr.cpp and the two
+headers - the whole library. Upstream's test program, its documentation and its
+project files are not vendored.
+
+The four ClCompile entries set PrecompiledHeader NotUsing in both
+configurations, like the minizip ones, because the project forces src/pch.h
+through /Yu and third-party translation units must not use it.
