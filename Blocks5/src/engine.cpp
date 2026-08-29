@@ -3,6 +3,7 @@
 #include <emscripten.h>
 #endif
 #include "engine.h"
+#include "glextensions.h"
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
@@ -39,6 +40,10 @@ Engine::Engine()
 	p_videoRecorder = 0;
 	p_audioCapture = 0;
 	p_muteIconTexture = 0;
+	frameBufferID = 0;
+	frameTextureID = 0;
+	frameDepthStencilID = 0;
+	useFrameBuffer = false;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -358,6 +363,15 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
+	// Bildpuffer anlegen. Schlägt das fehl, rendert das Spiel wie früher direkt
+	// in den Backbuffer - dann ist nur die Fenstergröße wieder starr.
+	GLExtensions::init();
+	useFrameBuffer = createFrameBuffer();
+	if(!useFrameBuffer)
+	{
+		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
+	}
+
 	// Texturen für Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
 	glGenTextures(1, &newImageID);
@@ -489,6 +503,9 @@ void Engine::exit()
 	// GUI herunterfahren
 	printfLog("* Shutting down GUI ...\n");
 	GUI::inst().exit();
+
+	// Bildpuffer freigeben, solange der GL-Kontext noch steht
+	destroyFrameBuffer();
 
 	// Manager herunterfahren
 	printfLog("* Shutting down resource managers ...\n");
@@ -624,6 +641,7 @@ void Engine::mainLoopIteration()
 		// rendern
 		if(active && timeProcessed)
 		{
+			bindFrameBuffer();
 			render();
 			frameRendered = true;
 		}
@@ -845,8 +863,9 @@ void Engine::mainLoopIteration()
 					BEGIN_PROFILE(videoCapture)
 #endif
 
-					// Bild holen
-					glReadBuffer(GL_BACK);
+					// Bild holen. Immer 640x480 aus dem Bildpuffer, unabhängig von der
+					// Fenstergröße - der Videoencoder ist einmal darauf eingerichtet.
+					glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
 
 					if(SDL_ShowCursor(-1))
@@ -877,14 +896,19 @@ void Engine::mainLoopIteration()
 			}
 
 			drawOverlays();
-			upscaleFrame();
 
+			// Noch vor dem Anzeigen, damit der Screenshot das saubere 640x480-Bild
+			// festhält und nicht die skalierte Fassung samt schwarzer Balken.
 			if(doScreenshot)
 			{
 				doScreenshot = false;
 				screenshot();
 				playSound("screenshot.ogg");
 			}
+
+			// Bildpuffer auf den Bildschirm bringen
+			if(useHQ2X) upscaleFrame();
+			else        { unbindFrameBuffer(); presentFrame(); }
 
 			// gerendertes Frame anzeigen
 			SDL_GL_SwapBuffers();
@@ -1084,6 +1108,148 @@ std::string Engine::getBestOpenALDevice()
 	else return p_device;
 }
 
+bool Engine::createFrameBuffer()
+{
+	if(!GLExtensions::haveFrameBufferObjects()) return false;
+
+	frameTextureSize = screenPow2Size;
+
+	glGenTextures(1, &frameTextureID);
+	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameTextureSize.x, frameTextureSize.y, 0,
+				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glExtGenFramebuffers(1, &frameBufferID);
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
+	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+							  GL_TEXTURE_2D, frameTextureID, 0);
+
+	// Der Sternenwischer (cf_star.cpp) und die Lichtmaske in level.cpp brauchen
+	// einen Stencil-Puffer. Ein reiner Farbpuffer wäre also zu wenig.
+	glExtGenRenderbuffers(1, &frameDepthStencilID);
+	glExtBindRenderbuffer(GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#ifdef __EMSCRIPTEN__
+	// WebGL 1 kennt genau ein kombiniertes Format und einen kombinierten
+	// Anhängepunkt dafür.
+	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH_STENCIL_EXT,
+							 frameTextureSize.x, frameTextureSize.y);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_STENCIL_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#else
+	// EXT_packed_depth_stencil kennt keinen kombinierten Anhängepunkt: derselbe
+	// Renderbuffer wird an beide gehängt, so schreibt es die Spezifikation vor.
+	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH24_STENCIL8_EXT,
+							 frameTextureSize.x, frameTextureSize.y);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#endif
+
+	const GLenum status = glExtCheckFramebufferStatus(GL_FRAMEBUFFER_EXT);
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+
+	if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
+	{
+		printfLog("- WARNING: Framebuffer object is incomplete (status 0x%x).\n", status);
+		destroyFrameBuffer();
+		return false;
+	}
+
+	printfLog("  Render target:    %dx%d in a %dx%d texture\n",
+			  screenSize.x, screenSize.y, frameTextureSize.x, frameTextureSize.y);
+	return true;
+}
+
+void Engine::destroyFrameBuffer()
+{
+	if(frameDepthStencilID) { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
+	if(frameBufferID)       { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
+	if(frameTextureID)      { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+}
+
+void Engine::bindFrameBuffer()
+{
+	if(!useFrameBuffer) return;
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
+	glViewport(0, 0, screenSize.x, screenSize.y);
+}
+
+void Engine::unbindFrameBuffer()
+{
+	if(!useFrameBuffer) return;
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+	glViewport(0, 0, displaySize.x, displaySize.y);
+}
+
+void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
+{
+	// Größtmögliches 4:3-Rechteck im Fenster, mittig. Was übrig bleibt, wird
+	// schwarz - lieber Balken als ein verzerrtes Bild.
+	const double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
+							 static_cast<double>(displaySize.y) / screenSize.y);
+	w = static_cast<int>(screenSize.x * scale);
+	h = static_cast<int>(screenSize.y * scale);
+	x = (displaySize.x - w) / 2;
+	y = (displaySize.y - h) / 2;
+}
+
+void Engine::presentFrame()
+{
+	if(!useFrameBuffer) return;
+
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+	glDisable(GL_BLEND);
+	glDisable(GL_STENCIL_TEST);
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_TEXTURE_2D);
+	glColor4d(1.0, 1.0, 1.0, 1.0);
+
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0.0, displaySize.x, 0.0, displaySize.y);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// Benutzt wird nur die linke untere Ecke der Zweierpotenz-Textur.
+	const double u = static_cast<double>(screenSize.x) / frameTextureSize.x;
+	const double v = static_cast<double>(screenSize.y) / frameTextureSize.y;
+
+	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+	glBegin(GL_QUADS);
+	glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
+	glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
+	glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
+	glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
+	glEnd();
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_TEXTURE);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+
+	glPopAttrib();
+}
+
 // #define PROFILE_HQ2X
 
 void Engine::upscaleFrame()
@@ -1094,7 +1260,7 @@ void Engine::upscaleFrame()
 
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-	glReadBuffer(GL_BACK);
+	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 	glDrawBuffer(GL_BACK);
 
 	glDisable(GL_TEXTURE_2D);
@@ -1114,6 +1280,10 @@ void Engine::upscaleFrame()
 #endif
 
 	glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_hq2xIn);
+
+	// Gelesen wird aus dem Bildpuffer, gezeichnet wird ins Fenster.
+	unbindFrameBuffer();
+
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -1171,24 +1341,29 @@ void Engine::screenshot()
 	printfLog("Screenshots are not supported in the web build.\n");
 	return;
 #endif
-	char* p_temp = new char[displaySize.x * displaySize.y * 3];
+	// Immer das interne 640x480-Bild, nie die skalierte Fassung: der gewählte
+	// Filter ist eine Anzeigeeinstellung und gehört nicht in die Datei, und
+	// schwarze Balken erst recht nicht.
+	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
 
-	glReadBuffer(GL_BACK);
-	glReadPixels(0, 0, displaySize.x, displaySize.y, GL_BGR, GL_UNSIGNED_BYTE, p_temp);
+	char* p_temp = new char[shotSize.x * shotSize.y * 3];
+
+	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_BGR, GL_UNSIGNED_BYTE, p_temp);
 
 	// Zeilen richtigherum drehen
-	char* p_buffer = new char[displaySize.x * displaySize.y * 3];
+	char* p_buffer = new char[shotSize.x * shotSize.y * 3];
 	char* p_cursor = p_temp;
-	for(int y = 0; y < displaySize.y; y++)
+	for(int y = 0; y < shotSize.y; y++)
 	{
-		int ny = displaySize.y - 1 - y;
-		memcpy(p_buffer + displaySize.x * 3 * ny, p_cursor, displaySize.x * 3);
-		p_cursor += displaySize.x * 3;
+		int ny = shotSize.y - 1 - y;
+		memcpy(p_buffer + shotSize.x * 3 * ny, p_cursor, shotSize.x * 3);
+		p_cursor += shotSize.x * 3;
 	}
 
 	delete[] p_temp;
 
-	SDL_Surface* p_surface = SDL_CreateRGBSurfaceFrom(p_buffer, displaySize.x, displaySize.y, 24, displaySize.x * 3, 0x00FF0000, 0x0000FF00, 0x000000FF, 0x00000000);
+	SDL_Surface* p_surface = SDL_CreateRGBSurfaceFrom(p_buffer, shotSize.x, shotSize.y, 24, shotSize.x * 3, 0x00FF0000, 0x0000FF00, 0x000000FF, 0x00000000);
 
 	FileSystem& fs = FileSystem::inst();
 	char screenshotDateTime[256];
@@ -1802,6 +1977,20 @@ Vec2i Engine::getCursorPosition() const
 		position.y -= offset;
 		position /= 2;
 	}
+	else if(useFrameBuffer)
+	{
+		// Genau die Umkehrung dessen, was presentFrame() zeichnet. Das Rechteck
+		// liegt mittig, deshalb ist der Rand oben so groß wie unten und die
+		// Rechnung gilt gleichermaßen in SDLs Fensterkoordinaten (y nach unten)
+		// wie in GLs (y nach oben).
+		int x, y, w, h;
+		computePresentRect(x, y, w, h);
+		if(w > 0 && h > 0)
+		{
+			position.x = static_cast<int>((position.x - x) * static_cast<double>(screenSize.x) / w);
+			position.y = static_cast<int>((position.y - y) * static_cast<double>(screenSize.y) / h);
+		}
+	}
 
 	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
 					 clamp(position.y, 0, screenSize.y - 1));
@@ -1811,15 +2000,28 @@ Vec2i Engine::getCursorPosition() const
 
 void Engine::setCursorPosition(const Vec2i& cursorPosition)
 {
-	Vec2i temp = cursorPosition;
+	// Erst in den gültigen Bereich des internen Bildes, dann nach außen
+	// umrechnen. Die alte Fassung klemmte mit clamp(temp.x, 0, temp.x - 1) auf
+	// eine Grenze, die aus dem geklemmten Wert selbst stammte, und zog dadurch
+	// immer genau eins ab.
+	Vec2i temp = Vec2i(clamp(cursorPosition.x, 0, screenSize.x - 1),
+					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
 	if(useHQ2X)
 	{
-		temp = Vec2i(clamp(temp.x, 0, temp.x - 1),
-					 clamp(temp.y, 0, temp.y - 1));
 		temp *= 2;
 		int offset = (displaySize.y - screenSize.y * 2) / 2;
 		temp.y += offset;
+	}
+	else if(useFrameBuffer)
+	{
+		int x, y, w, h;
+		computePresentRect(x, y, w, h);
+		if(screenSize.x > 0 && screenSize.y > 0)
+		{
+			temp.x = x + static_cast<int>(temp.x * static_cast<double>(w) / screenSize.x);
+			temp.y = y + static_cast<int>(temp.y * static_cast<double>(h) / screenSize.y);
+		}
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);

@@ -295,6 +295,9 @@
     <ClCompile Include="src\engine.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\glextensions.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\file.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1003,6 +1006,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\engine.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\glextensions.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\file.h">

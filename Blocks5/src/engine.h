@@ -69,6 +69,20 @@ public:
 	void drawOverlays();
 	void upscaleFrame();
 	void screenshot();
+
+	// Der Bildpuffer, in den das Spiel rendert. Immer 640x480, unabhaengig
+	// davon, wie gross das Fenster ist; presentFrame() bringt ihn danach auf
+	// den Bildschirm. Alles, was in Bildschirmkoordinaten rechnet - der eine
+	// glViewport, die glScissor-Aufrufe, die GUI-Layouts - bleibt dadurch
+	// gueltig, egal wie das Fenster skaliert wird.
+	bool createFrameBuffer();
+	void destroyFrameBuffer();
+	void bindFrameBuffer();      // Ziel = Bildpuffer, Viewport 640x480
+	void unbindFrameBuffer();    // Ziel = Fenster
+	void presentFrame();         // Bildpuffer -> Fenster, mit schwarzen Balken
+	// Wohin im Fenster das 640x480-Bild kommt: mittig, Seitenverhaeltnis
+	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
+	void computePresentRect(int& x, int& y, int& w, int& h) const;
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -204,6 +218,14 @@ private:
 	std::string currentMusicFilename;
 	unsigned char* p_hq2xIn;
 	unsigned char* p_hq2xOut;
+	// Bildpuffer. frameTextureSize ist eine Zweierpotenz, weil WebGL 1 und
+	// aeltere Treiber sonst NPOT-Texturen nur eingeschraenkt erlauben; benutzt
+	// wird davon die linke untere Ecke in screenSize.
+	uint frameBufferID;
+	uint frameTextureID;
+	uint frameDepthStencilID;
+	Vec2i frameTextureSize;
+	bool useFrameBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;
 	uint lastRecordedFrameTimecode;

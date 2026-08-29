@@ -136,9 +136,25 @@ Only three calls cross the bus, all `glReadPixels`: video capture
 hq2x (`:1116`, **every frame it is on**). hq2x is the only per-frame CPU round
 trip in the renderer.
 
-Staging note: **do the FBO first with no shader at all** and draw the texture with
-`GL_LINEAR`. That alone deletes the 7.6 ms and both transfers. The shader is then
-a small increment on the same plumbing. Two decisions, not one.
+**The FBO half is done.** `src/glextensions.cpp` loads the ten entry points
+(`glGenFramebuffersEXT` first, the core spelling as a fallback; core in WebGL, so
+nothing to load there), and `Engine` renders every frame into a 640x480 region of
+a 1024x512 texture with a packed depth-stencil renderbuffer, then presents it as
+one letterboxed quad. Verified in the browser build: the menu renders
+pixel-identically to the pre-FBO build within the noise floor of its own animated
+background - two runs of the same build differ *more* from each other than the
+before/after pair does - and gameplay, the stencil light mask, crossfades, the
+scissor-clipped level list and mouse hit-testing all still work.
+
+What is left of this item is the filter itself. `Engine::upscaleFrame` still runs
+hq2x when `-hq2x` is given, now reading the framebuffer instead of the back
+buffer, so nothing regressed while the shader is outstanding.
+
+xBR-lv2's licence, which this entry used to flag as needing a check, is **MIT** -
+`libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian, "Permission is hereby
+granted, free of charge". That is a clear improvement on hq2x's statically linked
+LGPL. It is written against `#version 130`, so the browser build needs it ported
+to GLSL ES 1.00.
 
 ### Which filter
 
