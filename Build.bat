@@ -14,7 +14,7 @@ REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
 REM    /stage          also run Blocks5\stage.bat afterwards (Release only)
 REM    /rebuild        clean first, then build
-REM    /?              show a short usage summary
+REM    -h, --help, /?  show a short usage summary
 REM
 REM  ABOUT THE TOOLSET
 REM  -----------------
@@ -196,7 +196,7 @@ ECHO.
 IF ERRORLEVEL 1 (
 	ECHO.
 	ECHO ERROR: the build failed.
-	ECHO        On v140 and newer, "unresolved external symbol __imp____iob_func"
+	ECHO        With v140 and newer, "unresolved external symbol __imp____iob_func"
 	ECHO        is expected and is the last remaining gap - see the note at the
 	ECHO        top of this file. Everything else is worth reporting.
 	GOTO fail
