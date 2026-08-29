@@ -705,6 +705,23 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_KEYDOWN:
+#ifndef __EMSCRIPTEN__
+				// Alt+F4 muss das Spiel beenden. Windows macht daraus sonst
+				// selbst ein WM_CLOSE - aber erst in DefWindowProc, und dorthin
+				// kommt die Taste nie: SDLs windib-Fensterprozedur behandelt
+				// WM_SYSKEYDOWN als gewoehnlichen Tastendruck und gibt 0
+				// zurueck (SDL_dibevents.c:137). Also hier, und zwar genau so,
+				// wie es der Quit-Knopf im Menue tut - damit auch eine laufende
+				// Videoaufnahme sauber geschlossen wird.
+				if(event.key.keysym.sym == SDLK_F4 &&
+				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
+				{
+					SDL_Event quitEvent;
+					quitEvent.type = SDL_QUIT;
+					SDL_PushEvent(&quitEvent);
+					break;
+				}
+#endif
 				// Alt+Return schaltet Vollbild um und wird verschluckt, damit
 				// das Spiel darin kein gewöhnliches Return sieht. (Im Browser
 				// hat das schon der DOM-Handler erledigt - der Tastendruck
@@ -2839,6 +2856,14 @@ AudioCapture* Engine::getAudioCapture()
 
 void Engine::setupCursor()
 {
+	// Der Pfeil, doppelt so gross wie frueher. Seit das Fenster beliebig gross
+	// sein darf, wird das 640x480-Bild mitskaliert - der Mauszeiger aber nicht,
+	// den zeichnet das System in Fensterpixeln, und danebengehalten wirkt er
+	// winzig. Neu gerastert, nicht pixelverdoppelt: die Schraege ist wieder
+	// eine saubere 45-Grad-Linie mit Einzelpixelstufen und keine 2x2-Treppe.
+	// Erzeugt aus dem Umriss als Polygon; bei Faktor 1 gibt dieselbe Rechnung
+	// den alten Pfeil bis auf drei Pixel wieder. Groesser als 32x32 geht nicht,
+	// so gross ist ein Win32-Cursor.
 	const char* p_arrow[] = {
 		/* width height num_colors chars_per_pixel */
 		"    32    32        3            1",
@@ -2856,29 +2881,29 @@ void Engine::setupCursor()
 		"X.....X                         ",
 		"X......X                        ",
 		"X.......X                       ",
-		"X.....XXX                       ",
-		"X..X..X                         ",
-		"X.X X..X                        ",
-		"XX  X..X                        ",
-		"     X..X                       ",
-		"     X..X                       ",
-		"      XX                        ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
+		"X........X                      ",
+		"X.........X                     ",
+		"X..........X                    ",
+		"X...........X                   ",
+		"X............X                  ",
+		"X.............X                 ",
+		"X..............X                ",
+		"X...............X               ",
+		"X................X              ",
+		"X...............XX              ",
+		"X.............XX                ",
+		"X......X.....X                  ",
+		"X.....X X.....X                 ",
+		"X....X  X.....X                 ",
+		"X...X   X.....X                 ",
+		"X.XX     X.....X                ",
+		"XX       X.....X                ",
+		"X         X.....X               ",
+		"          X.....X               ",
+		"          X.....X               ",
+		"           X.....X              ",
+		"           X.....X              ",
+		"            XXXXX               ",
 		"0,0"
 	};
 

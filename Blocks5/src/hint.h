@@ -24,6 +24,10 @@ public:
 	void setText(const std::string& text);
 
 private:
+	// Wohin der Zettel aufklappt. Muss feststehen, bevor das erste Bild davon
+	// zu sehen ist - siehe onUpdate().
+	void updateTargetPosition();
+
 	std::string text;
 	double alpha;
 	double shownAlpha;

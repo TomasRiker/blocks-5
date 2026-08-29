@@ -13,6 +13,8 @@ Hint::Hint(Level& level,
 	flags = OF_FIXED | OF_TRANSPORTABLE | OF_COLLECTABLE;
 	this->text = text;
 	alpha = shownAlpha = 0.0;
+	// Vec2i hat keinen initialisierenden Standardkonstruktor.
+	targetPosition = Vec2i(320, 200);
 
 	p_sprite = level.getHint();
 	p_font = level.getHintFont();
@@ -43,7 +45,11 @@ void Hint::onRender(int layer,
 		double i = shownAlpha / 0.85;
 		double s = i * 0.9;
 
-		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 0.9, targetPosition = Vec2i(320, 200);
+		// Layer 43 ist die Vorschau im Leveleditor: fertig aufgeklappt, mittig.
+		// Das ist eine Anzeigesache und darf targetPosition nicht veraendern -
+		// sonst zeigt der Zettel im Spiel hinterher woandershin.
+		Vec2i target = targetPosition;
+		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 0.9, target = Vec2i(320, 200);
 
 		if(a > 1.0 / 255.0)
 		{
@@ -56,7 +62,7 @@ void Hint::onRender(int layer,
 			p_sprite->bind();
 
 			glPushMatrix();
-			Vec2d sp = (1.0 - i) * static_cast<Vec2d>(getShownPositionInPixels()) + i * static_cast<Vec2d>(targetPosition);
+			Vec2d sp = (1.0 - i) * static_cast<Vec2d>(getShownPositionInPixels()) + i * static_cast<Vec2d>(target);
 			glTranslated(sp.x, sp.y, 0.0);
 			glScaled(s, s, 1.0);
 			glRotated(r, 0.0, 0.0, 1.0);
@@ -69,7 +75,7 @@ void Hint::onRender(int layer,
 				Vec4d textColor = color;
 				textColor.a *= 65.0 * (a - 0.84);
 				std::string text = localizeString(this->text);
-				p_font->renderText(p_font->adjustText(text, 230), Vec2i(targetPosition.x - 115, targetPosition.y - 155), textColor);
+				p_font->renderText(p_font->adjustText(text, 230), Vec2i(target.x - 115, target.y - 155), textColor);
 			}
 
 			glPopMatrix();
@@ -81,24 +87,39 @@ void Hint::onUpdate()
 {
 	// Spieler da?
 	Object* p_obj = level.getFrontObjectAt(position);
-	alpha = p_obj == level.getActivePlayer() ? 0.85 : 0.0;
+	const bool playerIsHere = (p_obj == level.getActivePlayer());
+
+	// Das Ziel muss schon feststehen, wenn der Zettel anfaengt aufzuklappen.
+	// Frueher stand es nur in onCollect(), und das laeuft erst, wenn der
+	// Spieler bis auf sechs Pixel mittig auf dem Feld steht (object.cpp) -
+	// waehrend hier die blosse Feldposition zaehlt. Dazwischen liegen ein paar
+	// Ticks, in denen der Zettel schon sichtbar ist und noch auf das Ziel vom
+	// letzten Mal zulaeuft. Genau das war der Sprung beim wiederholten Betreten.
+	if(playerIsHere) updateTargetPosition();
+
+	alpha = playerIsHere ? 0.85 : 0.0;
 	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
 	if(shownAlpha <= 1.0 / 255.0) shownAlpha = 0.0;
 }
 
+void Hint::updateTargetPosition()
+{
+	Player* p_player = level.getActivePlayer();
+	if(!p_player) return;
+
+	// Der Zettel soll den Spieler nicht verdecken.
+	targetPosition = Vec2i(320, 200);
+	const Vec2i pp = p_player->getPosition() * 16;
+	if(pp.x >= 140 && pp.x <= 490)
+	{
+		if(pp.x < 320) targetPosition.x = 470;
+		else targetPosition.x = 170;
+	}
+}
+
 void Hint::onCollect(Player* p_player)
 {
-	if(level.getActivePlayer())
-	{
-		// Der Zettel soll den Spieler nicht verdecken.
-		targetPosition = Vec2i(320, 200);
-		Vec2i pp = level.getActivePlayer()->getPosition() * 16;
-		if(pp.x >= 140 && pp.x <= 490)
-		{
-			if(pp.x < 320) targetPosition.x = 470;
-			else targetPosition.x = 170;
-		}
-	}
+	updateTargetPosition();
 }
 
 void Hint::saveAttributes(TiXmlElement* p_target)
