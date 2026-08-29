@@ -1,6 +1,13 @@
 #include "pch.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
+// Definition weiter unten, bei setFullScreen().
+static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
+#endif
+#ifdef _WIN32
+// Fuer den Vollbildwechsel: der Fensterstil wird direkt gesetzt, an SDL vorbei.
+#include <SDL_syswm.h>
 #endif
 #include "engine.h"
 #include "glextensions.h"
@@ -43,6 +50,12 @@ Engine::Engine()
 	frameDepthStencilID = 0;
 	useFrameBuffer = false;
 	upscaleFilter = UF_XBR_DETAIL;   // Voreinstellung; ohne Shader wird bilinear daraus
+	fullScreen = false;
+	fullScreenOverride = -1;
+	swallowedReturn = false;
+	windowedSize = Vec2i(0, 0);      // init() setzt das auf screenSize
+	savedWindowStyle = 0;
+	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	xbrProgram = 0;
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
@@ -66,14 +79,26 @@ bool Engine::init(const std::string& windowCaption,
 {
 	if(initialized) return false;
 
+	screenSize = Vec2i(width, height);
+	screenPow2Size = Vec2i(nextPow2(width), nextPow2(height));
+
+	// Reihenfolge: eingebaute Voreinstellung, dann die config.xml, dann die
+	// Kommandozeile - die sticht beides.
+	this->fullScreen = fullScreen;
+#ifdef __EMSCRIPTEN__
+	// Im Browser fuellt die Seite ohnehin schon alles aus, und die
+	// Fullscreen-API laesst sich ohne echten Tastendruck gar nicht ausloesen -
+	// beim Start gibt es also kein Vollbild, egal was irgendwo steht.
+	this->fullScreen = false;
+#endif
+	windowedSize = screenSize;
+
 	// Konfiguration laden
 	loadConfig();
 
-	printfLog("* Language: %s\n", language.c_str());
+	if(fullScreenOverride >= 0) this->fullScreen = (fullScreenOverride != 0);
 
-	screenSize = Vec2i(width, height);
-	screenPow2Size = Vec2i(nextPow2(width), nextPow2(height));
-	this->fullScreen = fullScreen;
+	printfLog("* Language: %s\n", language.c_str());
 
 	// SDL initialisieren
 	printfLog("* Initializing SDL ...\n");
@@ -209,8 +234,6 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	displaySize = Vec2i(width, height);
-
 	if(!windowIconFilename.empty())
 	{
 		// Icon laden
@@ -259,12 +282,29 @@ bool Engine::init(const std::string& windowCaption,
 		delete[] p_mask;
 	}
 
-	p_display = SDL_SetVideoMode(displaySize.x, displaySize.y, 32, SDL_OPENGL | (fullScreen ? SDL_FULLSCREEN : 0));
+	// SDLs Flags bleiben ab hier unveraendert - SDL_OPENGL | SDL_RESIZABLE, das
+	// ganze Programm ueber. Nur so trifft DIB_SetVideoMode bei jeder weiteren
+	// Groessenaenderung seinen schnellen Pfad, und der GL-Kontext ueberlebt sie.
+	// Vollbild ist deshalb kein SDL-Flag, sondern ein Fensterstil (siehe
+	// applyWindowStyle); der Aufruf hier legt immer das Fenster an.
+	displaySize = windowedSize;
+	p_display = SDL_SetVideoMode(displaySize.x, displaySize.y, 32, SDL_OPENGL | SDL_RESIZABLE);
 	if(!p_display)
 	{
 		printfLog("+ ERROR: Could not set video mode (Error: %s).\n", SDL_GetError());
 		return false;
 	}
+
+	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - das Fenster
+	// steht, der Kontext auch.
+	if(fullScreen) applyWindowStyle(true, getDesktopSize());
+
+#ifdef __EMSCRIPTEN__
+	// Alt+Return am DOM, nicht an SDL: nur ein echter Tastendruck darf die
+	// Fullscreen-API ausloesen.
+	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
+									engineFullScreenHotkey);
+#endif
 
 	SDL_ShowCursor(0);
 	setupCursor();
@@ -574,6 +614,20 @@ void Engine::mainLoopIteration()
 #endif
 		Uint32 start = SDL_GetTicks();
 
+#ifdef __EMSCRIPTEN__
+		// Der Browser aendert die Canvas-Groesse, ohne dass SDL 1.2 davon ein
+		// SDL_VIDEORESIZE machen wuerde - Groessenaenderung durch das
+		// Browserfenster wie durch die Fullscreen-API. Einmal pro Bild
+		// nachsehen kostet nichts und faengt beides.
+		{
+			int canvasWidth = 0, canvasHeight = 0;
+			emscripten_get_canvas_element_size("#canvas", &canvasWidth, &canvasHeight);
+			if(canvasWidth > 0 && canvasHeight > 0 &&
+			   (canvasWidth != displaySize.x || canvasHeight != displaySize.y))
+				handleResize(canvasWidth, canvasHeight);
+		}
+#endif
+
 		// OpenGL-Fehler aufgetreten?
 		uint err = glGetError();
 		if(err != GL_NO_ERROR)
@@ -647,11 +701,31 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_KEYDOWN:
+				// Alt+Return schaltet Vollbild um und wird verschluckt, damit
+				// das Spiel darin kein gewöhnliches Return sieht. (Im Browser
+				// hat das schon der DOM-Handler erledigt - der Tastendruck
+				// kommt trotzdem hier an, und genau deshalb muss er hier weg.)
+				if(event.key.keysym.sym == SDLK_RETURN &&
+				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
+				{
+					swallowedReturn = true;
+#ifndef __EMSCRIPTEN__
+					toggleFullScreen();
+#endif
+					break;
+				}
 				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
 					keyData[event.key.keysym.sym] |= (1 | 2);
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_KEYUP:
+				// Nicht am Modifikator festmachen: wer Alt vor Return loslaesst,
+				// wuerde sonst ein Loslassen ohne Druecken hinterlassen.
+				if(event.key.keysym.sym == SDLK_RETURN && swallowedReturn)
+				{
+					swallowedReturn = false;
+					break;
+				}
 				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
 				{
 					keyData[event.key.keysym.sym] &= ~1;
@@ -672,6 +746,13 @@ void Engine::mainLoopIteration()
 				break;
 			case SDL_MOUSEMOTION:
 				cursorPosition = Vec2i(event.motion.x, event.motion.y);
+				break;
+			case SDL_VIDEORESIZE:
+				// Kommt sowohl vom Ziehen am Fensterrand als auch vom
+				// Stilwechsel in applyWindowStyle(): SDL bemerkt die neue
+				// Groesse ueber sein eigenes WM_WINDOWPOSCHANGED und meldet
+				// sie hier. Ein Pfad fuer beides.
+				handleResize(event.resize.w, event.resize.h);
 				break;
 			case SDL_QUIT:
 				done = true;
@@ -1265,12 +1346,174 @@ void Engine::unbindFrameBuffer()
 	glViewport(0, 0, displaySize.x, displaySize.y);
 }
 
+#ifdef __EMSCRIPTEN__
+// Der Browser gibt Vollbild nur her, wenn ein echter Klick oder Tastendruck es
+// ausloest. SDLs Ereignisse kommen aber aus der Animationsschleife und zaehlen
+// nicht als solcher, deshalb haengt Alt+Return hier direkt am DOM.
+static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent* p_event, void*)
+{
+	if(p_event->altKey && p_event->keyCode == 13)
+	{
+		Engine::inst().toggleFullScreen();
+		return EM_TRUE;
+	}
+	return EM_FALSE;
+}
+
+static void emscriptenSetFullScreen(bool fullScreen)
+{
+	if(fullScreen)
+	{
+		EmscriptenFullscreenStrategy strategy;
+		memset(&strategy, 0, sizeof(strategy));
+		// Der Canvas bekommt die volle Bildschirmgroesse; die schwarzen Balken
+		// zeichnet presentFrame selbst, genau wie im Fenster.
+		strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH;
+		strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+		strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+		emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
+	}
+	else emscripten_exit_fullscreen();
+}
+#endif
+
+Vec2i Engine::getDesktopSize() const
+{
+#ifdef __EMSCRIPTEN__
+	// Im Browser ist "Desktop" das Fenster, in dem die Seite steht.
+	return Vec2i(EM_ASM_INT({ return window.innerWidth | 0; }),
+				 EM_ASM_INT({ return window.innerHeight | 0; }));
+#else
+	// SDL_ListModes(0, SDL_FULLSCREEN) waere die portable Variante, liefert aber
+	// die Modusliste und nicht den Desktop. SDL_GetVideoInfo liefert vor dem
+	// ersten SDL_SetVideoMode die Desktopaufloesung - danach die des Fensters,
+	// deshalb wird sie unter Win32 direkt erfragt.
+#ifdef _WIN32
+	const int w = GetSystemMetrics(SM_CXSCREEN);
+	const int h = GetSystemMetrics(SM_CYSCREEN);
+	if(w > 0 && h > 0) return Vec2i(w, h);
+#endif
+	const SDL_VideoInfo* p_info = SDL_GetVideoInfo();
+	if(p_info && p_info->current_w > 0 && p_info->current_h > 0)
+		return Vec2i(p_info->current_w, p_info->current_h);
+	return screenSize;
+#endif
+}
+
+void Engine::applyWindowStyle(bool fullScreen, const Vec2i& size)
+{
+	// SDLs Flags werden hier bewusst nicht angefasst. SDL_FULLSCREEN oder
+	// SDL_NOFRAME zu setzen wuerde DIB_SetVideoMode auf den langsamen Pfad
+	// zwingen, und der ruft WIN_GL_ShutDown - der GL-Kontext und mit ihm jede
+	// Textur, jede Displayliste und der Bildpuffer waeren weg. Stattdessen wird
+	// direkt der Win32-Stil umgeschaltet; SDL merkt die neue Groesse ueber sein
+	// eigenes WM_WINDOWPOSCHANGED und schickt ein ganz normales SDL_VIDEORESIZE.
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window)
+	{
+		HWND hwnd = info.window;
+		if(fullScreen)
+		{
+			// Stil und Rechteck merken, damit das Fenster genau dorthin
+			// zurueckkommt, wo es war.
+			savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
+			RECT r;
+			if(GetWindowRect(hwnd, &r))
+			{
+				savedWindowRect[0] = r.left;
+				savedWindowRect[1] = r.top;
+				savedWindowRect[2] = r.right - r.left;
+				savedWindowRect[3] = r.bottom - r.top;
+			}
+
+			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+			// HWND_TOP, nicht HWND_TOPMOST: ein randloses Vollbildfenster, das
+			// ueber allem klebt, macht Alt+Tab unbrauchbar.
+			SetWindowPos(hwnd, HWND_TOP, 0, 0, size.x, size.y,
+						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+		}
+		else if(savedWindowStyle)
+		{
+			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
+			SetWindowPos(hwnd, HWND_NOTOPMOST,
+						 savedWindowRect[0], savedWindowRect[1],
+						 savedWindowRect[2], savedWindowRect[3],
+						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+			savedWindowStyle = 0;
+		}
+	}
+#endif
+
+	// Immer hierdurch: displaySize gehoert handleResize, und SDL muss die neue
+	// Groesse ohnehin erfahren - sonst bleibt der Mauszeiger auf den alten
+	// Bereich geklemmt. Das SDL_VIDEORESIZE, das der Stilwechsel gleich noch
+	// ausloest, findet dann nichts mehr zu tun und faellt sofort wieder heraus.
+	handleResize(size.x, size.y);
+}
+
+void Engine::setFullScreen(bool fullScreen)
+{
+	if(!initialized || this->fullScreen == fullScreen) { this->fullScreen = fullScreen; return; }
+
+	this->fullScreen = fullScreen;
+	printfLog("* %s\n", fullScreen ? "Going fullscreen" : "Leaving fullscreen");
+
+#ifdef __EMSCRIPTEN__
+	// Im Browser macht das die Fullscreen-API. Aufgerufen wird das hier nur aus
+	// engineFullScreenHotkey(), das am DOM haengt - aus der Spielschleife
+	// heraus wuerde der Browser die Anfrage ablehnen.
+	emscriptenSetFullScreen(fullScreen);
+#else
+	applyWindowStyle(fullScreen, fullScreen ? getDesktopSize() : windowedSize);
+#endif
+}
+
+void Engine::handleResize(int width, int height)
+{
+#ifndef __EMSCRIPTEN__
+	// Kleiner als das interne Bild darf das Fenster nicht werden: darunter hat
+	// "Scharf" keine ganzzahlige Stufe mehr. Im Browser wird nicht geklemmt -
+	// dort gibt der Canvas die Groesse vor, und dagegen anzuschieben endete in
+	// einer Endlosschleife.
+	if(width  < screenSize.x) width  = screenSize.x;
+	if(height < screenSize.y) height = screenSize.y;
+#endif
+
+	if(width <= 0 || height <= 0) return;
+	if(width == displaySize.x && height == displaySize.y) return;
+
+#ifndef __EMSCRIPTEN__
+	// Gleiche Flags wie beim ersten Mal, sonst geht der schnelle Pfad verloren.
+	SDL_Surface* p_new = SDL_SetVideoMode(width, height, 32, SDL_OPENGL | SDL_RESIZABLE);
+	if(!p_new)
+	{
+		printfLog("- WARNING: Could not resize to %dx%d (%s).\n", width, height, SDL_GetError());
+		return;
+	}
+	p_display = p_new;
+#endif
+
+	displaySize = Vec2i(width, height);
+	if(!fullScreen) windowedSize = displaySize;
+}
+
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 {
 	// Größtmögliches 4:3-Rechteck im Fenster, mittig. Was übrig bleibt, wird
 	// schwarz - lieber Balken als ein verzerrtes Bild.
-	const double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
-							 static_cast<double>(displaySize.y) / screenSize.y);
+	double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
+					   static_cast<double>(displaySize.y) / screenSize.y);
+
+	// "Scharf" braucht eine ganzzahlige Stufe. Bei einem krummen Faktor
+	// verdoppelt Nearest manche Quellpixel und andere nicht - die Sprites
+	// bekommen ungleiche Strichstärken und die Schrift wird fransig, genau der
+	// Fehler, den dieser Filter vermeiden soll. Lieber breitere Balken.
+	// Unterhalb von 1:1 gibt es keine Stufe mehr, dann eben doch krumm: ein
+	// abgeschnittenes Bild wäre schlimmer.
+	if(getEffectiveUpscaleFilter() == UF_NEAREST && scale >= 1.0) scale = floor(scale);
+
 	w = static_cast<int>(screenSize.x * scale);
 	h = static_cast<int>(screenSize.y * scale);
 	x = (displaySize.x - w) / 2;
@@ -2183,6 +2426,30 @@ void Engine::loadConfig()
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
 
+		// Vollbild und Fenstergröße lesen. Beide gelten erst beim nächsten
+		// Start; mitten im Betrieb schaltet der Spieler mit Alt+Return und dem
+		// Fensterrahmen selbst.
+#ifndef __EMSCRIPTEN__
+		TiXmlElement* p_fullScreen = p_config->FirstChildElement("Fullscreen");
+		if(p_fullScreen)
+		{
+			const char* p_text = p_fullScreen->GetText();
+			if(p_text) fullScreen = (atoi(p_text) != 0);
+		}
+#endif
+
+		TiXmlElement* p_windowSize = p_config->FirstChildElement("WindowSize");
+		if(p_windowSize)
+		{
+			int w = 0, h = 0;
+			p_windowSize->QueryIntAttribute("w", &w);
+			p_windowSize->QueryIntAttribute("h", &h);
+			// Kleiner als das interne Bild ergibt keinen Sinn, und eine
+			// unsinnig große Zahl aus einer verbogenen Datei auch nicht.
+			if(w >= screenSize.x && h >= screenSize.y && w <= 16384 && h <= 16384)
+				windowedSize = Vec2i(w, h);
+		}
+
 		// Sound-Lautstärke lesen
 		TiXmlElement* p_soundVolume = p_config->FirstChildElement("SoundVolume");
 		if(p_soundVolume)
@@ -2256,6 +2523,17 @@ void Engine::saveConfig()
 	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
 	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
 	p_config->LinkEndChild(p_upscaler);
+
+	// Vollbild und Fenstergröße schreiben, damit das Spiel so wiederkommt,
+	// wie es verlassen wurde.
+	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");
+	p_fullScreen->LinkEndChild(new TiXmlText(fullScreen ? "1" : "0"));
+	p_config->LinkEndChild(p_fullScreen);
+
+	TiXmlElement* p_windowSize = new TiXmlElement("WindowSize");
+	p_windowSize->SetAttribute("w", windowedSize.x);
+	p_windowSize->SetAttribute("h", windowedSize.y);
+	p_config->LinkEndChild(p_windowSize);
 
 	// Sound-Lautstärke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");

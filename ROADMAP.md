@@ -173,11 +173,11 @@ offered and ignored. The *wish* is kept as the player set it, so the same
 `getUpscaleFilter()` is what was chosen, `getEffectiveUpscaleFilter()` is what is
 drawn.
 
-**The setting has no visible effect yet.** `displaySize` is still exactly
-640x480, so `computePresentRect` returns scale 1.0 and all four filters resolve
-to the same pixels — a 1:1 blit. The filter only starts mattering once the window
-can be a different size, which is item 10. Everything below it is in place and
-tested; what is missing is a window to scale into.
+Since item 10 the window can be any size, so the setting has something to do:
+`computePresentRect` returns the largest centred 4:3 rectangle that fits, and the
+filter decides how the 640x480 frame gets there. `nearest` additionally snaps to
+an integer scale — at 1280x900 that means 640x480 dead centre rather than
+1200x900, which is exactly the trade it exists to make.
 
 ### Which filter
 
@@ -511,24 +511,28 @@ Windows Update's servicing of the shared one. For a single-player puzzle game
 that is the right trade against shipping a 6.5 MB installer stub.
 
 
-10. A window that behaves like a window
----------------------------------------
-Three things the game should do and currently cannot:
+10. A window that behaves like a window  — **DONE**
+---------------------------------------------------
+All three now work, and the design below is what was built rather than what was
+proposed. What is left is the small change of `_config_en.xml` / `_config_de.xml`
+if the installer should ship a different default window size than 640x480.
 
-- **Be resizable**, keeping the 4:3 aspect ratio and letterboxing with black
-  bars when the window does not match.
-- **Enter and leave fullscreen while running**, not only via the command line.
-  Borderless — a window styled `WS_POPUP` and sized to the desktop, the way most
-  games do it now — not an exclusive display-mode change. See below: that choice
-  is what keeps the toggle from destroying the GL context.
-- ~~**Switch the upscaling filter while running.**~~ Done. Options -> Scaling
-  offers all four, the change takes effect on the next frame, and it is saved as
+- ~~**Be resizable**, keeping the 4:3 aspect ratio and letterboxing with black
+  bars when the window does not match.~~ `SDL_RESIZABLE`, an `SDL_VIDEORESIZE`
+  handler, and `computePresentRect`. The window will not go below 640x480:
+  `handleResize` clamps and re-sets the mode.
+- ~~**Enter and leave fullscreen while running**, not only via the command
+  line.~~ Alt+Return, borderless — a window styled `WS_POPUP` and sized to the
+  desktop — not an exclusive display-mode change. That choice is what keeps the
+  toggle from destroying the GL context; see below.
+- ~~**Switch the upscaling filter while running.**~~ Options -> Scaling offers
+  all four, the change takes effect on the next frame, and it is saved as
   `<Upscaler>` in `config.xml`.
 
-Today `SDL_SetVideoMode` is called exactly once, with no `SDL_RESIZABLE`, and the
-mode is decided at startup from `-windowed` / `-fullscreen`. (Fullscreen used to
-walk `SDL_ListModes` for the smallest mode of at least 1280x960 — a search that
-existed only because hq2x was hardwired to exactly 2x. It went with item 2.)
+`SDL_SetVideoMode` used to be called exactly once, with no `SDL_RESIZABLE`, and
+the mode was decided at startup from `-windowed` / `-fullscreen`. (Fullscreen
+also walked `SDL_ListModes` for the smallest mode of at least 1280x960 — a search
+that existed only because hq2x was hardwired to exactly 2x. It went with item 2.)
 
 **The FBO from item 2 is what makes all three cheap.** With the game always
 rendering 640x480 into an offscreen target, every hardcoded coordinate in the
@@ -557,18 +561,21 @@ So the destination rectangle is a function of the window size *and* the selected
 filter, and changing the filter at runtime has to recompute it. One function,
 used by the blit, by the cursor mapping (see below), and by nothing else.
 
-Below 640x480 nearest has no integer scale left. Either clamp the window to a
-640x480 minimum in the `SDL_VIDEORESIZE` handler by re-calling `SDL_SetVideoMode`
-with the clamped size, or let it fall back to bilinear and say so in the options
-dialog. The former is less surprising.
+Below 640x480 nearest has no integer scale left. `handleResize` clamps the window
+to a 640x480 minimum by re-calling `SDL_SetVideoMode` with the clamped size, so on
+the desktop that case cannot arise. The browser is the exception — there the canvas
+size is the browser window's, and pushing back against it looped — so
+`computePresentRect` snaps to an integer only while the scale is at least 1.0 and
+otherwise scales fractionally; a cropped picture would be worse than a slightly
+ragged one.
 
 ### Video and screenshots stay at 640x480
 
 **Video recording always captures the game's internal 640x480**, never the window
-size. That is what the code does today by accident — the capture at
-`engine.cpp:850` runs *before* `upscaleFrame()`, so it reads the un-upscaled
-render out of the back buffer — and with an FBO it becomes true on purpose:
-capture reads `GL_COLOR_ATTACHMENT0` and is independent of the window entirely.
+size. It used to be that way by accident — the capture ran *before* `upscaleFrame()`
+and read the un-upscaled render out of the back buffer — and with the FBO it is true
+on purpose: capture reads `GL_COLOR_ATTACHMENT0` at `screenSize` and is independent
+of the window entirely.
 
 Three reasons it has to stay that way, not just for tidiness:
 
@@ -581,16 +588,11 @@ Three reasons it has to stay that way, not just for tidiness:
   and becomes correct under letterboxing for the first time, because it goes
   through the same inverse transform as everything else.
 
-**Screenshots go the same way: clean 640x480.** `Engine::screenshot`
-(`engine.cpp:1164`) runs *after* `upscaleFrame()` and reads `displaySize` from
-`GL_BACK`, so today it saves the upscaled image — and once letterboxing exists it
-would save the black bars with it. It moves before the blit and reads
-`GL_COLOR_ATTACHMENT0` instead, like the video path. The filter is a display
-setting; it does not belong in the file.
-
-That also simplifies the function: `displaySize.x/y` become `screenSize.x/y`
-throughout, the buffer is a fixed 921,600 bytes, and the row-flip loop stops
-depending on the window.
+**Screenshots go the same way: clean 640x480.** `Engine::screenshot` used to run
+*after* `upscaleFrame()` and read `displaySize` from `GL_BACK`, so it saved the
+upscaled image — and with letterboxing it would have saved the black bars too. It
+now runs before the blit and reads `GL_COLOR_ATTACHMENT0` at `screenSize`, like
+the video path. The filter is a display setting; it does not belong in the file.
 
 ### Resizing is nearly free, and borderless fullscreen is too
 
@@ -721,22 +723,27 @@ radio buttons live in `data/options.xml` next to the language flags, their
 captions are `$O_UPSCALER*` in `data/languages.txt` with `§en:` and `§de:`
 bodies, and `<Upscaler>` round-trips through `loadConfig`/`saveConfig`.
 
-`<Fullscreen>` and `<WindowSize>` still have to be added the same way.
-`config.xml` currently holds `<Language>`, `<Upscaler>`, `<SoundVolume>`,
-`<MusicVolume>`, `<Details>` and `<Controls>` — `Engine::loadConfig` and
-`saveConfig` read and write nothing else — while windowed vs. fullscreen is
-command-line only, so it resets on every launch. Both functions need the two new
-keys, along with the template `_config_en.xml` / `_config_de.xml` the installer
-copies.
+`<Fullscreen>` and `<WindowSize>` went in the same way, so the game comes back
+the way it was left. `config.xml` now holds `<Language>`, `<Upscaler>`,
+`<Fullscreen>`, `<WindowSize>`, `<SoundVolume>`, `<MusicVolume>`, `<Details>` and
+`<Controls>`. Since fullscreen is just a window size plus a style flip, that is
+one boolean and one `Vec2i`, with no mode list behind either. `-fullscreen` and
+`-windowed` remain startup overrides and beat the file; the compiled-in default
+(windowed in Debug, fullscreen in Release) applies only when neither the file nor
+the command line says anything. The templates `_config_en.xml` / `_config_de.xml`
+the installer copies still set only `<Language>`, which is right — the rest should
+come from the defaults on a fresh install.
 
-Fullscreen and window size want to be persisted in `config.xml` too, so the game
-comes back the way it was left — and since fullscreen is now just a window size
-plus a style flip, that is one boolean and one `Vec2i`, with no mode list behind
-either. `-fullscreen` and `-windowed` stay as startup overrides.
-
-In the browser none of this needs SDL: the canvas is resized by CSS and the
-Fullscreen API, the WebGL context survives both, and the letterbox arithmetic is
-the same code. That half is testable without Windows.
+The browser needs none of SDL for this: the canvas fills the page and follows the
+browser window (`WebBuild/pre.js`), the Fullscreen API does the rest, the WebGL
+context survives both, and the letterbox arithmetic is the same code. Two things
+differ there and are handled explicitly: the game never *starts* fullscreen,
+because the Fullscreen API requires a user gesture that does not exist at startup;
+and Alt+Return is registered as a DOM `keydown` callback rather than read from the
+SDL queue, because the main loop runs inside `requestAnimationFrame` and what it
+delivers no longer counts as a gesture. That half is testable without Windows, and
+was: resize, letterbox, cursor mapping, the integer snap, the fullscreen toggle and
+the config round-trip all verified in Chromium.
 
 
 How these connect
@@ -746,8 +753,8 @@ How these connect
                           ├─> 3 (done: libs/bin is one import library)
                           └─> 10 (the FBO is the shared prerequisite, and it is in)
 
-   10 (window behaviour) ──> no longer needs SDL2: a borderless window styled
-                             behind SDL's back keeps the GL context alive
+   10 (window, done) ──────> did not need SDL2 after all: a borderless window
+                             styled behind SDL's back keeps the GL context alive
 
     3 (all from source) ────> 5 (Linux needs an ffmpeg answer anyway)
 
@@ -755,14 +762,15 @@ How these connect
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
-The one change under both 2 and 10 is the same 80 lines: render into a
-framebuffer object instead of the back buffer. Everything else in either item is
+The one change under both 2 and 10 was the same 80 lines: render into a
+framebuffer object instead of the back buffer. Everything else in either item was
 an increment on it.
 
 *Done since this list was written:* stb_image in place of SDL_image, the standard
 unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
-source, `/MT`, minih264 + shine + minimp4 in place of ffmpeg, and a framebuffer
-object with xBR-lv2 in place of hq2x — which together closed items 2, 3 and 9,
+source, `/MT`, minih264 + shine + minimp4 in place of ffmpeg, a framebuffer object
+with xBR-lv2 in place of hq2x, and a window that resizes and goes fullscreen
+without ever losing its GL context — which together closed items 2, 3, 9 and 10,
 and the bug that made recorded videos unplayable.
 Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
 four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, `hq2x32.obj`, ten import

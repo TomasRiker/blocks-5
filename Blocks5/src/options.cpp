@@ -65,18 +65,33 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->check();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->check();
 
-	// Skalierungsfilter. Ohne Shader gibt es die beiden xBR-Einträge gar nicht
-	// erst zu sehen - anzubieten, was die Maschine nicht kann, wäre gelogen.
-	GUI_Element* p_xbr = getChild("Options.Xbr");
-	GUI_Element* p_xbrDetails = getChild("Options.XbrDetails");
-	if(engine.canUseXbr()) { p_xbr->show(); p_xbrDetails->show(); }
-	else                   { p_xbr->hide(); p_xbrDetails->hide(); }
+	// Skalierungsfilter, von oben nach unten das Beste zuerst. Ohne Shader gibt
+	// es die beiden xBR-Einträge gar nicht erst zu sehen - anzubieten, was die
+	// Maschine nicht kann, wäre gelogen -, und die übrigen beiden rücken nach
+	// oben nach, damit oben keine Lücke bleibt.
+	static const char* pp_filterNames[4] =
+	{
+		"Options.XbrDetails", "Options.Xbr", "Options.Bilinear", "Options.Nearest"
+	};
+	const bool xbrAvailable = engine.canUseXbr();
+	int filterY = 52;
+	for(int i = 0; i < 4; i++)
+	{
+		GUI_Element* p_button = getChild(pp_filterNames[i]);
+		if(i >= 2 || xbrAvailable)
+		{
+			p_button->setPosition(Vec2i(p_button->getPosition().x, filterY));
+			p_button->show();
+			filterY += 19;
+		}
+		else p_button->hide();
+	}
 
 	switch(engine.getEffectiveUpscaleFilter())
 	{
 	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->check(); break;
-	case Engine::UF_XBR:        static_cast<GUI_RadioButton*>(p_xbr)->check(); break;
-	case Engine::UF_XBR_DETAIL: static_cast<GUI_RadioButton*>(p_xbrDetails)->check(); break;
+	case Engine::UF_XBR:        static_cast<GUI_RadioButton*>(getChild("Options.Xbr"))->check(); break;
+	case Engine::UF_XBR_DETAIL: static_cast<GUI_RadioButton*>(getChild("Options.XbrDetails"))->check(); break;
 	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->check(); break;
 	}
 

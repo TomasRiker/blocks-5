@@ -119,17 +119,38 @@ tick, so gameplay code counts ticks rather than measuring dt.
 **Presentation.** The game always renders 640x480 into a framebuffer object
 (`createFrameBuffer`, a 640x480 region of a 1024x512 texture plus a packed depth-stencil
 renderbuffer — `cf_star.cpp` and `level.cpp` both need the stencil), and `presentFrame`
-puts that on the screen as one quad. Every hardcoded coordinate in the tree — the single
-`glViewport`, the `glScissor` calls, the GUI layouts — therefore stays valid whatever size
-the window is. `glextensions.cpp` loads what that needs: ten FBO entry points and
-twenty-five GL 2.0 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback;
-in the browser they are core and the header just `#define`s them through. Four upscale
-filters (`Engine::UpscaleFilter`), chosen by `<Upscaler>` in `config.xml` or `-filter:`:
+puts that on the screen as one letterboxed quad. Every hardcoded coordinate in the tree —
+the single `glViewport`, the `glScissor` calls, the GUI layouts — therefore stays valid
+whatever size the window is; only `computePresentRect` changes, and the cursor mapping in
+`getCursorPosition`/`setCursorPosition` is its exact inverse. Video capture and screenshots
+read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
+`glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
+ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
+are core and the header just `#define`s them through. Four upscale filters
+(`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`:
 `nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`, `xbr` and `xbr-details` run the
 shader in `libs/xbr` — which **must** sample with `GL_NEAREST`, or its edge detection has
-nothing to work with and the output is bilinear at ten times the cost. Without an FBO the
-game renders straight to the back buffer as before; without a shader, xBR degrades to
-bilinear. Neither is fatal.
+nothing to work with and the output is bilinear at ten times the cost. `nearest` additionally
+snaps the blit to an integer scale, which is the whole point of choosing it. Without an FBO
+the game renders straight to the back buffer as before; without a shader, xBR degrades to
+bilinear (`getEffectiveUpscaleFilter`) and the options dialog hides the two xBR entries.
+Neither is fatal.
+
+**The window.** Resizable, aspect kept, black bars. **SDL's video flags are
+`SDL_OPENGL | SDL_RESIZABLE` for the whole life of the process and must stay that way** —
+`DIB_SetVideoMode` keeps the GL context only on its fast path, which requires the flags and
+bpp to be unchanged and `SDL_FULLSCREEN` to be clear. Setting `SDL_FULLSCREEN` or
+`SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and takes every texture, display list and the
+FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
+style to `WS_POPUP` and the size to the desktop directly, SDL notices through its own
+`WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
+place that owns `displaySize` — picks it up. Dragging the border and Alt+Return therefore
+run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
+sees a bare Return. The window and fullscreen state persist as `<WindowSize>` and
+`<Fullscreen>`; `-windowed`/`-fullscreen` override them for one run. In the browser the
+canvas fills the page (`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a
+real DOM keydown — the main loop's own events do not count as a user gesture — and the main
+loop reads the canvas size once a frame, which catches both.
 
 **Video recording** writes H.264 Baseline video and MP3 audio into an MP4, with no DLL
 involved: `libs/minih264` encodes the video, `libs/shine` the audio, `libs/minimp4` writes the

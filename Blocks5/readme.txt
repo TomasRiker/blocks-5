@@ -32,6 +32,22 @@ Changelog
             screenshots are the only things the browser version
             cannot do. Look on the website for the link.
 
+          - The game window can be resized now. Drag its edge to
+            any size you like; the picture keeps its shape and
+            gets black bars where the window does not match.
+            Alt+Return switches between the window and full
+            screen at any time, and the game remembers which one
+            you left it in, and how big the window was.
+
+            Full screen no longer changes the screen resolution.
+            It is a borderless window the size of the desktop,
+            which is what most games do these days: Alt+Tab is
+            instant and does not rearrange your other windows.
+
+            Screenshots and recorded videos are unaffected by
+            any of this. They are always the clean 640x480
+            picture, without the scaling and without the bars.
+
           - The HQ2X start menu entry is gone, and with it the
             HQ2X mode. It scaled the picture on the processor,
             cost about half of the time available for a frame,
@@ -44,11 +60,6 @@ Changelog
             that can run shaders - practically anything made
             since about 2005; if yours cannot, the two xBR
             entries are simply not offered.
-
-            The setting is saved, but you will not see much of a
-            difference yet: the game window is still exactly
-            640x480, so there is nothing to scale. That changes
-            with the resizable window in a coming version.
 
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as

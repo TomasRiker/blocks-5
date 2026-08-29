@@ -344,15 +344,16 @@ int runTheGame(int argc,
 
 	// Argumente parsen. Der Skalierungsfilter steht bewusst nicht dabei: er ist
 	// eine Einstellung wie die Sprache und wird im Optionsdialog gewählt.
+	Engine& engine = Engine::inst();
+
 	for(int i = 0; i < argc; i++)
 	{
 		char* p_arg = pp_argv[i];
-		if(!_stricmp(p_arg, "-windowed")) fullScreen = false;
-		else if(!_stricmp(p_arg, "-fullScreen")) fullScreen = true;
+		if(!_stricmp(p_arg, "-windowed")) engine.overrideFullScreen(false);
+		else if(!_stricmp(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
 	}
 
 	printfLog("Initializing engine ...\n");
-	Engine& engine = Engine::inst();
 
 	// Spielaktionen festlegen
 	Action* p_action = engine.registerAction("$A_LEFT", engine.getKeyboardVK(SDLK_LEFT), engine.getKeyboardVK(SDLK_KP4));

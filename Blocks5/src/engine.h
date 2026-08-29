@@ -91,6 +91,20 @@ public:
 	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
 
+	// Das Fenster. Es ist immer in der Groesse veraenderbar; Vollbild ist nur
+	// eine besondere Groesse plus ein Stilwechsel am Win32-Fenster vorbei an
+	// SDL, damit der GL-Kontext dabei am Leben bleibt. Deshalb bleiben SDLs
+	// Flags das ganze Programm ueber genau SDL_OPENGL | SDL_RESIZABLE.
+	//
+	// overrideFullScreen() gehoert vor init(): -windowed / -fullscreen schlagen
+	// damit, was in der config.xml steht.
+	void overrideFullScreen(bool fullScreen) { fullScreenOverride = fullScreen ? 1 : 0; }
+	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
+	void setFullScreen(bool fullScreen);
+	void toggleFullScreen() { setFullScreen(!fullScreen); }
+	bool isFullScreen() const { return fullScreen; }
+	Vec2i getDesktopSize() const;
+
 	// Der xBR-Filter. Laesst er sich nicht uebersetzen, faellt die Anzeige auf
 	// UF_BILINEAR zurueck; das Spiel laeuft in jedem Fall.
 	bool createXbrProgram();
@@ -200,8 +214,17 @@ private:
 
 	void setupCursor();
 
+	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
+	// selbst ist Win32; die Groesse geht immer durch handleResize().
+	void applyWindowStyle(bool fullScreen, const Vec2i& size);
+
 	bool initialized;
 	bool fullScreen;
+	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
+	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
+	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
+	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
+	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;

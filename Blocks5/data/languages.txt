@@ -1291,6 +1291,7 @@ Save screenshot		F11
 Start/stop recording video	F12
 Show menu		Escape
 Pause			P or Break
+Window/full screen		Alt + Return
 // --------------------------------------------------------------------------------
 §de:<h>Spielziel</h>
 In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
@@ -1308,6 +1309,7 @@ Screenshot speichern		F11
 Videoaufnahme starten/stoppen	F12
 Menü aufrufen		Escape
 Pause			P oder Pause
+Fenster/Vollbild		Alt + Return
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE2
