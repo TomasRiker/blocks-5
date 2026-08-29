@@ -1,0 +1,44 @@
+minimp4
+=======
+
+MP4 muxer, single header, public domain. Writes the container for recorded
+gameplay; see src/videorecorder.cpp.
+
+  https://github.com/lieff/minimp4   commit 5a212a18dba7dca09543bbc7d65619274fd2931a
+  CC0 1.0 Universal (LICENSE)
+
+minimp4_impl.c is not upstream: it is the one translation unit that instantiates
+the header, kept apart from minih264's because of the bs_t collision described
+in libs/minih264/PROVENANCE.txt.
+
+LOCAL CHANGE
+------------
+minimp4.h carries one patch, in the code that writes the 'esds' descriptor of an
+audio track. Upstream:
+
+  - wrote the descriptor only when a decoder-specific info blob had been set
+    with MP4E_set_dsi, which AAC needs and MP3 does not;
+  - hardcoded the objectTypeIndication byte to 0x40 (AAC), ignoring the
+    object_type_indication field of the MP4E_track_t the caller filled in;
+  - left the reserved low bit of the stream-type byte clear;
+  - omitted the SLConfigDescriptor.
+
+The objectTypeIndication is the ONLY thing that tells a demuxer whether an
+'mp4a' track holds AAC or MP3 - Microsoft's own documentation for the MPEG-4
+File Source lists exactly that one sample entry as meaning "AAC or MP3". So
+upstream can mux AAC and nothing else, and an MP3 track comes back out declared
+as AAC and undecodable. The patched code writes the caller's
+object_type_indication, sets the reserved bit, emits the descriptor with no DSI,
+and appends the SLConfigDescriptor.
+
+The bytes it now produces were checked against what ffmpeg's own MP4 muxer
+writes for the same stream. Both describe objectTypeIndication 0x6B,
+streamType 0x15, no DecoderSpecificInfo and SLConfigDescriptor predefined=2;
+they differ only in ES_ID, the buffer size and the bitrate fields, which are
+informational. After the patch ffprobe reports the track as mp3 rather than aac
+and decodes it cleanly.
+
+A NOTE ON FRAGMENTS
+-------------------
+MP4E_open takes a "fragmented" flag. Leave it off. Microsoft's MPEG-4 File
+Source documents 'moof' boxes as unsupported before Windows 8.

@@ -24,12 +24,7 @@ checks the toolset, builds `Blocks5.sln` for `Win32`, and then packs `data.zip` 
 **Toolset: v143 by default; v120 still works** (`/toolset:v120`). The tree was pinned to v120
 for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
 TinyXML 2.6.2 is now compiled from vendored source in `libs/tinyxml-2.6.2` and that library is
-gone. Three things make anything newer than v120 work:
-
-- `__STDC_CONSTANT_MACROS` / `__STDC_LIMIT_MACROS` are in the project defines rather than in
-  `pch.h`, because they must precede every include: `libs/msinttypes-r26` shadows the real
-  `<stdint.h>`, from VS2015 on the STL pulls that shim in via `<vector>` long before `pch.h`
-  could define the macro, and the shim's include guard then locks `INT64_C` out.
+gone. Two things make anything newer than v120 work:
 
 - `<hash_map>` is gone. `pch.h` used to include it for `stdext::hash_map` and
   `hash_multimap`, which from VS2015 on is a hard `static_assert` error and only compiled
@@ -95,6 +90,17 @@ ref-counted, keyed by filename, never `new`/`delete`d directly.
 screenshots and video capture. The loop renders as fast as it can but steps logic at a fixed
 `logicRate` of 20 ms (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic
 tick, so gameplay code counts ticks rather than measuring dt.
+
+**Video recording** writes H.264 Baseline video and MP3 audio into an MP4, with no DLL
+involved: `libs/minih264` encodes the video, `libs/shine` the audio, `libs/minimp4` writes the
+container, and all three are vendored source. Windows has decoded that combination natively
+since Windows 7 — the container and H.264 since 7, the MP3 decoder since Vista, and the
+MPEG-4 File Source documents its `'mp4a'` sample entry as meaning "AAC or MP3" — so a
+recording plays on a clean install, which the old ffmpeg AVI did not. The three libraries are
+plain C and were chosen so an eventual Linux build can use the same ones. `videorecorder.cpp`
+does its own RGBX→YUV420 conversion (the frame arrives from `glReadPixels` upside down) and
+holds each encoded frame back by one, because a frame's duration is only known when the next
+one arrives. minih264 needs the frame size to be a multiple of 16; the game's 640×480 is.
 
 **Recorded audio** does not come from OpenAL. `alcCaptureOpenDevice` can only open an *input*
 device, so the old code recorded the microphone into every video. `audiocapture.cpp` replaces it
@@ -169,9 +175,9 @@ PNG and JPEG are enabled, and every image the game ships is a PNG.
 
 **Deployment.** All three projects link the CRT statically (`/MT`, `/MTd` for Debug), so
 nothing needs a Visual C++ redistributable — the installer has no runtime task at all any
-more. What ships beside the executables is `OpenAL32.dll` and the four ffmpeg DLLs, and those
-import only `msvcrt.dll`, which is part of Windows. Keep it that way: a new dependency that
-needs a redistributable undoes the whole arrangement.
+more. Exactly one DLL ships beside the executables, `OpenAL32.dll`, and it imports only
+`msvcrt.dll`, which is part of Windows. Keep it that way: a new dependency that needs a
+redistributable, or a second DLL, undoes the whole arrangement.
 
 **GUI** (`gui.cpp`, `gui_*.cpp`) is a retained-mode tree loaded from XML dialogs in `data/`
 (`menu.xml`, `leveleditor.xml`, `options.xml`, …). Elements are addressed by dotted path —
@@ -210,6 +216,6 @@ filenames, shipped zipped in `levels/campaigns/`.
   macros are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
   both builds (TinyXML, zlib + minizip, libogg, libvorbis, `SDL_win32_main.c`, stb). What is
-  left in `Blocks5/libs/bin` is import libraries — OpenAL and ffmpeg — plus
-  `hq2x32.obj`, which is a real object file and the one thing there that still carries v120
-  code. Import libraries do not pin the toolset; `hq2x32.obj` and the ffmpeg DLLs do.
+  left in `Blocks5/libs/bin` is `OpenAL32.lib`, an import library, plus `hq2x32.obj`, which is
+  a real object file and the one thing in the tree that still carries v120 code. An import
+  library does not pin the toolset; `hq2x32.obj` does.

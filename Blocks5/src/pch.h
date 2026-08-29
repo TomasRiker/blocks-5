@@ -24,19 +24,6 @@
 #include <sigslot.h>
 #include <MersenneTwister.h>
 
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS
-#endif
-
-#ifndef BLOCKS5_NO_FFMPEG
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-}
-#endif
-
 #include "singleton.h"
 #include "vec.h"
 #include "typedefs.h"

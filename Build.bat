@@ -32,12 +32,6 @@ REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
 REM  v120 still builds and remains the reference. Anything newer additionally
 REM  needs, and now has:
-REM    - __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS among the project
-REM      defines rather than in pch.h. libs\msinttypes-r26 shadows the real
-REM      ^<stdint.h^>; from VS2015 on the STL pulls that shim in from ^<vector^>,
-REM      before pch.h line 29 could define the macro, and the shim's include
-REM      guard then locks INT64_C and friends out for good
-REM
 REM    - SDL compiled from source out of libs\SDL-1.2.15\src, in place of
 REM      libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
 REM      imported __iob_func, which the Universal CRT removed, so it linked only
@@ -46,7 +40,9 @@ REM
 REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
 REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
 REM  hash_multimap were replaced by the standard unordered containers, which
-REM  every supported toolset from v120 on has.
+REM  every supported toolset from v120 on has. libs\msinttypes-r26 went with
+REM  ffmpeg, which was the only thing that needed it, and __STDC_CONSTANT_MACROS
+REM  and __STDC_LIMIT_MACROS went with the shim.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS

@@ -82,70 +82,76 @@ Whatever replaces it, `hq2x.cpp`'s `__asm` block goes with it.
 
 3. Compile every dependency from source
 ---------------------------------------
-What is left as a Windows binary, after TinyXML, zlib, minizip, libogg,
-libvorbis and `SDL_win32_main.c` were moved to source builds:
+What is left as a Windows binary:
 
 | Binary | What it is | Notes |
 | --- | --- | --- |
-| `libs/bin/av*.lib`, `swscale.lib` + 4 DLLs | ffmpeg 0.8 (2011) | only used by `videorecorder.cpp` |
-| `libs/bin/hq2x32.obj` | see item 2 | |
+| `libs/bin/hq2x32.obj` | see item 2 | the last piece of compiled code with no source |
 | `libs/bin/OpenAL32.lib` + `OpenAL32.dll` | OpenAL Soft 1.25.2 | LGPL, *must* stay a DLL |
 
-**SDL_image is done.** `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
-stb_image for both builds, and `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`
-and `libs/bin/SDL_image.lib` are gone. It also retired a latent bug: SDL_image
-1.2 loads its codecs with `LoadLibrary` at runtime, and `sdl_image.dll` asks for
-`libjpeg-8.dll`, `libtiff-5.dll` and `libwebp-2.dll`, none of which were ever in
-the tree — only PNG had ever worked.
+Everything else is compiled from vendored source: TinyXML, zlib + minizip, libogg,
+libvorbis, stb_image, SDL 1.2.15, minih264, shine, minimp4. `hq2x32.obj` is the
+only thing left to do here, and it is item 2.
 
-**ffmpeg is indeed overkill.** It is used for exactly one thing: writing an AVI
-with one video and one audio stream, through `avcodec_encode_video` /
-`avcodec_encode_audio` — APIs that were removed from ffmpeg years ago, which is
-why this is pinned at 0.8 from 2011.
+**SDL_image is done** — `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
+stb_image for both builds. It also retired a latent bug: SDL_image 1.2 loads its
+codecs with `LoadLibrary` at runtime and asked for `libjpeg-8.dll`,
+`libtiff-5.dll` and `libwebp-2.dll`, none of which were ever in the tree.
 
-Whatever replaces it should also fix something the current output already gets
-wrong: `videorecorder.cpp` takes the AVI muxer's default codecs, which means
-**MPEG-4 Part 2** video. Windows Media Player has never decoded that without a
-third-party codec, so a recorded video does not play on a clean Windows
-installation as things stand. Anything that makes the file *less* playable is a
-step backwards, and that rules out the obvious-looking option:
+**SDL is done** — all 67 files of SDL 1.2.15's Win32 subset are compiled from
+`libs/SDL-1.2.15/src`. What that does not change is that SDL 1.2 has been
+end-of-life since 2012; the honest version of that task is "move to SDL2", which
+is a different and much larger project — the input layer, the window/GL setup
+and the event loop all touch it. Worth splitting off as its own item.
 
-- ~~**Ogg Theora**~~, tempting because `libogg` and `libvorbis` are already
-  vendored and compiled from source, is the wrong target. Theora has never
-  shipped in any version of Windows and has never been offered as a Store codec
-  extension, so a `.ogv` needs VLC, mpv or a codec pack. It has got worse, not
-  better: Chromium removed Theora decoding in Chrome 123, so Chrome and Edge no
-  longer play it either. Only Firefox still does.
+**ffmpeg is done, and it fixed a bug at the same time.** It had been used for one
+thing: writing an AVI through `avcodec_encode_video` / `avcodec_encode_audio`,
+APIs removed from ffmpeg years ago, which is why it was pinned at 0.8 from 2011.
+Four DLLs and seven import libraries are gone, and `libs/msinttypes-r26` with
+them — it existed only to satisfy ffmpeg's headers, so `__STDC_CONSTANT_MACROS`
+and `__STDC_LIMIT_MACROS` left the project defines too.
 
-What to aim for instead, in order of preference:
+The replacement is **H.264 Baseline video plus MP3 audio in a non-fragmented
+MP4**, written by three vendored source libraries:
 
-- **H.264 in MP4 through Media Foundation.** Windows has decoded H.264 natively
-  since Windows 7 — Media Player, Films & TV, Photos, every browser, every
-  phone — and it can also *encode* it: `IMFSinkWriter` drives the H.264 and AAC
-  encoder MFTs that ship with the OS. That is `mfplat.lib`, `mfreadwrite.lib` and
-  `mfuuid.lib` from the Windows SDK and **no third-party code at all**, which
-  deletes four DLLs and five import libraries in one move. Same shape as
-  `audiocapture.cpp`: Windows-only, SDK-only, behind `#ifdef _WIN32`. The
-  trade-offs are that it is Windows-only (`videorecorder.cpp` already is — the
-  web build stubs it out and the ffmpeg DLLs are Windows binaries), and that the
-  H.264 licence is Microsoft's problem rather than ours precisely because the
-  encoder is an OS component.
-- **MJPEG in AVI.** A ~300-line public-domain JPEG encoder plus a hand-written
-  AVI writer, with uncompressed PCM audio. Perhaps 600 lines and no dependency
-  at all, and it is at least no *less* playable than what ships today. Much
-  larger files, and worth confirming Windows still decodes MJPEG-in-AVI out of
-  the box before committing to it.
-- Keep ffmpeg but move to a current release and the `avcodec_send_frame` API,
-  and pick H.264/MP4 explicitly instead of taking the muxer default. Modernises
-  the code and fixes the playability, but keeps four DLLs and a large
-  dependency.
+| | | |
+| --- | --- | --- |
+| `libs/minih264` | H.264 encoder, one header | CC0 |
+| `libs/shine` | MP3 encoder, ~2,800 lines | LGPL v2 |
+| `libs/minimp4` | MP4 muxer, one header | CC0 |
 
-**SDL is done, but only halfway in spirit.** All 67 files of SDL 1.2.15's Win32
-subset are compiled from `libs/SDL-1.2.15/src` and `sdl.dll` is gone. What that
-does not change is that SDL 1.2 has been end-of-life since 2012; the honest
-version of that task is "move to SDL2", which is a different and much larger
-project — the input layer, the window/GL setup and the event loop all touch it.
-Worth splitting off as its own item rather than smuggling into this one.
+That combination was chosen over the alternatives for one reason: it is the only
+one that is native on Windows *and* on Linux, which is what an eventual Linux
+build needs.
+
+- **Windows**: documented, not inferred. Microsoft's *Supported Media Formats in
+  Media Foundation* lists the MPEG-4 container and the H.264 decoder as Windows
+  7, and the Windows Media MP3 Decoder as Windows Vista; the *MPEG-4 File
+  Source* page lists the `'mp4a'` sample entry as meaning "AAC **or** MP3", and
+  the H.264 decoder page covers "Baseline, Main, and High profiles".
+- **Linux**: H.264 decode is normal now — Ubuntu ships `gstreamer1.0-libav`, and
+  Fedora enabled it in `libavcodec-free` once the base patents expired.
+- ~~Ogg Theora~~ was the tempting option, because libogg and libvorbis were
+  already vendored. It is the wrong target: Theora has never shipped in any
+  version of Windows and has never been a Store codec extension, and Chromium
+  removed Theora decoding in Chrome 123, so Chrome and Edge no longer play it
+  either.
+- AAC would be the conventional MP4 audio codec, but there is no small AAC
+  encoder that can be used here — fdk-aac's Fraunhofer licence is
+  GPL-incompatible and faac is old and poor.
+
+Two things found while building it, both recorded in the libraries'
+`PROVENANCE.txt`:
+
+- **minimp4 could not actually mux MP3.** It hardcoded the `objectTypeIndication`
+  byte to AAC and only wrote the `esds` descriptor at all when a decoder-specific
+  info blob had been set, which MP3 does not have. Since that byte is the only
+  thing distinguishing AAC from MP3 in an `'mp4a'` track, the audio came back out
+  declared as AAC and undecodable. `minimp4.h` carries a local patch; the bytes
+  it writes now were checked against ffmpeg's own MP4 muxer.
+- **minih264 and minimp4 collide** if both are instantiated in one translation
+  unit — each defines a `bs_t` in its implementation half. Hence the two
+  one-line `*_impl.c` files.
 
 
 4. Build with the newest MSVC
@@ -217,7 +223,31 @@ What still needs deciding:
   `main.cpp`) and user levels/skins on disk will expose every filename whose case
   does not match. Expect to find some.
 - SDL 1.2 from the distro, or the SDL2 move from item 3.
-- Video recording: whatever item 3 settles on for ffmpeg.
+
+Two things a Linux build will *not* have to decide, because item 3 already
+settled them with Linux in mind:
+
+- **Video recording.** minih264, shine and minimp4 are plain C with no platform
+  code, and H.264-in-MP4 plays on a current Linux desktop as readily as on
+  Windows. `videorecorder.cpp` itself contains nothing Windows-specific any more.
+- **Audio capture.** PulseAudio and PipeWire both give every output sink a
+  monitor source, which is the exact equivalent of the WASAPI loopback the
+  Windows build uses. `@DEFAULT_MONITOR@` resolves to the default sink's monitor,
+  so nothing needs enumerating, and `pa_simple_new` takes the sample spec you
+  want — asking for S16LE/48000/2 makes the server resample, so none of
+  `audiocapture.cpp`'s format conversion or its linear resampler is needed. About
+  60 lines, `dlopen`'d so the game still runs where PulseAudio is absent.
+  libpulse rather than the native PipeWire API, because `pipewire-pulse` means
+  one client API covers both. Verified against a live server: `@DEFAULT_MONITOR@`
+  on a 44.1 kHz sink delivered exactly 96000 frames in 2.00 s at 48 kHz.
+
+  `audiocapture.cpp` already splits along the right line — the ring buffer,
+  `push`/`pushSilence`/`getSamples` and the public API are platform-neutral, and
+  only `threadProc` and the format conversion are Windows-specific. One thing
+  should move into the shared half when that happens: the clock-based silence
+  padding. `module-suspend-on-idle` is loaded by default, so an idle sink stops
+  delivering exactly as WASAPI does, and `getExactTimeMS()` is already
+  cross-platform.
 
 
 6. Skins in the browser, and skins that travel with campaigns
@@ -340,7 +370,9 @@ How these connect
 
 *Done since this list was written:* stb_image in place of SDL_image, the standard
 unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
-source, and `/MT` — which together closed item 9 and took `sdl.dll`,
-`sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, `oalinst.exe`,
-`vcredist_x86.exe` and three import libraries out of the tree. What ships now is
-three executables, five DLLs that need nothing but Windows, and the data.
+source, `/MT`, and minih264 + shine + minimp4 in place of ffmpeg — which together
+closed item 9, most of item 3, and the bug that made recorded videos unplayable.
+Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
+four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, ten import libraries and the
+`msinttypes` shim. What ships now is three executables, **one** DLL that needs
+nothing but Windows, and the data.

@@ -21,12 +21,13 @@ INC="-I$GAME/src -I$HERE
      -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.3.1 -I$GAME/libs/stb
      -I$GAME/libs/zlib-1.3.1/contrib/minizip"
 
-CFLAGS="-O1 -fsanitize=address -DTIXML_USE_STL -DBLOCKS5_NO_FFMPEG -sUSE_SDL=1 $INC"
+CFLAGS="-O1 -fsanitize=address -DTIXML_USE_STL -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 
 # Game sources, minus the four that cannot come along:
 #   stackwalker  - Win32 SEH crash handler
-#   videorecorder- ffmpeg (replaced by videorecorder_stub.cpp)
+#   videorecorder- portable now, but nothing here captures audio (replaced by
+#                  videorecorder_stub.cpp)
 #   hq2x         - links a prebuilt x86 .obj
 #   pch          - the Create-PCH translation unit, unused here
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|hq2x|pch)\.cpp$')

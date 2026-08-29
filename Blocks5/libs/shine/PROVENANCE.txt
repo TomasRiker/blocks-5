@@ -1,0 +1,29 @@
+shine
+=====
+
+Fixed-point MP3 encoder. Encodes the audio track of recorded gameplay; see
+src/videorecorder.cpp.
+
+  https://github.com/toots/shine   commit ab5e3526b64af1a2eaa43aa6f441a7312e013519
+  GNU Library General Public License, Version 2 (COPYING)
+
+Vendored verbatim: every .c and .h from upstream's src/lib, which is the whole
+library and needs no configure step - there is no config.h and no HAVE_* macro
+anywhere in it. src/bin (a command-line front end), the Android and JavaScript
+bindings and the autotools files are not vendored.
+
+WHY MP3 AND NOT AAC
+-------------------
+The container is MP4, and MP4 normally carries AAC. There is no small AAC
+encoder that can be used here: fdk-aac's Fraunhofer licence is incompatible with
+the GPL, and faac is old and poor. MP3 inside MP4 is spec-legal, and Microsoft's
+documentation for the MPEG-4 File Source lists the 'mp4a' sample entry as
+meaning "AAC or MP3", with the Windows Media MP3 Decoder present since Windows
+Vista - so the file plays on a clean Windows without a codec pack. shine is
+about 2,800 lines of plain C with no dependencies, which is the same shape as
+the video half.
+
+The game records at 48000 Hz stereo, which is MPEG-1 Layer III; 160 kbit/s (what
+Engine asks for) is a valid MPEG-1 bitrate. videorecorder.cpp calls
+shine_check_config first and records without sound rather than guessing if the
+combination is ever changed to something invalid.

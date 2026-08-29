@@ -422,10 +422,6 @@ bool Engine::init(const std::string& windowCaption,
 
 	alcProcessContext(p_audioContext);
 
-#ifndef BLOCKS5_NO_FFMPEG
-	av_register_all();
-#endif
-
 	printfLog("* Initializing GUI ...\n");
 	if(!GUI::inst().init())
 	{
@@ -1009,7 +1005,7 @@ void Engine::update()
 			char videoDateTime[256];
 			const time_t t = ::time(0);
 			strftime(videoDateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
-			const std::string filename(FileSystem::inst().getAppHomeDirectory() + "videos/" + videoDateTime + ".avi");
+			const std::string filename(FileSystem::inst().getAppHomeDirectory() + "videos/" + videoDateTime + ".mp4");
 
 			// Aufnahme starten
 			p_videoRecorder = new VideoRecorder(filename, screenSize, screenSize, 2840000, p_audioCapture ? 160000 : 0, 30);
