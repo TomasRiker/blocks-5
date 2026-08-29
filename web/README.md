@@ -145,9 +145,11 @@ on loose files in `levels/`: `Campaign::save` re-reads every level from there,
 the *Available Levels* pane lists what is there, and `originalLevelsExist()`
 refused to load a campaign unless every `<Level>` entry existed there as well.
 Nothing in the tree had ever copied a member back out of a campaign archive.
-(The shipped campaign fails that test because its `campaign.xml` names
+(The shipped campaign failed that test because its `campaign.xml` named
 `level_03b.xml` at position 3 while the file shipped loose is `level_03.xml` -
-same bytes, different name.)
+same bytes, different name. That entry has since been corrected inside
+`blocks.zip`, so the official campaign now resolves from the loose files again,
+which is what lets a level edited in the Level Editor feed back into it.)
 
 The mapping was never actually missing, though: it is the ordinal. `Campaign::save`
 has always written entry *i* as member `level_{i+1}.xml`, and the play path has
