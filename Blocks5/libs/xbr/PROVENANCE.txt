@@ -116,6 +116,41 @@ firing, not that the filter is being conservative. That is exactly what the f4 b
 above looked like - 96.3% - and it read as plausible until it was checked against
 the Cg original.
 
+WHAT IT IS AND IS NOT GOOD FOR HERE
+-----------------------------------
+Worth writing down, because the answer is not obviously in xBR's favour for this
+game. Every decision in the shader is a step() against a threshold: is this texel
+the same colour as that one, is this edge steeper than that one. On flat-shaded
+pixel art - what xBR was designed for - neighbouring texels are either identical
+or plainly different, so those decisions are stable from frame to frame. This
+game's art is airbrushed and photographic, so neighbouring texels sit *near* the
+thresholds, and a change too small to see can flip them.
+
+Measured: take a frame, nudge it by 0 to 3 of 255 per pixel - which is roughly
+what the animated level does where it shows through a semi-transparent dialog -
+and count how much the upscaled output moves.
+
+    filter        mean change   pixels moving >8/255   worst pixel
+    nearest          1.5              0.00%                 3
+    bilinear         1.7              0.00%                 3
+    sharp-fit        1.6              0.00%                 3
+    xBR              2.0              1.15%               154
+    xBR detailed     1.9              1.05%               154
+
+nearest, bilinear and sharp-fit move by exactly what the input moved: no
+amplification at all. xBR turns an invisible change into 1% of pixels jumping by
+up to 154 - and those pixels are the glyph outlines, which is where it shows.
+That is the flicker you see in text over a dialog, and it is the algorithm
+working as designed, not a defect in this port.
+
+The same mechanism smooths the dithered grass and earth tiles into strokes.
+Whether that reads as "reconstructed" or as "smeared" is a matter of taste, and
+on photographic tiles it is closer to the second.
+
+Before the f4 bug above was fixed, xBR was barely detecting edges at all, which
+suppressed both effects - the shader looked calmer because it was hardly doing
+anything. That is worth remembering if a future change appears to "improve" it.
+
 XBR_SCALE is 3.0, as upstream. It tunes the edge-slope thresholds rather than
 fixing an output size, so the filter works at any magnification - which is what
 lets the window be any size.

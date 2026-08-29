@@ -64,7 +64,7 @@ public:
 		UF_XBR,           // kantengefuehrt, siehe libs/xbr
 		UF_XBR_DETAIL     // dito mit small_details=1: glaettet auch Raster wie das Gras
 	};
-	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool fullScreen);
+	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool defaultFullScreen);
 	void exit();
 	void mainLoop();
 #ifdef __EMSCRIPTEN__
@@ -99,9 +99,9 @@ public:
 	//
 	// overrideFullScreen() gehoert vor init(): -windowed / -fullscreen schlagen
 	// damit, was in der config.xml steht.
-	void overrideFullScreen(bool fullScreen) { fullScreenOverride = fullScreen ? 1 : 0; }
+	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
-	void setFullScreen(bool fullScreen);
+	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
 	Vec2i getDesktopSize() const;
@@ -221,7 +221,7 @@ private:
 
 	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
 	// selbst ist Win32; die Groesse geht immer durch handleResize().
-	void applyWindowStyle(bool fullScreen, const Vec2i& size);
+	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
 
 	bool initialized;
 	bool fullScreen;

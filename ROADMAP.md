@@ -169,6 +169,17 @@ inside dithered areas, and neither is obviously better. Before those fixes
 `xbr-details` broke contours into disconnected pieces, which is what prompted
 looking at it.
 
+**Open question: xBR may be the wrong filter for this game.** Every decision in it
+is a `step()` against a threshold, which is stable on the flat-shaded pixel art it
+was written for and is not stable on airbrushed, photographic tiles. Nudging a
+frame by 0–3 of 255 — about what the animated level does where it shows through a
+semi-transparent dialog — moves 1% of xBR's output pixels by up to 154, all of
+them on glyph outlines, while `nearest`, `bilinear` and `sharp-fit` move by
+exactly what the input moved and nothing more. That is visible as text flickering
+over a dialog. The numbers and the reasoning are in `libs/xbr/PROVENANCE.txt`. The
+decision to make is whether `xbr-details` should stay the default, or whether
+`sharp-fit` should be — and whether xBR earns two menu rows at all.
+
 `sharp-fit` is `nearest` without the integer-scale restriction, and it is the one
 filter here that is ours rather than vendored — `src/sharpfit_shader.h`, about
 twenty lines. The idea is to nearest-upscale the frame by the smallest integer

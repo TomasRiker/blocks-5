@@ -81,7 +81,7 @@ bool Engine::init(const std::string& windowCaption,
 				  const std::string& windowIconFilename,
 				  uint width,
 				  uint height,
-				  bool fullScreen)
+				  bool defaultFullScreen)
 {
 	if(initialized) return false;
 
@@ -89,20 +89,22 @@ bool Engine::init(const std::string& windowCaption,
 	screenPow2Size = Vec2i(nextPow2(width), nextPow2(height));
 
 	// Reihenfolge: eingebaute Voreinstellung, dann die config.xml, dann die
-	// Kommandozeile - die sticht beides.
-	this->fullScreen = fullScreen;
+	// Kommandozeile - die sticht beides. Ab hier zaehlt nur noch fullScreen,
+	// nie mehr defaultFullScreen: die beiden koennen auseinanderlaufen, und
+	// genau das hat den Vollbildwechsel schon einmal unbrauchbar gemacht.
+	fullScreen = defaultFullScreen;
 #ifdef __EMSCRIPTEN__
 	// Im Browser fuellt die Seite ohnehin schon alles aus, und die
 	// Fullscreen-API laesst sich ohne echten Tastendruck gar nicht ausloesen -
 	// beim Start gibt es also kein Vollbild, egal was irgendwo steht.
-	this->fullScreen = false;
+	fullScreen = false;
 #endif
 	windowedSize = screenSize;
 
 	// Konfiguration laden
 	loadConfig();
 
-	if(fullScreenOverride >= 0) this->fullScreen = (fullScreenOverride != 0);
+	if(fullScreenOverride >= 0) fullScreen = (fullScreenOverride != 0);
 
 	printfLog("* Language: %s\n", language.c_str());
 
@@ -1466,7 +1468,7 @@ Vec2i Engine::getDesktopSize() const
 #endif
 }
 
-void Engine::applyWindowStyle(bool fullScreen, const Vec2i& size)
+void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
 	// SDLs Flags werden hier bewusst nicht angefasst. SDL_FULLSCREEN oder
 	// SDL_NOFRAME zu setzen wuerde DIB_SetVideoMode auf den langsamen Pfad
@@ -1480,18 +1482,24 @@ void Engine::applyWindowStyle(bool fullScreen, const Vec2i& size)
 	if(SDL_GetWMInfo(&info) && info.window)
 	{
 		HWND hwnd = info.window;
-		if(fullScreen)
+		if(wantFullScreen)
 		{
 			// Stil und Rechteck merken, damit das Fenster genau dorthin
-			// zurueckkommt, wo es war.
-			savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
-			RECT r;
-			if(GetWindowRect(hwnd, &r))
+			// zurueckkommt, wo es war - aber nur beim ersten Mal. Wer hier ein
+			// zweites Mal hineinlaeuft, wuerde sonst den bereits gesetzten
+			// WS_POPUP als "das war vorher" merken, und dann fuehrt aus dem
+			// Vollbild kein Weg mehr heraus.
+			if(!savedWindowStyle)
 			{
-				savedWindowRect[0] = r.left;
-				savedWindowRect[1] = r.top;
-				savedWindowRect[2] = r.right - r.left;
-				savedWindowRect[3] = r.bottom - r.top;
+				savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
+				RECT r;
+				if(GetWindowRect(hwnd, &r))
+				{
+					savedWindowRect[0] = r.left;
+					savedWindowRect[1] = r.top;
+					savedWindowRect[2] = r.right - r.left;
+					savedWindowRect[3] = r.bottom - r.top;
+				}
 			}
 
 			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
@@ -1500,12 +1508,31 @@ void Engine::applyWindowStyle(bool fullScreen, const Vec2i& size)
 			SetWindowPos(hwnd, HWND_TOP, 0, 0, size.x, size.y,
 						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
-		else if(savedWindowStyle)
+		else
 		{
-			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
-			SetWindowPos(hwnd, HWND_NOTOPMOST,
-						 savedWindowRect[0], savedWindowRect[1],
-						 savedWindowRect[2], savedWindowRect[3],
+			long style = savedWindowStyle;
+			int x = savedWindowRect[0], y = savedWindowRect[1];
+			int w = savedWindowRect[2], h = savedWindowRect[3];
+
+			if(!style)
+			{
+				// Nichts gemerkt - trotzdem zurueck ins Fenster. Aus dem
+				// Vollbild muss man immer wieder herauskommen, auch wenn
+				// unterwegs etwas schiefgegangen ist.
+				style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+				RECT r = { 0, 0, size.x, size.y };
+				AdjustWindowRect(&r, style, FALSE);
+				w = r.right - r.left;
+				h = r.bottom - r.top;
+				const Vec2i desktop = getDesktopSize();
+				x = (desktop.x - w) / 2;
+				y = (desktop.y - h) / 2;
+				if(x < 0) x = 0;
+				if(y < 0) y = 0;
+			}
+
+			SetWindowLong(hwnd, GWL_STYLE, style);
+			SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, w, h,
 						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 			savedWindowStyle = 0;
 		}
@@ -1519,20 +1546,20 @@ void Engine::applyWindowStyle(bool fullScreen, const Vec2i& size)
 	handleResize(size.x, size.y);
 }
 
-void Engine::setFullScreen(bool fullScreen)
+void Engine::setFullScreen(bool wantFullScreen)
 {
-	if(!initialized || this->fullScreen == fullScreen) { this->fullScreen = fullScreen; return; }
+	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
 
-	this->fullScreen = fullScreen;
-	printfLog("* %s\n", fullScreen ? "Going fullscreen" : "Leaving fullscreen");
+	fullScreen = wantFullScreen;
+	printfLog("* %s\n", wantFullScreen ? "Going fullscreen" : "Leaving fullscreen");
 
 #ifdef __EMSCRIPTEN__
 	// Im Browser macht das die Fullscreen-API. Aufgerufen wird das hier nur aus
 	// engineFullScreenHotkey(), das am DOM haengt - aus der Spielschleife
 	// heraus wuerde der Browser die Anfrage ablehnen.
-	emscriptenSetFullScreen(fullScreen);
+	emscriptenSetFullScreen(wantFullScreen);
 #else
-	applyWindowStyle(fullScreen, fullScreen ? getDesktopSize() : windowedSize);
+	applyWindowStyle(wantFullScreen, wantFullScreen ? getDesktopSize() : windowedSize);
 #endif
 }
 
