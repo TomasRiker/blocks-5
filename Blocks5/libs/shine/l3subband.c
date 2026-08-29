@@ -59,7 +59,7 @@ void shine_window_filter_subband(int16_t **buffer, int32_t s[SBLIMIT], int ch,
 
   for (i = 64; i--;) {
     int32_t s_value;
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) || defined(_MSC_VER)
     uint32_t s_value_lo;
 #else
     uint32_t s_value_lo __attribute__((unused));
@@ -106,7 +106,7 @@ void shine_window_filter_subband(int16_t **buffer, int32_t s[SBLIMIT], int ch,
 
   for (i = SBLIMIT; i--;) {
     int32_t s_value;
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) || defined(_MSC_VER)
     uint32_t s_value_lo;
 #else
     uint32_t s_value_lo __attribute__((unused));

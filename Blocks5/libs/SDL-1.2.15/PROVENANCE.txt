@@ -17,13 +17,41 @@ what these files were compared against, file by file. The include/ headers that
 were already in the tree, vendored earlier from the tarball, are byte-identical
 to it, which is the cross-check that the two match.
 
-Every file under src/ and include/ here is byte-identical to that tag, with one
-exception, documented in the file itself: src/main/win32/SDL_win32_main.c has an
-#undef UNICODE / #undef _UNICODE prologue, because these projects are
-CharacterSet=Unicode while that file uses char buffers with TEXT() literals and
-GetCommandLine(). SDL shipped it as an ANSI translation unit; without the undef
-the command line collapses to one character at run time and -windowed stops
-working.
+Every file under src/ and include/ here is byte-identical to that tag, with two
+exceptions, both documented in the files themselves.
+
+1. src/main/win32/SDL_win32_main.c has an #undef UNICODE / #undef _UNICODE
+prologue, because these projects are CharacterSet=Unicode while that file uses
+char buffers with TEXT() literals and GetCommandLine(). SDL shipped it as an ANSI
+translation unit; without the undef the command line collapses to one character
+at run time and -windowed stops working.
+
+2. include/SDL_syswm.h brackets its #include <windows.h> with close_code.h and
+begin_code.h. This is an upstream bug that only modern Windows SDKs expose.
+begin_code.h issues #pragma pack(push,4) for MSVC so that the application and the
+library agree on SDL's own structure layout, and SDL_syswm.h then includes
+windows.h *inside* that region. Windows SDK 10 checks structure sizes with
+C_ASSERT, which expands to a typedef of char[(e)?1:-1]; under 4-byte packing
+those checks fail, and winnt.h reports
+
+    error C2118: negative subscript
+    error C2369: '__C_ASSERT__': redefinition; different subscripts
+
+nine times over. Only src/events/SDL_events.c hit it, because it is the only
+vendored file that reaches SDL_syswm.h without windows.h already being in scope -
+every Windows video file includes windows.h or directx.h first, and the include
+guard then makes the inner one a no-op. Bracketing restores the ambient packing
+for windows.h and puts pack(4) back afterwards, so the SDL structures declared
+below it are laid out exactly as before. Verified by preprocessing SDL_syswm.h
+with _MSC_VER defined and reading the pragma sequence: before the change,
+windows.h sat between a push(4) and its pop; after it, it sits between a pop and
+the next push, and the file balances 5 pushes against 5 pops.
+
+Three other public headers include a system header inside the same region -
+SDL_stdinc.h takes <malloc.h> and <stdlib.h>, SDL_thread.h takes <process.h> -
+and they are deliberately left alone. Neither declares packing-sensitive
+structures and neither carries a C_ASSERT, and both compile today; changing them
+would be speculation rather than a fix.
 
 WHAT IS HERE, AND WHAT IS NOT
 -----------------------------

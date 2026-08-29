@@ -22,15 +22,27 @@ are no local changes.
 
 WHAT IS COMPILED
 ----------------
-Both builds compile the same 23 files out of lib/: analysis, bitrate, block,
+Both builds compile the same 22 files out of lib/: analysis, bitrate, block,
 codebook, envelope, floor0, floor1, info, lookup, lpc, lsp, mapping0, mdct,
-misc, psy, registry, res0, sharedbook, smallft, synthesis, vorbisenc,
-vorbisfile, window. That is upstream's libvorbis plus libvorbisfile, which is
-how upstream's own build groups them.
+psy, registry, res0, sharedbook, smallft, synthesis, vorbisenc, vorbisfile,
+window. That is exactly upstream's libvorbis_la_SOURCES plus vorbisfile.c and
+vorbisenc.c, which is how upstream's own build groups them.
 
-Three files in lib/ are vendored but not compiled - barkmel.c, psytune.c and
-tone.c. They are standalone command-line tools upstream keeps in the library
-directory, each with its own main().
+Four files in lib/ are vendored but not compiled:
+
+  barkmel.c psytune.c tone.c   standalone command-line tools upstream keeps in
+                               the library directory, each with its own main()
+  misc.c                       a debugging allocator, not part of the library
+
+misc.c is worth a note, because it was in the file lists until the first v143
+build stopped on it. Despite the name it is not a utility module: it is a
+malloc-tracking debug harness that includes <pthread.h> and <sys/time.h> and
+defines a pthread mutex at file scope. Upstream's lib/Makefile.am lists misc.h
+but never misc.c. MSVC has no pthread.h, so it failed outright with C1083; the
+Emscripten build had been compiling it silently all along, because emsdk supplies
+both headers and nothing references the symbols, so the linker dropped them.
+Removing it is verified: the 22 files above compile and a vorbisfile decode
+client links against them with no undefined symbols.
 
 vorbisenc.c is compiled although nothing in the game encodes Vorbis; grep for
 vorbis_analysis or vorbis_encode in src/ and there are no hits. It is in the

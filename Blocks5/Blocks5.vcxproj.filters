@@ -679,9 +679,6 @@
     <ClCompile Include="libs\libvorbis-1.3.4\lib\mdct.c">
       <Filter>libvorbis</Filter>
     </ClCompile>
-    <ClCompile Include="libs\libvorbis-1.3.4\lib\misc.c">
-      <Filter>libvorbis</Filter>
-    </ClCompile>
     <ClCompile Include="libs\libvorbis-1.3.4\lib\psy.c">
       <Filter>libvorbis</Filter>
     </ClCompile>

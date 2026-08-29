@@ -40,7 +40,7 @@ CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
        $ZLIB/trees.c $ZLIB/uncompr.c $ZLIB/zutil.c
        $GAME/libs/libogg-1.3.2/src/bitwise.c $GAME/libs/libogg-1.3.2/src/framing.c"
 for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc lsp \
-         mapping0 mdct misc psy registry res0 sharedbook smallft synthesis vorbisenc \
+         mapping0 mdct psy registry res0 sharedbook smallft synthesis vorbisenc \
          vorbisfile window; do CSRCS="$CSRCS $GAME/libs/libvorbis-1.3.4/lib/$f.c"; done
 # TinyXML 2.6.2 is vendored in the tree and compiled here exactly as the Visual
 # Studio project compiles it, so both builds run the same parser.

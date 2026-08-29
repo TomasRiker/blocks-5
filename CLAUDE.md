@@ -12,14 +12,20 @@ unless you are on Windows with Visual Studio. There is also an Emscripten port i
 `WebBuild/`, which does build and run on Linux and is the only way to test a change here
 without Windows; see `WebBuild/README.md`.
 
-**The Windows build has not been verified since commit `1578fc7`.** That commit recorded a
-clean v143 build (Visual Studio 2022 Build Tools) that compiled, linked, ran windowed and
-did hq2x — but twelve substantial commits have landed on top of it since, none of which has
-been through MSBuild: SDL compiled from source, `/MT`, ffmpeg replaced by
-minih264 + shine + minimp4, stb_image, the standard unordered containers, and OpenAL Soft.
-Everything since has been verified by mingw cross-compilation, by the Emscripten build, and
-by reading. Treat a green MSBuild run as the first thing to establish, not as a given; a
-build failure is expected to be here, not in your change.
+**The Windows build is not green yet.** A v143 run on Windows 11 (VS 2022 Community, SDK
+10.0.26100) got through all 122 vendored library sources and stopped there, so the game's own
+114 `src/*.cpp` files — which come after the libraries in `Blocks5.vcxproj` — have still not
+been compiled by MSVC even once. Expect more errors on the next run, and expect them to be
+in the tree rather than in your change.
+
+Three failures from that run are fixed: shine's `__attribute__((unused))`, which MSVC
+rejects; `misc.c` in the libvorbis file lists, which is a pthreads debug allocator upstream
+never compiles; and `windows.h` being included inside SDL's `#pragma pack(push,4)`, which
+makes every `C_ASSERT` in a modern `winnt.h` fail. Each is written up in the relevant
+`libs/*/PROVENANCE.txt`.
+
+`pch.cpp` compiles, which is worth knowing: `pch.h` and everything it pulls in — SDL, GL,
+GLU, OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, stb — parse cleanly under v143.
 
 ## Build & run
 
