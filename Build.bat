@@ -1,8 +1,8 @@
 @ECHO OFF
 REM ===========================================================================
-REM  build.bat - build Blocks 5 from a fresh Git checkout, on the command line.
+REM  Build.bat - build Blocks 5 from a fresh Git checkout, on the command line.
 REM
-REM  Usage:  build.bat [Release^|Debug] [options]
+REM  Usage:  Build.bat [Release^|Debug] [options]
 REM
 REM    /nodata         do not rebuild data.zip and the skin archives
 REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
@@ -248,7 +248,7 @@ EXIT /B 0
 
 :usage
 ECHO.
-ECHO Usage: build.bat [Release^|Debug] [/nodata] [/optipng] [/stage] [/rebuild]
+ECHO Usage: Build.bat [Release^|Debug] [/nodata] [/optipng] [/stage] [/rebuild]
 ECHO                  [/toolset:vNNN]
 ECHO.
 ECHO Builds Blocks5.sln for Win32 with the v120 (Visual Studio 2013) toolset,

@@ -8,5 +8,5 @@ Thumbs.db
 *.opensdf
 *.sdf
 *.suo
-web/build
-web/build-asan
+WebBuild/build
+WebBuild/build-asan

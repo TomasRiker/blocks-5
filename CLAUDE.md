@@ -12,17 +12,17 @@ Visual Studio.
 
 ## Build & run
 
-`build.bat` at the repo root does the whole thing from a fresh clone — it finds MSBuild,
+`Build.bat` at the repo root does the whole thing from a fresh clone — it finds MSBuild,
 checks that the v120 toolset is present, builds `Blocks5.sln` for `Win32`, and then packs
 `data.zip` and `levels/skins/*.zip`, which are gitignored build products the game cannot start
-without. `build.bat /?` lists its options.
+without. `Build.bat /?` lists its options.
 
 The toolset is **v120 (Visual Studio 2013) and cannot be newer**: `libs/bin/tinyxml_STL.lib`
 and `tinyxmld_STL.lib` carry `/FAILIFMISMATCH:"_MSC_VER=1800"`, so any other toolset stops the
 link with LNK2038. They are the only files in `libs/bin` with such a directive — everything
 else is an import library or lock-free C — so rebuilding TinyXML from source is all that
 stands between this tree and a modern toolchain. The reasoning is written out at the top of
-`build.bat`.
+`Build.bat`.
 
 To build by hand instead: open `Blocks5.sln` in Visual Studio 2013 or later (only `Debug|Win32`
 and `Release|Win32` exist) and build all three projects. Then, from the `Blocks5` directory:
