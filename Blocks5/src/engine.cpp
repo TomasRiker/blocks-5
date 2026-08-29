@@ -12,6 +12,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "engine.h"
 #include "glextensions.h"
 #include "xbr_lv2.h"
+#include "sharpfit_shader.h"
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
@@ -60,6 +61,11 @@ Engine::Engine()
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
 	xbrSmallDetailsLocation = -1;
+	sharpFitProgram = 0;
+	sharpFitDecalLocation = -1;
+	sharpFitTextureSizeLocation = -1;
+	sharpFitFrameSizeLocation = -1;
+	sharpFitPrescaleLocation = -1;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -368,7 +374,12 @@ bool Engine::init(const std::string& windowCaption,
 	else if(GLExtensions::haveShaders())
 	{
 		createXbrProgram();
+		// Braucht den Vertexpuffer, den createXbrProgram() anlegt.
+		if(xbrVertexBuffer) createSharpFitProgram();
 	}
+	printfLog("  Upscale filters:  nearest, bilinear%s\n",
+			  canUseXbr() ? (canUseSharpFit() ? ", sharp-fit, xbr, xbr-details" : ", xbr, xbr-details")
+						  : (canUseSharpFit() ? ", sharp-fit" : ""));
 	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
 
 	// Texturen für Crossfading erzeugen
@@ -1210,18 +1221,64 @@ bool Engine::createXbrProgram()
 		return false;
 	}
 
-	printfLog("  Upscale filters:  nearest, bilinear, xBR, xBR (small details)\n");
 	return true;
 }
 
 void Engine::destroyXbrProgram()
 {
+	destroySharpFitProgram();
 	if(xbrVertexBuffer) { glExtDeleteBuffers(1, &xbrVertexBuffer); xbrVertexBuffer = 0; }
 	if(xbrProgram) { glExtDeleteProgram(xbrProgram); xbrProgram = 0; }
 	xbrDecalLocation = -1;
 	xbrTextureSizeLocation = -1;
 	xbrSmallDetailsLocation = -1;
 	xbrVertexBuffer = 0;
+}
+
+bool Engine::createSharpFitProgram()
+{
+	// Derselbe Vertex-Shader wie bei xBR, und derselbe Vertexpuffer - nur der
+	// Fragment-Shader ist ein anderer, und ein sehr viel billigerer.
+	const uint vs = compileShaderStage(GL_VERTEX_SHADER, p_xbrVertexShader, "sharp-fit vertex");
+	if(!vs) return false;
+	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_sharpFitFragmentShader, "sharp-fit fragment");
+	if(!fs) { glExtDeleteShader(vs); return false; }
+
+	sharpFitProgram = glExtCreateProgram();
+	glExtAttachShader(sharpFitProgram, vs);
+	glExtAttachShader(sharpFitProgram, fs);
+	glExtBindAttribLocation(sharpFitProgram, 0, "aPosition");
+	glExtBindAttribLocation(sharpFitProgram, 1, "aTexCoord");
+	glExtLinkProgram(sharpFitProgram);
+
+	glExtDeleteShader(vs);
+	glExtDeleteShader(fs);
+
+	GLint ok = 0;
+	glExtGetProgramiv(sharpFitProgram, GL_LINK_STATUS, &ok);
+	if(!ok)
+	{
+		char log[1024] = "";
+		glExtGetProgramInfoLog(sharpFitProgram, sizeof(log) - 1, 0, log);
+		printfLog("- WARNING: Could not link the sharp-fit program: %s\n", log);
+		destroySharpFitProgram();
+		return false;
+	}
+
+	sharpFitDecalLocation       = glExtGetUniformLocation(sharpFitProgram, "decal");
+	sharpFitTextureSizeLocation = glExtGetUniformLocation(sharpFitProgram, "TextureSize");
+	sharpFitFrameSizeLocation   = glExtGetUniformLocation(sharpFitProgram, "FrameSize");
+	sharpFitPrescaleLocation    = glExtGetUniformLocation(sharpFitProgram, "Prescale");
+	return true;
+}
+
+void Engine::destroySharpFitProgram()
+{
+	if(sharpFitProgram) { glExtDeleteProgram(sharpFitProgram); sharpFitProgram = 0; }
+	sharpFitDecalLocation = -1;
+	sharpFitTextureSizeLocation = -1;
+	sharpFitFrameSizeLocation = -1;
+	sharpFitPrescaleLocation = -1;
 }
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
@@ -1237,6 +1294,7 @@ const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
 	switch(filter)
 	{
 	case UF_NEAREST:    return "nearest";
+	case UF_SHARP_FIT:  return "sharp-fit";
 	case UF_XBR:        return "xbr";
 	case UF_XBR_DETAIL: return "xbr-details";
 	default:            return "bilinear";
@@ -1248,6 +1306,7 @@ Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, Upscale
 	if(!p_name) return fallback;
 	if(!_stricmp(p_name, "nearest"))     return UF_NEAREST;
 	if(!_stricmp(p_name, "bilinear"))    return UF_BILINEAR;
+	if(!_stricmp(p_name, "sharp-fit"))   return UF_SHARP_FIT;
 	if(!_stricmp(p_name, "xbr"))         return UF_XBR;
 	if(!_stricmp(p_name, "xbr-details")) return UF_XBR_DETAIL;
 	return fallback;
@@ -1258,12 +1317,19 @@ bool Engine::canUseXbr() const
 	return useFrameBuffer && xbrProgram != 0 && xbrVertexBuffer != 0;
 }
 
+bool Engine::canUseSharpFit() const
+{
+	return useFrameBuffer && sharpFitProgram != 0 && xbrVertexBuffer != 0;
+}
+
 Engine::UpscaleFilter Engine::getEffectiveUpscaleFilter() const
 {
 	// Ohne uebersetztes Programm gibt es kein xBR - dann lieber bilinear als
 	// ein Bild, das gar nicht erst erscheint.
 	if((upscaleFilter == UF_XBR || upscaleFilter == UF_XBR_DETAIL) && !canUseXbr())
 		return UF_BILINEAR;
+	if(upscaleFilter == UF_SHARP_FIT && !canUseSharpFit())
+		return UF_NEAREST;   // ohne Shader lieber scharf als weich
 	return upscaleFilter;
 }
 
@@ -1560,11 +1626,15 @@ void Engine::presentFrame()
 	// vorgemischten Nachbarn findet seine Kantenerkennung nichts mehr - das
 	// Ergebnis ist dann kaum von bilinear zu unterscheiden.
 	const UpscaleFilter effective = getEffectiveUpscaleFilter();
-	const GLint filter = (effective == UF_BILINEAR) ? GL_LINEAR : GL_NEAREST;
+	// UF_SHARP_FIT rechnet die Texturkoordinate so um, dass die
+	// Hardware-Interpolation genau das nearest-Ergebnis liefert - ohne sie
+	// bliebe von dem Filter nichts uebrig. xBR braucht das Gegenteil.
+	const GLint filter = (effective == UF_BILINEAR || effective == UF_SHARP_FIT)
+						 ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-	if(effective == UF_XBR || effective == UF_XBR_DETAIL)
+	if(effective == UF_XBR || effective == UF_XBR_DETAIL || effective == UF_SHARP_FIT)
 	{
 		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
 		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
@@ -1584,18 +1654,41 @@ void Engine::presentFrame()
 			x1, y1, fu,   fv
 		};
 
-		glExtUseProgram(xbrProgram);
-		if(xbrDecalLocation >= 0)       glExtUniform1i(xbrDecalLocation, 0);
-		if(xbrTextureSizeLocation >= 0) glExtUniform2f(xbrTextureSizeLocation,
-													   static_cast<float>(frameTextureSize.x),
-													   static_cast<float>(frameTextureSize.y));
-		// small_details bestimmt, woran der Shader zwei Texel als "gleich"
-		// erkennt: 0 = gewichtete Mischung aus Helligkeit und Farbe, so wie
-		// xBR es normalerweise macht; 1 = nur die Helligkeit. Damit greift er
-		// auch in gerasterten Flaechen (Gras, Erde), die sonst pixelig bleiben.
-		if(xbrSmallDetailsLocation >= 0)
-			glExtUniform1f(xbrSmallDetailsLocation,
-						   effective == UF_XBR_DETAIL ? 1.0f : 0.0f);
+		if(effective == UF_SHARP_FIT)
+		{
+			// Der kleinste ganzzahlige Faktor, mit dem das 640x480-Bild das
+			// Zielrechteck mindestens ausfuellt. Genau um den wuerde man mit
+			// nearest vergroessern, bevor man auf die echte Groesse
+			// heruntergeht; der Shader macht beides in einem Zug.
+			const float prescaleX = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(w) / screenSize.x))));
+			const float prescaleY = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(h) / screenSize.y))));
+
+			glExtUseProgram(sharpFitProgram);
+			if(sharpFitDecalLocation >= 0)       glExtUniform1i(sharpFitDecalLocation, 0);
+			if(sharpFitTextureSizeLocation >= 0) glExtUniform2f(sharpFitTextureSizeLocation,
+																static_cast<float>(frameTextureSize.x),
+																static_cast<float>(frameTextureSize.y));
+			if(sharpFitFrameSizeLocation >= 0)   glExtUniform2f(sharpFitFrameSizeLocation,
+																static_cast<float>(screenSize.x),
+																static_cast<float>(screenSize.y));
+			if(sharpFitPrescaleLocation >= 0)    glExtUniform2f(sharpFitPrescaleLocation, prescaleX, prescaleY);
+		}
+		else
+		{
+			glExtUseProgram(xbrProgram);
+			if(xbrDecalLocation >= 0)       glExtUniform1i(xbrDecalLocation, 0);
+			if(xbrTextureSizeLocation >= 0) glExtUniform2f(xbrTextureSizeLocation,
+														   static_cast<float>(frameTextureSize.x),
+														   static_cast<float>(frameTextureSize.y));
+			// small_details bestimmt, woran der Shader zwei Texel als "gleich"
+			// erkennt: 0 = gewichtete Mischung aus Helligkeit und Farbe, so wie
+			// xBR es normalerweise macht; 1 = nur die Helligkeit. Damit greift
+			// er auch in gerasterten Flaechen (Gras, Erde), die sonst pixelig
+			// bleiben.
+			if(xbrSmallDetailsLocation >= 0)
+				glExtUniform1f(xbrSmallDetailsLocation,
+							   effective == UF_XBR_DETAIL ? 1.0f : 0.0f);
+		}
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, xbrVertexBuffer);
 		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);

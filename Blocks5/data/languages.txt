@@ -186,6 +186,11 @@ $O_UPSCALER_BILINEAR
 §en:Smooth
 §de:Weich
 
+$O_UPSCALER_SHARP_FIT
+// Caption of the sharp-fit scaling radio button
+§en:Sharp, fitted
+§de:Scharf, angepasst
+
 $O_UPSCALER_XBR
 // Caption of the xBR scaling radio button
 §en:xBR

@@ -158,13 +158,29 @@ is **MIT** — `libretro/glsl-shaders/xbr/shaders/xbr-lv2.glsl`, Hyllian,
 "Permission is hereby granted, free of charge" — a clear improvement on hq2x's
 statically linked LGPL.
 
-Four filters are selectable, and the player picks one in Options -> Scaling,
+Five filters are selectable, and the player picks one in Options -> Scaling,
 exactly like the language — there is no command-line switch for it. The choice is
-saved as `<Upscaler>` in `config.xml`: `nearest`, `bilinear`, `xbr`,
-`xbr-details`. The last is upstream's `small_details` path, which compares texels
-by luminance alone instead of the usual channel mix; it makes the filter engage
-inside the dithered grass and earth tiles that plain xBR leaves pixelated, and
-leaves glyphs and GUI edges alone. **`xbr-details` is the default.**
+saved as `<Upscaler>` in `config.xml`: `nearest`, `bilinear`, `sharp-fit`, `xbr`,
+`xbr-details`. `xbr-details` is upstream's `small_details` path, which compares
+texels by luminance alone instead of the usual channel mix; it makes the filter
+engage inside the dithered grass and earth tiles that plain xBR leaves pixelated,
+and leaves glyphs and GUI edges alone. **`xbr-details` is the default.**
+
+`sharp-fit` is `nearest` without the integer-scale restriction, and it is the one
+filter here that is ours rather than vendored — `src/sharpfit_shader.h`, about
+twenty lines. The idea is to nearest-upscale the frame by the smallest integer
+factor N that covers the destination rectangle and then resample that down to the
+real size, so the fractional remainder shows up as a roughly one-pixel soft edge
+instead of as unevenly doubled source pixels. It does not need two passes:
+bilinear over a nearest-upscaled image is piecewise linear — constant inside a
+source texel, a ramp of width 1/N across each texel boundary — and sampling the
+*original* texture bilinearly at a coordinate remapped through that same function
+gives exactly the same values, in one fetch. Checked against a genuine two-pass
+implementation in WebGL at five window sizes: pixel-identical at an integer scale,
+and elsewhere a maximum channel difference of 1 on 2–10% of pixels, which is the
+8-bit rounding of the intermediate buffer the two-pass version has and the
+one-pass version does not. The same arithmetic is known as "sharp bilinear" in the
+emulator world (Themaister, libretro); it is derived here rather than copied.
 
 Where the machine has no shader or no framebuffer object, `getEffectiveUpscaleFilter()`
 returns bilinear and the two xBR entries are hidden from the dialog rather than
@@ -177,7 +193,12 @@ Since item 10 the window can be any size, so the setting has something to do:
 `computePresentRect` returns the largest centred 4:3 rectangle that fits, and the
 filter decides how the 640x480 frame gets there. `nearest` additionally snaps to
 an integer scale — at 1280x900 that means 640x480 dead centre rather than
-1200x900, which is exactly the trade it exists to make.
+1200x900, which is exactly the trade it exists to make, and `sharp-fit` exists for
+people who do not want to make it.
+
+Cost of one present, measured on a software rasterizer at 1280x960, so the numbers
+are only meaningful against each other: nearest 7.3 ms, bilinear 9.7 ms, sharp-fit
+12.8 ms, xBR 79.1 ms. On any real GPU the first three are noise.
 
 ### Which filter
 

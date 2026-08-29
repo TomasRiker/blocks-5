@@ -25,24 +25,29 @@
 		<StaticText name="Static11" x="215" y="30">
 			<Text>$O_UPSCALER</Text>
 		</StaticText>
-		<!-- Reihenfolge und y-Werte macht Options::show(); die vier stehen hier
+		<!-- Reihenfolge und y-Werte macht Options::show(); die fuenf stehen hier
 		     nur der Vollstaendigkeit halber schon an ihrem Platz. -->
-		<RadioButton name="XbrDetails" x="215" y="52" w="16" h="16">
+		<RadioButton name="XbrDetails" x="215" y="50" w="16" h="16">
 			<Title>$O_UPSCALER_XBR_DETAILS</Title>
 			<Group>2</Group>
 			<Font>tooltip_font.xml</Font>
 		</RadioButton>
-		<RadioButton name="Xbr" x="215" y="71" w="16" h="16">
+		<RadioButton name="Xbr" x="215" y="68" w="16" h="16">
 			<Title>$O_UPSCALER_XBR</Title>
 			<Group>2</Group>
 			<Font>tooltip_font.xml</Font>
 		</RadioButton>
-		<RadioButton name="Bilinear" x="215" y="90" w="16" h="16">
+		<RadioButton name="SharpFit" x="215" y="86" w="16" h="16">
+			<Title>$O_UPSCALER_SHARP_FIT</Title>
+			<Group>2</Group>
+			<Font>tooltip_font.xml</Font>
+		</RadioButton>
+		<RadioButton name="Bilinear" x="215" y="104" w="16" h="16">
 			<Title>$O_UPSCALER_BILINEAR</Title>
 			<Group>2</Group>
 			<Font>tooltip_font.xml</Font>
 		</RadioButton>
-		<RadioButton name="Nearest" x="215" y="109" w="16" h="16">
+		<RadioButton name="Nearest" x="215" y="122" w="16" h="16">
 			<Title>$O_UPSCALER_NEAREST</Title>
 			<Group>2</Group>
 			<Font>tooltip_font.xml</Font>

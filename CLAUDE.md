@@ -126,14 +126,27 @@ whatever size the window is; only `computePresentRect` changes, and the cursor m
 read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 `glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
-are core and the header just `#define`s them through. Four upscale filters
+are core and the header just `#define`s them through. Five upscale filters
 (`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`:
-`nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`, `xbr` and `xbr-details` run the
-shader in `libs/xbr` — which **must** sample with `GL_NEAREST`, or its edge detection has
-nothing to work with and the output is bilinear at ten times the cost. `nearest` additionally
-snaps the blit to an integer scale, which is the whole point of choosing it. Without an FBO
-the game renders straight to the back buffer as before; without a shader, xBR degrades to
-bilinear (`getEffectiveUpscaleFilter`) and the options dialog hides the two xBR entries.
+
+- `nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`. `nearest` additionally snaps the
+  blit to an integer scale, which is the whole point of choosing it.
+- `sharp-fit` (`src/sharpfit_shader.h`) is nearest at a fractional scale: conceptually the
+  frame is nearest-upscaled by the smallest integer that covers the destination and then
+  resampled down. That is one texture fetch, not two passes — bilinear over a
+  nearest-upscaled image is piecewise linear, so remapping the texture coordinate through
+  the same piecewise function and letting the hardware interpolate gives the identical
+  result. Verified against a real two-pass: pixel-identical at an integer scale, max channel
+  difference 1 (8-bit rounding in the intermediate) at fractional ones. It **must** sample
+  with `GL_LINEAR` — the hardware interpolation *is* the filter.
+- `xbr` and `xbr-details` run the shader in `libs/xbr`, which **must** sample with
+  `GL_NEAREST`, or its edge detection has nothing to work with and the output is bilinear at
+  ten times the cost.
+
+Relative cost of one present, measured on a software rasterizer so read it as ratios: nearest
+1.0, bilinear 1.3, sharp-fit 1.75, xBR 10.9. Without an FBO the game renders straight to the
+back buffer as before; without a shader, xBR degrades to bilinear and sharp-fit to nearest
+(`getEffectiveUpscaleFilter`), and the options dialog hides the entries that cannot work.
 Neither is fatal.
 
 **The window.** Resizable, aspect kept, black bars. **SDL's video flags are

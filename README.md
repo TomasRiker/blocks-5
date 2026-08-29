@@ -56,8 +56,8 @@ Layout
 The window is resizable, keeps its 4:3 shape with black bars, and toggles borderless
 fullscreen with Alt+Return — none of which loses the GL context, because SDL's video flags
 never change and fullscreen is a Win32 style flip behind its back. The scaling filter
-(`nearest`, `bilinear`, `xbr`, `xbr-details`) is an in-game option under Options → Scaling,
-saved alongside the window size and fullscreen state in `config.xml`.
+(`nearest`, `bilinear`, `sharp-fit`, `xbr`, `xbr-details`) is an in-game option under
+Options → Scaling, saved alongside the window size and fullscreen state in `config.xml`.
 
 The game needs no Visual C++ redistributable, no system-wide OpenAL and no codec pack: the
 three executables link the CRT statically, SDL 1.2.15 is compiled in from

@@ -1086,6 +1086,9 @@
     <ClInclude Include="src\resource.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="src\sharpfit_shader.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\singleton.h">
       <Filter>Engine</Filter>
     </ClInclude>

@@ -52,14 +52,26 @@ Changelog
             HQ2X mode. It scaled the picture on the processor,
             cost about half of the time available for a frame,
             and changed less than 5% of the pixels. In its place
-            the options now have a "Scaling" setting with four
-            choices: Sharp, Smooth, xBR and xBR (detailed). The
-            two xBR settings reconstruct the edges of the picture
-            instead of just stretching them, and they run on the
-            graphics card, so they are free. They need a card
-            that can run shaders - practically anything made
-            since about 2005; if yours cannot, the two xBR
-            entries are simply not offered.
+            the options now have a "Scaling" setting with five
+            choices:
+
+              Sharp          every pixel the same size, so the
+                             picture only grows in whole steps
+                             and does not fill the window
+              Sharp, fitted  the same crisp look, but at any
+                             size: it fills the window and pays
+                             for it with a soft edge about one
+                             pixel wide
+              Smooth         plain stretching, blurry
+              xBR            reconstructs the edges instead of
+                             stretching them
+              xBR, detailed  the same, and it also smooths the
+                             finely dotted areas like the grass
+
+            The last three run on the graphics card and are
+            practically free. They need a card that can run
+            shaders - anything made since about 2005; if yours
+            cannot, those entries are simply not offered.
 
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as
