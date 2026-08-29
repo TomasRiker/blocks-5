@@ -87,7 +87,6 @@ libvorbis and `SDL_win32_main.c` were moved to source builds:
 
 | Binary | What it is | Notes |
 | --- | --- | --- |
-| `libs/bin/sdl.lib` + `sdl.dll` | SDL 1.2.15 | tree already holds `libs/SDL-1.2.15/include` and one source file |
 | `libs/bin/av*.lib`, `swscale.lib` + 4 DLLs | ffmpeg 0.8 (2011) | only used by `videorecorder.cpp` |
 | `libs/bin/hq2x32.obj` | see item 2 | |
 | `libs/bin/OpenAL32.lib` + `OpenAL32.dll` | OpenAL Soft 1.25.2 | LGPL, *must* stay a DLL |
@@ -114,11 +113,12 @@ why this is pinned at 0.8 from 2011. Three ways out:
 - Keep ffmpeg but move to a current release and the `avcodec_send_frame` API.
   Modernises the code but keeps four DLLs and a large dependency.
 
-**SDL 1.2 is the hard one.** It is buildable from source, but SDL 1.2 has been
-end-of-life since 2012 and the honest version of this task is "move to SDL2",
-which is a different and much larger project — the input layer, the window/GL
-setup and the event loop all touch it. Worth splitting off rather than smuggling
-into this item.
+**SDL is done, but only halfway in spirit.** All 67 files of SDL 1.2.15's Win32
+subset are compiled from `libs/SDL-1.2.15/src` and `sdl.dll` is gone. What that
+does not change is that SDL 1.2 has been end-of-life since 2012; the honest
+version of that task is "move to SDL2", which is a different and much larger
+project — the input layer, the window/GL setup and the event loop all touch it.
+Worth splitting off as its own item rather than smuggling into this one.
 
 
 4. Build with the newest MSVC

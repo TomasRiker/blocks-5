@@ -25,7 +25,7 @@ The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
 are compiled from source here instead — zlib 1.3.1 with its `contrib/minizip`,
 libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2. The Visual Studio build compiles the
 same sources from the same directories, so the two cannot drift apart; `libs/bin`
-is down to import libraries for SDL, OpenAL and ffmpeg, plus `hq2x32.obj`. Before
+is down to import libraries for OpenAL and ffmpeg, plus `hq2x32.obj`. Before
 they were vendored this build compiled whatever the upstream clones happened to
 be at, which was a *different* version of every one of them.
 

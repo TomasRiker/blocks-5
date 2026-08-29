@@ -17,7 +17,6 @@ COPY makeconfig.bat stage
 COPY OpenAL32.dll stage
 COPY ..\Release\pwencrypt.exe stage
 COPY readme.txt stage
-COPY sdl.dll stage
 COPY ..\Release\showuserdir.exe stage
 COPY swscale-2.dll stage
 COPY update_checker_disable.bat stage

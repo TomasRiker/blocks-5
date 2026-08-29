@@ -37,12 +37,17 @@ gone. Three things make anything newer than v120 work:
   are `std::unordered_map` / `std::unordered_multimap` now — every toolset from v120 on has
   them, and the define is gone with the header.
 
-- SDL 1.2.15's own `src/main/win32/SDL_win32_main.c` is compiled from source in
-  `libs/SDL-1.2.15/` instead of linking `libs/bin/sdlmain.lib`, which was pre-UCRT and
-  imported `__iob_func`. It carries one local change, an `#undef UNICODE`/`#undef _UNICODE`
-  prologue: the projects are `CharacterSet=Unicode` but that file uses `char` buffers with
-  `TEXT()` literals and `GetCommandLine()`, which the compiler only warns about (C4133) while
-  the command line would collapse to one character at runtime.
+- **SDL itself is compiled from source**, all 67 files of the Win32 subset, out of
+  `libs/SDL-1.2.15/src` — the same set SDL's own `VisualC/SDL/SDL.vcproj` builds. There is no
+  `sdl.dll` and no `libs/bin/sdl.lib`; that DLL was pre-UCRT and the last thing in the tree
+  that needed MSVCR120. It needs one include directory, `winmm.lib` and `dxguid.lib` from the
+  Windows SDK, and `DECLSPEC=` among the defines (`begin_code.h` guards it with `#ifndef` and
+  would otherwise mark every entry point `__declspec(dllexport)`, which is wrong for a static
+  build). `src/main/win32/SDL_win32_main.c` carries the tree's only local change to SDL, an
+  `#undef UNICODE`/`#undef _UNICODE` prologue: the projects are `CharacterSet=Unicode` but that
+  file uses `char` buffers with `TEXT()` literals and `GetCommandLine()`, which the compiler
+  only warns about (C4133) while the command line would collapse to one character at runtime.
+  See `libs/SDL-1.2.15/PROVENANCE.txt`.
 
 `PWEncrypt` no longer calls `gets()`, which the Universal CRT removed.
 
@@ -199,6 +204,6 @@ filenames, shipped zipped in `levels/campaigns/`.
   macros are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`. Most are compiled from source by
   both builds (TinyXML, zlib + minizip, libogg, libvorbis, `SDL_win32_main.c`, stb). What is
-  left in `Blocks5/libs/bin` is import libraries — SDL, OpenAL, ffmpeg — plus
+  left in `Blocks5/libs/bin` is import libraries — OpenAL and ffmpeg — plus
   `hq2x32.obj`, which is a real object file and the one thing there that still carries v120
   code. Import libraries do not pin the toolset; `hq2x32.obj` and the ffmpeg DLLs do.

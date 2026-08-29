@@ -38,9 +38,10 @@ REM      ^<stdint.h^>; from VS2015 on the STL pulls that shim in from ^<vector^>
 REM      before pch.h line 29 could define the macro, and the shim's include
 REM      guard then locks INT64_C and friends out for good
 REM
-REM    - SDL 1.2.15's own src\main\win32\SDL_win32_main.c compiled from source
-REM      in place of libs\bin\sdlmain.lib. That library is pre-UCRT and imports
-REM      __iob_func, which the Universal CRT removed, so it linked only on v120
+REM    - SDL compiled from source out of libs\SDL-1.2.15\src, in place of
+REM      libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
+REM      imported __iob_func, which the Universal CRT removed, so it linked only
+REM      on v120; sdl.dll was the last file in the tree that needed MSVCR120
 REM
 REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
 REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
