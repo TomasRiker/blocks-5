@@ -35,17 +35,11 @@ REM      ^<stdint.h^>; from VS2015 on the STL pulls that shim in from ^<vector^>
 REM      before pch.h line 29 could define the macro, and the shim's include
 REM      guard then locks INT64_C and friends out for good
 REM
-REM  ONE KNOWN GAP, on v140 and newer only: libs\bin\sdlmain.lib is a pre-UCRT
-REM  static library and imports __iob_func, which the Universal CRT removed. It
-REM  links fine on v120 and will stop with
+REM    - SDL 1.2.15's own src\main\win32\SDL_win32_main.c compiled from source
+REM      in place of libs\bin\sdlmain.lib. That library is pre-UCRT and imports
+REM      __iob_func, which the Universal CRT removed, so it linked only on v120
 REM
-REM      LNK2019: unresolved external symbol __imp____iob_func
-REM
-REM  on anything newer. The fix is to compile SDL 1.2.15's own
-REM  src\main\win32\SDL_win32_main.c instead of linking the library - it is
-REM  public domain and 402 lines - and it is deliberately not done yet, so that
-REM  the first modern build reports compiler errors rather than a silently
-REM  mis-parsed command line. Reaching this error means everything compiled.
+REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS
@@ -196,9 +190,6 @@ ECHO.
 IF ERRORLEVEL 1 (
 	ECHO.
 	ECHO ERROR: the build failed.
-	ECHO        With v140 and newer, "unresolved external symbol __imp____iob_func"
-	ECHO        is expected and is the last remaining gap - see the note at the
-	ECHO        top of this file. Everything else is worth reporting.
 	GOTO fail
 )
 

@@ -17,6 +17,9 @@
     <Filter Include="TinyXML">
       <UniqueIdentifier>{7f2c9a41-3e6d-4b58-9c1a-0d5e8b3f6a24}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SDL">
+      <UniqueIdentifier>{2b6e91d5-47a8-4c30-b1f7-9e4a0c85d312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\campaign.cpp">
@@ -360,6 +363,9 @@
     </ClCompile>
     <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
       <Filter>MiniZip</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
+      <Filter>SDL</Filter>
     </ClCompile>
     <ClCompile Include="libs\tinyxml-2.6.2\tinystr.cpp">
       <Filter>TinyXML</Filter>

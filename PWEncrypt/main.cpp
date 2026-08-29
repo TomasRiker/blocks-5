@@ -215,7 +215,13 @@ int main()
 
 	char in[256] = "";
 	printf("Password: ");
-	gets(in);
+
+	// gets() hatte nie eine Laengenpruefung und ist aus der Universal CRT
+	// entfernt worden. fgets liest hoechstens sizeof(in)-1 Zeichen, laesst
+	// aber den Zeilenumbruch stehen.
+	if(!fgets(in, sizeof(in), stdin)) in[0] = 0;
+	size_t inLength = strlen(in);
+	while(inLength && (in[inLength - 1] == '\n' || in[inLength - 1] == '\r')) in[--inLength] = 0;
 
 	char out[1024] = "";
 	encryptPassword(in, out, primes);

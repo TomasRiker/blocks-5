@@ -67,7 +67,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstatd.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstatd.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -95,7 +95,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdlmain.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstat.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;hq2x32.obj;sdl.lib;sdl_image.lib;opengl32.lib;glu32.lib;openal32.lib;zlibstat.lib;libogg.lib;libvorbis.lib;libvorbisfile.lib;avcodec.lib;avutil.lib;avformat.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -109,6 +109,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="libs\tinyxml-2.6.2\tinystr.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>

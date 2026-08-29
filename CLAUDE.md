@@ -29,11 +29,14 @@ because they must precede every include:
   `<stdint.h>`; from VS2015 on the STL pulls that shim in via `<vector>`, long before
   `pch.h` could define the macro, and the shim's include guard then locks `INT64_C` out.
 
-One known gap on v140+: `libs/bin/sdlmain.lib` is pre-UCRT and imports `__iob_func`, which the
-Universal CRT removed, so the link ends with `LNK2019: unresolved external symbol
-__imp____iob_func`. The fix is to compile SDL 1.2.15's own `src/main/win32/SDL_win32_main.c`
-instead — public domain, 402 lines — with `#undef UNICODE`/`#undef _UNICODE` first, since the
-project is `CharacterSet=Unicode` and that file uses `char` buffers with `TEXT()` literals.
+- SDL 1.2.15's own `src/main/win32/SDL_win32_main.c` is compiled from source in
+  `libs/SDL-1.2.15/` instead of linking `libs/bin/sdlmain.lib`, which was pre-UCRT and
+  imported `__iob_func`. It carries one local change, an `#undef UNICODE`/`#undef _UNICODE`
+  prologue: the projects are `CharacterSet=Unicode` but that file uses `char` buffers with
+  `TEXT()` literals and `GetCommandLine()`, which the compiler only warns about (C4133) while
+  the command line would collapse to one character at runtime.
+
+`PWEncrypt` no longer calls `gets()`, which the Universal CRT removed.
 
 To build by hand instead: open `Blocks5.sln` in Visual Studio (only `Debug|Win32` and
 `Release|Win32` exist) and build all three projects. Then, from the `Blocks5` directory:
