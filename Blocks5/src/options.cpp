@@ -102,7 +102,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 				p_label->setPosition(Vec2i(p_label->getPosition().x, filterY + 3));
 				p_label->show();
 			}
-			filterY += 19;
+			filterY += 20;
 		}
 		else
 		{
@@ -117,7 +117,9 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	{
 		// filterY steht nach der Schleife genau einen Schritt unter dem letzten
 		// Eintrag, der Knopf bekommt also denselben Abstand wie die Knoepfe
-		// untereinander.
+		// untereinander. 20 ist der Zeilenabstand, den die uebrigen Dialoge
+		// benutzen - im Leveleditor dreizehnmal, im Kampagneneditor viermal,
+		// und hier fuer Lautstaerke, Details und Steuerung.
 		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY));
 		p_crtSettings->show();
 	}
