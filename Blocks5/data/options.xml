@@ -14,10 +14,10 @@
 			<Title>$O_LANGUAGE_ENGLISH</Title>
 			<Group>0</Group>
 		</RadioButton>
-		<StaticImage name="Static2" x="100" y="50" w="64" h="48">
+		<StaticImage name="Static2" x="120" y="50" w="64" h="48">
 			<Image u="0" v="0">languages.png</Image>
 		</StaticImage>
-		<RadioButton name="German" x="100" y="105" w="16" h="16">
+		<RadioButton name="German" x="120" y="105" w="16" h="16">
 			<Title>$O_LANGUAGE_GERMAN</Title>
 			<Group>0</Group>
 		</RadioButton>
@@ -31,36 +31,32 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SharpFitLabel" x="241" y="53" w="-1" h="-1">
+		<StaticText name="SharpFitLabel" x="241" y="53" w="-1" h="-1" for="SharpFit">
 			<Text>$O_UPSCALER_SHARP_FIT</Text>
-			<For>SharpFit</For>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<RadioButton name="Nearest" x="215" y="70" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="NearestLabel" x="241" y="73" w="-1" h="-1">
+		<StaticText name="NearestLabel" x="241" y="73" w="-1" h="-1" for="Nearest">
 			<Text>$O_UPSCALER_NEAREST</Text>
-			<For>Nearest</For>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<RadioButton name="Bilinear" x="215" y="90" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="BilinearLabel" x="241" y="93" w="-1" h="-1">
+		<StaticText name="BilinearLabel" x="241" y="93" w="-1" h="-1" for="Bilinear">
 			<Text>$O_UPSCALER_BILINEAR</Text>
-			<For>Bilinear</For>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<RadioButton name="Crt" x="215" y="110" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="CrtLabel" x="241" y="113" w="-1" h="-1">
+		<StaticText name="CrtLabel" x="241" y="113" w="-1" h="-1" for="Crt">
 			<Text>$O_UPSCALER_CRT</Text>
-			<For>Crt</For>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<!-- y setzt Options::show(), direkt unter den letzten sichtbaren
@@ -88,11 +84,11 @@
 			<Title>$O_DETAILS_LOW</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="MediumDetails" x="100" y="230" w="16" h="16">
+		<RadioButton name="MediumDetails" x="120" y="230" w="16" h="16">
 			<Title>$O_DETAILS_MEDIUM</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="HighDetails" x="190" y="230" w="16" h="16">
+		<RadioButton name="HighDetails" x="230" y="230" w="16" h="16">
 			<Title>$O_DETAILS_HIGH</Title>
 			<Group>1</Group>
 		</RadioButton>

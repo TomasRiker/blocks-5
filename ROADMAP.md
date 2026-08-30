@@ -9,38 +9,33 @@ Several of these unblock each other — see [How these connect](#how-these-conne
 at the end.
 
 
-1. Auto-detect the user's language on first start
--------------------------------------------------
-Today the language is chosen by the *installer*: `[Run]` in
-`Blocks5/setup/Blocks 5.iss` calls `makeconfig.bat` with `en` or `de`, which
-copies `_config_en.xml` or `_config_de.xml` to `config.xml` if none exists.
-Anyone who does not run the installer — a zip copy, the browser build — gets
-`<Language>en</Language>` regardless of where they are.
+1. Auto-detect the user's language on first start  — **DONE**
+------------------------------------------------------------
+`Engine::detectSystemLanguage` asks `GetUserDefaultUILanguage` on Windows,
+`navigator.languages` in the browser and `LC_ALL`/`LC_MESSAGES`/`LANG` elsewhere.
+It answers only `de` or `en`, deliberately: of the 349 IDs in
+`data/languages.txt` exactly one has a `§fr:` body and one a `§es:`, so those are
+stubs and detecting `fr` would produce an English game with a French label. It is
+consulted only when `config.xml` has no `<Language>`; an explicit choice always
+wins, and the options dialog still offers exactly the two.
 
-The detection itself is small. `Engine::loadConfig` (`engine.cpp:1893`) already
-defaults to `"en"` and reads `<Language>` if present, so the hook is: when the
-config has no `<Language>` element at all, ask the platform instead of falling
-back to English.
+The detection itself was the small half. The reason it could never have worked is
+worth recording: a `config.xml` containing nothing but `<Language>en</Language>`
+was **tracked in the repository**, copied into the webroot by `WebBuild/build.sh`
+and installed into the user directory by `main.cpp` on first run. So English was
+pinned before any detection could run, and deleting your own `config.xml` simply
+got an English one written back on the next start. The installer ran the same
+trick from the other end: `[Run]` called `makeconfig.bat`, which copied
+`_config_en.xml` or `_config_de.xml` according to the installer's own language.
 
-- Windows: `GetUserDefaultUILanguage()` / `GetLocaleInfoEx` with
-  `LOCALE_SISO639LANGNAME`, which gives the two-letter code directly.
-- Browser: `navigator.language` / `navigator.languages`, reachable with a
-  one-line `EM_ASM_INT` the way `WebBuild/web_audio.cpp` reads the
-  `AudioContext`.
+All of that is gone - the four files, the `[Run]` entry, the two `ConfigID`
+messages in the `.iss`, the copy in `main.cpp` and the copy in `build.sh`. The
+game writes `config.xml` itself when it exits, so nothing has to ship a template.
+`setLanguage` still refuses anything but `de`/`en`, which is now the only place
+that whitelist lives.
 
-Two things make this bigger than it looks:
-
-- `Engine::setLanguage` (`engine.cpp:2025`) hard-rejects anything that is not
-  `"de"` or `"en"`, and the options dialog (`data/options.xml`) offers exactly
-  those two. Detection is pointless until that whitelist is data-driven.
-- `data/languages.txt` looks like it has four languages, but of its 349 string
-  IDs only **1** has a `§fr:` body and **1** has a `§es:`. They are stubs, not
-  translations. Detecting `fr` today would produce an English game with a French
-  label on it. Either fill them in or make detection fall back to English for
-  anything but `de`, deliberately and with a comment saying why.
-
-Once the game detects its own language, `makeconfig.bat` and the two
-`_config_*.xml` files can go, and the installer loses another moving part.
+Verified in Chromium at three locales: `de-DE` starts the game in German,
+`en-GB` in English, and `fr-FR` in English.
 
 
 2. Replace HQ2X with something that ships as source  — **DONE**

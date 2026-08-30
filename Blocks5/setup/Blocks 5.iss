@@ -30,7 +30,6 @@ english.WindowedMode=Blocks 5 (windowed mode)
 english.VisitBlocks5Website=Visit Blocks 5 Website
 english.UninstallBlocks5=Uninstall Blocks 5
 english.EnableUpdateChecker=When launching the game, automatically check for updates
-english.ConfigID=en
 german.Configuring=Konfiguriere Blocks 5 ...
 german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
@@ -38,7 +37,6 @@ german.WindowedMode=Blocks 5 (Fenstermodus)
 german.VisitBlocks5Website=Blocks 5-Webseite besuchen
 german.UninstallBlocks5=Blocks 5 deinstallieren
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
-german.ConfigID=de
 
 [Tasks]
 Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"
@@ -59,7 +57,6 @@ Name: "{group}\{cm:UninstallBlocks5}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"; Tasks: CreateDesktopIcon
 
 [Run]
-Filename: "{app}\makeconfig.bat"; Parameters: "{cm:ConfigID}"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_disable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_enable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden; Tasks: EnableUpdateChecker
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme

@@ -178,7 +178,11 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			if (fs.fileExists("config.xml")) success &= fs.copyFile("config.xml", homeDirectory + "config.xml");
+			// Frueher wurde hier eine mitgelieferte config.xml ins Benutzer-
+			// verzeichnis kopiert. Die enthielt nichts als die Sprache, die der
+			// Installer eingetragen hatte - und weil sie schon beim ersten Start
+			// dastand, kam Engine::detectSystemLanguage() nie zum Zuge. Es gibt
+			// keine Vorlage mehr; das Spiel legt die Datei beim Beenden selbst an.
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");

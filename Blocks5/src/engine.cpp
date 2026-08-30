@@ -2955,9 +2955,52 @@ void Engine::crossfade(Crossfade* p_crossfade,
 	}
 }
 
+std::string Engine::detectSystemLanguage()
+{
+	// Nur "de" oder "en". Von den 349 Zeichenketten in data/languages.txt haben
+	// genau eine einen franzoesischen und eine einen spanischen Text - das sind
+	// Platzhalter, keine Uebersetzungen. Wer hier "fr" erkennen wuerde, bekaeme
+	// ein englisches Spiel mit franzoesischer Beschriftung. Alles ausser Deutsch
+	// ist deshalb absichtlich Englisch.
+#if defined(__EMSCRIPTEN__)
+	const int german = EM_ASM_INT({
+		var list = navigator.languages || [navigator.language || ""];
+		for(var i = 0; i < list.length; i++)
+		{
+			var tag = String(list[i] || "").toLowerCase();
+			if(tag.indexOf("de") === 0) return 1;
+			if(tag.indexOf("en") === 0) return 0;
+		}
+		return 0;
+	});
+	return german ? "de" : "en";
+#elif defined(_WIN32)
+	// Die Sprache der Oberflaeche, nicht das Gebietsschema: wer sein Windows
+	// auf Deutsch benutzt, will das Spiel auf Deutsch, auch wenn Zahlen und
+	// Datum anders eingestellt sind. GetLocaleInfoA, nicht ...W - das Projekt
+	// ist MultiByte, siehe CLAUDE.md.
+	const LANGID langId = GetUserDefaultUILanguage();
+	char iso[16] = "";
+	if(GetLocaleInfoA(MAKELCID(langId, SORT_DEFAULT), LOCALE_SISO639LANGNAME, iso, sizeof(iso)) > 0)
+	{
+		if(iso[0] == 'd' && iso[1] == 'e') return "de";
+		return "en";
+	}
+	return PRIMARYLANGID(langId) == LANG_GERMAN ? "de" : "en";
+#else
+	const char* p_env = getenv("LC_ALL");
+	if(!p_env || !*p_env) p_env = getenv("LC_MESSAGES");
+	if(!p_env || !*p_env) p_env = getenv("LANG");
+	return (p_env && p_env[0] == 'd' && p_env[1] == 'e') ? "de" : "en";
+#endif
+}
+
 void Engine::loadConfig()
 {
-	language = "en";
+	// Ohne <Language> in der config.xml entscheidet das System. Das ist der
+	// erste Start ohne Installer, der Browser, und genau der Fall, in dem
+	// frueher stumm Englisch herauskam.
+	language = detectSystemLanguage();
 	soundVolume = musicVolume = 1.0;
 	particleDensity = 1.0;
 	details = 2;
@@ -2976,6 +3019,7 @@ void Engine::loadConfig()
 			const char* p_text = p_language->GetText();
 			if(p_text) setLanguage(p_text);
 		}
+		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
 		// Skalierungsfilter lesen. Steht nichts da, bleibt die Voreinstellung.
 		// Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter() später -

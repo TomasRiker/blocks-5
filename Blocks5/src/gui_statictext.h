@@ -12,7 +12,7 @@ public:
 	~GUI_StaticText();
 
 	void onRender();
-	// Ein Text kann auf ein anderes Element zeigen (<For>Name</For>) - so wie
+	// Ein Text kann auf ein anderes Element zeigen (for="Name") - so wie
 	// <label for="..."> es im Browser tut. Bei einer Checkbox oder einem
 	// Radioknopf schaltet ein Klick auf die Beschriftung das Element um, bei
 	// allem anderen - Eingabefeldern vor allem - setzt er den Fokus dorthin.

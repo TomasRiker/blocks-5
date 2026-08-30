@@ -120,6 +120,10 @@ Changelog
             itself, and clicking the caption of a text field
             puts the cursor into it.
 
+          - The game now starts in the language your system is
+            set to, instead of always English. You can still
+            change it in the options; that choice always wins.
+
           - Escape in the main menu quits the game.
 
           - Escape now closes the level editor's menu and its

@@ -65,12 +65,10 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 
 	if(p_element->FirstChildElement("CenterText")) centerText = true;
 
-	e = p_element->FirstChildElement("For");
-	if(e)
-	{
-		const char* p_name = e->GetText();
-		setLinkedElement(p_name ? p_name : "");
-	}
+	// for="Name", wie im Browser. Ein Attribut reicht dafuer - es ist ein Name,
+	// kein Inhalt.
+	const char* p_for = p_element->Attribute("for");
+	if(p_for) setLinkedElement(p_for);
 }
 
 GUI_Element* GUI_StaticText::getLinkedTarget()

@@ -227,6 +227,9 @@ public:
 	void saveConfig();
 	const std::string& getLanguage() const;
 	void setLanguage(const std::string& language);
+	// Was das System spricht, auf "de" oder "en" heruntergebrochen. Wird nur
+	// gefragt, wenn die config.xml gar keine Sprache nennt - siehe loadConfig().
+	static std::string detectSystemLanguage();
 	double getSoundVolume() const;
 	void setSoundVolume(double soundVolume);
 	double getMusicVolume() const;

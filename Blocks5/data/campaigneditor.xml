@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
-	<StaticText name="Static1" x="75" y="30" w="-1" h="-1">
+	<StaticText name="Static1" x="75" y="30" w="-1" h="-1" for="Filename">
 		<Text>$CE_MENU_FILENAME</Text>
-		<For>Filename</For>
 	</StaticText>
 	<EditBox name="Filename" x="165" y="30" w="255" h="20">
 		<TabStop id="0" />
@@ -58,17 +57,15 @@
 		<SubmitButton>Remove</SubmitButton>
 	</ListBox>
 
-	<StaticText name="Static4" x="20" y="360" w="-1" h="-1">
+	<StaticText name="Static4" x="20" y="360" w="-1" h="-1" for="Title">
 		<Text>$CE_TITLE</Text>
-		<For>Title</For>
 	</StaticText>
 	<EditBox name="Title" x="20" y="380" w="250" h="20">
 		<TabStop id="1" />
 		<Text></Text>
 	</EditBox>
-	<StaticText name="Static5" x="310" y="360" w="-1" h="-1">
+	<StaticText name="Static5" x="310" y="360" w="-1" h="-1" for="Description">
 		<Text>$CE_DESCRIPTION</Text>
-		<For>Description</For>
 	</StaticText>
 	<MultiLineEditBox name="Description" x="310" y="380" w="310" h="80">
 		<TabStop id="2" />

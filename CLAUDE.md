@@ -417,7 +417,7 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   whatever sits to the right, and options.xml puts language and detail radios in three tight
   columns. An empty `<Title>` measures zero, so a toggle that delegates its caption to a
   `<For>` label is unaffected.
-- **A `<StaticText>` can carry `<For>Name</For>`**, as `<label for>` does in a browser. A
+- **A `<StaticText>` can carry `for="Name"`**, as `<label for>` does in a browser. A
   checkbox or radio target gets the whole set of mouse events forwarded (enter/leave included,
   since a toggle only fires on mouse-up if it believes the cursor is over it); anything else —
   an edit box, a list — just gets the focus, because forwarding a position measured against
@@ -425,6 +425,19 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   `w="-1" h="-1"` and it sizes its hit area to the text it actually draws, re-measured per
   frame so it follows a language switch; a hand-written width would be a guess that is wrong
   in the other language. `w`/`h` of 0 — the default — is still never hit.
+
+**Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
+asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`
+elsewhere, and answers only `de` or `en` — of the 349 IDs in `languages.txt` exactly one has
+a French body and one a Spanish, so detecting `fr` would give an English game with a French
+label. It runs only when `config.xml` has no `<Language>`.
+
+Getting there meant deleting the thing that made it impossible: a `config.xml` holding nothing
+but `<Language>en</Language>` was tracked in the repo, copied into the webroot by `build.sh`
+and installed into the user directory by `main.cpp` on first run — so the detection could
+never fire, and deleting your own config just got an English one written back. The installer's
+half of the same mechanism (`makeconfig.bat`, `_config_en.xml`, `_config_de.xml` and the
+`[Run]` entry that called them) is gone with it; the game writes `config.xml` itself on exit.
 
 **Localization.** Any user-facing string starting with `$` is an ID resolved against
 `data/languages.txt` by `Engine::localizeString` / the free `loadString` helper. In that file a

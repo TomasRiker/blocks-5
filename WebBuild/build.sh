@@ -78,7 +78,6 @@ echo "### compiled $total translation units OK ###"
 WEBROOT="$OUT/webroot"
 rm -rf "$WEBROOT"; mkdir -p "$WEBROOT/levels/campaigns" "$WEBROOT/levels/skins" "$WEBROOT/screenshots" "$WEBROOT/videos"
 cp "$GAME/data.zip"                    "$WEBROOT/"           2>/dev/null
-cp "$GAME/config.xml"                  "$WEBROOT/"           2>/dev/null
 cp "$GAME/.update_checker"             "$WEBROOT/"           2>/dev/null
 cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
 cp "$GAME"/levels/*.xml                "$WEBROOT/levels/"    2>/dev/null
