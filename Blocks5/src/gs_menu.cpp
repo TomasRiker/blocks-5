@@ -326,7 +326,9 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		// kuerzlich bedient und der Popup-Blocker laesst das Fenster durch.
 		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
 #else
-		ShellExecuteA(0, "open", "https://www.david-scherfgen.de/", 0, 0, SW_SHOWMAXIMIZED);
+		// Wie beim Spendenknopf: unter Windows liegt die Adresse in einer
+		// .url-Datei neben der Anwendung, die zugleich im Startmenue steht.
+		ShellExecuteA(0, "open", "Scherfgen-Software Website.url", 0, 0, SW_SHOWMAXIMIZED);
 #endif
 	}
 	else if(name == "Menu.Donate")

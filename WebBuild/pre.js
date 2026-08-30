@@ -34,14 +34,16 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
-// F5 is the game's key for restarting a level, and the browser's key for
-// reloading the page. Pressing it mid-level did the second, which throws the
-// session away and comes back at the loading screen - nobody pressing "restart
-// level" wants that. Swallowed in the capture phase, before either SDL or the
-// browser sees it. Ctrl+R and the address bar still reload, so there is no way
-// to get stuck on a page that will not go away.
+// F5 restarts a level and F10 restarts from the hotel. To a browser F5 is
+// reload, and F10 opens the menu bar in some of them - either one throws the
+// session away or takes the keyboard, and neither is what somebody pressing
+// "restart" wants. Both are swallowed in the capture phase, before SDL or the
+// browser sees them. F11 and F12 are left alone: they are screenshot and video
+// recording, and neither of those exists in this build. Ctrl+R and the address
+// bar still reload, so a page can never get stuck.
 window.addEventListener('keydown', function (e) {
-  if (e.key === 'F5' || e.keyCode === 116) e.preventDefault();
+  if (e.key === 'F5' || e.keyCode === 116 ||
+      e.key === 'F10' || e.keyCode === 121) e.preventDefault();
 }, true);
 
 // The other half of "the music stopped when I switched tabs". A hidden page

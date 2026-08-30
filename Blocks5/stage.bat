@@ -2,6 +2,7 @@ IF EXIST stage RMDIR /S /Q stage
 IF NOT EXIST stage MKDIR stage
 COPY .update_checker stage
 COPY "Blocks 5 Website.url" stage
+COPY "Scherfgen-Software Website.url" stage
 COPY ..\Release\blocks5.exe stage
 COPY data.zip stage
 COPY "Donate (de).url" stage

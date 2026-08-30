@@ -917,7 +917,18 @@ void Engine::mainLoopIteration()
 
 		if(crossfadeTime == -0.51)
 		{
-			// altes Bild sichern
+			// altes Bild sichern. Der Bildpuffer muss dafuer selbst gebunden
+			// werden: gerendert wird nur, wenn dieser Durchgang mindestens
+			// einen Logikschritt gemacht hat, und ohne das Rendern bleibt vom
+			// Ende des vorigen Durchgangs der Bildschirm gebunden. Auf dem
+			// nativen Weg kann das nicht vorkommen, weil das SDL_Delay unten
+			// jeden Durchgang bis zum Logiktakt streckt - im Browser aber
+			// dauernd, denn dort gibt der requestAnimationFrame den Takt vor
+			// und ist mit 16,7 ms (oder 6,9 ms bei 144 Hz) schneller als die
+			// 20 ms der Logik. Genau dann kopierte diese Zeile aus dem
+			// Standard-Bildpuffer, und den leert WebGL vor jedem Bild - das
+			// alte Bild war schwarz und blieb es die ganze Ueberblendung lang.
+			bindFrameBuffer();
 			glBindTexture(GL_TEXTURE_2D, oldImageID);
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 			crossfadeTime = -0.5;
@@ -1174,14 +1185,13 @@ void Engine::update()
 
 	++timePlayed;
 
-#ifdef __EMSCRIPTEN__
-	// exit() laeuft im Browser nie: emscripten_set_main_loop kehrt nicht
-	// zurueck, und ein Tab wird ohne Vorwarnung geschlossen. Die gespielte
-	// Zeit haelt sich hier deshalb selbst fest, alle 30 Sekunden eine Zahl in
-	// eine Datei, die pre.js ohnehin regelmaessig nach IDBFS spuelt. Ohne das
-	// faengt timePlayed bei jedem Start wieder bei null an.
+	// Alle 30 Sekunden festhalten, auf beiden Plattformen. Im Browser ist es
+	// die einzige Gelegenheit - exit() laeuft dort nie, weil
+	// emscripten_set_main_loop nicht zurueckkehrt und ein Tab ohne Vorwarnung
+	// geschlossen wird -, aber auch ein Absturz oder ein abgewuergter Prozess
+	// unter Windows kostet so hoechstens eine halbe Minute statt der ganzen
+	// Sitzung. Den Rest schreibt exit() genau nach.
 	if(!(timePlayed % 1500)) saveTimePlayed();
-#endif
 
 #ifdef PROFILE_ENGINE_UPDATE
 	END_PROFILE(engineUpdate)
@@ -2964,7 +2974,9 @@ void Engine::crossfade(Crossfade* p_crossfade,
 
 	if(immediately)
 	{
-		// altes Bild sichern
+		// altes Bild sichern - wie oben aus dem Bildpuffer, nicht aus dem,
+		// was gerade gebunden ist.
+		bindFrameBuffer();
 		glBindTexture(GL_TEXTURE_2D, oldImageID);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 		crossfadeTime = -0.5;

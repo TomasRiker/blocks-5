@@ -123,7 +123,10 @@ void ParticleSystem::render()
 #endif
 }
 
-#define PROFILE_PARTICLESYSTEM_UPDATE
+// Aus wie alle anderen PROFILE_-Schalter im Baum. Angeschaltet schreibt jeder
+// Durchgang mit mehr als 1000 Partikeln eine Zeile ins Protokoll und auf die
+// Konsole - im Spiel also fortwaehrend.
+// #define PROFILE_PARTICLESYSTEM_UPDATE
 #define PREFETCH_UPDATE
 
 void ParticleSystem::update()

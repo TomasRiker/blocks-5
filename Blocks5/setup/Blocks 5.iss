@@ -28,6 +28,7 @@ english.ShowReadme=Show readme file
 english.ShowUserDirectory=Show user directory (screenshots, videos, levels)
 english.WindowedMode=Blocks 5 (windowed mode)
 english.VisitBlocks5Website=Visit Blocks 5 Website
+english.VisitScherfgenWebsite=Visit Scherfgen-Software Website
 english.UninstallBlocks5=Uninstall Blocks 5
 english.EnableUpdateChecker=When launching the game, automatically check for updates
 german.Configuring=Konfiguriere Blocks 5 ...
@@ -35,6 +36,7 @@ german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
 german.WindowedMode=Blocks 5 (Fenstermodus)
 german.VisitBlocks5Website=Blocks 5-Webseite besuchen
+german.VisitScherfgenWebsite=Scherfgen-Software-Webseite besuchen
 german.UninstallBlocks5=Blocks 5 deinstallieren
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
 
@@ -53,6 +55,7 @@ Name: "{group}\{cm:ShowReadme}"; Filename: "{app}\readme.txt"
 Name: "{group}\{cm:ShowUserDirectory}"; Filename: "{app}\showuserdir.exe"
 Name: "{group}\{cm:WindowedMode}"; Filename: "{app}\blocks5.exe"; Parameters: "-windowed"; WorkingDir: "{app}"
 Name: "{group}\{cm:VisitBlocks5Website}"; Filename: "{app}\Blocks 5 Website.url"; WorkingDir: "{app}"
+Name: "{group}\{cm:VisitScherfgenWebsite}"; Filename: "{app}\Scherfgen-Software Website.url"; WorkingDir: "{app}"
 Name: "{group}\{cm:UninstallBlocks5}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"; Tasks: CreateDesktopIcon
 

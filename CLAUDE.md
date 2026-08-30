@@ -159,6 +159,21 @@ Both shaders share `p_presentVertexShader`, the vertex buffer and four uniforms
 `Curvature`. `Engine::PresentProgram` holds one set of them, `createPresentProgram` builds
 either, and a CRT that fails to link leaves sharp-fit alone.
 
+**Anything that reads the rendered frame must bind the FBO itself.** The main loop only
+binds it inside `if(active && timeProcessed)` — that is, on an iteration that ran at least
+one logic tick — and only that same iteration unbinds it again at present time. Natively
+there is no other kind: the `SDL_Delay(logicRate - (timeToProcess + dt))` at the foot of the
+loop stretches every iteration to at least one tick, so the FBO is always bound. In the
+browser that `SDL_Delay` is gone, because `requestAnimationFrame` sets the pace, and at
+16.7 ms (or 6.9 ms on a 144 Hz screen) against a 20 ms tick most iterations run no logic and
+render nothing — the *screen* is bound, left over from the previous present. That is what
+made every screen transition start from black: the crossfade's one-shot capture of the old
+image (`crossfadeTime == -0.51` in `mainLoopIteration`, and the `immediately` branch of
+`Engine::crossfade`) is the only `glCopyTexSubImage2D` in the tree not already inside a
+`frameRendered` block, so it read the default framebuffer, which WebGL clears before every
+frame. Both now call `bindFrameBuffer()` first, which is right on either platform: the FBO
+holds the last frame that *was* rendered, which is exactly the screen being faded out.
+
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
 `src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
