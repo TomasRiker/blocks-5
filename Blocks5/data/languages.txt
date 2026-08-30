@@ -1359,7 +1359,7 @@ $H_HELP_PAGE2
 §en:<h>The Level Editor</h>
 
 With the level editor, you can create your own levels.
-A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, for example, blocks, diamonds, grass, players or enemies.
+A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, e.g., blocks, diamonds, grass, players or enemies.
 
 At the screen's bottom, you can choose the layer you want to work on. It is important to understand how the layers work. Layer 0 is for ground tiles (like lawn, sand or holes). A wall placed on layer 0 won't act like a wall: the player can walk trough. A "real" wall always has to be placed on layer 1!
 
@@ -1380,7 +1380,7 @@ $H_HELP_PAGE3
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Tools (1)</h>
 
-Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (for example a laser on a platform), hold the Shift key while drawing.
+Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (e.g., a laser on a platform), hold the Shift key while drawing.
 
 Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold the Shift key while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding Shift). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
 
@@ -1460,13 +1460,13 @@ $H_HELP_PAGE6
 Skin zip archives may be encrypted so that their content can't be accessed by everyone. Virtually all zip tools support encryption. If you decide to encrypt your skin archive, you also have to include an unencrypted(!) file named "password.txt" containing the encrypted password. Use the tool "pwencrypt.exe", which resides in the same directory as "blocks5.exe" to encrypt the password.
 
 <h>Custom Music</h>
-In the "Settings" window, you can enter the name of a music file that the user should hear while playing the level. The file must be encoded in the OGG file format. Codecs can be found on the internet using a search engine. Music files have to be placed inside the "levels" directory.
+In the "Settings" window, you can enter the name of a music file that the user should hear while playing the level. The file must be encoded in the OGG file format. Codecs can be found on the internet using a search engine. Music files have to be placed inside the "levels" directory. If the filename begins with "blocks:", the music will be loaded from the official Blocks campaign, e.g., "blocks:music1.ogg".
 // --------------------------------------------------------------------------------
 §de:<h>Skins mit Passwort</h>
 Skin-Zip-Archive können auch verschlüsselt gespeichert werden, damit die Grafiken nicht für jeden zugänglich sind. Praktisch alle Programme zum Erzeugen von Zip-Archiven unterstützen auch Verschlüsselung. Wenn das Archiv verschlüsselt wird, muss sich darin ebenfalls eine unverschlüsselte(!) Datei namens "password.txt" befinden. In diese Datei wird das zur Entschlüsselung benötigte Passwort verschlüsselt gespeichert. Zur Verschlüsselung des Passworts benutzt du das Programm "pwencrypt.exe", das sich im selben Verzeichnis befindet wie "blocks5.exe".
 
 <h>Eigene Musikstücke</h>
-Im Fenster "Einstellungen" lässt sich der Dateiname eines Musikstücks eintragen, das bei diesem Level im Hintergrund gespielt werden soll. Das Musikstück muss hierzu in das OGG-Dateiformat konvertiert werden. Codecs für dieses Dateiformat findet man über Suchmaschinen. Musikdateien müssen im Ordner "levels" liegen.
+Im Fenster "Einstellungen" lässt sich der Dateiname eines Musikstücks eintragen, das bei diesem Level im Hintergrund gespielt werden soll. Das Musikstück muss hierzu in das OGG-Dateiformat konvertiert werden. Codecs für dieses Dateiformat findet man über Suchmaschinen. Musikdateien müssen im Ordner "levels" liegen. Wenn der Dateiname mit "blocks:" startet, dann wird das Musikstück aus der offiziellen Blocks-Kampagne geladen, z.B. "blocks:music1.ogg".
 
 // ************
 // LEVEL TITLES
