@@ -10,16 +10,17 @@ Run `Build.bat` from the repository root. It locates MSBuild, builds all three p
 `Win32`, and then packs `data.zip` and `levels/skins/*.zip` — build products that are not in
 Git and that the game cannot start without.
 
-    Build.bat                     Release, default toolset (v143)
+    Build.bat                     Release, newest toolset this Visual Studio has
     Build.bat Debug
-    Build.bat /toolset:v120       build with the original Visual Studio 2013 toolset
+    Build.bat /toolset:v143       pin one toolset instead of taking the newest
     Build.bat /stage              also assemble a redistributable tree in Blocks5\stage
     Build.bat /clean              delete every build product again, and exit
     Build.bat /run -windowed      build, then run the game with these arguments
     Build.bat /?                  all options
 
-For a compiler-only setup, "Build Tools for Visual Studio 2022" is enough; no IDE is needed.
-The toolset notes at the top of `Build.bat` explain what each version requires.
+For a compiler-only setup, "Build Tools for Visual Studio" — 2022 or any later year — is
+enough; no IDE is needed. Tested with **v143 and v145**; the toolset notes at the top of
+`Build.bat` say what that does and does not mean for older ones.
 
 The game must run with `Blocks5\` as its working directory, because it opens `data.zip`
 relative to the current directory:

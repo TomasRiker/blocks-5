@@ -351,30 +351,37 @@ Two things found while building it, both recorded in the libraries'
   one-line `*_impl.c` files.
 
 
-4. Build with the newest MSVC
------------------------------
-`Build.bat` defaults to v143 (VS 2022) and takes `/toolset:vNNN`; its discovery
-already probes `Platforms\Win32\PlatformToolsets\<ts>` and falls back through
-vswhere, so a newer toolset mostly needs testing and adding to the known list.
+4. Build with the newest MSVC  — **DONE**
+------------------------------------------
+Built and run on **v143** (VS 2022) and on **v145**. There is no hardcoded
+default any more: the three `.vcxproj` files ask for
+`$(DefaultPlatformToolset)`, which is whatever the Visual Studio doing the build
+calls its own newest, and `Build.bat` passes no `/p:PlatformToolset` unless
+`/toolset:vNNN` names one — a global property cannot be overridden from inside
+a project, so passing one always would have been a hardcoded version wearing a
+different hat. A Visual Studio newer than this tree therefore needs no change
+here at all. `WindowsTargetPlatformVersion` moved into the projects under the
+same rule, so the IDE and `Build.bat` now agree without anyone passing anything.
 
-The `<hash_map>` problem is dealt with: the 41 `stdext::hash_map` /
+What the older toolsets are worth is now stated honestly: **v120 and v140 have
+never been built since the prebuilt libraries went away.** That they still work
+was reasoning about the code, not a compiler run. The `/toolset:` plumbing for
+them stays — it costs nothing, and it is the starting point for whoever tries.
+
+Getting there: the `<hash_map>` problem is gone (the 41 `stdext::hash_map` /
 `hash_multimap` uses across 12 files are `std::unordered_map` /
 `std::unordered_multimap` now, the header is out of `pch.h`, and
-`_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` is out of the project defines.
+`_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` is out of the project defines), the
+missing `<algorithm>` includes are in, `register` is gone from
+`MersenneTwister.h`, the string literals assigned to `char*` in `e_flipflop.cpp`
+/ `e_gate.cpp` are `const char*`, and `cannon.cpp`'s `float*`/`double*` `sscanf`
+mismatch is fixed.
 
-That also made the tree far easier to check without MSVC: **106 of the 111
-sources in `Blocks5/src` now pass `i686-w64-mingw32-g++ -fsyntax-only`** against
-the real `pch.h`. The five that do not are `main.cpp` (SEH `__except`),
-`filesystem.cpp` (includes `Shlobj.h`, lowercase on case-sensitive systems) and
-`panel.cpp` / `e_pulsepanel.cpp` / `teleporter.cpp`, which call `std::find`
-without including `<algorithm>` — MSVC and libc++ pull it in transitively,
-libstdc++ does not. Those last four are also exactly what a Linux build will trip
-over first, so they belong to item 5.
-
-Smaller conformance items already visible in the Emscripten build's warnings:
-`register` in `libs/mtrand-1.1/MersenneTwister.h` (removed in C++17), string
-literals assigned to `char*` in `e_flipflop.cpp` / `e_gate.cpp`, and a
-`float*`/`double*` format mismatch in `cannon.cpp:141`.
+That also made the tree far easier to check without MSVC: **110 of the 114
+sources in `Blocks5/src` pass `i686-w64-mingw32-g++ -fsyntax-only`** against the
+real `pch.h`. The four that do not are `main.cpp` (SEH `__except`),
+`filesystem.cpp` (includes `Shlobj.h`, lowercase on case-sensitive systems),
+`stackwalker.cpp` (DbgHelp internals) and `videorecorder.cpp` (WASAPI).
 
 
 5. Enable a Linux build

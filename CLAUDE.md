@@ -12,8 +12,8 @@ unless you are on Windows with Visual Studio. There is also an Emscripten port i
 `WebBuild/`, which does build and run on Linux and is the only way to test a change here
 without Windows; see `WebBuild/README.md`.
 
-**The Windows build compiles and links on v143** (Windows 11, VS 2022 Community, SDK
-10.0.26100). Four things had to be fixed to get there, all in the vendored libraries or the
+**The Windows build compiles and links on v143 and on v145** (Windows 11, VS 2022
+Community, SDK 10.0.26100 for the first). Four things had to be fixed to get there, all in the vendored libraries or the
 project settings, none in the game's own code; each is written up in the relevant
 `libs/*/PROVENANCE.txt`. Three were compile errors: shine's `__attribute__((unused))`, which
 MSVC rejects; `misc.c` in the libvorbis file lists, which is a pthreads debug allocator
@@ -43,10 +43,21 @@ checks the toolset, builds `Blocks5.sln` for `Win32`, and then packs `data.zip` 
 `levels/skins/*.zip`, which are gitignored build products the game cannot start without.
 `Build.bat /?` lists its options.
 
-**Toolset: v143 by default; v140 and v120 also work** (`/toolset:v120`). The tree was pinned
-to v120 for a decade by `libs/bin/tinyxml_STL.lib`, which carried `/FAILIFMISMATCH:"_MSC_VER=1800"`;
-TinyXML 2.6.2 is now compiled from vendored source in `libs/tinyxml-2.6.2` and that library is
-gone. Two things make anything newer than v120 work:
+**Toolset: whichever one the installed Visual Studio calls its newest.** The three
+`.vcxproj` files set `<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>`, so a
+Visual Studio newer than anything in this tree needs no change to build with it, and
+`Build.bat` passes no `/p:PlatformToolset` unless `/toolset:vNNN` asks for one — a global
+property could not be overridden from inside the project, so passing one always would be
+hardcoding a version again. `WindowsTargetPlatformVersion` follows the same rule: the
+projects set it to `10.0` (newest installed 10.x) for anything past v140, which is what
+`Build.bat` used to have to supply.
+
+**Tested with v143 and v145, and with nothing else.** The claim that v120 and v140 still
+build was reasoning about the code, never a compiler run — the plumbing for them is still
+there (`/toolset:v120` skips the SDK property, and matches MSBuild 12.0/14.0), but it is
+untried. The tree was pinned to v120 for a decade by `libs/bin/tinyxml_STL.lib`, which
+carried `/FAILIFMISMATCH:"_MSC_VER=1800"`; TinyXML 2.6.2 is now compiled from vendored source
+in `libs/tinyxml-2.6.2` and that library is gone. Two things got the tree off v120:
 
 - `<hash_map>` is gone. `pch.h` used to include it for `stdext::hash_map` and
   `hash_multimap`, which from VS2015 on is a hard `static_assert` error and only compiled

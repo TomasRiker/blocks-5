@@ -4,10 +4,9 @@ REM  Build.bat - build Blocks 5 from a fresh Git checkout, on the command line.
 REM
 REM  Usage:  Build.bat [Release^|Debug] [options]
 REM
-REM    /toolset:vNNN   platform toolset. Default v143, which is the one that
-REM                    has actually been built and run. v120, v140 and v142
-REM                    should work too; see the note below
-REM    /sdk:VERSION    Windows SDK version for v141 and newer. Default 10.0,
+REM    /toolset:vNNN   platform toolset. Without it, the newest one the
+REM                    installed Visual Studio provides; see the note below
+REM    /sdk:VERSION    Windows SDK version for v141 and newer. Without it, 10.0,
 REM                    which MSBuild resolves to the newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
 REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
@@ -28,6 +27,14 @@ REM    -h, --help, /?  show a short usage summary
 REM
 REM  ABOUT THE TOOLSET
 REM  -----------------
+REM  TESTED: v143 (Visual Studio 2022) and v145. Both were built and run. That
+REM  is the whole list - anything below v143 is reasoning, not a build.
+REM
+REM  There is no /toolset: default any more. The three .vcxproj files ask for
+REM  $(DefaultPlatformToolset), which is whatever the Visual Studio doing the
+REM  build calls its own newest, so a version newer than this script needs no
+REM  change here. /toolset:vNNN still pins one explicitly.
+REM
 REM  This tree was pinned to v120 (Visual Studio 2013) for a decade, not by
 REM  choice but by two files: libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib
 REM  carried /FAILIFMISMATCH:"_MSC_VER=1800", so link.exe refused any other
@@ -35,27 +42,32 @@ REM  toolset with LNK2038. They were the only files in libs\bin with any linker
 REM  directive at all. TinyXML 2.6.2 is now compiled from vendored source
 REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
-REM  v120 still builds and remains the reference. Anything newer additionally
-REM  needs, and now has:
-REM    - SDL compiled from source out of libs\SDL-1.2.15\src, in place of
-REM      libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
-REM      imported __iob_func, which the Universal CRT removed, so it linked only
-REM      on v120; sdl.dll was the last file in the tree that needed MSVCR120
+REM  Getting off v120 needed one more thing, which the tree now has: SDL
+REM  compiled from source out of libs\SDL-1.2.15\src, in place of
+REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
+REM  imported __iob_func, which the Universal CRT removed, so it linked only on
+REM  v120; sdl.dll was the last file in the tree that needed MSVCR120.
 REM
 REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
 REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
 REM  hash_multimap were replaced by the standard unordered containers, which
-REM  every supported toolset from v120 on has. libs\msinttypes-r26 went with
-REM  ffmpeg, which was the only thing that needed it, and __STDC_CONSTANT_MACROS
-REM  and __STDC_LIMIT_MACROS went with the shim.
+REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, which
+REM  was the only thing that needed it, and __STDC_CONSTANT_MACROS and
+REM  __STDC_LIMIT_MACROS went with the shim.
+REM
+REM  Whether v120 or v140 still builds is an open question - the code has no
+REM  dependency that says otherwise, but nobody has tried since the libraries
+REM  came out. The /toolset: plumbing for them is kept for whoever does.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS
 PUSHD "%~dp0"
 
 SET "CONFIG=Release"
-SET "TOOLSET=v143"
-SET "WINSDK=10.0"
+REM Both empty means "not asked for": the toolset then comes from the project
+REM files ($(DefaultPlatformToolset)) and the SDK from the rule below.
+SET "TOOLSET="
+SET "WINSDK="
 SET "TARGET=Build"
 SET "PACKDATA=1"
 SET "OPTIPNG=0"
@@ -141,9 +153,17 @@ IF "%DOCLEAN%"=="1" (
 REM v141 and newer resolve the Windows SDK themselves and default to 8.1, which
 REM is usually not installed any more - hence MSB8036. Pass a version for them;
 REM v120 and v140 must NOT get one, they predate the property.
-SET "NEEDSDK=1"
+REM
+REM Without /toolset: there is nothing to decide here - the project files carry
+REM the same rule, written against the toolset they picked themselves - and an
+REM empty TOOLSET makes both tests below false by itself. /sdk: still forces a
+REM version on either path.
+SET "NEEDSDK="
+IF DEFINED TOOLSET SET "NEEDSDK=1"
 IF /I "%TOOLSET%"=="v120" SET "NEEDSDK="
 IF /I "%TOOLSET%"=="v140" SET "NEEDSDK="
+IF DEFINED WINSDK SET "NEEDSDK=1"
+IF DEFINED NEEDSDK IF NOT DEFINED WINSDK SET "WINSDK=10.0"
 
 REM ------------------------------------------------------- locate MSBuild.exe
 REM Quote %ProgramFiles(x86)% everywhere: its value contains parentheses, which
@@ -163,8 +183,15 @@ IF /I "%TOOLSET%"=="v120" IF EXIST "%PF86%\MSBuild\12.0\Bin\MSBuild.exe" SET "MS
 IF /I "%TOOLSET%"=="v140" IF EXIST "%PF86%\MSBuild\14.0\Bin\MSBuild.exe" SET "MSBUILD=%PF86%\MSBuild\14.0\Bin\MSBuild.exe"
 
 REM Visual Studio 2017 and newer, including the Build Tools, via vswhere.
+REM -requires first: -latest on its own would hand back a newest installation
+REM that has no C++ in it - a Visual Studio installed for C# beside an older one
+REM that does have the compiler - and the build would then fail a long way from
+REM here, with the toolset now coming from whatever vswhere answered.
 SET "VSWHERE=%PF86%\Microsoft Visual Studio\Installer\vswhere.exe"
 IF NOT DEFINED MSBUILD IF EXIST "%VSWHERE%" (
+	FOR /F "usebackq tokens=*" %%I IN (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) DO SET "VSPATH=%%I"
+)
+IF NOT DEFINED MSBUILD IF NOT DEFINED VSPATH IF EXIST "%VSWHERE%" (
 	FOR /F "usebackq tokens=*" %%I IN (`"%VSWHERE%" -latest -products * -property installationPath`) DO SET "VSPATH=%%I"
 )
 IF NOT DEFINED MSBUILD IF DEFINED VSPATH IF EXIST "%VSPATH%\MSBuild\Current\Bin\MSBuild.exe" SET "MSBUILD=%VSPATH%\MSBuild\Current\Bin\MSBuild.exe"
@@ -179,8 +206,8 @@ IF NOT DEFINED MSBUILD (
 	ECHO          "%PF86%\MSBuild\14.0\Bin"
 	ECHO        and asked vswhere for a Visual Studio 2017 or newer install.
 	ECHO.
-	ECHO        For a compiler-only setup install "Build Tools for Visual
-	ECHO        Studio 2022" - it needs no IDE and provides v143.
+	ECHO        For a compiler-only setup install the "Build Tools for Visual
+	ECHO        Studio" of any year from 2022 on - no IDE needed.
 	GOTO fail
 )
 
@@ -211,11 +238,30 @@ GOTO fail
 :toolsetok
 
 REM ------------------------------------------------------------------- build
-SET "MSBUILDARGS=/nologo /m /v:minimal /t:%TARGET% /p:Configuration=%CONFIG% /p:Platform=Win32 /p:PlatformToolset=%TOOLSET%"
+REM No /p:PlatformToolset unless one was asked for: left alone, the project
+REM files resolve $(DefaultPlatformToolset), which is this Visual Studio's own
+REM newest. A global /p: cannot be overridden from inside a project, so passing
+REM one here unconditionally would be hardcoding a version all over again.
+SET "MSBUILDARGS=/nologo /m /v:minimal /t:%TARGET% /p:Configuration=%CONFIG% /p:Platform=Win32"
+IF DEFINED TOOLSET SET "MSBUILDARGS=%MSBUILDARGS% /p:PlatformToolset=%TOOLSET%"
 IF DEFINED NEEDSDK SET "MSBUILDARGS=%MSBUILDARGS% /p:WindowsTargetPlatformVersion=%WINSDK%"
 
+REM For the banner only, so that a build log says which compiler produced it:
+REM ask MSBuild what the project resolved the toolset to. -getProperty arrived
+REM in MSBuild 17.8; an older one prints an error instead, which :onlytoolset
+REM throws away so that the line stays vague rather than wrong. One evaluation
+REM of one project, no build.
+SET "SHOWTS=%TOOLSET%"
+IF DEFINED SHOWTS GOTO showtsdone
+FOR /F "usebackq delims=" %%T IN (`"%MSBUILD%" "Blocks5\Blocks5.vcxproj" -nologo -getProperty:PlatformToolset -p:Configuration=%CONFIG% -p:Platform=Win32 2^>NUL`) DO SET "SHOWTS=%%T"
+CALL :onlytoolset
+:showtsdone
+
 ECHO.
-ECHO === Building Blocks5.sln [%CONFIG%^|Win32] with %TOOLSET% ===
+ECHO === Building Blocks5.sln [%CONFIG%^|Win32] ===
+IF DEFINED TOOLSET ECHO     Toolset: %TOOLSET% (asked for with /toolset:)
+IF NOT DEFINED TOOLSET IF DEFINED SHOWTS     ECHO     Toolset: %SHOWTS% (the newest this Visual Studio has)
+IF NOT DEFINED TOOLSET IF NOT DEFINED SHOWTS ECHO     Toolset: the newest this Visual Studio has
 ECHO     MSBuild: %MSBUILD%
 IF DEFINED NEEDSDK ECHO     Windows SDK: %WINSDK%
 ECHO.
@@ -407,8 +453,9 @@ ECHO                  [/nodata] [/optipng] [/stage] [/rebuild]
 ECHO                  [/run [arguments for the game]]
 ECHO        Build.bat /clean
 ECHO.
-ECHO Builds Blocks5.sln for Win32 - v143 by default, v120 and v140 also work -
-ECHO then packs data.zip and the skin archives, which are not in Git.
+ECHO Builds Blocks5.sln for Win32 with the newest toolset this Visual Studio
+ECHO has - tested with v143 and v145 - then packs data.zip and the skin
+ECHO archives, which are not in Git.
 ECHO The /clean option removes all of that again, for both configurations.
 ECHO.
 ECHO /run runs the game afterwards, with Blocks5\ as the working directory.
@@ -427,6 +474,15 @@ ECHO.
 POPD
 ENDLOCAL
 EXIT /B 1
+
+REM Keep SHOWTS only if it is a plain vNNN. Everything else - an MSB1001 from an
+REM MSBuild too old to know -getProperty, a v143_xp, a ClangCL - is not a name
+REM this banner should be printing.
+:onlytoolset
+IF NOT DEFINED SHOWTS GOTO :EOF
+IF /I NOT "%SHOWTS:~0,1%"=="v" SET "SHOWTS="
+IF DEFINED SHOWTS IF NOT "%SHOWTS:~5%"=="" SET "SHOWTS="
+GOTO :EOF
 
 REM ------------------------------------------------------------ clean helpers
 REM Called, not jumped to, and neither of them does SETLOCAL, so REMOVED and
