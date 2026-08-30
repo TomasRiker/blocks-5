@@ -220,8 +220,10 @@
 			<!-- Nur im Browser sichtbar (siehe LevelEditorGUI). Hier, weil
 			     rechts neben den Skin-Feldern steht, wofuer der Knopf da ist:
 			     einen Namen eintragen kann man erst, wenn der Skin auch da
-			     ist. -->
-			<Button name="ImportSkin" x="230" y="246" w="150" h="24">
+			     ist. Er nimmt genau die Spalte der rechten Haelfte ein: linke
+			     Kante wie deren Beschriftungen (215), rechte wie deren
+			     Eingabefelder (310+70), und 20 hoch wie die Felder selbst. -->
+			<Button name="ImportSkin" x="215" y="248" w="165" h="20">
 				<Title>$LE_SETTINGS_IMPORT_SKIN</Title>
 				<Font>tooltip_font.xml</Font>
 			</Button>
