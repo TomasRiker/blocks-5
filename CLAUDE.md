@@ -417,14 +417,21 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   whatever sits to the right, and options.xml puts language and detail radios in three tight
   columns. An empty `<Title>` measures zero, so a toggle that delegates its caption to a
   `<For>` label is unaffected.
-- **A `<StaticText>` can carry `for="Name"`**, as `<label for>` does in a browser. A
-  checkbox or radio target gets the whole set of mouse events forwarded (enter/leave included,
-  since a toggle only fires on mouse-up if it believes the cursor is over it); anything else —
-  an edit box, a list — just gets the focus, because forwarding a position measured against
-  the *label* would drop an edit box's caret in an arbitrary place. Give such a label
-  `w="-1" h="-1"` and it sizes its hit area to the text it actually draws, re-measured per
-  frame so it follows a language switch; a hand-written width would be a guess that is wrong
-  in the other language. `w`/`h` of 0 — the default — is still never hit.
+- **Any element can carry `for="Name"`**, as `<label for>` does in a browser — it lives on
+  `GUI_Element`, not on the text class, because a label is not always text: the two language
+  flags in `options.xml` are `<StaticImage>` and belong to their radio button exactly as the
+  word beside it does. A checkbox or radio target gets the whole set of mouse events forwarded
+  (enter/leave included, since a toggle only fires on mouse-up if it believes the cursor is
+  over it); anything else — an edit box, a list — just gets the focus, because forwarding a
+  position measured against the *label* would drop an edit box's caret in an arbitrary place.
+  The attribute is read in `GUI_Element::load`, which is not virtual: `readAttributes` is, and
+  no subclass chains up to the base version, so a `for=` parsed there would work on some
+  element types and silently vanish on others.
+- **A `<StaticText>` label can size its own hit area.** Give it `w="-1" h="-1"` and it matches
+  the text it actually draws, re-measured per frame so it follows a language switch; a
+  hand-written width would be a guess that is wrong in the other language. `w`/`h` of 0 — the
+  default — is still never hit. An image needs none of this: it already has the size of the
+  sprite it shows.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`

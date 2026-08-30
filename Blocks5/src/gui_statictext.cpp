@@ -9,7 +9,6 @@ IMPL_CTOR(GUI_StaticText)
 	color = Vec4d(1.0, 1.0, 1.0, 1.0);
 	wordWrap = false;
 	centerText = false;
-	linkedElement = "";
 }
 
 GUI_StaticText::~GUI_StaticText()
@@ -64,17 +63,6 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 	if(p_element->FirstChildElement("WordWrap")) wordWrap = true;
 
 	if(p_element->FirstChildElement("CenterText")) centerText = true;
-
-	// for="Name", wie im Browser. Ein Attribut reicht dafuer - es ist ein Name,
-	// kein Inhalt.
-	const char* p_for = p_element->Attribute("for");
-	if(p_for) setLinkedElement(p_for);
-}
-
-GUI_Element* GUI_StaticText::getLinkedTarget()
-{
-	if(linkedElement.empty() || !p_parent) return 0;
-	return p_parent->getChild(linkedElement);
 }
 
 // w oder h auf -1: die Trefferflaeche ist so gross wie der Text, der wirklich
@@ -95,50 +83,4 @@ bool GUI_StaticText::containsPoint(const Vec2i& position)
 	const int w = (size.x >= 0) ? size.x : dim.x;
 	const int h = (size.y >= 0) ? size.y : dim.y;
 	return position.x >= 0 && position.y >= 0 && position.x < w && position.y < h;
-}
-
-// Ein Umschalter und ein Eingabefeld wollen Verschiedenes.
-//
-// Checkbox und Radioknopf bekommen den ganzen Satz Mausereignisse: sie schalten
-// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" halten, und
-// nebenbei leuchtet das Ziel auf, solange die Maus ueber der Beschriftung steht
-// - genau die richtige Rueckmeldung.
-//
-// Alles andere - vor allem Eingabefelder - bekommt statt dessen den Fokus. Die
-// Mausposition durchzureichen waere dort falsch: sie ist auf die Beschriftung
-// bezogen, und ein Eingabefeld setzt daraus die Schreibmarke, die dann
-// irgendwo im Text landet.
-static bool wantsTheWholeClick(GUI_Element* p_target)
-{
-	const std::string type = p_target->getType();
-	return type == "GUI_CheckBox" || type == "GUI_RadioButton";
-}
-
-void GUI_StaticText::onMouseDown(const Vec2i& position,
-								 int buttons)
-{
-	GUI_Element* p_target = getLinkedTarget();
-	if(!p_target) return;
-
-	if(wantsTheWholeClick(p_target)) p_target->onMouseDown(position, buttons);
-	else if(buttons & 1) p_target->focus();
-}
-
-void GUI_StaticText::onMouseUp(const Vec2i& position,
-							   int buttons)
-{
-	GUI_Element* p_target = getLinkedTarget();
-	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseUp(position, buttons);
-}
-
-void GUI_StaticText::onMouseEnter(int buttons)
-{
-	GUI_Element* p_target = getLinkedTarget();
-	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseEnter(buttons);
-}
-
-void GUI_StaticText::onMouseLeave(int buttons)
-{
-	GUI_Element* p_target = getLinkedTarget();
-	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseLeave(buttons);
 }

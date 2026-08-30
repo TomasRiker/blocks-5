@@ -7,14 +7,14 @@
 		<StaticText name="Static1" x="10" y="30">
 			<Text>$O_LANGUAGE</Text>
 		</StaticText>
-		<StaticImage name="Static3" x="10" y="50" w="64" h="48">
+		<StaticImage name="Static3" x="10" y="50" w="64" h="48" for="English">
 			<Image u="80" v="0">languages.png</Image>
 		</StaticImage>
 		<RadioButton name="English" x="10" y="105" w="16" h="16">
 			<Title>$O_LANGUAGE_ENGLISH</Title>
 			<Group>0</Group>
 		</RadioButton>
-		<StaticImage name="Static2" x="110" y="50" w="64" h="48">
+		<StaticImage name="Static2" x="110" y="50" w="64" h="48" for="German">
 			<Image u="0" v="0">languages.png</Image>
 		</StaticImage>
 		<RadioButton name="German" x="110" y="105" w="16" h="16">

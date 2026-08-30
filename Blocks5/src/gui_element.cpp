@@ -21,6 +21,7 @@ GUI_Element::GUI_Element(const std::string& name,
 	fillColor = Vec4d(0.0, 0.0, 0.0, 1.0);
 	toolTipOnly = false;
 	tabStop = -1;
+	linkedElement = "";
 	p_font = GUI::inst().getFont();
 	if(p_font) p_font->addRef();
 }
@@ -95,25 +96,77 @@ void GUI_Element::onUpdate()
 {
 }
 
+GUI_Element* GUI_Element::getLinkedTarget()
+{
+	if(linkedElement.empty() || !p_parent) return 0;
+	return p_parent->getChild(linkedElement);
+}
+
+// Ein Umschalter und ein Eingabefeld wollen Verschiedenes.
+//
+// Checkbox und Radioknopf bekommen den ganzen Satz Mausereignisse: sie schalten
+// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" halten, und
+// nebenbei leuchtet das Ziel auf, solange die Maus ueber dem Etikett steht -
+// genau die richtige Rueckmeldung.
+//
+// Alles andere - vor allem Eingabefelder - bekommt statt dessen den Fokus. Die
+// Mausposition durchzureichen waere dort falsch: sie ist auf das Etikett
+// bezogen, und ein Eingabefeld setzt daraus die Schreibmarke, die dann
+// irgendwo im Text landet.
+static bool wantsTheWholeClick(GUI_Element* p_target)
+{
+	const std::string type = p_target->getType();
+	return type == "GUI_CheckBox" || type == "GUI_RadioButton";
+}
+
 void GUI_Element::onMouseDown(const Vec2i& position,
 							  int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseDown(position, buttons);
+		else if(buttons & 1) p_target->focus();
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseDown(this->position + position, buttons);
 }
 
 void GUI_Element::onMouseUp(const Vec2i& position,
 							int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseUp(position, buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseUp(this->position + position, buttons);
 }
 
 void GUI_Element::onMouseEnter(int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseEnter(buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseEnter(buttons);
 }
 
 void GUI_Element::onMouseLeave(int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseLeave(buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseLeave(buttons);
 }
 
@@ -275,6 +328,13 @@ bool GUI_Element::load(const std::string& filename)
 
 bool GUI_Element::load(TiXmlElement* p_element)
 {
+	// for="Name", wie im Browser. Ein Attribut reicht dafuer - es ist ein Name,
+	// kein Inhalt. Gelesen wird es hier und nicht in readAttributes: das ist
+	// virtuell, und keine der abgeleiteten Klassen ruft die Fassung der
+	// Basisklasse auf, so dass ein for= dort je nach Elementtyp verschwaende.
+	const char* p_for = p_element->Attribute("for");
+	if(p_for) setLinkedElement(p_for);
+
 	// Attribute lesen
 	readAttributes(p_element);
 
