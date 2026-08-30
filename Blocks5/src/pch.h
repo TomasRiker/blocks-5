@@ -1,6 +1,11 @@
 #ifndef _PCH_H
 #define _PCH_H
 
+// std::find und Verwandte. MSVC und libc++ ziehen <algorithm> ueber die
+// Containerkoepfe mit herein, libstdc++ nicht - panel.cpp, e_pulsepanel.cpp
+// und teleporter.cpp liessen sich deshalb ausserhalb von MSVC nicht
+// uebersetzen, und level.cpp nur durch Zufall.
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <iostream>

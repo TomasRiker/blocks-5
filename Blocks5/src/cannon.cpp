@@ -136,9 +136,15 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Object::loadExtendedAttributes(p_element);
 
-	const char* p_temp;
-	p_temp = p_element->Attribute("shownDir");
-	sscanf(p_temp, "%f", &shownDir);
+	// %f in sscanf schreibt einen float, shownDir ist aber ein double: das hat
+	// vier von acht Bytes ueberschrieben und die anderen vier stehen lassen.
+	// Bei dir != 0 gab das einen Fehler von etwa 5e-7 und fiel nicht auf, bei
+	// dir == 0 wurden aus gespeicherten 2.5 aber 5.3e-315. Ein Geschuetz, das
+	// beim Speichern mitten in der Drehung stand, sprang danach auf die
+	// Zielrichtung statt sie zu Ende zu drehen. QueryDoubleAttribute liest den
+	// double richtig und laesst shownDir in Ruhe, wenn das Attribut fehlt -
+	// Attribute() lieferte dort einen Nullzeiger direkt in sscanf hinein.
+	p_element->QueryDoubleAttribute("shownDir", &shownDir);
 }
 
 uint Cannon::getColor() const

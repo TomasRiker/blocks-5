@@ -56,9 +56,14 @@ void E_FlipFlop::saveAttributes(TiXmlElement* p_target)
 
 std::string E_FlipFlop::getToolTip() const
 {
-	char* p_str[] = {"$TT_FLIP_FLOP_RS",
-					 "$TT_FLIP_FLOP_D",
-					 "$TT_FLIP_FLOP_JK"};
+	// Siehe e_gate.cpp: Stringliteral an char* ist seit C++11 nicht mehr
+	// erlaubt, und subType kommt ungeprueft aus der Leveldatei.
+	static const char* const p_str[] = {"$TT_FLIP_FLOP_RS",
+										"$TT_FLIP_FLOP_D",
+										"$TT_FLIP_FLOP_JK"};
+
+	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
+		return p_str[0];
 
 	return p_str[subType];
 }

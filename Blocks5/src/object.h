@@ -107,6 +107,9 @@ public:
 	static int dirToInt(const Vec2i& dir);
 
 	int lastHashedAt;
+	// Ist onRemove() schon gelaufen? Level::removeObject() darf nicht zweimal
+	// abmelden - siehe dort.
+	bool removed;
 	int onConveyorBelt;
 	Vec2i positionOnTexture;
 	bool shadowPass;

@@ -1975,6 +1975,29 @@ void Level::addObject(Object* p_object)
 
 void Level::removeObject(Object* p_object)
 {
+	// Abmelden darf genau einmal passieren. onRemove() laeuft sofort, das
+	// Loeschen erst beim naechsten removeOldObjects() - dazwischen steht das
+	// Objekt noch in objects und wird von jedem weiteren removeObject() erneut
+	// erwischt. Das ging auf zwei Wegen schief:
+	//
+	//   - clean() (F5 im Spielmenue) meldet alles ab, was in objects steht.
+	//     Faellt der Spieler in einen Abgrund, blendet er 0,2 s lang aus
+	//     (object.cpp: disappear(0.2)), und im Tick danach meldet ihn die
+	//     Update-Schleife ab. Wer in genau diesem einen Tick F5 drueckt, meldet
+	//     ihn ein zweites Mal ab.
+	//   - clearPosition() im selben Tick, etwa wenn eine Explosion das Feld
+	//     raeumt, auf dem gerade jemand gestorben ist. Dafuer braucht es gar
+	//     keine Taste.
+	//
+	// Player::numInstances ist ein uint: der zweite Abgang macht aus 0 den Wert
+	// 0xFFFFFFFF, und der Spieler des neu geladenen Levels macht daraus 0. Genau
+	// das stand als offene Frage in gs_game.cpp. Danach ist numInstances nie
+	// wieder 1, also legt kein Spieler mehr die Sound-Instanzen fuer Giftgas und
+	// Gasmaske an - die bleiben bis zum Programmende stumm. Laser, Aufzug,
+	// Foerderband und Giftgas zaehlen genauso.
+	if(p_object->removed) return;
+	p_object->removed = true;
+
 	p_object->onRemove();
 	objectsToRemove.push_back(p_object);
 }

@@ -136,7 +136,10 @@ public:
 			focus();
 			game.leaveCountDown = 50;
 
-			// TODO: Bug fixen: Wenn man runterfällt und im richtigen Moment F5 drückt (etwas länger warten), ist Player::numInstances an dieser Stelle 0, obwohl der Level neu gestartet wurde!
+			// Der alte Hinweis, Player::numInstances sei hier 0, obwohl der Level
+			// neu gestartet wurde, ist erledigt: clean() hat den schon
+			// abgemeldeten Spieler ein zweites Mal abgemeldet, und der uint lief
+			// unter. Level::removeObject() meldet jetzt nur noch einmal ab.
 		}
 		else if(name == "Game.MenuPane.Menu.RestartFromHotel")
 		{

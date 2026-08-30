@@ -50,14 +50,21 @@ void E_Gate::saveAttributes(TiXmlElement* p_target)
 
 std::string E_Gate::getToolTip() const
 {
-	char* p_str[] = {"$TT_GATE_AND",
-					 "$TT_GATE_NAND",
-					 "$TT_GATE_OR",
-					 "$TT_GATE_NOR",
-					 "$TT_GATE_XOR",
-					 "$TT_GATE_XNOR",
-					 "$TT_GATE_NOT",
-					 "$TT_GATE_PASS_THROUGH"};
+	// const, weil ein Stringliteral kein char* ist: seit C++11 ist das nicht
+	// mehr erlaubt, MSVC hat es nur noch angemeckert, GCC und Clang lehnen es ab.
+	static const char* const p_str[] = {"$TT_GATE_AND",
+										"$TT_GATE_NAND",
+										"$TT_GATE_OR",
+										"$TT_GATE_NOR",
+										"$TT_GATE_XOR",
+										"$TT_GATE_XNOR",
+										"$TT_GATE_NOT",
+										"$TT_GATE_PASS_THROUGH"};
+
+	// subType kommt ungeprueft aus der Leveldatei (presets.cpp), und Level
+	// wandern zwischen Spielern. Ein Wert ausserhalb liest sonst hier vorbei.
+	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
+		return p_str[0];
 
 	return p_str[subType];
 }

@@ -38,6 +38,7 @@ Object::Object(Level& level,
 	uid = 0;
 	fall = 0;
 	lastHashedAt = -1;
+	removed = false;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
