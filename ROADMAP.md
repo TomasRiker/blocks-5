@@ -859,41 +859,70 @@ was: resize, letterbox, cursor mapping, the integer snap, the fullscreen toggle 
 the config round-trip all verified in Chromium.
 
 
-11. A CRT effect
------------------
-The idea that replaces xBR, and a much better fit for what a nostalgic filter is
+11. A CRT effect  — **DONE**
+-----------------------------
+The idea that replaced xBR, and a much better fit for what a nostalgic filter is
 actually for here. xBR tried to *reconstruct* detail the art never had; a CRT
 effect adds a period-correct presentation on top of the art as drawn, which is
 honest about what it is doing and does not care whether the source is flat-shaded
-or airbrushed.
+or airbrushed. It is also stable where xBR was not: no thresholds, no edge
+detection, only smooth functions of the source colour and the output position, so
+a one-in-255 nudge moves the output by about one.
 
-Nothing about it is decided yet. The pieces such a shader usually has, roughly in
-order of how much they matter:
+Shipped as `src/crt_shader.h`, a fourth entry in Options → Scaling. What went in,
+and what was learned building it:
 
-- **Scanlines** — darken alternate output rows, with the strength scaled by how
-  many output pixels one source row covers, or they alias badly at fractional
-  scales.
-- **A shadow mask or aperture grille** — a per-subpixel RGB pattern. Needs the
-  output to be at least 3x for the pattern to be visible rather than a colour
-  cast.
-- **Barrel distortion and rounded corners** — cheap in the vertex stage or as a
-  texture-coordinate warp; the letterbox rectangle already exists to draw into.
-- **Bloom / halation around bright areas** — the expensive one, and the one that
-  needs a second pass.
-- **Slight horizontal blur**, which is what a real shadow mask does to a scanline.
+- **Which CRT is one number.** Scan-line gaps are an artifact of 240p — a console
+  drawing 240 lines into a 480-line raster. A VGA monitor showing 640x480 drew all
+  480 with overlapping beam profiles and had no gaps, and that is this game's
+  honest reference. So `SCANLINE_PERIOD = 1.0` is the authentic setting and, at a
+  2x window, produces no visible stripes whatever, because both output rows are
+  equidistant from the row centre. Physically right, useless as an effect. The
+  shipped default is 2.0 — pretend 240 lines arrive — and the slider fades that
+  in from nothing. The constant chooses the look; the slider chooses how much.
 
-Two things follow from where the code already is. The framebuffer object and the
-present pass are in place, so this is one more fragment shader in
-`Engine::presentFrame` alongside `sharp-fit`, selected the same way from
-Options -> Scaling and saved under the same `<Upscaler>` key. And whatever it does
-must be a function of the output pixel and the source texel only — no frame-to-
-frame state — or it will flicker the way xBR did.
+- **The mask belongs to the glass, not the signal.** It is indexed by
+  `gl_FragCoord`, in output pixels, so it stays the same fineness at any window
+  size. That matters because `getDefaultWindowSize` gives 2x on both 1080p and
+  1440p, so almost every player has exactly two output pixels per source pixel and
+  three source-locked subpixels are not available.
 
-Worth stealing from rather than inventing: the CRT shaders in
-`libretro/glsl-shaders/crt` (crt-geom, crt-lottes, crt-easymode) are the reference
-implementations, and the same licence check applies as for xBR. crt-easymode is
-the smallest of them and the closest to what a 640x480 game at 2-3x needs.
+- **Brightness is derived, not dialled in.** The first version multiplied by a
+  hand-picked 1.45 and came out visibly washed. `MASK_AVG` and `scanAvg` are now
+  computed from the constants, so both are light-neutral by construction: moving
+  the scan-line slider end to end changes mean frame brightness by 0.5%, and
+  editing any constant needs no compensating edit elsewhere.
 
+- **Cost.** On the same software rasterizer as the other measurements: nearest
+  1.0, bilinear 1.3, sharp-fit 1.35, CRT 7.8. The first draft was 11.0, the same
+  as xBR, because `toLinear` ran per tap across ten taps — thirty `pow()` per
+  pixel. Averaging the halation ring in gamma space and linearising the sum once,
+  and dropping the sharp-fit ramp for taps that get blurred anyway, took it to
+  7.8. Halation is about half of what remains and `BLOOM_STRENGTH = 0` compiles it
+  out entirely (4.2). The five `exp()` behind `scanAvg` are free — a hard-coded
+  literal measured identically.
+
+- **The distortion goes through the mouse.** This was the part worth being careful
+  about. A fragment shader maps output pixel to source pixel, which is exactly the
+  direction `getCursorPosition` needs, so it calls the identical formula.
+  `setCursorPosition` needs the inverse; the pair is coupled (`x` on `y²`, `y` on
+  `x²`) and has no closed form, so it iterates `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`.
+  Measured over the whole image: eight rounds are within 2.3e-4 pixels at a
+  curvature far past anything reachable, and the forward/inverse pair agrees to
+  1.2e-10 pixels. The two curvature constants are `#define`d once and stringified
+  into the GLSL as well as read as C++ doubles, so they cannot drift.
+
+  Both cursor functions had a second, older bug: they mapped left edges with
+  truncation instead of pixel centres with `floor`, which lost a pixel at
+  fractional window sizes. Fixed, and the round trip `get(set(g)) == g` is now
+  exact at every scale and curvature — except at exactly 1x, where 640 window
+  pixels cannot hold a non-identity warp over 640 game pixels and 0.5% of
+  positions land on a neighbouring 16px tile. That is the minimum window size,
+  where the effect has nowhere to show anyway.
+
+Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
+dot triad as an alternative to the aperture grille, and moving halation to a second
+pass if the single-pass ring ever looks too tight.
 
 How these connect
 -----------------

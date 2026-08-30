@@ -100,6 +100,17 @@ Changelog
             on or off could not be undone, and undoing it threw
             away everything that could be redone.
 
+          - New in the "Scaling" setting: "CRT monitor". It makes
+            the game look like it is running on the sort of screen
+            it was written for - a curved glass tube with a
+            phosphor mask, a glow around bright things and scan
+            lines. "CRT settings ..." next to it has two sliders:
+            how strong the scan lines are, and how much the screen
+            is curved. Both can be turned all the way down.
+
+            It needs the same graphics card as "Sharp, fitted";
+            where that is missing, this is not offered either.
+
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as
             the recording device, which on most machines is the

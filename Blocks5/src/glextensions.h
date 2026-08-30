@@ -21,7 +21,7 @@ namespace GLExtensions
 
 	bool haveFrameBufferObjects();
 
-	// GL 2.0 / WebGL 1: alles, was der xBR-Filter braucht.
+	// GL 2.0 / WebGL 1: alles, was die Praesentiershader brauchen.
 	bool haveShaders();
 }
 

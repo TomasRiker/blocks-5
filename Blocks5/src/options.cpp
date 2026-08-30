@@ -20,6 +20,11 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_Button*>(getChild("Options.CrtSettings"))->connectClicked(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->connectClicked(this, &Options::handleClick);
@@ -68,14 +73,18 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// es "Scharf, angepasst" gar nicht erst zu sehen - anzubieten, was die
 	// Maschine nicht kann, wäre gelogen -, und die übrigen rücken nach oben
 	// nach, damit keine Lücke bleibt.
-	const char* pp_filterNames[3] =
+	// "Röhrenmonitor" steht zuletzt: die drei darüber sind Skalierer und nach
+	// Güte sortiert, der Vierte ist eine Stilfrage und gehört nicht in dieselbe
+	// Reihenfolge. Er braucht denselben Shader wie "Scharf, angepasst" und
+	// verschwindet ohne ihn genauso.
+	const char* pp_filterNames[4] =
 	{
-		"Options.SharpFit", "Options.Nearest", "Options.Bilinear"
+		"Options.SharpFit", "Options.Nearest", "Options.Bilinear", "Options.Crt"
 	};
-	const bool available[3] = { engine.canUseSharpFit(), true, true };
+	const bool available[4] = { engine.canUseSharpFit(), true, true, engine.canUseCrt() };
 
 	int filterY = 52;
-	for(int i = 0; i < 3; i++)
+	for(int i = 0; i < 4; i++)
 	{
 		GUI_Element* p_button = getChild(pp_filterNames[i]);
 		// Die Beschriftung ist ein eigenes Element (<For> zeigt zurueck auf den
@@ -99,12 +108,29 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		}
 	}
 
+	// Der Knopf zu den Reglern rutscht unter den letzten sichtbaren Eintrag.
+	GUI_Element* p_crtSettings = getChild("Options.CrtSettings");
+	if(engine.canUseCrt())
+	{
+		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY + 6));
+		p_crtSettings->show();
+	}
+	else p_crtSettings->hide();
+
 	switch(engine.getEffectiveUpscaleFilter())
 	{
 	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->setChecked(); break;
 	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->setChecked(); break;
+	case Engine::UF_CRT:        static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->setChecked(); break;
 	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->setChecked(); break;
 	}
+
+	// Reglerstellungen aus der Engine holen, 0..1 als 0..100.
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtScanline()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtCurvature()));
+	getChild("CrtOptions")->hide();
 
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
@@ -140,8 +166,29 @@ void Options::handleClick(GUI_Element* p_element)
 		if(static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
+		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
 
-		if(name == "Actions")
+		// Die beiden Röhrenregler wirken sofort - beim Schieben soll man ja
+		// sehen, was sie tun. Zurückgenommen werden sie von Abbrechen, das
+		// über loadConfig() auch <Crt> wieder liest.
+		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
+		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
+
+		if(name == "CrtSettings")
+		{
+			// Die Regler ergeben nur zusammen mit dem Filter einen Sinn, also
+			// schaltet der Knopf ihn gleich mit ein.
+			static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->check();
+			engine.setUpscaleFilter(Engine::UF_CRT);
+			getChild("CrtOptions")->show();
+			getChild("CrtOptions")->focus();
+		}
+		else if(name == "CrtClose")
+		{
+			getChild("CrtOptions")->hide();
+			getChild("Options")->focus();
+		}
+		else if(name == "Actions")
 		{
 			GUI_Button* p_primary = static_cast<GUI_Button*>(getChild("Options.PrimaryKey"));
 			GUI_Button* p_secondary = static_cast<GUI_Button*>(getChild("Options.SecondaryKey"));
@@ -189,6 +236,7 @@ void Options::handleClick(GUI_Element* p_element)
 		}
 		else if(name == "OK")
 		{
+			getChild("CrtOptions")->hide();
 			engine.saveConfig();
 
 			hide();
@@ -196,6 +244,7 @@ void Options::handleClick(GUI_Element* p_element)
 		}
 		else if(name == "Cancel")
 		{
+			getChild("CrtOptions")->hide();
 			if(changed) engine.loadConfig();
 
 			hide();

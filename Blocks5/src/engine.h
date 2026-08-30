@@ -60,7 +60,8 @@ public:
 	{
 		UF_NEAREST = 0,   // harte Kanten; nur bei ganzzahliger Vergroesserung sinnvoll
 		UF_BILINEAR,      // die Hardware macht es, kostet nichts
-		UF_SHARP_FIT      // nearest auf die naechste ganzzahlige Stufe, dann herunter
+		UF_SHARP_FIT,     // nearest auf die naechste ganzzahlige Stufe, dann herunter
+	UF_CRT            // Roehrenmonitor: Maske, Streifen, Hof, gewoelbte Scheibe
 	};
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool defaultFullScreen);
 	void exit();
@@ -119,16 +120,16 @@ public:
 	// Bildschirm passt.
 	Vec2i getDefaultWindowSize() const;
 
-	// Der einzige Shader, den das Spiel benutzt: siehe src/sharpfit_shader.h.
-	// Laesst er sich nicht uebersetzen, faellt die Anzeige auf UF_NEAREST
+	// Die beiden Shader des Spiels: src/sharpfit_shader.h und src/crt_shader.h.
+	// Laesst sich einer nicht uebersetzen, faellt seine Anzeige auf UF_NEAREST
 	// zurueck; das Spiel laeuft in jedem Fall.
-	bool createSharpFitProgram();
-	void destroySharpFitProgram();
+	bool createPresentPrograms();
+	void destroyPresentPrograms();
 
 	// getUpscaleFilter() liefert den *Wunsch* - das, was der Spieler gewählt
 	// hat und was in der config.xml steht. getEffectiveUpscaleFilter() liefert,
-	// was tatsächlich gezeichnet wird: ohne übersetztes Programm wird aus xBR
-	// bilinear. Der Wunsch bleibt dabei stehen, damit dieselbe config.xml auf
+	// was tatsächlich gezeichnet wird: ohne übersetztes Programm wird aus
+	// sharp-fit oder CRT nearest. Der Wunsch bleibt stehen, damit dieselbe config.xml auf
 	// einer Maschine mit Shadern wieder das Richtige tut.
 	void setUpscaleFilter(UpscaleFilter filter);
 	UpscaleFilter getUpscaleFilter() const { return upscaleFilter; }
@@ -137,6 +138,17 @@ public:
 	static const char* getUpscaleFilterName(UpscaleFilter filter);
 	static UpscaleFilter parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback);
 	bool canUseSharpFit() const;   // hat die Maschine Shader und Bildpuffer?
+	bool canUseCrt() const;
+
+	// Die beiden Regler des Roehrenfilters, je 0..1. Sie stehen in der
+	// config.xml und wirken sofort - der Shader liest sie jedes Bild neu.
+	// crtScanline: 0 = VGA-Monitor ohne Luecken, 1 = Konsolenstreifen.
+	// crtCurvature: 0 = flache Scheibe, 1 = volle Woelbung. Die Woelbung geht
+	// auch durch die Mausumrechnung, siehe warpToSource/warpToOutput.
+	double getCrtScanline() const { return crtScanline; }
+	double getCrtCurvature() const { return crtCurvature; }
+	void setCrtScanline(double value);
+	void setCrtCurvature(double value);
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -295,11 +307,28 @@ private:
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
 	UpscaleFilter upscaleFilter;
-	uint sharpFitProgram;
-	int sharpFitDecalLocation;
-	int sharpFitTextureSizeLocation;
-	int sharpFitFrameSizeLocation;
-	int sharpFitPrescaleLocation;
+	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
+	// vier Uniforms; der Roehrenshader hat zwei weitere. Ein Stueck Struktur
+	// spart sechs weitere gleichnamige Felder.
+	struct PresentProgram
+	{
+		uint program;
+		int decal, textureSize, frameSize, prescale;
+		int scanline, curvature;      // nur UF_CRT, sonst -1
+	};
+	PresentProgram sharpFit;
+	PresentProgram crt;
+	double crtScanline;
+	double crtCurvature;
+	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen. Die
+	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
+	// Formel selbst - Ausgabepunkt zu Quellpunkt, so wie der Shader rechnet -,
+	// warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
+	Vec2d warpToSource(const Vec2d& p) const;
+	Vec2d warpToOutput(const Vec2d& p) const;
+	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
+							  const char* p_name);
+	void destroyPresentProgram(PresentProgram& target);
 	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;

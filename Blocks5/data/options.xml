@@ -54,6 +54,21 @@
 			<For>Bilinear</For>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
+		<RadioButton name="Crt" x="215" y="109" w="16" h="16">
+			<Title></Title>
+			<Group>2</Group>
+		</RadioButton>
+		<StaticText name="CrtLabel" x="241" y="112" w="90" h="14">
+			<Text>$O_UPSCALER_CRT</Text>
+			<For>Crt</For>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<!-- y setzt Options::show(), direkt unter den letzten sichtbaren
+		     Eintrag der Liste. -->
+		<Button name="CrtSettings" x="215" y="132" w="115" h="18">
+			<Title>$O_CRT_SETTINGS</Title>
+			<Font>tooltip_font.xml</Font>
+		</Button>
 
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
@@ -114,6 +129,37 @@
 		</Button>
 		<Button name="Cancel" x="155" y="400" w="135" h="30">
 			<Title>§de:Abbrechen§en:Cancel</Title>
+		</Button>
+	</Window>
+
+	<!-- Die Regler des Roehrenfilters. Ein eigenes Fenster, weil im
+	     Optionsfenster kein Platz mehr ist: 340x440 sind voll, und hoeher
+	     darf es nicht werden - das Spielbild ist nur 480 hoch. Beide Regler
+	     wirken sofort, damit man beim Schieben sieht, was sie tun;
+	     Abbrechen im Optionsfenster holt ueber loadConfig() die alten Werte
+	     zurueck. -->
+	<Window name="CrtOptions" w="300" h="160">
+		<Title>$O_CRT_SETTINGS</Title>
+		<Center />
+		<Hidden />
+		<StaticText name="CrtScanText" x="12" y="32" w="270" h="14">
+			<Text>$O_CRT_SCANLINE</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtScanValue" x="258" y="50"><Text></Text></StaticText>
+		<ScrollBar name="CrtScan" x="12" y="50" w="235" h="16">
+			<Receiver>CrtScanValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<StaticText name="CrtCurveText" x="12" y="76" w="270" h="14">
+			<Text>$O_CRT_CURVATURE</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtCurveValue" x="258" y="94"><Text></Text></StaticText>
+		<ScrollBar name="CrtCurve" x="12" y="94" w="235" h="16">
+			<Receiver>CrtCurveValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<Button name="CrtClose" x="85" y="122" w="130" h="26">
+			<Title>OK</Title>
 		</Button>
 	</Window>
 </Dialog>

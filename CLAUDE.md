@@ -126,7 +126,7 @@ whatever size the window is; only `computePresentRect` changes, and the cursor m
 read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 `glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
-are core and the header just `#define`s them through. Three upscale filters
+are core and the header just `#define`s them through. Four upscale filters
 (`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`;
 `sharp-fit` is the default where the machine can run it:
 
@@ -140,6 +140,59 @@ are core and the header just `#define`s them through. Three upscale filters
   result. Verified against a real two-pass: pixel-identical at an integer scale, max channel
   difference 1 (8-bit rounding in the intermediate) at fractional ones. It **must** sample
   with `GL_LINEAR` — the hardware interpolation *is* the filter.
+- `crt` (`src/crt_shader.h`) is a CRT monitor: beam profile, scan lines, phosphor mask,
+  halation, barrel distortion, rounded corners, vignette. See **The CRT filter** below.
+
+Both shaders share `p_presentVertexShader`, the vertex buffer and four uniforms
+(`decal`, `TextureSize`, `FrameSize`, `Prescale`); the CRT one adds `Scanline` and
+`Curvature`. `Engine::PresentProgram` holds one set of them, `createPresentProgram` builds
+either, and a CRT that fails to link leaves sharp-fit alone.
+
+**The CRT filter.** Everything that gives it its character is a `const` at the top of
+`src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
+(Options → Scaling → *CRT settings …*, saved as `<Crt scanline= curvature=>`), because they
+are matters of taste rather than tuning.
+
+The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
+an artifact of 240p: a console drew 240 lines into a 480-line raster. A VGA monitor showing
+640x480 drew all 480 with the beam profiles overlapping, and had no gaps. This game's honest
+reference is the VGA monitor, which is `SCANLINE_PERIOD = 1.0` — and at a 2x window that
+produces *no visible stripes at all*, because both output rows sit equally far from the row
+centre. That is physically right and useless as an effect, which is why the shipped default
+is `2.0`: pretend 240 lines arrive, and get the look people mean by "CRT". The slider fades
+that in; the constant decides which look it fades into.
+
+The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real
+shadow mask belongs to the glass and does not change when you switch resolution. That matters
+because almost everyone runs at exactly 2x (`getDefaultWindowSize` gives 2x on 1080p *and*
+1440p), where three source-locked subpixels are impossible.
+
+Brightness is **derived, not tuned**: `MASK_AVG` and `scanAvg` are computed from the
+constants, so mask and scan lines are light-neutral by construction and `BRIGHTNESS` is pure
+taste at 1.0. Measured: moving the scan-line slider from 0 to 1 changes mean frame brightness
+by 0.5%. The five `exp()` calls behind `scanAvg` are constant-folded — a literal measured
+identically (7.9 vs 8.0).
+
+Relative present cost, again on a software rasterizer: nearest 1.0, bilinear 1.3, sharp-fit
+1.35, **crt 7.8**. Halation is about half of that; `BLOOM_STRENGTH = 0` compiles the whole
+block away and brings it to 4.2. On real hardware this is ~12M texel fetches for a 1280x960
+frame, which is nothing, but the browser build can land on a software path.
+
+**The barrel distortion goes through the mouse as well.** The shader maps output pixel to
+source pixel, which is the same direction `getCursorPosition` needs, so it uses the identical
+formula — `Engine::warpToSource`. `setCursorPosition` needs the inverse, and the coupled pair
+(`x` depends on `y²`, `y` on `x²`) has no closed form, so `warpToOutput` runs a fixed-point
+iteration: `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`. Measured: eight rounds land within 2.3e-4
+pixels even at an absurd curvature, and within 1e-5 at anything reachable from the slider.
+`CRT_CURVE_X`/`CRT_CURVE_Y` are `#define`d once and stringified into the GLSL *and* read as
+C++ doubles, so the two cannot drift apart.
+
+Both cursor functions map **pixel centres** and `floor`, not left edges and truncation. The
+old code lost a pixel at fractional window sizes; with centres the round trip
+`get(set(g)) == g` is exact at every scale and curvature — except at exactly 1x, where 640
+window pixels and 640 game pixels cannot both hold a non-identity warp, and 0.5% of positions
+land on a neighbouring 16px tile. That is the minimum window size, where the CRT effect has no
+room to work anyway.
 
 Relative cost of one present, measured on a software rasterizer so read it as ratios: nearest
 1.0, bilinear 1.3, sharp-fit 1.75. Without an FBO the game renders straight to the back buffer

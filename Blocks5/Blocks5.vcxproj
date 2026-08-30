@@ -806,6 +806,7 @@
     <ClInclude Include="src\cf_slices.h" />
     <ClInclude Include="src\cf_star.h" />
     <ClInclude Include="src\cf_zoom.h" />
+    <ClInclude Include="src\crt_shader.h" />
     <ClInclude Include="src\crossfade.h" />
     <ClInclude Include="src\engine.h" />
     <ClInclude Include="src\glextensions.h" />

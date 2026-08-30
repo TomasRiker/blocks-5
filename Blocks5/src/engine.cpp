@@ -12,6 +12,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "engine.h"
 #include "glextensions.h"
 #include "sharpfit_shader.h"
+#include "crt_shader.h"
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
@@ -60,11 +61,12 @@ Engine::Engine()
 #endif
 	savedWindowStyle = 0;
 	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
-	sharpFitProgram = 0;
-	sharpFitDecalLocation = -1;
-	sharpFitTextureSizeLocation = -1;
-	sharpFitFrameSizeLocation = -1;
-	sharpFitPrescaleLocation = -1;
+	sharpFit.program = 0;
+	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
+	sharpFit.scanline = sharpFit.curvature = -1;
+	crt = sharpFit;
+	crtScanline = 0.5;
+	crtCurvature = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -390,9 +392,10 @@ bool Engine::init(const std::string& windowCaption,
 	}
 	else if(GLExtensions::haveShaders())
 	{
-		createSharpFitProgram();
+		createPresentPrograms();
 	}
-	printfLog("  Upscale filters:  nearest, bilinear%s\n", canUseSharpFit() ? ", sharp-fit" : "");
+	printfLog("  Upscale filters:  nearest, bilinear%s%s\n",
+			  canUseSharpFit() ? ", sharp-fit" : "", canUseCrt() ? ", crt" : "");
 	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
 
 	// Texturen für Crossfading erzeugen
@@ -539,7 +542,7 @@ void Engine::exit()
 #endif
 
 	// Bildpuffer freigeben, solange der GL-Kontext noch steht
-	destroySharpFitProgram();
+	destroyPresentPrograms();
 	destroyFrameBuffer();
 
 	// Manager herunterfahren
@@ -1217,67 +1220,103 @@ namespace
 	}
 }
 
-bool Engine::createSharpFitProgram()
+bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
+								  const char* p_name)
 {
 	const uint vs = compileShaderStage(GL_VERTEX_SHADER, p_presentVertexShader, "present vertex");
 	if(!vs) return false;
-	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_sharpFitFragmentShader, "sharp-fit fragment");
+	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_fragmentSource, p_name);
 	if(!fs) { glExtDeleteShader(vs); return false; }
 
-	sharpFitProgram = glExtCreateProgram();
-	glExtAttachShader(sharpFitProgram, vs);
-	glExtAttachShader(sharpFitProgram, fs);
-	glExtBindAttribLocation(sharpFitProgram, 0, "aPosition");
-	glExtBindAttribLocation(sharpFitProgram, 1, "aTexCoord");
-	glExtLinkProgram(sharpFitProgram);
+	target.program = glExtCreateProgram();
+	glExtAttachShader(target.program, vs);
+	glExtAttachShader(target.program, fs);
+	glExtBindAttribLocation(target.program, 0, "aPosition");
+	glExtBindAttribLocation(target.program, 1, "aTexCoord");
+	glExtLinkProgram(target.program);
 
 	glExtDeleteShader(vs);
 	glExtDeleteShader(fs);
 
 	GLint ok = 0;
-	glExtGetProgramiv(sharpFitProgram, GL_LINK_STATUS, &ok);
+	glExtGetProgramiv(target.program, GL_LINK_STATUS, &ok);
 	if(!ok)
 	{
 		char log[1024] = "";
-		glExtGetProgramInfoLog(sharpFitProgram, sizeof(log) - 1, 0, log);
-		printfLog("- WARNING: Could not link the sharp-fit program: %s\n", log);
-		destroySharpFitProgram();
+		glExtGetProgramInfoLog(target.program, sizeof(log) - 1, 0, log);
+		printfLog("- WARNING: Could not link the %s program: %s\n", p_name, log);
+		destroyPresentProgram(target);
 		return false;
 	}
 
-	sharpFitDecalLocation       = glExtGetUniformLocation(sharpFitProgram, "decal");
-	sharpFitTextureSizeLocation = glExtGetUniformLocation(sharpFitProgram, "TextureSize");
-	sharpFitFrameSizeLocation   = glExtGetUniformLocation(sharpFitProgram, "FrameSize");
-	sharpFitPrescaleLocation    = glExtGetUniformLocation(sharpFitProgram, "Prescale");
+	target.decal       = glExtGetUniformLocation(target.program, "decal");
+	target.textureSize = glExtGetUniformLocation(target.program, "TextureSize");
+	target.frameSize   = glExtGetUniformLocation(target.program, "FrameSize");
+	target.prescale    = glExtGetUniformLocation(target.program, "Prescale");
+	// Die beiden gibt es nur im Roehrenshader; sonst bleibt es bei -1, und die
+	// Uniform wird schlicht nicht gesetzt.
+	target.scanline    = glExtGetUniformLocation(target.program, "Scanline");
+	target.curvature   = glExtGetUniformLocation(target.program, "Curvature");
+	return true;
+}
 
+void Engine::destroyPresentProgram(PresentProgram& target)
+{
+	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
+	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
+	target.scanline = target.curvature = -1;
+}
+
+bool Engine::createPresentPrograms()
+{
 	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein Puffer
 	// sein. Vier Eckpunkte, jedes Bild neu gefuellt - das kostet nichts und
-	// erspart es, auf Fenstergroessenaenderungen zu achten.
+	// erspart es, auf Fenstergroessenaenderungen zu achten. Beide Programme
+	// benutzen denselben.
 	glExtGenBuffers(1, &presentVertexBuffer);
 	if(!presentVertexBuffer)
 	{
 		printfLog("- WARNING: Could not create the present vertex buffer.\n");
-		destroySharpFitProgram();
+		return false;
+	}
+
+	// Der Roehrenshader darf fehlschlagen, ohne dass sharp-fit mitfaellt.
+	const bool sharpOk = createPresentProgram(sharpFit, p_sharpFitFragmentShader, "sharp-fit fragment");
+	const bool crtOk   = createPresentProgram(crt, p_crtFragmentShader, "crt fragment");
+	if(!crtOk) printfLog("- WARNING: The CRT filter will not be available.\n");
+
+	if(!sharpOk)
+	{
+		destroyPresentProgram(crt);
+		glExtDeleteBuffers(1, &presentVertexBuffer);
+		presentVertexBuffer = 0;
 		return false;
 	}
 	return true;
 }
 
-void Engine::destroySharpFitProgram()
+void Engine::destroyPresentPrograms()
 {
 	if(presentVertexBuffer) { glExtDeleteBuffers(1, &presentVertexBuffer); presentVertexBuffer = 0; }
-	if(sharpFitProgram) { glExtDeleteProgram(sharpFitProgram); sharpFitProgram = 0; }
-	sharpFitDecalLocation = -1;
-	sharpFitTextureSizeLocation = -1;
-	sharpFitFrameSizeLocation = -1;
-	sharpFitPrescaleLocation = -1;
+	destroyPresentProgram(sharpFit);
+	destroyPresentProgram(crt);
+}
+
+void Engine::setCrtScanline(double value)
+{
+	crtScanline = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtCurvature(double value)
+{
+	crtCurvature = clamp(value, 0.0, 1.0);
 }
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
 {
-	// Nur merken. Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter()
-	// bei jedem Bild neu - beim Laden der config.xml gibt es noch gar keinen
-	// GL-Kontext, gegen den man hier pruefen koennte.
+	// Nur merken. Ob der gewuenschte Filter wirklich geht, entscheidet
+	// getEffectiveUpscaleFilter() bei jedem Bild neu - beim Laden der
+	// config.xml gibt es noch keinen GL-Kontext, gegen den man pruefen koennte.
 	upscaleFilter = filter;
 }
 
@@ -1287,6 +1326,7 @@ const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
 	{
 	case UF_NEAREST:    return "nearest";
 	case UF_SHARP_FIT:  return "sharp-fit";
+	case UF_CRT:        return "crt";
 	default:            return "bilinear";
 	}
 }
@@ -1297,20 +1337,27 @@ Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, Upscale
 	if(!_stricmp(p_name, "nearest"))     return UF_NEAREST;
 	if(!_stricmp(p_name, "bilinear"))    return UF_BILINEAR;
 	if(!_stricmp(p_name, "sharp-fit"))   return UF_SHARP_FIT;
+	if(!_stricmp(p_name, "crt"))         return UF_CRT;
 	return fallback;
 }
 
 bool Engine::canUseSharpFit() const
 {
-	return useFrameBuffer && sharpFitProgram != 0 && presentVertexBuffer != 0;
+	return useFrameBuffer && sharpFit.program != 0 && presentVertexBuffer != 0;
+}
+
+bool Engine::canUseCrt() const
+{
+	return useFrameBuffer && crt.program != 0 && presentVertexBuffer != 0;
 }
 
 Engine::UpscaleFilter Engine::getEffectiveUpscaleFilter() const
 {
-	// Ohne uebersetztes Programm gibt es kein xBR - dann lieber bilinear als
-	// ein Bild, das gar nicht erst erscheint.
-	if(upscaleFilter == UF_SHARP_FIT && !canUseSharpFit())
-		return UF_NEAREST;   // ohne Shader lieber scharf als weich
+	// Ohne uebersetztes Programm lieber scharf als ein Bild, das gar nicht erst
+	// erscheint. Der Wunsch bleibt in upscaleFilter stehen, damit dieselbe
+	// config.xml auf einer Maschine mit Shadern wieder das Richtige tut.
+	if(upscaleFilter == UF_SHARP_FIT && !canUseSharpFit()) return UF_NEAREST;
+	if(upscaleFilter == UF_CRT && !canUseCrt())            return UF_NEAREST;
 	return upscaleFilter;
 }
 
@@ -1813,6 +1860,47 @@ void Engine::handleResize(int width, int height)
 	if(!fullScreen) windowedSize = displaySize;
 }
 
+Vec2d Engine::warpToSource(const Vec2d& p) const
+{
+	// Genau die Formel aus src/crt_shader.h, damit die Maus dort landet, wo der
+	// Spieler hinzeigt. p und der Rueckgabewert laufen von -1 bis 1 ab der
+	// Bildmitte.
+	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return p;
+
+	const double a = crtCurvature * crtCurveX;
+	const double b = crtCurvature * crtCurveY;
+	return Vec2d(p.x * (1.0 + a * p.y * p.y),
+				 p.y * (1.0 + b * p.x * p.x));
+}
+
+Vec2d Engine::warpToOutput(const Vec2d& s) const
+{
+	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return s;
+
+	const double a = crtCurvature * crtCurveX;
+	const double b = crtCurvature * crtCurveY;
+
+	// Die Umkehrung. Das Gleichungspaar ist gekoppelt - x haengt an y und
+	// umgekehrt -, eine geschlossene Loesung gibt es nicht. Als Fixpunkt
+	// umgestellt zieht es sich aber sehr schnell zusammen:
+	//
+	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
+	//
+	// Nachgemessen ueber das ganze Bild: nach acht Runden liegt der Fehler
+	// selbst bei einer voellig uebertriebenen Woelbung (a=0.40, b=0.50) unter
+	// 2.3e-4 Bildpunkten, bei allem, was hier je eingestellt werden kann, unter
+	// 1e-5. Das kostet nichts - die Funktion laeuft nur, wenn das Spiel den
+	// Mauszeiger selbst setzt, und das tut es an genau einer Stelle.
+	double x = s.x;
+	double y = s.y;
+	for(int i = 0; i < 8; i++)
+	{
+		x = s.x / (1.0 + a * y * y);
+		y = s.y / (1.0 + b * x * x);
+	}
+	return Vec2d(x, y);
+}
+
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 {
 	// Größtmögliches 4:3-Rechteck im Fenster, mittig. Was übrig bleibt, wird
@@ -1869,21 +1957,21 @@ void Engine::presentFrame()
 	glBindTexture(GL_TEXTURE_2D, frameTextureID);
 
 	// Nearest und Bilinear sind reine Filtereinstellungen der Textur, dafuer
-	// braucht es keinen Shader. xBR braucht ebenfalls GL_NEAREST: der Shader
-	// rekonstruiert die Kanten selbst aus exakten Texeln, und mit bilinear
-	// vorgemischten Nachbarn findet seine Kantenerkennung nichts mehr - das
-	// Ergebnis ist dann kaum von bilinear zu unterscheiden.
+	// braucht es keinen Shader.
 	const UpscaleFilter effective = getEffectiveUpscaleFilter();
 	// UF_SHARP_FIT rechnet die Texturkoordinate so um, dass die
 	// Hardware-Interpolation genau das nearest-Ergebnis liefert - ohne sie
-	// bliebe von dem Filter nichts uebrig.
-	const GLint filter = (effective == UF_BILINEAR || effective == UF_SHARP_FIT)
-						 ? GL_LINEAR : GL_NEAREST;
+	// bliebe von dem Filter nichts uebrig. UF_CRT benutzt dieselbe Umrechnung
+	// und braucht sie deshalb ebenso.
+	const GLint filter = (effective == UF_BILINEAR || effective == UF_SHARP_FIT ||
+						  effective == UF_CRT) ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-	if(effective == UF_SHARP_FIT)
+	if(effective == UF_SHARP_FIT || effective == UF_CRT)
 	{
+		const PresentProgram& prog = (effective == UF_CRT) ? crt : sharpFit;
+
 		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
 		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
 		// Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
@@ -1909,15 +1997,19 @@ void Engine::presentFrame()
 		const float prescaleX = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(w) / screenSize.x))));
 		const float prescaleY = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(h) / screenSize.y))));
 
-		glExtUseProgram(sharpFitProgram);
-		if(sharpFitDecalLocation >= 0)       glExtUniform1i(sharpFitDecalLocation, 0);
-		if(sharpFitTextureSizeLocation >= 0) glExtUniform2f(sharpFitTextureSizeLocation,
-															static_cast<float>(frameTextureSize.x),
-															static_cast<float>(frameTextureSize.y));
-		if(sharpFitFrameSizeLocation >= 0)   glExtUniform2f(sharpFitFrameSizeLocation,
-															static_cast<float>(screenSize.x),
-															static_cast<float>(screenSize.y));
-		if(sharpFitPrescaleLocation >= 0)    glExtUniform2f(sharpFitPrescaleLocation, prescaleX, prescaleY);
+		glExtUseProgram(prog.program);
+		if(prog.decal >= 0)       glExtUniform1i(prog.decal, 0);
+		if(prog.textureSize >= 0) glExtUniform2f(prog.textureSize,
+												 static_cast<float>(frameTextureSize.x),
+												 static_cast<float>(frameTextureSize.y));
+		if(prog.frameSize >= 0)   glExtUniform2f(prog.frameSize,
+												 static_cast<float>(screenSize.x),
+												 static_cast<float>(screenSize.y));
+		if(prog.prescale >= 0)    glExtUniform2f(prog.prescale, prescaleX, prescaleY);
+		// Die beiden Regler. Sie werden jedes Bild neu gesetzt, damit der
+		// Optionsdialog sofort wirkt, ohne den Shader neu zu uebersetzen.
+		if(prog.scanline >= 0)    glExtUniform1f(prog.scanline, static_cast<float>(crtScanline));
+		if(prog.curvature >= 0)   glExtUniform1f(prog.curvature, static_cast<float>(crtCurvature));
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
 		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
@@ -2614,15 +2706,29 @@ Vec2i Engine::getCursorPosition() const
 	if(useFrameBuffer)
 	{
 		// Genau die Umkehrung dessen, was presentFrame() zeichnet. Das Rechteck
-		// liegt mittig, deshalb ist der Rand oben so groß wie unten und die
-		// Rechnung gilt gleichermaßen in SDLs Fensterkoordinaten (y nach unten)
+		// liegt mittig, deshalb ist der Rand oben so gross wie unten und die
+		// Rechnung gilt gleichermassen in SDLs Fensterkoordinaten (y nach unten)
 		// wie in GLs (y nach oben).
+		//
+		// Gerechnet wird mit Pixelmitten: ein Fensterpixel px deckt [px, px+1)
+		// ab, seine Mitte liegt bei px+0.5. Frueher stand hier die linke Kante
+		// und ein static_cast<int>, was am krummen Vergroesserungsfaktor
+		// regelmaessig einen Bildpunkt zu wenig ergab - nachgemessen: mit
+		// Pixelmitten ist der Hin- und Rueckweg ueber jeden Bildpunkt exakt.
 		int x, y, w, h;
 		computePresentRect(x, y, w, h);
 		if(w > 0 && h > 0)
 		{
-			position.x = static_cast<int>((position.x - x) * static_cast<double>(screenSize.x) / w);
-			position.y = static_cast<int>((position.y - y) * static_cast<double>(screenSize.y) / h);
+			Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
+
+			// Dieselbe Woelbung wie im Shader: der Zeiger sitzt auf dem Glas,
+			// das Spiel muss wissen, welches Quellpixel darunter liegt. Ohne
+			// UF_CRT gibt warpToSource die Koordinate unveraendert zurueck.
+			const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
+			n = (warped + Vec2d(1.0, 1.0)) * 0.5;
+
+			position.x = static_cast<int>(floor(n.x * screenSize.x));
+			position.y = static_cast<int>(floor(n.y * screenSize.y));
 		}
 	}
 
@@ -2634,7 +2740,7 @@ Vec2i Engine::getCursorPosition() const
 
 void Engine::setCursorPosition(const Vec2i& cursorPosition)
 {
-	// Erst in den gültigen Bereich des internen Bildes, dann nach außen
+	// Erst in den gueltigen Bereich des internen Bildes, dann nach aussen
 	// umrechnen. Die alte Fassung klemmte mit clamp(temp.x, 0, temp.x - 1) auf
 	// eine Grenze, die aus dem geklemmten Wert selbst stammte, und zog dadurch
 	// immer genau eins ab.
@@ -2647,8 +2753,15 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 		computePresentRect(x, y, w, h);
 		if(screenSize.x > 0 && screenSize.y > 0)
 		{
-			temp.x = x + static_cast<int>(temp.x * static_cast<double>(w) / screenSize.x);
-			temp.y = y + static_cast<int>(temp.y * static_cast<double>(h) / screenSize.y);
+			Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
+
+			// Der Rueckweg durch die Woelbung. Bei ausgeschaltetem CRT-Filter
+			// ist das die Identitaet.
+			const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
+			n = (out + Vec2d(1.0, 1.0)) * 0.5;
+
+			temp.x = x + static_cast<int>(floor(n.x * w));
+			temp.y = y + static_cast<int>(floor(n.y * h));
 		}
 	}
 
@@ -2747,6 +2860,18 @@ void Engine::loadConfig()
 		// hier gibt es noch keinen GL-Kontext.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
+
+		// Die beiden Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
+		// Voreinstellung aus dem Konstruktor.
+		TiXmlElement* p_crt = p_config->FirstChildElement("Crt");
+		if(p_crt)
+		{
+			double value = 0.0;
+			if(p_crt->QueryDoubleAttribute("scanline", &value) == TIXML_SUCCESS)
+				setCrtScanline(value);
+			if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)
+				setCrtCurvature(value);
+		}
 
 		// Vollbild und Fenstergröße lesen. Beide gelten erst beim nächsten
 		// Start; mitten im Betrieb schaltet der Spieler mit Alt+Return und dem
@@ -2865,6 +2990,11 @@ void Engine::saveConfig()
 	p_windowSize->SetAttribute("w", windowedSize.x);
 	p_windowSize->SetAttribute("h", windowedSize.y);
 	p_config->LinkEndChild(p_windowSize);
+
+	TiXmlElement* p_crt = new TiXmlElement("Crt");
+	p_crt->SetDoubleAttribute("scanline", crtScanline);
+	p_crt->SetDoubleAttribute("curvature", crtCurvature);
+	p_config->LinkEndChild(p_crt);
 
 	if(windowedPosition.x >= 0 && windowedPosition.y >= 0)
 	{

@@ -191,6 +191,26 @@ $O_UPSCALER_SHARP_FIT
 §en:Sharp, fitted
 §de:Scharf, angepasst
 
+$O_UPSCALER_CRT
+// Caption of the CRT scaling radio button
+§en:CRT monitor
+§de:Röhrenmonitor
+
+$O_CRT_SETTINGS
+// Button that opens the CRT settings, and the title of that window
+§en:CRT settings ...
+§de:Röhre einstellen ...
+
+$O_CRT_SCANLINE
+// Label above the scanline slider in the CRT settings
+§en:Scan lines (0 = PC monitor, 100 = console)
+§de:Zeilen (0 = PC-Monitor, 100 = Konsole)
+
+$O_CRT_CURVATURE
+// Label above the curvature slider in the CRT settings
+§en:Curvature of the screen
+§de:Wölbung der Bildröhre
+
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:
