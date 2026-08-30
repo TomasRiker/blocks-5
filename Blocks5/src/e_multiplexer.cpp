@@ -8,7 +8,7 @@ E_Multiplexer::E_Multiplexer(Level& level,
 {
 	value = -1;
 
-	// Eingänge erzeugen
+	// Eingaenge erzeugen
 	createPin(0, Vec2i(0, 2), PT_INPUT);
 	createPin(1, Vec2i(0, 12), PT_INPUT);
 	createPin(2, Vec2i(8, 0), PT_INPUT);

@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine elektronisch gesteuerte Barriere ***/
+/*** Klasse fuer eine elektronisch gesteuerte Barriere ***/
 
 class E_Barrage : public Electronics
 {

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Fließbänder ***/
+/*** Klasse fuer Fliessbaender ***/
 
 class SoundInstance;
 

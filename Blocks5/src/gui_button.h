@@ -1,7 +1,7 @@
 #ifndef _GUI_BUTTON_H
 #define _GUI_BUTTON_H
 
-/*** Klasse für einen Button ***/
+/*** Klasse fuer einen Button ***/
 
 #include "gui_element.h"
 

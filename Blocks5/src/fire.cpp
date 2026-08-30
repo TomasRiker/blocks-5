@@ -73,7 +73,7 @@ void Fire::onUpdate()
 
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-				// Trümmer
+				// Truemmer
 				int n = random(50, 80);
 				for(int i = 0; i < n; i++)
 				{

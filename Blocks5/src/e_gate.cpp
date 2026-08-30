@@ -9,7 +9,7 @@ E_Gate::E_Gate(Level& level,
 {
 	this->subType = subType;
 
-	// Eingänge erzeugen
+	// Eingaenge erzeugen
 	if(subType == 6 || subType == 7)
 	{
 		createPin(0, Vec2i(0, 8), PT_INPUT);
@@ -87,7 +87,7 @@ bool E_Gate::changeInEditor(int mod)
 
 void E_Gate::doLogic()
 {
-	// Undefinierte Eingänge führen zu einem undefinierten Ausgang.
+	// Undefinierte Eingaenge fuehren zu einem undefinierten Ausgang.
 	if(!areAllInputsConnected() || isAnyInputUndefined())
 	{
 		setAllOutputsToUndefined();

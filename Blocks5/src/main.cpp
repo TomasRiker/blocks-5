@@ -105,7 +105,7 @@ std::string getCurrentVersion()
 		bool finished;
 	};
 
-	// Abfrage in einem Thread ausführen und maximal 2 Sekunden Zeit lassen
+	// Abfrage in einem Thread ausfuehren und maximal 2 Sekunden Zeit lassen
 	Task task;
 	DWORD threadID;
 	HANDLE thread = CreateThread(0, 0, Task::threadProc, &task, 0, &threadID);
@@ -130,14 +130,14 @@ const std::string detectInitializedVersion()
 	// <= 1.0.7:	kein "Blocks 5"-Ordner existiert im Benutzerverzeichnis
 	//    1.0.71:	"Blocks 5"-Ordner existiert im Benutzerverzeichnis
 	//    1.0.72:	".initialized"-Datei existiert
-	// >= 1.0.73:	".initialized"-Datei enthält die Versionsnummer
+	// >= 1.0.73:	".initialized"-Datei enthaelt die Versionsnummer
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
 	if(fs.listDirectory(homeDirectory).empty())
 	{
-		// TODO: Die "progress.zip" aus dem VirtualStore wird nicht gefunden! Warum nicht? Ging doch früher!
+		// TODO: Die "progress.zip" aus dem VirtualStore wird nicht gefunden! Warum nicht? Ging doch frueher!
 		if(!fs.fileExists("progress.zip")) return "not_played";
 		else return "<= 1.0.7";
 	}
@@ -318,7 +318,7 @@ int runTheGame(int argc,
 			int answer = MessageBoxA(0, str.str().c_str(), "Update available!", MB_YESNO | MB_ICONINFORMATION);
 			if(answer == IDYES)
 			{
-				// Seite öffnen
+				// Seite oeffnen
 				ShellExecuteA(0, "open", "Blocks 5 Website.url", NULL, NULL, SW_SHOWNORMAL);
 				return 0;
 			}
@@ -333,7 +333,7 @@ int runTheGame(int argc,
 		printfLog("Not checking for update!\n");
 	}
 
-	// Daten aus dem verschlüsselten Archiv lesen
+	// Daten aus dem verschluesselten Archiv lesen
 	fs.pushCurrentDir("data.zip[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]");
 	
 	// Alternativ: Daten aus dem lokalen Verzeichnis lesen
@@ -351,7 +351,7 @@ int runTheGame(int argc,
 #endif
 
 	// Argumente parsen. Der Skalierungsfilter steht bewusst nicht dabei: er ist
-	// eine Einstellung wie die Sprache und wird im Optionsdialog gewählt.
+	// eine Einstellung wie die Sprache und wird im Optionsdialog gewaehlt.
 	Engine& engine = Engine::inst();
 
 	for(int i = 0; i < argc; i++)

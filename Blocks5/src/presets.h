@@ -5,7 +5,7 @@ class Texture;
 class Level;
 class Object;
 
-/*** Klasse für Objektvoreinstellungen ***/
+/*** Klasse fuer Objektvoreinstellungen ***/
 
 class Presets
 {

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für eine Blockade ***/
+/*** Klasse fuer eine Blockade ***/
 
 class Barrage : public Object
 {

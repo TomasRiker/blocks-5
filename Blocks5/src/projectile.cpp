@@ -34,7 +34,7 @@ void Projectile::onRender(int layer,
 
 		glDisable(GL_TEXTURE_2D);
 
-		// Glühen rendern
+		// Gluehen rendern
 		Engine& engine = Engine::inst();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 		LineDrawer line;
@@ -135,7 +135,7 @@ void Projectile::onUpdate()
 					{
 						hitPosition = Vec2d(7.5, 7.5) + tileHit * 16;
 
-						// Ist das Tile zerstörbar?
+						// Ist das Tile zerstoerbar?
 						int tileID = level.getTileAt(1, tileHit);
 						const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 						if(tileInfo.type == 2)
@@ -174,7 +174,7 @@ void Projectile::onUpdate()
 						p_particleSystem->addParticle(p);
 					}
 
-					// glühende Partikel
+					// gluehende Partikel
 					for(int i = 0; i < 20; i++)
 					{
 						p.lifetime = random(80, 120);
@@ -196,9 +196,9 @@ void Projectile::onUpdate()
 
 					if(destroyed)
 					{
-						// Das Geschoss hat ein Objekt oder ein Tile zerstört.
+						// Das Geschoss hat ein Objekt oder ein Tile zerstoert.
 
-						// Trümmer
+						// Truemmer
 						int n = random(30, 40);
 						for(int i = 0; i < n; i++)
 						{

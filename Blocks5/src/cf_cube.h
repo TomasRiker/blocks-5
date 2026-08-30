@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Mac-Style-Überblendung ***/
+/*** Mac-Style-Ueberblendung ***/
 
 class CF_Cube : public Crossfade
 {

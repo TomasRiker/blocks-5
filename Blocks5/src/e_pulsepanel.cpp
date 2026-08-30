@@ -46,7 +46,7 @@ void E_PulsePanel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel auslösen
+				// Panel ausloesen
 				value = pulseValue;
 				Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
 				break;

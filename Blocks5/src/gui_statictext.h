@@ -1,7 +1,7 @@
 #ifndef _GUI_STATICTEXT_H
 #define _GUI_STATICTEXT_H
 
-/*** Klasse für einen statischen Text ***/
+/*** Klasse fuer einen statischen Text ***/
 
 #include "gui_element.h"
 

@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse für Kanonen-Bodenplatte ***/
+/*** Klasse fuer Kanonen-Bodenplatte ***/
 
 class CannonPanel : public Panel
 {

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Hinweiszettel ***/
+/*** Klasse fuer einen Hinweiszettel ***/
 
 class Font;
 class Texture;

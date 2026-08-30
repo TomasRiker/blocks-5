@@ -62,7 +62,7 @@ void Enemy::onRender(int layer,
 	{
 		if(subType == 0)
 		{
-			// komisches grünes Insekt rendern
+			// komisches gruenes Insekt rendern
 			int f[] = {0, 1, 0, 2};
 			int frame = f[(anim / 4) % 4];
 			double a = 10.0 * sin(anim / 4.0);
@@ -102,7 +102,7 @@ void Enemy::onUpdate()
 
 	if(!thinkCounter--)
 	{
-		// den nächsten Spieler suchen, der für den Gegner sichtbar ist
+		// den naechsten Spieler suchen, der fuer den Gegner sichtbar ist
 		Player* p_closestPlayer = 0;
 		int closestDist = 0;
 		const std::list<Player*>& players = Player::getInstances();
@@ -220,7 +220,7 @@ void Enemy::onUpdate()
 				else if(s == 1) sound = "enemy1_burp2.ogg";
 				Engine::inst().playSound(sound, false, 0.1);
 
-				// Rülpspartikel erzeugen
+				// Ruelpspartikel erzeugen
 				ParticleSystem* p_particleSystem = level.getParticleSystem();
 				ParticleSystem::Particle p;
 				for(int i = 0; i < 10; i++)
@@ -276,7 +276,7 @@ void Enemy::onUpdate()
 				}
 				else
 				{
-					// Wo ist die Spur am heißesten?
+					// Wo ist die Spur am heissesten?
 					int bestDir = 0;
 					uint bestTrace = 0;
 					for(int dir = 0; dir < 4; dir++)

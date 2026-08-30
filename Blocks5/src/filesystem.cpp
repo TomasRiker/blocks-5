@@ -14,7 +14,7 @@
 
 FileSystem::FileSystem()
 {
-	// die ersten 256 Primzahlen für die Entschlüsselung von Passwörtern berechnen
+	// die ersten 256 Primzahlen fuer die Entschluesselung von Passwoertern berechnen
 	generatePrimes(primes, 256);
 }
 
@@ -259,7 +259,7 @@ void FileSystem::convertPath(const std::string& path,
 		}
 		else if(temp.substr(i, 5) == ".zip[")
 		{
-			// archivierte Datei mit verschlüsseltem Passwort
+			// archivierte Datei mit verschluesseltem Passwort
 			for(uint j = i + 5; j < temp.length(); j++)
 			{
 				if(temp[j] == ']')
@@ -268,7 +268,7 @@ void FileSystem::convertPath(const std::string& path,
 					objectName = temp.substr(j + 2);
 					password = temp.substr(i + 5, j - (i + 5));
 
-					// Passwort entschlüsseln
+					// Passwort entschluesseln
 					char* p_temp = new char[password.length() + 1];
 					decryptPassword(password.c_str(), p_temp, primes);
 					password = p_temp;
@@ -300,7 +300,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		if(i < path.length() - 2 &&
 		   path.substr(i, 3) == "../")
 		{
-			// eine Ebene höher im Verzeichnisbaum aufsteigen
+			// eine Ebene hoeher im Verzeichnisbaum aufsteigen
 			if(result.length() <= 1) return "[INVALID]";
 			char* p_temp = new char[result.length() + 1];
 			strcpy(p_temp, result.c_str());
@@ -320,7 +320,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		}
 		else
 		{
-			// Zeichen anhängen
+			// Zeichen anhaengen
 			result += path[i];
 			i++;
 		}

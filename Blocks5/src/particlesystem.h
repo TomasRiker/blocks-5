@@ -3,7 +3,7 @@
 
 #define PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 
-/*** Klasse für ein Partikelsystem ***/
+/*** Klasse fuer ein Partikelsystem ***/
 
 class Texture;
 

@@ -44,7 +44,7 @@ AS_OGG::AS_OGG(const std::string& filename)
 
 AS_OGG::~AS_OGG()
 {
-	// Datei schlieﬂen
+	// Datei schliessen
 	ov_clear(&vorbisFile);
 }
 

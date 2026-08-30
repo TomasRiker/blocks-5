@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine Puls-Bodenplatte ***/
+/*** Klasse fuer eine Puls-Bodenplatte ***/
 
 class E_PulsePanel : public Electronics
 {

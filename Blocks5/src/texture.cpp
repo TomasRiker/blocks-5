@@ -107,7 +107,7 @@ void Texture::cleanUp()
 {
 	if(p_rgba)
 	{
-		// Oberfläche entsperren und löschen
+		// Oberflaeche entsperren und loeschen
 		SDL_UnlockSurface(p_rgba);
 		SDL_FreeSurface(p_rgba);
 		p_rgba = 0;
@@ -115,7 +115,7 @@ void Texture::cleanUp()
 
 	if(texID)
 	{
-		// Textur löschen
+		// Textur loeschen
 		glDeleteTextures(1, &texID);
 		texID = 0;
 	}
@@ -125,7 +125,7 @@ void Texture::bind() const
 {
 	if(!doKeepInMemory && p_rgba)
 	{
-		// Oberfläche entsperren und löschen
+		// Oberflaeche entsperren und loeschen
 		SDL_UnlockSurface(p_rgba);
 		SDL_FreeSurface(p_rgba);
 		p_rgba = 0;
@@ -177,7 +177,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	// den gewünschten Teil kopieren
+	// den gewuenschten Teil kopieren
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	SDL_SetAlpha(p_rgba, 0, 0);
 	SDL_Rect srcRect;
@@ -290,7 +290,7 @@ void Texture::checkDimensions()
 {
 	if(nextPow2(size.x) != size.x || nextPow2(size.y) != size.y)
 	{
-		// Das könnte Ärger machen!
+		// Das koennte Aerger machen!
 		printfLog("- WARNING: Creating non-pow2 texture! Filename=\"%s\", Size=%dx%d\n", filename.c_str(), size.x, size.y);
 	}
 }

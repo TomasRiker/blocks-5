@@ -1,7 +1,7 @@
 #ifndef _FILE_REAL_H
 #define _FILE_REAL_H
 
-/*** Klasse für eine echte Datei ***/
+/*** Klasse fuer eine echte Datei ***/
 
 #include "file.h"
 

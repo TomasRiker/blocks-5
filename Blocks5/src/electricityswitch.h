@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Stromschalter ***/
+/*** Klasse fuer Stromschalter ***/
 
 class ElectricitySwitch : public Object
 {

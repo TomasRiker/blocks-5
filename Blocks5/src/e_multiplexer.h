@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen Multiplexer ***/
+/*** Klasse fuer einen Multiplexer ***/
 
 class E_Multiplexer : public Electronics
 {

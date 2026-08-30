@@ -23,13 +23,13 @@ Electronics::~Electronics()
 
 void Electronics::updateAll(Level& level)
 {
-	// die Werte an den Ausgängen aller Bauteile an die angeschlossenen Eingänge weiterleiten
+	// die Werte an den Ausgaengen aller Bauteile an die angeschlossenen Eingaenge weiterleiten
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->propagateOutputs();
 	}
 
-	// die Logikfunktionen ausführen
+	// die Logikfunktionen ausfuehren
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->doLogic();
@@ -38,7 +38,7 @@ void Electronics::updateAll(Level& level)
 
 void Electronics::onRemove()
 {
-	// alle Pins löschen
+	// alle Pins loeschen
 	for(uint i = 0; i < inputPins.size(); i++) delete inputPins[i];
 	for(uint i = 0; i < outputPins.size(); i++) delete outputPins[i];
 	inputPins.clear();
@@ -68,7 +68,7 @@ void Electronics::onRender(int layer,
 
 		glDisable(GL_TEXTURE_2D);
 
-		// Verbindungen der Ausgänge rendern
+		// Verbindungen der Ausgaenge rendern
 		int n = position.x + position.y;
 		for(uint i = 0; i < outputPins.size(); i++)
 		{

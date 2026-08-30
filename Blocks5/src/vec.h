@@ -1,9 +1,9 @@
 #ifndef _VEC_H
 #define _VEC_H
 
-/*** Allgemeine Vektorklasse für Vektoren über beliebigen Typen mit beliebiger Dimension ***/
+/*** Allgemeine Vektorklasse fuer Vektoren ueber beliebigen Typen mit beliebiger Dimension ***/
 
-// Helfer für das Wurzelziehen
+// Helfer fuer das Wurzelziehen
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
@@ -210,7 +210,7 @@ public:
 		return r;
 	}
 
-	// Kreuzprodukt (nur sinnvoll für DIM = 3)
+	// Kreuzprodukt (nur sinnvoll fuer DIM = 3)
 	Vec<T, 3> operator % (const Vec<T, 3>& rhs) const
 	{
 		return Vec<T, 3>(this->y * rhs.z - this->z * rhs.y,

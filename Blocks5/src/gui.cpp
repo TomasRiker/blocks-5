@@ -61,11 +61,11 @@ void GUI::exit()
 {
 	if(!initialized) return;
 
-	// Stammelement (und damit alle Elemente) löschen
+	// Stammelement (und damit alle Elemente) loeschen
 	delete p_root;
 	p_root = 0;
 
-	// Textur löschen
+	// Textur loeschen
 	glDeleteTextures(1, &texID);
 	texID = 0;
 
@@ -236,7 +236,7 @@ void GUI::update()
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
 			{
-				// das Element, das beim Drücken der Taste unter dem Cursor war, informieren
+				// das Element, das beim Druecken der Taste unter dem Cursor war, informieren
 				p_mouseDownElement->onMouseUp(cursorPos - p_mouseDownElement->getAbsPosition(), buttonsReleased);
 			}
 
@@ -253,7 +253,7 @@ void GUI::update()
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
 			{
-				// das Element, das beim Drücken der Taste unter dem Cursor war, informieren
+				// das Element, das beim Druecken der Taste unter dem Cursor war, informieren
 				p_mouseDownElement->onMouseMove(cursorPos - p_mouseDownElement->getAbsPosition(), cursorMovement, buttonsDown);
 			}
 		}
@@ -344,7 +344,7 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 		}
 		else if(y == numTiles.y - 2 && numTiles.y >= 3)
 		{
-			// letztes Füll-Tile auf der y-Achse
+			// letztes Fuell-Tile auf der y-Achse
 			tileSize.y = lastFillTileSize.y;
 		}
 
@@ -367,7 +367,7 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 			}
 			else if(x == numTiles.x - 2 && numTiles.x >= 3)
 			{
-				// letztes Füll-Tile auf der x-Achse
+				// letztes Fuell-Tile auf der x-Achse
 				tileSize.x = lastFillTileSize.x;
 			}
 
@@ -460,7 +460,7 @@ void GUI::setOpacity(double opacity)
 
 	if(opacity == 1.0 && texID)
 	{
-		// Textur löschen
+		// Textur loeschen
 		glDeleteTextures(1, &texID);
 		texID = 0;
 	}

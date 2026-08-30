@@ -128,7 +128,7 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_EnableKeyRepeat(140, 60);
 	SDL_EnableUNICODE(1);
 
-	// alle Tasten als VK einfügen
+	// alle Tasten als VK einfuegen
 	for(int k = 0; k < SDLK_LAST; k++)
 	{
 		VirtualKey vk;
@@ -139,7 +139,7 @@ bool Engine::init(const std::string& windowCaption,
 		virtualKeys.push_back(vk);
 	}
 
-	// alle Joysticks öffnen
+	// alle Joysticks oeffnen
 	int n = SDL_NumJoysticks();
 	int index = 0;
 	for(int j = 0; j < n; j++)
@@ -147,7 +147,7 @@ bool Engine::init(const std::string& windowCaption,
 		SDL_Joystick* p_joystick = SDL_JoystickOpen(j);
 		if(p_joystick)
 		{
-			// alle Tasten als VK einfügen
+			// alle Tasten als VK einfuegen
 			int nk = SDL_JoystickNumButtons(p_joystick);
 			for(int k = 0; k < nk; k++)
 			{
@@ -161,7 +161,7 @@ bool Engine::init(const std::string& windowCaption,
 				virtualKeys.push_back(vk);
 			}
 
-			// alle Achsen als VK einfügen
+			// alle Achsen als VK einfuegen
 			int na = SDL_JoystickNumAxes(p_joystick);
 			for(int a = 0; a < na; a++)
 			{
@@ -184,7 +184,7 @@ bool Engine::init(const std::string& windowCaption,
 				virtualKeys.push_back(vk);
 			}
 
-			// alle Hats mit allen Richtungen als VK einfügen
+			// alle Hats mit allen Richtungen als VK einfuegen
 			int nh = SDL_JoystickNumHats(p_joystick);
 			for(int h = 0; h < nh; ++h)
 			{
@@ -391,8 +391,8 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
-	// Bildpuffer anlegen. Schlägt das fehl, rendert das Spiel wie früher direkt
-	// in den Backbuffer - dann ist nur die Fenstergröße wieder starr.
+	// Bildpuffer anlegen. Schlaegt das fehl, rendert das Spiel wie frueher direkt
+	// in den Backbuffer - dann ist nur die Fenstergroesse wieder starr.
 	GLExtensions::init();
 	useFrameBuffer = createFrameBuffer();
 	if(!useFrameBuffer)
@@ -407,7 +407,7 @@ bool Engine::init(const std::string& windowCaption,
 			  canUseSharpFit() ? ", sharp-fit" : "", canUseCrt() ? ", crt" : "");
 	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
 
-	// Texturen für Crossfading erzeugen
+	// Texturen fuer Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
 	glGenTextures(1, &newImageID);
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
@@ -440,9 +440,9 @@ bool Engine::init(const std::string& windowCaption,
 		return false;
 	}
 
-	// Ton für Videoaufnahmen: OpenAL kann nur Eingangsgeräte aufnehmen, also das
+	// Ton fuer Videoaufnahmen: OpenAL kann nur Eingangsgeraete aufnehmen, also das
 	// Mikrofon. Aufgenommen werden soll aber das, was das Spiel ausgibt - das macht
-	// AudioCapture über den Loopback-Modus von WASAPI.
+	// AudioCapture ueber den Loopback-Modus von WASAPI.
 	p_audioCapture = new AudioCapture;
 	if(p_audioCapture->open(48000))
 	{
@@ -571,12 +571,12 @@ void Engine::exit()
 	delete p_audioCapture;
 	p_audioCapture = 0;
 
-	// Crossfade und Texturen löschen
+	// Crossfade und Texturen loeschen
 	crossfade(0, 0.0);
 	glDeleteTextures(1, &oldImageID);
 	glDeleteTextures(1, &newImageID);
 
-	// Joysticks schließen
+	// Joysticks schliessen
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
 		it != joysticks.end();
 		++it)
@@ -592,7 +592,7 @@ void Engine::exit()
 	SDL_FreeCursor(p_cursor);
 	SDL_Quit();
 
-	// Aktionen löschen
+	// Aktionen loeschen
 	for(size_t i = 0; i < actionsVector.size(); i++) delete actionsVector[i];
 	actionsVector.clear();
 	actions.clear();
@@ -737,7 +737,7 @@ void Engine::mainLoopIteration()
 							GameState* p_gs = this->getGameState();
 							if(p_gs) p_gs->onAppLoseFocus();
 
-							// Videoaufnahme stoppen, falls gerade eine läuft
+							// Videoaufnahme stoppen, falls gerade eine laeuft
 							if(p_videoRecorder)
 							{
 								delete p_videoRecorder;
@@ -766,7 +766,7 @@ void Engine::mainLoopIteration()
 				}
 #endif
 				// Alt+Return schaltet Vollbild um und wird verschluckt, damit
-				// das Spiel darin kein gewöhnliches Return sieht. (Im Browser
+				// das Spiel darin kein gewoehnliches Return sieht. (Im Browser
 				// hat das schon der DOM-Handler erledigt - der Tastendruck
 				// kommt trotzdem hier an, und genau deshalb muss er hier weg.)
 				if(event.key.keysym.sym == SDLK_RETURN &&
@@ -881,7 +881,7 @@ void Engine::mainLoopIteration()
 			}
 #endif
 
-			// Tastatur- und Mausdaten zurücksetzen
+			// Tastatur- und Mausdaten zuruecksetzen
 			for(int i = 0; i < NUM_KEY_SLOTS; i++)
 			{
 #ifdef RECORD
@@ -897,7 +897,7 @@ void Engine::mainLoopIteration()
 				while(!keyEventQueue.empty()) keyEventQueue.pop();
 			}
 
-			// Aktionsdaten zurücksetzen
+			// Aktionsdaten zuruecksetzen
 			for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 				it != actions.end();
 				++it)
@@ -968,8 +968,8 @@ void Engine::mainLoopIteration()
 					BEGIN_PROFILE(videoCapture)
 #endif
 
-					// Bild holen. Immer 640x480 aus dem Bildpuffer, unabhängig von der
-					// Fenstergröße - der Videoencoder ist einmal darauf eingerichtet.
+					// Bild holen. Immer 640x480 aus dem Bildpuffer, unabhaengig von der
+					// Fenstergroesse - der Videoencoder ist einmal darauf eingerichtet.
 					glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
 
@@ -1003,7 +1003,7 @@ void Engine::mainLoopIteration()
 			drawOverlays();
 
 			// Noch vor dem Anzeigen, damit der Screenshot das saubere 640x480-Bild
-			// festhält und nicht die skalierte Fassung samt schwarzer Balken.
+			// festhaelt und nicht die skalierte Fassung samt schwarzer Balken.
 			if(doScreenshot)
 			{
 				doScreenshot = false;
@@ -1199,7 +1199,7 @@ void Engine::updateSounds()
 		}
 	}
 
-	// gestoppte Sounds löschen
+	// gestoppte Sounds loeschen
 	for(std::list<StreamedSound*>::const_iterator i = toBeDeleted.begin(); i != toBeDeleted.end(); ++i) (*i)->release();
 
 	if(volumeChanged) volumeChanged = false;
@@ -1207,7 +1207,7 @@ void Engine::updateSounds()
 
 std::string Engine::getBestOpenALDevice()
 {
-	// Standardgerät nehmen
+	// Standardgeraet nehmen
 	const char* p_device = alcGetString(0, ALC_DEFAULT_DEVICE_SPECIFIER);
 	if(!p_device) return "[NONE]";
 	else return p_device;
@@ -1422,19 +1422,19 @@ bool Engine::createFrameBuffer()
 							  GL_TEXTURE_2D, frameTextureID, 0);
 
 	// Der Sternenwischer (cf_star.cpp) und die Lichtmaske in level.cpp brauchen
-	// einen Stencil-Puffer. Ein reiner Farbpuffer wäre also zu wenig.
+	// einen Stencil-Puffer. Ein reiner Farbpuffer waere also zu wenig.
 	glExtGenRenderbuffers(1, &frameDepthStencilID);
 	glExtBindRenderbuffer(GL_RENDERBUFFER_EXT, frameDepthStencilID);
 #ifdef __EMSCRIPTEN__
 	// WebGL 1 kennt genau ein kombiniertes Format und einen kombinierten
-	// Anhängepunkt dafür.
+	// Anhaengepunkt dafuer.
 	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH_STENCIL_EXT,
 							 frameTextureSize.x, frameTextureSize.y);
 	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_STENCIL_ATTACHMENT_EXT,
 								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
 #else
-	// EXT_packed_depth_stencil kennt keinen kombinierten Anhängepunkt: derselbe
-	// Renderbuffer wird an beide gehängt, so schreibt es die Spezifikation vor.
+	// EXT_packed_depth_stencil kennt keinen kombinierten Anhaengepunkt: derselbe
+	// Renderbuffer wird an beide gehaengt, so schreibt es die Spezifikation vor.
 	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH24_STENCIL8_EXT,
 							 frameTextureSize.x, frameTextureSize.y);
 	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
@@ -1994,17 +1994,17 @@ Vec2d Engine::warpToOutput(const Vec2d& s) const
 
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 {
-	// Größtmögliches 4:3-Rechteck im Fenster, mittig. Was übrig bleibt, wird
+	// Groesstmoegliches 4:3-Rechteck im Fenster, mittig. Was uebrig bleibt, wird
 	// schwarz - lieber Balken als ein verzerrtes Bild.
 	double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
 					   static_cast<double>(displaySize.y) / screenSize.y);
 
 	// "Scharf" braucht eine ganzzahlige Stufe. Bei einem krummen Faktor
 	// verdoppelt Nearest manche Quellpixel und andere nicht - die Sprites
-	// bekommen ungleiche Strichstärken und die Schrift wird fransig, genau der
+	// bekommen ungleiche Strichstaerken und die Schrift wird fransig, genau der
 	// Fehler, den dieser Filter vermeiden soll. Lieber breitere Balken.
 	// Unterhalb von 1:1 gibt es keine Stufe mehr, dann eben doch krumm: ein
-	// abgeschnittenes Bild wäre schlimmer.
+	// abgeschnittenes Bild waere schlimmer.
 	if(getEffectiveUpscaleFilter() == UF_NEAREST && scale >= 1.0) scale = floor(scale);
 
 	w = static_cast<int>(screenSize.x * scale);
@@ -2189,8 +2189,8 @@ void Engine::screenshot()
 	printfLog("Screenshots are not supported in the web build.\n");
 	return;
 #endif
-	// Immer das interne 640x480-Bild, nie die skalierte Fassung: der gewählte
-	// Filter ist eine Anzeigeeinstellung und gehört nicht in die Datei, und
+	// Immer das interne 640x480-Bild, nie die skalierte Fassung: der gewaehlte
+	// Filter ist eine Anzeigeeinstellung und gehoert nicht in die Datei, und
 	// schwarze Balken erst recht nicht.
 	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
 
@@ -2294,10 +2294,10 @@ SoundInstance* Engine::playSound(const std::string& filename,
 
 		if(p_inst)
 		{
-			// Höhe setzen
+			// Hoehe setzen
 			if(pitchSpectrum != 0.0) p_inst->setPitch(1.0 + random(-pitchSpectrum, pitchSpectrum));
 
-			// Priorität setzen
+			// Prioritaet setzen
 			p_inst->setPriority(priority);
 
 			// abspielen
@@ -2340,7 +2340,7 @@ void Engine::setGameState(const std::string& gs,
 	// aktueller Zustand verliert den Fokus
 	p_stateToLoseFocus = getGameState();
 
-	// alle Zustände verlassen
+	// alle Zustaende verlassen
 	while(!currentGameStates.empty())
 	{
 		GameState* p_gs = currentGameStates.top();
@@ -2384,7 +2384,7 @@ GameState* Engine::popGameState(const ParameterBlock& context)
 		p_stateToLoseFocus = p_currentGS;
 		statesToBeLeft.push_back(p_currentGS);
 
-		// neuer Zustand erhält den Fokus
+		// neuer Zustand erhaelt den Fokus
 		if(p_newGS) p_stateToGetFocus = p_newGS;
 	}
 
@@ -2698,13 +2698,13 @@ void Engine::updateActions()
 
 		if(down && !oldDown)
 		{
-			// gedrückt
+			// gedrueckt
 			if(!a.countDown)
 			{
 				a.data |= 2;
 				a.countDown = a.delay;
 
-				// entgegengesetzte Aktionen zurücksetzen
+				// entgegengesetzte Aktionen zuruecksetzen
 				for(std::vector<std::string>::const_iterator jt = a.resetsActions.begin();
 					jt != a.resetsActions.end();
 					++jt)
@@ -2737,7 +2737,7 @@ void Engine::updateActions()
 		}
 		else if(down && oldDown)
 		{
-			// gedrückt und vorher auch gedrückt
+			// gedrueckt und vorher auch gedrueckt
 			if(!a.countDown)
 			{
 				a.data |= 2;
@@ -2760,7 +2760,7 @@ void Engine::updateActions()
 					a.data = 1 | 2 | 4;
 					a.countDown = a.interval;
 
-					// entgegengesetzte Aktionen zurücksetzen
+					// entgegengesetzte Aktionen zuruecksetzen
 					for(std::vector<std::string>::const_iterator jt = a.resetsActions.begin();
 						jt != a.resetsActions.end();
 						++jt)
@@ -3022,7 +3022,7 @@ void Engine::loadConfig()
 		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
 		// Skalierungsfilter lesen. Steht nichts da, bleibt die Voreinstellung.
-		// Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter() später -
+		// Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter() spaeter -
 		// hier gibt es noch keinen GL-Kontext.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
@@ -3045,7 +3045,7 @@ void Engine::loadConfig()
 				setCrtScanFlicker(value);
 		}
 
-		// Vollbild und Fenstergröße lesen. Beide gelten erst beim nächsten
+		// Vollbild und Fenstergroesse lesen. Beide gelten erst beim naechsten
 		// Start; mitten im Betrieb schaltet der Spieler mit Alt+Return und dem
 		// Fensterrahmen selbst.
 #ifndef __EMSCRIPTEN__
@@ -3084,12 +3084,12 @@ void Engine::loadConfig()
 			p_windowSize->QueryIntAttribute("w", &w);
 			p_windowSize->QueryIntAttribute("h", &h);
 			// Kleiner als das interne Bild ergibt keinen Sinn, und eine
-			// unsinnig große Zahl aus einer verbogenen Datei auch nicht.
+			// unsinnig grosse Zahl aus einer verbogenen Datei auch nicht.
 			if(w >= screenSize.x && h >= screenSize.y && w <= 16384 && h <= 16384)
 				windowedSize = Vec2i(w, h);
 		}
 
-		// Sound-Lautstärke lesen
+		// Sound-Lautstaerke lesen
 		TiXmlElement* p_soundVolume = p_config->FirstChildElement("SoundVolume");
 		if(p_soundVolume)
 		{
@@ -3097,7 +3097,7 @@ void Engine::loadConfig()
 			if(p_text) setSoundVolume(atof(p_text));
 		}
 
-		// Musik-Lautstärke lesen
+		// Musik-Lautstaerke lesen
 		TiXmlElement* p_musicVolume = p_config->FirstChildElement("MusicVolume");
 		if(p_musicVolume)
 		{
@@ -3163,7 +3163,7 @@ void Engine::saveConfig()
 	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
 	p_config->LinkEndChild(p_upscaler);
 
-	// Vollbild und Fenstergröße schreiben, damit das Spiel so wiederkommt,
+	// Vollbild und Fenstergroesse schreiben, damit das Spiel so wiederkommt,
 	// wie es verlassen wurde.
 	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");
 	p_fullScreen->LinkEndChild(new TiXmlText(fullScreen ? "1" : "0"));
@@ -3191,14 +3191,14 @@ void Engine::saveConfig()
 		p_config->LinkEndChild(p_windowPosition);
 	}
 
-	// Sound-Lautstärke schreiben
+	// Sound-Lautstaerke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");
 	char temp[256] = "";
 	sprintf(temp, "%f", getSoundVolume());
 	p_soundVolume->LinkEndChild(new TiXmlText(temp));
 	p_config->LinkEndChild(p_soundVolume);
 
-	// Musik-Lautstärke schreiben
+	// Musik-Lautstaerke schreiben
 	TiXmlElement* p_musicVolume = new TiXmlElement("MusicVolume");
 	sprintf(temp, "%f", getMusicVolume());
 	p_musicVolume->LinkEndChild(new TiXmlText(temp));
@@ -3367,7 +3367,7 @@ void Engine::loadStringDB(const std::string& filename)
 					if(texts.empty()) texts = line;
 					else
 					{
-						if(line[0] == '§')
+						if(line[0] == '\xA7')
 						{
 							texts += std::string(dontCollapse ? "\n" : "") + line;
 							numEmptyLines = 0;
@@ -3388,7 +3388,7 @@ void Engine::loadStringDB(const std::string& filename)
 
 			line = "";
 
-			// \n nach \r überspringen
+			// \n nach \r ueberspringen
 			if(c == '\r') i++;
 		}
 		else
@@ -3415,15 +3415,15 @@ std::string Engine::localizeString(const std::string& text)
 	}
 
 	// Suchmuster generieren
-	const std::string patternStart = std::string("§") + language + std::string(":");
+	const std::string patternStart = std::string("\xA7") + language + std::string(":");
 
 	std::string::size_type indexStart = text.find(patternStart);
 	if(std::string::npos == indexStart)
 	{
-		// Keine Lokalisierung für diese Sprache!
+		// Keine Lokalisierung fuer diese Sprache!
 		if(language == "en")
 		{
-			// String unverändert liefern
+			// String unveraendert liefern
 			return text;
 		}
 		else
@@ -3439,7 +3439,7 @@ std::string Engine::localizeString(const std::string& text)
 
 	std::string::size_type textStart = indexStart + language.length() + 2;
 
-	std::string::size_type textEnd = text.find("§", textStart);
+	std::string::size_type textEnd = text.find("\xA7", textStart);
 	if(std::string::npos == textEnd)
 	{
 		// Dies war die letzte Lokalisierung.

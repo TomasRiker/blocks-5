@@ -1,7 +1,7 @@
 #ifndef _GUI_RADIOBUTTON_H
 #define _GUI_RADIOBUTTON_H
 
-/*** Klasse für einen Radio-Button ***/
+/*** Klasse fuer einen Radio-Button ***/
 
 #include "gui_element.h"
 

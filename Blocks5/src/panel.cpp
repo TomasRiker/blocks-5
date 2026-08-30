@@ -25,7 +25,7 @@ void Panel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel auslösen
+				// Panel ausloesen
 				onTriggered(p_obj);
 				break;
 			}

@@ -17,7 +17,7 @@ SDL_Cursor* SDL_GetCursor(void)         { return NULL; }
 void        SDL_FreeCursor(SDL_Cursor*) {}
 
 // --- SDL surface locking -----------------------------------------------------
-// Emscripten implements SDL_UnlockSurface as `assert(!SDL.GL)` — it refuses to
+// Emscripten implements SDL_UnlockSurface as `assert(!SDL.GL)` - it refuses to
 // run at all in GL mode, which is the only mode this game uses. Every locked
 // surface here is an offscreen SDL_SWSURFACE the game allocated itself
 // (Texture::p_rgba and the window-icon surface), whose `pixels` pointer is

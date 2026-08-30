@@ -64,7 +64,7 @@ void GUI_ListBox::onRender()
 	glPushMatrix();
 	glTranslated(0.0, -scroll, 0.0);
 
-	// Listeneinträge rendern
+	// Listeneintraege rendern
 	int y = 2;
 	h = p_font->getLineHeight();
 	for(std::vector<ListItem>::const_iterator i = items.begin(); i != items.end(); ++i)
@@ -140,10 +140,10 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	if(!active) return;
 
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrückt?
+	// Shift gedrueckt?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
 	switch(event.keysym.sym)
@@ -265,7 +265,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	if(selection != -1)
 	{
-		// dafür sorgen, dass die Auswahl sichtbar ist
+		// dafuer sorgen, dass die Auswahl sichtbar ist
 		int h = p_font->getLineHeight();
 		int sy = 2 + selection * h;
 		int vsy = sy - scroll;
@@ -276,7 +276,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	updateScrollBar();
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 

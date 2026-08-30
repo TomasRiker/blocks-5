@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für den Empfänger einer Lichtschranke ***/
+/*** Klasse fuer den Empfaenger einer Lichtschranke ***/
 
 class E_LightBarrierReceiver : public Electronics
 {

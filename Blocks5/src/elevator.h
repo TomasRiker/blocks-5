@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Aufzug ***/
+/*** Klasse fuer einen Aufzug ***/
 
 class SoundInstance;
 

@@ -1,7 +1,7 @@
 #ifndef _GUI_CHECKBOX_H
 #define _GUI_CHECKBOX_H
 
-/*** Klasse für eine Check-Box ***/
+/*** Klasse fuer eine Check-Box ***/
 
 #include "gui_element.h"
 

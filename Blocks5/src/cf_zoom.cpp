@@ -86,7 +86,7 @@ void CF_Zoom::render(double t,
 
 	glDisable(GL_TEXTURE_2D);
 
-	// Farbfläche zeichnen
+	// Farbflaeche zeichnen
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, t * t);
 	glVertex2i(0, 0);

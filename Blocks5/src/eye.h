@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Augen (in Wänden), die sich in Gegner verwandeln ***/
+/*** Klasse fuer Augen (in Waenden), die sich in Gegner verwandeln ***/
 
 class Eye : public Object
 {

@@ -190,10 +190,10 @@ void GUI_Element::onKeyEvent(const SDL_KeyboardEvent& event)
 		return;
 	}
 
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrückt?
+	// Shift gedrueckt?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
 	switch(event.keysym.sym)
@@ -243,7 +243,7 @@ GUI_Element* GUI_Element::getElementAt(const Vec2i& position)
 {
 	if(!visible) return 0;
 
-	// Ist die Position außerhalb der eigenen Grenzen?
+	// Ist die Position ausserhalb der eigenen Grenzen?
 	if(!containsPoint(position)) return 0;
 
 	for(std::list<GUI_Element*>::reverse_iterator i = children.rbegin(); i != children.rend(); ++i)
@@ -371,7 +371,7 @@ bool GUI_Element::load(TiXmlElement* p_element)
 		}
 		else
 		{
-			// Name, Position und Größe lesen
+			// Name, Position und Groesse lesen
 			if(p_element->Attribute("name"))
 			{
 				std::string name = p_element->Attribute("name");
@@ -448,7 +448,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der nächst höheren Tabstop-ID suchen
+	// Geschwisterelement mit der naechst hoeheren Tabstop-ID suchen
 	int minID = 0x7FFFFFFF;
 	GUI_Element* p_minElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -469,7 +469,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 
 	if(p_minElement) return p_minElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der niedrigsten Tabstop-ID überhaupt suchen.
+	// Es gibt nichts passendes. Das Geschwisterelement mit der niedrigsten Tabstop-ID ueberhaupt suchen.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;
@@ -492,7 +492,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der nächst niedrigeren Tabstop-ID suchen
+	// Geschwisterelement mit der naechst niedrigeren Tabstop-ID suchen
 	int maxID = -1;
 	GUI_Element* p_maxElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -513,7 +513,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 
 	if(p_maxElement) return p_maxElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der höchsten Tabstop-ID überhaupt suchen.
+	// Es gibt nichts passendes. Das Geschwisterelement mit der hoechsten Tabstop-ID ueberhaupt suchen.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;

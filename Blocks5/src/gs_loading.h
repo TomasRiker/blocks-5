@@ -1,7 +1,7 @@
 #ifndef _GS_LOADING_H
 #define _GS_LOADING_H
 
-/*** Klasse für den Ladebildschirm ***/
+/*** Klasse fuer den Ladebildschirm ***/
 
 #include "gamestate.h"
 #include "engine.h"

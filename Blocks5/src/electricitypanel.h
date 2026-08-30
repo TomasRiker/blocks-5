@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse für eine Stromschalterbodenplatte ***/
+/*** Klasse fuer eine Stromschalterbodenplatte ***/
 
 class ElectricityPanel : public Panel
 {

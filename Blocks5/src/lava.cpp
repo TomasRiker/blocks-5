@@ -146,7 +146,7 @@ void Lava::onRender(int layer,
 
 	if(layer == 255)
 	{
-		// Fließrichtung anzeigen
+		// Fliessrichtung anzeigen
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_TEXTURE_2D);
 		glPushMatrix();
@@ -251,7 +251,7 @@ void Lava::onUpdate()
 		p_particleSystem->addParticle(p);
 	}
 
-	// Aufzüge schützen die Objekte vor der Lava.
+	// Aufzuege schuetzen die Objekte vor der Lava.
 	bool elevatorFound = false;
 	const std::vector<Object*> objectsOnMe = level.getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
@@ -283,7 +283,7 @@ void Lava::onUpdate()
 
 					Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-					// Trümmer
+					// Truemmer
 					int n = random(50, 80);
 					for(int i = 0; i < n; i++)
 					{

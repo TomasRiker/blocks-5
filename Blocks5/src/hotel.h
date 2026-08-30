@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für ein Hotel zum Zwischenspeichern ***/
+/*** Klasse fuer ein Hotel zum Zwischenspeichern ***/
 
 class Font;
 

@@ -1,7 +1,7 @@
 #ifndef _PARAMETERBLOCK_H
 #define _PARAMETERBLOCK_H
 
-/*** Klasse für eine Parameter-Sammlung ***/
+/*** Klasse fuer eine Parameter-Sammlung ***/
 
 class ParameterBlock
 {
@@ -48,7 +48,7 @@ public:
 		}
 		else
 		{
-			// alten Eintrag löschen, dann überschreiben
+			// alten Eintrag loeschen, dann ueberschreiben
 			delete i->second;
 			i->second = new ParameterContainer<T>(value);
 		}
@@ -87,7 +87,7 @@ public:
 
 	void clear()
 	{
-		// alle Parameter löschen
+		// alle Parameter loeschen
 		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.begin(); i != values.end(); ++i)
 		{
 			delete i->second;

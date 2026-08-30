@@ -54,7 +54,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 		return;
 	}
 
-	// Buffer mit Daten füllen
+	// Buffer mit Daten fuellen
 	alGetError();
 	alBufferData(bufferID, format, p_data, size, p_stream->getSampleRate());
 	err = alGetError();
@@ -75,7 +75,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 
 Sound::~Sound()
 {
-	// alle Instanzen löschen
+	// alle Instanzen loeschen
 	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i) delete *i;
 
 	// Sound freigeben
@@ -103,7 +103,7 @@ void Sound::update()
 {
 	std::set<SoundInstance*> garbage;
 
-	// alle Instanzen durchgehen, aktualisieren und bei Bedarf löschen
+	// alle Instanzen durchgehen, aktualisieren und bei Bedarf loeschen
 	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i)
 	{
 		SoundInstance* p_inst = *i;
@@ -111,7 +111,7 @@ void Sound::update()
 		if(p_inst->toBeRemoved()) garbage.insert(p_inst);
 	}
 
-	// Müll löschen
+	// Muell loeschen
 	for(std::set<SoundInstance*>::const_iterator i = garbage.begin(); i != garbage.end(); ++i)
 	{
 		SoundInstance* p_inst = *i;
@@ -136,7 +136,7 @@ uint Sound::getFreeSource()
 	{
 		alGetError();
 
-		// die Instanz mit der niedrigsten Priorität, die schon am längsten spielt, suchen
+		// die Instanz mit der niedrigsten Prioritaet, die schon am laengsten spielt, suchen
 		int lowestPriority = 0x7FFFFFFF;
 		uint oldestTimestamp = ~0;
 		SoundInstance* p_oldestInstance = 0;

@@ -8,7 +8,7 @@ E_HexDigit::E_HexDigit(Level& level,
 {
 	value = -1;
 
-	// Eingänge erzeugen
+	// Eingaenge erzeugen
 	createPin(0, Vec2i(0, 13), PT_INPUT);
 	createPin(1, Vec2i(0, 9), PT_INPUT);
 	createPin(2, Vec2i(0, 6), PT_INPUT);

@@ -26,7 +26,7 @@ StreamedSound::StreamedSound(const std::string& filename) : Resource(filename)
 		return;
 	}
 
-	// Puffergröße in Bytes berechnen (1/4 Sekunde)
+	// Puffergroesse in Bytes berechnen (1/4 Sekunde)
 	bufferSize = p_stream->getSampleRate() / 4 * p_stream->getSliceSize();
 
 	if(!p_stream->getOpenALBufferFormat())
@@ -61,7 +61,7 @@ void StreamedSound::play(bool loop)
 	setVolume(getVolume());
 	setPitch(getPitch());
 
-	// einen Puffer dekodieren und anhängen
+	// einen Puffer dekodieren und anhaengen
 	stream(buffers[0]);
 
 	// abspielen
@@ -92,10 +92,10 @@ void StreamedSound::stop()
 #endif
 	p_thread = 0;
 
-	// Soundquelle löschen
+	// Soundquelle loeschen
 	alDeleteSources(1, &sourceID);
 
-	// alle Puffer löschen
+	// alle Puffer loeschen
 	alDeleteBuffers(4, buffers);
 }
 
@@ -215,7 +215,7 @@ bool StreamedSound::update()
 
 int StreamedSound::threadProc()
 {
-	// die übrigen Puffer füllen
+	// die uebrigen Puffer fuellen
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 
 	while(!finish)
@@ -241,7 +241,7 @@ void StreamedSound::pumpBuffers()
 		uint* p_buffers = new uint[n];
 		alSourceUnqueueBuffers(sourceID, n, p_buffers);
 
-		// diese Puffer wieder auffüllen
+		// diese Puffer wieder auffuellen
 		for(int i = 0; i < n; i++) stream(p_buffers[i]);
 
 		delete[] p_buffers;
@@ -287,10 +287,10 @@ void StreamedSound::stream(uint bufferID)
 		else finish = true;
 	}
 
-	// mit Daten füllen
+	// mit Daten fuellen
 	alBufferData(bufferID, p_stream->getOpenALBufferFormat(), p_buffer, numSlicesRead * p_stream->getSliceSize(), p_stream->getSampleRate());
 
-	// anhängen
+	// anhaengen
 	alSourceQueueBuffers(sourceID, 1, &bufferID);
 }
 

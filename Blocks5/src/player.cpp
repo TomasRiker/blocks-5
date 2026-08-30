@@ -168,7 +168,7 @@ void Player::onUpdate()
 	if(walk) walk--;
 	if(plantBomb) plantBomb--;
 
-	// Spur für die Gegner legen
+	// Spur fuer die Gegner legen
 	level.setAITrace(position, 1000);
 
 	if(!inventory[2])
@@ -256,7 +256,7 @@ void Player::onUpdate()
 			{
 				if(inventory[0] && !plantBomb && (dir.x || dir.y))
 				{
-					// Bombe unangezündet legen
+					// Bombe unangezuendet legen
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
@@ -368,7 +368,7 @@ bool Player::move(const Vec2i& dir,
 			if(!push && !(p_obj->getFlags() & OF_FIXED) && !p_obj->isPushedWithDeadlyWeight())
 			{
 				// Objekte, die von der Gravitation oder von anderen Objekten von oben beeinflusst werden,
-				// können nur nach links und rechts geschoben werden.
+				// koennen nur nach links und rechts geschoben werden.
 				bool pushed = p_obj->isPushedFromAbove();
 				if((pushed && !dir.y) || !pushed)
 				{

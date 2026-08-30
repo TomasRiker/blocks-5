@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Aktivator-Block ***/
+/*** Klasse fuer einen Aktivator-Block ***/
 
 class ActivatorBlock : public Object
 {

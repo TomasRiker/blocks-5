@@ -1,7 +1,7 @@
 #ifndef _GS_MENU_H
 #define _GS_MENU_H
 
-/*** Klasse für das Menü ***/
+/*** Klasse fuer das Menue ***/
 
 #include "gamestate.h"
 #include "engine.h"

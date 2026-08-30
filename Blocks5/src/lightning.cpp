@@ -17,7 +17,7 @@ Lightning::Lightning()
 
 Lightning::~Lightning()
 {
-	// Display-Listen löschen
+	// Display-Listen loeschen
 	glDeleteLists(listBase, 2);
 
 	p_lineTexture->release();
@@ -44,7 +44,7 @@ void Lightning::generate()
 
 	branches.push_back(mb);
 
-	// weitere Äste generieren
+	// weitere Aeste generieren
 	int details = Engine::inst().getDetails();
 	int n = random(4, 10 + details);
 	for(int i = 0; i < n; i++)
@@ -124,7 +124,7 @@ void Lightning::renderPass(int pass)
 	glEnd();
 	p_lineTexture->bind();
 
-	// alle übrigen Äste in einem einzigen Block
+	// alle uebrigen Aeste in einem einzigen Block
 	glBegin(GL_QUADS);
 	for(uint i = 1; i < branches.size(); i++)
 	{
@@ -141,7 +141,7 @@ double Lightning::branchWidth(const Branch& branch,
 	double width;
 	if(pass == 0) width = branch.thickness * 7.5;
 	else width = branch.thickness * 1.5;
-	// Die Textur hat nur Streifen für die Breiten 1 bis 19.
+	// Die Textur hat nur Streifen fuer die Breiten 1 bis 19.
 	return clamp(width, 1.0, 19.0);
 }
 
@@ -183,9 +183,9 @@ void Lightning::drawLine(Vec2d p1,
 						 double width,
 						 LineJoint& joint)
 {
-	// tbl hat 19 Einträge (Breiten 1 bis 19). Die Textur ist 256 Pixel breit
-	// und hat für eine Breite von 20 keinen Platz mehr - vorher wurde hier auf
-	// 20 begrenzt und damit tbl[19] gelesen, also einer über das Ende hinaus.
+	// tbl hat 19 Eintraege (Breiten 1 bis 19). Die Textur ist 256 Pixel breit
+	// und hat fuer eine Breite von 20 keinen Platz mehr - vorher wurde hier auf
+	// 20 begrenzt und damit tbl[19] gelesen, also einer ueber das Ende hinaus.
 	width = clamp(width + 0.5, 1.0, 19.0);
 	int w = static_cast<int>(width);
 

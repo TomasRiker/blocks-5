@@ -40,7 +40,7 @@ void TileSet::reload()
 	TiXmlHandle tileSetHandle = docHandle.FirstChildElement("TileSet");
 	TiXmlElement* p_tileSetElement = tileSetHandle.Element();
 
-	// Dateiname des Bilds und Größe der Tiles lesen
+	// Dateiname des Bilds und Groesse der Tiles lesen
 	const char* p_imageFilename = p_tileSetElement->Attribute("image");
 	p_tileSetElement->Attribute("tileWidth", &tileSize.x);
 	p_tileSetElement->Attribute("tileHeight", &tileSize.y);
@@ -81,10 +81,10 @@ void TileSet::reload()
 
 		if(info.type == 2)
 		{
-			// Zerstörzeit lesen
+			// Zerstoerzeit lesen
 			p_tileElement->Attribute("destroyTime", &info.destroyTime);
 
-			// Trümmerfarbe berechnen
+			// Truemmerfarbe berechnen
 			info.debrisColor = DebrisColorDB::inst().getDebrisColor(p_texture, info.position);
 		}
 
@@ -99,12 +99,12 @@ void TileSet::cleanUp()
 {
 	if(p_texture)
 	{
-		// Textur löschen
+		// Textur loeschen
 		p_texture->release();
 		p_texture = 0;
 	}
 
-	// alle Tiles zurücksetzen
+	// alle Tiles zuruecksetzen
 	for(int i = 0; i < 256; i++) tiles[i] = badTile;
 }
 

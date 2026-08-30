@@ -95,7 +95,7 @@ void Bomb::onUpdate()
 						const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 						if(tileInfo.type == 2)
 						{
-							// Tile zerstören
+							// Tile zerstoeren
 							level.setTileAt(1, pos, 0);
 							destroyed = true;
 							debrisColor = tileInfo.debrisColor;
@@ -114,7 +114,7 @@ void Bomb::onUpdate()
 
 						if(destroyed)
 						{
-							// Trümmer
+							// Truemmer
 							int n = random(30, 40);
 							for(int i = 0; i < n; i++)
 							{

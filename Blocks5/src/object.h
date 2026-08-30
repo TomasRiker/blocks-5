@@ -3,7 +3,7 @@
 
 #include "level.h"
 
-/*** Klasse für ein Spielobjekt ***/
+/*** Klasse fuer ein Spielobjekt ***/
 
 class Player;
 

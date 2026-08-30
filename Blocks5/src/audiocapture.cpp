@@ -20,20 +20,20 @@ namespace
 	// PKEY_Device_FriendlyName, sonst aus <functiondiscoverykeys_devpkey.h>
 	const PROPERTYKEY k_deviceFriendlyName = { { 0xa45c254e, 0xdf1c, 0x4efd, { 0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0 } }, 14 };
 
-	// Größe des eigenen Ringpuffers in Sekunden. Der Rekorder holt die Samples nur
+	// Groesse des eigenen Ringpuffers in Sekunden. Der Rekorder holt die Samples nur
 	// dann ab, wenn ein Videoframe fertig ist, also alle ~33 ms; ein paar Sekunden
-	// Reserve überbrücken auch längere Hänger (Levelwechsel).
+	// Reserve ueberbruecken auch laengere Haenger (Levelwechsel).
 	const int k_ringBufferSeconds = 4;
 
-	// gewünschte Länge des WASAPI-Puffers in 100-ns-Einheiten (2 Sekunden)
+	// gewuenschte Laenge des WASAPI-Puffers in 100-ns-Einheiten (2 Sekunden)
 	const REFERENCE_TIME k_wasapiBufferDuration = 20000000;
 
-	// So weit darf der Ringpuffer hinter der Echtzeit zurückfallen, bevor mit Stille
-	// aufgefüllt wird. Muss deutlich größer sein als die Paketrate von WASAPI (~10 ms),
+	// So weit darf der Ringpuffer hinter der Echtzeit zurueckfallen, bevor mit Stille
+	// aufgefuellt wird. Muss deutlich groesser sein als die Paketrate von WASAPI (~10 ms),
 	// sonst wird gepolstert, obwohl gleich noch echte Daten kommen.
 	const int k_silenceSlackMS = 60;
 
-	// Höchstens so viel Stille am Stück einfügen (in Sekunden)
+	// Hoechstens so viel Stille am Stueck einfuegen (in Sekunden)
 	const int k_maxSilenceBurstSeconds = 1;
 
 	// Pause zwischen zwei Abholrunden
@@ -55,19 +55,19 @@ struct AudioCaptureImpl
 
 	int threadProc();
 
-	// Format des Geräts auswerten; false, wenn wir damit nichts anfangen können
+	// Format des Geraets auswerten; false, wenn wir damit nichts anfangen koennen
 	bool setupSourceFormat(const WAVEFORMATEX* p_format);
 
-	// liest ein Frame des Geräts und macht daraus ein Stereo-Paar
+	// liest ein Frame des Geraets und macht daraus ein Stereo-Paar
 	void readSourceFrame(const BYTE* p_frame, float& left, float& right) const;
 
-	// rechnet numFrames Gerätesamples um und schiebt sie in den Ringpuffer
+	// rechnet numFrames Geraetesamples um und schiebt sie in den Ringpuffer
 	void convertAndPush(const BYTE* p_data, int numFrames, bool silent);
 
-	// hängt numSamples Stille an
+	// haengt numSamples Stille an
 	void pushSilence(int numSamples);
 
-	// hängt fertige Stereo-Samples an (verdrängt notfalls die ältesten)
+	// haengt fertige Stereo-Samples an (verdraengt notfalls die aeltesten)
 	void push(const short* p_samples, int numSamples);
 
 	void clearRing();
@@ -92,7 +92,7 @@ struct AudioCaptureImpl
 	int ringRead;   // in Samples
 	int ringFill;   // in Samples
 
-	// Format des Geräts
+	// Format des Geraets
 	int srcChannels;
 	int srcRate;
 	int srcBits;
@@ -158,7 +158,7 @@ bool AudioCaptureImpl::setupSourceFormat(const WAVEFORMATEX* p_format)
 	else if(p_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE && p_format->cbSize >= 22)
 	{
 		// Der Mischer meldet fast immer WAVE_FORMAT_EXTENSIBLE; erst die SubFormat-GUID
-		// sagt, ob Fließkomma oder Ganzzahl im Puffer steht.
+		// sagt, ob Fliesskomma oder Ganzzahl im Puffer steht.
 		const WAVEFORMATEXTENSIBLE* p_extensible = (const WAVEFORMATEXTENSIBLE*)p_format;
 		if(IsEqualGUID(p_extensible->SubFormat, k_subformatIEEEFloat)) srcFloat = true;
 		else if(IsEqualGUID(p_extensible->SubFormat, k_subformatPCM)) srcFloat = false;
@@ -181,8 +181,8 @@ void AudioCaptureImpl::readSourceFrame(const BYTE* p_frame, float& left, float& 
 	const int numChannels = srcChannels < 2 ? 1 : 2;
 	const int bytesPerChannel = srcBits / 8;
 
-	// Bei mehr als zwei Kanälen (5.1, 7.1) sind die ersten beiden vorne links und
-	// rechts; die reichen für den Mitschnitt.
+	// Bei mehr als zwei Kanaelen (5.1, 7.1) sind die ersten beiden vorne links und
+	// rechts; die reichen fuer den Mitschnitt.
 	for(int c = 0; c < numChannels; c++)
 	{
 		const BYTE* p_sample = p_frame + c * bytesPerChannel;
@@ -219,9 +219,9 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 			havePrev = true;
 		}
 
-		// linear zwischen dem vorigen und dem aktuellen Gerätesample interpolieren.
+		// linear zwischen dem vorigen und dem aktuellen Geraetesample interpolieren.
 		// Bei gleicher Abtastrate ist resampleStep genau 1.0, dann kommt jedes Sample
-		// unverändert durch.
+		// unveraendert durch.
 		while(resamplePos < 1.0)
 		{
 			const float t = (float)resamplePos;
@@ -276,7 +276,7 @@ void AudioCaptureImpl::push(const short* p_samples, int numSamples)
 		numSamples = ringSize;
 	}
 
-	// ist kein Platz mehr, weichen die ältesten Samples
+	// ist kein Platz mehr, weichen die aeltesten Samples
 	const int overflow = ringFill + numSamples - ringSize;
 	if(overflow > 0)
 	{
@@ -310,7 +310,7 @@ void AudioCaptureImpl::clearRing()
 
 int AudioCaptureImpl::threadProc()
 {
-	// COM gehört dem Thread, der es initialisiert - alle Schnittstellen unten werden
+	// COM gehoert dem Thread, der es initialisiert - alle Schnittstellen unten werden
 	// deshalb nur hier angelegt, benutzt und wieder freigegeben.
 	long hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	const bool comInitialized = SUCCEEDED(hr);
@@ -425,14 +425,14 @@ int AudioCaptureImpl::threadProc()
 				if(FAILED(hr)) { deviceLost = true; break; }
 
 				// Bei AUDCLNT_BUFFERFLAGS_SILENT zeigt p_data ins Leere, die Samples
-				// müssen aber trotzdem gezählt werden.
+				// muessen aber trotzdem gezaehlt werden.
 				convertAndPush(p_data, (int)numFrames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
 				p_captureClient->ReleaseBuffer(numFrames);
 			}
 
-			// Solange nichts abgespielt wird, hält die Audio-Engine an und liefert gar
-			// keine Pakete mehr. Damit die Tonspur nicht kürzer wird als das Video, wird
-			// die Lücke nach der Uhr mit Stille aufgefüllt.
+			// Solange nichts abgespielt wird, haelt die Audio-Engine an und liefert gar
+			// keine Pakete mehr. Damit die Tonspur nicht kuerzer wird als das Video, wird
+			// die Luecke nach der Uhr mit Stille aufgefuellt.
 			LARGE_INTEGER now;
 			QueryPerformanceCounter(&now);
 			const LONGLONG expected = (now.QuadPart - captureStart.QuadPart) * (LONGLONG)sampleRate / qpcFrequency.QuadPart;

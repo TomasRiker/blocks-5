@@ -4,7 +4,7 @@
 #include "singleton.h"
 #include <map>
 
-/*** Klasse für die Datenbank der Trümmerfarben ***/
+/*** Klasse fuer die Datenbank der Truemmerfarben ***/
 
 class Texture;
 

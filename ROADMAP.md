@@ -482,22 +482,24 @@ same shape.
 
 7. Translate all source comments to English
 -------------------------------------------
-Comments across `Blocks5/src` are in German and the files are ISO-8859-1.
+Comments across `Blocks5/src` are in German. The translation is mechanical but
+enormous, and it wants to be one sweep rather than a drip, because
+half-translated files are worse than either end state.
 
-The translation is mechanical but enormous, and it wants to be one sweep rather
-than a drip, because half-translated files are worse than either end state. It
-pairs naturally with converting the tree to UTF-8: once the comments are
-English, almost nothing needs high bytes any more.
+**The encoding half of this is already done, and it was the dangerous half.**
+Every source file in the tree is now pure ASCII: umlauts in comments are written
+`ae oe ue ss`, and the two bytes that are not text at all are explicit escapes —
+`'\xA7'` (§) in `engine.cpp` and `'\xB6'` (¶) in `font.cpp`, plus a few inline
+localized strings shaped `"\xA7" "de:…"`. Those two are a wire format shared with
+`data/languages.txt`, which is Latin-1 and shipped that way; as characters they
+would have changed meaning the moment anybody re-encoded a source file, silently
+and with no compiler error. As escapes they cannot.
 
-The catch is that "almost" is not "nothing". Some *string literals* genuinely
-carry Latin-1 bytes and are load-bearing — `engine.cpp:2160` compares
-`line[0] == '\xA7'` to parse `data/languages.txt`, `engine.cpp:2208` builds the
-same section marker, and files like `activatorblock.cpp:61` hold German UI text.
-Converting the sources to UTF-8 changes those literals' bytes. Doing this safely
-means either `/utf-8` plus a UTF-8 BOM for MSVC and matching handling of
-`languages.txt` (which is itself Latin-1 and shipped), or replacing the byte
-literals with explicit escapes first and keeping the data file as it is. Decide
-that before starting, not halfway through.
+So the translation is now only a translation. There is no encoding decision left
+to get wrong halfway through, no `/utf-8` switch to remember and no BOM to add,
+and a file can be edited by any tool on any machine without the question coming
+up. The one rule to keep is the one in CLAUDE.md: do not type an umlaut into a
+comment.
 
 `data/languages.txt`, `readme.txt` and `levels/readme.txt` are shipped files with
 their own encoding and CRLF endings — they are not part of this.

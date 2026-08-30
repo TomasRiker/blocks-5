@@ -1,7 +1,7 @@
 #ifndef _GUI_LISTBOX_H
 #define _GUI_LISTBOX_H
 
-/*** Klasse für ein Listenfeld ***/
+/*** Klasse fuer ein Listenfeld ***/
 
 #include "gui_element.h"
 

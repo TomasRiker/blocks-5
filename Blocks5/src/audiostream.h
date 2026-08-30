@@ -1,7 +1,7 @@
 #ifndef _AUDIOSTREAM_H
 #define _AUDIOSTREAM_H
 
-/*** Klasse für einen Audio-Stream ***/
+/*** Klasse fuer einen Audio-Stream ***/
 
 class AudioStream
 {

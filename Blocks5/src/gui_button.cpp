@@ -132,7 +132,7 @@ void GUI_Button::onMouseLeave(int buttons)
 
 void GUI_Button::click()
 {
-	// Klick-Signal auslösen
+	// Klick-Signal ausloesen
 	clicked(this);
 }
 

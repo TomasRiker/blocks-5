@@ -480,9 +480,19 @@ filenames, shipped zipped in `levels/campaigns/`.
   **and** `Blocks5.vcxproj.filters`.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).
-- Comments are in German and files are **ISO-8859-1 / CP1252**, not UTF-8. Preserve the existing
-  encoding when editing — don't let a tool rewrite a file as UTF-8, and don't "fix" the mojibake
-  umlauts, they are correct in the original encoding.
+- Comments are in German, and **every source file is pure ASCII** — `Blocks5/src`, `WebBuild`,
+  `PWEncrypt` and `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS`
+  inside an all-caps word), so the encoding of these files no longer matters to anything:
+  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM
+  or a `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back
+  to being encoding-dependent.
+- **The two bytes that carry meaning are written as escapes.** `data/languages.txt` is
+  Latin-1 and shipped that way; the game parses it with `'\xA7'` (the section sign, §) in
+  `engine.cpp` and `'\xB6'` (the pilcrow, ¶) in `font.cpp`, and a few inline localized strings
+  use the same syntax — `"\xA7" "de:…"`, split because a C++ hex escape is greedy and
+  `"\xA7de:"` would parse as `\xA7d`. Those are a wire format shared with a data file, not
+  text: they have to stay byte-exact whatever the source encoding is, which is the whole
+  reason they are escapes rather than characters.
 - Source files use LF — except vendored third-party ones, which keep whatever they shipped with
   (`src/stackwalker.*` is CRLF). Shipped text files (`readme.txt`, `levels/readme.txt`,
   `data/languages.txt`) are deliberately CRLF.

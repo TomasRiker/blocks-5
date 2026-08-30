@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für ein Giftmüllfass ***/
+/*** Klasse fuer ein Giftmuellfass ***/
 
 class ToxicWaste : public Object
 {

@@ -1,7 +1,7 @@
 #ifndef _RAIL_H
 #define _RAIL_H
 
-/*** Klasse für eine Schiene ***/
+/*** Klasse fuer eine Schiene ***/
 
 #include "object.h"
 

@@ -1,7 +1,7 @@
 #ifndef _GUIELEMENT_H
 #define _GUIELEMENT_H
 
-/*** Klasse für ein GUI-Element ***/
+/*** Klasse fuer ein GUI-Element ***/
 
 #include "gui.h"
 #include "font.h"

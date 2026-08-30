@@ -1,7 +1,7 @@
 #ifndef _GUI_H
 #define _GUI_H
 
-/*** Klasse für die Benutzeroberfläche ***/
+/*** Klasse fuer die Benutzeroberflaeche ***/
 
 class GUI_Element;
 class Font;

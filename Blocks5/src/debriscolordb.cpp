@@ -20,7 +20,7 @@ Vec4d DebrisColorDB::getDebrisColor(Texture* p_texture,
 	key.first = filename;
 	key.second = positionOnTexture;
 
-	// TODO: Trümmer nicht einfarbig, sondern zufällig machen (z.B. zufällig aus den 10 häufigsten Farben auswählen)
+	// TODO: Truemmer nicht einfarbig, sondern zufaellig machen (z.B. zufaellig aus den 10 haeufigsten Farben auswaehlen)
 
 	// Schon berechnet?
 	dbMap::const_iterator i = db.find(key);

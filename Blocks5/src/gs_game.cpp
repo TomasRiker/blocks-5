@@ -93,7 +93,7 @@ public:
 
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 
-		// Uns interessiert nur, ob eine Taste gedrückt wurde.
+		// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 		if(event.type != SDL_KEYDOWN) return;
 
 		switch(event.keysym.sym)
@@ -296,7 +296,7 @@ void GS_Game::onUpdate()
 		{
 			if(!switchTimer)
 			{
-				// nächste Spielfigur auswählen
+				// naechste Spielfigur auswaehlen
 				p_level->switchToNextPlayer();
 				switchTimer = 20;
 			}
@@ -343,7 +343,7 @@ void GS_Game::onUpdate()
 
 			if(random(0, 2000 + c) >= 2000)
 			{
-				// Geigerzähler-Geräusch abspielen
+				// Geigerzaehler-Geraeusch abspielen
 				Engine::inst().playSound("geiger.ogg", false, 0.2);
 			}
 		}
@@ -361,7 +361,7 @@ void GS_Game::onUpdate()
 			db.save();
 		}
 
-		// nächster Level oder zurück zum Menü
+		// naechster Level oder zurueck zum Menue
 		Vec2i targetIn = p_level->getExit()->getShownPositionInPixels() + Vec2i(8, 8);
 		Vec2i targetOut;
 		levelNumber++;
@@ -395,7 +395,7 @@ void GS_Game::onUpdate()
 			}
 			else if(status == -2)
 			{
-				// Der nächste Level ist der Bonus-Level.
+				// Der naechste Level ist der Bonus-Level.
 				Engine::inst().popGameState();
 				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber);
@@ -498,7 +498,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 
 void GS_Game::onLeave(const ParameterBlock& context)
 {
-	// Ressourcen löschen
+	// Ressourcen loeschen
 	delete p_level;
 	delete p_originalLevel;
 	delete p_saveGame;
@@ -508,7 +508,7 @@ void GS_Game::onLeave(const ParameterBlock& context)
 	p_saveGame = 0;
 	p_misc = 0;
 
-	// Dialog löschen
+	// Dialog loeschen
 	delete gui["Game"];
 
 	// Musik stoppen

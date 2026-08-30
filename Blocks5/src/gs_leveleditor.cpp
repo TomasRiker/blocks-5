@@ -206,7 +206,7 @@ public:
 					}
 					else
 					{
-						// Startpunkt für das Rechteck setzen und merken, welche Maustaste gedrückt wurde
+						// Startpunkt fuer das Rechteck setzen und merken, welche Maustaste gedrueckt wurde
 						editor.rectStart = p;
 						editor.drawStartButtons = buttons;
 					}
@@ -234,7 +234,7 @@ public:
 
 				if(buttons)
 				{
-					// Übergang erzeugen
+					// Uebergang erzeugen
 					if(realDown) editor.createUndoPoint();
 					editor.transition(p);
 				}
@@ -292,7 +292,7 @@ public:
 					{
 						if(editor.p_currentPin->isConnected())
 						{
-							// alle Verbindungen dieses Pins lösen
+							// alle Verbindungen dieses Pins loesen
 							editor.createUndoPoint();
 							editor.p_currentPin->disconnectAll();
 							editor.p_currentPin = editor.p_startPin = 0;
@@ -310,10 +310,10 @@ public:
 		}
 		else if(position.y >= 428 && position.x >= 245)
 		{
-			// Es wurde wahrscheinlich ein neues Tile/Objekt ausgewählt.
+			// Es wurde wahrscheinlich ein neues Tile/Objekt ausgewaehlt.
 			Vec2i p = (position - Vec2i(245, 428)) / 16;
 
-			// Ist da überhaupt etwas in der aktuellen Kategorie?
+			// Ist da ueberhaupt etwas in der aktuellen Kategorie?
 			uint l0 = editor.p_currentCat->getTileAt(0, p);
 			uint l1 = editor.p_currentCat->getTileAt(1, p);
 			const TileSet::TileInfo& i0 = editor.p_currentCat->getTileSet()->getTileInfo(l0);
@@ -323,7 +323,7 @@ public:
 
 			if(l0 || l1 || p_obj)
 			{
-				// Die Auswahl ist gültig.
+				// Die Auswahl ist gueltig.
 				editor.currentBrush = Vec3i(p.x, p.y, editor.currentCat);
 				editor.pipetteUsed = false;
 				if(editor.currentMode != 0 && editor.currentMode != 2) editor.setMode(0);
@@ -468,10 +468,10 @@ public:
 
 		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste gedrückt wurde.
+			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 			if(event.type != SDL_KEYDOWN) return;
 
-			// Shift, Strg gedrückt?
+			// Shift, Strg gedrueckt?
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
@@ -787,7 +787,7 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste füllen
+			// Dateiliste fuellen
 			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels");
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
@@ -797,7 +797,7 @@ public:
 				if(ext == "xml")
 				{
 #ifdef CHECK_IF_IT_REALLY_IS_A_LEVEL
-					// oberflächliche Prüfung, ob es eine Level-Datei ist
+					// oberflaechliche Pruefung, ob es eine Level-Datei ist
 					TiXmlDocument doc;
 					std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().getAppHomeDirectory() + "levels/" + *i);
 					doc.Parse(str.c_str());
@@ -1241,7 +1241,7 @@ void GS_LevelEditor::onRender()
 
 	if(currentMode == 6)
 	{
-		// ausgewählten Pin und Start-Pin hervorheben
+		// ausgewaehlten Pin und Start-Pin hervorheben
 
 		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_TEXTURE_2D);
@@ -1339,7 +1339,7 @@ void GS_LevelEditor::onRender()
 		}
 	}
 
-	// ausgewählte Kategorie rendern
+	// ausgewaehlte Kategorie rendern
 	glPushMatrix();
 	glTranslated(245.0, 428.0, 0.0);
 	p_currentCat->render();
@@ -1401,7 +1401,7 @@ void GS_LevelEditor::onRender()
 
 void GS_LevelEditor::onUpdate()
 {
-	// alte Objekte löschen, neue Objekte hinzufügen
+	// alte Objekte loeschen, neue Objekte hinzufuegen
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
 
@@ -1467,7 +1467,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 	clearUndo();
 	clearRedo();
 
-	// Ressourcen löschen
+	// Ressourcen loeschen
 	delete[] p_clipboard;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
@@ -1479,7 +1479,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 		p_cat[i] = 0;
 	}
 
-	// Dialog löschen
+	// Dialog loeschen
 	delete gui["LevelEditor"];
 }
 
@@ -1626,13 +1626,13 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		if(pipetteUsed) tile = pipetteTileID;
 		else
 		{
-			// Es ist ein Tile ausgewählt. Welches?
+			// Es ist ein Tile ausgewaehlt. Welches?
 			uint l0 = p_brushCat->getTileAt(0, brush);
 			uint l1 = p_brushCat->getTileAt(1, brush);
 			tile = l0 + l1;
 		}
 
-		// dieses Tile an der Stelle und dem gewählten Layer einsetzen
+		// dieses Tile an der Stelle und dem gewaehlten Layer einsetzen
 		p_level->setTileAt(currentLayer, where, tile);
 	}
 	else
@@ -1647,7 +1647,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		}
 		else
 		{
-			// Es ist ein Objekt ausgewählt. Welches?
+			// Es ist ein Objekt ausgewaehlt. Welches?
 			Object* p_obj = p_brushCat->getFrontObjectAt(brush);
 			if(p_obj)
 			{
@@ -1660,13 +1660,13 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		{
 			if(objectType != "Rail" && objectType != "Hint" && !shift)
 			{
-				// Schienen hier nicht löschen!
+				// Schienen hier nicht loeschen!
 				p_level->clearPosition(where, "Rail");
 				p_level->removeOldObjects();
 			}
 			else if(objectType == "Rail" && !shift)
 			{
-				// Lava hier nicht löschen
+				// Lava hier nicht loeschen
 				p_level->clearPosition(where, "Lava");
 				p_level->removeOldObjects();
 			}
@@ -1680,7 +1680,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					{
 						if(currentMode == 0)
 						{
-							// Es war wohl unabsichtlich. Statt den Zettel zu löschen, gehen wir in den Modifizieren-Modus.
+							// Es war wohl unabsichtlich. Statt den Zettel zu loeschen, gehen wir in den Modifizieren-Modus.
 							oldMode = currentMode;
 							setMode(1);
 							modify(where, 1, false);
@@ -1694,21 +1694,21 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					}
 				}
 
-				// Kein Zettel da. Schienen hier nicht löschen!
+				// Kein Zettel da. Schienen hier nicht loeschen!
 				p_level->clearPosition(where, "Rail");
 				p_level->removeOldObjects();
 			}
 			else if(!shift)
 			{
-				// Objekte an dieser Stelle löschen
+				// Objekte an dieser Stelle loeschen
 				p_level->clearPosition(where);
 				p_level->removeOldObjects();
 			}
 
-			// das Objekt an der gewählten Stelle einsetzen
+			// das Objekt an der gewaehlten Stelle einsetzen
 			Object* p_newObj = p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
 
-			// "eintüten"
+			// "eintueten"
 			p_level->removeOldObjects();
 			p_level->addNewObjects();
 
@@ -1738,7 +1738,7 @@ void GS_LevelEditor::erase(const Vec2i& where,
 	if(p_obj) p_level->removeObject(p_obj);
 	else
 	{
-		// Tile auf aktuellem Layer löschen
+		// Tile auf aktuellem Layer loeschen
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1748,7 +1748,7 @@ void GS_LevelEditor::erase(const Vec2i& where,
 void GS_LevelEditor::clear(const Vec2i& where,
 						   bool allLayers)
 {
-	// Objekte löschen
+	// Objekte loeschen
 	p_level->clearPosition(where);
 
 	if(allLayers)
@@ -1757,7 +1757,7 @@ void GS_LevelEditor::clear(const Vec2i& where,
 	}
 	else
 	{
-		// Tile auf aktuellem Layer löschen
+		// Tile auf aktuellem Layer loeschen
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1887,10 +1887,10 @@ bool GS_LevelEditor::copy()
 {
 	if(currentMode != 4 || rectStart.x < 0) return false;
 
-	// alte Zwischenablage löschen
+	// alte Zwischenablage loeschen
 	delete[] p_clipboard;
 
-	// Platz für die neue Zwischenablage schaffen
+	// Platz fuer die neue Zwischenablage schaffen
 	Vec2i pMin(min(rectStart.x, rectEnd.x), min(rectStart.y, rectEnd.y));
 	Vec2i pMax(max(rectStart.x, rectEnd.x), max(rectStart.y, rectEnd.y));
 	clipboardSize = Vec2i(1, 1) + pMax - pMin;
@@ -1936,7 +1936,7 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 		{
 			Vec2i p = where + Vec2i(x, y);
 
-			// Tiles einfügen
+			// Tiles einfuegen
 			for(int layer = 0; layer < 2; layer++)
 			{
 				uint tile = p_clipboard[index].tile[layer];
@@ -1945,11 +1945,11 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 
 			if(!p_clipboard[index].objectTypes.empty())
 			{
-				// alte Objekte löschen
+				// alte Objekte loeschen
 				p_level->clearPosition(p);
 				p_level->removeOldObjects();
 
-				// Objekte einfügen
+				// Objekte einfuegen
 				std::list<std::string>::const_iterator i;
 				std::list<TiXmlElement>::iterator j;
 				for(i = p_clipboard[index].objectTypes.begin(), j = p_clipboard[index].objectAttributes.begin();

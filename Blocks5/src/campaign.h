@@ -1,7 +1,7 @@
 #ifndef _CAMPAIGN_H
 #define _CAMPAIGN_H
 
-/*** Klasse für eine Kampagne ***/
+/*** Klasse fuer eine Kampagne ***/
 
 class Campaign
 {

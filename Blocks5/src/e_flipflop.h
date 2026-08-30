@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für Flipflops ***/
+/*** Klasse fuer Flipflops ***/
 
 class E_FlipFlop : public Electronics
 {

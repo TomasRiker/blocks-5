@@ -1,7 +1,7 @@
 #ifndef _LIGHTNING_H
 #define _LIGHTNING_H
 
-/*** Klasse für Blitze ***/
+/*** Klasse fuer Blitze ***/
 
 class Texture;
 
@@ -23,8 +23,8 @@ private:
 	};
 
 	// Verbindungszustand zwischen zwei aufeinanderfolgenden Liniensegmenten eines
-	// Astes. Früher waren das Statics in drawLine(), die sich alle Zweige und
-	// beide Durchgänge geteilt haben.
+	// Astes. Frueher waren das Statics in drawLine(), die sich alle Zweige und
+	// beide Durchgaenge geteilt haben.
 	struct LineJoint
 	{
 		LineJoint() : valid(false) {}

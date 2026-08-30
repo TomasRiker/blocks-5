@@ -1,7 +1,7 @@
 #ifndef _MANAGER_H
 #define _MANAGER_H
 
-/*** Manager-Klasse für Ressourcen ***/
+/*** Manager-Klasse fuer Ressourcen ***/
 
 #include "resource.h"
 
@@ -12,7 +12,7 @@ template<typename T> class Manager : public Singleton<Manager<T> >
 public:
 	void exit()
 	{
-		// alle noch geladenen Objekte löschen
+		// alle noch geladenen Objekte loeschen
 		for(typename std::unordered_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
 		{
 #ifdef _DEBUG
@@ -55,7 +55,7 @@ public:
 			T* p_resource = find(filename);
 			if(p_resource)
 			{
-				// ja, Referenzzähler erhöhen und geladenes Objekt liefern
+				// ja, Referenzzaehler erhoehen und geladenes Objekt liefern
 				p_resource->refCounter++;
 				return p_resource;
 			}
@@ -66,7 +66,7 @@ public:
 				  filename.c_str());
 #endif
 
-		// Objekt neu laden und zurückliefern
+		// Objekt neu laden und zurueckliefern
 		T* p_item = new T(filename);
 		if(p_item->error)
 		{
@@ -89,7 +89,7 @@ public:
 				  p_item->filename.c_str());
 #endif
 
-		// Objekt löschen
+		// Objekt loeschen
 		std::pair<typename std::unordered_multimap<std::string, T*>::iterator, typename std::unordered_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
 		for(typename std::unordered_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
 		{

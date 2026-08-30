@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für eine Kanone ***/
+/*** Klasse fuer eine Kanone ***/
 
 class Cannon : public Object
 {

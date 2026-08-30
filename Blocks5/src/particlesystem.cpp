@@ -154,7 +154,7 @@ void ParticleSystem::update()
 		p.size += p.deltaSize;
 		--p.lifetime;
 
-		// alte und zu kleine Partikel löschen
+		// alte und zu kleine Partikel loeschen
 		if(!p.lifetime || p.size <= 0.0f) i = particles.erase(i);
 		else
 		{

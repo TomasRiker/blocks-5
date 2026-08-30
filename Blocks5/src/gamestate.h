@@ -1,7 +1,7 @@
 #ifndef _GAMESTATE_H
 #define _GAMESTATE_H
 
-/*** Klasse für einen Spielzustand ***/
+/*** Klasse fuer einen Spielzustand ***/
 
 #include "parameterblock.h"
 #include "gui.h"

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für den Ausgang ***/
+/*** Klasse fuer den Ausgang ***/
 
 class Exit : public Object
 {

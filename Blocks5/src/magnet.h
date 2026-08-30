@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Magnete ***/
+/*** Klasse fuer Magnete ***/
 
 class Magnet : public Object
 {

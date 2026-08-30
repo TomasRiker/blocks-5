@@ -115,7 +115,7 @@ void GUI_EditBox::setText(const std::string& text)
 	cursor = scroll = 0;
 	selStart = selEnd = 0;
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 
@@ -138,13 +138,13 @@ void GUI_EditBox::onMouseMove(const Vec2i& position,
 
 void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrückt?
+	// Shift gedrueckt?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
-	// Strg gedrückt?
+	// Strg gedrueckt?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
 	switch(event.keysym.sym)
@@ -191,7 +191,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		{
 			if(event.keysym.sym == SDLK_a)
 			{
-				// alles auswählen
+				// alles auswaehlen
 				cursor = selStart = selEnd = 0;
 				setCursor(static_cast<uint>(text.length()), true);
 			}
@@ -207,7 +207,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			}
 			else if(active && event.keysym.sym == SDLK_v)
 			{
-				// einfügen
+				// einfuegen
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
@@ -223,7 +223,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 
 void GUI_EditBox::onTabbedIn()
 {
-	// alles auswählen
+	// alles auswaehlen
 	cursor = selStart = selEnd = 0;
 	setCursor(static_cast<uint>(text.length()), true);
 }
@@ -246,7 +246,7 @@ void GUI_EditBox::replaceSelection(const std::string& replacement)
 		selStart = selEnd = 0;
 	}
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 
@@ -261,7 +261,7 @@ void GUI_EditBox::del()
 			text = textBeforeCursor + textAfterCursor;
 			cursor = static_cast<uint>(textBeforeCursor.length());
 
-			// Signal auslösen
+			// Signal ausloesen
 			changed(this);
 		}
 	}
@@ -282,7 +282,7 @@ void GUI_EditBox::backspace()
 			text = textBeforeCursor + textAfterCursor;
 			cursor = static_cast<uint>(textBeforeCursor.length());
 
-			// Signal auslösen
+			// Signal ausloesen
 			changed(this);
 		}
 	}

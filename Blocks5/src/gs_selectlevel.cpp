@@ -201,7 +201,7 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	p_background = Manager<Texture>::inst().request("selectlevel.png");
 	p_misc = Manager<Texture>::inst().request("misc.png");
 
-	// Menü erzeugen
+	// Menue erzeugen
 	gui.getRoot()->load("selectlevel.xml");
 
 	static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"])->connectChanged(this, &GS_SelectLevel::handleClick);
@@ -213,7 +213,7 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	static_cast<GUI_Button*>(gui["SelectLevel.Quit"])->connectClicked(this, &GS_SelectLevel::handleClick);
 
-	// Kampagnen aufzählen
+	// Kampagnen aufzaehlen
 	FileSystem& fs = FileSystem::inst();
 	GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
 	p_listBox->clear();
@@ -244,23 +244,23 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 
 void GS_SelectLevel::onLeave(const ParameterBlock& context)
 {
-	// Bilder löschen
+	// Bilder loeschen
 	p_background->release();
 	p_misc->release();
 	p_background = 0;
 	p_misc = 0;
 
-	// Kampagnen löschen
+	// Kampagnen loeschen
 	for(uint i = 0; i < campaigns.size(); i++) delete campaigns[i];
 	campaigns.clear();
 	p_currentCampaign = 0;
 
-	// Level löschen
+	// Level loeschen
 	delete p_currentLevel;
 	p_currentLevel = 0;
 	currentLevel = 0;
 
-	// Menü löschen
+	// Menue loeschen
 	delete gui["SelectLevel"];
 }
 
@@ -282,7 +282,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 	const std::string& name = p_element->getFullName();
 	if(name == "SelectLevel.Campaigns")
 	{
-		// Es wurde eine Kampagne ausgewählt. Beschreibungstext anzeigen!
+		// Es wurde eine Kampagne ausgewaehlt. Beschreibungstext anzeigen!
 		static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->deactivate();
 		int i = static_cast<GUI_ListBox*>(p_element)->getSelection();
 		currentLevel = 0;
@@ -294,7 +294,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 			p_currentLevel = 0;
 		}
 
-		std::string desc = "§de:Keine Kampagne ausgewählt.§en:No campaign selected.";
+		std::string desc = "\xA7" "de:Keine Kampagne ausgew\xE4hlt.\xA7" "en:No campaign selected.";
 		if(p_currentCampaign) desc = p_currentCampaign->getDescription();
 		static_cast<GUI_StaticText*>(gui["SelectLevel.CampaignDescription"])->setText(desc);
 
@@ -331,7 +331,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 	{
 		if(p_currentCampaign)
 		{
-			// nächsten Level suchen, der noch nicht geschafft wurde
+			// naechsten Level suchen, der noch nicht geschafft wurde
 			uint oldLevel = currentLevel;
 			uint numLevels = static_cast<uint>(p_currentCampaign->getLevels().size());
 			uint i = currentLevel;

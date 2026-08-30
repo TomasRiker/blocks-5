@@ -262,7 +262,7 @@ void GUI_ScrollBar::onUpdate()
 
 			updateReceiver();
 
-			// Scroll-Signal auslösen
+			// Scroll-Signal ausloesen
 			changed(this);
 		}
 	}
@@ -299,7 +299,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 
 			updateReceiver();
 
-			// Scroll-Signal auslösen
+			// Scroll-Signal ausloesen
 			changed(this);
 		}
 		else if(!dragging)
@@ -339,7 +339,7 @@ void GUI_ScrollBar::setScroll(int scroll)
 
 	updateReceiver();
 
-	// Scroll-Signal auslösen
+	// Scroll-Signal ausloesen
 	changed(this);
 }
 
@@ -418,7 +418,7 @@ void GUI_ScrollBar::setDragBarY(int dragBarY)
 
 	updateReceiver();
 
-	// Scroll-Signal auslösen
+	// Scroll-Signal ausloesen
 	changed(this);
 }
 

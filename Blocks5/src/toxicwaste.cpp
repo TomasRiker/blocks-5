@@ -22,7 +22,7 @@ void ToxicWaste::onRender(int layer,
 {
 	if(layer == 1)
 	{
-		// Giftmüllfass rendern
+		// Giftmuellfass rendern
 		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(192, 352), Vec2i(16, 16), color);
 	}
 }
@@ -38,7 +38,7 @@ void ToxicWaste::onExplosion()
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 
-	// grüne Giftgaswolke
+	// gruene Giftgaswolke
 	for(int i = 0; i < 250; i++)
 	{
 		p.lifetime = random(150, 300);

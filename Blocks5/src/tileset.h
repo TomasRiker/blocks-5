@@ -1,7 +1,7 @@
 #ifndef _TILESET_H
 #define _TILESET_H
 
-/*** Klasse für Tiles ***/
+/*** Klasse fuer Tiles ***/
 
 #include "resource.h"
 

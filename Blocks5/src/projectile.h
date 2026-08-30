@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Projektile ***/
+/*** Klasse fuer Projektile ***/
 
 class Projectile : public Object
 {

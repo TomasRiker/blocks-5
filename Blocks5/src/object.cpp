@@ -207,7 +207,7 @@ void Object::update()
 		// Objekt aktualisieren
 		onUpdate();
 
-		// Todes-Countdown runterzählen
+		// Todes-Countdown runterzaehlen
 		deathCountDown -= deathSpeed * 0.02;
 		return;
 	}
@@ -313,7 +313,7 @@ void Object::update()
 		shownPosition = shownPosition * (1.0 - i) + Vec2d(position) * i;
 	}
 
-	// Todes-Countdown runterzählen
+	// Todes-Countdown runterzaehlen
 	if(newDeathTime != -1 && level.time >= newDeathTime)
 	{
 		deathCountDown = newDeathCountDown;
@@ -359,7 +359,7 @@ void Object::update()
 			teleporting += 0.02;
 			if(teleporting > 1.0)
 			{
-				// Position verändern
+				// Position veraendern
 				if(level.isFreeAt(teleportingTo))
 				{
 					warpTo(teleportingTo);
@@ -372,7 +372,7 @@ void Object::update()
 					teleportFailed = true;
 					Engine::inst().playSound("teleport_failed.ogg", false, 0.0, 100);
 
-					// glühende Partikel
+					// gluehende Partikel
 					for(int i = 0; i < 100; i++)
 					{
 						p.lifetime = 100;
@@ -422,10 +422,10 @@ void Object::update()
 			// Schienen fallen nicht.
 			else if(flags & OF_RAIL) dontFall = true;
 
-			// Objekte auf Aufzügen fallen nicht.
+			// Objekte auf Aufzuegen fallen nicht.
 			else if(!(flags & OF_ELEVATOR) && (flags & OF_TRANSPORTABLE) && level.getElevatorAt(position)) dontFall = true;
 
-			// Aufzüge auf Schienen fallen nicht.
+			// Aufzuege auf Schienen fallen nicht.
 			else if(flags & OF_ELEVATOR)
 			{
 				Object* p_back = level.getBackObjectAt(position);
@@ -438,7 +438,7 @@ void Object::update()
 			// Objekte, die einen Aufzug knapp verpasst haben, kriegen nochmal eine Chance.
 			else if(flags & OF_TRANSPORTABLE)
 			{
-				// die umgebenden 4 Felder nach Aufzügen absuchen
+				// die umgebenden 4 Felder nach Aufzuegen absuchen
 				std::list<Elevator*> elevators;
 				Elevator* p_elevator = level.getElevatorAt(position + Vec2i(-1, 0)); if(p_elevator) elevators.push_back(p_elevator);
 				p_elevator = level.getElevatorAt(position + Vec2i(1, 0)); if(p_elevator) elevators.push_back(p_elevator);
@@ -459,7 +459,7 @@ void Object::update()
 
 				if(p_closestElevator)
 				{
-					// Ist der nächste Aufzug nah genug?
+					// Ist der naechste Aufzug nah genug?
 					if(closestDist <= 0.5)
 					{
 						Vec2i d = p_closestElevator->getPosition() - position;
@@ -544,7 +544,7 @@ void Object::onExplosion()
 {
 	if(flags & OF_DESTROYABLE)
 	{
-		// Objekt zerstören
+		// Objekt zerstoeren
 		disappear(0.2);
 	}
 }
@@ -560,7 +560,7 @@ bool Object::move(const Vec2i& dir,
 
 	if(dir.x && !dir.y && isPushedFromAbove() && level.isElectricityOn())
 	{
-		// Liegt das Objekt auf einem Fließband?
+		// Liegt das Objekt auf einem Fliessband?
 		Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -569,7 +569,7 @@ bool Object::move(const Vec2i& dir,
 				ConveyorBelt* p_cb = reinterpret_cast<ConveyorBelt*>(p_obj);
 				if(p_cb->getDir() != dir.x)
 				{
-					// Schieben gegen Fließbandrichtung nicht erlaubt!
+					// Schieben gegen Fliessbandrichtung nicht erlaubt!
 					return false;
 				}
 			}
@@ -609,7 +609,7 @@ bool Object::move(const Vec2i& dir,
 			{
 				if(p_obj->isPushedFromAbove() && dir.y < 0)
 				{
-					// Nach oben schieben geht nicht, wenn das Objekt nach unten gedrückt wird!
+					// Nach oben schieben geht nicht, wenn das Objekt nach unten gedrueckt wird!
 				}
 				else
 				{
@@ -635,10 +635,10 @@ bool Object::move(const Vec2i& dir,
 
 			if(!moved && !dir.x && dir.y == 1)
 			{
-				// Wird das Objekt mit extremer Kraft gedrückt?
+				// Wird das Objekt mit extremer Kraft gedrueckt?
 				if(isPushedWithDeadlyWeight())
 				{
-					// Ist unter dem "tödlichen" Objekt ein Objekt?
+					// Ist unter dem "toedlichen" Objekt ein Objekt?
 					Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 					if(p_obj)
 					{
@@ -685,7 +685,7 @@ bool Object::move(const Vec2i& dir,
 	// Wurde das Objekt zur Seite bewegt?
 	if(moved && dir.x && !dir.y)
 	{
-		// Befindet sich über diesem Objekt ein anderes (Stapel)?
+		// Befindet sich ueber diesem Objekt ein anderes (Stapel)?
 		Object* p_obj = level.getFrontObjectAt(oldPosition - Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -701,7 +701,7 @@ bool Object::move(const Vec2i& dir,
 	// Ist dieses Objekt ein Aufzug?
 	if(moved && (flags & OF_ELEVATOR))
 	{
-		// Alle Objekte darüber müssen mitbewegt werden.
+		// Alle Objekte darueber muessen mitbewegt werden.
 		std::vector<Object*> objectsOnMe = level.getObjectsAt(position - dir);
 		for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
 		{
@@ -734,7 +734,7 @@ bool Object::move(const Vec2i& dir,
 
 		if(dir.y > 0)
 		{
-			// Das Objekt fällt.
+			// Das Objekt faellt.
 			fall = 1;
 		}
 

@@ -1,10 +1,10 @@
 #include "pch.h"
 #include "cf_star.h"
 
-// Der Stern hat 5 Zacken, Aussenradius 1.0 und Innenradius 0.4. Früher wurde
+// Der Stern hat 5 Zacken, Aussenradius 1.0 und Innenradius 0.4. Frueher wurde
 // diese konkave Kontur einmalig mit dem GLU-Tesselator zerlegt und in eine
 // Display-Liste gebacken - beides gibt es in WebGL nicht. Weil der Mittelpunkt
-// im Kern des Polygons liegt (Innenradius > 0), deckt ein Dreiecksfächer vom
+// im Kern des Polygons liegt (Innenradius > 0), deckt ein Dreiecksfaecher vom
 // Mittelpunkt aus den Stern exakt ab: 10 Dreiecke, kein Tesselator, keine Liste.
 
 CF_Star::CF_Star()

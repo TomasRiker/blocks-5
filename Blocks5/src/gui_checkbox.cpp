@@ -26,7 +26,7 @@ void GUI_CheckBox::onRender()
 
 		if(checked)
 		{
-			// Häkchen zeichnen
+			// Haekchen zeichnen
 			Vec2i offset = (size - Vec2i(16, 16)) / 2;
 			Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(32, 224), Vec2i(16, 16), Vec4d(1.0));
 		}
@@ -46,7 +46,7 @@ void GUI_CheckBox::onRender()
 
 		if(checked)
 		{
-			// "Häkchen" zeichnen
+			// "Haekchen" zeichnen
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glVertex2i(4, 4);
 			glVertex2i(size.x - 3, 4);
@@ -93,7 +93,7 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 
 		if(mouseOver)
 		{
-			// Signal auslösen
+			// Signal ausloesen
 			checked = newChecked;
 			changed(this);
 		}
@@ -138,7 +138,7 @@ void GUI_CheckBox::check(bool check)
 	if(checked == check) return;
 	checked = check;
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 

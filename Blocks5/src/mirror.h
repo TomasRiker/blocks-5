@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Spiegel ***/
+/*** Klasse fuer einen Spiegel ***/
 
 class Mirror : public Object
 {

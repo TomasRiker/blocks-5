@@ -126,9 +126,9 @@ public:
 	bool createPresentPrograms();
 	void destroyPresentPrograms();
 
-	// getUpscaleFilter() liefert den *Wunsch* - das, was der Spieler gewählt
+	// getUpscaleFilter() liefert den *Wunsch* - das, was der Spieler gewaehlt
 	// hat und was in der config.xml steht. getEffectiveUpscaleFilter() liefert,
-	// was tatsächlich gezeichnet wird: ohne übersetztes Programm wird aus
+	// was tatsaechlich gezeichnet wird: ohne uebersetztes Programm wird aus
 	// sharp-fit oder CRT nearest. Der Wunsch bleibt stehen, damit dieselbe config.xml auf
 	// einer Maschine mit Shadern wieder das Richtige tut.
 	void setUpscaleFilter(UpscaleFilter filter);

@@ -61,10 +61,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	if(engine.getLanguage() == "en") static_cast<GUI_RadioButton*>(getChild("Options.English"))->setChecked();
 	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->setChecked();
 
-	// aktuelle Sound-Lautstärke setzen
+	// aktuelle Sound-Lautstaerke setzen
 	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0 * engine.getSoundVolume()));
 
-	// aktuelle Musik-Lautstärke setzen
+	// aktuelle Musik-Lautstaerke setzen
 	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0 * engine.getMusicVolume()));
 
 	// aktuelle Details setzen
@@ -74,10 +74,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 	// Skalierungsfilter, von oben nach unten das Beste zuerst. Ohne Shader gibt
 	// es "Scharf, angepasst" gar nicht erst zu sehen - anzubieten, was die
-	// Maschine nicht kann, wäre gelogen -, und die übrigen rücken nach oben
-	// nach, damit keine Lücke bleibt.
-	// "Röhrenmonitor" steht zuletzt: die drei darüber sind Skalierer und nach
-	// Güte sortiert, der Vierte ist eine Stilfrage und gehört nicht in dieselbe
+	// Maschine nicht kann, waere gelogen -, und die uebrigen ruecken nach oben
+	// nach, damit keine Luecke bleibt.
+	// "Roehrenmonitor" steht zuletzt: die drei darueber sind Skalierer und nach
+	// Guete sortiert, der Vierte ist eine Stilfrage und gehoert nicht in dieselbe
 	// Reihenfolge. Er braucht denselben Shader wie "Scharf, angepasst" und
 	// verschwindet ohne ihn genauso.
 	const char* pp_filterNames[4] =
@@ -191,10 +191,10 @@ void Options::handleClick(GUI_Element* p_element)
 		if(static_cast<GUI_RadioButton*>(getChild("Options.German"))->isChecked()) engine.setLanguage("de");
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.English"))->isChecked()) engine.setLanguage("en");
 
-		// Sound-Lautstärke speichern
+		// Sound-Lautstaerke speichern
 		engine.setSoundVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->getScroll());
 
-		// Musik-Lautstärke speichern
+		// Musik-Lautstaerke speichern
 		engine.setMusicVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->getScroll());
 
 		// Details speichern
@@ -202,16 +202,16 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->isChecked()) engine.setDetails(1);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->isChecked()) engine.setDetails(2);
 
-		// Skalierungsfilter speichern. Wirkt sofort, das nächste Bild kommt
+		// Skalierungsfilter speichern. Wirkt sofort, das naechste Bild kommt
 		// schon durch den neuen Filter auf den Schirm.
 		if(static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
 
-		// Die beiden Röhrenregler wirken sofort - beim Schieben soll man ja
-		// sehen, was sie tun. Zurückgenommen werden sie von Abbrechen, das
-		// über loadConfig() auch <Crt> wieder liest.
+		// Die beiden Roehrenregler wirken sofort - beim Schieben soll man ja
+		// sehen, was sie tun. Zurueckgenommen werden sie von Abbrechen, das
+		// ueber loadConfig() auch <Crt> wieder liest.
 		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
 		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
 		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());

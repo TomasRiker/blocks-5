@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Blockadenschalter ***/
+/*** Klasse fuer Blockadenschalter ***/
 
 class BarrageSwitch : public Object
 {

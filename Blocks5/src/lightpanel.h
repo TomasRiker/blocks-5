@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse für Lichtschalter-Bodenplatte ***/
+/*** Klasse fuer Lichtschalter-Bodenplatte ***/
 
 class LightPanel : public Panel
 {

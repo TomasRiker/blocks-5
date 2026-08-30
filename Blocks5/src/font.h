@@ -1,7 +1,7 @@
 #ifndef _FONT_H
 #define _FONT_H
 
-/*** Klasse für eine Schriftart ***/
+/*** Klasse fuer eine Schriftart ***/
 
 #include "resource.h"
 

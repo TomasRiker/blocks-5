@@ -35,7 +35,7 @@ void CF_ColorBlend::render(double t,
 		glDisable(GL_TEXTURE_2D);
 	}
 
-	// Farbfläche zeichnen
+	// Farbflaeche zeichnen
 	glBegin(GL_QUADS);
 	double alpha = 1.0 - (1.0 / (1.0 - timing)) * abs(t - timing);
 	glColor4d(color.r, color.g, color.b, alpha);

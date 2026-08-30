@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen Taktgeber ***/
+/*** Klasse fuer einen Taktgeber ***/
 
 class E_Clock : public Electronics
 {

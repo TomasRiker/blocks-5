@@ -15,7 +15,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 	numChannels = 0;
 	length = 0;
 
-	// Datei öffnen
+	// Datei oeffnen
 	p_file = FileSystem::inst().openFile(filename);
 	if(!p_file)
 	{
@@ -29,7 +29,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 	uint riffHeader[3] = {0};
 	p_file->read(&riffHeader, 12);
 
-	// Header überprüfen
+	// Header ueberpruefen
 	if(riffHeader[0] != 0x46464952 ||	// "RIFF"
 	   riffHeader[2] != 0x45564157)		// "WAVE"
 	{
@@ -51,7 +51,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 
 		uint chunkDataOffset = p_file->tell();
 
-		// Was für ein Chunk ist es?
+		// Was fuer ein Chunk ist es?
 		switch(chunkHeader[0])
 		{
 		case 0x20746D66:	// "fmt "
@@ -60,7 +60,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 				FormatData fmt;
 				p_file->read(&fmt, sizeof(fmt));
 
-				// Nur PCM wird unterstützt!
+				// Nur PCM wird unterstuetzt!
 				if(fmt.compression != 1)
 				{
 					printfLog("+ ERROR: WAV file \"%s\" is not in PCM format.\n",
@@ -75,7 +75,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 				numChannels = fmt.numChannels;
 				sliceSize = numBitsPerSample / 8 * numChannels;
 
-				// den Rest dieses Chunks überspringen
+				// den Rest dieses Chunks ueberspringen
 				p_file->seek(chunkDataOffset + chunkHeader[1]);
 
 				fmtChunkFound = true;
@@ -84,11 +84,11 @@ AS_WAV::AS_WAV(const std::string& filename)
 
 		case 0x61746164:	// "data"
 			{
-				// die Position der Daten und ihre Länge (in Bytes) merken
+				// die Position der Daten und ihre Laenge (in Bytes) merken
 				dataOffset = chunkDataOffset;
 				dataSize = chunkHeader[1];
 
-				// den Rest dieses Chunks überspringen
+				// den Rest dieses Chunks ueberspringen
 				p_file->seek(chunkDataOffset + chunkHeader[1]);
 
 				dataChunkFound = true;
@@ -104,7 +104,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 		if(fmtChunkFound && dataChunkFound) break;
 	}
 
-	// Wurden Format- und Daten-Chunk gefunden, und sind alle Werte ausgefüllt?
+	// Wurden Format- und Daten-Chunk gefunden, und sind alle Werte ausgefuellt?
 	if(!fmtChunkFound || !dataChunkFound ||
 	   !dataOffset || !sampleRate || !numBitsPerSample ||!numChannels)
 	{
@@ -114,7 +114,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 		return;
 	}
 
-	// Länge (in Slices) berechnen
+	// Laenge (in Slices) berechnen
 	length = dataSize / sliceSize;
 
 	// Datei an den Beginn der Daten spulen
@@ -123,7 +123,7 @@ AS_WAV::AS_WAV(const std::string& filename)
 
 AS_WAV::~AS_WAV()
 {
-	// Datei schließen
+	// Datei schliessen
 	FileSystem::inst().closeFile(p_file);
 }
 

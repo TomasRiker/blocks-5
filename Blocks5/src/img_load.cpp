@@ -22,7 +22,7 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 	if(!p_src || !p_src->read) return 0;
 
 	// Den Strom durch die Callbacks des Spiels leerlesen. stb_image will die
-	// Daten am Stück im Speicher haben.
+	// Daten am Stueck im Speicher haben.
 	std::vector<unsigned char> data;
 	unsigned char chunk[16384];
 	for(;;)
@@ -46,8 +46,8 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 		return 0;
 	}
 
-	// stb liefert dicht gepacktes RGBA. SDL_CreateRGBSurfaceFrom würde den Puffer
-	// nicht übernehmen, also wird in eine eigene Oberfläche kopiert.
+	// stb liefert dicht gepacktes RGBA. SDL_CreateRGBSurfaceFrom wuerde den Puffer
+	// nicht uebernehmen, also wird in eine eigene Oberflaeche kopiert.
 	SDL_Surface* p_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
 												  0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
 	if(!p_surface)
@@ -57,7 +57,7 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 	}
 
 	// Ohne SDL_LockSurface: unter Emscripten synchronisieren Lock und Unlock mit
-	// dem Canvas und brechen bei einer reinen Software-Oberfläche ab. Deren Pixel
+	// dem Canvas und brechen bei einer reinen Software-Oberflaeche ab. Deren Pixel
 	// sind ohnehin direkt beschreibbar, auch im echten SDL.
 	for(int y = 0; y < height; y++)
 		memcpy((unsigned char*)p_surface->pixels + y * p_surface->pitch, p_pixels + y * width * 4, width * 4);

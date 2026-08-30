@@ -53,7 +53,7 @@ void LightBarrierSender::onRender(int layer,
 				}
 			}
 
-			// inneren und äußeren Strahl rendern
+			// inneren und aeusseren Strahl rendern
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);

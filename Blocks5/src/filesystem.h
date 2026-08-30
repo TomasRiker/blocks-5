@@ -1,7 +1,7 @@
 #ifndef _FILESYSTEM_H
 #define _FILESYSTEM_H
 
-/*** Klasse für das virtuelle Dateisystem ***/
+/*** Klasse fuer das virtuelle Dateisystem ***/
 
 #include "file.h"
 

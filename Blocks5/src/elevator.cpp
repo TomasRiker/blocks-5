@@ -99,11 +99,11 @@ void Elevator::onUpdate()
 	case 3: dirV = Vec2i(-1, 0); break;
 	}
 
-	// Was für eine Schiene liegt hier?
+	// Was fuer eine Schiene liegt hier?
 	Rail* p_thisRail = level.getRailAt(position);
 	if(!p_thisRail) return;
 
-	// Was für eine Schiene liegt da?
+	// Was fuer eine Schiene liegt da?
 	Rail* p_nextRail = level.getRailAt(position + dirV);
 
 	bool movementAllowed = false;
@@ -133,7 +133,7 @@ void Elevator::onUpdate()
 		// Kreuzung
 		else if(nextSubType == 2) movementAllowed = true;
 
-		// T-Stück
+		// T-Stueck
 		else if(nextSubType == 3 && nextDir != (dir + 2) % 4) movementAllowed = true;
 
 		// kaputte Strecke

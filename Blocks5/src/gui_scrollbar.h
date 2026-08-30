@@ -1,7 +1,7 @@
 #ifndef _GUI_SCROLLBAR_H
 #define _GUI_SCROLLBAR_H
 
-/*** Klasse für eine Scroll-Bar ***/
+/*** Klasse fuer eine Scroll-Bar ***/
 
 #include "gui_element.h"
 

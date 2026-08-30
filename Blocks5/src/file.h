@@ -1,7 +1,7 @@
 #ifndef _FILE_H
 #define _FILE_H
 
-/*** Basisklasse für Dateien des virtuellen Dateisystems ***/
+/*** Basisklasse fuer Dateien des virtuellen Dateisystems ***/
 
 class File
 {

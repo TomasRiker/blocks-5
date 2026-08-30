@@ -1,7 +1,7 @@
 #ifndef _STREAMEDSOUND_H
 #define _STREAMEDSOUND_H
 
-/*** Klasse für gestreamte Sounds (z.B. Musik) ***/
+/*** Klasse fuer gestreamte Sounds (z.B. Musik) ***/
 
 #include "resource.h"
 

@@ -185,7 +185,7 @@ void decryptPassword(const char* p_in,
 		// immer 7 Zeichen zur Basis 62 in einen 32-Bit-Integer umwandeln
 		uint n = fromBase62(&p_in[i]);
 
-		// entschlüsseln
+		// entschluesseln
 		uint pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		n ^= pattern;
 
@@ -198,11 +198,11 @@ void decryptPassword(const char* p_in,
 	uint indexIn = 0, indexOut = 0;
 	while(true)
 	{
-		// Anzahl der Terme lesen und entschlüsseln
+		// Anzahl der Terme lesen und entschluesseln
 		unsigned char numTerms = step1[indexIn++] ^ 0xB6;
 		if(!numTerms) break;
 
-		// Primzahlen und ihre Potenzen lesen und entschlüsseln
+		// Primzahlen und ihre Potenzen lesen und entschluesseln
 		uint c = 1;
 		for(uint i = 0; i < numTerms; i++)
 		{
@@ -213,7 +213,7 @@ void decryptPassword(const char* p_in,
 			for(uint j = 0; j < power; j++) c *= p_primes[prime];
 		}
 
-		// Buchstabe entschlüsseln und schreiben
+		// Buchstabe entschluesseln und schreiben
 		c -= indexOut * 7;
 		step2[indexOut++] = static_cast<char>(c);
 	}

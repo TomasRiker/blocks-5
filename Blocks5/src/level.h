@@ -3,7 +3,7 @@
 
 #include "lightning.h"
 
-/*** Klasse für einen Level ***/
+/*** Klasse fuer einen Level ***/
 
 class Object;
 class Player;

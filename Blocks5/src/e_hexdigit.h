@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine Hexadezimal-Ziffernanzeige ***/
+/*** Klasse fuer eine Hexadezimal-Ziffernanzeige ***/
 
 class E_HexDigit : public Electronics
 {

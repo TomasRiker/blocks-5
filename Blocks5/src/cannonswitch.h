@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Kanonenschalter (feuert oder dreht) ***/
+/*** Klasse fuer Kanonenschalter (feuert oder dreht) ***/
 
 class CannonSwitch : public Object
 {

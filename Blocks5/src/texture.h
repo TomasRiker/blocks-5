@@ -1,7 +1,7 @@
 #ifndef _TEXTURE_H
 #define _TEXTURE_H
 
-/*** Klasse für eine Textur ***/
+/*** Klasse fuer eine Textur ***/
 
 #include "resource.h"
 

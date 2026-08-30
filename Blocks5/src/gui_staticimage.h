@@ -1,7 +1,7 @@
 #ifndef _GUI_STATICIMAGE_H
 #define _GUI_STATICIMAGE_H
 
-/*** Klasse für ein statisches Bild ***/
+/*** Klasse fuer ein statisches Bild ***/
 
 #include "gui_element.h"
 

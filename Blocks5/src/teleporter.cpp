@@ -61,7 +61,7 @@ void Teleporter::onUpdate()
 	if(level.isElectricityOn())
 	{
 		// Befindet sich ein Objekt auf dem Teleporter, das vorher noch nicht da war?
-		// Oder ist der Zielort jetzt frei für ein Objekt, dessen Teleportation vorher gescheitert ist?
+		// Oder ist der Zielort jetzt frei fuer ein Objekt, dessen Teleportation vorher gescheitert ist?
 		std::vector<Object*> newObjectsOnMe = level.getObjectsAt(position);
 		for(std::vector<Object*>::const_iterator i = newObjectsOnMe.begin(); i != newObjectsOnMe.end(); ++i)
 		{

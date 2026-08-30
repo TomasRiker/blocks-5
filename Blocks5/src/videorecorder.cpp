@@ -15,9 +15,9 @@ namespace
 	// Die Zeitbasis der Videospur, wie mp4_h26x_write_init sie anlegt.
 	const uint k_videoTimeScale = 90000;
 
-	// H.264 arbeitet in Makroblöcken von 16x16, und minih264 verlangt, dass Breite
-	// und Höhe glatt aufgehen. Das Spiel läuft mit 640x480, also passt es; eine
-	// andere Auflösung wird auf das nächstkleinere Vielfache abgerundet.
+	// H.264 arbeitet in Makrobloecken von 16x16, und minih264 verlangt, dass Breite
+	// und Hoehe glatt aufgehen. Das Spiel laeuft mit 640x480, also passt es; eine
+	// andere Aufloesung wird auf das naechstkleinere Vielfache abgerundet.
 	inline int roundDownTo16(int value)
 	{
 		return value & ~15;
@@ -78,7 +78,7 @@ struct VideoRecorderImpl
 	Vec2i encodedSize;    // auf Vielfache von 16 abgerundet
 
 	uint8_t* p_videoInputBuffer;
-	uint8_t* p_yuv;              // Y, dann U, dann V, alles am Stück
+	uint8_t* p_yuv;              // Y, dann U, dann V, alles am Stueck
 	H264E_persist_t* p_encoder;
 	H264E_scratch_t* p_scratch;
 
@@ -92,9 +92,9 @@ struct VideoRecorderImpl
 	int audioTrack;
 	AudioCapture* p_audioCapture;
 
-	// minih264 gibt einen Zeiger in seinen eigenen Puffer zurück, der beim
-	// nächsten Aufruf ungültig wird. Ein Frame wird trotzdem zurückgehalten,
-	// weil seine Dauer erst feststeht, wenn das nächste eintrifft - deshalb die
+	// minih264 gibt einen Zeiger in seinen eigenen Puffer zurueck, der beim
+	// naechsten Aufruf ungueltig wird. Ein Frame wird trotzdem zurueckgehalten,
+	// weil seine Dauer erst feststeht, wenn das naechste eintrifft - deshalb die
 	// Kopie.
 	uint8_t* p_heldFrame;
 	int heldFrameSize;
@@ -120,8 +120,8 @@ int videoRecorderThreadProc(void* p_param)
 void VideoRecorderImpl::convertFrame()
 {
 	// RGBX nach YUV420 planar. Das Bild kommt von glReadPixels und steht auf dem
-	// Kopf, deshalb wird die Quellzeile von unten gezählt. Ist das Bild breiter
-	// oder höher als das Vielfache von 16, wird mittig beschnitten.
+	// Kopf, deshalb wird die Quellzeile von unten gezaehlt. Ist das Bild breiter
+	// oder hoeher als das Vielfache von 16, wird mittig beschnitten.
 	const int w = encodedSize.x;
 	const int h = encodedSize.y;
 	const int offsetX = (inputSize.x - w) / 2;
@@ -199,7 +199,7 @@ int VideoRecorderImpl::threadProc()
 	{
 		if(SDL_SemWaitTimeout(p_semaphore, 10)) continue;
 
-		// Ton zuerst: der Ringpuffer der Aufnahme soll nicht überlaufen.
+		// Ton zuerst: der Ringpuffer der Aufnahme soll nicht ueberlaufen.
 		drainAudio();
 
 #ifdef PROFILE_VIDEO_CONVERSION
@@ -317,7 +317,7 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	memset(&createParam, 0, sizeof(createParam));
 	createParam.width = p_impl->encodedSize.x;
 	createParam.height = p_impl->encodedSize.y;
-	createParam.gop = p_impl->fps * 2;    // alle zwei Sekunden ein Schlüsselbild
+	createParam.gop = p_impl->fps * 2;    // alle zwei Sekunden ein Schluesselbild
 	createParam.num_layers = 1;
 	createParam.max_threads = 0;
 

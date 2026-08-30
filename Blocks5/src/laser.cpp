@@ -101,7 +101,7 @@ void Laser::onRender(int layer,
 				}
 			}
 
-			// inneren und äußeren Strahl rendern
+			// inneren und aeusseren Strahl rendern
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);
@@ -165,7 +165,7 @@ void Laser::onUpdate()
 	{
 		Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-		// Trümmer
+		// Truemmer
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
 		int n = random(50, 80);
@@ -325,7 +325,7 @@ void Laser::onUpdate()
 
 			if(!(counter % 4))
 			{
-				// glühende Partikel
+				// gluehende Partikel
 				p.lifetime = random(80, 120);
 				p.damping = 0.9f;
 				p.gravity = 0.1f;
@@ -348,7 +348,7 @@ void Laser::onUpdate()
 			{
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-				// Trümmer
+				// Truemmer
 				int n = random(50, 80);
 				for(int i = 0; i < n; i++)
 				{

@@ -88,7 +88,7 @@ Level::Level()
 	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	// Textur für den Effekt-Puffer erzeugen
+	// Textur fuer den Effekt-Puffer erzeugen
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
@@ -105,7 +105,7 @@ Level::~Level()
 
 void Level::clear()
 {
-	// Objekte löschen
+	// Objekte loeschen
 	removeOldObjects();
 	addNewObjects();
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) removeObject(*i);
@@ -117,7 +117,7 @@ void Level::clear()
 	objectsToAdd.clear();
 	objectsToRemove.clear();
 
-	// Tiles löschen
+	// Tiles loeschen
 	delete[] p_tiles;
 	p_tiles = 0;
 	size = Vec2i(0, 0);
@@ -231,7 +231,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	}
 
 	// Titel lesen
-	title = "§en:Unnamed Level§de:Unbenannter Level";
+	title = "\xA7" "en:Unnamed Level\xA7" "de:Unbenannter Level";
 	const char* p_temp = p_level->Attribute("title");
 	if(p_temp) title = p_temp;
 
@@ -247,7 +247,7 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad) loadSkin();
 
-	// Größe des Levels und Anzahl der Layer lesen
+	// Groesse des Levels und Anzahl der Layer lesen
 	Vec2i size;
 	p_level->Attribute("width", &size.x);
 	p_level->Attribute("height", &size.y);
@@ -328,7 +328,7 @@ bool Level::load(TiXmlDocument* p_doc,
 			p_object = p_object->NextSiblingElement("Object");
 		}
 
-		// Objekte hinzufügen und sortieren
+		// Objekte hinzufuegen und sortieren
 		addNewObjects();
 		sortObjects();
 
@@ -407,7 +407,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	p_temp = p_level->Attribute("musicFilename");
 	if(p_temp) musicFilename = p_temp;
 
-	// Display-Lists für die Layer erzeugen
+	// Display-Lists fuer die Layer erzeugen
 	layerListBase = glGenLists(numLayers);
 	layerDirty = ~0;
 
@@ -426,7 +426,7 @@ bool Level::save(const std::string& filename)
 
 TiXmlDocument* Level::save()
 {
-	// alte Objekte löschen, neue Objekte hinzufügen
+	// alte Objekte loeschen, neue Objekte hinzufuegen
 	removeOldObjects();
 	addNewObjects();
 
@@ -618,7 +618,7 @@ void Level::render()
 	// Hintergrund rendern
 	renderTiles(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
 
-	// Lava-Ränder rendern
+	// Lava-Raender rendern
 	Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
 	p_lavaEdges->bind();
 
@@ -974,7 +974,7 @@ void Level::update()
 {
 	clearAIFlags(Vec2i(-1, -1));
 
-	// alte Objekte löschen, neue Objekte hinzufügen
+	// alte Objekte loeschen, neue Objekte hinzufuegen
 	removeOldObjects();
 	addNewObjects();
 
@@ -1006,7 +1006,7 @@ void Level::update()
 		if(trace) p_aiFlags[i] -= 0x100;
 	}
 
-	// Sind genügend Diamanten eingesammelt worden?
+	// Sind genuegend Diamanten eingesammelt worden?
 	if(!inEditor && p_exit)
 	{
 		if(p_exit->isGhost() && getNumDiamondsCollected() >= numDiamondsNeeded)
@@ -1408,7 +1408,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 
 /*	Object* p_maxObj = 0;
 
-	// Sind dort Objekte? Das mit der größten Tiefe liefern.
+	// Sind dort Objekte? Das mit der groessten Tiefe liefern.
 	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1433,7 +1433,7 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 		Object* p_obj = *i;
 		if(p_obj->isAlive() && !p_obj->isGhost() && !(p_obj->getFlags() & Object::OF_PROXY))
 		{
-			// zur Liste hinzufügen
+			// zur Liste hinzufuegen
 			result.push_back(p_obj);
 		}
 	}
@@ -1595,7 +1595,7 @@ void Level::setTileDestroyTimeAt(int layer,
 bool Level::clearPosition(const Vec2i& position,
 						  const std::string& except)
 {
-	// alle Objekte an dieser Stelle löschen
+	// alle Objekte an dieser Stelle loeschen
 	const std::vector<Object*> objects = getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
@@ -1635,7 +1635,7 @@ bool Level::changeBarrages(uint color)
 				if(p_barrage->change()) changed.push_back(p_barrage);
 				else
 				{
-					// alle vorherigen Hindernisse wieder ändern
+					// alle vorherigen Hindernisse wieder aendern
 					for(std::vector<Barrage*>::const_iterator j = changed.begin(); j != changed.end(); ++j) (*j)->change();
 					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0, 100);
 					return false;
@@ -1665,7 +1665,7 @@ int Level::changeBarrages2(uint color,
 				if(code == 1) changed.push_back(p_barrage);
 				else if(code == -1)
 				{
-					// alle vorherigen Hindernisse wieder ändern
+					// alle vorherigen Hindernisse wieder aendern
 					for(std::vector<Barrage2*>::const_iterator j = changed.begin(); j != changed.end(); ++j)
 					{
 						(*j)->change(!up);
@@ -1861,7 +1861,7 @@ void Level::setTileSet(TileSet* p_tileSet)
 	// altes Tile-Set freigeben
 	if(this->p_tileSet) this->p_tileSet->release();
 
-	// neues übernehmen
+	// neues uebernehmen
 	this->p_tileSet = p_tileSet;
 	if(p_tileSet) p_tileSet->addRef();
 
@@ -1929,7 +1929,7 @@ void Level::switchToNextPlayer()
 			Player* p = static_cast<Player*>(*i);
 			if(currentPlayerFound)
 			{
-				// Dies ist der nächste Spieler!
+				// Dies ist der naechste Spieler!
 				p->activate();
 				return;
 			}
@@ -2006,7 +2006,7 @@ void Level::addNewObjects()
 {
 	if(objectsToAdd.empty()) return;
 
-	// neue Objekte hinzufügen
+	// neue Objekte hinzufuegen
 	objects.insert(objects.end(), objectsToAdd.begin(), objectsToAdd.end());
 
 	// neue Objekte hashen und ihnen ihre UIDs geben
@@ -2043,7 +2043,7 @@ void Level::removeOldObjects()
 
 void Level::hashObject(Object* p_obj)
 {
-	// Objekt in die Liste des entsprechenden Feldes einfügen
+	// Objekt in die Liste des entsprechenden Feldes einfuegen
 	const Vec2i& p = p_obj->getPosition();
 	int index = p.y * size.x + p.x;
 	if(index >= 0 && index < size.x * size.y)
@@ -2123,7 +2123,7 @@ void Level::setAITrace(const Vec2i& where,
 
 void Level::clean()
 {
-	// alle Tiles zurücksetzen
+	// alle Tiles zuruecksetzen
 	for(int layer = 0; layer < numLayers; layer++)
 	{
 		for(int x = 0; x < size.x; x++)
@@ -2135,7 +2135,7 @@ void Level::clean()
 		}
 	}
 
-	// alle Objekte löschen
+	// alle Objekte loeschen
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) removeObject(*i);
 }
 
@@ -2356,7 +2356,7 @@ void Level::loadSkin(bool forceReload)
 {
 	skinsMissing.clear();
 
-	// prüfen, ob alle benötigten Skins da sind
+	// pruefen, ob alle benoetigten Skins da sind
 	for(uint i = 0; i < SKIN_MAX; i++)
 	{
 		if(!requestedSkin[i].empty())
@@ -2483,7 +2483,7 @@ std::string Level::getSkinFilename(uint index)
 	}
 	else
 	{
-		// Existiert die gewünschte Datei in einem normalen Ordner?
+		// Existiert die gewuenschte Datei in einem normalen Ordner?
 		FileSystem& fs = FileSystem::inst();
 		std::string check = FileSystem::inst().getAppHomeDirectory() + "levels/skins/" + skin[index] + "/" + p_skinFilenames[index];
 		if(fs.fileExists(check))

@@ -17,7 +17,7 @@ Pin::Pin(Electronics* p_object,
 
 Pin::~Pin()
 {
-	// alle Verbindungen lösen
+	// alle Verbindungen loesen
 	disconnectAll();
 }
 
@@ -42,7 +42,7 @@ bool Pin::connect(Pin* p_pin1,
 	// Ein Pin kann nicht mit sich selbst verbunden werden.
 	if(!p_pin1 || !p_pin2 || p_pin1 == p_pin2) return false;
 
-	// Es können keine Eingänge oder Ausgänge miteinander verbunden werden.
+	// Es koennen keine Eingaenge oder Ausgaenge miteinander verbunden werden.
 	if(p_pin1->type == p_pin2->type) return false;
 
 	// Ein- und Ausgang bestimmen
@@ -193,7 +193,7 @@ int Pin::getValue() const
 
 void Pin::setValue(int value)
 {
-	// Nur Ausgänge können gesetzt werden.
+	// Nur Ausgaenge koennen gesetzt werden.
 	if(type != PT_OUTPUT) return;
 
 	this->oldValue = this->value;
@@ -204,7 +204,7 @@ void Pin::propagate()
 {
 	if(type != PT_OUTPUT) return;
 
-	// den Wert an alle angeschlossenen Pins übertragen
+	// den Wert an alle angeschlossenen Pins uebertragen
 	for(std::set<Pin*>::const_iterator i = connectedPins.begin(); i != connectedPins.end(); ++i)
 	{
 		(*i)->oldValue = (*i)->value;

@@ -92,10 +92,10 @@ public:
 	{
 		if(!getChild("SearchPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste gedrückt wurde.
+			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 			if(event.type != SDL_KEYDOWN) return;
 
-			// Shift, Strg gedrückt?
+			// Shift, Strg gedrueckt?
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
@@ -138,7 +138,7 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste füllen
+			// Dateiliste fuellen
 			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns");
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
@@ -396,7 +396,7 @@ public:
 		else if(name == "CampaignEditor.Title" ||
 			    name == "CampaignEditor.Description")
 		{
-			// Änderungen speichern
+			// Aenderungen speichern
 			if(!noUpdate) updateCampaign();
 		}
 
@@ -432,7 +432,7 @@ public:
 	{
 		noUpdate = true;
 
-		// Liste der verfügbaren Levels aktualisieren
+		// Liste der verfuegbaren Levels aktualisieren
 		listAvailableLevels();
 
 		// Liste der Levels aktualisieren
@@ -656,13 +656,13 @@ void GS_CampaignEditor::onEnter(const ParameterBlock& context)
 
 void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 {
-	// Ressourcen löschen
+	// Ressourcen loeschen
 	delete p_campaign;
 	p_background->release();
 	p_campaign = 0;
 	p_background = 0;
 
-	// Dialog löschen
+	// Dialog loeschen
 	delete gui["CampaignEditor"];
 }
 

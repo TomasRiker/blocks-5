@@ -30,7 +30,7 @@ GS_Menu::~GS_Menu()
 
 void GS_Menu::onRender()
 {
-	// Farbübergang rendern
+	// Farbuebergang rendern
 	glBegin(GL_QUADS);
 	glColor3d(0.5, 0.5, 1.0);
 	glVertex2i(0, 0);
@@ -175,7 +175,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	p_clouds = Manager<Texture>::inst().request("clouds.png");
 	p_background = Manager<Texture>::inst().request("menu.png");
 
-	// Menü erzeugen
+	// Menue erzeugen
 	gui.getRoot()->load("menu.xml");
 
 	static_cast<GUI_StaticText*>(gui["Menu.Version"])->setText(p_localVersion);
@@ -201,7 +201,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	p_options = new Options(0);
 	p_help = new Help(0);
 
-	// Keyboard-Daten für die Demo laden
+	// Keyboard-Daten fuer die Demo laden
 	keyData.clear();
 	File* p_file = FileSystem::inst().openFile("demo1.dat", FileSystem::FM_READ);
 	while(!p_file->isEOF())
@@ -226,7 +226,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 void GS_Menu::onLeave(const ParameterBlock& context)
 {
-	// Bilder löschen
+	// Bilder loeschen
 	p_clouds->release();
 	p_clouds = 0;
 	p_background->release();
@@ -236,7 +236,7 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	p_titleLevel = 0;
 	levelSaved = false;
 
-	// Menü löschen
+	// Menue loeschen
 	delete gui["Menu"];
 	delete p_options;
 	delete p_help;
@@ -261,7 +261,7 @@ void GS_Menu::onGetFocus()
 
 void GS_Menu::onLoseFocus()
 {
-	// Titel-Level speichern und löschen
+	// Titel-Level speichern und loeschen
 	TiXmlDocument* p_doc = p_titleLevel->save();
 	titleLevelXML = *p_doc;
 	delete p_doc;
