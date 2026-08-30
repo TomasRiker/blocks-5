@@ -250,6 +250,7 @@ public:
 	AudioCapture* getAudioCapture();
 
 	uint getTimePlayed() const { return timePlayed; }
+	void saveTimePlayed();
 
 private:
 	Engine();

@@ -82,6 +82,179 @@ extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
     return 0;
 }
 
+
+// --- SDL_GetKeyName ----------------------------------------------------------
+// Emscripten's own (libsdl.js) answers only for a-z and 0-9 and returns an empty
+// string for anything else, so every binding in the options read as a bare
+// "Keyboard " - and not one of the defaults (arrows, shift, tab, return, F5 and
+// the rest) is a letter or a digit, so that was all of them.
+//
+// The table is SDL 1.2.15's own, taken from
+// libs/SDL-1.2.15/src/events/SDL_keyboard.c, which this tree vendors and the
+// Windows build compiles - so both builds now name a key the same way. The
+// SDLK_WORLD_0..95 entries are left out because Emscripten ships SDL2 headers
+// with a 1.2 compatibility layer and does not declare them; they are the
+// Latin-1 dead keys, which no binding here uses.
+//
+// Nothing depends on the text: config.xml stores a virtual key's index, never
+// its name. This is what the options dialog prints, and nothing else.
+static const char* keynames[SDLK_LAST];
+
+static void initKeyNames(void)
+{
+	static int done = 0;
+	if (done) return;
+	done = 1;
+	memset((void*)keynames, 0, sizeof(keynames));
+	keynames[SDLK_BACKSPACE] = "backspace";
+	keynames[SDLK_TAB] = "tab";
+	keynames[SDLK_CLEAR] = "clear";
+	keynames[SDLK_RETURN] = "return";
+	keynames[SDLK_PAUSE] = "pause";
+	keynames[SDLK_ESCAPE] = "escape";
+	keynames[SDLK_SPACE] = "space";
+	keynames[SDLK_EXCLAIM] = "!";
+	keynames[SDLK_QUOTEDBL] = "\"";
+	keynames[SDLK_HASH] = "#";
+	keynames[SDLK_DOLLAR] = "$";
+	keynames[SDLK_AMPERSAND] = "&";
+	keynames[SDLK_QUOTE] = "'";
+	keynames[SDLK_LEFTPAREN] = "(";
+	keynames[SDLK_RIGHTPAREN] = ")";
+	keynames[SDLK_ASTERISK] = "*";
+	keynames[SDLK_PLUS] = "+";
+	keynames[SDLK_COMMA] = ",";
+	keynames[SDLK_MINUS] = "-";
+	keynames[SDLK_PERIOD] = ".";
+	keynames[SDLK_SLASH] = "/";
+	keynames[SDLK_0] = "0";
+	keynames[SDLK_1] = "1";
+	keynames[SDLK_2] = "2";
+	keynames[SDLK_3] = "3";
+	keynames[SDLK_4] = "4";
+	keynames[SDLK_5] = "5";
+	keynames[SDLK_6] = "6";
+	keynames[SDLK_7] = "7";
+	keynames[SDLK_8] = "8";
+	keynames[SDLK_9] = "9";
+	keynames[SDLK_COLON] = ":";
+	keynames[SDLK_SEMICOLON] = ";";
+	keynames[SDLK_LESS] = "<";
+	keynames[SDLK_EQUALS] = "=";
+	keynames[SDLK_GREATER] = ">";
+	keynames[SDLK_QUESTION] = "?";
+	keynames[SDLK_AT] = "@";
+	keynames[SDLK_LEFTBRACKET] = "[";
+	keynames[SDLK_BACKSLASH] = "\\";
+	keynames[SDLK_RIGHTBRACKET] = "]";
+	keynames[SDLK_CARET] = "^";
+	keynames[SDLK_UNDERSCORE] = "_";
+	keynames[SDLK_BACKQUOTE] = "`";
+	keynames[SDLK_a] = "a";
+	keynames[SDLK_b] = "b";
+	keynames[SDLK_c] = "c";
+	keynames[SDLK_d] = "d";
+	keynames[SDLK_e] = "e";
+	keynames[SDLK_f] = "f";
+	keynames[SDLK_g] = "g";
+	keynames[SDLK_h] = "h";
+	keynames[SDLK_i] = "i";
+	keynames[SDLK_j] = "j";
+	keynames[SDLK_k] = "k";
+	keynames[SDLK_l] = "l";
+	keynames[SDLK_m] = "m";
+	keynames[SDLK_n] = "n";
+	keynames[SDLK_o] = "o";
+	keynames[SDLK_p] = "p";
+	keynames[SDLK_q] = "q";
+	keynames[SDLK_r] = "r";
+	keynames[SDLK_s] = "s";
+	keynames[SDLK_t] = "t";
+	keynames[SDLK_u] = "u";
+	keynames[SDLK_v] = "v";
+	keynames[SDLK_w] = "w";
+	keynames[SDLK_x] = "x";
+	keynames[SDLK_y] = "y";
+	keynames[SDLK_z] = "z";
+	keynames[SDLK_DELETE] = "delete";
+	keynames[SDLK_KP0] = "[0]";
+	keynames[SDLK_KP1] = "[1]";
+	keynames[SDLK_KP2] = "[2]";
+	keynames[SDLK_KP3] = "[3]";
+	keynames[SDLK_KP4] = "[4]";
+	keynames[SDLK_KP5] = "[5]";
+	keynames[SDLK_KP6] = "[6]";
+	keynames[SDLK_KP7] = "[7]";
+	keynames[SDLK_KP8] = "[8]";
+	keynames[SDLK_KP9] = "[9]";
+	keynames[SDLK_KP_PERIOD] = "[.]";
+	keynames[SDLK_KP_DIVIDE] = "[/]";
+	keynames[SDLK_KP_MULTIPLY] = "[*]";
+	keynames[SDLK_KP_MINUS] = "[-]";
+	keynames[SDLK_KP_PLUS] = "[+]";
+	keynames[SDLK_KP_ENTER] = "enter";
+	keynames[SDLK_KP_EQUALS] = "equals";
+	keynames[SDLK_UP] = "up";
+	keynames[SDLK_DOWN] = "down";
+	keynames[SDLK_RIGHT] = "right";
+	keynames[SDLK_LEFT] = "left";
+	keynames[SDLK_DOWN] = "down";
+	keynames[SDLK_INSERT] = "insert";
+	keynames[SDLK_HOME] = "home";
+	keynames[SDLK_END] = "end";
+	keynames[SDLK_PAGEUP] = "page up";
+	keynames[SDLK_PAGEDOWN] = "page down";
+	keynames[SDLK_F1] = "f1";
+	keynames[SDLK_F2] = "f2";
+	keynames[SDLK_F3] = "f3";
+	keynames[SDLK_F4] = "f4";
+	keynames[SDLK_F5] = "f5";
+	keynames[SDLK_F6] = "f6";
+	keynames[SDLK_F7] = "f7";
+	keynames[SDLK_F8] = "f8";
+	keynames[SDLK_F9] = "f9";
+	keynames[SDLK_F10] = "f10";
+	keynames[SDLK_F11] = "f11";
+	keynames[SDLK_F12] = "f12";
+	keynames[SDLK_F13] = "f13";
+	keynames[SDLK_F14] = "f14";
+	keynames[SDLK_F15] = "f15";
+	keynames[SDLK_NUMLOCK] = "numlock";
+	keynames[SDLK_CAPSLOCK] = "caps lock";
+	keynames[SDLK_SCROLLOCK] = "scroll lock";
+	keynames[SDLK_RSHIFT] = "right shift";
+	keynames[SDLK_LSHIFT] = "left shift";
+	keynames[SDLK_RCTRL] = "right ctrl";
+	keynames[SDLK_LCTRL] = "left ctrl";
+	keynames[SDLK_RALT] = "right alt";
+	keynames[SDLK_LALT] = "left alt";
+	keynames[SDLK_RMETA] = "right meta";
+	keynames[SDLK_LMETA] = "left meta";
+	keynames[SDLK_LSUPER] = "left super";
+	keynames[SDLK_RSUPER] = "right super";
+	keynames[SDLK_MODE] = "alt gr";
+	keynames[SDLK_COMPOSE] = "compose";
+	keynames[SDLK_HELP] = "help";
+	keynames[SDLK_PRINT] = "print screen";
+	keynames[SDLK_SYSREQ] = "sys req";
+	keynames[SDLK_BREAK] = "break";
+	keynames[SDLK_MENU] = "menu";
+	keynames[SDLK_POWER] = "power";
+	keynames[SDLK_EURO] = "euro";
+	keynames[SDLK_UNDO] = "undo";
+}
+
+// Emscripten ships SDL2's declaration - const char*, SDL_Keycode - rather than
+// 1.2's char*/SDLKey, so the definition has to match that one to override it.
+const char* SDL_GetKeyName(SDL_Keycode key)
+{
+	const char* name;
+
+	initKeyNames();
+	name = (key >= 0 && key < SDLK_LAST) ? keynames[key] : NULL;
+	return name ? name : "unknown key";
+}
+
 } // extern "C"
 
 // --- SDL_PixelFormat completion ---------------------------------------------

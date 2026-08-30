@@ -43,14 +43,21 @@ void GUI_Button::onRender()
 		}
 		else
 		{
-			Vec2i t = positionOnTexture;
-			if(pushed && mouseOver) t = clickedPositionOnTexture;
+			// Ohne Bild bleibt der Knopf unsichtbar und ist trotzdem
+			// anklickbar - so liegt in menu.xml eine Schaltflaeche ueber der
+			// Adresse, die zum Hintergrundbild gehoert. renderSprite haette
+			// den Nullzeiger sonst dereferenziert.
+			if(p_image)
+			{
+				Vec2i t = positionOnTexture;
+				if(pushed && mouseOver) t = clickedPositionOnTexture;
 
-			glPushMatrix();
-			glTranslated(size.x / 2, size.y / 2, 0.0);
-			glScaled(currentScaling, currentScaling, 1.0);
-			Engine::inst().renderSprite(p_image, -size / 2, t, size, currentColor);
-			glPopMatrix();
+				glPushMatrix();
+				glTranslated(size.x / 2, size.y / 2, 0.0);
+				glScaled(currentScaling, currentScaling, 1.0);
+				Engine::inst().renderSprite(p_image, -size / 2, t, size, currentColor);
+				glPopMatrix();
+			}
 		}
 	}
 	else
@@ -102,6 +109,17 @@ void GUI_Button::onUpdate()
 {
 	currentColor = 0.85 * currentColor + 0.15 * (mouseOver ? hoverColor : stdColor);
 	currentScaling = 0.85 * currentScaling + 0.15 * (mouseOver ? hoverScaling : stdScaling);
+
+	// Beim Laden aufzuloesen reicht nicht: der Spendenknopf traegt
+	// $MM_DONATE_BUTTON_FILENAME, und wer die Sprache in den Optionen
+	// umstellt, saehe sonst bis zum naechsten Start den alten Knopf.
+	// Titel machen es genauso, nur erst beim Zeichnen. Angefordert wird die
+	// Textur trotzdem nur, wenn wirklich ein anderer Name herauskommt.
+	if(!rawImageFilename.empty())
+	{
+		const std::string wanted = localizeString(rawImageFilename);
+		if(wanted != imageFilename) setImageFilename(wanted);
+	}
 }
 
 void GUI_Button::onMouseDown(const Vec2i& position,
@@ -149,7 +167,7 @@ void GUI_Button::readAttributes(TiXmlElement* p_element)
 	if(e)
 	{
 		const char* p_imageFilename = e->GetText();
-		if(p_imageFilename) setImageFilename(localizeString(p_imageFilename));
+		if(p_imageFilename) setRawImageFilename(p_imageFilename);
 
 		e->QueryIntAttribute("u", &positionOnTexture.x);
 		e->QueryIntAttribute("v", &positionOnTexture.y);
@@ -167,4 +185,10 @@ void GUI_Button::setImageFilename(const std::string& imageFilename)
 	if(p_image) p_image->release();
 	this->imageFilename = imageFilename;
 	p_image = Manager<Texture>::inst().request(imageFilename);
+}
+
+void GUI_Button::setRawImageFilename(const std::string& rawImageFilename)
+{
+	this->rawImageFilename = rawImageFilename;
+	setImageFilename(localizeString(rawImageFilename));
 }

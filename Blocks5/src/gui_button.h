@@ -30,6 +30,9 @@ public:
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
+	// Der Name, wie er in der XML steht. Ist es eine $ID, kann er je nach
+	// Sprache auf ein anderes Bild zeigen; onUpdate loest ihn deshalb neu auf.
+	void setRawImageFilename(const std::string& rawImageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_GETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
@@ -44,6 +47,7 @@ private:
 
 	int style;
 	std::string imageFilename;
+	std::string rawImageFilename;
 	Vec2i positionOnTexture;
 	Vec2i clickedPositionOnTexture;
 	Vec4d stdColor;

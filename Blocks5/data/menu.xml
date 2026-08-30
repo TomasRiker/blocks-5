@@ -40,6 +40,14 @@
 			<Title>$MM_QUIT</Title>
 			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
 		</Button>
+		<!-- Die Adresse oben rechts gehoert zu menu.png und ist damit kein
+		     eigenes Element. Dieser Knopf liegt nur darueber: ExtendedStyle
+		     ohne Bild und ohne Titel zeichnet nichts. Gemessen im fertigen
+		     Bild - der Text steht bei x 474..636, y 8..22. -->
+		<Button name="Website" x="470" y="4" w="170" h="22">
+			<ExtendedStyle />
+			<Title></Title>
+		</Button>
 		<Button name="Donate" x="330" y="5" w="100" h="43">
 			<ExtendedStyle />
 			<Title></Title>

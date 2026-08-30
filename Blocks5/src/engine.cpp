@@ -597,10 +597,7 @@ void Engine::exit()
 	actionsVector.clear();
 	actions.clear();
 
-	FileSystem& fs = FileSystem::inst();
-	std::ostringstream timePlayedStr;
-	timePlayedStr << timePlayed;
-	fs.writeStringToFile(timePlayedStr.str(), fs.getAppHomeDirectory() + ".time_played");
+	saveTimePlayed();
 
 	initialized = false;
 }
@@ -1177,9 +1174,28 @@ void Engine::update()
 
 	++timePlayed;
 
+#ifdef __EMSCRIPTEN__
+	// exit() laeuft im Browser nie: emscripten_set_main_loop kehrt nicht
+	// zurueck, und ein Tab wird ohne Vorwarnung geschlossen. Die gespielte
+	// Zeit haelt sich hier deshalb selbst fest, alle 30 Sekunden eine Zahl in
+	// eine Datei, die pre.js ohnehin regelmaessig nach IDBFS spuelt. Ohne das
+	// faengt timePlayed bei jedem Start wieder bei null an.
+	if(!(timePlayed % 1500)) saveTimePlayed();
+#endif
+
 #ifdef PROFILE_ENGINE_UPDATE
 	END_PROFILE(engineUpdate)
 #endif
+}
+
+// Getrennt, weil der Browser sie nebenher schreiben muss und nicht erst beim
+// Beenden - dort kommt exit() nie an.
+void Engine::saveTimePlayed()
+{
+	std::ostringstream timePlayedStr;
+	timePlayedStr << timePlayed;
+	FileSystem::inst().writeStringToFile(timePlayedStr.str(),
+										 FileSystem::inst().getAppHomeDirectory() + ".time_played");
 }
 
 void Engine::updateSounds()

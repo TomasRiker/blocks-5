@@ -30,7 +30,7 @@ void GUI_StaticImage::readAttributes(TiXmlElement* p_element)
 	if(e)
 	{
 		const char* p_imageFilename = e->GetText();
-		if(p_imageFilename) setImageFilename(localizeString(p_imageFilename));
+		if(p_imageFilename) setRawImageFilename(p_imageFilename);
 
 		e->QueryIntAttribute("u", &positionOnTexture.x);
 		e->QueryIntAttribute("v", &positionOnTexture.y);
@@ -51,4 +51,20 @@ void GUI_StaticImage::setImageFilename(const std::string& imageFilename)
 	if(p_image) p_image->release();
 	this->imageFilename = imageFilename;
 	p_image = Manager<Texture>::inst().request(imageFilename);
+}
+
+void GUI_StaticImage::setRawImageFilename(const std::string& rawImageFilename)
+{
+	this->rawImageFilename = rawImageFilename;
+	setImageFilename(localizeString(rawImageFilename));
+}
+
+// Der Hintergrund des Spendenfensters traegt $MM_DONATE_BACKGROUND_FILENAME.
+// Siehe GUI_Button::onUpdate - dieselbe Sache, derselbe Grund.
+void GUI_StaticImage::onUpdate()
+{
+	if(rawImageFilename.empty()) return;
+
+	const std::string wanted = localizeString(rawImageFilename);
+	if(wanted != imageFilename) setImageFilename(wanted);
 }
