@@ -80,8 +80,14 @@ rm -rf "$WEBROOT"; mkdir -p "$WEBROOT/levels/campaigns" "$WEBROOT/levels/skins" 
 cp "$GAME/data.zip"                    "$WEBROOT/"           2>/dev/null
 cp "$GAME/.update_checker"             "$WEBROOT/"           2>/dev/null
 cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
-cp "$GAME"/levels/*.xml                "$WEBROOT/levels/"    2>/dev/null
-cp "$GAME"/levels/*.ogg                "$WEBROOT/levels/"    2>/dev/null
+# Genau die drei Dateien, die stage.bat nach levels/ legt. Frueher stand hier
+# levels/*.xml und levels/*.ogg, und das griff in das Arbeitsverzeichnis des
+# Autors: die 42 Quell-Level und die 10 Musikstuecke, aus denen blocks.zip
+# gebaut wird. Alle 52 lagen damit ein zweites Mal im Paket, byte-identisch zu
+# einem Mitglied des Archivs - 8,3 der 21 MiB, die der Browser laedt, fuer
+# nichts. Gebraucht wird keine davon: die Kampagnenmusik holt gs_game.cpp aus
+# blocks.zip selbst, und die beiden Beispiel-Level nennen gar keine.
+cp "$GAME"/levels/example0*.xml        "$WEBROOT/levels/"    2>/dev/null
 cp "$GAME/levels/readme.txt"           "$WEBROOT/levels/"    2>/dev/null
 cp "$GAME"/levels/campaigns/*.zip      "$WEBROOT/levels/campaigns/" 2>/dev/null
 cp "$GAME"/levels/skins/*.zip          "$WEBROOT/levels/skins/"     2>/dev/null

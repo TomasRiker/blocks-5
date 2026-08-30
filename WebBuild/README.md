@@ -21,6 +21,32 @@ Serve `build/` over HTTP; `file://` will not work.
 `build.sh` also packs `data.zip` and the skin archives into the staged tree, so a
 clean clone needs no other preparation. `./build.sh clean` rebuilds from scratch.
 
+## What the player downloads
+
+`blocks5.data` is Emscripten's preload package: the `webroot/` tree concatenated,
+uncompressed, four bytes of overhead. 12.6 MiB, of which
+
+| | |
+| --- | --- |
+| `levels/campaigns/blocks.zip` | 7.90 MiB — the 42 levels and all ten music tracks |
+| `data.zip` | 3.03 MiB — every sprite, dialog, font and sound effect |
+| `levels/skins/*.zip` | 1.67 MiB — the four skins |
+| the rest | 12 KiB — two example levels and three readmes |
+
+Nothing here compresses further over the wire: it is Ogg Vorbis, PNG and
+deflated zip all the way down. The music is 28 minutes of stereo at an average
+of 39 kbit/s, so it is already about as small as it can be and still be music.
+
+It used to be 20.9 MiB. `build.sh` copied `levels/*.xml` and `levels/*.ogg`,
+which reaches into the *author's* working tree - the 42 source levels and the
+ten music files that `blocks.zip` is built from. All 52 shipped a second time,
+byte for byte identical to a member of the archive, for 8.3 MiB of the download.
+`stage.bat` never did that: the Windows tree ships `levels\example01.xml`,
+`example02.xml` and `readme.txt`, and nothing else. Neither does the game need
+it, which is what made the duplication invisible - campaign music is played
+from inside the archive (`gs_game.cpp`, `p_currentCampaign->getFilename() + pw +
+"/" + musicFilename`) and the two example levels name no music at all.
+
 The libraries the Visual Studio build takes from `libs/bin` as Windows binaries
 are compiled from source here instead — zlib 1.3.1 with its `contrib/minizip`,
 libogg 1.3.2, libvorbis 1.3.4, TinyXML 2.6.2. The Visual Studio build compiles the
