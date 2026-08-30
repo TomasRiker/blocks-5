@@ -5,9 +5,9 @@
 AppName=Blocks 5
 AppVersion=1.2.0
 AppPublisher=Scherfgen-Software
-AppPublisherURL=http://www.scherfgen-software.net/blocks5/
-AppSupportURL=http://www.scherfgen-software.net/blocks5/
-AppUpdatesURL=http://www.scherfgen-software.net/blocks5/
+AppPublisherURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
+AppSupportURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
+AppUpdatesURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
 DefaultDirName={pf}\Blocks 5
 DefaultGroupName=Blocks 5
 AllowNoIcons=yes

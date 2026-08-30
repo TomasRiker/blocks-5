@@ -1,8 +1,5 @@
-[DEFAULT]
-BASEURL=http://www.aegypten-im-internet.de/index.htm
-
 [InternetShortcut]
-URL=http://www.scherfgen-software.net/blocks5/
+URL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
 Modified=40618F9F4DEFC301CF
 HotKey=0
 IDList=

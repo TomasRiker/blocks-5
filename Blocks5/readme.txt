@@ -8,7 +8,7 @@
 == Bob's Amazing Adventures == v1.2.0
 
     by David Scherfgen
-        Website ... http://www.scherfgen-software.net/blocks5/
+        Website ... https://www.david-scherfgen.de/meine-spiele/blocks-5/
         E-Mail .... d.scherfgen@googlemail.com
 
 
