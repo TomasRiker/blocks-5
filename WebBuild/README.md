@@ -80,7 +80,7 @@ a fixed shape a triangle fan covers exactly.
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
 | `web_transfer.cpp` | the download/file-picker bridge behind Export and Import |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
-| `pre.js` | mounts IDBFS at `/blocks5_home` and flushes it periodically |
+| `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, and wakes the `AudioContext` when the page comes back |
 
 One of those deserves explanation.
 
@@ -91,6 +91,34 @@ this game sets a colour once and then emits four vertices, and most of its 120
 `glBegin` blocks are shaped that way. Rather than rewrite them all, this file
 buffers each block and replays it with the current colour and texcoord attached to
 every vertex.
+
+**`gluLookAt` is not merely missing, it is wrong.** Everything else in
+`gl_compat.cpp` fills a gap; this one corrects Emscripten. `libglemu.js` calls
+
+    mat4.lookAt(GLImmediate.matrix[cur], [ex,ey,ez], [cx,cy,cz], [ux,uy,uz])
+
+which is gl-matrix 2.x's "destination first" convention - but the gl-matrix
+bundled with Emscripten is 1.x, where the signature is
+`mat4.lookAt(eye, center, up, dest)`. So the current matrix goes in as the eye,
+every real argument shifts one place along, and the result is written into the
+three-element array that was meant to be the up vector and then dropped. The
+modelview matrix is never assigned. Nothing errors, nothing warns: `gluLookAt`
+is simply a no-op, and after the `glLoadIdentity` that precedes every call in
+this game the camera sits at the origin looking down -Z.
+
+Five places depend on it, and all five were quietly broken: the cube transition
+(`cf_cube.cpp`) showed a flat still instead of a rotating cube, the end-of-level
+zoom (`cf_zoom.cpp`) neither panned to the player nor rolled, `cf_slices.cpp`
+and the unused `cf_camera.cpp` likewise, and the credits scene never moved.
+`glMultMatrixd` is sound - `mat4.multiply(current, m)` post-multiplies, which is
+the GL order - so `gl_compat.cpp` defines `gluLookAt` itself, Mesa's version on
+top of it. Checked against a reference implementation for each of those cameras,
+including `cf_zoom`'s rotated up vector: worst element error 4.7e-7, which is
+float32 readback noise.
+
+`gluPerspective` is correct but *replaces* the current matrix where real GLU
+multiplies into it. Every call site here does `glLoadIdentity` first, so the two
+agree; it goes through `glFrustum` now anyway, so they still would if one did not.
 
 ## Click to start
 
@@ -120,10 +148,36 @@ beats a screen that never moves.
 The logo is deliberately not drawn during the hold: its entrance is timed to the
 jingle, and both now begin together, one second after the click.
 
+## Coming back to the tab
+
+Switching away from the tab and back used to kill the music for the rest of the
+session, and it took two fixes because it has two halves.
+
+The game's half: a hidden page gets no `requestAnimationFrame`, so the main loop
+stops, and with it `StreamedSound::pumpBuffers` - the only thing that refills the
+OpenAL queue in this build, since there are no decoder threads here. Four buffers
+of a quarter second each means the music runs dry after one second and the source
+goes `AL_STOPPED`. The old restart condition was `AL_BUFFERS_QUEUED == 0`, which
+an underrun never produces: coming back, the refill hands the source four fresh
+buffers and the queue is 4 again. `pumpBuffers` now also restarts a source that
+reports `AL_STOPPED`, and leaves `AL_PAUSED` alone so a deliberate pause survives.
+
+The browser's half: Chrome suspends the `AudioContext` of a backgrounded page,
+and Emscripten's unlocker is `{once: true}` and was spent on the first click of
+the session, so nothing would ever resume it. `pre.js` adds a `visibilitychange`
+and `focus` listener that does - from a real DOM event, which is exactly what the
+main loop is not at the moment the page returns.
+
+Measured by stubbing out `requestAnimationFrame` for four seconds, which is what
+a hidden tab amounts to: the streaming source reads `STREAMING/PLAYING q=4 p=0`
+before, `STREAMING/STOPPED q=4 p=4` while hidden - a stopped source with a full
+queue, the state the old check could not see - and `STREAMING/PLAYING q=4 p=0`
+again half a second after the frames resume.
+
 ## Getting levels in and out
 
-The Level Editor and Campaign Editor each gained an **Export...** and
-**Import...** button, present only in the web build (the desktop build hides
+The Level Editor and Campaign Editor each gained an **Export ...** and
+**Import ...** button, present only in the web build (the desktop build hides
 them - there the files are already in `My Documents\Blocks 5\`).
 
 Export hands the browser a Blob and clicks a hidden `<a download>`. A level is

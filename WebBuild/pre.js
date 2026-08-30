@@ -34,6 +34,32 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
+// The other half of "the music stopped when I switched tabs". A hidden page
+// gets no requestAnimationFrame, so the game cannot refill the OpenAL queue and
+// the source runs dry; StreamedSound::pumpBuffers restarts it when the page
+// comes back. What it cannot restart is the AudioContext: Chrome suspends the
+// one belonging to a backgrounded page, and Emscripten's own unlocker
+// (autoResumeAudioContext in libcore.js) registers its listeners with
+// { once: true } and spent them on the very first click of the session. Nobody
+// would ever resume it again, so do it here - on every return to the page, and
+// from a real DOM event rather than from inside the main loop, which is exactly
+// what is not running yet at that moment.
+(function () {
+  function resume() {
+    try {
+      // AL is the library object from libopenal.js; --pre-js lands in the same
+      // scope, and it is only looked at when an event fires, long after the
+      // runtime has defined it.
+      var ctx = AL.currentCtx && AL.currentCtx.audioCtx;
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) resume();
+  });
+  window.addEventListener('focus', resume);
+})();
+
 // The canvas fills the page and follows the browser window. The game renders
 // 640x480 into a framebuffer object and letterboxes that into whatever size the
 // canvas is, so nothing here has to know about the game's own resolution - it

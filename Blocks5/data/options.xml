@@ -14,10 +14,10 @@
 			<Title>$O_LANGUAGE_ENGLISH</Title>
 			<Group>0</Group>
 		</RadioButton>
-		<StaticImage name="Static2" x="120" y="50" w="64" h="48">
+		<StaticImage name="Static2" x="110" y="50" w="64" h="48">
 			<Image u="0" v="0">languages.png</Image>
 		</StaticImage>
-		<RadioButton name="German" x="120" y="105" w="16" h="16">
+		<RadioButton name="German" x="110" y="105" w="16" h="16">
 			<Title>$O_LANGUAGE_GERMAN</Title>
 			<Group>0</Group>
 		</RadioButton>
@@ -84,11 +84,11 @@
 			<Title>$O_DETAILS_LOW</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="MediumDetails" x="120" y="230" w="16" h="16">
+		<RadioButton name="MediumDetails" x="110" y="230" w="16" h="16">
 			<Title>$O_DETAILS_MEDIUM</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="HighDetails" x="230" y="230" w="16" h="16">
+		<RadioButton name="HighDetails" x="210" y="230" w="16" h="16">
 			<Title>$O_DETAILS_HIGH</Title>
 			<Group>1</Group>
 		</RadioButton>

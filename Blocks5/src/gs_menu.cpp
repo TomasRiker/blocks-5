@@ -326,10 +326,22 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		if(name == "Menu.DonatePane.Donate.Donate")
 		{
 			gui["Menu.DonatePane"]->hide();
-			std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
-			#ifdef __EMSCRIPTEN__
-			emscripten_run_script(("window.open('" + urlPath + "')").c_str());
+#ifdef __EMSCRIPTEN__
+			// Neben der Anwendung liegt hier kein Verzeichnis, in dem eine
+			// .url-Verknuepfung stehen koennte - der Browser bekommt die
+			// Adresse also direkt. Sie muss mit der uebereinstimmen, die in
+			// "Donate (<Sprache>).url" steht: das ist die Datei, die die
+			// Windows-Fassung unten oeffnet.
+			const std::string url = engine.getLanguage() == "de"
+				? "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UUFVK97YL6ZHY"
+				: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FMADXSNPDGRCW";
+			// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick
+			// liegt nur einen Frame zurueck, also gilt die Seite dem Browser
+			// noch als "kuerzlich bedient" und der Popup-Blocker laesst das
+			// Fenster durch.
+			EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
 #else
+			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
 			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
 #endif
 		}

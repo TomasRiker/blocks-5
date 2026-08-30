@@ -254,7 +254,22 @@ void StreamedSound::pumpBuffers()
 	{
 		// Sound neu abspielen
 		alSourcePlay(sourceID);
+		return;
 	}
+
+	// An underrun stops the source without emptying its queue, and the check
+	// above therefore never catches it: the refill hands the source four fresh
+	// buffers, AL_BUFFERS_QUEUED is 4 again, and it stays AL_STOPPED for the
+	// rest of the session - the music is simply gone. In the browser that is
+	// not an edge case but the normal consequence of switching tabs: the main
+	// loop is a requestAnimationFrame callback, a hidden page does not get one,
+	// and the queue holds four buffers of a quarter second each. Anything
+	// longer than a second away and the music never comes back.
+	// A source paused on purpose has to stay paused, so only AL_STOPPED counts
+	// as "restart me"; AL_PAUSED and AL_PLAYING are left alone.
+	int state = AL_PLAYING;
+	alGetSourcei(sourceID, AL_SOURCE_STATE, &state);
+	if(state == AL_STOPPED) alSourcePlay(sourceID);
 }
 
 void StreamedSound::stream(uint bufferID)

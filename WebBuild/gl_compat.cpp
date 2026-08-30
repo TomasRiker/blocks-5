@@ -5,13 +5,15 @@
 // Empirically 20 of the 80 GL entry points the game uses are declared in GL/gl.h but
 // have no implementation, so linking fails on them. This file supplies them.
 //
-// Three kinds live here:
+// Four kinds live here:
 //   1. double/int variants  - forwarded to the float variants, which DO exist. Exact.
 //   2. display lists        - STUBBED. Nothing that goes through a list will draw yet.
 //   3. odds and ends        - stubbed or approximated; see the note on each.
+//   4. corrections          - entry points Emscripten does implement, but wrongly.
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <cstring>
+#include <cmath>
 
 extern "C" void emscripten_glMatrixMode(GLenum mode);
 extern "C" void emscripten_glEnable(GLenum cap);
@@ -187,6 +189,74 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 // video recorder does too, once that feature comes back.
 GLAPI void GLAPIENTRY glReadBuffer(GLenum) {}
 GLAPI void GLAPIENTRY glDrawBuffer(GLenum) {}
+
+// --- 4. gluLookAt ------------------------------------------------------------
+// Emscripten's own gluLookAt does nothing at all. libglemu.js calls
+//
+//     mat4.lookAt(GLImmediate.matrix[cur], [ex,ey,ez], [cx,cy,cz], [ux,uy,uz])
+//
+// which is the gl-matrix 2.x convention of "destination first" - but the copy
+// of gl-matrix bundled with Emscripten is 1.x, where the signature reads
+// mat4.lookAt(eye, center, up, dest). So the current matrix goes in as the eye,
+// every real argument shifts one place along, and the result is written into
+// the three-element array that was meant to be the up vector and then dropped.
+// The modelview matrix is never assigned: gluLookAt silently becomes a no-op
+// and the camera stays wherever it was, which after the glLoadIdentity that
+// precedes every call in this game means the origin.
+//
+// That single line is the whole of "the cube transition does nothing", "the
+// level-end zoom neither rotates nor moves" (cf_cube.cpp, cf_zoom.cpp), and it
+// takes cf_slices.cpp and the credits scene with it.
+//
+// glMultMatrixd is sound - mat4.multiply(current, m) post-multiplies, which is
+// the GL order - so the textbook implementation on top of it is exact. This is
+// Mesa's: forward and side normalised, up recomputed as side x forward so that
+// a caller's up vector need not be perpendicular.
+static void crossNorm(const double* p_a, const double* p_b, double* p_out, bool normalize)
+{
+    p_out[0] = p_a[1] * p_b[2] - p_a[2] * p_b[1];
+    p_out[1] = p_a[2] * p_b[0] - p_a[0] * p_b[2];
+    p_out[2] = p_a[0] * p_b[1] - p_a[1] * p_b[0];
+    if (!normalize) return;
+    const double len = sqrt(p_out[0] * p_out[0] + p_out[1] * p_out[1] + p_out[2] * p_out[2]);
+    if (len > 0.0) { p_out[0] /= len; p_out[1] /= len; p_out[2] /= len; }
+}
+
+GLAPI void GLAPIENTRY gluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ,
+                                GLdouble centerX, GLdouble centerY, GLdouble centerZ,
+                                GLdouble upX, GLdouble upY, GLdouble upZ)
+{
+    double f[3] = { centerX - eyeX, centerY - eyeY, centerZ - eyeZ };
+    const double flen = sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
+    if (flen > 0.0) { f[0] /= flen; f[1] /= flen; f[2] /= flen; }
+
+    const double up[3] = { upX, upY, upZ };
+    double s[3], u[3];
+    crossNorm(f, up, s, true);
+    crossNorm(s, f, u, false);
+
+    // Column-major, the order glMultMatrixd reads: rows are side, up, -forward.
+    const GLdouble m[16] = {
+         s[0],  u[0], -f[0], 0.0,
+         s[1],  u[1], -f[1], 0.0,
+         s[2],  u[2], -f[2], 0.0,
+          0.0,   0.0,   0.0, 1.0
+    };
+    glMultMatrixd(m);
+    glTranslated(-eyeX, -eyeY, -eyeZ);
+}
+
+// gluPerspective is not broken, but it *replaces* the current matrix instead of
+// multiplying into it. Every call site in this game does glLoadIdentity first,
+// so the two agree today; going through glFrustum, which multiplies properly,
+// means they still agree if one ever does not.
+GLAPI void GLAPIENTRY gluPerspective(GLdouble fovy, GLdouble aspect,
+                                     GLdouble zNear, GLdouble zFar)
+{
+    const GLdouble top = zNear * tan(fovy * 3.14159265358979323846 / 360.0);
+    const GLdouble right = top * aspect;
+    glFrustum(-right, right, -top, top, zNear, zFar);
+}
 
 // Dashed selection rectangles in the level editor: lines draw solid instead.
 GLAPI void GLAPIENTRY glLineStipple(GLint, GLushort) {}
