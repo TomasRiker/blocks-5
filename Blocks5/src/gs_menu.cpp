@@ -210,16 +210,6 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.Import"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.Export"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Do"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Cancel"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.MessagePane.Message.OK"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
 
 	// Wann wurde zuletzt nach einer Spende gefragt?
 	FileSystem& fs = FileSystem::inst();
@@ -377,7 +367,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	else if(name == "Menu.ExportPane.Export.Do")
 	{
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
-		if(p_list->getSelection() == -1) return;
+		if(p_list->getSelection() == -1)
+		{
+			// Von dieser Sorte ist noch nichts da. Ohne die Meldung taete der
+			// Knopf schlicht nichts, und das sieht aus wie ein Fehler.
+			gui["Menu.ExportPane"]->hide();
+			gui["Menu"]->focus();
+			showMessage(localizeString("$TR_NOTHING_TO_EXPORT"));
+			return;
+		}
 
 		// Nur vormerken - der Dialog laeuft eine Runde spaeter in
 		// pollExport(), aus demselben Grund wie beim Import.

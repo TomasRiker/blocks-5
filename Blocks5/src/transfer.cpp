@@ -3,35 +3,18 @@
 #include "filesystem.h"
 #include "file.h"
 #include "campaign.h"
-#include "engine.h"
 #include "util.h"
 
 #ifdef __EMSCRIPTEN__
 #include "web_transfer.h"
 #elif defined(_WIN32)
+#include "engine.h"
 #include <commdlg.h>
 #include <SDL_syswm.h>
 #endif
 
 namespace
 {
-	std::string toLower(const std::string& text)
-	{
-		std::string result(text);
-		for(size_t i = 0; i < result.length(); i++)
-		{
-			result[i] = static_cast<char>(tolower(static_cast<unsigned char>(result[i])));
-		}
-		return result;
-	}
-
-	// Nur der Basisname, egal mit welchem Trenner der Pfad gebaut war.
-	std::string getFilenameFromPath(const std::string& path)
-	{
-		const size_t cut = path.find_last_of("/\\:");
-		return cut == std::string::npos ? path : path.substr(cut + 1);
-	}
-
 	// Wo die vier Arten im Benutzerverzeichnis liegen.
 	std::string directoryFor(Transfer::Kind kind)
 	{
@@ -71,6 +54,22 @@ namespace
 		}
 		return false;
 	}
+
+bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
+{
+	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der
+	// vier mitgelieferten sind mit einem Passwort gepackt, und sie beim
+	// Hinausgehen zu entschluesseln waere eine Hintertuer um genau den
+	// Schutz herum, dessentwegen sie gepackt sind. Der Empfaenger kann das
+	// Archiv nicht oeffnen - benutzen kann er es trotzdem: das Passwort
+	// liegt als password.txt darin, und Level::getSkinFilename liest es aus
+	// jedem Skin-Archiv, unter welchem Namen es auch immer abgelegt wurde.
+	// Ein selbstgemachter Skin hat ohnehin keines.
+	FileSystem& fs = FileSystem::inst();
+	const std::string source(directoryFor(kind) + name);
+	if(!fs.fileExists(source)) return false;
+	return fs.copyFile(source, destPath);
+}
 
 	// Einen freien Namen in dir finden: stem.ext, sonst stem_2.ext ...
 	std::string uniqueName(const std::string& dir,
@@ -205,30 +204,6 @@ std::vector<std::string> list(Kind kind)
 	return result;
 }
 
-std::string suggestedFilename(Kind kind, const std::string& name)
-{
-	// Der Name kommt aus dem eigenen Verzeichnis, taugt also schon als
-	// Dateiname; die Endung steht ohnehin schon daran.
-	(void)kind;
-	return name;
-}
-
-bool exportTo(Kind kind, const std::string& name, const std::string& destPath)
-{
-	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der
-	// vier mitgelieferten sind mit einem Passwort gepackt, und sie beim
-	// Hinausgehen zu entschluesseln waere eine Hintertuer um genau den
-	// Schutz herum, dessentwegen sie gepackt sind. Der Empfaenger kann das
-	// Archiv nicht oeffnen - benutzen kann er es trotzdem: das Passwort
-	// liegt als password.txt darin, und Level::getSkinFilename liest es aus
-	// jedem Skin-Archiv, unter welchem Namen es auch immer abgelegt wurde.
-	// Ein selbstgemachter Skin hat ohnehin keines.
-	FileSystem& fs = FileSystem::inst();
-	const std::string source(directoryFor(kind) + name);
-	if(!fs.fileExists(source)) return false;
-	return fs.copyFile(source, destPath);
-}
-
 // ---------------------------------------------------------------------------
 // Der Dateidialog. Zwei Welten, eine Schnittstelle.
 // ---------------------------------------------------------------------------
@@ -244,6 +219,16 @@ namespace
 	const char* const p_stagingOgg = "/blocks5_import.ogg";
 	const char* const p_stagingXml = "/blocks5_import.xml";
 	const char* const p_stagingZip = "/blocks5_import.zip";
+
+	std::string toLower(const std::string& text)
+	{
+		std::string result(text);
+		for(size_t i = 0; i < result.length(); i++)
+		{
+			result[i] = static_cast<char>(tolower(static_cast<unsigned char>(result[i])));
+		}
+		return result;
+	}
 
 	std::string stagingFor(const std::string& untrustedName)
 	{
@@ -313,7 +298,9 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 		errorId = "$TR_ERROR_FAILED";
 		return false;
 	}
-	WebTransfer::download(tmp, suggestedFilename(kind, name));
+	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
+	// schon - er taugt unveraendert als Vorschlag fuer den Download.
+	WebTransfer::download(tmp, name);
 	FileSystem::inst().deleteFile(tmp);
 	return true;
 }
@@ -326,6 +313,13 @@ namespace
 	std::string g_pickedName;
 	int  g_status = STATUS_BUSY;
 	bool g_wantDialog = false;
+
+	// Nur der Basisname, egal mit welchem Trenner der Pfad gebaut war.
+	std::string getFilenameFromPath(const std::string& path)
+	{
+		const size_t cut = path.find_last_of("/\\:");
+		return cut == std::string::npos ? path : path.substr(cut + 1);
+	}
 
 	void buildFilter(char* p_buffer, size_t size)
 	{
@@ -451,8 +445,9 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	buildFilter(filter, sizeof(filter));
 
 	char file[MAX_PATH] = "";
-	const std::string suggested(suggestedFilename(kind, name));
-	strncpy(file, suggested.c_str(), sizeof(file) - 1);
+	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
+	// schon - er taugt unveraendert als Vorschlag.
+	strncpy(file, name.c_str(), sizeof(file) - 1);
 
 	OPENFILENAMEA ofn;
 	memset(&ofn, 0, sizeof(ofn));

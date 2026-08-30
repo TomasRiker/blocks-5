@@ -28,15 +28,17 @@ namespace
 		std::string member;
 		std::string source;
 	};
-}
 
-const char* const Campaign::p_builtInMusicPrefix = "blocks:";
+	// Das Praefix, mit dem ein Level ein Musikstueck der mitgelieferten
+	// Kampagne nennt: musicFilename="blocks:music2.ogg".
+	const char* const p_builtInMusicPrefix = "blocks:";
 
-bool Campaign::isBuiltInMusic(const std::string& musicFilename)
-{
-	const size_t n = strlen(p_builtInMusicPrefix);
-	return musicFilename.length() > n &&
-		   musicFilename.compare(0, n, p_builtInMusicPrefix) == 0;
+	bool isBuiltInMusic(const std::string& musicFilename)
+	{
+		const size_t n = strlen(p_builtInMusicPrefix);
+		return musicFilename.length() > n &&
+			   musicFilename.compare(0, n, p_builtInMusicPrefix) == 0;
+	}
 }
 
 std::string Campaign::resolveMusicPath(const std::string& musicFilename,

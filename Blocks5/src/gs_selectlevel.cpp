@@ -213,24 +213,11 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	static_cast<GUI_Button*>(gui["SelectLevel.Quit"])->connectClicked(this, &GS_SelectLevel::handleClick);
 
-	listCampaigns();
-}
-
-void GS_SelectLevel::listCampaigns()
-{
+	// Kampagnen aufzaehlen
 	FileSystem& fs = FileSystem::inst();
 	GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
-
-	// Erst alles loesen, was auf die alten Kampagnen zeigt - nach einem Import
-	// wird diese Funktion ein zweites Mal aufgerufen.
-	p_currentCampaign = 0;
-	delete p_currentLevel;
-	p_currentLevel = 0;
-	currentLevel = 0;
 	p_listBox->clear();
-	for(uint i = 0; i < campaigns.size(); i++) delete campaigns[i];
 	campaigns.clear();
-
 	std::list<std::string> files = fs.listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns");
 	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 	{
@@ -252,8 +239,6 @@ void GS_SelectLevel::listCampaigns()
 		}
 	}
 
-	// Loest changed() aus, und das setzt p_currentCampaign - clear() hat die
-	// Auswahl vorher auf -1 gestellt, also ist es wirklich eine Aenderung.
 	p_listBox->setSelection(0);
 }
 
@@ -405,6 +390,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 		engine.popGameState();
 	}
 }
+
 void GS_SelectLevel::setCurrentLevel(uint currentLevel)
 {
 	if(!p_currentCampaign) return;

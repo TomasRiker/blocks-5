@@ -48,13 +48,6 @@ namespace Transfer
 	// Was von dieser Art im Benutzerverzeichnis liegt, alphabetisch sortiert.
 	std::vector<std::string> list(Kind kind);
 
-	// Der Name, den ein Export vorschlagen soll.
-	std::string suggestedFilename(Kind kind, const std::string& name);
-
-	// Schreibt eine Sache nach destPath - eine Kopie, unveraendert. Ein
-	// passwortgeschuetztes Archiv bleibt geschuetzt.
-	bool exportTo(Kind kind, const std::string& name, const std::string& destPath);
-
 	// --- der Dateidialog ---------------------------------------------------
 	enum Status
 	{

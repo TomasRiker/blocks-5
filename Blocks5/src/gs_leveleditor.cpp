@@ -76,7 +76,6 @@ public:
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorR"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorG"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorB"))->connectChanged(this, &LevelEditorGUI::handleClick);
-
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.OK"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.Cancel"))->connectClicked(this, &LevelEditorGUI::handleClick);
 

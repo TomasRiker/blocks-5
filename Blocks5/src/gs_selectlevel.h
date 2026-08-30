@@ -40,11 +40,6 @@ private:
 	void loadLevel();
 	int getLevelStatus(uint level);
 	void updateNote();
-
-	// Die Kampagnen des Benutzerverzeichnisses einlesen und die Liste damit
-	// fuellen. Laeuft beim Betreten und noch einmal nach jedem Import.
-	void listCampaigns();
-
 };
 
 #endif
