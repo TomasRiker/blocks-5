@@ -104,4 +104,11 @@ em++ $OBJS -o "$OUT/blocks5.html" \
   -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \
   $PRELOAD \
   2>&1 | tail -30
+# The four files that get uploaded are blocks5.{js,wasm,data} plus the page, and
+# the page has to be called index.html so that the directory it is dropped into
+# serves it by itself. Only the HTML is renamed: em++ derives the js/wasm/data
+# names from its -o argument, and the page refers to blocks5.js by name, so
+# giving em++ index.html would rename all four and buy nothing.
+[ -f "$OUT/blocks5.html" ] && cp "$OUT/blocks5.html" "$OUT/index.html"
+
 [ -f "$OUT/blocks5.wasm" ] && echo "### LINK OK -> $OUT/blocks5.wasm ($(du -h "$OUT/blocks5.wasm" | cut -f1)) ###" || echo "### LINK FAILED ###"
