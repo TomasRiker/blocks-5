@@ -475,9 +475,10 @@ void GS_Game::onEnter(const ParameterBlock& context)
 		// Level speichern
 		p_originalLevel = p_level->save();
 
-		// Musik abspielen
-		std::string music = p_level->getMusicFilename();
-		Engine::inst().playMusic(music.empty() ? "" : FileSystem::inst().getAppHomeDirectory() + "levels/" + music);
+		// Musik abspielen. Ein loser Level nennt eine Datei neben sich, oder
+		// mit "blocks:" eines der Stuecke der mitgelieferten Kampagne.
+		Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
+														   FileSystem::inst().getAppHomeDirectory() + "levels/"));
 	}
 	else
 	{
@@ -572,8 +573,10 @@ int GS_Game::loadLevel()
 
 	delete p_oldLevel;
 
-	// Musik abspielen
-	Engine::inst().playMusic(p_level->getMusicFilename().empty() ? "" : p_currentCampaign->getFilename() + pw + "/" + p_level->getMusicFilename());
+	// Musik abspielen - aus dem Archiv der Kampagne, oder aus blocks.zip,
+	// wenn der Level das Stueck mit "blocks:" von dort holt.
+	Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
+														p_currentCampaign->getFilename() + pw + "/"));
 
 	return r ? 1 : 0;
 }

@@ -376,6 +376,9 @@
     <ClCompile Include="src\texture.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\transfer.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\util.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1105,6 +1108,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\texture.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\transfer.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\typedefs.h">

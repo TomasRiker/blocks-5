@@ -483,15 +483,15 @@ Afterwards it renders identically to the power-of-two original, and a rainy
 level still tiles its rain.
 
 
-**Skins in campaigns.** A campaign archive carries its levels but not the skins
-they reference (`WebBuild/README.md` documents this), so a campaign built on a
-custom skin renders with the missing-skin fallback unless the author distributes
-the skin separately. `Level` records the skin names it wants and
-`level.cpp:2345` already collects a `skinsMissing` set, so the game knows exactly
-what is absent. The campaign format would need to carry skin members alongside
-levels; `Campaign::save` was recently rewritten around a `LevelRef` that knows
-whether its source is loose or inside an archive, and skins would follow the
-same shape.
+**Skins in campaigns.** A campaign archive carries its levels and music but not
+the skins they reference, so a campaign built on a custom skin still needs the
+skin sent separately. That is much less painful than it was - the main menu's
+Import takes a skin as readily as a campaign, and tells the player the name to
+type - but self-contained campaigns would still be better. `Campaign::save` was
+rewritten around a `LevelRef` that knows whether its source is loose or inside
+an archive, and skins would follow the same shape. The music half of this
+problem was solved differently: a level says `musicFilename="blocks:music2.ogg"`
+and borrows a track from the shipped campaign instead of carrying a copy.
 
 
 7. Translate all source comments to English

@@ -13,9 +13,6 @@
 #include "cf_all.h"
 #include "filesystem.h"
 #include "help.h"
-#ifdef __EMSCRIPTEN__
-#include "web_transfer.h"
-#endif
 
 class LevelEditorGUI : public GUI_Element, public sigslot::has_slots<>
 {
@@ -71,20 +68,6 @@ public:
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
 
-		// Export/Import gibt es nur im Browser; auf dem Desktop liegen die
-		// Dateien ohnehin schon in "Eigene Dateien\Blocks 5\".
-		{
-			GUI_Element* p_export = getChild("MenuPane.Menu.Export");
-			GUI_Element* p_import = getChild("MenuPane.Menu.Import");
-#ifdef __EMSCRIPTEN__
-			if(p_export) static_cast<GUI_Button*>(p_export)->connectClicked(this, &LevelEditorGUI::handleClick);
-			if(p_import) static_cast<GUI_Button*>(p_import)->connectClicked(this, &LevelEditorGUI::handleClick);
-#else
-			if(p_export) p_export->hide();
-			if(p_import) p_import->hide();
-#endif
-		}
-
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Clouds"))->connectChanged(this, &LevelEditorGUI::handleClick);
@@ -93,17 +76,6 @@ public:
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorR"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorG"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorB"))->connectChanged(this, &LevelEditorGUI::handleClick);
-
-		// Skins holt der Browser genauso wie Level und Kampagnen; auf dem
-		// Desktop legt man das ZIP einfach in "levels\skins".
-		{
-			GUI_Element* p_importSkin = getChild("SettingsPane.Settings.ImportSkin");
-#ifdef __EMSCRIPTEN__
-			if(p_importSkin) static_cast<GUI_Button*>(p_importSkin)->connectClicked(this, &LevelEditorGUI::handleClick);
-#else
-			if(p_importSkin) p_importSkin->hide();
-#endif
-		}
 
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.OK"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.Cancel"))->connectClicked(this, &LevelEditorGUI::handleClick);
@@ -932,53 +904,6 @@ public:
 				}
 			}
 		}
-#ifdef __EMSCRIPTEN__
-		else if(name == "LevelEditor.MenuPane.Menu.Export")
-		{
-			// Der Browser bekommt genau das, was "Save" schreiben wuerde - der
-			// Level muss dafuer nicht erst gespeichert worden sein.
-			std::string filename = static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->getText();
-			const std::string downloadName = sanitizeFilenameStem(filename, "level") + ".xml";
-
-			TiXmlDocument* p_doc = editor.p_level->save();
-			std::string xml;
-			xml << *p_doc;
-			delete p_doc;
-
-			if(WebTransfer::downloadString(xml, downloadName))
-			{
-				editor.messageText = "$LE_INFO_LEVEL_EXPORTED";
-				editor.messageCounter = 100;
-				editor.messageType = 0;
-			}
-			else
-			{
-				editor.messageText = "$LE_ERROR_SAVING";
-				editor.messageCounter = 200;
-				editor.messageType = 1;
-			}
-		}
-		else if(name == "LevelEditor.MenuPane.Menu.Import")
-		{
-			// 1 MiB - der groesste mitgelieferte Level hat 24 KB.
-			if(!WebTransfer::openPicker(WebTransfer::CHANNEL_LEVEL, ".xml", 1048576u, "/blocks5_import.xml"))
-			{
-				editor.messageText = "$IMPORT_CLICK_AGAIN";
-				editor.messageCounter = 150;
-				editor.messageType = 1;
-			}
-		}
-		else if(name == "LevelEditor.SettingsPane.Settings.ImportSkin")
-		{
-			// 8 MiB - der groesste mitgelieferte Skin hat 849 KB.
-			if(!WebTransfer::openPicker(WebTransfer::CHANNEL_SKIN, ".zip", 8388608u, "/blocks5_import_skin.zip"))
-			{
-				editor.messageText = "$IMPORT_CLICK_AGAIN";
-				editor.messageCounter = 150;
-				editor.messageType = 1;
-			}
-		}
-#endif
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
 		{
 			getChild("MenuPane")->hide();
@@ -1148,165 +1073,6 @@ public:
 			}
 		}
 	}
-
-#ifdef __EMSCRIPTEN__
-	// Wird jeden Logik-Tick aufgerufen und holt das Ergebnis des asynchronen
-	// Dateidialogs ab.
-	void pollImport()
-	{
-		std::string untrustedName;
-		const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_LEVEL, untrustedName);
-		if(status == WebTransfer::IMPORT_IDLE) return;
-
-		FileSystem& fs = FileSystem::inst();
-		const std::string staging("/blocks5_import.xml");
-
-		if(status != WebTransfer::IMPORT_OK)
-		{
-			fs.deleteFile(staging);
-			if(status == WebTransfer::IMPORT_CANCELLED) return;   // stillschweigend
-			editor.messageText = (status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
-							   : (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$LE_ERROR_IMPORT_INVALID"
-							   : "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		// 1. Inhalt pruefen, BEVOR irgendetwas ins Benutzerverzeichnis geht.
-		//    Nur parsen, nicht Level::load() - das wuerde Objekte bauen und
-		//    Texturen anfordern, nur um eine Datei zu pruefen.
-		TiXmlDocument doc;
-		doc.SetCondenseWhiteSpace(false);
-		doc.Parse(fs.readStringFromFile(staging).c_str());
-		if(doc.Error() || !doc.FirstChildElement("Level"))
-		{
-			fs.deleteFile(staging);
-			editor.messageText = "$LE_ERROR_IMPORT_INVALID";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		// 2. Zielnamen selbst bilden. Der Name aus dem Browser ist nur ein
-		//    Vorschlag und wird nie als Pfad benutzt.
-		const std::string dir(fs.getAppHomeDirectory() + "levels/");
-		const std::string stem(sanitizeFilenameStem(untrustedName));
-		std::string name(stem + ".xml");
-		for(int n = 2; n <= 99 && fs.fileExists(dir + name); n++)
-		{
-			char temp[128] = "";
-			sprintf(temp, "%s_%d.xml", stem.c_str(), n);   // stem <= 64 Zeichen
-			name = temp;
-		}
-
-		if(!fs.copyFile(staging, dir + name))
-		{
-			fs.deleteFile(staging);
-			editor.messageText = "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-		fs.deleteFile(staging);
-
-		// 3. Sofort nach IndexedDB durchschreiben - sonst waere der Import bis
-		//    zu fuenf Sekunden lang nur im Arbeitsspeicher.
-		WebTransfer::syncHome();
-
-		// 4. Namen anbieten, aber nicht automatisch laden: der Editor koennte
-		//    ungespeicherte Aenderungen enthalten.
-		static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(name);
-		editor.messageText = "$LE_INFO_LEVEL_IMPORTED";
-		editor.messageCounter = 150;
-		editor.messageType = 0;
-	}
-
-	// Skins gehen denselben Weg, mit einem entscheidenden Unterschied: beim
-	// Level ist der Dateiname blosse Buchhaltung, beim Skin ist er die
-	// Identitaet. Ein Level sagt skin0="space" und der Lader sucht daraufhin
-	// levels/skins/space.zip (level.cpp, getSkinFilename). Wuerde ein schon
-	// vorhandenes space.zip hier zu space_2.zip ausweichen, wie es der Level-
-	// und der Kampagnen-Import tun, blieben alle Level, die "space" nennen,
-	// genauso kaputt wie vorher - nur ohne sichtbaren Grund. Ein Skin
-	// ueberschreibt deshalb.
-	void pollImportSkin()
-	{
-		std::string untrustedName;
-		const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_SKIN, untrustedName);
-		if(status == WebTransfer::IMPORT_IDLE) return;
-
-		FileSystem& fs = FileSystem::inst();
-		// Muss auf .zip enden, sonst erkennt FileSystem::convertPath das
-		// Archiv nicht.
-		const std::string staging("/blocks5_import_skin.zip");
-
-		if(status != WebTransfer::IMPORT_OK)
-		{
-			fs.deleteFile(staging);
-			if(status == WebTransfer::IMPORT_CANCELLED) return;
-			editor.messageText = (status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
-							   : (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$LE_ERROR_IMPORT_SKIN_INVALID"
-							   : "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		// Pruefen, BEVOR etwas ins Benutzerverzeichnis geht. Die beiden
-		// Dateien, ohne die ein Skin nichts zeichnen kann; nachsehen geht auch
-		// bei einem verschluesselten Archiv ohne Passwort.
-		if(!fs.fileExists(staging + "/tileset.xml") ||
-		   !fs.fileExists(staging + "/sprites.png"))
-		{
-			fs.deleteFile(staging);
-			editor.messageText = "$LE_ERROR_IMPORT_SKIN_INVALID";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		const std::string stem(sanitizeFilenameStem(untrustedName, "skin"));
-
-		// Die mitgelieferten Skins sind unantastbar: die Blocks-Kampagne
-		// benutzt sie, und ein Skin ueberschreibt. Wer hier durchkaeme,
-		// zerstoerte das Spiel fuer alle anderen Level. Die Liste ist die aus
-		// zip_skins.bat - kommt ein Skin dazu, gehoert er auch hierher.
-		static const char* p_shipped[] = { "blocks_01", "blocks_02", "blocks_03", "space" };
-		for(uint i = 0; i < sizeof(p_shipped) / sizeof(*p_shipped); i++)
-		{
-			if(stem != p_shipped[i]) continue;
-			fs.deleteFile(staging);
-			editor.messageText = "$LE_ERROR_IMPORT_SKIN_RESERVED";
-			editor.messageCounter = 250;
-			editor.messageType = 1;
-			return;
-		}
-
-		const std::string dest(fs.getAppHomeDirectory() + "levels/skins/" + stem + ".zip");
-		const bool copied = fs.copyFile(staging, dest);
-		fs.deleteFile(staging);
-		if(!copied)
-		{
-			editor.messageText = "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		WebTransfer::syncHome();
-
-		// Der Name ist das, was der Benutzer jetzt in eines der Skin-Felder
-		// schreiben muss - also mit ausgeben. Er kommt aus
-		// sanitizeFilenameStem und besteht nur aus [A-Za-z0-9_-], kann also
-		// keine Lokalisierungsmarke enthalten. Wurde ein gleichnamiger Skin
-		// gerade erst benutzt, haengen seine Texturen noch im Manager-Cache;
-		// sichtbar wird die neue Fassung dann erst nach einem Neustart.
-		editor.messageText = localizeString("$LE_INFO_SKIN_IMPORTED") + " \"" + stem + "\"";
-		editor.messageCounter = 200;
-		editor.messageType = 0;
-	}
-#endif
 
 private:
 	GS_LevelEditor& editor;
@@ -1512,15 +1278,6 @@ void GS_LevelEditor::onUpdate()
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
 
-#ifdef __EMSCRIPTEN__
-	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
-	if(GUI_Element* p_gui = gui["LevelEditor"])
-	{
-		static_cast<LevelEditorGUI*>(p_gui)->pollImport();
-		static_cast<LevelEditorGUI*>(p_gui)->pollImportSkin();
-	}
-#endif
-
 	if(messageCounter) messageCounter--;
 }
 
@@ -1575,15 +1332,6 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 
 void GS_LevelEditor::onLeave(const ParameterBlock& context)
 {
-#ifdef __EMSCRIPTEN__
-	// Ein noch offener Dateidialog gehoert diesem Editor. Bleibt er stehen,
-	// belegt er den einen Kanal weiter, und der naechste Import - egal wo -
-	// meldet nur noch "nochmal klicken", bis der Browser den Dialog nach
-	// fuenf Minuten von selbst aufgibt.
-	WebTransfer::abandon(WebTransfer::CHANNEL_LEVEL, "/blocks5_import.xml");
-	WebTransfer::abandon(WebTransfer::CHANNEL_SKIN, "/blocks5_import_skin.zip");
-#endif
-
 	clearUndo();
 	clearRedo();
 

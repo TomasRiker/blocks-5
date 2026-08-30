@@ -13,7 +13,6 @@ namespace
 	char g_importName[260] = "";
 	volatile int g_importStatus = WebTransfer::IMPORT_IDLE;
 	bool g_busy = false;
-	int  g_channel = 0;
 }
 
 extern "C" {
@@ -50,19 +49,10 @@ void download(const std::string& vfsPath, const std::string& downloadName)
 	}, vfsPath.c_str(), downloadName.c_str());
 }
 
-bool downloadString(const std::string& data, const std::string& downloadName)
-{
-	const std::string tmp("/blocks5_export.tmp");   // MEMFS, nicht IDBFS
-	if(!FileSystem::inst().writeStringToFile(data, tmp)) return false;
-	download(tmp, downloadName);                     // EM_ASM ist synchron
-	FileSystem::inst().deleteFile(tmp);
-	return true;
-}
-
-bool openPicker(int channel,
-                const std::string& acceptExtension,
-                unsigned int maxBytes,
-                const std::string& stagingPath)
+bool openPicker(const std::string& stagingOgg,
+                const std::string& stagingXml,
+                const std::string& stagingZip,
+                unsigned int maxBytes)
 {
 	if(g_busy) return false;
 
@@ -77,17 +67,22 @@ bool openPicker(int channel,
 
 	// Reste eines fehlgeschlagenen Versuchs wegraeumen, sonst koennte eine
 	// spaetere Pruefung die alten Bytes sehen.
-	FileSystem::inst().deleteFile(stagingPath);
+	FileSystem::inst().deleteFile(stagingOgg);
+	FileSystem::inst().deleteFile(stagingXml);
+	FileSystem::inst().deleteFile(stagingZip);
 
 	g_busy = true;
-	g_channel = channel;
 	g_importStatus = IMPORT_IDLE;
 	g_importName[0] = 0;
 
 	EM_ASM({
-		var accept  = UTF8ToString($0);
-		var maxSize = $1 >>> 0;
-		var staging = UTF8ToString($2);
+		// Kein Objektliteral: der Rumpf laeuft durch den C-Praeprozessor, und
+		// jedes Komma ausserhalb von Klammern teilt dort die Makro-Argumente.
+		var paths = {};
+		paths[".ogg"] = UTF8ToString($0);
+		paths[".xml"] = UTF8ToString($1);
+		paths[".zip"] = UTF8ToString($2);
+		var maxSize = $3 >>> 0;
 		var finished = false;
 
 		function done(status, name) {
@@ -112,7 +107,7 @@ bool openPicker(int channel,
 
 		var input = document.createElement("input");
 		input.type = "file";
-		input.accept = accept;
+		input.accept = ".ogg,.xml,.zip";
 		input.style.display = "none";
 		input.addEventListener("cancel", function() { done(2, null); });
 		input.addEventListener("change", function() {
@@ -120,8 +115,9 @@ bool openPicker(int channel,
 			if (!f) { done(2, null); return; }
 			var dot = f.name.lastIndexOf(".");
 			var ext = (dot < 0) ? "" : f.name.substring(dot).toLowerCase();
-			if (ext !== accept)     { done(4, f.name); return; }
-			if (f.size > maxSize)   { done(3, f.name); return; }
+			var staging = paths[ext];
+			if (!staging)         { done(4, f.name); return; }
+			if (f.size > maxSize) { done(3, f.name); return; }
 			var r = new FileReader();
 			r.onerror = function() { done(5, f.name); };
 			r.onload = function() {
@@ -140,31 +136,26 @@ bool openPicker(int channel,
 		// Browser ohne "cancel"-Ereignis wuerden den Knopf sonst ewig
 		// belegen. Das Spiel blockiert nie - es fragt nur ab.
 		setTimeout(function() { if (!finished) done(2, null); }, 300000);
-	}, acceptExtension.c_str(), (int)maxBytes, stagingPath.c_str());
+	}, stagingOgg.c_str(), stagingXml.c_str(), stagingZip.c_str(), (int)maxBytes);
 
 	return true;
 }
 
-int pollImport(int channel, std::string& untrustedName)
+int pollImport(std::string& untrustedName)
 {
-	if(channel != g_channel) return IMPORT_IDLE;
 	const int status = g_importStatus;
 	if(status == IMPORT_IDLE) return IMPORT_IDLE;
 	g_importStatus = IMPORT_IDLE;
 	g_busy = false;
-	g_channel = 0;
 	untrustedName = g_importName;
 	return status;
 }
 
-void abandon(int channel, const std::string& stagingPath)
+void abandon()
 {
-	if(channel != g_channel) return;
 	g_importStatus = IMPORT_IDLE;
 	g_busy = false;
-	g_channel = 0;
 	g_importName[0] = 0;
-	FileSystem::inst().deleteFile(stagingPath);
 }
 
 void syncHome()

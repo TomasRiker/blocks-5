@@ -30,6 +30,30 @@ namespace
 	};
 }
 
+const char* const Campaign::p_builtInMusicPrefix = "blocks:";
+
+bool Campaign::isBuiltInMusic(const std::string& musicFilename)
+{
+	const size_t n = strlen(p_builtInMusicPrefix);
+	return musicFilename.length() > n &&
+		   musicFilename.compare(0, n, p_builtInMusicPrefix) == 0;
+}
+
+std::string Campaign::resolveMusicPath(const std::string& musicFilename,
+									   const std::string& sourceDir)
+{
+	if(musicFilename.empty()) return "";
+	if(!isBuiltInMusic(musicFilename)) return sourceDir + musicFilename;
+
+	// Der Rest hinter dem Doppelpunkt ist ein Mitgliedsname, kein Pfad: er
+	// steht in einer moeglicherweise fremden Datei und darf nichts anderes
+	// aufmachen als ein Stueck in blocks.zip.
+	const std::string member(musicFilename.substr(strlen(p_builtInMusicPrefix)));
+	if(!isSafeMemberName(member)) return "";
+
+	return FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip" + pw + "/" + member;
+}
+
 Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
 {
 	LevelRef ref;
@@ -40,7 +64,6 @@ Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
 	return ref;
 }
 
-#ifdef __EMSCRIPTEN__
 bool Campaign::isImportableArchive(const std::string& archivePath)
 {
 	// 1. Struktur: laesst sich das Archiv oeffnen und enthaelt es eine
@@ -72,7 +95,6 @@ std::string Campaign::installArchive(const std::string& archivePath,
 
 	return fs.copyFile(archivePath, dir + name) ? name : std::string("");
 }
-#endif
 
 Campaign::Campaign()
 {
@@ -274,6 +296,13 @@ bool Campaign::save(const std::string& filename)
 		if(!p_music || !*p_music) continue;
 
 		const std::string track(p_music);
+
+		// Ein "blocks:"-Stueck liegt in der mitgelieferten Kampagne, die
+		// jeder hat. Es waere ein Fehler, es hier mitzupacken: das Archiv
+		// wuerde um Megabytes wachsen, und beim Abspielen wird ohnehin
+		// blocks.zip gelesen, nie das eigene Archiv.
+		if(isBuiltInMusic(track)) continue;
+
 		if(!isSafeMemberName(track) || track == "campaign.xml")
 		{
 			printfLog("+ WARNING: Level \"%s\" names an unusable music file - skipped.\n",

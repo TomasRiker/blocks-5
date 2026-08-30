@@ -28,6 +28,13 @@ public:
 	void handleClick(GUI_Element* p_element);
 
 private:
+	// Import und Export. Der Dateidialog des Browsers meldet sich asynchron,
+	// der von Windows modal - pollImport() verdeckt beides.
+	void pollImport();
+	void showMessage(const std::string& text);
+	void refreshExportList();
+	int currentExportKind() const;
+
 	Engine& engine;
 	Texture* p_clouds;
 	Texture* p_background;

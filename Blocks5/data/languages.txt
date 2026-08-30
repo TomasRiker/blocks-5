@@ -339,11 +339,6 @@ $LS_SELECT_CAMPAIGN
 §en:Select a Campaign:
 §de:Wähle eine Kampagne:
 
-$LS_IMPORT_CAMPAIGN
-// Level selection: button that uploads a campaign file (web build)
-§en:Import campaign ...
-§de:Kampagne importieren ...
-
 $LS_CAMPAIGN_DESCRIPTION
 // Caption of campaign description text
 §en:Description:
@@ -662,9 +657,11 @@ $LE_SETTINGS_BLUE
 §de:Blau
 
 $LE_SETTINGS_MUSIC
-// Caption of the music filename edit box
-§en:Music (File in "levels" directory, OGG format):
-§de:Musik (Datei im "levels"-Ordner, OGG-Format):
+// Caption of the music filename edit box. "blocks:" in front of the name
+// takes the track out of the campaign that ships with the game, so a level
+// can use one without carrying a copy of it.
+§en:Music (OGG file, or blocks:name.ogg for a built-in track):
+§de:Musik (OGG-Datei, oder blocks:name.ogg für ein mitgeliefertes Stück):
 
 $LE_SETTINGS_EDIT_GRAPHICS_STYLE
 // Caption of the graphics style selection
@@ -2011,102 +2008,6 @@ $HINT_BLOCKS_41_02
 // --------------------------------------------------------------------------------
 §de:Neun Elefanten erfanden einen nicht elementaren nächtlichen Eierkuchen.
 
-$LE_MENU_EXPORT
-// Level editor: button that downloads the level to the host (web build)
-§en:Export ...
-§de:Exportieren ...
-
-$LE_MENU_IMPORT
-// Level editor: button that uploads a level file from the host (web build)
-§en:Import ...
-§de:Importieren ...
-
-$LE_INFO_LEVEL_EXPORTED
-// Info shown after the level was handed to the browser
-§en:Level exported.
-§de:Level exportiert.
-
-$LE_INFO_LEVEL_IMPORTED
-// Info shown after a level file was imported
-§en:Level imported.
-§de:Level importiert.
-
-$LE_ERROR_IMPORT_INVALID
-// Error shown when an imported file is not a level file
-§en:ERROR: This is not a valid level file.
-§de:FEHLER: Das ist keine gültige Level-Datei.
-
-$LE_SETTINGS_IMPORT_SKIN
-// Level editor: button that uploads a skin archive (web build)
-§en:Import skin ...
-§de:Skin importieren ...
-
-$LE_INFO_SKIN_IMPORTED
-// Info shown after a skin archive was imported. The name it was stored under
-// follows, because that is what has to be typed into one of the skin fields.
-§en:Skin imported:
-§de:Skin importiert:
-
-$LE_ERROR_IMPORT_SKIN_INVALID
-// Error shown when an imported file is not a skin archive
-§en:ERROR: This is not a valid skin archive.
-§de:FEHLER: Das ist kein gültiges Skin-Archiv.
-
-$LE_ERROR_IMPORT_SKIN_RESERVED
-// Error shown when an imported skin would replace one that ships with the game
-§en:ERROR: A skin of that name belongs to the game. Please rename the file.
-§de:FEHLER: Ein Skin dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
-
-$CE_MENU_EXPORT
-// Campaign editor: button that downloads the campaign (web build)
-§en:Export ...
-§de:Exportieren ...
-
-$CE_MENU_IMPORT
-// Campaign editor: button that uploads a campaign file (web build)
-§en:Import ...
-§de:Importieren ...
-
-$CE_INFO_CAMPAIGN_EXPORTED
-// Info shown after the campaign was handed to the browser
-§en:Campaign exported.
-§de:Kampagne exportiert.
-
-$CE_INFO_CAMPAIGN_IMPORTED
-// Info shown after a campaign file was imported
-§en:Campaign imported. It can be played and opened in the campaign editor.
-§de:Kampagne importiert. Sie kann gespielt und im Kampagnen-Editor geöffnet werden.
-
-$CE_ERROR_IMPORT_INVALID
-// Error shown when an imported file is not a campaign file
-§en:ERROR: This is not a valid campaign file.
-§de:FEHLER: Das ist keine gültige Kampagnen-Datei.
-
-$IMPORT_FAILED
-// Error shown when an imported file could not be written
-§en:ERROR: The import failed.
-§de:FEHLER: Der Import ist fehlgeschlagen.
-
-$IMPORT_NOTHING_TO_EXPORT
-// Error shown when export is pressed with nothing saved yet
-§en:ERROR: Save it first, then export.
-§de:FEHLER: Erst speichern, dann exportieren.
-
-$IMPORT_CANCELLED
-// Info shown when the user closed the file dialog without choosing
-§en:Import cancelled.
-§de:Import abgebrochen.
-
-$IMPORT_TOO_BIG
-// Error shown when the chosen file is larger than the limit
-§en:ERROR: That file is too large.
-§de:FEHLER: Diese Datei ist zu groß.
-
-$IMPORT_CLICK_AGAIN
-// Error shown when the browser refused to open the file dialog
-§en:Please click the button again.
-§de:Bitte den Knopf noch einmal anklicken.
-
 $WEB_CLICK_TO_START
 // Prompt shown by the browser build before the intro, because a browser
 // will not play any sound until the page has been clicked once
@@ -2124,3 +2025,103 @@ $CE_LEVEL_IN_ARCHIVE
 // *************
 $END_OF_FILE
 // ***********
+
+$MM_IMPORT
+// Main menu: button that takes a file in from the player's computer
+§en:Import
+§de:Importieren
+
+$MM_EXPORT
+// Main menu: button that writes something out to the player's computer
+§en:Export
+§de:Exportieren
+
+$TR_MESSAGE_TITLE
+// Title of the window that reports what an import or export did
+§en:Import / Export
+§de:Import / Export
+
+$TR_EXPORT_TITLE
+§en:Export
+§de:Exportieren
+
+$TR_EXPORT_WHAT
+// Prompt above the four kind buttons in the export window
+§en:What would you like to export?
+§de:Was möchtest du exportieren?
+
+$TR_KIND_LEVEL
+§en:Level
+§de:Level
+
+$TR_KIND_CAMPAIGN
+§en:Campaign
+§de:Kampagne
+
+$TR_KIND_MUSIC
+§en:Music
+§de:Musik
+
+$TR_KIND_SKIN
+§en:Skin
+§de:Skin
+
+$TR_REFRESH
+// Reads the list in the export window again
+§en:Refresh
+§de:Aktualisieren
+
+$TR_EXPORT_DO
+§en:Export ...
+§de:Exportieren ...
+
+$TR_NOTHING_TO_EXPORT
+§en:There is nothing of that kind to export yet.
+§de:Von dieser Sorte gibt es noch nichts zu exportieren.
+
+$TR_EXPORTED
+§en:Exported.
+§de:Exportiert.
+
+$TR_IMPORTED_LEVEL
+// The name it was stored under follows each of these four
+§en:Level imported:
+§de:Level importiert:
+
+$TR_IMPORTED_CAMPAIGN
+§en:Campaign imported. You can play it under "Start Game".
+§de:Kampagne importiert. Du kannst sie unter "Spiel starten" spielen.
+
+$TR_IMPORTED_MUSIC
+// Followed by the name - that is what goes into the level's music field
+§en:Music imported. Enter this name in the level settings:
+§de:Musik importiert. Diesen Namen in den Level-Einstellungen eintragen:
+
+$TR_IMPORTED_SKIN
+// Followed by the name - that is what goes into the level's skin fields
+§en:Skin imported. Enter this name in the level settings:
+§de:Skin importiert. Diesen Namen in den Level-Einstellungen eintragen:
+
+$TR_ERROR_UNKNOWN
+§en:ERROR: This is not a level, a campaign, a music file or a skin.
+§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück oder ein Skin.
+
+$TR_ERROR_BROKEN
+§en:ERROR: That file is damaged.
+§de:FEHLER: Diese Datei ist beschädigt.
+
+$TR_ERROR_TOO_BIG
+§en:ERROR: That file is too large.
+§de:FEHLER: Diese Datei ist zu groß.
+
+$TR_ERROR_FAILED
+§en:ERROR: That did not work.
+§de:FEHLER: Das hat nicht geklappt.
+
+$TR_ERROR_SKIN_RESERVED
+§en:ERROR: A skin of that name belongs to the game. Please rename the file.
+§de:FEHLER: Ein Skin dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
+
+$TR_ERROR_CLICK_AGAIN
+§en:Please click the button again.
+§de:Bitte den Knopf noch einmal anklicken.

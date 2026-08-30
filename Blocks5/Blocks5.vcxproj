@@ -75,7 +75,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;comdlg32.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -103,7 +103,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wininet.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wininet.lib;comdlg32.lib;shell32.lib;advapi32.lib;ole32.lib;winmm.lib;dxguid.lib;opengl32.lib;glu32.lib;openal32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>libs\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -721,6 +721,7 @@
     <ClCompile Include="src\soundinstance.cpp" />
     <ClCompile Include="src\streamedsound.cpp" />
     <ClCompile Include="src\texture.cpp" />
+    <ClCompile Include="src\transfer.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\videorecorder.cpp" />
   </ItemGroup>
@@ -850,6 +851,7 @@
     <ClInclude Include="src\soundinstance.h" />
     <ClInclude Include="src\streamedsound.h" />
     <ClInclude Include="src\texture.h" />
+    <ClInclude Include="src\transfer.h" />
     <ClInclude Include="src\typedefs.h" />
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\vec.h" />

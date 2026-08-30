@@ -58,19 +58,6 @@ public:
 		static_cast<GUI_Button*>(getChild("NumUnlockedLevels+"))->connectClicked(this, &CampaignEditorGUI::handleClick);
 		static_cast<GUI_CheckBox*>(getChild("BonusLevel"))->connectChanged(this, &CampaignEditorGUI::handleClick);
 
-		// Export/Import gibt es nur im Browser.
-		{
-			GUI_Element* p_export = getChild("Export");
-			GUI_Element* p_import = getChild("Import");
-#ifdef __EMSCRIPTEN__
-			if(p_export) static_cast<GUI_Button*>(p_export)->connectClicked(this, &CampaignEditorGUI::handleClick);
-			if(p_import) static_cast<GUI_Button*>(p_import)->connectClicked(this, &CampaignEditorGUI::handleClick);
-#else
-			if(p_export) p_export->hide();
-			if(p_import) p_import->hide();
-#endif
-		}
-
 		static_cast<GUI_Button*>(getChild("MessageBoxPane.MessageBox.Yes"))->connectClicked(this, &CampaignEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MessageBoxPane.MessageBox.No"))->connectClicked(this, &CampaignEditorGUI::handleClick);
 
@@ -266,44 +253,6 @@ public:
 				}
 			}
 		}
-#ifdef __EMSCRIPTEN__
-		else if(name == "CampaignEditor.Export")
-		{
-			// Die ZIP-Datei, die "Save" erzeugt, IST das Austauschformat: sie
-			// enthaelt campaign.xml, alle Levels als level_N.xml und die Musik.
-			// Sie wird unveraendert weitergereicht, nicht neu gebaut.
-			FileSystem& fs = FileSystem::inst();
-			const std::string filename = static_cast<GUI_EditBox*>(getChild("Filename"))->getText();
-			const std::string path = filename.empty() ? std::string("")
-				: fs.getAppHomeDirectory() + "levels/campaigns/" + setFilenameExtension(filename, "zip");
-
-			if(!path.empty() && fs.fileExists(path))
-			{
-				WebTransfer::download(path, sanitizeFilenameStem(filename, "campaign") + ".zip");
-				editor.messageText = "$CE_INFO_CAMPAIGN_EXPORTED";
-				editor.messageCounter = 100;
-				editor.messageType = 0;
-			}
-			else
-			{
-				// Anders als beim Level gibt es hier nichts zu exportieren, solange
-				// die Kampagne nicht gespeichert wurde: das ZIP ist die Quelle.
-				editor.messageText = "$IMPORT_NOTHING_TO_EXPORT";
-				editor.messageCounter = 200;
-				editor.messageType = 1;
-			}
-		}
-		else if(name == "CampaignEditor.Import")
-		{
-			// 32 MiB. Die mitgelieferte blocks.zip hat 8,3 MB (Musik dominiert).
-			if(!WebTransfer::openPicker(WebTransfer::CHANNEL_CAMPAIGN, ".zip", 33554432u, "/blocks5_import.zip"))
-			{
-				editor.messageText = "$IMPORT_CLICK_AGAIN";
-				editor.messageCounter = 150;
-				editor.messageType = 1;
-			}
-		}
-#endif
 		else if(name == "CampaignEditor.Quit")
 		{
 			if(!editor.wasChanged() || confirmed)
@@ -487,64 +436,6 @@ public:
 		editor.p_campaign->setDescription(static_cast<GUI_MultiLineEditBox*>(getChild("Description"))->getText());
 	}
 
-#ifdef __EMSCRIPTEN__
-	// Holt das Ergebnis des asynchronen Dateidialogs ab.
-	void pollImport()
-	{
-		std::string untrustedName;
-		const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_CAMPAIGN, untrustedName);
-		if(status == WebTransfer::IMPORT_IDLE) return;
-
-		FileSystem& fs = FileSystem::inst();
-		// Der Staging-Name MUSS auf .zip enden, sonst erkennt
-		// FileSystem::convertPath das Archiv nicht.
-		const std::string staging("/blocks5_import.zip");
-
-		if(status != WebTransfer::IMPORT_OK)
-		{
-			fs.deleteFile(staging);
-			if(status == WebTransfer::IMPORT_CANCELLED) return;
-			editor.messageText = (status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
-							   : (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$CE_ERROR_IMPORT_INVALID"
-							   : "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		// Pruefen, BEVOR irgendetwas ins Benutzerverzeichnis geht. Dieselbe
-		// Pruefung benutzt die Levelauswahl.
-		if(!Campaign::isImportableArchive(staging))
-		{
-			fs.deleteFile(staging);
-			editor.messageText = "$CE_ERROR_IMPORT_INVALID";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		const std::string name(Campaign::installArchive(staging, untrustedName));
-		fs.deleteFile(staging);
-		if(name.empty())
-		{
-			editor.messageText = "$IMPORT_FAILED";
-			editor.messageCounter = 200;
-			editor.messageType = 1;
-			return;
-		}
-
-		// Sofort nach IndexedDB durchschreiben - sonst waere der Import bis zu
-		// fuenf Sekunden lang nur im Arbeitsspeicher.
-		WebTransfer::syncHome();
-
-		listAvailableLevels();
-		static_cast<GUI_EditBox*>(getChild("Filename"))->setText(name);
-		editor.messageText = "$CE_INFO_CAMPAIGN_IMPORTED";
-		editor.messageCounter = 150;
-		editor.messageType = 0;
-	}
-#endif
-
 private:
 	GS_CampaignEditor& editor;
 	bool confirmed;
@@ -612,10 +503,6 @@ void GS_CampaignEditor::onRender()
 
 void GS_CampaignEditor::onUpdate()
 {
-#ifdef __EMSCRIPTEN__
-	if(GUI_Element* p_gui = gui["CampaignEditor"]) static_cast<CampaignEditorGUI*>(p_gui)->pollImport();
-#endif
-
 	if(messageCounter) messageCounter--;
 }
 
@@ -641,12 +528,6 @@ void GS_CampaignEditor::onEnter(const ParameterBlock& context)
 
 void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 {
-#ifdef __EMSCRIPTEN__
-	// Einen noch offenen Dateidialog aufgeben, sonst blockiert er den Kanal
-	// weiter - siehe GS_LevelEditor::onLeave.
-	WebTransfer::abandon(WebTransfer::CHANNEL_CAMPAIGN, "/blocks5_import.zip");
-#endif
-
 	// Ressourcen loeschen
 	delete p_campaign;
 	p_background->release();

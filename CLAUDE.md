@@ -393,23 +393,48 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
-In the browser that directory is IDBFS and there is nowhere to drop a file, so everything a
-player might install has an **Import ...** button instead, all four going through
-`WebBuild/web_transfer.cpp` on their own channel: a level and a skin in the level editor
-(the skin in the Settings window, beside the fields that name it), a campaign in the campaign
-editor and again on the Select Level screen — the second one because installing a campaign
-otherwise meant opening an editor. Every import validates into a staging path *outside* the
-home directory, and `sanitizeFilenameStem` reduces the browser's filename to `[A-Za-z0-9_-]`;
-C composes every destination path, never JS. **The skin is the one whose filename is its
-identity** — a level says `skin0="space"` and `Level::getSkinFilename` goes looking for
-`levels/skins/space.zip` — so a skin import overwrites rather than swerving to `space_2.zip`
-the way the others do, and the four names `zip_skins.bat` builds are refused outright.
-An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two
-texture as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, and the default is
-`GL_REPEAT` — which rain, snow and clouds genuinely need, because `level.cpp` scrolls the
-texture matrix without bound to tile them. So the wrap mode is switched for NPOT textures
-only, which is precisely the set where `GL_REPEAT` could never have worked. The game's own
-art is all power-of-two; this exists for imported skins alone.
+**Import and Export are two buttons in the main menu**, on both platforms — `src/transfer.cpp`
+over `WebBuild/web_transfer.cpp` in the browser and `GetOpenFileNameA`/`GetSaveFileNameA` under
+Windows, behind one interface (`beginImport` starts it, `pollImport` is asked each tick, so the
+browser's asynchronous dialog and Windows' modal one look the same to the caller). They used to
+be six buttons wedged into whatever hole each editor's layout had, which meant opening an editor
+to install a campaign, no way at all to install music, and skin import in the one place you
+least need it.
+
+**Import takes one file and works out what it is** — `Transfer::classify`, by content and never
+by extension: `OggS` at the front is music, an XML whose root is `<Level>` is a level, and an
+archive is a campaign if it holds `campaign.xml` or a skin if it holds `tileset.xml` and
+`sprites.png`. Anything else is refused. The browser stages the upload outside the home
+directory (C hands JS all three possible staging paths and JS picks one by extension, so C still
+composes every path), `sanitizeFilenameStem` reduces the name to `[A-Za-z0-9_-]`, and only then
+does anything reach IndexedDB. **The skin is the one whose filename is its identity** — a level
+says `skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip` — so a skin
+import overwrites rather than swerving to `space_2.zip` the way the others do, and the four
+names `zip_skins.bat` builds are refused outright.
+
+An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture
+as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, and the default is `GL_REPEAT` — which
+rain, snow and clouds genuinely need, because `level.cpp` scrolls the texture matrix without
+bound to tile them. So the wrap mode is switched for NPOT textures only, which is precisely the
+set where `GL_REPEAT` could never have worked. The game's own art is all power-of-two; this
+exists for imported skins alone.
+
+**Export asks what kind first** (four `ButtonLook` radio buttons), lists what is installed of
+that kind, and re-reads the list on every switch and on *Refresh*. **A password-protected skin is
+re-packed decrypted on the way out**: `zip_skins.bat` packs three of the four shipped skins with
+`-ptrockeneiskaefer` and stores that password, encrypted, as a `password.txt` member — copied
+byte for byte the recipient would get an archive nothing can open, and forking a built-in skin is
+the whole point of exporting one. Listing an archive's members for that turned up two bugs in the
+virtual filesystem, both fixed: `convertPath`'s scan stopped one character early, so a path
+ending exactly in `.zip/` was not recognised as an archive at all, and `File_Archived` rejected
+an empty member name even in `FM_LIST`, where it is the only thing that makes sense.
+
+**A level can borrow the shipped campaign's music**: `musicFilename="blocks:music2.ogg"` resolves
+through `Campaign::resolveMusicPath` to `levels/campaigns/blocks.zip[pw]/music2.ogg` instead of a
+file beside the level, and `Campaign::save` deliberately does *not* pack such a track — it is
+already on every machine. Without it a browser author had no music at all, since nothing could
+put an `.ogg` next to a level, and a campaign built there lost its music with nothing but a log
+line to say so.
 
 **Images** are decoded by `img_load.cpp`, not SDL_image. The game needs exactly one
 function from it — `IMG_Load_RW`, called from `texture.cpp` and for the window icon — and

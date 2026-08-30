@@ -7,6 +7,8 @@
 #include "options.h"
 #include "help.h"
 #include "filesystem.h"
+#include "transfer.h"
+#include "transfer.h"
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -102,6 +104,10 @@ void GS_Menu::onRender()
 
 void GS_Menu::onUpdate()
 {
+	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
+	pollImport();
+
+
 #ifdef __EMSCRIPTEN__
 	Uint8* p_keyStates = SDL_GetKeyboardState(0);
 #else
@@ -189,6 +195,26 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.Donate"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.Donate"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Import"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Export"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Do"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Cancel"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.MessagePane.Message.OK"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Import"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Export"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Do"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Cancel"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.MessagePane.Message.OK"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
 
 	// Wann wurde zuletzt nach einer Spende gefragt?
 	FileSystem& fs = FileSystem::inst();
@@ -248,6 +274,10 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	if(p_titleLevel) delete p_titleLevel;
 	p_titleLevel = 0;
 	levelSaved = false;
+
+	// Einen noch offenen Dateidialog aufgeben, sonst belegt er den Kanal
+	// weiter, bis der Browser ihn nach fuenf Minuten selbst verwirft.
+	Transfer::abandonImport();
 
 	// Menue loeschen
 	delete gui["Menu"];
@@ -311,6 +341,54 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	{
 		p_help->show(gui["Menu"]);
 	}
+	else if(name == "Menu.Import")
+	{
+		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
+		// Transfer::classify am Inhalt, nicht an der Endung.
+		if(!Transfer::beginImport()) showMessage(localizeString("$TR_ERROR_CLICK_AGAIN"));
+	}
+	else if(name == "Menu.Export")
+	{
+		static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->check();
+		refreshExportList();
+		gui["Menu.ExportPane"]->show();
+		gui["Menu.ExportPane.Export"]->focus();
+	}
+	else if(name == "Menu.ExportPane.Export.KindLevel" ||
+			name == "Menu.ExportPane.Export.KindCampaign" ||
+			name == "Menu.ExportPane.Export.KindMusic" ||
+			name == "Menu.ExportPane.Export.KindSkin" ||
+			name == "Menu.ExportPane.Export.Refresh")
+	{
+		// Beim Wechsel der Art und auf Wunsch neu einlesen: waehrend das
+		// Fenster offensteht, kann sich das Verzeichnis geaendert haben.
+		refreshExportList();
+	}
+	else if(name == "Menu.ExportPane.Export.Cancel")
+	{
+		gui["Menu.ExportPane"]->hide();
+		gui["Menu"]->focus();
+	}
+	else if(name == "Menu.ExportPane.Export.Do")
+	{
+		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
+		if(p_list->getSelection() == -1) return;
+
+		const std::string item(p_list->getSelectedItemText());
+		const Transfer::Kind kind = static_cast<Transfer::Kind>(currentExportKind());
+		std::string errorId;
+		const bool ok = Transfer::doExport(kind, item, errorId);
+
+		gui["Menu.ExportPane"]->hide();
+		gui["Menu"]->focus();
+		if(ok) showMessage(localizeString("$TR_EXPORTED"));
+		else if(!errorId.empty()) showMessage(localizeString(errorId));
+	}
+	else if(name == "Menu.MessagePane.Message.OK")
+	{
+		gui["Menu.MessagePane"]->hide();
+		gui["Menu"]->focus();
+	}
 	else if(name == "Menu.Quit")
 	{
 		SDL_Event event;
@@ -373,4 +451,90 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 #endif
 		}
 	}
+}
+
+void GS_Menu::pollImport()
+{
+	std::string path, untrustedName;
+	const int status = Transfer::pollImport(path, untrustedName);
+	if(status == Transfer::STATUS_BUSY) return;
+	if(status == Transfer::STATUS_CANCELLED) { Transfer::finishImport(); return; }
+
+	if(status != Transfer::STATUS_OK)
+	{
+		Transfer::finishImport();
+		showMessage(localizeString(status == Transfer::STATUS_TOO_BIG ? "$TR_ERROR_TOO_BIG"
+								 : status == Transfer::STATUS_UNKNOWN ? "$TR_ERROR_UNKNOWN"
+								 : "$TR_ERROR_FAILED"));
+		return;
+	}
+
+	const Transfer::Kind kind = Transfer::classify(path);
+	if(kind == Transfer::KIND_NONE)
+	{
+		Transfer::finishImport();
+		showMessage(localizeString("$TR_ERROR_UNKNOWN"));
+		return;
+	}
+
+	std::string errorId;
+	const std::string name(Transfer::install(kind, path, untrustedName, errorId));
+	Transfer::finishImport();
+
+	if(name.empty())
+	{
+		showMessage(localizeString(errorId.empty() ? "$TR_ERROR_FAILED" : errorId));
+		return;
+	}
+
+	// Bei Level, Musik und Skin ist der vergebene Name das, was der Spieler
+	// gleich irgendwo eintragen muss - also mit ausgeben. Er kommt aus
+	// sanitizeFilenameStem und besteht nur aus [A-Za-z0-9_-] plus Endung,
+	// kann also keine Lokalisierungsmarke enthalten.
+	switch(kind)
+	{
+	case Transfer::KIND_CAMPAIGN:
+		showMessage(localizeString("$TR_IMPORTED_CAMPAIGN"));
+		break;
+	case Transfer::KIND_MUSIC:
+		showMessage(localizeString("$TR_IMPORTED_MUSIC") + " \"" + name + "\"");
+		break;
+	case Transfer::KIND_SKIN:
+		// Ohne ".zip" und ohne den Punkt: so, wie der Name in ein Skin-Feld
+		// geschrieben wird. setFilenameExtension laesst den Punkt stehen.
+		showMessage(localizeString("$TR_IMPORTED_SKIN") + " \"" +
+					name.substr(0, name.find_last_of('.')) + "\"");
+		break;
+	default:
+		showMessage(localizeString("$TR_IMPORTED_LEVEL") + " \"" + name + "\"");
+		break;
+	}
+}
+
+void GS_Menu::showMessage(const std::string& text)
+{
+	static_cast<GUI_StaticText*>(gui["Menu.MessagePane.Message.Text"])->setText(text);
+	gui["Menu.MessagePane"]->show();
+	gui["Menu.MessagePane.Message"]->focus();
+}
+
+int GS_Menu::currentExportKind() const
+{
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->isChecked()) return Transfer::KIND_CAMPAIGN;
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->isChecked())    return Transfer::KIND_MUSIC;
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->isChecked())     return Transfer::KIND_SKIN;
+	return Transfer::KIND_LEVEL;
+}
+
+void GS_Menu::refreshExportList()
+{
+	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
+	p_list->clear();
+
+	const std::vector<std::string> items(Transfer::list(static_cast<Transfer::Kind>(currentExportKind())));
+	for(uint i = 0; i < items.size(); i++)
+	{
+		p_list->addItem(GUI_ListBox::ListItem(items[i], 0));
+	}
+	p_list->setSelection(items.empty() ? -1 : 0);
 }

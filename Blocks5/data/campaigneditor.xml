@@ -23,13 +23,6 @@
 		<Title>$CE_MENU_QUIT</Title>
 	</Button>
 
-	<Button name="Export" x="20" y="88" w="135" h="28">
-		<Title>$CE_MENU_EXPORT</Title>
-	</Button>
-	<Button name="Import" x="165" y="88" w="135" h="28">
-		<Title>$CE_MENU_IMPORT</Title>
-	</Button>
-
 	<Button name="Add" x="280" y="205" w="20" h="20">
 		<Title>»</Title>
     <ToolTip>$CE_ADD_LEVEL</ToolTip>

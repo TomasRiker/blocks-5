@@ -8,9 +8,6 @@
 #include "campaign.h"
 #include "level.h"
 #include "progressdb.h"
-#ifdef __EMSCRIPTEN__
-#include "web_transfer.h"
-#endif
 
 const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
 
@@ -21,9 +18,6 @@ GS_SelectLevel::GS_SelectLevel() : GameState("GS_SelectLevel"), engine(Engine::i
 	p_currentCampaign = 0;
 	currentLevel = 0;
 	p_currentLevel = 0;
-#ifdef __EMSCRIPTEN__
-	importMessageCounter = 0;
-#endif
 }
 
 GS_SelectLevel::~GS_SelectLevel()
@@ -179,12 +173,6 @@ void GS_SelectLevel::onUpdate()
 		p_currentLevel->update();
 	}
 
-#ifdef __EMSCRIPTEN__
-	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
-	pollImport();
-	if(importMessageCounter && !--importMessageCounter) updateNote();
-#endif
-
 	if(engine.wasKeyPressed(SDLK_ESCAPE))
 	{
 		handleClick(gui["SelectLevel.Quit"]);
@@ -224,28 +212,6 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["SelectLevel.LastLevel"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	static_cast<GUI_Button*>(gui["SelectLevel.Quit"])->connectClicked(this, &GS_SelectLevel::handleClick);
-
-#ifdef __EMSCRIPTEN__
-	// Im Browser fuehrt der einzige Weg, eine fremde Kampagne ins Spiel zu
-	// bekommen, sonst durch den Kampagnen-Editor - und dorthin geht niemand,
-	// der einfach nur spielen will. Der Knopf steht deshalb hier, an der
-	// Liste, auf die er wirkt; die Liste rueckt dafuer um genau seine Hoehe
-	// zusammen. Die Bildlaufleiste ist ein Kind des Listenfelds und bekommt
-	// ihre Groesse im Konstruktor, also muss sie einzeln mitgezogen werden.
-	{
-		const int room = 26;
-		GUI_Element* p_list = gui["SelectLevel.Campaigns"];
-		GUI_Element* p_bar = gui["SelectLevel.Campaigns.ScrollBar"];
-		p_list->setSize(p_list->getSize() - Vec2i(0, room));
-		if(p_bar) p_bar->setSize(p_bar->getSize() - Vec2i(0, room));
-		static_cast<GUI_Button*>(gui["SelectLevel.Import"])->connectClicked(this, &GS_SelectLevel::handleClick);
-	}
-#else
-	// Der Zeiger wird geprueft: waehrend der Entwicklung kann eine data.zip
-	// stehen, die aelter ist als selectlevel.xml, und dann waere ein
-	// fehlender Knopf ein Absturz statt einer Kleinigkeit.
-	if(GUI_Element* p_import = gui["SelectLevel.Import"]) p_import->hide();
-#endif
 
 	listCampaigns();
 }
@@ -293,13 +259,6 @@ void GS_SelectLevel::listCampaigns()
 
 void GS_SelectLevel::onLeave(const ParameterBlock& context)
 {
-#ifdef __EMSCRIPTEN__
-	// Einen noch offenen Dateidialog aufgeben, sonst blockiert er den Kanal
-	// weiter - siehe GS_LevelEditor::onLeave.
-	WebTransfer::abandon(WebTransfer::CHANNEL_SELECT_LEVEL, "/blocks5_import_campaign.zip");
-	importMessageCounter = 0;
-#endif
-
 	// Bilder loeschen
 	p_background->release();
 	p_misc->release();
@@ -440,91 +399,12 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 			engine.crossfade(new CF_Cube, 0.85);
 		}
 	}
-#ifdef __EMSCRIPTEN__
-	else if(name == "SelectLevel.Import")
-	{
-		// 32 MiB, wie im Kampagnen-Editor: die mitgelieferte blocks.zip hat
-		// 8,3 MB, wovon die Musik das meiste ausmacht.
-		if(!WebTransfer::openPicker(WebTransfer::CHANNEL_SELECT_LEVEL, ".zip", 33554432u, "/blocks5_import_campaign.zip"))
-		{
-			showImportMessage("$IMPORT_CLICK_AGAIN");
-		}
-	}
-#endif
 	else if(name == "SelectLevel.Quit")
 	{
 		engine.crossfade(new CF_Star, 0.85);
 		engine.popGameState();
 	}
 }
-
-#ifdef __EMSCRIPTEN__
-void GS_SelectLevel::pollImport()
-{
-	std::string untrustedName;
-	const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_SELECT_LEVEL, untrustedName);
-	if(status == WebTransfer::IMPORT_IDLE) return;
-
-	FileSystem& fs = FileSystem::inst();
-	// Muss auf .zip enden, sonst erkennt FileSystem::convertPath das Archiv
-	// nicht. Ein eigener Name, damit dieser Bildschirm und der Kampagnen-
-	// Editor sich nie in dieselbe Zwischendatei schreiben.
-	const std::string staging("/blocks5_import_campaign.zip");
-
-	if(status != WebTransfer::IMPORT_OK)
-	{
-		fs.deleteFile(staging);
-		if(status == WebTransfer::IMPORT_CANCELLED) return;
-		showImportMessage((status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
-						: (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$CE_ERROR_IMPORT_INVALID"
-						: "$IMPORT_FAILED");
-		return;
-	}
-
-	// Pruefen, BEVOR etwas ins Benutzerverzeichnis geht - dieselbe Pruefung,
-	// die der Kampagnen-Editor benutzt.
-	if(!Campaign::isImportableArchive(staging))
-	{
-		fs.deleteFile(staging);
-		showImportMessage("$CE_ERROR_IMPORT_INVALID");
-		return;
-	}
-
-	const std::string name(Campaign::installArchive(staging, untrustedName));
-	fs.deleteFile(staging);
-	if(name.empty())
-	{
-		showImportMessage("$IMPORT_FAILED");
-		return;
-	}
-
-	// Sofort nach IndexedDB durchschreiben - sonst waere der Import bis zu
-	// fuenf Sekunden lang nur im Arbeitsspeicher.
-	WebTransfer::syncHome();
-
-	// Die Liste neu aufbauen und die neue Kampagne auswaehlen. listCampaigns()
-	// stellt auf den ersten Eintrag; die neue steht irgendwo, also danach
-	// gezielt suchen.
-	listCampaigns();
-	GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
-	for(uint i = 0; i < campaigns.size(); i++)
-	{
-		if(campaigns[i]->getFilename() != FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + name) continue;
-		p_listBox->setSelection(static_cast<int>(i));
-		break;
-	}
-
-	showImportMessage("$CE_INFO_CAMPAIGN_IMPORTED");
-}
-
-void GS_SelectLevel::showImportMessage(const char* p_text)
-{
-	importMessage = p_text;
-	importMessageCounter = 175;   // 3,5 Sekunden bei 20 ms je Takt
-	updateNote();
-}
-#endif
-
 void GS_SelectLevel::setCurrentLevel(uint currentLevel)
 {
 	if(!p_currentCampaign) return;
@@ -590,16 +470,6 @@ int GS_SelectLevel::getLevelStatus(uint level)
 void GS_SelectLevel::updateNote()
 {
 	GUI_StaticText* p_note = static_cast<GUI_StaticText*>(gui["SelectLevel.Note"]);
-
-#ifdef __EMSCRIPTEN__
-	// Solange eine Import-Meldung ansteht, hat sie Vorrang: der Hinweis auf
-	// offene Level laeuft nicht weg, die Meldung schon.
-	if(importMessageCounter)
-	{
-		p_note->setText(importMessage);
-		return;
-	}
-#endif
 
 	std::string text;
 	if(p_currentCampaign)

@@ -202,63 +202,36 @@ before, `STREAMING/STOPPED q=4 p=4` while hidden - a stopped source with a full
 queue, the state the old check could not see - and `STREAMING/PLAYING q=4 p=0`
 again half a second after the frames resume.
 
-## Getting levels, campaigns and skins in and out
+## Getting levels, campaigns, music and skins in and out
 
-The Level Editor and Campaign Editor each gained an **Export ...** and
-**Import ...** button, present only in the web build (the desktop build hides
-them - there the files are already in `My Documents\Blocks 5\`). Two more
-buttons followed: **Import skin ...** in the Level Editor's Settings window,
-beside the skin fields it feeds, and **Import campaign ...** on the Select Level
-screen, under the campaign list.
+Two buttons in the main menu, **Import** and **Export**, on both platforms. The
+platform-independent half is `Blocks5/src/transfer.cpp`; this file is only the
+bridge under it - Blobs, `<input type="file">` and `FS.syncfs`, nothing about
+levels or skins. Windows uses `GetOpenFileNameA`/`GetSaveFileNameA` through the
+same interface: `beginImport()` starts the dialog and `pollImport()` is asked
+once a logic tick, so the browser's asynchronous picker and Windows' modal one
+look identical to the caller.
 
-That second one is placement, not plumbing: campaign import already worked, but
-it lived in the Campaign *Editor*, and somebody who only wants to play a
-campaign a friend sent them has no reason to open an editor. Both buttons run
-the same `Campaign::isImportableArchive` / `Campaign::installArchive` pair, so
-the validation exists once. In the browser the campaign list gives up 26 pixels
-of height to the button (`GS_SelectLevel::onEnter`, which also drags the list
-box's scrollbar down with it - the scrollbar is a child sized in the list's
-constructor and does not follow `setSize`); the desktop layout is untouched.
+Import reads the file and works out what it is by content, never by extension -
+`OggS` is music, an XML rooted at `<Level>` is a level, an archive with a
+`campaign.xml` is a campaign, one with `tileset.xml` and `sprites.png` is a
+skin. Everything else is refused. The upload is staged *outside* `/blocks5_home`
+so a rejected file never reaches IndexedDB; C passes all three possible staging
+paths down and JS picks one by extension, so C still composes every path and JS
+composes none. The browser's filename is only a suggestion, run through
+`sanitizeFilenameStem`. On success the import forces an `FS.syncfs` so it is
+durable immediately rather than up to five seconds later.
 
-Export hands the browser a Blob and clicks a hidden `<a download>`. A level is
-serialised exactly as Save would write it, so it need not be saved first; a
-campaign ships the password-protected zip the editor already produces, byte for
-byte, which is why an imported campaign is immediately playable.
+Export asks for the kind first, lists what is installed, and re-reads that list
+on every switch and on *Refresh*. A password-protected skin is re-packed
+decrypted on the way out - see the note in `transfer.cpp`; three of the four
+shipped skins are packed with a password, and handing one over byte for byte
+would give the recipient an archive nothing opens.
 
-Import opens an `<input type="file">`, reads it with a FileReader, and writes it
-to a staging path *outside* `/blocks5_home` - so a file that fails validation
-never reaches IndexedDB. The completion is handed back to C++ through
-`EMSCRIPTEN_KEEPALIVE` functions the JS calls, and each editor polls once per
-logic tick; the handoff is tagged with a channel so a dialog resolving after the
-user has switched editors is not consumed by the wrong one. The browser's
-filename is only ever a *suggestion*: `sanitizeFilenameStem` (unguarded, in
-util.cpp) reduces it to `[A-Za-z0-9_-]`, at most 64 characters, and C composes
-every destination path. JS never does. A level is validated by parsing it and
-checking for a `<Level>` root; a campaign by opening the archive and requiring a
-`campaign.xml` that loads with at least one level. On success the import forces
-an `FS.syncfs` so it is durable immediately rather than up to five seconds later.
-
-A campaign zip carries its levels and music but **not its skins** - on Windows
-too, where the author just tells players to drop the skin zip in
-`levels\skins\`. That is why skin import exists: without it a shared campaign
-built on a custom skin was a dead end in the browser, showing the red
-missing-files panel with no way out. A skin is validated by opening the archive
-and requiring `tileset.xml` and `sprites.png`; looking inside works whether or
-not the archive is password-protected, as three of the four shipped skins are.
-
-**A skin is the one import whose filename is not bookkeeping.** A level says
-`skin0="space"` and the loader goes looking for `levels/skins/space.zip`
-(`Level::getSkinFilename`). If an already-taken name made the import swerve to
-`space_2.zip`, the way the level and campaign imports do, every level naming
-`space` would stay just as broken - with no visible reason. A skin therefore
-**overwrites**, and the four names `zip_skins.bat` builds - `blocks_01`,
-`blocks_02`, `blocks_03`, `space` - are refused outright, because the shipped
-campaign is built on them and overwriting one would break the game for every
-other level. Add a skin to the game and it belongs in that list too.
-
-One caveat that is not worth code: re-importing a skin whose textures are
-already loaded shows the old artwork until the game is restarted, because
-`Manager<T>` caches by filename.
+A level can also borrow a track from the shipped campaign with
+`musicFilename="blocks:music2.ogg"`, which is what makes music usable here at
+all: the browser has no way to drop an `.ogg` next to a level, and
+`Campaign::save` knows not to pack a track that every installation already has.
 
 ## Opening a campaign that arrived as a zip
 

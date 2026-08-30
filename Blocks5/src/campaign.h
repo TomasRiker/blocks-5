@@ -25,12 +25,29 @@ public:
 	// Verweis auf eine lose Datei im Level-Ordner des Benutzers.
 	static LevelRef makeLooseRef(const std::string& filename);
 
-#ifdef __EMSCRIPTEN__
+	// Das Praefix, mit dem ein Level ein Musikstueck der mitgelieferten
+	// Kampagne nennt: musicFilename="blocks:music2.ogg". Ohne das muesste
+	// jede fremde Kampagne, die eines der zehn Stuecke benutzen will, es
+	// selbst mitschleppen - im Browser bekommt sie es ausserdem gar nicht,
+	// weil dort niemand eine .ogg neben den Level legen kann.
+	static const char* const p_builtInMusicPrefix;   // "blocks:"
+
+	// Wohin ein musicFilename zeigt. sourceDir ist das Verzeichnis, in dem
+	// gewoehnliche Stuecke des Levels liegen - "<home>levels/" fuer einen
+	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv.
+	// Fuer ein "blocks:"-Stueck ist sourceDir ohne Belang.
+	static std::string resolveMusicPath(const std::string& musicFilename,
+										const std::string& sourceDir);
+
+	// Bringt ein Stueck aus der mitgelieferten Kampagne mit? Solche Stuecke
+	// packt save() nicht ins Archiv - sie sind ja schon da.
+	static bool isBuiltInMusic(const std::string& musicFilename);
+
 	// Ein von aussen hereingereichtes Archiv annehmen. Getrennt in Pruefen und
 	// Ablegen, damit der Aufrufer "das ist keine Kampagne" und "das Kopieren
-	// ging schief" auseinanderhalten kann - und an einer Stelle, weil beide
-	// Wege ins Benutzerverzeichnis (Kampagnen-Editor und Levelauswahl) genau
-	// dieselbe Pruefung brauchen.
+	// ging schief" auseinanderhalten kann. Auf beiden Plattformen: der
+	// Import im Hauptmenue nimmt unter Windows genauso eine fremde Datei an
+	// wie im Browser.
 	static bool isImportableArchive(const std::string& archivePath);
 
 	// Legt das gepruefte Archiv unter levels/campaigns/ ab und liefert den
@@ -39,7 +56,6 @@ public:
 	// wird hier gebildet und ist garantiert noch frei.
 	static std::string installArchive(const std::string& archivePath,
 									  const std::string& untrustedName);
-#endif
 
 	Campaign();
 	~Campaign();

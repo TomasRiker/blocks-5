@@ -103,8 +103,17 @@ File* FileSystem::openFile(const std::string& filename,
 	File* p_file = 0;
 	if(!filePath.empty())
 	{
-		if(objectName.empty()) p_file = new File_Real(filePath, mode);
-		else p_file = new File_Archived(filePath, objectName, password, mode);
+		// Ein Pfad, der hinter ".zip" nur noch den Schraegstrich hat, meint
+		// das Archiv selbst - sein Inhaltsverzeichnis. Das ergibt nur beim
+		// Auflisten einen Sinn; zum Lesen oder Schreiben ist ein Archiv ohne
+		// Mitgliedsnamen weiterhin eine gewoehnliche Datei.
+		const bool archiveRoot = objectName.empty() &&
+								 filePath.length() > 4 &&
+								 filePath.compare(filePath.length() - 4, 4, ".zip") == 0;
+
+		if(archiveRoot && mode == FM_LIST) p_file = new File_Archived(filePath, "", password, mode);
+		else if(objectName.empty())        p_file = new File_Real(filePath, mode);
+		else                               p_file = new File_Archived(filePath, objectName, password, mode);
 	}
 
 	// Ist ein Fehler aufgetreten?
@@ -233,7 +242,12 @@ void FileSystem::convertPath(const std::string& path,
 							 std::string& password) const
 {
 	std::string temp(path);
-	for(uint i = 0; i < temp.length() - 5; i++)
+	// i + 5 <= length, nicht i < length - 5: sonst wird die letzte moegliche
+	// Stelle nie geprueft, und ein Pfad, der genau auf ".zip/" endet - also
+	// das Archiv selbst meint - gilt als gewoehnliche Datei. Nebenbei ist die
+	// Subtraktion auf einem Pfad mit weniger als fuenf Zeichen ein
+	// Unterlauf, und substr wirft dann.
+	for(uint i = 0; i + 5 <= temp.length(); i++)
 	{
 		if(temp.substr(i, 5) == ".zip/")
 		{
