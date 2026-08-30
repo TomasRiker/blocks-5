@@ -65,7 +65,11 @@ std::string getCurrentVersion()
 			HINTERNET inet = InternetOpenA("Scherfgen-Software Blocks 5", INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return 1;
 
-			HINTERNET url = InternetOpenUrlA(inet, "http://www.scherfgen-software.net/blocks5/version.txt", 0, 0, INTERNET_FLAG_RELOAD, 0);
+			// INTERNET_FLAG_SECURE braucht InternetOpenUrl nicht gesagt zu bekommen -
+			// es liest das Schema aus der Adresse -, aber ausgeschrieben sieht man,
+			// dass https hier Absicht ist und kein Ueberbleibsel.
+			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
+											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
 			if(!url)
 			{
 				InternetCloseHandle(inet);
