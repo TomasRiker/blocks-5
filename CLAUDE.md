@@ -150,8 +150,9 @@ either, and a CRT that fails to link leaves sharp-fit alone.
 
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
 `src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
-(Options → Scaling → *CRT settings …*, saved as `<Crt scanline= curvature=>`), because they
-are matters of taste rather than tuning.
+(Options → Scaling → *CRT settings …*, saved as
+`<Crt scanline= curvature= bloom= flicker=>`), because they are matters of taste rather than
+tuning.
 
 The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
 an artifact of 240p: a console drew 240 lines into a 480-line raster. A VGA monitor showing
@@ -172,6 +173,15 @@ constants, so mask and scan lines are light-neutral by construction and `BRIGHTN
 taste at 1.0. Measured: moving the scan-line slider from 0 to 1 changes mean frame brightness
 by 0.5%. The five `exp()` calls behind `scanAvg` are constant-folded — a literal measured
 identically (7.9 vs 8.0).
+
+The flicker is the one part that reads the clock. It is two zero-mean terms — a fast
+brightness shimmer at roughly 12, 19 and 29 Hz, plus a much weaker mains-hum bar rolling
+slowly down the picture — so it costs no brightness, and it depends only on `Time`, never on
+the previous frame, which is why it cannot turn into the xBR problem. All its frequencies are
+whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds it `SDL_GetTicks()` modulo
+that, so the clock wraps seamlessly and never loses float precision. It is the wall clock and
+not `Engine::getTime()`, which counts logic ticks and stops when the game pauses — a screen
+flickers anyway. Measured at the maximum setting: 2.55% peak-to-peak between frames.
 
 Relative present cost, again on a software rasterizer: nearest 1.0, bilinear 1.3, sharp-fit
 1.35, **crt 7.8**. Halation is about half of that; `BLOOM_STRENGTH = 0` compiles the whole
@@ -241,9 +251,16 @@ the user's mouse. The same procedure answers `WM_GETMINMAXINFO` (chaining first,
 drag instead of snapping back after it. Size, position and fullscreen state persist as `<WindowSize>`,
 `<WindowPosition>` and `<Fullscreen>`, written by `Engine::exit` — until then the only
 caller of `saveConfig` was the options dialog's OK, so simply resizing and quitting lost
-the size. `rememberWindowPlacement` reads the placement off the HWND, and in fullscreen
-takes the rect `applyWindowStyle` saved instead, so the remembered window is the windowed
-one. On first run, or when the stored size no longer fits the desktop,
+the size. `rememberWindowPlacement` uses `GetWindowPlacement`, not `GetWindowRect`: a
+maximized window's rect is the maximized frame, on Windows with negative corners because the
+invisible grab handles count, and restoring *that* put a screen-sized window half off the
+desktop. `rcNormalPosition` is the rect "restore" goes back to, and that is what gets saved,
+together with a `maximized` flag that `restoreWindowPosition` replays with `SW_MAXIMIZE`.
+`handleResize` skips updating `windowedSize` while `IsZoomed`, or the remembered size would
+become the maximized one. In fullscreen the rect `applyWindowStyle` saved is used instead, so
+the remembered window is always the windowed one. Whether the stored spot still exists is
+`MonitorFromRect`'s job, which gets negative coordinates right — a monitor to the left of the
+first one has them. On first run, or when the stored size no longer fits the desktop,
 `getDefaultWindowSize` picks the largest integer multiple of 640x480 that leaves a 120px
 margin in *both* directions — which also means "sharp" starts with no black bars. 120 is
 not a round number chosen by feel: it is the largest margin under which 1920x1080, by far
@@ -357,7 +374,15 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   the first fires `changed`. Refreshing a checkbox from model state with `check()` makes the
   handler run as if the player had clicked it — which in the level editor meant an Undo that
   toggled the electricity immediately produced a *fresh* undo point and threw the redo list
-  away.
+  away. `GUI_CheckBox::setChecked` must touch **only `checked`, never `newChecked`**:
+  `newChecked` is the click in flight, written by `onMouseDown` and read by `onMouseUp`, and a
+  per-frame refresh lands between the two. Clobbering it swallows the click, which is exactly
+  what made the editor's Electricity box turn itself straight back off.
+- **Escape and Return belong to the dialog.** `GUI_EditBox` and `GUI_ListBox` used to swallow
+  both — Escape fell into the `default:` branch where `unicode < 32` silently dropped it, and
+  Return only ever clicked a `p_submitButton`. Both now forward to the parent when they have
+  nothing of their own to do, which is what lets a dialog implement Escape = Cancel and
+  Return = OK while focus sits in a text field or a list.
 - **A `<StaticText>` can carry `<For>Name</For>`** and forwards its mouse events to that
   sibling, so clicking the label toggles the checkbox or radio button, as `<label for>` does
   in a browser. It forwards enter/leave as well as down/up, because a toggle only fires on

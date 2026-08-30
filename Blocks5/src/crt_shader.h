@@ -101,7 +101,11 @@ static const char* p_crtFragmentShader =
 	/* Halation: Licht streut in der Glasscheibe und kommt als weicher Hof
 	   zurueck. Nur was heller als die Schwelle ist, leuchtet - dunkle Flaechen
 	   bleiben scharf, und genau diese Unsymmetrie unterscheidet das von einer
-	   Weichzeichnung. Radius in Quellpixeln. */
+	   Weichzeichnung. Radius in Quellpixeln.
+
+	   BLOOM_STRENGTH ist der Wert bei Regler auf Anschlag; der Regler
+	   (Uniform Bloom) skaliert ihn. Auf 0 gesetzt faellt der ganze Block beim
+	   Uebersetzen weg - siehe unten. */
 	"const float BLOOM_STRENGTH  = 0.28;\n"
 	"const float BLOOM_THRESHOLD = 0.55;\n"
 	"const float BLOOM_RADIUS    = 2.2;\n"
@@ -125,6 +129,27 @@ static const char* p_crtFragmentShader =
 	/* Randabdunklung. 0 = aus. */
 	"const float VIGNETTE = 0.22;\n"
 
+	/* Flimmern, wie es ein alter Fernseher hatte. Der Hauptteil ist das
+	   schnelle Zittern der Helligkeit - das, was man als Flimmern sieht: drei
+	   Schwingungen um 12, 19 und 29 Hz, die sich staendig neu ueberlagern und
+	   nie in ein hoerbares Muster fallen. Dazu, viel schwaecher, das
+	   Netzbrummen: ein breites, dunkles Band, das langsam durchs Bild wandert,
+	   weil die Netzfrequenz gegen die Bildfrequenz schwebt.
+
+	   Beide haben Mittelwert null, kosten also keine Helligkeit, und beide
+	   haengen nur an der Uhr, nicht am vorigen Bild - der Fehler, an dem xBR
+	   gescheitert ist, kann hier nicht auftreten. Werte bei Regler auf
+	   Anschlag; wem das Band nicht gefaellt, setzt HUM_DEPTH auf 0. */
+	"const float FLICKER_DEPTH = 0.055;\n"   /* schnelles Helligkeitszittern */
+	"const float HUM_DEPTH     = 0.022;\n"   /* Tiefe des wandernden Bandes */
+	"const float HUM_BARS      = 0.75;\n"    /* wie viele Baender ins Bild passen */
+	"const float HUM_ROLLS     = 3.0;\n"     /* Durchlaeufe je FLICKER_CYCLE */
+	/* Nach so vielen Sekunden wiederholt sich das Flimmern exakt. Alle
+	   Frequenzen unten sind ganze Vielfache davon, deshalb ist der Uebergang
+	   nahtlos und die Uhr darf bei jedem Durchlauf von vorn anfangen - sonst
+	   wuerde float irgendwann grob. */
+	"const float FLICKER_CYCLE = 8.0;\n"
+
 	/* Gamma. Eine Roehre hatte ungefaehr 2.4; gerechnet wird dazwischen in
 	   linearem Licht, sonst wird aus dem Hof grauer Dunst. */
 	"const float GAMMA_IN  = 2.4;\n"
@@ -144,6 +169,9 @@ static const char* p_crtFragmentShader =
 	"uniform vec2 Prescale;\n"      /* wie bei sharp-fit: ganzzahlig, >= 1 */
 	"uniform float Scanline;\n"     /* Regler 0..1 */
 	"uniform float Curvature;\n"    /* Regler 0..1 */
+	"uniform float Bloom;\n"        /* Regler 0..1 */
+	"uniform float Flicker;\n"      /* Regler 0..1 */
+	"uniform float Time;\n"         /* Sekunden, 0 .. FLICKER_CYCLE */
 	"varying vec2 texCoord;\n"
 
 	/* Ein Texel holen, mit derselben stueckweise linearen Umrechnung wie
@@ -221,7 +249,7 @@ static const char* p_crtFragmentShader =
 	   knapp die Haelfte -, deshalb steht er in einem if auf eine Konstante:
 	   BLOOM_STRENGTH auf 0 gesetzt, und der Uebersetzer wirft den ganzen Block
 	   weg (nachgemessen: 7.9 faellt dann auf 4.2). */
-	"    if(BLOOM_STRENGTH > 0.0)\n"
+	"    if(BLOOM_STRENGTH > 0.0 && Bloom > 0.0)\n"
 	"    {\n"
 	"    vec2 br = BLOOM_RADIUS / FrameSize;\n"
 	"    vec3 sum = fetchRaw(suv + vec2( br.x,  0.0))\n"
@@ -233,7 +261,7 @@ static const char* p_crtFragmentShader =
 	"             + fetchRaw(suv + vec2( br.x * 0.7, -br.y * 0.7))\n"
 	"             + fetchRaw(suv + vec2(-br.x * 0.7, -br.y * 0.7));\n"
 	"    vec3 halo = max(toLinear(sum * 0.125) - vec3(BLOOM_THRESHOLD), vec3(0.0));\n"
-	"    col += halo * BLOOM_STRENGTH;\n"
+	"    col += halo * BLOOM_STRENGTH * Bloom;\n"
 	"    }\n"
 
 	/* --- Zeilenstruktur ----------------------------------------------- */
@@ -268,6 +296,22 @@ static const char* p_crtFragmentShader =
 	"    col *= mask / maskAvg;\n"
 
 	/* --- Licht zurueckgeben, Rand, Gamma ------------------------------ */
+	/* Flimmern. Beide Anteile schwingen um null, die mittlere Helligkeit
+	   bleibt also stehen. Die Frequenzen sind ganze Durchlaeufe je
+	   FLICKER_CYCLE, damit die Uhr nahtlos umlaufen kann. */
+	"    if(Flicker > 0.0)\n"
+	"    {\n"
+	"        float w = 6.2831853 / FLICKER_CYCLE;\n"
+	"        float hum = sin((uv.y * HUM_BARS) * 6.2831853 - Time * w * HUM_ROLLS);\n"
+	/* 97, 151 und 233 Durchlaeufe je 8 s sind rund 12, 19 und 29 Hz. Ganze
+	   Zahlen, damit die Uhr nahtlos umlaufen kann, und teilerfremd, damit sich
+	   die Ueberlagerung nicht schon vorher wiederholt. */
+	"        float wob = sin(Time * w *  97.0) * 0.5\n"
+	"                  + sin(Time * w * 151.0) * 0.3\n"
+	"                  + sin(Time * w * 233.0) * 0.2;\n"
+	"        col *= 1.0 + Flicker * (HUM_DEPTH * hum + FLICKER_DEPTH * wob);\n"
+	"    }\n"
+
 	"    col *= BRIGHTNESS;\n"
 	"    float vig = 1.0 - VIGNETTE * dot(w, w) * 0.5;\n"
 	"    col *= max(vig, 0.0) * vis;\n"

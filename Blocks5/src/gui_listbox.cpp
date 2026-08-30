@@ -149,7 +149,9 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
-		// Ereignis an das Elternelement weiterleiten
+	case SDLK_ESCAPE:
+		// Ereignis an das Elternelement weiterleiten - Escape gehoert dem
+		// Dialog, nicht der Liste.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_UP:
@@ -171,7 +173,10 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(!items.empty()) setSelection(static_cast<int>(items.size() - 1));
 		break;
 	case SDLK_RETURN:
+		// Wie im Eingabefeld: gibt es keinen eigenen Knopf dafuer, gehoert
+		// Return dem Dialog.
 		if(!items.empty() && selection != -1 && p_submitButton) p_submitButton->click();
+		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	}
 }

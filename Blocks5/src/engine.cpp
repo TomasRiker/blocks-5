@@ -55,7 +55,9 @@ Engine::Engine()
 	fullScreenOverride = -1;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
-	windowedPosition = Vec2i(-1, -1);
+	windowedPosition = Vec2i(0, 0);
+	windowedPositionKnown = false;
+	maximized = false;
 #ifdef _WIN32
 	inSizeMove = false;
 #endif
@@ -63,10 +65,13 @@ Engine::Engine()
 	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	sharpFit.program = 0;
 	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
-	sharpFit.scanline = sharpFit.curvature = -1;
+	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
+	sharpFit.flicker = sharpFit.time = -1;
 	crt = sharpFit;
 	crtScanline = 0.5;
 	crtCurvature = 0.5;
+	crtBloom = 0.5;
+	crtFlicker = 0.3;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -1257,6 +1262,9 @@ bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragment
 	// Uniform wird schlicht nicht gesetzt.
 	target.scanline    = glExtGetUniformLocation(target.program, "Scanline");
 	target.curvature   = glExtGetUniformLocation(target.program, "Curvature");
+	target.bloom       = glExtGetUniformLocation(target.program, "Bloom");
+	target.flicker     = glExtGetUniformLocation(target.program, "Flicker");
+	target.time        = glExtGetUniformLocation(target.program, "Time");
 	return true;
 }
 
@@ -1264,7 +1272,7 @@ void Engine::destroyPresentProgram(PresentProgram& target)
 {
 	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
 	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
-	target.scanline = target.curvature = -1;
+	target.scanline = target.curvature = target.bloom = target.flicker = target.time = -1;
 }
 
 bool Engine::createPresentPrograms()
@@ -1310,6 +1318,16 @@ void Engine::setCrtScanline(double value)
 void Engine::setCrtCurvature(double value)
 {
 	crtCurvature = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtBloom(double value)
+{
+	crtBloom = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtFlicker(double value)
+{
+	crtFlicker = clamp(value, 0.0, 1.0);
 }
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
@@ -1515,23 +1533,49 @@ Vec2i Engine::getDefaultWindowSize() const
 
 void Engine::rememberWindowPlacement()
 {
+#ifdef _WIN32
 	// Im Vollbild steht das Fenster auf (0,0) und ist bildschirmgross - das
 	// waere die falsche Erinnerung. Dann zaehlt, was applyWindowStyle() sich
 	// vor dem Umschalten gemerkt hat.
-#ifdef _WIN32
 	if(fullScreen)
 	{
 		if(savedWindowStyle)
+		{
 			windowedPosition = Vec2i(savedWindowRect[0], savedWindowRect[1]);
+			windowedPositionKnown = true;
+		}
 		return;
 	}
 
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
-	if(SDL_GetWMInfo(&info) && info.window)
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// GetWindowPlacement statt GetWindowRect. Bei einem maximierten Fenster
+	// liefert GetWindowRect den maximierten Rahmen - unter Windows sogar mit
+	// negativen Ecken, weil die unsichtbaren Anfasser mitzaehlen -, und das
+	// naechste Mal stand dann ein bildschirmgrosses Fenster an einer Stelle,
+	// an der es zur Haelfte hinausragte. rcNormalPosition ist der Rahmen, auf
+	// den "Wiederherstellen" zurueckgeht, und genau der gehoert gespeichert.
+	WINDOWPLACEMENT wp;
+	wp.length = sizeof(wp);
+	if(!GetWindowPlacement(info.window, &wp)) return;
+
+	maximized = (wp.showCmd == SW_SHOWMAXIMIZED);
+	windowedPosition = Vec2i(wp.rcNormalPosition.left, wp.rcNormalPosition.top);
+	windowedPositionKnown = true;
+
+	// rcNormalPosition ist ein Fensterrahmen, windowedSize eine Nutzflaeche -
+	// der Rahmen muss also abgezogen werden. Wie dick er ist, weiss nur
+	// Windows; AdjustWindowRectEx auf ein leeres Rechteck gibt genau ihn.
+	RECT frame = { 0, 0, 0, 0 };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(AdjustWindowRectEx(&frame, style & ~WS_MAXIMIZE, FALSE, exStyle))
 	{
-		RECT r;
-		if(GetWindowRect(info.window, &r)) windowedPosition = Vec2i(r.left, r.top);
+		const int w = (wp.rcNormalPosition.right  - wp.rcNormalPosition.left) - (frame.right  - frame.left);
+		const int h = (wp.rcNormalPosition.bottom - wp.rcNormalPosition.top)  - (frame.bottom - frame.top);
+		if(w >= screenSize.x && h >= screenSize.y) windowedSize = Vec2i(w, h);
 	}
 #endif
 }
@@ -1539,19 +1583,42 @@ void Engine::rememberWindowPlacement()
 void Engine::restoreWindowPosition()
 {
 #ifdef _WIN32
-	if(windowedPosition.x < 0 || windowedPosition.y < 0) return;
+	if(!windowedPositionKnown) return;
 
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
-	// Nicht auf einen Bildschirm setzen, den es nicht mehr gibt.
-	const Vec2i desktop = getDesktopSize();
-	if(windowedPosition.x > desktop.x - 100 || windowedPosition.y > desktop.y - 100) return;
+	// Landet das Fenster auf keinem Bildschirm mehr - zweiter Monitor
+	// abgezogen, Aufloesung kleiner geworden -, dann lieber dort lassen, wo
+	// Windows es hingestellt hat. MonitorFromRect beantwortet das richtig,
+	// auch fuer negative Koordinaten: ein Bildschirm links des ersten hat
+	// welche, und die sind voellig in Ordnung.
+	RECT r;
+	r.left   = windowedPosition.x;
+	r.top    = windowedPosition.y;
+	r.right  = windowedPosition.x + displaySize.x;
+	r.bottom = windowedPosition.y + displaySize.y;
+	if(!MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) return;
 
 	SetWindowPos(info.window, HWND_NOTOPMOST, windowedPosition.x, windowedPosition.y,
 				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+	// Maximiert war es, maximiert kommt es wieder. SDL bekommt das ueber sein
+	// eigenes WM_WINDOWPOSCHANGED mit und schickt ein SDL_VIDEORESIZE, das
+	// handleResize() in der Hauptschleife aufgreift.
+	if(maximized) ShowWindow(info.window, SW_MAXIMIZE);
 #endif
+}
+
+bool Engine::isWindowMaximized() const
+{
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window) return IsZoomed(info.window) != 0;
+#endif
+	return false;
 }
 
 #ifdef _WIN32
@@ -1857,7 +1924,10 @@ void Engine::handleResize(int width, int height)
 #endif
 
 	displaySize = Vec2i(width, height);
-	if(!fullScreen) windowedSize = displaySize;
+	// Maximiert nicht mitschreiben: sonst waere die gemerkte Fenstergroesse die
+	// des maximierten Fensters, und "Wiederherstellen" haette beim naechsten
+	// Start nichts mehr, worauf es zurueckgehen koennte.
+	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
 }
 
 Vec2d Engine::warpToSource(const Vec2d& p) const
@@ -2010,6 +2080,18 @@ void Engine::presentFrame()
 		// Optionsdialog sofort wirkt, ohne den Shader neu zu uebersetzen.
 		if(prog.scanline >= 0)    glExtUniform1f(prog.scanline, static_cast<float>(crtScanline));
 		if(prog.curvature >= 0)   glExtUniform1f(prog.curvature, static_cast<float>(crtCurvature));
+		if(prog.bloom >= 0)       glExtUniform1f(prog.bloom, static_cast<float>(crtBloom));
+		if(prog.flicker >= 0)     glExtUniform1f(prog.flicker, static_cast<float>(crtFlicker));
+		// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten
+		// und bleibt stehen, wenn das Spiel pausiert; ein Bildschirm flimmert
+		// auch dann weiter. Der Umlauf ist genau FLICKER_CYCLE aus dem Shader,
+		// und alle Frequenzen darin sind ganze Vielfache davon, also ist der
+		// Sprung an der Nahtstelle keiner.
+		if(prog.time >= 0)
+		{
+			const double cycleMS = 8000.0;   // = FLICKER_CYCLE in crt_shader.h
+			glExtUniform1f(prog.time, static_cast<float>(fmod(static_cast<double>(SDL_GetTicks()), cycleMS) * 0.001));
+		}
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
 		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
@@ -2871,6 +2953,10 @@ void Engine::loadConfig()
 				setCrtScanline(value);
 			if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)
 				setCrtCurvature(value);
+			if(p_crt->QueryDoubleAttribute("bloom", &value) == TIXML_SUCCESS)
+				setCrtBloom(value);
+			if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)
+				setCrtFlicker(value);
 		}
 
 		// Vollbild und Fenstergröße lesen. Beide gelten erst beim nächsten
@@ -2888,10 +2974,21 @@ void Engine::loadConfig()
 		TiXmlElement* p_windowPosition = p_config->FirstChildElement("WindowPosition");
 		if(p_windowPosition)
 		{
-			int x = -1, y = -1;
-			p_windowPosition->QueryIntAttribute("x", &x);
-			p_windowPosition->QueryIntAttribute("y", &y);
-			if(x >= 0 && y >= 0 && x <= 16384 && y <= 16384) windowedPosition = Vec2i(x, y);
+			// Negative Werte sind erlaubt: ein zweiter Bildschirm links des
+			// ersten hat sie. Ob die Stelle noch existiert, entscheidet
+			// restoreWindowPosition() mit MonitorFromRect.
+			int x = 0, y = 0;
+			const bool haveX = p_windowPosition->QueryIntAttribute("x", &x) == TIXML_SUCCESS;
+			const bool haveY = p_windowPosition->QueryIntAttribute("y", &y) == TIXML_SUCCESS;
+			if(haveX && haveY && abs(x) <= 32768 && abs(y) <= 32768)
+			{
+				windowedPosition = Vec2i(x, y);
+				windowedPositionKnown = true;
+			}
+
+			int max = 0;
+			p_windowPosition->QueryIntAttribute("maximized", &max);
+			maximized = (max != 0);
 		}
 
 		TiXmlElement* p_windowSize = p_config->FirstChildElement("WindowSize");
@@ -2994,13 +3091,16 @@ void Engine::saveConfig()
 	TiXmlElement* p_crt = new TiXmlElement("Crt");
 	p_crt->SetDoubleAttribute("scanline", crtScanline);
 	p_crt->SetDoubleAttribute("curvature", crtCurvature);
+	p_crt->SetDoubleAttribute("bloom", crtBloom);
+	p_crt->SetDoubleAttribute("flicker", crtFlicker);
 	p_config->LinkEndChild(p_crt);
 
-	if(windowedPosition.x >= 0 && windowedPosition.y >= 0)
+	if(windowedPositionKnown)
 	{
 		TiXmlElement* p_windowPosition = new TiXmlElement("WindowPosition");
 		p_windowPosition->SetAttribute("x", windowedPosition.x);
 		p_windowPosition->SetAttribute("y", windowedPosition.y);
+		p_windowPosition->SetAttribute("maximized", maximized ? 1 : 0);
 		p_config->LinkEndChild(p_windowPosition);
 	}
 

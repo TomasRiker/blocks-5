@@ -920,6 +920,23 @@ and what was learned building it:
   positions land on a neighbouring 16px tile. That is the minimum window size,
   where the effect has nowhere to show anyway.
 
+- **Flicker is the one part that reads a clock**, and that is allowed for the
+  same reason the rest is stable: it depends on `Time`, never on the previous
+  frame. Two zero-mean terms, so it costs no brightness — a fast shimmer at
+  roughly 12, 19 and 29 Hz, which is what "flimmern" actually looks like, plus a
+  much weaker mains-hum bar rolling slowly down the picture. Every frequency is a
+  whole number of cycles per `FLICKER_CYCLE` (8 s) and the clock is fed in modulo
+  that, so the wrap is seamless and float never gets coarse. It reads
+  `SDL_GetTicks` rather than `Engine::getTime`, which counts logic ticks and
+  stops when the game pauses; a screen flickers anyway. Measured at maximum:
+  2.55% peak-to-peak between frames.
+
+All four knobs — scan lines, curvature, glow, flicker — are sliders in
+Options → Scaling → *CRT settings …*, stored as
+`<Crt scanline= curvature= bloom= flicker=>`. `BLOOM_STRENGTH` stays a constant on
+top of the glow slider, so setting it to 0 still compiles the whole halation block
+out for anyone who wants the cheap version.
+
 Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.

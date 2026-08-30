@@ -10,6 +10,8 @@ public:
 	~Help();
 
 	void show(GUI_Element* p_focusWhenClosed = 0);
+	// Escape schliesst die Hilfe, als haette man auf OK geklickt.
+	void onKeyEvent(const SDL_KeyboardEvent& event);
 	void handleClick(GUI_Element* p_element);
 
 private:

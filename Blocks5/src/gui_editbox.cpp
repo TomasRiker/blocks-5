@@ -172,7 +172,16 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(active) backspace();
 		break;
 	case SDLK_RETURN:
+		// Gibt es keinen eigenen Knopf dafuer, gehoert Return dem Dialog: dort
+		// bedeutet es OK. Sonst kaeme in einem Eingabefeld nie etwas an.
 		if(active && p_submitButton) p_submitButton->click();
+		else if(p_parent) p_parent->onKeyEvent(event);
+		break;
+	case SDLK_ESCAPE:
+		// Escape ist nie eine Eingabe. Frueher landete es im default-Zweig, wo
+		// es wegen unicode < 32 stillschweigend verfiel - der Dialog dahinter
+		// sah es nie.
+		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_a:
 	case SDLK_c:

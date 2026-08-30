@@ -104,12 +104,23 @@ Changelog
             the game look like it is running on the sort of screen
             it was written for - a curved glass tube with a
             phosphor mask, a glow around bright things and scan
-            lines. "CRT settings ..." next to it has two sliders:
-            how strong the scan lines are, and how much the screen
-            is curved. Both can be turned all the way down.
+            lines. "CRT settings ..." next to it has four sliders:
+            the scan lines, the curvature of the screen, the glow
+            around bright areas and the flicker. Each can be
+            turned all the way down.
 
             It needs the same graphics card as "Sharp, fitted";
             where that is missing, this is not offered either.
+
+          - Escape now closes the level editor's menu and its
+            settings, the options and the help, and Return
+            confirms the settings and the options - the same way
+            clicking OK or Cancel does.
+
+          - Fixed: the window came back in the wrong place after
+            being closed while maximized, usually half off the
+            screen. It now remembers that it was maximized and
+            comes back that way.
 
           - Video recording now records the game's own sound.
             Until now it recorded whatever Windows had selected as

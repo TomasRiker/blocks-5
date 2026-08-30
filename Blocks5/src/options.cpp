@@ -24,6 +24,8 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_Button*>(getChild("Options.CrtSettings"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
@@ -130,6 +132,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0 * engine.getCrtScanline()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtCurvature()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtBloom()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtFlicker()));
 	getChild("CrtOptions")->hide();
 
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
@@ -137,6 +143,35 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
 
 	getChild("Options")->focus();
+}
+
+void Options::onKeyEvent(const SDL_KeyboardEvent& event)
+{
+	if(event.type == SDL_KEYDOWN && isVisible())
+	{
+		// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
+		// zuerst. Es hat nur OK - beide Tasten schliessen es.
+		if(getChild("CrtOptions")->isVisible())
+		{
+			if(event.keysym.sym == SDLK_ESCAPE || event.keysym.sym == SDLK_RETURN)
+			{
+				handleClick(getChild("CrtOptions.CrtClose"));
+				return;
+			}
+		}
+		else if(event.keysym.sym == SDLK_ESCAPE)
+		{
+			handleClick(getChild("Options.Cancel"));
+			return;
+		}
+		else if(event.keysym.sym == SDLK_RETURN)
+		{
+			handleClick(getChild("Options.OK"));
+			return;
+		}
+	}
+
+	GUI_Element::onKeyEvent(event);
 }
 
 void Options::handleClick(GUI_Element* p_element)
@@ -173,6 +208,8 @@ void Options::handleClick(GUI_Element* p_element)
 		// über loadConfig() auch <Crt> wieder liest.
 		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
 		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
+		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());
+		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->getScroll());
 
 		if(name == "CrtSettings")
 		{

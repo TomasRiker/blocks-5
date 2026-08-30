@@ -26,8 +26,14 @@ public:
 	// check() ist der Benutzerklick: es loest das changed-Signal aus.
 	// setChecked() ist das Nachziehen der Anzeige und tut das nicht - wer
 	// eine Anzeige aktualisiert, meint keine Eingabe.
+	//
+	// Nur checked, nie newChecked: newChecked ist der laufende Klick. Es wird
+	// in onMouseDown gesetzt und in onMouseUp gelesen, und dazwischen laeuft
+	// ein Bild. Wer es hier mitzieht, loescht den gedrueckten, noch nicht
+	// losgelassenen Klick - im Leveleditor sah das so aus, als spraenge die
+	// Elektrizitaet sofort wieder aus.
 	void check(bool check);
-	void setChecked(bool check) { checked = check; newChecked = check; }
+	void setChecked(bool check) { checked = check; }
 
 	INLINE_CONNECTOR(connectChanged, changed);
 

@@ -147,8 +147,12 @@ public:
 	// auch durch die Mausumrechnung, siehe warpToSource/warpToOutput.
 	double getCrtScanline() const { return crtScanline; }
 	double getCrtCurvature() const { return crtCurvature; }
+	double getCrtBloom() const { return crtBloom; }
+	double getCrtFlicker() const { return crtFlicker; }
 	void setCrtScanline(double value);
 	void setCrtCurvature(double value);
+	void setCrtBloom(double value);
+	void setCrtFlicker(double value);
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
@@ -250,8 +254,11 @@ private:
 	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
 	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
 	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
-	Vec2i windowedPosition;    // dito fuer die Position; (-1,-1) = noch keine
+	Vec2i windowedPosition;    // dito fuer die Position
+	bool  windowedPositionKnown;
+	bool  maximized;           // war das Fenster beim Beenden maximiert?
 	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
+	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
 	void restoreWindowPosition();     // setzt sie beim Start wieder
 #ifdef _WIN32
 	void hookWindowProc();            // eigene Fensterprozedur davorschalten
@@ -314,12 +321,14 @@ private:
 	{
 		uint program;
 		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature;      // nur UF_CRT, sonst -1
+		int scanline, curvature, bloom, flicker, time;   // nur UF_CRT, sonst -1
 	};
 	PresentProgram sharpFit;
 	PresentProgram crt;
 	double crtScanline;
 	double crtCurvature;
+	double crtBloom;
+	double crtFlicker;
 	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen. Die
 	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
 	// Formel selbst - Ausgabepunkt zu Quellpunkt, so wie der Shader rechnet -,

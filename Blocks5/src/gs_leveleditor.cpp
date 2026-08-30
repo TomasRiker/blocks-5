@@ -439,6 +439,33 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
+		// Erst die Dialoge, die oben liegen. Escape und Return heissen dort
+		// Abbrechen und OK, so wie ueberall sonst auch; der Editor darunter
+		// bekommt die Taste dann gar nicht mehr zu sehen.
+		if(event.type == SDL_KEYDOWN)
+		{
+			if(getChild("SettingsPane")->isVisible())
+			{
+				if(event.keysym.sym == SDLK_ESCAPE)
+				{
+					handleClick(getChild("SettingsPane.Settings.Cancel"));
+					return;
+				}
+				if(event.keysym.sym == SDLK_RETURN)
+				{
+					handleClick(getChild("SettingsPane.Settings.OK"));
+					return;
+				}
+			}
+			else if(getChild("MenuPane")->isVisible() && event.keysym.sym == SDLK_ESCAPE)
+			{
+				// Das Menue hat nur OK. Escape hat es frueher noch einmal
+				// fokussiert, was aussah, als taete es nichts.
+				handleClick(getChild("MenuPane.Menu.OK"));
+				return;
+			}
+		}
+
 		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
 			// Uns interessiert nur, ob eine Taste gedrückt wurde.
