@@ -174,14 +174,32 @@ taste at 1.0. Measured: moving the scan-line slider from 0 to 1 changes mean fra
 by 0.5%. The five `exp()` calls behind `scanAvg` are constant-folded — a literal measured
 identically (7.9 vs 8.0).
 
-The flicker is the one part that reads the clock. It is two zero-mean terms — a fast
-brightness shimmer at roughly 12, 19 and 29 Hz, plus a much weaker mains-hum bar rolling
-slowly down the picture — so it costs no brightness, and it depends only on `Time`, never on
-the previous frame, which is why it cannot turn into the xBR problem. All its frequencies are
-whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds it `SDL_GetTicks()` modulo
-that, so the clock wraps seamlessly and never loses float precision. It is the wall clock and
-not `Engine::getTime()`, which counts logic ticks and stops when the game pauses — a screen
-flickers anyway. Measured at the maximum setting: 2.55% peak-to-peak between frames.
+The flicker is the one part that reads the clock, and it has three terms — all zero-mean, so
+none of them costs brightness, and all functions of `Time` alone, never of the previous frame,
+which is why none can turn into the xBR problem. A fast brightness shimmer at roughly 12, 19
+and 29 Hz (that is the part people mean by *flimmern*), a much weaker mains-hum bar rolling
+slowly down the picture, and the scan lines themselves crawling downward. Their frequencies
+are whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds `SDL_GetTicks()` modulo
+that, so the clock wraps seamlessly. It is the wall clock and not `Engine::getTime()`, which
+counts logic ticks and stops when the game pauses — a screen flickers anyway. Measured at the
+maximum setting: 2.55% peak-to-peak between frames.
+
+The crawl is the one term computed on the **CPU**, as the `ScanPhase` uniform. It is a ramp,
+not an oscillation, and its slope depends on the slider, so feeding it the already-wrapped
+`Time` would jump the scan lines by `fract(flicker · speed)` of a period at every wrap.
+`fmod(seconds · CRT_CRAWL_SPEED · crtFlicker, 1.0)` off the unwrapped clock is continuous
+instead. `CRT_CRAWL_SPEED` is shared with the GLSL through the same stringify macro as the
+curvature.
+
+**Halation averages in linear light, per tap.** The first version averaged the taps in gamma
+space and linearised the result before applying the threshold, and produced almost no visible
+halo at all: the ring around a bright spot is a mixture of bright and dark, and `pow()` on
+that mixture pushes it far below the threshold. Measured, the slider moved 0.6% of pixels from
+end to end. Linearising each tap (with `x*x` — gamma 2.0, which for a soft halo is
+indistinguishable from 2.4 and costs a multiply instead of a `pow`) and thresholding the
+linear average gives a real glow: +23 grey levels at the centre falling smoothly to +4 at 70
+output pixels. The taps sit on **two** rings, four axial and four diagonal — eight on one
+radius makes a hard-edged ring rather than a glow.
 
 Relative present cost, again on a software rasterizer: nearest 1.0, bilinear 1.3, sharp-fit
 1.35, **crt 7.8**. Halation is about half of that; `BLOOM_STRENGTH = 0` compiles the whole

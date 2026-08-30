@@ -106,11 +106,15 @@ Changelog
             phosphor mask, a glow around bright things and scan
             lines. "CRT settings ..." next to it has four sliders:
             the scan lines, the curvature of the screen, the glow
-            around bright areas and the flicker. Each can be
-            turned all the way down.
+            around bright areas and the flicker - which also
+            makes the scan lines drift slowly down the picture,
+            the way they never quite stood still on a real set.
+            Each can be turned all the way down.
 
             It needs the same graphics card as "Sharp, fitted";
             where that is missing, this is not offered either.
+
+          - Escape in the main menu quits the game.
 
           - Escape now closes the level editor's menu and its
             settings, the options and the help, and Return

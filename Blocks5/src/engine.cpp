@@ -66,12 +66,12 @@ Engine::Engine()
 	sharpFit.program = 0;
 	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
 	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
-	sharpFit.flicker = sharpFit.time = -1;
+	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = -1;
 	crt = sharpFit;
 	crtScanline = 0.5;
 	crtCurvature = 0.5;
 	crtBloom = 0.5;
-	crtFlicker = 0.3;
+	crtFlicker = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -1265,6 +1265,7 @@ bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragment
 	target.bloom       = glExtGetUniformLocation(target.program, "Bloom");
 	target.flicker     = glExtGetUniformLocation(target.program, "Flicker");
 	target.time        = glExtGetUniformLocation(target.program, "Time");
+	target.scanPhase   = glExtGetUniformLocation(target.program, "ScanPhase");
 	return true;
 }
 
@@ -1272,7 +1273,8 @@ void Engine::destroyPresentProgram(PresentProgram& target)
 {
 	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
 	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
-	target.scanline = target.curvature = target.bloom = target.flicker = target.time = -1;
+	target.scanline = target.curvature = target.bloom = target.flicker = -1;
+	target.time = target.scanPhase = -1;
 }
 
 bool Engine::createPresentPrograms()
@@ -2087,10 +2089,22 @@ void Engine::presentFrame()
 		// auch dann weiter. Der Umlauf ist genau FLICKER_CYCLE aus dem Shader,
 		// und alle Frequenzen darin sind ganze Vielfache davon, also ist der
 		// Sprung an der Nahtstelle keiner.
+		const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
 		if(prog.time >= 0)
 		{
-			const double cycleMS = 8000.0;   // = FLICKER_CYCLE in crt_shader.h
-			glExtUniform1f(prog.time, static_cast<float>(fmod(static_cast<double>(SDL_GetTicks()), cycleMS) * 0.001));
+			const double cycle = 8.0;   // = FLICKER_CYCLE in crt_shader.h
+			glExtUniform1f(prog.time, static_cast<float>(fmod(seconds, cycle)));
+		}
+		// Das Zeilenkriechen. Als einziger Anteil des Flimmerns wird es hier
+		// gerechnet und nicht im Shader: es ist eine Rampe, keine Schwingung,
+		// und ihre Steigung haengt am Regler. Nimmt man dafuer die im Shader
+		// schon gekuerzte Uhr, springt die Phase bei jedem Umlauf um
+		// fract(Flimmern * Geschwindigkeit) einer Zeilenperiode. Aus der
+		// ungekuerzten Uhr modulo 1 kommt sie stetig heraus.
+		if(prog.scanPhase >= 0)
+		{
+			glExtUniform1f(prog.scanPhase,
+						   static_cast<float>(fmod(seconds * crtCrawlSpeed * crtFlicker, 1.0)));
 		}
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
@@ -2425,6 +2439,12 @@ bool Engine::wasKeyPressed(SDLKey key) const
 {
 	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 2 ? true : false;
+}
+
+void Engine::consumeKeyPress(SDLKey key)
+{
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
+	keyData[key] &= ~2;
 }
 
 bool Engine::wasKeyReleased(SDLKey key) const

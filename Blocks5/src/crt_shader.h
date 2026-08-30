@@ -59,11 +59,14 @@
    als double in engine.cpp (warpToSource/warpToOutput). */
 #define CRT_CURVE_X 0.10
 #define CRT_CURVE_Y 0.13
+/* Zeilenperioden je Sekunde bei Flimmern auf Anschlag; siehe CRAWL_JITTER. */
+#define CRT_CRAWL_SPEED 1.2
 #define CRT_STR2(x) #x
 #define CRT_STR(x) CRT_STR2(x)
 
 static const double crtCurveX = CRT_CURVE_X;
 static const double crtCurveY = CRT_CURVE_Y;
+static const double crtCrawlSpeed = CRT_CRAWL_SPEED;
 
 static const char* p_crtFragmentShader =
 	"#ifdef GL_ES\n"
@@ -106,9 +109,10 @@ static const char* p_crtFragmentShader =
 	   BLOOM_STRENGTH ist der Wert bei Regler auf Anschlag; der Regler
 	   (Uniform Bloom) skaliert ihn. Auf 0 gesetzt faellt der ganze Block beim
 	   Uebersetzen weg - siehe unten. */
-	"const float BLOOM_STRENGTH  = 0.28;\n"
-	"const float BLOOM_THRESHOLD = 0.55;\n"
-	"const float BLOOM_RADIUS    = 2.2;\n"
+	"const float BLOOM_STRENGTH  = 0.60;\n"
+	"const float BLOOM_THRESHOLD = 0.22;\n"
+	"const float BLOOM_RADIUS    = 2.5;\n"   /* innerer Ring, Quellpixel */
+	"const float BLOOM_OUTER     = 2.6;\n"   /* aeusserer Ring als Vielfaches davon */
 
 	/* Waagerechte Bandbreite. Das Videosignal war analog und begrenzt, deshalb
 	   war eine Roehre quer weicher als senkrecht. In Bruchteilen eines
@@ -150,6 +154,21 @@ static const char* p_crtFragmentShader =
 	   wuerde float irgendwann grob. */
 	"const float FLICKER_CYCLE = 8.0;\n"
 
+	/* Das Zeilenbild steht nicht still. Auf einer echten Roehre wandert es
+	   langsam nach unten - das Zeilenkriechen, weil Zeilen- und Bildfrequenz
+	   nie exakt ins Verhaeltnis gehen - und zittert dabei ein wenig. Ohne das
+	   sehen die Streifen wie aufgemalt aus.
+
+	   CRAWL_SPEED steht in Zeilenperioden je Sekunde bei Regler auf Anschlag
+	   und wird als einziger Wert auf der CPU gerechnet: die Phase muss aus der
+	   ungekuerzten Uhr kommen, sonst spraenge sie bei jedem Umlauf um
+	   fract(Flicker * Geschwindigkeit) einer Periode. Deshalb steht die Zahl
+	   unten noch einmal als Makro, so wie die Woelbung.
+	   CRAWL_JITTER ist das schnelle Zittern der Phase, in Perioden - das
+	   laeuft im Shader, weil es eine Schwingung mit ganzzahliger Frequenz ist
+	   und deshalb von allein nahtlos umlaeuft. */
+	"const float CRAWL_JITTER = 0.05;\n"
+
 	/* Gamma. Eine Roehre hatte ungefaehr 2.4; gerechnet wird dazwischen in
 	   linearem Licht, sonst wird aus dem Hof grauer Dunst. */
 	"const float GAMMA_IN  = 2.4;\n"
@@ -172,6 +191,7 @@ static const char* p_crtFragmentShader =
 	"uniform float Bloom;\n"        /* Regler 0..1 */
 	"uniform float Flicker;\n"      /* Regler 0..1 */
 	"uniform float Time;\n"         /* Sekunden, 0 .. FLICKER_CYCLE */
+	"uniform float ScanPhase;\n"    /* Zeilenkriechen, 0..1 Perioden */
 	"varying vec2 texCoord;\n"
 
 	/* Ein Texel holen, mit derselben stueckweise linearen Umrechnung wie
@@ -192,12 +212,21 @@ static const char* p_crtFragmentShader =
 	"    return texture2D(decal, p / TextureSize).rgb;\n"
 	"}\n"
 
-	/* Der Hof braucht die Umrechnung nicht texelweise: er wird ohnehin
-	   verschmiert, also reicht es, die Summe einmal ins lineare Licht zu holen
-	   statt jeden Griff einzeln. Und die scharfe Umrechnung aus fetch() braucht
-	   er auch nicht - ein weiches Bild von einem weichen Bild. Das spart pro
-	   Ausgabepixel 24 pow() und acht Mal die Rampenrechnung; gemessen faellt der
-	   Filter dadurch von 11.0 auf 3.4 mal die Kosten einer einfachen Ausgabe. */
+	/* Der Hof braucht die scharfe Umrechnung aus fetch() nicht - ein weiches
+	   Bild von einem weichen Bild -, das spart acht Mal die Rampenrechnung.
+
+	   Gemittelt wird aber in *linearem* Licht, und zwar je Griff. Die erste
+	   Fassung hat erst gemittelt, dann umgerechnet, dann die Schwelle
+	   angewandt, und damit gab es ueberhaupt keinen sichtbaren Hof: der Ring um
+	   eine helle Stelle ist eine Mischung aus hell und dunkel, und pow() auf
+	   diesen Mittelwert drueckt ihn weit unter die Schwelle. Gemessen bewegte
+	   der Regler von 0 auf 100 dadurch 0.6% der Bildpunkte. Der Mittelwert
+	   gehoert ins lineare Licht, wo Licht sich tatsaechlich addiert.
+
+	   Umgerechnet wird mit x*x statt pow(x, GAMMA_IN) - Gamma 2.0 statt 2.4.
+	   Fuer einen weichen Hof ist der Unterschied bedeutungslos, und es kostet
+	   eine Multiplikation statt eines pow(); acht davon je Ausgabepixel waeren
+	   sonst der teuerste Posten im ganzen Shader. */
 	"vec3 toLinear(vec3 c) { return pow(max(c, vec3(0.0)), vec3(GAMMA_IN)); }\n"
 
 	"vec3 fetchRaw(vec2 uv)\n"
@@ -251,24 +280,54 @@ static const char* p_crtFragmentShader =
 	   weg (nachgemessen: 7.9 faellt dann auf 4.2). */
 	"    if(BLOOM_STRENGTH > 0.0 && Bloom > 0.0)\n"
 	"    {\n"
+	/* Zwei Ringe statt einem, bei gleicher Zahl von Griffen: vier waagerecht
+	   und senkrecht auf dem inneren, vier diagonal auf dem aeusseren. Acht
+	   Griffe auf einem einzigen Radius geben einen scharf begrenzten Ring
+	   statt eines Hofes - der Uebergang war nur wenige Pixel breit. Mit zwei
+	   Radien faellt es weich ueber die ganze Strecke ab. */
 	"    vec2 br = BLOOM_RADIUS / FrameSize;\n"
-	"    vec3 sum = fetchRaw(suv + vec2( br.x,  0.0))\n"
-	"             + fetchRaw(suv + vec2(-br.x,  0.0))\n"
-	"             + fetchRaw(suv + vec2( 0.0,  br.y))\n"
-	"             + fetchRaw(suv + vec2( 0.0, -br.y))\n"
-	"             + fetchRaw(suv + vec2( br.x * 0.7,  br.y * 0.7))\n"
-	"             + fetchRaw(suv + vec2(-br.x * 0.7,  br.y * 0.7))\n"
-	"             + fetchRaw(suv + vec2( br.x * 0.7, -br.y * 0.7))\n"
-	"             + fetchRaw(suv + vec2(-br.x * 0.7, -br.y * 0.7));\n"
-	"    vec3 halo = max(toLinear(sum * 0.125) - vec3(BLOOM_THRESHOLD), vec3(0.0));\n"
+	"    vec2 bo = br * BLOOM_OUTER;\n"
+	"    vec3 t0 = fetchRaw(suv + vec2( br.x,  0.0));\n"
+	"    vec3 t1 = fetchRaw(suv + vec2(-br.x,  0.0));\n"
+	"    vec3 t2 = fetchRaw(suv + vec2( 0.0,  br.y));\n"
+	"    vec3 t3 = fetchRaw(suv + vec2( 0.0, -br.y));\n"
+	"    vec3 t4 = fetchRaw(suv + vec2( bo.x * 0.7,  bo.y * 0.7));\n"
+	"    vec3 t5 = fetchRaw(suv + vec2(-bo.x * 0.7,  bo.y * 0.7));\n"
+	"    vec3 t6 = fetchRaw(suv + vec2( bo.x * 0.7, -bo.y * 0.7));\n"
+	"    vec3 t7 = fetchRaw(suv + vec2(-bo.x * 0.7, -bo.y * 0.7));\n"
+	"    vec3 sum = t0*t0 + t1*t1 + t2*t2 + t3*t3\n"
+	"             + t4*t4 + t5*t5 + t6*t6 + t7*t7;\n"
+	"    vec3 halo = max(sum * 0.125 - vec3(BLOOM_THRESHOLD), vec3(0.0));\n"
 	"    col += halo * BLOOM_STRENGTH * Bloom;\n"
+	"    }\n"
+
+	/* --- Flimmern, Teil 1: die Terme ---------------------------------- */
+	/* Sie werden zweimal gebraucht - fuer die Helligkeit weiter unten und fuer
+	   die Lage der Zeilen gleich hier -, also einmal ausrechnen. Alle
+	   Frequenzen sind ganze Durchlaeufe je FLICKER_CYCLE, damit die Uhr
+	   nahtlos umlaufen kann; 97, 151 und 233 je 8 s sind rund 12, 19 und
+	   29 Hz, und sie sind teilerfremd, damit sich die Ueberlagerung nicht
+	   schon frueher wiederholt. */
+	"    float hum = 0.0;\n"
+	"    float wob = 0.0;\n"
+	"    if(Flicker > 0.0)\n"
+	"    {\n"
+	"        float w = 6.2831853 / FLICKER_CYCLE;\n"
+	"        hum = sin((uv.y * HUM_BARS) * 6.2831853 - Time * w * HUM_ROLLS);\n"
+	"        wob = sin(Time * w *  97.0) * 0.5\n"
+	"            + sin(Time * w * 151.0) * 0.3\n"
+	"            + sin(Time * w * 233.0) * 0.2;\n"
 	"    }\n"
 
 	/* --- Zeilenstruktur ----------------------------------------------- */
 	/* Abstand zur naechsten Zeilenmitte, gemessen in Perioden. Bei Periode 1
 	   liegen bei 2x beide Ausgabezeilen gleich weit weg und es ist nichts zu
-	   sehen; das ist richtig so und der Grund fuer SCANLINE_PERIOD. */
-	"    float ph = sy / SCANLINE_PERIOD;\n"
+	   sehen; das ist richtig so und der Grund fuer SCANLINE_PERIOD.
+
+	   ScanPhase schiebt das ganze Muster langsam nach unten, CRAWL_JITTER
+	   laesst es dabei zittern. Ist Scanline 0, faellt beides von selbst weg -
+	   dann gibt es keine Zeilen, die kriechen koennten. */
+	"    float ph = sy / SCANLINE_PERIOD + ScanPhase + Flicker * CRAWL_JITTER * wob;\n"
 	"    float dc = abs(fract(ph) - 0.5) * 2.0;\n"
 	"    float k  = BEAM_WIDTH * BEAM_WIDTH * 4.0;\n"
 	"    float beam = exp(-(dc * dc) / k);\n"
@@ -296,21 +355,10 @@ static const char* p_crtFragmentShader =
 	"    col *= mask / maskAvg;\n"
 
 	/* --- Licht zurueckgeben, Rand, Gamma ------------------------------ */
-	/* Flimmern. Beide Anteile schwingen um null, die mittlere Helligkeit
-	   bleibt also stehen. Die Frequenzen sind ganze Durchlaeufe je
-	   FLICKER_CYCLE, damit die Uhr nahtlos umlaufen kann. */
-	"    if(Flicker > 0.0)\n"
-	"    {\n"
-	"        float w = 6.2831853 / FLICKER_CYCLE;\n"
-	"        float hum = sin((uv.y * HUM_BARS) * 6.2831853 - Time * w * HUM_ROLLS);\n"
-	/* 97, 151 und 233 Durchlaeufe je 8 s sind rund 12, 19 und 29 Hz. Ganze
-	   Zahlen, damit die Uhr nahtlos umlaufen kann, und teilerfremd, damit sich
-	   die Ueberlagerung nicht schon vorher wiederholt. */
-	"        float wob = sin(Time * w *  97.0) * 0.5\n"
-	"                  + sin(Time * w * 151.0) * 0.3\n"
-	"                  + sin(Time * w * 233.0) * 0.2;\n"
-	"        col *= 1.0 + Flicker * (HUM_DEPTH * hum + FLICKER_DEPTH * wob);\n"
-	"    }\n"
+	/* --- Flimmern, Teil 2: die Helligkeit ------------------------------ */
+	/* Beide Anteile schwingen um null, die mittlere Helligkeit bleibt also
+	   stehen. */
+	"    col *= 1.0 + Flicker * (HUM_DEPTH * hum + FLICKER_DEPTH * wob);\n"
 
 	"    col *= BRIGHTNESS;\n"
 	"    float vig = 1.0 - VIGNETTE * dot(w, w) * 0.5;\n"

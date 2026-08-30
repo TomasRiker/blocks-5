@@ -172,6 +172,13 @@ public:
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
+	// Nimmt einer Taste das "in diesem Bild gedrueckt"-Kennzeichen weg. Die
+	// GUI verteilt Tastenereignisse ueber eine eigene Warteschlange, die
+	// Spielzustaende fragen daneben wasKeyPressed() ab - und GUI::update()
+	// laeuft zuerst. Ohne das hier saehe das Hauptmenue das Escape, mit dem
+	// der Optionsdialog sich gerade selbst geschlossen hat, und beendete das
+	// Spiel.
+	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
 	void setKeyDown(SDLKey key, bool status);
 	void setKeyPressed(SDLKey key, bool status);
@@ -321,7 +328,7 @@ private:
 	{
 		uint program;
 		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature, bloom, flicker, time;   // nur UF_CRT, sonst -1
+		int scanline, curvature, bloom, flicker, time, scanPhase;   // nur UF_CRT, sonst -1
 	};
 	PresentProgram sharpFit;
 	PresentProgram crt;

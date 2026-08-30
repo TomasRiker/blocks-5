@@ -85,7 +85,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	};
 	const bool available[4] = { engine.canUseSharpFit(), true, true, engine.canUseCrt() };
 
-	int filterY = 52;
+	// 50 ist die Oberkante der Sprachflaggen daneben (options.xml, Static3).
+	int filterY = 50;
 	for(int i = 0; i < 4; i++)
 	{
 		GUI_Element* p_button = getChild(pp_filterNames[i]);
@@ -114,7 +115,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	GUI_Element* p_crtSettings = getChild("Options.CrtSettings");
 	if(engine.canUseCrt())
 	{
-		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY + 6));
+		// filterY steht nach der Schleife genau einen Schritt unter dem letzten
+		// Eintrag, der Knopf bekommt also denselben Abstand wie die Knoepfe
+		// untereinander.
+		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY));
 		p_crtSettings->show();
 	}
 	else p_crtSettings->hide();
@@ -149,24 +153,21 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	if(event.type == SDL_KEYDOWN && isVisible())
 	{
-		// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
-		// zuerst. Es hat nur OK - beide Tasten schliessen es.
-		if(getChild("CrtOptions")->isVisible())
+		const SDLKey key = event.keysym.sym;
+		if(key == SDLK_ESCAPE || key == SDLK_RETURN)
 		{
-			if(event.keysym.sym == SDLK_ESCAPE || event.keysym.sym == SDLK_RETURN)
-			{
-				handleClick(getChild("CrtOptions.CrtClose"));
-				return;
-			}
-		}
-		else if(event.keysym.sym == SDLK_ESCAPE)
-		{
-			handleClick(getChild("Options.Cancel"));
-			return;
-		}
-		else if(event.keysym.sym == SDLK_RETURN)
-		{
-			handleClick(getChild("Options.OK"));
+			// Die Taste ist hiermit verbraucht. Die Spielzustaende fragen
+			// daneben Engine::wasKeyPressed() ab, und GUI::update() laeuft
+			// vorher - ohne das wuerde das Hauptmenue dasselbe Escape sehen,
+			// mit dem dieser Dialog sich gerade geschlossen hat, und das Spiel
+			// beenden.
+			Engine::inst().consumeKeyPress(key);
+
+			// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
+			// zuerst. Es hat nur OK - beide Tasten schliessen es.
+			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.CrtClose"));
+			else if(key == SDLK_ESCAPE)             handleClick(getChild("Options.Cancel"));
+			else                                    handleClick(getChild("Options.OK"));
 			return;
 		}
 	}

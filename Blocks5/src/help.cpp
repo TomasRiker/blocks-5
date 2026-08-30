@@ -34,6 +34,7 @@ void Help::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	if(event.type == SDL_KEYDOWN && isVisible() && event.keysym.sym == SDLK_ESCAPE)
 	{
+		Engine::inst().consumeKeyPress(event.keysym.sym);
 		handleClick(getChild("Help.OK"));
 		return;
 	}

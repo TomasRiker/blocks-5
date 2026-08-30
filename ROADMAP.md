@@ -931,6 +931,29 @@ and what was learned building it:
   stops when the game pauses; a screen flickers anyway. Measured at maximum:
   2.55% peak-to-peak between frames.
 
+- **Halation has to average in linear light, and per tap.** The first version
+  averaged the eight taps in gamma space, linearised the result, and then applied
+  the threshold — and produced essentially no visible halo. The ring around a
+  bright spot is a mixture of bright and dark, and `pow()` on that mixture pushes
+  it far below the threshold; measured, the slider moved 0.6% of pixels from end
+  to end. Linearising each tap and thresholding the linear average gives a real
+  glow: +23 grey levels at the centre falling smoothly to +4 at 70 output pixels.
+  The linearisation is `x*x` rather than `pow(x, 2.4)` — for a soft halo the
+  difference is invisible and it costs a multiply instead of a `pow`, which
+  eight times per pixel would have been the most expensive thing in the shader.
+  The taps also sit on **two** rings now, four axial and four diagonal: eight on a
+  single radius produces a hard-edged ring a few pixels wide, not a glow.
+
+- **The scan lines crawl.** Sitting perfectly still is the one thing a real
+  raster never did. `ScanPhase` shifts the whole pattern slowly downward and
+  `CRAWL_JITTER` makes it tremble. It is the only part of the flicker computed on
+  the CPU, and for a specific reason: it is a ramp rather than an oscillation and
+  its slope depends on the slider, so feeding it the already-wrapped clock would
+  jump the lines by `fract(flicker · speed)` of a period at every wrap. Taken
+  from the unwrapped clock modulo one, it is continuous at any slider position.
+  Verified in an isolated shader probe: `ScanPhase` of 0, 0.25 and 0.5 moves the
+  scan-line ripple by exactly a quarter period each step.
+
 All four knobs — scan lines, curvature, glow, flicker — are sliders in
 Options → Scaling → *CRT settings …*, stored as
 `<Crt scanline= curvature= bloom= flicker=>`. `BLOOM_STRENGTH` stays a constant on

@@ -139,6 +139,18 @@ void GS_Menu::onUpdate()
 		}
 	}
 
+	// Escape im Hauptmenue beendet das Spiel. Nicht, wenn die Spendenfrage
+	// offen steht - die hat einen eigenen Knopf -, und nicht, wenn Optionen
+	// oder Hilfe die Taste gerade selbst benutzt haben: die melden sie mit
+	// consumeKeyPress() ab, weil GUI::update() vor onUpdate() laeuft und sie
+	// sonst im selben Bild schliessen *und* das Spiel beenden wuerden.
+	if(engine.wasKeyPressed(SDLK_ESCAPE) && !gui["Menu.DonatePane"]->isVisible())
+	{
+		SDL_Event event;
+		event.type = SDL_QUIT;
+		SDL_PushEvent(&event);
+	}
+
 	if(engine.wasKeyPressed(SDLK_TAB))
 	{
 		p_titleLevel->switchToNextPlayer();
