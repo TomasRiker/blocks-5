@@ -123,10 +123,64 @@ std::string getCurrentVersion()
 #endif
 }
 
+namespace
+{
+	// "1.2.0" zu 1002000, und alles, was keine Versionsnummer ist, zu -1.
+	// Bis zu drei Gruppen, fehlende gelten als 0, Leerraum vorn und hinten ist
+	// erlaubt.
+	long parseVersion(const std::string& text)
+	{
+		size_t i = 0;
+		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
+
+		long part[3] = { 0, 0, 0 };
+		int n = 0;
+		bool anyDigit = false;
+		while(n < 3)
+		{
+			if(i >= text.length() || !isdigit(static_cast<unsigned char>(text[i]))) break;
+			long value = 0;
+			while(i < text.length() && isdigit(static_cast<unsigned char>(text[i])))
+			{
+				value = value * 10 + (text[i++] - '0');
+				if(value > 999) return -1;
+			}
+			part[n++] = value;
+			anyDigit = true;
+			if(i < text.length() && text[i] == '.') ++i;
+			else break;
+		}
+
+		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
+		if(!anyDigit || i != text.length()) return -1;
+
+		return part[0] * 1000000 + part[1] * 1000 + part[2];
+	}
+}
+
 bool isNewer(const std::string& version1,
 			 const std::string& version2)
 {
-	return version1 > version2;
+	// Frueher stand hier version1 > version2, also ein Zeichenkettenvergleich.
+	// Der geht auf drei Arten schief, und alle drei enden mit einem
+	// "Update verfuegbar"-Fenster bei jemandem, der die neueste Fassung hat:
+	//
+	// - version.txt liegt auf einem Server und wird von Hand gepflegt. Haengt
+	//   ein Editor einen Zeilenumbruch an, ist "1.2.0\n" groesser als "1.2.0".
+	// - Antwortet der Server einmal etwas anderes - eine Fehlerseite, eine
+	//   Weiterleitung, die im Text landet -, ist fast jedes Zeichen groesser
+	//   als die '1' am Anfang einer Versionsnummer.
+	// - Und der Reihenfolge nach ist "1.10.0" kleiner als "1.9.0", weil '1'
+	//   vor '9' kommt. Das faellt erst in ein paar Jahren auf und dann
+	//   andersherum: niemand bekaeme das Update angeboten.
+	//
+	// Also nach Zahlen vergleichen, und was sich nicht als Versionsnummer
+	// lesen laesst, ist nie neuer. Ein Suffix wie "1.3.0-beta" faellt damit
+	// auch durch - im Zweifel lieber nicht fragen als falsch fragen.
+	const long v1 = parseVersion(version1);
+	const long v2 = parseVersion(version2);
+	if(v1 < 0 || v2 < 0) return false;
+	return v1 > v2;
 }
 
 const std::string detectInitializedVersion()

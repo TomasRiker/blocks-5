@@ -404,6 +404,12 @@ C composes every destination path, never JS. **The skin is the one whose filenam
 identity** — a level says `skin0="space"` and `Level::getSkinFilename` goes looking for
 `levels/skins/space.zip` — so a skin import overwrites rather than swerving to `space_2.zip`
 the way the others do, and the four names `zip_skins.bat` builds are refused outright.
+An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two
+texture as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, and the default is
+`GL_REPEAT` — which rain, snow and clouds genuinely need, because `level.cpp` scrolls the
+texture matrix without bound to tile them. So the wrap mode is switched for NPOT textures
+only, which is precisely the set where `GL_REPEAT` could never have worked. The game's own
+art is all power-of-two; this exists for imported skins alone.
 
 **Images** are decoded by `img_load.cpp`, not SDL_image. The game needs exactly one
 function from it — `IMG_Load_RW`, called from `texture.cpp` and for the window icon — and

@@ -28,6 +28,9 @@ private:
 	Texture(const std::string& filename);
 	~Texture();
 
+	// Setzt GL_TEXTURE_WRAP_S/T, wenn die Kantenlaengen keine Zweierpotenzen
+	// sind. Muss laufen, solange die Textur gebunden ist.
+	void applyWrapMode() const;
 	void checkDimensions();
 
 	static bool forceReload() { return false; }

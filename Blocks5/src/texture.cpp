@@ -61,6 +61,7 @@ void Texture::reload()
 	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	applyWrapMode();
 
 	// in das korrekte Format umwandeln
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
@@ -176,6 +177,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	applyWrapMode();
 
 	// den gewuenschten Teil kopieren
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
@@ -284,6 +286,25 @@ Vec4d Texture::getPixel(const Vec2i& where) const
 	uint a = (pixel & p_rgba->format->Amask) >> p_rgba->format->Ashift;
 	double c = 1.0 / 255.0;
 	return Vec4d(c * r, c * g, c * b, c * a);
+}
+
+void Texture::applyWrapMode() const
+{
+	// WebGL 1 haelt eine Textur, deren Kantenlaengen keine Zweierpotenzen sind,
+	// nur dann fuer vollstaendig, wenn sie mit CLAMP_TO_EDGE und ohne Mipmaps
+	// gesampelt wird. Sonst liefert jeder Zugriff Schwarz - nicht als Fehler,
+	// sondern still. Die Vorgabe ist GL_REPEAT, und darauf beruhen Regen,
+	// Schnee und Wolken: level.cpp schiebt fuer sie die Texturmatrix
+	// unbegrenzt weiter, damit sie kacheln. Also nicht pauschal umstellen,
+	// sondern genau dort, wo REPEAT ohnehin nicht funktionieren wuerde.
+	//
+	// Die Grafik des Spiels ist durchweg Zweierpotenz, das hier trifft also
+	// ausschliesslich importierte Skins. Absichtlich auch unter Windows, wo
+	// NPOT mit REPEAT funktionieren wuerde: sonst kachelte ein 300x200 grosser
+	// Regen beim Autor und nicht bei seinen Spielern.
+	if(nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void Texture::checkDimensions()

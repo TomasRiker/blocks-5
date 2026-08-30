@@ -241,7 +241,10 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 		static_cast<GUI_Button*>(gui["SelectLevel.Import"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	}
 #else
-	gui["SelectLevel.Import"]->hide();
+	// Der Zeiger wird geprueft: waehrend der Entwicklung kann eine data.zip
+	// stehen, die aelter ist als selectlevel.xml, und dann waere ein
+	// fehlender Knopf ein Absturz statt einer Kleinigkeit.
+	if(GUI_Element* p_import = gui["SelectLevel.Import"]) p_import->hide();
 #endif
 
 	listCampaigns();

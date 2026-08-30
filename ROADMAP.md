@@ -454,20 +454,34 @@ settled them with Linux in mind:
   cross-platform.
 
 
-6. Skins in the browser, and skins that travel with campaigns
--------------------------------------------------------------
-Two related gaps.
+6. Skins in the browser  - **DONE**, and skins that travel with campaigns
+-------------------------------------------------------------------------
+Two related gaps; the first is closed.
 
-**Skins in the browser.** `build.sh` already packs `levels/skins/*.zip` into the
-staged tree and `main.cpp:193` copies them into the user directory on first
-start, so the plumbing is there. The known blocker is that non-power-of-two
-textures render black under WebGL; `texture.cpp:291` already warns when it
-creates one. The game's own assets are all power-of-two, which is why this only
-bites on user skins. Fix is either padding NPOT images up to the next power of
-two and adjusting the texture coordinates, or requiring `OES_texture_npot`
-behaviour (WebGL1 allows NPOT only with `CLAMP_TO_EDGE` and no mipmaps — which
-is exactly how sprites are sampled, so this may be a two-line fix in the
-sampler state).
+**Skins in the browser - done.** Two halves. Getting a skin *in*: the level
+editor's Settings window has an **Import skin ...** button, on its own
+`WebTransfer` channel, validated by requiring `tileset.xml` and `sprites.png`
+in the archive. Unlike every other import it **overwrites** rather than renaming
+on a clash, because a skin's filename is its identity - a level says
+`skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip`
+- and the four shipped names are refused outright.
+
+Getting it to *draw* was the predicted blocker, and the guess in this item was
+right: WebGL 1 treats a non-power-of-two texture as incomplete unless it is
+sampled with `CLAMP_TO_EDGE` and no mipmaps, and every sample then returns black
+- silently, with no GL error. The default is `GL_REPEAT`. It really was a
+two-line fix in the sampler state, but *not* an unconditional one: `level.cpp`
+scrolls the texture matrix without bound for rain, snow and clouds, so those
+genuinely need `GL_REPEAT`. `Texture::applyWrapMode` therefore switches only the
+textures that are NPOT, which is exactly the set on which `GL_REPEAT` could not
+have worked anyway. It runs under Windows too, so a skin does not tile for its
+author and clamp for everybody else.
+
+Reproduced before the fix by padding `space.zip`'s `tileset.png` to 130x130 and
+`sprites.png` to 258x1026 and importing that: black level, black palette.
+Afterwards it renders identically to the power-of-two original, and a rainy
+level still tiles its rain.
+
 
 **Skins in campaigns.** A campaign archive carries its levels but not the skins
 they reference (`WebBuild/README.md` documents this), so a campaign built on a
