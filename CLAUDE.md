@@ -374,6 +374,13 @@ reads every texture through its own `SDL_RWops` over the encrypted `data.zip`. s
 `libpng15-15.dll` and `zlib1.dll` from the shipped tree; both builds compile the same file.
 PNG and JPEG are enabled, and every image the game ships is a PNG.
 
+**The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a
+Windows blue screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT`
+case in `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it.
+It mutes OpenAL, builds a DOM overlay above the canvas (leaving fullscreen first, or the
+overlay would sit behind it) and calls `emscripten_cancel_main_loop`. Any key or click after
+a 700 ms arming delay reloads the page, which is the restart the text asks for.
+
 **Deployment.** All three projects link the CRT statically (`/MT`, `/MTd` for Debug), so
 nothing needs a Visual C++ redistributable — the installer has no runtime task at all any
 more. Exactly one DLL ships beside the executables, `OpenAL32.dll`, and the only CRT it
@@ -403,12 +410,21 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   Return only ever clicked a `p_submitButton`. Both now forward to the parent when they have
   nothing of their own to do, which is what lets a dialog implement Escape = Cancel and
   Return = OK while focus sits in a text field or a list.
-- **A `<StaticText>` can carry `<For>Name</For>`** and forwards its mouse events to that
-  sibling, so clicking the label toggles the checkbox or radio button, as `<label for>` does
-  in a browser. It forwards enter/leave as well as down/up, because a toggle only fires on
-  mouse-up if it believes the cursor is over it. The label needs `w`/`h` in the XML — an
-  element with no size is never hit — and the control it points at should have an empty
-  `<Title></Title>`, or it will draw its own default caption underneath.
+- **A checkbox or radio button is hit on its caption too.** The caption is drawn by the
+  toggle itself at `size.x + 10`, and `containsPoint` — a new virtual on `GUI_Element`, which
+  `getElementAt` calls instead of testing `size` inline — counts that strip as part of the
+  control. The width is *measured*, not assumed: a fixed strip would steal clicks from
+  whatever sits to the right, and options.xml puts language and detail radios in three tight
+  columns. An empty `<Title>` measures zero, so a toggle that delegates its caption to a
+  `<For>` label is unaffected.
+- **A `<StaticText>` can carry `<For>Name</For>`**, as `<label for>` does in a browser. A
+  checkbox or radio target gets the whole set of mouse events forwarded (enter/leave included,
+  since a toggle only fires on mouse-up if it believes the cursor is over it); anything else —
+  an edit box, a list — just gets the focus, because forwarding a position measured against
+  the *label* would drop an edit box's caret in an arbitrary place. Give such a label
+  `w="-1" h="-1"` and it sizes its hit area to the text it actually draws, re-measured per
+  frame so it follows a language switch; a hand-written width would be a guess that is wrong
+  in the other language. `w`/`h` of 0 — the default — is still never hit.
 
 **Localization.** Any user-facing string starting with `$` is an ID resolved against
 `data/languages.txt` by `Engine::localizeString` / the free `loadString` helper. In that file a

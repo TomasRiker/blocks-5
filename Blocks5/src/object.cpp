@@ -852,11 +852,13 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	const char* p_temp;
-	p_temp = p_element->Attribute("shownPositionX");
-	if(p_temp) sscanf(p_temp, "%f", &shownPosition.x);
-	p_temp = p_element->Attribute("shownPositionY");
-	if(p_temp) sscanf(p_temp, "%f", &shownPosition.y);
+	// %f in sscanf schreibt einen float, shownPosition ist aber ein Vec2d: das
+	// ueberschreibt vier von acht Bytes und laesst die anderen stehen. Derselbe
+	// Fehler wie in cannon.cpp; MSVC meldet ihn als C4477. QueryDoubleAttribute
+	// liest den double richtig und laesst den Wert in Ruhe, wenn das Attribut
+	// fehlt.
+	p_element->QueryDoubleAttribute("shownPositionX", &shownPosition.x);
+	p_element->QueryDoubleAttribute("shownPositionY", &shownPosition.y);
 }
 
 void Object::frameBegin()

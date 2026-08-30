@@ -20,7 +20,7 @@ void GUI_StaticText::onRender()
 {
 	// Text schreiben
 	std::string str = localizeString(text);
-	if(wordWrap) str = p_font->adjustText(str, size.x);
+	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
 
 	Vec2i pos(0, 0);
 	if(centerText)
@@ -79,32 +79,68 @@ GUI_Element* GUI_StaticText::getLinkedTarget()
 	return p_parent->getChild(linkedElement);
 }
 
-// Weitergereicht wird der ganze Satz, nicht nur der Klick: die Checkbox schaltet
-// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" haelt, und der
-// Radioknopf ebenso. Nebenbei leuchtet das Ziel auf, solange die Maus ueber der
-// Beschriftung steht, was genau die richtige Rueckmeldung ist.
+// w oder h auf -1: die Trefferflaeche ist so gross wie der Text, der wirklich
+// gezeichnet wird. Gemessen wird hier und nicht einmalig beim Laden, denn die
+// Beschriftung haengt an der Sprache - eine beim Start gemerkte Breite waere
+// nach dem Umschalten falsch. Das kostet ein measureText() je Bild fuer die
+// Elemente, ueber denen der Zeiger gerade steht.
+bool GUI_StaticText::containsPoint(const Vec2i& position)
+{
+	if(size.x >= 0 && size.y >= 0) return GUI_Element::containsPoint(position);
+
+	std::string str = localizeString(text);
+	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
+
+	Vec2i dim;
+	p_font->measureText(str, &dim, 0);
+
+	const int w = (size.x >= 0) ? size.x : dim.x;
+	const int h = (size.y >= 0) ? size.y : dim.y;
+	return position.x >= 0 && position.y >= 0 && position.x < w && position.y < h;
+}
+
+// Ein Umschalter und ein Eingabefeld wollen Verschiedenes.
+//
+// Checkbox und Radioknopf bekommen den ganzen Satz Mausereignisse: sie schalten
+// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" halten, und
+// nebenbei leuchtet das Ziel auf, solange die Maus ueber der Beschriftung steht
+// - genau die richtige Rueckmeldung.
+//
+// Alles andere - vor allem Eingabefelder - bekommt statt dessen den Fokus. Die
+// Mausposition durchzureichen waere dort falsch: sie ist auf die Beschriftung
+// bezogen, und ein Eingabefeld setzt daraus die Schreibmarke, die dann
+// irgendwo im Text landet.
+static bool wantsTheWholeClick(GUI_Element* p_target)
+{
+	const std::string type = p_target->getType();
+	return type == "GUI_CheckBox" || type == "GUI_RadioButton";
+}
+
 void GUI_StaticText::onMouseDown(const Vec2i& position,
 								 int buttons)
 {
 	GUI_Element* p_target = getLinkedTarget();
-	if(p_target) p_target->onMouseDown(position, buttons);
+	if(!p_target) return;
+
+	if(wantsTheWholeClick(p_target)) p_target->onMouseDown(position, buttons);
+	else if(buttons & 1) p_target->focus();
 }
 
 void GUI_StaticText::onMouseUp(const Vec2i& position,
 							   int buttons)
 {
 	GUI_Element* p_target = getLinkedTarget();
-	if(p_target) p_target->onMouseUp(position, buttons);
+	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseUp(position, buttons);
 }
 
 void GUI_StaticText::onMouseEnter(int buttons)
 {
 	GUI_Element* p_target = getLinkedTarget();
-	if(p_target) p_target->onMouseEnter(buttons);
+	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseEnter(buttons);
 }
 
 void GUI_StaticText::onMouseLeave(int buttons)
 {
 	GUI_Element* p_target = getLinkedTarget();
-	if(p_target) p_target->onMouseLeave(buttons);
+	if(p_target && wantsTheWholeClick(p_target)) p_target->onMouseLeave(buttons);
 }

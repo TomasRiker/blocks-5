@@ -181,12 +181,17 @@ std::string GUI_Element::getType() const
 	return "GUI_Element";
 }
 
+bool GUI_Element::containsPoint(const Vec2i& position)
+{
+	return position.x >= 0 && position.y >= 0 && position.x < size.x && position.y < size.y;
+}
+
 GUI_Element* GUI_Element::getElementAt(const Vec2i& position)
 {
 	if(!visible) return 0;
 
 	// Ist die Position außerhalb der eigenen Grenzen?
-	if(position.x < 0 || position.y < 0 || position.x >= size.x || position.y >= size.y) return 0;
+	if(!containsPoint(position)) return 0;
 
 	for(std::list<GUI_Element*>::reverse_iterator i = children.rbegin(); i != children.rend(); ++i)
 	{

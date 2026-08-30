@@ -150,6 +150,33 @@ void GUI_RadioButton::onMouseUp(const Vec2i& position,
 	}
 }
 
+// Die Beschriftung gehoert dazu. Gezeichnet wird sie in onRender() bei
+// Vec2i(size.x + 10, ...), und genau dieser Streifen zaehlt hier mit - ein
+// Klick auf den Text schaltet um, wie bei <label for="..."> im Browser.
+//
+// Gemessen statt geraten: waere der Streifen breiter als der Text, klaute er
+// Klicks von dem, was rechts daneben steht (Sprache und Details stehen in
+// options.xml in drei Spalten dicht nebeneinander). Ein leerer Titel ergibt
+// Breite 0, also bleibt es beim Kaestchen - die Filterknoepfe mit ihrer
+// eigenen <For>-Beschriftung merken davon nichts.
+bool GUI_RadioButton::containsPoint(const Vec2i& position)
+{
+	if(GUI_Element::containsPoint(position)) return true;
+
+	// Im Knopf-Aussehen steht die Beschriftung mittendrin, nicht daneben.
+	if(buttonLook) return false;
+
+	if(title.empty()) return false;
+
+	Vec2i dim;
+	p_font->measureText(localizeString(title), &dim, 0);
+	if(dim.x <= 0) return false;
+
+	const int left = size.x + 10;
+	return position.x >= left && position.x < left + dim.x &&
+		   position.y >= 0 && position.y < max(size.y, dim.y);
+}
+
 void GUI_RadioButton::onMouseEnter(int buttons)
 {
 	mouseOver = true;

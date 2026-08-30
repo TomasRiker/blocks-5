@@ -15,6 +15,8 @@ public:
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseEnter(int buttons);
+	// Die Beschriftung neben dem Kaestchen zaehlt als Trefferflaeche mit.
+	bool containsPoint(const Vec2i& position);
 	void onMouseLeave(int buttons);
 	INLINE_GETTYPE("GUI_CheckBox");
 

@@ -13,6 +13,9 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "glextensions.h"
 #include "sharpfit_shader.h"
 #include "crt_shader.h"
+#ifdef __EMSCRIPTEN__
+#include "web_bluescreen.h"
+#endif
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
@@ -816,7 +819,16 @@ void Engine::mainLoopIteration()
 				handleResize(event.resize.w, event.resize.h);
 				break;
 			case SDL_QUIT:
+#ifdef __EMSCRIPTEN__
+				// Im Browser kann sich ein Programm nicht selbst schliessen -
+				// "Beenden" tat dort bisher schlicht gar nichts. Statt dessen
+				// reisst das Spiel jetzt zum Schein den Rechner mit; siehe
+				// WebBuild/web_bluescreen.cpp. Das haelt auch die Hauptschleife
+				// an, done braucht es hier also nicht mehr.
+				WebBlueScreen::show();
+#else
 				done = true;
+#endif
 				break;
 			}
 		}

@@ -12,11 +12,16 @@ public:
 	~GUI_StaticText();
 
 	void onRender();
-	// Ein Text kann auf ein anderes Element zeigen (<For>Name</For>). Dann
-	// gehen Mausereignisse dorthin weiter, und ein Klick auf die Beschriftung
-	// schaltet die zugehoerige Checkbox oder den Radioknopf - so wie <label
-	// for="..."> es im Browser tut. Ein Text ohne w/h wird nie getroffen; wer
-	// das benutzt, gibt ihm eine Groesse.
+	// Ein Text kann auf ein anderes Element zeigen (<For>Name</For>) - so wie
+	// <label for="..."> es im Browser tut. Bei einer Checkbox oder einem
+	// Radioknopf schaltet ein Klick auf die Beschriftung das Element um, bei
+	// allem anderen - Eingabefeldern vor allem - setzt er den Fokus dorthin.
+	// Fuer die Trefferflaeche gilt: w oder h auf -1 heisst "so gross wie der
+	// gezeichnete Text". Das ist die richtige Angabe fuer eine Beschriftung -
+	// eine von Hand eingetragene Breite waere geraten und in einer anderen
+	// Sprache falsch. Ohne w/h (also 0) wird der Text nie getroffen, das war
+	// schon immer so und bleibt die Voreinstellung.
+	bool containsPoint(const Vec2i& position);
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseEnter(int buttons);

@@ -115,6 +115,11 @@ Changelog
             It needs the same graphics card as "Sharp, fitted";
             where that is missing, this is not offered either.
 
+          - Clicking the text next to a checkbox or a radio
+            button now works the same as clicking the box
+            itself, and clicking the caption of a text field
+            puts the cursor into it.
+
           - Escape in the main menu quits the game.
 
           - Escape now closes the level editor's menu and its

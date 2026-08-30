@@ -121,8 +121,9 @@
 		<Window name="Menu" w="320" h="285">
 			<Title>$LE_MENU</Title>
 			<Center />
-			<StaticText name="Static1" x="10" y="30">
+			<StaticText name="Static1" x="10" y="30" w="-1" h="-1">
 				<Text>$LE_MENU_FILENAME</Text>
+				<For>Filename</For>
 			</StaticText>
 			<EditBox name="Filename" x="10" y="50" w="275" h="20">
 				<Text></Text>
@@ -173,8 +174,9 @@
 		<Window name="Settings" w="390" h="455">
 			<Title>$LE_SETTINGS</Title>
 			<Center />
-			<StaticText name="Static6" x="10" y="30">
+			<StaticText name="Static6" x="10" y="30" w="-1" h="-1">
 				<Text>$LE_SETTINGS_TITLE</Text>
+				<For>Title</For>
 			</StaticText>
 			<EditBox name="Title" x="10" y="50" w="370" h="20">
 				<TabStop id="0" />

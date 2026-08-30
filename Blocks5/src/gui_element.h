@@ -38,6 +38,12 @@ public:
 	virtual std::string getType() const;
 
 	GUI_Element* getElementAt(const Vec2i& position);
+	// Was als "getroffen" gilt. Standard ist das eigene Rechteck; Checkbox und
+	// Radioknopf zeichnen ihre Beschriftung rechts daneben und nehmen sie mit
+	// dazu, damit ein Klick auf den Text genauso zaehlt wie einer auf das
+	// Kaestchen - so wie <label> im Browser. Nicht const: die Breite der
+	// Beschriftung wird dafuer gemessen.
+	virtual bool containsPoint(const Vec2i& position);
 	void bringToFront();
 	bool isFocused();
 	bool isFocusedIndirectly();

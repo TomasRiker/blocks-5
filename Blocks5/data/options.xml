@@ -31,7 +31,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SharpFitLabel" x="241" y="53" w="90" h="14">
+		<StaticText name="SharpFitLabel" x="241" y="53" w="-1" h="-1">
 			<Text>$O_UPSCALER_SHARP_FIT</Text>
 			<For>SharpFit</For>
 			<Font>tooltip_font.xml</Font>
@@ -40,7 +40,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="NearestLabel" x="241" y="73" w="90" h="14">
+		<StaticText name="NearestLabel" x="241" y="73" w="-1" h="-1">
 			<Text>$O_UPSCALER_NEAREST</Text>
 			<For>Nearest</For>
 			<Font>tooltip_font.xml</Font>
@@ -49,7 +49,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="BilinearLabel" x="241" y="93" w="90" h="14">
+		<StaticText name="BilinearLabel" x="241" y="93" w="-1" h="-1">
 			<Text>$O_UPSCALER_BILINEAR</Text>
 			<For>Bilinear</For>
 			<Font>tooltip_font.xml</Font>
@@ -58,7 +58,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="CrtLabel" x="241" y="113" w="90" h="14">
+		<StaticText name="CrtLabel" x="241" y="113" w="-1" h="-1">
 			<Text>$O_UPSCALER_CRT</Text>
 			<For>Crt</For>
 			<Font>tooltip_font.xml</Font>
