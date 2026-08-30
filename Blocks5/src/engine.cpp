@@ -1727,6 +1727,20 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		if(wParam != SIZE_MINIMIZED) engine.repaintDuringSizeMove();
 		break;
 
+	case WM_PAINT:
+		// Waehrend eines Dateidialogs kommt WM_PAINT, sobald der Dialog das
+		// Fenster freigibt oder darueber gezogen wird. Die Hauptschleife
+		// steht dann; ohne diese Zeilen zeigt das Fenster ein altes Bild oder
+		// gar keines. ValidateRect ist Pflicht: ein nicht abgeraeumtes
+		// WM_PAINT kommt sofort wieder und dreht sich im Kreis.
+		if(engine.isInSizeMove())
+		{
+			engine.repaintDuringSizeMove();
+			ValidateRect(hwnd, 0);
+			return 0;
+		}
+		break;
+
 	case WM_GETMINMAXINFO:
 		{
 			// handleResize() klemmt ohnehin auf mindestens 640x480 hoch. Das
@@ -1797,6 +1811,31 @@ Vec2i Engine::getMinimumWindowSize() const
 	if(!AdjustWindowRectEx(&r, style, FALSE, exStyle)) return Vec2i(0, 0);
 
 	return Vec2i(r.right - r.left, r.bottom - r.top);
+}
+
+void Engine::beginForeignMessageLoop()
+{
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// Derselbe Zustand wie beim Ziehen am Fensterrand: eine fremde Schleife
+	// pumpt die Nachrichten, die eigene laeuft nicht. Der Zeitgeber haelt das
+	// Bild auch dann frisch, wenn gar kein WM_PAINT kommt.
+	inSizeMove = true;
+	SetTimer(info.window, SIZEMOVE_TIMER_ID, 15, 0);
+
+	// Einmal sofort, damit zwischen dem Stilwechsel und dem Dialog kein
+	// schwarzes Fenster steht.
+	repaintDuringSizeMove();
+}
+
+void Engine::endForeignMessageLoop()
+{
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window) KillTimer(info.window, SIZEMOVE_TIMER_ID);
+	inSizeMove = false;
 }
 
 void Engine::repaintDuringSizeMove()

@@ -31,6 +31,7 @@ private:
 	// Import und Export. Der Dateidialog des Browsers meldet sich asynchron,
 	// der von Windows modal - pollImport() verdeckt beides.
 	void pollImport();
+	void pollExport();
 	void showMessage(const std::string& text);
 	void refreshExportList();
 	int currentExportKind() const;
@@ -44,6 +45,13 @@ private:
 	Options* p_options;
 	Help* p_help;
 	uint time;
+
+	// Der Export wartet genau wie der Import eine Runde: unter Windows startet
+	// der Dateidialog eine zweite Nachrichtenschleife, und die darf nicht
+	// mitten in GUI_Button::onMouseUp anfangen.
+	int pendingExportKind;
+	std::string pendingExportName;
+	bool pendingExport;
 	std::unordered_map<uint, std::list<uint> > keyData;
 };
 

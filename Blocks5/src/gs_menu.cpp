@@ -24,6 +24,8 @@ GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML
 	p_background = 0;
 	p_titleLevel = 0;
 	levelSaved = false;
+	pendingExportKind = 0;
+	pendingExport = false;
 }
 
 GS_Menu::~GS_Menu()
@@ -104,8 +106,11 @@ void GS_Menu::onRender()
 
 void GS_Menu::onUpdate()
 {
-	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
+	// Die Dateidialoge laufen hier, nicht im Klick-Handler: unter Windows
+	// sind sie modal und wuerden sonst eine zweite Nachrichtenschleife mitten
+	// in der Ereignisverteilung der GUI starten.
 	pollImport();
+	pollExport();
 
 
 #ifdef __EMSCRIPTEN__
@@ -374,15 +379,14 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
 		if(p_list->getSelection() == -1) return;
 
-		const std::string item(p_list->getSelectedItemText());
-		const Transfer::Kind kind = static_cast<Transfer::Kind>(currentExportKind());
-		std::string errorId;
-		const bool ok = Transfer::doExport(kind, item, errorId);
+		// Nur vormerken - der Dialog laeuft eine Runde spaeter in
+		// pollExport(), aus demselben Grund wie beim Import.
+		pendingExportKind = currentExportKind();
+		pendingExportName = p_list->getSelectedItemText();
+		pendingExport = true;
 
 		gui["Menu.ExportPane"]->hide();
 		gui["Menu"]->focus();
-		if(ok) showMessage(localizeString("$TR_EXPORTED"));
-		else if(!errorId.empty()) showMessage(localizeString(errorId));
 	}
 	else if(name == "Menu.MessagePane.Message.OK")
 	{
@@ -509,6 +513,18 @@ void GS_Menu::pollImport()
 		showMessage(localizeString("$TR_IMPORTED_LEVEL") + " \"" + name + "\"");
 		break;
 	}
+}
+
+void GS_Menu::pollExport()
+{
+	if(!pendingExport) return;
+	pendingExport = false;
+
+	std::string errorId;
+	const bool ok = Transfer::doExport(static_cast<Transfer::Kind>(pendingExportKind),
+									   pendingExportName, errorId);
+	if(ok) showMessage(localizeString("$TR_EXPORTED"));
+	else if(!errorId.empty()) showMessage(localizeString(errorId));
 }
 
 void GS_Menu::showMessage(const std::string& text)

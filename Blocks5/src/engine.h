@@ -107,6 +107,13 @@ public:
 	// damit wenigstens die Skalierung mitkommt. Keine Spiellogik.
 	void repaintDuringSizeMove();
 	void setInSizeMove(bool value) { inSizeMove = value; }
+	bool isInSizeMove() const { return inSizeMove; }
+
+	// Dasselbe fuer den Dateidialog: auch der bringt eine fremde
+	// Nachrichtenschleife mit, und auch dann steht die Hauptschleife. Ohne
+	// das bliebe das Spielfenster schwarz, solange der Dialog offen ist.
+	void beginForeignMessageLoop();
+	void endForeignMessageLoop();
 	// Kleinste Fenstergroesse, die handleResize() zulaesst, als Fensterrechteck
 	// samt Rahmen - fuer WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;

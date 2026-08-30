@@ -356,26 +356,25 @@ namespace
 		return GetActiveWindow();
 	}
 
-	// Ein modales Fenster ueber einem randlosen Vollbildfenster ist auf
-	// Windows die eine Anordnung, die zuverlaessig schiefgeht: das Spiel
-	// zeichnet nicht mehr - seine Schleife steht ja -, der Dialog ist hinter
-	// der Vollbildflaeche nicht zu sehen, und es sieht aus wie ein Absturz.
-	// Also fuer die Dauer des Dialogs ins Fenster und danach zurueck, so wie
-	// es jedes andere Spiel auch macht.
-	struct LeaveFullScreen
+	// Ein Dateidialog bringt eine fremde Nachrichtenschleife mit: die
+	// Hauptschleife des Spiels steht, solange er offen ist. Das Fenster bleibt
+	// trotzdem sichtbar, weil die Fensterprozedur waehrenddessen weiterzeichnet
+	// - dieselbe Vorrichtung wie beim Ziehen am Fensterrand.
+	//
+	// Das Vollbild bleibt dabei stehen. Der Dialog gehoert dem Spielfenster
+	// (hwndOwner), und ein Fenster mit Besitzer haelt Windows immer ueber
+	// diesem - auch ueber einem randlosen Vollbildfenster. Genau daran fehlte
+	// es vorher: GetActiveWindow() taugt hier nicht.
+	struct ModalScope
 	{
-		LeaveFullScreen() : wasFullScreen(Engine::inst().isFullScreen())
+		ModalScope()  { Engine::inst().beginForeignMessageLoop(); }
+		~ModalScope()
 		{
-			if(wasFullScreen) Engine::inst().setFullScreen(false);
-		}
-		~LeaveFullScreen()
-		{
-			if(wasFullScreen) Engine::inst().setFullScreen(true);
-			// Was die fremde Nachrichtenschleife durchgelassen hat, ist kein
-			// Klick des Spielers auf das Spiel.
+			Engine::inst().endForeignMessageLoop();
+			// Was die fremde Schleife durchgelassen hat, ist kein Klick des
+			// Spielers auf das Spiel.
 			Engine::inst().flushInput();
 		}
-		bool wasFullScreen;
 	};
 }
 
@@ -411,7 +410,7 @@ int pollImport(std::string& path, std::string& untrustedName)
 		// Arbeitsverzeichnis, und der Dialog wuerde es sonst verstellen.
 		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
 
-		LeaveFullScreen windowed;
+		ModalScope modal;
 		if(GetOpenFileNameA(&ofn))
 		{
 			g_pickedPath = file;
@@ -466,7 +465,7 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
 
 	{
-		LeaveFullScreen windowed;
+		ModalScope modal;
 		if(!GetSaveFileNameA(&ofn)) return false;   // abgebrochen, kein Fehler
 	}
 
