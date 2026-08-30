@@ -34,6 +34,16 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
+// F5 is the game's key for restarting a level, and the browser's key for
+// reloading the page. Pressing it mid-level did the second, which throws the
+// session away and comes back at the loading screen - nobody pressing "restart
+// level" wants that. Swallowed in the capture phase, before either SDL or the
+// browser sees it. Ctrl+R and the address bar still reload, so there is no way
+// to get stuck on a page that will not go away.
+window.addEventListener('keydown', function (e) {
+  if (e.key === 'F5' || e.keyCode === 116) e.preventDefault();
+}, true);
+
 // The other half of "the music stopped when I switched tabs". A hidden page
 // gets no requestAnimationFrame, so the game cannot refill the OpenAL queue and
 // the source runs dry; StreamedSound::pumpBuffers restarts it when the page

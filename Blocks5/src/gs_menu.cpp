@@ -185,6 +185,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.Options"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Help"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Quit"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Website"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Donate"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.Donate"])->connectClicked(this, &GS_Menu::handleClick);
@@ -195,7 +196,19 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	if(lastAskedForDonationStr != "disable")
 	{
 		const uint lastAskedForDonation = static_cast<uint>(atoi(lastAskedForDonationStr.c_str()));
-		if(engine.getTimePlayed() - lastAskedForDonation >= 60 * (60 * 60 * 3)) gui["Menu.DonatePane.Donate"]->focus();
+		const uint timePlayed = engine.getTimePlayed();
+
+		// Beide Zahlen sind vorzeichenlos. Steht in .donation_asked eine
+		// groessere als in .time_played, lief die Differenz ueber und ergab
+		// etwas Riesiges - das Spendenfenster kam dann bei jedem Start. Im
+		// Browser war das der Normalfall: dort schrieb niemand .time_played,
+		// die gespielte Zeit fing also jedesmal wieder bei null an, waehrend
+		// .donation_asked vom ersten Mal her stehenblieb.
+		if(timePlayed >= lastAskedForDonation &&
+		   timePlayed - lastAskedForDonation >= 60 * (60 * 60 * 3))
+		{
+			gui["Menu.DonatePane.Donate"]->focus();
+		}
 	}
 
 	p_options = new Options(0);
@@ -303,6 +316,18 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		SDL_Event event;
 		event.type = SDL_QUIT;
 		SDL_PushEvent(&event);
+	}
+	else if(name == "Menu.Website")
+	{
+		// Der unsichtbare Knopf ueber der Adresse im Hintergrundbild.
+#ifdef __EMSCRIPTEN__
+		// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
+		// nur einen Frame zurueck, also gilt die Seite dem Browser noch als
+		// kuerzlich bedient und der Popup-Blocker laesst das Fenster durch.
+		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
+#else
+		ShellExecuteA(0, "open", "https://www.david-scherfgen.de/", 0, 0, SW_SHOWMAXIMIZED);
+#endif
 	}
 	else if(name == "Menu.Donate")
 	{

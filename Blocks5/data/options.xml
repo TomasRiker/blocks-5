@@ -22,46 +22,46 @@
 			<Group>0</Group>
 		</RadioButton>
 
-		<StaticText name="Static11" x="215" y="30">
+		<StaticText name="Static11" x="210" y="30">
 			<Text>$O_UPSCALER</Text>
 		</StaticText>
 		<!-- Die y-Werte setzt Options::show(); hier stehen sie nur der
 		     Vollstaendigkeit halber schon an ihrem Platz. -->
-		<RadioButton name="SharpFit" x="215" y="50" w="16" h="16">
+		<RadioButton name="SharpFit" x="210" y="50" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SharpFitLabel" x="241" y="53" w="-1" h="-1" for="SharpFit">
+		<StaticText name="SharpFitLabel" x="236" y="53" w="-1" h="-1" for="SharpFit">
 			<Text>$O_UPSCALER_SHARP_FIT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<RadioButton name="Nearest" x="215" y="70" w="16" h="16">
+		<RadioButton name="Nearest" x="210" y="70" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="NearestLabel" x="241" y="73" w="-1" h="-1" for="Nearest">
+		<StaticText name="NearestLabel" x="236" y="73" w="-1" h="-1" for="Nearest">
 			<Text>$O_UPSCALER_NEAREST</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<RadioButton name="Bilinear" x="215" y="90" w="16" h="16">
+		<RadioButton name="Bilinear" x="210" y="90" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="BilinearLabel" x="241" y="93" w="-1" h="-1" for="Bilinear">
+		<StaticText name="BilinearLabel" x="236" y="93" w="-1" h="-1" for="Bilinear">
 			<Text>$O_UPSCALER_BILINEAR</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<RadioButton name="Crt" x="215" y="110" w="16" h="16">
+		<RadioButton name="Crt" x="210" y="110" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="CrtLabel" x="241" y="113" w="-1" h="-1" for="Crt">
+		<StaticText name="CrtLabel" x="236" y="113" w="-1" h="-1" for="Crt">
 			<Text>$O_UPSCALER_CRT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<!-- y setzt Options::show(), direkt unter den letzten sichtbaren
 		     Eintrag der Liste. -->
-		<Button name="CrtSettings" x="215" y="130" w="115" h="18">
+		<Button name="CrtSettings" x="210" y="130" w="115" h="18">
 			<Title>$O_CRT_SETTINGS</Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>
