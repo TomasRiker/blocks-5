@@ -135,7 +135,7 @@
 	     Abbrechen im Optionsfenster holt ueber loadConfig() die alten Werte
 	     zurueck. -->
 	<Window name="CrtOptions" w="300" h="316">
-		<Title>$O_CRT_SETTINGS</Title>
+		<Title>$O_CRT_SETTINGS_TITLE</Title>
 		<Center />
 		<Hidden />
 		<StaticText name="CrtScanText" x="12" y="34" w="270" h="14">

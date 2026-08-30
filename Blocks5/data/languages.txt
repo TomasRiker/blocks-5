@@ -197,9 +197,15 @@ $O_UPSCALER_CRT
 §de:Röhrenmonitor
 
 $O_CRT_SETTINGS
-// Button that opens the CRT settings, and the title of that window
+// Button that opens the CRT settings
 §en:CRT settings ...
 §de:Röhre einstellen ...
+
+$O_CRT_SETTINGS_TITLE
+// Title of that window - the same words as the button, but a title is not
+// an invitation to click, so it carries no ellipsis
+§en:CRT settings
+§de:Röhre einstellen
 
 $O_CRT_SCANLINE
 // Label above the scanline slider in the CRT settings
