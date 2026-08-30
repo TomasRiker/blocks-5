@@ -31,11 +31,19 @@ namespace WebTransfer
 	// gar nicht erst in IndexedDB landet.
 	// Liefert false, wenn schon ein Dialog laeuft oder der Browser gerade
 	// keine Benutzer-Aktivierung sieht.
-	// channel unterscheidet die beiden Editoren: ein Dialog, der erst
-	// aufgeloest wird, nachdem der Benutzer den Editor gewechselt hat, darf
-	// nicht vom anderen Editor eingesammelt und als kaputte Datei gemeldet
-	// werden.
-	enum { CHANNEL_LEVEL = 1, CHANNEL_CAMPAIGN = 2 };
+	// channel unterscheidet die Stellen, die einen Dialog oeffnen koennen: ein
+	// Dialog, der erst aufgeloest wird, nachdem der Benutzer den Bildschirm
+	// gewechselt hat, darf nicht anderswo eingesammelt und als kaputte Datei
+	// gemeldet werden. Der Level-Editor hat zwei davon, weil er Level und
+	// Skins holen kann, und Kampagnen kommen aus dem Kampagnen-Editor oder aus
+	// der Levelauswahl.
+	enum
+	{
+		CHANNEL_LEVEL        = 1,
+		CHANNEL_CAMPAIGN     = 2,
+		CHANNEL_SKIN         = 3,
+		CHANNEL_SELECT_LEVEL = 4
+	};
 
 	bool openPicker(int channel,
 	                const std::string& acceptExtension,

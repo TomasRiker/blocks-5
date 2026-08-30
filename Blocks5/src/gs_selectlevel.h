@@ -40,6 +40,22 @@ private:
 	void loadLevel();
 	int getLevelStatus(uint level);
 	void updateNote();
+
+	// Die Kampagnen des Benutzerverzeichnisses einlesen und die Liste damit
+	// fuellen. Laeuft beim Betreten und noch einmal nach jedem Import.
+	void listCampaigns();
+
+#ifdef __EMSCRIPTEN__
+	// Das Ergebnis des Dateidialogs abholen; einmal pro Logik-Tick.
+	void pollImport();
+	void showImportMessage(const char* p_text);
+
+	// Eine Rueckmeldung zum Import steht eine Weile lang an der Stelle, wo
+	// sonst der Hinweis auf offene Level steht - der einzige Textbereich, den
+	// dieser Bildschirm hat.
+	std::string importMessage;
+	uint importMessageCounter;
+#endif
 };
 
 #endif

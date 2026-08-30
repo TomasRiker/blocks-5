@@ -512,17 +512,9 @@ public:
 			return;
 		}
 
-		// 1. Struktur pruefen: laesst sich das Archiv oeffnen und enthaelt es
-		//    eine campaign.xml? FM_TEST braucht dafuer kein Passwort.
-		bool valid = fs.fileExists(staging + "/campaign.xml");
-		if(valid)
-		{
-			// 2. Inhalt pruefen: entschluesseln und XML parsen.
-			Campaign check;
-			valid = check.load(staging) && !check.getLevels().empty();
-		}
-
-		if(!valid)
+		// Pruefen, BEVOR irgendetwas ins Benutzerverzeichnis geht. Dieselbe
+		// Pruefung benutzt die Levelauswahl.
+		if(!Campaign::isImportableArchive(staging))
 		{
 			fs.deleteFile(staging);
 			editor.messageText = "$CE_ERROR_IMPORT_INVALID";
@@ -531,25 +523,18 @@ public:
 			return;
 		}
 
-		const std::string dir(fs.getAppHomeDirectory() + "levels/campaigns/");
-		const std::string stem(sanitizeFilenameStem(untrustedName, "campaign"));
-		std::string name(stem + ".zip");
-		for(int n = 2; n <= 99 && fs.fileExists(dir + name); n++)
+		const std::string name(Campaign::installArchive(staging, untrustedName));
+		fs.deleteFile(staging);
+		if(name.empty())
 		{
-			char temp[128] = "";
-			sprintf(temp, "%s_%d.zip", stem.c_str(), n);
-			name = temp;
-		}
-
-		if(!fs.copyFile(staging, dir + name))
-		{
-			fs.deleteFile(staging);
 			editor.messageText = "$IMPORT_FAILED";
 			editor.messageCounter = 200;
 			editor.messageType = 1;
 			return;
 		}
-		fs.deleteFile(staging);
+
+		// Sofort nach IndexedDB durchschreiben - sonst waere der Import bis zu
+		// fuenf Sekunden lang nur im Arbeitsspeicher.
 		WebTransfer::syncHome();
 
 		listAvailableLevels();
@@ -656,6 +641,12 @@ void GS_CampaignEditor::onEnter(const ParameterBlock& context)
 
 void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 {
+#ifdef __EMSCRIPTEN__
+	// Einen noch offenen Dateidialog aufgeben, sonst blockiert er den Kanal
+	// weiter - siehe GS_LevelEditor::onLeave.
+	WebTransfer::abandon(WebTransfer::CHANNEL_CAMPAIGN, "/blocks5_import.zip");
+#endif
+
 	// Ressourcen loeschen
 	delete p_campaign;
 	p_background->release();

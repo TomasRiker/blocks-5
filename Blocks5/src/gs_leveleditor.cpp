@@ -93,6 +93,18 @@ public:
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorR"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorG"))->connectChanged(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorB"))->connectChanged(this, &LevelEditorGUI::handleClick);
+
+		// Skins holt der Browser genauso wie Level und Kampagnen; auf dem
+		// Desktop legt man das ZIP einfach in "levels\skins".
+		{
+			GUI_Element* p_importSkin = getChild("SettingsPane.Settings.ImportSkin");
+#ifdef __EMSCRIPTEN__
+			if(p_importSkin) static_cast<GUI_Button*>(p_importSkin)->connectClicked(this, &LevelEditorGUI::handleClick);
+#else
+			if(p_importSkin) p_importSkin->hide();
+#endif
+		}
+
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.OK"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("SettingsPane.Settings.Cancel"))->connectClicked(this, &LevelEditorGUI::handleClick);
 
@@ -956,6 +968,16 @@ public:
 				editor.messageType = 1;
 			}
 		}
+		else if(name == "LevelEditor.SettingsPane.Settings.ImportSkin")
+		{
+			// 8 MiB - der groesste mitgelieferte Skin hat 849 KB.
+			if(!WebTransfer::openPicker(WebTransfer::CHANNEL_SKIN, ".zip", 8388608u, "/blocks5_import_skin.zip"))
+			{
+				editor.messageText = "$IMPORT_CLICK_AGAIN";
+				editor.messageCounter = 150;
+				editor.messageType = 1;
+			}
+		}
 #endif
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
 		{
@@ -1199,6 +1221,91 @@ public:
 		editor.messageCounter = 150;
 		editor.messageType = 0;
 	}
+
+	// Skins gehen denselben Weg, mit einem entscheidenden Unterschied: beim
+	// Level ist der Dateiname blosse Buchhaltung, beim Skin ist er die
+	// Identitaet. Ein Level sagt skin0="space" und der Lader sucht daraufhin
+	// levels/skins/space.zip (level.cpp, getSkinFilename). Wuerde ein schon
+	// vorhandenes space.zip hier zu space_2.zip ausweichen, wie es der Level-
+	// und der Kampagnen-Import tun, blieben alle Level, die "space" nennen,
+	// genauso kaputt wie vorher - nur ohne sichtbaren Grund. Ein Skin
+	// ueberschreibt deshalb.
+	void pollImportSkin()
+	{
+		std::string untrustedName;
+		const int status = WebTransfer::pollImport(WebTransfer::CHANNEL_SKIN, untrustedName);
+		if(status == WebTransfer::IMPORT_IDLE) return;
+
+		FileSystem& fs = FileSystem::inst();
+		// Muss auf .zip enden, sonst erkennt FileSystem::convertPath das
+		// Archiv nicht.
+		const std::string staging("/blocks5_import_skin.zip");
+
+		if(status != WebTransfer::IMPORT_OK)
+		{
+			fs.deleteFile(staging);
+			if(status == WebTransfer::IMPORT_CANCELLED) return;
+			editor.messageText = (status == WebTransfer::IMPORT_TOO_BIG) ? "$IMPORT_TOO_BIG"
+							   : (status == WebTransfer::IMPORT_WRONG_TYPE) ? "$LE_ERROR_IMPORT_SKIN_INVALID"
+							   : "$IMPORT_FAILED";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+
+		// Pruefen, BEVOR etwas ins Benutzerverzeichnis geht. Die beiden
+		// Dateien, ohne die ein Skin nichts zeichnen kann; nachsehen geht auch
+		// bei einem verschluesselten Archiv ohne Passwort.
+		if(!fs.fileExists(staging + "/tileset.xml") ||
+		   !fs.fileExists(staging + "/sprites.png"))
+		{
+			fs.deleteFile(staging);
+			editor.messageText = "$LE_ERROR_IMPORT_SKIN_INVALID";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+
+		const std::string stem(sanitizeFilenameStem(untrustedName, "skin"));
+
+		// Die mitgelieferten Skins sind unantastbar: die Blocks-Kampagne
+		// benutzt sie, und ein Skin ueberschreibt. Wer hier durchkaeme,
+		// zerstoerte das Spiel fuer alle anderen Level. Die Liste ist die aus
+		// zip_skins.bat - kommt ein Skin dazu, gehoert er auch hierher.
+		static const char* p_shipped[] = { "blocks_01", "blocks_02", "blocks_03", "space" };
+		for(uint i = 0; i < sizeof(p_shipped) / sizeof(*p_shipped); i++)
+		{
+			if(stem != p_shipped[i]) continue;
+			fs.deleteFile(staging);
+			editor.messageText = "$LE_ERROR_IMPORT_SKIN_RESERVED";
+			editor.messageCounter = 250;
+			editor.messageType = 1;
+			return;
+		}
+
+		const std::string dest(fs.getAppHomeDirectory() + "levels/skins/" + stem + ".zip");
+		const bool copied = fs.copyFile(staging, dest);
+		fs.deleteFile(staging);
+		if(!copied)
+		{
+			editor.messageText = "$IMPORT_FAILED";
+			editor.messageCounter = 200;
+			editor.messageType = 1;
+			return;
+		}
+
+		WebTransfer::syncHome();
+
+		// Der Name ist das, was der Benutzer jetzt in eines der Skin-Felder
+		// schreiben muss - also mit ausgeben. Er kommt aus
+		// sanitizeFilenameStem und besteht nur aus [A-Za-z0-9_-], kann also
+		// keine Lokalisierungsmarke enthalten. Wurde ein gleichnamiger Skin
+		// gerade erst benutzt, haengen seine Texturen noch im Manager-Cache;
+		// sichtbar wird die neue Fassung dann erst nach einem Neustart.
+		editor.messageText = localizeString("$LE_INFO_SKIN_IMPORTED") + " \"" + stem + "\"";
+		editor.messageCounter = 200;
+		editor.messageType = 0;
+	}
 #endif
 
 private:
@@ -1407,7 +1514,11 @@ void GS_LevelEditor::onUpdate()
 
 #ifdef __EMSCRIPTEN__
 	// Der Dateidialog meldet sich asynchron; hier wird das Ergebnis abgeholt.
-	if(GUI_Element* p_gui = gui["LevelEditor"]) static_cast<LevelEditorGUI*>(p_gui)->pollImport();
+	if(GUI_Element* p_gui = gui["LevelEditor"])
+	{
+		static_cast<LevelEditorGUI*>(p_gui)->pollImport();
+		static_cast<LevelEditorGUI*>(p_gui)->pollImportSkin();
+	}
 #endif
 
 	if(messageCounter) messageCounter--;
@@ -1464,6 +1575,15 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 
 void GS_LevelEditor::onLeave(const ParameterBlock& context)
 {
+#ifdef __EMSCRIPTEN__
+	// Ein noch offener Dateidialog gehoert diesem Editor. Bleibt er stehen,
+	// belegt er den einen Kanal weiter, und der naechste Import - egal wo -
+	// meldet nur noch "nochmal klicken", bis der Browser den Dialog nach
+	// fuenf Minuten von selbst aufgibt.
+	WebTransfer::abandon(WebTransfer::CHANNEL_LEVEL, "/blocks5_import.xml");
+	WebTransfer::abandon(WebTransfer::CHANNEL_SKIN, "/blocks5_import_skin.zip");
+#endif
+
 	clearUndo();
 	clearRedo();
 

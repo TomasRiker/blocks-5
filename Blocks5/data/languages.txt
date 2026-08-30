@@ -339,6 +339,11 @@ $LS_SELECT_CAMPAIGN
 §en:Select a Campaign:
 §de:Wähle eine Kampagne:
 
+$LS_IMPORT_CAMPAIGN
+// Level selection: button that uploads a campaign file (web build)
+§en:Import campaign ...
+§de:Kampagne importieren ...
+
 $LS_CAMPAIGN_DESCRIPTION
 // Caption of campaign description text
 §en:Description:
@@ -2030,6 +2035,27 @@ $LE_ERROR_IMPORT_INVALID
 // Error shown when an imported file is not a level file
 §en:ERROR: This is not a valid level file.
 §de:FEHLER: Das ist keine gültige Level-Datei.
+
+$LE_SETTINGS_IMPORT_SKIN
+// Level editor: button that uploads a skin archive (web build)
+§en:Import skin ...
+§de:Skin importieren ...
+
+$LE_INFO_SKIN_IMPORTED
+// Info shown after a skin archive was imported. The name it was stored under
+// follows, because that is what has to be typed into one of the skin fields.
+§en:Skin imported:
+§de:Skin importiert:
+
+$LE_ERROR_IMPORT_SKIN_INVALID
+// Error shown when an imported file is not a skin archive
+§en:ERROR: This is not a valid skin archive.
+§de:FEHLER: Das ist kein gültiges Skin-Archiv.
+
+$LE_ERROR_IMPORT_SKIN_RESERVED
+// Error shown when an imported skin would replace one that ships with the game
+§en:ERROR: A skin of that name belongs to the game. Please rename the file.
+§de:FEHLER: Ein Skin dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
 
 $CE_MENU_EXPORT
 // Campaign editor: button that downloads the campaign (web build)

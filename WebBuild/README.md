@@ -78,7 +78,7 @@ a fixed shape a triangle fan covers exactly.
 | `gl_compat.cpp` | the GL entry points Emscripten declares but never implements |
 | `platform_stubs.cpp` | SDL cursors, SDL surface locking |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
-| `web_transfer.cpp` | the download/file-picker bridge behind Export and Import |
+| `web_transfer.cpp` | the download/file-picker bridge behind Export and Import (four channels: level, campaign, skin, select-level) |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
 | `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, and wakes the `AudioContext` when the page comes back |
 
@@ -174,11 +174,23 @@ before, `STREAMING/STOPPED q=4 p=4` while hidden - a stopped source with a full
 queue, the state the old check could not see - and `STREAMING/PLAYING q=4 p=0`
 again half a second after the frames resume.
 
-## Getting levels in and out
+## Getting levels, campaigns and skins in and out
 
 The Level Editor and Campaign Editor each gained an **Export ...** and
 **Import ...** button, present only in the web build (the desktop build hides
-them - there the files are already in `My Documents\Blocks 5\`).
+them - there the files are already in `My Documents\Blocks 5\`). Two more
+buttons followed: **Import skin ...** in the Level Editor's Settings window,
+beside the skin fields it feeds, and **Import campaign ...** on the Select Level
+screen, under the campaign list.
+
+That second one is placement, not plumbing: campaign import already worked, but
+it lived in the Campaign *Editor*, and somebody who only wants to play a
+campaign a friend sent them has no reason to open an editor. Both buttons run
+the same `Campaign::isImportableArchive` / `Campaign::installArchive` pair, so
+the validation exists once. In the browser the campaign list gives up 26 pixels
+of height to the button (`GS_SelectLevel::onEnter`, which also drags the list
+box's scrollbar down with it - the scrollbar is a child sized in the list's
+constructor and does not follow `setSize`); the desktop layout is untouched.
 
 Export hands the browser a Blob and clicks a hidden `<a download>`. A level is
 serialised exactly as Save would write it, so it need not be saved first; a
@@ -198,9 +210,27 @@ checking for a `<Level>` root; a campaign by opening the archive and requiring a
 `campaign.xml` that loads with at least one level. On success the import forces
 an `FS.syncfs` so it is durable immediately rather than up to five seconds later.
 
-One honest limitation remains: a campaign zip carries its levels and music but
-**not its skins**, so a campaign built on a custom skin renders with the
-missing-skin fallback unless the skin zip is shared separately.
+A campaign zip carries its levels and music but **not its skins** - on Windows
+too, where the author just tells players to drop the skin zip in
+`levels\skins\`. That is why skin import exists: without it a shared campaign
+built on a custom skin was a dead end in the browser, showing the red
+missing-files panel with no way out. A skin is validated by opening the archive
+and requiring `tileset.xml` and `sprites.png`; looking inside works whether or
+not the archive is password-protected, as three of the four shipped skins are.
+
+**A skin is the one import whose filename is not bookkeeping.** A level says
+`skin0="space"` and the loader goes looking for `levels/skins/space.zip`
+(`Level::getSkinFilename`). If an already-taken name made the import swerve to
+`space_2.zip`, the way the level and campaign imports do, every level naming
+`space` would stay just as broken - with no visible reason. A skin therefore
+**overwrites**, and the four names `zip_skins.bat` builds - `blocks_01`,
+`blocks_02`, `blocks_03`, `space` - are refused outright, because the shipped
+campaign is built on them and overwriting one would break the game for every
+other level. Add a skin to the game and it belongs in that list too.
+
+One caveat that is not worth code: re-importing a skin whose textures are
+already loaded shows the old artwork until the game is restarted, because
+`Manager<T>` caches by filename.
 
 ## Opening a campaign that arrived as a zip
 

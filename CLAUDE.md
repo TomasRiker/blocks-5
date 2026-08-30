@@ -393,6 +393,18 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
+In the browser that directory is IDBFS and there is nowhere to drop a file, so everything a
+player might install has an **Import ...** button instead, all four going through
+`WebBuild/web_transfer.cpp` on their own channel: a level and a skin in the level editor
+(the skin in the Settings window, beside the fields that name it), a campaign in the campaign
+editor and again on the Select Level screen — the second one because installing a campaign
+otherwise meant opening an editor. Every import validates into a staging path *outside* the
+home directory, and `sanitizeFilenameStem` reduces the browser's filename to `[A-Za-z0-9_-]`;
+C composes every destination path, never JS. **The skin is the one whose filename is its
+identity** — a level says `skin0="space"` and `Level::getSkinFilename` goes looking for
+`levels/skins/space.zip` — so a skin import overwrites rather than swerving to `space_2.zip`
+the way the others do, and the four names `zip_skins.bat` builds are refused outright.
+
 **Images** are decoded by `img_load.cpp`, not SDL_image. The game needs exactly one
 function from it — `IMG_Load_RW`, called from `texture.cpp` and for the window icon — and
 reads every texture through its own `SDL_RWops` over the encrypted `data.zip`. stb_image

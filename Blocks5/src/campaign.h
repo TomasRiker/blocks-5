@@ -25,6 +25,22 @@ public:
 	// Verweis auf eine lose Datei im Level-Ordner des Benutzers.
 	static LevelRef makeLooseRef(const std::string& filename);
 
+#ifdef __EMSCRIPTEN__
+	// Ein von aussen hereingereichtes Archiv annehmen. Getrennt in Pruefen und
+	// Ablegen, damit der Aufrufer "das ist keine Kampagne" und "das Kopieren
+	// ging schief" auseinanderhalten kann - und an einer Stelle, weil beide
+	// Wege ins Benutzerverzeichnis (Kampagnen-Editor und Levelauswahl) genau
+	// dieselbe Pruefung brauchen.
+	static bool isImportableArchive(const std::string& archivePath);
+
+	// Legt das gepruefte Archiv unter levels/campaigns/ ab und liefert den
+	// vergebenen Dateinamen, "" wenn das Kopieren fehlschlaegt. untrustedName
+	// ist der Wunschname aus dem Browser und nur ein Vorschlag; der Zielname
+	// wird hier gebildet und ist garantiert noch frei.
+	static std::string installArchive(const std::string& archivePath,
+									  const std::string& untrustedName);
+#endif
+
 	Campaign();
 	~Campaign();
 

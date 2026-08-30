@@ -6,6 +6,14 @@
       <Text>$LS_SELECT_CAMPAIGN</Text>
 		</StaticText>
     <ListBox name="Campaigns" x="40" y="60" w="220" h="150" />
+    <!-- Nur im Browser sichtbar. Dort wird die Liste darueber um genau diese
+         Hoehe gekuerzt (GS_SelectLevel::onEnter), damit auf dem Desktop, wo
+         man das ZIP einfach in "levels\campaigns" legt, alles bleibt, wie es
+         war. -->
+    <Button name="Import" x="40" y="188" w="220" h="22">
+      <Title>$LS_IMPORT_CAMPAIGN</Title>
+      <Font>tooltip_font.xml</Font>
+    </Button>
     <StaticText name="Static2" x="40" y="220">
       <Text>$LS_PROGRESS</Text>
     </StaticText>

@@ -217,6 +217,14 @@
 			<StaticText name="Static6" x="10" y="250" w="200" h="30">
 				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
 			</StaticText>
+			<!-- Nur im Browser sichtbar (siehe LevelEditorGUI). Hier, weil
+			     rechts neben den Skin-Feldern steht, wofuer der Knopf da ist:
+			     einen Namen eintragen kann man erst, wenn der Skin auch da
+			     ist. -->
+			<Button name="ImportSkin" x="230" y="246" w="150" h="24">
+				<Title>$LE_SETTINGS_IMPORT_SKIN</Title>
+				<Font>tooltip_font.xml</Font>
+			</Button>
 			<StaticText name="Static7" x="10" y="275"><Text>tileset.xml:</Text></StaticText>
 			<StaticText name="Static8" x="10" y="297"><Text>sprites.png:</Text></StaticText>
 			<StaticText name="Static9" x="10" y="319"><Text>particles.png:</Text></StaticText>
