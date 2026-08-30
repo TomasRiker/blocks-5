@@ -151,8 +151,8 @@ either, and a CRT that fails to link leaves sharp-fit alone.
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
 `src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
-`<Crt scanline= curvature= bloom= flicker=>`), because they are matters of taste rather than
-tuning.
+`<Crt scanline= curvature= bloom= flicker= scanflicker=>`), because they are matters of taste
+rather than tuning.
 
 The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
 an artifact of 240p: a console drew 240 lines into a 480-line raster. A VGA monitor showing
@@ -178,7 +178,9 @@ The flicker is the one part that reads the clock, and it has three terms — all
 none of them costs brightness, and all functions of `Time` alone, never of the previous frame,
 which is why none can turn into the xBR problem. A fast brightness shimmer at roughly 12, 19
 and 29 Hz (that is the part people mean by *flimmern*), a much weaker mains-hum bar rolling
-slowly down the picture, and the scan lines themselves crawling downward. Their frequencies
+slowly down the picture, and the scan lines themselves crawling downward. The first two are
+one slider (`Flicker`) and the third is its own (`ScanFlicker`), because wanting an unsteady
+brightness and wanting the line structure to drift are separate tastes. Their frequencies
 are whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds `SDL_GetTicks()` modulo
 that, so the clock wraps seamlessly. It is the wall clock and not `Engine::getTime()`, which
 counts logic ticks and stops when the game pauses — a screen flickers anyway. Measured at the

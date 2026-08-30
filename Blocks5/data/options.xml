@@ -138,11 +138,11 @@
 	     wirken sofort, damit man beim Schieben sieht, was sie tun;
 	     Abbrechen im Optionsfenster holt ueber loadConfig() die alten Werte
 	     zurueck. -->
-	<Window name="CrtOptions" w="300" h="250">
+	<Window name="CrtOptions" w="300" h="316">
 		<Title>$O_CRT_SETTINGS</Title>
 		<Center />
 		<Hidden />
-		<StaticText name="CrtScanText" x="12" y="30" w="270" h="14">
+		<StaticText name="CrtScanText" x="12" y="34" w="270" h="14">
 			<Text>$O_CRT_SCANLINE</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
@@ -150,31 +150,39 @@
 		<ScrollBar name="CrtScan" x="12" y="50" w="235" h="16">
 			<Receiver>CrtScanValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<StaticText name="CrtCurveText" x="12" y="74" w="270" h="14">
+		<StaticText name="CrtCurveText" x="12" y="82" w="270" h="14">
 			<Text>$O_CRT_CURVATURE</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<StaticText name="CrtCurveValue" x="258" y="94"><Text></Text></StaticText>
-		<ScrollBar name="CrtCurve" x="12" y="94" w="235" h="16">
+		<StaticText name="CrtCurveValue" x="258" y="98"><Text></Text></StaticText>
+		<ScrollBar name="CrtCurve" x="12" y="98" w="235" h="16">
 			<Receiver>CrtCurveValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<StaticText name="CrtBloomText" x="12" y="118" w="270" h="14">
+		<StaticText name="CrtBloomText" x="12" y="130" w="270" h="14">
 			<Text>$O_CRT_BLOOM</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<StaticText name="CrtBloomValue" x="258" y="138"><Text></Text></StaticText>
-		<ScrollBar name="CrtBloom" x="12" y="138" w="235" h="16">
+		<StaticText name="CrtBloomValue" x="258" y="146"><Text></Text></StaticText>
+		<ScrollBar name="CrtBloom" x="12" y="146" w="235" h="16">
 			<Receiver>CrtBloomValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<StaticText name="CrtFlickerText" x="12" y="162" w="270" h="14">
+		<StaticText name="CrtFlickerText" x="12" y="178" w="270" h="14">
 			<Text>$O_CRT_FLICKER</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<StaticText name="CrtFlickerValue" x="258" y="182"><Text></Text></StaticText>
-		<ScrollBar name="CrtFlicker" x="12" y="182" w="235" h="16">
+		<StaticText name="CrtFlickerValue" x="258" y="194"><Text></Text></StaticText>
+		<ScrollBar name="CrtFlicker" x="12" y="194" w="235" h="16">
 			<Receiver>CrtFlickerValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<Button name="CrtClose" x="85" y="212" w="130" h="26">
+		<StaticText name="CrtScanFlickerText" x="12" y="226" w="270" h="14">
+			<Text>$O_CRT_SCANFLICKER</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtScanFlickerValue" x="258" y="242"><Text></Text></StaticText>
+		<ScrollBar name="CrtScanFlicker" x="12" y="242" w="235" h="16">
+			<Receiver>CrtScanFlickerValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<Button name="CrtClose" x="85" y="274" w="130" h="26">
 			<Title>OK</Title>
 		</Button>
 	</Window>

@@ -217,9 +217,14 @@ $O_CRT_BLOOM
 §de:Leuchthof um helle Stellen:
 
 $O_CRT_FLICKER
-// Label above the flicker slider in the CRT settings
-§en:Flicker:
-§de:Flimmern:
+// Label above the brightness-flicker slider in the CRT settings
+§en:Flicker (brightness):
+§de:Flimmern (Helligkeit):
+
+$O_CRT_SCANFLICKER
+// Label above the scan-line drift slider in the CRT settings
+§en:Flicker (scan lines):
+§de:Flimmern (Zeilen):
 
 $O_CONTROLS
 // Caption of the controls section

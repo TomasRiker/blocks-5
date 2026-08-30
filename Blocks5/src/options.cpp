@@ -26,6 +26,7 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
@@ -142,6 +143,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0 * engine.getCrtBloom()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtFlicker()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtScanFlicker()));
 	getChild("CrtOptions")->hide();
 
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
@@ -213,6 +216,7 @@ void Options::handleClick(GUI_Element* p_element)
 		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
 		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());
 		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->getScroll());
+		engine.setCrtScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->getScroll());
 
 		if(name == "CrtSettings")
 		{

@@ -109,7 +109,7 @@ static const char* p_crtFragmentShader =
 	   BLOOM_STRENGTH ist der Wert bei Regler auf Anschlag; der Regler
 	   (Uniform Bloom) skaliert ihn. Auf 0 gesetzt faellt der ganze Block beim
 	   Uebersetzen weg - siehe unten. */
-	"const float BLOOM_STRENGTH  = 0.60;\n"
+	"const float BLOOM_STRENGTH  = 0.38;\n"
 	"const float BLOOM_THRESHOLD = 0.22;\n"
 	"const float BLOOM_RADIUS    = 2.5;\n"   /* innerer Ring, Quellpixel */
 	"const float BLOOM_OUTER     = 2.6;\n"   /* aeusserer Ring als Vielfaches davon */
@@ -133,16 +133,21 @@ static const char* p_crtFragmentShader =
 	/* Randabdunklung. 0 = aus. */
 	"const float VIGNETTE = 0.22;\n"
 
-	/* Flimmern, wie es ein alter Fernseher hatte. Der Hauptteil ist das
-	   schnelle Zittern der Helligkeit - das, was man als Flimmern sieht: drei
-	   Schwingungen um 12, 19 und 29 Hz, die sich staendig neu ueberlagern und
-	   nie in ein hoerbares Muster fallen. Dazu, viel schwaecher, das
-	   Netzbrummen: ein breites, dunkles Band, das langsam durchs Bild wandert,
-	   weil die Netzfrequenz gegen die Bildfrequenz schwebt.
+	/* Flimmern, wie es ein alter Fernseher hatte. Es sind zwei Dinge, und sie
+	   haben je einen eigenen Regler, weil man sie durchaus getrennt haben will:
 
-	   Beide haben Mittelwert null, kosten also keine Helligkeit, und beide
-	   haengen nur an der Uhr, nicht am vorigen Bild - der Fehler, an dem xBR
-	   gescheitert ist, kann hier nicht auftreten. Werte bei Regler auf
+	   "Flimmern" (Uniform Flicker) ist das schnelle Zittern der *Helligkeit* -
+	   drei Schwingungen um 12, 19 und 29 Hz, die sich staendig neu ueberlagern
+	   und nie in ein Muster fallen -, dazu viel schwaecher das Netzbrummen: ein
+	   breites, dunkles Band, das langsam durchs Bild wandert, weil die
+	   Netzfrequenz gegen die Bildfrequenz schwebt.
+
+	   "Zeilenflimmern" (Uniform ScanFlicker) betrifft die *Lage* der Zeilen:
+	   sie wandern langsam nach unten und zittern dabei. Siehe CRAWL_JITTER.
+
+	   Alle Anteile haben Mittelwert null, kosten also keine Helligkeit, und
+	   alle haengen nur an der Uhr, nicht am vorigen Bild - der Fehler, an dem
+	   xBR gescheitert ist, kann hier nicht auftreten. Werte bei Regler auf
 	   Anschlag; wem das Band nicht gefaellt, setzt HUM_DEPTH auf 0. */
 	"const float FLICKER_DEPTH = 0.055;\n"   /* schnelles Helligkeitszittern */
 	"const float HUM_DEPTH     = 0.022;\n"   /* Tiefe des wandernden Bandes */
@@ -189,7 +194,8 @@ static const char* p_crtFragmentShader =
 	"uniform float Scanline;\n"     /* Regler 0..1 */
 	"uniform float Curvature;\n"    /* Regler 0..1 */
 	"uniform float Bloom;\n"        /* Regler 0..1 */
-	"uniform float Flicker;\n"      /* Regler 0..1 */
+	"uniform float Flicker;\n"      /* Regler 0..1, Helligkeit */
+	"uniform float ScanFlicker;\n"  /* Regler 0..1, Lage der Zeilen */
 	"uniform float Time;\n"         /* Sekunden, 0 .. FLICKER_CYCLE */
 	"uniform float ScanPhase;\n"    /* Zeilenkriechen, 0..1 Perioden */
 	"varying vec2 texCoord;\n"
@@ -310,7 +316,7 @@ static const char* p_crtFragmentShader =
 	   schon frueher wiederholt. */
 	"    float hum = 0.0;\n"
 	"    float wob = 0.0;\n"
-	"    if(Flicker > 0.0)\n"
+	"    if(Flicker > 0.0 || ScanFlicker > 0.0)\n"
 	"    {\n"
 	"        float w = 6.2831853 / FLICKER_CYCLE;\n"
 	"        hum = sin((uv.y * HUM_BARS) * 6.2831853 - Time * w * HUM_ROLLS);\n"
@@ -327,7 +333,7 @@ static const char* p_crtFragmentShader =
 	   ScanPhase schiebt das ganze Muster langsam nach unten, CRAWL_JITTER
 	   laesst es dabei zittern. Ist Scanline 0, faellt beides von selbst weg -
 	   dann gibt es keine Zeilen, die kriechen koennten. */
-	"    float ph = sy / SCANLINE_PERIOD + ScanPhase + Flicker * CRAWL_JITTER * wob;\n"
+	"    float ph = sy / SCANLINE_PERIOD + ScanPhase + ScanFlicker * CRAWL_JITTER * wob;\n"
 	"    float dc = abs(fract(ph) - 0.5) * 2.0;\n"
 	"    float k  = BEAM_WIDTH * BEAM_WIDTH * 4.0;\n"
 	"    float beam = exp(-(dc * dc) / k);\n"

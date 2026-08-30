@@ -66,12 +66,13 @@ Engine::Engine()
 	sharpFit.program = 0;
 	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
 	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
-	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = -1;
+	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = sharpFit.scanFlicker = -1;
 	crt = sharpFit;
 	crtScanline = 0.5;
 	crtCurvature = 0.5;
 	crtBloom = 0.5;
 	crtFlicker = 0.5;
+	crtScanFlicker = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -1266,6 +1267,7 @@ bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragment
 	target.flicker     = glExtGetUniformLocation(target.program, "Flicker");
 	target.time        = glExtGetUniformLocation(target.program, "Time");
 	target.scanPhase   = glExtGetUniformLocation(target.program, "ScanPhase");
+	target.scanFlicker = glExtGetUniformLocation(target.program, "ScanFlicker");
 	return true;
 }
 
@@ -1274,7 +1276,7 @@ void Engine::destroyPresentProgram(PresentProgram& target)
 	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
 	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
 	target.scanline = target.curvature = target.bloom = target.flicker = -1;
-	target.time = target.scanPhase = -1;
+	target.time = target.scanPhase = target.scanFlicker = -1;
 }
 
 bool Engine::createPresentPrograms()
@@ -1330,6 +1332,11 @@ void Engine::setCrtBloom(double value)
 void Engine::setCrtFlicker(double value)
 {
 	crtFlicker = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtScanFlicker(double value)
+{
+	crtScanFlicker = clamp(value, 0.0, 1.0);
 }
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
@@ -2084,6 +2091,7 @@ void Engine::presentFrame()
 		if(prog.curvature >= 0)   glExtUniform1f(prog.curvature, static_cast<float>(crtCurvature));
 		if(prog.bloom >= 0)       glExtUniform1f(prog.bloom, static_cast<float>(crtBloom));
 		if(prog.flicker >= 0)     glExtUniform1f(prog.flicker, static_cast<float>(crtFlicker));
+		if(prog.scanFlicker >= 0) glExtUniform1f(prog.scanFlicker, static_cast<float>(crtScanFlicker));
 		// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten
 		// und bleibt stehen, wenn das Spiel pausiert; ein Bildschirm flimmert
 		// auch dann weiter. Der Umlauf ist genau FLICKER_CYCLE aus dem Shader,
@@ -2104,7 +2112,7 @@ void Engine::presentFrame()
 		if(prog.scanPhase >= 0)
 		{
 			glExtUniform1f(prog.scanPhase,
-						   static_cast<float>(fmod(seconds * crtCrawlSpeed * crtFlicker, 1.0)));
+						   static_cast<float>(fmod(seconds * crtCrawlSpeed * crtScanFlicker, 1.0)));
 		}
 
 		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
@@ -2977,6 +2985,8 @@ void Engine::loadConfig()
 				setCrtBloom(value);
 			if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)
 				setCrtFlicker(value);
+			if(p_crt->QueryDoubleAttribute("scanflicker", &value) == TIXML_SUCCESS)
+				setCrtScanFlicker(value);
 		}
 
 		// Vollbild und Fenstergröße lesen. Beide gelten erst beim nächsten
@@ -3113,6 +3123,7 @@ void Engine::saveConfig()
 	p_crt->SetDoubleAttribute("curvature", crtCurvature);
 	p_crt->SetDoubleAttribute("bloom", crtBloom);
 	p_crt->SetDoubleAttribute("flicker", crtFlicker);
+	p_crt->SetDoubleAttribute("scanflicker", crtScanFlicker);
 	p_config->LinkEndChild(p_crt);
 
 	if(windowedPositionKnown)

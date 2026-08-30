@@ -121,6 +121,26 @@ void GS_Menu::onUpdate()
 		fs.writeStringToFile("disable", fs.getAppHomeDirectory() + ".donation_asked");
 	}
 
+	// Escape beendet das Spiel. Das muss *vor* dem Abspielen der Demo stehen:
+	// gleich darunter werden alle 512 Tastenplaetze geleert und mit den
+	// aufgezeichneten Tastendruecken aus demo1.dat gefuellt, damit sich der
+	// Titellevel von selbst spielt. Ab da liest wasKeyPressed() die Aufnahme
+	// und nicht mehr die Tastatur - deshalb fragen auch die beiden Abfragen
+	// darueber SDL direkt. Der Escape-Druck von oben steht hier noch.
+	//
+	// Nicht, wenn die Spendenfrage offen ist - die hat ihre eigenen Knoepfe -,
+	// und nicht, wenn Optionen oder Hilfe die Taste eben selbst benutzt haben:
+	// die melden sie mit consumeKeyPress() ab, weil GUI::update() vor
+	// onUpdate() laeuft und sie sonst im selben Bild schliessen *und* das
+	// Spiel beenden wuerden.
+	if(engine.wasKeyPressed(SDLK_ESCAPE) && !gui["Menu.DonatePane"]->isVisible())
+	{
+		SDL_Event quitEvent;
+		quitEvent.type = SDL_QUIT;
+		SDL_PushEvent(&quitEvent);
+	}
+
+	// Ab hier gehoert die Tastatur der Demo.
 	for(int i = 0; i < 512; i++)
 	{
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
@@ -137,18 +157,6 @@ void GS_Menu::onUpdate()
 			int data = *j; j++;
 			engine.setKeyData(static_cast<SDLKey>(key), data);
 		}
-	}
-
-	// Escape im Hauptmenue beendet das Spiel. Nicht, wenn die Spendenfrage
-	// offen steht - die hat einen eigenen Knopf -, und nicht, wenn Optionen
-	// oder Hilfe die Taste gerade selbst benutzt haben: die melden sie mit
-	// consumeKeyPress() ab, weil GUI::update() vor onUpdate() laeuft und sie
-	// sonst im selben Bild schliessen *und* das Spiel beenden wuerden.
-	if(engine.wasKeyPressed(SDLK_ESCAPE) && !gui["Menu.DonatePane"]->isVisible())
-	{
-		SDL_Event event;
-		event.type = SDL_QUIT;
-		SDL_PushEvent(&event);
 	}
 
 	if(engine.wasKeyPressed(SDLK_TAB))
