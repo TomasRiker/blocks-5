@@ -1,9 +1,11 @@
-# Blocks 5 — WebAssembly port (spike)
+# Blocks 5 — WebAssembly port
 
-An Emscripten build of the game. **Status: it renders and plays.** The menu,
-level select and gameplay all draw correctly in a browser, with no GL errors.
-Everything here is additive: the Visual Studio build is untouched, and every
-change to `Blocks5/src` sits behind `#ifdef __EMSCRIPTEN__` or is a
+An Emscripten build of the game, and the one behind the "play in your browser"
+link for 1.2.0. It plays the whole campaign and runs both editors; recording
+video and taking screenshots are the only things it cannot do, and in exchange
+it has Import and Export buttons for moving levels, campaigns and skins between
+the browser and your machine. The Visual Studio build is untouched by all of
+it: every change to `Blocks5/src` sits behind `#ifdef __EMSCRIPTEN__` or is a
 standards-conformance or bug fix that MSVC also accepts.
 
 ## Building

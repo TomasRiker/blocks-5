@@ -28,9 +28,12 @@ Changelog
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no
             installation at all. Your progress, your own levels and
             your campaigns are stored by the browser, so they
-            survive closing the tab. Recording videos and taking
-            screenshots are the only things the browser version
-            cannot do. Look on the website for the link.
+            survive closing the tab. Levels, campaigns and skins
+            can be brought in from your computer with the Import
+            buttons, and your own work taken back out with Export.
+            Recording videos and taking screenshots are the only
+            things the browser version cannot do. Look on the
+            website for the link.
 
           - The game window can be resized now. Drag its edge to
             any size you like; the picture keeps its shape and
