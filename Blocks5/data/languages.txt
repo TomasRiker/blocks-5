@@ -1190,12 +1190,12 @@ $CE_DESCRIPTION
 
 $CE_DEFAULT_CAMPAIGN_TITLE
 // Default value for campaign name
-§en:Unnamed Campaign
+§en:Unnamed campaign
 §de:Unbenannte Kampagne
 
 $CE_DEFAULT_CAMPAIGN_DESCRIPTION#
 // Default value for campaign description
-§en:English Description
+§en:English description
 §de:Deutsche Beschreibung
 
 $CE_USE_BONUS_LEVEL
@@ -1357,6 +1357,7 @@ $H_HELP_PAGE2
 // Help page 2
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Level Editor</h>
+
 With the level editor, you can create your own levels.
 A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, for example, blocks, diamonds, grass, players or enemies.
 
@@ -1365,6 +1366,7 @@ At the screen's bottom, you can choose the layer you want to work on. It is impo
 You also see 5 categories: Tiles, Objects, Switches, Rails and Electronics. Here you can select what tile/object you want to place in the level. Simply click at one of these categories and choose the desired tile/object.
 // --------------------------------------------------------------------------------
 §de:<h>Der Level-Editor</h>
+
 Mit dem Level-Editor kannst du eigene Levels erzeugen.
 Levels bestehen aus zwei Ebenen (Layer), auf denen so genannte Tiles platziert werden, und aus einer Reihe von Objekten. Tiles sind Boden, Löcher oder (zerstörbare) Mauern. Sie können sich nicht bewegen. Objekte sind beispielsweise Blöcke, Diamanten, Gras, Spielfiguren oder Gegner.
 
@@ -1376,7 +1378,8 @@ Unten gibt es 5 Kategorien: Tiles, Objekte, Schalter, Schienen und Elektronik. H
 $H_HELP_PAGE3
 // Help page 3
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-§en:<h>The Tools</h>
+§en:<h>The Tools (1)</h>
+
 Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (for example a laser on a platform), hold the Shift key while drawing.
 
 Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold the Shift key while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding Shift). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
@@ -1385,7 +1388,8 @@ Rectangle: Draws a rectangle using the selected tile/object. Press the right mou
 
 Transition: Helps you drawing transitions between two types of ground on layer 0 (like lawn and sand).
 // --------------------------------------------------------------------------------
-§de:<h>Die Werkzeuge</h>
+§de:<h>Die Werkzeuge (1)</h>
+
 Zeichenstift: Zeichnet das gewählte Tile/Objekt. Die rechte Maustaste dient als Radiergummi. Achte bei Tiles darauf, dass du sie auf den richtigen Layer setzt! Objekte sind hingegen keinem Layer zugeordnet. Um mehrere Objekte übereinander zu setzen (z.B. einen Laser auf eine Plattform), halte Shift gedrückt.
 
 Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Objekt dazu einfach an. Manche Objekte lassen sich auf zwei Arten verändern. Halte dazu gleichzeitig die Shift-Taste gedrückt. Beispiel: Bei Kanonen kannst du durch normales Modifizieren die Farbe ändern. Beim Modifizieren mit Shift dreht sich die Kanone. Bei Hinweiszetteln kannst du durch Modifizieren den Text verändern und bei Teleportern durch Klicken und Ziehen den Zielort.
@@ -1399,6 +1403,7 @@ $H_HELP_PAGE4
 // Help page 4
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Tools (2)</h>
+
 Select: Allows you to select a certain area. You can then copy it by pressing Ctrl+C or move it around with the arrow keys. Press Del to clear the area. Ctrl+V pastes at the selection's top left corner. Press Ctrl+X to cut (copy and clear). If you want to move a single object, just place the cursor on it and move it around using the arrow keys.
 
 Pipette: Click at a tile/object in your level. It will then be used for the pen tool. With objects, all modifications will be adopted.
@@ -1406,6 +1411,7 @@ Pipette: Click at a tile/object in your level. It will then be used for the pen 
 Soldering iron: Use this tool to create connections between electronics parts. Simply click at the pins that you want to connect. The right mouse button deletes all connections at the selected pin. Attention: For every input, there should be exactly one output! Inputs are shown in green, outputs in red.
 // --------------------------------------------------------------------------------
 §de:<h>Die Werkzeuge (2)</h>
+
 Auswählen: Hiermit kannst du einen Bereich auswählen, um ihn dann beispielsweise mit Strg+C zu kopieren oder mit den Pfeiltasten zu bewegen. Mit Entf kannst du den gewählten Bereich leeren. Strg+V fügt bei der linken oberen Auswahlecke ein, und Strg+X schneidet aus (kopieren und leeren). Um ein einzelnes Objekt zu verschieben, reicht es, den Mauszeiger auf das Objekt zu setzen. Dann kannst du es mit den Pfeiltasten bewegen.
 
 Pipette: Klicke auf ein Tile/Objekt im Level, das dann genau so mit Hilfe des Zeichenstifts gezeichnet werden soll. Es werden alle Veränderungen, die du mit dem Modifizieren-Werkzeug gemacht hast, übernommen.
