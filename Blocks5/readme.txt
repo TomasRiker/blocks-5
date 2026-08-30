@@ -104,7 +104,7 @@ Changelog
             the game look like it is running on the sort of screen
             it was written for - a curved glass tube with a
             phosphor mask, a glow around bright things and scan
-            lines. "CRT settings ..." next to it has four sliders:
+            lines. "CRT settings ..." next to it has five sliders:
             the scan lines, the curvature of the screen, the glow
             around bright areas, and two kinds of flicker: an
             unsteady brightness, and the scan lines drifting
@@ -117,8 +117,9 @@ Changelog
 
           - Clicking the text next to a checkbox or a radio
             button now works the same as clicking the box
-            itself, and clicking the caption of a text field
-            puts the cursor into it.
+            itself - and so does clicking either of the two
+            language flags in the options. Clicking the caption
+            of a text field puts the cursor into it.
 
           - The game now starts in the language your system is
             set to, instead of always English. You can still
