@@ -2487,6 +2487,35 @@ bool Engine::wasKeyPressed(SDLKey key) const
 	return keyData[key] & 2 ? true : false;
 }
 
+void Engine::flushInput()
+{
+#ifndef __EMSCRIPTEN__
+	// Erst weg, was Windows waehrend des fremden Fensters aufgestaut hat -
+	// aber nur Tasten und Maus. SDL_VIDEORESIZE muss stehenbleiben: das
+	// Zurueckschalten ins Vollbild hat gerade eines erzeugt, und ohne dieses
+	// Ereignis erfaehrt handleResize() die neue Groesse nie.
+	SDL_Event events[32];
+	SDL_PumpEvents();
+	while(SDL_PeepEvents(events, 32, SDL_GETEVENT,
+						 SDL_EVENTMASK(SDL_KEYDOWN) |
+						 SDL_EVENTMASK(SDL_KEYUP) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONDOWN) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONUP) |
+						 SDL_EVENTMASK(SDL_MOUSEMOTION)) > 0) {}
+#endif
+
+	// ... dann der eigene Zustand, samt der "gedrueckt"- und
+	// "losgelassen"-Kennzeichen. Bliebe eine Maustaste als gedrueckt stehen,
+	// laese die GUI das naechste Loslassen als Klick auf das Element unter dem
+	// Zeiger - und das ist derselbe Knopf, der das Fenster geoeffnet hat.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
+	{
+		keyData[i] = 0;
+		buttonData[i] = 0;
+	}
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
+}
+
 void Engine::consumeKeyPress(SDLKey key)
 {
 	if(key < 0 || key >= NUM_KEY_SLOTS) return;

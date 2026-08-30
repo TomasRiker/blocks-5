@@ -181,6 +181,13 @@ public:
 	// der Optionsdialog sich gerade selbst geschlossen hat, und beendete das
 	// Spiel.
 	void consumeKeyPress(SDLKey key);
+
+	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist, und die
+	// SDL-Warteschlange leeren. Nach einem modalen Fenster - dem Dateidialog
+	// von Windows - ist der Eingabezustand nicht mehr vertrauenswuerdig: die
+	// fremde Nachrichtenschleife hat Ereignisse fuer dieses Fenster
+	// weitergereicht, die das Spiel als frischen Klick lesen wuerde.
+	void flushInput();
 	bool wasKeyReleased(SDLKey key) const;
 	void setKeyDown(SDLKey key, bool status);
 	void setKeyPressed(SDLKey key, bool status);

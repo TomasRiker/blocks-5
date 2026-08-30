@@ -3,12 +3,14 @@
 #include "filesystem.h"
 #include "file.h"
 #include "campaign.h"
+#include "engine.h"
 #include "util.h"
 
 #ifdef __EMSCRIPTEN__
 #include "web_transfer.h"
 #elif defined(_WIN32)
 #include <commdlg.h>
+#include <SDL_syswm.h>
 #endif
 
 namespace
@@ -322,12 +324,9 @@ namespace
 {
 	std::string g_pickedPath;
 	std::string g_pickedName;
-	int g_status = STATUS_BUSY;
+	int  g_status = STATUS_BUSY;
+	bool g_wantDialog = false;
 
-	// Ein modaler Dialog laesst die Hauptschleife stehen. Danach glaubt SDL
-	// unter Umstaenden noch, eine Maustaste sei unten - der naechste
-	// SDL_PollEvent raeumt das auf, aber der Klick, der den Dialog geoeffnet
-	// hat, darf nicht noch einmal durchschlagen.
 	void buildFilter(char* p_buffer, size_t size)
 	{
 		// Doppelt nullterminierte Liste, so will es die Common Dialog API.
@@ -346,39 +345,82 @@ namespace
 		}
 		if(at < size) p_buffer[at] = 0;
 	}
+
+	// Das Fenster des Spiels. Ohne Besitzer haengt der Dialog an nichts, und
+	// Windows haelt ihn dann nicht ueber dem Spielfenster.
+	HWND gameWindow()
+	{
+		SDL_SysWMinfo info;
+		SDL_VERSION(&info.version);
+		if(SDL_GetWMInfo(&info) && info.window) return info.window;
+		return GetActiveWindow();
+	}
+
+	// Ein modales Fenster ueber einem randlosen Vollbildfenster ist auf
+	// Windows die eine Anordnung, die zuverlaessig schiefgeht: das Spiel
+	// zeichnet nicht mehr - seine Schleife steht ja -, der Dialog ist hinter
+	// der Vollbildflaeche nicht zu sehen, und es sieht aus wie ein Absturz.
+	// Also fuer die Dauer des Dialogs ins Fenster und danach zurueck, so wie
+	// es jedes andere Spiel auch macht.
+	struct LeaveFullScreen
+	{
+		LeaveFullScreen() : wasFullScreen(Engine::inst().isFullScreen())
+		{
+			if(wasFullScreen) Engine::inst().setFullScreen(false);
+		}
+		~LeaveFullScreen()
+		{
+			if(wasFullScreen) Engine::inst().setFullScreen(true);
+			// Was die fremde Nachrichtenschleife durchgelassen hat, ist kein
+			// Klick des Spielers auf das Spiel.
+			Engine::inst().flushInput();
+		}
+		bool wasFullScreen;
+	};
 }
 
 bool beginImport()
 {
-	char filter[128] = "";
-	buildFilter(filter, sizeof(filter));
-
-	char file[MAX_PATH] = "";
-	OPENFILENAMEA ofn;
-	memset(&ofn, 0, sizeof(ofn));
-	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = GetActiveWindow();
-	ofn.lpstrFilter = filter;
-	ofn.lpstrFile = file;
-	ofn.nMaxFile = sizeof(file);
-	// OFN_NOCHANGEDIR ist Pflicht: das Spiel oeffnet data.zip relativ zum
-	// Arbeitsverzeichnis, und der Dialog wuerde es sonst verstellen.
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
-
-	if(!GetOpenFileNameA(&ofn))
-	{
-		g_status = STATUS_CANCELLED;
-		return true;
-	}
-
-	g_pickedPath = file;
-	g_pickedName = getFilenameFromPath(g_pickedPath);
-	g_status = STATUS_OK;
+	// Nur vormerken. Der Dialog laeuft eine Runde spaeter in pollImport(),
+	// denn hier stecken wir mitten in der Ereignisverteilung der GUI - ein
+	// modales Fenster startet dort eine zweite Nachrichtenschleife, waehrend
+	// GUI_Button::onMouseUp noch nicht zu Ende ist.
+	if(g_wantDialog) return false;
+	g_wantDialog = true;
 	return true;
 }
 
 int pollImport(std::string& path, std::string& untrustedName)
 {
+	if(g_wantDialog)
+	{
+		g_wantDialog = false;
+
+		char filter[128] = "";
+		buildFilter(filter, sizeof(filter));
+
+		char file[MAX_PATH] = "";
+		OPENFILENAMEA ofn;
+		memset(&ofn, 0, sizeof(ofn));
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = gameWindow();
+		ofn.lpstrFilter = filter;
+		ofn.lpstrFile = file;
+		ofn.nMaxFile = sizeof(file);
+		// OFN_NOCHANGEDIR ist Pflicht: das Spiel oeffnet data.zip relativ zum
+		// Arbeitsverzeichnis, und der Dialog wuerde es sonst verstellen.
+		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
+
+		LeaveFullScreen windowed;
+		if(GetOpenFileNameA(&ofn))
+		{
+			g_pickedPath = file;
+			g_pickedName = getFilenameFromPath(g_pickedPath);
+			g_status = STATUS_OK;
+		}
+		else g_status = STATUS_CANCELLED;
+	}
+
 	const int status = g_status;
 	if(status == STATUS_BUSY) return STATUS_BUSY;
 	g_status = STATUS_BUSY;
@@ -397,6 +439,7 @@ void finishImport()
 
 void abandonImport()
 {
+	g_wantDialog = false;
 	g_status = STATUS_BUSY;
 	finishImport();
 }
@@ -415,14 +458,17 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	OPENFILENAMEA ofn;
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = GetActiveWindow();
+	ofn.hwndOwner = gameWindow();
 	ofn.lpstrFilter = filter;
 	ofn.lpstrFile = file;
 	ofn.nMaxFile = sizeof(file);
 	ofn.lpstrDefExt = extensionFor(kind) + 1;   // ohne den Punkt
 	ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
 
-	if(!GetSaveFileNameA(&ofn)) return false;   // abgebrochen, kein Fehler
+	{
+		LeaveFullScreen windowed;
+		if(!GetSaveFileNameA(&ofn)) return false;   // abgebrochen, kein Fehler
+	}
 
 	if(!exportTo(kind, name, file))
 	{
