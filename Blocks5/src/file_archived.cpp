@@ -14,11 +14,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	size = 0;
 	eof = false;
 
-	// Ohne Mitgliedsnamen gibt es nichts zu lesen und nichts zu schreiben -
-	// ausser dem Inhaltsverzeichnis selbst. FM_LIST ist genau das, und dort
-	// wird objectName unten gar nicht angesehen.
-	if(archiveFilename.empty() ||
-	   (objectName.empty() && mode != FileSystem::FM_LIST))
+	if(archiveFilename.empty() || objectName.empty())
 	{
 		error = 1;
 		return;

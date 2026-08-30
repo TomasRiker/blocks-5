@@ -223,10 +223,12 @@ composes none. The browser's filename is only a suggestion, run through
 durable immediately rather than up to five seconds later.
 
 Export asks for the kind first, lists what is installed, and re-reads that list
-on every switch and on *Refresh*. A password-protected skin is re-packed
-decrypted on the way out - see the note in `transfer.cpp`; three of the four
-shipped skins are packed with a password, and handing one over byte for byte
-would give the recipient an archive nothing opens.
+on every switch and on *Refresh*. What it writes is a plain copy - including for
+a password-protected skin, where decrypting on the way out would be a back door
+around the reason it is packed that way. Such an archive cannot be opened by the
+recipient but is still perfectly usable by their game: the password travels
+inside it as `password.txt`, and `Level::getSkinFilename` reads that from any
+skin archive under any filename.
 
 A level can also borrow a track from the shipped campaign with
 `musicFilename="blocks:music2.ogg"`, which is what makes music usable here at

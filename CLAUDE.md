@@ -420,14 +420,13 @@ set where `GL_REPEAT` could never have worked. The game's own art is all power-o
 exists for imported skins alone.
 
 **Export asks what kind first** (four `ButtonLook` radio buttons), lists what is installed of
-that kind, and re-reads the list on every switch and on *Refresh*. **A password-protected skin is
-re-packed decrypted on the way out**: `zip_skins.bat` packs three of the four shipped skins with
-`-ptrockeneiskaefer` and stores that password, encrypted, as a `password.txt` member — copied
-byte for byte the recipient would get an archive nothing can open, and forking a built-in skin is
-the whole point of exporting one. Listing an archive's members for that turned up two bugs in the
-virtual filesystem, both fixed: `convertPath`'s scan stopped one character early, so a path
-ending exactly in `.zip/` was not recognised as an archive at all, and `File_Archived` rejected
-an empty member name even in `FM_LIST`, where it is the only thing that makes sense.
+that kind, and re-reads the list on every switch and on *Refresh*. What it writes is a **plain
+copy**. That matters for skins: `zip_skins.bat` packs three of the four shipped ones with
+`-ptrockeneiskaefer`, and decrypting them on the way out would be a back door around the very
+protection they are packed for. The recipient cannot open such an archive — but can still *use*
+it, because the password rides along inside it as `password.txt` and `Level::getSkinFilename`
+reads that out of any skin archive whatever its filename. A skin somebody made themselves has no
+password anyway, and that is the one people actually share.
 
 **A level can borrow the shipped campaign's music**: `musicFilename="blocks:music2.ogg"` resolves
 through `Campaign::resolveMusicPath` to `levels/campaigns/blocks.zip[pw]/music2.ogg` instead of a

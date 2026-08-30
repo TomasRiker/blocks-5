@@ -70,17 +70,6 @@ namespace
 		return false;
 	}
 
-	// Ein Skin-Archiv, so geoeffnet, dass man hineinsieht: liegt eine
-	// password.txt darin, steht dort das verschluesselte Passwort fuer alles
-	// andere (siehe Level::getSkinFilename).
-	std::string skinArchiveWithPassword(const std::string& archive)
-	{
-		FileSystem& fs = FileSystem::inst();
-		const std::string pwFile(archive + "/password.txt");
-		if(!fs.fileExists(pwFile)) return archive;
-		return archive + "[" + fs.readStringFromFile(pwFile) + "]";
-	}
-
 	// Einen freien Namen in dir finden: stem.ext, sonst stem_2.ext ...
 	std::string uniqueName(const std::string& dir,
 						   const std::string& stem,
@@ -224,34 +213,17 @@ std::string suggestedFilename(Kind kind, const std::string& name)
 
 bool exportTo(Kind kind, const std::string& name, const std::string& destPath)
 {
+	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der
+	// vier mitgelieferten sind mit einem Passwort gepackt, und sie beim
+	// Hinausgehen zu entschluesseln waere eine Hintertuer um genau den
+	// Schutz herum, dessentwegen sie gepackt sind. Der Empfaenger kann das
+	// Archiv nicht oeffnen - benutzen kann er es trotzdem: das Passwort
+	// liegt als password.txt darin, und Level::getSkinFilename liest es aus
+	// jedem Skin-Archiv, unter welchem Namen es auch immer abgelegt wurde.
+	// Ein selbstgemachter Skin hat ohnehin keines.
 	FileSystem& fs = FileSystem::inst();
 	const std::string source(directoryFor(kind) + name);
 	if(!fs.fileExists(source)) return false;
-
-	// Drei der vier mitgelieferten Skins sind mit einem Passwort gepackt
-	// (zip_skins.bat), das als password.txt verschluesselt im Archiv liegt.
-	// Byte fuer Byte kopiert bekaeme der Empfaenger ein Archiv, das er nicht
-	// aufbekommt - und "den Skin forken" ist genau der Grund, aus dem man
-	// einen exportiert. Also entschluesselt neu packen.
-	if(kind == KIND_SKIN)
-	{
-		const std::string opened(skinArchiveWithPassword(source));
-		if(opened != source)
-		{
-			bool ok = true;
-			std::list<std::string> members = fs.listDirectory(source + "/");
-			for(std::list<std::string>::const_iterator i = members.begin(); i != members.end(); ++i)
-			{
-				// password.txt gehoert zum verschluesselten Archiv und hat im
-				// offenen nichts zu suchen.
-				if(*i == "password.txt") continue;
-				if(!isSafeMemberName(*i)) continue;
-				ok &= fs.copyFile(opened + "/" + *i, destPath + "/" + *i);
-			}
-			return ok;
-		}
-	}
-
 	return fs.copyFile(source, destPath);
 }
 
@@ -452,8 +424,6 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 
 	if(!GetSaveFileNameA(&ofn)) return false;   // abgebrochen, kein Fehler
 
-	// Ein Skin wird neu gepackt, und dazu muss das Ziel leer sein.
-	FileSystem::inst().deleteFile(file);
 	if(!exportTo(kind, name, file))
 	{
 		errorId = "$TR_ERROR_FAILED";

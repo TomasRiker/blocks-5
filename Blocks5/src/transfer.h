@@ -51,9 +51,8 @@ namespace Transfer
 	// Der Name, den ein Export vorschlagen soll.
 	std::string suggestedFilename(Kind kind, const std::string& name);
 
-	// Schreibt eine Sache nach destPath. Ein passwortgeschuetzter Skin wird
-	// dabei entschluesselt neu gepackt - sonst bekaeme der Empfaenger ein
-	// Archiv, das kein Programm der Welt aufbekommt.
+	// Schreibt eine Sache nach destPath - eine Kopie, unveraendert. Ein
+	// passwortgeschuetztes Archiv bleibt geschuetzt.
 	bool exportTo(Kind kind, const std::string& name, const std::string& destPath);
 
 	// --- der Dateidialog ---------------------------------------------------
