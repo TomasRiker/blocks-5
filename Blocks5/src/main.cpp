@@ -62,7 +62,12 @@ std::string getCurrentVersion()
 
 		static DWORD WINAPI threadProc(void* p_param)
 		{
-			HINTERNET inet = InternetOpenA("Scherfgen-Software Blocks 5", INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
+			// Die Versionsnummer gehoert mit in die Kennung: im Serverprotokoll
+			// steht dann, welche Fassung gerade nachfragt. Aeltere Installationen
+			// schicken weiterhin den blossen Namen ohne Klammer - genau daran
+			// sind sie zu erkennen.
+			const std::string agent = std::string("Scherfgen-Software Blocks 5 (v") + p_localVersion + ")";
+			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return 1;
 
 			// INTERNET_FLAG_SECURE braucht InternetOpenUrl nicht gesagt zu bekommen -
