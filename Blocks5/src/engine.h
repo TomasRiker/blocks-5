@@ -99,6 +99,17 @@ public:
 	// damit, was in der config.xml steht.
 	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
+#ifdef _WIN32
+	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht:
+	// Windows haelt sie in einer eigenen Nachrichtenschleife fest. Das hier
+	// zeichnet das zuletzt gerenderte Bild in der neuen Groesse noch einmal,
+	// damit wenigstens die Skalierung mitkommt. Keine Spiellogik.
+	void repaintDuringSizeMove();
+	void setInSizeMove(bool value) { inSizeMove = value; }
+	// Kleinste Fenstergroesse, die handleResize() zulaesst, als Fensterrechteck
+	// samt Rahmen - fuer WM_GETMINMAXINFO.
+	Vec2i getMinimumWindowSize() const;
+#endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
@@ -230,6 +241,11 @@ private:
 	Vec2i windowedPosition;    // dito fuer die Position; (-1,-1) = noch keine
 	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
 	void restoreWindowPosition();     // setzt sie beim Start wieder
+#ifdef _WIN32
+	void hookWindowProc();            // eigene Fensterprozedur davorschalten
+	void unhookWindowProc();          // und wieder herausnehmen
+	bool inSizeMove;                  // Benutzer haelt gerade Rand oder Titel
+#endif
 	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
 	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
 	SDL_Surface* p_display;

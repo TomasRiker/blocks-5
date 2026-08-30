@@ -804,6 +804,49 @@ the command line says anything. The templates `_config_en.xml` / `_config_de.xml
 the installer copies still set only `<Language>`, which is right — the rest should
 come from the defaults on a fresh install.
 
+One thing SDL could not give and the window procedure had to: while the user
+holds the border or the title bar, `DefWindowProc` runs its own modal message
+loop and the game's main loop sits in `SDL_PollEvent` until the mouse comes up -
+so the picture froze for the length of every drag. SDL 1.2 does not handle
+`WM_ENTERSIZEMOVE` or `WM_EXITSIZEMOVE` at all, it passes both to
+`DefWindowProc`, so `Engine::hookWindowProc` puts a procedure in front of SDL's
+with `SetWindowLongPtr(GWLP_WNDPROC)`. That is safe here for a reason worth
+writing down: the HWND is created exactly once, in `DIB_CreateWindow` from
+`DIB_VideoInit`, and no later `SDL_SetVideoMode` replaces it - and it is the same
+subclassing SDL itself performs when `SDL_WINDOWID` is set.
+
+`WM_ENTERSIZEMOVE` starts a 15 ms timer, and `WM_SIZE` and `WM_TIMER` both
+re-present the framebuffer at the current client size. Two signals rather than
+one because each covers the other's gap: `WM_SIZE` arrives on every drag step but
+never while the user holds still, and `WM_TIMER` is low priority and gets starved
+by mouse messages exactly while dragging. No logic runs in there - one
+`presentFrame` of the frame already in the FBO, nothing more.
+
+Two traps, both hit while writing it:
+
+- `SDL_SetVideoMode` must not be called during the drag. It calls `SetWindowPos`,
+  which fights the user's own drag.
+- The repaint therefore updates `displaySize` itself - but it has to put the old
+  value back before returning. `handleResize` early-returns when the size has not
+  changed, so leaving the new size in place means the `SDL_VIDEORESIZE` that
+  arrives after the drag looks like a no-op, `SDL_SetVideoMode` never runs, and
+  SDL's own surface stays at the pre-drag size for the rest of the session.
+
+The same procedure answers `WM_GETMINMAXINFO`, chaining to `DefWindowProc` first
+because it fills four fields besides the one being overridden, with 640x480 of
+client area grown by `AdjustWindowRectEx`. `handleResize` already refused to go
+below the internal resolution; now the frame stops there during the drag instead
+of springing back afterwards.
+
+Verified as far as this machine allows: a standalone Win32 program built with
+mingw and run under Wine confirms the subclass captures the previous procedure,
+that `WM_ENTERSIZEMOVE` reaches it, that a timer started there delivers `WM_TIMER`
+*inside* the modal loop and the repaint runs, that `WM_EXITSIZEMOVE` and the
+unhook are clean, and that the `WM_GETMINMAXINFO` arithmetic clamps a window
+asked to be 200x150 to exactly 648x514. What it cannot show is a long drag - Wine
+will not hold the modal loop open for synthetic input - nor anything about the GL
+present, which needs the real game on Windows.
+
 The browser needs none of SDL for this: the canvas fills the page and follows the
 browser window (`WebBuild/pre.js`), the Fullscreen API does the rest, the WebGL
 context survives both, and the letterbox arithmetic is the same code. Two things

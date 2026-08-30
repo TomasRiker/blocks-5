@@ -73,6 +73,15 @@ Changelog
                              steps and does not fill the window
               Smooth         plain stretching, blurry
 
+          - The picture now keeps up while you drag the window's
+            edge. It used to freeze until you let go, because
+            Windows stops the game while a window is being
+            resized or moved.
+
+            The window also cannot be dragged smaller than the
+            640x480 the game draws; it used to let you, then
+            snap back when you released it.
+
           - The mouse pointer is twice as big. It used to be drawn
             by Windows at a fixed size while everything around it
             grew with the window, which left it looking tiny.
@@ -83,6 +92,9 @@ Changelog
           - Fixed: a hint note could be seen for a fraction of a
             second at the wrong place before unfolding, usually
             when stepping onto the same note a second time.
+
+          - Fixed: a cannon that was turning when you saved came
+            back pointing the wrong way after loading.
 
           - Fixed: in the level editor, switching the electricity
             on or off could not be undone, and undoing it threw

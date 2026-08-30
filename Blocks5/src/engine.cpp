@@ -55,6 +55,9 @@ Engine::Engine()
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
 	windowedPosition = Vec2i(-1, -1);
+#ifdef _WIN32
+	inSizeMove = false;
+#endif
 	savedWindowStyle = 0;
 	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	sharpFitProgram = 0;
@@ -310,6 +313,11 @@ bool Engine::init(const std::string& windowCaption,
 	// Dorthin, wo es zuletzt stand.
 	restoreWindowPosition();
 
+#ifdef _WIN32
+	// Ab jetzt steht das Fenster, und die eigene Fensterprozedur kann davor.
+	hookWindowProc();
+#endif
+
 	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - das Fenster
 	// steht, der Kontext auch.
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
@@ -524,6 +532,11 @@ void Engine::exit()
 	// GUI herunterfahren
 	printfLog("* Shutting down GUI ...\n");
 	GUI::inst().exit();
+
+#ifdef _WIN32
+	// Eigene Fensterprozedur wieder heraus, bevor SDL das Fenster abbaut.
+	unhookWindowProc();
+#endif
 
 	// Bildpuffer freigeben, solange der GL-Kontext noch steht
 	destroySharpFitProgram();
@@ -1493,6 +1506,188 @@ void Engine::restoreWindowPosition()
 				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 #endif
 }
+
+#ifdef _WIN32
+// Windows haelt die Anwendung an, solange der Benutzer den Fensterrand oder die
+// Titelzeile festhaelt: WM_NCLBUTTONDOWN landet in DefWindowProc, und die dreht
+// bis zum Loslassen eine eigene Nachrichtenschleife. Die Hauptschleife des
+// Spiels steckt derweil in SDL_PollEvent fest, es wird nichts gezeichnet, und
+// das Fenster zeigt beim Ziehen ein eingefrorenes oder leeres Bild.
+//
+// Herauskommt man da nur ueber die Fensterprozedur, denn die laeuft in dieser
+// Schleife weiter. SDL 1.2 kennt WM_ENTERSIZEMOVE und WM_EXITSIZEMOVE nicht und
+// reicht beides an DefWindowProc durch, also wird SDLs Prozedur eine eigene
+// vorgeschaltet. Das ist derselbe Kniff, den SDL fuer SDL_WINDOWID selbst
+// benutzt (DIB_CreateWindow in SDL_dibevents.c), und das Fenster entsteht genau
+// einmal in DIB_VideoInit - ein weiteres SDL_SetVideoMode legt kein neues an,
+// die Prozedur bleibt also haengen, wo sie ist.
+static WNDPROC p_sdlWindowProc = 0;
+static const UINT_PTR SIZEMOVE_TIMER_ID = 0xB5;
+
+static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	// Sollte nicht vorkommen - nach unhookWindowProc() ist diese Funktion nicht
+	// mehr die Fensterprozedur -, aber ein Nullzeiger in CallWindowProc waere
+	// ein Absturz beim Beenden, und das ist es nicht wert.
+	if(!p_sdlWindowProc) return DefWindowProc(hwnd, msg, wParam, lParam);
+
+	Engine& engine = Engine::inst();
+
+	switch(msg)
+	{
+	case WM_ENTERSIZEMOVE:
+		engine.setInSizeMove(true);
+		// Der Zeitgeber ist fuer den Fall, dass der Benutzer den Rand
+		// festhaelt, ohne ihn zu bewegen: dann kommt kein WM_SIZE mehr, und
+		// ohne ihn stuende das Bild wieder. WM_TIMER hat niedrige Prioritaet
+		// und wird waehrend einer Bewegung von den Mausnachrichten verdraengt -
+		// genau dann zeichnet aber WM_SIZE.
+		SetTimer(hwnd, SIZEMOVE_TIMER_ID, 15, 0);
+		break;
+
+	case WM_EXITSIZEMOVE:
+		KillTimer(hwnd, SIZEMOVE_TIMER_ID);
+		engine.setInSizeMove(false);
+		// Aufgeraeumt wird nicht hier: SDL hat aus WM_WINDOWPOSCHANGED laengst
+		// ein SDL_VIDEORESIZE gemacht, und handleResize() zieht die SDL-Seite
+		// nach, sobald die Hauptschleife wieder laeuft.
+		break;
+
+	case WM_TIMER:
+		if(wParam == SIZEMOVE_TIMER_ID)
+		{
+			engine.repaintDuringSizeMove();
+			return 0;
+		}
+		break;
+
+	case WM_SIZE:
+		// Waehrend des Ziehens die eigentliche Quelle: kommt bei jedem Schritt.
+		if(wParam != SIZE_MINIMIZED) engine.repaintDuringSizeMove();
+		break;
+
+	case WM_GETMINMAXINFO:
+		{
+			// handleResize() klemmt ohnehin auf mindestens 640x480 hoch. Das
+			// hier sagt es Windows vorher, damit der Rahmen schon beim Ziehen
+			// stehenbleibt, statt hinterher zurueckzuspringen.
+			//
+			// Erst weiterreichen, dann aendern: die Struktur hat noch vier
+			// weitere Felder - Groesse und Lage im maximierten Zustand und die
+			// Obergrenze -, und die fuellt DefWindowProc. Wer hier einfach
+			// selbst antwortet, laesst sie auf Verdacht stehen.
+			const LRESULT result = CallWindowProc(p_sdlWindowProc, hwnd, msg, wParam, lParam);
+
+			const Vec2i minimum = engine.getMinimumWindowSize();
+			if(minimum.x > 0 && minimum.y > 0)
+			{
+				MINMAXINFO* p_info = reinterpret_cast<MINMAXINFO*>(lParam);
+				p_info->ptMinTrackSize.x = minimum.x;
+				p_info->ptMinTrackSize.y = minimum.y;
+			}
+
+			return result;
+		}
+	}
+
+	return CallWindowProc(p_sdlWindowProc, hwnd, msg, wParam, lParam);
+}
+
+void Engine::hookWindowProc()
+{
+	if(p_sdlWindowProc) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	p_sdlWindowProc = reinterpret_cast<WNDPROC>(
+		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(engineWindowProc)));
+}
+
+void Engine::unhookWindowProc()
+{
+	if(!p_sdlWindowProc) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window)
+	{
+		KillTimer(info.window, SIZEMOVE_TIMER_ID);
+		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(p_sdlWindowProc));
+	}
+
+	p_sdlWindowProc = 0;
+}
+
+Vec2i Engine::getMinimumWindowSize() const
+{
+	if(fullScreen) return Vec2i(0, 0);   // im Vollbild zieht niemand am Rand
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return Vec2i(0, 0);
+
+	// Von der gewuenschten Nutzflaeche auf das Fensterrechteck: Rahmen und
+	// Titelzeile kommen dazu, und wie dick die sind, weiss nur Windows.
+	RECT r = { 0, 0, screenSize.x, screenSize.y };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(!AdjustWindowRectEx(&r, style, FALSE, exStyle)) return Vec2i(0, 0);
+
+	return Vec2i(r.right - r.left, r.bottom - r.top);
+}
+
+void Engine::repaintDuringSizeMove()
+{
+	// Nur waehrend der fremden Nachrichtenschleife. Ausserhalb zeichnet die
+	// Hauptschleife, und die soll sich nichts dazwischenfunken lassen.
+	if(!inSizeMove || !initialized || !useFrameBuffer) return;
+
+	// SwapBuffers kann seinerseits Nachrichten zustellen; ein zweiter Durchlauf
+	// mitten im ersten waere schlecht.
+	static bool busy = false;
+	if(busy) return;
+	busy = true;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	RECT client;
+	if(SDL_GetWMInfo(&info) && info.window && GetClientRect(info.window, &client))
+	{
+		const int w = client.right - client.left;
+		const int h = client.bottom - client.top;
+
+		// displaySize wird nur geliehen, nicht gesetzt. Bewusst ohne
+		// SDL_SetVideoMode - das ruft SetWindowPos und wuerde dem Benutzer
+		// waehrend des Ziehens ins Handwerk pfuschen; der GL-Kontext haengt am
+		// Fenster und waechst von allein mit, presentFrame() braucht nur die
+		// Zahl. Die SDL-Seite zieht handleResize() nach, sobald die
+		// Hauptschleife wieder laeuft - und die erkennt eine Aenderung nur,
+		// wenn displaySize hier so bleibt, wie SDL es kennt. Sonst faende sie
+		// die neue Groesse gleich der alten, kaeme nie zu SDL_SetVideoMode, und
+		// SDLs Oberflaeche bliebe fuer immer auf der alten Groesse stehen.
+		if(w > 0 && h > 0)
+		{
+			const Vec2i knownToSDL = displaySize;
+
+			displaySize = Vec2i(w, h);
+
+			// Der Bildpuffer haelt das zuletzt gerenderte Bild noch - genau das
+			// kommt jetzt in der neuen Groesse auf den Schirm, mit Balken und
+			// Filter.
+			unbindFrameBuffer();
+			presentFrame();
+			SDL_GL_SwapBuffers();
+
+			displaySize = knownToSDL;
+			unbindFrameBuffer();   // glViewport wieder passend zurueckstellen
+		}
+	}
+
+	busy = false;
+}
+#endif
 
 void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {

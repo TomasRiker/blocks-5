@@ -166,7 +166,26 @@ style to `WS_POPUP` and the size to the desktop directly, SDL notices through it
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
 place that owns `displaySize` — picks it up. Dragging the border and Alt+Return therefore
 run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
-sees a bare Return. Size, position and fullscreen state persist as `<WindowSize>`,
+sees a bare Return.
+
+**Drawing while the border is dragged** needs one thing SDL cannot give: while the user holds
+the border or the title bar, `DefWindowProc` runs *its own* modal message loop and the main
+loop sits in `SDL_PollEvent` until the mouse comes up. The only code that still runs is the
+window procedure, so `Engine::hookWindowProc` puts one in front of SDL's with
+`SetWindowLongPtr(GWLP_WNDPROC)` — the same subclassing SDL itself does for `SDL_WINDOWID`,
+and safe because the HWND is created once in `DIB_VideoInit` and no later `SDL_SetVideoMode`
+replaces it. `WM_ENTERSIZEMOVE` starts a 15 ms timer; `WM_SIZE` (every drag step) and
+`WM_TIMER` (when the user holds still, where no `WM_SIZE` comes) both call
+`repaintDuringSizeMove`, which re-presents the framebuffer at the new client size — the
+upscaler, the letterbox and the aspect all track the drag live. No logic tick runs: one
+`presentFrame` of the last rendered frame, nothing else. It **borrows** `displaySize` and puts
+it back, because `handleResize` early-returns on an unchanged size and would then never call
+`SDL_SetVideoMode`, leaving SDL's own surface stuck at the old size forever.
+`SDL_SetVideoMode` must *not* be called during the drag — it calls `SetWindowPos` and fights
+the user's mouse. The same procedure answers `WM_GETMINMAXINFO` (chaining first, since
+`DefWindowProc` fills four other fields) with 640x480 client plus the frame from
+`AdjustWindowRectEx`, so the 640x480 floor `handleResize` enforces is applied *during* the
+drag instead of snapping back after it. Size, position and fullscreen state persist as `<WindowSize>`,
 `<WindowPosition>` and `<Fullscreen>`, written by `Engine::exit` — until then the only
 caller of `saveConfig` was the options dialog's OK, so simply resizing and quitting lost
 the size. `rememberWindowPlacement` reads the placement off the HWND, and in fullscreen
