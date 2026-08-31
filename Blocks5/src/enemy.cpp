@@ -417,7 +417,7 @@ void Enemy::onCollect(Player* p_player)
 				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				p.color = p_player->getDebrisColor();
+				p.color = p_player->getDebrisColor() + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
@@ -455,7 +455,7 @@ void Enemy::onCollect(Player* p_player)
 				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				p.color = p_player->getDebrisColor();
+				p.color = p_player->getDebrisColor() + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
