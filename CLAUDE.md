@@ -94,9 +94,13 @@ does that for you; it has to come last, because every argument after it goes to 
 untouched (`Build.bat Debug /rebuild /run -windowed`). There are **no tests and no
 linter**.
 
-Command line / launcher scripts: `-windowed` (`windowed.bat`) and `-fullscreen` — that is
-the whole list. The upscaling filter is *not* a switch; it is an in-game option like the
-language, saved as `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
+Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen` and
+`-nosplash` — that is the whole list, and `readme.txt` documents all three. `-nosplash`
+skips the logo and the jingle by *not requesting* `logo.png`, which is the path
+`GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
+`true`, because the jingle hangs off the time threshold rather than off the logo. The
+upscaling filter is *not* a switch; it is an in-game option like the language, saved as
+`<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
 subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem
 and dumps a stack trace via `StackWalker` on an exception.
 
@@ -313,7 +317,9 @@ not a round number chosen by feel: it is the largest margin under which 1920x108
 the most common desktop, still gets 2x. 2*480 is 960 and 1080-120 is 960, so it fits with
 nothing to spare; at 121 it would drop to 1x. The same value goes horizontally, where it
 is pure slack at every common resolution, because a taskbar is not always at the bottom.
-`-windowed`/`-fullscreen` override the flag for one run. In the browser the
+`-windowed`/`-fullscreen` decide the mode for that start, and because `Engine::exit`
+always saves, the mode it leaves the game in is the one written back to `config.xml` —
+they set the state rather than overriding it for one run. In the browser the
 canvas fills the page (`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a
 real DOM keydown — the main loop's own events do not count as a user gesture — and the main
 loop reads the canvas size once a frame, which catches both.

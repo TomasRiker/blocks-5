@@ -23,6 +23,25 @@ However, if you want to make your own levels, having a look at the
 help is probably a good idea.
 
 
+Command Line Options
+====================
+Blocks 5 understands three options. Upper and lower case do not
+matter.
+
+    -windowed      Start in a window.
+    -fullscreen    Start in full screen.
+    -nosplash      Skip the logo and the jingle and go straight
+                   to the main menu.
+
+The first two do the same as picking the window or full screen
+inside the game, and the choice is remembered: the next start
+uses it again, with or without the option. "windowed.bat" next
+to the game is a ready-made shortcut for the first one.
+
+While playing you can switch between the two at any time with
+Alt+Return.
+
+
 Changelog
 =========
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no
