@@ -1013,7 +1013,7 @@ accept both (one `||` in `engine.cpp:769`, and the same in the `SDL_KEYUP` arm
 at 785 so `swallowedReturn` still balances) or keep it to the main key and say
 so. Worth settling before it goes in the help, because the two spellings differ
 too: SDL and this codebase say *Return*, while Windows and most keyboard caps
-say *Enter*. `readme.txt` currently says Alt+Return.
+say *Enter*. `readme.txt` says Alt+Enter, on that reasoning.
 
 **Where the help text lives.** Six pages, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in
 `data/languages.txt`; `help.cpp:78` builds the ID from the page number, and
