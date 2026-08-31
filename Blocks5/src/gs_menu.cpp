@@ -8,7 +8,6 @@
 #include "help.h"
 #include "filesystem.h"
 #include "transfer.h"
-#include "transfer.h"
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -17,6 +16,42 @@
 #endif
 
 extern const char* p_localVersion;
+
+namespace
+{
+	// demo1.dat haelt rohe Tastennummern fest - die von SDL 1.2, mit denen die
+	// Aufnahme seinerzeit unter Windows entstanden ist. Emscriptens SDL zaehlt
+	// anders: SDLK_LEFT ist dort 1104 und nicht 276. Unuebersetzt schrieb die
+	// Demo also in Tastenplaetze, die niemand liest - Bob stand im Titelbild
+	// still, bis er einschlief.
+	//
+	// Die Tabelle bildet die aufgezeichnete Zahl auf die Konstante ab, die
+	// *dieser* Build meint. Unter Windows ist das die Identitaet, denn dort
+	// sind die Konstanten genau die aufgezeichneten Zahlen; im Browser ist es
+	// die Umrechnung. Mehr als diese acht Tasten kommen in der Aufnahme nicht
+	// vor - nachgezaehlt, es sind genau diese.
+	struct RecordedKey
+	{
+		uint recorded;
+		int  key;
+	};
+
+	const RecordedKey p_recordedKeys[] =
+	{
+		{  9, SDLK_TAB   }, {273, SDLK_UP    }, {274, SDLK_DOWN  }, {275, SDLK_RIGHT },
+		{276, SDLK_LEFT  }, {278, SDLK_HOME  }, {304, SDLK_LSHIFT}, {306, SDLK_LCTRL }
+	};
+
+	uint translateRecordedKey(uint recorded)
+	{
+		for(uint i = 0; i < sizeof(p_recordedKeys) / sizeof(p_recordedKeys[0]); i++)
+		{
+			if(p_recordedKeys[i].recorded == recorded) return p_recordedKeys[i].key;
+		}
+
+		return recorded;
+	}
+}
 
 GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML("")
 {
@@ -152,7 +187,10 @@ void GS_Menu::onUpdate()
 	}
 
 	// Ab hier gehoert die Tastatur der Demo.
-	for(int i = 0; i < 512; i++)
+	// SDLK_LAST, nicht 512: Emscriptens SDL zaehlt bis 1536, und die Pfeiltasten
+	// liegen dort jenseits von 512. Ungeloescht bliebe eine davon fuer immer
+	// gedrueckt, sobald die Demo sie einmal gesetzt hat.
+	for(int i = 0; i < SDLK_LAST; i++)
 	{
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
 	}
@@ -249,7 +287,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 			p_file->read(&key, 4);
 			if(key == ~0) break;
 			p_file->read(&data, 4);
-			keyData[t].push_back(key);
+			keyData[t].push_back(translateRecordedKey(key));
 			keyData[t].push_back(data);
 		}
 	}
