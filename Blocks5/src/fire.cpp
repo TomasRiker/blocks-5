@@ -69,12 +69,12 @@ void Fire::onUpdate()
 			if(!p_obj->getDestroyTime())
 			{
 				p_obj->disappear(0.2);
-				debrisColor = p_obj->getDebrisColor();
+				const DebrisSource* p_debris = &p_obj->getDebris();
 
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 				// Truemmer
-				int n = random(50, 80);
+				int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
 				for(int i = 0; i < n; i++)
 				{
 					p.lifetime = random(60, 120);
@@ -82,9 +82,13 @@ void Fire::onUpdate()
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
-					p.position = p_obj->getPosition() * 16 + Vec2i(random(-2, 18), random(-2, 18));
+					Vec4d sampled;
+					Vec2i offset;
+					if(!p_debris->sample(&sampled, &offset)) continue;
+
+					p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-					p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+					p.color = sampled;
 					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);
@@ -97,16 +101,21 @@ void Fire::onUpdate()
 				if(p_obj->getFlags() & OF_KILL_FIRE)
 				{
 					// Das Feuer geht jetzt aus!
-					for(int i = 0; i < 50; i++)
+					for(int i = 0; i < 50 * DEBRIS_TRIES_PER_PARTICLE; i++)
 					{
 						p.lifetime = random(80, 150);
 						p.damping = 0.9f;
 						p.gravity = -0.03f;
 						p.positionOnTexture = Vec2b(0, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
-						p.position = position * 16 + Vec2i(random(6, 10), random(6, 10));
+
+						Vec4d sampled;
+						Vec2i offset;
+						if(!debris.sample(&sampled, &offset)) continue;
+
+						p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 						p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));
-						p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+						p.color = sampled;
 						const double dc = -0.5 / (p.lifetime + random(-25, 25));
 						p.deltaColor = Vec4d(dc, dc, dc, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);

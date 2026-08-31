@@ -92,7 +92,7 @@ void Projectile::onUpdate()
 				bool bounce = false;
 				bool destroyed = false;
 				bool reflected = false;
-				Vec4d debrisColor;
+				const DebrisSource* p_debris = 0;
 				Vec2d hitPosition;
 
 				if(distance >= 8.0 && !level.isFreeAt2(positionInPixels, 0, &p_objectHit, &tileHit, 64.0))
@@ -123,7 +123,7 @@ void Projectile::onUpdate()
 							{
 								p_objectHit->disappear(0.075);
 								destroyed = true;
-								debrisColor = p_objectHit->getDebrisColor();
+								p_debris = &p_objectHit->getDebris();
 							}
 							else
 							{
@@ -142,7 +142,7 @@ void Projectile::onUpdate()
 						{
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
-							debrisColor = tileInfo.debrisColor;
+							p_debris = &tileInfo.debris;
 						}
 						else
 						{
@@ -194,12 +194,13 @@ void Projectile::onUpdate()
 						p_particleSystem->addParticle(p);
 					}
 
-					if(destroyed)
+					if(destroyed && p_debris)
 					{
 						// Das Geschoss hat ein Objekt oder ein Tile zerstoert.
 
 						// Truemmer
 						int n = random(30, 40);
+						n *= DEBRIS_TRIES_PER_PARTICLE;
 						for(int i = 0; i < n; i++)
 						{
 							p.lifetime = random(40, 70);
@@ -207,10 +208,15 @@ void Projectile::onUpdate()
 							p.gravity = 0.1f;
 							p.positionOnTexture = Vec2b(96, 0);
 							p.sizeOnTexture = Vec2b(16, 16);
-							p.position = hitPosition + Vec2i(random(-5, 5), random(-5, 5));
+
+							Vec4d sampled;
+							Vec2i offset;
+							if(!p_debris->sample(&sampled, &offset)) continue;
+
+							p.position = hitPosition + Vec2d(offset) - Vec2d(8.0, 8.0) + Vec2i(random(-2, 2), random(-2, 2));
 							const double r = random(0.0, 6.283);
 							p.velocity = random(2.0, 5.0) * Vec2d(sin(r), cos(r));
-							p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), random(0.3, 0.5));
+							p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
 							p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.5 * -p.color.a / p.lifetime);
 							p.rotation = random(0.0f, 10.0f);
 							p.deltaRotation = random(-0.1f, 0.1f);

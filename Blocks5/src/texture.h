@@ -24,6 +24,12 @@ public:
 	void addGaps();
 	Vec4d getPixel(const Vec2i& where) const;
 
+	// Liegen die Pixel noch im Speicher? bind() gibt sie frei, wenn nicht
+	// keepInMemory() gerufen wurde, und getPixel() liefert danach fuer alles
+	// durchsichtiges Schwarz - ohne Fehler, einfach falsch. Wer Pixel liest,
+	// fragt vorher.
+	bool hasPixels() const;
+
 private:
 	Texture(const std::string& filename);
 	~Texture();

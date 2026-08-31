@@ -407,17 +407,22 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150; i++)
+			for(int i = 0; i < 150 * DEBRIS_TRIES_PER_PARTICLE; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
+
+				Vec4d sampled;
+				Vec2i offset;
+				if(!p_player->getDebris().sample(&sampled, &offset)) continue;
+
+				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				p.color = p_player->getDebrisColor() + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
@@ -445,17 +450,22 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150; i++)
+			for(int i = 0; i < 150 * DEBRIS_TRIES_PER_PARTICLE; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
+
+				Vec4d sampled;
+				Vec2i offset;
+				if(!p_player->getDebris().sample(&sampled, &offset)) continue;
+
+				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				p.color = p_player->getDebrisColor() + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);

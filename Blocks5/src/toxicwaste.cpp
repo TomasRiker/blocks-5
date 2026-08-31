@@ -10,7 +10,7 @@ ToxicWaste::ToxicWaste(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_TRANSPORTABLE | OF_DESTROYABLE;
 	destroyTime = 1;
-	debrisColor = Vec4d(0.5, 0.6, 0.5, 0.25);
+	debris.setColor(Vec4d(0.5, 0.6, 0.5, 0.25));
 }
 
 ToxicWaste::~ToxicWaste()

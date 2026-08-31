@@ -11,8 +11,8 @@ Mirror::Mirror(Level& level,
 	flags = OF_MASSIVE | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	interpolation = 0.3;
 	destroyTime = 50;
-	if(subType == 0) debrisColor = Vec4d(0.5, 0.5, 1.0, 0.25);
-	else debrisColor = Vec4d(0.5, 0.5, 0.6, 0.25);
+	if(subType == 0) debris.setColor(Vec4d(0.5, 0.5, 1.0, 0.25));
+	else debris.setColor(Vec4d(0.5, 0.5, 0.6, 0.25));
 	this->subType = subType;
 	this->dir = dir;
 }

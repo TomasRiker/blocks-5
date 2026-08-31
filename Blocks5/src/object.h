@@ -1,6 +1,8 @@
 #ifndef _OBJECT_H
 #define _OBJECT_H
 
+#include "debriscolordb.h"
+
 #include "level.h"
 
 /*** Klasse fuer ein Spielobjekt ***/
@@ -10,6 +12,13 @@ class Player;
 class Object
 {
 public:
+	// Ein Objektbild auf sprites.png ist 16x16; StdObject::onRender gibt
+	// genau das an renderSprite weiter, und alle 71 renderSprite-Aufrufe im
+	// Baum nennen dieselbe Groesse. Genauso gross ist eine Kachel - was
+	// debriscolordb.cpp mit einem static_assert festhaelt, weil die
+	// Truemmer-Stichprobe auf beides dieselbe Zelle anwendet.
+	static const int SPRITE_SIZE = 16;
+
 	enum Flags
 	{
 		OF_MASSIVE			= 0x00000001,
@@ -93,8 +102,9 @@ public:
 	bool isTeleporting() const;
 	bool hasTeleportFailed() const;
 	bool isFalling() const;
-	const Vec4d& getDebrisColor() const;
+	const DebrisSource& getDebris() const;
 	void setDebrisColor(const Vec4d& debrisColor);
+	void setDebrisTexture(Texture* p_texture, const Vec2i& positionOnTexture);
 	uint getMass() const;
 	void setMass(uint mass);
 	uint getUID() const;
@@ -140,7 +150,7 @@ protected:
 	bool teleportFailed;
 	int oldDepth;
 	double falling;
-	Vec4d debrisColor;
+	DebrisSource debris;
 	uint mass;
 	uint uid;
 	std::string burstSound;

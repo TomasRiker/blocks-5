@@ -4,6 +4,7 @@
 /*** Klasse fuer Tiles ***/
 
 #include "resource.h"
+#include "debriscolordb.h"
 
 class Texture;
 
@@ -25,7 +26,7 @@ public:
 		Vec2i position;
 		int type;
 		int destroyTime;
-		Vec4d debrisColor;
+		DebrisSource debris;
 	};
 
 	TileSet(const std::string& filename);

@@ -13,7 +13,7 @@ TileSet::TileSet(const std::string& filename) : Resource(filename)
 	badTile.position = Vec2i(-1, -1);
 	badTile.type = -1;
 	badTile.destroyTime = 0;
-	badTile.debrisColor = Vec4d(0.0, 0.0, 0.0, 0.0);
+	badTile.debris.setColor(Vec4d(0.0, 0.0, 0.0, 0.0));
 }
 
 TileSet::~TileSet()
@@ -112,7 +112,7 @@ void TileSet::reload()
 			p_tileElement->Attribute("destroyTime", &info.destroyTime);
 
 			// Truemmerfarbe berechnen
-			info.debrisColor = DebrisColorDB::inst().getDebrisColor(p_texture, info.position);
+			info.debris.setTexture(p_texture, info.position);
 		}
 
 		// Tile-Typ eintragen

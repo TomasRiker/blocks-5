@@ -13,8 +13,9 @@ Cannon::Cannon(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
-	debrisColor = getStdColor(color);
-	debrisColor.a = 0.25;
+	Vec4d c = getStdColor(color);
+	c.a = 0.25;
+	debris.setColor(c);
 	this->color = color;
 	this->dir = dir;
 	shownDir = dir;

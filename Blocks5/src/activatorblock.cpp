@@ -10,7 +10,7 @@ ActivatorBlock::ActivatorBlock(Level& level,
 	flags = OF_MASSIVE | OF_GRAVITY | (shielded ? 0 : OF_DESTROYABLE) | OF_ACTIVATOR | OF_TRANSPORTABLE | OF_CONVERTABLE | OF_BLOCK_GAS;
 	interpolation = 0.3;
 	destroyTime = 1;
-	debrisColor = Vec4d(1.0, 0.5, 0.0, 0.25);
+	debris.setColor(Vec4d(1.0, 0.5, 0.0, 0.25));
 	this->shielded = shielded;
 	anim = 0;
 }

@@ -433,7 +433,7 @@ bool Player::changeInEditor(int mod)
 		character %= 3;
 
 		positionOnTexture = Vec2i(character * 64, 224);
-		debrisColor = DebrisColorDB::inst().getDebrisColor(level.getSprites(), positionOnTexture);
+		debris.setTexture(level.getSprites(), positionOnTexture);
 	}
 
 	return true;

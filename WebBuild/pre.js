@@ -34,15 +34,18 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
-// F5 restarts a level and F10 restarts from the hotel. To a browser F5 is
-// reload, and F10 opens the menu bar in some of them - either one throws the
-// session away or takes the keyboard, and neither is what somebody pressing
-// "restart" wants. Both are swallowed in the capture phase, before SDL or the
-// browser sees them. F11 and F12 are left alone: they are screenshot and video
-// recording, and neither of those exists in this build. Ctrl+R and the address
-// bar still reload, so a page can never get stuck.
+// Three function keys the game binds mean something else to a browser, and the
+// browser wins unless the event is swallowed first: F1 mutes and unmutes but
+// opens the browser's help, F5 restarts the level but reloads the page, F10
+// restarts from the hotel but opens the menu bar in some of them. Losing the
+// session or the keyboard is not what somebody pressing one of these wants.
+// All three are taken in the capture phase, before SDL or the browser sees
+// them. F11 and F12 are left alone: they are screenshot and video recording,
+// and neither of those exists in this build. Ctrl+R and the address bar still
+// reload, so a page can never get stuck.
 window.addEventListener('keydown', function (e) {
-  if (e.key === 'F5' || e.keyCode === 116 ||
+  if (e.key === 'F1'  || e.keyCode === 112 ||
+      e.key === 'F5'  || e.keyCode === 116 ||
       e.key === 'F10' || e.keyCode === 121) e.preventDefault();
 }, true);
 

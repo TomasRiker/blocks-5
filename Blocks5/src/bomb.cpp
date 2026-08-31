@@ -88,7 +88,7 @@ void Bomb::onUpdate()
 					for(int y = -1; y <= 1; y++)
 					{
 						bool destroyed = false;
-						Vec4d debrisColor;
+						const DebrisSource* p_debris = 0;
 
 						Vec2i pos = position + Vec2i(x, y);
 						int tileID = level.getTileAt(1, pos);
@@ -98,7 +98,7 @@ void Bomb::onUpdate()
 							// Tile zerstoeren
 							level.setTileAt(1, pos, 0);
 							destroyed = true;
-							debrisColor = tileInfo.debrisColor;
+							p_debris = &tileInfo.debris;
 						}
 
 						Object* p_obj = level.getFrontObjectAt(pos);
@@ -108,14 +108,14 @@ void Bomb::onUpdate()
 							if(!p_obj->isAlive())
 							{
 								destroyed = true;
-								debrisColor = p_obj->getDebrisColor();
+								p_debris = &p_obj->getDebris();
 							}
 						}
 
-						if(destroyed)
+						if(destroyed && p_debris)
 						{
 							// Truemmer
-							int n = random(30, 40);
+							int n = random(30, 40) * DEBRIS_TRIES_PER_PARTICLE;
 							for(int i = 0; i < n; i++)
 							{
 								p.lifetime = random(40, 80);
@@ -123,9 +123,14 @@ void Bomb::onUpdate()
 								p.gravity = 0.075f;
 								p.positionOnTexture = Vec2b(96, 0);
 								p.sizeOnTexture = Vec2b(16, 16);
-								p.position = pos * 16 + Vec2i(random(-4, 20), random(-4, 20));
+
+								Vec4d sampled;
+								Vec2i offset;
+								if(!p_debris->sample(&sampled, &offset)) continue;
+
+								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 								p.velocity = random(4.0, 7.0) * Vec2d(x, y).normalize() + Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-								p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), random(0.3, 0.5));
+								p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
 								p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.5 * -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);
 								p.deltaRotation = random(-0.1f, 0.1f);

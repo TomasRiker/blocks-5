@@ -168,7 +168,7 @@ void Laser::onUpdate()
 		// Truemmer
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
-		int n = random(50, 80);
+		int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
 		for(int i = 0; i < n; i++)
 		{
 			p.lifetime = random(60, 120);
@@ -176,9 +176,14 @@ void Laser::onUpdate()
 			p.gravity = -0.1f;
 			p.positionOnTexture = Vec2b(96, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
-			p.position = position * 16 + Vec2i(random(-2, 18), random(-2, 18));
+
+			Vec4d sampled;
+			Vec2i offset;
+			if(!debris.sample(&sampled, &offset)) continue;
+
+			p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 			p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-			p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+			p.color = sampled;
 			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
@@ -202,7 +207,7 @@ void Laser::onUpdate()
 
 		bool destroyed = false;
 		bool infinity = false;
-		Vec4d debrisColor;
+		const DebrisSource* p_debris = 0;
 		int z = 0;
 
 		while(true)
@@ -242,7 +247,7 @@ void Laser::onUpdate()
 						{
 							p_obj->disappear(0.2);
 							destroyed = true;
-							debrisColor = p_obj->getDebrisColor();
+							p_debris = &p_obj->getDebris();
 						}
 					}
 					else
@@ -263,7 +268,7 @@ void Laser::onUpdate()
 						{
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
-							debrisColor = tileInfo.debrisColor;
+							p_debris = &tileInfo.debris;
 						}
 					}
 
@@ -344,12 +349,12 @@ void Laser::onUpdate()
 				else p_fireParticleSystem->addParticle(p);
 			}
 
-			if(destroyed)
+			if(destroyed && p_debris)
 			{
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 				// Truemmer
-				int n = random(50, 80);
+				int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
 				for(int i = 0; i < n; i++)
 				{
 					p.lifetime = random(60, 120);
@@ -357,9 +362,14 @@ void Laser::onUpdate()
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
-					p.position = beamPosF * 16 + Vec2i(random(-2, 18), random(-2, 18));
+
+					Vec4d sampled;
+					Vec2i offset;
+					if(!p_debris->sample(&sampled, &offset)) continue;
+
+					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-					p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+					p.color = sampled;
 					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);

@@ -810,17 +810,26 @@ void Object::burst()
 	Engine::inst().playSound(burstSound, false, 0.1, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
-	for(int i = 0; i < 75; i++)
+	for(int i = 0; i < 75 * DEBRIS_TRIES_PER_PARTICLE; i++)
 	{
 		p.lifetime = random(20, 50);
 		p.damping = 0.85f;
 		p.gravity = 0.1f;
 		p.positionOnTexture = Vec2b(96, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
-		p.position = position * 16 + Vec2i(8, 8) + Vec2i(random(-4, 4), random(-4, 4));
+		// Farbe und Stelle aus dem Bild ziehen. Trifft der Wurf eine
+		// durchsichtige Stelle, entsteht kein Partikel - so wirft ein kleines
+		// Objekt weniger Truemmer als ein grosses, ohne dass das irgendwo
+		// eingestellt werden muesste. Die Stelle wird auch als Startpunkt
+		// benutzt, damit die Wolke die Form des Objekts behaelt.
+		Vec4d sampled;
+		Vec2i offset;
+		if(!debris.sample(&sampled, &offset)) continue;
+
+		p.position = position * 16 + offset;
 		const double r = random(0.0, 6.283);
 		p.velocity = random(2.0, 5.0) * Vec2d(sin(r), cos(r));
-		p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.5);
+		p.color = sampled + Vec4d(0.0, 0.0, 0.0, 0.5);
 		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
@@ -1076,14 +1085,20 @@ bool Object::isFalling() const
 	return falling > 0.0;
 }
 
-const Vec4d& Object::getDebrisColor() const
+const DebrisSource& Object::getDebris() const
 {
-	return debrisColor;
+	return debris;
 }
 
 void Object::setDebrisColor(const Vec4d& debrisColor)
 {
-	this->debrisColor = debrisColor;
+	debris.setColor(debrisColor);
+}
+
+void Object::setDebrisTexture(Texture* p_texture,
+							  const Vec2i& positionOnTexture)
+{
+	debris.setTexture(p_texture, positionOnTexture);
 }
 
 uint Object::getMass() const

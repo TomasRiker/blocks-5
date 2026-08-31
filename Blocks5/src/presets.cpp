@@ -698,8 +698,8 @@ Object* Presets::instancePreset(const std::string& name,
 		if(p_theObject->getFlags() & Object::OF_DESTROYABLE ||
 		   p_theObject->getFlags() & Object::OF_CONVERTABLE)
 		{
-			// Truemmerfarbe berechnen
-			p_theObject->setDebrisColor(DebrisColorDB::inst().getDebrisColor(p_sprites, p_theObject->positionOnTexture));
+			// Woher die Truemmer ihre Farbe nehmen: aus dem Bild des Objekts.
+			p_theObject->setDebrisTexture(p_sprites, p_theObject->positionOnTexture);
 		}
 	}
 

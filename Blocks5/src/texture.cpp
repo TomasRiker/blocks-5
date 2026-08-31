@@ -274,6 +274,11 @@ void Texture::addGaps()
 	glPopAttrib();
 }
 
+bool Texture::hasPixels() const
+{
+	return p_rgba != 0;
+}
+
 Vec4d Texture::getPixel(const Vec2i& where) const
 {
 	if(!p_rgba) return Vec4d(0.0);
