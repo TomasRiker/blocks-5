@@ -45,21 +45,39 @@ Alt+Return.
 Changelog
 =========
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no
-            installation at all. Your progress, your own levels and
-            your campaigns are stored by the browser, so they
-            survive closing the tab. Levels, campaigns and skins
-            can be brought in from your computer with the Import
-            buttons, and your own work taken back out with Export.
-            Recording videos and taking screenshots are the only
-            things the browser version cannot do. Look on the
-            website for the link.
+            installation at all. Your progress, your own levels
+            and your campaigns are stored by the browser, so they
+            survive closing the tab. Recording videos and taking
+            screenshots are the only things the browser version
+            cannot do. Look on the website for the link.
+
+          - New in the main menu: an Import button and an Export
+            button, on both the browser version and this one.
+
+            Import takes one file and works out for itself what
+            it is - a level, a campaign, a piece of music or a
+            skin - and puts it where it belongs. Export asks what
+            kind of thing you want, lists what you have of it,
+            and hands you a copy.
+
+            Music can be brought in this way for the first time.
+            A level can also borrow one of the game's own pieces
+            by writing "blocks:" in front of the name, as in
+            blocks:music2.ogg. A campaign built that way stays
+            small, because that music is already installed.
 
           - The game window can be resized now. Drag its edge to
             any size you like; the picture keeps its shape and
-            gets black bars where the window does not match.
+            gets black bars where the window does not match. It
+            keeps drawing while you drag, where it used to freeze
+            until you let go, and it can no longer be dragged
+            smaller than the 640x480 the game draws.
+
             Alt+Return switches between the window and full
-            screen at any time, and the game remembers which one
-            you left it in, where the window was and how big.
+            screen at any time. The game remembers which of the
+            two you left it in, where the window was and how big
+            - and whether it was maximized, which it used to
+            forget, coming back half off the screen.
 
             A fresh installation no longer starts at a tiny
             640x480. The window opens at the largest whole
@@ -72,6 +90,11 @@ Changelog
             which is what most games do these days: Alt+Tab is
             instant and does not rearrange your other windows.
 
+            The mouse pointer is twice as big. It used to be
+            drawn by Windows at a fixed size while everything
+            around it grew with the window, which left it looking
+            tiny.
+
             Screenshots and recorded videos are unaffected by
             any of this. They are always the clean 640x480
             picture, without the scaling and without the bars.
@@ -80,36 +103,62 @@ Changelog
             HQ2X mode. It scaled the picture on the processor,
             cost about half of the time available for a frame,
             and changed less than 5% of the pixels. In its place
-            the options now have a "Scaling" setting with three
+            the options now have a "Scaling" setting with four
             choices:
 
               Sharp, fitted  crisp pixels at any window size.
-                             This is the new default. It needs a
-                             graphics card that can run shaders,
-                             which means anything made since
-                             about 2005; if yours cannot, the
-                             entry is simply not offered and the
-                             game uses "Sharp" instead
+                             This is the new default
               Sharp          every pixel exactly the same size,
                              so the picture only grows in whole
                              steps and does not fill the window
               Smooth         plain stretching, blurry
+              CRT monitor    the sort of screen the game was
+                             written for: a curved glass tube
+                             with a phosphor mask, a glow around
+                             bright things and scan lines
 
-          - The picture now keeps up while you drag the window's
-            edge. It used to freeze until you let go, because
-            Windows stops the game while a window is being
-            resized or moved.
+            "CRT settings ..." beside the list has five sliders:
+            the scan lines, the curvature of the screen, the glow
+            around bright areas, and two kinds of flicker: an
+            unsteady brightness, and the scan lines drifting
+            slowly down the picture the way they never quite
+            stood still on a real set. Each can be turned all
+            the way down.
 
-            The window also cannot be dragged smaller than the
-            640x480 the game draws; it used to let you, then
-            snap back when you released it.
+            "Sharp, fitted" and "CRT monitor" need a graphics
+            card that can run shaders, which means anything made
+            since about 2005. If yours cannot, they are not
+            offered and the game uses "Sharp".
 
-          - The mouse pointer is twice as big. It used to be drawn
-            by Windows at a fixed size while everything around it
-            grew with the window, which left it looking tiny.
+          - Video recording now records the game's own sound.
+            Until now it recorded whatever Windows had selected as
+            the recording device, which on most machines is the
+            microphone. The "Stereo Mix" / "What you hear" setup
+            described under version 1.1.0 below is no longer needed.
+
+            The recordings are MP4 files now, with H.264 video and
+            MP3 sound, instead of AVI. They play in Windows Media
+            Player, in the Photos app and in any browser without
+            installing a codec pack.
+
+          - The game now starts in the language your system is
+            set to, instead of always English. You can still
+            change it in the options; that choice always wins.
+
+          - Escape in the main menu quits the game. It also
+            closes the level editor's menu and its settings, the
+            options and the help, and Return confirms the
+            settings and the options - the same way clicking OK
+            or Cancel does.
 
           - Alt+F4 now closes the game, stopping a running video
             recording properly on the way out.
+
+          - Clicking the text next to a checkbox or a radio
+            button now works the same as clicking the box
+            itself - and so does clicking either of the two
+            language flags in the options. Clicking the caption
+            of a text field puts the cursor into it.
 
           - Fixed: a hint note could be seen for a fraction of a
             second at the wrong place before unfolding, usually
@@ -122,63 +171,13 @@ Changelog
             on or off could not be undone, and undoing it threw
             away everything that could be redone.
 
-          - New in the "Scaling" setting: "CRT monitor". It makes
-            the game look like it is running on the sort of screen
-            it was written for - a curved glass tube with a
-            phosphor mask, a glow around bright things and scan
-            lines. "CRT settings ..." next to it has five sliders:
-            the scan lines, the curvature of the screen, the glow
-            around bright areas, and two kinds of flicker: an
-            unsteady brightness, and the scan lines drifting
-            slowly down the picture the way they never quite
-            stood still on a real set. Each can be turned all
-            the way down.
-
-            It needs the same graphics card as "Sharp, fitted";
-            where that is missing, this is not offered either.
-
-          - Clicking the text next to a checkbox or a radio
-            button now works the same as clicking the box
-            itself - and so does clicking either of the two
-            language flags in the options. Clicking the caption
-            of a text field puts the cursor into it.
-
-          - The game now starts in the language your system is
-            set to, instead of always English. You can still
-            change it in the options; that choice always wins.
-
-          - Escape in the main menu quits the game.
-
-          - Escape now closes the level editor's menu and its
-            settings, the options and the help, and Return
-            confirms the settings and the options - the same way
-            clicking OK or Cancel does.
-
-          - Fixed: the window came back in the wrong place after
-            being closed while maximized, usually half off the
-            screen. It now remembers that it was maximized and
-            comes back that way.
-
-          - Video recording now records the game's own sound.
-            Until now it recorded whatever Windows had selected as
-            the recording device, which on most machines is the
-            microphone. The "Stereo Mix" / "What you hear" setup
-            described under version 1.1.0 below is no longer needed.
-
-          - Recorded videos are now MP4 files, with H.264 video and
-            MP3 sound, instead of AVI. They play in Windows Media
-            Player, in the Photos app and in any browser without
-            installing a codec pack.
-
           - The installer no longer has to install the Visual C++
             runtime or OpenAL. The game brings everything it needs,
             so the download is smaller and there are fewer steps
-            that can go wrong.
-
-          - The game now always uses its own copy of OpenAL Soft
-            rather than whatever OpenAL happens to be installed on
-            the computer. This should fix sound problems on systems
-            with an old OpenAL installation.
+            that can go wrong. It also always uses its own copy of
+            OpenAL Soft rather than whatever OpenAL happens to be
+            installed on the computer, which should fix sound
+            problems on machines with an old OpenAL installation.
 
           - Under the hood: every third-party library is now built
             from source with a current compiler, and twelve DLLs
