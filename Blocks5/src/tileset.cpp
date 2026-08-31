@@ -4,8 +4,6 @@
 #include "texture.h"
 #include "debriscolordb.h"
 
-const Vec2i TileSet::TILE_SIZE(16, 16);
-
 TileSet::TileSet(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
@@ -61,15 +59,15 @@ void TileSet::reload()
 	// Die Groesse steht fest; die Datei wird nur beim Wort genommen. Fehlende
 	// Angaben gelten als richtig, weil TiXmlElement::Attribute den Wert
 	// unberuehrt laesst, wenn es das Attribut nicht gibt.
-	Vec2i fileTileSize(TILE_SIZE);
-	p_tileSetElement->Attribute("tileWidth", &fileTileSize.x);
-	p_tileSetElement->Attribute("tileHeight", &fileTileSize.y);
-	if(fileTileSize != TILE_SIZE)
+	int fileTileWidth = TILE_SIZE, fileTileHeight = TILE_SIZE;
+	p_tileSetElement->Attribute("tileWidth", &fileTileWidth);
+	p_tileSetElement->Attribute("tileHeight", &fileTileHeight);
+	if(fileTileWidth != TILE_SIZE || fileTileHeight != TILE_SIZE)
 	{
 		printfLog("+ ERROR: Tileset \"%s\" has %dx%d tiles; only %dx%d is supported.\n",
 				  filename.c_str(),
-				  fileTileSize.x, fileTileSize.y,
-				  TILE_SIZE.x, TILE_SIZE.y);
+				  fileTileWidth, fileTileHeight,
+				  TILE_SIZE, TILE_SIZE);
 		error = 5;
 		return;
 	}
@@ -160,14 +158,14 @@ void TileSet::renderTile(uint id,
 	glTexCoord2i(tile.position.x, tile.position.y);
 	glVertex2d(position.x, position.y);
 
-	glTexCoord2i(tile.position.x + TILE_SIZE.x, tile.position.y);
-	glVertex2d(position.x + TILE_SIZE.x, position.y);
+	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y);
+	glVertex2d(position.x + TILE_SIZE, position.y);
 
-	glTexCoord2i(tile.position.x + TILE_SIZE.x, tile.position.y + TILE_SIZE.y);
-	glVertex2d(position.x + TILE_SIZE.x, position.y + TILE_SIZE.y);
+	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y + TILE_SIZE);
+	glVertex2d(position.x + TILE_SIZE, position.y + TILE_SIZE);
 
-	glTexCoord2i(tile.position.x, tile.position.y + TILE_SIZE.y);
-	glVertex2d(position.x, position.y + TILE_SIZE.y);
+	glTexCoord2i(tile.position.x, tile.position.y + TILE_SIZE);
+	glVertex2d(position.x, position.y + TILE_SIZE);
 }
 
 Texture* TileSet::getTexture()

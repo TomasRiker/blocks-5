@@ -41,8 +41,6 @@ bool loadingErrorLevel = false;
 
 const char* p_skinFilenames[] = {"tileset.xml", "sprites.png", "particles.png", "background.png", "hint.png", "hintfont.xml", "noise.png", "shine.png", "rain.png", "clouds.png", "snow.png"};
 
-const Vec2i Level::SIZE(40, 25);
-
 Level::Level()
 {
 	p_activePlayer = 0;
@@ -262,7 +260,7 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad) loadSkin();
 
-	// Groesse und Ebenenzahl stehen fest (Level::SIZE, Level::NUM_LAYERS). Die
+	// Groesse und Ebenenzahl stehen fest (Level::WIDTH, HEIGHT, NUM_LAYERS). Die
 	// Datei nennt sie trotzdem, und hier wird sie beim Wort genommen: eine
 	// Datei mit anderen Werten wird abgewiesen statt stillschweigend falsch
 	// eingelesen. Ohne die Pruefung landeten die Zeilen einer 60x40-Datei in
@@ -278,17 +276,16 @@ bool Level::load(TiXmlDocument* p_doc,
 	// dass auch der nicht zu laden ist.
 	allocateTiles();
 
-	Vec2i fileSize(SIZE);
-	int fileNumLayers = NUM_LAYERS;
-	p_level->Attribute("width", &fileSize.x);
-	p_level->Attribute("height", &fileSize.y);
+	int fileWidth = WIDTH, fileHeight = HEIGHT, fileNumLayers = NUM_LAYERS;
+	p_level->Attribute("width", &fileWidth);
+	p_level->Attribute("height", &fileHeight);
 	p_level->Attribute("numLayers", &fileNumLayers);
-	if(fileSize != SIZE || fileNumLayers != NUM_LAYERS)
+	if(fileWidth != WIDTH || fileHeight != HEIGHT || fileNumLayers != NUM_LAYERS)
 	{
 		printfLog("+ ERROR: Level \"%s\" is %dx%d with %d layer(s); only %dx%d with %d is supported.\n",
 				  filename.c_str(),
-				  fileSize.x, fileSize.y, fileNumLayers,
-				  SIZE.x, SIZE.y, NUM_LAYERS);
+				  fileWidth, fileHeight, fileNumLayers,
+				  WIDTH, HEIGHT, NUM_LAYERS);
 		loadErrorLevel();
 		return false;
 	}
@@ -312,7 +309,7 @@ bool Level::load(TiXmlDocument* p_doc,
 				if(p_row->GetText())
 				{
 					std::string content = p_row->GetText();
-					for(uint col = 0; col < content.length() && col < static_cast<uint>(SIZE.x); col++)
+					for(uint col = 0; col < content.length() && col < static_cast<uint>(WIDTH); col++)
 					{
 						uint tile = static_cast<uint>(content[col]);
 						if(tile == ' ') tile = 0;
@@ -502,8 +499,8 @@ TiXmlDocument* Level::save()
 		p_level->SetAttribute(attrName, requestedSkin[i]);
 	}
 
-	p_level->SetAttribute("width", SIZE.x);
-	p_level->SetAttribute("height", SIZE.y);
+	p_level->SetAttribute("width", WIDTH);
+	p_level->SetAttribute("height", HEIGHT);
 	p_level->SetAttribute("NUM_LAYERS", NUM_LAYERS);
 	p_level->SetAttribute("numDiamondsNeeded", numDiamondsNeeded);
 	p_level->SetAttribute("electricityOn", electricityOn ? 1 : 0);
@@ -520,16 +517,16 @@ TiXmlDocument* Level::save()
 	for(int layer = 0; layer < NUM_LAYERS; layer++)
 	{
 		TiXmlElement* p_layer = new TiXmlElement("Layer");
-		for(int y = 0; y < SIZE.y; y++)
+		for(int y = 0; y < HEIGHT; y++)
 		{
-			char* p_temp = new char[SIZE.x + 1];
-			for(int x = 0; x < SIZE.x; x++)
+			char* p_temp = new char[WIDTH + 1];
+			for(int x = 0; x < WIDTH; x++)
 			{
 				uint t = getTileAt(layer, Vec2i(x, y));
 				p_temp[x] = t ? t : ' ';
 			}
 
-			p_temp[SIZE.x] = 0;
+			p_temp[WIDTH] = 0;
 
 			TiXmlElement* p_row = new TiXmlElement("Row");
 			TiXmlText* p_rowText = new TiXmlText(p_temp);
@@ -1046,7 +1043,7 @@ void Level::update()
 	p_rainParticleSystem->update();
 
 	// "Spuren verwischen"
-	for(int i = 0; i < SIZE.x * SIZE.y; i++)
+	for(int i = 0; i < WIDTH * HEIGHT; i++)
 	{
 		uint trace = p_aiFlags[i] & 0xFFFFFF00;
 		if(trace) p_aiFlags[i] -= 0x100;
@@ -1092,9 +1089,9 @@ void Level::update()
 		int details = Engine::inst().getDetails();
 		if(details == 0) r = 30;
 		else if(details == 1) r = 20;
-		for(int x = 0; x < SIZE.x; x++)
+		for(int x = 0; x < WIDTH; x++)
 		{
-			for(int y = 0; y < SIZE.y; y++)
+			for(int y = 0; y < HEIGHT; y++)
 			{
 				Vec2i pos(x, y);
 				uint l0 = getTileAt(0, pos);
@@ -1208,9 +1205,9 @@ void Level::renderTiles(int layer,
 	{
 		p_tileSet->beginRender();
 
-		for(int x = 0; x < SIZE.x; x++)
+		for(int x = 0; x < WIDTH; x++)
 		{
-			for(int y = 0; y < SIZE.y; y++)
+			for(int y = 0; y < HEIGHT; y++)
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
@@ -1228,9 +1225,9 @@ void Level::renderTiles(int layer,
 
 		p_tileSet->beginRender();
 
-		for(int x = 0; x < SIZE.x; x++)
+		for(int x = 0; x < WIDTH; x++)
 		{
-			for(int y = 0; y < SIZE.y; y++)
+			for(int y = 0; y < HEIGHT; y++)
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
@@ -1402,7 +1399,7 @@ Object* Level::getFrontObjectAt(const Vec2i& position)
 
 	// alle Objekte an dieser Position heraussuchen
 	Object* p_minObj = 0;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1437,7 +1434,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 
 	// alle Objekte an dieser Position heraussuchen
 	Object* p_maxObj = 0;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1471,7 +1468,7 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 	// alle Objekte an dieser Position heraussuchen
 	std::vector<Object*> result;
 	if(!isValidPosition(position)) return result;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1522,7 +1519,7 @@ const std::vector<Object*>& Level::getAllObjectsAt(const Vec2i& position)
 {
 	// alle Objekte an dieser Position heraussuchen
 	if(!isValidPosition(position)) return emptyObjectList;
-	return p_objectsAt[position.y * SIZE.x + position.x];
+	return p_objectsAt[position.y * WIDTH + position.x];
 }
 
 Elevator* Level::getElevatorAt(const Vec2i& position)
@@ -1530,7 +1527,7 @@ Elevator* Level::getElevatorAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1560,7 +1557,7 @@ Rail* Level::getRailAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1578,7 +1575,7 @@ Player* Level::getPlayerAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1594,11 +1591,11 @@ Player* Level::getPlayerAt(const Vec2i& position)
 bool Level::isValidPosition(const Vec2i& position) const
 {
 	return position.x >= 0 && position.y >= 0 &&
-		   position.x < SIZE.x && position.y < SIZE.y;
+		   position.x < WIDTH && position.y < HEIGHT;
 }
 
 // Die Ebene gehoert genauso geprueft wie die Position: der Index ist
-// layer * SIZE.x * SIZE.y + ..., und layer kam bisher ungeprueft durch.
+// layer * WIDTH * HEIGHT + ..., und layer kam bisher ungeprueft durch.
 bool Level::isValidLayer(int layer) const
 {
 	return layer >= 0 && layer < NUM_LAYERS;
@@ -1608,7 +1605,7 @@ uint Level::getTileAt(int layer,
 					  const Vec2i& position) const
 {
 	return isValidPosition(position) && isValidLayer(layer)
-		   ? p_tiles[layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x] & 0x000000FF : -1;
+		   ? p_tiles[layer * WIDTH * HEIGHT + position.y * WIDTH + position.x] & 0x000000FF : -1;
 }
 
 void Level::setTileAt(int layer,
@@ -1617,7 +1614,7 @@ void Level::setTileAt(int layer,
 {
 	if(isValidPosition(position) && isValidLayer(layer))
 	{
-		int index = layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x;
+		int index = layer * WIDTH * HEIGHT + position.y * WIDTH + position.x;
 		p_tiles[index] = tile;
 		setTileDestroyTimeAt(layer, position, p_tileSet->getTileInfo(tile).destroyTime);
 		layerDirty |= 1 << layer;
@@ -1628,7 +1625,7 @@ uint Level::getTileDestroyTimeAt(int layer,
 								 const Vec2i& position) const
 {
 	return isValidPosition(position) && isValidLayer(layer)
-		   ? (p_tiles[layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x] & 0xFFFFFF00) >> 8 : 1;
+		   ? (p_tiles[layer * WIDTH * HEIGHT + position.y * WIDTH + position.x] & 0xFFFFFF00) >> 8 : 1;
 }
 
 void Level::setTileDestroyTimeAt(int layer,
@@ -1637,7 +1634,7 @@ void Level::setTileDestroyTimeAt(int layer,
 {
 	if(isValidPosition(position) && isValidLayer(layer))
 	{
-		int index = layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x;
+		int index = layer * WIDTH * HEIGHT + position.y * WIDTH + position.x;
 		p_tiles[index] &= ~0xFFFFFF00;
 		p_tiles[index] |= destroyTime << 8;
 	}
@@ -1822,14 +1819,14 @@ void Level::allocateTiles()
 {
 	if(p_tiles) return;
 
-	const int n = NUM_LAYERS * SIZE.x * SIZE.y;
+	const int n = NUM_LAYERS * WIDTH * HEIGHT;
 	p_tiles = new uint[n];
 	for(int i = 0; i < n; i++) p_tiles[i] = 0;
 
-	p_objectsAt = new std::vector<Object*>[SIZE.x * SIZE.y];
+	p_objectsAt = new std::vector<Object*>[WIDTH * HEIGHT];
 
-	p_aiFlags = new uint[SIZE.x * SIZE.y];
-	memset(p_aiFlags, 0, SIZE.x * SIZE.y * sizeof(uint));
+	p_aiFlags = new uint[WIDTH * HEIGHT];
+	memset(p_aiFlags, 0, WIDTH * HEIGHT * sizeof(uint));
 
 	layerDirty = ~0;
 }
@@ -2070,8 +2067,8 @@ void Level::hashObject(Object* p_obj)
 {
 	// Objekt in die Liste des entsprechenden Feldes einfuegen
 	const Vec2i& p = p_obj->getPosition();
-	int index = p.y * SIZE.x + p.x;
-	if(index >= 0 && index < SIZE.x * SIZE.y)
+	int index = p.y * WIDTH + p.x;
+	if(index >= 0 && index < WIDTH * HEIGHT)
 	{
 		if(p_obj->lastHashedAt == index) return;
 		else unhashObject(p_obj);
@@ -2103,36 +2100,36 @@ void Level::unhashObject(Object* p_obj)
 void Level::setAIFlag(const Vec2i& where,
 					  uint flag)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] |= flag;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < WIDTH * HEIGHT; i++) p_aiFlags[i] |= flag;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * SIZE.x + where.x] |= flag;
+	else p_aiFlags[where.y * WIDTH + where.x] |= flag;
 }
 
 void Level::unsetAIFlag(const Vec2i& where,
 						uint flag)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] &= ~flag;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < WIDTH * HEIGHT; i++) p_aiFlags[i] &= ~flag;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * SIZE.x + where.x] &= ~flag;
+	else p_aiFlags[where.y * WIDTH + where.x] &= ~flag;
 }
 
 void Level::clearAIFlags(const Vec2i& where)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] &= 0xFFFFFF00;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < WIDTH * HEIGHT; i++) p_aiFlags[i] &= 0xFFFFFF00;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * SIZE.x + where.x] &= 0xFFFFFF00;
+	else p_aiFlags[where.y * WIDTH + where.x] &= 0xFFFFFF00;
 }
 
 uint Level::getAIFlags(const Vec2i& where) const
 {
 	if(!isValidPosition(where)) return ~0;
-	else return p_aiFlags[where.y * SIZE.x + where.x];
+	else return p_aiFlags[where.y * WIDTH + where.x];
 }
 
 uint Level::getAITrace(const Vec2i& where) const
 {
 	if(!isValidPosition(where)) return 0;
-	else return (p_aiFlags[where.y * SIZE.x + where.x] & 0xFFFFFF00) >> 8;
+	else return (p_aiFlags[where.y * WIDTH + where.x] & 0xFFFFFF00) >> 8;
 }
 
 void Level::setAITrace(const Vec2i& where,
@@ -2140,7 +2137,7 @@ void Level::setAITrace(const Vec2i& where,
 {
 	if(isValidPosition(where))
 	{
-		uint index = where.y * SIZE.x + where.x;
+		uint index = where.y * WIDTH + where.x;
 		p_aiFlags[index] &= ~0xFFFFFF00;
 		p_aiFlags[index] |= value << 8;
 	}
@@ -2151,9 +2148,9 @@ void Level::clean()
 	// alle Tiles zuruecksetzen
 	for(int layer = 0; layer < NUM_LAYERS; layer++)
 	{
-		for(int x = 0; x < SIZE.x; x++)
+		for(int x = 0; x < WIDTH; x++)
 		{
-			for(int y = 0; y < SIZE.y; y++)
+			for(int y = 0; y < HEIGHT; y++)
 			{
 				setTileAt(layer, Vec2i(x, y), 0);
 			}

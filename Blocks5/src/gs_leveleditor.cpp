@@ -551,13 +551,13 @@ public:
 					else
 					{
 						Vec2i p = editor.engine.getCursorPosition() / 16;
-						if(p.x < Level::SIZE.x && p.y < Level::SIZE.y)
+						if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 						{
 							Object* p_obj = editor.p_level->getFrontObjectAt(p);
 							if(p_obj)
 							{
 								Vec2i np = p + dir;
-								if(np.x >= 0 && np.y >= 0 && np.x < Level::SIZE.x && np.y < Level::SIZE.y)
+								if(np.x >= 0 && np.y >= 0 && np.x < Level::WIDTH && np.y < Level::HEIGHT)
 								{
 									editor.createUndoPoint();
 									if(shift)
@@ -1097,7 +1097,7 @@ void GS_LevelEditor::onRender()
 	p_level->render();
 
 	Vec2i p = engine.getCursorPosition() / 16;
-	if(p.x < Level::SIZE.x && p.y < Level::SIZE.y)
+	if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 	{
 		// aktuelles Tile hervorheben
 		glBegin(GL_LINE_LOOP);
@@ -1835,10 +1835,10 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 	rectStart = where;
 	rectEnd = where + clipboardSize + Vec2i(-1, -1);
 
-	rectStart.x = clamp(rectStart.x, 0, Level::SIZE.x - 1);
-	rectStart.y = clamp(rectStart.y, 0, Level::SIZE.y - 1);
-	rectEnd.x = clamp(rectEnd.x, 0, Level::SIZE.x - 1);
-	rectEnd.y = clamp(rectEnd.y, 0, Level::SIZE.y - 1);
+	rectStart.x = clamp(rectStart.x, 0, Level::WIDTH - 1);
+	rectStart.y = clamp(rectStart.y, 0, Level::HEIGHT - 1);
+	rectEnd.x = clamp(rectEnd.x, 0, Level::WIDTH - 1);
+	rectEnd.y = clamp(rectEnd.y, 0, Level::HEIGHT - 1);
 
 	return true;
 }

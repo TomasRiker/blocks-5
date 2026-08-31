@@ -32,7 +32,14 @@ public:
 	// fuer sich lesbar bleibt und aeltere Fassungen des Spiels sie oeffnen
 	// koennen - beim Laden werden sie aber nur noch geprueft, nicht mehr
 	// uebernommen.
-	static const Vec2i SIZE;
+	//
+	// Einzelne ints statt eines Vec2i, damit der Wert hier im Kopf stehen kann:
+	// ein ganzzahliges statisches Konstantenglied darf in der Klasse
+	// initialisiert werden und ist damit in jeder Uebersetzungseinheit ein
+	// konstanter Ausdruck. Ein Vec2i braucht eine Definition in einer .cpp und
+	// ist fuer alle anderen Dateien nur ein Symbol, das gelesen werden muss.
+	static const int WIDTH = 40;
+	static const int HEIGHT = 25;
 	static const int NUM_LAYERS = 2;
 
 	Level();

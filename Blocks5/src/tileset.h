@@ -15,8 +15,10 @@ public:
 	// Ein Tile ist 16x16, immer. Der Editor kennt nichts anderes, alle neun
 	// tileset.xml im Baum - die vier mitgelieferten Skins, ihre Archive und der
 	// fremde lego-Skin - nennen genau diese Groesse, und reload() weist eine
-	// Datei ab, die etwas anderes behauptet.
-	static const Vec2i TILE_SIZE;
+	// Datei ab, die etwas anderes behauptet. Eine einzelne Zahl, weil Tiles
+	// quadratisch sind; so steht der Wert hier im Kopf und braucht keine
+	// Definition in der .cpp.
+	static const int TILE_SIZE = 16;
 
 	struct TileInfo
 	{
