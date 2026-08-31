@@ -110,6 +110,18 @@ public:
 	// weichgezeichnet ist (shownDir) oder noch ein Winkel dazukommt.
 	virtual int getSpriteQuarterTurns() const { return 0; }
 
+	// Fuer alles, was weich dreht. shownDir laeuft nicht in [0,4): beim
+	// Umschlag zwischen 3 und 0 wird es um +-4 verschoben und kriecht dann
+	// zurueck, ist also fuer etliche Ticks negativ oder groesser als 4.
+	// static_cast<int> schneidet zur Null hin ab und machte aus -0.7 eine 0
+	// statt einer -1 - eine Vierteldrehung daneben, jedes Mal wenn sich das
+	// Ding umdreht. floor() rundet richtig; den negativen Wert nimmt
+	// rotateInCell() ueber & 3 klaglos entgegen.
+	static int quarterTurnsFromShownDir(double shownDir)
+	{
+		return static_cast<int>(floor(shownDir + 0.5));
+	}
+
 	// Bequemlichkeit: nimmt die Drehung gleich mit.
 	bool sampleDebris(Vec4d* p_colorOut, Vec2i* p_offsetOut) const;
 

@@ -9,7 +9,7 @@ class Cannon : public Object
 {
 public:
 	// shownDir dreht sich weich; fuer die Truemmer reicht die naechste Vierteldrehung.
-	virtual int getSpriteQuarterTurns() const { return static_cast<int>(shownDir + 0.5); }
+	virtual int getSpriteQuarterTurns() const { return quarterTurnsFromShownDir(shownDir); }
 
 	Cannon(Level& level, const Vec2i& position, uint color, int dir);
 	~Cannon();

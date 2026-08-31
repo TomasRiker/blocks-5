@@ -9,7 +9,7 @@ class Arrow : public Object
 {
 public:
 	// shownDir dreht sich weich; fuer die Truemmer reicht die naechste Vierteldrehung.
-	virtual int getSpriteQuarterTurns() const { return static_cast<int>(shownDir + 0.5); }
+	virtual int getSpriteQuarterTurns() const { return quarterTurnsFromShownDir(shownDir); }
 
 	Arrow(Level& level, const Vec2i& position, int dir);
 	~Arrow();
