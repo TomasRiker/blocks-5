@@ -102,33 +102,33 @@
 			<Window name="Export" w="400" h="320">
 				<Title>$TR_EXPORT_TITLE</Title>
 				<Center />
-				<StaticText name="What" x="10" y="32">
+				<StaticText name="What" x="10" y="30">
 					<Text>$TR_EXPORT_WHAT</Text>
 				</StaticText>
-				<RadioButton name="KindLevel" x="10" y="54" w="90" h="24">
+				<RadioButton name="KindLevel" x="10" y="52" w="92" h="24">
 					<Title>$TR_KIND_LEVEL</Title>
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<RadioButton name="KindCampaign" x="105" y="54" w="90" h="24">
+				<RadioButton name="KindCampaign" x="106" y="52" w="92" h="24">
 					<Title>$TR_KIND_CAMPAIGN</Title>
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<RadioButton name="KindMusic" x="200" y="54" w="90" h="24">
+				<RadioButton name="KindMusic" x="202" y="52" w="92" h="24">
 					<Title>$TR_KIND_MUSIC</Title>
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<RadioButton name="KindSkin" x="295" y="54" w="90" h="24">
+				<RadioButton name="KindSkin" x="298" y="52" w="92" h="24">
 					<Title>$TR_KIND_SKIN</Title>
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<ListBox name="Items" x="10" y="90" w="290" h="180">
+				<ListBox name="Items" x="10" y="88" w="284" h="182">
 					<SubmitButton>Do</SubmitButton>
 				</ListBox>
-				<Button name="Refresh" x="310" y="90" w="80" h="24">
+				<Button name="Refresh" x="298" y="88" w="92" h="24">
 					<Title>$TR_REFRESH</Title>
 					<Font>tooltip_font.xml</Font>
 				</Button>
