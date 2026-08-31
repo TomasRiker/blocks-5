@@ -168,7 +168,7 @@ void GS_Menu::onUpdate()
 	}
 
 	// Escape beendet das Spiel. Das muss *vor* dem Abspielen der Demo stehen:
-	// gleich darunter werden alle 512 Tastenplaetze geleert und mit den
+	// gleich darunter werden alle Tastenplaetze geleert und mit den
 	// aufgezeichneten Tastendruecken aus demo1.dat gefuellt, damit sich der
 	// Titellevel von selbst spielt. Ab da liest wasKeyPressed() die Aufnahme
 	// und nicht mehr die Tastatur - deshalb fragen auch die beiden Abfragen
