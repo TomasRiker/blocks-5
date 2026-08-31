@@ -418,6 +418,7 @@ int runTheGame(int argc,
 		char* p_arg = pp_argv[i];
 		if(!_stricmp(p_arg, "-windowed")) engine.overrideFullScreen(false);
 		else if(!_stricmp(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
+		else if(!_stricmp(p_arg, "-noSplash")) engine.skipSplash();
 	}
 
 	printfLog("Initializing engine ...\n");

@@ -56,6 +56,7 @@ Engine::Engine()
 	upscaleFilter = UF_SHARP_FIT;    // Voreinstellung; ohne Shader wird nearest daraus
 	fullScreen = false;
 	fullScreenOverride = -1;
+	splashSkipped = false;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
 	windowedPosition = Vec2i(0, 0);

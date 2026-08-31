@@ -173,15 +173,29 @@ void GS_Loading::onUpdate()
 void GS_Loading::onEnter(const ParameterBlock& context)
 {
 	p_font = GUI::inst().getFont();
-	p_logo = Manager<Texture>::inst().request("logo.png");
-	Manager<Sound>::inst().request("logo.ogg");
+
+	// -nosplash holt Logo und Jingle gar nicht erst. Alles Weitere ergibt
+	// sich von selbst: ohne Logo faengt time schon bei 3000 an, und damit
+	// faellt der ganze Vorspann weg - derselbe Weg, den das Spiel ohnehin
+	// nimmt, wenn sich logo.png nicht laden laesst.
+	const bool skipSplash = Engine::inst().isSplashSkipped();
+	p_logo = 0;
+	if(!skipSplash)
+	{
+		p_logo = Manager<Texture>::inst().request("logo.png");
+		Manager<Sound>::inst().request("logo.ogg");
+	}
 
 	if(p_logo) time = 0;
 	else time = 3000;
 	logoSize = 0.0;
 	logoSizeVel = 0.0;
 	load = 0;
-	soundPlayed = false;
+
+	// Ohne Logo spielt der Jingle sonst trotzdem: time steht dann schon ueber
+	// der Schwelle, und der erste Takt loest ihn aus. Bei -nosplash ist das
+	// nicht gewollt; fehlt nur die Datei, bleibt es beim bisherigen Verhalten.
+	soundPlayed = skipSplash;
 
 #ifdef __EMSCRIPTEN__
 	waitingForClick = WebAudio::isSuspended();

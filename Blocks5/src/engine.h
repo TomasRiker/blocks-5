@@ -99,6 +99,12 @@ public:
 	// overrideFullScreen() gehoert vor init(): -windowed / -fullscreen schlagen
 	// damit, was in der config.xml steht.
 	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
+
+	// -nosplash laesst Logo, Jingle und die drei Sekunden davor aus und geht
+	// sofort ins Laden. Zum Entwickeln gedacht, wo man den Start oft sieht;
+	// gehoert wie overrideFullScreen() vor init().
+	void skipSplash() { splashSkipped = true; }
+	bool isSplashSkipped() const { return splashSkipped; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
 #ifdef _WIN32
 	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht:
@@ -278,6 +284,7 @@ private:
 	bool initialized;
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
+	bool splashSkipped;        // -nosplash
 	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
 	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
 	Vec2i windowedPosition;    // dito fuer die Position
