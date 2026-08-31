@@ -24,6 +24,13 @@ struct Action
 	int defaultSecondary;
 	std::vector<std::string> resetsActions;
 
+	// Aus der Konfiguration gelesene Kennungen, die noch nicht aufgeloest
+	// werden konnten: Engine::loadConfig() laeuft, bevor virtualKeys gefuellt
+	// ist. resolveActionKeys() traegt sie nach, sobald die Liste steht, und
+	// leert die Felder wieder.
+	std::string pendingPrimaryId;
+	std::string pendingSecondaryId;
+
 	int data;
 	int countDown;
 	int buffered;
@@ -229,6 +236,8 @@ public:
 	// Joysticks beim Start angeschlossen waren.
 	const std::string& getVKId(int vk) const;
 	int getVKFromId(const std::string& id) const;
+	void resolveActionKeys();
+	void repairLostBindings();
 	Action* registerAction(const std::string& name, int primary, int secondary = -1);
 	void changeAction(const std::string& name, int primary, int secondary = -1);
 	Action* getAction(const std::string& name) const;

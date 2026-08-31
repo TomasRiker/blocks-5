@@ -329,7 +329,9 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
+	resolveActionKeys();
 	limitActionKeys();
+	repairLostBindings();
 
 	// Jetzt erst, denn getDesktopSize() braucht SDL - und es muss vor dem
 	// ersten SDL_SetVideoMode passieren, weil SDL_GetVideoInfo danach die
@@ -3023,6 +3025,49 @@ void Engine::resetActions()
 	}
 }
 
+// Die beim Laden gemerkten Kennungen in Indizes umsetzen. Muss laufen, nachdem
+// virtualKeys steht; vorher gibt es nichts zu finden. Eine Kennung, die sich
+// nicht aufloesen laesst - ein Joystick, der gerade nicht angeschlossen ist -,
+// bleibt unbelegt, statt auf gut Glueck eine Nummer zu bekommen.
+void Engine::resolveActionKeys()
+{
+	for(size_t i = 0; i < actionsVector.size(); i++)
+	{
+		Action& a = *actionsVector[i];
+
+		if(!a.pendingPrimaryId.empty())
+		{
+			a.primary = getVKFromId(a.pendingPrimaryId);
+			a.pendingPrimaryId.clear();
+		}
+
+		if(!a.pendingSecondaryId.empty())
+		{
+			a.secondary = getVKFromId(a.pendingSecondaryId);
+			a.pendingSecondaryId.clear();
+		}
+	}
+}
+
+// Wer 1.2.0 zweimal gestartet hat, bevor der Fehler oben behoben war, hat eine
+// config.xml, in der jede Belegung leer ist - der zweite Start las die Namen,
+// fand nichts und schrieb das Ergebnis beim Beenden zurueck. Das Spiel waere
+// damit nicht mehr bedienbar, und der Weg heraus (Optionen, Zuruecksetzen) ist
+// niemandem anzusehen. Ist wirklich *keine* einzige Aktion belegt, kann das
+// keine Absicht sein: dann gelten wieder die Vorgaben.
+void Engine::repairLostBindings()
+{
+	if(actionsVector.empty()) return;
+
+	for(size_t i = 0; i < actionsVector.size(); i++)
+	{
+		if(actionsVector[i]->primary != -1 || actionsVector[i]->secondary != -1) return;
+	}
+
+	printfLog("+ WARNING: No action had a key assigned; restoring the defaults.\n");
+	resetActions();
+}
+
 void Engine::limitActionKeys()
 {
 	// Indizes der Aktionen limitieren
@@ -3346,11 +3391,25 @@ void Engine::loadConfig()
 						// Name. Erst die Zahl versuchen: gelingt sie, ist es
 						// eine alte Datei, und beim naechsten Speichern steht
 						// der Name darin.
+						//
+						// Ein Name wird hier NICHT aufgeloest, sondern nur
+						// gemerkt. loadConfig() laeuft aus Engine::init()
+						// heraus, bevor virtualKeys gefuellt ist - eine Suche
+						// in der leeren Liste faende nichts und wuerde jede
+						// Belegung auf "unbelegt" setzen. Genau das ist
+						// passiert: der erste Start nach der Aktualisierung las
+						// noch die Zahlen und schrieb beim Beenden Namen, der
+						// zweite fand die Namen und warf alles weg.
+						// resolveActionKeys() traegt sie nach.
 						int primary = -1, secondary = -1;
+						const char* p_primaryId = p_action->Attribute("primary");
+						const char* p_secondaryId = p_action->Attribute("secondary");
+
+						Action* p_theAction = getAction(p_name);
 						if(p_action->QueryIntAttribute("primary", &primary) != TIXML_SUCCESS)
-							primary = getVKFromId(p_action->Attribute("primary") ? p_action->Attribute("primary") : "");
+							p_theAction->pendingPrimaryId = p_primaryId ? p_primaryId : "";
 						if(p_action->QueryIntAttribute("secondary", &secondary) != TIXML_SUCCESS)
-							secondary = getVKFromId(p_action->Attribute("secondary") ? p_action->Attribute("secondary") : "");
+							p_theAction->pendingSecondaryId = p_secondaryId ? p_secondaryId : "";
 
 						changeAction(p_name, primary, secondary);
 					}
@@ -3365,7 +3424,14 @@ void Engine::loadConfig()
 		}
 	}
 
-	if(!virtualKeys.empty()) limitActionKeys();
+	// Wird loadConfig() jemals gerufen, wenn die Liste schon steht, ist der
+	// Nachtrag sofort faellig.
+	if(!virtualKeys.empty())
+	{
+		resolveActionKeys();
+		limitActionKeys();
+		repairLostBindings();
+	}
 }
 
 void Engine::saveConfig()
