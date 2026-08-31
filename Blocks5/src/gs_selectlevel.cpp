@@ -59,11 +59,11 @@ void GS_SelectLevel::onRender()
 		// Name des Levels schreiben
 		Font* p_font = GUI::inst().getFont();
 		Vec2i dim;
-		std::string title = localizeString(p_currentLevel->getTitle());
-		char text[256] = "";
-		sprintf(text, "%02d - %s", currentLevel + 1, status ? title.c_str() : "???");
-		p_font->measureText(text, &dim, 0);
-		p_font->renderText(text, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
+		const std::string title = localizeString(p_currentLevel->getTitle());
+		const std::string caption = formatLevelCaption(currentLevel + 1,
+													  status ? title : std::string("???"));
+		p_font->measureText(caption, &dim, 0);
+		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
 	}
 	else
 	{

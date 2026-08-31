@@ -75,7 +75,7 @@ public:
 
 	void turnArrows();
 	bool changeBarrages(uint color);
-	int changeBarrages2(uint color, bool up);
+	bool changeBarrages2(uint color, bool up);
 	int fireCannons(uint color);
 	int rotateCannons(uint color);
 

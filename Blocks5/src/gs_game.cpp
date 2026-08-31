@@ -246,13 +246,12 @@ void GS_Game::onRender()
 		}
 	}
 
-	std::string title = localizeString(p_level->getTitle());
-
-	if(cameFromEditor) sprintf(text, "%s", title.c_str());
-	else sprintf(text, "%02d - %s", levelNumber + 1, title.c_str());
+	const std::string title = localizeString(p_level->getTitle());
+	const std::string caption = cameFromEditor ? title
+											   : formatLevelCaption(levelNumber + 1, title);
 	Vec2i dim;
-	p_font->measureText(text, &dim, 0);
-	p_font->renderText(text, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
+	p_font->measureText(caption, &dim, 0);
+	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
 
 	if(engine.isKeyDown(SDLK_f))
 	{
@@ -356,7 +355,6 @@ void GS_Game::onUpdate()
 		{
 			// Fortschritt vermerken
 			ProgressDB& db = ProgressDB::inst();
-			bool old = db.wasLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
 			db.setLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
 			db.save();
 		}

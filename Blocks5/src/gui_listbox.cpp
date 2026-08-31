@@ -143,9 +143,6 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrueckt?
-	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
-
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:

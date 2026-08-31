@@ -45,7 +45,6 @@ void Help::onKeyEvent(const SDL_KeyboardEvent& event)
 void Help::handleClick(GUI_Element* p_element)
 {
 	std::string name = p_element->getName();
-	Engine& engine = Engine::inst();
 
 	if(isVisible())
 	{

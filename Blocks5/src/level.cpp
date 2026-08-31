@@ -85,7 +85,6 @@ Level::Level()
 	}
 
 	Engine&	engine = Engine::inst();
-	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
 	// Textur fuer den Effekt-Puffer erzeugen
@@ -1168,7 +1167,6 @@ void Level::renderTiles(int layer,
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
-				const TileSet::TileInfo& tileInfo = p_tileSet->getTileInfo(tileID);
 				p_tileSet->renderTile(tileID, p * 16);
 			}
 		}
@@ -1189,7 +1187,6 @@ void Level::renderTiles(int layer,
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
-				const TileSet::TileInfo& tileInfo = p_tileSet->getTileInfo(tileID);
 				p_tileSet->renderTile(tileID, p * 16);
 			}
 		}
@@ -1457,8 +1454,6 @@ std::vector<Object*> Level::getObjectsAt2(const Vec2i& position,
 
 	Vec2d positionInPixels = Vec2d(7.5, 7.5) + position * 16;
 	Vec2i p[] = {Vec2i(0, 0), Vec2i(-2, 0), Vec2i(-1, 0), Vec2i(1, 0), Vec2i(2, 0), Vec2i(0, -2), Vec2i(0, -1), Vec2i(0, 1), Vec2i(0, 2)};
-	Object* p_closestObject = 0;
-	double closestDist = 0.0;
 	for(int i = 0; i < sizeof(p) / sizeof(Vec2i); i++)
 	{
 		const std::vector<Object*>& allObjectsHere = getAllObjectsAt(position + p[i]);
@@ -1648,10 +1643,9 @@ bool Level::changeBarrages(uint color)
 	return true;
 }
 
-int Level::changeBarrages2(uint color,
+bool Level::changeBarrages2(uint color,
 						   bool up)
 {
-	int numFailed = 0;
 	std::vector<Barrage2*> changed;
 
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)

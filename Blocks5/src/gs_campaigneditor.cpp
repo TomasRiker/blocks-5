@@ -82,10 +82,6 @@ public:
 			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 			if(event.type != SDL_KEYDOWN) return;
 
-			// Shift, Strg gedrueckt?
-			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
-			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
-
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:

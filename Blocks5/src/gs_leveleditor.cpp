@@ -1573,7 +1573,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 			}
 
 			// das Objekt an der gewaehlten Stelle einsetzen
-			Object* p_newObj = p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
+			p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
 
 			// "eintueten"
 			p_level->removeOldObjects();
@@ -1823,7 +1823,7 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 					i != p_clipboard[index].objectTypes.end() && j != p_clipboard[index].objectAttributes.end();
 					i++, j++)
 				{
-					Object* p_newObj = p_level->getPresets()->instancePreset(*i, p, &(*j));
+					p_level->getPresets()->instancePreset(*i, p, &(*j));
 					p_level->addNewObjects();
 				}
 			}

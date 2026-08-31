@@ -105,7 +105,6 @@ void Fire::onUpdate()
 						p.positionOnTexture = Vec2b(0, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = position * 16 + Vec2i(random(6, 10), random(6, 10));
-						const double r = random(0.0, 6.283);
 						p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));
 						p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
 						const double dc = -0.5 / (p.lifetime + random(-25, 25));

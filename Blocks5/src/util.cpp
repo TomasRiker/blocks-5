@@ -38,6 +38,14 @@ std::string getFilenameExtension(const std::string& filename)
 	}
 }
 
+std::string formatLevelCaption(int number,
+							   const std::string& title)
+{
+	char prefix[16] = "";
+	sprintf(prefix, "%02d - ", number);
+	return prefix + title;
+}
+
 std::string setFilenameExtension(const std::string& filename,
 								 const std::string& extension)
 {
@@ -179,7 +187,6 @@ void decryptPassword(const char* p_in,
 					 const uint* p_primes)
 {
 	char step1[1024] = "";
-	uint length1 = static_cast<uint>(strlen(p_in) / 7) * 4;
 	for(uint i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
 	{
 		// immer 7 Zeichen zur Basis 62 in einen 32-Bit-Integer umwandeln

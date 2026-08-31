@@ -69,27 +69,23 @@ std::string FileSystem::getCurrentDir() const
 	else return dirStack.top();
 }
 
+// Beide teilen den Pfad am letzten Schraegstrich. Vorher lief das ueber einen
+// eigenen Puffer und einen Index, der bei "" unterlief: length() ist dann 0,
+// 0 - 1 als uint ist 0xFFFFFFFF, und die Suchschleife las von dort aus
+// rueckwaerts an einem einzigen reservierten Byte vorbei. find_last_of kennt
+// den Fall und hat den Puffer gleich mit erledigt.
 std::string FileSystem::getPathDirectory(const std::string& path) const
 {
-	char* p_temp = new char[path.length() + 1];
-	strcpy(p_temp, path.c_str());
-	uint i = static_cast<uint>(path.length()) - 1;
-	while(i && p_temp[i] != '/') i--;
-	p_temp[i] = 0;
-	std::string r(p_temp);
-	delete[] p_temp;
-	return r;
+	const size_t slash = path.find_last_of('/');
+	if(slash == std::string::npos) return "";
+	return path.substr(0, slash);
 }
 
 std::string FileSystem::getPathFilename(const std::string& path) const
 {
-	char* p_temp = new char[path.length() + 1];
-	strcpy(p_temp, path.c_str());
-	uint i = static_cast<uint>(path.length() - 1);
-	while(i && p_temp[i] != '/') i--;
-	std::string r(i ? p_temp + i + 1 : p_temp);
-	delete[] p_temp;
-	return r;
+	const size_t slash = path.find_last_of('/');
+	if(slash == std::string::npos) return path;
+	return path.substr(slash + 1);
 }
 
 File* FileSystem::openFile(const std::string& filename,

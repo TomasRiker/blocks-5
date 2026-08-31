@@ -630,7 +630,6 @@ void Engine::mainLoop()
 	bool done = false;
 	Uint32 timeToProcess = 0;
 	uint timeProcessed = 1;
-	uint firstEventRecorded = ~0;
 #endif
 
 	// Cursor-Position abfragen
@@ -1138,7 +1137,6 @@ void Engine::update()
 		}
 		else
 		{
-			FileSystem& fs = FileSystem::inst();
 			char videoDateTime[256];
 			const time_t t = ::time(0);
 			strftime(videoDateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
