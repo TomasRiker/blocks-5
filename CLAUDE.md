@@ -184,6 +184,14 @@ holds the last frame that *was* rendered, which is exactly the screen being fade
 `<Crt scanline= curvature= bloom= flicker= scanflicker=>`), because they are matters of taste
 rather than tuning.
 
+**Nobody finds a filter buried in an options dialog**, so the first start of 1.2.0 asks:
+`Menu.CrtPane` offers it once, with a button that switches it on there and then. The marker
+is `.crt_offered` in the user directory, the same idiom as `.donation_asked` — absent on a
+clean install *and* after an upgrade, which is exactly the set of people who have not seen
+the filter. It is skipped where `canUseCrt()` is false (the options dialog would not list it
+either) and where the filter is already CRT, and it suppresses the donation window for that
+one start so the two never stack.
+
 The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
 an artifact of 240p: a console drew 240 lines into a 480-line raster. A VGA monitor showing
 640x480 drew all 480 with the beam profiles overlapping, and had no gaps. This game's honest

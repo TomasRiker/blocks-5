@@ -141,6 +141,28 @@
 			</Window>
 		</Element>
 
+		<!-- Einmalig beim ersten Start von 1.2.0: der Hinweis auf den
+		     CRT-Filter. Wer ihn nie im Optionsdialog sucht, erfaehrt sonst
+		     nicht, dass es ihn gibt. -->
+		<Element name="CrtPane" w="640" h="480">
+			<Hidden />
+			<Fill r="0" g="0" b="0" a="0.5" />
+			<Window name="Crt" w="420" h="220">
+				<Title>$MM_CRT_TITLE</Title>
+				<Center />
+				<StaticText name="Text" x="10" y="30" w="400" h="140">
+					<WordWrap />
+					<Text>$MM_CRT_TEXT</Text>
+				</StaticText>
+				<Button name="NoThanks" x="10" y="180" w="180" h="30">
+					<Title>$MM_CRT_NO_THANKS</Title>
+				</Button>
+				<Button name="TryIt" x="230" y="180" w="180" h="30">
+					<Title>$MM_CRT_TRY</Title>
+				</Button>
+			</Window>
+		</Element>
+
 		<!-- Wohin Import und Export ihre Rueckmeldung schreiben. Das
 		     Hauptmenue hatte bisher keine. -->
 		<Element name="MessagePane" w="640" h="480">

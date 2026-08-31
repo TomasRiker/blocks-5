@@ -179,7 +179,9 @@ void GS_Menu::onUpdate()
 	// die melden sie mit consumeKeyPress() ab, weil GUI::update() vor
 	// onUpdate() laeuft und sie sonst im selben Bild schliessen *und* das
 	// Spiel beenden wuerden.
-	if(engine.wasKeyPressed(SDLK_ESCAPE) && !gui["Menu.DonatePane"]->isVisible())
+	if(engine.wasKeyPressed(SDLK_ESCAPE) &&
+	   !gui["Menu.DonatePane"]->isVisible() &&
+	   !gui["Menu.CrtPane"]->isVisible())
 	{
 		SDL_Event quitEvent;
 		quitEvent.type = SDL_QUIT;
@@ -238,6 +240,8 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.Donate"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.Donate"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.CrtPane.Crt.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.CrtPane.Crt.TryIt"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Import"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Export"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
@@ -249,8 +253,22 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
 
-	// Wann wurde zuletzt nach einer Spende gefragt?
 	FileSystem& fs = FileSystem::inst();
+
+	// Einmalig auf den CRT-Filter hinweisen: beim ersten Start nach der
+	// Installation und ebenso beim ersten nach einem Update, denn die
+	// Merkdatei gibt es vor 1.2.0 nirgends. Nur, wenn die Maschine den Filter
+	// ueberhaupt darstellen kann - sonst waere es ein Angebot, das der
+	// Optionsdialog gar nicht erst auffuehrt.
+	// Wer ihn schon eingeschaltet hat, muss nicht gefragt werden. Vorkommen
+	// kann das eigentlich nur, wenn die config.xml von woanders stammt.
+	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
+	const bool offerCrt = engine.canUseCrt() &&
+						  engine.getUpscaleFilter() != Engine::UF_CRT &&
+						  !fs.fileExists(crtOfferedPath);
+	if(offerCrt) gui["Menu.CrtPane.Crt"]->focus();
+
+	// Wann wurde zuletzt nach einer Spende gefragt?
 	const std::string lastAskedForDonationStr = fs.fileExists(fs.getAppHomeDirectory() + ".donation_asked") ? fs.readStringFromFile(fs.getAppHomeDirectory() + ".donation_asked") : "";
 	if(lastAskedForDonationStr != "disable")
 	{
@@ -263,7 +281,10 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 		// Browser war das der Normalfall: dort schrieb niemand .time_played,
 		// die gespielte Zeit fing also jedesmal wieder bei null an, waehrend
 		// .donation_asked vom ersten Mal her stehenblieb.
-		if(timePlayed >= lastAskedForDonation &&
+		// Nicht beides auf einmal: der CRT-Hinweis kommt genau einmal, die
+		// Spendenfrage naechstes Mal wieder.
+		if(!offerCrt &&
+		   timePlayed >= lastAskedForDonation &&
 		   timePlayed - lastAskedForDonation >= 60 * (60 * 60 * 3))
 		{
 			gui["Menu.DonatePane.Donate"]->focus();
@@ -452,6 +473,23 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	else if(name == "Menu.Donate")
 	{
 		gui["Menu.DonatePane.Donate"]->focus();
+	}
+	else if(name == "Menu.CrtPane.Crt.TryIt" ||
+			name == "Menu.CrtPane.Crt.NoThanks")
+	{
+		if(name == "Menu.CrtPane.Crt.TryIt")
+		{
+			engine.setUpscaleFilter(Engine::UF_CRT);
+			engine.saveConfig();
+		}
+
+		// So oder so gefragt. Die Merkdatei haelt nur fest, dass es passiert
+		// ist; ihr Inhalt wird nirgends gelesen.
+		FileSystem& fs = FileSystem::inst();
+		fs.writeStringToFile("1", fs.getAppHomeDirectory() + ".crt_offered");
+
+		gui["Menu.CrtPane"]->hide();
+		gui["Menu"]->focus();
 	}
 	else if(name == "Menu.DonatePane.Donate.NoThanks" ||
 			name == "Menu.DonatePane.Donate.Donate")
