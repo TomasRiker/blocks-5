@@ -23,6 +23,8 @@ public:
 	std::string getToolTip() const;
 
 private:
+	void updateSprite();
+
 	int subType;
 	int dir;
 };
