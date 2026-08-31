@@ -1026,6 +1026,114 @@ markup (`<h>…</h>` for a heading, `¶` for a newline). Adding a shortcut list
 means writing it twice, in both languages, and either extending a page or
 adding a seventh — the cap in `help.cpp` is a literal `6`.
 
+13. The particle system's container
+----------------------------------
+`ParticleSystem` keeps its particles in a `std::list`, one 80-byte `Particle`
+per heap node, walked by pointer every tick and every frame. The manual
+`_mm_prefetch` pair in `update()` and `render()` is there because no hardware
+prefetcher follows a pointer chain; it earns 3–9%.
+
+**Nothing here is a bottleneck.** Measured at a heavy 5000 particles — the
+biggest single burst in the tree is 500, from a bomb — `update()` costs about
+0.05 ms of a 20 ms tick (0.23%) and filling the render vertex buffer about
+0.17 ms of a 16.7 ms frame (1.0%). This entry exists so the next person does not
+re-derive the four options and, in particular, does not re-discover the two
+traps the hard way.
+
+The struct is already single precision throughout (`Vec4f`, `Vec2f`, `float`);
+the `Vec4d`s at the emitter call sites run once per particle *created*, not per
+tick. Doubles would cost 16–33% and turn one `addps` into two `addpd`.
+
+Measured, ns per particle-tick, best of two runs:
+
+| container | order | native 5k | native 20k | wasm 5k |
+| --- | --- | --- | --- | --- |
+| `std::list` + malloc (today) | preserved | 7.9 | 23.0 | 10.3 |
+| `std::list` + pool allocator (LIFO) | preserved | 6.2 | 22.0 | 8.9 |
+| `std::vector` + swap-and-pop | **unstable** | 4.2 | 4.6 | 6.7 |
+| `std::vector` + stable compaction | preserved | 10.3 | 11.4 | 14.7 |
+| `std::vector` + tombstones, compact every 16 | preserved | 3.8 | 5.3 | — |
+| ring of buckets keyed by death tick | preserved | 4.2 | 4.9 | 5.9 |
+
+**Trap one: swap-and-pop breaks the picture, and it was tried once.** Two of the
+three systems are alpha blended and therefore order dependent —
+`p_particleSystem` and `p_rainParticleSystem` both draw under
+`GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA` (`level.cpp:666` and `:702`). Only
+`p_fireParticleSystem` is additive (`GL_SRC_ALPHA, GL_ONE`, `level.cpp:700`) and
+genuinely order-free. What swap-and-pop produces is not a wrong order but an
+*unstable* one: a particle jumps from the end of the array into the middle the
+instant a neighbour dies, so the layering of overlapping sprites changes between
+frames, which reads as flicker. Counted over 800 ticks with 5000 particles, the
+relative order of the survivors was unchanged in 800 frames for the list and in
+**19** for swap-and-pop.
+
+**Trap two: a pool allocator buys much less than it looks like it should.** It
+fixes where the nodes are, not the order they are visited in. Freshly filled,
+both malloc and a pool walk perfectly forward — 100% of steps forward and within
+128 bytes. After 300 ticks of churn that collapses to 3.0% for malloc and 0.0%
+for the pool; the mean jump between list-consecutive nodes is 119 KB against the
+pool's 25 KB. Smaller jumps, still jumps. Worth about 1.3x at 5000 and 1.02x at
+20000, less in the browser, because Emscripten's dlmalloc over one flat linear
+memory already packs same-size nodes densely. It is still the cheapest thing on
+this list: about thirty lines, it never touches draw order, and it gives a fixed
+memory ceiling.
+
+A **FIFO** free list looks like it beats that — particles die roughly in the
+order they were born, so slot reuse tracks list order and the walk goes back to
+98.2% forward, worth 1.64x. It is an illusion. That only holds while the pool is
+far larger than the live set, so the allocator is marching into memory it has
+never touched. Size the pool to the maximum, which is the whole point of having
+one, and wrap-around shuffles the free list: 0.0% forward, 1.16x. Let a big pool
+lap three times and it is 0.98x. In a linked list, reusing hot slots and walking
+in address order are mutually exclusive; a vector gets both for free.
+
+**The one that works: a ring of buckets keyed by the absolute death tick.**
+`bucket = deathTick & (WHEEL-1)`, so nothing ever moves. Each tick sweeps buckets
+`now` through `now + WHEEL-1` and then `clear()`s bucket `now` — death is O(1)
+for the whole cohort, and the inner loop has no branch at all: no `--lifetime`,
+no death test, no erase. That is why it beats even swap-and-pop in the browser
+(1.74x against 1.53x, and 2.03x against 1.82x with `-msimd128`).
+
+Its order is stable, and the reason is worth writing down because getting it
+backwards is easy and silent: sweep `now` **first**, not last. A live particle's
+position in the sweep is exactly its remaining lifetime, and every particle's
+remaining lifetime falls by one each tick, so no two can ever swap. Sweeping
+`now+1 … now+WHEEL` instead puts the about-to-die bucket at the end, and every
+particle jumps from the front of the sweep to the back on its final frame.
+Measured both ways: 800/800 frames stable with the right sweep, 19/800 with the
+wrong one — indistinguishable from swap-and-pop.
+
+What it would cost:
+
+- **Memory.** 13.1x the live count in capacity: 5.0 MB at 5000 particles against
+  a vector's 0.8 MB. Each of the 512 buckets keeps its own historical peak and
+  those peaks fall at different times. Bounded, and small in absolute terms, but
+  it is the price.
+- **`WHEEL` must exceed the longest lifetime.** The longest in the tree is
+  `random(150, 300)`, so 512 has room — but anything longer would silently alias
+  into a bucket that dies early. Wants an assert in `addParticle`.
+- **The `p.size <= 0` early death** has to become a death tick computed once at
+  insertion, `min(lifetime, ceil(size / -deltaSize))`. Nine emitters have a
+  negative `deltaSize`. Float accumulation could put it one tick off today's
+  behaviour, on a particle whose size is already about zero.
+- **The order becomes remaining-lifetime order rather than creation order.**
+  Stable, but different. Where a burst shares one lifetime it is unchanged —
+  `enemy.cpp` gives all 150 particles `lifetime = 100`, so they land in one
+  bucket in insertion order exactly as today; `object.cpp`'s `random(20, 50)`
+  burst spreads over thirty buckets and does reorder.
+
+`getNewParticle()` has no callers anywhere in the tree. It returns
+`&particles.back()`, which was the only thing that required stable addresses, so
+nothing blocks a vector. It can go either way: delete it, or have it return an
+index.
+
+Two smaller notes from the same measurements. In `render()`, `sinf`/`cosf` per
+particle is 54–61% of the fill loop (20.2 → 9.2 ns native, 34.8 → 14.7 ns wasm
+when hoisted); since `rotation` advances by a constant `deltaRotation` every
+tick, the pair could be advanced by a fixed rotation instead of recomputed per
+frame. And `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping
+wasm contains no vector instructions at all — see item 8.
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
