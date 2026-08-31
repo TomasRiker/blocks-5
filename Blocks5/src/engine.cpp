@@ -631,6 +631,12 @@ void Engine::mainLoop()
 	bool done = false;
 	Uint32 timeToProcess = 0;
 	uint timeProcessed = 1;
+#ifdef RECORD
+	// Nur der Demo-Rekorder braucht das. Im Browser steht es oben im
+	// Namensraum, weil die Schleife dort ihre lokalen Variablen nicht ueber
+	// den Bildwechsel retten kann.
+	uint firstEventRecorded = ~0u;
+#endif
 #endif
 
 	// Cursor-Position abfragen

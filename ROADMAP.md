@@ -982,6 +982,46 @@ Left for later: anisotropic curvature (real tubes are not spherical), a shadow-m
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
 
+12. Tell the player about the hardcoded keys
+--------------------------------------------
+Nothing in the game says that **Alt+Return** switches between the window and
+full screen. It is the most useful shortcut 1.2.0 adds and the game itself never
+mentions it: not in the help, not in the options dialog. `readme.txt` names it
+in passing at the end of *Command Line Options*, which is better than nothing
+and not where anyone would look for it.
+
+The options dialog is not the gap it looks like. It lists *registered actions* —
+`$A_LEFT`, `$A_PLANT_BOMB` and the rest from `main.cpp` — which are remappable
+by design and already shown. These four bypass the action system entirely and
+are read straight from SDL, which is exactly why they never appear:
+
+| key | what it does | where |
+| --- | --- | --- |
+| Alt+Return | window / full screen | `engine.cpp:769` |
+| Shift+C | credits | `gs_menu.cpp:121` |
+| Shift+D | turns the donation prompt off for good | `gs_menu.cpp:127` |
+| F (held, in game) | frame time overlay | `gs_game.cpp:256` |
+
+Of those, only Alt+Return belongs in the player-facing help. Shift+D is a
+one-way switch a player could hit by accident reaching for Shift+C, and the
+other two are for us.
+
+**Which key is it, exactly.** The handler tests `SDLK_RETURN` only — the big
+key above the right Shift. `SDLK_KP_ENTER`, the one on the numeric keypad, is a
+separate code and is *not* handled, so Alt + numpad Enter does nothing. Either
+accept both (one `||` in `engine.cpp:769`, and the same in the `SDL_KEYUP` arm
+at 785 so `swallowedReturn` still balances) or keep it to the main key and say
+so. Worth settling before it goes in the help, because the two spellings differ
+too: SDL and this codebase say *Return*, while Windows and most keyboard caps
+say *Enter*. `readme.txt` currently says Alt+Return.
+
+**Where the help text lives.** Six pages, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in
+`data/languages.txt`; `help.cpp:78` builds the ID from the page number, and
+`help.cpp:61` caps it at 6. Each page has a `§en:` and a `§de:` body with light
+markup (`<h>…</h>` for a heading, `¶` for a newline). Adding a shortcut list
+means writing it twice, in both languages, and either extending a page or
+adding a seventh — the cap in `help.cpp` is a literal `6`.
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
