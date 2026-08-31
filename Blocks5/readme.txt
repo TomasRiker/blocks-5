@@ -9,7 +9,7 @@
 
     by David Scherfgen
         Website ... https://www.david-scherfgen.de/meine-spiele/blocks-5/
-        E-Mail .... d.scherfgen@googlemail.com
+         E-Mail ... d.scherfgen@googlemail.com
 
 
 Where is the Help?
