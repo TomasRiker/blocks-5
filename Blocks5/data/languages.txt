@@ -239,8 +239,8 @@ $O_CONTROLS
 
 $O_RESET_CONTROLS
 // Reset controls
-§en:Reset
-§de:Zurücksetzen
+§en:Reset all
+§de:Alle zurücksetzen
 
 $O_PRIMARY_KEY
 // Primary key
