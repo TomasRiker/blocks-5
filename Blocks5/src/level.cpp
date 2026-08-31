@@ -32,6 +32,13 @@ bool Level::thunderstormSoundOn = false;
 // laden laesst.
 const char* p_defaultSkin = "blocks_01";
 
+// Wenn sich eine Leveldatei nicht laden laesst, wird nicht ein leerer Level
+// gezeigt, sondern dieser: das Wort ERROR aus Bloecken, mit Bob im O
+// eingesperrt. Der Wachposten haelt die Rekursion an, falls der Fehler-Level
+// selbst einmal fehlen oder kaputt sein sollte.
+const char* p_errorLevelFilename = "error_level.xml";
+bool loadingErrorLevel = false;
+
 const char* p_skinFilenames[] = {"tileset.xml", "sprites.png", "particles.png", "background.png", "hint.png", "hintfont.xml", "noise.png", "shine.png", "rain.png", "clouds.png", "snow.png"};
 
 const Vec2i Level::SIZE(40, 25);
@@ -208,6 +215,7 @@ bool Level::load(const std::string& filename,
 		printfLog("+ ERROR: Could not parse level XML file \"%s\" (Error: %d).\n",
 				  filename.c_str(),
 				  doc.ErrorId());
+		loadErrorLevel();
 		return false;
 	}
 
@@ -224,6 +232,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	{
 		printfLog("+ ERROR: Level XML file \"%s\" is invalid.\n",
 				  filename.c_str());
+		loadErrorLevel();
 		return false;
 	}
 
@@ -263,9 +272,10 @@ bool Level::load(TiXmlDocument* p_doc,
 	// die Angabe hatten ohnehin nie eine andere Groesse.
 	// Erst den Speicher holen, dann pruefen: von den vierzehn Stellen, die
 	// load() rufen, sehen sich nur zwei den Rueckgabewert an. Ein Abbruch darf
-	// deshalb keinen halbfertigen Level hinterlassen, sondern muss einen
-	// gueltigen leeren liefern - sonst wird aus einer abgewiesenen Datei ein
-	// Absturz statt einer Meldung.
+	// deshalb keinen halbfertigen Level hinterlassen - sonst wird aus einer
+	// abgewiesenen Datei ein Absturz statt einer Meldung. Was der Aufrufer dann
+	// bekommt, ist der Fehler-Level; die Reservierung hier traegt den Fall,
+	// dass auch der nicht zu laden ist.
 	allocateTiles();
 
 	Vec2i fileSize(SIZE);
@@ -279,6 +289,7 @@ bool Level::load(TiXmlDocument* p_doc,
 				  filename.c_str(),
 				  fileSize.x, fileSize.y, fileNumLayers,
 				  SIZE.x, SIZE.y, NUM_LAYERS);
+		loadErrorLevel();
 		return false;
 	}
 
@@ -1791,6 +1802,22 @@ bool Level::setSkin(uint index,
 // Frueher setSize(): das Umkopieren auf eine andere Groesse ist entfallen, denn
 // es gibt nur eine. clear() gibt den Speicher wieder frei und wird von jedem
 // load() als Erstes gerufen, deshalb reicht hier die Reservierung.
+// Der Fehler-Level tritt an die Stelle einer Datei, die sich nicht laden
+// laesst. Der Dateiname des Aufrufers wird danach wiederhergestellt: er steht
+// in den Protokollzeilen und soll weiter die Datei benennen, die gemeint war,
+// nicht den Platzhalter.
+bool Level::loadErrorLevel()
+{
+	if(loadingErrorLevel) return false;
+
+	const std::string wanted(filename);
+	loadingErrorLevel = true;
+	const bool ok = load(p_errorLevelFilename);
+	loadingErrorLevel = false;
+	filename = wanted;
+	return ok;
+}
+
 void Level::allocateTiles()
 {
 	if(p_tiles) return;
