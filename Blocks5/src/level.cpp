@@ -36,6 +36,13 @@ Level::Level()
 	p_tiles = 0;
 	p_aiFlags = 0;
 	p_objectsAt = 0;
+
+	// Der Konstruktor hat das bisher nicht gesetzt; gesetzt wurde es erst aus
+	// der Leveldatei. Fehlt dort das Attribut, blieb der Wert zufaellig - und
+	// setSize() reserviert damit numLayers * size.x * size.y Kacheln. Zwei ist
+	// die Zahl, mit der das Spiel arbeitet, und die jede mitgelieferte Datei
+	// auch nennt.
+	numLayers = 2;
 	inEditor = false;
 	inCat = false;
 	inPreview = false;
@@ -285,6 +292,12 @@ bool Level::load(TiXmlDocument* p_doc,
 
 			p_layer = p_layer->NextSiblingElement("Layer");
 			layer++;
+
+			// Nicht ueber numLayers hinaus, auch wenn die Datei mehr <Layer>
+			// mitbringt: p_tiles ist fuer genau so viele reserviert, und
+			// setTileAt() rechnet layer in den Index hinein. Eine von aussen
+			// eingefuehrte Datei bestimmt beide Zahlen selbst.
+			if(layer >= numLayers) break;
 		}
 
 		// Objekt-Elemente verarbeiten
@@ -1550,17 +1563,25 @@ bool Level::isValidPosition(const Vec2i& position) const
 		   position.x < size.x && position.y < size.y;
 }
 
+// Die Ebene gehoert genauso geprueft wie die Position: der Index ist
+// layer * size.x * size.y + ..., und layer kam bisher ungeprueft durch.
+bool Level::isValidLayer(int layer) const
+{
+	return layer >= 0 && layer < numLayers;
+}
+
 uint Level::getTileAt(int layer,
 					  const Vec2i& position) const
 {
-	return isValidPosition(position) ? p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0x000000FF : -1;
+	return isValidPosition(position) && isValidLayer(layer)
+		   ? p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0x000000FF : -1;
 }
 
 void Level::setTileAt(int layer,
 					  const Vec2i& position,
 					  uint tile)
 {
-	if(isValidPosition(position))
+	if(isValidPosition(position) && isValidLayer(layer))
 	{
 		int index = layer * size.x * size.y + position.y * size.x + position.x;
 		p_tiles[index] = tile;
@@ -1572,14 +1593,15 @@ void Level::setTileAt(int layer,
 uint Level::getTileDestroyTimeAt(int layer,
 								 const Vec2i& position) const
 {
-	return isValidPosition(position) ? (p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0xFFFFFF00) >> 8 : 1;
+	return isValidPosition(position) && isValidLayer(layer)
+		   ? (p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0xFFFFFF00) >> 8 : 1;
 }
 
 void Level::setTileDestroyTimeAt(int layer,
 								 const Vec2i& position,
 								 uint destroyTime)
 {
-	if(isValidPosition(position))
+	if(isValidPosition(position) && isValidLayer(layer))
 	{
 		int index = layer * size.x * size.y + position.y * size.x + position.x;
 		p_tiles[index] &= ~0xFFFFFF00;

@@ -66,6 +66,7 @@ public:
 	void setAITrace(const Vec2i& where, uint value);
 
 	bool isValidPosition(const Vec2i& position) const;
+	bool isValidLayer(int layer) const;
 
 	uint getTileAt(int layer, const Vec2i& position) const;
 	void setTileAt(int layer, const Vec2i& position, uint tile);
