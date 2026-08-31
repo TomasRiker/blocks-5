@@ -88,6 +88,89 @@ Engine::~Engine()
 	exit();
 }
 
+namespace
+{
+	// Wie eine Taste in der config.xml heisst. Die Zahl dahinter taugt dafuer
+	// nicht: SDLK_LEFT ist unter SDL 1.2 die 276 und im Browser die 1104. Der
+	// Name steht hier fest, und welche Zahl er bedeutet, loest der jeweilige
+	// Build beim Uebersetzen selbst auf - deshalb stehen in der Tabelle
+	// Konstanten und keine Zahlen.
+	//
+	// Es sind die Tastennamen aus SDL 1.2 ohne das SDLK_ davor. Bis auf
+	// SDLK_WORLD_0..18, die Emscriptens SDL nicht kennt, gibt es jede davon
+	// auf beiden Seiten; die achtzehn fallen auf die Zahlenschreibweise
+	// zurueck und sind ohnehin nicht zu belegen.
+	struct KeyName
+	{
+		const char* p_name;
+		int         key;
+	};
+
+	const KeyName p_keyNames[] =
+	{
+		{"UNKNOWN", SDLK_UNKNOWN}     , {"BACKSPACE", SDLK_BACKSPACE} , {"TAB", SDLK_TAB},
+		{"CLEAR", SDLK_CLEAR}         , {"RETURN", SDLK_RETURN}       , {"PAUSE", SDLK_PAUSE},
+		{"ESCAPE", SDLK_ESCAPE}       , {"SPACE", SDLK_SPACE}         , {"EXCLAIM", SDLK_EXCLAIM},
+		{"QUOTEDBL", SDLK_QUOTEDBL}   , {"HASH", SDLK_HASH}           , {"DOLLAR", SDLK_DOLLAR},
+		{"AMPERSAND", SDLK_AMPERSAND} , {"QUOTE", SDLK_QUOTE}         , {"LEFTPAREN", SDLK_LEFTPAREN},
+		{"RIGHTPAREN", SDLK_RIGHTPAREN}, {"ASTERISK", SDLK_ASTERISK}   , {"PLUS", SDLK_PLUS},
+		{"COMMA", SDLK_COMMA}         , {"MINUS", SDLK_MINUS}         , {"PERIOD", SDLK_PERIOD},
+		{"SLASH", SDLK_SLASH}         , {"0", SDLK_0}                 , {"1", SDLK_1},
+		{"2", SDLK_2}                 , {"3", SDLK_3}                 , {"4", SDLK_4},
+		{"5", SDLK_5}                 , {"6", SDLK_6}                 , {"7", SDLK_7},
+		{"8", SDLK_8}                 , {"9", SDLK_9}                 , {"COLON", SDLK_COLON},
+		{"SEMICOLON", SDLK_SEMICOLON} , {"LESS", SDLK_LESS}           , {"EQUALS", SDLK_EQUALS},
+		{"GREATER", SDLK_GREATER}     , {"QUESTION", SDLK_QUESTION}   , {"AT", SDLK_AT},
+		{"LEFTBRACKET", SDLK_LEFTBRACKET}, {"BACKSLASH", SDLK_BACKSLASH} , {"RIGHTBRACKET", SDLK_RIGHTBRACKET},
+		{"CARET", SDLK_CARET}         , {"UNDERSCORE", SDLK_UNDERSCORE}, {"BACKQUOTE", SDLK_BACKQUOTE},
+		{"a", SDLK_a}                 , {"b", SDLK_b}                 , {"c", SDLK_c},
+		{"d", SDLK_d}                 , {"e", SDLK_e}                 , {"f", SDLK_f},
+		{"g", SDLK_g}                 , {"h", SDLK_h}                 , {"i", SDLK_i},
+		{"j", SDLK_j}                 , {"k", SDLK_k}                 , {"l", SDLK_l},
+		{"m", SDLK_m}                 , {"n", SDLK_n}                 , {"o", SDLK_o},
+		{"p", SDLK_p}                 , {"q", SDLK_q}                 , {"r", SDLK_r},
+		{"s", SDLK_s}                 , {"t", SDLK_t}                 , {"u", SDLK_u},
+		{"v", SDLK_v}                 , {"w", SDLK_w}                 , {"x", SDLK_x},
+		{"y", SDLK_y}                 , {"z", SDLK_z}                 , {"DELETE", SDLK_DELETE},
+		{"KP0", SDLK_KP0}             , {"KP1", SDLK_KP1}             , {"KP2", SDLK_KP2},
+		{"KP3", SDLK_KP3}             , {"KP4", SDLK_KP4}             , {"KP5", SDLK_KP5},
+		{"KP6", SDLK_KP6}             , {"KP7", SDLK_KP7}             , {"KP8", SDLK_KP8},
+		{"KP9", SDLK_KP9}             , {"KP_PERIOD", SDLK_KP_PERIOD} , {"KP_DIVIDE", SDLK_KP_DIVIDE},
+		{"KP_MULTIPLY", SDLK_KP_MULTIPLY}, {"KP_MINUS", SDLK_KP_MINUS}   , {"KP_PLUS", SDLK_KP_PLUS},
+		{"KP_ENTER", SDLK_KP_ENTER}   , {"KP_EQUALS", SDLK_KP_EQUALS} , {"UP", SDLK_UP},
+		{"DOWN", SDLK_DOWN}           , {"RIGHT", SDLK_RIGHT}         , {"LEFT", SDLK_LEFT},
+		{"INSERT", SDLK_INSERT}       , {"HOME", SDLK_HOME}           , {"END", SDLK_END},
+		{"PAGEUP", SDLK_PAGEUP}       , {"PAGEDOWN", SDLK_PAGEDOWN}   , {"F1", SDLK_F1},
+		{"F2", SDLK_F2}               , {"F3", SDLK_F3}               , {"F4", SDLK_F4},
+		{"F5", SDLK_F5}               , {"F6", SDLK_F6}               , {"F7", SDLK_F7},
+		{"F8", SDLK_F8}               , {"F9", SDLK_F9}               , {"F10", SDLK_F10},
+		{"F11", SDLK_F11}             , {"F12", SDLK_F12}             , {"F13", SDLK_F13},
+		{"F14", SDLK_F14}             , {"F15", SDLK_F15}             , {"NUMLOCK", SDLK_NUMLOCK},
+		{"CAPSLOCK", SDLK_CAPSLOCK}   , {"SCROLLOCK", SDLK_SCROLLOCK} , {"RSHIFT", SDLK_RSHIFT},
+		{"LSHIFT", SDLK_LSHIFT}       , {"RCTRL", SDLK_RCTRL}         , {"LCTRL", SDLK_LCTRL},
+		{"RALT", SDLK_RALT}           , {"LALT", SDLK_LALT}           , {"RMETA", SDLK_RMETA},
+		{"LMETA", SDLK_LMETA}         , {"LSUPER", SDLK_LSUPER}       , {"RSUPER", SDLK_RSUPER},
+		{"MODE", SDLK_MODE}           , {"COMPOSE", SDLK_COMPOSE}     , {"HELP", SDLK_HELP},
+		{"PRINT", SDLK_PRINT}         , {"SYSREQ", SDLK_SYSREQ}       , {"BREAK", SDLK_BREAK},
+		{"MENU", SDLK_MENU}           , {"POWER", SDLK_POWER}         , {"EURO", SDLK_EURO},
+		{"UNDO", SDLK_UNDO},
+	};
+
+	std::string keyboardVKId(int key)
+	{
+		for(uint i = 0; i < sizeof(p_keyNames) / sizeof(p_keyNames[0]); i++)
+		{
+			if(p_keyNames[i].key == key) return std::string("key:") + p_keyNames[i].p_name;
+		}
+
+		// Kennt dieser Build die Taste, die Tabelle aber nicht: als Zahl, so
+		// wie frueher. Gilt dann wieder nur auf derselben Plattform.
+		char temp[32] = "";
+		sprintf(temp, "key:#%d", key);
+		return temp;
+	}
+}
+
 bool Engine::init(const std::string& windowCaption,
 				  const std::string& windowIconFilename,
 				  uint width,
@@ -135,6 +218,7 @@ bool Engine::init(const std::string& windowCaption,
 		VirtualKey vk;
 		const char* p_name = SDL_GetKeyName(static_cast<SDLKey>(k));
 		vk.name = std::string("Keyboard ") + (p_name ? p_name : "???");
+		vk.id = keyboardVKId(k);
 		vk.key = k;
 		vk.down = false;
 		virtualKeys.push_back(vk);
@@ -156,6 +240,7 @@ bool Engine::init(const std::string& windowCaption,
 				std::ostringstream str;
 				str << "Joystick" << index + 1 << " B" << k + 1;
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.key = k;
 				vk.down = false;
@@ -171,6 +256,7 @@ bool Engine::init(const std::string& windowCaption,
 				std::ostringstream str;
 				str << "Joystick" << index + 1 << " A" << a + 1 << "-";
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
 				vk.positive = false;
@@ -179,6 +265,7 @@ bool Engine::init(const std::string& windowCaption,
 				str.str("");
 				str << "Joystick" << index + 1 << " A" << a + 1 << "+";
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
 				vk.positive = true;
@@ -197,34 +284,42 @@ bool Engine::init(const std::string& windowCaption,
 				vk.hat = h;
 
 				vk.name = str.str() + "N";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_UP;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "NE";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTUP;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "E";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHT;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "SE";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTDOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "S";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_DOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "SW";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTDOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "W";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFT;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "NW";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTUP;
 				virtualKeys.push_back(vk);
 			}
@@ -2661,6 +2756,28 @@ int Engine::getKeyboardVK(SDLKey key) const
 	return key;
 }
 
+const std::string& Engine::getVKId(int vk) const
+{
+	static const std::string empty;
+	if(vk < 0 || vk >= static_cast<int>(virtualKeys.size())) return empty;
+	return virtualKeys[vk].id;
+}
+
+int Engine::getVKFromId(const std::string& id) const
+{
+	if(id.empty()) return -1;
+
+	for(uint i = 0; i < virtualKeys.size(); i++)
+	{
+		if(virtualKeys[i].id == id) return static_cast<int>(i);
+	}
+
+	// Unbekannt - etwa eine Joystick-Belegung, deren Joystick gerade nicht
+	// angeschlossen ist. Unbelegt lassen ist besser, als auf gut Glueck eine
+	// Nummer zu nehmen, hinter der jetzt etwas anderes steht.
+	return -1;
+}
+
 Action* Engine::registerAction(const std::string& name,
 							   int primary,
 							   int secondary)
@@ -3225,9 +3342,16 @@ void Engine::loadConfig()
 				{
 					if(getAction(p_name))
 					{
+						// Bis 1.2.0 stand hier die VK-Nummer, seither der
+						// Name. Erst die Zahl versuchen: gelingt sie, ist es
+						// eine alte Datei, und beim naechsten Speichern steht
+						// der Name darin.
 						int primary = -1, secondary = -1;
-						p_action->QueryIntAttribute("primary", &primary);
-						p_action->QueryIntAttribute("secondary", &secondary);
+						if(p_action->QueryIntAttribute("primary", &primary) != TIXML_SUCCESS)
+							primary = getVKFromId(p_action->Attribute("primary") ? p_action->Attribute("primary") : "");
+						if(p_action->QueryIntAttribute("secondary", &secondary) != TIXML_SUCCESS)
+							secondary = getVKFromId(p_action->Attribute("secondary") ? p_action->Attribute("secondary") : "");
+
 						changeAction(p_name, primary, secondary);
 					}
 				}
@@ -3316,8 +3440,8 @@ void Engine::saveConfig()
 	{
 		TiXmlElement* p_action = new TiXmlElement("Action");
 		p_action->SetAttribute("name", actionsVector[i]->name.c_str());
-		p_action->SetAttribute("primary", actionsVector[i]->primary);
-		p_action->SetAttribute("secondary", actionsVector[i]->secondary);
+		p_action->SetAttribute("primary", getVKId(actionsVector[i]->primary).c_str());
+		p_action->SetAttribute("secondary", getVKId(actionsVector[i]->secondary).c_str());
 		p_controls->LinkEndChild(p_action);
 	}
 	p_config->LinkEndChild(p_controls);

@@ -31,7 +31,10 @@ struct Action
 
 struct VirtualKey
 {
+	// name wird angezeigt und kommt bei Tasten von SDL; id steht in der
+	// config.xml und muss deshalb ueberall dasselbe bedeuten.
 	std::string name;
+	std::string id;
 	int device;
 	int key;
 	int axis;
@@ -219,6 +222,13 @@ public:
 	const std::unordered_map<std::string, Action*>& getActions() const;
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
+
+	// Die Kennung, unter der eine Taste in der config.xml steht. Die VK-Nummer
+	// taugt dafuer nicht: sie ist ein Index in virtualKeys, und der haengt an
+	// SDLK_LAST (323 unter SDL 1.2, 1536 im Browser) und daran, welche
+	// Joysticks beim Start angeschlossen waren.
+	const std::string& getVKId(int vk) const;
+	int getVKFromId(const std::string& id) const;
 	Action* registerAction(const std::string& name, int primary, int secondary = -1);
 	void changeAction(const std::string& name, int primary, int secondary = -1);
 	Action* getAction(const std::string& name) const;

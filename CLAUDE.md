@@ -357,6 +357,17 @@ LGPL v2 and must stay dynamically linked.
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are
 registered in `main.cpp` and remappable via the options dialog.
 
+**A binding is stored in `config.xml` by name, not by number.** A VK is an index into
+`virtualKeys`, and that index moves: the keyboard block is `SDLK_LAST` long, which is 323
+under SDL 1.2 and 1536 with Emscripten's headers, so every joystick entry after it sits
+somewhere else — and the joystick entries themselves depend on what was plugged in at
+startup. `VirtualKey::id` is the stable spelling written instead: `key:LEFT`, `key:KP_ENTER`
+for the keyboard, from a table of the 136 SDL 1.2 key names that resolve to whatever
+constant the current build means, and the already-structural `Joystick1 B3` / `Joystick1 A2+`
+/ `Joystick1 H1NE` for the rest. Reading tries the number first, so a pre-1.2.0 config still
+loads and is rewritten by name on the next save. An id that resolves to nothing — a joystick
+that is not connected — becomes "unassigned" rather than a wrong key.
+
 **Game states** are a stack. Each derives from `GameState` (`gs_*.cpp`: Loading, Menu,
 SelectLevel, Game, LevelEditor, CampaignEditor, Credits) and is registered by constructing it —
 the base constructor calls `Engine::registerGameState`. Transitions go through
