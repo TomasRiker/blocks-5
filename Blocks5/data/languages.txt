@@ -660,8 +660,8 @@ $LE_SETTINGS_MUSIC
 // Caption of the music filename edit box. "blocks:" in front of the name
 // takes the track out of the campaign that ships with the game, so a level
 // can use one without carrying a copy of it.
-§en:Music (OGG file, or blocks:name.ogg for a built-in track):
-§de:Musik (OGG-Datei, oder blocks:name.ogg für ein mitgeliefertes Stück):
+§en:Music (OGG file, or blocks:music[1-10].ogg):
+§de:Musik (OGG-Datei, oder blocks:music[1-10].ogg):
 
 $LE_SETTINGS_EDIT_GRAPHICS_STYLE
 // Caption of the graphics style selection
