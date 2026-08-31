@@ -10,23 +10,28 @@ class Texture;
 class ParticleSystem
 {
 public:
+	// Die Zahlen sind Byte-Offsets. Die Leerzeile trennt, was render() liest,
+	// von dem, was nur update() braucht: die ersten sechs Felder reichen fuer
+	// einen Vertex und passen zusammen in eine Cache-Zeile. Alles ist einfach
+	// genau (float), nicht doppelt - ein Vec4f ist ein 16-Byte-Zugriff und eine
+	// einzige Vektoraddition, ein Vec4d waeren zwei. sizeof(Particle) = 80.
 	struct Particle
 	{
-		float rotation;				// 16
-		float size;					// 20
-		Vec4f color;				// 36
-		Vec2b positionOnTexture;	// 38
-		Vec2b sizeOnTexture;		// 40
-		Vec2f position;				// 48
+		float rotation;				//  0
+		float size;					//  4
+		Vec4f color;				//  8
+		Vec2b positionOnTexture;	// 24
+		Vec2b sizeOnTexture;		// 26
+		Vec2f position;				// 28
 
-		float deltaSize;			// 52
-		uint lifetime;				// 56
-		Vec2f velocity;				// 64
-		float damping;				// 68
-		float gravity;				// 72
-		Vec4f deltaColor;			// 88
-		float deltaRotation;		// 92
-	};
+		float deltaSize;			// 36
+		uint lifetime;				// 40
+		Vec2f velocity;				// 44
+		float damping;				// 52
+		float gravity;				// 56
+		Vec4f deltaColor;			// 60
+		float deltaRotation;		// 76
+	};								// 80
 
 	ParticleSystem(Texture* p_sprites);
 	~ParticleSystem();
