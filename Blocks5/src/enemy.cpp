@@ -417,7 +417,7 @@ void Enemy::onCollect(Player* p_player)
 
 				Vec4d sampled;
 				Vec2i offset;
-				if(!p_player->getDebris().sample(&sampled, &offset)) continue;
+				if(!p_player->sampleDebris(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
@@ -460,7 +460,7 @@ void Enemy::onCollect(Player* p_player)
 
 				Vec4d sampled;
 				Vec2i offset;
-				if(!p_player->getDebris().sample(&sampled, &offset)) continue;
+				if(!p_player->sampleDebris(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);

@@ -33,8 +33,32 @@ void DebrisSource::setColor(const Vec4d& color)
 	average = color;
 }
 
+namespace
+{
+	// Die Stelle in der Zelle so drehen, wie renderSprite() das Bild dreht.
+	//
+	// renderSprite legt das linke obere Texel der Zelle auf die lokale Ecke
+	// (-halfSize, -halfSize) und ruft dann glRotated(winkel, 0, 0, 1). Das ist
+	// die uebliche Drehmatrix, bei 90 Grad also (x, y) -> (-y, x). Mit
+	// Pixelmitten gerechnet - x = tx - 7.5, y = ty - 7.5 - wird daraus
+	// (tx, ty) -> (15 - ty, tx). Die Rechnung gilt unabhaengig davon, wohin die
+	// y-Achse zeigt, weil sie dieselbe Matrix im selben Bezugssystem anwendet.
+	Vec2i rotateInCell(const Vec2i& o, int quarterTurns)
+	{
+		const int last = TileSet::TILE_SIZE - 1;
+		switch(quarterTurns & 3)
+		{
+		case 1:  return Vec2i(last - o.y, o.x);
+		case 2:  return Vec2i(last - o.x, last - o.y);
+		case 3:  return Vec2i(o.y, last - o.x);
+		default: return o;
+		}
+	}
+}
+
 bool DebrisSource::sample(Vec4d* p_colorOut,
-						  Vec2i* p_offsetOut) const
+						  Vec2i* p_offsetOut,
+						  int quarterTurns) const
 {
 	// Ohne Textur - oder wenn die Pixel nicht mehr im Speicher liegen, dann
 	// gaebe getPixel() fuer alles durchsichtiges Schwarz und es entstuende gar
@@ -64,7 +88,7 @@ bool DebrisSource::sample(Vec4d* p_colorOut,
 	if(static_cast<uint>(pixel.a * 255.0) <= threshold) return false;
 
 	*p_colorOut = Vec4d(pixel.r, pixel.g, pixel.b, average.a);
-	*p_offsetOut = Vec2i(x, y);
+	*p_offsetOut = rotateInCell(Vec2i(x, y), quarterTurns);
 	return true;
 }
 

@@ -102,6 +102,17 @@ public:
 	bool isTeleporting() const;
 	bool hasTeleportFailed() const;
 	bool isFalling() const;
+	// Vierteldrehungen, mit denen das Bild dieses Objekts gezeichnet wird.
+	// Die Truemmer-Stichprobe zieht eine Stelle aus der Textur; damit der
+	// Partikel dort entsteht, wo das Pixel auch zu sehen ist, muss die Stelle
+	// mitgedreht werden. Fast alles hier zeichnet mit 90.0 * dir und ist damit
+	// ohnehin schon ein Vielfaches - gerundet wird nur, wo die Drehung
+	// weichgezeichnet ist (shownDir) oder noch ein Winkel dazukommt.
+	virtual int getSpriteQuarterTurns() const { return 0; }
+
+	// Bequemlichkeit: nimmt die Drehung gleich mit.
+	bool sampleDebris(Vec4d* p_colorOut, Vec2i* p_offsetOut) const;
+
 	const DebrisSource& getDebris() const;
 	void setDebrisColor(const Vec4d& debrisColor);
 	void setDebrisTexture(Texture* p_texture, const Vec2i& positionOnTexture);

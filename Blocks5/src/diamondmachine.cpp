@@ -62,7 +62,7 @@ void DiamondMachine::onUpdate()
 					// die ganze Saeule in einem einzigen Ton.
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_obj->getDebris().sample(&sampled, &offset)) return;
+					if(!p_obj->sampleDebris(&sampled, &offset)) return;
 
 					p.position = position * 16 - Vec2i(0, 16) + offset;
 					p.velocity = Vec2d(random(-0.5, 0.5), -1.0);

@@ -52,7 +52,11 @@ struct DebrisSource
 	// Stelle nichts ist - dann entsteht kein Partikel. p_colorOut bekommt die
 	// Farbe des Pixels mit der Deckkraft aus average, p_offsetOut die Stelle
 	// innerhalb der Zelle, damit die Wolke die Form des Objekts behaelt.
-	bool sample(Vec4d* p_colorOut, Vec2i* p_offsetOut) const;
+	//
+	// quarterTurns dreht diese Stelle so mit, wie das Bild gezeichnet wird.
+	// Ohne das kaeme der Partikel aus der unrotierten Textur und saesse bei
+	// einem gedrehten Objekt an der falschen Ecke. Kacheln werden nie gedreht.
+	bool sample(Vec4d* p_colorOut, Vec2i* p_offsetOut, int quarterTurns = 0) const;
 };
 
 class DebrisColorDB : public Singleton<DebrisColorDB>

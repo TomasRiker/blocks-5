@@ -93,6 +93,7 @@ void Projectile::onUpdate()
 				bool destroyed = false;
 				bool reflected = false;
 				const DebrisSource* p_debris = 0;
+				int debrisTurns = 0;   // Kacheln werden nie gedreht
 				Vec2d hitPosition;
 
 				if(distance >= 8.0 && !level.isFreeAt2(positionInPixels, 0, &p_objectHit, &tileHit, 64.0))
@@ -124,6 +125,7 @@ void Projectile::onUpdate()
 								p_objectHit->disappear(0.075);
 								destroyed = true;
 								p_debris = &p_objectHit->getDebris();
+								debrisTurns = p_objectHit->getSpriteQuarterTurns();
 							}
 							else
 							{
@@ -211,7 +213,7 @@ void Projectile::onUpdate()
 
 							Vec4d sampled;
 							Vec2i offset;
-							if(!p_debris->sample(&sampled, &offset)) continue;
+							if(!p_debris->sample(&sampled, &offset, debrisTurns)) continue;
 
 							p.position = hitPosition + Vec2d(offset) - Vec2d(8.0, 8.0) + Vec2i(random(-2, 2), random(-2, 2));
 							const double r = random(0.0, 6.283);

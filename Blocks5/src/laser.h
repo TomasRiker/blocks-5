@@ -11,6 +11,9 @@ class SoundInstance;
 class Laser : public Object
 {
 public:
+	// zeichnet mit 90.0 * dir
+	virtual int getSpriteQuarterTurns() const { return dir; }
+
 	Laser(Level& level, const Vec2i& position, int dir);
 	~Laser();
 

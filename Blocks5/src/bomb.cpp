@@ -89,6 +89,7 @@ void Bomb::onUpdate()
 					{
 						bool destroyed = false;
 						const DebrisSource* p_debris = 0;
+						int debrisTurns = 0;   // Kacheln werden nie gedreht
 
 						Vec2i pos = position + Vec2i(x, y);
 						int tileID = level.getTileAt(1, pos);
@@ -109,6 +110,7 @@ void Bomb::onUpdate()
 							{
 								destroyed = true;
 								p_debris = &p_obj->getDebris();
+										debrisTurns = p_obj->getSpriteQuarterTurns();
 							}
 						}
 
@@ -126,7 +128,7 @@ void Bomb::onUpdate()
 
 								Vec4d sampled;
 								Vec2i offset;
-								if(!p_debris->sample(&sampled, &offset)) continue;
+								if(!p_debris->sample(&sampled, &offset, debrisTurns)) continue;
 
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 								p.velocity = random(4.0, 7.0) * Vec2d(x, y).normalize() + Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));

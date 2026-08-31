@@ -824,7 +824,7 @@ void Object::burst()
 		// benutzt, damit die Wolke die Form des Objekts behaelt.
 		Vec4d sampled;
 		Vec2i offset;
-		if(!debris.sample(&sampled, &offset)) continue;
+		if(!sampleDebris(&sampled, &offset)) continue;
 
 		p.position = position * 16 + offset;
 		const double r = random(0.0, 6.283);
@@ -1083,6 +1083,12 @@ bool Object::hasTeleportFailed() const
 bool Object::isFalling() const
 {
 	return falling > 0.0;
+}
+
+bool Object::sampleDebris(Vec4d* p_colorOut,
+						  Vec2i* p_offsetOut) const
+{
+	return debris.sample(p_colorOut, p_offsetOut, getSpriteQuarterTurns());
 }
 
 const DebrisSource& Object::getDebris() const

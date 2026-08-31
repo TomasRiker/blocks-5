@@ -69,7 +69,7 @@ void Fire::onUpdate()
 			if(!p_obj->getDestroyTime())
 			{
 				p_obj->disappear(0.2);
-				const DebrisSource* p_debris = &p_obj->getDebris();
+				Object* p_destroyed = p_obj;
 
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
@@ -84,7 +84,7 @@ void Fire::onUpdate()
 					p.sizeOnTexture = Vec2b(16, 16);
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_debris->sample(&sampled, &offset)) continue;
+					if(!p_destroyed->sampleDebris(&sampled, &offset)) continue;
 
 					p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
@@ -111,7 +111,7 @@ void Fire::onUpdate()
 
 						Vec4d sampled;
 						Vec2i offset;
-						if(!debris.sample(&sampled, &offset)) continue;
+						if(!sampleDebris(&sampled, &offset)) continue;
 
 						p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 						p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));

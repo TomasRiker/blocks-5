@@ -9,6 +9,9 @@
 class Electronics : public Object
 {
 public:
+	// Alle e_*-Teile zeichnen mit 90.0 * dir.
+	virtual int getSpriteQuarterTurns() const { return dir; }
+
 	Electronics(Level& level, const Vec2i& position, int dir);
 	~Electronics();
 
