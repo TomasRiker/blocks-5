@@ -35,7 +35,7 @@ and the choice is remembered: the next start uses it again, with or without the
 option. "windowed.bat" next to the game is a ready-made shortcut for the first
 one.
 
-While playing you can switch between the two at any time with Alt+Enter.
+While playing you can switch between the two at any time with Alt+Return.
 
 
 Changelog
@@ -65,7 +65,7 @@ Changelog
             used to freeze until you let go, and it can no longer be dragged
             smaller than the 640x480 the game draws.
 
-            Alt+Enter switches between the window and full screen at any time.
+            Alt+Return switches between the window and full screen at any time.
             The game remembers which of the two you left it in, where the window
             was and how big - and whether it was maximized, which it used to
             forget, coming back half off the screen.

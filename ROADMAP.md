@@ -1006,14 +1006,18 @@ Of those, only Alt+Return belongs in the player-facing help. Shift+D is a
 one-way switch a player could hit by accident reaching for Shift+C, and the
 other two are for us.
 
-**Which key is it, exactly.** The handler tests `SDLK_RETURN` only — the big
-key above the right Shift. `SDLK_KP_ENTER`, the one on the numeric keypad, is a
-separate code and is *not* handled, so Alt + numpad Enter does nothing. Either
-accept both (one `||` in `engine.cpp:769`, and the same in the `SDL_KEYUP` arm
-at 785 so `swallowedReturn` still balances) or keep it to the main key and say
-so. Worth settling before it goes in the help, because the two spellings differ
-too: SDL and this codebase say *Return*, while Windows and most keyboard caps
-say *Enter*. `readme.txt` says Alt+Enter, on that reasoning.
+**Which key is it, exactly.** *Return* and *Enter* are two different keys here,
+not two names for one: **Return** is the big key above the right Shift
+(`SDLK_RETURN`), **Enter** is the one on the numeric keypad (`SDLK_KP_ENTER`).
+The game already keeps them apart and says so where both work — the hotel binds
+`SDLK_RETURN` *and* `SDLK_KP_ENTER` (`main.cpp:442`) and its text reads
+"Press the Return/Enter key now" (`$G_HOTEL_WELCOME`).
+
+The fullscreen toggle tests `SDLK_RETURN` only, so Alt + numpad Enter does
+nothing. Either wire up the keypad too — one `||` in `engine.cpp:769` and the
+same in the `SDL_KEYUP` arm at 785, so `swallowedReturn` still balances — and
+then write it "Alt+Return/Enter" the way the hotel does, or leave it on the big
+key and call it Alt+Return. `readme.txt` says Alt+Return.
 
 **Where the help text lives.** Six pages, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in
 `data/languages.txt`; `help.cpp:78` builds the ID from the page number, and
