@@ -4,6 +4,8 @@
 #include "texture.h"
 #include "debriscolordb.h"
 
+const Vec2i TileSet::TILE_SIZE(16, 16);
+
 TileSet::TileSet(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
@@ -39,11 +41,38 @@ void TileSet::reload()
 	TiXmlHandle docHandle(&doc);
 	TiXmlHandle tileSetHandle = docHandle.FirstChildElement("TileSet");
 	TiXmlElement* p_tileSetElement = tileSetHandle.Element();
+	if(!p_tileSetElement)
+	{
+		printfLog("+ ERROR: Tileset XML file \"%s\" has no <TileSet> element.\n",
+				  filename.c_str());
+		error = 3;
+		return;
+	}
 
 	// Dateiname des Bilds und Groesse der Tiles lesen
 	const char* p_imageFilename = p_tileSetElement->Attribute("image");
-	p_tileSetElement->Attribute("tileWidth", &tileSize.x);
-	p_tileSetElement->Attribute("tileHeight", &tileSize.y);
+	if(!p_imageFilename)
+	{
+		printfLog("+ ERROR: Tileset \"%s\" names no image.\n", filename.c_str());
+		error = 4;
+		return;
+	}
+
+	// Die Groesse steht fest; die Datei wird nur beim Wort genommen. Fehlende
+	// Angaben gelten als richtig, weil TiXmlElement::Attribute den Wert
+	// unberuehrt laesst, wenn es das Attribut nicht gibt.
+	Vec2i fileTileSize(TILE_SIZE);
+	p_tileSetElement->Attribute("tileWidth", &fileTileSize.x);
+	p_tileSetElement->Attribute("tileHeight", &fileTileSize.y);
+	if(fileTileSize != TILE_SIZE)
+	{
+		printfLog("+ ERROR: Tileset \"%s\" has %dx%d tiles; only %dx%d is supported.\n",
+				  filename.c_str(),
+				  fileTileSize.x, fileTileSize.y,
+				  TILE_SIZE.x, TILE_SIZE.y);
+		error = 5;
+		return;
+	}
 
 	// Textur laden
 	std::string dir = FileSystem::inst().getPathDirectory(filename);
@@ -131,24 +160,19 @@ void TileSet::renderTile(uint id,
 	glTexCoord2i(tile.position.x, tile.position.y);
 	glVertex2d(position.x, position.y);
 
-	glTexCoord2i(tile.position.x + tileSize.x, tile.position.y);
-	glVertex2d(position.x + tileSize.x, position.y);
+	glTexCoord2i(tile.position.x + TILE_SIZE.x, tile.position.y);
+	glVertex2d(position.x + TILE_SIZE.x, position.y);
 
-	glTexCoord2i(tile.position.x + tileSize.x, tile.position.y + tileSize.y);
-	glVertex2d(position.x + tileSize.x, position.y + tileSize.y);
+	glTexCoord2i(tile.position.x + TILE_SIZE.x, tile.position.y + TILE_SIZE.y);
+	glVertex2d(position.x + TILE_SIZE.x, position.y + TILE_SIZE.y);
 
-	glTexCoord2i(tile.position.x, tile.position.y + tileSize.y);
-	glVertex2d(position.x, position.y + tileSize.y);
+	glTexCoord2i(tile.position.x, tile.position.y + TILE_SIZE.y);
+	glVertex2d(position.x, position.y + TILE_SIZE.y);
 }
 
 Texture* TileSet::getTexture()
 {
 	return p_texture;
-}
-
-const Vec2i& TileSet::getTileSize() const
-{
-	return tileSize;
 }
 
 const TileSet::TileInfo& TileSet::getTileInfo(uint id) const

@@ -27,7 +27,14 @@ SoundInstance* Level::p_rainSoundInst = 0;
 SoundInstance* Level::p_thunderstormSoundInst = 0;
 bool Level::rainSoundOn = false;
 bool Level::thunderstormSoundOn = false;
+// Der Skin, auf den zurueckgefallen wird: wenn eine Datei des gewuenschten
+// Skins fehlt (dafuer gibt es die "default_"-Marker) und wenn sie sich nicht
+// laden laesst.
+const char* p_defaultSkin = "blocks_01";
+
 const char* p_skinFilenames[] = {"tileset.xml", "sprites.png", "particles.png", "background.png", "hint.png", "hintfont.xml", "noise.png", "shine.png", "rain.png", "clouds.png", "snow.png"};
+
+const Vec2i Level::SIZE(40, 25);
 
 Level::Level()
 {
@@ -37,12 +44,6 @@ Level::Level()
 	p_aiFlags = 0;
 	p_objectsAt = 0;
 
-	// Der Konstruktor hat das bisher nicht gesetzt; gesetzt wurde es erst aus
-	// der Leveldatei. Fehlt dort das Attribut, blieb der Wert zufaellig - und
-	// setSize() reserviert damit numLayers * size.x * size.y Kacheln. Zwei ist
-	// die Zahl, mit der das Spiel arbeitet, und die jede mitgelieferte Datei
-	// auch nennt.
-	numLayers = 2;
 	inEditor = false;
 	inCat = false;
 	inPreview = false;
@@ -126,10 +127,9 @@ void Level::clear()
 	// Tiles loeschen
 	delete[] p_tiles;
 	p_tiles = 0;
-	size = Vec2i(0, 0);
 	if(layerListBase)
 	{
-		glDeleteLists(layerListBase, numLayers);
+		glDeleteLists(layerListBase, NUM_LAYERS);
 		layerListBase = 0;
 	}
 
@@ -253,15 +253,38 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad) loadSkin();
 
-	// Groesse des Levels und Anzahl der Layer lesen
-	Vec2i size;
-	p_level->Attribute("width", &size.x);
-	p_level->Attribute("height", &size.y);
-	p_level->Attribute("numLayers", &numLayers);
+	// Groesse und Ebenenzahl stehen fest (Level::SIZE, Level::NUM_LAYERS). Die
+	// Datei nennt sie trotzdem, und hier wird sie beim Wort genommen: eine
+	// Datei mit anderen Werten wird abgewiesen statt stillschweigend falsch
+	// eingelesen. Ohne die Pruefung landeten die Zeilen einer 60x40-Datei in
+	// einem 40x25-Raster - lauter verschobene Kacheln und keine Meldung.
+	// Fehlende Attribute gelten als richtig: TiXmlElement::Attribute laesst
+	// den Wert unberuehrt, wenn es sie nicht gibt, und aeltere Dateien ohne
+	// die Angabe hatten ohnehin nie eine andere Groesse.
+	// Erst den Speicher holen, dann pruefen: von den vierzehn Stellen, die
+	// load() rufen, sehen sich nur zwei den Rueckgabewert an. Ein Abbruch darf
+	// deshalb keinen halbfertigen Level hinterlassen, sondern muss einen
+	// gueltigen leeren liefern - sonst wird aus einer abgewiesenen Datei ein
+	// Absturz statt einer Meldung.
+	allocateTiles();
+
+	Vec2i fileSize(SIZE);
+	int fileNumLayers = NUM_LAYERS;
+	p_level->Attribute("width", &fileSize.x);
+	p_level->Attribute("height", &fileSize.y);
+	p_level->Attribute("numLayers", &fileNumLayers);
+	if(fileSize != SIZE || fileNumLayers != NUM_LAYERS)
+	{
+		printfLog("+ ERROR: Level \"%s\" is %dx%d with %d layer(s); only %dx%d with %d is supported.\n",
+				  filename.c_str(),
+				  fileSize.x, fileSize.y, fileNumLayers,
+				  SIZE.x, SIZE.y, NUM_LAYERS);
+		return false;
+	}
+
 	int temp = 0;
 	p_level->QueryIntAttribute("numDiamondsNeeded", &temp);
 	numDiamondsNeeded = temp;
-	setSize(size);
 
 	if(!dontReallyLoad)
 	{
@@ -278,7 +301,7 @@ bool Level::load(TiXmlDocument* p_doc,
 				if(p_row->GetText())
 				{
 					std::string content = p_row->GetText();
-					for(uint col = 0; col < content.length() && col < static_cast<uint>(size.x); col++)
+					for(uint col = 0; col < content.length() && col < static_cast<uint>(SIZE.x); col++)
 					{
 						uint tile = static_cast<uint>(content[col]);
 						if(tile == ' ') tile = 0;
@@ -293,11 +316,11 @@ bool Level::load(TiXmlDocument* p_doc,
 			p_layer = p_layer->NextSiblingElement("Layer");
 			layer++;
 
-			// Nicht ueber numLayers hinaus, auch wenn die Datei mehr <Layer>
+			// Nicht ueber NUM_LAYERS hinaus, auch wenn die Datei mehr <Layer>
 			// mitbringt: p_tiles ist fuer genau so viele reserviert, und
 			// setTileAt() rechnet layer in den Index hinein. Eine von aussen
 			// eingefuehrte Datei bestimmt beide Zahlen selbst.
-			if(layer >= numLayers) break;
+			if(layer >= NUM_LAYERS) break;
 		}
 
 		// Objekt-Elemente verarbeiten
@@ -420,7 +443,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	if(p_temp) musicFilename = p_temp;
 
 	// Display-Lists fuer die Layer erzeugen
-	layerListBase = glGenLists(numLayers);
+	layerListBase = glGenLists(NUM_LAYERS);
 	layerDirty = ~0;
 
 	return true;
@@ -468,9 +491,9 @@ TiXmlDocument* Level::save()
 		p_level->SetAttribute(attrName, requestedSkin[i]);
 	}
 
-	p_level->SetAttribute("width", size.x);
-	p_level->SetAttribute("height", size.y);
-	p_level->SetAttribute("numLayers", numLayers);
+	p_level->SetAttribute("width", SIZE.x);
+	p_level->SetAttribute("height", SIZE.y);
+	p_level->SetAttribute("NUM_LAYERS", NUM_LAYERS);
 	p_level->SetAttribute("numDiamondsNeeded", numDiamondsNeeded);
 	p_level->SetAttribute("electricityOn", electricityOn ? 1 : 0);
 	p_level->SetAttribute("nightVision", nightVision ? 1 : 0);
@@ -483,19 +506,19 @@ TiXmlDocument* Level::save()
 	p_level->SetAttribute("lightColorB", lightColor.b);
 	p_level->SetAttribute("musicFilename", musicFilename);
 
-	for(int layer = 0; layer < numLayers; layer++)
+	for(int layer = 0; layer < NUM_LAYERS; layer++)
 	{
 		TiXmlElement* p_layer = new TiXmlElement("Layer");
-		for(int y = 0; y < size.y; y++)
+		for(int y = 0; y < SIZE.y; y++)
 		{
-			char* p_temp = new char[size.x + 1];
-			for(int x = 0; x < size.x; x++)
+			char* p_temp = new char[SIZE.x + 1];
+			for(int x = 0; x < SIZE.x; x++)
 			{
 				uint t = getTileAt(layer, Vec2i(x, y));
 				p_temp[x] = t ? t : ' ';
 			}
 
-			p_temp[size.x] = 0;
+			p_temp[SIZE.x] = 0;
 
 			TiXmlElement* p_row = new TiXmlElement("Row");
 			TiXmlText* p_rowText = new TiXmlText(p_temp);
@@ -1012,7 +1035,7 @@ void Level::update()
 	p_rainParticleSystem->update();
 
 	// "Spuren verwischen"
-	for(int i = 0; i < size.x * size.y; i++)
+	for(int i = 0; i < SIZE.x * SIZE.y; i++)
 	{
 		uint trace = p_aiFlags[i] & 0xFFFFFF00;
 		if(trace) p_aiFlags[i] -= 0x100;
@@ -1058,9 +1081,9 @@ void Level::update()
 		int details = Engine::inst().getDetails();
 		if(details == 0) r = 30;
 		else if(details == 1) r = 20;
-		for(int x = 0; x < size.x; x++)
+		for(int x = 0; x < SIZE.x; x++)
 		{
-			for(int y = 0; y < size.y; y++)
+			for(int y = 0; y < SIZE.y; y++)
 			{
 				Vec2i pos(x, y);
 				uint l0 = getTileAt(0, pos);
@@ -1174,9 +1197,9 @@ void Level::renderTiles(int layer,
 	{
 		p_tileSet->beginRender();
 
-		for(int x = 0; x < size.x; x++)
+		for(int x = 0; x < SIZE.x; x++)
 		{
-			for(int y = 0; y < size.y; y++)
+			for(int y = 0; y < SIZE.y; y++)
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
@@ -1194,9 +1217,9 @@ void Level::renderTiles(int layer,
 
 		p_tileSet->beginRender();
 
-		for(int x = 0; x < size.x; x++)
+		for(int x = 0; x < SIZE.x; x++)
 		{
-			for(int y = 0; y < size.y; y++)
+			for(int y = 0; y < SIZE.y; y++)
 			{
 				Vec2i p(x, y);
 				uint tileID = getTileAt(layer, p);
@@ -1368,7 +1391,7 @@ Object* Level::getFrontObjectAt(const Vec2i& position)
 
 	// alle Objekte an dieser Position heraussuchen
 	Object* p_minObj = 0;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1403,7 +1426,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 
 	// alle Objekte an dieser Position heraussuchen
 	Object* p_maxObj = 0;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1437,7 +1460,7 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 	// alle Objekte an dieser Position heraussuchen
 	std::vector<Object*> result;
 	if(!isValidPosition(position)) return result;
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1488,7 +1511,7 @@ const std::vector<Object*>& Level::getAllObjectsAt(const Vec2i& position)
 {
 	// alle Objekte an dieser Position heraussuchen
 	if(!isValidPosition(position)) return emptyObjectList;
-	return p_objectsAt[position.y * size.x + position.x];
+	return p_objectsAt[position.y * SIZE.x + position.x];
 }
 
 Elevator* Level::getElevatorAt(const Vec2i& position)
@@ -1496,7 +1519,7 @@ Elevator* Level::getElevatorAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1526,7 +1549,7 @@ Rail* Level::getRailAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1544,7 +1567,7 @@ Player* Level::getPlayerAt(const Vec2i& position)
 	if(!isValidPosition(position)) return 0;
 
 	// alle Objekte an dieser Position heraussuchen
-	const std::vector<Object*>& theList = p_objectsAt[position.y * size.x + position.x];
+	const std::vector<Object*>& theList = p_objectsAt[position.y * SIZE.x + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1560,21 +1583,21 @@ Player* Level::getPlayerAt(const Vec2i& position)
 bool Level::isValidPosition(const Vec2i& position) const
 {
 	return position.x >= 0 && position.y >= 0 &&
-		   position.x < size.x && position.y < size.y;
+		   position.x < SIZE.x && position.y < SIZE.y;
 }
 
 // Die Ebene gehoert genauso geprueft wie die Position: der Index ist
-// layer * size.x * size.y + ..., und layer kam bisher ungeprueft durch.
+// layer * SIZE.x * SIZE.y + ..., und layer kam bisher ungeprueft durch.
 bool Level::isValidLayer(int layer) const
 {
-	return layer >= 0 && layer < numLayers;
+	return layer >= 0 && layer < NUM_LAYERS;
 }
 
 uint Level::getTileAt(int layer,
 					  const Vec2i& position) const
 {
 	return isValidPosition(position) && isValidLayer(layer)
-		   ? p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0x000000FF : -1;
+		   ? p_tiles[layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x] & 0x000000FF : -1;
 }
 
 void Level::setTileAt(int layer,
@@ -1583,7 +1606,7 @@ void Level::setTileAt(int layer,
 {
 	if(isValidPosition(position) && isValidLayer(layer))
 	{
-		int index = layer * size.x * size.y + position.y * size.x + position.x;
+		int index = layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x;
 		p_tiles[index] = tile;
 		setTileDestroyTimeAt(layer, position, p_tileSet->getTileInfo(tile).destroyTime);
 		layerDirty |= 1 << layer;
@@ -1594,7 +1617,7 @@ uint Level::getTileDestroyTimeAt(int layer,
 								 const Vec2i& position) const
 {
 	return isValidPosition(position) && isValidLayer(layer)
-		   ? (p_tiles[layer * size.x * size.y + position.y * size.x + position.x] & 0xFFFFFF00) >> 8 : 1;
+		   ? (p_tiles[layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x] & 0xFFFFFF00) >> 8 : 1;
 }
 
 void Level::setTileDestroyTimeAt(int layer,
@@ -1603,7 +1626,7 @@ void Level::setTileDestroyTimeAt(int layer,
 {
 	if(isValidPosition(position) && isValidLayer(layer))
 	{
-		int index = layer * size.x * size.y + position.y * size.x + position.x;
+		int index = layer * SIZE.x * SIZE.y + position.y * SIZE.x + position.x;
 		p_tiles[index] &= ~0xFFFFFF00;
 		p_tiles[index] |= destroyTime << 8;
 	}
@@ -1765,64 +1788,23 @@ bool Level::setSkin(uint index,
 	return true;
 }
 
-const Vec2i& Level::getSize() const
+// Frueher setSize(): das Umkopieren auf eine andere Groesse ist entfallen, denn
+// es gibt nur eine. clear() gibt den Speicher wieder frei und wird von jedem
+// load() als Erstes gerufen, deshalb reicht hier die Reservierung.
+void Level::allocateTiles()
 {
-	return size;
-}
+	if(p_tiles) return;
 
-Vec2i Level::getSizeInPixels() const
-{
-	if(!p_tileSet) return Vec2i(0, 0);
-	else return size * 16;
-}
+	const int n = NUM_LAYERS * SIZE.x * SIZE.y;
+	p_tiles = new uint[n];
+	for(int i = 0; i < n; i++) p_tiles[i] = 0;
 
-void Level::setSize(const Vec2i& size)
-{
-	if(size == this->size) return;
+	p_objectsAt = new std::vector<Object*>[SIZE.x * SIZE.y];
 
-	if(!p_tiles)
-	{
-		// Speicher wurde noch nicht reserviert.
-		int n = numLayers * size.x * size.y;
-		p_tiles = new uint[n];
-		for(int i = 0; i < n; i++) p_tiles[i] = 0;
-		p_objectsAt = new std::vector<Object*>[size.x * size.y];
-		p_aiFlags = new uint[size.x * size.y];
-		memset(p_aiFlags, 0, size.x * size.y * sizeof(uint));
-	}
-	else
-	{
-		// angepassten Speicherbereich reservieren und leeren
-		int n = numLayers * size.x * size.y;
-		uint* p_newTiles = new uint[n];
-		for(int i = 0; i < n; i++) p_newTiles[i] = 0;
+	p_aiFlags = new uint[SIZE.x * SIZE.y];
+	memset(p_aiFlags, 0, SIZE.x * SIZE.y * sizeof(uint));
 
-		// Originaldaten hineinkopieren
-		for(int layer = 0; layer < numLayers; layer++)
-			for(int x = 0; x < min(this->size.x, size.x); x++)
-				for(int y = 0; y < min(this->size.y, size.y); y++)
-					p_newTiles[layer * size.x * size.y + y * size.x + x] = p_tiles[layer * this->size.x * this->size.y + y * this->size.x + x];
-
-		// tauschen
-		delete[] p_tiles;
-		p_tiles = p_newTiles;
-
-		delete[] p_objectsAt;
-		p_objectsAt = new std::vector<Object*>[size.x * size.y];
-		for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) hashObject(*i);
-
-		delete[] p_aiFlags;
-		p_aiFlags = new uint[size.x * size.y];
-		memset(p_aiFlags, 0, size.x * size.y * sizeof(uint));
-	}
-
-	this->size = size;
 	layerDirty = ~0;
-}
-
-int Level::getNumLayers() const
-{
-	return numLayers;
 }
 
 bool Level::isInEditor() const
@@ -2061,8 +2043,8 @@ void Level::hashObject(Object* p_obj)
 {
 	// Objekt in die Liste des entsprechenden Feldes einfuegen
 	const Vec2i& p = p_obj->getPosition();
-	int index = p.y * size.x + p.x;
-	if(index >= 0 && index < size.x * size.y)
+	int index = p.y * SIZE.x + p.x;
+	if(index >= 0 && index < SIZE.x * SIZE.y)
 	{
 		if(p_obj->lastHashedAt == index) return;
 		else unhashObject(p_obj);
@@ -2094,36 +2076,36 @@ void Level::unhashObject(Object* p_obj)
 void Level::setAIFlag(const Vec2i& where,
 					  uint flag)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < size.x * size.y; i++) p_aiFlags[i] |= flag;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] |= flag;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * size.x + where.x] |= flag;
+	else p_aiFlags[where.y * SIZE.x + where.x] |= flag;
 }
 
 void Level::unsetAIFlag(const Vec2i& where,
 						uint flag)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < size.x * size.y; i++) p_aiFlags[i] &= ~flag;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] &= ~flag;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * size.x + where.x] &= ~flag;
+	else p_aiFlags[where.y * SIZE.x + where.x] &= ~flag;
 }
 
 void Level::clearAIFlags(const Vec2i& where)
 {
-	if(where == Vec2i(-1, -1)) for(int i = 0; i < size.x * size.y; i++) p_aiFlags[i] &= 0xFFFFFF00;
+	if(where == Vec2i(-1, -1)) for(int i = 0; i < SIZE.x * SIZE.y; i++) p_aiFlags[i] &= 0xFFFFFF00;
 	else if(!isValidPosition(where)) return;
-	else p_aiFlags[where.y * size.x + where.x] &= 0xFFFFFF00;
+	else p_aiFlags[where.y * SIZE.x + where.x] &= 0xFFFFFF00;
 }
 
 uint Level::getAIFlags(const Vec2i& where) const
 {
 	if(!isValidPosition(where)) return ~0;
-	else return p_aiFlags[where.y * size.x + where.x];
+	else return p_aiFlags[where.y * SIZE.x + where.x];
 }
 
 uint Level::getAITrace(const Vec2i& where) const
 {
 	if(!isValidPosition(where)) return 0;
-	else return (p_aiFlags[where.y * size.x + where.x] & 0xFFFFFF00) >> 8;
+	else return (p_aiFlags[where.y * SIZE.x + where.x] & 0xFFFFFF00) >> 8;
 }
 
 void Level::setAITrace(const Vec2i& where,
@@ -2131,7 +2113,7 @@ void Level::setAITrace(const Vec2i& where,
 {
 	if(isValidPosition(where))
 	{
-		uint index = where.y * size.x + where.x;
+		uint index = where.y * SIZE.x + where.x;
 		p_aiFlags[index] &= ~0xFFFFFF00;
 		p_aiFlags[index] |= value << 8;
 	}
@@ -2140,11 +2122,11 @@ void Level::setAITrace(const Vec2i& where,
 void Level::clean()
 {
 	// alle Tiles zuruecksetzen
-	for(int layer = 0; layer < numLayers; layer++)
+	for(int layer = 0; layer < NUM_LAYERS; layer++)
 	{
-		for(int x = 0; x < size.x; x++)
+		for(int x = 0; x < SIZE.x; x++)
 		{
-			for(int y = 0; y < size.y; y++)
+			for(int y = 0; y < SIZE.y; y++)
 			{
 				setTileAt(layer, Vec2i(x, y), 0);
 			}
@@ -2387,15 +2369,34 @@ void Level::loadSkin(bool forceReload)
 		}
 	}
 
-	// Tiles laden
+	// Tiles laden. Schlaegt das fehl - eine kaputte oder eine mit anderer
+	// Kachelgroesse eingeschleuste tileset.xml -, liefert request() eine Null,
+	// und die 13 Stellen, die p_tileSet danach ohne Pruefung anfassen, wuerden
+	// abstuerzen. Ein Skin, der sich nicht laden laesst, faellt deshalb auf den
+	// mitgelieferten zurueck; getSkinFilename kann das ohnehin schon, bisher
+	// aber nur anhand einer "default_"-Datei und nicht bei einem Ladefehler.
 	TileSet* p_oldTileSet = p_tileSet;
 	p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
+	if(!p_tileSet && skin[Level::SKIN_TILESET] != p_defaultSkin)
+	{
+		printfLog("+ WARNING: Skin \"%s\" has no usable tileset; falling back to \"%s\".\n",
+				  skin[Level::SKIN_TILESET].c_str(), p_defaultSkin);
+		skin[Level::SKIN_TILESET] = p_defaultSkin;
+		p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
+	}
 	if(p_oldTileSet) p_oldTileSet->release();
 
 	// Sprites laden
 	Texture* p_oldSprites = p_sprites;
 	p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
-	p_sprites->keepInMemory();
+	if(!p_sprites && skin[Level::SKIN_SPRITES] != p_defaultSkin)
+	{
+		printfLog("+ WARNING: Skin \"%s\" has no usable sprites; falling back to \"%s\".\n",
+				  skin[Level::SKIN_SPRITES].c_str(), p_defaultSkin);
+		skin[Level::SKIN_SPRITES] = p_defaultSkin;
+		p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
+	}
+	if(p_sprites) p_sprites->keepInMemory();
 	if(p_oldSprites) p_oldSprites->release();
 
 	// Lava herauskopieren
@@ -2492,7 +2493,7 @@ std::string Level::getSkinFilename(uint index)
 	if(skin[index].empty())
 	{
 		// Standard-Skin
-		skin[index] = "blocks_01";
+		skin[index] = p_defaultSkin;
 		std::string result = getSkinFilename(index);
 		skin[index] = "";
 		return result;
@@ -2512,7 +2513,7 @@ std::string Level::getSkinFilename(uint index)
 			if(fs.fileExists(FileSystem::inst().getAppHomeDirectory() + "levels/skins/" + skin[index] + "/default_" + p_skinFilenames[index]))
 			{
 				// Standard-Skin
-				skin[index] = "blocks_01";
+				skin[index] = p_defaultSkin;
 				std::string result = getSkinFilename(index);
 				skin[index] = "";
 				return result;
@@ -2527,7 +2528,7 @@ std::string Level::getSkinFilename(uint index)
 					if(fs.fileExists(archiveFile + "/default_" + p_skinFilenames[index]))
 					{
 						// Standard-Skin
-						skin[index] = "blocks_01";
+						skin[index] = p_defaultSkin;
 						std::string result = getSkinFilename(index);
 						skin[index] = "";
 						return result;

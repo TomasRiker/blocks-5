@@ -12,6 +12,12 @@ class TileSet : public Resource<TileSet>
 	friend class Manager<TileSet>;
 
 public:
+	// Ein Tile ist 16x16, immer. Der Editor kennt nichts anderes, alle neun
+	// tileset.xml im Baum - die vier mitgelieferten Skins, ihre Archive und der
+	// fremde lego-Skin - nennen genau diese Groesse, und reload() weist eine
+	// Datei ab, die etwas anderes behauptet.
+	static const Vec2i TILE_SIZE;
+
 	struct TileInfo
 	{
 		Vec2i position;
@@ -31,7 +37,6 @@ public:
 	void renderTile(uint id, const Vec2d& position);
 
 	Texture* getTexture();
-	const Vec2i& getTileSize() const;
 	const TileInfo& getTileInfo(uint id) const;
 	uint getMaxTileID() const;
 
@@ -39,7 +44,6 @@ private:
 	static bool forceReload() { return false; }
 
 	Texture* p_texture;
-	Vec2i tileSize;
 	TileInfo tiles[256];
 	uint maxTileID;
 	TileInfo badTile;

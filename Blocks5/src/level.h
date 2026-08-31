@@ -25,6 +25,16 @@ class Level
 	friend class Exit;
 
 public:
+	// Groesse und Ebenenzahl sind fuer jeden Level dieselben und keine
+	// Eigenschaft der einzelnen Instanz: der Editor laesst nichts anderes zu,
+	// und alle 220 mitgelieferten und fremden Leveldateien im Baum nennen
+	// genau diese Werte. Die Leveldatei schreibt sie weiterhin mit, damit sie
+	// fuer sich lesbar bleibt und aeltere Fassungen des Spiels sie oeffnen
+	// koennen - beim Laden werden sie aber nur noch geprueft, nicht mehr
+	// uebernommen.
+	static const Vec2i SIZE;
+	static const int NUM_LAYERS = 2;
+
 	Level();
 	~Level();
 
@@ -84,10 +94,6 @@ public:
 	void setTitle(const std::string& title);
 	std::string getSkin(uint index) const;
 	bool setSkin(uint index, const std::string& skin);
-	const Vec2i& getSize() const;
-	Vec2i getSizeInPixels() const;
-	void setSize(const Vec2i& size);
-	int getNumLayers() const;
 	bool isInEditor() const;
 	void setInEditor(bool inEditor);
 	bool isInCat() const;
@@ -137,6 +143,7 @@ public:
 
 	std::string getSkinFilename(uint index);
 	static std::string getAlternative(const std::string& filename, const std::string& dir1, const std::string& dir2);
+	void allocateTiles();
 	void loadSkin(bool forceReload = false);
 
 	int counter;
@@ -167,8 +174,6 @@ private:
 	std::string skin[SKIN_MAX];
 	std::string requestedSkin[SKIN_MAX];
 	std::string filename;
-	Vec2i size;
-	int numLayers;
 	bool inEditor;
 	bool inCat;
 	bool inPreview;
