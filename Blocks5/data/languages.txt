@@ -63,6 +63,16 @@ $ERROR_NO_FILENAME
 §en:ERROR: Please enter a filename.
 §de:FEHLER: Bitte gib einen Dateinamen ein.
 
+$ERROR_SKIN_MISSING
+// Error message shown when a level names a skin that is missing or cannot be loaded
+§en:ERROR: Missing or damaged skin:
+§de:FEHLER: Fehlender oder beschädigter Skin:
+
+$ERROR_MUSIC_MISSING
+// Error message shown when a music file could not be loaded
+§en:ERROR: Missing music file:
+§de:FEHLER: Fehlende Musikdatei:
+
 $LOADING
 // Message displayed in the beginning when the game is loading
 §en:Loading ... Please wait ...

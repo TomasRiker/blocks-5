@@ -2830,6 +2830,19 @@ void Engine::playMusic(const std::string& filename,
 				p_currentMusic->slideVolume(1.0, 0.02);
 				p_currentMusic->setLoopBegin(loopBegin);
 			}
+			else
+			{
+				// Bisher blieb es hier einfach still. Ein Level, der ein
+				// Stueck nennt, das niemand hat - eine Kampagne aus dem
+				// Browser zum Beispiel, der die Musik nicht mitgegeben werden
+				// konnte -, lief ohne sie weiter, und der Spieler erfuhr es
+				// nur aus der Logdatei. Genannt wird der blosse Dateiname:
+				// der ganze Pfad fuehrt bei einer Kampagne durch das Archiv
+				// samt Passwort und sagt niemandem etwas.
+				const std::string::size_type slash = filename.find_last_of('/');
+				showToast(TOAST_ERROR, localizeString("$ERROR_MUSIC_MISSING") + " \"" +
+									   (slash == std::string::npos ? filename : filename.substr(slash + 1)) + "\"");
+			}
 		}
 	}
 }

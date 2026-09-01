@@ -2388,6 +2388,11 @@ void Level::loadSkin(bool forceReload)
 {
 	skinsMissing.clear();
 
+	// Welche Skins nicht zu gebrauchen waren - nach Namen, nicht nach Datei.
+	// Fehlt ein Archiv ganz, fehlen alle elf Dateien darin, und elf Meldungen
+	// ueber denselben Skin will niemand lesen.
+	std::set<std::string> badSkins;
+
 	// pruefen, ob alle benoetigten Skins da sind
 	for(uint i = 0; i < SKIN_MAX; i++)
 	{
@@ -2398,6 +2403,7 @@ void Level::loadSkin(bool forceReload)
 			if(f.empty())
 			{
 				skinsMissing.insert(std::string("levels/skins/") + requestedSkin[i] + "(.zip)/" + p_skinFilenames[i]);
+				badSkins.insert(requestedSkin[i]);
 				skin[i] = "";
 			}
 		}
@@ -2415,6 +2421,7 @@ void Level::loadSkin(bool forceReload)
 	{
 		printfLog("+ WARNING: Skin \"%s\" has no usable tileset; falling back to \"%s\".\n",
 				  skin[Level::SKIN_TILESET].c_str(), p_defaultSkin);
+		badSkins.insert(skin[Level::SKIN_TILESET]);
 		skin[Level::SKIN_TILESET] = p_defaultSkin;
 		p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
 	}
@@ -2427,6 +2434,7 @@ void Level::loadSkin(bool forceReload)
 	{
 		printfLog("+ WARNING: Skin \"%s\" has no usable sprites; falling back to \"%s\".\n",
 				  skin[Level::SKIN_SPRITES].c_str(), p_defaultSkin);
+		badSkins.insert(skin[Level::SKIN_SPRITES]);
 		skin[Level::SKIN_SPRITES] = p_defaultSkin;
 		p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
 	}
@@ -2507,6 +2515,21 @@ void Level::loadSkin(bool forceReload)
 		Manager<Texture>::inst().reload();
 		Manager<TileSet>::inst().reload();
 		Manager<Font>::inst().reload();
+	}
+
+	// Sagen, dass etwas fehlt. Die Palette des Editors nicht - sie ist selbst
+	// ein Level und laedt denselben Skin gleich fuenfmal mit. In der Vorschau
+	// der Levelauswahl bleibt die Meldung stumm: dort laedt jeder Schritt
+	// durch die Liste einen neuen Level, und bei einer kaputten Kampagne
+	// klaenge der Fehlerton bei jedem Tastendruck.
+	if(!inCat)
+	{
+		for(std::set<std::string>::const_iterator i = badSkins.begin(); i != badSkins.end(); ++i)
+		{
+			Engine::inst().showToast(Engine::TOAST_ERROR,
+									 localizeString("$ERROR_SKIN_MISSING") + " \"" + *i + "\"",
+									 0.0, !inPreview);
+		}
 	}
 }
 
