@@ -1134,6 +1134,94 @@ tick, the pair could be advanced by a fixed rotation instead of recomputed per
 frame. And `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping
 wasm contains no vector instructions at all — see item 8.
 
+14. Refuse an import that would take a shipped name
+---------------------------------------------------
+The shipped user tree is exactly seven files: `levels/example01.xml`,
+`levels/example02.xml`, `levels/campaigns/blocks.zip` and the four skins
+`levels/skins/{blocks_01,blocks_02,blocks_03,space}.zip` (plus `readme.txt`).
+An import must not be able to take any of those names.
+
+**The skins are done.** `isShippedSkin` in `src/transfer.cpp` refuses all four
+by stem, and it has to: a skin's filename *is* its identity — a level says
+`skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip`
+— so `installImported` overwrites rather than swerving to `space_2.zip`, and
+without the check an import would quietly replace the art the shipped campaign
+draws with. The list there is the one `zip_skins.bat` builds.
+
+**The campaign and the two levels are not, and they fail differently.** Neither
+overwrites today: `Campaign::installArchive` (`src/campaign.cpp`) and
+`uniqueName` (`src/transfer.cpp`) both walk `stem_2`, `stem_3`, … until the name
+is free, so importing something called `blocks.zip` lands as `blocks_2.zip` and
+`example01.xml` as `example01_2.xml`. Nothing breaks. What is missing is the
+*refusal*: the player asked to install `blocks.zip` and got a second campaign
+under a name they did not choose, with no word about why. That is the same
+confusion the skin check exists to prevent, one step removed.
+
+So this is small: one predicate that answers "is this a name the game ships?"
+for all four kinds, called from `installImported` before the copy, plus a
+message. `$TR_ERROR_SKIN_RESERVED` already exists and would become the general
+one (or gain two siblings, if naming the kind reads better). Note that the
+campaign name is load-bearing in one more place than the levels are:
+`Campaign::resolveMusicPath` resolves a `blocks:` prefix against
+`levels/campaigns/blocks.zip` by that literal name, so a campaign that took it
+would redirect every borrowed music track in the tree.
+
+The predicate wants to live where item 15 can reach it too — see there.
+
+
+15. Let the Export dialog delete what it lists
+------------------------------------------------
+Export lists what is installed of a kind and writes a plain copy of the one you
+pick (`GS_Menu`'s export pane over `Transfer::list`/`Transfer::exportTo`). There
+is no way to remove anything. Custom levels, imported campaigns, imported skins
+and imported music accumulate in `My Documents\Blocks 5\levels\` forever, and
+the only way to clear one out is ShowUserDir and Explorer — which the browser
+build does not have at all, so there it is genuinely impossible.
+
+The dialog already has the list, the selection and the *Refresh* that re-reads
+it, so the work is a *Delete* button beside *Export*, a confirmation (this is
+the one irreversible thing either transfer button would do), `FileSystem`'s
+delete, and a re-read.
+
+**The shipped seven must not be deletable**, which is the same question item 14
+asks: extract the "is this built-in?" test into one helper — something like
+`Transfer::isBuiltIn(Kind, const std::string& name)` in `src/transfer.cpp` —
+and have both the import refusal and the Delete button consult it. `isShippedSkin`
+becomes its skin branch. Do item 14 first and this one inherits the helper;
+either order works, but writing the predicate twice would be the mistake.
+
+Two details worth settling before writing it: a deleted campaign leaves its
+`ProgressDB` entries behind (harmless, keyed by filename, and worth keeping if
+the same campaign is imported again), and a deleted skin can break levels that
+name it — which is exactly the case `Level::loadSkin`'s toast now reports, so
+it fails visibly rather than silently.
+
+
+16. Reset one control instead of all of them
+----------------------------------------------
+The controls pane in `data/options.xml` has an *Actions* list, a *Primary key*
+and a *Secondary key* button, and one `ResetControls` button that calls
+`Engine::resetActions()` — which walks every action and restores both bindings.
+Change one key badly and the only way back is to throw away the whole scheme.
+
+`Action` already carries `defaultPrimary` and `defaultSecondary`
+(`src/engine.h:24`), and `resetActions` (`src/engine.cpp:3233`) is a loop over
+exactly those two fields, so resetting the selected action alone is a
+`resetAction(const std::string& name)` of three lines. The work is the UI.
+
+The proposed shape: replace the single wide button with a small-font label
+`Reset:` and two small-font buttons, *selected* and *all*, on the same row —
+the pane is tight (the list ends at y=360, OK/Cancel start at y=400), so 170px
+of width has to hold all three. *selected* is only meaningful with a selection;
+it should follow the same enable/disable idiom the rest of the dialog uses
+rather than silently doing nothing. Both need `handleClick(p_actions)` after
+them to refresh the two key captions, as `ResetControls` already does.
+
+`$O_RESET_CONTROLS` becomes two new IDs plus a label in `data/languages.txt`;
+keep them short, because the English and German bodies both have to fit the
+same button.
+
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1149,6 +1237,8 @@ How these connect
     5 (Linux) <────────────── WebBuild/platform_stubs.cpp already does most of it
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
+
+   14 (refuse a shipped name) ──> 15 (delete in Export): one isBuiltIn() serves both
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
