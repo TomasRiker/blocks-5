@@ -56,7 +56,12 @@ public:
 	~Campaign();
 
 	void clear();
-	bool load(const std::string& filename);
+
+	// quiet unterdrueckt die Fehlermeldung. Das braucht nur
+	// isImportableArchive(): die fragt, ob eine hereingereichte Datei
+	// ueberhaupt eine Kampagne ist, und etwas anderes ist keine kaputte
+	// Kampagne, sondern eben etwas anderes.
+	bool load(const std::string& filename, bool quiet = false);
 	bool loadInfo(TiXmlDocument* p_doc);
 	bool save(const std::string& filename);
 	TiXmlDocument* saveInfo();

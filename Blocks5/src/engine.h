@@ -302,8 +302,9 @@ public:
 	//
 	// duration ist die Standzeit in Sekunden, ohne das Ein- und Ausfahren;
 	// 0 nimmt den Wert, der zur Art passt (TOAST_SECONDS_OK/ERROR). Eine
-	// Fehlermeldung spielt teleport_failed.ogg, sofern playSound nicht
-	// abgeschaltet wird.
+	// Fehlermeldung spielt teleport_failed.ogg, sofern suppressSound das nicht
+	// unterbindet. Eine Erfolgsmeldung ist immer still - deshalb heisst der
+	// Schalter so herum: es gibt keinen Ton, den er einschalten koennte.
 	//
 	// Gibt es dieselbe Meldung derselben Art schon - und faehrt sie noch nicht
 	// gerade hinaus -, entsteht keine zweite. Stattdessen wird ihre Standzeit
@@ -315,7 +316,7 @@ public:
 		TOAST_ERROR
 	};
 
-	void showToast(ToastType type, const std::string& text, double duration = 0.0, bool playSound = true);
+	void showToast(ToastType type, const std::string& text, double duration = 0.0, bool suppressSound = false);
 
 private:
 	Engine();

@@ -156,8 +156,6 @@ public:
 							delete p_newCampaign;
 							path = "";
 							static_cast<GUI_EditBox*>(getChild("Filename"))->setText("");
-
-							Engine::inst().showToast(Engine::TOAST_ERROR, "$CE_ERROR_LOADING");
 						}
 						else
 						{

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "campaign.h"
+#include "engine.h"
 #include "filesystem.h"
 #include "util.h"
 
@@ -74,7 +75,7 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 
 	// 2. Inhalt: entschluesseln, XML parsen, und mindestens ein Level.
 	Campaign check;
-	return check.load(archivePath) && !check.getLevels().empty();
+	return check.load(archivePath, true) && !check.getLevels().empty();
 }
 
 std::string Campaign::installArchive(const std::string& archivePath,
@@ -117,7 +118,8 @@ void Campaign::clear()
 	iHaveABonusLevel = false;
 }
 
-bool Campaign::load(const std::string& filename)
+bool Campaign::load(const std::string& filename,
+					bool quiet)
 {
 	clear();
 	this->filename = filename;
@@ -132,10 +134,23 @@ bool Campaign::load(const std::string& filename)
 		printfLog("+ ERROR: Could not parse campaign XML file \"%s\" (Error: %d).\n",
 				  (filename + "/campaign.xml").c_str(),
 				  doc.ErrorId());
-		return false;
+	}
+	else if(loadInfo(&doc)) return true;
+
+	// Hier laufen alle drei Fehlerwege zusammen - kaputtes XML, fehlendes
+	// <Campaign>, zu viele Levels. Der Editor hatte dafuer eine eigene
+	// Meldung; die Levelauswahl liess eine solche Kampagne einfach aus der
+	// Liste verschwinden, ohne ein Wort. Genannt wird der blosse Dateiname:
+	// der ganze Pfad ist der des Archivs samt Passwort.
+	if(!quiet)
+	{
+		const std::string::size_type slash = filename.find_last_of('/');
+		Engine::inst().showToast(Engine::TOAST_ERROR,
+								 localizeString("$ERROR_CAMPAIGN_INVALID") + " \"" +
+								 (slash == std::string::npos ? filename : filename.substr(slash + 1)) + "\"");
 	}
 
-	return loadInfo(&doc);
+	return false;
 }
 
 bool Campaign::loadInfo(TiXmlDocument* p_doc)

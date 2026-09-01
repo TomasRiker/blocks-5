@@ -1780,11 +1780,33 @@ bool Level::setSkin(uint index,
 // laesst. Der Dateiname des Aufrufers wird danach wiederhergestellt: er steht
 // in den Protokollzeilen und soll weiter die Datei benennen, die gemeint war,
 // nicht den Platzhalter.
+//
+// Hier laufen alle drei Fehlerwege von load() zusammen - kaputtes XML,
+// fehlendes <Level>, falsche Groesse -, also steht hier auch die Meldung.
+// Bisher sah der Spieler nur das Wort ERROR aus Bloecken und erfuhr nirgends,
+// welche Datei gemeint war; im Editor gab es eine eigene Meldung, in der
+// Levelauswahl gar keine.
 bool Level::loadErrorLevel()
 {
 	if(loadingErrorLevel) return false;
 
 	const std::string wanted(filename);
+
+	// Die Palettenlevel cat<N>.xml gehoeren zum Spiel und sind nicht die Datei,
+	// die jemand aufmachen wollte; fuer sie bleibt es beim Logeintrag. In der
+	// Vorschau kommt die Meldung ohne Ton: wer mit den Pfeiltasten durch eine
+	// kaputte Kampagne geht, bekaeme sonst bei jedem Tastendruck einen Fehlton.
+	// Genannt wird der blosse Dateiname - der ganze Pfad fuehrt bei einer
+	// Kampagne durch das Archiv samt Passwort und sagt niemandem etwas.
+	if(!inCat)
+	{
+		const std::string::size_type slash = wanted.find_last_of('/');
+		Engine::inst().showToast(Engine::TOAST_ERROR,
+								 localizeString("$ERROR_LEVEL_INVALID") + " \"" +
+								 (slash == std::string::npos ? wanted : wanted.substr(slash + 1)) + "\"",
+								 0.0, inPreview);
+	}
+
 	loadingErrorLevel = true;
 	const bool ok = load(p_errorLevelFilename);
 	loadingErrorLevel = false;
@@ -2492,7 +2514,7 @@ void Level::loadSkin(bool forceReload)
 		{
 			Engine::inst().showToast(Engine::TOAST_ERROR,
 									 localizeString("$ERROR_SKIN_MISSING") + " \"" + *i + "\"",
-									 0.0, !inPreview);
+									 0.0, inPreview);
 		}
 	}
 }

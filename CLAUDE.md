@@ -532,21 +532,32 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   sprite it shows.
 
 **Short messages are the Engine's, not a game state's.** `Engine::showToast(type, text,
-duration, playSound)` slides a bar in at the top edge, holds it, and slides it out again —
+duration, suppressSound)` slides a bar in at the top edge, holds it, and slides it out again —
 green for `TOAST_OK`, red for `TOAST_ERROR`, 2 s and 4 s by default, with `teleport_failed.ogg`
 on an error unless the caller says otherwise. It is drawn at the very end of `Engine::render`,
 after `GUI::display`, so it sits over the GUI, over the editors' panes and over everything
 else. Both editors used to carry their own copy of this — `messageText`, `messageCounter`,
 `messageType`, plus thirty lines of identical drawing each — while the main menu opened a
 modal window for the same job and a save or load with an empty filename did nothing at all.
-All three go through the one call now, and the empty filename says so. Two failures that had
+All three go through the one call now, and the empty filename says so. Four failures that had
 only ever reached the log speak up as well: a level naming a skin that is missing or will not
 load (`Level::loadSkin`, one message per skin name rather than one per missing file — this
-replaced a red panel that covered half the level for as long as it was open), and a
-music track that cannot be opened (`Engine::playMusic`, naming the bare filename — the full
-path leads through a campaign archive and its password and tells nobody anything). The
-select-level preview shows both without the sound, because stepping through a broken campaign
-would otherwise beep at every keypress.
+replaced a red panel that covered half the level for as long as it was open), a music track
+that cannot be opened (`Engine::playMusic`), a level file that will not load
+(`Level::loadErrorLevel`, where all three of `Level::load`'s failure paths already met — the
+player saw the word ERROR built out of blocks and was told nowhere which file it stood for),
+and a campaign that will not load (`Campaign::load`, likewise the one place its three failure
+paths join). Each names the bare filename: the full path leads through an archive and its
+password and tells nobody anything.
+
+Both editors had a message of their own for a load that failed and no longer need it;
+the level selection had none at all, and simply left a broken campaign out of the list
+without a word. Two callers opt out. `Campaign::load` takes a `quiet` flag for
+`isImportableArchive`, which only asks whether an imported file *is* a campaign — a skin
+that is not one is not a broken campaign. And `loadErrorLevel` says nothing for the editor's
+palette levels (`cat<N>.xml`), which belong to the game and are not a file anybody asked
+for. In the select-level preview the skin and level messages come without the sound, because
+stepping through a broken campaign would otherwise beep at every keypress.
 
 Several messages stack: the newest takes the top edge and pushes the older ones down a bar
 each. A message that has run out slides up by exactly one bar height, which puts it off the

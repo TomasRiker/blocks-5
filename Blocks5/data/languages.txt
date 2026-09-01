@@ -73,6 +73,16 @@ $ERROR_MUSIC_MISSING
 §en:ERROR: Missing music file:
 §de:FEHLER: Fehlende Musikdatei:
 
+$ERROR_LEVEL_INVALID
+// Error message shown when a level file is missing or cannot be parsed
+§en:ERROR: Missing or damaged level:
+§de:FEHLER: Fehlender oder beschädigter Level:
+
+$ERROR_CAMPAIGN_INVALID
+// Error message shown when a campaign file is missing or cannot be parsed
+§en:ERROR: Missing or damaged campaign:
+§de:FEHLER: Fehlende oder beschädigte Kampagne:
+
 $LOADING
 // Message displayed in the beginning when the game is loading
 §en:Loading ... Please wait ...
@@ -698,11 +708,6 @@ $LE_MSG_TEXT2
 §en:This level file already exists.¶Do you want it to be overwritten?
 §de:Diese Level-Datei existiert bereits.¶Soll sie überschrieben werden?
 
-$LE_ERROR_LOADING
-// Error message displayed when loading of level failed
-§en:ERROR: The level could not be loaded.
-§de:FEHLER: Der Level konnte nicht geladen werden.
-
 $LE_ERROR_FILE_DOESNT_EXIST
 // Error message displayed when the selected file doesn't exist
 §en:ERROR: This file does not exist.
@@ -1249,11 +1254,6 @@ $CE_MSG_TEXT2
 // Text asking the user if he wants to overwrite an existing campaign file
 §en:This campaign file already exists.¶Do you want it to be overwritten?
 §de:Diese Kampagnen-Datei existiert bereits.¶Soll sie überschrieben werden?
-
-$CE_ERROR_LOADING
-// Error message displayed when loading of campaign failed
-§en:ERROR: The campaign could not be loaded.
-§de:FEHLER: Die Kampagne konnte nicht geladen werden.
 
 $CE_ERROR_SAVING
 // Error message displayed when saving of the current campaign failed

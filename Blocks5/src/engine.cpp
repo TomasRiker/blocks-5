@@ -1196,14 +1196,14 @@ namespace
 void Engine::showToast(ToastType type,
 					   const std::string& text,
 					   double duration,
-					   bool playSound)
+					   bool suppressSound)
 {
 	if(duration <= 0.0) duration = (type == TOAST_ERROR) ? TOAST_SECONDS_ERROR : TOAST_SECONDS_OK;
 	const uint durationMS = static_cast<uint>(duration * 1000.0);
 
 	// Der Ton haengt am Klick und nicht an der Meldung: er kommt auch dann,
 	// wenn dieselbe Meldung schon steht und nur laenger stehen bleibt.
-	if(type == TOAST_ERROR && playSound) this->playSound("teleport_failed.ogg", false, 0.0, 100);
+	if(type == TOAST_ERROR && !suppressSound) playSound("teleport_failed.ogg", false, 0.0, 100);
 
 	// Steht dieselbe Meldung schon? Dann keine zweite, sondern die Standzeit
 	// auf das Laengere von beidem setzen. Wer schon hinausfaehrt, zaehlt nicht

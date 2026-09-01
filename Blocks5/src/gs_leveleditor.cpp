@@ -808,8 +808,6 @@ public:
 							path = "";
 							delete p_newLevel;
 							static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText("");
-
-							Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_LOADING");
 						}
 						else
 						{
