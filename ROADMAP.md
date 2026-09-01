@@ -1287,6 +1287,56 @@ sits on an arc (`CampaignEditor` at y=77, `Options` at y=52) and the y wants
 choosing rather than computing.
 
 
+18. A switch should flash when it is thrown
+---------------------------------------------
+Eight objects react to being touched (`onTouchedByPlayer`, or `onCollision` with
+an `OF_ACTIVATOR`): `lightswitch`, `electricityswitch`, `barrageswitch`,
+`cannonswitch`, `magnet`, `e_pulseswitch`, `e_valueswitch` and the base in
+`object.cpp`. Throwing one should light it up for a moment. None of them does
+anything of the kind today.
+
+Split them and the gap is sharper than "no feedback anywhere":
+
+- **Four have visible state and change their own tile.** `lightswitch` draws
+  `isNightVision() ? 192 : 224`, `electricityswitch` `isElectricityOn() ? 160 :
+  128`, and the two electronics switches pick their sprite from `value`. You can
+  see *that* something happened, if you are looking at the right 32x32 square.
+- **Three have no state at all and never change.** `cannonswitch` fires or
+  rotates the cannons, `barrageswitch` toggles the barrages, `magnet` turns the
+  arrows — and every one of those effects happens *somewhere else in the level*,
+  possibly off the part of the screen the player is watching. The switch itself
+  is a still picture before and after. Whatever sound there is belongs to the
+  thing being operated, not to the switch.
+
+So the three stateless ones are exactly the ones with nothing to see, which is
+also where the feedback is worth the most. A flash on all seven is still right:
+it makes the act uniform, and a 32-pixel tile swap is easy to miss even when it
+does happen.
+
+**The sprite work from 1.2.0 makes this nearly free.** `Object::onBeforeRender()`
+already runs once per frame for every object in the level (`level.cpp:592`) and
+its body is `rebuildSprites()` — and *nothing overrides it*. So the flash can sit
+entirely in the base class: a tick counter on `Object`, a `flash()` that sets it,
+a decrement in `frameBegin()` (which `Level::update()` calls on everything, and
+which is per tick, not per frame — the counter must not be tied to the frame
+rate), and, in `onBeforeRender` after the rebuild, brightening each `Sprite`'s
+colour while the counter runs. No object's `onRender` changes, and any object
+that ever wants a flash gets one by calling `flash()`.
+
+The alternative — folding it into the colour each object hands
+`Engine::inst().renderSprites(sprites, color)` — touches every call site and buys
+nothing, so prefer the first unless brightening the sprite colours turns out to
+interact badly with the shadow passes (layer 1 is drawn three times, twice as
+shadow; a flash must not brighten the shadow).
+
+Shape of it: additive toward white, strongest on the tick it is thrown, gone in
+about 0.15 s — seven or eight ticks at the 20 ms rate. `Level`'s
+`flash`/`actualFlash` pair for lightning is the same idea one level up and is the
+model for the decay curve. Under night vision the level tints everything green
+(`level.cpp:981`), so the flash should be built from the object's own colour
+rather than forced to pure white, or it will punch a white hole in the tint.
+
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
