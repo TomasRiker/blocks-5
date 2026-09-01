@@ -14,15 +14,16 @@ LightSwitch::~LightSwitch()
 {
 }
 
+void LightSwitch::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(level.isNightVision() ? 192 : 224, 224));
+}
+
 void LightSwitch::onRender(int layer,
 						   const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Schalter rendern
-		Vec2i positionOnTexture(level.isNightVision() ? 192 : 224, 224);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		level.renderShine(0.35, 0.25 + random(-0.05, 0.05));

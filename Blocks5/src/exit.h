@@ -13,6 +13,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 };
 

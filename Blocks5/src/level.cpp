@@ -582,6 +582,16 @@ TiXmlDocument* Level::save()
 
 void Level::render()
 {
+	// Einmal je Bild das Aussehen aller Objekte auf den Stand bringen. Danach
+	// gehen zwoelf Ebenen darueber - Ebene 1 dreimal, zweimal fuer den
+	// Schatten und einmal richtig -, und die zeichnen nur noch, was hier
+	// steht. Wer stattdessen in onRender aktualisierte, taete es vierzehnmal
+	// und mit der Farbe des jeweiligen Durchgangs.
+	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
+	{
+		(*i)->onBeforeRender();
+	}
+
 	bool targetRaining = raining;
 	bool targetThunderstorm = thunderstorm;
 	if(inEditor) targetRaining = false, targetThunderstorm = false;
@@ -1900,7 +1910,7 @@ ParticleSystem* Level::getFireParticleSystem()
 	return p_fireParticleSystem;
 }
 
-Texture* Level::getSprites()
+Texture* Level::getSpritesTexture()
 {
 	return p_sprites;
 }

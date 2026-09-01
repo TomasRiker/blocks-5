@@ -19,23 +19,21 @@ E_HexDigit::~E_HexDigit()
 {
 }
 
+void E_HexDigit::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(192, 608)).rotation = 90.0 * dir;
+	if(value != -1)
+	{
+		sprites.add(Vec2i(32 * (value % 8), 640 + 32 * (value / 8))).rotation = 90.0 * dir;
+	}
+}
+
 void E_HexDigit::onRender(int layer,
 						  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Engine& engine = Engine::inst();
-		engine.renderSprite(Vec2i(0, 0), Vec2i(192, 608), Vec2i(16, 16), color, false, 90.0 * dir);
-		if(value != -1)
-		{
-			Vec2i t(0, 640);
-			t.x += 32 * (value % 8);
-			t.y += 32 * (value / 8);
-			engine.renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-		}
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		level.renderShine(0.5, 0.5 + random(-0.05, 0.05));

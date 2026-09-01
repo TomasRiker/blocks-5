@@ -92,8 +92,7 @@ void Projectile::onUpdate()
 				bool bounce = false;
 				bool destroyed = false;
 				bool reflected = false;
-				const DebrisSource* p_debris = 0;
-				int debrisTurns = 0;   // Kacheln werden nie gedreht
+				const Sprites* p_sprites = 0;
 				Vec2d hitPosition;
 
 				if(distance >= 8.0 && !level.isFreeAt2(positionInPixels, 0, &p_objectHit, &tileHit, 64.0))
@@ -124,8 +123,7 @@ void Projectile::onUpdate()
 							{
 								p_objectHit->disappear(0.075);
 								destroyed = true;
-								p_debris = &p_objectHit->getDebris();
-								debrisTurns = p_objectHit->getSpriteQuarterTurns();
+								p_sprites = &p_objectHit->getSprites();
 							}
 							else
 							{
@@ -144,7 +142,7 @@ void Projectile::onUpdate()
 						{
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
-							p_debris = &tileInfo.debris;
+							p_sprites = &tileInfo.sprites;
 						}
 						else
 						{
@@ -196,13 +194,12 @@ void Projectile::onUpdate()
 						p_particleSystem->addParticle(p);
 					}
 
-					if(destroyed && p_debris)
+					if(destroyed && p_sprites)
 					{
 						// Das Geschoss hat ein Objekt oder ein Tile zerstoert.
 
 						// Truemmer
-						int n = random(30, 40);
-						n *= DEBRIS_TRIES_PER_PARTICLE;
+						int n = p_sprites->getTryCount(random(30, 40));
 						for(int i = 0; i < n; i++)
 						{
 							p.lifetime = random(40, 70);
@@ -213,7 +210,7 @@ void Projectile::onUpdate()
 
 							Vec4d sampled;
 							Vec2i offset;
-							if(!p_debris->sample(&sampled, &offset, debrisTurns)) continue;
+							if(!p_sprites->sample(&sampled, &offset)) continue;
 
 							p.position = hitPosition + Vec2d(offset) - Vec2d(8.0, 8.0) + Vec2i(random(-2, 2), random(-2, 2));
 							const double r = random(0.0, 6.283);

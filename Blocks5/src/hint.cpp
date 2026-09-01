@@ -30,14 +30,16 @@ Hint::~Hint()
 {
 }
 
+void Hint::updateSprites()
+{
+	// Zettelobjekt
+	sprites.add(Vec2i(96, 288));
+}
+
 void Hint::onRender(int layer,
 					const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Zettelobjekt rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(96, 288), Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 42 || layer == 43)
 	{
 		double a = shownAlpha;

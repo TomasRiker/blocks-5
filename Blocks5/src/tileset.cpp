@@ -2,7 +2,6 @@
 #include "tileset.h"
 #include "filesystem.h"
 #include "texture.h"
-#include "debriscolordb.h"
 
 TileSet::TileSet(const std::string& filename) : Resource(filename)
 {
@@ -13,7 +12,6 @@ TileSet::TileSet(const std::string& filename) : Resource(filename)
 	badTile.position = Vec2i(-1, -1);
 	badTile.type = -1;
 	badTile.destroyTime = 0;
-	badTile.debris.setColor(Vec4d(0.0, 0.0, 0.0, 0.0));
 }
 
 TileSet::~TileSet()
@@ -111,8 +109,9 @@ void TileSet::reload()
 			// Zerstoerzeit lesen
 			p_tileElement->Attribute("destroyTime", &info.destroyTime);
 
-			// Truemmerfarbe berechnen
-			info.debris.setTexture(p_texture, info.position);
+			// Woher die Truemmer ihre Farbe nehmen: aus dem Bild der Kachel.
+			info.sprites.setTexture(p_texture);
+			info.sprites.add(info.position);
 		}
 
 		// Tile-Typ eintragen

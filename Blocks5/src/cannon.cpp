@@ -13,9 +13,6 @@ Cannon::Cannon(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
-	Vec4d c = getStdColor(color);
-	c.a = 0.25;
-	debris.setColor(c);
 	this->color = color;
 	this->dir = dir;
 	shownDir = dir;
@@ -26,24 +23,23 @@ Cannon::~Cannon()
 {
 }
 
+void Cannon::updateSprites()
+{
+	// Basis und Rohr. Das Rohr dreht sich weich mit shownDir, die Basis nicht.
+	const Vec4d realColor = getStdColor(this->color);
+	sprites.add(Vec2i(96, 416), realColor);
+
+	int frame;
+	if(reload <= 25) frame = 0;
+	else if(reload <= 30) frame = 2;
+	else frame = 1;
+	sprites.add(Vec2i(128 + frame * 32, 416), realColor).rotation = 90.0 * shownDir;
+}
+
 void Cannon::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		Engine& engine = Engine::inst();
-
-		// Basis rendern
-		Vec4d realColor = color * getStdColor(this->color);
-		engine.renderSprite(Vec2i(0, 0), Vec2i(96, 416), Vec2i(16, 16), realColor);
-
-		// Rohr rendern
-		int frame;
-		if(reload <= 25) frame = 0;
-		else if(reload <= 30) frame = 2;
-		else frame = 1;
-		engine.renderSprite(Vec2i(0, 0), Vec2i(128 + frame * 32, 416), Vec2i(16, 16), realColor, false, 90.0 * shownDir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		if(reload)

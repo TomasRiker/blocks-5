@@ -10,21 +10,22 @@ ToxicWaste::ToxicWaste(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_TRANSPORTABLE | OF_DESTROYABLE;
 	destroyTime = 1;
-	debris.setColor(Vec4d(0.5, 0.6, 0.5, 0.25));
 }
 
 ToxicWaste::~ToxicWaste()
 {
 }
 
+void ToxicWaste::updateSprites()
+{
+	// Giftmuellfass
+	sprites.add(Vec2i(192, 352));
+}
+
 void ToxicWaste::onRender(int layer,
 						  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Giftmuellfass rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(192, 352), Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void ToxicWaste::onUpdate()

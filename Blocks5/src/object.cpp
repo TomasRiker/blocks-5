@@ -16,7 +16,6 @@ Object::Object(Level& level,
 {
 	level.addObject(this);
 	position = shownPosition = Vec2i(0, 0);
-	positionOnTexture = Vec2i(-1, -1);
 	noCollect = 0.0;
 	flags = 0;
 	ghost = false;
@@ -810,7 +809,9 @@ void Object::burst()
 	Engine::inst().playSound(burstSound, false, 0.1, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
-	for(int i = 0; i < 75 * DEBRIS_TRIES_PER_PARTICLE; i++)
+	const Sprites& sprites = getSprites();
+	const int numTries = sprites.getTryCount(75);
+	for(int i = 0; i < numTries; i++)
 	{
 		p.lifetime = random(20, 50);
 		p.damping = 0.85f;
@@ -824,7 +825,7 @@ void Object::burst()
 		// benutzt, damit die Wolke die Form des Objekts behaelt.
 		Vec4d sampled;
 		Vec2i offset;
-		if(!sampleDebris(&sampled, &offset)) continue;
+		if(!sprites.sample(&sampled, &offset)) continue;
 
 		p.position = position * 16 + offset;
 		const double r = random(0.0, 6.283);
@@ -1085,26 +1086,26 @@ bool Object::isFalling() const
 	return falling > 0.0;
 }
 
-bool Object::sampleDebris(Vec4d* p_colorOut,
-						  Vec2i* p_offsetOut) const
+void Object::onBeforeRender()
 {
-	return debris.sample(p_colorOut, p_offsetOut, getSpriteQuarterTurns());
+	rebuildSprites();
 }
 
-const DebrisSource& Object::getDebris() const
+void Object::updateSprites()
 {
-	return debris;
 }
 
-void Object::setDebrisColor(const Vec4d& debrisColor)
+const Sprites& Object::getSprites()
 {
-	debris.setColor(debrisColor);
+	rebuildSprites();
+	return sprites;
 }
 
-void Object::setDebrisTexture(Texture* p_texture,
-							  const Vec2i& positionOnTexture)
+void Object::rebuildSprites()
 {
-	debris.setTexture(p_texture, positionOnTexture);
+	sprites.clear();
+	sprites.setTexture(level.getSpritesTexture());
+	updateSprites();
 }
 
 uint Object::getMass() const

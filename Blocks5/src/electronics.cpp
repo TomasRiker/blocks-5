@@ -12,7 +12,6 @@ Electronics::Electronics(Level& level,
 	flags = OF_FIXED | OF_MASSIVE | OF_ELECTRONICS;
 	this->dir = dir;
 	renderBox = true;
-	positionOnTexture = Vec2i(0, 512);
 
 	if(!level.isInEditor() && !level.isInCat()) level.allElectronics.insert(this);
 }
@@ -47,15 +46,17 @@ void Electronics::onRemove()
 	if(!level.isInEditor() && !level.isInCat()) level.allElectronics.erase(this);
 }
 
+void Electronics::updateSprites()
+{
+	// Der Kasten, auf dem die Teile sitzen. Er kommt zuerst und liegt damit
+	// hinten - genauso wie frueher, als diese Basisklasse ihn selbst zeichnete
+	// und die abgeleitete Klasse ihr eigenes Bild danach darueberlegte.
+	if(renderBox) sprites.add(Vec2i(0, 512));
+}
+
 void Electronics::onRender(int layer,
 						   const Vec4d& color)
 {
-	if(layer == 1 && renderBox)
-	{
-		// Elektronik-Block rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(0, 512), Vec2i(16, 16), color);
-	}
-
 	if(layer == 939)
 	{
 		const Vec4d wireColor[] = {Vec4d(0.35, 0.3, 0.3, 1.0),

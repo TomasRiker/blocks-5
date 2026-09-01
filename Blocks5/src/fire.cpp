@@ -15,16 +15,16 @@ Fire::~Fire()
 {
 }
 
+void Fire::updateSprites()
+{
+	// Feuer
+	sprites.add(Vec2i((anim / 5 % 8) * 32, 320), Vec4d(1.0, 1.0, 1.0, 0.5));
+}
+
 void Fire::onRender(int layer,
 					const Vec4d& color)
 {
-	if(layer == 0)
-	{
-		// Feuer rendern
-		Vec2i positionOnTexture((anim / 5 % 8) * 32, 320);
-		Vec4d realColor(color.r, color.g, color.b, color.a * 0.5);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), realColor);
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		level.renderShine(0.5, 1.0 + 0.05 * sin(anim / 5.0) + random(-0.05, 0.05));
@@ -74,7 +74,8 @@ void Fire::onUpdate()
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 				// Truemmer
-				int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
+				const Sprites& debris = p_destroyed->getSprites();
+				int n = debris.getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
 					p.lifetime = random(60, 120);
@@ -84,7 +85,7 @@ void Fire::onUpdate()
 					p.sizeOnTexture = Vec2b(16, 16);
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_destroyed->sampleDebris(&sampled, &offset)) continue;
+					if(!debris.sample(&sampled, &offset)) continue;
 
 					p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
@@ -101,7 +102,9 @@ void Fire::onUpdate()
 				if(p_obj->getFlags() & OF_KILL_FIRE)
 				{
 					// Das Feuer geht jetzt aus!
-					for(int i = 0; i < 50 * DEBRIS_TRIES_PER_PARTICLE; i++)
+					const Sprites& ownDebris = getSprites();
+					const int numTries = ownDebris.getTryCount(50);
+					for(int i = 0; i < numTries; i++)
 					{
 						p.lifetime = random(80, 150);
 						p.damping = 0.9f;
@@ -111,7 +114,7 @@ void Fire::onUpdate()
 
 						Vec4d sampled;
 						Vec2i offset;
-						if(!sampleDebris(&sampled, &offset)) continue;
+						if(!ownDebris.sample(&sampled, &offset)) continue;
 
 						p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 						p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));

@@ -19,21 +19,22 @@ DiamondMachine::~DiamondMachine()
 {
 }
 
+void DiamondMachine::updateSprites()
+{
+	// Maschine
+	Vec2i positionOnTexture(0, 128);
+	if(level.isElectricityOn())
+	{
+		if(counter == -1) positionOnTexture.x = 32;
+		else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
+	}
+	sprites.add(positionOnTexture);
+}
+
 void DiamondMachine::onRender(int layer,
 							  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Maschine rendern
-		Vec2i positionOnTexture(0, 128);
-		if(level.isElectricityOn())
-		{
-			if(counter == -1) positionOnTexture.x = 32;
-			else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
-		}
-		else positionOnTexture.x = 0;
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void DiamondMachine::onUpdate()
@@ -62,7 +63,7 @@ void DiamondMachine::onUpdate()
 					// die ganze Saeule in einem einzigen Ton.
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_obj->sampleDebris(&sampled, &offset)) return;
+					if(!p_obj->getSprites().sample(&sampled, &offset)) return;
 
 					p.position = position * 16 - Vec2i(0, 16) + offset;
 					p.velocity = Vec2d(random(-0.5, 0.5), -1.0);

@@ -252,7 +252,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	p_level = new Level;
 	p_level->setInEditor(true);
 	p_level->load("title.xml");
-	p_sprites = p_level->getSprites();
+	p_sprites = p_level->getSpritesTexture();
 
 	// Textur fuer den Effekt-Puffer erzeugen
 	glGenTextures(1, &bufferID);

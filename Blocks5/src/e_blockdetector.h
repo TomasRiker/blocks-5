@@ -12,6 +12,7 @@ public:
 	~E_BlockDetector();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();
 };

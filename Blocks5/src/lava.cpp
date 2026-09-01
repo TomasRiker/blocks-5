@@ -284,7 +284,8 @@ void Lava::onUpdate()
 					Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 					// Truemmer
-					int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
+					const Sprites& debris = p_destroyed->getSprites();
+					int n = debris.getTryCount(random(50, 80));
 					for(int i = 0; i < n; i++)
 					{
 						p.lifetime = random(60, 120);
@@ -294,7 +295,7 @@ void Lava::onUpdate()
 						p.sizeOnTexture = Vec2b(16, 16);
 						Vec4d sampled;
 						Vec2i offset;
-						if(!p_destroyed->sampleDebris(&sampled, &offset)) continue;
+						if(!debris.sample(&sampled, &offset)) continue;
 
 						p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 						p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));

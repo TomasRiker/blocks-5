@@ -11,35 +11,24 @@ Mirror::Mirror(Level& level,
 	flags = OF_MASSIVE | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	interpolation = 0.3;
 	destroyTime = 50;
-	if(subType == 0) debris.setColor(Vec4d(0.5, 0.5, 1.0, 0.25));
-	else debris.setColor(Vec4d(0.5, 0.5, 0.6, 0.25));
 	this->subType = subType;
 	this->dir = dir;
-	updateSprite();
 }
 
 Mirror::~Mirror()
 {
 }
 
-// Bis hierher stand die Bildstelle als lokale Variable in onRender() und
-// verdeckte damit das geerbte Mitglied, das nie gesetzt wurde. presets.cpp
-// traegt in das Mitglied die Koordinate aus der Palette ein - texCoords
-// ["Mirror"] ist (160, 160) - und genau die bekam die Truemmer-Stichprobe zu
-// sehen. Ein Spiegel der zweiten Sorte zerbrach also in die Farben der ersten.
-void Mirror::updateSprite()
+void Mirror::updateSprites()
 {
-	positionOnTexture = subType == 0 ? Vec2i(160, 160) : Vec2i(160, 352);
+	// Spiegel
+	sprites.add(Vec2i(160, subType == 0 ? 160 : 352)).rotation = 90.0 * dir;
 }
 
 void Mirror::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Spiegel rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Mirror::onUpdate()
@@ -170,7 +159,6 @@ bool Mirror::changeInEditor(int mod)
 	{
 		subType++;
 		subType %= 2;
-		updateSprite();
 	}
 
 	return true;

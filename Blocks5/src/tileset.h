@@ -4,7 +4,7 @@
 /*** Klasse fuer Tiles ***/
 
 #include "resource.h"
-#include "debriscolordb.h"
+#include "sprite.h"
 
 class Texture;
 
@@ -26,7 +26,12 @@ public:
 		Vec2i position;
 		int type;
 		int destroyTime;
-		DebrisSource debris;
+
+		// Das Bild der Kachel, aus dem die Truemmer ihre Farbe ziehen. Genau
+		// ein Teilbild, ungedreht und ungefaerbt - Kacheln haben nichts
+		// Zusammengesetztes. Bei einer Kachel, die gar nicht zerstoerbar ist,
+		// bleibt die Liste leer, und dann entstehen auch keine Truemmer.
+		Sprites sprites;
 	};
 
 	TileSet(const std::string& filename);

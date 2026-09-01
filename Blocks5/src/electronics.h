@@ -9,9 +9,6 @@
 class Electronics : public Object
 {
 public:
-	// Alle e_*-Teile zeichnen mit 90.0 * dir.
-	virtual int getSpriteQuarterTurns() const { return dir; }
-
 	Electronics(Level& level, const Vec2i& position, int dir);
 	~Electronics();
 
@@ -19,6 +16,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);

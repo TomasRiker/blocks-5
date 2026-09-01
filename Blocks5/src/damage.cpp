@@ -18,14 +18,19 @@ Damage::~Damage()
 {
 }
 
+void Damage::updateSprites()
+{
+	// verbrannter Boden - das einzige Objektbild, das nicht 16x16 ist
+	Sprite& sprite = sprites.add(Vec2i(209, 129));
+	sprite.size = Vec2i(46, 46);
+	sprite.offset = Vec2i(-16, -16);
+	sprite.rotation = rotation;
+}
+
 void Damage::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 0)
-	{
-		// verbrannten Boden rendern
-		Engine::inst().renderSprite(Vec2i(-16, -16), Vec2i(209, 129), Vec2i(46, 46), color, false, rotation);
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 }
 
 void Damage::onUpdate()

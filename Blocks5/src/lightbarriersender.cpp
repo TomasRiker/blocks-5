@@ -10,11 +10,15 @@ LightBarrierSender::LightBarrierSender(Level& level,
 	flags = OF_MASSIVE | OF_FIXED | OF_TRANSPORTABLE;
 	this->dir = dir;
 	counter = 0;
-	positionOnTexture = Vec2i(64, 608);
 }
 
 LightBarrierSender::~LightBarrierSender()
 {
+}
+
+void LightBarrierSender::updateSprites()
+{
+	sprites.add(Vec2i(64, 608)).rotation = 90.0 * dir;
 }
 
 void LightBarrierSender::onRender(int layer,
@@ -22,11 +26,7 @@ void LightBarrierSender::onRender(int layer,
 {
 	Vec2i sp = getShownPositionInPixels();
 
-	if(layer == 1)
-	{
-		// LightBarrierSender rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 16 || layer == 17)
 	{
 		if(!beam.empty())

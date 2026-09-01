@@ -18,22 +18,17 @@ Bomb::~Bomb()
 {
 }
 
+void Bomb::updateSprites()
+{
+	// Bombe
+	if(flags & OF_COLLECTABLE) sprites.add(Vec2i(0, 160));
+	else sprites.add(Vec2i(32 + 32 * ((countDown / 6) % 4), 160));
+}
+
 void Bomb::onRender(int layer,
 					const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Bombe rendern
-		if(flags & OF_COLLECTABLE)
-		{
-			Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(0, 160), Vec2i(16, 16), color);
-		}
-		else
-		{
-			int frame = (countDown / 6) % 4;
-			Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(32 + 32 * frame, 160), Vec2i(16, 16), color);
-		}
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		if(!(flags & OF_COLLECTABLE) &&
@@ -88,8 +83,7 @@ void Bomb::onUpdate()
 					for(int y = -1; y <= 1; y++)
 					{
 						bool destroyed = false;
-						const DebrisSource* p_debris = 0;
-						int debrisTurns = 0;   // Kacheln werden nie gedreht
+						const Sprites* p_sprites = 0;
 
 						Vec2i pos = position + Vec2i(x, y);
 						int tileID = level.getTileAt(1, pos);
@@ -99,7 +93,7 @@ void Bomb::onUpdate()
 							// Tile zerstoeren
 							level.setTileAt(1, pos, 0);
 							destroyed = true;
-							p_debris = &tileInfo.debris;
+							p_sprites = &tileInfo.sprites;
 						}
 
 						Object* p_obj = level.getFrontObjectAt(pos);
@@ -109,15 +103,14 @@ void Bomb::onUpdate()
 							if(!p_obj->isAlive())
 							{
 								destroyed = true;
-								p_debris = &p_obj->getDebris();
-										debrisTurns = p_obj->getSpriteQuarterTurns();
+								p_sprites = &p_obj->getSprites();
 							}
 						}
 
-						if(destroyed && p_debris)
+						if(destroyed && p_sprites)
 						{
 							// Truemmer
-							int n = random(30, 40) * DEBRIS_TRIES_PER_PARTICLE;
+							int n = p_sprites->getTryCount(random(30, 40));
 							for(int i = 0; i < n; i++)
 							{
 								p.lifetime = random(40, 80);
@@ -128,7 +121,7 @@ void Bomb::onUpdate()
 
 								Vec4d sampled;
 								Vec2i offset;
-								if(!p_debris->sample(&sampled, &offset, debrisTurns)) continue;
+								if(!p_sprites->sample(&sampled, &offset)) continue;
 
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 								p.velocity = random(4.0, 7.0) * Vec2d(x, y).normalize() + Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));

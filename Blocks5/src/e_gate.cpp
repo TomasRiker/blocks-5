@@ -28,17 +28,19 @@ E_Gate::~E_Gate()
 {
 }
 
+void E_Gate::updateSprites()
+{
+	Electronics::updateSprites();
+	Vec2i t(32 + 32 * subType, 512);
+	if(subType == 7) t = Vec2i(224, 544);
+	sprites.add(t).rotation = 90.0 * dir;
+}
+
 void E_Gate::onRender(int layer,
 					  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Vec2i t(32 + 32 * subType, 512);
-		if(subType == 7) t = Vec2i(224, 544);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Gate::saveAttributes(TiXmlElement* p_target)

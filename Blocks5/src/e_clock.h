@@ -12,6 +12,7 @@ public:
 	~E_Clock();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);
 	bool changeInEditor(int mod);

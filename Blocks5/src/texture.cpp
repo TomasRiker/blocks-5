@@ -7,7 +7,6 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	p_rgba = 0;
 	texID = 0;
 	doKeepInMemory = false;
-	doAddGaps = false;
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
 	p_parent = 0;
@@ -78,30 +77,21 @@ void Texture::reload()
 	// Bild sperren
 	SDL_LockSurface(p_rgba);
 
-	if(doAddGaps)
-	{
-		doAddGaps = false;
-		addGaps();
-	}
-	else
-	{
-		// Bilddaten in die Textur kopieren
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	// Bilddaten in die Textur kopieren
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-		// Matrix erzeugen
-		glPushAttrib(GL_TRANSFORM_BIT);
-		glMatrixMode(GL_TEXTURE);
-		glPushMatrix();
-		glLoadIdentity();
-		double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
-		glScaled(1.0 / w, 1.0 / h, 1.0);
-		glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-		glPopMatrix();
-		glPopAttrib();
-
-	}
+	// Matrix erzeugen
+	glPushAttrib(GL_TRANSFORM_BIT);
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glLoadIdentity();
+	double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
+	glScaled(1.0 / w, 1.0 / h, 1.0);
+	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
+	glPopMatrix();
+	glPopAttrib();
 }
 
 void Texture::cleanUp()
@@ -218,60 +208,14 @@ const Vec2i& Texture::getSize() const
 
 void Texture::keepInMemory()
 {
+	if(doKeepInMemory) return;
 	doKeepInMemory = true;
-}
 
-void Texture::addGaps()
-{
-	if(!doKeepInMemory || doAddGaps) return;
-	doAddGaps = true;
-
-	SDL_Surface* p_new = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x * 2, size.y * 2, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-	SDL_SetAlpha(p_new, 0, 0);
-	SDL_FillRect(p_new, 0, 0x00000000);
-	SDL_UnlockSurface(p_rgba);
-
-	for(int x = 0; x < size.x; x += 16)
-	{
-		for(int y = 0; y < size.y; y += 16)
-		{
-			SDL_Rect srcRect;
-			srcRect.x = x;
-			srcRect.y = y;
-			srcRect.w = 16;
-			srcRect.h = 16;
-			SDL_Rect destRect;
-			destRect.x = 2 * x;
-			destRect.y = 2 * y;
-			destRect.w = 16;
-			destRect.h = 16;
-			SDL_BlitSurface(p_rgba, &srcRect, p_new, &destRect);
-		}
-	}
-
-	SDL_FreeSurface(p_rgba);
-	p_rgba = p_new;
-	SDL_LockSurface(p_rgba);
-
-	// Bild sperren
-	SDL_LockSurface(p_rgba);
-
-	// Bilddaten in die Textur kopieren
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
-	glBindTexture(GL_TEXTURE_2D, texID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-	// Matrix erzeugen
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	double w = static_cast<double>(size.x * 2), h = static_cast<double>(size.y * 2);
-	glScaled(1.0 / w, 1.0 / h, 1.0);
-	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-	glPopMatrix();
-	glPopAttrib();
+	// Die Pixel sind schon weg, weil die Textur vorher gebunden wurde. Das
+	// Flag holt sie nicht zurueck, also neu laden. Wenn gar nichts geladen
+	// werden konnte (texID == 0), gaebe ein zweiter Versuch nur denselben
+	// Fehler.
+	if(!p_rgba && texID) reload();
 }
 
 bool Texture::hasPixels() const

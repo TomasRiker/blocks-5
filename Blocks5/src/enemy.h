@@ -8,14 +8,11 @@
 class Enemy : public Object
 {
 public:
-	// shownDir dreht sich weich und bekommt beim Zeichnen noch einen Winkel
-	// obendrauf; fuer die Truemmer reicht die naechste Vierteldrehung.
-	virtual int getSpriteQuarterTurns() const { return quarterTurnsFromShownDir(shownDir); }
-
 	Enemy(Level& level, const Vec2i& position, int subType, int dir);
 	~Enemy();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);
 	bool changeInEditor(int mod);

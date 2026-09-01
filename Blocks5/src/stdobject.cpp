@@ -24,16 +24,18 @@ StdObject::~StdObject()
 {
 }
 
+void StdObject::updateSprites()
+{
+	// Objekt mit seinem Animationsbild
+	int frame = (anim / animSpeed) % numFrames;
+	if(level.isInEditor()) frame = 0;
+	sprites.add(positionOnTexture + Vec2i(frame * 32, 0));
+}
+
 void StdObject::onRender(int layer,
 						 const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Objekt rendern
-		int frame = (anim / animSpeed) % numFrames;
-		if(level.isInEditor()) frame = 0;
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture + Vec2i(frame * 32, 0), Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18 && glow)
 	{
 		level.renderShine(0.35, 0.35 + random(-0.05, 0.05));

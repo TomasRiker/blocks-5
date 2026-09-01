@@ -19,6 +19,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
+#include "sprite.h"
 #include "font.h"
 #include "sound.h"
 #include "streamedsound.h"
@@ -2471,6 +2472,22 @@ void Engine::renderSprite(Texture* p_sprite,
 	p_sprite->bind();
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
 	p_sprite->unbind();
+}
+
+void Engine::renderSprites(const Sprites& sprites,
+						   const Vec4d& color)
+{
+	const int numSprites = sprites.getCount();
+	for(int i = 0; i < numSprites; i++)
+	{
+		const Sprite& sprite = sprites[i];
+		renderSprite(sprite.offset,
+					 sprite.positionOnTexture,
+					 sprite.size,
+					 color * sprite.color,
+					 sprite.mirrorX,
+					 sprite.rotation);
+	}
 }
 
 SoundInstance* Engine::playSound(const std::string& filename,

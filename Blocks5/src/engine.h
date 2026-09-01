@@ -12,6 +12,7 @@ class Texture;
 class Crossfade;
 class VideoRecorder;
 class AudioCapture;
+class Sprites;
 
 struct Action
 {
@@ -186,6 +187,10 @@ public:
 	void setCrtScanFlicker(double value);
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+
+	// Alle Teilbilder eines Objekts zeichnen. color ist die Farbe des
+	// Renderdurchgangs; die Eigenfaerbung jedes Teilbilds kommt dazu.
+	void renderSprites(const Sprites& sprites, const Vec4d& color);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
 
 	void setBlendFunc(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);

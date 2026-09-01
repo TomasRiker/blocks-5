@@ -12,6 +12,7 @@ public:
 	~Barrage2Panel();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 

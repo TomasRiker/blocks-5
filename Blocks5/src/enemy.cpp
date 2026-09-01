@@ -32,13 +32,11 @@ Enemy::Enemy(Level& level,
 	{
 		flags = OF_MASSIVE | OF_COLLECTABLE | OF_DESTROYABLE | OF_TRANSPORTABLE | OF_BURSTABLE;
 		destroyTime = 1;
-		positionOnTexture = Vec2i(0, 416);
 	}
 	else if(subType == 1)
 	{
 		flags = OF_MASSIVE | OF_COLLECTABLE | OF_DESTROYABLE | OF_TRANSPORTABLE | OF_BURSTABLE | OF_TRIGGER_PANELS;
 		destroyTime = 1;
-		positionOnTexture = Vec2i(64, 448);
 	}
 
 	burstSound = "enemy_burst.ogg";
@@ -46,6 +44,25 @@ Enemy::Enemy(Level& level,
 
 Enemy::~Enemy()
 {
+}
+
+void Enemy::updateSprites()
+{
+	if(subType == 0)
+	{
+		// komisches gruenes Insekt. Es wackelt um bis zu 10 Grad um seine
+		// Blickrichtung; die Truemmer bekommen den Winkel ungerundet.
+		int f[] = {0, 1, 0, 2};
+		int frame = f[(anim / 4) % 4];
+		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0 * shownDir + 10.0 * sin(anim / 4.0);
+	}
+	else if(subType == 1)
+	{
+		// Teufelsfratze
+		int f[] = {0, 1, 1, 1, 0};
+		int frame = f[(anim / 4) % 5];
+		sprites.add(Vec2i(64 + frame * 32, 448));
+	}
 }
 
 void Enemy::onRender(int layer,
@@ -60,22 +77,17 @@ void Enemy::onRender(int layer,
 
 	if(layer == 1)
 	{
-		if(subType == 0)
+		if(subType == 1)
 		{
-			// komisches gruenes Insekt rendern
-			int f[] = {0, 1, 0, 2};
-			int frame = f[(anim / 4) % 4];
-			double a = 10.0 * sin(anim / 4.0);
-			Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(frame * 32, 416), Vec2i(16, 16), realColor, false, 90.0 * shownDir + a);
-		}
-		else if(subType == 1)
-		{
-			// Teufelsfratze rendern
-			int f[] = {0, 1, 1, 1, 0};
-			int frame = f[(anim / 4) % 5];
+			// Die Teufelsfratze schwebt. Ihr Bild steigt mit der Hoehe auf,
+			// ihr Schatten bleibt am Boden und wird dabei blasser. Das ist
+			// eine Sache des Durchgangs und gehoert deshalb nicht in die
+			// Teilbilder. Object::render klammert das Ganze in glPushMatrix.
 			if(shadowPass) realColor.a /= 1.0 + 0.25 * height;
-			Engine::inst().renderSprite(Vec2i(0, shadowPass ? 0 : static_cast<int>(-height)), Vec2i(64 + frame * 32, 448), Vec2i(16, 16), realColor);
+			else glTranslated(0.0, static_cast<int>(-height), 0.0);
 		}
+
+		Engine::inst().renderSprites(sprites, realColor);
 	}
 	else if(layer == 18)
 	{
@@ -407,7 +419,9 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150 * DEBRIS_TRIES_PER_PARTICLE; i++)
+			const Sprites& debris = p_player->getSprites();
+			const int numTries = debris.getTryCount(150);
+			for(int i = 0; i < numTries; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
@@ -417,7 +431,7 @@ void Enemy::onCollect(Player* p_player)
 
 				Vec4d sampled;
 				Vec2i offset;
-				if(!p_player->sampleDebris(&sampled, &offset)) continue;
+				if(!debris.sample(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
@@ -450,7 +464,9 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150 * DEBRIS_TRIES_PER_PARTICLE; i++)
+			const Sprites& debris = p_player->getSprites();
+			const int numTries = debris.getTryCount(150);
+			for(int i = 0; i < numTries; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
@@ -460,7 +476,7 @@ void Enemy::onCollect(Player* p_player)
 
 				Vec4d sampled;
 				Vec2i offset;
-				if(!p_player->sampleDebris(&sampled, &offset)) continue;
+				if(!debris.sample(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);

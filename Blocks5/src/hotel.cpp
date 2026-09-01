@@ -18,14 +18,16 @@ Hotel::~Hotel()
 {
 }
 
+void Hotel::updateSprites()
+{
+	// Hotel
+	sprites.add(Vec2i(32, 448));
+}
+
 void Hotel::onRender(int layer,
 					 const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Hotel rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		level.renderShine(0.4, 0.4 + random(-0.05, 0.05));

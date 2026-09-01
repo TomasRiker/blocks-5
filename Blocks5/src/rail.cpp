@@ -17,14 +17,16 @@ Rail::~Rail()
 {
 }
 
+void Rail::updateSprites()
+{
+	// Schiene
+	sprites.add(Vec2i(subType * 32, 384)).rotation = 90.0 * dir;
+}
+
 void Rail::onRender(int layer,
 					const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Aufzug rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(subType * 32, 384), Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Rail::onUpdate()

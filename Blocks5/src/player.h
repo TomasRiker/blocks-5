@@ -15,6 +15,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool move(const Vec2i& dir, bool deadlyWeight = false);
 	bool changeInEditor(int mod);

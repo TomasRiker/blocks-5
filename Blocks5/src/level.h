@@ -113,7 +113,7 @@ public:
 	void setTileSet(TileSet* p_tileSet);
 	ParticleSystem* getParticleSystem();
 	ParticleSystem* getFireParticleSystem();
-	Texture* getSprites();
+	Texture* getSpritesTexture();
 	Texture** getLava();
 	Texture* getBackground();
 	Texture* getHint();

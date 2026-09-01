@@ -61,20 +61,18 @@ void Laser::onRemove()
 	}
 }
 
+void Laser::updateSprites()
+{
+	// Laser
+	sprites.add(Vec2i(level.isElectricityOn() ? 32 : 0, 192)).rotation = 90.0 * dir;
+}
+
 void Laser::onRender(int layer,
 					 const Vec4d& color)
 {
-	Vec2i positionOnTexture;
-	if(level.isElectricityOn()) positionOnTexture = Vec2i(32, 192);
-	else positionOnTexture = Vec2i(0, 192);
-
 	Vec2i sp = getShownPositionInPixels();
 
-	if(layer == 1)
-	{
-		// Laser rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 16 || layer == 17)
 	{
 		if(on > 0.0 && !beam.empty())
@@ -168,7 +166,8 @@ void Laser::onUpdate()
 		// Truemmer
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
-		int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
+		const Sprites& debris = getSprites();
+		int n = debris.getTryCount(random(50, 80));
 		for(int i = 0; i < n; i++)
 		{
 			p.lifetime = random(60, 120);
@@ -179,7 +178,7 @@ void Laser::onUpdate()
 
 			Vec4d sampled;
 			Vec2i offset;
-			if(!sampleDebris(&sampled, &offset)) continue;
+			if(!debris.sample(&sampled, &offset)) continue;
 
 			p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 			p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
@@ -207,8 +206,7 @@ void Laser::onUpdate()
 
 		bool destroyed = false;
 		bool infinity = false;
-		const DebrisSource* p_debris = 0;
-		int debrisTurns = 0;   // Kacheln werden nie gedreht
+		const Sprites* p_sprites = 0;
 		int z = 0;
 
 		while(true)
@@ -248,8 +246,7 @@ void Laser::onUpdate()
 						{
 							p_obj->disappear(0.2);
 							destroyed = true;
-							p_debris = &p_obj->getDebris();
-						debrisTurns = p_obj->getSpriteQuarterTurns();
+							p_sprites = &p_obj->getSprites();
 						}
 					}
 					else
@@ -270,7 +267,7 @@ void Laser::onUpdate()
 						{
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
-							p_debris = &tileInfo.debris;
+							p_sprites = &tileInfo.sprites;
 						}
 					}
 
@@ -351,12 +348,12 @@ void Laser::onUpdate()
 				else p_fireParticleSystem->addParticle(p);
 			}
 
-			if(destroyed && p_debris)
+			if(destroyed && p_sprites)
 			{
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 				// Truemmer
-				int n = random(50, 80) * DEBRIS_TRIES_PER_PARTICLE;
+				int n = p_sprites->getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
 					p.lifetime = random(60, 120);
@@ -367,7 +364,7 @@ void Laser::onUpdate()
 
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_debris->sample(&sampled, &offset, debrisTurns)) continue;
+					if(!p_sprites->sample(&sampled, &offset)) continue;
 
 					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));

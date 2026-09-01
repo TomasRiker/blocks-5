@@ -12,6 +12,7 @@ public:
 	~E_ValueSwitch();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	bool changeInEditor(int mod);
 	void onTouchedByPlayer(Player* p_player);

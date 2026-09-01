@@ -20,8 +20,11 @@ public:
 	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size);
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 
+	// Die Pixel im Speicher behalten, damit getPixel() sie lesen kann. Laedt
+	// die Textur neu, wenn bind() sie schon freigegeben hat - das Flag allein
+	// holt nichts zurueck. Ohne das haenge die Truemmer-Stichprobe daran, dass
+	// jeder Aufrufer diese Zusage vor dem ersten bind() gibt.
 	void keepInMemory();
-	void addGaps();
 	Vec4d getPixel(const Vec2i& where) const;
 
 	// Liegen die Pixel noch im Speicher? bind() gibt sie frei, wenn nicht
@@ -46,7 +49,6 @@ private:
 	Vec2i offset;
 	Vec2i size;
 	bool doKeepInMemory;
-	bool doAddGaps;
 	double matrix[16];
 	Texture* p_parent;
 };

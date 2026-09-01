@@ -13,15 +13,16 @@ ElectricitySwitch::~ElectricitySwitch()
 {
 }
 
+void ElectricitySwitch::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(level.isElectricityOn() ? 160 : 128, 96));
+}
+
 void ElectricitySwitch::onRender(int layer,
 								 const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Schalter rendern
-		Vec2i positionOnTexture(level.isElectricityOn() ? 160 : 128, 96);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void ElectricitySwitch::onUpdate()

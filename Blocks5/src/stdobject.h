@@ -12,6 +12,7 @@ public:
 	~StdObject();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);
 

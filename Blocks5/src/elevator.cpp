@@ -60,17 +60,19 @@ void Elevator::onRemove()
 	}
 }
 
+void Elevator::updateSprites()
+{
+	// Aufzug
+	int frame = level.isInEditor() ? dir : newDir;
+	if(blink && (((moveCounter - 1) / 10) % 2)) frame = 4;
+	if(!level.isInEditor() && !level.isElectricityOn()) frame = 4;
+	sprites.add(Vec2i(frame * 32, 352));
+}
+
 void Elevator::onRender(int layer,
 						const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Aufzug rendern
-		int frame = level.isInEditor() ? dir : newDir;
-		if(blink && (((moveCounter - 1) / 10) % 2)) frame = 4;
-		if(!level.isInEditor() && !level.isElectricityOn()) frame = 4;
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(frame * 32, 352), Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Elevator::onUpdate()

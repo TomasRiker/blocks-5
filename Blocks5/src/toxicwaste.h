@@ -12,6 +12,7 @@ public:
 	~ToxicWaste();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onExplosion();
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);

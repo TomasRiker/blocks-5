@@ -3,7 +3,6 @@
 #include "engine.h"
 #include "texture.h"
 #include "level.h"
-#include "debriscolordb.h"
 #include "object.h"
 #include "stdobject.h"
 #include "conveyorbelt.h"
@@ -688,19 +687,6 @@ Object* Presets::instancePreset(const std::string& name,
 	{
 		// Typ eintragen
 		p_theObject->setType(newName);
-
-		if(p_theObject->positionOnTexture.x == -1)
-		{
-			// Texturkoordinaten setzen
-			p_theObject->positionOnTexture = t;
-		}
-
-		if(p_theObject->getFlags() & Object::OF_DESTROYABLE ||
-		   p_theObject->getFlags() & Object::OF_CONVERTABLE)
-		{
-			// Woher die Truemmer ihre Farbe nehmen: aus dem Bild des Objekts.
-			p_theObject->setDebrisTexture(p_sprites, p_theObject->positionOnTexture);
-		}
 	}
 
 	return p_theObject;

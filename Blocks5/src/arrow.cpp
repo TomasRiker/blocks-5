@@ -20,15 +20,17 @@ Arrow::~Arrow()
 {
 }
 
+void Arrow::updateSprites()
+{
+	// Pfeil
+	Sprite& sprite = sprites.add(Vec2i(96, 0), Vec4d(1.0, 1.0, 1.0, shownAlpha));
+	sprite.rotation = 90.0 * shownDir;
+}
+
 void Arrow::onRender(int layer,
 					 const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Pfeil rendern
-		Vec2i positionOnTexture(96, 0);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color * Vec4d(1.0, 1.0, 1.0, shownAlpha), false, 90.0 * shownDir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Arrow::onUpdate()
