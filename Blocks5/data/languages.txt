@@ -2046,12 +2046,12 @@ $MM_CRT_TRY
 $MM_IMPORT
 // Main menu: button that takes a file in from the player's computer
 §en:Import
-§de:Importieren
+§de:Import
 
 $MM_EXPORT
 // Main menu: button that writes something out to the player's computer
 §en:Export
-§de:Exportieren
+§de:Export
 
 $TR_MESSAGE_TITLE
 // Title of the window that reports what an import or export did

@@ -40,13 +40,13 @@
 		     Nebensachen, keine Hauptwege - und stehen als Paar enger
 		     beieinander als die grossen, mittig in deren Luecke und auf
 		     deren Bogen. -->
-		<Button name="Import" x="305" y="82" w="50" h="50">
+		<Button name="Import" x="268" y="82" w="50" h="50">
 			<ExtendedStyle inset="9" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_IMPORT</Title>
 			<Image u="160" v="250" u2="210" v2="250">buttons.png</Image>
 		</Button>
-		<Button name="Export" x="370" y="77" w="50" h="50">
+		<Button name="Export" x="318" y="82" w="50" h="50">
 			<ExtendedStyle inset="9" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_EXPORT</Title>
