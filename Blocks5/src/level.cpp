@@ -36,7 +36,7 @@ const char* p_defaultSkin = "blocks_01";
 // gezeigt, sondern dieser: das Wort ERROR aus Bloecken, mit Bob im O
 // eingesperrt. Der Wachposten haelt die Rekursion an, falls der Fehler-Level
 // selbst einmal fehlen oder kaputt sein sollte.
-const char* p_errorLevelFilename = "error_level.xml";
+const char* p_errorLevelFilename = "level_error.xml";
 bool loadingErrorLevel = false;
 
 const char* p_skinFilenames[] = {"tileset.xml", "sprites.png", "particles.png", "background.png", "hint.png", "hintfont.xml", "noise.png", "shine.png", "rain.png", "clouds.png", "snow.png"};
