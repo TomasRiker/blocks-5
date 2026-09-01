@@ -5,10 +5,10 @@
 AppName=Blocks 5
 AppVersion=1.2.0
 AppPublisher=Scherfgen-Software
-AppPublisherURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
+AppPublisherURL=https://www.david-scherfgen.de/
 AppSupportURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
 AppUpdatesURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
-DefaultDirName={pf}\Blocks 5
+DefaultDirName={autopf}\Blocks 5
 DefaultGroupName=Blocks 5
 AllowNoIcons=yes
 OutputBaseFilename=blocks-5-1.2.0-setup
@@ -17,6 +17,9 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 UninstallFilesDir={app}\uninst
 UninstallDisplayIcon={app}\blocks5.exe
+WizardStyle=modern dynamic
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -63,11 +66,4 @@ Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app
 Filename: "{app}\update_checker_disable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_enable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden; Tasks: EnableUpdateChecker
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
-; Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
-
-
-
-
-
-
-
+Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
