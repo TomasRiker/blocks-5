@@ -157,7 +157,6 @@ public:
 	int counter;
 	int time;
 	bool finished;
-	std::set<std::string> skinsMissing;
 	std::set<Electronics*> allElectronics;
 
 	enum Skin

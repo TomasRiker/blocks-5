@@ -988,39 +988,6 @@ void Level::render()
 	}
 
 	glPopMatrix();
-
-	if(!skinsMissing.empty() && !inCat)
-	{
-		glBegin(GL_QUADS);
-		glColor4d(0.0, 0.0, 0.0, 0.5);
-		glVertex2i(55, 55);
-		glVertex2i(595, 55);
-		glVertex2i(595, 355);
-		glVertex2i(55, 355);
-		glColor4d(1.0, 0.0, 0.0, 0.75);
-		glVertex2i(50, 50);
-		glVertex2i(590, 50);
-		glVertex2i(590, 350);
-		glVertex2i(50, 350);
-		glEnd();
-		glLineWidth(1.0f);
-		glBegin(GL_LINE_LOOP);
-		glColor4d(0.0, 0.0, 0.0, 0.75);
-		glVertex2i(50, 50);
-		glVertex2i(590, 50);
-		glVertex2i(590, 350);
-		glVertex2i(50, 350);
-		glEnd();
-
-		Font* p_font = GUI::inst().getFont();
-		std::string text = localizeString("$FILES_MISSING") + "\n";
-		for(std::set<std::string>::const_iterator i = skinsMissing.begin(); i != skinsMissing.end(); ++i)
-		{
-			text += std::string("- ") + *i + "\n";
-		}
-
-		p_font->renderText(text, Vec2i(60, 60), Vec4d(1.0));
-	}
 }
 
 void Level::update()
@@ -2386,8 +2353,6 @@ void Level::invalidate()
 
 void Level::loadSkin(bool forceReload)
 {
-	skinsMissing.clear();
-
 	// Welche Skins nicht zu gebrauchen waren - nach Namen, nicht nach Datei.
 	// Fehlt ein Archiv ganz, fehlen alle elf Dateien darin, und elf Meldungen
 	// ueber denselben Skin will niemand lesen.
@@ -2402,7 +2367,6 @@ void Level::loadSkin(bool forceReload)
 			std::string f = getSkinFilename(i);
 			if(f.empty())
 			{
-				skinsMissing.insert(std::string("levels/skins/") + requestedSkin[i] + "(.zip)/" + p_skinFilenames[i]);
 				badSkins.insert(requestedSkin[i]);
 				skin[i] = "";
 			}

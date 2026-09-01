@@ -83,11 +83,6 @@ $FEATURE_NOT_IN_DEMO
 §en:This feature is not available in the demo version.
 §de:Dieses Feature steht in der Demo-Version nicht zur Verfügung.
 
-$FILES_MISSING
-// Text displayed when skin files are missing
-§en:The following files are missing:
-§de:Es fehlen die folgenden Dateien:
-
 // *********
 // MAIN MENU
 // *********

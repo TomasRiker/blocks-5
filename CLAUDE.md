@@ -541,7 +541,8 @@ else. Both editors used to carry their own copy of this — `messageText`, `mess
 modal window for the same job and a save or load with an empty filename did nothing at all.
 All three go through the one call now, and the empty filename says so. Two failures that had
 only ever reached the log speak up as well: a level naming a skin that is missing or will not
-load (`Level::loadSkin`, one message per skin name rather than one per missing file), and a
+load (`Level::loadSkin`, one message per skin name rather than one per missing file — this
+replaced a red panel that covered half the level for as long as it was open), and a
 music track that cannot be opened (`Engine::playMusic`, naming the bare filename — the full
 path leads through a campaign archive and its password and tells nobody anything). The
 select-level preview shows both without the sound, because stepping through a broken campaign
