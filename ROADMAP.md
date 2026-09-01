@@ -1134,37 +1134,51 @@ tick, the pair could be advanced by a fixed rotation instead of recomputed per
 frame. And `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping
 wasm contains no vector instructions at all — see item 8.
 
-14. Refuse an import that would take a shipped name
----------------------------------------------------
-The shipped user tree is exactly seven files: `levels/example01.xml`,
-`levels/example02.xml`, `levels/campaigns/blocks.zip` and the four skins
-`levels/skins/{blocks_01,blocks_02,blocks_03,space}.zip` (plus `readme.txt`).
-An import must not be able to take any of those names.
+14. An import overwrites, unless the name is one the game ships
+----------------------------------------------------------------
+Two halves of one decision. **An import that names a file the player already
+has replaces it** — no more swerving to a numbered name. **An import that names
+one of the seven files the game ships is refused.**
 
-**The skins are done.** `isShippedSkin` in `src/transfer.cpp` refuses all four
-by stem, and it has to: a skin's filename *is* its identity — a level says
+The shipped set is exactly `levels/example01.xml`, `levels/example02.xml`,
+`levels/campaigns/blocks.zip` and the four skins
+`levels/skins/{blocks_01,blocks_02,blocks_03,space}.zip` (plus `readme.txt`,
+which no import can be).
+
+**The skins already behave this way**, and the reasoning that got them there is
+the reasoning for the rest: a skin's filename *is* its identity — a level says
 `skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip`
-— so `installImported` overwrites rather than swerving to `space_2.zip`, and
-without the check an import would quietly replace the art the shipped campaign
-draws with. The list there is the one `zip_skins.bat` builds.
+— so swerving to `space_2.zip` would leave every level naming `space` just as
+broken as before, only without a visible cause. `isShippedSkin` in
+`src/transfer.cpp` refuses the four shipped stems; everything else overwrites.
 
-**The campaign and the two levels are not, and they fail differently.** Neither
-overwrites today: `Campaign::installArchive` (`src/campaign.cpp`) and
-`uniqueName` (`src/transfer.cpp`) both walk `stem_2`, `stem_3`, … until the name
-is free, so importing something called `blocks.zip` lands as `blocks_2.zip` and
-`example01.xml` as `example01_2.xml`. Nothing breaks. What is missing is the
-*refusal*: the player asked to install `blocks.zip` and got a second campaign
-under a name they did not choose, with no word about why. That is the same
-confusion the skin check exists to prevent, one step removed.
+**Everything else swerves today and must stop.** `uniqueName`
+(`src/transfer.cpp`, used for levels and music) and the numbering loop in
+`Campaign::installArchive` (`src/campaign.cpp`) both walk `stem_2`, `stem_3`, …
+until the name is free. Both go. What is left is `sanitizeFilenameStem` plus the
+extension, and the copy.
 
-So this is small: one predicate that answers "is this a name the game ships?"
-for all four kinds, called from `installImported` before the copy, plus a
-message. `$TR_ERROR_SKIN_RESERVED` already exists and would become the general
-one (or gain two siblings, if naming the kind reads better). Note that the
-campaign name is load-bearing in one more place than the levels are:
-`Campaign::resolveMusicPath` resolves a `blocks:` prefix against
+That makes all four kinds one rule instead of two, and it retires the special
+case: `installImported`'s skin branch and its comment exist only to say why
+skins differ, and they will not differ any more. `Campaign::installArchive`
+loses the numbering and its header comment in `campaign.h` — "der Zielname wird
+hier gebildet und ist garantiert noch frei" — stops being true.
+
+For the refusal: one predicate answering "is this a name the game ships?" for
+all four kinds, called before the copy, plus a message. `$TR_ERROR_SKIN_RESERVED`
+already exists and becomes the general one (or gains siblings, if naming the
+kind reads better). The campaign name is load-bearing in one more place than the
+levels are: `Campaign::resolveMusicPath` resolves a `blocks:` prefix against
 `levels/campaigns/blocks.zip` by that literal name, so a campaign that took it
 would redirect every borrowed music track in the tree.
+
+Two things that follow from overwriting. Re-importing an updated campaign now
+keeps the player's progress, because `ProgressDB` is keyed by the campaign's
+filename and the filename no longer changes — that is the good half. The other:
+an import can now replace a file the player made themselves, silently. If that
+wants a word, the place for it is the toast `GS_Menu` already shows on a
+successful import — "replaced" rather than "imported" costs one language ID and
+no new dialog.
 
 The predicate wants to live where item 15 can reach it too — see there.
 
@@ -1238,7 +1252,8 @@ How these connect
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
-   14 (refuse a shipped name) ──> 15 (delete in Export): one isBuiltIn() serves both
+   14 (overwrite, but not a shipped name) ──> 15 (delete in Export): one isBuiltIn()
+                                                 serves both
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
