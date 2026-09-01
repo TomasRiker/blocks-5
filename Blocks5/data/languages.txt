@@ -2036,23 +2036,23 @@ $CE_LEVEL_IN_ARCHIVE
 §en:(in campaign file)
 §de:(in Kampagnendatei)
 
-// Einmaliger Hinweis auf den CRT-Filter beim ersten Start von 1.2.0
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $MM_CRT_TITLE
+// One-time hint for the CRT filter (version >= 1.2.0)
 §en:Something new to look at
 §de:Etwas Neues für's Auge
 
 $MM_CRT_TEXT
 §en:Blocks 5 can now pretend to be running on an old CRT monitor: curved glass, scan lines, a soft glow around bright things.¶¶Would you like to try it? You can turn it off again at any time under Options/Scaling, and there are sliders there to set how strong it is.
-§de:Blocks 5 kann jetzt so tun, als liefe es auf einem alten Röhrenmonitor: gewölbte Scheibe, Bildzeilen, ein weicher Schimmer um helle Stellen.¶¶Möchtest du es ausprobieren? Unter Optionen/Skalierung kannst du es jederzeit wieder abschalten, und dort gibt es auch Regler für die Stärke.
+§de:Blocks 5 kann jetzt so tun, als liefe es auf einem alten Röhrenmonitor: gewölbte Scheibe, Bildzeilen, ein weicher Schimmer um helle Stellen.¶¶Möchtest du es ausprobieren? Unter Optionen/Skalierung kannst du es jederzeit wieder abschalten, und dort gibt es auch Regler für die Stärke des Effekts.
 
 $MM_CRT_NO_THANKS
 §en:No, thanks
 §de:Nein, danke
 
 $MM_CRT_TRY
-§en:Yes, try it!
-§de:Ja, ausprobieren!
+§en:Yes, try it
+§de:Ja, ausprobieren
+
 $MM_IMPORT
 // Main menu: button that takes a file in from the player's computer
 §en:Import
