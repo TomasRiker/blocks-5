@@ -33,11 +33,15 @@
 				<HCenter />
 			</Button>
 		</Window>
-		<Button name="Quit" x="570" y="5" w="70" h="70">
-			<ExtendedStyle />
+		<!-- 80x80 statt 70x70, und um den neuen Rand von 8 Pixeln nach oben
+		     links geruecktes x/y, damit die Scheibe an derselben Stelle
+		     bleibt. Dass das Feld oben drei Pixel ueber den Bildrand
+		     hinausragt, macht nichts: dort ist ohnehin nur Rand. -->
+		<Button name="Quit" x="562" y="-3" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
-			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
 	</Element>
 </Dialog>

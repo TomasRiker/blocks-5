@@ -74,6 +74,40 @@ void Bomb::onUpdate()
 				level.addCameraShake(1.0);
 				level.addFlash(2.0);
 				Engine::inst().playSound("explosion.ogg", false, 0.15, 100);
+
+				// Die Bombe selbst zerplatzt mit. Bisher tat sie das nicht:
+				// die Schleife unten sucht sich ihre Opfer mit
+				// getFrontObjectAt, und das ueberspringt alles, was schon
+				// disappear() gerufen hat - also gerade sie. Trifft eine
+				// Explosion nichts, flog deshalb gar nichts.
+				{
+					const Sprites& debris = getSprites();
+					const int numTries = debris.getTryCount(random(30, 40));
+					for(int i = 0; i < numTries; i++)
+					{
+						p.lifetime = random(40, 80);
+						p.damping = 0.95f;
+						p.gravity = 0.075f;
+						p.positionOnTexture = Vec2b(96, 0);
+						p.sizeOnTexture = Vec2b(16, 16);
+
+						Vec4d sampled;
+						Vec2i offset;
+						if(!debris.sample(&sampled, &offset)) continue;
+
+						p.position = position * 16 + offset;
+						const double r = random(0.0, 6.283);
+						p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
+						p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
+						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.5 * -p.color.a / p.lifetime);
+						p.rotation = random(0.0f, 10.0f);
+						p.deltaRotation = random(-0.1f, 0.1f);
+						p.size = random(0.5f, 1.0f);
+						p.deltaSize = -p.size / p.lifetime;
+						p_particleSystem->addParticle(p);
+					}
+				}
+
 				int tileID = level.getTileAt(0, position);
 				const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 				if(tileInfo.type != 3) new Damage(level, position);

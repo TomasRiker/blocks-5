@@ -13,6 +13,7 @@ public:
 	DECL_CTOR(GUI_Button);
 	~GUI_Button();
 
+	bool containsPoint(const Vec2i& position);
 	void onRender();
 	void onUpdate();
 	void onMouseDown(const Vec2i& position, int buttons);
@@ -46,6 +47,14 @@ private:
 	bool mouseOver;
 
 	int style;
+
+	// Wie viele Pixel des Feldes ringsum nur Rand sind. Ein Feld in
+	// buttons.png ist groesser als die Scheibe darin - der Rest gehoert zum
+	// Schlagschatten und ist durchsichtig. Ohne diesen Abzug waere ein Knopf
+	// auch dort anklickbar, wo nichts zu sehen ist, und in der Levelauswahl
+	// griffen benachbarte Knoepfe einander in die Scheibe.
+	int imageInset;
+
 	std::string imageFilename;
 	std::string rawImageFilename;
 	Vec2i positionOnTexture;

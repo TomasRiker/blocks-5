@@ -4,60 +4,71 @@
 		<StaticText name="Version" x="5" y="5">
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<Button name="StartGame" x="20" y="105" w="70" h="70">
-			<ExtendedStyle />
+		<!-- Die Felder in buttons.png sind 80x80 (grosse Knoepfe) und 50x50
+		     (kleine), luecklos gepackt: Spalte 0 ungedrueckt, Spalte 80 bzw.
+		     210 gedrueckt. Die Scheibe selbst ist unveraendert 64 bzw. 32
+		     Pixel gross und liegt jetzt in *beiden* Zustaenden mittig im
+		     Feld - vorher sass sie ungedrueckt in der linken oberen Ecke und
+		     nur gedrueckt mittig. Deshalb reagierte ein Knopf von links
+		     frueher auf die Maus als von rechts, und ein zu grosses Bild
+		     ragte ins Nachbarfeld. Damit die Scheibe an derselben Stelle auf
+		     dem Bildschirm bleibt, ruecken alle x/y um den neuen Rand nach
+		     oben links: 8 Pixel bei den grossen, 9 bei den kleinen. -->
+		<Button name="StartGame" x="12" y="97" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_START_GAME</Title>
-			<Image u="0" v="0" u2="72" v2="0">buttons.png</Image>
+			<Image u="0" v="0" u2="80" v2="0">buttons.png</Image>
 		</Button>
-		<Button name="LevelEditor" x="105" y="90" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="LevelEditor" x="97" y="82" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_LEVEL_EDITOR</Title>
-			<Image u="0" v="72" u2="72" v2="72">buttons.png</Image>
+			<Image u="0" v="80" u2="80" v2="80">buttons.png</Image>
 		</Button>
-		<Button name="CampaignEditor" x="190" y="85" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="CampaignEditor" x="182" y="77" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_CAMPAIGN_EDITOR</Title>
-			<Image u="0" v="144" u2="72" v2="144">buttons.png</Image>
+			<Image u="0" v="160" u2="80" v2="160">buttons.png</Image>
 		</Button>
 		<!-- Import und Export. Ein Knopf nimmt eine Datei an und erkennt
 		     selbst, was sie ist; der andere fragt, was hinausgehen soll.
 		     Beide auf beiden Plattformen: unter Windows ist der Weg ins
 		     Benutzerverzeichnis zwar offen, aber ihn zu suchen ist laestig.
-		     Die Bilder liegen in den vier freien 72x72-Feldern rechts unten
-		     in buttons.png - normal bei (152,208) bzw. (152,352), die
-		     zweite Fassung 72 darunter. -->
-		<Button name="Import" x="275" y="95" w="70" h="70">
-			<ExtendedStyle />
+		     Sie sind klein wie die Knoepfe der Levelauswahl - es sind
+		     Nebensachen, keine Hauptwege - und stehen als Paar enger
+		     beieinander als die grossen, mittig in deren Luecke und auf
+		     deren Bogen. -->
+		<Button name="Import" x="305" y="82" w="50" h="50">
+			<ExtendedStyle inset="9" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_IMPORT</Title>
-			<Image u="152" v="208" u2="152" v2="280">buttons.png</Image>
+			<Image u="160" v="250" u2="210" v2="250">buttons.png</Image>
 		</Button>
-		<Button name="Export" x="360" y="105" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Export" x="370" y="77" w="50" h="50">
+			<ExtendedStyle inset="9" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_EXPORT</Title>
-			<Image u="152" v="352" u2="152" v2="424">buttons.png</Image>
+			<Image u="160" v="300" u2="210" v2="300">buttons.png</Image>
 		</Button>
-		<Button name="Options" x="470" y="60" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Options" x="462" y="52" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$OPTIONS</Title>
-			<Image u="0" v="216" u2="72" v2="216">buttons.png</Image>
+			<Image u="0" v="240" u2="80" v2="240">buttons.png</Image>
 		</Button>
-		<Button name="Help" x="550" y="90" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Help" x="542" y="82" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$HELP</Title>
-			<Image u="0" v="288" u2="72" v2="288">buttons.png</Image>
+			<Image u="0" v="320" u2="80" v2="320">buttons.png</Image>
 		</Button>
-		<Button name="Quit" x="555" y="385" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Quit" x="547" y="377" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
-			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
 		<!-- Die Adresse oben rechts gehoert zu menu.png und ist damit kein
 		     eigenes Element. Dieser Knopf liegt nur darueber: ExtendedStyle

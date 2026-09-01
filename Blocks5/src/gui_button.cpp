@@ -10,6 +10,7 @@ IMPL_CTOR(GUI_Button)
 	mouseOver = false;
 
 	style = 0;
+	imageInset = 0;
 	positionOnTexture = Vec2i(0, 0);
 	clickedPositionOnTexture = Vec2i(0, 0);
 	p_image = 0;
@@ -26,6 +27,14 @@ IMPL_CTOR(GUI_Button)
 GUI_Button::~GUI_Button()
 {
 	if(p_image) p_image->release();
+}
+
+bool GUI_Button::containsPoint(const Vec2i& position)
+{
+	return position.x >= imageInset &&
+		   position.y >= imageInset &&
+		   position.x < size.x - imageInset &&
+		   position.y < size.y - imageInset;
 }
 
 void GUI_Button::onRender()
@@ -101,7 +110,11 @@ void GUI_Button::onRender()
 	}
 	else
 	{
-		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - 4), active ? currentColor : Vec4d(0.5, 0.5, 0.5, 1.0));
+		// Zwei Pixel unter dem Bild, nicht unter dem Feld. Die beiden sind
+		// nicht dasselbe, seit das Feld einen Rand um das Bild herum hat -
+		// und wer den Rand mitzaehlt, schiebt jede Beschriftung im
+		// Hauptmenue um genau diesen Rand nach unten.
+		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - imageInset + 2), active ? currentColor : Vec4d(0.5, 0.5, 0.5, 1.0));
 	}
 }
 
@@ -177,7 +190,11 @@ void GUI_Button::readAttributes(TiXmlElement* p_element)
 	}
 
 	e = p_element->FirstChildElement("ExtendedStyle");
-	if(e) style = 1;
+	if(e)
+	{
+		style = 1;
+		e->QueryIntAttribute("inset", &imageInset);
+	}
 }
 
 void GUI_Button::setImageFilename(const std::string& imageFilename)

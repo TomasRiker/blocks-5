@@ -23,6 +23,16 @@ namespace
 {
 	const double p_degToRad = 3.1415926535897932384626433832795 / 180.0;
 
+	// Womit die Huelle beschnitten wird, bevor floor() und ceil() darauf
+	// losgehen. Eine Vierteldrehung sollte ein 16x16-Bild wieder auf genau
+	// 16x16 abbilden, und rechnerisch tut sie das auch - aber cos(90 Grad)
+	// ist 6.1e-17 und nicht 0, und damit kommt die linke Kante als
+	// -8.9e-16 heraus. floor() macht daraus -1, ceil() aus 16.0000000000001
+	// eine 17, und die Zelle waere ohne Not 17x17 gross. Das kostet nichts
+	// an Richtigkeit, aber getTryCount() rechnet mit der Flaeche und wuerfe
+	// 13% mehr Truemmer als dasselbe Bild ungedreht.
+	const double p_footprintEpsilon = 1.0e-6;
+
 	// Die Stelle in Objektkoordinaten in die Zelle zuruecksuchen, aus der
 	// renderSprite sie geholt hat.
 	//
@@ -156,8 +166,10 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		}
 	}
 
-	*p_minOut = Vec2i(static_cast<int>(floor(lo.x)), static_cast<int>(floor(lo.y)));
-	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x)), static_cast<int>(ceil(hi.y)));
+	*p_minOut = Vec2i(static_cast<int>(floor(lo.x + p_footprintEpsilon)),
+					  static_cast<int>(floor(lo.y + p_footprintEpsilon)));
+	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x - p_footprintEpsilon)),
+					  static_cast<int>(ceil(hi.y - p_footprintEpsilon)));
 }
 
 int Sprites::getTryCount(int numParticles) const
