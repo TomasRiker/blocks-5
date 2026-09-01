@@ -173,23 +173,5 @@
 				</Button>
 			</Window>
 		</Element>
-
-		<!-- Wohin Import und Export ihre Rueckmeldung schreiben. Das
-		     Hauptmenue hatte bisher keine. -->
-		<Element name="MessagePane" w="640" h="480">
-			<Hidden />
-			<Fill r="0" g="0" b="0" a="0.5" />
-			<Window name="Message" w="420" h="140">
-				<Title>$TR_MESSAGE_TITLE</Title>
-				<Center />
-				<StaticText name="Text" x="15" y="35" w="390" h="60">
-					<WordWrap />
-					<Text></Text>
-				</StaticText>
-				<Button name="OK" x="145" y="100" w="130" h="30">
-					<Title>$OK</Title>
-				</Button>
-			</Window>
-		</Element>
 	</Element>
 </Dialog>

@@ -259,10 +259,7 @@ public:
 							bool r = Pin::connect(editor.p_startPin, editor.p_currentPin);
 							if(!r)
 							{
-								// Fehlermeldung anzeigen
-								editor.messageText = "$LE_ERROR_INVALID_CONNECTION";
-								editor.messageCounter = 200;
-								editor.messageType = 1;
+								Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_INVALID_CONNECTION");
 
 								editor.deleteLastUndoPoint();
 							}
@@ -641,10 +638,7 @@ public:
 			delete editor.p_level;
 			editor.p_level = p_newLevel;
 
-			// Meldung anzeigen
-			editor.messageText = "$LE_INFO_GRAPHICS_RELOADED";
-			editor.messageCounter = 100;
-			editor.messageType = 0;
+			Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_GRAPHICS_RELOADED");
 		}
 		else if(name == "LevelEditor.Undo") editor.undo();
 		else if(name == "LevelEditor.Redo") editor.redo();
@@ -815,10 +809,7 @@ public:
 							delete p_newLevel;
 							static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText("");
 
-							// Fehlermeldung anzeigen
-							editor.messageText = "$LE_ERROR_LOADING";
-							editor.messageCounter = 200;
-							editor.messageType = 1;
+							Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_LOADING");
 						}
 						else
 						{
@@ -850,11 +841,14 @@ public:
 				}
 				else
 				{
-					// Fehlermeldung anzeigen
-					editor.messageText = "$LE_ERROR_FILE_DOESNT_EXIST";
-					editor.messageCounter = 200;
-					editor.messageType = 1;
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_FILE_DOESNT_EXIST");
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Save")
@@ -888,19 +882,19 @@ public:
 
 						editor.originalFilename = path;
 
-						// Meldung anzeigen
-						editor.messageText = "$LE_INFO_LEVEL_SAVED";
-						editor.messageCounter = 100;
-						editor.messageType = 0;
+						Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_LEVEL_SAVED");
 					}
 					else
 					{
-						// Fehlermeldung anzeigen
-						editor.messageText = "$LE_ERROR_SAVING";
-						editor.messageCounter = 200;
-						editor.messageType = 1;
+						Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_SAVING");
 					}
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
@@ -1237,38 +1231,6 @@ void GS_LevelEditor::onRender()
 		p_hint->setText(static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->getText());
 		p_hint->render(43, Vec2i(0, 0), Vec4d(1.0));
 	}
-
-	if(messageCounter && !messageText.empty())
-	{
-		// Nachricht ausgeben
-		glPushMatrix();
-		int y = 0;
-		if(messageCounter < 10) y = -40 + 4 * messageCounter;
-		glTranslated(0.0, y, 0.0);
-
-		Vec3d color(0.5, 0.5, 0.5);
-		if(messageType == 0) color = Vec3d(0.0, 0.5, 0.0);
-		else if(messageType == 1) color = Vec3d(0.5, 0.0, 0.0);
-
-		glBegin(GL_QUADS);
-		glColor4d(color.r, color.g, color.b, 0.75);
-		glVertex2i(0, 0);
-		glVertex2i(640, 0);
-		glColor4d(color.r, color.g, color.b, 0.9);
-		glVertex2i(640, 35);
-		glVertex2i(0, 35);
-		glEnd();
-		glLineWidth(1.0f);
-		glBegin(GL_LINES);
-		glColor4d(0.0, 0.0, 0.0, 0.9);
-		glVertex2i(0, 35);
-		glVertex2i(640, 35);
-		glEnd();
-
-		gui.getFont()->renderText(localizeString(messageText), Vec2i(10, 9), Vec4d(1.0));
-
-		glPopMatrix();
-	}
 }
 
 void GS_LevelEditor::onUpdate()
@@ -1276,8 +1238,6 @@ void GS_LevelEditor::onUpdate()
 	// alte Objekte loeschen, neue Objekte hinzufuegen
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
-
-	if(messageCounter) messageCounter--;
 }
 
 void GS_LevelEditor::onEnter(const ParameterBlock& context)
@@ -1320,10 +1280,6 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 
 	originalFilename = "";
 	setSavePoint();
-
-	messageText = "";
-	messageCounter = 0;
-	messageType = 0;
 
 	// Dialog erzeugen
 	new LevelEditorGUI(*this);

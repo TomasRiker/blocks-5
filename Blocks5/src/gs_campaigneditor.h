@@ -38,9 +38,6 @@ private:
 
 	Texture* p_background;
 
-	std::string messageText;
-	uint messageCounter;
-	uint messageType;
 };
 
 #endif

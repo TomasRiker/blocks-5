@@ -247,7 +247,6 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Do"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Cancel"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.MessagePane.Message.OK"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
@@ -399,7 +398,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	{
 		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
 		// Transfer::classify am Inhalt, nicht an der Endung.
-		if(!Transfer::beginImport()) showMessage(localizeString("$TR_ERROR_CLICK_AGAIN"));
+		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
 	}
 	else if(name == "Menu.Export")
 	{
@@ -432,7 +431,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			// Knopf schlicht nichts, und das sieht aus wie ein Fehler.
 			gui["Menu.ExportPane"]->hide();
 			gui["Menu"]->focus();
-			showMessage(localizeString("$TR_NOTHING_TO_EXPORT"));
+			engine.showToast(Engine::TOAST_ERROR, "$TR_NOTHING_TO_EXPORT");
 			return;
 		}
 
@@ -443,11 +442,6 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		pendingExport = true;
 
 		gui["Menu.ExportPane"]->hide();
-		gui["Menu"]->focus();
-	}
-	else if(name == "Menu.MessagePane.Message.OK")
-	{
-		gui["Menu.MessagePane"]->hide();
 		gui["Menu"]->focus();
 	}
 	else if(name == "Menu.Quit")
@@ -541,9 +535,9 @@ void GS_Menu::pollImport()
 	if(status != Transfer::STATUS_OK)
 	{
 		Transfer::finishImport();
-		showMessage(localizeString(status == Transfer::STATUS_TOO_BIG ? "$TR_ERROR_TOO_BIG"
-								 : status == Transfer::STATUS_UNKNOWN ? "$TR_ERROR_UNKNOWN"
-								 : "$TR_ERROR_FAILED"));
+		engine.showToast(Engine::TOAST_ERROR, status == Transfer::STATUS_TOO_BIG ? "$TR_ERROR_TOO_BIG"
+										   : status == Transfer::STATUS_UNKNOWN ? "$TR_ERROR_UNKNOWN"
+										   : "$TR_ERROR_FAILED");
 		return;
 	}
 
@@ -551,7 +545,7 @@ void GS_Menu::pollImport()
 	if(kind == Transfer::KIND_NONE)
 	{
 		Transfer::finishImport();
-		showMessage(localizeString("$TR_ERROR_UNKNOWN"));
+		engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_UNKNOWN");
 		return;
 	}
 
@@ -561,7 +555,7 @@ void GS_Menu::pollImport()
 
 	if(name.empty())
 	{
-		showMessage(localizeString(errorId.empty() ? "$TR_ERROR_FAILED" : errorId));
+		engine.showToast(Engine::TOAST_ERROR, errorId.empty() ? "$TR_ERROR_FAILED" : errorId);
 		return;
 	}
 
@@ -572,19 +566,19 @@ void GS_Menu::pollImport()
 	switch(kind)
 	{
 	case Transfer::KIND_CAMPAIGN:
-		showMessage(localizeString("$TR_IMPORTED_CAMPAIGN"));
+		engine.showToast(Engine::TOAST_OK, "$TR_IMPORTED_CAMPAIGN");
 		break;
 	case Transfer::KIND_MUSIC:
-		showMessage(localizeString("$TR_IMPORTED_MUSIC") + " \"" + name + "\"");
+		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_MUSIC") + " \"" + name + "\"");
 		break;
 	case Transfer::KIND_SKIN:
 		// Ohne ".zip" und ohne den Punkt: so, wie der Name in ein Skin-Feld
 		// geschrieben wird. setFilenameExtension laesst den Punkt stehen.
-		showMessage(localizeString("$TR_IMPORTED_SKIN") + " \"" +
-					name.substr(0, name.find_last_of('.')) + "\"");
+		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_SKIN") + " \"" +
+										   name.substr(0, name.find_last_of('.')) + "\"");
 		break;
 	default:
-		showMessage(localizeString("$TR_IMPORTED_LEVEL") + " \"" + name + "\"");
+		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_LEVEL") + " \"" + name + "\"");
 		break;
 	}
 }
@@ -597,15 +591,8 @@ void GS_Menu::pollExport()
 	std::string errorId;
 	const bool ok = Transfer::doExport(static_cast<Transfer::Kind>(pendingExportKind),
 									   pendingExportName, errorId);
-	if(ok) showMessage(localizeString("$TR_EXPORTED"));
-	else if(!errorId.empty()) showMessage(localizeString(errorId));
-}
-
-void GS_Menu::showMessage(const std::string& text)
-{
-	static_cast<GUI_StaticText*>(gui["Menu.MessagePane.Message.Text"])->setText(text);
-	gui["Menu.MessagePane"]->show();
-	gui["Menu.MessagePane.Message"]->focus();
+	if(ok) engine.showToast(Engine::TOAST_OK, "$TR_EXPORTED");
+	else if(!errorId.empty()) engine.showToast(Engine::TOAST_ERROR, errorId);
 }
 
 int GS_Menu::currentExportKind() const

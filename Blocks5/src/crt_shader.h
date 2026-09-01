@@ -148,9 +148,11 @@ static const char* p_crtFragmentShader =
 	   Alle Anteile haben Mittelwert null, kosten also keine Helligkeit, und
 	   alle haengen nur an der Uhr, nicht am vorigen Bild - der Fehler, an dem
 	   xBR gescheitert ist, kann hier nicht auftreten. Werte bei Regler auf
-	   Anschlag; wem das Band nicht gefaellt, setzt HUM_DEPTH auf 0. */
-	"const float FLICKER_DEPTH = 0.055;\n"   /* schnelles Helligkeitszittern */
-	"const float HUM_DEPTH     = 0.022;\n"   /* Tiefe des wandernden Bandes */
+	   Anschlag; wem das Band nicht gefaellt, setzt HUM_DEPTH auf 0. Beide
+	   Tiefen waren einmal um die Haelfte groesser (0.055 und 0.022); auf
+	   Dauer war das zu unruhig, um davor zu sitzen. */
+	"const float FLICKER_DEPTH = 0.0367;\n"  /* schnelles Helligkeitszittern */
+	"const float HUM_DEPTH     = 0.0147;\n"  /* Tiefe des wandernden Bandes */
 	"const float HUM_BARS      = 0.75;\n"    /* wie viele Baender ins Bild passen */
 	"const float HUM_ROLLS     = 3.0;\n"     /* Durchlaeufe je FLICKER_CYCLE */
 	/* Nach so vielen Sekunden wiederholt sich das Flimmern exakt. Alle

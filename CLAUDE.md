@@ -221,8 +221,13 @@ one slider (`Flicker`) and the third is its own (`ScanFlicker`), because wanting
 brightness and wanting the line structure to drift are separate tastes. Their frequencies
 are whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds `SDL_GetTicks()` modulo
 that, so the clock wraps seamlessly. It is the wall clock and not `Engine::getTime()`, which
-counts logic ticks and stops when the game pauses — a screen flickers anyway. Measured at the
-maximum setting: 2.55% peak-to-peak between frames.
+counts logic ticks and stops when the game pauses — a screen flickers anyway. Both brightness
+depths are two thirds of what they first were (`FLICKER_DEPTH` 0.055 → 0.0367, `HUM_DEPTH`
+0.022 → 0.0147): the first setting was right for a demonstration and too restless to sit in
+front of. The modulation is a plain multiplier applied before gamma, so every measure of it
+scales with the depths — checked on real frames, where the spread of the frame mean fell by
+a factor of 0.69 against the 0.667 the arithmetic predicts. Measured at the maximum setting,
+therefore: 1.7% peak-to-peak between frames, down from 2.55%.
 
 The crawl is the one term computed on the **CPU**, as the `ScanPhase` uniform. It is a ramp,
 not an oscillation, and its slope depends on the slider, so feeding it the already-wrapped
@@ -525,6 +530,25 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   hand-written width would be a guess that is wrong in the other language. `w`/`h` of 0 — the
   default — is still never hit. An image needs none of this: it already has the size of the
   sprite it shows.
+
+**Short messages are the Engine's, not a game state's.** `Engine::showToast(type, text,
+duration, playSound)` slides a bar in at the top edge, holds it, and slides it out again —
+green for `TOAST_OK`, red for `TOAST_ERROR`, 2 s and 4 s by default, with `teleport_failed.ogg`
+on an error unless the caller says otherwise. It is drawn at the very end of `Engine::render`,
+after `GUI::display`, so it sits over the GUI, over the editors' panes and over everything
+else. Both editors used to carry their own copy of this — `messageText`, `messageCounter`,
+`messageType`, plus thirty lines of identical drawing each — while the main menu opened a
+modal window for the same job and a save or load with an empty filename did nothing at all.
+All three go through the one call now, and the empty filename says so.
+
+Several messages stack: the newest takes the top edge and pushes the older ones down a bar
+each. A message that has run out slides up by exactly one bar height, which puts it off the
+screen if it was on top and *behind* its younger neighbour if it was not — hence the draw
+order, oldest first. Position and opacity move together, 0.1 s each way and not counted
+against the hold time, because the bar is not fully opaque and a message vanishing behind
+another one would otherwise jump. Asking twice for the same text and type does not stack two
+copies; the hold time becomes the longer of the two and the sound plays again, because the
+sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`

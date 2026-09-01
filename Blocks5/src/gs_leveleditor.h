@@ -86,9 +86,6 @@ private:
 	std::string lastSavedXML;
 	std::string originalFilename;
 
-	std::string messageText;
-	uint messageCounter;
-	uint messageType;
 };
 
 #endif

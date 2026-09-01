@@ -295,11 +295,57 @@ public:
 	uint getTimePlayed() const { return timePlayed; }
 	void saveTimePlayed();
 
+	// Kurze Meldung, die oben ins Bild faehrt, eine Weile stehen bleibt und
+	// wieder hinausfaehrt. Sie gehoert der Engine und nicht einem Spielstatus,
+	// weil sie ueber allem liegt: die Levelauswahl, beide Editoren und das
+	// Hauptmenue benutzen dieselbe.
+	//
+	// duration ist die Standzeit in Sekunden, ohne das Ein- und Ausfahren;
+	// 0 nimmt den Wert, der zur Art passt (TOAST_SECONDS_OK/ERROR). Eine
+	// Fehlermeldung spielt teleport_failed.ogg, sofern playSound nicht
+	// abgeschaltet wird.
+	//
+	// Gibt es dieselbe Meldung derselben Art schon - und faehrt sie noch nicht
+	// gerade hinaus -, entsteht keine zweite. Stattdessen wird ihre Standzeit
+	// auf das Laengere von beidem gesetzt. Der Ton kommt trotzdem: er ist die
+	// Antwort auf den Klick, nicht auf die Meldung.
+	enum ToastType
+	{
+		TOAST_OK = 0,
+		TOAST_ERROR
+	};
+
+	void showToast(ToastType type, const std::string& text, double duration = 0.0, bool playSound = true);
+
 private:
 	Engine();
 	~Engine();
 
 	void setupCursor();
+
+	// Eine Meldung im Stapel. Es gibt drei Abschnitte: hereinfahren, stehen,
+	// hinausfahren. phaseTime laeuft je Abschnitt neu los.
+	struct Toast
+	{
+		ToastType type;
+		std::string text;
+		int phase;          // 0 = herein, 1 = stehen, 2 = hinaus
+		uint phaseTime;     // ms in diesem Abschnitt
+		uint duration;      // ms fuer Abschnitt 1
+		double y;           // wo die Meldung gerade liegt
+		double targetY;     // wohin sie will
+	};
+
+	// Aeltester zuerst. Damit wird auch in dieser Reihenfolge gezeichnet, und
+	// die neueren liegen oben - eine sterbende Meldung faehrt hinter ihre
+	// juengere Nachbarin und nicht ueber sie.
+	std::list<Toast> toasts;
+
+	void updateToasts();
+	void renderToasts();
+	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
+	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
+	void reflowToasts();
 
 	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
 	// selbst ist Win32; die Groesse geht immer durch handleResize().

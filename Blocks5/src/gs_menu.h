@@ -32,7 +32,6 @@ private:
 	// der von Windows modal - pollImport() verdeckt beides.
 	void pollImport();
 	void pollExport();
-	void showMessage(const std::string& text);
 	void refreshExportList();
 	int currentExportKind() const;
 

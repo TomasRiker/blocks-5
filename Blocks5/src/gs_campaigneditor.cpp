@@ -157,10 +157,7 @@ public:
 							path = "";
 							static_cast<GUI_EditBox*>(getChild("Filename"))->setText("");
 
-							// Fehlermeldung anzeigen
-							editor.messageText = "$CE_ERROR_LOADING";
-							editor.messageCounter = 200;
-							editor.messageType = 1;
+							Engine::inst().showToast(Engine::TOAST_ERROR, "$CE_ERROR_LOADING");
 						}
 						else
 						{
@@ -175,10 +172,7 @@ public:
 								path = "";
 								static_cast<GUI_EditBox*>(getChild("Filename"))->setText("");
 
-								// Fehlermeldung anzeigen
-								editor.messageText = "$CE_ERROR_LEVELS_MISSING";
-								editor.messageCounter = 200;
-								editor.messageType = 1;
+								Engine::inst().showToast(Engine::TOAST_ERROR, "$CE_ERROR_LEVELS_MISSING");
 							}
 							else
 							{
@@ -199,6 +193,12 @@ public:
 						p_clickWhenConfirmed = p_element;
 					}
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "CampaignEditor.Save")
@@ -234,19 +234,19 @@ public:
 						WebTransfer::syncHome();
 #endif
 
-						// Meldung anzeigen
-						editor.messageText = "$CE_INFO_CAMPAIGN_SAVED";
-						editor.messageCounter = 100;
-						editor.messageType = 0;
+						Engine::inst().showToast(Engine::TOAST_OK, "$CE_INFO_CAMPAIGN_SAVED");
 					}
 					else
 					{
-						// Fehlermeldung anzeigen
-						editor.messageText = "$CE_ERROR_SAVING";
-						editor.messageCounter = 200;
-						editor.messageType = 1;
+						Engine::inst().showToast(Engine::TOAST_ERROR, "$CE_ERROR_SAVING");
 					}
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "CampaignEditor.Quit")
@@ -463,43 +463,10 @@ void GS_CampaignEditor::onRender()
 	glVertex2i(0, 480);
 	glEnd();
 	p_background->unbind();
-
-	if(messageCounter && !messageText.empty())
-	{
-		// Nachricht ausgeben
-		glPushMatrix();
-		int y = 0;
-		if(messageCounter < 10) y = -40 + 4 * messageCounter;
-		glTranslated(0.0, y, 0.0);
-
-		Vec3d color(0.5, 0.5, 0.5);
-		if(messageType == 0) color = Vec3d(0.0, 0.5, 0.0);
-		else if(messageType == 1) color = Vec3d(0.5, 0.0, 0.0);
-
-		glBegin(GL_QUADS);
-		glColor4d(color.r, color.g, color.b, 0.75);
-		glVertex2i(0, 0);
-		glVertex2i(640, 0);
-		glColor4d(color.r, color.g, color.b, 0.9);
-		glVertex2i(640, 35);
-		glVertex2i(0, 35);
-		glEnd();
-		glLineWidth(1.0f);
-		glBegin(GL_LINES);
-		glColor4d(0.0, 0.0, 0.0, 0.9);
-		glVertex2i(0, 35);
-		glVertex2i(640, 35);
-		glEnd();
-
-		gui.getFont()->renderText(localizeString(messageText), Vec2i(10, 9), Vec4d(1.0));
-
-		glPopMatrix();
-	}
 }
 
 void GS_CampaignEditor::onUpdate()
 {
-	if(messageCounter) messageCounter--;
 }
 
 void GS_CampaignEditor::onEnter(const ParameterBlock& context)
@@ -513,10 +480,6 @@ void GS_CampaignEditor::onEnter(const ParameterBlock& context)
 
 	originalFilename = "";
 	setSavePoint();
-
-	messageText = "";
-	messageCounter = 0;
-	messageType = 0;
 
 	// Dialog erzeugen
 	new CampaignEditorGUI(*this);

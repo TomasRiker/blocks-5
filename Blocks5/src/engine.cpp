@@ -1177,6 +1177,184 @@ static void emMainLoopIteration(void* p_engine)
 }
 #endif
 
+namespace
+{
+	// Hoehe eines Meldungsbalkens. In genau diesen Schritten rueckt der Stapel,
+	// und um genau so viel faehrt eine Meldung herein und wieder hinaus.
+	const int TOAST_HEIGHT = 35;
+
+	// Wie lange das Herein- und das Hinausfahren dauern. Beides kommt zur
+	// Standzeit hinzu und wird nicht von ihr abgezogen.
+	const uint TOAST_FADE = 100;
+
+	// Standzeiten, wenn showToast keine nennt. Ein Fehler bleibt laenger
+	// stehen, weil man ihn lesen und meistens auch noch etwas tun muss.
+	const double TOAST_SECONDS_OK    = 2.0;
+	const double TOAST_SECONDS_ERROR = 4.0;
+}
+
+void Engine::showToast(ToastType type,
+					   const std::string& text,
+					   double duration,
+					   bool playSound)
+{
+	if(duration <= 0.0) duration = (type == TOAST_ERROR) ? TOAST_SECONDS_ERROR : TOAST_SECONDS_OK;
+	const uint durationMS = static_cast<uint>(duration * 1000.0);
+
+	// Der Ton haengt am Klick und nicht an der Meldung: er kommt auch dann,
+	// wenn dieselbe Meldung schon steht und nur laenger stehen bleibt.
+	if(type == TOAST_ERROR && playSound) this->playSound("teleport_failed.ogg", false, 0.0, 100);
+
+	// Steht dieselbe Meldung schon? Dann keine zweite, sondern die Standzeit
+	// auf das Laengere von beidem setzen. Wer schon hinausfaehrt, zaehlt nicht
+	// mit - eine Meldung im Weggehen zurueckzuholen saehe nach einem Fehler aus.
+	for(std::list<Toast>::iterator i = toasts.begin(); i != toasts.end(); ++i)
+	{
+		if(i->phase == 2 || i->type != type || i->text != text) continue;
+
+		if(i->phase == 0)
+		{
+			// Sie faehrt noch herein, ihre Standzeit hat also gar nicht
+			// angefangen.
+			i->duration = max(i->duration, durationMS);
+		}
+		else
+		{
+			const uint left = i->duration > i->phaseTime ? i->duration - i->phaseTime : 0;
+			if(durationMS > left) i->duration = i->phaseTime + durationMS;
+		}
+
+		return;
+	}
+
+	// Eine neue Meldung kommt oben herein und schiebt die anderen nach unten.
+	Toast toast;
+	toast.type = type;
+	toast.text = text;
+	toast.phase = 0;
+	toast.phaseTime = 0;
+	toast.duration = durationMS;
+	toast.y = -static_cast<double>(TOAST_HEIGHT);
+	toast.targetY = 0.0;
+	toasts.push_back(toast);
+
+	reflowToasts();
+}
+
+void Engine::reflowToasts()
+{
+	// Von hinten nach vorn: die neueste Meldung bekommt den obersten Platz,
+	// jede aeltere einen darunter. Wer hinausfaehrt, behaelt sein Ziel - das
+	// liegt einen Platz ueber dem, den sie hatte.
+	int slot = 0;
+	for(std::list<Toast>::reverse_iterator i = toasts.rbegin(); i != toasts.rend(); ++i)
+	{
+		if(i->phase == 2) continue;
+		i->targetY = static_cast<double>(slot * TOAST_HEIGHT);
+		slot++;
+	}
+}
+
+void Engine::updateToasts()
+{
+	if(toasts.empty()) return;
+
+	// So weit kommt eine Meldung in einem Tick: eine ganze Balkenhoehe in der
+	// Zeit einer Blende. Damit dauert jeder Wechsel des Platzes genauso lange
+	// wie das Herein- und das Hinausfahren.
+	const double step = static_cast<double>(TOAST_HEIGHT) * logicRate / TOAST_FADE;
+
+	bool slotsFreed = false;
+
+	for(std::list<Toast>::iterator i = toasts.begin(); i != toasts.end(); )
+	{
+		i->phaseTime += logicRate;
+
+		if(i->phase == 0)
+		{
+			if(i->phaseTime >= TOAST_FADE)
+			{
+				i->phase = 1;
+				i->phaseTime = 0;
+			}
+		}
+		else if(i->phase == 1)
+		{
+			if(i->phaseTime >= i->duration)
+			{
+				// Hinaus: einen Platz nach oben, also entweder aus dem Bild
+				// heraus oder hinter die Meldung darueber.
+				i->phase = 2;
+				i->phaseTime = 0;
+				i->targetY -= TOAST_HEIGHT;
+				slotsFreed = true;
+			}
+		}
+		else if(i->phaseTime >= TOAST_FADE)
+		{
+			i = toasts.erase(i);
+			continue;
+		}
+
+		if(i->y < i->targetY) i->y = min(i->y + step, i->targetY);
+		else if(i->y > i->targetY) i->y = max(i->y - step, i->targetY);
+
+		++i;
+	}
+
+	if(slotsFreed) reflowToasts();
+}
+
+void Engine::renderToasts()
+{
+	if(toasts.empty()) return;
+
+	Font* p_font = GUI::inst().getFont();
+
+	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	glLineWidth(1.0f);
+
+	// Aelteste zuerst. Damit liegen die neueren oben, und eine Meldung, die
+	// hinausfaehrt, verschwindet hinter ihrer juengeren Nachbarin statt ueber
+	// sie hinwegzugleiten.
+	for(std::list<Toast>::const_iterator i = toasts.begin(); i != toasts.end(); ++i)
+	{
+		// Ein- und Ausblenden gehen mit dem Fahren zusammen. Ohne das
+		// verschwaende eine sterbende Meldung schlagartig, sobald sie hinter
+		// der Nachbarin liegt - der Balken ist nicht ganz deckend, man saehe
+		// den Sprung.
+		double alpha = 1.0;
+		if(i->phase == 0) alpha = static_cast<double>(i->phaseTime) / TOAST_FADE;
+		else if(i->phase == 2) alpha = 1.0 - static_cast<double>(i->phaseTime) / TOAST_FADE;
+		alpha = clamp(alpha, 0.0, 1.0);
+
+		const Vec3d color = i->type == TOAST_ERROR ? Vec3d(0.5, 0.0, 0.0) : Vec3d(0.0, 0.5, 0.0);
+
+		glPushMatrix();
+		glTranslated(0.0, floor(i->y + 0.5), 0.0);
+
+		glDisable(GL_TEXTURE_2D);
+		glBegin(GL_QUADS);
+		glColor4d(color.r, color.g, color.b, 0.75 * alpha);
+		glVertex2i(0, 0);
+		glVertex2i(640, 0);
+		glColor4d(color.r, color.g, color.b, 0.9 * alpha);
+		glVertex2i(640, TOAST_HEIGHT);
+		glVertex2i(0, TOAST_HEIGHT);
+		glEnd();
+		glBegin(GL_LINES);
+		glColor4d(0.0, 0.0, 0.0, 0.9 * alpha);
+		glVertex2i(0, TOAST_HEIGHT);
+		glVertex2i(640, TOAST_HEIGHT);
+		glEnd();
+		glEnable(GL_TEXTURE_2D);
+
+		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
+
+		glPopMatrix();
+	}
+}
+
 // #define PROFILE_ENGINE_RENDER
 
 void Engine::render()
@@ -1194,6 +1372,10 @@ void Engine::render()
 
 	// GUI anzeigen
 	GUI::inst().display();
+
+	// Meldungen ganz zuletzt: sie liegen ueber allem, auch ueber der GUI und
+	// ueber den Fenstern der Editoren.
+	renderToasts();
 
 #ifdef PROFILE_ENGINE_RENDER
 	END_PROFILE(engineRender)
@@ -1283,6 +1465,8 @@ void Engine::update()
 	if(p_gs) p_gs->onUpdate();
 
 	processGameStateChanges();
+
+	updateToasts();
 
 	updateSounds();
 

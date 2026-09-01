@@ -58,6 +58,11 @@ $HELP
 §en:Help
 §de:Hilfe
 
+$ERROR_NO_FILENAME
+// Error message displayed when the user clicks load or save in an editor without having entered a filename
+§en:ERROR: Please enter a filename.
+§de:FEHLER: Bitte gib einen Dateinamen ein.
+
 $LOADING
 // Message displayed in the beginning when the game is loading
 §en:Loading ... Please wait ...
@@ -2052,11 +2057,6 @@ $MM_EXPORT
 // Main menu: button that writes something out to the player's computer
 §en:Export
 §de:Export
-
-$TR_MESSAGE_TITLE
-// Title of the window that reports what an import or export did
-§en:Import / Export
-§de:Import / Export
 
 $TR_EXPORT_TITLE
 §en:Export
