@@ -1185,6 +1185,10 @@ The predicate wants to live where item 15 can reach it too — see there.
 
 15. Let the Export dialog delete what it lists
 ------------------------------------------------
+**The button this hangs on is being replaced — see item 17.** The delete itself
+is unchanged and is written up here; the dialog it lands in is the Manager, not
+the export pane.
+
 Export lists what is installed of a kind and writes a plain copy of the one you
 pick (`GS_Menu`'s export pane over `Transfer::list`/`Transfer::exportTo`). There
 is no way to remove anything. Custom levels, imported campaigns, imported skins
@@ -1236,6 +1240,53 @@ keep them short, because the English and German bodies both have to fit the
 same button.
 
 
+17. One Manager button instead of Import and Export
+-----------------------------------------------------
+Import and Export are two small buttons side by side in the main menu
+(`data/menu.xml`, `Import` at x=268 and `Export` at x=318, both 50x50 with
+`inset="9"`). They are two halves of one subject — what is installed on this
+machine — and they will be one large 80x80 button, called *Manager* or whatever
+reads best, opening one dialog that imports, exports and deletes.
+
+Why one and not two: Import today has no dialog at all. It opens the file
+picker, works out what the file is, copies it and says so in a toast; the player
+never sees the list their file joined. Export has that list and nothing else.
+Put them together and each fixes what the other lacks — an import lands in a
+list you are looking at, and a delete (item 15) has somewhere obvious to live.
+
+**The existing export pane is most of it.** `Menu.ExportPane` is a 400x320
+window holding four `ButtonLook` radios for the kind, a list, *Refresh*, *Export*
+and *Cancel*, all wired in `gs_menu.cpp` (`connectClicked` around line 245,
+`handleClick` around 397, `refreshExportList`/`currentExportKind` near 600). What
+changes is the verbs, not the machinery:
+
+- The bottom row is `Do` at x=10 and `Cancel` at x=260, each 130 wide — which
+  leaves exactly 130 px free between them. The room for a third button is
+  already there; a fourth needs the row re-cut or *Import* moved up beside
+  *Refresh*, which may read better anyway since importing does not act on the
+  selection the way exporting and deleting do.
+- `$TR_EXPORT_TITLE` and `$TR_EXPORT_WHAT` ("what do you want to export?") become
+  kind-neutral, and `$MM_IMPORT`/`$MM_EXPORT` collapse into one tooltip ID.
+- *Delete* is gated on item 14's `isBuiltIn()` — the seven shipped files are
+  exactly the ones an import may not overwrite and the ones a delete may not
+  remove, which is the second reason that predicate should exist once.
+
+**The import is asynchronous and that finally pays off.** `Transfer::beginImport`
+starts the picker and `GS_Menu::pollImport` is asked every tick from `onUpdate`
+(gs_menu.cpp:147), because the browser's dialog cannot be modal. With the Manager
+open, the completion has somewhere to go: switch the kind radio to whatever
+`Transfer::classify` decided the file was, re-read the list, and select the new
+entry. That is a better answer than today's toast, and it costs a few lines
+because `pollImport` already knows the kind and the assigned name.
+
+**Art:** `buttons.png` needs one new 80x80 pair (unclicked in column 0, clicked
+in column 80, as the other big buttons are); the two 50x50 tiles at u=160/210,
+v=250 and v=300 come free. Position is by eye, not arithmetic — the pair spans
+x=268..368, so an 80x80 centred on the same spot starts at x=278, but the row
+sits on an arc (`CampaignEditor` at y=77, `Options` at y=52) and the y wants
+choosing rather than computing.
+
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1252,8 +1303,10 @@ How these connect
 
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
-   14 (overwrite, but not a shipped name) ──> 15 (delete in Export): one isBuiltIn()
-                                                 serves both
+   14 (overwrite, but not a shipped name) ──> 15 (delete): one isBuiltIn() serves both
+
+   15 (delete) ──> 17 (one Manager dialog): 15 is what the button does,
+                   17 is the button — 17 is where the delete lands
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
