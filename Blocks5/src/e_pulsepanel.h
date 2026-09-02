@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine Puls-Bodenplatte ***/
+/*** Klasse fuer eine Puls-Bodenplatte ***/
 
 class E_PulsePanel : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_PulsePanel();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void saveAttributes(TiXmlElement* p_target);
 	void saveExtendedAttributes(TiXmlElement* p_target);

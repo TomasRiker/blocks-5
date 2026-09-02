@@ -27,7 +27,7 @@ private:
 		std::set<uint> levelsCompleted;
 	};
 
-	typedef stdext::hash_map<std::string, CampaignInfo> dbMap;
+	typedef std::unordered_map<std::string, CampaignInfo> dbMap;
 
 	dbMap db;
 };

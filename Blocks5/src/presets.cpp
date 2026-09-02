@@ -3,7 +3,6 @@
 #include "engine.h"
 #include "texture.h"
 #include "level.h"
-#include "debriscolordb.h"
 #include "object.h"
 #include "stdobject.h"
 #include "conveyorbelt.h"
@@ -110,7 +109,7 @@ Presets::Presets(Level& level,
 	texCoords["BlockZero"] = Vec2i(160, 576);
 	texCoords["BlockOne"] = Vec2i(192, 576);
 
-	for(stdext::hash_map<std::string, Vec2i>::const_iterator i = texCoords.begin(); i != texCoords.end(); ++i) presetNames.push_back(i->first);
+	for(std::unordered_map<std::string, Vec2i>::const_iterator i = texCoords.begin(); i != texCoords.end(); ++i) presetNames.push_back(i->first);
 }
 
 Presets::~Presets()
@@ -143,7 +142,7 @@ Object* Presets::instancePreset(const std::string& name,
 {
 	Object* p_theObject = 0;
 
-	stdext::hash_map<std::string, Vec2i>::const_iterator it = texCoords.find(name);
+	std::unordered_map<std::string, Vec2i>::const_iterator it = texCoords.find(name);
 	Vec2i t(0, 0);
 	if(it != texCoords.end()) t = it->second;
 
@@ -688,19 +687,6 @@ Object* Presets::instancePreset(const std::string& name,
 	{
 		// Typ eintragen
 		p_theObject->setType(newName);
-
-		if(p_theObject->positionOnTexture.x == -1)
-		{
-			// Texturkoordinaten setzen
-			p_theObject->positionOnTexture = t;
-		}
-
-		if(p_theObject->getFlags() & Object::OF_DESTROYABLE ||
-		   p_theObject->getFlags() & Object::OF_CONVERTABLE)
-		{
-			// Trümmerfarbe berechnen
-			p_theObject->setDebrisColor(DebrisColorDB::inst().getDebrisColor(p_sprites, p_theObject->positionOnTexture));
-		}
 	}
 
 	return p_theObject;

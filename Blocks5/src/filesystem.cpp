@@ -6,10 +6,15 @@
 #ifdef _WIN32
 #include <Shlobj.h>
 #endif
+#ifdef __EMSCRIPTEN__
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cerrno>
+#endif
 
 FileSystem::FileSystem()
 {
-	// die ersten 256 Primzahlen für die Entschlüsselung von Passwörtern berechnen
+	// die ersten 256 Primzahlen fuer die Entschluesselung von Passwoertern berechnen
 	generatePrimes(primes, 256);
 }
 
@@ -50,6 +55,9 @@ std::string FileSystem::getAppHomeDirectory() const
 	char path[256];
 	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
 	return std::string(path) + "/Blocks 5/";
+#elif defined(__EMSCRIPTEN__)
+	// Mounted as IDBFS by the shell so saves and custom levels survive a reload.
+	return "/blocks5_home/";
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -61,27 +69,23 @@ std::string FileSystem::getCurrentDir() const
 	else return dirStack.top();
 }
 
+// Beide teilen den Pfad am letzten Schraegstrich. Vorher lief das ueber einen
+// eigenen Puffer und einen Index, der bei "" unterlief: length() ist dann 0,
+// 0 - 1 als uint ist 0xFFFFFFFF, und die Suchschleife las von dort aus
+// rueckwaerts an einem einzigen reservierten Byte vorbei. find_last_of kennt
+// den Fall und hat den Puffer gleich mit erledigt.
 std::string FileSystem::getPathDirectory(const std::string& path) const
 {
-	char* p_temp = new char[path.length() + 1];
-	strcpy(p_temp, path.c_str());
-	uint i = static_cast<uint>(path.length()) - 1;
-	while(i && p_temp[i] != '/') i--;
-	p_temp[i] = 0;
-	std::string r(p_temp);
-	delete[] p_temp;
-	return r;
+	const size_t slash = path.find_last_of('/');
+	if(slash == std::string::npos) return "";
+	return path.substr(0, slash);
 }
 
 std::string FileSystem::getPathFilename(const std::string& path) const
 {
-	char* p_temp = new char[path.length() + 1];
-	strcpy(p_temp, path.c_str());
-	uint i = static_cast<uint>(path.length() - 1);
-	while(i && p_temp[i] != '/') i--;
-	std::string r(i ? p_temp + i + 1 : p_temp);
-	delete[] p_temp;
-	return r;
+	const size_t slash = path.find_last_of('/');
+	if(slash == std::string::npos) return path;
+	return path.substr(slash + 1);
 }
 
 File* FileSystem::openFile(const std::string& filename,
@@ -162,6 +166,9 @@ bool FileSystem::createDirectory(const std::string& directory)
 	BOOL result = CreateDirectoryA(directory.c_str(), 0);
 	if(!result && GetLastError() == ERROR_ALREADY_EXISTS) return true;
 	else return result != 0;
+#elif defined(__EMSCRIPTEN__)
+	if(::mkdir(directory.c_str(), 0755) == 0) return true;
+	return errno == EEXIST;
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -171,6 +178,8 @@ bool FileSystem::deleteDirectory(const std::string& directory)
 {
 #ifdef _WIN32
 	return RemoveDirectoryA(directory.c_str()) != 0;
+#elif defined(__EMSCRIPTEN__)
+	return ::rmdir(directory.c_str()) == 0;
 #else
 #error NOT IMPLEMENTED
 #endif
@@ -220,7 +229,12 @@ void FileSystem::convertPath(const std::string& path,
 							 std::string& password) const
 {
 	std::string temp(path);
-	for(uint i = 0; i < temp.length() - 5; i++)
+	// i + 5 <= length, nicht i < length - 5. Die Subtraktion ist auf einem
+	// Pfad mit weniger als fuenf Zeichen ein Unterlauf: die Schleife laeuft
+	// dann bis an das Ende der Zeichenkette und substr wirft, sobald pos
+	// groesser als die Laenge ist. Nebenbei wird so auch die letzte moegliche
+	// Stelle geprueft, ein Pfad also erkannt, der genau auf ".zip/" endet.
+	for(uint i = 0; i + 5 <= temp.length(); i++)
 	{
 		if(temp.substr(i, 5) == ".zip/")
 		{
@@ -246,7 +260,7 @@ void FileSystem::convertPath(const std::string& path,
 		}
 		else if(temp.substr(i, 5) == ".zip[")
 		{
-			// archivierte Datei mit verschlüsseltem Passwort
+			// archivierte Datei mit verschluesseltem Passwort
 			for(uint j = i + 5; j < temp.length(); j++)
 			{
 				if(temp[j] == ']')
@@ -255,7 +269,7 @@ void FileSystem::convertPath(const std::string& path,
 					objectName = temp.substr(j + 2);
 					password = temp.substr(i + 5, j - (i + 5));
 
-					// Passwort entschlüsseln
+					// Passwort entschluesseln
 					char* p_temp = new char[password.length() + 1];
 					decryptPassword(password.c_str(), p_temp, primes);
 					password = p_temp;
@@ -287,7 +301,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		if(i < path.length() - 2 &&
 		   path.substr(i, 3) == "../")
 		{
-			// eine Ebene höher im Verzeichnisbaum aufsteigen
+			// eine Ebene hoeher im Verzeichnisbaum aufsteigen
 			if(result.length() <= 1) return "[INVALID]";
 			char* p_temp = new char[result.length() + 1];
 			strcpy(p_temp, result.c_str());
@@ -307,7 +321,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		}
 		else
 		{
-			// Zeichen anhängen
+			// Zeichen anhaengen
 			result += path[i];
 			i++;
 		}

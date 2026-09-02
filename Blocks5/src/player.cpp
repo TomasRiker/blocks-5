@@ -9,7 +9,6 @@
 #include "sound.h"
 #include "soundinstance.h"
 #include "particlesystem.h"
-#include "debriscolordb.h"
 
 uint Player::numInstances = 0;
 std::list<Player*> Player::instances;
@@ -36,8 +35,6 @@ Player::Player(Level& level,
 	plantBomb = level.isInMenu() ? 0 : 40;
 	censored = false;
 	contamination = 0;
-
-	positionOnTexture = Vec2i(character * 64, 224);
 
 	for(int i = 0; i < 8; i++) inventory[i] = 0;
 
@@ -104,22 +101,21 @@ void Player::onRemove()
 	}
 }
 
+void Player::updateSprites()
+{
+	// Spieler und, wenn er eine hat, die Gasmaske darueber
+	sprites.add(Vec2i(character * 64 + (active ? 0 : 32), 224));
+
+	if(inventory[2])
+	{
+		sprites.add(Vec2i(224, 416)).offset = Vec2i(0, character == 0 ? 3 : 4);
+	}
+}
+
 void Player::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Spieler rendern
-		Vec2i positionOnTexture(character * 64 + (active ? 0 : 32), 224);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-
-		if(inventory[2])
-		{
-			// Gasmaske rendern
-			positionOnTexture = Vec2i(224, 416);
-			Engine::inst().renderSprite(Vec2i(0, character == 0 ? 3 : 4), positionOnTexture, Vec2i(16, 16), color);
-		}
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 16)
 	{
 		if(censored)
@@ -150,7 +146,7 @@ void Player::onRender(int layer,
 			Vec2i dim;
 			p_font->measureText(text, &dim, 0);
 			p_font->renderText(text, Vec2i(8, 7) + dim / -2, Vec4d(0.85, 0.15, 0.15, 1.0));
-			level.getSprites()->bind();
+			level.getSpritesTexture()->bind();
 		}
 	}
 	else if(layer == 18)
@@ -168,7 +164,7 @@ void Player::onUpdate()
 	if(walk) walk--;
 	if(plantBomb) plantBomb--;
 
-	// Spur für die Gegner legen
+	// Spur fuer die Gegner legen
 	level.setAITrace(position, 1000);
 
 	if(!inventory[2])
@@ -256,7 +252,7 @@ void Player::onUpdate()
 			{
 				if(inventory[0] && !plantBomb && (dir.x || dir.y))
 				{
-					// Bombe unangezündet legen
+					// Bombe unangezuendet legen
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
@@ -368,7 +364,7 @@ bool Player::move(const Vec2i& dir,
 			if(!push && !(p_obj->getFlags() & OF_FIXED) && !p_obj->isPushedWithDeadlyWeight())
 			{
 				// Objekte, die von der Gravitation oder von anderen Objekten von oben beeinflusst werden,
-				// können nur nach links und rechts geschoben werden.
+				// koennen nur nach links und rechts geschoben werden.
 				bool pushed = p_obj->isPushedFromAbove();
 				if((pushed && !dir.y) || !pushed)
 				{
@@ -431,9 +427,6 @@ bool Player::changeInEditor(int mod)
 	{
 		character++;
 		character %= 3;
-
-		positionOnTexture = Vec2i(character * 64, 224);
-		debrisColor = DebrisColorDB::inst().getDebrisColor(level.getSprites(), positionOnTexture);
 	}
 
 	return true;

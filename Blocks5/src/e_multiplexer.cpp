@@ -8,7 +8,7 @@ E_Multiplexer::E_Multiplexer(Level& level,
 {
 	value = -1;
 
-	// Eingänge erzeugen
+	// Eingaenge erzeugen
 	createPin(0, Vec2i(0, 2), PT_INPUT);
 	createPin(1, Vec2i(0, 12), PT_INPUT);
 	createPin(2, Vec2i(8, 0), PT_INPUT);
@@ -21,16 +21,17 @@ E_Multiplexer::~E_Multiplexer()
 {
 }
 
+void E_Multiplexer::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(value == -1 ? 0 : (value == 0 ? 32 : 64), 576)).rotation = 90.0 * dir;
+}
+
 void E_Multiplexer::onRender(int layer,
 							 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Vec2i t(value == -1 ? 0 : (value == 0 ? 32 : 64), 576);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Multiplexer::saveExtendedAttributes(TiXmlElement* p_target)

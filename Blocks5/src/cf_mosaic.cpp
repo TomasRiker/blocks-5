@@ -44,7 +44,7 @@ void CF_Mosaic::render(double t,
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
-	// wieder auf die volle Bildschirmgröße skalieren
+	// wieder auf die volle Bildschirmgroesse skalieren
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(0, 0);

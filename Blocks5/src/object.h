@@ -1,9 +1,11 @@
 #ifndef _OBJECT_H
 #define _OBJECT_H
 
+#include "sprite.h"
+
 #include "level.h"
 
-/*** Klasse für ein Spielobjekt ***/
+/*** Klasse fuer ein Spielobjekt ***/
 
 class Player;
 
@@ -41,6 +43,18 @@ public:
 	void render(int layer, const Vec2i& offset, const Vec4d& color);
 	void update();
 	virtual void onRemove();
+
+	// Laeuft einmal je Bild, bevor Level::render die Ebenen durchgeht. Bringt
+	// standardmaessig sprites auf den Stand; wer hier eigene Vorarbeit
+	// unterbringt, ruft Object::onBeforeRender() mit.
+	//
+	// Warum nicht in onRender: das laeuft je Bild vierzehnmal (zwoelf Ebenen,
+	// davon Ebene 1 zweimal fuer die Schatten und einmal richtig), und die
+	// Farbe, die es bekommt, ist die des Durchgangs - beim Schattendurchgang
+	// also Schattenfarbe. Die Teilbilder tragen die Eigenfaerbung, die davon
+	// unabhaengig ist.
+	virtual void onBeforeRender();
+
 	virtual void onRender(int layer, const Vec4d& color);
 	virtual void onUpdate();
 	virtual void onElectricitySwitch(bool on);
@@ -93,8 +107,13 @@ public:
 	bool isTeleporting() const;
 	bool hasTeleportFailed() const;
 	bool isFalling() const;
-	const Vec4d& getDebrisColor() const;
-	void setDebrisColor(const Vec4d& debrisColor);
+
+	// Die Teilbilder, aus denen dieses Objekt gerade besteht - frisch, auch
+	// wenn onBeforeRender in diesem Bild noch nicht lief. Genau das ist der
+	// Fall, wenn ein Objekt im selben Tick entsteht und zerplatzt, und beim
+	// allerersten Tick, den Level::update vor dem ersten Level::render macht.
+	const Sprites& getSprites();
+
 	uint getMass() const;
 	void setMass(uint mass);
 	uint getUID() const;
@@ -107,13 +126,23 @@ public:
 	static int dirToInt(const Vec2i& dir);
 
 	int lastHashedAt;
+	// Ist onRemove() schon gelaufen? Level::removeObject() darf nicht zweimal
+	// abmelden - siehe dort.
+	bool removed;
 	int onConveyorBelt;
-	Vec2i positionOnTexture;
 	bool shadowPass;
 	double noCollect;
 
 protected:
 	void handleSliding();
+
+	// Traegt die Teilbilder dieses Objekts in sprites ein. Wird immer mit
+	// geleerter Liste gerufen, also niemals selbst leeren und niemals an die
+	// Basisklasse ketten, ausser man will deren Teilbilder auch haben
+	// (Electronics zeichnet den Kasten, auf dem die anderen sitzen).
+	virtual void updateSprites();
+
+	Sprites sprites;
 
 	Level& level;
 	std::string type;
@@ -137,7 +166,6 @@ protected:
 	bool teleportFailed;
 	int oldDepth;
 	double falling;
-	Vec4d debrisColor;
 	uint mass;
 	uint uid;
 	std::string burstSound;
@@ -149,6 +177,12 @@ protected:
 	int slideDir;
 	bool slideMove;
 	static int nextFallingDepth;
+
+private:
+	// Leeren, Textur eintragen, updateSprites() rufen. Der einzige Weg, auf
+	// dem sprites gefuellt wird - deshalb kann updateSprites() sich auf eine
+	// leere Liste verlassen.
+	void rebuildSprites();
 };
 
 #endif

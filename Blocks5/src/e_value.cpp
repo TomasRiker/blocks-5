@@ -17,15 +17,17 @@ E_Value::~E_Value()
 {
 }
 
+void E_Value::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(32 * value, 608)).rotation = 90.0 * dir;
+}
+
 void E_Value::onRender(int layer,
 					   const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(32 * value, 608), Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Value::saveAttributes(TiXmlElement* p_target)

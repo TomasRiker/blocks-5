@@ -18,17 +18,16 @@ Teleporter::~Teleporter()
 {
 }
 
+void Teleporter::updateSprites()
+{
+	// Teleporter
+	sprites.add(Vec2i((anim / 3 % 8) * 32, 64), subType == 0 ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.0, 1.0, 1.0, 1.0));
+}
+
 void Teleporter::onRender(int layer,
 						  const Vec4d& color)
 {
-	if(layer == 0)
-	{
-		// Teleporter rendern
-		Vec2i positionOnTexture((anim / 3 % 8) * 32, 64);
-		Vec4d myColor = subType == 0 ? color : color * Vec4d(0.0, 1.0, 1.0, 1.0);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), myColor);
-	}
-
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 	if(layer == 255)
 	{
 		if(targetPosition != position)
@@ -61,7 +60,7 @@ void Teleporter::onUpdate()
 	if(level.isElectricityOn())
 	{
 		// Befindet sich ein Objekt auf dem Teleporter, das vorher noch nicht da war?
-		// Oder ist der Zielort jetzt frei für ein Objekt, dessen Teleportation vorher gescheitert ist?
+		// Oder ist der Zielort jetzt frei fuer ein Objekt, dessen Teleportation vorher gescheitert ist?
 		std::vector<Object*> newObjectsOnMe = level.getObjectsAt(position);
 		for(std::vector<Object*>::const_iterator i = newObjectsOnMe.begin(); i != newObjectsOnMe.end(); ++i)
 		{

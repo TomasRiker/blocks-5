@@ -1,7 +1,7 @@
 #ifndef _GUI_EDITBOX_H
 #define _GUI_EDITBOX_H
 
-/*** Klasse für ein Eingabefeld ***/
+/*** Klasse fuer ein Eingabefeld ***/
 
 #include "gui_element.h"
 

@@ -1,7 +1,7 @@
 #ifndef _FILE_H
 #define _FILE_H
 
-/*** Basisklasse für Dateien des virtuellen Dateisystems ***/
+/*** Basisklasse fuer Dateien des virtuellen Dateisystems ***/
 
 class File
 {
@@ -30,9 +30,16 @@ protected:
 	int mode;
 };
 
-int File_RWSeek(SDL_RWops* p_context, int offset, int whence);
-int File_RWRead(SDL_RWops* p_context, void* p_ptr, int size, int maxNum);
-int File_RWWrite(SDL_RWops* p_context, const void* p_ptr, int size, int num);
+#ifdef __EMSCRIPTEN__
+typedef long   B5RWOff;   // emscripten ships SDL2-shaped RWops callbacks
+typedef size_t B5RWSize;
+#else
+typedef int B5RWOff;
+typedef int B5RWSize;
+#endif
+B5RWOff File_RWSeek(SDL_RWops* p_context, B5RWOff offset, int whence);
+B5RWSize File_RWRead(SDL_RWops* p_context, void* p_ptr, B5RWSize size, B5RWSize maxNum);
+B5RWSize File_RWWrite(SDL_RWops* p_context, const void* p_ptr, B5RWSize size, B5RWSize num);
 int File_RWClose(SDL_RWops* p_context);
 
 int File_OVSeek(void* p_context, ogg_int64_t offset, int whence);

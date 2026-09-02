@@ -30,10 +30,21 @@ void Help::show(GUI_Element* p_focusWhenClosed)
 	getChild("Help")->focus();
 }
 
+void Help::onKeyEvent(const SDL_KeyboardEvent& event)
+{
+	if(event.type == SDL_KEYDOWN && isVisible() && event.keysym.sym == SDLK_ESCAPE)
+	{
+		Engine::inst().consumeKeyPress(event.keysym.sym);
+		handleClick(getChild("Help.OK"));
+		return;
+	}
+
+	GUI_Element::onKeyEvent(event);
+}
+
 void Help::handleClick(GUI_Element* p_element)
 {
 	std::string name = p_element->getName();
-	Engine& engine = Engine::inst();
 
 	if(isVisible())
 	{

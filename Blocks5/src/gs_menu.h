@@ -1,7 +1,7 @@
 #ifndef _GS_MENU_H
 #define _GS_MENU_H
 
-/*** Klasse für das Menü ***/
+/*** Klasse fuer das Menue ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -28,6 +28,17 @@ public:
 	void handleClick(GUI_Element* p_element);
 
 private:
+	// Der Manager: einspielen, ausgeben, loeschen. Der Dateidialog des
+	// Browsers meldet sich asynchron, der von Windows modal - pollImport()
+	// verdeckt beides.
+	void pollImport();
+	void pollExport();
+	void openManager();
+	void refreshManagerList();
+	void updateManagerButtons();
+	int currentManagerKind() const;
+	void setManagerKind(int kind);
+
 	Engine& engine;
 	Texture* p_clouds;
 	Texture* p_background;
@@ -37,7 +48,18 @@ private:
 	Options* p_options;
 	Help* p_help;
 	uint time;
-	stdext::hash_map<uint, std::list<uint> > keyData;
+
+	// Der Export wartet genau wie der Import eine Runde: unter Windows startet
+	// der Dateidialog eine zweite Nachrichtenschleife, und die darf nicht
+	// mitten in GUI_Button::onMouseUp anfangen.
+	int pendingExportKind;
+	std::string pendingExportName;
+	bool pendingExport;
+
+	// Was die Rueckfrage loeschen soll, festgehalten beim Klick auf Loeschen.
+	int pendingDeleteKind;
+	std::string pendingDeleteName;
+	std::unordered_map<uint, std::list<uint> > keyData;
 };
 
 #endif

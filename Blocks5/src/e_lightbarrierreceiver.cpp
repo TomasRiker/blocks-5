@@ -23,15 +23,17 @@ void E_LightBarrierReceiver::frameBegin()
 	value = 0;
 }
 
+void E_LightBarrierReceiver::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(96, 608)).rotation = 90.0 * dir;
+}
+
 void E_LightBarrierReceiver::onRender(int layer,
 									  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(96, 608), Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_LightBarrierReceiver::saveExtendedAttributes(TiXmlElement* p_target)

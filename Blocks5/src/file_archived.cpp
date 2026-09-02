@@ -25,7 +25,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	bool listMode = mode == FileSystem::FM_LIST;
 	if(readMode || testMode || listMode)
 	{
-		// Archiv öffnen
+		// Archiv oeffnen
 		unzFile archive = unzOpen(archiveFilename.c_str());
 		if(!archive)
 		{
@@ -145,13 +145,13 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 			if(objectExists)
 			{
-				// Objekt löschen
+				// Objekt loeschen
 				int r = deleteArchivedFile(archiveFilename, objectName);
 				if(r == -1) archiveExists = false;
 			}
 		}
 
-		// Archiv zum Anhängen von Dateien öffnen
+		// Archiv zum Anhaengen von Dateien oeffnen
 		outArchive = zipOpen(archiveFilename.c_str(), archiveExists ? APPEND_STATUS_ADDINZIP : APPEND_STATUS_CREATE);
 		if(!outArchive)
 		{
@@ -165,7 +165,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		// Objekt löschen
+		// Objekt loeschen
 		deleteArchivedFile(archiveFilename, objectName);
 	}
 	else
@@ -232,7 +232,7 @@ uint File_Archived::write(const void* p_src,
 	// Passt das?
 	if(pointer + numBytes > bufferSize)
 	{
-		// Nein - Puffer muss vergrößert werden!
+		// Nein - Puffer muss vergroessert werden!
 		uint newBufferSize = pointer + numBytes;
 		char* p_newData = new char[newBufferSize];
 		memcpy(p_newData, p_data, bufferSize);
@@ -275,7 +275,7 @@ bool File_Archived::finish()
 	if(!outArchive) return false;
 	if(mode != FileSystem::FM_WRITE) return false;
 
-	// Prüfsumme berechnen
+	// Pruefsumme berechnen
     uLong crc = crc32(0, 0, 0);
 	crc = crc32(crc, reinterpret_cast<Bytef*>(p_data), pointer);
 
@@ -412,7 +412,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	std::vector<CentralDirectoryEntry> cdOut;
 	std::vector<char*> filenameOut, extraFieldOut, commentOut;
 
-	// Einträge lesen und schreiben
+	// Eintraege lesen und schreiben
 	for(uint i = 0; i < ecd.totalEntries; i++)
 	{
 		CentralDirectoryEntry cde, cdeOut;
@@ -438,7 +438,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		// merken, wo es nachher weitergeht
 		uint nextCDE = ftell(p_in);
 
-		// Stimmt der Dateiname mit dem zu löschenden Dateinamen überein?
+		// Stimmt der Dateiname mit dem zu loeschenden Dateinamen ueberein?
 		if(!_stricmp(objectName.c_str(), p_filename))
 		{
 			ecdOut.entriesOnThisDisk--;
@@ -457,7 +457,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
 			fread(&lfh, sizeof(lfh), 1, p_in);
 
-			// Dateiname und Extrafeld überspringen
+			// Dateiname und Extrafeld ueberspringen
 			fseek(p_in, lfh.filenameLength + lfh.extraFieldLength, SEEK_CUR);
 
 			// Daten lesen
@@ -472,7 +472,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fwrite(p_fileData, 1, lfh.compressedSize, p_out);
 			delete[] p_fileData;
 
-			// Eintrag für das zentrale Verzeichnis merken
+			// Eintrag fuer das zentrale Verzeichnis merken
 			cdOut.push_back(cdeOut);
 			filenameOut.push_back(p_filename);
 			extraFieldOut.push_back(p_extraField);
@@ -511,7 +511,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	fclose(p_in);
 	fclose(p_out);
 
-	// altes Archiv löschen
+	// altes Archiv loeschen
 	remove(archiveFilename.c_str());
 
 	if(ecdOut.totalEntries)
@@ -521,7 +521,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	}
 	else
 	{
-		// neue Datei löschen
+		// neue Datei loeschen
 		remove((archiveFilename + "_").c_str());
 		result = -1;
 	}

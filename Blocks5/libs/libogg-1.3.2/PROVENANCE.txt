@@ -1,0 +1,48 @@
+libogg 1.3.2
+============
+
+Ogg bitstream framing. Only ever used underneath libvorbis, which decodes the
+game's music and sound effects (src/as_ogg.cpp); nothing here is called
+directly by game code.
+
+  https://github.com/xiph/ogg   tag v1.3.2
+  BSD-style Xiph.Org licence
+
+Vendored from the release tarball, not the git checkout: the two headers differ
+from the tag only in that their SVN $Id$ keywords are expanded
+
+  include/ogg/ogg.h        $Id: ogg.h 18044 2011-08-01 17:55:20Z gmaxwell $
+  include/ogg/os_types.h   $Id: os_types.h 19098 2014-02-26 19:06:45Z giles $
+
+where the git files carry a bare $Id$. Both source files are byte-identical.
+There are no local changes.
+
+WHAT IS HERE
+------------
+src/bitwise.c and src/framing.c, which is the whole of upstream's src/, plus the
+two public headers. Both builds compile both files. Upstream's tests, docs and
+autotools machinery are not vendored.
+
+THE MISSING config_types.h
+--------------------------
+os_types.h ends in a chain of platform branches, and its final #else is
+
+    #include <ogg/config_types.h>
+
+which is a file libogg's configure generates. It is not in this tree, and it
+does not need to be for the Visual Studio build: _WIN32 is the first branch and
+it typedefs ogg_int64_t and friends to __int64 / __int32 directly.
+
+Emscripten matches none of the branches - not _WIN32, not __MACOS__, not
+__BEOS__, none of them - so the browser build falls through to that #include and
+must be picking the file up from the emsdk sysroot, presumably left there by
+Emscripten's own ogg port. That is worth confirming on a machine that has emsdk,
+because if so it is the one thing WebBuild/README.md's "every dependency is
+vendored in the tree" does not cover. The fix, if it is needed, is small: a
+config_types.h with five typedefs, or a branch on __EMSCRIPTEN__.
+
+LICENCE FILE
+------------
+The header comment on every source file says the licence is "INCLUDED WITH THIS
+SOURCE IN 'COPYING'". COPYING is not vendored. It should be, for the same reason
+shine and OpenAL Soft carry theirs.

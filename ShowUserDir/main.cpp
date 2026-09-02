@@ -19,7 +19,7 @@ int WINAPI WinMain(HINSTANCE inst,
 	}
 	else
 	{
-		// Explorer öffnen
+		// Explorer oeffnen
 		HINSTANCE result = ShellExecuteA(0, "explore", homeDirectory.c_str(), 0, 0, SW_SHOWNORMAL);
 		if(reinterpret_cast<int>(result) <= 32)
 		{

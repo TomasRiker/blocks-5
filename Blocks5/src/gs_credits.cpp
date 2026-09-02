@@ -126,13 +126,13 @@ void GS_Credits::onRender()
 
 	Vec2i(-150, -150),
 	"$C_TESTERS",
-	"Tobias Roesener\nPatrick Jerusalem\nRolf Scherfgen\nGertrud Scherfgen\nFelix Scherfgen\nEckehard Kirmas\nIngmar Baum\nMartin Linnartz\nJan Hapke\nWilhelm Mailänder\nDennis Kleine-Arndt\nGuido Kießling\nChristian Ewald\nAlbert Kalchmair\nBernhard Kalchmair",
+	"Tobias Roesener\nPatrick Jerusalem\nRolf Scherfgen\nGertrud Scherfgen\nFelix Scherfgen\nEckehard Kirmas\nIngmar Baum\nMartin Linnartz\nJan Hapke\nWilhelm Mail\xE4nder\nDennis Kleine-Arndt\nGuido Kie\xDFling\nChristian Ewald\nAlbert Kalchmair\nBernhard Kalchmair",
 	28.0,
 	10.0,
 
 	Vec2i(75, -200),
 	"$C_TESTERS_SPPRO",
-	"Abrexxes\nAnfänger\nbabelfish\nbig_muff\nBlack-Panther\nChase\nCodingCat\nDas Gurke\nDragonFlame\nFOGX\nFred\ngrek40\nHelmut\nkaid\nLemming\nmatthias\nPaul_C.\nRiddick\nSteveKr\nThomasS",
+	"Abrexxes\nAnf\xE4nger\nbabelfish\nbig_muff\nBlack-Panther\nChase\nCodingCat\nDas Gurke\nDragonFlame\nFOGX\nFred\ngrek40\nHelmut\nkaid\nLemming\nmatthias\nPaul_C.\nRiddick\nSteveKr\nThomasS",
 	31.0,
 	10.0,
 
@@ -252,9 +252,9 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	p_level = new Level;
 	p_level->setInEditor(true);
 	p_level->load("title.xml");
-	p_sprites = p_level->getSprites();
+	p_sprites = p_level->getSpritesTexture();
 
-	// Textur für den Effekt-Puffer erzeugen
+	// Textur fuer den Effekt-Puffer erzeugen
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
@@ -335,7 +335,7 @@ void GS_Credits::updateStars()
 		else i++;
 	}
 
-	// neue Sterne hinzufügen
+	// neue Sterne hinzufuegen
 	while(stars.size() < 400)
 	{
 		Star s;

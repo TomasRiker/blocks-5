@@ -111,7 +111,11 @@ public:
 		sprintf(s, "%s: %d", localizeString("$LE_DIAMONDS").c_str(), editor.p_level->getNumDiamondsNeeded());
 		static_cast<GUI_StaticText*>(getChild("NumDiamondsNeeded"))->setText(s);
 
-		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->check(editor.p_level->isElectricityOn());
+		// setChecked, nicht check: das hier zieht jedes Bild die Anzeige nach.
+		// Mit check() loeste ein Undo, das den Strom umschaltet, im naechsten
+		// Bild das changed-Signal aus, und der Handler legte prompt einen
+		// neuen Undo-Punkt an und warf die Redo-Liste weg.
+		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->setChecked(editor.p_level->isElectricityOn());
 	}
 
 	void onMouseDown(const Vec2i& position,
@@ -185,7 +189,7 @@ public:
 					}
 					else
 					{
-						// Startpunkt für das Rechteck setzen und merken, welche Maustaste gedrückt wurde
+						// Startpunkt fuer das Rechteck setzen und merken, welche Maustaste gedrueckt wurde
 						editor.rectStart = p;
 						editor.drawStartButtons = buttons;
 					}
@@ -213,7 +217,7 @@ public:
 
 				if(buttons)
 				{
-					// Übergang erzeugen
+					// Uebergang erzeugen
 					if(realDown) editor.createUndoPoint();
 					editor.transition(p);
 				}
@@ -255,10 +259,7 @@ public:
 							bool r = Pin::connect(editor.p_startPin, editor.p_currentPin);
 							if(!r)
 							{
-								// Fehlermeldung anzeigen
-								editor.messageText = "$LE_ERROR_INVALID_CONNECTION";
-								editor.messageCounter = 200;
-								editor.messageType = 1;
+								Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_INVALID_CONNECTION");
 
 								editor.deleteLastUndoPoint();
 							}
@@ -271,7 +272,7 @@ public:
 					{
 						if(editor.p_currentPin->isConnected())
 						{
-							// alle Verbindungen dieses Pins lösen
+							// alle Verbindungen dieses Pins loesen
 							editor.createUndoPoint();
 							editor.p_currentPin->disconnectAll();
 							editor.p_currentPin = editor.p_startPin = 0;
@@ -289,10 +290,10 @@ public:
 		}
 		else if(position.y >= 428 && position.x >= 245)
 		{
-			// Es wurde wahrscheinlich ein neues Tile/Objekt ausgewählt.
+			// Es wurde wahrscheinlich ein neues Tile/Objekt ausgewaehlt.
 			Vec2i p = (position - Vec2i(245, 428)) / 16;
 
-			// Ist da überhaupt etwas in der aktuellen Kategorie?
+			// Ist da ueberhaupt etwas in der aktuellen Kategorie?
 			uint l0 = editor.p_currentCat->getTileAt(0, p);
 			uint l1 = editor.p_currentCat->getTileAt(1, p);
 			const TileSet::TileInfo& i0 = editor.p_currentCat->getTileSet()->getTileInfo(l0);
@@ -302,7 +303,7 @@ public:
 
 			if(l0 || l1 || p_obj)
 			{
-				// Die Auswahl ist gültig.
+				// Die Auswahl ist gueltig.
 				editor.currentBrush = Vec3i(p.x, p.y, editor.currentCat);
 				editor.pipetteUsed = false;
 				if(editor.currentMode != 0 && editor.currentMode != 2) editor.setMode(0);
@@ -418,12 +419,39 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
+		// Erst die Dialoge, die oben liegen. Escape und Return heissen dort
+		// Abbrechen und OK, so wie ueberall sonst auch; der Editor darunter
+		// bekommt die Taste dann gar nicht mehr zu sehen.
+		if(event.type == SDL_KEYDOWN)
+		{
+			if(getChild("SettingsPane")->isVisible())
+			{
+				if(event.keysym.sym == SDLK_ESCAPE)
+				{
+					handleClick(getChild("SettingsPane.Settings.Cancel"));
+					return;
+				}
+				if(event.keysym.sym == SDLK_RETURN)
+				{
+					handleClick(getChild("SettingsPane.Settings.OK"));
+					return;
+				}
+			}
+			else if(getChild("MenuPane")->isVisible() && event.keysym.sym == SDLK_ESCAPE)
+			{
+				// Das Menue hat nur OK. Escape hat es frueher noch einmal
+				// fokussiert, was aussah, als taete es nichts.
+				handleClick(getChild("MenuPane.Menu.OK"));
+				return;
+			}
+		}
+
 		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste gedrückt wurde.
+			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 			if(event.type != SDL_KEYDOWN) return;
 
-			// Shift, Strg gedrückt?
+			// Shift, Strg gedrueckt?
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
@@ -520,13 +548,13 @@ public:
 					else
 					{
 						Vec2i p = editor.engine.getCursorPosition() / 16;
-						if(p.x < editor.p_level->getSize().x && p.y < editor.p_level->getSize().y)
+						if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 						{
 							Object* p_obj = editor.p_level->getFrontObjectAt(p);
 							if(p_obj)
 							{
 								Vec2i np = p + dir;
-								if(np.x >= 0 && np.y >= 0 && np.x < editor.p_level->getSize().x && np.y < editor.p_level->getSize().y)
+								if(np.x >= 0 && np.y >= 0 && np.x < Level::WIDTH && np.y < Level::HEIGHT)
 								{
 									editor.createUndoPoint();
 									if(shift)
@@ -570,7 +598,7 @@ public:
 		if(name == "LevelEditor.Layer")
 		{
 			editor.currentLayer++;
-			editor.currentLayer %= editor.p_level->getNumLayers();
+			editor.currentLayer %= Level::NUM_LAYERS;
 		}
 		else if(name == "LevelEditor.NumDiamondsNeeded-")
 		{
@@ -587,9 +615,15 @@ public:
 		}
 		else if(name == "LevelEditor.ElectricityOn")
 		{
-			bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
-			editor.createUndoPoint();
-			editor.p_level->setElectricityOn(on);
+			// Nur wenn sich wirklich etwas aendert - ein Undo-Punkt fuer einen
+			// Zustand, der schon gilt, kostet einen Undo-Schritt und die
+			// gesamte Redo-Liste.
+			const bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
+			if(on != editor.p_level->isElectricityOn())
+			{
+				editor.createUndoPoint();
+				editor.p_level->setElectricityOn(on);
+			}
 		}
 		else if(name == "LevelEditor.Refresh")
 		{
@@ -604,10 +638,7 @@ public:
 			delete editor.p_level;
 			editor.p_level = p_newLevel;
 
-			// Meldung anzeigen
-			editor.messageText = "$LE_INFO_GRAPHICS_RELOADED";
-			editor.messageCounter = 100;
-			editor.messageType = 0;
+			Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_GRAPHICS_RELOADED");
 		}
 		else if(name == "LevelEditor.Undo") editor.undo();
 		else if(name == "LevelEditor.Redo") editor.redo();
@@ -615,11 +646,11 @@ public:
 		{
 			static_cast<GUI_EditBox*>(getChild("SettingsPane.Settings.Title"))->setText(editor.p_level->getTitle());
 
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->check(editor.p_level->isNightVision());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->check(editor.p_level->isRaining());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Clouds"))->check(editor.p_level->isCloudy());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Snow"))->check(editor.p_level->isSnowing());
-			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Thunderstorm"))->check(editor.p_level->isThunderstorm());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->setChecked(editor.p_level->isNightVision());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Rain"))->setChecked(editor.p_level->isRaining());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Clouds"))->setChecked(editor.p_level->isCloudy());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Snow"))->setChecked(editor.p_level->isSnowing());
+			static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.Thunderstorm"))->setChecked(editor.p_level->isThunderstorm());
 
 			const Vec3i& lightColor = editor.p_level->getLightColor();
 			static_cast<GUI_ScrollBar*>(getChild("SettingsPane.Settings.LightColorR"))->setScroll(lightColor.r);
@@ -733,7 +764,7 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste füllen
+			// Dateiliste fuellen
 			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels");
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
@@ -743,7 +774,7 @@ public:
 				if(ext == "xml")
 				{
 #ifdef CHECK_IF_IT_REALLY_IS_A_LEVEL
-					// oberflächliche Prüfung, ob es eine Level-Datei ist
+					// oberflaechliche Pruefung, ob es eine Level-Datei ist
 					TiXmlDocument doc;
 					std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().getAppHomeDirectory() + "levels/" + *i);
 					doc.Parse(str.c_str());
@@ -777,11 +808,6 @@ public:
 							path = "";
 							delete p_newLevel;
 							static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText("");
-
-							// Fehlermeldung anzeigen
-							editor.messageText = "$LE_ERROR_LOADING";
-							editor.messageCounter = 200;
-							editor.messageType = 1;
 						}
 						else
 						{
@@ -813,11 +839,14 @@ public:
 				}
 				else
 				{
-					// Fehlermeldung anzeigen
-					editor.messageText = "$LE_ERROR_FILE_DOESNT_EXIST";
-					editor.messageCounter = 200;
-					editor.messageType = 1;
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_FILE_DOESNT_EXIST");
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Save")
@@ -851,19 +880,19 @@ public:
 
 						editor.originalFilename = path;
 
-						// Meldung anzeigen
-						editor.messageText = "$LE_INFO_LEVEL_SAVED";
-						editor.messageCounter = 100;
-						editor.messageType = 0;
+						Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_LEVEL_SAVED");
 					}
 					else
 					{
-						// Fehlermeldung anzeigen
-						editor.messageText = "$LE_ERROR_SAVING";
-						editor.messageCounter = 200;
-						editor.messageType = 1;
+						Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_SAVING");
 					}
 				}
+			}
+			else
+			{
+				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
+				// ging ins Leere und niemand erfuhr, warum.
+				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
@@ -1060,7 +1089,7 @@ void GS_LevelEditor::onRender()
 	p_level->render();
 
 	Vec2i p = engine.getCursorPosition() / 16;
-	if(p.x < p_level->getSize().x && p.y < p_level->getSize().y)
+	if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 	{
 		// aktuelles Tile hervorheben
 		glBegin(GL_LINE_LOOP);
@@ -1076,7 +1105,7 @@ void GS_LevelEditor::onRender()
 
 	if(currentMode == 6)
 	{
-		// ausgewählten Pin und Start-Pin hervorheben
+		// ausgewaehlten Pin und Start-Pin hervorheben
 
 		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_TEXTURE_2D);
@@ -1174,7 +1203,7 @@ void GS_LevelEditor::onRender()
 		}
 	}
 
-	// ausgewählte Kategorie rendern
+	// ausgewaehlte Kategorie rendern
 	glPushMatrix();
 	glTranslated(245.0, 428.0, 0.0);
 	p_currentCat->render();
@@ -1200,47 +1229,13 @@ void GS_LevelEditor::onRender()
 		p_hint->setText(static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->getText());
 		p_hint->render(43, Vec2i(0, 0), Vec4d(1.0));
 	}
-
-	if(messageCounter && !messageText.empty())
-	{
-		// Nachricht ausgeben
-		glPushMatrix();
-		int y = 0;
-		if(messageCounter < 10) y = -40 + 4 * messageCounter;
-		glTranslated(0.0, y, 0.0);
-
-		Vec3d color(0.5, 0.5, 0.5);
-		if(messageType == 0) color = Vec3d(0.0, 0.5, 0.0);
-		else if(messageType == 1) color = Vec3d(0.5, 0.0, 0.0);
-
-		glBegin(GL_QUADS);
-		glColor4d(color.r, color.g, color.b, 0.75);
-		glVertex2i(0, 0);
-		glVertex2i(640, 0);
-		glColor4d(color.r, color.g, color.b, 0.9);
-		glVertex2i(640, 35);
-		glVertex2i(0, 35);
-		glEnd();
-		glLineWidth(1.0f);
-		glBegin(GL_LINES);
-		glColor4d(0.0, 0.0, 0.0, 0.9);
-		glVertex2i(0, 35);
-		glVertex2i(640, 35);
-		glEnd();
-
-		gui.getFont()->renderText(localizeString(messageText), Vec2i(10, 9), Vec4d(1.0));
-
-		glPopMatrix();
-	}
 }
 
 void GS_LevelEditor::onUpdate()
 {
-	// alte Objekte löschen, neue Objekte hinzufügen
+	// alte Objekte loeschen, neue Objekte hinzufuegen
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
-
-	if(messageCounter) messageCounter--;
 }
 
 void GS_LevelEditor::onEnter(const ParameterBlock& context)
@@ -1284,10 +1279,6 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 	originalFilename = "";
 	setSavePoint();
 
-	messageText = "";
-	messageCounter = 0;
-	messageType = 0;
-
 	// Dialog erzeugen
 	new LevelEditorGUI(*this);
 }
@@ -1297,7 +1288,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 	clearUndo();
 	clearRedo();
 
-	// Ressourcen löschen
+	// Ressourcen loeschen
 	delete[] p_clipboard;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
@@ -1309,7 +1300,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 		p_cat[i] = 0;
 	}
 
-	// Dialog löschen
+	// Dialog loeschen
 	delete gui["LevelEditor"];
 }
 
@@ -1456,13 +1447,13 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		if(pipetteUsed) tile = pipetteTileID;
 		else
 		{
-			// Es ist ein Tile ausgewählt. Welches?
+			// Es ist ein Tile ausgewaehlt. Welches?
 			uint l0 = p_brushCat->getTileAt(0, brush);
 			uint l1 = p_brushCat->getTileAt(1, brush);
 			tile = l0 + l1;
 		}
 
-		// dieses Tile an der Stelle und dem gewählten Layer einsetzen
+		// dieses Tile an der Stelle und dem gewaehlten Layer einsetzen
 		p_level->setTileAt(currentLayer, where, tile);
 	}
 	else
@@ -1477,7 +1468,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		}
 		else
 		{
-			// Es ist ein Objekt ausgewählt. Welches?
+			// Es ist ein Objekt ausgewaehlt. Welches?
 			Object* p_obj = p_brushCat->getFrontObjectAt(brush);
 			if(p_obj)
 			{
@@ -1490,13 +1481,13 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		{
 			if(objectType != "Rail" && objectType != "Hint" && !shift)
 			{
-				// Schienen hier nicht löschen!
+				// Schienen hier nicht loeschen!
 				p_level->clearPosition(where, "Rail");
 				p_level->removeOldObjects();
 			}
 			else if(objectType == "Rail" && !shift)
 			{
-				// Lava hier nicht löschen
+				// Lava hier nicht loeschen
 				p_level->clearPosition(where, "Lava");
 				p_level->removeOldObjects();
 			}
@@ -1510,7 +1501,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					{
 						if(currentMode == 0)
 						{
-							// Es war wohl unabsichtlich. Statt den Zettel zu löschen, gehen wir in den Modifizieren-Modus.
+							// Es war wohl unabsichtlich. Statt den Zettel zu loeschen, gehen wir in den Modifizieren-Modus.
 							oldMode = currentMode;
 							setMode(1);
 							modify(where, 1, false);
@@ -1524,21 +1515,21 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					}
 				}
 
-				// Kein Zettel da. Schienen hier nicht löschen!
+				// Kein Zettel da. Schienen hier nicht loeschen!
 				p_level->clearPosition(where, "Rail");
 				p_level->removeOldObjects();
 			}
 			else if(!shift)
 			{
-				// Objekte an dieser Stelle löschen
+				// Objekte an dieser Stelle loeschen
 				p_level->clearPosition(where);
 				p_level->removeOldObjects();
 			}
 
-			// das Objekt an der gewählten Stelle einsetzen
-			Object* p_newObj = p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
+			// das Objekt an der gewaehlten Stelle einsetzen
+			p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
 
-			// "eintüten"
+			// "eintueten"
 			p_level->removeOldObjects();
 			p_level->addNewObjects();
 
@@ -1568,7 +1559,7 @@ void GS_LevelEditor::erase(const Vec2i& where,
 	if(p_obj) p_level->removeObject(p_obj);
 	else
 	{
-		// Tile auf aktuellem Layer löschen
+		// Tile auf aktuellem Layer loeschen
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1578,7 +1569,7 @@ void GS_LevelEditor::erase(const Vec2i& where,
 void GS_LevelEditor::clear(const Vec2i& where,
 						   bool allLayers)
 {
-	// Objekte löschen
+	// Objekte loeschen
 	p_level->clearPosition(where);
 
 	if(allLayers)
@@ -1587,7 +1578,7 @@ void GS_LevelEditor::clear(const Vec2i& where,
 	}
 	else
 	{
-		// Tile auf aktuellem Layer löschen
+		// Tile auf aktuellem Layer loeschen
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1717,10 +1708,10 @@ bool GS_LevelEditor::copy()
 {
 	if(currentMode != 4 || rectStart.x < 0) return false;
 
-	// alte Zwischenablage löschen
+	// alte Zwischenablage loeschen
 	delete[] p_clipboard;
 
-	// Platz für die neue Zwischenablage schaffen
+	// Platz fuer die neue Zwischenablage schaffen
 	Vec2i pMin(min(rectStart.x, rectEnd.x), min(rectStart.y, rectEnd.y));
 	Vec2i pMax(max(rectStart.x, rectEnd.x), max(rectStart.y, rectEnd.y));
 	clipboardSize = Vec2i(1, 1) + pMax - pMin;
@@ -1766,7 +1757,7 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 		{
 			Vec2i p = where + Vec2i(x, y);
 
-			// Tiles einfügen
+			// Tiles einfuegen
 			for(int layer = 0; layer < 2; layer++)
 			{
 				uint tile = p_clipboard[index].tile[layer];
@@ -1775,18 +1766,18 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 
 			if(!p_clipboard[index].objectTypes.empty())
 			{
-				// alte Objekte löschen
+				// alte Objekte loeschen
 				p_level->clearPosition(p);
 				p_level->removeOldObjects();
 
-				// Objekte einfügen
+				// Objekte einfuegen
 				std::list<std::string>::const_iterator i;
 				std::list<TiXmlElement>::iterator j;
 				for(i = p_clipboard[index].objectTypes.begin(), j = p_clipboard[index].objectAttributes.begin();
 					i != p_clipboard[index].objectTypes.end() && j != p_clipboard[index].objectAttributes.end();
 					i++, j++)
 				{
-					Object* p_newObj = p_level->getPresets()->instancePreset(*i, p, &(*j));
+					p_level->getPresets()->instancePreset(*i, p, &(*j));
 					p_level->addNewObjects();
 				}
 			}
@@ -1798,10 +1789,10 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 	rectStart = where;
 	rectEnd = where + clipboardSize + Vec2i(-1, -1);
 
-	rectStart.x = clamp(rectStart.x, 0, p_level->getSize().x - 1);
-	rectStart.y = clamp(rectStart.y, 0, p_level->getSize().y - 1);
-	rectEnd.x = clamp(rectEnd.x, 0, p_level->getSize().x - 1);
-	rectEnd.y = clamp(rectEnd.y, 0, p_level->getSize().y - 1);
+	rectStart.x = clamp(rectStart.x, 0, Level::WIDTH - 1);
+	rectStart.y = clamp(rectStart.y, 0, Level::HEIGHT - 1);
+	rectEnd.x = clamp(rectEnd.x, 0, Level::WIDTH - 1);
+	rectEnd.y = clamp(rectEnd.y, 0, Level::HEIGHT - 1);
 
 	return true;
 }

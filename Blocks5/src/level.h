@@ -3,8 +3,10 @@
 
 #include "lightning.h"
 
-/*** Klasse für einen Level ***/
+/*** Klasse fuer einen Level ***/
 
+class Object;
+class Player;
 class Texture;
 class Font;
 class TileSet;
@@ -23,6 +25,23 @@ class Level
 	friend class Exit;
 
 public:
+	// Groesse und Ebenenzahl sind fuer jeden Level dieselben und keine
+	// Eigenschaft der einzelnen Instanz: der Editor laesst nichts anderes zu,
+	// und alle 220 mitgelieferten und fremden Leveldateien im Baum nennen
+	// genau diese Werte. Die Leveldatei schreibt sie weiterhin mit, damit sie
+	// fuer sich lesbar bleibt und aeltere Fassungen des Spiels sie oeffnen
+	// koennen - beim Laden werden sie aber nur noch geprueft, nicht mehr
+	// uebernommen.
+	//
+	// Einzelne ints statt eines Vec2i, damit der Wert hier im Kopf stehen kann:
+	// ein ganzzahliges statisches Konstantenglied darf in der Klasse
+	// initialisiert werden und ist damit in jeder Uebersetzungseinheit ein
+	// konstanter Ausdruck. Ein Vec2i braucht eine Definition in einer .cpp und
+	// ist fuer alle anderen Dateien nur ein Symbol, das gelesen werden muss.
+	static const int WIDTH = 40;
+	static const int HEIGHT = 25;
+	static const int NUM_LAYERS = 2;
+
 	Level();
 	~Level();
 
@@ -64,6 +83,7 @@ public:
 	void setAITrace(const Vec2i& where, uint value);
 
 	bool isValidPosition(const Vec2i& position) const;
+	bool isValidLayer(int layer) const;
 
 	uint getTileAt(int layer, const Vec2i& position) const;
 	void setTileAt(int layer, const Vec2i& position, uint tile);
@@ -73,7 +93,7 @@ public:
 
 	void turnArrows();
 	bool changeBarrages(uint color);
-	int changeBarrages2(uint color, bool up);
+	bool changeBarrages2(uint color, bool up);
 	int fireCannons(uint color);
 	int rotateCannons(uint color);
 
@@ -81,10 +101,6 @@ public:
 	void setTitle(const std::string& title);
 	std::string getSkin(uint index) const;
 	bool setSkin(uint index, const std::string& skin);
-	const Vec2i& getSize() const;
-	Vec2i getSizeInPixels() const;
-	void setSize(const Vec2i& size);
-	int getNumLayers() const;
 	bool isInEditor() const;
 	void setInEditor(bool inEditor);
 	bool isInCat() const;
@@ -97,7 +113,7 @@ public:
 	void setTileSet(TileSet* p_tileSet);
 	ParticleSystem* getParticleSystem();
 	ParticleSystem* getFireParticleSystem();
-	Texture* getSprites();
+	Texture* getSpritesTexture();
 	Texture** getLava();
 	Texture* getBackground();
 	Texture* getHint();
@@ -134,12 +150,13 @@ public:
 
 	std::string getSkinFilename(uint index);
 	static std::string getAlternative(const std::string& filename, const std::string& dir1, const std::string& dir2);
+	void allocateTiles();
+	bool loadErrorLevel();
 	void loadSkin(bool forceReload = false);
 
 	int counter;
 	int time;
 	bool finished;
-	std::set<std::string> skinsMissing;
 	std::set<Electronics*> allElectronics;
 
 	enum Skin
@@ -164,8 +181,6 @@ private:
 	std::string skin[SKIN_MAX];
 	std::string requestedSkin[SKIN_MAX];
 	std::string filename;
-	Vec2i size;
-	int numLayers;
 	bool inEditor;
 	bool inCat;
 	bool inPreview;

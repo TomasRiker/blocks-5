@@ -1,7 +1,7 @@
 #ifndef _GS_CAMPAIGNEDITOR_H
 #define _GS_CAMPAIGNEDITOR_H
 
-/*** Klasse für den Kampagnen-Editor ***/
+/*** Klasse fuer den Kampagnen-Editor ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -38,9 +38,6 @@ private:
 
 	Texture* p_background;
 
-	std::string messageText;
-	uint messageCounter;
-	uint messageType;
 };
 
 #endif

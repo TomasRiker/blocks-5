@@ -33,6 +33,11 @@ $OK
 §en:OK
 §de:OK
 
+$CLOSE
+// Caption of a button that closes a window without cancelling anything
+§en:Close
+§de:Schließen
+
 $CANCEL
 // For dialog boxes
 §en:Cancel
@@ -58,6 +63,31 @@ $HELP
 §en:Help
 §de:Hilfe
 
+$ERROR_NO_FILENAME
+// Error message displayed when the user clicks load or save in an editor without having entered a filename
+§en:ERROR: Please enter a filename.
+§de:FEHLER: Bitte gib einen Dateinamen ein.
+
+$ERROR_SKIN_MISSING
+// Error message shown when a level names a skin that is missing or cannot be loaded
+§en:ERROR: Missing or damaged skin:
+§de:FEHLER: Fehlender oder beschädigter Skin:
+
+$ERROR_MUSIC_MISSING
+// Error message shown when a music file could not be loaded
+§en:ERROR: Missing music file:
+§de:FEHLER: Fehlende Musikdatei:
+
+$ERROR_LEVEL_INVALID
+// Error message shown when a level file is missing or cannot be parsed
+§en:ERROR: Missing or damaged level:
+§de:FEHLER: Fehlender oder beschädigter Level:
+
+$ERROR_CAMPAIGN_INVALID
+// Error message shown when a campaign file is missing or cannot be parsed
+§en:ERROR: Missing or damaged campaign:
+§de:FEHLER: Fehlende oder beschädigte Kampagne:
+
 $LOADING
 // Message displayed in the beginning when the game is loading
 §en:Loading ... Please wait ...
@@ -67,11 +97,6 @@ $FEATURE_NOT_IN_DEMO
 // Text informing the user that a feature is not available in the demo version
 §en:This feature is not available in the demo version.
 §de:Dieses Feature steht in der Demo-Version nicht zur Verfügung.
-
-$FILES_MISSING
-// Text displayed when skin files are missing
-§en:The following files are missing:
-§de:Es fehlen die folgenden Dateien:
 
 // *********
 // MAIN MENU
@@ -171,15 +196,86 @@ $O_DETAILS_HIGH
 §en:High
 §de:Hoch
 
+$O_UPSCALER
+// Caption of the upscaling filter section
+§en:Scaling:
+§de:Skalierung:
+
+$O_UPSCALER_NEAREST
+// Caption of the nearest-neighbour scaling radio button
+§en:Sharp
+§de:Scharf
+
+$O_UPSCALER_BILINEAR
+// Caption of the bilinear scaling radio button
+§en:Smooth
+§de:Weich
+
+$O_UPSCALER_SHARP_FIT
+// Caption of the sharp-fit scaling radio button
+§en:Sharp, fitted
+§de:Scharf, angepasst
+
+$O_UPSCALER_CRT
+// Caption of the CRT scaling radio button
+§en:CRT monitor
+§de:Röhrenmonitor
+
+$O_CRT_SETTINGS
+// Button that opens the CRT settings
+§en:CRT settings ...
+§de:Röhre einstellen ...
+
+$O_CRT_SETTINGS_TITLE
+// Title of that window - the same words as the button, but a title is not
+// an invitation to click, so it carries no ellipsis
+§en:CRT settings
+§de:Röhre einstellen
+
+$O_CRT_SCANLINE
+// Label above the scanline slider in the CRT settings
+§en:Scan lines (0 = PC monitor, 100 = console):
+§de:Zeilen (0 = PC-Monitor, 100 = Konsole):
+
+$O_CRT_CURVATURE
+// Label above the curvature slider in the CRT settings
+§en:Curvature of the screen:
+§de:Wölbung der Bildröhre:
+
+$O_CRT_BLOOM
+// Label above the halation slider in the CRT settings
+§en:Glow around bright areas:
+§de:Leuchthof um helle Stellen:
+
+$O_CRT_FLICKER
+// Label above the brightness-flicker slider in the CRT settings
+§en:Flicker (brightness):
+§de:Flimmern (Helligkeit):
+
+$O_CRT_SCANFLICKER
+// Label above the scan-line drift slider in the CRT settings
+§en:Flicker (scan lines):
+§de:Flimmern (Zeilen):
+
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:
 §de:Steuerung:
 
-$O_RESET_CONTROLS
-// Reset controls
-§en:Reset
-§de:Zurücksetzen
+$O_RESET_SELECTED
+// Options: resets the bindings of the selected action only
+§en:Reset selected
+§de:Ausgewählte zurücksetzen
+
+$O_RESET_ALL
+// Options: resets the bindings of every action
+§en:Reset all
+§de:Alle zurücksetzen
+
+$O_PRESS_KEY
+// Options: shown on a key button while it waits for the new key
+§en:Press key or Esc
+§de:Taste oder Esc drücken
 
 $O_PRIMARY_KEY
 // Primary key
@@ -596,9 +692,11 @@ $LE_SETTINGS_BLUE
 §de:Blau
 
 $LE_SETTINGS_MUSIC
-// Caption of the music filename edit box
-§en:Music (File in "levels" directory, OGG format):
-§de:Musik (Datei im "levels"-Ordner, OGG-Format):
+// Caption of the music filename edit box. "blocks:" in front of the name
+// takes the track out of the campaign that ships with the game, so a level
+// can use one without carrying a copy of it.
+§en:Music (OGG file, or blocks:music[1-10].ogg):
+§de:Musik (OGG-Datei, oder blocks:music[1-10].ogg):
 
 $LE_SETTINGS_EDIT_GRAPHICS_STYLE
 // Caption of the graphics style selection
@@ -624,11 +722,6 @@ $LE_MSG_TEXT2
 // Text asking the user if he wants to overwrite an existing level file
 §en:This level file already exists.¶Do you want it to be overwritten?
 §de:Diese Level-Datei existiert bereits.¶Soll sie überschrieben werden?
-
-$LE_ERROR_LOADING
-// Error message displayed when loading of level failed
-§en:ERROR: The level could not be loaded.
-§de:FEHLER: Der Level konnte nicht geladen werden.
 
 $LE_ERROR_FILE_DOESNT_EXIST
 // Error message displayed when the selected file doesn't exist
@@ -1124,12 +1217,12 @@ $CE_DESCRIPTION
 
 $CE_DEFAULT_CAMPAIGN_TITLE
 // Default value for campaign name
-§en:Unnamed Campaign
+§en:Unnamed campaign
 §de:Unbenannte Kampagne
 
 $CE_DEFAULT_CAMPAIGN_DESCRIPTION#
 // Default value for campaign description
-§en:English Description
+§en:English description
 §de:Deutsche Beschreibung
 
 $CE_USE_BONUS_LEVEL
@@ -1177,20 +1270,16 @@ $CE_MSG_TEXT2
 §en:This campaign file already exists.¶Do you want it to be overwritten?
 §de:Diese Kampagnen-Datei existiert bereits.¶Soll sie überschrieben werden?
 
-$CE_ERROR_LOADING
-// Error message displayed when loading of campaign failed
-§en:ERROR: The campaign could not be loaded.
-§de:FEHLER: Die Kampagne konnte nicht geladen werden.
-
 $CE_ERROR_SAVING
 // Error message displayed when saving of the current campaign failed
 §en:ERROR: The campaign could not be saved.
 §de:FEHLER: Die Kampagne konnte nicht gespeichert werden.
 
 $CE_ERROR_LEVELS_MISSING
-// Error message displayed when the original levels of a campaign are missing
-§en:ERROR: The campaign could not be loaded because the original level files are missing.
-§de:FEHLER: Die Kampagne wurde nicht geladen, da die Original-Level-Dateien fehlen.
+// Error message displayed when a level of a campaign cannot be read at all -
+// neither as a loose file nor as a member of the campaign file
+§en:ERROR: The campaign could not be loaded because level files are missing.
+§de:FEHLER: Die Kampagne wurde nicht geladen, da Level-Dateien fehlen.
 
 $CE_INFO_CAMPAIGN_SAVED
 // Info message displayed when the current campaign has been saved
@@ -1265,6 +1354,7 @@ Save screenshot		F11
 Start/stop recording video	F12
 Show menu		Escape
 Pause			P or Break
+Window/full screen		Alt + Return
 // --------------------------------------------------------------------------------
 §de:<h>Spielziel</h>
 In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
@@ -1282,20 +1372,23 @@ Screenshot speichern		F11
 Videoaufnahme starten/stoppen	F12
 Menü aufrufen		Escape
 Pause			P oder Pause
+Fenster/Vollbild		Alt + Return
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE2
 // Help page 2
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Level Editor</h>
+
 With the level editor, you can create your own levels.
-A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, for example, blocks, diamonds, grass, players or enemies.
+A level consists of two layers, on which tiles are placed, and of a number of objects. Tiles are used for ground, holes oder (destroyable) walls. Tiles can't move. Objects are, e.g., blocks, diamonds, grass, players or enemies.
 
 At the screen's bottom, you can choose the layer you want to work on. It is important to understand how the layers work. Layer 0 is for ground tiles (like lawn, sand or holes). A wall placed on layer 0 won't act like a wall: the player can walk trough. A "real" wall always has to be placed on layer 1!
 
 You also see 5 categories: Tiles, Objects, Switches, Rails and Electronics. Here you can select what tile/object you want to place in the level. Simply click at one of these categories and choose the desired tile/object.
 // --------------------------------------------------------------------------------
 §de:<h>Der Level-Editor</h>
+
 Mit dem Level-Editor kannst du eigene Levels erzeugen.
 Levels bestehen aus zwei Ebenen (Layer), auf denen so genannte Tiles platziert werden, und aus einer Reihe von Objekten. Tiles sind Boden, Löcher oder (zerstörbare) Mauern. Sie können sich nicht bewegen. Objekte sind beispielsweise Blöcke, Diamanten, Gras, Spielfiguren oder Gegner.
 
@@ -1307,8 +1400,9 @@ Unten gibt es 5 Kategorien: Tiles, Objekte, Schalter, Schienen und Elektronik. H
 $H_HELP_PAGE3
 // Help page 3
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-§en:<h>The Tools</h>
-Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (for example a laser on a platform), hold the Shift key while drawing.
+§en:<h>The Tools (1)</h>
+
+Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (e.g., a laser on a platform), hold the Shift key while drawing.
 
 Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold the Shift key while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding Shift). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
 
@@ -1316,7 +1410,8 @@ Rectangle: Draws a rectangle using the selected tile/object. Press the right mou
 
 Transition: Helps you drawing transitions between two types of ground on layer 0 (like lawn and sand).
 // --------------------------------------------------------------------------------
-§de:<h>Die Werkzeuge</h>
+§de:<h>Die Werkzeuge (1)</h>
+
 Zeichenstift: Zeichnet das gewählte Tile/Objekt. Die rechte Maustaste dient als Radiergummi. Achte bei Tiles darauf, dass du sie auf den richtigen Layer setzt! Objekte sind hingegen keinem Layer zugeordnet. Um mehrere Objekte übereinander zu setzen (z.B. einen Laser auf eine Plattform), halte Shift gedrückt.
 
 Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Objekt dazu einfach an. Manche Objekte lassen sich auf zwei Arten verändern. Halte dazu gleichzeitig die Shift-Taste gedrückt. Beispiel: Bei Kanonen kannst du durch normales Modifizieren die Farbe ändern. Beim Modifizieren mit Shift dreht sich die Kanone. Bei Hinweiszetteln kannst du durch Modifizieren den Text verändern und bei Teleportern durch Klicken und Ziehen den Zielort.
@@ -1330,6 +1425,7 @@ $H_HELP_PAGE4
 // Help page 4
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Tools (2)</h>
+
 Select: Allows you to select a certain area. You can then copy it by pressing Ctrl+C or move it around with the arrow keys. Press Del to clear the area. Ctrl+V pastes at the selection's top left corner. Press Ctrl+X to cut (copy and clear). If you want to move a single object, just place the cursor on it and move it around using the arrow keys.
 
 Pipette: Click at a tile/object in your level. It will then be used for the pen tool. With objects, all modifications will be adopted.
@@ -1337,6 +1433,7 @@ Pipette: Click at a tile/object in your level. It will then be used for the pen 
 Soldering iron: Use this tool to create connections between electronics parts. Simply click at the pins that you want to connect. The right mouse button deletes all connections at the selected pin. Attention: For every input, there should be exactly one output! Inputs are shown in green, outputs in red.
 // --------------------------------------------------------------------------------
 §de:<h>Die Werkzeuge (2)</h>
+
 Auswählen: Hiermit kannst du einen Bereich auswählen, um ihn dann beispielsweise mit Strg+C zu kopieren oder mit den Pfeiltasten zu bewegen. Mit Entf kannst du den gewählten Bereich leeren. Strg+V fügt bei der linken oberen Auswahlecke ein, und Strg+X schneidet aus (kopieren und leeren). Um ein einzelnes Objekt zu verschieben, reicht es, den Mauszeiger auf das Objekt zu setzen. Dann kannst du es mit den Pfeiltasten bewegen.
 
 Pipette: Klicke auf ein Tile/Objekt im Level, das dann genau so mit Hilfe des Zeichenstifts gezeichnet werden soll. Es werden alle Veränderungen, die du mit dem Modifizieren-Werkzeug gemacht hast, übernommen.
@@ -1385,13 +1482,13 @@ $H_HELP_PAGE6
 Skin zip archives may be encrypted so that their content can't be accessed by everyone. Virtually all zip tools support encryption. If you decide to encrypt your skin archive, you also have to include an unencrypted(!) file named "password.txt" containing the encrypted password. Use the tool "pwencrypt.exe", which resides in the same directory as "blocks5.exe" to encrypt the password.
 
 <h>Custom Music</h>
-In the "Settings" window, you can enter the name of a music file that the user should hear while playing the level. The file must be encoded in the OGG file format. Codecs can be found on the internet using a search engine. Music files have to be placed inside the "levels" directory.
+In the "Settings" window, you can enter the name of a music file that the user should hear while playing the level. The file must be encoded in the OGG file format. Codecs can be found on the internet using a search engine. Music files have to be placed inside the "levels" directory. If the filename begins with "blocks:", the music will be loaded from the official Blocks campaign, e.g., "blocks:music1.ogg".
 // --------------------------------------------------------------------------------
 §de:<h>Skins mit Passwort</h>
 Skin-Zip-Archive können auch verschlüsselt gespeichert werden, damit die Grafiken nicht für jeden zugänglich sind. Praktisch alle Programme zum Erzeugen von Zip-Archiven unterstützen auch Verschlüsselung. Wenn das Archiv verschlüsselt wird, muss sich darin ebenfalls eine unverschlüsselte(!) Datei namens "password.txt" befinden. In diese Datei wird das zur Entschlüsselung benötigte Passwort verschlüsselt gespeichert. Zur Verschlüsselung des Passworts benutzt du das Programm "pwencrypt.exe", das sich im selben Verzeichnis befindet wie "blocks5.exe".
 
 <h>Eigene Musikstücke</h>
-Im Fenster "Einstellungen" lässt sich der Dateiname eines Musikstücks eintragen, das bei diesem Level im Hintergrund gespielt werden soll. Das Musikstück muss hierzu in das OGG-Dateiformat konvertiert werden. Codecs für dieses Dateiformat findet man über Suchmaschinen. Musikdateien müssen im Ordner "levels" liegen.
+Im Fenster "Einstellungen" lässt sich der Dateiname eines Musikstücks eintragen, das bei diesem Level im Hintergrund gespielt werden soll. Das Musikstück muss hierzu in das OGG-Dateiformat konvertiert werden. Codecs für dieses Dateiformat findet man über Suchmaschinen. Musikdateien müssen im Ordner "levels" liegen. Wenn der Dateiname mit "blocks:" startet, dann wird das Musikstück aus der offiziellen Blocks-Kampagne geladen, z.B. "blocks:music1.ogg".
 
 // ************
 // LEVEL TITLES
@@ -1941,6 +2038,161 @@ $HINT_BLOCKS_41_02
 §en:Zappa on one occasion zapped onto zipline organisms.
 // --------------------------------------------------------------------------------
 §de:Neun Elefanten erfanden einen nicht elementaren nächtlichen Eierkuchen.
+
+$WEB_CLICK_TO_START
+// Prompt shown by the browser build before the intro, because a browser
+// will not play any sound until the page has been clicked once
+§en:Click to start!¶Your browser needs this to play sound.
+§de:Zum Starten klicken!¶Der Browser braucht das für den Ton.
+
+$CE_LEVEL_IN_ARCHIVE
+// Suffix shown in the campaign editor behind a level that is stored inside the
+// campaign file rather than as a loose file in the levels folder
+§en:(in campaign file)
+§de:(in Kampagnendatei)
+
+$MM_CRT_TITLE
+// One-time hint for the CRT filter (version >= 1.2.0)
+§en:Something new to look at
+§de:Etwas Neues für's Auge
+
+$MM_CRT_TEXT
+§en:Blocks 5 can now pretend to be running on an old CRT monitor: curved glass, scan lines, a soft glow around bright things.¶¶Would you like to try it? You can turn it off again at any time under Options/Scaling, and there are sliders there to set how strong it is.
+§de:Blocks 5 kann jetzt so tun, als liefe es auf einem alten Röhrenmonitor: gewölbte Scheibe, Bildzeilen, ein weicher Schimmer um helle Stellen.¶¶Möchtest du es ausprobieren? Unter Optionen/Skalierung kannst du es jederzeit wieder abschalten, und dort gibt es auch Regler für die Stärke des Effekts.
+
+$MM_CRT_NO_THANKS
+§en:No, thanks
+§de:Nein, danke
+
+$MM_CRT_TRY
+§en:Yes, try it
+§de:Ja, ausprobieren
+
+$MM_MANAGE
+// Main menu: button that opens the file manager (import, export, delete)
+§en:Manage files
+§de: Dateien¶verwalten
+
+$TR_MANAGER_TITLE
+§en:Manage files
+§de:Dateien verwalten
+
+$TR_MANAGER_WHAT
+// Prompt above the four kind buttons in the manager window
+§en:What would you like to manage?
+§de:Was möchtest du verwalten?
+
+$TR_KIND_LEVEL
+§en:Level
+§de:Level
+
+$TR_KIND_CAMPAIGN
+§en:Campaign
+§de:Kampagne
+
+$TR_KIND_MUSIC
+§en:Music
+§de:Musik
+
+$TR_KIND_SKIN
+§en:Skin
+§de:Skin
+
+$TR_REFRESH
+// Reads the list in the export window again
+§en:Refresh
+§de:Aktualisieren
+
+$TR_IMPORT_DO
+// Manager: button that asks for a file to bring in
+§en:Import ...
+§de:Import ...
+
+$TR_EXPORT_DO
+// Manager: button that writes the selected item out
+§en:Export ...
+§de:Export ...
+
+$TR_DELETE_DO
+// Manager: button that deletes the selected item
+§en:Delete
+§de:Löschen
+
+$TR_CONFIRM_TITLE
+// Title of the window that asks before deleting
+§en:Please confirm
+§de:Bitte bestätigen
+
+$TR_CONFIRM_DELETE
+§en:Really delete this file?
+§de:Diese Datei wirklich löschen?
+
+$TR_DELETED
+// Shown after a successful delete, followed by the filename
+§en:Deleted:
+§de:Gelöscht:
+
+$TR_ERROR_BUILT_IN
+// Refusal when something that ships with the game would be deleted
+§en:ERROR: That file belongs to the game.
+§de:FEHLER: Diese Datei gehört zum Spiel.
+
+$TR_NOTHING_TO_EXPORT
+§en:There is nothing of that kind to export yet.
+§de:Von dieser Sorte gibt es noch nichts zu exportieren.
+
+$TR_EXPORTED
+§en:Exported.
+§de:Exportiert.
+
+$TR_REPLACED
+// Shown when an import overwrote a file of the same name, followed by the filename
+§en:Replaced:
+§de:Ersetzt:
+
+$TR_IMPORTED_LEVEL
+// The name it was stored under follows each of these four
+§en:Level imported:
+§de:Level importiert:
+
+$TR_IMPORTED_CAMPAIGN
+§en:Campaign imported. You can play it under "Start Game".
+§de:Kampagne importiert. Du kannst sie unter "Spiel starten" spielen.
+
+$TR_IMPORTED_MUSIC
+// Followed by the name - that is what goes into the level's music field
+§en:Music imported. Enter this name in the level settings:
+§de:Musik importiert. Diesen Namen in den Level-Einstellungen eintragen:
+
+$TR_IMPORTED_SKIN
+// Followed by the name - that is what goes into the level's skin fields
+§en:Skin imported. Enter this name in the level settings:
+§de:Skin importiert. Diesen Namen in den Level-Einstellungen eintragen:
+
+$TR_ERROR_UNKNOWN
+§en:ERROR: This is not a level, a campaign, a music file or a skin.
+§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück oder ein Skin.
+
+$TR_ERROR_BROKEN
+§en:ERROR: That file is damaged.
+§de:FEHLER: Diese Datei ist beschädigt.
+
+$TR_ERROR_TOO_BIG
+§en:ERROR: That file is too large.
+§de:FEHLER: Diese Datei ist zu groß.
+
+$TR_ERROR_FAILED
+§en:ERROR: That did not work.
+§de:FEHLER: Das hat nicht geklappt.
+
+$TR_ERROR_RESERVED
+// Refusal when an import would take the name of a file that ships with the game
+§en:ERROR: A file of that name belongs to the game. Please rename the file.
+§de:FEHLER: Eine Datei dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
+
+$TR_ERROR_CLICK_AGAIN
+§en:Please click the button again.
+§de:Bitte den Knopf noch einmal anklicken.
 
 // *************
 // DO NOT MODIFY

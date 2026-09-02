@@ -5,7 +5,7 @@ class Texture;
 class Level;
 class Object;
 
-/*** Klasse für Objektvoreinstellungen ***/
+/*** Klasse fuer Objektvoreinstellungen ***/
 
 class Presets
 {
@@ -21,7 +21,7 @@ private:
 	Level& level;
 	Texture* p_sprites;
 	std::vector<std::string> presetNames;
-	stdext::hash_map<std::string, Vec2i> texCoords;
+	std::unordered_map<std::string, Vec2i> texCoords;
 };
 
 #endif

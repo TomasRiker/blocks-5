@@ -28,7 +28,7 @@ Font::~Font()
 {
 	if(listBase)
 	{
-		// Listen löschen
+		// Listen loeschen
 		glDeleteLists(listBase, numLists);
 		listBase = 0;
 	}
@@ -57,7 +57,7 @@ void Font::reload()
 	TiXmlHandle fontHandle = docHandle.FirstChildElement("Font");
 	TiXmlElement* p_fontElement = fontHandle.Element();
 
-	// Dateiname des Bilds, Zeilenhöhe und Offset lesen
+	// Dateiname des Bilds, Zeilenhoehe und Offset lesen
 	const char* p_imageFilename = p_fontElement->Attribute("image");
 	p_fontElement->Attribute("lineHeight", &lineHeight);
 	p_fontElement->Attribute("offset", &offset);
@@ -118,7 +118,7 @@ void Font::renderText(const std::string& text,
 	uint listIndex;
 
 	// Haben wir diesen String schon im Cache?
-	stdext::hash_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
+	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
 	if(entry != stringCache.end())
 	{
 		// Ja, ist schon im Cache!
@@ -141,10 +141,10 @@ void Font::renderText(const std::string& text,
 		}
 		else
 		{
-			// Der älteste Eintrag wird überschrieben.
+			// Der aelteste Eintrag wird ueberschrieben.
 			uint minTime = ~0;
-			stdext::hash_map<std::string, StringCacheEntry>::iterator oldestEntry;
-			for(stdext::hash_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
+			std::unordered_map<std::string, StringCacheEntry>::iterator oldestEntry;
+			for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
 			{
 				if(i->second.lastTimeUsed < minTime)
 				{
@@ -153,7 +153,7 @@ void Font::renderText(const std::string& text,
 				}
 			}
 
-			// Listenindex merken und den Eintrag löschen
+			// Listenindex merken und den Eintrag loeschen
 			listIndex = oldestEntry->second.listIndex;
 			stringCache.erase(oldestEntry);
 		}
@@ -167,17 +167,19 @@ void Font::renderText(const std::string& text,
 		cached = false;
 	}
 
+#ifndef __EMSCRIPTEN__
 	if(!cached)
 	{
 		glNewList(listBase + listIndex, GL_COMPILE);
 		renderTextPure(text);
 		glEndList();
 	}
+#endif
 
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
 
-	// Schatten zeichnen, falls erwünscht
+	// Schatten zeichnen, falls erwuenscht
 	if(options.shadows)
 	{
 		std::vector<Vec2i> samples;
@@ -192,14 +194,22 @@ void Font::renderText(const std::string& text,
 			glColor4dv(shadowColor);
 			glPushMatrix();
 			glTranslated(samples[i].x, samples[i].y, 0.0);
+#ifdef __EMSCRIPTEN__
+			renderTextPure(text);   // no display lists in WebGL - draw it again
+#else
 			glCallList(listBase + listIndex);
+#endif
 			glPopMatrix();
 		}
 	}
 
 	// String zeichnen
 	glColor4dv(color);
+#ifdef __EMSCRIPTEN__
+	renderTextPure(text);
+#else
 	glCallList(listBase + listIndex);
+#endif
 
 	glPopMatrix();
 }
@@ -216,7 +226,7 @@ void Font::renderTextPure(const std::string& text)
 		uint r = static_cast<uint>(text.length() - i - 1);
 
 		unsigned char c = text[i];
-		if(c == '\n' || static_cast<char>(c) == '¶')
+		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
 			// Zeilenumbruch
 			cursor.x = 0;
@@ -290,7 +300,7 @@ void Font::measureText(const std::string& text,
 		if(p_outCharPositions) p_outCharPositions->push_back(cursor + offset);
 
 		unsigned char c = text[i];
-		if(c == '\n' || static_cast<char>(c) == '¶')
+		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
 			// Zeilenumbruch
 			cursor.x = 0;
@@ -341,7 +351,7 @@ std::string Font::adjustText(const std::string& text,
 		unsigned char c = text[i];
 		out.append(1, c);
 
-		if(c == '\n' || static_cast<char>(c) == '¶')
+		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
 			// Zeilenumbruch
 			cursorX = 0;
@@ -359,7 +369,7 @@ std::string Font::adjustText(const std::string& text,
 				for(j = out.rbegin(); j != out.rend(); j++)
 				{
 					unsigned char d = *j;
-					if(d == '\n' || static_cast<char>(d) == '¶')
+					if(d == '\n' || static_cast<char>(d) == '\xB6')
 					{
 						j = out.rend();
 						break;
@@ -412,7 +422,7 @@ void Font::setOptions(const Font::Options& options)
 	   this->options.charScaling != options.charScaling ||
 	   this->options.italic != options.italic)
 	{
-		// Der Cache ist jetzt ungültig!
+		// Der Cache ist jetzt ungueltig!
 		stringCache.clear();
 		listFree = ~0;
 	}

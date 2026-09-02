@@ -13,15 +13,15 @@ Magnet::~Magnet()
 {
 }
 
+void Magnet::updateSprites()
+{
+	sprites.add(Vec2i(224, 96));
+}
+
 void Magnet::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Teleporter rendern
-		Vec2i positionOnTexture(224, 96);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Magnet::onUpdate()

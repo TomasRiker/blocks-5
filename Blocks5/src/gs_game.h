@@ -1,7 +1,7 @@
 #ifndef _GS_GAME_H
 #define _GS_GAME_H
 
-/*** Klasse für den Hauptspielzustand ***/
+/*** Klasse fuer den Hauptspielzustand ***/
 
 #include "gamestate.h"
 #include "engine.h"

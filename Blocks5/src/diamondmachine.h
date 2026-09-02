@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Diamantenmaschinen ***/
+/*** Klasse fuer Diamantenmaschinen ***/
 
 class SoundInstance;
 
@@ -14,6 +14,7 @@ public:
 	~DiamondMachine();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 
 private:

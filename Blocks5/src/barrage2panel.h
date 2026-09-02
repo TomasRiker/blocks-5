@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse für eine Blockadenbodenplatte ***/
+/*** Klasse fuer eine Blockadenbodenplatte ***/
 
 class Barrage2Panel : public Panel
 {
@@ -12,6 +12,7 @@ public:
 	~Barrage2Panel();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 

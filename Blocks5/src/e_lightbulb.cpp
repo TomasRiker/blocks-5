@@ -17,15 +17,17 @@ E_LightBulb::~E_LightBulb()
 {
 }
 
+void E_LightBulb::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(on ? 160 : 128, 608)).rotation = 90.0 * dir;
+}
+
 void E_LightBulb::onRender(int layer,
 						   const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(on ? 160 : 128, 608), Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18 && on)
 	{
 		level.renderShine(1.0, 1.5 + random(-0.05, 0.05));

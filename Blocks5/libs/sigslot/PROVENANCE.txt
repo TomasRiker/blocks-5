@@ -1,0 +1,48 @@
+sigslot
+=======
+
+Type-safe signal/slot callbacks. This is how the GUI is wired: every widget that
+can be clicked, changed or scrolled exposes a signal, and a game state connects
+to it with connectClicked(this, &GS_Menu::handleClick). A class that connects
+signals has to derive from sigslot::has_slots<>, which GameState and every
+gui_* widget already do. pch.h includes it for every translation unit.
+
+  sigslot, Sarah Thompson, 2002 - http://sigslot.sourceforge.net/
+  Public domain, stated in the header comment: "You are free to use this code
+  however you like, with the proviso that the author takes on no responsibility
+  or liability for any use."
+
+In this tree since the initial commit, from before its history was version
+controlled, so there is no record of which upstream release it started as and no
+byte-comparison has been made - sigslot lives on SourceForge, which is not
+reachable from the environment these notes were written in. sigslot.pdf, the
+documentation that shipped beside it, was removed from the tree in an earlier
+cleanup.
+
+LOCAL CHANGES
+-------------
+Two kinds, all made in one commit while getting the tree to compile with Clang
+for Emscripten. Both are conformance fixes rather than behaviour changes, and
+MSVC accepts them unchanged.
+
+1. Two-phase name lookup. 144 dependent type names gained "typename" and 180
+   references to inherited members gained "this->". Templates in a class
+   template's base cannot be found by unqualified lookup; MSVC's permissive mode
+   found them anyway, every conforming compiler does not.
+
+2. A real bug, in nine places. The default constructors of the
+   _connection_baseN templates assigned to "pobject" and "pmemfun" instead of
+   the m_-prefixed members those classes actually declare. MSVC never
+   instantiated those constructors, so it never diagnosed it; Clang did.
+
+The changes are spread over the whole file, so a diff against a pristine copy
+looks alarming - 216 lines inserted against 207 deleted - but every one of them
+is a "typename", a "this->" or an m_ prefix.
+
+UPDATING
+--------
+There is nothing to update to - the library was last released in 2002 and is
+finished. If it is ever replaced, the replacement has to keep working under a
+precompiled header included by every translation unit, and has to tolerate the
+game's habit of connecting slots from objects that outlive their signals only by
+convention.

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Panels ***/
+/*** Klasse fuer Panels ***/
 
 class Panel : public Object
 {

@@ -121,7 +121,7 @@
 		<Window name="Menu" w="320" h="285">
 			<Title>$LE_MENU</Title>
 			<Center />
-			<StaticText name="Static1" x="10" y="30">
+			<StaticText name="Static1" x="10" y="30" w="-1" h="-1" for="Filename">
 				<Text>$LE_MENU_FILENAME</Text>
 			</StaticText>
 			<EditBox name="Filename" x="10" y="50" w="275" h="20">
@@ -155,11 +155,15 @@
 				<Title>$LE_MENU_QUIT</Title>
 			</Button>
 		</Window>
-		<Button name="Quit" x="570" y="5" w="70" h="70">
-			<ExtendedStyle />
+		<!-- 80x80 statt 70x70, und um den neuen Rand von 8 Pixeln nach oben
+		     links geruecktes x/y, damit die Scheibe an derselben Stelle
+		     bleibt. Dass das Feld oben drei Pixel ueber den Bildrand
+		     hinausragt, macht nichts: dort ist ohnehin nur Rand. -->
+		<Button name="Quit" x="562" y="-3" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
-			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
 	</Element>
 	<Element name="SettingsPane" w="640" h="480">
@@ -167,7 +171,7 @@
 		<Window name="Settings" w="390" h="455">
 			<Title>$LE_SETTINGS</Title>
 			<Center />
-			<StaticText name="Static6" x="10" y="30">
+			<StaticText name="Static6" x="10" y="30" w="-1" h="-1" for="Title">
 				<Text>$LE_SETTINGS_TITLE</Text>
 			</StaticText>
 			<EditBox name="Title" x="10" y="50" w="370" h="20">
@@ -177,16 +181,16 @@
 			<CheckBox name="NightVision" x="10" y="80" w="14" h="14">
 				<Title>$LE_SETTINGS_NIGHT_VISION</Title>
 			</CheckBox>
-			<CheckBox name="Rain" x="140" y="80" w="14" h="14">
+			<CheckBox name="Rain" x="150" y="80" w="14" h="14">
 				<Title>$LE_SETTINGS_RAIN</Title>
 			</CheckBox>
-			<CheckBox name="Thunderstorm" x="140" y="100" w="14" h="14">
+			<CheckBox name="Thunderstorm" x="150" y="100" w="14" h="14">
 				<Title>$LE_SETTINGS_THUNDERSTORM</Title>
 			</CheckBox>
-			<CheckBox name="Clouds" x="270" y="80" w="14" h="14">
+			<CheckBox name="Clouds" x="295" y="80" w="14" h="14">
 				<Title>$LE_SETTINGS_CLOUDS</Title>
 			</CheckBox>
-			<CheckBox name="Snow" x="270" y="100" w="14" h="14">
+			<CheckBox name="Snow" x="295" y="100" w="14" h="14">
 				<Title>$LE_SETTINGS_SNOW</Title>
 			</CheckBox>
 			<StaticText name="Static1" x="10" y="110">

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Blockadenschalter ***/
+/*** Klasse fuer Blockadenschalter ***/
 
 class BarrageSwitch : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~BarrageSwitch();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onTouchedByPlayer(Player* p_player);
 	void onCollision(Object* p_obj);

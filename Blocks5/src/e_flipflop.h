@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für Flipflops ***/
+/*** Klasse fuer Flipflops ***/
 
 class E_FlipFlop : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_FlipFlop();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	std::string getToolTip() const;
 	bool changeInEditor(int mod);

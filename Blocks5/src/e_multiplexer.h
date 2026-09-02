@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen Multiplexer ***/
+/*** Klasse fuer einen Multiplexer ***/
 
 class E_Multiplexer : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_Multiplexer();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);
 	bool changeInEditor(int mod);

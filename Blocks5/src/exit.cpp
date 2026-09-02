@@ -24,20 +24,19 @@ void Exit::onRemove()
 	level.p_exit = 0;
 }
 
+void Exit::updateSprites()
+{
+	// Ausgang. Bei genug Diamanten pulsiert er.
+	double alpha = 1.0;
+	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85 + 0.15 * cos(static_cast<double>(level.counter) * 0.4);
+	sprites.add(Vec2i(224, 32), Vec4d(1.0, 1.0, 1.0, alpha));
+}
+
 void Exit::onRender(int layer,
 					const Vec4d& color)
 {
 	if(ghost) return;
-
-	if(layer == 1)
-	{
-		// Ausgang rendern
-		double alpha;
-		if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85 + 0.15 * cos(static_cast<double>(level.counter) * 0.4);
-		else alpha = 1.0;
-		Vec4d realColor(color.r, color.g, color.b, color.a * alpha);
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(224, 32), Vec2i(16, 16), realColor);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 18)
 	{
 		level.renderShine(0.5, 0.4 + random(-0.05, 0.05));

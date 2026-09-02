@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine Hexadezimal-Ziffernanzeige ***/
+/*** Klasse fuer eine Hexadezimal-Ziffernanzeige ***/
 
 class E_HexDigit : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_HexDigit();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();
 

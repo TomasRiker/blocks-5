@@ -1,7 +1,7 @@
 #ifndef _SOUNDINSTANCE_H
 #define _SOUNDINSTANCE_H
 
-/*** Klasse für eine Sound-Instanz ***/
+/*** Klasse fuer eine Sound-Instanz ***/
 
 #include "sound.h"
 

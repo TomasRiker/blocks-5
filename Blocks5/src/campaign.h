@@ -1,26 +1,76 @@
 #ifndef _CAMPAIGN_H
 #define _CAMPAIGN_H
 
-/*** Klasse für eine Kampagne ***/
+/*** Klasse fuer eine Kampagne ***/
 
 class Campaign
 {
 public:
+	// Ein Level einer Kampagne. Die Identitaet ist das Paar
+	// (sourceDir, member); "name" ist blosser Anzeigetext - er steht in
+	// campaign.xml und stammt bei einer fremden Kampagne aus einer fremden
+	// Datei, wird also nie zu einem Pfad zusammengesetzt.
+	struct LevelRef
+	{
+		LevelRef() : fromArchive(false) {}
+
+		std::string source() const { return sourceDir + member; }
+
+		std::string name;        // Text aus campaign.xml, nur zur Anzeige
+		std::string sourceDir;   // "<home>levels/" oder "<kampagne>.zip[pw]/"
+		std::string member;      // Dateiname bzw. Name des Archivmitglieds
+		bool fromArchive;
+	};
+
+	// Verweis auf eine lose Datei im Level-Ordner des Benutzers.
+	static LevelRef makeLooseRef(const std::string& filename);
+
+	// Wohin ein musicFilename zeigt. sourceDir ist das Verzeichnis, in dem
+	// gewoehnliche Stuecke des Levels liegen - "<home>levels/" fuer einen
+	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv.
+	//
+	// Faengt der Name mit "blocks:" an, meint er ein Stueck der
+	// mitgelieferten Kampagne und sourceDir ist ohne Belang. Ohne das muesste
+	// jede fremde Kampagne, die eines der zehn Stuecke benutzen will, es
+	// selbst mitschleppen - im Browser bekommt sie es ausserdem gar nicht,
+	// weil dort niemand eine .ogg neben den Level legen kann. save() packt
+	// ein solches Stueck deshalb auch nicht mit ein.
+	static std::string resolveMusicPath(const std::string& musicFilename,
+										const std::string& sourceDir);
+
+	// Ein von aussen hereingereichtes Archiv annehmen. Getrennt in Pruefen und
+	// Ablegen, damit der Aufrufer "das ist keine Kampagne" und "das Kopieren
+	// ging schief" auseinanderhalten kann. Auf beiden Plattformen: der
+	// Import im Hauptmenue nimmt unter Windows genauso eine fremde Datei an
+	// wie im Browser.
+	static bool isImportableArchive(const std::string& archivePath);
+
 	Campaign();
 	~Campaign();
 
 	void clear();
-	bool load(const std::string& filename);
+
+	// quiet unterdrueckt die Fehlermeldung. Das braucht nur
+	// isImportableArchive(): die fragt, ob eine hereingereichte Datei
+	// ueberhaupt eine Kampagne ist, und etwas anderes ist keine kaputte
+	// Kampagne, sondern eben etwas anderes.
+	bool load(const std::string& filename, bool quiet = false);
 	bool loadInfo(TiXmlDocument* p_doc);
 	bool save(const std::string& filename);
 	TiXmlDocument* saveInfo();
 
-	bool originalLevelsExist();
-	void addLevel(const std::string& level);
-	void insertLevel(int where, const std::string& level);
-	void removeLevel(const std::string& level);
-	bool hasLevel(const std::string& level);
-	const std::vector<std::string>& getLevels() const;
+	// Sind alle Levels lesbar? Liefert im Fehlerfall die fehlende Quelle.
+	bool sourcesExist(std::string& missing) const;
+
+	// Zustand fuer den Aenderungsvergleich des Editors: die XML-Daten plus
+	// die Quellen, denn zwei Eintraege koennen denselben Namen tragen.
+	std::string getStateString();
+
+	void addLevel(const LevelRef& level);
+	void removeLevelAt(int where);
+	void swapLevels(int a, int b);
+	bool hasLevel(const std::string& name) const;
+	const std::vector<LevelRef>& getLevels() const;
 
 	const std::string& getFilename() const;
 	const std::string& getTitle() const;
@@ -36,7 +86,7 @@ private:
 	std::string filename;
 	std::string title;
 	std::string description;
-	std::vector<std::string> levels;
+	std::vector<LevelRef> levels;
 	int numUnlockedLevels;
 	bool iHaveABonusLevel;
 };

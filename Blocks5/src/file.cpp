@@ -86,8 +86,8 @@ ov_callbacks File::getOVCallbacks()
 	return callbacks;
 }
 
-int File_RWSeek(SDL_RWops* p_context,
-				int offset,
+B5RWOff File_RWSeek(SDL_RWops* p_context,
+				B5RWOff offset,
 				int whence)
 {
 	File* p_file = static_cast<File*>(p_context->hidden.unknown.data1);
@@ -107,10 +107,10 @@ int File_RWSeek(SDL_RWops* p_context,
 	return p_file->tell();
 }
 
-int File_RWRead(SDL_RWops* p_context,
+B5RWSize File_RWRead(SDL_RWops* p_context,
 				void* p_ptr,
-				int size,
-				int maxNum)
+				B5RWSize size,
+				B5RWSize maxNum)
 {
 	File* p_file = static_cast<File*>(p_context->hidden.unknown.data1);
     uint numBytesToRead = size * maxNum;
@@ -118,10 +118,10 @@ int File_RWRead(SDL_RWops* p_context,
 	return numBytesRead / size;
 }
 
-int File_RWWrite(SDL_RWops* p_context,
+B5RWSize File_RWWrite(SDL_RWops* p_context,
 				 const void* p_ptr,
-				 int size,
-				 int num)
+				 B5RWSize size,
+				 B5RWSize num)
 {
     return 0;
 }

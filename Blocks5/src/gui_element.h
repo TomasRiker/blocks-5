@@ -1,7 +1,7 @@
 #ifndef _GUIELEMENT_H
 #define _GUIELEMENT_H
 
-/*** Klasse für ein GUI-Element ***/
+/*** Klasse fuer ein GUI-Element ***/
 
 #include "gui.h"
 #include "font.h"
@@ -27,6 +27,13 @@ public:
 	virtual void onRenderEnd();
 	virtual void onUpdate();
 
+	// Jedes Element kann auf ein anderes zeigen (for="Name") - so wie
+	// <label for="..."> es im Browser tut. Bei einer Checkbox oder einem
+	// Radioknopf schaltet ein Klick auf das Element den Knopf um, bei allem
+	// anderen - Eingabefeldern vor allem - setzt er den Fokus dorthin. Das ist
+	// nichts, was nur eine Beschriftung koennte: die Sprachflaggen in
+	// options.xml sind <StaticImage> und gehoeren genauso zu ihrem Radioknopf
+	// wie das Wort daneben.
 	virtual void onMouseDown(const Vec2i& position, int buttons);
 	virtual void onMouseUp(const Vec2i& position, int buttons);
 	virtual void onMouseEnter(int buttons);
@@ -38,6 +45,12 @@ public:
 	virtual std::string getType() const;
 
 	GUI_Element* getElementAt(const Vec2i& position);
+	// Was als "getroffen" gilt. Standard ist das eigene Rechteck; Checkbox und
+	// Radioknopf zeichnen ihre Beschriftung rechts daneben und nehmen sie mit
+	// dazu, damit ein Klick auf den Text genauso zaehlt wie einer auf das
+	// Kaestchen - so wie <label> im Browser. Nicht const: die Breite der
+	// Beschriftung wird dafuer gemessen.
+	virtual bool containsPoint(const Vec2i& position);
 	void bringToFront();
 	bool isFocused();
 	bool isFocusedIndirectly();
@@ -78,13 +91,20 @@ public:
 	void setToolTipOnly(bool toolTipOnly);
 	int getTabStop() const;
 	void setTabStop(int tabStop);
+	INLINE_GETTER(std::string, getLinkedElement, linkedElement);
+	INLINE_SETTER(std::string, setLinkedElement, linkedElement);
 
 	static uint numElementsRendered;
 
 protected:
 	bool useSkin() const;
 
+	// Das verknuepfte Element, relativ zum eigenen Elternelement gesucht.
+	// 0, wenn nichts verknuepft ist oder der Name ins Leere zeigt.
+	GUI_Element* getLinkedTarget();
+
 	std::string name;
+	std::string linkedElement;
 	GUI_Element* p_parent;
 	std::list<GUI_Element*> children;
 	Vec2i position;

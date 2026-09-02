@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Giftgas ***/
+/*** Klasse fuer Giftgas ***/
 
 class SoundInstance;
 

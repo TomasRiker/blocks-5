@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für den Empfänger einer Lichtschranke ***/
+/*** Klasse fuer den Empfaenger einer Lichtschranke ***/
 
 class E_LightBarrierReceiver : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_LightBarrierReceiver();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void frameBegin();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);

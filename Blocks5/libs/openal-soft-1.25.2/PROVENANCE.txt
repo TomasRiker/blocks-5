@@ -1,0 +1,69 @@
+OpenAL Soft 1.25.2
+==================
+
+Replaces the Creative OpenAL 1.1 SDK headers that used to live in
+libs/OpenAL-1.1, and the router-based deployment that installed Creative's
+OpenAL runtime system-wide from oalinst.exe. OpenAL Soft is the maintained
+implementation; Creative's has not been updated since 2009.
+
+Taken verbatim from the official binary distribution:
+
+  https://github.com/kcat/openal-soft/releases/download/1.25.2/openal-soft-1.25.2-bin.zip
+  sha256  67a0c4b800bd860c93c04f38caf8cbe4875f9c84700ac430efc451f70e265434
+
+Nothing here is patched, and that has been checked rather than asserted: all six
+headers are byte-identical to the 1.25.2 tag in kcat/openal-soft. The sha256 sums
+below are of the files as extracted from the binary zip, so they pin the
+distribution as well as the source.
+
+What was taken, and where it went:
+
+  include/AL/*.h          <- include/AL/*.h
+  ../bin/OpenAL32.lib     <- libs/Win32/OpenAL32.lib
+  ../../OpenAL32.dll      <- bin/Win32/soft_oal.dll   (renamed)
+
+  sha256 of the files as extracted from the zip:
+    c239b51b32ec10214c3e0a3678876795133150909001ee6cc338d89993ea3c14  include/AL/al.h
+    41c0ab1cbab67aa95e791d875ff3c744210ce441b6d7658dbcd1090c69c8bf10  include/AL/alc.h
+    aaefb57565e53e550d3f827b54bbe0960649daf79805cbb9de86a65081dfa4b5  include/AL/alext.h
+    572bab7fc8c7df1a4519cf0f01acbd6a55b5c75dc5d815f4f85bd46ff0a789e0  include/AL/efx-creative.h
+    13e03f2d05c3b86715f9c5003cc83f80e852f0ec5ea29d45372483366ef6b617  include/AL/efx-presets.h
+    0bf640937082c652db7bdcbb8c4f47dcd106cfcb17a4e814d898ac505f642101  include/AL/efx.h
+    b5f11330c8d5b424c0a7c61732197972d7dd30ae7489311018accf4e230ff1cc  libs/Win32/OpenAL32.lib
+    606cf8b4c22c7ae00813585279ac045115907bc66d1483eb26355907021ea4b0  bin/Win32/soft_oal.dll
+
+Two files from that zip are deliberately NOT used:
+
+  router/Win32/OpenAL32.dll   the OpenAL router, which dispatches to whatever
+                              implementations are installed on the machine. The
+                              game ships one implementation next to the exe and
+                              wants exactly that one; the app directory comes
+                              before system32 in the DLL search order, so
+                              soft_oal.dll renamed to OpenAL32.dll is found
+                              first and the system installation is bypassed.
+                              This is the arrangement the distribution's own
+                              readme.txt describes for that case.
+
+  bin/Win64, libs/Win64       the game is Win32 only.
+
+Licensing
+---------
+The headers are public domain (Unlicense) - see the notice at the top of each
+one - so vendoring them carries no obligation.
+
+The DLL is LGPL v2 (COPYING). It is linked dynamically through the import
+library and shipped as a separate file that the user can replace with another
+build of OpenAL Soft, which is what section 6 of that licence asks for. Do not
+link it statically.
+
+Rebuilding
+----------
+Not part of Build.bat: OpenAL Soft needs CMake and is a large C++ project of
+its own. To replace it, download the next -bin.zip from the releases page above
+and repeat the three copies listed here.
+
+The import library carries no /FAILIFMISMATCH or /DEFAULTLIB directive, so it
+does not pin the toolset - unlike libs/bin/tinyxml_STL.lib, which held the whole
+tree at v120 for a decade. soft_oal.dll imports only AVRT, KERNEL32, msvcrt,
+ole32, SHELL32, USER32 and WINMM, so it needs no Visual C++ redistributable of
+its own.

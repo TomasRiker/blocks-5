@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Augen (in Wänden), die sich in Gegner verwandeln ***/
+/*** Klasse fuer Augen (in Waenden), die sich in Gegner verwandeln ***/
 
 class Eye : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Eye();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

@@ -1,11 +1,12 @@
 #ifndef _SOUND_H
 #define _SOUND_H
 
-/*** Klasse für einen Sound ***/
+/*** Klasse fuer einen Sound ***/
 
 #include "resource.h"
 
 class AudioStream;
+class SoundInstance;
 
 class Sound : public Resource<Sound>
 {

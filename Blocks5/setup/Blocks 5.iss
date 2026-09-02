@@ -3,56 +3,47 @@
 
 [Setup]
 AppName=Blocks 5
-AppVersion=1.1.2
+AppVersion=1.2.0
 AppPublisher=Scherfgen-Software
-AppPublisherURL=http://www.scherfgen-software.net/blocks5/
-AppSupportURL=http://www.scherfgen-software.net/blocks5/
-AppUpdatesURL=http://www.scherfgen-software.net/blocks5/
-DefaultDirName={pf}\Blocks 5
+AppPublisherURL=https://www.david-scherfgen.de/
+AppSupportURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
+AppUpdatesURL=https://www.david-scherfgen.de/meine-spiele/blocks-5/
+DefaultDirName={autopf}\Blocks 5
 DefaultGroupName=Blocks 5
 AllowNoIcons=yes
-OutputBaseFilename=blocks-5-1.1.2-setup
+OutputBaseFilename=blocks-5-1.2.0-setup
 SetupIconFile=setupicon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 UninstallFilesDir={app}\uninst
 UninstallDisplayIcon={app}\blocks5.exe
+WizardStyle=modern dynamic
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [CustomMessages]
-english.InstallingVC2013Runtime=Installing Visual C++ 2013 Runtime Libraries ...
-english.InstallingOpenAL11=Installing OpenAL 1.1 ...
 english.Configuring=Configuring Blocks 5 ...
 english.ShowReadme=Show readme file
 english.ShowUserDirectory=Show user directory (screenshots, videos, levels)
 english.WindowedMode=Blocks 5 (windowed mode)
-english.HQ2XMode=Blocks 5 (HQ2X mode - only for fast computers)
 english.VisitBlocks5Website=Visit Blocks 5 Website
+english.VisitScherfgenWebsite=Visit Scherfgen-Software Website
 english.UninstallBlocks5=Uninstall Blocks 5
-english.InstallVC2013Runtime=Install Visual C++ 2013 Runtime (game may not work without it)
-english.InstallOpenAL11=Install OpenAL 1.1 (game may not work without it)
 english.EnableUpdateChecker=When launching the game, automatically check for updates
-english.ConfigID=en
-german.InstallingVC2013Runtime=Installiere Visual C++ 2013-Laufzeitbibliotheken ...
-german.InstallingOpenAL11=Installiere OpenAL 1.1 ...
 german.Configuring=Konfiguriere Blocks 5 ...
 german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
 german.WindowedMode=Blocks 5 (Fenstermodus)
-german.HQ2XMode=Blocks 5 (HQ2X-Modus - nur für schnelle Computer)
 german.VisitBlocks5Website=Blocks 5-Webseite besuchen
+german.VisitScherfgenWebsite=Scherfgen-Software-Webseite besuchen
 german.UninstallBlocks5=Blocks 5 deinstallieren
-german.InstallVC2013Runtime=Visual C++ 2013-Laufzeitbibliotheken installieren (Spiel funktioniert sonst möglicherweise nicht)
-german.InstallOpenAL11=OpenAL 1.1 installieren (Spiel funktioniert sonst möglicherweise nicht)
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
-german.ConfigID=de
 
 [Tasks]
-Name: "InstallVC2013Runtime"; Description: "{cm:InstallVC2013Runtime}"
-Name: "InstallOpenAL11"; Description: "{cm:InstallOpenAL11}"
 Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
@@ -66,23 +57,13 @@ Name: "{group}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"
 Name: "{group}\{cm:ShowReadme}"; Filename: "{app}\readme.txt"
 Name: "{group}\{cm:ShowUserDirectory}"; Filename: "{app}\showuserdir.exe"
 Name: "{group}\{cm:WindowedMode}"; Filename: "{app}\blocks5.exe"; Parameters: "-windowed"; WorkingDir: "{app}"
-Name: "{group}\{cm:HQ2XMode}"; Filename: "{app}\blocks5.exe"; Parameters: "-hq2x"; WorkingDir: "{app}"
 Name: "{group}\{cm:VisitBlocks5Website}"; Filename: "{app}\Blocks 5 Website.url"; WorkingDir: "{app}"
+Name: "{group}\{cm:VisitScherfgenWebsite}"; Filename: "{app}\Scherfgen-Software Website.url"; WorkingDir: "{app}"
 Name: "{group}\{cm:UninstallBlocks5}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"; Tasks: CreateDesktopIcon
 
 [Run]
-Filename: "{app}\vcredist_x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "{cm:InstallingVC2013Runtime}"; Tasks: InstallVC2013Runtime
-Filename: "{app}\oalinst.exe"; Parameters: "-s"; StatusMsg: "{cm:InstallingOpenAL11}"; Tasks: InstallOpenAL11
-Filename: "{app}\makeconfig.bat"; Parameters: "{cm:ConfigID}"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_disable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
 Filename: "{app}\update_checker_enable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden; Tasks: EnableUpdateChecker
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
-; Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
-
-
-
-
-
-
-
+Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent

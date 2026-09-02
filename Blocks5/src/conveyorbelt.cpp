@@ -60,15 +60,16 @@ void ConveyorBelt::onRemove()
 	}
 }
 
+void ConveyorBelt::updateSprites()
+{
+	// Fliessband
+	sprites.add(Vec2i((anim / 2 % 7) * 32, 32)).mirrorX = dir == -1;
+}
+
 void ConveyorBelt::onRender(int layer,
 							const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Flieﬂband rendern
-		Vec2i positionOnTexture((anim / 2 % 7) * 32, 32);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, dir == -1);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void ConveyorBelt::onUpdate()
@@ -77,7 +78,7 @@ void ConveyorBelt::onUpdate()
 
 	if(level.isElectricityOn())
 	{
-		// Befindet sich ein Objekt auf dem Flieﬂband?
+		// Befindet sich ein Objekt auf dem Fliessband?
 		Object* p_obj = level.getFrontObjectAt(position - Vec2i(0, 1));
 		if(p_obj)
 		{

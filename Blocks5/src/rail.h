@@ -1,7 +1,7 @@
 #ifndef _RAIL_H
 #define _RAIL_H
 
-/*** Klasse für eine Schiene ***/
+/*** Klasse fuer eine Schiene ***/
 
 #include "object.h"
 
@@ -14,6 +14,7 @@ public:
 	~Rail();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

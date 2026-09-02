@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen statischen 1- oder 0-Wert ***/
+/*** Klasse fuer einen statischen 1- oder 0-Wert ***/
 
 class E_Value : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_Value();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	std::string getToolTip() const;
 	bool changeInEditor(int mod);

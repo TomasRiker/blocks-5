@@ -14,15 +14,16 @@ ElectricityPanel::~ElectricityPanel()
 {
 }
 
+void ElectricityPanel::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(subType ? 32 : 0, 288));
+}
+
 void ElectricityPanel::onRender(int layer,
 								const Vec4d& color)
 {
-	Vec2i positionOnTexture(subType ? 32 : 0, 288);
-	if(layer == 0)
-	{
-		// Schalter rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 }
 
 bool ElectricityPanel::changeInEditor(int mod)

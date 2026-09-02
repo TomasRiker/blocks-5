@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen Block-Detektor ***/
+/*** Klasse fuer einen Block-Detektor ***/
 
 class E_BlockDetector : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_BlockDetector();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();
 };

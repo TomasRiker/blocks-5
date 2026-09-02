@@ -130,7 +130,16 @@ typedef struct SDL_SysWMinfo {
 
 #elif defined(SDL_VIDEO_DRIVER_WINDIB) || defined(SDL_VIDEO_DRIVER_DDRAW) || defined(SDL_VIDEO_DRIVER_GAPI)
 #define WIN32_LEAN_AND_MEAN
+/* Local change: windows.h must not be parsed inside begin_code.h's
+   #pragma pack(push,4). Modern Windows SDKs check structure sizes with
+   C_ASSERT, and under 4-byte packing those asserts fail - winnt.h then
+   reports "negative subscript" and a run of __C_ASSERT__ redefinitions.
+   Bracketing the include restores the ambient packing for windows.h and
+   puts it back afterwards, so the SDL structures below are unchanged.
+   See PROVENANCE.txt. */
+#include "close_code.h"
 #include <windows.h>
+#include "begin_code.h"
 
 /** The windows custom event structure */
 struct SDL_SysWMmsg {

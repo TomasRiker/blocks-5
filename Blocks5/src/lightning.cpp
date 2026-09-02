@@ -5,6 +5,10 @@
 
 Lightning::Lightning()
 {
+	// Es gibt noch keinen Blitz. Ohne das skaliert update() bis zum ersten
+	// generate() einen uninitialisierten Wert.
+	alpha = 0.0;
+
 	// Display-Listen generieren
 	listBase = glGenLists(2);
 
@@ -13,7 +17,7 @@ Lightning::Lightning()
 
 Lightning::~Lightning()
 {
-	// Display-Listen löschen
+	// Display-Listen loeschen
 	glDeleteLists(listBase, 2);
 
 	p_lineTexture->release();
@@ -40,7 +44,7 @@ void Lightning::generate()
 
 	branches.push_back(mb);
 
-	// weitere Äste generieren
+	// weitere Aeste generieren
 	int details = Engine::inst().getDetails();
 	int n = random(4, 10 + details);
 	for(int i = 0; i < n; i++)
@@ -63,6 +67,7 @@ void Lightning::generate()
 		}
 	}
 
+#ifndef __EMSCRIPTEN__
 	// vorrendern
 	glNewList(listBase, GL_COMPILE);
 	renderPass(0);
@@ -70,6 +75,7 @@ void Lightning::generate()
 	glNewList(listBase + 1, GL_COMPILE);
 	renderPass(1);
 	glEndList();
+#endif
 }
 
 void Lightning::render()
@@ -78,11 +84,19 @@ void Lightning::render()
 
 	// Pass 0
 	glColor4d(0.4, 0.2, 1.0, 0.2 * alpha);
+#ifdef __EMSCRIPTEN__
+	renderPass(0);   // WebGL kennt keine Display-Listen
+#else
 	glCallList(listBase);
+#endif
 
 	// Pass 1
 	glColor4d(1.0, 1.0, 0.75, 0.85 * alpha);
+#ifdef __EMSCRIPTEN__
+	renderPass(1);
+#else
 	glCallList(listBase + 1);
+#endif
 }
 
 void Lightning::update()
@@ -92,39 +106,53 @@ void Lightning::update()
 
 void Lightning::renderPass(int pass)
 {
+	if(branches.empty()) return;
+
 	p_lineTexture->bind();
 
-	for(uint i = 0; i < branches.size(); i++)
+	// Hauptast
+	const double mainWidth = branchWidth(branches[0], pass);
+	glBegin(GL_QUADS);
+	renderBranch(branches[0], mainWidth);
+	glEnd();
+
+	// Endpunkt des Hauptasts
+	p_lineTexture->unbind();
+	glPointSize(static_cast<float>(mainWidth));
+	glBegin(GL_POINTS);
+	glVertex2dv(branches[0].points.back());
+	glEnd();
+	p_lineTexture->bind();
+
+	// alle uebrigen Aeste in einem einzigen Block
+	glBegin(GL_QUADS);
+	for(uint i = 1; i < branches.size(); i++)
 	{
-		const Branch& branch = branches[i];
-
-		double width;
-		if(pass == 0) width = branch.thickness * 7.5;
-		else width = branch.thickness * 1.5;
-		width = clamp(width, 1.0, 20.0);
-
-		glBegin(GL_QUADS);
-
-		for(uint j = 0; j < branch.points.size() - 1; j++)
-		{
-			drawLine(branch.points[j], branch.points[j + 1], width);
-		}
-
-		glEnd();
-
-		if(i == 0)
-		{
-			p_lineTexture->unbind();
-			const Vec2d& last = branches[0].points.back();
-			glPointSize(static_cast<float>(width));
-			glBegin(GL_POINTS);
-			glVertex2dv(last);
-			glEnd();
-			p_lineTexture->bind();
-		}
+		renderBranch(branches[i], branchWidth(branches[i], pass));
 	}
+	glEnd();
 
 	p_lineTexture->unbind();
+}
+
+double Lightning::branchWidth(const Branch& branch,
+							  int pass) const
+{
+	double width;
+	if(pass == 0) width = branch.thickness * 7.5;
+	else width = branch.thickness * 1.5;
+	// Die Textur hat nur Streifen fuer die Breiten 1 bis 19.
+	return clamp(width, 1.0, 19.0);
+}
+
+void Lightning::renderBranch(const Branch& branch,
+							 double width)
+{
+	LineJoint joint;
+	for(uint j = 0; j + 1 < branch.points.size(); j++)
+	{
+		drawLine(branch.points[j], branch.points[j + 1], width, joint);
+	}
 }
 
 Lightning::Branch Lightning::generateSecondaryBranch(const Branch& b,
@@ -152,11 +180,13 @@ Lightning::Branch Lightning::generateSecondaryBranch(const Branch& b,
 
 void Lightning::drawLine(Vec2d p1,
 						 Vec2d p2,
-						 double width)
+						 double width,
+						 LineJoint& joint)
 {
-	static Vec2d lastEndPoint(-1000.0, -1000.0), lastCorner1, lastCorner2;
-
-	width = clamp(width + 0.5, 1.0, 20.0);
+	// tbl hat 19 Eintraege (Breiten 1 bis 19). Die Textur ist 256 Pixel breit
+	// und hat fuer eine Breite von 20 keinen Platz mehr - vorher wurde hier auf
+	// 20 begrenzt und damit tbl[19] gelesen, also einer ueber das Ende hinaus.
+	width = clamp(width + 0.5, 1.0, 19.0);
 	int w = static_cast<int>(width);
 
 	const int tbl[] = {2, 6, 11, 17, 24, 32, 41, 51, 62, 74, 87, 101, 116, 132, 149, 167, 186, 206, 227};
@@ -167,12 +197,12 @@ void Lightning::drawLine(Vec2d p1,
 
 	int u = tbl[w - 1];
 
-	if(lastEndPoint == p1)
+	if(joint.valid && joint.lastEndPoint == p1)
 	{
 		glTexCoord2i(u, 0);
-		glVertex2dv(lastCorner2);
+		glVertex2dv(joint.lastCorner2);
 		glTexCoord2i(u + w + 2, 0);
-		glVertex2dv(lastCorner1);
+		glVertex2dv(joint.lastCorner1);
 	}
 	else
 	{
@@ -182,12 +212,13 @@ void Lightning::drawLine(Vec2d p1,
 		glVertex2dv(p1 + halfAxis);
 	}
 
-	lastEndPoint = p2;
-	lastCorner1 = p2 + halfAxis;
-	lastCorner2 = p2 - halfAxis;
+	joint.valid = true;
+	joint.lastEndPoint = p2;
+	joint.lastCorner1 = p2 + halfAxis;
+	joint.lastCorner2 = p2 - halfAxis;
 
 	glTexCoord2i(u + w + 2, 16);
-	glVertex2dv(lastCorner1);
+	glVertex2dv(joint.lastCorner1);
 	glTexCoord2i(u, 16);
-	glVertex2dv(lastCorner2);
+	glVertex2dv(joint.lastCorner2);
 }

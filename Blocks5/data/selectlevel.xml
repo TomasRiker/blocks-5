@@ -20,47 +20,52 @@
     <StaticText name="Static3" x="280" y="40">
       <Text>$LS_SELECT_LEVEL</Text>
     </StaticText>
-    <Button name="FirstLevel" x="288" y="305" w="38" h="38">
+    <!-- Die Felder in buttons.png sind 50x50 (kleine Knoepfe) und 80x80
+         (grosse), luecklos gepackt; die Scheibe liegt darin jetzt in beiden
+         Zustaenden mittig. Damit sie auf dem Bildschirm bleibt, wo sie war,
+         ruecken alle x/y um den neuen Rand nach oben links: 9 Pixel bei den
+         kleinen, 8 bei den grossen. -->
+    <Button name="FirstLevel" x="279" y="296" w="50" h="50">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="152" v="0" u2="192" v2="0">buttons.png</Image>
+	<ExtendedStyle inset="9" />
+	<Image u="160" v="0" u2="210" v2="0">buttons.png</Image>
       <ToolTip>$LS_FIRST_LEVEL</ToolTip>
     </Button>
-    <Button name="PreviousLevel" x="328" y="305" w="38" h="38">
+    <Button name="PreviousLevel" x="319" y="296" w="50" h="50">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="152" v="40" u2="192" v2="40">buttons.png</Image>
+	<ExtendedStyle inset="9" />
+	<Image u="160" v="50" u2="210" v2="50">buttons.png</Image>
       <ToolTip>$LS_PREVIOUS_LEVEL</ToolTip>
     </Button>
-    <Button name="PlayLevel" x="408" y="300" w="70" h="70">
+    <Button name="PlayLevel" x="400" y="292" w="80" h="80">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="0" v="432" u2="72" v2="432">buttons.png</Image>
+	<ExtendedStyle inset="8" />
+	<Image u="0" v="480" u2="80" v2="480">buttons.png</Image>
       <ToolTip>$LS_PLAY_LEVEL</ToolTip>
     </Button>
-    <Button name="NextLevel" x="518" y="305" w="38" h="38">
+    <Button name="NextLevel" x="509" y="296" w="50" h="50">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="152" v="80" u2="192" v2="80">buttons.png</Image>
+	<ExtendedStyle inset="9" />
+	<Image u="160" v="100" u2="210" v2="100">buttons.png</Image>
       <ToolTip>$LS_NEXT_LEVEL</ToolTip>
     </Button>
-    <Button name="NextLevelToDo" x="510" y="340" w="38" h="38">
+    <Button name="NextLevelToDo" x="501" y="331" w="50" h="50">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="152" v="160" u2="192" v2="160">buttons.png</Image>
+	<ExtendedStyle inset="9" />
+	<Image u="160" v="200" u2="210" v2="200">buttons.png</Image>
       <ToolTip>$LS_NEXT_LEVEL_TO_DO</ToolTip>
     </Button>
-    <Button name="LastLevel" x="558" y="305" w="38" h="38">
+    <Button name="LastLevel" x="549" y="296" w="50" h="50">
       <Title></Title>
-	<ExtendedStyle />
-	<Image u="152" v="120" u2="192" v2="120">buttons.png</Image>
+	<ExtendedStyle inset="9" />
+	<Image u="160" v="150" u2="210" v2="150">buttons.png</Image>
       <ToolTip>$LS_LAST_LEVEL</ToolTip>
     </Button>
-	<Button name="Quit" x="30" y="400" w="70" h="70">
-		<ExtendedStyle />
+	<Button name="Quit" x="22" y="392" w="80" h="80">
+		<ExtendedStyle inset="8" />
 		<Font>tooltip_font.xml</Font>
 		<Title>$LS_QUIT</Title>
-		<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+		<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 	</Button>
     <StaticText name="Note" x="150" y="425" w="500" h="80">
       <Text />

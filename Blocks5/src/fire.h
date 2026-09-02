@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Feuer ***/
+/*** Klasse fuer Feuer ***/
 
 class Fire : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Fire();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 
 private:

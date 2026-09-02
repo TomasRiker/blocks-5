@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Stromschalter ***/
+/*** Klasse fuer Stromschalter ***/
 
 class ElectricitySwitch : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~ElectricitySwitch();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onTouchedByPlayer(Player* p_player);
 	void onCollision(Object* p_obj);

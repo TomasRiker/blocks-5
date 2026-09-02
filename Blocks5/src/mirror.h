@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Spiegel ***/
+/*** Klasse fuer einen Spiegel ***/
 
 class Mirror : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Mirror();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);
 	bool reflectProjectile(Vec2d& velocity);

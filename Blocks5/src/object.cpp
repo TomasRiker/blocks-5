@@ -16,7 +16,6 @@ Object::Object(Level& level,
 {
 	level.addObject(this);
 	position = shownPosition = Vec2i(0, 0);
-	positionOnTexture = Vec2i(-1, -1);
 	noCollect = 0.0;
 	flags = 0;
 	ghost = false;
@@ -38,6 +37,7 @@ Object::Object(Level& level,
 	uid = 0;
 	fall = 0;
 	lastHashedAt = -1;
+	removed = false;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
@@ -206,7 +206,7 @@ void Object::update()
 		// Objekt aktualisieren
 		onUpdate();
 
-		// Todes-Countdown runterzählen
+		// Todes-Countdown runterzaehlen
 		deathCountDown -= deathSpeed * 0.02;
 		return;
 	}
@@ -312,7 +312,7 @@ void Object::update()
 		shownPosition = shownPosition * (1.0 - i) + Vec2d(position) * i;
 	}
 
-	// Todes-Countdown runterzählen
+	// Todes-Countdown runterzaehlen
 	if(newDeathTime != -1 && level.time >= newDeathTime)
 	{
 		deathCountDown = newDeathCountDown;
@@ -358,7 +358,7 @@ void Object::update()
 			teleporting += 0.02;
 			if(teleporting > 1.0)
 			{
-				// Position verändern
+				// Position veraendern
 				if(level.isFreeAt(teleportingTo))
 				{
 					warpTo(teleportingTo);
@@ -371,7 +371,7 @@ void Object::update()
 					teleportFailed = true;
 					Engine::inst().playSound("teleport_failed.ogg", false, 0.0, 100);
 
-					// glühende Partikel
+					// gluehende Partikel
 					for(int i = 0; i < 100; i++)
 					{
 						p.lifetime = 100;
@@ -421,10 +421,10 @@ void Object::update()
 			// Schienen fallen nicht.
 			else if(flags & OF_RAIL) dontFall = true;
 
-			// Objekte auf Aufzügen fallen nicht.
+			// Objekte auf Aufzuegen fallen nicht.
 			else if(!(flags & OF_ELEVATOR) && (flags & OF_TRANSPORTABLE) && level.getElevatorAt(position)) dontFall = true;
 
-			// Aufzüge auf Schienen fallen nicht.
+			// Aufzuege auf Schienen fallen nicht.
 			else if(flags & OF_ELEVATOR)
 			{
 				Object* p_back = level.getBackObjectAt(position);
@@ -437,7 +437,7 @@ void Object::update()
 			// Objekte, die einen Aufzug knapp verpasst haben, kriegen nochmal eine Chance.
 			else if(flags & OF_TRANSPORTABLE)
 			{
-				// die umgebenden 4 Felder nach Aufzügen absuchen
+				// die umgebenden 4 Felder nach Aufzuegen absuchen
 				std::list<Elevator*> elevators;
 				Elevator* p_elevator = level.getElevatorAt(position + Vec2i(-1, 0)); if(p_elevator) elevators.push_back(p_elevator);
 				p_elevator = level.getElevatorAt(position + Vec2i(1, 0)); if(p_elevator) elevators.push_back(p_elevator);
@@ -458,7 +458,7 @@ void Object::update()
 
 				if(p_closestElevator)
 				{
-					// Ist der nächste Aufzug nah genug?
+					// Ist der naechste Aufzug nah genug?
 					if(closestDist <= 0.5)
 					{
 						Vec2i d = p_closestElevator->getPosition() - position;
@@ -543,7 +543,7 @@ void Object::onExplosion()
 {
 	if(flags & OF_DESTROYABLE)
 	{
-		// Objekt zerstören
+		// Objekt zerstoeren
 		disappear(0.2);
 	}
 }
@@ -559,7 +559,7 @@ bool Object::move(const Vec2i& dir,
 
 	if(dir.x && !dir.y && isPushedFromAbove() && level.isElectricityOn())
 	{
-		// Liegt das Objekt auf einem Fließband?
+		// Liegt das Objekt auf einem Fliessband?
 		Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -568,7 +568,7 @@ bool Object::move(const Vec2i& dir,
 				ConveyorBelt* p_cb = reinterpret_cast<ConveyorBelt*>(p_obj);
 				if(p_cb->getDir() != dir.x)
 				{
-					// Schieben gegen Fließbandrichtung nicht erlaubt!
+					// Schieben gegen Fliessbandrichtung nicht erlaubt!
 					return false;
 				}
 			}
@@ -608,7 +608,7 @@ bool Object::move(const Vec2i& dir,
 			{
 				if(p_obj->isPushedFromAbove() && dir.y < 0)
 				{
-					// Nach oben schieben geht nicht, wenn das Objekt nach unten gedrückt wird!
+					// Nach oben schieben geht nicht, wenn das Objekt nach unten gedrueckt wird!
 				}
 				else
 				{
@@ -634,10 +634,10 @@ bool Object::move(const Vec2i& dir,
 
 			if(!moved && !dir.x && dir.y == 1)
 			{
-				// Wird das Objekt mit extremer Kraft gedrückt?
+				// Wird das Objekt mit extremer Kraft gedrueckt?
 				if(isPushedWithDeadlyWeight())
 				{
-					// Ist unter dem "tödlichen" Objekt ein Objekt?
+					// Ist unter dem "toedlichen" Objekt ein Objekt?
 					Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 					if(p_obj)
 					{
@@ -684,7 +684,7 @@ bool Object::move(const Vec2i& dir,
 	// Wurde das Objekt zur Seite bewegt?
 	if(moved && dir.x && !dir.y)
 	{
-		// Befindet sich über diesem Objekt ein anderes (Stapel)?
+		// Befindet sich ueber diesem Objekt ein anderes (Stapel)?
 		Object* p_obj = level.getFrontObjectAt(oldPosition - Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -700,7 +700,7 @@ bool Object::move(const Vec2i& dir,
 	// Ist dieses Objekt ein Aufzug?
 	if(moved && (flags & OF_ELEVATOR))
 	{
-		// Alle Objekte darüber müssen mitbewegt werden.
+		// Alle Objekte darueber muessen mitbewegt werden.
 		std::vector<Object*> objectsOnMe = level.getObjectsAt(position - dir);
 		for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
 		{
@@ -733,7 +733,7 @@ bool Object::move(const Vec2i& dir,
 
 		if(dir.y > 0)
 		{
-			// Das Objekt fällt.
+			// Das Objekt faellt.
 			fall = 1;
 		}
 
@@ -809,17 +809,28 @@ void Object::burst()
 	Engine::inst().playSound(burstSound, false, 0.1, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
-	for(int i = 0; i < 75; i++)
+	const Sprites& sprites = getSprites();
+	const int numTries = sprites.getTryCount(75);
+	for(int i = 0; i < numTries; i++)
 	{
 		p.lifetime = random(20, 50);
 		p.damping = 0.85f;
 		p.gravity = 0.1f;
 		p.positionOnTexture = Vec2b(96, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
-		p.position = position * 16 + Vec2i(8, 8) + Vec2i(random(-4, 4), random(-4, 4));
+		// Farbe und Stelle aus dem Bild ziehen. Trifft der Wurf eine
+		// durchsichtige Stelle, entsteht kein Partikel - so wirft ein kleines
+		// Objekt weniger Truemmer als ein grosses, ohne dass das irgendwo
+		// eingestellt werden muesste. Die Stelle wird auch als Startpunkt
+		// benutzt, damit die Wolke die Form des Objekts behaelt.
+		Vec4d sampled;
+		Vec2i offset;
+		if(!sprites.sample(&sampled, &offset)) continue;
+
+		p.position = position * 16 + offset;
 		const double r = random(0.0, 6.283);
 		p.velocity = random(2.0, 5.0) * Vec2d(sin(r), cos(r));
-		p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.5);
+		p.color = sampled + Vec4d(0.0, 0.0, 0.0, 0.5);
 		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
@@ -851,11 +862,13 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	const char* p_temp;
-	p_temp = p_element->Attribute("shownPositionX");
-	if(p_temp) sscanf(p_temp, "%f", &shownPosition.x);
-	p_temp = p_element->Attribute("shownPositionY");
-	if(p_temp) sscanf(p_temp, "%f", &shownPosition.y);
+	// %f in sscanf schreibt einen float, shownPosition ist aber ein Vec2d: das
+	// ueberschreibt vier von acht Bytes und laesst die anderen stehen. Derselbe
+	// Fehler wie in cannon.cpp; MSVC meldet ihn als C4477. QueryDoubleAttribute
+	// liest den double richtig und laesst den Wert in Ruhe, wenn das Attribut
+	// fehlt.
+	p_element->QueryDoubleAttribute("shownPositionX", &shownPosition.x);
+	p_element->QueryDoubleAttribute("shownPositionY", &shownPosition.y);
 }
 
 void Object::frameBegin()
@@ -1073,14 +1086,26 @@ bool Object::isFalling() const
 	return falling > 0.0;
 }
 
-const Vec4d& Object::getDebrisColor() const
+void Object::onBeforeRender()
 {
-	return debrisColor;
+	rebuildSprites();
 }
 
-void Object::setDebrisColor(const Vec4d& debrisColor)
+void Object::updateSprites()
 {
-	this->debrisColor = debrisColor;
+}
+
+const Sprites& Object::getSprites()
+{
+	rebuildSprites();
+	return sprites;
+}
+
+void Object::rebuildSprites()
+{
+	sprites.clear();
+	sprites.setTexture(level.getSpritesTexture());
+	updateSprites();
 }
 
 uint Object::getMass() const

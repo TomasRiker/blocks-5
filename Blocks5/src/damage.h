@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für verbrannten Boden ***/
+/*** Klasse fuer verbrannten Boden ***/
 
 class Damage : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Damage();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void saveAttributes(TiXmlElement* p_target);
 

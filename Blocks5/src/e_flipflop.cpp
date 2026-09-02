@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "E_FlipFlop.h"
+#include "e_flipflop.h"
 #include "engine.h"
 
 E_FlipFlop::E_FlipFlop(Level& level,
@@ -34,16 +34,17 @@ E_FlipFlop::~E_FlipFlop()
 {
 }
 
+void E_FlipFlop::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(64 * subType + 32 * value, 544)).rotation = 90.0 * dir;
+}
+
 void E_FlipFlop::onRender(int layer,
 						  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Vec2i t(64 * subType + 32 * value, 544);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_FlipFlop::saveAttributes(TiXmlElement* p_target)
@@ -56,9 +57,14 @@ void E_FlipFlop::saveAttributes(TiXmlElement* p_target)
 
 std::string E_FlipFlop::getToolTip() const
 {
-	char* p_str[] = {"$TT_FLIP_FLOP_RS",
-					 "$TT_FLIP_FLOP_D",
-					 "$TT_FLIP_FLOP_JK"};
+	// Siehe e_gate.cpp: Stringliteral an char* ist seit C++11 nicht mehr
+	// erlaubt, und subType kommt ungeprueft aus der Leveldatei.
+	static const char* const p_str[] = {"$TT_FLIP_FLOP_RS",
+										"$TT_FLIP_FLOP_D",
+										"$TT_FLIP_FLOP_JK"};
+
+	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
+		return p_str[0];
 
 	return p_str[subType];
 }

@@ -17,15 +17,17 @@ E_ValueSwitch::~E_ValueSwitch()
 {
 }
 
+void E_ValueSwitch::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(96 + 32 * value, 576)).rotation = 90.0 * dir;
+}
+
 void E_ValueSwitch::onRender(int layer,
 							 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(96 + 32 * value, 576), Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_ValueSwitch::saveAttributes(TiXmlElement* p_target)

@@ -1,7 +1,7 @@
 #ifndef _GUI_WINDOW_H
 #define _GUI_WINDOW_H
 
-/*** Klasse für ein Fenster ***/
+/*** Klasse fuer ein Fenster ***/
 
 #include "gui_element.h"
 

@@ -4,41 +4,65 @@
 		<StaticText name="Version" x="5" y="5">
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<Button name="StartGame" x="20" y="105" w="70" h="70">
-			<ExtendedStyle />
+		<!-- Die Felder in buttons.png sind 80x80 (grosse Knoepfe) und 50x50
+		     (kleine), luecklos gepackt: Spalte 0 ungedrueckt, Spalte 80 bzw.
+		     210 gedrueckt. Die Scheibe selbst ist unveraendert 64 bzw. 32
+		     Pixel gross und liegt jetzt in *beiden* Zustaenden mittig im
+		     Feld - vorher sass sie ungedrueckt in der linken oberen Ecke und
+		     nur gedrueckt mittig. Deshalb reagierte ein Knopf von links
+		     frueher auf die Maus als von rechts, und ein zu grosses Bild
+		     ragte ins Nachbarfeld. Damit die Scheibe an derselben Stelle auf
+		     dem Bildschirm bleibt, ruecken alle x/y um den neuen Rand nach
+		     oben links: 8 Pixel bei den grossen, 9 bei den kleinen. -->
+		<Button name="StartGame" x="12" y="97" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_START_GAME</Title>
-			<Image u="0" v="0" u2="72" v2="0">buttons.png</Image>
+			<Image u="0" v="0" u2="80" v2="0">buttons.png</Image>
 		</Button>
-		<Button name="LevelEditor" x="105" y="90" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="LevelEditor" x="97" y="82" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_LEVEL_EDITOR</Title>
-			<Image u="0" v="72" u2="72" v2="72">buttons.png</Image>
+			<Image u="0" v="80" u2="80" v2="80">buttons.png</Image>
 		</Button>
-		<Button name="CampaignEditor" x="190" y="85" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="CampaignEditor" x="182" y="77" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_CAMPAIGN_EDITOR</Title>
-			<Image u="0" v="144" u2="72" v2="144">buttons.png</Image>
+			<Image u="0" v="160" u2="80" v2="160">buttons.png</Image>
 		</Button>
-		<Button name="Options" x="470" y="60" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Manager" x="267" y="67" w="80" h="80">
+			<ExtendedStyle inset="8" />
+			<Font>tooltip_font.xml</Font>
+			<Title>$MM_MANAGE</Title>
+			<Image u="0" v="560" u2="80" v2="560">buttons.png</Image>
+		</Button>
+		<Button name="Options" x="462" y="52" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$OPTIONS</Title>
-			<Image u="0" v="216" u2="72" v2="216">buttons.png</Image>
+			<Image u="0" v="240" u2="80" v2="240">buttons.png</Image>
 		</Button>
-		<Button name="Help" x="550" y="90" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Help" x="542" y="82" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$HELP</Title>
-			<Image u="0" v="288" u2="72" v2="288">buttons.png</Image>
+			<Image u="0" v="320" u2="80" v2="320">buttons.png</Image>
 		</Button>
-		<Button name="Quit" x="555" y="385" w="70" h="70">
-			<ExtendedStyle />
+		<Button name="Quit" x="547" y="377" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
-			<Image u="0" v="360" u2="72" v2="360">buttons.png</Image>
+			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
+		</Button>
+		<!-- Die Adresse oben rechts gehoert zu menu.png und ist damit kein
+		     eigenes Element. Dieser Knopf liegt nur darueber: ExtendedStyle
+		     ohne Bild und ohne Titel zeichnet nichts. Gemessen im fertigen
+		     Bild - der Text steht bei x 474..636, y 8..22. -->
+		<Button name="Website" x="470" y="4" w="170" h="22">
+			<ExtendedStyle />
+			<Title></Title>
 		</Button>
 		<Button name="Donate" x="330" y="5" w="100" h="43">
 			<ExtendedStyle />
@@ -60,6 +84,110 @@
 				</Button>
 				<Button name="Donate" x="310" y="260" w="80" h="30">
 					<Title>$MM_DONATE_DONATE</Title>
+				</Button>
+			</Window>
+		</Element>
+
+		<!-- Der Manager. Die Art waehlt man mit vier Knopf-Radios, die Sache
+		     selbst aus der Liste darunter; die Liste wird bei jedem Wechsel
+		     der Art neu eingelesen, und "Aktualisieren" liest sie noch einmal
+		     ein, falls sich nebenher etwas geaendert hat.
+		     Die vier Knoepfe unten stehen genau in den Spalten der vier
+		     Radios darueber - 92 Pixel reichen fuer jede der acht
+		     Beschriftungen, die laengste misst 66. Einspielen braucht keine
+		     Auswahl und steht deshalb zuerst; Ausgeben und Loeschen arbeiten
+		     an der Auswahl und schalten sich ab, wenn keine da ist. -->
+		<Element name="ManagerPane" w="640" h="480">
+			<Hidden />
+			<Fill r="0" g="0" b="0" a="0.5" />
+			<Window name="Manager" w="400" h="320">
+				<Title>$TR_MANAGER_TITLE</Title>
+				<Center />
+				<StaticText name="What" x="10" y="30">
+					<Text>$TR_MANAGER_WHAT</Text>
+				</StaticText>
+				<RadioButton name="KindLevel" x="10" y="52" w="92" h="24">
+					<Title>$TR_KIND_LEVEL</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<RadioButton name="KindCampaign" x="106" y="52" w="92" h="24">
+					<Title>$TR_KIND_CAMPAIGN</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<RadioButton name="KindMusic" x="202" y="52" w="92" h="24">
+					<Title>$TR_KIND_MUSIC</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<RadioButton name="KindSkin" x="298" y="52" w="92" h="24">
+					<Title>$TR_KIND_SKIN</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<ListBox name="Items" x="10" y="88" w="284" h="182">
+					<SubmitButton>Export</SubmitButton>
+				</ListBox>
+				<Button name="Refresh" x="298" y="88" w="92" h="24">
+					<Title>$TR_REFRESH</Title>
+					<Font>tooltip_font.xml</Font>
+				</Button>
+				<Button name="Import" x="10" y="280" w="92" h="30">
+					<Title>$TR_IMPORT_DO</Title>
+				</Button>
+				<Button name="Export" x="106" y="280" w="92" h="30">
+					<Title>$TR_EXPORT_DO</Title>
+				</Button>
+				<Button name="Delete" x="202" y="280" w="92" h="30">
+					<Title>$TR_DELETE_DO</Title>
+				</Button>
+				<Button name="Close" x="298" y="280" w="92" h="30">
+					<Title>$CLOSE</Title>
+				</Button>
+			</Window>
+		</Element>
+
+		<!-- Die Rueckfrage vors Loeschen: das Einzige, was der Manager tut
+		     und was sich nicht rueckgaengig machen laesst. Sie steht nach
+		     dem Manager, weil das letzte Kind im XML sowohl zuletzt
+		     gezeichnet wird als auch die Klicks bekommt. Ohne eigenes
+		     Abdunkeln - der Manager darunter dunkelt schon ab. -->
+		<Element name="ConfirmPane" w="640" h="480">
+			<Hidden />
+			<Window name="Confirm" w="420" h="120">
+				<Title>$TR_CONFIRM_TITLE</Title>
+				<Center />
+				<StaticText name="Text" x="10" y="30">
+					<Text>$TR_CONFIRM_DELETE</Text>
+				</StaticText>
+				<Button name="Yes" x="10" y="80" w="135" h="30">
+					<Title>$YES</Title>
+				</Button>
+				<Button name="No" x="275" y="80" w="135" h="30">
+					<Title>$NO</Title>
+				</Button>
+			</Window>
+		</Element>
+
+		<!-- Einmalig beim ersten Start von 1.2.0: der Hinweis auf den
+		     CRT-Filter. Wer ihn nie im Optionsdialog sucht, erfaehrt sonst
+		     nicht, dass es ihn gibt. -->
+		<Element name="CrtPane" w="640" h="480">
+			<Hidden />
+			<Fill r="0" g="0" b="0" a="0.5" />
+			<Window name="Crt" w="420" h="220">
+				<Title>$MM_CRT_TITLE</Title>
+				<Center />
+				<StaticText name="Text" x="10" y="30" w="400" h="140">
+					<WordWrap />
+					<Text>$MM_CRT_TEXT</Text>
+				</StaticText>
+				<Button name="NoThanks" x="10" y="180" w="180" h="30">
+					<Title>$MM_CRT_NO_THANKS</Title>
+				</Button>
+				<Button name="TryIt" x="230" y="180" w="180" h="30">
+					<Title>$MM_CRT_TRY</Title>
 				</Button>
 			</Window>
 		</Element>

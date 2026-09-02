@@ -93,7 +93,7 @@ public:
 
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 
-		// Uns interessiert nur, ob eine Taste gedrückt wurde.
+		// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 		if(event.type != SDL_KEYDOWN) return;
 
 		switch(event.keysym.sym)
@@ -136,7 +136,10 @@ public:
 			focus();
 			game.leaveCountDown = 50;
 
-			// TODO: Bug fixen: Wenn man runterfällt und im richtigen Moment F5 drückt (etwas länger warten), ist Player::numInstances an dieser Stelle 0, obwohl der Level neu gestartet wurde!
+			// Der alte Hinweis, Player::numInstances sei hier 0, obwohl der Level
+			// neu gestartet wurde, ist erledigt: clean() hat den schon
+			// abgemeldeten Spieler ein zweites Mal abgemeldet, und der uint lief
+			// unter. Level::removeObject() meldet jetzt nur noch einmal ab.
 		}
 		else if(name == "Game.MenuPane.Menu.RestartFromHotel")
 		{
@@ -243,13 +246,12 @@ void GS_Game::onRender()
 		}
 	}
 
-	std::string title = localizeString(p_level->getTitle());
-
-	if(cameFromEditor) sprintf(text, "%s", title.c_str());
-	else sprintf(text, "%02d - %s", levelNumber + 1, title.c_str());
+	const std::string title = localizeString(p_level->getTitle());
+	const std::string caption = cameFromEditor ? title
+											   : formatLevelCaption(levelNumber + 1, title);
 	Vec2i dim;
-	p_font->measureText(text, &dim, 0);
-	p_font->renderText(text, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
+	p_font->measureText(caption, &dim, 0);
+	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
 
 	if(engine.isKeyDown(SDLK_f))
 	{
@@ -293,7 +295,7 @@ void GS_Game::onUpdate()
 		{
 			if(!switchTimer)
 			{
-				// nächste Spielfigur auswählen
+				// naechste Spielfigur auswaehlen
 				p_level->switchToNextPlayer();
 				switchTimer = 20;
 			}
@@ -340,7 +342,7 @@ void GS_Game::onUpdate()
 
 			if(random(0, 2000 + c) >= 2000)
 			{
-				// Geigerzähler-Geräusch abspielen
+				// Geigerzaehler-Geraeusch abspielen
 				Engine::inst().playSound("geiger.ogg", false, 0.2);
 			}
 		}
@@ -353,12 +355,11 @@ void GS_Game::onUpdate()
 		{
 			// Fortschritt vermerken
 			ProgressDB& db = ProgressDB::inst();
-			bool old = db.wasLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
 			db.setLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
 			db.save();
 		}
 
-		// nächster Level oder zurück zum Menü
+		// naechster Level oder zurueck zum Menue
 		Vec2i targetIn = p_level->getExit()->getShownPositionInPixels() + Vec2i(8, 8);
 		Vec2i targetOut;
 		levelNumber++;
@@ -392,7 +393,7 @@ void GS_Game::onUpdate()
 			}
 			else if(status == -2)
 			{
-				// Der nächste Level ist der Bonus-Level.
+				// Der naechste Level ist der Bonus-Level.
 				Engine::inst().popGameState();
 				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber);
@@ -472,9 +473,10 @@ void GS_Game::onEnter(const ParameterBlock& context)
 		// Level speichern
 		p_originalLevel = p_level->save();
 
-		// Musik abspielen
-		std::string music = p_level->getMusicFilename();
-		Engine::inst().playMusic(music.empty() ? "" : FileSystem::inst().getAppHomeDirectory() + "levels/" + music);
+		// Musik abspielen. Ein loser Level nennt eine Datei neben sich, oder
+		// mit "blocks:" eines der Stuecke der mitgelieferten Kampagne.
+		Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
+														   FileSystem::inst().getAppHomeDirectory() + "levels/"));
 	}
 	else
 	{
@@ -495,7 +497,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 
 void GS_Game::onLeave(const ParameterBlock& context)
 {
-	// Ressourcen löschen
+	// Ressourcen loeschen
 	delete p_level;
 	delete p_originalLevel;
 	delete p_saveGame;
@@ -505,7 +507,7 @@ void GS_Game::onLeave(const ParameterBlock& context)
 	p_saveGame = 0;
 	p_misc = 0;
 
-	// Dialog löschen
+	// Dialog loeschen
 	delete gui["Game"];
 
 	// Musik stoppen
@@ -569,8 +571,10 @@ int GS_Game::loadLevel()
 
 	delete p_oldLevel;
 
-	// Musik abspielen
-	Engine::inst().playMusic(p_level->getMusicFilename().empty() ? "" : p_currentCampaign->getFilename() + pw + "/" + p_level->getMusicFilename());
+	// Musik abspielen - aus dem Archiv der Kampagne, oder aus blocks.zip,
+	// wenn der Level das Stueck mit "blocks:" von dort holt.
+	Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
+														p_currentCampaign->getFilename() + pw + "/"));
 
 	return r ? 1 : 0;
 }

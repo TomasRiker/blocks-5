@@ -1,9 +1,9 @@
 #ifndef _VEC_H
 #define _VEC_H
 
-/*** Allgemeine Vektorklasse für Vektoren über beliebigen Typen mit beliebiger Dimension ***/
+/*** Allgemeine Vektorklasse fuer Vektoren ueber beliebigen Typen mit beliebiger Dimension ***/
 
-// Helfer für das Wurzelziehen
+// Helfer fuer das Wurzelziehen
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
@@ -71,31 +71,31 @@ public:
 	// Initialisierung mit 2 Parametern
 	Vec(T x, T y)
 	{
-		value[0] = x;
-		value[1] = y;
+		this->value[0] = x;
+		this->value[1] = y;
 	}
 
 	// Initialisierung mit 3 Parametern
 	Vec(T x, T y, T z)
 	{
-		value[0] = x;
-		value[1] = y;
-		value[2] = z;
+		this->value[0] = x;
+		this->value[1] = y;
+		this->value[2] = z;
 	}
 
 	// Initialisierung mit 4 Parametern
 	Vec(T x, T y, T z, T w)
 	{
-		value[0] = x;
-		value[1] = y;
-		value[2] = z;
-		value[3] = w;
+		this->value[0] = x;
+		this->value[1] = y;
+		this->value[2] = z;
+		this->value[3] = w;
 	}
 
 	Vec(const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] = rhs.value[i];
+			this->value[i] = rhs.value[i];
 	}
 
 	~Vec()
@@ -109,9 +109,9 @@ public:
 
 	T lengthSq() const
 	{
-		T r = value[0] * value[0];
+		T r = this->value[0] * this->value[0];
 		for(int i = 1; i < DIM; i++)
-			r += value[i] * value[i];
+			r += this->value[i] * this->value[i];
 		return r;
 	}
 
@@ -129,25 +129,25 @@ public:
 	{
 		T zero = static_cast<T>(0);
 		for(int i = 0; i < DIM; i++)
-			if(value[i] != zero) return false;
+			if(this->value[i] != zero) return false;
 		return true;
 	}
 
 	const T& operator [] (unsigned int index) const
 	{
-		return value[index];
+		return this->value[index];
 	}
 
 	T& operator [] (unsigned int index)
 	{
-		return value[index];
+		return this->value[index];
 	}
 
 	Vec<T, DIM> operator + (const Vec<T, DIM>& rhs) const
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] + rhs.value[i];
+			r.value[i] = this->value[i] + rhs.value[i];
 		return r;
 	}
 
@@ -155,7 +155,7 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] - rhs.value[i];
+			r.value[i] = this->value[i] - rhs.value[i];
 		return r;
 	}
 
@@ -163,7 +163,7 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = -value[i];
+			r.value[i] = -this->value[i];
 		return r;
 	}
 
@@ -172,7 +172,7 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] * rhs.value[i];
+			r.value[i] = this->value[i] * rhs.value[i];
 		return r;
 	}
 
@@ -180,7 +180,7 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] * rhs;
+			r.value[i] = this->value[i] * rhs;
 		return r;
 	}
 
@@ -189,7 +189,7 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] / rhs.value[i];
+			r.value[i] = this->value[i] / rhs.value[i];
 		return r;
 	}
 
@@ -197,87 +197,87 @@ public:
 	{
 		Vec<T, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = value[i] / rhs;
+			r.value[i] = this->value[i] / rhs;
 		return r;
 	}
 
 	// Skalarprodukt
 	T operator ^ (const Vec<T, DIM>& rhs) const
 	{
-		T r = value[0] * rhs.value[0];
+		T r = this->value[0] * rhs.value[0];
 		for(int i = 1; i < DIM; i++)
-			r += value[i] * rhs.value[i];
+			r += this->value[i] * rhs.value[i];
 		return r;
 	}
 
-	// Kreuzprodukt (nur sinnvoll für DIM = 3)
-	template<typename T> Vec<T, 3> operator % (const Vec<T, 3>& rhs)
+	// Kreuzprodukt (nur sinnvoll fuer DIM = 3)
+	Vec<T, 3> operator % (const Vec<T, 3>& rhs) const
 	{
-		return Vec<T, 3>(y * rhs.z - z * rhs.y,
-						 z * rhs.x - x * rhs.z,
-						 x * rhs.y - y * rhs.x);
+		return Vec<T, 3>(this->y * rhs.z - this->z * rhs.y,
+						 this->z * rhs.x - this->x * rhs.z,
+						 this->x * rhs.y - this->y * rhs.x);
 	}
 
 	Vec<T, DIM>& operator = (const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] = rhs.value[i];
+			this->value[i] = rhs.value[i];
 		return *this;
 	}
 
 	Vec<T, DIM>& operator += (const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] += rhs.value[i];
+			this->value[i] += rhs.value[i];
 		return *this;
 	}
 
 	Vec<T, DIM>& operator -= (const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] -= rhs.value[i];
+			this->value[i] -= rhs.value[i];
 		return *this;
 	}
 
 	Vec<T, DIM>& operator *= (const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] *= rhs.value[i];
+			this->value[i] *= rhs.value[i];
 		return *this;
 	}
 
 	Vec<T, DIM>& operator *= (T rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] *= rhs;
+			this->value[i] *= rhs;
 		return *this;
 	}
 
 	Vec<T, DIM>& operator /= (const Vec<T, DIM>& rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] /= rhs.value[i];
+			this->value[i] /= rhs.value[i];
 		return *this;
 	}
 
 	Vec<T, DIM>& operator /= (T rhs)
 	{
 		for(int i = 0; i < DIM; i++)
-			value[i] /= rhs;
+			this->value[i] /= rhs;
 		return *this;
 	}
 
 	bool operator == (const Vec<T, DIM>& rhs) const
 	{
 		for(int i = 0; i < DIM; i++)
-			if(value[i] != rhs.value[i]) return false;
+			if(this->value[i] != rhs.value[i]) return false;
 		return true;
 	}
 
 	bool operator != (const Vec<T, DIM>& rhs) const
 	{
 		for(int i = 0; i < DIM; i++)
-			if(value[i] != rhs.value[i]) return true;
+			if(this->value[i] != rhs.value[i]) return true;
 		return false;
 	}
 
@@ -286,18 +286,18 @@ public:
 	{
 		Vec<U, DIM> r;
 		for(int i = 0; i < DIM; i++)
-			r.value[i] = static_cast<U>(value[i]);
+			r.value[i] = static_cast<U>(this->value[i]);
 		return r;
 	}
 
 	operator const T* () const
 	{
-		return value;
+		return this->value;
 	}
 
 	operator T* ()
 	{
-		return value;
+		return this->value;
 	}
 };
 

@@ -2,7 +2,12 @@
 #include "particlesystem.h"
 #include "engine.h"
 #include "texture.h"
+#ifdef __EMSCRIPTEN__
+#define _mm_prefetch(a, h) ((void)0)
+#define _MM_HINT_T1 0
+#else
 #include <xmmintrin.h>
+#endif
 
 ParticleSystem::ParticleSystem(Texture* p_sprites)
 {
@@ -41,7 +46,7 @@ void ParticleSystem::render()
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->position);
-	glTexCoordPointer(2, GL_INT, sizeof(Vertex), &p_vertexBuffer->uv);
+	glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->uv);
 	glColorPointer(4, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->color);
 	Vertex* p_vertex = p_vertexBuffer;
 #else
@@ -118,7 +123,10 @@ void ParticleSystem::render()
 #endif
 }
 
-#define PROFILE_PARTICLESYSTEM_UPDATE
+// Aus wie alle anderen PROFILE_-Schalter im Baum. Angeschaltet schreibt jeder
+// Durchgang mit mehr als 1000 Partikeln eine Zeile ins Protokoll und auf die
+// Konsole - im Spiel also fortwaehrend.
+// #define PROFILE_PARTICLESYSTEM_UPDATE
 #define PREFETCH_UPDATE
 
 void ParticleSystem::update()
@@ -149,7 +157,7 @@ void ParticleSystem::update()
 		p.size += p.deltaSize;
 		--p.lifetime;
 
-		// alte und zu kleine Partikel löschen
+		// alte und zu kleine Partikel loeschen
 		if(!p.lifetime || p.size <= 0.0f) i = particles.erase(i);
 		else
 		{

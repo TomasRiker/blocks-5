@@ -14,12 +14,36 @@
     <Filter Include="MiniZip">
       <UniqueIdentifier>{c87f76a3-8db8-4505-b5b2-b5c6183eecae}</UniqueIdentifier>
     </Filter>
+    <Filter Include="zlib">
+      <UniqueIdentifier>{5c1a8f37-6d24-4b09-a3e8-7f20c4b691ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libogg">
+      <UniqueIdentifier>{a4d17e92-8b30-4f61-95c7-2e6d0a3b84f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libvorbis">
+      <UniqueIdentifier>{6e93b2c8-1a47-4d05-8f3b-c72e91d40a6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="TinyXML">
+      <UniqueIdentifier>{7f2c9a41-3e6d-4b58-9c1a-0d5e8b3f6a24}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minih264">
+      <UniqueIdentifier>{7c1e4a92-5f30-4b8d-9a61-3d20e8f4c517}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minimp4">
+      <UniqueIdentifier>{b93f0d4e-2a71-4c68-8e05-6f1a94d3b820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shine">
+      <UniqueIdentifier>{4e8a2c60-91d5-47f3-b214-0c7e56a9d1f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDL">
+      <UniqueIdentifier>{2b6e91d5-47a8-4c30-b1f7-9e4a0c85d312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\campaign.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="src\debriscolordb.cpp">
+    <ClCompile Include="src\sprite.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="src\gs_campaigneditor.cpp">
@@ -235,6 +259,9 @@
     <ClCompile Include="src\as_wav.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\audiocapture.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\audiostream.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -266,6 +293,9 @@
       <Filter>Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\engine.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\glextensions.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\file.cpp">
@@ -322,7 +352,7 @@
     <ClCompile Include="src\gui_window.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="src\hq2x.cpp">
+    <ClCompile Include="src\img_load.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\linedrawer.cpp">
@@ -346,22 +376,376 @@
     <ClCompile Include="src\texture.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\transfer.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\util.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\videorecorder.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\unzip.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\unzip.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\zip.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\zip.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\ioapi.c">
+    <ClCompile Include="libs\minih264\minih264e_impl.c">
+      <Filter>minih264</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\minimp4\minimp4_impl.c">
+      <Filter>minimp4</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\bitstream.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\huffman.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\l3bitstream.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\l3loop.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\l3mdct.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\l3subband.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\layer3.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\reservoir.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\shine\tables.c">
+      <Filter>shine</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\SDL.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\SDL_error.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\SDL_fatal.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audio.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audiocvt.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer_MMX_VC.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_wave.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\disk\SDL_diskaudio.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\dummy\SDL_dummyaudio.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\windib\SDL_dibaudio.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\audio\windx5\SDL_dx5audio.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\SDL_cdrom.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\win32\SDL_syscdrom.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\cpuinfo\SDL_cpuinfo.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_active.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_events.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_expose.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_keyboard.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_mouse.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_quit.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_resize.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\file\SDL_rwops.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\joystick\SDL_joystick.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\joystick\win32\SDL_mmjoystick.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\loadso\win32\SDL_sysloadso.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_getenv.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_iconv.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_malloc.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_qsort.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_stdlib.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_string.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\thread\SDL_thread.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\thread\generic\SDL_syscond.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_sysmutex.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_syssem.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_systhread.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\timer\SDL_timer.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\timer\win32\SDL_systimer.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_RLEaccel.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_0.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_1.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_A.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_N.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_bmp.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_cursor.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_gamma.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_pixels.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_stretch.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_surface.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_video.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv_sw.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullevents.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullmouse.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullvideo.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysevents.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysmouse.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_syswm.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_wingl.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibevents.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibvideo.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5events.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5video.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5yuv.c">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinystr.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxml.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxmlerror.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\tinyxml-2.6.2\tinyxmlparser.cpp">
+      <Filter>TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libogg-1.3.2\src\bitwise.c">
+      <Filter>libogg</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libogg-1.3.2\src\framing.c">
+      <Filter>libogg</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\analysis.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\bitrate.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\block.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\codebook.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\envelope.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\floor0.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\floor1.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\info.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\lookup.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\lpc.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\lsp.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\mapping0.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\mdct.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\psy.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\registry.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\res0.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\sharedbook.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\smallft.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\synthesis.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\vorbisenc.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\vorbisfile.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\libvorbis-1.3.4\lib\window.c">
+      <Filter>libvorbis</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\adler32.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\compress.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\crc32.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\deflate.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\infback.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inffast.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inflate.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\inftrees.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\trees.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\uncompr.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\zutil.c">
+      <Filter>zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\ioapi.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
-    <ClCompile Include="libs\zlib-1.2.8\contrib\minizip\iowin32.c">
+    <ClCompile Include="libs\zlib-1.3.1\contrib\minizip\iowin32.c">
       <Filter>MiniZip</Filter>
     </ClCompile>
   </ItemGroup>
@@ -369,7 +753,7 @@
     <ClInclude Include="src\campaign.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="src\debriscolordb.h">
+    <ClInclude Include="src\sprite.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="src\gs_campaigneditor.h">
@@ -585,6 +969,9 @@
     <ClInclude Include="src\as_wav.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="src\audiocapture.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\audiostream.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -619,6 +1006,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\engine.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\glextensions.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\file.h">
@@ -678,7 +1068,7 @@
     <ClInclude Include="src\gui_window.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="src\hq2x.h">
+    <ClInclude Include="src\img_load.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\linedrawer.h">
@@ -699,6 +1089,12 @@
     <ClInclude Include="src\resource.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="src\crt_shader.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sharpfit_shader.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\singleton.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -714,6 +1110,9 @@
     <ClInclude Include="src\texture.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="src\transfer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\typedefs.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -726,19 +1125,19 @@
     <ClInclude Include="src\videorecorder.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\unzip.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\unzip.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\zip.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\zip.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\ioapi.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\ioapi.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\iowin32.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\iowin32.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
-    <ClInclude Include="libs\zlib-1.2.8\contrib\minizip\crypt.h">
+    <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\crypt.h">
       <Filter>MiniZip</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für eine Glühbirne ***/
+/*** Klasse fuer eine Gluehbirne ***/
 
 class E_LightBulb : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_LightBulb();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();
 

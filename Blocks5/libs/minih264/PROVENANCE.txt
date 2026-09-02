@@ -1,0 +1,37 @@
+minih264
+========
+
+H.264 encoder, single header, public domain. Encodes the video track of
+recorded gameplay; see src/videorecorder.cpp.
+
+  https://github.com/lieff/minih264   commit b0baea7a80ef9d12da97301dd1099b8791b5ba43
+  CC0 1.0 Universal (LICENSE)
+
+minih264e.h is byte-identical to upstream. minih264e_impl.c is not upstream: it
+is the one translation unit that instantiates the header, in the stb style.
+It has to stay separate from minimp4's, because both headers define a bitstream
+struct called bs_t inside their implementation halves and the two collide if
+both are instantiated in one file.
+
+Nothing else from the repository is vendored. system.c/system.h are threading
+helpers for upstream's own test program, and asm/ holds standalone assembly the
+header does not use - it carries its own SSE and NEON paths inline.
+
+CONSTRAINTS
+-----------
+Baseline profile only, no B-frames. Width and height MUST be multiples of 16;
+videorecorder.cpp rounds down and centre-crops if they are not, which for the
+game's fixed 640x480 is a no-op.
+
+WHY THIS AND NOT x264 OR ffmpeg
+-------------------------------
+Windows has decoded H.264 in MP4 natively since Windows 7, and so does every
+browser, phone and current Linux desktop - it is the only codec that is native
+on both Windows and Linux, which is what an eventual Linux build needs. Of the
+encoders that produce it, this is the only one that is a header you can drop in
+the tree: x264 and ffmpeg both bring a configure-based build, and openh264's
+patent arrangement only covers Cisco's own prebuilt binaries. Compression is
+worse than x264 - upstream's README is explicit that it lacks trellis
+quantisation, SATD mode decision and 4x4 motion compensation - but it is an
+order of magnitude better than the MJPEG or MPEG-4-Part-2 alternatives, and it
+is plain C that compiles anywhere.

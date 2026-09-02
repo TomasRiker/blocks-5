@@ -4,7 +4,7 @@
 #include "object.h"
 #include "linedrawer.h"
 
-/*** Klasse für den Sender einer Lichtschranke ***/
+/*** Klasse fuer den Sender einer Lichtschranke ***/
 
 class LightBarrierSender : public Object
 {
@@ -13,6 +13,7 @@ public:
 	~LightBarrierSender();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

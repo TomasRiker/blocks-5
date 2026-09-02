@@ -1,26 +1,70 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
-	<Window name="Options" w="340" h="440">
+	<Window name="Options" w="340" h="465">
 		<Title>$OPTIONS</Title>
 		<Center />
 		<Hidden />
 		<StaticText name="Static1" x="10" y="30">
 			<Text>$O_LANGUAGE</Text>
 		</StaticText>
-		<StaticImage name="Static3" x="10" y="50" w="64" h="48">
+		<StaticImage name="Static3" x="10" y="50" w="64" h="48" for="English">
 			<Image u="80" v="0">languages.png</Image>
 		</StaticImage>
 		<RadioButton name="English" x="10" y="105" w="16" h="16">
 			<Title>$O_LANGUAGE_ENGLISH</Title>
 			<Group>0</Group>
 		</RadioButton>
-		<StaticImage name="Static2" x="100" y="50" w="64" h="48">
+		<StaticImage name="Static2" x="110" y="50" w="64" h="48" for="German">
 			<Image u="0" v="0">languages.png</Image>
 		</StaticImage>
-		<RadioButton name="German" x="100" y="105" w="16" h="16">
+		<RadioButton name="German" x="110" y="105" w="16" h="16">
 			<Title>$O_LANGUAGE_GERMAN</Title>
 			<Group>0</Group>
 		</RadioButton>
+
+		<StaticText name="Static11" x="210" y="30">
+			<Text>$O_UPSCALER</Text>
+		</StaticText>
+		<!-- Die y-Werte setzt Options::show(); hier stehen sie nur der
+		     Vollstaendigkeit halber schon an ihrem Platz. -->
+		<RadioButton name="SharpFit" x="210" y="50" w="16" h="16">
+			<Title></Title>
+			<Group>2</Group>
+		</RadioButton>
+		<StaticText name="SharpFitLabel" x="236" y="53" w="-1" h="-1" for="SharpFit">
+			<Text>$O_UPSCALER_SHARP_FIT</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<RadioButton name="Nearest" x="210" y="70" w="16" h="16">
+			<Title></Title>
+			<Group>2</Group>
+		</RadioButton>
+		<StaticText name="NearestLabel" x="236" y="73" w="-1" h="-1" for="Nearest">
+			<Text>$O_UPSCALER_NEAREST</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<RadioButton name="Bilinear" x="210" y="90" w="16" h="16">
+			<Title></Title>
+			<Group>2</Group>
+		</RadioButton>
+		<StaticText name="BilinearLabel" x="236" y="93" w="-1" h="-1" for="Bilinear">
+			<Text>$O_UPSCALER_BILINEAR</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<RadioButton name="Crt" x="210" y="110" w="16" h="16">
+			<Title></Title>
+			<Group>2</Group>
+		</RadioButton>
+		<StaticText name="CrtLabel" x="236" y="113" w="-1" h="-1" for="Crt">
+			<Text>$O_UPSCALER_CRT</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<!-- y setzt Options::show(), direkt unter den letzten sichtbaren
+		     Eintrag der Liste. -->
+		<Button name="CrtSettings" x="210" y="130" w="115" h="18">
+			<Title>$O_CRT_SETTINGS</Title>
+			<Font>tooltip_font.xml</Font>
+		</Button>
 
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
@@ -40,11 +84,11 @@
 			<Title>$O_DETAILS_LOW</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="MediumDetails" x="100" y="230" w="16" h="16">
+		<RadioButton name="MediumDetails" x="110" y="230" w="16" h="16">
 			<Title>$O_DETAILS_MEDIUM</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="HighDetails" x="190" y="230" w="16" h="16">
+		<RadioButton name="HighDetails" x="210" y="230" w="16" h="16">
 			<Title>$O_DETAILS_HIGH</Title>
 			<Group>1</Group>
 		</RadioButton>
@@ -52,35 +96,102 @@
     <StaticText name="Static8" x="10" y="260">
       <Text>$O_CONTROLS</Text>
     </StaticText>
-    <ListBox name="Actions" x="10" y="280" w="170" h="80">
+    <ListBox name="Actions" x="10" y="280" w="170" h="75">
       <Font>tooltip_font.xml</Font>
     </ListBox>
-    <Button name="ResetControls" x="10" y="365" w="170" h="20">
-      <Title>$O_RESET_CONTROLS</Title>
+    <!-- Zuruecksetzen, in zwei Staerken. Bisher gab es nur "alles" - wer
+         sich eine Taste verlegt hatte, musste das ganze Schema wegwerfen.
+         Zwei Knoepfe untereinander unter der Liste, so breit wie sie: eine
+         Beschriftung davor und zwei kurze Woerter dahinter ginge in der
+         einen Sprache auf und in der anderen nicht, ganze Saetze auf den
+         Knoepfen sagen es in beiden. Das Fenster ist dafuer um 20 Pixel
+         gewachsen; die 15 Pixel Luft ueber OK und die 10 unter ihm bleiben,
+         wie sie waren. -->
+    <Button name="ResetSelected" x="10" y="365" w="170" h="20">
+      <Title>$O_RESET_SELECTED</Title>
       <Font>tooltip_font.xml</Font>
     </Button>
-    <StaticText name="Static9" x="185" y="280">
+    <Button name="ResetAll" x="10" y="390" w="170" h="20">
+      <Title>$O_RESET_ALL</Title>
+      <Font>tooltip_font.xml</Font>
+    </Button>
+    <StaticText name="Static9" x="190" y="280">
       <Text>$O_PRIMARY_KEY</Text>
       <Font>tooltip_font.xml</Font>
     </StaticText>
-    <Button name="PrimaryKey" x="185" y="295" w="145" h="20">
+    <Button name="PrimaryKey" x="190" y="292" w="140" h="20">
       <Title/>
       <Font>tooltip_font.xml</Font>
     </Button>
-    <StaticText name="Static10" x="185" y="320">
+    <StaticText name="Static10" x="190" y="323">
       <Text>$O_SECONDARY_KEY</Text>
       <Font>tooltip_font.xml</Font>
     </StaticText>
-    <Button name="SecondaryKey" x="185" y="335" w="145" h="20">
+    <Button name="SecondaryKey" x="190" y="335" w="140" h="20">
       <Title/>
       <Font>tooltip_font.xml</Font>
     </Button>
 
-    <Button name="OK" x="10" y="400" w="135" h="30">
+    <Button name="OK" x="10" y="425" w="135" h="30">
 			<Title>OK</Title>
 		</Button>
-		<Button name="Cancel" x="155" y="400" w="135" h="30">
+		<Button name="Cancel" x="155" y="425" w="135" h="30">
 			<Title>§de:Abbrechen§en:Cancel</Title>
+		</Button>
+	</Window>
+
+	<!-- Die Regler des Roehrenfilters. Ein eigenes Fenster, weil im
+	     Optionsfenster kein Platz mehr ist: 340x440 sind voll, und hoeher
+	     darf es nicht werden - das Spielbild ist nur 480 hoch. Beide Regler
+	     wirken sofort, damit man beim Schieben sieht, was sie tun;
+	     Abbrechen im Optionsfenster holt ueber loadConfig() die alten Werte
+	     zurueck. -->
+	<Window name="CrtOptions" w="300" h="316">
+		<Title>$O_CRT_SETTINGS_TITLE</Title>
+		<Center />
+		<Hidden />
+		<StaticText name="CrtScanText" x="12" y="34" w="270" h="14">
+			<Text>$O_CRT_SCANLINE</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtScanValue" x="258" y="50"><Text></Text></StaticText>
+		<ScrollBar name="CrtScan" x="12" y="50" w="235" h="16">
+			<Receiver>CrtScanValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<StaticText name="CrtCurveText" x="12" y="82" w="270" h="14">
+			<Text>$O_CRT_CURVATURE</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtCurveValue" x="258" y="98"><Text></Text></StaticText>
+		<ScrollBar name="CrtCurve" x="12" y="98" w="235" h="16">
+			<Receiver>CrtCurveValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<StaticText name="CrtBloomText" x="12" y="130" w="270" h="14">
+			<Text>$O_CRT_BLOOM</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtBloomValue" x="258" y="146"><Text></Text></StaticText>
+		<ScrollBar name="CrtBloom" x="12" y="146" w="235" h="16">
+			<Receiver>CrtBloomValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<StaticText name="CrtFlickerText" x="12" y="178" w="270" h="14">
+			<Text>$O_CRT_FLICKER</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtFlickerValue" x="258" y="194"><Text></Text></StaticText>
+		<ScrollBar name="CrtFlicker" x="12" y="194" w="235" h="16">
+			<Receiver>CrtFlickerValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<StaticText name="CrtScanFlickerText" x="12" y="226" w="270" h="14">
+			<Text>$O_CRT_SCANFLICKER</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtScanFlickerValue" x="258" y="242"><Text></Text></StaticText>
+		<ScrollBar name="CrtScanFlicker" x="12" y="242" w="235" h="16">
+			<Receiver>CrtScanFlickerValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<Button name="CrtClose" x="85" y="274" w="130" h="26">
+			<Title>OK</Title>
 		</Button>
 	</Window>
 </Dialog>

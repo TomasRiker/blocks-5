@@ -60,17 +60,19 @@ void Elevator::onRemove()
 	}
 }
 
+void Elevator::updateSprites()
+{
+	// Aufzug
+	int frame = level.isInEditor() ? dir : newDir;
+	if(blink && (((moveCounter - 1) / 10) % 2)) frame = 4;
+	if(!level.isInEditor() && !level.isElectricityOn()) frame = 4;
+	sprites.add(Vec2i(frame * 32, 352));
+}
+
 void Elevator::onRender(int layer,
 						const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Aufzug rendern
-		int frame = level.isInEditor() ? dir : newDir;
-		if(blink && (((moveCounter - 1) / 10) % 2)) frame = 4;
-		if(!level.isInEditor() && !level.isElectricityOn()) frame = 4;
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(frame * 32, 352), Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Elevator::onUpdate()
@@ -99,11 +101,11 @@ void Elevator::onUpdate()
 	case 3: dirV = Vec2i(-1, 0); break;
 	}
 
-	// Was für eine Schiene liegt hier?
+	// Was fuer eine Schiene liegt hier?
 	Rail* p_thisRail = level.getRailAt(position);
 	if(!p_thisRail) return;
 
-	// Was für eine Schiene liegt da?
+	// Was fuer eine Schiene liegt da?
 	Rail* p_nextRail = level.getRailAt(position + dirV);
 
 	bool movementAllowed = false;
@@ -133,7 +135,7 @@ void Elevator::onUpdate()
 		// Kreuzung
 		else if(nextSubType == 2) movementAllowed = true;
 
-		// T-Stück
+		// T-Stueck
 		else if(nextSubType == 3 && nextDir != (dir + 2) % 4) movementAllowed = true;
 
 		// kaputte Strecke

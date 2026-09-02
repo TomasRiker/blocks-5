@@ -21,16 +21,17 @@ E_PulsePanel::~E_PulsePanel()
 {
 }
 
+void E_PulsePanel::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(160 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
+}
+
 void E_PulsePanel::onRender(int layer,
 							const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 0)
-	{
-		Vec2i t(160 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_PulsePanel::onUpdate()
@@ -46,7 +47,7 @@ void E_PulsePanel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel auslösen
+				// Panel ausloesen
 				value = pulseValue;
 				Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
 				break;

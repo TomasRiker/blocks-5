@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für den Ausgang ***/
+/*** Klasse fuer den Ausgang ***/
 
 class Exit : public Object
 {
@@ -13,6 +13,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 };
 

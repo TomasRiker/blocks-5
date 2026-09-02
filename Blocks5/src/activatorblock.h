@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Aktivator-Block ***/
+/*** Klasse fuer einen Aktivator-Block ***/
 
 class ActivatorBlock : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~ActivatorBlock();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onCollision(Object* p_obj);
 	void saveAttributes(TiXmlElement* p_target);

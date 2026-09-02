@@ -146,7 +146,7 @@ void Lava::onRender(int layer,
 
 	if(layer == 255)
 	{
-		// Fließrichtung anzeigen
+		// Fliessrichtung anzeigen
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_TEXTURE_2D);
 		glPushMatrix();
@@ -232,7 +232,7 @@ void Lava::onUpdate()
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 
-	if(!(random() % 20))
+	if(!(randomInt() % 20))
 	{
 		// Dampf
 		p.lifetime = random(20, 30);
@@ -251,7 +251,7 @@ void Lava::onUpdate()
 		p_particleSystem->addParticle(p);
 	}
 
-	// Aufzüge schützen die Objekte vor der Lava.
+	// Aufzuege schuetzen die Objekte vor der Lava.
 	bool elevatorFound = false;
 	const std::vector<Object*> objectsOnMe = level.getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
@@ -279,12 +279,13 @@ void Lava::onUpdate()
 				if(!p_obj->getDestroyTime())
 				{
 					p_obj->disappear(0.2);
-					debrisColor = p_obj->getDebrisColor();
+					Object* p_destroyed = p_obj;
 
 					Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-					// Trümmer
-					int n = random(50, 80);
+					// Truemmer
+					const Sprites& debris = p_destroyed->getSprites();
+					int n = debris.getTryCount(random(50, 80));
 					for(int i = 0; i < n; i++)
 					{
 						p.lifetime = random(60, 120);
@@ -292,9 +293,13 @@ void Lava::onUpdate()
 						p.gravity = -0.1f;
 						p.positionOnTexture = Vec2b(96, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
-						p.position = p_obj->getPosition() * 16 + Vec2i(random(-2, 18), random(-2, 18));
+						Vec4d sampled;
+						Vec2i offset;
+						if(!debris.sample(&sampled, &offset)) continue;
+
+						p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 						p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-						p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+						p.color = sampled;
 						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);

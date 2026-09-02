@@ -1,7 +1,7 @@
 #ifndef _GUI_BUTTON_H
 #define _GUI_BUTTON_H
 
-/*** Klasse für einen Button ***/
+/*** Klasse fuer einen Button ***/
 
 #include "gui_element.h"
 
@@ -13,6 +13,7 @@ public:
 	DECL_CTOR(GUI_Button);
 	~GUI_Button();
 
+	bool containsPoint(const Vec2i& position);
 	void onRender();
 	void onUpdate();
 	void onMouseDown(const Vec2i& position, int buttons);
@@ -30,6 +31,9 @@ public:
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
+	// Der Name, wie er in der XML steht. Ist es eine $ID, kann er je nach
+	// Sprache auf ein anderes Bild zeigen; onUpdate loest ihn deshalb neu auf.
+	void setRawImageFilename(const std::string& rawImageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_GETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
@@ -43,7 +47,16 @@ private:
 	bool mouseOver;
 
 	int style;
+
+	// Wie viele Pixel des Feldes ringsum nur Rand sind. Ein Feld in
+	// buttons.png ist groesser als die Scheibe darin - der Rest gehoert zum
+	// Schlagschatten und ist durchsichtig. Ohne diesen Abzug waere ein Knopf
+	// auch dort anklickbar, wo nichts zu sehen ist, und in der Levelauswahl
+	// griffen benachbarte Knoepfe einander in die Scheibe.
+	int imageInset;
+
 	std::string imageFilename;
+	std::string rawImageFilename;
 	Vec2i positionOnTexture;
 	Vec2i clickedPositionOnTexture;
 	Vec4d stdColor;

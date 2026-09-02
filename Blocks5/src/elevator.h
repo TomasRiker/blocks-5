@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Aufzug ***/
+/*** Klasse fuer einen Aufzug ***/
 
 class SoundInstance;
 
@@ -15,6 +15,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onElectricitySwitch(bool on);
 	bool changeInEditor(int mod);

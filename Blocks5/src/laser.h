@@ -4,7 +4,7 @@
 #include "object.h"
 #include "linedrawer.h"
 
-/*** Klasse für einen Laser ***/
+/*** Klasse fuer einen Laser ***/
 
 class SoundInstance;
 
@@ -16,6 +16,7 @@ public:
 
 	void onRemove();
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onElectricitySwitch(bool on);
 	void frameBegin();

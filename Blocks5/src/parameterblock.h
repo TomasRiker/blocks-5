@@ -1,7 +1,7 @@
 #ifndef _PARAMETERBLOCK_H
 #define _PARAMETERBLOCK_H
 
-/*** Klasse für eine Parameter-Sammlung ***/
+/*** Klasse fuer eine Parameter-Sammlung ***/
 
 class ParameterBlock
 {
@@ -13,7 +13,7 @@ public:
 	ParameterBlock(const ParameterBlock& rhs)
 	{
 		// alle Parameter kopieren
-		for(stdext::hash_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
+		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
 		{
 			values[i->first] = i->second->copy();
 		}
@@ -29,7 +29,7 @@ public:
 		clear();
 
 		// alle Parameter kopieren
-		for(stdext::hash_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
+		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
 		{
 			values[i->first] = i->second->copy();
 		}
@@ -40,7 +40,7 @@ public:
 	template<typename T> void set(const std::string& key,
 								  const T& value)
 	{
-		stdext::hash_map<std::string, GenericParameterContainer*>::iterator i = values.find(key);
+		std::unordered_map<std::string, GenericParameterContainer*>::iterator i = values.find(key);
 		if(i == values.end())
 		{
 			// Eintrag existiert noch nicht.
@@ -48,7 +48,7 @@ public:
 		}
 		else
 		{
-			// alten Eintrag löschen, dann überschreiben
+			// alten Eintrag loeschen, dann ueberschreiben
 			delete i->second;
 			i->second = new ParameterContainer<T>(value);
 		}
@@ -56,7 +56,7 @@ public:
 
 	template<typename T> const T& get(const std::string& key) const
 	{
-		stdext::hash_map<std::string, GenericParameterContainer*>::const_iterator i = values.find(key);
+		std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.find(key);
 		if(i == values.end())
 		{
 			// Eintrag existiert nicht!
@@ -81,14 +81,14 @@ public:
 
 	bool has(const std::string& key) const
 	{
-		stdext::hash_map<std::string, GenericParameterContainer*>::const_iterator i = values.find(key);
+		std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.find(key);
 		return i != values.end();
 	}
 
 	void clear()
 	{
-		// alle Parameter löschen
-		for(stdext::hash_map<std::string, GenericParameterContainer*>::const_iterator i = values.begin(); i != values.end(); ++i)
+		// alle Parameter loeschen
+		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.begin(); i != values.end(); ++i)
 		{
 			delete i->second;
 		}
@@ -139,7 +139,7 @@ private:
 		const T myValue;
 	};
 
-	stdext::hash_map<std::string, GenericParameterContainer*> values;
+	std::unordered_map<std::string, GenericParameterContainer*> values;
 };
 
 #endif

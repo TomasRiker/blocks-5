@@ -64,7 +64,7 @@ void GUI_ListBox::onRender()
 	glPushMatrix();
 	glTranslated(0.0, -scroll, 0.0);
 
-	// Listeneinträge rendern
+	// Listeneintraege rendern
 	int y = 2;
 	h = p_font->getLineHeight();
 	for(std::vector<ListItem>::const_iterator i = items.begin(); i != items.end(); ++i)
@@ -140,16 +140,15 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	if(!active) return;
 
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
-
-	// Shift gedrückt?
-	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
-		// Ereignis an das Elternelement weiterleiten
+	case SDLK_ESCAPE:
+		// Ereignis an das Elternelement weiterleiten - Escape gehoert dem
+		// Dialog, nicht der Liste.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_UP:
@@ -171,7 +170,10 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(!items.empty()) setSelection(static_cast<int>(items.size() - 1));
 		break;
 	case SDLK_RETURN:
+		// Wie im Eingabefeld: gibt es keinen eigenen Knopf dafuer, gehoert
+		// Return dem Dialog.
 		if(!items.empty() && selection != -1 && p_submitButton) p_submitButton->click();
+		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	}
 }
@@ -260,7 +262,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	if(selection != -1)
 	{
-		// dafür sorgen, dass die Auswahl sichtbar ist
+		// dafuer sorgen, dass die Auswahl sichtbar ist
 		int h = p_font->getLineHeight();
 		int sy = 2 + selection * h;
 		int vsy = sy - scroll;
@@ -271,7 +273,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	updateScrollBar();
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 

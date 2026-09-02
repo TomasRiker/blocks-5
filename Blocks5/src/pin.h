@@ -1,7 +1,7 @@
 #ifndef _PIN_H
 #define _PIN_H
 
-/*** Klasse für Anschlüsse ***/
+/*** Klasse fuer Anschluesse ***/
 
 enum PinType
 {

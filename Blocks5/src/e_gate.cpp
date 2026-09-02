@@ -9,7 +9,7 @@ E_Gate::E_Gate(Level& level,
 {
 	this->subType = subType;
 
-	// Eingänge erzeugen
+	// Eingaenge erzeugen
 	if(subType == 6 || subType == 7)
 	{
 		createPin(0, Vec2i(0, 8), PT_INPUT);
@@ -28,17 +28,19 @@ E_Gate::~E_Gate()
 {
 }
 
+void E_Gate::updateSprites()
+{
+	Electronics::updateSprites();
+	Vec2i t(32 + 32 * subType, 512);
+	if(subType == 7) t = Vec2i(224, 544);
+	sprites.add(t).rotation = 90.0 * dir;
+}
+
 void E_Gate::onRender(int layer,
 					  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Vec2i t(32 + 32 * subType, 512);
-		if(subType == 7) t = Vec2i(224, 544);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Gate::saveAttributes(TiXmlElement* p_target)
@@ -50,14 +52,21 @@ void E_Gate::saveAttributes(TiXmlElement* p_target)
 
 std::string E_Gate::getToolTip() const
 {
-	char* p_str[] = {"$TT_GATE_AND",
-					 "$TT_GATE_NAND",
-					 "$TT_GATE_OR",
-					 "$TT_GATE_NOR",
-					 "$TT_GATE_XOR",
-					 "$TT_GATE_XNOR",
-					 "$TT_GATE_NOT",
-					 "$TT_GATE_PASS_THROUGH"};
+	// const, weil ein Stringliteral kein char* ist: seit C++11 ist das nicht
+	// mehr erlaubt, MSVC hat es nur noch angemeckert, GCC und Clang lehnen es ab.
+	static const char* const p_str[] = {"$TT_GATE_AND",
+										"$TT_GATE_NAND",
+										"$TT_GATE_OR",
+										"$TT_GATE_NOR",
+										"$TT_GATE_XOR",
+										"$TT_GATE_XNOR",
+										"$TT_GATE_NOT",
+										"$TT_GATE_PASS_THROUGH"};
+
+	// subType kommt ungeprueft aus der Leveldatei (presets.cpp), und Level
+	// wandern zwischen Spielern. Ein Wert ausserhalb liest sonst hier vorbei.
+	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
+		return p_str[0];
 
 	return p_str[subType];
 }
@@ -80,7 +89,7 @@ bool E_Gate::changeInEditor(int mod)
 
 void E_Gate::doLogic()
 {
-	// Undefinierte Eingänge führen zu einem undefinierten Ausgang.
+	// Undefinierte Eingaenge fuehren zu einem undefinierten Ausgang.
 	if(!areAllInputsConnected() || isAnyInputUndefined())
 	{
 		setAllOutputsToUndefined();

@@ -12,7 +12,6 @@ Electronics::Electronics(Level& level,
 	flags = OF_FIXED | OF_MASSIVE | OF_ELECTRONICS;
 	this->dir = dir;
 	renderBox = true;
-	positionOnTexture = Vec2i(0, 512);
 
 	if(!level.isInEditor() && !level.isInCat()) level.allElectronics.insert(this);
 }
@@ -23,13 +22,13 @@ Electronics::~Electronics()
 
 void Electronics::updateAll(Level& level)
 {
-	// die Werte an den Ausgängen aller Bauteile an die angeschlossenen Eingänge weiterleiten
+	// die Werte an den Ausgaengen aller Bauteile an die angeschlossenen Eingaenge weiterleiten
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->propagateOutputs();
 	}
 
-	// die Logikfunktionen ausführen
+	// die Logikfunktionen ausfuehren
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->doLogic();
@@ -38,7 +37,7 @@ void Electronics::updateAll(Level& level)
 
 void Electronics::onRemove()
 {
-	// alle Pins löschen
+	// alle Pins loeschen
 	for(uint i = 0; i < inputPins.size(); i++) delete inputPins[i];
 	for(uint i = 0; i < outputPins.size(); i++) delete outputPins[i];
 	inputPins.clear();
@@ -47,15 +46,17 @@ void Electronics::onRemove()
 	if(!level.isInEditor() && !level.isInCat()) level.allElectronics.erase(this);
 }
 
+void Electronics::updateSprites()
+{
+	// Der Kasten, auf dem die Teile sitzen. Er kommt zuerst und liegt damit
+	// hinten - genauso wie frueher, als diese Basisklasse ihn selbst zeichnete
+	// und die abgeleitete Klasse ihr eigenes Bild danach darueberlegte.
+	if(renderBox) sprites.add(Vec2i(0, 512));
+}
+
 void Electronics::onRender(int layer,
 						   const Vec4d& color)
 {
-	if(layer == 1 && renderBox)
-	{
-		// Elektronik-Block rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(0, 512), Vec2i(16, 16), color);
-	}
-
 	if(layer == 939)
 	{
 		const Vec4d wireColor[] = {Vec4d(0.35, 0.3, 0.3, 1.0),
@@ -68,7 +69,7 @@ void Electronics::onRender(int layer,
 
 		glDisable(GL_TEXTURE_2D);
 
-		// Verbindungen der Ausgänge rendern
+		// Verbindungen der Ausgaenge rendern
 		int n = position.x + position.y;
 		for(uint i = 0; i < outputPins.size(); i++)
 		{

@@ -14,15 +14,16 @@ CannonPanel::~CannonPanel()
 {
 }
 
+void CannonPanel::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(224, 288), getStdColor(this->color));
+}
+
 void CannonPanel::onRender(int layer,
 						   const Vec4d& color)
 {
-	if(layer == 0)
-	{
-		// Schalter rendern
-		Vec2i positionOnTexture(224, 288);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color * getStdColor(this->color));
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 }
 
 bool CannonPanel::changeInEditor(int mod)

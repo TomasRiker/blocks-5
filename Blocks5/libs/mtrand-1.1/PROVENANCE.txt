@@ -1,0 +1,39 @@
+MersenneTwister 1.1
+===================
+
+MT19937, the pseudo-random generator behind everything in the game that varies:
+particle systems (src/particlesystem.h holds its own MTRand), and the global
+"mt" in src/util.cpp that randomInt() and the three random(min, max) overloads
+draw from. pch.h includes it for every translation unit.
+
+  MersenneTwister.h v1.1, 28 September 2009, Richard J. Wagner
+  wagnerr@umich.edu - http://www-personal.umich.edu/~wagnerr/MersenneTwister.html
+  Algorithm by Makoto Matsumoto and Takuji Nishimura, 1997-2002
+
+  Three-clause BSD, in the header comment: copyright to Matsumoto and Nishimura
+  for the algorithm and to Wagner for this C++ wrapper, retention of the notice
+  required in source and binary form, no endorsement.
+
+A single header, unmodified since it entered the tree, and there is nothing to
+modify: v1.1 is the last release, and the only change from v1.0 was correcting a
+parameter label in randNorm from "variance" to "stddev".
+
+No byte-comparison against upstream has been made. The author's university page
+is the only distribution point and it is not reachable from the environment
+these notes were written in; the file's own version banner and changelog are
+what identify it.
+
+NOTES
+-----
+Header-only, so there is nothing to compile and nothing in either project's file
+list - the projects only add libs/mtrand-1.1 as an include directory.
+
+Both instances use the default constructor, which calls seed() with no argument:
+that tries /dev/urandom first and falls back to a hash of time() and clock().
+On Windows the fopen always fails, so it is always the time/clock hash - fine
+here, since nothing in the game depends on the sequence being unpredictable or
+on it being reproducible across runs.
+
+Keeping the particle system's generator separate from the global one is
+deliberate: drawing both from one stream would make level behaviour depend on
+how many sparks happened to be on screen.

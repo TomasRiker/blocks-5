@@ -20,20 +20,22 @@ Eye::~Eye()
 {
 }
 
+void Eye::updateSprites()
+{
+	// Auge und, wenn es offen ist, die Pupille darueber. Die Pupille sitzt
+	// nicht mittig, sondern schaut dorthin, wo der Spieler steht.
+	sprites.add(Vec2i(closed ? 160 : 128, 448)).mirrorX = dir == 1;
+
+	if(!closed)
+	{
+		sprites.add(Vec2i(192, 448)).offset = Vec2d(0.5, 0.5) + 3.0 * viewDir;
+	}
+}
+
 void Eye::onRender(int layer,
 				   const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Auge rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), closed ? positionOnTexture + Vec2i(32, 0) : positionOnTexture, Vec2i(16, 16), color, dir == 1);
-
-		if(!closed)
-		{
-			// Pupille rendern
-			Engine::inst().renderSprite(Vec2d(0.5, 0.5) + 3.0 * viewDir, positionOnTexture + Vec2i(64, 0), Vec2i(16, 16), color);
-		}
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Eye::onUpdate()

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für ein Hotel zum Zwischenspeichern ***/
+/*** Klasse fuer ein Hotel zum Zwischenspeichern ***/
 
 class Font;
 
@@ -14,6 +14,7 @@ public:
 	~Hotel();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onSave();
 

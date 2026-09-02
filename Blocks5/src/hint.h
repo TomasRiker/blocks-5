@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Hinweiszettel ***/
+/*** Klasse fuer einen Hinweiszettel ***/
 
 class Font;
 class Texture;
@@ -16,6 +16,7 @@ public:
 	~Hint();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);
 	void saveAttributes(TiXmlElement* p_target);
@@ -24,6 +25,10 @@ public:
 	void setText(const std::string& text);
 
 private:
+	// Wohin der Zettel aufklappt. Muss feststehen, bevor das erste Bild davon
+	// zu sehen ist - siehe onUpdate().
+	void updateTargetPosition();
+
 	std::string text;
 	double alpha;
 	double shownAlpha;

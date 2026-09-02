@@ -21,6 +21,7 @@ GUI_Element::GUI_Element(const std::string& name,
 	fillColor = Vec4d(0.0, 0.0, 0.0, 1.0);
 	toolTipOnly = false;
 	tabStop = -1;
+	linkedElement = "";
 	p_font = GUI::inst().getFont();
 	if(p_font) p_font->addRef();
 }
@@ -95,25 +96,77 @@ void GUI_Element::onUpdate()
 {
 }
 
+GUI_Element* GUI_Element::getLinkedTarget()
+{
+	if(linkedElement.empty() || !p_parent) return 0;
+	return p_parent->getChild(linkedElement);
+}
+
+// Ein Umschalter und ein Eingabefeld wollen Verschiedenes.
+//
+// Checkbox und Radioknopf bekommen den ganzen Satz Mausereignisse: sie schalten
+// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" halten, und
+// nebenbei leuchtet das Ziel auf, solange die Maus ueber dem Etikett steht -
+// genau die richtige Rueckmeldung.
+//
+// Alles andere - vor allem Eingabefelder - bekommt statt dessen den Fokus. Die
+// Mausposition durchzureichen waere dort falsch: sie ist auf das Etikett
+// bezogen, und ein Eingabefeld setzt daraus die Schreibmarke, die dann
+// irgendwo im Text landet.
+static bool wantsTheWholeClick(GUI_Element* p_target)
+{
+	const std::string type = p_target->getType();
+	return type == "GUI_CheckBox" || type == "GUI_RadioButton";
+}
+
 void GUI_Element::onMouseDown(const Vec2i& position,
 							  int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseDown(position, buttons);
+		else if(buttons & 1) p_target->focus();
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseDown(this->position + position, buttons);
 }
 
 void GUI_Element::onMouseUp(const Vec2i& position,
 							int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseUp(position, buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseUp(this->position + position, buttons);
 }
 
 void GUI_Element::onMouseEnter(int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseEnter(buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseEnter(buttons);
 }
 
 void GUI_Element::onMouseLeave(int buttons)
 {
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target)
+	{
+		if(wantsTheWholeClick(p_target)) p_target->onMouseLeave(buttons);
+		return;
+	}
+
 	if(toolTipOnly) p_parent->onMouseLeave(buttons);
 }
 
@@ -137,10 +190,10 @@ void GUI_Element::onKeyEvent(const SDL_KeyboardEvent& event)
 		return;
 	}
 
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrückt?
+	// Shift gedrueckt?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
 	switch(event.keysym.sym)
@@ -181,12 +234,17 @@ std::string GUI_Element::getType() const
 	return "GUI_Element";
 }
 
+bool GUI_Element::containsPoint(const Vec2i& position)
+{
+	return position.x >= 0 && position.y >= 0 && position.x < size.x && position.y < size.y;
+}
+
 GUI_Element* GUI_Element::getElementAt(const Vec2i& position)
 {
 	if(!visible) return 0;
 
-	// Ist die Position außerhalb der eigenen Grenzen?
-	if(position.x < 0 || position.y < 0 || position.x >= size.x || position.y >= size.y) return 0;
+	// Ist die Position ausserhalb der eigenen Grenzen?
+	if(!containsPoint(position)) return 0;
 
 	for(std::list<GUI_Element*>::reverse_iterator i = children.rbegin(); i != children.rend(); ++i)
 	{
@@ -270,6 +328,13 @@ bool GUI_Element::load(const std::string& filename)
 
 bool GUI_Element::load(TiXmlElement* p_element)
 {
+	// for="Name", wie im Browser. Ein Attribut reicht dafuer - es ist ein Name,
+	// kein Inhalt. Gelesen wird es hier und nicht in readAttributes: das ist
+	// virtuell, und keine der abgeleiteten Klassen ruft die Fassung der
+	// Basisklasse auf, so dass ein for= dort je nach Elementtyp verschwaende.
+	const char* p_for = p_element->Attribute("for");
+	if(p_for) setLinkedElement(p_for);
+
 	// Attribute lesen
 	readAttributes(p_element);
 
@@ -306,7 +371,7 @@ bool GUI_Element::load(TiXmlElement* p_element)
 		}
 		else
 		{
-			// Name, Position und Größe lesen
+			// Name, Position und Groesse lesen
 			if(p_element->Attribute("name"))
 			{
 				std::string name = p_element->Attribute("name");
@@ -383,7 +448,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der nächst höheren Tabstop-ID suchen
+	// Geschwisterelement mit der naechst hoeheren Tabstop-ID suchen
 	int minID = 0x7FFFFFFF;
 	GUI_Element* p_minElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -404,7 +469,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 
 	if(p_minElement) return p_minElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der niedrigsten Tabstop-ID überhaupt suchen.
+	// Es gibt nichts passendes. Das Geschwisterelement mit der niedrigsten Tabstop-ID ueberhaupt suchen.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;
@@ -427,7 +492,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der nächst niedrigeren Tabstop-ID suchen
+	// Geschwisterelement mit der naechst niedrigeren Tabstop-ID suchen
 	int maxID = -1;
 	GUI_Element* p_maxElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -448,7 +513,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 
 	if(p_maxElement) return p_maxElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der höchsten Tabstop-ID überhaupt suchen.
+	// Es gibt nichts passendes. Das Geschwisterelement mit der hoechsten Tabstop-ID ueberhaupt suchen.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;

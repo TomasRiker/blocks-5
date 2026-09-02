@@ -61,20 +61,18 @@ void Laser::onRemove()
 	}
 }
 
+void Laser::updateSprites()
+{
+	// Laser
+	sprites.add(Vec2i(level.isElectricityOn() ? 32 : 0, 192)).rotation = 90.0 * dir;
+}
+
 void Laser::onRender(int layer,
 					 const Vec4d& color)
 {
-	Vec2i positionOnTexture;
-	if(level.isElectricityOn()) positionOnTexture = Vec2i(32, 192);
-	else positionOnTexture = Vec2i(0, 192);
-
 	Vec2i sp = getShownPositionInPixels();
 
-	if(layer == 1)
-	{
-		// Laser rendern
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 16 || layer == 17)
 	{
 		if(on > 0.0 && !beam.empty())
@@ -101,7 +99,7 @@ void Laser::onRender(int layer,
 				}
 			}
 
-			// inneren und äußeren Strahl rendern
+			// inneren und aeusseren Strahl rendern
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);
@@ -165,10 +163,11 @@ void Laser::onUpdate()
 	{
 		Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-		// Trümmer
+		// Truemmer
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
-		int n = random(50, 80);
+		const Sprites& debris = getSprites();
+		int n = debris.getTryCount(random(50, 80));
 		for(int i = 0; i < n; i++)
 		{
 			p.lifetime = random(60, 120);
@@ -176,9 +175,14 @@ void Laser::onUpdate()
 			p.gravity = -0.1f;
 			p.positionOnTexture = Vec2b(96, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
-			p.position = position * 16 + Vec2i(random(-2, 18), random(-2, 18));
+
+			Vec4d sampled;
+			Vec2i offset;
+			if(!debris.sample(&sampled, &offset)) continue;
+
+			p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 			p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-			p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+			p.color = sampled;
 			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
@@ -202,7 +206,7 @@ void Laser::onUpdate()
 
 		bool destroyed = false;
 		bool infinity = false;
-		Vec4d debrisColor;
+		const Sprites* p_sprites = 0;
 		int z = 0;
 
 		while(true)
@@ -242,7 +246,7 @@ void Laser::onUpdate()
 						{
 							p_obj->disappear(0.2);
 							destroyed = true;
-							debrisColor = p_obj->getDebrisColor();
+							p_sprites = &p_obj->getSprites();
 						}
 					}
 					else
@@ -263,7 +267,7 @@ void Laser::onUpdate()
 						{
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
-							debrisColor = tileInfo.debrisColor;
+							p_sprites = &tileInfo.sprites;
 						}
 					}
 
@@ -325,7 +329,7 @@ void Laser::onUpdate()
 
 			if(!(counter % 4))
 			{
-				// glühende Partikel
+				// gluehende Partikel
 				p.lifetime = random(80, 120);
 				p.damping = 0.9f;
 				p.gravity = 0.1f;
@@ -340,16 +344,16 @@ void Laser::onUpdate()
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.1f, 0.2f);
 				p.deltaSize = random(-0.01f, -0.005f);
-				if(random() % 2) p_particleSystem->addParticle(p);
+				if(randomInt() % 2) p_particleSystem->addParticle(p);
 				else p_fireParticleSystem->addParticle(p);
 			}
 
-			if(destroyed)
+			if(destroyed && p_sprites)
 			{
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-				// Trümmer
-				int n = random(50, 80);
+				// Truemmer
+				int n = p_sprites->getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
 					p.lifetime = random(60, 120);
@@ -357,9 +361,14 @@ void Laser::onUpdate()
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
-					p.position = beamPosF * 16 + Vec2i(random(-2, 18), random(-2, 18));
+
+					Vec4d sampled;
+					Vec2i offset;
+					if(!p_sprites->sample(&sampled, &offset)) continue;
+
+					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-					p.color = debrisColor + Vec4d(random(-0.1, 0.1), random(-0.1, 0.1), random(-0.1, 0.1), 0.0);
+					p.color = sampled;
 					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);

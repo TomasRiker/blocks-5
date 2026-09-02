@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für einen Durchgangspfeil ***/
+/*** Klasse fuer einen Durchgangspfeil ***/
 
 class Arrow : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Arrow();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool allowMovement(const Vec2i& dir);
 	bool changeInEditor(int mod);

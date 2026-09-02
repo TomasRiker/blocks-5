@@ -18,16 +18,17 @@ E_PulseSwitch::~E_PulseSwitch()
 {
 }
 
+void E_PulseSwitch::updateSprites()
+{
+	Electronics::updateSprites();
+	sprites.add(Vec2i(96 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
+}
+
 void E_PulseSwitch::onRender(int layer,
 							 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-
-	if(layer == 1)
-	{
-		Vec2i t(96 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704);
-		Engine::inst().renderSprite(Vec2i(0, 0), t, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_PulseSwitch::saveAttributes(TiXmlElement* p_target)

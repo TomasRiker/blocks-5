@@ -1,0 +1,88 @@
+minimp4
+=======
+
+MP4 muxer, single header, public domain. Writes the container for recorded
+gameplay; see src/videorecorder.cpp.
+
+  https://github.com/lieff/minimp4   commit 5a212a18dba7dca09543bbc7d65619274fd2931a
+  CC0 1.0 Universal (LICENSE)
+
+minimp4_impl.c is not upstream: it is the one translation unit that instantiates
+the header. It has to stay separate from minih264's, because both headers define
+a bitstream struct called bs_t inside their implementation halves and the two
+collide if both are instantiated in one file.
+
+LOCAL CHANGES, ALL IN ONE PLACE
+-------------------------------
+minimp4.h is upstream apart from the block that writes the 'esds' descriptor of
+an audio track, plus one helper added next to get_duration(). Everything else,
+CRLF line endings included, is byte-identical.
+
+Upstream's descriptor could not describe an MP3 track, and was not conformant
+for any codec:
+
+  - The objectTypeIndication byte was hardcoded to AAC (0x40), ignoring the
+    object_type_indication the caller put in MP4E_track_t. That byte is the only
+    thing telling a demuxer whether an 'mp4a' track holds AAC or MP3 -
+    Microsoft's documentation for the MPEG-4 File Source lists that one sample
+    entry as meaning "AAC or MP3" - so an MP3 track came back out declared as
+    AAC and decoded nowhere. It now uses the field the caller set.
+
+  - The whole descriptor was written only when a DecoderSpecificInfo had been
+    set with MP4E_set_dsi. AAC has one; MP3 has none and per ISO/IEC 14496-1
+    must not have one. So an MP3 track got no esds at all. The descriptor is now
+    always written and the DecoderSpecificInfo only when there is one, which is
+    what both codecs need.
+
+  - The low bit of the streamType byte is "reserved = 1" in the standard and was
+    left clear.
+
+  - The SLConfigDescriptor is mandatory and was missing entirely.
+
+  - maxBitrate and avgBitrate were hardcoded to zero with a "TODO". They are now
+    measured from the track: get_bitrate_bps() sums the sample sizes and
+    durations that are already in tr->smpl and scales by the track's time scale.
+    That needs no API change and is more honest than a configured figure, since
+    it reports what the file actually contains.
+
+An earlier version of this achieved the first point without touching the file,
+by redefining the constant between two inclusions of the header, and then
+rewrote the rest of the descriptor in place after MP4E_close by walking the
+finished file down to the esds box. That worked - it is what shipped first - but
+it cost about 150 lines across minimp4_impl.c and videorecorder.cpp, including a
+binary box walker, a byte-pattern check and a hook-hit counter to notice if the
+macro ever silently stopped being used. All of it existed to avoid a diff. Once
+the tree had accepted small documented patches to shine and SDL, keeping that
+machinery for minimp4 alone stopped making sense.
+
+VERIFYING IT AFTER AN UPDATE
+----------------------------
+The descriptor is easy to check by hand, and worth checking, because nothing
+about a wrong one is loud - the file still plays as long as the codec byte is
+right. For a 160 kbit/s stereo MP3 track it must come out exactly:
+
+  03 15 00 00 00 04 0d 6b 15 00 06 00 00 02 71 00 00 02 71 00 06 01 02
+  |     |           |  |  |  |        |           |           |
+  |     |           |  |  |  |        |           |           SLConfigDescriptor
+  |     |           |  |  |  |        |           avgBitrate  (tag 6, len 1, MP4)
+  |     |           |  |  |  |        maxBitrate  = 160000
+  |     |           |  |  |  bufferSizeDB = channels * 6144/8
+  |     |           |  |  streamType 5 (audio) << 2 | reserved 1
+  |     |           |  objectTypeIndication 0x6B = MPEG-1 Layer III
+  |     |           DecoderConfigDescriptor, tag 4, 13 bytes
+  |     ES_ID(2) + flags(1)
+  ES_Descriptor, tag 3, 21 bytes
+
+An AAC track with a two-byte AudioSpecificConfig gives 27 bytes: the same shape
+with objectTypeIndication 0x40, the DecoderConfigDescriptor grown to 17 bytes,
+and 05 02 <config> before the SLConfigDescriptor.
+
+Both were checked against the current sources, and a full six-second recording
+regenerated afterwards came out byte-for-byte identical to the one produced by
+the old post-processing route - which is the real evidence that the patch only
+changes where the bytes are written, not which bytes they are.
+
+WHAT IS NOT VENDORED
+--------------------
+Nothing else from the repository: the demuxer half of minimp4.h is compiled in
+because it is the same file, but the game only muxes.

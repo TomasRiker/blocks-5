@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse für eine Stromschalterbodenplatte ***/
+/*** Klasse fuer eine Stromschalterbodenplatte ***/
 
 class ElectricityPanel : public Panel
 {
@@ -12,6 +12,7 @@ public:
 	~ElectricityPanel();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 

@@ -1,7 +1,7 @@
 #ifndef _AS_OGG_H
 #define _AS_OGG_H
 
-/*** Klasse für OGG-Audiodateien ***/
+/*** Klasse fuer OGG-Audiodateien ***/
 
 #include "audiostream.h"
 

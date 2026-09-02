@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für eine Blockade ***/
+/*** Klasse fuer eine Blockade ***/
 
 class Barrage2 : public Object
 {
@@ -12,6 +12,7 @@ public:
 	~Barrage2();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

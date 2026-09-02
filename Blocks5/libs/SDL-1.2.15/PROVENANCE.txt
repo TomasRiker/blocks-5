@@ -1,0 +1,147 @@
+SDL 1.2.15
+==========
+
+Compiled from source into blocks5.exe. There is no sdl.dll and no
+libs/bin/sdl.lib any more: sdl.dll was the last file in the tree that pulled in
+MSVCR120.dll, so it was the last reason the installer had to offer a Visual C++
+redistributable.
+
+Taken verbatim from the upstream release, tag release-1.2.15:
+
+  https://github.com/libsdl-org/SDL-1.2   tag release-1.2.15
+  commit 457d4e55ffe1b6ad4c4fa4559dbda8360bf8253d (2012-01-20)
+
+libsdl.org is not reachable from the environment this was vendored in, so the
+release tarball's own checksum could not be confirmed - the git tag above is
+what these files were compared against, file by file. The include/ headers that
+were already in the tree, vendored earlier from the tarball, are byte-identical
+to it, which is the cross-check that the two match.
+
+Every file under src/ and include/ here is byte-identical to that tag, with two
+exceptions, both documented in the files themselves.
+
+1. src/main/win32/SDL_win32_main.c has an #undef UNICODE / #undef _UNICODE
+prologue. That file uses char buffers with TEXT() literals and GetCommandLine(),
+so under UNICODE the command line collapses to one character at run time and
+-windowed stops working. Blocks5.vcxproj is CharacterSet=MultiByte now (see
+below), so the undefs do nothing today; they stay as a guard, because this is the
+one file where flipping that setting back would fail silently rather than crash.
+
+2. include/SDL_syswm.h brackets its #include <windows.h> with close_code.h and
+begin_code.h. This is an upstream bug that only modern Windows SDKs expose.
+begin_code.h issues #pragma pack(push,4) for MSVC so that the application and the
+library agree on SDL's own structure layout, and SDL_syswm.h then includes
+windows.h *inside* that region. Windows SDK 10 checks structure sizes with
+C_ASSERT, which expands to a typedef of char[(e)?1:-1]; under 4-byte packing
+those checks fail, and winnt.h reports
+
+    error C2118: negative subscript
+    error C2369: '__C_ASSERT__': redefinition; different subscripts
+
+nine times over. Only src/events/SDL_events.c hit it, because it is the only
+vendored file that reaches SDL_syswm.h without windows.h already being in scope -
+every Windows video file includes windows.h or directx.h first, and the include
+guard then makes the inner one a no-op. Bracketing restores the ambient packing
+for windows.h and puts pack(4) back afterwards, so the SDL structures declared
+below it are laid out exactly as before. Verified by preprocessing SDL_syswm.h
+with _MSC_VER defined and reading the pragma sequence: before the change,
+windows.h sat between a push(4) and its pop; after it, it sits between a pop and
+the next push, and the file balances 5 pushes against 5 pops.
+
+Three other public headers include a system header inside the same region -
+SDL_stdinc.h takes <malloc.h> and <stdlib.h>, SDL_thread.h takes <process.h> -
+and they are deliberately left alone. Neither declares packing-sensitive
+structures and neither carries a C_ASSERT, and both compile today; changing them
+would be speculation rather than a fix.
+
+WHAT IS HERE, AND WHAT IS NOT
+-----------------------------
+src/ holds exactly the 66 C files that SDL's own VisualC/SDL/SDL.vcproj compiles
+for Win32, plus SDL_win32_main.c, plus every header in those directories. Nothing
+else from the upstream src/ tree is vendored - it is all for other platforms, or
+for compilers this build does not use.
+
+Eight upstream files sit in directories that ARE vendored but are deliberately
+absent, because SDL's own Win32 project does not compile them either:
+
+  src/audio/SDL_audiodev.c            Unix /dev/dsp enumeration
+  src/audio/SDL_mixer_MMX.c           GCC inline assembly
+  src/audio/SDL_mixer_m68k.c          Motorola 68000
+  src/video/SDL_yuv_mmx.c             GCC inline assembly
+  src/thread/generic/SDL_sysmutex.c   superseded by src/thread/win32
+  src/thread/generic/SDL_syssem.c     likewise
+  src/thread/generic/SDL_systhread.c  likewise
+  src/thread/win32/win_ce_semaphore.c Windows CE
+
+SDL_yuv_mmx.c is the one to remember if this tree ever grows a GCC build:
+SDL_yuv_sw.c calls into it when __GNUC__ > 2 and SDL_ASSEMBLY_ROUTINES is set,
+which is never true for MSVC and always true for GCC on x86.
+
+THE PROJECT MUST BE BUILT AS MultiByte, NOT Unicode
+---------------------------------------------------
+SDL 1.2 is an ANSI codebase. It stores `char*` everywhere and calls RegisterClass,
+LoadImage, LoadLibrary, GetModuleHandle, GetLocaleInfo, CreateFile and the rest
+unsuffixed, so with UNICODE defined every one of them resolves to the ...W
+variant and receives a narrow string. MSVC does not treat that as an error - it
+warns C4133 and compiles - so the build stays green and the program dies at run
+time.
+
+That is exactly what happened on the first successful v143 build. Blocks5.vcxproj
+was CharacterSet=Unicode, which never mattered while SDL was a DLL built ANSI by
+SDL's own project, and started mattering the moment these 67 sources were
+compiled inside it. The game reached SDL_Init and took an access violation:
+
+    GetCodePage()          SDL_sysevents.c:833
+        char buff[8];
+        GetLocaleInfo(lcid, LOCALE_IDEFAULTANSICODEPAGE, buff, sizeof(buff))
+
+GetLocaleInfoW's last parameter is a count of *characters*, so sizeof(buff) = 8
+means eight wide characters - sixteen bytes into an eight-byte buffer. It smashed
+the frame, and the next inlined call in SDL_RegisterApp faulted. The compiler had
+said so: "SDL_sysevents.c(838,55): warning C4133: incompatible types - from
+'char [8]' to 'LPWSTR'".
+
+Around forty more C4133 warnings across the SDL sources are the same bug not yet
+triggered - narrow paths handed to LoadLibraryW in SDL_sysloadso.c and
+SDL_wingl.c, narrow names to GetEnvironmentVariableW in SDL_getenv.c, narrow
+filenames to CreateFileW in SDL_rwops.c, joystick and CD-ROM names, the window
+title in SDL_dibevents.c.
+
+CharacterSet is MultiByte now, which is what SDL's own VisualC project uses
+(CharacterSet="0") and what the whole program has always been in practice: the
+game calls MessageBoxA, ShellExecuteA, SHGetFolderPathA and GetEnvironmentVariableA
+explicitly, uses WinExec, which has no wide variant at all, and contains no TCHAR,
+TEXT() or wchar_t of its own. If a C4133 warning ever appears in an SDL file
+again, this is the setting to check first.
+
+CONFIGURATION
+-------------
+include/SDL_config.h is upstream's SDL_config.h.default, which dispatches on the
+platform and lands on SDL_config_win32.h - the stock one, unmodified. So the
+driver set is exactly what the shipped sdl.dll had:
+
+  video      WINDIB and DDRAW (plus DUMMY), OpenGL through WGL
+  joystick   WINMM - not DirectInput
+  audio      DSOUND, WAVEOUT, DISK, DUMMY - all unused, the game plays through
+             OpenAL and never calls SDL_OpenAudio
+  cdrom      WIN32 - unused
+  threads, timers, loadso   Win32
+
+WINDIB comes before DDRAW in the bootstrap list in src/video/SDL_video.c, so the
+default driver is windib, exactly as before.
+
+BUILDING
+--------
+One include directory, libs/SDL-1.2.15/include, which the project already had.
+The sources use relative includes for everything internal.
+
+Two extra libraries, both from the Windows SDK, both named by SDL's own project:
+winmm.lib and dxguid.lib. dxguid.lib supplies the DirectDraw and DirectInput
+GUIDs; ddraw.h, dsound.h and dinput.h are only ever included, never linked
+against, because src/video/windx5/SDL_dx5video.c reaches DDRAW.DLL and
+DINPUT.DLL through LoadLibrary at run time. That is also why the shipped sdl.dll
+imported nothing but WINMM, KERNEL32, USER32, GDI32 and ADVAPI32.
+
+DECLSPEC= is in the project defines. begin_code.h guards it with #ifndef and
+would otherwise expand it to __declspec(dllexport) for MSVC on Win32, which is
+right for a DLL and wrong for the static build this now is.

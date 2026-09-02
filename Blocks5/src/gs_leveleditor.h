@@ -1,7 +1,7 @@
 #ifndef _GS_LEVELEDITOR_H
 #define _GS_LEVELEDITOR_H
 
-/*** Klasse für den Level-Editor ***/
+/*** Klasse fuer den Level-Editor ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -86,9 +86,6 @@ private:
 	std::string lastSavedXML;
 	std::string originalFilename;
 
-	std::string messageText;
-	uint messageCounter;
-	uint messageType;
 };
 
 #endif

@@ -79,7 +79,7 @@ void GUI_RadioButton::onRender()
 
 			if(checked)
 			{
-				// Häkchen zeichnen
+				// Haekchen zeichnen
 				Vec2i offset = (size - Vec2i(16, 16)) / 2;
 				Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(48, 224), Vec2i(16, 16), Vec4d(1.0));
 			}
@@ -99,7 +99,7 @@ void GUI_RadioButton::onRender()
 
 			if(checked)
 			{
-				// "Häkchen" zeichnen
+				// "Haekchen" zeichnen
 				glColor4d(0.0, 0.0, 0.0, 1.0);
 				glVertex2i(4, 4);
 				glVertex2i(size.x - 3, 4);
@@ -143,11 +143,38 @@ void GUI_RadioButton::onMouseUp(const Vec2i& position,
 
 		if(mouseOver)
 		{
-			// Signal auslösen
+			// Signal ausloesen
 			check();
 			changed(this);
 		}
 	}
+}
+
+// Die Beschriftung gehoert dazu. Gezeichnet wird sie in onRender() bei
+// Vec2i(size.x + 10, ...), und genau dieser Streifen zaehlt hier mit - ein
+// Klick auf den Text schaltet um, wie bei <label for="..."> im Browser.
+//
+// Gemessen statt geraten: waere der Streifen breiter als der Text, klaute er
+// Klicks von dem, was rechts daneben steht (Sprache und Details stehen in
+// options.xml in drei Spalten dicht nebeneinander). Ein leerer Titel ergibt
+// Breite 0, also bleibt es beim Kaestchen - die Filterknoepfe mit ihrer
+// eigenen <For>-Beschriftung merken davon nichts.
+bool GUI_RadioButton::containsPoint(const Vec2i& position)
+{
+	if(GUI_Element::containsPoint(position)) return true;
+
+	// Im Knopf-Aussehen steht die Beschriftung mittendrin, nicht daneben.
+	if(buttonLook) return false;
+
+	if(title.empty()) return false;
+
+	Vec2i dim;
+	p_font->measureText(localizeString(title), &dim, 0);
+	if(dim.x <= 0) return false;
+
+	const int left = size.x + 10;
+	return position.x >= left && position.x < left + dim.x &&
+		   position.y >= 0 && position.y < max(size.y, dim.y);
 }
 
 void GUI_RadioButton::onMouseEnter(int buttons)
@@ -160,13 +187,13 @@ void GUI_RadioButton::onMouseLeave(int buttons)
 	mouseOver = false;
 }
 
-void GUI_RadioButton::check()
+void GUI_RadioButton::setChecked()
 {
 	if(checked) return;
 
 	checked = true;
 
-	// alle anderen Radio-Buttons, die zur selben Gruppe gehören, ausschalten
+	// alle anderen Radio-Buttons, die zur selben Gruppe gehoeren, ausschalten
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
@@ -177,8 +204,14 @@ void GUI_RadioButton::check()
 			if(p_rb->getGroup() == getGroup()) p_rb->checked = false;
 		}
 	}
+}
 
-	// Signal auslösen
+void GUI_RadioButton::check()
+{
+	if(checked) return;
+	setChecked();
+
+	// Signal ausloesen
 	changed(this);
 }
 

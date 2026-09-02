@@ -18,18 +18,20 @@ Barrage2::~Barrage2()
 {
 }
 
+void Barrage2::updateSprites()
+{
+	// Blockade
+	Vec2i positionOnTexture;
+	if(shownState == 5) positionOnTexture = Vec2i(96, 256);
+	else if(shownState > 0) positionOnTexture = Vec2i(128, 256);
+	else positionOnTexture = Vec2i(160, 256);
+	sprites.add(positionOnTexture, getStdColor(this->color));
+}
+
 void Barrage2::onRender(int layer,
 						const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Blockade rendern
-		Vec2i positionOnTexture;
-		if(shownState == 5) positionOnTexture = Vec2i(96, 256);
-		else if(shownState > 0) positionOnTexture = Vec2i(128, 256);
-		else positionOnTexture = Vec2i(160, 256);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), getStdColor(this->color) * color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Barrage2::onUpdate()

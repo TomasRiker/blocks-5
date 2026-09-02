@@ -26,7 +26,7 @@ void GUI_CheckBox::onRender()
 
 		if(checked)
 		{
-			// Häkchen zeichnen
+			// Haekchen zeichnen
 			Vec2i offset = (size - Vec2i(16, 16)) / 2;
 			Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(32, 224), Vec2i(16, 16), Vec4d(1.0));
 		}
@@ -46,7 +46,7 @@ void GUI_CheckBox::onRender()
 
 		if(checked)
 		{
-			// "Häkchen" zeichnen
+			// "Haekchen" zeichnen
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glVertex2i(4, 4);
 			glVertex2i(size.x - 3, 4);
@@ -93,11 +93,34 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 
 		if(mouseOver)
 		{
-			// Signal auslösen
+			// Signal ausloesen
 			checked = newChecked;
 			changed(this);
 		}
 	}
+}
+
+// Die Beschriftung gehoert dazu. Gezeichnet wird sie in onRender() bei
+// Vec2i(size.x + 10, ...), und genau dieser Streifen zaehlt hier mit - ein
+// Klick auf den Text schaltet um, wie bei <label for="..."> im Browser.
+//
+// Gemessen statt geraten: waere der Streifen breiter als der Text, klaute er
+// Klicks von dem, was rechts daneben steht (Sprache und Details stehen in
+// options.xml in drei Spalten dicht nebeneinander). Ein leerer Titel ergibt
+// Breite 0, also bleibt es beim Kaestchen - die Filterknoepfe mit ihrer
+// eigenen <For>-Beschriftung merken davon nichts.
+bool GUI_CheckBox::containsPoint(const Vec2i& position)
+{
+	if(GUI_Element::containsPoint(position)) return true;
+	if(title.empty()) return false;
+
+	Vec2i dim;
+	p_font->measureText(localizeString(title), &dim, 0);
+	if(dim.x <= 0) return false;
+
+	const int left = size.x + 10;
+	return position.x >= left && position.x < left + dim.x &&
+		   position.y >= 0 && position.y < max(size.y, dim.y);
 }
 
 void GUI_CheckBox::onMouseEnter(int buttons)
@@ -115,7 +138,7 @@ void GUI_CheckBox::check(bool check)
 	if(checked == check) return;
 	checked = check;
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 

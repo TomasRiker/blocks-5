@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse für Lava ***/
+/*** Klasse fuer Lava ***/
 
 class Lava : public Object
 {

@@ -1,7 +1,7 @@
 #ifndef _MANAGER_H
 #define _MANAGER_H
 
-/*** Manager-Klasse für Ressourcen ***/
+/*** Manager-Klasse fuer Ressourcen ***/
 
 #include "resource.h"
 
@@ -12,8 +12,8 @@ template<typename T> class Manager : public Singleton<Manager<T> >
 public:
 	void exit()
 	{
-		// alle noch geladenen Objekte löschen
-		for(stdext::hash_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
+		// alle noch geladenen Objekte loeschen
+		for(typename std::unordered_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
 		{
 #ifdef _DEBUG
 			printfLog("> INFO: Resource \"%s\" is being released automatically ...\n",
@@ -28,13 +28,13 @@ public:
 
 	T* find(const std::string& filename) const
 	{
-		typedef stdext::hash_multimap<std::string, T*> mapType;
-		std::pair<mapType::const_iterator, mapType::const_iterator> range = items.equal_range(filename);
+		typedef std::unordered_multimap<std::string, T*> mapType;
+		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range = items.equal_range(filename);
 
 		// neueste Ressource suchen
 		uint newestTimestamp = 0;
 		T* p_newestResource = 0;
-		for(mapType::const_iterator i = range.first; i != range.second; ++i)
+		for(typename mapType::const_iterator i = range.first; i != range.second; ++i)
 		{
 			if(!p_newestResource || i->second->getTimestamp() > newestTimestamp)
 			{
@@ -55,7 +55,7 @@ public:
 			T* p_resource = find(filename);
 			if(p_resource)
 			{
-				// ja, Referenzzähler erhöhen und geladenes Objekt liefern
+				// ja, Referenzzaehler erhoehen und geladenes Objekt liefern
 				p_resource->refCounter++;
 				return p_resource;
 			}
@@ -66,7 +66,7 @@ public:
 				  filename.c_str());
 #endif
 
-		// Objekt neu laden und zurückliefern
+		// Objekt neu laden und zurueckliefern
 		T* p_item = new T(filename);
 		if(p_item->error)
 		{
@@ -89,9 +89,9 @@ public:
 				  p_item->filename.c_str());
 #endif
 
-		// Objekt löschen
-		std::pair<stdext::hash_multimap<std::string, T*>::iterator, stdext::hash_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
-		for(stdext::hash_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
+		// Objekt loeschen
+		std::pair<typename std::unordered_multimap<std::string, T*>::iterator, typename std::unordered_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
+		for(typename std::unordered_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
 		{
 			if(i->second == p_item)
 			{
@@ -108,8 +108,8 @@ public:
 	{
 		unsigned int counter = 0;
 
-		typedef stdext::hash_multimap<std::string, T*> mapType;
-		std::pair<mapType::const_iterator, mapType::const_iterator> range;
+		typedef std::unordered_multimap<std::string, T*> mapType;
+		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range;
 
 		if(filename.empty())
 		{
@@ -123,7 +123,7 @@ public:
 			range = items.equal_range(filename);
 		}
 
-		for(mapType::const_iterator i = range.first; i != range.second; ++i)
+		for(typename mapType::const_iterator i = range.first; i != range.second; ++i)
 		{
 #ifdef _DEBUG
 			printfLog("> INFO: Resource \"%s\" is being reloaded ...\n",
@@ -136,7 +136,7 @@ public:
 		return counter;
 	}
 
-	const stdext::hash_multimap<std::string, T*>& getItems() const
+	const std::unordered_multimap<std::string, T*>& getItems() const
 	{
 		return items;
 	}
@@ -151,7 +151,7 @@ private:
 		exit();
 	}
 
-	stdext::hash_multimap<std::string, T*> items;
+	std::unordered_multimap<std::string, T*> items;
 };
 
 #endif

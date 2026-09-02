@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "util.h"
 #include "engine.h"
 #include "filesystem.h"
@@ -35,6 +38,14 @@ std::string getFilenameExtension(const std::string& filename)
 	}
 }
 
+std::string formatLevelCaption(int number,
+							   const std::string& title)
+{
+	char prefix[16] = "";
+	sprintf(prefix, "%02d - ", number);
+	return prefix + title;
+}
+
 std::string setFilenameExtension(const std::string& filename,
 								 const std::string& extension)
 {
@@ -52,9 +63,36 @@ std::string setFilenameExtension(const std::string& filename,
 	}
 }
 
-int random()
+int randomInt()
 {
 	return mt.randInt(0x7FFFFFFF);
+}
+
+std::string sanitizeFilenameStem(const std::string& untrusted,
+								 const std::string& fallback)
+{
+	// nur den Basisnamen betrachten
+	std::string name(untrusted);
+	const size_t cut = name.find_last_of("/\\:");
+	if(cut != std::string::npos) name = name.substr(cut + 1);
+
+	// Erweiterung abschneiden - die bestimmt der Aufrufer, nicht die Datei
+	const size_t dot = name.find_last_of('.');
+	if(dot != std::string::npos) name = name.substr(0, dot);
+
+	std::string result;
+	for(size_t i = 0; i < name.length() && result.length() < 64; i++)
+	{
+		const char c = name[i];
+		const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+						(c >= '0' && c <= '9') || c == '_' || c == '-';
+		result += ok ? c : '_';
+	}
+
+	while(!result.empty() && result[0] == '_') result.erase(0, 1);
+	while(!result.empty() && result[result.length() - 1] == '_') result.resize(result.length() - 1);
+
+	return result.empty() ? fallback : result;
 }
 
 int random(int min,
@@ -149,13 +187,12 @@ void decryptPassword(const char* p_in,
 					 const uint* p_primes)
 {
 	char step1[1024] = "";
-	uint length1 = static_cast<uint>(strlen(p_in) / 7) * 4;
 	for(uint i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
 	{
 		// immer 7 Zeichen zur Basis 62 in einen 32-Bit-Integer umwandeln
 		uint n = fromBase62(&p_in[i]);
 
-		// entschlüsseln
+		// entschluesseln
 		uint pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		n ^= pattern;
 
@@ -168,11 +205,11 @@ void decryptPassword(const char* p_in,
 	uint indexIn = 0, indexOut = 0;
 	while(true)
 	{
-		// Anzahl der Terme lesen und entschlüsseln
+		// Anzahl der Terme lesen und entschluesseln
 		unsigned char numTerms = step1[indexIn++] ^ 0xB6;
 		if(!numTerms) break;
 
-		// Primzahlen und ihre Potenzen lesen und entschlüsseln
+		// Primzahlen und ihre Potenzen lesen und entschluesseln
 		uint c = 1;
 		for(uint i = 0; i < numTerms; i++)
 		{
@@ -183,13 +220,31 @@ void decryptPassword(const char* p_in,
 			for(uint j = 0; j < power; j++) c *= p_primes[prime];
 		}
 
-		// Buchstabe entschlüsseln und schreiben
+		// Buchstabe entschluesseln und schreiben
 		c -= indexOut * 7;
 		step2[indexOut++] = static_cast<char>(c);
 	}
 
 	step2[indexOut] = 0;
 	strcpy(p_out, step2);
+}
+
+bool isSafeMemberName(const std::string& name)
+{
+	if(name.empty() || name.length() > 100) return false;
+	if(name[0] == '.' || name[0] == '~') return false;
+	if(name.find("..") != std::string::npos) return false;
+
+	for(size_t i = 0; i < name.length(); i++)
+	{
+		// Quelldateien sind ISO-8859-1: ohne die Umdeutung nach unsigned
+		// waere jeder Umlaut negativ und fiele durch den Steuerzeichentest.
+		const unsigned char c = static_cast<unsigned char>(name[i]);
+		if(c < 0x20 || c == 0x7F) return false;
+		if(strchr("/\\:<>[]\"|?*", c)) return false;
+	}
+
+	return true;
 }
 
 void clearLog()
@@ -332,6 +387,8 @@ double getExactTime()
 	LARGE_INTEGER t;
 	QueryPerformanceCounter(&t);
 	return (t.QuadPart - startTime.QuadPart) * invFrequency;
+#elif defined(__EMSCRIPTEN__)
+	return emscripten_get_now() * 0.001;
 #else
 #error NOT IMPLEMENTED
 #endif

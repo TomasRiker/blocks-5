@@ -1,8 +1,25 @@
 #include "pch.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+// Definition weiter unten, bei setFullScreen().
+static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
+#endif
+#ifdef _WIN32
+// Fuer den Vollbildwechsel: der Fensterstil wird direkt gesetzt, an SDL vorbei.
+#include <SDL_syswm.h>
+#endif
 #include "engine.h"
+#include "glextensions.h"
+#include "sharpfit_shader.h"
+#include "crt_shader.h"
+#ifdef __EMSCRIPTEN__
+#include "web_bluescreen.h"
+#endif
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
+#include "sprite.h"
 #include "font.h"
 #include "sound.h"
 #include "streamedsound.h"
@@ -10,14 +27,14 @@
 #include "tileset.h"
 #include "crossfade.h"
 #include "filesystem.h"
-#include "hq2x.h"
 #include "videorecorder.h"
+#include "audiocapture.h"
 
 Engine::Engine()
 {
 	initialized = false;
 
-	for(int i = 0; i < 512; i++)
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
 		buttonData[i] = 0;
@@ -25,15 +42,45 @@ Engine::Engine()
 
 	frameTime = 0;
 	time = 0;
-	modal = false;
+	grabbingKey = false;
+	grabResult = GRAB_WAITING;
+	grabDeadline = 0;
+	grabHasDeadline = false;
 	p_crossfade = 0;
 	crossfadeTime = -1.0;
 	crossfadeDuration = 0.0;
 	glExtBlendFuncSeparate = 0;
-	p_hq2xIn = 0;
-	p_hq2xOut = 0;
 	p_videoRecorder = 0;
+	p_audioCapture = 0;
 	p_muteIconTexture = 0;
+	frameBufferID = 0;
+	frameTextureID = 0;
+	frameDepthStencilID = 0;
+	useFrameBuffer = false;
+	upscaleFilter = UF_SHARP_FIT;    // Voreinstellung; ohne Shader wird nearest daraus
+	fullScreen = false;
+	fullScreenOverride = -1;
+	splashSkipped = false;
+	swallowedReturn = false;
+	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
+	windowedPosition = Vec2i(0, 0);
+	windowedPositionKnown = false;
+	maximized = false;
+#ifdef _WIN32
+	inSizeMove = false;
+#endif
+	savedWindowStyle = 0;
+	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
+	sharpFit.program = 0;
+	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
+	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
+	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = sharpFit.scanFlicker = -1;
+	crt = sharpFit;
+	crtScanline = 0.5;
+	crtCurvature = 0.5;
+	crtBloom = 0.5;
+	crtFlicker = 0.5;
+	crtScanFlicker = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -45,24 +92,117 @@ Engine::~Engine()
 	exit();
 }
 
+namespace
+{
+	// Wie eine Taste in der config.xml heisst. Die Zahl dahinter taugt dafuer
+	// nicht: SDLK_LEFT ist unter SDL 1.2 die 276 und im Browser die 1104. Der
+	// Name steht hier fest, und welche Zahl er bedeutet, loest der jeweilige
+	// Build beim Uebersetzen selbst auf - deshalb stehen in der Tabelle
+	// Konstanten und keine Zahlen.
+	//
+	// Es sind die Tastennamen aus SDL 1.2 ohne das SDLK_ davor. Bis auf
+	// SDLK_WORLD_0..18, die Emscriptens SDL nicht kennt, gibt es jede davon
+	// auf beiden Seiten; die achtzehn fallen auf die Zahlenschreibweise
+	// zurueck und sind ohnehin nicht zu belegen.
+	struct KeyName
+	{
+		const char* p_name;
+		int         key;
+	};
+
+	const KeyName p_keyNames[] =
+	{
+		{"UNKNOWN", SDLK_UNKNOWN}     , {"BACKSPACE", SDLK_BACKSPACE} , {"TAB", SDLK_TAB},
+		{"CLEAR", SDLK_CLEAR}         , {"RETURN", SDLK_RETURN}       , {"PAUSE", SDLK_PAUSE},
+		{"ESCAPE", SDLK_ESCAPE}       , {"SPACE", SDLK_SPACE}         , {"EXCLAIM", SDLK_EXCLAIM},
+		{"QUOTEDBL", SDLK_QUOTEDBL}   , {"HASH", SDLK_HASH}           , {"DOLLAR", SDLK_DOLLAR},
+		{"AMPERSAND", SDLK_AMPERSAND} , {"QUOTE", SDLK_QUOTE}         , {"LEFTPAREN", SDLK_LEFTPAREN},
+		{"RIGHTPAREN", SDLK_RIGHTPAREN}, {"ASTERISK", SDLK_ASTERISK}   , {"PLUS", SDLK_PLUS},
+		{"COMMA", SDLK_COMMA}         , {"MINUS", SDLK_MINUS}         , {"PERIOD", SDLK_PERIOD},
+		{"SLASH", SDLK_SLASH}         , {"0", SDLK_0}                 , {"1", SDLK_1},
+		{"2", SDLK_2}                 , {"3", SDLK_3}                 , {"4", SDLK_4},
+		{"5", SDLK_5}                 , {"6", SDLK_6}                 , {"7", SDLK_7},
+		{"8", SDLK_8}                 , {"9", SDLK_9}                 , {"COLON", SDLK_COLON},
+		{"SEMICOLON", SDLK_SEMICOLON} , {"LESS", SDLK_LESS}           , {"EQUALS", SDLK_EQUALS},
+		{"GREATER", SDLK_GREATER}     , {"QUESTION", SDLK_QUESTION}   , {"AT", SDLK_AT},
+		{"LEFTBRACKET", SDLK_LEFTBRACKET}, {"BACKSLASH", SDLK_BACKSLASH} , {"RIGHTBRACKET", SDLK_RIGHTBRACKET},
+		{"CARET", SDLK_CARET}         , {"UNDERSCORE", SDLK_UNDERSCORE}, {"BACKQUOTE", SDLK_BACKQUOTE},
+		{"a", SDLK_a}                 , {"b", SDLK_b}                 , {"c", SDLK_c},
+		{"d", SDLK_d}                 , {"e", SDLK_e}                 , {"f", SDLK_f},
+		{"g", SDLK_g}                 , {"h", SDLK_h}                 , {"i", SDLK_i},
+		{"j", SDLK_j}                 , {"k", SDLK_k}                 , {"l", SDLK_l},
+		{"m", SDLK_m}                 , {"n", SDLK_n}                 , {"o", SDLK_o},
+		{"p", SDLK_p}                 , {"q", SDLK_q}                 , {"r", SDLK_r},
+		{"s", SDLK_s}                 , {"t", SDLK_t}                 , {"u", SDLK_u},
+		{"v", SDLK_v}                 , {"w", SDLK_w}                 , {"x", SDLK_x},
+		{"y", SDLK_y}                 , {"z", SDLK_z}                 , {"DELETE", SDLK_DELETE},
+		{"KP0", SDLK_KP0}             , {"KP1", SDLK_KP1}             , {"KP2", SDLK_KP2},
+		{"KP3", SDLK_KP3}             , {"KP4", SDLK_KP4}             , {"KP5", SDLK_KP5},
+		{"KP6", SDLK_KP6}             , {"KP7", SDLK_KP7}             , {"KP8", SDLK_KP8},
+		{"KP9", SDLK_KP9}             , {"KP_PERIOD", SDLK_KP_PERIOD} , {"KP_DIVIDE", SDLK_KP_DIVIDE},
+		{"KP_MULTIPLY", SDLK_KP_MULTIPLY}, {"KP_MINUS", SDLK_KP_MINUS}   , {"KP_PLUS", SDLK_KP_PLUS},
+		{"KP_ENTER", SDLK_KP_ENTER}   , {"KP_EQUALS", SDLK_KP_EQUALS} , {"UP", SDLK_UP},
+		{"DOWN", SDLK_DOWN}           , {"RIGHT", SDLK_RIGHT}         , {"LEFT", SDLK_LEFT},
+		{"INSERT", SDLK_INSERT}       , {"HOME", SDLK_HOME}           , {"END", SDLK_END},
+		{"PAGEUP", SDLK_PAGEUP}       , {"PAGEDOWN", SDLK_PAGEDOWN}   , {"F1", SDLK_F1},
+		{"F2", SDLK_F2}               , {"F3", SDLK_F3}               , {"F4", SDLK_F4},
+		{"F5", SDLK_F5}               , {"F6", SDLK_F6}               , {"F7", SDLK_F7},
+		{"F8", SDLK_F8}               , {"F9", SDLK_F9}               , {"F10", SDLK_F10},
+		{"F11", SDLK_F11}             , {"F12", SDLK_F12}             , {"F13", SDLK_F13},
+		{"F14", SDLK_F14}             , {"F15", SDLK_F15}             , {"NUMLOCK", SDLK_NUMLOCK},
+		{"CAPSLOCK", SDLK_CAPSLOCK}   , {"SCROLLOCK", SDLK_SCROLLOCK} , {"RSHIFT", SDLK_RSHIFT},
+		{"LSHIFT", SDLK_LSHIFT}       , {"RCTRL", SDLK_RCTRL}         , {"LCTRL", SDLK_LCTRL},
+		{"RALT", SDLK_RALT}           , {"LALT", SDLK_LALT}           , {"RMETA", SDLK_RMETA},
+		{"LMETA", SDLK_LMETA}         , {"LSUPER", SDLK_LSUPER}       , {"RSUPER", SDLK_RSUPER},
+		{"MODE", SDLK_MODE}           , {"COMPOSE", SDLK_COMPOSE}     , {"HELP", SDLK_HELP},
+		{"PRINT", SDLK_PRINT}         , {"SYSREQ", SDLK_SYSREQ}       , {"BREAK", SDLK_BREAK},
+		{"MENU", SDLK_MENU}           , {"POWER", SDLK_POWER}         , {"EURO", SDLK_EURO},
+		{"UNDO", SDLK_UNDO},
+	};
+
+	std::string keyboardVKId(int key)
+	{
+		for(uint i = 0; i < sizeof(p_keyNames) / sizeof(p_keyNames[0]); i++)
+		{
+			if(p_keyNames[i].key == key) return std::string("key:") + p_keyNames[i].p_name;
+		}
+
+		// Kennt dieser Build die Taste, die Tabelle aber nicht: als Zahl, so
+		// wie frueher. Gilt dann wieder nur auf derselben Plattform.
+		char temp[32] = "";
+		sprintf(temp, "key:#%d", key);
+		return temp;
+	}
+}
+
 bool Engine::init(const std::string& windowCaption,
 				  const std::string& windowIconFilename,
 				  uint width,
 				  uint height,
-				  bool fullScreen,
-				  bool useHQ2X)
+				  bool defaultFullScreen)
 {
 	if(initialized) return false;
 
-	// Konfiguration laden
-	loadConfig();
-
-	printfLog("* Language: %s\n", language.c_str());
-
 	screenSize = Vec2i(width, height);
 	screenPow2Size = Vec2i(nextPow2(width), nextPow2(height));
-	this->fullScreen = fullScreen;
-	this->useHQ2X = useHQ2X;
+
+	// Reihenfolge: eingebaute Voreinstellung, dann die config.xml, dann die
+	// Kommandozeile - die sticht beides. Ab hier zaehlt nur noch fullScreen,
+	// nie mehr defaultFullScreen: die beiden koennen auseinanderlaufen, und
+	// genau das hat den Vollbildwechsel schon einmal unbrauchbar gemacht.
+	fullScreen = defaultFullScreen;
+#ifdef __EMSCRIPTEN__
+	// Im Browser fuellt die Seite ohnehin schon alles aus, und die
+	// Fullscreen-API laesst sich ohne echten Tastendruck gar nicht ausloesen -
+	// beim Start gibt es also kein Vollbild, egal was irgendwo steht.
+	fullScreen = false;
+#endif
+	// Konfiguration laden. Setzt windowedSize, wenn die Datei etwas dazu sagt.
+	loadConfig();
+
+	if(fullScreenOverride >= 0) fullScreen = (fullScreenOverride != 0);
+
+	printfLog("* Language: %s\n", language.c_str());
 
 	// SDL initialisieren
 	printfLog("* Initializing SDL ...\n");
@@ -76,18 +216,19 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_EnableKeyRepeat(140, 60);
 	SDL_EnableUNICODE(1);
 
-	// alle Tasten als VK einfügen
+	// alle Tasten als VK einfuegen
 	for(int k = 0; k < SDLK_LAST; k++)
 	{
 		VirtualKey vk;
 		const char* p_name = SDL_GetKeyName(static_cast<SDLKey>(k));
 		vk.name = std::string("Keyboard ") + (p_name ? p_name : "???");
+		vk.id = keyboardVKId(k);
 		vk.key = k;
 		vk.down = false;
 		virtualKeys.push_back(vk);
 	}
 
-	// alle Joysticks öffnen
+	// alle Joysticks oeffnen
 	int n = SDL_NumJoysticks();
 	int index = 0;
 	for(int j = 0; j < n; j++)
@@ -95,7 +236,7 @@ bool Engine::init(const std::string& windowCaption,
 		SDL_Joystick* p_joystick = SDL_JoystickOpen(j);
 		if(p_joystick)
 		{
-			// alle Tasten als VK einfügen
+			// alle Tasten als VK einfuegen
 			int nk = SDL_JoystickNumButtons(p_joystick);
 			for(int k = 0; k < nk; k++)
 			{
@@ -103,13 +244,14 @@ bool Engine::init(const std::string& windowCaption,
 				std::ostringstream str;
 				str << "Joystick" << index + 1 << " B" << k + 1;
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.key = k;
 				vk.down = false;
 				virtualKeys.push_back(vk);
 			}
 
-			// alle Achsen als VK einfügen
+			// alle Achsen als VK einfuegen
 			int na = SDL_JoystickNumAxes(p_joystick);
 			for(int a = 0; a < na; a++)
 			{
@@ -118,6 +260,7 @@ bool Engine::init(const std::string& windowCaption,
 				std::ostringstream str;
 				str << "Joystick" << index + 1 << " A" << a + 1 << "-";
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
 				vk.positive = false;
@@ -126,13 +269,14 @@ bool Engine::init(const std::string& windowCaption,
 				str.str("");
 				str << "Joystick" << index + 1 << " A" << a + 1 << "+";
 				vk.name = str.str();
+				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
 				vk.positive = true;
 				virtualKeys.push_back(vk);
 			}
 
-			// alle Hats mit allen Richtungen als VK einfügen
+			// alle Hats mit allen Richtungen als VK einfuegen
 			int nh = SDL_JoystickNumHats(p_joystick);
 			for(int h = 0; h < nh; ++h)
 			{
@@ -144,34 +288,42 @@ bool Engine::init(const std::string& windowCaption,
 				vk.hat = h;
 
 				vk.name = str.str() + "N";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_UP;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "NE";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTUP;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "E";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHT;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "SE";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTDOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "S";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_DOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "SW";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTDOWN;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "W";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFT;
 				virtualKeys.push_back(vk);
 
 				vk.name = str.str() + "NW";
+				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTUP;
 				virtualKeys.push_back(vk);
 			}
@@ -181,7 +333,19 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
+	resolveActionKeys();
 	limitActionKeys();
+	repairLostBindings();
+
+	// Jetzt erst, denn getDesktopSize() braucht SDL - und es muss vor dem
+	// ersten SDL_SetVideoMode passieren, weil SDL_GetVideoInfo danach die
+	// Fenster- statt der Desktopgroesse liefert.
+	if(windowedSize.x <= 0 || windowedSize.y <= 0) windowedSize = getDefaultWindowSize();
+	// Ein Fenster, das nicht mehr auf den Bildschirm passt - anderer Rechner,
+	// abgestoepselter Monitor -, wird zurechtgestutzt.
+	const Vec2i desktop = getDesktopSize();
+	if(windowedSize.x > desktop.x || windowedSize.y > desktop.y)
+		windowedSize = getDefaultWindowSize();
 
 	char videoDriver[256] = "";
 	SDL_VideoDriverName(videoDriver, 256);
@@ -197,54 +361,6 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-	if(useHQ2X)
-	{
-		// HQ2X initialisieren
-		if(!InitLUTs())
-		{
-			// Kein MMX - dann können wir es sowieso vergessen.
-			useHQ2X = false;
-		}
-		else
-		{
-			p_hq2xIn = new unsigned char[screenSize.x * screenSize.y * 4];
-			p_hq2xOut = new unsigned char[screenSize.x * screenSize.y * 16];
-		}
-	}
-
-	displaySize = Vec2i(width, height);
-	if(useHQ2X)
-	{
-		displaySize.x = width * 2;
-		displaySize.y = height * 2;
-
-		if(fullScreen)
-		{
-			// die nächste passende Auflösung suchen
-			SDL_Rect** pp_modes = SDL_ListModes(0, SDL_OPENGL | SDL_FULLSCREEN);
-			if(pp_modes[0] == reinterpret_cast<SDL_Rect*>(-1))
-			{
-				// Keine Einschränkungen!
-			}
-			else
-			{
-				int i;
-				for(i = 0; pp_modes[i]; i++);
-				for(i--; i >= 0; i--)
-				{
-					// Passt das?
-					if(pp_modes[i]->w >= displaySize.x && pp_modes[i]->h >= displaySize.y)
-					{
-						// Ja.
-						displaySize.x = pp_modes[i]->w;
-						displaySize.y = pp_modes[i]->h;
-						break;
-					}
-				}
-			}
-		}
-	}
 
 	if(!windowIconFilename.empty())
 	{
@@ -294,12 +410,37 @@ bool Engine::init(const std::string& windowCaption,
 		delete[] p_mask;
 	}
 
-	p_display = SDL_SetVideoMode(displaySize.x, displaySize.y, 32, SDL_OPENGL | (fullScreen ? SDL_FULLSCREEN : 0));
+	// SDLs Flags bleiben ab hier unveraendert - SDL_OPENGL | SDL_RESIZABLE, das
+	// ganze Programm ueber. Nur so trifft DIB_SetVideoMode bei jeder weiteren
+	// Groessenaenderung seinen schnellen Pfad, und der GL-Kontext ueberlebt sie.
+	// Vollbild ist deshalb kein SDL-Flag, sondern ein Fensterstil (siehe
+	// applyWindowStyle); der Aufruf hier legt immer das Fenster an.
+	displaySize = windowedSize;
+	p_display = SDL_SetVideoMode(displaySize.x, displaySize.y, 32, SDL_OPENGL | SDL_RESIZABLE);
 	if(!p_display)
 	{
 		printfLog("+ ERROR: Could not set video mode (Error: %s).\n", SDL_GetError());
 		return false;
 	}
+
+	// Dorthin, wo es zuletzt stand.
+	restoreWindowPosition();
+
+#ifdef _WIN32
+	// Ab jetzt steht das Fenster, und die eigene Fensterprozedur kann davor.
+	hookWindowProc();
+#endif
+
+	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - das Fenster
+	// steht, der Kontext auch.
+	if(fullScreen) applyWindowStyle(true, getDesktopSize());
+
+#ifdef __EMSCRIPTEN__
+	// Alt+Return am DOM, nicht an SDL: nur ein echter Tastendruck darf die
+	// Fullscreen-API ausloesen.
+	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
+									engineFullScreenHotkey);
+#endif
 
 	SDL_ShowCursor(0);
 	setupCursor();
@@ -327,8 +468,17 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("  Stencil bits:     %d\n", stencil);
 	printfLog("  Double buffering: %s\n", dbuffer ? "On" : "Off");
 	printfLog("  SDL display:      Flags=%x, BPP=%d, Masks=(%x, %x, %x, %x)\n", p_display->flags, p_display->format->BitsPerPixel, p_display->format->Rmask, p_display->format->Gmask, p_display->format->Bmask, p_display->format->Amask);
-	printfLog("  hq2x:             %s\n", useHQ2X ? "On" : "Off");
 	printfLog("  ============================================================\n");
+
+#ifdef __EMSCRIPTEN__
+	// glBlendFuncSeparate is core in GLES2/WebGL, but the GL_EXT_blend_func_separate
+	// extension string is not advertised, so the probe below can never pass. Left
+	// alone, glExtBlendFuncSeparate stays null, which costs separate alpha blending
+	// and makes Engine::init force GUI opacity to 1.0 - the GUI stops fading.
+	glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(&glBlendFuncSeparate);
+	printfLog("  Separate blending is core in WebGL; using it directly.\n");
+	printfLog("  ============================================================\n");
+#endif
 
 	// Extensions abfragen
 	const char* p_extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
@@ -339,11 +489,27 @@ bool Engine::init(const std::string& windowCaption,
 		{
 			printfLog("  Extension GL_EXT_blend_func_separate is available.\n");
 			printfLog("  ============================================================\n");
-			glExtBlendFuncSeparate = static_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(p_proc);
+			glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(p_proc);
 		}
 	}
 
-	// Texturen für Crossfading erzeugen
+	// Bildpuffer anlegen. Schlaegt das fehl, rendert das Spiel wie frueher direkt
+	// in den Backbuffer - dann ist nur die Fenstergroesse wieder starr.
+	GLExtensions::init();
+	useFrameBuffer = createFrameBuffer();
+	if(!useFrameBuffer)
+	{
+		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
+	}
+	else if(GLExtensions::haveShaders())
+	{
+		createPresentPrograms();
+	}
+	printfLog("  Upscale filters:  nearest, bilinear%s%s\n",
+			  canUseSharpFit() ? ", sharp-fit" : "", canUseCrt() ? ", crt" : "");
+	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
+
+	// Texturen fuer Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
 	glGenTextures(1, &newImageID);
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
@@ -359,8 +525,7 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("* Initializing OpenAL ...\n");
 
 	std::string bestDevice = getBestOpenALDevice();
-	std::string bestCaptureDevice = getBestOpenALCaptureDevice();
-	if(bestDevice == "[NONE]" || bestCaptureDevice == "[NONE]")
+	if(bestDevice == "[NONE]")
 	{
 		printfLog("+ ERROR: Please install current version of OpenAL and audio drivers.\n");
 		return false;
@@ -368,7 +533,6 @@ bool Engine::init(const std::string& windowCaption,
 
 	printfLog("  ============================================================\n");
 	printfLog("  Selected output:  %s\n", bestDevice.c_str());
-	printfLog("  Selected capture: %s\n", bestCaptureDevice.c_str());
 	printfLog("  ============================================================\n");
 
 	p_audioDevice = alcOpenDevice(bestDevice.c_str());
@@ -378,8 +542,21 @@ bool Engine::init(const std::string& windowCaption,
 		return false;
 	}
 
-	p_audioCaptureDevice = alcCaptureOpenDevice(bestCaptureDevice.c_str(), 48000, AL_FORMAT_STEREO16, 48000);
-	if(!p_audioCaptureDevice) printfLog("+ WARNING: Could not open audio capture device. Captured videos will be without audio!\n");
+	// Ton fuer Videoaufnahmen: OpenAL kann nur Eingangsgeraete aufnehmen, also das
+	// Mikrofon. Aufgenommen werden soll aber das, was das Spiel ausgibt - das macht
+	// AudioCapture ueber den Loopback-Modus von WASAPI.
+	p_audioCapture = new AudioCapture;
+	if(p_audioCapture->open(48000))
+	{
+		printfLog("  Recording audio from: %s (loopback)\n", p_audioCapture->getDeviceName().c_str());
+		printfLog("  ============================================================\n");
+	}
+	else
+	{
+		delete p_audioCapture;
+		p_audioCapture = 0;
+		printfLog("+ WARNING: Could not open audio capture device. Captured videos will be without audio!\n");
+	}
 
 	p_audioContext = alcCreateContext(p_audioDevice, 0);
 	if(!p_audioContext)
@@ -396,8 +573,6 @@ bool Engine::init(const std::string& windowCaption,
 
 	alcProcessContext(p_audioContext);
 
-	av_register_all();
-
 	printfLog("* Initializing GUI ...\n");
 	if(!GUI::inst().init())
 	{
@@ -407,11 +582,17 @@ bool Engine::init(const std::string& windowCaption,
 
 	// OpenGL-Einstellungen setzen
 	glViewport(0, 0, width, height);
+#ifndef __EMSCRIPTEN__
+	// GL_SMOOTH is the default; emscripten's GL emulation aborts on this call.
 	glShadeModel(GL_SMOOTH);
+#endif
 	glEnable(GL_BLEND);
 	glEnable(GL_POINT_SMOOTH);
+#ifndef __EMSCRIPTEN__
+	// Neither hint target exists in WebGL (both raise INVALID_ENUM).
 	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+#endif
 
 	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	if(!glExtBlendFuncSeparate) GUI::inst().setOpacity(1.0);
@@ -446,6 +627,12 @@ void Engine::exit()
 {
 	if(!initialized) return;
 
+	// Fenstergroesse, -position und Vollbildzustand sollen den naechsten Start
+	// erleben, auch wenn der Spieler den Optionsdialog nie geoeffnet hat - der
+	// war bis hierher die einzige Stelle, die je gespeichert hat.
+	rememberWindowPlacement();
+	saveConfig();
+
 	if(p_videoRecorder)
 	{
 		// Aufnahme stoppen
@@ -459,6 +646,15 @@ void Engine::exit()
 	// GUI herunterfahren
 	printfLog("* Shutting down GUI ...\n");
 	GUI::inst().exit();
+
+#ifdef _WIN32
+	// Eigene Fensterprozedur wieder heraus, bevor SDL das Fenster abbaut.
+	unhookWindowProc();
+#endif
+
+	// Bildpuffer freigeben, solange der GL-Kontext noch steht
+	destroyPresentPrograms();
+	destroyFrameBuffer();
 
 	// Manager herunterfahren
 	printfLog("* Shutting down resource managers ...\n");
@@ -474,23 +670,15 @@ void Engine::exit()
 	alcMakeContextCurrent(0);
 	alcDestroyContext(p_audioContext);
 	alcCloseDevice(p_audioDevice);
-	if(p_audioCaptureDevice) alcCaptureCloseDevice(p_audioCaptureDevice);
+	delete p_audioCapture;
+	p_audioCapture = 0;
 
-	// Crossfade und Texturen löschen
+	// Crossfade und Texturen loeschen
 	crossfade(0, 0.0);
 	glDeleteTextures(1, &oldImageID);
 	glDeleteTextures(1, &newImageID);
 
-	if(useHQ2X)
-	{
-		// hq2x herunterfahren
-		delete[] p_hq2xIn;
-		delete[] p_hq2xOut;
-		p_hq2xIn = 0;
-		p_hq2xOut = 0;
-	}
-
-	// Joysticks schließen
+	// Joysticks schliessen
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
 		it != joysticks.end();
 		++it)
@@ -506,15 +694,12 @@ void Engine::exit()
 	SDL_FreeCursor(p_cursor);
 	SDL_Quit();
 
-	// Aktionen löschen
+	// Aktionen loeschen
 	for(size_t i = 0; i < actionsVector.size(); i++) delete actionsVector[i];
 	actionsVector.clear();
 	actions.clear();
 
-	FileSystem& fs = FileSystem::inst();
-	std::ostringstream timePlayedStr;
-	timePlayedStr << timePlayed;
-	fs.writeStringToFile(timePlayedStr.str(), fs.getAppHomeDirectory() + ".time_played");
+	saveTimePlayed();
 
 	initialized = false;
 }
@@ -522,13 +707,38 @@ void Engine::exit()
 // #define RECORD
 // #define PROFILE_VIDEO_CAPTURE
 
+#ifdef __EMSCRIPTEN__
+// A browser tab cannot host a blocking game loop: each frame has to be handed
+// back so the page can paint and deliver input. emscripten_set_main_loop calls
+// one iteration per animation frame, which means the loop's state can no longer
+// live in locals, so it moves to file scope here. (The other option - ASYNCIFY
+// plus emscripten_sleep - could not rewind this particular loop reliably.)
+namespace
+{
+	bool   active = true;
+	bool   done = false;
+	Uint32 timeToProcess = 0;
+	uint   timeProcessed = 1;
+	uint   firstEventRecorded = ~0u;
+}
+
+static void emMainLoopIteration(void* p_engine);
+#endif
+
 void Engine::mainLoop()
 {
+#ifndef __EMSCRIPTEN__
 	bool active = true;
 	bool done = false;
 	Uint32 timeToProcess = 0;
 	uint timeProcessed = 1;
-	uint firstEventRecorded = ~0;
+#ifdef RECORD
+	// Nur der Demo-Rekorder braucht das. Im Browser steht es oben im
+	// Namensraum, weil die Schleife dort ihre lokalen Variablen nicht ueber
+	// den Bildwechsel retten kann.
+	uint firstEventRecorded = ~0u;
+#endif
+#endif
 
 	// Cursor-Position abfragen
 	SDL_GetMouseState(&cursorPosition.x, &cursorPosition.y);
@@ -539,9 +749,35 @@ void Engine::mainLoop()
 	FILE* p_out = fopen("keyboard.dat", "wb");
 #endif
 
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop_arg(emMainLoopIteration, this, 0, 1);
+}
+
+void Engine::mainLoopIteration()
+{
+	// do/while(0) so the body's `continue` and `break` still mean
+	// "end this frame", exactly as they did inside the real loop.
 	do
 	{
+#else
+	do
+	{
+#endif
 		Uint32 start = SDL_GetTicks();
+
+#ifdef __EMSCRIPTEN__
+		// Der Browser aendert die Canvas-Groesse, ohne dass SDL 1.2 davon ein
+		// SDL_VIDEORESIZE machen wuerde - Groessenaenderung durch das
+		// Browserfenster wie durch die Fullscreen-API. Einmal pro Bild
+		// nachsehen kostet nichts und faengt beides.
+		{
+			int canvasWidth = 0, canvasHeight = 0;
+			emscripten_get_canvas_element_size("#canvas", &canvasWidth, &canvasHeight);
+			if(canvasWidth > 0 && canvasHeight > 0 &&
+			   (canvasWidth != displaySize.x || canvasHeight != displaySize.y))
+				handleResize(canvasWidth, canvasHeight);
+		}
+#endif
 
 		// OpenGL-Fehler aufgetreten?
 		uint err = glGetError();
@@ -561,6 +797,7 @@ void Engine::mainLoop()
 		// rendern
 		if(active && timeProcessed)
 		{
+			bindFrameBuffer();
 			render();
 			frameRendered = true;
 		}
@@ -604,7 +841,7 @@ void Engine::mainLoop()
 							GameState* p_gs = this->getGameState();
 							if(p_gs) p_gs->onAppLoseFocus();
 
-							// Videoaufnahme stoppen, falls gerade eine läuft
+							// Videoaufnahme stoppen, falls gerade eine laeuft
 							if(p_videoRecorder)
 							{
 								delete p_videoRecorder;
@@ -615,33 +852,106 @@ void Engine::mainLoop()
 				}
 				break;
 			case SDL_KEYDOWN:
-				keyData[event.key.keysym.sym] |= (1 | 2);
+#ifndef __EMSCRIPTEN__
+				// Alt+F4 muss das Spiel beenden. Windows macht daraus sonst
+				// selbst ein WM_CLOSE - aber erst in DefWindowProc, und dorthin
+				// kommt die Taste nie: SDLs windib-Fensterprozedur behandelt
+				// WM_SYSKEYDOWN als gewoehnlichen Tastendruck und gibt 0
+				// zurueck (SDL_dibevents.c:137). Also hier, und zwar genau so,
+				// wie es der Quit-Knopf im Menue tut - damit auch eine laufende
+				// Videoaufnahme sauber geschlossen wird.
+				if(event.key.keysym.sym == SDLK_F4 &&
+				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
+				{
+					SDL_Event quitEvent;
+					quitEvent.type = SDL_QUIT;
+					SDL_PushEvent(&quitEvent);
+					break;
+				}
+#endif
+				// Alt+Return schaltet Vollbild um und wird verschluckt, damit
+				// das Spiel darin kein gewoehnliches Return sieht. (Im Browser
+				// hat das schon der DOM-Handler erledigt - der Tastendruck
+				// kommt trotzdem hier an, und genau deshalb muss er hier weg.)
+				if(event.key.keysym.sym == SDLK_RETURN &&
+				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
+				{
+					swallowedReturn = true;
+#ifndef __EMSCRIPTEN__
+					toggleFullScreen();
+#endif
+					break;
+				}
+				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+					keyData[event.key.keysym.sym] |= (1 | 2);
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_KEYUP:
-				keyData[event.key.keysym.sym] &= ~1;
-				keyData[event.key.keysym.sym] |= 4;
+				// Nicht am Modifikator festmachen: wer Alt vor Return loslaesst,
+				// wuerde sonst ein Loslassen ohne Druecken hinterlassen.
+				if(event.key.keysym.sym == SDLK_RETURN && swallowedReturn)
+				{
+					swallowedReturn = false;
+					break;
+				}
+				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+				{
+					keyData[event.key.keysym.sym] &= ~1;
+					keyData[event.key.keysym.sym] |= 4;
+				}
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				buttonData[event.button.button] |= (1 | 2);
+				if(event.button.button < NUM_KEY_SLOTS)
+					buttonData[event.button.button] |= (1 | 2);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				buttonData[event.button.button] &= ~1;
-				buttonData[event.button.button] |= 4;
+				if(event.button.button < NUM_KEY_SLOTS)
+				{
+					buttonData[event.button.button] &= ~1;
+					buttonData[event.button.button] |= 4;
+				}
 				break;
 			case SDL_MOUSEMOTION:
 				cursorPosition = Vec2i(event.motion.x, event.motion.y);
 				break;
+			case SDL_VIDEORESIZE:
+				// Kommt sowohl vom Ziehen am Fensterrand als auch vom
+				// Stilwechsel in applyWindowStyle(): SDL bemerkt die neue
+				// Groesse ueber sein eigenes WM_WINDOWPOSCHANGED und meldet
+				// sie hier. Ein Pfad fuer beides.
+				handleResize(event.resize.w, event.resize.h);
+				break;
 			case SDL_QUIT:
+#ifdef __EMSCRIPTEN__
+				// Im Browser kann sich ein Programm nicht selbst schliessen -
+				// "Beenden" tat dort bisher schlicht gar nichts. Statt dessen
+				// reisst das Spiel jetzt zum Schein den Rechner mit; siehe
+				// WebBuild/web_bluescreen.cpp. Das haelt auch die Hauptschleife
+				// an, done braucht es hier also nicht mehr.
+				WebBlueScreen::show();
+#else
 				done = true;
+#endif
 				break;
 			}
 		}
 
 		if(!active)
 		{
-			if(!fullScreen) SDL_GL_SwapBuffers();
+			// Nicht rechnen, nicht zeichnen - aber weiter zeigen. Ein Fenster,
+			// das gar nichts mehr vorlegt, hat nicht mehr in der Hand, was von
+			// ihm zu sehen ist: Windows nimmt dann, was es zuletzt von ihm
+			// hatte, und das kann Sekunden alt sein. Im Vollbild fiel das auf,
+			// weil dort bisher gar nichts geschah - beim Druck auf die
+			// Windows-Taste stand hinter dem Startmenue ein altes Bild.
+			//
+			// Der Bildpuffer haelt das zuletzt gezeichnete Bild, also ist es
+			// auch das richtige. Ohne Bildpuffer gibt es nichts zu wiederholen;
+			// dort bleibt es beim blossen Tauschen wie bisher.
+			if(useFrameBuffer) showLastFrame();
+			else if(!fullScreen) SDL_GL_SwapBuffers();
+
 			updateSounds();
 			SDL_Delay(50);
 			continue;
@@ -662,15 +972,9 @@ void Engine::mainLoop()
 		{
 			update();
 
-			if(modal)
-			{
-				modal = false;
-				start = SDL_GetTicks();
-			}
-
 #ifdef RECORD
 			bool output = false;
-			for(int i = 0; i < 512; i++)
+			for(int i = 0; i < NUM_KEY_SLOTS; i++)
 			{
 				if(keyData[i])
 				{
@@ -687,8 +991,8 @@ void Engine::mainLoop()
 			}
 #endif
 
-			// Tastatur- und Mausdaten zurücksetzen
-			for(int i = 0; i < 512; i++)
+			// Tastatur- und Mausdaten zuruecksetzen
+			for(int i = 0; i < NUM_KEY_SLOTS; i++)
 			{
 #ifdef RECORD
 				if(output && keyData[i])
@@ -703,8 +1007,8 @@ void Engine::mainLoop()
 				while(!keyEventQueue.empty()) keyEventQueue.pop();
 			}
 
-			// Aktionsdaten zurücksetzen
-			for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+			// Aktionsdaten zuruecksetzen
+			for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 				it != actions.end();
 				++it)
 			{
@@ -726,7 +1030,18 @@ void Engine::mainLoop()
 
 		if(crossfadeTime == -0.51)
 		{
-			// altes Bild sichern
+			// altes Bild sichern. Der Bildpuffer muss dafuer selbst gebunden
+			// werden: gerendert wird nur, wenn dieser Durchgang mindestens
+			// einen Logikschritt gemacht hat, und ohne das Rendern bleibt vom
+			// Ende des vorigen Durchgangs der Bildschirm gebunden. Auf dem
+			// nativen Weg kann das nicht vorkommen, weil das SDL_Delay unten
+			// jeden Durchgang bis zum Logiktakt streckt - im Browser aber
+			// dauernd, denn dort gibt der requestAnimationFrame den Takt vor
+			// und ist mit 16,7 ms (oder 6,9 ms bei 144 Hz) schneller als die
+			// 20 ms der Logik. Genau dann kopierte diese Zeile aus dem
+			// Standard-Bildpuffer, und den leert WebGL vor jedem Bild - das
+			// alte Bild war schwarz und blieb es die ganze Ueberblendung lang.
+			bindFrameBuffer();
 			glBindTexture(GL_TEXTURE_2D, oldImageID);
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 			crossfadeTime = -0.5;
@@ -774,8 +1089,9 @@ void Engine::mainLoop()
 					BEGIN_PROFILE(videoCapture)
 #endif
 
-					// Bild holen
-					glReadBuffer(GL_BACK);
+					// Bild holen. Immer 640x480 aus dem Bildpuffer, unabhaengig von der
+					// Fenstergroesse - der Videoencoder ist einmal darauf eingerichtet.
+					glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
 
 					if(SDL_ShowCursor(-1))
@@ -806,14 +1122,19 @@ void Engine::mainLoop()
 			}
 
 			drawOverlays();
-			upscaleFrame();
 
+			// Noch vor dem Anzeigen, damit der Screenshot das saubere 640x480-Bild
+			// festhaelt und nicht die skalierte Fassung samt schwarzer Balken.
 			if(doScreenshot)
 			{
 				doScreenshot = false;
 				screenshot();
 				playSound("screenshot.ogg");
 			}
+
+			// Bildpuffer auf den Bildschirm bringen
+			unbindFrameBuffer();
+			presentFrame();
 
 			// gerendertes Frame anzeigen
 			SDL_GL_SwapBuffers();
@@ -824,21 +1145,223 @@ void Engine::mainLoop()
 
 		// warten, wenn noch genug Zeit ist
 		uint dt = end - start;
+#ifdef __EMSCRIPTEN__
+		// This runs inside a requestAnimationFrame callback, which already paces
+		// the frame, so there is nothing to wait for - blocking would just stall
+		// the page. The logic clock still has to advance by the real time between
+		// callbacks though, not by the time spent inside one: on the native path
+		// the SDL_Delay below is what makes up that difference, and dropping it
+		// without this leaves dt at about a millisecond and runs the game ~20x slow.
+		{
+			static Uint32 lastFrameEnd = 0;
+			if(lastFrameEnd) dt = end - lastFrameEnd;
+			lastFrameEnd = end;
+		}
+#else
 		if(timeToProcess + dt < logicRate)
 		{
 			SDL_Delay(logicRate - (timeToProcess + dt));
 			end = SDL_GetTicks();
 			dt = end - start;
 		}
+#endif
 
 		timeToProcess += dt;
 		timeToProcess = min<uint>(250, timeToProcess);
 
+#ifdef __EMSCRIPTEN__
+	} while(0);
+}
+
+static void emMainLoopIteration(void* p_engine)
+{
+	static_cast<Engine*>(p_engine)->mainLoopIteration();
+}
+#else
 	} while(!done);
 
 #ifdef RECORD
 	fclose(p_out);
 #endif
+}
+#endif
+
+namespace
+{
+	// Hoehe eines Meldungsbalkens. In genau diesen Schritten rueckt der Stapel,
+	// und um genau so viel faehrt eine Meldung herein und wieder hinaus.
+	const int TOAST_HEIGHT = 35;
+
+	// Wie lange das Herein- und das Hinausfahren dauern. Beides kommt zur
+	// Standzeit hinzu und wird nicht von ihr abgezogen.
+	const uint TOAST_FADE = 100;
+
+	// Standzeiten, wenn showToast keine nennt. Ein Fehler bleibt laenger
+	// stehen, weil man ihn lesen und meistens auch noch etwas tun muss.
+	const double TOAST_SECONDS_OK    = 2.0;
+	const double TOAST_SECONDS_ERROR = 4.0;
+}
+
+void Engine::showToast(ToastType type,
+					   const std::string& text,
+					   double duration,
+					   bool suppressSound)
+{
+	if(duration <= 0.0) duration = (type == TOAST_ERROR) ? TOAST_SECONDS_ERROR : TOAST_SECONDS_OK;
+	const uint durationMS = static_cast<uint>(duration * 1000.0);
+
+	// Der Ton haengt am Klick und nicht an der Meldung: er kommt auch dann,
+	// wenn dieselbe Meldung schon steht und nur laenger stehen bleibt.
+	if(type == TOAST_ERROR && !suppressSound) playSound("teleport_failed.ogg", false, 0.0, 100);
+
+	// Steht dieselbe Meldung schon? Dann keine zweite, sondern die Standzeit
+	// auf das Laengere von beidem setzen. Wer schon hinausfaehrt, zaehlt nicht
+	// mit - eine Meldung im Weggehen zurueckzuholen saehe nach einem Fehler aus.
+	for(std::list<Toast>::iterator i = toasts.begin(); i != toasts.end(); ++i)
+	{
+		if(i->phase == 2 || i->type != type || i->text != text) continue;
+
+		if(i->phase == 0)
+		{
+			// Sie faehrt noch herein, ihre Standzeit hat also gar nicht
+			// angefangen.
+			i->duration = max(i->duration, durationMS);
+		}
+		else
+		{
+			const uint left = i->duration > i->phaseTime ? i->duration - i->phaseTime : 0;
+			if(durationMS > left) i->duration = i->phaseTime + durationMS;
+		}
+
+		return;
+	}
+
+	// Eine neue Meldung kommt oben herein und schiebt die anderen nach unten.
+	Toast toast;
+	toast.type = type;
+	toast.text = text;
+	toast.phase = 0;
+	toast.phaseTime = 0;
+	toast.duration = durationMS;
+	toast.y = -static_cast<double>(TOAST_HEIGHT);
+	toast.targetY = 0.0;
+	toasts.push_back(toast);
+
+	reflowToasts();
+}
+
+void Engine::reflowToasts()
+{
+	// Von hinten nach vorn: die neueste Meldung bekommt den obersten Platz,
+	// jede aeltere einen darunter. Wer hinausfaehrt, behaelt sein Ziel - das
+	// liegt einen Platz ueber dem, den sie hatte.
+	int slot = 0;
+	for(std::list<Toast>::reverse_iterator i = toasts.rbegin(); i != toasts.rend(); ++i)
+	{
+		if(i->phase == 2) continue;
+		i->targetY = static_cast<double>(slot * TOAST_HEIGHT);
+		slot++;
+	}
+}
+
+void Engine::updateToasts()
+{
+	if(toasts.empty()) return;
+
+	// So weit kommt eine Meldung in einem Tick: eine ganze Balkenhoehe in der
+	// Zeit einer Blende. Damit dauert jeder Wechsel des Platzes genauso lange
+	// wie das Herein- und das Hinausfahren.
+	const double step = static_cast<double>(TOAST_HEIGHT) * logicRate / TOAST_FADE;
+
+	bool slotsFreed = false;
+
+	for(std::list<Toast>::iterator i = toasts.begin(); i != toasts.end(); )
+	{
+		i->phaseTime += logicRate;
+
+		if(i->phase == 0)
+		{
+			if(i->phaseTime >= TOAST_FADE)
+			{
+				i->phase = 1;
+				i->phaseTime = 0;
+			}
+		}
+		else if(i->phase == 1)
+		{
+			if(i->phaseTime >= i->duration)
+			{
+				// Hinaus: einen Platz nach oben, also entweder aus dem Bild
+				// heraus oder hinter die Meldung darueber.
+				i->phase = 2;
+				i->phaseTime = 0;
+				i->targetY -= TOAST_HEIGHT;
+				slotsFreed = true;
+			}
+		}
+		else if(i->phaseTime >= TOAST_FADE)
+		{
+			i = toasts.erase(i);
+			continue;
+		}
+
+		if(i->y < i->targetY) i->y = min(i->y + step, i->targetY);
+		else if(i->y > i->targetY) i->y = max(i->y - step, i->targetY);
+
+		++i;
+	}
+
+	if(slotsFreed) reflowToasts();
+}
+
+void Engine::renderToasts()
+{
+	if(toasts.empty()) return;
+
+	Font* p_font = GUI::inst().getFont();
+
+	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	glLineWidth(1.0f);
+
+	// Aelteste zuerst. Damit liegen die neueren oben, und eine Meldung, die
+	// hinausfaehrt, verschwindet hinter ihrer juengeren Nachbarin statt ueber
+	// sie hinwegzugleiten.
+	for(std::list<Toast>::const_iterator i = toasts.begin(); i != toasts.end(); ++i)
+	{
+		// Ein- und Ausblenden gehen mit dem Fahren zusammen. Ohne das
+		// verschwaende eine sterbende Meldung schlagartig, sobald sie hinter
+		// der Nachbarin liegt - der Balken ist nicht ganz deckend, man saehe
+		// den Sprung.
+		double alpha = 1.0;
+		if(i->phase == 0) alpha = static_cast<double>(i->phaseTime) / TOAST_FADE;
+		else if(i->phase == 2) alpha = 1.0 - static_cast<double>(i->phaseTime) / TOAST_FADE;
+		alpha = clamp(alpha, 0.0, 1.0);
+
+		const Vec3d color = i->type == TOAST_ERROR ? Vec3d(0.5, 0.0, 0.0) : Vec3d(0.0, 0.5, 0.0);
+
+		glPushMatrix();
+		glTranslated(0.0, floor(i->y + 0.5), 0.0);
+
+		glDisable(GL_TEXTURE_2D);
+		glBegin(GL_QUADS);
+		glColor4d(color.r, color.g, color.b, 0.75 * alpha);
+		glVertex2i(0, 0);
+		glVertex2i(640, 0);
+		glColor4d(color.r, color.g, color.b, 0.9 * alpha);
+		glVertex2i(640, TOAST_HEIGHT);
+		glVertex2i(0, TOAST_HEIGHT);
+		glEnd();
+		glBegin(GL_LINES);
+		glColor4d(0.0, 0.0, 0.0, 0.9 * alpha);
+		glVertex2i(0, TOAST_HEIGHT);
+		glVertex2i(640, TOAST_HEIGHT);
+		glEnd();
+		glEnable(GL_TEXTURE_2D);
+
+		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
+
+		glPopMatrix();
+	}
 }
 
 // #define PROFILE_ENGINE_RENDER
@@ -859,6 +1382,10 @@ void Engine::render()
 	// GUI anzeigen
 	GUI::inst().display();
 
+	// Meldungen ganz zuletzt: sie liegen ueber allem, auch ueber der GUI und
+	// ueber den Fenstern der Editoren.
+	renderToasts();
+
 #ifdef PROFILE_ENGINE_RENDER
 	END_PROFILE(engineRender)
 #endif
@@ -874,7 +1401,25 @@ void Engine::update()
 
 	// virtuelle Tasten und Aktionen aktualisieren
 	updateVKs();
-	updateActions();
+
+	// Wartet ein Dialog auf eine Taste, gehoert dieser Takt ihr allein: der
+	// Tastendruck soll eine Belegung werden und sonst nichts. Also keine
+	// Aktionen - F1 zu belegen schaltete sonst nebenher den Ton stumm - und
+	// nichts fuer die Oberflaeche, wo das abbrechende Escape gleich noch den
+	// Dialog schloesse.
+	//
+	// Auch der Takt, in dem die Taste gefunden wird, gehoert noch dazu; darum
+	// der gemerkte Wert und nicht der Zustand hinterher. Die "gedrueckt"- und
+	// "losgelassen"-Bits der Aktionen raeumt die Hauptschleife jeden Takt weg,
+	// ein uebersprungenes updateActions() laesst also nichts stehen - alle
+	// wasActionPressed() unten sind waehrenddessen von selbst falsch.
+	const bool grabbing = grabbingKey;
+	if(grabbing)
+	{
+		updateKeyGrab();
+		flushInput();
+	}
+	else updateActions();
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
@@ -906,14 +1451,13 @@ void Engine::update()
 		}
 		else
 		{
-			FileSystem& fs = FileSystem::inst();
 			char videoDateTime[256];
 			const time_t t = ::time(0);
 			strftime(videoDateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
-			const std::string filename(FileSystem::inst().getAppHomeDirectory() + "videos/" + videoDateTime + ".avi");
+			const std::string filename(FileSystem::inst().getAppHomeDirectory() + "videos/" + videoDateTime + ".mp4");
 
 			// Aufnahme starten
-			p_videoRecorder = new VideoRecorder(filename, screenSize, screenSize, 2840000, p_audioCaptureDevice ? 160000 : 0, 30);
+			p_videoRecorder = new VideoRecorder(filename, screenSize, screenSize, 2840000, p_audioCapture ? 160000 : 0, 30);
 			if(p_videoRecorder->getError())
 			{
 				delete p_videoRecorder;
@@ -932,7 +1476,7 @@ void Engine::update()
 	if(!(wurst % 40))
 	{
 		const char* s[] = {"GS_LevelEditor", "GS_SelectLevel", "GS_CampaignEditor"};
-		pushGameState(s[random() % 3]);
+		pushGameState(s[randomInt() % 3]);
 	}
 	else if(!((wurst + 20) % 40)) popGameState();
 	wurst++;
@@ -949,25 +1493,45 @@ void Engine::update()
 
 	processGameStateChanges();
 
+	updateToasts();
+
 	updateSounds();
 
 	++timePlayed;
+
+	// Alle 30 Sekunden festhalten, auf beiden Plattformen. Im Browser ist es
+	// die einzige Gelegenheit - exit() laeuft dort nie, weil
+	// emscripten_set_main_loop nicht zurueckkehrt und ein Tab ohne Vorwarnung
+	// geschlossen wird -, aber auch ein Absturz oder ein abgewuergter Prozess
+	// unter Windows kostet so hoechstens eine halbe Minute statt der ganzen
+	// Sitzung. Den Rest schreibt exit() genau nach.
+	if(!(timePlayed % 1500)) saveTimePlayed();
 
 #ifdef PROFILE_ENGINE_UPDATE
 	END_PROFILE(engineUpdate)
 #endif
 }
 
+// Getrennt, weil der Browser sie nebenher schreiben muss und nicht erst beim
+// Beenden - dort kommt exit() nie an.
+void Engine::saveTimePlayed()
+{
+	std::ostringstream timePlayedStr;
+	timePlayedStr << timePlayed;
+	FileSystem::inst().writeStringToFile(timePlayedStr.str(),
+										 FileSystem::inst().getAppHomeDirectory() + ".time_played");
+}
+
 void Engine::updateSounds()
 {
 	// Sounds aktualisieren
-	const stdext::hash_multimap<std::string, Sound*>& sounds = Manager<Sound>::inst().getItems();
-	for(stdext::hash_multimap<std::string, Sound*>::const_iterator i = sounds.begin(); i != sounds.end(); ++i) i->second->update();
+	const std::unordered_multimap<std::string, Sound*>& sounds = Manager<Sound>::inst().getItems();
+	for(std::unordered_multimap<std::string, Sound*>::const_iterator i = sounds.begin(); i != sounds.end(); ++i) i->second->update();
 
 	// gestreamte Sounds aktualisieren
-	const stdext::hash_multimap<std::string, StreamedSound*>& streamedSounds = Manager<StreamedSound>::inst().getItems();
+	const std::unordered_multimap<std::string, StreamedSound*>& streamedSounds = Manager<StreamedSound>::inst().getItems();
 	std::list<StreamedSound*> toBeDeleted;
-	for(stdext::hash_multimap<std::string, StreamedSound*>::const_iterator i = streamedSounds.begin(); i != streamedSounds.end(); ++i)
+	for(std::unordered_multimap<std::string, StreamedSound*>::const_iterator i = streamedSounds.begin(); i != streamedSounds.end(); ++i)
 	{
 		if(!i->second->update())
 		{
@@ -975,7 +1539,7 @@ void Engine::updateSounds()
 		}
 	}
 
-	// gestoppte Sounds löschen
+	// gestoppte Sounds loeschen
 	for(std::list<StreamedSound*>::const_iterator i = toBeDeleted.begin(); i != toBeDeleted.end(); ++i) (*i)->release();
 
 	if(volumeChanged) volumeChanged = false;
@@ -983,77 +1547,996 @@ void Engine::updateSounds()
 
 std::string Engine::getBestOpenALDevice()
 {
-	// Standardgerät nehmen
+	// Standardgeraet nehmen
 	const char* p_device = alcGetString(0, ALC_DEFAULT_DEVICE_SPECIFIER);
 	if(!p_device) return "[NONE]";
 	else return p_device;
 }
 
-std::string Engine::getBestOpenALCaptureDevice()
+namespace
 {
-	// Standardgerät nehmen
-	const char* p_device = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
-	if(!p_device) return "[NONE]";
-	else return p_device;
+	// Uebersetzt eine Stufe und gibt bei einem Fehler das Log aus.
+	uint compileShaderStage(GLenum type, const char* p_source, const char* p_what)
+	{
+		const uint shader = glExtCreateShader(type);
+		if(!shader) return 0;
+
+		glExtShaderSource(shader, 1, &p_source, 0);
+		glExtCompileShader(shader);
+
+		GLint ok = 0;
+		glExtGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+		if(!ok)
+		{
+			char log[1024] = "";
+			glExtGetShaderInfoLog(shader, sizeof(log) - 1, 0, log);
+			printfLog("- WARNING: Could not compile the %s shader: %s\n", p_what, log);
+			glExtDeleteShader(shader);
+			return 0;
+		}
+		return shader;
+	}
 }
 
-// #define PROFILE_HQ2X
-
-void Engine::upscaleFrame()
+bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
+								  const char* p_name)
 {
-	if(!useHQ2X) return;
+	const uint vs = compileShaderStage(GL_VERTEX_SHADER, p_presentVertexShader, "present vertex");
+	if(!vs) return false;
+	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_fragmentSource, p_name);
+	if(!fs) { glExtDeleteShader(vs); return false; }
 
-	// Code für HQ2X
+	target.program = glExtCreateProgram();
+	glExtAttachShader(target.program, vs);
+	glExtAttachShader(target.program, fs);
+	glExtBindAttribLocation(target.program, 0, "aPosition");
+	glExtBindAttribLocation(target.program, 1, "aTexCoord");
+	glExtLinkProgram(target.program);
+
+	glExtDeleteShader(vs);
+	glExtDeleteShader(fs);
+
+	GLint ok = 0;
+	glExtGetProgramiv(target.program, GL_LINK_STATUS, &ok);
+	if(!ok)
+	{
+		char log[1024] = "";
+		glExtGetProgramInfoLog(target.program, sizeof(log) - 1, 0, log);
+		printfLog("- WARNING: Could not link the %s program: %s\n", p_name, log);
+		destroyPresentProgram(target);
+		return false;
+	}
+
+	target.decal       = glExtGetUniformLocation(target.program, "decal");
+	target.textureSize = glExtGetUniformLocation(target.program, "TextureSize");
+	target.frameSize   = glExtGetUniformLocation(target.program, "FrameSize");
+	target.prescale    = glExtGetUniformLocation(target.program, "Prescale");
+	// Die beiden gibt es nur im Roehrenshader; sonst bleibt es bei -1, und die
+	// Uniform wird schlicht nicht gesetzt.
+	target.scanline    = glExtGetUniformLocation(target.program, "Scanline");
+	target.curvature   = glExtGetUniformLocation(target.program, "Curvature");
+	target.bloom       = glExtGetUniformLocation(target.program, "Bloom");
+	target.flicker     = glExtGetUniformLocation(target.program, "Flicker");
+	target.time        = glExtGetUniformLocation(target.program, "Time");
+	target.scanPhase   = glExtGetUniformLocation(target.program, "ScanPhase");
+	target.scanFlicker = glExtGetUniformLocation(target.program, "ScanFlicker");
+	return true;
+}
+
+void Engine::destroyPresentProgram(PresentProgram& target)
+{
+	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
+	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
+	target.scanline = target.curvature = target.bloom = target.flicker = -1;
+	target.time = target.scanPhase = target.scanFlicker = -1;
+}
+
+bool Engine::createPresentPrograms()
+{
+	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein Puffer
+	// sein. Vier Eckpunkte, jedes Bild neu gefuellt - das kostet nichts und
+	// erspart es, auf Fenstergroessenaenderungen zu achten. Beide Programme
+	// benutzen denselben.
+	glExtGenBuffers(1, &presentVertexBuffer);
+	if(!presentVertexBuffer)
+	{
+		printfLog("- WARNING: Could not create the present vertex buffer.\n");
+		return false;
+	}
+
+	// Der Roehrenshader darf fehlschlagen, ohne dass sharp-fit mitfaellt.
+	const bool sharpOk = createPresentProgram(sharpFit, p_sharpFitFragmentShader, "sharp-fit fragment");
+	const bool crtOk   = createPresentProgram(crt, p_crtFragmentShader, "crt fragment");
+	if(!crtOk) printfLog("- WARNING: The CRT filter will not be available.\n");
+
+	if(!sharpOk)
+	{
+		destroyPresentProgram(crt);
+		glExtDeleteBuffers(1, &presentVertexBuffer);
+		presentVertexBuffer = 0;
+		return false;
+	}
+	return true;
+}
+
+void Engine::destroyPresentPrograms()
+{
+	if(presentVertexBuffer) { glExtDeleteBuffers(1, &presentVertexBuffer); presentVertexBuffer = 0; }
+	destroyPresentProgram(sharpFit);
+	destroyPresentProgram(crt);
+}
+
+void Engine::setCrtScanline(double value)
+{
+	crtScanline = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtCurvature(double value)
+{
+	crtCurvature = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtBloom(double value)
+{
+	crtBloom = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtFlicker(double value)
+{
+	crtFlicker = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtScanFlicker(double value)
+{
+	crtScanFlicker = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setUpscaleFilter(UpscaleFilter filter)
+{
+	// Nur merken. Ob der gewuenschte Filter wirklich geht, entscheidet
+	// getEffectiveUpscaleFilter() bei jedem Bild neu - beim Laden der
+	// config.xml gibt es noch keinen GL-Kontext, gegen den man pruefen koennte.
+	upscaleFilter = filter;
+}
+
+const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
+{
+	switch(filter)
+	{
+	case UF_NEAREST:    return "nearest";
+	case UF_SHARP_FIT:  return "sharp-fit";
+	case UF_CRT:        return "crt";
+	default:            return "bilinear";
+	}
+}
+
+Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback)
+{
+	if(!p_name) return fallback;
+	if(!_stricmp(p_name, "nearest"))     return UF_NEAREST;
+	if(!_stricmp(p_name, "bilinear"))    return UF_BILINEAR;
+	if(!_stricmp(p_name, "sharp-fit"))   return UF_SHARP_FIT;
+	if(!_stricmp(p_name, "crt"))         return UF_CRT;
+	return fallback;
+}
+
+bool Engine::canUseSharpFit() const
+{
+	return useFrameBuffer && sharpFit.program != 0 && presentVertexBuffer != 0;
+}
+
+bool Engine::canUseCrt() const
+{
+	return useFrameBuffer && crt.program != 0 && presentVertexBuffer != 0;
+}
+
+Engine::UpscaleFilter Engine::getEffectiveUpscaleFilter() const
+{
+	// Ohne uebersetztes Programm lieber scharf als ein Bild, das gar nicht erst
+	// erscheint. Der Wunsch bleibt in upscaleFilter stehen, damit dieselbe
+	// config.xml auf einer Maschine mit Shadern wieder das Richtige tut.
+	if(upscaleFilter == UF_SHARP_FIT && !canUseSharpFit()) return UF_NEAREST;
+	if(upscaleFilter == UF_CRT && !canUseCrt())            return UF_NEAREST;
+	return upscaleFilter;
+}
+
+bool Engine::createFrameBuffer()
+{
+	if(!GLExtensions::haveFrameBufferObjects()) return false;
+
+	frameTextureSize = screenPow2Size;
+
+	glGenTextures(1, &frameTextureID);
+	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameTextureSize.x, frameTextureSize.y, 0,
+				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glExtGenFramebuffers(1, &frameBufferID);
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
+	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+							  GL_TEXTURE_2D, frameTextureID, 0);
+
+	// Der Sternenwischer (cf_star.cpp) und die Lichtmaske in level.cpp brauchen
+	// einen Stencil-Puffer. Ein reiner Farbpuffer waere also zu wenig.
+	glExtGenRenderbuffers(1, &frameDepthStencilID);
+	glExtBindRenderbuffer(GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#ifdef __EMSCRIPTEN__
+	// WebGL 1 kennt genau ein kombiniertes Format und einen kombinierten
+	// Anhaengepunkt dafuer.
+	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH_STENCIL_EXT,
+							 frameTextureSize.x, frameTextureSize.y);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_STENCIL_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#else
+	// EXT_packed_depth_stencil kennt keinen kombinierten Anhaengepunkt: derselbe
+	// Renderbuffer wird an beide gehaengt, so schreibt es die Spezifikation vor.
+	glExtRenderbufferStorage(GL_RENDERBUFFER_EXT, GL_DEPTH24_STENCIL8_EXT,
+							 frameTextureSize.x, frameTextureSize.y);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+	glExtFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT,
+								 GL_RENDERBUFFER_EXT, frameDepthStencilID);
+#endif
+
+	const GLenum status = glExtCheckFramebufferStatus(GL_FRAMEBUFFER_EXT);
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+
+	if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
+	{
+		printfLog("- WARNING: Framebuffer object is incomplete (status 0x%x).\n", status);
+		destroyFrameBuffer();
+		return false;
+	}
+
+	printfLog("  Render target:    %dx%d in a %dx%d texture\n",
+			  screenSize.x, screenSize.y, frameTextureSize.x, frameTextureSize.y);
+	return true;
+}
+
+void Engine::destroyFrameBuffer()
+{
+	if(frameDepthStencilID) { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
+	if(frameBufferID)       { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
+	if(frameTextureID)      { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+}
+
+void Engine::bindFrameBuffer()
+{
+	if(!useFrameBuffer) return;
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
+	glViewport(0, 0, screenSize.x, screenSize.y);
+}
+
+void Engine::unbindFrameBuffer()
+{
+	if(!useFrameBuffer) return;
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+	glViewport(0, 0, displaySize.x, displaySize.y);
+}
+
+#ifdef __EMSCRIPTEN__
+// Der Browser gibt Vollbild nur her, wenn ein echter Klick oder Tastendruck es
+// ausloest. SDLs Ereignisse kommen aber aus der Animationsschleife und zaehlen
+// nicht als solcher, deshalb haengt Alt+Return hier direkt am DOM.
+static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent* p_event, void*)
+{
+	if(p_event->altKey && p_event->keyCode == 13)
+	{
+		Engine::inst().toggleFullScreen();
+		return EM_TRUE;
+	}
+	return EM_FALSE;
+}
+
+static void emscriptenSetFullScreen(bool fullScreen)
+{
+	if(fullScreen)
+	{
+		EmscriptenFullscreenStrategy strategy;
+		memset(&strategy, 0, sizeof(strategy));
+		// Der Canvas bekommt die volle Bildschirmgroesse; die schwarzen Balken
+		// zeichnet presentFrame selbst, genau wie im Fenster.
+		strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH;
+		strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+		strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+		emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
+	}
+	else emscripten_exit_fullscreen();
+}
+#endif
+
+Vec2i Engine::getDesktopSize() const
+{
+#ifdef __EMSCRIPTEN__
+	// Im Browser ist "Desktop" das Fenster, in dem die Seite steht.
+	return Vec2i(EM_ASM_INT({ return window.innerWidth | 0; }),
+				 EM_ASM_INT({ return window.innerHeight | 0; }));
+#else
+	// SDL_ListModes(0, SDL_FULLSCREEN) waere die portable Variante, liefert aber
+	// die Modusliste und nicht den Desktop. SDL_GetVideoInfo liefert vor dem
+	// ersten SDL_SetVideoMode die Desktopaufloesung - danach die des Fensters,
+	// deshalb wird sie unter Win32 direkt erfragt.
+#ifdef _WIN32
+	const int w = GetSystemMetrics(SM_CXSCREEN);
+	const int h = GetSystemMetrics(SM_CYSCREEN);
+	if(w > 0 && h > 0) return Vec2i(w, h);
+#endif
+	const SDL_VideoInfo* p_info = SDL_GetVideoInfo();
+	if(p_info && p_info->current_w > 0 && p_info->current_h > 0)
+		return Vec2i(p_info->current_w, p_info->current_h);
+	return screenSize;
+#endif
+}
+
+Vec2i Engine::getDefaultWindowSize() const
+{
+	// Ganzzahlige Vielfache, damit auch "Scharf" von Anfang an ohne Balken
+	// auskommt. Etwas Rand bleibt fuer Titelzeile und Taskleiste - sonst
+	// klebt das Fenster an den Kanten oder passt gar nicht.
+	//
+	// Der Rand ist genau so bemessen, dass 1920x1080 - der haeufigste
+	// Bildschirm ueberhaupt - noch die doppelte Groesse bekommt: 2*480 ist 960,
+	// und 1080-120 ist auch 960, das geht gerade eben auf. Ein Pixel mehr Rand,
+	// und es waere die einfache Groesse. Waagerecht derselbe Wert, obwohl dort
+	// viel mehr Platz waere: die Taskleiste steht nicht ueberall unten.
+	const int margin = 120;
+	const Vec2i desktop = getDesktopSize();
+	int scale = 1;
+	while((scale + 1) * screenSize.x <= desktop.x - margin &&
+		  (scale + 1) * screenSize.y <= desktop.y - margin) scale++;
+	return screenSize * scale;
+}
+
+void Engine::rememberWindowPlacement()
+{
+#ifdef _WIN32
+	// Im Vollbild steht das Fenster auf (0,0) und ist bildschirmgross - das
+	// waere die falsche Erinnerung. Dann zaehlt, was applyWindowStyle() sich
+	// vor dem Umschalten gemerkt hat.
+	if(fullScreen)
+	{
+		if(savedWindowStyle)
+		{
+			windowedPosition = Vec2i(savedWindowRect[0], savedWindowRect[1]);
+			windowedPositionKnown = true;
+		}
+		return;
+	}
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// GetWindowPlacement statt GetWindowRect. Bei einem maximierten Fenster
+	// liefert GetWindowRect den maximierten Rahmen - unter Windows sogar mit
+	// negativen Ecken, weil die unsichtbaren Anfasser mitzaehlen -, und das
+	// naechste Mal stand dann ein bildschirmgrosses Fenster an einer Stelle,
+	// an der es zur Haelfte hinausragte. rcNormalPosition ist der Rahmen, auf
+	// den "Wiederherstellen" zurueckgeht, und genau der gehoert gespeichert.
+	WINDOWPLACEMENT wp;
+	wp.length = sizeof(wp);
+	if(!GetWindowPlacement(info.window, &wp)) return;
+
+	maximized = (wp.showCmd == SW_SHOWMAXIMIZED);
+	windowedPosition = Vec2i(wp.rcNormalPosition.left, wp.rcNormalPosition.top);
+	windowedPositionKnown = true;
+
+	// rcNormalPosition ist ein Fensterrahmen, windowedSize eine Nutzflaeche -
+	// der Rahmen muss also abgezogen werden. Wie dick er ist, weiss nur
+	// Windows; AdjustWindowRectEx auf ein leeres Rechteck gibt genau ihn.
+	RECT frame = { 0, 0, 0, 0 };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(AdjustWindowRectEx(&frame, style & ~WS_MAXIMIZE, FALSE, exStyle))
+	{
+		const int w = (wp.rcNormalPosition.right  - wp.rcNormalPosition.left) - (frame.right  - frame.left);
+		const int h = (wp.rcNormalPosition.bottom - wp.rcNormalPosition.top)  - (frame.bottom - frame.top);
+		if(w >= screenSize.x && h >= screenSize.y) windowedSize = Vec2i(w, h);
+	}
+#endif
+}
+
+void Engine::restoreWindowPosition()
+{
+#ifdef _WIN32
+	if(!windowedPositionKnown) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// Landet das Fenster auf keinem Bildschirm mehr - zweiter Monitor
+	// abgezogen, Aufloesung kleiner geworden -, dann lieber dort lassen, wo
+	// Windows es hingestellt hat. MonitorFromRect beantwortet das richtig,
+	// auch fuer negative Koordinaten: ein Bildschirm links des ersten hat
+	// welche, und die sind voellig in Ordnung.
+	RECT r;
+	r.left   = windowedPosition.x;
+	r.top    = windowedPosition.y;
+	r.right  = windowedPosition.x + displaySize.x;
+	r.bottom = windowedPosition.y + displaySize.y;
+	if(!MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) return;
+
+	SetWindowPos(info.window, HWND_NOTOPMOST, windowedPosition.x, windowedPosition.y,
+				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+	// Maximiert war es, maximiert kommt es wieder. SDL bekommt das ueber sein
+	// eigenes WM_WINDOWPOSCHANGED mit und schickt ein SDL_VIDEORESIZE, das
+	// handleResize() in der Hauptschleife aufgreift.
+	if(maximized) ShowWindow(info.window, SW_MAXIMIZE);
+#endif
+}
+
+bool Engine::isWindowMaximized() const
+{
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window) return IsZoomed(info.window) != 0;
+#endif
+	return false;
+}
+
+#ifdef _WIN32
+// Windows haelt die Anwendung an, solange der Benutzer den Fensterrand oder die
+// Titelzeile festhaelt: WM_NCLBUTTONDOWN landet in DefWindowProc, und die dreht
+// bis zum Loslassen eine eigene Nachrichtenschleife. Die Hauptschleife des
+// Spiels steckt derweil in SDL_PollEvent fest, es wird nichts gezeichnet, und
+// das Fenster zeigt beim Ziehen ein eingefrorenes oder leeres Bild.
+//
+// Herauskommt man da nur ueber die Fensterprozedur, denn die laeuft in dieser
+// Schleife weiter. SDL 1.2 kennt WM_ENTERSIZEMOVE und WM_EXITSIZEMOVE nicht und
+// reicht beides an DefWindowProc durch, also wird SDLs Prozedur eine eigene
+// vorgeschaltet. Das ist derselbe Kniff, den SDL fuer SDL_WINDOWID selbst
+// benutzt (DIB_CreateWindow in SDL_dibevents.c), und das Fenster entsteht genau
+// einmal in DIB_VideoInit - ein weiteres SDL_SetVideoMode legt kein neues an,
+// die Prozedur bleibt also haengen, wo sie ist.
+static WNDPROC p_sdlWindowProc = 0;
+static const UINT_PTR SIZEMOVE_TIMER_ID = 0xB5;
+
+static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	// Sollte nicht vorkommen - nach unhookWindowProc() ist diese Funktion nicht
+	// mehr die Fensterprozedur -, aber ein Nullzeiger in CallWindowProc waere
+	// ein Absturz beim Beenden, und das ist es nicht wert.
+	if(!p_sdlWindowProc) return DefWindowProc(hwnd, msg, wParam, lParam);
+
+	Engine& engine = Engine::inst();
+
+	switch(msg)
+	{
+	case WM_ENTERSIZEMOVE:
+		engine.setInSizeMove(true);
+		// Der Zeitgeber ist fuer den Fall, dass der Benutzer den Rand
+		// festhaelt, ohne ihn zu bewegen: dann kommt kein WM_SIZE mehr, und
+		// ohne ihn stuende das Bild wieder. WM_TIMER hat niedrige Prioritaet
+		// und wird waehrend einer Bewegung von den Mausnachrichten verdraengt -
+		// genau dann zeichnet aber WM_SIZE.
+		SetTimer(hwnd, SIZEMOVE_TIMER_ID, 15, 0);
+		break;
+
+	case WM_EXITSIZEMOVE:
+		KillTimer(hwnd, SIZEMOVE_TIMER_ID);
+		engine.setInSizeMove(false);
+		// Aufgeraeumt wird nicht hier: SDL hat aus WM_WINDOWPOSCHANGED laengst
+		// ein SDL_VIDEORESIZE gemacht, und handleResize() zieht die SDL-Seite
+		// nach, sobald die Hauptschleife wieder laeuft.
+		break;
+
+	case WM_TIMER:
+		if(wParam == SIZEMOVE_TIMER_ID)
+		{
+			engine.repaintDuringSizeMove();
+			return 0;
+		}
+		break;
+
+	case WM_SIZE:
+		// Waehrend des Ziehens die eigentliche Quelle: kommt bei jedem Schritt.
+		if(wParam != SIZE_MINIMIZED) engine.repaintDuringSizeMove();
+		break;
+
+	case WM_PAINT:
+		// Waehrend eines Dateidialogs kommt WM_PAINT, sobald der Dialog das
+		// Fenster freigibt oder darueber gezogen wird. Die Hauptschleife
+		// steht dann; ohne diese Zeilen zeigt das Fenster ein altes Bild oder
+		// gar keines. ValidateRect ist Pflicht: ein nicht abgeraeumtes
+		// WM_PAINT kommt sofort wieder und dreht sich im Kreis.
+		if(engine.isInSizeMove())
+		{
+			engine.repaintDuringSizeMove();
+			ValidateRect(hwnd, 0);
+			return 0;
+		}
+		break;
+
+	case WM_GETMINMAXINFO:
+		{
+			// handleResize() klemmt ohnehin auf mindestens 640x480 hoch. Das
+			// hier sagt es Windows vorher, damit der Rahmen schon beim Ziehen
+			// stehenbleibt, statt hinterher zurueckzuspringen.
+			//
+			// Erst weiterreichen, dann aendern: die Struktur hat noch vier
+			// weitere Felder - Groesse und Lage im maximierten Zustand und die
+			// Obergrenze -, und die fuellt DefWindowProc. Wer hier einfach
+			// selbst antwortet, laesst sie auf Verdacht stehen.
+			const LRESULT result = CallWindowProc(p_sdlWindowProc, hwnd, msg, wParam, lParam);
+
+			const Vec2i minimum = engine.getMinimumWindowSize();
+			if(minimum.x > 0 && minimum.y > 0)
+			{
+				MINMAXINFO* p_info = reinterpret_cast<MINMAXINFO*>(lParam);
+				p_info->ptMinTrackSize.x = minimum.x;
+				p_info->ptMinTrackSize.y = minimum.y;
+			}
+
+			return result;
+		}
+	}
+
+	return CallWindowProc(p_sdlWindowProc, hwnd, msg, wParam, lParam);
+}
+
+void Engine::hookWindowProc()
+{
+	if(p_sdlWindowProc) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	p_sdlWindowProc = reinterpret_cast<WNDPROC>(
+		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(engineWindowProc)));
+}
+
+void Engine::unhookWindowProc()
+{
+	if(!p_sdlWindowProc) return;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window)
+	{
+		KillTimer(info.window, SIZEMOVE_TIMER_ID);
+		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(p_sdlWindowProc));
+	}
+
+	p_sdlWindowProc = 0;
+}
+
+Vec2i Engine::getMinimumWindowSize() const
+{
+	if(fullScreen) return Vec2i(0, 0);   // im Vollbild zieht niemand am Rand
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return Vec2i(0, 0);
+
+	// Von der gewuenschten Nutzflaeche auf das Fensterrechteck: Rahmen und
+	// Titelzeile kommen dazu, und wie dick die sind, weiss nur Windows.
+	RECT r = { 0, 0, screenSize.x, screenSize.y };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(!AdjustWindowRectEx(&r, style, FALSE, exStyle)) return Vec2i(0, 0);
+
+	return Vec2i(r.right - r.left, r.bottom - r.top);
+}
+
+
+void Engine::beginForeignMessageLoop()
+{
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	// Derselbe Zustand wie beim Ziehen am Fensterrand: eine fremde Schleife
+	// pumpt die Nachrichten, die eigene laeuft nicht. Der Zeitgeber haelt das
+	// Bild auch dann frisch, wenn gar kein WM_PAINT kommt.
+	inSizeMove = true;
+	SetTimer(info.window, SIZEMOVE_TIMER_ID, 15, 0);
+
+	// Einmal sofort: der Dialog braucht einen Moment, bis er steht, und bis
+	// dahin zeigt das Fenster sonst, was zufaellig darin liegt.
+	repaintDuringSizeMove();
+}
+
+void Engine::endForeignMessageLoop()
+{
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window) KillTimer(info.window, SIZEMOVE_TIMER_ID);
+	inSizeMove = false;
+}
+
+void Engine::repaintDuringSizeMove()
+{
+	// Nur waehrend der fremden Nachrichtenschleife. Ausserhalb zeichnet die
+	// Hauptschleife, und die soll sich nichts dazwischenfunken lassen.
+	if(!inSizeMove || !initialized || !useFrameBuffer) return;
+
+	// SwapBuffers kann seinerseits Nachrichten zustellen; ein zweiter Durchlauf
+	// mitten im ersten waere schlecht.
+	static bool busy = false;
+	if(busy) return;
+	busy = true;
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	RECT client;
+	if(SDL_GetWMInfo(&info) && info.window && GetClientRect(info.window, &client))
+	{
+		const int w = client.right - client.left;
+		const int h = client.bottom - client.top;
+
+		// displaySize wird nur geliehen, nicht gesetzt. Bewusst ohne
+		// SDL_SetVideoMode - das ruft SetWindowPos und wuerde dem Benutzer
+		// waehrend des Ziehens ins Handwerk pfuschen; der GL-Kontext haengt am
+		// Fenster und waechst von allein mit, presentFrame() braucht nur die
+		// Zahl. Die SDL-Seite zieht handleResize() nach, sobald die
+		// Hauptschleife wieder laeuft - und die erkennt eine Aenderung nur,
+		// wenn displaySize hier so bleibt, wie SDL es kennt. Sonst faende sie
+		// die neue Groesse gleich der alten, kaeme nie zu SDL_SetVideoMode, und
+		// SDLs Oberflaeche bliebe fuer immer auf der alten Groesse stehen.
+		if(w > 0 && h > 0)
+		{
+			const Vec2i knownToSDL = displaySize;
+
+			displaySize = Vec2i(w, h);
+
+			// Der Bildpuffer haelt das zuletzt gerenderte Bild noch - genau das
+			// kommt jetzt in der neuen Groesse auf den Schirm, mit Balken und
+			// Filter.
+			showLastFrame();
+
+			displaySize = knownToSDL;
+			unbindFrameBuffer();   // glViewport wieder passend zurueckstellen
+		}
+	}
+
+	busy = false;
+}
+#endif
+
+void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
+{
+	// SDLs Flags werden hier bewusst nicht angefasst. SDL_FULLSCREEN oder
+	// SDL_NOFRAME zu setzen wuerde DIB_SetVideoMode auf den langsamen Pfad
+	// zwingen, und der ruft WIN_GL_ShutDown - der GL-Kontext und mit ihm jede
+	// Textur, jede Displayliste und der Bildpuffer waeren weg. Stattdessen wird
+	// direkt der Win32-Stil umgeschaltet; SDL merkt die neue Groesse ueber sein
+	// eigenes WM_WINDOWPOSCHANGED und schickt ein ganz normales SDL_VIDEORESIZE.
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(SDL_GetWMInfo(&info) && info.window)
+	{
+		HWND hwnd = info.window;
+		if(wantFullScreen)
+		{
+			// Stil und Rechteck merken, damit das Fenster genau dorthin
+			// zurueckkommt, wo es war - aber nur beim ersten Mal. Wer hier ein
+			// zweites Mal hineinlaeuft, wuerde sonst den bereits gesetzten
+			// WS_POPUP als "das war vorher" merken, und dann fuehrt aus dem
+			// Vollbild kein Weg mehr heraus.
+			if(!savedWindowStyle)
+			{
+				savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
+				RECT r;
+				if(GetWindowRect(hwnd, &r))
+				{
+					savedWindowRect[0] = r.left;
+					savedWindowRect[1] = r.top;
+					savedWindowRect[2] = r.right - r.left;
+					savedWindowRect[3] = r.bottom - r.top;
+				}
+			}
+
+			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+			// HWND_TOP, nicht HWND_TOPMOST: ein randloses Vollbildfenster, das
+			// ueber allem klebt, macht Alt+Tab unbrauchbar.
+			SetWindowPos(hwnd, HWND_TOP, 0, 0, size.x, size.y,
+						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+		}
+		else
+		{
+			long style = savedWindowStyle;
+			int x = savedWindowRect[0], y = savedWindowRect[1];
+			int w = savedWindowRect[2], h = savedWindowRect[3];
+
+			if(!style)
+			{
+				// Nichts gemerkt - trotzdem zurueck ins Fenster. Aus dem
+				// Vollbild muss man immer wieder herauskommen, auch wenn
+				// unterwegs etwas schiefgegangen ist.
+				style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+				RECT r = { 0, 0, size.x, size.y };
+				AdjustWindowRect(&r, style, FALSE);
+				w = r.right - r.left;
+				h = r.bottom - r.top;
+				const Vec2i desktop = getDesktopSize();
+				x = (desktop.x - w) / 2;
+				y = (desktop.y - h) / 2;
+				if(x < 0) x = 0;
+				if(y < 0) y = 0;
+			}
+
+			SetWindowLong(hwnd, GWL_STYLE, style);
+			SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, w, h,
+						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+			savedWindowStyle = 0;
+		}
+	}
+#endif
+
+	// Immer hierdurch: displaySize gehoert handleResize, und SDL muss die neue
+	// Groesse ohnehin erfahren - sonst bleibt der Mauszeiger auf den alten
+	// Bereich geklemmt. Das SDL_VIDEORESIZE, das der Stilwechsel gleich noch
+	// ausloest, findet dann nichts mehr zu tun und faellt sofort wieder heraus.
+	handleResize(size.x, size.y);
+}
+
+void Engine::setFullScreen(bool wantFullScreen)
+{
+	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
+
+	fullScreen = wantFullScreen;
+	printfLog("* %s\n", wantFullScreen ? "Going fullscreen" : "Leaving fullscreen");
+
+#ifdef __EMSCRIPTEN__
+	// Im Browser macht das die Fullscreen-API. Aufgerufen wird das hier nur aus
+	// engineFullScreenHotkey(), das am DOM haengt - aus der Spielschleife
+	// heraus wuerde der Browser die Anfrage ablehnen.
+	emscriptenSetFullScreen(wantFullScreen);
+#else
+	applyWindowStyle(wantFullScreen, wantFullScreen ? getDesktopSize() : windowedSize);
+#endif
+}
+
+void Engine::handleResize(int width, int height)
+{
+#ifndef __EMSCRIPTEN__
+	// Kleiner als das interne Bild darf das Fenster nicht werden: darunter hat
+	// "Scharf" keine ganzzahlige Stufe mehr. Im Browser wird nicht geklemmt -
+	// dort gibt der Canvas die Groesse vor, und dagegen anzuschieben endete in
+	// einer Endlosschleife.
+	if(width  < screenSize.x) width  = screenSize.x;
+	if(height < screenSize.y) height = screenSize.y;
+#endif
+
+	if(width <= 0 || height <= 0) return;
+	if(width == displaySize.x && height == displaySize.y) return;
+
+#ifndef __EMSCRIPTEN__
+	// Gleiche Flags wie beim ersten Mal, sonst geht der schnelle Pfad verloren.
+	SDL_Surface* p_new = SDL_SetVideoMode(width, height, 32, SDL_OPENGL | SDL_RESIZABLE);
+	if(!p_new)
+	{
+		printfLog("- WARNING: Could not resize to %dx%d (%s).\n", width, height, SDL_GetError());
+		return;
+	}
+	p_display = p_new;
+#endif
+
+	displaySize = Vec2i(width, height);
+	// Maximiert nicht mitschreiben: sonst waere die gemerkte Fenstergroesse die
+	// des maximierten Fensters, und "Wiederherstellen" haette beim naechsten
+	// Start nichts mehr, worauf es zurueckgehen koennte.
+	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
+}
+
+Vec2d Engine::warpToSource(const Vec2d& p) const
+{
+	// Genau die Formel aus src/crt_shader.h, damit die Maus dort landet, wo der
+	// Spieler hinzeigt. p und der Rueckgabewert laufen von -1 bis 1 ab der
+	// Bildmitte.
+	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return p;
+
+	const double a = crtCurvature * crtCurveX;
+	const double b = crtCurvature * crtCurveY;
+	return Vec2d(p.x * (1.0 + a * p.y * p.y),
+				 p.y * (1.0 + b * p.x * p.x));
+}
+
+Vec2d Engine::warpToOutput(const Vec2d& s) const
+{
+	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return s;
+
+	const double a = crtCurvature * crtCurveX;
+	const double b = crtCurvature * crtCurveY;
+
+	// Die Umkehrung. Das Gleichungspaar ist gekoppelt - x haengt an y und
+	// umgekehrt -, eine geschlossene Loesung gibt es nicht. Als Fixpunkt
+	// umgestellt zieht es sich aber sehr schnell zusammen:
+	//
+	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
+	//
+	// Nachgemessen ueber das ganze Bild: nach acht Runden liegt der Fehler
+	// selbst bei einer voellig uebertriebenen Woelbung (a=0.40, b=0.50) unter
+	// 2.3e-4 Bildpunkten, bei allem, was hier je eingestellt werden kann, unter
+	// 1e-5. Das kostet nichts - die Funktion laeuft nur, wenn das Spiel den
+	// Mauszeiger selbst setzt, und das tut es an genau einer Stelle.
+	double x = s.x;
+	double y = s.y;
+	for(int i = 0; i < 8; i++)
+	{
+		x = s.x / (1.0 + a * y * y);
+		y = s.y / (1.0 + b * x * x);
+	}
+	return Vec2d(x, y);
+}
+
+void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
+{
+	// Groesstmoegliches 4:3-Rechteck im Fenster, mittig. Was uebrig bleibt, wird
+	// schwarz - lieber Balken als ein verzerrtes Bild.
+	double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
+					   static_cast<double>(displaySize.y) / screenSize.y);
+
+	// "Scharf" braucht eine ganzzahlige Stufe. Bei einem krummen Faktor
+	// verdoppelt Nearest manche Quellpixel und andere nicht - die Sprites
+	// bekommen ungleiche Strichstaerken und die Schrift wird fransig, genau der
+	// Fehler, den dieser Filter vermeiden soll. Lieber breitere Balken.
+	// Unterhalb von 1:1 gibt es keine Stufe mehr, dann eben doch krumm: ein
+	// abgeschnittenes Bild waere schlimmer.
+	if(getEffectiveUpscaleFilter() == UF_NEAREST && scale >= 1.0) scale = floor(scale);
+
+	w = static_cast<int>(screenSize.x * scale);
+	h = static_cast<int>(screenSize.y * scale);
+	x = (displaySize.x - w) / 2;
+	y = (displaySize.y - h) / 2;
+}
+
+void Engine::presentFrame()
+{
+	if(!useFrameBuffer) return;
+
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
 
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-	glReadBuffer(GL_BACK);
-	glDrawBuffer(GL_BACK);
-
-	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
+	glDisable(GL_STENCIL_TEST);
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_TEXTURE_2D);
+	glColor4d(1.0, 1.0, 1.0, 1.0);
 
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glLoadIdentity();
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
 	gluOrtho2D(0.0, displaySize.x, 0.0, displaySize.y);
-
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
 
-#ifdef PROFILE_HQ2X
-	BEGIN_PROFILE(HQ2X)
-#endif
-
-	glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_hq2xIn);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// in 16-Bit umwandeln
-	uint* p_in = reinterpret_cast<uint*>(p_hq2xIn);
-	uint* const p_in_end = p_in + screenSize.x * screenSize.y;
-	ushort* p_out = reinterpret_cast<ushort*>(p_hq2xIn);
-	for(; p_in != p_in_end; p_in++, p_out++)
+	// Benutzt wird nur die linke untere Ecke der Zweierpotenz-Textur.
+	const double u = static_cast<double>(screenSize.x) / frameTextureSize.x;
+	const double v = static_cast<double>(screenSize.y) / frameTextureSize.y;
+
+	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+
+	// Nearest und Bilinear sind reine Filtereinstellungen der Textur, dafuer
+	// braucht es keinen Shader.
+	const UpscaleFilter effective = getEffectiveUpscaleFilter();
+	// UF_SHARP_FIT rechnet die Texturkoordinate so um, dass die
+	// Hardware-Interpolation genau das nearest-Ergebnis liefert - ohne sie
+	// bliebe von dem Filter nichts uebrig. UF_CRT benutzt dieselbe Umrechnung
+	// und braucht sie deshalb ebenso.
+	const GLint filter = (effective == UF_BILINEAR || effective == UF_SHARP_FIT ||
+						  effective == UF_CRT) ? GL_LINEAR : GL_NEAREST;
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+
+	if(effective == UF_SHARP_FIT || effective == UF_CRT)
 	{
-		const uint r = (((*p_in) & 0x00FF0000) >> (16 + 3)) << 11;
-		const uint g = (((*p_in) & 0x0000FF00) >> (8 + 2)) << 5;
-		const uint b = ((*p_in) & 0x000000FF) >> (0 + 3);
-		*p_out = r | g | b;
+		const PresentProgram& prog = (effective == UF_CRT) ? crt : sharpFit;
+
+		// Der Shader rechnet selbst in Clipkoordinaten - keine Matrix, kein
+		// Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
+		// Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
+		const float x0 = 2.0f * x           / displaySize.x - 1.0f;
+		const float x1 = 2.0f * (x + w)     / displaySize.x - 1.0f;
+		const float y0 = 2.0f * y           / displaySize.y - 1.0f;
+		const float y1 = 2.0f * (y + h)     / displaySize.y - 1.0f;
+		const float fu = static_cast<float>(u), fv = static_cast<float>(v);
+
+		// Zwei Dreiecke als Streifen: Position, dann Texturkoordinate.
+		const float vertices[16] =
+		{
+			x0, y0, 0.0f, 0.0f,
+			x1, y0, fu,   0.0f,
+			x0, y1, 0.0f, fv,
+			x1, y1, fu,   fv
+		};
+
+		// Der kleinste ganzzahlige Faktor, mit dem das 640x480-Bild das
+		// Zielrechteck mindestens ausfuellt. Genau um den wuerde man mit
+		// nearest vergroessern, bevor man auf die echte Groesse heruntergeht;
+		// der Shader macht beides in einem Zug.
+		const float prescaleX = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(w) / screenSize.x))));
+		const float prescaleY = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(h) / screenSize.y))));
+
+		glExtUseProgram(prog.program);
+		if(prog.decal >= 0)       glExtUniform1i(prog.decal, 0);
+		if(prog.textureSize >= 0) glExtUniform2f(prog.textureSize,
+												 static_cast<float>(frameTextureSize.x),
+												 static_cast<float>(frameTextureSize.y));
+		if(prog.frameSize >= 0)   glExtUniform2f(prog.frameSize,
+												 static_cast<float>(screenSize.x),
+												 static_cast<float>(screenSize.y));
+		if(prog.prescale >= 0)    glExtUniform2f(prog.prescale, prescaleX, prescaleY);
+		// Die beiden Regler. Sie werden jedes Bild neu gesetzt, damit der
+		// Optionsdialog sofort wirkt, ohne den Shader neu zu uebersetzen.
+		if(prog.scanline >= 0)    glExtUniform1f(prog.scanline, static_cast<float>(crtScanline));
+		if(prog.curvature >= 0)   glExtUniform1f(prog.curvature, static_cast<float>(crtCurvature));
+		if(prog.bloom >= 0)       glExtUniform1f(prog.bloom, static_cast<float>(crtBloom));
+		if(prog.flicker >= 0)     glExtUniform1f(prog.flicker, static_cast<float>(crtFlicker));
+		if(prog.scanFlicker >= 0) glExtUniform1f(prog.scanFlicker, static_cast<float>(crtScanFlicker));
+		// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten
+		// und bleibt stehen, wenn das Spiel pausiert; ein Bildschirm flimmert
+		// auch dann weiter. Der Umlauf ist genau FLICKER_CYCLE aus dem Shader,
+		// und alle Frequenzen darin sind ganze Vielfache davon, also ist der
+		// Sprung an der Nahtstelle keiner.
+		const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
+		if(prog.time >= 0)
+		{
+			const double cycle = 8.0;   // = FLICKER_CYCLE in crt_shader.h
+			glExtUniform1f(prog.time, static_cast<float>(fmod(seconds, cycle)));
+		}
+		// Das Zeilenkriechen. Als einziger Anteil des Flimmerns wird es hier
+		// gerechnet und nicht im Shader: es ist eine Rampe, keine Schwingung,
+		// und ihre Steigung haengt am Regler. Nimmt man dafuer die im Shader
+		// schon gekuerzte Uhr, springt die Phase bei jedem Umlauf um
+		// fract(Flimmern * Geschwindigkeit) einer Zeilenperiode. Aus der
+		// ungekuerzten Uhr modulo 1 kommt sie stetig heraus.
+		if(prog.scanPhase >= 0)
+		{
+			glExtUniform1f(prog.scanPhase,
+						   static_cast<float>(fmod(seconds * crtCrawlSpeed * crtScanFlicker, 1.0)));
+		}
+
+		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
+		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+		glExtEnableVertexAttribArray(0);
+		glExtEnableVertexAttribArray(1);
+		glExtVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(0));
+		glExtVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(2 * sizeof(float)));
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		glExtDisableVertexAttribArray(0);
+		glExtDisableVertexAttribArray(1);
+		glExtBindBuffer(GL_ARRAY_BUFFER, 0);
+		glExtUseProgram(0);
+	}
+	else
+	{
+		glBegin(GL_QUADS);
+		glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
+		glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
+		glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
+		glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
+		glEnd();
 	}
 
-	hq2x_32(p_hq2xIn, p_hq2xOut, screenSize.x, screenSize.y, screenSize.x * 8);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
-	glRasterPos2i(0, displaySize.y - screenSize.y * 2);
-	glDrawPixels(screenSize.x * 2, screenSize.y * 2, GL_RGBA, GL_UNSIGNED_BYTE, p_hq2xOut);
-
-#ifdef PROFILE_HQ2X
-	END_PROFILE(HQ2X)
-#endif
-	
 	glPopMatrix();
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
+	glMatrixMode(GL_TEXTURE);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
 
 	glPopAttrib();
 }
@@ -1076,24 +2559,37 @@ void Engine::drawOverlays()
 
 void Engine::screenshot()
 {
-	char* p_temp = new char[displaySize.x * displaySize.y * 3];
+#ifdef __EMSCRIPTEN__
+	// GL_BGR is not an accepted glReadPixels format in WebGL 1, and Emscripten
+	// implements SDL_SaveBMP_RW as abort(), so this path cannot work as written
+	// and taking it down the old route would kill the runtime. Saving a file from
+	// a browser needs a download anyway, which is a separate piece of work.
+	printfLog("Screenshots are not supported in the web build.\n");
+	return;
+#endif
+	// Immer das interne 640x480-Bild, nie die skalierte Fassung: der gewaehlte
+	// Filter ist eine Anzeigeeinstellung und gehoert nicht in die Datei, und
+	// schwarze Balken erst recht nicht.
+	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
 
-	glReadBuffer(GL_BACK);
-	glReadPixels(0, 0, displaySize.x, displaySize.y, GL_BGR, GL_UNSIGNED_BYTE, p_temp);
+	char* p_temp = new char[shotSize.x * shotSize.y * 3];
+
+	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_BGR, GL_UNSIGNED_BYTE, p_temp);
 
 	// Zeilen richtigherum drehen
-	char* p_buffer = new char[displaySize.x * displaySize.y * 3];
+	char* p_buffer = new char[shotSize.x * shotSize.y * 3];
 	char* p_cursor = p_temp;
-	for(int y = 0; y < displaySize.y; y++)
+	for(int y = 0; y < shotSize.y; y++)
 	{
-		int ny = displaySize.y - 1 - y;
-		memcpy(p_buffer + displaySize.x * 3 * ny, p_cursor, displaySize.x * 3);
-		p_cursor += displaySize.x * 3;
+		int ny = shotSize.y - 1 - y;
+		memcpy(p_buffer + shotSize.x * 3 * ny, p_cursor, shotSize.x * 3);
+		p_cursor += shotSize.x * 3;
 	}
 
 	delete[] p_temp;
 
-	SDL_Surface* p_surface = SDL_CreateRGBSurfaceFrom(p_buffer, displaySize.x, displaySize.y, 24, displaySize.x * 3, 0x00FF0000, 0x0000FF00, 0x000000FF, 0x00000000);
+	SDL_Surface* p_surface = SDL_CreateRGBSurfaceFrom(p_buffer, shotSize.x, shotSize.y, 24, shotSize.x * 3, 0x00FF0000, 0x0000FF00, 0x000000FF, 0x00000000);
 
 	FileSystem& fs = FileSystem::inst();
 	char screenshotDateTime[256];
@@ -1160,6 +2656,22 @@ void Engine::renderSprite(Texture* p_sprite,
 	p_sprite->unbind();
 }
 
+void Engine::renderSprites(const Sprites& sprites,
+						   const Vec4d& color)
+{
+	const int numSprites = sprites.getCount();
+	for(int i = 0; i < numSprites; i++)
+	{
+		const Sprite& sprite = sprites[i];
+		renderSprite(sprite.offset,
+					 sprite.positionOnTexture,
+					 sprite.size,
+					 color * sprite.color,
+					 sprite.mirrorX,
+					 sprite.rotation);
+	}
+}
+
 SoundInstance* Engine::playSound(const std::string& filename,
 								 bool loop,
 								 double pitchSpectrum,
@@ -1176,10 +2688,10 @@ SoundInstance* Engine::playSound(const std::string& filename,
 
 		if(p_inst)
 		{
-			// Höhe setzen
+			// Hoehe setzen
 			if(pitchSpectrum != 0.0) p_inst->setPitch(1.0 + random(-pitchSpectrum, pitchSpectrum));
 
-			// Priorität setzen
+			// Prioritaet setzen
 			p_inst->setPriority(priority);
 
 			// abspielen
@@ -1208,7 +2720,7 @@ void Engine::registerGameState(GameState* p_gs)
 
 GameState* Engine::findGameState(const std::string& gs)
 {
-	stdext::hash_map<std::string, GameState*>::const_iterator i = gameStates.find(gs);
+	std::unordered_map<std::string, GameState*>::const_iterator i = gameStates.find(gs);
 	if(i == gameStates.end()) return 0;
 	else return i->second;
 }
@@ -1222,7 +2734,7 @@ void Engine::setGameState(const std::string& gs,
 	// aktueller Zustand verliert den Fokus
 	p_stateToLoseFocus = getGameState();
 
-	// alle Zustände verlassen
+	// alle Zustaende verlassen
 	while(!currentGameStates.empty())
 	{
 		GameState* p_gs = currentGameStates.top();
@@ -1266,7 +2778,7 @@ GameState* Engine::popGameState(const ParameterBlock& context)
 		p_stateToLoseFocus = p_currentGS;
 		statesToBeLeft.push_back(p_currentGS);
 
-		// neuer Zustand erhält den Fokus
+		// neuer Zustand erhaelt den Fokus
 		if(p_newGS) p_stateToGetFocus = p_newGS;
 	}
 
@@ -1316,6 +2828,19 @@ void Engine::playMusic(const std::string& filename,
 				p_currentMusic->slideVolume(1.0, 0.02);
 				p_currentMusic->setLoopBegin(loopBegin);
 			}
+			else
+			{
+				// Bisher blieb es hier einfach still. Ein Level, der ein
+				// Stueck nennt, das niemand hat - eine Kampagne aus dem
+				// Browser zum Beispiel, der die Musik nicht mitgegeben werden
+				// konnte -, lief ohne sie weiter, und der Spieler erfuhr es
+				// nur aus der Logdatei. Genannt wird der blosse Dateiname:
+				// der ganze Pfad fuehrt bei einer Kampagne durch das Archiv
+				// samt Passwort und sagt niemandem etwas.
+				const std::string::size_type slash = filename.find_last_of('/');
+				showToast(TOAST_ERROR, localizeString("$ERROR_MUSIC_MISSING") + " \"" +
+									   (slash == std::string::npos ? filename : filename.substr(slash + 1)) + "\"");
+			}
 		}
 	}
 }
@@ -1333,22 +2858,32 @@ void Engine::stopMusic()
 
 bool Engine::isKeyDown(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 1 ? true : false;
 }
 
 bool Engine::wasKeyPressed(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 2 ? true : false;
+}
+
+void Engine::consumeKeyPress(SDLKey key)
+{
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
+	keyData[key] &= ~2;
 }
 
 bool Engine::wasKeyReleased(SDLKey key) const
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return false;
 	return keyData[key] & 4 ? true : false;
 }
 
 void Engine::setKeyDown(SDLKey key,
 						bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 1;
 	else keyData[key] &= ~1;
 }
@@ -1356,6 +2891,7 @@ void Engine::setKeyDown(SDLKey key,
 void Engine::setKeyPressed(SDLKey key,
 						   bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 2;
 	else keyData[key] &= ~2;
 }
@@ -1363,6 +2899,7 @@ void Engine::setKeyPressed(SDLKey key,
 void Engine::setKeyReleased(SDLKey key,
 							bool status)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	if(status) keyData[key] |= 4;
 	else keyData[key] &= ~4;
 }
@@ -1370,21 +2907,25 @@ void Engine::setKeyReleased(SDLKey key,
 void Engine::setKeyData(SDLKey key,
 						int data)
 {
+	if(key < 0 || key >= NUM_KEY_SLOTS) return;
 	keyData[key] = data;
 }
 
 bool Engine::isButtonDown(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 1 ? true : false;
 }
 
 bool Engine::wasButtonPressed(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 2 ? true : false;
 }
 
 bool Engine::wasButtonReleased(uint button) const
 {
+	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 4 ? true : false;
 }
 
@@ -1414,7 +2955,7 @@ const std::vector<VirtualKey>& Engine::getVKs() const
 	return virtualKeys;
 }
 
-const stdext::hash_map<std::string, Action*>& Engine::getActions() const
+const std::unordered_map<std::string, Action*>& Engine::getActions() const
 {
 	return actions;
 }
@@ -1427,6 +2968,28 @@ const std::vector<Action*>& Engine::getActionsVector() const
 int Engine::getKeyboardVK(SDLKey key) const
 {
 	return key;
+}
+
+const std::string& Engine::getVKId(int vk) const
+{
+	static const std::string empty;
+	if(vk < 0 || vk >= static_cast<int>(virtualKeys.size())) return empty;
+	return virtualKeys[vk].id;
+}
+
+int Engine::getVKFromId(const std::string& id) const
+{
+	if(id.empty()) return -1;
+
+	for(uint i = 0; i < virtualKeys.size(); i++)
+	{
+		if(virtualKeys[i].id == id) return static_cast<int>(i);
+	}
+
+	// Unbekannt - etwa eine Joystick-Belegung, deren Joystick gerade nicht
+	// angeschlossen ist. Unbelegt lassen ist besser, als auf gut Glueck eine
+	// Nummer zu nehmen, hinter der jetzt etwas anderes steht.
+	return -1;
 }
 
 Action* Engine::registerAction(const std::string& name,
@@ -1464,7 +3027,7 @@ void Engine::changeAction(const std::string& name,
 
 Action* Engine::getAction(const std::string& name) const
 {
-	stdext::hash_map<std::string, Action*>::const_iterator it = actions.find(name);
+	std::unordered_map<std::string, Action*>::const_iterator it = actions.find(name);
 	return it == actions.end() ? 0 : it->second;
 }
 
@@ -1494,7 +3057,11 @@ void Engine::updateVKs()
 {
 	// Tastatur und Joysticks abfragen
 	SDL_PumpEvents();
+#ifdef __EMSCRIPTEN__
+	Uint8* p_keys = SDL_GetKeyboardState(0);
+#else
 	Uint8* p_keys = SDL_GetKeyState(0);
+#endif
 	SDL_JoystickUpdate();
 
 	for(std::vector<VirtualKey>::iterator it = virtualKeys.begin();
@@ -1542,7 +3109,7 @@ void Engine::updateVKs()
 
 void Engine::updateActions()
 {
-	for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
@@ -1560,13 +3127,13 @@ void Engine::updateActions()
 
 		if(down && !oldDown)
 		{
-			// gedrückt
+			// gedrueckt
 			if(!a.countDown)
 			{
 				a.data |= 2;
 				a.countDown = a.delay;
 
-				// entgegengesetzte Aktionen zurücksetzen
+				// entgegengesetzte Aktionen zuruecksetzen
 				for(std::vector<std::string>::const_iterator jt = a.resetsActions.begin();
 					jt != a.resetsActions.end();
 					++jt)
@@ -1599,7 +3166,7 @@ void Engine::updateActions()
 		}
 		else if(down && oldDown)
 		{
-			// gedrückt und vorher auch gedrückt
+			// gedrueckt und vorher auch gedrueckt
 			if(!a.countDown)
 			{
 				a.data |= 2;
@@ -1622,7 +3189,7 @@ void Engine::updateActions()
 					a.data = 1 | 2 | 4;
 					a.countDown = a.interval;
 
-					// entgegengesetzte Aktionen zurücksetzen
+					// entgegengesetzte Aktionen zuruecksetzen
 					for(std::vector<std::string>::const_iterator jt = a.resetsActions.begin();
 						jt != a.resetsActions.end();
 						++jt)
@@ -1636,44 +3203,181 @@ void Engine::updateActions()
 	}
 }
 
-int Engine::getPressedVK(int timeOut)
+void Engine::flushInput()
 {
-	Uint32 end = SDL_GetTicks() + timeOut;
-	modal = true;
+	// Erst weg, was Windows waehrend des fremden Fensters aufgestaut hat -
+	// aber nur Tasten und Maus. Alles andere muss stehenbleiben, allen voran
+	// SDL_VIDEORESIZE: das ist die einzige Stelle, an der handleResize() von
+	// einer neuen Fenstergroesse erfaehrt, und ein hier verschlucktes liesse
+	// SDLs Oberflaeche fuer immer auf der alten stehen.
+	// SDL_PeepEvents heisst auf beiden Seiten gleich und nimmt Verschiedenes:
+	// SDL 1.2 eine Bitmaske aus SDL_EVENTMASK, Emscriptens Nachbau die
+	// SDL-2-Form mit einem Bereich von...bis. Dort liegen Tastatur (0x300f)
+	// und Maus (0x400f) auseinander, also zwei Durchgaenge - und es holt nur
+	// *ein* Ereignis je Aufruf: nach mehr zu fragen bricht das Laufzeitsystem
+	// mit einer Zusicherung ab (assert(requestedEventCount == 1) in
+	// libsdl.js). Deshalb hier die 1 und die Schleife darum.
+	SDL_Event events[32];
+	SDL_PumpEvents();
+#ifdef __EMSCRIPTEN__
+	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0) {}
+	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEBUTTONUP) > 0) {}
+#else
+	while(SDL_PeepEvents(events, 32, SDL_GETEVENT,
+						 SDL_EVENTMASK(SDL_KEYDOWN) |
+						 SDL_EVENTMASK(SDL_KEYUP) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONDOWN) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONUP) |
+						 SDL_EVENTMASK(SDL_MOUSEMOTION)) > 0) {}
+#endif
 
-	updateVKs();
-	std::vector<bool> oldState;
-	for(size_t i = 0; i < virtualKeys.size(); i++) oldState.push_back(virtualKeys[i].down);
-
-	while(timeOut == -1 || SDL_GetTicks() < end)
+	// ... dann der eigene Zustand, samt der "gedrueckt"- und
+	// "losgelassen"-Kennzeichen. Bliebe eine Maustaste als gedrueckt stehen,
+	// laese die GUI das naechste Loslassen als Klick auf das Element unter dem
+	// Zeiger - und das ist derselbe Knopf, der das Fenster geoeffnet hat.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
-		updateVKs();
-		if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down) return -1;
+		keyData[i] = 0;
+		buttonData[i] = 0;
+	}
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
+}
 
-		for(size_t i = 0; i < virtualKeys.size(); i++)
-		{
-			if(virtualKeys[i].down && !oldState[i]) return static_cast<int>(i);
-		}
+void Engine::showLastFrame()
+{
+	unbindFrameBuffer();
+	presentFrame();
+	SDL_GL_SwapBuffers();
+}
 
-		SDL_Delay(10);
+void Engine::beginKeyGrab(int timeOutMS)
+{
+	// Was jetzt schon gedrueckt ist, zaehlt nicht: gesucht ist die Taste, die
+	// waehrend des Wartens neu heruntergeht.
+	updateVKs();
+
+	grabOldState.clear();
+	grabOldState.reserve(virtualKeys.size());
+	for(size_t i = 0; i < virtualKeys.size(); i++) grabOldState.push_back(virtualKeys[i].down);
+
+	grabHasDeadline = timeOutMS > 0;
+	grabDeadline = SDL_GetTicks() + static_cast<uint>(timeOutMS > 0 ? timeOutMS : 0);
+	grabResult = GRAB_WAITING;
+	grabbingKey = true;
+}
+
+bool Engine::isGrabbingKey() const
+{
+	return grabbingKey;
+}
+
+int Engine::pollKeyGrab()
+{
+	if(grabbingKey) return GRAB_WAITING;
+
+	const int result = grabResult;
+	grabResult = GRAB_WAITING;
+	return result;
+}
+
+void Engine::updateKeyGrab()
+{
+	if(!grabbingKey) return;
+
+	// Escape bricht ab. Es wird nicht als Belegung angeboten - eine Taste, mit
+	// der man jeden Dialog schliesst, waere eine schlechte Wahl -, und der
+	// Aufrufer laesst die alte Belegung stehen.
+	if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down)
+	{
+		grabResult = GRAB_CANCELLED;
+		grabbingKey = false;
+		return;
 	}
 
-	return -1;
+	const size_t n = min(grabOldState.size(), virtualKeys.size());
+	for(size_t i = 0; i < n; i++)
+	{
+		if(virtualKeys[i].down && !grabOldState[i])
+		{
+			grabResult = static_cast<int>(i);
+			grabbingKey = false;
+			return;
+		}
+	}
+
+	// Zeit abgelaufen. Das heisst "keine Taste" und raeumt die Belegung weg -
+	// der einzige Weg, eine Aktion unbelegt zu lassen.
+	if(grabHasDeadline && SDL_GetTicks() >= grabDeadline)
+	{
+		grabResult = GRAB_NO_KEY;
+		grabbingKey = false;
+	}
 }
 
 void Engine::resetActions()
 {
 	for(size_t i = 0; i < actionsVector.size(); i++)
 	{
-		actionsVector[i]->primary = actionsVector[i]->defaultPrimary;
-		actionsVector[i]->secondary = actionsVector[i]->defaultSecondary;
+		resetAction(actionsVector[i]->name);
 	}
+}
+
+void Engine::resetAction(const std::string& name)
+{
+	Action* p_action = getAction(name);
+	if(!p_action) return;
+
+	p_action->primary = p_action->defaultPrimary;
+	p_action->secondary = p_action->defaultSecondary;
+}
+
+// Die beim Laden gemerkten Kennungen in Indizes umsetzen. Muss laufen, nachdem
+// virtualKeys steht; vorher gibt es nichts zu finden. Eine Kennung, die sich
+// nicht aufloesen laesst - ein Joystick, der gerade nicht angeschlossen ist -,
+// bleibt unbelegt, statt auf gut Glueck eine Nummer zu bekommen.
+void Engine::resolveActionKeys()
+{
+	for(size_t i = 0; i < actionsVector.size(); i++)
+	{
+		Action& a = *actionsVector[i];
+
+		if(!a.pendingPrimaryId.empty())
+		{
+			a.primary = getVKFromId(a.pendingPrimaryId);
+			a.pendingPrimaryId.clear();
+		}
+
+		if(!a.pendingSecondaryId.empty())
+		{
+			a.secondary = getVKFromId(a.pendingSecondaryId);
+			a.pendingSecondaryId.clear();
+		}
+	}
+}
+
+// Wer 1.2.0 zweimal gestartet hat, bevor der Fehler oben behoben war, hat eine
+// config.xml, in der jede Belegung leer ist - der zweite Start las die Namen,
+// fand nichts und schrieb das Ergebnis beim Beenden zurueck. Das Spiel waere
+// damit nicht mehr bedienbar, und der Weg heraus (Optionen, Zuruecksetzen) ist
+// niemandem anzusehen. Ist wirklich *keine* einzige Aktion belegt, kann das
+// keine Absicht sein: dann gelten wieder die Vorgaben.
+void Engine::repairLostBindings()
+{
+	if(actionsVector.empty()) return;
+
+	for(size_t i = 0; i < actionsVector.size(); i++)
+	{
+		if(actionsVector[i]->primary != -1 || actionsVector[i]->secondary != -1) return;
+	}
+
+	printfLog("+ WARNING: No action had a key assigned; restoring the defaults.\n");
+	resetActions();
 }
 
 void Engine::limitActionKeys()
 {
 	// Indizes der Aktionen limitieren
-	for(stdext::hash_map<std::string, Action*>::const_iterator it = actions.begin();
+	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
@@ -1687,11 +3391,33 @@ Vec2i Engine::getCursorPosition() const
 {
 	Vec2i position = cursorPosition;
 
-	if(useHQ2X)
+	if(useFrameBuffer)
 	{
-		int offset = (displaySize.y - screenSize.y * 2) / 2;
-		position.y -= offset;
-		position /= 2;
+		// Genau die Umkehrung dessen, was presentFrame() zeichnet. Das Rechteck
+		// liegt mittig, deshalb ist der Rand oben so gross wie unten und die
+		// Rechnung gilt gleichermassen in SDLs Fensterkoordinaten (y nach unten)
+		// wie in GLs (y nach oben).
+		//
+		// Gerechnet wird mit Pixelmitten: ein Fensterpixel px deckt [px, px+1)
+		// ab, seine Mitte liegt bei px+0.5. Frueher stand hier die linke Kante
+		// und ein static_cast<int>, was am krummen Vergroesserungsfaktor
+		// regelmaessig einen Bildpunkt zu wenig ergab - nachgemessen: mit
+		// Pixelmitten ist der Hin- und Rueckweg ueber jeden Bildpunkt exakt.
+		int x, y, w, h;
+		computePresentRect(x, y, w, h);
+		if(w > 0 && h > 0)
+		{
+			Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
+
+			// Dieselbe Woelbung wie im Shader: der Zeiger sitzt auf dem Glas,
+			// das Spiel muss wissen, welches Quellpixel darunter liegt. Ohne
+			// UF_CRT gibt warpToSource die Koordinate unveraendert zurueck.
+			const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
+			n = (warped + Vec2d(1.0, 1.0)) * 0.5;
+
+			position.x = static_cast<int>(floor(n.x * screenSize.x));
+			position.y = static_cast<int>(floor(n.y * screenSize.y));
+		}
 	}
 
 	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
@@ -1702,15 +3428,29 @@ Vec2i Engine::getCursorPosition() const
 
 void Engine::setCursorPosition(const Vec2i& cursorPosition)
 {
-	Vec2i temp = cursorPosition;
+	// Erst in den gueltigen Bereich des internen Bildes, dann nach aussen
+	// umrechnen. Die alte Fassung klemmte mit clamp(temp.x, 0, temp.x - 1) auf
+	// eine Grenze, die aus dem geklemmten Wert selbst stammte, und zog dadurch
+	// immer genau eins ab.
+	Vec2i temp = Vec2i(clamp(cursorPosition.x, 0, screenSize.x - 1),
+					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
-	if(useHQ2X)
+	if(useFrameBuffer)
 	{
-		temp = Vec2i(clamp(temp.x, 0, temp.x - 1),
-					 clamp(temp.y, 0, temp.y - 1));
-		temp *= 2;
-		int offset = (displaySize.y - screenSize.y * 2) / 2;
-		temp.y += offset;
+		int x, y, w, h;
+		computePresentRect(x, y, w, h);
+		if(screenSize.x > 0 && screenSize.y > 0)
+		{
+			Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
+
+			// Der Rueckweg durch die Woelbung. Bei ausgeschaltetem CRT-Filter
+			// ist das die Identitaet.
+			const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
+			n = (out + Vec2d(1.0, 1.0)) * 0.5;
+
+			temp.x = x + static_cast<int>(floor(n.x * w));
+			temp.y = y + static_cast<int>(floor(n.y * h));
+		}
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);
@@ -1774,16 +3514,61 @@ void Engine::crossfade(Crossfade* p_crossfade,
 
 	if(immediately)
 	{
-		// altes Bild sichern
+		// altes Bild sichern - wie oben aus dem Bildpuffer, nicht aus dem,
+		// was gerade gebunden ist.
+		bindFrameBuffer();
 		glBindTexture(GL_TEXTURE_2D, oldImageID);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 		crossfadeTime = -0.5;
 	}
 }
 
+std::string Engine::detectSystemLanguage()
+{
+	// Nur "de" oder "en". Von den 349 Zeichenketten in data/languages.txt haben
+	// genau eine einen franzoesischen und eine einen spanischen Text - das sind
+	// Platzhalter, keine Uebersetzungen. Wer hier "fr" erkennen wuerde, bekaeme
+	// ein englisches Spiel mit franzoesischer Beschriftung. Alles ausser Deutsch
+	// ist deshalb absichtlich Englisch.
+#if defined(__EMSCRIPTEN__)
+	const int german = EM_ASM_INT({
+		var list = navigator.languages || [navigator.language || ""];
+		for(var i = 0; i < list.length; i++)
+		{
+			var tag = String(list[i] || "").toLowerCase();
+			if(tag.indexOf("de") === 0) return 1;
+			if(tag.indexOf("en") === 0) return 0;
+		}
+		return 0;
+	});
+	return german ? "de" : "en";
+#elif defined(_WIN32)
+	// Die Sprache der Oberflaeche, nicht das Gebietsschema: wer sein Windows
+	// auf Deutsch benutzt, will das Spiel auf Deutsch, auch wenn Zahlen und
+	// Datum anders eingestellt sind. GetLocaleInfoA, nicht ...W - das Projekt
+	// ist MultiByte, siehe CLAUDE.md.
+	const LANGID langId = GetUserDefaultUILanguage();
+	char iso[16] = "";
+	if(GetLocaleInfoA(MAKELCID(langId, SORT_DEFAULT), LOCALE_SISO639LANGNAME, iso, sizeof(iso)) > 0)
+	{
+		if(iso[0] == 'd' && iso[1] == 'e') return "de";
+		return "en";
+	}
+	return PRIMARYLANGID(langId) == LANG_GERMAN ? "de" : "en";
+#else
+	const char* p_env = getenv("LC_ALL");
+	if(!p_env || !*p_env) p_env = getenv("LC_MESSAGES");
+	if(!p_env || !*p_env) p_env = getenv("LANG");
+	return (p_env && p_env[0] == 'd' && p_env[1] == 'e') ? "de" : "en";
+#endif
+}
+
 void Engine::loadConfig()
 {
-	language = "en";
+	// Ohne <Language> in der config.xml entscheidet das System. Das ist der
+	// erste Start ohne Installer, der Browser, und genau der Fall, in dem
+	// frueher stumm Englisch herauskam.
+	language = detectSystemLanguage();
 	soundVolume = musicVolume = 1.0;
 	particleDensity = 1.0;
 	details = 2;
@@ -1802,8 +3587,77 @@ void Engine::loadConfig()
 			const char* p_text = p_language->GetText();
 			if(p_text) setLanguage(p_text);
 		}
+		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
-		// Sound-Lautstärke lesen
+		// Skalierungsfilter lesen. Steht nichts da, bleibt die Voreinstellung.
+		// Ob xBR wirklich geht, entscheidet getEffectiveUpscaleFilter() spaeter -
+		// hier gibt es noch keinen GL-Kontext.
+		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
+		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
+
+		// Die beiden Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
+		// Voreinstellung aus dem Konstruktor.
+		TiXmlElement* p_crt = p_config->FirstChildElement("Crt");
+		if(p_crt)
+		{
+			double value = 0.0;
+			if(p_crt->QueryDoubleAttribute("scanline", &value) == TIXML_SUCCESS)
+				setCrtScanline(value);
+			if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)
+				setCrtCurvature(value);
+			if(p_crt->QueryDoubleAttribute("bloom", &value) == TIXML_SUCCESS)
+				setCrtBloom(value);
+			if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)
+				setCrtFlicker(value);
+			if(p_crt->QueryDoubleAttribute("scanflicker", &value) == TIXML_SUCCESS)
+				setCrtScanFlicker(value);
+		}
+
+		// Vollbild und Fenstergroesse lesen. Beide gelten erst beim naechsten
+		// Start; mitten im Betrieb schaltet der Spieler mit Alt+Return und dem
+		// Fensterrahmen selbst.
+#ifndef __EMSCRIPTEN__
+		TiXmlElement* p_fullScreen = p_config->FirstChildElement("Fullscreen");
+		if(p_fullScreen)
+		{
+			const char* p_text = p_fullScreen->GetText();
+			if(p_text) fullScreen = (atoi(p_text) != 0);
+		}
+#endif
+
+		TiXmlElement* p_windowPosition = p_config->FirstChildElement("WindowPosition");
+		if(p_windowPosition)
+		{
+			// Negative Werte sind erlaubt: ein zweiter Bildschirm links des
+			// ersten hat sie. Ob die Stelle noch existiert, entscheidet
+			// restoreWindowPosition() mit MonitorFromRect.
+			int x = 0, y = 0;
+			const bool haveX = p_windowPosition->QueryIntAttribute("x", &x) == TIXML_SUCCESS;
+			const bool haveY = p_windowPosition->QueryIntAttribute("y", &y) == TIXML_SUCCESS;
+			if(haveX && haveY && abs(x) <= 32768 && abs(y) <= 32768)
+			{
+				windowedPosition = Vec2i(x, y);
+				windowedPositionKnown = true;
+			}
+
+			int max = 0;
+			p_windowPosition->QueryIntAttribute("maximized", &max);
+			maximized = (max != 0);
+		}
+
+		TiXmlElement* p_windowSize = p_config->FirstChildElement("WindowSize");
+		if(p_windowSize)
+		{
+			int w = 0, h = 0;
+			p_windowSize->QueryIntAttribute("w", &w);
+			p_windowSize->QueryIntAttribute("h", &h);
+			// Kleiner als das interne Bild ergibt keinen Sinn, und eine
+			// unsinnig grosse Zahl aus einer verbogenen Datei auch nicht.
+			if(w >= screenSize.x && h >= screenSize.y && w <= 16384 && h <= 16384)
+				windowedSize = Vec2i(w, h);
+		}
+
+		// Sound-Lautstaerke lesen
 		TiXmlElement* p_soundVolume = p_config->FirstChildElement("SoundVolume");
 		if(p_soundVolume)
 		{
@@ -1811,7 +3665,7 @@ void Engine::loadConfig()
 			if(p_text) setSoundVolume(atof(p_text));
 		}
 
-		// Musik-Lautstärke lesen
+		// Musik-Lautstaerke lesen
 		TiXmlElement* p_musicVolume = p_config->FirstChildElement("MusicVolume");
 		if(p_musicVolume)
 		{
@@ -1839,9 +3693,30 @@ void Engine::loadConfig()
 				{
 					if(getAction(p_name))
 					{
+						// Bis 1.2.0 stand hier die VK-Nummer, seither der
+						// Name. Erst die Zahl versuchen: gelingt sie, ist es
+						// eine alte Datei, und beim naechsten Speichern steht
+						// der Name darin.
+						//
+						// Ein Name wird hier NICHT aufgeloest, sondern nur
+						// gemerkt. loadConfig() laeuft aus Engine::init()
+						// heraus, bevor virtualKeys gefuellt ist - eine Suche
+						// in der leeren Liste faende nichts und wuerde jede
+						// Belegung auf "unbelegt" setzen. Genau das ist
+						// passiert: der erste Start nach der Aktualisierung las
+						// noch die Zahlen und schrieb beim Beenden Namen, der
+						// zweite fand die Namen und warf alles weg.
+						// resolveActionKeys() traegt sie nach.
 						int primary = -1, secondary = -1;
-						p_action->QueryIntAttribute("primary", &primary);
-						p_action->QueryIntAttribute("secondary", &secondary);
+						const char* p_primaryId = p_action->Attribute("primary");
+						const char* p_secondaryId = p_action->Attribute("secondary");
+
+						Action* p_theAction = getAction(p_name);
+						if(p_action->QueryIntAttribute("primary", &primary) != TIXML_SUCCESS)
+							p_theAction->pendingPrimaryId = p_primaryId ? p_primaryId : "";
+						if(p_action->QueryIntAttribute("secondary", &secondary) != TIXML_SUCCESS)
+							p_theAction->pendingSecondaryId = p_secondaryId ? p_secondaryId : "";
+
 						changeAction(p_name, primary, secondary);
 					}
 				}
@@ -1855,7 +3730,14 @@ void Engine::loadConfig()
 		}
 	}
 
-	if(!virtualKeys.empty()) limitActionKeys();
+	// Wird loadConfig() jemals gerufen, wenn die Liste schon steht, ist der
+	// Nachtrag sofort faellig.
+	if(!virtualKeys.empty())
+	{
+		resolveActionKeys();
+		limitActionKeys();
+		repairLostBindings();
+	}
 }
 
 void Engine::saveConfig()
@@ -1872,14 +3754,47 @@ void Engine::saveConfig()
 	p_language->LinkEndChild(new TiXmlText(language));
 	p_config->LinkEndChild(p_language);
 
-	// Sound-Lautstärke schreiben
+	// Skalierungsfilter schreiben
+	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
+	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
+	p_config->LinkEndChild(p_upscaler);
+
+	// Vollbild und Fenstergroesse schreiben, damit das Spiel so wiederkommt,
+	// wie es verlassen wurde.
+	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");
+	p_fullScreen->LinkEndChild(new TiXmlText(fullScreen ? "1" : "0"));
+	p_config->LinkEndChild(p_fullScreen);
+
+	TiXmlElement* p_windowSize = new TiXmlElement("WindowSize");
+	p_windowSize->SetAttribute("w", windowedSize.x);
+	p_windowSize->SetAttribute("h", windowedSize.y);
+	p_config->LinkEndChild(p_windowSize);
+
+	TiXmlElement* p_crt = new TiXmlElement("Crt");
+	p_crt->SetDoubleAttribute("scanline", crtScanline);
+	p_crt->SetDoubleAttribute("curvature", crtCurvature);
+	p_crt->SetDoubleAttribute("bloom", crtBloom);
+	p_crt->SetDoubleAttribute("flicker", crtFlicker);
+	p_crt->SetDoubleAttribute("scanflicker", crtScanFlicker);
+	p_config->LinkEndChild(p_crt);
+
+	if(windowedPositionKnown)
+	{
+		TiXmlElement* p_windowPosition = new TiXmlElement("WindowPosition");
+		p_windowPosition->SetAttribute("x", windowedPosition.x);
+		p_windowPosition->SetAttribute("y", windowedPosition.y);
+		p_windowPosition->SetAttribute("maximized", maximized ? 1 : 0);
+		p_config->LinkEndChild(p_windowPosition);
+	}
+
+	// Sound-Lautstaerke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");
 	char temp[256] = "";
 	sprintf(temp, "%f", getSoundVolume());
 	p_soundVolume->LinkEndChild(new TiXmlText(temp));
 	p_config->LinkEndChild(p_soundVolume);
 
-	// Musik-Lautstärke schreiben
+	// Musik-Lautstaerke schreiben
 	TiXmlElement* p_musicVolume = new TiXmlElement("MusicVolume");
 	sprintf(temp, "%f", getMusicVolume());
 	p_musicVolume->LinkEndChild(new TiXmlText(temp));
@@ -1897,8 +3812,8 @@ void Engine::saveConfig()
 	{
 		TiXmlElement* p_action = new TiXmlElement("Action");
 		p_action->SetAttribute("name", actionsVector[i]->name.c_str());
-		p_action->SetAttribute("primary", actionsVector[i]->primary);
-		p_action->SetAttribute("secondary", actionsVector[i]->secondary);
+		p_action->SetAttribute("primary", getVKId(actionsVector[i]->primary).c_str());
+		p_action->SetAttribute("secondary", getVKId(actionsVector[i]->secondary).c_str());
 		p_controls->LinkEndChild(p_action);
 	}
 	p_config->LinkEndChild(p_controls);
@@ -2048,7 +3963,7 @@ void Engine::loadStringDB(const std::string& filename)
 					if(texts.empty()) texts = line;
 					else
 					{
-						if(line[0] == '§')
+						if(line[0] == '\xA7')
 						{
 							texts += std::string(dontCollapse ? "\n" : "") + line;
 							numEmptyLines = 0;
@@ -2069,7 +3984,7 @@ void Engine::loadStringDB(const std::string& filename)
 
 			line = "";
 
-			// \n nach \r überspringen
+			// \n nach \r ueberspringen
 			if(c == '\r') i++;
 		}
 		else
@@ -2086,7 +4001,7 @@ std::string Engine::localizeString(const std::string& text)
 		if(text[0] == '$')
 		{
 			// Gibt es diesen String in der Datenbank?
-			stdext::hash_map<std::string, std::string>::const_iterator i = stringDB.find(text);
+			std::unordered_map<std::string, std::string>::const_iterator i = stringDB.find(text);
 			if(i != stringDB.end())
 			{
 				// Ja! Lokalisieren!
@@ -2096,15 +4011,15 @@ std::string Engine::localizeString(const std::string& text)
 	}
 
 	// Suchmuster generieren
-	const std::string patternStart = std::string("§") + language + std::string(":");
+	const std::string patternStart = std::string("\xA7") + language + std::string(":");
 
 	std::string::size_type indexStart = text.find(patternStart);
 	if(std::string::npos == indexStart)
 	{
-		// Keine Lokalisierung für diese Sprache!
+		// Keine Lokalisierung fuer diese Sprache!
 		if(language == "en")
 		{
-			// String unverändert liefern
+			// String unveraendert liefern
 			return text;
 		}
 		else
@@ -2120,7 +4035,7 @@ std::string Engine::localizeString(const std::string& text)
 
 	std::string::size_type textStart = indexStart + language.length() + 2;
 
-	std::string::size_type textEnd = text.find("§", textStart);
+	std::string::size_type textEnd = text.find("\xA7", textStart);
 	if(std::string::npos == textEnd)
 	{
 		// Dies war die letzte Lokalisierung.
@@ -2132,18 +4047,25 @@ std::string Engine::localizeString(const std::string& text)
 
 std::string Engine::loadString(const std::string& id) const
 {
-	stdext::hash_map<std::string, std::string>::const_iterator i = stringDB.find(id);
+	std::unordered_map<std::string, std::string>::const_iterator i = stringDB.find(id);
 	if(i == stringDB.end()) return id;
 	else return i->second;
 }
 
-ALCdevice* Engine::getOpenALCaptureDevice()
+AudioCapture* Engine::getAudioCapture()
 {
-	return p_audioCaptureDevice;
+	return p_audioCapture;
 }
 
 void Engine::setupCursor()
 {
+	// Der Pfeil, doppelt so gross wie frueher. Seit das Fenster beliebig gross
+	// sein darf, wird das 640x480-Bild mitskaliert - der Mauszeiger aber nicht,
+	// den zeichnet das System in Fensterpixeln, und danebengehalten wirkt er
+	// winzig. Schlicht pixelverdoppelt, jedes 1x1 wird ein 2x2: derselbe Pfeil
+	// wie eh und je, nur groesser, mit allem was dazugehoert - der Umriss ist
+	// zwei Pixel breit und die Schraege eine 2x2-Treppe. Groesser als 32x32
+	// geht nicht, so gross ist ein Win32-Cursor.
 	const char* p_arrow[] = {
 		/* width height num_colors chars_per_pixel */
 		"    32    32        3            1",
@@ -2152,38 +4074,38 @@ void Engine::setupCursor()
 		". c #ffffff",
 		"  c None",
 		/* pixels */
-		"X                               ",
 		"XX                              ",
-		"X.X                             ",
-		"X..X                            ",
-		"X...X                           ",
-		"X....X                          ",
-		"X.....X                         ",
-		"X......X                        ",
-		"X.......X                       ",
-		"X.....XXX                       ",
-		"X..X..X                         ",
-		"X.X X..X                        ",
-		"XX  X..X                        ",
-		"     X..X                       ",
-		"     X..X                       ",
-		"      XX                        ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
-		"                                ",
+		"XX                              ",
+		"XXXX                            ",
+		"XXXX                            ",
+		"XX..XX                          ",
+		"XX..XX                          ",
+		"XX....XX                        ",
+		"XX....XX                        ",
+		"XX......XX                      ",
+		"XX......XX                      ",
+		"XX........XX                    ",
+		"XX........XX                    ",
+		"XX..........XX                  ",
+		"XX..........XX                  ",
+		"XX............XX                ",
+		"XX............XX                ",
+		"XX..............XX              ",
+		"XX..............XX              ",
+		"XX..........XXXXXX              ",
+		"XX..........XXXXXX              ",
+		"XX....XX....XX                  ",
+		"XX....XX....XX                  ",
+		"XX..XX  XX....XX                ",
+		"XX..XX  XX....XX                ",
+		"XXXX    XX....XX                ",
+		"XXXX    XX....XX                ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"          XX....XX              ",
+		"            XXXX                ",
+		"            XXXX                ",
 		"0,0"
 	};
 

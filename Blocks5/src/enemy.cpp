@@ -32,13 +32,11 @@ Enemy::Enemy(Level& level,
 	{
 		flags = OF_MASSIVE | OF_COLLECTABLE | OF_DESTROYABLE | OF_TRANSPORTABLE | OF_BURSTABLE;
 		destroyTime = 1;
-		positionOnTexture = Vec2i(0, 416);
 	}
 	else if(subType == 1)
 	{
 		flags = OF_MASSIVE | OF_COLLECTABLE | OF_DESTROYABLE | OF_TRANSPORTABLE | OF_BURSTABLE | OF_TRIGGER_PANELS;
 		destroyTime = 1;
-		positionOnTexture = Vec2i(64, 448);
 	}
 
 	burstSound = "enemy_burst.ogg";
@@ -46,6 +44,25 @@ Enemy::Enemy(Level& level,
 
 Enemy::~Enemy()
 {
+}
+
+void Enemy::updateSprites()
+{
+	if(subType == 0)
+	{
+		// komisches gruenes Insekt. Es wackelt um bis zu 10 Grad um seine
+		// Blickrichtung; die Truemmer bekommen den Winkel ungerundet.
+		int f[] = {0, 1, 0, 2};
+		int frame = f[(anim / 4) % 4];
+		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0 * shownDir + 10.0 * sin(anim / 4.0);
+	}
+	else if(subType == 1)
+	{
+		// Teufelsfratze
+		int f[] = {0, 1, 1, 1, 0};
+		int frame = f[(anim / 4) % 5];
+		sprites.add(Vec2i(64 + frame * 32, 448));
+	}
 }
 
 void Enemy::onRender(int layer,
@@ -60,22 +77,17 @@ void Enemy::onRender(int layer,
 
 	if(layer == 1)
 	{
-		if(subType == 0)
+		if(subType == 1)
 		{
-			// komisches grünes Insekt rendern
-			int f[] = {0, 1, 0, 2};
-			int frame = f[(anim / 4) % 4];
-			double a = 10.0 * sin(anim / 4.0);
-			Engine::inst().renderSprite(Vec2i(0, 0), Vec2i(frame * 32, 416), Vec2i(16, 16), realColor, false, 90.0 * shownDir + a);
-		}
-		else if(subType == 1)
-		{
-			// Teufelsfratze rendern
-			int f[] = {0, 1, 1, 1, 0};
-			int frame = f[(anim / 4) % 5];
+			// Die Teufelsfratze schwebt. Ihr Bild steigt mit der Hoehe auf,
+			// ihr Schatten bleibt am Boden und wird dabei blasser. Das ist
+			// eine Sache des Durchgangs und gehoert deshalb nicht in die
+			// Teilbilder. Object::render klammert das Ganze in glPushMatrix.
 			if(shadowPass) realColor.a /= 1.0 + 0.25 * height;
-			Engine::inst().renderSprite(Vec2i(0, shadowPass ? 0 : static_cast<int>(-height)), Vec2i(64 + frame * 32, 448), Vec2i(16, 16), realColor);
+			else glTranslated(0.0, static_cast<int>(-height), 0.0);
 		}
+
+		Engine::inst().renderSprites(sprites, realColor);
 	}
 	else if(layer == 18)
 	{
@@ -102,7 +114,7 @@ void Enemy::onUpdate()
 
 	if(!thinkCounter--)
 	{
-		// den nächsten Spieler suchen, der für den Gegner sichtbar ist
+		// den naechsten Spieler suchen, der fuer den Gegner sichtbar ist
 		Player* p_closestPlayer = 0;
 		int closestDist = 0;
 		const std::list<Player*>& players = Player::getInstances();
@@ -142,7 +154,7 @@ void Enemy::onUpdate()
 
 			if(contamination < 50)
 			{
-				if(random() % 2) r = 0;
+				if(randomInt() % 2) r = 0;
 			}
 
 			interest /= 2;
@@ -220,7 +232,7 @@ void Enemy::onUpdate()
 				else if(s == 1) sound = "enemy1_burp2.ogg";
 				Engine::inst().playSound(sound, false, 0.1);
 
-				// Rülpspartikel erzeugen
+				// Ruelpspartikel erzeugen
 				ParticleSystem* p_particleSystem = level.getParticleSystem();
 				ParticleSystem::Particle p;
 				for(int i = 0; i < 10; i++)
@@ -245,7 +257,7 @@ void Enemy::onUpdate()
 	}
 	else if(subType == 1)
 	{
-		if(random() % 2) anim++;
+		if(randomInt() % 2) anim++;
 
 		if(moveCounter-- <= 0)
 		{
@@ -254,7 +266,7 @@ void Enemy::onUpdate()
 
 			if(contamination < 50)
 			{
-				if(random() % 2) r = 0;
+				if(randomInt() % 2) r = 0;
 			}
 
 			interest /= 2;
@@ -276,7 +288,7 @@ void Enemy::onUpdate()
 				}
 				else
 				{
-					// Wo ist die Spur am heißesten?
+					// Wo ist die Spur am heissesten?
 					int bestDir = 0;
 					uint bestTrace = 0;
 					for(int dir = 0; dir < 4; dir++)
@@ -330,7 +342,7 @@ void Enemy::onUpdate()
 
 		if(height == 0.0)
 		{
-			if(!(random() % 25))
+			if(!(randomInt() % 25))
 			{
 				vy = random(40.0, 80.0);
 				height = 0.5;
@@ -350,7 +362,7 @@ void Enemy::onUpdate()
 
 		int pr = 700;
 		if(interest >= 10000) pr = 350;
-		if(!(random() % pr))
+		if(!(randomInt() % pr))
 		{
 			// Lachen abspielen
 			Engine::inst().playSound("enemy2_laugh.ogg", false, 0.15, -100);
@@ -358,7 +370,7 @@ void Enemy::onUpdate()
 
 		if(interest >= 40000)
 		{
-			if(!(random() % 200))
+			if(!(randomInt() % 200))
 			{
 				// Knurren abspielen
 				Engine::inst().playSound("enemy2_growl.ogg", false, 0.15, -100);
@@ -387,7 +399,7 @@ void Enemy::onUpdate()
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.5f, 0.9f);
 			p.deltaSize = random(0.0075f, 0.015f);
-			if(random() % 2) p_particleSystem->addParticle(p);
+			if(randomInt() % 2) p_particleSystem->addParticle(p);
 			else p_fireParticleSystem->addParticle(p);
 		}
 	}
@@ -407,18 +419,24 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150; i++)
+			const Sprites& debris = p_player->getSprites();
+			const int numTries = debris.getTryCount(150);
+			for(int i = 0; i < numTries; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
+
+				Vec4d sampled;
+				Vec2i offset;
+				if(!debris.sample(&sampled, &offset)) continue;
+
+				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				double c = random(0.6, 1.0);
-				p.color = p_player->getDebrisColor();
+				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
@@ -446,18 +464,24 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem::Particle p;
 
 			// die Metzelei hinter einer Staubwolke verstecken
-			for(int i = 0; i < 150; i++)
+			const Sprites& debris = p_player->getSprites();
+			const int numTries = debris.getTryCount(150);
+			for(int i = 0; i < numTries; i++)
 			{
 				p.lifetime = 100;
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = position * 16 + Vec2i(random(4, 12), random(4, 12));
+
+				Vec4d sampled;
+				Vec2i offset;
+				if(!debris.sample(&sampled, &offset)) continue;
+
+				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				double a = random(0.0, 1000.0);
 				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
-				double c = random(0.6, 1.0);
-				p.color = p_player->getDebrisColor();
+				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);

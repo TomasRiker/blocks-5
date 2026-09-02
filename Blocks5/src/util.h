@@ -23,7 +23,29 @@ template<typename T> const T& clamp(const T& value,
 int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
-int random();
+
+// "01 - Titel", wie es im Spiel und in der Levelauswahl ueber dem Bild steht.
+// Der Titel kommt unbesehen aus der Leveldatei (level.cpp liest das Attribut
+// so, wie es dasteht) und aus einem Eingabefeld ohne Laengengrenze - er ist
+// also beliebig lang und darf nie durch einen festen Puffer laufen. Nur die
+// Nummer geht hier durch einen, und die ist eine Zahl.
+std::string formatLevelCaption(int number, const std::string& title);
+
+// Macht aus einem beliebigen - auch von aussen eingeschleusten - Dateinamen
+// einen sicheren Namensteil: nur der Basisname, nur [A-Za-z0-9_-], keine
+// Punkte, nie leer, hoechstens 64 Zeichen. Das Ergebnis kann nie aus seinem
+// Verzeichnis ausbrechen; die Erweiterung legt der Aufrufer fest.
+std::string sanitizeFilenameStem(const std::string& untrusted,
+                                 const std::string& fallback = "imported");
+
+// Prueft, ob ein String unveraendert als Dateiname oder als Name eines
+// Archivmitglieds benutzt werden darf. Abgelehnt wird alles, womit
+// FileSystem::convertPath oder evalRelativePath umgelenkt werden koennten -
+// Trenner, Laufwerksdoppelpunkt, die Archivmarken < > [ ], "..", ein
+// fuehrender Punkt oder eine Tilde, Steuerzeichen. Umlaute und Leerzeichen
+// bleiben erlaubt, damit legitime Namen nicht stillschweigend verschwinden.
+bool isSafeMemberName(const std::string& name);
+int randomInt();
 int random(int min, int max);
 float random(float min, float max);
 double random(double min, double max);

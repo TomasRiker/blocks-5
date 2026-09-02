@@ -11,8 +11,6 @@ Mirror::Mirror(Level& level,
 	flags = OF_MASSIVE | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	interpolation = 0.3;
 	destroyTime = 50;
-	if(subType == 0) debrisColor = Vec4d(0.5, 0.5, 1.0, 0.25);
-	else debrisColor = Vec4d(0.5, 0.5, 0.6, 0.25);
 	this->subType = subType;
 	this->dir = dir;
 }
@@ -21,17 +19,16 @@ Mirror::~Mirror()
 {
 }
 
+void Mirror::updateSprites()
+{
+	// Spiegel
+	sprites.add(Vec2i(160, subType == 0 ? 160 : 352)).rotation = 90.0 * dir;
+}
+
 void Mirror::onRender(int layer,
 					  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Spiegel rendern
-		Vec2i positionOnTexture;
-		if(subType == 0) positionOnTexture = Vec2i(160, 160);
-		else positionOnTexture = Vec2i(160, 352);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color, false, 90.0 * dir);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void Mirror::onUpdate()

@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse für einen Pulsschalter ***/
+/*** Klasse fuer einen Pulsschalter ***/
 
 class E_PulseSwitch : public Electronics
 {
@@ -12,6 +12,7 @@ public:
 	~E_PulseSwitch();
 
 	void onRender(int layer, const Vec4d& color);
+	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);

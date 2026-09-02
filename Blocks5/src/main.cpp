@@ -11,15 +11,18 @@
 #include "gui.h"
 #include "cf_all.h"
 #include "progressdb.h"
+#ifndef __EMSCRIPTEN__
 #include "stackwalker.h"
+#endif
 
 #ifdef _WIN32
 #include <shellapi.h>
 #include <wininet.h>
 #endif
 
-const char* p_localVersion = "1.1.2";
+const char* p_localVersion = "1.2.0";
 
+#ifndef __EMSCRIPTEN__
 class MyStackWalker : public StackWalker
 {
 public:
@@ -44,6 +47,7 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
+#endif // !__EMSCRIPTEN__
 
 std::string getCurrentVersion()
 {
@@ -58,10 +62,19 @@ std::string getCurrentVersion()
 
 		static DWORD WINAPI threadProc(void* p_param)
 		{
-			HINTERNET inet = InternetOpenA("Scherfgen-Software Blocks 5", INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
+			// Die Versionsnummer gehoert mit in die Kennung: im Serverprotokoll
+			// steht dann, welche Fassung gerade nachfragt. Aeltere Installationen
+			// schicken weiterhin den blossen Namen ohne Klammer - genau daran
+			// sind sie zu erkennen.
+			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
+			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return 1;
 
-			HINTERNET url = InternetOpenUrlA(inet, "http://www.scherfgen-software.net/blocks5/version.txt", 0, 0, INTERNET_FLAG_RELOAD, 0);
+			// INTERNET_FLAG_SECURE braucht InternetOpenUrl nicht gesagt zu bekommen -
+			// es liest das Schema aus der Adresse -, aber ausgeschrieben sieht man,
+			// dass https hier Absicht ist und kein Ueberbleibsel.
+			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
+											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
 			if(!url)
 			{
 				InternetCloseHandle(inet);
@@ -97,21 +110,77 @@ std::string getCurrentVersion()
 		bool finished;
 	};
 
-	// Abfrage in einem Thread ausführen und maximal 2 Sekunden Zeit lassen
+	// Abfrage in einem Thread ausfuehren und maximal 2 Sekunden Zeit lassen
 	Task task;
 	DWORD threadID;
 	HANDLE thread = CreateThread(0, 0, Task::threadProc, &task, 0, &threadID);
 	WaitForSingleObject(thread, 2000);
 	return task.finished ? task.currentVersion : "";
+#elif defined(__EMSCRIPTEN__)
+	return "";  // no update check in the browser build
 #else
 #error NOT IMPLEMENTED
 #endif
 }
 
+namespace
+{
+	// "1.2.0" zu 1002000, und alles, was keine Versionsnummer ist, zu -1.
+	// Bis zu drei Gruppen, fehlende gelten als 0, Leerraum vorn und hinten ist
+	// erlaubt.
+	long parseVersion(const std::string& text)
+	{
+		size_t i = 0;
+		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
+
+		long part[3] = { 0, 0, 0 };
+		int n = 0;
+		bool anyDigit = false;
+		while(n < 3)
+		{
+			if(i >= text.length() || !isdigit(static_cast<unsigned char>(text[i]))) break;
+			long value = 0;
+			while(i < text.length() && isdigit(static_cast<unsigned char>(text[i])))
+			{
+				value = value * 10 + (text[i++] - '0');
+				if(value > 999) return -1;
+			}
+			part[n++] = value;
+			anyDigit = true;
+			if(i < text.length() && text[i] == '.') ++i;
+			else break;
+		}
+
+		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
+		if(!anyDigit || i != text.length()) return -1;
+
+		return part[0] * 1000000 + part[1] * 1000 + part[2];
+	}
+}
+
 bool isNewer(const std::string& version1,
 			 const std::string& version2)
 {
-	return version1 > version2;
+	// Frueher stand hier version1 > version2, also ein Zeichenkettenvergleich.
+	// Der geht auf drei Arten schief, und alle drei enden mit einem
+	// "Update verfuegbar"-Fenster bei jemandem, der die neueste Fassung hat:
+	//
+	// - version.txt liegt auf einem Server und wird von Hand gepflegt. Haengt
+	//   ein Editor einen Zeilenumbruch an, ist "1.2.0\n" groesser als "1.2.0".
+	// - Antwortet der Server einmal etwas anderes - eine Fehlerseite, eine
+	//   Weiterleitung, die im Text landet -, ist fast jedes Zeichen groesser
+	//   als die '1' am Anfang einer Versionsnummer.
+	// - Und der Reihenfolge nach ist "1.10.0" kleiner als "1.9.0", weil '1'
+	//   vor '9' kommt. Das faellt erst in ein paar Jahren auf und dann
+	//   andersherum: niemand bekaeme das Update angeboten.
+	//
+	// Also nach Zahlen vergleichen, und was sich nicht als Versionsnummer
+	// lesen laesst, ist nie neuer. Ein Suffix wie "1.3.0-beta" faellt damit
+	// auch durch - im Zweifel lieber nicht fragen als falsch fragen.
+	const long v1 = parseVersion(version1);
+	const long v2 = parseVersion(version2);
+	if(v1 < 0 || v2 < 0) return false;
+	return v1 > v2;
 }
 
 const std::string detectInitializedVersion()
@@ -120,14 +189,14 @@ const std::string detectInitializedVersion()
 	// <= 1.0.7:	kein "Blocks 5"-Ordner existiert im Benutzerverzeichnis
 	//    1.0.71:	"Blocks 5"-Ordner existiert im Benutzerverzeichnis
 	//    1.0.72:	".initialized"-Datei existiert
-	// >= 1.0.73:	".initialized"-Datei enthält die Versionsnummer
+	// >= 1.0.73:	".initialized"-Datei enthaelt die Versionsnummer
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
 	if(fs.listDirectory(homeDirectory).empty())
 	{
-		// TODO: Die "progress.zip" aus dem VirtualStore wird nicht gefunden! Warum nicht? Ging doch früher!
+		// TODO: Die "progress.zip" aus dem VirtualStore wird nicht gefunden! Warum nicht? Ging doch frueher!
 		if(!fs.fileExists("progress.zip")) return "not_played";
 		else return "<= 1.0.7";
 	}
@@ -172,7 +241,11 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			if (fs.fileExists("config.xml")) success &= fs.copyFile("config.xml", homeDirectory + "config.xml");
+			// Frueher wurde hier eine mitgelieferte config.xml ins Benutzer-
+			// verzeichnis kopiert. Die enthielt nichts als die Sprache, die der
+			// Installer eingetragen hatte - und weil sie schon beim ersten Start
+			// dastand, kam Engine::detectSystemLanguage() nie zum Zuge. Es gibt
+			// keine Vorlage mehr; das Spiel legt die Datei beim Beenden selbst an.
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
@@ -213,8 +286,8 @@ int runTheGame(int argc,
 									"Continue",
 									MB_OK | MB_ICONINFORMATION);
 					}
-				}
 #endif
+				}
 			}
 			else
 			{
@@ -304,14 +377,14 @@ int runTheGame(int argc,
 			int answer = MessageBoxA(0, str.str().c_str(), "Update available!", MB_YESNO | MB_ICONINFORMATION);
 			if(answer == IDYES)
 			{
-				// Seite öffnen
+				// Seite oeffnen
 				ShellExecuteA(0, "open", "Blocks 5 Website.url", NULL, NULL, SW_SHOWNORMAL);
 				return 0;
 			}
-		}
-#else
+#elif !defined(__EMSCRIPTEN__)
 #error NOT IMPLEMENTED
 #endif
+		}
 	}
 	else
 	{
@@ -319,7 +392,7 @@ int runTheGame(int argc,
 		printfLog("Not checking for update!\n");
 	}
 
-	// Daten aus dem verschlüsselten Archiv lesen
+	// Daten aus dem verschluesselten Archiv lesen
 	fs.pushCurrentDir("data.zip[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]");
 	
 	// Alternativ: Daten aus dem lokalen Verzeichnis lesen
@@ -329,7 +402,6 @@ int runTheGame(int argc,
 	ProgressDB::inst().load();
 
 	bool fullScreen;
-	bool useHQ2X = false;
 
 #ifdef _DEBUG
 	fullScreen = false;
@@ -337,17 +409,19 @@ int runTheGame(int argc,
 	fullScreen = true;
 #endif
 
-	// Argumente parsen
+	// Argumente parsen. Der Skalierungsfilter steht bewusst nicht dabei: er ist
+	// eine Einstellung wie die Sprache und wird im Optionsdialog gewaehlt.
+	Engine& engine = Engine::inst();
+
 	for(int i = 0; i < argc; i++)
 	{
 		char* p_arg = pp_argv[i];
-		if(!_stricmp(p_arg, "-windowed")) fullScreen = false;
-		else if(!_stricmp(p_arg, "-fullScreen")) fullScreen = true;
-		else if(!_stricmp(p_arg, "-hq2x")) useHQ2X = true;
+		if(!_stricmp(p_arg, "-windowed")) engine.overrideFullScreen(false);
+		else if(!_stricmp(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
+		else if(!_stricmp(p_arg, "-noSplash")) engine.skipSplash();
 	}
 
 	printfLog("Initializing engine ...\n");
-	Engine& engine = Engine::inst();
 
 	// Spielaktionen festlegen
 	Action* p_action = engine.registerAction("$A_LEFT", engine.getKeyboardVK(SDLK_LEFT), engine.getKeyboardVK(SDLK_KP4));
@@ -379,12 +453,20 @@ int runTheGame(int argc,
 	// Engine-Aktionen festlegen
 	p_action = engine.registerAction("$A_TOGGLE_MUTE", engine.getKeyboardVK(SDLK_F1));
 	p_action->delay = INT_MAX;
+#ifndef __EMSCRIPTEN__
+	// Screenshots und Videoaufnahme gibt es im Web-Build nicht (Engine::screenshot
+	// kehrt dort sofort zurueck, VideoRecorder ist ein Stub), deshalb werden diese
+	// beiden Aktionen gar nicht erst registriert - sonst stuenden sie nutzlos in
+	// der Tastenbelegungsliste der Optionen. Die Abfragen in Engine::update
+	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen und
+	// wasActionPressed() faengt das ab, liefert also dauerhaft false.
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->delay = INT_MAX;
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));
 	p_action->delay = INT_MAX;
+#endif
 
-	if(!engine.init("Blocks 5", "window.png", 640, 480, fullScreen, useHQ2X))
+	if(!engine.init("Blocks 5", "window.png", 640, 480, fullScreen))
 	{
 		printfLog("Error while initializing the engine.\n");
 		return 1;
@@ -420,7 +502,7 @@ int main(int argc,
 {
 	// TODO: http://blog.kalmbachnet.de/?postid=75 beachten (StackWalker-Homepage: http://stackwalker.codeplex.com/releases/view/35258)
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(__EMSCRIPTEN__)
 	return runTheGame(argc, pp_argv);
 #else
 	__try

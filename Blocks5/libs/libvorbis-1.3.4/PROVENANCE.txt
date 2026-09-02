@@ -1,0 +1,60 @@
+libvorbis 1.3.4
+===============
+
+Vorbis decoder. Every piece of music and every sound effect the game plays is an
+Ogg Vorbis file inside data.zip or a skin archive; src/as_ogg.cpp drives it
+through the vorbisfile convenience API, reading from the virtual filesystem
+rather than from stdio.
+
+  https://github.com/xiph/vorbis   tag v1.3.4
+  BSD-style Xiph.Org licence
+
+Vendored from the release tarball, not the git checkout. All 71 files were
+compared against the tag; the only differences are expanded SVN $Id$ keywords in
+the three public headers:
+
+  include/vorbis/codec.h        $Id: codec.h 17021 2010-03-24 09:29:41Z xiphmont $
+  include/vorbis/vorbisenc.h    $Id: vorbisenc.h 17021 2010-03-24 09:29:41Z xiphmont $
+  include/vorbis/vorbisfile.h   $Id: vorbisfile.h 17182 2010-04-29 03:48:32Z xiphmont $
+
+where the git files carry a bare $Id$. Every .c file is byte-identical. There
+are no local changes.
+
+WHAT IS COMPILED
+----------------
+Both builds compile the same 22 files out of lib/: analysis, bitrate, block,
+codebook, envelope, floor0, floor1, info, lookup, lpc, lsp, mapping0, mdct,
+psy, registry, res0, sharedbook, smallft, synthesis, vorbisenc, vorbisfile,
+window. That is exactly upstream's libvorbis_la_SOURCES plus vorbisfile.c and
+vorbisenc.c, which is how upstream's own build groups them.
+
+Four files in lib/ are vendored but not compiled:
+
+  barkmel.c psytune.c tone.c   standalone command-line tools upstream keeps in
+                               the library directory, each with its own main()
+  misc.c                       a debugging allocator, not part of the library
+
+misc.c is worth a note, because it was in the file lists until the first v143
+build stopped on it. Despite the name it is not a utility module: it is a
+malloc-tracking debug harness that includes <pthread.h> and <sys/time.h> and
+defines a pthread mutex at file scope. Upstream's lib/Makefile.am lists misc.h
+but never misc.c. MSVC has no pthread.h, so it failed outright with C1083; the
+Emscripten build had been compiling it silently all along, because emsdk supplies
+both headers and nothing references the symbols, so the linker dropped them.
+Removing it is verified: the 22 files above compile and a vorbisfile decode
+client links against them with no undefined symbols.
+
+vorbisenc.c is compiled although nothing in the game encodes Vorbis; grep for
+vorbis_analysis or vorbis_encode in src/ and there are no hits. It is in the
+list because upstream's libvorbis target includes it and the file lists here
+mirror that. Whether it can be dropped is a link-time question that has not been
+tested - the linker discards the unreferenced objects anyway, so it costs
+nothing in the shipped binary.
+
+The two include directories the projects add - include/ and lib/ - are both
+needed: the .c files include their siblings by bare name.
+
+LICENCE FILE
+------------
+As with libogg, the per-file header points at a COPYING that is not vendored.
+It should be.

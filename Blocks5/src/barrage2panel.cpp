@@ -15,15 +15,16 @@ Barrage2Panel::~Barrage2Panel()
 {
 }
 
+void Barrage2Panel::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(subType ? 224 : 192, 256), getStdColor(this->color));
+}
+
 void Barrage2Panel::onRender(int layer,
 							 const Vec4d& color)
 {
-	if(layer == 0)
-	{
-		// Schalter rendern
-		Vec2i positionOnTexture(subType ? 224 : 192, 256);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), getStdColor(this->color) * color);
-	}
+	if(layer == 0) Engine::inst().renderSprites(sprites, color);
 }
 
 bool Barrage2Panel::changeInEditor(int mod)

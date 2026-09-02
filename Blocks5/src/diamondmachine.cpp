@@ -19,21 +19,22 @@ DiamondMachine::~DiamondMachine()
 {
 }
 
+void DiamondMachine::updateSprites()
+{
+	// Maschine
+	Vec2i positionOnTexture(0, 128);
+	if(level.isElectricityOn())
+	{
+		if(counter == -1) positionOnTexture.x = 32;
+		else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
+	}
+	sprites.add(positionOnTexture);
+}
+
 void DiamondMachine::onRender(int layer,
 							  const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Maschine rendern
-		Vec2i positionOnTexture(0, 128);
-		if(level.isElectricityOn())
-		{
-			if(counter == -1) positionOnTexture.x = 32;
-			else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
-		}
-		else positionOnTexture.x = 0;
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void DiamondMachine::onUpdate()
@@ -57,15 +58,22 @@ void DiamondMachine::onUpdate()
 					p.gravity = 0.005f;
 					p.positionOnTexture = Vec2b(0, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
-					p.position = position * 16 - Vec2i(0, 16) + Vec2i(random(0, 16), random(0, 16));
+
+					// Auch der Rauch nimmt die Farbe aus dem Bild - vorher war
+					// die ganze Saeule in einem einzigen Ton.
+					Vec4d sampled;
+					Vec2i offset;
+					if(!p_obj->getSprites().sample(&sampled, &offset)) return;
+
+					p.position = position * 16 - Vec2i(0, 16) + offset;
 					p.velocity = Vec2d(random(-0.5, 0.5), -1.0);
-					p.color = p_obj->getDebrisColor();
+					p.color = sampled;
 					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.3f, 0.5f);
 					p.deltaSize = random(0.01f, 0.05f);
-					if(random() % 2) p_particleSystem->addParticle(p);
+					if(randomInt() % 2) p_particleSystem->addParticle(p);
 					else p_fireParticleSystem->addParticle(p);
 
 					counter++;

@@ -1,7 +1,7 @@
 #ifndef _FONT_H
 #define _FONT_H
 
-/*** Klasse für eine Schriftart ***/
+/*** Klasse fuer eine Schriftart ***/
 
 #include "resource.h"
 
@@ -65,7 +65,7 @@ private:
 	uint listBase;
 	uint numLists;
 	uint listFree;
-	stdext::hash_map<std::string, StringCacheEntry> stringCache;
+	std::unordered_map<std::string, StringCacheEntry> stringCache;
 	std::stack<Options> optionsStack;
 };
 

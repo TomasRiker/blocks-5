@@ -1,7 +1,7 @@
 #ifndef _GUI_STATICTEXT_H
 #define _GUI_STATICTEXT_H
 
-/*** Klasse für einen statischen Text ***/
+/*** Klasse fuer einen statischen Text ***/
 
 #include "gui_element.h"
 
@@ -12,6 +12,13 @@ public:
 	~GUI_StaticText();
 
 	void onRender();
+	// for="Name" kann jedes Element (siehe GUI_Element). Ein Text bringt nur
+	// das mit, was sonst niemand braucht: w oder h auf -1 heisst "so gross wie
+	// der gezeichnete Text". Das ist die richtige Angabe fuer eine
+	// Beschriftung - eine von Hand eingetragene Breite waere geraten und in
+	// einer anderen Sprache falsch. Ohne w/h (also 0) wird der Text nie
+	// getroffen, das war schon immer so und bleibt die Voreinstellung.
+	bool containsPoint(const Vec2i& position);
 	INLINE_GETTYPE("GUI_StaticText");
 
 	void readAttributes(TiXmlElement* p_element);

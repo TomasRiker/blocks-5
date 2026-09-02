@@ -14,8 +14,7 @@ public:
 	void render(double t, uint oldImageID, uint newImageID);
 
 private:
-	GLUtesselator* p_tess;
-	uint starList;
+	void renderStar();
 };
 
 #endif

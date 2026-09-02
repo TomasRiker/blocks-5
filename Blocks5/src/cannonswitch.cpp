@@ -18,15 +18,16 @@ CannonSwitch::~CannonSwitch()
 {
 }
 
+void CannonSwitch::updateSprites()
+{
+	// Schalter
+	sprites.add(Vec2i(160 + subType * 32, 288), getStdColor(this->color));
+}
+
 void CannonSwitch::onRender(int layer,
 							const Vec4d& color)
 {
-	if(layer == 1)
-	{
-		// Schalter rendern
-		Vec2i positionOnTexture(160 + subType * 32, 288);
-		Engine::inst().renderSprite(Vec2i(0, 0), positionOnTexture, Vec2i(16, 16), getStdColor(this->color) * color);
-	}
+	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 }
 
 void CannonSwitch::onUpdate()

@@ -119,7 +119,7 @@ void GUI_MultiLineEditBox::setText(const std::string& text)
 	makeCursorVisible();
 	updateScrollBars();
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 
@@ -147,13 +147,13 @@ void GUI_MultiLineEditBox::onMouseWheel(int dir)
 
 void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// Uns interessiert nur, ob eine Taste gedrückt wurde.
+	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrückt?
+	// Shift gedrueckt?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
-	// Strg gedrückt?
+	// Strg gedrueckt?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
 	switch(event.keysym.sym)
@@ -203,7 +203,7 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		{
 			if(event.keysym.sym == SDLK_a)
 			{
-				// Alles auswählen
+				// Alles auswaehlen
 				cursor = selStart = selEnd = 0;
 				setCursor(static_cast<uint>(text.length()), true);
 			}
@@ -219,7 +219,7 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			}
 			else if(active && event.keysym.sym == SDLK_v)
 			{
-				// einfügen
+				// einfuegen
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
@@ -255,7 +255,7 @@ void GUI_MultiLineEditBox::replaceSelection(const std::string& replacement)
 	makeCursorVisible();
 	updateScrollBars();
 
-	// Signal auslösen
+	// Signal ausloesen
 	changed(this);
 }
 
@@ -274,7 +274,7 @@ void GUI_MultiLineEditBox::del()
 			makeCursorVisible();
 			updateScrollBars();
 
-			// Signal auslösen
+			// Signal ausloesen
 			changed(this);
 		}
 	}
@@ -299,7 +299,7 @@ void GUI_MultiLineEditBox::backspace()
 			makeCursorVisible();
 			updateScrollBars();
 
-			// Signal auslösen
+			// Signal ausloesen
 			changed(this);
 		}
 	}
