@@ -303,8 +303,6 @@ private:
 	Engine();
 	~Engine();
 
-	void setupCursor();
-
 	// Eine Meldung im Stapel. Es gibt drei Abschnitte: hereinfahren, stehen,
 	// hinausfahren. phaseTime laeuft je Abschnitt neu los.
 	struct Toast
@@ -318,6 +316,51 @@ private:
 		double targetY;     // wohin sie will
 	};
 
+	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
+	// vier Uniforms; der Roehrenshader hat zwei weitere.
+	struct PresentProgram
+	{
+		uint program;
+		int decal, textureSize, frameSize, prescale;
+		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker;   // nur UF_CRT, sonst -1
+	};
+
+	void setupCursor();
+	void updateToasts();
+	void renderToasts();
+
+	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
+	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
+	void reflowToasts();
+
+	void updateKeyGrab();
+
+	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
+	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
+	void showLastFrame();
+
+	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
+	// selbst ist Win32; die Groesse geht immer durch handleResize().
+	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
+
+	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
+	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
+	void restoreWindowPosition();     // setzt sie beim Start wieder
+#ifdef _WIN32
+	void hookWindowProc();            // eigene Fensterprozedur davorschalten
+	void unhookWindowProc();          // und wieder herausnehmen
+#endif
+
+	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen; die
+	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
+	// Formel selbst, warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
+	Vec2d warpToSource(const Vec2d& p) const;
+	Vec2d warpToOutput(const Vec2d& p) const;
+
+	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
+							  const char* p_name);
+	void destroyPresentProgram(PresentProgram& target);
+
 	// Aeltester zuerst, also wird auch in dieser Reihenfolge gezeichnet: eine
 	// sterbende Meldung faehrt hinter ihre juengere Nachbarin und nicht darueber.
 	std::list<Toast> toasts;
@@ -330,22 +373,6 @@ private:
 	bool grabHasDeadline;
 	std::vector<bool> grabOldState;
 
-	void updateToasts();
-	void renderToasts();
-	void updateKeyGrab();
-
-	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
-	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
-	void showLastFrame();
-
-	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
-	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
-	void reflowToasts();
-
-	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
-	// selbst ist Win32; die Groesse geht immer durch handleResize().
-	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
-
 	bool initialized;
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
@@ -355,13 +382,8 @@ private:
 	Vec2i windowedPosition;    // dito fuer die Position
 	bool  windowedPositionKnown;
 	bool  maximized;           // war das Fenster beim Beenden maximiert?
-	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
-	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
-	void restoreWindowPosition();     // setzt sie beim Start wieder
 #ifdef _WIN32
-	void hookWindowProc();            // eigene Fensterprozedur davorschalten
-	void unhookWindowProc();          // und wieder herausnehmen
-	bool inSizeMove;                  // Benutzer haelt gerade Rand oder Titel
+	bool inSizeMove;           // Benutzer haelt gerade Rand oder Titel
 #endif
 	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
 	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
@@ -405,14 +427,6 @@ private:
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
 	UpscaleFilter upscaleFilter;
-	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
-	// vier Uniforms; der Roehrenshader hat zwei weitere.
-	struct PresentProgram
-	{
-		uint program;
-		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker;   // nur UF_CRT, sonst -1
-	};
 	PresentProgram sharpFit;
 	PresentProgram crt;
 	double crtScanline;
@@ -420,14 +434,6 @@ private:
 	double crtBloom;
 	double crtFlicker;
 	double crtScanFlicker;
-	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen; die
-	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
-	// Formel selbst, warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
-	Vec2d warpToSource(const Vec2d& p) const;
-	Vec2d warpToOutput(const Vec2d& p) const;
-	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
-							  const char* p_name);
-	void destroyPresentProgram(PresentProgram& target);
 	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;

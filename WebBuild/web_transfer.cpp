@@ -10,15 +10,15 @@
 
 namespace
 {
-	char g_importName[260] = "";
-	volatile int g_importStatus = WebTransfer::IMPORT_IDLE;
-	bool g_busy = false;
+	char importName[260] = "";
+	volatile int importStatus = WebTransfer::IMPORT_IDLE;
+	bool busy = false;
 }
 
 extern "C" {
-EMSCRIPTEN_KEEPALIVE char* blocks5_importNameBuffer(void)   { return g_importName; }
-EMSCRIPTEN_KEEPALIVE int   blocks5_importNameCapacity(void) { return (int)sizeof(g_importName); }
-EMSCRIPTEN_KEEPALIVE void  blocks5_importComplete(int status) { g_importStatus = status; }
+EMSCRIPTEN_KEEPALIVE char* blocks5_importNameBuffer(void)   { return importName; }
+EMSCRIPTEN_KEEPALIVE int   blocks5_importNameCapacity(void) { return (int)sizeof(importName); }
+EMSCRIPTEN_KEEPALIVE void  blocks5_importComplete(int status) { importStatus = status; }
 }
 
 namespace WebTransfer
@@ -54,7 +54,7 @@ bool openPicker(const std::string& stagingOgg,
                 const std::string& stagingZip,
                 unsigned int maxBytes)
 {
-	if(g_busy) return false;
+	if(busy) return false;
 
 	// Der Klick kommt aus der SDL-Ereignisschlange, also nicht mehr aus dem
 	// DOM-Handler (libsdl.js:1455). Der Dateidialog braucht aber eine gueltige
@@ -71,9 +71,9 @@ bool openPicker(const std::string& stagingOgg,
 	FileSystem::inst().deleteFile(stagingXml);
 	FileSystem::inst().deleteFile(stagingZip);
 
-	g_busy = true;
-	g_importStatus = IMPORT_IDLE;
-	g_importName[0] = 0;
+	busy = true;
+	importStatus = IMPORT_IDLE;
+	importName[0] = 0;
 
 	EM_ASM({
 		// Kein Objektliteral: der Rumpf laeuft durch den C-Praeprozessor, und
@@ -143,19 +143,19 @@ bool openPicker(const std::string& stagingOgg,
 
 int pollImport(std::string& untrustedName)
 {
-	const int status = g_importStatus;
+	const int status = importStatus;
 	if(status == IMPORT_IDLE) return IMPORT_IDLE;
-	g_importStatus = IMPORT_IDLE;
-	g_busy = false;
-	untrustedName = g_importName;
+	importStatus = IMPORT_IDLE;
+	busy = false;
+	untrustedName = importName;
 	return status;
 }
 
 void abandon()
 {
-	g_importStatus = IMPORT_IDLE;
-	g_busy = false;
-	g_importName[0] = 0;
+	importStatus = IMPORT_IDLE;
+	busy = false;
+	importName[0] = 0;
 }
 
 void syncHome()

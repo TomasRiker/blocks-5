@@ -299,7 +299,7 @@ int runTheGame(int argc,
 			fs.deleteFile(homeDirectory + "updates.no");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
 			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			if (fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
 
 			if(!success) errorMsg = "Could not migrate all settings!";
 		}
@@ -340,7 +340,7 @@ int runTheGame(int argc,
 		if(quit) return 0;
 	}
 
-	if (!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
+	if(!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
 	const std::string updateCheckerStatus(fs.readStringFromFile(homeDirectory + ".update_checker"));
 	if(!updateCheckerStatus.empty() && updateCheckerStatus[0] == '1')
 	{

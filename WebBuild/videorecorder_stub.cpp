@@ -11,9 +11,9 @@ struct VideoRecorderImpl { uint fps; };
 
 VideoRecorder::VideoRecorder(const std::string&, const Vec2i&, const Vec2i&, uint, uint, uint fps)
 {
-    p_impl = new VideoRecorderImpl;
-    p_impl->fps = fps ? fps : 30;
-    printfLog("+ Video recording is not available in the web build.\n");
+	p_impl = new VideoRecorderImpl;
+	p_impl->fps = fps ? fps : 30;
+	printfLog("+ Video recording is not available in the web build.\n");
 }
 
 VideoRecorder::~VideoRecorder()                  { delete p_impl; }

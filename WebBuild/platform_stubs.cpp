@@ -44,38 +44,38 @@ void SDL_UnlockSurface(SDL_Surface*) {}
 extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
                              SDL_Surface* p_dst, SDL_Rect* p_dstRect)
 {
-    if (!p_src || !p_dst || !p_src->pixels || !p_dst->pixels) return -1;
-    if (p_src->format->BytesPerPixel != 4 || p_dst->format->BytesPerPixel != 4) return -1;
+	if(!p_src || !p_dst || !p_src->pixels || !p_dst->pixels) return -1;
+	if(p_src->format->BytesPerPixel != 4 || p_dst->format->BytesPerPixel != 4) return -1;
 
-    int sx = p_srcRect ? p_srcRect->x : 0;
-    int sy = p_srcRect ? p_srcRect->y : 0;
-    int w  = p_srcRect ? p_srcRect->w : p_src->w;
-    int h  = p_srcRect ? p_srcRect->h : p_src->h;
-    int dx = p_dstRect ? p_dstRect->x : 0;
-    int dy = p_dstRect ? p_dstRect->y : 0;
+	int sx = p_srcRect ? p_srcRect->x : 0;
+	int sy = p_srcRect ? p_srcRect->y : 0;
+	int w  = p_srcRect ? p_srcRect->w : p_src->w;
+	int h  = p_srcRect ? p_srcRect->h : p_src->h;
+	int dx = p_dstRect ? p_dstRect->x : 0;
+	int dy = p_dstRect ? p_dstRect->y : 0;
 
-    // Clip against both surfaces, keeping source and destination in step.
-    if (sx < 0) { w += sx; dx -= sx; sx = 0; }
-    if (sy < 0) { h += sy; dy -= sy; sy = 0; }
-    if (dx < 0) { w += dx; sx -= dx; dx = 0; }
-    if (dy < 0) { h += dy; sy -= dy; dy = 0; }
-    w = std::min(w, std::min(p_src->w - sx, p_dst->w - dx));
-    h = std::min(h, std::min(p_src->h - sy, p_dst->h - dy));
-    if (w <= 0 || h <= 0)
-    {
-        if (p_dstRect) { p_dstRect->w = 0; p_dstRect->h = 0; }
-        return 0;
-    }
+	// Clip against both surfaces, keeping source and destination in step.
+	if(sx < 0) { w += sx; dx -= sx; sx = 0; }
+	if(sy < 0) { h += sy; dy -= sy; sy = 0; }
+	if(dx < 0) { w += dx; sx -= dx; dx = 0; }
+	if(dy < 0) { h += dy; sy -= dy; dy = 0; }
+	w = std::min(w, std::min(p_src->w - sx, p_dst->w - dx));
+	h = std::min(h, std::min(p_src->h - sy, p_dst->h - dy));
+	if(w <= 0 || h <= 0)
+	{
+		if(p_dstRect) { p_dstRect->w = 0; p_dstRect->h = 0; }
+		return 0;
+	}
 
-    const unsigned char* p_srcPixels = static_cast<const unsigned char*>(p_src->pixels);
-    unsigned char* p_dstPixels = static_cast<unsigned char*>(p_dst->pixels);
-    for (int row = 0; row < h; ++row)
-        memcpy(p_dstPixels + (dy + row) * p_dst->pitch + dx * 4,
-               p_srcPixels + (sy + row) * p_src->pitch + sx * 4,
-               (size_t)w * 4);
+	const unsigned char* p_srcPixels = static_cast<const unsigned char*>(p_src->pixels);
+	unsigned char* p_dstPixels = static_cast<unsigned char*>(p_dst->pixels);
+	for(int row = 0; row < h; ++row)
+		memcpy(p_dstPixels + (dy + row) * p_dst->pitch + dx * 4,
+		       p_srcPixels + (sy + row) * p_src->pitch + sx * 4,
+		       (size_t)w * 4);
 
-    if (p_dstRect) { p_dstRect->w = w; p_dstRect->h = h; }
-    return 0;
+	if(p_dstRect) { p_dstRect->w = w; p_dstRect->h = h; }
+	return 0;
 }
 
 
@@ -98,7 +98,7 @@ static const char* keynames[SDLK_LAST];
 static void initKeyNames(void)
 {
 	static int done = 0;
-	if (done) return;
+	if(done) return;
 	done = 1;
 	memset((void*)keynames, 0, sizeof(keynames));
 	keynames[SDLK_BACKSPACE] = "backspace";
@@ -277,44 +277,44 @@ const char* SDL_GetKeyName(SDL_Keycode key)
 // build_asan.sh. Ohne das sammelt wasm-ld diese Funktion stillschweigend als
 // unbenutzt ein, und der Fehler ist ohne Warnung wieder da.
 extern "C" SDL_Surface* __real_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
-                                                    Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask);
+													Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask);
 
 static Uint8 maskShift(Uint32 mask)
 {
-    if (!mask) return 0;
-    Uint8 shift = 0;
-    while (!(mask & 1u)) { mask >>= 1; ++shift; }
-    return shift;
+	if(!mask) return 0;
+	Uint8 shift = 0;
+	while(!(mask & 1u)) { mask >>= 1; ++shift; }
+	return shift;
 }
 
 static Uint8 maskLoss(Uint32 mask)
 {
-    if (!mask) return 8;               // real SDL leaves loss at 8 for an absent channel
-    mask >>= maskShift(mask);
-    Uint8 bits = 0;
-    while (mask & 1u) { mask >>= 1; ++bits; }
-    return bits >= 8 ? 0 : (Uint8)(8 - bits);
+	if(!mask) return 8;               // real SDL leaves loss at 8 for an absent channel
+	mask >>= maskShift(mask);
+	Uint8 bits = 0;
+	while(mask & 1u) { mask >>= 1; ++bits; }
+	return bits >= 8 ? 0 : (Uint8)(8 - bits);
 }
 
 extern "C" SDL_Surface* __wrap_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
-                                                    Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask)
+													Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask)
 {
-    SDL_Surface* p_surface = __real_SDL_CreateRGBSurface(flags, width, height, depth,
-                                                         rMask, gMask, bMask, aMask);
-    if (!p_surface || !p_surface->format) return p_surface;
+	SDL_Surface* p_surface = __real_SDL_CreateRGBSurface(flags, width, height, depth,
+	                                                     rMask, gMask, bMask, aMask);
+	if(!p_surface || !p_surface->format) return p_surface;
 
-    // Das Spiel uebergibt immer 0x000000ff/0x0000ff00/0x00ff0000/0xff000000,
-    // daraus werden die Schiebeweiten 0/8/16/24 und die Verluste 0/0/0/0.
-    SDL_PixelFormat* p_format = p_surface->format;
-    p_format->Rshift = maskShift(p_format->Rmask);
-    p_format->Gshift = maskShift(p_format->Gmask);
-    p_format->Bshift = maskShift(p_format->Bmask);
-    p_format->Ashift = maskShift(p_format->Amask);
-    p_format->Rloss  = maskLoss(p_format->Rmask);
-    p_format->Gloss  = maskLoss(p_format->Gmask);
-    p_format->Bloss  = maskLoss(p_format->Bmask);
-    p_format->Aloss  = maskLoss(p_format->Amask);
-    p_format->refcount = 1;            // makeSurface leaves these two uninitialised
-    p_format->next     = 0;
-    return p_surface;
+	// Das Spiel uebergibt immer 0x000000ff/0x0000ff00/0x00ff0000/0xff000000,
+	// daraus werden die Schiebeweiten 0/8/16/24 und die Verluste 0/0/0/0.
+	SDL_PixelFormat* p_format = p_surface->format;
+	p_format->Rshift = maskShift(p_format->Rmask);
+	p_format->Gshift = maskShift(p_format->Gmask);
+	p_format->Bshift = maskShift(p_format->Bmask);
+	p_format->Ashift = maskShift(p_format->Amask);
+	p_format->Rloss  = maskLoss(p_format->Rmask);
+	p_format->Gloss  = maskLoss(p_format->Gmask);
+	p_format->Bloss  = maskLoss(p_format->Bmask);
+	p_format->Aloss  = maskLoss(p_format->Amask);
+	p_format->refcount = 1;            // makeSurface leaves these two uninitialised
+	p_format->next     = 0;
+	return p_surface;
 }

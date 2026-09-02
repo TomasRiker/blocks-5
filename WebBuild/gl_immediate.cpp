@@ -26,18 +26,18 @@ void emscripten_glVertex3f(GLfloat x, GLfloat y, GLfloat z);
 namespace {
 struct Vertex { GLfloat x, y, z, r, g, b, a, s, t; };
 
-bool   g_inBlock     = false;
-bool   g_blockHasTex = false;   // hat dieser Block ueberhaupt eine Texturkoordinate gesetzt?
-GLenum g_mode        = GL_QUADS;
-GLfloat g_r = 1.0f, g_g = 1.0f, g_b = 1.0f, g_a = 1.0f;
-GLfloat g_s = 0.0f, g_t = 0.0f;
-std::vector<Vertex> g_verts;
+bool   inBlock     = false;
+bool   blockHasTex = false;   // hat dieser Block ueberhaupt eine Texturkoordinate gesetzt?
+GLenum blockMode        = GL_QUADS;
+GLfloat currentR = 1.0f, currentG = 1.0f, currentB = 1.0f, currentA = 1.0f;
+GLfloat currentS = 0.0f, currentT = 0.0f;
+std::vector<Vertex> verts;
 
 inline void addVertex(GLfloat x, GLfloat y, GLfloat z)
 {
-    if (!g_inBlock) return;          // ausserhalb eines Blocks bedeutet ein Vertex nichts
-    const Vertex v = { x, y, z, g_r, g_g, g_b, g_a, g_s, g_t };
-    g_verts.push_back(v);
+	if(!inBlock) return;          // ausserhalb eines Blocks bedeutet ein Vertex nichts
+	const Vertex v = { x, y, z, currentR, currentG, currentB, currentA, currentS, currentT };
+	verts.push_back(v);
 }
 } // namespace
 
@@ -45,36 +45,36 @@ extern "C" {
 
 void glBegin(GLenum mode)
 {
-    g_mode = mode;
-    g_inBlock = true;
-    g_blockHasTex = false;
-    g_verts.clear();
+	blockMode = mode;
+	inBlock = true;
+	blockHasTex = false;
+	verts.clear();
 }
 
 void glEnd(void)
 {
-    g_inBlock = false;
-    if (g_verts.empty()) return;
+	inBlock = false;
+	if(verts.empty()) return;
 
-    emscripten_glBegin(g_mode);
-    for (std::vector<Vertex>::const_iterator i = g_verts.begin(); i != g_verts.end(); ++i)
-    {
-        emscripten_glColor4f(i->r, i->g, i->b, i->a);
-        // Texturkoordinaten nur ausgeben, wenn der Block sie auch benutzt hat -
-        // sonst bekaemen untexturierte Primitive ein Attribut, das sie nie wollten.
-        if (g_blockHasTex) emscripten_glTexCoord2f(i->s, i->t);
-        emscripten_glVertex3f(i->x, i->y, i->z);
-    }
-    emscripten_glEnd();
-    g_verts.clear();
+	emscripten_glBegin(blockMode);
+	for(std::vector<Vertex>::const_iterator i = verts.begin(); i != verts.end(); ++i)
+	{
+		emscripten_glColor4f(i->r, i->g, i->b, i->a);
+		// Texturkoordinaten nur ausgeben, wenn der Block sie auch benutzt hat -
+		// sonst bekaemen untexturierte Primitive ein Attribut, das sie nie wollten.
+		if(blockHasTex) emscripten_glTexCoord2f(i->s, i->t);
+		emscripten_glVertex3f(i->x, i->y, i->z);
+	}
+	emscripten_glEnd();
+	verts.clear();
 }
 
 // --- Farbe: wird immer mitgefuehrt und ausserhalb eines Blocks weitergereicht,
 //     damit die "aktuelle Farbe" von GL auch fuer andere Geometrie stimmt.
 static inline void setColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
 {
-    g_r = r; g_g = g; g_b = b; g_a = a;
-    if (!g_inBlock) emscripten_glColor4f(r, g, b, a);
+	currentR = r; currentG = g; currentB = b; currentA = a;
+	if(!inBlock) emscripten_glColor4f(r, g, b, a);
 }
 void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)     { setColor(r, g, b, a); }
 void glColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a) { setColor((GLfloat)r, (GLfloat)g, (GLfloat)b, (GLfloat)a); }
@@ -86,12 +86,12 @@ void glColor3dv(const GLdouble* v)                             { setColor((GLflo
 // --- Texturkoordinaten
 static inline void setTexCoord(GLfloat s, GLfloat t)
 {
-    g_s = s; g_t = t;
-    if (g_inBlock) g_blockHasTex = true;
-    // Ausserhalb eines Blocks absichtlich NICHT weitergereicht: Emscriptens
-    // glTexCoord2i schreibt geradewegs in den Vertexpuffer und zaehlt
-    // vertexCounter hoch, ohne zu pruefen, ob ein Block offen ist - das
-    // verdirbt die Vertexzahl des naechsten Blocks.
+	currentS = s; currentT = t;
+	if(inBlock) blockHasTex = true;
+	// Ausserhalb eines Blocks absichtlich NICHT weitergereicht: Emscriptens
+	// glTexCoord2i schreibt geradewegs in den Vertexpuffer und zaehlt
+	// vertexCounter hoch, ohne zu pruefen, ob ein Block offen ist - das
+	// verdirbt die Vertexzahl des naechsten Blocks.
 }
 void glTexCoord2f(GLfloat s, GLfloat t)     { setTexCoord(s, t); }
 void glTexCoord2i(GLint s, GLint t)         { setTexCoord((GLfloat)s, (GLfloat)t); }

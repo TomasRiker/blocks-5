@@ -59,18 +59,18 @@ namespace
 		return i == a.length() && !p_b[i];
 	}
 
-bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
-{
-	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
-	// mitgelieferten sind mit einem Passwort gepackt, und sie beim Hinausgehen
-	// zu entschluesseln waere eine Hintertuer um genau diesen Schutz herum.
-	// Benutzen kann der Empfaenger das Archiv trotzdem - das Passwort liegt als
-	// password.txt darin, und Level::getSkinFilename liest es dort aus.
-	FileSystem& fs = FileSystem::inst();
-	const std::string source(directoryFor(kind) + name);
-	if(!fs.fileExists(source)) return false;
-	return fs.copyFile(source, destPath);
-}
+	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
+	{
+		// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
+		// mitgelieferten sind mit einem Passwort gepackt, und sie beim Hinausgehen
+		// zu entschluesseln waere eine Hintertuer um genau diesen Schutz herum.
+		// Benutzen kann der Empfaenger das Archiv trotzdem - das Passwort liegt als
+		// password.txt darin, und Level::getSkinFilename liest es dort aus.
+		FileSystem& fs = FileSystem::inst();
+		const std::string source(directoryFor(kind) + name);
+		if(!fs.fileExists(source)) return false;
+		return fs.copyFile(source, destPath);
+	}
 
 	// Der Name, wenn vom Wunschnamen nichts uebrig bleibt - etwa weil er aus
 	// lauter Zeichen besteht, die sanitizeFilenameStem() nicht durchlaesst.
@@ -289,7 +289,7 @@ namespace
 		return "";
 	}
 
-	std::string g_staging;
+	std::string stagingPath;
 }
 
 bool beginImport()
@@ -312,17 +312,17 @@ int pollImport(std::string& path, std::string& untrustedName)
 	default:                            return STATUS_FAILED;
 	}
 
-	g_staging = stagingFor(untrustedName);
-	if(g_staging.empty()) return STATUS_UNKNOWN;
-	path = g_staging;
+	stagingPath = stagingFor(untrustedName);
+	if(stagingPath.empty()) return STATUS_UNKNOWN;
+	path = stagingPath;
 	return STATUS_OK;
 }
 
 void finishImport()
 {
-	if(g_staging.empty()) return;
-	FileSystem::inst().deleteFile(g_staging);
-	g_staging = "";
+	if(stagingPath.empty()) return;
+	FileSystem::inst().deleteFile(stagingPath);
+	stagingPath = "";
 	// Sofort nach IndexedDB durchschreiben - sonst stuende der Import bis zu
 	// fuenf Sekunden lang nur im Arbeitsspeicher.
 	WebTransfer::syncHome();
@@ -334,7 +334,7 @@ void abandonImport()
 	FileSystem::inst().deleteFile(p_stagingOgg);
 	FileSystem::inst().deleteFile(p_stagingXml);
 	FileSystem::inst().deleteFile(p_stagingZip);
-	g_staging = "";
+	stagingPath = "";
 }
 
 bool doExport(Kind kind, const std::string& name, std::string& errorId)
@@ -359,10 +359,10 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 
 namespace
 {
-	std::string g_pickedPath;
-	std::string g_pickedName;
-	int  g_status = STATUS_BUSY;
-	bool g_wantDialog = false;
+	std::string pickedPath;
+	std::string pickedName;
+	int  importStatus = STATUS_BUSY;
+	bool wantDialog = false;
 
 	// Nur der Basisname, egal mit welchem Trenner der Pfad gebaut war.
 	std::string getFilenameFromPath(const std::string& path)
@@ -424,16 +424,16 @@ bool beginImport()
 	// Nur vormerken. Der Dialog laeuft eine Runde spaeter in pollImport(), denn
 	// hier stecken wir mitten in der Ereignisverteilung der GUI - ein modales
 	// Fenster startete dort eine zweite Nachrichtenschleife.
-	if(g_wantDialog) return false;
-	g_wantDialog = true;
+	if(wantDialog) return false;
+	wantDialog = true;
 	return true;
 }
 
 int pollImport(std::string& path, std::string& untrustedName)
 {
-	if(g_wantDialog)
+	if(wantDialog)
 	{
-		g_wantDialog = false;
+		wantDialog = false;
 
 		char filter[128] = "";
 		buildFilter(filter, sizeof(filter));
@@ -453,18 +453,18 @@ int pollImport(std::string& path, std::string& untrustedName)
 		ModalScope modal;
 		if(GetOpenFileNameA(&ofn))
 		{
-			g_pickedPath = file;
-			g_pickedName = getFilenameFromPath(g_pickedPath);
-			g_status = STATUS_OK;
+			pickedPath = file;
+			pickedName = getFilenameFromPath(pickedPath);
+			importStatus = STATUS_OK;
 		}
-		else g_status = STATUS_CANCELLED;
+		else importStatus = STATUS_CANCELLED;
 	}
 
-	const int status = g_status;
+	const int status = importStatus;
 	if(status == STATUS_BUSY) return STATUS_BUSY;
-	g_status = STATUS_BUSY;
-	path = g_pickedPath;
-	untrustedName = g_pickedName;
+	importStatus = STATUS_BUSY;
+	path = pickedPath;
+	untrustedName = pickedName;
 	return status;
 }
 
@@ -472,14 +472,14 @@ void finishImport()
 {
 	// Unter Windows wurde nichts zwischengelagert - die Datei des Benutzers
 	// wurde gelesen, wo sie lag.
-	g_pickedPath = "";
-	g_pickedName = "";
+	pickedPath = "";
+	pickedName = "";
 }
 
 void abandonImport()
 {
-	g_wantDialog = false;
-	g_status = STATUS_BUSY;
+	wantDialog = false;
+	importStatus = STATUS_BUSY;
 	finishImport();
 }
 
