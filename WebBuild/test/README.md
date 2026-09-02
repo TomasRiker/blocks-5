@@ -63,3 +63,30 @@ einer verrutschten Koordinate, sondern im Spiel.
     present   wohin im Fenster das Bild gezeichnet wird
     elements  je Element: path, type, rect (Spielkoordinaten),
               win (Fensterkoordinaten), visible, shown, active
+
+## Einen Effekt im Bild nachmessen
+
+Die Haken sehen nur den GUI-Baum. Ob ein Effekt im Level wirklich gezeichnet
+wird, sagt allein das Bild - und dafuer laeuft im Menue schon eine Demo, in
+der Bob ueber Schalter und Panels laeuft.
+
+    B5_SHOTS=/tmp/burst node burst.js panel 45 400
+
+Danach die Kachel ausmessen, auf der etwas passieren soll, statt das Foto
+anzusehen. Ein Level liegt in Kacheln zu 16 Pixeln, das Spiel zeichnet immer
+in 640x480, und daraus wird das Bildschirmfoto:
+
+    Spiel-Pixel   = Kachel * 16          (im Menue zusaetzlich +65 in y,
+                                          das glTranslate in GS_Menu::render)
+    Foto-Pixel    = Spiel-Pixel * s + b  (s und b aus der Leinwand)
+
+`s` und `b` nicht raten: die schwarzen Balken im Foto suchen. Bei 800x640
+sind die Zeilen 20 bis 619 nicht schwarz, also s = 1,25 und b = 20.
+
+Ein Effekt, der zwei Zehntelsekunden dauert, faellt zwischen zwei Fotos -
+unter swiftshader kostet ein Foto etwa so lange. Deshalb fuer den Versuch
+die Abklingkonstante hochsetzen (`FLASH_DECAY` in `object.cpp` von 0,8 auf
+0,995), neu bauen, messen, zuruecksetzen: der Weg durch den Zeichencode ist
+derselbe, nur dauert er zehn Sekunden statt einer Fuenftelsekunde. So war zu
+sehen, dass das Aufleuchten der Panels ankommt - sie zeichnen auf Ebene 0,
+nicht auf 1 wie die Schalter, und die erste Fassung liess sie deshalb dunkel.

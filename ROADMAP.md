@@ -1417,11 +1417,10 @@ The two caveats above both turned out to be unfounded:
 Where things ended up: `flashAmount` on `Object`, `flash()` to set it,
 `FLASH_STRENGTH` and `FLASH_DECAY` as tunable constants at the top of
 `object.cpp`, decay in `frameBegin()` (per tick, not per frame), the additive
-pass in `Object::render()` gated on `layer == 1 && !shadowPass` — all seven draw
-their sprites on layer 1. The seven call `flash()` at the top of their
-`onTouchedByPlayer`. It is deliberately *not* in `Object::onTouchedByPlayer`:
-`player.cpp:413` calls that for every object the player bumps into, so a default
-there would light up every block.
+pass in `Object::render()` gated on `layer == flashLayer && !shadowPass`. The
+seven call `flash()` at the top of their `onTouchedByPlayer`. It is deliberately
+*not* in `Object::onTouchedByPlayer`: `player.cpp:413` calls that for every
+object the player bumps into, so a default there would light up every block.
 
 No sound was added. The switches that make one already do, and what you hear
 belongs to the thing being operated.
@@ -1430,6 +1429,40 @@ Checked by forcing the flash on in the title demo, which contains a `Magnet` and
 a `CannonSwitch`: +112 per channel at the peak, shaped by the sprite rather than
 a square, surrounding tiles untouched, and the same scene byte-for-byte
 unchanged in brightness when nothing is touched.
+
+**Then the same for everything else that is thrown.** Three additions, each of
+which turned up something the first round had not needed to know:
+
+- **The ground panels.** `LightPanel`, `ElectricityPanel`, `Barrage2Panel` and
+  `CannonPanel` all reach `Panel::onUpdate`, so one `flash()` there covers the
+  four and any fifth somebody writes. `E_PulsePanel` derives from `Electronics`
+  and carries its own copy of that loop, so it needs its own call.
+- **`layer == 1` was wrong.** The eight objects that lie on the ground —
+  the five panels among them — draw their sprites on **layer 0**, which is
+  rendered before the layer-1 shadows so that something can stand on top of
+  them. A flash gated on layer 1 therefore drew nothing at all for a panel. The
+  layer is a property of the object now: `flashLayer`, 1 in `Object`'s
+  constructor and 0 in `Panel`'s and `E_PulsePanel`'s.
+- **The activator block flashes too.** It is the block, not the switch, that did
+  something when it lands on one, so the seven switches call `p_obj->flash()`
+  beside their own. It keeps its `anim` wobble, which is a separate thing: that
+  fires on *any* collision, the block landing on plain ground included.
+
+The day/night switch is the one place where the flash is invisible, and rightly
+so. `LightPanel::onTriggered` and `LightSwitch::onTouchedByPlayer` immediately
+start `crossfade(new CF_ColorBlend(..., 0.1), 1.4)`, whose first tenth draws the
+captured *old* frame under a quad that is already 89% opaque on the first tick.
+The flash is over inside that. Nothing to fix: the switch is doing something far
+more visible than a flash.
+
+Checked in the browser rather than by reading, since reading is what got the
+layer wrong. `WebBuild/test/burst.js` over the title demo, which walks Bob
+across an `ElectricityPanel` and a `Barrage2Panel`, with `FLASH_DECAY` raised to
+0.995 for the run so a 0.15 s event cannot fall between two screenshots: both
+panel tiles jump and decay on the expected curve, the two `CannonSwitch` tiles
+do the same as the layer-1 control, and the `Magnet` Bob never reaches stays
+flat. `WebBuild/test/README.md` records the coordinate mapping and the
+slowed-decay trick.
 
 
 19. Playable on a phone

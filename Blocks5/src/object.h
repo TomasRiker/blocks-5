@@ -184,6 +184,10 @@ protected:
 	std::string toolTip;
 	int slideDir;
 	bool slideMove;
+	// Die Ebene, auf der dieses Objekt sein Teilbild zeichnet, und damit die,
+	// auf der Object::render() das Aufleuchten daraufaddiert. Fast alle
+	// zeichnen auf 1; die Panels liegen auf dem Boden und zeichnen auf 0.
+	int flashLayer;
 	static int nextFallingDepth;
 
 private:

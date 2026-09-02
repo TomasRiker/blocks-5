@@ -37,5 +37,9 @@ void Magnet::onTouchedByPlayer(Player* p_player)
 
 void Magnet::onCollision(Object* p_obj)
 {
-	if(p_obj->getFlags() & OF_ACTIVATOR) onTouchedByPlayer(0);
+	if(p_obj->getFlags() & OF_ACTIVATOR)
+	{
+		p_obj->flash();
+		onTouchedByPlayer(0);
+	}
 }

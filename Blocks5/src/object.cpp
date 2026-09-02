@@ -46,6 +46,7 @@ Object::Object(Level& level,
 	lastHashedAt = -1;
 	removed = false;
 	flashAmount = 0.0;
+	flashLayer = 1;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
@@ -118,10 +119,10 @@ void Object::render(int layer,
 	// schon, und der Anteil kommt weiterhin aus der Farbe des Teilbilds, damit
 	// ein eingefaerbter Schalter in seiner eigenen Farbe aufleuchtet.
 	//
-	// Nur auf Ebene 1, auf der alle sieben ihr Bild zeichnen, und nicht im
-	// Schattendurchgang: der geht mit schwarzem RGB durch, ein additiver
-	// Durchgang machte daraus einen hellen Fleck mitten im Schatten.
-	if(flashAmount > 0.0 && layer == 1 && !shadowPass)
+	// Nur auf der Ebene, auf der das Objekt eben sein Teilbild gezeichnet hat,
+	// und nicht im Schattendurchgang: der geht mit schwarzem RGB durch, ein
+	// additiver Durchgang machte daraus einen hellen Fleck mitten im Schatten.
+	if(flashAmount > 0.0 && layer == flashLayer && !shadowPass)
 	{
 		Engine& engine = Engine::inst();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);

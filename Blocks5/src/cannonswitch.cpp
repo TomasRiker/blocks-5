@@ -52,7 +52,11 @@ void CannonSwitch::onTouchedByPlayer(Player* p_player)
 
 void CannonSwitch::onCollision(Object* p_obj)
 {
-	if(p_obj->getFlags() & OF_ACTIVATOR) onTouchedByPlayer(0);
+	if(p_obj->getFlags() & OF_ACTIVATOR)
+	{
+		p_obj->flash();
+		onTouchedByPlayer(0);
+	}
 }
 
 bool CannonSwitch::changeInEditor(int mod)
