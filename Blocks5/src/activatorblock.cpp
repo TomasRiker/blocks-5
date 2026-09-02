@@ -11,7 +11,6 @@ ActivatorBlock::ActivatorBlock(Level& level,
 	interpolation = 0.3;
 	destroyTime = 1;
 	this->shielded = shielded;
-	anim = 0;
 }
 
 ActivatorBlock::~ActivatorBlock()
@@ -21,34 +20,13 @@ ActivatorBlock::~ActivatorBlock()
 void ActivatorBlock::updateSprites()
 {
 	// Block
-	Vec4d realColor(1.0, 1.0, 1.0, 1.0);
-	if(anim)
-	{
-		double a = (1.0 / 20.0) * anim;
-		double t = level.time * 0.1;
-		realColor.r = 0.75 + 0.25 * cos(a * t);
-		realColor.g = 0.75 + 0.25 * cos(1.2 * a * t);
-		realColor.b = 0.75 + 0.25 * cos(1.4 * a * t);
-		realColor.a = 0.75 + 0.25 * cos(1.6 * a * t);
-	}
-	sprites.add(shielded ? Vec2i(64, 288) : Vec2i(0, 0), realColor);
+	sprites.add(shielded ? Vec2i(64, 288) : Vec2i(0, 0));
 }
 
 void ActivatorBlock::onRender(int layer,
 							  const Vec4d& color)
 {
 	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-}
-
-void ActivatorBlock::onUpdate()
-{
-	if(anim) anim--;
-}
-
-void ActivatorBlock::onCollision(Object* p_obj)
-{
-	// Animation starten
-	anim = 20;
 }
 
 void ActivatorBlock::saveAttributes(TiXmlElement* p_target)

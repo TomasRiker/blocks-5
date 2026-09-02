@@ -1445,8 +1445,13 @@ which turned up something the first round had not needed to know:
   constructor and 0 in `Panel`'s and `E_PulsePanel`'s.
 - **The activator block flashes too.** It is the block, not the switch, that did
   something when it lands on one, so the seven switches call `p_obj->flash()`
-  beside their own. It keeps its `anim` wobble, which is a separate thing: that
-  fires on *any* collision, the block landing on plain ground included.
+  beside their own. Its own `anim` wobble is gone with that: it darkened the
+  block for 0.4 s on *any* collision, the block landing on plain ground
+  included, so beside a flash that fires only on an activation it read as a
+  second, competing effect saying something else. It was purely cosmetic -
+  written in the constructor and in `onCollision`, decremented in `onUpdate`,
+  and read in one place, `updateSprites()` - and with it `ActivatorBlock` needs
+  neither override any more.
 
 The day/night switch is the one place where the flash is invisible, and rightly
 so. `LightPanel::onTriggered` and `LightSwitch::onTouchedByPlayer` immediately
