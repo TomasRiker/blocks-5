@@ -423,13 +423,41 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
-**Import and Export are two buttons in the main menu**, on both platforms — `src/transfer.cpp`
-over `WebBuild/web_transfer.cpp` in the browser and `GetOpenFileNameA`/`GetSaveFileNameA` under
-Windows, behind one interface (`beginImport` starts it, `pollImport` is asked each tick, so the
-browser's asynchronous dialog and Windows' modal one look the same to the caller). They used to
-be six buttons wedged into whatever hole each editor's layout had, which meant opening an editor
-to install a campaign, no way at all to install music, and skin import in the one place you
-least need it.
+**One Manager button in the main menu** opens a dialog that imports, exports and deletes, on
+both platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in the browser and
+`GetOpenFileNameA`/`GetSaveFileNameA` under Windows, behind one interface (`beginImport` starts
+it, `pollImport` is asked each tick, so the browser's asynchronous dialog and Windows' modal one
+look the same to the caller). Before 1.2.0 these were six buttons wedged into whatever hole each
+editor's layout had, which meant opening an editor to install a campaign, no way at all to
+install music, and skin import in the one place you least need it; then two small buttons in the
+menu, one per direction.
+
+**The three belong together because each alone was missing a half.** Import had no dialog: it
+took a file, said in a toast what had become of it, and the player never saw the list it had
+joined. Export had nothing but that list. And nothing could be deleted at all — in the browser
+there is no file manager beside the game to do it with. Now `Menu.ManagerPane` holds the four
+kind radios, the list, *Refresh*, and a bottom row of *Import*, *Export*, *Delete* and *Close*
+sitting in the same four 92px columns as the radios above (the longest of the eight captions
+measures 66). Import needs no selection and comes first; Export and Delete work on the selection
+and grey themselves out without one. `Menu.ConfirmPane`, which must stay the **last** child in
+`menu.xml` so it draws last and takes the clicks, asks before a delete — the one thing here that
+cannot be undone.
+
+**`Transfer::isBuiltIn` is the one place that knows what ships with the game**: `example01.xml`,
+`example02.xml`, `blocks.zip` and the four skins. Two callers, for the same reason — the Manager
+must not delete one, and an import must not take its name. They stay listed and exportable;
+only *Delete* greys out. The comparison is case-insensitive and hand-rolled, because `tolower`
+is locale-dependent and `pch.h` does not pull in `<cctype>`.
+
+**A finished import updates the open list.** `pollImport` runs every tick from `onUpdate`,
+because the browser's file dialog cannot be modal — so when it completes with the Manager still
+open, it switches the kind radio to whatever `classify` decided, re-reads the list and selects
+the new entry. That is what the merge buys, and it is why the pane deliberately stays open
+across the file dialog.
+
+Escape belongs to the topmost pane: the confirmation first, then the Manager, and only with
+both closed does it quit the game. The export pane never did this — an Escape with it open shut
+the game down.
 
 **Import takes one file and works out what it is** — `Transfer::classify`, by content and never
 by extension: `OggS` at the front is music, an XML whose root is `<Level>` is a level, and an
@@ -439,8 +467,9 @@ directory (C hands JS all three possible staging paths and JS picks one by exten
 composes every path), `sanitizeFilenameStem` reduces the name to `[A-Za-z0-9_-]`, and only then
 does anything reach IndexedDB. **The skin is the one whose filename is its identity** — a level
 says `skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip` — so a skin
-import overwrites rather than swerving to `space_2.zip` the way the others do, and the four
-names `zip_skins.bat` builds are refused outright.
+import overwrites rather than swerving to `space_2.zip` the way the others still do, and the
+four names `zip_skins.bat` builds are refused through `isBuiltIn`. ROADMAP item 14 makes the
+other three overwrite as well and extends the refusal to all seven shipped names.
 
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture
 as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, and the default is `GL_REPEAT` — which

@@ -7,9 +7,16 @@
 // Stelle gesetzt, wo im Fenster gerade Platz war. Das hatte drei Nachteile:
 // man musste einen Editor oeffnen, um eine fremde Kampagne zu installieren,
 // fuer Musik gab es ueberhaupt keinen Weg, und ein Skin liess sich nur dort
-// holen, wo man ihn am wenigsten braucht. Jetzt gibt es genau zwei Knoepfe,
-// im Hauptmenue: einer nimmt eine Datei an und erkennt selbst, was sie ist,
-// der andere fragt, was hinausgehen soll.
+// holen, wo man ihn am wenigsten braucht. Jetzt gibt es dafuer einen einzigen
+// Knopf im Hauptmenue, der einen Dialog aufmacht: einspielen, ausgeben,
+// loeschen.
+//
+// Zusammen gehoeren die drei, weil jeder allein eine Haelfte fehlt. Der
+// Import hatte gar keinen Dialog - er nahm eine Datei an, sagte in einer
+// Meldung, was daraus geworden war, und der Spieler sah nie die Liste, in die
+// sie gewandert war. Der Export hatte nichts als diese Liste. Und geloescht
+// werden konnte gar nichts: im Browser gibt es keinen Dateimanager daneben,
+// mit dem man es haette nachholen koennen.
 //
 // Alles hier ist auf beiden Plattformen da. Der Unterschied steckt nur im
 // Dateidialog: unter Windows ist er modal und liefert einen Pfad, den das
@@ -47,6 +54,21 @@ namespace Transfer
 
 	// Was von dieser Art im Benutzerverzeichnis liegt, alphabetisch sortiert.
 	std::vector<std::string> list(Kind kind);
+
+	// Gehoert diese Datei zum Spiel? name ist der Dateiname mit Endung, so wie
+	// list() ihn liefert. Sieben Stueck sind es: die mitgelieferte Kampagne,
+	// ihre vier Skins und die beiden Beispiellevel. Musik ist nie dabei - die
+	// zehn Stuecke stecken in blocks.zip und liegen nicht einzeln herum.
+	//
+	// Zwei Stellen fragen danach, und zwar aus demselben Grund: der Manager
+	// darf eine solche Datei nicht loeschen, und ein Import darf ihren Namen
+	// nicht besetzen. Wer skin0="space" in einem Level stehen hat, meint
+	// levels/skins/space.zip und keine andere Datei.
+	bool isBuiltIn(Kind kind, const std::string& name);
+
+	// Loescht, was list() geliefert hat. Verweigert die mitgelieferten
+	// Dateien. false setzt errorId auf die anzuzeigende Meldung.
+	bool remove(Kind kind, const std::string& name, std::string& errorId);
 
 	// --- der Dateidialog ---------------------------------------------------
 	enum Status

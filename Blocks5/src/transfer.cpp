@@ -41,18 +41,25 @@ namespace
 		}
 	}
 
-	// Die Skins, die zum Spiel gehoeren. Ein Skin wird beim Import
-	// ueberschrieben, weil sein Dateiname seine Kennung ist - also duerfen
-	// diese vier nicht getroffen werden, sonst zerlegt ein Import die
-	// mitgelieferte Kampagne. Die Liste ist die aus zip_skins.bat.
-	bool isShippedSkin(const std::string& stem)
+	// Dateinamen vergleichen, ohne auf Gross- und Kleinschreibung zu achten.
+	// Unter Windows ist "Blocks.zip" dieselbe Datei wie "blocks.zip"; ein
+	// Name, der sich nur in der Schreibweise unterscheidet, ginge sonst an
+	// isBuiltIn() vorbei und traefe die mitgelieferte Datei doch.
+	// Von Hand und nur fuer ASCII: tolower() haengt am Gebietsschema und
+	// braeuchte <cctype>, das der vorkompilierte Header nicht zieht. Die
+	// Namen, um die es geht, sind ohnehin sieben feste Zeichenketten aus
+	// [a-z0-9_.].
+	bool sameFilename(const std::string& a, const char* p_b)
 	{
-		static const char* p_names[] = { "blocks_01", "blocks_02", "blocks_03", "space" };
-		for(uint i = 0; i < sizeof(p_names) / sizeof(*p_names); i++)
+		std::string::size_type i = 0;
+		for(; i < a.length() && p_b[i]; i++)
 		{
-			if(stem == p_names[i]) return true;
+			char x = a[i], y = p_b[i];
+			if(x >= 'A' && x <= 'Z') x += 'a' - 'A';
+			if(y >= 'A' && y <= 'Z') y += 'a' - 'A';
+			if(x != y) return false;
 		}
-		return false;
+		return i == a.length() && !p_b[i];
 	}
 
 bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
@@ -164,7 +171,7 @@ std::string install(Kind kind,
 		// ein schon vergebener Name hier zu space_2.zip ausweichen, blieben
 		// alle Level, die "space" nennen, genauso kaputt wie vorher - nur
 		// ohne sichtbaren Grund. Ein Skin ueberschreibt deshalb.
-		if(isShippedSkin(stem))
+		if(isBuiltIn(kind, stem + extensionFor(kind)))
 		{
 			errorId = "$TR_ERROR_SKIN_RESERVED";
 			return "";
@@ -202,6 +209,65 @@ std::vector<std::string> list(Kind kind)
 
 	std::sort(result.begin(), result.end());
 	return result;
+}
+
+bool isBuiltIn(Kind kind, const std::string& name)
+{
+	// Genau das, was nach einer Neuinstallation im Benutzerverzeichnis liegt:
+	// zip_skins.bat baut die vier Skins, die Kampagne heisst seit jeher
+	// blocks.zip, und die beiden Beispiellevel liegen lose daneben.
+	static const char* p_levels[]    = { "example01.xml", "example02.xml", 0 };
+	static const char* p_campaigns[] = { "blocks.zip", 0 };
+	static const char* p_skins[]     = { "blocks_01.zip", "blocks_02.zip",
+										 "blocks_03.zip", "space.zip", 0 };
+
+	const char* const* pp_names = 0;
+	switch(kind)
+	{
+	case KIND_LEVEL:    pp_names = p_levels;    break;
+	case KIND_CAMPAIGN: pp_names = p_campaigns; break;
+	case KIND_SKIN:     pp_names = p_skins;     break;
+	default:            return false;
+	}
+
+	for(; *pp_names; pp_names++)
+	{
+		if(sameFilename(name, *pp_names)) return true;
+	}
+	return false;
+}
+
+bool remove(Kind kind, const std::string& name, std::string& errorId)
+{
+	errorId = "";
+
+	// Der Knopf ist in diesen Faellen ohnehin abgeschaltet; hier steht die
+	// Sperre trotzdem, weil sie zur Sache gehoert und nicht zur Oberflaeche.
+	if(kind == KIND_NONE || name.empty())
+	{
+		errorId = "$TR_ERROR_FAILED";
+		return false;
+	}
+	if(isBuiltIn(kind, name))
+	{
+		errorId = "$TR_ERROR_BUILT_IN";
+		return false;
+	}
+
+	if(!FileSystem::inst().deleteFile(directoryFor(kind) + name))
+	{
+		errorId = "$TR_ERROR_FAILED";
+		return false;
+	}
+
+#ifdef __EMSCRIPTEN__
+	// Sofort nach IndexedDB durchschreiben, aus demselben Grund wie beim
+	// Import: sonst waere die Datei bis zu fuenf Sekunden lang nur im
+	// Arbeitsspeicher geloescht und nach einem Neuladen wieder da.
+	WebTransfer::syncHome();
+#endif
+
+	return true;
 }
 
 // ---------------------------------------------------------------------------

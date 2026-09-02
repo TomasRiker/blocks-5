@@ -28,12 +28,16 @@ public:
 	void handleClick(GUI_Element* p_element);
 
 private:
-	// Import und Export. Der Dateidialog des Browsers meldet sich asynchron,
-	// der von Windows modal - pollImport() verdeckt beides.
+	// Der Manager: einspielen, ausgeben, loeschen. Der Dateidialog des
+	// Browsers meldet sich asynchron, der von Windows modal - pollImport()
+	// verdeckt beides.
 	void pollImport();
 	void pollExport();
-	void refreshExportList();
-	int currentExportKind() const;
+	void openManager();
+	void refreshManagerList();
+	void updateManagerButtons();
+	int currentManagerKind() const;
+	void setManagerKind(int kind);
 
 	Engine& engine;
 	Texture* p_clouds;
@@ -51,6 +55,10 @@ private:
 	int pendingExportKind;
 	std::string pendingExportName;
 	bool pendingExport;
+
+	// Was die Rueckfrage loeschen soll, festgehalten beim Klick auf Loeschen.
+	int pendingDeleteKind;
+	std::string pendingDeleteName;
 	std::unordered_map<uint, std::list<uint> > keyData;
 };
 

@@ -33,6 +33,11 @@ $OK
 §en:OK
 §de:OK
 
+$CLOSE
+// Caption of a button that closes a window without cancelling anything
+§en:Close
+§de:Schließen
+
 $CANCEL
 // For dialog boxes
 §en:Cancel
@@ -2053,24 +2058,19 @@ $MM_CRT_TRY
 §en:Yes, try it
 §de:Ja, ausprobieren
 
-$MM_IMPORT
-// Main menu: button that takes a file in from the player's computer
-§en:Import
-§de:Import
+$MM_MANAGE
+// Main menu: button that opens the file manager (import, export, delete)
+§en:Manage files
+§de:Dateien verwalten
 
-$MM_EXPORT
-// Main menu: button that writes something out to the player's computer
-§en:Export
-§de:Export
+$TR_MANAGER_TITLE
+§en:Manage files
+§de:Dateien verwalten
 
-$TR_EXPORT_TITLE
-§en:Export
-§de:Exportieren
-
-$TR_EXPORT_WHAT
-// Prompt above the four kind buttons in the export window
-§en:What would you like to export?
-§de:Was möchtest du exportieren?
+$TR_MANAGER_WHAT
+// Prompt above the four kind buttons in the manager window
+§en:What would you like to manage?
+§de:Was möchtest du verwalten?
 
 $TR_KIND_LEVEL
 §en:Level
@@ -2093,9 +2093,39 @@ $TR_REFRESH
 §en:Refresh
 §de:Aktualisieren
 
+$TR_IMPORT_DO
+// Manager: button that asks for a file to bring in
+§en:Import ...
+§de:Import ...
+
 $TR_EXPORT_DO
+// Manager: button that writes the selected item out
 §en:Export ...
-§de:Exportieren ...
+§de:Export ...
+
+$TR_DELETE_DO
+// Manager: button that deletes the selected item
+§en:Delete
+§de:Löschen
+
+$TR_CONFIRM_TITLE
+// Title of the window that asks before deleting
+§en:Please confirm
+§de:Bitte bestätigen
+
+$TR_CONFIRM_DELETE
+§en:Really delete this file?
+§de:Diese Datei wirklich löschen?
+
+$TR_DELETED
+// Shown after a successful delete, followed by the filename
+§en:Deleted:
+§de:Gelöscht:
+
+$TR_ERROR_BUILT_IN
+// Refusal when something that ships with the game would be deleted
+§en:ERROR: That file belongs to the game.
+§de:FEHLER: Diese Datei gehört zum Spiel.
 
 $TR_NOTHING_TO_EXPORT
 §en:There is nothing of that kind to export yet.

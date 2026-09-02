@@ -32,25 +32,18 @@
 			<Title>$MM_CAMPAIGN_EDITOR</Title>
 			<Image u="0" v="160" u2="80" v2="160">buttons.png</Image>
 		</Button>
-		<!-- Import und Export. Ein Knopf nimmt eine Datei an und erkennt
-		     selbst, was sie ist; der andere fragt, was hinausgehen soll.
-		     Beide auf beiden Plattformen: unter Windows ist der Weg ins
-		     Benutzerverzeichnis zwar offen, aber ihn zu suchen ist laestig.
-		     Sie sind klein wie die Knoepfe der Levelauswahl - es sind
-		     Nebensachen, keine Hauptwege - und stehen als Paar enger
-		     beieinander als die grossen, mittig in deren Luecke und auf
-		     deren Bogen. -->
-		<Button name="Import" x="268" y="82" w="50" h="50">
-			<ExtendedStyle inset="9" />
+		<!-- Einspielen, ausgeben und loeschen - alles, was mit den Dateien
+		     im Benutzerverzeichnis zu tun hat, hinter einem Knopf. Vorher
+		     waren es zwei kleine, einer je Richtung; das trennte, was
+		     zusammengehoert, und fuers Loeschen war ueberhaupt kein Platz.
+		     Jetzt ist es ein grosser wie die anderen Hauptwege, mittig dort,
+		     wo das Paar zusammen stand: die Scheibe sass bei 318, und 278
+		     plus der 8 Pixel Rand trifft genau das wieder. -->
+		<Button name="Manager" x="278" y="67" w="80" h="80">
+			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
-			<Title>$MM_IMPORT</Title>
-			<Image u="160" v="250" u2="210" v2="250">buttons.png</Image>
-		</Button>
-		<Button name="Export" x="318" y="82" w="50" h="50">
-			<ExtendedStyle inset="9" />
-			<Font>tooltip_font.xml</Font>
-			<Title>$MM_EXPORT</Title>
-			<Image u="160" v="300" u2="210" v2="300">buttons.png</Image>
+			<Title>$MM_MANAGE</Title>
+			<Image u="0" v="560" u2="80" v2="560">buttons.png</Image>
 		</Button>
 		<Button name="Options" x="462" y="52" w="80" h="80">
 			<ExtendedStyle inset="8" />
@@ -102,19 +95,23 @@
 			</Window>
 		</Element>
 
-		<!-- Der Export fragt zuerst, was hinaus soll. Die Art waehlt man mit
-		     vier Knopf-Radios, die Sache selbst aus der Liste darunter; die
-		     Liste wird bei jedem Wechsel der Art neu eingelesen, und
-		     "Aktualisieren" liest sie noch einmal ein, falls sich nebenher
-		     etwas geaendert hat. -->
-		<Element name="ExportPane" w="640" h="480">
+		<!-- Der Manager. Die Art waehlt man mit vier Knopf-Radios, die Sache
+		     selbst aus der Liste darunter; die Liste wird bei jedem Wechsel
+		     der Art neu eingelesen, und "Aktualisieren" liest sie noch einmal
+		     ein, falls sich nebenher etwas geaendert hat.
+		     Die vier Knoepfe unten stehen genau in den Spalten der vier
+		     Radios darueber - 92 Pixel reichen fuer jede der acht
+		     Beschriftungen, die laengste misst 66. Einspielen braucht keine
+		     Auswahl und steht deshalb zuerst; Ausgeben und Loeschen arbeiten
+		     an der Auswahl und schalten sich ab, wenn keine da ist. -->
+		<Element name="ManagerPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />
-			<Window name="Export" w="400" h="320">
-				<Title>$TR_EXPORT_TITLE</Title>
+			<Window name="Manager" w="400" h="320">
+				<Title>$TR_MANAGER_TITLE</Title>
 				<Center />
 				<StaticText name="What" x="10" y="30">
-					<Text>$TR_EXPORT_WHAT</Text>
+					<Text>$TR_MANAGER_WHAT</Text>
 				</StaticText>
 				<RadioButton name="KindLevel" x="10" y="52" w="92" h="24">
 					<Title>$TR_KIND_LEVEL</Title>
@@ -137,17 +134,45 @@
 					<ButtonLook />
 				</RadioButton>
 				<ListBox name="Items" x="10" y="88" w="284" h="182">
-					<SubmitButton>Do</SubmitButton>
+					<SubmitButton>Export</SubmitButton>
 				</ListBox>
 				<Button name="Refresh" x="298" y="88" w="92" h="24">
 					<Title>$TR_REFRESH</Title>
 					<Font>tooltip_font.xml</Font>
 				</Button>
-				<Button name="Do" x="10" y="280" w="130" h="30">
+				<Button name="Import" x="10" y="280" w="92" h="30">
+					<Title>$TR_IMPORT_DO</Title>
+				</Button>
+				<Button name="Export" x="106" y="280" w="92" h="30">
 					<Title>$TR_EXPORT_DO</Title>
 				</Button>
-				<Button name="Cancel" x="260" y="280" w="130" h="30">
-					<Title>$CANCEL</Title>
+				<Button name="Delete" x="202" y="280" w="92" h="30">
+					<Title>$TR_DELETE_DO</Title>
+				</Button>
+				<Button name="Close" x="298" y="280" w="92" h="30">
+					<Title>$CLOSE</Title>
+				</Button>
+			</Window>
+		</Element>
+
+		<!-- Die Rueckfrage vors Loeschen: das Einzige, was der Manager tut
+		     und was sich nicht rueckgaengig machen laesst. Sie steht nach
+		     dem Manager, weil das letzte Kind im XML sowohl zuletzt
+		     gezeichnet wird als auch die Klicks bekommt. Ohne eigenes
+		     Abdunkeln - der Manager darunter dunkelt schon ab. -->
+		<Element name="ConfirmPane" w="640" h="480">
+			<Hidden />
+			<Window name="Confirm" w="420" h="120">
+				<Title>$TR_CONFIRM_TITLE</Title>
+				<Center />
+				<StaticText name="Text" x="10" y="30">
+					<Text>$TR_CONFIRM_DELETE</Text>
+				</StaticText>
+				<Button name="Yes" x="10" y="80" w="135" h="30">
+					<Title>$YES</Title>
+				</Button>
+				<Button name="No" x="275" y="80" w="135" h="30">
+					<Title>$NO</Title>
 				</Button>
 			</Window>
 		</Element>

@@ -42,13 +42,15 @@ Changelog
             taking screenshots are the only things the browser version cannot
             do. Look on the website for the link.
 
-          - New in the main menu: an Import button and an Export button, on both
-            the browser version and this one.
+          - New in the main menu: a button that manages your files, on both the
+            browser version and this one. It brings files in, hands copies
+            out, and deletes what you no longer want.
 
           - Import takes one file and works out for itself what it is - a level,
             a campaign, a piece of music or a skin - and puts it where it
-            belongs. Export asks what kind of thing you want, lists what you
-            have of it, and hands you a copy.
+            belongs; the list then shows you where it landed. Export hands you
+            a copy of whatever you pick. Delete asks first, and never touches
+            the levels, the campaign and the skins that come with the game.
 
           - Music can be brought in this way for the first time. A level can
             also borrow one of the game's own pieces by writing "blocks:" in

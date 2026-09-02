@@ -1183,11 +1183,14 @@ no new dialog.
 The predicate wants to live where item 15 can reach it too — see there.
 
 
-15. Let the Export dialog delete what it lists
-------------------------------------------------
-**The button this hangs on is being replaced — see item 17.** The delete itself
-is unchanged and is written up here; the dialog it lands in is the Manager, not
-the export pane.
+15. Let the Export dialog delete what it lists  — **DONE**, in the Manager
+---------------------------------------------------------------------------
+**Done as part of item 17**, where the button lives. What is below was the plan;
+it came out as written, with the confirmation and with `isBuiltIn` gating the
+button. Both open questions there answered themselves: a deleted campaign does
+leave its `ProgressDB` rows behind (harmless, and the right thing if it is ever
+imported again), and a deleted skin does break levels naming it — visibly,
+through `Level::loadSkin`'s toast.
 
 Export lists what is installed of a kind and writes a plain copy of the one you
 pick (`GS_Menu`'s export pane over `Transfer::list`/`Transfer::exportTo`). There
@@ -1240,8 +1243,8 @@ keep them short, because the English and German bodies both have to fit the
 same button.
 
 
-17. One Manager button instead of Import and Export
------------------------------------------------------
+17. One Manager button instead of Import and Export  — **DONE**
+------------------------------------------------------------------
 Import and Export are two small buttons side by side in the main menu
 (`data/menu.xml`, `Import` at x=268 and `Export` at x=318, both 50x50 with
 `inset="9"`). They are two halves of one subject — what is installed on this
@@ -1285,6 +1288,19 @@ v=250 and v=300 come free. Position is by eye, not arithmetic — the pair spans
 x=268..368, so an 80x80 centred on the same spot starts at x=278, but the row
 sits on an arc (`CampaignEditor` at y=77, `Options` at y=52) and the y wants
 choosing rather than computing.
+
+**Built as described.** The tile is at v=560, straight under *Go!*; the button
+is `x="278" y="67"`, which puts its disc exactly where the pair's two discs sat
+around 318. The bottom row went into the radios' four columns rather than the
+three 130px slots — 92px holds every one of the eight captions, the longest
+being "Import ..." at 66. `Transfer::isBuiltIn` and `Transfer::remove` are new;
+`isShippedSkin` folded into the first of them. Item 14's other half, the switch
+from swerving to overwriting, is still open and untouched here: mixing a
+refusal into the current swerve would have been the inconsistent half-step.
+
+One thing found on the way: an Escape with the export pane open quit the game.
+Fixed — the confirmation takes the key first, then the Manager, and only with
+both closed does it reach the quit.
 
 
 18. A switch should flash when it is thrown

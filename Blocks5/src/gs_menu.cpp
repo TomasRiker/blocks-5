@@ -61,6 +61,7 @@ GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML
 	levelSaved = false;
 	pendingExportKind = 0;
 	pendingExport = false;
+	pendingDeleteKind = 0;
 }
 
 GS_Menu::~GS_Menu()
@@ -183,9 +184,23 @@ void GS_Menu::onUpdate()
 	   !gui["Menu.DonatePane"]->isVisible() &&
 	   !gui["Menu.CrtPane"]->isVisible())
 	{
-		SDL_Event quitEvent;
-		quitEvent.type = SDL_QUIT;
-		SDL_PushEvent(&quitEvent);
+		// Der Manager und seine Rueckfrage nehmen die Taste fuer sich, von
+		// oben nach unten. Bisher tat der Export-Dialog das nicht: ein
+		// Escape bei offenem Fenster beendete das Spiel.
+		if(gui["Menu.ConfirmPane"]->isVisible())
+		{
+			handleClick(gui["Menu.ConfirmPane.Confirm.No"]);
+		}
+		else if(gui["Menu.ManagerPane"]->isVisible())
+		{
+			handleClick(gui["Menu.ManagerPane.Manager.Close"]);
+		}
+		else
+		{
+			SDL_Event quitEvent;
+			quitEvent.type = SDL_QUIT;
+			SDL_PushEvent(&quitEvent);
+		}
 	}
 
 	// Ab hier gehoert die Tastatur der Demo.
@@ -242,15 +257,23 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.Donate"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.CrtPane.Crt.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.CrtPane.Crt.TryIt"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.Import"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.Export"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Do"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_Button*>(gui["Menu.ExportPane.Export.Cancel"])->connectClicked(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
-	static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Manager"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Refresh"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Import"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Export"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Delete"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Close"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindLevel"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
+
+	// Ausgeben und Loeschen haengen an der Auswahl, also muss die Liste sagen,
+	// wenn sie sich aendert.
+	static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"])->connectChanged(this, &GS_Menu::handleClick);
+
+	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Yes"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.No"])->connectClicked(this, &GS_Menu::handleClick);
 
 	FileSystem& fs = FileSystem::inst();
 
@@ -394,55 +417,94 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	{
 		p_help->show(gui["Menu"]);
 	}
-	else if(name == "Menu.Import")
+	else if(name == "Menu.Manager")
 	{
-		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
-		// Transfer::classify am Inhalt, nicht an der Endung.
-		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
+		openManager();
 	}
-	else if(name == "Menu.Export")
-	{
-		static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindLevel"])->check();
-		refreshExportList();
-		gui["Menu.ExportPane"]->show();
-		gui["Menu.ExportPane.Export"]->focus();
-	}
-	else if(name == "Menu.ExportPane.Export.KindLevel" ||
-			name == "Menu.ExportPane.Export.KindCampaign" ||
-			name == "Menu.ExportPane.Export.KindMusic" ||
-			name == "Menu.ExportPane.Export.KindSkin" ||
-			name == "Menu.ExportPane.Export.Refresh")
+	else if(name == "Menu.ManagerPane.Manager.KindLevel" ||
+			name == "Menu.ManagerPane.Manager.KindCampaign" ||
+			name == "Menu.ManagerPane.Manager.KindMusic" ||
+			name == "Menu.ManagerPane.Manager.KindSkin" ||
+			name == "Menu.ManagerPane.Manager.Refresh")
 	{
 		// Beim Wechsel der Art und auf Wunsch neu einlesen: waehrend das
 		// Fenster offensteht, kann sich das Verzeichnis geaendert haben.
-		refreshExportList();
+		refreshManagerList();
 	}
-	else if(name == "Menu.ExportPane.Export.Cancel")
+	else if(name == "Menu.ManagerPane.Manager.Items")
 	{
-		gui["Menu.ExportPane"]->hide();
+		// Die Auswahl hat gewechselt - Ausgeben und Loeschen richten sich
+		// danach.
+		updateManagerButtons();
+	}
+	else if(name == "Menu.ManagerPane.Manager.Close")
+	{
+		gui["Menu.ManagerPane"]->hide();
 		gui["Menu"]->focus();
 	}
-	else if(name == "Menu.ExportPane.Export.Do")
+	else if(name == "Menu.ManagerPane.Manager.Import")
 	{
-		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
+		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
+		// Transfer::classify am Inhalt, nicht an der Endung. Das Fenster
+		// bleibt dabei offen: wenn die Datei angekommen ist, schaltet
+		// pollImport() auf ihre Art um und zeigt sie in der Liste.
+		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
+	}
+	else if(name == "Menu.ManagerPane.Manager.Export")
+	{
+		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1)
 		{
-			// Von dieser Sorte ist noch nichts da. Ohne die Meldung taete der
-			// Knopf schlicht nichts, und das sieht aus wie ein Fehler.
-			gui["Menu.ExportPane"]->hide();
-			gui["Menu"]->focus();
+			// Von dieser Sorte ist noch nichts da. Der Knopf ist dann zwar
+			// abgeschaltet, aber die Eingabetaste der Liste kommt auch hier
+			// an, und ohne die Meldung taete sie schlicht nichts.
 			engine.showToast(Engine::TOAST_ERROR, "$TR_NOTHING_TO_EXPORT");
 			return;
 		}
 
 		// Nur vormerken - der Dialog laeuft eine Runde spaeter in
 		// pollExport(), aus demselben Grund wie beim Import.
-		pendingExportKind = currentExportKind();
+		pendingExportKind = currentManagerKind();
 		pendingExportName = p_list->getSelectedItemText();
 		pendingExport = true;
 
-		gui["Menu.ExportPane"]->hide();
+		gui["Menu.ManagerPane"]->hide();
 		gui["Menu"]->focus();
+	}
+	else if(name == "Menu.ManagerPane.Manager.Delete")
+	{
+		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
+		if(p_list->getSelection() == -1) return;
+
+		// Das Einzige im Manager, was sich nicht rueckgaengig machen laesst -
+		// also erst fragen. Was geloescht werden soll, steht ab hier fest und
+		// wird nicht spaeter noch einmal aus der Liste geholt.
+		pendingDeleteKind = currentManagerKind();
+		pendingDeleteName = p_list->getSelectedItemText();
+
+		gui["Menu.ConfirmPane"]->show();
+		gui["Menu.ConfirmPane.Confirm"]->focus();
+	}
+	else if(name == "Menu.ConfirmPane.Confirm.Yes")
+	{
+		gui["Menu.ConfirmPane"]->hide();
+		gui["Menu.ManagerPane.Manager"]->focus();
+
+		std::string errorId;
+		if(Transfer::remove(static_cast<Transfer::Kind>(pendingDeleteKind), pendingDeleteName, errorId))
+		{
+			engine.showToast(Engine::TOAST_OK, localizeString("$TR_DELETED") + " \"" + pendingDeleteName + "\"");
+		}
+		else engine.showToast(Engine::TOAST_ERROR, errorId.empty() ? "$TR_ERROR_FAILED" : errorId);
+
+		pendingDeleteName = "";
+		refreshManagerList();
+	}
+	else if(name == "Menu.ConfirmPane.Confirm.No")
+	{
+		gui["Menu.ConfirmPane"]->hide();
+		gui["Menu.ManagerPane.Manager"]->focus();
+		pendingDeleteName = "";
 	}
 	else if(name == "Menu.Quit")
 	{
@@ -559,6 +621,23 @@ void GS_Menu::pollImport()
 		return;
 	}
 
+	// Steht der Manager noch offen, dann sieht der Spieler gerade die Liste,
+	// in die die Datei gewandert ist - also auf ihre Art umschalten, neu
+	// einlesen und den neuen Eintrag markieren. Das ist der eigentliche
+	// Gewinn daran, Import und Export in einem Fenster zu haben: vorher
+	// blieb es bei der Meldung, und wo die Datei gelandet war, bekam man nie
+	// zu sehen.
+	if(gui["Menu.ManagerPane"]->isVisible())
+	{
+		setManagerKind(kind);
+		refreshManagerList();
+
+		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
+		const int where = p_list->findItem(name);
+		if(where != -1) p_list->setSelection(where);
+		updateManagerButtons();
+	}
+
 	// Bei Level, Musik und Skin ist der vergebene Name das, was der Spieler
 	// gleich irgendwo eintragen muss - also mit ausgeben. Er kommt aus
 	// sanitizeFilenameStem und besteht nur aus [A-Za-z0-9_-] plus Endung,
@@ -595,23 +674,73 @@ void GS_Menu::pollExport()
 	else if(!errorId.empty()) engine.showToast(Engine::TOAST_ERROR, errorId);
 }
 
-int GS_Menu::currentExportKind() const
+void GS_Menu::openManager()
 {
-	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindCampaign"])->isChecked()) return Transfer::KIND_CAMPAIGN;
-	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindMusic"])->isChecked())    return Transfer::KIND_MUSIC;
-	if(static_cast<GUI_RadioButton*>(gui["Menu.ExportPane.Export.KindSkin"])->isChecked())     return Transfer::KIND_SKIN;
+	setManagerKind(Transfer::KIND_LEVEL);
+	refreshManagerList();
+	gui["Menu.ManagerPane"]->show();
+	gui["Menu.ManagerPane.Manager"]->focus();
+}
+
+int GS_Menu::currentManagerKind() const
+{
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindCampaign"])->isChecked()) return Transfer::KIND_CAMPAIGN;
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindMusic"])->isChecked())    return Transfer::KIND_MUSIC;
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindSkin"])->isChecked())     return Transfer::KIND_SKIN;
 	return Transfer::KIND_LEVEL;
 }
 
-void GS_Menu::refreshExportList()
+void GS_Menu::setManagerKind(int kind)
 {
-	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ExportPane.Export.Items"]);
+	// check() und nicht setChecked(): der Wechsel soll wirken, als haette ihn
+	// jemand angeklickt. Die Liste liest der Aufrufer danach ohnehin neu ein.
+	const char* p_name = "Menu.ManagerPane.Manager.KindLevel";
+	switch(kind)
+	{
+	case Transfer::KIND_CAMPAIGN: p_name = "Menu.ManagerPane.Manager.KindCampaign"; break;
+	case Transfer::KIND_MUSIC:    p_name = "Menu.ManagerPane.Manager.KindMusic";    break;
+	case Transfer::KIND_SKIN:     p_name = "Menu.ManagerPane.Manager.KindSkin";     break;
+	default: break;
+	}
+	static_cast<GUI_RadioButton*>(gui[p_name])->check();
+}
+
+void GS_Menu::refreshManagerList()
+{
+	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 	p_list->clear();
 
-	const std::vector<std::string> items(Transfer::list(static_cast<Transfer::Kind>(currentExportKind())));
+	const std::vector<std::string> items(Transfer::list(static_cast<Transfer::Kind>(currentManagerKind())));
 	for(uint i = 0; i < items.size(); i++)
 	{
 		p_list->addItem(GUI_ListBox::ListItem(items[i], 0));
 	}
 	p_list->setSelection(items.empty() ? -1 : 0);
+
+	// setSelection() meldet sich nur, wenn sich die Nummer wirklich aendert -
+	// bei einer Liste, die vorher wie nachher auf 0 steht, also nicht. Der
+	// Inhalt kann trotzdem ein anderer sein, deshalb hier von Hand.
+	updateManagerButtons();
+}
+
+void GS_Menu::updateManagerButtons()
+{
+	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
+	const bool haveSelection = p_list->getSelection() != -1;
+
+	GUI_Button* p_export = static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Export"]);
+	if(haveSelection) p_export->activate();
+	else              p_export->deactivate();
+
+	// Die sieben mitgelieferten Dateien stehen in der Liste - man kann sie
+	// ausgeben und weitergeben -, aber loeschen laesst sich keine davon: der
+	// Skin, den ein Level nennt, waere sonst weg, und das Spiel liefert
+	// nichts nach.
+	const bool canDelete = haveSelection &&
+						   !Transfer::isBuiltIn(static_cast<Transfer::Kind>(currentManagerKind()),
+												p_list->getSelectedItemText());
+
+	GUI_Button* p_delete = static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Delete"]);
+	if(canDelete) p_delete->activate();
+	else          p_delete->deactivate();
 }
