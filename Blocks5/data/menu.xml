@@ -32,14 +32,7 @@
 			<Title>$MM_CAMPAIGN_EDITOR</Title>
 			<Image u="0" v="160" u2="80" v2="160">buttons.png</Image>
 		</Button>
-		<!-- Einspielen, ausgeben und loeschen - alles, was mit den Dateien
-		     im Benutzerverzeichnis zu tun hat, hinter einem Knopf. Vorher
-		     waren es zwei kleine, einer je Richtung; das trennte, was
-		     zusammengehoert, und fuers Loeschen war ueberhaupt kein Platz.
-		     Jetzt ist es ein grosser wie die anderen Hauptwege, mittig dort,
-		     wo das Paar zusammen stand: die Scheibe sass bei 318, und 278
-		     plus der 8 Pixel Rand trifft genau das wieder. -->
-		<Button name="Manager" x="278" y="67" w="80" h="80">
+		<Button name="Manager" x="270" y="67" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_MANAGE</Title>
