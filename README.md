@@ -55,9 +55,27 @@ builds it from a clean clone with nothing but the Emscripten SDK; `WebBuild/READ
 describes what works, what is left out, and the shims it needs.
 
 
+Checks
+------
+There is no unit test suite, but two things do run on every change.
+
+`python3 tools/verify.py` is a set of static checks over the tree: element paths that no
+dialog XML knows, `$IDs` missing from `languages.txt`, XML attributes written and never
+read, a source file missing from the Visual Studio project, the version number drifting
+apart across the four places it lives, encoding and indentation, and more.
+`python3 tools/selftest.py` proves those checks still bite by injecting each fault in turn.
+`tools/README.md` lists them one by one.
+
+`WebBuild/build.sh hooks` builds the browser port with a small read-only introspection hook
+(`WebBuild/test_hooks.cpp`, compiled out of the shipped build), which lets
+`WebBuild/test/smoke.js` drive the real game through its menus by element name rather than
+by guessed pixel coordinates. See `WebBuild/test/README.md`.
+
+
 Layout
 ------
     ROADMAP.md      planned work and what stands in the way of each item
+    tools/          verify.py and selftest.py, the static checks over the tree
     Blocks5/        the game: sources in src/, assets in data/, levels and skins in levels/
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer

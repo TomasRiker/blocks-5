@@ -4,11 +4,18 @@
 # Run from anywhere; paths are resolved relative to this script.
 #   ./build.sh            incremental
 #   ./build.sh clean      from scratch
+#   ./build.sh hooks      plus die Testhaken aus test_hooks.cpp
+#
+# "hooks" uebersetzt test_hooks.cpp mit -DBLOCKS5_TEST_HOOKS und baut nach
+# build-test/ statt build/, damit ein Build mit Haken nie versehentlich der
+# ausgelieferte ist. Ohne das Wort ist die Uebersetzungseinheit leer.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
 ZLIB="$GAME/libs/zlib-1.3.1"
 OUT="$HERE/build"
+HOOKS=""
+if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"; fi
 source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
@@ -30,7 +37,7 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 #                  videorecorder_stub.cpp)
 #   pch          - the Create-PCH translation unit, unused here
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
-SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp"
+SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/unzip.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/zip.c
@@ -69,7 +76,16 @@ compile() { # $1=file $2=flags
 }
 OBJS=""
 for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
-for f in $SRCS;  do n=$((n+1)); o=$(compile "$f" "$CXXFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
+for f in $SRCS;  do
+  n=$((n+1))
+  # Nur test_hooks.cpp sieht das Define. Es steht nicht in CXXFLAGS, damit ein
+  # Wechsel zwischen den beiden Buildarten nicht jede der 160 Einheiten neu
+  # uebersetzt - die beiden Ausgabeverzeichnisse trennen sie ohnehin.
+  extra=""
+  case "$f" in */test_hooks.cpp) extra="$HOOKS";; esac
+  o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
+  OBJS="$OBJS $o"
+done
 [ $fail -ne 0 ] && { echo "### COMPILE FAILED ###"; exit 1; }
 echo "### compiled $total translation units OK ###"
 
