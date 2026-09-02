@@ -501,7 +501,7 @@ TiXmlDocument* Level::save()
 
 	p_level->SetAttribute("width", WIDTH);
 	p_level->SetAttribute("height", HEIGHT);
-	p_level->SetAttribute("NUM_LAYERS", NUM_LAYERS);
+	p_level->SetAttribute("numLayers", NUM_LAYERS);
 	p_level->SetAttribute("numDiamondsNeeded", numDiamondsNeeded);
 	p_level->SetAttribute("electricityOn", electricityOn ? 1 : 0);
 	p_level->SetAttribute("nightVision", nightVision ? 1 : 0);
