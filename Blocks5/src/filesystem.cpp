@@ -56,7 +56,8 @@ std::string FileSystem::getAppHomeDirectory() const
 	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
-	// Mounted as IDBFS by the shell so saves and custom levels survive a reload.
+	// Von der Seite als IDBFS eingehaengt, damit Spielstaende und eigene Levels
+	// ein Neuladen ueberstehen.
 	return "/blocks5_home/";
 #else
 #error NOT IMPLEMENTED

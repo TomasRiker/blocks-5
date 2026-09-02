@@ -243,17 +243,12 @@ void StreamedSound::pumpBuffers()
 	}
 
 	// Laeuft die Warteschlange leer, haelt das die Quelle an, ohne sie zu
-	// leeren - die Abfrage oben bekommt das also nie zu fassen: das Auffuellen
-	// gibt der Quelle vier frische Puffer, AL_BUFFERS_QUEUED steht wieder auf
-	// 4, und sie bleibt fuer den Rest der Sitzung AL_STOPPED. Die Musik ist
-	// dann einfach weg. Im Browser ist das kein Sonderfall, sondern die normale
-	// Folge eines Tab-Wechsels: die Hauptschleife haengt an
-	// requestAnimationFrame, eine verborgene Seite bekommt keines, und in der
-	// Warteschlange liegen vier Viertelsekunden. Wer laenger als eine Sekunde
-	// weg ist, hoert nichts mehr.
-	// Eine absichtlich angehaltene Quelle muss angehalten bleiben, deshalb
-	// zaehlt nur AL_STOPPED als "bitte neu starten"; AL_PAUSED und AL_PLAYING
-	// bleiben unangetastet.
+	// leeren - das Auffuellen gibt ihr vier frische Puffer, und sie bleibt fuer
+	// den Rest der Sitzung AL_STOPPED. Im Browser ist das die normale Folge
+	// eines Tab-Wechsels: eine verborgene Seite bekommt kein
+	// requestAnimationFrame, und in der Warteschlange liegen vier
+	// Viertelsekunden. Eine absichtlich angehaltene Quelle muss angehalten
+	// bleiben, deshalb zaehlt nur AL_STOPPED als "bitte neu starten".
 	int state = AL_PLAYING;
 	alGetSourcei(sourceID, AL_SOURCE_STATE, &state);
 	if(state == AL_STOPPED) alSourcePlay(sourceID);
@@ -302,10 +297,8 @@ void StreamedSound::startDecoderThread()
 {
 	// Das Semaphor gehoert zu diesem einen Durchgang und wird zusammen mit dem
 	// Thread angelegt und weggeraeumt. Eines, das den Sound ueberdauert,
-	// brachte womoeglich einen Zaehlerstand aus der vorigen Runde mit - naemlich
-	// dann, wenn der Thread schon am Dateiende von selbst ausgestiegen war und
-	// stop() danach ins Leere gepostet hat -, und der naechste Thread wuerde
-	// sofort wieder aussteigen.
+	// brachte womoeglich einen Zaehlerstand aus der vorigen Runde mit, und der
+	// naechste Thread wuerde sofort wieder aussteigen.
 	p_stopSignal = SDL_CreateSemaphore(0);
 	p_thread = SDL_CreateThread(streamedSoundThreadProc, this);
 }
@@ -328,9 +321,9 @@ int StreamedSound::threadProc()
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 
 	// Die Wartezeit ist zugleich das Abbruchsignal: SDL_SemWaitTimeout kehrt
-	// mit SDL_MUTEX_TIMEDOUT zurueck, wenn die zehn Millisekunden einfach
-	// verstrichen sind, und mit 0, sobald joinDecoderThread() gepostet hat.
-	// Alles andere (-1) ist ein Fehler und beendet den Thread ebenfalls.
+	// mit SDL_MUTEX_TIMEDOUT zurueck, wenn die zehn Millisekunden verstrichen
+	// sind, und mit 0, sobald joinDecoderThread() gepostet hat. Alles andere
+	// (-1) ist ein Fehler und beendet den Thread ebenfalls.
 	while(!finish)
 	{
 		pumpBuffers();

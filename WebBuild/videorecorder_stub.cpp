@@ -1,11 +1,9 @@
-// videorecorder_stub.cpp - inert VideoRecorder for the web build.
+// videorecorder_stub.cpp - untaetiger VideoRecorder fuer den Web-Build.
 //
-// The real videorecorder.cpp is portable now - minih264, shine and minimp4 are
-// all plain C - so this build could in principle record too. It does not,
-// because nothing here captures audio (audiocapture.cpp is a stub outside
-// Windows) and the browser has no obvious place to put the file. Engine's F12
-// handler tears the recorder straight back down when it reports an error, which
-// is the intended behaviour when recording cannot start.
+// Das eigentliche videorecorder.cpp ist inzwischen portabel - minih264, shine und
+// minimp4 sind alle reines C -, aber hier nimmt nichts den Ton auf
+// (audiocapture.cpp ist ausserhalb von Windows ein Rumpf), und der Browser hat
+// keinen naheliegenden Platz fuer die Datei.
 #include "pch.h"
 #include "videorecorder.h"
 

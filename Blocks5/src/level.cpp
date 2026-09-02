@@ -261,19 +261,13 @@ bool Level::load(TiXmlDocument* p_doc,
 	if(!dontReallyLoad) loadSkin();
 
 	// Groesse und Ebenenzahl stehen fest (Level::WIDTH, HEIGHT, NUM_LAYERS). Die
-	// Datei nennt sie trotzdem, und hier wird sie beim Wort genommen: eine
-	// Datei mit anderen Werten wird abgewiesen statt stillschweigend falsch
-	// eingelesen. Ohne die Pruefung landeten die Zeilen einer 60x40-Datei in
-	// einem 40x25-Raster - lauter verschobene Kacheln und keine Meldung.
-	// Fehlende Attribute gelten als richtig: TiXmlElement::Attribute laesst
-	// den Wert unberuehrt, wenn es sie nicht gibt, und aeltere Dateien ohne
-	// die Angabe hatten ohnehin nie eine andere Groesse.
-	// Erst den Speicher holen, dann pruefen: von den vierzehn Stellen, die
-	// load() rufen, sehen sich nur zwei den Rueckgabewert an. Ein Abbruch darf
-	// deshalb keinen halbfertigen Level hinterlassen - sonst wird aus einer
-	// abgewiesenen Datei ein Absturz statt einer Meldung. Was der Aufrufer dann
-	// bekommt, ist der Fehler-Level; die Reservierung hier traegt den Fall,
-	// dass auch der nicht zu laden ist.
+	// Datei nennt sie trotzdem, und hier wird sie beim Wort genommen: sonst
+	// landeten die Zeilen einer 60x40-Datei in einem 40x25-Raster. Fehlende
+	// Attribute gelten als richtig, denn TiXmlElement::Attribute laesst den Wert
+	// unberuehrt.
+	// Erst den Speicher holen, dann pruefen: von den vierzehn Stellen, die load()
+	// rufen, sehen sich nur zwei den Rueckgabewert an, ein Abbruch darf also
+	// keinen halbfertigen Level hinterlassen.
 	allocateTiles();
 
 	int fileWidth = WIDTH, fileHeight = HEIGHT, fileNumLayers = NUM_LAYERS;
@@ -325,9 +319,8 @@ bool Level::load(TiXmlDocument* p_doc,
 			layer++;
 
 			// Nicht ueber NUM_LAYERS hinaus, auch wenn die Datei mehr <Layer>
-			// mitbringt: p_tiles ist fuer genau so viele reserviert, und
-			// setTileAt() rechnet layer in den Index hinein. Eine von aussen
-			// eingefuehrte Datei bestimmt beide Zahlen selbst.
+			// mitbringt: p_tiles ist fuer genau so viele reserviert, und eine von
+			// aussen eingefuehrte Datei bestimmt beide Zahlen selbst.
 			if(layer >= NUM_LAYERS) break;
 		}
 
@@ -583,10 +576,9 @@ TiXmlDocument* Level::save()
 void Level::render()
 {
 	// Einmal je Bild das Aussehen aller Objekte auf den Stand bringen. Danach
-	// gehen zwoelf Ebenen darueber - Ebene 1 dreimal, zweimal fuer den
-	// Schatten und einmal richtig -, und die zeichnen nur noch, was hier
-	// steht. Wer stattdessen in onRender aktualisierte, taete es vierzehnmal
-	// und mit der Farbe des jeweiligen Durchgangs.
+	// gehen zwoelf Ebenen darueber, die nur noch zeichnen, was hier steht - wer
+	// stattdessen in onRender aktualisierte, taete es vierzehnmal und mit der
+	// Farbe des jeweiligen Durchgangs.
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->onBeforeRender();
@@ -1176,9 +1168,8 @@ void Level::renderTiles(int layer,
 	glTranslated(offset.x, offset.y, 0.0);
 
 #ifdef __EMSCRIPTEN__
-	// WebGL has no display lists, so the tile mesh is re-emitted every frame
-	// instead of being compiled once and replayed. A shipped 40x25 level is
-	// 1000 quads per layer, which is cheap enough at 50 fps.
+	// WebGL kennt keine Displaylisten, das Kachelnetz wird also jedes Bild neu
+	// ausgegeben. Ein Level sind 1000 Vierecke je Ebene, das traegt sich.
 	{
 		p_tileSet->beginRender();
 
@@ -1773,19 +1764,13 @@ bool Level::setSkin(uint index,
 	return true;
 }
 
-// Frueher setSize(): das Umkopieren auf eine andere Groesse ist entfallen, denn
-// es gibt nur eine. clear() gibt den Speicher wieder frei und wird von jedem
-// load() als Erstes gerufen, deshalb reicht hier die Reservierung.
 // Der Fehler-Level tritt an die Stelle einer Datei, die sich nicht laden
-// laesst. Der Dateiname des Aufrufers wird danach wiederhergestellt: er steht
-// in den Protokollzeilen und soll weiter die Datei benennen, die gemeint war,
-// nicht den Platzhalter.
+// laesst. Der Dateiname des Aufrufers wird danach wiederhergestellt: er
+// steht in den Protokollzeilen und soll weiter die Datei benennen, die
+// gemeint war, nicht den Platzhalter.
 //
 // Hier laufen alle drei Fehlerwege von load() zusammen - kaputtes XML,
 // fehlendes <Level>, falsche Groesse -, also steht hier auch die Meldung.
-// Bisher sah der Spieler nur das Wort ERROR aus Bloecken und erfuhr nirgends,
-// welche Datei gemeint war; im Editor gab es eine eigene Meldung, in der
-// Levelauswahl gar keine.
 bool Level::loadErrorLevel()
 {
 	if(loadingErrorLevel) return false;
@@ -1794,10 +1779,9 @@ bool Level::loadErrorLevel()
 
 	// Die Palettenlevel cat<N>.xml gehoeren zum Spiel und sind nicht die Datei,
 	// die jemand aufmachen wollte; fuer sie bleibt es beim Logeintrag. In der
-	// Vorschau kommt die Meldung ohne Ton: wer mit den Pfeiltasten durch eine
-	// kaputte Kampagne geht, bekaeme sonst bei jedem Tastendruck einen Fehlton.
-	// Genannt wird der blosse Dateiname - der ganze Pfad fuehrt bei einer
-	// Kampagne durch das Archiv samt Passwort und sagt niemandem etwas.
+	// Vorschau kommt die Meldung ohne Ton, sonst gaebe es beim Durchgehen einer
+	// kaputten Kampagne bei jedem Tastendruck einen Fehlton. Genannt wird der
+	// blosse Dateiname - der ganze Pfad fuehrt durch das Archiv samt Passwort.
 	if(!inCat)
 	{
 		const std::string::size_type slash = wanted.find_last_of('/');
@@ -1999,22 +1983,11 @@ void Level::removeObject(Object* p_object)
 	// Abmelden darf genau einmal passieren. onRemove() laeuft sofort, das
 	// Loeschen erst beim naechsten removeOldObjects() - dazwischen steht das
 	// Objekt noch in objects und wird von jedem weiteren removeObject() erneut
-	// erwischt. Das ging auf zwei Wegen schief:
-	//
-	//   - clean() (F5 im Spielmenue) meldet alles ab, was in objects steht.
-	//     Faellt der Spieler in einen Abgrund, blendet er 0,2 s lang aus
-	//     (object.cpp: disappear(0.2)), und im Tick danach meldet ihn die
-	//     Update-Schleife ab. Wer in genau diesem einen Tick F5 drueckt, meldet
-	//     ihn ein zweites Mal ab.
-	//   - clearPosition() im selben Tick, etwa wenn eine Explosion das Feld
-	//     raeumt, auf dem gerade jemand gestorben ist. Dafuer braucht es gar
-	//     keine Taste.
+	// erwischt, etwa von clean() (F5) oder von clearPosition() im selben Tick.
 	//
 	// Player::numInstances ist ein uint: der zweite Abgang macht aus 0 den Wert
-	// 0xFFFFFFFF, und der Spieler des neu geladenen Levels macht daraus 0. Genau
-	// das stand als offene Frage in gs_game.cpp. Danach ist numInstances nie
-	// wieder 1, also legt kein Spieler mehr die Sound-Instanzen fuer Giftgas und
-	// Gasmaske an - die bleiben bis zum Programmende stumm. Laser, Aufzug,
+	// 0xFFFFFFFF, danach ist numInstances nie wieder 1, und kein Spieler legt
+	// mehr die Sound-Instanzen fuer Giftgas und Gasmaske an. Laser, Aufzug,
 	// Foerderband und Giftgas zaehlen genauso.
 	if(p_object->removed) return;
 	p_object->removed = true;
@@ -2399,8 +2372,7 @@ void Level::loadSkin(bool forceReload)
 	// Kachelgroesse eingeschleuste tileset.xml -, liefert request() eine Null,
 	// und die 13 Stellen, die p_tileSet danach ohne Pruefung anfassen, wuerden
 	// abstuerzen. Ein Skin, der sich nicht laden laesst, faellt deshalb auf den
-	// mitgelieferten zurueck; getSkinFilename kann das ohnehin schon, bisher
-	// aber nur anhand einer "default_"-Datei und nicht bei einem Ladefehler.
+	// mitgelieferten zurueck.
 	TileSet* p_oldTileSet = p_tileSet;
 	p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
 	if(!p_tileSet && skin[Level::SKIN_TILESET] != p_defaultSkin)
@@ -2505,9 +2477,8 @@ void Level::loadSkin(bool forceReload)
 
 	// Sagen, dass etwas fehlt. Die Palette des Editors nicht - sie ist selbst
 	// ein Level und laedt denselben Skin gleich fuenfmal mit. In der Vorschau
-	// der Levelauswahl bleibt die Meldung stumm: dort laedt jeder Schritt
-	// durch die Liste einen neuen Level, und bei einer kaputten Kampagne
-	// klaenge der Fehlerton bei jedem Tastendruck.
+	// der Levelauswahl bleibt die Meldung stumm, sonst klaenge bei einer
+	// kaputten Kampagne der Fehlerton bei jedem Tastendruck.
 	if(!inCat)
 	{
 		for(std::set<std::string>::const_iterator i = badSkins.begin(); i != badSkins.end(); ++i)

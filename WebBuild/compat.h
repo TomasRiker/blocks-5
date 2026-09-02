@@ -1,5 +1,5 @@
-// compat.h - non-MSVC compatibility layer for Blocks 5.
-// Force-included ahead of everything so no game source needs editing.
+// compat.h - Ausgleichsschicht fuer Uebersetzer ausser MSVC. Wird allem
+// vorangestellt, damit keine Quelldatei des Spiels angefasst werden muss.
 #ifndef BLOCKS5_COMPAT_H
 #define BLOCKS5_COMPAT_H
 #ifndef _MSC_VER

@@ -41,14 +41,11 @@ namespace
 		}
 	}
 
-	// Dateinamen vergleichen, ohne auf Gross- und Kleinschreibung zu achten.
-	// Unter Windows ist "Blocks.zip" dieselbe Datei wie "blocks.zip"; ein
-	// Name, der sich nur in der Schreibweise unterscheidet, ginge sonst an
-	// isBuiltIn() vorbei und traefe die mitgelieferte Datei doch.
-	// Von Hand und nur fuer ASCII: tolower() haengt am Gebietsschema und
-	// braeuchte <cctype>, das der vorkompilierte Header nicht zieht. Die
-	// Namen, um die es geht, sind ohnehin sieben feste Zeichenketten aus
-	// [a-z0-9_.].
+	// Dateinamen ohne Ruecksicht auf Gross- und Kleinschreibung vergleichen:
+	// unter Windows ist "Blocks.zip" dieselbe Datei wie "blocks.zip", und ein
+	// nur anders geschriebener Name ginge sonst an isBuiltIn() vorbei. Von
+	// Hand und nur fuer ASCII - tolower() haengt am Gebietsschema und
+	// braeuchte <cctype>, das der vorkompilierte Header nicht zieht.
 	bool sameFilename(const std::string& a, const char* p_b)
 	{
 		std::string::size_type i = 0;
@@ -64,14 +61,11 @@ namespace
 
 bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 {
-	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der
-	// vier mitgelieferten sind mit einem Passwort gepackt, und sie beim
-	// Hinausgehen zu entschluesseln waere eine Hintertuer um genau den
-	// Schutz herum, dessentwegen sie gepackt sind. Der Empfaenger kann das
-	// Archiv nicht oeffnen - benutzen kann er es trotzdem: das Passwort
-	// liegt als password.txt darin, und Level::getSkinFilename liest es aus
-	// jedem Skin-Archiv, unter welchem Namen es auch immer abgelegt wurde.
-	// Ein selbstgemachter Skin hat ohnehin keines.
+	// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
+	// mitgelieferten sind mit einem Passwort gepackt, und sie beim Hinausgehen
+	// zu entschluesseln waere eine Hintertuer um genau diesen Schutz herum.
+	// Benutzen kann der Empfaenger das Archiv trotzdem - das Passwort liegt als
+	// password.txt darin, und Level::getSkinFilename liest es dort aus.
 	FileSystem& fs = FileSystem::inst();
 	const std::string source(directoryFor(kind) + name);
 	if(!fs.fileExists(source)) return false;
@@ -148,24 +142,17 @@ std::string install(Kind kind,
 
 	// Fuer alle vier Arten dasselbe: der Wunschname, auf [A-Za-z0-9_-]
 	// zusammengestrichen, plus die Endung der Art. Gibt es die Datei schon,
-	// wird sie ersetzt.
-	//
-	// Frueher wich der Import stattdessen auf stem_2, stem_3 ... aus - bei
-	// allem ausser dem Skin, denn dessen Dateiname ist seine Kennung: ein
-	// Level sagt skin0="space" und der Lader sucht levels/skins/space.zip,
-	// und space_2.zip haette alle diese Level genauso kaputt gelassen wie
-	// vorher, nur ohne sichtbaren Grund. Dasselbe Argument gilt schwaecher
-	// auch fuer die anderen: wer eine neue Fassung seines Levels einspielt,
-	// meint seinen Level und nicht einen zweiten daneben. Ausserdem behaelt
-	// eine erneut eingespielte Kampagne so ihren Fortschritt, weil die
-	// ProgressDB nach dem Dateinamen schluesselt.
+	// wird sie ersetzt - wer eine neue Fassung seines Levels einspielt, meint
+	// seinen Level und nicht einen zweiten daneben. Beim Skin ginge es gar
+	// nicht anders: sein Dateiname ist seine Kennung, ein Level sagt
+	// skin0="space" und der Lader sucht levels/skins/space.zip.
 	const std::string dir(directoryFor(kind));
 	const std::string name(sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) +
 						   extensionFor(kind));
 
 	// Die eine Ausnahme: die sieben Namen, unter denen das Spiel selbst etwas
 	// mitliefert. Ueberschreiben hiesse hier, dem Spieler etwas wegzunehmen,
-	// das er nicht wiederbekommt - also wird abgelehnt statt ausgewichen.
+	// das er nicht wiederbekommt.
 	if(isBuiltIn(kind, name))
 	{
 		errorId = "$TR_ERROR_RESERVED";
@@ -212,8 +199,8 @@ std::vector<std::string> list(Kind kind)
 bool isBuiltIn(Kind kind, const std::string& name)
 {
 	// Genau das, was nach einer Neuinstallation im Benutzerverzeichnis liegt:
-	// zip_skins.bat baut die vier Skins, die Kampagne heisst seit jeher
-	// blocks.zip, und die beiden Beispiellevel liegen lose daneben.
+	// zip_skins.bat baut die vier Skins, die Kampagne heisst blocks.zip, und
+	// die beiden Beispiellevel liegen lose daneben.
 	static const char* p_levels[]    = { "example01.xml", "example02.xml", 0 };
 	static const char* p_campaigns[] = { "blocks.zip", 0 };
 	static const char* p_skins[]     = { "blocks_01.zip", "blocks_02.zip",
@@ -239,8 +226,8 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 {
 	errorId = "";
 
-	// Der Knopf ist in diesen Faellen ohnehin abgeschaltet; hier steht die
-	// Sperre trotzdem, weil sie zur Sache gehoert und nicht zur Oberflaeche.
+	// Der Knopf ist in diesen Faellen ohnehin abgeschaltet; die Sperre gehoert
+	// trotzdem hierher und nicht in die Oberflaeche.
 	if(kind == KIND_NONE || name.empty())
 	{
 		errorId = "$TR_ERROR_FAILED";
@@ -259,9 +246,8 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 	}
 
 #ifdef __EMSCRIPTEN__
-	// Sofort nach IndexedDB durchschreiben, aus demselben Grund wie beim
-	// Import: sonst waere die Datei bis zu fuenf Sekunden lang nur im
-	// Arbeitsspeicher geloescht und nach einem Neuladen wieder da.
+	// Sofort nach IndexedDB durchschreiben, wie beim Import: sonst waere die
+	// Datei nur im Arbeitsspeicher geloescht und nach einem Neuladen wieder da.
 	WebTransfer::syncHome();
 #endif
 
@@ -277,9 +263,9 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 namespace
 {
 	// C gibt alle drei moeglichen Ziele vor und JS sucht sich nach der Endung
-	// eines davon aus. Damit setzt weiterhin niemand ausser C einen Pfad
-	// zusammen. Die Zwischendatei liegt ausserhalb des Benutzerverzeichnisses,
-	// damit eine abgelehnte Datei gar nicht erst in die IndexedDB kommt.
+	// eines davon aus, damit weiterhin niemand ausser C einen Pfad zusammensetzt.
+	// Die Zwischendatei liegt ausserhalb des Benutzerverzeichnisses, damit eine
+	// abgelehnte Datei gar nicht erst in die IndexedDB kommt.
 	const char* const p_stagingOgg = "/blocks5_import.ogg";
 	const char* const p_stagingXml = "/blocks5_import.xml";
 	const char* const p_stagingZip = "/blocks5_import.zip";
@@ -416,13 +402,10 @@ namespace
 
 	// Ein Dateidialog bringt eine fremde Nachrichtenschleife mit: die
 	// Hauptschleife des Spiels steht, solange er offen ist. Das Fenster bleibt
-	// trotzdem sichtbar, weil die Fensterprozedur waehrenddessen weiterzeichnet
-	// - dieselbe Vorrichtung wie beim Ziehen am Fensterrand.
-	//
-	// Das Vollbild bleibt dabei stehen. Der Dialog gehoert dem Spielfenster
-	// (hwndOwner), und ein Fenster mit Besitzer haelt Windows immer ueber
-	// diesem - auch ueber einem randlosen Vollbildfenster. Genau daran fehlte
-	// es vorher: GetActiveWindow() taugt hier nicht.
+	// sichtbar, weil die Fensterprozedur waehrenddessen weiterzeichnet -
+	// dieselbe Vorrichtung wie beim Ziehen am Fensterrand. Der Dialog gehoert
+	// dem Spielfenster (hwndOwner), und ein Fenster mit Besitzer haelt Windows
+	// immer darueber, auch ueber einem randlosen Vollbildfenster.
 	struct ModalScope
 	{
 		ModalScope()  { Engine::inst().beginForeignMessageLoop(); }
@@ -438,10 +421,9 @@ namespace
 
 bool beginImport()
 {
-	// Nur vormerken. Der Dialog laeuft eine Runde spaeter in pollImport(),
-	// denn hier stecken wir mitten in der Ereignisverteilung der GUI - ein
-	// modales Fenster startet dort eine zweite Nachrichtenschleife, waehrend
-	// GUI_Button::onMouseUp noch nicht zu Ende ist.
+	// Nur vormerken. Der Dialog laeuft eine Runde spaeter in pollImport(), denn
+	// hier stecken wir mitten in der Ereignisverteilung der GUI - ein modales
+	// Fenster startete dort eine zweite Nachrichtenschleife.
 	if(g_wantDialog) return false;
 	g_wantDialog = true;
 	return true;

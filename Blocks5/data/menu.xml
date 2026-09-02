@@ -6,14 +6,9 @@
 		</StaticText>
 		<!-- Die Felder in buttons.png sind 80x80 (grosse Knoepfe) und 50x50
 		     (kleine), luecklos gepackt: Spalte 0 ungedrueckt, Spalte 80 bzw.
-		     210 gedrueckt. Die Scheibe selbst ist unveraendert 64 bzw. 32
-		     Pixel gross und liegt jetzt in *beiden* Zustaenden mittig im
-		     Feld - vorher sass sie ungedrueckt in der linken oberen Ecke und
-		     nur gedrueckt mittig. Deshalb reagierte ein Knopf von links
-		     frueher auf die Maus als von rechts, und ein zu grosses Bild
-		     ragte ins Nachbarfeld. Damit die Scheibe an derselben Stelle auf
-		     dem Bildschirm bleibt, ruecken alle x/y um den neuen Rand nach
-		     oben links: 8 Pixel bei den grossen, 9 bei den kleinen. -->
+		     210 gedrueckt. Die Scheibe liegt in beiden Zustaenden mittig im
+		     Feld, x/y stehen deshalb um den Rand nach oben links versetzt:
+		     8 Pixel bei den grossen, 9 bei den kleinen. -->
 		<Button name="StartGame" x="12" y="97" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
@@ -56,10 +51,9 @@
 			<Title>$MM_QUIT</Title>
 			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
-		<!-- Die Adresse oben rechts gehoert zu menu.png und ist damit kein
-		     eigenes Element. Dieser Knopf liegt nur darueber: ExtendedStyle
-		     ohne Bild und ohne Titel zeichnet nichts. Gemessen im fertigen
-		     Bild - der Text steht bei x 474..636, y 8..22. -->
+		<!-- Die Adresse oben rechts gehoert zu menu.png und ist kein eigenes
+		     Element. Dieser Knopf liegt nur darueber und zeichnet nichts;
+		     der Text steht im fertigen Bild bei x 474..636, y 8..22. -->
 		<Button name="Website" x="470" y="4" w="170" h="22">
 			<ExtendedStyle />
 			<Title></Title>
@@ -88,15 +82,9 @@
 			</Window>
 		</Element>
 
-		<!-- Der Manager. Die Art waehlt man mit vier Knopf-Radios, die Sache
-		     selbst aus der Liste darunter; die Liste wird bei jedem Wechsel
-		     der Art neu eingelesen, und "Aktualisieren" liest sie noch einmal
-		     ein, falls sich nebenher etwas geaendert hat.
-		     Die vier Knoepfe unten stehen genau in den Spalten der vier
-		     Radios darueber - 92 Pixel reichen fuer jede der acht
-		     Beschriftungen, die laengste misst 66. Einspielen braucht keine
-		     Auswahl und steht deshalb zuerst; Ausgeben und Loeschen arbeiten
-		     an der Auswahl und schalten sich ab, wenn keine da ist. -->
+		<!-- Der Manager. Die vier Knoepfe unten stehen in den Spalten der
+		     vier Radios darueber - 92 Pixel reichen fuer jede der acht
+		     Beschriftungen, die laengste misst 66. -->
 		<Element name="ManagerPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />
@@ -148,11 +136,9 @@
 			</Window>
 		</Element>
 
-		<!-- Die Rueckfrage vors Loeschen: das Einzige, was der Manager tut
-		     und was sich nicht rueckgaengig machen laesst. Sie steht nach
-		     dem Manager, weil das letzte Kind im XML sowohl zuletzt
-		     gezeichnet wird als auch die Klicks bekommt. Ohne eigenes
-		     Abdunkeln - der Manager darunter dunkelt schon ab. -->
+		<!-- Die Rueckfrage vors Loeschen. Sie muss nach dem Manager stehen,
+		     weil das letzte Kind im XML zuletzt gezeichnet wird und die
+		     Klicks bekommt. -->
 		<Element name="ConfirmPane" w="640" h="480">
 			<Hidden />
 			<Window name="Confirm" w="420" h="120">
@@ -171,8 +157,7 @@
 		</Element>
 
 		<!-- Einmalig beim ersten Start von 1.2.0: der Hinweis auf den
-		     CRT-Filter. Wer ihn nie im Optionsdialog sucht, erfaehrt sonst
-		     nicht, dass es ihn gibt. -->
+		     CRT-Filter. -->
 		<Element name="CrtPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />

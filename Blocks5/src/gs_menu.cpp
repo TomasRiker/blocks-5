@@ -19,17 +19,10 @@ extern const char* p_localVersion;
 
 namespace
 {
-	// demo1.dat haelt rohe Tastennummern fest - die von SDL 1.2, mit denen die
-	// Aufnahme seinerzeit unter Windows entstanden ist. Emscriptens SDL zaehlt
-	// anders: SDLK_LEFT ist dort 1104 und nicht 276. Unuebersetzt schrieb die
-	// Demo also in Tastenplaetze, die niemand liest - Bob stand im Titelbild
-	// still, bis er einschlief.
-	//
-	// Die Tabelle bildet die aufgezeichnete Zahl auf die Konstante ab, die
-	// *dieser* Build meint. Unter Windows ist das die Identitaet, denn dort
-	// sind die Konstanten genau die aufgezeichneten Zahlen; im Browser ist es
-	// die Umrechnung. Mehr als diese acht Tasten kommen in der Aufnahme nicht
-	// vor - nachgezaehlt, es sind genau diese.
+	// demo1.dat haelt rohe Tastennummern fest - die von SDL 1.2, unter denen
+	// die Aufnahme entstanden ist. Emscriptens SDL zaehlt anders: SDLK_LEFT
+	// ist dort 1104 und nicht 276. Die Tabelle bildet die aufgezeichnete Zahl
+	// auf die Konstante ab, die *dieser* Build meint.
 	struct RecordedKey
 	{
 		uint recorded;
@@ -142,9 +135,8 @@ void GS_Menu::onRender()
 
 void GS_Menu::onUpdate()
 {
-	// Die Dateidialoge laufen hier, nicht im Klick-Handler: unter Windows
-	// sind sie modal und wuerden sonst eine zweite Nachrichtenschleife mitten
-	// in der Ereignisverteilung der GUI starten.
+	// Die Dateidialoge laufen hier, nicht im Klick-Handler: unter Windows sind
+	// sie modal und starteten sonst eine zweite Nachrichtenschleife in der GUI.
 	pollImport();
 	pollExport();
 
@@ -169,24 +161,16 @@ void GS_Menu::onUpdate()
 	}
 
 	// Escape beendet das Spiel. Das muss *vor* dem Abspielen der Demo stehen:
-	// gleich darunter werden alle Tastenplaetze geleert und mit den
-	// aufgezeichneten Tastendruecken aus demo1.dat gefuellt, damit sich der
-	// Titellevel von selbst spielt. Ab da liest wasKeyPressed() die Aufnahme
-	// und nicht mehr die Tastatur - deshalb fragen auch die beiden Abfragen
-	// darueber SDL direkt. Der Escape-Druck von oben steht hier noch.
-	//
-	// Nicht, wenn die Spendenfrage offen ist - die hat ihre eigenen Knoepfe -,
-	// und nicht, wenn Optionen oder Hilfe die Taste eben selbst benutzt haben:
-	// die melden sie mit consumeKeyPress() ab, weil GUI::update() vor
-	// onUpdate() laeuft und sie sonst im selben Bild schliessen *und* das
-	// Spiel beenden wuerden.
+	// gleich darunter liest wasKeyPressed() die Aufnahme und nicht mehr die
+	// Tastatur. Nicht, wenn die Spendenfrage offen ist, und nicht, wenn
+	// Optionen oder Hilfe die Taste eben selbst benutzt haben - die melden sie
+	// mit consumeKeyPress() ab, weil GUI::update() vor onUpdate() laeuft.
 	if(engine.wasKeyPressed(SDLK_ESCAPE) &&
 	   !gui["Menu.DonatePane"]->isVisible() &&
 	   !gui["Menu.CrtPane"]->isVisible())
 	{
-		// Der Manager und seine Rueckfrage nehmen die Taste fuer sich, von
-		// oben nach unten. Bisher tat der Export-Dialog das nicht: ein
-		// Escape bei offenem Fenster beendete das Spiel.
+		// Der Manager und seine Rueckfrage nehmen die Taste fuer sich, von oben
+		// nach unten.
 		if(gui["Menu.ConfirmPane"]->isVisible())
 		{
 			handleClick(gui["Menu.ConfirmPane.Confirm.No"]);
@@ -203,10 +187,9 @@ void GS_Menu::onUpdate()
 		}
 	}
 
-	// Ab hier gehoert die Tastatur der Demo.
-	// SDLK_LAST, nicht 512: Emscriptens SDL zaehlt bis 1536, und die Pfeiltasten
-	// liegen dort jenseits von 512. Ungeloescht bliebe eine davon fuer immer
-	// gedrueckt, sobald die Demo sie einmal gesetzt hat.
+	// Ab hier gehoert die Tastatur der Demo. SDLK_LAST, nicht 512: Emscriptens
+	// SDL zaehlt bis 1536, und die Pfeiltasten liegen dort jenseits von 512 -
+	// ungeloescht bliebe eine davon fuer immer gedrueckt.
 	for(int i = 0; i < SDLK_LAST; i++)
 	{
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
@@ -278,12 +261,9 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	FileSystem& fs = FileSystem::inst();
 
 	// Einmalig auf den CRT-Filter hinweisen: beim ersten Start nach der
-	// Installation und ebenso beim ersten nach einem Update, denn die
-	// Merkdatei gibt es vor 1.2.0 nirgends. Nur, wenn die Maschine den Filter
-	// ueberhaupt darstellen kann - sonst waere es ein Angebot, das der
-	// Optionsdialog gar nicht erst auffuehrt.
-	// Wer ihn schon eingeschaltet hat, muss nicht gefragt werden. Vorkommen
-	// kann das eigentlich nur, wenn die config.xml von woanders stammt.
+	// Installation und ebenso nach einem Update, denn die Merkdatei gibt es
+	// vor 1.2.0 nirgends. Nur, wenn die Maschine den Filter darstellen kann
+	// und er nicht schon eingeschaltet ist.
 	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
 	const bool offerCrt = engine.canUseCrt() &&
 						  engine.getUpscaleFilter() != Engine::UF_CRT &&
@@ -297,14 +277,10 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 		const uint lastAskedForDonation = static_cast<uint>(atoi(lastAskedForDonationStr.c_str()));
 		const uint timePlayed = engine.getTimePlayed();
 
-		// Beide Zahlen sind vorzeichenlos. Steht in .donation_asked eine
-		// groessere als in .time_played, lief die Differenz ueber und ergab
-		// etwas Riesiges - das Spendenfenster kam dann bei jedem Start. Im
-		// Browser war das der Normalfall: dort schrieb niemand .time_played,
-		// die gespielte Zeit fing also jedesmal wieder bei null an, waehrend
-		// .donation_asked vom ersten Mal her stehenblieb.
-		// Nicht beides auf einmal: der CRT-Hinweis kommt genau einmal, die
-		// Spendenfrage naechstes Mal wieder.
+		// Beide Zahlen sind vorzeichenlos: steht in .donation_asked eine
+		// groessere als in .time_played, laeuft die Differenz ueber und das
+		// Spendenfenster kaeme bei jedem Start.
+		// Nicht beides auf einmal - die Spendenfrage kommt naechstes Mal.
 		if(!offerCrt &&
 		   timePlayed >= lastAskedForDonation &&
 		   timePlayed - lastAskedForDonation >= 60 * (60 * 60 * 3))
@@ -433,8 +409,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	}
 	else if(name == "Menu.ManagerPane.Manager.Items")
 	{
-		// Die Auswahl hat gewechselt - Ausgeben und Loeschen richten sich
-		// danach.
+		// Die Auswahl hat gewechselt - Ausgeben und Loeschen richten sich danach.
 		updateManagerButtons();
 	}
 	else if(name == "Menu.ManagerPane.Manager.Close")
@@ -445,9 +420,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	else if(name == "Menu.ManagerPane.Manager.Import")
 	{
 		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
-		// Transfer::classify am Inhalt, nicht an der Endung. Das Fenster
-		// bleibt dabei offen: wenn die Datei angekommen ist, schaltet
-		// pollImport() auf ihre Art um und zeigt sie in der Liste.
+		// Transfer::classify am Inhalt. Das Fenster bleibt dabei offen.
 		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
 	}
 	else if(name == "Menu.ManagerPane.Manager.Export")
@@ -455,20 +428,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1)
 		{
-			// Von dieser Sorte ist noch nichts da. Der Knopf ist dann zwar
-			// abgeschaltet, aber die Eingabetaste der Liste kommt auch hier
-			// an, und ohne die Meldung taete sie schlicht nichts.
+			// Von dieser Sorte ist noch nichts da. Der Knopf ist zwar abgeschaltet,
+			// aber die Eingabetaste der Liste kommt auch hier an.
 			engine.showToast(Engine::TOAST_ERROR, "$TR_NOTHING_TO_EXPORT");
 			return;
 		}
 
-		// Nur vormerken - der Dialog laeuft eine Runde spaeter in
-		// pollExport(), aus demselben Grund wie beim Import. Das Fenster
-		// bleibt auch hier offen, gleich ob das Ausgeben klappt oder nicht:
-		// solange der Export ein eigener Dialog war, war er mit dem Klick
-		// erledigt und durfte sich schliessen - der Manager ist ein Platz,
-		// an dem man weiterarbeitet, und wer eine Datei ausgibt, will oft
-		// gleich die naechste.
+		// Nur vormerken - der Dialog laeuft eine Runde spaeter in pollExport(),
+		// aus demselben Grund wie beim Import. Das Fenster bleibt offen: der
+		// Manager ist ein Platz, an dem man weiterarbeitet.
 		pendingExportKind = currentManagerKind();
 		pendingExportName = p_list->getSelectedItemText();
 		pendingExport = true;
@@ -479,8 +447,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		if(p_list->getSelection() == -1) return;
 
 		// Das Einzige im Manager, was sich nicht rueckgaengig machen laesst -
-		// also erst fragen. Was geloescht werden soll, steht ab hier fest und
-		// wird nicht spaeter noch einmal aus der Liste geholt.
+		// also erst fragen. Was geloescht wird, steht ab hier fest.
 		pendingDeleteKind = currentManagerKind();
 		pendingDeleteName = p_list->getSelectedItemText();
 
@@ -519,8 +486,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		// Der unsichtbare Knopf ueber der Adresse im Hintergrundbild.
 #ifdef __EMSCRIPTEN__
 		// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
-		// nur einen Frame zurueck, also gilt die Seite dem Browser noch als
-		// kuerzlich bedient und der Popup-Blocker laesst das Fenster durch.
+		// nur einen Frame zurueck, der Popup-Blocker laesst das Fenster durch.
 		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
 #else
 		// Wie beim Spendenknopf: unter Windows liegt die Adresse in einer
@@ -568,18 +534,14 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		{
 			gui["Menu.DonatePane"]->hide();
 #ifdef __EMSCRIPTEN__
-			// Neben der Anwendung liegt hier kein Verzeichnis, in dem eine
-			// .url-Verknuepfung stehen koennte - der Browser bekommt die
-			// Adresse also direkt. Sie muss mit der uebereinstimmen, die in
-			// "Donate (<Sprache>).url" steht: das ist die Datei, die die
-			// Windows-Fassung unten oeffnet.
+			// Neben der Anwendung liegt hier kein Verzeichnis fuer eine
+			// .url-Verknuepfung; die Adresse muss mit der in
+			// "Donate (<Sprache>).url" uebereinstimmen.
 			const std::string url = engine.getLanguage() == "de"
 				? "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UUFVK97YL6ZHY"
 				: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FMADXSNPDGRCW";
-			// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick
-			// liegt nur einen Frame zurueck, also gilt die Seite dem Browser
-			// noch als "kuerzlich bedient" und der Popup-Blocker laesst das
-			// Fenster durch.
+			// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
+			// nur einen Frame zurueck, der Popup-Blocker laesst ihn durch.
 			EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
 #else
 			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
@@ -624,12 +586,9 @@ void GS_Menu::pollImport()
 		return;
 	}
 
-	// Steht der Manager noch offen, dann sieht der Spieler gerade die Liste,
-	// in die die Datei gewandert ist - also auf ihre Art umschalten, neu
-	// einlesen und den neuen Eintrag markieren. Das ist der eigentliche
-	// Gewinn daran, Import und Export in einem Fenster zu haben: vorher
-	// blieb es bei der Meldung, und wo die Datei gelandet war, bekam man nie
-	// zu sehen.
+	// Steht der Manager noch offen, sieht der Spieler gerade die Liste, in die
+	// die Datei gewandert ist - also auf ihre Art umschalten, neu einlesen und
+	// den neuen Eintrag markieren.
 	if(gui["Menu.ManagerPane"]->isVisible())
 	{
 		setManagerKind(kind);
@@ -641,10 +600,8 @@ void GS_Menu::pollImport()
 		updateManagerButtons();
 	}
 
-	// Wurde etwas ersetzt, dann ist genau das die Nachricht: die Datei, die
-	// vorher unter diesem Namen lag, ist weg. Den Namen musste der Spieler
-	// dafuer schon kennen - er hat ihn ja vergeben -, also entfaellt hier der
-	// Hinweis, wo man ihn eintraegt.
+	// Wurde etwas ersetzt, ist genau das die Nachricht: die Datei, die vorher
+	// unter diesem Namen lag, ist weg.
 	if(replaced)
 	{
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_REPLACED") + " \"" + name + "\"");
@@ -652,9 +609,8 @@ void GS_Menu::pollImport()
 	}
 
 	// Bei Level, Musik und Skin ist der vergebene Name das, was der Spieler
-	// gleich irgendwo eintragen muss - also mit ausgeben. Er kommt aus
-	// sanitizeFilenameStem und besteht nur aus [A-Za-z0-9_-] plus Endung,
-	// kann also keine Lokalisierungsmarke enthalten.
+	// gleich irgendwo eintragen muss - also mit ausgeben. Er besteht nur aus
+	// [A-Za-z0-9_-] plus Endung, kann also keine Lokalisierungsmarke enthalten.
 	switch(kind)
 	{
 	case Transfer::KIND_CAMPAIGN:
@@ -730,9 +686,8 @@ void GS_Menu::refreshManagerList()
 	}
 	p_list->setSelection(items.empty() ? -1 : 0);
 
-	// setSelection() meldet sich nur, wenn sich die Nummer wirklich aendert -
-	// bei einer Liste, die vorher wie nachher auf 0 steht, also nicht. Der
-	// Inhalt kann trotzdem ein anderer sein, deshalb hier von Hand.
+	// setSelection() meldet sich nur, wenn sich die Nummer wirklich aendert.
+	// Der Inhalt kann trotzdem ein anderer sein, deshalb hier von Hand.
 	updateManagerButtons();
 }
 
@@ -746,9 +701,8 @@ void GS_Menu::updateManagerButtons()
 	else              p_export->deactivate();
 
 	// Die sieben mitgelieferten Dateien stehen in der Liste - man kann sie
-	// ausgeben und weitergeben -, aber loeschen laesst sich keine davon: der
-	// Skin, den ein Level nennt, waere sonst weg, und das Spiel liefert
-	// nichts nach.
+	// ausgeben -, aber loeschen laesst sich keine davon: der Skin, den ein
+	// Level nennt, waere sonst weg, und das Spiel liefert nichts nach.
 	const bool canDelete = haveSelection &&
 						   !Transfer::isBuiltIn(static_cast<Transfer::Kind>(currentManagerKind()),
 												p_list->getSelectedItemText());

@@ -62,17 +62,16 @@ std::string getCurrentVersion()
 
 		static DWORD WINAPI threadProc(void* p_param)
 		{
-			// Die Versionsnummer gehoert mit in die Kennung: im Serverprotokoll
-			// steht dann, welche Fassung gerade nachfragt. Aeltere Installationen
-			// schicken weiterhin den blossen Namen ohne Klammer - genau daran
-			// sind sie zu erkennen.
+			// Die Versionsnummer gehoert mit in die Kennung: im Serverprotokoll steht
+			// dann, welche Fassung gerade nachfragt. Aeltere Installationen schicken
+			// weiterhin den blossen Namen ohne Klammer.
 			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return 1;
 
 			// INTERNET_FLAG_SECURE braucht InternetOpenUrl nicht gesagt zu bekommen -
 			// es liest das Schema aus der Adresse -, aber ausgeschrieben sieht man,
-			// dass https hier Absicht ist und kein Ueberbleibsel.
+			// dass https hier Absicht ist.
 			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
 											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
 			if(!url)
@@ -161,22 +160,11 @@ namespace
 bool isNewer(const std::string& version1,
 			 const std::string& version2)
 {
-	// Frueher stand hier version1 > version2, also ein Zeichenkettenvergleich.
-	// Der geht auf drei Arten schief, und alle drei enden mit einem
-	// "Update verfuegbar"-Fenster bei jemandem, der die neueste Fassung hat:
-	//
-	// - version.txt liegt auf einem Server und wird von Hand gepflegt. Haengt
-	//   ein Editor einen Zeilenumbruch an, ist "1.2.0\n" groesser als "1.2.0".
-	// - Antwortet der Server einmal etwas anderes - eine Fehlerseite, eine
-	//   Weiterleitung, die im Text landet -, ist fast jedes Zeichen groesser
-	//   als die '1' am Anfang einer Versionsnummer.
-	// - Und der Reihenfolge nach ist "1.10.0" kleiner als "1.9.0", weil '1'
-	//   vor '9' kommt. Das faellt erst in ein paar Jahren auf und dann
-	//   andersherum: niemand bekaeme das Update angeboten.
-	//
-	// Also nach Zahlen vergleichen, und was sich nicht als Versionsnummer
-	// lesen laesst, ist nie neuer. Ein Suffix wie "1.3.0-beta" faellt damit
-	// auch durch - im Zweifel lieber nicht fragen als falsch fragen.
+	// Nach Zahlen vergleichen und nicht als Zeichenketten: ein angehaengter
+	// Zeilenumbruch, eine Fehlerseite des Servers oder schlicht "1.10.0" gegen
+	// "1.9.0" ergaeben sonst ein "Update verfuegbar" fuer jemanden, der die
+	// neueste Fassung hat. Was sich nicht als Versionsnummer lesen laesst, ist
+	// nie neuer - ein Suffix wie "1.3.0-beta" faellt damit auch durch.
 	const long v1 = parseVersion(version1);
 	const long v2 = parseVersion(version2);
 	if(v1 < 0 || v2 < 0) return false;
@@ -241,11 +229,9 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			// Frueher wurde hier eine mitgelieferte config.xml ins Benutzer-
-			// verzeichnis kopiert. Die enthielt nichts als die Sprache, die der
-			// Installer eingetragen hatte - und weil sie schon beim ersten Start
-			// dastand, kam Engine::detectSystemLanguage() nie zum Zuge. Es gibt
-			// keine Vorlage mehr; das Spiel legt die Datei beim Beenden selbst an.
+			// Das Spiel legt die config.xml beim Beenden selbst an. Eine mitgelieferte
+			// Vorlage gibt es nicht mehr: sie enthielt nur die Sprache des Installers
+			// und liess Engine::detectSystemLanguage() nie zum Zuge kommen.
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
@@ -454,12 +440,10 @@ int runTheGame(int argc,
 	p_action = engine.registerAction("$A_TOGGLE_MUTE", engine.getKeyboardVK(SDLK_F1));
 	p_action->delay = INT_MAX;
 #ifndef __EMSCRIPTEN__
-	// Screenshots und Videoaufnahme gibt es im Web-Build nicht (Engine::screenshot
-	// kehrt dort sofort zurueck, VideoRecorder ist ein Stub), deshalb werden diese
-	// beiden Aktionen gar nicht erst registriert - sonst stuenden sie nutzlos in
-	// der Tastenbelegungsliste der Optionen. Die Abfragen in Engine::update
-	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen und
-	// wasActionPressed() faengt das ab, liefert also dauerhaft false.
+	// Screenshots und Videoaufnahme gibt es im Web-Build nicht, deshalb werden
+	// diese beiden Aktionen gar nicht erst registriert - sonst stuenden sie
+	// nutzlos in der Tastenbelegungsliste. Die Abfragen in Engine::update
+	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen.
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->delay = INT_MAX;
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));

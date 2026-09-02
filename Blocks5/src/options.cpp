@@ -75,14 +75,11 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->setChecked();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->setChecked();
 
-	// Skalierungsfilter, von oben nach unten das Beste zuerst. Ohne Shader gibt
-	// es "Scharf, angepasst" gar nicht erst zu sehen - anzubieten, was die
-	// Maschine nicht kann, waere gelogen -, und die uebrigen ruecken nach oben
-	// nach, damit keine Luecke bleibt.
+	// Skalierungsfilter, das Beste zuerst. Ohne Shader gibt es "Scharf,
+	// angepasst" gar nicht erst zu sehen und die uebrigen ruecken nach oben.
 	// "Roehrenmonitor" steht zuletzt: die drei darueber sind Skalierer und nach
-	// Guete sortiert, der Vierte ist eine Stilfrage und gehoert nicht in dieselbe
-	// Reihenfolge. Er braucht denselben Shader wie "Scharf, angepasst" und
-	// verschwindet ohne ihn genauso.
+	// Guete sortiert, der Vierte ist eine Stilfrage. Er braucht denselben
+	// Shader und verschwindet ohne ihn genauso.
 	const char* pp_filterNames[4] =
 	{
 		"Options.SharpFit", "Options.Nearest", "Options.Bilinear", "Options.Crt"
@@ -121,9 +118,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	{
 		// filterY steht nach der Schleife genau einen Schritt unter dem letzten
 		// Eintrag, der Knopf bekommt also denselben Abstand wie die Knoepfe
-		// untereinander. 20 ist der Zeilenabstand, den die uebrigen Dialoge
-		// benutzen - im Leveleditor dreizehnmal, im Kampagneneditor viermal,
-		// und hier fuer Lautstaerke, Details und Steuerung.
+		// untereinander. 20 ist der Zeilenabstand der uebrigen Dialoge.
 		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY));
 		p_crtSettings->show();
 	}
@@ -151,8 +146,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	getChild("CrtOptions")->hide();
 
 	// Ohne Auswahl beginnen. setSelection() meldet sich nur bei einer echten
-	// Aenderung, stand es also schon auf -1, kommt der Zweig unten nicht - der
-	// Knopf wird deshalb hier gleich mit abgeschaltet.
+	// Aenderung, stand es also schon auf -1, kommt der Zweig unten nicht.
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
@@ -173,11 +167,9 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 		const SDLKey key = event.keysym.sym;
 		if(key == SDLK_ESCAPE || key == SDLK_RETURN)
 		{
-			// Die Taste ist hiermit verbraucht. Die Spielzustaende fragen
-			// daneben Engine::wasKeyPressed() ab, und GUI::update() laeuft
-			// vorher - ohne das wuerde das Hauptmenue dasselbe Escape sehen,
-			// mit dem dieser Dialog sich gerade geschlossen hat, und das Spiel
-			// beenden.
+			// Die Taste ist hiermit verbraucht. Die Spielzustaende fragen daneben
+			// Engine::wasKeyPressed() ab, und GUI::update() laeuft vorher - sonst saehe
+			// das Hauptmenue dasselbe Escape und beendete das Spiel.
 			Engine::inst().consumeKeyPress(key);
 
 			// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
@@ -212,8 +204,8 @@ void Options::applyKeyGrab(int key)
 	Engine& engine = Engine::inst();
 
 	// GRAB_CANCELLED heisst Escape: die Belegung bleibt, wie sie war.
-	// GRAB_NO_KEY - die Zeit ist abgelaufen - heisst "keine Taste" und raeumt
-	// sie weg; das ist der einzige Weg, eine Aktion unbelegt zu lassen.
+	// GRAB_NO_KEY - die Zeit ist abgelaufen - raeumt sie weg; das ist der
+	// einzige Weg, eine Aktion unbelegt zu lassen.
 	const Action* p_action = engine.getAction(what);
 	if(key != Engine::GRAB_CANCELLED && p_action)
 	{
@@ -255,9 +247,8 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
 
-		// Die beiden Roehrenregler wirken sofort - beim Schieben soll man ja
-		// sehen, was sie tun. Zurueckgenommen werden sie von Abbrechen, das
-		// ueber loadConfig() auch <Crt> wieder liest.
+		// Die beiden Roehrenregler wirken sofort - beim Schieben soll man sehen,
+		// was sie tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
 		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
 		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
 		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());
@@ -315,11 +306,9 @@ void Options::handleClick(GUI_Element* p_element)
 			int selection = p_actions->getSelection();
 			if(selection != -1)
 			{
-				// Der Knopf sagt selbst, worauf er wartet, und das Warten
-				// laeuft von jetzt an nebenher: die Hauptschleife dreht sich
-				// weiter, onUpdate() holt das Ergebnis ab, sobald es da ist.
-				// Festgehalten wird der Name der Aktion, nicht ihre Nummer -
-				// der bleibt richtig, was auch immer mit der Liste geschieht.
+				// Der Knopf sagt selbst, worauf er wartet, und das Warten laeuft von jetzt
+				// an nebenher: onUpdate() holt das Ergebnis ab, sobald es da ist.
+				// Festgehalten wird der Name der Aktion, nicht ihre Nummer.
 				static_cast<GUI_Button*>(p_element)->setTitle("$O_PRESS_KEY");
 
 				grabButton = name;
@@ -334,8 +323,8 @@ void Options::handleClick(GUI_Element* p_element)
 			if(name == "ResetAll") Engine::inst().resetActions();
 			else
 			{
-				// Der Knopf ist ohne Auswahl abgeschaltet; die Pruefung steht
-				// trotzdem hier, weil actions[selection] sie ohnehin braucht.
+				// Der Knopf ist ohne Auswahl abgeschaltet; die Pruefung steht trotzdem
+				// hier, weil actions[selection] sie ohnehin braucht.
 				const int selection = p_actions->getSelection();
 				if(selection == -1) return;
 				Engine::inst().resetAction(Engine::inst().getActionsVector()[selection]->name);

@@ -1,15 +1,10 @@
-// gl_compat.cpp - Emscripten/WebGL compatibility shim for Blocks 5.
+// gl_compat.cpp - Ausgleichsschicht fuer Emscripten/WebGL.
 //
-// Emscripten's -sLEGACY_GL_EMULATION covers most of the fixed-function pipeline this
-// game relies on: glBegin/glEnd, the matrix stack, glColor4d, glVertex2i all work.
-// Empirically 20 of the 80 GL entry points the game uses are declared in GL/gl.h but
-// have no implementation, so linking fails on them. This file supplies them.
-//
-// Four kinds live here:
-//   1. double/int variants  - forwarded to the float variants, which DO exist. Exact.
-//   2. display lists        - STUBBED. Nothing that goes through a list will draw yet.
-//   3. odds and ends        - stubbed or approximated; see the note on each.
-//   4. corrections          - entry points Emscripten does implement, but wrongly.
+// Emscriptens -sLEGACY_GL_EMULATION deckt den groessten Teil der
+// Fixed-Function-Pipeline ab, die dieses Spiel benutzt: glBegin/glEnd, der
+// Matrixstapel, glColor4d, glVertex2i. Zwanzig der achtzig benutzten
+// GL-Einsprungpunkte sind aber nur deklariert und nirgends definiert, so dass
+// das Linken an ihnen scheitert - die stehen hier.
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <cstring>
@@ -31,28 +26,21 @@ GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble* params) {
     for (int i = 0; i < 16; ++i) params[i] = (GLdouble)tmp[i];
 }
 
-// --- 2. Display lists - STUB -------------------------------------------------
-// WebGL has no display lists and Emscripten emulates none. Four sites use them:
-//   level.cpp:1161   one list per tile layer (the whole tilemap)
-//   font.cpp:21      one list per glyph
-//   lightning.cpp:67 the thunderstorm bolt
-//   cf_star.cpp:15   the star-wipe crossfade
-// Until these are converted to draw directly, anything drawn through a list is
-// invisible - expect a black or partial screen. Link-correct, render-incomplete.
+// --- 2. Displaylisten ----------------------------------------------------------
+// WebGL kennt keine, und Emscripten bildet keine nach. Die drei Stellen, die sie
+// benutzen - font.cpp, level.cpp, lightning.cpp -, zeichnen im Browser direkt;
+// diese Rumpffunktionen gibt es nur, damit gelinkt werden kann.
 GLAPI GLuint GLAPIENTRY glGenLists(GLsizei)          { return 1; }
 GLAPI void   GLAPIENTRY glNewList(GLuint, GLenum)    {}
 GLAPI void   GLAPIENTRY glEndList(void)              {}
 GLAPI void   GLAPIENTRY glCallList(GLuint)           {}
 GLAPI void   GLAPIENTRY glDeleteLists(GLuint, GLsizei) {}
 
-// --- Unpack row length -------------------------------------------------------
-// texture.cpp uploads a sub-rectangle of an SDL surface by setting
-// GL_UNPACK_ROW_LENGTH to the surface pitch. WebGL 1.0 has no such parameter and
-// raises INVALID_ENUM, then ignores it - so a surface whose pitch is wider than
-// the texture would upload skewed. In practice SDL's 32-bit surfaces are always
-// tightly packed, so this has not bitten, but relying on that silently is how
-// you get a bug that only appears on someone else's machine. Track the value and
-// repack the rows ourselves on the rare upload where it actually differs.
+// --- Zeilenlaenge beim Hochladen -----------------------------------------------
+// texture.cpp laedt einen Ausschnitt einer SDL-Flaeche hoch und setzt dafuer
+// GL_UNPACK_ROW_LENGTH auf deren Schrittweite. WebGL 1.0 kennt den Parameter
+// nicht und meldet INVALID_ENUM - eine Flaeche mit groesserer Schrittweite kaeme
+// also schief an. Deshalb wird der Wert gemerkt und im Zweifel selbst umgepackt.
 static GLint g_unpackRowLength = 0;
 
 GLAPI void GLAPIENTRY glPixelStorei(GLenum pname, GLint param)
@@ -83,37 +71,25 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
     delete[] p_tight;
 }
 
-// --- 3. The attribute stack --------------------------------------------------
-// Emscripten implements neither glPushAttrib nor glPopAttrib, and leaving them
-// as no-ops is not survivable. Texture::bind() does:
+// --- 3. Der Attributstapel -----------------------------------------------------
+// Emscripten kennt weder glPushAttrib noch glPopAttrib, und sie leer zu lassen
+// waere nicht zu ueberleben: Texture::bind() setzt GL_TEXTURE als Matrixmodus und
+// stellt ihn ueber glPopAttrib(GL_TRANSFORM_BIT) wieder zurueck. Ohne das bliebe
+// der Modus stehen, und jedes glPushMatrix/glTranslated verschoebe von da an
+// Texturkoordinaten statt Geometrie - ohne Fehlermeldung, nur schwarz.
 //
-//     glPushAttrib(GL_TRANSFORM_BIT);
-//     glMatrixMode(GL_TEXTURE);
-//     glLoadMatrixd(matrix);
-//     glPopAttrib();              // this is what puts the mode back
+// GL_ENABLE_BIT zaehlt ebenso. libglemu.js umschliesst glEnable zweimal; der
+// aeussere Wrapper ruft TexEnvJIT.hook_enable(cap), und der loescht enabled_tex2D,
+// worauf der erzeugte Shader seinen texture2D()-Aufruf ganz weglaesst.
+// glDisable(GL_TEXTURE_2D) ist also echter Zustand und muss wiederhergestellt
+// werden; lava.cpp und teleporter.cpp haengen daran.
 //
-// so with no-ops the matrix mode stays GL_TEXTURE after the first texture is
-// bound, and every glPushMatrix/glTranslated in the game from then on
-// transforms texture coordinates instead of geometry. Nothing errors; the
-// screen just goes black.
-//
-// GL_ENABLE_BIT matters too. An earlier version of this file claimed it did
-// not, on the grounds that Emscripten's glEnable returns early for
-// GL_TEXTURE_2D. That reading was wrong: libglemu.js wraps glEnable TWICE.
-// GLImmediate.setupHooks installs the outer wrapper, which calls
-// TexEnvJIT.hook_enable(cap) and only then the inner GLEmulation one where the
-// early return lives. The hook clears enabled_tex2D, and the generated
-// fixed-function shader then drops its texture2D() call entirely - so
-// glDisable(GL_TEXTURE_2D) IS real state and has to be restored. lava.cpp:150
-// and teleporter.cpp:37 both depend on that.
-//
-// The game uses three masks: GL_TRANSFORM_BIT (6 sites, all bracketing a
-// GL_TEXTURE matrix edit), GL_ENABLE_BIT (2 sites, both bracketing
-// glDisable(GL_TEXTURE_2D)) and GL_ALL_ATTRIB_BITS (1 site, around
-// Engine::presentFrame), so the mask is honoured rather than ignored.
+// Das Spiel benutzt drei Masken - GL_TRANSFORM_BIT, GL_ENABLE_BIT und
+// GL_ALL_ATTRIB_BITS -, deshalb wird die Maske beachtet und nicht ignoriert.
 static GLenum g_matrixMode = GL_MODELVIEW;
 
-// The capabilities this game actually toggles, so a saved frame stays small.
+// Nur die Faehigkeiten, die dieses Spiel wirklich umschaltet - so bleibt ein
+// gesicherter Satz klein.
 static const GLenum kTrackedCaps[] = {
     GL_TEXTURE_2D, GL_BLEND, GL_ALPHA_TEST, GL_SCISSOR_TEST,
     GL_STENCIL_TEST, GL_CULL_FACE, GL_LINE_SMOOTH, GL_POINT_SMOOTH
@@ -165,7 +141,7 @@ GLAPI void GLAPIENTRY glPushAttrib(GLbitfield mask)
         f.matrixMode = g_matrixMode;
         for (int i = 0; i < kNumTrackedCaps; ++i) f.enabled[i] = g_capEnabled[i];
     }
-    ++g_attribDepth;   // still counted when overflowing, so pops stay paired
+    ++g_attribDepth;   // beim Ueberlaufen mitgezaehlt, damit die Pops paarig bleiben
 }
 
 GLAPI void GLAPIENTRY glPopAttrib(void)
@@ -183,35 +159,28 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
                 f.enabled[i] ? glEnable(kTrackedCaps[i]) : glDisable(kTrackedCaps[i]);
 }
 
-// Emscripten implements glReadBuffer and glDrawBuffer as abort(), so one call
-// takes the whole runtime down. GL_BACK is the only buffer WebGL has, which
-// makes a no-op exactly right. Engine::screenshot() reaches them today; the
-// video recorder does too, once that feature comes back.
+// Emscripten setzt glReadBuffer und glDrawBuffer als abort() um, ein einziger
+// Aufruf risse also das Laufzeitsystem mit. GL_BACK ist der einzige Puffer, den
+// WebGL hat - eine leere Funktion ist damit genau richtig.
 GLAPI void GLAPIENTRY glReadBuffer(GLenum) {}
 GLAPI void GLAPIENTRY glDrawBuffer(GLenum) {}
 
-// --- 4. gluLookAt ------------------------------------------------------------
-// Emscripten's own gluLookAt does nothing at all. libglemu.js calls
+// --- 4. gluLookAt --------------------------------------------------------------
+// Emscriptens eigenes gluLookAt tut gar nichts. libglemu.js ruft
 //
-//     mat4.lookAt(GLImmediate.matrix[cur], [ex,ey,ez], [cx,cy,cz], [ux,uy,uz])
+//     mat4.lookAt(GLImmediate.matrix[cur], eye, center, up)
 //
-// which is the gl-matrix 2.x convention of "destination first" - but the copy
-// of gl-matrix bundled with Emscripten is 1.x, where the signature reads
-// mat4.lookAt(eye, center, up, dest). So the current matrix goes in as the eye,
-// every real argument shifts one place along, and the result is written into
-// the three-element array that was meant to be the up vector and then dropped.
-// The modelview matrix is never assigned: gluLookAt silently becomes a no-op
-// and the camera stays wherever it was, which after the glLoadIdentity that
-// precedes every call in this game means the origin.
+// - die Aufrufform von gl-matrix 2.x mit dem Ziel voran -, mitgeliefert ist aber
+// gl-matrix 1.x mit mat4.lookAt(eye, center, up, dest). Jedes Argument rutscht
+// eine Stelle weiter, das Ergebnis landet im dreielementigen up-Vektor und wird
+// verworfen; die Modelview-Matrix wird nie zugewiesen. Das allein ist "der
+// Wuerfeluebergang tut nichts" und "der Zoom am Levelende dreht sich nicht"
+// (cf_cube.cpp, cf_zoom.cpp), und cf_slices.cpp und der Abspann haengen mit drin.
 //
-// That single line is the whole of "the cube transition does nothing", "the
-// level-end zoom neither rotates nor moves" (cf_cube.cpp, cf_zoom.cpp), and it
-// takes cf_slices.cpp and the credits scene with it.
-//
-// glMultMatrixd is sound - mat4.multiply(current, m) post-multiplies, which is
-// the GL order - so the textbook implementation on top of it is exact. This is
-// Mesa's: forward and side normalised, up recomputed as side x forward so that
-// a caller's up vector need not be perpendicular.
+// glMultMatrixd stimmt - mat4.multiply(current, m) multipliziert von rechts, also
+// in GL-Reihenfolge -, deshalb ist die Umsetzung darauf exakt. Es ist die von
+// Mesa: forward und side normiert, up als side x forward neu berechnet, damit der
+// up-Vektor des Aufrufers nicht senkrecht stehen muss.
 static void crossNorm(const double* p_a, const double* p_b, double* p_out, bool normalize)
 {
     p_out[0] = p_a[1] * p_b[2] - p_a[2] * p_b[1];
@@ -235,7 +204,7 @@ GLAPI void GLAPIENTRY gluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ,
     crossNorm(f, up, s, true);
     crossNorm(s, f, u, false);
 
-    // Column-major, the order glMultMatrixd reads: rows are side, up, -forward.
+    // Spaltenweise, so wie glMultMatrixd liest: die Zeilen sind side, up, -forward.
     const GLdouble m[16] = {
          s[0],  u[0], -f[0], 0.0,
          s[1],  u[1], -f[1], 0.0,
@@ -246,10 +215,9 @@ GLAPI void GLAPIENTRY gluLookAt(GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ,
     glTranslated(-eyeX, -eyeY, -eyeZ);
 }
 
-// gluPerspective is not broken, but it *replaces* the current matrix instead of
-// multiplying into it. Every call site in this game does glLoadIdentity first,
-// so the two agree today; going through glFrustum, which multiplies properly,
-// means they still agree if one ever does not.
+// gluPerspective ist nicht kaputt, ersetzt die aktuelle Matrix aber, statt in sie
+// hineinzumultiplizieren. Ueber glFrustum, das richtig multipliziert, stimmt es
+// auch dann noch, wenn ein Aufrufer einmal kein glLoadIdentity davorsetzt.
 GLAPI void GLAPIENTRY gluPerspective(GLdouble fovy, GLdouble aspect,
                                      GLdouble zNear, GLdouble zFar)
 {

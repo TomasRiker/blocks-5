@@ -20,11 +20,9 @@
     <StaticText name="Static3" x="280" y="40">
       <Text>$LS_SELECT_LEVEL</Text>
     </StaticText>
-    <!-- Die Felder in buttons.png sind 50x50 (kleine Knoepfe) und 80x80
-         (grosse), luecklos gepackt; die Scheibe liegt darin jetzt in beiden
-         Zustaenden mittig. Damit sie auf dem Bildschirm bleibt, wo sie war,
-         ruecken alle x/y um den neuen Rand nach oben links: 9 Pixel bei den
-         kleinen, 8 bei den grossen. -->
+    <!-- Die Scheibe liegt in beiden Zustaenden mittig im Feld; x/y stehen
+         deshalb um den Rand nach oben links versetzt: 9 Pixel bei den
+         kleinen Knoepfen, 8 bei den grossen. -->
     <Button name="FirstLevel" x="279" y="296" w="50" h="50">
       <Title></Title>
 	<ExtendedStyle inset="9" />
