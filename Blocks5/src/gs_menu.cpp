@@ -463,13 +463,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		}
 
 		// Nur vormerken - der Dialog laeuft eine Runde spaeter in
-		// pollExport(), aus demselben Grund wie beim Import.
+		// pollExport(), aus demselben Grund wie beim Import. Das Fenster
+		// bleibt auch hier offen, gleich ob das Ausgeben klappt oder nicht:
+		// solange der Export ein eigener Dialog war, war er mit dem Klick
+		// erledigt und durfte sich schliessen - der Manager ist ein Platz,
+		// an dem man weiterarbeitet, und wer eine Datei ausgibt, will oft
+		// gleich die naechste.
 		pendingExportKind = currentManagerKind();
 		pendingExportName = p_list->getSelectedItemText();
 		pendingExport = true;
-
-		gui["Menu.ManagerPane"]->hide();
-		gui["Menu"]->focus();
 	}
 	else if(name == "Menu.ManagerPane.Manager.Delete")
 	{
