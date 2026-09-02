@@ -1390,6 +1390,59 @@ model for the decay curve. Under night vision the level tints everything green
 rather than forced to pure white, or it will punch a white hole in the tint.
 
 
+19. Playable on a phone
+-----------------------
+The browser build runs on a phone smoothly — and cannot be played, because
+everything except the menus needs a keyboard. What is wanted is a small pad
+drawn over the game: the four arrows, and one button each for planting a bomb,
+putting one down, switching character, restarting the level and restarting from
+the hotel. Text fields should raise the device's own keyboard instead.
+
+**Pointing already works; only keys are missing.** Emscripten's SDL turns
+`touchstart`/`touchmove`/`touchend` into `mousedown`/`mousemove`/`mouseup`
+(`libsdl.js`, `SDL.receiveEvent`), so a tap already arrives as a click and the
+whole GUI is operable today. What no phone can produce is a key, and every one
+of the gameplay actions is a key: `Engine::updateVKs` reads `SDL_GetKeyState`,
+and the actions in `main.cpp` are bound to virtual keys on top of that.
+
+Four pieces, roughly in the order they are worth doing:
+
+1. **The pad itself.** A DOM overlay above the canvas, like
+   `WebBuild/web_bluescreen.cpp` builds one, with `touchstart`/`touchend` on each
+   button. Drawn in the page rather than by the game, so it costs no GL work, it
+   can sit in the black letterbox bars instead of over the picture, and it never
+   goes through `-sLEGACY_GL_EMULATION`.
+
+2. **Getting a press into the engine.** `Engine::setKeyData(SDLKey, int)` is
+   public and already used exactly this way: `GS_Menu` drives the title demo by
+   writing recorded key states straight into it (`gs_menu.cpp:207`). A pad button
+   is the same thing with a finger instead of a recording, so no new mechanism is
+   needed. Whether a button presses a *key* (`SDLK_LSHIFT`) or an *action*
+   (`$A_PLANT_BOMB`) wants deciding: the key is faithful to how the game reads
+   input and survives no rebinding; the action follows a rebind but bypasses the
+   layer everything else goes through. The key, plus reading the action's current
+   primary binding, is probably both.
+
+3. **Text fields.** `GUI_EditBox` reads `event.keysym.unicode` out of SDL key
+   events, and a phone only shows its keyboard for a focused DOM element — the
+   canvas is not one. So a real `<input>`, positioned over the field and focused
+   when the field is, with what it receives fed back as key events. This is the
+   piece with the most edge cases (autocorrect, IME, the keyboard covering the
+   field) and the least payoff: it is only needed for naming a level or a
+   campaign.
+
+4. **Hitting things.** The buttons are the problem the pad does not solve. A
+   finger has no hover, and `Menu.Options` is an 80x80 disc while the Manager's
+   bottom row is four 92x20 buttons — comfortable with a mouse, small under a
+   fingertip. Options, in rising order of work: leave it (a phone screen scales
+   the 640x480 picture up, so the discs are already large), grow the hit areas
+   without moving the art (`GUI_Element::containsPoint` is virtual and already
+   does exactly this for checkbox captions), or lay the dialogs out differently
+   on a touch device.
+
+**Not started.** This entry is the estimate, not a design.
+
+
 How these connect
 -----------------
     2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
