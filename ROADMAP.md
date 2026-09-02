@@ -982,13 +982,15 @@ Left for later: anisotropic curvature (real tubes are not spherical), a shadow-m
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
 
-12. Tell the player about the hardcoded keys
---------------------------------------------
-Nothing in the game says that **Alt+Return** switches between the window and
-full screen. It is the most useful shortcut 1.2.0 adds and the game itself never
-mentions it: not in the help, not in the options dialog. `readme.txt` names it
-in passing at the end of *Command Line Options*, which is better than nothing
-and not where anyone would look for it.
+12. Tell the player about the hardcoded keys  — **DONE**, it already did
+------------------------------------------------------------------------
+**The premise was wrong.** `$H_HELP_PAGE1` has listed the toggle all along, in
+both languages, at the foot of the *Controls (standard)* table:
+"Window/full screen — Alt + Return" and "Fenster/Vollbild — Alt + Return"
+(`data/languages.txt:1357` and `:1375`). The help was read for the *actions*
+it lists and the hardcoded keys below them were missed. Nothing to write.
+
+The rest of this entry is kept for what it established about the four keys.
 
 The options dialog is not the gap it looks like. It lists *registered actions* —
 `$A_LEFT`, `$A_PLANT_BOMB` and the rest from `main.cpp` — which are remappable
@@ -1013,18 +1015,19 @@ The game already keeps them apart and says so where both work — the hotel bind
 `SDLK_RETURN` *and* `SDLK_KP_ENTER` (`main.cpp:442`) and its text reads
 "Press the Return/Enter key now" (`$G_HOTEL_WELCOME`).
 
-The fullscreen toggle tests `SDLK_RETURN` only, so Alt + numpad Enter does
-nothing. Either wire up the keypad too — one `||` in `engine.cpp:769` and the
-same in the `SDL_KEYUP` arm at 785, so `swallowedReturn` still balances — and
-then write it "Alt+Return/Enter" the way the hotel does, or leave it on the big
-key and call it Alt+Return. `readme.txt` says Alt+Return.
+The fullscreen toggle tests `SDLK_RETURN` only (`engine.cpp:850`, and the
+`SDL_KEYUP` arm at `:866` that balances `swallowedReturn`), so Alt + numpad
+Enter does nothing. That is consistent rather than broken: the help and
+`readme.txt` both name Alt+Return, which is the big key, and only the hotel —
+which binds both — writes "Return/Enter". Wiring the keypad up as well is one
+`||` in each of those two places if it ever comes up.
 
-**Where the help text lives.** Six pages, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in
-`data/languages.txt`; `help.cpp:78` builds the ID from the page number, and
-`help.cpp:61` caps it at 6. Each page has a `§en:` and a `§de:` body with light
-markup (`<h>…</h>` for a heading, `¶` for a newline). Adding a shortcut list
-means writing it twice, in both languages, and either extending a page or
-adding a seventh — the cap in `help.cpp` is a literal `6`.
+**Where the help text lives**, for whenever a page does need editing: six of
+them, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in `data/languages.txt`; `help.cpp:78`
+builds the ID from the page number and `help.cpp:61` caps it at 6. Each page has
+a `§en:` and a `§de:` body with light markup (`<h>…</h>` for a heading, `¶` for a
+newline), so anything added has to be written twice, and a seventh page means
+changing that literal `6`.
 
 13. The particle system's container
 ----------------------------------
