@@ -253,6 +253,10 @@ public:
 	void updateActions();
 	int getPressedVK(int timeOut = -1);
 	void resetActions();
+
+	// Nur diese eine Aktion auf ihre Vorgabe zuruecksetzen. Wer sich eine
+	// Taste verlegt hat, musste bisher das ganze Schema wegwerfen.
+	void resetAction(const std::string& name);
 	void limitActionKeys();
 
 	uint getLogicRate() const;

@@ -29,7 +29,8 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_Button*>(getChild("Options.ResetControls"))->connectClicked(this, &Options::handleClick);
+	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->connectClicked(this, &Options::handleClick);
+	static_cast<GUI_Button*>(getChild("Options.ResetAll"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->connectClicked(this, &Options::handleClick);
 
@@ -147,9 +148,13 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0 * engine.getCrtScanFlicker()));
 	getChild("CrtOptions")->hide();
 
+	// Ohne Auswahl beginnen. setSelection() meldet sich nur bei einer echten
+	// Aenderung, stand es also schon auf -1, kommt der Zweig unten nicht - der
+	// Knopf wird deshalb hier gleich mit abgeschaltet.
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
+	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->deactivate();
 
 	getChild("Options")->focus();
 }
@@ -239,11 +244,14 @@ void Options::handleClick(GUI_Element* p_element)
 			GUI_ListBox* p_actions = static_cast<GUI_ListBox*>(getChild("Options.Actions"));
 			const std::vector<Action*>& actions = Engine::inst().getActionsVector();
 
+			GUI_Button* p_resetSelected = static_cast<GUI_Button*>(getChild("Options.ResetSelected"));
+
 			int selection = p_actions->getSelection();
 			if(selection == -1)
 			{
 				p_primary->setTitle("");
 				p_secondary->setTitle("");
+				p_resetSelected->deactivate();
 			}
 			else
 			{
@@ -251,6 +259,7 @@ void Options::handleClick(GUI_Element* p_element)
 				const std::vector<VirtualKey>& vks = Engine::inst().getVKs();
 				p_primary->setTitle(action.primary == -1 ? "$O_NOT_ASSIGNED" : vks[action.primary].name);
 				p_secondary->setTitle(action.secondary == -1 ? "$O_NOT_ASSIGNED" : vks[action.secondary].name);
+				p_resetSelected->activate();
 			}
 		}
 		else if(name == "PrimaryKey" || name == "SecondaryKey")
@@ -272,10 +281,22 @@ void Options::handleClick(GUI_Element* p_element)
 				handleClick(p_actions);
 			}
 		}
-		else if(name == "ResetControls")
+		else if(name == "ResetSelected" || name == "ResetAll")
 		{
-			Engine::inst().resetActions();
 			GUI_ListBox* p_actions = static_cast<GUI_ListBox*>(getChild("Options.Actions"));
+
+			if(name == "ResetAll") Engine::inst().resetActions();
+			else
+			{
+				// Der Knopf ist ohne Auswahl abgeschaltet; die Pruefung steht
+				// trotzdem hier, weil actions[selection] sie ohnehin braucht.
+				const int selection = p_actions->getSelection();
+				if(selection == -1) return;
+				Engine::inst().resetAction(Engine::inst().getActionsVector()[selection]->name);
+			}
+
+			// Die beiden Tastenknoepfe zeigen die Belegung der ausgewaehlten
+			// Aktion und muessen nachziehen.
 			handleClick(p_actions);
 		}
 		else if(name == "OK")

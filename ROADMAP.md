@@ -1235,8 +1235,8 @@ name it — which is exactly the case `Level::loadSkin`'s toast now reports, so
 it fails visibly rather than silently.
 
 
-16. Reset one control instead of all of them
-----------------------------------------------
+16. Reset one control instead of all of them  — **DONE**
+----------------------------------------------------------
 The controls pane in `data/options.xml` has an *Actions* list, a *Primary key*
 and a *Secondary key* button, and one `ResetControls` button that calls
 `Engine::resetActions()` — which walks every action and restores both bindings.
@@ -1258,6 +1258,24 @@ them to refresh the two key captions, as `ResetControls` already does.
 `$O_RESET_CONTROLS` becomes two new IDs plus a label in `data/languages.txt`;
 keep them short, because the English and German bodies both have to fit the
 same button.
+
+**Built as described**, with one change of mind about the width. The row does
+not have to live inside the list's 170 px: nothing else occupies y=360..395,
+so it runs under both columns, and "Zuruecksetzen:" — 69 px on its own — fits
+in front of the two buttons instead of forcing a second line. Label at x=10
+y=368, *selected* at x=86 w=90, *all* at x=182 w=70; the label sits 5 px lower
+than the buttons because their captions are centred in 20 px of height.
+`Engine::resetAction(name)` is the three lines predicted, and `resetActions()`
+now loops over it rather than repeating it.
+
+**Found while testing, and not fixed here: key rebinding does not work in the
+browser at all.** `Engine::getPressedVK` is a synchronous `while` loop around
+`SDL_PumpEvents` and `SDL_Delay(10)`. Natively that is fine — the message queue
+fills from the OS. Under Emscripten nothing can reach the queue while C holds
+the thread, so the loop always runs its three seconds out and returns -1, and
+the binding becomes "not assigned". It needs ASYNCIFY or a state machine that
+spans frames, which is a piece of work of its own. (It made a convenient test
+lever here: clicking a key button is a reliable way to clear a binding.)
 
 
 17. One Manager button instead of Import and Export  — **DONE**
