@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
-	<Window name="Options" w="340" h="440">
+	<Window name="Options" w="340" h="460">
 		<Title>$OPTIONS</Title>
 		<Center />
 		<Hidden />
@@ -96,24 +96,22 @@
     <StaticText name="Static8" x="10" y="260">
       <Text>$O_CONTROLS</Text>
     </StaticText>
-    <ListBox name="Actions" x="10" y="280" w="170" h="80">
+    <ListBox name="Actions" x="10" y="280" w="170" h="75">
       <Font>tooltip_font.xml</Font>
     </ListBox>
     <!-- Zuruecksetzen, in zwei Staerken. Bisher gab es nur "alles" - wer
          sich eine Taste verlegt hatte, musste das ganze Schema wegwerfen.
-         Die Zeile laeuft unter beiden Spalten durch und ist deshalb nicht
-         auf die 170 Pixel der Liste beschraenkt; "Zuruecksetzen:" misst
-         allein schon 69. Die Beschriftung liegt 5 Pixel tiefer als die
-         Knoepfe, weil deren Text in 20 Pixel Hoehe mittig sitzt. -->
-    <StaticText name="Static11" x="10" y="368">
-      <Text>$O_RESET</Text>
-      <Font>tooltip_font.xml</Font>
-    </StaticText>
-    <Button name="ResetSelected" x="86" y="363" w="90" h="20">
+         Zwei Knoepfe untereinander unter der Liste, so breit wie sie: eine
+         Beschriftung davor und zwei kurze Woerter dahinter ginge in der
+         einen Sprache auf und in der anderen nicht, ganze Saetze auf den
+         Knoepfen sagen es in beiden. Das Fenster ist dafuer um 20 Pixel
+         gewachsen; die 15 Pixel Luft ueber OK und die 10 unter ihm bleiben,
+         wie sie waren. -->
+    <Button name="ResetSelected" x="10" y="362" w="170" h="20">
       <Title>$O_RESET_SELECTED</Title>
       <Font>tooltip_font.xml</Font>
     </Button>
-    <Button name="ResetAll" x="182" y="363" w="70" h="20">
+    <Button name="ResetAll" x="10" y="385" w="170" h="20">
       <Title>$O_RESET_ALL</Title>
       <Font>tooltip_font.xml</Font>
     </Button>
@@ -134,10 +132,10 @@
       <Font>tooltip_font.xml</Font>
     </Button>
 
-    <Button name="OK" x="10" y="400" w="135" h="30">
+    <Button name="OK" x="10" y="420" w="135" h="30">
 			<Title>OK</Title>
 		</Button>
-		<Button name="Cancel" x="155" y="400" w="135" h="30">
+		<Button name="Cancel" x="155" y="420" w="135" h="30">
 			<Title>§de:Abbrechen§en:Cancel</Title>
 		</Button>
 	</Window>

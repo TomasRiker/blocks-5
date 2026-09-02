@@ -1259,12 +1259,14 @@ them to refresh the two key captions, as `ResetControls` already does.
 keep them short, because the English and German bodies both have to fit the
 same button.
 
-**Built as described**, with one change of mind about the width. The row does
-not have to live inside the list's 170 px: nothing else occupies y=360..395,
-so it runs under both columns, and "Zuruecksetzen:" — 69 px on its own — fits
-in front of the two buttons instead of forcing a second line. Label at x=10
-y=368, *selected* at x=86 w=90, *all* at x=182 w=70; the label sits 5 px lower
-than the buttons because their captions are centred in 20 px of height.
+**Built**, and then rebuilt: the label-plus-two-short-words shape came out
+lopsided — "Reset: selected all" reads fine, "Zuruecksetzen: ausgewaehlte alle"
+does not, and sizing the buttons for one language wasted space in the other.
+What stands is two stacked buttons under the list, as wide as it, each carrying
+a whole caption: *Reset selected* / *Ausgewaehlte zuruecksetzen* over *Reset
+all* / *Alle zuruecksetzen*. The window grew 20 px for the second row; the 15 px
+above OK and the 10 below it are unchanged. The list also lost 5 px so its
+bottom edge meets the *Secondary* button's.
 `Engine::resetAction(name)` is the three lines predicted, and `resetActions()`
 now loops over it rather than repeating it.
 

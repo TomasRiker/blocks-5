@@ -117,6 +117,15 @@ public:
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
+	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist. Nach
+	// etwas, das die Hauptschleife angehalten hat, ist der Eingabezustand
+	// nicht vertrauenswuerdig: der Windows-Dateidialog hat Ereignisse fuer
+	// sein eigenes Fenster weitergereicht, die das Spiel als frischen Klick
+	// lesen wuerde, und getPressedVK() laesst die Taste liegen, mit der es
+	// gerade beendet wurde. Kein Windows-Code, nur SDL - deshalb steht es
+	// vor dem Block und nicht darin.
+	void flushInput();
+
 #ifdef _WIN32
 	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht:
 	// Windows haelt sie in einer eigenen Nachrichtenschleife fest. Das hier
@@ -132,11 +141,6 @@ public:
 	void beginForeignMessageLoop();
 	void endForeignMessageLoop();
 
-	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist. Nach
-	// einem modalen Fenster ist der Eingabezustand nicht vertrauenswuerdig:
-	// die fremde Nachrichtenschleife hat Ereignisse fuer dieses Fenster
-	// weitergereicht, die das Spiel als frischen Klick lesen wuerde.
-	void flushInput();
 	// Kleinste Fenstergroesse, die handleResize() zulaesst, als Fensterrechteck
 	// samt Rahmen - fuer WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;
@@ -251,6 +255,15 @@ public:
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
 	void updateActions();
+	// Wartet auf einen Tastendruck und liefert die virtuelle Taste dazu.
+	// Escape bricht ab und liefert VK_CANCELLED - der Aufrufer laesst die
+	// Belegung dann, wie sie war. Laeuft die Zeit ab, kommt -1, und das heisst
+	// "keine Taste": so raeumt man eine Belegung weg.
+	//
+	// Die Hauptschleife steht solange still, deshalb zeichnet die Warteschleife
+	// selbst weiter - sonst froere das Bild fuer bis zu drei Sekunden ein, und
+	// die Aufschrift, die zum Tastendruck auffordert, kaeme nie auf den Schirm.
+	static const int VK_CANCELLED = -2;
 	int getPressedVK(int timeOut = -1);
 	void resetActions();
 
@@ -348,6 +361,11 @@ private:
 
 	void updateToasts();
 	void renderToasts();
+
+	// Ein Bild zeichnen und zeigen, ohne Logiktakt - dasselbe, was die
+	// Hauptschleife an ihrem Fuss tut. Fuer die Stellen, an denen sie
+	// selbst steht und der Schirm trotzdem stimmen muss.
+	void renderAndPresent();
 	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
 	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
 	void reflowToasts();

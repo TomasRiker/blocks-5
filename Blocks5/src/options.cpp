@@ -155,6 +155,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->deactivate();
+	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->deactivate();
+	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->deactivate();
 
 	getChild("Options")->focus();
 }
@@ -246,11 +248,15 @@ void Options::handleClick(GUI_Element* p_element)
 
 			GUI_Button* p_resetSelected = static_cast<GUI_Button*>(getChild("Options.ResetSelected"));
 
+			// Ohne Auswahl gibt es nichts umzubelegen und nichts
+			// zurueckzusetzen; alle drei Knoepfe haengen an ihr.
 			int selection = p_actions->getSelection();
 			if(selection == -1)
 			{
 				p_primary->setTitle("");
 				p_secondary->setTitle("");
+				p_primary->deactivate();
+				p_secondary->deactivate();
 				p_resetSelected->deactivate();
 			}
 			else
@@ -259,6 +265,8 @@ void Options::handleClick(GUI_Element* p_element)
 				const std::vector<VirtualKey>& vks = Engine::inst().getVKs();
 				p_primary->setTitle(action.primary == -1 ? "$O_NOT_ASSIGNED" : vks[action.primary].name);
 				p_secondary->setTitle(action.secondary == -1 ? "$O_NOT_ASSIGNED" : vks[action.secondary].name);
+				p_primary->activate();
+				p_secondary->activate();
 				p_resetSelected->activate();
 			}
 		}
@@ -271,13 +279,29 @@ void Options::handleClick(GUI_Element* p_element)
 				const std::vector<Action*>& actions = Engine::inst().getActionsVector();
 				const Action& action = *(actions[selection]);
 
-				int key = Engine::inst().getPressedVK(3000);
-				if(name == "PrimaryKey") Engine::inst().changeAction(action.name, key, action.secondary);
-				else Engine::inst().changeAction(action.name, action.primary, key);
+				// Der Knopf sagt selbst, worauf er wartet. getPressedVK()
+				// zeichnet waehrend des Wartens weiter, also kommt die
+				// Aufschrift auch auf den Schirm.
+				static_cast<GUI_Button*>(p_element)->setTitle("$O_PRESS_KEY");
+
+				const int key = Engine::inst().getPressedVK(3000);
+				if(key != Engine::VK_CANCELLED)
+				{
+					if(name == "PrimaryKey") Engine::inst().changeAction(action.name, key, action.secondary);
+					else Engine::inst().changeAction(action.name, action.primary, key);
+				}
 
 				SDL_Delay(250);
 				Engine::inst().updateVKs();
 
+				// Was waehrend des Wartens aufgelaufen ist, gehoert nicht der
+				// Oberflaeche: das abbrechende Escape schloesse sonst gleich
+				// noch den Dialog, und eine frisch belegte Eingabetaste
+				// drueckte OK.
+				Engine::inst().flushInput();
+
+				// Setzt auch die Aufschrift wieder auf die Belegung - die
+				// alte, wenn abgebrochen wurde.
 				handleClick(p_actions);
 			}
 		}

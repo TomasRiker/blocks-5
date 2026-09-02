@@ -262,20 +262,20 @@ $O_CONTROLS
 §en:Controls:
 §de:Steuerung:
 
-$O_RESET
-// Options: label in front of the two reset buttons under the action list
-§en:Reset:
-§de:Zurücksetzen:
-
 $O_RESET_SELECTED
-// Options: resets only the selected action, reads on from the label
-§en:selected
-§de:ausgewählte
+// Options: resets the bindings of the selected action only
+§en:Reset selected
+§de:Ausgewählte zurücksetzen
 
 $O_RESET_ALL
-// Options: resets every action, reads on from the label
-§en:all
-§de:alle
+// Options: resets the bindings of every action
+§en:Reset all
+§de:Alle zurücksetzen
+
+$O_PRESS_KEY
+// Options: shown on a key button while it waits for the new key
+§en:Press key or Esc
+§de:Taste oder Esc drücken
 
 $O_PRIMARY_KEY
 // Primary key

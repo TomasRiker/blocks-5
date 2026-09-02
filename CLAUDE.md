@@ -369,10 +369,22 @@ LGPL v2 and must stay dynamically linked.
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are
 registered in `main.cpp` and remappable via the options dialog. Resetting comes in two
-strengths there — *selected* and *all* — because `Action` has carried `defaultPrimary` and
-`defaultSecondary` all along, so `resetAction(name)` is the same three lines `resetActions()`
-loops over; until 1.2.0 only the loop had a button, and one misplaced key meant throwing the
-whole scheme away. *selected* greys out without a selection.
+strengths there — *Reset selected* and *Reset all*, two stacked buttons under the action list —
+because `Action` has carried `defaultPrimary` and `defaultSecondary` all along, so
+`resetAction(name)` is the same three lines `resetActions()` loops over; until 1.2.0 only the
+loop had a button, and one misplaced key meant throwing the whole scheme away. Those two and
+the two key buttons all grey out without a selection.
+
+**A key button says what it is waiting for.** Clicking it sets its caption to `$O_PRESS_KEY`
+and calls `Engine::getPressedVK`, which holds the main loop for up to three seconds — so the
+caption would never reach the screen on its own. `renderAndPresent()` draws one frame before
+the wait and, natively, once per pass through it. Escape now returns `Engine::VK_CANCELLED`
+rather than the -1 that means "no key": the binding is left alone, where before Escape cleared
+it *and* closed the dialog, because the key press was still queued for the GUI. `flushInput()`
+after the wait is what stops that — it also keeps a freshly bound Return from pressing OK. It
+used to live inside `#ifdef _WIN32` next to the file-dialog helpers; its body is pure SDL and
+it is now wanted on both platforms. Emscripten's `SDL_PeepEvents` takes the SDL 2 argument
+shape *and* asserts `requestedEventCount == 1`, so that branch fetches one event per call.
 
 **A binding is stored in `config.xml` by name, not by number.** A VK is an index into
 `virtualKeys`, and that index moves: the keyboard block is `SDLK_LAST` long, which is 323

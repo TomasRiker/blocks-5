@@ -35,6 +35,15 @@ switches from colliding with Build.bat's:
     Build.bat /run -windowed
     Build.bat Debug /rebuild /run -fullscreen
 
+Two of these are there to double-click from Explorer, so that building and playing needs no
+command prompt at all:
+
+    Build and run.bat             Build.bat /run
+    Build and run -nosplash.bat   Build.bat /run -nosplash
+
+The second one skips the logo and the jingle, which is what you want when you are starting the
+game for the twentieth time that afternoon.
+
 To build from the IDE instead, open `Blocks5.sln`, build all three projects, and run
 `zip_data.bat` and `zip_skins.bat` in `Blocks5\` once.
 

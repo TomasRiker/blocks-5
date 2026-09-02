@@ -2100,33 +2100,6 @@ Vec2i Engine::getMinimumWindowSize() const
 	return Vec2i(r.right - r.left, r.bottom - r.top);
 }
 
-void Engine::flushInput()
-{
-	// Erst weg, was Windows waehrend des fremden Fensters aufgestaut hat -
-	// aber nur Tasten und Maus. Alles andere muss stehenbleiben, allen voran
-	// SDL_VIDEORESIZE: das ist die einzige Stelle, an der handleResize() von
-	// einer neuen Fenstergroesse erfaehrt, und ein hier verschlucktes liesse
-	// SDLs Oberflaeche fuer immer auf der alten stehen.
-	SDL_Event events[32];
-	SDL_PumpEvents();
-	while(SDL_PeepEvents(events, 32, SDL_GETEVENT,
-						 SDL_EVENTMASK(SDL_KEYDOWN) |
-						 SDL_EVENTMASK(SDL_KEYUP) |
-						 SDL_EVENTMASK(SDL_MOUSEBUTTONDOWN) |
-						 SDL_EVENTMASK(SDL_MOUSEBUTTONUP) |
-						 SDL_EVENTMASK(SDL_MOUSEMOTION)) > 0) {}
-
-	// ... dann der eigene Zustand, samt der "gedrueckt"- und
-	// "losgelassen"-Kennzeichen. Bliebe eine Maustaste als gedrueckt stehen,
-	// laese die GUI das naechste Loslassen als Klick auf das Element unter dem
-	// Zeiger - und das ist derselbe Knopf, der das Fenster geoeffnet hat.
-	for(int i = 0; i < NUM_KEY_SLOTS; i++)
-	{
-		keyData[i] = 0;
-		buttonData[i] = 0;
-	}
-	while(!keyEventQueue.empty()) keyEventQueue.pop();
-}
 
 void Engine::beginForeignMessageLoop()
 {
@@ -3205,6 +3178,55 @@ void Engine::updateActions()
 	}
 }
 
+void Engine::flushInput()
+{
+	// Erst weg, was Windows waehrend des fremden Fensters aufgestaut hat -
+	// aber nur Tasten und Maus. Alles andere muss stehenbleiben, allen voran
+	// SDL_VIDEORESIZE: das ist die einzige Stelle, an der handleResize() von
+	// einer neuen Fenstergroesse erfaehrt, und ein hier verschlucktes liesse
+	// SDLs Oberflaeche fuer immer auf der alten stehen.
+	// SDL_PeepEvents heisst auf beiden Seiten gleich und nimmt Verschiedenes:
+	// SDL 1.2 eine Bitmaske aus SDL_EVENTMASK, Emscriptens Nachbau die
+	// SDL-2-Form mit einem Bereich von...bis. Dort liegen Tastatur (0x300f)
+	// und Maus (0x400f) auseinander, also zwei Durchgaenge - und es holt nur
+	// *ein* Ereignis je Aufruf: nach mehr zu fragen bricht das Laufzeitsystem
+	// mit einer Zusicherung ab (assert(requestedEventCount == 1) in
+	// libsdl.js). Deshalb hier die 1 und die Schleife darum.
+	SDL_Event events[32];
+	SDL_PumpEvents();
+#ifdef __EMSCRIPTEN__
+	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0) {}
+	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEBUTTONUP) > 0) {}
+#else
+	while(SDL_PeepEvents(events, 32, SDL_GETEVENT,
+						 SDL_EVENTMASK(SDL_KEYDOWN) |
+						 SDL_EVENTMASK(SDL_KEYUP) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONDOWN) |
+						 SDL_EVENTMASK(SDL_MOUSEBUTTONUP) |
+						 SDL_EVENTMASK(SDL_MOUSEMOTION)) > 0) {}
+#endif
+
+	// ... dann der eigene Zustand, samt der "gedrueckt"- und
+	// "losgelassen"-Kennzeichen. Bliebe eine Maustaste als gedrueckt stehen,
+	// laese die GUI das naechste Loslassen als Klick auf das Element unter dem
+	// Zeiger - und das ist derselbe Knopf, der das Fenster geoeffnet hat.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
+	{
+		keyData[i] = 0;
+		buttonData[i] = 0;
+	}
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
+}
+
+void Engine::renderAndPresent()
+{
+	bindFrameBuffer();
+	render();
+	unbindFrameBuffer();
+	presentFrame();
+	SDL_GL_SwapBuffers();
+}
+
 int Engine::getPressedVK(int timeOut)
 {
 	Uint32 end = SDL_GetTicks() + timeOut;
@@ -3214,15 +3236,31 @@ int Engine::getPressedVK(int timeOut)
 	std::vector<bool> oldState;
 	for(size_t i = 0; i < virtualKeys.size(); i++) oldState.push_back(virtualKeys[i].down);
 
+	// Ein Bild, bevor gewartet wird. Der Aufrufer hat die Aufschrift des
+	// Knopfes gerade auf "Taste druecken" gesetzt, und die Hauptschleife, die
+	// sie sonst auf den Schirm braechte, steht ab hier still.
+	renderAndPresent();
+
 	while(timeOut == -1 || SDL_GetTicks() < end)
 	{
 		updateVKs();
-		if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down) return -1;
+		if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down) return VK_CANCELLED;
 
 		for(size_t i = 0; i < virtualKeys.size(); i++)
 		{
 			if(virtualKeys[i].down && !oldState[i]) return static_cast<int>(i);
 		}
+
+#ifndef __EMSCRIPTEN__
+		// Weiterzeichnen, damit das Bild waehrend des Wartens lebt. Nur
+		// nativ: im Browser kommt hier ohnehin kein Tastendruck an - nichts
+		// kann die Ereignisschlange fuellen, solange C den Faden haelt -, die
+		// Schleife laeuft stumpf in die Zeitschranke, und was sie zeichnete,
+		// setzte niemand zusammen. Das eine Bild vor der Schleife genuegt
+		// dort; dreihundert weitere waeren umsonst und machten das Warten auf
+		// einem weichen Rasterisierer nur zaeher.
+		renderAndPresent();
+#endif
 
 		SDL_Delay(10);
 	}
