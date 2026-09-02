@@ -30,12 +30,8 @@ Blocks 5 understands three options. Upper and lower case do not matter.
     -nosplash      Skip the logo and the jingle and go straight to the main
                    menu.
 
-The first two do the same as picking the window or full screen inside the game,
-and the choice is remembered: the next start uses it again, with or without the
-option. "windowed.bat" next to the game is a ready-made shortcut for the first
-one.
-
-While playing you can switch between the two at any time with Alt+Return.
+While playing you can switch between full screen and windowed mode at any time
+with Alt+Return.
 
 
 Changelog
@@ -49,12 +45,12 @@ Changelog
           - New in the main menu: an Import button and an Export button, on both
             the browser version and this one.
 
-            Import takes one file and works out for itself what it is - a level,
+          - Import takes one file and works out for itself what it is - a level,
             a campaign, a piece of music or a skin - and puts it where it
             belongs. Export asks what kind of thing you want, lists what you
             have of it, and hands you a copy.
 
-            Music can be brought in this way for the first time. A level can
+          - Music can be brought in this way for the first time. A level can
             also borrow one of the game's own pieces by writing "blocks:" in
             front of the name, as in blocks:music2.ogg. A campaign built that
             way stays small, because that music is already installed.
@@ -65,26 +61,26 @@ Changelog
             used to freeze until you let go, and it can no longer be dragged
             smaller than the 640x480 the game draws.
 
-            Alt+Return switches between the window and full screen at any time.
+          - Alt+Return switches between the window and full screen at any time.
             The game remembers which of the two you left it in, where the window
             was and how big - and whether it was maximized, which it used to
             forget, coming back half off the screen.
 
-            A fresh installation no longer starts at a tiny 640x480. The window
+          - A fresh installation no longer starts at a tiny 640x480. The window
             opens at the largest whole multiple of that which still leaves room
             for the taskbar - twice the size on a Full HD screen, four times on
             a 4K one.
 
-            Full screen no longer changes the screen resolution. It is a
+          - Full screen no longer changes the screen resolution. It is a
             borderless window the size of the desktop, which is what most games
             do these days: Alt+Tab is instant and does not rearrange your other
             windows.
 
-            The mouse pointer is twice as big. It used to be drawn by Windows at
+          - The mouse pointer is twice as big. It used to be drawn by Windows at
             a fixed size while everything around it grew with the window, which
             left it looking tiny.
 
-            Screenshots and recorded videos are unaffected by any of this. They
+          - Screenshots and recorded videos are unaffected by any of this. They
             are always the clean 640x480 picture, without the scaling and
             without the bars.
 
@@ -104,13 +100,13 @@ Changelog
                              curved glass tube with a phosphor mask, a glow
                              around bright things and scan lines
 
-            "CRT settings ..." beside the list has five sliders: the scan lines,
+          - "CRT settings ..." beside the list has five sliders: the scan lines,
             the curvature of the screen, the glow around bright areas, and two
             kinds of flicker: an unsteady brightness, and the scan lines
             drifting slowly down the picture the way they never quite stood
             still on a real set. Each can be turned all the way down.
 
-            "Sharp, fitted" and "CRT monitor" need a graphics card that can run
+          - "Sharp, fitted" and "CRT monitor" need a graphics card that can run
             shaders, which means anything made since about 2005. If yours
             cannot, they are not offered and the game uses "Sharp".
 
@@ -120,7 +116,7 @@ Changelog
             you hear" setup described under version 1.1.0 below is no longer
             needed.
 
-            The recordings are MP4 files now, with H.264 video and MP3 sound,
+          - The recordings are MP4 files now, with H.264 video and MP3 sound,
             instead of AVI. They play in Windows Media Player, in the Photos app
             and in any browser without installing a codec pack.
 
