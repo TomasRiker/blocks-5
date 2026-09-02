@@ -2061,7 +2061,7 @@ $MM_CRT_TRY
 $MM_MANAGE
 // Main menu: button that opens the file manager (import, export, delete)
 §en:Manage files
-§de:Dateien¶verwalten
+§de: Dateien¶verwalten
 
 $TR_MANAGER_TITLE
 §en:Manage files

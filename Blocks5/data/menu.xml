@@ -32,7 +32,7 @@
 			<Title>$MM_CAMPAIGN_EDITOR</Title>
 			<Image u="0" v="160" u2="80" v2="160">buttons.png</Image>
 		</Button>
-		<Button name="Manager" x="270" y="67" w="80" h="80">
+		<Button name="Manager" x="267" y="67" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_MANAGE</Title>
