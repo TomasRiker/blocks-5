@@ -47,10 +47,15 @@ namespace Transfer
 	// Name von aussen und nur ein Vorschlag - der Zielpfad entsteht hier.
 	// Liefert den vergebenen Dateinamen, oder "" und setzt dann errorId auf
 	// die anzuzeigende Meldung.
+	//
+	// Eine gleichnamige Datei wird ersetzt; p_replaced sagt, ob das passiert
+	// ist, damit der Aufrufer es dazusagen kann. Die einzigen Namen, die
+	// nicht getroffen werden koennen, sind die von isBuiltIn().
 	std::string install(Kind kind,
 						const std::string& path,
 						const std::string& untrustedName,
-						std::string& errorId);
+						std::string& errorId,
+						bool* p_replaced = 0);
 
 	// Was von dieser Art im Benutzerverzeichnis liegt, alphabetisch sortiert.
 	std::vector<std::string> list(Kind kind);

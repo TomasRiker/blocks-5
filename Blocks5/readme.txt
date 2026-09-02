@@ -48,9 +48,11 @@ Changelog
 
           - Import takes one file and works out for itself what it is - a level,
             a campaign, a piece of music or a skin - and puts it where it
-            belongs; the list then shows you where it landed. Export hands you
-            a copy of whatever you pick. Delete asks first, and never touches
-            the levels, the campaign and the skins that come with the game.
+            belongs; the list then shows you where it landed. A file of the
+            same name is replaced, and the game says so. Export hands you a
+            copy of whatever you pick. Delete asks first. Neither import nor
+            delete can touch the levels, the campaign and the skins that come
+            with the game.
 
           - Music can be brought in this way for the first time. A level can
             also borrow one of the game's own pieces by writing "blocks:" in

@@ -1134,8 +1134,8 @@ tick, the pair could be advanced by a fixed rotation instead of recomputed per
 frame. And `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping
 wasm contains no vector instructions at all — see item 8.
 
-14. An import overwrites, unless the name is one the game ships
-----------------------------------------------------------------
+14. An import overwrites, unless the name is one the game ships  — **DONE**
+-----------------------------------------------------------------------------
 Two halves of one decision. **An import that names a file the player already
 has replaces it** — no more swerving to a numbered name. **An import that names
 one of the seven files the game ships is refused.**
@@ -1179,6 +1179,23 @@ an import can now replace a file the player made themselves, silently. If that
 wants a word, the place for it is the toast `GS_Menu` already shows on a
 successful import — "replaced" rather than "imported" costs one language ID and
 no new dialog.
+
+**Built as described**, and the toast was worth having: `install` reports through
+`bool* p_replaced` and `pollImport` says `Replaced: "name"` instead of the
+kind-specific line, which on a replacement had nothing to add anyway — the
+player already knew the name, having chosen it. `$TR_ERROR_SKIN_RESERVED` became
+`$TR_ERROR_RESERVED`, since the refusal is no longer about skins.
+
+`uniqueName` and `Campaign::installArchive` are both gone. The second is the
+better sign that this was the right shape: with the numbering removed it was
+letter for letter the generic path, so the campaign stopped being a special case
+rather than getting a simpler one.
+
+One ordering detail that needed care and a test of its own. The target name and
+the `isBuiltIn` check now come first, so `isImportableArchive` runs *after* the
+name is known — but still before the copy. A damaged campaign carrying the name
+of a good one therefore leaves the good one alone: verified, 8,280,697 bytes
+before and after, with `ERROR: That file is damaged.` on screen.
 
 The predicate wants to live where item 15 can reach it too — see there.
 
@@ -1370,6 +1387,7 @@ How these connect
     7 (English comments) ───> pairs with the UTF-8 conversion; do them together
 
    14 (overwrite, but not a shipped name) ──> 15 (delete): one isBuiltIn() serves both
+                                                 — both done, the predicate is shared
 
    15 (delete) ──> 17 (one Manager dialog): 15 is what the button does,
                    17 is the button — 17 is where the delete lands

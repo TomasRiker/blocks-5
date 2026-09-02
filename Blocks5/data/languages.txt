@@ -2135,6 +2135,11 @@ $TR_EXPORTED
 §en:Exported.
 §de:Exportiert.
 
+$TR_REPLACED
+// Shown when an import overwrote a file of the same name, followed by the filename
+§en:Replaced:
+§de:Ersetzt:
+
 $TR_IMPORTED_LEVEL
 // The name it was stored under follows each of these four
 §en:Level imported:
@@ -2170,9 +2175,10 @@ $TR_ERROR_FAILED
 §en:ERROR: That did not work.
 §de:FEHLER: Das hat nicht geklappt.
 
-$TR_ERROR_SKIN_RESERVED
-§en:ERROR: A skin of that name belongs to the game. Please rename the file.
-§de:FEHLER: Ein Skin dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
+$TR_ERROR_RESERVED
+// Refusal when an import would take the name of a file that ships with the game
+§en:ERROR: A file of that name belongs to the game. Please rename the file.
+§de:FEHLER: Eine Datei dieses Namens gehört zum Spiel. Bitte die Datei umbenennen.
 
 $TR_ERROR_CLICK_AGAIN
 §en:Please click the button again.

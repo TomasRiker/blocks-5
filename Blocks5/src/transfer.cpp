@@ -78,20 +78,17 @@ bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& d
 	return fs.copyFile(source, destPath);
 }
 
-	// Einen freien Namen in dir finden: stem.ext, sonst stem_2.ext ...
-	std::string uniqueName(const std::string& dir,
-						   const std::string& stem,
-						   const std::string& ext)
+	// Der Name, wenn vom Wunschnamen nichts uebrig bleibt - etwa weil er aus
+	// lauter Zeichen besteht, die sanitizeFilenameStem() nicht durchlaesst.
+	const char* defaultStemFor(Transfer::Kind kind)
 	{
-		FileSystem& fs = FileSystem::inst();
-		std::string name(stem + ext);
-		for(int n = 2; n <= 99 && fs.fileExists(dir + name); n++)
+		switch(kind)
 		{
-			char temp[128] = "";
-			sprintf(temp, "%s_%d%s", stem.c_str(), n, ext.c_str());   // stem <= 64 Zeichen
-			name = temp;
+		case Transfer::KIND_CAMPAIGN: return "campaign";
+		case Transfer::KIND_MUSIC:    return "music";
+		case Transfer::KIND_SKIN:     return "skin";
+		default:                      return "level";
 		}
-		return name;
 	}
 }
 
@@ -142,55 +139,56 @@ Kind classify(const std::string& path)
 std::string install(Kind kind,
 					const std::string& path,
 					const std::string& untrustedName,
-					std::string& errorId)
+					std::string& errorId,
+					bool* p_replaced)
 {
 	FileSystem& fs = FileSystem::inst();
 	errorId = "";
+	if(p_replaced) *p_replaced = false;
 
-	if(kind == KIND_CAMPAIGN)
-	{
-		// Eine Kampagne muss sich auch laden lassen, nicht nur eine
-		// campaign.xml enthalten.
-		if(!Campaign::isImportableArchive(path))
-		{
-			errorId = "$TR_ERROR_BROKEN";
-			return "";
-		}
-		const std::string name(Campaign::installArchive(path, untrustedName));
-		if(name.empty()) errorId = "$TR_ERROR_FAILED";
-		return name;
-	}
-
+	// Fuer alle vier Arten dasselbe: der Wunschname, auf [A-Za-z0-9_-]
+	// zusammengestrichen, plus die Endung der Art. Gibt es die Datei schon,
+	// wird sie ersetzt.
+	//
+	// Frueher wich der Import stattdessen auf stem_2, stem_3 ... aus - bei
+	// allem ausser dem Skin, denn dessen Dateiname ist seine Kennung: ein
+	// Level sagt skin0="space" und der Lader sucht levels/skins/space.zip,
+	// und space_2.zip haette alle diese Level genauso kaputt gelassen wie
+	// vorher, nur ohne sichtbaren Grund. Dasselbe Argument gilt schwaecher
+	// auch fuer die anderen: wer eine neue Fassung seines Levels einspielt,
+	// meint seinen Level und nicht einen zweiten daneben. Ausserdem behaelt
+	// eine erneut eingespielte Kampagne so ihren Fortschritt, weil die
+	// ProgressDB nach dem Dateinamen schluesselt.
 	const std::string dir(directoryFor(kind));
-	const std::string stem(sanitizeFilenameStem(untrustedName, "import"));
+	const std::string name(sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) +
+						   extensionFor(kind));
 
-	if(kind == KIND_SKIN)
+	// Die eine Ausnahme: die sieben Namen, unter denen das Spiel selbst etwas
+	// mitliefert. Ueberschreiben hiesse hier, dem Spieler etwas wegzunehmen,
+	// das er nicht wiederbekommt - also wird abgelehnt statt ausgewichen.
+	if(isBuiltIn(kind, name))
 	{
-		// Der Dateiname eines Skins ist seine Kennung: ein Level sagt
-		// skin0="space" und der Lader sucht levels/skins/space.zip. Wuerde
-		// ein schon vergebener Name hier zu space_2.zip ausweichen, blieben
-		// alle Level, die "space" nennen, genauso kaputt wie vorher - nur
-		// ohne sichtbaren Grund. Ein Skin ueberschreibt deshalb.
-		if(isBuiltIn(kind, stem + extensionFor(kind)))
-		{
-			errorId = "$TR_ERROR_SKIN_RESERVED";
-			return "";
-		}
-		const std::string name(stem + ".zip");
-		if(!fs.copyFile(path, dir + name))
-		{
-			errorId = "$TR_ERROR_FAILED";
-			return "";
-		}
-		return name;
+		errorId = "$TR_ERROR_RESERVED";
+		return "";
 	}
 
-	const std::string name(uniqueName(dir, stem, extensionFor(kind)));
+	const bool replaced = fs.fileExists(dir + name);
+
+	// Eine Kampagne muss sich auch laden lassen, nicht nur eine campaign.xml
+	// enthalten. Das wird geprueft, bevor irgendetwas ersetzt wird.
+	if(kind == KIND_CAMPAIGN && !Campaign::isImportableArchive(path))
+	{
+		errorId = "$TR_ERROR_BROKEN";
+		return "";
+	}
+
 	if(!fs.copyFile(path, dir + name))
 	{
 		errorId = "$TR_ERROR_FAILED";
 		return "";
 	}
+
+	if(p_replaced) *p_replaced = replaced;
 	return name;
 }
 

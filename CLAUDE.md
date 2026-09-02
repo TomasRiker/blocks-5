@@ -465,11 +465,25 @@ archive is a campaign if it holds `campaign.xml` or a skin if it holds `tileset.
 `sprites.png`. Anything else is refused. The browser stages the upload outside the home
 directory (C hands JS all three possible staging paths and JS picks one by extension, so C still
 composes every path), `sanitizeFilenameStem` reduces the name to `[A-Za-z0-9_-]`, and only then
-does anything reach IndexedDB. **The skin is the one whose filename is its identity** — a level
-says `skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip` — so a skin
-import overwrites rather than swerving to `space_2.zip` the way the others still do, and the
-four names `zip_skins.bat` builds are refused through `isBuiltIn`. ROADMAP item 14 makes the
-other three overwrite as well and extends the refusal to all seven shipped names.
+does anything reach IndexedDB.
+
+**An import replaces a file of the same name**, for all four kinds alike, and `Transfer::install`
+is the whole rule: sanitized stem, plus the kind's extension, plus a copy. It used to swerve to
+`stem_2`, `stem_3`, … — except for skins, which always overwrote, because a skin's filename *is*
+its identity: a level says `skin0="space"` and `Level::getSkinFilename` looks for
+`levels/skins/space.zip`, so `space_2.zip` would have left every such level exactly as broken as
+before, only without a visible cause. The weaker form of that argument holds for the rest — a new
+version of your level means *your* level, not a second one beside it — and a re-imported campaign
+now keeps its progress, since `ProgressDB` keys on the campaign's filename and the filename no
+longer moves. `Campaign::installArchive` is gone with the numbering; it had become the generic
+path.
+
+The one refusal is `isBuiltIn`: overwriting one of the seven shipped files would take something
+away that the game does not hand back. `install` reports through `bool* p_replaced` whether it
+landed on an existing file, so the toast can say **Replaced** rather than **imported** — the only
+sign the player would otherwise get that something of theirs is gone. A campaign is checked with
+`isImportableArchive` *before* the copy, so a damaged archive cannot destroy a good one of the
+same name.
 
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture
 as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, and the default is `GL_REPEAT` — which

@@ -45,13 +45,6 @@ public:
 	// wie im Browser.
 	static bool isImportableArchive(const std::string& archivePath);
 
-	// Legt das gepruefte Archiv unter levels/campaigns/ ab und liefert den
-	// vergebenen Dateinamen, "" wenn das Kopieren fehlschlaegt. untrustedName
-	// ist der Wunschname aus dem Browser und nur ein Vorschlag; der Zielname
-	// wird hier gebildet und ist garantiert noch frei.
-	static std::string installArchive(const std::string& archivePath,
-									  const std::string& untrustedName);
-
 	Campaign();
 	~Campaign();
 

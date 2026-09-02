@@ -78,27 +78,6 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 	return check.load(archivePath, true) && !check.getLevels().empty();
 }
 
-std::string Campaign::installArchive(const std::string& archivePath,
-									 const std::string& untrustedName)
-{
-	FileSystem& fs = FileSystem::inst();
-	const std::string dir(fs.getAppHomeDirectory() + "levels/campaigns/");
-	const std::string stem(sanitizeFilenameStem(untrustedName, "campaign"));
-
-	// Anders als beim Skin ist der Dateiname hier reine Buchhaltung - kein
-	// Level verweist darauf -, also wird eine schon vorhandene Kampagne nicht
-	// ueberschrieben, sondern die neue bekommt eine Nummer.
-	std::string name(stem + ".zip");
-	for(int n = 2; n <= 99 && fs.fileExists(dir + name); n++)
-	{
-		char temp[128] = "";
-		sprintf(temp, "%s_%d.zip", stem.c_str(), n);
-		name = temp;
-	}
-
-	return fs.copyFile(archivePath, dir + name) ? name : std::string("");
-}
-
 Campaign::Campaign()
 {
 }

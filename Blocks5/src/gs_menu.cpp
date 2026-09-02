@@ -612,7 +612,8 @@ void GS_Menu::pollImport()
 	}
 
 	std::string errorId;
-	const std::string name(Transfer::install(kind, path, untrustedName, errorId));
+	bool replaced = false;
+	const std::string name(Transfer::install(kind, path, untrustedName, errorId, &replaced));
 	Transfer::finishImport();
 
 	if(name.empty())
@@ -636,6 +637,16 @@ void GS_Menu::pollImport()
 		const int where = p_list->findItem(name);
 		if(where != -1) p_list->setSelection(where);
 		updateManagerButtons();
+	}
+
+	// Wurde etwas ersetzt, dann ist genau das die Nachricht: die Datei, die
+	// vorher unter diesem Namen lag, ist weg. Den Namen musste der Spieler
+	// dafuer schon kennen - er hat ihn ja vergeben -, also entfaellt hier der
+	// Hinweis, wo man ihn eintraegt.
+	if(replaced)
+	{
+		engine.showToast(Engine::TOAST_OK, localizeString("$TR_REPLACED") + " \"" + name + "\"");
+		return;
 	}
 
 	// Bei Level, Musik und Skin ist der vergebene Name das, was der Spieler
