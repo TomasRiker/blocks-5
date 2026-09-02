@@ -3234,9 +3234,17 @@ void Engine::resetActions()
 {
 	for(size_t i = 0; i < actionsVector.size(); i++)
 	{
-		actionsVector[i]->primary = actionsVector[i]->defaultPrimary;
-		actionsVector[i]->secondary = actionsVector[i]->defaultSecondary;
+		resetAction(actionsVector[i]->name);
 	}
+}
+
+void Engine::resetAction(const std::string& name)
+{
+	Action* p_action = getAction(name);
+	if(!p_action) return;
+
+	p_action->primary = p_action->defaultPrimary;
+	p_action->secondary = p_action->defaultSecondary;
 }
 
 // Die beim Laden gemerkten Kennungen in Indizes umsetzen. Muss laufen, nachdem

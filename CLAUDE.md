@@ -368,7 +368,11 @@ LGPL v2 and must stay dynamically linked.
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are
-registered in `main.cpp` and remappable via the options dialog.
+registered in `main.cpp` and remappable via the options dialog. Resetting comes in two
+strengths there — *selected* and *all* — because `Action` has carried `defaultPrimary` and
+`defaultSecondary` all along, so `resetAction(name)` is the same three lines `resetActions()`
+loops over; until 1.2.0 only the loop had a button, and one misplaced key meant throwing the
+whole scheme away. *selected* greys out without a selection.
 
 **A binding is stored in `config.xml` by name, not by number.** A VK is an index into
 `virtualKeys`, and that index moves: the keyboard block is `SDLK_LAST` long, which is 323
