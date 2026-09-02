@@ -412,11 +412,16 @@ and `stackwalker.cpp` is already excluded from non-Windows builds.
 is the list of SDL 1.2 entry points a non-Windows build turned out to need
 shimmed.
 
-A mingw sweep already names the first four things a GCC-based build will reject:
-`filesystem.cpp` includes `Shlobj.h` where the file is `shlobj.h`, and
-`panel.cpp`, `e_pulsepanel.cpp` and `teleporter.cpp` call `std::find` without
-including `<algorithm>`. Everything else in `Blocks5/src` except `main.cpp`'s SEH
-block already parses.
+A mingw sweep named the first four things a GCC-based build would reject, and
+all four are gone since: `<algorithm>` is in `pch.h` now, which every source
+includes first, so `panel.cpp`, `e_pulsepanel.cpp` and `teleporter.cpp` calling
+`std::find` are fine — libstdc++ is the one standard library that does not pull
+it in through the container headers. The fourth, `filesystem.cpp` including
+`Shlobj.h` where the file is `shlobj.h`, only ever mattered to the mingw sweep:
+the include sits inside `#ifdef _WIN32` and a Linux build never reaches it
+(`tools/syntax.sh` generates a capitalised forwarder so the sweep can still
+compile the Windows path). Everything in `Blocks5/src` except `main.cpp`'s SEH
+block parses under GCC today — `sh tools/syntax.sh` is the standing check.
 
 What still needs deciding:
 
@@ -427,6 +432,28 @@ What still needs deciding:
   `main.cpp`) and user levels/skins on disk will expose every filename whose case
   does not match. Expect to find some.
 - SDL 1.2 from the distro, or the SDL2 move from item 3.
+
+**WSL2 is a usable test bench for this, with one condition.** WSLg supplies
+everything the game asks of a host: Weston plus XWayland for SDL 1.2's X11
+backend, a real PulseAudio server for OpenAL Soft, and hardware-accelerated
+OpenGL through Mesa's d3d12 Gallium driver — 4.1 in *both* core and
+compatibility profiles, where the game needs GL 2.1-class compatibility at most
+(fixed-function `glBegin`/matrix stack, `gluPerspective`/`gluLookAt`/
+`gluOrtho2D`, FBO with packed depth-stencil, GLSL 110).
+
+The condition is **where the tree lives**. Case sensitivity is the open question
+above, and it is decided by the filesystem: WSL's own ext4 under `~` is
+case-sensitive and exposes exactly those bugs, while `/mnt/c` is case-insensitive
+by default and hides every one of them. Building on the Windows drive switches
+off the most valuable thing the exercise buys.
+
+Two things it will not settle. Window behaviour — item 10's whole area — is not
+representative: WSLg puts each app in a rootless window under Weston-over-RDP,
+which is neither the Win32 `WS_POPUP` fullscreen nor a real Linux WM. And the
+audio capture above wants `@DEFAULT_MONITOR@`; PulseAudio gives every sink a
+`.monitor` source automatically and WSLg's `RDPSink` is an ordinary sink, so it
+should be there, but WSLg has known underruns on that sink, so recorded audio
+*quality* should not be judged there.
 
 Two things a Linux build will *not* have to decide, because item 3 already
 settled them with Linux in mind:
