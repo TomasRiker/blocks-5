@@ -294,6 +294,18 @@ place that owns `displaySize` — picks it up. Dragging the border and Alt+Retur
 run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
 sees a bare Return.
 
+**A window that stops presenting loses control of what it shows.** While the app is inactive
+the main loop skips both the logic and the rendering — but it must still put the last frame up,
+which is what `showLastFrame()` does every 50 ms (unbind, `presentFrame`, swap; `renderAndPresent`
+is that plus a render, and `repaintDuringSizeMove` uses it too). It used to present *nothing* in
+fullscreen and, windowed, called `SDL_GL_SwapBuffers` without drawing — which flips to the other
+buffer and shows the frame before the last one, alternating at 20 Hz. The fullscreen half was
+visible: with the Start menu open over a `WS_POPUP` covering the desktop, the game showed a frame
+from seconds earlier. A full-screen popup is exactly the shape Windows may hand a direct scanout
+path, and then the compositor's own copy of the window stops being updated; when something forces
+it to composite again, that stale copy is what it has. Re-presenting keeps a fresh one there.
+Without an FBO there is nothing to repeat, so that case keeps the bare swap.
+
 **Drawing while the border is dragged** needs one thing SDL cannot give: while the user holds
 the border or the title bar, `DefWindowProc` runs *its own* modal message loop and the main
 loop sits in `SDL_PollEvent` until the mouse comes up. The only code that still runs is the

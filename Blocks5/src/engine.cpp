@@ -936,7 +936,19 @@ void Engine::mainLoopIteration()
 
 		if(!active)
 		{
-			if(!fullScreen) SDL_GL_SwapBuffers();
+			// Nicht rechnen, nicht zeichnen - aber weiter zeigen. Ein Fenster,
+			// das gar nichts mehr vorlegt, hat nicht mehr in der Hand, was von
+			// ihm zu sehen ist: Windows nimmt dann, was es zuletzt von ihm
+			// hatte, und das kann Sekunden alt sein. Im Vollbild fiel das auf,
+			// weil dort bisher gar nichts geschah - beim Druck auf die
+			// Windows-Taste stand hinter dem Startmenue ein altes Bild.
+			//
+			// Der Bildpuffer haelt das zuletzt gezeichnete Bild, also ist es
+			// auch das richtige. Ohne Bildpuffer gibt es nichts zu wiederholen;
+			// dort bleibt es beim blossen Tauschen wie bisher.
+			if(useFrameBuffer) showLastFrame();
+			else if(!fullScreen) SDL_GL_SwapBuffers();
+
 			updateSounds();
 			SDL_Delay(50);
 			continue;
@@ -2164,9 +2176,7 @@ void Engine::repaintDuringSizeMove()
 			// Der Bildpuffer haelt das zuletzt gerenderte Bild noch - genau das
 			// kommt jetzt in der neuen Groesse auf den Schirm, mit Balken und
 			// Filter.
-			unbindFrameBuffer();
-			presentFrame();
-			SDL_GL_SwapBuffers();
+			showLastFrame();
 
 			displaySize = knownToSDL;
 			unbindFrameBuffer();   // glViewport wieder passend zurueckstellen
@@ -3218,13 +3228,18 @@ void Engine::flushInput()
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 }
 
+void Engine::showLastFrame()
+{
+	unbindFrameBuffer();
+	presentFrame();
+	SDL_GL_SwapBuffers();
+}
+
 void Engine::renderAndPresent()
 {
 	bindFrameBuffer();
 	render();
-	unbindFrameBuffer();
-	presentFrame();
-	SDL_GL_SwapBuffers();
+	showLastFrame();
 }
 
 int Engine::getPressedVK(int timeOut)

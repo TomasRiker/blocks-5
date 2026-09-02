@@ -362,6 +362,11 @@ private:
 	void updateToasts();
 	void renderToasts();
 
+	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
+	// Bildpuffer, mit Balken und Filter, und tauschen. Ohne Logiktakt und ohne
+	// neu zu zeichnen.
+	void showLastFrame();
+
 	// Ein Bild zeichnen und zeigen, ohne Logiktakt - dasselbe, was die
 	// Hauptschleife an ihrem Fuss tut. Fuer die Stellen, an denen sie
 	// selbst steht und der Schirm trotzdem stimmen muss.
