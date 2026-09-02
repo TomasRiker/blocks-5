@@ -453,7 +453,8 @@ is locale-dependent and `pch.h` does not pull in `<cctype>`.
 because the browser's file dialog cannot be modal — so when it completes with the Manager still
 open, it switches the kind radio to whatever `classify` decided, re-reads the list and selects
 the new entry. That is what the merge buys, and it is why the pane deliberately stays open
-across the file dialog.
+across the file dialog. Export stays open too, and for the same reason: while it was a dialog
+of its own it was finished with the click, but the Manager is a place you keep working in.
 
 Escape belongs to the topmost pane: the confirmation first, then the Manager, and only with
 both closed does it quit the game. The export pane never did this — an Escape with it open shut
