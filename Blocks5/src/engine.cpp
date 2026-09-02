@@ -1082,8 +1082,8 @@ void Engine::mainLoopIteration()
 			if(doScreenshot)
 			{
 				doScreenshot = false;
-				screenshot();
-				playSound("screenshot.ogg");
+				// Der Ton bestaetigt das Bild; ohne Bild bestaetigt er nichts.
+				if(screenshot()) playSound("screenshot.ogg");
 			}
 
 			// Bildpuffer auf den Bildschirm bringen
@@ -2427,13 +2427,13 @@ void Engine::drawOverlays()
 	}
 }
 
-void Engine::screenshot()
+bool Engine::screenshot()
 {
 #ifdef __EMSCRIPTEN__
 	// GL_BGR ist in WebGL 1 kein zulaessiges Format fuer glReadPixels, und
 	// Emscriptens SDL_SaveBMP_RW ist ein abort(). Noetig waere ein Download.
 	printfLog("Screenshots are not supported in the web build.\n");
-	return;
+	return false;
 #endif
 	// Immer das interne 640x480-Bild: Filter und schwarze Balken sind
 	// Anzeigeeinstellungen und gehoeren nicht in die Datei.
@@ -2472,10 +2472,12 @@ void Engine::screenshot()
 		if(!fs.fileExists(filename)) break;
 	}
 
-	SDL_SaveBMP(p_surface, filename.c_str());
+	const bool saved = SDL_SaveBMP(p_surface, filename.c_str()) == 0;
+	if(!saved) printfLog("+ ERROR: Could not write \"%s\" (%s).\n", filename.c_str(), SDL_GetError());
 
 	SDL_FreeSurface(p_surface);
 	delete[] p_buffer;
+	return saved;
 }
 
 void Engine::renderSprite(const Vec2i& position,

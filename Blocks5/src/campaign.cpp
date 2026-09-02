@@ -80,6 +80,10 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 
 Campaign::Campaign()
 {
+	// clear() setzt beide auch, aber erst, wenn jemand es ruft: bis dahin
+	// beantwortet getNumUnlockedLevels() sonst einen Zufallswert.
+	numUnlockedLevels = 1;
+	iHaveABonusLevel = false;
 }
 
 Campaign::~Campaign()

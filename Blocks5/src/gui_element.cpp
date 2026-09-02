@@ -541,7 +541,9 @@ std::string GUI_Element::getFullName() const
 {
 	std::string fullName = name;
 	GUI_Element* p_element = p_parent;
-	while(p_element != GUI::inst().getRoot())
+	// Auch auf die Null pruefen: die Wurzel selbst und alles, was nicht unter
+	// ihr haengt, laeuft sonst ueber p_parent == 0 hinaus und liest weiter.
+	while(p_element && p_element != GUI::inst().getRoot())
 	{
 		fullName = p_element->getName() + "." + fullName;
 		p_element = p_element->p_parent;

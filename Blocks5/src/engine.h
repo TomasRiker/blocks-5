@@ -84,7 +84,10 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
-	void screenshot();
+	// false, wenn kein Bild entstanden ist. Im Browser immer: GL_BGR ist dort
+	// kein zulaessiges Format fuer glReadPixels, und SDL_SaveBMP_RW ist ein
+	// abort().
+	bool screenshot();
 
 	// Der Bildpuffer, in den das Spiel rendert: immer 640x480, unabhaengig von
 	// der Fenstergroesse. Jede Rechnung in Bildschirmkoordinaten bleibt gueltig.

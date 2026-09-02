@@ -80,7 +80,11 @@ File_Real::File_Real(const std::string& filename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		remove(filename.c_str());
+		// remove() liefert 0, wenn die Datei danach weg ist. Ohne diese Pruefung
+		// meldet FileSystem::deleteFile() auch dann Erfolg, wenn gar nichts
+		// geloescht wurde - eine schreibgeschuetzte oder offene Datei bleibt
+		// stehen, und der Manager sagt, sie sei fort.
+		if(remove(filename.c_str()) != 0) error = 9;
 	}
 	else
 	{

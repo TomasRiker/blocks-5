@@ -13,6 +13,7 @@ Help::Help(GUI_Element* p_parent) : GUI_Element("HelpPane", p_parent, Vec2i(0, 0
 	static_cast<GUI_Button*>(getChild("Help.NextPage"))->connectClicked(this, &Help::handleClick);
 	static_cast<GUI_Button*>(getChild("Help.OK"))->connectClicked(this, &Help::handleClick);
 
+	page = 1;
 	p_focusWhenClosed = 0;
 }
 
