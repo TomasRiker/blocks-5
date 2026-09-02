@@ -42,7 +42,10 @@ Engine::Engine()
 
 	frameTime = 0;
 	time = 0;
-	modal = false;
+	grabbingKey = false;
+	grabResult = GRAB_WAITING;
+	grabDeadline = 0;
+	grabHasDeadline = false;
 	p_crossfade = 0;
 	crossfadeTime = -1.0;
 	crossfadeDuration = 0.0;
@@ -969,12 +972,6 @@ void Engine::mainLoopIteration()
 		{
 			update();
 
-			if(modal)
-			{
-				modal = false;
-				start = SDL_GetTicks();
-			}
-
 #ifdef RECORD
 			bool output = false;
 			for(int i = 0; i < NUM_KEY_SLOTS; i++)
@@ -1404,7 +1401,25 @@ void Engine::update()
 
 	// virtuelle Tasten und Aktionen aktualisieren
 	updateVKs();
-	updateActions();
+
+	// Wartet ein Dialog auf eine Taste, gehoert dieser Takt ihr allein: der
+	// Tastendruck soll eine Belegung werden und sonst nichts. Also keine
+	// Aktionen - F1 zu belegen schaltete sonst nebenher den Ton stumm - und
+	// nichts fuer die Oberflaeche, wo das abbrechende Escape gleich noch den
+	// Dialog schloesse.
+	//
+	// Auch der Takt, in dem die Taste gefunden wird, gehoert noch dazu; darum
+	// der gemerkte Wert und nicht der Zustand hinterher. Die "gedrueckt"- und
+	// "losgelassen"-Bits der Aktionen raeumt die Hauptschleife jeden Takt weg,
+	// ein uebersprungenes updateActions() laesst also nichts stehen - alle
+	// wasActionPressed() unten sind waehrenddessen von selbst falsch.
+	const bool grabbing = grabbingKey;
+	if(grabbing)
+	{
+		updateKeyGrab();
+		flushInput();
+	}
+	else updateActions();
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
@@ -3235,52 +3250,68 @@ void Engine::showLastFrame()
 	SDL_GL_SwapBuffers();
 }
 
-void Engine::renderAndPresent()
+void Engine::beginKeyGrab(int timeOutMS)
 {
-	bindFrameBuffer();
-	render();
-	showLastFrame();
+	// Was jetzt schon gedrueckt ist, zaehlt nicht: gesucht ist die Taste, die
+	// waehrend des Wartens neu heruntergeht.
+	updateVKs();
+
+	grabOldState.clear();
+	grabOldState.reserve(virtualKeys.size());
+	for(size_t i = 0; i < virtualKeys.size(); i++) grabOldState.push_back(virtualKeys[i].down);
+
+	grabHasDeadline = timeOutMS > 0;
+	grabDeadline = SDL_GetTicks() + static_cast<uint>(timeOutMS > 0 ? timeOutMS : 0);
+	grabResult = GRAB_WAITING;
+	grabbingKey = true;
 }
 
-int Engine::getPressedVK(int timeOut)
+bool Engine::isGrabbingKey() const
 {
-	Uint32 end = SDL_GetTicks() + timeOut;
-	modal = true;
+	return grabbingKey;
+}
 
-	updateVKs();
-	std::vector<bool> oldState;
-	for(size_t i = 0; i < virtualKeys.size(); i++) oldState.push_back(virtualKeys[i].down);
+int Engine::pollKeyGrab()
+{
+	if(grabbingKey) return GRAB_WAITING;
 
-	// Ein Bild, bevor gewartet wird. Der Aufrufer hat die Aufschrift des
-	// Knopfes gerade auf "Taste druecken" gesetzt, und die Hauptschleife, die
-	// sie sonst auf den Schirm braechte, steht ab hier still.
-	renderAndPresent();
+	const int result = grabResult;
+	grabResult = GRAB_WAITING;
+	return result;
+}
 
-	while(timeOut == -1 || SDL_GetTicks() < end)
+void Engine::updateKeyGrab()
+{
+	if(!grabbingKey) return;
+
+	// Escape bricht ab. Es wird nicht als Belegung angeboten - eine Taste, mit
+	// der man jeden Dialog schliesst, waere eine schlechte Wahl -, und der
+	// Aufrufer laesst die alte Belegung stehen.
+	if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down)
 	{
-		updateVKs();
-		if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down) return VK_CANCELLED;
-
-		for(size_t i = 0; i < virtualKeys.size(); i++)
-		{
-			if(virtualKeys[i].down && !oldState[i]) return static_cast<int>(i);
-		}
-
-#ifndef __EMSCRIPTEN__
-		// Weiterzeichnen, damit das Bild waehrend des Wartens lebt. Nur
-		// nativ: im Browser kommt hier ohnehin kein Tastendruck an - nichts
-		// kann die Ereignisschlange fuellen, solange C den Faden haelt -, die
-		// Schleife laeuft stumpf in die Zeitschranke, und was sie zeichnete,
-		// setzte niemand zusammen. Das eine Bild vor der Schleife genuegt
-		// dort; dreihundert weitere waeren umsonst und machten das Warten auf
-		// einem weichen Rasterisierer nur zaeher.
-		renderAndPresent();
-#endif
-
-		SDL_Delay(10);
+		grabResult = GRAB_CANCELLED;
+		grabbingKey = false;
+		return;
 	}
 
-	return -1;
+	const size_t n = min(grabOldState.size(), virtualKeys.size());
+	for(size_t i = 0; i < n; i++)
+	{
+		if(virtualKeys[i].down && !grabOldState[i])
+		{
+			grabResult = static_cast<int>(i);
+			grabbingKey = false;
+			return;
+		}
+	}
+
+	// Zeit abgelaufen. Das heisst "keine Taste" und raeumt die Belegung weg -
+	// der einzige Weg, eine Aktion unbelegt zu lassen.
+	if(grabHasDeadline && SDL_GetTicks() >= grabDeadline)
+	{
+		grabResult = GRAB_NO_KEY;
+		grabbingKey = false;
+	}
 }
 
 void Engine::resetActions()

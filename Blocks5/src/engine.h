@@ -255,16 +255,36 @@ public:
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
 	void updateActions();
-	// Wartet auf einen Tastendruck und liefert die virtuelle Taste dazu.
-	// Escape bricht ab und liefert VK_CANCELLED - der Aufrufer laesst die
-	// Belegung dann, wie sie war. Laeuft die Zeit ab, kommt -1, und das heisst
-	// "keine Taste": so raeumt man eine Belegung weg.
+	// --- Auf einen Tastendruck warten, zum Belegen einer Aktion -----------
 	//
-	// Die Hauptschleife steht solange still, deshalb zeichnet die Warteschleife
-	// selbst weiter - sonst froere das Bild fuer bis zu drei Sekunden ein, und
-	// die Aufschrift, die zum Tastendruck auffordert, kaeme nie auf den Schirm.
-	static const int VK_CANCELLED = -2;
-	int getPressedVK(int timeOut = -1);
+	// Frueher hielt getPressedVK() dafuer die Hauptschleife an und wartete in
+	// einer eigenen Schleife, bis eine Taste kam. Nativ ging das. Im Browser
+	// nicht: dort fuellt erst die Rueckkehr zur Seite die Ereignisschlange,
+	// eine Schleife, die nicht zurueckkehrt, sieht also nie eine Taste. Nach
+	// drei Sekunden stand "nicht zugewiesen" da - belegen war unmoeglich.
+	//
+	// Jetzt ist es ein Zustand, den jeder Logiktakt weiterfuehrt: die
+	// Hauptschleife laeuft weiter, kehrt zur Seite zurueck und bekommt ihre
+	// Ereignisse. Derselbe Weg auf beiden Seiten, und das Fenster bleibt
+	// lebendig, statt drei Sekunden einzufrieren.
+	//
+	// Solange die Wartestellung laeuft, gehoert die Tastatur ihr allein:
+	// Aktionen werden nicht fortgeschrieben und die Oberflaeche bekommt keine
+	// Tastenereignisse (siehe update()).
+	enum
+	{
+		GRAB_WAITING   = -3,   // laeuft noch, nichts entschieden
+		GRAB_CANCELLED = -2,   // Escape: die Belegung bleibt, wie sie war
+		GRAB_NO_KEY    = -1    // Zeit abgelaufen; heisst "keine Taste"
+	};
+
+	// timeOutMS <= 0 wartet ohne Frist.
+	void beginKeyGrab(int timeOutMS = 3000);
+	bool isGrabbingKey() const;
+
+	// Liefert GRAB_WAITING, solange nichts entschieden ist; sonst einmal das
+	// Ergebnis und stellt die Wartestellung damit ab.
+	int pollKeyGrab();
 	void resetActions();
 
 	// Nur diese eine Aktion auf ihre Vorgabe zuruecksetzen. Wer sich eine
@@ -359,18 +379,24 @@ private:
 	// juengere Nachbarin und nicht ueber sie.
 	std::list<Toast> toasts;
 
+	// Die Wartestellung auf einen Tastendruck. grabOldState haelt fest,
+	// was beim Anstellen schon gedrueckt war - gesucht ist die Taste, die
+	// *neu* heruntergeht.
+	bool grabbingKey;
+	int grabResult;
+	uint grabDeadline;
+	bool grabHasDeadline;
+	std::vector<bool> grabOldState;
+
 	void updateToasts();
 	void renderToasts();
+	void updateKeyGrab();
 
 	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
 	// Bildpuffer, mit Balken und Filter, und tauschen. Ohne Logiktakt und ohne
 	// neu zu zeichnen.
 	void showLastFrame();
 
-	// Ein Bild zeichnen und zeigen, ohne Logiktakt - dasselbe, was die
-	// Hauptschleife an ihrem Fuss tut. Fuer die Stellen, an denen sie
-	// selbst steht und der Schirm trotzdem stimmen muss.
-	void renderAndPresent();
 	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
 	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
 	void reflowToasts();
@@ -404,7 +430,6 @@ private:
 	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
 	uint logicRate;
-	bool modal;
 	// These tables are indexed directly by SDL keysym. SDL 1.2's keysyms stop at
 	// SDLK_LAST (323), so 512 slots were enough on Windows, but other SDL headers
 	// number the same keys differently - Emscripten's use SDL2-style values

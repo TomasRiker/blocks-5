@@ -1270,14 +1270,14 @@ bottom edge meets the *Secondary* button's.
 `Engine::resetAction(name)` is the three lines predicted, and `resetActions()`
 now loops over it rather than repeating it.
 
-**Found while testing, and not fixed here: key rebinding does not work in the
-browser at all.** `Engine::getPressedVK` is a synchronous `while` loop around
-`SDL_PumpEvents` and `SDL_Delay(10)`. Natively that is fine — the message queue
-fills from the OS. Under Emscripten nothing can reach the queue while C holds
-the thread, so the loop always runs its three seconds out and returns -1, and
-the binding becomes "not assigned". It needs ASYNCIFY or a state machine that
-spans frames, which is a piece of work of its own. (It made a convenient test
-lever here: clicking a key button is a reliable way to clear a binding.)
+**Found while testing: key rebinding did not work in the browser at all** —
+`getPressedVK` was a synchronous `while` loop around `SDL_PumpEvents` and
+`SDL_Delay(10)`, and under Emscripten nothing can reach the event queue while C
+holds the thread, so it always ran its three seconds out and wrote "not
+assigned". **Fixed since**, as the state machine the entry guessed at rather
+than ASYNCIFY: `Engine::beginKeyGrab()` / `pollKeyGrab()`, advanced one tick at
+a time by the ordinary main loop. Same code on both platforms, and the dialog
+stays live instead of freezing. See the key-grab paragraph in CLAUDE.md.
 
 
 17. One Manager button instead of Import and Export  — **DONE**

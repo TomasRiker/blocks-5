@@ -45,6 +45,8 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	}
 
 	p_focusWhenClosed = 0;
+	grabButton = "";
+	grabAction = "";
 	changed = false;
 }
 
@@ -158,6 +160,9 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->deactivate();
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->deactivate();
 
+	grabButton = "";
+	grabAction = "";
+
 	getChild("Options")->focus();
 }
 
@@ -185,6 +190,40 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 	}
 
 	GUI_Element::onKeyEvent(event);
+}
+
+void Options::onUpdate()
+{
+	if(grabButton.empty()) return;
+
+	const int key = Engine::inst().pollKeyGrab();
+	if(key == Engine::GRAB_WAITING) return;
+
+	applyKeyGrab(key);
+}
+
+void Options::applyKeyGrab(int key)
+{
+	const std::string which(grabButton);
+	const std::string what(grabAction);
+	grabButton = "";
+	grabAction = "";
+
+	Engine& engine = Engine::inst();
+
+	// GRAB_CANCELLED heisst Escape: die Belegung bleibt, wie sie war.
+	// GRAB_NO_KEY - die Zeit ist abgelaufen - heisst "keine Taste" und raeumt
+	// sie weg; das ist der einzige Weg, eine Aktion unbelegt zu lassen.
+	const Action* p_action = engine.getAction(what);
+	if(key != Engine::GRAB_CANCELLED && p_action)
+	{
+		if(which == "PrimaryKey") engine.changeAction(what, key, p_action->secondary);
+		else                      engine.changeAction(what, p_action->primary, key);
+	}
+
+	// Setzt die beiden Aufschriften wieder auf die Belegung - die alte, wenn
+	// abgebrochen wurde.
+	handleClick(getChild("Options.Actions"));
 }
 
 void Options::handleClick(GUI_Element* p_element)
@@ -276,33 +315,16 @@ void Options::handleClick(GUI_Element* p_element)
 			int selection = p_actions->getSelection();
 			if(selection != -1)
 			{
-				const std::vector<Action*>& actions = Engine::inst().getActionsVector();
-				const Action& action = *(actions[selection]);
-
-				// Der Knopf sagt selbst, worauf er wartet. getPressedVK()
-				// zeichnet waehrend des Wartens weiter, also kommt die
-				// Aufschrift auch auf den Schirm.
+				// Der Knopf sagt selbst, worauf er wartet, und das Warten
+				// laeuft von jetzt an nebenher: die Hauptschleife dreht sich
+				// weiter, onUpdate() holt das Ergebnis ab, sobald es da ist.
+				// Festgehalten wird der Name der Aktion, nicht ihre Nummer -
+				// der bleibt richtig, was auch immer mit der Liste geschieht.
 				static_cast<GUI_Button*>(p_element)->setTitle("$O_PRESS_KEY");
 
-				const int key = Engine::inst().getPressedVK(3000);
-				if(key != Engine::VK_CANCELLED)
-				{
-					if(name == "PrimaryKey") Engine::inst().changeAction(action.name, key, action.secondary);
-					else Engine::inst().changeAction(action.name, action.primary, key);
-				}
-
-				SDL_Delay(250);
-				Engine::inst().updateVKs();
-
-				// Was waehrend des Wartens aufgelaufen ist, gehoert nicht der
-				// Oberflaeche: das abbrechende Escape schloesse sonst gleich
-				// noch den Dialog, und eine frisch belegte Eingabetaste
-				// drueckte OK.
-				Engine::inst().flushInput();
-
-				// Setzt auch die Aufschrift wieder auf die Belegung - die
-				// alte, wenn abgebrochen wurde.
-				handleClick(p_actions);
+				grabButton = name;
+				grabAction = Engine::inst().getActionsVector()[selection]->name;
+				Engine::inst().beginKeyGrab();
 			}
 		}
 		else if(name == "ResetSelected" || name == "ResetAll")

@@ -387,15 +387,35 @@ because `Action` has carried `defaultPrimary` and `defaultSecondary` all along, 
 loop had a button, and one misplaced key meant throwing the whole scheme away. Those two and
 the two key buttons all grey out without a selection.
 
-**A key button says what it is waiting for.** Clicking it sets its caption to `$O_PRESS_KEY`
-and calls `Engine::getPressedVK`, which holds the main loop for up to three seconds — so the
-caption would never reach the screen on its own. `renderAndPresent()` draws one frame before
-the wait and, natively, once per pass through it. Escape now returns `Engine::VK_CANCELLED`
-rather than the -1 that means "no key": the binding is left alone, where before Escape cleared
-it *and* closed the dialog, because the key press was still queued for the GUI. `flushInput()`
-after the wait is what stops that — it also keeps a freshly bound Return from pressing OK. It
-used to live inside `#ifdef _WIN32` next to the file-dialog helpers; its body is pure SDL and
-it is now wanted on both platforms. Emscripten's `SDL_PeepEvents` takes the SDL 2 argument
+**Waiting for a key is a state, not a loop.** Clicking a key button sets its caption to
+`$O_PRESS_KEY` and calls `Engine::beginKeyGrab()`; `Options::onUpdate` asks `pollKeyGrab()` each
+tick and applies the answer — the pressed VK, `GRAB_CANCELLED` for Escape (the binding is left
+alone), or `GRAB_NO_KEY` on the three-second deadline, which clears it and is the only way to
+leave an action unbound.
+
+It used to be `getPressedVK`, a `while` loop around `SDL_PumpEvents` and `SDL_Delay(10)` that
+held the main loop until a key came. Natively that worked. **In the browser it could not**: the
+event queue is filled by DOM listeners on the JS thread, and those only run when C returns to
+the page — `emscripten_set_main_loop_arg` calls `mainLoopIteration` once per frame precisely so
+that it does. A loop that never returns never sees a key, so every binding attempt timed out and
+wrote "not assigned". Rebinding was impossible there, and the page froze for three seconds each
+time (`SDL_Delay` without ASYNCIFY is a busy-wait, which is where the one-off "SDL_Delay called
+on the main thread" warning comes from). Swapping in a second main loop would not have helped:
+`emscripten_set_main_loop` either unwinds the wasm stack by throwing — through the GUI's
+iteration over its children, with nothing destroyed — or returns at once, and either way the
+caller has to resume later anyway. Once it does, the ordinary loop already yields and pumps, so
+a second one buys nothing.
+
+**While a grab runs, the keyboard belongs to it.** `Engine::update` skips `updateActions()` and
+calls `flushInput()` — otherwise binding F1 would toggle mute on the way past, and the
+cancelling Escape would reach the GUI and close the dialog. The tick in which the key is *found*
+still counts as part of the grab (hence the remembered flag, not the state after
+`updateKeyGrab()`), or the new binding would fire its own action immediately. Skipping
+`updateActions()` leaves nothing stale behind: the main loop clears every action's
+pressed/released bits each tick regardless, so `wasActionPressed` is simply false throughout.
+
+`flushInput()` used to live inside `#ifdef _WIN32` next to the file-dialog helpers; its body is
+pure SDL and both platforms want it now. Emscripten's `SDL_PeepEvents` takes the SDL 2 argument
 shape *and* asserts `requestedEventCount == 1`, so that branch fetches one event per call.
 
 **A binding is stored in `config.xml` by name, not by number.** A VK is an index into
