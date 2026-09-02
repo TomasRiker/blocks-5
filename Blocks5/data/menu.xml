@@ -38,13 +38,13 @@
 			<Title>$MM_MANAGE</Title>
 			<Image u="0" v="560" u2="80" v2="560">buttons.png</Image>
 		</Button>
-		<Button name="Options" x="462" y="52" w="80" h="80">
+		<Button name="Options" x="468" y="52" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$OPTIONS</Title>
 			<Image u="0" v="240" u2="80" v2="240">buttons.png</Image>
 		</Button>
-		<Button name="Help" x="542" y="82" w="80" h="80">
+		<Button name="Help" x="548" y="82" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$HELP</Title>
