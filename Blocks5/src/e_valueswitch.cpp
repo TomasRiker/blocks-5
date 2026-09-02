@@ -55,6 +55,8 @@ bool E_ValueSwitch::changeInEditor(int mod)
 
 void E_ValueSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	value = !value;
 
 	Engine::inst().playSound(value ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");

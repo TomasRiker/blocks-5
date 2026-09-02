@@ -1340,7 +1340,7 @@ Fixed — the confirmation takes the key first, then the Manager, and only with
 both closed does it reach the quit.
 
 
-18. A switch should flash when it is thrown
+18. A switch should flash when it is thrown  — **DONE**
 ---------------------------------------------
 Eight objects react to being touched (`onTouchedByPlayer`, or `onCollision` with
 an `OF_ACTIVATOR`): `lightswitch`, `electricityswitch`, `barrageswitch`,
@@ -1388,6 +1388,48 @@ about 0.15 s — seven or eight ticks at the 20 ms rate. `Level`'s
 model for the decay curve. Under night vision the level tints everything green
 (`level.cpp:981`), so the flash should be built from the object's own colour
 rather than forced to pure white, or it will punch a white hole in the tint.
+
+**Built, but not the way described above — that way cannot work.** The plan was
+to brighten each `Sprite`'s colour in `onBeforeRender()`. But `Sprite::color`
+defaults to `Vec4d(1, 1, 1, 1)` and `Sprites::add(pos)` resets to that default,
+and **five of the seven switches use it unchanged** — only `barrageswitch` and
+`cannonswitch` pass a tint, through `getStdColor`. `Engine::renderSprite` ends in
+`glColor4dv`, fixed-function, clamped to [0, 1]. There is no brighter than white
+in the colour value, so lifting RGB would have done nothing on five of seven and
+something on two: worse than no feature at all.
+
+What works is additive. `Object::render()` draws the sprites a second time with
+`GL_SRC_ALPHA, GL_ONE` while the counter runs, which accumulates in the
+destination and has no ceiling. The strength still passes through
+`renderSprites(sprites, colour)`, which multiplies by each sprite's own colour,
+so a tinted switch flashes in its own colour exactly as this entry wanted.
+
+The two caveats above both turned out to be unfounded:
+
+- **The shadow cannot be brightened.** `shadowColor` is `Vec4d(0, 0, 0, 0.7 /
+  numSamples)` — RGB is zero — so the shadow pass is black whatever the sprite
+  colour is. The additive pass is gated on `!shadowPass` anyway, since additive
+  black is not black.
+- **Night vision is a fullscreen overlay**, not a colour multiplied into the
+  objects — the same quad as the lightning, drawn after them. A bright sprite
+  shows through it rather than punching a hole in it.
+
+Where things ended up: `flashAmount` on `Object`, `flash()` to set it,
+`FLASH_STRENGTH` and `FLASH_DECAY` as tunable constants at the top of
+`object.cpp`, decay in `frameBegin()` (per tick, not per frame), the additive
+pass in `Object::render()` gated on `layer == 1 && !shadowPass` — all seven draw
+their sprites on layer 1. The seven call `flash()` at the top of their
+`onTouchedByPlayer`. It is deliberately *not* in `Object::onTouchedByPlayer`:
+`player.cpp:413` calls that for every object the player bumps into, so a default
+there would light up every block.
+
+No sound was added. The switches that make one already do, and what you hear
+belongs to the thing being operated.
+
+Checked by forcing the flash on in the title demo, which contains a `Magnet` and
+a `CannonSwitch`: +112 per channel at the peak, shaped by the sprite rather than
+a square, surrounding tiles untouched, and the same scene byte-for-byte
+unchanged in brightness when nothing is touched.
 
 
 19. Playable on a phone

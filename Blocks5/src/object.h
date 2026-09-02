@@ -114,6 +114,13 @@ public:
 	// allerersten Tick, den Level::update vor dem ersten Level::render macht.
 	const Sprites& getSprites();
 
+	// Kurz aufleuchten lassen. Gedacht ist es fuer die Schalter: drei von ihnen
+	// - Sperrfeuer, Kanone, Magnet - haben keinen eigenen Zustand und wirken
+	// irgendwo anders im Level, sind also vorher wie nachher dasselbe Bild.
+	// Wer aufleuchten will, ruft das selbst; Object::onTouchedByPlayer tut es
+	// nicht, denn das laeuft bei jedem Block, den der Spieler anrempelt.
+	void flash();
+
 	uint getMass() const;
 	void setMass(uint mass);
 	uint getUID() const;
@@ -132,6 +139,7 @@ public:
 	int onConveyorBelt;
 	bool shadowPass;
 	double noCollect;
+	double flashAmount;
 
 protected:
 	void handleSliding();

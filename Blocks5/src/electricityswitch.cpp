@@ -31,6 +31,8 @@ void ElectricitySwitch::onUpdate()
 
 void ElectricitySwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	level.setElectricityOn(!level.isElectricityOn());
 	Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
 }

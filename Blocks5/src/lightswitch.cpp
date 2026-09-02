@@ -36,6 +36,8 @@ void LightSwitch::onUpdate()
 
 void LightSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	bool nv = !level.isNightVision();
 	level.setNightVision(nv);
 

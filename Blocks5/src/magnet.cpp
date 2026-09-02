@@ -30,6 +30,8 @@ void Magnet::onUpdate()
 
 void Magnet::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	level.turnArrows();
 }
 

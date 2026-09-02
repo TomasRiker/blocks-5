@@ -33,6 +33,8 @@ void BarrageSwitch::onUpdate()
 
 void BarrageSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	// schalten
 	level.changeBarrages(color);
 }

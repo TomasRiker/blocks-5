@@ -36,6 +36,8 @@ void CannonSwitch::onUpdate()
 
 void CannonSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	if(subType == 0)
 	{
 		// Kanonen abfeuern

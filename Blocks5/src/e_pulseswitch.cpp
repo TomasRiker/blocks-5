@@ -77,6 +77,8 @@ bool E_PulseSwitch::changeInEditor(int mod)
 
 void E_PulseSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	value = pulseValue;
 
 	Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
