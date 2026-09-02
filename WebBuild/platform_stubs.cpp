@@ -193,7 +193,6 @@ static void initKeyNames(void)
 	keynames[SDLK_DOWN] = "down";
 	keynames[SDLK_RIGHT] = "right";
 	keynames[SDLK_LEFT] = "left";
-	keynames[SDLK_DOWN] = "down";
 	keynames[SDLK_INSERT] = "insert";
 	keynames[SDLK_HOME] = "home";
 	keynames[SDLK_END] = "end";
@@ -225,8 +224,9 @@ static void initKeyNames(void)
 	keynames[SDLK_LALT] = "left alt";
 	keynames[SDLK_RMETA] = "right meta";
 	keynames[SDLK_LMETA] = "left meta";
-	keynames[SDLK_LSUPER] = "left super";
-	keynames[SDLK_RSUPER] = "right super";
+	// SDLK_EURO, SDLK_LSUPER und SDLK_RSUPER fehlen mit Absicht: Emscriptens
+	// SDL_compat.h loest sie auf SDLK_2, SDLK_LMETA und SDLK_RMETA auf, sie
+	// wuerden also den Namen ueberschreiben, der dort schon steht.
 	keynames[SDLK_MODE] = "alt gr";
 	keynames[SDLK_COMPOSE] = "compose";
 	keynames[SDLK_HELP] = "help";
@@ -235,7 +235,6 @@ static void initKeyNames(void)
 	keynames[SDLK_BREAK] = "break";
 	keynames[SDLK_MENU] = "menu";
 	keynames[SDLK_POWER] = "power";
-	keynames[SDLK_EURO] = "euro";
 	keynames[SDLK_UNDO] = "undo";
 }
 

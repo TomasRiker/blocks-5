@@ -437,10 +437,14 @@ public:
 					return;
 				}
 			}
-			else if(getChild("MenuPane")->isVisible() && event.keysym.sym == SDLK_ESCAPE)
+			else if(getChild("MenuPane")->isVisible() &&
+					!getChild("EditHintPane")->isVisible() &&
+					!getChild("MessageBoxPane")->isVisible() &&
+					event.keysym.sym == SDLK_ESCAPE)
 			{
-				// Das Menue hat nur OK. Escape hat es frueher noch einmal
-				// fokussiert, was aussah, als taete es nichts.
+				// Das Menue hat nur OK, also schliesst Escape es. Nicht aber,
+				// wenn eine Rueckfrage oder der Hinweis-Dialog darueber steht:
+				// die gehoeren zum Menue und wuerden allein stehenbleiben.
 				handleClick(getChild("MenuPane.Menu.OK"));
 				return;
 			}

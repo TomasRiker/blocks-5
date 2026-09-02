@@ -49,32 +49,34 @@ void DiamondMachine::onUpdate()
 			{
 				if(p_obj == p_objOnMe)
 				{
-					// Rauch
-					ParticleSystem* p_particleSystem = level.getParticleSystem();
-					ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
-					ParticleSystem::Particle p;
-					p.lifetime = random(80, 120);
-					p.damping = 0.99f;
-					p.gravity = 0.005f;
-					p.positionOnTexture = Vec2b(0, 0);
-					p.sizeOnTexture = Vec2b(16, 16);
-
-					// Auch der Rauch nimmt die Farbe aus dem Bild - vorher war
-					// die ganze Saeule in einem einzigen Ton.
+					// Rauch. Die Farbe kommt aus dem Bild des Blocks; faellt die
+					// Stichprobe auf eine durchsichtige Stelle, entfaellt nur
+					// dieses eine Teilchen - der Zaehler unten laeuft weiter,
+					// sonst haengte die Umwandlungsdauer an der Deckung des
+					// Bildes und waere von Mal zu Mal eine andere.
 					Vec4d sampled;
 					Vec2i offset;
-					if(!p_obj->getSprites().sample(&sampled, &offset)) return;
-
-					p.position = position * 16 - Vec2i(0, 16) + offset;
-					p.velocity = Vec2d(random(-0.5, 0.5), -1.0);
-					p.color = sampled;
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
-					p.rotation = random(0.0f, 10.0f);
-					p.deltaRotation = random(-0.1f, 0.1f);
-					p.size = random(0.3f, 0.5f);
-					p.deltaSize = random(0.01f, 0.05f);
-					if(randomInt() % 2) p_particleSystem->addParticle(p);
-					else p_fireParticleSystem->addParticle(p);
+					if(p_obj->getSprites().sample(&sampled, &offset))
+					{
+						ParticleSystem* p_particleSystem = level.getParticleSystem();
+						ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
+						ParticleSystem::Particle p;
+						p.lifetime = random(80, 120);
+						p.damping = 0.99f;
+						p.gravity = 0.005f;
+						p.positionOnTexture = Vec2b(0, 0);
+						p.sizeOnTexture = Vec2b(16, 16);
+						p.position = position * 16 - Vec2i(0, 16) + offset;
+						p.velocity = Vec2d(random(-0.5, 0.5), -1.0);
+						p.color = sampled;
+						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+						p.rotation = random(0.0f, 10.0f);
+						p.deltaRotation = random(-0.1f, 0.1f);
+						p.size = random(0.3f, 0.5f);
+						p.deltaSize = random(0.01f, 0.05f);
+						if(randomInt() % 2) p_particleSystem->addParticle(p);
+						else p_fireParticleSystem->addParticle(p);
+					}
 
 					counter++;
 					if(!counter)

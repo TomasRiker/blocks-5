@@ -416,9 +416,6 @@ bool Engine::init(const std::string& windowCaption,
 	hookWindowProc();
 #endif
 
-	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt.
-	if(fullScreen) applyWindowStyle(true, getDesktopSize());
-
 #ifdef __EMSCRIPTEN__
 	// Nur ein echter Tastendruck darf die Fullscreen-API ausloesen, also am DOM.
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
@@ -481,14 +478,21 @@ bool Engine::init(const std::string& windowCaption,
 	{
 		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
 
-		// Dann ist die Fenstergroesse wieder starr, siehe handleResize(). Eine
-		// aus der config.xml uebernommene Groesse muss deshalb zurueck.
+		// Dann bleibt es bei 640x480, siehe handleResize(): eine aus der
+		// config.xml uebernommene Groesse muss zurueck, und Vollbild gibt es
+		// nicht, weil ein bildschirmfuellendes Fenster das Bild in die Ecke
+		// setzen wuerde.
+		fullScreen = false;
 		handleResize(screenSize.x, screenSize.y);
 	}
 	else if(GLExtensions::haveShaders())
 	{
 		createPresentPrograms();
 	}
+
+	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - erst hier,
+	// weil handleResize() den Bildpuffer kennen muss.
+	if(fullScreen) applyWindowStyle(true, getDesktopSize());
 	printfLog("  Upscale filters:  nearest, bilinear%s%s\n",
 			  canUseSharpFit() ? ", sharp-fit" : "", canUseCrt() ? ", crt" : "");
 	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
@@ -2070,7 +2074,13 @@ void Engine::repaintDuringSizeMove()
 			showLastFrame();
 
 			displaySize = knownToSDL;
-			unbindFrameBuffer();   // glViewport wieder passend zurueckstellen
+
+			// Die Hauptschleife hat den Bildpuffer gebunden, bevor sie in
+			// SDL_PollEvent stehengeblieben ist, und liest ihn hinterher weiter
+			// - fuer die Videoaufnahme und fuer die Ueberblendung. Also so
+			// hinterlassen, wie er vorgefunden wurde; der Viewport kommt damit
+			// gleich mit zurueck.
+			bindFrameBuffer();
 		}
 	}
 
@@ -2149,6 +2159,9 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 
 void Engine::setFullScreen(bool wantFullScreen)
 {
+	// Ohne Bildpuffer bleibt das Bild bei 640x480, siehe handleResize().
+	if(wantFullScreen && initialized && !useFrameBuffer) return;
+
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
 
 	fullScreen = wantFullScreen;
@@ -2871,6 +2884,12 @@ void Engine::changeAction(const std::string& name,
 
 	p_action->primary = primary;
 	p_action->secondary = secondary;
+
+	// Die neue Taste ist in aller Regel noch gedrueckt - der Spieler hat sie ja
+	// eben erst gedrueckt, um sie zu belegen. Ohne dass der Zustand hier
+	// nachgezogen wird, saehe das naechste updateActions() eine frische Flanke,
+	// und die Aktion loeste auf der Stelle einmal aus.
+	syncActionDown(*p_action);
 }
 
 Action* Engine::getAction(const std::string& name) const
@@ -3166,6 +3185,20 @@ void Engine::resetAction(const std::string& name)
 
 	p_action->primary = p_action->defaultPrimary;
 	p_action->secondary = p_action->defaultSecondary;
+	syncActionDown(*p_action);
+}
+
+// Uebernimmt, ob die belegten Tasten gerade gedrueckt sind, ohne eine Flanke zu
+// erzeugen. updateVKs() muss in diesem Takt gelaufen sein.
+void Engine::syncActionDown(Action& action)
+{
+	const int count = static_cast<int>(virtualKeys.size());
+	bool down = false;
+	if(action.primary   >= 0 && action.primary   < count) down = down || virtualKeys[action.primary].down;
+	if(action.secondary >= 0 && action.secondary < count) down = down || virtualKeys[action.secondary].down;
+
+	if(down) action.data |= 1;
+	else     action.data &= ~1;
 }
 
 // Die beim Laden gemerkten Kennungen in Indizes umsetzen. Muss laufen, nachdem

@@ -334,6 +334,7 @@ private:
 	void reflowToasts();
 
 	void updateKeyGrab();
+	void syncActionDown(Action& action);
 
 	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
 	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
