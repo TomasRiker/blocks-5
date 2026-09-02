@@ -64,7 +64,9 @@ dialog XML knows, `$IDs` missing from `languages.txt`, XML attributes written an
 read, a source file missing from the Visual Studio project, the version number drifting
 apart across the four places it lives, encoding and indentation, and more.
 `python3 tools/selftest.py` proves those checks still bite by injecting each fault in turn.
-`tools/README.md` lists them one by one.
+`sh tools/syntax.sh` compiles every source with mingw's `-fsyntax-only`, which is the only
+way to put a compiler over the Windows code from a Linux machine. `tools/README.md` lists
+them one by one.
 
 `WebBuild/build.sh hooks` builds the browser port with a small read-only introspection hook
 (`WebBuild/test_hooks.cpp`, compiled out of the shipped build), which lets

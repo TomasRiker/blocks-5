@@ -49,6 +49,21 @@ laesst sie laufen und legt die Datei danach byteweise zurueck.
 
     python3 tools/selftest.py
 
+## syntax.sh
+
+Uebersetzt jede Quelldatei des Spiels mit `i686-w64-mingw32-g++ -fsyntax-only`. Das ist die
+einzige Gelegenheit, den Windows-Code unter Linux durch einen Uebersetzer zu schicken, und
+sie kostet eine halbe Minute.
+
+    sh tools/syntax.sh              alle 112 Dateien
+    sh tools/syntax.sh engine.cpp   nur diese
+
+Die drei Dateien, die dabei aussen vor bleiben - `main.cpp`, `videorecorder.cpp`,
+`stackwalker.cpp` -, fallen aus denselben Gruenden auch aus dem Web-Build heraus.
+Eingecheckt werden muss nichts: die Kopfdateien, die der Baum mit grossem Anfangsbuchstaben
+einbindet (`<Windows.h>`, `<Shellapi.h>`, `<al.h>`), entstehen als Weiterleitungen in einem
+Wegwerfverzeichnis.
+
 ## Was daneben noch laeuft
 
     WebBuild/build.sh           uebersetzt und linkt den Browser-Build

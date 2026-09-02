@@ -91,8 +91,9 @@ stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Rele
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
 correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
 does that for you; it has to come last, because every argument after it goes to `blocks5.exe`
-untouched (`Build.bat Debug /rebuild /run -windowed`). There are **no tests and no
-linter**.
+untouched (`Build.bat Debug /rebuild /run -windowed`). There is no unit-test suite, but
+there are checks that run in seconds and a way to drive the real game — see
+**Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen` and
 `-nosplash` — that is the whole list, and `readme.txt` documents all three. `-nosplash`
@@ -113,6 +114,84 @@ log reports. The `.rc` had been missed before and sat at 1.1.1 through the whole
 The three projects: **Blocks5** (the game), **PWEncrypt** (CLI that encrypts an archive
 password into the bracket form used in paths), **ShowUserDir** (opens the user data folder in
 Explorer).
+
+## Checking a change
+
+Three things run here, none of them needing Windows. Run at least the first two after any
+edit; they take about half a minute together.
+
+```
+python3 tools/verify.py      eleven static checks over the whole tree
+sh tools/syntax.sh           compile every source with mingw (-fsyntax-only)
+cd WebBuild && ./build.sh    the browser port actually builds and links
+```
+
+**`tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
+no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
+`languages.txt`, an XML attribute written and never read, a source file missing from
+`Blocks5.vcxproj` or its `.filters`, the version number drifting apart across the four
+places it lives, a new member the constructor never sets, an asset filename that is not on
+disk, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
+English comment among the German ones. Exit code 1 on any finding; `--list` names them,
+`--only NAME` runs one. `tools/README.md` has the table.
+
+The attribute check exists because renaming the constant `numLayers` to `NUM_LAYERS` once
+took the XML attribute string with it, which silently disabled the level size guard for
+every editor-saved level. That is the shape of bug this file is for.
+
+**Three checks judge only what changed since `95660bb`**, the last commit before the
+2025 overhaul, whose id is `BASELINE` at the top of `verify.py`: indentation and
+whitespace, uninitialised members, and comment density. Code that has been there for ten
+years and works is not a finding, and reporting it on every run is how a check gets
+ignored.
+
+**`tools/selftest.py`** injects each fault in turn and confirms the matching check fires,
+then restores the file byte-for-byte. Run it after touching `verify.py`. It is not
+ceremony: the attribute check was inert when first written, because `Attribute(` also
+matches the tail of `SetAttribute(` and so every written attribute counted as read — the
+one check aimed at the bug above would have found nothing.
+
+**`sh tools/syntax.sh`** compiles all 112 sources with `i686-w64-mingw32-g++
+-fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
+files can never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp` — for
+the same reasons they are left out of the web build. It needs nothing checked in: the
+handful of case-aliasing headers the tree includes (`<Windows.h>`, `<Shellapi.h>`,
+`<al.h>`) are generated into a temp directory. It passes `-w`; for a warning sweep, swap
+that for `-Wall -Wextra` and compare against the same sweep before your change, because the
+tree emits thousands of warnings that were all there in 2015.
+
+### Driving the game in a browser
+
+`WebBuild/build.sh hooks` builds to `build-test/` with `-DBLOCKS5_TEST_HOOKS`, which turns
+on `WebBuild/test_hooks.cpp`. The shipped build has none of it — the whole translation unit
+is inside the `#ifdef`, and `blocks5_testDump` does not appear in `build/blocks5.js`.
+
+The hook only reads. It puts the GUI tree into `Module["b5_test"]` as JSON — every element
+with its window rectangle, whether it is visible and enabled, plus the game state, language
+and filter — and `blocks5_testHitAt(x, y)` says which element a click on a point would
+reach. `WebBuild/test/harness.js` turns that into `clickPath(page, 'Menu.Options')`, and
+the click itself stays an ordinary mouse click travelling the whole way through SDL, Engine
+and GUI. `WebBuild/test/smoke.js` walks menu, options and manager that way.
+
+Do not go back to reading coordinates off a screenshot. That is what this replaces, and it
+is wrong often enough to waste an afternoon: the buttons are eighteen pixels high, the
+window is scaled, and a pane drawn on top looks like a missed click.
+
+Four things about this environment, each of which cost real time:
+
+- **A wasm trap looks like a hang, not an exception.** `page.evaluate` never settles and
+  there is no error anywhere. `computePresentRect` divided by a zero `screenSize` before
+  `main()` had run, and the NaN-to-int cast trapped; `GUI_Element::getFullName()` walked
+  past a null parent and read on through memory. Guard anything the hook calls before the
+  engine is up, and bisect a hang by adding stages rather than by staring at it.
+- **`Module.calledRun` never appears** on the module object in this Emscripten. Wait for
+  the page-level `runtimeInitialized` *and* a dump that comes back with a game state and a
+  non-empty element list; the runtime is up well before `main()` has built anything.
+- **`page.mouse.click()` presses and releases in the same millisecond**, and the game
+  samples the mouse once per 20 ms logic tick, so the click is never seen. Move, settle,
+  hold, release — `harness.js` does this.
+- **Under swiftshader the game needs about half a minute to reach the menu**, and a frame
+  takes a fifth of a second. Never sleep a guessed interval; wait on the reported state.
 
 ## Architecture
 
@@ -693,7 +772,8 @@ filenames, shipped zipped in `levels/campaigns/`.
   OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers
   (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`), so don't re-include those.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj`
-  **and** `Blocks5.vcxproj.filters`.
+  **and** `Blocks5.vcxproj.filters`. `tools/verify.py` checks this — nothing else will,
+  since the Emscripten build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).
 - Comments are in German, and **every source file is pure ASCII** — `Blocks5/src`, `WebBuild`,

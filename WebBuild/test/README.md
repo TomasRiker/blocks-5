@@ -26,6 +26,10 @@ Die Haken liest nur; sie aendern nichts und stecken hinter
 `harness.js` startet den Webserver auf Port 8099 selbst und raeumt ihn
 wieder ab. Bildschirmfotos landen in `$B5_SHOTS` (Vorgabe `/tmp`).
 
+Bleibt ein Lauf haengen, sollte der Browser danach wirklich weg sein: drei
+swiftshader-Instanzen nebeneinander teilen sich die Kerne, und dann sieht ein
+Test aus, als bliebe er stehen, obwohl er nur kriecht.
+
 ## Ein Test
 
 ```js
