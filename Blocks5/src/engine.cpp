@@ -56,6 +56,7 @@ Engine::Engine()
 	frameBufferID = 0;
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
+	presentVertexBuffer = 0;
 	useFrameBuffer = false;
 	upscaleFilter = UF_SHARP_FIT;    // Voreinstellung; ohne Shader wird nearest daraus
 	fullScreen = false;
@@ -479,6 +480,10 @@ bool Engine::init(const std::string& windowCaption,
 	if(!useFrameBuffer)
 	{
 		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
+
+		// Dann ist die Fenstergroesse wieder starr, siehe handleResize(). Eine
+		// aus der config.xml uebernommene Groesse muss deshalb zurueck.
+		handleResize(screenSize.x, screenSize.y);
 	}
 	else if(GLExtensions::haveShaders())
 	{
@@ -2160,6 +2165,17 @@ void Engine::setFullScreen(bool wantFullScreen)
 
 void Engine::handleResize(int width, int height)
 {
+	// Ohne Bildpuffer zeichnet das Spiel geradewegs in den Backbuffer: es gibt
+	// kein presentFrame(), das eine andere Fenstergroesse aufgreifen wuerde,
+	// der Viewport steht seit init() auf 640x480, und die Mausumrechnung wie
+	// die Ueberblendung rechnen ebenfalls damit. Dann bleibt das Fenster bei
+	// seiner Groesse, statt ein Bild in der Ecke zu zeigen.
+	if(!useFrameBuffer)
+	{
+		width  = screenSize.x;
+		height = screenSize.y;
+	}
+
 #ifndef __EMSCRIPTEN__
 	// Kleiner als das interne Bild darf das Fenster nicht werden: darunter hat
 	// "Scharf" keine ganzzahlige Stufe mehr. Im Browser gibt der Canvas die
@@ -2185,7 +2201,7 @@ void Engine::handleResize(int width, int height)
 	displaySize = Vec2i(width, height);
 	// Maximiert nicht mitschreiben: sonst waere die gemerkte Fenstergroesse die
 	// des maximierten Fensters, und "Wiederherstellen" haette kein Ziel mehr.
-	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
+	if(useFrameBuffer && !fullScreen && !isWindowMaximized()) windowedSize = displaySize;
 }
 
 Vec2d Engine::warpToSource(const Vec2d& p) const
