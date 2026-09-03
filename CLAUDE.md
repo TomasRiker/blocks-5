@@ -153,16 +153,16 @@ The Linux build is the fastest way to *run* a change: `LinuxBuild/test/smoke.sh`
 under Xvfb and clicks through the menus, and unlike the browser it is a real GCC compile of
 every source, `videorecorder.cpp` included. What it cannot check is anything Windows-only —
 the SEH crash handler, the Win32 window procedure, `audiocapture.cpp`'s WASAPI half — and
-those are exactly what `tools/syntax.sh` is for.
+those are exactly what `Tools/syntax.sh` is for.
 
-**`tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
+**`Tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, the version number drifting apart across the four
 places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
 English comment among the German ones. Exit code 1 on any finding; `--list` names them,
-`--only NAME` runs one. `tools/README.md` has the table.
+`--only NAME` runs one. `Tools/README.md` has the table.
 
 The attribute check exists because renaming the constant `numLayers` to `NUM_LAYERS` once
 took the XML attribute string with it, which silently disabled the level size guard for
@@ -174,13 +174,13 @@ whitespace, uninitialised members, and comment density. Code that has been there
 years and works is not a finding, and reporting it on every run is how a check gets
 ignored.
 
-**`tools/selftest.py`** injects each fault in turn and confirms the matching check fires,
+**`Tools/selftest.py`** injects each fault in turn and confirms the matching check fires,
 then restores the file byte-for-byte. Run it after touching `verify.py`. It is not
 ceremony: the attribute check was inert when first written, because `Attribute(` also
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh tools/syntax.sh`** compiles all 112 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 112 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
 files can never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp` — for
 the same reasons they are left out of the web build. It needs nothing checked in: the
@@ -923,7 +923,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers
   (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`), so don't re-include those.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj`
-  **and** `Blocks5.vcxproj.filters`. `tools/verify.py` checks this — nothing else will,
+  **and** `Blocks5.vcxproj.filters`. `Tools/verify.py` checks this — nothing else will,
   since the Emscripten build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).

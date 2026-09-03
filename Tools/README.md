@@ -9,10 +9,10 @@ Statische Pruefungen. Sie suchen die Sorte Fehler, die beim Bearbeiten
 stillschweigend entsteht und die weder der Uebersetzer noch ein Blick auf den
 Diff findet.
 
-    python3 tools/verify.py            alles
-    python3 tools/verify.py --list     die Namen mit einer Zeile Erklaerung
-    python3 tools/verify.py --only gui_paths
-    python3 tools/verify.py --quiet    nur die Zusammenfassung
+    python3 Tools/verify.py            alles
+    python3 Tools/verify.py --list     die Namen mit einer Zeile Erklaerung
+    python3 Tools/verify.py --only gui_paths
+    python3 Tools/verify.py --quiet    nur die Zusammenfassung
 
 Rueckgabewert 1, sobald etwas beanstandet wird.
 
@@ -47,7 +47,7 @@ Attribut als gelesen galt.
 Das Skript baut deshalb je Pruefung genau den Fehler ein, den sie fangen soll,
 laesst sie laufen und legt die Datei danach byteweise zurueck.
 
-    python3 tools/selftest.py
+    python3 Tools/selftest.py
 
 ## syntax.sh
 
@@ -55,8 +55,8 @@ Uebersetzt jede Quelldatei des Spiels mit `i686-w64-mingw32-g++ -fsyntax-only`. 
 einzige Gelegenheit, den Windows-Code unter Linux durch einen Uebersetzer zu schicken, und
 sie kostet eine halbe Minute.
 
-    sh tools/syntax.sh              alle 112 Dateien
-    sh tools/syntax.sh engine.cpp   nur diese
+    sh Tools/syntax.sh              alle 112 Dateien
+    sh Tools/syntax.sh engine.cpp   nur diese
 
 Die drei Dateien, die dabei aussen vor bleiben - `main.cpp`, `videorecorder.cpp`,
 `stackwalker.cpp` -, fallen aus denselben Gruenden auch aus dem Web-Build heraus.

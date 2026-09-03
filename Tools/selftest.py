@@ -11,7 +11,7 @@ Jede Aenderung geht in einem finally zurueck, und am Ende wird byteweise
 verglichen. Bricht der Lauf trotzdem an der falschen Stelle ab, hilft
 "git status" - alle betroffenen Dateien stehen unter Versionsverwaltung.
 
-    python3 tools/selftest.py
+    python3 Tools/selftest.py
 """
 
 import io
@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VERIFY = os.path.join(ROOT, 'tools', 'verify.py')
+VERIFY = os.path.join(ROOT, 'Tools', 'verify.py')
 
 
 def run_check(name):

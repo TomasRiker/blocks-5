@@ -9,15 +9,15 @@ ein Umbenennen mitgenommen hat, ein GUI-Pfad, den es nicht mehr gibt, ein
 Attribut, das geschrieben und nirgends gelesen wird, eine neue Membervariable
 ohne Anfangswert, eine Quelldatei, die im Projekt fehlt.
 
-    python3 tools/verify.py             alle Pruefungen
-    python3 tools/verify.py --list      die Namen
-    python3 tools/verify.py --only gui_paths
-    python3 tools/verify.py --quiet     nur die Zusammenfassung
+    python3 Tools/verify.py             alle Pruefungen
+    python3 Tools/verify.py --list      die Namen
+    python3 Tools/verify.py --only gui_paths
+    python3 Tools/verify.py --quiet     nur die Zusammenfassung
 
 Rueckgabewert 1, sobald irgendetwas beanstandet wird.
 
 Zwei langsame Pruefungen stehen daneben und laufen nur auf Wunsch:
-    tools/syntax.sh    uebersetzt jede Quelldatei mit mingw (-fsyntax-only)
+    Tools/syntax.sh    uebersetzt jede Quelldatei mit mingw (-fsyntax-only)
     WebBuild/build.sh  baut den Browser-Build
 """
 

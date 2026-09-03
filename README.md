@@ -90,13 +90,13 @@ Checks
 ------
 There is no unit test suite, but two things do run on every change.
 
-`python3 tools/verify.py` is a set of static checks over the tree: element paths that no
+`python3 Tools/verify.py` is a set of static checks over the tree: element paths that no
 dialog XML knows, `$IDs` missing from `languages.txt`, XML attributes written and never
 read, a source file missing from the Visual Studio project, the version number drifting
 apart across the four places it lives, encoding and indentation, and more.
-`python3 tools/selftest.py` proves those checks still bite by injecting each fault in turn.
-`sh tools/syntax.sh` compiles every source with mingw's `-fsyntax-only`, which is the only
-way to put a compiler over the Windows code from a Linux machine. `tools/README.md` lists
+`python3 Tools/selftest.py` proves those checks still bite by injecting each fault in turn.
+`sh Tools/syntax.sh` compiles every source with mingw's `-fsyntax-only`, which is the only
+way to put a compiler over the Windows code from a Linux machine. `Tools/README.md` lists
 them one by one.
 
 `WebBuild/build.sh hooks` builds the browser port with a small read-only introspection hook
@@ -113,7 +113,7 @@ F11 writes a screenshot, and that quitting writes `config.xml`.
 Layout
 ------
     ROADMAP.md      planned work and what stands in the way of each item
-    tools/          verify.py and selftest.py, the static checks over the tree
+    Tools/          verify.py and selftest.py, the static checks over the tree
     Blocks5/        the game: sources in src/, assets in data/, levels and skins in levels/
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer

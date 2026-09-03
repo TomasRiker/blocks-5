@@ -7,8 +7,8 @@
 # Deklarationen. Das ist die einzige Gelegenheit, den Windows-Code hier zu
 # pruefen, und sie kostet eine halbe Minute.
 #
-#     sh tools/syntax.sh            alle Quelldateien
-#     sh tools/syntax.sh engine.cpp nur diese
+#     sh Tools/syntax.sh            alle Quelldateien
+#     sh Tools/syntax.sh engine.cpp nur diese
 #
 # Ausgabe nur bei einem Fehler; Rueckgabewert 1, sobald eine Datei nicht
 # durchgeht.

@@ -423,9 +423,9 @@ includes first, so `panel.cpp`, `e_pulsepanel.cpp` and `teleporter.cpp` calling
 it in through the container headers. The fourth, `filesystem.cpp` including
 `Shlobj.h` where the file is `shlobj.h`, only ever mattered to the mingw sweep:
 the include sits inside `#ifdef _WIN32` and a Linux build never reaches it
-(`tools/syntax.sh` generates a capitalised forwarder so the sweep can still
+(`Tools/syntax.sh` generates a capitalised forwarder so the sweep can still
 compile the Windows path). Everything in `Blocks5/src` except `main.cpp`'s SEH
-block parses under GCC today — `sh tools/syntax.sh` is the standing check.
+block parses under GCC today — `sh Tools/syntax.sh` is the standing check.
 
 What still needs deciding:
 
