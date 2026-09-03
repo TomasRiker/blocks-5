@@ -18,7 +18,6 @@ nicht krumm skaliert, sondern die naechstkleinere ganzzahlige Stufe mittig in
 die geforderte Flaeche gesetzt und der Rest durchsichtig gelassen -
 
     20 -> 16 (1x) mit 2 Pixeln Rand      40 -> 32 (2x) mit 4 Pixeln Rand
-    24 -> 16 (1x) mit 4 Pixeln Rand
 
 Eine krumme Vergroesserung wuerde einen Teil der Spalten verdoppeln und den
 Rest nicht; genau das Gleichmass des Rasters ist aber, was Pixelgrafik als
@@ -43,10 +42,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
                                 'WebBuild'))
 from make_icon import read_png, write_png            # noqa: E402
 
-# Was die Windows-Shell anfragt: 16/32/48 sind die klassischen Groessen, 20, 24
-# und 40 kommen bei 125% und 150% DPI dazu, 64 bei 200%, und 256 ist die Kachel
-# der Ansicht "Extra grosse Symbole".
-DEFAULT_SIZES = (16, 20, 24, 32, 40, 48, 64, 256)
+# Was die Windows-Shell anfragt: 16/32/48 sind die klassischen Groessen, 20 und
+# 40 kommen bei 125% DPI dazu, 64 bei 200%, und 256 ist die Kachel der Ansicht
+# "Extra grosse Symbole".
+#
+# 24 fehlt mit Absicht. Es ist die einzige Groesse, bei der die naechstkleinere
+# ganzzahlige Stufe die 1x waere: 16 von 24 Pixeln, also zwei Drittel der Kante
+# und knapp die Haelfte der Flaeche. So klein faellt der Rand auf. Windows
+# rechnet sich 24 stattdessen aus dem 32er herunter - weich, aber in voller
+# Groesse, und das ist an dieser einen Stelle das kleinere Uebel.
+DEFAULT_SIZES = (16, 20, 32, 40, 48, 64, 256)
 
 
 def reduce_to_art(width, height, pixels):

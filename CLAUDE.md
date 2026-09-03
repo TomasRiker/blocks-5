@@ -786,19 +786,30 @@ Never label one icon `"any maskable"` unless it satisfies both, which a full-ble
 cannot. `WebBuild/test/mobile.js` checks that a maskable icon is declared and served.
 
 **The Windows program icon has the same problem and a different answer.** `Blocks5/src/icon1.ico`
-carries **eight images** — 16, 20, 24, 32, 40, 48, 64 and 256 — because whenever the shell asks
-for a size the file does not hold, it scales one itself, and it scales smoothly. That is
-obvious upward (a 32 blown up to 256 is mush) but it is *also* true downward: shrinking 256 to
-40 averages six source pixels into one and hands back something soft. **One big image is not
+carries **seven images** — 16, 20, 32, 40, 48, 64 and 256 — because whenever the shell asks for
+a size the file does not hold, it scales one itself, and it scales smoothly. That is obvious
+upward (a 32 blown up to 256 is mush) but it is *also* true downward: shrinking 256 to 40
+averages six source pixels into one and hands back something soft. **One big image is not
 enough**; only an exact bitmap per requested size keeps the pixels.
 
-Every one of the eight is an **integer** multiple of the 16x16 art, never a fractional resample.
-Where the requested size is not a multiple — 20, 24 and 40 — the next scale down is centred in
-the box and the rest left transparent: 20 is 1x with a 2px margin, 24 is 1x with 4px, 40 is 2x
-with 4px. A 1.25x nearest render would double some columns and not others, and the evenness of
-the grid is exactly what makes pixel art read as deliberate; a slightly smaller icon inside its
-box does not read as anything at all, and Windows' own icon templates leave margins anyway. The
-cost is that 24 shows the art at 67% of the box, which is the one size where it is noticeable.
+Every one of the seven is an **integer** multiple of the 16x16 art, never a fractional resample.
+Where the requested size is not a multiple — 20 and 40 — the next scale down is centred in the
+box and the rest left transparent: 20 is 1x with a 2px margin, 40 is 2x with 4px. A 1.25x
+nearest render would double some columns and not others, and the evenness of the grid is
+exactly what makes pixel art read as deliberate; a slightly smaller icon inside its box does not
+read as anything at all, and Windows' own icon templates leave margins anyway.
+
+**24 is deliberately absent.** It is the one size where the next integer step down is 1x — 16 of
+24 pixels, two thirds of the edge and under half the area — and that much margin *is* visible.
+Windows scales it down from the 32 instead: soft, but full size, which is the lesser evil at
+that one size.
+
+**Full 8-bit alpha has been supported since Windows XP**, so every entry is a 32bpp DIB (and
+the 256 a PNG). The art needs it: 228 of its pixels are partially transparent, and a 1-bit mask
+would give them hard jagged edges. The old file also carried a paletted 8bpp pair for 16 and 32
+— the pre-XP fallback, which is where the 1-bit mask was the only transparency available — and
+those are gone. The 1-bit AND mask itself is still written alongside the alpha, because some
+legacy paths read only that.
 
 There is **no power-of-two restriction** on either kind of icon: an `.ico` directory entry
 stores each edge in a single byte (1–255, with 0 meaning 256), and a web manifest's `sizes` is

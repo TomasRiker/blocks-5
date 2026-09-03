@@ -581,7 +581,7 @@ def check_windows_icon():
         entries.append((w or 256, data[off:off + size]))
 
     bad = []
-    want = [16, 20, 24, 32, 40, 48, 64, 256]
+    want = [16, 20, 32, 40, 48, 64, 256]
     missing = [v for v in want if v not in [w for w, _ in entries]]
     if missing:
         bad.append('icon1.ico: es fehlen die Groessen %s - Windows skaliert die dann '
