@@ -179,6 +179,7 @@ done
 # blocks5.js kann nie neben einem blocks5.data eines anderen Baus landen. Siehe
 # den Kopf von sw.js und ROADMAP.md, Punkt 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
+cp "$HERE/touch_controls.js" "$OUT/touch_controls.js"
 # Die Kopfzeilen fuer Apache. index.html traegt als einzige Datei keine
 # Kennung im Namen und ist deshalb die eine, die nicht zwischengespeichert
 # werden darf - sonst erfaehrt niemand von einem neuen Bau.

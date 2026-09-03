@@ -38,7 +38,7 @@ var PAYLOAD = ['./index.html',
 
 // Nice to have. './' is what a home-screen launch asks for, but a server that
 // does not serve a directory index would fail the whole install over it.
-var EXTRA = ['./', './blocks5.html', './manifest.json',
+var EXTRA = ['./', './blocks5.html', './manifest.json', './touch_controls.js',
              './icon-192.png', './icon-512.png', './icon-maskable-512.png',
              './apple-touch-icon.png'];
 

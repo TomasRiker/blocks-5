@@ -1600,6 +1600,16 @@ and the actions in `main.cpp` are bound to virtual keys on top of that.
 
 Four pieces, roughly in the order they are worth doing:
 
+**A prototype exists**: `WebBuild/touch_controls.js`, reachable with `?pad=on`. It puts a
+four-way d-pad in the left letterbox bar, Bomb and Put as two round buttons in the right one,
+and Swap, Retry, Hotel and Menu as a small block further up where a mis-hit costs nothing.
+Measured on an emulated Pixel 7 with real touches: every control reaches the action it should
+and clears on release. Stepping and running need no code - the movement actions keep
+`registerAction`'s defaults (`delay 240`, `interval 80`), so a tap is one step and a held
+finger runs. Menu is not optional: `GS_Game` opens its menu on Escape and there is no other
+way out of a level without a keyboard. What is still missing is the text-field half (point 3
+below) and a proper place to switch it on other than a URL parameter.
+
 1. **The pad itself.** A DOM overlay above the canvas, like
    `WebBuild/web_bluescreen.cpp` builds one, with `touchstart`/`touchend` on each
    button. Drawn in the page rather than by the game, so it costs no GL work, it
