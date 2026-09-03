@@ -91,8 +91,18 @@
     }
   }
 
+  // build.sh stempelt hier die Kennung des Builds hinein. blocks5.js sucht
+  // seine beiden grossen Nachbarn ueber locateFile, also genuegt dieser eine
+  // Ort, damit alle drei Dateien den Namen desselben Baus tragen.
+  var B5_BUILD = '%%BUILD%%';
+
   var Module = {
     canvas: document.getElementById('canvas'),
+    locateFile: function (path) {
+      return (B5_BUILD && B5_BUILD.charAt(0) !== '%')
+             ? path.replace(/^blocks5\./, 'blocks5-' + B5_BUILD + '.')
+             : path;
+    },
     setStatus: setStatus,
     totalDependencies: 0,
     monitorRunDependencies: function (left) {
@@ -126,7 +136,10 @@
   // run - and out of the way of a build that has just been replaced.
   if ('serviceWorker' in navigator && !/blocks5\.html$/.test(location.pathname)) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) {
+      // updateViaCache "none": the worker script itself must never come out of
+      // the HTTP cache, or a stale sw.js keeps serving a stale payload and the
+      // page can never learn that a new build exists.
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function (e) {
         console.warn('[blocks5] service worker registration failed:', e);
       });
     });

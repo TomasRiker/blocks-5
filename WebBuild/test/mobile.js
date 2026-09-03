@@ -218,13 +218,51 @@ async function toPage(page, win) {
 			}
 			return { scope: reg.scope, names: names, held: held };
 		});
-		const need = ['/blocks5.js', '/blocks5.wasm', '/blocks5.data', '/index.html'];
+		// Die drei Nutzlastdateien tragen die Kennung des Baus im Namen, damit
+		// kein Zwischenspeicher auf dem Weg die JavaScript-Datei des einen Baus
+		// neben das wasm eines anderen legen kann. Der Name des
+		// Zwischenspeichers traegt dieselbe Kennung, also steht hier keine
+		// Liste, die veralten koennte.
+		const build = (sw.names[0] || '').replace(/^blocks5-/, '');
+		const need = ['/index.html', '/blocks5-' + build + '.js',
+		              '/blocks5-' + build + '.wasm', '/blocks5-' + build + '.data'];
 		const missing = need.filter(f => !sw.held.includes(f));
-		if (sw.names.length === 1 && !missing.length) {
+		if (sw.names.length === 1 && build && !missing.length) {
 			ok('service worker: cache "' + sw.names[0] + '" holds all ' + sw.held.length + ' files');
 		} else {
 			bad('service worker cache ' + JSON.stringify(sw.names) + ' is missing ' + missing.join(', '));
 		}
+		// Und nichts Ungestempeltes: genau daran ist es auf einem Server mit
+		// mod_pagespeed zerbrochen.
+		const unstamped = sw.held.filter(f => /^\/blocks5\.(js|wasm|data)$/.test(f));
+		if (unstamped.length) bad('ungestempelte Namen im Zwischenspeicher: ' + unstamped.join(', '));
+		else ok('alle Nutzlastdateien tragen die Kennung des Baus');
+
+		// --- 6b. ein neuer Bau kommt auch an ----------------------------------
+		// index.html traegt als einzige Datei keine Kennung im Namen, und der
+		// Worker hat sie frueher aus seinem Zwischenspeicher beantwortet - dann
+		// erfaehrt niemand je von einer neuen Fassung. Geprueft mit einem
+		// Marker, den das Spiel nicht anfasst: document.title taugt nicht, den
+		// setzt es ueber SDL_WM_SetCaption selbst.
+		const indexFile = path.join(DIR, 'index.html');
+		const original = fs.readFileSync(indexFile, 'utf8');
+		try {
+			fs.writeFileSync(indexFile, original.replace(
+				'<title>Blocks 5</title>',
+				'<title>Blocks 5</title><meta name="b5probe" content="neu">'));
+			await page.reload();
+			await wait(2500);
+			const probe = await page.evaluate(() => {
+				const m = document.querySelector('meta[name=b5probe]');
+				return m ? m.content : '';
+			});
+			if (probe === 'neu') ok('ein geaendertes index.html kommt bei einem gewoehnlichen Neuladen an');
+			else bad('index.html kam aus dem Zwischenspeicher - eine neue Fassung wuerde nie sichtbar');
+		} finally {
+			fs.writeFileSync(indexFile, original);
+		}
+		await page.reload();
+		await waitFor(page, booted, 'den Neustart', 240000);
 
 		// --- 7. offline ------------------------------------------------------
 		await context.setOffline(true);

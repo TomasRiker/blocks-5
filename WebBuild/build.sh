@@ -147,6 +147,29 @@ linkStatus=${PIPESTATUS[0]}
 # giving em++ index.html would rename all four and buy nothing.
 [ -f "$OUT/blocks5.html" ] && cp "$OUT/blocks5.html" "$OUT/index.html"
 
+# Die drei Nutzlastdateien bekommen die Kennung des Baus in den Namen. Sie
+# gehoeren zusammen - blocks5.js traegt eine Tabelle mit Byteabstaenden in
+# blocks5.data, und die EM_ASM-Bausteine liegen an Adressen, die nur zu diesem
+# einen wasm passen -, und getrennt zwischengespeichert werden koennen sie
+# ueberall: im Browser, in einem Proxy, in mod_pagespeed. Genau das ist
+# passiert: eine von PageSpeed unter eigenem Namen aufbewahrte alte
+# blocks5.js neben einer frischen blocks5.wasm, und das Spiel brach mit
+# "No EM_ASM constant found at address ..." ab.
+#
+# Mit der Kennung im Namen ist jede URL unveraenderlich. Ein alter Stand kann
+# dann nur noch vollstaendig alt sein, und das ist harmlos.
+version=$(cat "$OUT/blocks5.js" "$OUT/blocks5.wasm" "$OUT/blocks5.data" | md5sum | cut -c1-12)
+rm -f "$OUT"/blocks5-*.js "$OUT"/blocks5-*.wasm "$OUT"/blocks5-*.data
+mv "$OUT/blocks5.js"   "$OUT/blocks5-$version.js"
+mv "$OUT/blocks5.wasm" "$OUT/blocks5-$version.wasm"
+mv "$OUT/blocks5.data" "$OUT/blocks5-$version.data"
+
+# In der Seite zwei Stellen: das Skript-Tag, das em++ eingesetzt hat, und der
+# Stempel, aus dem Module.locateFile die Namen der beiden anderen bildet.
+for page in "$OUT/blocks5.html" "$OUT/index.html"; do
+  sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" "$page"
+done
+
 # Alles fuer die installierbare Seite. Das gehoert neben index.html und nicht in
 # den webroot: der wird ins virtuelle Dateisystem gepackt, ueber HTTP
 # ausgeliefert wird dieses Verzeichnis hier.
@@ -156,6 +179,10 @@ linkStatus=${PIPESTATUS[0]}
 # blocks5.js kann nie neben einem blocks5.data eines anderen Baus landen. Siehe
 # den Kopf von sw.js und ROADMAP.md, Punkt 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
+# Die Kopfzeilen fuer Apache. index.html traegt als einzige Datei keine
+# Kennung im Namen und ist deshalb die eine, die nicht zwischengespeichert
+# werden darf - sonst erfaehrt niemand von einem neuen Bau.
+cp "$HERE/htaccess" "$OUT/.htaccess"
 # Das Symbol ist dasselbe, das das Spielfenster traegt - 32x32, und damit zu
 # klein fuer einen Startbildschirm. Ein Telefon vergroessert es sonst selbst und
 # glaettet dabei; ganzzahlig pixelvervielfacht bleibt jede Kante hart, was zum
@@ -180,9 +207,8 @@ python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-maskable-512.png
         --scale 10 --canvas 512 --background 000000 >/dev/null
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/apple-touch-icon.png" \
         --scale 16 --canvas 512 --background 000000 >/dev/null
-version=$(cat "$OUT/blocks5.js" "$OUT/blocks5.wasm" "$OUT/blocks5.data" | md5sum | cut -c1-12)
 sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
 echo "### PWA: manifest.json, 4 Symbole, sw.js (cache blocks5-$version) ###"
 
-[ -f "$OUT/blocks5.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }
-echo "### LINK OK -> $OUT/blocks5.wasm ($(du -h "$OUT/blocks5.wasm" | cut -f1)) ###"
+[ -f "$OUT/blocks5-$version.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }
+echo "### LINK OK -> $OUT/blocks5-$version.wasm ($(du -h "$OUT/blocks5-$version.wasm" | cut -f1)) ###"

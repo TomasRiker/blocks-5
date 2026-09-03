@@ -822,13 +822,33 @@ committed rather than generated because the Windows build runs no Python.
 `Blocks5/setup/setupicon.ico` is the installer's own graphic — a monitor and a disc, not Bob —
 and is deliberately left alone.
 
-**The service worker is the second place the item-20 bug could have happened**, so it is built
-not to: `blocks5.js` carries absolute byte offsets into `blocks5.data`, so the two must never
-come from different builds. The cache name is a hash of the three payload files, `install`
-fetches them with one `addAll` (all-or-nothing), and there is deliberately **no
-`skipWaiting()` and no `clients.claim()`** — a page keeps the worker that was controlling it
-when it loaded, so what it is served cannot change halfway through booting. The price is that
-a new version takes over one load later.
+**The payload filenames carry the build's stamp** — `blocks5-<hash>.js`, `.wasm`, `.data`,
+the hash being the md5 of the three — and that is the load-bearing part of the whole caching
+story. They must never be mixed: the JS holds absolute byte offsets into the data, and its
+`EM_ASM` fragments sit at addresses that fit exactly one wasm. Served in mismatched pairs the
+game aborts with *"No EM_ASM constant found at address …"*, which is what a real deployment
+did when **mod_pagespeed** kept `blocks5.js` under a rewritten name of its own and later
+handed it out beside a newer wasm. With the stamp in the name every such URL is immutable, so
+no cache anywhere — the browser's, a proxy's, PageSpeed's, the service worker's — can produce
+the mixture. `Module.locateFile` in `shell.html` is the one place that knows the stamp;
+`build.sh` writes it in after the link.
+
+**The service worker therefore caches its two halves in opposite directions.** The stamped
+payload is cache-first, since asking the network could only confirm what is already there.
+Everything else is network-first with the cache as the fallback — above all `index.html`,
+which cannot carry a stamp because it is the entry point and the place the current stamp is
+written down. Serving *that* from the cache is how a new build becomes invisible: the page
+reloads, the worker answers from its own store, and nothing changes until every tab is closed.
+`skipWaiting()` and `clients.claim()` are safe now for the same reason the mixture is
+impossible — a booted page holds stamped URLs — so an update lands on the next reload instead
+of a load later. `install` still fetches the payload with one `addAll`, all-or-nothing.
+Registration passes `updateViaCache: 'none'`, or a cached `sw.js` would keep a stale worker
+alive indefinitely.
+
+`WebBuild/htaccess` ships as `.htaccess` beside `index.html` with the matching headers:
+a year of `immutable` for the stamped three, `no-cache, must-revalidate` for `index.html`,
+`sw.js` and `manifest.json`, `AddType application/wasm`, and `ModPagespeed off` — there is
+nothing here for a rewriter to improve, and it has already done damage.
 
 **`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap
 grows exactly once, to 40 MiB, and stays there through the loading screen, the menu, the

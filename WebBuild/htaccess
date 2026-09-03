@@ -1,0 +1,36 @@
+# .htaccess - die Kopfzeilen, die der ausgelieferte Web-Build braucht.
+#
+# build.sh legt diese Datei neben index.html. Sie gilt nur fuer Apache; die
+# entsprechenden Zeilen fuer nginx stehen in README.txt.
+
+# Die drei Nutzlastdateien tragen die Kennung ihres Baus im Namen. Was unter
+# einer solchen URL liegt, aendert sich nie, also darf es fuer immer
+# zwischengespeichert werden.
+<IfModule mod_headers.c>
+  <FilesMatch "^blocks5-[0-9a-f]+\.(js|wasm|data)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # Diese drei muessen bei jedem Aufruf nachgefragt werden. index.html nennt
+  # die Kennung des aktuellen Baus - wird sie zwischengespeichert, sieht
+  # niemand je eine neue Fassung. sw.js entscheidet ueber den
+  # Offline-Zwischenspeicher, manifest.json ueber das Installieren.
+  <FilesMatch "^(index\.html|sw\.js|manifest\.json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Ohne den richtigen Typ nimmt der Browser den schnellen Weg nicht
+# (WebAssembly.instantiateStreaming) und laedt das Modul umstaendlicher.
+AddType application/wasm .wasm
+
+# mod_pagespeed hat hier realen Schaden angerichtet: es hat blocks5.js unter
+# einem eigenen Namen (blocks5.js.pagespeed.ce.*.js) aufbewahrt und spaeter
+# neben ein neueres blocks5.wasm gelegt. Das Spiel bricht dann mit
+# "No EM_ASM constant found at address ..." ab, denn die EM_ASM-Bausteine
+# liegen an Adressen, die nur zu genau einem wasm passen. Die Kennung im
+# Dateinamen macht das inzwischen unmoeglich, aber umzuschreiben gibt es hier
+# ohnehin nichts: die Dateien kommen fertig optimiert aus dem Build.
+<IfModule pagespeed_module>
+  ModPagespeed off
+</IfModule>
