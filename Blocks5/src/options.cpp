@@ -162,7 +162,11 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	if(event.type == SDL_KEYDOWN && isVisible())
+	// Eine Wiederholung ist kein zweiter Befehl. Das faellt vor allem auf,
+	// wenn der Dialog gerade auf eine Taste fuer eine Aktion wartet: das
+	// Escape bricht das Warten ab, und die Wiederholung danach schloesse
+	// gleich noch den Dialog.
+	if(event.type == SDL_KEYDOWN && isVisible() && !GUI::inst().isKeyRepeat())
 	{
 		const SDLKey key = event.keysym.sym;
 		if(key == SDLK_ESCAPE || key == SDLK_RETURN)

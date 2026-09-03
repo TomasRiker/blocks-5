@@ -843,7 +843,26 @@ void Engine::mainLoopIteration()
 					}
 				}
 				break;
+			// Eigener Block: eine Variable, die in einem case entsteht, duerfte
+			// sonst nicht ueber die naechste Sprungmarke hinweg leben.
 			case SDL_KEYDOWN:
+				{
+				// Ist das die Wiederholung einer liegenden Taste?
+				// SDL_EnableKeyRepeat(140, 60) schickt fuer eine, die niemand
+				// losgelassen hat, immer weitere SDL_KEYDOWN, und die sind kein
+				// neuer Tastendruck. Das steht vor den beiden
+				// Tastenkombinationen darunter, weil auch die Befehle sind: ein
+				// liegendes Alt+Return schaltete sonst alle 60 ms das Vollbild
+				// um.
+				//
+				// keyHeld wird hier schon gesetzt, keyData aber erst weiter
+				// unten - die beiden Kombinationen verschlucken ihre Taste, und
+				// verschluckt heisst auch: wasKeyPressed() sieht sie nicht.
+				const int keySlot = event.key.keysym.sym;
+				const bool inRange = keySlot >= 0 && keySlot < NUM_KEY_SLOTS;
+				const bool repeat = inRange && keyHeld[keySlot];
+				if(inRange) keyHeld[keySlot] = true;
+
 #ifndef __EMSCRIPTEN__
 				// Alt+F4 muss das Spiel beenden. SDLs windib-Fensterprozedur
 				// behandelt WM_SYSKEYDOWN als gewoehnlichen Tastendruck und
@@ -851,9 +870,12 @@ void Engine::mainLoopIteration()
 				if(event.key.keysym.sym == SDLK_F4 &&
 				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
 				{
-					SDL_Event quitEvent;
-					quitEvent.type = SDL_QUIT;
-					SDL_PushEvent(&quitEvent);
+					if(!repeat)
+					{
+						SDL_Event quitEvent;
+						quitEvent.type = SDL_QUIT;
+						SDL_PushEvent(&quitEvent);
+					}
 					break;
 				}
 #endif
@@ -864,29 +886,41 @@ void Engine::mainLoopIteration()
 				{
 					swallowedReturn = true;
 #ifndef __EMSCRIPTEN__
-					toggleFullScreen();
+					if(!repeat) toggleFullScreen();
 #endif
 					break;
 				}
-				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+
+				if(inRange)
 				{
-					// Das Druck-Bit nur beim erstmaligen Druecken. Fuer eine
-					// gehaltene Taste schickt SDL_EnableKeyRepeat(140, 60)
-					// weitere SDL_KEYDOWN, und die sind kein neuer Tastendruck:
-					// wasKeyPressed() meldete sonst alle 60 ms einen. Ein
+					// Das Druck-Bit nur beim erstmaligen Druecken: sonst
+					// meldete wasKeyPressed() alle 60 ms einen neuen Druck. Ein
 					// Escape, das eine Fuenftelsekunde lag, schloss so den
 					// Optionsdialog und beendete gleich darauf das Spiel -
 					// consumeKeyPress() deckt nur denselben Takt ab, die
 					// Wiederholung kommt einen spaeteren.
-					if(!keyHeld[event.key.keysym.sym]) keyData[event.key.keysym.sym] |= 2;
-					keyHeld[event.key.keysym.sym] = true;
-					keyData[event.key.keysym.sym] |= 1;
+					if(!repeat) keyData[keySlot] |= 2;
+					keyData[keySlot] |= 1;
 				}
 				// Die Wiederholung selbst bleibt: sie geht ueber diese
-				// Warteschlange an die GUI, und ein Textfeld will sie.
-				keyEventQueue.push(event.key);
+				// Warteschlange an die GUI, und ein Textfeld will sie. Wer sie
+				// nicht will, sieht es am Kennzeichen.
+				{
+					QueuedKeyEvent queued = { event.key, repeat };
+					keyEventQueue.push(queued);
+				}
+				}
 				break;
 			case SDL_KEYUP:
+				// keyHeld beschreibt die Tastatur und nicht den Befehl, deshalb
+				// steht es vor jedem Sonderfall. Hinter dem verschluckten
+				// Alt+Return blieb es sonst haengen: das naechste Alt+Return
+				// galt als Wiederholung und schaltete das Vollbild nicht mehr
+				// zurueck, und auch ein gewoehnliches Return waere fuer immer
+				// eine Wiederholung gewesen.
+				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+					keyHeld[event.key.keysym.sym] = false;
+
 				// Nicht am Modifikator festmachen: wer Alt vor Return loslaesst,
 				// wuerde sonst ein Loslassen ohne Druecken hinterlassen.
 				if(event.key.keysym.sym == SDLK_RETURN && swallowedReturn)
@@ -898,9 +932,11 @@ void Engine::mainLoopIteration()
 				{
 					keyData[event.key.keysym.sym] &= ~1;
 					keyData[event.key.keysym.sym] |= 4;
-					keyHeld[event.key.keysym.sym] = false;
 				}
-				keyEventQueue.push(event.key);
+				{
+					QueuedKeyEvent queued = { event.key, false };
+					keyEventQueue.push(queued);
+				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				if(event.button.button < NUM_KEY_SLOTS)
@@ -2835,12 +2871,13 @@ bool Engine::wasButtonReleased(uint button) const
 	return buttonData[button] & 4 ? true : false;
 }
 
-bool Engine::getKeyEvent(SDL_KeyboardEvent* p_out)
+bool Engine::getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat)
 {
 	if(keyEventQueue.empty()) return false;
 	else
 	{
-		*p_out = keyEventQueue.front();
+		*p_out = keyEventQueue.front().event;
+		if(p_repeat) *p_repeat = keyEventQueue.front().repeat;
 		keyEventQueue.pop();
 		return true;
 	}
@@ -2905,6 +2942,7 @@ Action* Engine::registerAction(const std::string& name,
 	p_action->name = name;
 	p_action->primary = primary;
 	p_action->secondary = secondary;
+	p_action->repeats = true;
 	p_action->delay = 240;
 	p_action->interval = 80;
 	p_action->data = 0;
@@ -3042,7 +3080,10 @@ void Engine::updateActions()
 			if(!a.countDown)
 			{
 				a.data |= 2;
-				a.countDown = a.delay;
+				// Ohne Wiederholung auch ohne Sperrzeit: sonst zaehlte ein
+				// zweiter Druck innerhalb von delay gar nicht, weil er unten
+				// im Puffer landete und der nur fuer die Wiederholung da ist.
+				a.countDown = a.repeats ? a.delay : 0;
 
 				// entgegengesetzte Aktionen zuruecksetzen
 				for(std::vector<std::string>::const_iterator jt = a.resetsActions.begin();
@@ -3053,7 +3094,7 @@ void Engine::updateActions()
 					if(p_reset && p_reset->data & 1) p_reset->data |= 8;
 				}
 			}
-			else if(a.buffered < 5)
+			else if(a.repeats && a.buffered < 5)
 			{
 				// puffern
 				++a.buffered;
@@ -3078,7 +3119,7 @@ void Engine::updateActions()
 		else if(down && oldDown)
 		{
 			// gedrueckt und vorher auch gedrueckt
-			if(!a.countDown)
+			if(a.repeats && !a.countDown)
 			{
 				a.data |= 2;
 				a.countDown += a.interval;
@@ -3139,12 +3180,30 @@ void Engine::flushInput()
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
-		// Auch das: unter den verworfenen Ereignissen kann ein Loslassen
-		// gewesen sein, und dann bliebe die Taste fuer immer gehalten.
-		keyHeld[i] = false;
 		buttonData[i] = 0;
 	}
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
+
+	// keyHeld nicht loeschen, sondern nachfuehren: unter den verworfenen
+	// Ereignissen kann ein Loslassen gewesen sein, und dann bliebe die Taste
+	// fuer immer als gehalten stehen - aber sie einfach freizugeben waere
+	// genauso falsch. Nach dem Belegen einer Taste laeuft flushInput() jeden
+	// Takt, und ein Escape, das den Vorgang abbricht und dabei liegenbleibt,
+	// sah danach wie ein frischer Druck aus und schloss den Optionsdialog
+	// gleich mit. Die Tastatur selbst weiss es am besten.
+	//
+	// Wie lang das Feld ist, sagt SDL selbst: NUM_KEY_SLOTS ist SDLK_LAST, und
+	// das ist unter Emscriptens Koepfen 1536 - dort steckt aber SDL 2
+	// darunter, dessen Feld nur bis SDL_NUM_SCANCODES reicht.
+	int numKeys = 0;
+#ifdef __EMSCRIPTEN__
+	Uint8* p_keys = SDL_GetKeyboardState(&numKeys);
+#else
+	Uint8* p_keys = SDL_GetKeyState(&numKeys);
+#endif
+	if(numKeys > NUM_KEY_SLOTS) numKeys = NUM_KEY_SLOTS;
+	for(int i = 0; i < numKeys; i++) keyHeld[i] = p_keys[i] != 0;
+	for(int i = numKeys; i < NUM_KEY_SLOTS; i++) keyHeld[i] = false;
 }
 
 void Engine::showLastFrame()

@@ -33,7 +33,8 @@ void Help::show(GUI_Element* p_focusWhenClosed)
 
 void Help::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	if(event.type == SDL_KEYDOWN && isVisible() && event.keysym.sym == SDLK_ESCAPE)
+	if(event.type == SDL_KEYDOWN && isVisible() && !GUI::inst().isKeyRepeat() &&
+	   event.keysym.sym == SDLK_ESCAPE)
 	{
 		Engine::inst().consumeKeyPress(event.keysym.sym);
 		handleClick(getChild("Help.OK"));

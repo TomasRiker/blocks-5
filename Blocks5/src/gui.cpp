@@ -12,11 +12,17 @@ GUI::GUI()
 	p_font = 0;
 	p_toolTipFont = 0;
 	p_skin = 0;
+	keyRepeat = false;
 }
 
 GUI::~GUI()
 {
 	exit();
+}
+
+bool GUI::isKeyRepeat() const
+{
+	return keyRepeat;
 }
 
 bool GUI::init()
@@ -261,7 +267,11 @@ void GUI::update()
 
 	// Tastatur-Ereignisse?
 	SDL_KeyboardEvent event;
-	while(engine.getKeyEvent(&event)) if(p_focusElement) p_focusElement->onKeyEvent(event);
+	while(engine.getKeyEvent(&event, &keyRepeat))
+	{
+		if(p_focusElement) p_focusElement->onKeyEvent(event);
+	}
+	keyRepeat = false;
 
 	// Mausrad?
 	if(p_elementAtCursor)

@@ -19,6 +19,10 @@ struct Action
 	std::string name;
 	int primary;
 	int secondary;
+	// Feuert die Aktion nach, solange die Taste liegt? Fuer das Laufen ja -
+	// delay bis zur ersten Wiederholung, dann alle interval. Fuer einen
+	// Schalter wie F12 nicht: der soll je Druck genau einmal ausloesen.
+	bool repeats;
 	int delay;
 	int interval;
 	int defaultPrimary;
@@ -203,7 +207,12 @@ public:
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
-	bool getKeyEvent(SDL_KeyboardEvent* p_out);
+	// Das naechste Tastenereignis. p_repeat sagt, ob es von SDLs
+	// Tastenwiederholung stammt und nicht von einem neuen Druck: wer die Taste
+	// als Befehl liest - Escape, Return, die Kuerzel der Editoren -, muss so
+	// eines ueberspringen, sonst loest ein liegender Finger den Befehl alle
+	// 60 ms erneut aus. Ein Textfeld und eine Liste wollen es dagegen haben.
+	bool getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat = 0);
 	bool isGUIFocused();
 	void unfocusGUI();
 
@@ -412,7 +421,15 @@ private:
 	std::vector<VirtualKey> virtualKeys;
 	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;
-	std::queue<SDL_KeyboardEvent> keyEventQueue;
+	// Das Tastenereignis und ob es die Wiederholung einer liegenden Taste ist.
+	// Ein Textfeld will die Wiederholung, ein Befehl nicht - siehe
+	// Engine::getKeyEvent().
+	struct QueuedKeyEvent
+	{
+		SDL_KeyboardEvent event;
+		bool repeat;
+	};
+	std::queue<QueuedKeyEvent> keyEventQueue;
 	std::unordered_map<std::string, GameState*> gameStates;
 	std::stack<GameState*> currentGameStates;
 	uint frameTime;

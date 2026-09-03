@@ -34,6 +34,13 @@ public:
 	void setSkin(Texture* p_skin);
 	const Vec2i& getCursorPos() const;
 	GUI_Element* getFocusElement();
+
+	// Ist die Taste, die gerade in onKeyEvent() ankommt, die Wiederholung
+	// einer liegenden? Wer sie als Befehl liest - Escape, Return, die Kuerzel
+	// der Editoren -, muss so eine ueberspringen, sonst loest ein liegender
+	// Finger den Befehl alle 60 ms erneut aus. Ein Textfeld und eine Liste
+	// wollen sie dagegen haben und fragen gar nicht erst.
+	bool isKeyRepeat() const;
 	void setFocusElement(GUI_Element* p_element);
 	GUI_Element* getOldFocusElement();
 	GUI_Element* getMouseDownElement();
@@ -51,6 +58,9 @@ private:
 	uint texID;
 	double opacity;
 	Texture* p_skin;
+
+	// Gilt nur waehrend eines onKeyEvent(); isKeyRepeat() liest es.
+	bool keyRepeat;
 
 	Vec2i cursorPos;
 	Vec2i oldCursorPos;

@@ -419,6 +419,11 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
+		// Jede Taste hier ist ein Befehl, keine Eingabe: eine Wiederholung ist
+		// deshalb nichts wert. Ohne das oeffnet und schliesst ein liegendes
+		// Escape das Menue immer wieder.
+		if(GUI::inst().isKeyRepeat()) return;
+
 		// Erst die Dialoge, die oben liegen. Escape und Return heissen dort
 		// Abbrechen und OK, so wie ueberall sonst auch; der Editor darunter
 		// bekommt die Taste dann gar nicht mehr zu sehen.

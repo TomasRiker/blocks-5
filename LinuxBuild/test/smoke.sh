@@ -48,6 +48,20 @@ b5_expectShown OptionsPane.Options false
 b5_expectState GS_Menu
 b5_shot 3-back
 
+# Und dasselbe mit gehaltener Taste. SDL_EnableKeyRepeat(140, 60) macht aus
+# 400 ms Escape sechs Ereignisse: das erste schliesst den Dialog, und die
+# Wiederholungen dahinter duerfen nicht auch noch das Spiel beenden.
+b5_click Menu.Options
+b5_expectShown OptionsPane.Options
+b5_hold Escape
+if kill -0 "$B5_GAME_PID" 2>/dev/null; then
+	b5_ok "gehaltenes Escape hat das Spiel nicht beendet"
+	b5_expectShown OptionsPane.Options false
+	b5_expectState GS_Menu
+else
+	b5_note "gehaltenes Escape im Optionsdialog hat das Spiel beendet"
+fi
+
 # --- Manager: die vier Arten durchschalten ----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager
@@ -109,9 +123,17 @@ if [ -n "$B5_WM_PID" ]; then
 	b5_key alt+Return; sleep 3
 	b5_geometry
 	b5_shot 7-windowed
-	[ "$B5_X" -eq "$origin_x" ] && [ "$B5_Y" -eq "$origin_y" ] \
-		&& b5_ok "zurueck ins Fenster an dieselbe Stelle" \
-		|| b5_note "zurueck ins Fenster bei ($B5_X, $B5_Y) statt ($origin_x, $origin_y)"
+	# Erst die Groesse, dann der Ort. Ein Vollbild, das gar nicht verlassen
+	# wurde, sitzt in der Ecke und sah frueher nach einem verlorenen Ort aus -
+	# gemeldet wurde die Stelle, kaputt war der Umschalter. Den Ort selbst
+	# stellt unter X11 der Fenstermanager wieder her, nicht das Spiel.
+	if [ "$B5_W" -ge "$B5_SCREEN_W" ] && [ "$B5_H" -ge "$B5_SCREEN_H" ]; then
+		b5_note "nach Alt+Return immer noch $B5_W x $B5_H - das Vollbild wurde nicht verlassen"
+	elif [ "$B5_X" -eq "$origin_x" ] && [ "$B5_Y" -eq "$origin_y" ]; then
+		b5_ok "zurueck ins Fenster an dieselbe Stelle"
+	else
+		b5_note "zurueck ins Fenster bei ($B5_X, $B5_Y) statt ($origin_x, $origin_y)"
+	fi
 fi
 
 # --- Bildschirmfoto ---------------------------------------------------------
