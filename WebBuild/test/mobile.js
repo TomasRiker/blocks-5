@@ -134,11 +134,24 @@ async function toPage(page, win) {
 
 		// --- 5. the manifest ------------------------------------------------
 		const man = await (await page.request.get(url.replace('index.html', 'manifest.json'))).json();
-		const bigEnough = (man.icons || []).some(i => parseInt(i.sizes) >= 192);
+		const icons = man.icons || [];
+		const bigEnough = icons.some(i => parseInt(i.sizes) >= 192 && /(^|\s)any(\s|$)/.test(i.purpose || 'any'));
 		if (man.name && man.start_url && man.display && bigEnough) {
-			ok('manifest: "' + man.short_name + '", ' + man.display + ', icon ' + man.icons[0].sizes);
+			ok('manifest: "' + man.short_name + '", ' + man.display + ', ' + icons.length + ' icons');
 		} else {
 			bad('manifest is missing something an install needs');
+		}
+		// A launcher crops a maskable icon to a shape of its own choosing, so one
+		// has to exist and it must not be the full-bleed drawing - that would come
+		// back with its rim cut off.
+		const maskable = icons.filter(i => /maskable/.test(i.purpose || ''));
+		if (maskable.length) {
+			const shot = await page.request.get(url.replace('index.html', maskable[0].src));
+			ok('a maskable icon is declared (' + maskable[0].src + ', ' +
+			   (shot.ok() ? 'served' : 'MISSING') + ')');
+			if (!shot.ok()) bad(maskable[0].src + ' is declared but not served');
+		} else {
+			bad('no maskable icon - a launcher will shrink the drawing onto a white square');
 		}
 
 		const boot = await waitFor(page, booted, 'the runtime', 240000);

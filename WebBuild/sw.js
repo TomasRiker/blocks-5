@@ -31,7 +31,9 @@ var PAYLOAD = ['./index.html', './blocks5.js', './blocks5.wasm', './blocks5.data
 
 // Nice to have. './' is what a home-screen launch asks for, but a server that
 // does not serve a directory index would fail the whole install over it.
-var EXTRA = ['./', './blocks5.html', './manifest.json', './icon.png'];
+var EXTRA = ['./', './blocks5.html', './manifest.json',
+             './icon-192.png', './icon-512.png', './icon-maskable-512.png',
+             './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
 	e.waitUntil(caches.open(CACHE).then(function (c) {

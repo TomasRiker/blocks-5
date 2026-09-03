@@ -28,6 +28,7 @@ Rueckgabewert 1, sobald etwas beanstandet wird.
 | `ctor_init` | eine neue Membervariable, die der Konstruktor nicht setzt |
 | `assets` | einen Dateinamen im Code, den es auf der Platte nicht gibt - oder nur anders geschrieben, was unter Linux ein Ladefehler ist |
 | `style` | Leerzeichen statt Tabulator, `if (` statt `if(`, Leerzeichen am Zeilenende |
+| `windows_icon` | ein Programmsymbol, das nicht mehr zu `data/window.png` passt, oder dem eine Groesse fehlt, die Windows anfragt |
 | `comments` | einen englischen Kommentar zwischen den deutschen; ausufernde Kommentardichte |
 
 Drei Pruefungen - `style`, `ctor_init` und die Kommentardichte - beurteilen

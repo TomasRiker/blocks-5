@@ -549,6 +549,85 @@ def check_style():
     return bad
 
 
+@check('windows_icon')
+def check_windows_icon():
+    """Das Programmsymbol muss zu data/window.png passen, jede Groesse
+    mitbringen, die die Windows-Shell anfragt, und in jeder davon ein
+    ganzzahliges Vielfaches der Kunst sein.
+
+    Nichts davon faellt sonst auf: icon1.ico ist eingecheckt und wird von keinem
+    Build erzeugt, bleibt also stehen, wenn die Kunst sich aendert. Fehlt eine
+    Groesse, skaliert Windows selbst und glaettet dabei. Und ein krummer Faktor
+    verdoppelt einen Teil der Reihen und den Rest nicht, was das Raster zerreisst,
+    das den Pixellook ausmacht. Neu bauen: Tools/make_ico.py.
+    """
+    import struct
+    sys.path.insert(0, os.path.join(ROOT, 'WebBuild'))
+    from make_icon import read_png
+
+    ico = os.path.join(ROOT, 'Blocks5', 'src', 'icon1.ico')
+    png = os.path.join(ROOT, 'Blocks5', 'data', 'window.png')
+    if not os.path.exists(ico):
+        return ['Blocks5/src/icon1.ico fehlt']
+
+    data = open(ico, 'rb').read()
+    if len(data) < 6 or struct.unpack('<HHH', data[:6])[1] != 1:
+        return ['Blocks5/src/icon1.ico ist kein Symbol']
+    count = struct.unpack('<HHH', data[:6])[2]
+
+    entries = []
+    for i in range(count):
+        w, h, c, r, planes, bpp, size, off = struct.unpack('<BBBBHHII', data[6 + 16 * i:22 + 16 * i])
+        entries.append((w or 256, data[off:off + size]))
+
+    bad = []
+    want = [16, 20, 24, 32, 40, 48, 64, 256]
+    missing = [v for v in want if v not in [w for w, _ in entries]]
+    if missing:
+        bad.append('icon1.ico: es fehlen die Groessen %s - Windows skaliert die dann '
+                   'selbst und glaettet dabei' % ', '.join(str(m) for m in missing))
+
+    # Die Kunst ist 16x16; window.png ist ihr sauberes 2x.
+    width, height, pixels = read_png(png)
+    step = max(1, width // 16)
+
+    def art(x, y):
+        q = (y * step) * width * 4 + (x * step) * 4
+        return tuple(pixels[q:q + 4])
+
+    for size, blob in entries:
+        if blob[:8] == b'\x89PNG\r\n\x1a\n':
+            continue                    # das 256er liegt als PNG vor
+        bw, bh = struct.unpack('<ii', blob[4:12])
+        bh //= 2
+        if (bw, bh, struct.unpack('<H', blob[14:16])[0]) != (size, size, 32):
+            bad.append('icon1.ico: der %dx%d-Eintrag ist kein 32-Bit-DIB dieser Groesse' % (size, size))
+            continue
+        scale = max(1, size // 16)
+        margin = (size - 16 * scale) // 2
+
+        def pixel(x, y):
+            at = 40 + ((size - 1 - y) * size + x) * 4
+            b, g, r8, a = blob[at:at + 4]
+            return (r8, g, b, a)
+
+        wrong = 0
+        for y in range(size):
+            for x in range(size):
+                inside = margin <= x < margin + 16 * scale and margin <= y < margin + 16 * scale
+                want_px = art((x - margin) // scale, (y - margin) // scale) if inside else (0, 0, 0, 0)
+                got = pixel(x, y)
+                if got[3] == 0 and want_px[3] == 0:
+                    continue            # durchsichtig ist durchsichtig, die Farbe darunter zaehlt nicht
+                if got != want_px:
+                    wrong += 1
+        if wrong:
+            bad.append('icon1.ico: der %dx%d-Eintrag weicht in %d Pixeln davon ab, was ein '
+                       '%dfaches von data/window.png mit %d Pixeln Rand waere - '
+                       'Tools/make_ico.py laufen lassen' % (size, size, wrong, scale, margin))
+    return bad
+
+
 @check('comments')
 def check_comments():
     """Deutsche Kommentare - ein englischer Block zwischen den anderen ist

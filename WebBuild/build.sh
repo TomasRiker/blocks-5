@@ -157,14 +157,32 @@ linkStatus=${PIPESTATUS[0]}
 # den Kopf von sw.js und ROADMAP.md, Punkt 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
 # Das Symbol ist dasselbe, das das Spielfenster traegt - 32x32, und damit zu
-# klein fuer einen Startbildschirm. Ein Telefon vergroessert es sonst selbst
-# und glaettet dabei; 16fach pixelvervielfacht auf 512x512 bleibt stattdessen
-# jede Kante hart, was zum Spiel passt. make_icon.py kommt mit der
-# Standardbibliothek aus, das kostet also keine Abhaengigkeit.
-python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon.png" 512 >/dev/null
+# klein fuer einen Startbildschirm. Ein Telefon vergroessert es sonst selbst und
+# glaettet dabei; ganzzahlig pixelvervielfacht bleibt jede Kante hart, was zum
+# Spiel passt. make_icon.py kommt mit der Standardbibliothek aus, das kostet
+# also keine Abhaengigkeit.
+#
+# Vier Stueck, weil sie verschieden benutzt werden:
+#   192/512 "any"   randlos und mit Transparenz, wird unveraendert angezeigt.
+#   512 "maskable"  Der Startbildschirm schneidet sich eine eigene Form heraus,
+#                   sicher ist nur ein Kreis von 80% der Kante. Das Bild ist
+#                   randlos rund und ragt weit darueber hinaus, also 10fach
+#                   (320px) statt 16fach, mittig auf deckendem Schwarz - ein
+#                   durchsichtiges Pixel waere beim Maskieren ein Loch.
+#   apple-touch     iOS wertet keine Transparenz aus und rundet nur die Ecken,
+#                   wo ohnehin nichts steht. Also randlos, aber deckend.
+# Erst weg damit: $OUT wird nicht geleert, und ein Symbol, das einmal anders
+# hiess, laege sonst fuer immer im ausgelieferten Verzeichnis.
+rm -f "$OUT"/icon*.png "$OUT"/apple-touch-icon.png
+python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-192.png" --scale 6 >/dev/null
+python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-512.png" --scale 16 >/dev/null
+python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-maskable-512.png" \
+        --scale 10 --canvas 512 --background 000000 >/dev/null
+python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/apple-touch-icon.png" \
+        --scale 16 --canvas 512 --background 000000 >/dev/null
 version=$(cat "$OUT/blocks5.js" "$OUT/blocks5.wasm" "$OUT/blocks5.data" | md5sum | cut -c1-12)
 sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
-echo "### PWA: manifest.json, icon.png, sw.js (cache blocks5-$version) ###"
+echo "### PWA: manifest.json, 4 Symbole, sw.js (cache blocks5-$version) ###"
 
 [ -f "$OUT/blocks5.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5.wasm ($(du -h "$OUT/blocks5.wasm" | cut -f1)) ###"

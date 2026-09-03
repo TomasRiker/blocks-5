@@ -14,8 +14,9 @@
 <meta name="apple-mobile-web-app-title" content="Blocks 5">
 <title>Blocks 5</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon-192.png">
+<!-- iOS ignores the manifest icons and any transparency; this one is opaque. -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   /* Selectors are written "div#name" rather than "#name" on purpose: emcc runs
      a shell file through its own preprocessor, which reads a line beginning
@@ -56,7 +57,7 @@
      nothing on the canvas but black. This says what is happening and then gets
      out of the way; the game has a loading screen of its own behind it. -->
 <div id="b5_boot">
-  <img src="icon.png" alt="Blocks 5">
+  <img src="icon-192.png" alt="Blocks 5">
   <div id="b5_bar"><i></i></div>
   <div id="b5_msg">Loading ...</div>
 </div>

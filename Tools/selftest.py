@@ -128,6 +128,13 @@ def c_style(p):
     p.append('\n// eine Zeile mit Leerzeichen am Ende   \nvoid b5SelfTest() { if (1) {} }\n')
 
 
+@case('windows_icon', 'Blocks5/src/icon1.ico')
+def c_windows_icon(p):
+    # Die Zahl der Bilder im Verzeichniskopf auf zwei setzen: die uebrigen
+    # Groessen sind damit nicht mehr angemeldet, und genau das soll auffallen.
+    p.raw(p.original[:4] + b'\x02\x00' + p.original[6:])
+
+
 @case('comments', 'Blocks5/src/level.cpp')
 def c_comments(p):
     p.append('\n// This comment is written in English and should be reported.\n')

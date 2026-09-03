@@ -128,7 +128,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      eleven static checks over the whole tree
+python3 Tools/verify.py      twelve static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -167,6 +167,12 @@ English comment among the German ones. Exit code 1 on any finding; `--list` name
 The attribute check exists because renaming the constant `numLayers` to `NUM_LAYERS` once
 took the XML attribute string with it, which silently disabled the level size guard for
 every editor-saved level. That is the shape of bug this file is for.
+
+**The Windows program icon is checked for the same reason.** `Blocks5/src/icon1.ico` is
+committed, not generated — the Windows build runs no Python and should not start — so it sits
+there unchanged when the art moves, and it had: it still carried the previous Bob. The
+`windows_icon` check compares its 16x16 image against `data/window.png` and insists on the
+eight sizes the shell actually asks for. `Tools/make_ico.py` rebuilds it.
 
 **Three checks judge only what changed since `95660bb`**, the last commit before the
 2025 overhaul, whose id is `BASELINE` at the top of `verify.py`: indentation and
@@ -752,12 +758,58 @@ The page also handles `webglcontextlost` — a real event when a tab goes to the
 by saying so instead of freezing, since the game cannot rebuild its textures and its
 framebuffer object from where it stands.
 
-**It installs.** `manifest.json` (fullscreen, landscape, one 512x512 icon) and `sw.js` make it
-an ordinary add-to-home-screen web app that launches without the address bar and runs offline;
-that is also the answer to iPhone Safari, which has no element-level Fullscreen API. The icon
-is the game's own 32x32 window icon blown up 16x by pixel replication (`WebBuild/make_icon.py`,
-standard library only), because a phone that scales a 32px icon up does it with a smoothing
-filter and Bob comes out a blur.
+**It installs.** `manifest.json` (fullscreen, landscape) and `sw.js` make it an ordinary
+add-to-home-screen web app that launches without the address bar and runs offline; that is
+also the answer to iPhone Safari, which has no element-level Fullscreen API.
+
+**Four icons, all generated from `data/window.png`** by `WebBuild/make_icon.py` (standard
+library only — it reads and writes the one PNG case that file is in). Pixel replication at an
+integer factor, never a resize, because a phone that scales a 32px icon up smooths it and Bob
+comes out a blur. The reason there are four is that a launcher does two different things with
+an icon:
+
+- `purpose: "any"` (192 and 512, 6x and 16x) is shown **as it is**, so it is the drawing
+  edge to edge with its transparency intact.
+- `purpose: "maskable"` (512) is **cropped to a shape the launcher picks** — circle, squircle,
+  rounded square, teardrop. Only a centred circle of 80% of the width is guaranteed to
+  survive, and every transparent pixel becomes a hole in whatever shape it chose. Bob is a
+  full-bleed circle whose content reaches 119% of the width across the diagonal, so 42% of his
+  visible pixels sit outside that safe zone: masked, he would lose his rim and his cap. The
+  maskable one is therefore drawn at **10x (320px) centred on an opaque 512 canvas**, which
+  puts the content radius at 191px against the 205px the safe circle allows — 14px of slack,
+  and still an integer scale, so it stays crisp.
+- `apple-touch-icon.png` exists because iOS reads neither the manifest icons nor any
+  transparency; it composites onto black and rounds the corners itself. So: full-bleed like
+  the "any" pair, but opaque.
+
+Never label one icon `"any maskable"` unless it satisfies both, which a full-bleed drawing
+cannot. `WebBuild/test/mobile.js` checks that a maskable icon is declared and served.
+
+**The Windows program icon has the same problem and a different answer.** `Blocks5/src/icon1.ico`
+carries **eight images** — 16, 20, 24, 32, 40, 48, 64 and 256 — because whenever the shell asks
+for a size the file does not hold, it scales one itself, and it scales smoothly. That is
+obvious upward (a 32 blown up to 256 is mush) but it is *also* true downward: shrinking 256 to
+40 averages six source pixels into one and hands back something soft. **One big image is not
+enough**; only an exact bitmap per requested size keeps the pixels.
+
+Every one of the eight is an **integer** multiple of the 16x16 art, never a fractional resample.
+Where the requested size is not a multiple — 20, 24 and 40 — the next scale down is centred in
+the box and the rest left transparent: 20 is 1x with a 2px margin, 24 is 1x with 4px, 40 is 2x
+with 4px. A 1.25x nearest render would double some columns and not others, and the evenness of
+the grid is exactly what makes pixel art read as deliberate; a slightly smaller icon inside its
+box does not read as anything at all, and Windows' own icon templates leave margins anyway. The
+cost is that 24 shows the art at 67% of the box, which is the one size where it is noticeable.
+
+There is **no power-of-two restriction** on either kind of icon: an `.ico` directory entry
+stores each edge in a single byte (1–255, with 0 meaning 256), and a web manifest's `sizes` is
+free text — 192 is the conventional PWA size and is not a power of two either.
+
+`Tools/make_ico.py` builds the file (stdlib only, reusing the PNG reader from
+`WebBuild/make_icon.py`; DIB below 256 and PNG at 256, 45 KB all together), and the `.ico` is
+committed rather than generated because the Windows build runs no Python.
+
+`Blocks5/setup/setupicon.ico` is the installer's own graphic — a monitor and a disc, not Bob —
+and is deliberately left alone.
 
 **The service worker is the second place the item-20 bug could have happened**, so it is built
 not to: `blocks5.js` carries absolute byte offsets into `blocks5.data`, so the two must never
