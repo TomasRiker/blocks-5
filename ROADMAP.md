@@ -536,8 +536,23 @@ Two smaller things fell out. The `update_checker_*.bat` files were being copied
 into the user directory on three code paths; on Linux they are two Windows batch
 files nobody can run, so the three copies became one helper that skips them off
 Windows. And `videorecorder.cpp` compiles and links here — the three encoders are
-plain C, as this entry predicted — but `audiocapture.cpp` is still the stub, so a
-recording has no sound. The libpulse work above is what is left.
+plain C, as this entry predicted.
+
+**The audio capture is done too**, and along the line this entry drew: `AudioRing`
+at the top of `audiocapture.cpp` now holds the ring buffer, the reader side and
+the clock-based silence padding, and both platforms derive from it, so only the
+two `threadProc`s differ. The Linux one is a third of the size of the Windows one
+because `pa_simple_new` is *told* the format to deliver and the server resamples —
+none of the format conversion or the linear resampler is needed. libpulse is
+`dlopen`'d and its handful of declarations written out by hand, so the build
+needs no libpulse-dev and the game still starts where PulseAudio is absent.
+
+Checked against a real server (a null sink at 44.1 kHz, so the resample was
+exercised): recording produced an MP4 with H.264 640x480 and MP3 48 kHz stereo,
+audio and video the same length to 3 ms. Against a simultaneous `parec` of the
+same monitor, the captured track matched to within 0.7 dB RMS and cross-correlated
+at 0.706 with a 1 ms offset — the same audio, at the same level, at the same time;
+0.706 rather than 1.0 because one side had been through MP3.
 
 **What was actually checked**, since the point of a Linux build is that it can
 be: the game starts, reaches the menu, plays level 1 of the shipped campaign

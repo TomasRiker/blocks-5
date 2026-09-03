@@ -470,11 +470,19 @@ one arrives. minih264 needs the frame size to be a multiple of 16; the game's 64
 
 **Recorded audio** does not come from OpenAL. `alcCaptureOpenDevice` can only open an *input*
 device, so the old code recorded the microphone into every video. `audiocapture.cpp` replaces it
-with WASAPI loopback capture of the default *render* endpoint, converting whatever mix format the
-device uses (float32 or 16/24/32-bit PCM, any channel count, any rate) to the 16-bit stereo
-48 kHz `videorecorder.cpp` wants, and padding real gaps with silence off the QPC clock so the
-audio track stays as long as the video. The whole implementation is behind `#ifdef _WIN32` — the
-`#else` half is a stub that fails `open()` — because the Emscripten build globs `src/*.cpp`.
+with a loopback capture of what the machine is *playing*: WASAPI's loopback mode on the default
+render endpoint under Windows, and the monitor source of the default sink under Linux. Both end
+at the same place — 16-bit stereo 48 kHz, which is what `videorecorder.cpp` wants — so the ring
+buffer, the reader side and the clock-based silence padding (`AudioRing`, at the top of the file)
+are shared, and only the two `threadProc`s differ.
+
+Windows does the format conversion itself: the device hands over whatever mix format it likes
+(float32 or 16/24/32-bit PCM, any channel count, any rate) and `convertAndPush` plus a linear
+resampler bring it into shape. Linux needs none of that — `pa_simple_new` is *told* the format to
+deliver and the server resamples — which is why that half is a third of the size. libpulse is
+`dlopen`'d (`libpulse-simple.so.0`) and the handful of declarations it needs are written out by
+hand, so the build needs no libpulse-dev and the game still starts where PulseAudio is absent.
+The browser has no loopback at all; there `open()` fails and the videos are silent.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with
 its import library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, which is

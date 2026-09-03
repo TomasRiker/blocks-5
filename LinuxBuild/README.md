@@ -77,10 +77,11 @@ Zeile mit einem `Font*` darin nicht mehr.
 
 - **Kein Absturzfaenger.** Der unter Windows ist SEH, und das gibt es hier nicht.
 
-- **Videoaufnahme ohne Ton.** `videorecorder.cpp` uebersetzt und laeuft - die drei
-  Encoder sind reines C -, aber `audiocapture.cpp` hat ausserhalb von Windows nur
-  einen Stummel. Was dafuer noetig waere, steht in ROADMAP.md unter Punkt 5:
-  libpulse, `@DEFAULT_MONITOR@`, etwa 60 Zeilen.
+- **Die Tonaufnahme fuer Videos** laeuft ueber PulseAudio statt ueber WASAPI:
+  `@DEFAULT_MONITOR@` ist die Quelle, die mithoert, was die Standardsenke gerade
+  ausgibt. PipeWire taugt mit `pipewire-pulse` genauso. libpulse wird zur
+  Laufzeit geladen, nicht dazugebunden - der Build braucht kein libpulse-dev, und
+  wo kein PulseAudio laeuft, bleiben die Videos stumm wie bisher.
 
 ## Gross- und Kleinschreibung
 
