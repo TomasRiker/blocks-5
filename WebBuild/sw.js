@@ -42,8 +42,9 @@ var EXTRA = ['./', './blocks5.html', './manifest.json',
              './icon-192.png', './icon-512.png', './icon-maskable-512.png',
              './apple-touch-icon.png'];
 
-// Nur diese drei tragen die Kennung des Baus und sind damit unveraenderlich.
+// Gestempelt und damit unveraenderlich - und davon die drei dieses Baus.
 var STAMPED = /\/blocks5-[0-9a-f]+\.(js|wasm|data)$/;
+var MINE = new RegExp('/blocks5-' + BUILD + '\\.(js|wasm|data)$');
 
 self.addEventListener('install', function (e) {
 	self.skipWaiting();
@@ -76,6 +77,13 @@ self.addEventListener('fetch', function (e) {
 	}
 
 	if (STAMPED.test(url.pathname)) {
+		// Nur die Nutzlast des eigenen Baus gehoert in diesen Speicher. Waehrend
+		// ein neuer Worker installiert, bedient der alte die Seite noch, und ohne
+		// diese Zeile legte er die Dateien des neuen Baus in seinen eigenen, gleich
+		// zu loeschenden Speicher - kurzzeitig beide Nutzlasten auf der Platte.
+		// Fremd gestempeltes laesst er stattdessen ganz durch.
+		if (!MINE.test(url.pathname)) return;
+
 		e.respondWith(caches.open(CACHE).then(function (c) {
 			return c.match(req, { ignoreSearch: true }).then(function (hit) {
 				return hit || fetch(req).then(function (res) { return keep(c, res); });

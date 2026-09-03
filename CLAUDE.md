@@ -843,7 +843,16 @@ reloads, the worker answers from its own store, and nothing changes until every 
 impossible — a booted page holds stamped URLs — so an update lands on the next reload instead
 of a load later. `install` still fetches the payload with one `addAll`, all-or-nothing.
 Registration passes `updateViaCache: 'none'`, or a cached `sw.js` would keep a stale worker
-alive indefinitely.
+alive indefinitely, and then asks `registration.update()` straight away rather than trusting
+how promptly the browser gets round to its own check.
+
+**Nothing stale accumulates there.** `activate` deletes every cache whose name is not the
+current one, and the name carries the stamp, so a new build drops the whole previous set —
+measured: 70 s after a reload onto a new build (swiftshader's page load plus a 14 MB
+precache) only the new cache is left. The cache-first branch also serves **only the stamp
+that matches its own `BUILD`** and lets anything else through untouched: while a new worker
+installs, the old one is still answering, and without that it would pull the new build's
+payload into its own doomed cache — both bundles on disk for the duration.
 
 `WebBuild/htaccess` ships as `.htaccess` beside `index.html` with the matching headers:
 a year of `immutable` for the stamped three, `no-cache, must-revalidate` for `index.html`,

@@ -139,7 +139,15 @@
       // updateViaCache "none": the worker script itself must never come out of
       // the HTTP cache, or a stale sw.js keeps serving a stale payload and the
       // page can never learn that a new build exists.
-      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function (e) {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        // And ask straight away whether a newer one exists. The browser is
+        // supposed to check this on every navigation, but how soon it really
+        // does is its own business - measured here, a reload onto a new build
+        // left the old worker in place for over half a minute. The page itself
+        // is already current at that point, because index.html is fetched from
+        // the network; it is the offline copy that would lag behind.
+        if (reg && reg.update) reg.update().catch(function () {});
+      }).catch(function (e) {
         console.warn('[blocks5] service worker registration failed:', e);
       });
     });
