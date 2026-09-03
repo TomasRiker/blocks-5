@@ -44,7 +44,8 @@ Visual-Studio-Projekt uebersetzt.
     build.sh            der Build
     linux_window.cpp    der Vollbildwechsel, das Einzige, was Xlib braucht
     linux_window.h      seine Schnittstelle, ohne Xlib darin
-    test/smoke.sh       das Spiel starten und durch die Oberflaeche fuehren
+    test/harness.sh     das Spiel starten und ueber Elementnamen bedienen
+    test/smoke.sh       eine Runde durch die Oberflaeche
 
 `linux_window.cpp` ist aus einem Grund eine eigene Datei: `<X11/Xlib.h>` macht
 `Font`, `Window`, `Screen` und `Cursor` zu eigenen Typnamen, und das Spiel hat
@@ -102,13 +103,27 @@ diese Fehler.
 
 ## Testen
 
-    LinuxBuild/test/smoke.sh
+    LinuxBuild/build.sh hooks && LinuxBuild/test/smoke.sh
 
 Startet Xvfb und openbox, laesst das Spiel darin laufen, klickt sich durch Menue,
 Optionen und Manager, schaltet ins Vollbild und zurueck, loest ein Bildschirmfoto
-aus und beendet ueber Escape. Was es dabei gelernt hat und was daran nicht
-offensichtlich ist, steht in den Kommentaren - vor allem, dass Tasten auf zwei
-Wegen ankommen und die beiden genau das Gegenteil voneinander wollen.
+aus und beendet ueber Escape.
 
-Anders als im Browser gibt es hier keine Testhaken: der GUI-Baum ist von aussen
-nicht zu sehen, und geklickt wird auf Koordinaten.
+Geklickt wird auf Elementnamen und nicht auf Koordinaten. Der Testhaken aus
+`Blocks5/src/testhooks.cpp` - derselbe, den der Browser benutzt - legt den
+GUI-Baum mit den Fensterkoordinaten jedes Elements als JSON hin und beantwortet
+die Frage, wer einen Klick auf einen Punkt bekaeme. Weil der Browser dafuer
+JavaScript hat und es hier keinen solchen Draht gibt, liegt die Anfrage in einer
+Datei: der Test schreibt `$B5_TEST_DIR/request`, das Spiel liest sie einmal je
+Logiktakt und legt die Antwort daneben.
+
+Was das bringt, zeigt der erste Klick des Tests: beim allerersten Start liegt
+`Menu.CrtPane` ueber dem ganzen Bild, und ein Klick auf die Mitte von
+`Menu.Options` landet dort. Einem Bildschirmfoto sieht man das nicht an.
+
+Und zwei Dinge ueber Tasten, die genau das Gegenteil voneinander wollen: was die
+GUI liest (Escape, Alt+Return), kommt als SDL-Ereignis und muss getippt werden -
+`SDL_EnableKeyRepeat(140, 60)` macht aus einem gehaltenen Escape sechs. Was an
+eine benannte Aktion gebunden ist (F11 und die uebrigen), liest
+`Engine::updateVKs` mit `SDL_GetKeyState`, einer Momentaufnahme je Logiktakt, und
+muss gehalten werden. `b5_key` und `b5_hold` in `harness.sh`.

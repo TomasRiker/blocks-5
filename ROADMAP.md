@@ -1672,3 +1672,43 @@ Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
 four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, `hq2x32.obj`, ten import
 libraries and the `msinttypes` shim. What ships now is three executables, **one**
 DLL that needs nothing but Windows, and the data.
+
+
+20. A freshly built data.zip breaks the browser
+-----------------------------------------------
+**This is the next thing to chase.** Pack `data.zip` from the current tree —
+`Blocks5/pack.sh`, either packer — and the Emscripten build stops finding the
+skins and the fonts: 28 console errors, all of the shape `Could not parse
+tileset XML file ""`, `Could not load resource ""`, `Skin "" has no usable
+tileset`. The empty names say the lookup failed, not the file. The native build
+reads the very same archive without a murmur, and so does Python's `zipfile`:
+all 96 entries decrypt, every CRC checks out, and the extracted bytes are
+identical to the archive that works.
+
+It went unnoticed all through the 1.2.0 work because `data.zip` is a build
+product that is not in Git and that nothing rebuilds. The copy lying in the
+work tree predated the dialog-XML edits, so every browser test until now ran
+against a stale archive.
+
+What was ruled out, each by building and running the browser smoke test:
+
+- **The packer.** 7-Zip and Info-ZIP write measurably different archives (bit 3,
+  the data descriptor, and the encryption check byte). Both fail.
+- **The content.** An archive packed from the *old* dialog XMLs is byte-identical
+  to the one that works and passes; but the current XMLs differ from the old
+  ones only in trimmed comments and in nine geometry attributes of
+  `options.xml` — a window five pixels taller, buttons five pixels lower and
+  five narrower. Reverting the height alone does not help.
+- **The size.** Padding the current XMLs back to the old byte sizes, so the
+  archive comes out within 900 bytes of the working one, does not help either.
+  A *larger* archive fails differently again — the game does not boot at all.
+- **The rest of the session's changes.** Stashing all of them and rebuilding
+  reproduces it exactly.
+
+Which leaves a contradiction: every archive that passes is byte-identical to the
+one that was already lying there, and every archive built here fails, including
+one built from identical content. That smells like a state or caching effect in
+the build or the harness rather than anything in the zip, and that is where to
+look next: what does the Emscripten build keep between runs, and what is the
+preload bundle actually made of? `WebBuild/build.sh` reuses object files keyed
+by path and flags, and assembles `webroot` fresh each time.

@@ -82,7 +82,7 @@ for f in $SRCS;  do
   # Wechsel zwischen den beiden Buildarten nicht jede der 160 Einheiten neu
   # uebersetzt - die beiden Ausgabeverzeichnisse trennen sie ohnehin.
   extra=""
-  case "$f" in */test_hooks.cpp) extra="$HOOKS";; esac
+  case "$f" in */test_hooks.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

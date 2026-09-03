@@ -178,9 +178,11 @@ tree emits thousands of warnings that were all there in 2015.
 
 `LinuxBuild/test/smoke.sh` runs the built game under Xvfb with openbox, clicks through menu,
 options and manager, toggles fullscreen, takes a screenshot with F11 and quits with Escape.
-There are no test hooks here — the GUI tree is invisible from outside and clicks go to
-coordinates, which works only because the game always draws 640x480 and the window is an
-integer multiple of it; the script reads the window origin from xdotool rather than guessing.
+It clicks by element name, not by coordinate: `Blocks5/src/testhooks.cpp` — the same hook the
+browser uses — reports the GUI tree, and since there is no JavaScript here to call it, the
+request goes through a file (`$B5_TEST_DIR/request`, answered once per logic tick). That is
+what catches the case a screenshot cannot: on a first start `Menu.CrtPane` covers everything,
+so a click on the middle of `Menu.Options` lands on the pane.
 
 Two things about keys, and they want the opposite of each other:
 

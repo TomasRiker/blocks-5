@@ -1,19 +1,32 @@
 #!/bin/bash
 # pack.sh - data.zip und die Skin-Archive bauen, ohne Windows.
 #
-# Dasselbe wie zip_data.bat und zip_skins.bat zusammen, nur mit zip statt
-# 7za und mit dem optipng der Distribution statt dem in tools\. Beides sind
-# Bauergebnisse und liegen nicht im Git; ohne sie startet das Spiel nicht.
+# Dasselbe wie zip_data.bat und zip_skins.bat zusammen, nur mit dem 7za und dem
+# optipng der Distribution statt denen in tools\. Beides sind Bauergebnisse und
+# liegen nicht im Git; ohne sie startet das Spiel nicht.
 #
 #   ./pack.sh                  alles, mit optipng
 #   ./pack.sh --no-optipng     ohne den langsamen Schritt
 #   ./pack.sh data             nur data.zip
 #   ./pack.sh skins            nur die Skins
 #
-# Gebraucht wird zip; optipng ist freiwillig und wird uebersprungen, wenn es
+# Gebraucht wird 7za; optipng ist freiwillig und wird uebersprungen, wenn es
 # fehlt. Unter Debian und Ubuntu:
 #
-#   sudo apt install zip optipng
+#   sudo apt install p7zip-full optipng
+#
+# Und zwar 7za und nicht das naheliegendere "zip", damit hier dasselbe Werkzeug
+# packt wie unter Windows und dasselbe herauskommt. Info-ZIP schreibt ein
+# anderes Format: bei einem verschluesselten Eintrag setzt es Bit 3 der
+# allgemeinen Kennzeichen, den Data Descriptor, und nimmt fuer das Pruefbyte des
+# Verschluesselungskopfes die Uhrzeit statt der CRC. Beide Fassungen sind
+# gueltig und beide liest der native Build; verlassen sollte man sich darauf
+# nicht.
+#
+# ACHTUNG: Ein hiermit frisch gebautes data.zip laesst den Browser-Build
+# stolpern - er findet dann die Skins und Schriften nicht mehr. Das liegt nicht
+# am Packer (mit "zip" gepackt geht es genauso schief) und nicht am Inhalt, und
+# der native Build merkt nichts davon. Siehe ROADMAP.md, Punkt 20.
 #
 # Die Passwoerter stehen hier im Klartext, wie in den .bat-Dateien auch. Sie
 # halten niemanden auf, der sie sucht - im Spiel stehen sie verschluesselt in
@@ -36,7 +49,7 @@ for arg in "$@"; do
     esac
 done
 
-command -v zip >/dev/null 2>&1 || { echo "zip fehlt - sudo apt install zip"; exit 2; }
+command -v 7za >/dev/null 2>&1 || { echo "7za fehlt - sudo apt install p7zip-full"; exit 2; }
 if [ $optimize -eq 1 ] && ! command -v optipng >/dev/null 2>&1; then
     echo "(optipng fehlt, die PNGs bleiben wie sie sind)"
     optimize=0
@@ -49,8 +62,9 @@ runOptipng() {
     optipng -o 7 -quiet -- *.png
 }
 
-# zip haengt an ein vorhandenes Archiv an, statt es zu ersetzen. Ohne das hier
-# wuechse jedes Archiv bei jedem Lauf.
+# 7za haengt an ein vorhandenes Archiv an, statt es zu ersetzen. Ohne das
+# rm -f beim Aufrufer wuechse jedes Archiv bei jedem Lauf - deshalb steht es
+# auch in den .bat-Dateien.
 packInto() { # $1=Ziel  $2=Passwort ("" fuer keins)  Rest=Muster
     local target=$1 password=$2; shift 2
     local files=()
@@ -62,9 +76,9 @@ packInto() { # $1=Ziel  $2=Passwort ("" fuer keins)  Rest=Muster
     shopt -u nullglob
     [ ${#files[@]} -gt 0 ] || { echo "  nichts zu packen fuer $target"; return 1; }
     if [ -n "$password" ]; then
-        zip -q -9 -P "$password" "$target" "${files[@]}"
+        7za a -tzip -mx=9 -p"$password" "$target" "${files[@]}" > /dev/null
     else
-        zip -q -9 "$target" "${files[@]}"
+        7za a -tzip -mx=9 "$target" "${files[@]}" > /dev/null
     fi
 }
 

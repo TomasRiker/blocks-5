@@ -4,7 +4,13 @@
 # Von ueberall aufrufbar; alle Pfade haengen an diesem Skript.
 #   ./build.sh            inkrementell
 #   ./build.sh clean      von vorn
+#   ./build.sh hooks      mit den Testhaken, nach build-test/
 #   ./build.sh run [...]  bauen und starten, alles danach geht ans Spiel
+#
+# "hooks" uebersetzt engine.cpp und testhooks.cpp mit -DBLOCKS5_TEST_HOOKS und
+# baut nach build-test/ statt build/, damit ein Build mit Haken nie versehentlich
+# der ausgelieferte ist. Ohne das Wort ist testhooks.cpp eine leere
+# Uebersetzungseinheit.
 #
 # Gebraucht werden: g++, SDL 1.2 (heute ueberall sdl12-compat, also SDL 2
 # darunter), OpenAL, OpenGL und GLU. Auf Debian und Ubuntu:
@@ -21,6 +27,8 @@ GAME="$HERE/../Blocks5"
 LIBS="$GAME/libs"
 ZLIB="$LIBS/zlib-1.3.1"
 OUT="$HERE/build"
+HOOKS=""
+if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"; fi
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"
@@ -98,7 +106,16 @@ compile() { # $1=Datei $2=Schalter
 OBJS=""
 total=$(echo $SRCS $CSRCS | wc -w)
 for f in $CSRCS; do o=$(compile "$f" "$CFLAGS")   || { fail=1; continue; }; OBJS="$OBJS $o"; done
-for f in $SRCS;  do o=$(compile "$f" "$CXXFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
+for f in $SRCS
+do
+  # Nur die beiden, die etwas davon haben. Es steht nicht in CXXFLAGS, damit
+  # ein Wechsel zwischen den Buildarten nicht alle 167 Einheiten neu
+  # uebersetzt - die beiden Ausgabeverzeichnisse trennen sie ohnehin.
+  extra=""
+  case "$f" in */engine.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
+  o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
+  OBJS="$OBJS $o"
+done
 [ $fail -ne 0 ] && { echo "### UEBERSETZEN FEHLGESCHLAGEN ###"; exit 1; }
 echo "### $total Uebersetzungseinheiten in Ordnung ###"
 

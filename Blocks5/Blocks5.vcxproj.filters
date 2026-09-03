@@ -373,6 +373,9 @@
     <ClCompile Include="src\streamedsound.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\testhooks.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\texture.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1105,6 +1108,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\streamedsound.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\testhooks.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\texture.h">

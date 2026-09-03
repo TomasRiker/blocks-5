@@ -16,6 +16,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #endif
 #include "engine.h"
 #include "glextensions.h"
+#include "testhooks.h"
 #include "sharpfit_shader.h"
 #include "crt_shader.h"
 #ifdef __EMSCRIPTEN__
@@ -1365,6 +1366,12 @@ void Engine::update()
 {
 #ifdef PROFILE_ENGINE_UPDATE
 	BEGIN_PROFILE(engineUpdate)
+#endif
+
+#if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
+	// Nur im Testbuild. Im Browser ruft JavaScript die Auskunft selbst auf,
+	// nativ gibt es keinen solchen Draht - siehe testhooks.cpp.
+	TestHooks::pollRequests();
 #endif
 
 	// virtuelle Tasten und Aktionen aktualisieren
