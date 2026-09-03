@@ -22,9 +22,16 @@ Arbeitsverzeichnis oeffnet. `build.sh run` macht das; von Hand:
 
     cd Blocks5 && ../LinuxBuild/build/blocks5 -windowed
 
-`data.zip` und `levels/skins/*.zip` sind Bauergebnisse und liegen nicht im Git.
-Unter Windows packt `Build.bat` sie; von hier aus braucht es einen Lauf unter
-Windows oder eine Kopie davon.
+`data.zip` und `levels/skins/*.zip` sind Bauergebnisse und liegen nicht im Git;
+ohne sie startet das Spiel nicht. `Blocks5/pack.sh` baut sie - zip_data.bat und
+zip_skins.bat in einem Skript, mit `zip -9 -P` statt `7za a -tzip -mx=9 -p`
+(beide schreiben das alte ZipCrypto, das minizip liest) und dem optipng der
+Distribution:
+
+    sudo apt install zip optipng
+    Blocks5/pack.sh                 alles
+    Blocks5/pack.sh data            nur data.zip
+    Blocks5/pack.sh --no-optipng    ohne den langsamen Schritt
 
 **SDL 1.2 heisst heute sdl12-compat**: Debian, Ubuntu und Fedora liefern unter
 `libsdl1.2-dev` die Nachbildung der 1.2-Schnittstelle auf SDL 2. Das ist genau

@@ -62,9 +62,15 @@ other two builds use.
     LinuxBuild/build.sh run          build, then run from Blocks5/
 
 `libsdl1.2-dev` is sdl12-compat on every current distribution — the 1.2 API reimplemented on
-SDL 2 — which is what a player gets and what this is tested against. `data.zip` and
-`levels/skins/*.zip` are build products that are not in Git; packing them still needs a
-Windows run of `Build.bat`.
+SDL 2 — which is what a player gets and what this is tested against.
+
+`data.zip` and `levels/skins/*.zip` are build products that are not in Git, and the game will
+not start without them. `Blocks5/pack.sh` builds them here — it is `zip_data.bat` and
+`zip_skins.bat` in one script, with `zip` in place of `7za` and the distribution's `optipng`:
+
+    sudo apt install zip optipng
+    Blocks5/pack.sh                 everything
+    Blocks5/pack.sh --no-optipng    skip the slow step
 
 The port is the same source as the Windows build: eight `#ifdef` branches, plus one
 translation unit for the fullscreen switch, which goes through the window manager

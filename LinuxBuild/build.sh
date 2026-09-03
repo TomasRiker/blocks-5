@@ -109,6 +109,11 @@ g++ $OBJS -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lGLU -lX11 -lm -
     echo "### LINKEN FEHLGESCHLAGEN ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5 ($(du -h "$OUT/blocks5" | cut -f1)) ###"
 
+# data.zip ist ein Bauergebnis und liegt nicht im Git. Ohne es kommt das Spiel
+# nicht ueber den Ladebildschirm hinaus, und das sieht nach einem Fehler im
+# Build aus, obwohl nur ein Schritt fehlt.
+[ -f "$GAME/data.zip" ] || echo "(Achtung: data.zip fehlt - Blocks5/pack.sh baut es)"
+
 # Das Spiel oeffnet data.zip relativ zum Arbeitsverzeichnis, muss also aus
 # Blocks5/ heraus laufen - genau wie unter Windows.
 if [ "${1:-}" = "run" ]; then

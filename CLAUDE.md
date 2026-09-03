@@ -88,6 +88,13 @@ stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Rele
 `zip_*.bat` run `tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
 `zip_skins_no_optipng.bat` skip that step. Both require `tools\7za.exe`.
 
+**`Blocks5/pack.sh` is all four of those in one, without Windows** — `zip -9 -P` in place of
+`7za a -tzip -mx=9 -p` (both write traditional ZipCrypto, which is what minizip reads) and the
+distribution's `optipng` in place of `tools\optipng`. `./pack.sh` does everything, `data` or
+`skins` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only checkout needs:
+`data.zip` and the skin archives are build products that are not in Git, and the game will not
+start without them.
+
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
 correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
 does that for you; it has to come last, because every argument after it goes to `blocks5.exe`
