@@ -115,6 +115,14 @@ def c_assets(p):
     p.replace('"menu.xml"', '"menu_typo.xml"')
 
 
+# Die zweite Haelfte derselben Pruefung: den Namen gibt es, nur anders
+# geschrieben. Unter Windows faellt das nie auf, unter Linux ist es ein
+# Ladefehler zur Laufzeit.
+@case('assets', 'Blocks5/src/gs_menu.cpp')
+def c_assets_case(p):
+    p.replace('"menu.xml"', '"Menu.xml"')
+
+
 @case('style', 'Blocks5/src/level.cpp')
 def c_style(p):
     p.append('\n// eine Zeile mit Leerzeichen am Ende   \nvoid b5SelfTest() { if (1) {} }\n')

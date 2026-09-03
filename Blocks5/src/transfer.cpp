@@ -46,11 +46,6 @@ namespace
 		}
 	}
 
-	// Dateinamen ohne Ruecksicht auf Gross- und Kleinschreibung vergleichen:
-	// unter Windows ist "Blocks.zip" dieselbe Datei wie "blocks.zip", und ein
-	// nur anders geschriebener Name ginge sonst an isBuiltIn() vorbei. Von
-	// Hand und nur fuer ASCII - tolower() haengt am Gebietsschema und
-	// braeuchte <cctype>, das der vorkompilierte Header nicht zieht.
 	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 	{
 		// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
@@ -207,6 +202,9 @@ bool isBuiltIn(Kind kind, const std::string& name)
 	default:            return false;
 	}
 
+	// Ohne Ruecksicht auf Gross- und Kleinschreibung: unter Windows ist
+	// "Blocks.zip" dieselbe Datei wie "blocks.zip", und ein nur anders
+	// geschriebener Name ginge sonst hier vorbei.
 	for(; *pp_names; pp_names++)
 	{
 		if(equalsNoCase(name.c_str(), *pp_names)) return true;

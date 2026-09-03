@@ -138,7 +138,7 @@ no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing fr
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, the version number drifting apart across the four
 places it lives, a new member the constructor never sets, an asset filename that is not on
-disk, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
+disk or spelled with different case (which only Linux minds), a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
 English comment among the German ones. Exit code 1 on any finding; `--list` names them,
 `--only NAME` runs one. `tools/README.md` has the table.
 

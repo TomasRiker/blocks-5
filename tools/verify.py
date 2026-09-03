@@ -465,14 +465,19 @@ def check_ctor_init():
 
 @check('assets')
 def check_assets():
-    """Dateinamen, die im Code stehen, muessen es auch auf der Platte geben."""
-    have = set()
+    """Dateinamen, die im Code stehen, muessen es auch auf der Platte geben -
+    und zwar genau so geschrieben. Unter Windows ist "Sprites.png" dieselbe
+    Datei wie "sprites.png", unter Linux nicht, und seit es den nativen Build
+    gibt, faellt so ein Name dort zur Laufzeit auf die Nase."""
+    exact = set()
+    lower = {}
     for base in ('Blocks5/data', 'Blocks5/levels', 'Blocks5'):
         for root, dirs, files in os.walk(os.path.join(ROOT, base)):
             if 'libs' in root.split(os.sep):
                 continue
             for f in files:
-                have.add(f.lower())
+                exact.add(f)
+                lower.setdefault(f.lower(), set()).add(f)
 
     # Bruchstuecke, Formatzeichenketten und zur Laufzeit erzeugte Dateien.
     runtime = re.compile(r'%|^\.|^/|:|\*|,|\s')
@@ -482,11 +487,18 @@ def check_assets():
     lit = re.compile(r'"([A-Za-z0-9_][A-Za-z0-9_.\- ]*\.(?:png|xml|ogg|wav|txt|zip|dat))"')
     for p in source_files(('.cpp', '.h')):
         rel = os.path.relpath(p, ROOT)
-        for m in lit.finditer(read(p)):
+        # Ohne Kommentare: ein Dateiname, der in einem Kommentar als Beispiel
+        # steht, ist keiner, den das Spiel oeffnet.
+        for m in lit.finditer(strip_comments(read(p))):
             name = m.group(1)
             if runtime.search(name) or name.lower() in generated:
                 continue
-            if name.lower() not in have:
+            if name in exact:
+                continue
+            if name.lower() in lower:
+                bad.append('%s: "%s" heisst auf der Platte %s'
+                           % (rel, name, ' oder '.join(sorted(lower[name.lower()]))))
+            else:
                 bad.append('%s: "%s" gibt es nicht' % (rel, name))
     return bad
 

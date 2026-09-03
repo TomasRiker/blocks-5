@@ -26,7 +26,7 @@ Rueckgabewert 1, sobald etwas beanstandet wird.
 | `xml_attrs` | ein XML-Attribut, das geschrieben und nirgends gelesen wird |
 | `config` | ein Element der `config.xml`, das nur geschrieben oder nur gelesen wird |
 | `ctor_init` | eine neue Membervariable, die der Konstruktor nicht setzt |
-| `assets` | einen Dateinamen im Code, den es auf der Platte nicht gibt |
+| `assets` | einen Dateinamen im Code, den es auf der Platte nicht gibt - oder nur anders geschrieben, was unter Linux ein Ladefehler ist |
 | `style` | Leerzeichen statt Tabulator, `if (` statt `if(`, Leerzeichen am Zeilenende |
 | `comments` | einen englischen Kommentar zwischen den deutschen; ausufernde Kommentardichte |
 
