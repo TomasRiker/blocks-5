@@ -80,17 +80,32 @@ window.addEventListener('keydown', function (e) {
 // from a real DOM event rather than from inside the main loop, which is exactly
 // what is not running yet at that moment.
 (function () {
+  // AL is the library object from libopenal.js; --pre-js lands in the same
+  // scope, and it is only looked at when an event fires, long after the
+  // runtime has defined it.
+  function ctx() {
+    try { return AL.currentCtx && AL.currentCtx.audioCtx; } catch (e) { return null; }
+  }
   function resume() {
-    try {
-      // AL is the library object from libopenal.js; --pre-js lands in the same
-      // scope, and it is only looked at when an event fires, long after the
-      // runtime has defined it.
-      var ctx = AL.currentCtx && AL.currentCtx.audioCtx;
-      if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
-    } catch (e) {}
+    var c = ctx();
+    if (c && c.state === 'suspended') c.resume().catch(function () {});
+  }
+  // A hidden page is a stopped game: requestAnimationFrame does not fire, so
+  // no logic tick runs and nothing in the engine can react. Muting is the
+  // engine's own answer to losing focus, but it cannot work here twice over -
+  // Emscripten's SDL reports a hidden page as SDL_WINDOWEVENT and the game
+  // listens for SDL 1.2's SDL_ACTIVEEVENT, and the volume change would be
+  // applied by the very per-tick pass that has stopped. So the page does it,
+  // from the DOM event, one layer below the engine: suspending the context
+  // freezes every source at once. Without it the music dies on its own when
+  // its queue runs dry, while a looping effect - a laser - keeps buzzing in a
+  // tab nobody is looking at.
+  function suspend() {
+    var c = ctx();
+    if (c && c.state === 'running') c.suspend().catch(function () {});
   }
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) resume();
+    if (document.hidden) suspend(); else resume();
   });
   window.addEventListener('focus', resume);
 })();

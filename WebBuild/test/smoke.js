@@ -70,6 +70,45 @@ const h = require('./harness');
 	await h.expectState(page, 'GS_Menu');
 	await h.shot(page, 'smoke-4-back');
 
+	// Ein Tab im Hintergrund muss still sein. Das Spiel kann sich darum nicht
+	// selbst kuemmern: ohne requestAnimationFrame laeuft kein Logiktakt, und
+	// Emscriptens SDL meldet eine verborgene Seite ohnehin als SDL_WINDOWEVENT,
+	// wonach das Spiel gar nicht horcht. Die Seite haelt deshalb den
+	// AudioContext an - sonst stirbt zwar die Musik von selbst, wenn ihre
+	// Warteschlange leerlaeuft, aber ein Dauerton wie der Laser liefe weiter.
+	//
+	// Headless-Chromium kennt keine echte Tab-Sichtbarkeit; bringToFront laesst
+	// document.hidden auf false. Geschickt wird deshalb genau das Ereignis, das
+	// der Browser beim Wegschalten schickt.
+	const setHidden = (value) => page.evaluate((v) => {
+		Object.defineProperty(document, 'hidden', { configurable: true, get: () => v });
+		Object.defineProperty(document, 'visibilityState',
+		                      { configurable: true, get: () => (v ? 'hidden' : 'visible') });
+		document.dispatchEvent(new Event('visibilitychange'));
+	}, value);
+	const audioState = () => page.evaluate(() => {
+		try {
+			const c = AL.currentCtx && AL.currentCtx.audioCtx;
+			return c ? c.state : '(kein Kontext)';
+		} catch (e) { return '(nicht erreichbar)'; }
+	});
+
+	const before = await audioState();
+	if (before !== 'running') {
+		h.note('vor dem Test steht der AudioContext auf "' + before + '", erwartet "running"');
+	} else {
+		await setHidden(true);
+		await page.waitForTimeout(800);
+		const hidden = await audioState();
+		if (hidden !== 'suspended') h.note('verborgener Tab: AudioContext "' + hidden + '", erwartet "suspended"');
+
+		await setHidden(false);
+		await page.waitForTimeout(800);
+		const shown = await audioState();
+		if (shown !== 'running') h.note('sichtbarer Tab: AudioContext "' + shown + '", erwartet "running"');
+	}
+	await h.expectState(page, 'GS_Menu');
+
 	process.exit(await h.finish(browser));
 })().catch(async (e) => {
 	console.log('FEHLGESCHLAGEN: ' + e.message);

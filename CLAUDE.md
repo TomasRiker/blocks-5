@@ -837,6 +837,16 @@ level. It used to be 256 MiB — 6.4x what the game ever touches, and on a phone
 reason a tab dies before the menu appears. `ALLOW_MEMORY_GROWTH` stays on, so an unusually
 large level still has room.
 
+**A hidden tab is a silent tab, and the page has to arrange that itself.** Without
+`requestAnimationFrame` no logic tick runs, so the engine cannot react at all — and it would
+not hear about it anyway, because Emscripten's SDL reports a hidden page as `SDL_WINDOWEVENT`
+while the game listens for SDL 1.2's `SDL_ACTIVEEVENT`. Its own answer to losing focus is to
+mute, and even that is applied by the per-tick pass that has just stopped. So `pre.js`
+suspends the `AudioContext` on `visibilitychange` and resumes it on the way back, one layer
+below the engine. Without it the music dies on its own when its queue runs dry — nothing
+refills it — while every looping effect, a laser above all, keeps sounding in a tab nobody is
+looking at.
+
 **Saves ask to be kept.** They live in IndexedDB through IDBFS, which a browser may evict when
 it is short of room; `navigator.storage.persist()` in `pre.js` asks for that not to happen. The
 browser grants it silently once the page looks like something the user meant to keep and
