@@ -42,6 +42,7 @@ Engine::Engine()
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
+		keyHeld[i] = false;
 		buttonData[i] = 0;
 	}
 
@@ -823,6 +824,11 @@ void Engine::mainLoopIteration()
 							setMusicVolume(0.0);
 							active = false;
 
+							// Beim Fokuswechsel kommt kein Loslassen mehr. Eine
+							// Taste, die hier als gehalten stehenbliebe, gaebe
+							// nie wieder einen Tastendruck her.
+							for(int i = 0; i < NUM_KEY_SLOTS; i++) keyHeld[i] = false;
+
 							GameState* p_gs = this->getGameState();
 							if(p_gs) p_gs->onAppLoseFocus();
 
@@ -862,7 +868,21 @@ void Engine::mainLoopIteration()
 					break;
 				}
 				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
-					keyData[event.key.keysym.sym] |= (1 | 2);
+				{
+					// Das Druck-Bit nur beim erstmaligen Druecken. Fuer eine
+					// gehaltene Taste schickt SDL_EnableKeyRepeat(140, 60)
+					// weitere SDL_KEYDOWN, und die sind kein neuer Tastendruck:
+					// wasKeyPressed() meldete sonst alle 60 ms einen. Ein
+					// Escape, das eine Fuenftelsekunde lag, schloss so den
+					// Optionsdialog und beendete gleich darauf das Spiel -
+					// consumeKeyPress() deckt nur denselben Takt ab, die
+					// Wiederholung kommt einen spaeteren.
+					if(!keyHeld[event.key.keysym.sym]) keyData[event.key.keysym.sym] |= 2;
+					keyHeld[event.key.keysym.sym] = true;
+					keyData[event.key.keysym.sym] |= 1;
+				}
+				// Die Wiederholung selbst bleibt: sie geht ueber diese
+				// Warteschlange an die GUI, und ein Textfeld will sie.
 				keyEventQueue.push(event.key);
 				break;
 			case SDL_KEYUP:
@@ -877,6 +897,7 @@ void Engine::mainLoopIteration()
 				{
 					keyData[event.key.keysym.sym] &= ~1;
 					keyData[event.key.keysym.sym] |= 4;
+					keyHeld[event.key.keysym.sym] = false;
 				}
 				keyEventQueue.push(event.key);
 				break;
@@ -3111,6 +3132,9 @@ void Engine::flushInput()
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
+		// Auch das: unter den verworfenen Ereignissen kann ein Loslassen
+		// gewesen sein, und dann bliebe die Taste fuer immer gehalten.
+		keyHeld[i] = false;
 		buttonData[i] = 0;
 	}
 	while(!keyEventQueue.empty()) keyEventQueue.pop();

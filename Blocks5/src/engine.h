@@ -401,6 +401,12 @@ private:
 	// nach SDL-Kopf anders. Deshalb SDLK_LAST als Groesse und jeder Index geprueft.
 	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 unter SDL 1.2, 1536 mit Emscriptens Koepfen
 	int keyData[NUM_KEY_SLOTS];
+	// Liegt die Taste gerade wirklich unter einem Finger? Das steht hier und
+	// nicht als Bit in keyData, weil keyData zweimal von aussen genullt wird -
+	// flushInput() leert es, und GS_Menu::onUpdate ueberschreibt es jeden Takt
+	// mit der aufgezeichneten Demo. Ein Zustand, der ueber mehrere Takte halten
+	// muss, kann dort nicht stehen.
+	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
