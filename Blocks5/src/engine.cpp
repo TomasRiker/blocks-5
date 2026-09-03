@@ -36,6 +36,25 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "videorecorder.h"
 #include "audiocapture.h"
 
+// Kopffreiheit der Tonsumme. Das Spiel mischt Musik und ein Dutzend Effekte,
+// jedes fuer sich mit voller Lautstaerke, und die Summe stand darueber: im
+// Menue gemessen, wo die Demo staendig Bomben und Laser beisteuert, -8,8 LUFS
+// bei einer Spitze von 0 dBFS - und 0,73 % aller Samples lagen an der Grenze,
+// wurden also von OpenAL Soft abgeschnitten. Das hoert man als Verzerrung, im
+// Spiel wie in der Aufnahme.
+//
+// 0,45 bringt das auf -15,5 LUFS bei einer Spitze von -0,9 dBFS. Zwei
+// Richtwerte stehen dahinter: eine Spitze von hoechstens -1 dBTP, weil ein
+// verlustbehafteter Kodierer - hier MP3 fuer die Videos - beim Dekodieren
+// darueber hinausschiessen kann, und eine Lautheit um -14 bis -16 LUFS, auf
+// die Videoportale ohnehin normalisieren. Gemessen ist danach genau ein
+// einziges Sample von vier Millionen an der Grenze statt 29369.
+//
+// Der Wert steht hier und nicht in den Optionen: er ist eine Eigenschaft der
+// Mischung, keine Geschmacksfrage. Die Regler des Spielers bleiben davon
+// unberuehrt und stehen weiterhin auf 100 %.
+const double MASTER_HEADROOM = 0.45;
+
 Engine::Engine()
 {
 	initialized = false;
@@ -566,6 +585,11 @@ bool Engine::init(const std::string& windowCaption,
 	}
 
 	alcProcessContext(p_audioContext);
+
+	// Kopffreiheit fuer die Summe. Die einzelnen Quellen bleiben, wie sie
+	// sind - nur der fertige Mix wird leiser, und zwar bevor OpenAL Soft ihn
+	// auf [-1, 1] klemmt.
+	alListenerf(AL_GAIN, static_cast<float>(MASTER_HEADROOM));
 
 	printfLog("* Initializing GUI ...\n");
 	if(!GUI::inst().init())
