@@ -1113,13 +1113,23 @@ void Engine::mainLoopIteration()
 
 					if(SDL_ShowCursor(-1))
 					{
-						// Mauszeiger manuell in den Puffer einzeichnen
+						// Mauszeiger manuell in den Puffer einzeichnen, und zwar
+						// in seiner einfachen Groesse. cursorImage ist die
+						// pixelverdoppelte Fassung, die setupCursor() an SDL
+						// gibt: das System zeichnet den Zeiger in Fensterpixeln,
+						// und ein Fenster ist ueblicherweise doppelt so gross
+						// wie das 640x480-Bild darin. Hier wird aber genau
+						// dieses Bild aufgenommen, und da gehoert der Zeiger in
+						// die Groesse, in der er entworfen wurde - sonst steht
+						// er als 32x32-Riese in einem 640x480-Video. Jedes
+						// zweite Pixel zu nehmen ist die Umkehrung der
+						// Verdopplung und damit wieder das Original.
 						const Vec2i cursorPosition(getCursorPosition());
-						for(int dy = 0; dy < 32 && cursorPosition.y + dy < screenSize.y; ++dy)
+						for(int dy = 0; dy < 16 && cursorPosition.y + dy < screenSize.y; ++dy)
 						{
-							for(int dx = 0; dx < 32 && cursorPosition.x + dx < screenSize.x; ++dx)
+							for(int dx = 0; dx < 16 && cursorPosition.x + dx < screenSize.x; ++dx)
 							{
-								const int color = cursorImage[dy][dx];
+								const int color = cursorImage[2 * dy][2 * dx];
 								if(color != -1)
 								{
 									const Vec2i pixelPosition(cursorPosition + Vec2i(dx, dy));
