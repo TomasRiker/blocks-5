@@ -963,10 +963,20 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
+				// Die Position gehoert zum Druck und wird auch hier uebernommen,
+				// nicht nur bei SDL_MOUSEMOTION. Mit einer Maus faellt das nie
+				// auf: dorthin zu klicken, wo der Zeiger nicht ist, geht gar
+				// nicht. Ein Finger aber setzt auf, ohne sich vorher bewegt zu
+				// haben - Emscriptens SDL macht aus touchstart ein
+				// SDL_MOUSEBUTTONDOWN -, und dann kam der Druck an der Stelle
+				// an, an der der Zeiger zuletzt stand. Genau das heisst auf dem
+				// Telefon "die Knoepfe trifft man schlecht".
+				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
 				break;
 			case SDL_MOUSEBUTTONUP:
+				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 				{
 					buttonData[event.button.button] &= ~1;

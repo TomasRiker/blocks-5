@@ -209,6 +209,19 @@ void GUI::update()
 	oldCursorPos = cursorPos;
 	cursorPos = engine.getCursorPosition();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
+
+	// Und zwar beides hier, vor dem Klick. Die Neuberechnung stand frueher ganz
+	// unten in dieser Funktion, ein Klick ging also immer an das Element, das am
+	// ENDE DES VORIGEN TAKTES unter dem Zeiger lag. Mit einer Maus faellt das
+	// nie auf: man kann nicht klicken, ohne vorher hingefahren zu sein, und
+	// zwischen dem Hinfahren und dem Klick liegt immer mindestens ein Takt von
+	// 20 ms. Ein Finger dagegen setzt einfach auf - der Zeiger springt an die
+	// Stelle und die Taste kommt im selben Takt -, und dann bekam den Druck das
+	// Element, das vorher unter dem Zeiger war. Auf dem Telefon hiess das:
+	// Knoepfe treffen ist Glueckssache.
+	p_oldElementAtCursor = p_elementAtCursor;
+	p_elementAtCursor = p_root->getElementAt(cursorPos);
+
 	Vec2i relCursorPos;
 	if(p_elementAtCursor) relCursorPos = cursorPos - p_elementAtCursor->getAbsPosition();
 	else relCursorPos = cursorPos;
@@ -281,9 +294,6 @@ void GUI::update()
 		else if(engine.wasButtonPressed(SDL_BUTTON_WHEELDOWN)) wheel = 1;
 		if(wheel) p_elementAtCursor->onMouseWheel(wheel);
 	}
-
-	p_oldElementAtCursor = p_elementAtCursor;
-	p_elementAtCursor = p_root->getElementAt(cursorPos);
 
 	if(cursorMovement.isZero()) noMoveCounter = min<uint>(20, noMoveCounter + 1);
 	else if(p_elementAtCursor != p_oldElementAtCursor && noMoveCounter) noMoveCounter--;

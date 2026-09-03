@@ -738,6 +738,21 @@ needs a redistributable, or a second DLL, undoes the whole arrangement.
 &GS_Menu::handleClick)`); a game state that connects signals must derive from
 `sigslot::has_slots<>`, which `GameState` already does.
 
+**A click goes to the element under the cursor *now*, and that is newer than it looks.**
+`GUI::update()` recomputes `p_elementAtCursor` from the current cursor position at the
+**top** of the function, before the enter/leave dispatch and before the button handling. It
+used to do it at the bottom, so every click was dispatched to whatever had been under the
+cursor at the end of the *previous* logic tick. With a mouse that is invisible and always
+was: you cannot click where the pointer is not, and between arriving over a button and
+pressing it there is always at least one 20 ms tick. A finger has no such gap — the cursor
+jumps to the button and the press arrives in the same tick — so on a phone the press went to
+whatever had been under the cursor before, and hitting a button was luck. The other half of
+the same bug is in `Engine`: `cursorPosition` was only ever updated by `SDL_MOUSEMOTION`, and
+a touch produces no motion at all, so both `SDL_MOUSEBUTTONDOWN` and `SDL_MOUSEBUTTONUP` now
+take the position from the event as well. Emscripten's SDL fills those from `Browser.mouseX/Y`,
+which it sets from the touch, so they are as good as a motion event's. Either fix alone
+changes nothing; the pair is what makes a tap land.
+
 Two things about the toggles are worth knowing, because getting either wrong is quiet:
 
 - **`check()` means "the user clicked"; `setChecked()` means "the display caught up".** Only

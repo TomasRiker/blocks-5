@@ -45,6 +45,15 @@ namespace
 		out += buffer;
 	}
 
+	void appendPoint(std::string& out, const char* p_key, int x, int y)
+	{
+		out += "\"";
+		out += p_key;
+		out += "\":[";
+		appendInt(out, x); out += ",";
+		appendInt(out, y); out += "]";
+	}
+
 	void appendRect(std::string& out, const char* p_key, int x, int y, int w, int h)
 	{
 		out += "\"";
@@ -143,6 +152,8 @@ namespace
 
 		GameState* p_state = engine.getGameState();
 		GUI_Element* p_focus = GUI::inst().getFocusElement();
+		GUI_Element* p_down = GUI::inst().getMouseDownElement();
+		const Vec2i cursor(GUI::inst().getCursorPos());
 
 		std::string out("{\n");
 		out += "\"state\":\"";
@@ -155,7 +166,16 @@ namespace
 		out += (engine.getEffectiveUpscaleFilter() == Engine::UF_CRT) ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
+		// Wo das Spiel den Zeiger sieht und worauf er gerade drueckt. Mit
+		// einer Maus ist das nie eine Frage - man kann nicht dorthin
+		// klicken, wo der Zeiger nicht ist. Ein Finger aber setzt auf, ohne
+		// sich vorher bewegt zu haben, und ein Tippen, das nicht ankommt,
+		// sieht von aussen genauso aus wie ein Knopf, der nicht reagiert.
+		out += "\",\"mouseDown\":\"";
+		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";
+		appendPoint(out, "cursor", cursor.x, cursor.y);
+		out += ",";
 		appendRect(out, "screen", 0, 0, screen.x, screen.y);
 		out += ",";
 		appendRect(out, "display", 0, 0, display.x, display.y);
