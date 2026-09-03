@@ -384,8 +384,12 @@ real `pch.h`. The four that do not are `main.cpp` (SEH `__except`),
 `stackwalker.cpp` (DbgHelp internals) and `videorecorder.cpp` (WASAPI).
 
 
-5. Enable a Linux build
------------------------
+5. Enable a Linux build  — **DONE**
+-----------------------------------
+`LinuxBuild/build.sh` builds a native binary that runs, plays and passes
+`LinuxBuild/test/smoke.sh`. What follows is the plan; what it turned into is at
+the end of the entry.
+
 Someone did this once and it worked, but the result was never published.
 
 The blockers are enumerable — seven `#error NOT IMPLEMENTED` sites in four
@@ -479,6 +483,70 @@ settled them with Linux in mind:
   padding. `module-suspend-on-idle` is loaded by default, so an idle sink stops
   delivering exactly as WASAPI does, and `getExactTimeMS()` is already
   cross-platform.
+
+**How it went.** Eight sites, not seven — `transfer.cpp` grew one when the
+Manager arrived. Five were the widening this entry predicted: `createDirectory`
+(now walking the path, since `~/.local/share` may not exist where
+`My Documents` always does), `deleteDirectory`, the directory listing, the
+timer (`clock_gettime(CLOCK_MONOTONIC)`), and `getAppHomeDirectory()` →
+`$XDG_DATA_HOME/blocks5/`. Three needed a Linux answer of their own, and one
+thing the entry did not foresee turned out to be the only real design decision:
+
+- **The fullscreen switch.** Item 10 built it as a Win32 style flip behind SDL's
+  back, and the reason it must stay behind SDL's back holds under X11 too:
+  `X11_SetVideoMode` rebuilds the window for a mode change and takes the GL
+  context with it. But the X11 analogue is not "set the style yourself" — under
+  X11 a program does not put its own window into fullscreen, it asks the window
+  manager with a `_NET_WM_STATE` message (EWMH) and the window manager decides
+  size and position. That arrives back as an ordinary `SDL_VIDEORESIZE`, which
+  `handleResize()` already owns, so the Windows architecture carried over
+  exactly. It also means `applyWindowStyle()` must *not* call `handleResize()`
+  itself on this path: the size is not known yet, and forcing it would set
+  `SDL_SetVideoMode` against the window manager.
+
+  This is the one piece that needs Xlib, and it is a translation unit of its
+  own, `LinuxBuild/linux_window.cpp`, for a reason worth remembering:
+  `<X11/Xlib.h>` makes `Font`, `Window`, `Screen` and `Cursor` its own type
+  names, and the game has classes called exactly that. Included in
+  `engine.cpp`, the next line holding a `Font*` stops compiling.
+
+- **The file dialog.** `zenity` or `kdialog`, whichever is installed, driven
+  through `popen()`. Neither GTK nor Qt becomes a dependency, and the import
+  runs *asynchronously* — a non-blocking read of the pipe once per tick — so the
+  window keeps drawing while the dialog is open. `pollImport()` was built for
+  the browser's asynchronous dialog and took this without a change. The export
+  cannot: `doExport()` returns its result immediately, as `transfer.h` says, so
+  it blocks like the modal Windows dialog does.
+
+- **The update check.** `curl` or `wget` through `popen()`, rather than linking
+  an HTTPS client for sixteen bytes. Same user agent, same two-second limit, same
+  16-byte guard as the Windows version. Its prompt only reaches the log: at that
+  point in `main()` the engine is not up, so there is no toast bar and no window,
+  and opening a browser nobody asked for at startup would be worse than a line
+  of text. The check is off in the shipped state anyway.
+
+- **`_stricmp` is MSVC's.** Eight call sites. Rather than a
+  `-D_stricmp=strcasecmp` shim, `equalsNoCase()` moved into `util.h` — it was
+  already hand-rolled inside `transfer.cpp` as `sameFilename`, and for a reason
+  that still applies: `strcasecmp` and `tolower` follow the locale, and in
+  Turkish 'I' is not the capital of 'i'. Filenames and command-line switches are
+  the same in every locale.
+
+Two smaller things fell out. The `update_checker_*.bat` files were being copied
+into the user directory on three code paths; on Linux they are two Windows batch
+files nobody can run, so the three copies became one helper that skips them off
+Windows. And `videorecorder.cpp` compiles and links here — the three encoders are
+plain C, as this entry predicted — but `audiocapture.cpp` is still the stub, so a
+recording has no sound. The libpulse work above is what is left.
+
+**What was actually checked**, since the point of a Linux build is that it can
+be: the game starts, reaches the menu, plays level 1 of the shipped campaign
+(movement, collision, gravity, rain, the minimap, the HUD), switches to
+fullscreen and back, renders all four upscale filters including the CRT shader
+with its barrel distortion, writes a 640x480 screenshot with F11, imports a level
+through the file dialog and sees the Manager list refresh and select it, exports
+it back out byte-identically, and writes `config.xml` on exit. Under llvmpipe,
+which is the slowest case there is.
 
 
 6. Skins in the browser  - **DONE**, and skins that travel with campaigns

@@ -11,7 +11,7 @@
 #include "gui.h"
 #include "cf_all.h"
 #include "progressdb.h"
-#ifndef __EMSCRIPTEN__
+#ifdef _WIN32
 #include "stackwalker.h"
 #endif
 
@@ -22,7 +22,7 @@
 
 const char* p_localVersion = "1.2.0";
 
-#ifndef __EMSCRIPTEN__
+#ifdef _WIN32
 class MyStackWalker : public StackWalker
 {
 public:
@@ -47,7 +47,7 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
-#endif // !__EMSCRIPTEN__
+#endif // _WIN32
 
 std::string getCurrentVersion()
 {
@@ -118,12 +118,56 @@ std::string getCurrentVersion()
 #elif defined(__EMSCRIPTEN__)
 	return "";  // no update check in the browser build
 #else
-#error NOT IMPLEMENTED
+	// Kein eigener HTTP-Klient: das waere TLS, und dafuer eine Bibliothek mehr
+	// zu binden lohnt fuer sechzehn Bytes nicht. curl und wget liegen auf so
+	// gut wie jedem Linux, und wo keines von beiden liegt, faellt die Abfrage
+	// eben aus - sie ist ohnehin abschaltbar und im Auslieferungszustand aus.
+	const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
+	const char* const p_url = "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
+
+	// Die Zeitgrenze von zwei Sekunden ist dieselbe wie unter Windows, hier
+	// aber Sache des Programms, das die Abfrage macht. Beide schreiben nur nach
+	// stdout und schweigen sonst.
+	std::string command = "curl -fsS --max-time 2 -A '" + agent + "' '" + p_url + "' 2>/dev/null";
+	if(::system("command -v curl >/dev/null 2>&1") != 0)
+	{
+		command = "wget -q -T 2 -t 1 -U '" + agent + "' -O - '" + p_url + "' 2>/dev/null";
+		if(::system("command -v wget >/dev/null 2>&1") != 0) return "";
+	}
+
+	FILE* p_pipe = ::popen(command.c_str(), "r");
+	if(!p_pipe) return "";
+
+	char buffer[17] = {0};
+	const size_t numBytesRead = ::fread(buffer, 1, 16, p_pipe);
+	::pclose(p_pipe);
+
+	// Wie unter Windows: sechzehn Bytes heissen, dass da mehr steht als eine
+	// Versionsnummer - dann ist die Antwort nicht die erwartete.
+	if(numBytesRead == 16) return "";
+	buffer[numBytesRead] = 0;
+	return buffer;
 #endif
 }
 
 namespace
 {
+	// Die beiden Schalter fuer den Aktualisierungspruefer, dreimal gebraucht -
+	// bei der Erstinstallation und bei zwei Aktualisierungswegen. Die
+	// .bat-Dateien kommen nur unter Windows mit: anderswo laesst sich eine
+	// Stapelverarbeitung nicht ausfuehren, und .update_checker ist eine
+	// Textdatei mit einem Zeichen darin, die jeder Editor aendert.
+	bool copyUpdateCheckerFiles(FileSystem& fs, const std::string& homeDirectory)
+	{
+		bool success = true;
+#ifdef _WIN32
+		success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
+		success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
+#endif
+		if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+		return success;
+	}
+
 	// "1.2.0" zu 1002000, und alles, was keine Versionsnummer ist, zu -1.
 	// Bis zu drei Gruppen, fehlende gelten als 0, Leerraum vorn und hinten ist
 	// erlaubt.
@@ -234,9 +278,7 @@ int runTheGame(int argc,
 			// und liess Engine::detectSystemLanguage() nie zum Zuge kommen.
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
-			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
-			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
 			std::list<std::string> fileList(fs.listDirectory("levels"));
 			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/") + *it, homeDirectory + "levels/" + *it);
@@ -285,9 +327,7 @@ int runTheGame(int argc,
 				versionInitialized == "1.0.72")
 		{
 			fs.deleteFile(homeDirectory + "updates.no");
-			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
-			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
 			success &= fs.createDirectory(homeDirectory + "videos");
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
@@ -297,9 +337,7 @@ int runTheGame(int argc,
 		else if(versionInitialized == "1.0.73")
 		{
 			fs.deleteFile(homeDirectory + "updates.no");
-			success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
-			success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-			if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
+			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
 			if(!success) errorMsg = "Could not migrate all settings!";
 		}
@@ -368,7 +406,14 @@ int runTheGame(int argc,
 				return 0;
 			}
 #elif !defined(__EMSCRIPTEN__)
-#error NOT IMPLEMENTED
+			// Kein Fenster: hier laeuft die Engine noch nicht, es gibt also
+			// weder eine Toast-Leiste noch einen Dialog, und ein Browser, den
+			// niemand angefordert hat, wuerde beim Start einfach aufspringen.
+			// Die Abfrage ist ohnehin abschaltbar und im Auslieferungszustand
+			// aus - wer sie eingeschaltet hat, hat das in einer Textdatei
+			// getan und sieht auch diese Zeilen.
+			printfLog("%s", str.str().c_str());
+			printfLog("https://www.david-scherfgen.de/meine-spiele/blocks-5/\n\n");
 #endif
 		}
 	}
@@ -402,9 +447,9 @@ int runTheGame(int argc,
 	for(int i = 0; i < argc; i++)
 	{
 		char* p_arg = pp_argv[i];
-		if(!_stricmp(p_arg, "-windowed")) engine.overrideFullScreen(false);
-		else if(!_stricmp(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
-		else if(!_stricmp(p_arg, "-noSplash")) engine.skipSplash();
+		if(equalsNoCase(p_arg, "-windowed")) engine.overrideFullScreen(false);
+		else if(equalsNoCase(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
+		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
 	}
 
 	printfLog("Initializing engine ...\n");
@@ -486,9 +531,10 @@ int main(int argc,
 {
 	// TODO: http://blog.kalmbachnet.de/?postid=75 beachten (StackWalker-Homepage: http://stackwalker.codeplex.com/releases/view/35258)
 
-#if defined(_DEBUG) || defined(__EMSCRIPTEN__)
-	return runTheGame(argc, pp_argv);
-#else
+	// Der Absturzfaenger ist SEH und damit Windows-eigen. Im Debug-Build steht
+	// er auch dort nicht davor, denn dann faengt er den Fehler vor dem
+	// Debugger ab.
+#if defined(_WIN32) && !defined(_DEBUG)
 	__try
 	{
 		return runTheGame(argc, pp_argv);
@@ -497,5 +543,7 @@ int main(int argc,
 	{
 		return 1;
 	}
+#else
+	return runTheGame(argc, pp_argv);
 #endif
 }

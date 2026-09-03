@@ -11,6 +11,11 @@
 #include "engine.h"
 #include <commdlg.h>
 #include <SDL_syswm.h>
+#else
+#include <cstdio>
+#include <cerrno>
+#include <fcntl.h>
+#include <unistd.h>
 #endif
 
 namespace
@@ -46,19 +51,6 @@ namespace
 	// nur anders geschriebener Name ginge sonst an isBuiltIn() vorbei. Von
 	// Hand und nur fuer ASCII - tolower() haengt am Gebietsschema und
 	// braeuchte <cctype>, das der vorkompilierte Header nicht zieht.
-	bool sameFilename(const std::string& a, const char* p_b)
-	{
-		std::string::size_type i = 0;
-		for(; i < a.length() && p_b[i]; i++)
-		{
-			char x = a[i], y = p_b[i];
-			if(x >= 'A' && x <= 'Z') x += 'a' - 'A';
-			if(y >= 'A' && y <= 'Z') y += 'a' - 'A';
-			if(x != y) return false;
-		}
-		return i == a.length() && !p_b[i];
-	}
-
 	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 	{
 		// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
@@ -217,7 +209,7 @@ bool isBuiltIn(Kind kind, const std::string& name)
 
 	for(; *pp_names; pp_names++)
 	{
-		if(sameFilename(name, *pp_names)) return true;
+		if(equalsNoCase(name.c_str(), *pp_names)) return true;
 	}
 	return false;
 }
@@ -519,7 +511,240 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 }
 
 #else
-#error NOT IMPLEMENTED
+
+// ---------------------------------------------------------------------------
+// Linux. Es gibt keinen Dateidialog in der Standardbibliothek und keinen in
+// SDL 1.2; jede Arbeitsumgebung bringt statt dessen ein kleines Programm mit,
+// das genau das tut - zenity unter GNOME, kdialog unter KDE. Beide schreiben
+// den gewaehlten Pfad nach stdout und liefern einen Rueckgabewert ungleich
+// null, wenn abgebrochen wurde. Damit braucht das Spiel weder GTK noch Qt zu
+// binden.
+//
+// Der Import laeuft dabei nebenher: popen() gibt eine Leitung, die
+// pollImport() Takt fuer Takt abfragt, so dass das Fenster weiterzeichnet,
+// solange der Dialog offen ist. Der Export kann das nicht - doExport() liefert
+// sein Ergebnis sofort, so steht es in transfer.h -, und haelt das Spiel
+// deshalb an wie der modale Dialog unter Windows.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	std::string pickedPath;
+	std::string pickedName;
+	int   importStatus = STATUS_BUSY;
+	bool  wantDialog = false;
+	FILE* p_importPipe = 0;
+	std::string importOutput;
+
+	// Nur der Basisname.
+	std::string getFilenameFromPath(const std::string& path)
+	{
+		const size_t cut = path.find_last_of('/');
+		return cut == std::string::npos ? path : path.substr(cut + 1);
+	}
+
+	// Alles, was hier in eine Befehlszeile geht, ist ein Dateiname - und ein
+	// Dateiname darf unter Linux fast jedes Zeichen enthalten, das Apostroph
+	// eingeschlossen. In einfachen Anfuehrungszeichen ist ein Apostroph das
+	// einzige, was die Zeichenkette beendet; ihn dafuer zu verlassen und
+	// wieder zu betreten ist die uebliche Antwort.
+	std::string shellQuote(const std::string& text)
+	{
+		std::string quoted("'");
+		for(size_t i = 0; i < text.length(); i++)
+		{
+			if(text[i] == '\'') quoted += "'\\''";
+			else quoted += text[i];
+		}
+		return quoted + "'";
+	}
+
+	bool haveProgram(const char* p_name)
+	{
+		return ::system((std::string("command -v ") + p_name + " >/dev/null 2>&1").c_str()) == 0;
+	}
+
+	enum Dialog { DIALOG_NONE, DIALOG_ZENITY, DIALOG_KDIALOG };
+
+	// Einmal suchen und merken: der Manager fragt sonst bei jedem Klick die
+	// Shell zweimal.
+	Dialog findDialog()
+	{
+		static Dialog found = DIALOG_NONE;
+		static bool searched = false;
+		if(!searched)
+		{
+			searched = true;
+			if(haveProgram("zenity")) found = DIALOG_ZENITY;
+			else if(haveProgram("kdialog")) found = DIALOG_KDIALOG;
+			else printfLog("Neither zenity nor kdialog is installed - no file dialog available.\n");
+		}
+		return found;
+	}
+
+	std::string homeDir()
+	{
+		const char* p_home = ::getenv("HOME");
+		return p_home && *p_home ? p_home : ".";
+	}
+
+	// Die Befehlszeile fuer einen der beiden Dialoge. suggestion leer heisst
+	// "oeffnen", sonst "speichern unter".
+	std::string dialogCommand(Dialog dialog, const std::string& suggestion)
+	{
+		const bool save = !suggestion.empty();
+		if(dialog == DIALOG_ZENITY)
+		{
+			std::string command("zenity --file-selection");
+			if(save) command += " --save --confirm-overwrite --filename=" + shellQuote(homeDir() + "/" + suggestion);
+			else     command += " --filename=" + shellQuote(homeDir() + "/");
+			command += " --title=" + shellQuote(save ? "Blocks 5 - Export" : "Blocks 5 - Import");
+			command += " --file-filter=" + shellQuote("Blocks 5 | *.xml *.zip *.ogg");
+			command += " --file-filter=" + shellQuote("All files | *");
+			return command + " 2>/dev/null";
+		}
+
+		std::string command("kdialog ");
+		command += save ? "--getsavefilename " : "--getopenfilename ";
+		command += shellQuote(homeDir() + "/" + suggestion);
+		command += " " + shellQuote("*.xml *.zip *.ogg|Blocks 5\n*|All files");
+		return command + " 2>/dev/null";
+	}
+
+	// Was das Dialogprogramm geschrieben hat, ohne den Zeilenumbruch am Ende.
+	std::string trimmed(const std::string& text)
+	{
+		size_t end = text.length();
+		while(end > 0 && (text[end - 1] == '\n' || text[end - 1] == '\r')) end--;
+		return text.substr(0, end);
+	}
+}
+
+bool beginImport()
+{
+	// Wie unter Windows nur vormerken: hier steckt der Aufruf mitten in der
+	// Ereignisverteilung der GUI.
+	if(wantDialog || p_importPipe) return false;
+	if(findDialog() == DIALOG_NONE) return false;
+	wantDialog = true;
+	return true;
+}
+
+int pollImport(std::string& path, std::string& untrustedName)
+{
+	if(wantDialog)
+	{
+		wantDialog = false;
+		importOutput = "";
+		p_importPipe = ::popen(dialogCommand(findDialog(), "").c_str(), "r");
+		if(!p_importPipe) importStatus = STATUS_FAILED;
+		else
+		{
+			// Ohne O_NONBLOCK bliebe das Spiel in read() stehen, bis der
+			// Benutzer den Dialog schliesst - genau das soll es nicht.
+			const int fd = ::fileno(p_importPipe);
+			::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+		}
+	}
+
+	if(p_importPipe)
+	{
+		char buffer[512];
+		const ssize_t numBytesRead = ::read(::fileno(p_importPipe), buffer, sizeof(buffer));
+		if(numBytesRead > 0) importOutput.append(buffer, numBytesRead);
+		else if(numBytesRead == 0)
+		{
+			// Ende der Leitung: der Dialog ist zu. pclose() liefert den
+			// Rueckgabewert, und der sagt, ob abgebrochen wurde.
+			const int result = ::pclose(p_importPipe);
+			p_importPipe = 0;
+			pickedPath = trimmed(importOutput);
+			pickedName = getFilenameFromPath(pickedPath);
+			importStatus = (result == 0 && !pickedPath.empty()) ? STATUS_OK : STATUS_CANCELLED;
+		}
+		else if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
+		{
+			::pclose(p_importPipe);
+			p_importPipe = 0;
+			importStatus = STATUS_FAILED;
+		}
+	}
+
+	const int status = importStatus;
+	if(status == STATUS_BUSY) return STATUS_BUSY;
+	importStatus = STATUS_BUSY;
+	path = pickedPath;
+	untrustedName = pickedName;
+	return status;
+}
+
+void finishImport()
+{
+	// Wie unter Windows wurde nichts zwischengelagert - die Datei des
+	// Benutzers wurde gelesen, wo sie lag.
+	pickedPath = "";
+	pickedName = "";
+}
+
+void abandonImport()
+{
+	wantDialog = false;
+	if(p_importPipe)
+	{
+		::pclose(p_importPipe);
+		p_importPipe = 0;
+	}
+	importStatus = STATUS_BUSY;
+	finishImport();
+}
+
+bool doExport(Kind kind, const std::string& name, std::string& errorId)
+{
+	errorId = "";
+
+	const Dialog dialog = findDialog();
+	if(dialog == DIALOG_NONE)
+	{
+		errorId = "$TR_ERROR_FAILED";
+		return false;
+	}
+
+	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
+	// schon - er taugt unveraendert als Vorschlag.
+	FILE* p_pipe = ::popen(dialogCommand(dialog, name).c_str(), "r");
+	if(!p_pipe)
+	{
+		errorId = "$TR_ERROR_FAILED";
+		return false;
+	}
+
+	std::string output;
+	char buffer[512];
+	size_t numBytesRead;
+	while((numBytesRead = ::fread(buffer, 1, sizeof(buffer), p_pipe)) > 0) output.append(buffer, numBytesRead);
+	const int result = ::pclose(p_pipe);
+
+	std::string target(trimmed(output));
+	if(result != 0 || target.empty()) return false;   // abgebrochen, kein Fehler
+
+	// kdialog haengt keine Endung an, zenity auch nicht. Ohne sie liesse sich
+	// die Datei spaeter nicht wieder einlesen - classify() sieht zwar in die
+	// Datei hinein, der Dialog beim Import filtert aber nach Endung.
+	const std::string extension(extensionFor(kind));
+	if(target.length() < extension.length() ||
+	   target.compare(target.length() - extension.length(), extension.length(), extension) != 0)
+	{
+		target += extension;
+	}
+
+	if(!exportTo(kind, name, target))
+	{
+		errorId = "$TR_ERROR_FAILED";
+		return false;
+	}
+	return true;
+}
+
 #endif
 
 }

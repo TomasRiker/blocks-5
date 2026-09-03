@@ -484,14 +484,16 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	else if(name == "Menu.Website")
 	{
 		// Der unsichtbare Knopf ueber der Adresse im Hintergrundbild.
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__)
 		// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
 		// nur einen Frame zurueck, der Popup-Blocker laesst das Fenster durch.
 		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
-#else
+#elif defined(_WIN32)
 		// Wie beim Spendenknopf: unter Windows liegt die Adresse in einer
 		// .url-Datei neben der Anwendung, die zugleich im Startmenue steht.
 		ShellExecuteA(0, "open", "Scherfgen-Software Website.url", 0, 0, SW_SHOWMAXIMIZED);
+#else
+		openURL("https://www.david-scherfgen.de/");
 #endif
 	}
 	else if(name == "Menu.Donate")
@@ -533,19 +535,23 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		if(name == "Menu.DonatePane.Donate.Donate")
 		{
 			gui["Menu.DonatePane"]->hide();
-#ifdef __EMSCRIPTEN__
+#ifdef _WIN32
+			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
+			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
+#else
 			// Neben der Anwendung liegt hier kein Verzeichnis fuer eine
 			// .url-Verknuepfung; die Adresse muss mit der in
 			// "Donate (<Sprache>).url" uebereinstimmen.
 			const std::string url = engine.getLanguage() == "de"
 				? "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UUFVK97YL6ZHY"
 				: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FMADXSNPDGRCW";
+#ifdef __EMSCRIPTEN__
 			// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
 			// nur einen Frame zurueck, der Popup-Blocker laesst ihn durch.
 			EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
 #else
-			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
-			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
+			openURL(url);
+#endif
 #endif
 		}
 	}

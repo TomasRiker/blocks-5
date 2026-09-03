@@ -8,6 +8,11 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #ifdef _WIN32
 // Fuer den Vollbildwechsel: der Fensterstil wird direkt gesetzt, an SDL vorbei.
 #include <SDL_syswm.h>
+#elif !defined(__EMSCRIPTEN__)
+// Dasselbe fuer X11, aber in einer eigenen Uebersetzungseinheit: <X11/Xlib.h>
+// belegt Font, Window, Screen und Cursor als eigene Typnamen, und die Klassen
+// des Spiels heissen genauso.
+#include "linux_window.h"
 #endif
 #include "engine.h"
 #include "glextensions.h"
@@ -1640,10 +1645,10 @@ const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
 Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback)
 {
 	if(!p_name) return fallback;
-	if(!_stricmp(p_name, "nearest"))     return UF_NEAREST;
-	if(!_stricmp(p_name, "bilinear"))    return UF_BILINEAR;
-	if(!_stricmp(p_name, "sharp-fit"))   return UF_SHARP_FIT;
-	if(!_stricmp(p_name, "crt"))         return UF_CRT;
+	if(equalsNoCase(p_name, "nearest"))     return UF_NEAREST;
+	if(equalsNoCase(p_name, "bilinear"))    return UF_BILINEAR;
+	if(equalsNoCase(p_name, "sharp-fit"))   return UF_SHARP_FIT;
+	if(equalsNoCase(p_name, "crt"))         return UF_CRT;
 	return fallback;
 }
 
@@ -2092,7 +2097,9 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
 	// SDLs Flags werden bewusst nicht angefasst: SDL_FULLSCREEN oder
 	// SDL_NOFRAME zwingen DIB_SetVideoMode auf den langsamen Pfad, und der
-	// ruft WIN_GL_ShutDown - der GL-Kontext und jede Textur waeren weg.
+	// ruft WIN_GL_ShutDown - der GL-Kontext und jede Textur waeren weg. Unter
+	// X11 gilt dasselbe, aus demselben Grund: X11_SetVideoMode baut das
+	// Fenster fuer einen Moduswechsel neu auf.
 #ifdef _WIN32
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
@@ -2150,6 +2157,13 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 			savedWindowStyle = 0;
 		}
 	}
+#elif !defined(__EMSCRIPTEN__)
+	// Unter X11 entscheidet der Fenstermanager, wie gross ein Vollbildfenster
+	// wird und wo es sitzt. Hat er die Bitte angenommen, ist hier nichts mehr
+	// zu tun: die neue Groesse steht noch gar nicht fest und kommt gleich als
+	// SDL_VIDEORESIZE. Sie jetzt zu erzwingen hiesse, SDL_SetVideoMode gegen
+	// den Fenstermanager arbeiten zu lassen.
+	if(LinuxWindow::setFullScreen(wantFullScreen)) return;
 #endif
 
 	// Immer hierdurch: displaySize gehoert handleResize, und SDL muss die neue

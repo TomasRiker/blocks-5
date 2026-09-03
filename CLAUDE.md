@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 Blocks 5 — "Bob's Amazing Adventures", a 2D tile-based puzzle/action game. C++ on SDL 1.2 +
-OpenGL + OpenAL Soft, **Windows/Win32 only**. Non-Windows code paths are literal
-`#error NOT IMPLEMENTED` (`filesystem.cpp`, `main.cpp`, `file_real.cpp`, `util.cpp`), so the
-tree cannot be compiled or run on Linux/macOS — code changes here are edit-and-review only
-unless you are on Windows with Visual Studio. There is also an Emscripten port in
-`WebBuild/`, which does build and run on Linux and is the only way to test a change here
-without Windows; see `WebBuild/README.md`.
+OpenGL + OpenAL Soft. **Three builds, all from the same sources**: Windows/Win32
+(`Build.bat`, needs Visual Studio), a native Linux build (`LinuxBuild/build.sh`), and an
+Emscripten port in `WebBuild/`. The last two build and run here, so a change can be
+compiled, run and driven without Windows — see `LinuxBuild/README.md` and
+`WebBuild/README.md`. The eight `#error NOT IMPLEMENTED` sites that used to block a
+non-Windows build are gone.
 
 **The Windows build compiles and links on v143 and on v145** (Windows 11, VS 2022
 Community, SDK 10.0.26100 for the first). Four things had to be fixed to get there, all in the vendored libraries or the
@@ -117,14 +117,21 @@ Explorer).
 
 ## Checking a change
 
-Three things run here, none of them needing Windows. Run at least the first two after any
+Four things run here, none of them needing Windows. Run at least the first two after any
 edit; they take about half a minute together.
 
 ```
 python3 tools/verify.py      eleven static checks over the whole tree
 sh tools/syntax.sh           compile every source with mingw (-fsyntax-only)
+LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
 ```
+
+The Linux build is the fastest way to *run* a change: `LinuxBuild/test/smoke.sh` starts it
+under Xvfb and clicks through the menus, and unlike the browser it is a real GCC compile of
+every source, `videorecorder.cpp` included. What it cannot check is anything Windows-only —
+the SEH crash handler, the Win32 window procedure, `audiocapture.cpp`'s WASAPI half — and
+those are exactly what `tools/syntax.sh` is for.
 
 **`tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
@@ -159,6 +166,28 @@ handful of case-aliasing headers the tree includes (`<Windows.h>`, `<Shellapi.h>
 `<al.h>`) are generated into a temp directory. It passes `-w`; for a warning sweep, swap
 that for `-Wall -Wextra` and compare against the same sweep before your change, because the
 tree emits thousands of warnings that were all there in 2015.
+
+### Driving the game natively
+
+`LinuxBuild/test/smoke.sh` runs the built game under Xvfb with openbox, clicks through menu,
+options and manager, toggles fullscreen, takes a screenshot with F11 and quits with Escape.
+There are no test hooks here — the GUI tree is invisible from outside and clicks go to
+coordinates, which works only because the game always draws 640x480 and the window is an
+integer multiple of it; the script reads the window origin from xdotool rather than guessing.
+
+Two things about keys, and they want the opposite of each other:
+
+- **A key the GUI reads is an SDL event and must be tapped, not held.** `engine.cpp:210`
+  sets `SDL_EnableKeyRepeat(140, 60)`, so an Escape held for 400 ms arrives six times: the
+  first closes the dialog, the second quits the game. That cost a debugging round.
+- **A key bound to a named action must be held, not tapped.** `Engine::updateVKs` reads
+  those with `SDL_GetKeyState`, a snapshot taken once per 20 ms logic tick, so a press and
+  release in the same millisecond is never seen — the same trap as `page.mouse.click()` in
+  the browser. Alt+Return misleads here, because it hangs off `SDL_KEYDOWN` and events queue.
+
+`xdotool windowclose` calls `XDestroyWindow` and SDL then trips over a window it still
+believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
+never runs and `config.xml` is never written.
 
 ### Driving the game in a browser
 

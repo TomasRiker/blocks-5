@@ -45,6 +45,14 @@ std::string sanitizeFilenameStem(const std::string& untrusted,
 // fuehrender Punkt oder eine Tilde, Steuerzeichen. Umlaute und Leerzeichen
 // bleiben erlaubt, damit legitime Namen nicht stillschweigend verschwinden.
 bool isSafeMemberName(const std::string& name);
+
+// Vergleich ohne Ruecksicht auf Gross- und Kleinschreibung, nur ueber ASCII.
+// Von Hand und weder ueber _stricmp - das kennt nur MSVC - noch ueber
+// strcasecmp oder tolower: die beiden haengen an der eingestellten Locale, und
+// in der tuerkischen ist 'I' nicht die Grossform von 'i'. Verglichen werden
+// hier Dateinamen und Schalter der Befehlszeile, und die sind in jeder Locale
+// dieselben.
+bool equalsNoCase(const char* p_a, const char* p_b);
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);
@@ -60,6 +68,14 @@ std::string loadString(const std::string& id);
 std::vector<Vec2i> bresenham(const Vec2i& p1, const Vec2i& p2);
 double getExactTime();
 uint getExactTimeMS();
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+// Eine Adresse im Webbrowser oeffnen. Es gibt sie nur hier: Windows nimmt eine
+// .url-Verknuepfung neben der Anwendung, die zugleich im Startmenue steht, und
+// der Browser oeffnet einen zweiten Tab - beide koennen das schon, und beide
+// tun es an Ort und Stelle.
+void openURL(const std::string& url);
+#endif
 void writeProfileLine(const std::string& name, double dt, double avgTime);
 
 extern bool writingCrashLog;

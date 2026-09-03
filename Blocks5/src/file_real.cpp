@@ -1,5 +1,5 @@
 #include "pch.h"
-#ifdef __EMSCRIPTEN__
+#ifndef _WIN32
 #include <dirent.h>
 #include <sys/stat.h>
 #endif
@@ -61,7 +61,7 @@ File_Real::File_Real(const std::string& filename,
 
 			FindClose(find);
 		}
-#elif defined(__EMSCRIPTEN__)
+#else
 		if(DIR* p_dir = ::opendir(filename.c_str()))
 		{
 			while(struct dirent* p_ent = ::readdir(p_dir))
@@ -74,8 +74,6 @@ File_Real::File_Real(const std::string& filename,
 			}
 			::closedir(p_dir);
 		}
-#else
-#error NOT IMPLEMENTED
 #endif
 	}
 	else if(mode == FileSystem::FM_DELETE)

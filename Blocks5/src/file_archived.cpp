@@ -440,7 +440,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		uint nextCDE = ftell(p_in);
 
 		// Stimmt der Dateiname mit dem zu loeschenden Dateinamen ueberein?
-		if(!_stricmp(objectName.c_str(), p_filename))
+		if(equalsNoCase(objectName.c_str(), p_filename))
 		{
 			ecdOut.entriesOnThisDisk--;
 			ecdOut.totalEntries--;

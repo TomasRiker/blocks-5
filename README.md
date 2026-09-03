@@ -48,6 +48,31 @@ To build from the IDE instead, open `Blocks5.sln`, build all three projects, and
 `zip_data.bat` and `zip_skins.bat` in `Blocks5\` once.
 
 
+Building on Linux
+-----------------
+`LinuxBuild/build.sh` builds a native Linux binary. It needs a compiler, SDL 1.2, OpenAL,
+OpenGL and GLU; everything else comes from `Blocks5/libs`, the same vendored sources the
+other two builds use.
+
+    sudo apt install build-essential libsdl1.2-dev libopenal-dev \
+                     libglu1-mesa-dev libgl1-mesa-dev
+
+    LinuxBuild/build.sh              incremental
+    LinuxBuild/build.sh clean        from scratch
+    LinuxBuild/build.sh run          build, then run from Blocks5/
+
+`libsdl1.2-dev` is sdl12-compat on every current distribution — the 1.2 API reimplemented on
+SDL 2 — which is what a player gets and what this is tested against. `data.zip` and
+`levels/skins/*.zip` are build products that are not in Git; packing them still needs a
+Windows run of `Build.bat`.
+
+The port is the same source as the Windows build: eight `#ifdef` branches, plus one
+translation unit for the fullscreen switch, which goes through the window manager
+(`_NET_WM_STATE`) rather than through SDL. `LinuxBuild/README.md` describes what differs —
+the user directory, the file dialog, the update check, video recording without sound — and
+`LinuxBuild/test/smoke.sh` drives the built game under Xvfb.
+
+
 Building for the browser
 ------------------------
 `WebBuild/` holds an Emscripten port that runs the game in a browser. `WebBuild/build.sh`
@@ -73,6 +98,11 @@ them one by one.
 `WebBuild/test/smoke.js` drive the real game through its menus by element name rather than
 by guessed pixel coordinates. See `WebBuild/test/README.md`.
 
+`LinuxBuild/test/smoke.sh` does the same for the native build, under Xvfb and openbox. It has
+no introspection hook and clicks on coordinates, so it checks less: that the menus, the
+options dialog and the manager open, that Alt+Return reaches fullscreen and comes back, that
+F11 writes a screenshot, and that quitting writes `config.xml`.
+
 
 Layout
 ------
@@ -82,10 +112,12 @@ Layout
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer
     WebBuild/       the Emscripten port and its glue
+    LinuxBuild/     the native Linux build and the one file that needs Xlib
 
 The window is resizable, keeps its 4:3 shape with black bars, and toggles borderless
 fullscreen with Alt+Return — none of which loses the GL context, because SDL's video flags
-never change and fullscreen is a Win32 style flip behind its back. The scaling filter
+never change and fullscreen goes behind SDL's back: a Win32 style flip on Windows, an EWMH
+request to the window manager on Linux. The scaling filter
 (`sharp-fit`, `nearest`, `bilinear`) is an in-game option under Options → Scaling, saved
 alongside the window size and fullscreen state in `config.xml`.
 
@@ -102,5 +134,5 @@ The Inno Setup installer script is `Blocks5/setup/Blocks 5.iss`. Its version num
 stay in sync with `p_localVersion` in `Blocks5/src/main.cpp`, with `Blocks5/readme.txt`, and
 with `FILEVERSION`/`PRODUCTVERSION` in `Blocks5/src/resources.rc`.
 
-Saves, progress, custom levels and screenshots live under `My Documents\Blocks 5\`, never
-next to the executable.
+Saves, progress, custom levels and screenshots live under `My Documents\Blocks 5\` — on Linux
+under `$XDG_DATA_HOME/blocks5/`, or `~/.local/share/blocks5/` — never next to the executable.
