@@ -58,6 +58,7 @@ const double MASTER_HEADROOM = 0.45;
 Engine::Engine()
 {
 	initialized = false;
+	appActive = true;
 
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
@@ -729,7 +730,6 @@ void Engine::exit()
 // die Seite dazwischen zeichnen kann - der Schleifenzustand muss also hierher.
 namespace
 {
-	bool   active = true;
 	bool   done = false;
 	Uint32 timeToProcess = 0;
 	uint   timeProcessed = 1;
@@ -739,10 +739,48 @@ namespace
 static void emMainLoopIteration(void* p_engine);
 #endif
 
+void Engine::handleAppFocus(bool gained)
+{
+	if(gained == appActive) return;
+	appActive = gained;
+
+	if(gained)
+	{
+		if(oldSoundVolume != -1.0)
+		{
+			setSoundVolume(oldSoundVolume);
+			setMusicVolume(oldMusicVolume);
+			oldSoundVolume = -1.0;
+		}
+
+		GameState* p_gs = getGameState();
+		if(p_gs) p_gs->onAppGetFocus();
+		return;
+	}
+
+	oldSoundVolume = soundVolume;
+	oldMusicVolume = musicVolume;
+	setSoundVolume(0.0);
+	setMusicVolume(0.0);
+
+	// Beim Fokuswechsel kommt kein Loslassen mehr. Eine Taste, die hier als
+	// gehalten stehenbliebe, gaebe nie wieder einen Tastendruck her.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++) keyHeld[i] = false;
+
+	GameState* p_gs = getGameState();
+	if(p_gs) p_gs->onAppLoseFocus();
+
+	// Videoaufnahme stoppen, falls gerade eine laeuft
+	if(p_videoRecorder)
+	{
+		delete p_videoRecorder;
+		p_videoRecorder = 0;
+	}
+}
+
 void Engine::mainLoop()
 {
 #ifndef __EMSCRIPTEN__
-	bool active = true;
 	bool done = false;
 	Uint32 timeToProcess = 0;
 	uint timeProcessed = 1;
@@ -806,7 +844,7 @@ void Engine::mainLoopIteration()
 		bool frameRendered = false;
 
 		// rendern
-		if(active && timeProcessed)
+		if(appActive && timeProcessed)
 		{
 			bindFrameBuffer();
 			render();
@@ -821,52 +859,30 @@ void Engine::mainLoopIteration()
 			{
 			case SDL_ACTIVEEVENT:
 				if(event.active.state & SDL_APPACTIVE || event.active.state & SDL_APPINPUTFOCUS)
+					handleAppFocus(event.active.gain != 0);
+				break;
+#ifdef __EMSCRIPTEN__
+			// Emscriptens SDL meldet Fokus und Sichtbarkeit als
+			// SDL_WINDOWEVENT - eine Bauart aus SDL 2 - und schickt nie ein
+			// SDL_ACTIVEEVENT. Ohne diesen Zweig erfaehrt das Spiel im Browser
+			// nichts davon und liefe im Hintergrund einfach weiter, statt
+			// anzuhalten wie ueberall sonst.
+			case SDL_WINDOWEVENT:
+				switch(event.window.event)
 				{
-					if(event.active.gain)
-					{
-						if(!active)
-						{
-							active = true;
-
-							if(oldSoundVolume != -1.0)
-							{
-								setSoundVolume(oldSoundVolume);
-								setMusicVolume(oldMusicVolume);
-								oldSoundVolume = -1.0;
-							}
-
-							GameState* p_gs = this->getGameState();
-							if(p_gs) p_gs->onAppGetFocus();
-						}
-					}
-					else
-					{
-						if(active)
-						{
-							oldSoundVolume = soundVolume;
-							oldMusicVolume = musicVolume;
-							setSoundVolume(0.0);
-							setMusicVolume(0.0);
-							active = false;
-
-							// Beim Fokuswechsel kommt kein Loslassen mehr. Eine
-							// Taste, die hier als gehalten stehenbliebe, gaebe
-							// nie wieder einen Tastendruck her.
-							for(int i = 0; i < NUM_KEY_SLOTS; i++) keyHeld[i] = false;
-
-							GameState* p_gs = this->getGameState();
-							if(p_gs) p_gs->onAppLoseFocus();
-
-							// Videoaufnahme stoppen, falls gerade eine laeuft
-							if(p_videoRecorder)
-							{
-								delete p_videoRecorder;
-								p_videoRecorder = 0;
-							}
-						}
-					}
+				case SDL_WINDOWEVENT_FOCUS_GAINED:
+				case SDL_WINDOWEVENT_SHOWN:
+					handleAppFocus(true);
+					break;
+				case SDL_WINDOWEVENT_FOCUS_LOST:
+				case SDL_WINDOWEVENT_HIDDEN:
+					handleAppFocus(false);
+					break;
+				default:
+					break;
 				}
 				break;
+#endif
 			// Eigener Block: eine Variable, die in einem case entsteht, duerfte
 			// sonst nicht ueber die naechste Sprungmarke hinweg leben.
 			case SDL_KEYDOWN:
@@ -998,7 +1014,7 @@ void Engine::mainLoopIteration()
 			}
 		}
 
-		if(!active)
+		if(!appActive)
 		{
 			// Nicht rechnen, nicht zeichnen - aber weiter zeigen. Ein Fenster,
 			// das nichts mehr vorlegt, zeigt, was Windows zuletzt von ihm
@@ -3845,6 +3861,11 @@ void Engine::setMusicVolume(double musicVolume)
 bool Engine::wasVolumeChanged() const
 {
 	return volumeChanged;
+}
+
+bool Engine::isAppActive() const
+{
+	return appActive;
 }
 
 int Engine::getDetails() const

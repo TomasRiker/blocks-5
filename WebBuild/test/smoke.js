@@ -107,6 +107,28 @@ const h = require('./harness');
 		const shown = await audioState();
 		if (shown !== 'running') h.note('sichtbarer Tab: AudioContext "' + shown + '", erwartet "running"');
 	}
+
+	// Und die Engine selbst muss den Fokuswechsel bemerken - im Browser meldet
+	// SDL ihn als SDL_WINDOWEVENT statt als SDL_ACTIVEEVENT, und ohne den
+	// passenden Zweig liefe das Spiel im Hintergrund weiter, statt wie ueberall
+	// sonst anzuhalten. Beide Wege dorthin werden geprueft.
+	const appActive = async () => (await h.dump(page)).appActive;
+	for (const [name, away, back] of [
+		['blur/focus', () => window.dispatchEvent(new Event('blur')),
+		               () => window.dispatchEvent(new Event('focus'))],
+		['visibilitychange',
+		 () => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+		         document.dispatchEvent(new Event('visibilitychange')); },
+		 () => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+		         document.dispatchEvent(new Event('visibilitychange')); }],
+	]) {
+		await page.evaluate(away);
+		await page.waitForTimeout(1200);
+		if (await appActive()) h.note(name + ': die Engine haelt sich noch fuer aktiv');
+		await page.evaluate(back);
+		await page.waitForTimeout(1200);
+		if (!(await appActive())) h.note(name + ': die Engine kommt nicht zurueck');
+	}
 	await h.expectState(page, 'GS_Menu');
 
 	process.exit(await h.finish(browser));

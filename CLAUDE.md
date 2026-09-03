@@ -857,15 +857,23 @@ level. It used to be 256 MiB — 6.4x what the game ever touches, and on a phone
 reason a tab dies before the menu appears. `ALLOW_MEMORY_GROWTH` stays on, so an unusually
 large level still has room.
 
-**A hidden tab is a silent tab, and the page has to arrange that itself.** Without
-`requestAnimationFrame` no logic tick runs, so the engine cannot react at all — and it would
-not hear about it anyway, because Emscripten's SDL reports a hidden page as `SDL_WINDOWEVENT`
-while the game listens for SDL 1.2's `SDL_ACTIVEEVENT`. Its own answer to losing focus is to
-mute, and even that is applied by the per-tick pass that has just stopped. So `pre.js`
-suspends the `AudioContext` on `visibilitychange` and resumes it on the way back, one layer
-below the engine. Without it the music dies on its own when its queue runs dry — nothing
-refills it — while every looping effect, a laser above all, keeps sounding in a tab nobody is
-looking at.
+**Losing focus takes two answers in the browser, not one.** Emscripten's SDL reports focus and
+visibility as **`SDL_WINDOWEVENT`** — an SDL 2 shape — and never sends the `SDL_ACTIVEEVENT`
+the game switches on, so `Engine::mainLoopIteration` has a second case for it under
+`__EMSCRIPTEN__`. Both funnel into `handleAppFocus`, which mutes, forgets every held key,
+stops a running recording and tells the game state (`GS_Game` pauses). Without that branch the
+browser build simply never learned it had lost focus.
+
+That still leaves the audio, because a *hidden* tab gets no `requestAnimationFrame`: no logic
+tick runs, so the queued event is not even polled, and the mute is applied by the per-tick pass
+that has stopped. So `pre.js` suspends the `AudioContext` on `visibilitychange` and resumes it
+on the way back, one layer below the engine, which freezes every source at once. Without it the
+music dies on its own when its queue runs dry — nothing refills it — while every looping
+effect, a laser above all, keeps sounding in a tab nobody is looking at.
+
+`appActive` is an `Engine` member rather than a variable in `mainLoop` for two reasons:
+`emscripten_set_main_loop` calls one iteration per frame, so nothing may live on the stack
+between them, and the test hook reports it — which is what makes any of this checkable.
 
 **Saves ask to be kept.** They live in IndexedDB through IDBFS, which a browser may evict when
 it is short of room; `navigator.storage.persist()` in `pre.js` asks for that not to happen. The

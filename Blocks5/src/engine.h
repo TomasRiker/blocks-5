@@ -282,6 +282,7 @@ public:
 	double getMusicVolume() const;
 	void setMusicVolume(double musicVolume);
 	bool wasVolumeChanged() const;
+	bool isAppActive() const;
 	int getDetails() const;
 	void setDetails(int details);
 	double getParticleDensity() const;
@@ -476,6 +477,14 @@ private:
 	double soundVolume;
 	double musicVolume;
 	bool volumeChanged;
+	// Fokus gewonnen oder verloren, aus welchem Ereignis auch immer.
+	void handleAppFocus(bool gained);
+
+	// Hat das Fenster den Fokus? Ein Mitglied und keine Schleifenvariable, weil
+	// emscripten_set_main_loop je Bild einmal aufruft und nichts auf dem Stapel
+	// stehen bleibt - und weil der Testhaken es meldet.
+	bool appActive;
+
 	double oldSoundVolume;
 	double oldMusicVolume;
 	int details;

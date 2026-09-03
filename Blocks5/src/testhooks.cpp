@@ -169,7 +169,9 @@ namespace
 		// Wo das Spiel den Zeiger sieht und worauf er drueckt. Ein Tippen,
 		// das nicht ankommt, sieht von aussen sonst genauso aus wie ein
 		// Knopf, der nicht reagiert.
-		out += "\",\"mouseDown\":\"";
+		out += "\",\"appActive\":";
+		out += engine.isAppActive() ? "true" : "false";
+		out += ",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";
 		appendPoint(out, "cursor", cursor.x, cursor.y);
