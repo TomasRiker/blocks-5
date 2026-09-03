@@ -1732,3 +1732,48 @@ resource failures.
 **The lesson is the build script, not the packer.** A check that reports success
 from the artifact of a previous run is worse than no check, and it cost a day of
 looking at zip files.
+
+
+21. The browser build on a phone  — **DONE** for the page, item 19 still owes the controls
+--------------------------------------------------------------------------------------------
+It ran on a real phone before any of this - smooth graphics and sound, and the GUI usable but
+fiddly. The page around it was still the one Emscripten generates, which is a desktop page.
+What was wrong, in the order it mattered:
+
+- **No `<meta name="viewport">`.** A phone then lays out at a ~980px virtual viewport and
+  scales the result down: the canvas is wrong from the first frame, every button carries a
+  double-tap zoom in front of it, and the legacy 300 ms click delay stays on. `shell.html`
+  replaces the generated page and sets it, plus `touch-action: none` and
+  `overscroll-behavior: none` so a swipe belongs to the game rather than to scrolling.
+
+- **`-sINITIAL_MEMORY=268435456`.** 256 MiB reserved up front with `ALLOW_MEMORY_GROWTH`
+  already on. Measured from a 16 MiB start, the heap grows once to 40 MiB and stays there
+  through everything including a played level, so it is 48 MiB now - 6.4x less reserved, and
+  on a phone that is the difference between a tab that lives and one that does not.
+
+- **Nothing installable and nothing cached.** 14 MB re-downloaded every visit. `manifest.json`
+  and `sw.js` make it an add-to-home-screen app that launches without the address bar and
+  works offline - which is also the answer to iPhone Safari having no element-level Fullscreen
+  API. The worker is built so it can never serve `blocks5.js` beside another build's
+  `blocks5.data`; see item 20 and the head of `sw.js`.
+
+- **Saves could be evicted.** `navigator.storage.persist()`.
+
+Two real bugs in the game came out of the touch test, and neither had anything to do with the
+page:
+
+- **`GUI::update()` recomputed `p_elementAtCursor` at the bottom**, so a click always went to
+  whatever had been under the cursor at the end of the *previous* logic tick. Invisible with a
+  mouse - you cannot click where the pointer is not, and there is always a tick between
+  arriving and pressing. A finger has no such gap.
+- **`Engine` only took the cursor position from `SDL_MOUSEMOTION`**, and a touch produces no
+  motion at all, so the press landed wherever the cursor had been left. Both button events
+  take the position now.
+
+Either fix alone changes nothing; together they are why a tap lands. That is the whole of "the
+buttons were a bit difficult" - the hit areas turned out to be innocent.
+
+Checked by `WebBuild/test/mobile.js` on an emulated Pixel 7 in landscape: ten checks, from the
+layout viewport to a reload with the network switched off. **The virtual controls are still
+item 19** - everything except the menus needs a keyboard, and none of the work here changes
+that.

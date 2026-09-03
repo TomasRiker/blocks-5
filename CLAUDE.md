@@ -128,11 +128,15 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 tools/verify.py      eleven static checks over the whole tree
-sh tools/syntax.sh           compile every source with mingw (-fsyntax-only)
+python3 Tools/verify.py      eleven static checks over the whole tree
+sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
 ```
+
+There are three ways to *run* it, all scripted: `LinuxBuild/test/smoke.sh` natively,
+`WebBuild/test/smoke.js` in a desktop browser, and `WebBuild/test/mobile.js` in an emulated
+phone — see **Driving the game** below.
 
 **`WebBuild/build.sh` used to report a link failure as success**, and that is worth
 remembering rather than just fixed. It piped `em++` through `tail`, so the status it tested
@@ -241,6 +245,24 @@ Four things about this environment, each of which cost real time:
   hold, release — `harness.js` does this.
 - **Under swiftshader the game needs about half a minute to reach the menu**, and a frame
   takes a fifth of a second. Never sleep a guessed interval; wait on the reported state.
+
+### Driving the game on a phone
+
+`WebBuild/test/mobile.js` is the same idea in Chromium's mobile emulation, and it loads
+`index.html` rather than `blocks5.html` — that is the file that ships and the only one that
+registers the service worker. It checks the page around the game: that the layout viewport is
+the device width and not the ~980px default, that nothing scrolls or zooms, that the canvas
+covers the viewport, that the manifest says what an install needs, that the worker's cache
+holds the payload, and that a reload with the network switched off still boots. **`isMobile:
+true` in the context is what makes any of it mean something** — without it Chromium lays out
+at the window width and the viewport meta has nothing to do.
+
+The one check that is about the game rather than the page is a real touch: `touchStart`, a
+wait, `touchEnd`, through `Input.dispatchTouchEvent` over CDP. `page.touchscreen.tap()` is no
+use for the same reason `page.mouse.click()` is not — press and release in the same
+millisecond fall between two logic ticks. That check is what found the click-ordering bug in
+`GUI::update()`; the dump reports `cursor` and `mouseDown` so that a tap that does not arrive
+can be told apart from a button that does not react.
 
 ## Architecture
 
@@ -716,6 +738,46 @@ reads every texture through its own `SDL_RWops` over the encrypted `data.zip`. s
 (`libs/stb`, one header) does that in about eighty lines and drops `sdl_image.dll`,
 `libpng15-15.dll` and `zlib1.dll` from the shipped tree; both builds compile the same file.
 PNG and JPEG are enabled, and every image the game ships is a PNG.
+
+**The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated
+one, and everything in it is there because a phone needs it. `<meta name="viewport"
+content="width=device-width, ...">` is the important one: without it a phone lays the page out
+at a ~980px virtual viewport and scales the result down, which puts a double-tap zoom in front
+of every button and keeps the legacy 300 ms click delay. `touch-action: none` and
+`overscroll-behavior: none` on the body stop the browser taking a swipe for scrolling or
+pull-to-refresh. `pre.js` no longer has to fight the generated shell's chrome; what is left
+there is keeping the drawing buffer in step with the element, now also on `orientationchange`
+and on `visualViewport` resizes, which is how a phone reports the address bar sliding away.
+The page also handles `webglcontextlost` — a real event when a tab goes to the background —
+by saying so instead of freezing, since the game cannot rebuild its textures and its
+framebuffer object from where it stands.
+
+**It installs.** `manifest.json` (fullscreen, landscape, one 512x512 icon) and `sw.js` make it
+an ordinary add-to-home-screen web app that launches without the address bar and runs offline;
+that is also the answer to iPhone Safari, which has no element-level Fullscreen API. The icon
+is the game's own 32x32 window icon blown up 16x by pixel replication (`WebBuild/make_icon.py`,
+standard library only), because a phone that scales a 32px icon up does it with a smoothing
+filter and Bob comes out a blur.
+
+**The service worker is the second place the item-20 bug could have happened**, so it is built
+not to: `blocks5.js` carries absolute byte offsets into `blocks5.data`, so the two must never
+come from different builds. The cache name is a hash of the three payload files, `install`
+fetches them with one `addAll` (all-or-nothing), and there is deliberately **no
+`skipWaiting()` and no `clients.claim()`** — a page keeps the worker that was controlling it
+when it loaded, so what it is served cannot change halfway through booting. The price is that
+a new version takes over one load later.
+
+**`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap
+grows exactly once, to 40 MiB, and stays there through the loading screen, the menu, the
+options dialog, the manager, the level editor, the level selection and half a minute of played
+level. It used to be 256 MiB — 6.4x what the game ever touches, and on a phone the most likely
+reason a tab dies before the menu appears. `ALLOW_MEMORY_GROWTH` stays on, so an unusually
+large level still has room.
+
+**Saves ask to be kept.** They live in IndexedDB through IDBFS, which a browser may evict when
+it is short of room; `navigator.storage.persist()` in `pre.js` asks for that not to happen. The
+browser grants it silently once the page looks like something the user meant to keep and
+otherwise refuses, which costs nothing.
 
 **The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a
 Windows blue screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT`

@@ -15,6 +15,26 @@ Module['preRun'].push(function () {
     console.warn('[blocks5] could not mount IDBFS:', e);
   }
 });
+
+// Saves, progress and imported levels live in IndexedDB, and a browser is
+// allowed to throw that away when it is short of room - which on a phone is a
+// question of when, not whether. Asking makes the origin's storage persistent
+// where the browser is willing; it grants it silently once the page looks like
+// something the user meant to keep (installed to the home screen, bookmarked,
+// visited often) and otherwise says no, which costs nothing.
+(function () {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(function (already) {
+        if (already) return;
+        navigator.storage.persist().then(function (granted) {
+          if (!granted) console.log('[blocks5] storage is not persistent; saves may be evicted');
+        });
+      }).catch(function () {});
+    }
+  } catch (e) {}
+})();
+
 // A single coalescing syncfs driver. FS.syncfs warns when calls overlap
 // (libfs.js:615-626) and IDBFS reconciles a whole mount per run, so a request
 // arriving mid-flight sets a "dirty again" bit instead of starting a second
@@ -98,34 +118,16 @@ Module['b5_fitCanvas'] = function () {
 
 Module['postRun'] = Module['postRun'] || [];
 Module['postRun'].push(function () {
-  // The generated shell centres the canvas in a bordered div; make that div and
-  // its ancestors fill the viewport instead, so "resize the window" means
-  // something. Everything else in the shell (the logo, the status line, the
-  // output box) is chrome we do not want in the way.
+  // The page itself is shell.html, which already gives the canvas the whole
+  // viewport in CSS and suppresses the browser's own touch gestures. What is
+  // left here is keeping the drawing buffer in step with the element.
   var c = Module['canvas'];
   if (c) {
-    document.documentElement.style.height = '100%';
-    document.body.style.height = '100%';
-    document.body.style.margin = '0';
-    document.body.style.background = '#000';
-    document.body.style.overflow = 'hidden';
-    var box = c.parentElement;
-    if (box) {
-      box.style.border = '0';
-      box.style.position = 'fixed';
-      box.style.left = '0';
-      box.style.top = '0';
-      box.style.width = '100%';
-      box.style.height = '100%';
-    }
-    c.style.display = 'block';
-    ['emscripten_logo', 'status', 'progress', 'controls', 'output'].forEach(function (id) {
-      var e = document.getElementById(id);
-      if (e) e.style.display = 'none';
-    });
-    var logo = document.querySelector('a[href*="emscripten.org"]');
-    if (logo) logo.style.display = 'none';
     window.addEventListener('resize', Module['b5_fitCanvas']);
+    // A phone changes the viewport without a resize event when the address bar
+    // slides away or the device is turned; both arrive here.
+    window.addEventListener('orientationchange', Module['b5_fitCanvas']);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', Module['b5_fitCanvas']);
     document.addEventListener('fullscreenchange', Module['b5_fitCanvas']);
     document.addEventListener('webkitfullscreenchange', Module['b5_fitCanvas']);
     Module['b5_fitCanvas']();

@@ -39,6 +39,21 @@ Bleibt ein Lauf haengen, sollte der Browser danach wirklich weg sein: drei
 swiftshader-Instanzen nebeneinander teilen sich die Kerne, und dann sieht ein
 Test aus, als bliebe er stehen, obwohl er nur kriecht.
 
+## Auf dem Telefon
+
+`mobile.js` laeuft dieselbe Maschinerie in Chromiums Handy-Nachbildung und laedt dabei
+`index.html` statt `blocks5.html` - das ist die Datei, die ausgeliefert wird, und die
+einzige, die den Service Worker anmeldet.
+
+    node mobile.js
+
+Geprueft wird die Seite um das Spiel herum: Sichtfenster, keine Wisch- und Zoomgesten des
+Browsers, die Leinwand ueber der ganzen Flaeche, das Manifest, der Zwischenspeicher des
+Service Workers, und ein Neuladen mit abgeschaltetem Netz. Dazu ein echtes Tippen ueber
+`Input.dispatchTouchEvent` - `page.touchscreen.tap()` taugt so wenig wie
+`page.mouse.click()`, weil Druecken und Loslassen in derselben Millisekunde zwischen zwei
+Logiktakte fallen.
+
 ## Ein Test
 
 ```js

@@ -113,6 +113,14 @@ PRELOAD="--preload-file $WEBROOT@/"
 [ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run zip_data.bat or the zip -P equivalent)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
+# -sINITIAL_MEMORY: 48 MiB, gemessen und nicht geraten. Mit einem Anfangswert
+# von 16 MiB waechst der Heap genau einmal auf 40 MiB und bleibt dort - durch
+# Ladebild, Menue, Optionen, Manager, Leveleditor, Levelauswahl und ein halbe
+# Minute gespieltes Level. Die 256 MiB, die hier vorher standen, legten das
+# 6,4fache dessen bei, was das Spiel je anfasst; auf einem Telefon ist das der
+# wahrscheinlichste Grund, warum ein Tab stirbt, bevor das Menue steht.
+# ALLOW_MEMORY_GROWTH bleibt an, ein ungewoehnlich grosses Level hat also Luft.
+#
 # -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
 # struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's
 # default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
@@ -122,8 +130,9 @@ em++ $OBJS -o "$OUT/blocks5.html" \
   -O2 -sASSERTIONS=1 -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
   -Wl,--wrap=SDL_CreateRGBSurface \
-  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=268435456 \
+  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=50331648 \
   -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \
+  --shell-file $HERE/shell.html \
   $PRELOAD \
   2>&1 | tail -30
 # Der Rueckgabewert der Pipe ist der von tail und damit immer 0. Gefragt ist
@@ -138,6 +147,25 @@ linkStatus=${PIPESTATUS[0]}
 # names from its -o argument, and the page refers to blocks5.js by name, so
 # giving em++ index.html would rename all four and buy nothing.
 [ -f "$OUT/blocks5.html" ] && cp "$OUT/blocks5.html" "$OUT/index.html"
+
+# Alles fuer die installierbare Seite. Das gehoert neben index.html und nicht in
+# den webroot: der wird ins virtuelle Dateisystem gepackt, ueber HTTP
+# ausgeliefert wird dieses Verzeichnis hier.
+#
+# Der Name der Zwischenspeicherung ist ein Hash der drei Nutzlastdateien. Damit
+# wechselt sie genau dann, wenn sich die Nutzlast aendert, und nie sonst - und
+# blocks5.js kann nie neben einem blocks5.data eines anderen Baus landen. Siehe
+# den Kopf von sw.js und ROADMAP.md, Punkt 20.
+cp "$HERE/manifest.json" "$OUT/manifest.json"
+# Das Symbol ist dasselbe, das das Spielfenster traegt - 32x32, und damit zu
+# klein fuer einen Startbildschirm. Ein Telefon vergroessert es sonst selbst
+# und glaettet dabei; 16fach pixelvervielfacht auf 512x512 bleibt stattdessen
+# jede Kante hart, was zum Spiel passt. make_icon.py kommt mit der
+# Standardbibliothek aus, das kostet also keine Abhaengigkeit.
+python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon.png" 512 >/dev/null
+version=$(cat "$OUT/blocks5.js" "$OUT/blocks5.wasm" "$OUT/blocks5.data" | md5sum | cut -c1-12)
+sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
+echo "### PWA: manifest.json, icon.png, sw.js (cache blocks5-$version) ###"
 
 [ -f "$OUT/blocks5.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5.wasm ($(du -h "$OUT/blocks5.wasm" | cut -f1)) ###"
