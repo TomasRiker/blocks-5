@@ -270,6 +270,14 @@ millisecond fall between two logic ticks. That check is what found the click-ord
 `GUI::update()`; the dump reports `cursor` and `mouseDown` so that a tap that does not arrive
 can be told apart from a button that does not react.
 
+**The dump also lists `actionsDown`**, and that is the only window onto the *action* layer
+from outside. `Engine::updateVKs` reads `SDL_GetKeyState`, not `keyData`, so whether a key
+reached the named actions cannot be inferred from anything else the hook reports. It is what
+established that an on-screen pad can drive the game by dispatching an ordinary DOM
+`keydown`/`keyup` on the document: measured in a running level, a synthetic `ArrowLeft` with
+`isTrusted === false` shows up as `["$A_LEFT"]`, stays down while it is held, and clears on
+`keyup`. `Engine::setKeyData` would *not* have worked — see ROADMAP item 19.
+
 ## Architecture
 
 Everything for the game lives flat in `Blocks5/src`. The layering is by naming prefix, not by

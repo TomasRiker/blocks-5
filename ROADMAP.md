@@ -1606,15 +1606,33 @@ Four pieces, roughly in the order they are worth doing:
    can sit in the black letterbox bars instead of over the picture, and it never
    goes through `-sLEGACY_GL_EMULATION`.
 
-2. **Getting a press into the engine.** `Engine::setKeyData(SDLKey, int)` is
-   public and already used exactly this way: `GS_Menu` drives the title demo by
-   writing recorded key states straight into it (`gs_menu.cpp:207`). A pad button
-   is the same thing with a finger instead of a recording, so no new mechanism is
-   needed. Whether a button presses a *key* (`SDLK_LSHIFT`) or an *action*
-   (`$A_PLANT_BOMB`) wants deciding: the key is faithful to how the game reads
-   input and survives no rebinding; the action follows a rebind but bypasses the
-   layer everything else goes through. The key, plus reading the action's current
-   primary binding, is probably both.
+2. **Getting a press into the engine — from the page, as a DOM key event.**
+   `Engine::setKeyData(SDLKey, int)` looks like the obvious route, and an earlier
+   version of this entry named it: `GS_Menu` drives the title demo through it
+   (`gs_menu.cpp:207`). **It cannot work for gameplay.** `setKeyData` writes
+   `keyData`, which is the raw layer — `wasKeyPressed`, the GUI, the demo. The
+   named actions read somewhere else entirely:
+
+       Uint8* p_keys = SDL_GetKeyState(0);
+       ...
+       vk.down = p_keys[vk.key] ? true : false;          // Engine::updateVKs
+
+   That is SDL's own key-state array, which `setKeyData` never touches, so
+   movement and bombs would stay dead while the menu appeared to work. The demo
+   works precisely because it replays *raw* keys and not actions.
+
+   The route that does work is to dispatch an ordinary `keydown`/`keyup` on the
+   document from the pad. Emscripten's SDL updates both its event queue and
+   `SDL.keyboardState` from those, so `SDL_GetKeyState` sees them and the whole
+   action layer works with no engine change at all — including the player's own
+   rebindings, since the pad sends a key and the action layer maps it.
+   Measured with `$A_LEFT` and `$A_PLANT_BOMB` in a running level; the test hook
+   reports `actionsDown` so it stays checkable.
+
+   Two details fall out of it. The press has to be *held* for as long as the
+   finger is down, because `updateVKs` samples once per 20 ms tick. And a
+   synthetic event carries `isTrusted === false`, which is exactly the flag the
+   "hide the pad when a real keyboard is used" rule needs, for free.
 
 3. **Text fields.** `GUI_EditBox` reads `event.keysym.unicode` out of SDL key
    events, and a phone only shows its keyboard for a focused DOM element — the

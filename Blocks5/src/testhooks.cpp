@@ -171,6 +171,28 @@ namespace
 		// Knopf, der nicht reagiert.
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
+
+		// Welche benannten Aktionen gerade anliegen. Nur die gedrueckten, damit
+		// der Bericht kurz bleibt. Das ist die einzige Stelle, an der von aussen
+		// zu sehen ist, ob eine Taste die Aktionsschicht ueberhaupt erreicht -
+		// die liest SDL_GetKeyState und nicht keyData, was man ihr von aussen
+		// sonst nicht ansehen kann.
+		out += ",\"actionsDown\":[";
+		{
+			const std::vector<Action*>& actions = engine.getActionsVector();
+			bool firstAction = true;
+			for(std::vector<Action*>::const_iterator i = actions.begin(); i != actions.end(); ++i)
+			{
+				if(!*i || !engine.isActionDown((*i)->name)) continue;
+				if(!firstAction) out += ",";
+				firstAction = false;
+				out += "\"";
+				appendEscaped(out, (*i)->name);
+				out += "\"";
+			}
+		}
+		out += "]";
+
 		out += ",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";
