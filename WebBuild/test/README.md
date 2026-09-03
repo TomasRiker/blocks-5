@@ -23,6 +23,15 @@ Die Haken liest nur; sie aendern nichts und stecken hinter
     cd test
     NODE_PATH=/opt/node22/lib/node_modules node smoke.js
 
+Findet node das Modul nicht ("Cannot find module 'playwright'"), holt
+
+    cd WebBuild/test
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save playwright
+
+es nach `test/node_modules`, und dann genuegt `node smoke.js` ohne NODE_PATH.
+Der Browser selbst wird dabei nicht geladen: er liegt schon da, wohin
+`PLAYWRIGHT_BROWSERS_PATH` zeigt.
+
 `harness.js` startet den Webserver auf Port 8099 selbst und raeumt ihn
 wieder ab. Bildschirmfotos landen in `$B5_SHOTS` (Vorgabe `/tmp`).
 

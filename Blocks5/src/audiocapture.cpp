@@ -662,7 +662,7 @@ void AudioCapture::stop()
 	p_impl->capturing = false;
 }
 
-#else // _WIN32
+#elif !defined(__EMSCRIPTEN__)
 
 // ---------------------------------------------------------------------------
 // Linux. Was WASAPI den Loopback-Modus nennt, heisst bei PulseAudio Monitor:
@@ -949,7 +949,60 @@ void AudioCapture::stop()
 	p_impl->capturing = false;
 }
 
-#endif // _WIN32
+#else
+
+// ---------------------------------------------------------------------------
+// Browser. Eine Seite kann nicht mithoeren, was sie selbst ausgibt, und
+// aufgenommen wird dort ohnehin nicht: $A_TOGGLE_CAPTURE_VIDEO gibt es im
+// Web-Build gar nicht. Der Ringpuffer bleibt ungeoeffnet, damit die gemeinsame
+// Leserseite darunter Stille liefert.
+// ---------------------------------------------------------------------------
+
+struct AudioCaptureImpl : public AudioRing
+{
+	std::string deviceName;
+};
+
+AudioCapture::AudioCapture()
+{
+	p_impl = new AudioCaptureImpl;
+	p_impl->deviceName = "(none)";
+}
+
+AudioCapture::~AudioCapture()
+{
+	delete p_impl;
+}
+
+bool AudioCapture::open(uint sampleRate)
+{
+	(void)sampleRate;
+	return false;
+}
+
+void AudioCapture::close()
+{
+}
+
+bool AudioCapture::isOpen() const
+{
+	return false;
+}
+
+const std::string& AudioCapture::getDeviceName() const
+{
+	return p_impl->deviceName;
+}
+
+void AudioCapture::start()
+{
+}
+
+void AudioCapture::stop()
+{
+}
+
+#endif
 
 // ---------------------------------------------------------------------------
 // Die Leserseite gehoert beiden: sie liest nur den Ringpuffer.

@@ -15,3 +15,4 @@ WebBuild/build-asan
 WebBuild/build-test
 __pycache__
 LinuxBuild/build-test
+WebBuild/test/node_modules
