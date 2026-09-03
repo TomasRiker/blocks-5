@@ -166,11 +166,9 @@ namespace
 		out += (engine.getEffectiveUpscaleFilter() == Engine::UF_CRT) ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
-		// Wo das Spiel den Zeiger sieht und worauf er gerade drueckt. Mit
-		// einer Maus ist das nie eine Frage - man kann nicht dorthin
-		// klicken, wo der Zeiger nicht ist. Ein Finger aber setzt auf, ohne
-		// sich vorher bewegt zu haben, und ein Tippen, das nicht ankommt,
-		// sieht von aussen genauso aus wie ein Knopf, der nicht reagiert.
+		// Wo das Spiel den Zeiger sieht und worauf er drueckt. Ein Tippen,
+		// das nicht ankommt, sieht von aussen sonst genauso aus wie ein
+		// Knopf, der nicht reagiert.
 		out += "\",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";

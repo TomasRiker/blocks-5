@@ -1777,3 +1777,69 @@ Checked by `WebBuild/test/mobile.js` on an emulated Pixel 7 in landscape: ten ch
 layout viewport to a reload with the network switched off. **The virtual controls are still
 item 19** - everything except the menus needs a keyboard, and none of the work here changes
 that.
+
+
+22. A finger is not a point: hit testing with a tap radius
+----------------------------------------------------------
+Item 21 got taps to land where the finger is. What it did not do is make the targets big
+enough for a finger, and they are not: `GUI::getElementAt` tests a single point, which is
+exactly right for a mouse and wrong for a fingertip whose contact patch is eight to ten
+millimetres across. The accessibility guidance everybody uses is a minimum target of about
+44 CSS px.
+
+**The numbers say how far off it is.** The GUI is laid out in the game's 640x480 space -
+the buttons are eighteen pixels high, the Manager's bottom row is four 92x20 buttons - and
+that space is letterboxed into the canvas. On the emulated Pixel 7 in landscape (915x412
+CSS px) the present rect is 549x412, a scale of 0.858, so an eighteen-pixel button is
+**15 CSS px** on the glass: about a third of the recommended minimum. On a narrower phone
+it is worse, because the scale is `min(w/640, h/480)` and the height usually binds.
+
+**What unit the radius lives in.** It is a property of a finger, so it belongs in CSS
+pixels, which is the closest thing a browser offers to a physical unit; the conversion into
+game coordinates is the inverse of the present transform and is already available:
+
+    scale        = pw / 640.0          // Engine::computePresentRect gives px, py, pw, ph
+    radiusGame   = radiusCss / scale
+
+That is the "the smaller the game renders, the bigger the circle has to be" intuition, and
+it falls straight out of the transform rather than needing a second rule. It works because
+`b5_fitCanvas` sizes the drawing buffer in CSS pixels (`c.width = round(rect.width)`), so
+canvas pixels and CSS pixels are the same thing here — **if that ever changes to a
+device-pixel-ratio-sized buffer, this formula has to change with it.** With a barrel
+distortion on, the radius is not constant across the picture; near the edge it should be
+divided by the local derivative of `warpToSource`, or simply left alone, since the CRT
+filter is a desktop indulgence.
+
+**The sampling idea**, and it is a good one: lay a fixed grid over a disc of that radius
+around the tap, run the ordinary `getElementAt` at each sample, and count the votes. It
+inherits everything the point test already knows - z-order, `containsPoint` being virtual so
+a checkbox is hit on its caption too - and a 5x5 or 7x7 grid clipped to the disc is 21 to 37
+lookups once per tap, which is nothing.
+
+Four things to get right, three of which the plain "highest count wins" rule gets wrong:
+
+- **A large element must not outvote a small one it surrounds.** A pane behind a button wins
+  on area every time. Two ways out, and they compose: count only elements that are active and
+  really visible (a background pane is neither a target nor active), and weight each sample by
+  its distance from the centre so the middle of the disc dominates.
+- **The exact hit still wins.** If the centre sample lands on an active element, take it and
+  do not vote at all. That makes the whole thing a *fallback* for a near miss rather than a
+  reinterpretation of every tap, which is a much smaller change to reason about and cannot
+  make an accurate tap worse.
+- **Only for touch.** A mouse is exact and must stay exact. SDL 1.2 has no flag for this;
+  in the browser Emscripten's SDL does push an `SDL_FINGERDOWN` alongside the synthetic
+  mouse event, so the information is there, and failing that `pre.js` can set one.
+- **The cursor itself must not move.** Only the element that receives the click is chosen by
+  the vote; `cursorPosition` stays where the finger actually landed, or the level editor
+  would place tiles somewhere other than where you touched.
+
+**The cheaper alternative worth measuring against it**: grow each candidate's hit area by
+the radius, keep those that then contain the point, and pick the one whose true distance to
+the point is smallest. That is O(elements) with no sampling and gives exactly "the nearest
+target within a finger's reach". The sampling version is easier to trust where
+`containsPoint` is overridden into a non-rectangular shape; the grown-rect version is exact
+and has no grid resolution to tune. Both hang off the one line in `GUI::update()` that
+computes `p_elementAtCursor`, so either can be tried without touching anything else.
+
+`WebBuild/test/mobile.js` is where this gets its test: tap a few pixels *outside* a small
+button and expect it to fire.

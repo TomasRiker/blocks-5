@@ -113,13 +113,12 @@ PRELOAD="--preload-file $WEBROOT@/"
 [ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run zip_data.bat or the zip -P equivalent)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
-# -sINITIAL_MEMORY: 48 MiB, gemessen und nicht geraten. Mit einem Anfangswert
-# von 16 MiB waechst der Heap genau einmal auf 40 MiB und bleibt dort - durch
-# Ladebild, Menue, Optionen, Manager, Leveleditor, Levelauswahl und ein halbe
-# Minute gespieltes Level. Die 256 MiB, die hier vorher standen, legten das
-# 6,4fache dessen bei, was das Spiel je anfasst; auf einem Telefon ist das der
-# wahrscheinlichste Grund, warum ein Tab stirbt, bevor das Menue steht.
-# ALLOW_MEMORY_GROWTH bleibt an, ein ungewoehnlich grosses Level hat also Luft.
+# -sINITIAL_MEMORY: 48 MiB, gemessen und nicht geraten. Von 16 MiB aus waechst
+# der Heap genau einmal auf 40 MiB und bleibt dort - durch Ladebild, Menue,
+# Optionen, Manager, Leveleditor, Levelauswahl und eine halbe Minute gespieltes
+# Level. Grosszuegiger vorzulegen kostet auf einem Telefon den Tab, bevor das
+# Menue steht. ALLOW_MEMORY_GROWTH bleibt an, ein ungewoehnlich grosses Level
+# hat also Luft.
 #
 # -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
 # struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's

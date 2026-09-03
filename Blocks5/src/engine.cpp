@@ -937,11 +937,9 @@ void Engine::mainLoopIteration()
 				break;
 			case SDL_KEYUP:
 				// keyHeld beschreibt die Tastatur und nicht den Befehl, deshalb
-				// steht es vor jedem Sonderfall. Hinter dem verschluckten
-				// Alt+Return blieb es sonst haengen: das naechste Alt+Return
-				// galt als Wiederholung und schaltete das Vollbild nicht mehr
-				// zurueck, und auch ein gewoehnliches Return waere fuer immer
-				// eine Wiederholung gewesen.
+				// vor jedem Sonderfall: das verschluckte Alt+Return springt
+				// gleich heraus, und die Taste bliebe sonst fuer immer als
+				// gehalten stehen.
 				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
 					keyHeld[event.key.keysym.sym] = false;
 
@@ -963,14 +961,11 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				// Die Position gehoert zum Druck und wird auch hier uebernommen,
-				// nicht nur bei SDL_MOUSEMOTION. Mit einer Maus faellt das nie
-				// auf: dorthin zu klicken, wo der Zeiger nicht ist, geht gar
-				// nicht. Ein Finger aber setzt auf, ohne sich vorher bewegt zu
-				// haben - Emscriptens SDL macht aus touchstart ein
-				// SDL_MOUSEBUTTONDOWN -, und dann kam der Druck an der Stelle
-				// an, an der der Zeiger zuletzt stand. Genau das heisst auf dem
-				// Telefon "die Knoepfe trifft man schlecht".
+				// Die Position auch hier und nicht nur bei SDL_MOUSEMOTION: ein
+				// Finger erzeugt gar keine Bewegung. Emscriptens SDL macht aus
+				// touchstart ein SDL_MOUSEBUTTONDOWN und traegt die Stelle
+				// darin ein, sonst waere der Zeiger bei einem Tippen nie dort,
+				// wo getippt wurde.
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
@@ -3228,17 +3223,16 @@ void Engine::flushInput()
 	}
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 
-	// keyHeld nicht loeschen, sondern nachfuehren: unter den verworfenen
-	// Ereignissen kann ein Loslassen gewesen sein, und dann bliebe die Taste
-	// fuer immer als gehalten stehen - aber sie einfach freizugeben waere
-	// genauso falsch. Nach dem Belegen einer Taste laeuft flushInput() jeden
-	// Takt, und ein Escape, das den Vorgang abbricht und dabei liegenbleibt,
-	// sah danach wie ein frischer Druck aus und schloss den Optionsdialog
-	// gleich mit. Die Tastatur selbst weiss es am besten.
+	// keyHeld nicht loeschen, sondern nachfuehren. Beides waere falsch: unter
+	// den verworfenen Ereignissen kann ein Loslassen stecken, dann bliebe die
+	// Taste fuer immer gehalten - und wer sie einfach freigibt, laesst eine
+	// liegende Taste beim naechsten Ereignis wie einen frischen Druck aussehen.
+	// Waehrend einer Tastenbelegung laeuft das hier jeden Takt, dort faellt es
+	// sofort auf. Gefragt wird deshalb die Tastatur selbst.
 	//
-	// Wie lang das Feld ist, sagt SDL selbst: NUM_KEY_SLOTS ist SDLK_LAST, und
-	// das ist unter Emscriptens Koepfen 1536 - dort steckt aber SDL 2
-	// darunter, dessen Feld nur bis SDL_NUM_SCANCODES reicht.
+	// Wie lang ihr Feld ist, sagt SDL: NUM_KEY_SLOTS ist SDLK_LAST, unter
+	// Emscriptens Koepfen also 1536, waehrend dort SDL 2 daruntersteckt, dessen
+	// Feld nur bis SDL_NUM_SCANCODES reicht.
 	int numKeys = 0;
 #ifdef __EMSCRIPTEN__
 	Uint8* p_keys = SDL_GetKeyboardState(&numKeys);

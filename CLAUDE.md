@@ -927,6 +927,18 @@ filenames, shipped zipped in `levels/campaigns/`.
   since the Emscripten build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).
+- **A comment says what the code does and why, never what it used to do.** The reader is
+  looking at the current code; the previous version is in the history, and an account of it in
+  the file is noise they have to read past. No "used to be", no "this was moved from here", no
+  retelling of the bug that led to the line. That belongs in the commit message, which is
+  where somebody who wants it will look.
+
+  What *is* worth writing is the gotcha: wherever a reader would reasonably stop and ask "why
+  like this — why not the obvious thing?", answer that. The platform quirk, the ordering that
+  matters, the constraint that rules out the shorter version. One sentence of reason is worth
+  more than a paragraph of archaeology, and if the reason is genuinely long, the length is
+  earned.
+
 - Comments are in German, and **every source file is pure ASCII** — `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS`
   inside an all-caps word), so the encoding of these files no longer matters to anything:
