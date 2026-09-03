@@ -1674,41 +1674,61 @@ libraries and the `msinttypes` shim. What ships now is three executables, **one*
 DLL that needs nothing but Windows, and the data.
 
 
-20. A freshly built data.zip breaks the browser
------------------------------------------------
-**This is the next thing to chase.** Pack `data.zip` from the current tree —
-`Blocks5/pack.sh`, either packer — and the Emscripten build stops finding the
-skins and the fonts: 28 console errors, all of the shape `Could not parse
-tileset XML file ""`, `Could not load resource ""`, `Skin "" has no usable
-tileset`. The empty names say the lookup failed, not the file. The native build
-reads the very same archive without a murmur, and so does Python's `zipfile`:
-all 96 entries decrypt, every CRC checks out, and the extracted bytes are
-identical to the archive that works.
+20. A freshly built data.zip breaks the browser  — **DONE**, and it was never the zip
+--------------------------------------------------------------------------------------
+Pack `data.zip` from the current tree and the Emscripten build stopped finding the
+skins and the fonts: 28 console errors, all of the shape `Could not parse tileset
+XML file ""`, `Could not load resource ""`, `Skin "" has no usable tileset`. The
+empty names said the lookup failed, not the file. The native build read the very
+same archive without a murmur, and so did Python's `zipfile`: all 96 entries
+decrypted, every CRC checked out, and the extracted bytes were identical to the
+archive that worked.
 
-It went unnoticed all through the 1.2.0 work because `data.zip` is a build
-product that is not in Git and that nothing rebuilds. The copy lying in the
-work tree predated the dialog-XML edits, so every browser test until now ran
-against a stale archive.
+**The archive was innocent. `WebBuild/build.sh` was lying about the link.** It
+piped `em++` through `tail`, so the status it tested belonged to `tail`, and the
+check after it only asked whether `blocks5.wasm` existed - which it did, from the
+run before. From `26903c0` on, the browser link was genuinely broken
+(`audiocapture.cpp`'s PulseAudio half sat in the `#else` of `#ifdef _WIN32`, so
+Emscripten compiled it and hit SDL semaphores the port does not have), and every
+build during the investigation printed `### LINK OK ###` over it.
 
-What was ruled out, each by building and running the browser smoke test:
+What makes that corrupt the *data* rather than simply run old code is where the
+file packager sits. `em++` writes `blocks5.data` **before** `wasm-ld` runs, and
+the table that says what is inside it lives in `blocks5.js`:
 
-- **The packer.** 7-Zip and Info-ZIP write measurably different archives (bit 3,
-  the data descriptor, and the encryption check byte). Both fail.
-- **The content.** An archive packed from the *old* dialog XMLs is byte-identical
-  to the one that works and passes; but the current XMLs differ from the old
-  ones only in trimmed comments and in nine geometry attributes of
-  `options.xml` — a window five pixels taller, buttons five pixels lower and
-  five narrower. Reverting the height alone does not help.
-- **The size.** Padding the current XMLs back to the old byte sizes, so the
-  archive comes out within 900 bytes of the working one, does not help either.
-  A *larger* archive fails differently again — the game does not boot at all.
-- **The rest of the session's changes.** Stashing all of them and rebuilding
-  reproduces it exactly.
+    loadPackage({files:[{filename:"/.update_checker",start:0,end:4},
+                        {filename:"/data.zip",start:4,end:3191909},
+                        {filename:"/levels/campaigns/blocks.zip",start:3191909,end:11472606}, ...
 
-Which leaves a contradiction: every archive that passes is byte-identical to the
-one that was already lying there, and every archive built here fails, including
-one built from identical content. That smells like a state or caching effect in
-the build or the harness rather than anything in the zip, and that is where to
-look next: what does the Emscripten build keep between runs, and what is the
-preload bundle actually made of? `WebBuild/build.sh` reuses object files keyed
-by path and flags, and assembles `webroot` fresh each time.
+Absolute byte offsets. A failed link leaves a **fresh `blocks5.data` beside a
+stale `blocks5.js`**, so every preloaded file is sliced at the offsets of the
+*previous* archive - and because the entries are consecutive, a `data.zip` even
+one byte off shifts everything that follows it: the campaign, the skins, the
+fonts. That is the empty resource name, and it is why the failure looked like a
+zip problem.
+
+Measured, with a deliberate link failure on the real error: `blocks5.js` and
+`blocks5.wasm` unchanged, `blocks5.data` rewritten. Every "ruled out" in the old
+version of this entry falls out of that:
+
+- Both packers fail — any new archive moves the offsets.
+- An archive byte-identical to the working one passes — same bytes, same length,
+  the stale table still fits.
+- Padding to within 900 bytes does not help — near is not equal.
+- A *larger* archive fails differently, the game not booting at all — the slice
+  now runs past the end of the buffer.
+
+Fixed in `fbe8fba`: `build.sh` reads `${PIPESTATUS[0]}` for `em++`'s own status
+and exits 1, and the existence check that follows exits 1 too. Verified by
+feeding it a bad `-s` flag - `### LINK FAILED ###`, status 1. `audiocapture.cpp`
+got the browser its own branch back in the same commit.
+
+Retested afterwards with three freshly packed archives, each different from the
+one that had been lying in the tree - with `optipng` (3191905 bytes), without it
+(3191979), and the intermediate - building both browser configurations and
+running `WebBuild/test/smoke.js` against each: clean, no console errors, no
+resource failures.
+
+**The lesson is the build script, not the packer.** A check that reports success
+from the artifact of a previous run is worse than no check, and it cost a day of
+looking at zip files.

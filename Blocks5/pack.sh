@@ -23,10 +23,13 @@
 # gueltig und beide liest der native Build; verlassen sollte man sich darauf
 # nicht.
 #
-# ACHTUNG: Ein hiermit frisch gebautes data.zip laesst den Browser-Build
-# stolpern - er findet dann die Skins und Schriften nicht mehr. Das liegt nicht
-# am Packer (mit "zip" gepackt geht es genauso schief) und nicht am Inhalt, und
-# der native Build merkt nichts davon. Siehe ROADMAP.md, Punkt 20.
+# Ein frisch gebautes data.zip liess den Browser-Build eine Weile stolpern - er
+# fand die Skins und Schriften nicht mehr. Das lag weder am Packer noch am
+# Inhalt, sondern daran, dass WebBuild/build.sh einen fehlgeschlagenen Link als
+# Erfolg meldete: em++ schreibt blocks5.data, bevor wasm-ld laeuft, und die
+# Tabelle mit den Byteabstaenden darin steht in blocks5.js. Ein neues Archiv
+# neben einer alten Tabelle zerschneidet jede Datei an der falschen Stelle.
+# Erledigt, siehe ROADMAP.md, Punkt 20.
 #
 # Die Passwoerter stehen hier im Klartext, wie in den .bat-Dateien auch. Sie
 # halten niemanden auf, der sie sucht - im Spiel stehen sie verschluesselt in

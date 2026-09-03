@@ -134,6 +134,17 @@ LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
 ```
 
+**`WebBuild/build.sh` used to report a link failure as success**, and that is worth
+remembering rather than just fixed. It piped `em++` through `tail`, so the status it tested
+was `tail`'s, and the check after it only asked whether `blocks5.wasm` existed — which it
+did, from the run before. The browser link was broken for hours behind a `### LINK OK ###`.
+Worse than merely stale: `em++` writes `blocks5.data` *before* `wasm-ld` runs, and the table
+of byte offsets into it lives in `blocks5.js`, so a failed link leaves a fresh data bundle
+beside the previous run's offsets and every preloaded file is sliced in the wrong place —
+which is what ROADMAP item 20 spent a day mistaking for a corrupt `data.zip`. It reads
+`${PIPESTATUS[0]}` now and exits 1. A check that can pass on a previous run's artifact is
+worse than no check.
+
 The Linux build is the fastest way to *run* a change: `LinuxBuild/test/smoke.sh` starts it
 under Xvfb and clicks through the menus, and unlike the browser it is a real GCC compile of
 every source, `videorecorder.cpp` included. What it cannot check is anything Windows-only —
@@ -501,6 +512,23 @@ Creative's 2009 installer may have left on the machine; `oalinst.exe` and the in
 `InstallOpenAL11` task are gone. The game only calls core AL/ALC 1.1 (23 functions, no
 extensions, no `alGetProcAddress`), so the switch needed no source change at all. The DLL is
 LGPL v2 and must stay dynamically linked.
+
+**The mix is turned down, and that is not a taste setting.** The game plays music and a
+dozen effects at once, each source at full volume, and the sum stood above the ceiling:
+measured in the main menu, where the title demo keeps adding bombs and lasers, **-8.8 LUFS
+at a true peak of +0.9 dBFS, with 29369 of 4032000 samples — 0.73% — hard against the limit
+and therefore clipped by OpenAL Soft**. That is audible as distortion, in the game and in a
+recorded video alike. `MASTER_HEADROOM` (0.45, at the top of `engine.cpp`) goes in as
+`alListenerf(AL_GAIN, …)` right after `alcProcessContext`, which scales the finished mix
+inside OpenAL Soft's float pipeline *before* that clamp; the same passage then measures
+**-15.5 LUFS at -1.1 dBFS, with one sample at the limit**. Two standards decide the number:
+a true peak no higher than **-1 dBTP**, because a lossy decoder — MP3 for the videos here —
+can overshoot the samples it was handed, and an integrated loudness of **-14 to -16 LUFS**,
+which is where YouTube and Spotify normalise to anyway. 0.50 lands at -14.6 LUFS and exactly
+0.00 dBFS, right on the ceiling with nothing to spare; 0.40 is -16.5 and quieter than it
+needs to be. It belongs in the source and not in the options because it is a property of the
+mixture rather than a preference — the player's own sliders are untouched and still read
+100%. The game is about 7 dB quieter than 1.1.2 was, which is the point.
 
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
