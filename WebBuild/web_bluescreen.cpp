@@ -94,6 +94,12 @@ void WebBlueScreen::show()
 		window.addEventListener('touchstart', restart);
 	}, p_text);
 
+	// Die Beruehrungsabkuerzung ins Vollbild muss hier weg. Sonst holt genau
+	// der Fingertipp, der neu laden soll, den Bildschirm vorher noch einmal ins
+	// Vollbild - und die Einblendung laege wieder hinter dem Canvas, den sie
+	// gerade verdecken soll.
+	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
+
 	emscripten_cancel_main_loop();
 }
 

@@ -1613,6 +1613,12 @@ finger runs. Menu is not optional: `GS_Game` opens its menu on Escape and there 
 way out of a level without a keyboard. What is still missing is the text-field half (point 3
 below), the haptics (point 5) and a proper place to switch it on other than a URL parameter.
 
+**The page around it takes care of itself now.** The one tap the browser build already
+demands - `GS_Loading` waits for the gesture that unblocks the AudioContext - also puts the
+canvas into fullscreen and asks for landscape, and every later touch that finds the document
+out of fullscreen puts it back. Mobile Chrome offers no way to do either by hand, and at this
+size portrait is unplayable. See `Engine::enforceTouchFullScreen` and `Module.b5_lockOrientation`.
+
 1. **The pad itself.** A DOM overlay above the canvas, like
    `WebBuild/web_bluescreen.cpp` builds one, with `touchstart`/`touchend` on each
    button. Drawn in the page rather than by the game, so it costs no GL work, it

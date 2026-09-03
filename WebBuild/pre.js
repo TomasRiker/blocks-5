@@ -110,6 +110,40 @@ window.addEventListener('keydown', function (e) {
   window.addEventListener('focus', resume);
 })();
 
+// A phone, meaning a device with no mouse. (any-pointer: fine) is what a mouse
+// or a stylus reports, so its absence together with a coarse pointer is the
+// closest the platform gets to the question actually being asked. It is one
+// function rather than two copies because Engine::enforceTouchFullScreen asks
+// it too, through Module.
+Module['b5_isPhone'] = function () {
+  if (!window.matchMedia) return navigator.maxTouchPoints > 0;
+  return window.matchMedia('(any-pointer: coarse)').matches &&
+         !window.matchMedia('(any-pointer: fine)').matches;
+};
+
+// Landscape, and only while the game holds the screen. The lock is refused
+// unless the document is fullscreen, which is why this hangs off the change
+// event rather than off the request: on Android the promise rejects if the two
+// are the wrong way round. It rejects on a desktop in any case - there is no
+// orientation to lock - so every path here swallows the failure.
+//
+// The manifest asks for landscape as well, but that only counts once the game
+// has been installed to the home screen. This is the same answer for the page.
+Module['b5_lockOrientation'] = function () {
+  var o = window.screen && screen.orientation;
+  if (!o || !Module['b5_isPhone']()) return;
+  var full = document.fullscreenElement || document.webkitFullscreenElement;
+  if (full) {
+    if (!o.lock) return;
+    try {
+      var p = o.lock('landscape');
+      if (p && p['catch']) p['catch'](function () {});
+    } catch (e) {}
+  } else if (o.unlock) {
+    try { o.unlock(); } catch (e) {}
+  }
+};
+
 // The canvas fills the page and follows the browser window. The game renders
 // 640x480 into a framebuffer object and letterboxes that into whatever size the
 // canvas is, so nothing here has to know about the game's own resolution - it
@@ -145,6 +179,8 @@ Module['postRun'].push(function () {
     if (window.visualViewport) window.visualViewport.addEventListener('resize', Module['b5_fitCanvas']);
     document.addEventListener('fullscreenchange', Module['b5_fitCanvas']);
     document.addEventListener('webkitfullscreenchange', Module['b5_fitCanvas']);
+    document.addEventListener('fullscreenchange', Module['b5_lockOrientation']);
+    document.addEventListener('webkitfullscreenchange', Module['b5_lockOrientation']);
     Module['b5_fitCanvas']();
   }
 

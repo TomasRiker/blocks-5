@@ -513,6 +513,33 @@ canvas fills the page (`WebBuild/pre.js`), Alt+Return goes through the Fullscree
 real DOM keydown — the main loop's own events do not count as a user gesture — and the main
 loop reads the canvas size once a frame, which catches both.
 
+**On a phone the game takes the fullscreen itself.** Mobile Chrome has no button for it, so
+without this the page is played under an address bar, and the picture is small enough already.
+`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Return one —
+`emscripten_set_touchstart_callback`, returning `EM_FALSE` so the touch still belongs to SDL —
+and requests the fullscreen on **every** touch that finds the document not in it, which is
+what makes it survive a swipe back out. There is no extra tap to pay for it: the browser
+build already stops on "click to start", because `GS_Loading` waits for the gesture that
+unblocks the AudioContext, and that tap is the one that gets used.
+
+Two conditions guard it. `Module.b5_isPhone()` in `pre.js` is coarse-pointer **and not**
+`(any-pointer: fine)` — a notebook with a touchscreen has a title bar somebody wants, a phone
+has none — and it is one function rather than two copies precisely because C++ asks it too.
+And the *browser* is asked whether it is fullscreen, not `Engine::fullScreen`: leaving by a
+swipe does not tell the engine anything, so the member says `true` while the page is windowed
+and `setFullScreen(true)` would return before reaching the API.
+
+**The landscape lock hangs off `fullscreenchange`, not off the request.** `screen.orientation
+.lock` is refused unless the document is already fullscreen, so ordering them the other way
+round simply rejects; `Module.b5_lockOrientation` therefore waits for the event, and unlocks
+again on the way out. It is Android-only — iPhone Safari has neither API — and it rejects on
+a desktop, so every path swallows the failure. The manifest asks for landscape as well, but
+only an installed app gets that; this is the same answer for the plain page.
+
+`WebBlueScreen::show` unregisters the touch callback. Otherwise the tap meant to reload the
+page would first put the canvas back into fullscreen, and the overlay would sit behind it —
+which is the very thing that `exitFullscreen()` at the top of that function avoids.
+
 **Video recording** writes H.264 Baseline video and MP3 audio into an MP4, with no DLL
 involved: `libs/minih264` encodes the video, `libs/shine` the audio, `libs/minimp4` writes the
 container, and all three are vendored source. Windows has decoded that combination natively

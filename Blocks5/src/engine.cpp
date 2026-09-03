@@ -4,6 +4,7 @@
 #include <emscripten/html5.h>
 // Definition weiter unten, bei setFullScreen().
 static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
+static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #endif
 #ifdef _WIN32
 // Fuer den Vollbildwechsel: der Fensterstil wird direkt gesetzt, an SDL vorbei.
@@ -447,6 +448,10 @@ bool Engine::init(const std::string& windowCaption,
 	// Nur ein echter Tastendruck darf die Fullscreen-API ausloesen, also am DOM.
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
 									engineFullScreenHotkey);
+	// Und auf einem Telefon dasselbe fuer den Finger: dort holt sich das Spiel
+	// das Vollbild von sich aus, siehe enforceTouchFullScreen().
+	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
+									   engineTouchFullScreen);
 #endif
 
 	SDL_ShowCursor(0);
@@ -1895,6 +1900,36 @@ static void emscriptenSetFullScreen(bool fullScreen)
 		emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
 	}
 	else emscripten_exit_fullscreen();
+}
+
+static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*)
+{
+	Engine::inst().enforceTouchFullScreen();
+	// EM_FALSE: die Beruehrung gehoert weiterhin SDL. Sie ist der Klick, mit
+	// dem der Ladebildschirm weitergeht und mit dem im Spiel geklickt wird.
+	return EM_FALSE;
+}
+
+void Engine::enforceTouchFullScreen()
+{
+	// Nur auf einem Geraet ohne Maus. Ein Notebook mit Beruehrungsschirm hat
+	// eine Titelleiste, die jemand haben will; ein Telefon hat keine, und in
+	// mobilem Chrome gibt es ueberhaupt keinen Weg, das Vollbild von Hand zu
+	// verlangen - deshalb nimmt es sich das Spiel.
+	if(!EM_ASM_INT({ return (Module['b5_isPhone'] && Module['b5_isPhone']()) ? 1 : 0; })) return;
+
+	// Dieselbe Bedingung wie bei Alt+Return: ohne Bildpuffer gibt es kein
+	// presentFrame(), das eine andere Flaeche mit Balken fuellen wuerde.
+	if(!useFrameBuffer) return;
+
+	// Der Browser wird gefragt und nicht das eigene Merkmal: wer mit einer
+	// Wischgeste aus dem Vollbild geht, laesst fullScreen auf true stehen, und
+	// setFullScreen(true) kaeme dann gar nicht erst bis zur API.
+	if(EM_ASM_INT({ return (document.fullscreenElement ||
+							document.webkitFullscreenElement) ? 1 : 0; })) return;
+
+	emscriptenSetFullScreen(true);
+	fullScreen = true;
 }
 #endif
 

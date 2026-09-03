@@ -137,6 +137,13 @@ public:
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
+#ifdef __EMSCRIPTEN__
+	// Auf einem Telefon holt sich das Spiel das Vollbild bei jeder Beruehrung
+	// selbst zurueck. Gerufen wird das aus dem DOM-Rueckruf und nirgends sonst:
+	// die Fullscreen-API verlangt eine echte Geste, und die Ereignisse aus der
+	// Animationsschleife sind keine.
+	void enforceTouchFullScreen();
+#endif
 	Vec2i getDesktopSize() const;
 	// Was ein frisch installiertes Spiel als Fenstergroesse bekommt: das groesste
 	// ganzzahlige Vielfache von 640x480, das noch bequem auf den Schirm passt.

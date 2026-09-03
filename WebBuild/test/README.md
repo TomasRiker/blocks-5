@@ -54,6 +54,14 @@ Service Workers, und ein Neuladen mit abgeschaltetem Netz. Dazu ein echtes Tippe
 `page.mouse.click()`, weil Druecken und Loslassen in derselben Millisekunde zwischen zwei
 Logiktakte fallen.
 
+Dasselbe Tippen holt das Vollbild, und auch das steht hier: dass hinterher der Canvas das
+Vollbildelement ist und dass die Querlage verlangt wurde. Ob sie *gewaehrt* wird, laesst
+sich hier nicht pruefen - eine kopflose Nachbildung hat keine Lage, die sich drehen liesse,
+und weist die Sperre in jedem Fall ab. Der Test schreibt deshalb den Aufruf mit
+(`addInitScript` legt sich vor `screen.orientation.lock`) und reicht ihn weiter, damit die
+Absage stehenbleibt: die muss die Seite schlucken, und ein unbehandelter Fehlschlag waere
+hier ein `pageerror`.
+
 ## Ein Test
 
 ```js
