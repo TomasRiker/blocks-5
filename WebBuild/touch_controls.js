@@ -193,7 +193,10 @@
 
   var bBomb  = button('bomb',  'Bomb', true);
   var bPut   = button('put',   'Put',  true);
-  var bSwap  = button('swap',  'Swap');
+  // Swap belongs with the gameplay buttons, not with the three careful ones:
+  // round and large like Bomb and Put, and on the far side of the screen from
+  // Retry and Hotel.
+  var bSwap  = button('swap',  'Swap', true);
   var bRetry = button('retry', 'Retry');
   var bHotel = button('hotel', 'Hotel');
   var bMenu  = button('menu',  'Menu');
@@ -252,10 +255,19 @@
     bPut.style.top = (by - big - m) + 'px';
     bPut.style.width = big + 'px'; bPut.style.height = big + 'px';
 
-    // Right, high and out of the way: the ones a mistake would hurt.
+    // Left, above the d-pad: switching the character. It is a move you make
+    // mid-level and often, so it wants a thumb that is already on this side -
+    // and it must not sit anywhere near Retry, which throws that level away.
+    var sx = lx + Math.round((pad - big) / 2);
+    var sy = Math.max(m, ly - big - m);
+    bSwap.style.left = sx + 'px'; bSwap.style.top = sy + 'px';
+    bSwap.style.width = big + 'px'; bSwap.style.height = big + 'px';
+
+    // Right, high and out of the way: the ones a mistake would hurt. Retry and
+    // Hotel side by side under Menu, because those two are the pair.
     var gx = inBars ? Math.round((bar - (2 * small + m)) / 2) : m;
     var gy = Math.max(m, Math.round(h * 0.05));
-    [[bMenu, 0, 0], [bSwap, 1, 0], [bRetry, 0, 1], [bHotel, 1, 1]].forEach(function (t) {
+    [[bMenu, 0, 0], [bRetry, 0, 1], [bHotel, 1, 1]].forEach(function (t) {
       var el = t[0];
       el.style.right = (gx + t[1] * (small + m)) + 'px';
       el.style.top = (gy + t[2] * (small + m)) + 'px';

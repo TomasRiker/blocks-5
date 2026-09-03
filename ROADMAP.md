@@ -1601,8 +1601,11 @@ and the actions in `main.cpp` are bound to virtual keys on top of that.
 Four pieces, roughly in the order they are worth doing:
 
 **A prototype exists**: `WebBuild/touch_controls.js`, reachable with `?pad=on`. It puts a
-four-way d-pad in the left letterbox bar, Bomb and Put as two round buttons in the right one,
-and Swap, Retry, Hotel and Menu as a small block further up where a mis-hit costs nothing.
+four-way d-pad low in the left letterbox bar with Swap as a round button above it, Bomb and Put
+as two round buttons in the right one, and Menu, Retry and Hotel as a small block high on the
+right where a mis-hit costs nothing. Swap belongs with the gameplay buttons rather than with
+those three: it is a move made mid-level and often, and a finger that misses Retry by one
+button throws the level away.
 Measured on an emulated Pixel 7 with real touches: every control reaches the action it should
 and clears on release. Stepping and running need no code - the movement actions keep
 `registerAction`'s defaults (`delay 240`, `interval 80`), so a tap is one step and a held
