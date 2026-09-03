@@ -1611,7 +1611,7 @@ and clears on release. Stepping and running need no code - the movement actions 
 `registerAction`'s defaults (`delay 240`, `interval 80`), so a tap is one step and a held
 finger runs. Menu is not optional: `GS_Game` opens its menu on Escape and there is no other
 way out of a level without a keyboard. What is still missing is the text-field half (point 3
-below) and a proper place to switch it on other than a URL parameter.
+below), the haptics (point 5) and a proper place to switch it on other than a URL parameter.
 
 1. **The pad itself.** A DOM overlay above the canvas, like
    `WebBuild/web_bluescreen.cpp` builds one, with `touchstart`/`touchend` on each
@@ -1664,7 +1664,30 @@ below) and a proper place to switch it on other than a URL parameter.
    does exactly this for checkbox captions), or lay the dialogs out differently
    on a touch device.
 
-**Not started.** This entry is the estimate, not a design.
+5. **Haptic feedback on the pad's buttons.** A glass button gives a finger
+   nothing back: without a click or an edge to feel, the only confirmation that
+   a press landed is what happens on screen a moment later. `navigator.vibrate`
+   is the whole mechanism — a few milliseconds on `pointerdown`, guarded with
+   `if (navigator.vibrate)` so it is silently nothing where the API is absent.
+
+   Three things decide whether it is any good:
+
+   - **Only on the state change, never on the repeat.** A held direction repeats
+     every 80 ms; buzzing on each repeat is a continuous vibration, not
+     feedback. The d-pad already has the right hook — `setDirection` fires once
+     when the direction changes — and the buttons vibrate in `pointerdown` and
+     not in `press()`.
+   - **It must be switchable off.** Some people hate it, and it costs battery.
+     The pad is a page file that knows nothing of `config.xml`, so the cheap
+     version is `localStorage`, the same idiom as the `b5pad` key; putting it in
+     the game's options dialog instead means a bridge from C++ to JS that does
+     not exist yet.
+   - **Android only.** Safari on iOS has no `navigator.vibrate` at all, so on an
+     iPhone this is simply absent. That is a reason to keep it optional and
+     small, not a reason to skip it.
+
+**Part done.** The pad is a working prototype; points 3, 4 and 5 are still the
+estimate rather than a design.
 
 
 How these connect
