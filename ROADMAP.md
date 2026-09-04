@@ -5,1159 +5,358 @@ Planned work, roughly in the order it was proposed. Each entry records what is
 actually in the way, with file references where they are known, so the next
 person does not have to rediscover it. Nothing here is scheduled.
 
-Several of these unblock each other — see [How these connect](#how-these-connect)
-at the end.
+Finished items are kept as short entries: what was decided, and the parts that
+must not be undone by accident. How things work now is in `CLAUDE.md`; this file
+is about what to do next and why the done things came out the way they did.
 
 
 1. Auto-detect the user's language on first start  — **DONE**
 ------------------------------------------------------------
-`Engine::detectSystemLanguage` asks `GetUserDefaultUILanguage` on Windows,
-`navigator.languages` in the browser and `LC_ALL`/`LC_MESSAGES`/`LANG` elsewhere.
-It answers only `de` or `en`, deliberately: of the 349 IDs in
-`data/languages.txt` exactly one has a `§fr:` body and one a `§es:`, so those are
-stubs and detecting `fr` would produce an English game with a French label. It is
-consulted only when `config.xml` has no `<Language>`; an explicit choice always
-wins, and the options dialog still offers exactly the two.
+`Engine::detectSystemLanguage` asks the OS (or `navigator.languages`) and answers
+only `de` or `en` — of the 349 IDs in `data/languages.txt` exactly one has a
+`§fr:` body and one a `§es:`, so detecting `fr` would give an English game with a
+French label. It runs only when `config.xml` has no `<Language>`.
 
-The detection itself was the small half. The reason it could never have worked is
-worth recording: a `config.xml` containing nothing but `<Language>en</Language>`
-was **tracked in the repository**, copied into the webroot by `WebBuild/build.sh`
-and installed into the user directory by `main.cpp` on first run. So English was
-pinned before any detection could run, and deleting your own `config.xml` simply
-got an English one written back on the next start. The installer ran the same
-trick from the other end: `[Run]` called `makeconfig.bat`, which copied
-`_config_en.xml` or `_config_de.xml` according to the installer's own language.
-
-All of that is gone - the four files, the `[Run]` entry, the two `ConfigID`
-messages in the `.iss`, the copy in `main.cpp` and the copy in `build.sh`. The
-game writes `config.xml` itself when it exits, so nothing has to ship a template.
-`setLanguage` still refuses anything but `de`/`en`, which is now the only place
-that whitelist lives.
-
-Verified in Chromium at three locales: `de-DE` starts the game in German,
-`en-GB` in English, and `fr-FR` in English.
+The detection was the small half. A `config.xml` holding nothing but
+`<Language>en</Language>` was **tracked in the repository**, copied into the
+webroot by `build.sh` and installed by `main.cpp` on first run, and the installer
+did the same through `makeconfig.bat` — so English was pinned before any
+detection could run, and deleting your own config got an English one back. All of
+that is gone; the game writes `config.xml` itself on exit, so nothing ships a
+template. Verified in Chromium: `de-DE` German, `en-GB` and `fr-FR` English.
 
 
 2. Replace HQ2X with something that ships as source  — **DONE**
 ----------------------------------------------------------------
-hq2x is gone from the tree: `src/hq2x.cpp`/`.h`, `libs/bin/hq2x32.obj`, the
-`AdditionalDependencies` entry that linked it, `useHQ2X`, `Engine::upscaleFrame`,
-the `-hq2x` switch, `hq2x.bat`, the installer's HQ2X start-menu entry, and the
-`WebBuild` glob exclusion with its stubs. `sharp-fit`, a twenty-line shader of our
-own, runs in its place, in both builds. The rest of this entry is why, kept
-because the measurements are the argument.
+hq2x is gone — the object file, the `__asm` MMX probe that blocked every non-MSVC
+compiler, `useHQ2X`, `upscaleFrame`, the `-hq2x` switch and the `SDL_ListModes`
+search that existed only because the filter was locked to exactly 2x. In its
+place: an FBO, and `sharp-fit`, a twenty-line shader of our own, in both builds.
 
-**xBR-lv2 was the answer for a while and is also gone; see below.** Its removal is
-the more interesting result of this item, because it says something about the
-game's art rather than about hq2x's licence.
+**The measurement is the part worth keeping, because both edge-directed filters
+tried here failed for the same reason.** Fed a real game frame, hq2x changed more
+than 8/255 on **4.85%** of output pixels — 11% on the level title, 2% on the sky.
+95% of the frame is plain nearest, because the art is airbrushed and photographic
+rather than flat-shaded, so no 3x3 pattern matches. It cost 7.6 ms of CPU per
+frame at 640x480 plus two bus transfers, for that 5%.
 
-Three separate problems, all of them now moot:
+xBR-lv2 was vendored for a while and removed for the sharper version of the same
+problem: every decision in it is a `step()` against a threshold, and this art sits
+*near* the thresholds. Nudging a frame by 0–3 of 255 — what the animated level does
+behind a semi-transparent dialog — moved 1.15% of xBR's pixels by up to 154, all on
+glyph outlines, visible as text flickering. nearest, bilinear and sharp-fit moved
+by exactly what the input moved. Two bugs in the libretro GLSL had masked this by
+suppressing the edge detection; fixing them made it behave correctly and look
+worse, which is the clearest statement there is that the filter does not fit the
+content. **Scale2x and a GLSL port of hq2x share the same premise and are equally
+moot.** The answer for a nostalgic filter is item 11, which adds a presentation on
+top of the art rather than trying to reconstruct detail the art never had.
 
-- **No source.** The object was MaxSt's hq2x, LGPL 2.1, statically linked. That is
-  the arrangement we deliberately avoided for OpenAL Soft — static LGPL linking
-  carries relinking obligations that a dynamically shipped DLL does not. Nothing
-  in the tree is linked that way any more.
-- **`Blocks5/src/hq2x.cpp` had inline `__asm`.** The glue that built the two
-  lookup tables ended with an x86 `__asm { cpuid }` block probing for MMX. That is
-  MSVC-x86-only: it blocked x64, it blocked Clang and GCC, and it is why
-  `WebBuild/build.sh` had to filter `hq2x.cpp` out of the source glob. The MMX
-  probe was also pointless on any CPU made this century.
-- **The browser had no upscaler at all.** `-hq2x` was simply unavailable there,
-  so a 640x480 canvas was scaled by whatever the browser does. Both builds now
-  compile the same shader.
-
-### What hq2x actually buys, measured
-
-The object still runs. `objcopy -O elf32-i386` converts it from COFF, its only
-undefined symbols are `_LUT16to32` and `_RGBtoYUV` (both in `src/hq2x.cpp`), and
-it links into a 32-bit Linux binary. Fed a real captured game frame through the
-exact RGBA -> RGB565 conversion `Engine::upscaleFrame` does, against a plain
-nearest-2x of the same frame:
-
-| region | output pixels visibly changed (>8/255) |
-| --- | --- |
-| whole frame | **4.85%** |
-| level-title text | 11.39% |
-| HUD bar (text + GUI) | 8.23% |
-| play area (tiles + rain) | 4.26% |
-| rainy sky | 1.93% |
-
-**95% of the frame is plain nearest-neighbour.** hq2x classifies a 3x3
-neighbourhood by thresholded YUV distance, which only yields a coherent edge on
-flat-coloured, hard-edged art. This game is mostly not that: the tiles are
-photographic, the sprites are airbrushed with anti-aliased edges, and every
-neighbour reads as "different", so no pattern matches and the filter passes the
-pixel through. It earns its keep on the font and the GUI, which *are* two-tone
-hard-edged art — and there it looks better than any interpolating filter.
-
-What that 5% costs, timed on the real object at 640x480:
-
-    RGB565 conversion : 0.343 ms/frame
-    hq2x_32 (MMX)     : 7.258 ms/frame
-    total CPU         : 7.600 ms/frame     (16.7 ms budget at 60 fps)
-
-45% of a frame at 60 fps on a 2.8 GHz Xeon, and that excludes both bus
-transfers: the `glReadPixels` (1.2 MB, a full pipeline flush immediately after
-rendering) and the `glDrawPixels` upload (4.9 MB of 1280x960 RGBA, every frame).
-
-### The prerequisite is an FBO, not a shader
-
-There is currently **zero** shader and **zero** framebuffer-object infrastructure
-in the tree — one `SDL_GL_GetProcAddress` call exists in the whole codebase
-(`engine.cpp:352`, for `glBlendFuncSeparate`). The work, in order:
-
-1. **An extension loader** for ~25 entry points (FBO + GLSL). glad generates a
-   single dependency-free `.c`, which fits both the compile-from-source rule and
-   the one-DLL rule.
-2. **The FBO.** Colour texture at 640x480 plus a **packed depth-stencil
-   renderbuffer** — `cf_star.cpp` and `level.cpp:625` both use the stencil
-   buffer, so a colour-only FBO breaks the star wipe and the light masking. This
-   is the one real gotcha.
-3. **Frame bracketing.** `glViewport` is set once at init to 640x480 and never
-   changes — even with hq2x on, the game rendered into the bottom-left corner of
-   a 1280x960 window. So the FBO pass needs no viewport change at all; only the
-   present pass does.
-4. **Replace `upscaleFrame()`** with bind-texture, `glUseProgram`, one quad.
-5. **`glReadBuffer(GL_BACK)` is an error with an FBO bound** — three sites need
-   `GL_COLOR_ATTACHMENT0` instead. Easy to miss, and it fails quietly.
-
-The six `glCopyTexSubImage2D` sites need no change: they read the bound
-framebuffer, which becomes the FBO. Worth knowing which they are, because they
-are often mistaken for CPU readbacks and are not — `glCopyTexSubImage2D` is a
-copy inside the GPU:
-
-| site | what it grabs |
-| --- | --- |
-| `gui.cpp:106` | the GUI layer, every frame any element drew |
-| `engine.cpp:802`, `:809`, `:1888` | the before/after images for a crossfade |
-| `level.cpp:2261` | the screen, to redraw it through a 65x41 warped grid (toxic haze) |
-| `cf_mosaic.cpp:45`, `gs_credits.cpp:78` | mosaic wipe, credits scroller |
-
-Only three calls crossed the bus, all `glReadPixels`: video capture (per
-recorded frame), screenshots (on demand), and hq2x (**every frame it was on**) —
-the only per-frame CPU round trip in the renderer. With hq2x gone, nothing in a
-normal frame reads back at all.
-
-**The FBO half is done.** `src/glextensions.cpp` loads the ten entry points
-(`glGenFramebuffersEXT` first, the core spelling as a fallback; core in WebGL, so
-nothing to load there), and `Engine` renders every frame into a 640x480 region of
-a 1024x512 texture with a packed depth-stencil renderbuffer, then presents it as
-one letterboxed quad. Verified in the browser build: the menu renders
-pixel-identically to the pre-FBO build within the noise floor of its own animated
-background - two runs of the same build differ *more* from each other than the
-before/after pair does - and gameplay, the stencil light mask, crossfades, the
-scissor-clipped level list and mouse hit-testing all still work.
-
-### Why the answer is not an edge-directed filter
-
-xBR-lv2 was vendored in `libs/xbr` for a while — MIT, ported to compile as either
-desktop GLSL 1.10 or GLSL ES 1.00 — and it has been removed again, both variants.
-The reasoning is the same measurement that opens this item, taken one step
-further.
-
-Every decision inside xBR is a `step()` against a threshold: is this texel the
-same colour as that one, is this edge steeper than that one. On flat-shaded pixel
-art those decisions are stable, because neighbouring texels are either identical
-or plainly different. This game's tiles are airbrushed and photographic, so
-neighbouring texels sit *near* the thresholds — and a change too small to see
-flips them. Nudge a frame by 0–3 of 255, about what the animated level does where
-it shows through a semi-transparent dialog, and:
-
-    filter        mean change   pixels moving >8/255   worst pixel
-    nearest          1.5              0.00%                 3
-    bilinear         1.7              0.00%                 3
-    sharp-fit        1.6              0.00%                 3
-    xBR              2.0              1.15%               154
-    xBR detailed     1.9              1.05%               154
-
-The first three move by exactly what the input moved. xBR turns an invisible
-change into 1% of pixels jumping by up to 154, and those pixels are the glyph
-outlines — visible as text flickering over a dialog. The same mechanism smooths
-the dithered grass into strokes, which on photographic tiles reads as smearing
-rather than as reconstruction.
-
-Two bugs in the libretro GLSL had masked this for a while by suppressing the edge
-detection almost entirely (a `f4` that is read without ever being assigned, and
-BT.601 and BT.709 luma mixed in the same comparisons; the Cg original has
-neither). Fixing them made xBR behave correctly and look worse, which is the
-clearest possible statement that the filter does not fit the content.
-
-So both hq2x and xBR — the two edge-directed filters tried here — turned out to be
-answers to a question this game does not ask. What is left is honest scaling:
-`sharp-fit`, `nearest`, `bilinear`.
-
-Three filters are selectable, and the player picks one in Options -> Scaling,
-exactly like the language — there is no command-line switch for it. The choice is
-saved as `<Upscaler>` in `config.xml`: `sharp-fit`, `nearest`, `bilinear`.
-**`sharp-fit` is the default** wherever the machine can compile the shader, which
-means GL 2.0, so in practice everywhere; where it cannot, the effective filter is
-`nearest` and the entry is not offered.
-
-`sharp-fit` is `nearest` without the integer-scale restriction, and it is the one
-filter here that is ours rather than vendored — `src/sharpfit_shader.h`, about
-twenty lines. The idea is to nearest-upscale the frame by the smallest integer
-factor N that covers the destination rectangle and then resample that down to the
-real size, so the fractional remainder shows up as a roughly one-pixel soft edge
-instead of as unevenly doubled source pixels. It does not need two passes:
-bilinear over a nearest-upscaled image is piecewise linear — constant inside a
-source texel, a ramp of width 1/N across each texel boundary — and sampling the
-*original* texture bilinearly at a coordinate remapped through that same function
-gives exactly the same values, in one fetch. Checked against a genuine two-pass
-implementation in WebGL at five window sizes: pixel-identical at an integer scale,
-and elsewhere a maximum channel difference of 1 on 2–10% of pixels, which is the
-8-bit rounding of the intermediate buffer the two-pass version has and the
-one-pass version does not. The same arithmetic is known as "sharp bilinear" in the
-emulator world (Themaister, libretro); it is derived here rather than copied.
-
-Where the machine has no shader or no framebuffer object, `getEffectiveUpscaleFilter()`
-returns `nearest` and the `sharp-fit` entry is hidden from the dialog rather than
-offered and ignored. The *wish* is kept as the player set it, so the same
-`config.xml` does the right thing again on a machine that can run it —
-`getUpscaleFilter()` is what was chosen, `getEffectiveUpscaleFilter()` is what is
-drawn.
-
-Since item 10 the window can be any size, so the setting has something to do:
-`computePresentRect` returns the largest centred 4:3 rectangle that fits, and the
-filter decides how the 640x480 frame gets there. `nearest` additionally snaps to
-an integer scale — at 1280x900 that means 640x480 dead centre rather than
-1200x900, which is exactly the trade it exists to make, and `sharp-fit` exists for
-people who do not want to make it.
-
-Cost of one present, measured on a software rasterizer at 1280x960, so the numbers
-are only meaningful against each other: nearest 7.3 ms, bilinear 9.7 ms, sharp-fit
-12.8 ms. (xBR, while it was here, cost 79.1 ms.) On any real GPU all three are
-noise.
-
-### What was considered and rejected
-
-The reasoning that led to xBR is worth keeping, because it was right about the
-problem and wrong about the answer. The measurement said the frame has two
-regimes: hard-edged text and GUI, where hq2x wins, and anti-aliased photographic
-tiles, where it degenerates to nearest. xBR looked like it served both — same
-edge-detection premise, but blending along detected edges instead of snapping.
-What that missed is that "anti-aliased photographic" is not a regime an
-edge-directed filter degrades *gracefully* on; it is one where its decisions
-become unstable. See above.
-
-**Scale2x/Scale3x** shares hq2x's flat-art premise and would do even less here.
-**Porting hq2x itself to GLSL** — a 256-entry pattern table — would reproduce the
-filter this item set out to replace.
-
-Both are moot now. `hq2x.cpp`'s `__asm` block went with it, and so did the
-`SDL_ListModes` search that hunted for a fullscreen mode of at least 1280x960 —
-it existed *only* because the filter was locked to exactly 2x. The window is a
-plain 640x480 again, whatever the filter; see item 10 for making it resizable.
-
-### The browser side is easier than it looks
-
-Verified against the built `WebBuild/build/blocks5.js` rather than assumed.
-Emscripten's `LEGACY_GL_EMULATION` installs its generated fixed-function program
-only when the app has not bound one of its own:
-
-    if(!GL.currProgram){ if(GLImmediate.fixedFunctionProgram!=this.program){ GLctx.useProgram(this.program); ... } }
-
-and its wrapped `glUseProgram` sets `GL.currProgram`. So `glUseProgram(mine)` ->
-draw quad -> `glUseProgram(0)` composes cleanly with the emulation; the two do
-not fight. Framebuffer objects are core in WebGL 1, no extension needed. Use a
-real VBO for the quad rather than `glBegin`, and `gl_immediate.cpp` is bypassed
-entirely. `gl_compat.cpp` only includes `GL/gl.h`, so the GLES2/glext
-declarations have to be added there.
-
-This is also where the change is most visible, since the browser build has no
-upscaler today — and it is the only half that can be tested without Windows.
+`sharp-fit` is nearest without the integer-scale restriction, derived rather than
+copied (the emulator world calls the same arithmetic "sharp bilinear"): remapping
+the texture coordinate through the piecewise-linear function that a nearest-upscale
+plus bilinear downscale would produce, so the hardware's own interpolation *is* the
+filter and one fetch does it. Checked against a genuine two-pass implementation:
+pixel-identical at an integer scale, max channel difference 1 elsewhere.
 
 
 3. Compile every dependency from source  — **DONE**
 ---------------------------------------------------
-What is left as a Windows binary:
+What is left as a Windows binary is `libs/bin/OpenAL32.lib` plus `OpenAL32.dll` —
+an import library and the LGPL DLL it imports, which *must* stay a DLL. There is
+no compiled code without source anywhere in the tree. TinyXML, zlib + minizip,
+libogg, libvorbis, stb_image, SDL 1.2.15, minih264, shine and minimp4 are all
+vendored source.
 
-| Binary | What it is | Notes |
-| --- | --- | --- |
-| `libs/bin/OpenAL32.lib` + `OpenAL32.dll` | OpenAL Soft 1.25.2 | LGPL, *must* stay a DLL |
+**SDL_image** became `src/img_load.cpp` over stb_image, which also retired a latent
+bug: SDL_image 1.2 `LoadLibrary`s its codecs at runtime and asked for
+`libjpeg-8.dll`, `libtiff-5.dll` and `libwebp-2.dll`, none of which were in the tree.
 
-That is the whole list, and it is an import library plus the DLL it imports —
-there is no compiled code without source anywhere in the tree. Everything else is
-built from vendored source: TinyXML, zlib + minizip, libogg, libvorbis,
-stb_image, SDL 1.2.15, minih264, shine and minimp4. `hq2x32.obj` was the
-last holdout and went with item 2.
+**SDL** is all 67 files of the Win32 subset. What that does not change is that SDL
+1.2 has been end-of-life since 2012; "move to SDL2" is a different and much larger
+project — input, window/GL setup and the event loop all touch it — and worth its own
+item if it ever comes up.
 
-**SDL_image is done** — `Blocks5/src/img_load.cpp` supplies `IMG_Load_RW` over
-stb_image for both builds. It also retired a latent bug: SDL_image 1.2 loads its
-codecs with `LoadLibrary` at runtime and asked for `libjpeg-8.dll`,
-`libtiff-5.dll` and `libwebp-2.dll`, none of which were ever in the tree.
+**ffmpeg** was used for one thing, an AVI through APIs removed from ffmpeg years
+ago, which is why it was pinned at 0.8 from 2011. Four DLLs, seven import libraries
+and the `msinttypes` shim are gone. The replacement is H.264 Baseline plus MP3 in a
+non-fragmented MP4, from minih264 (CC0), shine (LGPL v2) and minimp4 (CC0) — chosen
+because it is the only combination native on Windows *and* Linux. Ogg Theora was
+tempting since libogg was already here, and is the wrong target: never shipped in
+any Windows, and Chrome removed Theora decoding in 123. AAC has no usable small
+encoder (fdk-aac's licence is GPL-incompatible, faac is old and poor).
 
-**SDL is done** — all 67 files of SDL 1.2.15's Win32 subset are compiled from
-`libs/SDL-1.2.15/src`. What that does not change is that SDL 1.2 has been
-end-of-life since 2012; the honest version of that task is "move to SDL2", which
-is a different and much larger project — the input layer, the window/GL setup
-and the event loop all touch it. Worth splitting off as its own item.
-
-**ffmpeg is done, and it fixed a bug at the same time.** It had been used for one
-thing: writing an AVI through `avcodec_encode_video` / `avcodec_encode_audio`,
-APIs removed from ffmpeg years ago, which is why it was pinned at 0.8 from 2011.
-Four DLLs and seven import libraries are gone, and `libs/msinttypes-r26` with
-them — it existed only to satisfy ffmpeg's headers, so `__STDC_CONSTANT_MACROS`
-and `__STDC_LIMIT_MACROS` left the project defines too.
-
-The replacement is **H.264 Baseline video plus MP3 audio in a non-fragmented
-MP4**, written by three vendored source libraries:
-
-| | | |
-| --- | --- | --- |
-| `libs/minih264` | H.264 encoder, one header | CC0 |
-| `libs/shine` | MP3 encoder, ~2,800 lines | LGPL v2 |
-| `libs/minimp4` | MP4 muxer, one header | CC0 |
-
-That combination was chosen over the alternatives for one reason: it is the only
-one that is native on Windows *and* on Linux, which is what an eventual Linux
-build needs.
-
-- **Windows**: documented, not inferred. Microsoft's *Supported Media Formats in
-  Media Foundation* lists the MPEG-4 container and the H.264 decoder as Windows
-  7, and the Windows Media MP3 Decoder as Windows Vista; the *MPEG-4 File
-  Source* page lists the `'mp4a'` sample entry as meaning "AAC **or** MP3", and
-  the H.264 decoder page covers "Baseline, Main, and High profiles".
-- **Linux**: H.264 decode is normal now — Ubuntu ships `gstreamer1.0-libav`, and
-  Fedora enabled it in `libavcodec-free` once the base patents expired.
-- ~~Ogg Theora~~ was the tempting option, because libogg and libvorbis were
-  already vendored. It is the wrong target: Theora has never shipped in any
-  version of Windows and has never been a Store codec extension, and Chromium
-  removed Theora decoding in Chrome 123, so Chrome and Edge no longer play it
-  either.
-- AAC would be the conventional MP4 audio codec, but there is no small AAC
-  encoder that can be used here — fdk-aac's Fraunhofer licence is
-  GPL-incompatible and faac is old and poor.
-
-Two things found while building it, both recorded in the libraries'
-`PROVENANCE.txt`:
-
-- **minimp4 could not actually mux MP3.** It hardcoded the `objectTypeIndication`
-  byte to AAC and only wrote the `esds` descriptor at all when a decoder-specific
-  info blob had been set, which MP3 does not have. Since that byte is the only
-  thing distinguishing AAC from MP3 in an `'mp4a'` track, the audio came back out
-  declared as AAC and undecodable. It is fixed **without touching the library**:
-  the constant is a macro, and minimp4's declarations and implementation sit on
-  opposite sides of its include guard in one file, so `minimp4_impl.c` includes
-  the header twice and redefines the macro in between. Two `#error` guards and a
-  runtime counter catch an upgrade that breaks the hook — all three tested by
-  deliberately breaking a copy of the library. What the macro cannot reach —
-  a clear reserved bit, a missing `SLConfigDescriptor`, a `DecoderSpecificInfo`
-  that MP3 must not have — `videorecorder.cpp` fixes in the finished file. It
-  passes a one-byte DSI rather than a zero-byte one precisely so that upstream's
-  descriptor comes out the same length as a conformant one, which makes the
-  replacement a pure in-place substitution with no box size changing anywhere.
-- **minih264 and minimp4 collide** if both are instantiated in one translation
-  unit — each defines a `bs_t` in its implementation half. Hence the two
-  one-line `*_impl.c` files.
+Two things found while building it, both in the libraries' `PROVENANCE.txt`:
+**minimp4 could not actually mux MP3** (it hardcoded the AAC
+`objectTypeIndication` and only wrote `esds` when a DSI was set, which MP3 has
+not), fixed without touching the library by including its header twice around a
+macro redefinition, with `#error` guards and a runtime counter to catch an upgrade
+breaking the hook; and **minih264 and minimp4 collide** in one translation unit —
+each defines a `bs_t` — hence the two one-line `*_impl.c` files.
 
 
 4. Build with the newest MSVC  — **DONE**
 ------------------------------------------
-Built and run on **v143** (VS 2022) and on **v145**. There is no hardcoded
-default any more: the three `.vcxproj` files ask for
-`$(DefaultPlatformToolset)`, which is whatever the Visual Studio doing the build
-calls its own newest, and `Build.bat` passes no `/p:PlatformToolset` unless
-`/toolset:vNNN` names one — a global property cannot be overridden from inside
-a project, so passing one always would have been a hardcoded version wearing a
-different hat. A Visual Studio newer than this tree therefore needs no change
-here at all. `WindowsTargetPlatformVersion` moved into the projects under the
-same rule, so the IDE and `Build.bat` now agree without anyone passing anything.
+Built and run on **v143** and **v145**. The three `.vcxproj` files ask for
+`$(DefaultPlatformToolset)` and `Build.bat` passes no `/p:PlatformToolset` unless
+`/toolset:vNNN` names one — a global property cannot be overridden from inside a
+project, so passing one always would be a hardcoded version wearing a different
+hat. A newer Visual Studio therefore needs no change here.
 
-What the older toolsets are worth is now stated honestly: **v120 and v140 have
-never been built since the prebuilt libraries went away.** That they still work
-was reasoning about the code, not a compiler run. The `/toolset:` plumbing for
-them stays — it costs nothing, and it is the starting point for whoever tries.
-
-Getting there: the `<hash_map>` problem is gone (the 41 `stdext::hash_map` /
-`hash_multimap` uses across 12 files are `std::unordered_map` /
-`std::unordered_multimap` now, the header is out of `pch.h`, and
-`_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS` is out of the project defines), the
-missing `<algorithm>` includes are in, `register` is gone from
-`MersenneTwister.h`, the string literals assigned to `char*` in `e_flipflop.cpp`
-/ `e_gate.cpp` are `const char*`, and `cannon.cpp`'s `float*`/`double*` `sscanf`
-mismatch is fixed.
-
-That also made the tree far easier to check without MSVC: **110 of the 114
-sources in `Blocks5/src` pass `i686-w64-mingw32-g++ -fsyntax-only`** against the
-real `pch.h`. The four that do not are `main.cpp` (SEH `__except`),
-`filesystem.cpp` (includes `Shlobj.h`, lowercase on case-sensitive systems),
-`stackwalker.cpp` (DbgHelp internals) and `videorecorder.cpp` (WASAPI).
+**v120 and v140 have never been built since the prebuilt libraries went away.**
+That they still work was reasoning about the code, not a compiler run. The
+`/toolset:` plumbing stays; it costs nothing and is the starting point for whoever
+tries. What got the tree off v120: `<hash_map>` out of `pch.h` (41 uses across 12
+files became `std::unordered_map` / `unordered_multimap`), the missing
+`<algorithm>` includes, `register` out of `MersenneTwister.h`, `const char*` in
+`e_flipflop.cpp` / `e_gate.cpp`, and `cannon.cpp`'s `sscanf` type mismatch.
 
 
 5. Enable a Linux build  — **DONE**
 -----------------------------------
 `LinuxBuild/build.sh` builds a native binary that runs, plays and passes
-`LinuxBuild/test/smoke.sh`. What follows is the plan; what it turned into is at
-the end of the entry.
-
-Someone did this once and it worked, but the result was never published.
-
-The blockers are enumerable — seven `#error NOT IMPLEMENTED` sites in four
-files:
-
-    filesystem.cpp:62     getAppHomeDirectory
-    filesystem.cpp:177    createDirectory
-    filesystem.cpp:188    deleteDirectory
-    file_real.cpp:78      directory listing
-    util.cpp:386          high-resolution timer
-    main.cpp:113          update check over HTTP
-    main.cpp:318          the "update available" prompt
-
-Every one of them is the `#else` of an
-`#ifdef _WIN32 / #elif defined(__EMSCRIPTEN__)` chain — and the Emscripten
-branches sitting right above them are already plain POSIX: `::mkdir`, `::rmdir`,
-`opendir`/`readdir`/`stat`, `emscripten_get_now`. So most of this is widening
-`#elif defined(__EMSCRIPTEN__)` into `#else` and supplying a Linux answer for the
-three that genuinely differ (home directory, the HTTP update check, the message
-box). `audiocapture.cpp` is already `#ifdef _WIN32` with a working `#else` stub,
-and `stackwalker.cpp` is already excluded from non-Windows builds.
-
-`WebBuild/platform_stubs.cpp` is worth reading first for a different reason: it
-is the list of SDL 1.2 entry points a non-Windows build turned out to need
-shimmed.
-
-A mingw sweep named the first four things a GCC-based build would reject, and
-all four are gone since: `<algorithm>` is in `pch.h` now, which every source
-includes first, so `panel.cpp`, `e_pulsepanel.cpp` and `teleporter.cpp` calling
-`std::find` are fine — libstdc++ is the one standard library that does not pull
-it in through the container headers. The fourth, `filesystem.cpp` including
-`Shlobj.h` where the file is `shlobj.h`, only ever mattered to the mingw sweep:
-the include sits inside `#ifdef _WIN32` and a Linux build never reaches it
-(`Tools/syntax.sh` generates a capitalised forwarder so the sweep can still
-compile the Windows path). Everything in `Blocks5/src` except `main.cpp`'s SEH
-block parses under GCC today — `sh Tools/syntax.sh` is the standing check.
-
-What still needs deciding:
-
-- `getAppHomeDirectory()` — `My Documents\Blocks 5\` becomes
-  `$XDG_DATA_HOME/blocks5` or `~/.local/share/blocks5`.
-- **Case sensitivity.** The game resolves assets by name. Inside `data.zip` that
-  is fine, but the loose-file development mode (`fs.pushCurrentDir("data")` in
-  `main.cpp`) and user levels/skins on disk will expose every filename whose case
-  does not match. Expect to find some.
-- SDL 1.2 from the distro, or the SDL2 move from item 3.
-
-**WSL2 is a usable test bench for this, with one condition.** WSLg supplies
-everything the game asks of a host: Weston plus XWayland for SDL 1.2's X11
-backend, a real PulseAudio server for OpenAL Soft, and hardware-accelerated
-OpenGL through Mesa's d3d12 Gallium driver — 4.1 in *both* core and
-compatibility profiles, where the game needs GL 2.1-class compatibility at most
-(fixed-function `glBegin`/matrix stack, `gluPerspective`/`gluLookAt`/
-`gluOrtho2D`, FBO with packed depth-stencil, GLSL 110).
-
-The condition is **where the tree lives**. Case sensitivity is the open question
-above, and it is decided by the filesystem: WSL's own ext4 under `~` is
-case-sensitive and exposes exactly those bugs, while `/mnt/c` is case-insensitive
-by default and hides every one of them. Building on the Windows drive switches
-off the most valuable thing the exercise buys.
-
-Two things it will not settle. Window behaviour — item 10's whole area — is not
-representative: WSLg puts each app in a rootless window under Weston-over-RDP,
-which is neither the Win32 `WS_POPUP` fullscreen nor a real Linux WM. And the
-audio capture above wants `@DEFAULT_MONITOR@`; PulseAudio gives every sink a
-`.monitor` source automatically and WSLg's `RDPSink` is an ordinary sink, so it
-should be there, but WSLg has known underruns on that sink, so recorded audio
-*quality* should not be judged there.
-
-Two things a Linux build will *not* have to decide, because item 3 already
-settled them with Linux in mind:
-
-- **Video recording.** minih264, shine and minimp4 are plain C with no platform
-  code, and H.264-in-MP4 plays on a current Linux desktop as readily as on
-  Windows. `videorecorder.cpp` itself contains nothing Windows-specific any more.
-- **Audio capture.** PulseAudio and PipeWire both give every output sink a
-  monitor source, which is the exact equivalent of the WASAPI loopback the
-  Windows build uses. `@DEFAULT_MONITOR@` resolves to the default sink's monitor,
-  so nothing needs enumerating, and `pa_simple_new` takes the sample spec you
-  want — asking for S16LE/48000/2 makes the server resample, so none of
-  `audiocapture.cpp`'s format conversion or its linear resampler is needed. About
-  60 lines, `dlopen`'d so the game still runs where PulseAudio is absent.
-  libpulse rather than the native PipeWire API, because `pipewire-pulse` means
-  one client API covers both. Verified against a live server: `@DEFAULT_MONITOR@`
-  on a 44.1 kHz sink delivered exactly 96000 frames in 2.00 s at 48 kHz.
-
-  `audiocapture.cpp` already splits along the right line — the ring buffer,
-  `push`/`pushSilence`/`getSamples` and the public API are platform-neutral, and
-  only `threadProc` and the format conversion are Windows-specific. One thing
-  should move into the shared half when that happens: the clock-based silence
-  padding. `module-suspend-on-idle` is loaded by default, so an idle sink stops
-  delivering exactly as WASAPI does, and `getExactTimeMS()` is already
-  cross-platform.
-
-**How it went.** Eight sites, not seven — `transfer.cpp` grew one when the
-Manager arrived. Five were the widening this entry predicted: `createDirectory`
-(now walking the path, since `~/.local/share` may not exist where
-`My Documents` always does), `deleteDirectory`, the directory listing, the
-timer (`clock_gettime(CLOCK_MONOTONIC)`), and `getAppHomeDirectory()` →
-`$XDG_DATA_HOME/blocks5/`. Three needed a Linux answer of their own, and one
-thing the entry did not foresee turned out to be the only real design decision:
+`LinuxBuild/test/smoke.sh`. Eight `#error NOT IMPLEMENTED` sites, not the seven
+this entry predicted — `transfer.cpp` grew one when the Manager arrived. Five were
+simply widening `#elif defined(__EMSCRIPTEN__)` into `#else`, since those branches
+were already POSIX. Four needed a Linux answer of their own:
 
 - **The fullscreen switch.** Item 10 built it as a Win32 style flip behind SDL's
-  back, and the reason it must stay behind SDL's back holds under X11 too:
-  `X11_SetVideoMode` rebuilds the window for a mode change and takes the GL
-  context with it. But the X11 analogue is not "set the style yourself" — under
-  X11 a program does not put its own window into fullscreen, it asks the window
-  manager with a `_NET_WM_STATE` message (EWMH) and the window manager decides
-  size and position. That arrives back as an ordinary `SDL_VIDEORESIZE`, which
-  `handleResize()` already owns, so the Windows architecture carried over
-  exactly. It also means `applyWindowStyle()` must *not* call `handleResize()`
-  itself on this path: the size is not known yet, and forcing it would set
-  `SDL_SetVideoMode` against the window manager.
+  back, and the reason holds under X11: `X11_SetVideoMode` rebuilds the window for
+  a mode change and takes the GL context with it. But the X11 analogue is not
+  "set the style yourself" — a program asks the window manager with a
+  `_NET_WM_STATE` message and the WM decides size and position. That comes back as
+  an ordinary `SDL_VIDEORESIZE`, so the Windows architecture carried over exactly.
+  It does mean `applyWindowStyle()` must **not** call `handleResize()` on this
+  path: the size is not known yet. This is the one piece needing Xlib, and it is
+  its own translation unit (`LinuxBuild/linux_window.cpp`) because `<X11/Xlib.h>`
+  claims `Font`, `Window`, `Screen` and `Cursor` as type names and the game has
+  classes called exactly that.
+- **The file dialog.** `zenity` or `kdialog` through `popen()`, so neither GTK nor
+  Qt becomes a dependency. Import reads the pipe non-blockingly once per tick, so
+  the window keeps drawing — `pollImport()` was built for the browser and took it
+  unchanged. Export blocks, as `transfer.h` says it must.
+- **The update check.** `curl` or `wget` through `popen()` rather than linking an
+  HTTPS client for sixteen bytes. Its prompt only reaches the log: the engine is
+  not up at that point in `main()`, so there is no toast and no window.
+- **`_stricmp` is MSVC's.** `equalsNoCase()` moved into `util.h` rather than a
+  `-D_stricmp=strcasecmp` shim, and stays hand-rolled for the reason it always
+  was: `strcasecmp` and `tolower` follow the locale, and in Turkish 'I' is not the
+  capital of 'i'. Filenames and switches are the same in every locale.
 
-  This is the one piece that needs Xlib, and it is a translation unit of its
-  own, `LinuxBuild/linux_window.cpp`, for a reason worth remembering:
-  `<X11/Xlib.h>` makes `Font`, `Window`, `Screen` and `Cursor` its own type
-  names, and the game has classes called exactly that. Included in
-  `engine.cpp`, the next line holding a `Font*` stops compiling.
+**The audio capture came out along the line this entry drew**: `AudioRing` holds
+the buffer, the reader side and the clock-based silence padding, and only the two
+`threadProc`s differ. The Linux one is a third of the size because `pa_simple_new`
+is *told* the format and the server resamples. libpulse is `dlopen`'d, so the build
+needs no libpulse-dev and the game still starts where PulseAudio is absent. Checked
+against a real server at 44.1 kHz so the resample was exercised: audio and video the
+same length to 3 ms, and against a simultaneous `parec` the track matched to within
+0.7 dB RMS at a 1 ms offset.
 
-- **The file dialog.** `zenity` or `kdialog`, whichever is installed, driven
-  through `popen()`. Neither GTK nor Qt becomes a dependency, and the import
-  runs *asynchronously* — a non-blocking read of the pipe once per tick — so the
-  window keeps drawing while the dialog is open. `pollImport()` was built for
-  the browser's asynchronous dialog and took this without a change. The export
-  cannot: `doExport()` returns its result immediately, as `transfer.h` says, so
-  it blocks like the modal Windows dialog does.
-
-- **The update check.** `curl` or `wget` through `popen()`, rather than linking
-  an HTTPS client for sixteen bytes. Same user agent, same two-second limit, same
-  16-byte guard as the Windows version. Its prompt only reaches the log: at that
-  point in `main()` the engine is not up, so there is no toast bar and no window,
-  and opening a browser nobody asked for at startup would be worse than a line
-  of text. The check is off in the shipped state anyway.
-
-- **`_stricmp` is MSVC's.** Eight call sites. Rather than a
-  `-D_stricmp=strcasecmp` shim, `equalsNoCase()` moved into `util.h` — it was
-  already hand-rolled inside `transfer.cpp` as `sameFilename`, and for a reason
-  that still applies: `strcasecmp` and `tolower` follow the locale, and in
-  Turkish 'I' is not the capital of 'i'. Filenames and command-line switches are
-  the same in every locale.
-
-Two smaller things fell out. The `update_checker_*.bat` files were being copied
-into the user directory on three code paths; on Linux they are two Windows batch
-files nobody can run, so the three copies became one helper that skips them off
-Windows. And `videorecorder.cpp` compiles and links here — the three encoders are
-plain C, as this entry predicted.
-
-**The audio capture is done too**, and along the line this entry drew: `AudioRing`
-at the top of `audiocapture.cpp` now holds the ring buffer, the reader side and
-the clock-based silence padding, and both platforms derive from it, so only the
-two `threadProc`s differ. The Linux one is a third of the size of the Windows one
-because `pa_simple_new` is *told* the format to deliver and the server resamples —
-none of the format conversion or the linear resampler is needed. libpulse is
-`dlopen`'d and its handful of declarations written out by hand, so the build
-needs no libpulse-dev and the game still starts where PulseAudio is absent.
-
-Checked against a real server (a null sink at 44.1 kHz, so the resample was
-exercised): recording produced an MP4 with H.264 640x480 and MP3 48 kHz stereo,
-audio and video the same length to 3 ms. Against a simultaneous `parec` of the
-same monitor, the captured track matched to within 0.7 dB RMS and cross-correlated
-at 0.706 with a 1 ms offset — the same audio, at the same level, at the same time;
-0.706 rather than 1.0 because one side had been through MP3.
-
-**What was actually checked**, since the point of a Linux build is that it can
-be: the game starts, reaches the menu, plays level 1 of the shipped campaign
-(movement, collision, gravity, rain, the minimap, the HUD), switches to
-fullscreen and back, renders all four upscale filters including the CRT shader
-with its barrel distortion, writes a 640x480 screenshot with F11, imports a level
-through the file dialog and sees the Manager list refresh and select it, exports
-it back out byte-identically, and writes `config.xml` on exit. Under llvmpipe,
-which is the slowest case there is.
+**Case sensitivity** was the open risk and is now a `verify.py` check: every asset
+filename in the sources must exist on disk with matching case. If this is ever
+tested under WSL, put the tree on ext4 under `~` — `/mnt/c` is case-insensitive and
+hides exactly the bugs the exercise is for.
 
 
-6. Skins in the browser  - **DONE**, and skins that travel with campaigns
+6. Skins in the browser  — **DONE**, and skins that travel with campaigns
 -------------------------------------------------------------------------
-Two related gaps; the first is closed.
+**Done.** Getting a skin in is the Manager (item 17). Getting it to *draw* was the
+predicted blocker: WebGL 1 treats a non-power-of-two texture as incomplete unless
+it is sampled with `CLAMP_TO_EDGE` and no mipmaps, and every sample then returns
+black, silently and with no GL error. The default is `GL_REPEAT`. The fix is two
+lines of sampler state but **not** unconditional: `level.cpp` scrolls the texture
+matrix without bound for rain, snow and clouds, so those genuinely need
+`GL_REPEAT`. `Texture::applyWrapMode` therefore switches only NPOT textures, which
+is exactly the set on which `GL_REPEAT` could never have worked. It runs under
+Windows too, so a skin does not tile for its author and clamp for everybody else.
 
-**Skins in the browser - done.** Two halves. Getting a skin *in*: the level
-editor's Settings window has an **Import skin ...** button, on its own
-`WebTransfer` channel, validated by requiring `tileset.xml` and `sprites.png`
-in the archive. Unlike every other import it **overwrites** rather than renaming
-on a clash, because a skin's filename is its identity - a level says
-`skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip`
-- and the four shipped names are refused outright.
-
-Getting it to *draw* was the predicted blocker, and the guess in this item was
-right: WebGL 1 treats a non-power-of-two texture as incomplete unless it is
-sampled with `CLAMP_TO_EDGE` and no mipmaps, and every sample then returns black
-- silently, with no GL error. The default is `GL_REPEAT`. It really was a
-two-line fix in the sampler state, but *not* an unconditional one: `level.cpp`
-scrolls the texture matrix without bound for rain, snow and clouds, so those
-genuinely need `GL_REPEAT`. `Texture::applyWrapMode` therefore switches only the
-textures that are NPOT, which is exactly the set on which `GL_REPEAT` could not
-have worked anyway. It runs under Windows too, so a skin does not tile for its
-author and clamp for everybody else.
-
-Reproduced before the fix by padding `space.zip`'s `tileset.png` to 130x130 and
-`sprites.png` to 258x1026 and importing that: black level, black palette.
-Afterwards it renders identically to the power-of-two original, and a rainy
-level still tiles its rain.
-
-
-**Skins in campaigns.** A campaign archive carries its levels and music but not
-the skins they reference, so a campaign built on a custom skin still needs the
-skin sent separately. That is much less painful than it was - the main menu's
-Import takes a skin as readily as a campaign, and tells the player the name to
-type - but self-contained campaigns would still be better. `Campaign::save` was
-rewritten around a `LevelRef` that knows whether its source is loose or inside
-an archive, and skins would follow the same shape. The music half of this
-problem was solved differently: a level says `musicFilename="blocks:music2.ogg"`
-and borrows a track from the shipped campaign instead of carrying a copy.
+**Still open: skins in campaigns.** A campaign archive carries its levels and music
+but not the skins they reference, so a campaign built on a custom skin still needs
+the skin sent separately. `Campaign::save` is built around a `LevelRef` that knows
+whether its source is loose or inside an archive; skins would follow the same
+shape. The music half was solved differently — a level says
+`musicFilename="blocks:music2.ogg"` and borrows a track from the shipped campaign
+instead of carrying a copy.
 
 
 7. Translate all source comments to English
 -------------------------------------------
 Comments across `Blocks5/src` are in German. The translation is mechanical but
-enormous, and it wants to be one sweep rather than a drip, because
-half-translated files are worse than either end state.
+enormous, and it wants to be one sweep rather than a drip, because half-translated
+files are worse than either end state.
 
-**The encoding half of this is already done, and it was the dangerous half.**
-Every source file in the tree is now pure ASCII: umlauts in comments are written
-`ae oe ue ss`, and the two bytes that are not text at all are explicit escapes —
-`'\xA7'` (§) in `engine.cpp` and `'\xB6'` (¶) in `font.cpp`, plus a few inline
-localized strings shaped `"\xA7" "de:…"`. Those two are a wire format shared with
-`data/languages.txt`, which is Latin-1 and shipped that way; as characters they
-would have changed meaning the moment anybody re-encoded a source file, silently
-and with no compiler error. As escapes they cannot.
+**The encoding half is already done, and it was the dangerous half.** Every source
+file is pure ASCII: umlauts are written `ae oe ue ss`, and the two bytes that are
+not text at all are explicit escapes — `'\xA7'` (§) in `engine.cpp` and `'\xB6'`
+(¶) in `font.cpp`, plus a few inline localized strings shaped `"\xA7" "de:…"`.
+Those are a wire format shared with `data/languages.txt`, which is Latin-1 and
+shipped that way; as characters they would have changed meaning the moment anybody
+re-encoded a source file, silently and with no compiler error.
 
-So the translation is now only a translation. There is no encoding decision left
-to get wrong halfway through, no `/utf-8` switch to remember and no BOM to add,
-and a file can be edited by any tool on any machine without the question coming
-up. The one rule to keep is the one in CLAUDE.md: do not type an umlaut into a
-comment.
+So the translation is now only a translation: no `/utf-8` switch to remember, no
+BOM, no encoding decision to get wrong halfway through. The one rule to keep is
+the one in CLAUDE.md — do not type an umlaut into a comment.
 
 `data/languages.txt`, `readme.txt` and `levels/readme.txt` are shipped files with
-their own encoding and CRLF endings — they are not part of this.
+their own encoding and CRLF endings; they are not part of this.
 
 
 8. Rendering performance
 ------------------------
 The renderer is fixed-function immediate mode: 120 `glBegin` blocks across 38
 source files, one draw call per sprite, per GUI element, per particle. On the
-desktop this is old but survivable; in the browser every one of them goes
-through Emscripten's `-sLEGACY_GL_EMULATION`, which rebuilds a vertex buffer per
-block and prints "do not expect it to work" on every start.
-`WebBuild/gl_immediate.cpp` exists purely to make the game's blocks palatable to
-that emulator.
+desktop this is old but survivable; in the browser every one of them goes through
+Emscripten's `-sLEGACY_GL_EMULATION`, which rebuilds a vertex buffer per block and
+prints "do not expect it to work" on every start. `WebBuild/gl_immediate.cpp`
+exists purely to make the game's blocks palatable to that emulator.
 
 The work, in order of payoff:
 
 - **Batch sprites.** Everything drawn through `Engine::renderSprite` shares a
-  texture atlas per tileset; accumulating quads into one vertex buffer and
-  issuing a single draw per texture would collapse thousands of calls into a
-  handful. This is where the big win is, in both builds.
-- ~~**Kill the readback in `upscaleFrame`.**~~ Done with item 2. It was
-  `glReadPixels` → CPU → upload, stalling the pipeline every frame hq2x was on:
-  **7.6 ms of CPU per frame**, 45% of a 60 fps budget, before either bus
-  transfer, to visibly change under 5% of the pixels. Nothing in a normal frame
-  reads back now.
-- Then, if it is still worth it, a programmable pipeline for the rest. Items 2, 8
-  and 10 converge here.
+  texture atlas per tileset; accumulating quads into one vertex buffer and issuing
+  a single draw per texture would collapse thousands of calls into a handful. This
+  is where the big win is, in both builds.
+- Then, if it is still worth it, a programmable pipeline for the rest.
+- `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping wasm contains
+  no vector instructions at all.
 
-Worth measuring before optimising: `BEGIN_PROFILE` / `END_PROFILE` from `util.h`
-are already available, and `PROFILE_VIDEO_CONVERSION` and
-`PROFILE_VIDEO_ENCODING` are existing switches.
+The per-frame readback is already gone with item 2; nothing in a normal frame
+crosses the bus. `BEGIN_PROFILE` / `END_PROFILE` from `util.h` are available, and
+`PROFILE_VIDEO_CONVERSION` / `PROFILE_VIDEO_ENCODING` are existing switches.
 
 
-9. Stop needing the Visual C++ redistributable — done
------------------------------------------------------
-The three projects build with `/MT` now, SDL is compiled in rather than loaded
-from a DLL, and `vcredist_x86.exe` (6.5 MB), the `InstallVC2013Runtime` task and
-its four message strings are out of `Blocks5/setup/Blocks 5.iss`. Nothing the
-game ships needs a Visual C++ redistributable any more:
-
-    blocks5.exe     static CRT      /MT
-    pwencrypt.exe   static CRT      /MT
-    showuserdir.exe static CRT      /MT
-    OpenAL32.dll    msvcrt.dll      OS-provided
-
-No foreign object file is linked into the exe any more — `hq2x32.obj` was the
-last one and went with item 2, and it had carried no `/DEFAULTLIB` or
-`/FAILIFMISMATCH` directive and no CRT references, so it had not stood in the way
-of `/MT` either. `OpenAL32.dll` is
-now the only DLL beside the executables, and it carries its own CRT across the
-boundary as it always did; nothing allocates on one side and frees on the other,
-because the game calls only core AL/ALC entry points and never takes ownership of
-an OpenAL-side allocation.
-
-The one thing given up is that a statically linked CRT no longer picks up
-Windows Update's servicing of the shared one. For a single-player puzzle game
-that is the right trade against shipping a 6.5 MB installer stub.
+9. Stop needing the Visual C++ redistributable  — **DONE**
+-----------------------------------------------------------
+All three projects build with `/MT`, SDL is compiled in rather than loaded from a
+DLL, and `vcredist_x86.exe` (6.5 MB) plus its installer task is gone.
+`OpenAL32.dll` is the only DLL beside the executables and imports only
+`msvcrt.dll`, which is part of Windows. Nothing allocates on one side of that
+boundary and frees on the other, because the game calls only core AL/ALC entry
+points. The one thing given up is Windows Update's servicing of the shared CRT,
+which for a single-player puzzle game is the right trade against a 6.5 MB stub.
 
 
 10. A window that behaves like a window  — **DONE**
 ---------------------------------------------------
-All three now work, and the design below is what was built rather than what was
-proposed. What is left is the small change of `_config_en.xml` / `_config_de.xml`
-if the installer should ship a different default window size than 640x480.
+Resizable with a kept aspect ratio and black bars, fullscreen by Alt+Return while
+running, and the upscale filter switchable from the options dialog. **The FBO from
+item 2 is what makes all three cheap**: with the game always rendering 640x480
+into an offscreen target, every hardcoded coordinate in the tree stays valid at
+any window size, and only the destination rectangle of the final blit changes.
 
-- ~~**Be resizable**, keeping the 4:3 aspect ratio and letterboxing with black
-  bars when the window does not match.~~ `SDL_RESIZABLE`, an `SDL_VIDEORESIZE`
-  handler, and `computePresentRect`. The window will not go below 640x480:
-  `handleResize` clamps and re-sets the mode.
-- ~~**Enter and leave fullscreen while running**, not only via the command
-  line.~~ Alt+Return, borderless — a window styled `WS_POPUP` and sized to the
-  desktop — not an exclusive display-mode change. That choice is what keeps the
-  toggle from destroying the GL context; see below.
-- ~~**Switch the upscaling filter while running.**~~ Options -> Scaling offers
-  all four, the change takes effect on the next frame, and it is saved as
-  `<Upscaler>` in `config.xml`.
+Two rules came out of it that must not be undone, both explained at length in
+CLAUDE.md and both discovered in the vendored SDL rather than assumed:
 
-`SDL_SetVideoMode` used to be called exactly once, with no `SDL_RESIZABLE`, and
-the mode was decided at startup from `-windowed` / `-fullscreen`. (Fullscreen
-also walked `SDL_ListModes` for the smallest mode of at least 1280x960 — a search
-that existed only because hq2x was hardwired to exactly 2x. It went with item 2.)
+- **SDL's video flags must stay `SDL_OPENGL | SDL_RESIZABLE` for the life of the
+  process.** `DIB_SetVideoMode` keeps the GL context only on a fast path that
+  requires the flags and bpp to be unchanged and `SDL_FULLSCREEN` to be clear.
+  Setting `SDL_FULLSCREEN` or `SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and
+  takes every texture, display list and the FBO with it. So fullscreen is a Win32
+  style flip plus a size, SDL notices through its own `WM_WINDOWPOSCHANGED`, and
+  there is only one code path — "the window changed size".
+- **Video and screenshots read `GL_COLOR_ATTACHMENT0` at 640x480**, never the
+  window. minih264 needs a multiple of 16, the encoder is configured once at
+  `startRecording`, and the filter is a display setting that does not belong in
+  the file.
 
-**The FBO from item 2 is what makes all three cheap.** With the game always
-rendering 640x480 into an offscreen target, every hardcoded coordinate in the
-tree keeps working no matter what size the window is: the one `glViewport`
-(`engine.cpp:433`), `glScissor(280, 480 - 60 - 200, 320, 200)` in
-`gs_selectlevel.cpp:51`, the GUI XML layouts, the 0..640 x 0..480 texcoords on
-the background quad. Only the destination rectangle of the final blit changes,
-and only one place computes it. Without the FBO, every one of those is a bug.
+Drawing while the border is dragged needed the one thing SDL cannot give: during a
+drag `DefWindowProc` runs its own modal loop and the main loop sits in
+`SDL_PollEvent`. `Engine::hookWindowProc` puts a procedure in front of SDL's —
+safe because the HWND is created once in `DIB_VideoInit` and never replaced, and
+the same subclassing SDL itself does for `SDL_WINDOWID`.
 
-### The blit rectangle depends on the filter
-
-The letterbox is one calculation, but not the same one for every filter.
-
-- **Nearest needs an integer scale.** At a fractional scale, nearest duplicates
-  some source pixels and not others, so the sprites come out with uneven
-  thicknesses and the text goes ragged — the failure it is chosen to avoid. So
-  for nearest the destination size is `floor(min(w / 640, h / 480))` clamped to
-  at least 1, times 640x480, centred, with black everywhere else. On a 1920x1080
-  window that is 2x, i.e. 1280x960 in the middle with 320-pixel bars either side
-  and 60 above and below — deliberately not filling the screen.
-- **Bilinear and sharp-fit take the full fractional scale**, `min(w / 640, h / 480)`,
-  because both resample properly and an integer scale would only throw away
-  screen area.
-
-So the destination rectangle is a function of the window size *and* the selected
-filter, and changing the filter at runtime has to recompute it. One function,
-used by the blit, by the cursor mapping (see below), and by nothing else.
-
-Below 640x480 nearest has no integer scale left. `handleResize` clamps the window
-to a 640x480 minimum by re-calling `SDL_SetVideoMode` with the clamped size, so on
-the desktop that case cannot arise. The browser is the exception — there the canvas
-size is the browser window's, and pushing back against it looped — so
-`computePresentRect` snaps to an integer only while the scale is at least 1.0 and
-otherwise scales fractionally; a cropped picture would be worse than a slightly
-ragged one.
-
-### Video and screenshots stay at 640x480
-
-**Video recording always captures the game's internal 640x480**, never the window
-size. It used to be that way by accident — the capture ran *before* `upscaleFrame()`
-and read the un-upscaled render out of the back buffer — and with the FBO it is true
-on purpose: capture reads `GL_COLOR_ATTACHMENT0` at `screenSize` and is independent
-of the window entirely.
-
-Three reasons it has to stay that way, not just for tidiness:
-
-- minih264 requires the frame size to be a multiple of 16 (`videorecorder.cpp`
-  centre-crops to enforce it). 640x480 is; an arbitrary resized window is not.
-- The encoder is configured once, at `startRecording`. A window resized
-  mid-recording would change the frame size under it.
-- The cursor is drawn into the capture buffer by hand (`engine.cpp:855`) in
-  640x480 coordinates from `getCursorPosition()`. That keeps working unchanged —
-  and becomes correct under letterboxing for the first time, because it goes
-  through the same inverse transform as everything else.
-
-**Screenshots go the same way: clean 640x480.** `Engine::screenshot` used to run
-*after* `upscaleFrame()` and read `displaySize` from `GL_BACK`, so it saved the
-upscaled image — and with letterboxing it would have saved the black bars too. It
-now runs before the blit and reads `GL_COLOR_ATTACHMENT0` at `screenSize`, like
-the video path. The filter is a display setting; it does not belong in the file.
-
-### Resizing is nearly free, and borderless fullscreen is too
-
-Both facts come out of the vendored SDL, so they are facts about *this* build.
-
-`SDL_dibvideo.c:614-625` has a fast path in `DIB_SetVideoMode`: if the flags and
-bpp are unchanged, `SDL_OPENGL` is set and `SDL_FULLSCREEN` is not, it calls
-`DIB_ResizeWindow` and returns — **the GL context survives**. windib is the
-driver the game gets, because `WINDIB_bootstrap` precedes `DIRECTX_bootstrap` in
-SDL's table (`SDL_video.c:82` vs `:85`). So a resizable window needs
-`SDL_RESIZABLE` in the flags, an `SDL_VIDEORESIZE` handler that re-calls
-`SDL_SetVideoMode` with the new size and recomputes the letterbox rectangle, and
-nothing else.
-
-**Real fullscreen is what costs.** Setting `SDL_FULLSCREEN` changes the flags, so
-the fast path is skipped and `WIN_GL_ShutDown` runs (`SDL_dibvideo.c:627-630`):
-the GL context is destroyed and every GL object with it. `SDL_NOFRAME` is no
-better — it is also a flag, and any flag change fails the same test.
-`SDL_WM_ToggleFullScreen` is not implemented on Windows in SDL 1.2 at all.
-
-**So do not ask SDL for it.** Keep the SDL flags constant at
-`SDL_OPENGL | SDL_RESIZABLE` for the entire life of the process, and change the
-Win32 window style directly:
-
-1. `SDL_GetWMInfo` gives the `HWND` (`SDL_syswm.h:147`; `WIN_GetWMInfo` is wired
-   up at `SDL_dibvideo.c:206` and `SDL_syswm.c` is in the compiled subset).
-2. `SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE)` and
-   `SetWindowPos(hwnd, HWND_TOP, 0, 0, screenW, screenH, SWP_FRAMECHANGED)`.
-3. SDL's own `WM_WINDOWPOSCHANGED` handler
-   (`SDL_sysevents.c:576-611`) then posts `SDL_PrivateResize(w, h)` — it gates
-   only on `SDL_RESIZABLE`, not on `SDL_resizing` — which updates the mouse range
-   (`SDL_resize.c:52`) and delivers an ordinary `SDL_VIDEORESIZE`.
-4. The existing resize handler picks that up, calls `SDL_SetVideoMode` with the
-   new size and the same flags, hits the fast path, and the context is never
-   touched.
-
-Going back to windowed is the same three lines with the saved style and rectangle.
-
-Five details make that safe rather than merely plausible, all checked in the
-vendored source rather than assumed:
-
-- **SDL will not fight the style.** `DIB_ResizeWindow` passes
-  `GetWindowLong(SDL_Window, GWL_STYLE)` to `AdjustWindowRectEx`
-  (`SDL_dibvideo.c:547`) — it reads the window's *current* style rather than
-  deriving one from the flags, so with `WS_POPUP` set it computes a zero border
-  and the client area is exactly the size asked for.
-- **SDL will not re-impose one either.** The block that turns flags into
-  `WS_POPUP` / `WS_THICKFRAME` is at `SDL_dibvideo.c:802-832`, past the early
-  return, so it runs only on the slow path. After the first mode set the game
-  never takes the slow path again, and the style stays whatever it was last set
-  to.
-- **The event loop does not run away.** Step 4's `SDL_SetVideoMode` reaches
-  `DIB_ResizeWindow`, which issues its own `SetWindowPos`, which fires another
-  `WM_WINDOWPOSCHANGED`, which calls `SDL_PrivateResize` again. That terminates
-  because `SDL_PrivateResize` keeps a `last_resize` and returns immediately on a
-  repeat (`SDL_resize.c:43-46`); it also pulls pending `SDL_VIDEORESIZE` events
-  out of the queue before posting, which coalesces a drag.
-- **SDL will not move the window out from under you.** `DIB_ResizeWindow` ends in
-  `SetWindowPos(SDL_Window, HWND_NOTOPMOST, x, y, ...)`, and with no
-  `SDL_FULLSCREEN` flag and no `SDL_VIDEO_WINDOW_POS` / `SDL_VIDEO_CENTERED` in
-  the environment, `x` and `y` come from `SDL_windowX`/`SDL_windowY` — which
-  `WM_WINDOWPOSCHANGED` has just updated from the window's real position
-  (`SDL_sysevents.c:596-601`). At (0,0) both are zero, the `else` branch adds
-  `SWP_NOMOVE`, and the window is left alone; on a secondary monitor they hold
-  that monitor's origin and the window lands there. Worth verifying on a
-  multi-monitor setup rather than trusting, and re-applying the position after
-  if it ever disagrees. `HWND_NOTOPMOST` is the right answer either way — a
-  borderless fullscreen window should not be topmost, or alt-tab stops working.
-- **Telling SDL the new size is not optional.** `SDL_PrivateMouseMotion` clamps
-  to `SDL_MouseMaxX`/`SDL_MouseMaxY` (`SDL_mouse.c:136-150`, `:206-221`). Change
-  the Win32 window without informing SDL and the cursor stays clipped to the old,
-  smaller area — which is why step 4 exists at all. Both `SDL_PrivateResize`
-  (`SDL_resize.c:52`) and `SDL_SetVideoMode` (`SDL_video.c:653`) set the range, so
-  the path is covered twice over.
-
-**There is therefore only one code path — "the window changed size" — and
-fullscreen is just a particular size plus a style flip.** That is the whole
-answer to the reload problem: nothing is ever destroyed, so nothing has to be
-rebuilt. The table of GL objects that `Manager<T>::reload()` does not cover
-(`engine.cpp:362`/`:363`, `gui.cpp:471`, `level.cpp:92`, `cf_mosaic.cpp:6`,
-`gs_credits.cpp:258`, the display lists at `level.cpp:411` and
-`lightning.cpp:13`, plus the FBO and its stencil renderbuffer) stops being work
-that has to be done and becomes a list to check only if a context is ever lost
-for a reason outside the program's control — a driver reset, an RDP reconnect, a
-driver update mid-session. Those kill a WGL context no matter how the window was
-made; they are rare enough to ignore deliberately, and `Manager<T>::reload()`
-(`manager.h:107`, already used for skin changes at `level.cpp:2433-2435`) is most
-of the recovery if it ever matters.
-
-Three things borderless gains beyond that:
-
-- **No `ChangeDisplaySettings`.** The monitor never switches mode, so alt-tab is
-  instant and does not rearrange the desktop or other windows.
-- **The desktop resolution is what you get** — which is exactly what the FBO
-  wants, since the game renders 640x480 and scales to whatever is there. The
-  `SDL_ListModes` search at `engine.cpp:222-252` disappears entirely.
-- **Nothing is lost by it.** Exclusive fullscreen's remaining advantage is
-  running the monitor at a non-native mode, which this game has no use for; on
-  Windows 10 and later a borderless window that covers the screen gets DWM's
-  independent-flip path and presents as directly as exclusive mode did.
-
-One caveat to design around: SDL's window flags must genuinely never change, so
-the window is created with `SDL_RESIZABLE` even when the game starts
-"fullscreen". Under `WS_POPUP` there is no drag border, so the flag has no
-user-visible effect — it only keeps `SDL_PrivateResize` firing and the fast path
-matching.
-
-The browser needs none of this: the Fullscreen API on the canvas, and the WebGL
-context survives.
-
-### Mouse coordinates already have the hook — and a bug
-
-`Engine::getCursorPosition` and `setCursorPosition` both run the inverse of the
-letterbox transform now, taking the scale and offset from `computePresentRect` —
-the same rectangle `presentFrame` blits into. Nothing more is needed here when
-the window becomes resizable; the rectangle simply changes.
-
-Both had defects that went with the hq2x branch they lived in: the y offset
-assumed the image was centred vertically while `upscaleFrame` placed it flush to
-the top, and `setCursorPosition` clamped with `clamp(temp.x, 0, temp.x - 1)`,
-whose upper bound came from the value being clamped, so it always returned
-`temp.x - 1`.
-
-### Where the settings live
-
-The filter is done: `useHQ2X` gave way to `Engine::UpscaleFilter`, the four
-radio buttons live in `data/options.xml` next to the language flags, their
-captions are `$O_UPSCALER*` in `data/languages.txt` with `§en:` and `§de:`
-bodies, and `<Upscaler>` round-trips through `loadConfig`/`saveConfig`.
-
-`<Fullscreen>`, `<WindowSize>` and `<WindowPosition>` went in the same way, so the
-game comes back the way it was left. `config.xml` now holds `<Language>`,
-`<Upscaler>`, `<Fullscreen>`, `<WindowSize>`, `<WindowPosition>`, `<SoundVolume>`,
-`<MusicVolume>`, `<Details>` and `<Controls>`.
-
-Persisting them needed a second thing that was easy to miss: `saveConfig` had
-exactly one caller, the options dialog's OK button. Resize the window, quit, and
-the size was gone — the file was never written. `Engine::exit` now calls
-`rememberWindowPlacement()` and `saveConfig()` before it tears anything down, so
-the last thing the player did is what comes back. `rememberWindowPlacement` reads
-the placement off the HWND, except in fullscreen, where the window is at (0,0) and
-desktop-sized and the rect `applyWindowStyle` saved before the style flip is the
-right answer instead. A restored position that no longer lands on a screen — a
-laptop unplugged from a second monitor — is dropped rather than used.
-
-The first-run size used to be 640x480 exactly, which on a modern desktop is a
-postage stamp. `getDefaultWindowSize` picks the largest integer multiple of the
-640x480 frame that leaves a 120px margin in both directions for the title bar and
-the taskbar: 2x on 1920x1080 and on 1440p, 3x on 1600p, 4x on 2160p, and 1x on
-anything below Full HD.
-
-120 is derived, not guessed. It is the largest margin at which 1920x1080 still
-reaches 2x: 2*480 is 960, 1080-120 is 960, and it fits with nothing to spare -
-one pixel more and the most common desktop there is would open at 640x480. The
-horizontal margin is the same number, which at every common resolution is slack
-the width never needed; it is there because a taskbar is not always at the bottom
-of the screen. Integer
-multiples on purpose — the letterbox is then empty and "sharp" needs no
-resampling at all. The same function catches a stored size that no longer fits. Since fullscreen is just a window size plus a style flip, that is
-one boolean and one `Vec2i`, with no mode list behind either. `-fullscreen` and
-`-windowed` remain startup overrides and beat the file; the compiled-in default
-(windowed in Debug, fullscreen in Release) applies only when neither the file nor
-the command line says anything. The templates `_config_en.xml` / `_config_de.xml`
-the installer copies still set only `<Language>`, which is right — the rest should
-come from the defaults on a fresh install.
-
-One thing SDL could not give and the window procedure had to: while the user
-holds the border or the title bar, `DefWindowProc` runs its own modal message
-loop and the game's main loop sits in `SDL_PollEvent` until the mouse comes up -
-so the picture froze for the length of every drag. SDL 1.2 does not handle
-`WM_ENTERSIZEMOVE` or `WM_EXITSIZEMOVE` at all, it passes both to
-`DefWindowProc`, so `Engine::hookWindowProc` puts a procedure in front of SDL's
-with `SetWindowLongPtr(GWLP_WNDPROC)`. That is safe here for a reason worth
-writing down: the HWND is created exactly once, in `DIB_CreateWindow` from
-`DIB_VideoInit`, and no later `SDL_SetVideoMode` replaces it - and it is the same
-subclassing SDL itself performs when `SDL_WINDOWID` is set.
-
-`WM_ENTERSIZEMOVE` starts a 15 ms timer, and `WM_SIZE` and `WM_TIMER` both
-re-present the framebuffer at the current client size. Two signals rather than
-one because each covers the other's gap: `WM_SIZE` arrives on every drag step but
-never while the user holds still, and `WM_TIMER` is low priority and gets starved
-by mouse messages exactly while dragging. No logic runs in there - one
-`presentFrame` of the frame already in the FBO, nothing more.
-
-Two traps, both hit while writing it:
-
-- `SDL_SetVideoMode` must not be called during the drag. It calls `SetWindowPos`,
-  which fights the user's own drag.
-- The repaint therefore updates `displaySize` itself - but it has to put the old
-  value back before returning. `handleResize` early-returns when the size has not
-  changed, so leaving the new size in place means the `SDL_VIDEORESIZE` that
-  arrives after the drag looks like a no-op, `SDL_SetVideoMode` never runs, and
-  SDL's own surface stays at the pre-drag size for the rest of the session.
-
-The same procedure answers `WM_GETMINMAXINFO`, chaining to `DefWindowProc` first
-because it fills four fields besides the one being overridden, with 640x480 of
-client area grown by `AdjustWindowRectEx`. `handleResize` already refused to go
-below the internal resolution; now the frame stops there during the drag instead
-of springing back afterwards.
-
-Verified as far as this machine allows: a standalone Win32 program built with
-mingw and run under Wine confirms the subclass captures the previous procedure,
-that `WM_ENTERSIZEMOVE` reaches it, that a timer started there delivers `WM_TIMER`
-*inside* the modal loop and the repaint runs, that `WM_EXITSIZEMOVE` and the
-unhook are clean, and that the `WM_GETMINMAXINFO` arithmetic clamps a window
-asked to be 200x150 to exactly 648x514. What it cannot show is a long drag - Wine
-will not hold the modal loop open for synthetic input - nor anything about the GL
-present, which needs the real game on Windows.
-
-The browser needs none of SDL for this: the canvas fills the page and follows the
-browser window (`WebBuild/pre.js`), the Fullscreen API does the rest, the WebGL
-context survives both, and the letterbox arithmetic is the same code. Two things
-differ there and are handled explicitly: the game never *starts* fullscreen,
-because the Fullscreen API requires a user gesture that does not exist at startup;
-and Alt+Return is registered as a DOM `keydown` callback rather than read from the
-SDL queue, because the main loop runs inside `requestAnimationFrame` and what it
-delivers no longer counts as a gesture. That half is testable without Windows, and
-was: resize, letterbox, cursor mapping, the integer snap, the fullscreen toggle and
-the config round-trip all verified in Chromium.
+Verified as far as this machine allows: a standalone Win32 program under Wine
+confirmed the subclass, `WM_ENTERSIZEMOVE`, a timer firing *inside* the modal
+loop, the clean unhook, and `WM_GETMINMAXINFO` clamping a 200x150 request to
+648x514. What it cannot show is a long drag or anything about the GL present.
 
 
 11. A CRT effect  — **DONE**
 -----------------------------
 The idea that replaced xBR, and a much better fit for what a nostalgic filter is
-actually for here. xBR tried to *reconstruct* detail the art never had; a CRT
-effect adds a period-correct presentation on top of the art as drawn, which is
-honest about what it is doing and does not care whether the source is flat-shaded
-or airbrushed. It is also stable where xBR was not: no thresholds, no edge
-detection, only smooth functions of the source colour and the output position, so
-a one-in-255 nudge moves the output by about one.
+for: it adds a period-correct presentation on top of the art as drawn instead of
+trying to reconstruct detail the art never had, and it is stable where xBR was
+not — no thresholds, no edge detection, only smooth functions, so a one-in-255
+nudge moves the output by about one. Shipped as `src/crt_shader.h`, a fourth entry
+in Options → Scaling, with four sliders behind *CRT settings …*.
 
-Shipped as `src/crt_shader.h`, a fourth entry in Options → Scaling. What went in,
-and what was learned building it:
+The decisions worth keeping, all of them detailed in CLAUDE.md:
 
-- **Which CRT is one number.** Scan-line gaps are an artifact of 240p — a console
-  drawing 240 lines into a 480-line raster. A VGA monitor showing 640x480 drew all
-  480 with overlapping beam profiles and had no gaps, and that is this game's
-  honest reference. So `SCANLINE_PERIOD = 1.0` is the authentic setting and, at a
-  2x window, produces no visible stripes whatever, because both output rows are
-  equidistant from the row centre. Physically right, useless as an effect. The
-  shipped default is 2.0 — pretend 240 lines arrive — and the slider fades that
-  in from nothing. The constant chooses the look; the slider chooses how much.
+- **Which CRT is one number.** Scan-line gaps are an artifact of 240p. A VGA
+  monitor showing 640x480 drew all 480 lines with overlapping beams and had no
+  gaps, which is this game's honest reference — `SCANLINE_PERIOD = 1.0`, and at a
+  2x window that produces no visible stripes at all. Physically right, useless as
+  an effect. The shipped default is 2.0; the constant chooses the look, the slider
+  chooses how much.
+- **The mask belongs to the glass**, so it is indexed in output pixels. Almost
+  every player runs at exactly 2x, where three source-locked subpixels are
+  impossible.
+- **Brightness is derived, not dialled in.** `MASK_AVG` and `scanAvg` are computed
+  from the constants, so editing any of them needs no compensating edit elsewhere.
+- **Halation averages in linear light, per tap.** Averaging in gamma space and
+  linearising the result produced almost no visible halo, because the ring around
+  a bright spot is a mixture and `pow()` on that mixture falls below the
+  threshold. Two rings of four taps, not eight on one radius, which gives a
+  hard-edged ring rather than a glow.
+- **The distortion goes through the mouse**, using the identical formula in
+  `warpToSource`; the inverse has no closed form and iterates. The two curvature
+  constants are `#define`d once and stringified into the GLSL as well as read as
+  C++ doubles, so they cannot drift.
+- **The scan-line crawl is the one term computed on the CPU**, because it is a
+  ramp whose slope depends on the slider: feeding it the wrapped clock would jump
+  the lines at every wrap.
 
-- **The mask belongs to the glass, not the signal.** It is indexed by
-  `gl_FragCoord`, in output pixels, so it stays the same fineness at any window
-  size. That matters because `getDefaultWindowSize` gives 2x on both 1080p and
-  1440p, so almost every player has exactly two output pixels per source pixel and
-  three source-locked subpixels are not available.
-
-- **Brightness is derived, not dialled in.** The first version multiplied by a
-  hand-picked 1.45 and came out visibly washed. `MASK_AVG` and `scanAvg` are now
-  computed from the constants, so both are light-neutral by construction: moving
-  the scan-line slider end to end changes mean frame brightness by 0.5%, and
-  editing any constant needs no compensating edit elsewhere.
-
-- **Cost.** On the same software rasterizer as the other measurements: nearest
-  1.0, bilinear 1.3, sharp-fit 1.35, CRT 7.8. The first draft was 11.0, the same
-  as xBR, because `toLinear` ran per tap across ten taps — thirty `pow()` per
-  pixel. Averaging the halation ring in gamma space and linearising the sum once,
-  and dropping the sharp-fit ramp for taps that get blurred anyway, took it to
-  7.8. Halation is about half of what remains and `BLOOM_STRENGTH = 0` compiles it
-  out entirely (4.2). The five `exp()` behind `scanAvg` are free — a hard-coded
-  literal measured identically.
-
-- **The distortion goes through the mouse.** This was the part worth being careful
-  about. A fragment shader maps output pixel to source pixel, which is exactly the
-  direction `getCursorPosition` needs, so it calls the identical formula.
-  `setCursorPosition` needs the inverse; the pair is coupled (`x` on `y²`, `y` on
-  `x²`) and has no closed form, so it iterates `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`.
-  Measured over the whole image: eight rounds are within 2.3e-4 pixels at a
-  curvature far past anything reachable, and the forward/inverse pair agrees to
-  1.2e-10 pixels. The two curvature constants are `#define`d once and stringified
-  into the GLSL as well as read as C++ doubles, so they cannot drift.
-
-  Both cursor functions had a second, older bug: they mapped left edges with
-  truncation instead of pixel centres with `floor`, which lost a pixel at
-  fractional window sizes. Fixed, and the round trip `get(set(g)) == g` is now
-  exact at every scale and curvature — except at exactly 1x, where 640 window
-  pixels cannot hold a non-identity warp over 640 game pixels and 0.5% of
-  positions land on a neighbouring 16px tile. That is the minimum window size,
-  where the effect has nowhere to show anyway.
-
-- **Flicker is the one part that reads a clock**, and that is allowed for the
-  same reason the rest is stable: it depends on `Time`, never on the previous
-  frame. Two zero-mean terms, so it costs no brightness — a fast shimmer at
-  roughly 12, 19 and 29 Hz, which is what "flimmern" actually looks like, plus a
-  much weaker mains-hum bar rolling slowly down the picture. Every frequency is a
-  whole number of cycles per `FLICKER_CYCLE` (8 s) and the clock is fed in modulo
-  that, so the wrap is seamless and float never gets coarse. It reads
-  `SDL_GetTicks` rather than `Engine::getTime`, which counts logic ticks and
-  stops when the game pauses; a screen flickers anyway. Measured at maximum:
-  2.55% peak-to-peak between frames.
-
-- **Halation has to average in linear light, and per tap.** The first version
-  averaged the eight taps in gamma space, linearised the result, and then applied
-  the threshold — and produced essentially no visible halo. The ring around a
-  bright spot is a mixture of bright and dark, and `pow()` on that mixture pushes
-  it far below the threshold; measured, the slider moved 0.6% of pixels from end
-  to end. Linearising each tap and thresholding the linear average gives a real
-  glow: +23 grey levels at the centre falling smoothly to +4 at 70 output pixels.
-  The linearisation is `x*x` rather than `pow(x, 2.4)` — for a soft halo the
-  difference is invisible and it costs a multiply instead of a `pow`, which
-  eight times per pixel would have been the most expensive thing in the shader.
-  The taps also sit on **two** rings now, four axial and four diagonal: eight on a
-  single radius produces a hard-edged ring a few pixels wide, not a glow.
-
-- **The scan lines crawl.** Sitting perfectly still is the one thing a real
-  raster never did. `ScanPhase` shifts the whole pattern slowly downward and
-  `CRAWL_JITTER` makes it tremble. It is the only part of the flicker computed on
-  the CPU, and for a specific reason: it is a ramp rather than an oscillation and
-  its slope depends on the slider, so feeding it the already-wrapped clock would
-  jump the lines by `fract(flicker · speed)` of a period at every wrap. Taken
-  from the unwrapped clock modulo one, it is continuous at any slider position.
-  Verified in an isolated shader probe: `ScanPhase` of 0, 0.25 and 0.5 moves the
-  scan-line ripple by exactly a quarter period each step.
-
-All four knobs — scan lines, curvature, glow, flicker — are sliders in
-Options → Scaling → *CRT settings …*, stored as
-`<Crt scanline= curvature= bloom= flicker=>`. `BLOOM_STRENGTH` stays a constant on
-top of the glow slider, so setting it to 0 still compiles the whole halation block
-out for anyone who wants the cheap version.
+Cost of one present on a software rasterizer, as ratios: nearest 1.0, bilinear
+1.3, sharp-fit 1.35, CRT 7.8 — halation about half of that, and
+`BLOOM_STRENGTH = 0` compiles it out (4.2). On any real GPU all of them are noise.
 
 Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
 
+
 12. Tell the player about the hardcoded keys  — **DONE**, it already did
 ------------------------------------------------------------------------
-**The premise was wrong.** `$H_HELP_PAGE1` has listed the toggle all along, in
-both languages, at the foot of the *Controls (standard)* table:
-"Window/full screen — Alt + Return" and "Fenster/Vollbild — Alt + Return"
-(`data/languages.txt:1357` and `:1375`). The help was read for the *actions*
-it lists and the hardcoded keys below them were missed. Nothing to write.
-
-The rest of this entry is kept for what it established about the four keys.
-
-The options dialog is not the gap it looks like. It lists *registered actions* —
-`$A_LEFT`, `$A_PLANT_BOMB` and the rest from `main.cpp` — which are remappable
-by design and already shown. These four bypass the action system entirely and
-are read straight from SDL, which is exactly why they never appear:
+**The premise was wrong.** `$H_HELP_PAGE1` has listed Alt+Return all along, in both
+languages, at the foot of the *Controls (standard)* table. What is worth keeping is
+the list of keys that bypass the action system and are read straight from SDL,
+which is why they never appear in the options dialog:
 
 | key | what it does | where |
 | --- | --- | --- |
-| Alt+Return | window / full screen | `engine.cpp:769` |
-| Shift+C | credits | `gs_menu.cpp:121` |
-| Shift+D | turns the donation prompt off for good | `gs_menu.cpp:127` |
-| F (held, in game) | frame time overlay | `gs_game.cpp:256` |
+| Alt+Return | window / full screen | `engine.cpp` |
+| Shift+C | credits | `gs_menu.cpp` |
+| Shift+D | turns the donation prompt off for good | `gs_menu.cpp` |
+| F (held, in game) | frame time overlay | `gs_game.cpp` |
 
-Of those, only Alt+Return belongs in the player-facing help. Shift+D is a
-one-way switch a player could hit by accident reaching for Shift+C, and the
-other two are for us.
+Of those only Alt+Return belongs in player-facing help. **Return and Enter are two
+different keys here**, not two names for one: Return is the big key
+(`SDLK_RETURN`), Enter is the keypad's (`SDLK_KP_ENTER`). The fullscreen toggle
+tests `SDLK_RETURN` only, which is consistent with the help and `readme.txt`; the
+hotel binds both and its text says "Return/Enter" accordingly.
 
-**Which key is it, exactly.** *Return* and *Enter* are two different keys here,
-not two names for one: **Return** is the big key above the right Shift
-(`SDLK_RETURN`), **Enter** is the one on the numeric keypad (`SDLK_KP_ENTER`).
-The game already keeps them apart and says so where both work — the hotel binds
-`SDLK_RETURN` *and* `SDLK_KP_ENTER` (`main.cpp:442`) and its text reads
-"Press the Return/Enter key now" (`$G_HOTEL_WELCOME`).
+The help is six pages, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in `data/languages.txt`,
+built by page number in `help.cpp` and capped at 6 there. Each page has a `§en:`
+and a `§de:` body with light markup, so anything added has to be written twice,
+and a seventh page means changing that literal.
 
-The fullscreen toggle tests `SDLK_RETURN` only (`engine.cpp:850`, and the
-`SDL_KEYUP` arm at `:866` that balances `swallowedReturn`), so Alt + numpad
-Enter does nothing. That is consistent rather than broken: the help and
-`readme.txt` both name Alt+Return, which is the big key, and only the hotel —
-which binds both — writes "Return/Enter". Wiring the keypad up as well is one
-`||` in each of those two places if it ever comes up.
-
-**Where the help text lives**, for whenever a page does need editing: six of
-them, `$H_HELP_PAGE1` … `$H_HELP_PAGE6` in `data/languages.txt`; `help.cpp:78`
-builds the ID from the page number and `help.cpp:61` caps it at 6. Each page has
-a `§en:` and a `§de:` body with light markup (`<h>…</h>` for a heading, `¶` for a
-newline), so anything added has to be written twice, and a seventh page means
-changing that literal `6`.
 
 13. The particle system's container
 ----------------------------------
-`ParticleSystem` keeps its particles in a `std::list`, one 80-byte `Particle`
-per heap node, walked by pointer every tick and every frame. The manual
-`_mm_prefetch` pair in `update()` and `render()` is there because no hardware
-prefetcher follows a pointer chain; it earns 3–9%.
+`ParticleSystem` keeps its particles in a `std::list`, one 80-byte `Particle` per
+heap node, walked by pointer every tick and every frame. The manual `_mm_prefetch`
+pair is there because no hardware prefetcher follows a pointer chain; it earns
+3–9%.
 
-**Nothing here is a bottleneck.** Measured at a heavy 5000 particles — the
-biggest single burst in the tree is 500, from a bomb — `update()` costs about
-0.05 ms of a 20 ms tick (0.23%) and filling the render vertex buffer about
-0.17 ms of a 16.7 ms frame (1.0%). This entry exists so the next person does not
-re-derive the four options and, in particular, does not re-discover the two
-traps the hard way.
+**Nothing here is a bottleneck.** At a heavy 5000 particles — the biggest single
+burst in the tree is 500 — `update()` costs about 0.05 ms of a 20 ms tick and
+filling the render buffer about 0.17 ms of a 16.7 ms frame. This entry exists so
+the next person does not re-derive the options and, above all, does not
+re-discover the two traps.
 
-The struct is already single precision throughout (`Vec4f`, `Vec2f`, `float`);
-the `Vec4d`s at the emitter call sites run once per particle *created*, not per
-tick. Doubles would cost 16–33% and turn one `addps` into two `addpd`.
+The struct is already single precision throughout; doubles would cost 16–33%.
 
-Measured, ns per particle-tick, best of two runs:
+Measured, ns per particle-tick:
 
 | container | order | native 5k | native 20k | wasm 5k |
 | --- | --- | --- | --- | --- |
@@ -1168,738 +367,419 @@ Measured, ns per particle-tick, best of two runs:
 | `std::vector` + tombstones, compact every 16 | preserved | 3.8 | 5.3 | — |
 | ring of buckets keyed by death tick | preserved | 4.2 | 4.9 | 5.9 |
 
-**Trap one: swap-and-pop breaks the picture, and it was tried once.** Two of the
-three systems are alpha blended and therefore order dependent —
-`p_particleSystem` and `p_rainParticleSystem` both draw under
-`GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA` (`level.cpp:666` and `:702`). Only
-`p_fireParticleSystem` is additive (`GL_SRC_ALPHA, GL_ONE`, `level.cpp:700`) and
-genuinely order-free. What swap-and-pop produces is not a wrong order but an
-*unstable* one: a particle jumps from the end of the array into the middle the
-instant a neighbour dies, so the layering of overlapping sprites changes between
-frames, which reads as flicker. Counted over 800 ticks with 5000 particles, the
-relative order of the survivors was unchanged in 800 frames for the list and in
-**19** for swap-and-pop.
+**Trap one: swap-and-pop breaks the picture.** Two of the three systems are alpha
+blended and therefore order dependent; only the fire system is additive. What
+swap-and-pop produces is not a wrong order but an *unstable* one — a particle
+jumps from the end of the array into the middle the instant a neighbour dies, so
+the layering of overlapping sprites changes between frames, which reads as
+flicker. Over 800 ticks at 5000 particles the survivors' relative order was
+unchanged in 800 frames for the list and in **19** for swap-and-pop.
 
 **Trap two: a pool allocator buys much less than it looks like it should.** It
-fixes where the nodes are, not the order they are visited in. Freshly filled,
-both malloc and a pool walk perfectly forward — 100% of steps forward and within
-128 bytes. After 300 ticks of churn that collapses to 3.0% for malloc and 0.0%
-for the pool; the mean jump between list-consecutive nodes is 119 KB against the
-pool's 25 KB. Smaller jumps, still jumps. Worth about 1.3x at 5000 and 1.02x at
-20000, less in the browser, because Emscripten's dlmalloc over one flat linear
-memory already packs same-size nodes densely. It is still the cheapest thing on
-this list: about thirty lines, it never touches draw order, and it gives a fixed
-memory ceiling.
-
-A **FIFO** free list looks like it beats that — particles die roughly in the
-order they were born, so slot reuse tracks list order and the walk goes back to
-98.2% forward, worth 1.64x. It is an illusion. That only holds while the pool is
-far larger than the live set, so the allocator is marching into memory it has
-never touched. Size the pool to the maximum, which is the whole point of having
-one, and wrap-around shuffles the free list: 0.0% forward, 1.16x. Let a big pool
-lap three times and it is 0.98x. In a linked list, reusing hot slots and walking
-in address order are mutually exclusive; a vector gets both for free.
+fixes where the nodes are, not the order they are visited in. After 300 ticks of
+churn, forward-and-within-128-bytes steps collapse from 100% to 3.0% for malloc
+and 0.0% for the pool. Worth about 1.3x at 5000 and 1.02x at 20000, less in the
+browser, where Emscripten's dlmalloc already packs same-size nodes densely. Still
+the cheapest thing on this list: about thirty lines, never touches draw order, and
+gives a fixed memory ceiling. A **FIFO** free list looks better (98.2% forward,
+1.64x) and is an illusion — that only holds while the pool is far larger than the
+live set. Size it to the maximum, which is the point of having one, and
+wrap-around shuffles the free list back to 0.0% forward and 1.16x.
 
 **The one that works: a ring of buckets keyed by the absolute death tick.**
 `bucket = deathTick & (WHEEL-1)`, so nothing ever moves. Each tick sweeps buckets
-`now` through `now + WHEEL-1` and then `clear()`s bucket `now` — death is O(1)
-for the whole cohort, and the inner loop has no branch at all: no `--lifetime`,
-no death test, no erase. That is why it beats even swap-and-pop in the browser
-(1.74x against 1.53x, and 2.03x against 1.82x with `-msimd128`).
+`now` through `now + WHEEL-1` and then `clear()`s bucket `now` — death is O(1) for
+the whole cohort and the inner loop has no branch at all. That is why it beats even
+swap-and-pop in the browser.
 
 Its order is stable, and the reason is worth writing down because getting it
-backwards is easy and silent: sweep `now` **first**, not last. A live particle's
-position in the sweep is exactly its remaining lifetime, and every particle's
-remaining lifetime falls by one each tick, so no two can ever swap. Sweeping
-`now+1 … now+WHEEL` instead puts the about-to-die bucket at the end, and every
-particle jumps from the front of the sweep to the back on its final frame.
-Measured both ways: 800/800 frames stable with the right sweep, 19/800 with the
-wrong one — indistinguishable from swap-and-pop.
+backwards is easy and silent: **sweep `now` first, not last.** A live particle's
+position in the sweep is exactly its remaining lifetime, and every lifetime falls
+by one each tick, so no two can swap. Sweeping `now+1 … now+WHEEL` instead puts
+the about-to-die bucket at the end and every particle jumps to the back on its
+final frame — measured at 19/800 stable, indistinguishable from swap-and-pop.
 
 What it would cost:
 
-- **Memory.** 13.1x the live count in capacity: 5.0 MB at 5000 particles against
-  a vector's 0.8 MB. Each of the 512 buckets keeps its own historical peak and
-  those peaks fall at different times. Bounded, and small in absolute terms, but
-  it is the price.
+- **Memory**: 13.1x the live count in capacity, 5.0 MB at 5000 particles against a
+  vector's 0.8 MB, because each of the 512 buckets keeps its own historical peak.
 - **`WHEEL` must exceed the longest lifetime.** The longest in the tree is
   `random(150, 300)`, so 512 has room — but anything longer would silently alias
   into a bucket that dies early. Wants an assert in `addParticle`.
-- **The `p.size <= 0` early death** has to become a death tick computed once at
-  insertion, `min(lifetime, ceil(size / -deltaSize))`. Nine emitters have a
-  negative `deltaSize`. Float accumulation could put it one tick off today's
-  behaviour, on a particle whose size is already about zero.
-- **The order becomes remaining-lifetime order rather than creation order.**
-  Stable, but different. Where a burst shares one lifetime it is unchanged —
-  `enemy.cpp` gives all 150 particles `lifetime = 100`, so they land in one
-  bucket in insertion order exactly as today; `object.cpp`'s `random(20, 50)`
-  burst spreads over thirty buckets and does reorder.
+- **The `p.size <= 0` early death** becomes a death tick computed at insertion,
+  `min(lifetime, ceil(size / -deltaSize))`. Nine emitters have a negative
+  `deltaSize`, and float accumulation could put it one tick off.
+- **Order becomes remaining-lifetime order rather than creation order.** Stable,
+  but different: a burst sharing one lifetime is unchanged, `random(20, 50)` is not.
 
-`getNewParticle()` has no callers anywhere in the tree. It returns
-`&particles.back()`, which was the only thing that required stable addresses, so
-nothing blocks a vector. It can go either way: delete it, or have it return an
-index.
+`getNewParticle()` has no callers anywhere; it returns `&particles.back()`, which
+was the only thing requiring stable addresses, so nothing blocks a vector.
 
-Two smaller notes from the same measurements. In `render()`, `sinf`/`cosf` per
-particle is 54–61% of the fill loop (20.2 → 9.2 ns native, 34.8 → 14.7 ns wasm
-when hoisted); since `rotation` advances by a constant `deltaRotation` every
-tick, the pair could be advanced by a fixed rotation instead of recomputed per
-frame. And `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping
-wasm contains no vector instructions at all — see item 8.
+One smaller note from the same measurements: in `render()`, `sinf`/`cosf` per
+particle is 54–61% of the fill loop, and since `rotation` advances by a constant
+every tick the pair could be advanced by a fixed rotation instead of recomputed.
+
 
 14. An import overwrites, unless the name is one the game ships  — **DONE**
 -----------------------------------------------------------------------------
-Two halves of one decision. **An import that names a file the player already
-has replaces it** — no more swerving to a numbered name. **An import that names
-one of the seven files the game ships is refused.**
+Two halves of one decision. **An import that names a file the player already has
+replaces it** — no more swerving to `stem_2` — and **an import that names one of
+the seven shipped files is refused.**
 
-The shipped set is exactly `levels/example01.xml`, `levels/example02.xml`,
-`levels/campaigns/blocks.zip` and the four skins
-`levels/skins/{blocks_01,blocks_02,blocks_03,space}.zip` (plus `readme.txt`,
-which no import can be).
+The skins already behaved this way and the reasoning generalised: a skin's
+filename *is* its identity — a level says `skin0="space"` and
+`Level::getSkinFilename` looks for `levels/skins/space.zip` — so `space_2.zip`
+would leave every such level exactly as broken, only without a visible cause. The
+weaker form holds for the rest: a new version of your level means *your* level.
 
-**The skins already behave this way**, and the reasoning that got them there is
-the reasoning for the rest: a skin's filename *is* its identity — a level says
-`skin0="space"` and `Level::getSkinFilename` looks for `levels/skins/space.zip`
-— so swerving to `space_2.zip` would leave every level naming `space` just as
-broken as before, only without a visible cause. `isShippedSkin` in
-`src/transfer.cpp` refuses the four shipped stems; everything else overwrites.
+Two things follow. Re-importing an updated campaign keeps its progress, because
+`ProgressDB` is keyed by the campaign filename and the filename no longer moves.
+And an import can now silently replace something the player made, so `install`
+reports through `bool* p_replaced` and the toast says **Replaced** rather than
+**imported** — the only sign they would otherwise get.
 
-**Everything else swerves today and must stop.** `uniqueName`
-(`src/transfer.cpp`, used for levels and music) and the numbering loop in
-`Campaign::installArchive` (`src/campaign.cpp`) both walk `stem_2`, `stem_3`, …
-until the name is free. Both go. What is left is `sanitizeFilenameStem` plus the
-extension, and the copy.
+`Campaign::installArchive` is gone, and that is the better sign this was the right
+shape: with the numbering removed it was letter for letter the generic path.
 
-That makes all four kinds one rule instead of two, and it retires the special
-case: `installImported`'s skin branch and its comment exist only to say why
-skins differ, and they will not differ any more. `Campaign::installArchive`
-loses the numbering and its header comment in `campaign.h` — "der Zielname wird
-hier gebildet und ist garantiert noch frei" — stops being true.
-
-For the refusal: one predicate answering "is this a name the game ships?" for
-all four kinds, called before the copy, plus a message. `$TR_ERROR_SKIN_RESERVED`
-already exists and becomes the general one (or gains siblings, if naming the
-kind reads better). The campaign name is load-bearing in one more place than the
-levels are: `Campaign::resolveMusicPath` resolves a `blocks:` prefix against
-`levels/campaigns/blocks.zip` by that literal name, so a campaign that took it
-would redirect every borrowed music track in the tree.
-
-Two things that follow from overwriting. Re-importing an updated campaign now
-keeps the player's progress, because `ProgressDB` is keyed by the campaign's
-filename and the filename no longer changes — that is the good half. The other:
-an import can now replace a file the player made themselves, silently. If that
-wants a word, the place for it is the toast `GS_Menu` already shows on a
-successful import — "replaced" rather than "imported" costs one language ID and
-no new dialog.
-
-**Built as described**, and the toast was worth having: `install` reports through
-`bool* p_replaced` and `pollImport` says `Replaced: "name"` instead of the
-kind-specific line, which on a replacement had nothing to add anyway — the
-player already knew the name, having chosen it. `$TR_ERROR_SKIN_RESERVED` became
-`$TR_ERROR_RESERVED`, since the refusal is no longer about skins.
-
-`uniqueName` and `Campaign::installArchive` are both gone. The second is the
-better sign that this was the right shape: with the numbering removed it was
-letter for letter the generic path, so the campaign stopped being a special case
-rather than getting a simpler one.
-
-One ordering detail that needed care and a test of its own. The target name and
-the `isBuiltIn` check now come first, so `isImportableArchive` runs *after* the
-name is known — but still before the copy. A damaged campaign carrying the name
-of a good one therefore leaves the good one alone: verified, 8,280,697 bytes
-before and after, with `ERROR: That file is damaged.` on screen.
-
-The predicate wants to live where item 15 can reach it too — see there.
+One ordering detail needed care and has a test of its own: the target name and the
+`isBuiltIn` check come first, so `isImportableArchive` runs *after* the name is
+known but still before the copy. A damaged campaign carrying the name of a good
+one therefore leaves the good one alone — verified byte-for-byte, with
+`ERROR: That file is damaged.` on screen.
 
 
 15. Let the Export dialog delete what it lists  — **DONE**, in the Manager
 ---------------------------------------------------------------------------
-**Done as part of item 17**, where the button lives. What is below was the plan;
-it came out as written, with the confirmation and with `isBuiltIn` gating the
-button. Both open questions there answered themselves: a deleted campaign does
-leave its `ProgressDB` rows behind (harmless, and the right thing if it is ever
-imported again), and a deleted skin does break levels naming it — visibly,
-through `Level::loadSkin`'s toast.
+Done as part of item 17, where the button lives, with a confirmation pane and
+`Transfer::isBuiltIn` gating it — the same predicate item 14 needs, which is why
+it exists once. Before this there was no way to remove anything: custom levels,
+campaigns, skins and music accumulated forever, and in the browser there is no
+file manager beside the game to do it with.
 
-Export lists what is installed of a kind and writes a plain copy of the one you
-pick (`GS_Menu`'s export pane over `Transfer::list`/`Transfer::exportTo`). There
-is no way to remove anything. Custom levels, imported campaigns, imported skins
-and imported music accumulate in `My Documents\Blocks 5\levels\` forever, and
-the only way to clear one out is ShowUserDir and Explorer — which the browser
-build does not have at all, so there it is genuinely impossible.
-
-The dialog already has the list, the selection and the *Refresh* that re-reads
-it, so the work is a *Delete* button beside *Export*, a confirmation (this is
-the one irreversible thing either transfer button would do), `FileSystem`'s
-delete, and a re-read.
-
-**The shipped seven must not be deletable**, which is the same question item 14
-asks: extract the "is this built-in?" test into one helper — something like
-`Transfer::isBuiltIn(Kind, const std::string& name)` in `src/transfer.cpp` —
-and have both the import refusal and the Delete button consult it. `isShippedSkin`
-becomes its skin branch. Do item 14 first and this one inherits the helper;
-either order works, but writing the predicate twice would be the mistake.
-
-Two details worth settling before writing it: a deleted campaign leaves its
-`ProgressDB` entries behind (harmless, keyed by filename, and worth keeping if
-the same campaign is imported again), and a deleted skin can break levels that
-name it — which is exactly the case `Level::loadSkin`'s toast now reports, so
-it fails visibly rather than silently.
+Both open questions answered themselves. A deleted campaign leaves its
+`ProgressDB` rows behind — harmless, and the right thing if it is ever imported
+again. A deleted skin does break levels naming it, visibly, through
+`Level::loadSkin`'s toast.
 
 
 16. Reset one control instead of all of them  — **DONE**
 ----------------------------------------------------------
-The controls pane in `data/options.xml` has an *Actions* list, a *Primary key*
-and a *Secondary key* button, and one `ResetControls` button that calls
-`Engine::resetActions()` — which walks every action and restores both bindings.
-Change one key badly and the only way back is to throw away the whole scheme.
+`Action` already carried `defaultPrimary` and `defaultSecondary`, so
+`resetAction(name)` is three lines and `resetActions()` now loops over it. The
+work was the UI, and the first attempt — a `Reset:` label with two short words
+beside it — came out lopsided: "Reset: selected all" reads fine, "Zuruecksetzen:
+ausgewaehlte alle" does not, and sizing for one language wasted space in the
+other. What stands is two stacked buttons as wide as the list, each carrying a
+whole caption.
 
-`Action` already carries `defaultPrimary` and `defaultSecondary`
-(`src/engine.h:24`), and `resetActions` (`src/engine.cpp:3233`) is a loop over
-exactly those two fields, so resetting the selected action alone is a
-`resetAction(const std::string& name)` of three lines. The work is the UI.
-
-The proposed shape: replace the single wide button with a small-font label
-`Reset:` and two small-font buttons, *selected* and *all*, on the same row —
-the pane is tight (the list ends at y=360, OK/Cancel start at y=400), so 170px
-of width has to hold all three. *selected* is only meaningful with a selection;
-it should follow the same enable/disable idiom the rest of the dialog uses
-rather than silently doing nothing. Both need `handleClick(p_actions)` after
-them to refresh the two key captions, as `ResetControls` already does.
-
-`$O_RESET_CONTROLS` becomes two new IDs plus a label in `data/languages.txt`;
-keep them short, because the English and German bodies both have to fit the
-same button.
-
-**Built**, and then rebuilt: the label-plus-two-short-words shape came out
-lopsided — "Reset: selected all" reads fine, "Zuruecksetzen: ausgewaehlte alle"
-does not, and sizing the buttons for one language wasted space in the other.
-What stands is two stacked buttons under the list, as wide as it, each carrying
-a whole caption: *Reset selected* / *Ausgewaehlte zuruecksetzen* over *Reset
-all* / *Alle zuruecksetzen*. The window grew 20 px for the second row; the 15 px
-above OK and the 10 below it are unchanged. The list also lost 5 px so its
-bottom edge meets the *Secondary* button's.
-`Engine::resetAction(name)` is the three lines predicted, and `resetActions()`
-now loops over it rather than repeating it.
-
-**Found while testing: key rebinding did not work in the browser at all** —
+**Found while testing: key rebinding did not work in the browser at all.**
 `getPressedVK` was a synchronous `while` loop around `SDL_PumpEvents` and
 `SDL_Delay(10)`, and under Emscripten nothing can reach the event queue while C
-holds the thread, so it always ran its three seconds out and wrote "not
-assigned". **Fixed since**, as the state machine the entry guessed at rather
-than ASYNCIFY: `Engine::beginKeyGrab()` / `pollKeyGrab()`, advanced one tick at
-a time by the ordinary main loop. Same code on both platforms, and the dialog
-stays live instead of freezing. See the key-grab paragraph in CLAUDE.md.
+holds the thread, so it always ran its three seconds out and wrote "not assigned".
+It is a state machine now — `beginKeyGrab()` / `pollKeyGrab()`, advanced one tick
+at a time by the ordinary main loop — which is the same code on both platforms and
+leaves the dialog live instead of freezing. See CLAUDE.md.
 
 
 17. One Manager button instead of Import and Export  — **DONE**
 ------------------------------------------------------------------
-Import and Export are two small buttons side by side in the main menu
-(`data/menu.xml`, `Import` at x=268 and `Export` at x=318, both 50x50 with
-`inset="9"`). They are two halves of one subject — what is installed on this
-machine — and they will be one large 80x80 button, called *Manager* or whatever
-reads best, opening one dialog that imports, exports and deletes.
+Import and Export were two 50x50 buttons in the main menu; they are one 80x80
+*Manager* button opening one dialog that imports, exports and deletes.
 
-Why one and not two: Import today has no dialog at all. It opens the file
-picker, works out what the file is, copies it and says so in a toast; the player
-never sees the list their file joined. Export has that list and nothing else.
-Put them together and each fixes what the other lacks — an import lands in a
-list you are looking at, and a delete (item 15) has somewhere obvious to live.
+Why one and not two: Import had no dialog at all — it opened the picker, worked
+out what the file was, copied it and said so in a toast, and the player never saw
+the list their file joined. Export had that list and nothing else. Together each
+fixes what the other lacked, and a delete has somewhere obvious to live.
 
-**The existing export pane is most of it.** `Menu.ExportPane` is a 400x320
-window holding four `ButtonLook` radios for the kind, a list, *Refresh*, *Export*
-and *Cancel*, all wired in `gs_menu.cpp` (`connectClicked` around line 245,
-`handleClick` around 397, `refreshExportList`/`currentExportKind` near 600). What
-changes is the verbs, not the machinery:
+**The asynchronous import finally pays off.** `pollImport` runs every tick because
+the browser's dialog cannot be modal; with the Manager open, a completed import
+switches the kind radio to whatever `classify` decided, re-reads the list and
+selects the new entry.
 
-- The bottom row is `Do` at x=10 and `Cancel` at x=260, each 130 wide — which
-  leaves exactly 130 px free between them. The room for a third button is
-  already there; a fourth needs the row re-cut or *Import* moved up beside
-  *Refresh*, which may read better anyway since importing does not act on the
-  selection the way exporting and deleting do.
-- `$TR_EXPORT_TITLE` and `$TR_EXPORT_WHAT` ("what do you want to export?") become
-  kind-neutral, and `$MM_IMPORT`/`$MM_EXPORT` collapse into one tooltip ID.
-- *Delete* is gated on item 14's `isBuiltIn()` — the seven shipped files are
-  exactly the ones an import may not overwrite and the ones a delete may not
-  remove, which is the second reason that predicate should exist once.
-
-**The import is asynchronous and that finally pays off.** `Transfer::beginImport`
-starts the picker and `GS_Menu::pollImport` is asked every tick from `onUpdate`
-(gs_menu.cpp:147), because the browser's dialog cannot be modal. With the Manager
-open, the completion has somewhere to go: switch the kind radio to whatever
-`Transfer::classify` decided the file was, re-read the list, and select the new
-entry. That is a better answer than today's toast, and it costs a few lines
-because `pollImport` already knows the kind and the assigned name.
-
-**Art:** `buttons.png` needs one new 80x80 pair (unclicked in column 0, clicked
-in column 80, as the other big buttons are); the two 50x50 tiles at u=160/210,
-v=250 and v=300 come free. Position is by eye, not arithmetic — the pair spans
-x=268..368, so an 80x80 centred on the same spot starts at x=278, but the row
-sits on an arc (`CampaignEditor` at y=77, `Options` at y=52) and the y wants
-choosing rather than computing.
-
-**Built as described.** The tile is at v=560, straight under *Go!*; the button
-is `x="278" y="67"`, which puts its disc exactly where the pair's two discs sat
-around 318. The bottom row went into the radios' four columns rather than the
-three 130px slots — 92px holds every one of the eight captions, the longest
-being "Import ..." at 66. `Transfer::isBuiltIn` and `Transfer::remove` are new;
-`isShippedSkin` folded into the first of them. Item 14's other half, the switch
-from swerving to overwriting, is still open and untouched here: mixing a
-refusal into the current swerve would have been the inconsistent half-step.
-
+The bottom row went into the radios' four columns rather than three 130px slots —
+92px holds every one of the eight captions, the longest being "Import ..." at 66.
 One thing found on the way: an Escape with the export pane open quit the game.
-Fixed — the confirmation takes the key first, then the Manager, and only with
-both closed does it reach the quit.
+Escape now belongs to the topmost pane — confirmation, then Manager, then quit.
 
 
 18. A switch should flash when it is thrown  — **DONE**
 ---------------------------------------------
-Eight objects react to being touched (`onTouchedByPlayer`, or `onCollision` with
-an `OF_ACTIVATOR`): `lightswitch`, `electricityswitch`, `barrageswitch`,
-`cannonswitch`, `magnet`, `e_pulseswitch`, `e_valueswitch` and the base in
-`object.cpp`. Throwing one should light it up for a moment. None of them does
-anything of the kind today.
+Seven objects react to being touched, and three of them — `cannonswitch`,
+`barrageswitch`, `magnet` — have no visible state at all: their effect happens
+somewhere else in the level, possibly off the part of the screen the player is
+watching, and the switch itself is a still picture before and after. Those are
+exactly the ones where feedback is worth the most.
 
-Split them and the gap is sharper than "no feedback anywhere":
+**The obvious implementation cannot work, and that is the thing to remember.**
+Brightening each `Sprite`'s colour in `onBeforeRender()` does nothing: the colour
+defaults to white, five of the seven use it unchanged, and `renderSprite` ends in
+`glColor4dv`, clamped to [0, 1]. There is no brighter than white in a colour
+value. What works is **additive**: `Object::render()` draws the sprites a second
+time with `GL_SRC_ALPHA, GL_ONE` while a tick counter runs, which accumulates in
+the destination and has no ceiling, and still multiplies by each sprite's own
+colour so a tinted switch flashes in its own colour.
 
-- **Four have visible state and change their own tile.** `lightswitch` draws
-  `isNightVision() ? 192 : 224`, `electricityswitch` `isElectricityOn() ? 160 :
-  128`, and the two electronics switches pick their sprite from `value`. You can
-  see *that* something happened, if you are looking at the right 32x32 square.
-- **Three have no state at all and never change.** `cannonswitch` fires or
-  rotates the cannons, `barrageswitch` toggles the barrages, `magnet` turns the
-  arrows — and every one of those effects happens *somewhere else in the level*,
-  possibly off the part of the screen the player is watching. The switch itself
-  is a still picture before and after. Whatever sound there is belongs to the
-  thing being operated, not to the switch.
+Where it ended up: `flashAmount` on `Object`, `flash()` to set it,
+`FLASH_STRENGTH` / `FLASH_DECAY` at the top of `object.cpp`, decay in
+`frameBegin()` (per tick, not per frame), the additive pass gated on
+`layer == flashLayer && !shadowPass`. It is deliberately **not** in
+`Object::onTouchedByPlayer`: `player.cpp` calls that for every object the player
+bumps into, so a default there would light up every block.
 
-So the three stateless ones are exactly the ones with nothing to see, which is
-also where the feedback is worth the most. A flash on all seven is still right:
-it makes the act uniform, and a 32-pixel tile swap is easy to miss even when it
-does happen.
+Three things the second round turned up:
 
-**The sprite work from 1.2.0 makes this nearly free.** `Object::onBeforeRender()`
-already runs once per frame for every object in the level (`level.cpp:592`) and
-its body is `rebuildSprites()` — and *nothing overrides it*. So the flash can sit
-entirely in the base class: a tick counter on `Object`, a `flash()` that sets it,
-a decrement in `frameBegin()` (which `Level::update()` calls on everything, and
-which is per tick, not per frame — the counter must not be tied to the frame
-rate), and, in `onBeforeRender` after the rebuild, brightening each `Sprite`'s
-colour while the counter runs. No object's `onRender` changes, and any object
-that ever wants a flash gets one by calling `flash()`.
+- **`layer == 1` was wrong.** The eight objects lying on the ground — the five
+  panels among them — draw on **layer 0**, so a flash gated on layer 1 drew
+  nothing at all for a panel. Hence `flashLayer`, 1 in `Object` and 0 in `Panel`.
+- **The activator block flashes too**, since it is the block that did something;
+  the switches call `p_obj->flash()` beside their own. Its old `anim` wobble is
+  gone with that — it darkened the block on *any* collision, so beside a flash
+  that fires only on an activation it read as a competing effect.
+- **The day/night switch is the one place the flash is invisible**, and rightly
+  so: `crossfade(new CF_ColorBlend(..., 0.1), 1.4)` is 89% opaque on the first
+  tick. The switch is doing something far more visible.
 
-The alternative — folding it into the colour each object hands
-`Engine::inst().renderSprites(sprites, color)` — touches every call site and buys
-nothing, so prefer the first unless brightening the sprite colours turns out to
-interact badly with the shadow passes (layer 1 is drawn three times, twice as
-shadow; a flash must not brighten the shadow).
-
-Shape of it: additive toward white, strongest on the tick it is thrown, gone in
-about 0.15 s — seven or eight ticks at the 20 ms rate. `Level`'s
-`flash`/`actualFlash` pair for lightning is the same idea one level up and is the
-model for the decay curve. Under night vision the level tints everything green
-(`level.cpp:981`), so the flash should be built from the object's own colour
-rather than forced to pure white, or it will punch a white hole in the tint.
-
-**Built, but not the way described above — that way cannot work.** The plan was
-to brighten each `Sprite`'s colour in `onBeforeRender()`. But `Sprite::color`
-defaults to `Vec4d(1, 1, 1, 1)` and `Sprites::add(pos)` resets to that default,
-and **five of the seven switches use it unchanged** — only `barrageswitch` and
-`cannonswitch` pass a tint, through `getStdColor`. `Engine::renderSprite` ends in
-`glColor4dv`, fixed-function, clamped to [0, 1]. There is no brighter than white
-in the colour value, so lifting RGB would have done nothing on five of seven and
-something on two: worse than no feature at all.
-
-What works is additive. `Object::render()` draws the sprites a second time with
-`GL_SRC_ALPHA, GL_ONE` while the counter runs, which accumulates in the
-destination and has no ceiling. The strength still passes through
-`renderSprites(sprites, colour)`, which multiplies by each sprite's own colour,
-so a tinted switch flashes in its own colour exactly as this entry wanted.
-
-The two caveats above both turned out to be unfounded:
-
-- **The shadow cannot be brightened.** `shadowColor` is `Vec4d(0, 0, 0, 0.7 /
-  numSamples)` — RGB is zero — so the shadow pass is black whatever the sprite
-  colour is. The additive pass is gated on `!shadowPass` anyway, since additive
-  black is not black.
-- **Night vision is a fullscreen overlay**, not a colour multiplied into the
-  objects — the same quad as the lightning, drawn after them. A bright sprite
-  shows through it rather than punching a hole in it.
-
-Where things ended up: `flashAmount` on `Object`, `flash()` to set it,
-`FLASH_STRENGTH` and `FLASH_DECAY` as tunable constants at the top of
-`object.cpp`, decay in `frameBegin()` (per tick, not per frame), the additive
-pass in `Object::render()` gated on `layer == flashLayer && !shadowPass`. The
-seven call `flash()` at the top of their `onTouchedByPlayer`. It is deliberately
-*not* in `Object::onTouchedByPlayer`: `player.cpp:413` calls that for every
-object the player bumps into, so a default there would light up every block.
-
-No sound was added. The switches that make one already do, and what you hear
-belongs to the thing being operated.
-
-Checked by forcing the flash on in the title demo, which contains a `Magnet` and
-a `CannonSwitch`: +112 per channel at the peak, shaped by the sprite rather than
-a square, surrounding tiles untouched, and the same scene byte-for-byte
-unchanged in brightness when nothing is touched.
-
-**Then the same for everything else that is thrown.** Three additions, each of
-which turned up something the first round had not needed to know:
-
-- **The ground panels.** `LightPanel`, `ElectricityPanel`, `Barrage2Panel` and
-  `CannonPanel` all reach `Panel::onUpdate`, so one `flash()` there covers the
-  four and any fifth somebody writes. `E_PulsePanel` derives from `Electronics`
-  and carries its own copy of that loop, so it needs its own call.
-- **`layer == 1` was wrong.** The eight objects that lie on the ground —
-  the five panels among them — draw their sprites on **layer 0**, which is
-  rendered before the layer-1 shadows so that something can stand on top of
-  them. A flash gated on layer 1 therefore drew nothing at all for a panel. The
-  layer is a property of the object now: `flashLayer`, 1 in `Object`'s
-  constructor and 0 in `Panel`'s and `E_PulsePanel`'s.
-- **The activator block flashes too.** It is the block, not the switch, that did
-  something when it lands on one, so the seven switches call `p_obj->flash()`
-  beside their own. Its own `anim` wobble is gone with that: it darkened the
-  block for 0.4 s on *any* collision, the block landing on plain ground
-  included, so beside a flash that fires only on an activation it read as a
-  second, competing effect saying something else. It was purely cosmetic -
-  written in the constructor and in `onCollision`, decremented in `onUpdate`,
-  and read in one place, `updateSprites()` - and with it `ActivatorBlock` needs
-  neither override any more.
-
-The day/night switch is the one place where the flash is invisible, and rightly
-so. `LightPanel::onTriggered` and `LightSwitch::onTouchedByPlayer` immediately
-start `crossfade(new CF_ColorBlend(..., 0.1), 1.4)`, whose first tenth draws the
-captured *old* frame under a quad that is already 89% opaque on the first tick.
-The flash is over inside that. Nothing to fix: the switch is doing something far
-more visible than a flash.
-
-Checked in the browser rather than by reading, since reading is what got the
-layer wrong. `WebBuild/test/burst.js` over the title demo, which walks Bob
-across an `ElectricityPanel` and a `Barrage2Panel`, with `FLASH_DECAY` raised to
-0.995 for the run so a 0.15 s event cannot fall between two screenshots: both
-panel tiles jump and decay on the expected curve, the two `CannonSwitch` tiles
-do the same as the layer-1 control, and the `Magnet` Bob never reaches stays
-flat. `WebBuild/test/README.md` records the coordinate mapping and the
-slowed-decay trick.
+Checked in the browser rather than by reading, since reading is what got the layer
+wrong: `WebBuild/test/burst.js` walks Bob over two panels with `FLASH_DECAY` raised
+so a 0.15 s event cannot fall between two screenshots.
 
 
 19. Playable on a phone
 -----------------------
 The browser build runs on a phone smoothly — and cannot be played, because
-everything except the menus needs a keyboard. What is wanted is a small pad
-drawn over the game: the four arrows, and one button each for planting a bomb,
-putting one down, switching character, restarting the level and restarting from
-the hotel. Text fields should raise the device's own keyboard instead.
+everything except the menus needs a keyboard. What is wanted is a small pad drawn
+over the game: the four arrows, and one button each for planting a bomb, putting
+one down, switching character, restarting the level and restarting from the hotel.
+Text fields should raise the device's own keyboard instead.
 
 **Pointing already works; only keys are missing.** Emscripten's SDL turns
-`touchstart`/`touchmove`/`touchend` into `mousedown`/`mousemove`/`mouseup`
-(`libsdl.js`, `SDL.receiveEvent`), so a tap already arrives as a click and the
-whole GUI is operable today. What no phone can produce is a key, and every one
-of the gameplay actions is a key: `Engine::updateVKs` reads `SDL_GetKeyState`,
-and the actions in `main.cpp` are bound to virtual keys on top of that.
+`touchstart`/`touchmove`/`touchend` into `mousedown`/`mousemove`/`mouseup`, so a
+tap already arrives as a click and the whole GUI is operable. What no phone can
+produce is a key, and every gameplay action is a key.
 
-Four pieces, roughly in the order they are worth doing:
+**A prototype exists**: `WebBuild/touch_controls.js`, reachable with `?pad=on`. It
+puts a four-way d-pad low in the left letterbox bar with Swap as a round button
+above it, Bomb and Put as two round buttons in the right one, and Menu, Retry and
+Hotel as a small block high on the right where a mis-hit costs nothing. Swap
+belongs with the gameplay buttons rather than with those three: it is a move made
+mid-level and often, and a finger that misses Retry by one button throws the level
+away. Measured on an emulated Pixel 7 with real touches: every control reaches the
+action it should and clears on release. Stepping and running need no code — the
+movement actions keep `registerAction`'s defaults (`delay 240`, `interval 80`), so
+a tap is one step and a held finger runs. Menu is not optional: `GS_Game` opens
+its menu on Escape and there is no other way out of a level without a keyboard.
 
-**A prototype exists**: `WebBuild/touch_controls.js`, reachable with `?pad=on`. It puts a
-four-way d-pad low in the left letterbox bar with Swap as a round button above it, Bomb and Put
-as two round buttons in the right one, and Menu, Retry and Hotel as a small block high on the
-right where a mis-hit costs nothing. Swap belongs with the gameplay buttons rather than with
-those three: it is a move made mid-level and often, and a finger that misses Retry by one
-button throws the level away.
-Measured on an emulated Pixel 7 with real touches: every control reaches the action it should
-and clears on release. Stepping and running need no code - the movement actions keep
-`registerAction`'s defaults (`delay 240`, `interval 80`), so a tap is one step and a held
-finger runs. Menu is not optional: `GS_Game` opens its menu on Escape and there is no other
-way out of a level without a keyboard. What is still missing is the text-field half (point 3
-below), the haptics (point 5) and a proper place to switch it on other than a URL parameter.
+**The page around it takes care of itself now.** The one tap the browser build
+already demands — `GS_Loading` waits for the gesture that unblocks the
+AudioContext — also puts the canvas into fullscreen and asks for landscape, and
+every later touch that finds the document out of fullscreen puts it back. Mobile
+Chrome offers no way to do either by hand, and at this size portrait is
+unplayable. See `Engine::enforceTouchFullScreen` and `Module.b5_lockOrientation`.
 
-**The page around it takes care of itself now.** The one tap the browser build already
-demands - `GS_Loading` waits for the gesture that unblocks the AudioContext - also puts the
-canvas into fullscreen and asks for landscape, and every later touch that finds the document
-out of fullscreen puts it back. Mobile Chrome offers no way to do either by hand, and at this
-size portrait is unplayable. See `Engine::enforceTouchFullScreen` and `Module.b5_lockOrientation`.
+What is still missing is points 3 and 5 below, and a proper place to switch the
+pad on other than a URL parameter.
 
-1. **The pad itself.** A DOM overlay above the canvas, like
-   `WebBuild/web_bluescreen.cpp` builds one, with `touchstart`/`touchend` on each
-   button. Drawn in the page rather than by the game, so it costs no GL work, it
-   can sit in the black letterbox bars instead of over the picture, and it never
-   goes through `-sLEGACY_GL_EMULATION`.
+1. ~~**The pad itself.**~~ A DOM overlay above the canvas, drawn in the page
+   rather than by the game, so it costs no GL work, can sit in the black letterbox
+   bars, and never goes through `-sLEGACY_GL_EMULATION`.
 
-2. **Getting a press into the engine — from the page, as a DOM key event.**
-   `Engine::setKeyData(SDLKey, int)` looks like the obvious route, and an earlier
-   version of this entry named it: `GS_Menu` drives the title demo through it
-   (`gs_menu.cpp:207`). **It cannot work for gameplay.** `setKeyData` writes
-   `keyData`, which is the raw layer — `wasKeyPressed`, the GUI, the demo. The
-   named actions read somewhere else entirely:
-
-       Uint8* p_keys = SDL_GetKeyState(0);
-       ...
-       vk.down = p_keys[vk.key] ? true : false;          // Engine::updateVKs
-
-   That is SDL's own key-state array, which `setKeyData` never touches, so
-   movement and bombs would stay dead while the menu appeared to work. The demo
-   works precisely because it replays *raw* keys and not actions.
+2. ~~**Getting a press into the engine.**~~ `Engine::setKeyData` looks like the
+   obvious route and **cannot work for gameplay**: it writes `keyData`, the raw
+   layer that `wasKeyPressed`, the GUI and the title demo read. The named actions
+   read `SDL_GetKeyState` in `Engine::updateVKs`, which `setKeyData` never
+   touches, so movement and bombs would stay dead while the menu appeared to work.
+   The demo works precisely because it replays *raw* keys and not actions.
 
    The route that does work is to dispatch an ordinary `keydown`/`keyup` on the
-   document from the pad. Emscripten's SDL updates both its event queue and
-   `SDL.keyboardState` from those, so `SDL_GetKeyState` sees them and the whole
+   document. Emscripten's SDL updates `SDL.keyboardState` from those, so the whole
    action layer works with no engine change at all — including the player's own
-   rebindings, since the pad sends a key and the action layer maps it.
-   Measured with `$A_LEFT` and `$A_PLANT_BOMB` in a running level; the test hook
-   reports `actionsDown` so it stays checkable.
-
-   Two details fall out of it. The press has to be *held* for as long as the
-   finger is down, because `updateVKs` samples once per 20 ms tick. And a
-   synthetic event carries `isTrusted === false`, which is exactly the flag the
-   "hide the pad when a real keyboard is used" rule needs, for free.
+   rebindings, since the pad sends a key and the action layer maps it. Two details
+   fall out: the press has to be *held* for as long as the finger is down, because
+   `updateVKs` samples once per 20 ms tick; and a synthetic event carries
+   `isTrusted === false`, which is exactly the flag the "hide the pad when a real
+   keyboard is used" rule needs, for free.
 
 3. **Text fields.** `GUI_EditBox` reads `event.keysym.unicode` out of SDL key
    events, and a phone only shows its keyboard for a focused DOM element — the
    canvas is not one. So a real `<input>`, positioned over the field and focused
    when the field is, with what it receives fed back as key events. This is the
    piece with the most edge cases (autocorrect, IME, the keyboard covering the
-   field) and the least payoff: it is only needed for naming a level or a
-   campaign.
+   field) and the least payoff: it is only needed for naming a level or a campaign.
 
-4. **Hitting things.** The buttons are the problem the pad does not solve. A
-   finger has no hover, and `Menu.Options` is an 80x80 disc while the Manager's
-   bottom row is four 92x20 buttons — comfortable with a mouse, small under a
-   fingertip. Options, in rising order of work: leave it (a phone screen scales
-   the 640x480 picture up, so the discs are already large), grow the hit areas
-   without moving the art (`GUI_Element::containsPoint` is virtual and already
-   does exactly this for checkbox captions), or lay the dialogs out differently
-   on a touch device.
+4. **Hitting things.** See item 22 — the buttons are the problem the pad does not
+   solve.
 
-5. **Haptic feedback on the pad's buttons.** A glass button gives a finger
-   nothing back: without a click or an edge to feel, the only confirmation that
-   a press landed is what happens on screen a moment later. `navigator.vibrate`
-   is the whole mechanism — a few milliseconds on `pointerdown`, guarded with
+5. **Haptic feedback on the pad's buttons.** A glass button gives a finger nothing
+   back: without a click or an edge to feel, the only confirmation that a press
+   landed is what happens on screen a moment later. `navigator.vibrate` is the
+   whole mechanism — a few milliseconds on `pointerdown`, guarded with
    `if (navigator.vibrate)` so it is silently nothing where the API is absent.
-
    Three things decide whether it is any good:
 
    - **Only on the state change, never on the repeat.** A held direction repeats
-     every 80 ms; buzzing on each repeat is a continuous vibration, not
-     feedback. The d-pad already has the right hook — `setDirection` fires once
-     when the direction changes — and the buttons vibrate in `pointerdown` and
-     not in `press()`.
-   - **It must be switchable off.** Some people hate it, and it costs battery.
-     The pad is a page file that knows nothing of `config.xml`, so the cheap
-     version is `localStorage`, the same idiom as the `b5pad` key; putting it in
-     the game's options dialog instead means a bridge from C++ to JS that does
-     not exist yet.
-   - **Android only.** Safari on iOS has no `navigator.vibrate` at all, so on an
-     iPhone this is simply absent. That is a reason to keep it optional and
-     small, not a reason to skip it.
+     every 80 ms; buzzing on each repeat is a continuous vibration, not feedback.
+     The d-pad already has the right hook — `setDirection` fires once when the
+     direction changes.
+   - **It must be switchable off.** Some people hate it, and it costs battery. The
+     pad is a page file that knows nothing of `config.xml`, so the cheap version
+     is `localStorage`, the same idiom as the `b5pad` key; putting it in the
+     options dialog means a bridge from C++ to JS that does not exist yet.
+   - **Android only.** Safari on iOS has no `navigator.vibrate` at all. That is a
+     reason to keep it optional and small, not a reason to skip it.
 
-**Part done.** The pad is a working prototype; points 3, 4 and 5 are still the
-estimate rather than a design.
+
+20. A freshly built data.zip breaks the browser  — **DONE**, and it was never the zip
+--------------------------------------------------------------------------------------
+Packing `data.zip` from the current tree made the Emscripten build stop finding
+skins and fonts: 28 console errors of the shape `Could not load resource ""`. The
+empty names said the lookup failed, not the file. The native build read the same
+archive without a murmur, and Python's `zipfile` checked every CRC.
+
+**The archive was innocent. `WebBuild/build.sh` was lying about the link.** It
+piped `em++` through `tail`, so the status it tested belonged to `tail`, and the
+check after it only asked whether `blocks5.wasm` existed — which it did, from the
+run before. From `26903c0` on the browser link was genuinely broken, and every
+build during the investigation printed `### LINK OK ###` over it.
+
+What makes that corrupt the *data* rather than simply run old code is where the
+file packager sits: `em++` writes `blocks5.data` **before** `wasm-ld` runs, and the
+table of absolute byte offsets into it lives in `blocks5.js`. A failed link leaves
+a fresh `.data` beside a stale `.js`, so every preloaded file is sliced at the
+previous archive's offsets — and because the entries are consecutive, a `data.zip`
+one byte off shifts everything after it. Every "ruled out" in the old version of
+this entry falls out of that: both packers fail, a byte-identical archive passes,
+padding to within 900 bytes does not help, and a *larger* archive fails differently
+because the slice runs past the end of the buffer.
+
+Fixed in `fbe8fba`: `build.sh` reads `${PIPESTATUS[0]}` and exits 1.
+
+**The lesson is the build script, not the packer.** A check that can pass on a
+previous run's artifact is worse than no check, and it cost a day of looking at
+zip files.
+
+
+21. The browser build on a phone  — **DONE** for the page, item 19 owes the controls
+--------------------------------------------------------------------------------------------
+It ran on a real phone before any of this — smooth graphics and sound, the GUI
+usable but fiddly. The page around it was still the one Emscripten generates,
+which is a desktop page. What was wrong:
+
+- **No `<meta name="viewport">`**, so a phone laid out at a ~980px virtual
+  viewport and scaled down: wrong canvas from the first frame, a double-tap zoom
+  in front of every button, and the legacy 300 ms click delay. `shell.html`
+  replaces the generated page and adds `touch-action: none` and
+  `overscroll-behavior: none` with it.
+- **`-sINITIAL_MEMORY` was 256 MiB** with `ALLOW_MEMORY_GROWTH` already on.
+  Measured, the heap grows once to 40 MiB and stays there through a played level,
+  so it is 48 MiB now — on a phone that is the difference between a tab that lives
+  and one that does not.
+- **Nothing installable and nothing cached**: 14 MB re-downloaded every visit.
+  `manifest.json` and `sw.js` make it an add-to-home-screen app that works
+  offline, which is also the answer to iPhone Safari having no element-level
+  Fullscreen API. The worker can never serve one build's `.js` beside another's
+  `.data`; see item 20 and the head of `sw.js`.
+- **Saves could be evicted**: `navigator.storage.persist()`.
+
+**Two real bugs in the game came out of the touch test**, and neither had anything
+to do with the page. `GUI::update()` recomputed `p_elementAtCursor` at the
+*bottom*, so a click went to whatever had been under the cursor at the end of the
+previous logic tick — invisible with a mouse, since you cannot click where the
+pointer is not and there is always a tick between arriving and pressing, but a
+finger has no such gap. And `Engine` only took the cursor position from
+`SDL_MOUSEMOTION`, which a touch never produces. Either fix alone changes nothing;
+together they are why a tap lands. That was the whole of "the buttons were a bit
+difficult" — the hit areas turned out to be innocent.
+
+
+22. A finger is not a point: hit testing with a tap radius
+----------------------------------------------------------
+Item 21 got taps to land where the finger is. What it did not do is make the
+targets big enough for a finger: `GUI::getElementAt` tests a single point, which
+is right for a mouse and wrong for a fingertip whose contact patch is eight to ten
+millimetres across. The accessibility guidance everybody uses is a minimum target
+of about 44 CSS px.
+
+**The numbers say how far off it is.** The GUI is laid out in the game's 640x480
+space — buttons are eighteen pixels high, the Manager's bottom row is four 92x20
+buttons — and that space is letterboxed into the canvas. On an emulated Pixel 7 in
+landscape the present rect is 549x412, a scale of 0.858, so an eighteen-pixel
+button is **15 CSS px** on the glass: about a third of the recommended minimum. On
+a narrower phone it is worse, because the scale is `min(w/640, h/480)` and the
+height usually binds.
+
+**What unit the radius lives in.** It is a property of a finger, so it belongs in
+CSS pixels, and the conversion into game coordinates is the inverse of the present
+transform:
+
+    scale      = pw / 640.0        // from Engine::computePresentRect
+    radiusGame = radiusCss / scale
+
+That is the "the smaller the game renders, the bigger the circle has to be"
+intuition, falling straight out of the transform rather than needing a second
+rule. It works because `b5_fitCanvas` sizes the drawing buffer in CSS pixels, so
+canvas pixels and CSS pixels are the same thing here — **if that ever becomes a
+device-pixel-ratio-sized buffer, this formula changes with it.** With the barrel
+distortion on the radius is not constant across the picture; near the edge it
+should be divided by the local derivative of `warpToSource`, or simply left alone,
+since the CRT filter is a desktop indulgence.
+
+**The sampling idea**: lay a fixed grid over a disc of that radius around the tap,
+run the ordinary `getElementAt` at each sample, and count the votes. It inherits
+everything the point test knows — z-order, and `containsPoint` being virtual so a
+checkbox is hit on its caption too — and a 5x5 or 7x7 grid clipped to the disc is
+21 to 37 lookups once per tap, which is nothing.
+
+Four things to get right, three of which "highest count wins" gets wrong:
+
+- **A large element must not outvote a small one it surrounds.** A pane behind a
+  button wins on area every time. Two composable fixes: count only elements that
+  are active and really visible, and weight each sample by its distance from the
+  centre.
+- **The exact hit still wins.** If the centre sample lands on an active element,
+  take it and do not vote. That makes this a *fallback* for a near miss rather
+  than a reinterpretation of every tap, and it cannot make an accurate tap worse.
+- **Only for touch.** A mouse is exact and must stay exact. SDL 1.2 has no flag,
+  but Emscripten's SDL pushes an `SDL_FINGERDOWN` alongside the synthetic mouse
+  event, so the information is there; failing that, `pre.js` can set one.
+- **The cursor itself must not move.** Only the element receiving the click is
+  chosen by the vote; `cursorPosition` stays where the finger landed, or the level
+  editor would place tiles somewhere other than where you touched.
+
+**The cheaper alternative worth measuring against it**: grow each candidate's hit
+area by the radius, keep those that then contain the point, and pick the one whose
+true distance is smallest. O(elements), no sampling, exactly "the nearest target
+within a finger's reach", and no grid resolution to tune; the sampling version is
+easier to trust where `containsPoint` is overridden into a non-rectangular shape.
+Both hang off the one line in `GUI::update()` that computes `p_elementAtCursor`.
+
+`WebBuild/test/mobile.js` is where this gets its test: tap a few pixels *outside*
+a small button and expect it to fire.
 
 
 How these connect
 -----------------
-    2 (scaling, done) ────┬─> 8 (shader upscaler, no readback)  — the readback is gone
-                          ├─> 5 (Linux: the __asm block no longer blocks GCC/Clang)
-                          ├─> 3 (done: libs/bin is one import library)
-                          └─> 10 (the FBO is the shared prerequisite, and it is in)
+    2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
+                  ├─> 5 (Linux: the __asm block no longer blocks GCC/Clang)
+                  ├─> 3 (libs/bin is one import library)
+                  └─> 10 (the FBO is the shared prerequisite)
 
-   10 (window, done) ──────> did not need SDL2 after all: a borderless window
-                             styled behind SDL's back keeps the GL context alive
+   10 (window) ────> did not need SDL2 after all: a borderless window styled
+                     behind SDL's back keeps the GL context alive
 
-    3 (all from source) ────> 5 (Linux needs an ffmpeg answer anyway)
+    3 ─────────────> 5 (Linux needed an ffmpeg answer anyway)
 
-    5 (Linux) <────────────── WebBuild/platform_stubs.cpp already does most of it
+    7 (English comments) ───> the encoding half is done; only the translation left
 
-    7 (English comments) ───> pairs with the UTF-8 conversion; do them together
+   14 (overwrite) ──> 15 (delete) ──> 17 (the Manager): one isBuiltIn() serves
+                      all three, and 17 is where the delete lands
 
-   14 (overwrite, but not a shipped name) ──> 15 (delete): one isBuiltIn() serves both
-                                                 — both done, the predicate is shared
-
-   15 (delete) ──> 17 (one Manager dialog): 15 is what the button does,
-                   17 is the button — 17 is where the delete lands
+   19 (controls) <──> 22 (tap radius): the pad answers the keys, 22 the buttons
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
 an increment on it.
 
-*Done since this list was written:* stb_image in place of SDL_image, the standard
-unordered containers in place of `stdext::hash_map`, SDL 1.2.15 compiled from
-source, `/MT`, minih264 + shine + minimp4 in place of ffmpeg, a framebuffer object
-with a shader upscaler in place of hq2x, and a window that resizes and goes fullscreen
-without ever losing its GL context — which together closed items 2, 3, 9 and 10,
-and the bug that made recorded videos unplayable.
-Out of the tree: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`, `zlib1.dll`, the
-four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`, `hq2x32.obj`, ten import
-libraries and the `msinttypes` shim. What ships now is three executables, **one**
-DLL that needs nothing but Windows, and the data.
-
-
-20. A freshly built data.zip breaks the browser  — **DONE**, and it was never the zip
---------------------------------------------------------------------------------------
-Pack `data.zip` from the current tree and the Emscripten build stopped finding the
-skins and the fonts: 28 console errors, all of the shape `Could not parse tileset
-XML file ""`, `Could not load resource ""`, `Skin "" has no usable tileset`. The
-empty names said the lookup failed, not the file. The native build read the very
-same archive without a murmur, and so did Python's `zipfile`: all 96 entries
-decrypted, every CRC checked out, and the extracted bytes were identical to the
-archive that worked.
-
-**The archive was innocent. `WebBuild/build.sh` was lying about the link.** It
-piped `em++` through `tail`, so the status it tested belonged to `tail`, and the
-check after it only asked whether `blocks5.wasm` existed - which it did, from the
-run before. From `26903c0` on, the browser link was genuinely broken
-(`audiocapture.cpp`'s PulseAudio half sat in the `#else` of `#ifdef _WIN32`, so
-Emscripten compiled it and hit SDL semaphores the port does not have), and every
-build during the investigation printed `### LINK OK ###` over it.
-
-What makes that corrupt the *data* rather than simply run old code is where the
-file packager sits. `em++` writes `blocks5.data` **before** `wasm-ld` runs, and
-the table that says what is inside it lives in `blocks5.js`:
-
-    loadPackage({files:[{filename:"/.update_checker",start:0,end:4},
-                        {filename:"/data.zip",start:4,end:3191909},
-                        {filename:"/levels/campaigns/blocks.zip",start:3191909,end:11472606}, ...
-
-Absolute byte offsets. A failed link leaves a **fresh `blocks5.data` beside a
-stale `blocks5.js`**, so every preloaded file is sliced at the offsets of the
-*previous* archive - and because the entries are consecutive, a `data.zip` even
-one byte off shifts everything that follows it: the campaign, the skins, the
-fonts. That is the empty resource name, and it is why the failure looked like a
-zip problem.
-
-Measured, with a deliberate link failure on the real error: `blocks5.js` and
-`blocks5.wasm` unchanged, `blocks5.data` rewritten. Every "ruled out" in the old
-version of this entry falls out of that:
-
-- Both packers fail — any new archive moves the offsets.
-- An archive byte-identical to the working one passes — same bytes, same length,
-  the stale table still fits.
-- Padding to within 900 bytes does not help — near is not equal.
-- A *larger* archive fails differently, the game not booting at all — the slice
-  now runs past the end of the buffer.
-
-Fixed in `fbe8fba`: `build.sh` reads `${PIPESTATUS[0]}` for `em++`'s own status
-and exits 1, and the existence check that follows exits 1 too. Verified by
-feeding it a bad `-s` flag - `### LINK FAILED ###`, status 1. `audiocapture.cpp`
-got the browser its own branch back in the same commit.
-
-Retested afterwards with three freshly packed archives, each different from the
-one that had been lying in the tree - with `optipng` (3191905 bytes), without it
-(3191979), and the intermediate - building both browser configurations and
-running `WebBuild/test/smoke.js` against each: clean, no console errors, no
-resource failures.
-
-**The lesson is the build script, not the packer.** A check that reports success
-from the artifact of a previous run is worse than no check, and it cost a day of
-looking at zip files.
-
-
-21. The browser build on a phone  — **DONE** for the page, item 19 still owes the controls
---------------------------------------------------------------------------------------------
-It ran on a real phone before any of this - smooth graphics and sound, and the GUI usable but
-fiddly. The page around it was still the one Emscripten generates, which is a desktop page.
-What was wrong, in the order it mattered:
-
-- **No `<meta name="viewport">`.** A phone then lays out at a ~980px virtual viewport and
-  scales the result down: the canvas is wrong from the first frame, every button carries a
-  double-tap zoom in front of it, and the legacy 300 ms click delay stays on. `shell.html`
-  replaces the generated page and sets it, plus `touch-action: none` and
-  `overscroll-behavior: none` so a swipe belongs to the game rather than to scrolling.
-
-- **`-sINITIAL_MEMORY=268435456`.** 256 MiB reserved up front with `ALLOW_MEMORY_GROWTH`
-  already on. Measured from a 16 MiB start, the heap grows once to 40 MiB and stays there
-  through everything including a played level, so it is 48 MiB now - 6.4x less reserved, and
-  on a phone that is the difference between a tab that lives and one that does not.
-
-- **Nothing installable and nothing cached.** 14 MB re-downloaded every visit. `manifest.json`
-  and `sw.js` make it an add-to-home-screen app that launches without the address bar and
-  works offline - which is also the answer to iPhone Safari having no element-level Fullscreen
-  API. The worker is built so it can never serve `blocks5.js` beside another build's
-  `blocks5.data`; see item 20 and the head of `sw.js`.
-
-- **Saves could be evicted.** `navigator.storage.persist()`.
-
-Two real bugs in the game came out of the touch test, and neither had anything to do with the
-page:
-
-- **`GUI::update()` recomputed `p_elementAtCursor` at the bottom**, so a click always went to
-  whatever had been under the cursor at the end of the *previous* logic tick. Invisible with a
-  mouse - you cannot click where the pointer is not, and there is always a tick between
-  arriving and pressing. A finger has no such gap.
-- **`Engine` only took the cursor position from `SDL_MOUSEMOTION`**, and a touch produces no
-  motion at all, so the press landed wherever the cursor had been left. Both button events
-  take the position now.
-
-Either fix alone changes nothing; together they are why a tap lands. That is the whole of "the
-buttons were a bit difficult" - the hit areas turned out to be innocent.
-
-Checked by `WebBuild/test/mobile.js` on an emulated Pixel 7 in landscape: ten checks, from the
-layout viewport to a reload with the network switched off. **The virtual controls are still
-item 19** - everything except the menus needs a keyboard, and none of the work here changes
-that.
-
-
-22. A finger is not a point: hit testing with a tap radius
-----------------------------------------------------------
-Item 21 got taps to land where the finger is. What it did not do is make the targets big
-enough for a finger, and they are not: `GUI::getElementAt` tests a single point, which is
-exactly right for a mouse and wrong for a fingertip whose contact patch is eight to ten
-millimetres across. The accessibility guidance everybody uses is a minimum target of about
-44 CSS px.
-
-**The numbers say how far off it is.** The GUI is laid out in the game's 640x480 space -
-the buttons are eighteen pixels high, the Manager's bottom row is four 92x20 buttons - and
-that space is letterboxed into the canvas. On the emulated Pixel 7 in landscape (915x412
-CSS px) the present rect is 549x412, a scale of 0.858, so an eighteen-pixel button is
-**15 CSS px** on the glass: about a third of the recommended minimum. On a narrower phone
-it is worse, because the scale is `min(w/640, h/480)` and the height usually binds.
-
-**What unit the radius lives in.** It is a property of a finger, so it belongs in CSS
-pixels, which is the closest thing a browser offers to a physical unit; the conversion into
-game coordinates is the inverse of the present transform and is already available:
-
-    scale        = pw / 640.0          // Engine::computePresentRect gives px, py, pw, ph
-    radiusGame   = radiusCss / scale
-
-That is the "the smaller the game renders, the bigger the circle has to be" intuition, and
-it falls straight out of the transform rather than needing a second rule. It works because
-`b5_fitCanvas` sizes the drawing buffer in CSS pixels (`c.width = round(rect.width)`), so
-canvas pixels and CSS pixels are the same thing here — **if that ever changes to a
-device-pixel-ratio-sized buffer, this formula has to change with it.** With a barrel
-distortion on, the radius is not constant across the picture; near the edge it should be
-divided by the local derivative of `warpToSource`, or simply left alone, since the CRT
-filter is a desktop indulgence.
-
-**The sampling idea**, and it is a good one: lay a fixed grid over a disc of that radius
-around the tap, run the ordinary `getElementAt` at each sample, and count the votes. It
-inherits everything the point test already knows - z-order, `containsPoint` being virtual so
-a checkbox is hit on its caption too - and a 5x5 or 7x7 grid clipped to the disc is 21 to 37
-lookups once per tap, which is nothing.
-
-Four things to get right, three of which the plain "highest count wins" rule gets wrong:
-
-- **A large element must not outvote a small one it surrounds.** A pane behind a button wins
-  on area every time. Two ways out, and they compose: count only elements that are active and
-  really visible (a background pane is neither a target nor active), and weight each sample by
-  its distance from the centre so the middle of the disc dominates.
-- **The exact hit still wins.** If the centre sample lands on an active element, take it and
-  do not vote at all. That makes the whole thing a *fallback* for a near miss rather than a
-  reinterpretation of every tap, which is a much smaller change to reason about and cannot
-  make an accurate tap worse.
-- **Only for touch.** A mouse is exact and must stay exact. SDL 1.2 has no flag for this;
-  in the browser Emscripten's SDL does push an `SDL_FINGERDOWN` alongside the synthetic
-  mouse event, so the information is there, and failing that `pre.js` can set one.
-- **The cursor itself must not move.** Only the element that receives the click is chosen by
-  the vote; `cursorPosition` stays where the finger actually landed, or the level editor
-  would place tiles somewhere other than where you touched.
-
-**The cheaper alternative worth measuring against it**: grow each candidate's hit area by
-the radius, keep those that then contain the point, and pick the one whose true distance to
-the point is smallest. That is O(elements) with no sampling and gives exactly "the nearest
-target within a finger's reach". The sampling version is easier to trust where
-`containsPoint` is overridden into a non-rectangular shape; the grown-rect version is exact
-and has no grid resolution to tune. Both hang off the one line in `GUI::update()` that
-computes `p_elementAtCursor`, so either can be tried without touching anything else.
-
-`WebBuild/test/mobile.js` is where this gets its test: tap a few pixels *outside* a small
-button and expect it to fire.
+What left the tree along the way: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`,
+`zlib1.dll`, the four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`,
+`hq2x32.obj`, ten import libraries and the `msinttypes` shim. What ships now is
+three executables, **one** DLL that needs nothing but Windows, and the data.
