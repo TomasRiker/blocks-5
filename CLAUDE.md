@@ -993,6 +993,19 @@ pane's *Try it*) and never on quit, so a browser player who never opens the opti
 language detected afresh at every start; and every GL object the Engine owns is simply left to
 die with the page.
 
+**The flag is load-bearing and must not be tidied away.** Emscripten ends the call with
+`throw "unwind"`, and `callMain` swallows it without restoring `__stack_pointer` — so the
+abandoned frames stay above it and every later `requestAnimationFrame` allocates below them,
+which is exactly what keeps `main()`'s locals alive. Its three game states are such locals, and
+`Engine::registerGameState` keeps raw pointers to them. Passing 0 instead breaks two things at
+once: `mainLoop()` would return, so the `engine.exit()` after it would tear the engine down
+*before the first frame* and the loop would then run against the wreckage; and `main()` would
+return, destroying the game states the Engine still points at. Getting rid of the flag is
+therefore a restructure — game states off the stack, `exit()` moved into the quit path — and not
+a one-word change. To persist settings in the browser, a `pagehide` handler calling
+`saveConfig()` is the smaller answer, and it catches a closed tab, which the Quit button never
+sees.
+
 **The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a
 Windows blue screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT`
 case in `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it.
