@@ -93,6 +93,25 @@ b5_geometry()
 	B5_X=$X; B5_Y=$Y; B5_W=$WIDTH; B5_H=$HEIGHT
 }
 
+# Wo die Zeichenflaeche wirklich anfaengt - und das ist nicht, was
+# b5_geometry liefert. Unter einem umhaengenden Fenstermanager steckt das
+# Fenster des Spiels in einem Rahmen, und xdotool meldet dessen Ecke; der
+# Titelbalken verschiebt damit jeden Klick um seine Hoehe. Bei einem
+# fingergrossen Menueknopf faellt das nie auf, bei einem 18 Pixel hohen Knopf
+# geht jeder Klick daneben. xwininfo nennt die absolute Ecke des Inhalts
+# selbst. Fehlt es, bleibt es beim Rahmen - dann ist es wie vorher.
+b5_clientOrigin()
+{
+	local info
+	info=$(xwininfo -id "$B5_WIN" 2>/dev/null)
+	B5_CX=$(printf '%s\n' "$info" | sed -n 's/.*Absolute upper-left X: *\(-\?[0-9]*\).*/\1/p')
+	B5_CY=$(printf '%s\n' "$info" | sed -n 's/.*Absolute upper-left Y: *\(-\?[0-9]*\).*/\1/p')
+	if [ -z "$B5_CX" ] || [ -z "$B5_CY" ]; then
+		b5_geometry
+		B5_CX=$B5_X; B5_CY=$B5_Y
+	fi
+}
+
 # Eine Anfrage an den Haken stellen und die Antwort ausgeben.
 b5_ask()
 {
@@ -173,13 +192,13 @@ b5_click()
 
 	# Und nun die Fensterkoordinate, dieselbe Rechnung wie in presentFrame().
 	local wx wy
-	b5_geometry
+	b5_clientOrigin
 	wx=$(b5_json "el('$path')['win'][0] + el('$path')['win'][2]//2")
 	wy=$(b5_json "el('$path')['win'][1] + el('$path')['win'][3]//2")
 
 	# Bewegen, ruhen lassen, druecken, halten, loslassen: das Spiel liest die
 	# Maus einmal je Logiktakt, ein Klick in einer Millisekunde faellt durch.
-	xdotool mousemove $((B5_X + wx)) $((B5_Y + wy))
+	xdotool mousemove $((B5_CX + wx)) $((B5_CY + wy))
 	sleep 0.4; xdotool mousedown 1; sleep 0.4; xdotool mouseup 1; sleep 1.5
 }
 

@@ -106,8 +106,9 @@ diese Fehler.
     LinuxBuild/build.sh hooks && LinuxBuild/test/smoke.sh
 
 Startet Xvfb und openbox, laesst das Spiel darin laufen, klickt sich durch Menue,
-Optionen und Manager, spielt ein Level an und prueft dort Escape, schaltet ins
-Vollbild und zurueck, loest ein Bildschirmfoto aus und beendet ueber Escape.
+Optionen, die Roehrenregler und den Manager, spielt ein Level an und prueft dort
+Escape, schaltet ins Vollbild und zurueck, loest ein Bildschirmfoto aus und
+beendet ueber Escape.
 
 Wohin die Bilder gehen, sagt `B5_SHOTS` (Vorgabe `/tmp/blocks5-smoke`). **Dieses
 Verzeichnis wird beim Start geloescht und neu angelegt** - also ein eigenes
@@ -124,6 +125,16 @@ Logiktakt und legt die Antwort daneben.
 Was das bringt, zeigt der erste Klick des Tests: beim allerersten Start liegt
 `Menu.CrtPane` ueber dem ganzen Bild, und ein Klick auf die Mitte von
 `Menu.Options` landet dort. Einem Bildschirmfoto sieht man das nicht an.
+
+**Wohin der Zeiger gesetzt wird, sagt `xwininfo` und nicht `xdotool`.** Unter
+openbox steckt das Fenster des Spiels in einem Rahmen, und
+`xdotool getwindowgeometry` meldet dessen Ecke; der Titelbalken verschiebt damit
+jeden Klick um seine Hoehe nach unten. Bei den fingergrossen Knoepfen des
+Hauptmenues faellt das nie auf - gemessen zehn Spielpixel, und die Knoepfe sind
+sechzig hoch. Beim 18 Pixel hohen *CRT settings ...* ging jeder Klick daneben,
+ohne Fehlermeldung: die Trefferabfrage rechnet in Spielkoordinaten und war
+zufrieden, nur die Maus stand woanders. `xwininfo -id` nennt die absolute Ecke
+des Inhalts selbst, und danach stimmt es auf einen Pixel.
 
 Und zwei Dinge ueber Tasten, die genau das Gegenteil voneinander wollen: was die
 GUI liest (Escape, Alt+Return), kommt als SDL-Ereignis und muss getippt werden -

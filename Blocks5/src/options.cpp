@@ -17,18 +17,18 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Sharp"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_RadioButton*>(getChild("Options.Smooth"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.CrtSettings"))->connectClicked(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->connectChanged(this, &Options::handleClick);
-	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_Button*>(getChild("CrtOptions.Close"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetAll"))->connectClicked(this, &Options::handleClick);
@@ -83,7 +83,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// Shader und verschwindet ohne ihn genauso.
 	const char* pp_filterNames[4] =
 	{
-		"Options.SharpFit", "Options.Nearest", "Options.Bilinear", "Options.Crt"
+		"Options.SharpFit", "Options.Sharp", "Options.Smooth", "Options.Crt"
 	};
 	const bool available[4] = { engine.canUseSharpFit(), true, true, engine.canUseCrt() };
 
@@ -127,24 +127,24 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 	switch(engine.getEffectiveUpscaleFilter())
 	{
-	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->setChecked(); break;
+	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Sharp"))->setChecked(); break;
 	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->setChecked(); break;
 	case Engine::UF_CRT:        static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->setChecked(); break;
-	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->setChecked(); break;
+	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Smooth"))->setChecked(); break;
 	}
 
 	// Reglerstellungen aus der Engine holen, 0..1 als 0..100.
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtScanline()));
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtCurvature()));
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtBloom()));
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtFlicker()));
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtScanFlicker()));
-	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->setScroll(
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtConvergence()));
 	getChild("CrtOptions")->hide();
 
@@ -181,7 +181,7 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 
 			// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
 			// zuerst. Es hat nur OK - beide Tasten schliessen es.
-			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.CrtClose"));
+			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.Close"));
 			else if(key == SDLK_ESCAPE)             handleClick(getChild("Options.Cancel"));
 			else                                    handleClick(getChild("Options.OK"));
 			return;
@@ -249,19 +249,19 @@ void Options::handleClick(GUI_Element* p_element)
 
 		// Skalierungsfilter speichern. Wirkt sofort, das naechste Bild kommt
 		// schon durch den neuen Filter auf den Schirm.
-		if(static_cast<GUI_RadioButton*>(getChild("Options.Nearest"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.Bilinear"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
+		if(static_cast<GUI_RadioButton*>(getChild("Options.Sharp"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
+		else if(static_cast<GUI_RadioButton*>(getChild("Options.Smooth"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
 
 		// Die Roehrenregler wirken sofort - beim Schieben soll man sehen, was sie
 		// tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
-		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
-		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
-		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());
-		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->getScroll());
-		engine.setCrtScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->getScroll());
-		engine.setCrtConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->getScroll());
+		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
+		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
+		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->getScroll());
+		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
+		engine.setCrtScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
+		engine.setCrtConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
 
 		if(name == "CrtSettings")
 		{
@@ -272,7 +272,7 @@ void Options::handleClick(GUI_Element* p_element)
 			getChild("CrtOptions")->show();
 			getChild("CrtOptions")->focus();
 		}
-		else if(name == "CrtClose")
+		else if(name == "Close")
 		{
 			getChild("CrtOptions")->hide();
 			getChild("Options")->focus();

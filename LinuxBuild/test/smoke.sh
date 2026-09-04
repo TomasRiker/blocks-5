@@ -62,6 +62,34 @@ else
 	b5_note "gehaltenes Escape im Optionsdialog hat das Spiel beendet"
 fi
 
+# --- Die Regler des Roehrenfilters ------------------------------------------
+# Der einzige Dialog, dessen Elemente alle ueber getChild() angesprochen
+# werden und den sonst kein Test aufmacht. "CRT settings ..." schaltet den
+# Filter dabei absichtlich mit ein, das gehoert zum Knopf.
+b5_click Menu.Options
+b5_expectShown OptionsPane.Options
+b5_click OptionsPane.Options.CrtSettings
+b5_expectShown OptionsPane.CrtOptions
+for slider in Scan Curve Bloom Flicker ScanFlicker Converge; do
+	b5_expectShown "OptionsPane.CrtOptions.$slider"
+done
+b5_shot 3b-crt
+
+# Ueber OK wieder zu. Der Knopf heisst schlicht Close - Options::handleClick
+# vergleicht den Namen, und das ist die eine Zeichenkette hier, die keine
+# Pruefung sonst ansieht.
+b5_click OptionsPane.CrtOptions.Close
+b5_expectShown OptionsPane.CrtOptions false
+
+# Und den Filter ausdruecklich wieder zurueckstellen, nicht ueber Abbrechen:
+# das ruft loadConfig(), und beim ersten Lauf gibt es noch keine config.xml,
+# die etwas zurueckzunehmen haette. Bliebe die Roehre an, saehe der naechste
+# Lauf ein gewoelbtes Bild - und der Testhaken rechnet die Woelbung nicht mit,
+# also lande jeder Klick daneben.
+b5_click OptionsPane.Options.SharpFit
+b5_click OptionsPane.Options.OK
+b5_expectShown OptionsPane.Options false
+
 # --- Manager: die vier Arten durchschalten ----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager
