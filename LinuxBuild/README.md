@@ -106,8 +106,12 @@ diese Fehler.
     LinuxBuild/build.sh hooks && LinuxBuild/test/smoke.sh
 
 Startet Xvfb und openbox, laesst das Spiel darin laufen, klickt sich durch Menue,
-Optionen und Manager, schaltet ins Vollbild und zurueck, loest ein Bildschirmfoto
-aus und beendet ueber Escape.
+Optionen und Manager, spielt ein Level an und prueft dort Escape, schaltet ins
+Vollbild und zurueck, loest ein Bildschirmfoto aus und beendet ueber Escape.
+
+Wohin die Bilder gehen, sagt `B5_SHOTS` (Vorgabe `/tmp/blocks5-smoke`). **Dieses
+Verzeichnis wird beim Start geloescht und neu angelegt** - also ein eigenes
+angeben und kein Verzeichnis, in dem noch etwas anderes liegt.
 
 Geklickt wird auf Elementnamen und nicht auf Koordinaten. Der Testhaken aus
 `Blocks5/src/testhooks.cpp` - derselbe, den der Browser benutzt - legt den

@@ -107,6 +107,39 @@ b5_expectShown Menu.ManagerPane.Manager false
 b5_expectState GS_Menu
 b5_shot 5-back
 
+# --- Im Spiel: Escape auf und wieder zu -------------------------------------
+# Das Spielmenue ist die einzige Stelle, an der Escape zweierlei bedeutet, und
+# das laesst sich nur in einem laufenden Level pruefen. Es ist auch die Stelle,
+# an der die Wiederholung wehtut: SDL_EnableKeyRepeat(140, 60) macht aus einer
+# gehaltenen Taste ein halbes Dutzend Ereignisse, und ohne die Sperre in
+# GS_Game klappte das Menue auf und zu, solange der Finger liegt.
+b5_click Menu.StartGame
+b5_waitForState GS_SelectLevel
+b5_click SelectLevel.PlayLevel
+b5_waitForState GS_Game
+sleep 2
+
+b5_key Escape
+b5_expectShown Game.MenuPane.Menu
+b5_expectState GS_Game
+b5_shot 5b-ingamemenu
+
+b5_key Escape
+b5_expectShown Game.MenuPane.Menu false
+b5_expectState GS_Game
+
+# Und gehalten: einmal auf, und dabei bleibt es. Frueher haette das Spiel hier
+# gar nichts getan; falsch gemacht flackert es.
+b5_hold Escape
+b5_expectShown Game.MenuPane.Menu
+b5_expectState GS_Game
+
+# Zurueck ueber das Menue des Spiels, damit der Rest wieder im Hauptmenue steht.
+b5_click Game.MenuPane.Menu.Quit
+b5_waitForState GS_SelectLevel
+b5_key Escape
+b5_expectState GS_Menu
+
 # --- Vollbild und zurueck ---------------------------------------------------
 # Das laeuft ueber den Fenstermanager, nicht ueber SDL - siehe
 # LinuxBuild/linux_window.cpp.
