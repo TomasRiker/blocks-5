@@ -833,6 +833,13 @@ turn, because this pass has no depth buffer and only up to a half turn does ever
 further step of paper come closer to the viewer, which is what makes back-to-front
 painting correct. `CLAUDE.md` has the rest.
 
+The texture is borrowed from a small pool in the Engine, because more than one note can be on
+screen: stepping from one note onto its neighbour overlaps them for as long as the outgoing one
+takes to fade. One shared texture was not wrong there - each note bakes immediately before it
+draws - but it cost a render-to-texture and an FBO round trip per visible note per frame. A
+note gives its texture back as soon as it is invisible, so the pool is as large as the most
+notes ever seen at once and no larger.
+
 Left undone deliberately: **no mipmaps**. The note is minified while it flies in
 and out, and the 3D cube crossfade has the same problem at a steep angle; both
 want the same answer, and it is a separate piece of work.

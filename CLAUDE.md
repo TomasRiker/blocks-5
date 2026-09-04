@@ -701,10 +701,19 @@ therefore drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
 
 The texture belongs to the **Engine** and not to the note, and that is not tidiness: it falls
 with the framebuffer object, which `Engine::exit` destroys while the GL context still stands,
-whereas an `Object` is destroyed only after `main()` has returned. There is exactly one,
-because only one note can be on screen; a second note baking into it takes it over, which is
-what `p_textureOwner` records — without it the first note would find its own text unchanged on
-the next visit and show the other one's sheet.
+whereas an `Object` is destroyed only after `main()` has returned.
+
+**More than one note can be on screen**, which is the whole reason it is a pool
+(`acquireOffscreenTexture` / `releaseOffscreenTexture`) rather than the single texture it
+started as: two notes on neighbouring fields overlap for the third of a second the outgoing
+one takes to fade. Sharing one texture between them was not *wrong* — each note bakes
+immediately before it draws, and GL runs the commands in order — but it meant a full
+render-to-texture, an FBO switch and a read-after-write stall **per visible note per frame**,
+for as long as they overlapped. A note borrows a texture when it first bakes and gives it back
+in `onUpdate` the moment `shownAlpha` reaches zero (and in `onRemove`, since the destructor
+runs when there may be no Engine left to hand it to), so the pool never grows past the largest
+number of notes visible at once — walking a row of them holds four or five, not one per note
+in the level.
 
 **The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
 `ROLL_TURNS` (0.45) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective

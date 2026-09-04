@@ -85,8 +85,6 @@ Engine::Engine()
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
 	renderTargetID = 0;
-	offscreenTextureID = 0;
-	offscreenTextureSize = Vec2i(0, 0);
 	renderTargetScissor = false;
 	presentVertexBuffer = 0;
 	useFrameBuffer = false;
@@ -1779,20 +1777,35 @@ void Engine::destroyFrameBuffer()
 	if(frameBufferID)        { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
 	if(frameTextureID)       { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
 	if(renderTargetID)       { glExtDeleteFramebuffers(1, &renderTargetID);       renderTargetID = 0; }
-	if(offscreenTextureID)   { glDeleteTextures(1, &offscreenTextureID);          offscreenTextureID = 0; }
-	offscreenTextureSize = Vec2i(0, 0);
+
+	for(std::vector<OffscreenTexture>::const_iterator i = offscreenTextures.begin();
+		i != offscreenTextures.end(); ++i)
+	{
+		glDeleteTextures(1, &i->id);
+	}
+	offscreenTextures.clear();
 }
 
-uint Engine::getOffscreenTexture(const Vec2i& size)
+uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
 	if(!useFrameBuffer) return 0;
-	if(offscreenTextureID && offscreenTextureSize == size) return offscreenTextureID;
-	if(offscreenTextureID) { glDeleteTextures(1, &offscreenTextureID); offscreenTextureID = 0; }
 
-	glGenTextures(1, &offscreenTextureID);
-	if(!offscreenTextureID) return 0;
+	// Eine passende, die gerade niemand hat?
+	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
+		i != offscreenTextures.end(); ++i)
+	{
+		if(!i->lent && i->size == size) { i->lent = true; return i->id; }
+	}
 
-	glBindTexture(GL_TEXTURE_2D, offscreenTextureID);
+	OffscreenTexture entry;
+	entry.id = 0;
+	entry.size = size;
+	entry.lent = true;
+
+	glGenTextures(1, &entry.id);
+	if(!entry.id) return 0;
+
+	glBindTexture(GL_TEXTURE_2D, entry.id);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0,
 				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1804,8 +1817,21 @@ uint Engine::getOffscreenTexture(const Vec2i& size)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	offscreenTextureSize = size;
-	return offscreenTextureID;
+	offscreenTextures.push_back(entry);
+	return entry.id;
+}
+
+void Engine::releaseOffscreenTexture(uint textureID)
+{
+	// Nur zurueckgestellt, nicht geloescht: der naechste Zettel bekommt
+	// dieselbe. Nach destroyFrameBuffer() ist die Liste leer und ein
+	// verspaetetes Zurueckgeben tut nichts - genau richtig, denn dann gibt es
+	// die Textur nicht mehr.
+	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
+		i != offscreenTextures.end(); ++i)
+	{
+		if(i->id == textureID) { i->lent = false; return; }
+	}
 }
 
 bool Engine::beginRenderToTexture(uint textureID,

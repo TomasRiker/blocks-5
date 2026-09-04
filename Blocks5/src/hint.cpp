@@ -61,13 +61,6 @@ namespace
 	// was sich noch einrollen koennte.
 	const int ROLL_UP_SPEED = 3;
 
-	// Es gibt eine Textur zum Hineinzeichnen und beliebig viele Zettel. Zu sehen
-	// ist immer nur einer, gebacken wird also auch nur fuer einen - aber wer
-	// zuletzt hineingezeichnet hat, muss festgehalten werden: sonst faende der
-	// vorige Zettel beim naechsten Betreten seinen Text unveraendert vor und
-	// zeigte das Blatt des anderen.
-	const Hint* p_textureOwner = 0;
-
 	// Ein Punkt auf dem Papier. py laeuft von 0 (Oberkante) bis NOTE_HEIGHT.
 	struct NotePoint
 	{
@@ -132,12 +125,22 @@ Hint::Hint(Level& level,
 
 Hint::~Hint()
 {
-	// Die Textur gehoert der Engine und wird dort freigegeben, solange der
-	// GL-Kontext noch steht. Hier steht er nicht mehr: die Level werden
-	// abgebaut, wenn main() zurueckkehrt. Nur der Besitzvermerk muss weg, sonst
-	// koennte ein spaeterer Zettel dieselbe Adresse bekommen und sich fuer den
-	// Besitzer halten.
-	if(p_textureOwner == this) p_textureOwner = 0;
+	// Die geliehene Textur geht in onRemove() zurueck, nicht hier: der
+	// Destruktor laeuft womoeglich, wenn es die Engine nicht mehr gibt.
+}
+
+void Hint::onRemove()
+{
+	Object::onRemove();
+	releaseNoteTexture();
+}
+
+void Hint::releaseNoteTexture()
+{
+	if(!noteTexture) return;
+	Engine::inst().releaseOffscreenTexture(noteTexture);
+	noteTexture = 0;
+	bakedText = "";
 }
 
 void Hint::updateSprites()
@@ -151,13 +154,20 @@ void Hint::bakeNote()
 	Engine& engine = Engine::inst();
 
 	const std::string wanted = p_font->adjustText(localizeString(text), TEXT_WIDTH);
-	if(noteTexture && p_textureOwner == this && wanted == bakedText) return;
+	if(noteTexture && wanted == bakedText) return;
 
+	// Eine eigene Textur, keine gemeinsame: beim Schritt von einem Zettel auf
+	// den nachbarn sind beide zu sehen, und der eine darf nicht in das Blatt
+	// hineinzeichnen, aus dem der andere gerade liest.
 	const Vec2i size(NOTE_TEXTURE_SIZE, NOTE_TEXTURE_SIZE);
-	const uint target = engine.getOffscreenTexture(size);
+	const uint target = noteTexture ? noteTexture : engine.acquireOffscreenTexture(size);
 	if(!target) return;   // kein Bildpuffer: dann eben ohne, siehe onRender()
 
-	if(!engine.beginRenderToTexture(target, size)) return;
+	if(!engine.beginRenderToTexture(target, size))
+	{
+		if(!noteTexture) engine.releaseOffscreenTexture(target);
+		return;
+	}
 
 	GLfloat oldClear[4];
 	glGetFloatv(GL_COLOR_CLEAR_VALUE, oldClear);
@@ -180,7 +190,6 @@ void Hint::bakeNote()
 
 	noteTexture = target;
 	bakedText = wanted;
-	p_textureOwner = this;
 }
 
 void Hint::renderNoteMesh(const Vec4d& color,
@@ -355,7 +364,11 @@ void Hint::onUpdate()
 
 	alpha = playerIsHere ? 0.85 : 0.0;
 	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
-	if(shownAlpha <= 1.0 / 255.0) shownAlpha = 0.0;
+	if(shownAlpha <= 1.0 / 255.0)
+	{
+		shownAlpha = 0.0;
+		releaseNoteTexture();
+	}
 
 	// Das Aufrollen laeuft nach der Uhr und nicht nach shownAlpha: das naehert
 	// sich seinem Ziel nur an und kaeme nie ganz an, der Zettel bliebe also

@@ -18,6 +18,7 @@ public:
 	void onRender(int layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
+	void onRemove();
 	void onCollect(Player* p_player);
 	void saveAttributes(TiXmlElement* p_target);
 
@@ -49,10 +50,14 @@ private:
 	Texture* p_sprite;
 	Vec2i targetPosition;
 
-	// Die gebackene Textur samt dem Text, fuer den sie gilt. Sie gehoert der
-	// Engine; hier steht nur, welche es ist.
+	// Die gebackene Textur samt dem Text, fuer den sie gilt. Sie ist von der
+	// Engine geliehen und geht zurueck, sobald der Zettel nicht mehr zu sehen
+	// ist - sonst hielte jeder je betretene Zettel eine ganze Bildschirmtextur
+	// fest.
 	uint noteTexture;
 	std::string bakedText;
+
+	void releaseNoteTexture();
 
 	// Das Aufrollen: nach Logiktakten und nicht nach shownAlpha, das sich
 	// seinem Ziel nur naehert und nie ankommt.

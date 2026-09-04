@@ -106,13 +106,20 @@ public:
 	bool beginRenderToTexture(uint textureID, const Vec2i& size);
 	void endRenderToTexture();
 
-	// Die eine Textur, in die hineingezeichnet wird. Es gibt genau eine, weil
-	// es genau einen Nutzer gibt - den Hinweiszettel -, und von dem ist immer
-	// nur einer zu sehen. Sie gehoert der Engine und nicht ihm: sie faellt mit
-	// dem Bildpuffer, also solange der GL-Kontext noch steht, waehrend ein
-	// Objekt erst abgebaut wird, wenn er laengst weg ist. 0, wenn es nicht
-	// geht.
-	uint getOffscreenTexture(const Vec2i& size);
+	// Eine Textur zum Hineinzeichnen leihen und wieder zurueckgeben. Sie
+	// gehoeren der Engine und nicht dem Entleiher: sie fallen mit dem
+	// Bildpuffer, also solange der GL-Kontext noch steht, waehrend ein Objekt
+	// erst abgebaut wird, wenn er laengst weg ist. acquire gibt 0, wenn es
+	// nicht geht.
+	//
+	// Ein Vorrat und keine einzelne Textur, weil mehrere Hinweiszettel
+	// gleichzeitig zu sehen sein koennen - beim Schritt von einem auf den
+	// nachbarn blendet der eine aus, waehrend der andere einblendet. Mit einer
+	// gemeinsamen Textur zeichnete der zweite hinein, waehrend der erste noch
+	// daraus las, und dann zeigten beide denselben Text. Der Vorrat waechst nur
+	// bis zur groessten Zahl gleichzeitig geliehener Texturen.
+	uint acquireOffscreenTexture(const Vec2i& size);
+	void releaseOffscreenTexture(uint textureID);
 	// Wohin im Fenster das 640x480-Bild kommt: mittig, Seitenverhaeltnis
 	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
@@ -453,9 +460,15 @@ private:
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
 	uint renderTargetID;       // der Rahmen zum Hineinzeichnen, ohne feste Textur
-	uint offscreenTextureID;
-	Vec2i offscreenTextureSize;
 	bool renderTargetScissor;  // war der Schnittrahmen an, als es losging?
+	// Der Vorrat an Texturen zum Hineinzeichnen, siehe acquireOffscreenTexture().
+	struct OffscreenTexture
+	{
+		uint id;
+		Vec2i size;
+		bool lent;
+	};
+	std::vector<OffscreenTexture> offscreenTextures;
 	bool useFrameBuffer;
 	// Die vier Filter. upscalers besitzt sie und haelt die Reihenfolge des
 	// Optionsdialogs; die vier Zeiger daneben sind die Abkuerzung dorthin.
