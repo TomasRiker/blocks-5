@@ -980,6 +980,19 @@ it is short of room; `navigator.storage.persist()` in `pre.js` asks for that not
 browser grants it silently once the page looks like something the user meant to keep and
 otherwise refuses, which costs nothing.
 
+**In the browser the program never ends, so nothing is ever destroyed.**
+`emscripten_set_main_loop_arg(…, 1)` asks for the simulated infinite loop, which unwinds the
+stack with a JavaScript `throw` — so `Engine::mainLoop` does not return, the `engine.exit()`
+standing after it in `main()` never runs, and no destructor runs either: not `~Engine`, not the
+game states that are locals of `main()`, not a `Level` and not an `Object`. The unwind is a JS
+exception and not a C++ one, so it does not run destructors on its way out. **Anything that has
+to happen must therefore hang off something that runs *during* play** — a logic tick, `onLeave`,
+`onRemove` — and never off teardown. Two consequences that are visible from outside:
+`config.xml` is written only where somebody asks for it (the options dialog's OK, and the CRT
+pane's *Try it*) and never on quit, so a browser player who never opens the options has the
+language detected afresh at every start; and every GL object the Engine owns is simply left to
+die with the page.
+
 **The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a
 Windows blue screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT`
 case in `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it.

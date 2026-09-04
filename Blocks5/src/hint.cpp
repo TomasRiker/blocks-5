@@ -135,6 +135,11 @@ Hint::~Hint()
 	// vorher aussteigt, wenn gar keine Textur geliehen ist: eine hat nur, wer
 	// in einem laufenden Level gezeichnet hat, und dessen Level gehoert einer
 	// lokalen Variablen von main() - die faellt vor dem statischen Engine.
+	//
+	// Im Browser laeuft dieser Destruktor ohnehin nie: dort kehrt mainLoop()
+	// nicht zurueck. Zurueckgegeben wird die Textur da oben in onUpdate(),
+	// sobald der Zettel unsichtbar ist, und in onRemove() beim Levelwechsel -
+	// beides laeuft im Spiel und nicht beim Herunterfahren.
 	releaseNoteTexture();
 }
 
