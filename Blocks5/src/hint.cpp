@@ -125,8 +125,17 @@ Hint::Hint(Level& level,
 
 Hint::~Hint()
 {
-	// Die geliehene Textur geht in onRemove() zurueck, nicht hier: der
-	// Destruktor laeuft womoeglich, wenn es die Engine nicht mehr gibt.
+	// Der uebliche Weg ist onRemove(): Level::removeObject() ruft es, und
+	// removeOldObjects() ist die einzige Stelle, die ein Object je loescht -
+	// ein Zettel kann also nicht verschwinden, ohne dass es gelaufen waere.
+	// Hier steht es trotzdem noch einmal, damit die Rueckgabe nicht an einem
+	// einzelnen Haken haengt.
+	//
+	// Der Zugriff auf die Engine ist dabei sicher, weil releaseNoteTexture()
+	// vorher aussteigt, wenn gar keine Textur geliehen ist: eine hat nur, wer
+	// in einem laufenden Level gezeichnet hat, und dessen Level gehoert einer
+	// lokalen Variablen von main() - die faellt vor dem statischen Engine.
+	releaseNoteTexture();
 }
 
 void Hint::onRemove()
