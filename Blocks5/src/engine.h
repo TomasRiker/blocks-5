@@ -98,6 +98,21 @@ public:
 	void bindFrameBuffer();      // Ziel = Bildpuffer, Viewport 640x480
 	void unbindFrameBuffer();    // Ziel = Fenster
 	void presentFrame();         // Bildpuffer -> Fenster, mit schwarzen Balken
+
+	// Ein zweites Ziel: in eine Textur zeichnen statt in den Bildpuffer.
+	// Dazwischen ist (0,0) die linke obere Ecke der Textur; danach steht alles
+	// wieder so, wie der Rest des Bildes es erwartet. false heisst, dass diese
+	// Maschine es nicht kann - dann wurde auch nichts angefasst.
+	bool beginRenderToTexture(uint textureID, const Vec2i& size);
+	void endRenderToTexture();
+
+	// Die eine Textur, in die hineingezeichnet wird. Es gibt genau eine, weil
+	// es genau einen Nutzer gibt - den Hinweiszettel -, und von dem ist immer
+	// nur einer zu sehen. Sie gehoert der Engine und nicht ihm: sie faellt mit
+	// dem Bildpuffer, also solange der GL-Kontext noch steht, waehrend ein
+	// Objekt erst abgebaut wird, wenn er laengst weg ist. 0, wenn es nicht
+	// geht.
+	uint getOffscreenTexture(const Vec2i& size);
 	// Wohin im Fenster das 640x480-Bild kommt: mittig, Seitenverhaeltnis
 	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
@@ -437,6 +452,10 @@ private:
 	uint frameTextureID;
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
+	uint renderTargetID;       // der Rahmen zum Hineinzeichnen, ohne feste Textur
+	uint offscreenTextureID;
+	Vec2i offscreenTextureSize;
+	bool renderTargetScissor;  // war der Schnittrahmen an, als es losging?
 	bool useFrameBuffer;
 	// Die vier Filter. upscalers besitzt sie und haelt die Reihenfolge des
 	// Optionsdialogs; die vier Zeiger daneben sind die Abkuerzung dorthin.

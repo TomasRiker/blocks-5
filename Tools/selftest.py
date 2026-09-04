@@ -119,7 +119,7 @@ def c_config_upscaler(p):
 @case('ctor_init', 'Blocks5/src/engine.cpp')
 def c_ctor(p):
     # Die erste der drei Stellen ist die im Konstruktor.
-    p.replace('\tframeDepthStencilID = 0;\n\tpresentVertexBuffer = 0;\n',
+    p.replace('\tframeDepthStencilID = 0;\n\trenderTargetID = 0;\n',
               '\tframeDepthStencilID = 0;\n')
 
 

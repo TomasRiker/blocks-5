@@ -809,6 +809,35 @@ Both hang off the one line in `GUI::update()` that computes `p_elementAtCursor`.
 a small button and expect it to fire.
 
 
+23. The hint note should be a sheet of paper  — **DONE**
+--------------------------------------------------------
+Two things were wrong with the note that flies up when the player steps on one.
+The sheet arrived first and the text was faded in on top of it afterwards, in its
+own coordinate system, so the writing did not turn or scale with the paper it was
+supposed to be written on - it simply appeared. And the sheet was a flat quad,
+which is a poster rather than a note somebody left behind.
+
+**Both fall out of the same change: bake the text into the paper.** The sheet and
+the text are rendered together into one 512x512 texture, and from then on there is
+only one thing on screen. The Engine grew the two calls that needs
+(`getOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
+belongs to it and not to the note, because it falls with the framebuffer object
+while the GL context still stands, and an `Object` is destroyed long after it is
+gone.
+
+With the writing part of the paper, the paper can be bent. The top and bottom are
+wound onto a cylinder and unroll once the note has almost reached its final size -
+48 bands each, the perspective divide by hand, no shader anywhere. **The one
+number that is a constraint rather than a taste is `ROLL_TURNS`**: at most half a
+turn, because this pass has no depth buffer and only up to a half turn does every
+further step of paper come closer to the viewer, which is what makes back-to-front
+painting correct. `CLAUDE.md` has the rest.
+
+Left undone deliberately: **no mipmaps**. The note is minified while it flies in
+and out, and the 3D cube crossfade has the same problem at a steep angle; both
+want the same answer, and it is a separate piece of work.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

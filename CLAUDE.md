@@ -687,6 +687,46 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `Level::update()` is the tick order: remove/add pending objects → `frameBegin()` on all →
 `update()` on all → `Electronics::updateAll()` → particle systems → AI-trace decay → exit check.
 
+**The hint note is one texture, and it unrolls.** Standing on a note (`hint.cpp`) flies a
+300x400 sheet of paper to the middle of the screen. Paper and text are drawn *together* into
+one 512x512 texture (`Engine::getOffscreenTexture` + `beginRenderToTexture`), so the writing
+belongs to the sheet: it flies with it, turns with it and rolls up with it, instead of
+appearing on top once the sheet has landed. Two things about that texture are worth knowing.
+It is drawn with (0,0) at the top left like everything else in the game, so it ends up
+upside down in texture space — exactly as the game's own frame does in the framebuffer object,
+and the mesh samples it with `1 - py/512`. And it is composed with
+`glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`,
+which leaves the colour premultiplied by its own alpha and the alpha itself correct; it is
+therefore drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
+
+The texture belongs to the **Engine** and not to the note, and that is not tidiness: it falls
+with the framebuffer object, which `Engine::exit` destroys while the GL context still stands,
+whereas an `Object` is destroyed only after `main()` has returned. There is exactly one,
+because only one note can be on screen; a second note baking into it takes it over, which is
+what `p_textureOwner` records — without it the first note would find its own text unchanged on
+the next visit and show the other one's sheet.
+
+**The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
+`ROLL_TURNS` (0.45) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
+divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a `cos` term per vertex for
+the shading. **Half a turn is the hard limit**, and it is a painter's-order limit rather than a
+matter of taste: this pass has no depth buffer, so the only order that composes correctly is
+back to front, and only up to π does every further step of paper come *closer* to the viewer.
+Beyond that the far end would come back round and still be painted on top. The strip is
+`GL_TRIANGLE_STRIP` and not `GL_QUAD_STRIP` — WebGL has no such primitive, and
+`WebBuild/gl_immediate.cpp` hands the mode straight to it.
+
+**The unrolling counts ticks, not alpha.** `shownAlpha` is an exponential ease towards 0.85
+that never arrives, so a sheet driven by it would stay a little rolled up for ever.
+`activeTicks` counts up while the player stands on the field and down again three at a time
+when they leave; the sheet opens between tick 20, where it is at 96% of its size, and tick 40.
+Three at a time on the way out because `shownAlpha` falls by 15% per tick: at one per tick
+there would be nothing left to roll up by the time it had.
+
+Without a framebuffer object none of this can happen, and `renderNoteFlat` then draws sheet and
+text one after the other under the same matrix — no roll, but the writing still flies with the
+paper.
+
 **Presets are the object factory.** `presets.cpp` maps a type-name string to a constructed
 `Object` in one long `if/else if` chain (`instancePreset`), plus a `texCoords` table for the
 editor's sprite. Adding an object type means: write the class (if `StdObject` won't do), add its

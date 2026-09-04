@@ -84,6 +84,10 @@ Engine::Engine()
 	frameBufferID = 0;
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
+	renderTargetID = 0;
+	offscreenTextureID = 0;
+	offscreenTextureSize = Vec2i(0, 0);
+	renderTargetScissor = false;
 	presentVertexBuffer = 0;
 	useFrameBuffer = false;
 	// Die vier Filter. Sie stehen vor loadConfig() - das sucht einen davon beim
@@ -1771,9 +1775,88 @@ bool Engine::createFrameBuffer()
 
 void Engine::destroyFrameBuffer()
 {
-	if(frameDepthStencilID) { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
-	if(frameBufferID)       { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
-	if(frameTextureID)      { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+	if(frameDepthStencilID)  { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
+	if(frameBufferID)        { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
+	if(frameTextureID)       { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+	if(renderTargetID)       { glExtDeleteFramebuffers(1, &renderTargetID);       renderTargetID = 0; }
+	if(offscreenTextureID)   { glDeleteTextures(1, &offscreenTextureID);          offscreenTextureID = 0; }
+	offscreenTextureSize = Vec2i(0, 0);
+}
+
+uint Engine::getOffscreenTexture(const Vec2i& size)
+{
+	if(!useFrameBuffer) return 0;
+	if(offscreenTextureID && offscreenTextureSize == size) return offscreenTextureID;
+	if(offscreenTextureID) { glDeleteTextures(1, &offscreenTextureID); offscreenTextureID = 0; }
+
+	glGenTextures(1, &offscreenTextureID);
+	if(!offscreenTextureID) return 0;
+
+	glBindTexture(GL_TEXTURE_2D, offscreenTextureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0,
+				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// WebGL 1 gibt eine Textur, deren Kanten keine Zweierpotenz sind, als
+	// reines Schwarz zurueck, wenn sie wiederholt statt geklemmt wird - ohne
+	// Fehlermeldung. Hier ist sie zwar eine, aber geklemmt ist ohnehin richtig.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	offscreenTextureSize = size;
+	return offscreenTextureID;
+}
+
+bool Engine::beginRenderToTexture(uint textureID,
+								  const Vec2i& size)
+{
+	if(!useFrameBuffer || !textureID) return false;
+
+	if(!renderTargetID)
+	{
+		glExtGenFramebuffers(1, &renderTargetID);
+		if(!renderTargetID) return false;
+	}
+
+	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, renderTargetID);
+	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+							  GL_TEXTURE_2D, textureID, 0);
+	if(glExtCheckFramebufferStatus(GL_FRAMEBUFFER_EXT) != GL_FRAMEBUFFER_COMPLETE_EXT)
+	{
+		bindFrameBuffer();
+		return false;
+	}
+
+	// Ein Schnittrahmen von woanders her gilt in Fensterkoordinaten und
+	// beschnitte hier die Textur - das Loeschen eingeschlossen.
+	renderTargetScissor = (glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE);
+	if(renderTargetScissor) glDisable(GL_SCISSOR_TEST);
+
+	glViewport(0, 0, size.x, size.y);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0.0, size.x, size.y, 0.0);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	return true;
+}
+
+void Engine::endRenderToTexture()
+{
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+
+	// Die Textur wieder abhaengen: sie wird gleich gelesen, und ein Ziel, das
+	// zugleich Quelle ist, ist nicht definiert.
+	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+							  GL_TEXTURE_2D, 0, 0);
+	if(renderTargetScissor) glEnable(GL_SCISSOR_TEST);
+	bindFrameBuffer();
 }
 
 void Engine::bindFrameBuffer()
