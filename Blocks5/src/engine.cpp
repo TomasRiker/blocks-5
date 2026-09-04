@@ -3474,46 +3474,43 @@ void Engine::loadConfig()
 			(*i)->loadConfig(p_config);
 		}
 
-		// Vollbild und Fenstergroesse gelten erst beim naechsten Start; mitten
-		// im Betrieb schaltet der Spieler selbst.
-#ifndef __EMSCRIPTEN__
-		TiXmlElement* p_fullScreen = p_config->FirstChildElement("Fullscreen");
-		if(p_fullScreen)
-		{
-			const char* p_text = p_fullScreen->GetText();
-			if(p_text) fullScreen = (atoi(p_text) != 0);
-		}
-#endif
-
-		TiXmlElement* p_windowPosition = p_config->FirstChildElement("WindowPosition");
-		if(p_windowPosition)
+		// Das Fenster: Ort, Groesse, maximiert, Vollbild. Alles vier gilt erst
+		// beim naechsten Start - mitten im Betrieb schaltet der Spieler selbst.
+		TiXmlElement* p_window = p_config->FirstChildElement("Window");
+		if(p_window)
 		{
 			// Negative Werte sind erlaubt: ein zweiter Bildschirm links des
 			// ersten hat sie. restoreWindowPosition() prueft die Stelle.
 			int x = 0, y = 0;
-			const bool haveX = p_windowPosition->QueryIntAttribute("x", &x) == TIXML_SUCCESS;
-			const bool haveY = p_windowPosition->QueryIntAttribute("y", &y) == TIXML_SUCCESS;
+			const bool haveX = p_window->QueryIntAttribute("positionX", &x) == TIXML_SUCCESS;
+			const bool haveY = p_window->QueryIntAttribute("positionY", &y) == TIXML_SUCCESS;
 			if(haveX && haveY && abs(x) <= 32768 && abs(y) <= 32768)
 			{
 				windowedPosition = Vec2i(x, y);
 				windowedPositionKnown = true;
 			}
 
-			int max = 0;
-			p_windowPosition->QueryIntAttribute("maximized", &max);
-			maximized = (max != 0);
-		}
-
-		TiXmlElement* p_windowSize = p_config->FirstChildElement("WindowSize");
-		if(p_windowSize)
-		{
 			int w = 0, h = 0;
-			p_windowSize->QueryIntAttribute("w", &w);
-			p_windowSize->QueryIntAttribute("h", &h);
+			p_window->QueryIntAttribute("sizeX", &w);
+			p_window->QueryIntAttribute("sizeY", &h);
 			// Kleiner als das interne Bild ergibt keinen Sinn, und eine
 			// unsinnig grosse Zahl aus einer verbogenen Datei auch nicht.
 			if(w >= screenSize.x && h >= screenSize.y && w <= 16384 && h <= 16384)
 				windowedSize = Vec2i(w, h);
+
+			int value = 0;
+			p_window->QueryIntAttribute("maximized", &value);
+			maximized = (value != 0);
+
+			// Im Browser gibt es kein Fenster, das man beim naechsten Start
+			// wieder aufsetzen koennte: die Seite entscheidet, und das Vollbild
+			// braucht ohnehin eine echte Geste. Geschrieben wird es trotzdem,
+			// damit dieselbe Datei auf beiden Seiten dieselbe ist.
+#ifndef __EMSCRIPTEN__
+			value = 0;
+			if(p_window->QueryIntAttribute("fullscreen", &value) == TIXML_SUCCESS)
+				fullScreen = (value != 0);
+#endif
 		}
 
 		// Sound-Lautstaerke lesen
@@ -3617,24 +3614,20 @@ void Engine::saveConfig()
 		(*i)->saveConfig(p_config);
 	}
 
-	// Vollbild und Fenstergroesse schreiben, damit das Spiel so wiederkommt.
-	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");
-	p_fullScreen->LinkEndChild(new TiXmlText(fullScreen ? "1" : "0"));
-	p_config->LinkEndChild(p_fullScreen);
-
-	TiXmlElement* p_windowSize = new TiXmlElement("WindowSize");
-	p_windowSize->SetAttribute("w", windowedSize.x);
-	p_windowSize->SetAttribute("h", windowedSize.y);
-	p_config->LinkEndChild(p_windowSize);
-
+	// Das Fenster schreiben, damit das Spiel so wiederkommt, wie es gegangen
+	// ist. Der Ort steht nur dabei, wenn wir einen kennen - beim ersten Start
+	// gibt es keinen, und eine 0,0 waere eine Behauptung.
+	TiXmlElement* p_window = new TiXmlElement("Window");
 	if(windowedPositionKnown)
 	{
-		TiXmlElement* p_windowPosition = new TiXmlElement("WindowPosition");
-		p_windowPosition->SetAttribute("x", windowedPosition.x);
-		p_windowPosition->SetAttribute("y", windowedPosition.y);
-		p_windowPosition->SetAttribute("maximized", maximized ? 1 : 0);
-		p_config->LinkEndChild(p_windowPosition);
+		p_window->SetAttribute("positionX", windowedPosition.x);
+		p_window->SetAttribute("positionY", windowedPosition.y);
 	}
+	p_window->SetAttribute("sizeX", windowedSize.x);
+	p_window->SetAttribute("sizeY", windowedSize.y);
+	p_window->SetAttribute("maximized", maximized ? 1 : 0);
+	p_window->SetAttribute("fullscreen", fullScreen ? 1 : 0);
+	p_config->LinkEndChild(p_window);
 
 	// Sound-Lautstaerke schreiben
 	TiXmlElement* p_soundVolume = new TiXmlElement("SoundVolume");

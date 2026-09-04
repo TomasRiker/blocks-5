@@ -502,8 +502,10 @@ procedure answers `WM_GETMINMAXINFO` (chaining first, since `DefWindowProc` fill
 fields) with 640x480 of client plus the frame from `AdjustWindowRectEx`, so the floor
 `handleResize` enforces applies *during* the drag instead of snapping back after it.
 
-**The window's placement is saved on exit, and the details matter.** `<WindowSize>`,
-`<WindowPosition>` and `<Fullscreen>` are written by `Engine::exit` — before that the only
+**The window's placement is saved on exit, and the details matter.** One
+`<Window positionX= positionY= sizeX= sizeY= maximized= fullscreen=>` is written by
+`Engine::exit`; the position is the only part that can be absent, because on a first start
+there is none and a 0,0 would be a claim rather than a fact. Before that the only
 caller of `saveConfig` was the options dialog's OK, so resizing and quitting lost the size.
 `rememberWindowPlacement` uses `GetWindowPlacement`, not `GetWindowRect`: a maximized
 window's rect is the maximized frame, with negative corners because the invisible grab
