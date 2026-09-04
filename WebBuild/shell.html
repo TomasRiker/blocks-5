@@ -56,10 +56,11 @@
     image-rendering: pixelated; image-rendering: crisp-edges;
   }
   /* No rounded corners and no transition: a block appears or it does not. The
-     9-on-3-off gradient is what makes the fill look like discrete cells, and
-     the fill width is snapped to that 12px pitch in JS. */
+     9-on-3-off gradient is what makes the fill look like discrete cells; the
+     track's own width is set in JS to a whole number of them, so a full bar
+     ends flush with its right edge instead of on a gap. */
   div#b5_bar {
-    width: 240px; max-width: 70vw; height: 12px; background: #1a1a1a;
+    width: 237px; max-width: 70vw; height: 12px; background: #1a1a1a;
     box-shadow: 0 0 0 3px #3a3a3a; overflow: hidden;
   }
   div#b5_bar > i {
@@ -119,6 +120,7 @@
   // never a resize - and one fewer request than a file would cost.
   var TEXTS = %%LOADTEXT%%;
   var MESSAGE = TEXTS[german ? 'de' : 'en'];
+  var GAP_ABOVE = 20;               // same as div#b5_msg { margin-top }
 
   function drawMessage(t) {
     if (!t) return;
@@ -132,16 +134,30 @@
     img.alt = '';
     msg.textContent = '';
     msg.appendChild(img);
+
+    // The glyphs start t rows below the top edge of the image, and that gap
+    // grows with the scale. Left alone it makes the space above the line look
+    // wider than the one under Bob, so Bob gets the same amount added rather
+    // than the line being pulled up.
+    var icon = document.querySelector('div#b5_boot > img');
+    if (icon) icon.style.marginBottom = (GAP_ABOVE + t.t * scale) + 'px';
   }
 
-  // The bar fills in whole blocks rather than continuously: the width snaps to
-  // the gradient's 12px pitch.
-  var CELL = 12;
+  // The bar fills in whole blocks rather than continuously. n blocks carry only
+  // n-1 gaps, so the track is sized to that and not to a round 240: otherwise a
+  // full bar stops three pixels short of its own right edge, on the gap that
+  // belongs after the last block.
+  var BLOCK = 9, GAP = 3, CELL = BLOCK + GAP;
+  var BAR_MAX = 240;
   var progress = 0;
+
   function setProgress(fraction) {
     progress = Math.max(0, Math.min(1, fraction));
-    var cells = Math.max(1, Math.floor(bar.parentNode.clientWidth / CELL));
-    bar.style.width = (Math.round(progress * cells) * CELL) + 'px';
+    var room = Math.min(BAR_MAX, Math.floor(window.innerWidth * 0.7));
+    var cells = Math.max(1, Math.floor((room + GAP) / CELL));
+    var filled = Math.round(progress * cells);
+    bar.parentNode.style.width = (cells * CELL - GAP) + 'px';
+    bar.style.width = (filled > 0 ? filled * CELL - GAP : 0) + 'px';
   }
 
   // Emscripten reports progress as "Preparing... (3/7)" and ends with an empty
@@ -183,6 +199,7 @@
   // not be empty until then. Turning the device recomputes both, since the
   // scale and the block count depend on the width.
   drawMessage(MESSAGE);
+  setProgress(0);
   window.addEventListener('resize', function () {
     if (gone) return;
     setProgress(progress);

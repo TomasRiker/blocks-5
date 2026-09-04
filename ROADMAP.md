@@ -314,6 +314,45 @@ Left for later: anisotropic curvature (real tubes are not spherical), a shadow-m
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
 
+**Chromatic aberration**, the next thing worth adding. A real tube has three beams
+that never land quite on top of each other, so an edge carries a coloured fringe -
+warmer on one side, cooler on the other - and the misalignment grows toward the rim,
+where the deflection is largest. That is one line in the shader: sample the source
+three times, once per channel, at texture coordinates pulled apart along the vector
+from the screen centre. The displacement wants to scale with the distance from the
+centre rather than being constant, for the same reason the barrel distortion does,
+and it belongs on the same slider family as the rest - taste, not tuning, so a
+runtime `<Crt aberration=>` beside the five that are there.
+
+Two things to get right. It costs two extra fetches per tap that already exist, so
+put it in the *source* sample and not in the halation ring, or the cost triples for
+an effect nobody sees in a blur. And `warpToSource` must stay untouched: the mouse
+follows the geometry, and geometry is what the barrel distortion does - a colour
+fringe is not a position, so the cursor mapping has nothing to learn from it.
+
+**A VCR rewind when a level restarts**, while the CRT filter is on. Restarting from
+the beginning or from the hotel is exactly the moment a tape would have been wound
+back, and the filter has already put the player in front of a tube. What that looks
+like: the picture skewed and torn, a band of noise rolling up through it, the head
+switching noise at the bottom, the whole thing running backwards and fast for about
+a second before the level comes back. `CF_*` is where it goes - the crossfade
+classes are already the game's transitions, and `Level`'s restart paths already
+call one - so this is a new `CF_Rewind` beside them rather than anything new in the
+engine.
+
+The one design question is what it rewinds *through*. A crossfade here has two
+images, the old screen and the new one, and both are the same level; a rewind that
+merely blends them shows nothing moving backwards. The honest version needs a few
+seconds of recent frames to run back through, which is memory the game does not
+spend today - so either keep a short ring of downscaled captures while the CRT
+filter is on, or accept a cheaper illusion built from the one captured frame plus
+the tear, the noise band and the speed-up. Worth trying the cheap one first; if it
+reads as a rewind, the ring is not needed.
+
+It is deliberately tied to the CRT filter: on `nearest` or `sharp-fit` the game does
+not claim to be a tube, and a tape effect there would be a costume rather than a
+consequence.
+
 
 12. Tell the player about the hardcoded keys  — **DONE**, it already did
 ------------------------------------------------------------------------

@@ -131,8 +131,22 @@ def render(font_xml, text):
     return out_w, out_h, bytes(out), line_height, offset
 
 
+def top_inset(width, height, pixels):
+    """Wieviele Zeilen oben ganz durchsichtig sind.
+
+    Die Seite braucht das, um den Abstand ueber der Zeile auszugleichen: die
+    Schrift beginnt erst ein paar Zeilen unter dem oberen Bildrand, und ohne
+    diese Zahl saehe der Zwischenraum ueber dem Text groesser aus als der
+    darunter.
+    """
+    for y in range(height):
+        if any(pixels[(y * width + x) * 4 + 3] for x in range(width)):
+            return y
+    return 0
+
+
 def as_js(font_xml, ident):
-    """{en:{d:"...",w:183,h:27},de:{...}} - beide Sprachen als Daten-URI."""
+    """{en:{d:"...",w:183,h:27,t:4},de:{...}} - beide Sprachen als Daten-URI."""
     languages = os.path.join(os.path.dirname(font_xml), 'languages.txt')
     parts = []
     for lang in ('en', 'de'):
@@ -140,7 +154,8 @@ def as_js(font_xml, ident):
         buffer = io.BytesIO()
         write_png(buffer, w, h, pixels)
         data = base64.b64encode(buffer.getvalue()).decode('ascii')
-        parts.append("%s:{d:'%s',w:%d,h:%d}" % (lang, data, w, h))
+        parts.append("%s:{d:'%s',w:%d,h:%d,t:%d}"
+                     % (lang, data, w, h, top_inset(w, h, pixels)))
     return '{' + ','.join(parts) + '}'
 
 
