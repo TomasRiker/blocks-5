@@ -257,7 +257,8 @@ clears on `keyup`, where `Engine::setKeyData` would not have worked at all (ROAD
 ## Architecture
 
 Everything for the game lives flat in `Blocks5/src`. The layering is by naming prefix, not by
-directory: `gs_*` = game states, `gui_*` = widgets, `cf_*` = crossfade effects, `e_*` =
+directory: `gs_*` = game states, `gui_*` = widgets, `cf_*` = crossfade effects, `u_*` =
+upscaling filters, `e_*` =
 electronics parts, `as_*`/`audiostream*` = audio decoding, `file*`/`filesystem*` = virtual FS.
 
 **Singletons and resources.** Global services derive from `Singleton<T>` (`singleton.h`) and are
@@ -281,13 +282,23 @@ whatever size the window is; only `computePresentRect` changes, and the cursor m
 read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 `glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
-are core and the header just `#define`s them through. Four upscale filters
-(`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`;
-`sharp-fit` is the default where the machine can run it:
+are core and the header just `#define`s them through.
 
-- `nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`. `nearest` additionally snaps the
-  blit to an integer scale, which is the whole point of choosing it.
-- `sharp-fit` (`src/sharpfit_shader.h`) is nearest at a fractional scale: conceptually the
+**Four upscale filters, and each is a class.** `upscaler.h` holds the base — a name, a
+texture filter, `present()`, whether it wants a whole-number scale, whether it distorts the
+cursor, and its own `loadConfig`/`saveConfig` — plus `PresentContext` (everything the Engine
+owns and lends out: the rect, the frame texture, the shared vertex buffer) and
+`PresentProgram` (a linked program and the four uniforms *every* present shader has). The
+four live in `u_sharp.*`, `u_smooth.*`, `u_sharpfit.*` and `u_crt.*`, `u_all.h` pulls them
+in, and `Engine` owns one of each in display order. It is a normal game option like the
+language, saved as `<Upscaler>` with the filter's own `getName()` — the one name each filter
+has, shared by the config value, the radio button in `options.xml`, the startup log and the
+test hook. `SharpFit` is the default where the machine can run it:
+
+- `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn by the base class's
+  fixed-function quad. `Sharp` additionally snaps the blit to an integer scale
+  (`wantsIntegerScale()`), which is the whole point of choosing it.
+- `SharpFit` (`src/u_sharpfit.cpp`) is nearest at a fractional scale: conceptually the
   frame is nearest-upscaled by the smallest integer that covers the destination and then
   resampled down. That is one texture fetch, not two passes — bilinear over a
   nearest-upscaled image is piecewise linear, so remapping the texture coordinate through
@@ -295,13 +306,15 @@ are core and the header just `#define`s them through. Four upscale filters
   result. Verified against a real two-pass: pixel-identical at an integer scale, max channel
   difference 1 (8-bit rounding in the intermediate) at fractional ones. It **must** sample
   with `GL_LINEAR` — the hardware interpolation *is* the filter.
-- `crt` (`src/crt_shader.h`) is a CRT monitor: beam profile, scan lines, phosphor mask,
+- `Crt` (`src/u_crt.cpp`) is a CRT monitor: beam profile, scan lines, phosphor mask,
   halation, barrel distortion, rounded corners, vignette. See **The CRT filter** below.
 
-Both shaders share `p_presentVertexShader`, the vertex buffer and four uniforms
-(`decal`, `TextureSize`, `FrameSize`, `Prescale`); the CRT one adds `Scanline` and
-`Curvature`. `Engine::PresentProgram` holds one set of them, `createPresentProgram` builds
-either, and a CRT that fails to link leaves sharp-fit alone.
+The two shader filters share the vertex shader (`upscaler.cpp`, the only place it is read),
+the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own eight on
+top. **There is no longer a place where a filter carries a uniform it does not have** — which
+is what the old twelve-slot struct did, and why `convergence` was once left unset in two
+hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
+sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
 
 **Anything that reads the rendered frame must bind the FBO itself.** The main loop binds it
 only on an iteration that ran a logic tick. Natively there is no other kind, because the
@@ -315,7 +328,7 @@ it read the default framebuffer, which WebGL clears before every frame. It calls
 that *was* rendered, which is exactly the screen being faded out.
 
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
-`src/crt_shader.h`, meant to be edited. Six of them are runtime sliders instead
+`src/u_crt.cpp`, meant to be edited. Six of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
 `<CrtUpscaler scanline= curvature= bloom= flicker= scanFlicker= convergence=>`), because they
 are matters of taste rather than tuning.
@@ -402,7 +415,9 @@ build can land on a software path.
 
 **The barrel distortion goes through the mouse as well.** The shader maps output pixel to
 source pixel, which is the same direction `getCursorPosition` needs, so it uses the identical
-formula — `Engine::warpToSource`. `setCursorPosition` needs the inverse, and the coupled pair
+formula — `U_Crt::warpToSource`, which `Engine::warpToSource` forwards to (the base class
+returns what it was given, so no caller asks what kind of filter is on).
+`setCursorPosition` needs the inverse, and the coupled pair
 (`x` depends on `y²`, `y` on `x²`) has no closed form, so `warpToOutput` runs a fixed-point
 iteration: `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`. Measured: eight rounds land within 2.3e-4
 pixels even at an absurd curvature, and within 1e-5 at anything reachable from the slider.
@@ -416,8 +431,10 @@ positions land on a neighbouring tile. That is the minimum window size, where th
 no room to work anyway.
 
 Without an FBO the game renders straight to the back buffer as before; without a shader,
-sharp-fit degrades to nearest (`getEffectiveUpscaleFilter`) and the options dialog hides that
-entry. Neither is fatal.
+`isAvailable()` is false for that filter, `getEffectiveUpscaler` falls back to `Sharp` — a
+fixed fallback, not "the first available one", because the display order starts with
+`SharpFit` and belongs to the options dialog — and the dialog hides the entry. The wish
+itself stays in `config.xml` untouched, for the next machine. Neither is fatal.
 
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art

@@ -277,7 +277,7 @@ The idea that replaced xBR, and a much better fit for what a nostalgic filter is
 for: it adds a period-correct presentation on top of the art as drawn instead of
 trying to reconstruct detail the art never had, and it is stable where xBR was
 not — no thresholds, no edge detection, only smooth functions, so a one-in-255
-nudge moves the output by about one. Shipped as `src/crt_shader.h`, a fourth entry
+nudge moves the output by about one. Shipped as `src/u_crt.cpp`, a fourth entry
 in Options → Scaling, with four sliders behind *CRT settings …*.
 
 The decisions worth keeping, all of them detailed in CLAUDE.md:

@@ -103,6 +103,14 @@ def c_config(p):
     p.replace('new TiXmlElement("Upscaler")', 'new TiXmlElement("UpscalerX")')
 
 
+# Dasselbe eine Datei weiter: <CrtUpscaler> legt der Filter selbst an, und die
+# Pruefung sieht diese Haelfte nur, weil sie u_*.cpp mitliest. Ohne diesen Fall
+# waere nicht zu bemerken, dass sie es nicht mehr tut.
+@case('config', 'Blocks5/src/u_crt.cpp')
+def c_config_upscaler(p):
+    p.replace('new TiXmlElement("CrtUpscaler")', 'new TiXmlElement("CrtUpscalerX")')
+
+
 @case('ctor_init', 'Blocks5/src/engine.cpp')
 def c_ctor(p):
     # Die erste der drei Stellen ist die im Konstruktor.

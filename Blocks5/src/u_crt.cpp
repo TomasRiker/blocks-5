@@ -1,5 +1,6 @@
-#ifndef _CRT_SHADER_H
-#define _CRT_SHADER_H
+#include "pch.h"
+#include "u_crt.h"
+#include "glextensions.h"
 
 /* Ein Bildschirm aus den neunziger Jahren, nachgebaut im Praesentierdurchgang.
 
@@ -57,10 +58,14 @@
 
 /* Die Woelbung, einmal definiert und zweimal benutzt: als Text im Shader und
    als double in engine.cpp (warpToSource/warpToOutput). */
+
 #define CRT_CURVE_X 0.10
 #define CRT_CURVE_Y 0.13
 /* Zeilenperioden je Sekunde bei Flimmern auf Anschlag; siehe CRAWL_JITTER. */
 #define CRT_CRAWL_SPEED 1.2
+/* Nach so vielen Sekunden wiederholt sich das Flimmern exakt. Steht ebenfalls
+   zweimal da - im Shader und in present(), das die Uhr darauf kuerzt. */
+#define CRT_FLICKER_CYCLE 8.0
 #define CRT_STR2(x) #x
 #define CRT_STR(x) CRT_STR2(x)
 
@@ -177,8 +182,9 @@ static const char* p_crtFragmentShader =
 	/* Nach so vielen Sekunden wiederholt sich das Flimmern exakt. Alle
 	   Frequenzen unten sind ganze Vielfache davon, deshalb ist der Uebergang
 	   nahtlos und die Uhr darf bei jedem Durchlauf von vorn anfangen - sonst
-	   wuerde float irgendwann grob. */
-	"const float FLICKER_CYCLE = 8.0;\n"
+	   wuerde float irgendwann grob. Aus dem Makro oben, weil present() die Uhr
+	   auf denselben Wert kuerzen muss. */
+	"const float FLICKER_CYCLE = " CRT_STR(CRT_FLICKER_CYCLE) ";\n"
 
 	/* Das Zeilenbild steht nicht still. Auf einer echten Roehre wandert es
 	   langsam nach unten - das Zeilenkriechen, weil Zeilen- und Bildfrequenz
@@ -421,4 +427,146 @@ static const char* p_crtFragmentShader =
 	"    gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / GAMMA_OUT)), 1.0);\n"
 	"}\n";
 
-#endif
+U_Crt::U_Crt()
+{
+	locScanline = -1;
+	locCurvature = -1;
+	locBloom = -1;
+	locFlicker = -1;
+	locScanFlicker = -1;
+	locConvergence = -1;
+	locTime = -1;
+	locScanPhase = -1;
+	scanline = 0.5;
+	curvature = 0.5;
+	bloom = 0.5;
+	flicker = 0.5;
+	scanFlicker = 0.5;
+	convergence = 0.5;
+}
+
+U_Crt::~U_Crt()
+{
+}
+
+bool U_Crt::createGL()
+{
+	if(!program.create(p_crtFragmentShader, "crt fragment")) return false;
+
+	locScanline    = glExtGetUniformLocation(program.id, "Scanline");
+	locCurvature   = glExtGetUniformLocation(program.id, "Curvature");
+	locBloom       = glExtGetUniformLocation(program.id, "Bloom");
+	locFlicker     = glExtGetUniformLocation(program.id, "Flicker");
+	locScanFlicker = glExtGetUniformLocation(program.id, "ScanFlicker");
+	locConvergence = glExtGetUniformLocation(program.id, "Convergence");
+	locTime        = glExtGetUniformLocation(program.id, "Time");
+	locScanPhase   = glExtGetUniformLocation(program.id, "ScanPhase");
+	return true;
+}
+
+void U_Crt::destroyGL()
+{
+	// Die Uniformstellen bleiben stehen. Sie sind ohnehin nur gueltig, solange
+	// es ein Programm gibt, und eine zweite Liste waere eine zweite Liste, die
+	// jemand zu ergaenzen vergisst.
+	program.destroy();
+}
+
+void U_Crt::present(const PresentContext& context)
+{
+	program.use(context);
+
+	PresentProgram::setUniform(locScanline, scanline);
+	PresentProgram::setUniform(locCurvature, curvature);
+	PresentProgram::setUniform(locBloom, bloom);
+	PresentProgram::setUniform(locFlicker, flicker);
+	PresentProgram::setUniform(locScanFlicker, scanFlicker);
+	PresentProgram::setUniform(locConvergence, convergence);
+
+	// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten und
+	// steht bei Pause still; ein Bildschirm flimmert auch dann. Der Umlauf ist
+	// CRT_FLICKER_CYCLE, alle Frequenzen darin sind ganze Vielfache davon, also
+	// springt beim Umlauf nichts.
+	const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
+	PresentProgram::setUniform(locTime, fmod(seconds, CRT_FLICKER_CYCLE));
+
+	// Das Zeilenkriechen wird als einziger Anteil hier gerechnet: es ist eine
+	// Rampe, keine Schwingung, und ihre Steigung haengt am Regler - aus der
+	// schon gekuerzten Uhr spraenge die Phase bei jedem Umlauf.
+	PresentProgram::setUniform(locScanPhase,
+							   fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0));
+
+	program.drawQuad(context);
+}
+
+Vec2d U_Crt::warpToSource(const Vec2d& p) const
+{
+	// Genau die Formel aus dem Shader oben. p und der Rueckgabewert laufen von
+	// -1 bis 1 ab der Bildmitte.
+	if(curvature <= 0.0) return p;
+
+	const double a = curvature * crtCurveX;
+	const double b = curvature * crtCurveY;
+	return Vec2d(p.x * (1.0 + a * p.y * p.y),
+				 p.y * (1.0 + b * p.x * p.x));
+}
+
+Vec2d U_Crt::warpToOutput(const Vec2d& s) const
+{
+	if(curvature <= 0.0) return s;
+
+	const double a = curvature * crtCurveX;
+	const double b = curvature * crtCurveY;
+
+	// Die Umkehrung. Das Gleichungspaar ist gekoppelt - x haengt an y und
+	// umgekehrt - und hat keine geschlossene Loesung; als Fixpunkt
+	//
+	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
+	//
+	// zieht es sich sehr schnell zusammen: nach acht Runden liegt der Fehler
+	// selbst bei uebertriebener Woelbung unter 2.3e-4 Bildpunkten.
+	double x = s.x;
+	double y = s.y;
+	for(int i = 0; i < 8; i++)
+	{
+		x = s.x / (1.0 + a * y * y);
+		y = s.y / (1.0 + b * x * x);
+	}
+	return Vec2d(x, y);
+}
+
+void U_Crt::setScanline(double value)    { scanline = clamp(value, 0.0, 1.0); }
+void U_Crt::setCurvature(double value)   { curvature = clamp(value, 0.0, 1.0); }
+void U_Crt::setBloom(double value)       { bloom = clamp(value, 0.0, 1.0); }
+void U_Crt::setFlicker(double value)     { flicker = clamp(value, 0.0, 1.0); }
+void U_Crt::setScanFlicker(double value) { scanFlicker = clamp(value, 0.0, 1.0); }
+void U_Crt::setConvergence(double value) { convergence = clamp(value, 0.0, 1.0); }
+
+void U_Crt::loadConfig(TiXmlElement* p_config)
+{
+	TiXmlElement* p_crt = p_config->FirstChildElement("CrtUpscaler");
+	if(!p_crt) return;
+
+	// Nur lesen, was dasteht, und nichts zurueckstellen: der Abbrechen-Knopf
+	// des Optionsdialogs ruft loadConfig() mitten im Spiel, und beim ersten
+	// Start gibt es die Datei noch gar nicht.
+	double value = 0.0;
+	if(p_crt->QueryDoubleAttribute("scanline", &value) == TIXML_SUCCESS)    setScanline(value);
+	if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)   setCurvature(value);
+	if(p_crt->QueryDoubleAttribute("bloom", &value) == TIXML_SUCCESS)       setBloom(value);
+	if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)     setFlicker(value);
+	if(p_crt->QueryDoubleAttribute("scanFlicker", &value) == TIXML_SUCCESS) setScanFlicker(value);
+	if(p_crt->QueryDoubleAttribute("convergence", &value) == TIXML_SUCCESS) setConvergence(value);
+}
+
+void U_Crt::saveConfig(TiXmlElement* p_config)
+{
+	TiXmlElement* p_crt = new TiXmlElement("CrtUpscaler");
+	p_crt->SetDoubleAttribute("scanline", scanline);
+	p_crt->SetDoubleAttribute("curvature", curvature);
+	p_crt->SetDoubleAttribute("bloom", bloom);
+	p_crt->SetDoubleAttribute("flicker", flicker);
+	p_crt->SetDoubleAttribute("scanFlicker", scanFlicker);
+	p_crt->SetDoubleAttribute("convergence", convergence);
+	p_config->LinkEndChild(p_crt);
+}

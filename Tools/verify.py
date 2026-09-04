@@ -326,32 +326,48 @@ def check_xml_attrs():
 
 @check('config')
 def check_config():
-    """Was Engine::saveConfig schreibt, muss Engine::loadConfig auch wieder
-    lesen - sonst verliert die config.xml bei jedem Start eine Einstellung."""
-    text = read(os.path.join(SRC, 'engine.cpp'))
+    """Was Engine::saveConfig schreibt, muss auch wieder gelesen werden - sonst
+    verliert die config.xml bei jedem Start eine Einstellung.
 
-    def section(name):
-        m = re.search(r'void Engine::' + name + r'\(\)\s*\{', text)
-        if not m:
-            return ''
-        depth, i = 0, m.end() - 1
-        while i < len(text):
-            if text[i] == '{':
-                depth += 1
-            elif text[i] == '}':
-                depth -= 1
-                if depth == 0:
-                    return text[m.end():i]
-            i += 1
-        return ''
+    Nachgesehen wird in engine.cpp *und* in jedem u_*.cpp: seit die
+    Skalierungsfilter Klassen sind, legt jeder sein eigenes Element an
+    (Upscaler::saveConfig), und ein Paar, das nur die Engine kennt, gibt es
+    nicht mehr. Eine Pruefung, die diesen Umzug nicht mitmacht, faende beide
+    Haelften nicht mehr und schwiege - und eine Pruefung, die schweigen kann,
+    ist schlimmer als keine."""
+    files = ['engine.cpp'] + sorted(f for f in os.listdir(SRC)
+                                    if f.startswith('u_') and f.endswith('.cpp'))
 
-    load, save = section('loadConfig'), section('saveConfig')
-    if not load or not save:
+    def bodies(text, method):
+        """Die Ruempfe aller Funktionen, deren Name auf ::<method>( endet."""
+        out = []
+        for m in re.finditer(r'\b\w+::' + method + r'\s*\([^)]*\)\s*\{', text):
+            depth, i = 0, m.end() - 1
+            while i < len(text):
+                if text[i] == '{':
+                    depth += 1
+                elif text[i] == '}':
+                    depth -= 1
+                    if depth == 0:
+                        out.append(text[m.end():i])
+                        break
+                i += 1
+        return out
+
+    written, read_names = set(), set()
+    found_save, found_load = False, False
+    for name in files:
+        text = read(os.path.join(SRC, name))
+        for body in bodies(text, 'saveConfig'):
+            found_save = True
+            written |= set(re.findall(r'new TiXmlElement\(\s*"([A-Za-z][\w]*)"', body))
+        for body in bodies(text, 'loadConfig'):
+            found_load = True
+            read_names |= set(re.findall(r'FirstChildElement\(\s*"([A-Za-z][\w]*)"', body))
+            read_names |= set(re.findall(r'NextSiblingElement\(\s*"([A-Za-z][\w]*)"', body))
+
+    if not found_load or not found_save:
         return ['loadConfig() oder saveConfig() nicht gefunden']
-
-    written = set(re.findall(r'new TiXmlElement\(\s*"([A-Za-z][\w]*)"', save))
-    read_names = set(re.findall(r'FirstChildElement\(\s*"([A-Za-z][\w]*)"', load))
-    read_names |= set(re.findall(r'NextSiblingElement\(\s*"([A-Za-z][\w]*)"', load))
 
     bad = []
     for name in sorted(written - read_names - {'Config'}):

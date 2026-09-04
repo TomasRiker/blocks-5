@@ -1,5 +1,5 @@
-#ifndef _SHARPFIT_SHADER_H
-#define _SHARPFIT_SHADER_H
+#include "pch.h"
+#include "u_sharpfit.h"
 
 /* "Scharf, angepasst" - nearest-Optik bei krummem Vergroesserungsfaktor.
 
@@ -33,30 +33,8 @@
    (Themaister, libretro); hergeleitet ist sie hier neu, Code ist keiner
    uebernommen.
 
-   Die Textur MUSS bilinear abgetastet werden - der ganze Trick besteht darin,
-   die Hardware-Interpolation zu benutzen. Mit GL_NEAREST kaeme wieder nur
-   nearest heraus.
-
    Kein #version: 110 auf dem Desktop, 100 unter GLSL ES, und der Quelltext
    uebersetzt als beides. */
-
-/* Die Eckpunkte kommen fertig in Clipkoordinaten aus presentFrame(), es gibt
-   also nichts zu transformieren. Kein Anfassen des Fixed-Function-Zustands, und
-   im Browser damit auch keine Beruehrung mit Emscriptens
-   Immediate-Mode-Nachbau. */
-static const char* p_presentVertexShader =
-	"#ifdef GL_ES\n"
-	"precision highp float;\n"
-	"#endif\n"
-	"attribute vec2 aPosition;\n"
-	"attribute vec2 aTexCoord;\n"
-	"varying vec2 texCoord;\n"
-	"void main()\n"
-	"{\n"
-	"    texCoord = aTexCoord;\n"
-	"    gl_Position = vec4(aPosition, 0.0, 1.0);\n"
-	"}\n";
-
 static const char* p_sharpFitFragmentShader =
 	"#ifdef GL_ES\n"
 	"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
@@ -83,4 +61,26 @@ static const char* p_sharpFitFragmentShader =
 	"    gl_FragColor = vec4(texture2D(decal, p / TextureSize).rgb, 1.0);\n"
 	"}\n";
 
-#endif
+U_SharpFit::U_SharpFit()
+{
+}
+
+U_SharpFit::~U_SharpFit()
+{
+}
+
+bool U_SharpFit::createGL()
+{
+	return program.create(p_sharpFitFragmentShader, "sharp-fit fragment");
+}
+
+void U_SharpFit::destroyGL()
+{
+	program.destroy();
+}
+
+void U_SharpFit::present(const PresentContext& context)
+{
+	program.use(context);
+	program.drawQuad(context);
+}

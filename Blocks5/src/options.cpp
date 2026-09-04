@@ -2,6 +2,7 @@
 #include "options.h"
 #include "engine.h"
 #include "gui_all.h"
+#include "u_all.h"
 
 Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, Vec2i(0, 0), Vec2i(640, 480))
 {
@@ -81,21 +82,22 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// "Roehrenmonitor" steht zuletzt: die drei darueber sind Skalierer und nach
 	// Guete sortiert, der Vierte ist eine Stilfrage. Er braucht denselben
 	// Shader und verschwindet ohne ihn genauso.
-	const char* pp_filterNames[4] =
-	{
-		"Options.SharpFit", "Options.Sharp", "Options.Smooth", "Options.Crt"
-	};
-	const bool available[4] = { engine.canUseSharpFit(), true, true, engine.canUseCrt() };
+	//
+	// Die Reihenfolge steht in der Engine, und der Radioknopf heisst wie der
+	// Filter - "Options." + getName() ist deshalb keine Bequemlichkeit,
+	// sondern die eine Stelle, die diese Zuordnung ausspricht.
+	const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
 
 	// 50 ist die Oberkante der Sprachflaggen daneben (options.xml, Static3).
 	int filterY = 50;
-	for(int i = 0; i < 4; i++)
+	for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
-		GUI_Element* p_button = getChild(pp_filterNames[i]);
+		const std::string element(std::string("Options.") + (*i)->getName());
+		GUI_Element* p_button = getChild(element);
 		// Die Beschriftung ist ein eigenes Element (<For> zeigt zurueck auf den
 		// Knopf), also muss sie mitgehen.
-		GUI_Element* p_label = getChild(std::string(pp_filterNames[i]) + "Label");
-		if(available[i])
+		GUI_Element* p_label = getChild(element + "Label");
+		if((*i)->isAvailable())
 		{
 			p_button->setPosition(Vec2i(p_button->getPosition().x, filterY));
 			p_button->show();
@@ -115,7 +117,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 	// Der Knopf zu den Reglern rutscht unter den letzten sichtbaren Eintrag.
 	GUI_Element* p_crtSettings = getChild("Options.CrtSettings");
-	if(engine.canUseCrt())
+	if(engine.getCrt().isAvailable())
 	{
 		// filterY steht nach der Schleife genau einen Schritt unter dem letzten
 		// Eintrag, der Knopf bekommt also denselben Abstand wie die Knoepfe
@@ -125,27 +127,23 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	}
 	else p_crtSettings->hide();
 
-	switch(engine.getEffectiveUpscaleFilter())
-	{
-	case Engine::UF_NEAREST:    static_cast<GUI_RadioButton*>(getChild("Options.Sharp"))->setChecked(); break;
-	case Engine::UF_SHARP_FIT:  static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->setChecked(); break;
-	case Engine::UF_CRT:        static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->setChecked(); break;
-	default:                    static_cast<GUI_RadioButton*>(getChild("Options.Smooth"))->setChecked(); break;
-	}
+	static_cast<GUI_RadioButton*>(getChild(
+		std::string("Options.") + engine.getEffectiveUpscaler()->getName()))->setChecked();
 
 	// Reglerstellungen aus der Engine holen, 0..1 als 0..100.
+	U_Crt& crt = engine.getCrt();
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtScanline()));
+		static_cast<int>(100.0 * crt.getScanline()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtCurvature()));
+		static_cast<int>(100.0 * crt.getCurvature()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtBloom()));
+		static_cast<int>(100.0 * crt.getBloom()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtFlicker()));
+		static_cast<int>(100.0 * crt.getFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtScanFlicker()));
+		static_cast<int>(100.0 * crt.getScanFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->setScroll(
-		static_cast<int>(100.0 * engine.getCrtConvergence()));
+		static_cast<int>(100.0 * crt.getConvergence()));
 	getChild("CrtOptions")->hide();
 
 	// Ohne Auswahl beginnen. setSelection() meldet sich nur bei einer echten
@@ -249,26 +247,33 @@ void Options::handleClick(GUI_Element* p_element)
 
 		// Skalierungsfilter speichern. Wirkt sofort, das naechste Bild kommt
 		// schon durch den neuen Filter auf den Schirm.
-		if(static_cast<GUI_RadioButton*>(getChild("Options.Sharp"))->isChecked()) engine.setUpscaleFilter(Engine::UF_NEAREST);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.Smooth"))->isChecked()) engine.setUpscaleFilter(Engine::UF_BILINEAR);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
-		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
+		const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
+		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+		{
+			if(static_cast<GUI_RadioButton*>(getChild(
+				std::string("Options.") + (*i)->getName()))->isChecked())
+			{
+				engine.setUpscaler(*i);
+				break;
+			}
+		}
 
 		// Die Roehrenregler wirken sofort - beim Schieben soll man sehen, was sie
 		// tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
-		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
-		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
-		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->getScroll());
-		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
-		engine.setCrtScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
-		engine.setCrtConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
+		U_Crt& crt = engine.getCrt();
+		crt.setScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
+		crt.setCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
+		crt.setBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->getScroll());
+		crt.setFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
+		crt.setScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
+		crt.setConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
 
 		if(name == "CrtSettings")
 		{
 			// Die Regler ergeben nur zusammen mit dem Filter einen Sinn, also
 			// schaltet der Knopf ihn gleich mit ein.
 			static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->check();
-			engine.setUpscaleFilter(Engine::UF_CRT);
+			engine.setUpscaler(&engine.getCrt());
 			getChild("CrtOptions")->show();
 			getChild("CrtOptions")->focus();
 		}

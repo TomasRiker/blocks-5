@@ -11,6 +11,7 @@
 #ifdef BLOCKS5_TEST_HOOKS
 
 #include "engine.h"
+#include "upscaler.h"
 #include "gamestate.h"
 #include "gui.h"
 #include "gui_element.h"
@@ -71,8 +72,8 @@ namespace
 	//
 	// Die Woelbung des Roehrenfilters bleibt aussen vor: sie kaeme aus
 	// warpToOutput(), das privat ist, und ein Test, der Knoepfe trifft, laeuft
-	// ohnehin ohne CRT-Filter. canUseCrt() steht mit im JSON, damit ein Test
-	// bemerkt, wenn dieser Fall doch eintritt.
+	// ohnehin ohne sie. Ob gerade doch jemand verzieht, steht als "crt" mit im
+	// JSON, damit ein Test bemerkt, wenn dieser Fall eintritt.
 	void gameToWindow(const Vec2i& game, int* p_x, int* p_y)
 	{
 		Engine& engine = Engine::inst();
@@ -161,9 +162,12 @@ namespace
 		out += "\",\"language\":\"";
 		appendEscaped(out, engine.getLanguage());
 		out += "\",\"filter\":\"";
-		appendEscaped(out, Engine::getUpscaleFilterName(engine.getEffectiveUpscaleFilter()));
+		appendEscaped(out, engine.getEffectiveUpscaler()->getName());
+		// Nicht "ist die Roehre an", sondern "verzieht gerade jemand das Bild":
+		// nur dann stimmen die Fensterkoordinaten oben nicht mehr. Der
+		// Schluessel heisst weiter crt - WebBuild/test/harness.js liest ihn so.
 		out += "\",\"crt\":";
-		out += (engine.getEffectiveUpscaleFilter() == Engine::UF_CRT) ? "true" : "false";
+		out += engine.getEffectiveUpscaler()->distortsCursor() ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
 		// Wo das Spiel den Zeiger sieht und worauf er drueckt. Ein Tippen,

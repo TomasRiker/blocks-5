@@ -19,8 +19,7 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #include "engine.h"
 #include "glextensions.h"
 #include "testhooks.h"
-#include "sharpfit_shader.h"
-#include "crt_shader.h"
+#include "u_all.h"
 #ifdef __EMSCRIPTEN__
 #include "web_bluescreen.h"
 #endif
@@ -87,7 +86,19 @@ Engine::Engine()
 	frameDepthStencilID = 0;
 	presentVertexBuffer = 0;
 	useFrameBuffer = false;
-	upscaleFilter = UF_SHARP_FIT;    // Voreinstellung; ohne Shader wird nearest daraus
+	// Die vier Filter. Sie stehen vor loadConfig() - das sucht einen davon beim
+	// Namen -, und das ist lange vor dem GL-Kontext; ihr GL-Zustand entsteht
+	// erst in createUpscalerGL(). Die Reihenfolge ist die des Optionsdialogs:
+	// das Beste zuerst, die Stilfrage zuletzt.
+	p_sharpFit = new U_SharpFit();
+	p_sharp    = new U_Sharp();
+	p_smooth   = new U_Smooth();
+	p_crt      = new U_Crt();
+	upscalers.push_back(p_sharpFit);
+	upscalers.push_back(p_sharp);
+	upscalers.push_back(p_smooth);
+	upscalers.push_back(p_crt);
+	p_wantedUpscaler = p_sharpFit;   // ohne Shader wird "Scharf" daraus
 	fullScreen = false;
 	fullScreenOverride = -1;
 	splashSkipped = false;
@@ -101,18 +112,6 @@ Engine::Engine()
 #endif
 	savedWindowStyle = 0;
 	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
-	sharpFit.program = 0;
-	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
-	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
-	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = sharpFit.scanFlicker = -1;
-	sharpFit.convergence = -1;
-	crt = sharpFit;
-	crtScanline = 0.5;
-	crtCurvature = 0.5;
-	crtBloom = 0.5;
-	crtFlicker = 0.5;
-	crtScanFlicker = 0.5;
-	crtConvergence = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -122,6 +121,18 @@ Engine::Engine()
 Engine::~Engine()
 {
 	exit();
+
+	// Der GL-Zustand ist in exit() gefallen; hier fallen nur noch die Objekte.
+	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+	{
+		delete *i;
+	}
+	upscalers.clear();
+	p_sharp = 0;
+	p_smooth = 0;
+	p_sharpFit = 0;
+	p_crt = 0;
+	p_wantedUpscaler = 0;
 }
 
 namespace
@@ -534,15 +545,23 @@ bool Engine::init(const std::string& windowCaption,
 	}
 	else if(GLExtensions::haveShaders())
 	{
-		createPresentPrograms();
+		createUpscalerGL();
 	}
 
 	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - erst hier,
 	// weil handleResize() den Bildpuffer kennen muss.
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
-	printfLog("  Upscale filters:  Sharp, Smooth%s%s\n",
-			  canUseSharpFit() ? ", SharpFit" : "", canUseCrt() ? ", Crt" : "");
-	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
+	{
+		std::string available;
+		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+		{
+			if(!(*i)->isAvailable()) continue;
+			if(!available.empty()) available += ", ";
+			available += (*i)->getName();
+		}
+		printfLog("  Upscale filters:  %s\n", available.c_str());
+	}
+	printfLog("  Upscaling:        %s\n", getEffectiveUpscaler()->getName());
 
 	// Texturen fuer Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
@@ -691,7 +710,7 @@ void Engine::exit()
 #endif
 
 	// Bildpuffer freigeben, solange der GL-Kontext noch steht
-	destroyPresentPrograms();
+	destroyUpscalerGL();
 	destroyFrameBuffer();
 
 	// Manager herunterfahren
@@ -1627,198 +1646,70 @@ std::string Engine::getBestOpenALDevice()
 	else return p_device;
 }
 
-namespace
-{
-	// Uebersetzt eine Stufe und gibt bei einem Fehler das Log aus.
-	uint compileShaderStage(GLenum type, const char* p_source, const char* p_what)
-	{
-		const uint shader = glExtCreateShader(type);
-		if(!shader) return 0;
-
-		glExtShaderSource(shader, 1, &p_source, 0);
-		glExtCompileShader(shader);
-
-		GLint ok = 0;
-		glExtGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
-		if(!ok)
-		{
-			char log[1024] = "";
-			glExtGetShaderInfoLog(shader, sizeof(log) - 1, 0, log);
-			printfLog("- WARNING: Could not compile the %s shader: %s\n", p_what, log);
-			glExtDeleteShader(shader);
-			return 0;
-		}
-		return shader;
-	}
-}
-
-bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
-								  const char* p_name)
-{
-	const uint vs = compileShaderStage(GL_VERTEX_SHADER, p_presentVertexShader, "present vertex");
-	if(!vs) return false;
-	const uint fs = compileShaderStage(GL_FRAGMENT_SHADER, p_fragmentSource, p_name);
-	if(!fs) { glExtDeleteShader(vs); return false; }
-
-	target.program = glExtCreateProgram();
-	glExtAttachShader(target.program, vs);
-	glExtAttachShader(target.program, fs);
-	glExtBindAttribLocation(target.program, 0, "aPosition");
-	glExtBindAttribLocation(target.program, 1, "aTexCoord");
-	glExtLinkProgram(target.program);
-
-	glExtDeleteShader(vs);
-	glExtDeleteShader(fs);
-
-	GLint ok = 0;
-	glExtGetProgramiv(target.program, GL_LINK_STATUS, &ok);
-	if(!ok)
-	{
-		char log[1024] = "";
-		glExtGetProgramInfoLog(target.program, sizeof(log) - 1, 0, log);
-		printfLog("- WARNING: Could not link the %s program: %s\n", p_name, log);
-		destroyPresentProgram(target);
-		return false;
-	}
-
-	target.decal       = glExtGetUniformLocation(target.program, "decal");
-	target.textureSize = glExtGetUniformLocation(target.program, "TextureSize");
-	target.frameSize   = glExtGetUniformLocation(target.program, "FrameSize");
-	target.prescale    = glExtGetUniformLocation(target.program, "Prescale");
-	// Die folgenden gibt es nur im Roehrenshader; sonst bleibt es bei -1, und
-	// die Uniform wird schlicht nicht gesetzt.
-	target.scanline    = glExtGetUniformLocation(target.program, "Scanline");
-	target.curvature   = glExtGetUniformLocation(target.program, "Curvature");
-	target.bloom       = glExtGetUniformLocation(target.program, "Bloom");
-	target.flicker     = glExtGetUniformLocation(target.program, "Flicker");
-	target.time        = glExtGetUniformLocation(target.program, "Time");
-	target.scanPhase   = glExtGetUniformLocation(target.program, "ScanPhase");
-	target.scanFlicker = glExtGetUniformLocation(target.program, "ScanFlicker");
-	target.convergence = glExtGetUniformLocation(target.program, "Convergence");
-	return true;
-}
-
-void Engine::destroyPresentProgram(PresentProgram& target)
-{
-	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
-	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
-	target.scanline = target.curvature = target.bloom = target.flicker = -1;
-	target.time = target.scanPhase = target.scanFlicker = target.convergence = -1;
-}
-
-bool Engine::createPresentPrograms()
+void Engine::createUpscalerGL()
 {
 	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein
-	// Puffer sein. Vier Eckpunkte, jedes Bild neu gefuellt; beide Programme.
+	// Puffer sein. Vier Eckpunkte, jedes Bild neu gefuellt; alle Filter, die
+	// einen Shader benutzen, teilen sich diesen einen.
 	glExtGenBuffers(1, &presentVertexBuffer);
 	if(!presentVertexBuffer)
 	{
+		// Ohne ihn kann kein Shaderfilter zeichnen. Sie bleiben dann schlicht
+		// unuebersetzt und melden sich von selbst als nicht verfuegbar - es
+		// braucht keine zweite Bedingung dafuer.
 		printfLog("- WARNING: Could not create the present vertex buffer.\n");
-		return false;
+		return;
 	}
 
-	// Der Roehrenshader darf fehlschlagen, ohne dass sharp-fit mitfaellt.
-	const bool sharpOk = createPresentProgram(sharpFit, p_sharpFitFragmentShader, "sharp-fit fragment");
-	const bool crtOk   = createPresentProgram(crt, p_crtFragmentShader, "crt fragment");
-	if(!crtOk) printfLog("- WARNING: The CRT filter will not be available.\n");
-
-	if(!sharpOk)
+	// Jeder fuer sich: dass die Roehre nicht uebersetzt, ist kein Grund, auch
+	// "Scharf, angepasst" fallenzulassen.
+	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
-		destroyPresentProgram(crt);
-		glExtDeleteBuffers(1, &presentVertexBuffer);
-		presentVertexBuffer = 0;
-		return false;
+		if(!(*i)->createGL())
+		{
+			printfLog("- WARNING: The %s filter will not be available.\n", (*i)->getName());
+		}
 	}
-	return true;
 }
 
-void Engine::destroyPresentPrograms()
+void Engine::destroyUpscalerGL()
 {
+	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+	{
+		(*i)->destroyGL();
+	}
 	if(presentVertexBuffer) { glExtDeleteBuffers(1, &presentVertexBuffer); presentVertexBuffer = 0; }
-	destroyPresentProgram(sharpFit);
-	destroyPresentProgram(crt);
 }
 
-void Engine::setCrtScanline(double value)
+void Engine::setUpscaler(Upscaler* p_upscaler)
 {
-	crtScanline = clamp(value, 0.0, 1.0);
+	// Nur merken. Ob der Filter auf dieser Maschine wirklich geht, entscheidet
+	// getEffectiveUpscaler() - hier gibt es womoeglich noch keinen GL-Kontext.
+	if(p_upscaler) p_wantedUpscaler = p_upscaler;
 }
 
-void Engine::setCrtCurvature(double value)
+Upscaler* Engine::findUpscaler(const char* p_name) const
 {
-	crtCurvature = clamp(value, 0.0, 1.0);
-}
-
-void Engine::setCrtBloom(double value)
-{
-	crtBloom = clamp(value, 0.0, 1.0);
-}
-
-void Engine::setCrtFlicker(double value)
-{
-	crtFlicker = clamp(value, 0.0, 1.0);
-}
-
-void Engine::setCrtScanFlicker(double value)
-{
-	crtScanFlicker = clamp(value, 0.0, 1.0);
-}
-
-void Engine::setCrtConvergence(double value)
-{
-	crtConvergence = clamp(value, 0.0, 1.0);
-}
-
-void Engine::setUpscaleFilter(UpscaleFilter filter)
-{
-	// Nur merken. Ob der Filter wirklich geht, entscheidet
-	// getEffectiveUpscaleFilter() - hier gibt es noch keinen GL-Kontext.
-	upscaleFilter = filter;
-}
-
-const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
-{
-	switch(filter)
+	if(!p_name) return 0;
+	for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
-	case UF_NEAREST:    return "Sharp";
-	case UF_SHARP_FIT:  return "SharpFit";
-	case UF_CRT:        return "Crt";
-	default:            return "Smooth";
+		if(equalsNoCase(p_name, (*i)->getName())) return *i;
 	}
+	return 0;
 }
 
-Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback)
-{
-	if(!p_name) return fallback;
-	if(equalsNoCase(p_name, "Sharp"))       return UF_NEAREST;
-	if(equalsNoCase(p_name, "Smooth"))      return UF_BILINEAR;
-	if(equalsNoCase(p_name, "SharpFit"))    return UF_SHARP_FIT;
-	if(equalsNoCase(p_name, "Crt"))         return UF_CRT;
-	// Kein Fehler, sondern eine aeltere config.xml: die Namen hiessen bis
-	// 1.2.0 anders. Gemeldet wird es trotzdem - sonst waere der Filter eines
-	// Tages einfach ein anderer, ohne dass irgendwo etwas dazu steht.
-	printfLog("  Unknown <Upscaler> \"%s\" in config.xml; using %s.\n",
-			  p_name, getUpscaleFilterName(fallback));
-	return fallback;
-}
-
-bool Engine::canUseSharpFit() const
-{
-	return useFrameBuffer && sharpFit.program != 0 && presentVertexBuffer != 0;
-}
-
-bool Engine::canUseCrt() const
-{
-	return useFrameBuffer && crt.program != 0 && presentVertexBuffer != 0;
-}
-
-Engine::UpscaleFilter Engine::getEffectiveUpscaleFilter() const
+Upscaler* Engine::getEffectiveUpscaler() const
 {
 	// Ohne uebersetztes Programm lieber scharf als gar kein Bild. Der Wunsch
-	// bleibt in upscaleFilter stehen, fuer die naechste Maschine.
-	if(upscaleFilter == UF_SHARP_FIT && !canUseSharpFit()) return UF_NEAREST;
-	if(upscaleFilter == UF_CRT && !canUseCrt())            return UF_NEAREST;
-	return upscaleFilter;
+	// bleibt stehen, fuer die naechste Maschine - hier wird nichts
+	// umgeschrieben.
+	//
+	// Der Rueckfall ist fest "Scharf" und nicht "der erste, der geht": die
+	// Anzeigereihenfolge beginnt mit "Scharf, angepasst", und die haengt am
+	// Optionsdialog. Sonst entschiede eines Tages dessen Sortierung darueber,
+	// was eine Maschine ohne Shader zeigt.
+	if(p_wantedUpscaler && p_wantedUpscaler->isAvailable()) return p_wantedUpscaler;
+	return p_sharp;
 }
 
 bool Engine::createFrameBuffer()
@@ -2413,38 +2304,12 @@ void Engine::handleResize(int width, int height)
 
 Vec2d Engine::warpToSource(const Vec2d& p) const
 {
-	// Genau die Formel aus src/crt_shader.h. p und der Rueckgabewert laufen
-	// von -1 bis 1 ab der Bildmitte.
-	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return p;
-
-	const double a = crtCurvature * crtCurveX;
-	const double b = crtCurvature * crtCurveY;
-	return Vec2d(p.x * (1.0 + a * p.y * p.y),
-				 p.y * (1.0 + b * p.x * p.x));
+	return getEffectiveUpscaler()->warpToSource(p);
 }
 
-Vec2d Engine::warpToOutput(const Vec2d& s) const
+Vec2d Engine::warpToOutput(const Vec2d& p) const
 {
-	if(getEffectiveUpscaleFilter() != UF_CRT || crtCurvature <= 0.0) return s;
-
-	const double a = crtCurvature * crtCurveX;
-	const double b = crtCurvature * crtCurveY;
-
-	// Die Umkehrung. Das Gleichungspaar ist gekoppelt - x haengt an y und
-	// umgekehrt - und hat keine geschlossene Loesung; als Fixpunkt
-	//
-	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
-	//
-	// zieht es sich sehr schnell zusammen: nach acht Runden liegt der Fehler
-	// selbst bei uebertriebener Woelbung unter 2.3e-4 Bildpunkten.
-	double x = s.x;
-	double y = s.y;
-	for(int i = 0; i < 8; i++)
-	{
-		x = s.x / (1.0 + a * y * y);
-		y = s.y / (1.0 + b * x * x);
-	}
-	return Vec2d(x, y);
+	return getEffectiveUpscaler()->warpToOutput(p);
 }
 
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
@@ -2457,7 +2322,7 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 	// "Scharf" braucht eine ganzzahlige Stufe. Bei einem krummen Faktor
 	// verdoppelt Nearest manche Quellpixel und andere nicht - ungleiche
 	// Strichstaerken, fransige Schrift. Unterhalb von 1:1 gibt es keine.
-	if(getEffectiveUpscaleFilter() == UF_NEAREST && scale >= 1.0) scale = floor(scale);
+	if(getEffectiveUpscaler()->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
 
 	w = static_cast<int>(screenSize.x * scale);
 	h = static_cast<int>(screenSize.y * scale);
@@ -2493,106 +2358,30 @@ void Engine::presentFrame()
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	// Benutzt wird nur die linke untere Ecke der Zweierpotenz-Textur.
-	const double u = static_cast<double>(screenSize.x) / frameTextureSize.x;
-	const double v = static_cast<double>(screenSize.y) / frameTextureSize.y;
-
 	glBindTexture(GL_TEXTURE_2D, frameTextureID);
 
-	// Nearest und Bilinear sind reine Filtereinstellungen der Textur.
-	const UpscaleFilter effective = getEffectiveUpscaleFilter();
-	// UF_SHARP_FIT rechnet die Texturkoordinate so um, dass die
-	// Hardware-Interpolation das nearest-Ergebnis liefert. UF_CRT ebenso.
-	const GLint filter = (effective == UF_BILINEAR || effective == UF_SHARP_FIT ||
-						  effective == UF_CRT) ? GL_LINEAR : GL_NEAREST;
+	// Von hier an gehoert das Bild dem Filter. Was er braucht, steht im
+	// Zusammenhang; was ihm gehoert - sein Shader, seine Regler - kennt nur er.
+	PresentContext context;
+	context.rectPosition = Vec2i(x, y);
+	context.rectSize     = Vec2i(w, h);
+	context.displaySize  = displaySize;
+	context.frameSize    = screenSize;
+	context.textureSize  = frameTextureSize;
+	context.textureID    = frameTextureID;
+	context.vertexBuffer = presentVertexBuffer;
+
+	Upscaler* p_upscaler = getEffectiveUpscaler();
+
+	// "Scharf" und "Weich" sind nichts als diese Stellung; "Scharf, angepasst"
+	// und die Roehre rechnen die Texturkoordinate so um, dass die
+	// Hardware-Interpolation das gewuenschte Ergebnis liefert, und brauchen
+	// deshalb ebenfalls GL_LINEAR.
+	const GLint filter = p_upscaler->getTextureFilter();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-	if(effective == UF_SHARP_FIT || effective == UF_CRT)
-	{
-		const PresentProgram& prog = (effective == UF_CRT) ? crt : sharpFit;
-
-		// Der Shader rechnet in Clipkoordinaten - keine Matrix und damit im
-		// Browser keine Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
-		const float x0 = 2.0f * x           / displaySize.x - 1.0f;
-		const float x1 = 2.0f * (x + w)     / displaySize.x - 1.0f;
-		const float y0 = 2.0f * y           / displaySize.y - 1.0f;
-		const float y1 = 2.0f * (y + h)     / displaySize.y - 1.0f;
-		const float fu = static_cast<float>(u), fv = static_cast<float>(v);
-
-		// Zwei Dreiecke als Streifen: Position, dann Texturkoordinate.
-		const float vertices[16] =
-		{
-			x0, y0, 0.0f, 0.0f,
-			x1, y0, fu,   0.0f,
-			x0, y1, 0.0f, fv,
-			x1, y1, fu,   fv
-		};
-
-		// Der kleinste ganzzahlige Faktor, mit dem das 640x480-Bild das
-		// Zielrechteck ausfuellt. Genau um den wuerde man mit nearest
-		// vergroessern, bevor man heruntergeht - der Shader macht beides.
-		const float prescaleX = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(w) / screenSize.x))));
-		const float prescaleY = static_cast<float>(max(1, static_cast<int>(ceil(static_cast<double>(h) / screenSize.y))));
-
-		glExtUseProgram(prog.program);
-		if(prog.decal >= 0)       glExtUniform1i(prog.decal, 0);
-		if(prog.textureSize >= 0) glExtUniform2f(prog.textureSize,
-												 static_cast<float>(frameTextureSize.x),
-												 static_cast<float>(frameTextureSize.y));
-		if(prog.frameSize >= 0)   glExtUniform2f(prog.frameSize,
-												 static_cast<float>(screenSize.x),
-												 static_cast<float>(screenSize.y));
-		if(prog.prescale >= 0)    glExtUniform2f(prog.prescale, prescaleX, prescaleY);
-		// Die beiden Regler. Sie werden jedes Bild neu gesetzt, damit der
-		// Optionsdialog sofort wirkt, ohne den Shader neu zu uebersetzen.
-		if(prog.scanline >= 0)    glExtUniform1f(prog.scanline, static_cast<float>(crtScanline));
-		if(prog.curvature >= 0)   glExtUniform1f(prog.curvature, static_cast<float>(crtCurvature));
-		if(prog.bloom >= 0)       glExtUniform1f(prog.bloom, static_cast<float>(crtBloom));
-		if(prog.flicker >= 0)     glExtUniform1f(prog.flicker, static_cast<float>(crtFlicker));
-		if(prog.scanFlicker >= 0) glExtUniform1f(prog.scanFlicker, static_cast<float>(crtScanFlicker));
-		if(prog.convergence >= 0) glExtUniform1f(prog.convergence, static_cast<float>(crtConvergence));
-		// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten
-		// und steht bei Pause still; ein Bildschirm flimmert auch dann. Der
-		// Umlauf ist FLICKER_CYCLE, alle Frequenzen darin ganze Vielfache.
-		const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
-		if(prog.time >= 0)
-		{
-			const double cycle = 8.0;   // = FLICKER_CYCLE in crt_shader.h
-			glExtUniform1f(prog.time, static_cast<float>(fmod(seconds, cycle)));
-		}
-		// Das Zeilenkriechen wird als einziger Anteil hier gerechnet: es ist
-		// eine Rampe, keine Schwingung, und ihre Steigung haengt am Regler -
-		// aus der schon gekuerzten Uhr spraenge die Phase bei jedem Umlauf.
-		if(prog.scanPhase >= 0)
-		{
-			glExtUniform1f(prog.scanPhase,
-						   static_cast<float>(fmod(seconds * crtCrawlSpeed * crtScanFlicker, 1.0)));
-		}
-
-		glExtBindBuffer(GL_ARRAY_BUFFER, presentVertexBuffer);
-		glExtBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
-		glExtEnableVertexAttribArray(0);
-		glExtEnableVertexAttribArray(1);
-		glExtVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(0));
-		glExtVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<const void*>(2 * sizeof(float)));
-
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-		glExtDisableVertexAttribArray(0);
-		glExtDisableVertexAttribArray(1);
-		glExtBindBuffer(GL_ARRAY_BUFFER, 0);
-		glExtUseProgram(0);
-	}
-	else
-	{
-		glBegin(GL_QUADS);
-		glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
-		glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
-		glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
-		glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
-		glEnd();
-	}
+	p_upscaler->present(context);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -3491,7 +3280,7 @@ Vec2i Engine::getCursorPosition() const
 			Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
 
 			// Dieselbe Woelbung wie im Shader: der Zeiger sitzt auf dem Glas. Ohne
-			// UF_CRT gibt warpToSource die Koordinate unveraendert zurueck.
+			// Ohne Woelbung gibt warpToSource die Koordinate unveraendert zurueck.
 			const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
 			n = (warped + Vec2d(1.0, 1.0)) * 0.5;
 
@@ -3663,28 +3452,26 @@ void Engine::loadConfig()
 		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
 		// Skalierungsfilter lesen. Ob er wirklich geht, entscheidet
-		// getEffectiveUpscaleFilter() spaeter - hier gibt es keinen GL-Kontext.
+		// getEffectiveUpscaler() spaeter - hier gibt es keinen GL-Kontext.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
-		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
-
-		// Die Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
-		// Voreinstellung aus dem Konstruktor.
-		TiXmlElement* p_crt = p_config->FirstChildElement("CrtUpscaler");
-		if(p_crt)
+		if(p_upscaler)
 		{
-			double value = 0.0;
-			if(p_crt->QueryDoubleAttribute("scanline", &value) == TIXML_SUCCESS)
-				setCrtScanline(value);
-			if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)
-				setCrtCurvature(value);
-			if(p_crt->QueryDoubleAttribute("bloom", &value) == TIXML_SUCCESS)
-				setCrtBloom(value);
-			if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)
-				setCrtFlicker(value);
-			if(p_crt->QueryDoubleAttribute("scanFlicker", &value) == TIXML_SUCCESS)
-				setCrtScanFlicker(value);
-			if(p_crt->QueryDoubleAttribute("convergence", &value) == TIXML_SUCCESS)
-				setCrtConvergence(value);
+			Upscaler* p_found = findUpscaler(p_upscaler->GetText());
+			// Kein Fehler, sondern eine aeltere config.xml: die Namen hiessen
+			// bis 1.2.0 anders. Gemeldet wird es trotzdem - sonst waere der
+			// Filter eines Tages einfach ein anderer, ohne dass irgendwo
+			// etwas dazu steht.
+			if(p_found) p_wantedUpscaler = p_found;
+			else printfLog("  Unknown <Upscaler> \"%s\" in config.xml; using %s.\n",
+						   p_upscaler->GetText() ? p_upscaler->GetText() : "",
+						   p_wantedUpscaler->getName());
+		}
+
+		// Und was die Filter selbst einzustellen haben - jeder liest sein
+		// eigenes Element, auch wenn er gerade nicht der gewaehlte ist.
+		for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+		{
+			(*i)->loadConfig(p_config);
 		}
 
 		// Vollbild und Fenstergroesse gelten erst beim naechsten Start; mitten
@@ -3817,21 +3604,18 @@ void Engine::saveConfig()
 	p_language->LinkEndChild(new TiXmlText(language));
 	p_config->LinkEndChild(p_language);
 
-	// Skalierungsfilter schreiben
+	// Skalierungsfilter schreiben - den Wunsch, nicht das, was diese Maschine
+	// daraus macht.
 	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
-	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
+	p_upscaler->LinkEndChild(new TiXmlText(p_wantedUpscaler->getName()));
 	p_config->LinkEndChild(p_upscaler);
 
-	// Die Regler des Roehrenfilters gehoeren zu ihm und stehen deshalb gleich
-	// dahinter.
-	TiXmlElement* p_crt = new TiXmlElement("CrtUpscaler");
-	p_crt->SetDoubleAttribute("scanline", crtScanline);
-	p_crt->SetDoubleAttribute("curvature", crtCurvature);
-	p_crt->SetDoubleAttribute("bloom", crtBloom);
-	p_crt->SetDoubleAttribute("flicker", crtFlicker);
-	p_crt->SetDoubleAttribute("scanFlicker", crtScanFlicker);
-	p_crt->SetDoubleAttribute("convergence", crtConvergence);
-	p_config->LinkEndChild(p_crt);
+	// Und gleich dahinter, was die Filter selbst einzustellen haben. Sie legen
+	// ihr Element jeweils selbst an; hier steht deshalb nur die Reihenfolge.
+	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+	{
+		(*i)->saveConfig(p_config);
+	}
 
 	// Vollbild und Fenstergroesse schreiben, damit das Spiel so wiederkommt.
 	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");

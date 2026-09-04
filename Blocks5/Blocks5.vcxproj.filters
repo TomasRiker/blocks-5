@@ -382,6 +382,21 @@
     <ClCompile Include="src\transfer.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\u_crt.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\u_sharp.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\u_sharpfit.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\u_smooth.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\upscaler.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\util.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1092,12 +1107,6 @@
     <ClInclude Include="src\resource.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="src\crt_shader.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="src\sharpfit_shader.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
     <ClInclude Include="src\singleton.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -1120,6 +1129,24 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\typedefs.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_all.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_crt.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_sharp.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_sharpfit.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_smooth.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\upscaler.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\util.h">

@@ -63,19 +63,17 @@ struct VirtualKey
 	}
 };
 
+class Upscaler;
+class U_Sharp;
+class U_Smooth;
+class U_SharpFit;
+class U_Crt;
+
 class Engine : public Singleton<Engine>
 {
 	friend class Singleton<Engine>;
 
 public:
-	// Wie das intern gerenderte 640x480-Bild auf den Bildschirm kommt.
-	enum UpscaleFilter
-	{
-		UF_NEAREST = 0,   // harte Kanten; nur bei ganzzahliger Vergroesserung sinnvoll
-		UF_BILINEAR,      // die Hardware macht es, kostet nichts
-		UF_SHARP_FIT,     // nearest auf die naechste ganzzahlige Stufe, dann herunter
-	UF_CRT            // Roehrenmonitor: Maske, Streifen, Hof, gewoelbte Scheibe
-	};
 	bool init(const std::string& windowCaption, const std::string& windowIconFilename, uint width, uint height, bool defaultFullScreen);
 	void exit();
 	void mainLoop();
@@ -149,39 +147,26 @@ public:
 	// ganzzahlige Vielfache von 640x480, das noch bequem auf den Schirm passt.
 	Vec2i getDefaultWindowSize() const;
 
-	// Die beiden Shader des Spiels. Laesst sich einer nicht uebersetzen, faellt
-	// seine Anzeige auf UF_NEAREST zurueck; das Spiel laeuft in jedem Fall.
-	bool createPresentPrograms();
-	void destroyPresentPrograms();
+	// Der GL-Zustand der Filter: der gemeinsame Vertexpuffer und, wo einer
+	// gebraucht wird, das uebersetzte Programm. Laesst sich eines nicht
+	// uebersetzen, meldet sich dieser Filter als nicht verfuegbar und die
+	// Anzeige faellt auf "Scharf" zurueck; das Spiel laeuft in jedem Fall.
+	void createUpscalerGL();
+	void destroyUpscalerGL();
 
-	// getUpscaleFilter() ist der Wunsch aus der config.xml,
-	// getEffectiveUpscaleFilter() das, was ohne Shader davon uebrig bleibt.
-	void setUpscaleFilter(UpscaleFilter filter);
-	UpscaleFilter getUpscaleFilter() const { return upscaleFilter; }
-	UpscaleFilter getEffectiveUpscaleFilter() const;
-	// Die Namen, unter denen der Filter in der config.xml steht.
-	static const char* getUpscaleFilterName(UpscaleFilter filter);
-	static UpscaleFilter parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback);
-	bool canUseSharpFit() const;   // hat die Maschine Shader und Bildpuffer?
-	bool canUseCrt() const;
-
-	// Die Regler des Roehrenfilters, je 0..1; sie wirken sofort. Die Woelbung
-	// geht auch durch die Mausumrechnung, siehe warpToSource/warpToOutput.
-	double getCrtScanline() const { return crtScanline; }
-	double getCrtCurvature() const { return crtCurvature; }
-	double getCrtBloom() const { return crtBloom; }
-	double getCrtFlicker() const { return crtFlicker; }
-	double getCrtScanFlicker() const { return crtScanFlicker; }
-	// 0 heisst sauber justiert, 1 der staerkste Farbsaum - wie bei allen
-	// anderen Reglern ist 0 also "Effekt aus", auch wenn ein echtes Geraet bei
-	// guter Konvergenz gerade nichts zeigt.
-	double getCrtConvergence() const { return crtConvergence; }
-	void setCrtScanline(double value);
-	void setCrtCurvature(double value);
-	void setCrtBloom(double value);
-	void setCrtFlicker(double value);
-	void setCrtScanFlicker(double value);
-	void setCrtConvergence(double value);
+	// getUpscaler() ist der Wunsch aus der config.xml, getEffectiveUpscaler()
+	// das, was auf dieser Maschine davon uebrig bleibt.
+	void setUpscaler(Upscaler* p_upscaler);
+	Upscaler* getUpscaler() const { return p_wantedUpscaler; }
+	Upscaler* getEffectiveUpscaler() const;
+	// Alle vier, in der Reihenfolge, in der sie im Optionsdialog stehen.
+	const std::vector<Upscaler*>& getUpscalers() const { return upscalers; }
+	// Den Filter zu seinem Namen aus der config.xml; 0, wenn keiner so heisst.
+	Upscaler* findUpscaler(const char* p_name) const;
+	// Die Roehre beim Namen. Zwei Stellen brauchen genau sie und keinen
+	// beliebigen Filter: der Optionsdialog stellt ihre sechs Regler, und das
+	// Hauptmenue bietet sie einmalig an.
+	U_Crt& getCrt() const { return *p_crt; }
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 
@@ -341,15 +326,6 @@ private:
 		double targetY;     // wohin sie will
 	};
 
-	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
-	// vier Uniforms; der Roehrenshader hat zwei weitere.
-	struct PresentProgram
-	{
-		uint program;
-		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker, convergence;   // nur UF_CRT, sonst -1
-	};
-
 	void setupCursor();
 	void updateToasts();
 	void renderToasts();
@@ -377,15 +353,11 @@ private:
 	void unhookWindowProc();          // und wieder herausnehmen
 #endif
 
-	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen; die
-	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
-	// Formel selbst, warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
+	// Die Abbildung des gerade wirksamen Filters, in beide Richtungen; die
+	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. Nur die Roehre verzieht
+	// wirklich etwas, alle anderen geben zurueck, was sie bekommen haben.
 	Vec2d warpToSource(const Vec2d& p) const;
 	Vec2d warpToOutput(const Vec2d& p) const;
-
-	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
-							  const char* p_name);
-	void destroyPresentProgram(PresentProgram& target);
 
 	// Aeltester zuerst, also wird auch in dieser Reihenfolge gezeichnet: eine
 	// sterbende Meldung faehrt hinter ihre juengere Nachbarin und nicht darueber.
@@ -466,15 +438,14 @@ private:
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
-	UpscaleFilter upscaleFilter;
-	PresentProgram sharpFit;
-	PresentProgram crt;
-	double crtScanline;
-	double crtCurvature;
-	double crtBloom;
-	double crtFlicker;
-	double crtScanFlicker;
-	double crtConvergence;
+	// Die vier Filter. upscalers besitzt sie und haelt die Reihenfolge des
+	// Optionsdialogs; die vier Zeiger daneben sind die Abkuerzung dorthin.
+	std::vector<Upscaler*> upscalers;
+	U_Sharp* p_sharp;
+	U_Smooth* p_smooth;
+	U_SharpFit* p_sharpFit;
+	U_Crt* p_crt;
+	Upscaler* p_wantedUpscaler;
 	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;

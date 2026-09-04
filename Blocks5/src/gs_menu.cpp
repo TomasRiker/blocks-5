@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gs_menu.h"
+#include "u_crt.h"
 #include "gui.h"
 #include "gui_all.h"
 #include "cf_all.h"
@@ -265,8 +266,8 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	// vor 1.2.0 nirgends. Nur, wenn die Maschine den Filter darstellen kann
 	// und er nicht schon eingeschaltet ist.
 	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
-	const bool offerCrt = engine.canUseCrt() &&
-						  engine.getUpscaleFilter() != Engine::UF_CRT &&
+	const bool offerCrt = engine.getCrt().isAvailable() &&
+						  engine.getUpscaler() != &engine.getCrt() &&
 						  !fs.fileExists(crtOfferedPath);
 	if(offerCrt) gui["Menu.CrtPane.Crt"]->focus();
 
@@ -505,7 +506,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	{
 		if(name == "Menu.CrtPane.Crt.TryIt")
 		{
-			engine.setUpscaleFilter(Engine::UF_CRT);
+			engine.setUpscaler(&engine.getCrt());
 			engine.saveConfig();
 		}
 
