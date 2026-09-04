@@ -88,14 +88,26 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
-		bool menuVisible = GUI::inst()["Game.MenuPane"]->isVisible();
-		if(menuVisible) return;
+		// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
+		// Wiederholung ist kein zweiter Befehl - ohne das oeffnet und
+		// schliesst ein liegendes Escape das Menue immer wieder.
+		const bool pressed = (event.type == SDL_KEYDOWN) && !GUI::inst().isKeyRepeat();
+
+		if(GUI::inst()["Game.MenuPane"]->isVisible())
+		{
+			// Escape schliesst das Menue wieder, wie im Leveleditor. Aber nur
+			// das Menue selbst: stehen Optionen oder Hilfe darueber, ist
+			// "MenuPane.Menu" versteckt, und die Taste gehoert dem Dialog.
+			if(pressed && event.keysym.sym == SDLK_ESCAPE &&
+			   getChild("MenuPane.Menu")->isReallyVisible())
+			{
+				handleClick(getChild("MenuPane.Menu.Continue"));
+			}
+			return;
+		}
 
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
-
-		// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
-		// Wiederholung ist kein zweiter Befehl.
-		if(event.type != SDL_KEYDOWN || GUI::inst().isKeyRepeat()) return;
+		if(!pressed) return;
 
 		switch(event.keysym.sym)
 		{
