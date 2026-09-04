@@ -121,6 +121,30 @@ Module['b5_isPhone'] = function () {
          !window.matchMedia('(any-pointer: fine)').matches;
 };
 
+// Fullscreen goes on the root element, never on the canvas. Only the fullscreen
+// element and its descendants are painted, so with the canvas itself promoted
+// the on-screen controls - a sibling of it - simply vanish, while still
+// reporting a full-size bounding rect, which is why this survived a test that
+// only measured. From <html> both are inside, and the canvas is 100%/100% of
+// the page anyway, so it fills the screen without anyone resizing it.
+//
+// It has to be called from a trusted event handler; C++ does that through
+// Engine::enforceTouchFullScreen and the Alt+Return callback.
+Module['b5_setFullscreen'] = function (on) {
+  try {
+    if (on) {
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      var p = req.call(el);
+      if (p && p['catch']) p['catch'](function () {});
+    } else {
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
+  } catch (e) {}
+};
+
 // Landscape, and only while the game holds the screen. The lock is refused
 // unless the document is fullscreen, which is why this hangs off the change
 // event rather than off the request: on Android the promise rejects if the two
@@ -153,12 +177,10 @@ Module['b5_lockOrientation'] = function () {
 Module['b5_fitCanvas'] = function () {
   var c = Module['canvas'];
   if (!c) return;
-  // In fullscreen the browser sizes the element itself; do not fight it.
-  var full = document.fullscreenElement || document.webkitFullscreenElement;
-  if (!full) {
-    c.style.width = '100%';
-    c.style.height = '100%';
-  }
+  // 100% of the page in both states, because it is the page that goes
+  // fullscreen and not the canvas - see b5_setFullscreen.
+  c.style.width = '100%';
+  c.style.height = '100%';
   var r = c.getBoundingClientRect();
   var w = Math.max(1, Math.round(r.width));
   var h = Math.max(1, Math.round(r.height));

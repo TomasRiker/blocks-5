@@ -213,12 +213,18 @@ async function toPage(page, win) {
 		// There is no button for this in mobile Chrome, and the API needs a real
 		// gesture, so the game takes the one tap it already requires. Portrait is
 		// unplayable at this size, hence the lock that goes with it.
+		//
+		// It has to be the ROOT element and not the canvas: the browser paints
+		// only the fullscreen element and what is inside it, so with the canvas
+		// promoted the on-screen controls beside it are simply not drawn - while
+		// still reporting a full-size bounding rect, which is why measuring them
+		// would not have noticed.
 		const full = await page.evaluate(() => ({
-			el: (document.fullscreenElement || document.webkitFullscreenElement || {}).id || null,
+			el: (document.fullscreenElement || document.webkitFullscreenElement || {}).tagName || null,
 			locks: window.__b5locks.slice(),
 		}));
-		if (full.el === 'canvas') ok('the same tap took the canvas fullscreen');
-		else bad('not fullscreen after the tap (' + full.el + ')');
+		if (full.el === 'HTML') ok('the same tap took the page fullscreen');
+		else bad('the fullscreen element is ' + full.el + ', expected HTML');
 		if (full.locks.indexOf('landscape') >= 0) ok('landscape was requested');
 		else bad('no landscape lock was requested');
 

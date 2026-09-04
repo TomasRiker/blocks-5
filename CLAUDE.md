@@ -479,6 +479,20 @@ what makes it survive a swipe back out. There is no extra tap to pay for it: the
 build already stops on "click to start", because `GS_Loading` waits for the gesture that
 unblocks the AudioContext, and that tap is the one that gets used.
 
+**The fullscreen goes on the root element, never on the canvas** (`Module.b5_setFullscreen`,
+not `emscripten_request_fullscreen_strategy("#canvas")`). A browser paints only the fullscreen
+element and its descendants, so with the canvas promoted the on-screen pad — its sibling —
+disappears the moment the game goes fullscreen. It still reports a full-size
+`getBoundingClientRect` while invisible, which is why a test that measured it saw nothing
+wrong. From `<html>` both are inside, and the canvas is 100%/100% of the page anyway, so
+nothing has to resize it.
+
+**That same callback resumes the AudioContext**, and not only `GS_Loading`. Going fullscreen
+turns the phone to landscape, and the rotation makes the browser cancel the touch in flight —
+SDL never sees the press, so `GS_Loading` does not know a gesture happened and waits for a
+second tap that the player should not have to give. In the DOM callback the gesture is
+unambiguous.
+
 Two conditions guard it. `Module.b5_isPhone()` in `pre.js` is coarse-pointer **and not**
 `(any-pointer: fine)` — a notebook with a touchscreen has a title bar somebody wants, a phone
 has none — and it is one function rather than two copies precisely because C++ asks it too.

@@ -2,6 +2,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
+#include "web_audio.h"
 // Definition weiter unten, bei setFullScreen().
 static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
 static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
@@ -1888,22 +1889,22 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent* p_even
 
 static void emscriptenSetFullScreen(bool fullScreen)
 {
-	if(fullScreen)
-	{
-		EmscriptenFullscreenStrategy strategy;
-		memset(&strategy, 0, sizeof(strategy));
-		// Der Canvas bekommt die volle Bildschirmgroesse; die schwarzen Balken
-		// zeichnet presentFrame selbst, genau wie im Fenster.
-		strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH;
-		strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
-		strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
-		emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
-	}
-	else emscripten_exit_fullscreen();
+	// Nicht emscripten_request_fullscreen_strategy("#canvas"): das befoerdert
+	// den Canvas selbst, und dann zeichnet der Browser nur noch ihn. Die
+	// Bildschirmsteuerung liegt daneben und waere unsichtbar. b5_setFullscreen
+	// nimmt statt dessen das Wurzelelement, in dem beide stecken; der Canvas
+	// fuellt die Seite ohnehin.
+	EM_ASM({ Module['b5_setFullscreen']($0); }, fullScreen ? 1 : 0);
 }
 
 static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*)
 {
+	// Der Ton auch von hier aus, und nicht nur aus GS_Loading. Das Umschalten
+	// ins Vollbild dreht auf einem Telefon den Bildschirm, und dabei bricht der
+	// Browser die laufende Beruehrung ab - SDL sieht den Druck dann gar nicht,
+	// GS_Loading merkt nichts von der Geste und wartet auf eine zweite.
+	// Hier ist die Geste echt und unstrittig.
+	WebAudio::resume();
 	Engine::inst().enforceTouchFullScreen();
 	// EM_FALSE: die Beruehrung gehoert weiterhin SDL. Sie ist der Klick, mit
 	// dem der Ladebildschirm weitergeht und mit dem im Spiel geklickt wird.
