@@ -124,7 +124,7 @@ The window is resizable, keeps its 4:3 shape with black bars, and toggles border
 fullscreen with Alt+Return — none of which loses the GL context, because SDL's video flags
 never change and fullscreen goes behind SDL's back: a Win32 style flip on Windows, an EWMH
 request to the window manager on Linux. The scaling filter
-(`sharp-fit`, `nearest`, `bilinear`) is an in-game option under Options → Scaling, saved
+(`SharpFit`, `Sharp`, `Smooth`, `Crt`) is an in-game option under Options → Scaling, saved
 alongside the window size and fullscreen state in `config.xml`.
 
 The game needs no Visual C++ redistributable, no system-wide OpenAL and no codec pack: the

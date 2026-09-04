@@ -317,8 +317,8 @@ that *was* rendered, which is exactly the screen being faded out.
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
 `src/crt_shader.h`, meant to be edited. Six of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
-`<Crt scanline= curvature= bloom= flicker= scanflicker= convergence=>`), because they are
-matters of taste rather than tuning.
+`<CrtUpscaler scanline= curvature= bloom= flicker= scanFlicker= convergence=>`), because they
+are matters of taste rather than tuning.
 
 **Nobody finds a filter buried in an options dialog**, so `Menu.CrtPane` offers it once on a
 first start, with a button that switches it on there and then. The marker is `.crt_offered` in

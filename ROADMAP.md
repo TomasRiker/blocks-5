@@ -312,7 +312,7 @@ no lens. What a tube has is three beams, converged at the centre and drifting ap
 toward the rim where the deflection is largest. Green stays put as the reference,
 red and blue are displaced in opposite directions in proportion to the horizontal
 distance from the centre, and `CONVERGENCE_MAX` is what that comes to at the edge in
-source pixels. Sixth slider, `<Crt convergence=>`, at 0.5 like the other five.
+source pixels. Sixth slider, `<CrtUpscaler convergence=>`, at 0.5 like the other five.
 
 The two things this entry said to get right both held. It sits in the *source*
 sample and not in the halation ring, where it would have tripled the cost of

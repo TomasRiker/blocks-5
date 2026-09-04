@@ -105,6 +105,7 @@ Engine::Engine()
 	sharpFit.decal = sharpFit.textureSize = sharpFit.frameSize = sharpFit.prescale = -1;
 	sharpFit.scanline = sharpFit.curvature = sharpFit.bloom = -1;
 	sharpFit.flicker = sharpFit.time = sharpFit.scanPhase = sharpFit.scanFlicker = -1;
+	sharpFit.convergence = -1;
 	crt = sharpFit;
 	crtScanline = 0.5;
 	crtCurvature = 0.5;
@@ -539,8 +540,8 @@ bool Engine::init(const std::string& windowCaption,
 	// Startet das Spiel im Vollbild, kommt der Stilwechsel jetzt - erst hier,
 	// weil handleResize() den Bildpuffer kennen muss.
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
-	printfLog("  Upscale filters:  nearest, bilinear%s%s\n",
-			  canUseSharpFit() ? ", sharp-fit" : "", canUseCrt() ? ", crt" : "");
+	printfLog("  Upscale filters:  Sharp, Smooth%s%s\n",
+			  canUseSharpFit() ? ", SharpFit" : "", canUseCrt() ? ", Crt" : "");
 	printfLog("  Upscaling:        %s\n", getUpscaleFilterName(getEffectiveUpscaleFilter()));
 
 	// Texturen fuer Crossfading erzeugen
@@ -1702,7 +1703,7 @@ void Engine::destroyPresentProgram(PresentProgram& target)
 	if(target.program) { glExtDeleteProgram(target.program); target.program = 0; }
 	target.decal = target.textureSize = target.frameSize = target.prescale = -1;
 	target.scanline = target.curvature = target.bloom = target.flicker = -1;
-	target.time = target.scanPhase = target.scanFlicker = -1;
+	target.time = target.scanPhase = target.scanFlicker = target.convergence = -1;
 }
 
 bool Engine::createPresentPrograms()
@@ -1779,20 +1780,25 @@ const char* Engine::getUpscaleFilterName(UpscaleFilter filter)
 {
 	switch(filter)
 	{
-	case UF_NEAREST:    return "nearest";
-	case UF_SHARP_FIT:  return "sharp-fit";
-	case UF_CRT:        return "crt";
-	default:            return "bilinear";
+	case UF_NEAREST:    return "Sharp";
+	case UF_SHARP_FIT:  return "SharpFit";
+	case UF_CRT:        return "Crt";
+	default:            return "Smooth";
 	}
 }
 
 Engine::UpscaleFilter Engine::parseUpscaleFilterName(const char* p_name, UpscaleFilter fallback)
 {
 	if(!p_name) return fallback;
-	if(equalsNoCase(p_name, "nearest"))     return UF_NEAREST;
-	if(equalsNoCase(p_name, "bilinear"))    return UF_BILINEAR;
-	if(equalsNoCase(p_name, "sharp-fit"))   return UF_SHARP_FIT;
-	if(equalsNoCase(p_name, "crt"))         return UF_CRT;
+	if(equalsNoCase(p_name, "Sharp"))       return UF_NEAREST;
+	if(equalsNoCase(p_name, "Smooth"))      return UF_BILINEAR;
+	if(equalsNoCase(p_name, "SharpFit"))    return UF_SHARP_FIT;
+	if(equalsNoCase(p_name, "Crt"))         return UF_CRT;
+	// Kein Fehler, sondern eine aeltere config.xml: die Namen hiessen bis
+	// 1.2.0 anders. Gemeldet wird es trotzdem - sonst waere der Filter eines
+	// Tages einfach ein anderer, ohne dass irgendwo etwas dazu steht.
+	printfLog("  Unknown <Upscaler> \"%s\" in config.xml; using %s.\n",
+			  p_name, getUpscaleFilterName(fallback));
 	return fallback;
 }
 
@@ -3663,7 +3669,7 @@ void Engine::loadConfig()
 
 		// Die Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
 		// Voreinstellung aus dem Konstruktor.
-		TiXmlElement* p_crt = p_config->FirstChildElement("Crt");
+		TiXmlElement* p_crt = p_config->FirstChildElement("CrtUpscaler");
 		if(p_crt)
 		{
 			double value = 0.0;
@@ -3675,7 +3681,7 @@ void Engine::loadConfig()
 				setCrtBloom(value);
 			if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)
 				setCrtFlicker(value);
-			if(p_crt->QueryDoubleAttribute("scanflicker", &value) == TIXML_SUCCESS)
+			if(p_crt->QueryDoubleAttribute("scanFlicker", &value) == TIXML_SUCCESS)
 				setCrtScanFlicker(value);
 			if(p_crt->QueryDoubleAttribute("convergence", &value) == TIXML_SUCCESS)
 				setCrtConvergence(value);
@@ -3816,6 +3822,17 @@ void Engine::saveConfig()
 	p_upscaler->LinkEndChild(new TiXmlText(getUpscaleFilterName(upscaleFilter)));
 	p_config->LinkEndChild(p_upscaler);
 
+	// Die Regler des Roehrenfilters gehoeren zu ihm und stehen deshalb gleich
+	// dahinter.
+	TiXmlElement* p_crt = new TiXmlElement("CrtUpscaler");
+	p_crt->SetDoubleAttribute("scanline", crtScanline);
+	p_crt->SetDoubleAttribute("curvature", crtCurvature);
+	p_crt->SetDoubleAttribute("bloom", crtBloom);
+	p_crt->SetDoubleAttribute("flicker", crtFlicker);
+	p_crt->SetDoubleAttribute("scanFlicker", crtScanFlicker);
+	p_crt->SetDoubleAttribute("convergence", crtConvergence);
+	p_config->LinkEndChild(p_crt);
+
 	// Vollbild und Fenstergroesse schreiben, damit das Spiel so wiederkommt.
 	TiXmlElement* p_fullScreen = new TiXmlElement("Fullscreen");
 	p_fullScreen->LinkEndChild(new TiXmlText(fullScreen ? "1" : "0"));
@@ -3825,15 +3842,6 @@ void Engine::saveConfig()
 	p_windowSize->SetAttribute("w", windowedSize.x);
 	p_windowSize->SetAttribute("h", windowedSize.y);
 	p_config->LinkEndChild(p_windowSize);
-
-	TiXmlElement* p_crt = new TiXmlElement("Crt");
-	p_crt->SetDoubleAttribute("scanline", crtScanline);
-	p_crt->SetDoubleAttribute("curvature", crtCurvature);
-	p_crt->SetDoubleAttribute("bloom", crtBloom);
-	p_crt->SetDoubleAttribute("flicker", crtFlicker);
-	p_crt->SetDoubleAttribute("scanflicker", crtScanFlicker);
-	p_crt->SetDoubleAttribute("convergence", crtConvergence);
-	p_config->LinkEndChild(p_crt);
 
 	if(windowedPositionKnown)
 	{
