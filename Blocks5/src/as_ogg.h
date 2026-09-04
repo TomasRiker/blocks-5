@@ -1,15 +1,15 @@
-#ifndef _AS_OGG_H
-#define _AS_OGG_H
+#ifndef _AS_Ogg_H
+#define _AS_Ogg_H
 
 /*** Klasse fuer OGG-Audiodateien ***/
 
 #include "audiostream.h"
 
-class AS_OGG : public AudioStream
+class AS_Ogg : public AudioStream
 {
 public:
-	AS_OGG(const std::string& filename);
-	~AS_OGG();
+	AS_Ogg(const std::string& filename);
+	~AS_Ogg();
 
 	uint read(void* p_dest, uint numSlices);
 	uint tell();

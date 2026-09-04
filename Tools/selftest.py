@@ -98,6 +98,11 @@ def c_attrs(p):
     p.replace('SetAttribute("numLayers"', 'SetAttribute("NUM_LAYERS"')
 
 
+@case('naming', 'Blocks5/src/u_crt.h')
+def c_naming(p):
+    p.replace('class U_Crt : public Upscaler', 'class U_Tube : public Upscaler')
+
+
 @case('config', 'Blocks5/src/engine.cpp')
 def c_config(p):
     p.replace('new TiXmlElement("Upscaler")', 'new TiXmlElement("UpscalerX")')

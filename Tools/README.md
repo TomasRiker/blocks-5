@@ -20,6 +20,7 @@ Rueckgabewert 1, sobald etwas beanstandet wird.
 | --- | --- |
 | `encoding` | ein Nicht-ASCII-Zeichen oder CRLF im Quellcode; fehlendes CRLF in den ausgelieferten Textdateien |
 | `project_files` | eine Quelldatei, die nicht in `Blocks5.vcxproj` *und* `.filters` steht - Visual Studio uebersetzt sie dann nicht |
+| `naming` | eine Klasse mit Basisklasse, deren Header nicht `kleingeschriebener_klassenname.h` heisst |
 | `version` | die vier Stellen mit der Versionsnummer, wenn sie auseinandergehen |
 | `gui_paths` | `gui["..."]` und `getChild("...")` mit einem Namen, den kein Dialog-XML kennt |
 | `strings` | eine `$ID` ohne Eintrag in `languages.txt`, und Eintraege ohne deutschen oder englischen Text |
@@ -56,7 +57,7 @@ Uebersetzt jede Quelldatei des Spiels mit `i686-w64-mingw32-g++ -fsyntax-only`. 
 einzige Gelegenheit, den Windows-Code unter Linux durch einen Uebersetzer zu schicken, und
 sie kostet eine halbe Minute.
 
-    sh Tools/syntax.sh              alle 112 Dateien
+    sh Tools/syntax.sh              alle 118 Dateien
     sh Tools/syntax.sh engine.cpp   nur diese
 
 Die drei Dateien, die dabei aussen vor bleiben - `main.cpp`, `videorecorder.cpp`,

@@ -2,7 +2,7 @@
 #include "as_ogg.h"
 #include "filesystem.h"
 
-AS_OGG::AS_OGG(const std::string& filename)
+AS_Ogg::AS_Ogg(const std::string& filename)
 {
 	sliceSize = 0;
 
@@ -42,13 +42,13 @@ AS_OGG::AS_OGG(const std::string& filename)
 	length = static_cast<uint>(ov_pcm_total(&vorbisFile, -1));
 }
 
-AS_OGG::~AS_OGG()
+AS_Ogg::~AS_Ogg()
 {
 	// Datei schliessen
 	ov_clear(&vorbisFile);
 }
 
-uint AS_OGG::read(void* p_dest,
+uint AS_Ogg::read(void* p_dest,
 				  uint numSlices)
 {
 	uint numBytesRead = 0;
@@ -82,44 +82,44 @@ uint AS_OGG::read(void* p_dest,
 	return numBytesRead / sliceSize;
 }
 
-uint AS_OGG::tell()
+uint AS_Ogg::tell()
 {
 	return static_cast<uint>(ov_pcm_tell(&vorbisFile));
 }
 
-void AS_OGG::seek(uint position)
+void AS_Ogg::seek(uint position)
 {
 	if(position > length) return;
 	ov_pcm_seek(&vorbisFile, position);
 	eos = false;
 }
 
-bool AS_OGG::isEOS()
+bool AS_Ogg::isEOS()
 {
 	return eos;
 }
 
-uint AS_OGG::getError()
+uint AS_Ogg::getError()
 {
 	return error;
 }
 
-uint AS_OGG::getSampleRate()
+uint AS_Ogg::getSampleRate()
 {
 	return sampleRate;
 }
 
-uint AS_OGG::getNumBitsPerSample()
+uint AS_Ogg::getNumBitsPerSample()
 {
 	return numBitsPerSample;
 }
 
-uint AS_OGG::getNumChannels()
+uint AS_Ogg::getNumChannels()
 {
 	return numChannels;
 }
 
-uint AS_OGG::getLength()
+uint AS_Ogg::getLength()
 {
 	return length;
 }

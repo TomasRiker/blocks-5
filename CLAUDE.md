@@ -109,7 +109,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twelve static checks over the whole tree
+python3 Tools/verify.py      thirteen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -137,8 +137,8 @@ those are exactly what `Tools/syntax.sh` is for.
 **`Tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
-`Blocks5.vcxproj` or its `.filters`, the version number drifting apart across the four
-places it lives, a new member the constructor never sets, an asset filename that is not on
+`Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
+number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
 English comment among the German ones. Exit code 1 on any finding; `--list` names them,
 `--only NAME` runs one. `Tools/README.md` has the table.
@@ -165,7 +165,7 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 112 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 118 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
 files can never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp` — for
 the same reasons they are left out of the web build. It needs nothing checked in: the

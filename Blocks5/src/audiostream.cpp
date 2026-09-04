@@ -43,11 +43,11 @@ AudioStream* AudioStream::open(const std::string& filename)
 	std::string ext = getFilenameExtension(filename);
 	if(ext == "wav")
 	{
-		p_stream = new AS_WAV(filename);
+		p_stream = new AS_Wav(filename);
 	}
 	else if(ext == "ogg")
 	{
-		p_stream = new AS_OGG(filename);
+		p_stream = new AS_Ogg(filename);
 	}
 	else
 	{

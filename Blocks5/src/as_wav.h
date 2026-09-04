@@ -1,5 +1,5 @@
-#ifndef _AS_WAV_H
-#define _AS_WAV_H
+#ifndef _AS_Wav_H
+#define _AS_Wav_H
 
 /*** Klasse fuer WAV-Audiodateien ***/
 
@@ -7,11 +7,11 @@
 
 class File;
 
-class AS_WAV : public AudioStream
+class AS_Wav : public AudioStream
 {
 public:
-	AS_WAV(const std::string& filename);
-	~AS_WAV();
+	AS_Wav(const std::string& filename);
+	~AS_Wav();
 
 	uint read(void* p_dest, uint numSlices);
 	uint tell();

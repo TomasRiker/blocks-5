@@ -172,6 +172,33 @@ def check_project_files():
     return bad
 
 
+@check('naming')
+def check_naming():
+    """Der Dateiname ist der klein geschriebene Klassenname.
+
+    Das ist die einzige Namensregel dieses Baums, die ohne Ausnahme gilt - fuer
+    jede Klasse mit einer Basisklasse, in jedem Header, CF_Star in cf_star.h
+    genauso wie File_Real in file_real.h -, und sie ist in einem flachen
+    Verzeichnis mit ueber zweihundert Eintraegen die ganze Navigation: Symbol
+    gesehen, Datei bekannt, ohne Suche. Genau deshalb steht sie hier: eine
+    Regel, die nur in CLAUDE.md steht, verwaest.
+
+    Nachgesehen wird nur, was eine Basisklasse hat. Eine Vorwaertsdeklaration
+    hat keine, und eine Hilfsklasse ohne Basis - Sprites in sprite.h - folgt
+    ihrer eigenen Regel."""
+    pattern = re.compile(r'^\s*class\s+(\w+)\s*:\s*public\b', re.M)
+    bad = []
+    for name in sorted(os.listdir(SRC)):
+        if not name.endswith('.h'):
+            continue
+        stem = name[:-2]
+        for m in pattern.finditer(read(os.path.join(SRC, name))):
+            cls = m.group(1)
+            if cls.lower() != stem:
+                bad.append('%s: class %s gehoert nach %s.h' % (name, cls, cls.lower()))
+    return bad
+
+
 @check('version')
 def check_version():
     """Die Versionsnummer steht an vier Stellen. Die .rc ist schon einmal

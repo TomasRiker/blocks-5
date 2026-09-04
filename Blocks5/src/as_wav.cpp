@@ -2,7 +2,7 @@
 #include "as_wav.h"
 #include "filesystem.h"
 
-AS_WAV::AS_WAV(const std::string& filename)
+AS_Wav::AS_Wav(const std::string& filename)
 {
 	dataOffset = 0;
 	dataSize = 0;
@@ -121,13 +121,13 @@ AS_WAV::AS_WAV(const std::string& filename)
 	p_file->seek(dataOffset);
 }
 
-AS_WAV::~AS_WAV()
+AS_Wav::~AS_Wav()
 {
 	// Datei schliessen
 	FileSystem::inst().closeFile(p_file);
 }
 
-uint AS_WAV::read(void* p_dest,
+uint AS_Wav::read(void* p_dest,
 				  uint numSlices)
 {
 	uint readPointer = tell();
@@ -148,45 +148,45 @@ uint AS_WAV::read(void* p_dest,
 	return numSlicesRead;
 }
 
-uint AS_WAV::tell()
+uint AS_Wav::tell()
 {
 	uint currentOffset = p_file->tell() - dataOffset;
 	return currentOffset / sliceSize;
 }
 
-void AS_WAV::seek(uint position)
+void AS_Wav::seek(uint position)
 {
 	if(position > length) return;
 	p_file->seek(dataOffset + position * sliceSize);
 	eos = false;
 }
 
-bool AS_WAV::isEOS()
+bool AS_Wav::isEOS()
 {
 	return eos;
 }
 
-uint AS_WAV::getError()
+uint AS_Wav::getError()
 {
 	return error;
 }
 
-uint AS_WAV::getSampleRate()
+uint AS_Wav::getSampleRate()
 {
 	return sampleRate;
 }
 
-uint AS_WAV::getNumBitsPerSample()
+uint AS_Wav::getNumBitsPerSample()
 {
 	return numBitsPerSample;
 }
 
-uint AS_WAV::getNumChannels()
+uint AS_Wav::getNumChannels()
 {
 	return numChannels;
 }
 
-uint AS_WAV::getLength()
+uint AS_Wav::getLength()
 {
 	return length;
 }
