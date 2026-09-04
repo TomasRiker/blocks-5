@@ -720,6 +720,7 @@
     <ClCompile Include="src\sound.cpp" />
     <ClCompile Include="src\soundinstance.cpp" />
     <ClCompile Include="src\streamedsound.cpp" />
+    <ClCompile Include="src\testhooks.cpp" />
     <ClCompile Include="src\texture.cpp" />
     <ClCompile Include="src\transfer.cpp" />
     <ClCompile Include="src\util.cpp" />
@@ -850,6 +851,7 @@
     <ClInclude Include="src\sound.h" />
     <ClInclude Include="src\soundinstance.h" />
     <ClInclude Include="src\streamedsound.h" />
+    <ClInclude Include="src\testhooks.h" />
     <ClInclude Include="src\texture.h" />
     <ClInclude Include="src\transfer.h" />
     <ClInclude Include="src\typedefs.h" />

@@ -79,12 +79,19 @@ public:
 	{
 		if(!getChild("SearchPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
-			if(event.type != SDL_KEYDOWN) return;
+			// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
+			// Wiederholung ist kein zweiter Befehl.
+			if(event.type != SDL_KEYDOWN || GUI::inst().isKeyRepeat()) return;
 
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
+				// Die Taste ist hiermit verbraucht. Quit wechselt nach
+				// GS_Menu, und Engine::update() macht das noch in diesem Takt
+				// wirksam: das Menue kaeme unmittelbar danach an die Reihe,
+				// saehe dasselbe Escape ueber wasKeyPressed() und beendete das
+				// Spiel. Derselbe Grund wie in Options::onKeyEvent().
+				Engine::inst().consumeKeyPress(event.keysym.sym);
 				handleClick(getChild("Quit"));
 				break;
 			default:

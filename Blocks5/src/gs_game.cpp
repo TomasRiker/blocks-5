@@ -93,8 +93,9 @@ public:
 
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 
-		// Uns interessiert nur, ob eine Taste gedrueckt wurde.
-		if(event.type != SDL_KEYDOWN) return;
+		// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
+		// Wiederholung ist kein zweiter Befehl.
+		if(event.type != SDL_KEYDOWN || GUI::inst().isKeyRepeat()) return;
 
 		switch(event.keysym.sym)
 		{

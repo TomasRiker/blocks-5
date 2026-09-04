@@ -6,6 +6,7 @@ Panel::Panel(Level& level,
 {
 	warpTo(position);
 	flags = OF_FIXED;
+	flashLayer = 0;
 }
 
 Panel::~Panel()
@@ -25,7 +26,9 @@ void Panel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel ausloesen
+				// Panel ausloesen. Das Aufleuchten steht hier, damit auch ein
+				// spaeter dazukommendes Panel es von selbst bekommt.
+				flash();
 				onTriggered(p_obj);
 				break;
 			}

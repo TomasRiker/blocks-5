@@ -1,6 +1,234 @@
 #include "pch.h"
 #include "audiocapture.h"
 
+namespace
+{
+	// Groesse des Ringpuffers in Sekunden. Der Rekorder holt die Samples nur
+	// dann ab, wenn ein Videoframe fertig ist, also alle ~33 ms; ein paar
+	// Sekunden Reserve ueberbruecken auch laengere Haenger (Levelwechsel).
+	const int k_ringBufferSeconds = 4;
+
+	// So weit darf der Ringpuffer hinter der Echtzeit zurueckfallen, bevor mit
+	// Stille aufgefuellt wird. Muss deutlich groesser sein als die Paketrate der
+	// Aufnahme (~10 ms), sonst wird gepolstert, obwohl gleich noch echte Daten
+	// kommen.
+	const int k_silenceSlackMS = 60;
+
+	// Hoechstens so viel Stille am Stueck einfuegen (in Sekunden)
+	const int k_maxSilenceBurstSeconds = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Der Ringpuffer. Er steht vor der Fallunterscheidung, weil er auf beiden
+// Plattformen derselbe ist: was die Aufnahme liefert, sind hier wie dort
+// 16-Bit-Stereo-Samples, und verschieden ist nur der Weg dorthin - der
+// Loopback-Modus von WASAPI unter Windows, der Monitor der Standardsenke unter
+// Linux. Der Aufnahmefaden schreibt, der Rekorder liest, der Mutex trennt die
+// beiden.
+// ---------------------------------------------------------------------------
+
+struct AudioRing
+{
+	AudioRing();
+	~AudioRing();
+
+	// Puffer und Mutex anlegen bzw. wieder abraeumen.
+	bool allocate(uint sampleRate);
+	void release();
+
+	// Alles wegwerfen, was noch vom letzten Mal darin liegt.
+	void clearRing();
+
+	// Fertige Stereo-Samples anhaengen; ist kein Platz mehr, weichen die
+	// aeltesten.
+	void push(const short* p_samples, int numSamples);
+
+	// numSamples Stille anhaengen.
+	void pushSilence(int numSamples);
+
+	// Die Luecke nach der Uhr auffuellen. Solange nichts abgespielt wird, haelt
+	// der Audiodienst an und liefert gar keine Pakete mehr; ohne das hier waere
+	// die Tonspur kuerzer als das Video. expected ist die Zahl der Samples, die
+	// seit dem Start haetten kommen muessen.
+	void padToClock(long long expected);
+
+	// Die Leserseite, vom Rekorder aus einem anderen Faden gerufen.
+	int  available();
+	void read(short* p_buffer, int numSamples);
+
+	SDL_mutex* p_mutex;
+	short* p_ring;
+	int ringSize;   // in Samples
+	int ringRead;   // in Samples
+	int ringFill;   // in Samples
+	uint sampleRate;
+	bool opened;
+	bool overflowed;
+	long long samplesWritten;
+};
+
+AudioRing::AudioRing()
+	: p_mutex(0)
+	, p_ring(0)
+	, ringSize(0)
+	, ringRead(0)
+	, ringFill(0)
+	, sampleRate(48000)
+	, opened(false)
+	, overflowed(false)
+	, samplesWritten(0)
+{
+}
+
+AudioRing::~AudioRing()
+{
+	release();
+}
+
+bool AudioRing::allocate(uint sampleRate)
+{
+	this->sampleRate = sampleRate;
+	ringSize = (int)sampleRate * k_ringBufferSeconds;
+	p_ring = new short[ringSize * 2];
+	ringRead = 0;
+	ringFill = 0;
+	samplesWritten = 0;
+	overflowed = false;
+	p_mutex = SDL_CreateMutex();
+	return p_mutex != 0;
+}
+
+void AudioRing::release()
+{
+	if(p_mutex)
+	{
+		SDL_DestroyMutex(p_mutex);
+		p_mutex = 0;
+	}
+	delete[] p_ring;
+	p_ring = 0;
+	ringSize = 0;
+	ringRead = 0;
+	ringFill = 0;
+	opened = false;
+}
+
+void AudioRing::clearRing()
+{
+	SDL_LockMutex(p_mutex);
+	ringRead = 0;
+	ringFill = 0;
+	SDL_UnlockMutex(p_mutex);
+}
+
+void AudioRing::push(const short* p_samples, int numSamples)
+{
+	if(numSamples <= 0 || !p_ring) return;
+
+	SDL_LockMutex(p_mutex);
+
+	// mehr als der ganze Puffer auf einmal: nur das Ende behalten
+	if(numSamples > ringSize)
+	{
+		p_samples += 2 * (numSamples - ringSize);
+		numSamples = ringSize;
+	}
+
+	// ist kein Platz mehr, weichen die aeltesten Samples
+	const int overflow = ringFill + numSamples - ringSize;
+	if(overflow > 0)
+	{
+		ringRead = (ringRead + overflow) % ringSize;
+		ringFill -= overflow;
+		overflowed = true;
+	}
+
+	int write = (ringRead + ringFill) % ringSize;
+	int left = numSamples;
+	while(left > 0)
+	{
+		const int chunk = left < (ringSize - write) ? left : (ringSize - write);
+		memcpy(p_ring + 2 * write, p_samples, chunk * 2 * sizeof(short));
+		p_samples += 2 * chunk;
+		write = (write + chunk) % ringSize;
+		left -= chunk;
+	}
+	ringFill += numSamples;
+
+	SDL_UnlockMutex(p_mutex);
+}
+
+void AudioRing::pushSilence(int numSamples)
+{
+	const int k_scratchSamples = 1024;
+	short scratch[k_scratchSamples * 2];
+	memset(scratch, 0, sizeof(scratch));
+
+	while(numSamples > 0)
+	{
+		const int chunk = numSamples < k_scratchSamples ? numSamples : k_scratchSamples;
+		push(scratch, chunk);
+		samplesWritten += chunk;
+		numSamples -= chunk;
+	}
+}
+
+void AudioRing::padToClock(long long expected)
+{
+	const long long slack = (long long)sampleRate * k_silenceSlackMS / 1000;
+	long long missing = expected - samplesWritten;
+	if(missing <= slack) return;
+
+	// War die Pause sehr lang (Levelwechsel, angehaltener Prozess), wird der
+	// Rest verworfen statt endlos aufgeholt.
+	const long long maxBurst = (long long)sampleRate * k_maxSilenceBurstSeconds;
+	if(missing > maxBurst)
+	{
+		samplesWritten += missing - maxBurst;
+		missing = maxBurst;
+	}
+	pushSilence((int)missing);
+}
+
+int AudioRing::available()
+{
+	if(!opened || !p_mutex) return 0;
+	SDL_LockMutex(p_mutex);
+	const int numSamples = ringFill;
+	SDL_UnlockMutex(p_mutex);
+	return numSamples;
+}
+
+void AudioRing::read(short* p_buffer, int numSamples)
+{
+	if(numSamples <= 0) return;
+	if(!opened || !p_ring)
+	{
+		memset(p_buffer, 0, numSamples * 2 * sizeof(short));
+		return;
+	}
+
+	SDL_LockMutex(p_mutex);
+
+	const int numAvailable = numSamples < ringFill ? numSamples : ringFill;
+	short* p_out = p_buffer;
+	int left = numAvailable;
+	while(left > 0)
+	{
+		const int chunk = left < (ringSize - ringRead) ? left : (ringSize - ringRead);
+		memcpy(p_out, p_ring + 2 * ringRead, chunk * 2 * sizeof(short));
+		p_out += 2 * chunk;
+		ringRead = (ringRead + chunk) % ringSize;
+		left -= chunk;
+	}
+	ringFill -= numAvailable;
+
+	SDL_UnlockMutex(p_mutex);
+
+	// war nicht genug da, wird der Rest stumm
+	if(numAvailable < numSamples) memset(p_buffer + 2 * numAvailable, 0, (numSamples - numAvailable) * 2 * sizeof(short));
+}
+
 #ifdef _WIN32
 
 #include <windows.h>
@@ -20,21 +248,8 @@ namespace
 	// PKEY_Device_FriendlyName, sonst aus <functiondiscoverykeys_devpkey.h>
 	const PROPERTYKEY k_deviceFriendlyName = { { 0xa45c254e, 0xdf1c, 0x4efd, { 0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0 } }, 14 };
 
-	// Groesse des eigenen Ringpuffers in Sekunden. Der Rekorder holt die Samples nur
-	// dann ab, wenn ein Videoframe fertig ist, also alle ~33 ms; ein paar Sekunden
-	// Reserve ueberbruecken auch laengere Haenger (Levelwechsel).
-	const int k_ringBufferSeconds = 4;
-
 	// gewuenschte Laenge des WASAPI-Puffers in 100-ns-Einheiten (2 Sekunden)
 	const REFERENCE_TIME k_wasapiBufferDuration = 20000000;
-
-	// So weit darf der Ringpuffer hinter der Echtzeit zurueckfallen, bevor mit Stille
-	// aufgefuellt wird. Muss deutlich groesser sein als die Paketrate von WASAPI (~10 ms),
-	// sonst wird gepolstert, obwohl gleich noch echte Daten kommen.
-	const int k_silenceSlackMS = 60;
-
-	// Hoechstens so viel Stille am Stueck einfuegen (in Sekunden)
-	const int k_maxSilenceBurstSeconds = 1;
 
 	// Pause zwischen zwei Abholrunden
 	const int k_pollDelayMS = 5;
@@ -48,10 +263,9 @@ namespace
 	}
 }
 
-struct AudioCaptureImpl
+struct AudioCaptureImpl : public AudioRing
 {
 	AudioCaptureImpl();
-	~AudioCaptureImpl();
 
 	int threadProc();
 
@@ -64,33 +278,15 @@ struct AudioCaptureImpl
 	// rechnet numFrames Geraetesamples um und schiebt sie in den Ringpuffer
 	void convertAndPush(const BYTE* p_data, int numFrames, bool silent);
 
-	// haengt numSamples Stille an
-	void pushSilence(int numSamples);
-
-	// haengt fertige Stereo-Samples an (verdraengt notfalls die aeltesten)
-	void push(const short* p_samples, int numSamples);
-
-	void clearRing();
-
 	std::string deviceName;
-	uint sampleRate;
 	long initResult;
 	bool initOK;
-	bool opened;
-	bool overflowed;
 
 	SDL_Thread* p_thread;
-	SDL_mutex* p_mutex;
 	SDL_sem* p_initSemaphore;
 
 	volatile bool quit;
 	volatile bool capturing;
-
-	// Ringpuffer, 16 Bit Stereo interleaved
-	short* p_ring;
-	int ringSize;   // in Samples
-	int ringRead;   // in Samples
-	int ringFill;   // in Samples
 
 	// Format des Geraets
 	int srcChannels;
@@ -105,27 +301,18 @@ struct AudioCaptureImpl
 	float prevLeft;
 	float prevRight;
 	bool havePrev;
-	LONGLONG samplesWritten;
 };
 
 int audioCaptureThreadProc(void* p_param);
 
 AudioCaptureImpl::AudioCaptureImpl()
 	: deviceName("(unknown)")
-	, sampleRate(48000)
 	, initResult(0)
 	, initOK(false)
-	, opened(false)
-	, overflowed(false)
 	, p_thread(0)
-	, p_mutex(0)
 	, p_initSemaphore(0)
 	, quit(false)
 	, capturing(false)
-	, p_ring(0)
-	, ringSize(0)
-	, ringRead(0)
-	, ringFill(0)
 	, srcChannels(2)
 	, srcRate(48000)
 	, srcBits(32)
@@ -136,13 +323,7 @@ AudioCaptureImpl::AudioCaptureImpl()
 	, prevLeft(0.0f)
 	, prevRight(0.0f)
 	, havePrev(false)
-	, samplesWritten(0)
 {
-}
-
-AudioCaptureImpl::~AudioCaptureImpl()
-{
-	delete[] p_ring;
 }
 
 bool AudioCaptureImpl::setupSourceFormat(const WAVEFORMATEX* p_format)
@@ -246,66 +427,6 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 		push(scratch, numInScratch);
 		samplesWritten += numInScratch;
 	}
-}
-
-void AudioCaptureImpl::pushSilence(int numSamples)
-{
-	const int k_scratchSamples = 1024;
-	short scratch[k_scratchSamples * 2];
-	memset(scratch, 0, sizeof(scratch));
-
-	while(numSamples > 0)
-	{
-		const int chunk = numSamples < k_scratchSamples ? numSamples : k_scratchSamples;
-		push(scratch, chunk);
-		samplesWritten += chunk;
-		numSamples -= chunk;
-	}
-}
-
-void AudioCaptureImpl::push(const short* p_samples, int numSamples)
-{
-	if(numSamples <= 0 || !p_ring) return;
-
-	SDL_LockMutex(p_mutex);
-
-	// mehr als der ganze Puffer auf einmal: nur das Ende behalten
-	if(numSamples > ringSize)
-	{
-		p_samples += 2 * (numSamples - ringSize);
-		numSamples = ringSize;
-	}
-
-	// ist kein Platz mehr, weichen die aeltesten Samples
-	const int overflow = ringFill + numSamples - ringSize;
-	if(overflow > 0)
-	{
-		ringRead = (ringRead + overflow) % ringSize;
-		ringFill -= overflow;
-		overflowed = true;
-	}
-
-	int write = (ringRead + ringFill) % ringSize;
-	int left = numSamples;
-	while(left > 0)
-	{
-		const int chunk = left < (ringSize - write) ? left : (ringSize - write);
-		memcpy(p_ring + 2 * write, p_samples, chunk * 2 * sizeof(short));
-		p_samples += 2 * chunk;
-		write = (write + chunk) % ringSize;
-		left -= chunk;
-	}
-	ringFill += numSamples;
-
-	SDL_UnlockMutex(p_mutex);
-}
-
-void AudioCaptureImpl::clearRing()
-{
-	SDL_LockMutex(p_mutex);
-	ringRead = 0;
-	ringFill = 0;
-	SDL_UnlockMutex(p_mutex);
 }
 
 int AudioCaptureImpl::threadProc()
@@ -431,25 +552,10 @@ int AudioCaptureImpl::threadProc()
 			}
 
 			// Solange nichts abgespielt wird, haelt die Audio-Engine an und liefert gar
-			// keine Pakete mehr. Damit die Tonspur nicht kuerzer wird als das Video, wird
-			// die Luecke nach der Uhr mit Stille aufgefuellt.
+			// keine Pakete mehr; padToClock() fuellt die Luecke.
 			LARGE_INTEGER now;
 			QueryPerformanceCounter(&now);
-			const LONGLONG expected = (now.QuadPart - captureStart.QuadPart) * (LONGLONG)sampleRate / qpcFrequency.QuadPart;
-			const LONGLONG slack = (LONGLONG)sampleRate * k_silenceSlackMS / 1000;
-			LONGLONG missing = expected - samplesWritten;
-			if(missing > slack)
-			{
-				// War die Pause sehr lang (Levelwechsel, angehaltener Prozess), wird der
-				// Rest verworfen statt endlos aufgeholt.
-				const LONGLONG maxBurst = (LONGLONG)sampleRate * k_maxSilenceBurstSeconds;
-				if(missing > maxBurst)
-				{
-					samplesWritten += missing - maxBurst;
-					missing = maxBurst;
-				}
-				pushSilence((int)missing);
-			}
+			padToClock((now.QuadPart - captureStart.QuadPart) * (LONGLONG)sampleRate / qpcFrequency.QuadPart);
 
 			SDL_Delay(k_pollDelayMS);
 		}
@@ -487,17 +593,11 @@ bool AudioCapture::open(uint sampleRate)
 {
 	if(p_impl->opened) return true;
 
-	p_impl->sampleRate = sampleRate;
-	p_impl->ringSize = (int)sampleRate * k_ringBufferSeconds;
-	p_impl->p_ring = new short[p_impl->ringSize * 2];
-	p_impl->ringRead = 0;
-	p_impl->ringFill = 0;
 	p_impl->quit = false;
 	p_impl->capturing = false;
 
-	p_impl->p_mutex = SDL_CreateMutex();
 	p_impl->p_initSemaphore = SDL_CreateSemaphore(0);
-	if(!p_impl->p_mutex || !p_impl->p_initSemaphore)
+	if(!p_impl->allocate(sampleRate) || !p_impl->p_initSemaphore)
 	{
 		printfLog("+ WARNING: Could not create audio capture thread objects.\n");
 		close();
@@ -539,17 +639,7 @@ void AudioCapture::close()
 		SDL_DestroySemaphore(p_impl->p_initSemaphore);
 		p_impl->p_initSemaphore = 0;
 	}
-	if(p_impl->p_mutex)
-	{
-		SDL_DestroyMutex(p_impl->p_mutex);
-		p_impl->p_mutex = 0;
-	}
-	delete[] p_impl->p_ring;
-	p_impl->p_ring = 0;
-	p_impl->ringSize = 0;
-	p_impl->ringRead = 0;
-	p_impl->ringFill = 0;
-	p_impl->opened = false;
+	p_impl->release();
 }
 
 bool AudioCapture::isOpen() const
@@ -572,50 +662,303 @@ void AudioCapture::stop()
 	p_impl->capturing = false;
 }
 
-int AudioCapture::getNumSamplesReady()
+#elif !defined(__EMSCRIPTEN__)
+
+// ---------------------------------------------------------------------------
+// Linux. Was WASAPI den Loopback-Modus nennt, heisst bei PulseAudio Monitor:
+// zu jeder Ausgabesenke gibt es eine gleichnamige Quelle, die mithoert, was
+// gerade hinausgeht. "@DEFAULT_MONITOR@" ist die der Standardsenke, so dass
+// nichts aufgezaehlt werden muss. PipeWire bringt mit pipewire-pulse dieselbe
+// Schnittstelle mit, also deckt der eine Weg beide ab.
+//
+// libpulse wird zur Laufzeit geladen und nicht dazugebunden: das Spiel soll
+// auch dort starten, wo kein PulseAudio liegt - dann bleiben die Videos stumm,
+// wie bisher auf jeder Nicht-Windows-Plattform. Aus demselben Grund sind die
+// paar gebrauchten Deklarationen hier von Hand aufgeschrieben statt aus
+// <pulse/simple.h> geholt: sonst braeuchte der Build libpulse-dev.
+//
+// pa_simple bekommt gesagt, welches Format es liefern soll - S16LE, stereo,
+// 48 kHz -, und der Server rechnet um. Deshalb gibt es hier weder die
+// Formatumrechnung noch den Resampler der Windows-Seite.
+// ---------------------------------------------------------------------------
+
+#include <dlfcn.h>
+
+namespace
 {
-	if(!p_impl->opened) return 0;
-	SDL_LockMutex(p_impl->p_mutex);
-	const int numSamples = p_impl->ringFill;
-	SDL_UnlockMutex(p_impl->p_mutex);
-	return numSamples;
+	// Der Ausschnitt der libpulse-ABI, den diese Datei braucht. pa_simple_new
+	// nimmt fuer Kanalzuordnung und Pufferwuensche NULL, damit bleiben von den
+	// Strukturen nur die Formatangabe uebrig.
+	enum { PA_SAMPLE_S16LE = 3 };
+	enum { PA_STREAM_RECORD = 2 };
+
+	struct pa_sample_spec
+	{
+		int format;
+		uint32_t rate;
+		uint8_t channels;
+	};
+
+	typedef struct pa_simple pa_simple;
+
+	typedef pa_simple* (*pa_simple_new_t)(const char*, const char*, int, const char*,
+										  const char*, const pa_sample_spec*,
+										  const void*, const void*, int*);
+	typedef int   (*pa_simple_read_t)(pa_simple*, void*, size_t, int*);
+	typedef void  (*pa_simple_free_t)(pa_simple*);
+	typedef const char* (*pa_strerror_t)(int);
+
+	struct PulseAPI
+	{
+		void* p_library;
+		pa_simple_new_t  simple_new;
+		pa_simple_read_t simple_read;
+		pa_simple_free_t simple_free;
+		pa_strerror_t    strerror;
+
+		PulseAPI() : p_library(0), simple_new(0), simple_read(0), simple_free(0), strerror(0) {}
+
+		bool load()
+		{
+			if(p_library) return true;
+
+			// Die Version im Namen ist Absicht: libpulse-simple.so ohne Nummer
+			// gehoert zum Entwicklungspaket und liegt auf einem Spielrechner
+			// nicht.
+			p_library = dlopen("libpulse-simple.so.0", RTLD_LAZY | RTLD_LOCAL);
+			if(!p_library) return false;
+
+			simple_new  = (pa_simple_new_t) dlsym(p_library, "pa_simple_new");
+			simple_read = (pa_simple_read_t)dlsym(p_library, "pa_simple_read");
+			simple_free = (pa_simple_free_t)dlsym(p_library, "pa_simple_free");
+			// pa_strerror steht in libpulse selbst, nicht in libpulse-simple.
+			strerror    = (pa_strerror_t)   dlsym(p_library, "pa_strerror");
+
+			if(!simple_new || !simple_read || !simple_free)
+			{
+				dlclose(p_library);
+				p_library = 0;
+				return false;
+			}
+			return true;
+		}
+
+		const char* errorText(int error) const
+		{
+			return strerror ? strerror(error) : "unknown error";
+		}
+	};
+
+	// Wie viele Samples auf einmal geholt werden. pa_simple_read wartet, bis so
+	// viele da sind, also darf es nicht zu viel sein - sonst haengt der Faden
+	// beim Beenden zu lange. 10 ms sind auch das, was WASAPI je Paket liefert.
+	const int k_readSamples = 480;
 }
 
-void AudioCapture::getSamples(short* p_buffer, int numSamples)
+struct AudioCaptureImpl : public AudioRing
 {
-	if(numSamples <= 0) return;
-	if(!p_impl->opened || !p_impl->p_ring)
-	{
-		memset(p_buffer, 0, numSamples * 2 * sizeof(short));
-		return;
-	}
+	AudioCaptureImpl();
 
-	SDL_LockMutex(p_impl->p_mutex);
+	int threadProc();
 
-	const int available = numSamples < p_impl->ringFill ? numSamples : p_impl->ringFill;
-	short* p_out = p_buffer;
-	int left = available;
-	while(left > 0)
-	{
-		const int chunk = left < (p_impl->ringSize - p_impl->ringRead) ? left : (p_impl->ringSize - p_impl->ringRead);
-		memcpy(p_out, p_impl->p_ring + 2 * p_impl->ringRead, chunk * 2 * sizeof(short));
-		p_out += 2 * chunk;
-		p_impl->ringRead = (p_impl->ringRead + chunk) % p_impl->ringSize;
-		left -= chunk;
-	}
-	p_impl->ringFill -= available;
+	std::string deviceName;
+	PulseAPI pulse;
+	pa_simple* p_stream;
 
-	SDL_UnlockMutex(p_impl->p_mutex);
+	SDL_Thread* p_thread;
+	SDL_sem* p_initSemaphore;
+	bool initOK;
+	int initError;
 
-	// war nicht genug da, wird der Rest stumm
-	if(available < numSamples) memset(p_buffer + 2 * available, 0, (numSamples - available) * 2 * sizeof(short));
+	volatile bool quit;
+	volatile bool capturing;
+};
+
+int audioCaptureThreadProc(void* p_param);
+
+AudioCaptureImpl::AudioCaptureImpl()
+	: deviceName("(unknown)")
+	, p_stream(0)
+	, p_thread(0)
+	, p_initSemaphore(0)
+	, initOK(false)
+	, initError(0)
+	, quit(false)
+	, capturing(false)
+{
 }
 
-#else // _WIN32
+int AudioCaptureImpl::threadProc()
+{
+	pa_sample_spec spec;
+	spec.format   = PA_SAMPLE_S16LE;
+	spec.rate     = sampleRate;
+	spec.channels = 2;
 
-// Loopback-Aufnahme gibt es nur unter Windows. Anderswo bleiben die Videos stumm.
+	// "@DEFAULT_MONITOR@" loest der Server auf den Monitor der gerade
+	// eingestellten Standardsenke auf - genau das, was der Spieler hoert.
+	p_stream = pulse.simple_new(0, "Blocks 5", PA_STREAM_RECORD, "@DEFAULT_MONITOR@",
+								"video capture", &spec, 0, 0, &initError);
+	initOK = p_stream != 0;
+	if(initOK) deviceName = "@DEFAULT_MONITOR@";
+	SDL_SemPost(p_initSemaphore);
+	if(!initOK) return 0;
 
-struct AudioCaptureImpl
+	bool started = false;
+	double captureStart = 0.0;
+	short buffer[k_readSamples * 2];
+
+	while(!quit)
+	{
+		if(capturing && !started)
+		{
+			started = true;
+			// alles wegwerfen, was noch vom letzten Mal herumliegt
+			clearRing();
+			samplesWritten = 0;
+			overflowed = false;
+			captureStart = getExactTime();
+		}
+		else if(!capturing && started)
+		{
+			started = false;
+		}
+
+		int error = 0;
+		if(pulse.simple_read(p_stream, buffer, sizeof(buffer), &error) < 0)
+		{
+			printfLog("+ WARNING: Audio capture read failed (%s).\n", pulse.errorText(error));
+			break;
+		}
+
+		// Auch wenn gerade nicht aufgenommen wird, muss weitergelesen werden:
+		// sonst laeuft der Puffer des Servers ueber und die naechste Aufnahme
+		// beginnt mit Sekunden alter Musik.
+		if(!started) continue;
+
+		push(buffer, k_readSamples);
+		samplesWritten += k_readSamples;
+
+		// Eine ruhende Senke liefert nichts mehr - module-suspend-on-idle ist
+		// voreingestellt geladen -, und pa_simple_read wartet dann. Die Luecke
+		// nach der Uhr auffuellen, damit die Tonspur so lang wird wie das Video.
+		padToClock((long long)((getExactTime() - captureStart) * sampleRate));
+	}
+
+	return 0;
+}
+
+int audioCaptureThreadProc(void* p_param)
+{
+	return static_cast<AudioCaptureImpl*>(p_param)->threadProc();
+}
+
+AudioCapture::AudioCapture()
+{
+	p_impl = new AudioCaptureImpl;
+}
+
+AudioCapture::~AudioCapture()
+{
+	close();
+	delete p_impl;
+}
+
+bool AudioCapture::open(uint sampleRate)
+{
+	if(p_impl->opened) return true;
+
+	if(!p_impl->pulse.load())
+	{
+		printfLog("+ WARNING: libpulse-simple.so.0 is not available.\n");
+		return false;
+	}
+
+	p_impl->quit = false;
+	p_impl->capturing = false;
+
+	p_impl->p_initSemaphore = SDL_CreateSemaphore(0);
+	if(!p_impl->allocate(sampleRate) || !p_impl->p_initSemaphore)
+	{
+		printfLog("+ WARNING: Could not create audio capture thread objects.\n");
+		close();
+		return false;
+	}
+
+	p_impl->p_thread = SDL_CreateThread(audioCaptureThreadProc, p_impl);
+	if(!p_impl->p_thread)
+	{
+		printfLog("+ WARNING: Could not create audio capture thread.\n");
+		close();
+		return false;
+	}
+
+	// auf das Ergebnis von pa_simple_new warten
+	SDL_SemWait(p_impl->p_initSemaphore);
+	if(!p_impl->initOK)
+	{
+		printfLog("+ WARNING: Could not open the monitor of the default sink (%s).\n",
+				  p_impl->pulse.errorText(p_impl->initError));
+		close();
+		return false;
+	}
+
+	p_impl->opened = true;
+	return true;
+}
+
+void AudioCapture::close()
+{
+	if(p_impl->p_thread)
+	{
+		p_impl->capturing = false;
+		p_impl->quit = true;
+		SDL_WaitThread(p_impl->p_thread, 0);
+		p_impl->p_thread = 0;
+	}
+	if(p_impl->p_stream)
+	{
+		p_impl->pulse.simple_free(p_impl->p_stream);
+		p_impl->p_stream = 0;
+	}
+	if(p_impl->p_initSemaphore)
+	{
+		SDL_DestroySemaphore(p_impl->p_initSemaphore);
+		p_impl->p_initSemaphore = 0;
+	}
+	p_impl->release();
+}
+
+bool AudioCapture::isOpen() const
+{
+	return p_impl->opened;
+}
+
+const std::string& AudioCapture::getDeviceName() const
+{
+	return p_impl->deviceName;
+}
+
+void AudioCapture::start()
+{
+	p_impl->capturing = true;
+}
+
+void AudioCapture::stop()
+{
+	p_impl->capturing = false;
+}
+
+#else
+
+// ---------------------------------------------------------------------------
+// Browser. Eine Seite kann nicht mithoeren, was sie selbst ausgibt, und
+// aufgenommen wird dort ohnehin nicht: $A_TOGGLE_CAPTURE_VIDEO gibt es im
+// Web-Build gar nicht. Der Ringpuffer bleibt ungeoeffnet, damit die gemeinsame
+// Leserseite darunter Stille liefert.
+// ---------------------------------------------------------------------------
+
+struct AudioCaptureImpl : public AudioRing
 {
 	std::string deviceName;
 };
@@ -659,14 +1002,18 @@ void AudioCapture::stop()
 {
 }
 
+#endif
+
+// ---------------------------------------------------------------------------
+// Die Leserseite gehoert beiden: sie liest nur den Ringpuffer.
+// ---------------------------------------------------------------------------
+
 int AudioCapture::getNumSamplesReady()
 {
-	return 0;
+	return p_impl->available();
 }
 
 void AudioCapture::getSamples(short* p_buffer, int numSamples)
 {
-	if(numSamples > 0) memset(p_buffer, 0, numSamples * 2 * sizeof(short));
+	p_impl->read(p_buffer, numSamples);
 }
-
-#endif // _WIN32

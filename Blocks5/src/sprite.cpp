@@ -24,28 +24,18 @@ namespace
 	const double p_degToRad = 3.1415926535897932384626433832795 / 180.0;
 
 	// Womit die Huelle beschnitten wird, bevor floor() und ceil() darauf
-	// losgehen. Eine Vierteldrehung sollte ein 16x16-Bild wieder auf genau
-	// 16x16 abbilden, und rechnerisch tut sie das auch - aber cos(90 Grad)
-	// ist 6.1e-17 und nicht 0, und damit kommt die linke Kante als
-	// -8.9e-16 heraus. floor() macht daraus -1, ceil() aus 16.0000000000001
-	// eine 17, und die Zelle waere ohne Not 17x17 gross. Das kostet nichts
-	// an Richtigkeit, aber getTryCount() rechnet mit der Flaeche und wuerfe
-	// 13% mehr Truemmer als dasselbe Bild ungedreht.
+	// losgehen. cos(90 Grad) ist 6.1e-17 und nicht 0, die linke Kante einer
+	// Vierteldrehung kommt als -8.9e-16 heraus, und die Zelle waere ohne Not
+	// 17x17 gross - getTryCount() rechnet mit der Flaeche und wuerfe 13% mehr
+	// Truemmer als dasselbe Bild ungedreht.
 	const double p_footprintEpsilon = 1.0e-6;
 
 	// Die Stelle in Objektkoordinaten in die Zelle zuruecksuchen, aus der
-	// renderSprite sie geholt hat.
-	//
-	// renderSprite verschiebt auf die Mitte des Teilbilds, dreht dann mit
-	// glRotated und spiegelt zuletzt in x. Hier laeuft dieselbe Kette
-	// rueckwaerts: erst der Versatz, dann die Gegendrehung, dann die
-	// Spiegelung, die ihre eigene Umkehrung ist. Weil es dieselbe Matrix im
-	// selben Bezugssystem ist, stimmt das Ergebnis unabhaengig davon, wohin
-	// die y-Achse zeigt.
-	//
-	// Gerechnet wird mit Pixelmitten und floor(), nicht mit linken Kanten und
-	// Abschneiden - sonst ginge bei jeder Drehung eine halbe Pixelreihe
-	// verloren.
+	// renderSprite sie geholt hat: erst der Versatz, dann die Gegendrehung,
+	// dann die Spiegelung, die ihre eigene Umkehrung ist. Weil es dieselbe
+	// Matrix im selben Bezugssystem ist, stimmt das Ergebnis unabhaengig davon,
+	// wohin die y-Achse zeigt. Gerechnet wird mit Pixelmitten und floor() -
+	// sonst ginge bei jeder Drehung eine halbe Pixelreihe verloren.
 	bool mapToTexel(const Sprite& sprite,
 					const Vec2i& point,
 					Vec2i* p_texelOut)
@@ -187,9 +177,8 @@ int Sprites::getTryCount(int numParticles) const
 bool Sprites::sample(Vec4d* p_colorOut,
 					 Vec2i* p_offsetOut) const
 {
-	// Ohne Teilbilder oder ohne Pixel im Speicher entstehen keine Truemmer.
-	// Das ist der richtige Ausgang und kein Notbehelf: eine Kachel ohne Bild
-	// hat nichts zu zerstreuen.
+	// Ohne Teilbilder oder ohne Pixel im Speicher entstehen keine Truemmer:
+	// eine Kachel ohne Bild hat nichts zu zerstreuen.
 	if(!numSprites || !p_texture || !p_texture->hasPixels()) return false;
 
 	Vec2i lo, hi;
@@ -200,21 +189,18 @@ bool Sprites::sample(Vec4d* p_colorOut,
 
 	// Eine einzige Zufallszahl reicht. randomInt() ist mt.randInt(0x7FFFFFFF),
 	// und MTRand::randInt(n) maskiert bei einer Maske aus lauter Einsen nur -
-	// die Verwerfungsschleife dort laeuft nie. Es sind also 31 unverbrauchte
-	// Mersenne-Twister-Bits, und die sind bis zur 32. Stelle gleichverteilt.
-	// Acht davon fuer die Schwelle, die uebrigen 23 fuer die Stelle.
+	// es sind also 31 unverbrauchte Mersenne-Twister-Bits. Acht davon fuer die
+	// Schwelle, die uebrigen 23 fuer die Stelle.
 	const uint r = static_cast<uint>(randomInt());
 	const uint threshold = r & 255;
 	const uint where = r >> 8;
 	const Vec2i point(lo.x + static_cast<int>(where % static_cast<uint>(w)),
 					  lo.y + static_cast<int>((where / static_cast<uint>(w)) % static_cast<uint>(h)));
 
-	// Von vorne nach hinten durch die Teilbilder. Genau das tut auch das
-	// Alphablending beim Zeichnen: was vorne liegt, deckt zu einem Anteil
-	// seiner Deckkraft ab, der Rest kommt von dahinter. covered ist dieser
-	// Anteil, aufaddiert - und eine einzige Schwelle daran zu messen ist
-	// dasselbe wie jedes Teilbild einzeln auszuwuerfeln, nur mit einer
-	// Zufallszahl statt vieren.
+	// Von vorne nach hinten durch die Teilbilder, genau wie das Alphablending
+	// beim Zeichnen: was vorne liegt, deckt zu einem Anteil seiner Deckkraft
+	// ab. covered ist dieser Anteil, aufaddiert - eine einzige Schwelle daran
+	// zu messen ist dasselbe wie jedes Teilbild einzeln auszuwuerfeln.
 	double covered = 0.0;
 	for(int i = numSprites - 1; i >= 0; i--)
 	{
@@ -226,9 +212,9 @@ bool Sprites::sample(Vec4d* p_colorOut,
 		const Vec4d pixel = p_texture->getPixel(sprite.positionOnTexture + texel);
 		covered += (1.0 - covered) * pixel.a * sprite.color.a;
 
-		// Annehmen mit der Wahrscheinlichkeit der Deckkraft. Ein voll
-		// deckendes Pixel faellt damit in einem von 256 Faellen durch; das ist
-		// nicht zu sehen und spart den Sonderfall.
+		// Annehmen mit der Wahrscheinlichkeit der Deckkraft. Ein voll deckendes
+		// Pixel faellt damit in einem von 256 Faellen durch; das ist nicht zu
+		// sehen und spart den Sonderfall.
 		if(threshold < static_cast<uint>(covered * 255.0))
 		{
 			*p_colorOut = Vec4d(pixel.r * sprite.color.r,

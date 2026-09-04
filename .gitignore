@@ -8,6 +8,11 @@ Thumbs.db
 *.opensdf
 *.sdf
 *.suo
+LinuxBuild/build
 WebBuild/build
 WebBuild/build-asan
 /Blocks5/setup/Output/blocks-5-*-setup.exe
+WebBuild/build-test
+__pycache__
+LinuxBuild/build-test
+WebBuild/test/node_modules

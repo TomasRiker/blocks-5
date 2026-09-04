@@ -31,11 +31,17 @@ void ElectricitySwitch::onUpdate()
 
 void ElectricitySwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	level.setElectricityOn(!level.isElectricityOn());
 	Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
 }
 
 void ElectricitySwitch::onCollision(Object* p_obj)
 {
-	if(p_obj->getFlags() & OF_ACTIVATOR) onTouchedByPlayer(0);
+	if(p_obj->getFlags() & OF_ACTIVATOR)
+	{
+		p_obj->flash();
+		onTouchedByPlayer(0);
+	}
 }

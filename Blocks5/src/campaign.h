@@ -6,10 +6,9 @@
 class Campaign
 {
 public:
-	// Ein Level einer Kampagne. Die Identitaet ist das Paar
-	// (sourceDir, member); "name" ist blosser Anzeigetext - er steht in
-	// campaign.xml und stammt bei einer fremden Kampagne aus einer fremden
-	// Datei, wird also nie zu einem Pfad zusammengesetzt.
+	// Ein Level einer Kampagne. Die Identitaet ist das Paar (sourceDir,
+	// member); "name" ist blosser Anzeigetext aus campaign.xml und wird nie zu
+	// einem Pfad zusammengesetzt.
 	struct LevelRef
 	{
 		LevelRef() : fromArchive(false) {}
@@ -27,22 +26,16 @@ public:
 
 	// Wohin ein musicFilename zeigt. sourceDir ist das Verzeichnis, in dem
 	// gewoehnliche Stuecke des Levels liegen - "<home>levels/" fuer einen
-	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv.
-	//
-	// Faengt der Name mit "blocks:" an, meint er ein Stueck der
-	// mitgelieferten Kampagne und sourceDir ist ohne Belang. Ohne das muesste
-	// jede fremde Kampagne, die eines der zehn Stuecke benutzen will, es
-	// selbst mitschleppen - im Browser bekommt sie es ausserdem gar nicht,
-	// weil dort niemand eine .ogg neben den Level legen kann. save() packt
-	// ein solches Stueck deshalb auch nicht mit ein.
+	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv. Faengt
+	// der Name mit "blocks:" an, meint er ein Stueck der mitgelieferten
+	// Kampagne und sourceDir ist ohne Belang; save() packt ein solches Stueck
+	// deshalb auch nicht mit ein.
 	static std::string resolveMusicPath(const std::string& musicFilename,
 										const std::string& sourceDir);
 
 	// Ein von aussen hereingereichtes Archiv annehmen. Getrennt in Pruefen und
 	// Ablegen, damit der Aufrufer "das ist keine Kampagne" und "das Kopieren
-	// ging schief" auseinanderhalten kann. Auf beiden Plattformen: der
-	// Import im Hauptmenue nimmt unter Windows genauso eine fremde Datei an
-	// wie im Browser.
+	// ging schief" auseinanderhalten kann.
 	static bool isImportableArchive(const std::string& archivePath);
 
 	Campaign();
@@ -51,9 +44,8 @@ public:
 	void clear();
 
 	// quiet unterdrueckt die Fehlermeldung. Das braucht nur
-	// isImportableArchive(): die fragt, ob eine hereingereichte Datei
-	// ueberhaupt eine Kampagne ist, und etwas anderes ist keine kaputte
-	// Kampagne, sondern eben etwas anderes.
+	// isImportableArchive(): etwas, das gar keine Kampagne sein will, ist auch
+	// keine kaputte.
 	bool load(const std::string& filename, bool quiet = false);
 	bool loadInfo(TiXmlDocument* p_doc);
 	bool save(const std::string& filename);

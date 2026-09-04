@@ -71,7 +71,7 @@ void Texture::reload()
 	srcRect.y = offset.y;
 	srcRect.w = size.x;
 	srcRect.h = size.y;
-    SDL_BlitSurface(p_surface, &srcRect, p_rgba, 0);
+	SDL_BlitSurface(p_surface, &srcRect, p_rgba, 0);
 	SDL_FreeSurface(p_surface);
 
 	// Bild sperren
@@ -186,8 +186,8 @@ void Texture::loadSubTexture(Texture* p_parent,
 
 	// Bilddaten in die Textur kopieren
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
 	// Matrix erzeugen
 	glPushAttrib(GL_TRANSFORM_BIT);

@@ -419,6 +419,11 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
+		// Jede Taste hier ist ein Befehl, keine Eingabe: eine Wiederholung ist
+		// deshalb nichts wert. Ohne das oeffnet und schliesst ein liegendes
+		// Escape das Menue immer wieder.
+		if(GUI::inst().isKeyRepeat()) return;
+
 		// Erst die Dialoge, die oben liegen. Escape und Return heissen dort
 		// Abbrechen und OK, so wie ueberall sonst auch; der Editor darunter
 		// bekommt die Taste dann gar nicht mehr zu sehen.
@@ -437,10 +442,14 @@ public:
 					return;
 				}
 			}
-			else if(getChild("MenuPane")->isVisible() && event.keysym.sym == SDLK_ESCAPE)
+			else if(getChild("MenuPane")->isVisible() &&
+					!getChild("EditHintPane")->isVisible() &&
+					!getChild("MessageBoxPane")->isVisible() &&
+					event.keysym.sym == SDLK_ESCAPE)
 			{
-				// Das Menue hat nur OK. Escape hat es frueher noch einmal
-				// fokussiert, was aussah, als taete es nichts.
+				// Das Menue hat nur OK, also schliesst Escape es. Nicht aber,
+				// wenn eine Rueckfrage oder der Hinweis-Dialog darueber steht:
+				// die gehoeren zum Menue und wuerden allein stehenbleiben.
 				handleClick(getChild("MenuPane.Menu.OK"));
 				return;
 			}

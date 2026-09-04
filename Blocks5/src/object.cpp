@@ -9,6 +9,13 @@
 #include "gui.h"
 #include "font.h"
 
+// Wie hell ein Objekt aufleuchtet, das flash() gerufen hat, und wie schnell
+// das wieder abklingt. Der Zerfall ist der des Blitzes in Level::update():
+// je Takt ein Fuenftel weniger, unter 1/256 aus - knapp acht Takte, gut
+// 0,15 s. Beides ist Geschmackssache und steht deshalb hier.
+const double FLASH_STRENGTH = 1.0;
+const double FLASH_DECAY = 0.8;
+
 int Object::nextFallingDepth = 1000000;
 
 Object::Object(Level& level,
@@ -38,6 +45,8 @@ Object::Object(Level& level,
 	fall = 0;
 	lastHashedAt = -1;
 	removed = false;
+	flashAmount = 0.0;
+	flashLayer = 1;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
@@ -103,6 +112,23 @@ void Object::render(int layer,
 	}
 
 	onRender(layer, realColor);
+
+	// Aufleuchten, additiv. Ueber die Sprite-Farbe ginge es nicht: die ist bei
+	// fuenf der sieben Schalter das voreingestellte Weiss, und glColor4dv
+	// klemmt auf 1 - heller als weiss gibt es im Farbwert nicht. Aufaddiert
+	// schon, und der Anteil kommt weiterhin aus der Farbe des Teilbilds, damit
+	// ein eingefaerbter Schalter in seiner eigenen Farbe aufleuchtet.
+	//
+	// Nur auf der Ebene, auf der das Objekt eben sein Teilbild gezeichnet hat,
+	// und nicht im Schattendurchgang: der geht mit schwarzem RGB durch, ein
+	// additiver Durchgang machte daraus einen hellen Fleck mitten im Schatten.
+	if(flashAmount > 0.0 && layer == flashLayer && !shadowPass)
+	{
+		Engine& engine = Engine::inst();
+		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+		engine.renderSprites(sprites, Vec4d(flashAmount, flashAmount, flashAmount, realColor.a));
+		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	}
 
 	if(layer == 42 &&
 	   sayTime > 0.0 &&
@@ -874,6 +900,19 @@ void Object::loadExtendedAttributes(TiXmlElement* p_element)
 void Object::frameBegin()
 {
 	moved = false;
+
+	// Der Zerfall gehoert hierher und nicht in onBeforeRender(): das laeuft je
+	// Bild, und das Aufleuchten haenge sonst an der Bildrate.
+	if(flashAmount > 0.0)
+	{
+		flashAmount *= FLASH_DECAY;
+		if(flashAmount < 1.0 / 256.0) flashAmount = 0.0;
+	}
+}
+
+void Object::flash()
+{
+	flashAmount = FLASH_STRENGTH;
 }
 
 void Object::disappear(double duration)

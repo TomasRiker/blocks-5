@@ -6,7 +6,7 @@
 #ifdef _WIN32
 #include <Shlobj.h>
 #endif
-#ifdef __EMSCRIPTEN__
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cerrno>
@@ -56,10 +56,27 @@ std::string FileSystem::getAppHomeDirectory() const
 	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
-	// Mounted as IDBFS by the shell so saves and custom levels survive a reload.
+	// Von der Seite als IDBFS eingehaengt, damit Spielstaende und eigene Levels
+	// ein Neuladen ueberstehen.
 	return "/blocks5_home/";
 #else
-#error NOT IMPLEMENTED
+	// Wohin veraenderliche Daten einer Anwendung unter Linux gehoeren, sagt die
+	// XDG Base Directory Specification: $XDG_DATA_HOME, und wo die nicht gesetzt
+	// ist, $HOME/.local/share. Der Name ist klein und ohne Leerzeichen
+	// geschrieben, weil er hier ein Pfadbestandteil ist und kein Titel - anders
+	// als "My Documents\Blocks 5", das unter Windows im Dateimanager steht.
+	if(const char* p_xdg = ::getenv("XDG_DATA_HOME"))
+	{
+		if(*p_xdg) return std::string(p_xdg) + "/blocks5/";
+	}
+	if(const char* p_home = ::getenv("HOME"))
+	{
+		if(*p_home) return std::string(p_home) + "/.local/share/blocks5/";
+	}
+	// Ohne HOME bleibt nur das Arbeitsverzeichnis. Das ist kein guter Ort, aber
+	// ein leerer Pfad waere ein schlechterer: das Spiel schriebe dann in die
+	// Wurzel.
+	return "./blocks5_home/";
 #endif
 }
 
@@ -166,11 +183,20 @@ bool FileSystem::createDirectory(const std::string& directory)
 	BOOL result = CreateDirectoryA(directory.c_str(), 0);
 	if(!result && GetLastError() == ERROR_ALREADY_EXISTS) return true;
 	else return result != 0;
-#elif defined(__EMSCRIPTEN__)
-	if(::mkdir(directory.c_str(), 0755) == 0) return true;
-	return errno == EEXIST;
 #else
-#error NOT IMPLEMENTED
+	// Die Elternverzeichnisse mit anlegen: unter Windows entsteht das
+	// Benutzerverzeichnis in "My Documents", das es immer schon gibt, unter
+	// Linux dagegen unter ~/.local/share, wo auch das share fehlen kann.
+	std::string path;
+	for(size_t i = 0; i <= directory.length(); i++)
+	{
+		if(i == directory.length() || directory[i] == '/')
+		{
+			if(!path.empty() && ::mkdir(path.c_str(), 0755) != 0 && errno != EEXIST) return false;
+		}
+		if(i < directory.length()) path += directory[i];
+	}
+	return true;
 #endif
 }
 
@@ -178,10 +204,8 @@ bool FileSystem::deleteDirectory(const std::string& directory)
 {
 #ifdef _WIN32
 	return RemoveDirectoryA(directory.c_str()) != 0;
-#elif defined(__EMSCRIPTEN__)
-	return ::rmdir(directory.c_str()) == 0;
 #else
-#error NOT IMPLEMENTED
+	return ::rmdir(directory.c_str()) == 0;
 #endif
 }
 

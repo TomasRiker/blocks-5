@@ -55,6 +55,8 @@ bool E_ValueSwitch::changeInEditor(int mod)
 
 void E_ValueSwitch::onTouchedByPlayer(Player* p_player)
 {
+	flash();
+
 	value = !value;
 
 	Engine::inst().playSound(value ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
@@ -62,7 +64,11 @@ void E_ValueSwitch::onTouchedByPlayer(Player* p_player)
 
 void E_ValueSwitch::onCollision(Object* p_obj)
 {
-	if(p_obj->getFlags() & OF_ACTIVATOR) onTouchedByPlayer(0);
+	if(p_obj->getFlags() & OF_ACTIVATOR)
+	{
+		p_obj->flash();
+		onTouchedByPlayer(0);
+	}
 }
 
 void E_ValueSwitch::doLogic()

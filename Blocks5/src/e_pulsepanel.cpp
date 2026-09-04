@@ -9,6 +9,7 @@ E_PulsePanel::E_PulsePanel(Level& level,
 {
 	renderBox = false;
 	flags &= ~OF_MASSIVE;
+	flashLayer = 0;
 
 	this->pulseValue = pulseValue;
 	value = !pulseValue;
@@ -48,6 +49,7 @@ void E_PulsePanel::onUpdate()
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
 				// Panel ausloesen
+				flash();
 				value = pulseValue;
 				Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
 				break;

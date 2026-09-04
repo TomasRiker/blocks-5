@@ -80,6 +80,10 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 
 Campaign::Campaign()
 {
+	// clear() setzt beide auch, aber erst, wenn jemand es ruft: bis dahin
+	// beantwortet getNumUnlockedLevels() sonst einen Zufallswert.
+	numUnlockedLevels = 1;
+	iHaveABonusLevel = false;
 }
 
 Campaign::~Campaign()
@@ -117,10 +121,8 @@ bool Campaign::load(const std::string& filename,
 	else if(loadInfo(&doc)) return true;
 
 	// Hier laufen alle drei Fehlerwege zusammen - kaputtes XML, fehlendes
-	// <Campaign>, zu viele Levels. Der Editor hatte dafuer eine eigene
-	// Meldung; die Levelauswahl liess eine solche Kampagne einfach aus der
-	// Liste verschwinden, ohne ein Wort. Genannt wird der blosse Dateiname:
-	// der ganze Pfad ist der des Archivs samt Passwort.
+	// <Campaign>, zu viele Levels. Genannt wird der blosse Dateiname: der ganze
+	// Pfad ist der des Archivs samt Passwort.
 	if(!quiet)
 	{
 		const std::string::size_type slash = filename.find_last_of('/');
@@ -179,13 +181,10 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 			p_level = p_level->NextSiblingElement("Level");
 		}
 
-		// 2. Woher kommen die Levels? Liegen ALLE Originale lose im
-		//    Level-Ordner, ist die Kampagne hier entstanden und wird weiter
-		//    aus den losen Dateien bedient - unveraendertes Verhalten. Sonst
-		//    kommt sie von woanders (oder ist wie die mitgelieferte
-		//    blocks.zip auseinandergelaufen), und dann werden ALLE Levels
-		//    aus dem Archiv gelesen: Eintrag i ist Mitglied level_{i+1}.xml,
-		//    genau so, wie save() sie schreibt und das Spiel sie abspielt.
+		// 2. Woher kommen die Levels? Liegen ALLE Originale lose im Level-Ordner,
+		//    ist die Kampagne hier entstanden und wird weiter aus den losen
+		//    Dateien bedient. Sonst kommt sie von woanders, und dann werden ALLE
+		//    Levels aus dem Archiv gelesen: Eintrag i ist Mitglied level_{i+1}.xml.
 		//    Alles oder nichts, damit eine fremde Kampagne nie stillschweigend
 		//    einen gleichnamigen Level des Benutzers einsammelt.
 		FileSystem& fs = FileSystem::inst();
@@ -227,15 +226,14 @@ bool Campaign::save(const std::string& filename)
 
 	FileSystem& fs = FileSystem::inst();
 
-	// Erst in eine Nebendatei schreiben, dann tauschen. Anders geht es nicht:
-	// eine Kampagne, deren Levels aus ihrem eigenen Archiv kommen, wuerde
-	// beim alten Vorgehen - Ziel zuerst loeschen - genau die Levels
+	// Erst in eine Nebendatei schreiben, dann tauschen: eine Kampagne, deren
+	// Levels aus ihrem eigenen Archiv kommen, wuerde sonst genau die Levels
 	// vernichten, die noch gelesen werden sollen.
 	const std::string temp(fs.getAppHomeDirectory() + "~campaignsave.zip");
 
 	// Ein Rest von einem abgebrochenen Speichern muss weg: File_Archived
-	// oeffnet ein vorhandenes Archiv im Anhaengemodus und wuerde dessen alte
-	// Mitglieder mitschleppen.
+	// oeffnet ein vorhandenes Archiv im Anhaengemodus und schleppte dessen
+	// alte Mitglieder mit.
 	if(fs.fileExists(temp)) fs.deleteFile(temp);
 
 	// Sind alle Quellen ueberhaupt lesbar? Bis hierher wurde nichts geschrieben.
@@ -261,10 +259,9 @@ bool Campaign::save(const std::string& filename)
 	std::vector<MusicRef> music;
 	for(uint i = 0; i < levels.size(); i++)
 	{
-		// Ist das ueberhaupt ein Level? Frueher hat Level::load das geprueft;
-		// hier reicht der Wurzelknoten, und der Musikname wird gleich
-		// mitgelesen. readStringFromFile bricht am ersten Nullbyte ab - fuer
-		// XML unerheblich, und die Bytes selbst wandern unten per copyFile.
+		// Ist das ueberhaupt ein Level? Der Wurzelknoten reicht, und der Musikname
+		// wird gleich mitgelesen. readStringFromFile bricht am ersten Nullbyte ab -
+		// fuer XML unerheblich, und die Bytes selbst wandern unten per copyFile.
 		const std::string levelXML(fs.readStringFromFile(levels[i].source()));
 		TiXmlDocument doc;
 		doc.SetCondenseWhiteSpace(false);
@@ -286,17 +283,16 @@ bool Campaign::save(const std::string& filename)
 		}
 
 		// Musikdateinamen vormerken. Der Name steht in einer moeglicherweise
-		// fremden Datei und darf deshalb nicht ungeprueft an einen Pfad
-		// gehaengt werden - sonst packt das Archiv, was der Angreifer nennt.
+		// fremden Datei und darf deshalb nicht ungeprueft an einen Pfad gehaengt
+		// werden - sonst packt das Archiv, was der Angreifer nennt.
 		const char* p_music = p_levelNode->Attribute("musicFilename");
 		if(!p_music || !*p_music) continue;
 
 		const std::string track(p_music);
 
-		// Ein "blocks:"-Stueck liegt in der mitgelieferten Kampagne, die
-		// jeder hat. Es waere ein Fehler, es hier mitzupacken: das Archiv
-		// wuerde um Megabytes wachsen, und beim Abspielen wird ohnehin
-		// blocks.zip gelesen, nie das eigene Archiv.
+		// Ein "blocks:"-Stueck liegt in der mitgelieferten Kampagne, die jeder
+		// hat. Es hier mitzupacken liesse das Archiv um Megabytes wachsen, und
+		// beim Abspielen wird ohnehin blocks.zip gelesen.
 		if(isBuiltInMusic(track)) continue;
 
 		if(!isSafeMemberName(track) || track == "campaign.xml")
@@ -324,8 +320,7 @@ bool Campaign::save(const std::string& filename)
 		if(!known) music.push_back(entry);
 	}
 
-	// Musikstuecke einfuegen. Eine fehlende Datei ist kein Fehler - das war
-	// auch bisher so.
+	// Musikstuecke einfuegen. Eine fehlende Datei ist kein Fehler.
 	for(uint i = 0; i < music.size(); i++)
 	{
 		if(!fs.fileExists(music[i].source))
@@ -350,8 +345,8 @@ bool Campaign::save(const std::string& filename)
 	fs.deleteFile(temp);
 
 	// Archivgestuetzte Verweise auf das neue Archiv umbiegen, damit ein
-	// zweites Speichern stimmt. Lose Verweise bleiben lose - sonst wuerde
-	// ein danach im Level-Editor bearbeiteter Level nicht mehr durchschlagen.
+	// zweites Speichern stimmt. Lose Verweise bleiben lose - sonst schluege
+	// ein danach bearbeiteter Level nicht mehr durch.
 	this->filename = filename;
 	for(uint i = 0; i < levels.size(); i++)
 	{

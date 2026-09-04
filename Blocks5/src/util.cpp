@@ -1,6 +1,8 @@
 #include "pch.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#elif !defined(_WIN32)
+#include <ctime>
 #endif
 #include "util.h"
 #include "engine.h"
@@ -8,6 +10,18 @@
 
 MTRand mt;
 bool writingCrashLog = false;
+
+bool equalsNoCase(const char* p_a, const char* p_b)
+{
+	for(; *p_a && *p_b; p_a++, p_b++)
+	{
+		char x = *p_a, y = *p_b;
+		if(x >= 'A' && x <= 'Z') x += 'a' - 'A';
+		if(y >= 'A' && y <= 'Z') y += 'a' - 'A';
+		if(x != y) return false;
+	}
+	return !*p_a && !*p_b;
+}
 
 int nextPow2(int x)
 {
@@ -390,7 +404,11 @@ double getExactTime()
 #elif defined(__EMSCRIPTEN__)
 	return emscripten_get_now() * 0.001;
 #else
-#error NOT IMPLEMENTED
+	// CLOCK_MONOTONIC und nicht CLOCK_REALTIME: gemessen werden Abstaende, und
+	// die duerfen sich nicht aendern, weil jemand die Uhr stellt.
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	return t.tv_sec + t.tv_nsec * 1.0e-9;
 #endif
 }
 
@@ -398,6 +416,24 @@ uint getExactTimeMS()
 {
 	return static_cast<uint>(getExactTime() * 1000.0);
 }
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+void openURL(const std::string& url)
+{
+	// xdg-open ist das, was jede Arbeitsumgebung mitbringt und was auf den
+	// eingestellten Browser zeigt. Nur Adressen aus dem Programm kommen hier
+	// an, aber der Aufruf geht durch eine Shell, und ein Apostroph darin
+	// beendete das Argument - also gar nicht erst durchlassen.
+	if(url.find('\'') != std::string::npos)
+	{
+		printfLog("Refusing to open a URL containing a quote: %s\n", url.c_str());
+		return;
+	}
+
+	const std::string command = "xdg-open '" + url + "' >/dev/null 2>&1 &";
+	if(::system(command.c_str()) != 0) printfLog("Could not open %s\n", url.c_str());
+}
+#endif
 
 void writeProfileLine(const std::string& name,
 					  double dt,

@@ -15,6 +15,26 @@ Module['preRun'].push(function () {
     console.warn('[blocks5] could not mount IDBFS:', e);
   }
 });
+
+// Saves, progress and imported levels live in IndexedDB, and a browser is
+// allowed to throw that away when it is short of room - which on a phone is a
+// question of when, not whether. Asking makes the origin's storage persistent
+// where the browser is willing; it grants it silently once the page looks like
+// something the user meant to keep (installed to the home screen, bookmarked,
+// visited often) and otherwise says no, which costs nothing.
+(function () {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(function (already) {
+        if (already) return;
+        navigator.storage.persist().then(function (granted) {
+          if (!granted) console.log('[blocks5] storage is not persistent; saves may be evicted');
+        });
+      }).catch(function () {});
+    }
+  } catch (e) {}
+})();
+
 // A single coalescing syncfs driver. FS.syncfs warns when calls overlap
 // (libfs.js:615-626) and IDBFS reconciles a whole mount per run, so a request
 // arriving mid-flight sets a "dirty again" bit instead of starting a second
@@ -60,20 +80,69 @@ window.addEventListener('keydown', function (e) {
 // from a real DOM event rather than from inside the main loop, which is exactly
 // what is not running yet at that moment.
 (function () {
+  // AL is the library object from libopenal.js; --pre-js lands in the same
+  // scope, and it is only looked at when an event fires, long after the
+  // runtime has defined it.
+  function ctx() {
+    try { return AL.currentCtx && AL.currentCtx.audioCtx; } catch (e) { return null; }
+  }
   function resume() {
-    try {
-      // AL is the library object from libopenal.js; --pre-js lands in the same
-      // scope, and it is only looked at when an event fires, long after the
-      // runtime has defined it.
-      var ctx = AL.currentCtx && AL.currentCtx.audioCtx;
-      if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
-    } catch (e) {}
+    var c = ctx();
+    if (c && c.state === 'suspended') c.resume().catch(function () {});
+  }
+  // A hidden page is a stopped game: requestAnimationFrame does not fire, so
+  // no logic tick runs and nothing in the engine can react. Muting is the
+  // engine's own answer to losing focus, but it cannot work here twice over -
+  // Emscripten's SDL reports a hidden page as SDL_WINDOWEVENT and the game
+  // listens for SDL 1.2's SDL_ACTIVEEVENT, and the volume change would be
+  // applied by the very per-tick pass that has stopped. So the page does it,
+  // from the DOM event, one layer below the engine: suspending the context
+  // freezes every source at once. Without it the music dies on its own when
+  // its queue runs dry, while a looping effect - a laser - keeps buzzing in a
+  // tab nobody is looking at.
+  function suspend() {
+    var c = ctx();
+    if (c && c.state === 'running') c.suspend().catch(function () {});
   }
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) resume();
+    if (document.hidden) suspend(); else resume();
   });
   window.addEventListener('focus', resume);
 })();
+
+// A phone, meaning a device with no mouse. (any-pointer: fine) is what a mouse
+// or a stylus reports, so its absence together with a coarse pointer is the
+// closest the platform gets to the question actually being asked. It is one
+// function rather than two copies because Engine::enforceTouchFullScreen asks
+// it too, through Module.
+Module['b5_isPhone'] = function () {
+  if (!window.matchMedia) return navigator.maxTouchPoints > 0;
+  return window.matchMedia('(any-pointer: coarse)').matches &&
+         !window.matchMedia('(any-pointer: fine)').matches;
+};
+
+// Landscape, and only while the game holds the screen. The lock is refused
+// unless the document is fullscreen, which is why this hangs off the change
+// event rather than off the request: on Android the promise rejects if the two
+// are the wrong way round. It rejects on a desktop in any case - there is no
+// orientation to lock - so every path here swallows the failure.
+//
+// The manifest asks for landscape as well, but that only counts once the game
+// has been installed to the home screen. This is the same answer for the page.
+Module['b5_lockOrientation'] = function () {
+  var o = window.screen && screen.orientation;
+  if (!o || !Module['b5_isPhone']()) return;
+  var full = document.fullscreenElement || document.webkitFullscreenElement;
+  if (full) {
+    if (!o.lock) return;
+    try {
+      var p = o.lock('landscape');
+      if (p && p['catch']) p['catch'](function () {});
+    } catch (e) {}
+  } else if (o.unlock) {
+    try { o.unlock(); } catch (e) {}
+  }
+};
 
 // The canvas fills the page and follows the browser window. The game renders
 // 640x480 into a framebuffer object and letterboxes that into whatever size the
@@ -98,36 +167,20 @@ Module['b5_fitCanvas'] = function () {
 
 Module['postRun'] = Module['postRun'] || [];
 Module['postRun'].push(function () {
-  // The generated shell centres the canvas in a bordered div; make that div and
-  // its ancestors fill the viewport instead, so "resize the window" means
-  // something. Everything else in the shell (the logo, the status line, the
-  // output box) is chrome we do not want in the way.
+  // The page itself is shell.html, which already gives the canvas the whole
+  // viewport in CSS and suppresses the browser's own touch gestures. What is
+  // left here is keeping the drawing buffer in step with the element.
   var c = Module['canvas'];
   if (c) {
-    document.documentElement.style.height = '100%';
-    document.body.style.height = '100%';
-    document.body.style.margin = '0';
-    document.body.style.background = '#000';
-    document.body.style.overflow = 'hidden';
-    var box = c.parentElement;
-    if (box) {
-      box.style.border = '0';
-      box.style.position = 'fixed';
-      box.style.left = '0';
-      box.style.top = '0';
-      box.style.width = '100%';
-      box.style.height = '100%';
-    }
-    c.style.display = 'block';
-    ['emscripten_logo', 'status', 'progress', 'controls', 'output'].forEach(function (id) {
-      var e = document.getElementById(id);
-      if (e) e.style.display = 'none';
-    });
-    var logo = document.querySelector('a[href*="emscripten.org"]');
-    if (logo) logo.style.display = 'none';
     window.addEventListener('resize', Module['b5_fitCanvas']);
+    // A phone changes the viewport without a resize event when the address bar
+    // slides away or the device is turned; both arrive here.
+    window.addEventListener('orientationchange', Module['b5_fitCanvas']);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', Module['b5_fitCanvas']);
     document.addEventListener('fullscreenchange', Module['b5_fitCanvas']);
     document.addEventListener('webkitfullscreenchange', Module['b5_fitCanvas']);
+    document.addEventListener('fullscreenchange', Module['b5_lockOrientation']);
+    document.addEventListener('webkitfullscreenchange', Module['b5_lockOrientation']);
     Module['b5_fitCanvas']();
   }
 

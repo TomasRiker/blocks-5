@@ -113,7 +113,7 @@ B5RWSize File_RWRead(SDL_RWops* p_context,
 				B5RWSize maxNum)
 {
 	File* p_file = static_cast<File*>(p_context->hidden.unknown.data1);
-    uint numBytesToRead = size * maxNum;
+	uint numBytesToRead = size * maxNum;
 	uint numBytesRead = p_file->read(p_ptr, numBytesToRead);
 	return numBytesRead / size;
 }
@@ -123,16 +123,16 @@ B5RWSize File_RWWrite(SDL_RWops* p_context,
 				 B5RWSize size,
 				 B5RWSize num)
 {
-    return 0;
+	return 0;
 }
 
 int File_RWClose(SDL_RWops* p_context)
 {
 	File* p_file = static_cast<File*>(p_context->hidden.unknown.data1);
-    SDL_FreeRW(p_context);
+	SDL_FreeRW(p_context);
 	FileSystem::inst().closeFile(p_file);
 
-    return 0;
+	return 0;
 }
 
 int File_OVSeek(void* p_context,

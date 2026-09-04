@@ -99,14 +99,10 @@
     <ListBox name="Actions" x="10" y="280" w="170" h="75">
       <Font>tooltip_font.xml</Font>
     </ListBox>
-    <!-- Zuruecksetzen, in zwei Staerken. Bisher gab es nur "alles" - wer
-         sich eine Taste verlegt hatte, musste das ganze Schema wegwerfen.
-         Zwei Knoepfe untereinander unter der Liste, so breit wie sie: eine
-         Beschriftung davor und zwei kurze Woerter dahinter ginge in der
-         einen Sprache auf und in der anderen nicht, ganze Saetze auf den
-         Knoepfen sagen es in beiden. Das Fenster ist dafuer um 20 Pixel
-         gewachsen; die 15 Pixel Luft ueber OK und die 10 unter ihm bleiben,
-         wie sie waren. -->
+    <!-- Zuruecksetzen, in zwei Staerken: zwei Knoepfe untereinander unter
+         der Liste, so breit wie sie. Ganze Saetze darauf, weil eine
+         Beschriftung davor und zwei kurze Woerter dahinter nur in einer
+         der beiden Sprachen aufginge. -->
     <Button name="ResetSelected" x="10" y="365" w="170" h="20">
       <Title>$O_RESET_SELECTED</Title>
       <Font>tooltip_font.xml</Font>
@@ -141,11 +137,9 @@
 	</Window>
 
 	<!-- Die Regler des Roehrenfilters. Ein eigenes Fenster, weil im
-	     Optionsfenster kein Platz mehr ist: 340x440 sind voll, und hoeher
-	     darf es nicht werden - das Spielbild ist nur 480 hoch. Beide Regler
-	     wirken sofort, damit man beim Schieben sieht, was sie tun;
-	     Abbrechen im Optionsfenster holt ueber loadConfig() die alten Werte
-	     zurueck. -->
+	     Optionsfenster kein Platz mehr ist - hoeher als 480 darf keines
+	     werden. Die Regler wirken sofort; Abbrechen holt ueber loadConfig()
+	     die alten Werte zurueck. -->
 	<Window name="CrtOptions" w="300" h="316">
 		<Title>$O_CRT_SETTINGS_TITLE</Title>
 		<Center />

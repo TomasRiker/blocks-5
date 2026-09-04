@@ -1,24 +1,17 @@
-// gl_immediate.cpp - immediate-mode normaliser for the web build.
+// gl_immediate.cpp - Gleichrichter fuer den Immediate-Modus im Web-Build.
 //
-// Emscripten's GL emulation builds one interleaved vertex buffer per
-// glBegin/glEnd block and then computes
-//     numVertices = 4 * floatsWritten / bytesPerVertex
-// asserting that the result is a whole number. That only holds if EVERY vertex
-// carries EVERY attribute. The game, like most fixed-function code, sets a
-// colour once and then emits several vertices:
+// Emscriptens GL-Nachbildung baut je glBegin/glEnd-Block einen verschraenkten
+// Vertexpuffer und rechnet daraus
+//     numVertices = 4 * floatsWritten / bytesPerVertex,
+// mit einer Zusicherung darauf, dass eine ganze Zahl herauskommt. Das gilt nur,
+// wenn JEDER Vertex JEDES Attribut traegt. Das Spiel setzt aber, wie
+// Fixed-Function-Code ueblicherweise, die Farbe einmal und gibt dann mehrere
+// Vertices aus - 95 der 119 glBegin-Bloecke sehen so aus.
 //
-//     glBegin(GL_QUADS);
-//     glColor4d(1,1,1,1);          // once
-//     glTexCoord2i(0,0); glVertex2i(-256,-256);   // ...four times
-//     ...
-//     glEnd();                     // -> 2.5 vertices -> assertion failure
-//
-// 95 of the 119 glBegin blocks in this codebase are shaped that way, so rather
-// than rewrite them all, this file intercepts immediate mode, buffers the block,
-// and replays it with the current colour and texcoord attached to every vertex.
-// Emscripten still does the real work (including GL_QUADS -> triangles); it just
-// receives a uniform stream. The public glXxx names resolve here, and we forward
-// to Emscripten's own emscripten_glXxx entry points.
+// Statt sie alle umzuschreiben, faengt diese Datei den Immediate-Modus ab, sammelt
+// den Block und spielt ihn mit Farbe und Texturkoordinate an jedem Vertex wieder
+// ab. Die eigentliche Arbeit macht weiterhin Emscripten, es bekommt nur einen
+// gleichfoermigen Strom.
 #include <GL/gl.h>
 #include <vector>
 
@@ -33,18 +26,18 @@ void emscripten_glVertex3f(GLfloat x, GLfloat y, GLfloat z);
 namespace {
 struct Vertex { GLfloat x, y, z, r, g, b, a, s, t; };
 
-bool   g_inBlock     = false;
-bool   g_blockHasTex = false;   // did this block set a texcoord at all?
-GLenum g_mode        = GL_QUADS;
-GLfloat g_r = 1.0f, g_g = 1.0f, g_b = 1.0f, g_a = 1.0f;
-GLfloat g_s = 0.0f, g_t = 0.0f;
-std::vector<Vertex> g_verts;
+bool   inBlock     = false;
+bool   blockHasTex = false;   // hat dieser Block ueberhaupt eine Texturkoordinate gesetzt?
+GLenum blockMode        = GL_QUADS;
+GLfloat currentR = 1.0f, currentG = 1.0f, currentB = 1.0f, currentA = 1.0f;
+GLfloat currentS = 0.0f, currentT = 0.0f;
+std::vector<Vertex> verts;
 
 inline void addVertex(GLfloat x, GLfloat y, GLfloat z)
 {
-    if (!g_inBlock) return;          // outside a block a bare vertex means nothing
-    const Vertex v = { x, y, z, g_r, g_g, g_b, g_a, g_s, g_t };
-    g_verts.push_back(v);
+	if(!inBlock) return;          // ausserhalb eines Blocks bedeutet ein Vertex nichts
+	const Vertex v = { x, y, z, currentR, currentG, currentB, currentA, currentS, currentT };
+	verts.push_back(v);
 }
 } // namespace
 
@@ -52,36 +45,36 @@ extern "C" {
 
 void glBegin(GLenum mode)
 {
-    g_mode = mode;
-    g_inBlock = true;
-    g_blockHasTex = false;
-    g_verts.clear();
+	blockMode = mode;
+	inBlock = true;
+	blockHasTex = false;
+	verts.clear();
 }
 
 void glEnd(void)
 {
-    g_inBlock = false;
-    if (g_verts.empty()) return;
+	inBlock = false;
+	if(verts.empty()) return;
 
-    emscripten_glBegin(g_mode);
-    for (std::vector<Vertex>::const_iterator i = g_verts.begin(); i != g_verts.end(); ++i)
-    {
-        emscripten_glColor4f(i->r, i->g, i->b, i->a);
-        // Only emit texcoords when the block actually used them, so untextured
-        // primitives do not gain a texture attribute they never asked for.
-        if (g_blockHasTex) emscripten_glTexCoord2f(i->s, i->t);
-        emscripten_glVertex3f(i->x, i->y, i->z);
-    }
-    emscripten_glEnd();
-    g_verts.clear();
+	emscripten_glBegin(blockMode);
+	for(std::vector<Vertex>::const_iterator i = verts.begin(); i != verts.end(); ++i)
+	{
+		emscripten_glColor4f(i->r, i->g, i->b, i->a);
+		// Texturkoordinaten nur ausgeben, wenn der Block sie auch benutzt hat -
+		// sonst bekaemen untexturierte Primitive ein Attribut, das sie nie wollten.
+		if(blockHasTex) emscripten_glTexCoord2f(i->s, i->t);
+		emscripten_glVertex3f(i->x, i->y, i->z);
+	}
+	emscripten_glEnd();
+	verts.clear();
 }
 
-// --- colour: tracked always; forwarded when outside a block so that the GL
-//     "current colour" is still set for array-drawn and other geometry.
+// --- Farbe: wird immer mitgefuehrt und ausserhalb eines Blocks weitergereicht,
+//     damit die "aktuelle Farbe" von GL auch fuer andere Geometrie stimmt.
 static inline void setColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
 {
-    g_r = r; g_g = g; g_b = b; g_a = a;
-    if (!g_inBlock) emscripten_glColor4f(r, g, b, a);
+	currentR = r; currentG = g; currentB = b; currentA = a;
+	if(!inBlock) emscripten_glColor4f(r, g, b, a);
 }
 void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)     { setColor(r, g, b, a); }
 void glColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a) { setColor((GLfloat)r, (GLfloat)g, (GLfloat)b, (GLfloat)a); }
@@ -90,16 +83,15 @@ void glColor4fv(const GLfloat* v)                              { setColor(v[0], 
 void glColor4dv(const GLdouble* v)                             { setColor((GLfloat)v[0], (GLfloat)v[1], (GLfloat)v[2], (GLfloat)v[3]); }
 void glColor3dv(const GLdouble* v)                             { setColor((GLfloat)v[0], (GLfloat)v[1], (GLfloat)v[2], 1.0f); }
 
-// --- texture coordinates
+// --- Texturkoordinaten
 static inline void setTexCoord(GLfloat s, GLfloat t)
 {
-    g_s = s; g_t = t;
-    if (g_inBlock) g_blockHasTex = true;
-    // Deliberately NOT forwarded when outside a block: Emscripten's
-    // glTexCoord2i writes straight into the immediate-mode vertex buffer and
-    // bumps vertexCounter without checking whether a block is open (unlike
-    // glColor4f, which guards on GLImmediate.mode >= 0), so forwarding here
-    // corrupts the next block's vertex count.
+	currentS = s; currentT = t;
+	if(inBlock) blockHasTex = true;
+	// Ausserhalb eines Blocks absichtlich NICHT weitergereicht: Emscriptens
+	// glTexCoord2i schreibt geradewegs in den Vertexpuffer und zaehlt
+	// vertexCounter hoch, ohne zu pruefen, ob ein Block offen ist - das
+	// verdirbt die Vertexzahl des naechsten Blocks.
 }
 void glTexCoord2f(GLfloat s, GLfloat t)     { setTexCoord(s, t); }
 void glTexCoord2i(GLint s, GLint t)         { setTexCoord((GLfloat)s, (GLfloat)t); }
@@ -107,7 +99,7 @@ void glTexCoord2d(GLdouble s, GLdouble t)   { setTexCoord((GLfloat)s, (GLfloat)t
 void glTexCoord2dv(const GLdouble* v)       { setTexCoord((GLfloat)v[0], (GLfloat)v[1]); }
 void glTexCoord2iv(const GLint* v)          { setTexCoord((GLfloat)v[0], (GLfloat)v[1]); }
 
-// --- positions
+// --- Positionen
 void glVertex2f(GLfloat x, GLfloat y)             { addVertex(x, y, 0.0f); }
 void glVertex2i(GLint x, GLint y)                 { addVertex((GLfloat)x, (GLfloat)y, 0.0f); }
 void glVertex2d(GLdouble x, GLdouble y)           { addVertex((GLfloat)x, (GLfloat)y, 0.0f); }

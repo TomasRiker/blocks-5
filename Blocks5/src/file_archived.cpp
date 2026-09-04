@@ -165,8 +165,9 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		// Objekt loeschen
-		deleteArchivedFile(archiveFilename, objectName);
+		// Objekt loeschen. 1 heisst geloescht, -1 geloescht und das Archiv
+		// dabei leer geworden, 0 nicht gefunden - und dann ist nichts weg.
+		if(deleteArchivedFile(archiveFilename, objectName) == 0) error = 9;
 	}
 	else
 	{
@@ -439,7 +440,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		uint nextCDE = ftell(p_in);
 
 		// Stimmt der Dateiname mit dem zu loeschenden Dateinamen ueberein?
-		if(!_stricmp(objectName.c_str(), p_filename))
+		if(equalsNoCase(objectName.c_str(), p_filename))
 		{
 			ecdOut.entriesOnThisDisk--;
 			ecdOut.totalEntries--;

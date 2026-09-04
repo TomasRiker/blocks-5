@@ -19,16 +19,18 @@ struct Action
 	std::string name;
 	int primary;
 	int secondary;
+	// Feuert die Aktion nach, solange die Taste liegt? Fuer das Laufen ja -
+	// delay bis zur ersten Wiederholung, dann alle interval. Fuer einen
+	// Schalter wie F12 nicht: der soll je Druck genau einmal ausloesen.
+	bool repeats;
 	int delay;
 	int interval;
 	int defaultPrimary;
 	int defaultSecondary;
 	std::vector<std::string> resetsActions;
 
-	// Aus der Konfiguration gelesene Kennungen, die noch nicht aufgeloest
-	// werden konnten: Engine::loadConfig() laeuft, bevor virtualKeys gefuellt
-	// ist. resolveActionKeys() traegt sie nach, sobald die Liste steht, und
-	// leert die Felder wieder.
+	// Aus der Konfiguration gelesene Kennungen, die noch nicht aufgeloest werden
+	// konnten. resolveActionKeys() traegt sie nach und leert die Felder wieder.
 	std::string pendingPrimaryId;
 	std::string pendingSecondaryId;
 
@@ -86,13 +88,13 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
-	void screenshot();
+	// false, wenn kein Bild entstanden ist. Im Browser immer: GL_BGR ist dort
+	// kein zulaessiges Format fuer glReadPixels, und SDL_SaveBMP_RW ist ein
+	// abort().
+	bool screenshot();
 
-	// Der Bildpuffer, in den das Spiel rendert. Immer 640x480, unabhaengig
-	// davon, wie gross das Fenster ist; presentFrame() bringt ihn danach auf
-	// den Bildschirm. Alles, was in Bildschirmkoordinaten rechnet - der eine
-	// glViewport, die glScissor-Aufrufe, die GUI-Layouts - bleibt dadurch
-	// gueltig, egal wie das Fenster skaliert wird.
+	// Der Bildpuffer, in den das Spiel rendert: immer 640x480, unabhaengig von
+	// der Fenstergroesse. Jede Rechnung in Bildschirmkoordinaten bleibt gueltig.
 	bool createFrameBuffer();
 	void destroyFrameBuffer();
 	void bindFrameBuffer();      // Ziel = Bildpuffer, Viewport 640x480
@@ -102,42 +104,29 @@ public:
 	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
 
-	// Das Fenster. Es ist immer in der Groesse veraenderbar; Vollbild ist nur
-	// eine besondere Groesse plus ein Stilwechsel am Win32-Fenster vorbei an
-	// SDL, damit der GL-Kontext dabei am Leben bleibt. Deshalb bleiben SDLs
-	// Flags das ganze Programm ueber genau SDL_OPENGL | SDL_RESIZABLE.
-	//
-	// overrideFullScreen() gehoert vor init(): -windowed / -fullscreen schlagen
-	// damit, was in der config.xml steht.
+	// Vollbild ist nur eine besondere Groesse plus ein Stilwechsel am
+	// Win32-Fenster vorbei an SDL; SDLs Flags bleiben deshalb das ganze Programm
+	// ueber SDL_OPENGL | SDL_RESIZABLE, sonst stirbt der GL-Kontext.
 	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
 
-	// -nosplash laesst Logo, Jingle und die drei Sekunden davor aus und geht
-	// sofort ins Laden. Zum Entwickeln gedacht, wo man den Start oft sieht;
-	// gehoert wie overrideFullScreen() vor init().
+	// -nosplash. Wie overrideFullScreen() vor init() aufzurufen.
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
-	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist. Nach
-	// etwas, das die Hauptschleife angehalten hat, ist der Eingabezustand
-	// nicht vertrauenswuerdig: der Windows-Dateidialog hat Ereignisse fuer
-	// sein eigenes Fenster weitergereicht, die das Spiel als frischen Klick
-	// lesen wuerde, und getPressedVK() laesst die Taste liegen, mit der es
-	// gerade beendet wurde. Kein Windows-Code, nur SDL - deshalb steht es
-	// vor dem Block und nicht darin.
+	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist: nach allem,
+	// was die Hauptschleife angehalten hat, ist der Eingabezustand unbrauchbar.
 	void flushInput();
 
 #ifdef _WIN32
-	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht:
-	// Windows haelt sie in einer eigenen Nachrichtenschleife fest. Das hier
-	// zeichnet das zuletzt gerenderte Bild in der neuen Groesse noch einmal,
-	// damit wenigstens die Skalierung mitkommt. Keine Spiellogik.
+	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht - Windows
+	// haelt sie in einer eigenen Nachrichtenschleife fest. Das hier zeichnet das
+	// zuletzt gerenderte Bild in der neuen Groesse noch einmal, ohne Spiellogik.
 	void repaintDuringSizeMove();
 	void setInSizeMove(bool value) { inSizeMove = value; }
 	bool isInSizeMove() const { return inSizeMove; }
 
 	// Dasselbe fuer den Dateidialog: auch der bringt eine fremde
-	// Nachrichtenschleife mit, und auch dann steht die Hauptschleife. Ohne
-	// das bliebe das Spielfenster schwarz, solange der Dialog offen ist.
+	// Nachrichtenschleife mit, und das Spielfenster bliebe sonst schwarz.
 	void beginForeignMessageLoop();
 	void endForeignMessageLoop();
 
@@ -148,23 +137,25 @@ public:
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
+#ifdef __EMSCRIPTEN__
+	// Auf einem Telefon holt sich das Spiel das Vollbild bei jeder Beruehrung
+	// selbst zurueck. Gerufen wird das aus dem DOM-Rueckruf und nirgends sonst:
+	// die Fullscreen-API verlangt eine echte Geste, und die Ereignisse aus der
+	// Animationsschleife sind keine.
+	void enforceTouchFullScreen();
+#endif
 	Vec2i getDesktopSize() const;
-	// Was ein frisch installiertes Spiel als Fenstergroesse bekommt: das
-	// groesste ganzzahlige Vielfache von 640x480, das noch bequem auf den
-	// Bildschirm passt.
+	// Was ein frisch installiertes Spiel als Fenstergroesse bekommt: das groesste
+	// ganzzahlige Vielfache von 640x480, das noch bequem auf den Schirm passt.
 	Vec2i getDefaultWindowSize() const;
 
-	// Die beiden Shader des Spiels: src/sharpfit_shader.h und src/crt_shader.h.
-	// Laesst sich einer nicht uebersetzen, faellt seine Anzeige auf UF_NEAREST
-	// zurueck; das Spiel laeuft in jedem Fall.
+	// Die beiden Shader des Spiels. Laesst sich einer nicht uebersetzen, faellt
+	// seine Anzeige auf UF_NEAREST zurueck; das Spiel laeuft in jedem Fall.
 	bool createPresentPrograms();
 	void destroyPresentPrograms();
 
-	// getUpscaleFilter() liefert den *Wunsch* - das, was der Spieler gewaehlt
-	// hat und was in der config.xml steht. getEffectiveUpscaleFilter() liefert,
-	// was tatsaechlich gezeichnet wird: ohne uebersetztes Programm wird aus
-	// sharp-fit oder CRT nearest. Der Wunsch bleibt stehen, damit dieselbe config.xml auf
-	// einer Maschine mit Shadern wieder das Richtige tut.
+	// getUpscaleFilter() ist der Wunsch aus der config.xml,
+	// getEffectiveUpscaleFilter() das, was ohne Shader davon uebrig bleibt.
 	void setUpscaleFilter(UpscaleFilter filter);
 	UpscaleFilter getUpscaleFilter() const { return upscaleFilter; }
 	UpscaleFilter getEffectiveUpscaleFilter() const;
@@ -174,11 +165,8 @@ public:
 	bool canUseSharpFit() const;   // hat die Maschine Shader und Bildpuffer?
 	bool canUseCrt() const;
 
-	// Die beiden Regler des Roehrenfilters, je 0..1. Sie stehen in der
-	// config.xml und wirken sofort - der Shader liest sie jedes Bild neu.
-	// crtScanline: 0 = VGA-Monitor ohne Luecken, 1 = Konsolenstreifen.
-	// crtCurvature: 0 = flache Scheibe, 1 = volle Woelbung. Die Woelbung geht
-	// auch durch die Mausumrechnung, siehe warpToSource/warpToOutput.
+	// Die Regler des Roehrenfilters, je 0..1; sie wirken sofort. Die Woelbung
+	// geht auch durch die Mausumrechnung, siehe warpToSource/warpToOutput.
 	double getCrtScanline() const { return crtScanline; }
 	double getCrtCurvature() const { return crtCurvature; }
 	double getCrtBloom() const { return crtBloom; }
@@ -212,12 +200,8 @@ public:
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
-	// Nimmt einer Taste das "in diesem Bild gedrueckt"-Kennzeichen weg. Die
-	// GUI verteilt Tastenereignisse ueber eine eigene Warteschlange, die
-	// Spielzustaende fragen daneben wasKeyPressed() ab - und GUI::update()
-	// laeuft zuerst. Ohne das hier saehe das Hauptmenue das Escape, mit dem
-	// der Optionsdialog sich gerade selbst geschlossen hat, und beendete das
-	// Spiel.
+	// Nimmt einer Taste das "in diesem Bild gedrueckt"-Kennzeichen weg, weil
+	// GUI::update() vor den Spielzustaenden laeuft und beide sie saehen.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
 	void setKeyDown(SDLKey key, bool status);
@@ -230,7 +214,12 @@ public:
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
-	bool getKeyEvent(SDL_KeyboardEvent* p_out);
+	// Das naechste Tastenereignis. p_repeat sagt, ob es von SDLs
+	// Tastenwiederholung stammt und nicht von einem neuen Druck: wer die Taste
+	// als Befehl liest - Escape, Return, die Kuerzel der Editoren -, muss so
+	// eines ueberspringen, sonst loest ein liegender Finger den Befehl alle
+	// 60 ms erneut aus. Ein Textfeld und eine Liste wollen es dagegen haben.
+	bool getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat = 0);
 	bool isGUIFocused();
 	void unfocusGUI();
 
@@ -240,9 +229,8 @@ public:
 	int getKeyboardVK(SDLKey key) const;
 
 	// Die Kennung, unter der eine Taste in der config.xml steht. Die VK-Nummer
-	// taugt dafuer nicht: sie ist ein Index in virtualKeys, und der haengt an
-	// SDLK_LAST (323 unter SDL 1.2, 1536 im Browser) und daran, welche
-	// Joysticks beim Start angeschlossen waren.
+	// taugt dafuer nicht: sie ist ein Index in virtualKeys und haengt an
+	// SDLK_LAST und daran, welche Joysticks beim Start angeschlossen waren.
 	const std::string& getVKId(int vk) const;
 	int getVKFromId(const std::string& id) const;
 	void resolveActionKeys();
@@ -255,22 +243,9 @@ public:
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
 	void updateActions();
-	// --- Auf einen Tastendruck warten, zum Belegen einer Aktion -----------
-	//
-	// Frueher hielt getPressedVK() dafuer die Hauptschleife an und wartete in
-	// einer eigenen Schleife, bis eine Taste kam. Nativ ging das. Im Browser
-	// nicht: dort fuellt erst die Rueckkehr zur Seite die Ereignisschlange,
-	// eine Schleife, die nicht zurueckkehrt, sieht also nie eine Taste. Nach
-	// drei Sekunden stand "nicht zugewiesen" da - belegen war unmoeglich.
-	//
-	// Jetzt ist es ein Zustand, den jeder Logiktakt weiterfuehrt: die
-	// Hauptschleife laeuft weiter, kehrt zur Seite zurueck und bekommt ihre
-	// Ereignisse. Derselbe Weg auf beiden Seiten, und das Fenster bleibt
-	// lebendig, statt drei Sekunden einzufrieren.
-	//
-	// Solange die Wartestellung laeuft, gehoert die Tastatur ihr allein:
-	// Aktionen werden nicht fortgeschrieben und die Oberflaeche bekommt keine
-	// Tastenereignisse (siehe update()).
+	// Auf einen Tastendruck warten, zum Belegen einer Aktion. Ein Zustand und
+	// keine eigene Schleife: im Browser fuellt erst die Rueckkehr zur Seite die
+	// Ereignisschlange. Solange er laeuft, gehoert die Tastatur ihm allein.
 	enum
 	{
 		GRAB_WAITING   = -3,   // laeuft noch, nichts entschieden
@@ -287,8 +262,7 @@ public:
 	int pollKeyGrab();
 	void resetActions();
 
-	// Nur diese eine Aktion auf ihre Vorgabe zuruecksetzen. Wer sich eine
-	// Taste verlegt hat, musste bisher das ganze Schema wegwerfen.
+	// Nur diese eine Aktion auf ihre Vorgabe zuruecksetzen.
 	void resetAction(const std::string& name);
 	void limitActionKeys();
 
@@ -315,6 +289,7 @@ public:
 	double getMusicVolume() const;
 	void setMusicVolume(double musicVolume);
 	bool wasVolumeChanged() const;
+	bool isAppActive() const;
 	int getDetails() const;
 	void setDetails(int details);
 	double getParticleDensity() const;
@@ -332,21 +307,10 @@ public:
 	uint getTimePlayed() const { return timePlayed; }
 	void saveTimePlayed();
 
-	// Kurze Meldung, die oben ins Bild faehrt, eine Weile stehen bleibt und
-	// wieder hinausfaehrt. Sie gehoert der Engine und nicht einem Spielstatus,
-	// weil sie ueber allem liegt: die Levelauswahl, beide Editoren und das
-	// Hauptmenue benutzen dieselbe.
-	//
-	// duration ist die Standzeit in Sekunden, ohne das Ein- und Ausfahren;
-	// 0 nimmt den Wert, der zur Art passt (TOAST_SECONDS_OK/ERROR). Eine
-	// Fehlermeldung spielt teleport_failed.ogg, sofern suppressSound das nicht
-	// unterbindet. Eine Erfolgsmeldung ist immer still - deshalb heisst der
-	// Schalter so herum: es gibt keinen Ton, den er einschalten koennte.
-	//
-	// Gibt es dieselbe Meldung derselben Art schon - und faehrt sie noch nicht
-	// gerade hinaus -, entsteht keine zweite. Stattdessen wird ihre Standzeit
-	// auf das Laengere von beidem gesetzt. Der Ton kommt trotzdem: er ist die
-	// Antwort auf den Klick, nicht auf die Meldung.
+	// Kurze Meldung, die oben ins Bild faehrt. duration ist die Standzeit in
+	// Sekunden ohne das Ein- und Ausfahren; 0 nimmt den Wert der Art. Ein Fehler
+	// spielt teleport_failed.ogg, sofern suppressSound das nicht unterbindet.
+	// Dieselbe Meldung ein zweites Mal verlaengert nur die Standzeit der ersten.
 	enum ToastType
 	{
 		TOAST_OK = 0,
@@ -358,8 +322,6 @@ public:
 private:
 	Engine();
 	~Engine();
-
-	void setupCursor();
 
 	// Eine Meldung im Stapel. Es gibt drei Abschnitte: hereinfahren, stehen,
 	// hinausfahren. phaseTime laeuft je Abschnitt neu los.
@@ -374,36 +336,63 @@ private:
 		double targetY;     // wohin sie will
 	};
 
-	// Aeltester zuerst. Damit wird auch in dieser Reihenfolge gezeichnet, und
-	// die neueren liegen oben - eine sterbende Meldung faehrt hinter ihre
-	// juengere Nachbarin und nicht ueber sie.
-	std::list<Toast> toasts;
+	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
+	// vier Uniforms; der Roehrenshader hat zwei weitere.
+	struct PresentProgram
+	{
+		uint program;
+		int decal, textureSize, frameSize, prescale;
+		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker;   // nur UF_CRT, sonst -1
+	};
 
-	// Die Wartestellung auf einen Tastendruck. grabOldState haelt fest,
-	// was beim Anstellen schon gedrueckt war - gesucht ist die Taste, die
-	// *neu* heruntergeht.
-	bool grabbingKey;
-	int grabResult;
-	uint grabDeadline;
-	bool grabHasDeadline;
-	std::vector<bool> grabOldState;
-
+	void setupCursor();
 	void updateToasts();
 	void renderToasts();
-	void updateKeyGrab();
-
-	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
-	// Bildpuffer, mit Balken und Filter, und tauschen. Ohne Logiktakt und ohne
-	// neu zu zeichnen.
-	void showLastFrame();
 
 	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
 	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
 	void reflowToasts();
 
+	void updateKeyGrab();
+	void syncActionDown(Action& action);
+
+	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
+	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
+	void showLastFrame();
+
 	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
 	// selbst ist Win32; die Groesse geht immer durch handleResize().
 	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
+
+	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
+	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
+	void restoreWindowPosition();     // setzt sie beim Start wieder
+#ifdef _WIN32
+	void hookWindowProc();            // eigene Fensterprozedur davorschalten
+	void unhookWindowProc();          // und wieder herausnehmen
+#endif
+
+	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen; die
+	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
+	// Formel selbst, warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
+	Vec2d warpToSource(const Vec2d& p) const;
+	Vec2d warpToOutput(const Vec2d& p) const;
+
+	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
+							  const char* p_name);
+	void destroyPresentProgram(PresentProgram& target);
+
+	// Aeltester zuerst, also wird auch in dieser Reihenfolge gezeichnet: eine
+	// sterbende Meldung faehrt hinter ihre juengere Nachbarin und nicht darueber.
+	std::list<Toast> toasts;
+
+	// Die Wartestellung auf einen Tastendruck. grabOldState haelt fest, was beim
+	// Anstellen schon gedrueckt war - gesucht ist die *neu* heruntergehende.
+	bool grabbingKey;
+	int grabResult;
+	uint grabDeadline;
+	bool grabHasDeadline;
+	std::vector<bool> grabOldState;
 
 	bool initialized;
 	bool fullScreen;
@@ -414,13 +403,8 @@ private:
 	Vec2i windowedPosition;    // dito fuer die Position
 	bool  windowedPositionKnown;
 	bool  maximized;           // war das Fenster beim Beenden maximiert?
-	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
-	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
-	void restoreWindowPosition();     // setzt sie beim Start wieder
 #ifdef _WIN32
-	void hookWindowProc();            // eigene Fensterprozedur davorschalten
-	void unhookWindowProc();          // und wieder herausnehmen
-	bool inSizeMove;                  // Benutzer haelt gerade Rand oder Titel
+	bool inSizeMove;           // Benutzer haelt gerade Rand oder Titel
 #endif
 	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
 	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
@@ -430,21 +414,30 @@ private:
 	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
 	uint logicRate;
-	// These tables are indexed directly by SDL keysym. SDL 1.2's keysyms stop at
-	// SDLK_LAST (323), so 512 slots were enough on Windows, but other SDL headers
-	// number the same keys differently - Emscripten's use SDL2-style values
-	// (scancode | 1<<10), which puts SDLK_LSHIFT at 1249 and SDLK_F7 at 1088.
-	// Indexing a 512-entry table with those silently corrupts whatever follows it
-	// in this object. Size for the largest keysym any supported SDL defines, and
-	// range-check every index before use.
-	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 with SDL 1.2, 1536 with Emscripten's headers
+	// Die Tabellen werden direkt mit dem SDL-Keysym indiziert, und der zaehlt je
+	// nach SDL-Kopf anders. Deshalb SDLK_LAST als Groesse und jeder Index geprueft.
+	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 unter SDL 1.2, 1536 mit Emscriptens Koepfen
 	int keyData[NUM_KEY_SLOTS];
+	// Liegt die Taste gerade wirklich unter einem Finger? Das steht hier und
+	// nicht als Bit in keyData, weil keyData zweimal von aussen genullt wird -
+	// flushInput() leert es, und GS_Menu::onUpdate ueberschreibt es jeden Takt
+	// mit der aufgezeichneten Demo. Ein Zustand, der ueber mehrere Takte halten
+	// muss, kann dort nicht stehen.
+	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;
-	std::queue<SDL_KeyboardEvent> keyEventQueue;
+	// Das Tastenereignis und ob es die Wiederholung einer liegenden Taste ist.
+	// Ein Textfeld will die Wiederholung, ein Befehl nicht - siehe
+	// Engine::getKeyEvent().
+	struct QueuedKeyEvent
+	{
+		SDL_KeyboardEvent event;
+		bool repeat;
+	};
+	std::queue<QueuedKeyEvent> keyEventQueue;
 	std::unordered_map<std::string, GameState*> gameStates;
 	std::stack<GameState*> currentGameStates;
 	uint frameTime;
@@ -461,24 +454,14 @@ private:
 	double crossfadeDuration;
 	StreamedSound* p_currentMusic;
 	std::string currentMusicFilename;
-	// Bildpuffer. frameTextureSize ist eine Zweierpotenz, weil WebGL 1 und
-	// aeltere Treiber sonst NPOT-Texturen nur eingeschraenkt erlauben; benutzt
-	// wird davon die linke untere Ecke in screenSize.
+	// Bildpuffer. frameTextureSize ist eine Zweierpotenz, weil WebGL 1 NPOT-
+	// Texturen nur eingeschraenkt erlaubt; benutzt wird die linke untere Ecke.
 	uint frameBufferID;
 	uint frameTextureID;
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
 	bool useFrameBuffer;
 	UpscaleFilter upscaleFilter;
-	// Beide Praesentiershader teilen sich den Vertexshader, den Vertexpuffer und
-	// vier Uniforms; der Roehrenshader hat zwei weitere. Ein Stueck Struktur
-	// spart sechs weitere gleichnamige Felder.
-	struct PresentProgram
-	{
-		uint program;
-		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker;   // nur UF_CRT, sonst -1
-	};
 	PresentProgram sharpFit;
 	PresentProgram crt;
 	double crtScanline;
@@ -486,15 +469,6 @@ private:
 	double crtBloom;
 	double crtFlicker;
 	double crtScanFlicker;
-	// Dieselbe Abbildung wie im Roehrenshader, in beide Richtungen. Die
-	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. warpToSource ist die
-	// Formel selbst - Ausgabepunkt zu Quellpunkt, so wie der Shader rechnet -,
-	// warpToOutput ihre Umkehrung. Siehe src/crt_shader.h.
-	Vec2d warpToSource(const Vec2d& p) const;
-	Vec2d warpToOutput(const Vec2d& p) const;
-	bool createPresentProgram(PresentProgram& target, const char* p_fragmentSource,
-							  const char* p_name);
-	void destroyPresentProgram(PresentProgram& target);
 	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;
@@ -510,6 +484,14 @@ private:
 	double soundVolume;
 	double musicVolume;
 	bool volumeChanged;
+	// Fokus gewonnen oder verloren, aus welchem Ereignis auch immer.
+	void handleAppFocus(bool gained);
+
+	// Hat das Fenster den Fokus? Ein Mitglied und keine Schleifenvariable, weil
+	// emscripten_set_main_loop je Bild einmal aufruft und nichts auf dem Stapel
+	// stehen bleibt - und weil der Testhaken es meldet.
+	bool appActive;
+
 	double oldSoundVolume;
 	double oldMusicVolume;
 	int details;

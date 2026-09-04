@@ -174,7 +174,8 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	case SDLK_RETURN:
 		// Gibt es keinen eigenen Knopf dafuer, gehoert Return dem Dialog: dort
 		// bedeutet es OK. Sonst kaeme in einem Eingabefeld nie etwas an.
-		if(active && p_submitButton) p_submitButton->click();
+		// Der Knopf aber nur bei einem neuen Druck - er ist ein Befehl.
+		if(active && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_ESCAPE:

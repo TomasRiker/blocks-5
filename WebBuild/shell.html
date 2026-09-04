@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Without this a phone lays the page out at a ~980px virtual viewport and
+     scales the result down, so the canvas is wrong from the first frame and a
+     double-tap zoom sits in front of every button. It also switches the
+     browser out of the legacy 300ms click delay. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Blocks 5">
+<title>Blocks 5</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<!-- iOS ignores the manifest icons and any transparency; this one is opaque. -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  /* Selectors are written "div#name" rather than "#name" on purpose: emcc runs
+     a shell file through its own preprocessor, which reads a line beginning
+     with a hash as a directive. */
+  html, body { height: 100%; margin: 0; padding: 0; background: #000; overflow: hidden; }
+  body {
+    /* A finger belongs to the game, not to the browser's own gestures: no
+       scrolling, no pull-to-refresh, no pinch zoom, no text selection and no
+       grey flash on tap. This is the half of "buttons are hard to hit" that
+       costs nothing to fix. */
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    color: #cfcfcf;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* The canvas must carry no border and no padding, or every mouse coordinate
+     SDL reports is offset from the point the player aimed at. */
+  canvas { display: block; width: 100%; height: 100%; border: 0; background: #000; touch-action: none; }
+
+  div#b5_boot {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #000; transition: opacity .4s;
+  }
+  div#b5_boot img { width: 176px; max-width: 55vw; margin-bottom: 18px; }
+  div#b5_bar { width: 240px; max-width: 70vw; height: 6px; border-radius: 3px; background: #222; overflow: hidden; }
+  div#b5_bar > i { display: block; height: 100%; width: 0; background: #f0a000; transition: width .2s; }
+  div#b5_msg { min-height: 1.3em; margin-top: 12px; }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+
+<!-- Fourteen megabytes take a while on a phone, and until main() runs there is
+     nothing on the canvas but black. This says what is happening and then gets
+     out of the way; the game has a loading screen of its own behind it. -->
+<div id="b5_boot">
+  <img src="icon-192.png" alt="Blocks 5">
+  <div id="b5_bar"><i></i></div>
+  <div id="b5_msg">Loading ...</div>
+</div>
+
+<script>
+(function () {
+  var boot = document.getElementById('b5_boot');
+  var bar  = document.querySelector('div#b5_bar > i');
+  var msg  = document.getElementById('b5_msg');
+  var gone = false;
+
+  function hideBoot() {
+    if (gone || !boot) return;
+    gone = true;
+    boot.style.opacity = '0';
+    setTimeout(function () { if (boot.parentNode) boot.parentNode.removeChild(boot); }, 450);
+  }
+
+  // Emscripten reports progress as "Preparing... (3/7)" and ends with an empty
+  // string when everything is in; anything else is a plain message.
+  function setStatus(text) {
+    if (gone) return;
+    if (!text) { hideBoot(); return; }
+    var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+    if (m) {
+      var done = parseFloat(m[2]), all = parseFloat(m[4]);
+      if (all > 0) bar.style.width = (100 * done / all) + '%';
+      msg.textContent = m[1].trim();
+    } else {
+      msg.textContent = text;
+    }
+  }
+
+  // build.sh stempelt hier die Kennung des Builds hinein. blocks5.js sucht
+  // seine beiden grossen Nachbarn ueber locateFile, also genuegt dieser eine
+  // Ort, damit alle drei Dateien den Namen desselben Baus tragen.
+  var B5_BUILD = '%%BUILD%%';
+
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    locateFile: function (path) {
+      return (B5_BUILD && B5_BUILD.charAt(0) !== '%')
+             ? path.replace(/^blocks5\./, 'blocks5-' + B5_BUILD + '.')
+             : path;
+    },
+    setStatus: setStatus,
+    totalDependencies: 0,
+    monitorRunDependencies: function (left) {
+      this.totalDependencies = Math.max(this.totalDependencies, left);
+      setStatus(left ? 'Loading ... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')'
+                     : '');
+    }
+  };
+  Module['postRun'] = [hideBoot];
+  window.Module = Module;
+
+  // Losing the GL context is a real event on a phone: the browser may drop it
+  // while the tab is in the background. The game cannot rebuild its textures,
+  // the framebuffer object and the two shader programs from where it stands,
+  // so say what happened rather than leaving a frozen picture. An alert(),
+  // which is what Emscripten's own shell does here, cannot be dismissed on a
+  // phone without losing the page anyway.
+  Module.canvas.addEventListener('webglcontextlost', function (e) {
+    e.preventDefault();
+    var d = document.createElement('div');
+    d.setAttribute('style', 'position:fixed;left:0;top:0;right:0;bottom:0;background:#000;' +
+                            'display:flex;align-items:center;justify-content:center;' +
+                            'text-align:center;padding:24px;font-size:16px;color:#cfcfcf');
+    d.textContent = 'The graphics context was lost. Please reload the page.';
+    d.addEventListener('click', function () { location.reload(); });
+    document.body.appendChild(d);
+  }, false);
+
+  // index.html is what ships; the test harness loads blocks5.html. Registering
+  // the worker only for the former keeps a 14 MB precache out of every test
+  // run - and out of the way of a build that has just been replaced.
+  if ('serviceWorker' in navigator && !/blocks5\.html$/.test(location.pathname)) {
+    window.addEventListener('load', function () {
+      // updateViaCache "none": the worker script itself must never come out of
+      // the HTTP cache, or a stale sw.js keeps serving a stale payload and the
+      // page can never learn that a new build exists.
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        // And ask straight away whether a newer one exists. The browser is
+        // supposed to check this on every navigation, but how soon it really
+        // does is its own business - measured here, a reload onto a new build
+        // left the old worker in place for over half a minute. The page itself
+        // is already current at that point, because index.html is fetched from
+        // the network; it is the offline copy that would lag behind.
+        if (reg && reg.update) reg.update().catch(function () {});
+      }).catch(function (e) {
+        console.warn('[blocks5] service worker registration failed:', e);
+      });
+    });
+  }
+})();
+</script>
+<!-- Die Bildschirmsteuerung. Eine gewoehnliche Seiten-Datei, kein Teil der
+     gestempelten Nutzlast: sie schickt nur Tastenereignisse und weiss vom
+     Spiel nichts. ?pad=on erzwingt sie, ?pad=off schaltet sie ab. -->
+<script src="touch_controls.js"></script>
+{{{ SCRIPT }}}
+</body>
+</html>

@@ -18,7 +18,7 @@
 #include <SDL.h>
 #include <SDL_thread.h>
 #include <SDL_opengl.h>
-#ifdef __EMSCRIPTEN__
+#ifndef _WIN32
 #include <GL/glu.h>
 #endif
 #include "img_load.h"

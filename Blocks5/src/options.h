@@ -15,8 +15,7 @@ public:
 	void onKeyEvent(const SDL_KeyboardEvent& event);
 
 	// Holt das Ergebnis ab, wenn ein Tastenknopf auf eine Taste wartet. Die
-	// Wartestellung liegt in der Engine und laeuft nebenher; hier wird nur
-	// jeden Takt nachgesehen, ob sie fertig ist.
+	// Wartestellung liegt in der Engine und laeuft nebenher.
 	void onUpdate();
 
 	void handleClick(GUI_Element* p_element);

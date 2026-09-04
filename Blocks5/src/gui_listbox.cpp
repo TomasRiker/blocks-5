@@ -171,8 +171,8 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		break;
 	case SDLK_RETURN:
 		// Wie im Eingabefeld: gibt es keinen eigenen Knopf dafuer, gehoert
-		// Return dem Dialog.
-		if(!items.empty() && selection != -1 && p_submitButton) p_submitButton->click();
+		// Return dem Dialog. Und der Knopf nur bei einem neuen Druck.
+		if(!items.empty() && selection != -1 && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	}

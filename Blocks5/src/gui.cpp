@@ -12,11 +12,17 @@ GUI::GUI()
 	p_font = 0;
 	p_toolTipFont = 0;
 	p_skin = 0;
+	keyRepeat = false;
 }
 
 GUI::~GUI()
 {
 	exit();
+}
+
+bool GUI::isKeyRepeat() const
+{
+	return keyRepeat;
 }
 
 bool GUI::init()
@@ -203,6 +209,14 @@ void GUI::update()
 	oldCursorPos = cursorPos;
 	cursorPos = engine.getCursorPosition();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
+
+	// Das Element unter dem Zeiger gehoert hierher, vor die Klickbehandlung, und
+	// nicht ans Ende der Funktion: ein Finger setzt ohne vorherige Bewegung auf,
+	// Zeiger und Tastendruck kommen also im selben Takt. Weiter unten berechnet
+	// bekaeme den Druck noch das Element, das vorher unter dem Zeiger lag.
+	p_oldElementAtCursor = p_elementAtCursor;
+	p_elementAtCursor = p_root->getElementAt(cursorPos);
+
 	Vec2i relCursorPos;
 	if(p_elementAtCursor) relCursorPos = cursorPos - p_elementAtCursor->getAbsPosition();
 	else relCursorPos = cursorPos;
@@ -261,7 +275,11 @@ void GUI::update()
 
 	// Tastatur-Ereignisse?
 	SDL_KeyboardEvent event;
-	while(engine.getKeyEvent(&event)) if(p_focusElement) p_focusElement->onKeyEvent(event);
+	while(engine.getKeyEvent(&event, &keyRepeat))
+	{
+		if(p_focusElement) p_focusElement->onKeyEvent(event);
+	}
+	keyRepeat = false;
 
 	// Mausrad?
 	if(p_elementAtCursor)
@@ -271,9 +289,6 @@ void GUI::update()
 		else if(engine.wasButtonPressed(SDL_BUTTON_WHEELDOWN)) wheel = 1;
 		if(wheel) p_elementAtCursor->onMouseWheel(wheel);
 	}
-
-	p_oldElementAtCursor = p_elementAtCursor;
-	p_elementAtCursor = p_root->getElementAt(cursorPos);
 
 	if(cursorMovement.isZero()) noMoveCounter = min<uint>(20, noMoveCounter + 1);
 	else if(p_elementAtCursor != p_oldElementAtCursor && noMoveCounter) noMoveCounter--;
