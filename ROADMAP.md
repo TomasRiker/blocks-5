@@ -840,6 +840,14 @@ draws - but it cost a render-to-texture and an FBO round trip per visible note p
 note gives its texture back as soon as it is invisible, so the pool is as large as the most
 notes ever seen at once and no larger.
 
+Whether a note rolls is a property of the picture, so it is switched by a marker file,
+`hintscroll.txt`, next to the hint.png that is actually loaded - existence only, no contents.
+It sits there rather than in tileset.xml because every skin slot is chosen on its own, so the
+note can come from a different skin than the tiles; and getSkinFilename() has already followed
+default_hint.png by the time it returns, so the marker is looked for where the picture really
+came from. The shipped set needs one file: blocks_01 has the paper, blocks_02 and blocks_03
+borrow it through default_hint.png, and the space skin's display panel stays flat.
+
 Left undone deliberately: **no mipmaps**. The note is minified while it flies in
 and out, and the 3D cube crossfade has the same problem at a steep angle; both
 want the same answer, and it is a separate piece of work.

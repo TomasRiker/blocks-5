@@ -146,7 +146,9 @@ Changelog
           - A hint note is a real sheet of paper now. The text is written on it
             before it flies up, so it turns and grows together with the paper
             instead of appearing on top of it at the end, and the note arrives
-            rolled up at both ends and unrolls once it has come to rest.
+            rolled up at both ends and unrolls once it has come to rest. Skins
+            whose note is not paper keep it flat - the space skin's display
+            panel does not roll up.
 
           - Fixed: a hint note could be seen for a fraction of a second at the
             wrong place before unfolding, usually when stepping onto the same

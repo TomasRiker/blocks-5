@@ -1,7 +1,10 @@
+REM hintscroll.txt steht namentlich dabei und nicht als *.txt:
+REM password.txt muss unverschluesselt bleiben und kommt fuer sich.
+REM Ein weiterer Skin mit dieser Merkdatei braucht sie in seiner Zeile.
 PUSHD levels\skins\blocks_01
 IF EXIST ..\blocks_01.zip DEL ..\blocks_01.zip
 ..\..\..\tools\optipng -o 7 *.png
-..\..\..\tools\7za a -tzip -mx=9 -ptrockeneiskaefer ..\blocks_01.zip *.xml *.png
+..\..\..\tools\7za a -tzip -mx=9 -ptrockeneiskaefer ..\blocks_01.zip *.xml *.png hintscroll.txt
 ..\..\..\tools\7za a -tzip -mx=9 ..\blocks_01.zip password.txt
 POPD
 PUSHD levels\skins\blocks_02

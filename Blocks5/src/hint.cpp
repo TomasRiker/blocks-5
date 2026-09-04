@@ -329,8 +329,13 @@ void Hint::onRender(int layer,
 		// Layer 43 ist die Vorschau im Leveleditor: fertig aufgeklappt, mittig.
 		// Das ist eine Anzeigesache und darf targetPosition nicht veraendern -
 		// sonst zeigt der Zettel im Spiel hinterher woandershin.
+		//
+		// Aufgerollt kommt der Zettel nur, wenn das Bild ein Blatt Papier ist -
+		// der Weltraum-Skin zeigt eine Anzeigetafel, und die rollt sich nicht.
+		// 1.0 heisst flach: dann faellt in renderNoteMesh() beides weg bis auf
+		// das eine Viereck.
 		Vec2i target = targetPosition;
-		double shownUnroll = unroll;
+		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
 		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 0.9, target = Vec2i(320, 200), shownUnroll = 1.0;
 
 		if(a > 1.0 / 255.0)

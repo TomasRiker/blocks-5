@@ -102,7 +102,13 @@ packSkin() { # $1=Name  $2=Passwort ("" fuer keins)
     ( cd "$dir" || exit 1
       rm -f "../$name.zip"
       runOptipng
-      packInto "../$name.zip" "$password" '*.xml' '*.png' || exit 1
+      # hintscroll.txt namentlich und nicht als *.txt: password.txt muss
+      # unverschluesselt bleiben und kommt weiter unten fuer sich. Und der Test
+      # davor, weil packInto nur Muster wegfallen laesst, die nichts treffen -
+      # ein Name ohne Jokerzeichen bleibt stehen, und 7za bricht darueber ab.
+      local marker=hintscroll.txt
+      [ -f "$marker" ] || marker=
+      packInto "../$name.zip" "$password" '*.xml' '*.png' $marker || exit 1
       # password.txt kommt unverschluesselt dazu, in einem zweiten Aufruf: das
       # Spiel liest es aus jedem Skin-Archiv heraus, um an das Passwort der
       # uebrigen Mitglieder zu kommen. Verschluesselt waere es fuer sich selbst

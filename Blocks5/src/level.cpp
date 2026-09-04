@@ -73,6 +73,7 @@ Level::Level()
 	p_background = 0;
 	p_hint = 0;
 	p_hintFont = 0;
+	hintScroll = false;
 	p_presets = 0;
 	p_particleSystem = 0;
 	p_fireParticleSystem = 0;
@@ -1908,6 +1909,11 @@ Font* Level::getHintFont()
 	return p_hintFont;
 }
 
+bool Level::isHintScroll() const
+{
+	return hintScroll;
+}
+
 Presets* Level::getPresets()
 {
 	return p_presets;
@@ -2436,10 +2442,24 @@ void Level::loadSkin(bool forceReload)
 	p_background = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_BACKGROUND));
 	if(p_oldBackground) p_oldBackground->release();
 
-	// Hinweiszettel laden
+	// Hinweiszettel laden. Ob er sich aufrollen darf, sagt eine Merkdatei neben
+	// dem Bild - Inhalt egal, es zaehlt nur, dass es sie gibt. Sie gehoert
+	// neben das Bild und nicht in die tileset.xml, weil jeder Skin-Platz fuer
+	// sich gewaehlt wird: ein Level kann seine Kacheln aus dem einen und seinen
+	// Zettel aus einem anderen Skin nehmen. Und weil getSkinFilename() dem
+	// default_hint.png-Verweis schon gefolgt ist, gilt hier die Datei neben dem
+	// Bild, das wirklich geladen wird.
 	Texture* p_oldHint = p_hint;
-	p_hint = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_HINT));
+	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
+	p_hint = Manager<Texture>::inst().request(hintFile);
 	if(p_oldHint) p_oldHint->release();
+
+	hintScroll = false;
+	const std::string::size_type slash = hintFile.find_last_of('/');
+	if(slash != std::string::npos)
+	{
+		hintScroll = FileSystem::inst().fileExists(hintFile.substr(0, slash + 1) + "hintscroll.txt");
+	}
 
 	// Schriftart des Hinweiszettels laden
 	Font* p_oldHintFont = p_hintFont;

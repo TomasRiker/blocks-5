@@ -118,6 +118,11 @@ public:
 	Texture* getBackground();
 	Texture* getHint();
 	Font* getHintFont();
+
+	// Soll sich der Hinweiszettel aufrollen? Das entscheidet das Bild und nicht
+	// das Level: ein Blatt Papier rollt sich, ein Tablett tut es nicht. Siehe
+	// loadSkin().
+	bool isHintScroll() const;
 	Presets* getPresets();
 	const std::vector<Object*>& getObjects() const;
 	Player* getActivePlayer();
@@ -198,6 +203,7 @@ private:
 	Texture* p_background;
 	Texture* p_hint;
 	Font* p_hintFont;
+	bool hintScroll;
 	uint layerListBase;
 	uint layerDirty;
 	Presets* p_presets;

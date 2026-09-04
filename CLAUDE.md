@@ -725,6 +725,29 @@ Beyond that the far end would come back round and still be painted on top. The s
 `GL_TRIANGLE_STRIP` and not `GL_QUAD_STRIP` — WebGL has no such primitive, and
 `WebBuild/gl_immediate.cpp` hands the mode straight to it.
 
+**Whether it rolls at all belongs to the artwork.** A sheet of paper rolls up; the space skin's
+hint is a hard-edged display panel and rolling that would look silly. The switch is a marker
+file, `hintscroll.txt`, sitting beside the `hint.png` that is *actually loaded* — its contents
+are ignored, only its existence counts, and `Level::loadSkin` looks it up once and answers
+through `Level::isHintScroll()`. Without it `shownUnroll` is pinned to 1.0 and the mesh
+degenerates to the single flat quad.
+
+Beside the image, and not an attribute in `tileset.xml`, because **each skin slot is chosen
+separately**: `<Level skin0=… skin10=…>` is one name per entry of `p_skinFilenames`, so a level
+can take its tiles from one skin and its note from another, and a flag in the tileset would be
+describing a different file. Following `default_hint.png` costs nothing either — that link is
+resolved by `getSkinFilename` itself, which recurses and returns the *final* path, so the
+marker is looked for wherever the picture really came from. The four shipped skins need exactly
+one file between them: `blocks_01` has the paper and gets it, `blocks_02` and `blocks_03` reach
+that same paper through `default_hint.png` and roll too, and `space` brings its own panel and
+does not. Absence meaning "no roll" is also the right default for a skin somebody else wrote.
+
+It has to be named in the packing scripts rather than swept up as `*.txt`: `password.txt` is
+deliberately packed *unencrypted* in a second pass, and a `*.txt` pattern would take it into the
+encrypted set as well, where it would be the key to itself. In `pack.sh` the name is also tested
+for first, because `packInto` drops only *patterns* that match nothing — a plain filename
+survives an empty glob and 7za then fails on it, which is what broke the `space` archive once.
+
 **The unrolling counts ticks, not alpha.** `shownAlpha` is an exponential ease towards 0.85
 that never arrives, so a sheet driven by it would stay a little rolled up for ever.
 `activeTicks` counts up while the player stands on the field and down again three at a time
