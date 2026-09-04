@@ -47,9 +47,11 @@
   /* The whole boot screen is pixel art, because the game behind it is. The icon
      is a 6x replication of a 32x32 drawing, so it is shown at an integer
      multiple of 32 and told not to be resampled; the bar is drawn in whole
-     blocks; and the line of text is a small bitmap scaled up by whole pixels
+     blocks; and the line of text is the game's own font, blown up the same way
      (see drawMessage). */
-  div#b5_boot img {
+  /* The direct child only - the line of text is an img too, one level down,
+     and must keep the size drawMessage gives it. */
+  div#b5_boot > img {
     width: 160px; max-width: 60vw; margin-bottom: 20px;
     image-rendering: pixelated; image-rendering: crisp-edges;
   }
@@ -65,7 +67,7 @@
     background: repeating-linear-gradient(90deg, #f0a000 0 9px, transparent 9px 12px);
   }
   div#b5_msg { margin-top: 20px; }
-  div#b5_msg canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  div#b5_msg img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 </style>
 </head>
 <body>
@@ -109,53 +111,27 @@
     return false;
   })();
 
-  // Emscripten's own wording ("Downloading data...") is replaced: the words are
-  // ours and translated, only the fraction in the brackets is read out of it.
-  var MESSAGE = german ? 'Lade Daten ...' : 'Downloading data ...';
+  // The line is the game's own $LOADING, drawn in the game's own font: the page
+  // stands before data.zip and before any GL context, so it cannot render that
+  // font itself. build.sh does it instead (WebBuild/make_text.py) and stamps the
+  // two images in here, in their real pixels, which this then blows up by a
+  // whole factor. Same rule as the icons - replication at an integer factor,
+  // never a resize - and one fewer request than a file would cost.
+  var TEXTS = %%LOADTEXT%%;
+  var MESSAGE = TEXTS[german ? 'de' : 'en'];
 
-  // The text as pixel art, without shipping a font: draw it small, throw the
-  // anti-aliasing away by thresholding the alpha, and let the browser blow the
-  // result up by whole pixels. That is the same idea as the icons - replication
-  // at an integer factor, never a resize - and it costs nothing to carry.
-  // Bold, because the threshold eats thin stems: at this size a regular weight
-  // loses the right leg of an 'n'. Three rows below the baseline, for the 'g'
-  // of "Downloading".
-  var TEXT_FONT = 'bold 9px "Courier New", monospace';
-  var TEXT_BASE = 9;
-  var TEXT_HEIGHT = 12;
-  var TEXT_ALPHA = 110;
-
-  function drawMessage(text) {
-    var c = document.createElement('canvas');
-    var g = c.getContext('2d');
-    g.font = TEXT_FONT;
-    var w = Math.max(1, Math.ceil(g.measureText(text).width));
-    c.width = w; c.height = TEXT_HEIGHT;
-    g = c.getContext('2d');            // setting the size resets the state
-    g.font = TEXT_FONT;
-    g.textBaseline = 'alphabetic';
-    g.fillStyle = '#fff';
-    g.fillText(text, 0, TEXT_BASE);
-
-    // Anything half-covered becomes solid, everything else transparent: the
-    // grey edges of the glyphs turn into a one-bit image, and that is what
-    // survives being blown up.
-    var img = g.getImageData(0, 0, w, TEXT_HEIGHT);
-    var d = img.data;
-    for (var i = 0; i < d.length; i += 4) {
-      var on = d[i + 3] >= TEXT_ALPHA;
-      d[i] = 0xcf; d[i + 1] = 0xcf; d[i + 2] = 0xcf;
-      d[i + 3] = on ? 255 : 0;
-    }
-    g.putImageData(img, 0, 0);
-
+  function drawMessage(t) {
+    if (!t) return;
     // Whole factors only, and only as far as the line may be wide: on a narrow
     // phone, smaller rather than resampled.
-    var scale = Math.max(1, Math.min(3, Math.floor((window.innerWidth - 24) / w)));
-    c.style.width = (w * scale) + 'px';
-    c.style.height = (TEXT_HEIGHT * scale) + 'px';
+    var scale = Math.max(1, Math.min(3, Math.floor((window.innerWidth - 24) / t.w)));
+    var img = new Image();
+    img.src = 'data:image/png;base64,' + t.d;
+    img.style.width = (t.w * scale) + 'px';
+    img.style.height = (t.h * scale) + 'px';
+    img.alt = '';
     msg.textContent = '';
-    msg.appendChild(c);
+    msg.appendChild(img);
   }
 
   // The bar fills in whole blocks rather than continuously: the width snaps to

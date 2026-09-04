@@ -735,14 +735,36 @@ page also handles `webglcontextlost`, a real event when a tab goes to the backgr
 saying so instead of freezing: the game cannot rebuild its textures and its framebuffer object
 from where it stands.
 
+**The boot screen is pixel art too, and its line is the game's own.** It shows `$LOADING` from
+`data/languages.txt` — the same sentence the game puts up a moment later — in the game's own
+font, which the page cannot render itself: it stands before `data.zip` and before any GL
+context. `WebBuild/make_text.py` draws it at build time straight out of `data/font.xml` and
+`font.png` (the same glyph rects, the same advance, the same two-tap shadow `Font::renderText`
+uses) and `build.sh` stamps both languages into the page as data URIs, so the line is there
+with the first paint and costs no request. The page blows it up by a whole factor, 3 dropping
+to 2 or 1 where the line would not fit — replication at an integer factor, never a resize,
+the same rule as the icons. The bar fills in whole 12px blocks, and the icon is shown at 5x32
+with `image-rendering: pixelated`. Which language is decided the way
+`Engine::detectSystemLanguage` decides it, by the same walk over `navigator.languages`.
+
+**The click-to-start goes through the moment the gesture arrives**, and does not wait for the
+AudioContext. `resume()` returns a promise, and on a phone — where the fullscreen request
+turns the screen — it can take a second or two to settle; waiting for it left the line
+pulsing, which reads as "the tap did not register" and gets tapped again. `GS_Loading` starts
+the logo intro at once instead, and the jingle waits its turn: it hangs off `time >= 1000`, so
+there is a second of slack, and if the context is still suspended by `time >= 2000` the jingle
+is given up rather than fired into the menu. Measured with `resume()` stubbed out to never
+settle: the menu comes up 3.0 s after the tap, which is the intro and nothing else.
+
 **It installs.** `manifest.json` (fullscreen, landscape) and `sw.js` make it an ordinary
 add-to-home-screen web app that launches without the address bar and runs offline; that is
 also the answer to iPhone Safari, which has no element-level Fullscreen API.
 
 **Every icon is generated from `data/window.png`** — four for the web by
-`WebBuild/make_icon.py`, seven for Windows by `Tools/make_ico.py` (both stdlib only, sharing
-the PNG reader). **Pixel replication at an integer factor, never a resize**: a scaler that
-smooths turns 16x16 pixel art into a blur, and that is the whole reason both scripts exist.
+`WebBuild/make_icon.py`, seven for Windows by `Tools/make_ico.py`; `make_text.py` uses the same
+PNG reader for the loading line, and all three are stdlib only. **Pixel replication at an
+integer factor, never a resize**: a scaler that smooths turns 16x16 pixel art into a blur, and
+that is the whole reason these scripts exist.
 The `.ico` is **committed rather than generated**, because the Windows build runs no Python;
 `verify.py`'s `windows_icon` check is what stops it going stale.
 

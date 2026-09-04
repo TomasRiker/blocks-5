@@ -119,16 +119,18 @@ void GS_Loading::onUpdate()
 			if(gestureTime < 0) gestureTime = waitTime;
 		}
 
-		// Weiter, sobald der Ton freigegeben ist - auch dann, wenn der Klick
-		// neben die Zeichenflaeche ging und nur der Browser ihn gesehen hat.
-		// Bleibt die Antwort nach einer Geste zwei Sekunden lang aus, wird
-		// trotzdem gestartet: ein stummes Spiel ist besser als ein
-		// Bildschirm, der nie weitergeht.
-		if(!WebAudio::isSuspended() ||
-		   (gestureTime >= 0 && waitTime - gestureTime >= 2000))
-		{
-			waitingForClick = false;
-		}
+		// Sobald die Geste da ist, geht es im selben Takt weiter - auf den Ton
+		// wird nicht gewartet. Das ist der Unterschied zwischen "der Tipp ist
+		// angekommen" und "der Bildschirm blinkt noch": resume() liefert ein
+		// Versprechen, und bis es eingeloest ist, koennen auf einem Telefon
+		// zwei Sekunden vergehen, in denen die Zeile weiterpulsiert und der
+		// Spieler ein zweites Mal tippt. Der Jingle verliert dabei nichts, er
+		// haengt an time >= 1000 und wartet unten seinerseits kurz auf den Ton.
+		//
+		// Ohne Geste geht es auch weiter, sobald der Ton von sich aus frei ist:
+		// der Klick kann neben die Zeichenflaeche gegangen sein, dann hat ihn
+		// nur der Browser gesehen.
+		if(gestureTime >= 0 || !WebAudio::isSuspended()) waitingForClick = false;
 
 		return;
 	}
@@ -140,8 +142,18 @@ void GS_Loading::onUpdate()
 	{
 		if(!soundPlayed)
 		{
+#ifdef __EMSCRIPTEN__
+			// Der Kontext braucht nach der Geste ein paar Millisekunden. Hier
+			// ist eine Sekunde Vorlauf vergangen, das reicht fast immer; wenn
+			// nicht, wird bis 2000 gewartet und danach aufgegeben, damit der
+			// Jingle nicht erst zum Menue hin losgeht.
+			const bool ready = !WebAudio::isSuspended();
+			if(ready) engine.playSound("logo.ogg");
+			if(ready || time >= 2000) soundPlayed = true;
+#else
 			engine.playSound("logo.ogg");
 			soundPlayed = true;
+#endif
 		}
 
 		logoSizeVel += 0.02 * 80.0 * (1.0 - logoSize);

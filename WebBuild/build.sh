@@ -164,10 +164,29 @@ mv "$OUT/blocks5.js"   "$OUT/blocks5-$version.js"
 mv "$OUT/blocks5.wasm" "$OUT/blocks5-$version.wasm"
 mv "$OUT/blocks5.data" "$OUT/blocks5-$version.data"
 
-# In der Seite zwei Stellen: das Skript-Tag, das em++ eingesetzt hat, und der
-# Stempel, aus dem Module.locateFile die Namen der beiden anderen bildet.
+# Die Zeile des Ladebildschirms, in der Schrift des Spiels. Die Seite steht vor
+# data.zip und vor jedem GL-Kontext und kann diese Schrift nicht selbst
+# zeichnen, also wird sie hier gezeichnet und als Daten-URI in die Seite
+# gestempelt: keine zusaetzliche Anfrage, nichts, was im Zwischenspeicher
+# fehlen koennte, und beim ersten Bild schon da. Es ist $LOADING aus
+# data/languages.txt, also dieselbe Zeile, die das Spiel gleich darauf selbst
+# anzeigt.
+loadtext=$(python3 "$HERE/make_text.py" --js "$GAME/data/font.xml" '$LOADING')
+
+# In der Seite drei Stellen: das Skript-Tag, das em++ eingesetzt hat, der
+# Stempel, aus dem Module.locateFile die Namen der beiden anderen bildet, und
+# die beiden Bilder der Ladezeile. Das Einsetzen des letzten macht python3 und
+# nicht sed, weil base64 Schraegstriche und Pluszeichen enthaelt.
 for page in "$OUT/blocks5.html" "$OUT/index.html"; do
   sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" "$page"
+  python3 - "$page" "$loadtext" <<'PYEOF'
+import io, sys
+path, text = sys.argv[1], sys.argv[2]
+page = io.open(path, encoding='utf-8').read()
+if '%%LOADTEXT%%' not in page:
+    raise SystemExit('%s: kein %%LOADTEXT%% in der Seite' % path)
+io.open(path, 'w', encoding='utf-8', newline='\n').write(page.replace('%%LOADTEXT%%', text))
+PYEOF
 done
 
 # Alles fuer die installierbare Seite. Das gehoert neben index.html und nicht in

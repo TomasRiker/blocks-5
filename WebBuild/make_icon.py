@@ -33,14 +33,22 @@ import sys
 import zlib
 
 
+# Bytes je Bildpunkt fuer die 8-Bit-Farbtypen aus RFC 2083. Der Leser laesst
+# genau diese zu und weist alles andere ab, statt es still falsch zu machen:
+# window.png ist RGBA, data/font.png eine Palette.
+_BPP = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+
+
 def read_png(path):
-    """Liefert (breite, hoehe, bytes) fuer ein 8-Bit-RGBA-PNG ohne Interlacing."""
+    """Liefert (breite, hoehe, RGBA-bytes) fuer ein 8-Bit-PNG ohne Interlacing."""
     data = open(path, 'rb').read()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
         raise SystemExit('%s ist kein PNG' % path)
 
     pos = 8
-    width = height = 0
+    width = height = color = 0
+    palette = b''
+    alpha = b''
     idat = []
     while pos + 8 <= len(data):
         length, kind = struct.unpack('>I4s', data[pos:pos + 8])
@@ -48,17 +56,22 @@ def read_png(path):
         pos += 12 + length          # Laenge, Kennung, Rumpf, Pruefsumme
         if kind == b'IHDR':
             width, height, depth, color, comp, filt, interlace = struct.unpack('>IIBBBBB', body)
-            if (depth, color, comp, filt, interlace) != (8, 6, 0, 0, 0):
-                raise SystemExit('%s: erwartet 8-Bit RGBA ohne Interlacing, '
-                                 'gefunden depth=%d color=%d interlace=%d'
+            if depth != 8 or comp != 0 or filt != 0 or interlace != 0 or color not in _BPP:
+                raise SystemExit('%s: erwartet 8 Bit ohne Interlacing, gefunden '
+                                 'depth=%d color=%d interlace=%d'
                                  % (path, depth, color, interlace))
+        elif kind == b'PLTE':
+            palette = body
+        elif kind == b'tRNS':
+            alpha = body
         elif kind == b'IDAT':
             idat.append(body)
         elif kind == b'IEND':
             break
 
+    bpp = _BPP[color]
     raw = zlib.decompress(b''.join(idat))
-    stride = width * 4
+    stride = width * bpp
     out = bytearray(height * stride)
     prev = bytearray(stride)
     at = 0
@@ -68,9 +81,9 @@ def read_png(path):
         at += 1 + stride
         # Die fuenf Zeilenfilter aus RFC 2083, Abschnitt 6.
         for x in range(stride):
-            a = line[x - 4] if x >= 4 else 0
+            a = line[x - bpp] if x >= bpp else 0
             b = prev[x]
-            c = prev[x - 4] if x >= 4 else 0
+            c = prev[x - bpp] if x >= bpp else 0
             if method == 0:
                 pass
             elif method == 1:
@@ -88,10 +101,33 @@ def read_png(path):
                 raise SystemExit('%s: unbekannter Zeilenfilter %d' % (path, method))
         out[y * stride:(y + 1) * stride] = line
         prev = line
-    return width, height, bytes(out)
+
+    if color == 6:
+        return width, height, bytes(out)
+
+    # Alles andere auf RGBA bringen, damit die Aufrufer nur einen Fall kennen.
+    rgba = bytearray(width * height * 4)
+    for i in range(width * height):
+        if color == 3:
+            k = out[i] * 3
+            if k + 3 > len(palette):
+                raise SystemExit('%s: Palettenindex ausserhalb der PLTE' % path)
+            r, g, b = palette[k], palette[k + 1], palette[k + 2]
+            a = alpha[out[i]] if out[i] < len(alpha) else 255
+        elif color == 2:
+            r, g, b, a = out[i * 3], out[i * 3 + 1], out[i * 3 + 2], 255
+        elif color == 0:
+            r = g = b = out[i]
+            a = 255
+        else:                        # 4: Grau mit Alpha
+            r = g = b = out[i * 2]
+            a = out[i * 2 + 1]
+        rgba[i * 4:i * 4 + 4] = bytes((r, g, b, a))
+    return width, height, bytes(rgba)
 
 
-def write_png(path, width, height, pixels):
+def write_png(target, width, height, pixels):
+    """Schreibt ein 8-Bit-RGBA-PNG - target ist ein Pfad oder ein offener Puffer."""
     def chunk(kind, body):
         return (struct.pack('>I', len(body)) + kind + body +
                 struct.pack('>I', zlib.crc32(kind + body) & 0xFFFFFFFF))
@@ -104,7 +140,10 @@ def write_png(path, width, height, pixels):
             + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
             + chunk(b'IDAT', zlib.compress(raw, 9))
             + chunk(b'IEND', b''))
-    open(path, 'wb').write(body)
+    if hasattr(target, 'write'):
+        target.write(body)
+    else:
+        open(target, 'wb').write(body)
 
 
 def main():
