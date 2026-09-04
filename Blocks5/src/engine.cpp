@@ -451,8 +451,20 @@ bool Engine::init(const std::string& windowCaption,
 									engineFullScreenHotkey);
 	// Und auf einem Telefon dasselbe fuer den Finger: dort holt sich das Spiel
 	// das Vollbild von sich aus, siehe enforceTouchFullScreen().
+	//
+	// Beide Enden der Beruehrung, und das ist kein Guertel-und-Hosentraeger:
+	// die Fullscreen-API verlangt eine *fluechtige* Benutzeraktivierung, und
+	// die vergibt der Browser nicht unbedingt schon beim Aufsetzen des Fingers
+	// - touchend ist das Ereignis, das die Spezifikation dafuer nennt.
+	// Emscriptens eigenes emscripten_request_fullscreen_strategy verschiebt
+	// die Anfrage in genau diesem Fall auf das naechste Ereignis, das sie
+	// ausfuehren darf, und genau diese Ersatzbank fehlt einem geradeheraus
+	// gerufenen requestFullscreen(). Also wird beides angemeldet; wer zuerst
+	// darf, gewinnt, und der zweite Aufruf sieht das Vollbild schon stehen.
 	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
 									   engineTouchFullScreen);
+	emscripten_set_touchend_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
+									 engineTouchFullScreen);
 #endif
 
 	SDL_ShowCursor(0);

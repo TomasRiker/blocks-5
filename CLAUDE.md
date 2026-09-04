@@ -472,10 +472,19 @@ size once a frame.
 
 **On a phone the game takes the fullscreen itself.** Mobile Chrome has no button for it, so
 without this the page is played under an address bar, and the picture is small enough already.
-`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Return one —
-`emscripten_set_touchstart_callback`, returning `EM_FALSE` so the touch still belongs to SDL —
-and requests the fullscreen on **every** touch that finds the document not in it, which is
-what makes it survive a swipe back out. There is no extra tap to pay for it: the browser
+`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Return one,
+registered for **both** `touchstart` and `touchend` and returning `EM_FALSE` so the touch still
+belongs to SDL. It requests the fullscreen on every touch that finds the document not in it,
+which is what makes it survive a swipe back out.
+
+Both ends of the touch, because the API needs a *transient user activation* and a phone does
+not necessarily grant one as early as touchstart — `touchend` is the event the HTML spec names
+for it. `emscripten_request_fullscreen_strategy` hid that by deferring the request to the next
+handler allowed to perform it (its own allowlist for touch is exactly touchstart and touchend),
+and a plain `requestFullscreen()` has no such second chance: dropping the strategy took the
+fullscreen away on a real phone while headless, which grants activation at touchstart, kept
+working. `b5_setFullscreen` therefore also asks `navigator.userActivation.isActive` first and
+stays quiet when there is none, so the touchstart attempt costs no rejected promise. There is no extra tap to pay for it: the browser
 build already stops on "click to start", because `GS_Loading` waits for the gesture that
 unblocks the AudioContext, and that tap is the one that gets used.
 

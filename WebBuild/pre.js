@@ -133,6 +133,12 @@ Module['b5_isPhone'] = function () {
 Module['b5_setFullscreen'] = function (on) {
   try {
     if (on) {
+      // Without transient activation the request is refused, and a phone does
+      // not necessarily grant it as early as touchstart. Say nothing then: the
+      // caller is registered for touchend as well, which does carry it, and a
+      // rejected promise per touch would only fill the console. This is the
+      // same test Emscripten's own doRequestFullscreen makes before deferring.
+      if (navigator.userActivation && !navigator.userActivation.isActive) return;
       var el = document.documentElement;
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
       if (!req) return;

@@ -99,6 +99,7 @@ void WebBlueScreen::show()
 	// Vollbild - und die Einblendung laege wieder hinter dem Canvas, den sie
 	// gerade verdecken soll.
 	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
+	emscripten_set_touchend_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
 
 	emscripten_cancel_main_loop();
 }
