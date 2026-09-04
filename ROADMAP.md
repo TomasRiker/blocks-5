@@ -312,24 +312,33 @@ no lens. What a tube has is three beams, converged at the centre and drifting ap
 toward the rim where the deflection is largest. Green stays put as the reference,
 red and blue are displaced in opposite directions in proportion to the horizontal
 distance from the centre, and `CONVERGENCE_MAX` is what that comes to at the edge in
-source pixels. Sixth slider, `<Crt convergence=>`, and the only one that starts at
-zero — every other models something the tube did on purpose, this one models a
-fault.
+source pixels. Sixth slider, `<Crt convergence=>`, at 0.5 like the other five.
 
 The two things this entry said to get right both held. It sits in the *source*
 sample and not in the halation ring, where it would have tripled the cost of
-something nobody can see in a blur; and the four extra fetches are behind
-`if(Convergence > 0.0)`, a condition uniform across the draw, so the default costs
-nothing and the ratios below are unchanged. `warpToSource` is untouched: a fringe is
-not a position, so the cursor mapping had nothing to learn from it. Measured as the
-lag of the red channel against the blue one *within a single frame*, which needs no
-second frame to compare against and so is not fooled by the title demo moving
-underneath: within a tenth of a pixel of zero everywhere at 0, and −5.3 / −0.3 /
-+4.4 output pixels at left, centre and right at full slider.
+something nobody can see in a blur; and it is horizontal only, since a vertical
+component would need its own two rows and its own beam profile per channel.
+`warpToSource` is untouched: a fringe is not a position, so the cursor mapping had
+nothing to learn from it.
+
+What it costs is four extra fetches, and with the slider at its default they are
+paid: one present measured 25.3 ms at 0 against 30.6 ms at anything above (llvmpipe,
+1280x960, so read it against the ratios below rather than as an absolute), a fifth
+more, and identical at 0.5 and 1.0 — the shift moves the coordinate, not the work.
+`if(Convergence > 0.0)` is uniform across the draw, so turning the slider down hands
+all of it back.
+
+That it works at all is measured as the lag of the red channel against the blue one
+*within a single frame*, which needs no second frame to compare against and so is
+not fooled by the title demo moving underneath: within a tenth of a pixel of zero
+everywhere at 0, and −5.3 / −0.3 / +4.4 output pixels at left, centre and right at
+full slider.
 
 Cost of one present on a software rasterizer, as ratios: nearest 1.0, bilinear
 1.3, sharp-fit 1.35, CRT 7.8 — halation about half of that, and
-`BLOOM_STRENGTH = 0` compiles it out (4.2). On any real GPU all of them are noise.
+`BLOOM_STRENGTH = 0` compiles it out (4.2). Those four were taken with convergence
+off; on top of the CRT figure it is a fifth more. On any real GPU all of them are
+noise.
 
 Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
 dot triad as an alternative to the aperture grille, and moving halation to a second

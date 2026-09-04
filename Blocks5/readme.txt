@@ -110,8 +110,7 @@ Changelog
             drifting slowly down the picture the way they never quite stood
             still on a real set - and the colour fringes a set showed toward
             the edges when its three electron beams were no longer perfectly
-            aligned. Each can be turned all the way down; the fringes start
-            there.
+            aligned. Each of the six can be turned all the way down.
 
           - "Sharp, fitted" and "CRT monitor" need a graphics card that can run
             shaders, which means anything made since about 2005. If yours

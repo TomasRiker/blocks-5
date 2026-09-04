@@ -111,7 +111,7 @@ Engine::Engine()
 	crtBloom = 0.5;
 	crtFlicker = 0.5;
 	crtScanFlicker = 0.5;
-	crtConvergence = 0.0;
+	crtConvergence = 0.5;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
