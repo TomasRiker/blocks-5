@@ -315,10 +315,10 @@ it read the default framebuffer, which WebGL clears before every frame. It calls
 that *was* rendered, which is exactly the screen being faded out.
 
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
-`src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
+`src/crt_shader.h`, meant to be edited. Six of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
-`<Crt scanline= curvature= bloom= flicker= scanflicker=>`), because they are matters of taste
-rather than tuning.
+`<Crt scanline= curvature= bloom= flicker= scanflicker= convergence=>`), because they are
+matters of taste rather than tuning.
 
 **Nobody finds a filter buried in an options dialog**, so `Menu.CrtPane` offers it once on a
 first start, with a button that switches it on there and then. The marker is `.crt_offered` in
@@ -335,6 +335,24 @@ produces *no visible stripes at all*, because both output rows sit equally far f
 centre. That is physically right and useless as an effect, which is why the shipped default
 is `2.0`: pretend 240 lines arrive, and get the look people mean by "CRT". The slider fades
 that in; the constant decides which look it fades into.
+
+**Convergence is the one slider that starts at zero.** A colour tube has three beams,
+converged at the centre and drifting apart toward the rim where the deflection is largest, so
+a vertical edge carries a red fringe on one side and a blue one on the other — nothing in the
+middle, most at the edge. It is **not** chromatic aberration: that happens in a lens because
+glass bends wavelengths differently, and a tube has no lens. Green stays put as the reference,
+exactly as it was set on the bench. `CONVERGENCE_MAX` (1.6) is the displacement of *each* of
+red and blue at the left and right edge, in source pixels, at full slider; they move apart, so
+the visible fringe is twice that. Every other slider models something the tube did on purpose
+— beam profile, curvature, halation — while this one models a fault, which is why it is the
+one that defaults to off; the four extra fetches then cost nothing, since
+`if(Convergence > 0.0)` is uniform across the draw.
+
+Measured by asking how far the red channel of a finished frame lags the blue one, which needs
+no second frame to compare against and so does not care that the title demo keeps moving: at
+0 the lag is within a tenth of a pixel everywhere, at full slider it is −5.3 output pixels at
+the left edge, −0.3 in the middle and +4.4 at the right, which is the antisymmetric ramp the
+shader asks for.
 
 The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real
 shadow mask belongs to the glass and does not change when you switch resolution. That matters

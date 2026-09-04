@@ -306,6 +306,27 @@ The decisions worth keeping, all of them detailed in CLAUDE.md:
   ramp whose slope depends on the slider: feeding it the wrapped clock would jump
   the lines at every wrap.
 
+**Convergence** was filed here as "chromatic aberration", which is the wrong name:
+that happens in a lens, because glass bends wavelengths differently, and a tube has
+no lens. What a tube has is three beams, converged at the centre and drifting apart
+toward the rim where the deflection is largest. Green stays put as the reference,
+red and blue are displaced in opposite directions in proportion to the horizontal
+distance from the centre, and `CONVERGENCE_MAX` is what that comes to at the edge in
+source pixels. Sixth slider, `<Crt convergence=>`, and the only one that starts at
+zero — every other models something the tube did on purpose, this one models a
+fault.
+
+The two things this entry said to get right both held. It sits in the *source*
+sample and not in the halation ring, where it would have tripled the cost of
+something nobody can see in a blur; and the four extra fetches are behind
+`if(Convergence > 0.0)`, a condition uniform across the draw, so the default costs
+nothing and the ratios below are unchanged. `warpToSource` is untouched: a fringe is
+not a position, so the cursor mapping had nothing to learn from it. Measured as the
+lag of the red channel against the blue one *within a single frame*, which needs no
+second frame to compare against and so is not fooled by the title demo moving
+underneath: within a tenth of a pixel of zero everywhere at 0, and −5.3 / −0.3 /
++4.4 output pixels at left, centre and right at full slider.
+
 Cost of one present on a software rasterizer, as ratios: nearest 1.0, bilinear
 1.3, sharp-fit 1.35, CRT 7.8 — halation about half of that, and
 `BLOOM_STRENGTH = 0` compiles it out (4.2). On any real GPU all of them are noise.
@@ -313,22 +334,6 @@ Cost of one present on a software rasterizer, as ratios: nearest 1.0, bilinear
 Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
-
-**Chromatic aberration**, the next thing worth adding. A real tube has three beams
-that never land quite on top of each other, so an edge carries a coloured fringe -
-warmer on one side, cooler on the other - and the misalignment grows toward the rim,
-where the deflection is largest. That is one line in the shader: sample the source
-three times, once per channel, at texture coordinates pulled apart along the vector
-from the screen centre. The displacement wants to scale with the distance from the
-centre rather than being constant, for the same reason the barrel distortion does,
-and it belongs on the same slider family as the rest - taste, not tuning, so a
-runtime `<Crt aberration=>` beside the five that are there.
-
-Two things to get right. It costs two extra fetches per tap that already exist, so
-put it in the *source* sample and not in the halation ring, or the cost triples for
-an effect nobody sees in a blur. And `warpToSource` must stay untouched: the mouse
-follows the geometry, and geometry is what the barrel distortion does - a colour
-fringe is not a position, so the cursor mapping has nothing to learn from it.
 
 **A VCR rewind when a level restarts**, while the CRT filter is on. Restarting from
 the beginning or from the hotel is exactly the moment a tape would have been wound

@@ -140,7 +140,7 @@
 	     Optionsfenster kein Platz mehr ist - hoeher als 480 darf keines
 	     werden. Die Regler wirken sofort; Abbrechen holt ueber loadConfig()
 	     die alten Werte zurueck. -->
-	<Window name="CrtOptions" w="300" h="316">
+	<Window name="CrtOptions" w="300" h="364">
 		<Title>$O_CRT_SETTINGS_TITLE</Title>
 		<Center />
 		<Hidden />
@@ -184,7 +184,15 @@
 		<ScrollBar name="CrtScanFlicker" x="12" y="242" w="235" h="16">
 			<Receiver>CrtScanFlickerValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<Button name="CrtClose" x="85" y="274" w="130" h="26">
+		<StaticText name="CrtConvergeText" x="12" y="274" w="270" h="14">
+			<Text>$O_CRT_CONVERGENCE</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="CrtConvergeValue" x="258" y="290"><Text></Text></StaticText>
+		<ScrollBar name="CrtConverge" x="12" y="290" w="235" h="16">
+			<Receiver>CrtConvergeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<Button name="CrtClose" x="85" y="322" w="130" h="26">
 			<Title>OK</Title>
 		</Button>
 	</Window>

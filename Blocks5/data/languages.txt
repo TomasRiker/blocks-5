@@ -257,6 +257,14 @@ $O_CRT_SCANFLICKER
 §en:Flicker (scan lines):
 §de:Flimmern (Zeilen):
 
+$O_CRT_CONVERGENCE
+// Label above the convergence slider in the CRT settings. Not chromatic
+// aberration: that happens in a lens, and a tube has none. Here the three
+// electron beams simply do not land on the same spot, and the slider says
+// by how much - so it is the error that is named, not the property.
+§en:Color fringes (convergence error):
+§de:Farbsäume (Konvergenzfehler):
+
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:

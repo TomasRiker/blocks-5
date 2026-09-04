@@ -119,6 +119,25 @@ static const char* p_crtFragmentShader =
 	   Quellpixels; 0 = so scharf wie "Scharf, angepasst". */
 	"const float SOFTNESS = 0.35;\n"
 
+	/* Konvergenz. Eine Farbroehre hat drei Elektronenstrahlen, und die treffen
+	   die Maske nie an genau derselben Stelle: in der Mitte wird sie justiert,
+	   nach aussen laeuft es auseinander, weil die Ablenkung dort am groessten
+	   ist. Sichtbar wird das als roter und blauer Saum an senkrechten Kanten,
+	   in der Mitte gar nicht und am Rand am staerksten.
+
+	   Das ist ausdruecklich *keine* chromatische Aberration - die entsteht in
+	   einer Linse, weil Glas Wellenlaengen verschieden bricht, und eine Roehre
+	   hat keine. Hier liegen schlicht drei Bilder nebeneinander.
+
+	   Der Wert ist, bei Regler auf Anschlag, die Verschiebung *je Strahl* am
+	   linken und rechten Bildrand, in Quellpixeln; Rot und Blau laufen
+	   gegeneinander, der sichtbare Saum ist also doppelt so breit. Ein gut
+	   eingestelltes Geraet blieb darunter, ein muedes Billiggeraet kam in den
+	   Ecken auf ein bis zwei Triaden, was hier ein bis zwei Quellpixeln
+	   entspricht. Auf 0 gesetzt faellt der Block beim Uebersetzen weg, wie bei
+	   der Halation. */
+	"const float CONVERGENCE_MAX = 1.6;\n"
+
 	/* Woelbung bei Regler auf Anschlag. Lottes nimmt 1/32 und 1/24; hier darf
 	   es weiter gehen, der Regler steht ja normalerweise nicht am Anschlag.
 	   Die Zahlen kommen aus den Makros unten - der Shader und die
@@ -198,6 +217,7 @@ static const char* p_crtFragmentShader =
 	"uniform float Bloom;\n"        /* Regler 0..1 */
 	"uniform float Flicker;\n"      /* Regler 0..1, Helligkeit */
 	"uniform float ScanFlicker;\n"  /* Regler 0..1, Lage der Zeilen */
+	"uniform float Convergence;\n"  /* Regler 0..1, Farbsaeume am Rand */
 	"uniform float Time;\n"         /* Sekunden, 0 .. FLICKER_CYCLE */
 	"uniform float ScanPhase;\n"    /* Zeilenkriechen, 0..1 Perioden */
 	"varying vec2 texCoord;\n"
@@ -278,9 +298,34 @@ static const char* p_crtFragmentShader =
 	"    vec3 c1 = toLinear(fetch(vec2(suv.x, (rowc + 1.0) / FrameSize.y)));\n"
 	"    vec3 col = (g0 * c0 + g1 * c1) / gs;\n"
 
+	/* --- Konvergenz: Rot und Blau daneben ----------------------------- */
+	/* Gruen bleibt liegen und ist damit die Bezugsfarbe, so wie am Geraet
+	   auch auf Gruen justiert wurde. Rot und Blau werden gegenlaeufig
+	   verschoben, proportional zu w.x - also null in der Mitte und am Rand am
+	   groessten.
+
+	   Nur waagerecht, obwohl ein Strahl auch senkrecht danebenliegen konnte:
+	   dafuer braeuchte jeder Kanal seine eigenen zwei Zeilen und ein eigenes
+	   Strahlprofil, also acht Griffe statt vier, und die Zeilenstruktur der
+	   Roehre verdeckt eine senkrechte Verschiebung ohnehin fast ganz. Der
+	   Saum, an den sich jemand erinnert, steht an senkrechten Kanten.
+
+	   Vier zusaetzliche Griffe, und deshalb steht das Ganze in einem if:
+	   dieselbe Rechnung wie oben, nur zweimal mehr, was die Neuabtastung
+	   verdreifachen wuerde. Bei Regler auf 0 - der Voreinstellung - kostet es
+	   nichts, denn die Bedingung ist fuer den ganzen Zeichenaufruf dieselbe. */
+	"    if(CONVERGENCE_MAX > 0.0 && Convergence > 0.0)\n"
+	"    {\n"
+	"        float cx = Convergence * CONVERGENCE_MAX * w.x / FrameSize.x;\n"
+	"        vec3 r0 = toLinear(fetch(vec2(suv.x + cx, rowc / FrameSize.y)));\n"
+	"        vec3 r1 = toLinear(fetch(vec2(suv.x + cx, (rowc + 1.0) / FrameSize.y)));\n"
+	"        vec3 b0 = toLinear(fetch(vec2(suv.x - cx, rowc / FrameSize.y)));\n"
+	"        vec3 b1 = toLinear(fetch(vec2(suv.x - cx, (rowc + 1.0) / FrameSize.y)));\n"
+	"        col.r = (g0 * r0.r + g1 * r1.r) / gs;\n"
+	"        col.b = (g0 * b0.b + g1 * b1.b) / gs;\n"
+	"    }\n"
+
 	/* --- Halation ----------------------------------------------------- */
-	/* Acht Abtastungen auf einem Ring. Nicht mehr - der Hof ist weich, da
-	   faellt die Sternform nicht auf, und jeder Griff kostet. */
 	/* Acht Griffe auf einem Ring. Der Hof ist weich, da faellt die Sternform
 	   nicht auf. Er ist zugleich der teuerste Teil des Shaders - gemessen
 	   knapp die Haelfte -, deshalb steht er in einem if auf eine Konstante:

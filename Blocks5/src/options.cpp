@@ -27,6 +27,7 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("CrtOptions.CrtClose"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->connectClicked(this, &Options::handleClick);
@@ -143,6 +144,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0 * engine.getCrtFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->setScroll(
 		static_cast<int>(100.0 * engine.getCrtScanFlicker()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->setScroll(
+		static_cast<int>(100.0 * engine.getCrtConvergence()));
 	getChild("CrtOptions")->hide();
 
 	// Ohne Auswahl beginnen. setSelection() meldet sich nur bei einer echten
@@ -251,13 +254,14 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.SharpFit"))->isChecked()) engine.setUpscaleFilter(Engine::UF_SHARP_FIT);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->isChecked()) engine.setUpscaleFilter(Engine::UF_CRT);
 
-		// Die beiden Roehrenregler wirken sofort - beim Schieben soll man sehen,
-		// was sie tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
+		// Die Roehrenregler wirken sofort - beim Schieben soll man sehen, was sie
+		// tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
 		engine.setCrtScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScan"))->getScroll());
 		engine.setCrtCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtCurve"))->getScroll());
 		engine.setCrtBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtBloom"))->getScroll());
 		engine.setCrtFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtFlicker"))->getScroll());
 		engine.setCrtScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtScanFlicker"))->getScroll());
+		engine.setCrtConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.CrtConverge"))->getScroll());
 
 		if(name == "CrtSettings")
 		{

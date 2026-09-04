@@ -172,11 +172,16 @@ public:
 	double getCrtBloom() const { return crtBloom; }
 	double getCrtFlicker() const { return crtFlicker; }
 	double getCrtScanFlicker() const { return crtScanFlicker; }
+	// 0 heisst sauber justiert, 1 der staerkste Farbsaum - wie bei allen
+	// anderen Reglern ist 0 also "Effekt aus", auch wenn ein echtes Geraet bei
+	// guter Konvergenz gerade nichts zeigt.
+	double getCrtConvergence() const { return crtConvergence; }
 	void setCrtScanline(double value);
 	void setCrtCurvature(double value);
 	void setCrtBloom(double value);
 	void setCrtFlicker(double value);
 	void setCrtScanFlicker(double value);
+	void setCrtConvergence(double value);
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 
@@ -342,7 +347,7 @@ private:
 	{
 		uint program;
 		int decal, textureSize, frameSize, prescale;
-		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker;   // nur UF_CRT, sonst -1
+		int scanline, curvature, bloom, flicker, time, scanPhase, scanFlicker, convergence;   // nur UF_CRT, sonst -1
 	};
 
 	void setupCursor();
@@ -469,6 +474,7 @@ private:
 	double crtBloom;
 	double crtFlicker;
 	double crtScanFlicker;
+	double crtConvergence;
 	uint presentVertexBuffer;
 	VideoRecorder* p_videoRecorder;
 	uint recordingStartTime;

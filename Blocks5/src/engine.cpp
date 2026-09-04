@@ -111,6 +111,7 @@ Engine::Engine()
 	crtBloom = 0.5;
 	crtFlicker = 0.5;
 	crtScanFlicker = 0.5;
+	crtConvergence = 0.0;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -1683,8 +1684,8 @@ bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragment
 	target.textureSize = glExtGetUniformLocation(target.program, "TextureSize");
 	target.frameSize   = glExtGetUniformLocation(target.program, "FrameSize");
 	target.prescale    = glExtGetUniformLocation(target.program, "Prescale");
-	// Die beiden gibt es nur im Roehrenshader; sonst bleibt es bei -1, und die
-	// Uniform wird schlicht nicht gesetzt.
+	// Die folgenden gibt es nur im Roehrenshader; sonst bleibt es bei -1, und
+	// die Uniform wird schlicht nicht gesetzt.
 	target.scanline    = glExtGetUniformLocation(target.program, "Scanline");
 	target.curvature   = glExtGetUniformLocation(target.program, "Curvature");
 	target.bloom       = glExtGetUniformLocation(target.program, "Bloom");
@@ -1692,6 +1693,7 @@ bool Engine::createPresentProgram(PresentProgram& target, const char* p_fragment
 	target.time        = glExtGetUniformLocation(target.program, "Time");
 	target.scanPhase   = glExtGetUniformLocation(target.program, "ScanPhase");
 	target.scanFlicker = glExtGetUniformLocation(target.program, "ScanFlicker");
+	target.convergence = glExtGetUniformLocation(target.program, "Convergence");
 	return true;
 }
 
@@ -1759,6 +1761,11 @@ void Engine::setCrtFlicker(double value)
 void Engine::setCrtScanFlicker(double value)
 {
 	crtScanFlicker = clamp(value, 0.0, 1.0);
+}
+
+void Engine::setCrtConvergence(double value)
+{
+	crtConvergence = clamp(value, 0.0, 1.0);
 }
 
 void Engine::setUpscaleFilter(UpscaleFilter filter)
@@ -2538,6 +2545,7 @@ void Engine::presentFrame()
 		if(prog.bloom >= 0)       glExtUniform1f(prog.bloom, static_cast<float>(crtBloom));
 		if(prog.flicker >= 0)     glExtUniform1f(prog.flicker, static_cast<float>(crtFlicker));
 		if(prog.scanFlicker >= 0) glExtUniform1f(prog.scanFlicker, static_cast<float>(crtScanFlicker));
+		if(prog.convergence >= 0) glExtUniform1f(prog.convergence, static_cast<float>(crtConvergence));
 		// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten
 		// und steht bei Pause still; ein Bildschirm flimmert auch dann. Der
 		// Umlauf ist FLICKER_CYCLE, alle Frequenzen darin ganze Vielfache.
@@ -3653,7 +3661,7 @@ void Engine::loadConfig()
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler) upscaleFilter = parseUpscaleFilterName(p_upscaler->GetText(), upscaleFilter);
 
-		// Die beiden Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
+		// Die Regler des Roehrenfilters. Fehlen sie, bleibt es bei der
 		// Voreinstellung aus dem Konstruktor.
 		TiXmlElement* p_crt = p_config->FirstChildElement("Crt");
 		if(p_crt)
@@ -3669,6 +3677,8 @@ void Engine::loadConfig()
 				setCrtFlicker(value);
 			if(p_crt->QueryDoubleAttribute("scanflicker", &value) == TIXML_SUCCESS)
 				setCrtScanFlicker(value);
+			if(p_crt->QueryDoubleAttribute("convergence", &value) == TIXML_SUCCESS)
+				setCrtConvergence(value);
 		}
 
 		// Vollbild und Fenstergroesse gelten erst beim naechsten Start; mitten
@@ -3822,6 +3832,7 @@ void Engine::saveConfig()
 	p_crt->SetDoubleAttribute("bloom", crtBloom);
 	p_crt->SetDoubleAttribute("flicker", crtFlicker);
 	p_crt->SetDoubleAttribute("scanflicker", crtScanFlicker);
+	p_crt->SetDoubleAttribute("convergence", crtConvergence);
 	p_config->LinkEndChild(p_crt);
 
 	if(windowedPositionKnown)
