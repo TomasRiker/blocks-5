@@ -263,6 +263,27 @@ static const char* p_crtFragmentShader =
 	   sonst der teuerste Posten im ganzen Shader. */
 	"vec3 toLinear(vec3 c) { return pow(max(c, vec3(0.0)), vec3(GAMMA_IN)); }\n"
 
+	/* Der Rand des Rasters, als Abstandsfunktion eines abgerundeten Rechtecks:
+	   1 innerhalb, 0 ausserhalb, dazwischen eine Kante von zwei edge breit.
+
+	   wc ist der Quellpunkt, den *dieser Kanal* liest, nicht der Ausgabepunkt.
+	   Darauf kommt es an: eine Farbroehre malt drei Raster, und wenn das rote
+	   enger steht als das gruene, endet das rote Bild frueher - genau daran
+	   erkennt man ein schlecht justiertes Geraet, noch bevor man auf eine
+	   Kante im Bild schaut.
+
+	   Das Rechteck ist um edge groesser als das Bild. Damit liegt die Kante
+	   ausserhalb der gezeichneten Flaeche, und ohne Woelbung bleibt innen
+	   alles unangetastet: das Bild ist dann Punkt fuer Punkt so gross wie bei
+	   jedem anderen Filter. Frueher fiel die aeusserste Spalte auf die halbe
+	   Helligkeit, ohne dass irgendetwas daran richtig gewesen waere. */
+	"float rasterMask(vec2 wc, float r, float edge)\n"
+	"{\n"
+	"    vec2  q  = abs(wc) - (1.0 - r + edge);\n"
+	"    float sd = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;\n"
+	"    return 1.0 - smoothstep(-edge, edge, sd);\n"
+	"}\n"
+
 	"vec3 fetchRaw(vec2 uv)\n"
 	"{\n"
 	"    vec2 p = clamp(uv * FrameSize, vec2(0.5), FrameSize - 0.5);\n"
@@ -283,13 +304,25 @@ static const char* p_crtFragmentShader =
 	"                  p.y * (1.0 + b * p.x * p.x));\n"
 	"    vec2 suv = w * 0.5 + 0.5;\n"
 
-	/* --- Rand: abgerundetes Rechteck, eine Pixelbreite weich ---------- */
+	/* --- Konvergenz, erster Teil: wie weit Rot und Blau danebenliegen -- */
+	/* Steht hier oben, weil schon der Rand es braucht. cx ist der Versatz je
+	   Strahl in Texturkoordinaten, cw derselbe in w - Rot liest um cx weiter
+	   rechts, sein Bild liegt also um cx weiter links. */
+	"    float cx = Convergence * CONVERGENCE_MAX * w.x / FrameSize.x;\n"
+	"    float cw = 2.0 * cx;\n"
+	"    bool  converge = (CONVERGENCE_MAX > 0.0 && Convergence > 0.0);\n"
+
+	/* --- Rand: abgerundetes Rechteck, je Kanal ------------------------ */
 	"    float r = CORNER_RADIUS * Curvature;\n"
-	"    vec2  q = abs(w) - (1.0 - r);\n"
-	"    float sd = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;\n"
 	"    float edge = 2.0 / FrameSize.y;\n"
-	"    float vis = 1.0 - smoothstep(-edge, edge, sd);\n"
-	"    if(vis <= 0.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }\n"
+	"    vec3  vis = vec3(rasterMask(w, r, edge));\n"
+	"    if(converge)\n"
+	"    {\n"
+	"        vis.r = rasterMask(vec2(w.x + cw, w.y), r, edge);\n"
+	"        vis.b = rasterMask(vec2(w.x - cw, w.y), r, edge);\n"
+	"    }\n"
+	"    if(max(max(vis.r, vis.g), vis.b) <= 0.0)\n"
+	"    { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }\n"
 
 	/* --- senkrecht abtasten: zwei Zeilen, nach Strahlprofil gewichtet -- */
 	/* Das ist die Neuabtastung und haelt die Helligkeit; der Streifen kommt
@@ -304,11 +337,12 @@ static const char* p_crtFragmentShader =
 	"    vec3 c1 = toLinear(fetch(vec2(suv.x, (rowc + 1.0) / FrameSize.y)));\n"
 	"    vec3 col = (g0 * c0 + g1 * c1) / gs;\n"
 
-	/* --- Konvergenz: Rot und Blau daneben ----------------------------- */
+	/* --- Konvergenz, zweiter Teil: Rot und Blau daneben --------------- */
 	/* Gruen bleibt liegen und ist damit die Bezugsfarbe, so wie am Geraet
 	   auch auf Gruen justiert wurde. Rot und Blau werden gegenlaeufig
 	   verschoben, proportional zu w.x - also null in der Mitte und am Rand am
-	   groessten.
+	   groessten. Der Rand des Rasters ist oben schon je Kanal gestellt; hier
+	   kommt nur noch der Inhalt dazu.
 
 	   Nur waagerecht, obwohl ein Strahl auch senkrecht danebenliegen konnte:
 	   dafuer braeuchte jeder Kanal seine eigenen zwei Zeilen und ein eigenes
@@ -322,9 +356,8 @@ static const char* p_crtFragmentShader =
 	   ein Fuenftel mehr; auf einer richtigen Grafikkarte ist es nichts. Das if
 	   holt es fuer den zurueck, der den Regler ganz herunterdreht: die
 	   Bedingung ist fuer den ganzen Zeichenaufruf dieselbe. */
-	"    if(CONVERGENCE_MAX > 0.0 && Convergence > 0.0)\n"
+	"    if(converge)\n"
 	"    {\n"
-	"        float cx = Convergence * CONVERGENCE_MAX * w.x / FrameSize.x;\n"
 	"        vec3 r0 = toLinear(fetch(vec2(suv.x + cx, rowc / FrameSize.y)));\n"
 	"        vec3 r1 = toLinear(fetch(vec2(suv.x + cx, (rowc + 1.0) / FrameSize.y)));\n"
 	"        vec3 b0 = toLinear(fetch(vec2(suv.x - cx, rowc / FrameSize.y)));\n"

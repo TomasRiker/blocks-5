@@ -360,6 +360,15 @@ the visible fringe is twice that. Horizontal only — a vertical component would
 two rows and its own beam profile per channel, eight fetches instead of four, and the line
 structure hides it anyway.
 
+**The raster edge belongs to the beam, not to the picture.** A tube paints three rasters, and
+if red's is narrower than green's then the red *image* ends first — which is what you see at
+the rim of a misconverged set before you see anything on an edge inside the picture. So
+`rasterMask()` is evaluated at each channel's own source point, not at the output point:
+without that, the highest-contrast vertical edge in the whole frame — the picture against the
+black — is the one place a fringe could never appear. Measured off the shader: at the slider's
+default the outermost output column keeps 89% of its red, at full slider the outermost three
+keep 49%, 76% and 95%, and green and blue do not move at all.
+
 Those four fetches are part of the shipped cost now: one present measured 25.3 ms with the
 slider at 0 and 30.6 ms with it anywhere above (llvmpipe, 1280x960), a fifth more, and the
 same at 0.5 as at 1.0 — the shift changes the coordinate, not the work. On a real GPU it is
@@ -371,6 +380,13 @@ no second frame to compare against and so does not care that the title demo keep
 0 the lag is within a tenth of a pixel everywhere, at full slider it is −5.3 output pixels at
 the left edge, −0.3 in the middle and +4.4 at the right, which is the antisymmetric ramp the
 shader asks for.
+
+That rectangle is a pixel wider than the picture on every side, which is the second half of
+the same change: **at curvature 0 the CRT filter now covers exactly what the other three
+filters cover.** The soft edge used to eat into the frame, leaving the outermost column at 64%
+and the next at 88% for no reason anybody had asked for — the fade is there for the barrel
+distortion, which at curvature 0 does not exist. Measured against sharp-fit on the same scene:
+zero shift in either axis, and the outermost three columns within 0.5% of the columns inside.
 
 The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real
 shadow mask belongs to the glass and does not change when you switch resolution. That matters
