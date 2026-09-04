@@ -952,6 +952,28 @@ never learns what it is becoming - it is handed the target colours, not a type.
   is already sitting there waiting to be used.
 
 
+25. The diamond machine's sound handle is never set
+----------------------------------------------------
+`DiamondMachine::p_soundInst` is assigned 0 in the constructor and nowhere else.
+The block at the foot of `onUpdate()` that stops it when the conversion is
+abandoned -
+
+    if(counter == -1 && p_soundInst) { p_soundInst->stop(); p_soundInst = 0; }
+
+- can therefore never run. The sound is played fire-and-forget instead, with
+`playSound("diamondmachine.ogg", false, 0.0, 100)`, whose return value (a
+`SoundInstance*`) is discarded; it is a one-shot, so a conversion that is
+abandoned half way through still plays it out to the end.
+
+Nothing is broken by this today - a two-second one-shot that outlives its cause
+by a moment is not something a player notices - so it is written down rather
+than patched. It matters for item 24: a longer conversion wants a looping sound
+that stops when the block is pushed off, and the member and the stop are already
+sitting there waiting for the one line that assigns them. `conveyorbelt.cpp` is
+the pattern to copy - `createInstance()`, `play(true)`, `stop()` - rather than
+`playSound()`, which is the fire-and-forget path.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
