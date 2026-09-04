@@ -8,6 +8,21 @@
 #include "player.h"
 #include "exit.h"
 #include "cf_all.h"
+#include "u_crt.h"
+
+namespace
+{
+	// Beim Neustart springt das Spiel ohne Zwischenschritt vom jetzigen Stand
+	// auf den Anfang. Mit der Bildroehre davor darf das aussehen wie ein
+	// Videorekorder im Ruecklauf - der springt genauso und keiner stoert sich
+	// daran. Ohne sie waere es nur Bildrauschen ohne Anlass, also bleibt es
+	// dann bei den Lamellen.
+	void crossfadeRestart(Engine& engine)
+	{
+		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.1);
+		else engine.crossfade(new CF_Slices, 0.85);
+	}
+}
 #include "streamedsound.h"
 #include "texture.h"
 #include "options.h"
@@ -144,7 +159,7 @@ public:
 			game.p_level = new Level;
 			game.p_level->load(game.p_originalLevel);
 			delete p_oldLevel;
-			game.engine.crossfade(new CF_Slices, 0.85);
+			crossfadeRestart(game.engine);
 			getChild("MenuPane")->hide();
 			focus();
 			game.leaveCountDown = 50;
@@ -163,7 +178,7 @@ public:
 			game.p_level = new Level;
 			game.p_level->load(game.p_saveGame);
 			delete p_oldLevel;
-			game.engine.crossfade(new CF_Slices, 0.85);
+			crossfadeRestart(game.engine);
 			getChild("MenuPane")->hide();
 			focus();
 			game.leaveCountDown = 50;

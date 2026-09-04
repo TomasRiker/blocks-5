@@ -452,6 +452,29 @@ fixed fallback, not "the first available one", because the display order starts 
 `SharpFit` and belongs to the options dialog — and the dialog hides the entry. The wish
 itself stays in `config.xml` untouched, for the next machine. Neither is fatal.
 
+**Restarting a level rewinds the tape**, but only with the CRT filter on: `CF_Rewind`
+(`cf_rewind.cpp`) instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On
+sharp or sharp-fit the game does not claim to be a tube and a tape effect would be a costume.
+
+It exists because a restart is a cut — the game jumps from the current state to the level's
+first tick with nothing in between — and a tape in search is the one machine that cuts like
+that and is forgiven for it. **Every strip of a searched picture is read from a different place
+on the tape, which is to say from a different moment**, so a screen made of strips taken
+alternately from the old image and the new one is not a trick standing in for frames the game
+never had: it is what a recorder actually puts out. The rest follows from the same fact — no
+signal between the tracks, so bands of snow roll through; no lock for the vertical hold, so the
+picture rolls; the head meets each track at an angle, so every line starts early or late; and
+VHS carries colour on a separate low-frequency signal that does not survive the speed, hence
+the grey wash.
+
+Two things there are load-bearing. `<< REW` must **not** move with any of it — it comes from
+the recorder's own character generator, mixed in behind the tape path, and that one steady
+thing is what makes the mess read as a machine. And `ROLL_SCREENS` is a whole number, so the
+roll offset lands back on a multiple of the picture height — zero — exactly as the crossfade
+ends; at 6.5 the picture would sit half a screen out and jump straight when the effect stops.
+The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is
+the transport braking and the servo locking.
+
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
 is airbrushed and photographic. Every decision in xBR is a `step()` against a threshold, which

@@ -143,6 +143,11 @@ Changelog
             two language flags in the options. Clicking the caption of a text
             field puts the cursor into it.
 
+          - Restarting a level with the CRT monitor filter switched on now
+            looks like a video recorder winding the tape back, with rolling
+            noise bars and "<< REW" in the corner. The other filters keep
+            the old transition.
+
           - A hint note is a real sheet of paper now. The text is written on it
             before it flies up, so it turns and grows together with the paper
             instead of appearing on top of it at the end, and the note arrives

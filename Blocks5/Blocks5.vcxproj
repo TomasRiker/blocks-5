@@ -686,6 +686,7 @@
     <ClCompile Include="src\cf_colorblend.cpp" />
     <ClCompile Include="src\cf_cube.cpp" />
     <ClCompile Include="src\cf_mosaic.cpp" />
+    <ClCompile Include="src\cf_rewind.cpp" />
     <ClCompile Include="src\cf_slices.cpp" />
     <ClCompile Include="src\cf_star.cpp" />
     <ClCompile Include="src\cf_zoom.cpp" />
@@ -818,6 +819,7 @@
     <ClInclude Include="src\cf_colorblend.h" />
     <ClInclude Include="src\cf_cube.h" />
     <ClInclude Include="src\cf_mosaic.h" />
+    <ClInclude Include="src\cf_rewind.h" />
     <ClInclude Include="src\cf_slices.h" />
     <ClInclude Include="src\cf_star.h" />
     <ClInclude Include="src\cf_zoom.h" />

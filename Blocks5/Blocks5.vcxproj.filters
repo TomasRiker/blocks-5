@@ -280,6 +280,9 @@
     <ClCompile Include="src\cf_mosaic.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\cf_rewind.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\cf_slices.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1009,6 +1012,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\cf_mosaic.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cf_rewind.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\cf_slices.h">

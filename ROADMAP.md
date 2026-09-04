@@ -344,28 +344,33 @@ Left for later: anisotropic curvature (real tubes are not spherical), a shadow-m
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
 
-**A VCR rewind when a level restarts**, while the CRT filter is on. Restarting from
-the beginning or from the hotel is exactly the moment a tape would have been wound
-back, and the filter has already put the player in front of a tube. What that looks
-like: the picture skewed and torn, a band of noise rolling up through it, the head
-switching noise at the bottom, the whole thing running backwards and fast for about
-a second before the level comes back. `CF_*` is where it goes - the crossfade
-classes are already the game's transitions, and `Level`'s restart paths already
-call one - so this is a new `CF_Rewind` beside them rather than anything new in the
-engine.
+**A VCR rewind when a level restarts**  - **DONE**, and the ring of captures was
+not needed. `CF_Rewind` sits beside the other crossfade classes and both restart
+paths in `gs_game.cpp` choose it over `CF_Slices` when the CRT filter is the one
+in effect - on `sharp` or `sharp-fit` the game does not claim to be a tube, and a
+tape effect there would be a costume rather than a consequence.
 
-The one design question is what it rewinds *through*. A crossfade here has two
-images, the old screen and the new one, and both are the same level; a rewind that
-merely blends them shows nothing moving backwards. The honest version needs a few
-seconds of recent frames to run back through, which is memory the game does not
-spend today - so either keep a short ring of downscaled captures while the CRT
-filter is on, or accept a cheaper illusion built from the one captured frame plus
-the tear, the noise band and the speed-up. Worth trying the cheap one first; if it
-reads as a rewind, the ring is not needed.
+The design question above - what it rewinds *through*, given that a crossfade has
+only two images and both are the same level - answered itself once the physics was
+read up rather than guessed at. A tape in search runs faster than the head can
+follow a track, so **every strip of the picture is read from a different place on
+the tape, which is to say from a different moment**. Two images cut into strips and
+interleaved is therefore not a cheat standing in for frames the game does not have;
+it is what the machine actually puts out. Everything else follows from the same
+fact: where the head crosses between tracks there is no signal, so bands of snow
+roll through the picture; the vertical hold cannot lock to that, so the picture
+rolls; the head meets each track at an angle, so every line starts a little early
+or late and the image frays; and VHS carries colour as a separate low-frequency
+signal that does not survive the speed, so the picture goes nearly grey.
 
-It is deliberately tied to the CRT filter: on `nearest` or `sharp-fit` the game does
-not claim to be a tube, and a tape effect there would be a costume rather than a
-consequence.
+One detail is worth keeping: the `<< REW` in the corner must *not* move with any of
+it. It comes from the recorder's own character generator and is mixed in behind the
+tape path, so it sits rock steady while everything else tears - and that one stable
+thing is what makes the mess read as a machine rather than as a broken renderer.
+
+`ROLL_SCREENS` is a whole number for a reason that is easy to miss: the roll offset
+therefore lands back on a multiple of the picture height, which is to say on zero,
+at exactly the moment the crossfade ends.
 
 
 12. Tell the player about the hardcoded keys  — **DONE**, it already did
