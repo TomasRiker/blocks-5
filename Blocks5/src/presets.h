@@ -4,6 +4,7 @@
 class Texture;
 class Level;
 class Object;
+class Sprites;
 
 /*** Klasse fuer Objektvoreinstellungen ***/
 
@@ -16,6 +17,11 @@ public:
 	void renderPreset(const std::string& name, const Vec2i& position, const Vec4d& color = Vec4d(1.0));
 	Object* instancePreset(const std::string& name, const Vec2i& position, TiXmlElement* p_element, bool fromEditor = false);
 	const std::vector<std::string>& getPresetNames() const;
+
+	// Das Aussehen einer Voreinstellung, ohne ein Objekt davon zu bauen -
+	// gedacht fuer Truemmer, die die Farben von etwas tragen sollen, das es
+	// noch gar nicht gibt. Liefert false, wenn der Name in der Tabelle fehlt.
+	bool getPresetSprites(const std::string& name, Sprites* p_out) const;
 
 private:
 	Level& level;

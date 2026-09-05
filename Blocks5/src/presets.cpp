@@ -117,6 +117,23 @@ Presets::~Presets()
 	p_sprites->release();
 }
 
+bool Presets::getPresetSprites(const std::string& name,
+							   Sprites* p_out) const
+{
+	std::unordered_map<std::string, Vec2i>::const_iterator i = texCoords.find(name);
+	if(i == texCoords.end()) return false;
+
+	// Ein negatives x heisst gespiegelt, so wie in renderPreset().
+	Vec2i t = i->second;
+	const bool mirrorX = t.x < 0;
+	if(mirrorX) t.x = -t.x;
+
+	p_out->clear();
+	p_out->setTexture(p_sprites);
+	p_out->add(t).mirrorX = mirrorX;
+	return true;
+}
+
 void Presets::renderPreset(const std::string& name,
 						   const Vec2i& position,
 						   const Vec4d& color)
