@@ -979,6 +979,42 @@ the pattern to copy - `createInstance()`, `play(true)`, `stop()` - rather than
 `playSound()`, which is the fire-and-forget path.
 
 
+26. The shipped content should not be copied into the user's folder
+--------------------------------------------------------------------
+`Level::getSkinFilename()` and `Campaign` look for skins, campaigns and levels
+in **one** place: `getAppHomeDirectory()`. The game's own `levels/` folder is
+never read at runtime - it is only the source for a one-time copy in `main.cpp`,
+which runs when `.initialized` says `not_played` or `<= 1.0.7` and never again.
+So every player's `My Documents\Blocks 5\levels` holds a private copy of the
+shipped campaign, the four skins and the two example levels, frozen at whatever
+version they first installed.
+
+That is how the `hintscroll.txt` marker went missing on a machine that had built
+the current sources: the archive the game reads was two weeks older than the one
+`zip_skins.bat` had just built. `Transfer::refreshBuiltIns()` now patches over
+it - on every start, each built-in whose size differs from the shipped one is
+copied across - but that is a plaster on the shape of the thing.
+
+**The shape it wants is two roots.** The shipped content stays in the game folder
+and is read from there, so it is always exactly as new as the executable; the
+user directory holds only what the player made or imported. `getSkinFilename()`
+would look in the user directory first and fall back to the game folder, and
+`isBuiltIn()` would stop being a hand-written list - "it lives in the game
+folder" *is* the definition, which is also what makes it undeletable and
+un-overwritable.
+
+What it touches: `Level::getSkinFilename()`, `Campaign::makeLooseRef()` and
+`resolveMusicPath()`, and in `Transfer` the `list()`, `remove()` and `install()`
+paths, which would have to merge two directories and keep the Manager's Delete
+greyed out for anything from the game folder. And an upgrade would want to
+*delete* the stale copies it finds in the user directory, or they would go on
+shadowing the shipped ones for ever - which is the one part that touches a
+player's folder and therefore wants care.
+
+Worth doing before the next release that changes a shipped asset. `blocks.zip`
+is 8 MB, and every installation is carrying a second copy of it for no reason.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

@@ -20,18 +20,59 @@
 
 namespace
 {
-	// Wo die vier Arten im Benutzerverzeichnis liegen.
-	std::string directoryFor(Transfer::Kind kind)
+	// Wo die vier Arten liegen - derselbe Pfad zweimal: einmal unter dem
+	// Benutzerverzeichnis, wo das Spiel sie liest, und einmal relativ zum
+	// Arbeitsverzeichnis, wo die mitgelieferten stehen.
+	std::string subdirectoryFor(Transfer::Kind kind)
 	{
-		const std::string home(FileSystem::inst().getAppHomeDirectory());
 		switch(kind)
 		{
 		case Transfer::KIND_LEVEL:
-		case Transfer::KIND_MUSIC:    return home + "levels/";
-		case Transfer::KIND_CAMPAIGN: return home + "levels/campaigns/";
-		case Transfer::KIND_SKIN:     return home + "levels/skins/";
+		case Transfer::KIND_MUSIC:    return "levels/";
+		case Transfer::KIND_CAMPAIGN: return "levels/campaigns/";
+		case Transfer::KIND_SKIN:     return "levels/skins/";
 		default:                      return "";
 		}
+	}
+
+	std::string directoryFor(Transfer::Kind kind)
+	{
+		const std::string sub(subdirectoryFor(kind));
+		if(sub.empty()) return "";
+		return FileSystem::inst().getAppHomeDirectory() + sub;
+	}
+
+	// Was mitgeliefert wird: genau das, was nach einer Neuinstallation im
+	// Benutzerverzeichnis liegt. zip_skins.bat baut die vier Skins, die
+	// Kampagne heisst blocks.zip, und die beiden Beispiellevel liegen lose
+	// daneben. Die eine Liste, die isBuiltIn() und refreshBuiltIns() teilen.
+	const char* const* builtInNames(Transfer::Kind kind)
+	{
+		static const char* p_levels[]    = { "example01.xml", "example02.xml", 0 };
+		static const char* p_campaigns[] = { "blocks.zip", 0 };
+		static const char* p_skins[]     = { "blocks_01.zip", "blocks_02.zip",
+											 "blocks_03.zip", "space.zip", 0 };
+
+		switch(kind)
+		{
+		case Transfer::KIND_LEVEL:    return p_levels;
+		case Transfer::KIND_CAMPAIGN: return p_campaigns;
+		case Transfer::KIND_SKIN:     return p_skins;
+		default:                      return 0;
+		}
+	}
+
+	// Die Groesse einer Datei, oder 0, wenn es sie nicht gibt. Reicht als
+	// Vergleich: die mitgelieferten Dateien kann niemand ersetzen, ein
+	// Unterschied kann also nur daher kommen, dass die eine aelter ist.
+	uint sizeOf(const std::string& path)
+	{
+		FileSystem& fs = FileSystem::inst();
+		File* p_file = fs.openFile(path, FileSystem::FM_READ);
+		if(!p_file) return 0;
+		const uint size = p_file->getSize();
+		fs.closeFile(p_file);
+		return size;
 	}
 
 	const char* extensionFor(Transfer::Kind kind)
@@ -183,24 +224,55 @@ std::vector<std::string> list(Kind kind)
 	return result;
 }
 
+bool refreshBuiltIns()
+{
+	// Verglichen wird die Groesse und nicht die Version: der Ordner soll sich
+	// auch dann fangen, wenn sich an einem Skin etwas geaendert hat, ohne dass
+	// die Versionsnummer weitergerueckt ist. Ueberschrieben wird nur, was hier
+	// als mitgeliefert steht - und genau diese Namen kann der Spieler weder
+	// importieren noch loeschen, es sind also nie seine Dateien.
+	FileSystem& fs = FileSystem::inst();
+	const Kind kinds[] = { KIND_LEVEL, KIND_CAMPAIGN, KIND_SKIN };
+	bool ok = true;
+
+	for(uint k = 0; k < sizeof(kinds) / sizeof(kinds[0]); k++)
+	{
+		const std::string sub(subdirectoryFor(kinds[k]));
+		const std::string home(directoryFor(kinds[k]));
+
+		for(const char* const* pp_name = builtInNames(kinds[k]); pp_name && *pp_name; pp_name++)
+		{
+			const std::string source(sub + *pp_name);
+			const std::string target(home + *pp_name);
+
+			// Fehlt die Vorlage, ist das Spiel unvollstaendig ausgepackt. Das
+			// faellt an anderer Stelle laut genug auf; hier bleibt die
+			// vorhandene Kopie besser stehen, als sie zu loeschen.
+			const uint sourceSize = sizeOf(source);
+			if(!sourceSize)
+			{
+				printfLog("+ WARNING: Shipped file \"%s\" is missing.\n", source.c_str());
+				continue;
+			}
+
+			if(sizeOf(target) == sourceSize) continue;
+
+			printfLog("* Refreshing \"%s\" in the user directory.\n", *pp_name);
+			if(!fs.copyFile(source, target))
+			{
+				printfLog("+ ERROR: Could not refresh \"%s\".\n", target.c_str());
+				ok = false;
+			}
+		}
+	}
+
+	return ok;
+}
+
 bool isBuiltIn(Kind kind, const std::string& name)
 {
-	// Genau das, was nach einer Neuinstallation im Benutzerverzeichnis liegt:
-	// zip_skins.bat baut die vier Skins, die Kampagne heisst blocks.zip, und
-	// die beiden Beispiellevel liegen lose daneben.
-	static const char* p_levels[]    = { "example01.xml", "example02.xml", 0 };
-	static const char* p_campaigns[] = { "blocks.zip", 0 };
-	static const char* p_skins[]     = { "blocks_01.zip", "blocks_02.zip",
-										 "blocks_03.zip", "space.zip", 0 };
-
-	const char* const* pp_names = 0;
-	switch(kind)
-	{
-	case KIND_LEVEL:    pp_names = p_levels;    break;
-	case KIND_CAMPAIGN: pp_names = p_campaigns; break;
-	case KIND_SKIN:     pp_names = p_skins;     break;
-	default:            return false;
-	}
+	const char* const* pp_names = builtInNames(kind);
+	if(!pp_names) return false;
 
 	// Ohne Ruecksicht auf Gross- und Kleinschreibung: unter Windows ist
 	// "Blocks.zip" dieselbe Datei wie "blocks.zip", und ein nur anders

@@ -44,6 +44,13 @@ namespace Transfer
 	// und der Manager ihn nicht loeschen.
 	bool isBuiltIn(Kind kind, const std::string& name);
 
+	// Legt die mitgelieferten Dateien neu ins Benutzerverzeichnis, wo sie fehlen
+	// oder sich von den ausgelieferten unterscheiden. Ohne das wird der Ordner
+	// genau einmal befuellt - bei der allerersten Installation - und eine
+	// spaetere Aenderung an einem Skin, an der Kampagne oder an einem
+	// Beispiellevel erreicht ein vorhandenes Spiel nie.
+	bool refreshBuiltIns();
+
 	// Loescht, was list() geliefert hat, ausser den mitgelieferten Dateien.
 	bool remove(Kind kind, const std::string& name, std::string& errorId);
 

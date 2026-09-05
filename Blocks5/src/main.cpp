@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "engine.h"
 #include "filesystem.h"
+#include "transfer.h"
 #include "gs_menu.h"
 #include "gs_selectlevel.h"
 #include "gs_game.h"
@@ -377,6 +378,15 @@ int runTheGame(int argc,
 
 		if(quit) return 0;
 	}
+
+	// Der mitgelieferte Bestand, aufgefrischt - und zwar bei jedem Start und
+	// nicht nur bei einem Versionswechsel. Das Benutzerverzeichnis wird sonst
+	// genau einmal befuellt, bei der allerersten Installation, und eine
+	// spaetere Aenderung an einem Skin, an der Kampagne oder an einem
+	// Beispiellevel erreicht ein vorhandenes Spiel nie - dort und nur dort
+	// suchen Level::getSkinFilename() und Campaign. Verglichen wird die
+	// Groesse, es kostet also ein paar Dateizugriffe und sonst nichts.
+	Transfer::refreshBuiltIns();
 
 	if(!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
 	const std::string updateCheckerStatus(fs.readStringFromFile(homeDirectory + ".update_checker"));
