@@ -28,6 +28,26 @@ b5_ok()   { echo "  . $*"; }
 b5_start()
 {
 	[ -x "$B5_EXE" ] || { echo "$B5_EXE fehlt - erst LinuxBuild/build.sh hooks laufen lassen."; exit 2; }
+
+	# Der Test faehrt build-test/, gebaut wird beim Entwickeln aber meist nur
+	# build/ - eine Aenderung waere dann gar nicht dabei, und der Lauf gruen,
+	# weil er das Programm von vorgestern befragt. Dasselbe gilt fuer data.zip:
+	# das Spiel liest das Archiv, nicht die losen Dateien daneben.
+	b5_stale()
+	{
+		local newer
+		newer="$(find "$2" -type f -newer "$1" -print 2>/dev/null | head -3)"
+		[ -z "$newer" ] && return 0
+		echo "$(basename "$1") ist aelter als:"
+		echo "$newer" | sed 's|.*/||; s|^|  |'
+		echo "$3"
+		return 1
+	}
+	b5_stale "$B5_EXE" "$B5_GAME/src" \
+		"Erst 'LinuxBuild/build.sh hooks' laufen lassen." || exit 2
+	b5_stale "$B5_GAME/data.zip" "$B5_GAME/data" \
+		"Erst 'Blocks5/pack.sh data' laufen lassen." || exit 2
+
 	for t in Xvfb xdotool ffmpeg python3; do
 		command -v $t >/dev/null 2>&1 || { echo "$t fehlt."; exit 2; }
 	done
@@ -162,7 +182,16 @@ b5_shot() { ffmpeg -loglevel error -f x11grab -video_size ${B5_SCREEN_W}x${B5_SC
 #            Loslassen in derselben Millisekunde faellt zwischen zwei Aufnahmen
 #            durch - unter llvmpipe, wo ein Bild eine Fuenftelsekunde braucht,
 #            jedesmal.
-b5_key()  { xdotool key --clearmodifiers "$1"; sleep 1.5; }
+#
+# Beide halten die Taste kurz, und b5_key aus einem zweiten Grund: SDL_PollEvent
+# laeuft nur einmal je Bild, also alle 200 ms. Faellt ein Durchlauf zwischen
+# Druck und Loslassen eines sofort wieder losgelassenen "xdotool key", sieht das
+# Spiel nur den Druck - und SDL_EnableKeyRepeat(140, 60) schiebt beim naechsten
+# Durchlauf eine Wiederholung nach, die als zweiter Tastendruck ankommt. Gemessen
+# schlug so jeder fuenfte Druck doppelt zu. 60 ms sind lang genug, dass ein
+# Durchlauf beide Ereignisse sieht, und kurz genug, dass die Wiederholung nicht
+# greift.
+b5_key()  { xdotool keydown --clearmodifiers "$1"; sleep 0.06; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 b5_hold() { xdotool keydown --clearmodifiers "$1"; sleep 0.4; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 
 # Auf ein Element klicken. Bricht ab, wenn es das nicht gibt, wenn es

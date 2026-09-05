@@ -38,6 +38,8 @@ class Patch(object):
 
     def __enter__(self):
         self.original = open(self.path, 'rb').read()
+        st = os.stat(self.path)
+        self.times = (st.st_atime, st.st_mtime)
         return self
 
     def replace(self, old, new):
@@ -55,6 +57,11 @@ class Patch(object):
     def __exit__(self, *exc):
         open(self.path, 'wb').write(self.original)
         assert open(self.path, 'rb').read() == self.original, 'konnte %s nicht zuruecklegen!' % self.rel
+        # Auch der Zeitstempel gehoert zurueckgelegt. Sonst gilt jede Quelle,
+        # die hier angefasst wurde, danach als juenger als alles, was aus ihr
+        # gebaut wurde: der naechste Build uebersetzt den halben Baum neu, und
+        # die Altersprobe der Testumgebung schlaegt grundlos an.
+        os.utime(self.path, self.times)
         return False
 
 

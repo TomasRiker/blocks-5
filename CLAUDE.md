@@ -203,9 +203,26 @@ sampling rule governs the mouse and the touchscreen, which is why `page.mouse.cl
 `page.touchscreen.tap()` are equally useless: move, settle, hold, release. Alt+Return
 misleads, because it hangs off `SDL_KEYDOWN` and events queue.
 
+**A tapped key is not the same as an instantaneous one, and that costs a whole extra press.**
+`b5_key` holds for 60 ms rather than calling `xdotool key`, which presses and releases in
+about twelve. `SDL_PollEvent` runs once per rendered frame, and under llvmpipe a frame is a
+fifth of a second — so a run that lands inside those twelve milliseconds sees the press and
+not the release, and at the *next* run SDL's own repeat, 140 ms overdue by then, posts a
+second key-down before the release is read. Measured, every fifth press arrived twice; at
+60 ms none did, eight times out of eight. A real machine renders at 60 Hz and a real finger
+holds far longer than either number, so this is the harness lying, not the game.
+
 `xdotool windowclose` calls `XDestroyWindow` and SDL then trips over a window it still
 believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
 never runs and `config.xml` is never written.
+
+**The harness drives `build-test/`, and `LinuxBuild/build.sh` without `hooks` writes
+`build/`.** Building the one and testing the other is a full afternoon's worth of a change
+that appears to have no effect, so `b5_start` compares the binary against `Blocks5/src` and
+`data.zip` against `Blocks5/data` and refuses to run on either one that is out of date — the
+same rule as `WebBuild/build.sh`'s exit code, for the same reason. `Tools/selftest.py` puts
+each file's mtime back along with its bytes, or every run of it would trip that check and
+force a full rebuild besides.
 
 ### Driving the game in a browser
 
