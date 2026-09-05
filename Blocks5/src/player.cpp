@@ -572,6 +572,7 @@ bool Player::addInventory(uint index,
 	{
 		// Diamant!
 		level.setNumDiamondsCollected(level.getNumDiamondsCollected() + 1);
+		level.flashHudIcon(1);
 		return true;
 	}
 	else if(index == 2)
@@ -591,6 +592,10 @@ bool Player::addInventory(uint index,
 	}
 
 	inventory[index] += add;
+
+	// Nur beim Einsammeln, nicht beim Ablegen: Bomben wandern beim Legen ueber
+	// inventory[0]-- hinaus und kommen hier gar nicht vorbei.
+	if(index == 0 && add > 0) level.flashHudIcon(0);
 
 	if(index == 2) updateMaskSound();
 

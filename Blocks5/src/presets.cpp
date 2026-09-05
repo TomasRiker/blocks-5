@@ -118,7 +118,8 @@ Presets::~Presets()
 }
 
 void Presets::renderPreset(const std::string& name,
-						   const Vec2i& position)
+						   const Vec2i& position,
+						   const Vec4d& color)
 {
 	Engine& engine = Engine::inst();
 
@@ -130,7 +131,7 @@ void Presets::renderPreset(const std::string& name,
 	Vec2i t = texCoords[name];
 	bool mirrorX = t.x < 0;
 	if(mirrorX) t.x = -t.x;
-	engine.renderSprite(p_sprites, Vec2i(0, 0), t, Vec2i(16, 16), Vec4d(1.0, 1.0, 1.0, 1.0), mirrorX);
+	engine.renderSprite(p_sprites, Vec2i(0, 0), t, Vec2i(16, 16), color, mirrorX);
 
 	glPopMatrix();
 }

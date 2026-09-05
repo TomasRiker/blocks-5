@@ -7,6 +7,12 @@
 
 /*** Klasse fuer ein Spielobjekt ***/
 
+// Wie hell etwas aufleuchtet und wie schnell das abklingt; die Zahlen stehen
+// in object.cpp. Nicht nur Objekte leuchten damit auf, sondern auch die
+// Symbole in der Anzeige (gs_game.cpp), und die sollen genauso aussehen.
+extern const double FLASH_STRENGTH;
+extern const double FLASH_DECAY;
+
 class Player;
 
 class Object

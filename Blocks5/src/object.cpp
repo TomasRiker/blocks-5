@@ -12,9 +12,10 @@
 // Wie hell ein Objekt aufleuchtet, das flash() gerufen hat, und wie schnell
 // das wieder abklingt. Der Zerfall ist der des Blitzes in Level::update():
 // je Takt ein Fuenftel weniger, unter 1/256 aus - knapp acht Takte, gut
-// 0,15 s. Beides ist Geschmackssache und steht deshalb hier.
-const double FLASH_STRENGTH = 1.0;
-const double FLASH_DECAY = 0.8;
+// 0,15 s. Beides ist Geschmackssache und steht deshalb hier. extern, weil
+// die Symbole in der Anzeige mit denselben Zahlen aufleuchten.
+extern const double FLASH_STRENGTH = 1.0;
+extern const double FLASH_DECAY = 0.8;
 
 int Object::nextFallingDepth = 1000000;
 

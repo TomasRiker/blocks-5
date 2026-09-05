@@ -739,6 +739,16 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
 
+**Something that reacts lights up.** `Object::flash()` sets `flashAmount` to `FLASH_STRENGTH`;
+`frameBegin` decays it by `FLASH_DECAY` per tick and `Object::render` draws the object's own
+sprites over themselves once more, additively, at that brightness — about eight ticks, a
+sixth of a second. It is the acknowledgement a switch gives when it is pressed, and the two
+counters at the bottom left of the screen give the same one when a diamond or a bomb is
+collected: `Player::addInventory` is the single funnel both go through, so it calls
+`Level::flashHudIcon` there, and `GS_Game`'s HUD pass draws the preset a second time under
+the same additive blend. The two constants live in `object.cpp` and are `extern` so that the
+icons cannot drift away from the objects.
+
 `Level::update()` is the tick order: remove/add pending objects → `frameBegin()` on all →
 `update()` on all → `Electronics::updateAll()` → particle systems → AI-trace decay → exit check.
 

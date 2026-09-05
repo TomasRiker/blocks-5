@@ -22,6 +22,23 @@ namespace
 		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
 		else engine.crossfade(new CF_Slices, 0.85);
 	}
+
+	// Ein Symbol der Anzeige aufleuchten lassen, genau wie ein Objekt im Level
+	// es tut (object.cpp): dasselbe Bild noch einmal additiv darueber, mit der
+	// abklingenden Staerke als Farbe.
+	void renderIconFlash(Level& level,
+						 const char* p_preset,
+						 const Vec2i& position,
+						 uint index)
+	{
+		const double f = level.getHudIconFlash(index);
+		if(f <= 0.0) return;
+
+		Engine& engine = Engine::inst();
+		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+		level.getPresets()->renderPreset(p_preset, position, Vec4d(f, f, f, 1.0));
+		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	}
 }
 #include "streamedsound.h"
 #include "texture.h"
@@ -247,6 +264,7 @@ void GS_Game::onRender()
 	char text[256] = "";
 	uint nd = p_level->getNumDiamondsCollected();
 	p_level->getPresets()->renderPreset("Diamond", Vec2i(32, 416));
+	renderIconFlash(*p_level, "Diamond", Vec2i(32, 416), 1);
 	sprintf(text, "%d/%d", nd, p_level->getNumDiamondsNeeded());
 	double alpha;
 	if(nd >= p_level->getNumDiamondsNeeded()) alpha = 0.7 + 0.3 * sin(static_cast<double>(p_level->counter) * 0.4);
@@ -257,6 +275,7 @@ void GS_Game::onRender()
 	if(p_player)
 	{
 		p_level->getPresets()->renderPreset("Bomb", Vec2i(32, 448));
+		renderIconFlash(*p_level, "Bomb", Vec2i(32, 448), 0);
 		sprintf(text, "%d", p_player->getInventory(0));
 		p_font->renderText(text, Vec2i(66, 448), Vec4d(1.0, 1.0, 1.0, 1.0));
 

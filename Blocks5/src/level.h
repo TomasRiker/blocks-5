@@ -131,6 +131,12 @@ public:
 	uint getNumDiamondsNeeded() const;
 	void setNumDiamondsNeeded(uint numDiamondsNeeded);
 	void setNumDiamondsCollected(uint numDiamondsCollected);
+
+	// Die beiden Symbole unten links leuchten auf, wenn der Spieler etwas
+	// einsammelt - dieselbe Geste, mit der ein Schalter auf seinen Druck
+	// antwortet. Der Index ist der des Inventars: 0 die Bombe, 1 der Diamant.
+	void flashHudIcon(uint index);
+	double getHudIconFlash(uint index) const;
 	uint getNumDiamondsCollected() const;
 	bool isElectricityOn() const;
 	void setElectricityOn(bool electricityOn);
@@ -220,6 +226,7 @@ private:
 	Texture* p_particleSprites;
 	uint numDiamondsNeeded;
 	uint numDiamondsCollected;
+	double hudIconFlash[2];
 	bool electricityOn;
 	bool nightVision;
 	bool raining;

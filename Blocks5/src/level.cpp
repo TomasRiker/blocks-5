@@ -180,6 +180,7 @@ void Level::clear()
 	time = 0;
 	numDiamondsNeeded = 0;
 	numDiamondsCollected = 0;
+	hudIconFlash[0] = hudIconFlash[1] = 0.0;
 	electricityOn = false;
 	nightVision = false;
 	raining = false;
@@ -995,6 +996,16 @@ void Level::update()
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->frameBegin();
+	}
+
+	// Und im selben Takt wie die Objekte klingen die Symbole in der Anzeige ab.
+	for(int i = 0; i < 2; i++)
+	{
+		if(hudIconFlash[i] > 0.0)
+		{
+			hudIconFlash[i] *= FLASH_DECAY;
+			if(hudIconFlash[i] < 1.0 / 256.0) hudIconFlash[i] = 0.0;
+		}
 	}
 
 	// Objekte bewegen
@@ -1957,6 +1968,16 @@ void Level::switchToNextPlayer()
 uint Level::getNumDiamondsCollected() const
 {
 	return numDiamondsCollected;
+}
+
+void Level::flashHudIcon(uint index)
+{
+	if(index < 2) hudIconFlash[index] = FLASH_STRENGTH;
+}
+
+double Level::getHudIconFlash(uint index) const
+{
+	return (index < 2) ? hudIconFlash[index] : 0.0;
 }
 
 void Level::setNumDiamondsCollected(uint numDiamondsCollected)
