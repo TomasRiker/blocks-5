@@ -369,6 +369,16 @@ void DiamondMachine::onUpdate()
 						else p_fireParticleSystem->addParticle(p);
 					}
 
+					// Wie weit die Umwandlung ist, dem Block in die Hand
+					// gedrueckt - er zeichnet sich selbst blasser. Jeden Takt
+					// neu, denn er loescht den Wert in seinem frameBegin();
+					// bleibt der Druck aus, steht er von allein wieder voll da.
+					// p_obj kommt frisch aus getFrontObjectAt() und wird nur
+					// hier und jetzt angefasst; p_objOnMe bleibt ein Zeiger,
+					// der ueber Takte hinweg nur verglichen wird.
+					p_obj->setConversionProgress(
+						clamp(static_cast<double>(counter) / CONVERSION_TICKS, 0.0, 1.0));
+
 					spawnSparks(p_obj);
 
 					counter++;

@@ -133,6 +133,22 @@ public:
 	// nicht, denn das laeuft bei jedem Block, den der Spieler anrempelt.
 	void flash();
 
+	// Wie weit die Umwandlung in einer Diamantenmaschine ist, 0 bis 1. Der
+	// Block wird damit durchsichtig - aber nie ganz: er ist die ganze Zeit
+	// fest und laesst sich schieben, und was den Weg versperrt, muss zu sehen
+	// sein.
+	//
+	// Der Wert gehoert dem Block und nicht der Maschine, und frameBegin()
+	// loescht ihn in jedem Takt; die Maschine setzt ihn in ihrem update()
+	// wieder, das nach allen frameBegin() laeuft. Hoert sie damit auf - weil
+	// der Block weggeschoben, gesprengt oder teleportiert wurde oder der Strom
+	// ausging -, steht er im naechsten Takt von allein auf null, ohne dass
+	// irgendwer eine Ruecknahme ausloesen muss. Genau deshalb schnappt die
+	// Deckkraft zurueck, statt zurueckzublenden: ein halbdurchsichtiger Block,
+	// der davonrutscht, sieht nach einem Fehler aus.
+	void setConversionProgress(double progress) { conversionProgress = progress; }
+	double getConversionProgress() const { return conversionProgress; }
+
 	uint getMass() const;
 	void setMass(uint mass);
 	uint getUID() const;
@@ -152,6 +168,7 @@ public:
 	bool shadowPass;
 	double noCollect;
 	double flashAmount;
+	double conversionProgress;
 
 protected:
 	void handleSliding();

@@ -17,6 +17,11 @@
 extern const double FLASH_STRENGTH = 1.0;
 extern const double FLASH_DECAY = 0.8;
 
+// Was von einem Block am Ende der Umwandlung noch zu sehen ist. Nicht 0: er
+// ist bis zum letzten Takt fest, und ein unsichtbares Hindernis waere ein
+// Fehler und kein Effekt.
+static const double CONVERSION_GHOST = 0.22;
+
 int Object::nextFallingDepth = 1000000;
 
 Object::Object(Level& level,
@@ -29,6 +34,7 @@ Object::Object(Level& level,
 	ghost = false;
 	destroyTime = 0;
 	deathCountDown = 1.0;
+	conversionProgress = 0.0;
 	deathSpeed = 0.0;
 	newDeathCountDown = 1.0;
 	newDeathSpeed = 0.0;
@@ -65,7 +71,11 @@ void Object::render(int layer,
 					const Vec2i& offset,
 					const Vec4d& color)
 {
-	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown);
+	// Der Block einer laufenden Umwandlung wird blass. CONVERSION_GHOST ist,
+	// was von ihm uebrig bleibt: ganz verschwinden darf er nicht, denn schieben
+	// laesst er sich bis zuletzt.
+	const double converting = 1.0 - conversionProgress * (1.0 - CONVERSION_GHOST);
+	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
 
 	glPushMatrix();
 
@@ -901,6 +911,10 @@ void Object::loadExtendedAttributes(TiXmlElement* p_element)
 void Object::frameBegin()
 {
 	moved = false;
+
+	// Siehe setConversionProgress(): loeschen und die Maschine ihn gleich
+	// wieder setzen lassen ist die Ruecknahme, die niemand vergessen kann.
+	conversionProgress = 0.0;
 
 	// Der Zerfall gehoert hierher und nicht in onBeforeRender(): das laeuft je
 	// Bild, und das Aufleuchten haenge sonst an der Bildrate.
