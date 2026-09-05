@@ -26,6 +26,9 @@ namespace
 	// oben und unten eingerollt ist, solange es zufliegt; ROLL_TURNS, wie weit
 	// es sich dabei einwickelt.
 	//
+	// Beide zusammen legen den Radius fest, weil die Bogenlaenge gegeben ist:
+	// ein dickerer Wulst heisst weniger Umdrehung bei gleich viel Papier.
+	//
 	// Eine halbe Umdrehung ist die Grenze, und das ist keine Geschmacksfrage:
 	// bis dahin wird jedes Stueck Papier auf dem Weg nach aussen dem Betrachter
 	// naeher, die Rolle laesst sich also von hinten nach vorn zeichnen und
@@ -33,7 +36,7 @@ namespace
 	// hinten, und ohne Tiefenpuffer - den dieser Durchgang nicht hat - laege es
 	// trotzdem obenauf.
 	const double ROLL_LENGTH = 0.30;
-	const double ROLL_TURNS = 0.45;
+	const double ROLL_TURNS = 0.30;
 
 	// Wie fein. Die Rollen bekommen die Unterteilung, die flache Mitte braucht
 	// keine: dort ist nichts zu kruemmen.
@@ -56,10 +59,10 @@ namespace
 	const int UNROLL_START = 20;
 	const int UNROLL_END = 40;
 
-	// Beim Verlassen geht es schneller zu, und das muss es auch: shownAlpha
-	// faellt um 15% je Takt, nach zwanzig Takten waere vom Zettel nichts mehr da,
-	// was sich noch einrollen koennte.
-	const int ROLL_UP_SPEED = 3;
+	// Beim Verlassen rollt er sich im selben Tempo wieder ein, in dem er
+	// aufgeklappt ist. Er bleibt dabei stehen, bis er fertig ist (onUpdate),
+	// also draengt ihn nichts.
+	const int ROLL_UP_SPEED = 1;
 
 	// Ab wann der Zettel als angekommen gilt und auf ganze Bildpunkte gerundet
 	// wird: ein halber Bildpunkt auf der Bildschirmdiagonalen von 800.
@@ -97,7 +100,10 @@ namespace
 		const double theta = s / radius;
 		const double edge = direction * (0.5 * NOTE_HEIGHT - rolled);
 		p.y = edge + direction * radius * sin(theta);
-		p.depth = radius * (1.0 - cos(theta));
+
+		// Oben auf den Betrachter zu, unten von ihm weg - so zeigt es das
+		// 16x16-Sprite auf dem Feld. direction ist oben -1 und unten +1.
+		p.depth = -direction * radius * (1.0 - cos(theta));
 		p.shade = SHADE_MIN + (1.0 - SHADE_MIN) * (0.5 + 0.5 * cos(theta));
 		return p;
 	}
@@ -213,9 +219,9 @@ void Hint::bakeNote()
 void Hint::renderNoteMesh(const Vec4d& color,
 						  double unroll) const
 {
-	// Erst die flache Mitte, dann die beiden Rollen von ihrem Knick nach
-	// aussen: das ist die Reihenfolge von hinten nach vorn. Ohne Tiefenpuffer
-	// ist sie die einzige, die stimmt.
+	// Von hinten nach vorn, die einzige Reihenfolge ohne Tiefenpuffer: die
+	// untere Rolle geht nach hinten weg, also zuerst und von ihrem aeusseren
+	// Ende her; dann das flache Blatt; zuletzt die obere Rolle nach vorn.
 	const double u = static_cast<double>(NOTE_WIDTH) / NOTE_TEXTURE_SIZE;
 	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
 	const double flatTop = (rolled < 1.0) ? 0.0 : rolled;
@@ -224,9 +230,9 @@ void Hint::renderNoteMesh(const Vec4d& color,
 	// [von, bis] auf dem Papier, und wie fein.
 	double sections[3][2];
 	int steps[3];
-	sections[0][0] = flatTop;    sections[0][1] = flatBottom;   steps[0] = 1;
-	sections[1][0] = flatTop;    sections[1][1] = 0.0;          steps[1] = ROLL_BANDS;
-	sections[2][0] = flatBottom; sections[2][1] = NOTE_HEIGHT;  steps[2] = ROLL_BANDS;
+	sections[0][0] = NOTE_HEIGHT; sections[0][1] = flatBottom;  steps[0] = ROLL_BANDS;
+	sections[1][0] = flatTop;     sections[1][1] = flatBottom;  steps[1] = 1;
+	sections[2][0] = flatTop;     sections[2][1] = 0.0;         steps[2] = ROLL_BANDS;
 
 	// Ein Dreiecksstreifen und nicht GL_QUAD_STRIP: den kennt WebGL nicht, und
 	// der Web-Build reicht den Modus unveraendert weiter (WebBuild/gl_immediate.cpp).
@@ -301,7 +307,8 @@ void Hint::renderNote(const Vec4d& color,
 	glDisable(GL_TEXTURE_2D);
 }
 
-void Hint::renderNoteFlat(const Vec4d& color) const
+void Hint::renderNoteFlat(const Vec4d& color,
+						  double unroll) const
 {
 	// Ohne Bildpuffer gibt es keine Textur, in die sich Zettel und Text
 	// zusammenzeichnen liessen. Dann eben beides hintereinander - unter
@@ -310,6 +317,13 @@ void Hint::renderNoteFlat(const Vec4d& color) const
 	Engine& engine = Engine::inst();
 	const Vec2i corner(-NOTE_WIDTH / 2, -NOTE_HEIGHT / 2);
 
+	// Gerollt wird hier nichts, die Zeit dafuer vergeht aber trotzdem - ohne
+	// etwas zu sehen saehe das aus, als haenge das Spiel. Also schrumpft
+	// wenigstens die Hoehe auf den flach liegenden Teil; die Schrift staucht
+	// mit, und das ist der Preis dieses Weges.
+	glPushMatrix();
+	glScaled(1.0, 1.0 - 2.0 * ROLL_LENGTH * (1.0 - unroll), 1.0);
+
 	p_sprite->bind();
 	engine.renderSprite(corner + Vec2i(SHADOW_OFFSET, SHADOW_OFFSET), Vec2i(0, 0),
 						Vec2i(NOTE_WIDTH, NOTE_HEIGHT),
@@ -317,6 +331,8 @@ void Hint::renderNoteFlat(const Vec4d& color) const
 	engine.renderSprite(corner, Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), color);
 	p_font->renderText(p_font->adjustText(localizeString(text), TEXT_WIDTH),
 					   corner + Vec2i(TEXT_LEFT, TEXT_TOP), color);
+
+	glPopMatrix();
 }
 
 void Hint::onRender(int layer,
@@ -342,22 +358,12 @@ void Hint::onRender(int layer,
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
 		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
 
-		// Angekommen heisst exakt angekommen. shownAlpha naehert sich 0.85 und
-		// kommt nie an, also bleibt i knapp unter 1: der Massstab knapp
-		// darunter, der Winkel knapp ueber 0, die Lage um Bruchteile daneben.
-		// Jedes davon legt die gebackene Textur zwischen die Bildpunkte, und
-		// weil sie mit GL_LINEAR gelesen wird, mischt die Karte jedes Texel aus
-		// zweien - der Text wird weich und schlecht zu lesen.
-		//
-		// Sobald der Rest weniger als einen halben Bildpunkt ausmacht, wird
-		// deshalb gerundet. SNAP_RESIDUAL ist genau das: ein halber Bildpunkt,
-		// geteilt durch den laengsten Hebel im Spiel - die Bildschirmdiagonale,
-		// an der sowohl der Restweg als auch die Restdrehung angreifen.
-		//
-		// Danach steht alles ganzzahlig: targetPosition ist ein Vec2i, der
-		// Massstab genau 1, der Winkel genau 0, und die Ecken der Bahn in
-		// renderNoteMesh() liegen ohnehin auf ganzen Bildpunkten. Jedes Texel
-		// trifft dann genau einen Bildpunkt und wird in dessen Mitte gelesen.
+		// Angekommen heisst exakt angekommen: shownAlpha naehert sich 0.85 nur
+		// an, also blieben Massstab, Winkel und Lage fuer immer Bruchteile
+		// daneben, und GL_LINEAR mischte jedes Texel des gebackenen Textes aus
+		// zweien. Unterhalb von SNAP_RESIDUAL wird deshalb auf genau 1, genau 0
+		// und genau targetPosition gerundet - das ist ein Vec2i, und die Ecken
+		// der Bahn in renderNoteMesh() sind ohnehin ganzzahlig.
 		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
 
 		if(a > 1.0 / 255.0)
@@ -381,7 +387,7 @@ void Hint::onRender(int layer,
 			glRotated(r, 0.0, 0.0, 1.0);
 
 			if(noteTexture) renderNote(realColor, shownUnroll);
-			else renderNoteFlat(realColor);
+			else renderNoteFlat(realColor, shownUnroll);
 
 			glPopMatrix();
 			glPopMatrix();
@@ -403,14 +409,6 @@ void Hint::onUpdate()
 	// letzten Mal zulaeuft. Genau das war der Sprung beim wiederholten Betreten.
 	if(playerIsHere) updateTargetPosition();
 
-	alpha = playerIsHere ? 0.85 : 0.0;
-	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
-	if(shownAlpha <= 1.0 / 255.0)
-	{
-		shownAlpha = 0.0;
-		releaseNoteTexture();
-	}
-
 	// Das Aufrollen laeuft nach der Uhr und nicht nach shownAlpha: das naehert
 	// sich seinem Ziel nur an und kaeme nie ganz an, der Zettel bliebe also
 	// fuer immer ein wenig eingerollt.
@@ -418,6 +416,16 @@ void Hint::onUpdate()
 	else             { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
+
+	// Erst einrollen, dann verschwinden - daher steht das Rollen oben. Solange
+	// noch etwas aufzurollen ist, bleibt der Zettel voll sichtbar stehen.
+	alpha = (playerIsHere || unroll > 0.0) ? 0.85 : 0.0;
+	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
+	if(shownAlpha <= 1.0 / 255.0)
+	{
+		shownAlpha = 0.0;
+		releaseNoteTexture();
+	}
 }
 
 void Hint::updateTargetPosition()

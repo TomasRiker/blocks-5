@@ -460,6 +460,8 @@ int runTheGame(int argc,
 		if(equalsNoCase(p_arg, "-windowed")) engine.overrideFullScreen(false);
 		else if(equalsNoCase(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
+		else if(equalsNoCase(p_arg, "-noFBO")) engine.disableFrameBuffer();
+		else if(equalsNoCase(p_arg, "-noShader")) engine.disableShaders();
 	}
 
 	printfLog("Initializing engine ...\n");

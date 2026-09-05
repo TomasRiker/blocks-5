@@ -83,11 +83,19 @@ untouched (`Build.bat Debug /rebuild /run -windowed`). There is no unit-test sui
 there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
-Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen` and
-`-nosplash` — that is the whole list, and `readme.txt` documents all three. `-nosplash`
-skips the logo and the jingle by *not requesting* `logo.png`, which is the path
+Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
+`-nofbo` and `-noshader` — that is the whole list, and `readme.txt` documents all five.
+`-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
 `GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
-`true`, because the jingle hangs off the time threshold rather than off the logo. The
+`true`, because the jingle hangs off the time threshold rather than off the logo.
+
+**`-nofbo` and `-noshader` force the two fallback paths** that otherwise only appear on
+hardware nobody here has, and each is one early return: `createFrameBuffer()` gives up
+before asking the extension, `createUpscalerGL()` before allocating the shared vertex
+buffer — after which every shader filter reports itself unavailable of its own accord and
+`getEffectiveUpscaler` falls back to `Sharp`. Both paths are otherwise unreachable from
+this machine, and they carry real code: without a framebuffer object there is no upscaler,
+no crossfade and no rolled hint note. The
 upscaling filter is *not* a switch; it is an in-game option like the language, saved as
 `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
 subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem
@@ -776,7 +784,7 @@ number of notes visible at once — walking a row of them holds four or five, no
 in the level.
 
 **The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
-`ROLL_TURNS` (0.45) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
+`ROLL_TURNS` (0.30) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
 divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a `cos` term per vertex for
 the shading. **Half a turn is the hard limit**, and it is a painter's-order limit rather than a
 matter of taste: this pass has no depth buffer, so the only order that composes correctly is
@@ -810,10 +818,26 @@ survives an empty glob and 7za then fails on it, which is what broke the `space`
 
 **The unrolling counts ticks, not alpha.** `shownAlpha` is an exponential ease towards 0.85
 that never arrives, so a sheet driven by it would stay a little rolled up for ever.
-`activeTicks` counts up while the player stands on the field and down again three at a time
-when they leave; the sheet opens between tick 20, where it is at 96% of its size, and tick 40.
-Three at a time on the way out because `shownAlpha` falls by 15% per tick: at one per tick
-there would be nothing left to roll up by the time it had.
+`activeTicks` counts up while the player stands on the field and down again when they leave;
+the sheet opens between tick 20, where it is at 96% of its size, and tick 40, and rolls up
+over the same twenty ticks.
+
+**It rolls up before it starts to go**, which is why the roll is computed first in
+`onUpdate` and `alpha` reads it: while anything is still rolled out, the sheet stays fully
+opaque and in place, and only once `unroll` reaches 0 does it fade and fly back. Leaving a
+note therefore takes twice as long as it used to and shows what it is doing. The path
+without a framebuffer object has no roll to show, so `renderNoteFlat` scales the height to
+the part that is still flat — the same silhouette without the bead, and the writing squashes
+with it, which is the price of that path.
+
+**The top edge rolls toward the viewer and the bottom edge away from it**, matching the
+16x16 sprite on the field; a sheet that curled the same way at both ends would read as a
+tube. `direction` is −1 at the top and +1 at the bottom, so one sign in front of `depth`
+does it — but the draw order has to follow, because there is no depth buffer here. The
+bottom roll goes first and from its outer end inward, since that end is now the furthest
+away; then the flat sheet; then the top roll from the crease outward. Measured off a frame
+at full roll: the topmost rows come out 7% wider than the middle and the bottom rows 7%
+narrower, which is the perspective divide doing its work in opposite directions.
 
 Without a framebuffer object none of this can happen, and `renderNoteFlat` then draws sheet and
 text one after the other under the same matrix — no roll, but the writing still flies with the

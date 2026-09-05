@@ -23,12 +23,17 @@ make your own levels, having a look at the help is probably a good idea.
 
 Command Line Options
 ====================
-Blocks 5 understands three options. Upper and lower case do not matter.
+Blocks 5 understands five options. Upper and lower case do not matter.
 
     -windowed      Start in a window.
     -fullscreen    Start in full screen.
     -nosplash      Skip the logo and the jingle and go straight to the main
                    menu.
+    -nofbo         Render without a framebuffer object, the way the game has
+                   to on very old graphics hardware. There is no upscaling
+                   filter, no screen transition and no rolled-up hint note.
+    -noshader      Render without shaders, likewise. "Sharp, fitted" and the
+                   CRT filter are then unavailable and "Sharp" is used.
 
 While playing you can switch between full screen and windowed mode at any time
 with Alt+Return.

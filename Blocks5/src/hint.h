@@ -40,8 +40,9 @@ private:
 	void renderNote(const Vec4d& color, double unroll) const;
 	void renderNoteMesh(const Vec4d& color, double unroll) const;
 
-	// Der Weg ohne Bildpuffer: Zettel und Text nacheinander, ohne Rollen.
-	void renderNoteFlat(const Vec4d& color) const;
+	// Der Weg ohne Bildpuffer: Zettel und Text nacheinander, ohne Rollen -
+	// statt dessen schrumpft die Hoehe auf den flach liegenden Teil.
+	void renderNoteFlat(const Vec4d& color, double unroll) const;
 
 	std::string text;
 	double alpha;

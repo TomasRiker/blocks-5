@@ -132,6 +132,16 @@ public:
 	// -nosplash. Wie overrideFullScreen() vor init() aufzurufen.
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
+
+	// -nofbo und -noshader: die beiden Ausweichwege erzwingen, die sonst nur
+	// alte Hardware nimmt. Ohne Bildpuffer zeichnet das Spiel unskaliert in den
+	// Ruecklaufpuffer, es gibt keinen Skalierungsfilter, keine Ueberblendung
+	// und keinen gerollten Hinweiszettel; ohne Shader bleiben "Scharf,
+	// angepasst" und die Bildroehre unverfuegbar. Beides ist nur von Hand zu
+	// pruefen, weil keine Maschine hier so alt ist - deshalb die Schalter.
+	// Ebenfalls vor init() zu setzen.
+	void disableFrameBuffer() { frameBufferDisabled = true; }
+	void disableShaders() { shadersDisabled = true; }
 	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
 	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist: nach allem,
 	// was die Hauptschleife angehalten hat, ist der Eingabezustand unbrauchbar.
@@ -401,6 +411,8 @@ private:
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
 	bool splashSkipped;        // -nosplash
+	bool frameBufferDisabled;  // -nofbo
+	bool shadersDisabled;      // -noshader
 	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
 	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
 	Vec2i windowedPosition;    // dito fuer die Position

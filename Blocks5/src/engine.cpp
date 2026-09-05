@@ -104,6 +104,8 @@ Engine::Engine()
 	fullScreen = false;
 	fullScreenOverride = -1;
 	splashSkipped = false;
+	frameBufferDisabled = false;
+	shadersDisabled = false;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = noch nichts gewaehlt, init() entscheidet
 	windowedPosition = Vec2i(0, 0);
@@ -1645,6 +1647,15 @@ std::string Engine::getBestOpenALDevice()
 
 void Engine::createUpscalerGL()
 {
+	if(shadersDisabled)
+	{
+		// Kein Vertexpuffer, keine uebersetzten Programme: die Filter melden
+		// sich daraufhin von selbst als nicht verfuegbar, und
+		// getEffectiveUpscaler() faellt auf "Scharf" zurueck.
+		printfLog("  Shaders:             switched off (-noshader)\n");
+		return;
+	}
+
 	// WebGL verbietet Vertexdaten aus dem Anwendungsspeicher, es muss ein
 	// Puffer sein. Vier Eckpunkte, jedes Bild neu gefuellt; alle Filter, die
 	// einen Shader benutzen, teilen sich diesen einen.
@@ -1711,6 +1722,12 @@ Upscaler* Engine::getEffectiveUpscaler() const
 
 bool Engine::createFrameBuffer()
 {
+	if(frameBufferDisabled)
+	{
+		printfLog("  Framebuffer objects: switched off (-nofbo)\n");
+		return false;
+	}
+
 	if(!GLExtensions::haveFrameBufferObjects()) return false;
 
 	frameTextureSize = screenPow2Size;
