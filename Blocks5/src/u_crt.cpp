@@ -45,22 +45,39 @@
        src.x = out.x * (1 + a*out.y^2)
        src.y = out.y * (1 + b*out.x^2)
 
-   mit out und src in -1..1 von der Bildmitte aus. Die Kantenmitten bleiben
-   stehen, nur die Ecken wandern nach aussen - deshalb sieht es richtig aus und
-   es geht keine Flaeche an den Seitenmitten verloren. Dieselbe Formel steht in
-   engine.cpp noch einmal in C++, weil die Mausposition durch dieselbe Abbildung
-   muss; die Umkehrung dazu ist eine Fixpunktiteration. Wer hier etwas aendert,
-   aendert es dort mit.
+   mit out und src in -1..1 von der Bildmitte aus. Nur die Ecken wandern nach
+   aussen; die Kantenmitten laesst diese Abbildung liegen, wo sie sind.
+
+   Genau das war das Problem: das Bild reichte dort bis an die letzte
+   Ausgabezeile, und alles, was der Shader ausserhalb des Bildes noch zeichnet -
+   die weiche Kante des Rasters, der Konvergenzsaum, der Hof - hatte an den
+   Kantenmitten keinen Platz mehr. Rundherum lief die Kante weich aus, in der
+   Mitte jeder Seite war sie abgeschnitten. Deshalb geht danach noch ein
+   Unterscan darueber (getOverscan()): das ganze Raster rueckt ein Stueck vom
+   Rand des Glases ab, gerade so weit, dass beides hineinpasst. Bei Woelbung 0
+   ist er 0, und das Bild deckt sich dann Punkt fuer Punkt mit dem der anderen
+   Filter - gemessen null Versatz in beiden Achsen gegen "Scharf, angepasst".
+
+   Dieselbe Abbildung steht in warpToSource()/warpToOutput() noch einmal in C++,
+   weil die Mausposition durch sie hindurch muss; die Umkehrung ist eine
+   Fixpunktiteration. Wer hier etwas aendert, aendert es dort mit.
 
    Kein #version: 110 auf dem Desktop, 100 unter GLSL ES, uebersetzt als beides.
    Keine Feldkonstanten und keine Schleifen mit variabler Grenze - GLSL ES 1.00
    kennt beides nicht. */
 
-/* Die Woelbung, einmal definiert und zweimal benutzt: als Text im Shader und
-   als double in engine.cpp (warpToSource/warpToOutput). */
+/* Was der Shader und die C++-Seite beide brauchen, steht einmal hier: als Text
+   im Shader und als double daneben. Die Woelbung geht durch die Maus
+   (warpToSource/warpToOutput), die beiden anderen in getOverscan(). */
 
 #define CRT_CURVE_X 0.10
 #define CRT_CURVE_Y 0.13
+/* Halbe Breite der weichen Randkante des Rasters, in Quellzeilen; rasterMask
+   blendet ueber zwei davon aus. */
+#define CRT_EDGE_ROWS 1.0
+/* Konvergenzversatz je Strahl am Bildrand, in Quellspalten. Ausfuehrlich beim
+   gleichnamigen Shaderwert. */
+#define CRT_CONVERGENCE_MAX 1.6
 /* Zeilenperioden je Sekunde bei Flimmern auf Anschlag; siehe CRAWL_JITTER. */
 #define CRT_CRAWL_SPEED 1.2
 /* Nach so vielen Sekunden wiederholt sich das Flimmern exakt. Steht ebenfalls
@@ -71,6 +88,8 @@
 
 static const double crtCurveX = CRT_CURVE_X;
 static const double crtCurveY = CRT_CURVE_Y;
+static const double crtEdgeRows = CRT_EDGE_ROWS;
+static const double crtConvergenceMax = CRT_CONVERGENCE_MAX;
 static const double crtCrawlSpeed = CRT_CRAWL_SPEED;
 
 static const char* p_crtFragmentShader =
@@ -141,7 +160,7 @@ static const char* p_crtFragmentShader =
 	   Ecken auf ein bis zwei Triaden, was hier ein bis zwei Quellpixeln
 	   entspricht. Auf 0 gesetzt faellt der Block beim Uebersetzen weg, wie bei
 	   der Halation. */
-	"const float CONVERGENCE_MAX = 1.6;\n"
+	"const float CONVERGENCE_MAX = " CRT_STR(CRT_CONVERGENCE_MAX) ";\n"
 
 	/* Woelbung bei Regler auf Anschlag. Lottes nimmt 1/32 und 1/24; hier darf
 	   es weiter gehen, der Regler steht ja normalerweise nicht am Anschlag.
@@ -152,6 +171,9 @@ static const char* p_crtFragmentShader =
 	   als double sieht. */
 	"const float CURVE_X = " CRT_STR(CRT_CURVE_X) ";\n"
 	"const float CURVE_Y = " CRT_STR(CRT_CURVE_Y) ";\n"
+	/* Halbe Breite der weichen Randkante des Rasters, in Quellzeilen. Aus dem
+	   Makro oben, weil getOverscan() denselben Wert braucht. */
+	"const float EDGE_ROWS = " CRT_STR(CRT_EDGE_ROWS) ";\n"
 	/* Abgerundete Ecken, in Bruchteilen der halben Bildhoehe. 0 = rechteckig. */
 	"const float CORNER_RADIUS = 0.10;\n"
 	/* Randabdunklung. 0 = aus. */
@@ -224,6 +246,7 @@ static const char* p_crtFragmentShader =
 	"uniform float Flicker;\n"      /* Regler 0..1, Helligkeit */
 	"uniform float ScanFlicker;\n"  /* Regler 0..1, Lage der Zeilen */
 	"uniform float Convergence;\n"  /* Regler 0..1, Farbsaeume am Rand */
+	"uniform float Overscan;\n"     /* Abstand Raster zu Glasrand, siehe getOverscan() */
 	"uniform float Time;\n"         /* Sekunden, 0 .. FLICKER_CYCLE */
 	"uniform float ScanPhase;\n"    /* Zeilenkriechen, 0..1 Perioden */
 	"varying vec2 texCoord;\n"
@@ -272,11 +295,11 @@ static const char* p_crtFragmentShader =
 	   erkennt man ein schlecht justiertes Geraet, noch bevor man auf eine
 	   Kante im Bild schaut.
 
-	   Das Rechteck ist um edge groesser als das Bild. Damit liegt die Kante
-	   ausserhalb der gezeichneten Flaeche, und ohne Woelbung bleibt innen
-	   alles unangetastet: das Bild ist dann Punkt fuer Punkt so gross wie bei
-	   jedem anderen Filter. Frueher fiel die aeusserste Spalte auf die halbe
-	   Helligkeit, ohne dass irgendetwas daran richtig gewesen waere. */
+	   Das Rechteck ist um edge groesser als das Bild, die Kante liegt also
+	   ganz ausserhalb davon: innen bleibt jeder Punkt unangetastet, und ohne
+	   Woelbung ist das Bild damit Punkt fuer Punkt so gross wie bei jedem
+	   anderen Filter. Platz zum Ausblenden schafft der Unterscan, siehe
+	   getOverscan(). */
 	"float rasterMask(vec2 wc, float r, float edge)\n"
 	"{\n"
 	"    vec2  q  = abs(wc) - (1.0 - r + edge);\n"
@@ -302,6 +325,10 @@ static const char* p_crtFragmentShader =
 	"    float b = Curvature * CURVE_Y;\n"
 	"    vec2 w = vec2(p.x * (1.0 + a * p.y * p.y),\n"
 	"                  p.y * (1.0 + b * p.x * p.x));\n"
+	/* Und einen Schritt weiter nach aussen, damit das Raster nicht bis an den
+	   Rand des Glases reicht. Der Faktor kommt fertig aus getOverscan(); bei
+	   flacher Scheibe ist er 0 und diese Zeile tut nichts. */
+	"    w *= 1.0 + Overscan;\n"
 	"    vec2 suv = w * 0.5 + 0.5;\n"
 
 	/* --- Konvergenz, erster Teil: wie weit Rot und Blau danebenliegen -- */
@@ -314,7 +341,7 @@ static const char* p_crtFragmentShader =
 
 	/* --- Rand: abgerundetes Rechteck, je Kanal ------------------------ */
 	"    float r = CORNER_RADIUS * Curvature;\n"
-	"    float edge = 2.0 / FrameSize.y;\n"
+	"    float edge = EDGE_ROWS * 2.0 / FrameSize.y;\n"
 	"    vec3  vis = vec3(rasterMask(w, r, edge));\n"
 	"    if(converge)\n"
 	"    {\n"
@@ -468,8 +495,13 @@ U_Crt::U_Crt()
 	locFlicker = -1;
 	locScanFlicker = -1;
 	locConvergence = -1;
+	locOverscan = -1;
 	locTime = -1;
 	locScanPhase = -1;
+	// Der Unterscan haengt an der Bildgroesse. Sie ist im ganzen Baum 640x480,
+	// und present() traegt sie ohnehin vor jedem Bild nach - der Wert hier ist
+	// nur fuer den ersten Logiktakt da, der die Maus schon umrechnet.
+	frameSize = Vec2i(640, 480);
 	scanline = 0.5;
 	curvature = 0.5;
 	bloom = 0.5;
@@ -492,6 +524,7 @@ bool U_Crt::createGL()
 	locFlicker     = glExtGetUniformLocation(program.id, "Flicker");
 	locScanFlicker = glExtGetUniformLocation(program.id, "ScanFlicker");
 	locConvergence = glExtGetUniformLocation(program.id, "Convergence");
+	locOverscan    = glExtGetUniformLocation(program.id, "Overscan");
 	locTime        = glExtGetUniformLocation(program.id, "Time");
 	locScanPhase   = glExtGetUniformLocation(program.id, "ScanPhase");
 	return true;
@@ -516,6 +549,10 @@ void U_Crt::present(const PresentContext& context)
 	PresentProgram::setUniform(locScanFlicker, scanFlicker);
 	PresentProgram::setUniform(locConvergence, convergence);
 
+	// Erst die Bildgroesse nachtragen, dann danach fragen.
+	frameSize = context.frameSize;
+	PresentProgram::setUniform(locOverscan, getOverscan());
+
 	// Die Wanduhr, nicht Engine::getTime() - die zaehlt in Logikschritten und
 	// steht bei Pause still; ein Bildschirm flimmert auch dann. Der Umlauf ist
 	// CRT_FLICKER_CYCLE, alle Frequenzen darin sind ganze Vielfache davon, also
@@ -532,6 +569,31 @@ void U_Crt::present(const PresentContext& context)
 	program.drawQuad(context);
 }
 
+double U_Crt::getOverscan() const
+{
+	// Wie weit das Raster vom Rand des Glases absteht, in Anteilen der halben
+	// Bildbreite. Bei flacher Scheibe gar nicht: dann liegt das Bild Punkt fuer
+	// Punkt so wie bei jedem anderen Filter, und genau das ist der Sinn der
+	// Nullstellung des Reglers.
+	//
+	// Sonst muss danebenpassen, was der Shader ausserhalb des Bildes noch
+	// zeichnet: die weiche Kante des Rasters, die ueber zwei mal EDGE_ROWS
+	// Quellzeilen ausblendet, und der Konvergenzversatz, um den das rote und
+	// das blaue Raster am Rand gegeneinander stehen. Ohne diesen Abstand endet
+	// beides an der Kantenmitte im Nichts - dort laesst die Woelbung den
+	// Bildpunkt liegen, wo er ist, waehrend sie ihn zu den Ecken hin nach
+	// aussen schiebt. Genau da sah das Bild abgeschnitten aus.
+	//
+	// Ein einziger Wert fuer beide Achsen, sonst waeren die Bildpunkte nicht
+	// mehr quadratisch: waagerecht wird die Summe gebraucht, senkrecht nur der
+	// erste Summand, und der Rest ist dort schwarzer Rand.
+	if(curvature <= 0.0) return 0.0;
+
+	const double fade   = 2.0 * (crtEdgeRows * 2.0 / frameSize.y);
+	const double fringe = 2.0 * crtConvergenceMax / frameSize.x;
+	return fade + fringe;
+}
+
 Vec2d U_Crt::warpToSource(const Vec2d& p) const
 {
 	// Genau die Formel aus dem Shader oben. p und der Rueckgabewert laufen von
@@ -540,8 +602,9 @@ Vec2d U_Crt::warpToSource(const Vec2d& p) const
 
 	const double a = curvature * crtCurveX;
 	const double b = curvature * crtCurveY;
-	return Vec2d(p.x * (1.0 + a * p.y * p.y),
-				 p.y * (1.0 + b * p.x * p.x));
+	const double k = 1.0 + getOverscan();
+	return Vec2d(p.x * (1.0 + a * p.y * p.y) * k,
+				 p.y * (1.0 + b * p.x * p.x) * k);
 }
 
 Vec2d U_Crt::warpToOutput(const Vec2d& s) const
@@ -558,12 +621,17 @@ Vec2d U_Crt::warpToOutput(const Vec2d& s) const
 	//
 	// zieht es sich sehr schnell zusammen: nach acht Runden liegt der Fehler
 	// selbst bei uebertriebener Woelbung unter 2.3e-4 Bildpunkten.
-	double x = s.x;
-	double y = s.y;
+	// Der Unterscan ist ein glatter Faktor und geht vorweg wieder heraus.
+	const double k = 1.0 + getOverscan();
+	const double u = s.x / k;
+	const double v = s.y / k;
+
+	double x = u;
+	double y = v;
 	for(int i = 0; i < 8; i++)
 	{
-		x = s.x / (1.0 + a * y * y);
-		y = s.y / (1.0 + b * x * x);
+		x = u / (1.0 + a * y * y);
+		y = v / (1.0 + b * x * x);
 	}
 	return Vec2d(x, y);
 }

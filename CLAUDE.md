@@ -407,12 +407,36 @@ no second frame to compare against and so does not care that the title demo keep
 the left edge, −0.3 in the middle and +4.4 at the right, which is the antisymmetric ramp the
 shader asks for.
 
-That rectangle is a pixel wider than the picture on every side, which is the second half of
-the same change: **at curvature 0 the CRT filter now covers exactly what the other three
-filters cover.** The soft edge used to eat into the frame, leaving the outermost column at 64%
-and the next at 88% for no reason anybody had asked for — the fade is there for the barrel
-distortion, which at curvature 0 does not exist. Measured against sharp-fit on the same scene:
-zero shift in either axis, and the outermost three columns within 0.5% of the columns inside.
+That rectangle is a pixel wider than the picture on every side, so the fade lies entirely
+outside it and nothing inside the picture is touched: **at curvature 0 the CRT filter covers
+exactly what the other three filters cover.** The soft edge used to eat into the frame,
+leaving the outermost column at 64% and the next at 88% for no reason anybody had asked for —
+the fade is there for the barrel distortion, which at curvature 0 does not exist. Measured
+against sharp-fit on the same scene: zero shift in either axis, and the outermost three
+columns within 0.5% of the columns inside.
+
+**The whole raster then steps back from the edge of the glass, and that is `getOverscan()`.**
+The warp moves the corners outward and leaves the edge midpoints exactly where they are, so at
+the middle of each side the picture ran to the last output row and the fade, the convergence
+fringe and the halo — everything the shader draws *outside* the picture — had nowhere to go.
+Measured before: 0 black rows above the picture at the top centre, 4 at a quarter out, 20 at
+nine tenths. Soft and rounded everywhere, guillotined at four places.
+
+The step back is one isotropic factor on `w`, and it is the sum of the two things that need
+the room: the fade, twice `EDGE_ROWS` source rows, and the convergence offset, twice
+`CONVERGENCE_MAX` source columns. Isotropic because anything else would stop the pixels being
+square — horizontally both terms are needed, vertically only the first, and the rest is black
+surround. Measured after: 2 black rows at the top centre rising to 26, with the picture fading
+in over the next four; and at the right edge with convergence at full, red's raster dies at
+output column 1274, green's at 1277 and blue's is still burning at 1279, which is the point of
+giving each channel its own `rasterMask` in the first place.
+
+**It is exactly zero at curvature 0**, which is what keeps the promise above: measured against
+sharp-fit, zero shift in either axis and the picture still reaching row 0 and column 0. The
+price is a step of six output pixels at 2x as the curvature slider leaves its stop — a flat
+tube is pixel-exact, a curved one is inset. `warpToSource`/`warpToOutput` carry the same
+factor, so the cursor round trip stays exact: 0 of 34240 positions off, at curvature 0, 0.25,
+0.5 and 1.0 and at three window sizes.
 
 The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real
 shadow mask belongs to the glass and does not change when you switch resolution. That matters

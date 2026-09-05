@@ -32,6 +32,12 @@ public:
 
 	Vec2d warpToSource(const Vec2d& p) const;
 	Vec2d warpToOutput(const Vec2d& s) const;
+
+	// Um so viel steht das Raster vom Rand des Glases ab, in Anteilen der
+	// halben Bildbreite - damit die weiche Randkante und die Farbsaeume auch
+	// an den Kantenmitten noch Platz haben. Bei Woelbung 0 ist es 0, und das
+	// Bild deckt sich dann genau mit dem der anderen Filter.
+	double getOverscan() const;
 	bool distortsCursor() const { return curvature > 0.0; }
 
 	void loadConfig(TiXmlElement* p_config);
@@ -64,8 +70,13 @@ private:
 	int locFlicker;
 	int locScanFlicker;
 	int locConvergence;
+	int locOverscan;
 	int locTime;
 	int locScanPhase;
+
+	// Die Bildgroesse, wie sie zuletzt im PresentContext stand; getOverscan()
+	// rechnet Quellzeilen und -spalten damit in Anteile des Bildes um.
+	Vec2i frameSize;
 
 	double scanline;
 	double curvature;
