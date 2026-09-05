@@ -178,12 +178,19 @@ void GS_SelectLevel::onUpdate()
 		p_currentLevel->update();
 	}
 
+	const bool shift = engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT);
+
+	// Solange die Kampagnenliste den Fokus hat, gehoeren ihr die vier Tasten,
+	// die sie selbst auswertet - hoch, runter, Pos1 und Ende. Der Rest bedient
+	// immer den Dialog: links und rechts kennt die Liste gar nicht, und Return
+	// reicht sie mangels Absendeknopf ohnehin weiter.
+	const bool listHasKeys = gui["SelectLevel.Campaigns"]->isFocusedIndirectly();
+
 	if(engine.wasKeyPressed(SDLK_ESCAPE))
 	{
 		handleClick(gui["SelectLevel.Quit"]);
 	}
-	else if(engine.wasKeyPressed(SDLK_F7) &&
-			(engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT)))
+	else if(engine.wasKeyPressed(SDLK_F7) && shift)
 	{
 		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 		{
@@ -198,6 +205,46 @@ void GS_SelectLevel::onUpdate()
 			static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->activate();
 		}
 	}
+	else if(engine.wasKeyPressed(SDLK_LEFT))
+	{
+		pressButton(gui["SelectLevel.PreviousLevel"]);
+	}
+	else if(engine.wasKeyPressed(SDLK_RIGHT))
+	{
+		if(shift) pressButton(gui["SelectLevel.NextLevelToDo"]);
+		else      pressButton(gui["SelectLevel.NextLevel"]);
+	}
+	else if(engine.wasKeyPressed(SDLK_RETURN) || engine.wasKeyPressed(SDLK_KP_ENTER))
+	{
+		pressButton(gui["SelectLevel.PlayLevel"]);
+	}
+	else if(!listHasKeys)
+	{
+		if(engine.wasKeyPressed(SDLK_HOME)) pressButton(gui["SelectLevel.FirstLevel"]);
+		else if(engine.wasKeyPressed(SDLK_END)) pressButton(gui["SelectLevel.LastLevel"]);
+		else if(engine.wasKeyPressed(SDLK_UP)) selectCampaign(-1);
+		else if(engine.wasKeyPressed(SDLK_DOWN)) selectCampaign(1);
+	}
+}
+
+// Was die Tastatur ausloest, muss dieselben Grenzen haben wie die Maus: ein
+// gesperrter Level laesst sich auch mit Return nicht spielen, und den Knopf
+// "naechster offener" gibt es bei den einzelnen Leveln nicht. click() prueft
+// beides nicht - bei der Maus faengt es die GUI schon vorher ab.
+void GS_SelectLevel::pressButton(GUI_Element* p_button)
+{
+	if(p_button->isActive() && p_button->isReallyVisible()) handleClick(p_button);
+}
+
+// Eine Kampagne weiter oder zurueck. setSelection() loest changed() aus, also
+// laeuft danach handleClick() und mit ihm alles Weitere.
+void GS_SelectLevel::selectCampaign(int delta)
+{
+	const int count = static_cast<int>(campaigns.size());
+	if(!count) return;
+
+	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
+	p_list->setSelection(clamp(p_list->getSelection() + delta, 0, count - 1));
 }
 
 void GS_SelectLevel::onEnter(const ParameterBlock& context)

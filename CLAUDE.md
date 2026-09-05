@@ -960,6 +960,15 @@ is still a parse per file at dialog entry. The caption is
 Level* are otherwise indistinguishable, while inside a campaign the filename would say
 nothing but `level_2.xml`.
 
+**The whole select screen is keyboard-operable.** Left and right step through the levels,
+Home and End jump to the ends, Return plays, Shift+Right is *next to do*, and up and down
+change the campaign. The last four go through `GS_SelectLevel::onUpdate` only while the
+campaign list does **not** hold the focus, because those are exactly the four keys
+`GUI_ListBox::onKeyEvent` handles itself; left, right and Return are unconditional, since the
+list ignores the arrows and forwards Return for want of a submit button. Everything runs
+through `pressButton`, which asks `isActive()` and `isReallyVisible()` first — otherwise
+Return would start a locked level that the mouse cannot even click.
+
 **One Manager button in the main menu** opens a dialog that imports, exports and deletes, on
 all three platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in the browser,
 `GetOpenFileNameA`/`GetSaveFileNameA` under Windows and `zenity`/`kdialog` under Linux, behind

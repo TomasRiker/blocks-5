@@ -40,6 +40,8 @@ private:
 	void loadLevel();
 	int getLevelStatus(uint level);
 	void updateNote();
+	void pressButton(GUI_Element* p_button);
+	void selectCampaign(int delta);
 };
 
 #endif
