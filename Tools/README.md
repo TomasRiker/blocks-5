@@ -78,25 +78,25 @@ Siehe `WebBuild/test/README.md`.
 Erzeuger
 --------
 
-Daneben liegen zwei Skripte, die ausgelieferte Dateien herstellen, statt sie zu
-pruefen. Beide sind reine Standardbibliothek:
+Daneben liegt ein Skript, das eine ausgelieferte Datei herstellt, statt sie zu
+pruefen; es ist reine Standardbibliothek:
 
     python3 Tools/make_ico.py Blocks5/data/window.png Blocks5/src/icon1.ico
-    python3 Tools/make_rewind_sound.py Blocks5/data/rewind.wav
 
 `make_ico.py` baut das Programmsymbol fuer Windows; die `.ico` ist eingecheckt,
 weil der Windows-Build kein Python laufen laesst, und die Pruefung
 `windows_icon` haelt sie aktuell.
 
-`make_rewind_sound.py` erzeugt den Ruecklaufton fuer `CF_Rewind` aus gefiltertem
-Rauschen. Die Zahlen darin sind an einer Aufnahme eines echten Rekorders
-ausgemessen: zwei Beulen im Spektrum bei 250 Hz und 2,6 kHz mit einem Loch
-dazwischen, ein Klappern der Huellkurve bei 46,5 und 12 Hz, und ein
-Scheitelfaktor von 14 dB. Einen Sinus enthaelt es ausdruecklich nicht - ein
-Laufwerk hat keine Tonhoehe. Es schreibt eine WAV; ins Spiel gehoert sie als Ogg
-Vorbis wie die anderen Klaenge, und das macht ein Kodierer:
 
-    ffmpeg -i Blocks5/data/rewind.wav -c:a libvorbis -q:a 4 Blocks5/data/rewind.ogg
+Klaenge
+-------
 
-Eingecheckt ist nur die `.ogg`. Das Skript steht daneben, damit sich der Ton
-aendern laesst, ohne ihn neu aufnehmen zu muessen.
+Zu jedem Effekt liegt in `Blocks5/data` die WAV als Quelle neben der Ogg, die
+ausgeliefert wird - `pack.sh` nimmt nur `*.ogg` mit. Wer eine WAV aendert, muss
+die Ogg neu erzeugen:
+
+    ffmpeg -y -i Blocks5/data/<name>.wav -c:a libvorbis -b:a 96k \
+           -map_metadata -1 Blocks5/data/<name>.ogg
+
+`-b:a` landet unveraendert als Nennbitrate im Vorbis-Kopf, und 96 kbit/s ist,
+was der groesste Teil des Bestandes traegt. 

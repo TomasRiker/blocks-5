@@ -475,23 +475,28 @@ ends; at 6.5 the picture would sit half a screen out and jump straight when the 
 The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is
 the transport braking and the servo locking.
 
-The sound is generated rather than recorded, and its numbers were **measured off a recording of
-a real machine** rather than guessed: `Tools/make_rewind_sound.py` builds `rewind.ogg` from
-filtered noise. Three findings carry it. The spectrum has **two humps with a hole between them**
-— a narrow one at 250 Hz (the chassis) and a broad one at 2.6 kHz (the tape), with 500–1000 Hz
-sitting 13 dB lower; take only the first and it hums, only the second and it hisses. The
-envelope **clatters** at 46.5 Hz and, more slowly, at 12 Hz — the turning parts, and the
-difference between "noise" and "machine". And the crest factor is 14 dB, which only that
-clatter produces; filtered noise alone is about 11.
+**The sound is a granular resynthesis of a recording of a real transport**, and the two
+attempts at synthesising one from scratch are worth keeping as a lesson. The second of them
+matched the recording's third-octave curve to a mean error of 1.3 dB — two humps, a narrow one
+at 250 Hz and a broad one at 2.6 kHz with 500–1000 Hz sitting 13 dB lower, the envelope
+clattering at 46.5 and 12 Hz, a crest factor of 14 dB — and still sounded nothing like a
+machine. **A matched spectrum is not a matched timbre.** The recording carries narrow
+resonances standing up to 24 dB above its own noise floor, and a third-octave average is
+precisely the measurement that cannot see them; filtered noise shaped to that average is a
+hiss with a tilt.
 
-What is deliberately *not* in it is a sine. The first attempt was built around a motor
-fundamental with harmonics and a reel whine, and those are narrow lines in a spectrogram and a
-hum in the ear. A transport has no pitch; it has a tape and a rattle. The filter is the best
-match a search against the measured third-octave curve found — mean error 1.3 dB — and it
-collapsed five bands to two, which is the whole shape of the thing.
+What ships instead is overlap-add: 30 ms Hann grains at a 7.5 ms hop, so four deep, each one
+resampled 7.5% short and given ±1.5 dB of its own. Where a grain is *read from* is what the
+gesture decides — the recording's own spin-up for the first 0.42 s, a random point in its long
+steady stretch for the middle, its brake for the last 0.47 s. The shape is therefore the
+machine's while no stretch of the result is a copy of any stretch of the recording: the grains
+arrive out of order, at another pitch, at another level, four at a time.
 
-`CF_Rewind`'s constructor plays it, so the picture and the sound cannot be had separately. It
-runs 1.75 s against the transition's 1.5 so that the run-down is not cut off with the picture.
+`rewind.wav` is committed beside its `.ogg` exactly like every other effect, and it is the
+source of record — there is no script that rebuilds it, since rebuilding it would need the
+recording. `CF_Rewind`'s constructor plays it, so the picture and the sound cannot be had
+separately. It runs 1.75 s against the transition's 1.5 so that the run-down is not cut off
+with the picture.
 
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
