@@ -14,7 +14,7 @@ public:
 	// von dem, was nur update() braucht: die ersten sechs Felder reichen fuer
 	// einen Vertex und passen zusammen in eine Cache-Zeile. Alles ist einfach
 	// genau (float), nicht doppelt - ein Vec4f ist ein 16-Byte-Zugriff und eine
-	// einzige Vektoraddition, ein Vec4d waeren zwei. sizeof(Particle) = 80.
+	// einzige Vektoraddition, ein Vec4d waeren zwei. sizeof(Particle) = 84.
 	struct Particle
 	{
 		float rotation;				//  0
@@ -31,7 +31,28 @@ public:
 		float gravity;				// 56
 		Vec4f deltaColor;			// 60
 		float deltaRotation;		// 76
-	};								// 80
+
+		// Wem dieses Teilchen gehoert. Ganz hinten, damit die ersten sechs
+		// Felder ihre Cache-Zeile behalten. 0 heisst "niemandem", und das ist
+		// der Normalfall; wer seine Teilchen spaeter wiederfinden will, traegt
+		// hier eine Kennung ein und sucht sie ueber begin()/end().
+		uint id;					// 80
+
+		// Alles auf null. Der Konstruktor ist noetig, weil die neunundvierzig
+		// Aufrufer von addParticle() sich ein Particle auf dem Stapel bauen und
+		// nur setzen, was sie brauchen - jedes Feld, das eines von ihnen nicht
+		// kennt, kaeme sonst als Zufallszahl an. Vec hat einen eigenen leeren
+		// Konstruktor, ein Particle() allein nullt also nichts.
+		Particle()
+			: rotation(0.0f), size(0.0f), color(0.0f),
+			  positionOnTexture(0), sizeOnTexture(0), position(0.0f),
+			  deltaSize(0.0f), lifetime(0), velocity(0.0f), damping(0.0f),
+			  gravity(0.0f), deltaColor(0.0f), deltaRotation(0.0f), id(0)
+		{
+		}
+	};								// 84
+
+	typedef std::list<Particle> ParticleList;
 
 	ParticleSystem(Texture* p_sprites);
 	~ParticleSystem();
@@ -41,6 +62,11 @@ public:
 	void addParticle(const Particle& particle);
 	Particle* getNewParticle();
 	void clear();
+
+	// Die lebenden Teilchen, zum Anfassen. Wer nur seine eigenen will, prueft
+	// id - danach zu filtern ist ein if und braucht keine eigene Methode.
+	ParticleList::iterator begin() { return particles.begin(); }
+	ParticleList::iterator end() { return particles.end(); }
 
 private:
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
@@ -54,8 +80,6 @@ private:
 		Vec4f color;
 	};
 #endif
-
-	typedef std::list<Particle> ParticleList;
 
 	Texture* p_sprites;
 	ParticleList particles;

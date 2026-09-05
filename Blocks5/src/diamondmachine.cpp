@@ -43,6 +43,21 @@
    durch genau die Texelfarbe hindurch weiter ab. Das ist die abkuehlende Glut,
    und sie sieht auf jedem Untergrund gleich aus.
 
+   ABBRUCH. Der Block kann im letzten Augenblick weggeschoben, gesprengt oder
+   abgeschaltet werden. Verschwinden duerfen die Funken dann nicht, das waere
+   ein Loch mitten in der Bewegung: sie laufen ihren eigenen Weg zurueck, mit
+   gespiegelter Lebensdauer, und was noch aussteht, entscheidet, wie lange das
+   dauert (abortConversion()). Damit die Maschine sie wiederfindet, tragen sie
+   ihre Kennung: Particle::id, das einzige Feld, das sonst im ganzen Spiel 0
+   bleibt.
+
+   Die Einwaertsfunken kehren immer um - ihr Ziel war ein Diamant, und der kommt
+   nicht mehr. Die Auswaertsfunken haengen davon ab, ob es den Block noch gibt:
+   ist er nur weggeschoben oder steht er still, weil der Strom weg ist, dann
+   fliegen sie zu ihm zurueck und werden wieder eingesaugt; ist er zerstoert,
+   fliegen sie unbeirrt weiter, denn dann ist Auseinanderfliegen genau das
+   Richtige.
+
    WELCHE FASSUNG. position.y % 5. Das ist zum Vergleichen da und nichts, was so
    bleiben kann; die Testdatei dazu liegt in Tools/testlevels. */
 
@@ -157,6 +172,15 @@ namespace
 		return 0.3;
 	}
 
+	// Die Kennung fuer die Funken einer Umwandlung. Das hohe Bit ist immer
+	// gesetzt: alles andere im Spiel traegt 0, also kann keine Kennung je mit
+	// gewoehnlichen Teilchen zusammenfallen - auch die allererste nicht.
+	uint nextSparkId()
+	{
+		static uint counter = 0;
+		return 0x80000000u | (++counter & 0x7FFFFFFFu);
+	}
+
 	// Der zurueckgelegte Weg nach n Takten, siehe oben.
 	double travelDistance(double speed, double damping, int life)
 	{
@@ -172,6 +196,7 @@ DiamondMachine::DiamondMachine(Level& level,
 	flags = OF_MASSIVE | OF_FIXED | OF_BLOCK_GAS;
 	p_objOnMe = 0;
 	counter = -1;
+	sparkId = 0;
 	p_soundInst = 0;
 }
 
@@ -182,6 +207,11 @@ DiamondMachine::~DiamondMachine()
 void DiamondMachine::spawnSparks(Object* p_block)
 {
 	const SparkVariant& v = sparkVariants[position.y % NUM_SPARK_VARIANTS];
+
+	// Eine neue Kennung je Umwandlung, nicht je Maschine: nach einem Abbruch
+	// laufen die alten Funken noch nach Hause, und die darf ein zweiter
+	// Abbruch nicht ein zweites Mal umdrehen.
+	if(!sparkId) sparkId = nextSparkId();
 
 	ParticleSystem* p_sys = level.getParticleSystem();
 	const Sprites& block = p_block->getSprites();
@@ -234,6 +264,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.deltaRotation = 0.0f;
 		p.size = static_cast<float>(v.outSize);
 		p.deltaSize = static_cast<float>(-v.outSize / (v.outLife * 1.3));
+		p.id = sparkId;
 		p_sys->addParticle(p);
 	}
 
@@ -298,8 +329,116 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.deltaRotation = 0.0f;
 		p.size = static_cast<float>(v.inSize);
 		p.deltaSize = 0.0f;
+		p.id = sparkId;
 		p_sys->addParticle(p);
 	}
+}
+
+Object* DiamondMachine::findLivingBlock()
+{
+	// Der Block, der die Umwandlung angefangen hat - falls es ihn noch gibt.
+	// Gesucht wird in der Objektliste und nicht ueber p_objOnMe hineingegriffen,
+	// denn genau im interessanten Fall ist der Zeiger nichts mehr wert: ein
+	// zerstoerter Block wird zu Beginn eines Taktes geloescht. isAlive() ist
+	// falsch, solange er in sich zusammenfaellt, und wer wegteleportiert wird,
+	// ist gleich ganz woanders - beides zaehlt als "nicht mehr da".
+	if(!p_objOnMe) return 0;
+
+	const std::vector<Object*>& all = level.getObjects();
+	for(std::vector<Object*>::const_iterator i = all.begin(); i != all.end(); ++i)
+	{
+		if(*i != p_objOnMe) continue;
+		if(!(*i)->isAlive() || (*i)->isTeleporting()) return 0;
+		return *i;
+	}
+
+	return 0;
+}
+
+void DiamondMachine::abortConversion()
+{
+	counter = -1;
+	if(!sparkId) return;
+
+	const SparkVariant& v = sparkVariants[position.y % NUM_SPARK_VARIANTS];
+
+	// Um wie viel der Block seit dem Losfliegen versetzt ist, in Bildpunkten.
+	// Sein *logisches* Feld und nicht sein gezeigtes: geschoben wird er ueber
+	// mehrere Takte, und wenn die Funken ankommen, steht er dort schon.
+	Object* p_block = findLivingBlock();
+	Vec2d shift(0.0, 0.0);
+	if(p_block)
+		shift = Vec2d((p_block->getPosition().x - position.x) * 16.0,
+					  (p_block->getPosition().y - (position.y - 1)) * 16.0);
+
+	// Rueckwaerts heisst: jeder Delta kehrt sich um, und die Daempfung wird ihr
+	// Kehrwert, denn sie ist ein Faktor und kein Summand. Die Geschwindigkeit
+	// bekommt diesen Kehrwert obendrein, weil der Integrator erst schiebt und
+	// dann daempft - ohne ihn laege die Rueckreise um einen Takt versetzt und
+	// traefe den Startpunkt nicht. Nur die Schwerkraft laesst sich so nicht
+	// genau umkehren (sie kommt nach der Daempfung dazu, nicht davor); ihr
+	// Vorzeichen zu wenden ist eine Naeherung, und die eine Fassung mit
+	// Schwerkraft findet auf dem Rueckweg einen leicht anderen Bogen.
+	ParticleSystem* p_sys = level.getParticleSystem();
+	for(ParticleSystem::ParticleList::iterator i = p_sys->begin();
+		i != p_sys->end(); ++i)
+	{
+		ParticleSystem::Particle& p = *i;
+		if(p.id != sparkId) continue;
+
+		// Einwaerts oder auswaerts? Die Deckkraft sagt es, ohne zweite Kennung:
+		// der eine blendet auf seinem Weg ein, der andere aus.
+		const bool inward = (p.deltaColor.a > 0.0f);
+
+		// Ein zerstoerter Block hat nichts mehr, wohin die Truemmer
+		// zurueckkoennten; die fliegen also weiter, als waere nichts gewesen.
+		// Die Einwaertsfunken kehren immer um: ihr Ziel war ein Diamant, und
+		// der kommt in keinem Fall mehr.
+		if(!inward && !p_block) continue;
+
+		// Die gespiegelte Lebensdauer: so viele Takte, wie er schon fliegt. Wer
+		// gerade erst los ist, ist sofort vorbei; wer fast am Ziel war, hat den
+		// ganzen Weg vor sich. Einwaerts steht sie in der Deckkraft, die von 0
+		// aus je Takt um deltaColor.a gewachsen ist; auswaerts ist die ganze
+		// Dauer bekannt, und was davon noch aussteht, ist lifetime.
+		uint elapsed = 0;
+		if(inward) elapsed = static_cast<uint>(p.color.a / p.deltaColor.a + 0.5f);
+		else if(p.lifetime < static_cast<uint>(v.outLife))
+			elapsed = static_cast<uint>(v.outLife) - p.lifetime;
+
+		if(p.damping != 0.0f)
+		{
+			p.velocity = -p.velocity / p.damping;
+			p.damping = 1.0f / p.damping;
+		}
+		else p.velocity = -p.velocity;
+
+		p.gravity = -p.gravity;
+		p.deltaColor = -p.deltaColor;
+		p.deltaSize = -p.deltaSize;
+		p.deltaRotation = -p.deltaRotation;
+
+		// Der Rueckweg trifft den Startpunkt, aber der Block steht inzwischen
+		// vielleicht woanders. Ein Zuschlag auf die Geschwindigkeit verschiebt
+		// die ganze Bahn um genau diesen Versatz - dieselbe Wegformel wie beim
+		// Anflug, nur nach v0 aufgeloest, also keine Verzerrung der Bahn,
+		// sondern eine Parallelverschiebung.
+		if(!inward && elapsed && !shift.isZero())
+		{
+			const double d = p.damping;
+			const double k = (d == 1.0)
+				? 1.0 / elapsed
+				: (1.0 - d) / (1.0 - pow(d, static_cast<double>(elapsed)));
+			p.velocity += shift * k;
+		}
+
+		// Ein Takt mehr als Wege: der letzte Aufruf zaehlt nur herunter und
+		// loescht, er bewegt nicht mehr. Und 0 waere hier toedlich - der
+		// Zaehler ist vorzeichenlos und liefe ueber.
+		p.lifetime = elapsed + 1;
+	}
+
+	sparkId = 0;
 }
 
 void DiamondMachine::updateSprites()
@@ -390,7 +529,7 @@ void DiamondMachine::onUpdate()
 				else
 				{
 					p_objOnMe = p_obj;
-					counter = -1;
+					abortConversion();
 				}
 
 				if(counter >= 100)
@@ -400,17 +539,23 @@ void DiamondMachine::onUpdate()
 					level.getPresets()->instancePreset("Diamond", position - Vec2i(0, 1), 0);
 //					level.addNewObjects();
 					counter = -1;
+
+					// Kein abortConversion(): die Einwaertsfunken sind in
+					// eben diesem Takt angekommen und gestorben. Die Kennung
+					// wird nur weggelegt, damit die naechste Umwandlung eine
+					// eigene bekommt.
+					sparkId = 0;
 				}
 			}
-			else counter = -1;
+			else abortConversion();
 		}
 		else
 		{
 			p_objOnMe = 0;
-			counter = -1;
+			abortConversion();
 		}
 	}
-	else counter = -1;
+	else abortConversion();
 
 	if(counter == -1 && p_soundInst)
 	{

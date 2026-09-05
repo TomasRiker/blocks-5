@@ -794,6 +794,52 @@ collected: `Player::addInventory` is the single funnel both go through, so it ca
 the same additive blend. The two constants live in `object.cpp` and are `extern` so that the
 icons cannot drift away from the objects.
 
+**The diamond machine takes the block apart and puts it back together.** Sparks fly out of
+the block in its own colours, sampled texel by texel through the debris mechanism; from the
+cloud they leave behind, more sparks come back, taking on the colour the diamond will have
+where they land and die. The block itself fades to `CONVERSION_GHOST` over the same hundred
+ticks — `setConversionProgress` each tick, cleared by the block's own `frameBegin()`, so a
+machine that stops pushing lets it stand full again by itself. Both ends of the flight are
+computed rather than chosen: the integrator is `position += velocity; velocity *= damping`, so
+a spark covers `v0·(1−dⁿ)/(1−d)` over n ticks, which says where the outward cloud ends and, read
+backwards, gives the `v0` that lands an inward spark exactly on its target.
+
+A spark glows without additive blending, which could not carry the block's real colour — over
+rock the same brown would be an ember and over grass a glare. Its colour starts above 1
+instead: GL clamps to [0,1], so it is white at first and then falls linearly *through* the
+texel colour. Background-independent, and the reason the sprite must be the neutral white disc
+at (32,32) in `particles.png` — a particle is multiplied by its texture region, and (32,0) is a
+pre-coloured orange that turned every cyan spark olive.
+
+**An aborted conversion runs the sparks backwards**, because the block can be pushed away,
+blown up or switched off in the last moment and a cloud that simply vanishes is a hole in the
+middle of the motion. `DiamondMachine::abortConversion` reverses every delta and inverts the
+damping — it is a factor, not a summand — and the velocity gets that inverse as well, since the
+integrator shifts before it damps and the way back would otherwise be a tick out of step. The
+lifetime is *mirrored*: a spark that just set off is over at once, one that was nearly home has
+the whole way in front of it. It needs no extra field, because the elapsed count is in the
+spark itself — its alpha is a straight line over exactly that time.
+
+Which sparks turn round depends on what happened. The inward ones always do: they were flying
+at a diamond that is not coming. The outward ones are debris that is already out, and whether
+they are drawn back in depends on whether there is anything to draw them into —
+`findLivingBlock()` looks for the block in the level's object list rather than through
+`p_objOnMe`, which in exactly the interesting case points at nothing: a destroyed block is
+deleted at the start of a tick. Blown up (or teleported away) counts as gone and they fly on
+untouched; pushed aside or merely switched off and they are sucked back, aimed at the block's
+*logical* cell rather than its shown one, since it is still sliding and will be there by the
+time they arrive. The offset is one addend on the velocity — the same travel formula solved for
+`v0` — so the return path is translated rather than distorted. Only the gravity of one variant
+cannot be reversed exactly: it is added after the damping, not before, so flipping its sign is
+an approximation and that spark finds a slightly different arc home.
+
+**`Particle::id` is what makes any of this possible**, and it is the one field that stays 0
+everywhere else in the game — the machine stamps its own sparks with a fresh id per conversion
+and finds them again through `ParticleSystem::begin()`/`end()`. Filtering by id is an `if` at
+the call site rather than a method. And `Particle` has a constructor that zeroes every member,
+because the forty-nine callers of `addParticle` build one on the stack and set only what they
+need; a field none of them knows about would otherwise arrive as a random number.
+
 `Level::update()` is the tick order: remove/add pending objects → `frameBegin()` on all →
 `update()` on all → `Electronics::updateAll()` → particle systems → AI-trace decay → exit check.
 
