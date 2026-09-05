@@ -1,7 +1,14 @@
-This file makes the hint note behave like a sheet of paper: it arrives
-rolled up at both ends and unrolls once it has come to rest.
+This file makes the hint object behave like a sheet of paper: It arrives rolled
+up at both ends and unrolls once it has come to rest. The file's contents are
+ignored - only its presence matters, and it counts for the skin whose hint.png
+is actually loaded, so a skin that borrows this one through default_hint.png
+gets the rolling as well. Leave it out for a hint graphic that is not paper:
+a sci-fi display panel that rolls up looks wrong.
 
-Its contents are ignored - only its presence matters, and it counts for the
-skin whose hint.png is actually loaded, so a skin that borrows this one through
-default_hint.png gets the rolling as well. Leave it out for a hint graphic that
-is not paper: a sci-fi display panel that rolls up looks wrong.
+Diese Datei lässt den Hinweiszettel sich wie ein Stück Papier verhalten: Er
+erscheint an beiden Enden aufgerollt und öffnet sich, wenn er zum Stillstand
+gekommen ist. Der Inhalt der Datei wird ignoriert - nur die Existenz zählt,
+und sie gehört zu dem Skin, dessen hint.png tatsächlich geladen wird, so dass
+ein Skin, der default_hint.png nutzt, den Effekt auch erhält. Lass die Datei
+weg, wenn die Grafik kein Papier darstellt: Ein Sci-Fi-Display-Panel, das
+aufgerollt wird, sieht falsch aus.

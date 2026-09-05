@@ -1480,7 +1480,7 @@ Level spielen		F5
 Grafiken neu laden		F10
 
 <h>Skins</h>
-Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Dateien, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt) und "blocks_03" (Technik-Welt).
+Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Archive, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt) und "blocks_03" (Technik-Welt).
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE6
