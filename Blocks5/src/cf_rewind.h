@@ -5,7 +5,7 @@
 
 /*** Ueberblendung: das Band wird zurueckgespult ***/
 
-class Font;
+class Texture;
 
 // Der Neustart eines Levels sieht aus wie ein Videorekorder im Ruecklauf. Warum
 // gerade das den Sprung verdeckt, steht ueber render() in cf_rewind.cpp.
@@ -26,7 +26,12 @@ private:
 	void drawSnow(int y, int height, double alpha) const;
 
 	uint noiseID;
-	Font* p_font;
+
+	// Die Einblendung des Rekorders als Bild: links "REWIND", rechts die
+	// beiden Dreiecke. Und wann der Effekt angefangen hat, damit die Pfeile
+	// von der ersten Sekunde an im Takt blinken statt in beliebiger Phase.
+	Texture* p_osd;
+	uint startTicks;
 };
 
 #endif

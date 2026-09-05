@@ -476,9 +476,13 @@ picture rolls; the head meets each track at an angle, so every line starts early
 VHS carries colour on a separate low-frequency signal that does not survive the speed, hence
 the grey wash.
 
-Two things there are load-bearing. `<< REW` must **not** move with any of it — it comes from
-the recorder's own character generator, mixed in behind the tape path, and that one steady
-thing is what makes the mess read as a machine. And `ROLL_SCREENS` is a whole number, so the
+Two things there are load-bearing. The on-screen display must **not** move with any of it, or
+fade with it either — it comes from the recorder's own character generator, mixed in behind
+the tape path, and that one steady thing is what makes the mess read as a machine. It is
+`data/rewind.png`, 256x64 with the word in the left 162 pixels and the two triangles in the
+56 next to it, so the blink is a source rectangle rather than a colour: the word is drawn
+every frame, the arrows every other half-second, hard on and hard off, counted from the tick
+the effect began so that they start visible. And `ROLL_SCREENS` is a whole number, so the
 roll offset lands back on a multiple of the picture height — zero — exactly as the crossfade
 ends; at 6.5 the picture would sit half a screen out and jump straight when the effect stops.
 The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is

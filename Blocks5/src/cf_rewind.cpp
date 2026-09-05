@@ -1,8 +1,7 @@
 #include "pch.h"
 #include "cf_rewind.h"
 #include "engine.h"
-#include "font.h"
-#include "gui.h"
+#include "texture.h"
 
 namespace
 {
@@ -64,6 +63,17 @@ namespace
 	const int OSD_X = 30;
 	const int OSD_Y = 26;
 
+	// Und wie rewind.png aufgeteilt ist: links das Wort, rechts daneben die
+	// beiden Dreiecke. Die Hoehe ist die des ganzen Bildes; was darunter leer
+	// ist, zeichnet nichts, und so haelt das hier auch eine hoehere Schrift aus.
+	const int OSD_TEXT_WIDTH = 162;
+	const int OSD_ARROWS_WIDTH = 56;
+	const int OSD_HEIGHT = 64;
+
+	// Wie lange die Pfeile jeweils an und aus sind. Ein Zeichengenerator kennt
+	// keine Ueberblendung: er schaltet.
+	const uint OSD_BLINK_MS = 500;
+
 	double wrap(double value, double range)
 	{
 		value = fmod(value, range);
@@ -73,7 +83,8 @@ namespace
 
 CF_Rewind::CF_Rewind()
 {
-	p_font = GUI::inst().getFont();
+	p_osd = Manager<Texture>::inst().request("rewind.png");
+	startTicks = SDL_GetTicks();
 
 	// Das Laufwerk. Der Ton gehoert dem Effekt und nicht der Stelle, die ihn
 	// ausloest: es gibt nur einen Weg hierher, und so kann keiner den einen
@@ -108,6 +119,7 @@ CF_Rewind::~CF_Rewind()
 	// Die Engine loescht die Ueberblendung in der Hauptschleife, der
 	// GL-Kontext steht also noch.
 	glDeleteTextures(1, &noiseID);
+	if(p_osd) p_osd->release();
 }
 
 void CF_Rewind::drawStrip(int y,
@@ -270,13 +282,22 @@ void CF_Rewind::render(double t,
 	glEnd();
 
 	// --- Die Einblendung ---------------------------------------------------
-	// Ruhig, mit Schatten, wie ein Zeichengenerator sie zumischt.
-	const Font::Options saved = p_font->getOptions();
-	Font::Options options = saved;
-	options.shadows = 1;
-	p_font->setOptions(options);
-	p_font->renderText("<< REW", Vec2i(OSD_X, OSD_Y), Vec4d(1.0, 1.0, 1.0, settle));
-	p_font->setOptions(saved);
+	// Sie gehoert dem Zeichengenerator des Rekorders und nicht dem Band: sie
+	// blendet deshalb weder ein noch aus und nimmt an settle nicht teil. Das
+	// Wort steht die ganze Zeit, die Pfeile blinken - hart, wie geschaltet, und
+	// gezaehlt ab dem Beginn des Effekts, damit sie sichtbar anfangen.
+	if(p_osd)
+	{
+		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 0),
+							Vec2i(OSD_TEXT_WIDTH, OSD_HEIGHT), Vec4d(1.0));
+
+		if(((SDL_GetTicks() - startTicks) / OSD_BLINK_MS) % 2 == 0)
+		{
+			engine.renderSprite(p_osd, Vec2i(OSD_X + OSD_TEXT_WIDTH, OSD_Y),
+								Vec2i(OSD_TEXT_WIDTH, 0),
+								Vec2i(OSD_ARROWS_WIDTH, OSD_HEIGHT), Vec4d(1.0));
+		}
+	}
 
 	glDisable(GL_TEXTURE_2D);
 }
