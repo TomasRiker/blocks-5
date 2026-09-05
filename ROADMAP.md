@@ -1015,6 +1015,57 @@ Worth doing before the next release that changes a shipped asset. `blocks.zip`
 is 8 MB, and every installation is carrying a second copy of it for no reason.
 
 
+27. A Credits button in the main menu
+--------------------------------------
+There is no way to see the credits except by finishing the shipped campaign - or
+by knowing that **Shift+C in the main menu** already runs them
+(`gs_menu.cpp`, in `onUpdate` beside the Shift+D that opens the user folder).
+That shortcut is undocumented and unconditional; the entry it stands for should
+be a visible one, in the style of the `Website` link at the top right of
+`menu.xml` rather than a ninth big button.
+
+Two presentations, chosen by whether the player has earned the first:
+
+- **Finished the shipped campaign** - the whole sequence, exactly as it runs
+  after the last level today.
+- **Not finished** - the names only, as scrolling text, without
+  `$C_THANKS_FOR_PLAYING` and `$C_STAY_TUNED`. Those two address someone who has
+  just won, and they give away that there is an ending to reach.
+
+**Asserted, and it holds: only the built-in campaign triggers the full credits.**
+`gs_game.cpp` compares the campaign's filename against the literal
+`FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip"`; every
+other campaign pops back to the level selection instead. A level run from the
+editor and the single levels never even reach that branch, because `ownLevel`
+forces `status` to -3 first.
+
+That comparison is the fragile part, and it is worth fixing while touching this.
+It is a **second** place that knows what ships with the game - `Transfer::isBuiltIn`
+is meant to be the only one - and it hardcodes the campaign into the *user's*
+directory, which is exactly what **item 26** proposes to stop doing. Move the
+shipped content out of `getAppHomeDirectory()` and this check quietly stops
+matching: the game would end with a level list instead of the credits, with
+nothing failing anywhere.
+
+Deciding "finished" from the menu needs the same bar the game uses, and it is not
+simply "all levels": `GS_Game::loadLevel` treats `getLevels().size() - 1` as the
+count when the campaign has a bonus level, since the bonus is the last entry and
+only unlocks once the rest is done. So the test is
+`ProgressDB::getNumLevelsCompleted(f)` against the number of non-bonus levels -
+and the menu holds no campaign, so it would have to `Campaign::load` the shipped
+one to learn that number. That is cheap (it reads only `campaign.xml`), but it is
+a load the menu does not do today.
+
+What the second presentation costs: `GS_Credits` is not a scroll and has no
+notion of a mode. `onRender` builds a local array of eight blocks - position,
+title, text, start time, duration - and each one fades and zooms in and out over
+a flying starfield with a motion-blur buffer. The clock is hardcoded against that
+table: the fade to black starts at 53 s, three `character*.ogg` play at 55, 56
+and 57 s, and `setGameState("GS_Menu")` fires at 58 s; Return, Escape and Space
+fast-forward at five times speed rather than skipping. A names-only variant is
+therefore not "hide two entries" - it is a second layout and a second timeline,
+and the table has to leave `onRender` first.
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1033,6 +1084,10 @@ How these connect
                       all three, and 17 is where the delete lands
 
    19 (controls) <──> 22 (tap radius): the pad answers the keys, 22 the buttons
+
+   26 (shipped content) ──> 27 (credits): the "was it the shipped campaign?"
+                      test is a hardcoded path into the user's folder, and 26
+                      moves that folder out from under it
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
