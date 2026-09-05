@@ -71,6 +71,12 @@ CF_Rewind::CF_Rewind()
 {
 	p_font = GUI::inst().getFont();
 
+	// Das Laufwerk. Der Ton gehoert dem Effekt und nicht der Stelle, die ihn
+	// ausloest: es gibt nur einen Weg hierher, und so kann keiner den einen
+	// ohne den anderen bekommen. Er ist etwas laenger als die Ueberblendung,
+	// damit das Ausrollen nicht mit dem Bild zusammen abgeschnitten wird.
+	Engine::inst().playSound("rewind.ogg", false, 0.0, 100);
+
 	// Schnee, ein fuer alle Mal. Grau und nicht bunt: was der Kopf zwischen
 	// zwei Spuren aufnimmt, ist Rauschen ohne Farbtraeger.
 	unsigned char* p_pixels = new unsigned char[NOISE_SIZE * NOISE_SIZE * 3];

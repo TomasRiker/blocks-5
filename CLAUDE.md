@@ -475,6 +475,12 @@ ends; at 6.5 the picture would sit half a screen out and jump straight when the 
 The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is
 the transport braking and the servo locking.
 
+The sound is generated rather than recorded: `Tools/make_rewind_sound.py` builds `rewind.ogg`
+out of sine waves and filtered noise — the spool motor with its harmonics, the reel whine, the
+tape rushing through the guides, and the two clunks of the transport engaging and stopping.
+`CF_Rewind`'s constructor plays it, so the picture and the sound cannot be had separately. It
+runs 1.3 s against the transition's 1.1 so that the run-down is not cut off with the picture.
+
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
 is airbrushed and photographic. Every decision in xBR is a `step()` against a threshold, which

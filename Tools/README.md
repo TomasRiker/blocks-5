@@ -1,6 +1,6 @@
 # tools
 
-Zwei Skripte fuer die Arbeit am Baum. Beide brauchen nur Python 3 und laufen
+Zwei Pruefskripte fuer die Arbeit am Baum. Beide brauchen nur Python 3 und laufen
 in wenigen Sekunden.
 
 ## verify.py
@@ -73,3 +73,27 @@ Wegwerfverzeichnis.
     WebBuild/test/smoke.js      fuehrt den Browser-Build durch die Oberflaeche
 
 Siehe `WebBuild/test/README.md`.
+
+
+Erzeuger
+--------
+
+Daneben liegen zwei Skripte, die ausgelieferte Dateien herstellen, statt sie zu
+pruefen. Beide sind reine Standardbibliothek:
+
+    python3 Tools/make_ico.py Blocks5/data/window.png Blocks5/src/icon1.ico
+    python3 Tools/make_rewind_sound.py Blocks5/data/rewind.wav
+
+`make_ico.py` baut das Programmsymbol fuer Windows; die `.ico` ist eingecheckt,
+weil der Windows-Build kein Python laufen laesst, und die Pruefung
+`windows_icon` haelt sie aktuell.
+
+`make_rewind_sound.py` erzeugt den Ruecklaufton fuer `CF_Rewind` aus lauter
+Sinus und Rauschen - Motor, Wickelpfeifen, Bandrauschen und die beiden
+Schlaege. Es schreibt eine WAV; ins Spiel gehoert sie als Ogg Vorbis wie die
+anderen Klaenge, und das macht ein Kodierer:
+
+    ffmpeg -i Blocks5/data/rewind.wav -c:a libvorbis -q:a 4 Blocks5/data/rewind.ogg
+
+Eingecheckt ist nur die `.ogg`. Das Skript steht daneben, damit sich der Ton
+aendern laesst, ohne ihn neu aufnehmen zu muessen.
