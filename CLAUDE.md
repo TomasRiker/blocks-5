@@ -784,12 +784,16 @@ number of notes visible at once — walking a row of them holds four or five, no
 in the level.
 
 **The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
-`ROLL_TURNS` (0.30) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
+`ROLL_TURNS` (0.50) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
 divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a `cos` term per vertex for
-the shading. **Half a turn is the hard limit**, and it is a painter's-order limit rather than a
-matter of taste: this pass has no depth buffer, so the only order that composes correctly is
-back to front, and only up to π does every further step of paper come *closer* to the viewer.
-Beyond that the far end would come back round and still be painted on top. The strip is
+the shading. **Half a turn is the hard limit, and the sheet now sits exactly on it**: this is a
+painter's-order limit rather than a matter of taste, because the pass has no depth buffer, so
+the only order that composes correctly is back to front, and only up to π does every further
+step of paper keep moving in one direction in depth. Beyond that the far end would come back
+round and still be painted in the wrong place. Radius, arc length and turn are one relation,
+so a fat bead at a full half-turn needs a lot of paper: `ROLL_LENGTH` is 0.5 as well, and a
+fully rolled sheet has therefore disappeared entirely into its two 64-pixel beads with no flat
+middle left. The strip is
 `GL_TRIANGLE_STRIP` and not `GL_QUAD_STRIP` — WebGL has no such primitive, and
 `WebBuild/gl_immediate.cpp` hands the mode straight to it.
 
@@ -838,6 +842,24 @@ bottom roll goes first and from its outer end inward, since that end is now the 
 away; then the flat sheet; then the top roll from the crease outward. Measured off a frame
 at full roll: the topmost rows come out 7% wider than the middle and the bottom rows 7%
 narrower, which is the perspective divide doing its work in opposite directions.
+
+**Past the quarter turn you are looking at the back of the paper, which is blank.** The baked
+texture therefore carries the sheet twice, side by side in 1024x512: the written face at x 0
+and the bare paper at x 512, with a gap so no texel of one bleeds into the other. Nothing is
+mirrored — the sheet curls about a horizontal axis, so left stays left. Each roll is split at
+θ = π/2 into a front and a back section, because the seam has to fall on a vertex or one quad
+would drag its texture across both panels; the split costs nothing visually, since at exactly
+π/2 the paper is edge-on and has no projected width. That makes five sections in all, and
+their order is the depth order: bottom-back, bottom-front, flat, top-front, top-back. The back
+also takes a further `BACK_SHADE` (0.65) on top of the angle's own shading, so at the far end
+of the curl it stands at 0.195 of the paper's brightness.
+
+**Where it flies to is decided once**, in the tick the note opens (`activeTicks == 0`), and
+never revisited. Asking again while the player is on the field means the sheet jumps to the
+other side of the screen in the very tick they step off — exactly while it is rolling up and
+leaving. `onCollect` is the wrong place for it (it only fires once the player stands within
+six pixels of centre, by which time the note is already on its way) and now does nothing at
+all — it exists solely to stop `Object::onCollect` making the note disappear.
 
 Without a framebuffer object none of this can happen, and `renderNoteFlat` then draws sheet and
 text one after the other under the same matrix — no roll, but the writing still flies with the

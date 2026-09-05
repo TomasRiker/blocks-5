@@ -13,7 +13,13 @@ namespace
 	// umgehen, und das Blatt passt bequem hinein.
 	const int NOTE_WIDTH = 300;
 	const int NOTE_HEIGHT = 400;
-	const int NOTE_TEXTURE_SIZE = 512;
+
+	// Zwei Felder nebeneinander: links das Blatt mit dem Text, rechts dasselbe
+	// ohne - geschrieben ist nur die Vorderseite. Der Abstand ist grosszuegig,
+	// damit kein Texel des einen Feldes in das andere blutet.
+	const int NOTE_TEXTURE_W = 1024;
+	const int NOTE_TEXTURE_H = 512;
+	const int BACK_PANEL_X = 512;
 	const int TEXT_LEFT = 35;
 	const int TEXT_TOP = 45;
 	const int TEXT_WIDTH = 230;
@@ -26,8 +32,10 @@ namespace
 	// oben und unten eingerollt ist, solange es zufliegt; ROLL_TURNS, wie weit
 	// es sich dabei einwickelt.
 	//
-	// Beide zusammen legen den Radius fest, weil die Bogenlaenge gegeben ist:
-	// ein dickerer Wulst heisst weniger Umdrehung bei gleich viel Papier.
+	// Beide zusammen legen den Radius fest: ROLL_LENGTH * NOTE_HEIGHT /
+	// (ROLL_TURNS * 2 * PI). Bei einer halben Umdrehung braucht ein dicker
+	// Wulst viel Papier - mit 0.5 und 0.5 verschwindet das Blatt am Ende ganz
+	// in seinen beiden Rollen, und die messen 64 Bildpunkte im Halbmesser.
 	//
 	// Eine halbe Umdrehung ist die Grenze, und das ist keine Geschmacksfrage:
 	// bis dahin wird jedes Stueck Papier auf dem Weg nach aussen dem Betrachter
@@ -35,8 +43,8 @@ namespace
 	// ueberdeckt sich richtig. Darueber hinaus kaeme das Ende wieder nach
 	// hinten, und ohne Tiefenpuffer - den dieser Durchgang nicht hat - laege es
 	// trotzdem obenauf.
-	const double ROLL_LENGTH = 0.30;
-	const double ROLL_TURNS = 0.30;
+	const double ROLL_LENGTH = 0.50;
+	const double ROLL_TURNS = 0.50;
 
 	// Wie fein. Die Rollen bekommen die Unterteilung, die flache Mitte braucht
 	// keine: dort ist nichts zu kruemmen.
@@ -52,6 +60,11 @@ namespace
 	// Wie dunkel die vom Licht abgewandte Seite der Rolle wird. 1.0 ist die
 	// Helligkeit des flachen Blattes, und dort faengt es auch an.
 	const double SHADE_MIN = 0.30;
+
+	// Und wie viel dunkler die Rueckseite des Papiers noch einmal ist. Sie
+	// bekommt kein Licht von vorn und ist die unbedruckte Seite eines Blattes,
+	// das von der anderen her durchscheint.
+	const double BACK_SHADE = 0.65;
 
 	// Wann sich der Zettel aufrollt und wie lange er dazu braucht, beides in
 	// Logiktakten ab dem Betreten. Bei 20 Takten ist er auf 96% seiner Groesse -
@@ -74,6 +87,7 @@ namespace
 		double y;       // Lage im Bild, von der Mitte des Zettels aus
 		double depth;   // wie weit vor der Blattebene, also naeher am Betrachter
 		double shade;   // wie hell das Papier hier steht
+		bool back;      // schaut die Rueckseite den Betrachter an?
 	};
 
 	NotePoint rollPoint(double py,
@@ -83,6 +97,7 @@ namespace
 		p.y = py - 0.5 * NOTE_HEIGHT;
 		p.depth = 0.0;
 		p.shade = 1.0;
+		p.back = false;
 
 		const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
 		if(rolled < 1.0) return p;   // ausgerollt: nichts mehr zu kruemmen
@@ -104,7 +119,12 @@ namespace
 		// Oben auf den Betrachter zu, unten von ihm weg - so zeigt es das
 		// 16x16-Sprite auf dem Feld. direction ist oben -1 und unten +1.
 		p.depth = -direction * radius * (1.0 - cos(theta));
+
+		// Jenseits des Viertelkreises zeigt das Papier seine Rueckseite. Genau
+		// dort steht es auf der Kante, weshalb der Sprung nichts kostet.
+		p.back = (theta > 0.5 * PI);
 		p.shade = SHADE_MIN + (1.0 - SHADE_MIN) * (0.5 + 0.5 * cos(theta));
+		if(p.back) p.shade *= BACK_SHADE;
 		return p;
 	}
 }
@@ -183,7 +203,7 @@ void Hint::bakeNote()
 	// Eine eigene Textur, keine gemeinsame: beim Schritt von einem Zettel auf
 	// den nachbarn sind beide zu sehen, und der eine darf nicht in das Blatt
 	// hineinzeichnen, aus dem der andere gerade liest.
-	const Vec2i size(NOTE_TEXTURE_SIZE, NOTE_TEXTURE_SIZE);
+	const Vec2i size(NOTE_TEXTURE_W, NOTE_TEXTURE_H);
 	const uint target = noteTexture ? noteTexture : engine.acquireOffscreenTexture(size);
 	if(!target) return;   // kein Bildpuffer: dann eben ohne, siehe onRender()
 
@@ -207,6 +227,12 @@ void Hint::bakeNote()
 
 	p_sprite->bind();
 	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
+
+	// Dasselbe Blatt noch einmal daneben, und diesmal ohne Text: das ist die
+	// Rueckseite. Gespiegelt wird nichts - das Papier rollt sich um eine
+	// waagerechte Achse, links bleibt also links.
+	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
+
 	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4d(1.0));
 
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
@@ -219,29 +245,44 @@ void Hint::bakeNote()
 void Hint::renderNoteMesh(const Vec4d& color,
 						  double unroll) const
 {
-	// Von hinten nach vorn, die einzige Reihenfolge ohne Tiefenpuffer: die
-	// untere Rolle geht nach hinten weg, also zuerst und von ihrem aeusseren
-	// Ende her; dann das flache Blatt; zuletzt die obere Rolle nach vorn.
-	const double u = static_cast<double>(NOTE_WIDTH) / NOTE_TEXTURE_SIZE;
+	// Von hinten nach vorn, die einzige Reihenfolge ohne Tiefenpuffer. Die
+	// untere Rolle geht nach hinten weg, ihr aeusseres Ende liegt also am
+	// weitesten hinten; die obere kommt nach vorn. Jede zerfaellt am
+	// Viertelkreis in Vorder- und Rueckseite, und die Naht muss auf einem
+	// Eckpunkt liegen - sonst zoege ein Viereck seine Textur ueber beide Felder.
+	const double uWidth = static_cast<double>(NOTE_WIDTH) / NOTE_TEXTURE_W;
+	const double uBack = static_cast<double>(BACK_PANEL_X) / NOTE_TEXTURE_W;
 	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
 	const double flatTop = (rolled < 1.0) ? 0.0 : rolled;
 	const double flatBottom = NOTE_HEIGHT - flatTop;
 
-	// [von, bis] auf dem Papier, und wie fein.
-	double sections[3][2];
-	int steps[3];
-	sections[0][0] = NOTE_HEIGHT; sections[0][1] = flatBottom;  steps[0] = ROLL_BANDS;
-	sections[1][0] = flatTop;     sections[1][1] = flatBottom;  steps[1] = 1;
-	sections[2][0] = flatTop;     sections[2][1] = 0.0;         steps[2] = ROLL_BANDS;
+	// Bogen bis zum Viertelkreis: radius * PI/2, also flatTop / (4*ROLL_TURNS).
+	// Reicht die Rolle nicht so weit, faellt die Rueckseite als leerer
+	// Abschnitt weg - ebenso beim flachen Blatt, wo flatTop selbst 0 ist.
+	const double half = min(flatTop, flatTop / (ROLL_TURNS * 4.0));
+
+	// [von, bis] auf dem Papier, wie fein, und aus welchem Feld der Textur.
+	const int NUM_SECTIONS = 5;
+	double sections[NUM_SECTIONS][2];
+	int steps[NUM_SECTIONS];
+	bool back[NUM_SECTIONS];
+	sections[0][0] = NOTE_HEIGHT;         sections[0][1] = flatBottom + half; steps[0] = ROLL_BANDS / 2; back[0] = true;
+	sections[1][0] = flatBottom + half;   sections[1][1] = flatBottom;        steps[1] = ROLL_BANDS / 2; back[1] = false;
+	sections[2][0] = flatTop;             sections[2][1] = flatBottom;        steps[2] = 1;              back[2] = false;
+	sections[3][0] = flatTop;             sections[3][1] = flatTop - half;    steps[3] = ROLL_BANDS / 2; back[3] = false;
+	sections[4][0] = flatTop - half;      sections[4][1] = 0.0;               steps[4] = ROLL_BANDS / 2; back[4] = true;
 
 	// Ein Dreiecksstreifen und nicht GL_QUAD_STRIP: den kennt WebGL nicht, und
 	// der Web-Build reicht den Modus unveraendert weiter (WebBuild/gl_immediate.cpp).
 	// Fuer eine Bahn aus Vierecken ist beides dasselbe.
-	for(int section = 0; section < 3; section++)
+	for(int section = 0; section < NUM_SECTIONS; section++)
 	{
 		const double from = sections[section][0];
 		const double to = sections[section][1];
 		if(from == to) continue;
+
+		const double u0 = back[section] ? uBack : 0.0;
+		const double u1 = u0 + uWidth;
 
 		glBegin(GL_TRIANGLE_STRIP);
 		for(int k = 0; k <= steps[section]; k++)
@@ -256,14 +297,14 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			// Umgekehrt: gezeichnet wurde mit (0,0) links OBEN, und eine
 			// Textur faengt unten an. In der Textur steht der Zettel also auf
 			// dem Kopf, genau wie das Spielbild im Bildpuffer.
-			const double t = 1.0 - py / NOTE_TEXTURE_SIZE;
+			const double t = 1.0 - py / NOTE_TEXTURE_H;
 
 			// Vormultipliziert: die Farbe traegt das Alpha schon in sich, also
 			// muss der Anstrich es mitnehmen.
 			const double b = np.shade * color.a;
 			glColor4d(color.r * b, color.g * b, color.b * b, color.a);
-			glTexCoord2d(0.0, t); glVertex2d(-x, y);
-			glTexCoord2d(u,   t); glVertex2d( x, y);
+			glTexCoord2d(u0, t); glVertex2d(-x, y);
+			glTexCoord2d(u1, t); glVertex2d( x, y);
 		}
 		glEnd();
 	}
@@ -321,8 +362,10 @@ void Hint::renderNoteFlat(const Vec4d& color,
 	// etwas zu sehen saehe das aus, als haenge das Spiel. Also schrumpft
 	// wenigstens die Hoehe auf den flach liegenden Teil; die Schrift staucht
 	// mit, und das ist der Preis dieses Weges.
+	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
+	const double radius = rolled / (ROLL_TURNS * 2.0 * PI);
 	glPushMatrix();
-	glScaled(1.0, 1.0 - 2.0 * ROLL_LENGTH * (1.0 - unroll), 1.0);
+	glScaled(1.0, ((NOTE_HEIGHT - 2.0 * rolled) + 2.0 * radius) / NOTE_HEIGHT, 1.0);
 
 	p_sprite->bind();
 	engine.renderSprite(corner + Vec2i(SHADOW_OFFSET, SHADOW_OFFSET), Vec2i(0, 0),
@@ -401,13 +444,12 @@ void Hint::onUpdate()
 	Object* p_obj = level.getFrontObjectAt(position);
 	const bool playerIsHere = (p_obj == level.getActivePlayer());
 
-	// Das Ziel muss schon feststehen, wenn der Zettel anfaengt aufzuklappen.
-	// Frueher stand es nur in onCollect(), und das laeuft erst, wenn der
-	// Spieler bis auf sechs Pixel mittig auf dem Feld steht (object.cpp) -
-	// waehrend hier die blosse Feldposition zaehlt. Dazwischen liegen ein paar
-	// Ticks, in denen der Zettel schon sichtbar ist und noch auf das Ziel vom
-	// letzten Mal zulaeuft. Genau das war der Sprung beim wiederholten Betreten.
-	if(playerIsHere) updateTargetPosition();
+	// Das Ziel steht ein einziges Mal fest, wenn der Zettel aufgeht. Jeder
+	// spaetere Blick auf die Spielerposition liesse ihn beim Verlassen des
+	// Feldes noch einmal auf die andere Seite springen - gerade, waehrend er
+	// verschwindet. Nicht in onCollect(): das laeuft erst, wenn der Spieler
+	// mittig steht, und da ist der Zettel schon unterwegs.
+	if(playerIsHere && activeTicks == 0) updateTargetPosition();
 
 	// Das Aufrollen laeuft nach der Uhr und nicht nach shownAlpha: das naehert
 	// sich seinem Ziel nur an und kaeme nie ganz an, der Zettel bliebe also
@@ -445,7 +487,8 @@ void Hint::updateTargetPosition()
 
 void Hint::onCollect(Player* p_player)
 {
-	updateTargetPosition();
+	// Absichtlich leer, und deshalb ueberhaupt da: Object::onCollect() liesse
+	// den Zettel verschwinden. Er bleibt liegen und laesst sich wieder lesen.
 }
 
 void Hint::saveAttributes(TiXmlElement* p_target)
