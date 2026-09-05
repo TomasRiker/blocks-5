@@ -84,6 +84,7 @@ Campaign::Campaign()
 	// beantwortet getNumUnlockedLevels() sonst einen Zufallswert.
 	numUnlockedLevels = 1;
 	iHaveABonusLevel = false;
+	singleLevels = false;
 }
 
 Campaign::~Campaign()
@@ -99,6 +100,83 @@ void Campaign::clear()
 	levels.clear();
 	numUnlockedLevels = 1;
 	iHaveABonusLevel = false;
+	singleLevels = false;
+}
+
+// Nur der Titel aus einer Leveldatei, ohne den Level zu bauen. Er steht als
+// Attribut im Wurzelelement, das Dokument muss dafuer aber ganz geparst werden;
+// bei den vier bis fuenfundzwanzig Kilobyte einer Leveldatei ist das billiger
+// als ein Level::load mit allen Objekten und Skins. Der Rueckgabewert ist schon
+// uebersetzt, denn danach wird sortiert - und der voreingestellte Titel einer
+// namenlosen Datei traegt beide Sprachen in einem String.
+static std::string readLevelTitle(const std::string& source)
+{
+	TiXmlDocument doc;
+	doc.SetCondenseWhiteSpace(false);
+	doc.Parse(FileSystem::inst().readStringFromFile(source).c_str());
+
+	TiXmlElement* p_level = doc.FirstChildElement("Level");
+	const char* p_title = p_level ? p_level->Attribute("title") : 0;
+	if(!p_title || !*p_title) return localizeString("\xA7" "en:Unnamed Level\xA7" "de:Unbenannter Level");
+	return localizeString(p_title);
+}
+
+// Nach dem Titel, wie er auf dem Bildschirm steht - und nicht nach dem
+// Dateinamen, den kaum jemand liest. Gross und klein gilt dabei gleich, sonst
+// stuenden erst alle grossgeschriebenen Titel und danach die kleinen; von Hand
+// und nicht ueber tolower, weil das an der Locale haengt. Bei gleichem Titel
+// entscheidet der Dateiname, damit die Reihenfolge ueberhaupt eine ist.
+static bool byTitle(const Campaign::LevelRef& a,
+					const Campaign::LevelRef& b)
+{
+	const char* p_a = a.name.c_str();
+	const char* p_b = b.name.c_str();
+	while(*p_a && *p_b)
+	{
+		const unsigned char ca = static_cast<unsigned char>(*p_a >= 'A' && *p_a <= 'Z' ? *p_a + 32 : *p_a);
+		const unsigned char cb = static_cast<unsigned char>(*p_b >= 'A' && *p_b <= 'Z' ? *p_b + 32 : *p_b);
+		if(ca != cb) return ca < cb;
+		++p_a;
+		++p_b;
+	}
+
+	if(*p_a != *p_b) return *p_b != 0;
+	return a.member < b.member;
+}
+
+bool Campaign::loadSingleLevels()
+{
+	clear();
+
+	FileSystem& fs = FileSystem::inst();
+	std::list<std::string> files = fs.listDirectory(fs.getAppHomeDirectory() + "levels");
+
+	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+	{
+		if(i->length() <= 4 || i->substr(i->length() - 4) != ".xml") continue;
+
+		LevelRef ref = makeLooseRef(*i);
+		ref.name = readLevelTitle(ref.source());
+		addLevel(ref);
+	}
+
+	if(levels.empty()) return false;
+
+	std::sort(levels.begin(), levels.end(), byTitle);
+
+	singleLevels = true;
+	title = loadString("$LS_SINGLE_LEVELS");
+	description = loadString("$LS_SINGLE_LEVELS_DESCRIPTION");
+
+	// Alles frei: die Level haben nichts miteinander zu tun, also gibt es auch
+	// keine Reihenfolge, in der man sie sich verdienen koennte.
+	numUnlockedLevels = static_cast<int>(levels.size());
+	return true;
+}
+
+bool Campaign::isSingleLevels() const
+{
+	return singleLevels;
 }
 
 bool Campaign::load(const std::string& filename,

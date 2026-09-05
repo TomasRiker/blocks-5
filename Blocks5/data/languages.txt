@@ -447,6 +447,16 @@ $LS_NOTE
 §en:<h>Important note:</h>¶If you are stuck in one level, you can play another one.¶The following levels are unlocked, but haven't been solved yet:
 §de:<h>Wichtiger Hinweis:</h>¶Wenn du in einem Level nicht weiterkommst, kannst du auch einen anderen spielen.¶Die folgenden Levels sind freigeschaltet, aber noch nicht geschafft:
 
+$LS_SINGLE_LEVELS
+// Name of the pseudo campaign that holds the loose levels in the user's level folder
+§en:Single levels
+§de:Einzelne Levels
+
+$LS_SINGLE_LEVELS_DESCRIPTION
+// Description of that pseudo campaign
+§en:Every level lying loose in your level folder, your own and any you were sent.¶No campaign: all are unlocked, and nothing is recorded.
+§de:Alle Levels, die lose in deinem Levelordner liegen, eigene und zugeschickte.¶Keine Kampagne: alle sind frei, nichts wird vermerkt.
+
 // ****
 // GAME
 // ****

@@ -939,6 +939,27 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
+**A level somebody sent you is played from the level select screen, not from the editor.**
+`Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in
+the user's level folder, listed last in the campaign box under `$LS_SINGLE_LEVELS`. Opening
+such a level in the editor was the only way before, and the editor gives the puzzle away by
+design — `level.cpp` skips the darkness there (`if(nightVision && !inEditor)`) and
+`teleporter.cpp` draws a line to every teleporter's destination.
+
+It carries **no progress**, and that is what `isSingleLevels()` is asked about in five places:
+every level is unlocked, finishing one records nothing, the run ends back at the selection
+instead of at the next level, and both the *next to do* button and the progress bar — frame,
+label and all — are hidden. A bar that can never move reads as a fault, not as an empty one.
+Levels that have nothing to do with each other have no order to earn.
+
+The list is sorted by the **localized title**, not by filename: that is the line the player
+reads. Getting it means parsing each level's XML for the one `title` attribute
+(`readLevelTitle`), which is cheaper than a `Level::load` with all its objects and skins but
+is still a parse per file at dialog entry. The caption is
+`formatSingleLevelCaption` — `Title (filename.xml)` — because three levels called *Unnamed
+Level* are otherwise indistinguishable, while inside a campaign the filename would say
+nothing but `level_2.xml`.
+
 **One Manager button in the main menu** opens a dialog that imports, exports and deletes, on
 all three platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in the browser,
 `GetOpenFileNameA`/`GetSaveFileNameA` under Windows and `zenity`/`kdialog` under Linux, behind

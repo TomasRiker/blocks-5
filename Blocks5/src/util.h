@@ -31,6 +31,12 @@ std::string setFilenameExtension(const std::string& filename, const std::string&
 // Nummer geht hier durch einen, und die ist eine Zahl.
 std::string formatLevelCaption(int number, const std::string& title);
 
+// Ein einzelner Level traegt statt der Nummer seinen Dateinamen: wer drei
+// Level geschickt bekommt, die alle "Unbenannt" heissen, kann sie sonst nicht
+// auseinanderhalten. In einer Kampagne waere es sinnlos - dort hiesse jeder
+// zweite "level_2.xml".
+std::string formatSingleLevelCaption(const std::string& title, const std::string& filename);
+
 // Macht aus einem beliebigen - auch von aussen eingeschleusten - Dateinamen
 // einen sicheren Namensteil: nur der Basisname, nur [A-Za-z0-9_-], keine
 // Punkte, nie leer, hoechstens 64 Zeichen. Das Ergebnis kann nie aus seinem

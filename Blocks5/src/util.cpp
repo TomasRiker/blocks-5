@@ -60,6 +60,13 @@ std::string formatLevelCaption(int number,
 	return prefix + title;
 }
 
+std::string formatSingleLevelCaption(const std::string& title,
+									 const std::string& filename)
+{
+	if(filename.empty()) return title;
+	return title + " (" + filename + ")";
+}
+
 std::string setFilenameExtension(const std::string& filename,
 								 const std::string& extension)
 {

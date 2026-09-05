@@ -24,6 +24,17 @@ public:
 	// Verweis auf eine lose Datei im Level-Ordner des Benutzers.
 	static LevelRef makeLooseRef(const std::string& filename);
 
+	// Die einzelnen Level im Ordner des Benutzers als eine Kampagne, die es
+	// als Datei nicht gibt: so lassen sich zugeschickte Level spielen, ohne
+	// sie im Editor zu oeffnen - der zeigt die Dunkelheit nicht an und malt
+	// die Ziele der Teleporter dazu. Liefert false, wenn dort nichts liegt.
+	bool loadSingleLevels();
+
+	// Ist das diese Kampagne? Sie fuehrt keinen Fortschritt: alles ist von
+	// Anfang an frei, nichts wird als geschafft vermerkt, und nach dem letzten
+	// Diamanten geht es zurueck zur Auswahl statt zum naechsten Level.
+	bool isSingleLevels() const;
+
 	// Wohin ein musicFilename zeigt. sourceDir ist das Verzeichnis, in dem
 	// gewoehnliche Stuecke des Levels liegen - "<home>levels/" fuer einen
 	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv. Faengt
@@ -81,6 +92,7 @@ private:
 	std::vector<LevelRef> levels;
 	int numUnlockedLevels;
 	bool iHaveABonusLevel;
+	bool singleLevels;
 };
 
 #endif

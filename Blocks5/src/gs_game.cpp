@@ -48,8 +48,6 @@ namespace
 #include "progressdb.h"
 #include "hotel.h"
 
-const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
-
 class GameGUI : public GUI_Element, public sigslot::has_slots<>
 {
 public:
@@ -293,9 +291,16 @@ void GS_Game::onRender()
 		}
 	}
 
+	// Die laufende Nummer gehoert zur Kampagne. Ein Probelauf aus dem Editor und
+	// ein einzelner Level haben keine; der einzelne nennt statt dessen seine
+	// Datei, damit drei gleichnamige Level unterscheidbar bleiben.
 	const std::string title = localizeString(p_level->getTitle());
-	const std::string caption = cameFromEditor ? title
-											   : formatLevelCaption(levelNumber + 1, title);
+	std::string caption = title;
+	if(!cameFromEditor && p_currentCampaign)
+	{
+		if(p_currentCampaign->isSingleLevels()) caption = formatSingleLevelCaption(title, levelFilename);
+		else                                    caption = formatLevelCaption(levelNumber + 1, title);
+	}
 	Vec2i dim;
 	p_font->measureText(caption, &dim, 0);
 	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
@@ -398,7 +403,14 @@ void GS_Game::onUpdate()
 	// Level geschafft?
 	if(p_level->finished)
 	{
-		if(!cameFromEditor)
+		// Ein einzelner Level gehoert zu keiner Kampagne: es gibt nichts zu
+		// vermerken, und der naechste Eintrag ist der Level eines Fremden und
+		// nicht der naechste Schritt. Beides also wie beim Probelauf aus dem
+		// Editor - anschliessend zurueck, woher man kam.
+		const bool ownLevel = cameFromEditor ||
+							  (p_currentCampaign && p_currentCampaign->isSingleLevels());
+
+		if(!ownLevel)
 		{
 			// Fortschritt vermerken
 			ProgressDB& db = ProgressDB::inst();
@@ -411,7 +423,7 @@ void GS_Game::onUpdate()
 		Vec2i targetOut;
 		levelNumber++;
 		int status;
-		if(cameFromEditor) status = -3;
+		if(ownLevel) status = -3;
 		else status = loadLevel();
 		if(status == 1)
 		{
@@ -504,6 +516,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	cameFromEditor = context.has("levelDocument");
 	p_originalLevel = 0;
 	p_saveGame = 0;
+	levelFilename = "";
 	paused = false;
 	pausePosition = Vec2d(320.0, 200.0);
 	const double r = random(0.0, 6.2832);
@@ -603,12 +616,14 @@ int GS_Game::loadLevel()
 		return -1;
 	}
 
-	char levelName[256];
-	sprintf(levelName, "level_%d.xml", levelNumber + 1);
+	// Wie in der Auswahl: der Eintrag kennt seine Quelle, das Archiv oder die
+	// lose Datei.
+	const Campaign::LevelRef& ref = p_currentCampaign->getLevels()[levelNumber];
+	levelFilename = ref.member;
 
 	Level* p_oldLevel = p_level;
 	p_level = new Level;
-	bool r = p_level->load(p_currentCampaign->getFilename() + pw + "/" + levelName);
+	bool r = p_level->load(ref.source());
 	if(r)
 	{
 		// Level speichern
@@ -620,8 +635,7 @@ int GS_Game::loadLevel()
 
 	// Musik abspielen - aus dem Archiv der Kampagne, oder aus blocks.zip,
 	// wenn der Level das Stueck mit "blocks:" von dort holt.
-	Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
-														p_currentCampaign->getFilename() + pw + "/"));
+	Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(), ref.sourceDir));
 
 	return r ? 1 : 0;
 }

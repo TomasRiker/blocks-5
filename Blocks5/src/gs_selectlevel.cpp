@@ -9,8 +9,6 @@
 #include "level.h"
 #include "progressdb.h"
 
-const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
-
 GS_SelectLevel::GS_SelectLevel() : GameState("GS_SelectLevel"), engine(Engine::inst())
 {
 	p_background = 0;
@@ -60,8 +58,11 @@ void GS_SelectLevel::onRender()
 		Font* p_font = GUI::inst().getFont();
 		Vec2i dim;
 		const std::string title = localizeString(p_currentLevel->getTitle());
-		const std::string caption = formatLevelCaption(currentLevel + 1,
-													  status ? title : std::string("???"));
+		const std::string shown = status ? title : std::string("???");
+		const std::string caption =
+			p_currentCampaign->isSingleLevels()
+				? formatSingleLevelCaption(shown, p_currentCampaign->getLevels()[currentLevel].member)
+				: formatLevelCaption(currentLevel + 1, shown);
 		p_font->measureText(caption, &dim, 0);
 		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
 	}
@@ -116,16 +117,20 @@ void GS_SelectLevel::onRender()
 		engine.renderSprite(p_misc, Vec2i(280 + 320 - 20, 60 + 200 - 20), positionOnTexture, Vec2i(39, 39), Vec4d(1.0));
 	}
 
-	glBegin(GL_QUADS);
-	glColor4d(0.0, 0.0, 0.0, 0.5);
-	glVertex2i(40, 240);
-	glVertex2i(260, 240);
-	glVertex2i(260, 260);
-	glVertex2i(40, 260);
-	glEnd();
-
-	if(p_currentCampaign)
+	// Der Balken zaehlt geschaffte Level. Die einzelnen Level fuehren keinen
+	// Fortschritt, also faellt dort auch der leere Rahmen weg - ein Balken, der
+	// nie ausschlagen kann, sieht nach einem Fehler aus. Die Beschriftung
+	// darueber verschwindet mit ihm, in handleClick().
+	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{
+		glBegin(GL_QUADS);
+		glColor4d(0.0, 0.0, 0.0, 0.5);
+		glVertex2i(40, 240);
+		glVertex2i(260, 240);
+		glVertex2i(260, 260);
+		glVertex2i(40, 260);
+		glEnd();
+
 		uint n = ProgressDB::inst().getNumLevelsCompleted(p_currentCampaign->getFilename());
 		double p = static_cast<double>(n) / static_cast<double>(p_currentCampaign->getLevels().size());
 		int pi = static_cast<int>(p * 220.0);
@@ -152,15 +157,15 @@ void GS_SelectLevel::onRender()
 		sprintf(text, "%d/%d", n, static_cast<int>(p_currentCampaign->getLevels().size()));
 		p_font->measureText(text, &dim, 0);
 		p_font->renderText(text, Vec2i(150, 249) - dim / 2, Vec4d(1.0));
-	}
 
-	glBegin(GL_LINE_LOOP);
-	glColor4d(0.0, 0.0, 0.0, 0.5);
-	glVertex2i(40, 240);
-	glVertex2i(260, 240);
-	glVertex2i(260, 260);
-	glVertex2i(40, 260);
-	glEnd();
+		glBegin(GL_LINE_LOOP);
+		glColor4d(0.0, 0.0, 0.0, 0.5);
+		glVertex2i(40, 240);
+		glVertex2i(260, 240);
+		glVertex2i(260, 260);
+		glVertex2i(40, 260);
+		glEnd();
+	}
 
 	glEnable(GL_LINE_SMOOTH);
 }
@@ -180,7 +185,7 @@ void GS_SelectLevel::onUpdate()
 	else if(engine.wasKeyPressed(SDLK_F7) &&
 			(engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT)))
 	{
-		if(p_currentCampaign)
+		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 		{
 			// alle Levels der Kampagne freischalten
 			for(uint i = 0; i < p_currentCampaign->getLevels().size(); i++)
@@ -238,6 +243,18 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 			}
 		}
 	}
+
+	// Und zuletzt die einzelnen Level aus dem Levelordner, sofern welche da
+	// sind: eine Kampagne, die es als Datei nicht gibt. Sie steht hinten, weil
+	// die mitgelieferte Kampagne ist, was ein neuer Spieler sucht.
+	Campaign* p_single = new Campaign;
+	if(p_single->loadSingleLevels())
+	{
+		GUI_ListBox::ListItem item(p_single->getTitle(), 0);
+		p_listBox->addItem(item);
+		campaigns.push_back(p_single);
+	}
+	else delete p_single;
 
 	p_listBox->setSelection(0);
 }
@@ -297,6 +314,22 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 		std::string desc = "\xA7" "de:Keine Kampagne ausgew\xE4hlt.\xA7" "en:No campaign selected.";
 		if(p_currentCampaign) desc = p_currentCampaign->getDescription();
 		static_cast<GUI_StaticText*>(gui["SelectLevel.CampaignDescription"])->setText(desc);
+
+		// "Naechster offener" sucht den naechsten noch nicht geschafften Level.
+		// Bei den einzelnen Leveln sind das alle, und der Knopf haette nichts
+		// zu suchen; ebenso die Beschriftung ueber dem Fortschrittsbalken, den
+		// onRender() dort gar nicht erst zeichnet.
+		const bool single = p_currentCampaign && p_currentCampaign->isSingleLevels();
+		if(single)
+		{
+			gui["SelectLevel.NextLevelToDo"]->hide();
+			gui["SelectLevel.ProgressLabel"]->hide();
+		}
+		else
+		{
+			gui["SelectLevel.NextLevelToDo"]->show();
+			gui["SelectLevel.ProgressLabel"]->show();
+		}
 
 		loadLevel();
 	}
@@ -412,11 +445,12 @@ void GS_SelectLevel::loadLevel()
 		p_oldLevel->removeOldObjects();
 	}
 
+	// Der Eintrag weiss selbst, wo er liegt - im Archiv der Kampagne oder als
+	// lose Datei im Levelordner. Von Hand "level_N.xml" zusammenzusetzen ginge
+	// nur fuer den ersten Fall.
 	p_currentLevel = new Level;
 	p_currentLevel->setInPreview(true);
-	char levelName[256] = "";
-	sprintf(levelName, "level_%d.xml", currentLevel + 1);
-	p_currentLevel->load(p_currentCampaign->getFilename() + pw + "/" + levelName);
+	p_currentLevel->load(p_currentCampaign->getLevels()[currentLevel].source());
 
 	if(p_oldLevel) delete p_oldLevel;
 
@@ -457,8 +491,11 @@ void GS_SelectLevel::updateNote()
 {
 	GUI_StaticText* p_note = static_cast<GUI_StaticText*>(gui["SelectLevel.Note"]);
 
+	// Dieselbe Ueberlegung wie beim Fortschrittsbalken: der Hinweis zaehlt auf,
+	// was offen und noch ungeloest ist, und bei den einzelnen Leveln ist das
+	// jeder von ihnen.
 	std::string text;
-	if(p_currentCampaign)
+	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{
 		std::ostringstream str;
 

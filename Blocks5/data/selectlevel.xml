@@ -6,7 +6,7 @@
       <Text>$LS_SELECT_CAMPAIGN</Text>
 		</StaticText>
     <ListBox name="Campaigns" x="40" y="60" w="220" h="150" />
-    <StaticText name="Static2" x="40" y="220">
+    <StaticText name="ProgressLabel" x="40" y="220">
       <Text>$LS_PROGRESS</Text>
     </StaticText>
     <StaticText name="Static3" x="40" y="280">

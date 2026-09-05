@@ -32,6 +32,11 @@ private:
 	void updateMusic();
 	int loadLevel();
 
+	// Die Datei, aus der der laufende Level kam. Nur die einzelnen Level
+	// zeigen sie an; gemerkt statt nachgeschlagen, weil levelNumber nach dem
+	// letzten Diamanten schon eins weiter steht.
+	std::string levelFilename;
+
 	Engine& engine;
 	Level* p_level;
 	GS_SelectLevel* p_selectLevel;
