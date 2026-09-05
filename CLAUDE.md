@@ -785,15 +785,21 @@ in the level.
 
 **The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
 `ROLL_TURNS` (0.50) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
-divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a `cos` term per vertex for
-the shading. **Half a turn is the hard limit, and the sheet now sits exactly on it**: this is a
+divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a shading term per vertex.
+**The viewer stands to the left of the sheet**, `VIEW_OFFSET_X` (300) pixels off the axis, so
+what comes towards them also moves right — the slant the 16x16 sprite has. That is an ordinary
+off-axis projection and costs one term, `e·(f − 1)` added to x; in the plane of the paper `f`
+is 1 and the offset is zero, so the sheet at rest still lands pixel on pixel. Measured on a
+frame at full roll, the top band's centre sits 30 px right of the bottom band's, falling to
+1.5 px as the sheet flattens. **Half a turn is the hard limit, and the sheet now sits exactly on it**: this is a
 painter's-order limit rather than a matter of taste, because the pass has no depth buffer, so
 the only order that composes correctly is back to front, and only up to π does every further
 step of paper keep moving in one direction in depth. Beyond that the far end would come back
 round and still be painted in the wrong place. Radius, arc length and turn are one relation,
-so a fat bead at a full half-turn needs a lot of paper: `ROLL_LENGTH` is 0.5 as well, and a
-fully rolled sheet has therefore disappeared entirely into its two 64-pixel beads with no flat
-middle left. The strip is
+so at a full half-turn there are only two numbers left rather than three: a fatter bead means
+rolling up more sheet. `ROLL_LENGTH` is 0.30, which leaves the middle 40% of the paper lying
+flat and makes the bead 38 pixels across — 0.5 rolled the sheet up to its own middle and
+looked wrong for it. The strip is
 `GL_TRIANGLE_STRIP` and not `GL_QUAD_STRIP` — WebGL has no such primitive, and
 `WebBuild/gl_immediate.cpp` hands the mode straight to it.
 
@@ -851,13 +857,24 @@ mirrored — the sheet curls about a horizontal axis, so left stays left. Each r
 would drag its texture across both panels; the split costs nothing visually, since at exactly
 π/2 the paper is edge-on and has no projected width. That makes five sections in all, and
 their order is the depth order: bottom-back, bottom-front, flat, top-front, top-back. The back
-also takes a further `BACK_SHADE` (0.65) on top of the angle's own shading, so at the far end
-of the curl it stands at 0.195 of the paper's brightness.
+is exactly as bright as the front, because it is the same sheet of paper.
+
+**The shading follows the surface normal, not the angle of rotation**, and that distinction is
+the whole of it: on the back you are looking at the *other* face, whose normal points back at
+you, so the term is `|cos θ|` rather than `cos θ` and the paper is at full brightness at both
+ends of the curl. `SHADE_EDGE` (0.75) is where it dips, at the quarter turn, where the sheet
+shows you its edge.
 
 **Where it flies to is decided once**, in the tick the note opens (`activeTicks == 0`), and
 never revisited. Asking again while the player is on the field means the sheet jumps to the
 other side of the screen in the very tick they step off — exactly while it is rolling up and
-leaving. `onCollect` is the wrong place for it (it only fires once the player stands within
+leaving.
+
+**It fades only while it is small.** `FADE_UNTIL` (0.5) is how far along the flight the note
+reaches full opacity, and from there it is solid. A half-transparent sheet whose back is
+opaque and blank contradicts itself, and there was nothing to see through it anyway; the fade
+now does the one job it is good for, which is keeping the note from appearing out of nowhere
+while it is still a small shape in flight. `onCollect` is the wrong place for it (it only fires once the player stands within
 six pixels of centre, by which time the note is already on its way) and now does nothing at
 all — it exists solely to stop `Object::onCollect` making the note disappear.
 

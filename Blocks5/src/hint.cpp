@@ -33,9 +33,9 @@ namespace
 	// es sich dabei einwickelt.
 	//
 	// Beide zusammen legen den Radius fest: ROLL_LENGTH * NOTE_HEIGHT /
-	// (ROLL_TURNS * 2 * PI). Bei einer halben Umdrehung braucht ein dicker
-	// Wulst viel Papier - mit 0.5 und 0.5 verschwindet das Blatt am Ende ganz
-	// in seinen beiden Rollen, und die messen 64 Bildpunkte im Halbmesser.
+	// (ROLL_TURNS * 2 * PI). Wer bei einer halben Umdrehung den Wulst dicker
+	// will, muss also mehr Papier aufrollen. 0.30 laesst die mittleren 40% des
+	// Blattes flach und macht den Halbmesser 38 Bildpunkte gross.
 	//
 	// Eine halbe Umdrehung ist die Grenze, und das ist keine Geschmacksfrage:
 	// bis dahin wird jedes Stueck Papier auf dem Weg nach aussen dem Betrachter
@@ -43,7 +43,7 @@ namespace
 	// ueberdeckt sich richtig. Darueber hinaus kaeme das Ende wieder nach
 	// hinten, und ohne Tiefenpuffer - den dieser Durchgang nicht hat - laege es
 	// trotzdem obenauf.
-	const double ROLL_LENGTH = 0.50;
+	const double ROLL_LENGTH = 0.30;
 	const double ROLL_TURNS = 0.50;
 
 	// Wie fein. Die Rollen bekommen die Unterteilung, die flache Mitte braucht
@@ -55,16 +55,20 @@ namespace
 	// gestauchter Streifen.
 	const double PERSPECTIVE = 700.0;
 
+	// Und wie weit links davon der Betrachter steht. Was ihm naeher kommt,
+	// wandert dadurch nach rechts - die Schraege, die auch das 16x16-Sprite
+	// zeigt. Der Versatz ist e * (f - 1), also das, was ein seitlich versetztes
+	// Auge sieht, und in der Blattebene (f = 1) null: der flache Zettel bleibt
+	// Bildpunkt auf Bildpunkt liegen.
+	const double VIEW_OFFSET_X = 300.0;
+
 	const double PI = 3.1415926535897932384626433832795;
 
-	// Wie dunkel die vom Licht abgewandte Seite der Rolle wird. 1.0 ist die
-	// Helligkeit des flachen Blattes, und dort faengt es auch an.
-	const double SHADE_MIN = 0.30;
-
-	// Und wie viel dunkler die Rueckseite des Papiers noch einmal ist. Sie
-	// bekommt kein Licht von vorn und ist die unbedruckte Seite eines Blattes,
-	// das von der anderen her durchscheint.
-	const double BACK_SHADE = 0.65;
+	// Wie hell das Papier steht, wenn es dem Betrachter die Kante zeigt. Es
+	// zaehlt die Flaechennormale, nicht der Drehwinkel: auf der Rueckseite
+	// sieht man die andere Flaeche, deren Normale wieder zum Betrachter zeigt,
+	// also |cos| und nicht cos. Voll zugewandt ist 1.0, vorn wie hinten.
+	const double SHADE_EDGE = 0.75;
 
 	// Wann sich der Zettel aufrollt und wie lange er dazu braucht, beides in
 	// Logiktakten ab dem Betreten. Bei 20 Takten ist er auf 96% seiner Groesse -
@@ -80,6 +84,11 @@ namespace
 	// Ab wann der Zettel als angekommen gilt und auf ganze Bildpunkte gerundet
 	// wird: ein halber Bildpunkt auf der Bildschirmdiagonalen von 800.
 	const double SNAP_RESIDUAL = 0.5 / 800.0;
+
+	// Bis wohin auf dem Weg der Zettel ein- und ausblendet; danach ist er ganz
+	// undurchsichtig. Durchsichtiges Papier mit undurchsichtiger, unbeschrifteter
+	// Rueckseite widerspricht sich, und hindurch zu sehen ist ohnehin nichts.
+	const double FADE_UNTIL = 0.5;
 
 	// Ein Punkt auf dem Papier. py laeuft von 0 (Oberkante) bis NOTE_HEIGHT.
 	struct NotePoint
@@ -123,8 +132,7 @@ namespace
 		// Jenseits des Viertelkreises zeigt das Papier seine Rueckseite. Genau
 		// dort steht es auf der Kante, weshalb der Sprung nichts kostet.
 		p.back = (theta > 0.5 * PI);
-		p.shade = SHADE_MIN + (1.0 - SHADE_MIN) * (0.5 + 0.5 * cos(theta));
-		if(p.back) p.shade *= BACK_SHADE;
+		p.shade = SHADE_EDGE + (1.0 - SHADE_EDGE) * fabs(cos(theta));
 		return p;
 	}
 }
@@ -294,6 +302,7 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			const double f = PERSPECTIVE / (PERSPECTIVE - np.depth);
 			const double x = 0.5 * NOTE_WIDTH * f;
 			const double y = np.y * f;
+			const double dx = VIEW_OFFSET_X * (f - 1.0);
 			// Umgekehrt: gezeichnet wurde mit (0,0) links OBEN, und eine
 			// Textur faengt unten an. In der Textur steht der Zettel also auf
 			// dem Kopf, genau wie das Spielbild im Bildpuffer.
@@ -303,8 +312,8 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			// muss der Anstrich es mitnehmen.
 			const double b = np.shade * color.a;
 			glColor4d(color.r * b, color.g * b, color.b * b, color.a);
-			glTexCoord2d(u0, t); glVertex2d(-x, y);
-			glTexCoord2d(u1, t); glVertex2d( x, y);
+			glTexCoord2d(u0, t); glVertex2d(dx - x, y);
+			glTexCoord2d(u1, t); glVertex2d(dx + x, y);
 		}
 		glEnd();
 	}
@@ -384,10 +393,10 @@ void Hint::onRender(int layer,
 	if(layer == 1) Engine::inst().renderSprites(sprites, color);
 	else if(layer == 42 || layer == 43)
 	{
-		double a = shownAlpha;
 		double r = (0.85 - shownAlpha) * 45.0;
 		double i = shownAlpha / 0.85;
 		double s = i;
+		double a = clamp(i / FADE_UNTIL, 0.0, 1.0);
 
 		// Layer 43 ist die Vorschau im Leveleditor: fertig aufgeklappt, mittig.
 		// Das ist eine Anzeigesache und darf targetPosition nicht veraendern -
@@ -399,7 +408,7 @@ void Hint::onRender(int layer,
 		// das eine Viereck.
 		Vec2i target = targetPosition;
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
-		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
+		if(layer == 43) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
 
 		// Angekommen heisst exakt angekommen: shownAlpha naehert sich 0.85 nur
 		// an, also blieben Massstab, Winkel und Lage fuer immer Bruchteile
@@ -409,7 +418,7 @@ void Hint::onRender(int layer,
 		// der Bahn in renderNoteMesh() sind ohnehin ganzzahlig.
 		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
 
-		if(a > 1.0 / 255.0)
+		if(shownAlpha > 1.0 / 255.0)
 		{
 			// Zettel und Text stecken zusammen in einer Textur, damit die
 			// Schrift mitdreht und sich mit aufrollt. Sie entsteht beim ersten
