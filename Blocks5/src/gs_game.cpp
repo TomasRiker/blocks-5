@@ -448,7 +448,17 @@ void GS_Game::onUpdate()
 
 			if(status == -1)
 			{
-				// Das war der letzte Level.
+				// Das war der letzte Level. Den Abspann gibt es nur bei der
+				// mitgelieferten Kampagne - jede andere kehrt zur Auswahl
+				// zurueck.
+				//
+				// Der Vergleich ist ein fest verdrahteter Pfad, und er haelt
+				// genau so lange, wie blocks.zip im Verzeichnis des Benutzers
+				// liegt. Zieht die mitgelieferte Kampagne einmal in den
+				// Spielordner um, passt er stillschweigend nicht mehr: kein
+				// Fehler, keine Meldung, nur ein Spieler, der nach dem
+				// zweiundvierzigsten Level in der Levelliste steht. Dann gehoert
+				// hier die Frage hin, die Transfer::isBuiltIn() beantwortet.
 				if(p_currentCampaign->getFilename() == FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip")
 				{
 					// Das Spiel ist vorbei!

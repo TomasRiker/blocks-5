@@ -1011,6 +1011,22 @@ greyed out for anything from the game folder. And an upgrade would want to
 shadowing the shipped ones for ever - which is the one part that touches a
 player's folder and therefore wants care.
 
+**And one line that will break silently, so fix it in the same change:** the
+credits after the last level. `GS_Game::onUpdate` decides whether the game is
+over by comparing the campaign's filename against the literal
+`FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip"` - a
+hardcoded path into exactly the directory this item empties. Move the shipped
+campaign to the game folder and the comparison simply stops matching: no error,
+no warning, the player finishes all 42 levels and is dropped back into the level
+list. Nothing in the tree would notice, and nothing short of playing to the end
+would either.
+
+It is also the second place that knows what ships with the game, which is the
+thing this item is meant to end: once "it lives in the game folder" is the
+definition, that branch should ask `Transfer::isBuiltIn()` - or better, the
+campaign should say so itself - rather than spelling a path. See item 27, which
+wants the same answer for a Credits button in the menu.
+
 Worth doing before the next release that changes a shipped asset. `blocks.zip`
 is 8 MB, and every installation is carrying a second copy of it for no reason.
 
