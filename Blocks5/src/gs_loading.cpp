@@ -296,6 +296,7 @@ void GS_Loading::loadSounds()
 	sndMgr.request("player_burst.ogg");
 	sndMgr.request("push.ogg");
 	sndMgr.request("rain.ogg");
+	sndMgr.request("rewind.ogg");
 	sndMgr.request("ricochet.ogg");
 	sndMgr.request("screenshot.ogg");
 	sndMgr.request("syringe.ogg");

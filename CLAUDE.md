@@ -109,7 +109,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      thirteen static checks over the whole tree
+python3 Tools/verify.py      fourteen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -139,7 +139,8 @@ no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing fr
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
-disk or spelled with different case (which only Linux minds), a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
+disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
+`gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
 English comment among the German ones. Exit code 1 on any finding; `--list` names them,
 `--only NAME` runs one. `Tools/README.md` has the table.
 

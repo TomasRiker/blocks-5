@@ -28,6 +28,7 @@ Rueckgabewert 1, sobald etwas beanstandet wird.
 | `config` | ein Element der `config.xml`, das nur geschrieben oder nur gelesen wird |
 | `ctor_init` | eine neue Membervariable, die der Konstruktor nicht setzt |
 | `assets` | einen Dateinamen im Code, den es auf der Platte nicht gibt - oder nur anders geschrieben, was unter Linux ein Ladefehler ist |
+| `sounds` | einen Klang, den `playSound()` beim Namen nennt, ohne dass `gs_loading.cpp` ihn vorlaedt - er bleibt dann stumm |
 | `style` | Leerzeichen statt Tabulator, `if (` statt `if(`, Leerzeichen am Zeilenende |
 | `windows_icon` | ein Programmsymbol, das nicht mehr zu `data/window.png` passt, oder dem eine Groesse fehlt, die Windows anfragt |
 | `comments` | einen englischen Kommentar zwischen den deutschen; ausufernde Kommentardichte |

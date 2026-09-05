@@ -136,6 +136,15 @@ def c_assets_case(p):
     p.replace('"menu.xml"', '"Menu.xml"')
 
 
+@case('sounds', 'Blocks5/src/gs_loading.cpp')
+def c_sounds(p):
+    # Einen vorgeladenen Klang aus der Liste nehmen. Gespielt wird er
+    # weiterhin, und genau diese Luecke ist der Fehler: Engine::playSound()
+    # gibt die Ressource sofort wieder frei, und ohne den Halter hier loescht
+    # ~Sound die Instanz, bevor ein Ton herauskommt.
+    p.replace('\tsndMgr.request("rewind.ogg");\n', '')
+
+
 @case('style', 'Blocks5/src/level.cpp')
 def c_style(p):
     p.append('\n// eine Zeile mit Leerzeichen am Ende   \nvoid b5SelfTest() { if (1) {} }\n')

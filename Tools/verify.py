@@ -546,6 +546,52 @@ def check_assets():
     return bad
 
 
+@check('sounds')
+def check_sounds():
+    """Jeder Klang, den playSound() beim Namen nennt, muss in
+    GS_Loading::loadSounds() vorgeladen sein.
+
+    Engine::playSound() fordert die Ressource an, erzeugt die Instanz und gibt
+    sie sofort wieder frei. Manager::request() liefert eine frisch geladene
+    Ressource mit Zaehlerstand 1 zurueck, das release() danach setzt ihn also
+    auf 0 - und ~Sound loescht alle seine Instanzen mitsamt der OpenAL-Quelle,
+    noch bevor play() sie erreicht. Hoerbar ist dann nichts, und der Zeiger,
+    auf dem playSound() weiterarbeitet, zeigt ins Leere.
+
+    Alles laeuft nur deshalb, weil loadSounds() jeden Klang einmal anfordert
+    und nie freigibt. Wer einen neuen spielt und ihn dort vergisst, merkt es an
+    keinem Compilerfehler und an keiner Zeile im Protokoll - der Ton bleibt
+    einfach weg."""
+    played = {}
+    call = re.compile(r'playSound\s*\(')
+    lit = re.compile(r'"([A-Za-z0-9_][A-Za-z0-9_.\-]*\.ogg)"')
+    for p in source_files(('.cpp',)):
+        rel = os.path.relpath(p, ROOT)
+        text = strip_comments(read(p))
+        for m in call.finditer(text):
+            # Bis zur schliessenden Klammer, damit auch beide Zweige eines
+            # "x ? a : b" mitkommen.
+            depth, i = 1, m.end()
+            while i < len(text) and depth:
+                if text[i] == '(':
+                    depth += 1
+                elif text[i] == ')':
+                    depth -= 1
+                i += 1
+            for name in lit.findall(text[m.end():i]):
+                played.setdefault(name, rel)
+
+    # Die ganze Datei und nicht nur loadSounds(): das Logo wird in onEnter()
+    # angefordert und nie freigegeben, was denselben Dienst tut. Ein neuer
+    # Klang gehoert trotzdem in die Liste.
+    loading = strip_comments(read(os.path.join(SRC, 'gs_loading.cpp')))
+    preloaded = set(re.findall(r'request\("([^"]+\.ogg)"\)', loading))
+
+    return ['%s: playSound("%s"), aber gs_loading.cpp laedt den Klang nicht vor'
+            % (rel, name)
+            for name, rel in sorted(played.items()) if name not in preloaded]
+
+
 @check('style')
 def check_style():
     """Tabulatoren, kein Leerzeichen zwischen Schluesselwort und Klammer, keine
