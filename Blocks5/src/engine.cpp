@@ -1119,12 +1119,7 @@ void Engine::mainLoopIteration()
 			}
 
 			// Aktionsdaten zuruecksetzen
-			for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
-				it != actions.end();
-				++it)
-			{
-				it->second->data &= ~(2 | 4);
-			}
+			clearActionEdges();
 
 #ifdef RECORD
 			if(output)
@@ -2755,6 +2750,9 @@ GameState* Engine::getGameState()
 
 void Engine::processGameStateChanges()
 {
+	const bool changing = p_stateToLoseFocus || p_stateToBeEntered ||
+						  p_stateToGetFocus || !statesToBeLeft.empty();
+
 	// Zustandswechsel vollziehen
 	if(p_stateToLoseFocus) p_stateToLoseFocus->onLoseFocus();
 	while(!statesToBeLeft.empty())
@@ -2767,6 +2765,18 @@ void Engine::processGameStateChanges()
 	if(p_stateToGetFocus) p_stateToGetFocus->onGetFocus();
 
 	p_stateToBeEntered = p_stateToGetFocus = p_stateToLoseFocus = 0;
+
+	// Eine Flanke gehoert dem Zustand, der lief, als sie gemessen wurde. Der
+	// neue erbt sie nicht, denn in diesem Takt hat updateActions() lange vor
+	// ihm gerechnet und GUI::update() den Wechsel erst danach ausgeloest.
+	//
+	// Sonst tut eine Taste zweierlei auf einmal: F5 heisst im Editor "spielen"
+	// und im Spiel "Level neu starten", und ein Druck loeste beides aus - der
+	// Editor schob GS_Game an, und dessen erstes onUpdate() im selben Takt sah
+	// die noch stehende Flanke und startete den eben geladenen Level sofort neu,
+	// samt Ruecklauf-Ueberblendung an der Stelle des Mosaiks. Dasselbe gilt fuer
+	// Return, das in der Levelauswahl startet und im Spiel im Hotel speichert.
+	if(changing) clearActionEdges();
 }
 
 void Engine::playMusic(const std::string& filename,
@@ -3068,6 +3078,16 @@ void Engine::updateVKs()
 				vk.down = SDL_JoystickGetHat(p_joystick, vk.hat) == vk.hatDir;
 			}
 		}
+	}
+}
+
+void Engine::clearActionEdges()
+{
+	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
+		it != actions.end();
+		++it)
+	{
+		it->second->data &= ~(2 | 4);
 	}
 }
 

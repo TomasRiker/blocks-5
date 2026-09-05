@@ -359,6 +359,10 @@ private:
 	void updateKeyGrab();
 	void syncActionDown(Action& action);
 
+	// Die Flanken "gerade gedrueckt" und "gerade losgelassen" aller Aktionen
+	// loeschen. Das Halten bleibt stehen.
+	void clearActionEdges();
+
 	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
 	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
 	void showLastFrame();
