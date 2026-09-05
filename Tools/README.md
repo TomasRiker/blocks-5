@@ -99,4 +99,16 @@ die Ogg neu erzeugen:
            -map_metadata -1 Blocks5/data/<name>.ogg
 
 `-b:a` landet unveraendert als Nennbitrate im Vorbis-Kopf, und 96 kbit/s ist,
-was der groesste Teil des Bestandes traegt. 
+was der groesste Teil des Bestandes traegt. Weniger ist fuer kurze Effekte eine
+Falle: bei 45 kbit/s ueberschwingt der Dekoder von `cannon_turn.ogg` auf 1,03
+und uebersteuert damit beim Abspielen, und das Quantisierungsrauschen des
+letzten langen Blocks (2048 Samples, 46 ms) steht am Ende der Datei noch bei
+-46 dBFS statt bei -88.
+
+Zwei Dinge gehoeren in die WAV selbst, nicht in den Kodierer. Anfang und Ende
+muessen auf null liegen - eine halbe Kosinuswelle ueber 4 ms hinein und 60 ms
+hinaus, laenger als ein langer Block. Und ein Gleichanteil muss raus: er kostet
+Aussteuerung, er knackt an beiden Enden, und wenn eine Huellkurve darueber
+gelegt wurde, wandert er mit ihr und ist deshalb auch kein fester Wert, den man
+einfach abziehen koennte. Ein Hochpass bei 20 Hz nimmt ihn und laesst alles
+Hoerbare stehen.
