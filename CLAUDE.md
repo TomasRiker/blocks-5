@@ -1133,6 +1133,24 @@ texture through its own `SDL_RWops` over the encrypted `data.zip`. stb_image (`l
 header) does that in about eighty lines; PNG and JPEG are enabled, and every image the game
 ships is a PNG.
 
+**Writing one needs no library at all**, and `img_save.cpp` is the mirror image of that
+reasoning: decoding PNG is hard, which is why stb_image is vendored; encoding it is not,
+because zlib does the work and zlib is already compiled into all three builds for minizip's
+sake. `compress2()` returns exactly the zlib datastream an `IDAT` chunk is defined to hold and
+`crc32()` is the checksum every chunk carries, so the whole encoder is a signature, three
+chunks and a filter loop. Screenshots are PNG because of it — `SDL_SaveBMP` and its 900 KB
+files are gone.
+
+Two things there are worth knowing. The per-row filter heuristic — pick the filter whose
+bytes have the smallest sum of magnitudes read as signed — is twenty lines and worth them:
+measured on a real 640x480 screenshot, 239 KB against 283 KB for no filtering at all, out of
+a 900 KB bitmap. And **the alpha channel is not free**, which is the opposite of what it looks
+like: `glReadPixels` must ask for `GL_RGBA` because that is the only combination WebGL 1
+allows, but a channel of nothing but 255 does not collapse in the deflate — it pushes every
+prediction one byte apart. The same frame is 330 KB as RGBA and 247 KB as RGB, so the encoder
+takes a source layout and a destination layout separately and drops the channel while
+building each row, before the filter ever sees it.
+
 **The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated
 one, and everything in it is there because a phone needs it. `<meta name="viewport"
 content="width=device-width, ...">` is the important one: without it a phone lays the page out

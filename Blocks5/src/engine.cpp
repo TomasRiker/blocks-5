@@ -34,6 +34,7 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #include "tileset.h"
 #include "crossfade.h"
 #include "filesystem.h"
+#include "img_save.h"
 #include "videorecorder.h"
 #include "audiocapture.h"
 
@@ -2535,8 +2536,8 @@ void Engine::drawOverlays()
 bool Engine::screenshot()
 {
 #ifdef __EMSCRIPTEN__
-	// GL_BGR ist in WebGL 1 kein zulaessiges Format fuer glReadPixels, und
-	// Emscriptens SDL_SaveBMP_RW ist ein abort(). Noetig waere ein Download.
+	// Eine Seite kann nicht in ein Verzeichnis schreiben; noetig waere ein
+	// Download.
 	printfLog("Screenshots are not supported in the web build.\n");
 	return false;
 #endif
@@ -2544,24 +2545,21 @@ bool Engine::screenshot()
 	// Anzeigeeinstellungen und gehoeren nicht in die Datei.
 	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
 
-	char* p_temp = new char[shotSize.x * shotSize.y * 3];
-
+	// GL_RGBA und nicht GL_RGB oder GL_BGR: das ist die einzige Kombination,
+	// die auch WebGL 1 zulaesst. In die Datei kommen davon nur die drei
+	// Farbkanaele - siehe img_save.h, das Alpha waere ein Viertel mehr fuer
+	// lauter 255. Das Umdrehen der Zeilen erledigt der Kodierer gleich mit,
+	// also ohne zweiten Puffer.
+	std::vector<uchar> pixels(static_cast<size_t>(shotSize.x) * shotSize.y * 4);
 	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
-	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_BGR, GL_UNSIGNED_BYTE, p_temp);
+	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
-	// Zeilen richtigherum drehen
-	char* p_buffer = new char[shotSize.x * shotSize.y * 3];
-	char* p_cursor = p_temp;
-	for(int y = 0; y < shotSize.y; y++)
+	std::vector<uchar> png;
+	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, &png))
 	{
-		int ny = shotSize.y - 1 - y;
-		memcpy(p_buffer + shotSize.x * 3 * ny, p_cursor, shotSize.x * 3);
-		p_cursor += shotSize.x * 3;
+		printfLog("+ ERROR: Could not encode the screenshot.\n");
+		return false;
 	}
-
-	delete[] p_temp;
-
-	SDL_Surface* p_surface = SDL_CreateRGBSurfaceFrom(p_buffer, shotSize.x, shotSize.y, 24, shotSize.x * 3, 0x00FF0000, 0x0000FF00, 0x000000FF, 0x00000000);
 
 	FileSystem& fs = FileSystem::inst();
 	char screenshotDateTime[256];
@@ -2571,17 +2569,23 @@ bool Engine::screenshot()
 	for(uint no = 1; true; no++)
 	{
 		char temp[512] = "";
-		if(no == 1) sprintf(temp, "%s.bmp", screenshotDateTime);
-		else sprintf(temp, "%s_%02d.bmp", screenshotDateTime, no);
-		filename = FileSystem::inst().getAppHomeDirectory() + "screenshots/" + temp;
+		if(no == 1) sprintf(temp, "%s.png", screenshotDateTime);
+		else sprintf(temp, "%s_%02d.png", screenshotDateTime, no);
+		filename = fs.getAppHomeDirectory() + "screenshots/" + temp;
 		if(!fs.fileExists(filename)) break;
 	}
 
-	const bool saved = SDL_SaveBMP(p_surface, filename.c_str()) == 0;
-	if(!saved) printfLog("+ ERROR: Could not write \"%s\" (%s).\n", filename.c_str(), SDL_GetError());
+	File* p_file = fs.openFile(filename, FileSystem::FM_WRITE);
+	if(!p_file)
+	{
+		printfLog("+ ERROR: Could not write \"%s\".\n", filename.c_str());
+		return false;
+	}
 
-	SDL_FreeSurface(p_surface);
-	delete[] p_buffer;
+	const uint numBytes = static_cast<uint>(png.size());
+	const bool saved = p_file->write(&png[0], numBytes) == numBytes && p_file->finish();
+	fs.closeFile(p_file);
+	if(!saved) printfLog("+ ERROR: Could not write \"%s\".\n", filename.c_str());
 	return saved;
 }
 

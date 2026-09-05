@@ -712,6 +712,7 @@
     <ClCompile Include="src\gui_statictext.cpp" />
     <ClCompile Include="src\gui_window.cpp" />
     <ClCompile Include="src\img_load.cpp" />
+    <ClCompile Include="src\img_save.cpp" />
     <ClCompile Include="src\linedrawer.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
     <ClCompile Include="src\pch.cpp">
@@ -846,6 +847,7 @@
     <ClInclude Include="src\gui_statictext.h" />
     <ClInclude Include="src\gui_window.h" />
     <ClInclude Include="src\img_load.h" />
+    <ClInclude Include="src\img_save.h" />
     <ClInclude Include="src\linedrawer.h" />
     <ClInclude Include="src\manager.h" />
     <ClInclude Include="src\parameterblock.h" />

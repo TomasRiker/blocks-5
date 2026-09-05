@@ -358,6 +358,9 @@
     <ClCompile Include="src\img_load.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\img_save.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\linedrawer.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1093,6 +1096,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\img_load.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\img_save.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\linedrawer.h">

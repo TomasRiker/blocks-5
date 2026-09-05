@@ -199,15 +199,29 @@ fi
 
 # --- Bildschirmfoto ---------------------------------------------------------
 # F11 schreibt eines ins Benutzerverzeichnis. Das ist der einzige Weg von hier,
-# den Bildpuffer selbst zu sehen - alles andere ist das Fenster. Die Dateien
-# heissen .bmp, nicht .png: SDL_SaveBMP schreibt sie.
+# den Bildpuffer selbst zu sehen - alles andere ist das Fenster.
+#
+# Geprueft wird nicht nur, dass eine Datei entstanden ist, sondern auch, dass
+# sie ein PNG ist: die Signatur vorn und der IEND-Chunk hinten. Den Kodierer
+# schreibt das Spiel selbst (src/img_save.cpp), und eine abgeschnittene Datei
+# waere an ihrer Groesse allein nicht zu erkennen.
 HOME_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
-before=$(ls "$HOME_DIR/screenshots"/*.bmp 2>/dev/null | wc -l)
+before=$(ls "$HOME_DIR/screenshots"/*.png 2>/dev/null | wc -l)
 b5_hold F11
 sleep 2
-after=$(ls "$HOME_DIR/screenshots"/*.bmp 2>/dev/null | wc -l)
-[ "$after" -gt "$before" ] && b5_ok "F11 hat ein Bildschirmfoto geschrieben" \
-                           || b5_note "F11 hat kein Bildschirmfoto geschrieben"
+after=$(ls "$HOME_DIR/screenshots"/*.png 2>/dev/null | wc -l)
+if [ "$after" -gt "$before" ]; then
+	shot=$(ls -t "$HOME_DIR/screenshots"/*.png | head -1)
+	magic=$(od -An -tx1 -N8 "$shot" | tr -d ' \n')
+	ending=$(tail -c 12 "$shot" | od -An -tx1 | tr -d ' \n')
+	if [ "$magic" = "89504e470d0a1a0a" ] && [ "${ending#*49454e44}" != "$ending" ]; then
+		b5_ok "F11 hat ein gueltiges PNG geschrieben ($(wc -c < "$shot") Byte)"
+	else
+		b5_note "F11 hat eine Datei geschrieben, aber kein gueltiges PNG"
+	fi
+else
+	b5_note "F11 hat kein Bildschirmfoto geschrieben"
+fi
 
 # --- Beenden ----------------------------------------------------------------
 # Ueber das Spiel und nicht ueber das Fenster: "xdotool windowclose" ruft
