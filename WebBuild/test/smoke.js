@@ -6,6 +6,10 @@
 //   NODE_PATH=/opt/node22/lib/node_modules node smoke.js
 
 const h = require('./harness');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const zlib = require('zlib');
 
 (async () => {
 	const { browser, page } = await h.launch();
@@ -130,6 +134,48 @@ const h = require('./harness');
 		if (!(await appActive())) h.note(name + ': die Engine kommt nicht zurueck');
 	}
 	await h.expectState(page, 'GS_Menu');
+
+	// --- Bildschirmfoto -------------------------------------------------------
+	// F11 hat hier kein Verzeichnis, in das es schreiben koennte, also faellt
+	// das Bild in die Downloads des Spielers. Geprueft wird der ganze Weg: dass
+	// der Browser ueberhaupt einen Download bekommt, und dass darin ein PNG
+	// steht, das der Kodierer des Spiels (src/img_save.cpp) erzeugt hat.
+	const download = new Promise(res => page.once('download', d => res(d)));
+	await h.key(page, 'F11');
+	const shot = await Promise.race([download,
+	                                 new Promise(r => setTimeout(() => r(null), 8000))]);
+	if (!shot) {
+		h.note('F11 hat keinen Download ausgeloest');
+	} else {
+		const file = path.join(os.tmpdir(), 'blocks5-webshot.png');
+		await shot.saveAs(file);
+		const png = fs.readFileSync(file);
+		if (!/^blocks5_.*\.png$/.test(shot.suggestedFilename())) {
+			h.note('Bildschirmfoto heisst "' + shot.suggestedFilename() + '"');
+		}
+		// Signatur, IHDR und ein IDAT, das sich auf genau (Breite*3+1)*Hoehe
+		// Byte entpackt - eine abgeschnittene Datei faellt daran auf, an ihrer
+		// Groesse allein nicht.
+		if (png.slice(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+			h.note('Bildschirmfoto hat keine PNG-Signatur');
+		} else {
+			const w = png.readUInt32BE(16), hgt = png.readUInt32BE(20);
+			const type = png.slice(12, 16).toString();
+			const idatLen = png.readUInt32BE(16 + 13 + 4);
+			const idat = png.slice(16 + 13 + 12, 16 + 13 + 12 + idatLen);
+			const raw = zlib.inflateSync(idat).length;
+			if (type !== 'IHDR' || w !== 640 || hgt !== 480 || png[24] !== 8 || png[25] !== 2) {
+				h.note('Bildschirmfoto: ' + type + ' ' + w + 'x' + hgt +
+				       ' bd=' + png[24] + ' ct=' + png[25]);
+			} else if (raw !== (w * 3 + 1) * hgt) {
+				h.note('Bildschirmfoto: IDAT entpackt zu ' + raw + ' statt ' +
+				       ((w * 3 + 1) * hgt) + ' Byte');
+			} else {
+				console.log('  . F11 hat ein gueltiges PNG heruntergeladen (' +
+				            png.length + ' Byte)');
+			}
+		}
+	}
 
 	process.exit(await h.finish(browser));
 })().catch(async (e) => {

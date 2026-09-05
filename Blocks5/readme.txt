@@ -43,9 +43,9 @@ Changelog
 =========
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no installation at
             all. Your progress, your own levels and your campaigns are stored by
-            the browser, so they survive closing the tab. Recording videos and
-            taking screenshots are the only things the browser version cannot
-            do. Look on the website for the link.
+            the browser, so they survive closing the tab. Recording videos is
+            the only thing the browser version cannot do. Look on the website
+            for the link.
 
           - New in the main menu: a button that manages your files, on both the
             browser version and this one. It brings files in, hands copies
@@ -92,6 +92,11 @@ Changelog
           - Screenshots and recorded videos are unaffected by any of this. They
             are always the clean 640x480 picture, without the scaling and
             without the bars.
+
+          - Screenshots are PNG files now instead of bitmaps, which makes them
+            about a quarter of the size and something you can send to someone
+            without apologising. In the browser F11 works too; the picture
+            arrives in your downloads.
 
           - The HQ2X start menu entry is gone, and with it the HQ2X mode. It
             scaled the picture on the processor, cost about half of the time

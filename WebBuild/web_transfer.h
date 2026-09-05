@@ -24,6 +24,12 @@ namespace WebTransfer
 	// Laedt den Inhalt von vfsPath als Download herunter.
 	void download(const std::string& vfsPath, const std::string& downloadName);
 
+	// Dasselbe fuer etwas, das gar nicht erst eine Datei ist - ein
+	// Bildschirmfoto etwa, das im Browser nirgends hingehoert: die IndexedDB
+	// ist fuer Spielstaende da und nicht als Bilderablage.
+	void downloadBytes(const void* p_data, unsigned int numBytes,
+	                   const std::string& downloadName);
+
 	// Oeffnet den Dateidialog. Der Aufrufer gibt alle drei moeglichen Ziele
 	// vor und JS sucht sich nach der Endung eines davon aus - so setzt
 	// weiterhin ausschliesslich C einen Pfad zusammen. Alle drei muessen auf

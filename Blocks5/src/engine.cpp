@@ -22,6 +22,7 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #include "u_all.h"
 #ifdef __EMSCRIPTEN__
 #include "web_bluescreen.h"
+#include "web_transfer.h"
 #endif
 #include "gamestate.h"
 #include "soundinstance.h"
@@ -2535,12 +2536,6 @@ void Engine::drawOverlays()
 
 bool Engine::screenshot()
 {
-#ifdef __EMSCRIPTEN__
-	// Eine Seite kann nicht in ein Verzeichnis schreiben; noetig waere ein
-	// Download.
-	printfLog("Screenshots are not supported in the web build.\n");
-	return false;
-#endif
 	// Immer das interne 640x480-Bild: Filter und schwarze Balken sind
 	// Anzeigeeinstellungen und gehoeren nicht in die Datei.
 	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
@@ -2561,10 +2556,21 @@ bool Engine::screenshot()
 		return false;
 	}
 
-	FileSystem& fs = FileSystem::inst();
 	char screenshotDateTime[256];
 	const time_t t = ::time(0);
 	strftime(screenshotDateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
+
+#ifdef __EMSCRIPTEN__
+	// Im Browser gibt es kein Verzeichnis, in das das Bild gehoerte: die
+	// IndexedDB ist fuer Spielstaende da, und ein Bild dort abzulegen hiesse,
+	// den Platz des Spielers mit etwas zu belegen, das er nie wieder zu sehen
+	// bekommt. Es geht darum gleich in seine Downloads.
+	char downloadName[512] = "";
+	sprintf(downloadName, "blocks5_%s.png", screenshotDateTime);
+	WebTransfer::downloadBytes(&png[0], static_cast<uint>(png.size()), downloadName);
+	return true;
+#else
+	FileSystem& fs = FileSystem::inst();
 	std::string filename;
 	for(uint no = 1; true; no++)
 	{
@@ -2587,6 +2593,7 @@ bool Engine::screenshot()
 	fs.closeFile(p_file);
 	if(!saved) printfLog("+ ERROR: Could not write \"%s\".\n", filename.c_str());
 	return saved;
+#endif
 }
 
 void Engine::renderSprite(const Vec2i& position,

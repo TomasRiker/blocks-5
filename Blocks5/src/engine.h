@@ -86,8 +86,8 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
-	// false, wenn kein Bild entstanden ist. Im Browser immer: eine Seite kann
-	// nicht in ein Verzeichnis schreiben.
+	// false, wenn kein Bild entstanden ist. Im Browser landet es als Download
+	// beim Spieler statt als Datei im Benutzerverzeichnis.
 	bool screenshot();
 
 	// Der Bildpuffer, in den das Spiel rendert: immer 640x480, unabhaengig von

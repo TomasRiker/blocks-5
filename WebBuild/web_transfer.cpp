@@ -49,6 +49,32 @@ void download(const std::string& vfsPath, const std::string& downloadName)
 	}, vfsPath.c_str(), downloadName.c_str());
 }
 
+void downloadBytes(const void* p_data, unsigned int numBytes,
+                   const std::string& downloadName)
+{
+	EM_ASM({
+		var name = UTF8ToString($2);
+		try {
+			// subarray liefert einen Blick in den wasm-Heap, den ein
+			// wachsender Speicher jederzeit ungueltig macht - der
+			// Uint8Array-Konstruktor kopiert ihn hier und jetzt, und der Blob
+			// bekommt die Kopie.
+			var bytes = new Uint8Array(HEAPU8.subarray($0, $0 + $1));
+			var url = URL.createObjectURL(new Blob([bytes],
+			                              { type: "image/png" }));
+			var a = document.createElement("a");
+			a.href = url;
+			a.download = name;
+			a.style.display = "none";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			// Sofortiges revoke bricht den Download in manchen Browsern ab.
+			setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+		} catch (e) { console.warn("[blocks5] screenshot failed:", e); }
+	}, p_data, numBytes, downloadName.c_str());
+}
+
 bool openPicker(const std::string& stagingOgg,
                 const std::string& stagingXml,
                 const std::string& stagingZip,

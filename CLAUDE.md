@@ -1151,6 +1151,16 @@ prediction one byte apart. The same frame is 330 KB as RGBA and 247 KB as RGB, s
 takes a source layout and a destination layout separately and drops the channel while
 building each row, before the filter ever sees it.
 
+**The browser gets screenshots too**, and this is what unblocked them: the two reasons F11 was
+refused there were `GL_BGR` and `SDL_SaveBMP_RW`, and neither is in the path any more. There is
+nowhere sensible to *put* the file, though — the IndexedDB is for saved games, and filling a
+player's quota with pictures they can never look at is not a trade worth making — so the bytes
+go straight into their downloads through `WebTransfer::downloadBytes`, the same Blob mechanism
+the Manager's export uses. It copies the heap slice (`new Uint8Array(HEAPU8.subarray(...))`)
+rather than handing the Blob a view, because `ALLOW_MEMORY_GROWTH` can invalidate one at any
+allocation. `$A_TOGGLE_CAPTURE_VIDEO` is still the one action `main.cpp` withholds from the
+web build.
+
 **The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated
 one, and everything in it is there because a phone needs it. `<meta name="viewport"
 content="width=device-width, ...">` is the important one: without it a phone lays the page out

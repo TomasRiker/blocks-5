@@ -497,13 +497,15 @@ int runTheGame(int argc,
 	// Schalter, keine Dauerfeuer-Aktionen: einmal je Druck.
 	p_action = engine.registerAction("$A_TOGGLE_MUTE", engine.getKeyboardVK(SDLK_F1));
 	p_action->repeats = false;
-#ifndef __EMSCRIPTEN__
-	// Screenshots und Videoaufnahme gibt es im Web-Build nicht, deshalb werden
-	// diese beiden Aktionen gar nicht erst registriert - sonst stuenden sie
-	// nutzlos in der Tastenbelegungsliste. Die Abfragen in Engine::update
-	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen.
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->repeats = false;
+#ifndef __EMSCRIPTEN__
+	// Videoaufnahme gibt es im Web-Build nicht, deshalb wird die Aktion dort
+	// gar nicht erst registriert - sonst stuende sie nutzlos in der
+	// Tastenbelegungsliste. Die Abfrage in Engine::update bleibt unveraendert:
+	// getAction() liefert 0 fuer einen unbekannten Namen. Bildschirmfotos gibt
+	// es dort dagegen sehr wohl, sie werden nur heruntergeladen statt
+	// abgelegt.
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));
 	p_action->repeats = false;
 #endif
