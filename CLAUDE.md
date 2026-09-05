@@ -746,6 +746,19 @@ and the mesh samples it with `1 - py/512`. And it is composed with
 which leaves the colour premultiplied by its own alpha and the alpha itself correct; it is
 therefore drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
 
+**At rest the sheet is drawn at exactly 1:1, on whole pixels.** It used to land at 0.9 of its
+size, which resamples every texel of a texture whose whole point is the writing on it — and
+the arrival never *finished*, because `shownAlpha` is an exponential ease towards 0.85 that
+only approaches it, so the scale stayed a hair under its target and the rotation a hair over
+zero for ever. Three fractions at once, and the text was soft. Once the residual falls below
+`SNAP_RESIDUAL` — half a pixel over the screen diagonal, the longest lever both the remaining
+travel and the remaining rotation act on — scale, angle and position are rounded to exactly 1,
+exactly 0 and exactly `targetPosition`, which is a `Vec2i`. The mesh's own corners are whole
+numbers anyway, so from there each texel covers exactly one pixel and is sampled at its centre.
+Measured off a screenshot: 17% of the outline pixels carried the font's own colour before,
+58% after. The sheet is therefore 300x400 rather than 270x360, which is exactly the height of
+the play area above the status bar — the note now covers the field it is read over.
+
 The texture belongs to the **Engine** and not to the note, and that is not tidiness: it falls
 with the framebuffer object, which `Engine::exit` destroys while the GL context still stands,
 whereas an `Object` is destroyed only after `main()` has returned.

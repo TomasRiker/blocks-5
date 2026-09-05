@@ -61,6 +61,10 @@ namespace
 	// was sich noch einrollen koennte.
 	const int ROLL_UP_SPEED = 3;
 
+	// Ab wann der Zettel als angekommen gilt und auf ganze Bildpunkte gerundet
+	// wird: ein halber Bildpunkt auf der Bildschirmdiagonalen von 800.
+	const double SNAP_RESIDUAL = 0.5 / 800.0;
+
 	// Ein Punkt auf dem Papier. py laeuft von 0 (Oberkante) bis NOTE_HEIGHT.
 	struct NotePoint
 	{
@@ -324,7 +328,7 @@ void Hint::onRender(int layer,
 		double a = shownAlpha;
 		double r = (0.85 - shownAlpha) * 45.0;
 		double i = shownAlpha / 0.85;
-		double s = i * 0.9;
+		double s = i;
 
 		// Layer 43 ist die Vorschau im Leveleditor: fertig aufgeklappt, mittig.
 		// Das ist eine Anzeigesache und darf targetPosition nicht veraendern -
@@ -336,7 +340,25 @@ void Hint::onRender(int layer,
 		// das eine Viereck.
 		Vec2i target = targetPosition;
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
-		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 0.9, target = Vec2i(320, 200), shownUnroll = 1.0;
+		if(layer == 43) a = 0.85, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
+
+		// Angekommen heisst exakt angekommen. shownAlpha naehert sich 0.85 und
+		// kommt nie an, also bleibt i knapp unter 1: der Massstab knapp
+		// darunter, der Winkel knapp ueber 0, die Lage um Bruchteile daneben.
+		// Jedes davon legt die gebackene Textur zwischen die Bildpunkte, und
+		// weil sie mit GL_LINEAR gelesen wird, mischt die Karte jedes Texel aus
+		// zweien - der Text wird weich und schlecht zu lesen.
+		//
+		// Sobald der Rest weniger als einen halben Bildpunkt ausmacht, wird
+		// deshalb gerundet. SNAP_RESIDUAL ist genau das: ein halber Bildpunkt,
+		// geteilt durch den laengsten Hebel im Spiel - die Bildschirmdiagonale,
+		// an der sowohl der Restweg als auch die Restdrehung angreifen.
+		//
+		// Danach steht alles ganzzahlig: targetPosition ist ein Vec2i, der
+		// Massstab genau 1, der Winkel genau 0, und die Ecken der Bahn in
+		// renderNoteMesh() liegen ohnehin auf ganzen Bildpunkten. Jedes Texel
+		// trifft dann genau einen Bildpunkt und wird in dessen Mitte gelesen.
+		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
 
 		if(a > 1.0 / 255.0)
 		{
