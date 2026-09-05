@@ -20,7 +20,11 @@ namespace
 	// dann auf einem Vielfachen der Bildhoehe, also wieder genau auf null. Bei
 	// 6.5 saesse das Bild im letzten Augenblick um eine halbe Hoehe verrutscht
 	// und sprungte beim Abblenden zurueck.
-	const double ROLL_SCREENS = 7.0;
+	//
+	// Zehn und nicht sieben, weil die Ueberblendung von 1,1 auf 1,5 Sekunden
+	// verlaengert wurde: die Zahl ist ein Weg und keine Geschwindigkeit, und
+	// sieben Hoehen in anderthalb Sekunden waeren gemuetlich statt hektisch.
+	const double ROLL_SCREENS = 10.0;
 
 	// Ueber welchen Teil des Schlusses das Laufwerk bremst und der Bildfang
 	// wieder einrastet. Ohne das hoerte der Bildsalat mit einem Schnitt auf.

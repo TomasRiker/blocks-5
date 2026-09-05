@@ -88,10 +88,13 @@ pruefen. Beide sind reine Standardbibliothek:
 weil der Windows-Build kein Python laufen laesst, und die Pruefung
 `windows_icon` haelt sie aktuell.
 
-`make_rewind_sound.py` erzeugt den Ruecklaufton fuer `CF_Rewind` aus lauter
-Sinus und Rauschen - Motor, Wickelpfeifen, Bandrauschen und die beiden
-Schlaege. Es schreibt eine WAV; ins Spiel gehoert sie als Ogg Vorbis wie die
-anderen Klaenge, und das macht ein Kodierer:
+`make_rewind_sound.py` erzeugt den Ruecklaufton fuer `CF_Rewind` aus gefiltertem
+Rauschen. Die Zahlen darin sind an einer Aufnahme eines echten Rekorders
+ausgemessen: zwei Beulen im Spektrum bei 250 Hz und 2,6 kHz mit einem Loch
+dazwischen, ein Klappern der Huellkurve bei 46,5 und 12 Hz, und ein
+Scheitelfaktor von 14 dB. Einen Sinus enthaelt es ausdruecklich nicht - ein
+Laufwerk hat keine Tonhoehe. Es schreibt eine WAV; ins Spiel gehoert sie als Ogg
+Vorbis wie die anderen Klaenge, und das macht ein Kodierer:
 
     ffmpeg -i Blocks5/data/rewind.wav -c:a libvorbis -q:a 4 Blocks5/data/rewind.ogg
 

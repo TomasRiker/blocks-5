@@ -19,7 +19,7 @@ namespace
 	// dann bei den Lamellen.
 	void crossfadeRestart(Engine& engine)
 	{
-		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.1);
+		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
 		else engine.crossfade(new CF_Slices, 0.85);
 	}
 }

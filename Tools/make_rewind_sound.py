@@ -4,28 +4,30 @@
     python3 Tools/make_rewind_sound.py Blocks5/data/rewind.wav
     ffmpeg -i Blocks5/data/rewind.wav -c:a libvorbis -q:a 4 Blocks5/data/rewind.ogg
 
-Geschrieben wird eine WAV-Datei; ins Spiel gehoert sie als Ogg Vorbis, wie die
-anderen 55 Klaenge auch, und dafuer ist ein Kodierer noetig, den die Standard-
-bibliothek nicht mitbringt. Die zweite Zeile macht das. Nur die .ogg wird
-eingecheckt - dieses Skript ist da, damit sich der Ton aendern laesst, ohne ihn
-neu aufnehmen zu muessen.
+Geschrieben wird eine WAV; ins Spiel gehoert sie als Ogg Vorbis wie die anderen
+55 Klaenge, und dafuer ist ein Kodierer noetig, den die Standardbibliothek nicht
+mitbringt. Nur die .ogg wird eingecheckt - dieses Skript ist da, damit sich der
+Ton aendern laesst, ohne ihn neu aufnehmen zu muessen.
 
-Was ein Videorekorder beim Zurueckspulen von sich gibt, und woraus es hier
-zusammengesetzt ist:
+Was hier nachgebaut wird, steht nicht in einem Lehrbuch, sondern ist an einer
+Aufnahme eines echten Rekorders ausgemessen worden. Drei Zahlen daraus tragen
+das Ganze:
 
-  * Das Laufwerk rastet ein - ein kurzer, tiefer Schlag mit etwas Geraeusch
-    darin. Er sitzt ganz am Anfang und ist nach 60 ms vorbei.
-  * Der Wickelmotor laeuft an. Das ist der traegt der Klang: ein Grundton mit
-    seinen ersten Oberwellen, dessen Hoehe mit der Drehzahl steigt. Dazu ein
-    langsames Wummern von etwa 7 Hz - der Wickel laeuft nicht ganz rund.
-  * Der Wickel selbst pfeift, deutlich hoeher und ebenfalls mitsteigend.
-  * Das Band rauscht durch die Fuehrungen. Breitbandiges Rauschen, oben herum
-    gefiltert, und es ist der Teil, der das Tempo hoerbar macht.
-  * Am Ende bremst das Laufwerk: die Hoehe faellt schnell, der Pegel geht
-    zurueck, und ein zweiter, weicherer Schlag beendet es.
+  * Das Spektrum hat ZWEI Berge und dazwischen ein Loch: einen um 250 Hz und
+    einen breiten um 2 bis 4 kHz, und bei 500 bis 1000 Hz liegt es 13 dB
+    tiefer. Der untere ist das Chassis, der obere das Band an Kopf und
+    Fuehrungen. Wer nur den unteren nimmt, bekommt ein Brummen; wer nur den
+    oberen nimmt, ein Zischen. Beide zusammen sind ein Videorekorder.
+  * Die Huellkurve ist nicht glatt, sie klappert - mit 46,5 Hz und dessen
+    Oberwelle, dazu langsamer mit 12 Hz. Das sind die umlaufenden Teile, und
+    dieses Klappern ist der Unterschied zwischen "Rauschen" und "Maschine".
+  * Der Scheitelfaktor betraegt 14 dB. So impulsiv wird es nur durch dieses
+    Klappern; ein gefiltertes Rauschen allein liegt bei etwa 11 dB.
 
-Die Laenge richtet sich nach der Ueberblendung, die 1,1 s dauert; der Ton ist
-etwas laenger, damit das Ausklingen nicht abgeschnitten wirkt.
+Was NICHT drin ist: ein Sinuston. Der erste Versuch war um einen Motorgrundton
+mit Oberwellen und ein Wickelpfeifen herum gebaut, beides als saubere Sinus -
+im Spektrogramm sind das schmale Linien, und genau das hoert man dann auch: ein
+Summen. Ein Laufwerk hat keine Tonhoehe, es hat ein Band und ein Klappern.
 
 Alles hier ist Standardbibliothek: math, random, struct, wave.
 """
@@ -37,46 +39,31 @@ import sys
 import wave
 
 RATE = 44100
-LENGTH = 1.30           # Sekunden, etwas mehr als die Ueberblendung
-BRAKE_START = 0.80      # ab wann gebremst wird, als Anteil der Laenge
-PEAK = 0.55             # Aussteuerung; der Rest der Mischung ist schon laut
 
+# Der Ton darf die Ueberblendung ueberdauern - das Laufwerk kommt zur Ruhe,
+# nachdem das Bild schon wieder steht.
+LENGTH = 1.75
+RUN_UP = 0.45           # Sekunden bis zur vollen Drehzahl
+BRAKE_AT = 1.26         # Sekunde, ab der gebremst wird
 
-def ease_out(x):
-    """Schnell anlaufen, dann einlaufen."""
-    x = max(0.0, min(1.0, x))
-    return 1.0 - (1.0 - x) * (1.0 - x)
+# Die Drehzahl steigt waehrend des Laufs noch etwas: beim Zurueckspulen waechst
+# der Wickel, auf den gespult wird, und damit die Bandgeschwindigkeit.
+DRIFT = 0.10
 
+# Klappern: Grundfrequenz und langsame Unwucht, beide an die Drehzahl gekoppelt.
+CLATTER_HZ = 46.5
+FLUTTER_HZ = 12.0
+CLATTER_DEPTH = 0.55
+FLUTTER_DEPTH = 0.30
 
-def spin(u):
-    """Drehzahl von 0 bis 1 ueber den Verlauf u (0..1).
-
-       Der Exponent ist der Unterschied zwischen "laeuft an" und "laeuft".
-       Mit ease_out() steht die Drehzahl schon nach einem Fuenftel praktisch
-       fest, und dann passiert eine Sekunde lang nichts mehr - der Ton wird
-       eine Flaeche. Mit 0.55 steigt es anfangs schnell und danach immer noch,
-       und genau dieses Weitersteigen ist das, was man als Aufspulen hoert."""
-    if u < BRAKE_START:
-        return (u / BRAKE_START) ** 0.55
-    # Bremsen: von voller Drehzahl in kurzer Zeit auf null.
-    return 1.0 - ease_out((u - BRAKE_START) / (1.0 - BRAKE_START))
-
-
-def envelope(u):
-    """Pegel ueber den Verlauf. Sehr schneller Einsatz, weiches Ende."""
-    attack = min(1.0, u / 0.03)
-    # Der Pegel haengt an der Drehzahl: schneller ist lauter.
-    level = 0.5 + 0.5 * spin(u)
-    if u < BRAKE_START:
-        return attack * level
-    return attack * level * (1.0 - ease_out((u - BRAKE_START) / (1.0 - BRAKE_START))) ** 0.7
+PEAK = 0.50             # Aussteuerung; der Rest der Mischung ist schon laut
 
 
 class OnePole(object):
-    """Ein Tiefpass erster Ordnung, so einfach wie er nur sein kann."""
+    """Ein Tiefpass erster Ordnung; mehrere davon hintereinander machen die
+       Flanke steil genug."""
 
     def __init__(self, cutoff):
-        # a aus der Grenzfrequenz, ueber die Zeitkonstante.
         self.a = 1.0 - math.exp(-2.0 * math.pi * cutoff / RATE)
         self.y = 0.0
 
@@ -85,69 +72,127 @@ class OnePole(object):
         return self.y
 
 
+class Biquad(object):
+    """Bandpass nach dem ueblichen Kochbuch. Zwei Pole reichen: gebraucht wird
+       eine Beule an einer Stelle, kein sauberer Trennfilter."""
+
+    def __init__(self, freq, q, gain):
+        w = 2.0 * math.pi * freq / RATE
+        alpha = math.sin(w) / (2.0 * q)
+        cw = math.cos(w)
+        a0 = 1.0 + alpha
+        self.b0 = alpha / a0
+        self.b1 = 0.0
+        self.b2 = -alpha / a0
+        self.a1 = -2.0 * cw / a0
+        self.a2 = (1.0 - alpha) / a0
+        self.gain = gain
+        self.x1 = self.x2 = self.y1 = self.y2 = 0.0
+
+    def __call__(self, x):
+        y = (self.b0 * x + self.b1 * self.x1 + self.b2 * self.x2
+             - self.a1 * self.y1 - self.a2 * self.y2)
+        self.x2, self.x1 = self.x1, x
+        self.y2, self.y1 = self.y1, y
+        return y * self.gain
+
+
+# Die zwei Beulen und der Tiefpass darueber. Die Zahlen sind nicht geraten: es
+# ist der beste Satz aus einer Suche gegen das gemessene Terzspektrum, und er
+# trifft es im Mittel auf 1,3 dB genau, im schlechtesten Band auf 6 dB.
+#
+# Bemerkenswert ist, was dabei uebrigblieb. Angefangen hatte es mit fuenf
+# Beulen; die Anpassung hat drei davon auf null gezogen. Ein Videorekorder
+# braucht genau zwei: eine schmale bei 250 Hz - das Gehaeuse - und eine breite
+# bei 2,6 kHz - das Band. Die Guete von 3,2 ist der Grund, warum der erste
+# Versuch nicht stimmte: mit 1,4 ist die untere Beule so breit, dass sie das
+# Loch bei 500 Hz zuschuettet, und dann klingt es nach Brummen statt nach
+# Maschine.
+BANDS = ((250.0, 3.2, 1.00),     # das Gehaeuse: schmal
+         (2600.0, 0.8, 0.42))    # das Band: breit
+
+# Und darueber faellt es steil ab. Ein einzelner Pol reicht dafuer nicht - bei
+# 16 kHz stuenden sonst noch 25 dB zu viel.
+LOWPASS_HZ = 4800.0
+LOWPASS_POLES = 3
+
+
+def speed(t):
+    """Drehzahl von 0 bis 1 ueber die Zeit in Sekunden."""
+    if t < RUN_UP:
+        # Kein ease_out: mit einem laeuft die Drehzahl nach einem Fuenftel
+        # praktisch fest, und der Rest ist eine Flaeche.
+        return (t / RUN_UP) ** 0.6
+    if t < BRAKE_AT:
+        return 1.0 + DRIFT * (t - RUN_UP) / (BRAKE_AT - RUN_UP)
+    u = (t - BRAKE_AT) / (LENGTH - BRAKE_AT)
+    return max(0.0, (1.0 + DRIFT) * (1.0 - u) ** 1.6)
+
+
+def pulse(phase, sharpness):
+    """Eine Schwingung, die nicht rund ist, sondern anschlaegt. Mittelwertfrei,
+       damit sie nur moduliert und nichts zur Lautstaerke beitraegt."""
+    c = 0.5 + 0.5 * math.cos(2.0 * math.pi * phase)
+    return c ** sharpness - 1.0 / (sharpness + 1.0)
+
+
 def build(seed):
     """Einen Kanal bauen. Der Startwert macht die beiden Seiten verschieden -
        zwei unabhaengige Rauschquellen sind das ganze Stereobild, das es
        braucht."""
     rnd = random.Random(seed)
     n = int(RATE * LENGTH)
+    bands = [Biquad(f, q, g) for f, q, g in BANDS]
+    lowpass = [OnePole(LOWPASS_HZ) for _ in range(LOWPASS_POLES)]
 
-    # Drei Tiefpaesse hintereinander statt einem: ein einzelner Pol faellt mit
-    # 6 dB je Oktave, und damit steht bei 20 kHz immer noch so viel Rauschen,
-    # dass es das Ganze in weisses Zischen ertraenkt statt nach Band zu klingen.
-    hiss_lo = [OnePole(4800.0), OnePole(4800.0), OnePole(4800.0)]
-    hiss_hi = OnePole(1100.0)     # und unten heraus, ueber die Differenz
-    clunk_lo = OnePole(220.0)     # der Schlag ist dumpf
-
-    # Zwei Phasenakkumulatoren, damit die Hoehe gleiten kann, ohne zu knacken:
-    # der Sprung muesste sonst in der Phase landen.
-    motor_phase = 0.0
-    reel_phase = 0.0
+    clatter_phase = 0.0
+    flutter_phase = 0.0
     out = []
 
     for i in range(n):
         t = i / float(RATE)
-        u = t / LENGTH
-        s = spin(u)
-        env = envelope(u)
+        s = speed(t)
 
-        # --- Wickelmotor: Grundton und die ersten beiden Oberwellen ---------
-        wobble = 1.0 + 0.03 * math.sin(2.0 * math.pi * 7.3 * t)
-        motor_freq = (82.0 + 178.0 * s) * wobble
-        motor_phase += 2.0 * math.pi * motor_freq / RATE
-        motor = (math.sin(motor_phase)
-                 + 0.45 * math.sin(2.0 * motor_phase)
-                 + 0.22 * math.sin(3.0 * motor_phase))
+        # --- Das Laufgeraeusch: Rauschen durch die gemessenen Beulen ---------
+        white = rnd.uniform(-1.0, 1.0)
+        # Die obere Beule kommt erst mit dem Tempo - ein langsam laufendes Band
+        # rauscht nicht. Das Gehaeuse rumpelt dagegen von Anfang an.
+        weights = (1.0, 0.20 + 0.80 * s)
+        noise = 0.0
+        for band, weight in zip(bands, weights):
+            noise += band(white) * weight
+        for stage in lowpass:
+            noise = stage(noise)
 
-        # --- Das Pfeifen des Wickels ----------------------------------------
-        reel_freq = (520.0 + 2100.0 * s) * wobble
-        reel_phase += 2.0 * math.pi * reel_freq / RATE
-        reel = math.sin(reel_phase) + 0.3 * math.sin(2.0 * reel_phase)
+        # --- Das Klappern ----------------------------------------------------
+        # Die Frequenzen haengen an der Drehzahl; ein wenig Zittern in der
+        # Phase, damit daraus kein sauberer Ton wird.
+        clatter_phase += (CLATTER_HZ * s + rnd.uniform(-1.5, 1.5)) / RATE
+        flutter_phase += (FLUTTER_HZ * s) / RATE
+        modulation = (1.0
+                      + CLATTER_DEPTH * s * pulse(clatter_phase, 3.0)
+                      + FLUTTER_DEPTH * s * pulse(flutter_phase, 1.5))
 
-        # --- Das Band in den Fuehrungen -------------------------------------
-        hiss = rnd.uniform(-1.0, 1.0)
-        for stage in hiss_lo: hiss = stage(hiss)
-        hiss -= hiss_hi(hiss)
-        hiss *= 3.0               # was die drei Pole an Pegel gekostet haben
+        # --- Der Pegel -------------------------------------------------------
+        level = 0.25 + 0.75 * s
 
-        # --- Das Einrasten des Laufwerks ------------------------------------
-        clunk = 0.0
-        if t < 0.08:
-            decay = math.exp(-t / 0.018)
-            clunk = clunk_lo(rnd.uniform(-1.0, 1.0)) * decay
-            clunk += 0.8 * math.sin(2.0 * math.pi * 68.0 * t) * decay
+        sample = noise * modulation * level
 
-        # --- Und das Abstellen am Ende --------------------------------------
-        stop = 0.0
-        stop_at = LENGTH * 0.94
-        if t > stop_at:
-            decay = math.exp(-(t - stop_at) / 0.02)
-            stop = 0.5 * math.sin(2.0 * math.pi * 55.0 * (t - stop_at)) * decay
+        # --- Das Einrasten des Laufwerks --------------------------------------
+        if t < 0.09:
+            decay = math.exp(-t / 0.020)
+            sample += 0.55 * rnd.uniform(-1.0, 1.0) * decay
+            sample += 0.45 * math.sin(2.0 * math.pi * 78.0 * t) * decay
 
-        sample = env * (0.38 * motor
-                        + 0.13 * s * reel
-                        + 0.20 * (0.25 + 0.75 * s) * hiss) \
-               + 0.55 * clunk + stop
+        # --- Und die Schlaege beim Abstellen ----------------------------------
+        for when, strength, freq in ((BRAKE_AT + 0.02, 0.75, 96.0),
+                                     (BRAKE_AT + 0.14, 0.45, 72.0),
+                                     (BRAKE_AT + 0.27, 0.30, 58.0)):
+            if when <= t < when + 0.12:
+                decay = math.exp(-(t - when) / 0.028)
+                sample += strength * (0.6 * math.sin(2.0 * math.pi * freq * (t - when))
+                                      + 0.4 * rnd.uniform(-1.0, 1.0)) * decay
+
         out.append(sample)
 
     return out
@@ -165,11 +210,20 @@ def main():
     peak = max(max(abs(v) for v in left), max(abs(v) for v in right))
     gain = (PEAK / peak) if peak > 0.0 else 1.0
 
+    # Ein weicher Einsatz und ein weiches Ende, damit an den Raendern nichts
+    # knackt.
+    n = len(left)
+    fade_in = int(RATE * 0.004)
+    fade_out = int(RATE * 0.030)
+
     frames = bytearray()
-    for a, b in zip(left, right):
+    for i, (a, b) in enumerate(zip(left, right)):
+        f = 1.0
+        if i < fade_in: f = i / float(fade_in)
+        elif i > n - fade_out: f = (n - i) / float(fade_out)
         frames += struct.pack('<hh',
-                              int(max(-1.0, min(1.0, a * gain)) * 32767),
-                              int(max(-1.0, min(1.0, b * gain)) * 32767))
+                              int(max(-1.0, min(1.0, a * gain * f)) * 32767),
+                              int(max(-1.0, min(1.0, b * gain * f)) * 32767))
 
     handle = wave.open(path, 'wb')
     handle.setnchannels(2)
@@ -179,7 +233,7 @@ def main():
     handle.close()
 
     print('%s: %.2f s, %d Bilder, Spitze %.2f vor der Anpassung'
-          % (path, LENGTH, len(left), peak))
+          % (path, LENGTH, n, peak))
     return 0
 
 

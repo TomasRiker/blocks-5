@@ -475,11 +475,23 @@ ends; at 6.5 the picture would sit half a screen out and jump straight when the 
 The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is
 the transport braking and the servo locking.
 
-The sound is generated rather than recorded: `Tools/make_rewind_sound.py` builds `rewind.ogg`
-out of sine waves and filtered noise — the spool motor with its harmonics, the reel whine, the
-tape rushing through the guides, and the two clunks of the transport engaging and stopping.
+The sound is generated rather than recorded, and its numbers were **measured off a recording of
+a real machine** rather than guessed: `Tools/make_rewind_sound.py` builds `rewind.ogg` from
+filtered noise. Three findings carry it. The spectrum has **two humps with a hole between them**
+— a narrow one at 250 Hz (the chassis) and a broad one at 2.6 kHz (the tape), with 500–1000 Hz
+sitting 13 dB lower; take only the first and it hums, only the second and it hisses. The
+envelope **clatters** at 46.5 Hz and, more slowly, at 12 Hz — the turning parts, and the
+difference between "noise" and "machine". And the crest factor is 14 dB, which only that
+clatter produces; filtered noise alone is about 11.
+
+What is deliberately *not* in it is a sine. The first attempt was built around a motor
+fundamental with harmonics and a reel whine, and those are narrow lines in a spectrogram and a
+hum in the ear. A transport has no pitch; it has a tape and a rattle. The filter is the best
+match a search against the measured third-octave curve found — mean error 1.3 dB — and it
+collapsed five bands to two, which is the whole shape of the thing.
+
 `CF_Rewind`'s constructor plays it, so the picture and the sound cannot be had separately. It
-runs 1.3 s against the transition's 1.1 so that the run-down is not cut off with the picture.
+runs 1.75 s against the transition's 1.5 so that the run-down is not cut off with the picture.
 
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
