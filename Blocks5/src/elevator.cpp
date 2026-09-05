@@ -29,7 +29,7 @@ Elevator::Elevator(Level& level,
 		{
 			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
 			Sound* p_sound = Manager<Sound>::inst().request("elevator.ogg");
-			p_soundInst = p_sound->createInstance();
+			p_soundInst = p_sound->createInstance(true);
 			p_sound->release();
 
 			p_soundInst->setVolume(0.0);

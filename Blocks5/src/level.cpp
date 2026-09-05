@@ -84,7 +84,7 @@ Level::Level()
 	if(!p_rainSoundInst)
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("rain.ogg");
-		p_rainSoundInst = p_sound->createInstance();
+		p_rainSoundInst = p_sound->createInstance(true);
 		p_rainSoundInst->setVolume(0.0);
 		p_sound->release();
 	}
@@ -93,7 +93,7 @@ Level::Level()
 	if(!p_thunderstormSoundInst)
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("thunderstorm.ogg");
-		p_thunderstormSoundInst = p_sound->createInstance();
+		p_thunderstormSoundInst = p_sound->createInstance(true);
 		p_thunderstormSoundInst->setVolume(0.0);
 		p_sound->release();
 	}

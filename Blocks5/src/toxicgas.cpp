@@ -23,7 +23,7 @@ ToxicGas::ToxicGas(Level& level,
 	{
 		// Das ist die erste Instanz. Sound abspielen!
 		Sound* p_sound = Manager<Sound>::inst().request("gas.ogg");
-		p_soundInst = p_sound->createInstance();
+		p_soundInst = p_sound->createInstance(true);
 		p_sound->release();
 		if(p_soundInst)
 		{

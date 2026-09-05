@@ -84,6 +84,21 @@ Sound::~Sound()
 
 SoundInstance* Sound::createInstance(bool forceCreation)
 {
+	// Zweimal derselbe Klang innerhalb von 10 ms ist einer zu viel: ein Dutzend
+	// fallender Bloecke loest in einem Tick ein Dutzend Mal denselben Aufschlag
+	// aus, und uebereinandergelegt ist das nicht lauter, sondern kaputt. Die
+	// Sperre gilt den Einzelschuessen aus Engine::playSound(), die eine 0 auch
+	// verkraften - dann faellt eben ein Aufschlag von zwoelfen aus.
+	//
+	// Die Dauerklaenge fordern mit forceCreation an, und das ist kein Luxus,
+	// sondern der Unterschied zwischen laufen und abstuerzen. Sie halten ihre
+	// eine Instanz in einem static, das beim letzten Objekt auf 0 geht und das
+	// erste Objekt des naechsten Levels neu fuellt - und zwischen diesen beiden
+	// Augenblicken liegt nur das Bauen des neuen Levels. Gemessen an Gift und
+	// Maske, die als einzige in jedem Level stecken: 12 und 13 ms. Die Sperre
+	// steht bei 10. Zwei Millisekunden Luft auf dieser Maschine, auf einer
+	// schnelleren keine, und dahinter wartet ein Nullzeiger, auf dem in der
+	// naechsten Zeile setVolume() steht.
 	if(!forceCreation)
 	{
 		uint t = SDL_GetTicks();

@@ -47,7 +47,7 @@ Player::Player(Level& level,
 		{
 			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
 			Sound* p_sound = Manager<Sound>::inst().request("toxic.ogg");
-			p_toxicSoundInst = p_sound->createInstance();
+			p_toxicSoundInst = p_sound->createInstance(true);
 			p_sound->release();
 
 			p_toxicSoundInst->setVolume(0.0);
@@ -56,7 +56,7 @@ Player::Player(Level& level,
 			p_toxicSoundInst->pause();
 
 			p_sound = Manager<Sound>::inst().request("mask.ogg");
-			p_maskSoundInst = p_sound->createInstance();
+			p_maskSoundInst = p_sound->createInstance(true);
 			p_sound->release();
 
 			p_maskSoundInst->setVolume(0.0);
