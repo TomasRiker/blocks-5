@@ -60,8 +60,8 @@ namespace
 
 	// Wo die Einblendung des Rekorders steht. Weit genug herein, dass die
 	// Woelbung des CRT-Filters sie nicht an der Ecke abschneidet.
-	const int OSD_X = 30;
-	const int OSD_Y = 26;
+	const int OSD_X = 50;
+	const int OSD_Y = 50;
 
 	// Und wie rewind.png aufgeteilt ist: links das Wort, rechts daneben die
 	// beiden Dreiecke. Die Hoehe ist die des ganzen Bildes; was darunter leer
