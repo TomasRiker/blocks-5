@@ -126,6 +126,13 @@ public:
 	Presets* getPresets();
 	const std::vector<Object*>& getObjects() const;
 	Player* getActivePlayer();
+
+	// Was der Spieler auf seinem Feld gerade angezeigt bekommt, wieder
+	// zumachen - heute ist das der Hinweiszettel. Liefert false, wenn es
+	// nichts zuzumachen gab; dann gehoert die Taste ihrem eigentlichen
+	// Empfaenger.
+	bool dismissDisplay();
+
 	void switchToNextPlayer();
 	Exit* getExit();
 	uint getNumDiamondsNeeded() const;

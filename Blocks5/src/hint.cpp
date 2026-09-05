@@ -147,6 +147,7 @@ Hint::Hint(Level& level,
 	alpha = shownAlpha = 0.0;
 	unroll = 0.0;
 	activeTicks = 0;
+	dismissed = false;
 	noteTexture = 0;
 	// Vec2i hat keinen initialisierenden Standardkonstruktor.
 	targetPosition = Vec2i(320, 200);
@@ -453,24 +454,29 @@ void Hint::onUpdate()
 	Object* p_obj = level.getFrontObjectAt(position);
 	const bool playerIsHere = (p_obj == level.getActivePlayer());
 
+	// Wer weggeht, hat den Zettel nicht mehr weggedrueckt: beim naechsten
+	// Betreten geht er wieder auf.
+	if(!playerIsHere) dismissed = false;
+	const bool open = playerIsHere && !dismissed;
+
 	// Das Ziel steht ein einziges Mal fest, wenn der Zettel aufgeht. Jeder
 	// spaetere Blick auf die Spielerposition liesse ihn beim Verlassen des
 	// Feldes noch einmal auf die andere Seite springen - gerade, waehrend er
 	// verschwindet. Nicht in onCollect(): das laeuft erst, wenn der Spieler
 	// mittig steht, und da ist der Zettel schon unterwegs.
-	if(playerIsHere && activeTicks == 0) updateTargetPosition();
+	if(open && activeTicks == 0) updateTargetPosition();
 
 	// Das Aufrollen laeuft nach der Uhr und nicht nach shownAlpha: das naehert
 	// sich seinem Ziel nur an und kaeme nie ganz an, der Zettel bliebe also
 	// fuer immer ein wenig eingerollt.
-	if(playerIsHere) { if(activeTicks < UNROLL_END) activeTicks++; }
-	else             { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
+	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
+	else     { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
 
 	// Erst einrollen, dann verschwinden - daher steht das Rollen oben. Solange
 	// noch etwas aufzurollen ist, bleibt der Zettel voll sichtbar stehen.
-	alpha = (playerIsHere || unroll > 0.0) ? 0.85 : 0.0;
+	alpha = (open || unroll > 0.0) ? 0.85 : 0.0;
 	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
 	if(shownAlpha <= 1.0 / 255.0)
 	{
@@ -498,6 +504,18 @@ void Hint::onCollect(Player* p_player)
 {
 	// Absichtlich leer, und deshalb ueberhaupt da: Object::onCollect() liesse
 	// den Zettel verschwinden. Er bleibt liegen und laesst sich wieder lesen.
+}
+
+bool Hint::dismiss()
+{
+	// Nur, wenn ueberhaupt etwas zu sehen ist. Sonst meldet der Zettel nichts,
+	// und Escape oeffnet wie immer das Spielmenue. activeTicks statt
+	// shownAlpha, weil der Zettel zwischen zwei Betretungen noch ausblendet -
+	// das ist nichts, was man zumachen koennte.
+	if(dismissed || activeTicks <= 0) return false;
+
+	dismissed = true;
+	return true;
 }
 
 void Hint::saveAttributes(TiXmlElement* p_target)

@@ -75,6 +75,12 @@ public:
 	virtual void onFire();
 	virtual void burst();
 
+	// Etwas zumachen, das der Spieler gerade angezeigt bekommt, ohne dass er
+	// das Feld verlassen muss. Nur der Hinweiszettel kann das; wer nichts
+	// anzeigt, meldet false, und dann gehoert die Taste dem, der sie sonst
+	// bekommen haette - bei Escape also dem Spielmenue.
+	virtual bool dismiss() { return false; }
+
 	virtual bool changeInEditor(int mod);
 	virtual void saveAttributes(TiXmlElement* p_target);
 	virtual void saveExtendedAttributes(TiXmlElement* p_element);

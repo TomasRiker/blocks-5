@@ -1940,6 +1940,21 @@ Player* Level::getActivePlayer()
 	return p_activePlayer;
 }
 
+bool Level::dismissDisplay()
+{
+	// Nur auf dem Feld, auf dem der Spieler steht: dort steht der Zettel, den
+	// er gerade liest. Object::dismiss() liefert ueberall sonst false.
+	if(!p_activePlayer) return false;
+
+	const std::vector<Object*>& here = getAllObjectsAt(p_activePlayer->getPosition());
+	for(std::vector<Object*>::const_iterator i = here.begin(); i != here.end(); ++i)
+	{
+		if((*i)->dismiss()) return true;
+	}
+
+	return false;
+}
+
 void Level::switchToNextPlayer()
 {
 	Player* p_firstPlayer = 0;

@@ -887,6 +887,23 @@ that never arrives, so a sheet driven by it would stay a little rolled up for ev
 the sheet opens between tick 20, where it is at 96% of its size, and tick 40, and rolls up
 over the same twenty ticks.
 
+**Return and Escape put the note away**, without walking off the field. The sheet is 300x400
+and covers the play area it is read over, so the alternative was to move — and moving is a
+move you may not want to spend. `Object::dismiss()` is a virtual that answers false
+everywhere except on a hint that is currently showing something; `Level::dismissDisplay()`
+asks the objects on the *player's own* field and reports whether anything took the key.
+
+The key has to be caught in `GameGUI::onKeyEvent` rather than in `Hint::onUpdate`, and the
+tick order is why: `GUI::update()` runs before `p_gs->onUpdate()`, so by the time the level
+saw the key the game menu would already be open. Escape therefore asks `dismissDisplay()`
+first and only falls through to the menu when nothing was there to close — which is also what
+makes a second Escape open the menu as always.
+
+`dismissed` holds until the player leaves the field, or the note would simply open again on
+the next tick and the key would have done nothing. Reading it again means stepping off and
+back on; that is the same gesture as before and keeps Escape from turning into a toggle that
+never reaches the menu.
+
 **It rolls up before it starts to go**, which is why the roll is computed first in
 `onUpdate` and `alpha` reads it: while anything is still rolled out, the sheet stays fully
 opaque and in place, and only once `unroll` reaches 0 does it fade and fly back. Leaving a

@@ -20,6 +20,7 @@ public:
 	void onUpdate();
 	void onRemove();
 	void onCollect(Player* p_player);
+	bool dismiss();
 	void saveAttributes(TiXmlElement* p_target);
 
 	const std::string& getText() const;
@@ -64,6 +65,11 @@ private:
 	// seinem Ziel nur naehert und nie ankommt.
 	double unroll;
 	int activeTicks;
+
+	// Weggedrueckt, obwohl der Spieler noch auf dem Feld steht. Gilt, bis er
+	// es verlaesst - sonst ginge der Zettel im naechsten Takt wieder auf, und
+	// die Taste haette nichts bewirkt.
+	bool dismissed;
 };
 
 #endif

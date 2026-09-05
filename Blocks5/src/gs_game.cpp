@@ -139,6 +139,18 @@ public:
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 		if(!pressed) return;
 
+		// Ein offener Hinweiszettel bekommt Return und Escape zuerst. Er ist so
+		// hoch wie das Spielfeld und deckt es ab, und ohne das muesste man
+		// weggehen, um wieder etwas zu sehen. Gab es nichts zuzumachen, meldet
+		// dismissDisplay() false und die Taste geht ihren gewohnten Weg -
+		// Escape also weiter ins Spielmenue.
+		if(event.keysym.sym == SDLK_ESCAPE ||
+		   event.keysym.sym == SDLK_RETURN ||
+		   event.keysym.sym == SDLK_KP_ENTER)
+		{
+			if(game.p_level && game.p_level->dismissDisplay()) return;
+		}
+
 		switch(event.keysym.sym)
 		{
 		case SDLK_ESCAPE:
