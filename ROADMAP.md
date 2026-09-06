@@ -1103,6 +1103,69 @@ A backgrounded tab gets no `requestAnimationFrame` and therefore no frames,
 whichever route is taken - the recording simply stops there, which is also what
 `handleAppFocus` already does to it.
 
+29. Eight new levels for 1.2.0, and a skin to put them in
+---------------------------------------------------------
+The shipped campaign has **42** levels, so eight more make it 50.
+
+The list starts from what the campaign does not use. Three presets are placed in
+no shipped level and are not spawned by anything either — `TeleporterNoPlayer`,
+`ShieldedActivatorBlock` and `E_Multiplexer`. (`ToxicGas` is placed in none, but
+that means nothing: `ToxicWaste` makes it when a barrel is destroyed, and nine
+levels hold 39 barrels between them. What no level does is start with gas
+already there.) The electronics family is thin everywhere:
+`E_PulseSwitch` and `E_PulsePanel` live in one level between them, `E_HexDigit`
+in two, `LightSwitch` in exactly one level with exactly one piece. `Syringe`
+appears in three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
+
+1. **Stock up before you go in.** Collect enough syringes first, then survive
+   long enough inside the toxic gas to reach what is on the other side. The
+   syringes are a supply, not a cure: `contamination` is allowed to go negative
+   for exactly this, and `gs_game.cpp` only crackles and spreads toxin above
+   zero.
+
+   A `Hint` before the gas has to say so, in the shape of *"you will need enough
+   protection"* — the mechanic is invisible otherwise, since nothing on screen
+   counts the syringes and a player who walks in with two instead of five simply
+   dies. Hint text is a `$ID` in a `<Text><![CDATA[...]]></Text>` child, resolved
+   through `data/languages.txt`, so it needs an entry there with `§en:` and
+   `§de:` bodies, named like the existing `$HINT_BLOCKS_NN_MM`.
+
+   Placing the gas in the level file rather than bursting a barrel for it is the
+   first time the campaign does that.
+2. **The mask is worth more than the mask.** One mask, two gassed corridors, and
+   the mask has to be dropped and fetched again — `inventory[2]` holds only one.
+3. **A door that only blocks you.** `TeleporterNoPlayer` sends blocks somewhere
+   the player cannot follow, so the way through has to be built remotely.
+4. **Counting.** `E_HexDigit` as the visible goal: feed it a number with
+   `E_BlockDetector` and `E_Gate`, and the exit opens on the right one.
+5. **One switch, four places.** `E_Multiplexer` steering a single pulse train to
+   one of several barrages, so the order of the throws is the puzzle.
+6. **Light and mirrors.** `LightBarrierSender` and the receiver, with `Mirror`
+   redirecting the beam and blocks casting the gaps.
+7. **Everything on rails.** `Elevator` and `Rail` carrying blocks past `Spike`
+   rows on a timing the player sets with `E_Clock`.
+8. **The eye in the dark.** `Eye` plus `nightVision`, where what you cannot see
+   is watching, and `LightSwitch` decides which of you is blind.
+
+**A skin for them.** The four that ship are `blocks_01/02/03` — earth, brick and
+grass — and `space`. Both themes that would fit these levels are indoors, which
+is what neither existing family offers:
+
+- **Laboratory or chemical plant.** Tiled walls, pipework, warning stripes.
+  It covers the most of the list above at once — gas, syringe, mask, and the
+  diamond machine reads as a centrifuge rather than as magic. The hint would be
+  a clipboard on the wall, so no `hintscroll.txt` and no roll.
+- **Inside the machine.** Circuit board green, gold traces, solder pads; the
+  natural home for the `E_*` family, which is the thinnest part of the campaign.
+  The hint would be a small display, again unrolled.
+
+Of the two, the laboratory earns its keep across more levels; the circuit board
+is closer to a single level's gimmick. Other themes that were considered and are
+weaker for this set: ice cavern, volcano, temple ruins, sewers, greenhouse.
+
+A skin needs `tileset.xml`, `sprites.png` and its own `hint.png`; see
+`Level::loadSkin` and the packing rules in `Blocks5/pack.sh`.
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

@@ -396,8 +396,13 @@ void GS_Game::onUpdate()
 	Player* p_player = p_level->getActivePlayer();
 	if(p_player)
 	{
+		// Groesser als null und nicht bloss ungleich: unter null bedeutet, dass
+		// der Spieler auf Vorrat Spritzen gesammelt hat und laenger durchhaelt.
+		// Er ist dann nicht vergiftet, sondern besser als sauber - es knattert
+		// nichts, und es wird auch kein Gift verteilt. (So haelt es die
+		// Einfaerbung des Bildschirms oben schon immer.)
 		int c = p_player->getContamination();
-		if(c)
+		if(c > 0)
 		{
 			if(c >= 50)
 			{

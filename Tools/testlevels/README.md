@@ -33,3 +33,19 @@ abbrechen.
 Ein Hinweis zum Schalter: `Player::move` setzt nach einer Beruehrung eine Sperre
 von 20 Takten. Wer die Taste laenger als 0.4 s haelt, schaltet den Strom also
 wieder aus.
+
+
+`contamination.xml`
+-------------------
+Bob steht im Giftgas, und ein Stueck weiter rechts liegen drei Spritzen
+hintereinander. Stehenbleiben, bis der Geigerzaehler knattert und der Bildschirm
+gruen wird, dann nach rechts durchlaufen.
+
+Die Verseuchung geht dabei unter null, und das soll sie: wer auf Vorrat sammelt,
+haelt es hinterher laenger im Gas aus. Es darf dann aber nichts knattern - der
+Spieler ist nicht vergiftet, sondern besser als sauber. Genau daran hing der
+Fehler: `gs_game.cpp` fragte `if(c)` statt `if(c > 0)` und wuerfelte mit
+`random(0, 2000 + c)`. Ab vier Spritzen wird diese Spanne negativ, und weil
+`MTRand::randInt()` vorzeichenlos entgegennimmt, wurden daraus vier Milliarden -
+der Geigerzaehler knatterte bis zum Neustart des Levels durch, gemessen
+neunundzwanzigmal je Sekunde.

@@ -119,6 +119,12 @@ std::string sanitizeFilenameStem(const std::string& untrusted,
 int random(int min,
 		   int max)
 {
+	// Eine leere Spanne ist leer und nicht riesig: MTRand::randInt() nimmt
+	// uint32 entgegen, ein negatives max - min wuerde dort zu vier Milliarden,
+	// und heraus kaeme eine beliebige Zahl weit ausserhalb von [min, max].
+	// Genau so wurde aus einer Verseuchung unter null ein Geigerzaehler, der
+	// nicht mehr aufhoerte.
+	if(max <= min) return min;
 	return min + mt.randInt(max - min);
 }
 

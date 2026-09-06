@@ -585,7 +585,10 @@ bool Player::addInventory(uint index,
 	}
 	else if(index == 3)
 	{
-		// Spritze
+		// Spritze. Der Wert darf unter null gehen, und das ist kein Versehen:
+		// wer vorher Spritzen sammelt, haelt es hinterher laenger im Gas aus.
+		// Jeder, der contamination liest, muss also mit einer negativen Zahl
+		// umgehen koennen - siehe gs_game.cpp.
 		contamination -= 600;
 		updateToxicSound();
 		return true;
