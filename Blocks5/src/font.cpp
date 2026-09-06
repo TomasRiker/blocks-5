@@ -350,9 +350,13 @@ std::string Font::fitText(const std::string& text,
 	if(dim.x <= maxWidth) return text;
 
 	// Binaere Suche ueber die Laenge, gemessen wird jedesmal der ganze Kandidat
-	// samt Punkten. Die Zeichenpositionen aus measureText() waeren der
-	// naheliegende Weg und taugen nicht: bei <h> im Text stehen dort weniger
-	// Eintraege als der Text Zeichen hat, und der Index passte nicht mehr.
+	// samt Punkten. Aus den Zeichenpositionen von measureText() liesse sich die
+	// Stelle zwar in einem Durchgang ablesen, aber nicht die Breite: die ist
+	// nicht cursor.x, sondern das Maximum ueber cursor.x + Zeichenbreite +
+	// Kursivneigung, ein Zeilenumbruch setzt cursor.x ohnehin zurueck, und wie
+	// breit die drei Punkte werden, haengt davon ab, ob an der Schnittstelle
+	// ein <h> offen ist. Den ganzen Kandidaten zu messen fragt genau das, was
+	// die Antwort sein soll.
 	size_t lo = 0, hi = text.length();
 	while(lo < hi)
 	{
@@ -380,7 +384,14 @@ void Font::measureText(const std::string& text,
 	{
 		uint r = static_cast<uint>(text.length() - i - 1);
 
-		if(p_outCharPositions) p_outCharPositions->push_back(cursor + offset);
+		// Eine Position je Byte, nicht je Durchlauf. Die Eingabefelder schlagen
+		// hier mit dem Byteindex nach, unter dem auch ihr Cursor steht, und ein
+		// <h> ist drei Bytes lang bei einem einzigen Durchlauf: die Schleife
+		// fuellt deshalb erst auf, was der vorige uebersprungen hat. Der Cursor
+		// steht dabei noch genauso wie vor dem Element, das keine Breite hat -
+		// wer mitten im <h> steht, steht eben an dessen Stelle.
+		if(p_outCharPositions)
+			while(p_outCharPositions->size() <= i) p_outCharPositions->push_back(cursor + offset);
 
 		unsigned char c = text[i];
 		if(c == '\n' || static_cast<char>(c) == '\xB6')
@@ -432,7 +443,11 @@ void Font::measureText(const std::string& text,
 		openTags--;
 	}
 
-	if(p_outCharPositions) p_outCharPositions->push_back(cursor + offset);
+	// Bis einschliesslich text.length(), denn hinter dem letzten Zeichen darf
+	// der Cursor auch stehen. Der Vektor hat damit immer genau ein Feld mehr,
+	// als der Text Bytes hat.
+	if(p_outCharPositions)
+		while(p_outCharPositions->size() <= text.length()) p_outCharPositions->push_back(cursor + offset);
 	if(p_outDimensions) *p_outDimensions = maximum;
 }
 

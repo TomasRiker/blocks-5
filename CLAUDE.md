@@ -1467,6 +1467,16 @@ entry on the stack for the rest of the run; an extra `</h>` used to pop the *cal
 or `top()` an empty stack — a level titled `</h>Hello` crashed the game, and a level title is
 a file from a stranger.
 
+**`measureText`'s position array is indexed by byte**, one entry per byte of the string and one
+behind it — `text.length() + 1`, always. The bytes of `<h>` and `</h>` get an entry each even
+though they draw nothing, all carrying the cursor the tag stands at. That is what the three
+callers need and already assumed: the edit boxes look a position up under the same byte index
+their caret uses, and `GUI_MultiLineEditBox` reads `[i + 1]` to size a selection. One entry per
+loop pass instead left the array short — two per `<h>`, three per `</h>` — so a caret at the end
+of such a text read past the vector. Typing `<h>abcdef` into the level editor's title field and
+pressing End put the caret 190 px right of the last letter, which is whatever stood one past the
+end.
+
 **Short messages are the Engine's, not a game state's.** `Engine::showToast(type, text,
 duration, suppressSound)` slides a bar in at the top edge, holds it, and slides it out again —
 green for `TOAST_OK`, red for `TOAST_ERROR`, 2 s and 4 s by default, with `teleport_failed.ogg`

@@ -27,6 +27,10 @@ public:
 
 	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color);
 	void renderTextPure(const std::string& text);
+	// p_outCharPositions bekommt eine Position je Byte des Textes und eine
+	// dahinter, also immer text.length() + 1 Stueck - auch fuer die Bytes von
+	// <h> und </h>, die selbst nichts zeichnen. Die Eingabefelder schlagen hier
+	// mit demselben Byteindex nach, unter dem ihr Cursor steht.
 	void measureText(const std::string& text, Vec2i* p_outDimensions, std::vector<Vec2i>* p_outCharPositions, const Vec2i& offset = Vec2i(0, 0));
 
 	// Den Text auf hoechstens maxWidth Bildpunkte bringen: was nicht mehr
