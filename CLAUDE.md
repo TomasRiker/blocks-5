@@ -76,6 +76,24 @@ distribution's `optipng` in place of `tools\optipng`. `./pack.sh` does everythin
 `data.zip` and the skin archives are build products that are not in Git, and the game will not
 start without them.
 
+**The XML files reach `data.zip` without their comments.** The dialogs in `data/` are commented
+the way the source is, and those notes are nobody's business who opens the archive — but they
+belong in the files. So the sources are left alone and
+`Tools/strip_xml_comments.py` writes stripped copies into a staging directory that the
+packing scripts then pack from, which is why `pack.sh` and `zip_data.bat` call `7za` twice:
+everything else out of `data/`, the XML out of the staging directory. It is the one place
+Windows packing needs Python, and without it `zip_data.bat` refuses rather than shipping the
+comments.
+
+A comment is removed only if it has its lines to itself, and that is a guard rather than a
+matter of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--` is
+simply tiles 60, 33, 45, 45 — and to a parser that is the start of a comment like any other,
+which would swallow everything up to the next `-->` and quietly destroy the level. Asking
+whether the file is well-formed does not help, because it *is*: ElementTree reads
+`<Row>aaa<!--bbb</Row><Row>ccc-->ddd</Row>` without complaint. A row of tiles always has data
+before it on its line; a comment in a dialog never does. One written after something else on
+the same line is reported and kept.
+
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
 correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
 does that for you; it has to come last, because every argument after it goes to `blocks5.exe`

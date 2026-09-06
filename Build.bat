@@ -306,7 +306,8 @@ IF NOT EXIST "Blocks5\levels\skins\space.zip"      SET "MISSING=%MISSING% space.
 IF DEFINED MISSING (
 	ECHO.
 	ECHO ERROR: packing did not produce:%MISSING%
-	ECHO        tools\7za.exe is needed for this step.
+	ECHO        tools\7za.exe is needed for this step, and Python for taking
+ECHO        the comments out of the XML files on their way into data.zip.
 	GOTO fail
 )
 :nodata

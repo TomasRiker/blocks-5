@@ -53,6 +53,7 @@ for arg in "$@"; do
 done
 
 command -v 7za >/dev/null 2>&1 || { echo "7za fehlt - sudo apt install p7zip-full"; exit 2; }
+command -v python3 >/dev/null 2>&1 || { echo "python3 fehlt - es nimmt die Kommentare aus den XML-Dateien"; exit 2; }
 if [ $optimize -eq 1 ] && ! command -v optipng >/dev/null 2>&1; then
     echo "(optipng fehlt, die PNGs bleiben wie sie sind)"
     optimize=0
@@ -85,12 +86,23 @@ packInto() { # $1=Ziel  $2=Passwort ("" fuer keins)  Rest=Muster
     fi
 }
 
+# Die XML-Dateien kommen aus einem Zwischenverzeichnis, in dem
+# Tools/strip_xml_comments.py ihre Kommentare entfernt hat: die Notizen in den
+# Dialogen sollen in den Quelldateien stehen bleiben, aber nicht im Archiv.
+# Deshalb zwei Aufrufe an 7za - der zweite haengt an, wie bei den Skins auch.
 packData() {
     echo "data.zip ..."
+    local staged
+    staged=$(mktemp -d) || return 1
+    python3 "$HERE/../Tools/strip_xml_comments.py" --out "$staged" "$HERE/data" || {
+        rm -rf "$staged"; return 1; }
     ( cd "$HERE/data" || exit 1
       rm -f ../data.zip
       runOptipng
-      packInto ../data.zip "$DATA_PASSWORD" '*.xml' '*.png' '*.ogg' '*.txt' '*.dat' ) || return 1
+      packInto ../data.zip "$DATA_PASSWORD" '*.png' '*.ogg' '*.txt' '*.dat'
+      cd "$staged" || exit 1
+      packInto "$HERE/data.zip" "$DATA_PASSWORD" '*.xml' ) || { rm -rf "$staged"; return 1; }
+    rm -rf "$staged"
     echo "  $(unzip -l "$HERE/data.zip" | tail -1 | tr -s ' ')"
 }
 

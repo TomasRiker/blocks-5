@@ -88,6 +88,22 @@ pruefen; es ist reine Standardbibliothek:
 weil der Windows-Build kein Python laufen laesst, und die Pruefung
 `windows_icon` haelt sie aktuell.
 
+    python3 Tools/strip_xml_comments.py --out VERZEICHNIS Blocks5/data
+
+`strip_xml_comments.py` legt die XML-Dateien ohne ihre Kommentare in einem
+Zwischenverzeichnis ab, aus dem dann gepackt wird - die Notizen in den Dialogen
+bleiben in den Quelldateien und gehen niemanden etwas an, der `data.zip`
+oeffnet. `pack.sh` und `zip_data.bat` rufen es von sich aus auf; ein eigener
+Aufruf ist nur zum Nachsehen noetig. Anders als `make_ico.py` laeuft es damit
+auch unter Windows, und ohne Python packt `zip_data.bat` nicht.
+
+Ein Kommentar wird nur entfernt, wenn er seine Zeilen fuer sich hat. Das ist
+kein Schoenheitsgrund: in einem Level steht in `<Row>` je Zeichen eine
+Kachelnummer, und `<!--` waeren die Kacheln 60, 33, 45, 45 - fuer einen Parser
+ein Kommentaranfang wie jeder andere. Eine Kachelzeile hat immer Daten vor sich
+auf ihrer Zeile, ein Kommentar in einem Dialog nie. Wer einen doch hinter etwas
+anderes setzt, bekommt ihn gemeldet und behaelt ihn im Archiv.
+
 
 Klaenge
 -------
