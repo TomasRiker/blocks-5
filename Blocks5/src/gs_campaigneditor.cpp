@@ -2,6 +2,7 @@
 #include "gs_campaigneditor.h"
 #include "level.h"
 #include "campaign.h"
+#include "transfer.h"
 #include "texture.h"
 #include "gui_all.h"
 #include "cf_all.h"
@@ -128,20 +129,18 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste fuellen
-			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns");
+			// Dateiliste fuellen, aus beiden Wurzeln: die mitgelieferte Kampagne
+			// liegt beim Spiel, die eigenen beim Spieler.
+			const std::vector<std::string> files(Transfer::list(Transfer::KIND_CAMPAIGN));
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
-			for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+			for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 			{
-				std::string ext = getFilenameExtension(*i);
-				if(ext == "zip")
+				if(FileSystem::inst().fileExists(
+					   FileSystem::inst().resolveContentPath("levels/campaigns/" + *i) + "/campaign.xml"))
 				{
-					if(FileSystem::inst().fileExists(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + *i + "/campaign.xml"))
-					{
-						GUI_ListBox::ListItem item(*i, 0);
-						p_listBox->addItem(item);
-					}
+					GUI_ListBox::ListItem item(*i, 0);
+					p_listBox->addItem(item);
 				}
 			}
 		}
@@ -151,7 +150,7 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + setFilenameExtension(filename, "zip");
+				path = FileSystem::inst().resolveContentPath("levels/campaigns/" + setFilenameExtension(filename, "zip"));
 
 				if(FileSystem::inst().fileExists(path))
 				{
@@ -212,7 +211,18 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + setFilenameExtension(filename, "zip");
+				const std::string basename(setFilenameExtension(filename, "zip"));
+
+				// Wie im Leveleditor: gespeichert wird beim Spieler, und nie
+				// unter einem mitgelieferten Namen - so eine Kampagne liesse
+				// sich nicht wieder laden, weil der Spielordner vorgeht.
+				if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN, basename))
+				{
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$TR_ERROR_RESERVED");
+					return;
+				}
+
+				path = FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + basename;
 
 				bool doSave = true;
 				if(path != editor.originalFilename && FileSystem::inst().fileExists(path))
@@ -411,18 +421,14 @@ public:
 		GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("AvailableLevels"));
 		p_listBox->clear();
 
-		// alle Levels auflisten
-		std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels");
-		for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+		// alle Levels auflisten, aus beiden Wurzeln
+		const std::vector<std::string> files(Transfer::list(Transfer::KIND_LEVEL));
+		for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 		{
 			if(!editor.p_campaign->hasLevel(*i))
 			{
-				std::string ext = getFilenameExtension(*i);
-				if(ext == "xml")
-				{
-					GUI_ListBox::ListItem item(*i, 0);
-					p_listBox->addItem(item);
-				}
+				GUI_ListBox::ListItem item(*i, 0);
+				p_listBox->addItem(item);
 			}
 		}
 	}

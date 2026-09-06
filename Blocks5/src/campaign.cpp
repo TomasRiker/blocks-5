@@ -54,14 +54,18 @@ std::string Campaign::resolveMusicPath(const std::string& musicFilename,
 	const std::string member(musicFilename.substr(strlen(p_builtInMusicPrefix)));
 	if(!isSafeMemberName(member)) return "";
 
-	return FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip" + pw + "/" + member;
+	return FileSystem::inst().resolveContentPath("levels/campaigns/blocks.zip") + pw + "/" + member;
 }
 
 Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
 {
 	LevelRef ref;
 	ref.name = filename;
-	ref.sourceDir = FileSystem::inst().getAppHomeDirectory() + "levels/";
+	// Der Ordner haengt an der Datei: die beiden Beispiellevel liegen beim
+	// Spiel, alles andere beim Spieler. sourceDir traegt deshalb den Pfad der
+	// gefundenen Datei ohne ihren Namen und nicht eine feste Wurzel.
+	const std::string path(FileSystem::inst().resolveContentPath("levels/" + filename));
+	ref.sourceDir = path.substr(0, path.length() - filename.length());
 	ref.member = filename;
 	ref.fromArchive = false;
 	return ref;
@@ -149,7 +153,13 @@ bool Campaign::loadSingleLevels()
 	clear();
 
 	FileSystem& fs = FileSystem::inst();
-	std::list<std::string> files = fs.listDirectory(fs.getAppHomeDirectory() + "levels");
+	// Beide Wurzeln: die Beispiellevel bringt das Spiel mit, die uebrigen hat
+	// der Spieler gebaut oder eingespielt.
+	std::list<std::string> files = fs.listDirectory(fs.getGameDirectory() + "levels");
+	const std::list<std::string> own(fs.listDirectory(fs.getAppHomeDirectory() + "levels"));
+	files.insert(files.end(), own.begin(), own.end());
+	files.sort();
+	files.unique();
 
 	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 	{
@@ -266,12 +276,14 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 		//    Alles oder nichts, damit eine fremde Kampagne nie stillschweigend
 		//    einen gleichnamigen Level des Benutzers einsammelt.
 		FileSystem& fs = FileSystem::inst();
-		const std::string looseDir(fs.getAppHomeDirectory() + "levels/");
 
 		bool allLoose = !names.empty();
 		for(uint i = 0; i < names.size() && allLoose; i++)
 		{
-			if(!isSafeMemberName(names[i]) || !fs.fileExists(looseDir + names[i])) allLoose = false;
+			// Ueber beide Wurzeln gefragt, genau wie makeLooseRef() sie
+			// aufloest - sonst gaelte ein Beispiellevel beim Spiel als fehlend.
+			if(!isSafeMemberName(names[i]) ||
+			   !fs.fileExists(fs.resolveContentPath("levels/" + names[i]))) allLoose = false;
 		}
 
 		for(uint i = 0; i < names.size(); i++)

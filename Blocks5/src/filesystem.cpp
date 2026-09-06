@@ -16,6 +16,36 @@ FileSystem::FileSystem()
 {
 	// die ersten 256 Primzahlen fuer die Entschluesselung von Passwoertern berechnen
 	generatePrimes(primes, 256);
+
+	// Das Arbeitsverzeichnis beim Start ist der Spielordner - das Spiel besteht
+	// ohnehin darauf, weil es data.zip relativ dazu oeffnet. Hier festgehalten,
+	// solange es noch stimmt.
+	char path[1024] = "";
+#ifdef _WIN32
+	if(!GetCurrentDirectoryA(sizeof(path), path)) path[0] = 0;
+#else
+	if(!::getcwd(path, sizeof(path))) path[0] = 0;
+#endif
+	gameDirectory = path;
+	for(std::string::iterator i = gameDirectory.begin(); i != gameDirectory.end(); ++i)
+	{
+		if(*i == '\\') *i = '/';
+	}
+	if(gameDirectory.empty() || gameDirectory[gameDirectory.length() - 1] != '/') gameDirectory += '/';
+}
+
+std::string FileSystem::resolveContentPath(const std::string& relative) const
+{
+	const std::string shipped(gameDirectory + relative);
+	// const_cast, weil fileExists() eine Datei oeffnet und deshalb nicht const
+	// ist; gemeint ist hier trotzdem nur eine Frage.
+	if(const_cast<FileSystem*>(this)->fileExists(shipped)) return shipped;
+	return getAppHomeDirectory() + relative;
+}
+
+bool FileSystem::isShippedContent(const std::string& relative)
+{
+	return fileExists(gameDirectory + relative);
 }
 
 FileSystem::~FileSystem()

@@ -42,39 +42,6 @@ namespace
 		return FileSystem::inst().getAppHomeDirectory() + sub;
 	}
 
-	// Was mitgeliefert wird: genau das, was nach einer Neuinstallation im
-	// Benutzerverzeichnis liegt. zip_skins.bat baut die vier Skins, die
-	// Kampagne heisst blocks.zip, und die beiden Beispiellevel liegen lose
-	// daneben. Die eine Liste, die isBuiltIn() und refreshBuiltIns() teilen.
-	const char* const* builtInNames(Transfer::Kind kind)
-	{
-		static const char* p_levels[]    = { "example01.xml", "example02.xml", 0 };
-		static const char* p_campaigns[] = { "blocks.zip", 0 };
-		static const char* p_skins[]     = { "blocks_01.zip", "blocks_02.zip",
-											 "blocks_03.zip", "space.zip", 0 };
-
-		switch(kind)
-		{
-		case Transfer::KIND_LEVEL:    return p_levels;
-		case Transfer::KIND_CAMPAIGN: return p_campaigns;
-		case Transfer::KIND_SKIN:     return p_skins;
-		default:                      return 0;
-		}
-	}
-
-	// Die Groesse einer Datei, oder 0, wenn es sie nicht gibt. Reicht als
-	// Vergleich: die mitgelieferten Dateien kann niemand ersetzen, ein
-	// Unterschied kann also nur daher kommen, dass die eine aelter ist.
-	uint sizeOf(const std::string& path)
-	{
-		FileSystem& fs = FileSystem::inst();
-		File* p_file = fs.openFile(path, FileSystem::FM_READ);
-		if(!p_file) return 0;
-		const uint size = p_file->getSize();
-		fs.closeFile(p_file);
-		return size;
-	}
-
 	const char* extensionFor(Transfer::Kind kind)
 	{
 		switch(kind)
@@ -95,7 +62,9 @@ namespace
 		// Benutzen kann der Empfaenger das Archiv trotzdem - das Passwort liegt als
 		// password.txt darin, und Level::getSkinFilename liest es dort aus.
 		FileSystem& fs = FileSystem::inst();
-		const std::string source(directoryFor(kind) + name);
+		// Ueber beide Wurzeln, denn ausfuehren laesst sich der Export auch auf
+		// dem, was das Spiel mitbringt.
+		const std::string source(fs.resolveContentPath(subdirectoryFor(kind) + name));
 		if(!fs.fileExists(source)) return false;
 		return fs.copyFile(source, destPath);
 	}
@@ -212,76 +181,44 @@ std::vector<std::string> list(Kind kind)
 	std::vector<std::string> result;
 	if(kind == KIND_NONE) return result;
 
+	// Beide Wurzeln zusammen, denn beide sind spielbar: was das Spiel
+	// mitbringt, steht im Spielordner, was der Spieler gemacht oder eingespielt
+	// hat, im Benutzerverzeichnis. Ein Name kann nur einmal vorkommen - unter
+	// einem mitgelieferten Namen laesst sich weder speichern noch einspielen -,
+	// die Vereinigung braucht also keine eigene Regel dafuer, und das doppelte
+	// Einfuegen faengt der Vergleich weiter unten ab.
+	FileSystem& fs = FileSystem::inst();
 	const std::string want(extensionFor(kind));
-	std::list<std::string> files = FileSystem::inst().listDirectory(directoryFor(kind));
-	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+	const std::string sub(subdirectoryFor(kind));
+	const std::string roots[] = { fs.getGameDirectory() + sub, fs.getAppHomeDirectory() + sub };
+
+	for(uint r = 0; r < sizeof(roots) / sizeof(roots[0]); r++)
 	{
-		if(std::string(".") + getFilenameExtension(*i) != want) continue;
-		result.push_back(*i);
+		std::list<std::string> files = fs.listDirectory(roots[r]);
+		for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+		{
+			if(std::string(".") + getFilenameExtension(*i) != want) continue;
+			if(std::find(result.begin(), result.end(), *i) != result.end()) continue;
+			result.push_back(*i);
+		}
 	}
 
 	std::sort(result.begin(), result.end());
 	return result;
 }
 
-bool refreshBuiltIns()
-{
-	// Verglichen wird die Groesse und nicht die Version: der Ordner soll sich
-	// auch dann fangen, wenn sich an einem Skin etwas geaendert hat, ohne dass
-	// die Versionsnummer weitergerueckt ist. Ueberschrieben wird nur, was hier
-	// als mitgeliefert steht - und genau diese Namen kann der Spieler weder
-	// importieren noch loeschen, es sind also nie seine Dateien.
-	FileSystem& fs = FileSystem::inst();
-	const Kind kinds[] = { KIND_LEVEL, KIND_CAMPAIGN, KIND_SKIN };
-	bool ok = true;
-
-	for(uint k = 0; k < sizeof(kinds) / sizeof(kinds[0]); k++)
-	{
-		const std::string sub(subdirectoryFor(kinds[k]));
-		const std::string home(directoryFor(kinds[k]));
-
-		for(const char* const* pp_name = builtInNames(kinds[k]); pp_name && *pp_name; pp_name++)
-		{
-			const std::string source(sub + *pp_name);
-			const std::string target(home + *pp_name);
-
-			// Fehlt die Vorlage, ist das Spiel unvollstaendig ausgepackt. Das
-			// faellt an anderer Stelle laut genug auf; hier bleibt die
-			// vorhandene Kopie besser stehen, als sie zu loeschen.
-			const uint sourceSize = sizeOf(source);
-			if(!sourceSize)
-			{
-				printfLog("+ WARNING: Shipped file \"%s\" is missing.\n", source.c_str());
-				continue;
-			}
-
-			if(sizeOf(target) == sourceSize) continue;
-
-			printfLog("* Refreshing \"%s\" in the user directory.\n", *pp_name);
-			if(!fs.copyFile(source, target))
-			{
-				printfLog("+ ERROR: Could not refresh \"%s\".\n", target.c_str());
-				ok = false;
-			}
-		}
-	}
-
-	return ok;
-}
 
 bool isBuiltIn(Kind kind, const std::string& name)
 {
-	const char* const* pp_names = builtInNames(kind);
-	if(!pp_names) return false;
-
-	// Ohne Ruecksicht auf Gross- und Kleinschreibung: unter Windows ist
-	// "Blocks.zip" dieselbe Datei wie "blocks.zip", und ein nur anders
-	// geschriebener Name ginge sonst hier vorbei.
-	for(; *pp_names; pp_names++)
-	{
-		if(equalsNoCase(name.c_str(), *pp_names)) return true;
-	}
-	return false;
+	if(kind == KIND_NONE || name.empty()) return false;
+	const std::string sub(subdirectoryFor(kind));
+	if(sub.empty()) return false;
+	// Keine Liste mehr, sondern die Platte: mitgeliefert ist, was im
+	// Spielordner liegt. Unter Windows ist "Blocks.zip" dieselbe Datei wie
+	// "blocks.zip", und weil das Dateisystem dort nicht zwischen ihnen
+	// unterscheidet, antwortet fileExists() auch auf den anders geschriebenen
+	// Namen mit ja - was hier genau richtig ist.
+	return FileSystem::inst().isShippedContent(sub + name);
 }
 
 bool remove(Kind kind, const std::string& name, std::string& errorId)

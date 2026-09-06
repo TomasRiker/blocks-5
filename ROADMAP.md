@@ -927,7 +927,7 @@ the pattern to copy - `createInstance()`, `play(true)`, `stop()` - rather than
 `playSound()`, which is the fire-and-forget path.
 
 
-26. The shipped content should not be copied into the user's folder
+26. The shipped content should not be copied into the user's folder  — **DONE**
 --------------------------------------------------------------------
 `Level::getSkinFilename()` and `Campaign` look for skins, campaigns and levels
 in **one** place: `getAppHomeDirectory()`. The game's own `levels/` folder is
@@ -977,6 +977,27 @@ wants the same answer for a Credits button in the menu.
 
 Worth doing before the next release that changes a shipped asset. `blocks.zip`
 is 8 MB, and every installation is carrying a second copy of it for no reason.
+
+**Done in 1.2.0, and with the search order the other way round from what stands
+above.** User-first is exactly how a stale copy shadows a fresh shipped file —
+the bug — so the game folder is asked first and the user directory is the
+fallback. `FileSystem::resolveContentPath` is the one place that knows, and
+`isShippedContent` ("it exists in the game folder") replaced the hand-written
+list in `Transfer::isBuiltIn`. `refreshBuiltIns()` and the one-time copy in
+`main.cpp` are both gone.
+
+Game-first costs one thing, and it is worth writing down: a user file carrying a
+shipped name could never be loaded again, because the game folder answers first.
+So both editors refuse to save under such a name, which is the same rule an
+import already followed. `retireShadowingCopies` renames the old copies to
+`<name>.bak` on the first start of 1.2.0 — renamed, not deleted, because nothing
+can tell from outside whether somebody edited one.
+
+**And a trap that was not in this item at all:** `ProgressDB` keyed on the
+campaign's *full path*. Moving `blocks.zip` into the game folder would have
+changed the key and silently reset every player's 42 levels, with no error and
+nothing in the log. It keys on the bare filename now, which also means an old
+`progress.zip` migrates simply by being read.
 
 
 27. A Credits button in the main menu

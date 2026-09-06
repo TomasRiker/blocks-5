@@ -111,23 +111,34 @@ for kind in KindLevel KindCampaign KindSkin; do
 		|| b5_note "$kind: Ausgeben ist abgeschaltet, obwohl etwas ausgewaehlt ist"
 done
 
-# Ausgeben und Loeschen haengen an der Auswahl: mit einer leeren Liste gibt es
-# keine, also bleiben beide grau, und mit einer gefuellten sind beide da.
+# Ausgeben und Loeschen haengen an der Auswahl, und seit es zwei Wurzeln gibt,
+# nicht mehr an derselben Bedingung: ausgeben laesst sich alles, was in der
+# Liste steht, loeschen nur, was dem Spieler gehoert. Die Liste ist die
+# Vereinigung beider Wurzeln und alphabetisch sortiert, ausgewaehlt ist der
+# erste Eintrag - liegt der im Spielordner, bleibt Loeschen grau.
 #
-# Ob die Musikliste leer ist, haengt davon ab, woraus das Spiel laeuft. Was
+# Ob ueberhaupt Musik dasteht, haengt davon ab, woraus das Spiel laeuft. Was
 # ausgeliefert wird, sagt stage.bat, und das legt nur die beiden Beispiellevel
 # nach levels/. Aus dem Arbeitsverzeichnis heraus - so laeuft dieser Test -
-# liegen dort auch die zehn Musikstuecke, aus denen blocks.zip gebaut wird, und
-# main.cpp kopiert beim ersten Start alles davon ins Benutzerverzeichnis.
+# liegen dort auch die zehn Musikstuecke, aus denen blocks.zip gebaut wird.
 b5_click Menu.ManagerPane.Manager.KindMusic
 b5_dump
+musicGame="$B5_GAME/levels"
 musicHome="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5/levels"
-if [ "$(ls "$musicHome"/*.ogg 2>/dev/null | wc -l)" -eq 0 ]; then wantActive=False; else wantActive=True; fi
-for name in Menu.ManagerPane.Manager.Export Menu.ManagerPane.Manager.Delete; do
+first=$(ls "$musicGame"/*.ogg "$musicHome"/*.ogg 2>/dev/null | sed 's|.*/||' | sort -u | head -1)
+if [ -z "$first" ]; then
+	wantExport=False; wantDelete=False
+else
+	wantExport=True
+	if [ -f "$musicGame/$first" ]; then wantDelete=False; else wantDelete=True; fi
+fi
+for name in Menu.ManagerPane.Manager.Export:$wantExport Menu.ManagerPane.Manager.Delete:$wantDelete; do
+	want=${name##*:}
+	name=${name%%:*}
 	have=$(b5_json "el('$name')['active']")
-	[ "$have" = "$wantActive" ] \
+	[ "$have" = "$want" ] \
 		&& b5_ok "$name: bedienbar=$have, passend zur Musikliste" \
-		|| b5_note "$name: bedienbar=$have, erwartet $wantActive"
+		|| b5_note "$name: bedienbar=$have, erwartet $want"
 done
 
 b5_key Escape

@@ -75,9 +75,23 @@ void ProgressDB::save()
 	FileSystem::inst().writeStringToFile(xml, FileSystem::inst().getAppHomeDirectory() + "progress.zip" + pw + "/progress.xml");
 }
 
+std::string ProgressDB::keyFor(const std::string& campaign)
+{
+	// Der blosse Dateiname, nicht der Pfad. Eine Kampagne ist durch ihren Namen
+	// bestimmt - dieselbe Auffassung, mit der Transfer::install() eine
+	// gleichnamige Datei ersetzt statt danebenzulegen -, und dann uebersteht
+	// der Fortschritt es, dass die Datei den Ordner wechselt: die
+	// mitgelieferte Kampagne ist aus dem Benutzerverzeichnis in den
+	// Spielordner gezogen, und ein Import verschiebt eine fremde in die andere
+	// Richtung. Mit dem vollen Pfad als Schluessel waere beides ein Verlust
+	// aller geschafften Levels gewesen, ohne dass irgendetwas es gemeldet
+	// haette.
+	return FileSystem::inst().getPathFilename(campaign);
+}
+
 uint ProgressDB::getNumLevelsCompleted(const std::string& campaign)
 {
-	dbMap::const_iterator i = db.find(campaign);
+	dbMap::const_iterator i = db.find(keyFor(campaign));
 	if(i != db.end()) return static_cast<uint>(i->second.levelsCompleted.size());
 	else return 0;
 }
@@ -85,7 +99,7 @@ uint ProgressDB::getNumLevelsCompleted(const std::string& campaign)
 bool ProgressDB::wasLevelCompleted(const std::string& campaign,
 								   uint level)
 {
-	dbMap::const_iterator i = db.find(campaign);
+	dbMap::const_iterator i = db.find(keyFor(campaign));
 	if(i != db.end())
 	{
 		const std::set<uint>& levelsCompleted = i->second.levelsCompleted;
@@ -97,5 +111,5 @@ bool ProgressDB::wasLevelCompleted(const std::string& campaign,
 void ProgressDB::setLevelCompleted(const std::string& campaign,
 								   uint level)
 {
-	db[campaign].levelsCompleted.insert(level);
+	db[keyFor(campaign)].levelsCompleted.insert(level);
 }

@@ -2571,8 +2571,12 @@ std::string Level::getSkinFilename(uint index)
 	else
 	{
 		// Existiert die gewuenschte Datei in einem normalen Ordner?
+		// resolveContentPath() sucht erst im Spielordner und dann im
+		// Benutzerverzeichnis: die vier mitgelieferten Skins liegen beim Spiel,
+		// eingespielte und selbstgebaute beim Spieler.
 		FileSystem& fs = FileSystem::inst();
-		std::string check = FileSystem::inst().getAppHomeDirectory() + "levels/skins/" + skin[index] + "/" + p_skinFilenames[index];
+		const std::string skinDir("levels/skins/" + skin[index]);
+		std::string check = fs.resolveContentPath(skinDir + "/" + p_skinFilenames[index]);
 		if(fs.fileExists(check))
 		{
 			return check;
@@ -2580,7 +2584,7 @@ std::string Level::getSkinFilename(uint index)
 		else
 		{
 			// Standard verwenden?
-			if(fs.fileExists(FileSystem::inst().getAppHomeDirectory() + "levels/skins/" + skin[index] + "/default_" + p_skinFilenames[index]))
+			if(fs.fileExists(fs.resolveContentPath(skinDir + "/default_" + p_skinFilenames[index])))
 			{
 				// Standard-Skin
 				skin[index] = p_defaultSkin;
@@ -2591,7 +2595,7 @@ std::string Level::getSkinFilename(uint index)
 			else
 			{
 				// Existiert das Skin-Archiv?
-				std::string archiveFile = FileSystem::inst().getAppHomeDirectory() + "levels/skins/" + skin[index] + ".zip";
+				std::string archiveFile = fs.resolveContentPath(skinDir + ".zip");
 				if(fs.fileExists(archiveFile))
 				{
 					// Standard verwenden?

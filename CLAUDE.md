@@ -1124,6 +1124,36 @@ switches to loose files for development). User-writable state — saves, progres
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
 
+**Levels, campaigns and skins have two roots, and the game folder wins.** What ships stays
+beside the executable and is read from there, so it is always exactly as new as the program;
+the user directory holds only what the player made or imported.
+`FileSystem::resolveContentPath("levels/skins/space.zip")` asks the game folder first and falls
+back to the user directory, and `isShippedContent` — "it exists in the game folder" — is
+simultaneously the definition of undeletable, un-overwritable and un-saveable-over. The paths
+are absolute on purpose: a relative one would be resolved inside the mounted `data.zip`.
+
+The order matters and the other one is wrong. User-first would let a stale copy shadow a fresh
+shipped file, which is the bug this replaces: every installation used to carry a private copy
+of the campaign, the four skins and the two examples, frozen at whatever version it first
+installed, and that is how a skin marker went missing on a machine that had just built the
+current sources. Game-first has one cost, and it is the reason both editors now refuse to save
+under a shipped name: such a file could never be loaded again, because the game folder would
+answer first.
+
+**On the first start of 1.2.0 the old copies are set aside.** `retireShadowingCopies` in
+`main.cpp` renames every file in the user directory whose name the game folder also has to
+`<name>.bak` — renamed and not deleted, because there is no way to tell from outside whether
+somebody edited one, and what is in a player's folder is theirs. `.bak` is inert everywhere:
+every lister filters on the exact extension, and `convertPath` recognises an archive by
+`.zip/`, not by `.zip`.
+
+**`ProgressDB` keys on the campaign's bare filename, not on its path**, and that is what made
+the move survivable. The key used to be the full path, so shifting `blocks.zip` from the user
+directory into the game folder would have silently reset everyone's 42 levels — no error,
+nothing in the log, just a progress bar back at zero. `keyFor` strips the directory on the way
+in and on the way out, which migrates an old `progress.zip` by reading it: no separate step,
+and the next save writes the short form.
+
 **A level somebody sent you is played from the level select screen, not from the editor.**
 `Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in
 the user's level folder, listed last in the campaign box under `$LS_SINGLE_LEVELS`. Opening
@@ -1167,11 +1197,13 @@ themselves out without one. `Menu.ConfirmPane`, which must stay the **last** chi
 `menu.xml` so it draws last and takes the clicks, asks before a delete — the one thing here
 that cannot be undone.
 
-**`Transfer::isBuiltIn` is the one place that knows what ships with the game**: `example01.xml`,
-`example02.xml`, `blocks.zip` and the four skins. Two callers, for the same reason — the Manager
-must not delete one, and an import must not take its name. They stay listed and exportable;
-only *Delete* greys out. The comparison is case-insensitive and hand-rolled, because `tolower`
-is locale-dependent and `pch.h` does not pull in `<cctype>`.
+**`Transfer::isBuiltIn` no longer keeps a list**; it asks whether the file exists in the game
+folder. Four callers, all the same rule — the Manager must not delete one, an import must not
+take its name, and neither editor may save under one. They stay listed and exportable; only
+*Delete* greys out. `Transfer::list` returns the union of both roots, sorted, and needs no rule
+for a name in both because no path can create one. Case is the file system's problem now rather
+than a hand-rolled comparison's, which is right: on Windows `Blocks.zip` *is* `blocks.zip`, and
+`fileExists` says so.
 
 **A finished import updates the open list.** `pollImport` runs every tick from `onUpdate`,
 because the browser's file dialog cannot be modal — so when it completes with the Manager still

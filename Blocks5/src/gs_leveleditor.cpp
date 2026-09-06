@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gs_leveleditor.h"
+#include "transfer.h"
 #include "gui_all.h"
 #include "level.h"
 #include "tileset.h"
@@ -773,28 +774,23 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste fuellen
-			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels");
+			// Dateiliste fuellen, aus beiden Wurzeln: die Beispiellevel liegen
+			// beim Spiel, die eigenen beim Spieler.
+			const std::vector<std::string> files(Transfer::list(Transfer::KIND_LEVEL));
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
-			for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+			for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 			{
-				std::string ext = getFilenameExtension(*i);
-				if(ext == "xml")
-				{
 #ifdef CHECK_IF_IT_REALLY_IS_A_LEVEL
-					// oberflaechliche Pruefung, ob es eine Level-Datei ist
-					TiXmlDocument doc;
-					std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().getAppHomeDirectory() + "levels/" + *i);
-					doc.Parse(str.c_str());
+				// oberflaechliche Pruefung, ob es eine Level-Datei ist
+				TiXmlDocument doc;
+				std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().resolveContentPath("levels/" + *i));
+				doc.Parse(str.c_str());
 
-					if(doc.FirstChildElement("Level"))
+				if(!doc.FirstChildElement("Level")) continue;
 #endif
-					{
-						GUI_ListBox::ListItem item(*i, 0);
-						p_listBox->addItem(item);
-					}
-				}
+				GUI_ListBox::ListItem item(*i, 0);
+				p_listBox->addItem(item);
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Load")
@@ -803,7 +799,7 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + setFilenameExtension(filename, "xml");
+				path = FileSystem::inst().resolveContentPath("levels/" + setFilenameExtension(filename, "xml"));
 
 				if(FileSystem::inst().fileExists(path))
 				{
@@ -864,7 +860,19 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + setFilenameExtension(filename, "xml");
+				const std::string basename(setFilenameExtension(filename, "xml"));
+
+				// Gespeichert wird immer beim Spieler - und nie unter einem
+				// Namen, den das Spiel selbst mitbringt: eine solche Datei waere
+				// nicht einmal wieder zu laden, weil der Spielordner zuerst
+				// gefragt wird und immer den mitgelieferten Level lieferte.
+				if(Transfer::isBuiltIn(Transfer::KIND_LEVEL, basename))
+				{
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$TR_ERROR_RESERVED");
+					return;
+				}
+
+				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + basename;
 
 				bool doSave = true;
 				if(path != editor.originalFilename && FileSystem::inst().fileExists(path))

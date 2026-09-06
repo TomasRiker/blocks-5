@@ -19,6 +19,11 @@ public:
 	void setLevelCompleted(const std::string& campaign, uint level);
 
 private:
+	// Der Schluessel zu einer Kampagne: ihr blosser Dateiname. Siehe
+	// progressdb.cpp - der volle Pfad taugte nicht, weil eine Kampagnendatei
+	// den Ordner wechseln kann.
+	static std::string keyFor(const std::string& campaign);
+
 	ProgressDB();
 	~ProgressDB();
 

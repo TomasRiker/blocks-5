@@ -8,6 +8,7 @@
 #include "campaign.h"
 #include "level.h"
 #include "progressdb.h"
+#include "transfer.h"
 
 GS_SelectLevel::GS_SelectLevel() : GameState("GS_SelectLevel"), engine(Engine::inst())
 {
@@ -289,25 +290,24 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
 	p_listBox->clear();
 	campaigns.clear();
-	std::list<std::string> files = fs.listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns");
-	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+	// Beide Wurzeln: die mitgelieferte Kampagne liegt beim Spiel, eingespielte
+	// und selbstgebaute beim Spieler. Transfer::list() vereinigt sie schon in
+	// der richtigen Reihenfolge und sortiert.
+	const std::vector<std::string> files(Transfer::list(Transfer::KIND_CAMPAIGN));
+	for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 	{
-		std::string ext = getFilenameExtension(*i);
-		if(ext == "zip")
+		const std::string path(fs.resolveContentPath("levels/campaigns/" + *i));
+		if(!fs.fileExists(path + "/campaign.xml")) continue;
+
+		// Kampagne laden
+		Campaign* p_campaign = new Campaign;
+		if(p_campaign->load(path))
 		{
-			if(fs.fileExists(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + *i + "/campaign.xml"))
-			{
-				// Kampagne laden
-				Campaign* p_campaign = new Campaign;
-				if(p_campaign->load(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + *i))
-				{
-					GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
-					p_listBox->addItem(item);
-					campaigns.push_back(p_campaign);
-				}
-				else delete p_campaign;
-			}
+			GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
+			p_listBox->addItem(item);
+			campaigns.push_back(p_campaign);
 		}
+		else delete p_campaign;
 	}
 
 	// Und zuletzt die einzelnen Level aus dem Levelordner, sofern welche da

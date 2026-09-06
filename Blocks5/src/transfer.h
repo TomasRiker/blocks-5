@@ -36,20 +36,16 @@ namespace Transfer
 						std::string& errorId,
 						bool* p_replaced = 0);
 
-	// Was von dieser Art im Benutzerverzeichnis liegt, alphabetisch sortiert.
+	// Was von dieser Art zu haben ist, aus beiden Wurzeln zusammen und
+	// alphabetisch sortiert: der Spielordner bringt das Mitgelieferte, das
+	// Benutzerverzeichnis das Eigene.
 	std::vector<std::string> list(Kind kind);
 
 	// Gehoert diese Datei zum Spiel? name ist der Dateiname mit Endung, so wie
-	// list() ihn liefert. Ein Import darf einen solchen Namen nicht besetzen
-	// und der Manager ihn nicht loeschen.
+	// list() ihn liefert. Mitgeliefert heisst: sie liegt im Spielordner - und
+	// dann darf ein Import den Namen nicht besetzen, der Manager ihn nicht
+	// loeschen und kein Editor darunter speichern.
 	bool isBuiltIn(Kind kind, const std::string& name);
-
-	// Legt die mitgelieferten Dateien neu ins Benutzerverzeichnis, wo sie fehlen
-	// oder sich von den ausgelieferten unterscheiden. Ohne das wird der Ordner
-	// genau einmal befuellt - bei der allerersten Installation - und eine
-	// spaetere Aenderung an einem Skin, an der Kampagne oder an einem
-	// Beispiellevel erreicht ein vorhandenes Spiel nie.
-	bool refreshBuiltIns();
 
 	// Loescht, was list() geliefert hat, ausser den mitgelieferten Dateien.
 	bool remove(Kind kind, const std::string& name, std::string& errorId);

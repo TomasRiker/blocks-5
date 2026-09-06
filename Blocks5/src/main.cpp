@@ -12,6 +12,9 @@
 #include "gui.h"
 #include "cf_all.h"
 #include "progressdb.h"
+#ifdef __EMSCRIPTEN__
+#include "web_transfer.h"
+#endif
 #ifdef _WIN32
 #include "stackwalker.h"
 #endif
@@ -216,6 +219,63 @@ bool isNewer(const std::string& version1,
 	return v1 > v2;
 }
 
+// Kopien der mitgelieferten Dateien im Benutzerverzeichnis beiseitelegen.
+//
+// Bis 1.1.2 wurde alles, was das Spiel mitbringt, beim ersten Start einmal
+// dorthin kopiert. Seit 1.2.0 liegt es im Spielordner und wird von dort
+// gelesen, und der geht vor - die alten Kopien waeren damit unerreichbar und
+// wuerden im Manager nur doppelt in der Liste stehen.
+//
+// Umbenannt und nicht geloescht: von aussen laesst sich nicht sagen, ob jemand
+// eine davon veraendert hat. Wer seinen eigenen Level "example01.xml" genannt
+// hat, soll ihn wiederfinden koennen. Die Endung .bak nimmt sie aus jeder
+// Liste heraus, denn alle filtern auf die genaue Endung, und aus dem
+// Archivpfad ebenfalls: FileSystem::convertPath() erkennt ein Archiv an
+// ".zip/", nicht an ".zip".
+uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
+{
+	static const char* p_subdirs[] = { "levels/", "levels/campaigns/", "levels/skins/" };
+	uint retired = 0;
+
+	for(uint s = 0; s < sizeof(p_subdirs) / sizeof(p_subdirs[0]); s++)
+	{
+		const std::string sub(p_subdirs[s]);
+		const std::list<std::string> files(fs.listDirectory(homeDirectory + sub));
+
+		for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+		{
+			if(!fs.isShippedContent(sub + *i)) continue;
+
+			// Kein Umbenennen im Dateisystem des Spiels, also kopieren und das
+			// Original loeschen. Eine schon vorhandene .bak weicht: sie stammt
+			// aus einem frueheren Lauf und meint dieselbe Datei.
+			const std::string from(homeDirectory + sub + *i);
+			const std::string to(from + ".bak");
+			fs.deleteFile(to);
+			if(fs.copyFile(from, to) && fs.deleteFile(from))
+			{
+				printfLog("* Retired the old copy of \"%s%s\" as \"%s.bak\".\n",
+						  sub.c_str(), i->c_str(), i->c_str());
+				retired++;
+			}
+			else
+			{
+				printfLog("+ WARNING: Could not retire \"%s\".\n", from.c_str());
+				fs.deleteFile(to);
+			}
+		}
+	}
+
+#ifdef __EMSCRIPTEN__
+	// Sofort nach IndexedDB durchschreiben, wie nach jedem anderen Schreiben im
+	// Browser: sonst stuenden die alten Kopien nach einem Neuladen wieder da,
+	// und der Lauf haette bei jedem Start dieselbe Arbeit.
+	if(retired) WebTransfer::syncHome();
+#endif
+
+	return retired;
+}
+
 const std::string detectInitializedVersion()
 {
 	// not_played:	kein "Blocks 5"-Ordner existiert im Benutzerverzeichnis und keine "progress.zip"-Datei existiert im Arbeitsverzeichnis
@@ -281,13 +341,11 @@ int runTheGame(int argc,
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
-			std::list<std::string> fileList(fs.listDirectory("levels"));
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/") + *it, homeDirectory + "levels/" + *it);
-			fileList = fs.listDirectory("levels/campaigns");
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/campaigns/") + *it, homeDirectory + "levels/campaigns/" + *it);
-			fileList = fs.listDirectory("levels/skins");
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/skins/") + *it, homeDirectory + "levels/skins/" + *it);
-			fileList = fs.listDirectory("screenshots");
+			// Levels, Kampagnen und Skins werden nicht mehr herueberkopiert: sie
+			// bleiben im Spielordner und werden von dort gelesen, sind damit
+			// immer so neu wie das Programm daneben. Die drei Ordner entstehen
+			// trotzdem, denn dorthin schreiben die Editoren und der Import.
+			std::list<std::string> fileList(fs.listDirectory("screenshots"));
 			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("screenshots/") + *it, homeDirectory + "screenshots/" + *it);
 
 			if(success)
@@ -343,6 +401,13 @@ int runTheGame(int argc,
 			if(!success) errorMsg = "Could not migrate all settings!";
 		}
 
+		// Bei jedem Versionswechsel, nicht nur beim Sprung auf 1.2.0: der Lauf
+		// kostet nichts, wenn nichts zu tun ist, und ein Spieler, der von
+		// 1.2.0 auf 1.2.1 geht, kann eine Kopie mitbringen, die 1.2.0 nicht
+		// wegraeumen konnte. Bei einer Neuinstallation gibt es nichts zu
+		// finden.
+		if(versionInitialized != "not_played") retireShadowingCopies(fs, homeDirectory);
+
 		if(success)
 		{
 			fs.writeStringToFile(p_localVersion, homeDirectory + ".initialized");
@@ -378,15 +443,6 @@ int runTheGame(int argc,
 
 		if(quit) return 0;
 	}
-
-	// Der mitgelieferte Bestand, aufgefrischt - und zwar bei jedem Start und
-	// nicht nur bei einem Versionswechsel. Das Benutzerverzeichnis wird sonst
-	// genau einmal befuellt, bei der allerersten Installation, und eine
-	// spaetere Aenderung an einem Skin, an der Kampagne oder an einem
-	// Beispiellevel erreicht ein vorhandenes Spiel nie - dort und nur dort
-	// suchen Level::getSkinFilename() und Campaign. Verglichen wird die
-	// Groesse, es kostet also ein paar Dateizugriffe und sonst nichts.
-	Transfer::refreshBuiltIns();
 
 	if(!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
 	const std::string updateCheckerStatus(fs.readStringFromFile(homeDirectory + ".update_checker"));

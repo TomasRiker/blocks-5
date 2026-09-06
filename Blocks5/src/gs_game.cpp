@@ -45,6 +45,7 @@ namespace
 #include "options.h"
 #include "help.h"
 #include "campaign.h"
+#include "transfer.h"
 #include "progressdb.h"
 #include "hotel.h"
 
@@ -487,14 +488,12 @@ void GS_Game::onUpdate()
 				// mitgelieferten Kampagne - jede andere kehrt zur Auswahl
 				// zurueck.
 				//
-				// Der Vergleich ist ein fest verdrahteter Pfad, und er haelt
-				// genau so lange, wie blocks.zip im Verzeichnis des Benutzers
-				// liegt. Zieht die mitgelieferte Kampagne einmal in den
-				// Spielordner um, passt er stillschweigend nicht mehr: kein
-				// Fehler, keine Meldung, nur ein Spieler, der nach dem
-				// zweiundvierzigsten Level in der Levelliste steht. Dann gehoert
-				// hier die Frage hin, die Transfer::isBuiltIn() beantwortet.
-				if(p_currentCampaign->getFilename() == FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip")
+				// Gefragt wird nach dem Dateinamen und nicht nach dem Pfad: die
+				// mitgelieferte Kampagne liegt im Spielordner, eine
+				// eingespielte im Benutzerverzeichnis, und mitgeliefert ist
+				// genau, was Transfer::isBuiltIn() dafuer haelt.
+				if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN,
+									   FileSystem::inst().getPathFilename(p_currentCampaign->getFilename())))
 				{
 					// Das Spiel ist vorbei!
 					Engine::inst().setGameState("GS_Credits");
@@ -592,6 +591,9 @@ void GS_Game::onEnter(const ParameterBlock& context)
 
 		// Musik abspielen. Ein loser Level nennt eine Datei neben sich, oder
 		// mit "blocks:" eines der Stuecke der mitgelieferten Kampagne.
+		// Ein Probelauf aus dem Editor hat keinen Dateipfad - der Level steht
+		// als Dokument im Speicher. Ein Stueck neben sich kann also nur im
+		// Levelordner des Spielers liegen.
 		Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
 														   FileSystem::inst().getAppHomeDirectory() + "levels/"));
 	}
