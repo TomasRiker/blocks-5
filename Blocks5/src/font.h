@@ -28,6 +28,12 @@ public:
 	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color);
 	void renderTextPure(const std::string& text);
 	void measureText(const std::string& text, Vec2i* p_outDimensions, std::vector<Vec2i>* p_outCharPositions, const Vec2i& offset = Vec2i(0, 0));
+
+	// Den Text auf hoechstens maxWidth Bildpunkte bringen: was nicht mehr
+	// hineinpasst, faellt weg und wird durch drei Punkte ersetzt. renderText()
+	// schneidet von sich aus nichts ab und bricht auch nichts um - wer einen
+	// Text an eine feste Stelle schreibt, muss ihn vorher hier durchreichen.
+	std::string fitText(const std::string& text, int maxWidth);
 	std::string adjustText(const std::string& text, int maxWidth);
 
 	int getLineHeight() const;

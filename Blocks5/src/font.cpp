@@ -285,6 +285,64 @@ void Font::renderTextPure(const std::string& text)
 	p_texture->unbind();
 }
 
+namespace
+{
+	// Laenge des Auszeichnungselements, das an dieser Stelle beginnt; 0, wenn
+	// dort keines beginnt. Die Schrift kennt genau eines: <h>...</h>.
+	size_t tagLength(const std::string& text, size_t position)
+	{
+		if(text.compare(position, 3, "<h>") == 0) return 3;
+		if(text.compare(position, 4, "</h>") == 0) return 4;
+		return 0;
+	}
+
+	// Der Anfang des Textes bis zum Byte n, dahinter die drei Punkte. Ein
+	// angeschnittenes Element faellt ganz weg, ein offen gebliebenes <h> wird
+	// geschlossen: <h> legt etwas auf einen Stapel, den erst </h> wieder
+	// abtraegt, und dieser Stapel gehoert der Schrift und nicht dem Text - ein
+	// abgeschnittenes <h> faerbte allen weiteren Text im Spiel kursiv.
+	std::string cutWithEllipsis(const std::string& text, size_t n)
+	{
+		size_t open = 0, i = 0;
+		while(i < n)
+		{
+			const size_t length = tagLength(text, i);
+			if(length == 0) { i++; continue; }
+			if(i + length > n) break;
+			if(length == 3) open++;
+			else if(open > 0) open--;
+			i += length;
+		}
+
+		std::string out = text.substr(0, i) + "...";
+		for(size_t k = 0; k < open; k++) out += "</h>";
+		return out;
+	}
+}
+
+std::string Font::fitText(const std::string& text,
+						  int maxWidth)
+{
+	Vec2i dim;
+	measureText(text, &dim, 0);
+	if(dim.x <= maxWidth) return text;
+
+	// Binaere Suche ueber die Laenge, gemessen wird jedesmal der ganze Kandidat
+	// samt Punkten. Die Zeichenpositionen aus measureText() waeren der
+	// naheliegende Weg und taugen nicht: bei <h> im Text stehen dort weniger
+	// Eintraege als der Text Zeichen hat, und der Index passte nicht mehr.
+	size_t lo = 0, hi = text.length();
+	while(lo < hi)
+	{
+		const size_t mid = (lo + hi + 1) / 2;
+		measureText(cutWithEllipsis(text, mid), &dim, 0);
+		if(dim.x <= maxWidth) lo = mid;
+		else hi = mid - 1;
+	}
+
+	return cutWithEllipsis(text, lo);
+}
+
 void Font::measureText(const std::string& text,
 					   Vec2i* p_outDimensions,
 					   std::vector<Vec2i>* p_outCharPositions,

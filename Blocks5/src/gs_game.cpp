@@ -307,12 +307,32 @@ void GS_Game::onRender()
 	// ein einzelner Level haben keine; der einzelne nennt statt dessen seine
 	// Datei, damit drei gleichnamige Level unterscheidbar bleiben.
 	const std::string title = localizeString(p_level->getTitle());
-	std::string caption = title;
-	if(!cameFromEditor && p_currentCampaign)
-	{
-		if(p_currentCampaign->isSingleLevels()) caption = formatSingleLevelCaption(title, levelFilename);
-		else                                    caption = formatLevelCaption(levelNumber + 1, title);
-	}
+
+	// Der Platz zwischen dem Bild bei 168 (48 breit) und dem Menueknopf bei 544,
+	// mittig um 384 - der Knopf ist die engere Seite, also 2 * (544 - 8 - 384),
+	// die acht als Abstand, damit die Beschriftung ihn nicht beruehrt. Der Rest
+	// muss weg: renderText() schneidet nichts ab und liefe ueber beides hinweg.
+	const int captionWidth = 304;
+
+	const bool single = !cameFromEditor && p_currentCampaign
+						&& p_currentCampaign->isSingleLevels();
+	const bool numbered = !cameFromEditor && p_currentCampaign && !single;
+
+	// Gekuerzt wird allein der Titel, nicht die Nummer und nicht der Dateiname:
+	// die beiden sagen, um welchen Level es geht.
+	Vec2i frameDim(0, 0);
+	if(single)        p_font->measureText(formatSingleLevelCaption(std::string(), levelFilename), &frameDim, 0);
+	else if(numbered) p_font->measureText(formatLevelCaption(levelNumber + 1, std::string()), &frameDim, 0);
+	const std::string fitted = p_font->fitText(title, captionWidth - frameDim.x);
+
+	std::string caption = fitted;
+	if(single)        caption = formatSingleLevelCaption(fitted, levelFilename);
+	else if(numbered) caption = formatLevelCaption(levelNumber + 1, fitted);
+
+	// Und noch einmal ueber das Ganze, fuer den Fall, dass schon der Rahmen
+	// allein zu breit ist: dann geht der Dateiname eben doch mit.
+	caption = p_font->fitText(caption, captionWidth);
+
 	Vec2i dim;
 	p_font->measureText(caption, &dim, 0);
 	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));

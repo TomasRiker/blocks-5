@@ -59,10 +59,29 @@ void GS_SelectLevel::onRender()
 		Vec2i dim;
 		const std::string title = localizeString(p_currentLevel->getTitle());
 		const std::string shown = status ? title : std::string("???");
-		const std::string caption =
-			p_currentCampaign->isSingleLevels()
-				? formatSingleLevelCaption(shown, p_currentCampaign->getLevels()[currentLevel].member)
-				: formatLevelCaption(currentLevel + 1, shown);
+		// So breit wie die Vorschau darueber (glScissor oben), denn darunter
+		// steht der Name mittig. Mehr laeuft nach links in die Beschreibung und
+		// nach rechts aus dem Bild: renderText() schneidet nichts ab.
+		const int captionWidth = 320;
+
+		// Gekuerzt wird allein der Titel. Die Nummer und der Dateiname sind das,
+		// was zwei gleich benannte Level auseinanderhaelt, und bleiben deshalb
+		// ganz - wie viel fuer den Titel uebrig ist, sagt dieselbe Beschriftung
+		// mit einem leeren.
+		const bool single = p_currentCampaign->isSingleLevels();
+		const std::string member = single
+			? p_currentCampaign->getLevels()[currentLevel].member : std::string();
+		Vec2i frameDim;
+		p_font->measureText(single ? formatSingleLevelCaption(std::string(), member)
+								   : formatLevelCaption(currentLevel + 1, std::string()),
+							&frameDim, 0);
+		const std::string fitted = p_font->fitText(shown, captionWidth - frameDim.x);
+
+		// Und noch einmal ueber das Ganze, fuer den Fall, dass schon der Rahmen
+		// allein zu breit ist: dann geht der Dateiname eben doch mit.
+		const std::string caption = p_font->fitText(
+			single ? formatSingleLevelCaption(fitted, member)
+				   : formatLevelCaption(currentLevel + 1, fitted), captionWidth);
 		p_font->measureText(caption, &dim, 0);
 		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
 	}
