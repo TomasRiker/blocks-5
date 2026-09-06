@@ -373,6 +373,8 @@ private:
 	};
 
 	void setupCursor();
+	SDL_Cursor* createCursor(int factor) const;
+	void updateCursorSize();
 	void fixWindowSize();
 	void updateToasts();
 	void renderToasts();
@@ -476,7 +478,14 @@ private:
 	Vec2i screenPow2Size;
 	Vec2i displaySize;
 	Vec2i cursorPosition;
-	int cursorImage[32][32];
+	// Der Mauszeiger in der Groesse, in der er entworfen wurde. 0 ist schwarz,
+	// 1 weiss, -1 durchsichtig. Screenshots und Videos zeichnen ihn selbst und
+	// immer hieraus: sie halten das 640x480-Bild fest, in dem er genau so gross
+	// ist. Was das System zeichnet, steht daneben in zwei Groessen.
+	int cursorImage[16][16];
+	SDL_Cursor* p_cursor1x;
+	SDL_Cursor* p_cursor2x;
+	int cursorScale;   // 1 oder 2; 0, solange noch keiner gesetzt ist
 	uint oldImageID;
 	uint newImageID;
 	Crossfade* p_crossfade;

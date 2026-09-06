@@ -128,13 +128,22 @@ on an unchanged `displaySize` and did nothing at all. `Engine::fixWindowSize` ta
 not drag a border), and sets equal min and max size hints under X11, which is the ICCCM way of
 saying "this window has one size". Fullscreen was already refused on that path.
 
-**The mouse cursor halves with it.** `setupCursor` draws a 32x32 arrow because the window is
-normally twice the size of the 640x480 image inside it and the system draws the pointer in
-window pixels; at 1:1 that arrow is twice the size it was designed as. Taking every second
-pixel — the same inversion the video recorder does when it draws the pointer into a captured
-frame — gives the 16x16 original back. `cursorImage` keeps the doubled form either way, since
-that is what the recorder reads. The call therefore comes after the framebuffer decision, not
-before it. The
+**The mouse cursor follows the scale, and the framebuffer has nothing to do with it.** The
+arrow is drawn once at 16x16 — the size it was designed as, and the size the video recorder and
+`screenshot()` stamp into the 640x480 frame whatever the window is doing. `createCursor(factor)`
+builds the two the system can draw, 16 and 32, and `updateCursorSize` picks between them from
+the width of the rect `presentFrame` fills, not from the window: `Sharp` snaps to whole steps,
+so at a window scale between 1.5 and 2 it shows the picture unscaled where the other filters
+nearly double it. `render` asks once a frame rather than hanging off events: the answer moves
+on a resize, a fullscreen toggle, a filter change and the browser's canvas alike, and asking
+costs two divisions and a comparison.
+
+Two sizes are all there are — nothing takes a larger cursor — so the choice is which of 16 and
+32 lands closer to the 16·s the scale asks for: `|32 − 16s| < |16 − 16s|` from **s = 1.5**. At
+exactly 1 and exactly 2, where `getDefaultWindowSize` puts almost everyone, the chosen one is
+also pixel-exact against the picture. Measured at 1.40, 1.50 and 1.60: 16, 32, 32.
+
+The
 upscaling filter is *not* a switch; it is an in-game option like the language, saved as
 `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
 subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem

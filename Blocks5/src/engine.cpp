@@ -83,6 +83,9 @@ Engine::Engine()
 	p_videoRecorder = 0;
 	p_audioCapture = 0;
 	p_muteIconTexture = 0;
+	p_cursor1x = 0;
+	p_cursor2x = 0;
+	cursorScale = 0;
 	frameBufferID = 0;
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
@@ -1201,23 +1204,18 @@ void Engine::mainLoopIteration()
 
 					if(SDL_ShowCursor(-1))
 					{
-						// Mauszeiger manuell in den Puffer einzeichnen, und zwar
-						// in seiner einfachen Groesse. cursorImage ist die
-						// pixelverdoppelte Fassung, die setupCursor() an SDL
-						// gibt: das System zeichnet den Zeiger in Fensterpixeln,
-						// und ein Fenster ist ueblicherweise doppelt so gross
-						// wie das 640x480-Bild darin. Hier wird aber genau
-						// dieses Bild aufgenommen, und da gehoert der Zeiger in
-						// die Groesse, in der er entworfen wurde - sonst steht
-						// er als 32x32-Riese in einem 640x480-Video. Jedes
-						// zweite Pixel zu nehmen ist die Umkehrung der
-						// Verdopplung und damit wieder das Original.
+						// Mauszeiger manuell in den Puffer einzeichnen. Immer in
+						// seiner entworfenen Groesse: aufgenommen wird das
+						// 640x480-Bild, gleich wie gross das Fenster gerade ist,
+						// und in dem ist der Zeiger 16x16. Was das System auf
+						// den Schirm zeichnet, kann daneben doppelt so gross
+						// sein - siehe updateCursorSize().
 						const Vec2i cursorPosition(getCursorPosition());
 						for(int dy = 0; dy < 16 && cursorPosition.y + dy < screenSize.y; ++dy)
 						{
 							for(int dx = 0; dx < 16 && cursorPosition.x + dx < screenSize.x; ++dx)
 							{
-								const int color = cursorImage[2 * dy][2 * dx];
+								const int color = cursorImage[dy][dx];
 								if(color != -1)
 								{
 									const Vec2i pixelPosition(cursorPosition + Vec2i(dx, dy));
@@ -1475,6 +1473,12 @@ void Engine::render()
 #ifdef PROFILE_ENGINE_RENDER
 	BEGIN_PROFILE(engineRender)
 #endif
+
+	// Passt der Mauszeiger noch zu dem, was zu sehen ist? Jedes Bild gefragt
+	// statt an Ereignisse gehaengt: es aendert sich an mehr Stellen, als man
+	// sich merken moechte - Fenstergroesse, Vollbild, Filterwechsel, im Browser
+	// der Canvas -, und die Frage kostet zwei Divisionen und einen Vergleich.
+	updateCursorSize();
 
 	// GUI rendern
 	GUI::inst().render();
@@ -4166,61 +4170,32 @@ AudioCapture* Engine::getAudioCapture()
 
 void Engine::setupCursor()
 {
-	// Der Pfeil, pixelverdoppelt: jedes 1x1 wird ein 2x2. Das 640x480-Bild wird
-	// mitskaliert, der Mauszeiger aber nicht - den zeichnet das System in
-	// Fensterpixeln. Groesser als 32x32 geht nicht, so gross ist ein Cursor.
+	// Der Pfeil, so gross wie entworfen. Was das System zeichnet, wird daraus
+	// gebaut: einmal so und einmal Pixel fuer Pixel verdoppelt.
 	const char* p_arrow[] = {
-		/* width height num_colors chars_per_pixel */
-		"    32    32        3            1",
-		/* colors */
-		"X c #000000",
-		". c #ffffff",
-		"  c None",
-		/* pixels */
-		"XX                              ",
-		"XX                              ",
-		"XXXX                            ",
-		"XXXX                            ",
-		"XX..XX                          ",
-		"XX..XX                          ",
-		"XX....XX                        ",
-		"XX....XX                        ",
-		"XX......XX                      ",
-		"XX......XX                      ",
-		"XX........XX                    ",
-		"XX........XX                    ",
-		"XX..........XX                  ",
-		"XX..........XX                  ",
-		"XX............XX                ",
-		"XX............XX                ",
-		"XX..............XX              ",
-		"XX..............XX              ",
-		"XX..........XXXXXX              ",
-		"XX..........XXXXXX              ",
-		"XX....XX....XX                  ",
-		"XX....XX....XX                  ",
-		"XX..XX  XX....XX                ",
-		"XX..XX  XX....XX                ",
-		"XXXX    XX....XX                ",
-		"XXXX    XX....XX                ",
-		"          XX....XX              ",
-		"          XX....XX              ",
-		"          XX....XX              ",
-		"          XX....XX              ",
-		"            XXXX                ",
-		"            XXXX                ",
-		"0,0"
+		"X               ",
+		"XX              ",
+		"X.X             ",
+		"X..X            ",
+		"X...X           ",
+		"X....X          ",
+		"X.....X         ",
+		"X......X        ",
+		"X.......X       ",
+		"X.....XXX       ",
+		"X..X..X         ",
+		"X.X X..X        ",
+		"XX  X..X        ",
+		"     X..X       ",
+		"     X..X       ",
+		"      XX        "
 	};
 
-	// cursorImage traegt immer die verdoppelte Fassung: der Videorecorder
-	// zeichnet den Zeiger selbst in das 640x480-Bild und nimmt sich dafuer
-	// jedes zweite Pixel. 0 ist schwarz, 1 weiss, -1 durchsichtig.
-	int row, col;
-	for(row = 0; row < 32; ++row)
+	for(int row = 0; row < 16; ++row)
 	{
-		for(col = 0; col < 32; ++col)
+		for(int col = 0; col < 16; ++col)
 		{
-			switch(p_arrow[4 + row][col])
+			switch(p_arrow[row][col])
 			{
 			case 'X': cursorImage[row][col] =  0; break;
 			case '.': cursorImage[row][col] =  1; break;
@@ -4229,20 +4204,24 @@ void Engine::setupCursor()
 		}
 	}
 
-	// Den Zeiger zeichnet das System in Fensterpixeln. Mit Bildpuffer ist das
-	// Fenster ueblicherweise doppelt so gross wie das Bild darin, also passt
-	// die verdoppelte Fassung; ohne einen steht das Fenster fest auf 640x480,
-	// und dort waere sie doppelt so gross wie entworfen. Jedes zweite Pixel zu
-	// nehmen ist die Umkehrung der Verdopplung und damit wieder das Original.
-	const int step = useFrameBuffer ? 1 : 2;
-	const int size = 32 / step;
+	p_cursor1x = createCursor(1);
+	p_cursor2x = createCursor(2);
+	cursorScale = 0;
+	updateCursorSize();
+}
 
-	Uint8 data[4*32];
-	Uint8 mask[4*32];
+SDL_Cursor* Engine::createCursor(int factor) const
+{
+	// SDL will zwei Bitmasken, ein Bit je Pixel und das hoechstwertige zuerst:
+	// data sagt schwarz oder weiss, mask sagt sichtbar oder durchsichtig.
+	const int size = 16 * factor;
+	Uint8 data[4 * 32];
+	Uint8 mask[4 * 32];
+
 	int i = -1;
-	for(row = 0; row < size; ++row)
+	for(int row = 0; row < size; ++row)
 	{
-		for(col = 0; col < size; ++col)
+		for(int col = 0; col < size; ++col)
 		{
 			if(col % 8)
 			{
@@ -4255,16 +4234,42 @@ void Engine::setupCursor()
 				data[i] = mask[i] = 0;
 			}
 
-			const int color = cursorImage[row * step][col * step];
+			const int color = cursorImage[row / factor][col / factor];
 			if(color == 0) { data[i] |= 0x01; mask[i] |= 0x01; }
 			else if(color == 1) { mask[i] |= 0x01; }
 		}
 	}
 
-	int hot_x, hot_y;
-	sscanf(p_arrow[4 + 32], "%d,%d", &hot_x, &hot_y);
+	// Die Spitze liegt in der Ecke, in jeder Groesse.
+	return SDL_CreateCursor(data, mask, size, size, 0, 0);
+}
 
-	SDL_Cursor* p_cursor = SDL_CreateCursor(data, mask, size, size,
-											hot_x / step, hot_y / step);
+void Engine::updateCursorSize()
+{
+	// Den Zeiger zeichnet das System in Fensterpixeln, das Bild des Spiels wird
+	// skaliert - also haengt die passende Groesse daran, wie gross das Bild
+	// gerade auf dem Schirm steht. Gemessen am Rechteck, das presentFrame()
+	// fuellt, und nicht am Fenster: "Scharf" rastet auf ganze Stufen ein, und
+	// dann ist das Bild kleiner als das Fenster.
+	//
+	// Gerufen wird das je Bild aus render(); geaendert wird nur, wenn sich
+	// wirklich etwas aendert.
+	//
+	// Zur Wahl stehen 16 und 32 Bildpunkte - groesser nimmt kein Zeiger. Bei
+	// einem Massstab s waeren 16*s richtig, also wird der genommen, der naeher
+	// daran liegt: |32 - 16s| < |16 - 16s| gilt ab s = 1.5. Bei genau 1 und
+	// genau 2 - wo fast jeder sitzt - deckt sich der gewaehlte ausserdem Pixel
+	// fuer Pixel mit dem Bild.
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	const double scale = screenSize.x ? static_cast<double>(w) / screenSize.x : 1.0;
+
+	const int wanted = scale >= 1.5 ? 2 : 1;
+	if(wanted == cursorScale) return;
+
+	SDL_Cursor* p_cursor = wanted == 2 ? p_cursor2x : p_cursor1x;
+	if(!p_cursor) return;
+
+	cursorScale = wanted;
 	SDL_SetCursor(p_cursor);
 }
