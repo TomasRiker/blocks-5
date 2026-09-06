@@ -162,6 +162,9 @@ public:
 	// Kleinste Fenstergroesse, die handleResize() zulaesst, als Fensterrechteck
 	// samt Rahmen - fuer WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;
+	// Ohne Bildpuffer bleibt das Fenster bei 640x480 - siehe fixWindowSize().
+	// Die Fensterprozedur fragt danach, um Windows auch die Obergrenze zu nennen.
+	bool hasFixedWindowSize() const { return !useFrameBuffer; }
 #endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
@@ -370,6 +373,7 @@ private:
 	};
 
 	void setupCursor();
+	void fixWindowSize();
 	void updateToasts();
 	void renderToasts();
 

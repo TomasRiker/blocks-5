@@ -13,6 +13,11 @@ namespace LinuxWindow
 	// wieder herauszuholen. false heisst "hier laeuft kein X11" - dann muss
 	// der Aufrufer selbst sehen, was er tut.
 	bool setFullScreen(bool wantFullScreen);
+
+	// Dem Fenstermanager sagen, dass dieses Fenster genau diese Groesse haben
+	// soll und keine andere. Er nimmt dem Rand dann den Ziehgriff und dem
+	// Maximierknopf seine Wirkung. false heisst wieder "hier laeuft kein X11".
+	bool setFixedSize(int width, int height);
 }
 
 #endif

@@ -114,7 +114,27 @@ before asking the extension, `createUpscalerGL()` before allocating the shared v
 buffer — after which every shader filter reports itself unavailable of its own accord and
 `getEffectiveUpscaler` falls back to `Sharp`. Both paths are otherwise unreachable from
 this machine, and they carry real code: without a framebuffer object there is no upscaler,
-no crossfade and no rolled hint note. The
+no crossfade and no rolled hint note.
+
+**Without one the window is nailed to 640x480**, and that is not a preference: the game then
+draws straight into the back buffer, the viewport is 640x480, and `presentFrame` returns
+without doing anything — so a larger window does not get a larger picture, it gets the same
+picture somewhere else, while `getCursorPosition` still believes `displaySize` and puts every
+click in the wrong place. `handleResize` has always clamped the size; what was missing is that
+nothing told the *window*, so maximizing left the frame large and the clamp then early-returned
+on an unchanged `displaySize` and did nothing at all. `Engine::fixWindowSize` takes
+`WS_THICKFRAME` and `WS_MAXIMIZEBOX` off the window under Windows (and answers
+`WM_GETMINMAXINFO` with the same size for the maximum as for the minimum, since Win+Arrow does
+not drag a border), and sets equal min and max size hints under X11, which is the ICCCM way of
+saying "this window has one size". Fullscreen was already refused on that path.
+
+**The mouse cursor halves with it.** `setupCursor` draws a 32x32 arrow because the window is
+normally twice the size of the 640x480 image inside it and the system draws the pointer in
+window pixels; at 1:1 that arrow is twice the size it was designed as. Taking every second
+pixel — the same inversion the video recorder does when it draws the pointer into a captured
+frame — gives the 16x16 original back. `cursorImage` keeps the doubled form either way, since
+that is what the recorder reads. The call therefore comes after the framebuffer decision, not
+before it. The
 upscaling filter is *not* a switch; it is an in-game option like the language, saved as
 `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
 subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem

@@ -487,7 +487,6 @@ bool Engine::init(const std::string& windowCaption,
 #endif
 
 	SDL_ShowCursor(0);
-	setupCursor();
 
 	const char* p_vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 	const char* p_renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
@@ -548,6 +547,7 @@ bool Engine::init(const std::string& windowCaption,
 		// setzen wuerde.
 		fullScreen = false;
 		handleResize(screenSize.x, screenSize.y);
+		fixWindowSize();
 	}
 	else if(GLExtensions::haveShaders())
 	{
@@ -568,6 +568,9 @@ bool Engine::init(const std::string& windowCaption,
 		printfLog("  Upscale filters:  %s\n", available.c_str());
 	}
 	printfLog("  Upscaling:        %s\n", getEffectiveUpscaler()->getName());
+
+	// Erst hier, denn wie gross der Zeiger sein muss, haengt am Bildpuffer.
+	setupCursor();
 
 	// Texturen fuer Crossfading erzeugen
 	glGenTextures(1, &oldImageID);
@@ -2160,6 +2163,17 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				MINMAXINFO* p_info = reinterpret_cast<MINMAXINFO*>(lParam);
 				p_info->ptMinTrackSize.x = minimum.x;
 				p_info->ptMinTrackSize.y = minimum.y;
+
+				// Ohne Bildpuffer ist die Untergrenze zugleich die Obergrenze.
+				// Der Stil allein sollte reichen, aber Windows kennt Wege ans
+				// Fenster, die nicht am Rand ziehen - Win+Pfeil etwa.
+				if(engine.hasFixedWindowSize())
+				{
+					p_info->ptMaxTrackSize.x = minimum.x;
+					p_info->ptMaxTrackSize.y = minimum.y;
+					p_info->ptMaxSize.x      = minimum.x;
+					p_info->ptMaxSize.y      = minimum.y;
+				}
 			}
 
 			return result;
@@ -2213,6 +2227,7 @@ Vec2i Engine::getMinimumWindowSize() const
 
 	return Vec2i(r.right - r.left, r.bottom - r.top);
 }
+
 
 
 void Engine::beginForeignMessageLoop()
@@ -2286,6 +2301,43 @@ void Engine::repaintDuringSizeMove()
 	busy = false;
 }
 #endif
+
+void Engine::fixWindowSize()
+{
+	// Ohne Bildpuffer zeichnet das Spiel geradewegs in den Backbuffer. Der
+	// Viewport steht auf 640x480 und presentFrame() gibt es nicht, also fuellt
+	// ein groesseres Fenster sich nicht mit einem groesseren Bild - es zeigt
+	// dasselbe Bild woanders, und die Mausumrechnung, die displaySize glaubt,
+	// zielt daneben. handleResize() klemmt die Groesse ohnehin auf 640x480; das
+	// hier sagt es dem Fenster selbst, damit es gar nicht erst wachsen kann.
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	if(!SDL_GetWMInfo(&info) || !info.window) return;
+
+	HWND hwnd = info.window;
+
+	// Erst herstellen: restoreWindowPosition() laeuft vor der Entscheidung ueber
+	// den Bildpuffer, und ein maximiert gemerktes Fenster stuende hier noch so
+	// da. Ein SetWindowPos allein nimmt ihm das Kennzeichen nicht ab.
+	if(IsZoomed(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+
+	// WS_THICKFRAME ist der Ziehgriff am Rand, WS_MAXIMIZEBOX der Knopf - und
+	// mit ihm faellt auch der Doppelklick auf die Titelzeile weg. Erst den Stil
+	// aendern, dann messen: getMinimumWindowSize() rechnet mit dem, der steht.
+	SetWindowLong(hwnd, GWL_STYLE,
+				  GetWindowLong(hwnd, GWL_STYLE) & ~(WS_THICKFRAME | WS_MAXIMIZEBOX));
+
+	const Vec2i frame = getMinimumWindowSize();
+	if(frame.x > 0 && frame.y > 0)
+	{
+		SetWindowPos(hwnd, 0, 0, 0, frame.x, frame.y,
+					 SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+#elif !defined(__EMSCRIPTEN__)
+	LinuxWindow::setFixedSize(screenSize.x, screenSize.y);
+#endif
+}
 
 void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
@@ -4160,42 +4212,59 @@ void Engine::setupCursor()
 		"0,0"
 	};
 
-	int i, row, col;
-	Uint8 data[4*32];
-	Uint8 mask[4*32];
-	int hot_x, hot_y;
-
-	i = -1;
-	for ( row=0; row<32; ++row )
+	// cursorImage traegt immer die verdoppelte Fassung: der Videorecorder
+	// zeichnet den Zeiger selbst in das 640x480-Bild und nimmt sich dafuer
+	// jedes zweite Pixel. 0 ist schwarz, 1 weiss, -1 durchsichtig.
+	int row, col;
+	for(row = 0; row < 32; ++row)
 	{
-		for ( col=0; col<32; ++col ) {
-			if ( col % 8 ) {
-				data[i] <<= 1;
-				mask[i] <<= 1;
-			} else {
-				++i;
-				data[i] = mask[i] = 0;
-			}
-	  
-			switch (p_arrow[4+row][col]) {
-			case 'X':
-				data[i] |= 0x01;
-				mask[i] |= 0x01;
-				cursorImage[row][col] = 0;
-				break;
-			case '.':
-				mask[i] |= 0x01;
-				cursorImage[row][col] = 1;
-				break;
-			case ' ':
-				cursorImage[row][col] = -1;
-				break;
+		for(col = 0; col < 32; ++col)
+		{
+			switch(p_arrow[4 + row][col])
+			{
+			case 'X': cursorImage[row][col] =  0; break;
+			case '.': cursorImage[row][col] =  1; break;
+			default:  cursorImage[row][col] = -1; break;
 			}
 		}
 	}
 
-	sscanf(p_arrow[4+row], "%d,%d", &hot_x, &hot_y);
+	// Den Zeiger zeichnet das System in Fensterpixeln. Mit Bildpuffer ist das
+	// Fenster ueblicherweise doppelt so gross wie das Bild darin, also passt
+	// die verdoppelte Fassung; ohne einen steht das Fenster fest auf 640x480,
+	// und dort waere sie doppelt so gross wie entworfen. Jedes zweite Pixel zu
+	// nehmen ist die Umkehrung der Verdopplung und damit wieder das Original.
+	const int step = useFrameBuffer ? 1 : 2;
+	const int size = 32 / step;
 
-	SDL_Cursor* p_cursor = SDL_CreateCursor(data, mask, 32, 32, hot_x, hot_y);
+	Uint8 data[4*32];
+	Uint8 mask[4*32];
+	int i = -1;
+	for(row = 0; row < size; ++row)
+	{
+		for(col = 0; col < size; ++col)
+		{
+			if(col % 8)
+			{
+				data[i] <<= 1;
+				mask[i] <<= 1;
+			}
+			else
+			{
+				++i;
+				data[i] = mask[i] = 0;
+			}
+
+			const int color = cursorImage[row * step][col * step];
+			if(color == 0) { data[i] |= 0x01; mask[i] |= 0x01; }
+			else if(color == 1) { mask[i] |= 0x01; }
+		}
+	}
+
+	int hot_x, hot_y;
+	sscanf(p_arrow[4 + 32], "%d,%d", &hot_x, &hot_y);
+
+	SDL_Cursor* p_cursor = SDL_CreateCursor(data, mask, size, size,
+											hot_x / step, hot_y / step);
 	SDL_SetCursor(p_cursor);
 }

@@ -81,7 +81,9 @@ b5_start()
 
 	# ALSOFT_DRIVERS=null: auf einer Maschine ohne Tonausgabe braeche das Spiel
 	# sonst schon beim Start ab, und darum geht es hier nicht.
-	( cd "$B5_GAME" && ALSOFT_DRIVERS=null "$B5_EXE" -windowed >"$B5_OUT/run.log" 2>&1 ) &
+	# B5_ARGS haengt weitere Schalter an - -nofbo und -noshader erzwingen die
+	# beiden Notpfade, die es auf dieser Maschine sonst nicht gibt.
+	( cd "$B5_GAME" && ALSOFT_DRIVERS=null "$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
 	B5_GAME_PID=$!
 
 	# Auf das Fenster warten statt eine Zeit zu raten: unter llvmpipe braucht
