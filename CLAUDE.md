@@ -1458,11 +1458,14 @@ apart: the caption is measured once with an empty title to learn what the frame 
 title gets the rest. A second pass over the finished caption is the backstop for a filename so
 long that even the frame does not fit.
 
-The cut may not land inside `<h>…</h>`. Both `measureText` and `renderTextPure` push the
-current options on a stack at `<h>` and pop them at `</h>`, and that stack belongs to the
-`Font` rather than to the string — an `<h>` left open would italicize every later line in the
-game. So `fitText` drops a half-cut tag entirely and closes whatever it left open. No shipped
-title carries markup; an imported level's may, and it is a level file from a stranger.
+The cut may not land inside `<h>…</h>`, so `fitText` drops a half-cut tag entirely and closes
+whatever it left open. **`<h>` ends with the string it began in**, and both `measureText` and
+`renderTextPure` now enforce that with a counter: the option stack they push on belongs to the
+`Font` and not to the text, and `renderText` caches a display list per string, so markup could
+never have carried across a call anyway. An unclosed `<h>` used to leave `italic` set and an
+entry on the stack for the rest of the run; an extra `</h>` used to pop the *caller's* entry,
+or `top()` an empty stack — a level titled `</h>Hello` crashed the game, and a level title is
+a file from a stranger.
 
 **Short messages are the Engine's, not a game state's.** `Engine::showToast(type, text,
 duration, suppressSound)` slides a bar in at the top edge, holds it, and slides it out again —

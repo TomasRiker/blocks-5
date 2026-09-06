@@ -221,6 +221,15 @@ void Font::renderTextPure(const std::string& text)
 	glBegin(GL_QUADS);
 
 	Vec2i cursor(0, offset);
+
+	// Der Optionsstapel gehoert der Schrift und nicht dem Text, <h> gilt aber
+	// nur innerhalb dieses einen Strings - renderText() legt je String eine
+	// Anzeigeliste an, ueber die Grenze hinweg koennte es also gar nicht
+	// wirken. Der Zaehler haelt beides auseinander: ein fehlendes </h> faerbte
+	// sonst allen weiteren Text im Spiel kursiv, ein ueberzaehliges nimmt dem
+	// Aufrufer seine eigene Sicherung herunter oder greift ins Leere.
+	size_t openTags = 0;
+
 	for(size_t i = 0; i < text.length(); i++)
 	{
 		uint r = static_cast<uint>(text.length() - i - 1);
@@ -242,12 +251,17 @@ void Font::renderTextPure(const std::string& text)
 		{
 			optionsStack.push(options);
 			options.italic = 4;
+			openTags++;
 			i += 2;
 		}
 		else if(r >= 4 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
 		{
-			options = optionsStack.top();
-			optionsStack.pop();
+			if(openTags > 0)
+			{
+				options = optionsStack.top();
+				optionsStack.pop();
+				openTags--;
+			}
 			i += 3;
 		}
 		else
@@ -279,6 +293,14 @@ void Font::renderTextPure(const std::string& text)
 
 			cursor.x += info.size.x + options.charSpacing;
 		}
+	}
+
+	// Was der Text offen gelassen hat, schliesst er hier.
+	while(openTags > 0)
+	{
+		options = optionsStack.top();
+		optionsStack.pop();
+		openTags--;
 	}
 
 	glEnd();
@@ -351,6 +373,9 @@ void Font::measureText(const std::string& text,
 	Vec2d cursor(0, 0);
 	Vec2d maximum(0, lineHeight);
 
+	// Wie in renderTextPure(): <h> endet spaetestens mit diesem Text.
+	size_t openTags = 0;
+
 	for(size_t i = 0; i < text.length(); i++)
 	{
 		uint r = static_cast<uint>(text.length() - i - 1);
@@ -376,12 +401,17 @@ void Font::measureText(const std::string& text,
 		{
 			optionsStack.push(options);
 			options.italic = 4;
+			openTags++;
 			i += 2;
 		}
 		else if(r >= 4 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
 		{
-			options = optionsStack.top();
-			optionsStack.pop();
+			if(openTags > 0)
+			{
+				options = optionsStack.top();
+				optionsStack.pop();
+				openTags--;
+			}
 			i += 3;
 		}
 		else
@@ -392,6 +422,14 @@ void Font::measureText(const std::string& text,
 
 			cursor.x += info.size.x + options.charSpacing;
 		}
+	}
+
+	// Was der Text offen gelassen hat, schliesst er hier.
+	while(openTags > 0)
+	{
+		options = optionsStack.top();
+		optionsStack.pop();
+		openTags--;
 	}
 
 	if(p_outCharPositions) p_outCharPositions->push_back(cursor + offset);
