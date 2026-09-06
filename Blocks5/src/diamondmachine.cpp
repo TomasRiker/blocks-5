@@ -5,7 +5,7 @@
 #include "particlesystem.h"
 #include "soundinstance.h"
 
-/* Der Funkenflug der Umwandlung, in fuenf Fassungen zum Ansehen.
+/* Der Funkenflug der Umwandlung.
 
    Ein Block wird nicht ausgeblendet und durch einen Diamanten ersetzt, sondern
    auseinandergenommen und wieder zusammengesetzt: erst fliegen Funken in den
@@ -36,13 +36,18 @@
    mit dem einer genau auf seinem Ziel ankommt. d unter 1 bremst ab, d ueber 1
    zieht an; deshalb verpufft der Weg nach aussen und der nach innen saugt.
 
-   HELL, OHNE ADDITIV ZU MISCHEN. Ein Funke soll gluehen und trotzdem die echte
-   Farbe des Blocks tragen. Additiv geht beides nicht zugleich: dort haengt das
-   Ergebnis am Hintergrund, und dasselbe Braun waere ueber Fels ein Glimmen und
-   ueber Gras ein grelles Gelb. Statt dessen startet die Farbe ueber 1 - GL
-   klemmt sie auf [0,1], der Funke ist also zuerst weiss - und faellt linear
-   durch genau die Texelfarbe hindurch weiter ab. Das ist die abkuehlende Glut,
-   und sie sieht auf jedem Untergrund gleich aus.
+   STAUB, NICHT GLUT. Ein Auswaertsfunke traegt die schlichte Farbe des Texels,
+   aus dem er stammt, und wird nur blasser - OUT_BRIGHT und OUT_END sind beide
+   1. Gluehende Funken sehen nach Schweissen aus, und die Maschine bekommt Fels,
+   Eis und Gras genauso vorgesetzt wie Metall. Aus demselben Grund sind es
+   viele, grosse und langsame statt weniger, kleiner und schneller: das soll ein
+   Block sein, der auseinanderfaellt.
+
+   Additiv gemischt wird dabei nicht. Dort haengt das Ergebnis am Hintergrund,
+   und dasselbe Braun waere ueber Fels ein Glimmen und ueber Gras ein grelles
+   Gelb. Einwaerts startet die Farbe trotzdem ueber 1, wo GL sie auf [0,1]
+   klemmt - das ist aber kein Gluehen, sondern der Weg um einen Gruenstich
+   herum, und die Begruendung steht dort, wo sie gerechnet wird.
 
    ABBRUCH. Der Block kann im letzten Augenblick weggeschoben, gesprengt oder
    abgeschaltet werden. Verschwinden duerfen die Funken dann nicht, das waere
@@ -58,9 +63,7 @@
    fliegen sie zu ihm zurueck und werden wieder eingesaugt; ist er zerstoert,
    fliegen sie unbeirrt weiter, denn dann ist Auseinanderfliegen genau das
    Richtige.
-
-   WELCHE FASSUNG. position.y % 5. Das ist zum Vergleichen da und nichts, was so
-   bleiben kann; die Testdatei dazu liegt in Tools/testlevels. */
+ */
 
 namespace
 {
@@ -78,66 +81,37 @@ namespace
 	// in dem der Diamant dasteht. Die letzten brauchen noch etwas Weg.
 	const int SPARK_IN_MIN_LIFE = 8;
 
-	struct SparkVariant
-	{
-		// Welches Feld der 32er-Kachel in particles.png, in Bildpunkten.
-		//
-		// Die Wahl entscheidet ueber die *Farbe*, nicht nur ueber die Form: das
-		// Teilchen wird mit dem Feld multipliziert. (32,0) sieht als satter
-		// Klecks richtig aus, ist aber ein fertig eingefaerbtes Orange
-		// (231,152,41) - ein cyanfarbener Funke darauf wird oliv, und genau das
-		// war an allen Fassungen ausser "Staub" zu sehen. Neutral und zugleich
-		// dicht ist allein (32,32): eine runde Scheibe in reinem Weiss. (0,32)
-		// waere ein weisser Vierstern, falls es einmal funkeln soll.
-		int    spriteX;
-		int    spriteY;
+	// Das Bild in particles.png, in Bildpunkten, und die einzige Wahl, die es
+	// hier gibt: das Teilchen wird mit dem Feld multipliziert. (32,0) sieht als
+	// satter Klecks richtig aus, ist aber ein fertig eingefaerbtes Orange
+	// (231,152,41) - ein cyanfarbener Funke darauf wird oliv. Neutral und
+	// zugleich dicht ist allein (32,32): eine runde Scheibe in reinem Weiss.
+	// (0,32) waere ein weisser Vierstern, falls es einmal funkeln soll.
+	const int SPARK_SPRITE_X = 32;
+	const int SPARK_SPRITE_Y = 32;
 
-		double outRate;       // Funken je Takt bei voller Rate
-		double outSpeedMin;
-		double outSpeedMax;
-		double outDamping;    // unter 1: bremst ab
-		double outGravity;
-		double outSwirl;      // Startrichtung gegen radial verdreht, im Bogenmass
-		double outBright;     // Ueberhelligkeit im ersten Takt
-		double outEnd;        // Helligkeit im letzten
-		double outAlpha;      // Deckkraft beim Start
-		int    outLife;
-		double outSize;
+	// Auswaerts: der Block faellt auseinander.
+	const double OUT_RATE     = 6.0;   // Funken je Takt bei voller Rate
+	const double OUT_SPEED_MIN = 0.5;
+	const double OUT_SPEED_MAX = 1.1;
+	const double OUT_DAMPING  = 0.95;  // unter 1: bremst ab
+	const double OUT_BRIGHT   = 1.0;   // Helligkeit im ersten Takt
+	const double OUT_END      = 1.0;   // Helligkeit im letzten
+	const double OUT_ALPHA    = 0.85;  // Deckkraft beim Start
+	const int    OUT_LIFE     = 27;
+	const double OUT_SIZE     = 0.42;
 
-		double inRate;
-		// Um wie viel schneller ein Funke am Ende seines Fluges ist als am
-		// Anfang. Daraus wird die Daempfung gerechnet, denn die Lebensdauer
-		// steht erst beim Losfliegen fest - so sieht der Anflug bei jeder
-		// Dauer gleich aus: lange schleichen, zum Schluss zuschnappen.
-		double inAccel;
-		double inSwirl;       // Startpunkt gegen die Richtung des Ziels verdreht
-		double inStart;       // Helligkeit der Startfarbe, siehe unten
-		double inBright;      // Helligkeit beim Aufschlag
-		double inAlpha;       // Deckkraft beim Aufschlag
-		double inSize;
-	};
-
-	const SparkVariant sparkVariants[] =
-	{
-		// Glut - der Entwurf, ohne Zutaten.
-		{32, 32,  4.0, 1.0, 2.0, 0.90, 0.00,  0.0, 2.2, 0.0, 1.00, 27, 0.22,
-		      2.6, 6.0,  0.0, 2.2, 1.5, 1.00, 0.20},
-		// Schweissfunken - wenige, sehr heiss, sehr schnell und sehr klein.
-		{32, 32,  2.2, 2.2, 3.6, 0.85, 0.00,  0.0, 3.5, 0.0, 1.00, 27, 0.15,
-		      1.6, 9.0,  0.0, 3.0, 2.4, 1.00, 0.14},
-		// Staub - die Gegenprobe: keine Ueberhelligkeit, viele, langsam und
-		// gross. Wenn das gewinnt, war die Glut die falsche Idee.
-		{32, 32,  6.0, 0.5, 1.1, 0.95, 0.00,  0.0, 1.0, 1.0, 0.85, 27, 0.42,
-		      4.0, 3.0,  0.0, 1.4, 1.0, 0.85, 0.38},
-		// Wurf - auswaerts mit Schwerkraft, die Truemmer fallen im Bogen.
-		{32, 32,  4.0, 1.4, 2.4, 0.93, 0.05,  0.0, 1.8, 0.3, 1.00, 27, 0.24,
-		      2.6, 6.0,  0.0, 2.2, 1.5, 1.00, 0.20},
-		// Wirbel - schraeg hinaus und von der anderen Seite herein.
-		{32, 32,  4.0, 1.2, 2.2, 0.91, 0.00,  0.8, 2.2, 0.0, 1.00, 27, 0.22,
-		      2.6, 6.0, -1.3, 2.2, 1.5, 1.00, 0.20}
-	};
-
-	const int NUM_SPARK_VARIANTS = sizeof(sparkVariants) / sizeof(sparkVariants[0]);
+	// Einwaerts: der Diamant wird zusammengesetzt.
+	const double IN_RATE   = 4.0;
+	// Um wie viel schneller ein Funke am Ende seines Fluges ist als am Anfang.
+	// Daraus wird die Daempfung gerechnet, denn die Lebensdauer steht erst beim
+	// Losfliegen fest - so sieht der Anflug bei jeder Dauer gleich aus: lange
+	// schleichen, zum Schluss zuschnappen.
+	const double IN_ACCEL  = 3.0;
+	const double IN_START  = 1.4;      // Helligkeit der Startfarbe, siehe unten
+	const double IN_BRIGHT = 1.0;      // Helligkeit beim Aufschlag
+	const double IN_ALPHA  = 0.85;     // Deckkraft beim Aufschlag
+	const double IN_SIZE   = 0.38;
 
 	// Anteil der vollen Rate. Beide Rampen sind linear und nicht geschaltet:
 	// ein harter Wechsel liesse die Mitte als Plateau erscheinen, auf dem beide
@@ -207,8 +181,6 @@ DiamondMachine::~DiamondMachine()
 
 void DiamondMachine::spawnSparks(Object* p_block)
 {
-	const SparkVariant& v = sparkVariants[position.y % NUM_SPARK_VARIANTS];
-
 	// Eine neue Kennung je Umwandlung, nicht je Maschine: nach einem Abbruch
 	// laufen die alten Funken noch nach Hause, und die darf ein zweiter
 	// Abbruch nicht ein zweites Mal umdrehen.
@@ -228,7 +200,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 	const Vec2d origin(position.x * 16.0, (position.y - 1) * 16.0);
 	const Vec2d middle = origin + Vec2d(8.0, 8.0);
 
-	int n = spawnCount(v.outRate * outRamp(counter));
+	int n = spawnCount(OUT_RATE * outRamp(counter));
 	for(int i = 0; i < n; i++)
 	{
 		Vec4d sampled;
@@ -243,35 +215,34 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		const Vec2d radial = start - middle;
 		double angle = (radial.length() > 0.5) ? atan2(radial.y, radial.x)
 											   : random(0.0, 6.2832);
-		angle += v.outSwirl;
 
-		const Vec4d hot = sampled * v.outBright;
-		const Vec4d cold(sampled.r * v.outEnd, sampled.g * v.outEnd, sampled.b * v.outEnd, 0.0);
+		const Vec4d hot = sampled * OUT_BRIGHT;
+		const Vec4d cold(sampled.r * OUT_END, sampled.g * OUT_END, sampled.b * OUT_END, 0.0);
 
 		ParticleSystem::Particle p;
-		p.lifetime = v.outLife;
-		p.damping = static_cast<float>(v.outDamping);
-		p.gravity = static_cast<float>(v.outGravity);
-		p.positionOnTexture = Vec2b(v.spriteX, v.spriteY);
+		p.lifetime = OUT_LIFE;
+		p.damping = static_cast<float>(OUT_DAMPING);
+		p.gravity = 0.0f;
+		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
-		p.velocity = Vec2d(cos(angle), sin(angle)) * random(v.outSpeedMin, v.outSpeedMax);
+		p.velocity = Vec2d(cos(angle), sin(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
 		// Nicht sampled.a: das ist DEBRIS_ALPHA und damit ein Viertel. Ein
 		// Truemmerstueck darf blass sein, ein Funke leuchtet.
-		const Vec4d begin(hot.r, hot.g, hot.b, v.outAlpha);
+		const Vec4d begin(hot.r, hot.g, hot.b, OUT_ALPHA);
 		p.color = begin;
-		p.deltaColor = (cold - begin) / static_cast<double>(v.outLife);
+		p.deltaColor = (cold - begin) / static_cast<double>(OUT_LIFE);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(v.outSize);
-		p.deltaSize = static_cast<float>(-v.outSize / (v.outLife * 1.3));
+		p.size = static_cast<float>(OUT_SIZE);
+		p.deltaSize = static_cast<float>(-OUT_SIZE / (OUT_LIFE * 1.3));
 		p.id = sparkId;
 		p_sys->addParticle(p);
 	}
 
 	if(!haveDiamond) return;
 
-	n = spawnCount(v.inRate * inRamp(counter));
+	n = spawnCount(IN_RATE * inRamp(counter));
 	for(int i = 0; i < n; i++)
 	{
 		Vec4d target;
@@ -288,9 +259,9 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		// dieselbe Verteilung, nur noch einmal gewuerfelt statt gemerkt. Auf die
 		// Paarung einzelner Funken kommt es nicht an - unter Dutzenden sieht
 		// niemand, welcher zu welchem gehoert, es zaehlt die Form der Wolke.
-		const double radius = travelDistance(random(v.outSpeedMin, v.outSpeedMax),
-											 v.outDamping, v.outLife);
-		const double angle = atan2(landing.y - middle.y, landing.x - middle.x) + v.inSwirl;
+		const double radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
+											 OUT_DAMPING, OUT_LIFE);
+		const double angle = atan2(landing.y - middle.y, landing.x - middle.x);
 		const Vec2d start = middle + Vec2d(fromOffset.x - 8.0, fromOffset.y - 8.0)
 								   + Vec2d(cos(angle), sin(angle)) * radius;
 
@@ -309,11 +280,11 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		// Die Daempfung aus dem gewuenschten Zuwachs, damit der Anflug bei
 		// jeder Dauer dieselbe Form hat: d^moves = inAccel.
-		const double d = pow(v.inAccel, 1.0 / static_cast<double>(moves));
+		const double d = pow(IN_ACCEL, 1.0 / static_cast<double>(moves));
 
 		// Das v0, mit dem der Funke nach seinem letzten Weg genau auf dem Ziel
 		// steht. Ohne Schwerkraft, sonst traefe er daneben.
-		const double k = (1.0 - d) / (1.0 - v.inAccel);
+		const double k = (1.0 - d) / (1.0 - IN_ACCEL);
 
 		// Die Startfarbe ist ueberhell, und das ist kein Schmuck: linear von
 		// einem Blau auf das warme Weiss des Diamanten fuehrt mitten durch
@@ -321,23 +292,23 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		// sehen. Ueber 1 gestartet bleiben die starken Kanaele geklemmt,
 		// waehrend der schwache aufholt; der Weg geht dann ueber Weiss. Fuer
 		// denselben Block faellt der Gruenstich damit auf 0.05.
-		const Vec4d begin(from.r * v.inStart, from.g * v.inStart, from.b * v.inStart, 0.0);
-		const Vec4d end(target.r * v.inBright, target.g * v.inBright,
-						target.b * v.inBright, v.inAlpha);
+		const Vec4d begin(from.r * IN_START, from.g * IN_START, from.b * IN_START, 0.0);
+		const Vec4d end(target.r * IN_BRIGHT, target.g * IN_BRIGHT,
+						target.b * IN_BRIGHT, IN_ALPHA);
 
 		ParticleSystem::Particle p;
 		p.lifetime = static_cast<uint>(life);
 		p.damping = static_cast<float>(d);
 		p.gravity = 0.0f;
-		p.positionOnTexture = Vec2b(v.spriteX, v.spriteY);
+		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
 		p.velocity = (landing - start) * k;
 		p.color = begin;
-		p.deltaColor = (end - begin) / static_cast<double>(life);
+		p.deltaColor = (end - begin) / static_cast<double>(moves);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(v.inSize);
+		p.size = static_cast<float>(IN_SIZE);
 		p.deltaSize = 0.0f;
 		p.id = sparkId;
 		p_sys->addParticle(p);
@@ -369,8 +340,6 @@ void DiamondMachine::abortConversion()
 {
 	counter = -1;
 	if(!sparkId) return;
-
-	const SparkVariant& v = sparkVariants[position.y % NUM_SPARK_VARIANTS];
 
 	// Um wie viel der Block seit dem Losfliegen versetzt ist, in Bildpunkten.
 	// Sein *logisches* Feld und nicht sein gezeigtes: geschoben wird er ueber
@@ -413,8 +382,8 @@ void DiamondMachine::abortConversion()
 		// Dauer bekannt, und was davon noch aussteht, ist lifetime.
 		uint elapsed = 0;
 		if(inward) elapsed = static_cast<uint>(p.color.a / p.deltaColor.a + 0.5f);
-		else if(p.lifetime < static_cast<uint>(v.outLife))
-			elapsed = static_cast<uint>(v.outLife) - p.lifetime;
+		else if(p.lifetime < static_cast<uint>(OUT_LIFE))
+			elapsed = static_cast<uint>(OUT_LIFE) - p.lifetime;
 
 		if(p.damping != 0.0f)
 		{

@@ -858,104 +858,52 @@ and out, and the 3D cube crossfade has the same problem at a steep angle; both
 want the same answer, and it is a separate piece of work.
 
 
-24. The diamond machine's conversion deserves a real effect
------------------------------------------------------------
-Today the machine smokes for a hundred ticks and then the block is simply gone
-and a diamond stands in its place (`diamondmachine.cpp`). The smoke is already
-in the block's own colours, but the ending is a cut rather than a
-transformation.
+24. The diamond machine's conversion deserves a real effect  — **DONE**
+------------------------------------------------------------------------
+The block is taken apart and put back together. Sparks in its own colours fly
+out, sampled texel by texel through `Sprites::sample()`; from the cloud they
+leave behind, more sparks come back, each taking on the colour the diamond will
+have where it lands and dies. The block fades to `CONVERSION_GHOST` over the
+same hundred ticks and what is left standing is the diamond.
 
-**What it should look like.** Small debris in the block's colours, each mote
-spawned at the texel it was sampled from, flying in circles or spirals inside
-the field and settling back down - the same place or another - and each one
-turning on the way from the colour it started with into the colour the diamond
-has where it lands. The block fades out while that happens, perhaps all the way
-to nothing, and the diamond is what is left standing.
+**The spiral never happened, and it was the wrong question.** Three ways round
+the integrator were listed below; none was needed, because the shape that reads
+as a transformation is out-and-back, not round-and-round. Two straight flights
+with damping — `d < 1` outward so it disperses, `d > 1` inward so it snaps
+shut — say "apart" and "together" in a way a circle does not.
 
-**Most of the machinery is already there.** `Sprites::sample()` picks a random
-covered texel of an object's own sprites and hands back its colour and its
-offset; five callers use it for exactly this "debris in the thing's own colours"
-job - `bomb.cpp`, `enemy.cpp` twice, `fire.cpp`, and the machine itself. And
-`Particle` already carries `color` *and* `deltaColor`, a linear colour ramp over
-the lifetime, so "starts as block, ends as diamond" is one subtraction:
+**Plain dust beat the glowing version.** Five variants were built and looked at
+side by side; the winner is the one with no over-brightness at all, many large
+slow motes in the block's own colour. Glowing sparks read as welding, and the
+machine is handed rock, ice and grass as readily as metal. The over-bright trick
+survives only on the inward motes, and for an unrelated reason: a linear ramp
+from a blue block to the diamond's warm white passes through green.
 
-    deltaColor = (targetColour - startColour) / lifetime
+**The ownership split held exactly as reasoned.** The block owns
+`conversionProgress`, renders itself faint, and clears it in its own
+`frameBegin()`; the machine merely pushes the value each tick through the
+pointer it just looked up. Nobody reaches into `p_objOnMe`. One correction to
+that: `frameBegin()` must *not* clear it once the object is dying or scheduled
+to die, or the finished block snaps back to full opacity over the new diamond.
 
-The target colour needs the diamond's sprite, which does not exist yet at that
-moment. It does not have to: `presets.cpp` already keeps the type-name to
-texture-coordinate table that the editor's palette draws from, so a `Sprites`
-can be built for "Diamond" and sampled exactly like a live object's.
+**`Particle` did get a new field after all**, which this item called a last
+resort. `uint id`, four bytes at the very end, outside the six the vertex path
+keeps in one cache line — and the reason is the abort, which was not foreseen
+here: an abandoned conversion runs its sparks *backwards* rather than deleting
+them, and the machine has to find its own again. `ParticleSystem` hands out
+`begin()`/`end()` and filtering by id is an `if` at the call site.
 
-**What is missing is the path.** The whole integrator is three lines
-(`particlesystem.cpp`):
+How the four traps landed:
 
-    position += velocity;  velocity *= damping;  velocity.y += gravity;
+- **A faint ghost, not full transparency** — `CONVERSION_GHOST` is 0.22, and the
+  fade snaps back rather than eases when the block moves. Right as predicted.
+- **The effect must not depend on particles** — the fade and the machine's own
+  five-frame animation still carry it with `getParticleDensity()` at minimum.
+- **A hundred ticks** stayed a hundred; the spark phases are pinned to the
+  machine's own image changes at 20, 40, 60 and 80 so the two cannot drift.
+- **The sound** is still fire-and-forget; that is item 25, untouched.
 
-Linear motion, drag, and a constant downward pull. No circle comes out of that.
-Three ways round it, in the order worth trying:
-
-- **Put the spiral in the emitter, not in the particle.** The effect walks the
-  spiral itself and spawns short-lived motes along it. Structurally free, and it
-  gives a trail; whether it reads as "flying in circles" or merely as
-  spiral-shaped smoke is the first thing to look at.
-- **A private array of debris**, owned and drawn by the effect. Full freedom
-  over the path, a few dozen of them, and nothing else in the game is touched.
-- **Extend `Particle`.** Last resort. `sizeof(Particle)` is 80 bytes and its
-  first six fields are deliberately one cache line for the vertex path; an orbit
-  centre and an angular velocity would be paid by every particle in the game for
-  the sake of one effect.
-
-**Who should own it - and the answer is: both, split along "what has to be
-undone".**
-
-The machine keeps the transaction. It already polls `getFrontObjectAt()` every
-tick, compares against `p_objOnMe` and resets the counter when the answer
-changes, so a block that is pushed off, blown up, teleported away or dropped
-through the floor is *already* handled, and handled at the only place that
-cannot go stale - a fresh lookup. That part needs no change.
-
-But the fade does not belong there, and the reason is worth writing down:
-**`p_objOnMe` is a raw `Object*` held across ticks, and the current code only
-ever compares it, never dereferences it.** That is precisely why it survives the
-block being destroyed mid-conversion. An effect driven from the machine would
-have to reach back into that pointer to undo the fade when the conversion is
-abandoned, and that safety would be gone.
-
-So: the block owns the state that has to be undone. It gets a conversion
-progress that it renders itself and that it resets in the one place that cannot
-miss it - its own move or removal - and the machine merely *pushes* the value
-each tick through the pointer it just looked up. If the block leaves, the
-machine stops pushing, the block's own reset takes over, and neither has to know
-anything about the other's lifetime. It is the same shape as the hint note,
-which reads "is the player standing on me" every tick and eases its own alpha
-towards the answer while nobody reaches into it.
-
-The debris follows the same rule. Motes that are pure decoration can go into the
-level's particle system and outlive everything, as they do today; motes that
-must stop when the block is pushed belong to the block. Putting the spawning on
-the block as well keeps everything that has to stop together in one place, and
-shrinks the machine's job to counting and saying how far along it is. The block
-never learns what it is becoming - it is handed the target colours, not a type.
-
-**Four traps.**
-
-- **The block stays solid the whole time**, and a player can push it at any
-  moment. Fading it to nothing therefore hides a thing that still blocks the
-  way. A faint ghost rather than full transparency is probably the answer, and
-  the fade must snap back at once when the block moves rather than easing back,
-  or the player sees a half-transparent block sliding along.
-- **The effect must not depend on particles to be legible.** `addParticle()`
-  drops particles according to `Engine::getParticleDensity()`, which the player
-  can turn down. The fade and the machine's own five-frame animation
-  (`updateSprites()`, `counter / 20`) have to carry the transformation on their
-  own when no mote survives.
-- **A hundred ticks is two seconds**, and the machine's own animation is built
-  around that number. A longer effect means re-timing both.
-- **The sound is fire-and-forget.** `p_soundInst` is set to 0 in the constructor
-  and never assigned anywhere; the `stop()` on it is dead code. A conversion
-  that can be abandoned wants a looping sound that stops with it, and the member
-  is already sitting there waiting to be used.
-
+The test level is `Tools/testlevels/diamondmachine.xml`.
 
 25. The diamond machine's sound handle is never set
 ----------------------------------------------------

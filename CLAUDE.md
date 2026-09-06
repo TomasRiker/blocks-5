@@ -824,12 +824,18 @@ where the value would be cleared. Without that the finished block snapped from a
 to full opacity and then took half a second to fade off the new diamond, measured as a green
 cast of +38 grey levels over the settled colour; it is +9 now and gone within two frames.
 
-A spark glows without additive blending, which could not carry the block's real colour — over
-rock the same brown would be an ember and over grass a glare. Its colour starts above 1
-instead: GL clamps to [0,1], so it is white at first and then falls linearly *through* the
-texel colour. Background-independent, and the reason the sprite must be the neutral white disc
-at (32,32) in `particles.png` — a particle is multiplied by its texture region, and (32,0) is a
-pre-coloured orange that turned every cyan spark olive.
+**Dust, not embers.** The outward sparks are many, large, slow, and carry the plain colour of
+the texel they came from — `OUT_BRIGHT` and `OUT_END` are both 1, so only the opacity falls.
+Glowing sparks read as welding, and the machine is handed rock, ice and grass as readily as
+metal. Additive blending was never an option either: there the result depends on the
+background, and the same brown would be an ember over rock and a glare over grass. The inward
+motes *do* start above 1, where GL clamps to [0,1] — but that is not a glow, it is the way
+around a green cast, since a linear ramp from a blue block to the diamond's warm white passes
+straight through green (measured 0.16 at t=0.6, 0.05 once over-brightened).
+
+The sprite must be the neutral white disc at (32,32) in `particles.png` — a particle is
+multiplied by its texture region, and (32,0) is a pre-coloured orange that turned every cyan
+spark olive.
 
 **An aborted conversion runs the sparks backwards**, because the block can be pushed away,
 blown up or switched off in the last moment and a cloud that simply vanishes is a hole in the
