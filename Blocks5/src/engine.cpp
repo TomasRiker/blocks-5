@@ -2875,6 +2875,18 @@ bool Engine::wasKeyReleased(SDLKey key) const
 	return keyData[key] & 4 ? true : false;
 }
 
+bool Engine::wasAnyKeyPressed() const
+{
+	for(int i = 0; i < NUM_KEY_SLOTS; i++) if(keyData[i] & 2) return true;
+	return false;
+}
+
+bool Engine::wasAnyButtonPressed() const
+{
+	for(int i = 0; i < NUM_KEY_SLOTS; i++) if(buttonData[i] & 2) return true;
+	return false;
+}
+
 void Engine::setKeyDown(SDLKey key,
 						bool status)
 {

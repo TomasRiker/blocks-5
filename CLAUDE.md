@@ -785,6 +785,13 @@ strengths there — *Reset selected* and *Reset all*, two stacked buttons under 
 since `Action` carries `defaultPrimary` and `defaultSecondary`. Those two and the two key
 buttons all grey out without a selection.
 
+**Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
+`wasAnyButtonPressed` read the same per-tick bits the named queries do. Coming back from
+another window is the case that makes it worth having, since `onAppLoseFocus` pauses and the
+click that returns is then the one that resumes. The press is *spent* on resuming, and that
+ordering is the whole trick: the resume sits in front of the action chain as its `if`, so the
+pause key cannot switch back on in the same tick what it just switched off.
+
 **Waiting for a key is a state, not a loop.** Clicking a key button sets its caption to
 `$O_PRESS_KEY` and calls `Engine::beginKeyGrab()`; `Options::onUpdate` asks `pollKeyGrab()` each
 tick and applies the answer — the pressed VK, `GRAB_CANCELLED` for Escape (the binding is left

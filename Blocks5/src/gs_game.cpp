@@ -373,7 +373,17 @@ void GS_Game::onUpdate()
 		if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
 	}
 
-	if(!menuVisible)
+	// Aus der Pause fuehrt jede Taste und jeder Klick heraus, nicht nur die
+	// Pausentaste: wer weiterspielen will, greift ohnehin zur Steuerung, und
+	// nach einem Wechsel in ein anderes Fenster - der ebenfalls pausiert - ist
+	// der Klick zurueck ins Spiel die natuerliche Geste. Der Druck ist damit
+	// verbraucht und der Rest dieses Blocks entfaellt, sonst schaltete die
+	// Pausentaste gleich wieder ein, was sie eben ausgeschaltet hat.
+	if(paused && (engine.wasAnyKeyPressed() || engine.wasAnyButtonPressed()))
+	{
+		paused = false;
+	}
+	else if(!menuVisible)
 	{	
 		if(engine.wasActionPressed("$A_SWITCH_CHARACTER"))
 		{

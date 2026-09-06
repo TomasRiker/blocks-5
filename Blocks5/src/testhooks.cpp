@@ -13,6 +13,7 @@
 #include "engine.h"
 #include "upscaler.h"
 #include "gamestate.h"
+#include "gs_game.h"
 #include "gui.h"
 #include "gui_element.h"
 
@@ -175,6 +176,13 @@ namespace
 		// Knopf, der nicht reagiert.
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
+
+		// Ob das Spiel steht. Nur im Spielzustand ueberhaupt eine Frage; nach
+		// dem Namen unterschieden und nicht mit dynamic_cast, wie ueberall in
+		// diesem Baum.
+		out += ",\"paused\":";
+		out += (p_state && p_state->getName() == "GS_Game"
+				&& static_cast<GS_Game*>(p_state)->isPaused()) ? "true" : "false";
 
 		// Welche benannten Aktionen gerade anliegen. Nur die gedrueckten, damit
 		// der Bericht kurz bleibt. Das ist die einzige Stelle, an der von aussen

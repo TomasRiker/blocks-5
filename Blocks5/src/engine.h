@@ -225,6 +225,10 @@ public:
 	// GUI::update() vor den Spielzustaenden laeuft und beide sie saehen.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
+	// Irgendeine Taste, irgendein Mausknopf - fuer den, der nur wissen will,
+	// dass ueberhaupt jemand etwas gedrueckt hat.
+	bool wasAnyKeyPressed() const;
+	bool wasAnyButtonPressed() const;
 	void setKeyDown(SDLKey key, bool status);
 	void setKeyPressed(SDLKey key, bool status);
 	void setKeyReleased(SDLKey key, bool status);

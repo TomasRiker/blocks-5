@@ -28,6 +28,10 @@ public:
 	void onLoseFocus();
 	void onAppLoseFocus();
 
+	// Steht das Spiel? Der Testhaken berichtet es - von aussen ist die Pause
+	// sonst nur an einem Schriftzug zu erkennen, der seine Farbe wechselt.
+	bool isPaused() const { return paused; }
+
 private:
 	void updateMusic();
 	int loadLevel();
