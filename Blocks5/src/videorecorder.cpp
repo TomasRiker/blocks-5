@@ -223,7 +223,13 @@ int VideoRecorderImpl::threadProc()
 
 		H264E_run_param_t runParam;
 		memset(&runParam, 0, sizeof(runParam));
-		runParam.qp_min = 16;
+		// 16 waere nahezu verlustfrei und ist an einem ruhigen Bild pure
+		// Verschwendung: die Ratenregelung kommt dort nie an ihre Grenze, der
+		// Kodierer bleibt auf dem Boden sitzen, und das Menue kostete so
+		// 1976 kbit/s fuer 46,7 dB. Bei 22 sind es 866 fuer 41,7 dB, und im
+		// Zoom ist zwischen beiden nichts zu sehen. Auf bewegtem Bild aendert
+		// der Wert gar nichts: dort waehlt die Regelung ohnehin etwa 25.
+		runParam.qp_min = 22;
 		runParam.qp_max = 42;
 		runParam.desired_frame_bytes = videoBitrate / 8 / (fps ? fps : 30);
 
@@ -317,7 +323,13 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	memset(&createParam, 0, sizeof(createParam));
 	createParam.width = p_impl->encodedSize.x;
 	createParam.height = p_impl->encodedSize.y;
-	createParam.gop = p_impl->fps * 2;    // alle zwei Sekunden ein Schluesselbild
+	// Alle vier Sekunden ein Schluesselbild. Laenger ist keine Frage der
+	// Qualitaet: wo die Bitrate die Fessel ist, aendert die Laenge nichts
+	// (gemessen 40,86 bis 40,97 dB von einer bis acht Sekunden), und wo die
+	// Quantisierung die Fessel ist, wird die Datei blosss kleiner. Was sie
+	// kostet, ist die Sprungweite - ein Abspieler kann nur auf ein
+	// Schluesselbild springen.
+	createParam.gop = p_impl->fps * 4;
 	// Der Puffer, an dem die Ratenregelung haengt - eine Sekunde. Ohne ihn ist
 	// sie offen: minih264 ueberspringt bei vbv_size_bytes == 0 beide Zweige, die
 	// einen Ausreisser hinterher wieder einsparen, und desired_frame_bytes ist
