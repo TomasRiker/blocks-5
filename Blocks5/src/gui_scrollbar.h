@@ -44,7 +44,9 @@ private:
 	int pageSize;
 	int dragBarY;
 	int dragBarHeight;
-	int dragStartY;
+	// Wo im Griff er angefasst wurde. Laengs der Leiste gemessen, wie
+	// dragBarY: bei einer waagerechten ist das ein x.
+	int dragOffset;
 	bool dragging;
 	bool pushedUp;
 	bool pushedDown;

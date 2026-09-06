@@ -10,6 +10,7 @@ IMPL_CTOR(GUI_ScrollBar)
 	areaSize = 100;
 	pageSize = 10;
 	dragging = pushedUp = pushedDown = false;
+	dragOffset = 0;
 	pushTime = 0;
 	p_receiver = 0;
 	updateValues();
@@ -277,7 +278,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 		{
 			dragging = position.y >= static_cast<int>(dragBarY) &&
 					   position.y < static_cast<int>(dragBarY + dragBarHeight);
-			if(dragging) dragStartY = position.x;
+			if(dragging) dragOffset = position.y - dragBarY;
 			pushedUp = position.y < size.x;
 			pushedDown = position.y >= size.y - size.x;
 		}
@@ -285,7 +286,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 		{
 			dragging = position.x >= static_cast<int>(dragBarY) &&
 					   position.x < static_cast<int>(dragBarY + dragBarHeight);
-			if(dragging) dragStartY = position.y;
+			if(dragging) dragOffset = position.x - dragBarY;
 			pushedUp = position.x < size.y;
 			pushedDown = position.x >= size.x - size.y;
 		}
@@ -325,8 +326,11 @@ void GUI_ScrollBar::onMouseMove(const Vec2i& position,
 {
 	if(dragging)
 	{
-		if(!dir) setDragBarY(position.y - dragStartY);
-		else setDragBarY(position.x - dragStartY);
+		// dragOffset ist die Stelle im Griff, an der er angefasst wurde, und
+		// genau dort bleibt der Zeiger auch. Ohne sie spraenge der Griff beim
+		// ersten Ziehen unter die Hand.
+		if(!dir) setDragBarY(position.y - dragOffset);
+		else setDragBarY(position.x - dragOffset);
 	}
 }
 
