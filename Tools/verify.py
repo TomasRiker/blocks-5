@@ -592,6 +592,43 @@ def check_sounds():
             for name, rel in sorted(played.items()) if name not in preloaded]
 
 
+@check('sound_volumes')
+def check_sound_volumes():
+    """Jeder Klang in data/sounds.xml muss es auch geben, und der Faktor muss
+    eine Zahl unter 1 sein.
+
+    Die Tabelle ist der einzige Ort, an dem noch steht, dass ein Klang leiser
+    gehoert - frueher steckte das in der .ogg, und weil die .wav daneben lauter
+    blieb, ging die Absicht beim naechsten Neukodieren verloren. Ein Tippfehler
+    im Dateinamen wuerde genau dorthin zurueckfuehren, lautlos: Engine liefert
+    fuer einen unbekannten Namen 1.0."""
+    import xml.etree.ElementTree as ET
+    path = os.path.join(DATA, 'sounds.xml')
+    if not os.path.exists(path):
+        return ['data/sounds.xml fehlt']
+    try:
+        root = ET.parse(path).getroot()
+    except Exception as e:
+        return ['data/sounds.xml laesst sich nicht lesen: %s' % e]
+
+    bad = []
+    for elem in root.findall('Sound'):
+        name = elem.get('file')
+        if not name:
+            bad.append('data/sounds.xml: <Sound> ohne file'); continue
+        if not os.path.exists(os.path.join(DATA, name)):
+            bad.append('data/sounds.xml: "%s" gibt es nicht' % name)
+        try:
+            v = float(elem.get('volume', ''))
+        except ValueError:
+            bad.append('data/sounds.xml: "%s" hat keinen lesbaren volume-Wert' % name)
+            continue
+        if not (0.0 < v < 1.0):
+            bad.append('data/sounds.xml: "%s" hat volume=%s - erwartet wird '
+                       'etwas zwischen 0 und 1' % (name, elem.get('volume')))
+    return bad
+
+
 @check('style')
 def check_style():
     """Tabulatoren, kein Leerzeichen zwischen Schluesselwort und Klammer, keine

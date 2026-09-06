@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<!-- Klaenge, die leiser abgespielt werden sollen, als ihre Datei ist.
+
+     Die .wav bleibt die unveraenderte Quelle in voller Aufloesung und die .ogg
+     wird eins zu eins daraus erzeugt (Tools/encode_sounds.py); der Faktor
+     gehoert in die Mischung, nicht in die Datei. Leiser zu kodieren waere
+     ausserdem schlechter: der Kodierer bekaeme weniger Aussteuerung fuer
+     dieselbe Rechenlast.
+
+     Was hier nicht steht, wird mit 1.0 gespielt.
+
+     Die Zahlen sind nachgemessen und nicht ueberliefert. Verglichen wurde die
+     ausgelieferte .ogg mit einer frisch aus derselben .wav kodierten: gleiche
+     Quelle, gleicher Kodierer, gleiche Bitrate, also ist der Unterschied genau
+     der Faktor, der beim Export von Hand gesetzt wurde. Die Lautheit dafuer
+     nach ITU-R BS.1770. Wer die .wav aendert, aendert den Faktor nicht.
+
+     Der naheliegende Weg - .wav gegen .ogg - taugt dafuer nicht: was der
+     Kodierer selbst an Pegel verliert, haengt an der Frequenz und liegt in
+     derselben Groessenordnung wie die kleinsten Faktoren hier. -->
+<Sounds>
+	<Sound file="cannon_fire.ogg" volume="0.860" />
+	<Sound file="grass.ogg" volume="0.872" />
+	<Sound file="push.ogg" volume="0.559" />
+	<Sound file="ricochet.ogg" volume="0.458" />
+	<Sound file="syringe.ogg" volume="0.914" />
+	<Sound file="teleport_begin.ogg" volume="0.666" />
+	<Sound file="teleport_end.ogg" volume="0.672" />
+	<Sound file="thunder.ogg" volume="0.587" />
+</Sounds>

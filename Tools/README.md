@@ -96,20 +96,51 @@ Zu jedem Effekt liegt in `Blocks5/data` die WAV als Quelle neben der Ogg, die
 ausgeliefert wird - `pack.sh` nimmt nur `*.ogg` mit. Wer eine WAV aendert, muss
 die Ogg neu erzeugen:
 
-    ffmpeg -y -i Blocks5/data/<name>.wav -c:a libvorbis -b:a 96k \
-           -map_metadata -1 Blocks5/data/<name>.ogg
+    python3 Tools/encode_sounds.py            alle veralteten
+    python3 Tools/encode_sounds.py ricochet   nur diese
+    python3 Tools/encode_sounds.py --force    alle, ob veraltet oder nicht
 
-`-b:a` landet unveraendert als Nennbitrate im Vorbis-Kopf, und 96 kbit/s ist,
-was der groesste Teil des Bestandes traegt. Weniger ist fuer kurze Effekte eine
-Falle: bei 45 kbit/s ueberschwingt der Dekoder von `cannon_turn.ogg` auf 1,03
-und uebersteuert damit beim Abspielen, und das Quantisierungsrauschen des
-letzten langen Blocks (2048 Samples, 46 ms) steht am Ende der Datei noch bei
--46 dBFS statt bei -88.
+Neu kodiert wird nur, was aelter ist als seine WAV, und das ist kein Luxus:
+zwei Laeufe ueber dieselbe Quelle liefern nicht dieselbe Datei. Die Ogg-Seiten
+tragen eine zufaellige Stromkennung, und mit ihr aendern sich die Pruefsummen
+der Seitenkoepfe - vierundzwanzig Byte von neuntausend, bei gleichem Ton. Ohne
+die Pruefung schriebe jeder Lauf fuenfundfuenfzig Binaerdateien um.
 
-Zwei Dinge gehoeren in die WAV selbst, nicht in den Kodierer. Anfang und Ende
-muessen auf null liegen - eine halbe Kosinuswelle ueber 4 ms hinein und 60 ms
-hinaus, laenger als ein langer Block. Und ein Gleichanteil muss raus: er kostet
-Aussteuerung, er knackt an beiden Enden, und wenn eine Huellkurve darueber
-gelegt wurde, wandert er mit ihr und ist deshalb auch kein fester Wert, den man
-einfach abziehen koennte. Ein Hochpass bei 20 Hz nimmt ihn und laesst alles
-Hoerbare stehen.
+Das Skript kodiert **eins zu eins**, ohne Pegelaenderung. 96 kbit/s ist, was der
+groesste Teil des Bestandes traegt; weniger ist fuer kurze Effekte eine Falle.
+Bei 45 kbit/s verschmiert der Kodierer eine Transiente so weit, dass der Dekoder
+um Dezibel danebenliegt - `thunder.ogg` lag so 4,9 dB unter seiner Quelle - und
+das Quantisierungsrauschen des letzten langen Blocks (2048 Samples, 46 ms) steht
+am Ende der Datei noch bei -46 dBFS statt bei -88. libvorbis nimmt 96 aber nicht
+bei jeder Abtastrate an: bei 11025 Hz mono ist bei 48 Schluss, deshalb sucht das
+Skript nach unten, statt eine Zahl vorzugeben.
+
+**Wo ein Klang leiser sein soll, steht das in `Blocks5/data/sounds.xml`** und
+wird beim Abspielen angewandt, nicht beim Kodieren. Die WAV bleibt damit die
+unveraenderte Quelle in voller Aufloesung, die Ogg ist reproduzierbar, und der
+Kodierer bekommt die volle Aussteuerung fuer dieselbe Rechenlast. Frueher steckte
+der Faktor in der Ogg, und weil die WAV daneben lauter blieb, ging die Absicht
+beim naechsten Neukodieren verloren - acht Dateien waeren dabei um bis zu 6,8 dB
+lauter geworden. Die Pruefung `sound_volumes` haelt die Tabelle mit dem Bestand
+im Einklang.
+
+Zwei Dinge gehoeren in die WAV selbst, nicht in den Kodierer und nicht in die
+Tabelle. Anfang und Ende muessen auf null liegen - eine halbe Kosinuswelle ueber
+5 ms hinein und hinaus, bei sehr kurzen Klaengen entsprechend weniger. **Klaenge,
+die in einer Schleife laufen, bekommen keine Blende**, denn dort ist das Ende der
+Anfang: conveyorbelt, elevator, gas, laser, mask, rain, thunderstorm, toxic. Und
+ein Gleichanteil muss raus: er kostet Aussteuerung, er knackt an beiden Enden,
+und wenn eine Huellkurve darueber gelegt wurde, wandert er mit ihr und ist
+deshalb auch kein fester Wert, den man einfach abziehen koennte. Ein Hochpass bei
+20 Hz nimmt ihn und laesst alles Hoerbare stehen - gemessen kostet er nach
+ITU-R BS.1770 hoechstens 0,8 dB Lautheit, waehrend er bis zu 6,6 dB Effektivwert
+wegnimmt.
+
+**Bei einem Schleifenklang muss dieser Hochpass zyklisch gefaltet werden.** Ein
+solcher Klang *ist* periodisch; linear gefaltet bekommen Anfang und Ende das
+Einschwingen des Filters ab, und der Sprung an der Naht war hinterher 10 bis
+12 dB groesser als vorher.
+
+Was sich damit nicht reparieren laesst, ist Uebersteuerung: die abgeschnittenen
+Spitzen sind weg, und sie wieder unter die Vollaussteuerung zu bringen hiesse,
+den Pegel zu senken. Elf Dateien tragen sie noch.

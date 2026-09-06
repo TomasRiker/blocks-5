@@ -519,6 +519,9 @@ int runTheGame(int argc,
 	// Lokalisierung laden
 	engine.loadStringDB("languages.txt");
 
+	// Vor dem Laden der Klaenge: Sound holt sich seinen Faktor beim Anlegen.
+	engine.loadSoundVolumes("sounds.xml");
+
 	// Instanzen der Spielzustandsklassen erzeugen
 	GS_Menu menu;
 	GS_SelectLevel selectLevel;

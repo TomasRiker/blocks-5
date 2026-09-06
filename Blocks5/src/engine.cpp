@@ -3913,6 +3913,45 @@ void Engine::setRecordingIcon(Texture* p_texture,
 	recordingIconSize = size;
 }
 
+void Engine::loadSoundVolumes(const std::string& filename)
+{
+	soundVolumes.clear();
+
+	// Ueber das virtuelle Dateisystem und nicht mit TiXmlDocument::LoadFile:
+	// die Datei liegt im verschluesselten data.zip, und LoadFile kennt nur
+	// stdio.
+	const std::string text = FileSystem::inst().readStringFromFile(filename);
+	TiXmlDocument doc;
+	doc.Parse(text.c_str());
+
+	TiXmlElement* p_root = doc.RootElement();
+	if(!p_root)
+	{
+		// Kein Grund zum Abbrechen: ohne die Tabelle spielt jeder Klang mit 1.0,
+		// und das ist fuer alle bis auf eine Handvoll ohnehin richtig.
+		printfLog("+ ERROR: Could not read \"%s\".\n", filename.c_str());
+		return;
+	}
+
+	for(TiXmlElement* p_elem = p_root->FirstChildElement("Sound"); p_elem;
+		p_elem = p_elem->NextSiblingElement("Sound"))
+	{
+		const char* p_file = p_elem->Attribute("file");
+		double volume = 1.0;
+		if(p_file && p_elem->Attribute("volume", &volume)) soundVolumes[p_file] = volume;
+	}
+
+	printfLog("* %u sound volume(s) read from \"%s\".\n",
+			  static_cast<uint>(soundVolumes.size()), filename.c_str());
+}
+
+double Engine::getSoundVolumeFactor(const std::string& filename) const
+{
+	const std::unordered_map<std::string, double>::const_iterator i =
+		soundVolumes.find(filename);
+	return (i == soundVolumes.end()) ? 1.0 : i->second;
+}
+
 void Engine::loadStringDB(const std::string& filename)
 {
 	std::string file = FileSystem::inst().readStringFromFile(filename);

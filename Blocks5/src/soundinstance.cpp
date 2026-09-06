@@ -78,7 +78,11 @@ void SoundInstance::setVolume(double volume)
 	if(!sourceID) return;
 
 	this->volume = volume;
-	alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getSoundVolume()));
+	// Der Faktor des Klangs kommt hier dazu und nicht in volume: dies ist die
+	// eine Stelle, an der eine Lautstaerke bei OpenAL ankommt, also gilt er
+	// auch fuer slideVolume() und fuer jeden Aufrufer, der volume selbst setzt.
+	alSourcef(sourceID, AL_GAIN, static_cast<float>(
+		volume * sound.getVolumeFactor() * Engine::inst().getSoundVolume()));
 }
 
 double SoundInstance::getPitch() const

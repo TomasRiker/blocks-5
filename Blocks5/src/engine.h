@@ -321,6 +321,14 @@ public:
 
 	void loadStringDB(const std::string& filename);
 	std::string localizeString(const std::string& text);
+
+	// Klaenge, die leiser gespielt werden sollen, als ihre Datei ist. Der
+	// Faktor gehoert in die Mischung und nicht in die Ogg: die .wav bleibt die
+	// unveraenderte Quelle, und ein leiser kodierter Klang haette fuer dieselbe
+	// Rechenlast weniger Aussteuerung. Wer nicht in data/sounds.xml steht,
+	// bekommt 1.0.
+	void loadSoundVolumes(const std::string& filename);
+	double getSoundVolumeFactor(const std::string& filename) const;
 	std::string loadString(const std::string& id) const;
 
 	AudioCapture* getAudioCapture();
@@ -528,6 +536,7 @@ private:
 	Vec2i recordingIconSize;
 
 	std::unordered_map<std::string, std::string> stringDB;
+	std::unordered_map<std::string, double> soundVolumes;
 	uint timePlayed;
 	bool doScreenshot;
 };

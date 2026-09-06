@@ -2,12 +2,14 @@
 #include "sound.h"
 #include "soundinstance.h"
 #include "audiostream.h"
+#include "engine.h"
 
 std::set<SoundInstance*> Sound::allInstances;
 
 Sound::Sound(const std::string& filename) : Resource(filename)
 {
 	lastInstanceCreatedAt = 0;
+	volumeFactor = Engine::inst().getSoundVolumeFactor(filename);
 
 	AudioStream* p_stream = AudioStream::open(filename);
 	if(!p_stream)
@@ -134,6 +136,11 @@ void Sound::update()
 		instances.erase(p_inst);
 		allInstances.erase(p_inst);
 	}
+}
+
+double Sound::getVolumeFactor() const
+{
+	return volumeFactor;
 }
 
 const std::set<SoundInstance*>& Sound::getInstances() const

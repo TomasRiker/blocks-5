@@ -732,6 +732,32 @@ exactly on the ceiling; 0.40 is quieter than it needs to be. It belongs in the s
 than in the options because it is a property of the mixture, not a preference — the player's
 own sliders are untouched and still read 100%.
 
+**The sound files are repaired sources, and the mix decisions are not in them.**
+`Blocks5/data` holds a WAV beside every shipped OGG, and `Tools/encode_sounds.py` produces
+the one from the other **one to one** — 96 kbit/s where libvorbis accepts it, stepping down
+where it does not (11025 Hz mono tops out at 48). Where a sound should play quieter than its
+file, that factor lives in `data/sounds.xml` and is applied at playback: `Sound` looks itself
+up once at construction and `SoundInstance` multiplies it into the single `alSourcef(…,
+AL_GAIN, …)` call, so it covers `slideVolume` and every caller that sets a volume itself.
+
+That split exists because the alternative had already failed silently. Eight OGGs had been
+exported at a reduced level while the WAV beside them kept the loud original, so the intent
+lived only in the compressed file: re-encoding from the source would have made `ricochet`
+6.8 dB louder, `push` 5.1, `thunder` 4.6. Measuring it back out needs the right comparison —
+the shipped OGG against a *freshly encoded* one from the same WAV, since WAV-against-OGG
+folds in the encoder's own frequency-dependent loss, which is the same order as the smallest
+of these factors (`syringe` at 0.914).
+
+Three things belong in the WAV instead: no DC offset, endpoints on zero, and nothing clipped.
+A 20 Hz high-pass takes the first — measured, it costs at most 0.8 dB of BS.1770 loudness
+while removing up to 6.6 dB of RMS, because what it removes is inaudible. Half-cosine fades
+of 5 ms take the second, **except on the eight looping sounds** (`conveyorbelt`, `elevator`,
+`gas`, `laser`, `mask`, `rain`, `thunderstorm`, `toxic`), where the end *is* the beginning.
+Those also need the high-pass convolved **circularly** rather than linearly: a looping sound
+is periodic, and the filter's transient otherwise droops both ends and made the seam 10–12 dB
+worse. The third cannot be repaired at all — clipped peaks are gone, and getting back under
+full scale means lowering the level.
+
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are

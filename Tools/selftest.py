@@ -152,6 +152,14 @@ def c_sounds(p):
     p.replace('\tsndMgr.request("rewind.ogg");\n', '')
 
 
+@case('sound_volumes', 'Blocks5/data/sounds.xml')
+def c_sound_volumes(p):
+    # Einen Dateinamen verdrehen. Im Spiel faellt das nirgends auf: Engine
+    # liefert fuer einen unbekannten Namen 1.0, der Klang waere also einfach
+    # wieder so laut wie seine Datei.
+    p.replace('file="ricochet.ogg"', 'file="richochet.ogg"')
+
+
 @case('style', 'Blocks5/src/level.cpp')
 def c_style(p):
     p.append('\n// eine Zeile mit Leerzeichen am Ende   \nvoid b5SelfTest() { if (1) {} }\n')
