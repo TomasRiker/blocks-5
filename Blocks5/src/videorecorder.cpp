@@ -318,6 +318,12 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	createParam.width = p_impl->encodedSize.x;
 	createParam.height = p_impl->encodedSize.y;
 	createParam.gop = p_impl->fps * 2;    // alle zwei Sekunden ein Schluesselbild
+	// Der Puffer, an dem die Ratenregelung haengt - eine Sekunde. Ohne ihn ist
+	// sie offen: minih264 ueberspringt bei vbv_size_bytes == 0 beide Zweige, die
+	// einen Ausreisser hinterher wieder einsparen, und desired_frame_bytes ist
+	// dann nur noch ein Startwert je Bild, den ein einzelnes bis zum
+	// Sechzehnfachen ueberschreiten darf. Gemessen an einem Level mit Regen,
+	// Schnee und Gewitter: 3091 kbit/s bei 2840 gewuenschten, mit Puffer 2877.
 	createParam.num_layers = 1;
 	createParam.max_threads = 0;
 
