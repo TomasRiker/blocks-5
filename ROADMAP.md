@@ -1166,6 +1166,50 @@ weaker for this set: ice cavern, volcano, temple ruins, sewers, greenhouse.
 A skin needs `tileset.xml`, `sprites.png` and its own `hint.png`; see
 `Level::loadSkin` and the packing rules in `Blocks5/pack.sh`.
 
+30. Let a skin override the sound effects too
+---------------------------------------------
+A skin replaces everything a level *looks* like and nothing it *sounds* like. The
+laboratory of item 29 would want its own door, its own machine, its own alarm,
+and a skin somebody else writes has no way to bring them.
+
+The two halves of the game meet nowhere at the moment, and that is the whole of
+the work. Pictures go through `Level::getSkinFilename(SKIN_*)`, which walks the
+loose folder, then `default_<name>`, then the archive, and answers with the
+*final* path — that is what makes `blocks_02` reach `blocks_01`'s paper through
+`default_hint.png`. Sounds go through `Engine::playSound(filename)` straight into
+`Manager<Sound>::inst().request(filename)`, which resolves against the asset root
+mounted in `main.cpp` and therefore always lands inside `data.zip`. Nothing in
+that path knows a level is loaded, let alone which skin it wears.
+
+The shape that fits the tree: keep `playSound` taking a bare filename, and give
+the resolution a hook — the level, when it has a skin, answers "this name comes
+from here instead". `p_skinFilenames` is a fixed table of eleven entries, one per
+`SKIN_*` slot, so sounds cannot join it as they are: there are fifty-odd effects
+and a skin would override two or three. A per-skin `sounds.xml` listing only what
+it replaces is the smaller answer, and it can share the file `data/sounds.xml`
+already uses for playback gains rather than inventing a second format.
+
+Four things will need deciding, and each is a trap:
+
+- **Which sounds may be overridden.** A skin taking over `screenshot.ogg` or the
+  menu jingle is nobody's idea of a skin. The set that belongs to the *level* —
+  blocks, machines, doors, weather — is not currently marked as such anywhere.
+- **`gs_loading.cpp` preloads every sound by name**, and `verify.py`'s `sounds`
+  check enforces that a `playSound()` name is preloaded, or the first play is
+  silent while the file is read. A skin's sounds are known only once a level is
+  loaded, so they need loading at `Level::loadSkin` time, not at startup.
+- **The cache is keyed by filename.** `Manager<Sound>` hands out one `Sound` per
+  name; two skins overriding `push.ogg` differently would collide unless the key
+  becomes the resolved path, which is what `getSkinFilename` already returns for
+  pictures.
+- **`Sound` looks up its playback gain once at construction** out of
+  `data/sounds.xml` (see the mix notes in `CLAUDE.md`). A skin's own file needs
+  the same treatment, or an imported effect plays at whatever level it was
+  exported at while the shipped ones sit 6 dB down.
+
+The export side is free: `Transfer` copies a skin archive as it stands, so an
+`.ogg` inside it travels with everything else.
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
