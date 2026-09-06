@@ -1452,7 +1452,10 @@ nor clips, so a level whose title is longer than the space kept for it simply dr
 whatever is beside it — in the select screen across the description column and off the right
 edge, in the status bar across the Menu button. `Font::fitText(text, maxWidth)` cuts it down
 and ends it in three dots; `Font::adjustText` is the other answer, and wraps instead, which is
-what the multi-line help pages want. The two callers keep the level *number* and the *filename*
+what the multi-line help pages want. Both skip over `<h>…</h>`: it draws nothing, so it must
+not count toward a line's width, and a hard break landing inside it turned the markup into
+visible text — `<h>Kopf</h>` came out as `<h>Kopf<` and `/h>`, which is one long headline away
+in pages that already use `<h>`. The two callers keep the level *number* and the *filename*
 whole and shorten only the title, since those are what tells two levels called *Unnamed Level*
 apart: the caption is measured once with an empty title to learn what the frame costs, and the
 title gets the rest. A second pass over the finished caption is the backstop for a filename so

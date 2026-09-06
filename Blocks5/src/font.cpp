@@ -318,6 +318,15 @@ namespace
 		return 0;
 	}
 
+	// Laenge des Elements, das genau vor dem Byte "end" aufhoert; 0, wenn dort
+	// keines endet. Das Gegenstueck zu tagLength() fuer den Blick zurueck.
+	size_t tagEndingAt(const std::string& text, size_t end)
+	{
+		if(end >= 4 && text.compare(end - 4, 4, "</h>") == 0) return 4;
+		if(end >= 3 && text.compare(end - 3, 3, "<h>") == 0) return 3;
+		return 0;
+	}
+
 	// Der Anfang des Textes bis zum Byte n, dahinter die drei Punkte. Ein
 	// angeschnittenes Element faellt ganz weg, ein offen gebliebenes <h> wird
 	// geschlossen: <h> legt etwas auf einen Stapel, den erst </h> wieder
@@ -459,6 +468,18 @@ std::string Font::adjustText(const std::string& text,
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
+		// <h> und </h> zeichnen nichts: sie zaehlen nicht zur Zeilenbreite und
+		// gehen unangetastet durch. Ein harter Umbruch schnitt sonst mitten
+		// hinein und machte aus dem Element sichtbaren Text - "<h>Kopf</h>"
+		// wurde zu "<h>Kopf<" und "/h>".
+		const size_t tag = tagLength(text, i);
+		if(tag > 0)
+		{
+			out.append(text, i, tag);
+			i += tag - 1;
+			continue;
+		}
+
 		unsigned char c = text[i];
 		out.append(1, c);
 
@@ -493,7 +514,13 @@ std::string Font::adjustText(const std::string& text,
 					}
 					else
 					{
-						back += charInfo[d].size.x + options.charSpacing;
+						// Auch rueckwaerts zaehlt ein Element nicht mit.
+						// out.rend() - j ist der Index dahinter, weil
+						// rend() - rbegin() die Laenge des Textes ist.
+						const size_t back_tag = (d == '>')
+							? tagEndingAt(out, static_cast<size_t>(out.rend() - j)) : 0;
+						if(back_tag > 0) j += back_tag - 1;
+						else back += charInfo[d].size.x + options.charSpacing;
 					}
 				}
 
