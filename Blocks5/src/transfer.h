@@ -47,7 +47,12 @@ namespace Transfer
 	// loeschen und kein Editor darunter speichern.
 	bool isBuiltIn(Kind kind, const std::string& name);
 
-	// Loescht, was list() geliefert hat, ausser den mitgelieferten Dateien.
+	// Laesst sich diese Datei loeschen? Nur die eigene Fassung im
+	// Benutzerverzeichnis: Mitgeliefertes nie, und von den Beispielleveln erst,
+	// wenn der Spieler einen davon selbst gespeichert hat.
+	bool isRemovable(Kind kind, const std::string& name);
+
+	// Loescht, was list() geliefert hat, sofern isRemovable() es zulaesst.
 	bool remove(Kind kind, const std::string& name, std::string& errorId);
 
 	enum Status

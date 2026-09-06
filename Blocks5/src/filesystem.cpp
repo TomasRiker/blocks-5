@@ -34,17 +34,76 @@ FileSystem::FileSystem()
 	if(gameDirectory.empty() || gameDirectory[gameDirectory.length() - 1] != '/') gameDirectory += '/';
 }
 
+namespace
+{
+	// Dateien, die dem Spieler gehoeren, obwohl sie mit dem Spiel kommen. Sie
+	// sind fuer ihn gedacht: die beiden Beispiellevel soll er oeffnen, aendern
+	// und unter ihrem Namen wieder speichern koennen, und die Liesmich erklaeren
+	// ihm seine eigenen Ordner.
+	//
+	// Fuer sie gilt die umgekehrte Suchreihenfolge - erst das
+	// Benutzerverzeichnis, dann der Spielordner -, und mitgeliefert im Sinne von
+	// "unantastbar" sind sie nie. Beides gehoert zusammen: duerfte er speichern,
+	// aber gaebe der Spielordner weiter die Antwort, so waere seine eigene
+	// Fassung geschrieben und unerreichbar.
+	//
+	// Fest aufgeschrieben und nicht als Blick in ein Verzeichnis: im Arbeitsbaum
+	// liegen neben den Beispielen auch die zweiundvierzig Quell-Level der
+	// Kampagne, und die sind nichts davon.
+	//
+	// copyOnFirstStart brauchen nur die Liesmich, denn die liest das Spiel nie -
+	// ohne Kopie stuenden sie in keinem Ordner. Ein Beispiellevel steht auch
+	// ohne Kopie in jeder Liste, und ohne sie bekommt der Spieler mit einer
+	// neuen Fassung des Spiels auch das neue Beispiel, solange er nicht seine
+	// eigene gespeichert hat. Beim Speichern entsteht sie von selbst.
+	const FileSystem::PlayerFile p_playerFiles[] =
+	{
+		{ "levels/example01.xml",        false },
+		{ "levels/example02.xml",        false },
+		{ "levels/readme.txt",           true  },
+		{ "levels/campaigns/readme.txt", true  },
+		{ "levels/skins/readme.txt",     true  },
+		{ "screenshots/readme.txt",      true  },
+		{ "videos/readme.txt",           true  },
+		{ 0,                             false }
+	};
+}
+
+const FileSystem::PlayerFile* FileSystem::getPlayerFiles()
+{
+	return p_playerFiles;
+}
+
+bool FileSystem::belongsToPlayer(const std::string& relative) const
+{
+	// Ohne Ruecksicht auf Gross- und Kleinschreibung, wie das Dateisystem unter
+	// Windows es auch haelt.
+	for(const PlayerFile* p_file = p_playerFiles; p_file->p_path; p_file++)
+	{
+		if(equalsNoCase(relative.c_str(), p_file->p_path)) return true;
+	}
+	return false;
+}
+
 std::string FileSystem::resolveContentPath(const std::string& relative) const
 {
-	const std::string shipped(gameDirectory + relative);
 	// const_cast, weil fileExists() eine Datei oeffnet und deshalb nicht const
 	// ist; gemeint ist hier trotzdem nur eine Frage.
-	if(const_cast<FileSystem*>(this)->fileExists(shipped)) return shipped;
-	return getAppHomeDirectory() + relative;
+	FileSystem* p_this = const_cast<FileSystem*>(this);
+	const std::string own(getAppHomeDirectory() + relative);
+
+	// Was dem Spieler gehoert, wird zuerst bei ihm gesucht; der Spielordner ist
+	// dann nur noch die Vorlage, die einspringt, solange er keine eigene hat.
+	if(belongsToPlayer(relative) && p_this->fileExists(own)) return own;
+
+	const std::string shipped(gameDirectory + relative);
+	if(p_this->fileExists(shipped)) return shipped;
+	return own;
 }
 
 bool FileSystem::isShippedContent(const std::string& relative)
 {
+	if(belongsToPlayer(relative)) return false;
 	return fileExists(gameDirectory + relative);
 }
 

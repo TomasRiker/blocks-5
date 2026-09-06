@@ -707,12 +707,14 @@ void GS_Menu::updateManagerButtons()
 	if(haveSelection) p_export->activate();
 	else              p_export->deactivate();
 
-	// Die sieben mitgelieferten Dateien stehen in der Liste - man kann sie
-	// ausgeben -, aber loeschen laesst sich keine davon: der Skin, den ein
-	// Level nennt, waere sonst weg, und das Spiel liefert nichts nach.
+	// Was das Spiel mitbringt, steht in der Liste - man kann es ausgeben -, aber
+	// loeschen laesst es sich nicht: der Skin, den ein Level nennt, waere sonst
+	// weg, und das Spiel liefert nichts nach. Bei den beiden Beispielleveln
+	// gibt es erst etwas zu loeschen, wenn der Spieler einen davon selbst
+	// gespeichert hat.
 	const bool canDelete = haveSelection &&
-						   !Transfer::isBuiltIn(static_cast<Transfer::Kind>(currentManagerKind()),
-												p_list->getSelectedItemText());
+						   Transfer::isRemovable(static_cast<Transfer::Kind>(currentManagerKind()),
+												 p_list->getSelectedItemText());
 
 	GUI_Button* p_delete = static_cast<GUI_Button*>(gui["Menu.ManagerPane.Manager.Delete"]);
 	if(canDelete) p_delete->activate();

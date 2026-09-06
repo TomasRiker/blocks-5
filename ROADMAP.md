@@ -986,6 +986,15 @@ fallback. `FileSystem::resolveContentPath` is the one place that knows, and
 list in `Transfer::isBuiltIn`. `refreshBuiltIns()` and the one-time copy in
 `main.cpp` are both gone.
 
+Seven files belong to the player and reverse the order: the two example levels
+and the five `readme.txt` are looked up in the user directory first, with the
+game folder's copy as a template, and they never count as shipped.
+`FileSystem::getPlayerFiles` is that list. Only the readmes are actually copied
+on a first start, because nothing in the game reads them and they would
+otherwise sit in no folder; an example needs no copy, since it is listed and
+loadable from the game folder and the player's own version appears the moment
+they save one.
+
 Game-first costs one thing, and it is worth writing down: a user file carrying a
 shipped name could never be loaded again, because the game folder answers first.
 So both editors refuse to save under such a name, which is the same rule an

@@ -98,15 +98,34 @@ for kind in KindLevel KindCampaign KindMusic KindSkin; do
 done
 b5_shot 4-manager
 
-# Auf einem frischen Profil ist alles in diesen Listen mitgeliefert - und
-# mitgeliefert heisst: ausgeben ja, loeschen nein. Das ist die Regel aus
-# Transfer::isBuiltIn(), von aussen sonst nur an einem grauen Knopf zu erkennen.
+# Ausgeben und Loeschen folgen verschiedenen Regeln, seit die Liste beide
+# Wurzeln vereinigt: ausgeben laesst sich alles, was dasteht, loeschen nur, wovon
+# es eine eigene Fassung im Benutzerverzeichnis gibt. Ausgewaehlt ist der erste
+# Eintrag der sortierten Vereinigung - liegt er nur im Spielordner, bleibt
+# Loeschen grau. Nicht "auf einem frischen Profil" angenommen, sondern jedesmal
+# nachgesehen: ein Beispiellevel wandert in dem Augenblick von der einen Seite
+# auf die andere, in dem jemand ihn speichert.
+b5_managerRoots() { # $1=Art  ->  "<Unterordner> <Endung>"
+	case "$1" in
+		KindLevel)    echo "levels .xml" ;;
+		KindCampaign) echo "levels/campaigns .zip" ;;
+		KindSkin)     echo "levels/skins .zip" ;;
+	esac
+}
+b5_home="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
 for kind in KindLevel KindCampaign KindSkin; do
+	set -- $(b5_managerRoots "$kind")
+	sub=$1; ext=$2
+	first=$(ls "$B5_GAME/$sub"/*$ext "$b5_home/$sub"/*$ext 2>/dev/null \
+			| sed 's|.*/||' | sort -u | head -1)
+	[ -n "$first" ] && [ -f "$b5_home/$sub/$first" ] && wantDelete=True || wantDelete=False
+
 	b5_click "Menu.ManagerPane.Manager.$kind"
 	b5_dump
-	[ "$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")" = "True" ] \
-		&& b5_note "$kind: Loeschen ist bedienbar, obwohl nur Mitgeliefertes in der Liste steht" \
-		|| b5_ok "$kind: Loeschen bleibt gesperrt"
+	have=$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")
+	[ "$have" = "$wantDelete" ] \
+		&& b5_ok "$kind: Loeschen bedienbar=$have, passend zu \"$first\"" \
+		|| b5_note "$kind: Loeschen bedienbar=$have, erwartet $wantDelete fuer \"$first\""
 	[ "$(b5_json "el('Menu.ManagerPane.Manager.Export')['active']")" = "True" ] \
 		|| b5_note "$kind: Ausgeben ist abgeschaltet, obwohl etwas ausgewaehlt ist"
 done

@@ -1140,6 +1140,23 @@ current sources. Game-first has one cost, and it is the reason both editors now 
 under a shipped name: such a file could never be loaded again, because the game folder would
 answer first.
 
+**Seven files belong to the player even though they ship with the game**, and for them the
+order is reversed: `FileSystem::getPlayerFiles` lists the two example levels and the five
+`readme.txt`, `belongsToPlayer` makes `isShippedContent` say no for them, and
+`resolveContentPath` looks in the user directory first, falling back to the game folder's copy
+as a template. The two halves belong together — allowing the save while still answering from
+the game folder would write a file that could never be read back. The list is hard-written
+rather than a directory listing because a working tree also holds the forty-two campaign
+sources, which are nothing of the kind.
+
+Only the five `readme.txt` are *copied* on a first start, and only because nothing in the game
+ever reads them: without the copy they would sit in no folder at all. The examples are not
+copied. They are listed and loadable straight out of the game folder, and the player's own
+version appears the moment they save one — so an untouched installation keeps getting the
+newest examples, and Delete stays greyed until there is actually something of theirs to
+delete. That last part is why the Manager asks `Transfer::isRemovable` ("is there a copy in
+the user directory") rather than `isBuiltIn`.
+
 **On the first start of 1.2.0 the old copies are set aside.** `retireShadowingCopies` in
 `main.cpp` renames every file in the user directory whose name the game folder also has to
 `<name>.bak` — renamed and not deleted, because there is no way to tell from outside whether
@@ -1198,8 +1215,9 @@ themselves out without one. `Menu.ConfirmPane`, which must stay the **last** chi
 that cannot be undone.
 
 **`Transfer::isBuiltIn` no longer keeps a list**; it asks whether the file exists in the game
-folder. Four callers, all the same rule — the Manager must not delete one, an import must not
-take its name, and neither editor may save under one. They stay listed and exportable; only
+folder — and answers no for the seven files that belong to the player. Three callers, all the
+same rule: an import must not take such a name, and neither editor may save under one. Delete
+goes through `isRemovable` instead, which is the stricter question. They stay listed and exportable; only
 *Delete* greys out. `Transfer::list` returns the union of both roots, sorted, and needs no rule
 for a name in both because no path can create one. Case is the file system's problem now rather
 than a hand-rolled comparison's, which is right: on Windows `Blocks.zip` *is* `blocks.zip`, and

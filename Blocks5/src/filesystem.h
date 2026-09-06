@@ -42,6 +42,17 @@ public:
 	// "unloeschbar", "nicht ueberschreibbar" und "unter diesem Namen darf kein
 	// Editor speichern" - eine eigene Liste braucht es dafuer nicht mehr.
 	bool isShippedContent(const std::string& relative);
+
+	// Dateien, die dem Spieler gehoeren, obwohl sie mit dem Spiel kommen: die
+	// Fassung im Spielordner ist fuer sie nur eine Vorlage. Nullzeigerbeendete
+	// Liste; copyOnFirstStart sagt, ob main.cpp sie einmal herueberkopiert.
+	struct PlayerFile
+	{
+		const char* p_path;
+		bool copyOnFirstStart;
+	};
+	static const PlayerFile* getPlayerFiles();
+	bool belongsToPlayer(const std::string& relative) const;
 	std::string getCurrentDir() const;
 	std::string getPathDirectory(const std::string& path) const;
 	std::string getPathFilename(const std::string& path) const;

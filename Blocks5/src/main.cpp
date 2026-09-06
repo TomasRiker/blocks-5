@@ -337,16 +337,28 @@ int runTheGame(int argc,
 			// Das Spiel legt die config.xml beim Beenden selbst an. Eine mitgelieferte
 			// Vorlage gibt es nicht mehr: sie enthielt nur die Sprache des Installers
 			// und liess Engine::detectSystemLanguage() nie zum Zuge kommen.
-			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
-			// Levels, Kampagnen und Skins werden nicht mehr herueberkopiert: sie
+			// Die Kampagne und die Skins werden nicht mehr herueberkopiert: sie
 			// bleiben im Spielordner und werden von dort gelesen, sind damit
-			// immer so neu wie das Programm daneben. Die drei Ordner entstehen
+			// immer so neu wie das Programm daneben. Die Ordner entstehen
 			// trotzdem, denn dorthin schreiben die Editoren und der Import.
-			std::list<std::string> fileList(fs.listDirectory("screenshots"));
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("screenshots/") + *it, homeDirectory + "screenshots/" + *it);
+			//
+			// Kopiert werden die fuenf Liesmich: sie erklaeren dem Spieler seine
+			// eigenen Ordner, und weil das Spiel sie nie liest, stuenden sie
+			// ohne diese Kopie nirgends. Die beiden Beispiellevel stehen in der
+			// Liste daneben und werden mit Absicht nicht kopiert - sie sind
+			// auch aus dem Spielordner heraus zu sehen und zu laden, und wer
+			// einen aendert und speichert, bekommt seine eigene Fassung von
+			// selbst. Nur beim allerersten Start.
+			for(const FileSystem::PlayerFile* p_file = FileSystem::getPlayerFiles();
+				p_file->p_path; p_file++)
+			{
+				if(!p_file->copyOnFirstStart) continue;
+				success &= fs.copyFile(fs.getGameDirectory() + p_file->p_path,
+									   homeDirectory + p_file->p_path);
+			}
 
 			if(success)
 			{

@@ -105,6 +105,10 @@ cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
 # blocks.zip selbst, und die beiden Beispiel-Level nennen gar keine.
 cp "$GAME"/levels/example0*.xml        "$WEBROOT/levels/"    2>/dev/null
 cp "$GAME/levels/readme.txt"           "$WEBROOT/levels/"    2>/dev/null
+# Die beiden hier sind Vorlagen wie die anderen Liesmich auch: main.cpp kopiert
+# sie beim ersten Start ins Benutzerverzeichnis, gelesen werden sie nie.
+cp "$GAME/levels/campaigns/readme.txt" "$WEBROOT/levels/campaigns/" 2>/dev/null
+cp "$GAME/levels/skins/readme.txt"     "$WEBROOT/levels/skins/"     2>/dev/null
 cp "$GAME"/levels/campaigns/*.zip      "$WEBROOT/levels/campaigns/" 2>/dev/null
 cp "$GAME"/levels/skins/*.zip          "$WEBROOT/levels/skins/"     2>/dev/null
 cp "$GAME/screenshots/readme.txt"      "$WEBROOT/screenshots/" 2>/dev/null

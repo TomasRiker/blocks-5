@@ -221,6 +221,19 @@ bool isBuiltIn(Kind kind, const std::string& name)
 	return FileSystem::inst().isShippedContent(sub + name);
 }
 
+bool isRemovable(Kind kind, const std::string& name)
+{
+	if(kind == KIND_NONE || name.empty()) return false;
+	if(isBuiltIn(kind, name)) return false;
+
+	// Geloescht wird immer nur die eigene Fassung. Von den beiden
+	// Beispielleveln gibt es die erst, wenn der Spieler einen davon gespeichert
+	// hat; bis dahin steht der Eintrag zwar in der Liste, aber es gibt nichts
+	// wegzunehmen.
+	FileSystem& fs = FileSystem::inst();
+	return fs.fileExists(fs.getAppHomeDirectory() + subdirectoryFor(kind) + name);
+}
+
 bool remove(Kind kind, const std::string& name, std::string& errorId)
 {
 	errorId = "";
@@ -232,7 +245,7 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 		errorId = "$TR_ERROR_FAILED";
 		return false;
 	}
-	if(isBuiltIn(kind, name))
+	if(!isRemovable(kind, name))
 	{
 		errorId = "$TR_ERROR_BUILT_IN";
 		return false;
