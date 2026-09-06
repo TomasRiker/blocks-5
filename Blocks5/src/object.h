@@ -146,6 +146,10 @@ public:
 	// irgendwer eine Ruecknahme ausloesen muss. Genau deshalb schnappt die
 	// Deckkraft zurueck, statt zurueckzublenden: ein halbdurchsichtiger Block,
 	// der davonrutscht, sieht nach einem Fehler aus.
+	//
+	// Die eine Ausnahme steht in frameBegin(): ein sterbender Block behaelt
+	// seinen Wert, sonst waere die geglueckte Umwandlung der lauteste Fall von
+	// Zurueckschnappen ueberhaupt.
 	void setConversionProgress(double progress) { conversionProgress = progress; }
 	double getConversionProgress() const { return conversionProgress; }
 

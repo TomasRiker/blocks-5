@@ -22,11 +22,12 @@
        einwaerts          |=== ausgestossen =========|                fliegt bis 100
        zu sehen  nur raus | beides ----------------- | nur rein |
 
-   Die beiden Enden sind gerechnet und nicht gewaehlt: ein Funke lebt weiter,
-   nachdem er ausgestossen wurde, also muss der letzte einwaerts eine ganze
-   Lebensdauer vor Schluss los (100 - 20 = 80), und auswaerts muss eine
-   Lebensdauer vor 80 Schluss sein (80 - 27 = 53), damit am Ende wirklich nur
-   noch eingesammelt wird.
+   Ein Funke lebt weiter, nachdem er ausgestossen wurde, und die beiden Enden
+   sind daraus gerechnet. Auswaerts muss eine ganze Lebensdauer vor 80 Schluss
+   sein (80 - 27 = 53), damit am Ende wirklich nur noch eingesammelt wird.
+   Einwaerts landet jeder bei 100, egal wann er losfliegt - die Lebensdauer
+   wird dafuer ausgerechnet -, und 92 ist der Punkt, ab dem die verbleibende
+   Zeit kein Flug mehr waere, sondern ein Aufblitzen an Ort und Stelle.
 
    GENAU LANDEN. Der Integrator ist position += velocity; velocity *= damping.
    Ueber n Takte legt ein Funke damit v0 * (1 - d^n) / (1 - d) zurueck, und die
@@ -293,15 +294,24 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		const Vec2d start = middle + Vec2d(fromOffset.x - 8.0, fromOffset.y - 8.0)
 								   + Vec2d(cos(angle), sin(angle)) * radius;
 
-		// So lange, wie bis zur Umwandlung noch Zeit ist: dann kommen alle
-		// gemeinsam an, in dem Augenblick, in dem der Diamant erscheint.
-		const int life = max(SPARK_IN_MIN_LIFE, CONVERSION_TICKS - counter);
+		// So lange, wie bis zur Umwandlung noch Zeit ist, plus einen Takt:
+		// dann kommen alle gemeinsam an, und zwar in genau dem Bild, in dem der
+		// Block zuletzt zu sehen ist. Erst im naechsten steht der Diamant da
+		// und die Funken sind fort - die Uebergabe fiele sonst in eine Luecke,
+		// in der weder das eine noch das andere zu sehen waere.
+		const int life = max(SPARK_IN_MIN_LIFE, CONVERSION_TICKS - counter + 1);
+
+		// Ein Teilchen bewegt sich in seinem letzten Takt nicht mehr: dieser
+		// Aufruf zaehlt nur herunter und loescht. Gerechnet wird darum mit den
+		// Wegen, die es wirklich zurueklegt - sonst bliebe es genau einen vor
+		// dem Ziel stehen, und weil es beschleunigt, ist das der laengste.
+		const int moves = life - 1;
 
 		// Die Daempfung aus dem gewuenschten Zuwachs, damit der Anflug bei
-		// jeder Dauer dieselbe Form hat: d^life = inAccel.
-		const double d = pow(v.inAccel, 1.0 / static_cast<double>(life));
+		// jeder Dauer dieselbe Form hat: d^moves = inAccel.
+		const double d = pow(v.inAccel, 1.0 / static_cast<double>(moves));
 
-		// Das v0, mit dem der Funke am Ende seines Lebens genau auf dem Ziel
+		// Das v0, mit dem der Funke nach seinem letzten Weg genau auf dem Ziel
 		// steht. Ohne Schwerkraft, sonst traefe er daneben.
 		const double k = (1.0 - d) / (1.0 - v.inAccel);
 
@@ -534,8 +544,12 @@ void DiamondMachine::onUpdate()
 
 				if(counter >= 100)
 				{
-					// Der Block wird umgewandelt.
-					p_obj->disappearNextFrame(0.5);
+					// Der Block wird umgewandelt. Er verschwindet schnell: er
+					// steht bei CONVERSION_GHOST und behaelt das auch im
+					// Sterben (siehe Object::frameBegin), ist also nur noch ein
+					// Hauch ueber dem fertigen Diamanten. Eine halbe Sekunde
+					// waere dafuer eine Ewigkeit.
+					p_obj->disappearNextFrame(0.15);
 					level.getPresets()->instancePreset("Diamond", position - Vec2i(0, 1), 0);
 //					level.addNewObjects();
 					counter = -1;

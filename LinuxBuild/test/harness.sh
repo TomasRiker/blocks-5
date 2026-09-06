@@ -55,6 +55,17 @@ b5_start()
 	rm -rf "$B5_OUT"; mkdir -p "$B5_OUT"
 	B5_TEST_DIR="$B5_OUT/hook"; mkdir -p "$B5_TEST_DIR"; export B5_TEST_DIR
 
+	# Zwei Fenster legen sich ueber das Menue, und beide kommen von allein:
+	# das CRT-Angebot beim ersten Start und die Spendenfrage, sobald genug
+	# gespielt wurde - was hier nach genug Laeufen zwangslaeufig eintritt.
+	# Beide sind einmalig, also kann kein Test, der das Menue anfasst,
+	# reproduzierbar sein, solange sie auftauchen duerfen. Die Markierungen
+	# sind dieselben, die das Spiel selbst schreibt.
+	B5_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
+	mkdir -p "$B5_HOME"
+	[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
+	[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
+
 	Xvfb "$B5_DISP" -screen 0 ${B5_SCREEN_W}x${B5_SCREEN_H}x24 >"$B5_OUT/xvfb.log" 2>&1 &
 	B5_XVFB_PID=$!
 	sleep 2

@@ -216,6 +216,12 @@ holds far longer than either number, so this is the harness lying, not the game.
 believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
 never runs and `config.xml` is never written.
 
+**Two windows open themselves over the menu, and `b5_start` writes both markers away.**
+The CRT offer appears on a first start and the donation window once enough time has been
+played — which a machine that has run the tests often enough reaches on its own. Both are
+one-shot, so no test that touches the menu can be repeatable while they may appear;
+`.crt_offered` and `.donation_asked` are written exactly as the game writes them.
+
 **The harness drives `build-test/`, and `LinuxBuild/build.sh` without `hooks` writes
 `build/`.** Building the one and testing the other is a full afternoon's worth of a change
 that appears to have no effect, so `b5_start` compares the binary against `Blocks5/src` and
@@ -802,7 +808,21 @@ ticks — `setConversionProgress` each tick, cleared by the block's own `frameBe
 machine that stops pushing lets it stand full again by itself. Both ends of the flight are
 computed rather than chosen: the integrator is `position += velocity; velocity *= damping`, so
 a spark covers `v0·(1−dⁿ)/(1−d)` over n ticks, which says where the outward cloud ends and, read
-backwards, gives the `v0` that lands an inward spark exactly on its target.
+backwards, gives the `v0` that lands an inward spark exactly on its target. **n is the number of
+moves, not the lifetime**: a particle does not move in its last tick — that update only counts
+down and erases — so aiming over the lifetime leaves every spark one step short, and because it
+accelerates, that is the longest step of all.
+
+**The handover is the part that has to be exact, and two off-by-one-ticks were spoiling it.**
+The inward sparks live one tick longer than the conversion has left, so they are still standing
+on their landing points in the last frame the block is drawn; the diamond appears in the next
+one, by which time they are gone. And the block does not come back: `frameBegin()` keeps the
+conversion progress once the object is dying **or scheduled to die**, the second half being the
+one that matters — `disappearNextFrame()` only records the death, `update()` applies it, and
+`update()` runs after `frameBegin()`, so `isAlive()` alone still answers "alive" in the tick
+where the value would be cleared. Without that the finished block snapped from a 22% ghost back
+to full opacity and then took half a second to fade off the new diamond, measured as a green
+cast of +38 grey levels over the settled colour; it is +9 now and gone within two frames.
 
 A spark glows without additive blending, which could not carry the block's real colour — over
 rock the same brown would be an ember and over grass a glare. Its colour starts above 1

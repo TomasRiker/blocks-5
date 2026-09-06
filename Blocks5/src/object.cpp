@@ -914,7 +914,15 @@ void Object::frameBegin()
 
 	// Siehe setConversionProgress(): loeschen und die Maschine ihn gleich
 	// wieder setzen lassen ist die Ruecknahme, die niemand vergessen kann.
-	conversionProgress = 0.0;
+	// Nicht mehr, sobald der Block stirbt: dann drueckt niemand mehr, und der
+	// Geist stuende im Augenblick der Umwandlung schlagartig wieder als voller
+	// Block ueber dem Diamanten, den die Funken gerade gebaut haben.
+	//
+	// newDeathTime muss mitgefragt werden, und daran haengt der ganze Fall:
+	// disappearNextFrame() legt den Tod nur fest, wirksam wird er erst in
+	// update() - also nach diesem frameBegin(). isAlive() allein sagt im Takt
+	// danach noch "lebt", und genau dort wuerde geloescht.
+	if(isAlive() && newDeathTime == -1) conversionProgress = 0.0;
 
 	// Der Zerfall gehoert hierher und nicht in onBeforeRender(): das laeuft je
 	// Bild, und das Aufleuchten haenge sonst an der Bildrate.
