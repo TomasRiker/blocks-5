@@ -238,6 +238,11 @@ public:
 	void setKeyData(SDLKey key, int data);
 
 	Vec2i getCursorPosition() const;
+	// Wo das Fenster den Zeiger meldet: ohne die Umrechnung auf das
+	// 640x480-Bild und ohne die Woelbung des Roehrenfilters. Damit ist zu
+	// unterscheiden, ob die Maus bewegt wurde oder ob nur die Abbildung sich
+	// geaendert hat - GUI::update() haengt daran.
+	const Vec2i& getRawCursorPosition() const;
 	void setCursorPosition(const Vec2i& cursorPosition);
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;

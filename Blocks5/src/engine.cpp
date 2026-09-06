@@ -3520,6 +3520,11 @@ Vec2i Engine::getCursorPosition() const
 	return position;
 }
 
+const Vec2i& Engine::getRawCursorPosition() const
+{
+	return cursorPosition;
+}
+
 void Engine::setCursorPosition(const Vec2i& cursorPosition)
 {
 	// Erst in den gueltigen Bereich des internen Bildes klemmen, dann nach

@@ -64,6 +64,8 @@ private:
 
 	Vec2i cursorPos;
 	Vec2i oldCursorPos;
+	// Die Zeigerposition, wie das Fenster sie meldet - siehe update().
+	Vec2i oldRawCursorPos;
 	GUI_Element* p_elementAtCursor;
 	GUI_Element* p_oldElementAtCursor;
 	GUI_Element* p_focusElement;

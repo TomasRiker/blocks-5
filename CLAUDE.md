@@ -1516,6 +1516,20 @@ in `Engine`: `cursorPosition` used to come only from `SDL_MOUSEMOTION`, and a to
 motion at all, so both button events take the position from the event too. Either fix alone
 changes nothing; the pair is what makes a tap land.
 
+**A mouse-move event has to mean the mouse moved**, which is not the same question as whether
+`cursorPos` changed. That position comes from `Engine::getCursorPosition()` and therefore
+through the CRT filter's barrel distortion, so anything that changes the warp moves the cursor
+in game space with the hand perfectly still — and the one control that changes the warp is the
+curvature slider, which is dragged with the mouse. The synthetic `onMouseMove` set a new slider
+value, the value set a new curvature, and the loop closed: measured with the hand held on the
+handle, the slider took 249 values in six seconds, flipping between 0 and 1 at the logic rate.
+The step is what makes it reach that far — `getOverscan()` is deliberately zero at curvature 0
+and its full 1.3% the moment the slider leaves the stop, which a third of the way out from the
+centre is a pixel and a half, and the bar turns 1.7 pixels into one unit. So `GUI::update()`
+asks for both: the window's own cursor position (`Engine::getRawCursorPosition()`) must have
+changed **and** the game-space one must have landed on another pixel. `noMoveCounter`, which times the tooltips,
+reads the same answer.
+
 Two things about the toggles are worth knowing, because getting either wrong is quiet:
 
 - **`check()` means "the user clicked"; `setChecked()` means "the display caught up".** Only

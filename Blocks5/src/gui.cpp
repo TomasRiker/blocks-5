@@ -52,6 +52,7 @@ bool GUI::init()
 	setOpacity(0.85);
 
 	cursorPos = oldCursorPos = Engine::inst().getCursorPosition();
+	oldRawCursorPos = Engine::inst().getRawCursorPosition();
 	p_elementAtCursor = p_oldElementAtCursor = p_root;
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
@@ -210,6 +211,18 @@ void GUI::update()
 	cursorPos = engine.getCursorPosition();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
 
+	// Eine Mausbewegung muss eine Bewegung der Maus sein. cursorPos kommt aus
+	// getCursorPosition() und damit durch die Woelbung des Roehrenfilters: wer
+	// deren Regler zieht, verschiebt die Abbildung unter der eigenen Hand, und
+	// der Zeiger wandert im Bild, ohne dass sich etwas geruehrt haette. Aus so
+	// einer Scheinbewegung wird sonst ein neuer Reglerwert, daraus eine neue
+	// Woelbung, und der Regler springt im Bildtakt zwischen zwei Werten hin und
+	// her. Also beides verlangen: die Maus muss sich bewegt haben, und sie muss
+	// dabei auf einem anderen Bildpunkt gelandet sein.
+	const Vec2i rawCursorPos = engine.getRawCursorPosition();
+	const bool cursorMoved = rawCursorPos != oldRawCursorPos && cursorPos != oldCursorPos;
+	oldRawCursorPos = rawCursorPos;
+
 	// Das Element unter dem Zeiger gehoert hierher, vor die Klickbehandlung, und
 	// nicht ans Ende der Funktion: ein Finger setzt ohne vorherige Bewegung auf,
 	// Zeiger und Tastendruck kommen also im selben Takt. Weiter unten berechnet
@@ -258,7 +271,6 @@ void GUI::update()
 		}
 
 		// Wurde die Maus bewegt?
-		bool cursorMoved = cursorPos != oldCursorPos;
 		if(cursorMoved)
 		{
 			// dem Element dies mitteilen
@@ -290,7 +302,7 @@ void GUI::update()
 		if(wheel) p_elementAtCursor->onMouseWheel(wheel);
 	}
 
-	if(cursorMovement.isZero()) noMoveCounter = min<uint>(20, noMoveCounter + 1);
+	if(!cursorMoved) noMoveCounter = min<uint>(20, noMoveCounter + 1);
 	else if(p_elementAtCursor != p_oldElementAtCursor && noMoveCounter) noMoveCounter--;
 
 	if(p_elementAtCursor && p_elementAtCursor->getToolTip().empty() && noMoveCounter) --noMoveCounter;
