@@ -83,7 +83,7 @@ namespace
 
 CF_Rewind::CF_Rewind()
 {
-	p_osd = Manager<Texture>::inst().request("rewind.png");
+	p_osd = Manager<Texture>::inst().request("misc.png");
 	startTicks = SDL_GetTicks();
 
 	// Das Laufwerk. Der Ton gehoert dem Effekt und nicht der Stelle, die ihn
@@ -288,13 +288,13 @@ void CF_Rewind::render(double t,
 	// gezaehlt ab dem Beginn des Effekts, damit sie sichtbar anfangen.
 	if(p_osd)
 	{
-		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 0),
+		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 112),
 							Vec2i(OSD_TEXT_WIDTH, OSD_HEIGHT), Vec4d(1.0));
 
 		if(((SDL_GetTicks() - startTicks) / OSD_BLINK_MS) % 2 == 0)
 		{
 			engine.renderSprite(p_osd, Vec2i(OSD_X + OSD_TEXT_WIDTH, OSD_Y),
-								Vec2i(OSD_TEXT_WIDTH, 0),
+								Vec2i(OSD_TEXT_WIDTH, 112),
 								Vec2i(OSD_ARROWS_WIDTH, OSD_HEIGHT), Vec4d(1.0));
 		}
 	}
