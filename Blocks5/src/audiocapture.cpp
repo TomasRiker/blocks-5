@@ -952,10 +952,18 @@ void AudioCapture::stop()
 #else
 
 // ---------------------------------------------------------------------------
-// Browser. Eine Seite kann nicht mithoeren, was sie selbst ausgibt, und
-// aufgenommen wird dort ohnehin nicht: $A_TOGGLE_CAPTURE_VIDEO gibt es im
-// Web-Build gar nicht. Der Ringpuffer bleibt ungeoeffnet, damit die gemeinsame
-// Leserseite darunter Stille liefert.
+// Browser. Ein Rumpf, weil dort nichts aufgenommen wird:
+// $A_TOGGLE_CAPTURE_VIDEO gibt es im Web-Build gar nicht. Der Ringpuffer bleibt
+// ungeoeffnet, damit die gemeinsame Leserseite darunter Stille liefert.
+//
+// Nicht, weil eine Seite ihre eigene Ausgabe nicht mithoeren koennte - sie
+// kann. In Emscriptens OpenAL haengt jede Quelle an AL.currentCtx.gain und der
+// wiederum an ctx.destination; eine zusaetzliche Verbindung von diesem
+// Summenknoten auf ein createMediaStreamDestination() liefert genau den
+// fertigen Mix, also dasselbe, wofuer es unter Windows WASAPI-Loopback und
+// unter Linux die Monitorquelle braucht. Zu tun bliebe, die Bloecke von dort
+// als 16 Bit Stereo 48 kHz in den AudioRing zu schieben, aus einem
+// AudioWorklet heraus. Siehe ROADMAP, Punkt 28.
 // ---------------------------------------------------------------------------
 
 struct AudioCaptureImpl : public AudioRing

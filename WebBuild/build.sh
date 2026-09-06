@@ -31,11 +31,11 @@ INC="-I$GAME/src -I$HERE
 CFLAGS="-O2 -DTIXML_USE_STL -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 
-# Game sources, minus the four that cannot come along:
-#   stackwalker  - Win32 SEH crash handler
-#   videorecorder- portable now, but nothing here captures audio (replaced by
-#                  videorecorder_stub.cpp)
-#   pch          - the Create-PCH translation unit, unused here
+# Die Quellen des Spiels, ohne die drei, die nicht mitkoennen:
+#   stackwalker  - der SEH-Absturzhelfer, gibt es nur unter Win32
+#   videorecorder- kodiert in einem eigenen Thread, und den gibt es hier nicht;
+#                  Ton auch nicht (ersetzt durch videorecorder_stub.cpp)
+#   pch          - die Uebersetzungseinheit, die unter MSVC den PCH erzeugt
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
 SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c

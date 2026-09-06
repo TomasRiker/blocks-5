@@ -1082,6 +1082,79 @@ fast-forward at five times speed rather than skipping. A names-only variant is
 therefore not "hide two entries" - it is a second layout and a second timeline,
 and the table has to leave `onRender` first.
 
+28. Video recording in the browser
+----------------------------------
+Screenshots work there now (`img_save.cpp` writes the PNG, `WebTransfer::
+downloadBytes` delivers it), and `$A_TOGGLE_CAPTURE_VIDEO` is the one action
+`main.cpp:509` still withholds from the web build. Four things stand in the way,
+and only two of them are real.
+
+- **The action is not registered.** One `#ifndef __EMSCRIPTEN__`.
+- **The recorder is stubbed.** `WebBuild/build.sh:39` filters `videorecorder.cpp`
+  out and links `videorecorder_stub.cpp`, whose `getError()` answers `true`.
+  `minih264e_impl.c`, `minimp4_impl.c` and shine's nine files are not in that
+  build's `CSRCS` either.
+- **The encoder runs on its own thread.** `videorecorder.cpp:415` calls
+  `SDL_CreateThread` and `:428` `SDL_WaitThread`, and the thread proc blocks on
+  `SDL_SemWaitTimeout`. `streamedsound.cpp:279` already writes down what that
+  does here: `SDL_CreateThread` aborts, `SDL_WaitThread` calls `abort()`, and
+  Emscripten's SDL has no semaphores at all. The build passes no `-pthread`.
+- **Nothing captures the audio.** `audiocapture.cpp`'s `#else` branch is a stub
+  that reports silence.
+
+**The stub's stated reason for the last one was wrong, and the comment has been
+corrected.** A page *can* hear its own output: in Emscripten's OpenAL every
+source does `connect(AL.currentCtx.gain)` and that gain does
+`connect(ac.destination)`, so one extra connection from that summing node to a
+`createMediaStreamDestination()` yields exactly the finished mix - the same thing
+WASAPI loopback gives under Windows and the monitor source under Linux.
+`web_audio.cpp` already reaches `AL.currentCtx.audioCtx` for the suspend gate.
+
+Where the file goes is no longer a question either, and `GL_BGR` never was one
+on this path: `engine.cpp` already reads the frame as `GL_RGBA`.
+
+**The route to take: let the browser encode, off an offscreen 2D canvas.**
+`glReadPixels` at 640x480 stays exactly as it is - so does the cursor that
+`Engine` draws into that buffer by hand - and the frame goes into a 2D canvas
+that nothing displays. `canvas.captureStream()` on *that* canvas, plus the audio
+track from the summing node above, is a `MediaStream`, and `MediaRecorder`
+turns it into a file. No encoder in the wasm, no thread, and the chunks are
+Blob parts the browser may spill to disk rather than 22 MB of resident memory
+per minute (`engine.cpp` asks for 2.84 Mbit/s video and 160 kbit/s audio at
+30 fps).
+
+Capturing the *game's* canvas directly would be simpler still and is the wrong
+trade: `captureStream` sees the composited canvas, which is the upscaled,
+letterboxed picture. Screenshots and videos are deliberately the clean 640x480,
+and an off-screen canvas is what keeps that promise.
+
+Three details that decide the work:
+
+- **`VideoRecorder`'s interface survives unchanged.** `isReadyForNextFrame()` /
+  `getInputFrameBuffer()` / `encodeNextFrame(timecode)` map onto "hand JS a heap
+  buffer, then push it into the canvas", so `engine.cpp` needs no edit beyond
+  the missing action. A `WebBuild/videorecorder_web.cpp` replaces the stub.
+- **The frame arrives upside down.** OpenGL's first row is the bottom one, and
+  `putImageData` ignores the 2D context's transform - so the flip has to happen
+  while filling the `ImageData`, or through
+  `createImageBitmap(..., { imageOrientation: "flipY" })` and `drawImage`.
+- **The container is the browser's choice.** WebM/VP8 everywhere, MP4/H.264
+  where `MediaRecorder.isTypeSupported("video/mp4")` agrees. That is a step down
+  from the desktop's MP4, which was picked precisely because Windows plays it
+  with nothing installed - but a browser that recorded the file can play it back.
+
+The alternative is to port the existing encoder: drop the thread and run
+`convertFrame()` + `H264E_encode()` from the logic tick, the way `StreamedSound`
+gave up its decoder thread. It keeps one code path and the same MP4 on every
+platform, and it pays for that with a full 640x480 H.264 frame encoded 30 times
+a second inside the game's own frame budget, single-threaded
+(`createParam.max_threads = 0`), plus `minimp4`'s seek-and-write sink
+(`videorecorder.cpp:29`) holding the whole file in memory until it is closed.
+
+A backgrounded tab gets no `requestAnimationFrame` and therefore no frames,
+whichever route is taken - the recording simply stops there, which is also what
+`handleAppFocus` already does to it.
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1100,6 +1173,9 @@ How these connect
                       all three, and 17 is where the delete lands
 
    19 (controls) <──> 22 (tap radius): the pad answers the keys, 22 the buttons
+
+   PNG screenshots ──> 28 (browser video): the browser half of the recording is
+                      what is left once the picture can leave the page at all
 
    26 (shipped content) ──> 27 (credits): the "was it the shipped campaign?"
                       test is a hardcoded path into the user's folder, and 26
