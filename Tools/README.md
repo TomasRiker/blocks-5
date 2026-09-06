@@ -95,7 +95,8 @@ Zwischenverzeichnis ab, aus dem dann gepackt wird - die Notizen in den Dialogen
 bleiben in den Quelldateien und gehen niemanden etwas an, der `data.zip`
 oeffnet. `pack.sh` und `zip_data.bat` rufen es von sich aus auf; ein eigener
 Aufruf ist nur zum Nachsehen noetig. Anders als `make_ico.py` laeuft es damit
-auch unter Windows, und ohne Python packt `zip_data.bat` nicht.
+auch unter Windows - und wo Python fehlt, sagen beide Skripte es und packen die
+XML-Dateien, wie sie sind, statt den Build anzuhalten.
 
 Ein Kommentar wird nur entfernt, wenn er seine Zeilen fuer sich hat. Das ist
 kein Schoenheitsgrund: in einem Level steht in `<Row>` je Zeichen eine

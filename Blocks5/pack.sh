@@ -53,7 +53,14 @@ for arg in "$@"; do
 done
 
 command -v 7za >/dev/null 2>&1 || { echo "7za fehlt - sudo apt install p7zip-full"; exit 2; }
-command -v python3 >/dev/null 2>&1 || { echo "python3 fehlt - es nimmt die Kommentare aus den XML-Dateien"; exit 2; }
+# Ohne Python bleibt es beim alten Verhalten: die XML-Dateien kommen dann
+# unmittelbar aus data/ und tragen ihre Kommentare mit. Eine Notiz wert, kein
+# Grund zum Abbruch - dieselbe Handhabung wie bei optipng.
+strip=1
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "(python3 fehlt, die Kommentare bleiben in den XML-Dateien)"
+    strip=0
+fi
 if [ $optimize -eq 1 ] && ! command -v optipng >/dev/null 2>&1; then
     echo "(optipng fehlt, die PNGs bleiben wie sie sind)"
     optimize=0
@@ -92,17 +99,21 @@ packInto() { # $1=Ziel  $2=Passwort ("" fuer keins)  Rest=Muster
 # Deshalb zwei Aufrufe an 7za - der zweite haengt an, wie bei den Skins auch.
 packData() {
     echo "data.zip ..."
-    local staged
-    staged=$(mktemp -d) || return 1
-    python3 "$HERE/../Tools/strip_xml_comments.py" --out "$staged" "$HERE/data" || {
-        rm -rf "$staged"; return 1; }
+    local staged=""
+    if [ $strip -eq 1 ]; then
+        staged=$(mktemp -d) || return 1
+        python3 "$HERE/../Tools/strip_xml_comments.py" --out "$staged" "$HERE/data" || {
+            rm -rf "$staged"; return 1; }
+    fi
     ( cd "$HERE/data" || exit 1
       rm -f ../data.zip
       runOptipng
       packInto ../data.zip "$DATA_PASSWORD" '*.png' '*.ogg' '*.txt' '*.dat'
-      cd "$staged" || exit 1
-      packInto "$HERE/data.zip" "$DATA_PASSWORD" '*.xml' ) || { rm -rf "$staged"; return 1; }
-    rm -rf "$staged"
+      cd "${staged:-$HERE/data}" || exit 1
+      packInto "$HERE/data.zip" "$DATA_PASSWORD" '*.xml' ) || {
+        [ -n "$staged" ] && rm -rf "$staged"
+        return 1; }
+    if [ -n "$staged" ]; then rm -rf "$staged"; fi
     echo "  $(unzip -l "$HERE/data.zip" | tail -1 | tr -s ' ')"
 }
 

@@ -81,9 +81,10 @@ the way the source is, and those notes are nobody's business who opens the archi
 belong in the files. So the sources are left alone and
 `Tools/strip_xml_comments.py` writes stripped copies into a staging directory that the
 packing scripts then pack from, which is why `pack.sh` and `zip_data.bat` call `7za` twice:
-everything else out of `data/`, the XML out of the staging directory. It is the one place
-Windows packing needs Python, and without it `zip_data.bat` refuses rather than shipping the
-comments.
+everything else out of `data/`, the XML out of the staging directory. Python is what does the
+stripping, and it is the one thing here that Windows packing has no bundled tool for — so
+where it is missing, both scripts say so and pack the XML files as they stand. A note, not a
+stopped build: `data.zip` is what the game needs to start, and the comments are a tidiness.
 
 A comment is removed only if it has its lines to itself, and that is a guard rather than a
 matter of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--` is
