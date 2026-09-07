@@ -34,7 +34,7 @@ if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-t
 mkdir -p "$OUT/obj"
 
 command -v sdl-config >/dev/null 2>&1 || {
-    echo "sdl-config nicht gefunden - libsdl1.2-dev fehlt."; exit 2; }
+    echo "sdl-config not found - libsdl1.2-dev is missing."; exit 2; }
 
 INC="-I$GAME/src -I$HERE
      -I$LIBS/tinyxml-2.6.2 -I$LIBS/sigslot -I$LIBS/mtrand-1.1
@@ -96,7 +96,7 @@ compile() { # $1=file $2=flags
   local cc=g++
   case "$1" in *.c) cc=gcc;; esac
   if ! $cc -c "$1" -o "$o" -MMD -MF "$d" $2 2> "$o.log"; then
-      echo "FEHLGESCHLAGEN: $1" >&2; head -30 "$o.log" >&2; return 1
+      echo "FAILED: $1" >&2; head -30 "$o.log" >&2; return 1
   fi
   echo "$o"
 }
@@ -114,20 +114,20 @@ do
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done
-[ $fail -ne 0 ] && { echo "### UEBERSETZEN FEHLGESCHLAGEN ###"; exit 1; }
-echo "### $total Uebersetzungseinheiten in Ordnung ###"
+[ $fail -ne 0 ] && { echo "### COMPILE FAILED ###"; exit 1; }
+echo "### compiled $total translation units OK ###"
 
 # -lX11 for the fullscreen switch in linux_window.cpp. SDL brings it along
 # itself, but that cannot be relied on: under sdl12-compat there is SDL 2
 # underneath, and that loads its video drivers only at runtime.
 g++ $OBJS -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lGLU -lX11 -lm -lpthread || {
-    echo "### LINKEN FEHLGESCHLAGEN ###"; exit 1; }
+    echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5 ($(du -h "$OUT/blocks5" | cut -f1)) ###"
 
 # data.zip is a build product and is not in Git. Without it the game does not
 # get past the loading screen, which looks like a fault in the build although
 # only one step is missing.
-[ -f "$GAME/data.zip" ] || echo "(Achtung: data.zip fehlt - Blocks5/pack.sh baut es)"
+[ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - Blocks5/pack.sh builds it)"
 
 # The game opens data.zip relative to the working directory and therefore has
 # to run out of Blocks5/ - exactly as under Windows.

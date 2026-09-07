@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""make_text.py - schreibt eine Zeile mit der Schrift des Spiels in ein PNG.
+"""make_text.py - writes one line in the game's own font into a PNG.
 
-    python3 make_text.py <font.xml> <text> <aus.png>
-    python3 make_text.py <font.xml> --string $LOADING --lang de <aus.png>
+    python3 make_text.py <font.xml> <text> <out.png>
+    python3 make_text.py <font.xml> --string $LOADING --lang de <out.png>
     python3 make_text.py --js <font.xml> $LOADING
 
-Der Ladebildschirm der Seite steht vor dem Spiel, hat also weder data.zip noch
-einen GL-Kontext und kann die Schrift des Spiels nicht selbst zeichnen. Also
-wird die Zeile hier gezeichnet, beim Bauen, und liegt der Seite als Bild bei -
-in ihren echten Pixeln, die die Seite dann ganzzahlig vergroessert.
+The page's boot screen stands before the game, so it has neither data.zip nor a
+GL context and cannot draw the game's font itself. So the line is drawn here, at
+build time, and ships beside the page as an image - in its real pixels, which
+the page then enlarges by a whole factor.
 
-Nachgebildet ist genau, was Font::renderTextPure und Font::renderText tun:
-jedes Zeichen ist ein Rechteck in font.png, der Zeiger rueckt um dessen Breite
-weiter, und darunter liegen zwei schwarze Kopien mit Alpha 0.35, um (2,1) und
-(1,2) versetzt - der Schatten aus options.shadows == 2.
+It reproduces exactly what Font::renderTextPure and Font::renderText do: every
+character is a rectangle in font.png, the pen advances by its width, and under
+it lie two black copies at alpha 0.35, offset by (2,1) and (1,2) - the shadow
+from options.shadows == 2.
 
---js schreibt statt dessen beide Sprachen als JS-Literal auf die Standardausgabe,
-mit dem Bild als Daten-URI. Das setzt build.sh in die Seite ein, damit der
-Ladebildschirm die Zeile ohne eine zweite Anfrage hat.
+--js instead writes both languages to standard output as a JS literal, with the
+image as a data URI. build.sh stamps that into the page, so the boot screen has
+the line without a second request.
 
-Absichtlich ohne Pillow, wie make_icon.py, dessen PNG-Leser und -Schreiber hier
-mitbenutzt werden.
+Deliberately without Pillow, like make_icon.py, whose PNG reader and writer are
+used here.
 """
 import base64
 import io
@@ -36,11 +36,11 @@ SHADOW_ALPHA = 0.7 / len(SHADOW_OFFSETS)
 
 
 def read_font(path):
-    """(bild, zeilenhoehe, versatz, {code: (x, y, w, h)}) aus einer font.xml."""
+    """(image, line height, offset, {code: (x, y, w, h)}) from a font.xml."""
     text = open(path, encoding='latin-1').read()
     head = re.search(r'<Font\b([^>]*)>', text)
     if not head:
-        raise SystemExit('%s: kein <Font>-Element' % path)
+        raise SystemExit('%s: no <Font> element' % path)
     attrs = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', head.group(1)))
     image = os.path.join(os.path.dirname(path), attrs['image'])
 
@@ -49,16 +49,16 @@ def read_font(path):
         a = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', body))
         chars[int(a['code'])] = (int(a['x']), int(a['y']), int(a['w']), int(a['h']))
     if not chars:
-        raise SystemExit('%s: keine <Character>-Elemente' % path)
+        raise SystemExit('%s: no <Character> elements' % path)
     return image, int(attrs['lineHeight']), int(attrs['offset']), chars
 
 
 def load_string(languages, ident, lang):
-    """Einen Text aus data/languages.txt holen, wie loadString es zur Laufzeit tut.
+    """Fetch a text out of data/languages.txt, the way loadString does at runtime.
 
-    Die Datei ist Latin-1, die Sprachkennung steht hinter dem Paragraphzeichen
-    (0xA7), und das Pilcrow (0xB6) waere ein Zeilenumbruch - fuer eine einzelne
-    Zeile ist das ein Fehler und keine stille Kuerzung.
+    The file is Latin-1, the language tag comes after the section sign (0xA7),
+    and the pilcrow (0xB6) would be a line break - for a single line that is an
+    error and not a silent truncation.
     """
     body = None
     found = False
@@ -74,9 +74,9 @@ def load_string(languages, ident, lang):
                 body = rest
                 break
     if body is None:
-        raise SystemExit('%s: %s hat keinen Text fuer "%s"' % (languages, ident, lang))
+        raise SystemExit('%s: %s has no text for "%s"' % (languages, ident, lang))
     if '\xb6' in body or '\n' in body:
-        raise SystemExit('%s: %s ist mehrzeilig' % (languages, ident))
+        raise SystemExit('%s: %s is multi-line' % (languages, ident))
     return body
 
 
@@ -86,13 +86,13 @@ def render(font_xml, text):
 
     missing = sorted({c for c in text.encode('latin-1') if c not in chars})
     if missing:
-        raise SystemExit('die Schrift kennt %s nicht' % missing)
+        raise SystemExit('the font does not know %s' % missing)
 
     glyphs = [chars[c] for c in text.encode('latin-1')]
     width = sum(g[2] for g in glyphs)
     height = max(g[3] for g in glyphs)
     if width == 0:
-        raise SystemExit('leerer Text')
+        raise SystemExit('empty text')
 
     # Margin for the shadow, and the offset from the font.xml as the first row.
     pad_x = max(dx for dx, _ in SHADOW_OFFSETS)
@@ -132,12 +132,11 @@ def render(font_xml, text):
 
 
 def top_inset(width, height, pixels):
-    """Wieviele Zeilen oben ganz durchsichtig sind.
+    """How many rows at the top are fully transparent.
 
-    Die Seite braucht das, um den Abstand ueber der Zeile auszugleichen: die
-    Schrift beginnt erst ein paar Zeilen unter dem oberen Bildrand, und ohne
-    diese Zahl saehe der Zwischenraum ueber dem Text groesser aus als der
-    darunter.
+    The page needs it to make up for the gap above the line: the lettering
+    starts a few rows below the top edge of the image, and without this number
+    the space above the text would look larger than the space below.
     """
     for y in range(height):
         if any(pixels[(y * width + x) * 4 + 3] for x in range(width)):
@@ -146,7 +145,7 @@ def top_inset(width, height, pixels):
 
 
 def as_js(font_xml, ident):
-    """{en:{d:"...",w:183,h:27,t:4},de:{...}} - beide Sprachen als Daten-URI."""
+    """{en:{d:"...",w:183,h:27,t:4},de:{...}} - both languages as a data URI."""
     languages = os.path.join(os.path.dirname(font_xml), 'languages.txt')
     parts = []
     for lang in ('en', 'de'):
@@ -179,7 +178,7 @@ def main():
 
     w, h, pixels, _, _ = render(font_xml, text)
     write_png(out_path, w, h, pixels)
-    print('%s: %dx%d aus "%s"' % (out_path, w, h, text))
+    print('%s: %dx%d from "%s"' % (out_path, w, h, text))
 
 
 if __name__ == '__main__':

@@ -28,7 +28,7 @@ const zlib = require('zlib');
 	for (const name of ['OptionsPane.Options.PrimaryKey', 'OptionsPane.Options.SecondaryKey',
 	                    'OptionsPane.Options.ResetSelected']) {
 		const el = h.find(opts, name);
-		if (el.active) h.note(name + ' ist ohne Auswahl bedienbar, sollte es aber nicht sein');
+		if (el.active) h.note(name + ' is enabled without a selection, and should not be');
 	}
 
 	// Escape belongs to the dialog, not to the menu underneath - otherwise it
@@ -53,10 +53,10 @@ const zlib = require('zlib');
 		await h.clickPath(page, 'Menu.ManagerPane.Manager.' + kind);
 		const mgr = await h.dump(page);
 		if (h.find(mgr, 'Menu.ManagerPane.Manager.Delete').active) {
-			h.note(kind + ': Loeschen ist bedienbar, obwohl nur Mitgeliefertes in der Liste steht');
+			h.note(kind + ': Delete is enabled although the list holds nothing but shipped files');
 		}
 		if (!h.find(mgr, 'Menu.ManagerPane.Manager.Export').active) {
-			h.note(kind + ': Ausgeben ist abgeschaltet, obwohl etwas ausgewaehlt ist');
+			h.note(kind + ': Export is greyed out although something is selected');
 		}
 	}
 
@@ -65,7 +65,7 @@ const zlib = require('zlib');
 	await h.clickPath(page, 'Menu.ManagerPane.Manager.KindMusic');
 	const music = await h.dump(page);
 	for (const name of ['Menu.ManagerPane.Manager.Export', 'Menu.ManagerPane.Manager.Delete']) {
-		if (h.find(music, name).active) h.note(name + ' ist bedienbar, obwohl die Liste leer ist');
+		if (h.find(music, name).active) h.note(name + ' is enabled although the list is empty');
 	}
 
 	// Escape closes the Manager and not the game.
@@ -93,23 +93,23 @@ const zlib = require('zlib');
 	const audioState = () => page.evaluate(() => {
 		try {
 			const c = AL.currentCtx && AL.currentCtx.audioCtx;
-			return c ? c.state : '(kein Kontext)';
-		} catch (e) { return '(nicht erreichbar)'; }
+			return c ? c.state : '(no context)';
+		} catch (e) { return '(not reachable)'; }
 	});
 
 	const before = await audioState();
 	if (before !== 'running') {
-		h.note('vor dem Test steht der AudioContext auf "' + before + '", erwartet "running"');
+		h.note('before the test the AudioContext is "' + before + '", expected "running"');
 	} else {
 		await setHidden(true);
 		await page.waitForTimeout(800);
 		const hidden = await audioState();
-		if (hidden !== 'suspended') h.note('verborgener Tab: AudioContext "' + hidden + '", erwartet "suspended"');
+		if (hidden !== 'suspended') h.note('hidden tab: AudioContext "' + hidden + '", expected "suspended"');
 
 		await setHidden(false);
 		await page.waitForTimeout(800);
 		const shown = await audioState();
-		if (shown !== 'running') h.note('sichtbarer Tab: AudioContext "' + shown + '", erwartet "running"');
+		if (shown !== 'running') h.note('visible tab: AudioContext "' + shown + '", expected "running"');
 	}
 
 	// And the Engine itself must notice the focus change - in the browser SDL
@@ -128,10 +128,10 @@ const zlib = require('zlib');
 	]) {
 		await page.evaluate(away);
 		await page.waitForTimeout(1200);
-		if (await appActive()) h.note(name + ': die Engine haelt sich noch fuer aktiv');
+		if (await appActive()) h.note(name + ': the Engine still believes it is active');
 		await page.evaluate(back);
 		await page.waitForTimeout(1200);
-		if (!(await appActive())) h.note(name + ': die Engine kommt nicht zurueck');
+		if (!(await appActive())) h.note(name + ': the Engine does not come back');
 	}
 	await h.expectState(page, 'GS_Menu');
 
@@ -145,18 +145,18 @@ const zlib = require('zlib');
 	const shot = await Promise.race([download,
 	                                 new Promise(r => setTimeout(() => r(null), 8000))]);
 	if (!shot) {
-		h.note('F11 hat keinen Download ausgeloest');
+		h.note('F11 triggered no download');
 	} else {
 		const file = path.join(os.tmpdir(), 'blocks5-webshot.png');
 		await shot.saveAs(file);
 		const png = fs.readFileSync(file);
 		if (!/^blocks5_.*\.png$/.test(shot.suggestedFilename())) {
-			h.note('Bildschirmfoto heisst "' + shot.suggestedFilename() + '"');
+			h.note('the screenshot is called "' + shot.suggestedFilename() + '"');
 		}
 		// Signature, IHDR and an IDAT that unpacks to exactly (width*3+1)*height
 		// bytes - that is what catches a truncated file; its size alone does not.
 		if (png.slice(0, 8).toString('hex') !== '89504e470d0a1a0a') {
-			h.note('Bildschirmfoto hat keine PNG-Signatur');
+			h.note('the screenshot has no PNG signature');
 		} else {
 			const w = png.readUInt32BE(16), hgt = png.readUInt32BE(20);
 			const type = png.slice(12, 16).toString();
@@ -164,20 +164,20 @@ const zlib = require('zlib');
 			const idat = png.slice(16 + 13 + 12, 16 + 13 + 12 + idatLen);
 			const raw = zlib.inflateSync(idat).length;
 			if (type !== 'IHDR' || w !== 640 || hgt !== 480 || png[24] !== 8 || png[25] !== 2) {
-				h.note('Bildschirmfoto: ' + type + ' ' + w + 'x' + hgt +
+				h.note('screenshot: ' + type + ' ' + w + 'x' + hgt +
 				       ' bd=' + png[24] + ' ct=' + png[25]);
 			} else if (raw !== (w * 3 + 1) * hgt) {
-				h.note('Bildschirmfoto: IDAT entpackt zu ' + raw + ' statt ' +
-				       ((w * 3 + 1) * hgt) + ' Byte');
+				h.note('screenshot: IDAT unpacks to ' + raw + ' instead of ' +
+				       ((w * 3 + 1) * hgt) + ' bytes');
 			} else {
-				console.log('  . F11 hat ein gueltiges PNG heruntergeladen (' +
-				            png.length + ' Byte)');
+				console.log('  . F11 downloaded a valid PNG (' +
+				            png.length + ' bytes)');
 			}
 		}
 	}
 
 	process.exit(await h.finish(browser));
 })().catch(async (e) => {
-	console.log('FEHLGESCHLAGEN: ' + e.message);
+	console.log('FAILED: ' + e.message);
 	process.exit(1);
 });

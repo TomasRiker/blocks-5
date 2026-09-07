@@ -39,21 +39,21 @@ for arg in "$@"; do
     case "$arg" in
         --no-optipng) optimize=0 ;;
         data|skins|all) what=$arg ;;
-        *) echo "unbekannt: $arg"; exit 2 ;;
+        *) echo "unknown: $arg"; exit 2 ;;
     esac
 done
 
-command -v 7za >/dev/null 2>&1 || { echo "7za fehlt - sudo apt install p7zip-full"; exit 2; }
+command -v 7za >/dev/null 2>&1 || { echo "7za is missing - sudo apt install p7zip-full"; exit 2; }
 # Without Python the XML files come straight out of data/ and carry their
 # comments with them. A note, not a stopped build - the same handling as
 # optipng.
 strip=1
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "(python3 fehlt, die Kommentare bleiben in den XML-Dateien)"
+    echo "(python3 is missing, the comments stay in the XML files)"
     strip=0
 fi
 if [ $optimize -eq 1 ] && ! command -v optipng >/dev/null 2>&1; then
-    echo "(optipng fehlt, die PNGs bleiben wie sie sind)"
+    echo "(optipng is missing, the PNGs stay as they are)"
     optimize=0
 fi
 
@@ -76,7 +76,7 @@ packInto() { # $1=target  $2=password ("" for none)  rest=patterns
         for f in $pattern; do files+=("$f"); done
     done
     shopt -u nullglob
-    [ ${#files[@]} -gt 0 ] || { echo "  nichts zu packen fuer $target"; return 1; }
+    [ ${#files[@]} -gt 0 ] || { echo "  nothing to pack for $target"; return 1; }
     if [ -n "$password" ]; then
         7za a -tzip -mx=9 -p"$password" "$target" "${files[@]}" > /dev/null
     else
@@ -111,7 +111,7 @@ packData() {
 packSkin() { # $1=name  $2=password ("" for none)
     local name=$1 password=$2
     local dir="$HERE/levels/skins/$name"
-    [ -d "$dir" ] || { echo "  $name fehlt"; return 1; }
+    [ -d "$dir" ] || { echo "  $name is missing"; return 1; }
     echo "$name.zip ..."
     ( cd "$dir" || exit 1
       rm -f "../$name.zip"
@@ -141,5 +141,5 @@ if [ "$what" = all ] || [ "$what" = skins ]; then
     packSkin space "" || fail=1
 fi
 
-[ $fail -eq 0 ] && echo "fertig" || echo "### FEHLER ###"
+[ $fail -eq 0 ] && echo "done" || echo "### ERROR ###"
 exit $fail

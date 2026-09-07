@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: ascii -*-
-"""selftest.py - beweist, dass die Pruefungen aus verify.py etwas finden.
+"""selftest.py - proves that the checks in verify.py find something.
 
-Eine Pruefsammlung, die immer "in Ordnung" sagt, ist wertlos: sie koennte
-laengst an ihrem Muster vorbeigreifen, ohne dass es jemandem auffiele. Dieses
-Skript baut deshalb je Pruefung genau den Fehler ein, den sie fangen soll,
-laesst sie laufen und stellt die Datei wieder her.
+A set of checks that always says "ok" is worthless: it may long since have
+stopped matching what it looks for, without anybody noticing. This script
+therefore injects, for each check, exactly the fault it is meant to catch,
+runs the check, and restores the file.
 
-Jede Aenderung geht in einem finally zurueck, und am Ende wird byteweise
-verglichen. Bricht der Lauf trotzdem an der falschen Stelle ab, hilft
-"git status" - alle betroffenen Dateien stehen unter Versionsverwaltung.
+Every change goes back in a finally, and at the end the file is compared
+byte for byte. If the run breaks off in the wrong place anyway, "git status"
+helps - every file involved is under version control.
 
     python3 Tools/selftest.py
 """
@@ -30,7 +30,7 @@ def run_check(name):
 
 
 class Patch(object):
-    """Eine Datei voruebergehend veraendern und sicher zuruecklegen."""
+    """Change a file temporarily and put it back safely."""
 
     def __init__(self, rel):
         self.path = os.path.join(ROOT, rel)
@@ -44,7 +44,7 @@ class Patch(object):
 
     def replace(self, old, new):
         text = self.original.decode('latin-1')
-        assert text.count(old) >= 1, 'Muster nicht gefunden in %s: %r' % (self.rel, old[:60])
+        assert text.count(old) >= 1, 'pattern not found in %s: %r' % (self.rel, old[:60])
         io.open(self.path, 'w', encoding='latin-1', newline='').write(text.replace(old, new, 1))
 
     def append(self, text):
@@ -56,7 +56,7 @@ class Patch(object):
 
     def __exit__(self, *exc):
         open(self.path, 'wb').write(self.original)
-        assert open(self.path, 'rb').read() == self.original, 'konnte %s nicht zuruecklegen!' % self.rel
+        assert open(self.path, 'rb').read() == self.original, 'could not restore %s!' % self.rel
         # The timestamp has to be put back too. Otherwise every source touched
         # here counts afterwards as younger than everything built from it: the
         # next build recompiles half the tree, and the test harness's age check
@@ -178,30 +178,30 @@ def c_comments(p):
 
 
 def main():
-    print('%-14s %s' % ('PRUEFUNG', 'faellt bei eingebautem Fehler auf?'))
+    print('%-14s %s' % ('CHECK', 'fires on an injected fault?'))
     print('-' * 52)
     failures = 0
     for name, rel, mutate in CASES:
         clean_fired, _ = run_check(name)
         if clean_fired:
-            print('%-14s UEBERSPRUNGEN - meldet schon ohne Fehler etwas' % name)
+            print('%-14s SKIPPED - reports something even without a fault' % name)
             failures += 1
             continue
         with Patch(rel) as p:
             mutate(p)
             fired, output = run_check(name)
         if fired:
-            print('%-14s ja' % name)
+            print('%-14s yes' % name)
         else:
-            print('%-14s NEIN - die Pruefung greift daneben' % name)
+            print('%-14s NO - the check does not fire' % name)
             print(output)
             failures += 1
 
     print('')
     if failures:
-        print('%d Pruefung(en) ohne Wirkung' % failures)
+        print('%d check(s) with no effect' % failures)
     else:
-        print('alle %d Pruefungen schlagen an' % len(CASES))
+        print('all %d checks fire' % len(CASES))
     return 1 if failures else 0
 
 

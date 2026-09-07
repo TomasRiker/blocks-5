@@ -2,23 +2,23 @@
 # -*- coding: ascii -*-
 """verify.py - static checks over the Blocks 5 tree.
 
-Ein Durchlauf ohne Uebersetzer, in wenigen Sekunden. Die Pruefungen suchen
-genau die Sorte Fehler, die beim Bearbeiten stillschweigend entsteht und die
-weder der Compiler noch ein Blick auf den Diff findet: eine Zeichenkette, die
-ein Umbenennen mitgenommen hat, ein GUI-Pfad, den es nicht mehr gibt, ein
-Attribut, das geschrieben und nirgends gelesen wird, eine neue Membervariable
-ohne Anfangswert, eine Quelldatei, die im Projekt fehlt.
+One pass without a compiler, in a few seconds. The checks look for exactly
+the sort of mistake that appears silently while editing and that neither the
+compiler nor a look at the diff will find: a string that a rename took with
+it, a GUI path that no longer exists, an attribute that is written and read
+nowhere, a new member variable with no initial value, a source file missing
+from the project.
 
-    python3 Tools/verify.py             alle Pruefungen
-    python3 Tools/verify.py --list      die Namen
+    python3 Tools/verify.py             all checks
+    python3 Tools/verify.py --list      the names
     python3 Tools/verify.py --only gui_paths
-    python3 Tools/verify.py --quiet     nur die Zusammenfassung
+    python3 Tools/verify.py --quiet     the summary only
 
-Rueckgabewert 1, sobald irgendetwas beanstandet wird.
+Exit code 1 as soon as anything is reported.
 
-Zwei langsame Pruefungen stehen daneben und laufen nur auf Wunsch:
-    Tools/syntax.sh    uebersetzt jede Quelldatei mit mingw (-fsyntax-only)
-    WebBuild/build.sh  baut den Browser-Build
+Two slow checks stand beside it and run only on request:
+    Tools/syntax.sh    compiles every source file with mingw (-fsyntax-only)
+    WebBuild/build.sh  builds the browser build
 """
 
 import io
@@ -49,7 +49,7 @@ def read(path, encoding='latin-1'):
 
 
 def source_files(exts=('.cpp', '.h', '.c')):
-    """Jede Quelldatei, die uns gehoert - ohne libs/ und ohne die Bauergebnisse."""
+    """Every source file that is ours - not libs/, not the build outputs."""
     out = []
     for base in ('Blocks5/src', 'WebBuild', 'PWEncrypt', 'ShowUserDir'):
         for root, dirs, files in os.walk(os.path.join(ROOT, base)):
@@ -67,9 +67,9 @@ _baseline_cache = {}
 
 
 def original_lines(rel):
-    """Die Datei, wie sie im Original stand - fuer Pruefungen, die nur ueber
-    Neues urteilen sollen. Leere Menge, wenn es die Datei damals nicht gab oder
-    git nicht zu erreichen ist."""
+    """The file as it originally stood - for checks that are to judge only
+    what is new. Empty set if the file did not exist back then or git cannot
+    be reached."""
     if rel in _baseline_cache:
         return _baseline_cache[rel]
     lines = set()
@@ -94,8 +94,8 @@ def original_lines(rel):
 
 
 def strip_comments(text):
-    """Kommentare und Zeichenketten stehen lassen, aber Kommentare leeren -
-    damit ein Muster nicht in einem auskommentierten Rest anschlaegt."""
+    """Empty out the comments and keep the strings - so that a pattern does
+    not fire inside a commented-out leftover."""
     out = []
     i, n = 0, len(text)
     while i < n:
@@ -122,9 +122,11 @@ def strip_comments(text):
 
 @check('encoding')
 def check_encoding():
-    """Reines ASCII und LF im Quellcode; CRLF und Latin-1 in den mitgelieferten
-    Textdateien. Ein einziger Umlaut in einem Kommentar macht die Kodierung des
-    Baums wieder zu einer Frage."""
+    """Pure ASCII and LF in the sources, CRLF in the shipped files.
+
+    data/languages.txt and the two readme.txt are Latin-1 with CRLF and are
+    shipped that way. One single umlaut in a comment makes the encoding of the
+    tree a question again."""
     bad = []
     for p in source_files():
         data = open(p, 'rb').read()
@@ -132,32 +134,33 @@ def check_encoding():
         try:
             data.decode('ascii')
         except UnicodeDecodeError as e:
-            bad.append('%s: nicht ASCII (%s)' % (rel, e))
+            bad.append('%s: not ASCII (%s)' % (rel, e))
         if b'\r' in data:
-            bad.append('%s: CRLF, erwartet LF' % rel)
+            bad.append('%s: CRLF, expected LF' % rel)
 
     for rel in ('Blocks5/readme.txt', 'Blocks5/levels/readme.txt', 'Blocks5/data/languages.txt'):
         p = os.path.join(ROOT, rel)
         if not os.path.exists(p):
-            bad.append('%s: fehlt' % rel)
+            bad.append('%s: missing' % rel)
             continue
         data = open(p, 'rb').read()
         if b'\r\n' not in data:
-            bad.append('%s: kein CRLF - diese Datei wird so ausgeliefert' % rel)
+            bad.append('%s: no CRLF - this file is shipped that way' % rel)
         if data.count(b'\n') != data.count(b'\r\n'):
-            bad.append('%s: gemischte Zeilenenden' % rel)
+            bad.append('%s: mixed line endings' % rel)
     return bad
 
 
 @check('project_files')
 def check_project_files():
-    """Es gibt keinen Glob-Build: eine neue Quelldatei muss in Blocks5.vcxproj
-    *und* in Blocks5.vcxproj.filters stehen, sonst uebersetzt Visual Studio sie
-    nicht und niemand merkt es unter Linux."""
+    """A new source file must be in the .vcxproj and in its .filters.
+
+    There is no glob build: a file missing from either one is not compiled by
+    Visual Studio, and nobody notices under Linux."""
     proj = os.path.join(ROOT, 'Blocks5', 'Blocks5.vcxproj')
     filt = proj + '.filters'
     if not os.path.exists(proj) or not os.path.exists(filt):
-        return ['Blocks5.vcxproj oder .filters fehlt']
+        return ['Blocks5.vcxproj or .filters missing']
 
     ptext, ftext = read(proj), read(filt)
     bad = []
@@ -168,24 +171,24 @@ def check_project_files():
             pass
         for name, text in (('Blocks5.vcxproj', ptext), ('Blocks5.vcxproj.filters', ftext)):
             if ('src\\' + f) not in text and ('src/' + f) not in text:
-                bad.append('%s fehlt in %s' % (f, name))
+                bad.append('%s missing from %s' % (f, name))
     return bad
 
 
 @check('naming')
 def check_naming():
-    """Der Dateiname ist der klein geschriebene Klassenname.
+    """The filename is the class name in lower case.
 
-    Das ist die einzige Namensregel dieses Baums, die ohne Ausnahme gilt - fuer
-    jede Klasse mit einer Basisklasse, in jedem Header, CF_Star in cf_star.h
-    genauso wie File_Real in file_real.h -, und sie ist in einem flachen
-    Verzeichnis mit ueber zweihundert Eintraegen die ganze Navigation: Symbol
-    gesehen, Datei bekannt, ohne Suche. Genau deshalb steht sie hier: eine
-    Regel, die nur in CLAUDE.md steht, verwaest.
+    That is the one naming rule of this tree that holds without exception -
+    for every class with a base class, in every header, CF_Star in cf_star.h
+    just as File_Real in file_real.h - and in a flat directory with over
+    two hundred entries it is the whole navigation: symbol seen, file known,
+    without a search. That is exactly why it stands here: a rule that lives
+    only in CLAUDE.md goes stale.
 
-    Nachgesehen wird nur, was eine Basisklasse hat. Eine Vorwaertsdeklaration
-    hat keine, und eine Hilfsklasse ohne Basis - Sprites in sprite.h - folgt
-    ihrer eigenen Regel."""
+    Only what has a base class is looked at. A forward declaration has none,
+    and a helper class without a base - Sprites in sprite.h - follows a rule
+    of its own."""
     pattern = re.compile(r'^\s*class\s+(\w+)\s*:\s*public\b', re.M)
     bad = []
     for name in sorted(os.listdir(SRC)):
@@ -195,15 +198,17 @@ def check_naming():
         for m in pattern.finditer(read(os.path.join(SRC, name))):
             cls = m.group(1)
             if cls.lower() != stem:
-                bad.append('%s: class %s gehoert nach %s.h' % (name, cls, cls.lower()))
+                bad.append('%s: class %s belongs in %s.h' % (name, cls, cls.lower()))
     return bad
 
 
 @check('version')
 def check_version():
-    """Die Versionsnummer steht an vier Stellen. Die .rc ist schon einmal
-    uebersehen worden und blieb eine ganze Fassung lang falsch - das ist die
-    Nummer, die der Explorer zeigt und die in einem Absturzbericht steht."""
+    """The version number lives in four places and must not drift.
+
+    The .rc has been overlooked once already and stayed wrong for a whole
+    version - that is the number Explorer shows and the one that stands in a
+    crash report."""
     found = {}
 
     m = re.search(r'p_localVersion\s*=\s*"([\d.]+)"', read(os.path.join(SRC, 'main.cpp')))
@@ -238,19 +243,20 @@ def check_version():
             found['readme.txt Banner'] = m.group(1)
 
     if not found:
-        return ['keine Versionsnummer gefunden - die Muster stimmen nicht mehr']
+        return ['no version number found - the patterns no longer match']
     values = set(found.values())
     if len(values) == 1:
         return []
-    return ['Versionsnummern gehen auseinander:'] + \
+    return ['version numbers drift apart:'] + \
            ['    %-34s %s' % (k, v) for k, v in sorted(found.items())]
 
 
 @check('gui_paths')
 def check_gui_paths():
-    """Jeder Elementpfad im Code muss in einem Dialog-XML stehen. Ein
-    umbenanntes Element faellt sonst nur dadurch auf, dass der Knopf nichts
-    mehr tut - gui[...] liefert dann einen Nullzeiger."""
+    """Every element path in the code must exist in a dialog XML.
+
+    A renamed element otherwise shows up only as a button that no longer does
+    anything - gui[...] then hands back a null pointer."""
     known = set()
     for f in sorted(os.listdir(DATA)):
         if not f.endswith('.xml'):
@@ -276,7 +282,7 @@ def check_gui_paths():
             for part in full.split('.'):
                 if part not in known:
                     line = text.count('\n', 0, m.start()) + 1
-                    bad.append('%s:%d: "%s" - kein Element namens "%s" in data/*.xml'
+                    bad.append('%s:%d: "%s" - no element named "%s" in data/*.xml'
                                % (rel, line, full, part))
                     break
     return bad
@@ -284,11 +290,12 @@ def check_gui_paths():
 
 @check('strings')
 def check_strings():
-    """Jede $ID aus Code und XML muss in languages.txt stehen, und jede dortige
-    Zeichenkette braucht einen englischen und einen deutschen Text."""
+    """Every $ID must be in languages.txt, in English and in German.
+
+    The IDs are collected from the code and from the dialog XML."""
     langs = os.path.join(DATA, 'languages.txt')
     if not os.path.exists(langs):
-        return ['data/languages.txt fehlt']
+        return ['data/languages.txt missing']
 
     text = read(langs)
     ids, bodies, current = set(), {}, None
@@ -308,7 +315,7 @@ def check_strings():
             continue
         for want in ('en', 'de'):
             if want not in bodies.get(i, set()):
-                bad.append('languages.txt: %s hat keinen %s-Text' % (i, want))
+                bad.append('languages.txt: %s has no %s text' % (i, want))
 
     used = set()
     for p in source_files(('.cpp', '.h')):
@@ -320,16 +327,16 @@ def check_strings():
                 used.add(m.group(1))
 
     for i in sorted(used - ids):
-        bad.append('%s wird benutzt, steht aber nicht in languages.txt' % i)
+        bad.append('%s is used but is not in languages.txt' % i)
     return bad
 
 
 @check('xml_attrs')
 def check_xml_attrs():
-    """Ein Attribut, das geschrieben und nirgends gelesen wird, ist entweder
-    tote Last oder ein Tippfehler - so ist "numLayers" beim Umbenennen einer
-    Konstanten einmal zu "NUM_LAYERS" geworden und die Groessenpruefung des
-    Levels damit still ausgefallen."""
+    """An attribute written and read nowhere is dead weight or a typo.
+
+    That is how "numLayers" once became "NUM_LAYERS" while a constant was
+    being renamed, and the level's size check silently stopped working."""
     written, readd = {}, set()
     # The call arrow belongs in the pattern: otherwise "Attribute(" matches the
     # tail of "SetAttribute(" as well, every written attribute counts as read,
@@ -347,26 +354,26 @@ def check_xml_attrs():
 
     # The GUI reads its attributes through readAttributes(), not through these
     # names; the XML is written there, not read.
-    return ['%s: Attribut "%s" wird geschrieben, aber nirgends gelesen' % (where, name)
+    return ['%s: attribute "%s" is written but read nowhere' % (where, name)
             for name, where in sorted(written.items()) if name not in readd]
 
 
 @check('config')
 def check_config():
-    """Was Engine::saveConfig schreibt, muss auch wieder gelesen werden - sonst
-    verliert die config.xml bei jedem Start eine Einstellung.
+    """What Engine::saveConfig writes must be read back again.
 
-    Nachgesehen wird in engine.cpp *und* in jedem u_*.cpp: seit die
-    Skalierungsfilter Klassen sind, legt jeder sein eigenes Element an
-    (Upscaler::saveConfig), und ein Paar, das nur die Engine kennt, gibt es
-    nicht mehr. Eine Pruefung, die diesen Umzug nicht mitmacht, faende beide
-    Haelften nicht mehr und schwiege - und eine Pruefung, die schweigen kann,
-    ist schlimmer als keine."""
+    Otherwise config.xml loses a setting at every start.
+
+    The check looks in engine.cpp *and* in every u_*.cpp: since the upscale
+    filters are classes, each writes its own element (Upscaler::saveConfig),
+    and a pair that only the Engine knows no longer exists. A check that did
+    not follow that move would find neither half any more and would stay
+    silent - and a check that can stay silent is worse than none."""
     files = ['engine.cpp'] + sorted(f for f in os.listdir(SRC)
                                     if f.startswith('u_') and f.endswith('.cpp'))
 
     def bodies(text, method):
-        """Die Ruempfe aller Funktionen, deren Name auf ::<method>( endet."""
+        """The bodies of every function whose name ends in ::<method>(."""
         out = []
         for m in re.finditer(r'\b\w+::' + method + r'\s*\([^)]*\)\s*\{', text):
             depth, i = 0, m.end() - 1
@@ -394,39 +401,41 @@ def check_config():
             read_names |= set(re.findall(r'NextSiblingElement\(\s*"([A-Za-z][\w]*)"', body))
 
     if not found_load or not found_save:
-        return ['loadConfig() oder saveConfig() nicht gefunden']
+        return ['loadConfig() or saveConfig() not found']
 
     bad = []
     for name in sorted(written - read_names - {'Config'}):
-        bad.append('config.xml: <%s> wird geschrieben, aber nicht gelesen' % name)
+        bad.append('config.xml: <%s> is written but not read' % name)
     for name in sorted(read_names - written - {'Config'}):
-        bad.append('config.xml: <%s> wird gelesen, aber nicht geschrieben' % name)
+        bad.append('config.xml: <%s> is read but not written' % name)
     return bad
 
 
 @check('ctor_init')
 def check_ctor_init():
-    """Skalare Member, die der Konstruktor nicht setzt. Genau daran hing
-    presentVertexBuffer: ohne Bildpuffer las Engine::exit() einen zufaelligen
-    Wert und hielt ihn fuer einen GL-Namen.
+    """Scalar members that the constructor does not set.
 
-    Gesucht wird je Klasse, die im .cpp einen eigenen Konstruktor hat, und nur
-    in dessen Rumpf. Laesst er die Mehrzahl der Member aus, folgt die Klasse
-    einer anderen Regel - Objekte bekommen ihre Felder aus readAttributes() -
-    und die Pruefung schweigt.
+    That is exactly what presentVertexBuffer depended on: without a
+    framebuffer object, Engine::exit() read a random value and took it for a
+    GL name.
 
-    Beurteilt wird nur, was seit dem Stand vor dieser Zusammenarbeit dazukam.
-    Ein Member, den es damals schon gab, wird irgendwo vor dem ersten Lesen
-    gesetzt - init(), loadConfig(), setLogicRate() - und das seit zehn Jahren."""
+    The search runs per class that has a constructor of its own in the .cpp,
+    and only in that constructor's body. If it leaves out the majority of the
+    members, the class follows a different rule - objects get their fields
+    from readAttributes() - and the check stays silent.
+
+    Only what has come in since the state before this collaboration is judged.
+    A member that was there back then is set somewhere before the first read -
+    init(), loadConfig(), setLogicRate() - and has been for ten years."""
     scalar = re.compile(
         r'^\s*(?:unsigned\s+|signed\s+)?'
         r'(bool|char|short|int|long|float|double|uint|uchar|ushort|ulong|size_t)\s+'
         r'([a-z_]\w*)\s*;\s*(?://.*)?$')
 
     def classes(htext):
-        """(Name, Member) je Klasse. Member einer verschachtelten Struktur
-        gehoeren dem, der sie anlegt, und bleiben aussen vor - sie stehen eine
-        Klammerebene tiefer."""
+        """(name, members) per class. Members of a nested struct belong to
+        whatever declares them and stay outside - they sit one brace level
+        deeper."""
         out, stack, depth = [], [], 0
         pending = None
         for line in htext.split('\n'):
@@ -502,16 +511,17 @@ def check_ctor_init():
             missing = [m for m in missing
                        if not any(re.search(r'\b%s\s*(\[|;)' % re.escape(m), l) for l in was)]
             for m in missing:
-                bad.append('%s: %s::%s wird im Konstruktor nicht gesetzt' % (rel, cls, m))
+                bad.append('%s: %s::%s is not set in the constructor' % (rel, cls, m))
     return bad
 
 
 @check('assets')
 def check_assets():
-    """Dateinamen, die im Code stehen, muessen es auch auf der Platte geben -
-    und zwar genau so geschrieben. Unter Windows ist "Sprites.png" dieselbe
-    Datei wie "sprites.png", unter Linux nicht, und seit es den nativen Build
-    gibt, faellt so ein Name dort zur Laufzeit auf die Nase."""
+    """A filename in the code must exist on disk, spelled exactly so.
+
+    Under Windows "Sprites.png" is the same file as "sprites.png", under Linux
+    it is not, and since the native build exists such a name falls flat there
+    at runtime."""
     exact = set()
     lower = {}
     for base in ('Blocks5/data', 'Blocks5/levels', 'Blocks5'):
@@ -539,29 +549,27 @@ def check_assets():
             if name in exact:
                 continue
             if name.lower() in lower:
-                bad.append('%s: "%s" heisst auf der Platte %s'
-                           % (rel, name, ' oder '.join(sorted(lower[name.lower()]))))
+                bad.append('%s: "%s" is called %s on disk'
+                           % (rel, name, ' or '.join(sorted(lower[name.lower()]))))
             else:
-                bad.append('%s: "%s" gibt es nicht' % (rel, name))
+                bad.append('%s: "%s" does not exist' % (rel, name))
     return bad
 
 
 @check('sounds')
 def check_sounds():
-    """Jeder Klang, den playSound() beim Namen nennt, muss in
-    GS_Loading::loadSounds() vorgeladen sein.
+    """Every sound playSound() names must be preloaded in loadSounds().
 
-    Engine::playSound() fordert die Ressource an, erzeugt die Instanz und gibt
-    sie sofort wieder frei. Manager::request() liefert eine frisch geladene
-    Ressource mit Zaehlerstand 1 zurueck, das release() danach setzt ihn also
-    auf 0 - und ~Sound loescht alle seine Instanzen mitsamt der OpenAL-Quelle,
-    noch bevor play() sie erreicht. Hoerbar ist dann nichts, und der Zeiger,
-    auf dem playSound() weiterarbeitet, zeigt ins Leere.
+    Engine::playSound() requests the resource, creates the instance and
+    releases it again at once. Manager::request() hands back a freshly loaded
+    resource with a count of 1, so the release() after it puts that count at
+    0 - and ~Sound deletes all of its instances together with the OpenAL
+    source before play() ever reaches them. Nothing is audible then, and
+    playSound() carries on with a pointer into nothing.
 
-    Alles laeuft nur deshalb, weil loadSounds() jeden Klang einmal anfordert
-    und nie freigibt. Wer einen neuen spielt und ihn dort vergisst, merkt es an
-    keinem Compilerfehler und an keiner Zeile im Protokoll - der Ton bleibt
-    einfach weg."""
+    All of it runs only because loadSounds() requests every sound once and
+    never releases it. Anyone who plays a new one and forgets it there gets no
+    compiler error and no line in the log - the sound simply stays away."""
     played = {}
     call = re.compile(r'playSound\s*\(')
     lit = re.compile(r'"([A-Za-z0-9_][A-Za-z0-9_.\-]*\.ogg)"')
@@ -587,57 +595,56 @@ def check_sounds():
     loading = strip_comments(read(os.path.join(SRC, 'gs_loading.cpp')))
     preloaded = set(re.findall(r'request\("([^"]+\.ogg)"\)', loading))
 
-    return ['%s: playSound("%s"), aber gs_loading.cpp laedt den Klang nicht vor'
+    return ['%s: playSound("%s"), but gs_loading.cpp does not preload the sound'
             % (rel, name)
             for name, rel in sorted(played.items()) if name not in preloaded]
 
 
 @check('sound_volumes')
 def check_sound_volumes():
-    """Jeder Klang in data/sounds.xml muss es auch geben, und der Faktor muss
-    eine Zahl unter 1 sein.
+    """Every sound in data/sounds.xml must exist, with a factor under 1.
 
-    Die Tabelle ist der einzige Ort, an dem noch steht, dass ein Klang leiser
-    gehoert - frueher steckte das in der .ogg, und weil die .wav daneben lauter
-    blieb, ging die Absicht beim naechsten Neukodieren verloren. Ein Tippfehler
-    im Dateinamen wuerde genau dorthin zurueckfuehren, lautlos: Engine liefert
-    fuer einen unbekannten Namen 1.0."""
+    The table is the only place left that still says a sound should play
+    quieter than its file - before, that sat in the .ogg, and because the .wav
+    beside it stayed louder, the intent was lost at the next re-encode. A typo
+    in the filename would lead straight back there, silently: for an unknown
+    name the Engine hands back 1.0."""
     import xml.etree.ElementTree as ET
     path = os.path.join(DATA, 'sounds.xml')
     if not os.path.exists(path):
-        return ['data/sounds.xml fehlt']
+        return ['data/sounds.xml missing']
     try:
         root = ET.parse(path).getroot()
     except Exception as e:
-        return ['data/sounds.xml laesst sich nicht lesen: %s' % e]
+        return ['data/sounds.xml cannot be read: %s' % e]
 
     bad = []
     for elem in root.findall('Sound'):
         name = elem.get('file')
         if not name:
-            bad.append('data/sounds.xml: <Sound> ohne file'); continue
+            bad.append('data/sounds.xml: <Sound> without file'); continue
         if not os.path.exists(os.path.join(DATA, name)):
-            bad.append('data/sounds.xml: "%s" gibt es nicht' % name)
+            bad.append('data/sounds.xml: "%s" does not exist' % name)
         try:
             v = float(elem.get('volume', ''))
         except ValueError:
-            bad.append('data/sounds.xml: "%s" hat keinen lesbaren volume-Wert' % name)
+            bad.append('data/sounds.xml: "%s" has no readable volume value' % name)
             continue
         if not (0.0 < v < 1.0):
-            bad.append('data/sounds.xml: "%s" hat volume=%s - erwartet wird '
-                       'etwas zwischen 0 und 1' % (name, elem.get('volume')))
+            bad.append('data/sounds.xml: "%s" has volume=%s - expected '
+                       'something between 0 and 1' % (name, elem.get('volume')))
     return bad
 
 
 @check('style')
 def check_style():
-    """Tabulatoren, kein Leerzeichen zwischen Schluesselwort und Klammer, keine
-    Leerzeichen am Zeilenende - so haelt es der uebrige Baum.
+    """Tabs, no space after a keyword, no whitespace at line end.
 
-    Beurteilt wird nur, was seit dem Stand vor dieser Zusammenarbeit
-    dazugekommen ist (BASELINE oben). Eine Zeile, die dort schon woertlich so
-    stand, bleibt unbehelligt: sie jedesmal zu melden hiesse, bei jedem Lauf
-    dieselben vierzehn Stellen zu lesen, bis niemand mehr hinsieht."""
+    That is how the rest of the tree keeps it. Only what has come in since the
+    state before this collaboration (BASELINE above) is judged. A line that
+    already stood there word for word is left alone: reporting it every time
+    would mean reading the same fourteen places at every run, until nobody
+    looks any more."""
     bad = []
     kw = re.compile(r'\b(if|for|while|switch|catch)\s\(')
     for p in source_files():
@@ -649,7 +656,7 @@ def check_style():
         spaces = sum(1 for l in lines if re.match(r'^    [^ *]', l))
         tabs = sum(1 for l in lines if l.startswith('\t'))
         if spaces > 2 and spaces > tabs:
-            bad.append('%s: mit Leerzeichen eingerueckt (%d Zeilen)' % (rel, spaces))
+            bad.append('%s: indented with spaces (%d lines)' % (rel, spaces))
 
         # EM_ASM holds JavaScript, where "if (" is correct. The body is masked
         # out line by line to keep the line numbers right.
@@ -684,25 +691,26 @@ def check_style():
 
         for i, line in enumerate(masked):
             if kw.search(line) and line not in was:
-                bad.append('%s:%d: "%s" - der Baum schreibt "if(" ohne Leerzeichen'
+                bad.append('%s:%d: "%s" - the tree writes "if(" without a space'
                            % (rel, i + 1, line.strip()[:60]))
         for i, line in enumerate(lines):
             if re.search(r'[ \t]+$', line) and line not in was:
-                bad.append('%s:%d: Leerzeichen am Zeilenende' % (rel, i + 1))
+                bad.append('%s:%d: whitespace at the end of the line' % (rel, i + 1))
     return bad
 
 
 @check('windows_icon')
 def check_windows_icon():
-    """Das Programmsymbol muss zu data/window.png passen, jede Groesse
-    mitbringen, die die Windows-Shell anfragt, und in jeder davon ein
-    ganzzahliges Vielfaches der Kunst sein.
+    """The program icon must match data/window.png.
 
-    Nichts davon faellt sonst auf: icon1.ico ist eingecheckt und wird von keinem
-    Build erzeugt, bleibt also stehen, wenn die Kunst sich aendert. Fehlt eine
-    Groesse, skaliert Windows selbst und glaettet dabei. Und ein krummer Faktor
-    verdoppelt einen Teil der Reihen und den Rest nicht, was das Raster zerreisst,
-    das den Pixellook ausmacht. Neu bauen: Tools/make_ico.py.
+    It has to bring along every size the Windows shell asks for, and in each
+    of them be an integer multiple of the art.
+
+    None of that shows up otherwise: icon1.ico is checked in and no build
+    creates it, so it stays standing when the art changes. Where a size is
+    missing, Windows scales one itself and smooths while doing so. And a
+    fractional factor doubles some of the rows and not the rest, which tears
+    apart the grid that makes the pixel look. Rebuild: Tools/make_ico.py.
     """
     import struct
     sys.path.insert(0, os.path.join(ROOT, 'WebBuild'))
@@ -711,11 +719,11 @@ def check_windows_icon():
     ico = os.path.join(ROOT, 'Blocks5', 'src', 'icon1.ico')
     png = os.path.join(ROOT, 'Blocks5', 'data', 'window.png')
     if not os.path.exists(ico):
-        return ['Blocks5/src/icon1.ico fehlt']
+        return ['Blocks5/src/icon1.ico missing']
 
     data = open(ico, 'rb').read()
     if len(data) < 6 or struct.unpack('<HHH', data[:6])[1] != 1:
-        return ['Blocks5/src/icon1.ico ist kein Symbol']
+        return ['Blocks5/src/icon1.ico is not an icon']
     count = struct.unpack('<HHH', data[:6])[2]
 
     entries = []
@@ -727,8 +735,8 @@ def check_windows_icon():
     want = [16, 20, 32, 40, 48, 64, 256]
     missing = [v for v in want if v not in [w for w, _ in entries]]
     if missing:
-        bad.append('icon1.ico: es fehlen die Groessen %s - Windows skaliert die dann '
-                   'selbst und glaettet dabei' % ', '.join(str(m) for m in missing))
+        bad.append('icon1.ico: the sizes %s are missing - Windows then scales them '
+                   'itself and smooths while doing so' % ', '.join(str(m) for m in missing))
 
     # The art is 16x16; window.png is its clean 2x.
     width, height, pixels = read_png(png)
@@ -744,7 +752,7 @@ def check_windows_icon():
         bw, bh = struct.unpack('<ii', blob[4:12])
         bh //= 2
         if (bw, bh, struct.unpack('<H', blob[14:16])[0]) != (size, size, 32):
-            bad.append('icon1.ico: der %dx%d-Eintrag ist kein 32-Bit-DIB dieser Groesse' % (size, size))
+            bad.append('icon1.ico: the %dx%d entry is not a 32-bit DIB of that size' % (size, size))
             continue
         scale = max(1, size // 16)
         margin = (size - 16 * scale) // 2
@@ -765,9 +773,9 @@ def check_windows_icon():
                 if got != want_px:
                     wrong += 1
         if wrong:
-            bad.append('icon1.ico: der %dx%d-Eintrag weicht in %d Pixeln davon ab, was ein '
-                       '%dfaches von data/window.png mit %d Pixeln Rand waere - '
-                       'Tools/make_ico.py laufen lassen' % (size, size, wrong, scale, margin))
+            bad.append('icon1.ico: the %dx%d entry differs in %d pixels from '
+                       'data/window.png at %dx with %d pixels of margin - '
+                       'run Tools/make_ico.py' % (size, size, wrong, scale, margin))
     return bad
 
 
@@ -833,7 +841,7 @@ def main(argv):
         try:
             problems = fn()
         except Exception as e:                                  # noqa: BLE001
-            problems = ['die Pruefung selbst ist gescheitert: %r' % (e,)]
+            problems = ['the check itself failed: %r' % (e,)]
         total += len(problems)
         if problems:
             print('[%s] %d' % (name, len(problems)))
@@ -843,7 +851,7 @@ def main(argv):
             print('[%s] ok' % name)
 
     print('')
-    print('%d Beanstandung(en)' % total if total else 'alles in Ordnung')
+    print('%d finding(s)' % total if total else 'all clear')
     return 1 if total else 0
 
 

@@ -24,7 +24,7 @@ SRC="$ROOT/Blocks5/src"
 LIBS="$ROOT/Blocks5/libs"
 
 command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
-    echo "i686-w64-mingw32-g++ nicht gefunden - kein mingw-w64 installiert."
+    echo "i686-w64-mingw32-g++ not found - no mingw-w64 installed."
     exit 2
 }
 
@@ -73,8 +73,8 @@ for f in $FILES; do
 done
 
 if [ $fail -eq 0 ]; then
-    echo "$n Quelldateien uebersetzen fehlerfrei"
+    echo "$n source files compile without errors"
 else
-    echo "### FEHLER ###"
+    echo "### ERROR ###"
 fi
 exit $fail

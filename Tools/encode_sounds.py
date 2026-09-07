@@ -51,7 +51,7 @@ def main(argv):
     done = 0
     for wav in wavs:
         if not os.path.exists(wav):
-            print('%s fehlt' % wav); bad += 1; continue
+            print('%s missing' % wav); bad += 1; continue
         ogg = wav[:-4] + '.ogg'
         if not force and not names and os.path.exists(ogg) \
            and os.path.getmtime(ogg) >= os.path.getmtime(wav):
@@ -59,11 +59,11 @@ def main(argv):
         done += 1
         kbit = encode(wav, ogg)
         if not kbit:
-            print('%s: kein Bitratenwert ging durch' % os.path.basename(wav)); bad += 1
+            print('%s: no bit rate was accepted' % os.path.basename(wav)); bad += 1
         elif kbit != 96:
             print('%-24s %d kbit/s' % (os.path.basename(wav)[:-4], kbit))
-    print('%d von %d Datei(en) kodiert%s'
-          % (done - bad, len(wavs), ', %d Fehler' % bad if bad else ''))
+    print('%d of %d file(s) encoded%s'
+          % (done - bad, len(wavs), ', %d error(s)' % bad if bad else ''))
     return 1 if bad else 0
 
 if __name__ == '__main__':

@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-"""make_icon.py - blaeht data/window.png fuer die Web-App auf, Pixel fuer Pixel.
+"""make_icon.py - blows data/window.png up for the web app, pixel by pixel.
 
-    python3 make_icon.py <ein.png> <aus.png> [--scale N] [--canvas N]
+    python3 make_icon.py <in.png> <out.png> [--scale N] [--canvas N]
                          [--background RRGGBB]
 
-Das Symbol der Seite ist dasselbe, das das Spielfenster traegt: Bobs Gesicht,
-32x32. Ein Telefon skaliert ein so kleines Bild fuer den Startbildschirm selbst
-hoch und nimmt dafuer eine glaettende Filterung - aus 32 Pixeln wird dann ein
-verwaschener Fleck. Vorher mit reiner Pixelvervielfachung vergroessert bleibt
-jede Kante hart, weil jeder Ausgabepunkt die unveraenderte Kopie eines
-Eingabepunkts ist.
+The page's icon is the one the game window carries: Bob's face, 32x32. A phone
+scales an image that small up itself for the home screen and takes a smoothing
+filter to do it - 32 pixels then become a blurred smear. Enlarged beforehand by
+pure pixel replication, the image keeps every edge hard, because each output
+pixel is an unchanged copy of an input pixel.
 
---scale ist dieser ganzzahlige Faktor, --canvas die Kantenlaenge des fertigen
-Bildes; ist sie groesser, sitzt das Bild mittig darin. Das ist der Unterschied
-zwischen den beiden Sorten, die eine Web-App braucht:
+--scale is that integer factor, --canvas the edge length of the finished image;
+where it is larger, the image sits centred in it. That is the difference
+between the two kinds a web app needs:
 
-  purpose "any"        randlos, mit Transparenz. Wird unveraendert angezeigt.
-  purpose "maskable"   Der Startbildschirm schneidet sich daraus eine Form
-                       eigener Wahl - Kreis, abgerundetes Quadrat, Tropfen.
-                       Sicher ist nur ein Kreis von 80% der Kantenlaenge in der
-                       Mitte; alles ausserhalb davon kann fehlen. Deshalb kleiner
-                       skaliert, mittig, und mit --background deckend gefuellt:
-                       ein durchsichtiges Pixel wird beim Maskieren zum Loch.
+  purpose "any"        full-bleed, with transparency. Shown as it is.
+  purpose "maskable"   The launcher crops a shape of its own choosing out of
+                       it - circle, rounded square, teardrop. Only a centred
+                       circle of 80% of the edge length is guaranteed to
+                       survive; everything outside it can be missing. Hence
+                       scaled smaller, centred, and filled opaque with
+                       --background: a transparent pixel becomes a hole when
+                       it is masked.
 
-Absichtlich ohne Pillow: der Web-Build braucht ohnehin ein python3 (Emscripten
-verlangt es), und eine weitere Abhaengigkeit waere schlecht getauscht. Gelesen
-wird deshalb genau der PNG-Fall, in dem window.png vorliegt - 8 Bit RGBA, nicht
-verschraenkt -, und alles andere wird abgelehnt statt still falsch gemacht.
+Deliberately without Pillow: the web build needs a python3 anyway (Emscripten
+requires one), and a further dependency would be a bad trade. So it reads
+exactly the one PNG case window.png comes in - 8-bit RGBA, not interlaced - and
+rejects everything else rather than getting it quietly wrong.
 """
 import struct
 import sys
@@ -40,10 +40,10 @@ _BPP = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 
 
 def read_png(path):
-    """Liefert (breite, hoehe, RGBA-bytes) fuer ein 8-Bit-PNG ohne Interlacing."""
+    """Returns (width, height, RGBA bytes) for an 8-bit PNG without interlacing."""
     data = open(path, 'rb').read()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
-        raise SystemExit('%s ist kein PNG' % path)
+        raise SystemExit('%s is not a PNG' % path)
 
     pos = 8
     width = height = color = 0
@@ -57,7 +57,7 @@ def read_png(path):
         if kind == b'IHDR':
             width, height, depth, color, comp, filt, interlace = struct.unpack('>IIBBBBB', body)
             if depth != 8 or comp != 0 or filt != 0 or interlace != 0 or color not in _BPP:
-                raise SystemExit('%s: erwartet 8 Bit ohne Interlacing, gefunden '
+                raise SystemExit('%s: expected 8 bit without interlacing, found '
                                  'depth=%d color=%d interlace=%d'
                                  % (path, depth, color, interlace))
         elif kind == b'PLTE':
@@ -98,7 +98,7 @@ def read_png(path):
                 pred = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
                 line[x] = (line[x] + pred) & 0xFF
             else:
-                raise SystemExit('%s: unbekannter Zeilenfilter %d' % (path, method))
+                raise SystemExit('%s: unknown row filter %d' % (path, method))
         out[y * stride:(y + 1) * stride] = line
         prev = line
 
@@ -111,7 +111,7 @@ def read_png(path):
         if color == 3:
             k = out[i] * 3
             if k + 3 > len(palette):
-                raise SystemExit('%s: Palettenindex ausserhalb der PLTE' % path)
+                raise SystemExit('%s: palette index outside the PLTE' % path)
             r, g, b = palette[k], palette[k + 1], palette[k + 2]
             a = alpha[out[i]] if out[i] < len(alpha) else 255
         elif color == 2:
@@ -127,7 +127,7 @@ def read_png(path):
 
 
 def write_png(target, width, height, pixels):
-    """Schreibt ein 8-Bit-RGBA-PNG - target ist ein Pfad oder ein offener Puffer."""
+    """Writes an 8-bit RGBA PNG - target is a path or an open buffer."""
     def chunk(kind, body):
         return (struct.pack('>I', len(body)) + kind + body +
                 struct.pack('>I', zlib.crc32(kind + body) & 0xFFFFFFFF))
@@ -169,28 +169,28 @@ def main():
 
     width, height, pixels = read_png(src)
     if width != height:
-        raise SystemExit('%s ist %dx%d - fuer ein Symbol wird ein Quadrat gebraucht'
+        raise SystemExit('%s is %dx%d - an icon needs a square'
                          % (src, width, height))
 
     if scale is None:
         target = canvas if canvas else 512
         if target % width:
-            raise SystemExit('%d ist kein ganzzahliges Vielfaches von %d - dann waere '
-                             'die Vergroesserung keine reine Pixelvervielfachung'
+            raise SystemExit('%d is not an integer multiple of %d - the enlargement '
+                             'would then not be pure pixel replication'
                              % (target, width))
         scale = target // width
     art = width * scale
     if canvas is None:
         canvas = art
     if art > canvas:
-        raise SystemExit('%dx%d passt nicht auf eine Flaeche von %d'
+        raise SystemExit('%dx%d does not fit on a canvas of %d'
                          % (art, art, canvas))
 
     if background is None:
         fill = bytes((0, 0, 0, 0))
     else:
         if len(background) != 6:
-            raise SystemExit('--background will RRGGBB, nicht "%s"' % background)
+            raise SystemExit('--background wants RRGGBB, not "%s"' % background)
         fill = bytes((int(background[0:2], 16), int(background[2:4], 16),
                       int(background[4:6], 16), 255))
 
@@ -217,9 +217,9 @@ def main():
             out[at:at + art * 4] = row
 
     write_png(dst, canvas, canvas, bytes(out))
-    print('%s: %dx%d -> %dx%d auf %dx%d (%dx, nearest%s)'
+    print('%s: %dx%d -> %dx%d on %dx%d (%dx, nearest%s)'
           % (dst, width, height, art, art, canvas, canvas, scale,
-             '' if background is None else ', Untergrund #' + background))
+             '' if background is None else ', background #' + background))
 
 
 if __name__ == '__main__':

@@ -274,8 +274,8 @@ async function toPage(page, win) {
 		// And nothing unstamped: that is exactly what broke it on a server
 		// running mod_pagespeed.
 		const unstamped = sw.held.filter(f => /^\/blocks5\.(js|wasm|data)$/.test(f));
-		if (unstamped.length) bad('ungestempelte Namen im Zwischenspeicher: ' + unstamped.join(', '));
-		else ok('alle Nutzlastdateien tragen die Kennung des Baus');
+		if (unstamped.length) bad('unstamped names in the cache: ' + unstamped.join(', '));
+		else ok('every payload file carries the build stamp');
 
 		// --- 6b. a new build gets through too --------------------------------
 		// index.html is the one file with no stamp in its name; answering it from
@@ -287,20 +287,20 @@ async function toPage(page, win) {
 		try {
 			fs.writeFileSync(indexFile, original.replace(
 				'<title>Blocks 5</title>',
-				'<title>Blocks 5</title><meta name="b5probe" content="neu">'));
+				'<title>Blocks 5</title><meta name="b5probe" content="new">'));
 			await page.reload();
 			await wait(2500);
 			const probe = await page.evaluate(() => {
 				const m = document.querySelector('meta[name=b5probe]');
 				return m ? m.content : '';
 			});
-			if (probe === 'neu') ok('ein geaendertes index.html kommt bei einem gewoehnlichen Neuladen an');
-			else bad('index.html kam aus dem Zwischenspeicher - eine neue Fassung wuerde nie sichtbar');
+			if (probe === 'new') ok('a changed index.html arrives on an ordinary reload');
+			else bad('index.html came from the cache - a new version would never become visible');
 		} finally {
 			fs.writeFileSync(indexFile, original);
 		}
 		await page.reload();
-		await waitFor(page, booted, 'den Neustart', 240000);
+		await waitFor(page, booted, 'the restart', 240000);
 
 		// --- 7. offline ------------------------------------------------------
 		await context.setOffline(true);

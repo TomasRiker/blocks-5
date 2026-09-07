@@ -27,7 +27,7 @@ b5_ok()   { echo "  . $*"; }
 
 b5_start()
 {
-	[ -x "$B5_EXE" ] || { echo "$B5_EXE fehlt - erst LinuxBuild/build.sh hooks laufen lassen."; exit 2; }
+	[ -x "$B5_EXE" ] || { echo "$B5_EXE is missing - run LinuxBuild/build.sh hooks first."; exit 2; }
 
 	# The test drives build-test/, but development usually builds only build/ -
 	# a change would then not be in it at all and the run would come out green,
@@ -38,18 +38,18 @@ b5_start()
 		local newer
 		newer="$(find "$2" -type f -newer "$1" -print 2>/dev/null | head -3)"
 		[ -z "$newer" ] && return 0
-		echo "$(basename "$1") ist aelter als:"
+		echo "$(basename "$1") is older than:"
 		echo "$newer" | sed 's|.*/||; s|^|  |'
 		echo "$3"
 		return 1
 	}
 	b5_stale "$B5_EXE" "$B5_GAME/src" \
-		"Erst 'LinuxBuild/build.sh hooks' laufen lassen." || exit 2
+		"Run 'LinuxBuild/build.sh hooks' first." || exit 2
 	b5_stale "$B5_GAME/data.zip" "$B5_GAME/data" \
-		"Erst 'Blocks5/pack.sh data' laufen lassen." || exit 2
+		"Run 'Blocks5/pack.sh data' first." || exit 2
 
 	for t in Xvfb xdotool ffmpeg python3; do
-		command -v $t >/dev/null 2>&1 || { echo "$t fehlt."; exit 2; }
+		command -v $t >/dev/null 2>&1 || { echo "$t is missing."; exit 2; }
 	done
 
 	rm -rf "$B5_OUT"; mkdir -p "$B5_OUT"
@@ -76,7 +76,7 @@ b5_start()
 		sleep 2
 	else
 		B5_WM_PID=""
-		echo "  (kein Fenstermanager - der Vollbildtest faellt aus)"
+		echo "  (no window manager - the fullscreen test is skipped)"
 	fi
 
 	# ALSOFT_DRIVERS=null: on a machine with no audio output the game would
@@ -88,7 +88,7 @@ b5_start()
 
 	# Wait for the window rather than guessing an interval: under llvmpipe the
 	# start takes half a minute, on real hardware a moment.
-	echo "Warte auf das Fenster ..."
+	echo "Waiting for the window ..."
 	B5_WIN=""
 	local i
 	for i in $(seq 1 60); do
@@ -96,7 +96,7 @@ b5_start()
 		[ -n "$B5_WIN" ] && break
 		sleep 1
 	done
-	[ -n "$B5_WIN" ] || { echo "FEHLGESCHLAGEN: kein Fenster nach 60 s"; tail -20 "$B5_OUT/run.log"; exit 1; }
+	[ -n "$B5_WIN" ] || { echo "FAILED: no window after 60 s"; tail -20 "$B5_OUT/run.log"; exit 1; }
 
 	# And then for the hook to answer and have something to report: the window
 	# is up long before the GUI inside it is.
@@ -104,12 +104,12 @@ b5_start()
 		if b5_dump 2>/dev/null && [ "$(b5_json "d['state']")" != "" ]; then break; fi
 		sleep 1
 	done
-	[ "$(b5_json "d['state']")" != "" ] || { echo "FEHLGESCHLAGEN: der Testhaken antwortet nicht"; exit 1; }
+	[ "$(b5_json "d['state']")" != "" ] || { echo "FAILED: the test hook does not answer"; exit 1; }
 
 	xdotool windowactivate "$B5_WIN" 2>/dev/null
 	sleep 1
 	b5_geometry
-	echo "Fenster $B5_W x $B5_H bei ($B5_X, $B5_Y)"
+	echo "Window $B5_W x $B5_H at ($B5_X, $B5_Y)"
 }
 
 b5_stop()
@@ -170,7 +170,7 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 byName = {e['path']: e for e in d['elements']}
 def el(name):
-    if name not in byName: raise SystemExit('kein Element "%s"' % name)
+    if name not in byName: raise SystemExit('no element "%s"' % name)
     return byName[name]
 try:
     value = eval(sys.argv[2])
@@ -211,14 +211,14 @@ b5_hold() { xdotool keydown --clearmodifiers "$1"; sleep 0.4; xdotool keyup --cl
 b5_click()
 {
 	local path=$1
-	b5_dump || { echo "FEHLGESCHLAGEN: der Testhaken antwortet nicht"; exit 1; }
+	b5_dump || { echo "FAILED: the test hook does not answer"; exit 1; }
 
 	local shown active
 	shown=$(b5_json "el('$path')['shown']")
-	[ -n "$shown" ] || { echo "FEHLGESCHLAGEN: kein Element \"$path\""; exit 1; }
-	[ "$shown" = "True" ] || { echo "FEHLGESCHLAGEN: $path ist nicht sichtbar"; exit 1; }
+	[ -n "$shown" ] || { echo "FAILED: no element \"$path\""; exit 1; }
+	[ "$shown" = "True" ] || { echo "FAILED: $path is not visible"; exit 1; }
 	active=$(b5_json "el('$path')['active']")
-	[ "$active" = "True" ] || { echo "FEHLGESCHLAGEN: $path ist abgeschaltet"; exit 1; }
+	[ "$active" = "True" ] || { echo "FAILED: $path is disabled"; exit 1; }
 
 	# Would the click really land here? getElementAt() goes the same way as
 	# GUI::update().
@@ -226,7 +226,7 @@ b5_click()
 	game=$(b5_json "'%d %d' % (el('$path')['rect'][0] + el('$path')['rect'][2]//2, el('$path')['rect'][1] + el('$path')['rect'][3]//2)")
 	hit=$(b5_ask "hit $game")
 	if [ "$hit" != "$path" ]; then
-		echo "FEHLGESCHLAGEN: ein Klick auf die Mitte von $path ginge an \"${hit:-nichts}\" - es liegt etwas darueber"
+		echo "FAILED: a click on the middle of $path would go to \"${hit:-nothing}\" - something is on top"
 		exit 1
 	fi
 
@@ -249,8 +249,8 @@ b5_expectShown()
 	b5_dump
 	shown=$(b5_json "el('$path')['shown']")
 	[ "$shown" = "True" ] && shown=true || shown=false
-	[ "$shown" = "$want" ] && b5_ok "$path ist $( [ "$want" = true ] && echo sichtbar || echo verschwunden)" \
-	                       || b5_note "$path: sichtbar=$shown, erwartet $want"
+	[ "$shown" = "$want" ] && b5_ok "$path is $( [ "$want" = true ] && echo visible || echo gone)" \
+	                       || b5_note "$path: visible=$shown, expected $want"
 }
 
 # Wait for a game state rather than guessing an interval. The hook answers as
@@ -261,10 +261,10 @@ b5_waitForState()
 	local want=$1 seconds=${2:-90} i
 	for i in $(seq 1 "$seconds"); do
 		b5_dump || { sleep 1; continue; }
-		[ "$(b5_json "d['state']")" = "$want" ] && { b5_ok "Spielzustand $want"; return 0; }
+		[ "$(b5_json "d['state']")" = "$want" ] && { b5_ok "game state $want"; return 0; }
 		sleep 1
 	done
-	echo "FEHLGESCHLAGEN: $want nicht erreicht (zuletzt: $(b5_json "d['state']"))"
+	echo "FAILED: $want not reached (last: $(b5_json "d['state']"))"
 	exit 1
 }
 
@@ -273,12 +273,12 @@ b5_expectState()
 	local want=$1 have
 	b5_dump
 	have=$(b5_json "d['state']")
-	[ "$have" = "$want" ] && b5_ok "Spielzustand $have" || b5_note "Spielzustand $have, erwartet $want"
+	[ "$have" = "$want" ] && b5_ok "game state $have" || b5_note "game state is $have, expected $want"
 }
 
 b5_finish()
 {
 	echo
-	if [ "$b5_problems" -eq 0 ]; then echo "IN ORDNUNG (Bilder in $B5_OUT)"; return 0
-	else echo "$b5_problems Beanstandung(en) (Bilder in $B5_OUT)"; return 1; fi
+	if [ "$b5_problems" -eq 0 ]; then echo "OK (screenshots in $B5_OUT)"; return 0
+	else echo "$b5_problems problem(s) (screenshots in $B5_OUT)"; return 1; fi
 }

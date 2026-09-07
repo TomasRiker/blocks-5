@@ -17,8 +17,8 @@ py -3 -c "" >NUL 2>&1
 IF NOT ERRORLEVEL 1 SET "PY=py -3"
 IF NOT DEFINED PY python -c "" >NUL 2>&1
 IF NOT DEFINED PY IF NOT ERRORLEVEL 1 SET "PY=python"
-IF NOT DEFINED PY ECHO   Hinweis: Python fehlt, die Kommentare bleiben in den XML-Dateien.
-IF NOT DEFINED PY ECHO            Zu holen bei https://www.python.org/downloads/
+IF NOT DEFINED PY ECHO   NOTE: Python is missing, the comments stay in the XML files.
+IF NOT DEFINED PY ECHO         Get it from https://www.python.org/downloads/
 
 SET "STAGE=%TEMP%\blocks5-xml"
 SET "XMLSRC=data"

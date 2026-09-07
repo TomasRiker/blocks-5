@@ -184,7 +184,7 @@ import io, sys
 path, text = sys.argv[1], sys.argv[2]
 page = io.open(path, encoding='utf-8').read()
 if '%%LOADTEXT%%' not in page:
-    raise SystemExit('%s: kein %%LOADTEXT%% in der Seite' % path)
+    raise SystemExit('%s: no %%LOADTEXT%% in the page' % path)
 io.open(path, 'w', encoding='utf-8', newline='\n').write(page.replace('%%LOADTEXT%%', text))
 PYEOF
 done
@@ -228,7 +228,7 @@ python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-maskable-512.png
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/apple-touch-icon.png" \
         --scale 16 --canvas 512 --background 000000 >/dev/null
 sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
-echo "### PWA: manifest.json, 4 Symbole, sw.js (cache blocks5-$version) ###"
+echo "### PWA: manifest.json, 4 icons, sw.js (cache blocks5-$version) ###"
 
 [ -f "$OUT/blocks5-$version.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5-$version.wasm ($(du -h "$OUT/blocks5-$version.wasm" | cut -f1)) ###"

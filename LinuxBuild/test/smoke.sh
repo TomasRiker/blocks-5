@@ -20,7 +20,7 @@ b5_waitForState GS_Menu
 # On the very first start the CRT filter offer lies over everything else.
 b5_dump
 if [ "$(b5_json "el('Menu.CrtPane.Crt.NoThanks')['shown']")" = "True" ]; then
-	b5_ok "die Roehrenfrage steht (erster Start)"
+	b5_ok "the CRT offer is up (first start)"
 	b5_click Menu.CrtPane.Crt.NoThanks
 	b5_expectShown Menu.CrtPane false
 fi
@@ -36,8 +36,8 @@ b5_shot 2-options
 b5_dump
 for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey OptionsPane.Options.ResetSelected; do
 	[ "$(b5_json "el('$name')['active']")" = "True" ] \
-		&& b5_note "$name ist ohne Auswahl bedienbar" \
-		|| b5_ok "$name ist ohne Auswahl abgeschaltet"
+		&& b5_note "$name is enabled with no selection" \
+		|| b5_ok "$name is disabled with no selection"
 done
 
 # Escape belongs to the dialog, not to the menu under it - otherwise it quits
@@ -54,11 +54,11 @@ b5_click Menu.Options
 b5_expectShown OptionsPane.Options
 b5_hold Escape
 if kill -0 "$B5_GAME_PID" 2>/dev/null; then
-	b5_ok "gehaltenes Escape hat das Spiel nicht beendet"
+	b5_ok "a held Escape did not quit the game"
 	b5_expectShown OptionsPane.Options false
 	b5_expectState GS_Menu
 else
-	b5_note "gehaltenes Escape im Optionsdialog hat das Spiel beendet"
+	b5_note "a held Escape in the options dialog quit the game"
 fi
 
 # --- The CRT filter's sliders -----------------------------------------------
@@ -122,10 +122,10 @@ for kind in KindLevel KindCampaign KindSkin; do
 	b5_dump
 	have=$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")
 	[ "$have" = "$wantDelete" ] \
-		&& b5_ok "$kind: Loeschen bedienbar=$have, passend zu \"$first\"" \
-		|| b5_note "$kind: Loeschen bedienbar=$have, erwartet $wantDelete fuer \"$first\""
+		&& b5_ok "$kind: Delete enabled=$have, matching \"$first\"" \
+		|| b5_note "$kind: Delete enabled=$have, expected $wantDelete for \"$first\""
 	[ "$(b5_json "el('Menu.ManagerPane.Manager.Export')['active']")" = "True" ] \
-		|| b5_note "$kind: Ausgeben ist abgeschaltet, obwohl etwas ausgewaehlt ist"
+		|| b5_note "$kind: Export is disabled although something is selected"
 done
 
 # Export and Delete both hang on the selection, but not on the same condition:
@@ -154,8 +154,8 @@ for name in Menu.ManagerPane.Manager.Export:$wantExport Menu.ManagerPane.Manager
 	name=${name%%:*}
 	have=$(b5_json "el('$name')['active']")
 	[ "$have" = "$want" ] \
-		&& b5_ok "$name: bedienbar=$have, passend zur Musikliste" \
-		|| b5_note "$name: bedienbar=$have, erwartet $want"
+		&& b5_ok "$name: enabled=$have, matching the music list" \
+		|| b5_note "$name: enabled=$have, expected $want"
 done
 
 b5_key Escape
@@ -204,9 +204,9 @@ if [ -n "$B5_WM_PID" ]; then
 	b5_geometry
 	b5_shot 6-fullscreen
 	if [ "$B5_W" -eq "$B5_SCREEN_W" ] && [ "$B5_H" -eq "$B5_SCREEN_H" ] && [ "$B5_X" -eq 0 ] && [ "$B5_Y" -eq 0 ]; then
-		b5_ok "Vollbild: $B5_W x $B5_H bei (0, 0)"
+		b5_ok "fullscreen: $B5_W x $B5_H at (0, 0)"
 	else
-		b5_note "Vollbild: $B5_W x $B5_H bei ($B5_X, $B5_Y), erwartet $B5_SCREEN_W x $B5_SCREEN_H bei (0, 0)"
+		b5_note "fullscreen: $B5_W x $B5_H at ($B5_X, $B5_Y), expected $B5_SCREEN_W x $B5_SCREEN_H at (0, 0)"
 	fi
 	b5_key alt+Return; sleep 3
 	b5_geometry
@@ -216,11 +216,11 @@ if [ -n "$B5_WM_PID" ]; then
 	# position while the broken thing is the toggle. Under X11 the position
 	# itself is restored by the window manager, not by the game.
 	if [ "$B5_W" -ge "$B5_SCREEN_W" ] && [ "$B5_H" -ge "$B5_SCREEN_H" ]; then
-		b5_note "nach Alt+Return immer noch $B5_W x $B5_H - das Vollbild wurde nicht verlassen"
+		b5_note "still $B5_W x $B5_H after Alt+Return - fullscreen was not left"
 	elif [ "$B5_X" -eq "$origin_x" ] && [ "$B5_Y" -eq "$origin_y" ]; then
-		b5_ok "zurueck ins Fenster an dieselbe Stelle"
+		b5_ok "back in a window at the same position"
 	else
-		b5_note "zurueck ins Fenster bei ($B5_X, $B5_Y) statt ($origin_x, $origin_y)"
+		b5_note "back in a window at ($B5_X, $B5_Y) instead of ($origin_x, $origin_y)"
 	fi
 fi
 
@@ -242,12 +242,12 @@ if [ "$after" -gt "$before" ]; then
 	magic=$(od -An -tx1 -N8 "$shot" | tr -d ' \n')
 	ending=$(tail -c 12 "$shot" | od -An -tx1 | tr -d ' \n')
 	if [ "$magic" = "89504e470d0a1a0a" ] && [ "${ending#*49454e44}" != "$ending" ]; then
-		b5_ok "F11 hat ein gueltiges PNG geschrieben ($(wc -c < "$shot") Byte)"
+		b5_ok "F11 wrote a valid PNG ($(wc -c < "$shot") bytes)"
 	else
-		b5_note "F11 hat eine Datei geschrieben, aber kein gueltiges PNG"
+		b5_note "F11 wrote a file, but not a valid PNG"
 	fi
 else
-	b5_note "F11 hat kein Bildschirmfoto geschrieben"
+	b5_note "F11 wrote no screenshot"
 fi
 
 # --- Quitting ---------------------------------------------------------------
@@ -257,10 +257,10 @@ fi
 # Engine::exit() run and write config.xml.
 b5_key Escape
 for i in $(seq 1 25); do kill -0 "$B5_GAME_PID" 2>/dev/null || break; sleep 1; done
-kill -0 "$B5_GAME_PID" 2>/dev/null && b5_note "Escape im Menue hat das Spiel nicht beendet"
+kill -0 "$B5_GAME_PID" 2>/dev/null && b5_note "Escape in the menu did not quit the game"
 
-[ -f "$HOME_DIR/config.xml" ] && b5_ok "config.xml angelegt" || b5_note "config.xml fehlt"
-grep -q "ERROR" "$B5_OUT/run.log" && b5_note "ERROR im Protokoll: $(grep -m3 ERROR "$B5_OUT/run.log" | tr '\n' ' ')" \
-                                  || b5_ok "keine Fehlerzeile im Protokoll"
+[ -f "$HOME_DIR/config.xml" ] && b5_ok "config.xml written" || b5_note "config.xml is missing"
+grep -q "ERROR" "$B5_OUT/run.log" && b5_note "ERROR in the log: $(grep -m3 ERROR "$B5_OUT/run.log" | tr '\n' ' ')" \
+                                  || b5_ok "no error line in the log"
 
 b5_finish
