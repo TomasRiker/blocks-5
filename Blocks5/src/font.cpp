@@ -14,10 +14,17 @@ const int KEY_BOX_GAP = 2;
 // What one side of a box costs the line, frame included.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
-// How far the frame stands off the line box. It is anchored there and not to
-// the glyph cell: every glyph in a font has the same height, but that cell is
-// taller than the line and a frame hung off it would float below the text.
-const int KEY_BOX_GROW = 1;
+// How far the frame stands off the line box, which is where it is anchored:
+// every glyph in a font has the same height, but that cell is taller than the
+// line and a frame hung off it would float below the text.
+//
+// Zero, because these fonts fill their line box - the ink of the main font runs
+// from row 1 to row 15 of a line 15 high. A frame any taller than the line
+// collides with the one on the line below, which is not a rare case: two rows
+// of the help table and any wrapped line of a hint note have keycaps directly
+// above one another. At zero they share an edge instead, which reads as a grid
+// rather than a collision.
+const int KEY_BOX_GROW = 0;
 
 namespace
 {

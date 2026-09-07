@@ -152,6 +152,14 @@ def c_sounds(p):
     p.replace('\tsndMgr.request("rewind.ogg");\n', '')
 
 
+@case('bindings', 'Blocks5/data/languages.txt')
+def c_bindings(p):
+    # Misspell the action a %BINDING names. Nothing anywhere says so: the
+    # expansion answers an unknown action exactly as it answers an unbound one,
+    # so the sentence quietly stops naming a key.
+    p.replace('%BINDING{$A_SAVE_IN_HOTEL}', '%BINDING{$A_SAVE_IN_HOTELL}')
+
+
 @case('sound_volumes', 'Blocks5/data/sounds.xml')
 def c_sound_volumes(p):
     # Scramble a filename. Nowhere in the game does that show up: Engine

@@ -74,3 +74,20 @@ costs a fifth of a second against a 20 ms logic tick, so the whole life of a
 debris particle is a handful of frames. Two recordings cannot be compared frame
 by frame either, even from the same seed: which tick a frame lands on depends
 on load, so the same offset is a different moment in each run.
+
+
+`keycaps.xml`
+-------------
+Bob starts standing on a hint note, so the sheet is open in the first frame and
+the `<k>` keycaps in it can be looked at without playing to them. The note it
+shows is `$HINT_BLOCKS_02_01`, which is the longest of the built-in hints and
+the one that wraps: it is there to check that a keycap is never broken across
+two lines and that two keycap lines under one another do not collide. A hotel
+stands a few fields to the right for the welcome message, which carries a
+keycap of its own.
+
+Its title begins `!!!!` so that it sorts above `bomb.xml` in the single-levels
+list. That list is not reached by clicking: the campaign list must *not* hold
+the focus, because `GS_SelectLevel::onUpdate` only handles Up and Down while it
+does not - so press Down rather than clicking the list, which would land on
+empty space below the two entries and deselect instead.

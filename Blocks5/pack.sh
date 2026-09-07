@@ -10,6 +10,7 @@
 #   ./pack.sh --no-optipng     without the slow step
 #   ./pack.sh data             data.zip only
 #   ./pack.sh skins            the skins only
+#   ./pack.sh campaign         levels/campaigns/blocks.zip only
 #
 # 7za is required; optipng is optional and is skipped where it is missing. On
 # Debian and Ubuntu:
@@ -38,7 +39,7 @@ what=all
 for arg in "$@"; do
     case "$arg" in
         --no-optipng) optimize=0 ;;
-        data|skins|all) what=$arg ;;
+        data|skins|campaign|all) what=$arg ;;
         *) echo "unknown: $arg"; exit 2 ;;
     esac
 done
@@ -130,8 +131,50 @@ packSkin() { # $1=name  $2=password ("" for none)
       true ) || return 1
 }
 
+# The shipped campaign, out of the level sources that sit beside it. It has to
+# be built and not just committed, because a developer and a player read
+# different files: Campaign::load() serves the levels loose where all of them
+# lie in levels/, which is the case in a working tree and never on an installed
+# game - stage.bat ships blocks.zip and the two examples, not the 42 sources.
+# Editing a level and forgetting this step therefore changes nothing a player
+# sees, and nothing anywhere says so.
+#
+# The member names come from the index and not from the text in campaign.xml
+# (makeMemberName(): entry i is level_{i+1}.xml), so they are numbered here the
+# same way rather than copied.
+packCampaign() {
+    echo "blocks.zip ..."
+    local dir="$HERE/levels"
+    local out="$dir/campaigns/blocks.zip"
+    local staged
+    staged=$(mktemp -d) || return 1
+
+    local i=1
+    local src
+    while [ $i -le 42 ]; do
+        src=$(printf '%s/level_%02d.xml' "$dir" $i)
+        [ -f "$src" ] || { echo "  $src is missing"; rm -rf "$staged"; return 1; }
+        cp "$src" "$staged/level_$i.xml" || { rm -rf "$staged"; return 1; }
+        i=$((i + 1))
+    done
+
+    # campaign.xml and the music come out of the archive that is there: they are
+    # not generated from anything, and the music has no source beside it.
+    ( cd "$staged" && 7za x -y -p"$DATA_PASSWORD" "$out" campaign.xml '*.ogg' > /dev/null ) || {
+        rm -rf "$staged"; return 1; }
+
+    ( cd "$staged" || exit 1
+      rm -f "$out"
+      packInto "$out" "$DATA_PASSWORD" 'campaign.xml' 'level_*.xml' '*.ogg' ) || {
+        rm -rf "$staged"; return 1; }
+
+    rm -rf "$staged"
+    echo "  $(unzip -l "$out" | tail -1 | tr -s ' ')"
+}
+
 fail=0
 [ "$what" = all ] || [ "$what" = data ]  && { packData || fail=1; }
+[ "$what" = all ] || [ "$what" = campaign ] && { packCampaign || fail=1; }
 if [ "$what" = all ] || [ "$what" = skins ]; then
     packSkin blocks_01 "$SKIN_PASSWORD" || fail=1
     packSkin blocks_02 "$SKIN_PASSWORD" || fail=1

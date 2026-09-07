@@ -331,6 +331,37 @@ def check_strings():
     return bad
 
 
+@check('bindings')
+def check_bindings():
+    """Every %BINDING{...} must name an action that main.cpp registers.
+
+    The expansion answers an unknown action the same way it answers an unbound
+    one - with the word for "not assigned", or with nothing at all in the
+    optional form. A typo in the name therefore produces no error anywhere:
+    the sentence simply stops naming a key, and only a player ever sees it."""
+    langs = os.path.join(DATA, 'languages.txt')
+    main = os.path.join(SRC, 'main.cpp')
+    if not os.path.exists(langs) or not os.path.exists(main):
+        return ['languages.txt or main.cpp missing']
+
+    registered = set(re.findall(r'registerAction\s*\(\s*"(\$A_[A-Z0-9_]*)"', read(main)))
+    if not registered:
+        return ['no registerAction() calls found in main.cpp']
+
+    bad = []
+    text = read(langs)
+    for n, line in enumerate(text.split('\r\n' if '\r\n' in text else '\n'), 1):
+        # Only the bodies. A comment may well name the marker to explain it,
+        # and the braces there hold no action.
+        if not line.startswith('\xa7'):
+            continue
+        for m in re.finditer(r'%BINDING(?:_OPTIONAL_RIGHT)?\{([^}]*)\}', line):
+            if m.group(1) not in registered:
+                bad.append('languages.txt:%d: %%BINDING names %s, which no action is'
+                           % (n, m.group(1)))
+    return bad
+
+
 @check('xml_attrs')
 def check_xml_attrs():
     """An attribute written and read nowhere is dead weight or a typo.

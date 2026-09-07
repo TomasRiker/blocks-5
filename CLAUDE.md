@@ -74,10 +74,22 @@ and `optipng` in place of `tools\7za.exe` and `tools\optipng`, and it refuses to
 either. `7za` and not Info-ZIP's `zip -P`, although both write traditional ZipCrypto: Info-ZIP
 sets bit 3 of the general purpose flags and then writes the sizes in a trailing data descriptor,
 and takes its check byte from the time of day rather than from the CRC. What comes out here
-should be the archive the Windows build produces. `./pack.sh` does everything, `data` or
-`skins` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only checkout needs:
-`data.zip` and the skin archives are build products that are not in Git, and the game will not
-start without them.
+should be the archive the Windows build produces. `./pack.sh` does everything, `data`,
+`skins` or `campaign` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only
+checkout needs: `data.zip` and the skin archives are build products that are not in Git, and
+the game will not start without them.
+
+**`levels/campaigns/blocks.zip` is packed too, although it *is* in Git**, and the reason is
+worth knowing before editing a level. `Campaign::load` serves a campaign's levels loose
+wherever all of them lie in `levels/` — which is true in a working tree and never on an
+installed game, since `stage.bat` ships the archive and the two examples and not the 42
+sources. So a level edited and not packed changes what a developer sees and nothing a player
+sees, with no error anywhere. `pack.sh campaign` and `zip_campaign.bat` (which `Build.bat`
+calls) rebuild it from `levels/level_NN.xml`, numbering the members from the index the way
+`makeMemberName` reads them back — entry *i* is `level_{i+1}.xml`, so the padded names in
+`campaign.xml` are display text only. `campaign.xml` and the ten music tracks are lifted out of
+the archive that is already there: neither is generated from anything, and the tracks have no
+source beside them. Verified by rebuilding: all 53 members come out byte-identical.
 
 **The XML files and `languages.txt` reach `data.zip` without their comments.** The dialogs in
 `data/` are commented the way the source is, and the string table opens with a page explaining
@@ -1688,6 +1700,43 @@ prefix is the section sign, 0xA7 in Latin-1, not the pilcrow. A separate charact
 (0xB6), inserts a newline inside a body. Missing translations fall back to English. Level titles,
 tooltips and menu captions in XML all use these IDs.
 
+**No string names a key.** A message that writes "(F5)" or "Return/Enter" into its text is a
+lie to everyone who rebound anything, so `%BINDING{$A_RESTART_LEVEL}` stands there instead and
+expands to whatever that action is bound to now: both keys separated by a slash, one on its
+own, or the word for unassigned. `%BINDING_OPTIONAL_RIGHT{…}` is the same with a leading space
+and *nothing at all* when the action is unbound, which is what a button caption naming its own
+shortcut wants — "Restart Level" and not "Restart Level ". `Engine::expandBindings` does it
+once, on the finished text, which is why `localizeString` is a shell around
+`localizeStringRaw`: the raw half recurses through the `$ID` lookup and the English fallback,
+and expanding on the way out of each of those would be the same work several times over.
+`verify.py`'s `bindings` check reads every marker against the `registerAction` calls in
+`main.cpp`, because an action that does not exist expands exactly like an unbound one and would
+otherwise be found by a player.
+
+**`<k>…</k>` is the keycap**, and the font draws the frame. It cannot go in the glyph batch —
+it carries no texture — so the rectangles are collected while the text is laid out and drawn
+once the batch is closed, which also carries them through the two shadow passes with the
+glyphs; a keycap without the same shadow would look pasted on. `KEY_BOX_GROW` is 0 because
+these fonts fill their line box (the main font's ink runs from row 1 to row 15 of a line 15
+high), and a frame any taller collides with the one on the line below — which is not a rare
+case: two rows of the help table and any wrapped line of a hint note have keycaps directly
+above one another.
+
+**A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole
+`<k>…</k>` run moves down together, the way any typesetter treats an inline box — and the
+renderer is then never asked to draw half a frame. That is the whole answer to line breaks
+inside a keycap, and it is why the run is measured rather than walked character by character:
+the padding either side belongs to its width.
+
+**`VirtualKey::niceName` is what a player reads**, as against `name`, which is SDL's, and `id`,
+which config.xml holds and can therefore never be translated. It is a `$ID` and not the
+finished text because the language can change while the game runs. The table in `engine.cpp`
+spells each id out rather than composing it from the key name, so that `verify.py`, which
+collects `"$…"` literals from the source, catches one that `languages.txt` does not have; a key
+with no entry keeps SDL's own name with the first letter raised, which is all `F5` needs. A
+joystick keeps a device word in front, localized separately, because `B3` beside a keyboard key
+would say nothing about where it is.
+
 **Level file format.** A level is XML: `<Level>` attributes for size, skins, weather, light
 color, diamonds needed and music; one `<Layer>` per tile layer containing `<Row>` strings where
 each character's raw code is the tile ID (space = 0); then a flat list of
@@ -1723,7 +1772,8 @@ filenames, shipped zipped in `levels/campaigns/`.
   reviewable. German survives in exactly three places, all of them data rather than prose:
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the fault `selftest.py` injects into it. The
-  shipped `readme.txt` files stay bilingual, because they are for players.
+  shipped `readme.txt` files are English, and always have been — the German that survives
+  is the three places above and nothing else.
 
   A shared glossary settled the vocabulary, and its traps are worth knowing before writing a
   comment that reaches for the obvious word: `uebersetzen` in the filter code is *compile*,

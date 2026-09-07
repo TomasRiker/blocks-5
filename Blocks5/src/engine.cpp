@@ -245,6 +245,12 @@ namespace
 		{SDLK_KP4, "$VK_KEYBOARD_KP4"},             {SDLK_KP5, "$VK_KEYBOARD_KP5"},
 		{SDLK_KP6, "$VK_KEYBOARD_KP6"},             {SDLK_KP7, "$VK_KEYBOARD_KP7"},
 		{SDLK_KP8, "$VK_KEYBOARD_KP8"},             {SDLK_KP9, "$VK_KEYBOARD_KP9"},
+		// These five need an entry more than the rest do: SDL names them
+		// "[+]", "[-]", "[*]", "[/]" and "[.]", and a keycap drawn around a
+		// pair of brackets reads as a fault rather than as a key.
+		{SDLK_KP_PLUS, "$VK_KEYBOARD_KP_PLUS"},     {SDLK_KP_MINUS, "$VK_KEYBOARD_KP_MINUS"},
+		{SDLK_KP_MULTIPLY, "$VK_KEYBOARD_KP_MULTIPLY"},
+		{SDLK_KP_DIVIDE, "$VK_KEYBOARD_KP_DIVIDE"}, {SDLK_KP_PERIOD, "$VK_KEYBOARD_KP_PERIOD"},
 	};
 
 	std::string keyboardNiceName(int key, const char* p_sdlName)

@@ -282,10 +282,14 @@ REM ------------------------------------------------------------ pack the data
 REM data.zip and levels\skins\*.zip are build products, not checked in, and the
 REM game cannot start without them. Repacked on every build so that an edit to
 REM data\ cannot be left behind - pass /nodata to skip.
+REM
+REM blocks.zip is packed with them although it is checked in: a level edited in
+REM levels\ otherwise reaches a developer, who plays the loose files, and never
+REM a player, who plays this archive. zip_campaign.bat says why in full.
 IF "%PACKDATA%"=="0" GOTO nodata
 
 ECHO.
-ECHO === Packing data.zip and the skin archives ===
+ECHO === Packing data.zip, the skin archives and the campaign ===
 IF "%OPTIPNG%"=="1" ECHO     (optipng is on - this takes several minutes)
 PUSHD Blocks5
 IF "%OPTIPNG%"=="1" (
@@ -295,6 +299,7 @@ IF "%OPTIPNG%"=="1" (
 	CALL zip_data_no_optipng.bat
 	CALL zip_skins_no_optipng.bat
 )
+CALL zip_campaign.bat
 POPD
 
 SET "MISSING="
@@ -303,6 +308,7 @@ IF NOT EXIST "Blocks5\levels\skins\blocks_01.zip"  SET "MISSING=%MISSING% blocks
 IF NOT EXIST "Blocks5\levels\skins\blocks_02.zip"  SET "MISSING=%MISSING% blocks_02.zip"
 IF NOT EXIST "Blocks5\levels\skins\blocks_03.zip"  SET "MISSING=%MISSING% blocks_03.zip"
 IF NOT EXIST "Blocks5\levels\skins\space.zip"      SET "MISSING=%MISSING% space.zip"
+IF NOT EXIST "Blocks5\levels\campaigns\blocks.zip" SET "MISSING=%MISSING% blocks.zip"
 IF DEFINED MISSING (
 	ECHO.
 	ECHO ERROR: packing did not produce:%MISSING%
