@@ -212,7 +212,11 @@ File* FileSystem::openFile(const std::string& filename,
 	// answers an empty name with an empty filePath, and the block above then
 	// constructs nothing.
 	if(!p_file) return 0;
-	if(p_file->getError()) return 0;
+	if(p_file->getError())
+	{
+		closeFile(p_file);
+		return 0;
+	}
 	else return p_file;
 }
 
@@ -306,7 +310,11 @@ std::string FileSystem::readStringFromFile(const std::string& filename)
 	File* p_file = openFile(filename, FM_READ);
 	if(!p_file) return "";
 	uint size = p_file->getSize();
-	if(!size) return "";
+	if(!size)
+	{
+		closeFile(p_file);
+		return "";
+	}
 	char* p_buffer = new char[size + 1];
 	const uint numBytesRead = p_file->read(p_buffer, size);
 	p_buffer[min(size, numBytesRead)] = 0;

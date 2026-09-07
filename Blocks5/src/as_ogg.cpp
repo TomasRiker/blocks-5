@@ -4,6 +4,12 @@
 
 AS_Ogg::AS_Ogg(const std::string& filename)
 {
+	// The destructor clears this whatever happened here, and the path below
+	// that gives up before ov_open_callbacks leaves it untouched. Zeroed is
+	// exactly the state ov_clear() itself leaves behind, so clearing one is a
+	// no-op rather than a walk through uninitialised pointers.
+	memset(&vorbisFile, 0, sizeof(vorbisFile));
+
 	sliceSize = 0;
 
 	eos = false;
@@ -29,6 +35,11 @@ AS_Ogg::AS_Ogg(const std::string& filename)
 		printfLog("+ ERROR: Could not open OGG file \"%s\" (Error: %d).\n",
 				  filename.c_str(),
 				  r);
+
+		// A failed ov_open_callbacks() clears its handle and drops the
+		// datasource, so the close callback never runs and the file is ours
+		// again.
+		FileSystem::inst().closeFile(p_file);
 		error = 2;
 		return;
 	}

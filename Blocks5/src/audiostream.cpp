@@ -62,6 +62,7 @@ AudioStream* AudioStream::open(const std::string& filename)
 	{
 		printfLog("+ ERROR: Could not create audio stream for file \"%s\".\n",
 				  filename.c_str());
+		delete p_stream;
 		return 0;
 	}
 

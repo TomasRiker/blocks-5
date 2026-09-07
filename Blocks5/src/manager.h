@@ -73,6 +73,12 @@ public:
 			printfLog("+ ERROR: Could not load resource \"%s\" (Error: %d).\n",
 					  filename.c_str(),
 					  p_item->error);
+
+			// Deleting it is what makes every Resource's destructor have to
+			// survive its own failed load: the constructor sets error and
+			// returns early, so the destructor runs over however much of the
+			// object was built.
+			delete p_item;
 			return 0;
 		}
 		else

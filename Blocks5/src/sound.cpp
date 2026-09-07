@@ -8,6 +8,7 @@ std::set<SoundInstance*> Sound::allInstances;
 
 Sound::Sound(const std::string& filename) : Resource(filename)
 {
+	bufferID = 0;
 	lastInstanceCreatedAt = 0;
 	volumeFactor = Engine::inst().getSoundVolumeFactor(filename);
 
@@ -30,6 +31,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  filename.c_str(),
 				  err);
 		error = 2;
+		delete p_stream;
 		return;
 	}
 
@@ -40,6 +42,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 		printfLog("+ ERROR: Format of audio file \"%s\" is not supported.\n",
 				  filename.c_str());
 		error = 3;
+		delete p_stream;
 		return;
 	}
 
@@ -53,6 +56,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  filename.c_str());
 		error = 4;
 		delete[] p_data;
+		delete p_stream;
 		return;
 	}
 
@@ -67,6 +71,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  err);
 		error = 5;
 		delete[] p_data;
+		delete p_stream;
 		return;
 	}
 
@@ -81,7 +86,7 @@ Sound::~Sound()
 	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i) delete *i;
 
 	// free the sound
-	alDeleteBuffers(1, &bufferID);
+	if(bufferID) alDeleteBuffers(1, &bufferID);
 }
 
 SoundInstance* Sound::createInstance(bool forceCreation)
