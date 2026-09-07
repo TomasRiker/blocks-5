@@ -2,14 +2,13 @@ Blocks 5 - findings from the 1.2.0 English sweep
 ================================================
 
 What the translation pass turned up while reading every comment in the tree.
-The sweep itself was a translation and a convention pass; thirteen of the
+The sweep itself was a translation and a convention pass; all fourteen of the
 findings have since been fixed - ten where the code had already decided what the
-fix must be, and three that needed a decision first. The Verified section below
-is the live list - what was fixed, what is still open, what turned out to be
-harmless and what did not survive checking. Everything under it is the
-unfiltered record of the reading, left as each was first written: a finding's
-disposition is carried by the Verified section alone, so an entry there is not
-rewritten when it is fixed.
+fix must be, and four that needed a decision first. The Verified section below
+is the live list - what was fixed, what turned out to be harmless and what did
+not survive checking. Everything under it is the unfiltered record of the
+reading, left as each was first written: a finding's disposition is carried by
+the Verified section alone, so an entry there is not rewritten when it is fixed.
 
 Each entry is what an agent reported after reading the code around it. "confirmed"
 means a second, independent agent went back to the code and reached the same
@@ -31,8 +30,7 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-Thirteen are fixed. One is open and wants a decision that is about the game
-rather than about the code. The rest are real and harmless, or refuted - and the
+All fourteen are fixed. The rest are real and harmless, or refuted - and the
 refuted ones are the most useful part of this file, because they are what stops
 the same false alarm being raised again.
 
@@ -116,13 +114,30 @@ Two of the decisions below, once they had been made.
   `Tools/testlevels/bomb.xml`.
 
 
-### Open - these want a decision, not a patch
+### Fixed in cd0013a
 
-1.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
-    failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
-    open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
-    paths). Each is correct to fix and each is one object on a path taken rarely
-    in a process that exits.
+- **The leaks.** `Manager::request()` (`manager.h:70`) dropped a resource whose
+  constructor had set `error`, and `AudioStream::open()` (`audiostream.cpp:61`)
+  dropped a stream that could not read its file. `Sound`'s own stream is a local
+  that only the success path deletes, so its four error returns leaked it too,
+  and `FileSystem::openFile()` (`filesystem.cpp:213`) leaked every `File` it
+  could not open - which `fileExists()` asks for once per negative answer.
+  `readStringFromFile()` (`:306`) leaked one more on an empty file.
+
+  What made this more than tidiness is what deleting the failed resource turns
+  on. `~Sound` and `~AS_Ogg` had never run over a half-built object, and neither
+  was ready for it: `bufferID` is read whether or not `alGenBuffers` was
+  reached, and `ov_clear()` walks a vorbis handle that the path giving up before
+  `ov_open_callbacks` never touched. Both are zeroed now; a failed
+  `ov_open_callbacks` also drops its datasource, so the close callback never
+  runs and that file is closed by hand.
+
+  Measured with AddressSanitizer over fifty rounds of failing loads - a missing
+  ogg, a missing wav, a file that is neither, a missing texture, a missing
+  archive member, a missing real file and an empty one: 193100 bytes in 1100
+  allocations before, none after, at exactly the seven call sites above. With
+  the leak fixed but the two guards left out, the first failing ogg segfaults in
+  `_vorbis_block_ripcord`.
 
 
 ### Real, and nothing follows from it
