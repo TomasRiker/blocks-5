@@ -283,8 +283,8 @@ public:
 	enum
 	{
 		GRAB_WAITING   = -3,   // still running, nothing decided
-		GRAB_CANCELLED = -2,   // Escape: the binding stays as it was
-		GRAB_NO_KEY    = -1    // time is up; means "no key"
+		GRAB_TIMED_OUT = -2,   // nothing pressed: the binding stays as it was
+		GRAB_NO_KEY    = -1    // Escape: means "no key" and clears the binding
 	};
 
 	// timeOutMS <= 0 waits without a deadline.

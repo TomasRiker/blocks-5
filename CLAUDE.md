@@ -847,9 +847,11 @@ pause key cannot switch back on in the same tick what it just switched off.
 
 **Waiting for a key is a state, not a loop.** Clicking a key button sets its caption to
 `$O_PRESS_KEY` and calls `Engine::beginKeyGrab()`; `Options::onUpdate` asks `pollKeyGrab()` each
-tick and applies the answer — the pressed VK, `GRAB_CANCELLED` for Escape (the binding is left
-alone), or `GRAB_NO_KEY` on the three-second deadline, which clears it and is the only way to
-leave an action unbound.
+tick and applies the answer — the pressed VK, `GRAB_NO_KEY` for Escape, which clears the
+binding and is the only way to leave an action unbound, or `GRAB_TIMED_OUT` on the three-second
+deadline, which leaves it as it was. Waiting costs nothing on purpose: that is what somebody
+does who opened the grab by accident or thought better of it, and it must not take the key
+they had. The caption says which is which — `$O_PRESS_KEY` reads *Press key or Esc to clear*.
 
 A blocking loop around `SDL_PumpEvents` and `SDL_Delay` — the obvious shape, and what this was
 — **cannot work in the browser**: the event queue is filled by DOM listeners on the JS thread,

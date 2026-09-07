@@ -3377,11 +3377,11 @@ void Engine::updateKeyGrab()
 {
 	if(!grabbingKey) return;
 
-	// Escape cancels and is not offered as a binding; the caller leaves the old
-	// one alone.
+	// Escape is not offered as a binding. It means "no key" and clears the
+	// binding away - the only way to leave an action unbound.
 	if(virtualKeys[getKeyboardVK(SDLK_ESCAPE)].down)
 	{
-		grabResult = GRAB_CANCELLED;
+		grabResult = GRAB_NO_KEY;
 		grabbingKey = false;
 		return;
 	}
@@ -3397,11 +3397,12 @@ void Engine::updateKeyGrab()
 		}
 	}
 
-	// Time is up. That means "no key" and clears the binding away - the only
-	// way to leave an action unbound.
+	// Time is up and nothing was pressed, so nothing was asked for: the old
+	// binding stays. Waiting is what somebody does who opened this by accident
+	// or thought better of it, and it must not cost them the key they had.
 	if(grabHasDeadline && SDL_GetTicks() >= grabDeadline)
 	{
-		grabResult = GRAB_NO_KEY;
+		grabResult = GRAB_TIMED_OUT;
 		grabbingKey = false;
 	}
 }

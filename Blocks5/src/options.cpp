@@ -208,17 +208,17 @@ void Options::applyKeyGrab(int key)
 
 	Engine& engine = Engine::inst();
 
-	// GRAB_CANCELLED means Escape: the binding is left alone. GRAB_NO_KEY -
-	// the time ran out - clears it; that is the only way to leave an action
+	// GRAB_TIMED_OUT means nothing was pressed and the binding is left alone.
+	// GRAB_NO_KEY - Escape - clears it; that is the only way to leave an action
 	// unbound.
 	const Action* p_action = engine.getAction(what);
-	if(key != Engine::GRAB_CANCELLED && p_action)
+	if(key != Engine::GRAB_TIMED_OUT && p_action)
 	{
 		if(which == "PrimaryKey") engine.changeAction(what, key, p_action->secondary);
 		else                      engine.changeAction(what, p_action->primary, key);
 	}
 
-	// Puts the two captions back to the binding - the old one after a cancel.
+	// Puts the two captions back to the binding - the old one after a timeout.
 	handleClick(getChild("Options.Actions"));
 }
 

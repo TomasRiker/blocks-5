@@ -282,8 +282,8 @@ $O_RESET_ALL
 
 $O_PRESS_KEY
 // Options: shown on a key button while it waits for the new key
-§en:Press key or Esc
-§de:Taste oder Esc drücken
+§en:Press key or Esc to clear
+§de:Taste drücken, Esc löscht
 
 $O_PRIMARY_KEY
 // Primary key
