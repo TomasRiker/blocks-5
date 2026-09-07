@@ -92,7 +92,7 @@ void Player::onRemove()
 
 		if(!numInstances)
 		{
-			// This is the last instance going away. Stop the sound.
+			// The last instance is gone. Stop the sound.
 			p_toxicSoundInst->stop();
 			p_toxicSoundInst = 0;
 			p_maskSoundInst->stop();

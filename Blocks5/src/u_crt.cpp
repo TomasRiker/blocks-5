@@ -179,10 +179,10 @@ static const char* p_crtFragmentShader =
 	   has a slider of its own, because they are very much wanted separately:
 
 	   "Flicker" (uniform Flicker) is the fast shimmer of the *brightness* -
-	   three oscillations at 12, 19 and 29 Hz that keep re-overlapping and
-	   never fall into a pattern - plus, much weaker, the mains hum: a broad,
-	   dark bar that rolls slowly down the picture, because the mains frequency
-	   beats against the frame frequency.
+	   three oscillations at about 12, 19 and 29 Hz that keep re-overlapping
+	   and never fall into a pattern - plus, much weaker, the mains hum: a
+	   broad, dark bar that rolls slowly down the picture, because the mains
+	   frequency beats against the frame frequency.
 
 	   "Scan flicker" (uniform ScanFlicker) concerns the *position* of the
 	   lines: they drift slowly downward and shimmer as they go. See

@@ -275,7 +275,7 @@ void StreamedSound::stream(uint bufferID)
 }
 
 // Everything from here on exists only under Windows. In the browser
-// SDL_CreateThread gives up and SDL_WaitThread calls abort(); its SDL does not
+// SDL_CreateThread aborts and SDL_WaitThread calls abort(); its SDL does not
 // know semaphores at all.
 #ifdef __EMSCRIPTEN__
 

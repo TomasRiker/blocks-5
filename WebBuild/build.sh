@@ -49,7 +49,7 @@ for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc 
          mapping0 mdct psy registry res0 sharedbook smallft synthesis vorbisenc \
          vorbisfile window; do CSRCS="$CSRCS $GAME/libs/libvorbis-1.3.4/lib/$f.c"; done
 # TinyXML 2.6.2 is vendored in the tree and compiled here exactly as the Visual
-# Studio project compiles it; both builds therefore run the same parser.
+# Studio project compiles it, so both builds run the same parser.
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/tinyxml-2.6.2/$f.cpp"; done
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
@@ -126,7 +126,7 @@ echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 #
 # -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
 # struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's
-# default 64 KiB stack is exactly consumed by it, and every zip WRITE - saving a
+# default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
 # campaign, saving progress - clobbered the stack and trapped with "table index
 # is out of bounds". Reads were unaffected, which is why it stayed hidden.
 em++ $OBJS -o "$OUT/blocks5.html" \
@@ -144,10 +144,10 @@ em++ $OBJS -o "$OUT/blocks5.html" \
 linkStatus=${PIPESTATUS[0]}
 [ $linkStatus -ne 0 ] && { echo "### LINK FAILED ###"; exit 1; }
 # The four files that get uploaded are blocks5.{js,wasm,data} plus the page, and
-# the page has to be called index.html, which is what makes the directory it is
-# dropped into serve it by itself. Only the HTML is renamed: em++ derives the
-# js/wasm/data names from its -o argument, and the page refers to blocks5.js by
-# name; giving em++ index.html would rename all four and buy nothing.
+# the page has to be called index.html so that the directory it is dropped into
+# serves it by itself. Only the HTML is renamed: em++ derives the js/wasm/data
+# names from its -o argument, and the page refers to blocks5.js by name, so
+# giving em++ index.html would rename all four and buy nothing.
 [ -f "$OUT/blocks5.html" ] && cp "$OUT/blocks5.html" "$OUT/index.html"
 
 # The three payload files carry the build's stamp in their names. They belong

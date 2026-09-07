@@ -41,7 +41,7 @@ CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
 for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc lsp \
          mapping0 mdct misc psy registry res0 sharedbook smallft synthesis vorbisenc \
          vorbisfile window; do CSRCS="$CSRCS $GAME/libs/libvorbis-1.3.4/lib/$f.c"; done
-# TinyXML 1 is linked as a prebuilt .lib on Windows; its sources are not vendored.
+# TinyXML 1 is linked as a prebuilt .lib on Windows, so its sources are not vendored.
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/tinyxml-2.6.2/$f.cpp"; done
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)

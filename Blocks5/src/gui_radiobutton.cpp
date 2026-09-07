@@ -150,15 +150,14 @@ void GUI_RadioButton::onMouseUp(const Vec2i& position,
 	}
 }
 
-// The caption belongs to the button. onRender() draws it at
-// Vec2i(size.x + 10, ...), and exactly that strip counts here too - a click on
-// the text toggles the button, as <label for="..."> does in a browser.
+// The caption belongs to the control. It is drawn in onRender() at
+// Vec2i(size.x + 10, ...), and exactly that strip counts here - a click on
+// the text toggles, as <label for="..."> does in a browser.
 //
-// Measured rather than assumed: a strip wider than the text would steal clicks
-// from whatever stands to the right of it (options.xml puts language and
-// detail radios in three tight columns). An empty title measures 0 wide,
-// leaving only the box - the filter buttons with their own <For> label are
-// unaffected.
+// Measured, not assumed: a strip wider than the text would steal clicks from
+// whatever stands to the right of it (options.xml puts language and detail
+// radios in three tight columns). An empty title measures 0, leaving just the
+// box - the filter buttons with their own <For> label are unaffected.
 bool GUI_RadioButton::containsPoint(const Vec2i& position)
 {
 	if(GUI_Element::containsPoint(position)) return true;

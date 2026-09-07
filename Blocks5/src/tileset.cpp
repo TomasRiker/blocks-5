@@ -87,7 +87,7 @@ void TileSet::reload()
 
 	maxTileID = 0;
 
-	// process every child element
+	// process all child elements
 	TiXmlElement* p_tileElement = p_tileSetElement->FirstChildElement("Tile");
 	while(p_tileElement)
 	{

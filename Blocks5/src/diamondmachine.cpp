@@ -26,7 +26,7 @@
    from that. Outward, emission has to stop a whole lifetime before 80
    (80 - 27 = 53), leaving the end nothing but collecting. Inward, every
    spark lands at 100 whenever it sets off - the lifetime is worked out for
-   that - and 92 is the point past which the time left would no longer be a
+   that - and 92 is the point from which the time left would no longer be a
    flight but a flash on the spot.
 
    LANDING EXACTLY. The integrator is position += velocity; velocity *=
@@ -45,7 +45,7 @@
    block falling apart.
 
    Nothing here is blended additively. There the result depends on the
-   background, and the same brown would be a glow over rock and a glaring
+   background, and the same brown would be an ember over rock and a glaring
    yellow over grass. Inward the colour still starts above 1, where GL clamps
    it to [0,1] - but that is not a glow; it is the way around a green cast,
    and the reason stands where it is computed.

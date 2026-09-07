@@ -675,8 +675,8 @@ void AudioCapture::stop()
 // libpulse-dev.
 //
 // pa_simple is told which format to deliver - S16LE, stereo, 48 kHz - and the
-// server converts. Neither the format conversion nor the resampler of the
-// Windows side exists here.
+// server converts. That is why neither the format conversion nor the
+// resampler of the Windows side exists here.
 // ---------------------------------------------------------------------------
 
 #include <dlfcn.h>

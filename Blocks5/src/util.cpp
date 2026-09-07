@@ -198,7 +198,7 @@ uint fromBase62(const char* p_in)
 	uint n = 0;
 	for(uint i = 0; i < 7; i++)
 	{
-		// decode
+		// decoding
 		if(p_in[i] >= 'a') n += (36 + p_in[i] - 'a') * base[i];
 		else if(p_in[i] >= 'A') n += (10 + p_in[i] - 'A') * base[i];
 		else n += (p_in[i] - '0') * base[i];
@@ -214,14 +214,14 @@ void decryptPassword(const char* p_in,
 	char step1[1024] = "";
 	for(uint i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
 	{
-		// turn 7 characters in base 62 into a 32-bit integer at a time
+		// always turn 7 base-62 characters into one 32-bit integer
 		uint n = fromBase62(&p_in[i]);
 
 		// decrypt
 		uint pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		n ^= pattern;
 
-		// write
+		// write it
 		*(reinterpret_cast<uint*>(&step1[shift * 4])) = n;
 	}
 

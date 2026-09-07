@@ -66,9 +66,9 @@ private:
 	double unroll;
 	int activeTicks;
 
-	// Dismissed while the player is still standing on the field. Holds until
-	// they leave it - otherwise the note would open again on the next tick and
-	// the key would have done nothing.
+	// Dismissed even though the player is still standing on the field. Holds
+	// until they leave it - otherwise the note would open again on the next
+	// tick and the key would have done nothing.
 	bool dismissed;
 };
 

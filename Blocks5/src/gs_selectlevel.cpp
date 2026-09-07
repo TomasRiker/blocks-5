@@ -272,7 +272,7 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	p_background = Manager<Texture>::inst().request("selectlevel.png");
 	p_misc = Manager<Texture>::inst().request("misc.png");
 
-	// create the menu
+	// build the menu
 	gui.getRoot()->load("selectlevel.xml");
 
 	static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"])->connectChanged(this, &GS_SelectLevel::handleClick);

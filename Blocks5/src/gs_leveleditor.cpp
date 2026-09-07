@@ -848,8 +848,8 @@ public:
 			}
 			else
 			{
-				// With no filename nothing happens here at all - the click
-				// goes nowhere and nobody learns why.
+				// With no filename nothing would otherwise happen here at all -
+				// the click would go nowhere and nobody would learn why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -906,8 +906,8 @@ public:
 			}
 			else
 			{
-				// With no filename nothing happens here at all - the click
-				// goes nowhere and nobody learns why.
+				// With no filename nothing would otherwise happen here at all -
+				// the click would go nowhere and nobody would learn why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}

@@ -238,7 +238,7 @@ static void initKeyNames(void)
 }
 
 // Emscripten supplies the SDL2 declaration - const char*, SDL_Keycode - and not
-// 1.2's; the definition has to match that one.
+// 1.2's, so the definition has to match the SDL2 one.
 const char* SDL_GetKeyName(SDL_Keycode key)
 {
 	const char* name;

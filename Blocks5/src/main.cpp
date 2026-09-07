@@ -346,13 +346,13 @@ int runTheGame(int argc,
 			// created all the same, because that is where the editors and the
 			// import write.
 			//
-			// The five readme.txt are copied: they explain their own folders to
-			// the player, and because the game never reads them, without this
-			// copy they would sit in no folder at all. The two example levels
-			// stand beside them in the list and are deliberately not copied -
-			// they are visible and loadable straight out of the game folder,
-			// and a player who changes one and saves it gets their own version
-			// by itself. Only on the very first start.
+			// The five readme.txt are copied: they explain the player's own
+			// folders to them, and because the game never reads them, without
+			// this copy they would sit in no folder at all. The two example
+			// levels stand beside them in the list and are deliberately not
+			// copied - they are visible and loadable straight out of the game
+			// folder, and a player who changes one and saves it gets their own
+			// version by itself. Only on the very first start.
 			for(const FileSystem::PlayerFile* p_file = FileSystem::getPlayerFiles();
 				p_file->p_path; p_file++)
 			{

@@ -1517,9 +1517,9 @@ void Engine::update()
 	// update the virtual keys and actions
 	updateVKs();
 
-	// While a dialog is waiting for a key, this tick belongs to it alone: no
-	// actions and nothing for the GUI, where the cancelling Escape would go on
-	// to close the dialog. The tick in which the key is found still counts.
+	// While a dialog is waiting for a key, this tick belongs to the key alone:
+	// no actions and nothing for the GUI, where the cancelling Escape would go
+	// on to close the dialog. The tick in which the key is found still counts.
 	const bool grabbing = grabbingKey;
 	if(grabbing)
 	{

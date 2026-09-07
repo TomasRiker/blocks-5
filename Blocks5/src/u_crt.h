@@ -61,8 +61,9 @@ public:
 private:
 	PresentProgram program;
 
-	// The uniform locations that exist only here. One per line, because
-	// Tools/verify.py overlooks a collected declaration.
+	// The uniform locations that exist only here. One per line so that
+	// Tools/verify.py sees them - it overlooks a collected declaration,
+	// and that is exactly what "convergence" depended on.
 	int locScanline;
 	int locCurvature;
 	int locBloom;

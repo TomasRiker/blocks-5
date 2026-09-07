@@ -363,8 +363,8 @@ void Hint::renderNoteFlat(const Vec4d& color,
 {
 	// Without a framebuffer object there is no texture that note and text
 	// could be drawn into together. Then the two go one after the other -
-	// under the same matrix, keeping the writing flying with the paper
-	// instead of letting it appear out of nowhere at the end.
+	// under the same matrix, so the writing at least flies with the paper
+	// instead of appearing out of nowhere at the end.
 	Engine& engine = Engine::inst();
 	const Vec2i corner(-NOTE_WIDTH / 2, -NOTE_HEIGHT / 2);
 
@@ -474,8 +474,8 @@ void Hint::onUpdate()
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
 
-	// Roll up first, then disappear - which is why the rolling stands above.
-	// While anything is still left to roll up, the note stays fully visible.
+	// Roll up first, then disappear - hence the rolling above. While anything
+	// is still left to roll up, the note stays fully visible and in place.
 	alpha = (open || unroll > 0.0) ? 0.85 : 0.0;
 	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
 	if(shownAlpha <= 1.0 / 255.0)
