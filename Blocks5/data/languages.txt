@@ -2372,6 +2372,13 @@ $TR_MERGE_DO
 §en:Merge
 §de:Zusammenführen
 
+$TR_REPLACE_DO
+// The first one. Yes and No are no answer to a question that offers
+// replacing and merging, so the two buttons are named after what they
+// do whenever the question is about an import.
+§en:Replace
+§de:Ersetzen
+
 $TR_DELETED
 // Shown after a successful delete, followed by the filename
 §en:Deleted:

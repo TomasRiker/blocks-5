@@ -32,6 +32,18 @@ private:
 	// asynchronously, the Windows one is modal - pollImport() hides the
 	// difference.
 	void pollImport();
+
+	// The import once the player has agreed to it, and the other answer to
+	// the same question: take the imported progress into the one already
+	// there instead of over it.
+	void completeImport(int kind, const std::string& path, const std::string& untrustedName);
+	void mergeImport(const std::string& path);
+
+	// Put the question and take the window away again. offerMerge shows the
+	// third button, which nothing but an imported progress database offers.
+	void askConfirmation(const std::string& text, const std::string& yesTitle,
+						 const std::string& noTitle, bool offerMerge);
+	void closeConfirmation();
 	void pollExport();
 	void openManager();
 	void refreshManagerList();
@@ -56,9 +68,26 @@ private:
 	std::string pendingExportName;
 	bool pendingExport;
 
-	// What the confirmation is to delete, recorded on the click on Delete.
+	// What the confirmation window is asking. It serves two questions now,
+	// and Yes means something different for each.
+	enum ConfirmMode
+	{
+		CONFIRM_NONE = 0,
+		CONFIRM_DELETE,
+		CONFIRM_OVERWRITE
+	};
+	int confirmMode;
+
+	// CONFIRM_DELETE: what is to be deleted, recorded on the click on Delete.
 	int pendingDeleteKind;
 	std::string pendingDeleteName;
+
+	// CONFIRM_OVERWRITE: the import, held back until the question is
+	// answered. Transfer::finishImport() has to wait with it - in the browser
+	// the bytes lie in a staging file that it deletes.
+	int pendingImportKind;
+	std::string pendingImportPath;
+	std::string pendingImportName;
 	std::unordered_map<uint, std::list<uint> > keyData;
 };
 

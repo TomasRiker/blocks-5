@@ -40,7 +40,7 @@ const zlib = require('zlib');
 	// --- Manager: step through the four kinds ---------------------------------
 	await h.clickPath(page, 'Menu.Manager');
 	await h.expectShown(page, 'Menu.ManagerPane.Manager');
-	for (const kind of ['KindLevel', 'KindCampaign', 'KindMusic', 'KindSkin']) {
+	for (const kind of ['KindLevel', 'KindCampaign', 'KindMusic', 'KindSkin', 'KindProgress']) {
 		await h.clickPath(page, 'Menu.ManagerPane.Manager.' + kind);
 	}
 	await h.shot(page, 'smoke-3-manager');

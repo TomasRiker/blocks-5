@@ -18,13 +18,25 @@ namespace Transfer
 		KIND_LEVEL,
 		KIND_CAMPAIGN,
 		KIND_MUSIC,
-		KIND_SKIN
+		KIND_SKIN,
+
+		// The player's own progress, and unlike the other four not a folder
+		// full of files but one file with one name, lying in the user
+		// directory itself. Nothing of the kind ever ships with the game.
+		KIND_PROGRESS
 	};
 
 	// Works out the kind by content, not by extension: music by the OggS
-	// marker, a level by its XML root, an archive by whether a campaign.xml
-	// or a tileset.xml lies inside it.
+	// marker, a level by its XML root, an archive by whether a campaign.xml,
+	// a tileset.xml or a progress.xml lies inside it.
 	Kind classify(const std::string& path);
+
+	// The name install() would give this file, and whether it would replace
+	// something. Both are what install() itself works with, so the question
+	// can be put to the player before anything is written - which is the
+	// whole reason they are here rather than inside install().
+	std::string targetName(Kind kind, const std::string& untrustedName);
+	bool wouldReplace(Kind kind, const std::string& untrustedName);
 
 	// Takes a file into the user directory and returns the filename assigned
 	// to it, or "" and then sets errorId. untrustedName is only a suggestion;

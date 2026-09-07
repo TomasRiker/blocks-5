@@ -89,10 +89,10 @@ b5_click OptionsPane.Options.SharpFit
 b5_click OptionsPane.Options.OK
 b5_expectShown OptionsPane.Options false
 
-# --- Manager: step through the four kinds -----------------------------------
+# --- Manager: step through the five kinds -----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager
-for kind in KindLevel KindCampaign KindMusic KindSkin; do
+for kind in KindLevel KindCampaign KindMusic KindSkin KindProgress; do
 	b5_click "Menu.ManagerPane.Manager.$kind"
 done
 b5_shot 4-manager
@@ -127,6 +127,18 @@ for kind in KindLevel KindCampaign KindSkin; do
 	[ "$(b5_json "el('Menu.ManagerPane.Manager.Export')['active']")" = "True" ] \
 		|| b5_note "$kind: Export is disabled although something is selected"
 done
+
+# The progress database is not in that table, and cannot be: it has no
+# subfolder to look in, and the game folder's own root holds data.zip. One
+# file, in the user directory itself, never shipped - so the list has an entry
+# exactly when the player has played, and Delete follows the same answer.
+b5_click Menu.ManagerPane.Manager.KindProgress
+b5_dump
+[ -f "$b5_home/progress.zip" ] && wantProgress=True || wantProgress=False
+have=$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")
+[ "$have" = "$wantProgress" ] \
+	&& b5_ok "KindProgress: Delete enabled=$have, matching the user directory" \
+	|| b5_note "KindProgress: Delete enabled=$have, expected $wantProgress"
 
 # Export and Delete both hang on the selection, but not on the same condition:
 # everything in the list can be exported, only what belongs to the player can

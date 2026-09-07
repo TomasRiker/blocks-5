@@ -3,6 +3,7 @@
 #include "filesystem.h"
 #include "file.h"
 #include "campaign.h"
+#include "progressdb.h"
 #include "util.h"
 
 #ifdef __EMSCRIPTEN__
@@ -35,8 +36,15 @@ namespace
 		}
 	}
 
+	// The progress database is the one kind with no folder of its own: it
+	// lies in the user directory itself. It is named here rather than given
+	// an empty subdirectory, because an empty one would make list() read the
+	// game folder's own root - where data.zip lies - and point remove() at
+	// whatever it found there.
 	std::string directoryFor(Transfer::Kind kind)
 	{
+		if(kind == Transfer::KIND_PROGRESS) return FileSystem::inst().getAppHomeDirectory();
+
 		const std::string sub(subdirectoryFor(kind));
 		if(sub.empty()) return "";
 		return FileSystem::inst().getAppHomeDirectory() + sub;
@@ -49,7 +57,8 @@ namespace
 		case Transfer::KIND_LEVEL:    return ".xml";
 		case Transfer::KIND_MUSIC:    return ".ogg";
 		case Transfer::KIND_CAMPAIGN:
-		case Transfer::KIND_SKIN:     return ".zip";
+		case Transfer::KIND_SKIN:
+		case Transfer::KIND_PROGRESS: return ".zip";
 		default:                      return "";
 		}
 	}
@@ -64,8 +73,11 @@ namespace
 		// Level::getSkinFilename reads it out there.
 		FileSystem& fs = FileSystem::inst();
 		// Over both roots, because the export can be run on what the game
-		// ships as well.
-		const std::string source(fs.resolveContentPath(subdirectoryFor(kind) + name));
+		// ships as well - except for the progress database, of which the game
+		// ships nothing and which has no subdirectory to resolve.
+		const std::string source(kind == Transfer::KIND_PROGRESS
+								 ? directoryFor(kind) + name
+								 : fs.resolveContentPath(subdirectoryFor(kind) + name));
 		if(!fs.fileExists(source)) return false;
 		return fs.copyFile(source, destPath);
 	}
@@ -114,6 +126,7 @@ Kind classify(const std::string& path)
 		if(fs.fileExists(path + "/campaign.xml")) return KIND_CAMPAIGN;
 		if(fs.fileExists(path + "/tileset.xml") &&
 		   fs.fileExists(path + "/sprites.png")) return KIND_SKIN;
+		if(ProgressDB::isProgressArchive(path)) return KIND_PROGRESS;
 		return KIND_NONE;
 	}
 
@@ -129,6 +142,30 @@ Kind classify(const std::string& path)
 	return KIND_NONE;
 }
 
+std::string targetName(Kind kind, const std::string& untrustedName)
+{
+	if(kind == KIND_NONE) return "";
+
+	// The progress database has one name and one place, so the wish counts
+	// for nothing: a second one beside it would be a file the game never
+	// reads. For the other four the wanted name is cut down to [A-Za-z0-9_-]
+	// and given the kind's extension.
+	if(kind == KIND_PROGRESS) return FileSystem::inst().getPathFilename(ProgressDB::getFilename());
+
+	return sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) + extensionFor(kind);
+}
+
+bool wouldReplace(Kind kind, const std::string& untrustedName)
+{
+	const std::string name(targetName(kind, untrustedName));
+	if(name.empty()) return false;
+
+	// The user directory and not both roots: that is where install() writes,
+	// and a name the game folder holds is refused outright rather than
+	// replaced.
+	return FileSystem::inst().fileExists(directoryFor(kind) + name);
+}
+
 std::string install(Kind kind,
 					const std::string& path,
 					const std::string& untrustedName,
@@ -139,14 +176,12 @@ std::string install(Kind kind,
 	errorId = "";
 	if(p_replaced) *p_replaced = false;
 
-	// The same for all four kinds: the wanted name cut down to [A-Za-z0-9_-],
-	// plus the kind's extension. An existing file is replaced - a new version
-	// of your level means your level and not a second one beside it. For a
-	// skin there is no other way: its filename is its id, a level says
-	// skin0="space" and the loader looks for levels/skins/space.zip.
+	// An existing file is replaced - a new version of your level means your
+	// level and not a second one beside it. For a skin there is no other way:
+	// its filename is its id, a level says skin0="space" and the loader looks
+	// for levels/skins/space.zip.
 	const std::string dir(directoryFor(kind));
-	const std::string name(sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) +
-						   extensionFor(kind));
+	const std::string name(targetName(kind, untrustedName));
 
 	// The one exception: the seven names under which the game itself ships
 	// something. Overwriting one would take something from the player that
@@ -159,9 +194,11 @@ std::string install(Kind kind,
 
 	const bool replaced = fs.fileExists(dir + name);
 
-	// A campaign must be loadable as well, not merely contain a campaign.xml.
-	// That is checked before anything is replaced.
-	if(kind == KIND_CAMPAIGN && !Campaign::isImportableArchive(path))
+	// A campaign must be loadable as well, not merely contain a campaign.xml,
+	// and a progress database must parse. Both are checked before anything is
+	// replaced, so a damaged file cannot destroy a good one of the same name.
+	if((kind == KIND_CAMPAIGN && !Campaign::isImportableArchive(path)) ||
+	   (kind == KIND_PROGRESS && !ProgressDB::canRead(path)))
 	{
 		errorId = "$TR_ERROR_BROKEN";
 		return "";
@@ -188,6 +225,16 @@ std::vector<std::string> list(Kind kind)
 	// imported under a shipped name - hence the union needs no rule of its
 	// own for that, and the comparison further down catches the double insert.
 	FileSystem& fs = FileSystem::inst();
+
+	// The progress database is one file with one name, and only ever in the
+	// user directory: there is nothing to list and nothing to sort.
+	if(kind == KIND_PROGRESS)
+	{
+		const std::string name(targetName(kind, ""));
+		if(fs.fileExists(directoryFor(kind) + name)) result.push_back(name);
+		return result;
+	}
+
 	const std::string want(extensionFor(kind));
 	const std::string sub(subdirectoryFor(kind));
 	const std::string roots[] = { fs.getGameDirectory() + sub, fs.getAppHomeDirectory() + sub };
@@ -211,6 +258,10 @@ std::vector<std::string> list(Kind kind)
 bool isBuiltIn(Kind kind, const std::string& name)
 {
 	if(kind == KIND_NONE || name.empty()) return false;
+
+	// The game ships no progress of its own, and never can: it is written by
+	// playing.
+	if(kind == KIND_PROGRESS) return false;
 	const std::string sub(subdirectoryFor(kind));
 	if(sub.empty()) return false;
 	// Not a list but the disk: shipped is whatever lies in the game folder.
@@ -249,7 +300,13 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 		return false;
 	}
 
-	if(!FileSystem::inst().deleteFile(directoryFor(kind) + name))
+	// The progress database takes its backup with it. One left behind would
+	// be taken for an interrupted save by the next query and put back, which
+	// would undo the deletion a moment after it appeared to work.
+	const bool deleted = (kind == KIND_PROGRESS)
+						 ? ProgressDB::inst().remove()
+						 : FileSystem::inst().deleteFile(directoryFor(kind) + name);
+	if(!deleted)
 	{
 		errorId = "$TR_ERROR_FAILED";
 		return false;
