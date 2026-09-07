@@ -1165,6 +1165,16 @@ of a zip archive; the archive is selected by path syntax:
 - `archive.zip[encryptedpw]/file.png` — password encrypted with `PWEncrypt` (see
   `decryptPassword` in `util.cpp`)
 
+**`renameFile` renames where the platform can and copies where it cannot** — across a mount,
+since the browser stages an upload outside the home directory, and for a member inside an
+archive, which has no name on the disk of its own. The destination gives way only after the
+first attempt has failed: POSIX replaces it in one atomic step and deleting it beforehand would
+open a window in which neither name exists, while Windows refuses the replacement and needs the
+second try. Three callers want exactly that — `retireShadowingCopies`, which said so in a
+comment (*"the game's filesystem has no rename"*) and did copy-then-delete; `Campaign::save`,
+whose swap otherwise wrote the whole archive a second time, megabytes for a campaign with its
+music; and the progress database's crash-safety file.
+
 `pushCurrentDir`/`popCurrentDir` maintain a search root, which is how `main.cpp` mounts
 `data.zip[...]` as the asset root (the commented-out `fs.pushCurrentDir("data")` next to it
 switches to loose files for development). User-writable state — saves, progress, custom levels,
@@ -1216,7 +1226,40 @@ the move survivable. The key used to be the full path, so shifting `blocks.zip` 
 directory into the game folder would have silently reset everyone's 42 levels — no error,
 nothing in the log, just a progress bar back at zero. `keyFor` strips the directory on the way
 in and on the way out, which migrates an old `progress.zip` by reading it: no separate step,
-and the next save writes the short form.
+and the next save writes the short form. Case is **not** folded there, deliberately: under
+Linux `Blocks.zip` and `blocks.zip` are two different campaigns, and joining their solved sets
+could never be undone.
+
+**It holds nothing.** `query()` reads the file and `markSolved()` reads it, adds and writes it
+back; there is no map that lives for the process. That is what makes the Manager able to
+import, merge and delete a progress at all — a copy in memory would answer from what was there
+at startup and the next completed level would write it straight back over the import, a delete
+would undo itself within one level, and merging would need a `clear()` the class never had.
+Merging then needs no code of its own: read the imported file and mark everything in it as
+solved, which `markSolved` folds into what is on the disk.
+
+The reads are per frame — `getLevelStatus` and the progress bar are both inside
+`GS_SelectLevel::onRender` — so the screen keeps the answer for as long as it is shown and
+re-reads in **`onGetFocus`, not `onEnter`**: coming back from a played level is a *pop*, and
+`popGameState` gives the state underneath the focus without entering it again, so a level just
+solved would still be shown as unsolved. The count is clamped to the campaign's length, or a
+merged database would draw the bar past its own frame and label it *45/42*.
+
+**A save no longer destroys what it is replacing.** Writing a member into a zip rebuilds the
+archive, and `File_Archived` removes the old file before the new one exists (`remove` at
+`file_archived.cpp:526`), which for a one-member archive is every save — so a crash or a full
+disk in that window took everything. The database is renamed to `progress.zip.saving` first and
+that file deleted only once the new one stands; `query()` puts it back where the real file is
+missing or unreadable, and deletes it where the real file reads. The invariant is worth stating
+plainly: **the backup exists exactly while a save is in flight**, so one found lying about is
+from a run that died, and leaving it would mean the next unrelated fault restores a database
+months out of date. A delete takes it along for the same reason.
+
+That parse trusts nothing, because the Manager imports this file and it is therefore a
+stranger's: no root element, no `campaign` attribute and a level index that is negative or
+absurd are all skipped rather than crashing. It used to run at startup from `main()`, before
+`engine.init()` — no window, no toast, and in the browser a wasm trap that looks like a hang
+with the offending file locked away in IndexedDB.
 
 **A level somebody sent you is played from the level select screen, not from the editor.**
 `Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in
@@ -1254,12 +1297,35 @@ all three platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in t
 one interface: `beginImport` starts it and `pollImport` is asked each tick, so an asynchronous
 dialog and a modal one look the same to the caller.
 
-`Menu.ManagerPane` holds the four kind radios, the list, *Refresh*, and a bottom row of
-*Import*, *Export*, *Delete* and *Close* in the same four 92px columns as the radios above.
-Import needs no selection and comes first; Export and Delete work on the selection and grey
-themselves out without one. `Menu.ConfirmPane`, which must stay the **last** child in
-`menu.xml` so it draws last and takes the clicks, asks before a delete — the one thing here
-that cannot be undone.
+`Menu.ManagerPane` holds the five kind radios in 92px columns, the list, *Refresh*, and a
+bottom row of *Import*, *Export*, *Delete* and *Close* spread over the window's own width.
+The two rows span the same x=10..486 without sharing a grid: the captions decide the first
+width — "Zusammenfuehren" and "Aktualisieren" are what the 92 is for — and forcing that grid on
+the second would leave a hole where a fifth button would be. Import needs no selection and
+comes first; Export and Delete work on the selection and grey themselves out without one.
+
+**The progress database is the fifth kind, and it goes round the directory machinery rather
+than through it.** It is one file, with one name, in the user directory *itself*, and nothing
+of the sort ever ships — so `directoryFor` names it outright. An empty subdirectory would have
+been the obvious answer and is a trap: `list()` would then read the game folder's own root,
+where `data.zip` lies, and `remove()` would point at whatever it found there. `classify`
+recognises it by a `progress.xml` inside the archive, which a zip's table of contents answers
+without the password, and `install` refuses one that does not parse — the same guard a campaign
+has, so a damaged file cannot destroy a good one of the same name.
+
+`Menu.ConfirmPane`, which must stay the **last** child in `menu.xml` so it draws last and takes
+the clicks, asks before a delete and before an import replaces anything. Three columns, of
+which the middle one carries *Merge* and is shown only for a progress database, so *Yes* and
+*No* keep their places either way; the text is wrapped, since the code sets it and a filename
+can be any length. **The two buttons are renamed for an import** — *Replace* and *Cancel* —
+because yes and no are no answer to a question that offers replacing and merging.
+
+Asking before an overwrite needed somewhere to ask *from*: `install()` composed the destination
+name inside itself and tested for the overwrite two lines before the copy, so no caller could
+put the question first. `Transfer::targetName` and `wouldReplace` are that answer and
+`install()` is built on the same two, so the name asked about and the name written cannot drift
+apart. The whole import waits for the answer, `finishImport()` included — in the browser that
+call deletes the staging file the bytes are in.
 
 **`Transfer::isBuiltIn` no longer keeps a list**; it asks whether the file exists in the game
 folder — and answers no for the seven files that belong to the player. Three callers, all the
