@@ -36,7 +36,7 @@ Blocks 5 understands five options. Upper and lower case do not matter.
                    CRT filter are then unavailable and "Sharp" is used.
 
 While playing you can switch between full screen and windowed mode at any time
-with Alt+Return.
+with Alt+Enter.
 
 
 Changelog
@@ -70,7 +70,7 @@ Changelog
             used to freeze until you let go, and it can no longer be dragged
             smaller than the 640x480 the game draws.
 
-          - Alt+Return switches between the window and full screen at any time.
+          - Alt+Enter switches between the window and full screen at any time.
             The game remembers which of the two you left it in, where the window
             was and how big - and whether it was maximized, which it used to
             forget, coming back half off the screen.
@@ -141,7 +141,7 @@ Changelog
             choice always wins.
 
           - Escape in the main menu quits the game. It also closes the level
-            editor's menu and its settings, the options and the help, and Return
+            editor's menu and its settings, the options and the help, and Enter
             confirms the settings and the options - the same way clicking OK or
             Cancel does.
 

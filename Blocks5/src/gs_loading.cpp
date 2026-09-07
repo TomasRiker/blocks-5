@@ -59,7 +59,7 @@ void GS_Loading::onRender()
 		}
 
 		// A desktop browser offers no way to reach the game's own fullscreen,
-		// and Alt+Return is not a guess anybody makes, so it is said here - in
+		// and Alt+Enter is not a guess anybody makes, so it is said here - in
 		// the tooltip font, because it is an aside and not the message. Not on
 		// a phone: there the game takes the fullscreen itself on the first
 		// touch, and there is no Alt to press anyway.

@@ -62,7 +62,7 @@ Module['b5_sync'] = (function () {
 // the browser's help, F5 reload the page and lose the level, F10 reach for the
 // menu bar, F11 go fullscreen and F12 open the developer tools.
 //
-// Nothing is lost by it: fullscreen is Alt+Return, the same idiom as on the
+// Nothing is lost by it: fullscreen is Alt+Enter, the same idiom as on the
 // desktop and the one the loading screen names, while Ctrl+R and the address
 // bar still reload and Ctrl+Shift+I still opens the tools. Whether a browser
 // hands a page F11 and F12 at all is its own decision - asking costs nothing

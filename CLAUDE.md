@@ -284,7 +284,7 @@ closing the dialog and the second quitting the game. A key bound to a named *act
 held, not tapped, because `Engine::updateVKs` reads `SDL_GetKeyState`, a snapshot taken once
 per 20 ms tick, so a press and release in the same millisecond is never seen. The same
 sampling rule governs the mouse and the touchscreen, which is why `page.mouse.click()` and
-`page.touchscreen.tap()` are equally useless: move, settle, hold, release. Alt+Return
+`page.touchscreen.tap()` are equally useless: move, settle, hold, release. Alt+Enter
 misleads, because it hangs off `SDL_KEYDOWN` and events queue.
 
 **A tapped key is not the same as an instantaneous one, and that costs a whole extra press.**
@@ -660,8 +660,8 @@ bpp to be unchanged and `SDL_FULLSCREEN` to be clear. Setting `SDL_FULLSCREEN` o
 FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
 style to `WS_POPUP` and the size to the desktop directly, SDL notices through its own
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
-place that owns `displaySize` — picks it up. Dragging the border and Alt+Return therefore
-run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
+place that owns `displaySize` — picks it up. Dragging the border and Alt+Enter therefore
+run the same code, and nothing is ever destroyed. Alt+Enter is swallowed so the game never
 sees a bare Return.
 
 **A window that stops presenting loses control of what it shows.** While the app is inactive
@@ -714,13 +714,13 @@ still gets 2x (2*480 = 960 = 1080-120, with nothing to spare). The same value go
 horizontally, where it is pure slack, because a taskbar is not always at the bottom.
 `-windowed`/`-fullscreen` set the state for that start rather than overriding it for one run,
 since `Engine::exit` always saves. In the browser the canvas fills the page
-(`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a real DOM keydown — the
+(`WebBuild/pre.js`), Alt+Enter goes through the Fullscreen API from a real DOM keydown — the
 main loop's own events do not count as a user gesture — and the main loop reads the canvas
 size once a frame.
 
 **On a phone the game takes the fullscreen itself.** Mobile Chrome has no button for it, so
 without this the page is played under an address bar, and the picture is small enough already.
-`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Return one,
+`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Enter one,
 registered for **both** `touchstart` and `touchend` and returning `EM_FALSE` so the touch still
 belongs to SDL. It requests the fullscreen on every touch that finds the document not in it,
 which is what makes it survive a swipe back out.
@@ -1374,11 +1374,11 @@ any other key and the desktop build answers to all of them — a player who know
 not find half of them missing, and taking a named few would be the worst of both. Left alone,
 F1 opens the browser's help, F5 reloads the page and loses the level, F10 reaches for the menu
 bar, F11 goes fullscreen and F12 opens the developer tools. Nothing is lost by it: Ctrl+R and
-the address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Return
+the address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Enter
 as it is on the desktop. Whether a browser hands a page F11 and F12 at all is its own decision;
 asking costs nothing where the answer is no.
 
-**Which is why the click prompt names Alt+Return.** A desktop browser offers no way to reach the
+**Which is why the click prompt names Alt+Enter.** A desktop browser offers no way to reach the
 game's own fullscreen and nobody guesses that chord unaided, so `$WEB_FULLSCREEN_HINT` sits
 under `$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not on a phone,
 where the game takes the fullscreen itself on the first touch and there is no Alt to press;
@@ -1731,12 +1731,13 @@ the padding either side belongs to its width.
 **A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey`
 (`util.h`) is the one place that says so, and everything reading the SDL key itself goes
 through it: confirming a dialog, playing the selected level, leaving the credits, the level
-editor's settings, and Alt+Return for the fullscreen. The named actions never needed it — a
+editor's settings, and Alt+Enter for the fullscreen. The named actions never needed it — a
 binding has a primary and a secondary, and `$A_SAVE_IN_HOTEL` has used both since it was
-written. The keypad key is `Num Enter` in both languages, which is the prefix the other
-seventeen keypad keys already carry; calling it plain `Enter` made it the one key of that
-block that did not say where it lived, and put the two of them side by side in the hotel
-message looking like two names for one key.
+written. Both are called `Enter` in both languages — `Enter` and `Num Enter` — which is the prefix
+the other seventeen keypad keys already carry. It is what a PC keycap prints (a German board
+prints the hooked arrow and no word at all, so there is nothing to copy off the cap) and it is
+the word every neighbouring language borrowed. `Return` was SDL's own name for the key, and
+since the fallback capitalises SDL's name, the English entry for it was replacing nothing.
 
 **`VirtualKey::niceName` is what a player reads**, as against `name`, which is SDL's, and `id`,
 which config.xml holds and can therefore never be translated. It is a `$ID` and not the
