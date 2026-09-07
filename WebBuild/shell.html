@@ -99,9 +99,9 @@
 
   // German or English, by the same rule the game uses in
   // Engine::detectSystemLanguage: walk navigator.languages and take the first
-  // tag that is one or the other. Only those two exist - of the 349 strings in
-  // data/languages.txt exactly one has a French body and one a Spanish - so
-  // everything else is English.
+  // tag that is one or the other. Only those two exist - every string in
+  // data/languages.txt has an English body and a German one and nothing else -
+  // so everything else is English.
   var german = (function () {
     var list = navigator.languages || [navigator.language || ''];
     for (var i = 0; i < list.length; i++) {

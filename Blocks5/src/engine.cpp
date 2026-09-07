@@ -1956,13 +1956,18 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*)
 	return EM_FALSE;
 }
 
+bool Engine::isPhone() const
+{
+	return EM_ASM_INT({ return (Module['b5_isPhone'] && Module['b5_isPhone']()) ? 1 : 0; }) != 0;
+}
+
 void Engine::enforceTouchFullScreen()
 {
 	// Only on a device without a mouse. A notebook with a touchscreen has a
 	// title bar somebody wants; a phone has none, and in mobile Chrome there
 	// is no way at all to ask for the fullscreen by hand - the game therefore
 	// takes it itself.
-	if(!EM_ASM_INT({ return (Module['b5_isPhone'] && Module['b5_isPhone']()) ? 1 : 0; })) return;
+	if(!isPhone()) return;
 
 	// The same condition as for Alt+Return: without a framebuffer object there
 	// is no presentFrame() that would fill another area with black bars.

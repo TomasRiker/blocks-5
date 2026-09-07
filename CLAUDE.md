@@ -1356,6 +1356,23 @@ page also handles `webglcontextlost`, a real event when a tab goes to the backgr
 saying so instead of freezing: the game cannot rebuild its textures and its framebuffer object
 from where it stands.
 
+**Every function key belongs to the game, not to the browser.** `pre.js` swallows F1 to F24 in
+the capture phase, before SDL or the browser sees them, because they are bindable actions like
+any other key and the desktop build answers to all of them — a player who knows the game must
+not find half of them missing, and taking a named few would be the worst of both. Left alone,
+F1 opens the browser's help, F5 reloads the page and loses the level, F10 reaches for the menu
+bar, F11 goes fullscreen and F12 opens the developer tools. Nothing is lost by it: Ctrl+R and
+the address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Return
+as it is on the desktop. Whether a browser hands a page F11 and F12 at all is its own decision;
+asking costs nothing where the answer is no.
+
+**Which is why the click prompt names Alt+Return.** A desktop browser offers no way to reach the
+game's own fullscreen and nobody guesses that chord unaided, so `$WEB_FULLSCREEN_HINT` sits
+under `$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not on a phone,
+where the game takes the fullscreen itself on the first touch and there is no Alt to press;
+`Engine::isPhone()` is the one C++ place that asks, and it forwards to the `b5_isPhone` in
+`pre.js` that the page uses too.
+
 **The boot screen is pixel art too, and its line is the game's own.** It shows `$LOADING` from
 `data/languages.txt` — the same sentence the game puts up a moment later — in the game's own
 font, which the page cannot render itself: it stands before `data.zip` and before any GL

@@ -54,19 +54,22 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
-// Three function keys the game binds mean something else to a browser, and the
-// browser wins unless the event is swallowed first: F1 mutes and unmutes but
-// opens the browser's help, F5 restarts the level but reloads the page, F10
-// restarts from the hotel but opens the menu bar in some of them. Losing the
-// session or the keyboard is not what somebody pressing one of these wants.
-// All three are taken in the capture phase, before SDL or the browser sees
-// them. F11 and F12 are left alone: they are screenshot and video recording,
-// and neither of those exists in this build. Ctrl+R and the address bar still
-// reload, so a page can never get stuck.
+// Every function key belongs to the game here, not to the browser. They are
+// bindable like any other key and the desktop build answers to all of them, so
+// a player who knows the game must not find half of them missing; taking a
+// named few and leaving the rest would be the worst of both. Swallowed in the
+// capture phase, before SDL or the browser sees them - F1 would otherwise open
+// the browser's help, F5 reload the page and lose the level, F10 reach for the
+// menu bar, F11 go fullscreen and F12 open the developer tools.
+//
+// Nothing is lost by it: fullscreen is Alt+Return, the same idiom as on the
+// desktop and the one the loading screen names, while Ctrl+R and the address
+// bar still reload and Ctrl+Shift+I still opens the tools. Whether a browser
+// hands a page F11 and F12 at all is its own decision - asking costs nothing
+// where the answer is no.
 window.addEventListener('keydown', function (e) {
-  if (e.key === 'F1'  || e.keyCode === 112 ||
-      e.key === 'F5'  || e.keyCode === 116 ||
-      e.key === 'F10' || e.keyCode === 121) e.preventDefault();
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key) ||
+      (e.keyCode >= 112 && e.keyCode <= 135)) e.preventDefault();
 }, true);
 
 // The other half of "the music stopped when I switched tabs". A hidden page

@@ -10,6 +10,12 @@
 #include "web_audio.h"
 #endif
 
+#ifdef __EMSCRIPTEN__
+// Between the pulsing line and the fullscreen hint under it. Far enough that
+// the two read as a message and an aside rather than as one paragraph.
+static const int HINT_GAP = 16;
+#endif
+
 GS_Loading::GS_Loading() : GameState("GS_Loading"), engine(Engine::inst())
 {
 }
@@ -50,6 +56,20 @@ void GS_Loading::onRender()
 
 			y += lineDim.y;
 			begin = end + 1;
+		}
+
+		// A desktop browser offers no way to reach the game's own fullscreen,
+		// and Alt+Return is not a guess anybody makes, so it is said here - in
+		// the tooltip font, because it is an aside and not the message. Not on
+		// a phone: there the game takes the fullscreen itself on the first
+		// touch, and there is no Alt to press anyway.
+		Font* p_hintFont = GUI::inst().getToolTipFont();
+		if(p_hintFont && !engine.isPhone())
+		{
+			const std::string hint = localizeString("$WEB_FULLSCREEN_HINT");
+			Vec2i hintDim;
+			p_hintFont->measureText(hint, &hintDim, 0);
+			p_hintFont->renderText(hint, Vec2i(320 - hintDim.x / 2, y + HINT_GAP), color);
 		}
 
 		return;

@@ -2063,6 +2063,12 @@ $WEB_CLICK_TO_START
 §en:Click to start!¶Your browser needs this to play sound.
 §de:Zum Starten klicken!¶Der Browser braucht das für den Ton.
 
+$WEB_FULLSCREEN_HINT
+// Aside under the prompt above, in the browser build: a page has no button
+// for the game's own fullscreen, and nobody guesses Alt+Return unaided
+§en:Press Alt+Return / Alt+Enter to toggle fullscreen mode.
+§de:Drücke Alt+Return / Alt+Enter, um den Vollbildmodus umzuschalten.
+
 $CE_LEVEL_IN_ARCHIVE
 // Suffix shown in the campaign editor behind a level that is stored inside the
 // campaign file rather than as a loose file in the levels folder

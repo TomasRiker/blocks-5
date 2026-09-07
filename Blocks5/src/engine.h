@@ -176,6 +176,10 @@ public:
 	// Called from the DOM callback and nowhere else: the Fullscreen API needs a
 	// real user gesture, and the events out of the animation loop are not one.
 	void enforceTouchFullScreen();
+
+	// A coarse pointer and no fine one: a notebook with a touchscreen is not a
+	// phone. The rule itself lives in pre.js, where the page needs it too.
+	bool isPhone() const;
 #endif
 	Vec2i getDesktopSize() const;
 	// The window size a freshly installed game gets: the largest integer
