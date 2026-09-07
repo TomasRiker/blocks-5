@@ -2316,6 +2316,11 @@ $TR_KIND_SKIN
 §en:Skin
 §de:Skin
 
+$TR_KIND_PROGRESS
+// The player's own progress: which levels of which campaign are solved
+§en:Progress
+§de:Fortschritt
+
 $TR_REFRESH
 // Reads the list in the export window again
 §en:Refresh
@@ -2344,6 +2349,28 @@ $TR_CONFIRM_TITLE
 $TR_CONFIRM_DELETE
 §en:Really delete this file?
 §de:Diese Datei wirklich löschen?
+
+$TR_CONFIRM_DELETE_PROGRESS
+// Deleting the progress database is a different matter from deleting a
+// file the player can import again
+§en:Really delete your progress? Every campaign then begins again from the front.
+§de:Deinen Fortschritt wirklich löschen? Jede Kampagne fängt dann wieder von vorne an.
+
+$TR_CONFIRM_OVERWRITE
+// Asked before an import replaces a file of the same name; the name follows
+§en:This file is already there and will be replaced:
+§de:Diese Datei ist schon da und wird ersetzt:
+
+$TR_CONFIRM_MERGE
+// Asked when the file being imported is a progress database and there is
+// one already: replacing keeps only the new one, merging keeps both
+§en:There is a progress of your own already. Replace it, or merge the two?
+§de:Es gibt schon einen eigenen Fortschritt. Ersetzen oder beide zusammenführen?
+
+$TR_MERGE_DO
+// The third answer to that question
+§en:Merge
+§de:Zusammenführen
 
 $TR_DELETED
 // Shown after a successful delete, followed by the filename
@@ -2387,9 +2414,24 @@ $TR_IMPORTED_SKIN
 §en:Skin imported. Enter this name in the level settings:
 §de:Skin importiert. Diesen Namen in den Level-Einstellungen eintragen:
 
+$TR_IMPORTED_PROGRESS
+// No name follows this one: the progress database has only ever one
+§en:Progress imported.
+§de:Fortschritt importiert.
+
+$TR_MERGED
+§en:Progress merged.
+§de:Fortschritt zusammengeführt.
+
 $TR_ERROR_UNKNOWN
-§en:ERROR: This is not a level, a campaign, a music file or a skin.
-§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück oder ein Skin.
+§en:ERROR: This is not a level, a campaign, a music file, a skin or a progress.
+§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück, ein Skin oder ein Fortschritt.
+
+$TR_ERROR_PROGRESS_SAVE
+// The old database is back in place when this appears - what is missing
+// from it is the level just solved
+§en:ERROR: Your progress could not be saved.
+§de:FEHLER: Dein Fortschritt konnte nicht gespeichert werden.
 
 $TR_ERROR_BROKEN
 §en:ERROR: That file is damaged.

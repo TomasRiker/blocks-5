@@ -456,9 +456,16 @@ void GS_Game::onUpdate()
 		if(!ownLevel)
 		{
 			// record the progress
-			ProgressDB& db = ProgressDB::inst();
-			db.setLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
-			db.save();
+			std::vector<std::pair<std::string, uint> > solved;
+			solved.push_back(std::make_pair(p_currentCampaign->getFilename(), levelNumber));
+
+			if(!ProgressDB::inst().markSolved(solved))
+			{
+				// The old database is back in place, so nothing of the
+				// player's is lost - but this level is not in it, and finding
+				// that out at the next start would be worse than a red bar.
+				engine.showToast(Engine::TOAST_ERROR, loadString("$TR_ERROR_PROGRESS_SAVE"));
+			}
 		}
 
 		// next level, or back to the menu
@@ -657,7 +664,14 @@ int GS_Game::loadLevel()
 	   p_currentCampaign->hasBonusLevel())
 	{
 		// Were fewer levels completed than required?
-		if(ProgressDB::inst().getNumLevelsCompleted(p_currentCampaign->getFilename()) < p_currentCampaign->getLevels().size() - 1)
+		// Read afresh rather than kept: this runs once per loaded level, and the
+		// database may have been imported or merged since the game started.
+		const ProgressDB::Progress progress = ProgressDB::inst().query();
+		const ProgressDB::Progress::const_iterator entry =
+			progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
+		const size_t completed = (entry == progress.end()) ? 0 : entry->second.size();
+
+		if(completed < p_currentCampaign->getLevels().size() - 1)
 		{
 			return -2;
 		}

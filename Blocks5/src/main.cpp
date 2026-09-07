@@ -11,7 +11,6 @@
 #include "gs_loading.h"
 #include "gui.h"
 #include "cf_all.h"
-#include "progressdb.h"
 #ifdef __EMSCRIPTEN__
 #include "web_transfer.h"
 #endif
@@ -502,9 +501,6 @@ int runTheGame(int argc,
 
 	// Alternatively: read the data from the local directory
 	// fs.pushCurrentDir("data");
-
-	// load the progress
-	ProgressDB::inst().load();
 
 	bool fullScreen;
 

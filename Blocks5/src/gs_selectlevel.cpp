@@ -150,7 +150,7 @@ void GS_SelectLevel::onRender()
 		glVertex2i(40, 260);
 		glEnd();
 
-		uint n = ProgressDB::inst().getNumLevelsCompleted(p_currentCampaign->getFilename());
+		uint n = getNumLevelsCompleted();
 		double p = static_cast<double>(n) / static_cast<double>(p_currentCampaign->getLevels().size());
 		int pi = static_cast<int>(p * 220.0);
 
@@ -214,12 +214,14 @@ void GS_SelectLevel::onUpdate()
 		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 		{
 			// unlock every level of the campaign
+			std::vector<std::pair<std::string, uint> > solved;
 			for(uint i = 0; i < p_currentCampaign->getLevels().size(); i++)
 			{
-				ProgressDB::inst().setLevelCompleted(p_currentCampaign->getFilename(), i);
+				solved.push_back(std::make_pair(p_currentCampaign->getFilename(), i));
 			}
 
-			ProgressDB::inst().save();
+			ProgressDB::inst().markSolved(solved);
+			refreshProgress();
 
 			static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->activate();
 		}
@@ -350,8 +352,45 @@ void GS_SelectLevel::onGetFocus()
 {
 	engine.playMusic("menu.ogg");
 
+	// Here and not in onEnter(): coming back from a played level is a pop, and
+	// popGameState() gives the state underneath the focus without entering it
+	// again. Read there, a level just solved would still be shown as unsolved.
+	refreshProgress();
+
 	gui["SelectLevel"]->focus();
 	loadLevel();
+}
+
+void GS_SelectLevel::refreshProgress()
+{
+	progress = ProgressDB::inst().query();
+}
+
+uint GS_SelectLevel::getNumLevelsCompleted() const
+{
+	if(!p_currentCampaign) return 0;
+
+	const ProgressDB::Progress::const_iterator i =
+		progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
+	const uint completed = (i == progress.end()) ? 0 : static_cast<uint>(i->second.size());
+
+	// Never more than the campaign holds. A merged database can carry levels
+	// of a campaign that has since become shorter, or of another campaign of
+	// the same name, and the count drives a progress bar that would then be
+	// drawn past its own frame and a label that would read "45/42".
+	const uint total = static_cast<uint>(p_currentCampaign->getLevels().size());
+	return min(completed, total);
+}
+
+bool GS_SelectLevel::wasLevelCompleted(uint level) const
+{
+	if(!p_currentCampaign) return false;
+
+	const ProgressDB::Progress::const_iterator i =
+		progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
+	if(i == progress.end()) return false;
+
+	return i->second.find(level) != i->second.end();
 }
 
 void GS_SelectLevel::onLoseFocus()
@@ -530,21 +569,19 @@ int GS_SelectLevel::getLevelStatus(uint level)
 	if(!p_currentCampaign) return -2;
 
 	// Has the level been completed?
-	ProgressDB& db = ProgressDB::inst();
-	const std::string& campaign = p_currentCampaign->getFilename();
-	if(db.wasLevelCompleted(campaign, level)) return 2;
+	if(wasLevelCompleted(level)) return 2;
 
 	// Is it the last level, and does the campaign have a bonus level?
 	uint numLevelsInCampaign = static_cast<uint>(p_currentCampaign->getLevels().size());
 	if(level == numLevelsInCampaign - 1 && p_currentCampaign->hasBonusLevel())
 	{
 		// The level is unlocked only once all the others are completed.
-		if(db.getNumLevelsCompleted(campaign) == numLevelsInCampaign - 1) return 1;
+		if(getNumLevelsCompleted() == numLevelsInCampaign - 1) return 1;
 		else return -1;
 	}
 
 	// Is the level unlocked already?
-	uint numLevelsCompleted = db.getNumLevelsCompleted(campaign);
+	uint numLevelsCompleted = getNumLevelsCompleted();
 	uint numLevelsUnlocked = p_currentCampaign->getNumUnlockedLevels() + numLevelsCompleted;
 	if(level < numLevelsUnlocked) return 1;
 
