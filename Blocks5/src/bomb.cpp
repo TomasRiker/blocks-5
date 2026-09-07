@@ -99,7 +99,7 @@ void Bomb::onUpdate()
 						const double r = random(0.0, 6.283);
 						p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
 						p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
-						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.5 * -p.color.a / p.lifetime);
+						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.5f, 1.0f);
@@ -160,7 +160,7 @@ void Bomb::onUpdate()
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 								p.velocity = random(4.0, 7.0) * Vec2d(x, y).normalize() + Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
 								p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
-								p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.5 * -p.color.a / p.lifetime);
+								p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);
 								p.deltaRotation = random(-0.1f, 0.1f);
 								p.size = random(0.5f, 1.0f);
