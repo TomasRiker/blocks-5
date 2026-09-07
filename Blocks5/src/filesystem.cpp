@@ -208,7 +208,10 @@ File* FileSystem::openFile(const std::string& filename,
 		else p_file = new File_Archived(filePath, objectName, password, mode);
 	}
 
-	// Did an error occur?
+	// Did an error occur? An empty path leaves p_file at 0: convertPath()
+	// answers an empty name with an empty filePath, and the block above then
+	// constructs nothing.
+	if(!p_file) return 0;
 	if(p_file->getError()) return 0;
 	else return p_file;
 }

@@ -289,7 +289,7 @@ void printfLog(const char* p_format,
 
 	// build the parameter list and the string
 	va_start(vaList, p_format);
-	vsprintf(text, p_format, vaList);
+	vsnprintf(text, sizeof(text), p_format, vaList);
 	va_end(vaList);
 
 	char datetime[32];

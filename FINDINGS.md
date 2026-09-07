@@ -37,8 +37,23 @@ not to do.
     hotel and the static still points at the deleted object; `gs_game.cpp:395`
     gates the save action on nothing but `if(Hotel::p_hotelToSave)`, so the next
     press of `$A_SAVE_IN_HOTEL` - anywhere, in any level - calls `onSave()` on
-    freed memory. The smallest fix is to clear it in `Hotel::onRemove()`. That
-    changes what a player sees only in the case that is already broken.
+    freed memory.
+
+    The fix is `Hotel::onRemove()` clearing the static, and it must carry the
+    same guard `onUpdate` already uses: `if(p_hotelToSave == this)`. A level can
+    hold several `Player` objects - `Level::switchToNextPlayer` cycles through
+    them - so several characters can stand on several hotels at once. Only the
+    hotel under the *active* player claims the static, which is what keeps the
+    claim unique, and the `== this` in the `else` branch is what stops a hotel
+    with an inactive character on it from clearing somebody else's claim. An
+    unconditional clear in `onRemove` would reintroduce exactly that: blow up
+    one hotel while the active player stands on another and the second player
+    silently loses the ability to save. `onSave` may keep its unconditional
+    clear, because it only ever runs on the hotel that holds the claim.
+
+    `~Hotel()` is the wrong place whatever the guard: `Level` calls `onRemove()`
+    at the point of unregistering (level.cpp:2036), which is when the pointer
+    must stop being valid.
 
 2.  **electronics.cpp:135 and :151 - the sentinel is one F short.**
     Both loops set `v = 0x7FFFFFFF` (eight F) and then test `if(v != 0x7FFFFFF)`

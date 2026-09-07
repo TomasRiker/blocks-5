@@ -421,7 +421,7 @@ Object* Presets::instancePreset(const std::string& name,
 		if(p_element)
 		{
 			TiXmlElement* p_text = p_element->FirstChildElement("Text");
-			const char* p_textChr = p_text->GetText();
+			const char* p_textChr = p_text ? p_text->GetText() : 0;
 			if(p_textChr) text = p_textChr;
 		}
 

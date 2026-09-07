@@ -16,6 +16,7 @@ public:
 	void onRender(int layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
+	void onRemove();
 	void onSave();
 
 	static Hotel* p_hotelToSave;

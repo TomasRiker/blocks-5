@@ -78,6 +78,20 @@ void Hotel::onUpdate()
 	}
 }
 
+void Hotel::onRemove()
+{
+	// gs_game.cpp gates the save action on nothing but this pointer, so a level
+	// torn down while somebody stands on a hotel would leave it aimed at freed
+	// memory.
+	//
+	// Guarded as onUpdate() guards it, and for the same reason: a level can hold
+	// several players and switchToNextPlayer() cycles through them, so several
+	// characters can stand on several hotels at once and only the one under the
+	// active player holds the claim. Clearing it unconditionally would let a
+	// hotel that never held it take it from the hotel that does.
+	if(p_hotelToSave == this) p_hotelToSave = 0;
+}
+
 void Hotel::onSave()
 {
 	say("$G_HOTEL_GOODBYE", 2.0);

@@ -7,11 +7,12 @@ TileSet::TileSet(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
 
-	reload();
-
+	// Before reload(), which starts every tile from badTile.
 	badTile.position = Vec2i(-1, -1);
 	badTile.type = -1;
 	badTile.destroyTime = 0;
+
+	reload();
 }
 
 TileSet::~TileSet()

@@ -34,10 +34,10 @@ bool GUI::init()
 
 	// load the fonts
 	p_font = Manager<Font>::inst().request("font.xml");
+	if(!p_font) return false;
 	Font::Options options = p_font->getOptions();
 	options.shadows = 1;
 	p_font->setOptions(options);
-	if(!p_font) return false;
 
 	p_toolTipFont = Manager<Font>::inst().request("tooltip_font.xml");
 	if(!p_toolTipFont) return false;

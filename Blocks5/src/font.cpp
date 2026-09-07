@@ -247,14 +247,14 @@ void Font::renderTextPure(const std::string& text)
 			cursor.x /= options.tabSize;
 			cursor.x *= options.tabSize;
 		}
-		else if(r >= 3 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
+		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
 			options.italic = 4;
 			openTags++;
 			i += 2;
 		}
-		else if(r >= 4 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
+		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
 		{
 			if(openTags > 0)
 			{
@@ -416,14 +416,14 @@ void Font::measureText(const std::string& text,
 			cursor.x *= options.tabSize;
 			maximum.x = max(maximum.x, cursor.x);
 		}
-		else if(r >= 3 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
+		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
 			options.italic = 4;
 			openTags++;
 			i += 2;
 		}
-		else if(r >= 4 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
+		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'h' && text[i + 3] == '>')
 		{
 			if(openTags > 0)
 			{

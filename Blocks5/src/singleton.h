@@ -20,6 +20,7 @@ protected:
 
 	Singleton<T>& operator = (const Singleton<T>& rhs)
 	{
+		return *this;
 	}
 
 public:

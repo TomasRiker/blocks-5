@@ -238,7 +238,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	p_level->QueryIntAttribute("extendedAttributes", &extendedAttributes);
 	if(extendedAttributes)
 	{
-		int ndc;
+		int ndc = 0;
 		p_level->Attribute("numDiamondsCollected", &ndc);
 		numDiamondsCollected = ndc;
 	}
@@ -349,11 +349,11 @@ bool Level::load(TiXmlDocument* p_doc,
 
 				if(extendedAttributes)
 				{
-					int destroyTime;
+					int destroyTime = 0;
 					p_object->QueryIntAttribute("destroyTime", &destroyTime);
 					p_theObject->setDestroyTime(destroyTime);
 
-					int ghost;
+					int ghost = 0;
 					p_object->QueryIntAttribute("ghost", &ghost);
 					p_theObject->setGhost(ghost ? true : false);
 

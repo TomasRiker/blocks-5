@@ -58,7 +58,7 @@ void E_Barrage::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Electronics::loadExtendedAttributes(p_element);
 
-	int up; p_element->Attribute("up", &up);
+	int up = 0; p_element->Attribute("up", &up);
 	this->up = up ? true : false;
 
 	p_element->Attribute("shownState", &shownState);

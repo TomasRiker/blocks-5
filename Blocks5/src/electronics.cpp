@@ -132,7 +132,7 @@ void Electronics::loadExtendedAttributes(TiXmlElement* p_element)
 		if(v != 0x7FFFFFF) (*i)->writeValue(v);
 
 		sprintf(attrName, "oldValue%d", id);
-		v = 0x7FFFFFFF;
+		v = 0x7FFFFFF;
 		p_element->QueryIntAttribute(attrName, &v);
 		if(v != 0x7FFFFFF) (*i)->writeOldValue(v);
 	}
@@ -148,7 +148,7 @@ void Electronics::loadExtendedAttributes(TiXmlElement* p_element)
 		if(v != 0x7FFFFFF) (*i)->writeValue(v);
 
 		sprintf(attrName, "oldValue%d", id);
-		v = 0x7FFFFFFF;
+		v = 0x7FFFFFF;
 		p_element->QueryIntAttribute(attrName, &v);
 		if(v != 0x7FFFFFF) (*i)->writeOldValue(v);
 	}

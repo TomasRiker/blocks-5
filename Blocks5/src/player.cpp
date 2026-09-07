@@ -465,7 +465,7 @@ void Player::loadExtendedAttributes(TiXmlElement* p_element)
 	{
 		char attrName[256] = "";
 		sprintf(attrName, "inventory%d", i);
-		int inv;
+		int inv = 0;
 		p_element->Attribute(attrName, &inv);
 		inventory[i] = inv;
 	}
