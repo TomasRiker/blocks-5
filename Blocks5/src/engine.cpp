@@ -4263,7 +4263,10 @@ std::string Engine::getBindingMarkup(const std::string& actionName)
 		if(p_action->primary >= 0) out = "<k>" + getVKDisplayName(p_action->primary) + "</k>";
 		if(p_action->secondary >= 0)
 		{
-			if(!out.empty()) out += " / ";
+			// Half spaces around the slash: each keycap already stands off its
+			// own frame, so a full space either side leaves the slash adrift
+			// between the two keys instead of between two words.
+			if(!out.empty()) { out += HALF_SPACE; out += '/'; out += HALF_SPACE; }
 			out += "<k>" + getVKDisplayName(p_action->secondary) + "</k>";
 		}
 	}

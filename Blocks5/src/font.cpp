@@ -32,6 +32,16 @@ const int KEY_BOX_GROW = 0;
 
 namespace
 {
+	// Where a line may be broken. The first two are replaced by the break and
+	// the other two already are one, which is why the caller has to tell them
+	// apart after searching for the last of them.
+	const char BREAK_CHARACTERS[] = { ' ', HALF_SPACE, '\n', '\xB6', 0 };
+
+	bool isBreakSpace(unsigned char c)
+	{
+		return c == ' ' || c == HALF_SPACE;
+	}
+
 	// Close the innermost keycap still open: its frame runs from the left edge
 	// that was remembered when it opened to wherever the cursor stands now.
 	void closeKeyBox(std::vector<Vec4i>& boxes,
@@ -303,6 +313,10 @@ void Font::renderTextPure(const std::string& text)
 			cursor.x /= options.tabSize;
 			cursor.x *= options.tabSize;
 		}
+		else if(c == HALF_SPACE)
+		{
+			cursor.x += getCharacterWidth(c) + options.charSpacing;
+		}
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
@@ -520,6 +534,13 @@ void Font::measureText(const std::string& text,
 			cursor.x *= options.tabSize;
 			maximum.x = max(maximum.x, cursor.x);
 		}
+		else if(c == HALF_SPACE)
+		{
+			maximum.x = max(maximum.x, cursor.x + getCharacterWidth(c) + options.italic);
+			maximum.y = max(maximum.y, cursor.y + lineHeight);
+
+			cursor.x += getCharacterWidth(c) + options.charSpacing;
+		}
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
@@ -605,8 +626,8 @@ std::string Font::adjustText(const std::string& text,
 				// Break in front of it, at the last space of this line if there
 				// is one. The tail is re-measured rather than counted
 				// backwards, since it may hold a keycap of its own.
-				const size_t lastBreak = out.find_last_of(" \n\xB6");
-				if(lastBreak != std::string::npos && out[lastBreak] == ' ')
+				const size_t lastBreak = out.find_last_of(BREAK_CHARACTERS);
+				if(lastBreak != std::string::npos && isBreakSpace(out[lastBreak]))
 				{
 					out[lastBreak] = '\n';
 					Vec2i tailDim;
@@ -648,8 +669,8 @@ std::string Font::adjustText(const std::string& text,
 		}
 		else
 		{
-			const CharacterInfo& info = charInfo[c];
-			int currentWidth = cursorX + info.size.x;
+			const int width = getCharacterWidth(c);
+			int currentWidth = cursorX + width;
 
 			if(currentWidth > maxWidth)
 			{
@@ -664,7 +685,7 @@ std::string Font::adjustText(const std::string& text,
 						j = out.rend();
 						break;
 					}
-					else if(d == ' ')
+					else if(isBreakSpace(d))
 					{
 						*j = '\n';
 						cursorX = back;
@@ -678,7 +699,7 @@ std::string Font::adjustText(const std::string& text,
 						const size_t back_tag = (d == '>')
 							? tagEndingAt(out, static_cast<size_t>(out.rend() - j)) : 0;
 						if(back_tag > 0) j += back_tag - 1;
-						else back += charInfo[d].size.x + options.charSpacing;
+						else back += getCharacterWidth(d) + options.charSpacing;
 					}
 				}
 
@@ -687,17 +708,25 @@ std::string Font::adjustText(const std::string& text,
 					// brutal line break
 					out[out.length() - 1] = '\n';
 					out.append(1, c);
-					cursorX = info.size.x + options.charSpacing;
+					cursorX = width + options.charSpacing;
 				}
 			}
 			else
 			{
-				cursorX += info.size.x + options.charSpacing;
+				cursorX += width + options.charSpacing;
 			}
 		}
 	}
 
 	return out;
+}
+
+int Font::getCharacterWidth(unsigned char c) const
+{
+	// Half of this font's own space, so the gap keeps its proportion in the
+	// tooltip font as well.
+	if(c == HALF_SPACE) return charInfo[' '].size.x / 2;
+	return charInfo[c].size.x;
 }
 
 int Font::getLineHeight() const

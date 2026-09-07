@@ -7,6 +7,19 @@
 
 class Texture;
 
+// A space of half a space's width, and a space in every other respect: it is
+// measured like one and a line breaks at one, replacing it exactly as a break
+// replaces a space. It stands between the two keycaps of an action bound to
+// two keys, where a full space either side of the slash pushes them apart -
+// each keycap already carries the padding of its own frame.
+//
+// A byte rather than an element like <k>, because a break is a matter of
+// characters: adjustText() looks backwards for the last one it may cut at, and
+// an element would have to be taught to be a break as well as to be skipped.
+// The byte is one no text can hold - the same idiom as the pilcrow that means
+// a line break inside a localized string, only this one is never typed.
+const char HALF_SPACE = '\x1F';
+
 class Font : public Resource<Font>
 {
 	friend class Manager<Font>;
@@ -66,6 +79,10 @@ private:
 	~Font();
 
 	static bool forceReload() { return false; }
+
+	// What one character advances the cursor by, before the character spacing:
+	// its own glyph, or half a space's for the half space, which has no glyph.
+	int getCharacterWidth(unsigned char c) const;
 
 	int lineHeight;
 	int offset;

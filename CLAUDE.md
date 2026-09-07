@@ -1728,6 +1728,23 @@ renderer is then never asked to draw half a frame. That is the whole answer to l
 inside a keycap, and it is why the run is measured rather than walked character by character:
 the padding either side belongs to its width.
 
+**The right side of the frame carries the slant.** An italic glyph leans right — its top is
+drawn `options.italic` pixels further along than its foot, while the cursor advances by the
+upright width — so a frame that ends where the cursor does cuts the last letter of the key
+name. That is every speech balloon, which sets italic for the whole text: the hotel's
+`[Enter] / [Num Enter]` had the *r* of each word touching the frame. The advance after `</k>`
+grows by the same amount, or the following word would move into the frame instead; the left
+side needs nothing, since the first letter's foot still stands on the cursor.
+
+**Between the two keys of one binding stands a half space** — `HALF_SPACE` in `font.h`, half
+of that font's own space and a space in every other respect: measured like one, and a line
+breaks at one and replaces it exactly as a break replaces a space. Each keycap already stands
+off its own frame, so a full space either side of the slash leaves the slash adrift between
+the two keys instead of the pair reading as one binding. It is a byte rather than an element
+like `<k>` because breaking is a matter of characters: `adjustText` searches backwards for the
+last one it may cut at, and an element would have to be taught to be a break as well as to be
+skipped over.
+
 **A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey`
 (`util.h`) is the one place that says so, and everything reading the SDL key itself goes
 through it: confirming a dialog, playing the selected level, leaving the credits, the level
