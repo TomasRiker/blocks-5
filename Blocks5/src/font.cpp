@@ -11,7 +11,11 @@
 const int KEY_BOX_PAD = 3;
 const int KEY_BOX_GAP = 2;
 
-// What one side of a box costs the line, frame included.
+// What one side of a box costs the line, frame included. The right side costs
+// options.italic on top of it: an italic glyph leans right, its top drawn that
+// many pixels further along than its foot, so the last letter of a keycap
+// stands outside a frame that ends where the cursor does. The left side needs
+// nothing, because the first letter's foot is still on the cursor.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
 // How far the frame stands off the line box, which is where it is anchored:
@@ -33,7 +37,8 @@ namespace
 	void closeKeyBox(std::vector<Vec4i>& boxes,
 					 std::vector<Vec2i>& open,
 					 int cursorX,
-					 int lineHeight)
+					 int lineHeight,
+					 int italic)
 	{
 		if(open.empty()) return;
 
@@ -41,7 +46,7 @@ namespace
 		open.pop_back();
 		boxes.push_back(Vec4i(start.x,
 							  start.y - KEY_BOX_GROW,
-							  cursorX + KEY_BOX_PAD,
+							  cursorX + KEY_BOX_PAD + italic,
 							  start.y + lineHeight + KEY_BOX_GROW));
 	}
 }
@@ -323,8 +328,8 @@ void Font::renderTextPure(const std::string& text)
 		}
 		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'k' && text[i + 3] == '>')
 		{
-			closeKeyBox(boxes, openBoxes, cursor.x, lineHeight);
-			cursor.x += KEY_BOX_SIDE;
+			closeKeyBox(boxes, openBoxes, cursor.x, lineHeight, options.italic);
+			cursor.x += KEY_BOX_SIDE + options.italic;
 			i += 3;
 		}
 		else
@@ -365,7 +370,7 @@ void Font::renderTextPure(const std::string& text)
 		optionsStack.pop();
 		openTags--;
 	}
-	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, lineHeight);
+	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, lineHeight, options.italic);
 
 	glEnd();
 	p_texture->unbind();
@@ -542,7 +547,7 @@ void Font::measureText(const std::string& text,
 		}
 		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'k' && text[i + 3] == '>')
 		{
-			cursor.x += KEY_BOX_SIDE;
+			cursor.x += KEY_BOX_SIDE + options.italic;
 			maximum.x = max(maximum.x, cursor.x);
 			i += 3;
 		}
