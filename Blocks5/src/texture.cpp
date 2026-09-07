@@ -218,6 +218,18 @@ void Texture::keepInMemory()
 	if(!p_rgba && texID) reload();
 }
 
+void Texture::releasePixels()
+{
+	doKeepInMemory = false;
+
+	if(p_rgba)
+	{
+		SDL_UnlockSurface(p_rgba);
+		SDL_FreeSurface(p_rgba);
+		p_rgba = 0;
+	}
+}
+
 bool Texture::hasPixels() const
 {
 	return p_rgba != 0;

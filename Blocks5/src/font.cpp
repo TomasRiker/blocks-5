@@ -47,7 +47,7 @@ namespace
 	void closeKeyBox(std::vector<Vec4i>& boxes,
 					 std::vector<Vec2i>& open,
 					 int cursorX,
-					 int lineHeight,
+					 int height,
 					 int italic)
 	{
 		if(open.empty()) return;
@@ -57,7 +57,7 @@ namespace
 		boxes.push_back(Vec4i(start.x,
 							  start.y - KEY_BOX_GROW,
 							  cursorX + KEY_BOX_PAD + italic,
-							  start.y + lineHeight + KEY_BOX_GROW));
+							  start.y + height + KEY_BOX_GROW));
 	}
 }
 
@@ -65,6 +65,10 @@ Font::Font(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
 	listBase = 0;
+	lineHeight = 0;
+	offset = 0;
+	capTop = 0;
+	capBottom = 0;
 
 	// default options
 	options.tabSize = 80;
@@ -152,6 +156,8 @@ void Font::reload()
 		error = 2;
 		return;
 	}
+
+	measureCapBox();
 
 	// clear the cache
 	stringCache.clear();
@@ -295,6 +301,7 @@ void Font::renderTextPure(const std::string& text)
 	// edge and the line top of every <k> not yet closed.
 	std::vector<Vec4i> boxes;
 	std::vector<Vec2i> openBoxes;
+	const Vec2i keyBoxRows = getKeyBoxRows(options.lineSpacing);
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
@@ -337,12 +344,12 @@ void Font::renderTextPure(const std::string& text)
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'k' && text[i + 2] == '>')
 		{
 			cursor.x += KEY_BOX_SIDE;
-			openBoxes.push_back(Vec2i(cursor.x - KEY_BOX_PAD, cursor.y - offset));
+			openBoxes.push_back(Vec2i(cursor.x - KEY_BOX_PAD, cursor.y + keyBoxRows.x));
 			i += 2;
 		}
 		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'k' && text[i + 3] == '>')
 		{
-			closeKeyBox(boxes, openBoxes, cursor.x, lineHeight, options.italic);
+			closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, options.italic);
 			cursor.x += KEY_BOX_SIDE + options.italic;
 			i += 3;
 		}
@@ -384,7 +391,7 @@ void Font::renderTextPure(const std::string& text)
 		optionsStack.pop();
 		openTags--;
 	}
-	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, lineHeight, options.italic);
+	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, options.italic);
 
 	glEnd();
 	p_texture->unbind();
@@ -719,6 +726,89 @@ std::string Font::adjustText(const std::string& text,
 	}
 
 	return out;
+}
+
+void Font::measureCapBox()
+{
+	// Where the letters really sit inside a glyph cell. lineHeight and offset
+	// describe the line, not the ink, and a font is free to hang the one lower
+	// than the other: the note's font ends its letters nine pixels above the
+	// foot of its line box, so a keycap frame hung off the line box sits under
+	// the word instead of around it.
+	//
+	// Without an image the line box is the best guess there is, and it is what
+	// the two fonts in data/ measure out to anyway.
+	capTop = -offset;
+	capBottom = -offset + lineHeight - 1;
+
+	if(!p_texture) return;
+
+	// Nobody else keeps a font's image in memory, so asking for it here and
+	// giving it back leaves every other reader untouched - and where it is
+	// still there from the load, it is not ours to hand back.
+	const bool wasInMemory = p_texture->hasPixels();
+	if(!wasInMemory) p_texture->keepInMemory();
+
+	if(p_texture->hasPixels())
+	{
+		// The mode of the first and of the last inked row, over the printable
+		// characters: the row most letters begin at is the top of a capital
+		// and the row most of them end at is the baseline. Taking the extremes
+		// instead would let one brace and one comma decide, and those two are
+		// exactly the glyphs a key name never contains.
+		std::vector<int> topCount(256, 0);
+		std::vector<int> bottomCount(256, 0);
+
+		for(int c = 32; c < 127; c++)
+		{
+			const CharacterInfo& info = charInfo[c];
+			int top = -1, bottom = -1;
+
+			for(int y = 0; y < info.size.y && y < 256; y++)
+			{
+				for(int x = 0; x < info.size.x; x++)
+				{
+					if(p_texture->getPixel(info.position + Vec2i(x, y)).w > 0.0)
+					{
+						if(top < 0) top = y;
+						bottom = y;
+						break;
+					}
+				}
+			}
+
+			if(top >= 0)
+			{
+				topCount[top]++;
+				bottomCount[bottom]++;
+			}
+		}
+
+		int best = 0;
+		for(int y = 0; y < 256; y++) if(topCount[y] > topCount[best]) best = y;
+		if(topCount[best] > 0) capTop = best;
+
+		best = 0;
+		for(int y = 0; y < 256; y++) if(bottomCount[y] > bottomCount[best]) best = y;
+		if(bottomCount[best] > 0) capBottom = best;
+	}
+
+	if(!wasInMemory) p_texture->releasePixels();
+}
+
+Vec2i Font::getKeyBoxRows(double lineSpacing) const
+{
+	// As tall as the line, and never taller than the pitch the text is set at:
+	// that is what lets two keycaps on lines above one another share an edge
+	// instead of overlapping, which is also why KEY_BOX_GROW is 0.
+	const int pitch = static_cast<int>(lineSpacing * lineHeight);
+	const int height = max(1, min(lineHeight, pitch));
+
+	// Centred on the letters, and where that leaves one row over, it goes
+	// below the baseline rather than above the capitals: descenders hang into
+	// it - "Backspace", "Page Up", "Strg" - and nothing at all reaches above a
+	// capital in a key's name.
+	return Vec2i((capTop + capBottom - height + 2) / 2, height);
 }
 
 int Font::getCharacterWidth(unsigned char c) const

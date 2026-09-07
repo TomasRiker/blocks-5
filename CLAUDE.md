@@ -1716,11 +1716,22 @@ otherwise be found by a player.
 **`<k>…</k>` is the keycap**, and the font draws the frame. It cannot go in the glyph batch —
 it carries no texture — so the rectangles are collected while the text is laid out and drawn
 once the batch is closed, which also carries them through the two shadow passes with the
-glyphs; a keycap without the same shadow would look pasted on. `KEY_BOX_GROW` is 0 because
-these fonts fill their line box (the main font's ink runs from row 1 to row 15 of a line 15
-high), and a frame any taller collides with the one on the line below — which is not a rare
-case: two rows of the help table and any wrapped line of a hint note have keycaps directly
-above one another.
+glyphs; a keycap without the same shadow would look pasted on.
+
+**The frame is as tall as the line and centred on the letters, not on the line box.**
+`lineHeight` and `offset` describe the line a font is *set* at, and a font is free to hang that
+line lower than its own ink: the note's font ends its letters nine pixels above the foot of its
+line box, so a frame drawn on the line box sat under the word instead of around it, with its
+top edge through the capitals. `Font::measureCapBox` reads the font's image at load instead and
+takes the **mode** of the first and of the last inked row over the printable characters — which
+is the top of a capital and the baseline, and which one deep comma or one tall brace cannot
+move, as the extremes could. The pixels are borrowed and handed straight back
+(`Texture::releasePixels`); only the debris sampling holds on to them. The height stays the
+line's, capped at the pitch (`lineHeight × lineSpacing`), and that cap is what lets two keycaps
+on lines above one another share an edge instead of overlapping — not a rare case: two rows of
+the help table and any wrapped line of a hint note have keycaps directly above one another, and
+it is the same reason `KEY_BOX_GROW` is 0. For the two fonts in `data/` the measurement comes
+out as the line box to the pixel, so nothing in the help table or in a speech balloon moved.
 
 **A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole
 `<k>…</k>` run moves down together, the way any typesetter treats an inline box — and the

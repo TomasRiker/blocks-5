@@ -25,6 +25,13 @@ public:
 	// Without that, the debris sampling would depend on every caller making
 	// this promise before the first bind().
 	void keepInMemory();
+
+	// Give the pixels back: anything that reads them once at load time asks
+	// for them, reads, and hands them back, and only a reader that keeps
+	// asking - the debris sampling - holds on to them. Whoever did not ask
+	// must not call this, or it takes the pixels from the one who did.
+	void releasePixels();
+
 	Vec4d getPixel(const Vec2i& where) const;
 
 	// Are the pixels still in memory? bind() frees them unless keepInMemory()

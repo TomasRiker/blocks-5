@@ -84,8 +84,26 @@ private:
 	// its own glyph, or half a space's for the half space, which has no glyph.
 	int getCharacterWidth(unsigned char c) const;
 
+	// Read capTop and capBottom off the font's own image.
+	void measureCapBox();
+
+	// The rows a keycap frame occupies inside a glyph cell, as (top, height).
+	// The height is the line's, so that keycaps on two lines above one another
+	// share an edge rather than collide; the position is the letters', not the
+	// line box's.
+	Vec2i getKeyBoxRows(double lineSpacing) const;
+
 	int lineHeight;
 	int offset;
+
+	// The row of a glyph cell that most letters begin at and the row most of
+	// them end at - the mode over the printable characters, so that one deep
+	// comma or one tall brace does not move the answer. lineHeight and offset
+	// do not say this: a font may hang its line lower than its ink, and the
+	// note's font does.
+	int capTop;
+	int capBottom;
+
 	CharacterInfo charInfo[256];
 	Texture* p_texture;
 	Options options;
