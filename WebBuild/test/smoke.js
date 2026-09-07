@@ -1,6 +1,6 @@
-// smoke.js - eine Runde durch die Oberflaeche, die alles anfasst, was in
-// dieser Fassung neu ist: den Manager, den Optionsdialog samt Tastenbelegung,
-// und die Reihenfolge, in der Escape die Fenster schliesst.
+// smoke.js - one round through the GUI, touching everything that is new in
+// this version: the Manager, the options dialog with its key bindings, and the
+// order in which Escape closes the panes.
 //
 //   cd WebBuild && ./build.sh hooks && cd test
 //   NODE_PATH=/opt/node22/lib/node_modules node smoke.js
@@ -18,12 +18,12 @@ const zlib = require('zlib');
 	await h.expectState(page, 'GS_Menu');
 	await h.shot(page, 'smoke-1-menu');
 
-	// --- Optionen: aufmachen, wieder zu ---------------------------------------
+	// --- options: open, close again -------------------------------------------
 	await h.clickPath(page, 'Menu.Options');
 	await h.expectShown(page, 'OptionsPane.Options');
 	await h.shot(page, 'smoke-2-options');
 
-	// Ohne Auswahl in der Liste sind die vier Knoepfe darunter abgeschaltet.
+	// Without a selection in the list the four buttons below it are disabled.
 	const opts = await h.dump(page);
 	for (const name of ['OptionsPane.Options.PrimaryKey', 'OptionsPane.Options.SecondaryKey',
 	                    'OptionsPane.Options.ResetSelected']) {
@@ -31,13 +31,13 @@ const zlib = require('zlib');
 		if (el.active) h.note(name + ' ist ohne Auswahl bedienbar, sollte es aber nicht sein');
 	}
 
-	// Escape gehoert dem Dialog, nicht dem Menue darunter - sonst beendet es das
-	// Spiel, statt den Dialog zu schliessen.
+	// Escape belongs to the dialog, not to the menu underneath - otherwise it
+	// quits the game instead of closing the dialog.
 	await h.key(page, 'Escape');
 	await h.expectShown(page, 'OptionsPane.Options', false);
 	await h.expectState(page, 'GS_Menu');
 
-	// --- Manager: die vier Arten durchschalten --------------------------------
+	// --- Manager: step through the four kinds ---------------------------------
 	await h.clickPath(page, 'Menu.Manager');
 	await h.expectShown(page, 'Menu.ManagerPane.Manager');
 	for (const kind of ['KindLevel', 'KindCampaign', 'KindMusic', 'KindSkin']) {
@@ -45,10 +45,10 @@ const zlib = require('zlib');
 	}
 	await h.shot(page, 'smoke-3-manager');
 
-	// Auf einem frischen Profil ist alles, was in diesen Listen steht,
-	// mitgeliefert - und mitgeliefert heisst: ausgeben ja, loeschen nein.
-	// Genau das ist die Regel aus Transfer::isBuiltIn(), und sie ist von
-	// aussen sonst nur daran zu erkennen, dass ein Knopf grau bleibt.
+	// On a fresh profile everything in these lists is shipped - and shipped
+	// means: export yes, delete no. That is exactly the rule from
+	// Transfer::isBuiltIn(), and from outside the only sign of it is a button
+	// staying grey.
 	for (const kind of ['KindLevel', 'KindCampaign', 'KindSkin']) {
 		await h.clickPath(page, 'Menu.ManagerPane.Manager.' + kind);
 		const mgr = await h.dump(page);
@@ -60,30 +60,30 @@ const zlib = require('zlib');
 		}
 	}
 
-	// Musik bringt das Spiel keine mit, die Liste ist also leer und beide
-	// Knoepfe bleiben grau.
+	// The game ships no music of its own: the list is empty and both buttons
+	// stay grey.
 	await h.clickPath(page, 'Menu.ManagerPane.Manager.KindMusic');
 	const music = await h.dump(page);
 	for (const name of ['Menu.ManagerPane.Manager.Export', 'Menu.ManagerPane.Manager.Delete']) {
 		if (h.find(music, name).active) h.note(name + ' ist bedienbar, obwohl die Liste leer ist');
 	}
 
-	// Escape schliesst den Manager und nicht das Spiel.
+	// Escape closes the Manager and not the game.
 	await h.key(page, 'Escape');
 	await h.expectShown(page, 'Menu.ManagerPane.Manager', false);
 	await h.expectState(page, 'GS_Menu');
 	await h.shot(page, 'smoke-4-back');
 
-	// Ein Tab im Hintergrund muss still sein. Das Spiel kann sich darum nicht
-	// selbst kuemmern: ohne requestAnimationFrame laeuft kein Logiktakt, und
-	// Emscriptens SDL meldet eine verborgene Seite ohnehin als SDL_WINDOWEVENT,
-	// wonach das Spiel gar nicht horcht. Die Seite haelt deshalb den
-	// AudioContext an - sonst stirbt zwar die Musik von selbst, wenn ihre
-	// Warteschlange leerlaeuft, aber ein Dauerton wie der Laser liefe weiter.
+	// A tab in the background must be silent. The game cannot see to that
+	// itself: without requestAnimationFrame no logic tick runs, and Emscripten's
+	// SDL reports a hidden page as SDL_WINDOWEVENT anyway, which the game does
+	// not listen for. The page therefore suspends the AudioContext - without it
+	// the music falls silent on its own once its queue runs dry, but a
+	// continuous sound like the laser would keep going.
 	//
-	// Headless-Chromium kennt keine echte Tab-Sichtbarkeit; bringToFront laesst
-	// document.hidden auf false. Geschickt wird deshalb genau das Ereignis, das
-	// der Browser beim Wegschalten schickt.
+	// Headless Chromium has no real tab visibility; bringToFront leaves
+	// document.hidden at false. What is dispatched is therefore exactly the
+	// event the browser sends when switching away.
 	const setHidden = (value) => page.evaluate((v) => {
 		Object.defineProperty(document, 'hidden', { configurable: true, get: () => v });
 		Object.defineProperty(document, 'visibilityState',
@@ -112,10 +112,10 @@ const zlib = require('zlib');
 		if (shown !== 'running') h.note('sichtbarer Tab: AudioContext "' + shown + '", erwartet "running"');
 	}
 
-	// Und die Engine selbst muss den Fokuswechsel bemerken - im Browser meldet
-	// SDL ihn als SDL_WINDOWEVENT statt als SDL_ACTIVEEVENT, und ohne den
-	// passenden Zweig liefe das Spiel im Hintergrund weiter, statt wie ueberall
-	// sonst anzuhalten. Beide Wege dorthin werden geprueft.
+	// And the Engine itself must notice the focus change - in the browser SDL
+	// reports it as SDL_WINDOWEVENT instead of SDL_ACTIVEEVENT, and without the
+	// matching branch the game would keep running in the background instead of
+	// pausing as it does everywhere else. Both routes there are checked.
 	const appActive = async () => (await h.dump(page)).appActive;
 	for (const [name, away, back] of [
 		['blur/focus', () => window.dispatchEvent(new Event('blur')),
@@ -135,11 +135,11 @@ const zlib = require('zlib');
 	}
 	await h.expectState(page, 'GS_Menu');
 
-	// --- Bildschirmfoto -------------------------------------------------------
-	// F11 hat hier kein Verzeichnis, in das es schreiben koennte, also faellt
-	// das Bild in die Downloads des Spielers. Geprueft wird der ganze Weg: dass
-	// der Browser ueberhaupt einen Download bekommt, und dass darin ein PNG
-	// steht, das der Kodierer des Spiels (src/img_save.cpp) erzeugt hat.
+	// --- screenshot -----------------------------------------------------------
+	// F11 has no directory here to write to; the picture lands in the player's
+	// downloads. The whole path is checked: that the browser gets a download at
+	// all, and that it holds a PNG produced by the game's own encoder
+	// (src/img_save.cpp).
 	const download = new Promise(res => page.once('download', d => res(d)));
 	await h.key(page, 'F11');
 	const shot = await Promise.race([download,
@@ -153,9 +153,8 @@ const zlib = require('zlib');
 		if (!/^blocks5_.*\.png$/.test(shot.suggestedFilename())) {
 			h.note('Bildschirmfoto heisst "' + shot.suggestedFilename() + '"');
 		}
-		// Signatur, IHDR und ein IDAT, das sich auf genau (Breite*3+1)*Hoehe
-		// Byte entpackt - eine abgeschnittene Datei faellt daran auf, an ihrer
-		// Groesse allein nicht.
+		// Signature, IHDR and an IDAT that unpacks to exactly (width*3+1)*height
+		// bytes - that is what catches a truncated file; its size alone does not.
 		if (png.slice(0, 8).toString('hex') !== '89504e470d0a1a0a') {
 			h.note('Bildschirmfoto hat keine PNG-Signatur');
 		} else {

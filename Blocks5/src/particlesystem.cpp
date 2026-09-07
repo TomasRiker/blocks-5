@@ -37,7 +37,7 @@ void ParticleSystem::render()
 	BEGIN_PROFILE(renderParticleSystem)
 #endif
 
-	// TODO: Parallelisierung: n Threads bereiten jeweils einen Vertex-Buffer vor, die dann der Reihe nach gezeichnet werden
+	// TODO: parallelization: n threads each prepare a vertex buffer, which are then drawn one after another
 
 	p_sprites->bind();
 
@@ -123,9 +123,9 @@ void ParticleSystem::render()
 #endif
 }
 
-// Aus wie alle anderen PROFILE_-Schalter im Baum. Angeschaltet schreibt jeder
-// Durchgang mit mehr als 1000 Partikeln eine Zeile ins Protokoll und auf die
-// Konsole - im Spiel also fortwaehrend.
+// Off like every other PROFILE_ toggle in the tree. Switched on, every run
+// with more than 1000 particles writes a line to the log and to the console,
+// which during play means continuously.
 // #define PROFILE_PARTICLESYSTEM_UPDATE
 #define PREFETCH_UPDATE
 
@@ -157,7 +157,7 @@ void ParticleSystem::update()
 		p.size += p.deltaSize;
 		--p.lifetime;
 
-		// alte und zu kleine Partikel loeschen
+		// delete old and too small particles
 		if(!p.lifetime || p.size <= 0.0f) i = particles.erase(i);
 		else
 		{

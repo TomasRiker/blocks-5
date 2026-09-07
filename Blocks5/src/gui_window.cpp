@@ -20,17 +20,17 @@ void GUI_Window::onRender()
 
 	if(useSkin())
 	{
-		// Titelleiste zeichnen
+		// draw the title bar
 		gui.renderFrame(Vec2i(0, -4), Vec2i(size.x, 24), front ? Vec2i(48, 0) : Vec2i(0, 0));
 
-		// Hintergrund zeichnen
+		// draw the background
 		gui.renderFrame(Vec2i(0, 20), Vec2i(size.x, size.y - 20), front ? Vec2i(48, 48) : Vec2i(0, 48));
 
 		offset = -4;
 	}
 	else
 	{
-		// Hintergrund und Titelleiste zeichnen
+		// draw the background and the title bar
 		glBegin(GL_QUADS);
 		glColor4d(0.65, 0.65, 0.65, 1.0);
 		glVertex2i(0, 20);
@@ -48,7 +48,7 @@ void GUI_Window::onRender()
 		glVertex2i(0, 20);
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(1.0, 1.0, 1.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -62,7 +62,7 @@ void GUI_Window::onRender()
 		glEnd();
 	}
 
-	// Titel schreiben
+	// write the title
 	Vec2i dim;
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);

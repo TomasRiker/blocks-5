@@ -20,7 +20,7 @@ Teleporter::~Teleporter()
 
 void Teleporter::updateSprites()
 {
-	// Teleporter
+	// teleporter
 	sprites.add(Vec2i((anim / 3 % 8) * 32, 64), subType == 0 ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.0, 1.0, 1.0, 1.0));
 }
 
@@ -32,7 +32,7 @@ void Teleporter::onRender(int layer,
 	{
 		if(targetPosition != position)
 		{
-			// Ziel markieren
+			// mark the target
 			glPushAttrib(GL_ENABLE_BIT);
 			glDisable(GL_TEXTURE_2D);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
@@ -59,8 +59,8 @@ void Teleporter::onUpdate()
 {
 	if(level.isElectricityOn())
 	{
-		// Befindet sich ein Objekt auf dem Teleporter, das vorher noch nicht da war?
-		// Oder ist der Zielort jetzt frei fuer ein Objekt, dessen Teleportation vorher gescheitert ist?
+		// Is there an object on the teleporter that had not been there before?
+		// Or is the target position now free for an object whose teleport failed before?
 		std::vector<Object*> newObjectsOnMe = level.getObjectsAt(position);
 		for(std::vector<Object*>::const_iterator i = newObjectsOnMe.begin(); i != newObjectsOnMe.end(); ++i)
 		{
@@ -73,7 +73,7 @@ void Teleporter::onUpdate()
 				if(subType == 0 ||
 				   (subType == 1 && p_obj->getType() != "Player" && p_obj->getType() != "Enemy"))
 				{
-					// Objekt teleportieren
+					// teleport the object
 					p_obj->teleportTo(targetPosition);
 				}
 				else

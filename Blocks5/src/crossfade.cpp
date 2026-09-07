@@ -21,7 +21,7 @@ void Crossfade::render(double t,
 
 void Crossfade::setupTexCoords()
 {
-	// Pixel-Texturkoordinaten
+	// pixel texture coordinates
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();

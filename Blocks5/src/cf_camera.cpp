@@ -36,7 +36,7 @@ void CF_Camera::render(double t,
 
 	glEnable(GL_TEXTURE_2D);
 
-	// altes Bild zeichnen
+	// draw the old image
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -50,7 +50,7 @@ void CF_Camera::render(double t,
 	glVertex3i(-1, -1, 0);
 	glEnd();
 
-	// neues Bild zeichnen
+	// draw the new image
 	glBindTexture(GL_TEXTURE_2D, newImageID);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);

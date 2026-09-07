@@ -9,7 +9,7 @@ IMPL_CTOR(GUI_MultiLineEditBox)
 	scroll = Vec2i(0, 0);
 	text = "MultiLineEditBox";
 
-	// Scroll-Bars erzeugen
+	// create the scroll bars
 	p_scrollBarH = new GUI_ScrollBar("ScrollBarH", this, Vec2i(0, size.y - 16), Vec2i(size.x - 16, 16));
 	p_scrollBarV = new GUI_ScrollBar("ScrollBarV", this, Vec2i(size.x - 16, 0), Vec2i(16, size.y - 16));
 	p_scrollBarH->connectChanged(this, &GUI_MultiLineEditBox::handleScrollBarChanged);
@@ -31,12 +31,12 @@ void GUI_MultiLineEditBox::onRender()
 
 	if(useSkin())
 	{
-		// Eingabefeld zeichnen
+		// draw the edit box
 		gui.renderFrame(Vec2i(0, 0), size - Vec2i(16, 16), focused ? Vec2i(48, 144) : Vec2i(0, 144));
 	}
 	else
 	{
-		// Hintergrund zeichnen
+		// draw the background
 		glBegin(GL_QUADS);
 		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
 		else glColor4d(0.4, 0.4, 0.4, 1.0);
@@ -48,7 +48,7 @@ void GUI_MultiLineEditBox::onRender()
 		glVertex2i(0, size.y);
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(0.0, 0.0, 0.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -63,20 +63,20 @@ void GUI_MultiLineEditBox::onRender()
 	int h = gui.getRoot()->getSize().y;
 	glScissor(pos.x + 2, h - pos.y - size.y + 18, size.x - 20, size.y - 20);
 
-	// Position des Cursors berechnen
+	// work out the caret position
 	Vec2i c = textCharPositions[cursor];
 
 	glPushMatrix();
 	glTranslated(-scroll.x, -scroll.y, 0.0);
 
-	// Text schreiben
+	// write the text
 	p_font->renderText(text, Vec2i(4, 2), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
 
 	if(focused)
 	{
 		if(selStart != selEnd)
 		{
-			// Auswahl zeichnen
+			// draw the selection
 			glBegin(GL_QUADS);
 
 			int h = p_font->getLineHeight();
@@ -95,7 +95,7 @@ void GUI_MultiLineEditBox::onRender()
 			glEnd();
 		}
 
-		// Cursor zeichnen
+		// draw the caret
 		glBegin(GL_LINES);
 		double alpha = 0.6 + 0.4 * sin(0.02 * Engine::inst().getTime());
 		if(active) glColor4d(1.0, 1.0, 1.0, alpha);
@@ -119,7 +119,7 @@ void GUI_MultiLineEditBox::setText(const std::string& text)
 	makeCursorVisible();
 	updateScrollBars();
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 
@@ -147,19 +147,19 @@ void GUI_MultiLineEditBox::onMouseWheel(int dir)
 
 void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
+	// Only a key press matters here.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrueckt?
+	// Shift pressed?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
-	// Strg gedrueckt?
+	// Ctrl pressed?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
-		// Ereignis an das Elternelement weiterleiten
+		// forward the event to the parent element
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_LEFT:
@@ -203,14 +203,14 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		{
 			if(event.keysym.sym == SDLK_a)
 			{
-				// Alles auswaehlen
+				// select all
 				cursor = selStart = selEnd = 0;
 				setCursor(static_cast<uint>(text.length()), true);
 			}
 			else if(event.keysym.sym == SDLK_c ||
 					event.keysym.sym == SDLK_x)
 			{
-				// kopieren/ausschneiden
+				// copy/cut
 				if(selStart != selEnd)
 				{
 					GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
@@ -219,7 +219,7 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			}
 			else if(active && event.keysym.sym == SDLK_v)
 			{
-				// einfuegen
+				// paste
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
@@ -255,7 +255,7 @@ void GUI_MultiLineEditBox::replaceSelection(const std::string& replacement)
 	makeCursorVisible();
 	updateScrollBars();
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 
@@ -274,7 +274,7 @@ void GUI_MultiLineEditBox::del()
 			makeCursorVisible();
 			updateScrollBars();
 
-			// Signal ausloesen
+			// fire the signal
 			changed(this);
 		}
 	}
@@ -299,7 +299,7 @@ void GUI_MultiLineEditBox::backspace()
 			makeCursorVisible();
 			updateScrollBars();
 
-			// Signal ausloesen
+			// fire the signal
 			changed(this);
 		}
 	}
@@ -318,7 +318,7 @@ void GUI_MultiLineEditBox::setCursor(uint cursor,
 	{
 		if(selStart == selEnd)
 		{
-			// Bisher noch keine Auswahl!
+			// No selection yet.
 			if(cursor > this->cursor) selStart = this->cursor, selEnd = cursor;
 			else if(cursor < this->cursor) selStart = cursor, selEnd = this->cursor;
 		}
@@ -346,7 +346,7 @@ void GUI_MultiLineEditBox::setCursor(uint cursor,
 	}
 	else
 	{
-		// Auswahl aufheben
+		// clear the selection
 		selStart = selEnd = 0;
 	}
 
@@ -400,10 +400,10 @@ uint GUI_MultiLineEditBox::findLineEnd(uint cursor) const
 
 void GUI_MultiLineEditBox::makeCursorVisible()
 {
-	// Position des Cursors berechnen
+	// work out the caret position
 	Vec2i c = textCharPositions[cursor];
 
-	// Cursor unsichtbar?
+	// caret out of sight?
 	Vec2i vc = c - scroll;
 	if(vc.x < 16) scroll.x -= 16 - vc.x;
 	else if(vc.x > size.x - 32) scroll.x += vc.x - (size.x - 32);
@@ -433,7 +433,7 @@ void GUI_MultiLineEditBox::updateScrollBars()
 
 void GUI_MultiLineEditBox::handleScrollBarChanged(GUI_Element* p_element)
 {
-	// Scrolling setzen
+	// set the scrolling
 	scroll = Vec2i(p_scrollBarH->getScroll(), p_scrollBarV->getScroll());
 }
 

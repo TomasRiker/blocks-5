@@ -17,7 +17,7 @@ void ProgressDB::load()
 	FileSystem& fs = FileSystem::inst();
 	if(!fs.fileExists(FileSystem::inst().getAppHomeDirectory() + "progress.zip")) return;
 
-	// XML-Dokument laden
+	// load the XML document
 	std::string xml = fs.readStringFromFile(FileSystem::inst().getAppHomeDirectory() + "progress.zip" + pw + "/progress.xml");
 	TiXmlDocument doc;
 	doc.SetCondenseWhiteSpace(false);
@@ -77,15 +77,13 @@ void ProgressDB::save()
 
 std::string ProgressDB::keyFor(const std::string& campaign)
 {
-	// Der blosse Dateiname, nicht der Pfad. Eine Kampagne ist durch ihren Namen
-	// bestimmt - dieselbe Auffassung, mit der Transfer::install() eine
-	// gleichnamige Datei ersetzt statt danebenzulegen -, und dann uebersteht
-	// der Fortschritt es, dass die Datei den Ordner wechselt: die
-	// mitgelieferte Kampagne ist aus dem Benutzerverzeichnis in den
-	// Spielordner gezogen, und ein Import verschiebt eine fremde in die andere
-	// Richtung. Mit dem vollen Pfad als Schluessel waere beides ein Verlust
-	// aller geschafften Levels gewesen, ohne dass irgendetwas es gemeldet
-	// haette.
+	// The bare filename, not the path. A campaign is identified by its name -
+	// the same view under which Transfer::install() replaces a file of the
+	// same name instead of putting one beside it - and progress then survives
+	// the file changing folder: the shipped campaign moved out of the user
+	// directory into the game folder, and an import moves somebody else's the
+	// other way. With the full path as the key, either would silently lose
+	// every completed level.
 	return FileSystem::inst().getPathFilename(campaign);
 }
 

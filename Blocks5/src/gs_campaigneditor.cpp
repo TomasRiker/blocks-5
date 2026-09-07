@@ -13,10 +13,10 @@
 
 namespace
 {
-	// Die Listbox jagt jeden Eintrag durch localizeString: ein fuehrendes '$'
-	// waere eine String-ID, 0xA7 eine Sprachmarke. Der Name eines Levels
-	// stammt bei einer fremden Kampagne aus einer fremden Datei - fuer die
-	// ANZEIGE also entschaerfen. Gespeichert wird er unveraendert.
+	// The list box runs every entry through localizeString: a leading '$'
+	// would be a string ID, 0xA7 a language tag. In somebody else's campaign
+	// a level's name comes from somebody else's file - defuse it for DISPLAY.
+	// It is saved unchanged.
 	std::string displaySafe(const std::string& name)
 	{
 		std::string result(name, 0, min<size_t>(name.length(), 64));
@@ -80,18 +80,18 @@ public:
 	{
 		if(!getChild("SearchPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
-			// Wiederholung ist kein zweiter Befehl.
+			// Only a newly pressed key counts. A repeat is not a second
+			// command.
 			if(event.type != SDL_KEYDOWN || GUI::inst().isKeyRepeat()) return;
 
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
-				// Die Taste ist hiermit verbraucht. Quit wechselt nach
-				// GS_Menu, und Engine::update() macht das noch in diesem Takt
-				// wirksam: das Menue kaeme unmittelbar danach an die Reihe,
-				// saehe dasselbe Escape ueber wasKeyPressed() und beendete das
-				// Spiel. Derselbe Grund wie in Options::onKeyEvent().
+				// The key is spent here. Quit switches to GS_Menu, and
+				// Engine::update() applies that in this same tick: the menu
+				// would come up immediately afterwards, see the same Escape
+				// through wasKeyPressed() and quit the game. For the same
+				// reason as in Options::onKeyEvent().
 				Engine::inst().consumeKeyPress(event.keysym.sym);
 				handleClick(getChild("Quit"));
 				break;
@@ -129,8 +129,8 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste fuellen, aus beiden Wurzeln: die mitgelieferte Kampagne
-			// liegt beim Spiel, die eigenen beim Spieler.
+			// Fill the file list from both roots: the shipped campaign sits
+			// with the game, the player's own with the player.
 			const std::vector<std::string> files(Transfer::list(Transfer::KIND_CAMPAIGN));
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
@@ -165,8 +165,8 @@ public:
 						}
 						else
 						{
-							// pruefen, ob jeder Level wirklich lesbar ist -
-							// als lose Datei oder als Mitglied des Archivs.
+							// check that every level really is readable - as a
+							// loose file or as a member of the archive.
 							std::string missing;
 							if(!p_newCampaign->sourcesExist(missing))
 							{
@@ -200,8 +200,8 @@ public:
 			}
 			else
 			{
-				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
-				// ging ins Leere und niemand erfuhr, warum.
+				// With no filename nothing happens here at all - the click
+				// goes nowhere and nobody learns why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -213,9 +213,9 @@ public:
 			{
 				const std::string basename(setFilenameExtension(filename, "zip"));
 
-				// Wie im Leveleditor: gespeichert wird beim Spieler, und nie
-				// unter einem mitgelieferten Namen - so eine Kampagne liesse
-				// sich nicht wieder laden, weil der Spielordner vorgeht.
+				// As in the level editor: saving goes to the user directory,
+				// and never under a shipped name - such a campaign could never
+				// be loaded again, because the game folder answers first.
 				if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN, basename))
 				{
 					Engine::inst().showToast(Engine::TOAST_ERROR, "$TR_ERROR_RESERVED");
@@ -244,8 +244,8 @@ public:
 						editor.setSavePoint();
 						editor.originalFilename = path;
 #ifdef __EMSCRIPTEN__
-						// Sofort in die IndexedDB, nicht erst beim naechsten
-						// Fuenf-Sekunden-Takt - so wie beim Level-Editor.
+						// Straight into the IndexedDB, not waiting for the next
+						// five-second interval - as in the level editor.
 						WebTransfer::syncHome();
 #endif
 
@@ -259,8 +259,8 @@ public:
 			}
 			else
 			{
-				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
-				// ging ins Leere und niemand erfuhr, warum.
+				// With no filename nothing happens here at all - the click
+				// goes nowhere and nobody learns why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -298,10 +298,10 @@ public:
 			int selected = p_listBox->getSelection();
 			if(selected != -1)
 			{
-				// Ueber den Index, nicht ueber den Anzeigetext: zwei Levels
-				// duerfen denselben Namen tragen. updateGUI baut danach beide
-				// Listen neu auf - ein Level aus dem Archiv taucht dabei nicht
-				// in der Auswahlliste auf, denn dort stehen nur lose Dateien.
+				// By index, not by the displayed text: two levels may carry
+				// the same name. updateGUI then rebuilds both lists - a level
+				// from the archive does not appear in the selection list,
+				// which holds only loose files.
 				editor.p_campaign->removeLevelAt(selected);
 				updateGUI();
 			}
@@ -356,7 +356,7 @@ public:
 		else if(name == "CampaignEditor.Title" ||
 			    name == "CampaignEditor.Description")
 		{
-			// Aenderungen speichern
+			// save the changes
 			if(!noUpdate) updateCampaign();
 		}
 
@@ -392,24 +392,24 @@ public:
 	{
 		noUpdate = true;
 
-		// Liste der verfuegbaren Levels aktualisieren
+		// update the list of available levels
 		listAvailableLevels();
 
-		// Liste der Levels aktualisieren
+		// update the list of levels
 		GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("CampaignLevels"));
 		const std::vector<Campaign::LevelRef>& levels = editor.p_campaign->getLevels();
 		p_listBox->clear();
 		for(uint i = 0; i < levels.size(); i++) p_listBox->addItem(GUI_ListBox::ListItem(levelListLabel(levels[i]), 0));
 
-		// Anzahl der freigeschalteten Levels aktualisieren
+		// update the number of unlocked levels
 		char temp[256] = "";
 		sprintf(temp, "%s: %d", localizeString("$CE_UNLOCKED_LEVELS").c_str(), editor.p_campaign->getNumUnlockedLevels());
 		static_cast<GUI_StaticText*>(getChild("NumUnlockedLevels"))->setText(temp);
 
-		// Bonuslevel aktualisieren
+		// update the bonus level
 		static_cast<GUI_CheckBox*>(getChild("BonusLevel"))->setChecked(editor.p_campaign->hasBonusLevel());
 
-		// Titel und Beschreibung aktualisieren
+		// update the title and description
 		static_cast<GUI_EditBox*>(getChild("Title"))->setText(editor.p_campaign->getTitle());
 		static_cast<GUI_MultiLineEditBox*>(getChild("Description"))->setText(editor.p_campaign->getDescription());
 
@@ -421,7 +421,7 @@ public:
 		GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("AvailableLevels"));
 		p_listBox->clear();
 
-		// alle Levels auflisten, aus beiden Wurzeln
+		// list every level, from both roots
 		const std::vector<std::string> files(Transfer::list(Transfer::KIND_LEVEL));
 		for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 		{
@@ -435,9 +435,9 @@ public:
 
 	void updateCampaign()
 	{
-		// Die Level-Liste wird NICHT mehr aus der Listbox rekonstruiert: ein
-		// Eintrag ist jetzt (Quelle, Mitglied) und nicht sein Anzeigetext.
-		// Add, Remove, Up und Down aendern die Kampagne direkt.
+		// The level list is NOT rebuilt from the list box: an entry is
+		// (source, member) and not its displayed text. Add, Remove, Up and
+		// Down change the campaign directly.
 		editor.p_campaign->setBonusLevel(static_cast<GUI_CheckBox*>(getChild("BonusLevel"))->isChecked());
 		editor.p_campaign->setTitle(static_cast<GUI_EditBox*>(getChild("Title"))->getText());
 		editor.p_campaign->setDescription(static_cast<GUI_MultiLineEditBox*>(getChild("Description"))->getText());
@@ -460,7 +460,7 @@ GS_CampaignEditor::~GS_CampaignEditor()
 
 void GS_CampaignEditor::onRender()
 {
-	// Hintergrundbild rendern
+	// render the background image
 	p_background->bind();
 	glBegin(GL_QUADS);
 	glColor3d(1.0, 1.0, 1.0);
@@ -482,29 +482,29 @@ void GS_CampaignEditor::onUpdate()
 
 void GS_CampaignEditor::onEnter(const ParameterBlock& context)
 {
-	// leere Kampagne erzeugen
+	// create an empty campaign
 	p_campaign = new Campaign;
 	p_campaign->clear();
 
-	// Bild laden
+	// load the image
 	p_background = Manager<Texture>::inst().request("campaigneditor.png");
 
 	originalFilename = "";
 	setSavePoint();
 
-	// Dialog erzeugen
+	// create the dialog
 	new CampaignEditorGUI(*this);
 }
 
 void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 {
-	// Ressourcen loeschen
+	// free the resources
 	delete p_campaign;
 	p_background->release();
 	p_campaign = 0;
 	p_background = 0;
 
-	// Dialog loeschen
+	// delete the dialog
 	delete gui["CampaignEditor"];
 }
 

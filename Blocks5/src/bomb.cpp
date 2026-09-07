@@ -20,7 +20,7 @@ Bomb::~Bomb()
 
 void Bomb::updateSprites()
 {
-	// Bombe
+	// bomb
 	if(flags & OF_COLLECTABLE) sprites.add(Vec2i(0, 160));
 	else sprites.add(Vec2i(32 + 32 * ((countDown / 6) % 4), 160));
 }
@@ -46,7 +46,7 @@ void Bomb::onUpdate()
 		if(!countDown) countDown = 150;
 		else
 		{
-			// Rauch
+			// smoke
 			double c = static_cast<double>(countDown) / 150.0;
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
@@ -75,11 +75,11 @@ void Bomb::onUpdate()
 				level.addFlash(2.0);
 				Engine::inst().playSound("explosion.ogg", false, 0.15, 100);
 
-				// Die Bombe selbst zerplatzt mit. Bisher tat sie das nicht:
-				// die Schleife unten sucht sich ihre Opfer mit
-				// getFrontObjectAt, und das ueberspringt alles, was schon
-				// disappear() gerufen hat - also gerade sie. Trifft eine
-				// Explosion nichts, flog deshalb gar nichts.
+				// The bomb bursts apart too and needs its own block for it:
+				// the loop below picks its victims with getFrontObjectAt,
+				// which skips anything that has already called disappear() -
+				// precisely the bomb. Without this block an explosion that
+				// hits nothing would throw no debris at all.
 				{
 					const Sprites& debris = getSprites();
 					const int numTries = debris.getTryCount(random(30, 40));
@@ -124,7 +124,7 @@ void Bomb::onUpdate()
 						const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 						if(tileInfo.type == 2)
 						{
-							// Tile zerstoeren
+							// destroy the tile
 							level.setTileAt(1, pos, 0);
 							destroyed = true;
 							p_sprites = &tileInfo.sprites;
@@ -143,7 +143,7 @@ void Bomb::onUpdate()
 
 						if(destroyed && p_sprites)
 						{
-							// Truemmer
+							// debris
 							int n = p_sprites->getTryCount(random(30, 40));
 							for(int i = 0; i < n; i++)
 							{
@@ -171,7 +171,7 @@ void Bomb::onUpdate()
 					}
 				}
 
-				// Druckwelle
+				// blast wave
 				for(int i = 0; i < 500; i++)
 				{
 					p.lifetime = 100;
@@ -191,7 +191,7 @@ void Bomb::onUpdate()
 					p_particleSystem->addParticle(p);
 				}
 
-				// Feuerball
+				// fireball
 				for(int i = 0; i < 500; i++)
 				{
 					p.lifetime = random(100, 200);
@@ -213,7 +213,7 @@ void Bomb::onUpdate()
 					else p_fireParticleSystem->addParticle(p);
 				}
 
-				// Kern
+				// core
 				for(int i = 0; i < 100; i++)
 				{
 					p.lifetime = random(100, 150);
@@ -239,7 +239,7 @@ void Bomb::onUpdate()
 
 void Bomb::onCollect(Player* p_player)
 {
-	// dem Spieler die Bombe geben
+	// give the bomb to the player
 	p_player->addInventory(0, 1);
 	disappear(0.2);
 

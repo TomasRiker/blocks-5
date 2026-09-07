@@ -1,21 +1,21 @@
 #ifndef _AUDIOCAPTURE_H
 #define _AUDIOCAPTURE_H
 
-/*** Klasse zum Mitschneiden des Systemklangs ***/
+/*** Class for capturing the system audio ***/
 
-// Nimmt das auf, was das Standard-Wiedergabegeraet gerade ausgibt, also Musik und
-// Soundeffekte des Spiels - und nicht das Mikrofon. Unter Windows passiert das
-// ueber den Loopback-Modus von WASAPI; das Geraet muss dafuer nicht als Aufnahme-
-// quelle eingerichtet sein ("Stereomix" o. Ae.). Unter Linux ueber den Monitor
-// der Standardsenke von PulseAudio, was dasselbe ist und wozu PipeWire mit
-// pipewire-pulse ebenfalls taugt.
+// Records what the default playback device is putting out, i.e. the game's
+// music and sound effects - and not the microphone. Under Windows that goes
+// through WASAPI's loopback mode; for that the device does not have to be set
+// up as a recording source ("Stereo Mix" or similar). Under Linux through the
+// monitor of PulseAudio's default sink, which is the same thing and which
+// PipeWire with pipewire-pulse serves just as well.
 //
-// Die Samples kommen immer als 16 Bit, Stereo, interleaved heraus, unabhaengig
-// davon, in welchem Format das Geraet selbst arbeitet. Ein "Sample" ist dabei
-// wie bei OpenAL ein Paar aus linkem und rechtem Kanal.
+// The samples always come out as 16 bit stereo interleaved, whatever format
+// the device itself works in. A "sample" here, as in OpenAL, is a pair of a
+// left and a right channel.
 //
-// Wo es nichts zum Mithoeren gibt - im Browser, oder unter Linux ohne
-// PulseAudio -, schlaegt open() fehl und die Videos bleiben stumm.
+// Where there is nothing to listen in on - in the browser, or under Linux
+// without PulseAudio - open() fails and the videos stay silent.
 
 struct AudioCaptureImpl;
 
@@ -25,29 +25,29 @@ public:
 	AudioCapture();
 	~AudioCapture();
 
-	// oeffnet die Loopback-Aufnahme des Standard-Wiedergabegeraets
+	// opens the loopback recording of the default playback device
 	bool open(uint sampleRate = 48000);
 
-	// beendet die Aufnahme und gibt alles wieder frei
+	// ends the recording and frees everything again
 	void close();
 
 	bool isOpen() const;
 
-	// Name des Geraets, von dem aufgenommen wird (nur fuer die Logdatei)
+	// name of the device being recorded from (for the log only)
 	const std::string& getDeviceName() const;
 
-	// beginnt bzw. beendet das Sammeln von Samples
+	// starts and stops collecting samples
 	void start();
 	void stop();
 
-	// Anzahl der abholbereiten Samples
+	// number of samples ready to be fetched
 	int getNumSamplesReady();
 
-	// holt numSamples Samples ab; was fehlt, wird mit Stille aufgefuellt
+	// fetches numSamples samples; what is missing is padded with silence
 	void getSamples(short* p_buffer, int numSamples);
 
 private:
-	// nicht kopierbar - der Puffer und der Thread gehoeren genau einem Objekt
+	// not copyable - the buffer and the thread belong to exactly one object
 	AudioCapture(const AudioCapture&);
 	AudioCapture& operator=(const AudioCapture&);
 

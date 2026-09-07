@@ -5,117 +5,116 @@
 #include "particlesystem.h"
 #include "soundinstance.h"
 
-/* Der Funkenflug der Umwandlung.
+/* The conversion's shower of sparks.
 
-   Ein Block wird nicht ausgeblendet und durch einen Diamanten ersetzt, sondern
-   auseinandergenommen und wieder zusammengesetzt: erst fliegen Funken in den
-   Farben des Blocks nach aussen, dann kommen aus der Wolke, die sie
-   hinterlassen haben, Funken zurueck, die unterwegs die Farbe annehmen, die der
-   Diamant an der Stelle hat, wo sie landen und sterben.
+   A block is not faded out and replaced by a diamond; it is taken apart and
+   put back together: first sparks fly outward in the block's colours, then
+   from the cloud they leave behind sparks come back, taking on the colour
+   the diamond has where they land and expire.
 
-   ZEITPLAN. Die Maschine zaehlt hundert Takte, und ihr eigenes Bild wechselt bei
-   20, 40, 60 und 80 - das fuenfte steht von 80 bis 100 still. Daran haengen die
-   Phasen, damit Bild und Funken nicht auf zwei Uhren laufen:
+   TIMETABLE. The machine counts a hundred ticks, and its own animation frame
+   changes at 20, 40, 60 and 80 - the fifth stands still from 80 to 100. The
+   phases hang off that, which keeps the animation and the sparks off two
+   separate clocks:
 
-       Takt      0        20              53        80          100
-       auswaerts |=== ausgestossen ======|                            fliegt bis 80
-       einwaerts          |=== ausgestossen =========|                fliegt bis 100
-       zu sehen  nur raus | beides ----------------- | nur rein |
+       tick      0        20              53        80          100
+       outward   |=== emitted ===========|                            flies to 80
+       inward             |=== emitted ==============|                flies to 100
+       visible   out only | both ------------------- | in only  |
 
-   Ein Funke lebt weiter, nachdem er ausgestossen wurde, und die beiden Enden
-   sind daraus gerechnet. Auswaerts muss eine ganze Lebensdauer vor 80 Schluss
-   sein (80 - 27 = 53), damit am Ende wirklich nur noch eingesammelt wird.
-   Einwaerts landet jeder bei 100, egal wann er losfliegt - die Lebensdauer
-   wird dafuer ausgerechnet -, und 92 ist der Punkt, ab dem die verbleibende
-   Zeit kein Flug mehr waere, sondern ein Aufblitzen an Ort und Stelle.
+   A spark lives on after it has been emitted, and the two ends are computed
+   from that. Outward, emission has to stop a whole lifetime before 80
+   (80 - 27 = 53), leaving the end nothing but collecting. Inward, every
+   spark lands at 100 whenever it sets off - the lifetime is worked out for
+   that - and 92 is the point past which the time left would no longer be a
+   flight but a flash on the spot.
 
-   GENAU LANDEN. Der Integrator ist position += velocity; velocity *= damping.
-   Ueber n Takte legt ein Funke damit v0 * (1 - d^n) / (1 - d) zurueck, und die
-   Formel dient in beide Richtungen: auswaerts sagt sie, wo die Wolke endet - und
-   damit, wo die Einwaertsfunken starten duerfen -, einwaerts liefert sie das v0,
-   mit dem einer genau auf seinem Ziel ankommt. d unter 1 bremst ab, d ueber 1
-   zieht an; deshalb verpufft der Weg nach aussen und der nach innen saugt.
+   LANDING EXACTLY. The integrator is position += velocity; velocity *=
+   damping. Over n ticks a spark covers v0 * (1 - d^n) / (1 - d), and the
+   formula serves both directions: outward it says where the cloud ends - and
+   with it where the inward sparks may start - and inward it gives the v0
+   with which one arrives exactly on its target. d below 1 brakes, d above 1
+   accelerates; that is why the way out peters out and the way in sucks the
+   spark in.
 
-   STAUB, NICHT GLUT. Ein Auswaertsfunke traegt die schlichte Farbe des Texels,
-   aus dem er stammt, und wird nur blasser - OUT_BRIGHT und OUT_END sind beide
-   1. Gluehende Funken sehen nach Schweissen aus, und die Maschine bekommt Fels,
-   Eis und Gras genauso vorgesetzt wie Metall. Aus demselben Grund sind es
-   viele, grosse und langsame statt weniger, kleiner und schneller: das soll ein
-   Block sein, der auseinanderfaellt.
+   DUST, NOT EMBERS. An outward spark carries the plain colour of the texel
+   it came from and only grows paler - OUT_BRIGHT and OUT_END are both 1.
+   Glowing sparks read as welding, and the machine is handed rock, ice and
+   grass as readily as metal. For the same reason there are many, large and
+   slow ones rather than fewer, smaller and faster: this is meant to be a
+   block falling apart.
 
-   Additiv gemischt wird dabei nicht. Dort haengt das Ergebnis am Hintergrund,
-   und dasselbe Braun waere ueber Fels ein Glimmen und ueber Gras ein grelles
-   Gelb. Einwaerts startet die Farbe trotzdem ueber 1, wo GL sie auf [0,1]
-   klemmt - das ist aber kein Gluehen, sondern der Weg um einen Gruenstich
-   herum, und die Begruendung steht dort, wo sie gerechnet wird.
+   Nothing here is blended additively. There the result depends on the
+   background, and the same brown would be a glow over rock and a glaring
+   yellow over grass. Inward the colour still starts above 1, where GL clamps
+   it to [0,1] - but that is not a glow; it is the way around a green cast,
+   and the reason stands where it is computed.
 
-   ABBRUCH. Der Block kann im letzten Augenblick weggeschoben, gesprengt oder
-   abgeschaltet werden. Verschwinden duerfen die Funken dann nicht, das waere
-   ein Loch mitten in der Bewegung: sie laufen ihren eigenen Weg zurueck, mit
-   gespiegelter Lebensdauer, und was noch aussteht, entscheidet, wie lange das
-   dauert (abortConversion()). Damit die Maschine sie wiederfindet, tragen sie
-   ihre Kennung: Particle::id, das einzige Feld, das sonst im ganzen Spiel 0
-   bleibt.
+   ABORT. The block can be pushed away, blown up or switched off at the last
+   moment. The sparks must not vanish then, which would be a hole in the
+   middle of the motion: they run their own way back, with a mirrored
+   lifetime, and what is still outstanding decides how long that takes
+   (abortConversion()). For the machine to find them again they carry its id:
+   Particle::id, the one field that stays 0 everywhere else in the game.
 
-   Die Einwaertsfunken kehren immer um - ihr Ziel war ein Diamant, und der kommt
-   nicht mehr. Die Auswaertsfunken haengen davon ab, ob es den Block noch gibt:
-   ist er nur weggeschoben oder steht er still, weil der Strom weg ist, dann
-   fliegen sie zu ihm zurueck und werden wieder eingesaugt; ist er zerstoert,
-   fliegen sie unbeirrt weiter, denn dann ist Auseinanderfliegen genau das
-   Richtige.
+   The inward sparks always turn round - they were flying at a diamond that
+   is not coming. The outward ones depend on whether the block still exists:
+   pushed aside, or standing still because the power is off, and they fly
+   back to it and are sucked in again; destroyed, and they fly on untouched,
+   because then flying apart is exactly right.
  */
 
 namespace
 {
-	// Die Phasen, in Takten des Maschinenzaehlers.
-	const int CONVERSION_TICKS = 100;  // dann wird aus dem Block der Diamant
+	// The phases, in ticks of the machine's counter.
+	const int CONVERSION_TICKS = 100;  // then the block becomes the diamond
 	const int SPARK_OUT_FULL = 20;
 	const int SPARK_OUT_END  = 53;
 	const int SPARK_IN_START = 20;
 	const int SPARK_IN_FULL  = 60;
 	const int SPARK_IN_END   = 92;
 
-	// Jeder Einwaertsfunke lebt genau so lange, wie bis zur Umwandlung noch
-	// Zeit ist - egal, wann er losfliegt. Damit kommen sie nicht ueber eine
-	// Minute verteilt an, sondern alle im selben Augenblick, und der ist der,
-	// in dem der Diamant dasteht. Die letzten brauchen noch etwas Weg.
+	// Every inward spark lives exactly as long as the conversion has left -
+	// no matter when it sets off. They therefore do not arrive spread over a
+	// minute but all in the same instant, and that instant is the one the
+	// diamond stands in. The last ones still need some distance.
 	const int SPARK_IN_MIN_LIFE = 8;
 
-	// Das Bild in particles.png, in Bildpunkten, und die einzige Wahl, die es
-	// hier gibt: das Teilchen wird mit dem Feld multipliziert. (32,0) sieht als
-	// satter Klecks richtig aus, ist aber ein fertig eingefaerbtes Orange
-	// (231,152,41) - ein cyanfarbener Funke darauf wird oliv. Neutral und
-	// zugleich dicht ist allein (32,32): eine runde Scheibe in reinem Weiss.
-	// (0,32) waere ein weisser Vierstern, falls es einmal funkeln soll.
+	// The image in particles.png, in pixels, and the only choice there is
+	// here: the particle is multiplied by its texture region. (32,0) looks
+	// right as a solid blob but is a pre-coloured orange (231,152,41) - a
+	// cyan spark on it comes out olive. The only one that is neutral and
+	// dense at once is (32,32): a round disc in pure white. (0,32) would be
+	// a white four-pointed star, should it ever have to sparkle.
 	const int SPARK_SPRITE_X = 32;
 	const int SPARK_SPRITE_Y = 32;
 
-	// Auswaerts: der Block faellt auseinander.
-	const double OUT_RATE     = 6.0;   // Funken je Takt bei voller Rate
+	// Outward: the block falls apart.
+	const double OUT_RATE     = 6.0;   // sparks per tick at full rate
 	const double OUT_SPEED_MIN = 0.5;
 	const double OUT_SPEED_MAX = 1.1;
-	const double OUT_DAMPING  = 0.95;  // unter 1: bremst ab
-	const double OUT_BRIGHT   = 1.0;   // Helligkeit im ersten Takt
-	const double OUT_END      = 1.0;   // Helligkeit im letzten
-	const double OUT_ALPHA    = 0.85;  // Deckkraft beim Start
+	const double OUT_DAMPING  = 0.95;  // below 1: brakes
+	const double OUT_BRIGHT   = 1.0;   // brightness in the first tick
+	const double OUT_END      = 1.0;   // brightness in the last
+	const double OUT_ALPHA    = 0.85;  // opacity at the start
 	const int    OUT_LIFE     = 27;
 	const double OUT_SIZE     = 0.42;
 
-	// Einwaerts: der Diamant wird zusammengesetzt.
+	// Inward: the diamond is put together.
 	const double IN_RATE   = 4.0;
-	// Um wie viel schneller ein Funke am Ende seines Fluges ist als am Anfang.
-	// Daraus wird die Daempfung gerechnet, denn die Lebensdauer steht erst beim
-	// Losfliegen fest - so sieht der Anflug bei jeder Dauer gleich aus: lange
-	// schleichen, zum Schluss zuschnappen.
+	// How much faster a spark is at the end of its flight than at the start.
+	// The damping is computed from it, because the lifetime is only fixed
+	// when the spark sets off - the approach then looks the same at any
+	// duration: creep for a long time, snap shut at the end.
 	const double IN_ACCEL  = 3.0;
-	const double IN_START  = 1.4;      // Helligkeit der Startfarbe, siehe unten
-	const double IN_BRIGHT = 1.0;      // Helligkeit beim Aufschlag
-	const double IN_ALPHA  = 0.85;     // Deckkraft beim Aufschlag
+	const double IN_START  = 1.4;      // start colour brightness, see below
+	const double IN_BRIGHT = 1.0;      // brightness on impact
+	const double IN_ALPHA  = 0.85;     // opacity on impact
 	const double IN_SIZE   = 0.38;
 
-	// Anteil der vollen Rate. Beide Rampen sind linear und nicht geschaltet:
-	// ein harter Wechsel liesse die Mitte als Plateau erscheinen, auf dem beide
-	// Richtungen gleichzeitig auf Anschlag laufen, statt als Uebergabe.
+	// Fraction of the full rate. Both ramps are linear and not switched: a
+	// hard changeover would show the middle as a plateau with both
+	// directions running flat out at once, rather than as a handover.
 	double outRamp(int counter)
 	{
 		if(counter < 0 || counter >= SPARK_OUT_END) return 0.0;
@@ -132,7 +131,7 @@ namespace
 			   static_cast<double>(SPARK_IN_FULL - SPARK_IN_START);
 	}
 
-	// Aus einer gebrochenen Rate eine ganze Zahl von Funken.
+	// A whole number of sparks out of a fractional rate.
 	int spawnCount(double rate)
 	{
 		int n = static_cast<int>(rate);
@@ -140,23 +139,23 @@ namespace
 		return n;
 	}
 
-	// Wie wahrscheinlich in diesem Takt eine Rauchwolke entsteht.
+	// How likely a smoke cloud is in this tick.
 	double smokeRate(int counter)
 	{
 		if(counter >= SPARK_OUT_END) return 0.0;
 		return 0.3;
 	}
 
-	// Die Kennung fuer die Funken einer Umwandlung. Das hohe Bit ist immer
-	// gesetzt: alles andere im Spiel traegt 0, also kann keine Kennung je mit
-	// gewoehnlichen Teilchen zusammenfallen - auch die allererste nicht.
+	// The id for the sparks of one conversion. The high bit is always set:
+	// everything else in the game carries 0, and no id can therefore ever
+	// collide with ordinary particles - not even the very first one.
 	uint nextSparkId()
 	{
 		static uint counter = 0;
 		return 0x80000000u | (++counter & 0x7FFFFFFFu);
 	}
 
-	// Der zurueckgelegte Weg nach n Takten, siehe oben.
+	// The distance travelled after n ticks, see above.
 	double travelDistance(double speed, double damping, int life)
 	{
 		if(damping == 1.0) return speed * life;
@@ -181,22 +180,22 @@ DiamondMachine::~DiamondMachine()
 
 void DiamondMachine::spawnSparks(Object* p_block)
 {
-	// Eine neue Kennung je Umwandlung, nicht je Maschine: nach einem Abbruch
-	// laufen die alten Funken noch nach Hause, und die darf ein zweiter
-	// Abbruch nicht ein zweites Mal umdrehen.
+	// A new id per conversion, not per machine: after an abort the old
+	// sparks are still running home, and a second abort must not turn those
+	// round a second time.
 	if(!sparkId) sparkId = nextSparkId();
 
 	ParticleSystem* p_sys = level.getParticleSystem();
 	const Sprites& block = p_block->getSprites();
 
-	// Der Diamant, den es noch gar nicht gibt: sein Aussehen kommt aus der
-	// Tabelle der Voreinstellungen, und sample() liefert daraus Landepunkt und
-	// Zielfarbe in einem Zug.
+	// The diamond that does not exist yet: its appearance comes from the
+	// preset table, and sample() yields landing point and target colour from
+	// it in one go.
 	Sprites diamond;
 	const bool haveDiamond = level.getPresets()->getPresetSprites("Diamond", &diamond);
 
-	// Das Feld ueber der Maschine, in Bildpunkten: dort steht der Block, und
-	// dort steht spaeter der Diamant.
+	// The field above the machine, in pixels: that is where the block
+	// stands, and where the diamond will stand later.
 	const Vec2d origin(position.x * 16.0, (position.y - 1) * 16.0);
 	const Vec2d middle = origin + Vec2d(8.0, 8.0);
 
@@ -209,9 +208,9 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		const Vec2d start = origin + Vec2d(offset.x, offset.y);
 
-		// Fort von der Mitte des Feldes - der Block faellt auseinander, er
-		// verstreut sich nicht. Genau in der Mitte gibt es keine Richtung,
-		// dort wird eine gewuerfelt.
+		// Away from the centre of the field - the block falls apart, it does
+		// not scatter. At the exact centre there is no direction; one is
+		// rolled for there.
 		const Vec2d radial = start - middle;
 		double angle = (radial.length() > 0.5) ? atan2(radial.y, radial.x)
 											   : random(0.0, 6.2832);
@@ -227,8 +226,8 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
 		p.velocity = Vec2d(cos(angle), sin(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
-		// Nicht sampled.a: das ist DEBRIS_ALPHA und damit ein Viertel. Ein
-		// Truemmerstueck darf blass sein, ein Funke leuchtet.
+		// Not sampled.a: that is DEBRIS_ALPHA and therefore a quarter. A piece
+		// of debris may be pale; a spark shines.
 		const Vec4d begin(hot.r, hot.g, hot.b, OUT_ALPHA);
 		p.color = begin;
 		p.deltaColor = (cold - begin) / static_cast<double>(OUT_LIFE);
@@ -255,43 +254,43 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		const Vec2d landing = origin + Vec2d(landOffset.x, landOffset.y);
 
-		// Start irgendwo in der Wolke, welche die Auswaertsfunken hinterlassen:
-		// dieselbe Verteilung, nur noch einmal gewuerfelt statt gemerkt. Auf die
-		// Paarung einzelner Funken kommt es nicht an - unter Dutzenden sieht
-		// niemand, welcher zu welchem gehoert, es zaehlt die Form der Wolke.
+		// Start somewhere in the cloud the outward sparks leave behind: the
+		// same distribution, only rolled for again rather than remembered.
+		// Pairing up individual sparks does not matter - among dozens nobody
+		// sees which belongs to which; what counts is the shape of the cloud.
 		const double radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
 											 OUT_DAMPING, OUT_LIFE);
 		const double angle = atan2(landing.y - middle.y, landing.x - middle.x);
 		const Vec2d start = middle + Vec2d(fromOffset.x - 8.0, fromOffset.y - 8.0)
 								   + Vec2d(cos(angle), sin(angle)) * radius;
 
-		// So lange, wie bis zur Umwandlung noch Zeit ist, plus einen Takt:
-		// dann kommen alle gemeinsam an, und zwar in genau dem Bild, in dem der
-		// Block zuletzt zu sehen ist. Erst im naechsten steht der Diamant da
-		// und die Funken sind fort - die Uebergabe fiele sonst in eine Luecke,
-		// in der weder das eine noch das andere zu sehen waere.
+		// As long as the conversion has left, plus one tick: then they all
+		// arrive together, and in exactly the frame in which the block is seen
+		// for the last time. Only in the next one is the diamond there and the
+		// sparks gone - otherwise the handover would fall into a gap in which
+		// neither one nor the other could be seen.
 		const int life = max(SPARK_IN_MIN_LIFE, CONVERSION_TICKS - counter + 1);
 
-		// Ein Teilchen bewegt sich in seinem letzten Takt nicht mehr: dieser
-		// Aufruf zaehlt nur herunter und loescht. Gerechnet wird darum mit den
-		// Wegen, die es wirklich zurueklegt - sonst bliebe es genau einen vor
-		// dem Ziel stehen, und weil es beschleunigt, ist das der laengste.
+		// A particle does not move in its last tick: that update only counts
+		// down and erases. The arithmetic therefore uses the distances it
+		// really covers - otherwise it would stop exactly one short of the
+		// target, and because it accelerates, that is the longest one.
 		const int moves = life - 1;
 
-		// Die Daempfung aus dem gewuenschten Zuwachs, damit der Anflug bei
-		// jeder Dauer dieselbe Form hat: d^moves = inAccel.
+		// The damping from the wanted increase, giving the approach the same
+		// shape at any duration: d^moves = inAccel.
 		const double d = pow(IN_ACCEL, 1.0 / static_cast<double>(moves));
 
-		// Das v0, mit dem der Funke nach seinem letzten Weg genau auf dem Ziel
-		// steht. Ohne Schwerkraft, sonst traefe er daneben.
+		// The v0 with which the spark stands exactly on its target after its
+		// last move. Without gravity, or it would miss.
 		const double k = (1.0 - d) / (1.0 - IN_ACCEL);
 
-		// Die Startfarbe ist ueberhell, und das ist kein Schmuck: linear von
-		// einem Blau auf das warme Weiss des Diamanten fuehrt mitten durch
-		// Gruen - gemessen 0.16 Gruenstich bei t=0.6, und das war deutlich zu
-		// sehen. Ueber 1 gestartet bleiben die starken Kanaele geklemmt,
-		// waehrend der schwache aufholt; der Weg geht dann ueber Weiss. Fuer
-		// denselben Block faellt der Gruenstich damit auf 0.05.
+		// The start colour is over-bright, and that is not decoration: a linear
+		// ramp from a blue to the diamond's warm white passes straight through
+		// green - measured 0.16 of green cast at t=0.6, and plainly visible at
+		// that. Started above 1 the strong channels stay clamped while the
+		// weak one catches up; the path then goes through white. For the same
+		// block the green cast falls to 0.05.
 		const Vec4d begin(from.r * IN_START, from.g * IN_START, from.b * IN_START, 0.0);
 		const Vec4d end(target.r * IN_BRIGHT, target.g * IN_BRIGHT,
 						target.b * IN_BRIGHT, IN_ALPHA);
@@ -317,12 +316,13 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 Object* DiamondMachine::findLivingBlock()
 {
-	// Der Block, der die Umwandlung angefangen hat - falls es ihn noch gibt.
-	// Gesucht wird in der Objektliste und nicht ueber p_objOnMe hineingegriffen,
-	// denn genau im interessanten Fall ist der Zeiger nichts mehr wert: ein
-	// zerstoerter Block wird zu Beginn eines Taktes geloescht. isAlive() ist
-	// falsch, solange er in sich zusammenfaellt, und wer wegteleportiert wird,
-	// ist gleich ganz woanders - beides zaehlt als "nicht mehr da".
+	// The block that started the conversion - if it still exists. The search
+	// runs over the object list rather than reaching through p_objOnMe,
+	// because in exactly the interesting case that pointer is worth nothing
+	// any more: a destroyed block is deleted at the start of a tick.
+	// isAlive() is false while it collapses in on itself, and anything
+	// teleported away is somewhere else entirely - both count as "no longer
+	// there".
 	if(!p_objOnMe) return 0;
 
 	const std::vector<Object*>& all = level.getObjects();
@@ -341,23 +341,23 @@ void DiamondMachine::abortConversion()
 	counter = -1;
 	if(!sparkId) return;
 
-	// Um wie viel der Block seit dem Losfliegen versetzt ist, in Bildpunkten.
-	// Sein *logisches* Feld und nicht sein gezeigtes: geschoben wird er ueber
-	// mehrere Takte, und wenn die Funken ankommen, steht er dort schon.
+	// How far the block has moved since the sparks set off, in pixels. Its
+	// *logical* cell and not its shown one: it is pushed over several ticks,
+	// and by the time the sparks arrive it is already there.
 	Object* p_block = findLivingBlock();
 	Vec2d shift(0.0, 0.0);
 	if(p_block)
 		shift = Vec2d((p_block->getPosition().x - position.x) * 16.0,
 					  (p_block->getPosition().y - (position.y - 1)) * 16.0);
 
-	// Rueckwaerts heisst: jeder Delta kehrt sich um, und die Daempfung wird ihr
-	// Kehrwert, denn sie ist ein Faktor und kein Summand. Die Geschwindigkeit
-	// bekommt diesen Kehrwert obendrein, weil der Integrator erst schiebt und
-	// dann daempft - ohne ihn laege die Rueckreise um einen Takt versetzt und
-	// traefe den Startpunkt nicht. Nur die Schwerkraft laesst sich so nicht
-	// genau umkehren (sie kommt nach der Daempfung dazu, nicht davor); ihr
-	// Vorzeichen zu wenden ist eine Naeherung, und die eine Fassung mit
-	// Schwerkraft findet auf dem Rueckweg einen leicht anderen Bogen.
+	// Backwards means: every delta reverses, and the damping becomes its
+	// reciprocal, because it is a factor and not a summand. The velocity
+	// gets that reciprocal on top, because the integrator shifts before it
+	// damps - without it the way back would be a tick out of step and would
+	// miss the starting point. Only gravity cannot be reversed exactly this
+	// way (it is added after the damping, not before); flipping its sign is
+	// an approximation, and the one variant with gravity finds a slightly
+	// different arc on the way back.
 	ParticleSystem* p_sys = level.getParticleSystem();
 	for(ParticleSystem::ParticleList::iterator i = p_sys->begin();
 		i != p_sys->end(); ++i)
@@ -365,21 +365,21 @@ void DiamondMachine::abortConversion()
 		ParticleSystem::Particle& p = *i;
 		if(p.id != sparkId) continue;
 
-		// Einwaerts oder auswaerts? Die Deckkraft sagt es, ohne zweite Kennung:
-		// der eine blendet auf seinem Weg ein, der andere aus.
+		// Inward or outward? The opacity tells them apart, with no second id:
+		// one fades in along its way, the other fades out.
 		const bool inward = (p.deltaColor.a > 0.0f);
 
-		// Ein zerstoerter Block hat nichts mehr, wohin die Truemmer
-		// zurueckkoennten; die fliegen also weiter, als waere nichts gewesen.
-		// Die Einwaertsfunken kehren immer um: ihr Ziel war ein Diamant, und
-		// der kommt in keinem Fall mehr.
+		// A destroyed block has nothing left for the debris to fly back into,
+		// and the debris flies on as if nothing had happened. The inward sparks
+		// always turn round: they were flying at a diamond, and it is not
+		// coming in any case.
 		if(!inward && !p_block) continue;
 
-		// Die gespiegelte Lebensdauer: so viele Takte, wie er schon fliegt. Wer
-		// gerade erst los ist, ist sofort vorbei; wer fast am Ziel war, hat den
-		// ganzen Weg vor sich. Einwaerts steht sie in der Deckkraft, die von 0
-		// aus je Takt um deltaColor.a gewachsen ist; auswaerts ist die ganze
-		// Dauer bekannt, und was davon noch aussteht, ist lifetime.
+		// The mirrored lifetime: as many ticks as the spark has already been
+		// flying. One that has just set off is over at once; one nearly home
+		// has the whole way in front of it. Inward it is in the opacity, which
+		// has grown from 0 by deltaColor.a per tick; outward the whole duration
+		// is known, and what is left of it is lifetime.
 		uint elapsed = 0;
 		if(inward) elapsed = static_cast<uint>(p.color.a / p.deltaColor.a + 0.5f);
 		else if(p.lifetime < static_cast<uint>(OUT_LIFE))
@@ -397,11 +397,11 @@ void DiamondMachine::abortConversion()
 		p.deltaSize = -p.deltaSize;
 		p.deltaRotation = -p.deltaRotation;
 
-		// Der Rueckweg trifft den Startpunkt, aber der Block steht inzwischen
-		// vielleicht woanders. Ein Zuschlag auf die Geschwindigkeit verschiebt
-		// die ganze Bahn um genau diesen Versatz - dieselbe Wegformel wie beim
-		// Anflug, nur nach v0 aufgeloest, also keine Verzerrung der Bahn,
-		// sondern eine Parallelverschiebung.
+		// The way back hits the starting point, but the block may be standing
+		// somewhere else by now. One addend on the velocity translates the
+		// whole trajectory by exactly that offset - the same travel formula as
+		// for the approach, solved for v0: no distortion of the trajectory,
+		// a parallel shift.
 		if(!inward && elapsed && !shift.isZero())
 		{
 			const double d = p.damping;
@@ -411,9 +411,9 @@ void DiamondMachine::abortConversion()
 			p.velocity += shift * k;
 		}
 
-		// Ein Takt mehr als Wege: der letzte Aufruf zaehlt nur herunter und
-		// loescht, er bewegt nicht mehr. Und 0 waere hier toedlich - der
-		// Zaehler ist vorzeichenlos und liefe ueber.
+		// One tick more than moves: the last update only counts down and
+		// erases, it no longer moves anything. And 0 would be fatal here - the
+		// counter is unsigned and would wrap.
 		p.lifetime = elapsed + 1;
 	}
 
@@ -422,7 +422,7 @@ void DiamondMachine::abortConversion()
 
 void DiamondMachine::updateSprites()
 {
-	// Maschine
+	// Machine
 	Vec2i positionOnTexture(0, 128);
 	if(level.isElectricityOn())
 	{
@@ -442,7 +442,7 @@ void DiamondMachine::onUpdate()
 {
 	if(level.isElectricityOn())
 	{
-		// Befindet sich ein Objekt auf der Maschine?
+		// Is there an object on the machine?
 		Object* p_obj = level.getFrontObjectAt(position - Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -450,18 +450,18 @@ void DiamondMachine::onUpdate()
 			{
 				if(p_obj == p_objOnMe)
 				{
-					// Rauch. Die Farbe kommt aus dem Bild des Blocks; faellt die
-					// Stichprobe auf eine durchsichtige Stelle, entfaellt nur
-					// dieses eine Teilchen - der Zaehler unten laeuft weiter,
-					// sonst haengte die Umwandlungsdauer an der Deckung des
-					// Bildes und waere von Mal zu Mal eine andere.
+					// Smoke. The colour comes from the block's image; if the
+					// sample lands on a transparent spot only this one
+					// particle is dropped - the counter below runs on, or the
+					// conversion time would hang on the image's coverage and
+					// be a different one every time.
 					//
-					// Duenner als frueher und zum Schluss gar nicht mehr: eine
-					// Rauchwolke lebt achtzig bis hundertzwanzig Takte und
-					// waechst dabei, ein Funke lebt keine dreissig und
-					// schrumpft. Bei einem Teilchen je Takt liegt darum immer
-					// eine Dunstglocke ueber allem, und die Funken verschwinden
-					// darin. Das letzte Viertel gehoert dem Einsammeln allein.
+					// Thin, and at the end none at all: a smoke cloud lives
+					// eighty to a hundred and twenty ticks and grows while it
+					// does, a spark lives less than thirty and shrinks. At one
+					// particle per tick there is therefore always a haze over
+					// everything and the sparks disappear into it. The last
+					// quarter belongs to the collecting alone.
 					Vec4d sampled;
 					Vec2i offset;
 					if(random(0.0, 1.0) < smokeRate(counter) &&
@@ -487,13 +487,13 @@ void DiamondMachine::onUpdate()
 						else p_fireParticleSystem->addParticle(p);
 					}
 
-					// Wie weit die Umwandlung ist, dem Block in die Hand
-					// gedrueckt - er zeichnet sich selbst blasser. Jeden Takt
-					// neu, denn er loescht den Wert in seinem frameBegin();
-					// bleibt der Druck aus, steht er von allein wieder voll da.
-					// p_obj kommt frisch aus getFrontObjectAt() und wird nur
-					// hier und jetzt angefasst; p_objOnMe bleibt ein Zeiger,
-					// der ueber Takte hinweg nur verglichen wird.
+					// How far the conversion has got, pressed into the block's
+					// hand - it draws itself paler. Fresh every tick, because
+					// it clears the value in its own frameBegin(); a machine
+					// that stops pushing lets it stand full again by itself.
+					// p_obj comes straight out of getFrontObjectAt() and is
+					// touched only here and now; p_objOnMe stays a pointer
+					// that is only ever compared across ticks.
 					p_obj->setConversionProgress(
 						clamp(static_cast<double>(counter) / CONVERSION_TICKS, 0.0, 1.0));
 
@@ -513,20 +513,19 @@ void DiamondMachine::onUpdate()
 
 				if(counter >= 100)
 				{
-					// Der Block wird umgewandelt. Er verschwindet schnell: er
-					// steht bei CONVERSION_GHOST und behaelt das auch im
-					// Sterben (siehe Object::frameBegin), ist also nur noch ein
-					// Hauch ueber dem fertigen Diamanten. Eine halbe Sekunde
-					// waere dafuer eine Ewigkeit.
+					// The block is converted. It disappears fast: it stands at
+					// CONVERSION_GHOST and keeps that while dying too (see
+					// Object::frameBegin), leaving no more than a breath over
+					// the finished diamond. Half a second would be an eternity
+					// for that.
 					p_obj->disappearNextFrame(0.15);
 					level.getPresets()->instancePreset("Diamond", position - Vec2i(0, 1), 0);
 //					level.addNewObjects();
 					counter = -1;
 
-					// Kein abortConversion(): die Einwaertsfunken sind in
-					// eben diesem Takt angekommen und gestorben. Die Kennung
-					// wird nur weggelegt, damit die naechste Umwandlung eine
-					// eigene bekommt.
+					// No abortConversion(): the inward sparks arrived and
+					// expired in this very tick. The id is merely put aside for
+					// the next conversion to get one of its own.
 					sparkId = 0;
 				}
 			}

@@ -49,7 +49,7 @@ void Lava::onRender(int layer,
 	}
 	else if(layer == 737 || layer == 738)
 	{
-		// Lava rendern
+		// render the lava
 		Vec2d shift(2.0 * sin(0.1 * anim), 3.0 * cos(0.05 * anim));
 		double a[4];
 		if(layer == 737) getAlpha1(position, a);
@@ -146,7 +146,7 @@ void Lava::onRender(int layer,
 
 	if(layer == 255)
 	{
-		// Fliessrichtung anzeigen
+		// show the flow direction
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_TEXTURE_2D);
 		glPushMatrix();
@@ -234,7 +234,7 @@ void Lava::onUpdate()
 
 	if(!(randomInt() % 20))
 	{
-		// Dampf
+		// steam
 		p.lifetime = random(20, 30);
 		p.damping = 0.9f;
 		p.gravity = -0.04f;
@@ -251,7 +251,7 @@ void Lava::onUpdate()
 		p_particleSystem->addParticle(p);
 	}
 
-	// Aufzuege schuetzen die Objekte vor der Lava.
+	// Elevators protect the objects from the lava.
 	bool elevatorFound = false;
 	const std::vector<Object*> objectsOnMe = level.getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
@@ -265,7 +265,7 @@ void Lava::onUpdate()
 
 	if(!elevatorFound)
 	{
-		// Befindet sich ein Objekt in der Lava?
+		// Is there an object in the lava?
 		for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
 		{
 			Object* p_obj = *i;
@@ -283,7 +283,7 @@ void Lava::onUpdate()
 
 					Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-					// Truemmer
+					// debris
 					const Sprites& debris = p_destroyed->getSprites();
 					int n = debris.getTryCount(random(50, 80));
 					for(int i = 0; i < n; i++)

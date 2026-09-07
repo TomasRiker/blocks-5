@@ -4,7 +4,7 @@
 #include "object.h"
 #include "pin.h"
 
-/*** Klasse fuer elektronische Bauteile ***/
+/*** Class for electronics parts ***/
 
 class Electronics : public Object
 {

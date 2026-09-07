@@ -42,7 +42,7 @@ void CF_Slices::render(double t,
 		glRotated(angle, 0.0, 1.0, 0.0);
 		glScaled(1.0 / n, 1.0, 1.0);
 
-		// vordere Seite zeichnen
+		// draw the front face
 		glBindTexture(GL_TEXTURE_2D, oldImageID);
 		glBegin(GL_QUADS);
 		double c = 1.0 - angle / 180.0;
@@ -57,7 +57,7 @@ void CF_Slices::render(double t,
 		glVertex3i(-1, -1, 0);
 		glEnd();
 
-		// hintere Seite zeichnen
+		// draw the back face
 		glRotated(180.0, 0.0, 1.0, 0.0);
 		glBindTexture(GL_TEXTURE_2D, newImageID);
 		glBegin(GL_QUADS);

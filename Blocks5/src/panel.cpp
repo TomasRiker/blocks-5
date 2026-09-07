@@ -15,7 +15,7 @@ Panel::~Panel()
 
 void Panel::onUpdate()
 {
-	// Befindet sich ein Objekt auf dem Panel, das vorher noch nicht da war?
+	// Is there an object on the panel that had not been there before?
 	std::vector<Object*> newObjectsOnMe = level.getObjectsAt2(position);
 	for(std::vector<Object*>::const_iterator i = newObjectsOnMe.begin(); i != newObjectsOnMe.end(); ++i)
 	{
@@ -26,8 +26,8 @@ void Panel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel ausloesen. Das Aufleuchten steht hier, damit auch ein
-				// spaeter dazukommendes Panel es von selbst bekommt.
+				// Trigger the panel. The flash lives here, and a panel added
+				// later therefore gets it too, of its own accord.
 				flash();
 				onTriggered(p_obj);
 				break;

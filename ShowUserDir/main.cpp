@@ -13,13 +13,13 @@ int WINAPI WinMain(HINSTANCE inst,
 
 	if(GetFileAttributesA(homeDirectory.c_str()) == INVALID_FILE_ATTRIBUTES)
 	{
-		// Das Verzeichnis existiert noch nicht!
+		// The directory does not exist yet!
 		MessageBoxA(0, "The user directory has not been created, because the game has not been started yet. Start the game, and the directory will be created and initialized.",
 					"Start the game first!", MB_OK | MB_ICONINFORMATION);
 	}
 	else
 	{
-		// Explorer oeffnen
+		// open Explorer
 		HINSTANCE result = ShellExecuteA(0, "explore", homeDirectory.c_str(), 0, 0, SW_SHOWNORMAL);
 		if(reinterpret_cast<int>(result) <= 32)
 		{

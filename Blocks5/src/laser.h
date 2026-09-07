@@ -4,7 +4,7 @@
 #include "object.h"
 #include "linedrawer.h"
 
-/*** Klasse fuer einen Laser ***/
+/*** Class for a laser ***/
 
 class SoundInstance;
 

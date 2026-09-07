@@ -27,7 +27,7 @@ Elevator::Elevator(Level& level,
 
 		if(numInstances == 1)
 		{
-			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
+			// This is the first instance. Create the sound instance and pause it.
 			Sound* p_sound = Manager<Sound>::inst().request("elevator.ogg");
 			p_soundInst = p_sound->createInstance(true);
 			p_sound->release();
@@ -52,7 +52,7 @@ void Elevator::onRemove()
 
 		if(!numInstances)
 		{
-			// Das war die letzte Instanz. Sound stoppen.
+			// The last instance is gone. Stop the sound.
 			p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
@@ -62,7 +62,7 @@ void Elevator::onRemove()
 
 void Elevator::updateSprites()
 {
-	// Aufzug
+	// elevator
 	int frame = level.isInEditor() ? dir : newDir;
 	if(blink && (((moveCounter - 1) / 10) % 2)) frame = 4;
 	if(!level.isInEditor() && !level.isElectricityOn()) frame = 4;
@@ -101,19 +101,19 @@ void Elevator::onUpdate()
 	case 3: dirV = Vec2i(-1, 0); break;
 	}
 
-	// Was fuer eine Schiene liegt hier?
+	// What kind of rail is here?
 	Rail* p_thisRail = level.getRailAt(position);
 	if(!p_thisRail) return;
 
-	// Was fuer eine Schiene liegt da?
+	// What kind of rail is there?
 	Rail* p_nextRail = level.getRailAt(position + dirV);
 
 	bool movementAllowed = false;
 
-	// Gar keine Schiene?
+	// No rail at all?
 	if(!p_nextRail)
 	{
-		// Das geht nur, wenn die aktuelle Schiene kaputt ist.
+		// That only works if the current rail is damaged.
 		if(p_thisRail->subType == 4) movementAllowed = true;
 	}
 	else
@@ -121,10 +121,10 @@ void Elevator::onUpdate()
 		int nextSubType = p_nextRail->subType;
 		int nextDir = p_nextRail->dir;
 
-		// gerade Strecke
+		// straight track
 		if(nextSubType == 0 && (nextDir % 2) == (dir % 2)) movementAllowed = true;
 
-		// Kurve
+		// corner
 		else if(nextSubType == 1 && (nextDir == dir || nextDir == ((dir + 1) % 4)))
 		{
 			if(nextDir == dir) newDir = (dir + 1) % 4;
@@ -132,16 +132,16 @@ void Elevator::onUpdate()
 			movementAllowed = true;
 		}
 
-		// Kreuzung
+		// junction
 		else if(nextSubType == 2) movementAllowed = true;
 
-		// T-Stueck
+		// T-junction
 		else if(nextSubType == 3 && nextDir != (dir + 2) % 4) movementAllowed = true;
 
-		// kaputte Strecke
+		// damaged track
 		else if(nextSubType == 4 && (nextDir % 2) == (dir % 2)) movementAllowed = true;
 
-		// Abzweigung links
+		// turn off left
 		else if(nextSubType == 5)
 		{
 			if((nextDir % 2) == (dir % 2)) movementAllowed = true;
@@ -152,7 +152,7 @@ void Elevator::onUpdate()
 			}
 		}
 
-		// Abzweigung rechts
+		// turn off right
 		else if(nextSubType == 6)
 		{
 			if((nextDir % 2) == (dir % 2)) movementAllowed = true;
@@ -167,24 +167,24 @@ void Elevator::onUpdate()
 	bool moved = false;
 	if(movementAllowed)
 	{
-		// Ist dort schon ein anderer Aufzug?
+		// Is another elevator already there?
 		Elevator* p_other = level.getElevatorAt(position + dirV);
 		if(!p_other)
 		{
-			// versuchen, den Aufzug zu bewegen
+			// try to move the elevator
 			moved = move(dirV);
 		}
 		else
 		{
 			if(p_other->newDir == newDir)
 			{
-				// den anderen Aufzug zuerst bewegen
+				// move the other elevator first
 				p_other->onUpdate();
 				p_other->moveCounter++;
 
 				if(p_other->position != position + dirV)
 				{
-					// versuchen, den Aufzug zu bewegen
+					// try to move the elevator
 					moved = move(dirV);
 				}
 			}
@@ -193,7 +193,7 @@ void Elevator::onUpdate()
 
 	if(!moved)
 	{
-		// umkehren
+		// turn around
 		moveCounter = 60;
 		newDir = (origDir + 2) % 4;
 		blink = true;
@@ -204,7 +204,7 @@ void Elevator::onElectricitySwitch(bool on)
 {
 	if(soundChanged) return;
 
-	// Sound kontrollieren
+	// control the sound
 	if(on)
 	{
 		p_soundInst->resume();

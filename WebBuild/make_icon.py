@@ -33,9 +33,9 @@ import sys
 import zlib
 
 
-# Bytes je Bildpunkt fuer die 8-Bit-Farbtypen aus RFC 2083. Der Leser laesst
-# genau diese zu und weist alles andere ab, statt es still falsch zu machen:
-# window.png ist RGBA, data/font.png eine Palette.
+# Bytes per pixel for the 8-bit colour types from RFC 2083. The reader accepts
+# exactly these and rejects everything else rather than getting it quietly
+# wrong: window.png is RGBA, data/font.png a palette.
 _BPP = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 
 
@@ -53,7 +53,7 @@ def read_png(path):
     while pos + 8 <= len(data):
         length, kind = struct.unpack('>I4s', data[pos:pos + 8])
         body = data[pos + 8:pos + 8 + length]
-        pos += 12 + length          # Laenge, Kennung, Rumpf, Pruefsumme
+        pos += 12 + length          # length, kind, body, checksum
         if kind == b'IHDR':
             width, height, depth, color, comp, filt, interlace = struct.unpack('>IIBBBBB', body)
             if depth != 8 or comp != 0 or filt != 0 or interlace != 0 or color not in _BPP:
@@ -79,7 +79,7 @@ def read_png(path):
         method = raw[at]
         line = bytearray(raw[at + 1:at + 1 + stride])
         at += 1 + stride
-        # Die fuenf Zeilenfilter aus RFC 2083, Abschnitt 6.
+        # The five row filters from RFC 2083, section 6.
         for x in range(stride):
             a = line[x - bpp] if x >= bpp else 0
             b = prev[x]
@@ -105,7 +105,7 @@ def read_png(path):
     if color == 6:
         return width, height, bytes(out)
 
-    # Alles andere auf RGBA bringen, damit die Aufrufer nur einen Fall kennen.
+    # Bring everything else to RGBA, leaving callers only one case to know.
     rgba = bytearray(width * height * 4)
     for i in range(width * height):
         if color == 3:
@@ -119,7 +119,7 @@ def read_png(path):
         elif color == 0:
             r = g = b = out[i]
             a = 255
-        else:                        # 4: Grau mit Alpha
+        else:                        # 4: grey with alpha
             r = g = b = out[i * 2]
             a = out[i * 2 + 1]
         rgba[i * 4:i * 4 + 4] = bytes((r, g, b, a))
@@ -133,8 +133,8 @@ def write_png(target, width, height, pixels):
                 struct.pack('>I', zlib.crc32(kind + body) & 0xFFFFFFFF))
 
     stride = width * 4
-    # Filter 0 je Zeile: das Bild besteht aus grossen gleichfarbigen Bloecken,
-    # die zlib von sich aus kurz macht.
+    # Filter 0 per row: the image is made of large blocks of one colour, which
+    # zlib shortens by itself.
     raw = b''.join(b'\x00' + pixels[y * stride:(y + 1) * stride] for y in range(height))
     body = (b'\x89PNG\r\n\x1a\n'
             + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
@@ -198,12 +198,12 @@ def main():
     offset = (canvas - art) // 2
     stride = width * 4
     for y in range(height):
-        # Eine Eingabezeile einmal breitziehen ...
+        # Stretch one input row out ...
         row = bytearray(art * 4)
         for x in range(width):
             px = pixels[y * stride + 4 * x:y * stride + 4 * x + 4]
             row[4 * scale * x:4 * scale * (x + 1)] = px * scale
-        # ... und, wo der Untergrund durchscheint, ueber ihn legen.
+        # ... and, where the background shows through, lay the row over it.
         if background is not None:
             for i in range(art):
                 if row[4 * i + 3] != 255:
@@ -211,7 +211,7 @@ def main():
                     for c in range(3):
                         row[4 * i + c] = int(round(row[4 * i + c] * a + fill[c] * (1.0 - a)))
                     row[4 * i + 3] = 255
-        # ... und scale-mal untereinander.
+        # ... and scale times, one below the other.
         for k in range(scale):
             at = ((y * scale + k + offset) * canvas + offset) * 4
             out[at:at + art * 4] = row

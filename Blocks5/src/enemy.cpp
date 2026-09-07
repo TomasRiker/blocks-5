@@ -50,15 +50,15 @@ void Enemy::updateSprites()
 {
 	if(subType == 0)
 	{
-		// komisches gruenes Insekt. Es wackelt um bis zu 10 Grad um seine
-		// Blickrichtung; die Truemmer bekommen den Winkel ungerundet.
+		// odd green insect. It wobbles by up to 10 degrees about the direction
+		// it faces; the debris gets the angle unrounded.
 		int f[] = {0, 1, 0, 2};
 		int frame = f[(anim / 4) % 4];
 		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0 * shownDir + 10.0 * sin(anim / 4.0);
 	}
 	else if(subType == 1)
 	{
-		// Teufelsfratze
+		// devil's face
 		int f[] = {0, 1, 1, 1, 0};
 		int frame = f[(anim / 4) % 5];
 		sprites.add(Vec2i(64 + frame * 32, 448));
@@ -79,10 +79,10 @@ void Enemy::onRender(int layer,
 	{
 		if(subType == 1)
 		{
-			// Die Teufelsfratze schwebt. Ihr Bild steigt mit der Hoehe auf,
-			// ihr Schatten bleibt am Boden und wird dabei blasser. Das ist
-			// eine Sache des Durchgangs und gehoert deshalb nicht in die
-			// Teilbilder. Object::render klammert das Ganze in glPushMatrix.
+			// The devil's face floats. Its image rises with the height while
+			// its shadow stays on the ground and grows fainter. That is a
+			// matter of the pass and therefore does not belong in the sprites.
+			// Object::render brackets the whole thing in glPushMatrix.
 			if(shadowPass) realColor.a /= 1.0 + 0.25 * height;
 			else glTranslated(0.0, static_cast<int>(-height), 0.0);
 		}
@@ -106,7 +106,7 @@ void Enemy::onUpdate()
 
 	if(level.getAIFlags(position) & 2)
 	{
-		// Vergiftung
+		// contamination
 		contamination--;
 	}
 
@@ -114,7 +114,7 @@ void Enemy::onUpdate()
 
 	if(!thinkCounter--)
 	{
-		// den naechsten Spieler suchen, der fuer den Gegner sichtbar ist
+		// find the closest player that the enemy can see
 		Player* p_closestPlayer = 0;
 		int closestDist = 0;
 		const std::list<Player*>& players = Player::getInstances();
@@ -176,7 +176,7 @@ void Enemy::onUpdate()
 			default:
 				if(r >= 6 && targetPosition.x != -1)
 				{
-					// zum Ziel laufen
+					// walk towards the target
 					Vec2i toTarget = targetPosition - position;
 					if(toTarget.x && toTarget.y) toTarget.value[random(0, 1)] = 0;
 					int d = dirToInt(toTarget);
@@ -214,7 +214,7 @@ void Enemy::onUpdate()
 		{
 			if(oldDir != dir)
 			{
-				// Kratz-Sound abspielen
+				// play the scratching sound
 				Engine::inst().playSound("enemy1_turn.ogg", false, 0.1, -100);
 				soundCounter = random(15, 55);
 			}
@@ -232,7 +232,7 @@ void Enemy::onUpdate()
 				else if(s == 1) sound = "enemy1_burp2.ogg";
 				Engine::inst().playSound(sound, false, 0.1);
 
-				// Ruelpspartikel erzeugen
+				// create the burp particles
 				ParticleSystem* p_particleSystem = level.getParticleSystem();
 				ParticleSystem::Particle p;
 				for(int i = 0; i < 10; i++)
@@ -279,7 +279,7 @@ void Enemy::onUpdate()
 			default:
 				if(targetPosition.x != -1)
 				{
-					// zum Ziel laufen
+					// walk towards the target
 					Vec2i toTarget = targetPosition - position;
 					if(toTarget.x && toTarget.y) toTarget.value[random(0, 1)] = 0;
 					int d = dirToInt(toTarget);
@@ -288,7 +288,7 @@ void Enemy::onUpdate()
 				}
 				else
 				{
-					// Wo ist die Spur am heissesten?
+					// Where is the trace hottest?
 					int bestDir = 0;
 					uint bestTrace = 0;
 					for(int dir = 0; dir < 4; dir++)
@@ -306,18 +306,18 @@ void Enemy::onUpdate()
 						Vec2i bestDirV = intToDir(bestDir);
 						if(!tryToMove(bestDirV))
 						{
-							// Das ging nicht. Ist da ein anderer Gegner?
+							// That did not work. Is there another enemy?
 							bool reduceTrace = true;
 							Object* p_obj = level.getFrontObjectAt(position + bestDirV);
 							if(p_obj)
 							{
-								// Wenn da ein anderer Gegner ist, ist es egal.
+								// If it is another enemy, that does not matter.
 								if(p_obj->getType() == "Enemy") reduceTrace = false;
 							}
 
 							if(reduceTrace)
 							{
-								// Die Spur dort etwas uninteressanter machen!
+								// Make that trace a little less interesting!
 								level.setAITrace(position + bestDirV, bestTrace / 2);
 							}
 						}
@@ -364,7 +364,7 @@ void Enemy::onUpdate()
 		if(interest >= 10000) pr = 350;
 		if(!(randomInt() % pr))
 		{
-			// Lachen abspielen
+			// play the laugh
 			Engine::inst().playSound("enemy2_laugh.ogg", false, 0.15, -100);
 		}
 
@@ -372,14 +372,14 @@ void Enemy::onUpdate()
 		{
 			if(!(randomInt() % 200))
 			{
-				// Knurren abspielen
+				// play the growl
 				Engine::inst().playSound("enemy2_growl.ogg", false, 0.15, -100);
 			}
 		}
 
 		if(interest >= 10000)
 		{
-			// Feuer
+			// fire
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 			ParticleSystem::Particle p;
@@ -418,7 +418,7 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem::Particle p;
 
-			// die Metzelei hinter einer Staubwolke verstecken
+			// hide the slaughter behind a cloud of dust
 			const Sprites& debris = p_player->getSprites();
 			const int numTries = debris.getTryCount(150);
 			for(int i = 0; i < numTries; i++)
@@ -463,7 +463,7 @@ void Enemy::onCollect(Player* p_player)
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem::Particle p;
 
-			// die Metzelei hinter einer Staubwolke verstecken
+			// hide the slaughter behind a cloud of dust
 			const Sprites& debris = p_player->getSprites();
 			const int numTries = debris.getTryCount(150);
 			for(int i = 0; i < numTries; i++)
@@ -562,19 +562,19 @@ bool Enemy::tryToMove(const Vec2i& dir)
 
 	Vec2i np = position + dir;
 
-	// Ist da Feuer?
+	// Is there fire?
 	const std::vector<Object*> objects = level.getObjectsAt(np);
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) if((*i)->getType() == "Fire") return false;
 
-	// Ist da ein Laserstrahl, Lava oder Giftgas?
+	// Is there a laser beam, lava or toxic gas?
 	if(level.getAIFlags(np) & (1 | 2 | 4)) return false;
 
-	// Ist da Abgrund?
+	// Is there an abyss?
 	uint tileID = level.getTileAt(0, np);
 	const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 	if(tileInfo.type == 3)
 	{
-		// Wenn da ein Aufzug ist, ist es OK.
+		// If there is an elevator, that is fine.
 		if(level.getElevatorAt(np)) return move(dir, 1);
 		else return false;
 	}

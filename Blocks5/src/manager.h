@@ -1,7 +1,7 @@
 #ifndef _MANAGER_H
 #define _MANAGER_H
 
-/*** Manager-Klasse fuer Ressourcen ***/
+/*** Manager class for resources ***/
 
 #include "resource.h"
 
@@ -12,7 +12,7 @@ template<typename T> class Manager : public Singleton<Manager<T> >
 public:
 	void exit()
 	{
-		// alle noch geladenen Objekte loeschen
+		// delete every object that is still loaded
 		for(typename std::unordered_multimap<std::string, T*>::const_iterator i = items.begin(); i != items.end(); ++i)
 		{
 #ifdef _DEBUG
@@ -31,7 +31,7 @@ public:
 		typedef std::unordered_multimap<std::string, T*> mapType;
 		std::pair<typename mapType::const_iterator, typename mapType::const_iterator> range = items.equal_range(filename);
 
-		// neueste Ressource suchen
+		// look for the newest resource
 		uint newestTimestamp = 0;
 		T* p_newestResource = 0;
 		for(typename mapType::const_iterator i = range.first; i != range.second; ++i)
@@ -51,11 +51,11 @@ public:
 	{
 		if(!T::forceReload() && !forceReload)
 		{
-			// Objekt schon geladen?
+			// object already loaded?
 			T* p_resource = find(filename);
 			if(p_resource)
 			{
-				// ja, Referenzzaehler erhoehen und geladenes Objekt liefern
+				// yes, raise the reference counter and return the loaded object
 				p_resource->refCounter++;
 				return p_resource;
 			}
@@ -66,7 +66,7 @@ public:
 				  filename.c_str());
 #endif
 
-		// Objekt neu laden und zurueckliefern
+		// load the object afresh and return it
 		T* p_item = new T(filename);
 		if(p_item->error)
 		{
@@ -89,13 +89,13 @@ public:
 				  p_item->filename.c_str());
 #endif
 
-		// Objekt loeschen
+		// delete the object
 		std::pair<typename std::unordered_multimap<std::string, T*>::iterator, typename std::unordered_multimap<std::string, T*>::iterator> p = items.equal_range(p_item->filename);
 		for(typename std::unordered_multimap<std::string, T*>::iterator i = p.first; i != p.second; ++i)
 		{
 			if(i->second == p_item)
 			{
-				// Gefunden!
+				// Found!
 				items.erase(i);
 				break;
 			}
@@ -113,13 +113,13 @@ public:
 
 		if(filename.empty())
 		{
-			// alle Ressourcen neu laden
+			// reload every resource
 			range.first = items.begin();
 			range.second = items.end();
 		}
 		else
 		{
-			// nur die Ressourcen mit dem angegebenen Dateinamen neu laden
+			// reload only the resources with the given filename
 			range = items.equal_range(filename);
 		}
 

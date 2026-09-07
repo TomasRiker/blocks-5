@@ -94,7 +94,7 @@ def render(font_xml, text):
     if width == 0:
         raise SystemExit('leerer Text')
 
-    # Rand fuer den Schatten, und der Versatz aus der font.xml als Startzeile.
+    # Margin for the shadow, and the offset from the font.xml as the first row.
     pad_x = max(dx for dx, _ in SHADOW_OFFSETS)
     pad_y = max(dy for _, dy in SHADOW_OFFSETS)
     out_w, out_h = width + pad_x, height + pad_y
@@ -115,8 +115,8 @@ def render(font_xml, text):
                     else:
                         r, g, b = colour
                     at = dst + x * 4
-                    # Ueber das Vorhandene legen, wie glBlendFunc(SRC_ALPHA,
-                    # ONE_MINUS_SRC_ALPHA) es tut.
+                    # Lay it over what is there, the way glBlendFunc(SRC_ALPHA,
+                    # ONE_MINUS_SRC_ALPHA) does.
                     old = out[at + 3] / 255.0
                     new = a + old * (1.0 - a)
                     for k, v in enumerate((r, g, b)):

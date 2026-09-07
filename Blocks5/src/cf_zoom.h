@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Ueberblendung durch Zoom ***/
+/*** Crossfade by zoom ***/
 
 class CF_Zoom : public Crossfade
 {

@@ -1,7 +1,7 @@
 #ifndef _ENGINE_H
 #define _ENGINE_H
 
-/*** Klasse der Engine ***/
+/*** The Engine class ***/
 
 #include "parameterblock.h"
 
@@ -19,9 +19,9 @@ struct Action
 	std::string name;
 	int primary;
 	int secondary;
-	// Feuert die Aktion nach, solange die Taste liegt? Fuer das Laufen ja -
-	// delay bis zur ersten Wiederholung, dann alle interval. Fuer einen
-	// Schalter wie F12 nicht: der soll je Druck genau einmal ausloesen.
+	// Does the action keep firing while the key is held? For walking yes -
+	// delay until the first repeat, then every interval. Not for a toggle like
+	// F12: that one must fire exactly once per press.
 	bool repeats;
 	int delay;
 	int interval;
@@ -29,8 +29,8 @@ struct Action
 	int defaultSecondary;
 	std::vector<std::string> resetsActions;
 
-	// Aus der Konfiguration gelesene Kennungen, die noch nicht aufgeloest werden
-	// konnten. resolveActionKeys() traegt sie nach und leert die Felder wieder.
+	// Ids read from the config that could not be resolved yet.
+	// resolveActionKeys() fills them in and clears these members again.
 	std::string pendingPrimaryId;
 	std::string pendingSecondaryId;
 
@@ -41,8 +41,8 @@ struct Action
 
 struct VirtualKey
 {
-	// name wird angezeigt und kommt bei Tasten von SDL; id steht in der
-	// config.xml und muss deshalb ueberall dasselbe bedeuten.
+	// name is what is displayed and, for keys, comes from SDL; id is what
+	// stands in config.xml and must therefore mean the same everywhere.
 	std::string name;
 	std::string id;
 	int device;
@@ -86,126 +86,127 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
-	// false, wenn kein Bild entstanden ist. Im Browser landet es als Download
-	// beim Spieler statt als Datei im Benutzerverzeichnis.
+	// false where no image could be produced. In the browser it goes to the
+	// player as a download instead of as a file in the user directory.
 	bool screenshot();
 
-	// Der Bildpuffer, in den das Spiel rendert: immer 640x480, unabhaengig von
-	// der Fenstergroesse. Jede Rechnung in Bildschirmkoordinaten bleibt gueltig.
+	// The framebuffer the game renders into: always 640x480, whatever the
+	// window size. Every calculation in screen coordinates stays valid.
 	bool createFrameBuffer();
 	void destroyFrameBuffer();
-	void bindFrameBuffer();      // Ziel = Bildpuffer, Viewport 640x480
-	void unbindFrameBuffer();    // Ziel = Fenster
-	void presentFrame();         // Bildpuffer -> Fenster, mit schwarzen Balken
+	void bindFrameBuffer();      // target = framebuffer, viewport 640x480
+	void unbindFrameBuffer();    // target = window
+	void presentFrame();         // framebuffer -> window, with black bars
 
-	// Ein zweites Ziel: in eine Textur zeichnen statt in den Bildpuffer.
-	// Dazwischen ist (0,0) die linke obere Ecke der Textur; danach steht alles
-	// wieder so, wie der Rest des Bildes es erwartet. false heisst, dass diese
-	// Maschine es nicht kann - dann wurde auch nichts angefasst.
+	// A second target: draw into a texture instead of into the framebuffer.
+	// In between, (0,0) is the top left corner of the texture; afterwards
+	// everything is back the way the rest of the frame expects it. false means
+	// this machine cannot do it - and then nothing has been touched either.
 	bool beginRenderToTexture(uint textureID, const Vec2i& size);
 	void endRenderToTexture();
 
-	// Eine Textur zum Hineinzeichnen leihen und wieder zurueckgeben. Sie
-	// gehoeren der Engine und nicht dem Entleiher: sie fallen mit dem
-	// Bildpuffer, also solange der GL-Kontext noch steht, waehrend ein Objekt
-	// erst abgebaut wird, wenn er laengst weg ist. acquire gibt 0, wenn es
-	// nicht geht.
+	// Borrow a texture to draw into and hand it back again. The textures
+	// belong to the Engine and not to the borrower: they fall with the
+	// framebuffer, that is while the GL context still stands, whereas an object
+	// is torn down only long after that context is gone. acquire gives 0 where
+	// it does not work.
 	//
-	// Ein Vorrat und keine einzelne Textur, weil mehrere Hinweiszettel
-	// gleichzeitig zu sehen sein koennen - beim Schritt von einem auf den
-	// nachbarn blendet der eine aus, waehrend der andere einblendet. Mit einer
-	// gemeinsamen Textur zeichnete der zweite hinein, waehrend der erste noch
-	// daraus las, und dann zeigten beide denselben Text. Der Vorrat waechst nur
-	// bis zur groessten Zahl gleichzeitig geliehener Texturen.
+	// A pool and not a single texture, because several hint notes can be
+	// visible at once - stepping from one onto its neighbour fades the one out
+	// while the other fades in. With a shared texture the second would draw
+	// into it while the first still read from it, and both would then show the
+	// same text. The pool grows only up to the largest number of textures
+	// borrowed at once.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
-	// Wohin im Fenster das 640x480-Bild kommt: mittig, Seitenverhaeltnis
-	// erhalten. Auch die Umkehrung fuer die Mausposition benutzt genau das.
+	// Where in the window the 640x480 picture goes: centred, aspect kept. The
+	// inverse for the mouse position uses exactly this too.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
 
-	// Vollbild ist nur eine besondere Groesse plus ein Stilwechsel am
-	// Win32-Fenster vorbei an SDL; SDLs Flags bleiben deshalb das ganze Programm
-	// ueber SDL_OPENGL | SDL_RESIZABLE, sonst stirbt der GL-Kontext.
+	// Fullscreen is nothing but a special size plus a style change on the
+	// Win32 window behind SDL's back; SDL's flags therefore stay
+	// SDL_OPENGL | SDL_RESIZABLE for the whole life of the process, or the GL
+	// context dies.
 	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
 
-	// -nosplash. Wie overrideFullScreen() vor init() aufzurufen.
+	// -nosplash. To be called before init(), like overrideFullScreen().
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 
-	// -nofbo und -noshader: die beiden Ausweichwege erzwingen, die sonst nur
-	// alte Hardware nimmt. Ohne Bildpuffer zeichnet das Spiel unskaliert in den
-	// Ruecklaufpuffer, es gibt keinen Skalierungsfilter, keine Ueberblendung
-	// und keinen gerollten Hinweiszettel; ohne Shader bleiben "Scharf,
-	// angepasst" und die Bildroehre unverfuegbar. Beides ist nur von Hand zu
-	// pruefen, weil keine Maschine hier so alt ist - deshalb die Schalter.
-	// Ebenfalls vor init() zu setzen.
+	// -nofbo and -noshader: force the two fallback paths that otherwise only
+	// old hardware takes. Without a framebuffer object the game draws unscaled
+	// into the back buffer, there is no upscaling filter, no crossfade and no
+	// rolled hint note; without shaders SharpFit and the CRT filter stay
+	// unavailable. Neither can be checked other than by hand, because no
+	// machine here is that old - hence the switches. To be set before init()
+	// as well.
 	void disableFrameBuffer() { frameBufferDisabled = true; }
 	void disableShaders() { shadersDisabled = true; }
-	void handleResize(int width, int height);   // auf SDL_VIDEORESIZE hin
-	// Alles vergessen, was an Tasten und Maustasten aufgelaufen ist: nach allem,
-	// was die Hauptschleife angehalten hat, ist der Eingabezustand unbrauchbar.
+	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
+	// Forget everything that has piled up in keys and mouse buttons: after
+	// anything that stopped the main loop, the input state is useless.
 	void flushInput();
 
 #ifdef _WIN32
-	// Zieht der Benutzer am Fensterrand, laeuft die Hauptschleife nicht - Windows
-	// haelt sie in einer eigenen Nachrichtenschleife fest. Das hier zeichnet das
-	// zuletzt gerenderte Bild in der neuen Groesse noch einmal, ohne Spiellogik.
+	// While the user drags the window border the main loop does not run -
+	// Windows holds it in a message loop of its own. This draws the last
+	// rendered frame once more at the new size, with no game logic.
 	void repaintDuringSizeMove();
 	void setInSizeMove(bool value) { inSizeMove = value; }
 	bool isInSizeMove() const { return inSizeMove; }
 
-	// Dasselbe fuer den Dateidialog: auch der bringt eine fremde
-	// Nachrichtenschleife mit, und das Spielfenster bliebe sonst schwarz.
+	// The same for the file dialog: it too brings a foreign message loop with
+	// it, and the game window would otherwise stay black.
 	void beginForeignMessageLoop();
 	void endForeignMessageLoop();
 
-	// Kleinste Fenstergroesse, die handleResize() zulaesst, als Fensterrechteck
-	// samt Rahmen - fuer WM_GETMINMAXINFO.
+	// Smallest window size handleResize() allows, as a window rect including
+	// the frame - for WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;
-	// Ohne Bildpuffer bleibt das Fenster bei 640x480 - siehe fixWindowSize().
-	// Die Fensterprozedur fragt danach, um Windows auch die Obergrenze zu nennen.
+	// Without a framebuffer object the window stays at 640x480 - see
+	// fixWindowSize(). The window procedure asks in order to give Windows the
+	// maximum as well.
 	bool hasFixedWindowSize() const { return !useFrameBuffer; }
 #endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
 	bool isFullScreen() const { return fullScreen; }
 #ifdef __EMSCRIPTEN__
-	// Auf einem Telefon holt sich das Spiel das Vollbild bei jeder Beruehrung
-	// selbst zurueck. Gerufen wird das aus dem DOM-Rueckruf und nirgends sonst:
-	// die Fullscreen-API verlangt eine echte Geste, und die Ereignisse aus der
-	// Animationsschleife sind keine.
+	// On a phone the game takes the fullscreen back itself on every touch.
+	// Called from the DOM callback and nowhere else: the Fullscreen API needs a
+	// real user gesture, and the events out of the animation loop are not one.
 	void enforceTouchFullScreen();
 #endif
 	Vec2i getDesktopSize() const;
-	// Was ein frisch installiertes Spiel als Fenstergroesse bekommt: das groesste
-	// ganzzahlige Vielfache von 640x480, das noch bequem auf den Schirm passt.
+	// The window size a freshly installed game gets: the largest integer
+	// multiple of 640x480 that still fits comfortably on the screen.
 	Vec2i getDefaultWindowSize() const;
 
-	// Der GL-Zustand der Filter: der gemeinsame Vertexpuffer und, wo einer
-	// gebraucht wird, das uebersetzte Programm. Laesst sich eines nicht
-	// uebersetzen, meldet sich dieser Filter als nicht verfuegbar und die
-	// Anzeige faellt auf "Scharf" zurueck; das Spiel laeuft in jedem Fall.
+	// The filters' GL state: the shared vertex buffer and, where one is
+	// needed, the compiled program. If one will not compile, that filter
+	// reports itself unavailable and the presentation falls back to Sharp; the
+	// game runs either way.
 	void createUpscalerGL();
 	void destroyUpscalerGL();
 
-	// getUpscaler() ist der Wunsch aus der config.xml, getEffectiveUpscaler()
-	// das, was auf dieser Maschine davon uebrig bleibt.
+	// getUpscaler() is the wish out of config.xml, getEffectiveUpscaler() what
+	// is left of it on this machine.
 	void setUpscaler(Upscaler* p_upscaler);
 	Upscaler* getUpscaler() const { return p_wantedUpscaler; }
 	Upscaler* getEffectiveUpscaler() const;
-	// Alle vier, in der Reihenfolge, in der sie im Optionsdialog stehen.
+	// All four, in the order they appear in the options dialog.
 	const std::vector<Upscaler*>& getUpscalers() const { return upscalers; }
-	// Den Filter zu seinem Namen aus der config.xml; 0, wenn keiner so heisst.
+	// The filter for its name out of config.xml; 0 if none is called that.
 	Upscaler* findUpscaler(const char* p_name) const;
-	// Die Roehre beim Namen. Zwei Stellen brauchen genau sie und keinen
-	// beliebigen Filter: der Optionsdialog stellt ihre sechs Regler, und das
-	// Hauptmenue bietet sie einmalig an.
+	// The CRT filter by name. Two places need exactly this filter and not just
+	// any one: the options dialog sets its six sliders, and the main menu
+	// offers it once.
 	U_Crt& getCrt() const { return *p_crt; }
 	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 
-	// Alle Teilbilder eines Objekts zeichnen. color ist die Farbe des
-	// Renderdurchgangs; die Eigenfaerbung jedes Teilbilds kommt dazu.
+	// Draw all sprites of an object. color is the colour of the render pass;
+	// each sprite's own tint comes on top of it.
 	void renderSprites(const Sprites& sprites, const Vec4d& color);
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
 
@@ -224,12 +225,12 @@ public:
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
-	// Nimmt einer Taste das "in diesem Bild gedrueckt"-Kennzeichen weg, weil
-	// GUI::update() vor den Spielzustaenden laeuft und beide sie saehen.
+	// Takes the "pressed in this frame" flag off a key, because GUI::update()
+	// runs before the game states and both would see it.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
-	// Irgendeine Taste, irgendein Mausknopf - fuer den, der nur wissen will,
-	// dass ueberhaupt jemand etwas gedrueckt hat.
+	// Any key, any mouse button - for a caller that only wants to know that
+	// somebody pressed something at all.
 	bool wasAnyKeyPressed() const;
 	bool wasAnyButtonPressed() const;
 	void setKeyDown(SDLKey key, bool status);
@@ -238,20 +239,20 @@ public:
 	void setKeyData(SDLKey key, int data);
 
 	Vec2i getCursorPosition() const;
-	// Wo das Fenster den Zeiger meldet: ohne die Umrechnung auf das
-	// 640x480-Bild und ohne die Woelbung des Roehrenfilters. Damit ist zu
-	// unterscheiden, ob die Maus bewegt wurde oder ob nur die Abbildung sich
-	// geaendert hat - GUI::update() haengt daran.
+	// Where the window reports the cursor: without the mapping onto the
+	// 640x480 picture and without the CRT filter's barrel distortion. That is
+	// how to tell whether the mouse moved or only the mapping changed -
+	// GUI::update() depends on it.
 	const Vec2i& getRawCursorPosition() const;
 	void setCursorPosition(const Vec2i& cursorPosition);
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
-	// Das naechste Tastenereignis. p_repeat sagt, ob es von SDLs
-	// Tastenwiederholung stammt und nicht von einem neuen Druck: wer die Taste
-	// als Befehl liest - Escape, Return, die Kuerzel der Editoren -, muss so
-	// eines ueberspringen, sonst loest ein liegender Finger den Befehl alle
-	// 60 ms erneut aus. Ein Textfeld und eine Liste wollen es dagegen haben.
+	// The next key event. p_repeat says whether it comes from SDL's key repeat
+	// rather than from a fresh press: anything that reads the key as a command
+	// - Escape, Return, the editors' shortcuts - must skip such an event, or a
+	// finger left on the key fires the command again every 60 ms. An edit box
+	// and a list, on the other hand, want it.
 	bool getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat = 0);
 	bool isGUIFocused();
 	void unfocusGUI();
@@ -261,9 +262,9 @@ public:
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
 
-	// Die Kennung, unter der eine Taste in der config.xml steht. Die VK-Nummer
-	// taugt dafuer nicht: sie ist ein Index in virtualKeys und haengt an
-	// SDLK_LAST und daran, welche Joysticks beim Start angeschlossen waren.
+	// The id a key is stored under in config.xml. The VK number is no good for
+	// that: it is an index into virtualKeys and hangs off SDLK_LAST and off
+	// which joysticks were plugged in at startup.
 	const std::string& getVKId(int vk) const;
 	int getVKFromId(const std::string& id) const;
 	void resolveActionKeys();
@@ -276,26 +277,26 @@ public:
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
 	void updateActions();
-	// Auf einen Tastendruck warten, zum Belegen einer Aktion. Ein Zustand und
-	// keine eigene Schleife: im Browser fuellt erst die Rueckkehr zur Seite die
-	// Ereignisschlange. Solange er laeuft, gehoert die Tastatur ihm allein.
+	// Wait for a key press, to bind an action. A state and not a loop of its
+	// own: in the browser only the return to the page fills the event queue.
+	// While it runs, the keyboard belongs to it alone.
 	enum
 	{
-		GRAB_WAITING   = -3,   // laeuft noch, nichts entschieden
-		GRAB_CANCELLED = -2,   // Escape: die Belegung bleibt, wie sie war
-		GRAB_NO_KEY    = -1    // Zeit abgelaufen; heisst "keine Taste"
+		GRAB_WAITING   = -3,   // still running, nothing decided
+		GRAB_CANCELLED = -2,   // Escape: the binding stays as it was
+		GRAB_NO_KEY    = -1    // time is up; means "no key"
 	};
 
-	// timeOutMS <= 0 wartet ohne Frist.
+	// timeOutMS <= 0 waits without a deadline.
 	void beginKeyGrab(int timeOutMS = 3000);
 	bool isGrabbingKey() const;
 
-	// Liefert GRAB_WAITING, solange nichts entschieden ist; sonst einmal das
-	// Ergebnis und stellt die Wartestellung damit ab.
+	// Returns GRAB_WAITING while nothing is decided; otherwise the result
+	// once, and that ends the key grab.
 	int pollKeyGrab();
 	void resetActions();
 
-	// Nur diese eine Aktion auf ihre Vorgabe zuruecksetzen.
+	// Reset only this one action to its default.
 	void resetAction(const std::string& name);
 	void limitActionKeys();
 
@@ -314,8 +315,8 @@ public:
 	void saveConfig();
 	const std::string& getLanguage() const;
 	void setLanguage(const std::string& language);
-	// Was das System spricht, auf "de" oder "en" heruntergebrochen. Wird nur
-	// gefragt, wenn die config.xml gar keine Sprache nennt - siehe loadConfig().
+	// What the system speaks, boiled down to "de" or "en". Asked only where
+	// config.xml names no language at all - see loadConfig().
 	static std::string detectSystemLanguage();
 	double getSoundVolume() const;
 	void setSoundVolume(double soundVolume);
@@ -334,11 +335,10 @@ public:
 	void loadStringDB(const std::string& filename);
 	std::string localizeString(const std::string& text);
 
-	// Klaenge, die leiser gespielt werden sollen, als ihre Datei ist. Der
-	// Faktor gehoert in die Mischung und nicht in die Ogg: die .wav bleibt die
-	// unveraenderte Quelle, und ein leiser kodierter Klang haette fuer dieselbe
-	// Rechenlast weniger Aussteuerung. Wer nicht in data/sounds.xml steht,
-	// bekommt 1.0.
+	// Sounds that are to play quieter than their file is. The factor belongs
+	// in the mix and not in the ogg: the .wav stays the unaltered source, and a
+	// quietly encoded sound would have less level for the same computing cost.
+	// Anything not listed in data/sounds.xml gets 1.0.
 	void loadSoundVolumes(const std::string& filename);
 	double getSoundVolumeFactor(const std::string& filename) const;
 	std::string loadString(const std::string& id) const;
@@ -348,10 +348,11 @@ public:
 	uint getTimePlayed() const { return timePlayed; }
 	void saveTimePlayed();
 
-	// Kurze Meldung, die oben ins Bild faehrt. duration ist die Standzeit in
-	// Sekunden ohne das Ein- und Ausfahren; 0 nimmt den Wert der Art. Ein Fehler
-	// spielt teleport_failed.ogg, sofern suppressSound das nicht unterbindet.
-	// Dieselbe Meldung ein zweites Mal verlaengert nur die Standzeit der ersten.
+	// A short message that slides in at the top of the picture. duration is
+	// the hold time in seconds without the sliding in and out; 0 takes the
+	// type's own value. An error plays teleport_failed.ogg unless suppressSound
+	// stops it. The same message a second time only extends the first one's
+	// hold time.
 	enum ToastType
 	{
 		TOAST_OK = 0,
@@ -364,17 +365,17 @@ private:
 	Engine();
 	~Engine();
 
-	// Eine Meldung im Stapel. Es gibt drei Abschnitte: hereinfahren, stehen,
-	// hinausfahren. phaseTime laeuft je Abschnitt neu los.
+	// One toast in the stack. There are three sections: sliding in, standing,
+	// sliding out. phaseTime restarts with each section.
 	struct Toast
 	{
 		ToastType type;
 		std::string text;
-		int phase;          // 0 = herein, 1 = stehen, 2 = hinaus
-		uint phaseTime;     // ms in diesem Abschnitt
-		uint duration;      // ms fuer Abschnitt 1
-		double y;           // wo die Meldung gerade liegt
-		double targetY;     // wohin sie will
+		int phase;          // 0 = in, 1 = standing, 2 = out
+		uint phaseTime;     // ms in this section
+		uint duration;      // ms for section 1
+		double y;           // where the toast currently sits
+		double targetY;     // where it wants to go
 	};
 
 	void setupCursor();
@@ -384,45 +385,47 @@ private:
 	void updateToasts();
 	void renderToasts();
 
-	// Verteilt die Plaetze neu: die neueste ganz oben, die aelteren darunter.
-	// Wer schon hinausfaehrt, zaehlt nicht mehr mit.
+	// Hands out the places again: the newest at the very top, the older ones
+	// below it. One that is already sliding out no longer counts.
 	void reflowToasts();
 
 	void updateKeyGrab();
 	void syncActionDown(Action& action);
 
-	// Die Flanken "gerade gedrueckt" und "gerade losgelassen" aller Aktionen
-	// loeschen. Das Halten bleibt stehen.
+	// Clear the "just pressed" and "just released" edges of every action. The
+	// held state stays.
 	void clearActionEdges();
 
-	// Das zuletzt gezeichnete Bild noch einmal auf den Schirm bringen: aus dem
-	// Bildpuffer, mit Balken und Filter. Ohne Logiktakt und ohne neu zu zeichnen.
+	// Put the last rendered frame on the screen once more: out of the
+	// framebuffer, with bars and filter. No logic tick and nothing redrawn.
 	void showLastFrame();
 
-	// Setzt Fensterstil und -groesse, ohne SDLs Flags anzufassen. Der Stilwechsel
-	// selbst ist Win32; die Groesse geht immer durch handleResize().
+	// Sets window style and size without touching SDL's flags. The style
+	// change itself is Win32; the size always goes through handleResize().
 	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
 
-	void rememberWindowPlacement();   // liest Position/Groesse vom Fenster
-	bool isWindowMaximized() const;   // maximiert? dann nichts nachfuehren
-	void restoreWindowPosition();     // setzt sie beim Start wieder
+	void rememberWindowPlacement();   // reads position/size off the window
+	bool isWindowMaximized() const;   // maximized? then track nothing
+	void restoreWindowPosition();     // puts them back at startup
 #ifdef _WIN32
-	void hookWindowProc();            // eigene Fensterprozedur davorschalten
-	void unhookWindowProc();          // und wieder herausnehmen
+	void hookWindowProc();            // put our own window procedure in front
+	void unhookWindowProc();          // and take it out again
 #endif
 
-	// Die Abbildung des gerade wirksamen Filters, in beide Richtungen; die
-	// Koordinaten laufen von -1 bis 1 ab der Bildmitte. Nur die Roehre verzieht
-	// wirklich etwas, alle anderen geben zurueck, was sie bekommen haben.
+	// The mapping of the currently effective filter, in both directions; the
+	// coordinates run from -1 to 1 measured from the centre of the picture.
+	// Only the CRT filter really warps anything, all the others return what
+	// they were given.
 	Vec2d warpToSource(const Vec2d& p) const;
 	Vec2d warpToOutput(const Vec2d& p) const;
 
-	// Aeltester zuerst, also wird auch in dieser Reihenfolge gezeichnet: eine
-	// sterbende Meldung faehrt hinter ihre juengere Nachbarin und nicht darueber.
+	// Oldest first, and that is the order they are drawn in: a dying toast
+	// slides behind its younger neighbour and not over it.
 	std::list<Toast> toasts;
 
-	// Die Wartestellung auf einen Tastendruck. grabOldState haelt fest, was beim
-	// Anstellen schon gedrueckt war - gesucht ist die *neu* heruntergehende.
+	// The waiting state for a key press. grabOldState records which keys were
+	// already down when it started - the wanted one is the key that goes down
+	// *anew*.
 	bool grabbingKey;
 	int grabResult;
 	uint grabDeadline;
@@ -431,44 +434,44 @@ private:
 
 	bool initialized;
 	bool fullScreen;
-	int fullScreenOverride;    // -1 = keine Vorgabe von der Kommandozeile
+	int fullScreenOverride;    // -1 = nothing given on the command line
 	bool splashSkipped;        // -nosplash
 	bool frameBufferDisabled;  // -nofbo
 	bool shadersDisabled;      // -noshader
-	bool swallowedReturn;      // Alt+Return verschluckt: das Loslassen auch
-	Vec2i windowedSize;        // Groesse, auf die Vollbild-Aus zurueckfaellt
-	Vec2i windowedPosition;    // dito fuer die Position
+	bool swallowedReturn;      // Alt+Return swallowed: the release too
+	Vec2i windowedSize;        // size that leaving fullscreen falls back to
+	Vec2i windowedPosition;    // ditto for the position
 	bool  windowedPositionKnown;
-	bool  maximized;           // war das Fenster beim Beenden maximiert?
+	bool  maximized;           // was the window maximized on exit?
 #ifdef _WIN32
-	bool inSizeMove;           // Benutzer haelt gerade Rand oder Titel
+	bool inSizeMove;           // user is holding the border or the title bar
 #endif
-	long savedWindowStyle;     // Win32: der Stil vor dem Vollbild
-	int savedWindowRect[4];    // Win32: x, y, w, h vor dem Vollbild
+	long savedWindowStyle;     // Win32: the style before fullscreen
+	int savedWindowRect[4];    // Win32: x, y, w, h before fullscreen
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;
 	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
 	uint logicRate;
-	// Die Tabellen werden direkt mit dem SDL-Keysym indiziert, und der zaehlt je
-	// nach SDL-Kopf anders. Deshalb SDLK_LAST als Groesse und jeder Index geprueft.
-	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 unter SDL 1.2, 1536 mit Emscriptens Koepfen
+	// The tables are indexed with the SDL keysym directly, and that counts
+	// differently depending on the SDL header. Hence SDLK_LAST as the size, and
+	// every index checked.
+	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 under SDL 1.2, 1536 with Emscripten's headers
 	int keyData[NUM_KEY_SLOTS];
-	// Liegt die Taste gerade wirklich unter einem Finger? Das steht hier und
-	// nicht als Bit in keyData, weil keyData zweimal von aussen genullt wird -
-	// flushInput() leert es, und GS_Menu::onUpdate ueberschreibt es jeden Takt
-	// mit der aufgezeichneten Demo. Ein Zustand, der ueber mehrere Takte halten
-	// muss, kann dort nicht stehen.
+	// Is the key really under a finger right now? This lives here and not as a
+	// bit in keyData, because keyData is zeroed from outside twice -
+	// flushInput() clears it, and GS_Menu::onUpdate overwrites it every tick
+	// with the recorded demo. A state that has to hold across several ticks
+	// cannot live there.
 	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;
-	// Das Tastenereignis und ob es die Wiederholung einer liegenden Taste ist.
-	// Ein Textfeld will die Wiederholung, ein Befehl nicht - siehe
-	// Engine::getKeyEvent().
+	// The key event and whether it is the repeat of a held key. An edit box
+	// wants the repeat, a command does not - see Engine::getKeyEvent().
 	struct QueuedKeyEvent
 	{
 		SDL_KeyboardEvent event;
@@ -483,14 +486,14 @@ private:
 	Vec2i screenPow2Size;
 	Vec2i displaySize;
 	Vec2i cursorPosition;
-	// Der Mauszeiger in der Groesse, in der er entworfen wurde. 0 ist schwarz,
-	// 1 weiss, -1 durchsichtig. Screenshots und Videos zeichnen ihn selbst und
-	// immer hieraus: sie halten das 640x480-Bild fest, in dem er genau so gross
-	// ist. Was das System zeichnet, steht daneben in zwei Groessen.
+	// The mouse cursor at its design size. 0 is black, 1 white, -1 transparent.
+	// Screenshots and videos draw it themselves and always from this: they
+	// capture the 640x480 frame, in which it is exactly this size. What the
+	// system draws stands beside it in two sizes.
 	int cursorImage[16][16];
 	SDL_Cursor* p_cursor1x;
 	SDL_Cursor* p_cursor2x;
-	int cursorScale;   // 1 oder 2; 0, solange noch keiner gesetzt ist
+	int cursorScale;   // 1 or 2; 0 while none has been set yet
 	uint oldImageID;
 	uint newImageID;
 	Crossfade* p_crossfade;
@@ -498,15 +501,15 @@ private:
 	double crossfadeDuration;
 	StreamedSound* p_currentMusic;
 	std::string currentMusicFilename;
-	// Bildpuffer. frameTextureSize ist eine Zweierpotenz, weil WebGL 1 NPOT-
-	// Texturen nur eingeschraenkt erlaubt; benutzt wird die linke untere Ecke.
+	// Framebuffer. frameTextureSize is a power of two, because WebGL 1 allows
+	// NPOT textures only with restrictions; the bottom left corner is used.
 	uint frameBufferID;
 	uint frameTextureID;
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
-	uint renderTargetID;       // der Rahmen zum Hineinzeichnen, ohne feste Textur
-	bool renderTargetScissor;  // war der Schnittrahmen an, als es losging?
-	// Der Vorrat an Texturen zum Hineinzeichnen, siehe acquireOffscreenTexture().
+	uint renderTargetID;       // the FBO to draw into, with no fixed texture
+	bool renderTargetScissor;  // was the scissor box on when this began?
+	// The pool of textures to draw into, see acquireOffscreenTexture().
 	struct OffscreenTexture
 	{
 		uint id;
@@ -515,8 +518,8 @@ private:
 	};
 	std::vector<OffscreenTexture> offscreenTextures;
 	bool useFrameBuffer;
-	// Die vier Filter. upscalers besitzt sie und haelt die Reihenfolge des
-	// Optionsdialogs; die vier Zeiger daneben sind die Abkuerzung dorthin.
+	// The four filters. upscalers owns them and holds the options dialog's
+	// order; the four pointers beside it are the shortcut to them.
 	std::vector<Upscaler*> upscalers;
 	U_Sharp* p_sharp;
 	U_Smooth* p_smooth;
@@ -538,12 +541,12 @@ private:
 	double soundVolume;
 	double musicVolume;
 	bool volumeChanged;
-	// Fokus gewonnen oder verloren, aus welchem Ereignis auch immer.
+	// Focus gained or lost, from whichever event.
 	void handleAppFocus(bool gained);
 
-	// Hat das Fenster den Fokus? Ein Mitglied und keine Schleifenvariable, weil
-	// emscripten_set_main_loop je Bild einmal aufruft und nichts auf dem Stapel
-	// stehen bleibt - und weil der Testhaken es meldet.
+	// Does the window have the focus? A member and not a loop variable,
+	// because emscripten_set_main_loop calls once per frame and nothing may
+	// live on the stack between them - and because the test hook reports it.
 	bool appActive;
 
 	double oldSoundVolume;

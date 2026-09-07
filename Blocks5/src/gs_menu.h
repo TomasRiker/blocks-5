@@ -1,7 +1,7 @@
 #ifndef _GS_MENU_H
 #define _GS_MENU_H
 
-/*** Klasse fuer das Menue ***/
+/*** Class for the menu ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -28,9 +28,9 @@ public:
 	void handleClick(GUI_Element* p_element);
 
 private:
-	// Der Manager: einspielen, ausgeben, loeschen. Der Dateidialog des
-	// Browsers meldet sich asynchron, der von Windows modal - pollImport()
-	// verdeckt beides.
+	// The Manager: import, export, delete. The browser's file dialog answers
+	// asynchronously, the Windows one is modal - pollImport() hides the
+	// difference.
 	void pollImport();
 	void pollExport();
 	void openManager();
@@ -49,14 +49,14 @@ private:
 	Help* p_help;
 	uint time;
 
-	// Der Export wartet genau wie der Import eine Runde: unter Windows startet
-	// der Dateidialog eine zweite Nachrichtenschleife, und die darf nicht
-	// mitten in GUI_Button::onMouseUp anfangen.
+	// The export waits one round just as the import does: under Windows the
+	// file dialog starts a second message loop, and that must not begin in
+	// the middle of GUI_Button::onMouseUp.
 	int pendingExportKind;
 	std::string pendingExportName;
 	bool pendingExport;
 
-	// Was die Rueckfrage loeschen soll, festgehalten beim Klick auf Loeschen.
+	// What the confirmation is to delete, recorded on the click on Delete.
 	int pendingDeleteKind;
 	std::string pendingDeleteName;
 	std::unordered_map<uint, std::list<uint> > keyData;

@@ -1,7 +1,7 @@
 #ifndef _GUI_MULTILINEEDITBOX_H
 #define _GUI_MULTILINEEDITBOX_H
 
-/*** Klasse fuer ein mehrzeiliges Eingabefeld ***/
+/*** Class for a multi-line edit box ***/
 
 #include "gui_element.h"
 

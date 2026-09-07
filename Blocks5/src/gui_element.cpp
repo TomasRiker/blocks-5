@@ -46,10 +46,10 @@ void GUI_Element::render()
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
 
-	// sich selbst rendern
+	// render itself
 	onRender();
 
-	// Kinder rendern
+	// render the children
 	for(std::list<GUI_Element*>::const_iterator i = children.begin(); i != children.end(); ++i)
 	{
 		(*i)->render();
@@ -64,10 +64,10 @@ void GUI_Element::render()
 
 void GUI_Element::update()
 {
-	// sich selbst aktualisieren
+	// update itself
 	onUpdate();
 
-	// Kinder aktualisieren
+	// update the children
 	for(std::list<GUI_Element*>::const_iterator i = children.begin(); i != children.end(); ++i)
 	{
 		(*i)->update();
@@ -102,17 +102,17 @@ GUI_Element* GUI_Element::getLinkedTarget()
 	return p_parent->getChild(linkedElement);
 }
 
-// Ein Umschalter und ein Eingabefeld wollen Verschiedenes.
+// A toggle and an edit box want different things.
 //
-// Checkbox und Radioknopf bekommen den ganzen Satz Mausereignisse: sie schalten
-// beim Loslassen nur um, wenn sie sich fuer "unter der Maus" halten, und
-// nebenbei leuchtet das Ziel auf, solange die Maus ueber dem Etikett steht -
-// genau die richtige Rueckmeldung.
+// A check box and a radio button get the whole set of mouse events: they only
+// toggle on release if they believe themselves to be "under the mouse", and
+// the target lights up while the mouse stands over the label - exactly the
+// right feedback.
 //
-// Alles andere - vor allem Eingabefelder - bekommt statt dessen den Fokus. Die
-// Mausposition durchzureichen waere dort falsch: sie ist auf das Etikett
-// bezogen, und ein Eingabefeld setzt daraus die Schreibmarke, die dann
-// irgendwo im Text landet.
+// Everything else - above all edit boxes - gets the focus instead. Forwarding
+// the mouse position would be wrong there: it is measured against the label,
+// and an edit box sets its caret from it, which then lands somewhere in the
+// text.
 static bool wantsTheWholeClick(GUI_Element* p_target)
 {
 	const std::string type = p_target->getType();
@@ -190,10 +190,10 @@ void GUI_Element::onKeyEvent(const SDL_KeyboardEvent& event)
 		return;
 	}
 
-	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
+	// Only a key press matters here.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrueckt?
+	// Shift pressed?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
 	switch(event.keysym.sym)
@@ -219,7 +219,7 @@ void GUI_Element::onKeyEvent(const SDL_KeyboardEvent& event)
 		}
 		break;
 	default:
-		// Ereignis an das Elternelement weiterleiten
+		// forward the event to the parent element
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	}
@@ -243,7 +243,7 @@ GUI_Element* GUI_Element::getElementAt(const Vec2i& position)
 {
 	if(!visible) return 0;
 
-	// Ist die Position ausserhalb der eigenen Grenzen?
+	// Position outside the element's own bounds?
 	if(!containsPoint(position)) return 0;
 
 	for(std::list<GUI_Element*>::reverse_iterator i = children.rbegin(); i != children.rend(); ++i)
@@ -252,7 +252,7 @@ GUI_Element* GUI_Element::getElementAt(const Vec2i& position)
 		if(p_element) return p_element;
 	}
 
-	// Kein Kind getroffen? Dann sind wir es selbst.
+	// No child hit? Then it is this element itself.
 	return this;
 }
 
@@ -262,11 +262,11 @@ void GUI_Element::bringToFront()
 
 	if(p_parent)
 	{
-		// das Element an das Ende der Kinderliste des Elternelements setzen
+		// move the element to the end of the parent element's child list
 		p_parent->children.remove(this);
 		p_parent->children.push_back(this);
 
-		// das Elternelement ebenfalls in den Vordergrund holen
+		// bring the parent element to the front as well
 		p_parent->bringToFront();
 	}
 }
@@ -307,7 +307,7 @@ void GUI_Element::center(bool h,
 
 bool GUI_Element::load(const std::string& filename)
 {
-	// XML-Dokument laden
+	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename);
 	TiXmlDocument doc;
 	doc.Parse(text.c_str());
@@ -328,21 +328,21 @@ bool GUI_Element::load(const std::string& filename)
 
 bool GUI_Element::load(TiXmlElement* p_element)
 {
-	// for="Name", wie im Browser. Ein Attribut reicht dafuer - es ist ein Name,
-	// kein Inhalt. Gelesen wird es hier und nicht in readAttributes: das ist
-	// virtuell, und keine der abgeleiteten Klassen ruft die Fassung der
-	// Basisklasse auf, so dass ein for= dort je nach Elementtyp verschwaende.
+	// for="Name", as in a browser. One attribute is enough for it - it is a
+	// name, not content. Read here and not in readAttributes: that one is
+	// virtual, and none of the derived classes calls the base class version -
+	// a for= parsed there would vanish for some element types.
 	const char* p_for = p_element->Attribute("for");
 	if(p_for) setLinkedElement(p_for);
 
-	// Attribute lesen
+	// read the attributes
 	readAttributes(p_element);
 
-	// alle Kind-Elemente verarbeiten
+	// process all child elements
 	p_element = p_element->FirstChildElement();
 	while(p_element)
 	{
-		// Typ lesen
+		// read the type
 		const std::string& type = p_element->ValueStr();
 		if(type == "Center") center();
 		else if(type == "HCenter") center(true, false);
@@ -371,7 +371,7 @@ bool GUI_Element::load(TiXmlElement* p_element)
 		}
 		else
 		{
-			// Name, Position und Groesse lesen
+			// read the name, the position and the size
 			if(p_element->Attribute("name"))
 			{
 				std::string name = p_element->Attribute("name");
@@ -381,7 +381,7 @@ bool GUI_Element::load(TiXmlElement* p_element)
 				p_element->QueryIntAttribute("w", &size.x);
 				p_element->QueryIntAttribute("h", &size.y);
 
-				// Element erzeugen
+				// create the element
 				GUI_Element* p_child = 0;
 				if(type == "Button") p_child = new GUI_Button(name, this, position, size);
 				else if(type == "CheckBox") p_child = new GUI_CheckBox(name, this, position, size);
@@ -397,7 +397,7 @@ bool GUI_Element::load(TiXmlElement* p_element)
 
 				if(p_child)
 				{
-					// Rekursion
+					// recursion
 					p_child->load(p_element);
 				}
 			}
@@ -448,7 +448,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der naechst hoeheren Tabstop-ID suchen
+	// look for the sibling with the next higher tab stop id
 	int minID = 0x7FFFFFFF;
 	GUI_Element* p_minElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -469,7 +469,7 @@ GUI_Element* GUI_Element::getNextTabElement()
 
 	if(p_minElement) return p_minElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der niedrigsten Tabstop-ID ueberhaupt suchen.
+	// Nothing suitable. Look for the sibling with the lowest tab stop id of all.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;
@@ -492,7 +492,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 {
 	if(!p_parent || tabStop == -1) return this;
 
-	// Geschwisterelement mit der naechst niedrigeren Tabstop-ID suchen
+	// look for the sibling with the next lower tab stop id
 	int maxID = -1;
 	GUI_Element* p_maxElement = 0;
 	const std::list<GUI_Element*>& siblings = p_parent->getChildren();
@@ -513,7 +513,7 @@ GUI_Element* GUI_Element::getPreviousTabElement()
 
 	if(p_maxElement) return p_maxElement;
 
-	// Es gibt nichts passendes. Das Geschwisterelement mit der hoechsten Tabstop-ID ueberhaupt suchen.
+	// Nothing suitable. Look for the sibling with the highest tab stop id of all.
 	for(std::list<GUI_Element*>::const_iterator i = siblings.begin(); i != siblings.end(); ++i)
 	{
 		const GUI_Element* p_element = *i;
@@ -541,8 +541,9 @@ std::string GUI_Element::getFullName() const
 {
 	std::string fullName = name;
 	GUI_Element* p_element = p_parent;
-	// Auch auf die Null pruefen: die Wurzel selbst und alles, was nicht unter
-	// ihr haengt, laeuft sonst ueber p_parent == 0 hinaus und liest weiter.
+	// Check for null as well: the root itself and everything that does not
+	// hang below it would otherwise run past p_parent == 0 and read on
+	// through memory.
 	while(p_element && p_element != GUI::inst().getRoot())
 	{
 		fullName = p_element->getName() + "." + fullName;

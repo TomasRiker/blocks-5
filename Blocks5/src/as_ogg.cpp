@@ -22,7 +22,7 @@ AS_Ogg::AS_Ogg(const std::string& filename)
 		return;
 	}
 
-	// OGG-Vorbis-Handle erzeugen
+	// create the OGG Vorbis handle
 	int r = ov_open_callbacks(p_file, &vorbisFile, 0, 0, p_file->getOVCallbacks());
 	if(r)
 	{
@@ -33,7 +33,7 @@ AS_Ogg::AS_Ogg(const std::string& filename)
 		return;
 	}
 
-	// Informationen eintragen
+	// fill in the information
 	vorbis_info* p_info = ov_info(&vorbisFile, -1);
 	sampleRate = p_info->rate;
 	numBitsPerSample = 16;
@@ -44,7 +44,7 @@ AS_Ogg::AS_Ogg(const std::string& filename)
 
 AS_Ogg::~AS_Ogg()
 {
-	// Datei schliessen
+	// close the file
 	ov_clear(&vorbisFile);
 }
 
@@ -60,14 +60,14 @@ uint AS_Ogg::read(void* p_dest,
 		int n = ov_read(&vorbisFile, p_cursor, numBytesLeft, 0, 2, 1, &currentStream);
 		if(!n)
 		{
-			// Ende der Datei!
+			// End of file!
 			eos = true;
 			error = 0;
 			break;
 		}
 		else if(n < 0)
 		{
-			// Fehler!
+			// Error!
 			error = 1;
 			break;
 		}

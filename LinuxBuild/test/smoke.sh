@@ -1,16 +1,15 @@
 #!/bin/bash
-# smoke.sh - eine Runde durch die Oberflaeche des Linux-Builds.
+# smoke.sh - one round through the Linux build's GUI.
 #
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/smoke.sh
 #
-# Geklickt wird auf Elementnamen, nicht auf Koordinaten; wie das geht, steht in
-# harness.sh. Gebraucht werden Xvfb, ein Fenstermanager (openbox), xdotool und
-# ffmpeg:
+# Clicks go to element names, not to coordinates; harness.sh says how. It needs
+# Xvfb, a window manager (openbox), xdotool and ffmpeg:
 #
 #   sudo apt install xvfb openbox xdotool ffmpeg
 #
-# Ohne Fenstermanager laeuft alles ausser dem Vollbildwechsel: darum bittet das
-# Spiel nach EWMH, und ohne Fenstermanager hoert das niemand.
+# Without a window manager everything runs except the fullscreen switch: the
+# game asks for that through EWMH, and with no window manager nobody hears it.
 set -u
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.sh"
 
@@ -18,7 +17,7 @@ trap b5_stop EXIT
 b5_start
 b5_waitForState GS_Menu
 
-# Beim allerersten Start liegt die Frage nach dem Roehrenfilter ueber allem.
+# On the very first start the CRT filter offer lies over everything else.
 b5_dump
 if [ "$(b5_json "el('Menu.CrtPane.Crt.NoThanks')['shown']")" = "True" ]; then
 	b5_ok "die Roehrenfrage steht (erster Start)"
@@ -27,13 +26,13 @@ if [ "$(b5_json "el('Menu.CrtPane.Crt.NoThanks')['shown']")" = "True" ]; then
 fi
 b5_shot 1-menu
 
-# --- Optionen: auf, hin, wieder zu ------------------------------------------
+# --- Options: open, look, close again ---------------------------------------
 b5_click Menu.Options
 b5_expectShown OptionsPane.Options
 b5_shot 2-options
 
-# Ohne Auswahl in der Liste sind die Knoepfe darunter abgeschaltet. Von aussen
-# ist das sonst nur daran zu erkennen, dass sie grau bleiben.
+# Without a selection in the list the buttons under it are disabled. From
+# outside the only other sign of that is that they stay grey.
 b5_dump
 for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey OptionsPane.Options.ResetSelected; do
 	[ "$(b5_json "el('$name')['active']")" = "True" ] \
@@ -41,16 +40,16 @@ for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey Opti
 		|| b5_ok "$name ist ohne Auswahl abgeschaltet"
 done
 
-# Escape gehoert dem Dialog, nicht dem Menue darunter - sonst beendet es das
-# Spiel, statt den Dialog zu schliessen.
+# Escape belongs to the dialog, not to the menu under it - otherwise it quits
+# the game instead of closing the dialog.
 b5_key Escape
 b5_expectShown OptionsPane.Options false
 b5_expectState GS_Menu
 b5_shot 3-back
 
-# Und dasselbe mit gehaltener Taste. SDL_EnableKeyRepeat(140, 60) macht aus
-# 400 ms Escape sechs Ereignisse: das erste schliesst den Dialog, und die
-# Wiederholungen dahinter duerfen nicht auch noch das Spiel beenden.
+# And the same with the key held. SDL_EnableKeyRepeat(140, 60) turns 400 ms of
+# Escape into six events: the first closes the dialog, and the repeats behind
+# it must not quit the game as well.
 b5_click Menu.Options
 b5_expectShown OptionsPane.Options
 b5_hold Escape
@@ -62,10 +61,10 @@ else
 	b5_note "gehaltenes Escape im Optionsdialog hat das Spiel beendet"
 fi
 
-# --- Die Regler des Roehrenfilters ------------------------------------------
-# Der einzige Dialog, dessen Elemente alle ueber getChild() angesprochen
-# werden und den sonst kein Test aufmacht. "CRT settings ..." schaltet den
-# Filter dabei absichtlich mit ein, das gehoert zum Knopf.
+# --- The CRT filter's sliders -----------------------------------------------
+# The only dialog whose elements are all addressed through getChild() and that
+# no other test opens. "CRT settings ..." deliberately switches the filter on
+# as it goes; that belongs to the button.
 b5_click Menu.Options
 b5_expectShown OptionsPane.Options
 b5_click OptionsPane.Options.CrtSettings
@@ -75,22 +74,22 @@ for slider in Scan Curve Bloom Flicker ScanFlicker Converge; do
 done
 b5_shot 3b-crt
 
-# Ueber OK wieder zu. Der Knopf heisst schlicht Close - Options::handleClick
-# vergleicht den Namen, und das ist die eine Zeichenkette hier, die keine
-# Pruefung sonst ansieht.
+# Closed again through OK. The button is simply called Close -
+# Options::handleClick compares the name, and that is the one string here that
+# no other check looks at.
 b5_click OptionsPane.CrtOptions.Close
 b5_expectShown OptionsPane.CrtOptions false
 
-# Und den Filter ausdruecklich wieder zurueckstellen, nicht ueber Abbrechen:
-# das ruft loadConfig(), und beim ersten Lauf gibt es noch keine config.xml,
-# die etwas zurueckzunehmen haette. Bliebe die Roehre an, saehe der naechste
-# Lauf ein gewoelbtes Bild - und der Testhaken rechnet die Woelbung nicht mit,
-# also lande jeder Klick daneben.
+# And put the filter back explicitly, not through Cancel: that calls
+# loadConfig(), and on a first run there is no config.xml yet that would have
+# anything to take back. With the CRT filter left on, the next run would see a
+# curved picture - and the test hook does not account for the curvature, so
+# every click would land in the wrong place.
 b5_click OptionsPane.Options.SharpFit
 b5_click OptionsPane.Options.OK
 b5_expectShown OptionsPane.Options false
 
-# --- Manager: die vier Arten durchschalten ----------------------------------
+# --- Manager: step through the four kinds -----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager
 for kind in KindLevel KindCampaign KindMusic KindSkin; do
@@ -98,14 +97,13 @@ for kind in KindLevel KindCampaign KindMusic KindSkin; do
 done
 b5_shot 4-manager
 
-# Ausgeben und Loeschen folgen verschiedenen Regeln, seit die Liste beide
-# Wurzeln vereinigt: ausgeben laesst sich alles, was dasteht, loeschen nur, wovon
-# es eine eigene Fassung im Benutzerverzeichnis gibt. Ausgewaehlt ist der erste
-# Eintrag der sortierten Vereinigung - liegt er nur im Spielordner, bleibt
-# Loeschen grau. Nicht "auf einem frischen Profil" angenommen, sondern jedesmal
-# nachgesehen: ein Beispiellevel wandert in dem Augenblick von der einen Seite
-# auf die andere, in dem jemand ihn speichert.
-b5_managerRoots() { # $1=Art  ->  "<Unterordner> <Endung>"
+# Export and Delete follow different rules, because the list unites both roots:
+# everything that stands there can be exported, only what has its own version
+# in the user directory can be deleted. The first entry of the sorted union is
+# selected - if it lies only in the game folder, Delete stays grey. Not assumed
+# "on a fresh profile" but looked up every time: an example level moves from
+# one side to the other the moment somebody saves it.
+b5_managerRoots() { # $1=kind  ->  "<subfolder> <extension>"
 	case "$1" in
 		KindLevel)    echo "levels .xml" ;;
 		KindCampaign) echo "levels/campaigns .zip" ;;
@@ -130,16 +128,16 @@ for kind in KindLevel KindCampaign KindSkin; do
 		|| b5_note "$kind: Ausgeben ist abgeschaltet, obwohl etwas ausgewaehlt ist"
 done
 
-# Ausgeben und Loeschen haengen an der Auswahl, und seit es zwei Wurzeln gibt,
-# nicht mehr an derselben Bedingung: ausgeben laesst sich alles, was in der
-# Liste steht, loeschen nur, was dem Spieler gehoert. Die Liste ist die
-# Vereinigung beider Wurzeln und alphabetisch sortiert, ausgewaehlt ist der
-# erste Eintrag - liegt der im Spielordner, bleibt Loeschen grau.
+# Export and Delete both hang on the selection, but not on the same condition:
+# everything in the list can be exported, only what belongs to the player can
+# be deleted. The list is the union of both roots and alphabetically sorted,
+# and the first entry is selected - if that one lies in the game folder, Delete
+# stays grey.
 #
-# Ob ueberhaupt Musik dasteht, haengt davon ab, woraus das Spiel laeuft. Was
-# ausgeliefert wird, sagt stage.bat, und das legt nur die beiden Beispiellevel
-# nach levels/. Aus dem Arbeitsverzeichnis heraus - so laeuft dieser Test -
-# liegen dort auch die zehn Musikstuecke, aus denen blocks.zip gebaut wird.
+# Whether there is any music there at all depends on where the game is run
+# from. stage.bat says what ships, and it puts only the two example levels into
+# levels/. Out of the working directory - which is how this test runs - the ten
+# music tracks blocks.zip is built from lie there too.
 b5_click Menu.ManagerPane.Manager.KindMusic
 b5_dump
 musicGame="$B5_GAME/levels"
@@ -165,12 +163,12 @@ b5_expectShown Menu.ManagerPane.Manager false
 b5_expectState GS_Menu
 b5_shot 5-back
 
-# --- Im Spiel: Escape auf und wieder zu -------------------------------------
-# Das Spielmenue ist die einzige Stelle, an der Escape zweierlei bedeutet, und
-# das laesst sich nur in einem laufenden Level pruefen. Es ist auch die Stelle,
-# an der die Wiederholung wehtut: SDL_EnableKeyRepeat(140, 60) macht aus einer
-# gehaltenen Taste ein halbes Dutzend Ereignisse, und ohne die Sperre in
-# GS_Game klappte das Menue auf und zu, solange der Finger liegt.
+# --- In the game: Escape open and closed again ------------------------------
+# The game menu is the only place where Escape means two things, and that can
+# only be checked in a running level. It is likewise the place where the
+# repeat hurts: SDL_EnableKeyRepeat(140, 60) turns a held key into half a dozen
+# events, and without the guard in GS_Game the menu would flap open and shut
+# for as long as the finger rests.
 b5_click Menu.StartGame
 b5_waitForState GS_SelectLevel
 b5_click SelectLevel.PlayLevel
@@ -186,20 +184,19 @@ b5_key Escape
 b5_expectShown Game.MenuPane.Menu false
 b5_expectState GS_Game
 
-# Und gehalten: einmal auf, und dabei bleibt es. Frueher haette das Spiel hier
-# gar nichts getan; falsch gemacht flackert es.
+# And held: open once, and it stays that way. Done wrong it flickers.
 b5_hold Escape
 b5_expectShown Game.MenuPane.Menu
 b5_expectState GS_Game
 
-# Zurueck ueber das Menue des Spiels, damit der Rest wieder im Hauptmenue steht.
+# Back through the game's own menu, leaving the rest in the main menu again.
 b5_click Game.MenuPane.Menu.Quit
 b5_waitForState GS_SelectLevel
 b5_key Escape
 b5_expectState GS_Menu
 
-# --- Vollbild und zurueck ---------------------------------------------------
-# Das laeuft ueber den Fenstermanager, nicht ueber SDL - siehe
+# --- Fullscreen and back ----------------------------------------------------
+# That goes through the window manager, not through SDL - see
 # LinuxBuild/linux_window.cpp.
 if [ -n "$B5_WM_PID" ]; then
 	origin_x=$B5_X; origin_y=$B5_Y
@@ -214,10 +211,10 @@ if [ -n "$B5_WM_PID" ]; then
 	b5_key alt+Return; sleep 3
 	b5_geometry
 	b5_shot 7-windowed
-	# Erst die Groesse, dann der Ort. Ein Vollbild, das gar nicht verlassen
-	# wurde, sitzt in der Ecke und sah frueher nach einem verlorenen Ort aus -
-	# gemeldet wurde die Stelle, kaputt war der Umschalter. Den Ort selbst
-	# stellt unter X11 der Fenstermanager wieder her, nicht das Spiel.
+	# The size first, then the position. A window still in fullscreen sits in
+	# the corner and looks like a lost position - the report would name the
+	# position while the broken thing is the toggle. Under X11 the position
+	# itself is restored by the window manager, not by the game.
 	if [ "$B5_W" -ge "$B5_SCREEN_W" ] && [ "$B5_H" -ge "$B5_SCREEN_H" ]; then
 		b5_note "nach Alt+Return immer noch $B5_W x $B5_H - das Vollbild wurde nicht verlassen"
 	elif [ "$B5_X" -eq "$origin_x" ] && [ "$B5_Y" -eq "$origin_y" ]; then
@@ -227,14 +224,14 @@ if [ -n "$B5_WM_PID" ]; then
 	fi
 fi
 
-# --- Bildschirmfoto ---------------------------------------------------------
-# F11 schreibt eines ins Benutzerverzeichnis. Das ist der einzige Weg von hier,
-# den Bildpuffer selbst zu sehen - alles andere ist das Fenster.
+# --- Screenshot -------------------------------------------------------------
+# F11 writes one into the user directory. That is the only way from here to see
+# the framebuffer itself - everything else is the window.
 #
-# Geprueft wird nicht nur, dass eine Datei entstanden ist, sondern auch, dass
-# sie ein PNG ist: die Signatur vorn und der IEND-Chunk hinten. Den Kodierer
-# schreibt das Spiel selbst (src/img_save.cpp), und eine abgeschnittene Datei
-# waere an ihrer Groesse allein nicht zu erkennen.
+# It checks not only that a file appeared but that it is a PNG: the signature
+# at the front and the IEND chunk at the back. The encoder is the game's own
+# (src/img_save.cpp), and a truncated file could not be spotted from its size
+# alone.
 HOME_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
 before=$(ls "$HOME_DIR/screenshots"/*.png 2>/dev/null | wc -l)
 b5_hold F11
@@ -253,11 +250,11 @@ else
 	b5_note "F11 hat kein Bildschirmfoto geschrieben"
 fi
 
-# --- Beenden ----------------------------------------------------------------
-# Ueber das Spiel und nicht ueber das Fenster: "xdotool windowclose" ruft
-# XDestroyWindow, und SDL faellt danach ueber ein Fenster, das es noch fuer
-# seines haelt. Escape im Menue ist der Weg, den auch ein Spieler nimmt, und nur
-# darueber laeuft Engine::exit() und schreibt die config.xml.
+# --- Quitting ---------------------------------------------------------------
+# Through the game and not through the window: "xdotool windowclose" calls
+# XDestroyWindow, and SDL then trips over a window it still believes is its
+# own. Escape in the menu is the way a player takes too, and only that way does
+# Engine::exit() run and write config.xml.
 b5_key Escape
 for i in $(seq 1 25); do kill -0 "$B5_GAME_PID" 2>/dev/null || break; sleep 1; done
 kill -0 "$B5_GAME_PID" 2>/dev/null && b5_note "Escape im Menue hat das Spiel nicht beendet"

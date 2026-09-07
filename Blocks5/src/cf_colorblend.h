@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Ueberblendung: Altes Bild -> Farbe -> Neues Bild ***/
+/*** Crossfade: old image -> colour -> new image ***/
 
 class CF_ColorBlend : public Crossfade
 {

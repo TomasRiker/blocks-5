@@ -21,7 +21,7 @@ Mirror::~Mirror()
 
 void Mirror::updateSprites()
 {
-	// Spiegel
+	// mirror
 	sprites.add(Vec2i(160, subType == 0 ? 160 : 352)).rotation = 90.0 * dir;
 }
 

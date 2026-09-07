@@ -1,7 +1,7 @@
 #ifndef _FONT_H
 #define _FONT_H
 
-/*** Klasse fuer eine Schriftart ***/
+/*** Class for a font ***/
 
 #include "resource.h"
 
@@ -27,16 +27,16 @@ public:
 
 	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color);
 	void renderTextPure(const std::string& text);
-	// p_outCharPositions bekommt eine Position je Byte des Textes und eine
-	// dahinter, also immer text.length() + 1 Stueck - auch fuer die Bytes von
-	// <h> und </h>, die selbst nichts zeichnen. Die Eingabefelder schlagen hier
-	// mit demselben Byteindex nach, unter dem ihr Cursor steht.
+	// p_outCharPositions gets one position per byte of the text and one behind
+	// it, always text.length() + 1 of them - including the bytes of <h> and
+	// </h>, which draw nothing themselves. The edit boxes look up here under
+	// the same byte index their caret sits at.
 	void measureText(const std::string& text, Vec2i* p_outDimensions, std::vector<Vec2i>* p_outCharPositions, const Vec2i& offset = Vec2i(0, 0));
 
-	// Den Text auf hoechstens maxWidth Bildpunkte bringen: was nicht mehr
-	// hineinpasst, faellt weg und wird durch drei Punkte ersetzt. renderText()
-	// schneidet von sich aus nichts ab und bricht auch nichts um - wer einen
-	// Text an eine feste Stelle schreibt, muss ihn vorher hier durchreichen.
+	// Bring the text down to at most maxWidth pixels: what no longer fits is
+	// dropped and replaced by three dots. renderText() neither clips nor wraps
+	// of its own accord - text written to a fixed place has to be passed
+	// through here first.
 	std::string fitText(const std::string& text, int maxWidth);
 	std::string adjustText(const std::string& text, int maxWidth);
 

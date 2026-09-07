@@ -22,13 +22,13 @@ Electronics::~Electronics()
 
 void Electronics::updateAll(Level& level)
 {
-	// die Werte an den Ausgaengen aller Bauteile an die angeschlossenen Eingaenge weiterleiten
+	// forward the values at every part's outputs to the connected inputs
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->propagateOutputs();
 	}
 
-	// die Logikfunktionen ausfuehren
+	// run the logic functions
 	for(std::set<Electronics*>::const_iterator i = level.allElectronics.begin(); i != level.allElectronics.end(); ++i)
 	{
 		(*i)->doLogic();
@@ -37,7 +37,7 @@ void Electronics::updateAll(Level& level)
 
 void Electronics::onRemove()
 {
-	// alle Pins loeschen
+	// delete all pins
 	for(uint i = 0; i < inputPins.size(); i++) delete inputPins[i];
 	for(uint i = 0; i < outputPins.size(); i++) delete outputPins[i];
 	inputPins.clear();
@@ -48,9 +48,7 @@ void Electronics::onRemove()
 
 void Electronics::updateSprites()
 {
-	// Der Kasten, auf dem die Teile sitzen. Er kommt zuerst und liegt damit
-	// hinten - genauso wie frueher, als diese Basisklasse ihn selbst zeichnete
-	// und die abgeleitete Klasse ihr eigenes Bild danach darueberlegte.
+	// The box the parts sit on. It comes first and therefore lies behind.
 	if(renderBox) sprites.add(Vec2i(0, 512));
 }
 
@@ -69,7 +67,7 @@ void Electronics::onRender(int layer,
 
 		glDisable(GL_TEXTURE_2D);
 
-		// Verbindungen der Ausgaenge rendern
+		// render the outputs' connections
 		int n = position.x + position.y;
 		for(uint i = 0; i < outputPins.size(); i++)
 		{
@@ -94,7 +92,7 @@ void Electronics::saveAttributes(TiXmlElement* p_target)
 
 void Electronics::saveExtendedAttributes(TiXmlElement* p_target)
 {
-	// die aktuellen und ehemaligen Werte aller Pins speichern
+	// save the current and old values of every pin
 	for(std::vector<Pin*>::const_iterator i = inputPins.begin(); i != inputPins.end(); ++i)
 	{
 		int id = (*i)->getPinID();
@@ -122,7 +120,7 @@ void Electronics::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Electronics::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	// die aktuellen und ehemaligen Werte aller Pins laden
+	// load the current and old values of every pin
 	for(std::vector<Pin*>::const_iterator i = inputPins.begin(); i != inputPins.end(); ++i)
 	{
 		int id = (*i)->getPinID();
@@ -162,7 +160,7 @@ void Electronics::doLogic()
 
 void Electronics::saveConnections(TiXmlElement* p_target)
 {
-	// Verbindungen aller Ausgang-Pins speichern
+	// save the connections of every output pin
 	TiXmlElement* p_outputs = new TiXmlElement("OutputConnections");
 	for(uint i = 0; i < outputPins.size(); i++)
 	{
@@ -200,13 +198,13 @@ void Electronics::loadConnections(TiXmlElement* p_source)
 			int targetPinID; p_connection->Attribute("targetPinID", &targetPinID);
 			Pin* p_sourcePin = getPinByID(sourcePinID);
 
-			// Elektronik-Objekt an dieser Stelle suchen
+			// find the electronics object at that cell
 			const std::vector<Object*>& objects = level.getAllObjectsAt(Vec2i(targetX, targetY));
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 			{
 				if((*i)->getFlags() & OF_ELECTRONICS)
 				{
-					// die Verbindung erzeugen
+					// create the connection
 					Electronics* p_otherObject = static_cast<Electronics*>(*i);
 					Pin::connect(p_sourcePin, p_otherObject->getPinByID(targetPinID));
 				}
@@ -239,7 +237,7 @@ Pin* Electronics::getPinAt(const Vec2i& where)
 {
 	Vec2i realPosition = transformFromScreen(where);
 
-	// Welcher Pin ist da?
+	// Which pin is there?
 	for(std::vector<Pin*>::const_iterator i = inputPins.begin(); i != inputPins.end(); ++i)
 	{
 		int distSq = (realPosition - (*i)->getPosition()).lengthSq();
@@ -252,7 +250,7 @@ Pin* Electronics::getPinAt(const Vec2i& where)
 		if(distSq <= 8) return *i;
 	}
 
-	// Kein Pin an dieser Stelle gefunden!
+	// No pin found at this spot!
 	return 0;
 }
 

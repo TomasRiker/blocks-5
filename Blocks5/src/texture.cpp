@@ -39,7 +39,7 @@ void Texture::reload()
 
 	SDL_RWops* p_rwOps = p_file->getRWOps();
 
-	// Bild laden
+	// load the image
 	SDL_Surface* p_surface = IMG_Load_RW(p_rwOps, 1);
 	if(!p_surface)
 	{
@@ -55,14 +55,14 @@ void Texture::reload()
 
 	checkDimensions();
 
-	// OpenGL-Textur einrichten
+	// set up the OpenGL texture
 	glGenTextures(1, &texID);
 	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
 
-	// in das korrekte Format umwandeln
+	// convert into the correct format
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
 	SDL_SetAlpha(p_surface, 0, 0);
 	SDL_SetAlpha(p_rgba, 0, 0);
@@ -74,15 +74,15 @@ void Texture::reload()
 	SDL_BlitSurface(p_surface, &srcRect, p_rgba, 0);
 	SDL_FreeSurface(p_surface);
 
-	// Bild sperren
+	// lock the image
 	SDL_LockSurface(p_rgba);
 
-	// Bilddaten in die Textur kopieren
+	// copy the image data into the texture
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-	// Matrix erzeugen
+	// build the matrix
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
@@ -98,7 +98,7 @@ void Texture::cleanUp()
 {
 	if(p_rgba)
 	{
-		// Oberflaeche entsperren und loeschen
+		// unlock and free the surface
 		SDL_UnlockSurface(p_rgba);
 		SDL_FreeSurface(p_rgba);
 		p_rgba = 0;
@@ -106,7 +106,7 @@ void Texture::cleanUp()
 
 	if(texID)
 	{
-		// Textur loeschen
+		// delete the texture
 		glDeleteTextures(1, &texID);
 		texID = 0;
 	}
@@ -116,7 +116,7 @@ void Texture::bind() const
 {
 	if(!doKeepInMemory && p_rgba)
 	{
-		// Oberflaeche entsperren und loeschen
+		// unlock and free the surface
 		SDL_UnlockSurface(p_rgba);
 		SDL_FreeSurface(p_rgba);
 		p_rgba = 0;
@@ -125,7 +125,7 @@ void Texture::bind() const
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texID);
 
-	// Pixel-Texturkoordinaten
+	// pixel texture coordinates
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glLoadMatrixd(matrix);
@@ -162,14 +162,14 @@ void Texture::loadSubTexture(Texture* p_parent,
 
 	checkDimensions();
 
-	// OpenGL-Textur einrichten
+	// set up the OpenGL texture
 	glGenTextures(1, &texID);
 	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
 
-	// den gewuenschten Teil kopieren
+	// copy the wanted part
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	SDL_SetAlpha(p_rgba, 0, 0);
 	SDL_Rect srcRect;
@@ -181,15 +181,15 @@ void Texture::loadSubTexture(Texture* p_parent,
 	SDL_BlitSurface(p_parent->p_rgba, &srcRect, p_rgba, 0);
 	SDL_LockSurface(p_parent->p_rgba);
 
-	// Bild sperren
+	// lock the image
 	SDL_LockSurface(p_rgba);
 
-	// Bilddaten in die Textur kopieren
+	// copy the image data into the texture
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-	// Matrix erzeugen
+	// build the matrix
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
@@ -211,10 +211,10 @@ void Texture::keepInMemory()
 	if(doKeepInMemory) return;
 	doKeepInMemory = true;
 
-	// Die Pixel sind schon weg, weil die Textur vorher gebunden wurde. Das
-	// Flag holt sie nicht zurueck, also neu laden. Wenn gar nichts geladen
-	// werden konnte (texID == 0), gaebe ein zweiter Versuch nur denselben
-	// Fehler.
+	// The pixels are already gone because the texture had been bound earlier.
+	// The flag does not bring them back, hence the reload. If nothing could be
+	// loaded at all (texID == 0), a second attempt would only give the same
+	// error.
 	if(!p_rgba && texID) reload();
 }
 
@@ -239,18 +239,18 @@ Vec4d Texture::getPixel(const Vec2i& where) const
 
 void Texture::applyWrapMode() const
 {
-	// WebGL 1 haelt eine Textur, deren Kantenlaengen keine Zweierpotenzen sind,
-	// nur dann fuer vollstaendig, wenn sie mit CLAMP_TO_EDGE und ohne Mipmaps
-	// gesampelt wird. Sonst liefert jeder Zugriff Schwarz - nicht als Fehler,
-	// sondern still. Die Vorgabe ist GL_REPEAT, und darauf beruhen Regen,
-	// Schnee und Wolken: level.cpp schiebt fuer sie die Texturmatrix
-	// unbegrenzt weiter, damit sie kacheln. Also nicht pauschal umstellen,
-	// sondern genau dort, wo REPEAT ohnehin nicht funktionieren wuerde.
+	// WebGL 1 treats a texture whose edge lengths are not powers of two as
+	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
+	// Otherwise every access returns black - not as an error but silently.
+	// The default is GL_REPEAT, and rain, snow and clouds rest on it:
+	// level.cpp scrolls the texture matrix without bound for them to tile.
+	// Therefore do not switch it across the board, but exactly where REPEAT
+	// could never have worked anyway.
 	//
-	// Die Grafik des Spiels ist durchweg Zweierpotenz, das hier trifft also
-	// ausschliesslich importierte Skins. Absichtlich auch unter Windows, wo
-	// NPOT mit REPEAT funktionieren wuerde: sonst kachelte ein 300x200 grosser
-	// Regen beim Autor und nicht bei seinen Spielern.
+	// The game's own art is all power of two, which leaves imported skins as
+	// the only case here. Deliberately under Windows too, where NPOT with
+	// REPEAT would work: otherwise a 300x200 rain would tile for the author
+	// and not for his players.
 	if(nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -260,7 +260,7 @@ void Texture::checkDimensions()
 {
 	if(nextPow2(size.x) != size.x || nextPow2(size.y) != size.y)
 	{
-		// Das koennte Aerger machen!
+		// This could cause trouble.
 		printfLog("- WARNING: Creating non-pow2 texture! Filename=\"%s\", Size=%dx%d\n", filename.c_str(), size.x, size.y);
 	}
 }

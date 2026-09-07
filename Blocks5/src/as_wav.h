@@ -1,7 +1,7 @@
 #ifndef _AS_Wav_H
 #define _AS_Wav_H
 
-/*** Klasse fuer WAV-Audiodateien ***/
+/*** Class for WAV audio files ***/
 
 #include "audiostream.h"
 

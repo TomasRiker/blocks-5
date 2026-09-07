@@ -4,11 +4,11 @@
 # Run from anywhere; paths are resolved relative to this script.
 #   ./build.sh            incremental
 #   ./build.sh clean      from scratch
-#   ./build.sh hooks      plus die Testhaken aus test_hooks.cpp
+#   ./build.sh hooks      plus the test hooks from test_hooks.cpp
 #
-# "hooks" uebersetzt test_hooks.cpp mit -DBLOCKS5_TEST_HOOKS und baut nach
-# build-test/ statt build/, damit ein Build mit Haken nie versehentlich der
-# ausgelieferte ist. Ohne das Wort ist die Uebersetzungseinheit leer.
+# "hooks" compiles test_hooks.cpp with -DBLOCKS5_TEST_HOOKS and builds into
+# build-test/ instead of build/, keeping a build with hooks from ever becoming
+# the shipped one by accident. Without the word the translation unit is empty.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
@@ -31,11 +31,11 @@ INC="-I$GAME/src -I$HERE
 CFLAGS="-O2 -DTIXML_USE_STL -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 
-# Die Quellen des Spiels, ohne die drei, die nicht mitkoennen:
-#   stackwalker  - der SEH-Absturzhelfer, gibt es nur unter Win32
-#   videorecorder- kodiert in einem eigenen Thread, und den gibt es hier nicht;
-#                  Ton auch nicht (ersetzt durch videorecorder_stub.cpp)
-#   pch          - die Uebersetzungseinheit, die unter MSVC den PCH erzeugt
+# The game's sources, minus the three that cannot come along:
+#   stackwalker  - the SEH crash handler, Win32 only
+#   videorecorder- encodes in a thread of its own, and there is none here;
+#                  no audio either (replaced by videorecorder_stub.cpp)
+#   pch          - the translation unit that creates the PCH under MSVC
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
 SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
@@ -49,7 +49,7 @@ for f in analysis bitrate block codebook envelope floor0 floor1 info lookup lpc 
          mapping0 mdct psy registry res0 sharedbook smallft synthesis vorbisenc \
          vorbisfile window; do CSRCS="$CSRCS $GAME/libs/libvorbis-1.3.4/lib/$f.c"; done
 # TinyXML 2.6.2 is vendored in the tree and compiled here exactly as the Visual
-# Studio project compiles it, so both builds run the same parser.
+# Studio project compiles it; both builds therefore run the same parser.
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/tinyxml-2.6.2/$f.cpp"; done
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
@@ -78,9 +78,9 @@ OBJS=""
 for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS;  do
   n=$((n+1))
-  # Nur test_hooks.cpp sieht das Define. Es steht nicht in CXXFLAGS, damit ein
-  # Wechsel zwischen den beiden Buildarten nicht jede der 160 Einheiten neu
-  # uebersetzt - die beiden Ausgabeverzeichnisse trennen sie ohnehin.
+  # Only test_hooks.cpp sees the define. It is not in CXXFLAGS, or switching
+  # between the two kinds of build would recompile all 160 units - the two
+  # output directories keep them apart anyway.
   extra=""
   case "$f" in */test_hooks.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
@@ -96,17 +96,17 @@ rm -rf "$WEBROOT"; mkdir -p "$WEBROOT/levels/campaigns" "$WEBROOT/levels/skins" 
 cp "$GAME/data.zip"                    "$WEBROOT/"           2>/dev/null
 cp "$GAME/.update_checker"             "$WEBROOT/"           2>/dev/null
 cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
-# Genau die drei Dateien, die stage.bat nach levels/ legt. Frueher stand hier
-# levels/*.xml und levels/*.ogg, und das griff in das Arbeitsverzeichnis des
-# Autors: die 42 Quell-Level und die 10 Musikstuecke, aus denen blocks.zip
-# gebaut wird. Alle 52 lagen damit ein zweites Mal im Paket, byte-identisch zu
-# einem Mitglied des Archivs - 8,3 der 21 MiB, die der Browser laedt, fuer
-# nichts. Gebraucht wird keine davon: die Kampagnenmusik holt gs_game.cpp aus
-# blocks.zip selbst, und die beiden Beispiel-Level nennen gar keine.
+# Exactly the three files stage.bat puts into levels/. A levels/*.xml plus
+# levels/*.ogg glob would reach into the author's working directory: the 42
+# source levels and the 10 music tracks blocks.zip is built from, all 52 of them
+# a second time in the package and byte-identical to a member of the archive -
+# 8.3 of the 21 MiB the browser loads, for nothing. None of them is needed:
+# gs_game.cpp fetches the campaign music out of blocks.zip itself, and the two
+# example levels name none at all.
 cp "$GAME"/levels/example0*.xml        "$WEBROOT/levels/"    2>/dev/null
 cp "$GAME/levels/readme.txt"           "$WEBROOT/levels/"    2>/dev/null
-# Die beiden hier sind Vorlagen wie die anderen Liesmich auch: main.cpp kopiert
-# sie beim ersten Start ins Benutzerverzeichnis, gelesen werden sie nie.
+# These two are templates like the other readmes: main.cpp copies them into the
+# user directory on a first start, and nothing ever reads them.
 cp "$GAME/levels/campaigns/readme.txt" "$WEBROOT/levels/campaigns/" 2>/dev/null
 cp "$GAME/levels/skins/readme.txt"     "$WEBROOT/levels/skins/"     2>/dev/null
 cp "$GAME"/levels/campaigns/*.zip      "$WEBROOT/levels/campaigns/" 2>/dev/null
@@ -117,16 +117,16 @@ PRELOAD="--preload-file $WEBROOT@/"
 [ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run zip_data.bat or the zip -P equivalent)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
-# -sINITIAL_MEMORY: 48 MiB, gemessen und nicht geraten. Von 16 MiB aus waechst
-# der Heap genau einmal auf 40 MiB und bleibt dort - durch Ladebild, Menue,
-# Optionen, Manager, Leveleditor, Levelauswahl und eine halbe Minute gespieltes
-# Level. Grosszuegiger vorzulegen kostet auf einem Telefon den Tab, bevor das
-# Menue steht. ALLOW_MEMORY_GROWTH bleibt an, ein ungewoehnlich grosses Level
-# hat also Luft.
+# -sINITIAL_MEMORY: 48 MiB, measured and not guessed. Started at 16 MiB the heap
+# grows exactly once, to 40 MiB, and stays there - through the loading screen,
+# the menu, the options, the manager, the level editor, the level select and
+# half a minute of a played level. Reserving more generously costs a tab on a
+# phone before the menu is up. ALLOW_MEMORY_GROWTH stays on; an unusually large
+# level therefore has room.
 #
 # -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
 # struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's
-# default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
+# default 64 KiB stack is exactly consumed by it, and every zip WRITE - saving a
 # campaign, saving progress - clobbered the stack and trapped with "table index
 # is out of bounds". Reads were unaffected, which is why it stayed hidden.
 em++ $OBJS -o "$OUT/blocks5.html" \
@@ -138,49 +138,45 @@ em++ $OBJS -o "$OUT/blocks5.html" \
   --shell-file $HERE/shell.html \
   $PRELOAD \
   2>&1 | tail -30
-# Der Rueckgabewert der Pipe ist der von tail und damit immer 0. Gefragt ist
-# der von em++, sonst meldet ein fehlgeschlagenes Linken den blocks5.wasm des
-# vorigen Laufs als Erfolg - und genau das hat einen Linkfehler eine Weile
-# verdeckt.
+# The pipe's exit code is tail's and therefore always 0. What is wanted is
+# em++'s: otherwise a failed link reports the previous run's blocks5.wasm as a
+# success.
 linkStatus=${PIPESTATUS[0]}
 [ $linkStatus -ne 0 ] && { echo "### LINK FAILED ###"; exit 1; }
 # The four files that get uploaded are blocks5.{js,wasm,data} plus the page, and
-# the page has to be called index.html so that the directory it is dropped into
-# serves it by itself. Only the HTML is renamed: em++ derives the js/wasm/data
-# names from its -o argument, and the page refers to blocks5.js by name, so
-# giving em++ index.html would rename all four and buy nothing.
+# the page has to be called index.html, which is what makes the directory it is
+# dropped into serve it by itself. Only the HTML is renamed: em++ derives the
+# js/wasm/data names from its -o argument, and the page refers to blocks5.js by
+# name; giving em++ index.html would rename all four and buy nothing.
 [ -f "$OUT/blocks5.html" ] && cp "$OUT/blocks5.html" "$OUT/index.html"
 
-# Die drei Nutzlastdateien bekommen die Kennung des Baus in den Namen. Sie
-# gehoeren zusammen - blocks5.js traegt eine Tabelle mit Byteabstaenden in
-# blocks5.data, und die EM_ASM-Bausteine liegen an Adressen, die nur zu diesem
-# einen wasm passen -, und getrennt zwischengespeichert werden koennen sie
-# ueberall: im Browser, in einem Proxy, in mod_pagespeed. Genau das ist
-# passiert: eine von PageSpeed unter eigenem Namen aufbewahrte alte
-# blocks5.js neben einer frischen blocks5.wasm, und das Spiel brach mit
-# "No EM_ASM constant found at address ..." ab.
+# The three payload files carry the build's stamp in their names. They belong
+# together - blocks5.js holds a table of byte offsets into blocks5.data, and the
+# EM_ASM fragments sit at addresses that fit this one wasm and no other - and
+# separately they can be cached anywhere: in the browser, in a proxy, in
+# mod_pagespeed. Served in such a mixture the game aborts with "No EM_ASM
+# constant found at address ...".
 #
-# Mit der Kennung im Namen ist jede URL unveraenderlich. Ein alter Stand kann
-# dann nur noch vollstaendig alt sein, und das ist harmlos.
+# With the stamp in the name every URL is immutable. An old state can then only
+# be entirely old, and that is harmless.
 version=$(cat "$OUT/blocks5.js" "$OUT/blocks5.wasm" "$OUT/blocks5.data" | md5sum | cut -c1-12)
 rm -f "$OUT"/blocks5-*.js "$OUT"/blocks5-*.wasm "$OUT"/blocks5-*.data
 mv "$OUT/blocks5.js"   "$OUT/blocks5-$version.js"
 mv "$OUT/blocks5.wasm" "$OUT/blocks5-$version.wasm"
 mv "$OUT/blocks5.data" "$OUT/blocks5-$version.data"
 
-# Die Zeile des Ladebildschirms, in der Schrift des Spiels. Die Seite steht vor
-# data.zip und vor jedem GL-Kontext und kann diese Schrift nicht selbst
-# zeichnen, also wird sie hier gezeichnet und als Daten-URI in die Seite
-# gestempelt: keine zusaetzliche Anfrage, nichts, was im Zwischenspeicher
-# fehlen koennte, und beim ersten Bild schon da. Es ist $LOADING aus
-# data/languages.txt, also dieselbe Zeile, die das Spiel gleich darauf selbst
-# anzeigt.
+# The loading screen's line, in the game's own font. The page stands before
+# data.zip and before any GL context and cannot draw that font itself, hence it
+# is drawn here and stamped into the page as a data URI: no extra request,
+# nothing that could be missing from the cache, and there with the first paint.
+# It is $LOADING from data/languages.txt, the very line the game itself puts up
+# a moment later.
 loadtext=$(python3 "$HERE/make_text.py" --js "$GAME/data/font.xml" '$LOADING')
 
-# In der Seite drei Stellen: das Skript-Tag, das em++ eingesetzt hat, der
-# Stempel, aus dem Module.locateFile die Namen der beiden anderen bildet, und
-# die beiden Bilder der Ladezeile. Das Einsetzen des letzten macht python3 und
-# nicht sed, weil base64 Schraegstriche und Pluszeichen enthaelt.
+# Three places in the page: the script tag em++ inserted, the stamp from which
+# Module.locateFile builds the names of the other two, and the two images of the
+# loading line. The last of these is substituted by python3 and not by sed,
+# because base64 contains slashes and plus signs.
 for page in "$OUT/blocks5.html" "$OUT/index.html"; do
   sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" "$page"
   python3 - "$page" "$loadtext" <<'PYEOF'
@@ -193,37 +189,37 @@ io.open(path, 'w', encoding='utf-8', newline='\n').write(page.replace('%%LOADTEX
 PYEOF
 done
 
-# Alles fuer die installierbare Seite. Das gehoert neben index.html und nicht in
-# den webroot: der wird ins virtuelle Dateisystem gepackt, ueber HTTP
-# ausgeliefert wird dieses Verzeichnis hier.
+# Everything for the installable page. It belongs beside index.html and not in
+# the webroot: the webroot is packed into the virtual filesystem, while this
+# directory here is what gets served over HTTP.
 #
-# Der Name der Zwischenspeicherung ist ein Hash der drei Nutzlastdateien. Damit
-# wechselt sie genau dann, wenn sich die Nutzlast aendert, und nie sonst - und
-# blocks5.js kann nie neben einem blocks5.data eines anderen Baus landen. Siehe
-# den Kopf von sw.js und ROADMAP.md, Punkt 20.
+# The cache name is a hash of the three payload files. It therefore changes
+# exactly when the payload changes and never otherwise - and blocks5.js can
+# never end up beside a blocks5.data from another build. See the header of
+# sw.js and ROADMAP.md, item 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
 cp "$HERE/touch_controls.js" "$OUT/touch_controls.js"
-# Die Kopfzeilen fuer Apache. index.html traegt als einzige Datei keine
-# Kennung im Namen und ist deshalb die eine, die nicht zwischengespeichert
-# werden darf - sonst erfaehrt niemand von einem neuen Bau.
+# The headers for Apache. index.html is the only file carrying no stamp in its
+# name and is therefore the one that must not be cached - otherwise nobody
+# learns of a new build.
 cp "$HERE/htaccess" "$OUT/.htaccess"
-# Das Symbol ist dasselbe, das das Spielfenster traegt - 32x32, und damit zu
-# klein fuer einen Startbildschirm. Ein Telefon vergroessert es sonst selbst und
-# glaettet dabei; ganzzahlig pixelvervielfacht bleibt jede Kante hart, was zum
-# Spiel passt. make_icon.py kommt mit der Standardbibliothek aus, das kostet
-# also keine Abhaengigkeit.
+# The icon is the same one the game window carries - 32x32, and therefore too
+# small for a home screen. A phone would otherwise scale it up itself and smooth
+# it in the process; pixel replication at a whole factor keeps every edge hard,
+# which suits the game. make_icon.py gets by with the standard library and
+# therefore costs no dependency.
 #
-# Vier Stueck, weil sie verschieden benutzt werden:
-#   192/512 "any"   randlos und mit Transparenz, wird unveraendert angezeigt.
-#   512 "maskable"  Der Startbildschirm schneidet sich eine eigene Form heraus,
-#                   sicher ist nur ein Kreis von 80% der Kante. Das Bild ist
-#                   randlos rund und ragt weit darueber hinaus, also 10fach
-#                   (320px) statt 16fach, mittig auf deckendem Schwarz - ein
-#                   durchsichtiges Pixel waere beim Maskieren ein Loch.
-#   apple-touch     iOS wertet keine Transparenz aus und rundet nur die Ecken,
-#                   wo ohnehin nichts steht. Also randlos, aber deckend.
-# Erst weg damit: $OUT wird nicht geleert, und ein Symbol, das einmal anders
-# hiess, laege sonst fuer immer im ausgelieferten Verzeichnis.
+# Four of them, because they are used differently:
+#   192/512 "any"   full-bleed and with transparency, shown unchanged.
+#   512 "maskable"  The launcher crops a shape of its own out of it, and only a
+#                   circle of 80% of the edge is safe. The drawing is full-bleed
+#                   round and reaches far beyond that, hence 10x (320px) instead
+#                   of 16x, centred on opaque black - a transparent pixel would
+#                   be a hole under the mask.
+#   apple-touch     iOS reads no transparency and only rounds the corners,
+#                   where nothing stands anyway. Full-bleed, but opaque.
+# Get rid of them first: $OUT is not emptied, and an icon that once had another
+# name would otherwise lie in the shipped directory for ever.
 rm -f "$OUT"/icon*.png "$OUT"/apple-touch-icon.png
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-192.png" --scale 6 >/dev/null
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-512.png" --scale 16 >/dev/null

@@ -27,15 +27,13 @@ SoundInstance* Level::p_rainSoundInst = 0;
 SoundInstance* Level::p_thunderstormSoundInst = 0;
 bool Level::rainSoundOn = false;
 bool Level::thunderstormSoundOn = false;
-// Der Skin, auf den zurueckgefallen wird: wenn eine Datei des gewuenschten
-// Skins fehlt (dafuer gibt es die "default_"-Marker) und wenn sie sich nicht
-// laden laesst.
+// The fallback skin: used where a file of the wanted skin is missing (that is
+// what the "default_" markers are for) and where it will not load.
 const char* p_defaultSkin = "blocks_01";
 
-// Wenn sich eine Leveldatei nicht laden laesst, wird nicht ein leerer Level
-// gezeigt, sondern dieser: das Wort ERROR aus Bloecken, mit Bob im O
-// eingesperrt. Der Wachposten haelt die Rekursion an, falls der Fehler-Level
-// selbst einmal fehlen oder kaputt sein sollte.
+// A level file that will not load shows this one instead of an empty level:
+// the word ERROR built out of blocks, with Bob locked inside the O. The guard
+// stops the recursion should the error level itself ever be missing or broken.
 const char* p_errorLevelFilename = "level_error.xml";
 bool loadingErrorLevel = false;
 
@@ -80,7 +78,7 @@ Level::Level()
 	p_rainParticleSystem = 0;
 	p_particleSprites = 0;
 
-	// Regen-Sound erstellen
+	// create the rain sound
 	if(!p_rainSoundInst)
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("rain.ogg");
@@ -89,7 +87,7 @@ Level::Level()
 		p_sound->release();
 	}
 
-	// Gewitter-Sound erstellen
+	// create the thunderstorm sound
 	if(!p_thunderstormSoundInst)
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("thunderstorm.ogg");
@@ -101,7 +99,7 @@ Level::Level()
 	Engine&	engine = Engine::inst();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	// Textur fuer den Effekt-Puffer erzeugen
+	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
@@ -118,7 +116,7 @@ Level::~Level()
 
 void Level::clear()
 {
-	// Objekte loeschen
+	// delete the objects
 	removeOldObjects();
 	addNewObjects();
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) removeObject(*i);
@@ -130,7 +128,7 @@ void Level::clear()
 	objectsToAdd.clear();
 	objectsToRemove.clear();
 
-	// Tiles loeschen
+	// delete the tiles
 	delete[] p_tiles;
 	p_tiles = 0;
 	if(layerListBase)
@@ -205,7 +203,7 @@ bool Level::load(const std::string& filename,
 {
 	this->filename = filename;
 
-	// XML-Dokument laden
+	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename);
 	TiXmlDocument doc;
 	doc.SetCondenseWhiteSpace(false);
@@ -245,12 +243,12 @@ bool Level::load(TiXmlDocument* p_doc,
 		numDiamondsCollected = ndc;
 	}
 
-	// Titel lesen
+	// read the title
 	title = "\xA7" "en:Unnamed Level\xA7" "de:Unbenannter Level";
 	const char* p_temp = p_level->Attribute("title");
 	if(p_temp) title = p_temp;
 
-	// Skins lesen
+	// read the skins
 	for(int i = 0; i < SKIN_MAX; i++)
 	{
 		skin[i] = "";
@@ -262,14 +260,14 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad) loadSkin();
 
-	// Groesse und Ebenenzahl stehen fest (Level::WIDTH, HEIGHT, NUM_LAYERS). Die
-	// Datei nennt sie trotzdem, und hier wird sie beim Wort genommen: sonst
-	// landeten die Zeilen einer 60x40-Datei in einem 40x25-Raster. Fehlende
-	// Attribute gelten als richtig, denn TiXmlElement::Attribute laesst den Wert
-	// unberuehrt.
-	// Erst den Speicher holen, dann pruefen: von den vierzehn Stellen, die load()
-	// rufen, sehen sich nur zwei den Rueckgabewert an, ein Abbruch darf also
-	// keinen halbfertigen Level hinterlassen.
+	// Size and layer count are fixed (Level::WIDTH, HEIGHT, NUM_LAYERS). The
+	// file names them anyway, and here it is taken at its word: otherwise the
+	// rows of a 60x40 file would land in a 40x25 grid. A missing attribute
+	// counts as correct, because TiXmlElement::Attribute leaves the value
+	// untouched.
+	// Get the memory first, then check: of the fourteen call sites of load(),
+	// only two look at the return value, and an abort must therefore leave no
+	// half-built level behind.
 	allocateTiles();
 
 	int fileWidth = WIDTH, fileHeight = HEIGHT, fileNumLayers = NUM_LAYERS;
@@ -292,7 +290,7 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad)
 	{
-		// Layer-Elemente verarbeiten
+		// process the Layer elements
 		int layer = 0;
 		TiXmlElement* p_layer = p_level->FirstChildElement("Layer");
 		while(p_layer)
@@ -301,7 +299,7 @@ bool Level::load(TiXmlDocument* p_doc,
 			TiXmlElement* p_row = p_layer->FirstChildElement("Row");
 			while(p_row)
 			{
-				// Tiles dieser Reihe setzen
+				// set the tiles of this row
 				if(p_row->GetText())
 				{
 					std::string content = p_row->GetText();
@@ -320,24 +318,24 @@ bool Level::load(TiXmlDocument* p_doc,
 			p_layer = p_layer->NextSiblingElement("Layer");
 			layer++;
 
-			// Nicht ueber NUM_LAYERS hinaus, auch wenn die Datei mehr <Layer>
-			// mitbringt: p_tiles ist fuer genau so viele reserviert, und eine von
-			// aussen eingefuehrte Datei bestimmt beide Zahlen selbst.
+			// Never past NUM_LAYERS, even where the file brings more <Layer>:
+			// p_tiles is reserved for exactly that many, and a file imported from
+			// outside decides both numbers itself.
 			if(layer >= NUM_LAYERS) break;
 		}
 
-		// Objekt-Elemente verarbeiten
+		// process the Object elements
 		TiXmlElement* p_object = p_level->FirstChildElement("Object");
 		std::list<std::pair<Electronics*, TiXmlElement*> > electronics;
 		while(p_object)
 		{
-			// Typ und Position einlesen
+			// read the type and the position
 			std::string type = p_object->Attribute("type");
 			Vec2i position;
 			p_object->Attribute("x", &position.x);
 			p_object->Attribute("y", &position.y);
 
-			// Objekt instanzieren
+			// instance the object
 			Object* p_theObject = p_presets->instancePreset(type, position, p_object);
 			if(p_theObject)
 			{
@@ -366,11 +364,11 @@ bool Level::load(TiXmlDocument* p_doc,
 			p_object = p_object->NextSiblingElement("Object");
 		}
 
-		// Objekte hinzufuegen und sortieren
+		// add and sort the objects
 		addNewObjects();
 		sortObjects();
 
-		// Verbindungen der elektronischen Bauteile laden
+		// load the connections of the electronics parts
 		for(std::list<std::pair<Electronics*, TiXmlElement*> >::const_iterator i = electronics.begin(); i != electronics.end(); ++i)
 		{
 			i->first->loadConnections(i->second);
@@ -379,7 +377,7 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad)
 	{
-		// Strom an? Nachtsicht? Regen?
+		// Electricity on? Night vision? Rain?
 		temp = 0;
 		p_level->QueryIntAttribute("electricityOn", &temp);
 		bool on = temp ? true : false;
@@ -406,7 +404,7 @@ bool Level::load(TiXmlDocument* p_doc,
 		on = temp ? true : false;
 		setThunderstorm(on);
 
-		// Lichtfarbe lesen
+		// read the light colour
 		lightColor = Vec3i(255, 255, 255);
 		p_level->QueryIntAttribute("lightColorR", &lightColor.r);
 		p_level->QueryIntAttribute("lightColorG", &lightColor.g);
@@ -414,23 +412,23 @@ bool Level::load(TiXmlDocument* p_doc,
 
 		if(!inEditor && !inCat)
 		{
-			// Frame beginnen
+			// Begin the frame
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 			{
 				(*i)->frameBegin();
 			}
 
-			// Lichtschranken aktualisieren
+			// update the light barriers
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 			{
 				LightBarrierSender *p_lbs = dynamic_cast<LightBarrierSender*>(*i);
 				if(p_lbs) p_lbs->update();
 			}
 
-			// Elektronik zu Beginn ein paar Mal verarbeiten
+			// process the electronics a few times to begin with
 			for(int i = 0; i < 20; i++) Electronics::updateAll(*this);
 
-			// Objekte bewegen
+			// Move the objects
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 			{
 				Object* p_obj = *i;
@@ -440,12 +438,12 @@ bool Level::load(TiXmlDocument* p_doc,
 		}
 	}
 
-	// Musikdateiname lesen
+	// read the music filename
 	musicFilename = "";
 	p_temp = p_level->Attribute("musicFilename");
 	if(p_temp) musicFilename = p_temp;
 
-	// Display-Lists fuer die Layer erzeugen
+	// create the display lists for the layers
 	layerListBase = glGenLists(NUM_LAYERS);
 	layerDirty = ~0;
 
@@ -464,11 +462,11 @@ bool Level::save(const std::string& filename)
 
 TiXmlDocument* Level::save()
 {
-	// alte Objekte loeschen, neue Objekte hinzufuegen
+	// remove the old objects, add the new ones
 	removeOldObjects();
 	addNewObjects();
 
-	// Objekte sortieren
+	// sort the objects
 	sortObjects();
 
 	TiXmlDocument* p_doc = new TiXmlDocument;
@@ -486,7 +484,7 @@ TiXmlDocument* Level::save()
 
 	p_level->SetAttribute("title", title);
 
-	// Skins schreiben
+	// write the skins
 	for(int i = 0; i < SKIN_MAX; i++)
 	{
 		char attrName[256] = "";
@@ -564,7 +562,7 @@ TiXmlDocument* Level::save()
 		}
 	}
 
-	// Verbindungen der elektronischen Bauteile speichern
+	// save the connections of the electronics parts
 	for(std::list<std::pair<Electronics*, TiXmlElement*> >::const_iterator i = electronics.begin(); i != electronics.end(); ++i)
 	{
 		i->first->saveConnections(i->second);
@@ -577,10 +575,10 @@ TiXmlDocument* Level::save()
 
 void Level::render()
 {
-	// Einmal je Bild das Aussehen aller Objekte auf den Stand bringen. Danach
-	// gehen zwoelf Ebenen darueber, die nur noch zeichnen, was hier steht - wer
-	// stattdessen in onRender aktualisierte, taete es vierzehnmal und mit der
-	// Farbe des jeweiligen Durchgangs.
+	// Bring the appearance of every object up to date once per frame. Twelve
+	// layers then go over it and draw nothing but what stands here - anything
+	// that updated in onRender instead would do it fourteen times over, and
+	// with the colour of the pass it happens to be in.
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->onBeforeRender();
@@ -630,7 +628,7 @@ void Level::render()
 
 		if(!inMenu)
 		{
-			// Hintergrundbild rendern
+			// render the background image
 			p_background->bind();
 			glBegin(GL_QUADS);
 			glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -650,7 +648,7 @@ void Level::render()
 	Vec2i offset;
 	if(cameraShake > 0.0)
 	{
-		// Kamera wackeln lassen
+		// shake the camera
 		offset.x = static_cast<int>(sin(static_cast<double>(counter) * 1.5) * cameraShake);
 		offset.y = static_cast<int>(cos(static_cast<double>(counter) * 1.5) * 5.0 * cameraShake);
 	}
@@ -659,13 +657,13 @@ void Level::render()
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);
 
-	// Objekte sortieren
+	// sort the objects
 	sortObjects();
 
-	// Hintergrund rendern
+	// render the background
 	renderTiles(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
 
-	// Lava-Raender rendern
+	// render the lava edges
 	Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
 	p_lavaEdges->bind();
 
@@ -690,7 +688,7 @@ void Level::render()
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 	Engine& engine = Engine::inst();
 
-	// Lava rendern
+	// render the lava
 	p_lava[0]->bind();
 	renderObjects(737, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	p_lava[0]->unbind();
@@ -702,19 +700,19 @@ void Level::render()
 
 	glDisable(GL_STENCIL_TEST);
 
-	// Hintergrundobjekte rendern
+	// render the background objects
 	renderObjects(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	// Elektronik-Verbindungen rendern
+	// render the electronics connections
 	glPushMatrix();
 	glTranslated(0.5, 0.5, 0.0);
 	renderObjects(939, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	glPopMatrix();
 
-	// Regen-Partikelsystem rendern
+	// render the rain particle system
 	p_rainParticleSystem->render();
 
-	// Schatten rendern
+	// render the shadows
 	Vec2i samples[] = {Vec2i(2, 1), Vec2i(1, 2), Vec2i(2, 2)};
 	int start = 0;
 	int numSamples = 2;
@@ -727,22 +725,22 @@ void Level::render()
 		renderObjects(1, samples[start + i], shadowColor, true);
 	}
 
-	// Mittelgrund rendern
+	// render the middle ground
 	renderTiles(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
 	renderObjects(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	// Partikelsysteme rendern
+	// render the particle systems
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	p_fireParticleSystem->render();
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	p_particleSystem->render();
 
-	// Spezialeffekt-Layer rendern
+	// render the special effect layer
 	renderObjects(16, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	if(inEditor && !inCat && !inPreview) renderObjects(255, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	// Regen
+	// Rain
 	if(!inEditor && raining)
 	{
 		p_rain->bind();
@@ -786,7 +784,7 @@ void Level::render()
 		p_rain->unbind();
 	}
 
-	// Schnee
+	// Snow
 	if(!inEditor && snowing)
 	{
 		p_snow->bind();
@@ -830,7 +828,7 @@ void Level::render()
 		p_snow->unbind();
 	}
 
-	// Wolken
+	// Clouds
 	if(!inEditor && cloudy)
 	{
 		p_clouds->bind();
@@ -871,7 +869,7 @@ void Level::render()
 
 	glMatrixMode(GL_MODELVIEW);
 
-	// Licht
+	// Light
 	if(lightColor != Vec3i(255, 255, 255))
 	{
 		engine.setBlendFunc(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
@@ -887,7 +885,7 @@ void Level::render()
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 
-	// Gewitter
+	// Thunderstorm
 	if(!inEditor && thunderstorm) lightning.render();
 
 	if(toxic > 0.1)
@@ -895,14 +893,14 @@ void Level::render()
 		renderToxicEffect();
 	}
 
-	// Nachtsicht
+	// Night vision
 	if(nightVision && !inEditor)
 	{
-		// alle Alphawerte auf null setzen
+		// set every alpha value to zero
 //		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 //		glClear(GL_COLOR_BUFFER_BIT);
 
-		// dreckiger Workaround
+		// dirty workaround
 		glColorMask(0, 0, 0, 1);
 		engine.setBlendFunc(GL_ZERO, GL_ZERO, GL_ZERO, GL_ZERO);
 		glBegin(GL_QUADS);
@@ -912,14 +910,14 @@ void Level::render()
 		glVertex2i(-100, 580);
 		glEnd();
 
-		// Lichter ansammeln
+		// accumulate the lights
 		engine.setBlendFunc(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 		renderObjects(18, Vec2i(0, 0), Vec4d(1.0), false);
 		if(thunderstorm) lightning.render();
 
 		glColorMask(1, 1, 1, 0);
 
-		// alles Unbeleuchtete dunkel machen
+		// darken everything unlit
 		Vec4d c(0.082352941176470588235294117647059);
 		engine.setBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA, GL_ONE, GL_ONE);
 		glBegin(GL_QUADS);
@@ -933,10 +931,10 @@ void Level::render()
 
 		glColorMask(1, 1, 1, 1);
 
-		// "Funkel-Layer" rendern
+		// render the "Funkel-Layer"
 		renderObjects(17, Vec2i(0, 0), Vec4d(1.0), false);
 
-		// Rauschen rendern
+		// render the noise
 		engine.setBlendFunc(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
 		p_noise->bind();
 		Vec2i o1(random(0, 512 - 200), random(0, 512 - 160));
@@ -965,12 +963,12 @@ void Level::render()
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 
-	// Layer rendern, auf dem Overlays angezeigt werden
+	// render the layer on which overlays are shown
 	renderObjects(42, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	if(flash > 0.0)
 	{
-		// Blitz zeichnen
+		// draw the flash
 		glBegin(GL_QUADS);
 		if(nightVision) glColor4d(0.0, 1.0, 0.0, min(0.75, actualFlash));
 		else glColor4d(1.0, 1.0, 1.0, min(0.5, actualFlash));
@@ -988,17 +986,17 @@ void Level::update()
 {
 	clearAIFlags(Vec2i(-1, -1));
 
-	// alte Objekte loeschen, neue Objekte hinzufuegen
+	// remove the old objects, add the new ones
 	removeOldObjects();
 	addNewObjects();
 
-	// Frame beginnen
+	// Begin the frame
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->frameBegin();
 	}
 
-	// Und im selben Takt wie die Objekte klingen die Symbole in der Anzeige ab.
+	// And the icons in the HUD fade on the same tick as the objects.
 	for(int i = 0; i < 2; i++)
 	{
 		if(hudIconFlash[i] > 0.0)
@@ -1008,17 +1006,17 @@ void Level::update()
 		}
 	}
 
-	// Objekte bewegen
+	// Move the objects
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->update();
 		if((*i)->toBeRemoved()) removeObject(*i);
 	}
 
-	// Elektronik verarbeiten
+	// process the electronics
 	Electronics::updateAll(*this);
 
-	// Partikelsysteme aktualisieren
+	// update the particle systems
 	p_particleSystem->update();
 	p_fireParticleSystem->update();
 	p_rainParticleSystem->update();
@@ -1030,16 +1028,16 @@ void Level::update()
 		if(trace) p_aiFlags[i] -= 0x100;
 	}
 
-	// Sind genuegend Diamanten eingesammelt worden?
+	// Have enough diamonds been collected?
 	if(!inEditor && p_exit)
 	{
 		if(p_exit->isGhost() && getNumDiamondsCollected() >= numDiamondsNeeded)
 		{
-			// Ausgang erscheinen lassen
+			// make the exit appear
 			p_exit->setGhost(false);
 			Engine::inst().playSound("exit.ogg", false, 0.0, 100);
 
-			// Sterne
+			// stars
 			ParticleSystem::Particle p;
 			for(int i = 0; i < 150; i++)
 			{
@@ -1063,7 +1061,7 @@ void Level::update()
 		}
 	}
 
-	// Regen
+	// Rain
 	if(!inEditor && raining)
 	{
 		int r = 10;
@@ -1115,7 +1113,7 @@ void Level::update()
 		}
 	}
 
-	// Gewitter
+	// Thunderstorm
 	if(!inEditor && thunderstorm)
 	{
 		if(lightningCounter)
@@ -1180,8 +1178,8 @@ void Level::renderTiles(int layer,
 	glTranslated(offset.x, offset.y, 0.0);
 
 #ifdef __EMSCRIPTEN__
-	// WebGL kennt keine Displaylisten, das Kachelnetz wird also jedes Bild neu
-	// ausgegeben. Ein Level sind 1000 Vierecke je Ebene, das traegt sich.
+	// WebGL has no display lists, and the tile grid is therefore emitted afresh
+	// every frame. A level is 1000 quads per layer, which is affordable.
 	{
 		p_tileSet->beginRender();
 
@@ -1198,7 +1196,7 @@ void Level::renderTiles(int layer,
 		p_tileSet->endRender();
 	}
 #else
-	// Muss dieser Layer neu gezeichnet werden?
+	// Does this layer have to be redrawn?
 	if(layerDirty & (1 << layer))
 	{
 		glNewList(layerListBase + layer, GL_COMPILE);
@@ -1219,7 +1217,7 @@ void Level::renderTiles(int layer,
 
 		glEndList();
 
-		// Der Layer ist jetzt nicht mehr dirty.
+		// The layer is no longer dirty.
 		layerDirty &= ~(1 << layer);
 	}
 
@@ -1282,7 +1280,7 @@ void Level::renderShine(double intensity,
 bool Level::isFreeAt(const Vec2i& position,
 					 int* p_tileTypeOut)
 {
-	// Versperrt ein massives Tile den Weg?
+	// Does a solid tile block the way?
 	uint tileID = getTileAt(1, position);
 	if(tileID)
 	{
@@ -1297,7 +1295,7 @@ bool Level::isFreeAt(const Vec2i& position,
 		}
 	}
 
-	// Objekte?
+	// Objects?
 	std::vector<Object*> objects = getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
@@ -1319,7 +1317,7 @@ bool Level::isFreeAt2(const Vec2i& positionInPixels,
 	const Vec2i q[] = {Vec2i(0, 0), Vec2i(-1, 0), Vec2i(1, 0), Vec2i(0, -1), Vec2i(0, 1)};
 	for(int i = 0; i < sizeof(q) / sizeof(Vec2i); i++)
 	{
-		// Versperrt ein massives Tile den Weg?
+		// Does a solid tile block the way?
 		const Vec2i tilePos = (positionInPixels + q[i]) / 16;
 		const uint tileID = getTileAt(1, tilePos);
 		if(tileID)
@@ -1336,7 +1334,7 @@ bool Level::isFreeAt2(const Vec2i& positionInPixels,
 		}
 	}
 
-	// Objekte der Umgebung testen
+	// test the objects around it
 	const Vec2i p[] = {Vec2i(0, 0), Vec2i(-2, 0), Vec2i(-1, 0), Vec2i(1, 0), Vec2i(2, 0), Vec2i(0, -2), Vec2i(0, -1), Vec2i(0, 1), Vec2i(0, 2)};
 	Object* p_closestObject = 0;
 	double closestDist = 0.0;
@@ -1377,7 +1375,7 @@ Object* Level::getFrontObjectAt(const Vec2i& position)
 {
 	if(!isValidPosition(position)) return 0;
 
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	Object* p_minObj = 0;
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
@@ -1394,7 +1392,7 @@ Object* Level::getFrontObjectAt(const Vec2i& position)
 
 /*	Object* p_minObj = 0;
 
-	// Sind dort Objekte? Das mit der kleinsten Tiefe liefern.
+	// Any objects there? Return the one with the smallest depth.
 	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1412,7 +1410,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 {
 	if(!isValidPosition(position)) return 0;
 
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	Object* p_maxObj = 0;
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
@@ -1429,7 +1427,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 
 /*	Object* p_maxObj = 0;
 
-	// Sind dort Objekte? Das mit der groessten Tiefe liefern.
+	// Any objects there? Return the one with the greatest depth.
 	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1445,7 +1443,7 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 
 std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 {
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	std::vector<Object*> result;
 	if(!isValidPosition(position)) return result;
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
@@ -1454,7 +1452,7 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 		Object* p_obj = *i;
 		if(p_obj->isAlive() && !p_obj->isGhost() && !(p_obj->getFlags() & Object::OF_PROXY))
 		{
-			// zur Liste hinzufuegen
+			// add to the list
 			result.push_back(p_obj);
 		}
 	}
@@ -1497,7 +1495,7 @@ std::vector<Object*> Level::getObjectsAt2(const Vec2i& position,
 
 const std::vector<Object*>& Level::getAllObjectsAt(const Vec2i& position)
 {
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	if(!isValidPosition(position)) return emptyObjectList;
 	return p_objectsAt[position.y * WIDTH + position.x];
 }
@@ -1506,7 +1504,7 @@ Elevator* Level::getElevatorAt(const Vec2i& position)
 {
 	if(!isValidPosition(position)) return 0;
 
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
@@ -1519,7 +1517,7 @@ Elevator* Level::getElevatorAt(const Vec2i& position)
 
 	return 0;
 
-/*	// Ist dort ein Aufzug?
+/*	// Is there an elevator there?
 	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		Object* p_obj = *i;
@@ -1536,7 +1534,7 @@ Rail* Level::getRailAt(const Vec2i& position)
 {
 	if(!isValidPosition(position)) return 0;
 
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
@@ -1554,7 +1552,7 @@ Player* Level::getPlayerAt(const Vec2i& position)
 {
 	if(!isValidPosition(position)) return 0;
 
-	// alle Objekte an dieser Position heraussuchen
+	// pick out every object at this position
 	const std::vector<Object*>& theList = p_objectsAt[position.y * WIDTH + position.x];
 	for(std::vector<Object*>::const_iterator i = theList.begin(); i != theList.end(); ++i)
 	{
@@ -1574,8 +1572,8 @@ bool Level::isValidPosition(const Vec2i& position) const
 		   position.x < WIDTH && position.y < HEIGHT;
 }
 
-// Die Ebene gehoert genauso geprueft wie die Position: der Index ist
-// layer * WIDTH * HEIGHT + ..., und layer kam bisher ungeprueft durch.
+// The layer needs checking exactly as the position does: the index is
+// layer * WIDTH * HEIGHT + ...
 bool Level::isValidLayer(int layer) const
 {
 	return layer >= 0 && layer < NUM_LAYERS;
@@ -1623,7 +1621,7 @@ void Level::setTileDestroyTimeAt(int layer,
 bool Level::clearPosition(const Vec2i& position,
 						  const std::string& except)
 {
-	// alle Objekte an dieser Stelle loeschen
+	// delete every object at this spot
 	const std::vector<Object*> objects = getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
@@ -1663,7 +1661,7 @@ bool Level::changeBarrages(uint color)
 				if(p_barrage->change()) changed.push_back(p_barrage);
 				else
 				{
-					// alle vorherigen Hindernisse wieder aendern
+					// change every previous barrage back
 					for(std::vector<Barrage*>::const_iterator j = changed.begin(); j != changed.end(); ++j) (*j)->change();
 					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0, 100);
 					return false;
@@ -1692,7 +1690,7 @@ bool Level::changeBarrages2(uint color,
 				if(code == 1) changed.push_back(p_barrage);
 				else if(code == -1)
 				{
-					// alle vorherigen Hindernisse wieder aendern
+					// change every previous barrage back
 					for(std::vector<Barrage2*>::const_iterator j = changed.begin(); j != changed.end(); ++j)
 					{
 						(*j)->change(!up);
@@ -1776,24 +1774,24 @@ bool Level::setSkin(uint index,
 	return true;
 }
 
-// Der Fehler-Level tritt an die Stelle einer Datei, die sich nicht laden
-// laesst. Der Dateiname des Aufrufers wird danach wiederhergestellt: er
-// steht in den Protokollzeilen und soll weiter die Datei benennen, die
-// gemeint war, nicht den Platzhalter.
+// The error level takes the place of a file that will not load. The caller's
+// filename is restored afterwards: it stands in the log lines and must go on
+// naming the file that had been meant, not the stand-in.
 //
-// Hier laufen alle drei Fehlerwege von load() zusammen - kaputtes XML,
-// fehlendes <Level>, falsche Groesse -, also steht hier auch die Meldung.
+// All three of load()'s failure paths meet here - broken XML, a missing
+// <Level>, the wrong size - and the message therefore stands here too.
 bool Level::loadErrorLevel()
 {
 	if(loadingErrorLevel) return false;
 
 	const std::string wanted(filename);
 
-	// Die Palettenlevel cat<N>.xml gehoeren zum Spiel und sind nicht die Datei,
-	// die jemand aufmachen wollte; fuer sie bleibt es beim Logeintrag. In der
-	// Vorschau kommt die Meldung ohne Ton, sonst gaebe es beim Durchgehen einer
-	// kaputten Kampagne bei jedem Tastendruck einen Fehlton. Genannt wird der
-	// blosse Dateiname - der ganze Pfad fuehrt durch das Archiv samt Passwort.
+	// The palette levels cat<N>.xml belong to the game and are not the file
+	// somebody wanted to open; for them it stays at the log entry. In the
+	// preview the message comes without a sound, or stepping through a broken
+	// campaign would play the error sound at every key press. What is named is
+	// the bare filename - the full path leads through the archive, password
+	// and all.
 	if(!inCat)
 	{
 		const std::string::size_type slash = wanted.find_last_of('/');
@@ -1875,10 +1873,10 @@ void Level::setTileSet(TileSet* p_tileSet)
 {
 	if(p_tileSet == this->p_tileSet) return;
 
-	// altes Tile-Set freigeben
+	// release the old tile set
 	if(this->p_tileSet) this->p_tileSet->release();
 
-	// neues uebernehmen
+	// take on the new one
 	this->p_tileSet = p_tileSet;
 	if(p_tileSet) p_tileSet->addRef();
 
@@ -1942,8 +1940,8 @@ Player* Level::getActivePlayer()
 
 bool Level::dismissDisplay()
 {
-	// Nur auf dem Feld, auf dem der Spieler steht: dort steht der Zettel, den
-	// er gerade liest. Object::dismiss() liefert ueberall sonst false.
+	// Only on the field the player stands on: that is where the note they are
+	// reading stands. Object::dismiss() returns false everywhere else.
 	if(!p_activePlayer) return false;
 
 	const std::vector<Object*>& here = getAllObjectsAt(p_activePlayer->getPosition());
@@ -1966,7 +1964,7 @@ void Level::switchToNextPlayer()
 			Player* p = static_cast<Player*>(*i);
 			if(currentPlayerFound)
 			{
-				// Dies ist der naechste Spieler!
+				// This is the next player!
 				p->activate();
 				return;
 			}
@@ -1976,7 +1974,7 @@ void Level::switchToNextPlayer()
 		}
 	}
 
-	// Kein weiterer Spieler gefunden!
+	// No further player found!
 	if(p_firstPlayer) p_firstPlayer->activate();
 }
 
@@ -2022,15 +2020,16 @@ void Level::addObject(Object* p_object)
 
 void Level::removeObject(Object* p_object)
 {
-	// Abmelden darf genau einmal passieren. onRemove() laeuft sofort, das
-	// Loeschen erst beim naechsten removeOldObjects() - dazwischen steht das
-	// Objekt noch in objects und wird von jedem weiteren removeObject() erneut
-	// erwischt, etwa von clean() (F5) oder von clearPosition() im selben Tick.
+	// Unregistering may happen exactly once. onRemove() runs at once, the
+	// deletion only at the next removeOldObjects() - in between, the object
+	// still stands in objects and is caught again by every further
+	// removeObject(), such as by clean() (F5) or by clearPosition() in the
+	// same tick.
 	//
-	// Player::numInstances ist ein uint: der zweite Abgang macht aus 0 den Wert
-	// 0xFFFFFFFF, danach ist numInstances nie wieder 1, und kein Spieler legt
-	// mehr die Sound-Instanzen fuer Giftgas und Gasmaske an. Laser, Aufzug,
-	// Foerderband und Giftgas zaehlen genauso.
+	// Player::numInstances is a uint: the second removal turns 0 into
+	// 0xFFFFFFFF, after which numInstances is never 1 again and no player
+	// creates the sound instances for toxic gas and gas mask any more. Laser,
+	// elevator, conveyor belt and toxic gas count the same way.
 	if(p_object->removed) return;
 	p_object->removed = true;
 
@@ -2042,10 +2041,10 @@ void Level::addNewObjects()
 {
 	if(objectsToAdd.empty()) return;
 
-	// neue Objekte hinzufuegen
+	// add the new objects
 	objects.insert(objects.end(), objectsToAdd.begin(), objectsToAdd.end());
 
-	// neue Objekte hashen und ihnen ihre UIDs geben
+	// hash the new objects and give them their UIDs
 	uint uid = objects.back()->getUID();
 	for(std::vector<Object*>::const_iterator i = objectsToAdd.begin(); i != objectsToAdd.end(); ++i)
 	{
@@ -2079,7 +2078,7 @@ void Level::removeOldObjects()
 
 void Level::hashObject(Object* p_obj)
 {
-	// Objekt in die Liste des entsprechenden Feldes einfuegen
+	// insert the object into the list of the corresponding field
 	const Vec2i& p = p_obj->getPosition();
 	int index = p.y * WIDTH + p.x;
 	if(index >= 0 && index < WIDTH * HEIGHT)
@@ -2096,7 +2095,7 @@ void Level::unhashObject(Object* p_obj)
 {
 	if(p_obj->lastHashedAt != -1)
 	{
-		// Objekt aus seiner Liste entfernen
+		// remove the object from its list
 		std::vector<Object*>& oldList = p_objectsAt[p_obj->lastHashedAt];
 		for(std::vector<Object*>::iterator it = oldList.begin(); it != oldList.end(); ++it)
 		{
@@ -2159,7 +2158,7 @@ void Level::setAITrace(const Vec2i& where,
 
 void Level::clean()
 {
-	// alle Tiles zuruecksetzen
+	// reset every tile
 	for(int layer = 0; layer < NUM_LAYERS; layer++)
 	{
 		for(int x = 0; x < WIDTH; x++)
@@ -2171,7 +2170,7 @@ void Level::clean()
 		}
 	}
 
-	// alle Objekte loeschen
+	// delete every object
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i) removeObject(*i);
 }
 
@@ -2187,7 +2186,7 @@ void Level::setElectricityOn(bool electricityOn)
 
 	if(!inEditor)
 	{
-		// allen Objekten bescheid sagen
+		// tell every object
 		for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 		{
 			Object* p_obj = *i;
@@ -2322,7 +2321,7 @@ void Level::renderToxicEffect()
 	const double t = static_cast<double>(time) / 1000.0;
 	const double r = min(6.0, toxic * 6.0);
 
-	// Gitter erzeugen
+	// build the grid
 	Vec2d grid[65][41];
 	Vec4d color[65][41];
 	for(int x = 0; x <= 64; x++)
@@ -2334,7 +2333,7 @@ void Level::renderToxicEffect()
 
 			if(!x || !y || x == 64 || y == 40)
 			{
-				// Am Rand bleibt alles normal.
+				// At the edge everything stays as it is.
 			}
 			else
 			{
@@ -2354,7 +2353,7 @@ void Level::renderToxicEffect()
 	glScaled(1.0 / w, -1.0 / h, 1.0);
 	glMatrixMode(GL_MODELVIEW);
 
-	// Gitter zeichnen
+	// draw the grid
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
@@ -2390,12 +2389,12 @@ void Level::invalidate()
 
 void Level::loadSkin(bool forceReload)
 {
-	// Welche Skins nicht zu gebrauchen waren - nach Namen, nicht nach Datei.
-	// Fehlt ein Archiv ganz, fehlen alle elf Dateien darin, und elf Meldungen
-	// ueber denselben Skin will niemand lesen.
+	// Which skins were unusable - by name, not by file. Where an archive is
+	// missing altogether, all eleven files inside it are missing, and nobody
+	// wants to read eleven messages about the same skin.
 	std::set<std::string> badSkins;
 
-	// pruefen, ob alle benoetigten Skins da sind
+	// check that every needed skin is there
 	for(uint i = 0; i < SKIN_MAX; i++)
 	{
 		if(!requestedSkin[i].empty())
@@ -2410,11 +2409,10 @@ void Level::loadSkin(bool forceReload)
 		}
 	}
 
-	// Tiles laden. Schlaegt das fehl - eine kaputte oder eine mit anderer
-	// Kachelgroesse eingeschleuste tileset.xml -, liefert request() eine Null,
-	// und die 13 Stellen, die p_tileSet danach ohne Pruefung anfassen, wuerden
-	// abstuerzen. Ein Skin, der sich nicht laden laesst, faellt deshalb auf den
-	// mitgelieferten zurueck.
+	// Load the tiles. Where that fails - a broken tileset.xml, or one imported
+	// with a different tile size - request() returns a null, and the 13 places
+	// that touch p_tileSet afterwards without checking would crash. A skin
+	// that will not load therefore falls back to the shipped one.
 	TileSet* p_oldTileSet = p_tileSet;
 	p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
 	if(!p_tileSet && skin[Level::SKIN_TILESET] != p_defaultSkin)
@@ -2427,7 +2425,7 @@ void Level::loadSkin(bool forceReload)
 	}
 	if(p_oldTileSet) p_oldTileSet->release();
 
-	// Sprites laden
+	// load the sprites
 	Texture* p_oldSprites = p_sprites;
 	p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
 	if(!p_sprites && skin[Level::SKIN_SPRITES] != p_defaultSkin)
@@ -2441,50 +2439,50 @@ void Level::loadSkin(bool forceReload)
 	if(p_sprites) p_sprites->keepInMemory();
 	if(p_oldSprites) p_oldSprites->release();
 
-	// Lava herauskopieren
+	// copy the lava out
 	Texture* p_oldLava[2] = {p_lava[0], p_lava[1]};
 	p_lava[0] = p_sprites->createSubTexture(Vec2i(0, 480), Vec2i(16, 16));
 	p_lava[1] = p_sprites->createSubTexture(Vec2i(32, 480), Vec2i(16, 16));
 	if(p_oldLava[0]) p_oldLava[0]->release();
 	if(p_oldLava[1]) p_oldLava[1]->release();
 
-	// Rauschen laden
+	// load the noise
 	Texture* p_oldNoise = p_noise;
 	p_noise = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_NOISE));
 	if(p_oldNoise) p_oldNoise->release();
 
-	// "Schein" laden
+	// load the "Schein"
 	Texture* p_oldShine = p_shine;
 	p_shine = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SHINE));
 	if(p_oldShine) p_oldShine->release();
 
-	// Regen laden
+	// load the rain
 	Texture* p_oldRain = p_rain;
 	p_rain = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_RAIN));
 	if(p_oldRain) p_oldRain->release();
 
-	// Wolken laden
+	// load the clouds
 	Texture* p_oldClouds = p_clouds;
 	p_clouds = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_CLOUDS));
 	if(p_oldClouds) p_oldClouds->release();
 
-	// Schnee laden
+	// load the snow
 	Texture* p_oldSnow = p_snow;
 	p_snow = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SNOW));
 	if(p_oldSnow) p_oldSnow->release();
 
-	// Hintergrundbild laden
+	// load the background image
 	Texture* p_oldBackground = p_background;
 	p_background = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_BACKGROUND));
 	if(p_oldBackground) p_oldBackground->release();
 
-	// Hinweiszettel laden. Ob er sich aufrollen darf, sagt eine Merkdatei neben
-	// dem Bild - Inhalt egal, es zaehlt nur, dass es sie gibt. Sie gehoert
-	// neben das Bild und nicht in die tileset.xml, weil jeder Skin-Platz fuer
-	// sich gewaehlt wird: ein Level kann seine Kacheln aus dem einen und seinen
-	// Zettel aus einem anderen Skin nehmen. Und weil getSkinFilename() dem
-	// default_hint.png-Verweis schon gefolgt ist, gilt hier die Datei neben dem
-	// Bild, das wirklich geladen wird.
+	// Load the hint note. A marker file beside the picture says whether it may
+	// roll up - contents ignored, only its existence counts. It belongs beside
+	// the picture and not in the tileset.xml, because each skin slot is chosen
+	// separately: a level can take its tiles from one skin and its note from
+	// another. And because getSkinFilename() has already followed the
+	// default_hint.png link, what counts here is the file beside the picture
+	// that is really loaded.
 	Texture* p_oldHint = p_hint;
 	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
 	p_hint = Manager<Texture>::inst().request(hintFile);
@@ -2497,17 +2495,17 @@ void Level::loadSkin(bool forceReload)
 		hintScroll = FileSystem::inst().fileExists(hintFile.substr(0, slash + 1) + "hintscroll.txt");
 	}
 
-	// Schriftart des Hinweiszettels laden
+	// load the hint note's font
 	Font* p_oldHintFont = p_hintFont;
 	p_hintFont = Manager<Font>::inst().request(getSkinFilename(Level::SKIN_HINTFONT));
 	if(p_oldHintFont) p_oldHintFont->release();
 
-	// Objektvoreinstellungen erzeugen
+	// create the object presets
 	Presets* p_oldPresets = p_presets;
 	p_presets = new Presets(*this, p_sprites);
 	if(p_oldPresets) delete p_oldPresets;
 
-	// Partikelsysteme initialisieren
+	// initialize the particle systems
 	Texture* p_oldParticleSprites = p_particleSprites;
 	p_particleSprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_PARTICLES));
 	if(p_oldParticleSprites) p_oldParticleSprites->release();
@@ -2525,16 +2523,16 @@ void Level::loadSkin(bool forceReload)
 
 	if(forceReload)
 	{
-		// alles neu laden
+		// reload everything
 		Manager<Texture>::inst().reload();
 		Manager<TileSet>::inst().reload();
 		Manager<Font>::inst().reload();
 	}
 
-	// Sagen, dass etwas fehlt. Die Palette des Editors nicht - sie ist selbst
-	// ein Level und laedt denselben Skin gleich fuenfmal mit. In der Vorschau
-	// der Levelauswahl bleibt die Meldung stumm, sonst klaenge bei einer
-	// kaputten Kampagne der Fehlerton bei jedem Tastendruck.
+	// Say that something is missing. Not for the editor's palette - it is
+	// itself a level and loads the same skin five times over. In the level
+	// select preview the message stays silent, or a broken campaign would play
+	// the error sound at every key press.
 	if(!inCat)
 	{
 		for(std::set<std::string>::const_iterator i = badSkins.begin(); i != badSkins.end(); ++i)
@@ -2562,7 +2560,7 @@ std::string Level::getSkinFilename(uint index)
 
 	if(skin[index].empty())
 	{
-		// Standard-Skin
+		// default skin
 		skin[index] = p_defaultSkin;
 		std::string result = getSkinFilename(index);
 		skin[index] = "";
@@ -2570,10 +2568,10 @@ std::string Level::getSkinFilename(uint index)
 	}
 	else
 	{
-		// Existiert die gewuenschte Datei in einem normalen Ordner?
-		// resolveContentPath() sucht erst im Spielordner und dann im
-		// Benutzerverzeichnis: die vier mitgelieferten Skins liegen beim Spiel,
-		// eingespielte und selbstgebaute beim Spieler.
+		// Does the wanted file exist in an ordinary folder?
+		// resolveContentPath() asks the game folder first and then the user
+		// directory: the four shipped skins sit with the game, imported and
+		// self-built ones with the player.
 		FileSystem& fs = FileSystem::inst();
 		const std::string skinDir("levels/skins/" + skin[index]);
 		std::string check = fs.resolveContentPath(skinDir + "/" + p_skinFilenames[index]);
@@ -2583,10 +2581,10 @@ std::string Level::getSkinFilename(uint index)
 		}
 		else
 		{
-			// Standard verwenden?
+			// use the default?
 			if(fs.fileExists(fs.resolveContentPath(skinDir + "/default_" + p_skinFilenames[index])))
 			{
-				// Standard-Skin
+				// default skin
 				skin[index] = p_defaultSkin;
 				std::string result = getSkinFilename(index);
 				skin[index] = "";
@@ -2594,14 +2592,14 @@ std::string Level::getSkinFilename(uint index)
 			}
 			else
 			{
-				// Existiert das Skin-Archiv?
+				// Does the skin archive exist?
 				std::string archiveFile = fs.resolveContentPath(skinDir + ".zip");
 				if(fs.fileExists(archiveFile))
 				{
-					// Standard verwenden?
+					// use the default?
 					if(fs.fileExists(archiveFile + "/default_" + p_skinFilenames[index]))
 					{
-						// Standard-Skin
+						// default skin
 						skin[index] = p_defaultSkin;
 						std::string result = getSkinFilename(index);
 						skin[index] = "";
@@ -2609,15 +2607,15 @@ std::string Level::getSkinFilename(uint index)
 					}
 					else
 					{
-						// Existiert die Datei da drin?
+						// Does the file exist in there?
 						std::string skinFile = archiveFile + "/" + p_skinFilenames[index];
 						if(fs.fileExists(skinFile))
 						{
-							// Gibt es dort eine password.txt?
+							// Is there a password.txt in there?
 							std::string pwFile = archiveFile + "/password.txt";
 							if(fs.fileExists(pwFile))
 							{
-								// Einlesen!
+								// Read it in!
 								std::string encryptedPassword = fs.readStringFromFile(pwFile);
 								return archiveFile + "[" + encryptedPassword + "]/" + p_skinFilenames[index];
 							}

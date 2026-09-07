@@ -12,12 +12,12 @@ extern "C"
 
 namespace
 {
-	// Die Zeitbasis der Videospur, wie mp4_h26x_write_init sie anlegt.
+	// The time scale of the video track, as mp4_h26x_write_init creates it.
 	const uint k_videoTimeScale = 90000;
 
-	// H.264 arbeitet in Makrobloecken von 16x16, und minih264 verlangt, dass Breite
-	// und Hoehe glatt aufgehen. Das Spiel laeuft mit 640x480, also passt es; eine
-	// andere Aufloesung wird auf das naechstkleinere Vielfache abgerundet.
+	// H.264 works in 16x16 macroblocks, and minih264 demands that width and
+	// height divide evenly. The game runs at 640x480, which fits; any other
+	// resolution is rounded down to the next smaller multiple.
 	inline int roundDownTo16(int value)
 	{
 		return value & ~15;
@@ -74,11 +74,11 @@ struct VideoRecorderImpl
 	uint videoBitrate;
 	uint audioBitrate;
 
-	Vec2i inputSize;      // was der Aufrufer liefert
-	Vec2i encodedSize;    // auf Vielfache von 16 abgerundet
+	Vec2i inputSize;      // what the caller supplies
+	Vec2i encodedSize;    // rounded down to a multiple of 16
 
 	uint8_t* p_videoInputBuffer;
-	uint8_t* p_yuv;              // Y, dann U, dann V, alles am Stueck
+	uint8_t* p_yuv;              // Y, then U, then V, all in one block
 	H264E_persist_t* p_encoder;
 	H264E_scratch_t* p_scratch;
 
@@ -87,15 +87,14 @@ struct VideoRecorderImpl
 	mp4_h26x_writer_t h264Writer;
 
 	shine_t p_shine;
-	short* p_audioBuffer;        // interleaved, audioSamplesPerPass Stereo-Samples
+	short* p_audioBuffer;        // interleaved, audioSamplesPerPass stereo samples
 	int audioSamplesPerPass;
 	int audioTrack;
 	AudioCapture* p_audioCapture;
 
-	// minih264 gibt einen Zeiger in seinen eigenen Puffer zurueck, der beim
-	// naechsten Aufruf ungueltig wird. Ein Frame wird trotzdem zurueckgehalten,
-	// weil seine Dauer erst feststeht, wenn das naechste eintrifft - deshalb die
-	// Kopie.
+	// minih264 returns a pointer into its own buffer that goes invalid on the
+	// next call. A frame is held back all the same, because its duration is
+	// only known once the next one arrives - hence the copy.
 	uint8_t* p_heldFrame;
 	int heldFrameSize;
 	int heldFrameCapacity;
@@ -119,9 +118,9 @@ int videoRecorderThreadProc(void* p_param)
 
 void VideoRecorderImpl::convertFrame()
 {
-	// RGBX nach YUV420 planar. Das Bild kommt von glReadPixels und steht auf dem
-	// Kopf, deshalb wird die Quellzeile von unten gezaehlt. Ist das Bild breiter
-	// oder hoeher als das Vielfache von 16, wird mittig beschnitten.
+	// RGBX to planar YUV420. The frame arrives from glReadPixels upside down,
+	// and the source row is therefore counted from the bottom. Where the frame
+	// is wider or taller than the multiple of 16, it is cropped centred.
 	const int w = encodedSize.x;
 	const int h = encodedSize.y;
 	const int offsetX = (inputSize.x - w) / 2;
@@ -143,7 +142,7 @@ void VideoRecorderImpl::convertFrame()
 		}
 	}
 
-	// Chroma mit 2x2-Mittelwert
+	// Chroma as a 2x2 average
 	for(int j = 0; j < h / 2; j++)
 	{
 		for(int i = 0; i < w / 2; i++)
@@ -199,7 +198,7 @@ int VideoRecorderImpl::threadProc()
 	{
 		if(SDL_SemWaitTimeout(p_semaphore, 10)) continue;
 
-		// Ton zuerst: der Ringpuffer der Aufnahme soll nicht ueberlaufen.
+		// Audio first: the capture's ring buffer must not overflow.
 		drainAudio();
 
 #ifdef PROFILE_VIDEO_CONVERSION
@@ -223,12 +222,12 @@ int VideoRecorderImpl::threadProc()
 
 		H264E_run_param_t runParam;
 		memset(&runParam, 0, sizeof(runParam));
-		// 16 waere nahezu verlustfrei und ist an einem ruhigen Bild pure
-		// Verschwendung: die Ratenregelung kommt dort nie an ihre Grenze, der
-		// Kodierer bleibt auf dem Boden sitzen, und das Menue kostete so
-		// 1976 kbit/s fuer 46,7 dB. Bei 22 sind es 866 fuer 41,7 dB, und im
-		// Zoom ist zwischen beiden nichts zu sehen. Auf bewegtem Bild aendert
-		// der Wert gar nichts: dort waehlt die Regelung ohnehin etwa 25.
+		// 16 would be near lossless and pure waste on a still picture: the
+		// rate control never reaches its limit there, the encoder sits at the
+		// floor, and the menu cost 1976 kbit/s for 46.7 dB. At 22 it is 866
+		// for 41.7 dB, and zoomed in there is no visible difference between
+		// the two. On a moving picture the value changes nothing at all:
+		// there the rate control picks about 25 anyway.
 		runParam.qp_min = 22;
 		runParam.qp_max = 42;
 		runParam.desired_frame_bytes = videoBitrate / 8 / (fps ? fps : 30);
@@ -242,7 +241,7 @@ int VideoRecorderImpl::threadProc()
 
 		if(!encodeError && nalSize > 0)
 		{
-			// Das vorige Frame lief bis jetzt - erst dadurch steht seine Dauer fest.
+			// The previous frame ran until now - that is what fixes its duration.
 			if(haveHeldFrame)
 			{
 				uint elapsed = nextFrameTimecode - heldTimecode;
@@ -265,7 +264,7 @@ int VideoRecorderImpl::threadProc()
 		readyForNextFrame = true;
 	}
 
-	// Das letzte Frame bekommt eine ganz normale Framedauer.
+	// The last frame gets an ordinary frame duration.
 	flushHeldFrame(k_videoTimeScale / (fps ? fps : 30));
 
 	if(audioBitrate && p_audioCapture)
@@ -281,7 +280,7 @@ int VideoRecorderImpl::threadProc()
 		if(numBytes > 0) MP4E_put_sample(p_mux, audioTrack, p_mp3, numBytes, audioSamplesPerPass, MP4E_SAMPLE_RANDOM_ACCESS);
 	}
 
-	// Erst hier entstehen die Indextabellen der Datei - und damit auch der esds.
+	// Only here are the file's index tables built - and with them the esds.
 	mp4_h26x_write_close(&h264Writer);
 	if(p_mux) MP4E_close(p_mux);
 
@@ -318,24 +317,23 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 				  p_impl->encodedSize.x, p_impl->encodedSize.y, outputFrameSize.x, outputFrameSize.y);
 	}
 
-	// Videokodierer
+	// Video encoder
 	H264E_create_param_t createParam;
 	memset(&createParam, 0, sizeof(createParam));
 	createParam.width = p_impl->encodedSize.x;
 	createParam.height = p_impl->encodedSize.y;
-	// Alle vier Sekunden ein Schluesselbild. Laenger ist keine Frage der
-	// Qualitaet: wo die Bitrate die Fessel ist, aendert die Laenge nichts
-	// (gemessen 40,86 bis 40,97 dB von einer bis acht Sekunden), und wo die
-	// Quantisierung die Fessel ist, wird die Datei blosss kleiner. Was sie
-	// kostet, ist die Sprungweite - ein Abspieler kann nur auf ein
-	// Schluesselbild springen.
+	// A key frame every four seconds. Longer is not a matter of quality: where
+	// the bitrate is the constraint, the length changes nothing (measured
+	// 40.86 to 40.97 dB from one second to eight), and where the quantization
+	// is the constraint, the file merely gets smaller. What the length costs
+	// is the seek granularity - a player can only jump to a key frame.
 	createParam.gop = p_impl->fps * 4;
-	// Der Puffer, an dem die Ratenregelung haengt - eine Sekunde. Ohne ihn ist
-	// sie offen: minih264 ueberspringt bei vbv_size_bytes == 0 beide Zweige, die
-	// einen Ausreisser hinterher wieder einsparen, und desired_frame_bytes ist
-	// dann nur noch ein Startwert je Bild, den ein einzelnes bis zum
-	// Sechzehnfachen ueberschreiten darf. Gemessen an einem Level mit Regen,
-	// Schnee und Gewitter: 3091 kbit/s bei 2840 gewuenschten, mit Puffer 2877.
+	// The buffer the rate control hangs on - one second. Without it the rate
+	// control is open: at vbv_size_bytes == 0 minih264 skips both branches
+	// that claw an outlier back afterwards, and desired_frame_bytes is then
+	// only a starting value per frame that a single frame may exceed up to
+	// sixteenfold. Measured on a level with rain, snow and a thunderstorm:
+	// 3091 kbit/s against 2840 wanted, with the buffer 2877.
 	createParam.num_layers = 1;
 	createParam.max_threads = 0;
 
@@ -358,7 +356,7 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	p_impl->p_videoInputBuffer = new uint8_t[inputFrameSize.x * inputFrameSize.y * 4];
 	p_impl->p_yuv = new uint8_t[(p_impl->encodedSize.x * p_impl->encodedSize.y * 3) / 2];
 
-	// Datei und Container
+	// File and container
 	p_impl->p_file = fopen(videoFilename.c_str(), "wb");
 	if(!p_impl->p_file)
 	{
@@ -367,7 +365,7 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 		return;
 	}
 
-	// Nicht fragmentiert: der MP4-Leser von Windows kennt 'moof' erst ab Windows 8.
+	// Not fragmented: Windows' MP4 reader only knows 'moof' from Windows 8 on.
 	p_impl->p_mux = MP4E_open(0, 0, p_impl->p_file, writeCallback);
 	if(!p_impl->p_mux ||
 	   MP4E_STATUS_OK != mp4_h26x_write_init(&p_impl->h264Writer, p_impl->p_mux,
@@ -378,7 +376,7 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 		return;
 	}
 
-	// Tonspur
+	// Audio track
 	if(audioBitrate)
 	{
 		p_impl->p_audioCapture = Engine::inst().getAudioCapture();
@@ -448,7 +446,7 @@ VideoRecorder::~VideoRecorder()
 	}
 	else if(p_impl->p_mux)
 	{
-		// Der Thread ist nie gelaufen, die Datei muss trotzdem geschlossen werden.
+		// The thread never ran; the file has to be closed all the same.
 		mp4_h26x_write_close(&p_impl->h264Writer);
 		MP4E_close(p_impl->p_mux);
 		p_impl->p_mux = 0;
@@ -484,7 +482,7 @@ void VideoRecorder::encodeNextFrame(uint timecode)
 	p_impl->readyForNextFrame = false;
 	p_impl->nextFrameTimecode = timecode;
 
-	// Thread benachrichtigen, dass ein neues Frame da ist
+	// tell the thread that a new frame is there
 	SDL_SemPost(p_impl->p_semaphore);
 }
 

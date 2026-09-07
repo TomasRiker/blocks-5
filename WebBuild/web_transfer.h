@@ -2,10 +2,10 @@
 #define _WEB_TRANSFER_H
 #ifdef __EMSCRIPTEN__
 
-/*** Datei-Austausch zwischen dem virtuellen Dateisystem und dem Browser ***/
+/*** File exchange between the virtual filesystem and the browser ***/
 
-// Die Brueckenschicht unter Transfer (src/transfer.h): sie kennt nur Blobs,
-// Dateidialoge und IndexedDB, nichts von Levels, Kampagnen, Musik und Skins.
+// The bridge layer under Transfer (src/transfer.h): it knows only blobs, file
+// dialogs and IndexedDB, nothing of levels, campaigns, music and skins.
 
 #include <string>
 
@@ -13,45 +13,45 @@ namespace WebTransfer
 {
 	enum ImportStatus
 	{
-		IMPORT_IDLE       = 0,   // nichts passiert
-		IMPORT_OK         = 1,   // Datei liegt in einer der drei Zwischendateien
-		IMPORT_CANCELLED  = 2,   // Benutzer hat abgebrochen
+		IMPORT_IDLE       = 0,   // nothing has happened
+		IMPORT_OK         = 1,   // file is in one of the three staging files
+		IMPORT_CANCELLED  = 2,   // the user cancelled
 		IMPORT_TOO_BIG    = 3,
-		IMPORT_WRONG_TYPE = 4,   // Endung ist keine der drei
+		IMPORT_WRONG_TYPE = 4,   // extension is none of the three
 		IMPORT_READ_ERROR = 5
 	};
 
-	// Laedt den Inhalt von vfsPath als Download herunter.
+	// Hands the content of vfsPath to the browser as a download.
 	void download(const std::string& vfsPath, const std::string& downloadName);
 
-	// Dasselbe fuer etwas, das gar nicht erst eine Datei ist - ein
-	// Bildschirmfoto etwa, das im Browser nirgends hingehoert: die IndexedDB
-	// ist fuer Spielstaende da und nicht als Bilderablage.
+	// The same for something that is not a file at all - a screenshot, say,
+	// which has nowhere to go in the browser: the IndexedDB is there for saved
+	// games and not as a picture store.
 	void downloadBytes(const void* p_data, unsigned int numBytes,
 	                   const std::string& downloadName);
 
-	// Oeffnet den Dateidialog. Der Aufrufer gibt alle drei moeglichen Ziele
-	// vor und JS sucht sich nach der Endung eines davon aus - so setzt
-	// weiterhin ausschliesslich C einen Pfad zusammen. Alle drei muessen auf
-	// die jeweilige Endung enden (FileSystem::convertPath erkennt ein Archiv
-	// am ".zip/") und duerfen NICHT unter dem Home-Verzeichnis liegen, damit
-	// eine abgelehnte Datei gar nicht erst in die IndexedDB kommt.
-	// Liefert false, wenn schon ein Dialog laeuft oder der Browser gerade
-	// keine Benutzer-Aktivierung sieht.
+	// Opens the file dialog. The caller hands over all three possible targets
+	// and JS picks one of them by extension, so C still composes every path.
+	// All three must end in their own extension (FileSystem::convertPath
+	// recognises an archive by ".zip/") and must NOT lie under the home
+	// directory, so a rejected file never reaches the IndexedDB in the first
+	// place.
+	// Returns false if a dialog is already running or the browser sees no
+	// user activation right now.
 	bool openPicker(const std::string& stagingOgg,
 	                const std::string& stagingXml,
 	                const std::string& stagingZip,
 	                unsigned int maxBytes);
 
-	// Einmal pro Logik-Tick aufrufen. Liefert IMPORT_IDLE, solange nichts
-	// fertig ist; sonst den Status und den (ungeprueften!) Wunschnamen.
+	// Call once per logic tick. Returns IMPORT_IDLE while nothing has
+	// finished; otherwise the status and the (unchecked) requested name.
 	int pollImport(std::string& untrustedName);
 
-	// Verwirft einen noch offenen Dialog. Die Zwischendateien raeumt der
-	// Aufrufer selbst weg - er hat sie schliesslich benannt.
+	// Discards a dialog that is still open. The caller clears the staging
+	// files away itself - it named them, after all.
 	void abandon();
 
-	// Erzwingt ein FS.syncfs, damit ein Import sofort in IndexedDB landet.
+	// Forces an FS.syncfs to land an import in IndexedDB at once.
 	void syncHome();
 }
 

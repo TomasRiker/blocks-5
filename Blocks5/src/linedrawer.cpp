@@ -88,14 +88,14 @@ void LineDrawer::update()
 
 		if(it != points.begin())
 		{
-			// Verbindungsstueck zeichnen.
-			// Ist es eine Links- oder Rechtskurve?
+			// Draw the connecting piece.
+			// Is it a left turn or a right turn?
 			if((prevDir ^ dir) >= 0.0f)
 			{
 				const float dot = prevUp ^ dir;
 				if(dot > 0.0f)
 				{
-					// Linkskurve <= 90 Grad
+					// left turn <= 90 degrees
 					vertices.push_back(ptA);
 					vertices.push_back(ptA);
 					vertices.push_back(ptA - up);
@@ -103,7 +103,7 @@ void LineDrawer::update()
 				}
 				else if(dot < 0.0f)
 				{
-					// Rechtskurve <= 90 Grad
+					// right turn <= 90 degrees
 					vertices.push_back(ptA);
 					vertices.push_back(ptA);
 					vertices.push_back(ptA + prevUp);

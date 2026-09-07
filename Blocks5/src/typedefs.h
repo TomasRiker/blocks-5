@@ -5,7 +5,7 @@ typedef unsigned int uint;
 typedef unsigned short ushort;
 typedef unsigned char uchar;
 
-// Vordefinierte Vektortypen
+// Predefined vector types
 typedef Vec<float, 2> Vec2f;
 typedef Vec<double, 2> Vec2d;
 typedef Vec<int, 2> Vec2i;

@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Ueberblendung, bei der das Bild in mehreren Scheiben gedreht wird ***/
+/*** Crossfade that turns the picture in several slices ***/
 
 class CF_Slices : public Crossfade
 {

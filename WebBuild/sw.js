@@ -42,7 +42,7 @@ var EXTRA = ['./', './blocks5.html', './manifest.json', './touch_controls.js',
              './icon-192.png', './icon-512.png', './icon-maskable-512.png',
              './apple-touch-icon.png'];
 
-// Gestempelt und damit unveraenderlich - und davon die drei dieses Baus.
+// Stamped and therefore immutable - and of those, this build's own three.
 var STAMPED = /\/blocks5-[0-9a-f]+\.(js|wasm|data)$/;
 var MINE = new RegExp('/blocks5-' + BUILD + '\\.(js|wasm|data)$');
 
@@ -77,11 +77,11 @@ self.addEventListener('fetch', function (e) {
 	}
 
 	if (STAMPED.test(url.pathname)) {
-		// Nur die Nutzlast des eigenen Baus gehoert in diesen Speicher. Waehrend
-		// ein neuer Worker installiert, bedient der alte die Seite noch, und ohne
-		// diese Zeile legte er die Dateien des neuen Baus in seinen eigenen, gleich
-		// zu loeschenden Speicher - kurzzeitig beide Nutzlasten auf der Platte.
-		// Fremd gestempeltes laesst er stattdessen ganz durch.
+		// Only this build's own payload belongs in this cache store. While a
+		// new worker installs, the old one is still answering, and without this
+		// line it would pull the new build's files into its own store, which is
+		// about to be deleted - both payloads on disk for the duration.
+		// It lets anything stamped for another build through untouched instead.
 		if (!MINE.test(url.pathname)) return;
 
 		e.respondWith(caches.open(CACHE).then(function (c) {
@@ -96,7 +96,7 @@ self.addEventListener('fetch', function (e) {
 		return fetch(req).then(function (res) {
 			return keep(c, res);
 		}).catch(function () {
-			// Kein Netz: dann das, was beim Installieren hereingekommen ist.
+			// No network: then whatever came in at install time.
 			return c.match(req, { ignoreSearch: true }).then(function (hit) {
 				return hit || c.match('./index.html');
 			});

@@ -99,7 +99,7 @@ def stripComments(data):
                      and data[end:lineEnd].strip() == b'')
 
             if alone:
-                # Die Einrueckung dieser Zeile steht schon in out und geht mit.
+                # This line's indentation is already in out and goes with it.
                 del out[out.rfind(b'\n') + 1:]
                 i = min(lineEnd + 1, n)
             else:

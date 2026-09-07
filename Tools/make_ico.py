@@ -36,21 +36,21 @@ import os
 import struct
 import sys
 
-# Der PNG-Leser steht in WebBuild/make_icon.py und wird hier nur benutzt, statt
-# ihn ein zweites Mal hinzuschreiben.
+# The PNG reader lives in WebBuild/make_icon.py and is used from there rather
+# than written out a second time.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                 'WebBuild'))
 from make_icon import read_png, write_png            # noqa: E402
 
-# Was die Windows-Shell anfragt: 16/32/48 sind die klassischen Groessen, 20 und
-# 40 kommen bei 125% DPI dazu, 64 bei 200%, und 256 ist die Kachel der Ansicht
-# "Extra grosse Symbole".
+# What the Windows shell asks for: 16/32/48 are the classic sizes, 20 and 40
+# come with 125% DPI, 64 with 200%, and 256 is the tile of the "Extra large
+# icons" view.
 #
-# 24 fehlt mit Absicht. Es ist die einzige Groesse, bei der die naechstkleinere
-# ganzzahlige Stufe die 1x waere: 16 von 24 Pixeln, also zwei Drittel der Kante
-# und knapp die Haelfte der Flaeche. So klein faellt der Rand auf. Windows
-# rechnet sich 24 stattdessen aus dem 32er herunter - weich, aber in voller
-# Groesse, und das ist an dieser einen Stelle das kleinere Uebel.
+# 24 is deliberately absent. It is the one size where the next integer step
+# down would be 1x: 16 pixels of 24, two thirds of the edge and barely half
+# the area. That much margin is visible. Windows scales 24 down from the 32
+# instead - smooth, but at full size, and at this one place that is the lesser
+# evil.
 DEFAULT_SIZES = (16, 20, 32, 40, 48, 64, 256)
 
 
@@ -74,7 +74,7 @@ def reduce_to_art(width, height, pixels):
             o = (y // 2) * half * 4 + 4 * (x // 2)
             out[o:o + 4] = px
     if not uniform:
-        return width, height, pixels     # doch kein reines 2x - unveraendert lassen
+        return width, height, pixels     # not a pure 2x after all - leave it alone
     return half, height // 2, bytes(out)
 
 
@@ -112,7 +112,7 @@ def dib_entry(size, rgba):
         rows.append(bytes(row))
     xor = b''.join(rows)
 
-    maskStride = ((size + 31) // 32) * 4      # auf 4 Byte aufgerundet
+    maskStride = ((size + 31) // 32) * 4      # rounded up to 4 bytes
     mask = bytearray()
     for y in range(size - 1, -1, -1):
         line = bytearray(maskStride)
@@ -148,8 +148,8 @@ def main():
         rgba, scale, margin = render(width, height, pixels, size)
         notes.append((scale, margin))
         if size >= 256:
-            # Ab Vista darf ein Eintrag ein PNG sein, und bei 256x256 spart das
-            # eine Viertelmegabyte gegenueber einem DIB.
+            # From Vista on an entry may be a PNG, and at 256x256 that saves a
+            # quarter of a megabyte against a DIB.
             tmp = dst + '.tmp.png'
             write_png(tmp, size, size, rgba)
             blob = open(tmp, 'rb').read()
@@ -162,7 +162,7 @@ def main():
     offset = 6 + 16 * len(entries)
     out = bytearray(struct.pack('<HHH', 0, 1, len(entries)))
     for (size, length) in entries:
-        # 0 in einem Byte heisst 256 - groesser passt dort nicht hinein.
+        # 0 in a byte means 256 - nothing larger fits in there.
         out += struct.pack('<BBBBHHII', size & 0xFF, size & 0xFF, 0, 0, 1, 32, length, offset)
         offset += length
     for blob in blobs:

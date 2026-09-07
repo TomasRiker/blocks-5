@@ -26,17 +26,17 @@ void GS_Loading::onRender()
 #ifdef __EMSCRIPTEN__
 	if(waitingForClick)
 	{
-		// Sanftes Pulsieren, damit die Zeile nicht wie ein eingefrorenes
-		// Standbild wirkt. Das Logo bleibt aus: sein Auftritt gehoert zum
-		// Vorspann und laeuft erst mit dem Jingle zusammen los.
+		// Gentle pulsing, or the line would read as a frozen still. The logo
+		// stays off: its entrance belongs to the intro and only sets off
+		// together with the jingle.
 		const Vec4d color(1.0, 1.0, 1.0, 0.65 + 0.35 * sin(waitTime * 0.004));
 		const std::string text = localizeString("$WEB_CLICK_TO_START");
 
 		Vec2i dim;
 		p_font->measureText(text, &dim, 0);
 
-		// Jede Zeile fuer sich zentrieren - renderText setzt nach einem
-		// Umbruch wieder bei position.x an, also linksbuendig.
+		// Centre each line on its own - after a break renderText starts again
+		// at position.x, flush left.
 		int y = 240 - dim.y / 2;
 		for(size_t begin = 0; begin <= text.length(); )
 		{
@@ -98,13 +98,13 @@ void GS_Loading::onUpdate()
 	{
 		waitTime += 20;
 
-		// Jede Eingabe zaehlt als Geste. Emscripten haengt selbst einen
-		// Aufwecker an das erste mousedown/keydown/touchstart, verbraucht ihn
-		// aber auch dann, wenn das Aufwecken scheitert (once: true in
-		// autoResumeAudioContext) - hier wird deshalb nachgefasst.
-		// Nur echte Tasten (1-3); 4 und 5 sind das Mausrad, und Scrollen
-		// gilt dem Browser nicht als Geste - es wuerde also nur die
-		// Notbremse unten scharf machen, ohne den Ton freizuschalten.
+		// Every input counts as a gesture. Emscripten hangs its own resume on
+		// the first mousedown/keydown/touchstart but uses it up even when the
+		// resume fails (once: true in autoResumeAudioContext), hence the
+		// follow-up here. Only real mouse buttons (1-3); 4 and 5 are the
+		// wheel, and the browser does not count scrolling as a gesture - it
+		// would only arm the emergency brake below without unblocking the
+		// audio.
 		bool input = false;
 		for(uint button = SDL_BUTTON_LEFT; button <= SDL_BUTTON_RIGHT; button++)
 			if(engine.wasButtonPressed(button)) input = true;
@@ -119,17 +119,17 @@ void GS_Loading::onUpdate()
 			if(gestureTime < 0) gestureTime = waitTime;
 		}
 
-		// Sobald die Geste da ist, geht es im selben Takt weiter - auf den Ton
-		// wird nicht gewartet. Das ist der Unterschied zwischen "der Tipp ist
-		// angekommen" und "der Bildschirm blinkt noch": resume() liefert ein
-		// Versprechen, und bis es eingeloest ist, koennen auf einem Telefon
-		// zwei Sekunden vergehen, in denen die Zeile weiterpulsiert und der
-		// Spieler ein zweites Mal tippt. Der Jingle verliert dabei nichts, er
-		// haengt an time >= 1000 und wartet unten seinerseits kurz auf den Ton.
+		// Once the gesture is there it goes on in the same tick - it does not
+		// wait for the audio. That is the difference between "the tap
+		// registered" and "the screen is still blinking": resume() returns a
+		// promise, and on a phone two seconds can pass before it settles,
+		// while the line keeps pulsing and the player taps a second time. The
+		// jingle loses nothing by it: it hangs off time >= 1000 and, for its
+		// part, waits briefly for the audio below.
 		//
-		// Ohne Geste geht es auch weiter, sobald der Ton von sich aus frei ist:
-		// der Klick kann neben die Zeichenflaeche gegangen sein, dann hat ihn
-		// nur der Browser gesehen.
+		// Without a gesture it goes on as well once the audio is free of its
+		// own accord: the click may have landed beside the canvas, where only
+		// the browser saw it.
 		if(gestureTime >= 0 || !WebAudio::isSuspended()) waitingForClick = false;
 
 		return;
@@ -143,10 +143,10 @@ void GS_Loading::onUpdate()
 		if(!soundPlayed)
 		{
 #ifdef __EMSCRIPTEN__
-			// Der Kontext braucht nach der Geste ein paar Millisekunden. Hier
-			// ist eine Sekunde Vorlauf vergangen, das reicht fast immer; wenn
-			// nicht, wird bis 2000 gewartet und danach aufgegeben, damit der
-			// Jingle nicht erst zum Menue hin losgeht.
+			// The context needs a few milliseconds after the gesture. A
+			// second of slack has passed here, which is almost always
+			// enough; if not, it waits until 2000 and then gives up, or the
+			// jingle would fire only as the menu comes up.
 			const bool ready = !WebAudio::isSuspended();
 			if(ready) engine.playSound("logo.ogg");
 			if(ready || time >= 2000) soundPlayed = true;
@@ -186,10 +186,10 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 {
 	p_font = GUI::inst().getFont();
 
-	// -nosplash holt Logo und Jingle gar nicht erst. Alles Weitere ergibt
-	// sich von selbst: ohne Logo faengt time schon bei 3000 an, und damit
-	// faellt der ganze Vorspann weg - derselbe Weg, den das Spiel ohnehin
-	// nimmt, wenn sich logo.png nicht laden laesst.
+	// -nosplash does not request logo and jingle in the first place.
+	// Everything else follows by itself: without a logo, time starts at 3000
+	// and the whole intro falls away - the same path the game takes anyway
+	// when logo.png will not load.
 	const bool skipSplash = Engine::inst().isSplashSkipped();
 	p_logo = 0;
 	if(!skipSplash)
@@ -204,9 +204,9 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	logoSizeVel = 0.0;
 	load = 0;
 
-	// Ohne Logo spielt der Jingle sonst trotzdem: time steht dann schon ueber
-	// der Schwelle, und der erste Takt loest ihn aus. Bei -nosplash ist das
-	// nicht gewollt; fehlt nur die Datei, bleibt es beim bisherigen Verhalten.
+	// Without a logo the jingle would otherwise still play: time is already
+	// over the threshold and the first tick fires it. -nosplash does not want
+	// that; where only the file is missing, the jingle still plays.
 	soundPlayed = skipSplash;
 
 #ifdef __EMSCRIPTEN__
@@ -235,7 +235,7 @@ void GS_Loading::onLoseFocus()
 
 void GS_Loading::loadGraphics()
 {
-	// Bilder laden
+	// load the images
 	printfLog("Loading graphics ...\n");
 	Manager<Texture>& texMgr = Manager<Texture>::inst();
 	texMgr.request("title.png");
@@ -251,7 +251,7 @@ void GS_Loading::loadGraphics()
 
 void GS_Loading::loadSounds()
 {
-	// Sounds laden
+	// load the sounds
 	printfLog("Loading sounds ...\n");
 	Manager<Sound>& sndMgr = Manager<Sound>::inst();
 	sndMgr.request("barrageswitch.ogg");

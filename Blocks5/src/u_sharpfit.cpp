@@ -1,40 +1,40 @@
 #include "pch.h"
 #include "u_sharpfit.h"
 
-/* "Scharf, angepasst" - nearest-Optik bei krummem Vergroesserungsfaktor.
+/* "SharpFit" - the nearest look at a fractional scale.
 
-   Gedacht ist es so: das 640x480-Bild erst mit nearest um den kleinsten
-   ganzzahligen Faktor N vergroessern, mit dem es mindestens so gross wie das
-   Zielrechteck wird, und das Ergebnis dann auf die tatsaechliche Groesse
-   herunterrechnen. Nearest allein braucht ein ganzzahliges Verhaeltnis, sonst
-   verdoppelt es manche Quellpixel und andere nicht; hier faellt der krumme Rest
-   in den zweiten Schritt, wo er nur noch eine weiche Kante von etwa einem Pixel
-   erzeugt statt ungleicher Strichstaerken.
+   Conceptually: nearest-upscale the 640x480 frame by the smallest integer
+   factor N that makes it at least as large as the destination rectangle, then
+   resample that result down to the actual size. Nearest on its own needs an
+   integer ratio, or it doubles some source pixels and not others; here the
+   fractional remainder falls into the second step, where all it produces is a
+   soft edge about a pixel wide instead of uneven stroke widths.
 
-   Zwei Durchgaenge braucht das nicht. Bilinear ueber ein nearest-vergroessertes
-   Bild ist stueckweise linear: innerhalb eines Quellpixels konstant, und an
-   jeder Pixelgrenze eine Rampe von genau 1/N Quellpixeln Breite. Genau das
-   liefert auch die Hardware, wenn man die Originaltextur bilinear abtastet und
-   die Texturkoordinate vorher durch dieselbe stueckweise lineare Funktion
-   schickt - ein Fetch statt zweier Durchgaenge, und exakt dasselbe Ergebnis.
+   Two passes are not needed. Bilinear over a nearest-upscaled image is
+   piecewise linear: constant within a source pixel, and at every pixel border
+   a ramp exactly 1/N source pixels wide. The hardware delivers precisely that
+   if the original texture is sampled bilinearly and the texture coordinate is
+   first put through the same piecewise linear function - one fetch instead of
+   two passes, and exactly the same result.
 
-   Die Umrechnung, eindimensional, mit s = Position im Quellpixel (0..1):
+   The remapping, one-dimensional, with s = the position within the source
+   pixel (0..1):
 
-       d    = s - 0.5                       Abstand von der Pixelmitte
-       flat = 0.5 - 0.5 / N                 halbe Breite des flachen Teils
+       d    = s - 0.5                       distance from the pixel centre
+       flat = 0.5 - 0.5 / N                 half the width of the flat part
        f    = (d - clamp(d, -flat, flat)) * N + 0.5
 
-   Fuer |d| <= flat ist f = 0.5, also genau die Pixelmitte: die Hardware liefert
-   das Texel unveraendert, so scharf wie nearest. Ausserhalb laeuft f linear
-   nach 0 beziehungsweise 1, was der Rampe an der Pixelgrenze entspricht. Bei
-   N = 1 verschwindet der flache Teil und es bleibt gewoehnliches Bilinear.
+   For |d| <= flat, f is 0.5, exactly the pixel centre: the hardware delivers
+   the texel unchanged, as sharp as nearest. Outside that, f runs linearly to 0
+   or to 1, which is the ramp at the pixel border. At N = 1 the flat part
+   disappears and ordinary bilinear is left.
 
-   Dieselbe Rechnung ist in Emulatorkreisen als "sharp bilinear" bekannt
-   (Themaister, libretro); hergeleitet ist sie hier neu, Code ist keiner
-   uebernommen.
+   The same arithmetic is known in emulator circles as "sharp bilinear"
+   (Themaister, libretro); it is derived afresh here, and none of the code
+   is borrowed.
 
-   Kein #version: 110 auf dem Desktop, 100 unter GLSL ES, und der Quelltext
-   uebersetzt als beides. */
+   No #version: 110 on the desktop, 100 on the embedded shading language, and
+   the source compiles as both. */
 static const char* p_sharpFitFragmentShader =
 	"#ifdef GL_ES\n"
 	"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
@@ -44,9 +44,9 @@ static const char* p_sharpFitFragmentShader =
 	"#endif\n"
 	"#endif\n"
 	"uniform sampler2D decal;\n"
-	"uniform vec2 TextureSize;\n"   /* ganze Textur, Zweierpotenz */
-	"uniform vec2 FrameSize;\n"     /* der benutzte Teil davon, 640x480 */
-	"uniform vec2 Prescale;\n"      /* N, ganzzahlig, >= 1 */
+	"uniform vec2 TextureSize;\n"   /* the whole texture, power of two */
+	"uniform vec2 FrameSize;\n"     /* the part of it in use, 640x480 */
+	"uniform vec2 Prescale;\n"      /* N, integer, >= 1 */
 	"varying vec2 texCoord;\n"
 	"void main()\n"
 	"{\n"
@@ -55,8 +55,8 @@ static const char* p_sharpFitFragmentShader =
 	"    vec2 d     = (texel - base) - 0.5;\n"
 	"    vec2 flat_ = 0.5 - 0.5 / Prescale;\n"
 	"    vec2 f     = (d - clamp(d, -flat_, flat_)) * Prescale + 0.5;\n"
-	/* Am rechten und oberen Rand darf die Rampe nicht in den ungenutzten Teil
-	   der Zweierpotenz-Textur hineingreifen. */
+	/* At the right and top edge the ramp must not reach into the unused part
+	   of the power-of-two texture. */
 	"    vec2 p     = clamp(base + f, vec2(0.5), FrameSize - 0.5);\n"
 	"    gl_FragColor = vec4(texture2D(decal, p / TextureSize).rgb, 1.0);\n"
 	"}\n";

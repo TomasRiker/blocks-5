@@ -1,9 +1,9 @@
 #ifndef _VEC_H
 #define _VEC_H
 
-/*** Allgemeine Vektorklasse fuer Vektoren ueber beliebigen Typen mit beliebiger Dimension ***/
+/*** General vector class for vectors over arbitrary types with arbitrary dimension ***/
 
-// Helfer fuer das Wurzelziehen
+// Helper for taking the square root
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
@@ -68,14 +68,14 @@ public:
 			this->value[i] = value;
 	}
 
-	// Initialisierung mit 2 Parametern
+	// initialisation with 2 parameters
 	Vec(T x, T y)
 	{
 		this->value[0] = x;
 		this->value[1] = y;
 	}
 
-	// Initialisierung mit 3 Parametern
+	// initialisation with 3 parameters
 	Vec(T x, T y, T z)
 	{
 		this->value[0] = x;
@@ -83,7 +83,7 @@ public:
 		this->value[2] = z;
 	}
 
-	// Initialisierung mit 4 Parametern
+	// initialisation with 4 parameters
 	Vec(T x, T y, T z, T w)
 	{
 		this->value[0] = x;
@@ -167,7 +167,7 @@ public:
 		return r;
 	}
 
-	// komponentenweise Multiplikation
+	// component-wise multiplication
 	Vec<T, DIM> operator * (const Vec<T, DIM>& rhs) const
 	{
 		Vec<T, DIM> r;
@@ -184,7 +184,7 @@ public:
 		return r;
 	}
 
-	// komponentenweise Division
+	// component-wise division
 	Vec<T, DIM> operator / (const Vec<T, DIM>& rhs) const
 	{
 		Vec<T, DIM> r;
@@ -201,7 +201,7 @@ public:
 		return r;
 	}
 
-	// Skalarprodukt
+	// dot product
 	T operator ^ (const Vec<T, DIM>& rhs) const
 	{
 		T r = this->value[0] * rhs.value[0];
@@ -210,7 +210,7 @@ public:
 		return r;
 	}
 
-	// Kreuzprodukt (nur sinnvoll fuer DIM = 3)
+	// cross product (only meaningful for DIM = 3)
 	Vec<T, 3> operator % (const Vec<T, 3>& rhs) const
 	{
 		return Vec<T, 3>(this->y * rhs.z - this->z * rhs.y,
@@ -281,7 +281,7 @@ public:
 		return false;
 	}
 
-	// Konvertierung in anderes Vektorformat (gleiche Dimension)
+	// conversion to another vector format (same dimension)
 	template<typename U> operator Vec<U, DIM>() const
 	{
 		Vec<U, DIM> r;
@@ -301,7 +301,7 @@ public:
 	}
 };
 
-// Multipliktion mit Skalar von links
+// multiplication by a scalar from the left
 template<typename T, int DIM> Vec<T, DIM> operator * (T lhs, const Vec<T, DIM>& rhs)
 {
 	return rhs * lhs;

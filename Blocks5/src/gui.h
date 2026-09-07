@@ -1,7 +1,7 @@
 #ifndef _GUI_H
 #define _GUI_H
 
-/*** Klasse fuer die Benutzeroberflaeche ***/
+/*** Class for the user interface ***/
 
 class GUI_Element;
 class Font;
@@ -35,11 +35,11 @@ public:
 	const Vec2i& getCursorPos() const;
 	GUI_Element* getFocusElement();
 
-	// Ist die Taste, die gerade in onKeyEvent() ankommt, die Wiederholung
-	// einer liegenden? Wer sie als Befehl liest - Escape, Return, die Kuerzel
-	// der Editoren -, muss so eine ueberspringen, sonst loest ein liegender
-	// Finger den Befehl alle 60 ms erneut aus. Ein Textfeld und eine Liste
-	// wollen sie dagegen haben und fragen gar nicht erst.
+	// Is the key just arriving in onKeyEvent() the repeat of a held one?
+	// Anything that reads it as a command - Escape, Return, the editors'
+	// shortcuts - must skip such a repeat, or a held finger triggers the
+	// command again every 60 ms. An edit box and a list, by contrast, want
+	// them and do not ask at all.
 	bool isKeyRepeat() const;
 	void setFocusElement(GUI_Element* p_element);
 	GUI_Element* getOldFocusElement();
@@ -59,12 +59,12 @@ private:
 	double opacity;
 	Texture* p_skin;
 
-	// Gilt nur waehrend eines onKeyEvent(); isKeyRepeat() liest es.
+	// Valid only during an onKeyEvent(); isKeyRepeat() reads it.
 	bool keyRepeat;
 
 	Vec2i cursorPos;
 	Vec2i oldCursorPos;
-	// Die Zeigerposition, wie das Fenster sie meldet - siehe update().
+	// The cursor position as the window reports it - see update().
 	Vec2i oldRawCursorPos;
 	GUI_Element* p_elementAtCursor;
 	GUI_Element* p_oldElementAtCursor;

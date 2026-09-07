@@ -1,7 +1,7 @@
 #ifndef _GS_SELECTLEVEL_H
 #define _GS_SELECTLEVEL_H
 
-/*** Klasse fuer die Levelauswahl ***/
+/*** Class for the level selection ***/
 
 #include "gamestate.h"
 #include "engine.h"

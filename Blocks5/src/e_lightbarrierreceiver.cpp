@@ -9,7 +9,7 @@ E_LightBarrierReceiver::E_LightBarrierReceiver(Level& level,
 	renderBox = false;
 	value = 0;
 
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(8, 15), PT_OUTPUT);
 }
 

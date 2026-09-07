@@ -16,7 +16,7 @@ ElectricityPanel::~ElectricityPanel()
 
 void ElectricityPanel::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(subType ? 32 : 0, 288));
 }
 

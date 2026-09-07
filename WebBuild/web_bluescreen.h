@@ -1,20 +1,18 @@
 #ifndef _WEB_BLUESCREEN_H
 #define _WEB_BLUESCREEN_H
 
-/* Ein Osterei fuer die Browserfassung.
+/* An easter egg for the browser version.
 
-   "Beenden" kann dort nichts beenden - ein Programm schliesst seinen eigenen
-   Tab nicht. Bisher passierte auf den Knopf hin also schlicht gar nichts, was
-   sich wie ein Fehler anfuehlt. Statt dessen tut das Spiel jetzt so, als haette
-   es den Rechner mitgerissen.
+   "Quit" cannot quit anything there - a program does not close its own tab,
+   and a button that simply does nothing feels like a fault. The game pretends
+   instead that it has taken the machine down with it.
 
-   Nur im Emscripten-Build; unter Windows beendet SDL_QUIT das Spiel wie immer. */
+   Emscripten build only; under Windows SDL_QUIT quits the game as always. */
 
 namespace WebBlueScreen
 {
-	// Blendet den blauen Schirm ein und haelt die Hauptschleife an. Ein
-	// Tastendruck oder Klick laedt die Seite neu - das ist der Neustart, von dem
-	// der Text spricht.
+	// Brings the blue screen up and stops the main loop. A key press or a
+	// click reloads the page - that is the restart the text asks for.
 	void show();
 }
 

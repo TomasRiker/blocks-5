@@ -20,9 +20,9 @@
 
 namespace
 {
-	// Wo die vier Arten liegen - derselbe Pfad zweimal: einmal unter dem
-	// Benutzerverzeichnis, wo das Spiel sie liest, und einmal relativ zum
-	// Arbeitsverzeichnis, wo die mitgelieferten stehen.
+	// Where the four kinds live - the same path twice: once under the user
+	// directory, where the game reads them, and once relative to the working
+	// directory, where the shipped ones sit.
 	std::string subdirectoryFor(Transfer::Kind kind)
 	{
 		switch(kind)
@@ -56,21 +56,23 @@ namespace
 
 	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 	{
-		// Eine Kopie, sonst nichts. Auch beim Skin, und gerade dort: drei der vier
-		// mitgelieferten sind mit einem Passwort gepackt, und sie beim Hinausgehen
-		// zu entschluesseln waere eine Hintertuer um genau diesen Schutz herum.
-		// Benutzen kann der Empfaenger das Archiv trotzdem - das Passwort liegt als
-		// password.txt darin, und Level::getSkinFilename liest es dort aus.
+		// A plain copy, nothing else. For skins too, and there above all: three
+		// of the four shipped ones are packed with a password, and decrypting
+		// them on the way out would be a back door around the very protection
+		// they are packed for. The recipient can still use the archive - the
+		// password rides along inside it as password.txt, and
+		// Level::getSkinFilename reads it out there.
 		FileSystem& fs = FileSystem::inst();
-		// Ueber beide Wurzeln, denn ausfuehren laesst sich der Export auch auf
-		// dem, was das Spiel mitbringt.
+		// Over both roots, because the export can be run on what the game
+		// ships as well.
 		const std::string source(fs.resolveContentPath(subdirectoryFor(kind) + name));
 		if(!fs.fileExists(source)) return false;
 		return fs.copyFile(source, destPath);
 	}
 
-	// Der Name, wenn vom Wunschnamen nichts uebrig bleibt - etwa weil er aus
-	// lauter Zeichen besteht, die sanitizeFilenameStem() nicht durchlaesst.
+	// The name used when nothing is left of the wanted one - because it
+	// consists of nothing but characters sanitizeFilenameStem() does not let
+	// through, say.
 	const char* defaultStemFor(Transfer::Kind kind)
 	{
 		switch(kind)
@@ -90,8 +92,8 @@ Kind classify(const std::string& path)
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// 1. Musik. Jede Ogg-Seite beginnt mit "OggS", die erste also auch. Das
-	//    ist billiger und ehrlicher als der Blick auf die Dateiendung.
+	// 1. Music. Every Ogg page begins with "OggS", the first one included.
+	//    That is cheaper and more honest than looking at the file extension.
 	{
 		File* p_file = fs.openFile(path, FileSystem::FM_READ);
 		if(p_file)
@@ -103,10 +105,10 @@ Kind classify(const std::string& path)
 		}
 	}
 
-	// 2. Archive. Nachsehen geht auch bei verschluesselten Mitgliedern ohne
-	//    Passwort, weil das Inhaltsverzeichnis eines ZIP offen liegt. Diese
-	//    Pruefung setzt voraus, dass path auf ".zip" endet - sonst erkennt
-	//    FileSystem::convertPath das Archiv nicht.
+	// 2. Archives. Looking inside works even for encrypted members without
+	//    the password, because a ZIP's table of contents lies open. This
+	//    check requires path to end in ".zip", or FileSystem::convertPath
+	//    does not recognise the archive.
 	if(getFilenameExtension(path) == "zip")
 	{
 		if(fs.fileExists(path + "/campaign.xml")) return KIND_CAMPAIGN;
@@ -115,8 +117,8 @@ Kind classify(const std::string& path)
 		return KIND_NONE;
 	}
 
-	// 3. Level. Nur parsen, keine Level::load() - das wuerde Objekte bauen
-	//    und Texturen anfordern, nur um eine Datei zu pruefen.
+	// 3. Level. Parse only, no Level::load() - that would build objects and
+	//    request textures merely to check a file.
 	{
 		TiXmlDocument doc;
 		doc.SetCondenseWhiteSpace(false);
@@ -137,19 +139,18 @@ std::string install(Kind kind,
 	errorId = "";
 	if(p_replaced) *p_replaced = false;
 
-	// Fuer alle vier Arten dasselbe: der Wunschname, auf [A-Za-z0-9_-]
-	// zusammengestrichen, plus die Endung der Art. Gibt es die Datei schon,
-	// wird sie ersetzt - wer eine neue Fassung seines Levels einspielt, meint
-	// seinen Level und nicht einen zweiten daneben. Beim Skin ginge es gar
-	// nicht anders: sein Dateiname ist seine Kennung, ein Level sagt
-	// skin0="space" und der Lader sucht levels/skins/space.zip.
+	// The same for all four kinds: the wanted name cut down to [A-Za-z0-9_-],
+	// plus the kind's extension. An existing file is replaced - a new version
+	// of your level means your level and not a second one beside it. For a
+	// skin there is no other way: its filename is its id, a level says
+	// skin0="space" and the loader looks for levels/skins/space.zip.
 	const std::string dir(directoryFor(kind));
 	const std::string name(sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) +
 						   extensionFor(kind));
 
-	// Die eine Ausnahme: die sieben Namen, unter denen das Spiel selbst etwas
-	// mitliefert. Ueberschreiben hiesse hier, dem Spieler etwas wegzunehmen,
-	// das er nicht wiederbekommt.
+	// The one exception: the seven names under which the game itself ships
+	// something. Overwriting one would take something from the player that
+	// they do not get back.
 	if(isBuiltIn(kind, name))
 	{
 		errorId = "$TR_ERROR_RESERVED";
@@ -158,8 +159,8 @@ std::string install(Kind kind,
 
 	const bool replaced = fs.fileExists(dir + name);
 
-	// Eine Kampagne muss sich auch laden lassen, nicht nur eine campaign.xml
-	// enthalten. Das wird geprueft, bevor irgendetwas ersetzt wird.
+	// A campaign must be loadable as well, not merely contain a campaign.xml.
+	// That is checked before anything is replaced.
 	if(kind == KIND_CAMPAIGN && !Campaign::isImportableArchive(path))
 	{
 		errorId = "$TR_ERROR_BROKEN";
@@ -181,12 +182,11 @@ std::vector<std::string> list(Kind kind)
 	std::vector<std::string> result;
 	if(kind == KIND_NONE) return result;
 
-	// Beide Wurzeln zusammen, denn beide sind spielbar: was das Spiel
-	// mitbringt, steht im Spielordner, was der Spieler gemacht oder eingespielt
-	// hat, im Benutzerverzeichnis. Ein Name kann nur einmal vorkommen - unter
-	// einem mitgelieferten Namen laesst sich weder speichern noch einspielen -,
-	// die Vereinigung braucht also keine eigene Regel dafuer, und das doppelte
-	// Einfuegen faengt der Vergleich weiter unten ab.
+	// Both roots together, since both are playable: what the game ships sits
+	// in the game folder, what the player made or imported in the user
+	// directory. A name can occur only once - nothing can be saved or
+	// imported under a shipped name - hence the union needs no rule of its
+	// own for that, and the comparison further down catches the double insert.
 	FileSystem& fs = FileSystem::inst();
 	const std::string want(extensionFor(kind));
 	const std::string sub(subdirectoryFor(kind));
@@ -213,11 +213,10 @@ bool isBuiltIn(Kind kind, const std::string& name)
 	if(kind == KIND_NONE || name.empty()) return false;
 	const std::string sub(subdirectoryFor(kind));
 	if(sub.empty()) return false;
-	// Keine Liste mehr, sondern die Platte: mitgeliefert ist, was im
-	// Spielordner liegt. Unter Windows ist "Blocks.zip" dieselbe Datei wie
-	// "blocks.zip", und weil das Dateisystem dort nicht zwischen ihnen
-	// unterscheidet, antwortet fileExists() auch auf den anders geschriebenen
-	// Namen mit ja - was hier genau richtig ist.
+	// Not a list but the disk: shipped is whatever lies in the game folder.
+	// On Windows "Blocks.zip" is the same file as "blocks.zip", and because
+	// the file system there does not tell them apart, fileExists() answers
+	// yes to the differently spelled name too - which is exactly right here.
 	return FileSystem::inst().isShippedContent(sub + name);
 }
 
@@ -226,10 +225,9 @@ bool isRemovable(Kind kind, const std::string& name)
 	if(kind == KIND_NONE || name.empty()) return false;
 	if(isBuiltIn(kind, name)) return false;
 
-	// Geloescht wird immer nur die eigene Fassung. Von den beiden
-	// Beispielleveln gibt es die erst, wenn der Spieler einen davon gespeichert
-	// hat; bis dahin steht der Eintrag zwar in der Liste, aber es gibt nichts
-	// wegzunehmen.
+	// Only ever the player's own version is deleted. For the two example
+	// levels that version exists only once the player has saved one of them;
+	// until then the entry is in the list but there is nothing to take away.
 	FileSystem& fs = FileSystem::inst();
 	return fs.fileExists(fs.getAppHomeDirectory() + subdirectoryFor(kind) + name);
 }
@@ -238,8 +236,8 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 {
 	errorId = "";
 
-	// Der Knopf ist in diesen Faellen ohnehin abgeschaltet; die Sperre gehoert
-	// trotzdem hierher und nicht in die Oberflaeche.
+	// The button is switched off in these cases anyway; the guard belongs
+	// here all the same and not in the GUI.
 	if(kind == KIND_NONE || name.empty())
 	{
 		errorId = "$TR_ERROR_FAILED";
@@ -258,8 +256,8 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 	}
 
 #ifdef __EMSCRIPTEN__
-	// Sofort nach IndexedDB durchschreiben, wie beim Import: sonst waere die
-	// Datei nur im Arbeitsspeicher geloescht und nach einem Neuladen wieder da.
+	// Write through to IndexedDB at once, as on import: otherwise the file
+	// would only be deleted in memory and would be back after a reload.
 	WebTransfer::syncHome();
 #endif
 
@@ -267,17 +265,17 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 }
 
 // ---------------------------------------------------------------------------
-// Der Dateidialog. Zwei Welten, eine Schnittstelle.
+// The file dialog. Two worlds, one interface.
 // ---------------------------------------------------------------------------
 
 #ifdef __EMSCRIPTEN__
 
 namespace
 {
-	// C gibt alle drei moeglichen Ziele vor und JS sucht sich nach der Endung
-	// eines davon aus, damit weiterhin niemand ausser C einen Pfad zusammensetzt.
-	// Die Zwischendatei liegt ausserhalb des Benutzerverzeichnisses, damit eine
-	// abgelehnte Datei gar nicht erst in die IndexedDB kommt.
+	// C hands over all three possible targets and JS picks one of them by
+	// extension, leaving C alone to compose every path. The staging file lies
+	// outside the user directory, which keeps a rejected file out of the
+	// IndexedDB entirely.
 	const char* const p_stagingOgg = "/blocks5_import.ogg";
 	const char* const p_stagingXml = "/blocks5_import.xml";
 	const char* const p_stagingZip = "/blocks5_import.zip";
@@ -306,8 +304,8 @@ namespace
 
 bool beginImport()
 {
-	// 48 MiB. Die groesste Sache, die hier hereinkommt, ist eine Kampagne mit
-	// Musik; die mitgelieferte hat 8,3 MB.
+	// 48 MiB. The largest thing that comes in here is a campaign with music;
+	// the shipped one is 8.3 MB.
 	return WebTransfer::openPicker(p_stagingOgg, p_stagingXml, p_stagingZip, 50331648u);
 }
 
@@ -335,8 +333,8 @@ void finishImport()
 	if(stagingPath.empty()) return;
 	FileSystem::inst().deleteFile(stagingPath);
 	stagingPath = "";
-	// Sofort nach IndexedDB durchschreiben - sonst stuende der Import bis zu
-	// fuenf Sekunden lang nur im Arbeitsspeicher.
+	// Write through to IndexedDB at once - otherwise the import would sit in
+	// memory alone for up to five seconds.
 	WebTransfer::syncHome();
 }
 
@@ -360,8 +358,8 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 		errorId = "$TR_ERROR_FAILED";
 		return false;
 	}
-	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
-	// schon - er taugt unveraendert als Vorschlag fuer den Download.
+	// The name comes from our own directory and already carries its
+	// extension - it serves unchanged as the suggestion for the download.
 	WebTransfer::download(tmp, name);
 	FileSystem::inst().deleteFile(tmp);
 	return true;
@@ -376,7 +374,7 @@ namespace
 	int  importStatus = STATUS_BUSY;
 	bool wantDialog = false;
 
-	// Nur der Basisname, egal mit welchem Trenner der Pfad gebaut war.
+	// Just the base name, whatever separator built the path.
 	std::string getFilenameFromPath(const std::string& path)
 	{
 		const size_t cut = path.find_last_of("/\\:");
@@ -385,7 +383,7 @@ namespace
 
 	void buildFilter(char* p_buffer, size_t size)
 	{
-		// Doppelt nullterminierte Liste, so will es die Common Dialog API.
+		// Doubly null-terminated list, the way the Common Dialog API wants it.
 		static const char* p_parts[] =
 		{
 			"Blocks 5 (*.xml;*.zip;*.ogg)", "*.xml;*.zip;*.ogg",
@@ -402,8 +400,8 @@ namespace
 		if(at < size) p_buffer[at] = 0;
 	}
 
-	// Das Fenster des Spiels. Ohne Besitzer haengt der Dialog an nichts, und
-	// Windows haelt ihn dann nicht ueber dem Spielfenster.
+	// The game's window. With no owner the dialog hangs off nothing, and
+	// Windows then does not keep it above the game window.
 	HWND gameWindow()
 	{
 		SDL_SysWMinfo info;
@@ -412,20 +410,20 @@ namespace
 		return GetActiveWindow();
 	}
 
-	// Ein Dateidialog bringt eine fremde Nachrichtenschleife mit: die
-	// Hauptschleife des Spiels steht, solange er offen ist. Das Fenster bleibt
-	// sichtbar, weil die Fensterprozedur waehrenddessen weiterzeichnet -
-	// dieselbe Vorrichtung wie beim Ziehen am Fensterrand. Der Dialog gehoert
-	// dem Spielfenster (hwndOwner), und ein Fenster mit Besitzer haelt Windows
-	// immer darueber, auch ueber einem randlosen Vollbildfenster.
+	// A file dialog brings a foreign message loop with it: the game's main
+	// loop stands still while it is open. The window stays visible because
+	// the window procedure keeps drawing meanwhile - the same machinery as
+	// when the window border is dragged. The dialog belongs to the game
+	// window (hwndOwner), and Windows always keeps a window with an owner
+	// above it, even above a borderless fullscreen window.
 	struct ModalScope
 	{
 		ModalScope()  { Engine::inst().beginForeignMessageLoop(); }
 		~ModalScope()
 		{
 			Engine::inst().endForeignMessageLoop();
-			// Was die fremde Schleife durchgelassen hat, ist kein Klick des
-			// Spielers auf das Spiel.
+			// What the foreign loop let through is not a click by the player
+			// on the game.
 			Engine::inst().flushInput();
 		}
 	};
@@ -433,9 +431,9 @@ namespace
 
 bool beginImport()
 {
-	// Nur vormerken. Der Dialog laeuft eine Runde spaeter in pollImport(), denn
-	// hier stecken wir mitten in der Ereignisverteilung der GUI - ein modales
-	// Fenster startete dort eine zweite Nachrichtenschleife.
+	// Only make a note. The dialog runs a round later in pollImport(), because
+	// this call sits in the middle of the GUI's event dispatch - a modal
+	// window would start a second message loop there.
 	if(wantDialog) return false;
 	wantDialog = true;
 	return true;
@@ -458,8 +456,8 @@ int pollImport(std::string& path, std::string& untrustedName)
 		ofn.lpstrFilter = filter;
 		ofn.lpstrFile = file;
 		ofn.nMaxFile = sizeof(file);
-		// OFN_NOCHANGEDIR ist Pflicht: das Spiel oeffnet data.zip relativ zum
-		// Arbeitsverzeichnis, und der Dialog wuerde es sonst verstellen.
+		// OFN_NOCHANGEDIR is mandatory: the game opens data.zip relative to the
+		// working directory, and the dialog would otherwise change it.
 		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
 
 		ModalScope modal;
@@ -482,8 +480,8 @@ int pollImport(std::string& path, std::string& untrustedName)
 
 void finishImport()
 {
-	// Unter Windows wurde nichts zwischengelagert - die Datei des Benutzers
-	// wurde gelesen, wo sie lag.
+	// Under Windows nothing is staged - the user's file gets read where it
+	// lies.
 	pickedPath = "";
 	pickedName = "";
 }
@@ -503,8 +501,8 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	buildFilter(filter, sizeof(filter));
 
 	char file[MAX_PATH] = "";
-	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
-	// schon - er taugt unveraendert als Vorschlag.
+	// The name comes from our own directory and already carries its
+	// extension - it serves unchanged as the suggestion.
 	strncpy(file, name.c_str(), sizeof(file) - 1);
 
 	OPENFILENAMEA ofn;
@@ -514,12 +512,12 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	ofn.lpstrFilter = filter;
 	ofn.lpstrFile = file;
 	ofn.nMaxFile = sizeof(file);
-	ofn.lpstrDefExt = extensionFor(kind) + 1;   // ohne den Punkt
+	ofn.lpstrDefExt = extensionFor(kind) + 1;   // without the dot
 	ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
 
 	{
 		ModalScope modal;
-		if(!GetSaveFileNameA(&ofn)) return false;   // abgebrochen, kein Fehler
+		if(!GetSaveFileNameA(&ofn)) return false;   // cancelled, not an error
 	}
 
 	if(!exportTo(kind, name, file))
@@ -533,18 +531,17 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 #else
 
 // ---------------------------------------------------------------------------
-// Linux. Es gibt keinen Dateidialog in der Standardbibliothek und keinen in
-// SDL 1.2; jede Arbeitsumgebung bringt statt dessen ein kleines Programm mit,
-// das genau das tut - zenity unter GNOME, kdialog unter KDE. Beide schreiben
-// den gewaehlten Pfad nach stdout und liefern einen Rueckgabewert ungleich
-// null, wenn abgebrochen wurde. Damit braucht das Spiel weder GTK noch Qt zu
-// binden.
+// Linux. There is no file dialog in the standard library and none in SDL 1.2;
+// every desktop environment instead ships a small program that does exactly
+// that - zenity under GNOME, kdialog under KDE. Both write the chosen path to
+// stdout and return a non-zero exit code on a cancelled dialog. The game
+// therefore has to link neither GTK nor Qt.
 //
-// Der Import laeuft dabei nebenher: popen() gibt eine Leitung, die
-// pollImport() Takt fuer Takt abfragt, so dass das Fenster weiterzeichnet,
-// solange der Dialog offen ist. Der Export kann das nicht - doExport() liefert
-// sein Ergebnis sofort, so steht es in transfer.h -, und haelt das Spiel
-// deshalb an wie der modale Dialog unter Windows.
+// The import runs alongside: popen() gives a pipe that pollImport() reads tick
+// by tick, keeping the window drawing while the dialog is open. The export
+// cannot do that - doExport() delivers its result at once, which is how
+// transfer.h declares it - and therefore stops the game like the modal dialog
+// under Windows.
 // ---------------------------------------------------------------------------
 
 namespace
@@ -556,18 +553,18 @@ namespace
 	FILE* p_importPipe = 0;
 	std::string importOutput;
 
-	// Nur der Basisname.
+	// Just the base name.
 	std::string getFilenameFromPath(const std::string& path)
 	{
 		const size_t cut = path.find_last_of('/');
 		return cut == std::string::npos ? path : path.substr(cut + 1);
 	}
 
-	// Alles, was hier in eine Befehlszeile geht, ist ein Dateiname - und ein
-	// Dateiname darf unter Linux fast jedes Zeichen enthalten, das Apostroph
-	// eingeschlossen. In einfachen Anfuehrungszeichen ist ein Apostroph das
-	// einzige, was die Zeichenkette beendet; ihn dafuer zu verlassen und
-	// wieder zu betreten ist die uebliche Antwort.
+	// Everything that goes into a command line here is a filename - and
+	// under Linux a filename may contain almost any character, the
+	// apostrophe included. Inside single quotes an apostrophe is the only
+	// thing that ends the string; leaving them for it and entering them
+	// again afterwards is the usual answer.
 	std::string shellQuote(const std::string& text)
 	{
 		std::string quoted("'");
@@ -586,8 +583,8 @@ namespace
 
 	enum Dialog { DIALOG_NONE, DIALOG_ZENITY, DIALOG_KDIALOG };
 
-	// Einmal suchen und merken: der Manager fragt sonst bei jedem Klick die
-	// Shell zweimal.
+	// Search once and remember: otherwise the Manager asks the shell twice
+	// on every click.
 	Dialog findDialog()
 	{
 		static Dialog found = DIALOG_NONE;
@@ -608,8 +605,8 @@ namespace
 		return p_home && *p_home ? p_home : ".";
 	}
 
-	// Die Befehlszeile fuer einen der beiden Dialoge. suggestion leer heisst
-	// "oeffnen", sonst "speichern unter".
+	// The command line for one of the two dialogs. An empty suggestion means
+	// "open", otherwise "save as".
 	std::string dialogCommand(Dialog dialog, const std::string& suggestion)
 	{
 		const bool save = !suggestion.empty();
@@ -631,7 +628,7 @@ namespace
 		return command + " 2>/dev/null";
 	}
 
-	// Was das Dialogprogramm geschrieben hat, ohne den Zeilenumbruch am Ende.
+	// What the dialog program wrote, without the trailing line break.
 	std::string trimmed(const std::string& text)
 	{
 		size_t end = text.length();
@@ -642,8 +639,8 @@ namespace
 
 bool beginImport()
 {
-	// Wie unter Windows nur vormerken: hier steckt der Aufruf mitten in der
-	// Ereignisverteilung der GUI.
+	// As under Windows, only make a note: this call sits in the middle of the
+	// GUI's event dispatch.
 	if(wantDialog || p_importPipe) return false;
 	if(findDialog() == DIALOG_NONE) return false;
 	wantDialog = true;
@@ -660,8 +657,8 @@ int pollImport(std::string& path, std::string& untrustedName)
 		if(!p_importPipe) importStatus = STATUS_FAILED;
 		else
 		{
-			// Ohne O_NONBLOCK bliebe das Spiel in read() stehen, bis der
-			// Benutzer den Dialog schliesst - genau das soll es nicht.
+			// Without O_NONBLOCK the game would stand still in read() until
+			// the user closes the dialog - that is exactly what it must not do.
 			const int fd = ::fileno(p_importPipe);
 			::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 		}
@@ -674,8 +671,8 @@ int pollImport(std::string& path, std::string& untrustedName)
 		if(numBytesRead > 0) importOutput.append(buffer, numBytesRead);
 		else if(numBytesRead == 0)
 		{
-			// Ende der Leitung: der Dialog ist zu. pclose() liefert den
-			// Rueckgabewert, und der sagt, ob abgebrochen wurde.
+			// End of the pipe: the dialog is closed. pclose() delivers the
+			// exit code, and that says whether the user cancelled.
 			const int result = ::pclose(p_importPipe);
 			p_importPipe = 0;
 			pickedPath = trimmed(importOutput);
@@ -700,8 +697,8 @@ int pollImport(std::string& path, std::string& untrustedName)
 
 void finishImport()
 {
-	// Wie unter Windows wurde nichts zwischengelagert - die Datei des
-	// Benutzers wurde gelesen, wo sie lag.
+	// As under Windows, nothing is staged - the user's file gets read where it
+	// lies.
 	pickedPath = "";
 	pickedName = "";
 }
@@ -729,8 +726,8 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 		return false;
 	}
 
-	// Der Name kommt aus dem eigenen Verzeichnis und traegt seine Endung
-	// schon - er taugt unveraendert als Vorschlag.
+	// The name comes from our own directory and already carries its
+	// extension - it serves unchanged as the suggestion.
 	FILE* p_pipe = ::popen(dialogCommand(dialog, name).c_str(), "r");
 	if(!p_pipe)
 	{
@@ -745,11 +742,11 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	const int result = ::pclose(p_pipe);
 
 	std::string target(trimmed(output));
-	if(result != 0 || target.empty()) return false;   // abgebrochen, kein Fehler
+	if(result != 0 || target.empty()) return false;   // cancelled, not an error
 
-	// kdialog haengt keine Endung an, zenity auch nicht. Ohne sie liesse sich
-	// die Datei spaeter nicht wieder einlesen - classify() sieht zwar in die
-	// Datei hinein, der Dialog beim Import filtert aber nach Endung.
+	// Neither kdialog nor zenity appends an extension. Without one the file
+	// could not be read back in later - classify() does look inside the file,
+	// but the import dialog filters by extension.
 	const std::string extension(extensionFor(kind));
 	if(target.length() < extension.length() ||
 	   target.compare(target.length() - extension.length(), extension.length(), extension) != 0)

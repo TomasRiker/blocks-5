@@ -3,15 +3,15 @@
 
 #include "upscaler.h"
 
-/*** "Roehrenmonitor" - ein Bildschirm aus den neunziger Jahren ***/
+/*** "CRT monitor" - a screen from the nineties ***/
 
-// Was den Filter ausmacht, steht als Konstante ueber dem Shader in u_crt.cpp
-// und ist zum Verstellen gedacht; die sechs Regler hier sind die, die eine
-// Frage des Geschmacks und nicht der Abstimmung sind.
+// Everything that gives this filter its character is a const above the shader
+// in u_crt.cpp, meant to be edited; the six sliders here are the ones that are
+// matters of taste rather than tuning.
 //
-// Die Woelbung geht auch durch die Maus: warpToSource() ist die Formel des
-// Shaders noch einmal in C++, warpToOutput() ihre Umkehrung, und
-// Engine::getCursorPosition() haengt daran.
+// The barrel distortion goes through the mouse as well: warpToSource() is the
+// shader's formula once more in C++, warpToOutput() its inverse, and
+// Engine::getCursorPosition() hangs off it.
 class U_Crt : public Upscaler
 {
 public:
@@ -19,9 +19,9 @@ public:
 	~U_Crt();
 
 	const char* getName() const { return "Crt"; }
-	// Sharp-fit rechnet die Texturkoordinate so um, dass die
-	// Hardware-Interpolation das nearest-Ergebnis liefert; die Roehre tut
-	// dasselbe, nur weicher. Beide brauchen dafuer GL_LINEAR.
+	// Sharp-fit remaps the texture coordinate such that the hardware
+	// interpolation gives the nearest result; the CRT filter does the same,
+	// only softer. Both need GL_LINEAR for it.
 	GLint getTextureFilter() const { return GL_LINEAR; }
 
 	bool createGL();
@@ -33,18 +33,18 @@ public:
 	Vec2d warpToSource(const Vec2d& p) const;
 	Vec2d warpToOutput(const Vec2d& s) const;
 
-	// Um so viel steht das Raster vom Rand des Glases ab, in Anteilen der
-	// halben Bildbreite - damit die weiche Randkante und die Farbsaeume auch
-	// an den Kantenmitten noch Platz haben. Bei Woelbung 0 ist es 0, und das
-	// Bild deckt sich dann genau mit dem der anderen Filter.
+	// How far the raster stands back from the edge of the glass, in fractions
+	// of half the picture width - room for the soft edge and the colour
+	// fringes at the edge midpoints too. At curvature 0 it is 0, and the
+	// picture then covers exactly what the other filters cover.
 	double getOverscan() const;
 	bool distortsCursor() const { return curvature > 0.0; }
 
 	void loadConfig(TiXmlElement* p_config);
 	void saveConfig(TiXmlElement* p_config);
 
-	// Die Regler, je 0..1; sie wirken sofort, ohne den Shader neu zu
-	// uebersetzen. 0 heisst bei jedem "Effekt aus".
+	// The sliders, 0..1 each; they take effect at once, with no recompile of
+	// the shader. 0 means "effect off" on every one of them.
 	double getScanline() const { return scanline; }
 	double getCurvature() const { return curvature; }
 	double getBloom() const { return bloom; }
@@ -61,9 +61,8 @@ public:
 private:
 	PresentProgram program;
 
-	// Die Uniformstellen, die es nur hier gibt. Je eine eigene Zeile, damit
-	// Tools/verify.py sie sieht - eine Sammeldeklaration uebersieht es, und
-	// genau daran hing "convergence".
+	// The uniform locations that exist only here. One per line, because
+	// Tools/verify.py overlooks a collected declaration.
 	int locScanline;
 	int locCurvature;
 	int locBloom;
@@ -74,8 +73,8 @@ private:
 	int locTime;
 	int locScanPhase;
 
-	// Die Bildgroesse, wie sie zuletzt im PresentContext stand; getOverscan()
-	// rechnet Quellzeilen und -spalten damit in Anteile des Bildes um.
+	// The frame size as it last stood in the PresentContext; getOverscan() uses
+	// it to convert source rows and columns into fractions of the picture.
 	Vec2i frameSize;
 
 	double scanline;

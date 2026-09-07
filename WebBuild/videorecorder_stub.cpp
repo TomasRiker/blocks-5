@@ -1,14 +1,14 @@
-// videorecorder_stub.cpp - untaetiger VideoRecorder fuer den Web-Build.
+// videorecorder_stub.cpp - an inert VideoRecorder for the web build.
 //
-// Das eigentliche videorecorder.cpp waere von seinen Bibliotheken her portabel -
-// minih264, shine und minimp4 sind alle reines C -, kodiert aber in einem
-// eigenen Thread, und den gibt es hier nicht: SDL_CreateThread bricht unter
-// Emscripten ab, SDL_WaitThread ruft abort(), und Semaphoren kennt dessen SDL
-// gar nicht (siehe streamedsound.cpp). Dazu kommt der Ton, den
-// audiocapture.cpp im Browser nicht liefert.
+// The real videorecorder.cpp would be portable as far as its libraries go -
+// minih264, shine and minimp4 are all plain C - but it encodes in a thread of
+// its own, and there is none here: SDL_CreateThread aborts under Emscripten,
+// SDL_WaitThread calls abort(), and its SDL has no semaphores at all (see
+// streamedsound.cpp). On top of that comes the audio, which audiocapture.cpp
+// does not deliver in the browser.
 //
-// Beides ist loesbar, und der Weg dorthin fuehrt vermutlich gar nicht hier
-// entlang: der Browser kann selbst kodieren. Siehe ROADMAP, Punkt 28.
+// Both are solvable, and the way there probably does not lead through here at
+// all: the browser can encode by itself. See ROADMAP item 28.
 #include "pch.h"
 #include "videorecorder.h"
 

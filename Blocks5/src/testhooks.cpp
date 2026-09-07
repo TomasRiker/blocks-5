@@ -1,12 +1,12 @@
 #include "pch.h"
 #include "testhooks.h"
 
-// testhooks.cpp - der Bericht ueber den GUI-Baum, den beide Testwege lesen.
+// testhooks.cpp - the report on the GUI tree that both test paths read.
 //
-// Was hier steht, ist plattformunabhaengig: es liest Engine und GUI aus und
-// baut daraus JSON. Wie der Text nach draussen kommt, steht woanders - im
-// Browser in WebBuild/test_hooks.cpp ueber Module["b5_test"], unter Linux
-// unten in pollRequests() ueber eine Datei.
+// Everything here is platform-independent: it reads out Engine and GUI and
+// builds JSON from that. How the text gets out is elsewhere - in the browser
+// in WebBuild/test_hooks.cpp through Module["b5_test"], under Linux at the
+// bottom in pollRequests() through a file.
 
 #ifdef BLOCKS5_TEST_HOOKS
 
@@ -67,14 +67,14 @@ namespace
 		appendInt(out, h); out += "]";
 	}
 
-	// Spielkoordinate -> Fensterkoordinate, dieselbe Rechnung wie in
-	// presentFrame(). Die Umkehrung davon macht Engine::getCursorPosition(),
-	// ein Klick auf den gelieferten Punkt landet also genau hier.
+	// Game coordinate -> window coordinate, the same arithmetic as in
+	// presentFrame(). Engine::getCursorPosition() is the inverse of it: a
+	// click on the point it delivers lands on exactly this game coordinate.
 	//
-	// Die Woelbung des Roehrenfilters bleibt aussen vor: sie kaeme aus
-	// warpToOutput(), das privat ist, und ein Test, der Knoepfe trifft, laeuft
-	// ohnehin ohne sie. Ob gerade doch jemand verzieht, steht als "crt" mit im
-	// JSON, damit ein Test bemerkt, wenn dieser Fall eintritt.
+	// The CRT filter's curvature stays out of it: it would come from
+	// warpToOutput(), which is private, and a test that hits buttons runs
+	// without it anyway. Whether something is warping after all is in the
+	// JSON as "crt", for a test to notice when that case arises.
 	void gameToWindow(const Vec2i& game, int* p_x, int* p_y)
 	{
 		Engine& engine = Engine::inst();
@@ -137,13 +137,12 @@ namespace
 		const Vec2i screen = engine.getScreenSize();
 		const Vec2i display = engine.getDisplaySize();
 
-		// Gefragt werden kann frueher, als man denkt - im Browser steht die
-		// Ausfuhr schon bereit, sobald das Modul geladen ist, also lange vor
-		// main(). Vorher steht in screenSize eine Null, computePresentRect()
-		// teilt dadurch, und die Umwandlung des entstehenden NaN nach int ist
-		// in wasm kein falscher Wert, sondern ein Trap: die Seite haengt,
-		// statt einen Fehler zu melden. Also erst nachsehen, ob es ueberhaupt
-		// schon etwas zu berichten gibt.
+		// The question can come earlier than one thinks - in the browser the
+		// export stands ready as soon as the module has loaded, long before
+		// main(). Before that screenSize holds a zero, computePresentRect()
+		// divides by it, and the cast of the resulting NaN to int is not a
+		// wrong value in wasm but a trap: the page hangs instead of reporting
+		// an error. Look first whether there is anything to report at all.
 		if(screen.x <= 0 || screen.y <= 0 || !GUI::inst().getRoot())
 		{
 			return std::string("{\"state\":\"\",\"elements\":[]}\n");
@@ -164,31 +163,31 @@ namespace
 		appendEscaped(out, engine.getLanguage());
 		out += "\",\"filter\":\"";
 		appendEscaped(out, engine.getEffectiveUpscaler()->getName());
-		// Nicht "ist die Roehre an", sondern "verzieht gerade jemand das Bild":
-		// nur dann stimmen die Fensterkoordinaten oben nicht mehr. Der
-		// Schluessel heisst weiter crt - WebBuild/test/harness.js liest ihn so.
+		// Not "is the CRT filter on" but "is anything warping the picture":
+		// only then are the window coordinates above no longer right. The key
+		// is still called crt - WebBuild/test/harness.js reads it that way.
 		out += "\",\"crt\":";
 		out += engine.getEffectiveUpscaler()->distortsCursor() ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
-		// Wo das Spiel den Zeiger sieht und worauf er drueckt. Ein Tippen,
-		// das nicht ankommt, sieht von aussen sonst genauso aus wie ein
-		// Knopf, der nicht reagiert.
+		// Where the game sees the cursor and what it is pressing on. From
+		// outside, a tap that does not arrive otherwise looks exactly like
+		// a button that does not react.
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
 
-		// Ob das Spiel steht. Nur im Spielzustand ueberhaupt eine Frage; nach
-		// dem Namen unterschieden und nicht mit dynamic_cast, wie ueberall in
-		// diesem Baum.
+		// Whether the game is paused. Only a question at all in the game
+		// state; told apart by name and not with dynamic_cast, as everywhere
+		// in this tree.
 		out += ",\"paused\":";
 		out += (p_state && p_state->getName() == "GS_Game"
 				&& static_cast<GS_Game*>(p_state)->isPaused()) ? "true" : "false";
 
-		// Welche benannten Aktionen gerade anliegen. Nur die gedrueckten, damit
-		// der Bericht kurz bleibt. Das ist die einzige Stelle, an der von aussen
-		// zu sehen ist, ob eine Taste die Aktionsschicht ueberhaupt erreicht -
-		// die liest SDL_GetKeyState und nicht keyData, was man ihr von aussen
-		// sonst nicht ansehen kann.
+		// Which named actions are down right now. Only the pressed ones, to
+		// keep the report short. That is the only place where it can be seen
+		// from outside whether a key reaches the action layer at all - that
+		// layer reads SDL_GetKeyState and not keyData, which cannot be told
+		// from outside any other way.
 		out += ",\"actionsDown\":[";
 		{
 			const std::vector<Action*>& actions = engine.getActionsVector();
@@ -217,8 +216,8 @@ namespace
 		appendRect(out, "present", px, py, pw, ph);
 		out += ",\n\"elements\":[\n";
 
-		// Ab den Kindern der Wurzel: die Wurzel selbst hat keinen Namen, unter
-		// dem sie jemand suchen wuerde.
+		// From the root's children on: the root itself has no name anybody
+		// would look it up under.
 		bool first = true;
 		const std::list<GUI_Element*>& top = GUI::inst().getRoot()->getChildren();
 		for(std::list<GUI_Element*>::const_iterator i = top.begin(); i != top.end(); ++i)
@@ -248,15 +247,14 @@ std::string hitAt(int x, int y)
 
 #ifndef __EMSCRIPTEN__
 
-// Im Browser ruft JavaScript die Ausfuhr auf. Nativ gibt es keinen solchen
-// Draht, also liegt die Anfrage in einer Datei: der Test schreibt "request",
-// das Spiel liest sie einmal je Logiktakt, loescht sie und legt die Antwort
-// daneben. Geschrieben wird erst unter einem anderen Namen und dann umbenannt,
-// weil das ein einziger Schritt ist - der Test sieht die Antwort nie halb
-// fertig.
+// In the browser JavaScript calls the export. Natively there is no such
+// channel, and the request sits in a file instead: the test writes "request",
+// the game reads it once per logic tick, deletes it and puts the answer
+// beside it. It is written under another name first and then renamed, because
+// that is a single step - the test never sees the answer half finished.
 //
-// Ein stat() auf eine Datei, die es nicht gibt, fuenfzigmal in der Sekunde,
-// kostet nichts, und den Weg gibt es nur im Testbuild.
+// A stat() on a file that does not exist, fifty times a second, costs nothing,
+// and this path exists only in the test build.
 void pollRequests()
 {
 	static std::string directory;

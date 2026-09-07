@@ -1,7 +1,7 @@
 #ifndef _LIGHTNING_H
 #define _LIGHTNING_H
 
-/*** Klasse fuer Blitze ***/
+/*** Class for lightning bolts ***/
 
 class Texture;
 
@@ -22,9 +22,8 @@ private:
 		std::vector<Vec2d> points;
 	};
 
-	// Verbindungszustand zwischen zwei aufeinanderfolgenden Liniensegmenten eines
-	// Astes. Frueher waren das Statics in drawLine(), die sich alle Zweige und
-	// beide Durchgaenge geteilt haben.
+	// Joint state between two consecutive line segments of a branch. Every
+	// branch and every pass needs its own.
 	struct LineJoint
 	{
 		LineJoint() : valid(false) {}

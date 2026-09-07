@@ -14,12 +14,12 @@
 
 FileSystem::FileSystem()
 {
-	// die ersten 256 Primzahlen fuer die Entschluesselung von Passwoertern berechnen
+	// compute the first 256 prime numbers for decrypting passwords
 	generatePrimes(primes, 256);
 
-	// Das Arbeitsverzeichnis beim Start ist der Spielordner - das Spiel besteht
-	// ohnehin darauf, weil es data.zip relativ dazu oeffnet. Hier festgehalten,
-	// solange es noch stimmt.
+	// The working directory at startup is the game folder - the game insists
+	// on that anyway, because it opens data.zip relative to it. Captured here
+	// while it is still true.
 	char path[1024] = "";
 #ifdef _WIN32
 	if(!GetCurrentDirectoryA(sizeof(path), path)) path[0] = 0;
@@ -36,26 +36,26 @@ FileSystem::FileSystem()
 
 namespace
 {
-	// Dateien, die dem Spieler gehoeren, obwohl sie mit dem Spiel kommen. Sie
-	// sind fuer ihn gedacht: die beiden Beispiellevel soll er oeffnen, aendern
-	// und unter ihrem Namen wieder speichern koennen, und die Liesmich erklaeren
-	// ihm seine eigenen Ordner.
+	// Files that belong to the player even though they ship with the game.
+	// They are meant for the player: the two example levels are there to be
+	// opened, changed and saved again under their own name, and the readmes
+	// explain the player's own folders.
 	//
-	// Fuer sie gilt die umgekehrte Suchreihenfolge - erst das
-	// Benutzerverzeichnis, dann der Spielordner -, und mitgeliefert im Sinne von
-	// "unantastbar" sind sie nie. Beides gehoert zusammen: duerfte er speichern,
-	// aber gaebe der Spielordner weiter die Antwort, so waere seine eigene
-	// Fassung geschrieben und unerreichbar.
+	// For them the search order is reversed - the user directory first, then
+	// the game folder - and they are never shipped in the sense of
+	// "untouchable". The two halves belong together: allowing the save while
+	// still answering from the game folder would write a file that could never
+	// be read back.
 	//
-	// Fest aufgeschrieben und nicht als Blick in ein Verzeichnis: im Arbeitsbaum
-	// liegen neben den Beispielen auch die zweiundvierzig Quell-Level der
-	// Kampagne, und die sind nichts davon.
+	// Hard-written rather than a directory listing: a working tree holds the
+	// forty-two campaign source levels beside the examples, and those are
+	// nothing of the kind.
 	//
-	// copyOnFirstStart brauchen nur die Liesmich, denn die liest das Spiel nie -
-	// ohne Kopie stuenden sie in keinem Ordner. Ein Beispiellevel steht auch
-	// ohne Kopie in jeder Liste, und ohne sie bekommt der Spieler mit einer
-	// neuen Fassung des Spiels auch das neue Beispiel, solange er nicht seine
-	// eigene gespeichert hat. Beim Speichern entsteht sie von selbst.
+	// Only the readmes need copyOnFirstStart, because nothing in the game ever
+	// reads them - without the copy they would sit in no folder at all. An
+	// example level is in every list with or without a copy, and without one
+	// the player gets the new example along with a new version of the game, as
+	// long as they have not saved their own. Saving creates it by itself.
 	const FileSystem::PlayerFile p_playerFiles[] =
 	{
 		{ "levels/example01.xml",        false },
@@ -76,8 +76,7 @@ const FileSystem::PlayerFile* FileSystem::getPlayerFiles()
 
 bool FileSystem::belongsToPlayer(const std::string& relative) const
 {
-	// Ohne Ruecksicht auf Gross- und Kleinschreibung, wie das Dateisystem unter
-	// Windows es auch haelt.
+	// Case-insensitive, the way the file system under Windows handles it too.
 	for(const PlayerFile* p_file = p_playerFiles; p_file->p_path; p_file++)
 	{
 		if(equalsNoCase(relative.c_str(), p_file->p_path)) return true;
@@ -87,13 +86,14 @@ bool FileSystem::belongsToPlayer(const std::string& relative) const
 
 std::string FileSystem::resolveContentPath(const std::string& relative) const
 {
-	// const_cast, weil fileExists() eine Datei oeffnet und deshalb nicht const
-	// ist; gemeint ist hier trotzdem nur eine Frage.
+	// const_cast because fileExists() opens a file and is therefore not const;
+	// what is meant here is still only a question.
 	FileSystem* p_this = const_cast<FileSystem*>(this);
 	const std::string own(getAppHomeDirectory() + relative);
 
-	// Was dem Spieler gehoert, wird zuerst bei ihm gesucht; der Spielordner ist
-	// dann nur noch die Vorlage, die einspringt, solange er keine eigene hat.
+	// What belongs to the player is looked for in the user directory first;
+	// the game folder is then only the template that stands in as long as the
+	// player has none of their own.
 	if(belongsToPlayer(relative) && p_this->fileExists(own)) return own;
 
 	const std::string shipped(gameDirectory + relative);
@@ -120,7 +120,7 @@ std::string FileSystem::evalPath(const std::string& path) const
 {
 	std::string result = evalRelativePath(path, isAbsolutePath(path) ? "" : getCurrentDir());
 
-	// Slashes vereinheitlichen und doppelte Slashes entfernen
+	// unify the slashes and remove doubled ones
 	std::string clean;
 	bool slash = false;
 	for(uint i = 0; i < result.length(); i++)
@@ -145,15 +145,15 @@ std::string FileSystem::getAppHomeDirectory() const
 	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
-	// Von der Seite als IDBFS eingehaengt, damit Spielstaende und eigene Levels
-	// ein Neuladen ueberstehen.
+	// Mounted by the page as IDBFS to let saved games and the player's own
+	// levels survive a reload.
 	return "/blocks5_home/";
 #else
-	// Wohin veraenderliche Daten einer Anwendung unter Linux gehoeren, sagt die
-	// XDG Base Directory Specification: $XDG_DATA_HOME, und wo die nicht gesetzt
-	// ist, $HOME/.local/share. Der Name ist klein und ohne Leerzeichen
-	// geschrieben, weil er hier ein Pfadbestandteil ist und kein Titel - anders
-	// als "My Documents\Blocks 5", das unter Windows im Dateimanager steht.
+	// The XDG Base Directory Specification says where an application's mutable
+	// data belongs under Linux: $XDG_DATA_HOME, and where that is not set,
+	// $HOME/.local/share. The name is written lowercase and without a space
+	// because here it is a path component and not a title - unlike
+	// "My Documents\Blocks 5", which Windows shows in the file manager.
 	if(const char* p_xdg = ::getenv("XDG_DATA_HOME"))
 	{
 		if(*p_xdg) return std::string(p_xdg) + "/blocks5/";
@@ -162,9 +162,9 @@ std::string FileSystem::getAppHomeDirectory() const
 	{
 		if(*p_home) return std::string(p_home) + "/.local/share/blocks5/";
 	}
-	// Ohne HOME bleibt nur das Arbeitsverzeichnis. Das ist kein guter Ort, aber
-	// ein leerer Pfad waere ein schlechterer: das Spiel schriebe dann in die
-	// Wurzel.
+	// Without HOME only the working directory is left. That is not a good
+	// place, but an empty path would be a worse one: the game would then write
+	// into the root.
 	return "./blocks5_home/";
 #endif
 }
@@ -175,11 +175,10 @@ std::string FileSystem::getCurrentDir() const
 	else return dirStack.top();
 }
 
-// Beide teilen den Pfad am letzten Schraegstrich. Vorher lief das ueber einen
-// eigenen Puffer und einen Index, der bei "" unterlief: length() ist dann 0,
-// 0 - 1 als uint ist 0xFFFFFFFF, und die Suchschleife las von dort aus
-// rueckwaerts an einem einzigen reservierten Byte vorbei. find_last_of kennt
-// den Fall und hat den Puffer gleich mit erledigt.
+// Both split the path at the last slash. find_last_of and not a hand-written
+// index over a buffer of its own: on "" that index underflows, since length()
+// is 0 and 0 - 1 as a uint is 0xFFFFFFFF, and the search then reads backwards
+// from there past the single reserved byte.
 std::string FileSystem::getPathDirectory(const std::string& path) const
 {
 	const size_t slash = path.find_last_of('/');
@@ -197,11 +196,11 @@ std::string FileSystem::getPathFilename(const std::string& path) const
 File* FileSystem::openFile(const std::string& filename,
 						   FileMode mode)
 {
-	// Dateipfad untersuchen
+	// examine the file path
 	std::string filePath, objectName, password;
 	convertPath(evalPath(filename), filePath, objectName, password);
 
-	// Normale Datei oder Archivobjekt?
+	// A normal file or an archive object?
 	File* p_file = 0;
 	if(!filePath.empty())
 	{
@@ -209,7 +208,7 @@ File* FileSystem::openFile(const std::string& filename,
 		else p_file = new File_Archived(filePath, objectName, password, mode);
 	}
 
-	// Ist ein Fehler aufgetreten?
+	// Did an error occur?
 	if(p_file->getError()) return 0;
 	else return p_file;
 }
@@ -273,9 +272,10 @@ bool FileSystem::createDirectory(const std::string& directory)
 	if(!result && GetLastError() == ERROR_ALREADY_EXISTS) return true;
 	else return result != 0;
 #else
-	// Die Elternverzeichnisse mit anlegen: unter Windows entsteht das
-	// Benutzerverzeichnis in "My Documents", das es immer schon gibt, unter
-	// Linux dagegen unter ~/.local/share, wo auch das share fehlen kann.
+	// Create the parent directories along with it: under Windows the user
+	// directory appears in "My Documents", which always exists already, while
+	// under Linux it lands in ~/.local/share, where even the share may be
+	// missing.
 	std::string path;
 	for(size_t i = 0; i <= directory.length(); i++)
 	{
@@ -342,16 +342,16 @@ void FileSystem::convertPath(const std::string& path,
 							 std::string& password) const
 {
 	std::string temp(path);
-	// i + 5 <= length, nicht i < length - 5. Die Subtraktion ist auf einem
-	// Pfad mit weniger als fuenf Zeichen ein Unterlauf: die Schleife laeuft
-	// dann bis an das Ende der Zeichenkette und substr wirft, sobald pos
-	// groesser als die Laenge ist. Nebenbei wird so auch die letzte moegliche
-	// Stelle geprueft, ein Pfad also erkannt, der genau auf ".zip/" endet.
+	// i + 5 <= length, not i < length - 5. On a path of fewer than five
+	// characters the subtraction underflows: the loop then runs to the end of
+	// the string and substr throws as soon as pos is greater than the length.
+	// Incidentally this checks the last possible position too, and a path
+	// ending exactly in ".zip/" is therefore recognised.
 	for(uint i = 0; i + 5 <= temp.length(); i++)
 	{
 		if(temp.substr(i, 5) == ".zip/")
 		{
-			// archivierte Datei
+			// archived file
 			filePath = temp.substr(0, i + 4);
 			objectName = temp.substr(i + 5);
 			password = "";
@@ -359,7 +359,7 @@ void FileSystem::convertPath(const std::string& path,
 		}
 		else if(temp.substr(i, 5) == ".zip<")
 		{
-			// archivierte Datei mit Klartext-Passwort
+			// archived file with a plaintext password
 			for(uint j = i + 5; j < temp.length(); j++)
 			{
 				if(temp[j] == '>')
@@ -373,7 +373,7 @@ void FileSystem::convertPath(const std::string& path,
 		}
 		else if(temp.substr(i, 5) == ".zip[")
 		{
-			// archivierte Datei mit verschluesseltem Passwort
+			// archived file with an encrypted password
 			for(uint j = i + 5; j < temp.length(); j++)
 			{
 				if(temp[j] == ']')
@@ -382,7 +382,7 @@ void FileSystem::convertPath(const std::string& path,
 					objectName = temp.substr(j + 2);
 					password = temp.substr(i + 5, j - (i + 5));
 
-					// Passwort entschluesseln
+					// decrypt the password
 					char* p_temp = new char[password.length() + 1];
 					decryptPassword(password.c_str(), p_temp, primes);
 					password = p_temp;
@@ -414,7 +414,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		if(i < path.length() - 2 &&
 		   path.substr(i, 3) == "../")
 		{
-			// eine Ebene hoeher im Verzeichnisbaum aufsteigen
+			// go up one level in the directory tree
 			if(result.length() <= 1) return "[INVALID]";
 			char* p_temp = new char[result.length() + 1];
 			strcpy(p_temp, result.c_str());
@@ -429,12 +429,12 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 		else if(i < path.length() - 1 &&
 				path.substr(i, 2) == "./")
 		{
-			// ignorieren
+			// ignore it
 			i += 2;
 		}
 		else
 		{
-			// Zeichen anhaengen
+			// append the character
 			result += path[i];
 			i++;
 		}

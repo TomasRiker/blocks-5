@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer verbrannten Boden ***/
+/*** Class for burnt ground ***/
 
 class Damage : public Object
 {

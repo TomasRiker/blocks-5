@@ -1,7 +1,7 @@
 #ifndef _LINEDRAWER_H
 #define _LINEDRAWER_H
 
-/*** Zeichnen von verbundenen Linien, um ATIs langsamen Linienzeichnungsalgorithmus zu umgehen ***/
+/*** Drawing connected lines, to get around ATI's slow line drawing algorithm ***/
 
 class LineDrawer
 {

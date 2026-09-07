@@ -1,7 +1,7 @@
 #ifndef _GUI_STATICIMAGE_H
 #define _GUI_STATICIMAGE_H
 
-/*** Klasse fuer ein statisches Bild ***/
+/*** Class for a static image ***/
 
 #include "gui_element.h"
 
@@ -20,8 +20,8 @@ public:
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
-	// Wie bei GUI_Button: der Name aus der XML kann eine $ID sein und damit je
-	// nach Sprache auf ein anderes Bild zeigen.
+	// As in GUI_Button: the name from the XML can be a $ID and therefore
+	// point to a different image depending on the language.
 	void setRawImageFilename(const std::string& rawImageFilename);
 	void onUpdate();
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);

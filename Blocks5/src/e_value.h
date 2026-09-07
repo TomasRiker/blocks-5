@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer einen statischen 1- oder 0-Wert ***/
+/*** Class for a static 1 or 0 value ***/
 
 class E_Value : public Electronics
 {

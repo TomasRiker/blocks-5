@@ -34,7 +34,7 @@ void Projectile::onRender(int layer,
 
 		glDisable(GL_TEXTURE_2D);
 
-		// Gluehen rendern
+		// render the glow
 		Engine& engine = Engine::inst();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 		LineDrawer line;
@@ -45,7 +45,7 @@ void Projectile::onRender(int layer,
 		line.draw();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
-		// Projektil rendern
+		// render the projectile
 		line.setWidth(2.0f);
 		line.setColor(Vec4d(1.0, 0.75, 0.1, life));
 		line.draw();
@@ -58,7 +58,7 @@ void Projectile::onRender(int layer,
 	}
 	else if(layer == 18)
 	{
-		// Projektil leuchten lassen
+		// make the projectile shine
 		glPushMatrix();
 		glTranslated(positionInPixels.x - 8.0, positionInPixels.y - 8.0, 0.0);
 		double s = fabs(life);
@@ -110,7 +110,7 @@ void Projectile::onUpdate()
 
 							if(reflectionCounter < 0)
 							{
-								// Dieses Geschoss wurde schon zu oft reflektiert!
+								// This projectile has been reflected too often already!
 								Vec2d perp(-velocity.y, velocity.x);
 								velocity += random(-0.25, 0.25) * perp;
 								life = 0.999;
@@ -135,7 +135,7 @@ void Projectile::onUpdate()
 					{
 						hitPosition = Vec2d(7.5, 7.5) + tileHit * 16;
 
-						// Ist das Tile zerstoerbar?
+						// Is the tile destroyable?
 						int tileID = level.getTileAt(1, tileHit);
 						const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 						if(tileInfo.type == 2)
@@ -153,7 +153,7 @@ void Projectile::onUpdate()
 					ParticleSystem* p_particleSystem = level.getParticleSystem();
 					ParticleSystem::Particle p;
 
-					// Staub
+					// dust
 					for(int i = 0; i < 30; i++)
 					{
 						p.lifetime = random(25, 50);
@@ -174,7 +174,7 @@ void Projectile::onUpdate()
 						p_particleSystem->addParticle(p);
 					}
 
-					// gluehende Partikel
+					// glowing particles
 					for(int i = 0; i < 20; i++)
 					{
 						p.lifetime = random(80, 120);
@@ -196,9 +196,9 @@ void Projectile::onUpdate()
 
 					if(destroyed && p_sprites)
 					{
-						// Das Geschoss hat ein Objekt oder ein Tile zerstoert.
+						// The projectile has destroyed an object or a tile.
 
-						// Truemmer
+						// debris
 						int n = p_sprites->getTryCount(random(30, 40));
 						for(int i = 0; i < n; i++)
 						{
@@ -232,7 +232,7 @@ void Projectile::onUpdate()
 
 					if(bounce)
 					{
-						// Das Geschoss soll abprallen.
+						// The projectile is to bounce off.
 						Vec2d perp(-velocity.y, velocity.x);
 						velocity *= -0.5;
 						velocity += random(-0.25, 0.25) * perp;
@@ -244,13 +244,14 @@ void Projectile::onUpdate()
 
 					if(reflected)
 					{
-						// Geschwindigkeit verringern
+						// reduce the speed
 						speed *= 0.8;
 
-						// Position korrigieren
+						// correct the position
 						positionInPixels = hitPosition;
 
-						// das Geschoss ein bisschen weiterbewegen, damit es nicht dasselbe Objekt noch einmal trifft
+						// move the projectile on a little, otherwise it would
+						// hit the same object again
 						distance = 0.0;
 						Object* p_newObjectHit;
 						do
@@ -273,7 +274,7 @@ void Projectile::onUpdate()
 		positionInPixels += 0.02 * speed * velocity;
 		distance += 0.02 * speed;
 
-		// Das Projektil verschwindet langsam.
+		// The projectile slowly disappears.
 		if(life > 0.0)
 		{
 			life -= 0.02 * 5.0;

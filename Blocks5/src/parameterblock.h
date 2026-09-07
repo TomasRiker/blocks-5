@@ -1,7 +1,7 @@
 #ifndef _PARAMETERBLOCK_H
 #define _PARAMETERBLOCK_H
 
-/*** Klasse fuer eine Parameter-Sammlung ***/
+/*** Class for a collection of parameters ***/
 
 class ParameterBlock
 {
@@ -12,7 +12,7 @@ public:
 
 	ParameterBlock(const ParameterBlock& rhs)
 	{
-		// alle Parameter kopieren
+		// copy every parameter
 		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
 		{
 			values[i->first] = i->second->copy();
@@ -28,7 +28,7 @@ public:
 	{
 		clear();
 
-		// alle Parameter kopieren
+		// copy every parameter
 		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = rhs.values.begin(); i != rhs.values.end(); ++i)
 		{
 			values[i->first] = i->second->copy();
@@ -43,12 +43,12 @@ public:
 		std::unordered_map<std::string, GenericParameterContainer*>::iterator i = values.find(key);
 		if(i == values.end())
 		{
-			// Eintrag existiert noch nicht.
+			// The entry does not exist yet.
 			values[key] = new ParameterContainer<T>(value);
 		}
 		else
 		{
-			// alten Eintrag loeschen, dann ueberschreiben
+			// delete the old entry, then overwrite it
 			delete i->second;
 			i->second = new ParameterContainer<T>(value);
 		}
@@ -59,17 +59,17 @@ public:
 		std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.find(key);
 		if(i == values.end())
 		{
-			// Eintrag existiert nicht!
+			// The entry does not exist!
 			throw 0;
 		}
 		else
 		{
-			// versuchen, zu casten
+			// try to cast
 			const GenericParameterContainer* p_container = i->second;
 			const ParameterContainer<T>* p_spec = dynamic_cast<const ParameterContainer<T>*>(p_container);
 			if(!p_spec)
 			{
-				// Falscher Typ!
+				// Wrong type!
 				throw "Falscher Parametertyp!";
 			}
 			else
@@ -87,7 +87,7 @@ public:
 
 	void clear()
 	{
-		// alle Parameter loeschen
+		// delete every parameter
 		for(std::unordered_map<std::string, GenericParameterContainer*>::const_iterator i = values.begin(); i != values.end(); ++i)
 		{
 			delete i->second;

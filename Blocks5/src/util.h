@@ -24,40 +24,38 @@ int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
 
-// "01 - Titel", wie es im Spiel und in der Levelauswahl ueber dem Bild steht.
-// Der Titel kommt unbesehen aus der Leveldatei (level.cpp liest das Attribut
-// so, wie es dasteht) und aus einem Eingabefeld ohne Laengengrenze - er ist
-// also beliebig lang und darf nie durch einen festen Puffer laufen. Nur die
-// Nummer geht hier durch einen, und die ist eine Zahl.
+// "01 - Title", the way it stands in the game and in the level select above
+// the picture. The title comes out of the level file unexamined (level.cpp
+// reads the attribute exactly as it stands) and out of an input field with no
+// length limit - it is therefore arbitrarily long and must never run through a
+// fixed buffer. Only the number goes through one here, and that is a number.
 std::string formatLevelCaption(int number, const std::string& title);
 
-// Ein einzelner Level traegt statt der Nummer seinen Dateinamen: wer drei
-// Level geschickt bekommt, die alle "Unbenannt" heissen, kann sie sonst nicht
-// auseinanderhalten. In einer Kampagne waere es sinnlos - dort hiesse jeder
-// zweite "level_2.xml".
+// A single level carries its filename instead of the number: three levels
+// somebody sent you that are all called "Unnamed" are otherwise
+// indistinguishable. Inside a campaign it would be pointless - there every
+// other one would be called "level_2.xml".
 std::string formatSingleLevelCaption(const std::string& title, const std::string& filename);
 
-// Macht aus einem beliebigen - auch von aussen eingeschleusten - Dateinamen
-// einen sicheren Namensteil: nur der Basisname, nur [A-Za-z0-9_-], keine
-// Punkte, nie leer, hoechstens 64 Zeichen. Das Ergebnis kann nie aus seinem
-// Verzeichnis ausbrechen; die Erweiterung legt der Aufrufer fest.
+// Turns any filename - including one imported from outside - into a safe name
+// stem: the base name only, only [A-Za-z0-9_-], no dots, never empty, at most
+// 64 characters. The result can never escape its directory; the caller decides
+// the extension.
 std::string sanitizeFilenameStem(const std::string& untrusted,
                                  const std::string& fallback = "imported");
 
-// Prueft, ob ein String unveraendert als Dateiname oder als Name eines
-// Archivmitglieds benutzt werden darf. Abgelehnt wird alles, womit
-// FileSystem::convertPath oder evalRelativePath umgelenkt werden koennten -
-// Trenner, Laufwerksdoppelpunkt, die Archivmarken < > [ ], "..", ein
-// fuehrender Punkt oder eine Tilde, Steuerzeichen. Umlaute und Leerzeichen
-// bleiben erlaubt, damit legitime Namen nicht stillschweigend verschwinden.
+// Checks whether a string may be used unchanged as a filename or as the name
+// of an archive member. Anything that could redirect FileSystem::convertPath
+// or evalRelativePath is refused - separators, the drive colon, the archive
+// markers < > [ ], "..", a leading dot or tilde, control characters. Umlauts
+// and spaces stay allowed, or legitimate names would silently vanish.
 bool isSafeMemberName(const std::string& name);
 
-// Vergleich ohne Ruecksicht auf Gross- und Kleinschreibung, nur ueber ASCII.
-// Von Hand und weder ueber _stricmp - das kennt nur MSVC - noch ueber
-// strcasecmp oder tolower: die beiden haengen an der eingestellten Locale, und
-// in der tuerkischen ist 'I' nicht die Grossform von 'i'. Verglichen werden
-// hier Dateinamen und Schalter der Befehlszeile, und die sind in jeder Locale
-// dieselben.
+// Case-insensitive comparison, over ASCII only. By hand and neither through
+// _stricmp - only MSVC knows that one - nor through strcasecmp or tolower:
+// those two hang off the configured locale, and in the Turkish one 'I' is not
+// the upper-case form of 'i'. What is compared here are filenames and
+// command-line switches, and those are the same in every locale.
 bool equalsNoCase(const char* p_a, const char* p_b);
 int randomInt();
 int random(int min, int max);
@@ -76,10 +74,10 @@ double getExactTime();
 uint getExactTimeMS();
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
-// Eine Adresse im Webbrowser oeffnen. Es gibt sie nur hier: Windows nimmt eine
-// .url-Verknuepfung neben der Anwendung, die zugleich im Startmenue steht, und
-// der Browser oeffnet einen zweiten Tab - beide koennen das schon, und beide
-// tun es an Ort und Stelle.
+// Open an address in the web browser. It exists only here: Windows takes a
+// .url shortcut next to the application, the same one that sits in the start
+// menu, and the browser opens a second tab - both can do it already, and both
+// do it where they stand.
 void openURL(const std::string& url);
 #endif
 void writeProfileLine(const std::string& name, double dt, double avgTime);

@@ -11,8 +11,8 @@ extern "C"
 {
 
 #ifdef __EMSCRIPTEN__
-// Emscriptens SDL deklariert diese beiden, implementiert sie aber nicht -
-// File::getRWOps braucht sie aber, um sein eigenes RWops zu bauen.
+// Emscripten's SDL declares these two but does not implement them -
+// File::getRWOps needs them to build its own RWops.
 SDL_RWops* SDL_AllocRW(void)       { return (SDL_RWops*)calloc(1, sizeof(SDL_RWops)); }
 void SDL_FreeRW(SDL_RWops* p_area) { free(p_area); }
 #endif
@@ -21,8 +21,8 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 {
 	if(!p_src || !p_src->read) return 0;
 
-	// Den Strom durch die Callbacks des Spiels leerlesen. stb_image will die
-	// Daten am Stueck im Speicher haben.
+	// Read the stream to the end through the game's own callbacks. stb_image
+	// wants the data in memory in one piece.
 	std::vector<unsigned char> data;
 	unsigned char chunk[16384];
 	for(;;)
@@ -46,8 +46,8 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 		return 0;
 	}
 
-	// stb liefert dicht gepacktes RGBA. SDL_CreateRGBSurfaceFrom wuerde den Puffer
-	// nicht uebernehmen, also wird in eine eigene Oberflaeche kopiert.
+	// stb delivers tightly packed RGBA. SDL_CreateRGBSurfaceFrom would not take
+	// ownership of the buffer; the pixels are copied into a surface of our own.
 	SDL_Surface* p_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
 												  0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
 	if(!p_surface)
@@ -56,9 +56,9 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 		return 0;
 	}
 
-	// Ohne SDL_LockSurface: unter Emscripten synchronisieren Lock und Unlock mit
-	// dem Canvas und brechen bei einer reinen Software-Oberflaeche ab. Deren Pixel
-	// sind ohnehin direkt beschreibbar, auch im echten SDL.
+	// No SDL_LockSurface: under Emscripten lock and unlock synchronise with the
+	// canvas and bail out on a pure software surface. Its pixels are directly
+	// writable anyway, in real SDL too.
 	for(int y = 0; y < height; y++)
 		memcpy((unsigned char*)p_surface->pixels + y * p_surface->pitch, p_pixels + y * width * 4, width * 4);
 

@@ -10,7 +10,7 @@ Exit::Exit(Level& level,
 	flags = OF_FIXED;
 	ghost = !level.isInEditor();
 
-	// Es kann nur einen geben!
+	// There can be only one.
 	if(level.p_exit) level.removeObject(level.p_exit);
 	level.p_exit = this;
 }
@@ -26,7 +26,7 @@ void Exit::onRemove()
 
 void Exit::updateSprites()
 {
-	// Ausgang. Bei genug Diamanten pulsiert er.
+	// The exit. With enough diamonds it pulses.
 	double alpha = 1.0;
 	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85 + 0.15 * cos(static_cast<double>(level.counter) * 0.4);
 	sprites.add(Vec2i(224, 32), Vec4d(1.0, 1.0, 1.0, alpha));
@@ -47,11 +47,11 @@ void Exit::onUpdate()
 {
 	if(ghost) return;
 
-	// Spieler da?
+	// Player here?
 	Object* p_obj = level.getFrontObjectAt(position);
 	if(p_obj == level.getActivePlayer())
 	{
-		// Level geschafft!
+		// Level done.
 		level.finished = true;
 		Engine::inst().playSound("finished.ogg", false, 0.0, 100);
 

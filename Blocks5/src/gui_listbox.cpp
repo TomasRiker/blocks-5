@@ -29,12 +29,12 @@ void GUI_ListBox::onRender()
 
 	if(useSkin())
 	{
-		// Listenfeld zeichnen
+		// draw the list box
 		gui.renderFrame(Vec2i(0, 0), size - Vec2i(16, 0), focused ? Vec2i(48, 144) : Vec2i(0, 144));
 	}
 	else
 	{
-		// Hintergrund zeichnen
+		// draw the background
 		glBegin(GL_QUADS);
 		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
 		else glColor4d(0.4, 0.4, 0.4, 1.0);
@@ -46,7 +46,7 @@ void GUI_ListBox::onRender()
 		glVertex2i(0, size.y);
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(0.0, 0.0, 0.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -64,7 +64,7 @@ void GUI_ListBox::onRender()
 	glPushMatrix();
 	glTranslated(0.0, -scroll, 0.0);
 
-	// Listeneintraege rendern
+	// render the list items
 	int y = 2;
 	h = p_font->getLineHeight();
 	for(std::vector<ListItem>::const_iterator i = items.begin(); i != items.end(); ++i)
@@ -73,7 +73,7 @@ void GUI_ListBox::onRender()
 		y += h;
 	}
 
-	// Auswahl zeichnen
+	// draw the selection
 	if(selection != -1)
 	{
 		glBegin(GL_QUADS);
@@ -110,7 +110,7 @@ void GUI_ListBox::onMouseDown(const Vec2i& position,
 			{
 				if(selection == doubleClickItem)
 				{
-					// Doppelklick
+					// double click
 					if(p_submitButton) p_submitButton->click();
 					doubleClickTime = 0;
 				}
@@ -121,7 +121,7 @@ void GUI_ListBox::onMouseDown(const Vec2i& position,
 			}
 			else
 			{
-				// erster Klick
+				// first click
 				doubleClickTime = 300 / Engine::inst().getLogicRate();
 			}
 
@@ -140,15 +140,15 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	if(!active) return;
 
-	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
+	// Only a key press matters here.
 	if(event.type != SDL_KEYDOWN) return;
 
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
 	case SDLK_ESCAPE:
-		// Ereignis an das Elternelement weiterleiten - Escape gehoert dem
-		// Dialog, nicht der Liste.
+		// forward the event to the parent element - Escape belongs to the
+		// dialog, not to the list.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_UP:
@@ -170,8 +170,8 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(!items.empty()) setSelection(static_cast<int>(items.size() - 1));
 		break;
 	case SDLK_RETURN:
-		// Wie im Eingabefeld: gibt es keinen eigenen Knopf dafuer, gehoert
-		// Return dem Dialog. Und der Knopf nur bei einem neuen Druck.
+		// As in the edit box: with no button of its own for it, Return
+		// belongs to the dialog. And the button only on a fresh press.
 		if(!items.empty() && selection != -1 && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
@@ -262,7 +262,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	if(selection != -1)
 	{
-		// dafuer sorgen, dass die Auswahl sichtbar ist
+		// make sure the selection is visible
 		int h = p_font->getLineHeight();
 		int sy = 2 + selection * h;
 		int vsy = sy - scroll;
@@ -273,7 +273,7 @@ void GUI_ListBox::setSelection(int selection)
 
 	updateScrollBar();
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 

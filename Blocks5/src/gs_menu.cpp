@@ -20,10 +20,10 @@ extern const char* p_localVersion;
 
 namespace
 {
-	// demo1.dat haelt rohe Tastennummern fest - die von SDL 1.2, unter denen
-	// die Aufnahme entstanden ist. Emscriptens SDL zaehlt anders: SDLK_LEFT
-	// ist dort 1104 und nicht 276. Die Tabelle bildet die aufgezeichnete Zahl
-	// auf die Konstante ab, die *dieser* Build meint.
+	// demo1.dat holds raw key numbers - SDL 1.2's, the ones the recording
+	// came from. Emscripten's SDL counts differently: SDLK_LEFT is 1104
+	// there and not 276. The table maps the recorded number onto the
+	// constant *this* build means.
 	struct RecordedKey
 	{
 		uint recorded;
@@ -64,7 +64,7 @@ GS_Menu::~GS_Menu()
 
 void GS_Menu::onRender()
 {
-	// Farbuebergang rendern
+	// render the colour gradient
 	glBegin(GL_QUADS);
 	glColor3d(0.5, 0.5, 1.0);
 	glVertex2i(0, 0);
@@ -74,7 +74,7 @@ void GS_Menu::onRender()
 	glVertex2i(0, 480);
 	glEnd();
 
-	// Wolken rendern
+	// render the clouds
 	p_clouds->bind();
 	glMatrixMode(GL_TEXTURE);
 
@@ -112,13 +112,13 @@ void GS_Menu::onRender()
 	p_clouds->unbind();
 	glMatrixMode(GL_MODELVIEW);
 
-	// Titel-Level rendern
+	// render the title level
 	glPushMatrix();
 	glTranslated(0.0, 65.0, 0.0);
 	p_titleLevel->render();
 	glPopMatrix();
 
-	// Hintergrundbild rendern
+	// render the background image
 	p_background->bind();
 	glBegin(GL_QUADS);
 	glColor3d(1.0, 1.0, 1.0);
@@ -136,8 +136,9 @@ void GS_Menu::onRender()
 
 void GS_Menu::onUpdate()
 {
-	// Die Dateidialoge laufen hier, nicht im Klick-Handler: unter Windows sind
-	// sie modal und starteten sonst eine zweite Nachrichtenschleife in der GUI.
+	// The file dialogs run here, not in the click handler: under Windows they
+	// are modal and would otherwise start a second message loop inside the
+	// GUI.
 	pollImport();
 	pollExport();
 
@@ -161,17 +162,17 @@ void GS_Menu::onUpdate()
 		fs.writeStringToFile("disable", fs.getAppHomeDirectory() + ".donation_asked");
 	}
 
-	// Escape beendet das Spiel. Das muss *vor* dem Abspielen der Demo stehen:
-	// gleich darunter liest wasKeyPressed() die Aufnahme und nicht mehr die
-	// Tastatur. Nicht, wenn die Spendenfrage offen ist, und nicht, wenn
-	// Optionen oder Hilfe die Taste eben selbst benutzt haben - die melden sie
-	// mit consumeKeyPress() ab, weil GUI::update() vor onUpdate() laeuft.
+	// Escape quits the game. It must stand *before* the demo playback: just
+	// below, wasKeyPressed() reads the recording and no longer the keyboard.
+	// Not while the donation question is open, and not when Options or Help
+	// have just used the key themselves - they unregister it with
+	// consumeKeyPress(), because GUI::update() runs before onUpdate().
 	if(engine.wasKeyPressed(SDLK_ESCAPE) &&
 	   !gui["Menu.DonatePane"]->isVisible() &&
 	   !gui["Menu.CrtPane"]->isVisible())
 	{
-		// Der Manager und seine Rueckfrage nehmen die Taste fuer sich, von oben
-		// nach unten.
+		// The Manager and its confirmation take the key for themselves, from
+		// the top down.
 		if(gui["Menu.ConfirmPane"]->isVisible())
 		{
 			handleClick(gui["Menu.ConfirmPane.Confirm.No"]);
@@ -188,9 +189,9 @@ void GS_Menu::onUpdate()
 		}
 	}
 
-	// Ab hier gehoert die Tastatur der Demo. SDLK_LAST, nicht 512: Emscriptens
-	// SDL zaehlt bis 1536, und die Pfeiltasten liegen dort jenseits von 512 -
-	// ungeloescht bliebe eine davon fuer immer gedrueckt.
+	// From here on the keyboard belongs to the demo. SDLK_LAST, not 512:
+	// Emscripten's SDL counts up to 1536 and the arrow keys sit beyond 512
+	// there - uncleared, one of them would stay pressed for ever.
 	for(int i = 0; i < SDLK_LAST; i++)
 	{
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
@@ -221,11 +222,11 @@ void GS_Menu::onUpdate()
 
 void GS_Menu::onEnter(const ParameterBlock& context)
 {
-	// Bilder laden
+	// load the images
 	p_clouds = Manager<Texture>::inst().request("clouds.png");
 	p_background = Manager<Texture>::inst().request("menu.png");
 
-	// Menue erzeugen
+	// build the menu
 	gui.getRoot()->load("menu.xml");
 
 	static_cast<GUI_StaticText*>(gui["Menu.Version"])->setText(p_localVersion);
@@ -252,8 +253,8 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
 
-	// Ausgeben und Loeschen haengen an der Auswahl, also muss die Liste sagen,
-	// wenn sie sich aendert.
+	// Export and Delete depend on the selection, hence the list has to say
+	// when it changes.
 	static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"])->connectChanged(this, &GS_Menu::handleClick);
 
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Yes"])->connectClicked(this, &GS_Menu::handleClick);
@@ -261,27 +262,27 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	FileSystem& fs = FileSystem::inst();
 
-	// Einmalig auf den CRT-Filter hinweisen: beim ersten Start nach der
-	// Installation und ebenso nach einem Update, denn die Merkdatei gibt es
-	// vor 1.2.0 nirgends. Nur, wenn die Maschine den Filter darstellen kann
-	// und er nicht schon eingeschaltet ist.
+	// Offer the CRT filter once: on a first start after the installation and
+	// equally after an update, because the marker file exists nowhere before
+	// 1.2.0. Only where the machine can show the filter and it is not
+	// already switched on.
 	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
 	const bool offerCrt = engine.getCrt().isAvailable() &&
 						  engine.getUpscaler() != &engine.getCrt() &&
 						  !fs.fileExists(crtOfferedPath);
 	if(offerCrt) gui["Menu.CrtPane.Crt"]->focus();
 
-	// Wann wurde zuletzt nach einer Spende gefragt?
+	// When did the donation question last come up?
 	const std::string lastAskedForDonationStr = fs.fileExists(fs.getAppHomeDirectory() + ".donation_asked") ? fs.readStringFromFile(fs.getAppHomeDirectory() + ".donation_asked") : "";
 	if(lastAskedForDonationStr != "disable")
 	{
 		const uint lastAskedForDonation = static_cast<uint>(atoi(lastAskedForDonationStr.c_str()));
 		const uint timePlayed = engine.getTimePlayed();
 
-		// Beide Zahlen sind vorzeichenlos: steht in .donation_asked eine
-		// groessere als in .time_played, laeuft die Differenz ueber und das
-		// Spendenfenster kaeme bei jedem Start.
-		// Nicht beides auf einmal - die Spendenfrage kommt naechstes Mal.
+		// Both numbers are unsigned: if .donation_asked holds a larger one
+		// than .time_played, the difference overflows and the donation window
+		// would come up at every start.
+		// Not both at once - the donation question comes next time.
 		if(!offerCrt &&
 		   timePlayed >= lastAskedForDonation &&
 		   timePlayed - lastAskedForDonation >= 60 * (60 * 60 * 3))
@@ -293,7 +294,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	p_options = new Options(0);
 	p_help = new Help(0);
 
-	// Keyboard-Daten fuer die Demo laden
+	// load the keyboard data for the demo
 	keyData.clear();
 	File* p_file = FileSystem::inst().openFile("demo1.dat", FileSystem::FM_READ);
 	while(!p_file->isEOF())
@@ -318,7 +319,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 void GS_Menu::onLeave(const ParameterBlock& context)
 {
-	// Bilder loeschen
+	// release the images
 	p_clouds->release();
 	p_clouds = 0;
 	p_background->release();
@@ -328,11 +329,11 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	p_titleLevel = 0;
 	levelSaved = false;
 
-	// Einen noch offenen Dateidialog aufgeben, sonst belegt er den Kanal
-	// weiter, bis der Browser ihn nach fuenf Minuten selbst verwirft.
+	// Give up a file dialog that is still open, or it keeps the channel
+	// occupied until the browser discards it itself after five minutes.
 	Transfer::abandonImport();
 
-	// Menue loeschen
+	// delete the menu
 	delete gui["Menu"];
 	delete p_options;
 	delete p_help;
@@ -342,7 +343,7 @@ void GS_Menu::onGetFocus()
 {
 	engine.playMusic("menu.ogg");
 
-	// Titel-Level laden
+	// load the title level
 	p_titleLevel = new Level;
 	p_titleLevel->setInMenu(true);
 	if(levelSaved) p_titleLevel->load(&titleLevelXML);
@@ -357,7 +358,7 @@ void GS_Menu::onGetFocus()
 
 void GS_Menu::onLoseFocus()
 {
-	// Titel-Level speichern und loeschen
+	// save and delete the title level
 	TiXmlDocument* p_doc = p_titleLevel->save();
 	titleLevelXML = *p_doc;
 	delete p_doc;
@@ -404,13 +405,13 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			name == "Menu.ManagerPane.Manager.KindSkin" ||
 			name == "Menu.ManagerPane.Manager.Refresh")
 	{
-		// Beim Wechsel der Art und auf Wunsch neu einlesen: waehrend das
-		// Fenster offensteht, kann sich das Verzeichnis geaendert haben.
+		// Re-read on a change of kind and on request: while the pane is open
+		// the directory can have changed.
 		refreshManagerList();
 	}
 	else if(name == "Menu.ManagerPane.Manager.Items")
 	{
-		// Die Auswahl hat gewechselt - Ausgeben und Loeschen richten sich danach.
+		// The selection has changed - Export and Delete follow it.
 		updateManagerButtons();
 	}
 	else if(name == "Menu.ManagerPane.Manager.Close")
@@ -420,8 +421,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	}
 	else if(name == "Menu.ManagerPane.Manager.Import")
 	{
-		// Eine Datei, vier moegliche Bedeutungen - was es ist, erkennt
-		// Transfer::classify am Inhalt. Das Fenster bleibt dabei offen.
+		// One file, four possible meanings - Transfer::classify works out
+		// which from the content. The pane stays open meanwhile.
 		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
 	}
 	else if(name == "Menu.ManagerPane.Manager.Export")
@@ -429,15 +430,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1)
 		{
-			// Von dieser Sorte ist noch nichts da. Der Knopf ist zwar abgeschaltet,
-			// aber die Eingabetaste der Liste kommt auch hier an.
+			// Nothing of this kind is there yet. The button is deactivated,
+			// but the list's Return key arrives here as well.
 			engine.showToast(Engine::TOAST_ERROR, "$TR_NOTHING_TO_EXPORT");
 			return;
 		}
 
-		// Nur vormerken - der Dialog laeuft eine Runde spaeter in pollExport(),
-		// aus demselben Grund wie beim Import. Das Fenster bleibt offen: der
-		// Manager ist ein Platz, an dem man weiterarbeitet.
+		// Only note it down - the dialog runs a round later in pollExport(),
+		// for the same reason as the import. The pane stays open: the Manager
+		// is a place you keep working in.
 		pendingExportKind = currentManagerKind();
 		pendingExportName = p_list->getSelectedItemText();
 		pendingExport = true;
@@ -447,8 +448,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1) return;
 
-		// Das Einzige im Manager, was sich nicht rueckgaengig machen laesst -
-		// also erst fragen. Was geloescht wird, steht ab hier fest.
+		// The one thing in the Manager that cannot be undone - hence the
+		// question first. What gets deleted is settled from here on.
 		pendingDeleteKind = currentManagerKind();
 		pendingDeleteName = p_list->getSelectedItemText();
 
@@ -484,14 +485,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	}
 	else if(name == "Menu.Website")
 	{
-		// Der unsichtbare Knopf ueber der Adresse im Hintergrundbild.
+		// The invisible button over the address in the background image.
 #if defined(__EMSCRIPTEN__)
-		// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
-		// nur einen Frame zurueck, der Popup-Blocker laesst das Fenster durch.
+		// _blank keeps the game running in its own tab. The click is only one
+		// frame back, hence the popup blocker lets the window through.
 		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
 #elif defined(_WIN32)
-		// Wie beim Spendenknopf: unter Windows liegt die Adresse in einer
-		// .url-Datei neben der Anwendung, die zugleich im Startmenue steht.
+		// As with the donate button: under Windows the address lives in a
+		// .url file beside the application, and that file is in the Start
+		// menu too.
 		ShellExecuteA(0, "open", "Scherfgen-Software Website.url", 0, 0, SW_SHOWMAXIMIZED);
 #else
 		openURL("https://www.david-scherfgen.de/");
@@ -510,8 +512,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			engine.saveConfig();
 		}
 
-		// So oder so gefragt. Die Merkdatei haelt nur fest, dass es passiert
-		// ist; ihr Inhalt wird nirgends gelesen.
+		// Asked either way. The marker file only records that it happened;
+		// its contents are read nowhere.
 		FileSystem& fs = FileSystem::inst();
 		fs.writeStringToFile("1", fs.getAppHomeDirectory() + ".crt_offered");
 
@@ -527,7 +529,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		FileSystem& fs = FileSystem::inst();
 		if(fs.readStringFromFile(fs.getAppHomeDirectory() + ".donation_asked") != "disable")
 		{
-			// merken, dass wir nach einer Spende gefragt haben
+			// remember that a donation has been asked for
 			std::ostringstream temp;
 			temp << engine.getTimePlayed();
 			fs.writeStringToFile(temp.str(), fs.getAppHomeDirectory() + ".donation_asked");
@@ -540,15 +542,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
 			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
 #else
-			// Neben der Anwendung liegt hier kein Verzeichnis fuer eine
-			// .url-Verknuepfung; die Adresse muss mit der in
-			// "Donate (<Sprache>).url" uebereinstimmen.
+			// There is no directory for a .url shortcut beside the
+			// application here; the address must match the one in
+			// "Donate (<language>).url".
 			const std::string url = engine.getLanguage() == "de"
 				? "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UUFVK97YL6ZHY"
 				: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FMADXSNPDGRCW";
 #ifdef __EMSCRIPTEN__
-			// _blank, damit das Spiel in seinem Tab weiterlaeuft. Der Klick liegt
-			// nur einen Frame zurueck, der Popup-Blocker laesst ihn durch.
+			// _blank keeps the game running in its own tab. The click is only
+			// one frame back, hence the popup blocker lets it through.
 			EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
 #else
 			openURL(url);
@@ -593,9 +595,9 @@ void GS_Menu::pollImport()
 		return;
 	}
 
-	// Steht der Manager noch offen, sieht der Spieler gerade die Liste, in die
-	// die Datei gewandert ist - also auf ihre Art umschalten, neu einlesen und
-	// den neuen Eintrag markieren.
+	// If the Manager is still open, the player is looking at the very list
+	// the file has moved into - hence switch to its kind, re-read the list
+	// and select the new entry.
 	if(gui["Menu.ManagerPane"]->isVisible())
 	{
 		setManagerKind(kind);
@@ -607,17 +609,18 @@ void GS_Menu::pollImport()
 		updateManagerButtons();
 	}
 
-	// Wurde etwas ersetzt, ist genau das die Nachricht: die Datei, die vorher
-	// unter diesem Namen lag, ist weg.
+	// If something got replaced, that is exactly the message: the file that
+	// lay under this name before is gone.
 	if(replaced)
 	{
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_REPLACED") + " \"" + name + "\"");
 		return;
 	}
 
-	// Bei Level, Musik und Skin ist der vergebene Name das, was der Spieler
-	// gleich irgendwo eintragen muss - also mit ausgeben. Er besteht nur aus
-	// [A-Za-z0-9_-] plus Endung, kann also keine Lokalisierungsmarke enthalten.
+	// For a level, music and a skin the assigned name is what the player has
+	// to enter somewhere next - hence report it as well. It consists only of
+	// [A-Za-z0-9_-] plus the extension and can therefore hold no
+	// localization marker.
 	switch(kind)
 	{
 	case Transfer::KIND_CAMPAIGN:
@@ -627,8 +630,8 @@ void GS_Menu::pollImport()
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_MUSIC") + " \"" + name + "\"");
 		break;
 	case Transfer::KIND_SKIN:
-		// Ohne ".zip" und ohne den Punkt: so, wie der Name in ein Skin-Feld
-		// geschrieben wird. setFilenameExtension laesst den Punkt stehen.
+		// Without ".zip" and without the dot: the way the name goes into a
+		// skin slot. setFilenameExtension leaves the dot in place.
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_SKIN") + " \"" +
 										   name.substr(0, name.find_last_of('.')) + "\"");
 		break;
@@ -668,8 +671,8 @@ int GS_Menu::currentManagerKind() const
 
 void GS_Menu::setManagerKind(int kind)
 {
-	// check() und nicht setChecked(): der Wechsel soll wirken, als haette ihn
-	// jemand angeklickt. Die Liste liest der Aufrufer danach ohnehin neu ein.
+	// check() and not setChecked(): the change should act as if somebody had
+	// clicked it. The caller re-reads the list afterwards anyway.
 	const char* p_name = "Menu.ManagerPane.Manager.KindLevel";
 	switch(kind)
 	{
@@ -693,8 +696,8 @@ void GS_Menu::refreshManagerList()
 	}
 	p_list->setSelection(items.empty() ? -1 : 0);
 
-	// setSelection() meldet sich nur, wenn sich die Nummer wirklich aendert.
-	// Der Inhalt kann trotzdem ein anderer sein, deshalb hier von Hand.
+	// setSelection() reports only when the index really changes. The content
+	// can be a different one regardless, hence by hand here.
 	updateManagerButtons();
 }
 
@@ -707,11 +710,10 @@ void GS_Menu::updateManagerButtons()
 	if(haveSelection) p_export->activate();
 	else              p_export->deactivate();
 
-	// Was das Spiel mitbringt, steht in der Liste - man kann es ausgeben -, aber
-	// loeschen laesst es sich nicht: der Skin, den ein Level nennt, waere sonst
-	// weg, und das Spiel liefert nichts nach. Bei den beiden Beispielleveln
-	// gibt es erst etwas zu loeschen, wenn der Spieler einen davon selbst
-	// gespeichert hat.
+	// What the game ships is listed - it can be exported - but it cannot be
+	// deleted: the skin a level names would otherwise be gone, and the game
+	// delivers no replacement. With the two example levels there is nothing
+	// to delete until the player has saved one of them themselves.
 	const bool canDelete = haveSelection &&
 						   Transfer::isRemovable(static_cast<Transfer::Kind>(currentManagerKind()),
 												 p_list->getSelectedItemText());

@@ -1,7 +1,7 @@
 #ifndef _GUI_SCROLLBAR_H
 #define _GUI_SCROLLBAR_H
 
-/*** Klasse fuer eine Scroll-Bar ***/
+/*** Class for a scroll bar ***/
 
 #include "gui_element.h"
 
@@ -44,8 +44,8 @@ private:
 	int pageSize;
 	int dragBarY;
 	int dragBarHeight;
-	// Wo im Griff er angefasst wurde. Laengs der Leiste gemessen, wie
-	// dragBarY: bei einer waagerechten ist das ein x.
+	// The point on the drag bar the hand took hold of. Measured along the
+	// scroll bar, like dragBarY: on a horizontal one that is an x.
 	int dragOffset;
 	bool dragging;
 	bool pushedUp;

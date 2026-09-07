@@ -12,20 +12,20 @@
 
 namespace
 {
-	// Beim Neustart springt das Spiel ohne Zwischenschritt vom jetzigen Stand
-	// auf den Anfang. Mit der Bildroehre davor darf das aussehen wie ein
-	// Videorekorder im Ruecklauf - der springt genauso und keiner stoert sich
-	// daran. Ohne sie waere es nur Bildrauschen ohne Anlass, also bleibt es
-	// dann bei den Lamellen.
+	// On a restart the game jumps from the current state to the start with
+	// nothing in between. With the CRT filter in front of it that may look
+	// like a video recorder in rewind - which jumps the same way and nobody
+	// minds. Without the filter it would be picture noise for no reason, and
+	// it stays with the slices.
 	void crossfadeRestart(Engine& engine)
 	{
 		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
 		else engine.crossfade(new CF_Slices, 0.85);
 	}
 
-	// Ein Symbol der Anzeige aufleuchten lassen, genau wie ein Objekt im Level
-	// es tut (object.cpp): dasselbe Bild noch einmal additiv darueber, mit der
-	// abklingenden Staerke als Farbe.
+	// Light up a HUD icon exactly the way an object in the level does
+	// (object.cpp): the same image once more over itself, additively, with the
+	// decaying strength as the colour.
 	void renderIconFlash(Level& level,
 						 const char* p_preset,
 						 const Vec2i& position,
@@ -93,7 +93,7 @@ public:
 	{
 		game.showCursor = 200;
 
-		// Wurde eine Spielfigur angeklickt?
+		// Did the click land on a player?
 		Vec2i c = game.engine.getCursorPosition() / 16;
 		std::vector<Object*> objects = game.p_level->getObjectsAt(c);
 		for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
@@ -119,16 +119,15 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
-		// Uns interessiert nur, ob eine Taste neu gedrueckt wurde. Eine
-		// Wiederholung ist kein zweiter Befehl - ohne das oeffnet und
-		// schliesst ein liegendes Escape das Menue immer wieder.
+		// Only a newly pressed key counts. A repeat is not a second command -
+		// without that, a held Escape opens and closes the menu over and over.
 		const bool pressed = (event.type == SDL_KEYDOWN) && !GUI::inst().isKeyRepeat();
 
 		if(GUI::inst()["Game.MenuPane"]->isVisible())
 		{
-			// Escape schliesst das Menue wieder, wie im Leveleditor. Aber nur
-			// das Menue selbst: stehen Optionen oder Hilfe darueber, ist
-			// "MenuPane.Menu" versteckt, und die Taste gehoert dem Dialog.
+			// Escape closes the menu again, as in the level editor. But only
+			// the menu itself: with options or help standing over it,
+			// "MenuPane.Menu" is hidden and the key belongs to the dialog.
 			if(pressed && event.keysym.sym == SDLK_ESCAPE &&
 			   getChild("MenuPane.Menu")->isReallyVisible())
 			{
@@ -140,11 +139,11 @@ public:
 		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 		if(!pressed) return;
 
-		// Ein offener Hinweiszettel bekommt Return und Escape zuerst. Er ist so
-		// hoch wie das Spielfeld und deckt es ab, und ohne das muesste man
-		// weggehen, um wieder etwas zu sehen. Gab es nichts zuzumachen, meldet
-		// dismissDisplay() false und die Taste geht ihren gewohnten Weg -
-		// Escape also weiter ins Spielmenue.
+		// An open hint note gets Return and Escape first. It is as tall as the
+		// play area and covers it, and without this the player would have to
+		// walk off the field to see anything again. With nothing to close,
+		// dismissDisplay() reports false and the key goes its usual way -
+		// Escape therefore on into the game menu.
 		if(event.keysym.sym == SDLK_ESCAPE ||
 		   event.keysym.sym == SDLK_RETURN ||
 		   event.keysym.sym == SDLK_KP_ENTER)
@@ -180,7 +179,7 @@ public:
 		}
 		else if(name == "Game.MenuPane.Menu.Restart")
 		{
-			// Level wiederherstellen
+			// restore the level
 			Level* p_oldLevel = game.p_level;
 			p_oldLevel->clean();
 			p_oldLevel->removeOldObjects();
@@ -191,15 +190,10 @@ public:
 			getChild("MenuPane")->hide();
 			focus();
 			game.leaveCountDown = 50;
-
-			// Der alte Hinweis, Player::numInstances sei hier 0, obwohl der Level
-			// neu gestartet wurde, ist erledigt: clean() hat den schon
-			// abgemeldeten Spieler ein zweites Mal abgemeldet, und der uint lief
-			// unter. Level::removeObject() meldet jetzt nur noch einmal ab.
 		}
 		else if(name == "Game.MenuPane.Menu.RestartFromHotel")
 		{
-			// Level wiederherstellen
+			// restore the level
 			Level* p_oldLevel = game.p_level;
 			p_oldLevel->clean();
 			p_oldLevel->removeOldObjects();
@@ -251,10 +245,10 @@ GS_Game::~GS_Game()
 
 void GS_Game::onRender()
 {
-	// Level rendern
+	// render the level
 	p_level->render();
 
-	// Panel rendern
+	// render the panel
 	p_level->getBackground()->bind();
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -271,7 +265,7 @@ void GS_Game::onRender()
 
 	Font* p_font = gui.getFont();
 
-	// Daten rendern
+	// render the data
 	char text[256] = "";
 	uint nd = p_level->getNumDiamondsCollected();
 	p_level->getPresets()->renderPreset("Diamond", Vec2i(32, 416));
@@ -304,23 +298,24 @@ void GS_Game::onRender()
 		}
 	}
 
-	// Die laufende Nummer gehoert zur Kampagne. Ein Probelauf aus dem Editor und
-	// ein einzelner Level haben keine; der einzelne nennt statt dessen seine
-	// Datei, damit drei gleichnamige Level unterscheidbar bleiben.
+	// The level number belongs to the campaign. A trial run from the editor and
+	// a single level have none; the single level names its file instead, to
+	// keep three levels of the same name apart.
 	const std::string title = localizeString(p_level->getTitle());
 
-	// Der Platz zwischen dem Bild bei 168 (48 breit) und dem Menueknopf bei 544,
-	// mittig um 384 - der Knopf ist die engere Seite, also 2 * (544 - 8 - 384),
-	// die acht als Abstand, damit die Beschriftung ihn nicht beruehrt. Der Rest
-	// muss weg: renderText() schneidet nichts ab und liefe ueber beides hinweg.
+	// The space between the image at 168 (48 wide) and the menu button at 544,
+	// centred on 384 - the button is the tighter side, hence
+	// 2 * (544 - 8 - 384), with the eight as a gap to keep the caption from
+	// touching it. The rest has to go: renderText() clips nothing and would
+	// run across both.
 	const int captionWidth = 304;
 
 	const bool single = !cameFromEditor && p_currentCampaign
 						&& p_currentCampaign->isSingleLevels();
 	const bool numbered = !cameFromEditor && p_currentCampaign && !single;
 
-	// Gekuerzt wird allein der Titel, nicht die Nummer und nicht der Dateiname:
-	// die beiden sagen, um welchen Level es geht.
+	// Only the title is shortened, not the number and not the filename: those
+	// two say which level this is.
 	Vec2i frameDim(0, 0);
 	if(single)        p_font->measureText(formatSingleLevelCaption(std::string(), levelFilename), &frameDim, 0);
 	else if(numbered) p_font->measureText(formatLevelCaption(levelNumber + 1, std::string()), &frameDim, 0);
@@ -330,8 +325,8 @@ void GS_Game::onRender()
 	if(single)        caption = formatSingleLevelCaption(fitted, levelFilename);
 	else if(numbered) caption = formatLevelCaption(levelNumber + 1, fitted);
 
-	// Und noch einmal ueber das Ganze, fuer den Fall, dass schon der Rahmen
-	// allein zu breit ist: dann geht der Dateiname eben doch mit.
+	// And once more over the whole caption, in case the frame alone is already
+	// too wide: then the filename does get cut after all.
 	caption = p_font->fitText(caption, captionWidth);
 
 	Vec2i dim;
@@ -374,12 +369,12 @@ void GS_Game::onUpdate()
 		if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
 	}
 
-	// Aus der Pause fuehrt jede Taste und jeder Klick heraus, nicht nur die
-	// Pausentaste: wer weiterspielen will, greift ohnehin zur Steuerung, und
-	// nach einem Wechsel in ein anderes Fenster - der ebenfalls pausiert - ist
-	// der Klick zurueck ins Spiel die natuerliche Geste. Der Druck ist damit
-	// verbraucht und der Rest dieses Blocks entfaellt, sonst schaltete die
-	// Pausentaste gleich wieder ein, was sie eben ausgeschaltet hat.
+	// Any key and any click leave the pause, not only the pause key: anyone
+	// who wants to play on reaches for the controls anyway, and after a switch
+	// to another window - which pauses too - the click back into the game is
+	// the natural gesture. The press is spent on that, and the rest of this
+	// block falls away, or the pause key would switch straight back on what it
+	// has just switched off.
 	if(paused && (engine.wasAnyKeyPressed() || engine.wasAnyButtonPressed()))
 	{
 		paused = false;
@@ -390,7 +385,7 @@ void GS_Game::onUpdate()
 		{
 			if(!switchTimer)
 			{
-				// naechste Spielfigur auswaehlen
+				// select the next player
 				p_level->switchToNextPlayer();
 				switchTimer = 20;
 			}
@@ -410,7 +405,7 @@ void GS_Game::onUpdate()
 		}
 	}
 
-	// Spieler tot?
+	// player dead?
 	bool allDead = !Player::getNumInstances();
 	if(allDead)
 	{
@@ -423,15 +418,15 @@ void GS_Game::onUpdate()
 		}
 	}
 
-	// Spieler vergiftet?
+	// player contaminated?
 	Player* p_player = p_level->getActivePlayer();
 	if(p_player)
 	{
-		// Groesser als null und nicht bloss ungleich: unter null bedeutet, dass
-		// der Spieler auf Vorrat Spritzen gesammelt hat und laenger durchhaelt.
-		// Er ist dann nicht vergiftet, sondern besser als sauber - es knattert
-		// nichts, und es wird auch kein Gift verteilt. (So haelt es die
-		// Einfaerbung des Bildschirms oben schon immer.)
+		// Greater than zero and not merely non-zero: below zero means the
+		// player has collected syringes in reserve and holds out longer. The
+		// player is then not contaminated but better than clean - nothing
+		// crackles, and no toxic gas is spread either. (The screen tint further
+		// up has always had it that way.)
 		int c = p_player->getContamination();
 		if(c > 0)
 		{
@@ -442,31 +437,31 @@ void GS_Game::onUpdate()
 
 			if(random(0, 2000 + c) >= 2000)
 			{
-				// Geigerzaehler-Geraeusch abspielen
+				// play the Geiger counter sound
 				Engine::inst().playSound("geiger.ogg", false, 0.2);
 			}
 		}
 	}
 
-	// Level geschafft?
+	// level completed?
 	if(p_level->finished)
 	{
-		// Ein einzelner Level gehoert zu keiner Kampagne: es gibt nichts zu
-		// vermerken, und der naechste Eintrag ist der Level eines Fremden und
-		// nicht der naechste Schritt. Beides also wie beim Probelauf aus dem
-		// Editor - anschliessend zurueck, woher man kam.
+		// A single level belongs to no campaign: there is nothing to record,
+		// and the next entry is a stranger's level rather than the next step.
+		// Both therefore as with a trial run from the editor - afterwards back
+		// to where the player came from.
 		const bool ownLevel = cameFromEditor ||
 							  (p_currentCampaign && p_currentCampaign->isSingleLevels());
 
 		if(!ownLevel)
 		{
-			// Fortschritt vermerken
+			// record the progress
 			ProgressDB& db = ProgressDB::inst();
 			db.setLevelCompleted(p_currentCampaign->getFilename(), levelNumber);
 			db.save();
 		}
 
-		// naechster Level oder zurueck zum Menue
+		// next level, or back to the menu
 		Vec2i targetIn = p_level->getExit()->getShownPositionInPixels() + Vec2i(8, 8);
 		Vec2i targetOut;
 		levelNumber++;
@@ -484,18 +479,17 @@ void GS_Game::onUpdate()
 
 			if(status == -1)
 			{
-				// Das war der letzte Level. Den Abspann gibt es nur bei der
-				// mitgelieferten Kampagne - jede andere kehrt zur Auswahl
-				// zurueck.
+				// The final level is done. The credits exist only for the
+				// shipped campaign - every other one returns to the selection.
 				//
-				// Gefragt wird nach dem Dateinamen und nicht nach dem Pfad: die
-				// mitgelieferte Kampagne liegt im Spielordner, eine
-				// eingespielte im Benutzerverzeichnis, und mitgeliefert ist
-				// genau, was Transfer::isBuiltIn() dafuer haelt.
+				// The filename is what is asked about, not the path: the
+				// shipped campaign lives in the game folder, an imported one in
+				// the user directory, and shipped is exactly what
+				// Transfer::isBuiltIn() takes it to be.
 				if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN,
 									   FileSystem::inst().getPathFilename(p_currentCampaign->getFilename())))
 				{
-					// Das Spiel ist vorbei!
+					// The game is over.
 					Engine::inst().setGameState("GS_Credits");
 					Engine::inst().crossfade(new CF_ColorBlend(Vec3d(0.0, 0.0, 0.0), 0.5), 2.0);
 				}
@@ -508,14 +502,14 @@ void GS_Game::onUpdate()
 			}
 			else if(status == -2)
 			{
-				// Der naechste Level ist der Bonus-Level.
+				// The next level is the bonus level.
 				Engine::inst().popGameState();
 				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber);
 			}
 			else if(status == 0)
 			{
-				// Fehler
+				// error
 				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber - 1);
 			}
@@ -531,7 +525,7 @@ void GS_Game::onUpdate()
 
 	if(!paused && (!menuVisible || allDead))
 	{
-		// Level bewegen
+		// move the level
 		p_level->update();
 	}
 
@@ -578,7 +572,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	const double r = random(0.0, 6.2832);
 	pauseVelocity = Vec2d(sin(r), cos(r));
 
-	// Level laden
+	// load the level
 	p_level = new Level;
 	if(cameFromEditor)
 	{
@@ -586,14 +580,14 @@ void GS_Game::onEnter(const ParameterBlock& context)
 		p_level->load(p_doc);
 		delete p_doc;
 
-		// Level speichern
+		// save the level
 		p_originalLevel = p_level->save();
 
-		// Musik abspielen. Ein loser Level nennt eine Datei neben sich, oder
-		// mit "blocks:" eines der Stuecke der mitgelieferten Kampagne.
-		// Ein Probelauf aus dem Editor hat keinen Dateipfad - der Level steht
-		// als Dokument im Speicher. Ein Stueck neben sich kann also nur im
-		// Levelordner des Spielers liegen.
+		// Play the music. A loose level names a file beside itself, or one of
+		// the shipped campaign's tracks with "blocks:". A trial run from the
+		// editor has no file path: the level stands in memory as a document,
+		// and a track beside it can therefore only be in the player's level
+		// folder.
 		Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
 														   FileSystem::inst().getAppHomeDirectory() + "levels/"));
 	}
@@ -604,19 +598,19 @@ void GS_Game::onEnter(const ParameterBlock& context)
 		loadLevel();
 	}
 
-	// Bilder laden
+	// load the images
 	p_misc = Manager<Texture>::inst().request("misc.png");
 
 	leaveCountDown = 50;
 	switchTimer = 0;
 
-	// Dialog erzeugen
+	// create the dialog
 	new GameGUI(*this);
 }
 
 void GS_Game::onLeave(const ParameterBlock& context)
 {
-	// Ressourcen loeschen
+	// free the resources
 	delete p_level;
 	delete p_originalLevel;
 	delete p_saveGame;
@@ -626,13 +620,13 @@ void GS_Game::onLeave(const ParameterBlock& context)
 	p_saveGame = 0;
 	p_misc = 0;
 
-	// Dialog loeschen
+	// delete the dialog
 	delete gui["Game"];
 
-	// Musik stoppen
+	// stop the music
 	Engine::inst().stopMusic();
 
-	// dem Levelauswahl-Bildschirm mitteilen, in welchem Level wir gerade sind
+	// tell the level select screen which level we are in
 	if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber);
 }
 
@@ -658,11 +652,11 @@ int GS_Game::loadLevel()
 	delete p_saveGame;
 	p_saveGame = 0;
 
-	// Ist dies der letzte Level, und hat die Kampagne einen Bonus-Level?
+	// Is this the last level, and does the campaign have a bonus level?
 	if(levelNumber == p_currentCampaign->getLevels().size() - 1 &&
 	   p_currentCampaign->hasBonusLevel())
 	{
-		// Wurden weniger Levels geschafft als notwendig?
+		// Were fewer levels completed than required?
 		if(ProgressDB::inst().getNumLevelsCompleted(p_currentCampaign->getFilename()) < p_currentCampaign->getLevels().size() - 1)
 		{
 			return -2;
@@ -671,12 +665,12 @@ int GS_Game::loadLevel()
 
 	if(levelNumber >= p_currentCampaign->getLevels().size())
 	{
-		// Dies war der letzte Level der Kampagne.
+		// That level ended the campaign.
 		return -1;
 	}
 
-	// Wie in der Auswahl: der Eintrag kennt seine Quelle, das Archiv oder die
-	// lose Datei.
+	// As in the selection: the entry knows its source, the archive or the
+	// loose file.
 	const Campaign::LevelRef& ref = p_currentCampaign->getLevels()[levelNumber];
 	levelFilename = ref.member;
 
@@ -685,15 +679,15 @@ int GS_Game::loadLevel()
 	bool r = p_level->load(ref.source());
 	if(r)
 	{
-		// Level speichern
+		// save the level
 		delete p_originalLevel;
 		p_originalLevel = p_level->save();
 	}
 
 	delete p_oldLevel;
 
-	// Musik abspielen - aus dem Archiv der Kampagne, oder aus blocks.zip,
-	// wenn der Level das Stueck mit "blocks:" von dort holt.
+	// Play the music - from the campaign's archive, or from blocks.zip if the
+	// level takes the track from there with "blocks:".
 	Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(), ref.sourceDir));
 
 	return r ? 1 : 0;

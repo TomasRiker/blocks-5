@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Standardobjekte wie Bloecke, Diamanten, Gras ***/
+/*** Class for standard objects such as blocks, diamonds, grass ***/
 
 class StdObject : public Object
 {

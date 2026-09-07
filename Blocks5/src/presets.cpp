@@ -123,7 +123,7 @@ bool Presets::getPresetSprites(const std::string& name,
 	std::unordered_map<std::string, Vec2i>::const_iterator i = texCoords.find(name);
 	if(i == texCoords.end()) return false;
 
-	// Ein negatives x heisst gespiegelt, so wie in renderPreset().
+	// A negative x means mirrored, the same as in renderPreset().
 	Vec2i t = i->second;
 	const bool mirrorX = t.x < 0;
 	if(mirrorX) t.x = -t.x;
@@ -685,7 +685,7 @@ Object* Presets::instancePreset(const std::string& name,
 		p_theObject->setToolTip("$TT_BLOCK_DETECTOR");
 	}
 
-	// Objekttypen, die immer nur in Zwischenspeicherungen vorkommen
+	// object types that only ever occur in saved games
 	else if(name == "Damage")
 	{
 		double rotation = -1.0;
@@ -703,7 +703,7 @@ Object* Presets::instancePreset(const std::string& name,
 
 	if(p_theObject)
 	{
-		// Typ eintragen
+		// record the type
 		p_theObject->setType(newName);
 	}
 

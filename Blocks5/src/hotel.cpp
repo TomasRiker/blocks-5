@@ -36,7 +36,7 @@ void Hotel::onRender(int layer,
 
 void Hotel::onUpdate()
 {
-	// Rauch
+	// Smoke
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 	p.lifetime = random(30, 40);
@@ -54,7 +54,7 @@ void Hotel::onUpdate()
 	p.deltaSize = random(0.01f, 0.05f);
 	p_particleSystem->addParticle(p);
 
-	// Spieler da?
+	// Player here?
 	Object* p_obj = level.getFrontObjectAt(position);
 	if(p_obj == level.getActivePlayer())
 	{

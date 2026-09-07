@@ -36,7 +36,7 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->connectClicked(this, &Options::handleClick);
 
-	// Aktionen eintragen
+	// enter the actions
 	GUI_ListBox* p_actions = static_cast<GUI_ListBox*>(getChild("Options.Actions"));
 	const std::vector<Action*>& actions = Engine::inst().getActionsVector();
 	for(std::vector<Action*>::const_iterator it = actions.begin();
@@ -62,40 +62,41 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 	Engine& engine = Engine::inst();
 
-	// aktuelle Sprache setzen
+	// set the current language
 	if(engine.getLanguage() == "en") static_cast<GUI_RadioButton*>(getChild("Options.English"))->setChecked();
 	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->setChecked();
 
-	// aktuelle Sound-Lautstaerke setzen
+	// set the current sound volume
 	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0 * engine.getSoundVolume()));
 
-	// aktuelle Musik-Lautstaerke setzen
+	// set the current music volume
 	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0 * engine.getMusicVolume()));
 
-	// aktuelle Details setzen
+	// set the current details
 	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->setChecked();
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->setChecked();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->setChecked();
 
-	// Skalierungsfilter, das Beste zuerst. Ohne Shader gibt es "Scharf,
-	// angepasst" gar nicht erst zu sehen und die uebrigen ruecken nach oben.
-	// "Roehrenmonitor" steht zuletzt: die drei darueber sind Skalierer und nach
-	// Guete sortiert, der Vierte ist eine Stilfrage. Er braucht denselben
-	// Shader und verschwindet ohne ihn genauso.
+	// The upscale filters, the best first. Without a shader SharpFit is not
+	// there to be seen at all and the rest move up. The CRT filter comes last:
+	// the three above it are upscalers sorted by quality, the fourth is a
+	// matter of style. It needs the same shader and disappears without it just
+	// the same.
 	//
-	// Die Reihenfolge steht in der Engine, und der Radioknopf heisst wie der
-	// Filter - "Options." + getName() ist deshalb keine Bequemlichkeit,
-	// sondern die eine Stelle, die diese Zuordnung ausspricht.
+	// The order lives in the Engine, and the radio button is named after the
+	// filter - "Options." + getName() is therefore not a convenience but the
+	// one place that spells that mapping out.
 	const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
 
-	// 50 ist die Oberkante der Sprachflaggen daneben (options.xml, Static3).
+	// 50 is the top edge of the language flags beside them (options.xml,
+	// Static3).
 	int filterY = 50;
 	for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
 		const std::string element(std::string("Options.") + (*i)->getName());
 		GUI_Element* p_button = getChild(element);
-		// Die Beschriftung ist ein eigenes Element (<For> zeigt zurueck auf den
-		// Knopf), also muss sie mitgehen.
+		// The label is an element of its own (<For> points back at the button)
+		// and therefore has to move along with it.
 		GUI_Element* p_label = getChild(element + "Label");
 		if((*i)->isAvailable())
 		{
@@ -115,13 +116,13 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		}
 	}
 
-	// Der Knopf zu den Reglern rutscht unter den letzten sichtbaren Eintrag.
+	// The button to the sliders slides in under the last visible entry.
 	GUI_Element* p_crtSettings = getChild("Options.CrtSettings");
 	if(engine.getCrt().isAvailable())
 	{
-		// filterY steht nach der Schleife genau einen Schritt unter dem letzten
-		// Eintrag, der Knopf bekommt also denselben Abstand wie die Knoepfe
-		// untereinander. 20 ist der Zeilenabstand der uebrigen Dialoge.
+		// After the loop filterY stands exactly one step below the last entry,
+		// giving the button the same spacing as the buttons have between
+		// themselves. 20 is the line pitch of the other dialogs.
 		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY));
 		p_crtSettings->show();
 	}
@@ -130,7 +131,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_RadioButton*>(getChild(
 		std::string("Options.") + engine.getEffectiveUpscaler()->getName()))->setChecked();
 
-	// Reglerstellungen aus der Engine holen, 0..1 als 0..100.
+	// Fetch the slider settings from the Engine, 0..1 as 0..100.
 	U_Crt& crt = engine.getCrt();
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->setScroll(
 		static_cast<int>(100.0 * crt.getScanline()));
@@ -146,8 +147,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0 * crt.getConvergence()));
 	getChild("CrtOptions")->hide();
 
-	// Ohne Auswahl beginnen. setSelection() meldet sich nur bei einer echten
-	// Aenderung, stand es also schon auf -1, kommt der Zweig unten nicht.
+	// Start with no selection. setSelection() reports only a real change: if
+	// it already stood at -1, the branch below does not run.
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
@@ -163,22 +164,21 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// Eine Wiederholung ist kein zweiter Befehl. Das faellt vor allem auf,
-	// wenn der Dialog gerade auf eine Taste fuer eine Aktion wartet: das
-	// Escape bricht das Warten ab, und die Wiederholung danach schloesse
-	// gleich noch den Dialog.
+	// A repeat is not a second command. That shows above all while the dialog
+	// is waiting for a key for an action: the Escape cancels the wait, and the
+	// repeat after it would close the dialog straight away.
 	if(event.type == SDL_KEYDOWN && isVisible() && !GUI::inst().isKeyRepeat())
 	{
 		const SDLKey key = event.keysym.sym;
 		if(key == SDLK_ESCAPE || key == SDLK_RETURN)
 		{
-			// Die Taste ist hiermit verbraucht. Die Spielzustaende fragen daneben
-			// Engine::wasKeyPressed() ab, und GUI::update() laeuft vorher - sonst saehe
-			// das Hauptmenue dasselbe Escape und beendete das Spiel.
+			// The key is spent here. The game states ask Engine::wasKeyPressed()
+			// alongside, and GUI::update() runs first - or the main menu would
+			// see the same Escape and quit the game.
 			Engine::inst().consumeKeyPress(key);
 
-			// Das Roehrenfenster liegt oben drauf, also gehoert ihm die Taste
-			// zuerst. Es hat nur OK - beide Tasten schliessen es.
+			// The CRT settings window lies on top, and the key therefore belongs
+			// to it first. It has only OK - both keys close it.
 			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.Close"));
 			else if(key == SDLK_ESCAPE)             handleClick(getChild("Options.Cancel"));
 			else                                    handleClick(getChild("Options.OK"));
@@ -208,9 +208,9 @@ void Options::applyKeyGrab(int key)
 
 	Engine& engine = Engine::inst();
 
-	// GRAB_CANCELLED heisst Escape: die Belegung bleibt, wie sie war.
-	// GRAB_NO_KEY - die Zeit ist abgelaufen - raeumt sie weg; das ist der
-	// einzige Weg, eine Aktion unbelegt zu lassen.
+	// GRAB_CANCELLED means Escape: the binding is left alone. GRAB_NO_KEY -
+	// the time ran out - clears it; that is the only way to leave an action
+	// unbound.
 	const Action* p_action = engine.getAction(what);
 	if(key != Engine::GRAB_CANCELLED && p_action)
 	{
@@ -218,8 +218,7 @@ void Options::applyKeyGrab(int key)
 		else                      engine.changeAction(what, p_action->primary, key);
 	}
 
-	// Setzt die beiden Aufschriften wieder auf die Belegung - die alte, wenn
-	// abgebrochen wurde.
+	// Puts the two captions back to the binding - the old one after a cancel.
 	handleClick(getChild("Options.Actions"));
 }
 
@@ -230,23 +229,23 @@ void Options::handleClick(GUI_Element* p_element)
 
 	if(isVisible())
 	{
-		// Sprache speichern
+		// save the language
 		if(static_cast<GUI_RadioButton*>(getChild("Options.German"))->isChecked()) engine.setLanguage("de");
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.English"))->isChecked()) engine.setLanguage("en");
 
-		// Sound-Lautstaerke speichern
+		// save the sound volume
 		engine.setSoundVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->getScroll());
 
-		// Musik-Lautstaerke speichern
+		// save the music volume
 		engine.setMusicVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->getScroll());
 
-		// Details speichern
+		// save the details
 		if(static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->isChecked()) engine.setDetails(0);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->isChecked()) engine.setDetails(1);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->isChecked()) engine.setDetails(2);
 
-		// Skalierungsfilter speichern. Wirkt sofort, das naechste Bild kommt
-		// schon durch den neuen Filter auf den Schirm.
+		// Save the upscale filter. It takes effect at once: the next frame
+		// already reaches the screen through the new filter.
 		const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
 		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 		{
@@ -258,8 +257,8 @@ void Options::handleClick(GUI_Element* p_element)
 			}
 		}
 
-		// Die Roehrenregler wirken sofort - beim Schieben soll man sehen, was sie
-		// tun. Abbrechen nimmt sie ueber loadConfig() zurueck.
+		// The CRT sliders take effect at once - dragging one has to show what it
+		// does. Cancel takes them back through loadConfig().
 		U_Crt& crt = engine.getCrt();
 		crt.setScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
 		crt.setCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
@@ -270,8 +269,8 @@ void Options::handleClick(GUI_Element* p_element)
 
 		if(name == "CrtSettings")
 		{
-			// Die Regler ergeben nur zusammen mit dem Filter einen Sinn, also
-			// schaltet der Knopf ihn gleich mit ein.
+			// The sliders make sense only together with the filter; the button
+			// therefore switches it on there and then.
 			static_cast<GUI_RadioButton*>(getChild("Options.Crt"))->check();
 			engine.setUpscaler(&engine.getCrt());
 			getChild("CrtOptions")->show();
@@ -291,8 +290,8 @@ void Options::handleClick(GUI_Element* p_element)
 
 			GUI_Button* p_resetSelected = static_cast<GUI_Button*>(getChild("Options.ResetSelected"));
 
-			// Ohne Auswahl gibt es nichts umzubelegen und nichts
-			// zurueckzusetzen; alle drei Knoepfe haengen an ihr.
+			// With no selection there is nothing to rebind and nothing to
+			// reset; all three buttons hang off it.
 			int selection = p_actions->getSelection();
 			if(selection == -1)
 			{
@@ -319,9 +318,10 @@ void Options::handleClick(GUI_Element* p_element)
 			int selection = p_actions->getSelection();
 			if(selection != -1)
 			{
-				// Der Knopf sagt selbst, worauf er wartet, und das Warten laeuft von jetzt
-				// an nebenher: onUpdate() holt das Ergebnis ab, sobald es da ist.
-				// Festgehalten wird der Name der Aktion, nicht ihre Nummer.
+				// The button itself says what it is waiting for, and the wait runs
+				// alongside from now on: onUpdate() picks up the result as soon as
+				// it is there. What is held on to is the action's name, not its
+				// number.
 				static_cast<GUI_Button*>(p_element)->setTitle("$O_PRESS_KEY");
 
 				grabButton = name;
@@ -336,15 +336,15 @@ void Options::handleClick(GUI_Element* p_element)
 			if(name == "ResetAll") Engine::inst().resetActions();
 			else
 			{
-				// Der Knopf ist ohne Auswahl abgeschaltet; die Pruefung steht trotzdem
-				// hier, weil actions[selection] sie ohnehin braucht.
+				// The button is disabled with no selection; the check stands here
+				// anyway, because actions[selection] needs it regardless.
 				const int selection = p_actions->getSelection();
 				if(selection == -1) return;
 				Engine::inst().resetAction(Engine::inst().getActionsVector()[selection]->name);
 			}
 
-			// Die beiden Tastenknoepfe zeigen die Belegung der ausgewaehlten
-			// Aktion und muessen nachziehen.
+			// The two key buttons show the selected action's binding and have to
+			// follow.
 			handleClick(p_actions);
 		}
 		else if(name == "OK")

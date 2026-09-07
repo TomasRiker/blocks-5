@@ -1,17 +1,16 @@
-REM Die XML-Dateien nehmen den Umweg ueber ein Zwischenverzeichnis, in dem
-REM Tools\strip_xml_comments.py ihre Kommentare entfernt hat: die Notizen in den
-REM Dialogen sollen in den Quelldateien stehen bleiben, aber nicht im Archiv.
-REM Daher zwei Aufrufe an 7za - der zweite haengt an, wie bei den Skins auch.
+REM The XML files take the detour through a staging directory in which
+REM Tools\strip_xml_comments.py has removed their comments: the notes in the
+REM dialogs belong in the source files, but not in the archive. Hence two calls
+REM to 7za - the second one appends, as with the skins.
 REM
-REM Ohne Python bleibt es beim alten Verhalten: dann kommen die XML-Dateien
-REM unmittelbar aus data\ und tragen ihre Kommentare mit. Das ist eine Notiz
-REM wert und kein Grund, den Build anzuhalten.
+REM Without Python the XML files come straight out of data\ and carry their
+REM comments with them. That is worth a note and no reason to stop the build.
 REM
-REM Erst der Starter py, dann python auf dem Pfad. Gefragt wird mit einem Lauf
-REM ohne Aufgabe, und geprueft mit IF ERRORLEVEL statt mit ||: nur einzeilige
-REM IFs, keine geklammerten Bloecke und kein GOTO - diese Datei hat, wie der
-REM Rest des Baums, keine Zeilenenden nach Windows-Art, und cmd verzaehlt sich
-REM darauf beim Springen.
+REM The py launcher first, then python on the path. Asked with a run that has
+REM nothing to do, and checked with IF ERRORLEVEL rather than with ||: single
+REM line IFs only, no bracketed blocks and no GOTO - this file, like the rest
+REM of the tree, has no Windows-style line endings, and cmd miscounts when it
+REM jumps in such a file.
 SETLOCAL
 SET "PY="
 py -3 -c "" >NUL 2>&1

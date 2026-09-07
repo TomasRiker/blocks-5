@@ -254,7 +254,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	p_level->load("title.xml");
 	p_sprites = p_level->getSpritesTexture();
 
-	// Textur fuer den Effekt-Puffer erzeugen
+	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
@@ -324,7 +324,7 @@ void GS_Credits::renderStars()
 
 void GS_Credits::updateStars()
 {
-	// Sterne entfernen, die nicht mehr sichtbar sind
+	// remove the stars that are no longer visible
 	for(std::list<Star>::iterator i = stars.begin(); i != stars.end();)
 	{
 		i->rotation += 0.02 * i->deltaRotation;
@@ -335,7 +335,7 @@ void GS_Credits::updateStars()
 		else i++;
 	}
 
-	// neue Sterne hinzufuegen
+	// add new stars
 	while(stars.size() < 400)
 	{
 		Star s;

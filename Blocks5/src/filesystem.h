@@ -1,7 +1,7 @@
 #ifndef _FILESYSTEM_H
 #define _FILESYSTEM_H
 
-/*** Klasse fuer das virtuelle Dateisystem ***/
+/*** Class for the virtual filesystem ***/
 
 #include "file.h"
 
@@ -23,29 +23,28 @@ public:
 	std::string evalPath(const std::string& path) const;
 	std::string getAppHomeDirectory() const;
 
-	// Der Ordner, in dem das Spiel liegt, absolut und mit Schraegstrich am
-	// Ende. Dort stehen die mitgelieferten Levels, Kampagnen und Skins.
-	// Absolut, weil main.cpp data.zip als Wurzel einhaengt: ein relativer Pfad
-	// landete zur Laufzeit im Archiv statt auf der Platte. Einmal beim Start
-	// gemerkt, weil ein Dateidialog unter Windows das Arbeitsverzeichnis
-	// verstellen kann.
+	// The folder the game sits in, absolute and with a trailing slash. It
+	// holds the shipped levels, campaigns and skins. Absolute because main.cpp
+	// mounts data.zip as the root: a relative path would be resolved inside
+	// the archive at runtime instead of on disk. Remembered once at startup,
+	// because a file dialog under Windows can change the working directory.
 	const std::string& getGameDirectory() const { return gameDirectory; }
 
-	// Wo eine Datei mit Inhalten wirklich liegt: erst im Spielordner nachsehen,
-	// dann im Benutzerverzeichnis. Der Spielordner gewinnt, damit eine alte
-	// Kopie im Benutzerverzeichnis die mitgelieferte nicht verdecken kann - was
-	// jahrelang genau das Problem war. Gibt es keine von beiden, kommt der Pfad
-	// im Benutzerverzeichnis zurueck: dort haette sie hingehoert.
+	// Where a content file really is: the game folder first, then the user
+	// directory. The game folder wins, or a stale copy in the user directory
+	// could shadow the shipped one. If neither exists, the path in the user
+	// directory comes back: that is where it would have belonged.
 	std::string resolveContentPath(const std::string& relative) const;
 
-	// Gehoert diese Datei dem Spiel? Das ist zugleich die Antwort auf
-	// "unloeschbar", "nicht ueberschreibbar" und "unter diesem Namen darf kein
-	// Editor speichern" - eine eigene Liste braucht es dafuer nicht mehr.
+	// Does this file belong to the game? That is simultaneously the answer to
+	// "undeletable", "un-overwritable" and "no editor may save under this
+	// name" - no list of its own is needed for it.
 	bool isShippedContent(const std::string& relative);
 
-	// Dateien, die dem Spieler gehoeren, obwohl sie mit dem Spiel kommen: die
-	// Fassung im Spielordner ist fuer sie nur eine Vorlage. Nullzeigerbeendete
-	// Liste; copyOnFirstStart sagt, ob main.cpp sie einmal herueberkopiert.
+	// Files that belong to the player even though they ship with the game: the
+	// version in the game folder is only a template for them. The list is
+	// terminated by a null pointer; copyOnFirstStart says whether main.cpp
+	// copies one over once.
 	struct PlayerFile
 	{
 		const char* p_path;

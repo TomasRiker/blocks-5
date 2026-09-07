@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer einen Block-Detektor ***/
+/*** Class for a block detector ***/
 
 class E_BlockDetector : public Electronics
 {

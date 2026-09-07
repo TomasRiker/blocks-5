@@ -3,9 +3,9 @@
 #include "texture.h"
 #include "tileset.h"
 
-// Die Zelle, aus der gezogen wird, ist bei Kacheln und bei Objektbildern
-// dieselbe. Waeren die beiden je verschieden, muesste getTryCount() eine
-// andere Bezugsflaeche nehmen.
+// The cell sampled from is the same for tiles as for object sprites. Were the
+// two ever to differ, getTryCount() would have to take a different reference
+// area.
 static_assert(Sprite::SIZE == TileSet::TILE_SIZE,
 			  "debris sampling assumes tiles and object sprites share a cell size");
 
@@ -23,19 +23,19 @@ namespace
 {
 	const double p_degToRad = 3.1415926535897932384626433832795 / 180.0;
 
-	// Womit die Huelle beschnitten wird, bevor floor() und ceil() darauf
-	// losgehen. cos(90 Grad) ist 6.1e-17 und nicht 0, die linke Kante einer
-	// Vierteldrehung kommt als -8.9e-16 heraus, und die Zelle waere ohne Not
-	// 17x17 gross - getTryCount() rechnet mit der Flaeche und wuerfe 13% mehr
-	// Truemmer als dasselbe Bild ungedreht.
+	// What the footprint is trimmed by before floor() and ceil() go at it.
+	// cos(90 degrees) is 6.1e-17 and not 0, the left edge of a quarter turn
+	// comes out as -8.9e-16, and the cell would be 17x17 for no reason -
+	// getTryCount() works from the area and would roll 13% more debris than the
+	// same sprite unrotated.
 	const double p_footprintEpsilon = 1.0e-6;
 
-	// Die Stelle in Objektkoordinaten in die Zelle zuruecksuchen, aus der
-	// renderSprite sie geholt hat: erst der Versatz, dann die Gegendrehung,
-	// dann die Spiegelung, die ihre eigene Umkehrung ist. Weil es dieselbe
-	// Matrix im selben Bezugssystem ist, stimmt das Ergebnis unabhaengig davon,
-	// wohin die y-Achse zeigt. Gerechnet wird mit Pixelmitten und floor() -
-	// sonst ginge bei jeder Drehung eine halbe Pixelreihe verloren.
+	// Trace the spot in object coordinates back into the cell renderSprite
+	// fetched it from: first the offset, then the inverse rotation, then the
+	// mirroring, which is its own inverse. Because it is the same matrix in the
+	// same frame of reference, the result holds whichever way the y axis
+	// points. Computed with pixel centres and floor() - otherwise every
+	// rotation would lose half a row of pixels.
 	bool mapToTexel(const Sprite& sprite,
 					const Vec2i& point,
 					Vec2i* p_texelOut)
@@ -142,8 +142,8 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 			s = sin(a);
 		}
 
-		// Die vier Ecken drehen. Die Spiegelung bildet die Eckenmenge auf sich
-		// selbst ab und aendert an der Huelle nichts.
+		// Rotate the four corners. The mirroring maps the set of corners onto
+		// itself and changes nothing about the footprint.
 		for(int k = 0; k < 4; k++)
 		{
 			const double x = (k & 1) ? half.x : -half.x;
@@ -177,8 +177,8 @@ int Sprites::getTryCount(int numParticles) const
 bool Sprites::sample(Vec4d* p_colorOut,
 					 Vec2i* p_offsetOut) const
 {
-	// Ohne Teilbilder oder ohne Pixel im Speicher entstehen keine Truemmer:
-	// eine Kachel ohne Bild hat nichts zu zerstreuen.
+	// Without sprites, or without pixels in memory, there is no debris: a tile
+	// with no image has nothing to scatter.
 	if(!numSprites || !p_texture || !p_texture->hasPixels()) return false;
 
 	Vec2i lo, hi;
@@ -187,20 +187,20 @@ bool Sprites::sample(Vec4d* p_colorOut,
 	const int h = hi.y - lo.y;
 	if(w <= 0 || h <= 0) return false;
 
-	// Eine einzige Zufallszahl reicht. randomInt() ist mt.randInt(0x7FFFFFFF),
-	// und MTRand::randInt(n) maskiert bei einer Maske aus lauter Einsen nur -
-	// es sind also 31 unverbrauchte Mersenne-Twister-Bits. Acht davon fuer die
-	// Schwelle, die uebrigen 23 fuer die Stelle.
+	// A single random number is enough. randomInt() is mt.randInt(0x7FFFFFFF),
+	// and with a mask of all ones MTRand::randInt(n) only masks - leaving 31
+	// unspent Mersenne Twister bits. Eight of them for the threshold, the
+	// remaining 23 for the spot.
 	const uint r = static_cast<uint>(randomInt());
 	const uint threshold = r & 255;
 	const uint where = r >> 8;
 	const Vec2i point(lo.x + static_cast<int>(where % static_cast<uint>(w)),
 					  lo.y + static_cast<int>((where / static_cast<uint>(w)) % static_cast<uint>(h)));
 
-	// Von vorne nach hinten durch die Teilbilder, genau wie das Alphablending
-	// beim Zeichnen: was vorne liegt, deckt zu einem Anteil seiner Deckkraft
-	// ab. covered ist dieser Anteil, aufaddiert - eine einzige Schwelle daran
-	// zu messen ist dasselbe wie jedes Teilbild einzeln auszuwuerfeln.
+	// Front to back through the sprites, exactly like the alpha blending when
+	// drawing: what lies in front covers by a share of its opacity. covered is
+	// that share, accumulated - measuring one threshold against it is the same
+	// as rolling for each sprite separately.
 	double covered = 0.0;
 	for(int i = numSprites - 1; i >= 0; i--)
 	{
@@ -212,9 +212,9 @@ bool Sprites::sample(Vec4d* p_colorOut,
 		const Vec4d pixel = p_texture->getPixel(sprite.positionOnTexture + texel);
 		covered += (1.0 - covered) * pixel.a * sprite.color.a;
 
-		// Annehmen mit der Wahrscheinlichkeit der Deckkraft. Ein voll deckendes
-		// Pixel faellt damit in einem von 256 Faellen durch; das ist nicht zu
-		// sehen und spart den Sonderfall.
+		// Accept with the probability of the opacity. A fully opaque pixel
+		// therefore fails in one of 256 cases; that cannot be seen and saves
+		// the special case.
 		if(threshold < static_cast<uint>(covered * 255.0))
 		{
 			*p_colorOut = Vec4d(pixel.r * sprite.color.r,

@@ -1,7 +1,7 @@
 #ifndef _SINGLETON_H
 #define _SINGLETON_H
 
-/*** Singleton-Klasse ***/
+/*** Singleton class ***/
 
 template<typename T> class Singleton
 {

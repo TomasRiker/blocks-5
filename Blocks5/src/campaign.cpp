@@ -6,14 +6,14 @@
 
 const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
 
-// Mehr Levels als das nimmt keine Kampagne ernsthaft an; die Schranke haelt
-// eine praeparierte campaign.xml davon ab, einen Logiktakt zu belegen.
+// No campaign seriously holds more levels than this; the limit keeps a
+// doctored campaign.xml from taking up a whole logic tick.
 static const uint MAX_LEVELS = 500;
 
 namespace
 {
-	// Die Mitglieder eines Kampagnenarchivs heissen seit jeher nach ihrer
-	// Position in der Liste, nicht nach dem Level (campaign.cpp, save()).
+	// The members of a campaign archive have always been named after their
+	// position in the list, not after the level (campaign.cpp, save()).
 	std::string makeMemberName(uint index)
 	{
 		char temp[64] = "";
@@ -21,17 +21,17 @@ namespace
 		return temp;
 	}
 
-	// Ein Musikstueck, das ins Archiv soll: unter welchem Namen, aus welcher
-	// Quelle. Beides kann sich unterscheiden, wenn eine Kampagne lose Levels
-	// und Archiv-Levels mischt.
+	// A music track bound for the archive: under which name, out of which
+	// source. The two can differ where a campaign mixes loose levels and
+	// archive levels.
 	struct MusicRef
 	{
 		std::string member;
 		std::string source;
 	};
 
-	// Das Praefix, mit dem ein Level ein Musikstueck der mitgelieferten
-	// Kampagne nennt: musicFilename="blocks:music2.ogg".
+	// The prefix with which a level names a music track of the shipped
+	// campaign: musicFilename="blocks:music2.ogg".
 	const char* const p_builtInMusicPrefix = "blocks:";
 
 	bool isBuiltInMusic(const std::string& musicFilename)
@@ -48,9 +48,9 @@ std::string Campaign::resolveMusicPath(const std::string& musicFilename,
 	if(musicFilename.empty()) return "";
 	if(!isBuiltInMusic(musicFilename)) return sourceDir + musicFilename;
 
-	// Der Rest hinter dem Doppelpunkt ist ein Mitgliedsname, kein Pfad: er
-	// steht in einer moeglicherweise fremden Datei und darf nichts anderes
-	// aufmachen als ein Stueck in blocks.zip.
+	// What follows the colon is a member name, not a path: it stands in a
+	// possibly foreign file and must open nothing but a track inside
+	// blocks.zip.
 	const std::string member(musicFilename.substr(strlen(p_builtInMusicPrefix)));
 	if(!isSafeMemberName(member)) return "";
 
@@ -61,9 +61,9 @@ Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
 {
 	LevelRef ref;
 	ref.name = filename;
-	// Der Ordner haengt an der Datei: die beiden Beispiellevel liegen beim
-	// Spiel, alles andere beim Spieler. sourceDir traegt deshalb den Pfad der
-	// gefundenen Datei ohne ihren Namen und nicht eine feste Wurzel.
+	// The folder hangs off the file: the two example levels sit with the
+	// game, everything else with the player. sourceDir therefore carries the
+	// path of the file found, minus its name, and not a fixed root.
 	const std::string path(FileSystem::inst().resolveContentPath("levels/" + filename));
 	ref.sourceDir = path.substr(0, path.length() - filename.length());
 	ref.member = filename;
@@ -73,19 +73,19 @@ Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
 
 bool Campaign::isImportableArchive(const std::string& archivePath)
 {
-	// 1. Struktur: laesst sich das Archiv oeffnen und enthaelt es eine
-	//    campaign.xml? Das Nachsehen braucht kein Passwort.
+	// 1. Structure: does the archive open, and does it hold a campaign.xml?
+	//    Looking that up needs no password.
 	if(!FileSystem::inst().fileExists(archivePath + "/campaign.xml")) return false;
 
-	// 2. Inhalt: entschluesseln, XML parsen, und mindestens ein Level.
+	// 2. Content: decrypt, parse the XML, and at least one level.
 	Campaign check;
 	return check.load(archivePath, true) && !check.getLevels().empty();
 }
 
 Campaign::Campaign()
 {
-	// clear() setzt beide auch, aber erst, wenn jemand es ruft: bis dahin
-	// beantwortet getNumUnlockedLevels() sonst einen Zufallswert.
+	// clear() sets both as well, but only once somebody calls it: until then
+	// getNumUnlockedLevels() would answer a random value.
 	numUnlockedLevels = 1;
 	iHaveABonusLevel = false;
 	singleLevels = false;
@@ -107,12 +107,12 @@ void Campaign::clear()
 	singleLevels = false;
 }
 
-// Nur der Titel aus einer Leveldatei, ohne den Level zu bauen. Er steht als
-// Attribut im Wurzelelement, das Dokument muss dafuer aber ganz geparst werden;
-// bei den vier bis fuenfundzwanzig Kilobyte einer Leveldatei ist das billiger
-// als ein Level::load mit allen Objekten und Skins. Der Rueckgabewert ist schon
-// uebersetzt, denn danach wird sortiert - und der voreingestellte Titel einer
-// namenlosen Datei traegt beide Sprachen in einem String.
+// Just the title out of a level file, without building the level. It is an
+// attribute of the root element, but the whole document has to be parsed for
+// it; at the four to twenty-five kilobytes of a level file that is cheaper than
+// a Level::load with all its objects and skins. The return value is already
+// localized, because the sorting runs on it - and the default title of an
+// unnamed file carries both languages in one string.
 static std::string readLevelTitle(const std::string& source)
 {
 	TiXmlDocument doc;
@@ -125,11 +125,11 @@ static std::string readLevelTitle(const std::string& source)
 	return localizeString(p_title);
 }
 
-// Nach dem Titel, wie er auf dem Bildschirm steht - und nicht nach dem
-// Dateinamen, den kaum jemand liest. Gross und klein gilt dabei gleich, sonst
-// stuenden erst alle grossgeschriebenen Titel und danach die kleinen; von Hand
-// und nicht ueber tolower, weil das an der Locale haengt. Bei gleichem Titel
-// entscheidet der Dateiname, damit die Reihenfolge ueberhaupt eine ist.
+// By the title as it stands on the screen - and not by the filename, which
+// hardly anybody reads. Upper and lower case count alike, or every title
+// starting with a capital would come first and the lower-case ones after them;
+// by hand and not through tolower, because that hangs off the locale. On equal
+// titles the filename decides, which is what makes the order an order at all.
 static bool byTitle(const Campaign::LevelRef& a,
 					const Campaign::LevelRef& b)
 {
@@ -153,8 +153,8 @@ bool Campaign::loadSingleLevels()
 	clear();
 
 	FileSystem& fs = FileSystem::inst();
-	// Beide Wurzeln: die Beispiellevel bringt das Spiel mit, die uebrigen hat
-	// der Spieler gebaut oder eingespielt.
+	// Both roots: the game brings the example levels, the rest the player
+	// built or imported.
 	std::list<std::string> files = fs.listDirectory(fs.getGameDirectory() + "levels");
 	const std::list<std::string> own(fs.listDirectory(fs.getAppHomeDirectory() + "levels"));
 	files.insert(files.end(), own.begin(), own.end());
@@ -178,8 +178,8 @@ bool Campaign::loadSingleLevels()
 	title = loadString("$LS_SINGLE_LEVELS");
 	description = loadString("$LS_SINGLE_LEVELS_DESCRIPTION");
 
-	// Alles frei: die Level haben nichts miteinander zu tun, also gibt es auch
-	// keine Reihenfolge, in der man sie sich verdienen koennte.
+	// Everything unlocked: levels that have nothing to do with each other have
+	// no order to earn.
 	numUnlockedLevels = static_cast<int>(levels.size());
 	return true;
 }
@@ -195,7 +195,7 @@ bool Campaign::load(const std::string& filename,
 	clear();
 	this->filename = filename;
 
-	// XML-Dokument laden
+	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename + pw + "/campaign.xml");
 	TiXmlDocument doc;
 	doc.SetCondenseWhiteSpace(false);
@@ -208,9 +208,9 @@ bool Campaign::load(const std::string& filename,
 	}
 	else if(loadInfo(&doc)) return true;
 
-	// Hier laufen alle drei Fehlerwege zusammen - kaputtes XML, fehlendes
-	// <Campaign>, zu viele Levels. Genannt wird der blosse Dateiname: der ganze
-	// Pfad ist der des Archivs samt Passwort.
+	// All three failure paths meet here - broken XML, a missing <Campaign>,
+	// too many levels. What is named is the bare filename: the full path is
+	// the archive's, password and all.
 	if(!quiet)
 	{
 		const std::string::size_type slash = filename.find_last_of('/');
@@ -232,7 +232,7 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 		return false;
 	}
 
-	// Titel lesen
+	// read the title
 	TiXmlElement* p_title = p_campaign->FirstChildElement("Title");
 	if(p_title)
 	{
@@ -240,7 +240,7 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 		if(p_text) title = p_text;
 	}
 
-	// Beschreibung lesen
+	// read the description
 	TiXmlElement* p_description = p_campaign->FirstChildElement("Description");
 	if(p_description)
 	{
@@ -248,11 +248,11 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 		if(p_text) description = p_text;
 	}
 
-	// Levels lesen
+	// read the levels
 	TiXmlElement* p_levels = p_campaign->FirstChildElement("Levels");
 	if(p_levels)
 	{
-		// 1. Durchgang: nur die Namen einsammeln.
+		// 1. First pass: collect just the names.
 		std::vector<std::string> names;
 		TiXmlElement* p_level = p_levels->FirstChildElement("Level");
 		while(p_level)
@@ -269,19 +269,20 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 			p_level = p_level->NextSiblingElement("Level");
 		}
 
-		// 2. Woher kommen die Levels? Liegen ALLE Originale lose im Level-Ordner,
-		//    ist die Kampagne hier entstanden und wird weiter aus den losen
-		//    Dateien bedient. Sonst kommt sie von woanders, und dann werden ALLE
-		//    Levels aus dem Archiv gelesen: Eintrag i ist Mitglied level_{i+1}.xml.
-		//    Alles oder nichts, damit eine fremde Kampagne nie stillschweigend
-		//    einen gleichnamigen Level des Benutzers einsammelt.
+		// 2. Where do the levels come from? If ALL the originals lie loose in
+		//    the level folder, the campaign originated here and keeps being
+		//    served from the loose files. Otherwise it came from elsewhere, and
+		//    then ALL the levels are read out of the archive: entry i is member
+		//    level_{i+1}.xml. All or nothing, or a foreign campaign would
+		//    quietly pick up a level of the user's carrying the same name.
 		FileSystem& fs = FileSystem::inst();
 
 		bool allLoose = !names.empty();
 		for(uint i = 0; i < names.size() && allLoose; i++)
 		{
-			// Ueber beide Wurzeln gefragt, genau wie makeLooseRef() sie
-			// aufloest - sonst gaelte ein Beispiellevel beim Spiel als fehlend.
+			// Asked over both roots, exactly as makeLooseRef() resolves them -
+			// otherwise an example level sitting with the game would count as
+			// missing.
 			if(!isSafeMemberName(names[i]) ||
 			   !fs.fileExists(fs.resolveContentPath("levels/" + names[i]))) allLoose = false;
 		}
@@ -292,9 +293,9 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 			else
 			{
 				LevelRef ref;
-				ref.name = names[i];                       // nur Anzeigetext
+				ref.name = names[i];                       // display text only
 				ref.sourceDir = filename + pw + "/";
-				ref.member = makeMemberName(i);            // aus dem Index, nie aus dem Text
+				ref.member = makeMemberName(i);            // from the index, never from the text
 				ref.fromArchive = true;
 				addLevel(ref);
 			}
@@ -316,17 +317,16 @@ bool Campaign::save(const std::string& filename)
 
 	FileSystem& fs = FileSystem::inst();
 
-	// Erst in eine Nebendatei schreiben, dann tauschen: eine Kampagne, deren
-	// Levels aus ihrem eigenen Archiv kommen, wuerde sonst genau die Levels
-	// vernichten, die noch gelesen werden sollen.
+	// Write to a side file first, then swap: a campaign whose levels come out
+	// of its own archive would otherwise destroy exactly the levels that are
+	// still to be read.
 	const std::string temp(fs.getAppHomeDirectory() + "~campaignsave.zip");
 
-	// Ein Rest von einem abgebrochenen Speichern muss weg: File_Archived
-	// oeffnet ein vorhandenes Archiv im Anhaengemodus und schleppte dessen
-	// alte Mitglieder mit.
+	// A leftover from an aborted save has to go: File_Archived opens an
+	// existing archive in append mode and would drag its old members along.
 	if(fs.fileExists(temp)) fs.deleteFile(temp);
 
-	// Sind alle Quellen ueberhaupt lesbar? Bis hierher wurde nichts geschrieben.
+	// Are all the sources readable at all? Nothing has been written up to here.
 	std::string missing;
 	if(!sourcesExist(missing))
 	{
@@ -334,7 +334,7 @@ bool Campaign::save(const std::string& filename)
 		return false;
 	}
 
-	// XML-Daten schreiben
+	// write the XML data
 	TiXmlDocument* p_doc = saveInfo();
 	std::string xml;
 	xml << *p_doc;
@@ -345,13 +345,13 @@ bool Campaign::save(const std::string& filename)
 		return false;
 	}
 
-	// Levels einfuegen, einen nach dem anderen
+	// insert the levels, one after another
 	std::vector<MusicRef> music;
 	for(uint i = 0; i < levels.size(); i++)
 	{
-		// Ist das ueberhaupt ein Level? Der Wurzelknoten reicht, und der Musikname
-		// wird gleich mitgelesen. readStringFromFile bricht am ersten Nullbyte ab -
-		// fuer XML unerheblich, und die Bytes selbst wandern unten per copyFile.
+		// Is this a level at all? The root node is enough, and the music name is
+		// read along with it. readStringFromFile stops at the first null byte -
+		// irrelevant for XML, and the bytes themselves travel by copyFile below.
 		const std::string levelXML(fs.readStringFromFile(levels[i].source()));
 		TiXmlDocument doc;
 		doc.SetCondenseWhiteSpace(false);
@@ -364,25 +364,25 @@ bool Campaign::save(const std::string& filename)
 			return false;
 		}
 
-		// Level ins Archiv einfuegen - Byte fuer Byte, damit die <Row>-Zeilen
-		// mit den rohen Kachelcodes nie neu serialisiert werden.
+		// insert the level into the archive - byte for byte, keeping the <Row>
+		// lines with their raw tile codes from ever being written out afresh.
 		if(!fs.copyFile(levels[i].source(), temp + pw + "/" + makeMemberName(i)))
 		{
 			fs.deleteFile(temp);
 			return false;
 		}
 
-		// Musikdateinamen vormerken. Der Name steht in einer moeglicherweise
-		// fremden Datei und darf deshalb nicht ungeprueft an einen Pfad gehaengt
-		// werden - sonst packt das Archiv, was der Angreifer nennt.
+		// Remember the music filename. The name stands in a possibly foreign
+		// file and must therefore not be appended to a path unchecked -
+		// otherwise the archive packs whatever the attacker names.
 		const char* p_music = p_levelNode->Attribute("musicFilename");
 		if(!p_music || !*p_music) continue;
 
 		const std::string track(p_music);
 
-		// Ein "blocks:"-Stueck liegt in der mitgelieferten Kampagne, die jeder
-		// hat. Es hier mitzupacken liesse das Archiv um Megabytes wachsen, und
-		// beim Abspielen wird ohnehin blocks.zip gelesen.
+		// A "blocks:" track lies in the shipped campaign, which everybody has.
+		// Packing it in here would grow the archive by megabytes, and playback
+		// reads blocks.zip anyway.
 		if(isBuiltInMusic(track)) continue;
 
 		if(!isSafeMemberName(track) || track == "campaign.xml")
@@ -410,7 +410,7 @@ bool Campaign::save(const std::string& filename)
 		if(!known) music.push_back(entry);
 	}
 
-	// Musikstuecke einfuegen. Eine fehlende Datei ist kein Fehler.
+	// insert the music tracks. A missing file is not an error.
 	for(uint i = 0; i < music.size(); i++)
 	{
 		if(!fs.fileExists(music[i].source))
@@ -426,7 +426,7 @@ bool Campaign::save(const std::string& filename)
 		}
 	}
 
-	// Tauschen. copyFile oeffnet das Ziel mit "wb", schneidet es also ab.
+	// Swap. copyFile opens the destination with "wb" and therefore truncates it.
 	if(!fs.copyFile(temp, filename))
 	{
 		fs.deleteFile(temp);
@@ -434,9 +434,9 @@ bool Campaign::save(const std::string& filename)
 	}
 	fs.deleteFile(temp);
 
-	// Archivgestuetzte Verweise auf das neue Archiv umbiegen, damit ein
-	// zweites Speichern stimmt. Lose Verweise bleiben lose - sonst schluege
-	// ein danach bearbeiteter Level nicht mehr durch.
+	// Point the archive-backed references at the new archive, which is what
+	// makes a second save right. Loose references stay loose - otherwise a
+	// level edited afterwards would no longer come through.
 	this->filename = filename;
 	for(uint i = 0; i < levels.size(); i++)
 	{
@@ -457,17 +457,17 @@ TiXmlDocument* Campaign::saveInfo()
 
 	TiXmlElement* p_campaign = new TiXmlElement("Campaign");
 
-	// Titel schreiben
+	// write the title
 	TiXmlElement* p_title = new TiXmlElement("Title");
 	p_title->LinkEndChild(new TiXmlText(title));
 	p_campaign->LinkEndChild(p_title);
 
-	// Beschreibung schreiben
+	// write the description
 	TiXmlElement* p_description = new TiXmlElement("Description");
 	p_description->LinkEndChild(new TiXmlText(description));
 	p_campaign->LinkEndChild(p_description);
 
-	// Liste der Levels schreiben
+	// write the list of levels
 	TiXmlElement* p_levels = new TiXmlElement("Levels");
 	for(uint i = 0; i < levels.size(); i++)
 	{
@@ -505,8 +505,8 @@ std::string Campaign::getStateString()
 	state << *p_doc;
 	delete p_doc;
 
-	// Die XML-Daten allein reichen nicht: zwei Eintraege duerfen denselben
-	// Namen tragen, und ein Umsortieren waere sonst keine Aenderung.
+	// The XML data alone is not enough: two entries may carry the same name,
+	// and a reordering would otherwise be no change at all.
 	for(uint i = 0; i < levels.size(); i++)
 	{
 		state += "\n";

@@ -3,7 +3,7 @@
 
 #include "singleton.h"
 
-/*** Klasse zum Speichern und Abrufen des Fortschritts ***/
+/*** Class for saving and retrieving progress ***/
 
 class ProgressDB : public Singleton<ProgressDB>
 {
@@ -19,9 +19,8 @@ public:
 	void setLevelCompleted(const std::string& campaign, uint level);
 
 private:
-	// Der Schluessel zu einer Kampagne: ihr blosser Dateiname. Siehe
-	// progressdb.cpp - der volle Pfad taugte nicht, weil eine Kampagnendatei
-	// den Ordner wechseln kann.
+	// The key to a campaign: its bare filename. See progressdb.cpp - the full
+	// path will not do, because a campaign file can change folder.
 	static std::string keyFor(const std::string& campaign);
 
 	ProgressDB();

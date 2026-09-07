@@ -25,7 +25,8 @@ Cannon::~Cannon()
 
 void Cannon::updateSprites()
 {
-	// Basis und Rohr. Das Rohr dreht sich weich mit shownDir, die Basis nicht.
+	// Base and barrel. The barrel turns smoothly with shownDir, the base
+	// does not.
 	const Vec4d realColor = getStdColor(this->color);
 	sprites.add(Vec2i(96, 416), realColor);
 
@@ -60,7 +61,7 @@ void Cannon::onRender(int layer,
 
 void Cannon::onUpdate()
 {
-	// Kanone ausrichten
+	// aim the cannon
 	double dd = static_cast<double>(dir) - shownDir;
 	if(dd > 2.0) shownDir += 4.0;
 	else if(dd < -2.0) shownDir -= 4.0;
@@ -76,7 +77,7 @@ void Cannon::onUpdate()
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
 
-		// Rauch
+		// smoke
 		p.lifetime = random(25, 50);
 		p.damping = 0.99f;
 		p.gravity = 0.005f;
@@ -133,14 +134,11 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Object::loadExtendedAttributes(p_element);
 
-	// %f in sscanf schreibt einen float, shownDir ist aber ein double: das hat
-	// vier von acht Bytes ueberschrieben und die anderen vier stehen lassen.
-	// Bei dir != 0 gab das einen Fehler von etwa 5e-7 und fiel nicht auf, bei
-	// dir == 0 wurden aus gespeicherten 2.5 aber 5.3e-315. Ein Geschuetz, das
-	// beim Speichern mitten in der Drehung stand, sprang danach auf die
-	// Zielrichtung statt sie zu Ende zu drehen. QueryDoubleAttribute liest den
-	// double richtig und laesst shownDir in Ruhe, wenn das Attribut fehlt -
-	// Attribute() lieferte dort einen Nullzeiger direkt in sscanf hinein.
+	// QueryDoubleAttribute, not sscanf with %f: %f writes a float, and
+	// shownDir is a double, which leaves four of its eight bytes standing.
+	// QueryDoubleAttribute reads the double correctly and leaves shownDir
+	// alone where the attribute is missing - Attribute() would hand a null
+	// pointer straight into sscanf there.
 	p_element->QueryDoubleAttribute("shownDir", &shownDir);
 }
 
@@ -151,14 +149,14 @@ uint Cannon::getColor() const
 
 bool Cannon::fire()
 {
-	// Noch nicht nachgeladen?
+	// Not reloaded yet?
 	if(reload) return false;
 
-	// Noch nicht fertig ausgerichtet?
+	// Not finished aiming yet?
 	double dd = static_cast<double>(dir) - shownDir;
 	if(fabs(dd) > 0.1) return false;
 
-	// Richtungsvektoren berechnen
+	// compute the direction vectors
 	Vec2d up, right;
 	switch(dir % 4)
 	{
@@ -168,13 +166,13 @@ bool Cannon::fire()
 	case 3: up = Vec2d(-1.0, 0.0), right = Vec2d(0.0, -1.0); break;
 	}
 
-	// Projektil abfeuern
+	// fire the projectile
 	new Projectile(level, Vec2d(7.5, 7.5) + 5.0 * up + shownPosition * 16.0, up * 1200.0);
 
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 
-	// Feuer/Rauch nach vorn und zu den Seiten
+	// fire/smoke forward and to the sides
 	for(int i = 0; i < 100; i++)
 	{
 		p.lifetime = random(5, 10);

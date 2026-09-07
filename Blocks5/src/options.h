@@ -10,12 +10,12 @@ public:
 	~Options();
 
 	void show(GUI_Element* p_focusWhenClosed = 0);
-	// Escape = Abbrechen, Return = OK. Steht das Roehrenfenster offen,
-	// schliesst beides erst einmal nur dieses.
+	// Escape = Cancel, Return = OK. With the CRT settings window open, both
+	// keys close only that one.
 	void onKeyEvent(const SDL_KeyboardEvent& event);
 
-	// Holt das Ergebnis ab, wenn ein Tastenknopf auf eine Taste wartet. Die
-	// Wartestellung liegt in der Engine und laeuft nebenher.
+	// Picks up the result while a key button is waiting for a key. The key
+	// grab lives in the Engine and runs alongside.
 	void onUpdate();
 
 	void handleClick(GUI_Element* p_element);
@@ -26,8 +26,8 @@ private:
 	GUI_Element* p_focusWhenClosed;
 	bool changed;
 
-	// Welcher Tastenknopf gerade wartet ("PrimaryKey"/"SecondaryKey"), und
-	// fuer welche Aktion. Leer heisst: keiner.
+	// Which key button is currently waiting ("PrimaryKey"/"SecondaryKey"),
+	// and for which action. Empty means none.
 	std::string grabButton;
 	std::string grabAction;
 };

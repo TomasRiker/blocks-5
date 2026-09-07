@@ -7,16 +7,16 @@
 
 namespace
 {
-	// Der Zettel im Grossen: das Bild misst 300x400 und der Text beginnt ein
-	// Stueck innerhalb davon. Die Textur, in die beides zusammen gezeichnet
-	// wird, ist eine Zweierpotenz - WebGL 1 kann mit anderen nur eingeschraenkt
-	// umgehen, und das Blatt passt bequem hinein.
+	// The note at full size: the picture measures 300x400 and the text starts
+	// a little way inside it. The texture both are drawn into together is a
+	// power of two - WebGL 1 can only handle others with restrictions, and the
+	// sheet fits comfortably inside.
 	const int NOTE_WIDTH = 300;
 	const int NOTE_HEIGHT = 400;
 
-	// Zwei Felder nebeneinander: links das Blatt mit dem Text, rechts dasselbe
-	// ohne - geschrieben ist nur die Vorderseite. Der Abstand ist grosszuegig,
-	// damit kein Texel des einen Feldes in das andere blutet.
+	// Two panels side by side: on the left the sheet with the text, on the
+	// right the same without - only the front is written on. The gap is
+	// generous enough that no texel of one panel bleeds into the other.
 	const int NOTE_TEXTURE_W = 1024;
 	const int NOTE_TEXTURE_H = 512;
 	const int BACK_PANEL_X = 512;
@@ -24,79 +24,78 @@ namespace
 	const int TEXT_TOP = 45;
 	const int TEXT_WIDTH = 230;
 
-	// Der Schatten liegt fuenf Bildpunkte versetzt darunter.
+	// The shadow lies underneath, offset by five pixels.
 	const int SHADOW_OFFSET = 5;
 	const double SHADOW_ALPHA = 0.3;
 
-	// Wie sich der Zettel aufrollt. ROLL_LENGTH ist der Anteil des Blattes, der
-	// oben und unten eingerollt ist, solange es zufliegt; ROLL_TURNS, wie weit
-	// es sich dabei einwickelt.
+	// How the note rolls up. ROLL_LENGTH is the fraction of the sheet that is
+	// rolled in at the top and the bottom while it flies in; ROLL_TURNS how
+	// far it winds itself up in the process.
 	//
-	// Beide zusammen legen den Radius fest: ROLL_LENGTH * NOTE_HEIGHT /
-	// (ROLL_TURNS * 2 * PI). Wer bei einer halben Umdrehung den Wulst dicker
-	// will, muss also mehr Papier aufrollen. 0.30 laesst die mittleren 40% des
-	// Blattes flach und macht den Halbmesser 38 Bildpunkte gross.
+	// Together the two fix the radius: ROLL_LENGTH * NOTE_HEIGHT /
+	// (ROLL_TURNS * 2 * PI). A fatter bead at half a turn therefore means
+	// rolling up more paper. 0.30 leaves the middle 40% of the sheet flat and
+	// makes the radius 38 pixels.
 	//
-	// Eine halbe Umdrehung ist die Grenze, und das ist keine Geschmacksfrage:
-	// bis dahin wird jedes Stueck Papier auf dem Weg nach aussen dem Betrachter
-	// naeher, die Rolle laesst sich also von hinten nach vorn zeichnen und
-	// ueberdeckt sich richtig. Darueber hinaus kaeme das Ende wieder nach
-	// hinten, und ohne Tiefenpuffer - den dieser Durchgang nicht hat - laege es
-	// trotzdem obenauf.
+	// Half a turn is the limit, and that is not a matter of taste: up to there
+	// every piece of paper on its way outward comes nearer to the viewer; the
+	// roll can therefore be drawn back to front and covers itself correctly.
+	// Beyond that the end would come round to the rear again, and without a
+	// depth buffer - which this pass does not have - it would still lie on top.
 	const double ROLL_LENGTH = 0.30;
 	const double ROLL_TURNS = 0.50;
 
-	// Wie fein. Die Rollen bekommen die Unterteilung, die flache Mitte braucht
-	// keine: dort ist nichts zu kruemmen.
+	// How fine. The rolls get the subdivision, the flat middle needs none:
+	// there is nothing to curve there.
 	const int ROLL_BANDS = 48;
 
-	// Brennweite in Bildpunkten, fuer die Perspektive von Hand: was naeher am
-	// Betrachter liegt, wird groesser. Ohne das waere die Rolle nur ein
-	// gestauchter Streifen.
+	// Focal length in pixels, for the perspective divide done by hand: what
+	// lies nearer the viewer gets bigger. Without it the roll would be nothing
+	// but a squashed strip.
 	const double PERSPECTIVE = 700.0;
 
-	// Und wie weit links davon der Betrachter steht. Was ihm naeher kommt,
-	// wandert dadurch nach rechts - die Schraege, die auch das 16x16-Sprite
-	// zeigt. Der Versatz ist e * (f - 1), also das, was ein seitlich versetztes
-	// Auge sieht, und in der Blattebene (f = 1) null: der flache Zettel bleibt
-	// Bildpunkt auf Bildpunkt liegen.
+	// And how far to the left of the axis the viewer stands. What comes
+	// towards them therefore moves right - the slant the 16x16 sprite has as
+	// well. The offset is e * (f - 1), which is what a laterally displaced eye
+	// sees, and zero in the plane of the sheet (f = 1): the flat note stays
+	// pixel on pixel.
 	const double VIEW_OFFSET_X = 300.0;
 
 	const double PI = 3.1415926535897932384626433832795;
 
-	// Wie hell das Papier steht, wenn es dem Betrachter die Kante zeigt. Es
-	// zaehlt die Flaechennormale, nicht der Drehwinkel: auf der Rueckseite
-	// sieht man die andere Flaeche, deren Normale wieder zum Betrachter zeigt,
-	// also |cos| und nicht cos. Voll zugewandt ist 1.0, vorn wie hinten.
+	// How bright the paper stands where it shows the viewer its edge. What
+	// counts is the surface normal, not the angle of rotation: on the back you
+	// are looking at the other face, whose normal points back at the viewer,
+	// hence |cos| and not cos. Fully turned towards them is 1.0, front and
+	// back alike.
 	const double SHADE_EDGE = 0.75;
 
-	// Wann sich der Zettel aufrollt und wie lange er dazu braucht, beides in
-	// Logiktakten ab dem Betreten. Bei 20 Takten ist er auf 96% seiner Groesse -
-	// er liegt also schon fast, wenn es losgeht.
+	// When the note unrolls and how long it takes, both in logic ticks from
+	// the moment the field is stepped onto. At 20 ticks it is at 96% of its
+	// size - it has almost landed by the time the unrolling begins.
 	const int UNROLL_START = 20;
 	const int UNROLL_END = 40;
 
-	// Beim Verlassen rollt er sich im selben Tempo wieder ein, in dem er
-	// aufgeklappt ist. Er bleibt dabei stehen, bis er fertig ist (onUpdate),
-	// also draengt ihn nichts.
+	// On leaving, the note rolls up again at the same speed it opened at. It
+	// stays where it is until it is done (onUpdate); nothing hurries it.
 	const int ROLL_UP_SPEED = 1;
 
-	// Ab wann der Zettel als angekommen gilt und auf ganze Bildpunkte gerundet
-	// wird: ein halber Bildpunkt auf der Bildschirmdiagonalen von 800.
+	// From when the note counts as arrived and is rounded to whole pixels:
+	// half a pixel over the screen diagonal of 800.
 	const double SNAP_RESIDUAL = 0.5 / 800.0;
 
-	// Bis wohin auf dem Weg der Zettel ein- und ausblendet; danach ist er ganz
-	// undurchsichtig. Durchsichtiges Papier mit undurchsichtiger, unbeschrifteter
-	// Rueckseite widerspricht sich, und hindurch zu sehen ist ohnehin nichts.
+	// How far along the flight the note fades in and out; from there it is
+	// fully opaque. Transparent paper with an opaque, unwritten back
+	// contradicts itself, and there is nothing to see through it anyway.
 	const double FADE_UNTIL = 0.5;
 
-	// Ein Punkt auf dem Papier. py laeuft von 0 (Oberkante) bis NOTE_HEIGHT.
+	// A point on the paper. py runs from 0 (top edge) to NOTE_HEIGHT.
 	struct NotePoint
 	{
-		double y;       // Lage im Bild, von der Mitte des Zettels aus
-		double depth;   // wie weit vor der Blattebene, also naeher am Betrachter
-		double shade;   // wie hell das Papier hier steht
-		bool back;      // schaut die Rueckseite den Betrachter an?
+		double y;       // position in the picture, from the note's centre
+		double depth;   // how far in front of the sheet plane, nearer the viewer
+		double shade;   // how bright the paper stands here
+		bool back;      // is the back facing the viewer?
 	};
 
 	NotePoint rollPoint(double py,
@@ -109,12 +108,12 @@ namespace
 		p.back = false;
 
 		const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
-		if(rolled < 1.0) return p;   // ausgerollt: nichts mehr zu kruemmen
+		if(rolled < 1.0) return p;   // flat: nothing left to curve
 
 		const double thetaMax = ROLL_TURNS * 2.0 * PI;
 		const double radius = rolled / thetaMax;
 
-		// Bogenlaenge vom Knick aus, an dem das Papier von der Ebene abhebt.
+		// Arc length from the crease where the paper lifts off the plane.
 		double s = 0.0;
 		double direction = 0.0;
 		if(py < rolled)                      { s = rolled - py;                     direction = -1.0; }
@@ -125,12 +124,13 @@ namespace
 		const double edge = direction * (0.5 * NOTE_HEIGHT - rolled);
 		p.y = edge + direction * radius * sin(theta);
 
-		// Oben auf den Betrachter zu, unten von ihm weg - so zeigt es das
-		// 16x16-Sprite auf dem Feld. direction ist oben -1 und unten +1.
+		// Top edge towards the viewer, bottom edge away from them - the way the
+		// 16x16 sprite on the field shows it. direction is -1 at the top and +1
+		// at the bottom.
 		p.depth = -direction * radius * (1.0 - cos(theta));
 
-		// Jenseits des Viertelkreises zeigt das Papier seine Rueckseite. Genau
-		// dort steht es auf der Kante, weshalb der Sprung nichts kostet.
+		// Past the quarter turn the paper shows its back. At exactly that point
+		// it stands edge-on, which is why the jump costs nothing.
 		p.back = (theta > 0.5 * PI);
 		p.shade = SHADE_EDGE + (1.0 - SHADE_EDGE) * fabs(cos(theta));
 		return p;
@@ -149,7 +149,7 @@ Hint::Hint(Level& level,
 	activeTicks = 0;
 	dismissed = false;
 	noteTexture = 0;
-	// Vec2i hat keinen initialisierenden Standardkonstruktor.
+	// Vec2i has no initialising default constructor.
 	targetPosition = Vec2i(320, 200);
 
 	p_sprite = level.getHint();
@@ -164,21 +164,20 @@ Hint::Hint(Level& level,
 
 Hint::~Hint()
 {
-	// Der uebliche Weg ist onRemove(): Level::removeObject() ruft es, und
-	// removeOldObjects() ist die einzige Stelle, die ein Object je loescht -
-	// ein Zettel kann also nicht verschwinden, ohne dass es gelaufen waere.
-	// Hier steht es trotzdem noch einmal, damit die Rueckgabe nicht an einem
-	// einzelnen Haken haengt.
+	// The usual way is onRemove(): Level::removeObject() calls it, and
+	// removeOldObjects() is the only place that ever deletes an Object - a
+	// note cannot disappear without it having run. It stands here a second
+	// time; handing the texture back must not hang on a single hook.
 	//
-	// Der Zugriff auf die Engine ist dabei sicher, weil releaseNoteTexture()
-	// vorher aussteigt, wenn gar keine Textur geliehen ist: eine hat nur, wer
-	// in einem laufenden Level gezeichnet hat, und dessen Level gehoert einer
-	// lokalen Variablen von main() - die faellt vor dem statischen Engine.
+	// Reaching the Engine is safe here because releaseNoteTexture() bails out
+	// first when no texture is borrowed at all: only a note that has drawn in
+	// a running level holds one, and that level belongs to a local variable of
+	// main() - which falls before the static Engine.
 	//
-	// Im Browser laeuft dieser Destruktor ohnehin nie: dort kehrt mainLoop()
-	// nicht zurueck. Zurueckgegeben wird die Textur da oben in onUpdate(),
-	// sobald der Zettel unsichtbar ist, und in onRemove() beim Levelwechsel -
-	// beides laeuft im Spiel und nicht beim Herunterfahren.
+	// In the browser this destructor never runs anyway: mainLoop() does not
+	// return there. The texture is handed back in onUpdate() as soon as the
+	// note is invisible, and in onRemove() on a level change - both run during
+	// play and not at shutdown.
 	releaseNoteTexture();
 }
 
@@ -198,7 +197,7 @@ void Hint::releaseNoteTexture()
 
 void Hint::updateSprites()
 {
-	// Zettelobjekt
+	// Note object
 	sprites.add(Vec2i(96, 288));
 }
 
@@ -209,12 +208,12 @@ void Hint::bakeNote()
 	const std::string wanted = p_font->adjustText(localizeString(text), TEXT_WIDTH);
 	if(noteTexture && wanted == bakedText) return;
 
-	// Eine eigene Textur, keine gemeinsame: beim Schritt von einem Zettel auf
-	// den nachbarn sind beide zu sehen, und der eine darf nicht in das Blatt
-	// hineinzeichnen, aus dem der andere gerade liest.
+	// Its own texture, not a shared one: on the step from one note to its
+	// neighbour both are visible, and the one must not draw into the sheet the
+	// other is reading from.
 	const Vec2i size(NOTE_TEXTURE_W, NOTE_TEXTURE_H);
 	const uint target = noteTexture ? noteTexture : engine.acquireOffscreenTexture(size);
-	if(!target) return;   // kein Bildpuffer: dann eben ohne, siehe onRender()
+	if(!target) return;   // no framebuffer object: then without one, see onRender()
 
 	if(!engine.beginRenderToTexture(target, size))
 	{
@@ -228,18 +227,18 @@ void Hint::bakeNote()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(oldClear[0], oldClear[1], oldClear[2], oldClear[3]);
 
-	// Der Alphakanal muss stimmen, denn die Textur wird gleich selbst wieder
-	// gemischt: die Farbe kommt gewichtet an (GL_SRC_ALPHA), das Alpha aber
-	// ungewichtet (GL_ONE). Was dabei entsteht, ist vormultipliziert - und
-	// genau so wird es unten auch wieder gezeichnet.
+	// The alpha channel has to be right, because the texture is itself blended
+	// again in a moment: the colour arrives weighted (GL_SRC_ALPHA), the alpha
+	// unweighted (GL_ONE). What comes out is premultiplied - and that is
+	// exactly how it is drawn again below.
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	p_sprite->bind();
 	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
 
-	// Dasselbe Blatt noch einmal daneben, und diesmal ohne Text: das ist die
-	// Rueckseite. Gespiegelt wird nichts - das Papier rollt sich um eine
-	// waagerechte Achse, links bleibt also links.
+	// The same sheet once more beside it, this time without the text: that is
+	// the back. Nothing is mirrored - the paper curls about a horizontal axis,
+	// and left stays left.
 	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
 
 	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4d(1.0));
@@ -254,23 +253,23 @@ void Hint::bakeNote()
 void Hint::renderNoteMesh(const Vec4d& color,
 						  double unroll) const
 {
-	// Von hinten nach vorn, die einzige Reihenfolge ohne Tiefenpuffer. Die
-	// untere Rolle geht nach hinten weg, ihr aeusseres Ende liegt also am
-	// weitesten hinten; die obere kommt nach vorn. Jede zerfaellt am
-	// Viertelkreis in Vorder- und Rueckseite, und die Naht muss auf einem
-	// Eckpunkt liegen - sonst zoege ein Viereck seine Textur ueber beide Felder.
+	// Back to front, the only order there is without a depth buffer. The
+	// bottom roll goes away to the rear, its outer end therefore lying
+	// furthest back; the top one comes forward. Each splits at the quarter
+	// turn into a front and a back section, and the seam has to fall on a
+	// vertex - or one quad would drag its texture across both panels.
 	const double uWidth = static_cast<double>(NOTE_WIDTH) / NOTE_TEXTURE_W;
 	const double uBack = static_cast<double>(BACK_PANEL_X) / NOTE_TEXTURE_W;
 	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
 	const double flatTop = (rolled < 1.0) ? 0.0 : rolled;
 	const double flatBottom = NOTE_HEIGHT - flatTop;
 
-	// Bogen bis zum Viertelkreis: radius * PI/2, also flatTop / (4*ROLL_TURNS).
-	// Reicht die Rolle nicht so weit, faellt die Rueckseite als leerer
-	// Abschnitt weg - ebenso beim flachen Blatt, wo flatTop selbst 0 ist.
+	// Arc up to the quarter turn: radius * PI/2, i.e. flatTop / (4*ROLL_TURNS).
+	// Where the roll does not reach that far, the back drops out as an empty
+	// section - as it does for the flat sheet, where flatTop is 0 itself.
 	const double half = min(flatTop, flatTop / (ROLL_TURNS * 4.0));
 
-	// [von, bis] auf dem Papier, wie fein, und aus welchem Feld der Textur.
+	// [from, to] on the paper, how fine, and which panel of the texture.
 	const int NUM_SECTIONS = 5;
 	double sections[NUM_SECTIONS][2];
 	int steps[NUM_SECTIONS];
@@ -281,9 +280,9 @@ void Hint::renderNoteMesh(const Vec4d& color,
 	sections[3][0] = flatTop;             sections[3][1] = flatTop - half;    steps[3] = ROLL_BANDS / 2; back[3] = false;
 	sections[4][0] = flatTop - half;      sections[4][1] = 0.0;               steps[4] = ROLL_BANDS / 2; back[4] = true;
 
-	// Ein Dreiecksstreifen und nicht GL_QUAD_STRIP: den kennt WebGL nicht, und
-	// der Web-Build reicht den Modus unveraendert weiter (WebBuild/gl_immediate.cpp).
-	// Fuer eine Bahn aus Vierecken ist beides dasselbe.
+	// A triangle strip and not GL_QUAD_STRIP: WebGL does not know that one, and
+	// the web build hands the mode straight through (WebBuild/gl_immediate.cpp).
+	// For a strip of quads the two are the same.
 	for(int section = 0; section < NUM_SECTIONS; section++)
 	{
 		const double from = sections[section][0];
@@ -299,18 +298,19 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			const double py = from + (to - from) * k / steps[section];
 			const NotePoint np = rollPoint(py, unroll);
 
-			// Perspektive von Hand: was naeher liegt, wird groesser.
+			// Perspective divide by hand: what lies nearer gets bigger.
 			const double f = PERSPECTIVE / (PERSPECTIVE - np.depth);
 			const double x = 0.5 * NOTE_WIDTH * f;
 			const double y = np.y * f;
 			const double dx = VIEW_OFFSET_X * (f - 1.0);
-			// Umgekehrt: gezeichnet wurde mit (0,0) links OBEN, und eine
-			// Textur faengt unten an. In der Textur steht der Zettel also auf
-			// dem Kopf, genau wie das Spielbild im Bildpuffer.
+			// The other way round: drawing used (0,0) at the TOP left, and a
+			// texture starts at the bottom. In the texture the note stands
+			// upside down, exactly like the game's own frame in the
+			// framebuffer object.
 			const double t = 1.0 - py / NOTE_TEXTURE_H;
 
-			// Vormultipliziert: die Farbe traegt das Alpha schon in sich, also
-			// muss der Anstrich es mitnehmen.
+			// Premultiplied: the colour already carries the alpha in itself,
+			// and the vertex colour we paint with has to take it along.
 			const double b = np.shade * color.a;
 			glColor4d(color.r * b, color.g * b, color.b * b, color.a);
 			glTexCoord2d(u0, t); glVertex2d(dx - x, y);
@@ -328,17 +328,17 @@ void Hint::renderNote(const Vec4d& color,
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, noteTexture);
 
-	// Diese Textur kommt nicht aus Texture::bind(), also steht dort noch die
-	// Pixelmatrix des letzten Bildes. Hier wird in 0..1 gerechnet.
+	// This texture does not come from Texture::bind(): the pixel matrix of the
+	// last image is still in place. Here the maths runs in 0..1.
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
 	glMatrixMode(GL_MODELVIEW);
 
-	// Vormultipliziert mischen, weil die Textur so entstanden ist.
+	// Blend premultiplied, because the texture came about that way.
 	engine.setBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-	// Der Schatten ist dasselbe Papier in Schwarz, ein Stueck versetzt.
+	// The shadow is the same paper in black, offset a little way.
 	glPushMatrix();
 	glTranslated(SHADOW_OFFSET, SHADOW_OFFSET, 0.0);
 	renderNoteMesh(Vec4d(0.0, 0.0, 0.0, color.a * SHADOW_ALPHA), unroll);
@@ -352,8 +352,8 @@ void Hint::renderNote(const Vec4d& color,
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 
-	// So aufgeraeumt hinterlassen, wie Texture::unbind() es taete: gleich
-	// darauf zeichnet das Level den Blitz, und der will keine Textur.
+	// Leave it as tidy as Texture::unbind() would: right afterwards the level
+	// draws the flash, and that wants no texture.
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
 }
@@ -361,17 +361,17 @@ void Hint::renderNote(const Vec4d& color,
 void Hint::renderNoteFlat(const Vec4d& color,
 						  double unroll) const
 {
-	// Ohne Bildpuffer gibt es keine Textur, in die sich Zettel und Text
-	// zusammenzeichnen liessen. Dann eben beides hintereinander - unter
-	// derselben Matrix, damit die Schrift wenigstens mitfliegt und nicht am
-	// Ende aus dem Nichts erscheint.
+	// Without a framebuffer object there is no texture that note and text
+	// could be drawn into together. Then the two go one after the other -
+	// under the same matrix, keeping the writing flying with the paper
+	// instead of letting it appear out of nowhere at the end.
 	Engine& engine = Engine::inst();
 	const Vec2i corner(-NOTE_WIDTH / 2, -NOTE_HEIGHT / 2);
 
-	// Gerollt wird hier nichts, die Zeit dafuer vergeht aber trotzdem - ohne
-	// etwas zu sehen saehe das aus, als haenge das Spiel. Also schrumpft
-	// wenigstens die Hoehe auf den flach liegenden Teil; die Schrift staucht
-	// mit, und das ist der Preis dieses Weges.
+	// Nothing rolls here, but the time for it passes all the same - with
+	// nothing to see, that would look as if the game had hung. At least the
+	// height shrinks to the part lying flat; the writing squashes with it, and
+	// that is the price of this path.
 	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
 	const double radius = rolled / (ROLL_TURNS * 2.0 * PI);
 	glPushMatrix();
@@ -399,32 +399,32 @@ void Hint::onRender(int layer,
 		double s = i;
 		double a = clamp(i / FADE_UNTIL, 0.0, 1.0);
 
-		// Layer 43 ist die Vorschau im Leveleditor: fertig aufgeklappt, mittig.
-		// Das ist eine Anzeigesache und darf targetPosition nicht veraendern -
-		// sonst zeigt der Zettel im Spiel hinterher woandershin.
+		// Layer 43 is the preview in the level editor: fully unrolled, centred.
+		// That is a display matter and must not change targetPosition -
+		// otherwise the note points somewhere else in the game afterwards.
 		//
-		// Aufgerollt kommt der Zettel nur, wenn das Bild ein Blatt Papier ist -
-		// der Weltraum-Skin zeigt eine Anzeigetafel, und die rollt sich nicht.
-		// 1.0 heisst flach: dann faellt in renderNoteMesh() beides weg bis auf
-		// das eine Viereck.
+		// The note comes rolled up only where the picture is a sheet of paper -
+		// the space skin shows a display panel, and that does not roll. 1.0
+		// means flat: then both rolls drop out of renderNoteMesh() and leave
+		// the single quad.
 		Vec2i target = targetPosition;
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
 		if(layer == 43) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
 
-		// Angekommen heisst exakt angekommen: shownAlpha naehert sich 0.85 nur
-		// an, also blieben Massstab, Winkel und Lage fuer immer Bruchteile
-		// daneben, und GL_LINEAR mischte jedes Texel des gebackenen Textes aus
-		// zweien. Unterhalb von SNAP_RESIDUAL wird deshalb auf genau 1, genau 0
-		// und genau targetPosition gerundet - das ist ein Vec2i, und die Ecken
-		// der Bahn in renderNoteMesh() sind ohnehin ganzzahlig.
+		// Arrived means exactly arrived: shownAlpha only approaches 0.85, and
+		// scale, angle and position would stay fractions off for ever, with
+		// GL_LINEAR mixing every texel of the baked text out of two. Below
+		// SNAP_RESIDUAL they are therefore rounded to exactly 1, exactly 0 and
+		// exactly targetPosition - which is a Vec2i, and the corners of the
+		// strip in renderNoteMesh() are whole numbers anyway.
 		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
 
 		if(shownAlpha > 1.0 / 255.0)
 		{
-			// Zettel und Text stecken zusammen in einer Textur, damit die
-			// Schrift mitdreht und sich mit aufrollt. Sie entsteht beim ersten
-			// Bild und immer dann neu, wenn der Text ein anderer ist - im
-			// Editor also bei jedem Tastendruck.
+			// Note and text sit together in one texture, which makes the
+			// writing turn with the sheet and roll up with it. It is made on
+			// the first frame and again whenever the text is a different one -
+			// in the editor that is on every key press.
 			bakeNote();
 
 			glPushMatrix();
@@ -450,32 +450,32 @@ void Hint::onRender(int layer,
 
 void Hint::onUpdate()
 {
-	// Spieler da?
+	// Player here?
 	Object* p_obj = level.getFrontObjectAt(position);
 	const bool playerIsHere = (p_obj == level.getActivePlayer());
 
-	// Wer weggeht, hat den Zettel nicht mehr weggedrueckt: beim naechsten
-	// Betreten geht er wieder auf.
+	// A player who walks away has no longer dismissed the note: it opens
+	// again the next time the field is stepped onto.
 	if(!playerIsHere) dismissed = false;
 	const bool open = playerIsHere && !dismissed;
 
-	// Das Ziel steht ein einziges Mal fest, wenn der Zettel aufgeht. Jeder
-	// spaetere Blick auf die Spielerposition liesse ihn beim Verlassen des
-	// Feldes noch einmal auf die andere Seite springen - gerade, waehrend er
-	// verschwindet. Nicht in onCollect(): das laeuft erst, wenn der Spieler
-	// mittig steht, und da ist der Zettel schon unterwegs.
+	// The target is decided once, in the tick the note opens. Any later look
+	// at the player position would make it jump to the other side of the
+	// screen as the player steps off the field - exactly while it is
+	// disappearing. Not in onCollect(): that only runs once the player stands
+	// at the centre, and by then the note is already on its way.
 	if(open && activeTicks == 0) updateTargetPosition();
 
-	// Das Aufrollen laeuft nach der Uhr und nicht nach shownAlpha: das naehert
-	// sich seinem Ziel nur an und kaeme nie ganz an, der Zettel bliebe also
-	// fuer immer ein wenig eingerollt.
+	// The unrolling runs by the clock and not by shownAlpha: that only
+	// approaches its target and would never quite arrive, leaving the note a
+	// little rolled up for ever.
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
 	else     { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
 
-	// Erst einrollen, dann verschwinden - daher steht das Rollen oben. Solange
-	// noch etwas aufzurollen ist, bleibt der Zettel voll sichtbar stehen.
+	// Roll up first, then disappear - which is why the rolling stands above.
+	// While anything is still left to roll up, the note stays fully visible.
 	alpha = (open || unroll > 0.0) ? 0.85 : 0.0;
 	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
 	if(shownAlpha <= 1.0 / 255.0)
@@ -490,7 +490,7 @@ void Hint::updateTargetPosition()
 	Player* p_player = level.getActivePlayer();
 	if(!p_player) return;
 
-	// Der Zettel soll den Spieler nicht verdecken.
+	// The note must not cover the player.
 	targetPosition = Vec2i(320, 200);
 	const Vec2i pp = p_player->getPosition() * 16;
 	if(pp.x >= 140 && pp.x <= 490)
@@ -502,16 +502,17 @@ void Hint::updateTargetPosition()
 
 void Hint::onCollect(Player* p_player)
 {
-	// Absichtlich leer, und deshalb ueberhaupt da: Object::onCollect() liesse
-	// den Zettel verschwinden. Er bleibt liegen und laesst sich wieder lesen.
+	// Deliberately empty, and that is the only reason it is here at all:
+	// Object::onCollect() would make the note disappear. It stays lying there
+	// and can be read again.
 }
 
 bool Hint::dismiss()
 {
-	// Nur, wenn ueberhaupt etwas zu sehen ist. Sonst meldet der Zettel nichts,
-	// und Escape oeffnet wie immer das Spielmenue. activeTicks statt
-	// shownAlpha, weil der Zettel zwischen zwei Betretungen noch ausblendet -
-	// das ist nichts, was man zumachen koennte.
+	// Only when there is anything to see at all. Otherwise the note reports
+	// nothing and Escape opens the game menu as always. activeTicks rather
+	// than shownAlpha, because the note is still fading out between two
+	// visits - and that is nothing anybody could close.
 	if(dismissed || activeTicks <= 0) return false;
 
 	dismissed = true;

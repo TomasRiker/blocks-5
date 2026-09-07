@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer logische Gatter ***/
+/*** Class for logic gates ***/
 
 class E_Gate : public Electronics
 {

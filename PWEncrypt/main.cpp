@@ -17,7 +17,7 @@ void generatePrimes(unsigned int* p_out,
 	unsigned int numPrimes = 1;
 	while(numPrimes < maxNum)
 	{
-		// Ist n eine Primzahl?
+		// Is n a prime number?
 		bool isPrime = true;
 		for(unsigned int i = 0; i < numPrimes; i++)
 		{
@@ -48,14 +48,14 @@ void factorize(unsigned int n,
 	unsigned int index = 0;
 	while(n != 1)
 	{
-		// Ist die i-te Primzahl als Faktor enthalten?
+		// Is the i-th prime a factor?
 		if(!(n % p_primes[i]))
 		{
 			p_outPrimes[index] = i;
 			p_outPowers[index] = 1;
 			n /= p_primes[i];
 
-			// Ist sie noch weitere Male enthalten?
+			// Is it a factor more than once?
 			while(!(n % p_primes[i]))
 			{
 				p_outPowers[index]++;
@@ -80,7 +80,7 @@ void toBase62(unsigned int n,
 		unsigned int c = n / base[i];
 		n -= c * base[i];
 
-		// Ausgabekodierung
+		// output encoding
 		if(c < 10) p_out[i] = '0' + c;
 		else if(c < 36) p_out[i] = 'A' + (c - 10);
 		else p_out[i] = 'a' + (c - 36);
@@ -95,7 +95,7 @@ unsigned int fromBase62(const char* p_in)
 	unsigned int n = 0;
 	for(unsigned int i = 0; i < 7; i++)
 	{
-		// Dekodierung
+		// decoding
 		if(p_in[i] >= 'a') n += (36 + p_in[i] - 'a') * base[i];
 		else if(p_in[i] >= 'A') n += (10 + p_in[i] - 'A') * base[i];
 		else n += (p_in[i] - '0') * base[i];
@@ -118,14 +118,14 @@ void encryptPassword(const char* p_in,
 		c += i * 7;
 		sum += c;
 
-		// den Buchstaben faktorisieren
+		// factorize the letter
 		unsigned int primes[256], powers[256], numTerms;
 		factorize(c, primes, powers, &numTerms, p_primes);
 
-		// Anzahl der Terme schreiben
+		// write the number of terms
 		out[index++] = static_cast<char>(numTerms) ^ 0xB6;
 
-		// Primzahlen und ihre Potenzen schreiben
+		// write the primes and their powers
 		for(unsigned int j = 0; j < numTerms; j++)
 		{
 			out[index++] = static_cast<char>(primes[j]) ^ 0x4D;
@@ -133,7 +133,7 @@ void encryptPassword(const char* p_in,
 		}
 	}
 
-	// Fuell-Bytes anhaengen
+	// append the padding bytes
 	out[index] = 0;
 	out[index++] ^= 0xB6;
 	srand(sum);
@@ -144,14 +144,14 @@ void encryptPassword(const char* p_in,
 
 	for(unsigned int i = 0, shift = 0; i < index; i += 4, shift++)
 	{
-		// immer 4 Bytes zusammen verarbeiten
+		// always process 4 bytes together
 		unsigned int c = *(reinterpret_cast<unsigned int*>(&out[i]));
 
-		// xor-Muster variiert
+		// the xor pattern varies
 		unsigned int pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		c ^= pattern;
 
-		// zur Basis 62 ausgeben
+		// write it out in base 62
 		char b62[8] = "";
 		toBase62(c, b62);
 		strcat(readable, b62);
@@ -168,14 +168,14 @@ void decryptPassword(const char* p_in,
 	unsigned int length1 = static_cast<unsigned int>(strlen(p_in) / 7) * 4;
 	for(unsigned int i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
 	{
-		// immer 7 Zeichen zur Basis 62 in einen 32-Bit-Integer umwandeln
+		// always turn 7 base-62 characters into one 32-bit integer
 		unsigned int n = fromBase62(&p_in[i]);
 
-		// entschluesseln
+		// decrypt
 		unsigned int pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		n ^= pattern;
 
-		// schreiben
+		// write it
 		*(reinterpret_cast<unsigned int*>(&step1[shift * 4])) = n;
 	}
 
@@ -184,22 +184,22 @@ void decryptPassword(const char* p_in,
 	unsigned int indexIn = 0, indexOut = 0;
 	while(true)
 	{
-		// Anzahl der Terme lesen und entschluesseln
+		// read the number of terms and decrypt it
 		unsigned char numTerms = step1[indexIn++] ^ 0xB6;
 		if(!numTerms) break;
 
-		// Primzahlen und ihre Potenzen lesen und entschluesseln
+		// read the primes and their powers and decrypt them
 		unsigned int c = 1;
 		for(unsigned int i = 0; i < numTerms; i++)
 		{
 			unsigned char prime = step1[indexIn++] ^ 0x4D;
 			unsigned char power = step1[indexIn++] ^ 0xE9;
 
-			// Potenz einmultiplizieren
+			// multiply the power in
 			for(unsigned int j = 0; j < power; j++) c *= p_primes[prime];
 		}
 
-		// Buchstabe entschluesseln und schreiben
+		// decrypt the letter and write it
 		c -= indexOut * 7;
 		step2[indexOut++] = static_cast<char>(c);
 	}
@@ -216,9 +216,9 @@ int main()
 	char in[256] = "";
 	printf("Password: ");
 
-	// gets() hatte nie eine Laengenpruefung und ist aus der Universal CRT
-	// entfernt worden. fgets liest hoechstens sizeof(in)-1 Zeichen, laesst
-	// aber den Zeilenumbruch stehen.
+	// gets() never had a length check and has been removed from the Universal
+	// CRT. fgets reads at most sizeof(in)-1 characters, but leaves the
+	// newline standing.
 	if(!fgets(in, sizeof(in), stdin)) in[0] = 0;
 	size_t inLength = strlen(in);
 	while(inLength && (in[inLength - 1] == '\n' || in[inLength - 1] == '\r')) in[--inLength] = 0;

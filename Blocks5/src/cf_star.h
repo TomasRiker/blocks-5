@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Sternblende ***/
+/*** Star wipe ***/
 
 class CF_Star : public Crossfade
 {

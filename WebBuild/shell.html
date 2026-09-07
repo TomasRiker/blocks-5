@@ -173,9 +173,9 @@
     drawMessage(MESSAGE);
   }
 
-  // build.sh stempelt hier die Kennung des Builds hinein. blocks5.js sucht
-  // seine beiden grossen Nachbarn ueber locateFile, also genuegt dieser eine
-  // Ort, damit alle drei Dateien den Namen desselben Baus tragen.
+  // build.sh stamps the build's id in here. blocks5.js finds its two large
+  // neighbours through locateFile, so this one place is enough for all three
+  // files to carry the name of the same build.
   var B5_BUILD = '%%BUILD%%';
 
   var Module = {
@@ -246,9 +246,9 @@
   }
 })();
 </script>
-<!-- Die Bildschirmsteuerung. Eine gewoehnliche Seiten-Datei, kein Teil der
-     gestempelten Nutzlast: sie schickt nur Tastenereignisse und weiss vom
-     Spiel nichts. ?pad=on erzwingt sie, ?pad=off schaltet sie ab. -->
+<!-- The on-screen pad. An ordinary page file and no part of the stamped
+     payload: it only sends key events and knows nothing of the game. ?pad=on
+     forces it on, ?pad=off switches it off. -->
 <script src="touch_controls.js"></script>
 {{{ SCRIPT }}}
 </body>

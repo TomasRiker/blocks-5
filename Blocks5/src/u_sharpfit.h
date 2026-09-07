@@ -3,15 +3,14 @@
 
 #include "upscaler.h"
 
-/*** "Scharf, angepasst" - nearest-Optik bei krummem Vergroesserungsfaktor ***/
+/*** "SharpFit" - the nearest look at a fractional scale ***/
 
-// Ein Fetch je Ausgabepixel, mit einer stueckweise linearen Umrechnung der
-// Texturkoordinate: innerhalb eines Quellpixels konstant, an der Pixelgrenze
-// eine Rampe von 1/N Quellpixeln. Die Herleitung steht ueber dem Shader in
-// u_sharpfit.cpp.
+// One fetch per output pixel, with a piecewise linear remapping of the texture
+// coordinate: constant within a source pixel, a ramp of 1/N source pixels at
+// the pixel border. The derivation is above the shader in u_sharpfit.cpp.
 //
-// Die Textur MUSS bilinear abgetastet werden - die Hardware-Interpolation *ist*
-// der Filter. Mit GL_NEAREST kaeme wieder nur nearest heraus.
+// The texture MUST be sampled bilinearly - the hardware interpolation *is* the
+// filter. With GL_NEAREST nothing but nearest would come out again.
 class U_SharpFit : public Upscaler
 {
 public:

@@ -3,10 +3,10 @@
 
 #include "upscaler.h"
 
-/*** "Weich" - schlichtes Strecken ***/
+/*** "Smooth" - plain stretching ***/
 
-// Die Hardware macht die ganze Arbeit, und sie kostet nichts. Verwaschen ist
-// sie trotzdem; das ist der Grund, warum es die anderen drei gibt.
+// The hardware does all the work, and it costs nothing. The picture is washed
+// out all the same; that is the reason the other three exist.
 class U_Smooth : public Upscaler
 {
 public:

@@ -3,10 +3,10 @@
 
 #include "upscaler.h"
 
-/*** "Scharf" - jeder Quellpixel gleich gross ***/
+/*** "Sharp" - every source pixel the same size ***/
 
-// Braucht keinen Shader und keinen Bildpuffer; das ist der Rueckfall, wenn von
-// den anderen nichts geht.
+// Needs no shader and no framebuffer object; this is the fallback when none of
+// the others works.
 class U_Sharp : public Upscaler
 {
 public:
@@ -16,10 +16,10 @@ public:
 	const char* getName() const { return "Sharp"; }
 	GLint getTextureFilter() const { return GL_NEAREST; }
 
-	// Der eine Grund, warum dieser Filter mehr ist als eine Texturstellung:
-	// bei einem krummen Vergroesserungsfaktor verdoppelt Nearest manche
-	// Quellpixel und andere nicht - ungleiche Strichstaerken, fransige Schrift.
-	// Also nur ganze Stufen, und der Rest bleibt schwarzer Rand.
+	// The one reason this filter is more than a texture setting: at a
+	// fractional scale nearest doubles some source pixels and not others -
+	// uneven stroke widths, ragged lettering. Hence whole steps only, and the
+	// rest stays black surround.
 	bool wantsIntegerScale() const { return true; }
 };
 

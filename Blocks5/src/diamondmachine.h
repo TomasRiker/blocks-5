@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Diamantenmaschinen ***/
+/*** Class for diamond machines ***/
 
 class SoundInstance;
 
@@ -18,24 +18,24 @@ public:
 	void onUpdate();
 
 private:
-	// Der Funkenflug eines Taktes. Der Block kommt frisch aus
-	// getFrontObjectAt() und wird nur hier und jetzt angefasst - p_objOnMe
-	// bleibt ein Zeiger, der ueber Takte hinweg nur verglichen wird.
+	// The shower of sparks for one tick. The block comes fresh from
+	// getFrontObjectAt() and is touched only here and now - p_objOnMe stays a
+	// pointer that is only ever compared across ticks.
 	void spawnSparks(Object* p_block);
 
-	// Die Umwandlung ist geplatzt. Laesst die eigenen Funken rueckwaerts
-	// laufen, statt sie verschwinden zu lassen.
+	// The conversion has fallen through. Runs the machine's own sparks
+	// backwards instead of letting them vanish.
 	void abortConversion();
 
-	// Der Block, der auf der Maschine stand - 0, wenn er zerstoert wurde oder
-	// gerade wegteleportiert. Siehe abortConversion().
+	// The block that stood on the machine - 0 if it has been destroyed or has
+	// just been teleported away. See abortConversion().
 	Object* findLivingBlock();
 
 	Object* p_objOnMe;
 
-	// Die Kennung, mit der die Einwaertsfunken dieser Umwandlung gezeichnet
-	// sind; 0, wenn gerade keine laeuft. Ueber sie findet abortConversion() sie
-	// im Partikelsystem wieder, in dem alles andere im Spiel 0 traegt.
+	// The id the inward sparks of this conversion are marked with; 0 while
+	// none is running. It is how abortConversion() finds them again in the
+	// particle system, where everything else in the game carries 0.
 	uint sparkId;
 	int counter;
 	SoundInstance* p_soundInst;

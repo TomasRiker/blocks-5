@@ -25,7 +25,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	bool listMode = mode == FileSystem::FM_LIST;
 	if(readMode || testMode || listMode)
 	{
-		// Archiv oeffnen
+		// open the archive
 		unzFile archive = unzOpen(archiveFilename.c_str());
 		if(!archive)
 		{
@@ -41,7 +41,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 		if(!listMode)
 		{
-			// Objekt finden
+			// find the object
 			int r = unzLocateFile(archive, objectName.c_str(), 0);
 			if(r != UNZ_OK)
 			{
@@ -60,7 +60,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		}
 		else
 		{
-			// Dateien auflisten
+			// list the files
 			int r = unzGoToFirstFile(archive);
 			while(r == UNZ_OK)
 			{
@@ -79,15 +79,15 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 			return;
 		}
 
-		// Dateiinformationen abfragen
+		// query the file information
 		unz_file_info info;
 		unzGetCurrentFileInfo(archive, &info, 0, 0, 0, 0, 0, 0);
 
-		// Speicher reservieren
+		// allocate the memory
 		size = info.uncompressed_size;
 		p_data = new char[size];
 
-		// Objekt einlesen
+		// read the object in
 		int r;
 		if(!password.empty()) r = unzOpenCurrentFilePassword(archive, password.c_str());
 		else r = unzOpenCurrentFile(archive);
@@ -126,7 +126,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		this->objectName = objectName;
 		this->password = password;
 
-		// Existiert das Archiv schon?
+		// Does the archive exist already?
 		FILE* p_file = fopen(archiveFilename.c_str(), "rb");
 		bool archiveExists = p_file ? true : false;
 		if(p_file) fclose(p_file);
@@ -134,7 +134,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		bool objectExists = false;
 		if(archiveExists)
 		{
-			// Existiert die archivierte Datei schon?
+			// Does the archived file exist already?
 			unzFile temp = unzOpen(archiveFilename.c_str());
 			if(temp)
 			{
@@ -145,13 +145,13 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 			if(objectExists)
 			{
-				// Objekt loeschen
+				// delete the object
 				int r = deleteArchivedFile(archiveFilename, objectName);
 				if(r == -1) archiveExists = false;
 			}
 		}
 
-		// Archiv zum Anhaengen von Dateien oeffnen
+		// open the archive for appending files
 		outArchive = zipOpen(archiveFilename.c_str(), archiveExists ? APPEND_STATUS_ADDINZIP : APPEND_STATUS_CREATE);
 		if(!outArchive)
 		{
@@ -165,8 +165,8 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		// Objekt loeschen. 1 heisst geloescht, -1 geloescht und das Archiv
-		// dabei leer geworden, 0 nicht gefunden - und dann ist nichts weg.
+		// Delete the object. 1 means deleted, -1 deleted and the archive left
+		// empty in the process, 0 not found - and then nothing is gone.
 		if(deleteArchivedFile(archiveFilename, objectName) == 0) error = 9;
 	}
 	else
@@ -208,7 +208,7 @@ uint File_Archived::read(void* p_dest,
 		return 0;
 	}
 
-	// Passt das?
+	// Does that fit?
 	if(pointer + numBytes > size)
 	{
 		numBytes = size - pointer;
@@ -230,10 +230,10 @@ uint File_Archived::write(const void* p_src,
 		return 0;
 	}
 
-	// Passt das?
+	// Does that fit?
 	if(pointer + numBytes > bufferSize)
 	{
-		// Nein - Puffer muss vergroessert werden!
+		// No - the buffer has to grow.
 		uint newBufferSize = pointer + numBytes;
 		char* p_newData = new char[newBufferSize];
 		memcpy(p_newData, p_data, bufferSize);
@@ -242,7 +242,7 @@ uint File_Archived::write(const void* p_src,
 		bufferSize = newBufferSize;
 	}
 
-	// Daten kopieren
+	// copy the data
 	memcpy(p_data + pointer, p_src, numBytes);
 	pointer += numBytes;
 
@@ -276,11 +276,11 @@ bool File_Archived::finish()
 	if(!outArchive) return false;
 	if(mode != FileSystem::FM_WRITE) return false;
 
-	// Pruefsumme berechnen
+	// compute the checksum
     uLong crc = crc32(0, 0, 0);
 	crc = crc32(crc, reinterpret_cast<Bytef*>(p_data), pointer);
 
-	// neues Objekt anlegen
+	// create the new object
 	int r = zipOpenNewFileInZip3(outArchive,
 								 objectName.c_str(),
 								 0, 0, 0, 0, 0, 0,
@@ -295,7 +295,7 @@ bool File_Archived::finish()
 		return false;
 	}
 
-	// schreiben
+	// write it
 	r = zipWriteInFileInZip(outArchive, p_data, pointer);
 	if(r != ZIP_OK)
 	{
@@ -371,7 +371,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	FILE* p_in = fopen(archiveFilename.c_str(), "rb");
 	FILE* p_out = fopen((archiveFilename + "_").c_str(), "wb");
 
-	// zentrales Verzeichnis suchen
+	// find the central directory
 	while(true)
 	{
 		uint signature;
@@ -393,7 +393,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		}
 		else if(signature == 0x06054B50)
 		{
-			// Danach haben wir gesucht!
+			// That is what we were looking for.
 			break;
 		}
 		else
@@ -413,7 +413,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	std::vector<CentralDirectoryEntry> cdOut;
 	std::vector<char*> filenameOut, extraFieldOut, commentOut;
 
-	// Eintraege lesen und schreiben
+	// read and write the entries
 	for(uint i = 0; i < ecd.totalEntries; i++)
 	{
 		CentralDirectoryEntry cde, cdeOut;
@@ -436,10 +436,10 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fread(p_comment, 1, cde.commentLength, p_in);
 		}
 
-		// merken, wo es nachher weitergeht
+		// remember where to carry on afterwards
 		uint nextCDE = ftell(p_in);
 
-		// Stimmt der Dateiname mit dem zu loeschenden Dateinamen ueberein?
+		// Does the filename match the one that is to be deleted?
 		if(equalsNoCase(objectName.c_str(), p_filename))
 		{
 			ecdOut.entriesOnThisDisk--;
@@ -453,19 +453,19 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		}
 		else
 		{
-			// Diese Datei soll kopiert werden. Zuerst lesen wir ihren lokalen Header.
+			// This file is to be copied. First read its local header.
 			LocalFileHeader lfh;
 			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
 			fread(&lfh, sizeof(lfh), 1, p_in);
 
-			// Dateiname und Extrafeld ueberspringen
+			// skip the filename and the extra field
 			fseek(p_in, lfh.filenameLength + lfh.extraFieldLength, SEEK_CUR);
 
-			// Daten lesen
+			// read the data
 			char* p_fileData = new char[lfh.compressedSize];
 			fread(p_fileData, 1, lfh.compressedSize, p_in);
 
-			// lokalen Header schreiben
+			// write the local header
 			cdeOut.localHeaderOffset = ftell(p_out);
 			fwrite(&lfh, 1, sizeof(lfh), p_out);
 			fwrite(p_filename, 1, lfh.filenameLength, p_out);
@@ -473,7 +473,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fwrite(p_fileData, 1, lfh.compressedSize, p_out);
 			delete[] p_fileData;
 
-			// Eintrag fuer das zentrale Verzeichnis merken
+			// remember the entry for the central directory
 			cdOut.push_back(cdeOut);
 			filenameOut.push_back(p_filename);
 			extraFieldOut.push_back(p_extraField);
@@ -483,7 +483,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		fseek(p_in, nextCDE, SEEK_SET);
 	}
 
-	// zentrales Verzeichnis schreiben
+	// write the central directory
 	ecdOut.centralDirectoryOffset = ftell(p_out);
 	for(uint i = 0; i < cdOut.size(); i++)
 	{
@@ -503,7 +503,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		delete[] p_comment;
 	}
 
-	// Ende schreiben
+	// write the end record
 	fwrite(&ecdOut, 1, sizeof(ecdOut), p_out);
 	if(ecdOut.globalCommentLength) fwrite(p_globalComment, 1, ecdOut.globalCommentLength, p_out);
 
@@ -512,17 +512,17 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	fclose(p_in);
 	fclose(p_out);
 
-	// altes Archiv loeschen
+	// delete the old archive
 	remove(archiveFilename.c_str());
 
 	if(ecdOut.totalEntries)
 	{
-		// neue Datei umbenennen
+		// rename the new file
 		rename((archiveFilename + "_").c_str(), archiveFilename.c_str());
 	}
 	else
 	{
-		// neue Datei loeschen
+		// delete the new file
 		remove((archiveFilename + "_").c_str());
 		result = -1;
 	}

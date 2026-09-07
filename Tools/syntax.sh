@@ -1,23 +1,21 @@
 #!/bin/sh
-# syntax.sh - jede Quelldatei des Spiels mit mingw uebersetzen, ohne zu linken.
+# syntax.sh - compile every source of the game with mingw, without linking.
 #
-# Der Windows-Build laesst sich unter Linux nicht bauen, aber mingw-w64 kennt
-# die Win32-Kopfdateien: -fsyntax-only findet damit alles, was ein Uebersetzer
-# ueberhaupt finden kann - Tippfehler, falsche Signaturen, vergessene
-# Deklarationen. Das ist die einzige Gelegenheit, den Windows-Code hier zu
-# pruefen, und sie kostet eine halbe Minute.
+# The Windows build cannot be built under Linux, but mingw-w64 knows the Win32
+# headers: with -fsyntax-only it finds everything a compiler can find at all -
+# typos, wrong signatures, forgotten declarations. It is the only way to put a
+# compiler over the Windows code from here, and it costs half a minute.
 #
-#     sh Tools/syntax.sh            alle Quelldateien
-#     sh Tools/syntax.sh engine.cpp nur diese
+#     sh Tools/syntax.sh            all source files
+#     sh Tools/syntax.sh engine.cpp only this one
 #
-# Ausgabe nur bei einem Fehler; Rueckgabewert 1, sobald eine Datei nicht
-# durchgeht.
+# Output only on an error; exit code 1 as soon as one file does not go through.
 #
-# Drei Dateien bleiben aussen vor, und zwar schon immer: main.cpp (WinMain und
-# der Aktualisierungspruefer ziehen wininet und Dinge, die mingw anders
-# deklariert), videorecorder.cpp (die drei vendorierten Encoder) und
-# stackwalker.cpp (dbghelp, zugekauft). Sie fallen im Web-Build ebenfalls
-# heraus, siehe WebBuild/build.sh.
+# Three files are left out, and always have been: main.cpp (WinMain and the
+# update checker pull in wininet and things mingw declares differently),
+# videorecorder.cpp (the three vendored encoders) and stackwalker.cpp
+# (dbghelp, third-party). They are left out of the web build as well, see
+# WebBuild/build.sh.
 
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -30,10 +28,10 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
     exit 2
 }
 
-# Das Spiel schreibt <Windows.h>, <Shellapi.h>, <Shlobj.h> und <al.h>; mingw
-# und OpenAL Soft legen sie unter anderen Namen ab, und Linux nimmt es mit der
-# Gross- und Kleinschreibung genau. Ein paar Weiterleitungen in einem
-# Wegwerfverzeichnis reichen - eingecheckt werden muss dafuer nichts.
+# The game writes <Windows.h>, <Shellapi.h>, <Shlobj.h> and <al.h>; mingw and
+# OpenAL Soft file them under other names, and Linux is strict about case. A
+# handful of forwarding headers in a throwaway directory are enough - nothing
+# has to be checked in for it.
 SHIM=$(mktemp -d)
 trap 'rm -rf "$SHIM"' EXIT
 for h in Windows:windows Shellapi:shellapi Shlobj:shlobj VersionHelpers:versionhelpers; do
@@ -50,10 +48,10 @@ INC="-I$SRC -I$SHIM
      -I$LIBS/zlib-1.3.1 -I$LIBS/zlib-1.3.1/contrib/minizip
      -I$LIBS/sigslot -I$LIBS/mtrand-1.1"
 
-# -w, nicht -Wall: der Baum ist zehn Jahre alt und meldet tausende Warnungen,
-# die alle schon 2015 dastanden. Gesucht sind hier Fehler. Fuer eine
-# Warnungsrunde: dieses -w gegen -Wall -Wextra tauschen und die Ausgabe mit
-# dem Stand vor der Aenderung vergleichen.
+# -w, not -Wall: the tree is ten years old and emits thousands of warnings
+# that were all there in 2015. What is wanted here is errors. For a warning
+# sweep: swap this -w for -Wall -Wextra and compare the output against the
+# same sweep before the change.
 FLAGS="-fsyntax-only -std=c++14 -DTIXML_USE_STL -DDECLSPEC= -w"
 
 if [ $# -gt 0 ]; then

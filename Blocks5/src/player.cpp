@@ -45,7 +45,7 @@ Player::Player(Level& level,
 
 		if(numInstances == 1)
 		{
-			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
+			// This is the first instance. Create the sound instance and pause it.
 			Sound* p_sound = Manager<Sound>::inst().request("toxic.ogg");
 			p_toxicSoundInst = p_sound->createInstance(true);
 			p_sound->release();
@@ -92,7 +92,7 @@ void Player::onRemove()
 
 		if(!numInstances)
 		{
-			// Das war die letzte Instanz. Sound stoppen.
+			// This is the last instance going away. Stop the sound.
 			p_toxicSoundInst->stop();
 			p_toxicSoundInst = 0;
 			p_maskSoundInst->stop();
@@ -103,7 +103,7 @@ void Player::onRemove()
 
 void Player::updateSprites()
 {
-	// Spieler und, wenn er eine hat, die Gasmaske darueber
+	// the player and, if he has one, the gas mask on top
 	sprites.add(Vec2i(character * 64 + (active ? 0 : 32), 224));
 
 	if(inventory[2])
@@ -120,7 +120,7 @@ void Player::onRender(int layer,
 	{
 		if(censored)
 		{
-			// Zensierbalken rendern
+			// render the censor bar
 			glDisable(GL_TEXTURE_2D);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);
@@ -164,14 +164,14 @@ void Player::onUpdate()
 	if(walk) walk--;
 	if(plantBomb) plantBomb--;
 
-	// Spur fuer die Gegner legen
+	// lay the trace for the enemies
 	level.setAITrace(position, 1000);
 
 	if(!inventory[2])
 	{
 		if(level.getAIFlags(position) & 2)
 		{
-			// Vergiftung
+			// contamination
 			contamination++;
 
 			if(active && contamination == 50) updateToxicSound();
@@ -180,7 +180,7 @@ void Player::onUpdate()
 
 	if(contamination >= 500)
 	{
-		// sterben
+		// die
 		burst();
 	}
 
@@ -232,7 +232,7 @@ void Player::onUpdate()
 			{
 				if(inventory[0] && !plantBomb && (dir.x || dir.y))
 				{
-					// Bombe legen
+					// plant a bomb
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
@@ -252,7 +252,7 @@ void Player::onUpdate()
 			{
 				if(inventory[0] && !plantBomb && (dir.x || dir.y))
 				{
-					// Bombe unangezuendet legen
+					// put a bomb down unlit
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
@@ -278,7 +278,7 @@ void Player::onUpdate()
 	{
 		if(!(level.counter % 20))
 		{
-			// Schnarchpartikel erzeugen
+			// create the snoring particles
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem::Particle p;
 			p.lifetime = random(50, 100);
@@ -324,7 +324,7 @@ bool Player::move(const Vec2i& dir,
 		Object* p_obj = level.getFrontObjectAt(position + dir);
 		if(p_obj)
 		{
-			// Ist es eine andere Spielfigur?
+			// Is it another player?
 			if(p_obj->getType() == "Player")
 			{
 				if(!push || deadlyWeight)
@@ -348,10 +348,10 @@ bool Player::move(const Vec2i& dir,
 				}
 			}
 
-			// Kann man das Objekt einsammeln?
+			// Can the object be collected?
 			if(p_obj->getFlags() & OF_COLLECTABLE)
 			{
-				// Objekt einsammeln
+				// collect the object
 				position += dir;
 				moved = true;
 				lastMoveDir = dir;
@@ -360,18 +360,18 @@ bool Player::move(const Vec2i& dir,
 				return true;
 			}
 
-			// Ist es ein verschiebbares Objekt?
+			// Is it a pushable object?
 			if(!push && !(p_obj->getFlags() & OF_FIXED) && !p_obj->isPushedWithDeadlyWeight())
 			{
-				// Objekte, die von der Gravitation oder von anderen Objekten von oben beeinflusst werden,
-				// koennen nur nach links und rechts geschoben werden.
+				// Objects affected by gravity or by other objects from above
+				// can only be pushed left and right.
 				bool pushed = p_obj->isPushedFromAbove();
 				if((pushed && !dir.y) || !pushed)
 				{
-					// versuchen, das Objekt zu verschieben
+					// try to push the object
 					if(p_obj->move(dir, 10))
 					{
-						// Es hat geklappt.
+						// It worked.
 
 						Engine::inst().playSound("push.ogg", false, 0.2);
 
@@ -393,12 +393,12 @@ bool Player::move(const Vec2i& dir,
 				}
 			}
 
-			// Ist es ein pfeilartiges Objekt?
+			// Is it an arrow-type object?
 			if(p_obj->getFlags() & OF_ARROWTYPE)
 			{
 				if(p_obj->allowMovement(dir))
 				{
-					// Bewegung ist in Ordnung.
+					// The move is fine.
 					position += dir;
 					moved = true;
 					lastMoveDir = dir;
@@ -500,7 +500,7 @@ void Player::activate()
 {
 	if(active) return;
 
-	// alle Spieler deaktivieren
+	// deactivate every player
 	const std::vector<Object*>& objects = level.getObjects();
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
@@ -511,7 +511,7 @@ void Player::activate()
 		}
 	}
 
-	// mich selbst aktivieren
+	// activate myself
 	active = true;
 	level.p_activePlayer = this;
 
@@ -522,7 +522,7 @@ void Player::activate()
 		sprintf(soundName, "character%d.ogg", character + 1);
 		Engine::inst().playSound(soundName, false, 0.15, 100);
 
-		// Sterne
+		// Stars
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
 		for(int i = 0; i < 50; i++)
@@ -570,7 +570,7 @@ bool Player::addInventory(uint index,
 
 	if(index == 1)
 	{
-		// Diamant!
+		// Diamond!
 		level.setNumDiamondsCollected(level.getNumDiamondsCollected() + 1);
 		level.flashHudIcon(1);
 		return true;
@@ -579,16 +579,16 @@ bool Player::addInventory(uint index,
 	{
 		if(inventory[index])
 		{
-			// Man kann nur eine einzige Maske tragen.
+			// Only a single mask can be carried.
 			return false;
 		}
 	}
 	else if(index == 3)
 	{
-		// Spritze. Der Wert darf unter null gehen, und das ist kein Versehen:
-		// wer vorher Spritzen sammelt, haelt es hinterher laenger im Gas aus.
-		// Jeder, der contamination liest, muss also mit einer negativen Zahl
-		// umgehen koennen - siehe gs_game.cpp.
+		// Syringe. The value may go below zero, and that is not an oversight:
+		// a player who collects syringes beforehand lasts longer in the gas
+		// afterwards. Everything that reads contamination therefore has to
+		// cope with a negative number - see gs_game.cpp.
 		contamination -= 600;
 		updateToxicSound();
 		return true;
@@ -596,8 +596,8 @@ bool Player::addInventory(uint index,
 
 	inventory[index] += add;
 
-	// Nur beim Einsammeln, nicht beim Ablegen: Bomben wandern beim Legen ueber
-	// inventory[0]-- hinaus und kommen hier gar nicht vorbei.
+	// Only on collecting, not on putting down: a planted bomb goes out
+	// through inventory[0]-- and never comes past here at all.
 	if(index == 0 && add > 0) level.flashHudIcon(0);
 
 	if(index == 2) updateMaskSound();

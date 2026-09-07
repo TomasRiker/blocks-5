@@ -1,6 +1,6 @@
-REM hintscroll.txt steht namentlich dabei und nicht als *.txt:
-REM password.txt muss unverschluesselt bleiben und kommt fuer sich.
-REM Ein weiterer Skin mit dieser Merkdatei braucht sie in seiner Zeile.
+REM hintscroll.txt is named here rather than swept up as *.txt:
+REM password.txt must stay unencrypted and is packed on its own.
+REM Another skin with this marker file needs it named in its own line.
 PUSHD levels\skins\blocks_01
 IF EXIST ..\blocks_01.zip DEL ..\blocks_01.zip
 ..\..\..\tools\7za a -tzip -mx=9 -ptrockeneiskaefer ..\blocks_01.zip *.xml *.png hintscroll.txt

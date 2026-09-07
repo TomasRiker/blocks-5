@@ -8,7 +8,7 @@ Font::Font(const std::string& filename) : Resource(filename)
 	p_texture = 0;
 	listBase = 0;
 
-	// Standardoptionen
+	// default options
 	options.tabSize = 80;
 	options.charSpacing = 0;
 	options.lineSpacing = 1.0;
@@ -16,7 +16,7 @@ Font::Font(const std::string& filename) : Resource(filename)
 	options.shadows = 2;
 	options.italic = 0;
 
-	// Listen generieren
+	// generate the lists
 	numLists = 32;
 	listBase = glGenLists(numLists);
 	listFree = ~0;
@@ -28,7 +28,7 @@ Font::~Font()
 {
 	if(listBase)
 	{
-		// Listen loeschen
+		// delete the lists
 		glDeleteLists(listBase, numLists);
 		listBase = 0;
 	}
@@ -40,7 +40,7 @@ void Font::reload()
 {
 	cleanUp();
 
-	// XML-Dokument laden
+	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename);
 	TiXmlDocument doc;
 	doc.Parse(text.c_str());
@@ -57,12 +57,12 @@ void Font::reload()
 	TiXmlHandle fontHandle = docHandle.FirstChildElement("Font");
 	TiXmlElement* p_fontElement = fontHandle.Element();
 
-	// Dateiname des Bilds, Zeilenhoehe und Offset lesen
+	// read the image filename, line height and offset
 	const char* p_imageFilename = p_fontElement->Attribute("image");
 	p_fontElement->Attribute("lineHeight", &lineHeight);
 	p_fontElement->Attribute("offset", &offset);
 
-	// alle Kind-Elemente verarbeiten
+	// process all child elements
 	TiXmlElement* p_charElement = p_fontElement->FirstChildElement("Character");
 	while(p_charElement)
 	{
@@ -82,7 +82,7 @@ void Font::reload()
 		p_charElement = p_charElement->NextSiblingElement("Character");
 	}
 
-	// Textur laden
+	// load the texture
 	std::string dir = FileSystem::inst().getPathDirectory(filename);
 	std::string imageFilename = dir + (dir.empty() ? "" : "/") + std::string(p_imageFilename);
 	p_texture = Manager<Texture>::inst().request(imageFilename);
@@ -95,7 +95,7 @@ void Font::reload()
 		return;
 	}
 
-	// Cache leeren
+	// clear the cache
 	stringCache.clear();
 	listFree = ~0;
 }
@@ -104,7 +104,7 @@ void Font::cleanUp()
 {
 	if(p_texture)
 	{
-		// Textur freigeben
+		// release the texture
 		p_texture->release();
 		p_texture = 0;
 	}
@@ -117,31 +117,31 @@ void Font::renderText(const std::string& text,
 	bool cached;
 	uint listIndex;
 
-	// Haben wir diesen String schon im Cache?
+	// Is this string already in the cache?
 	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
 	if(entry != stringCache.end())
 	{
-		// Ja, ist schon im Cache!
+		// Yes, already in the cache!
 		listIndex = entry->second.listIndex;
 		entry->second.lastTimeUsed = SDL_GetTicks();
 		cached = true;
 	}
 	else
 	{
-		// Der String muss neu generiert werden, weil er nicht im Cache ist.
-		// Ist noch Platz im Cache?
+		// The string has to be generated afresh because it is not in the
+		// cache. Is there still room in the cache?
 		if(stringCache.size() < numLists)
 		{
-			// Ja, es ist noch Platz. Freie Liste suchen!
+			// Yes, there is still room. Find a free list!
 			listIndex = 0;
 			while(!(listFree & (1 << listIndex))) listIndex++;
 
-			// Diese Liste ist jetzt belegt.
+			// This list is taken now.
 			listFree &= ~(1 << listIndex);
 		}
 		else
 		{
-			// Der aelteste Eintrag wird ueberschrieben.
+			// The oldest entry gets overwritten.
 			uint minTime = ~0;
 			std::unordered_map<std::string, StringCacheEntry>::iterator oldestEntry;
 			for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
@@ -153,12 +153,12 @@ void Font::renderText(const std::string& text,
 				}
 			}
 
-			// Listenindex merken und den Eintrag loeschen
+			// remember the list index and delete the entry
 			listIndex = oldestEntry->second.listIndex;
 			stringCache.erase(oldestEntry);
 		}
 
-		// neuen Eintrag erstellen
+		// create the new entry
 		StringCacheEntry newEntry;
 		newEntry.lastTimeUsed = SDL_GetTicks();
 		newEntry.listIndex = listIndex;
@@ -179,7 +179,7 @@ void Font::renderText(const std::string& text,
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
 
-	// Schatten zeichnen, falls erwuenscht
+	// draw the shadow if wanted
 	if(options.shadows)
 	{
 		std::vector<Vec2i> samples;
@@ -203,7 +203,7 @@ void Font::renderText(const std::string& text,
 		}
 	}
 
-	// String zeichnen
+	// draw the string
 	glColor4dv(color);
 #ifdef __EMSCRIPTEN__
 	renderTextPure(text);
@@ -222,12 +222,12 @@ void Font::renderTextPure(const std::string& text)
 
 	Vec2i cursor(0, offset);
 
-	// Der Optionsstapel gehoert der Schrift und nicht dem Text, <h> gilt aber
-	// nur innerhalb dieses einen Strings - renderText() legt je String eine
-	// Anzeigeliste an, ueber die Grenze hinweg koennte es also gar nicht
-	// wirken. Der Zaehler haelt beides auseinander: ein fehlendes </h> faerbte
-	// sonst allen weiteren Text im Spiel kursiv, ein ueberzaehliges nimmt dem
-	// Aufrufer seine eigene Sicherung herunter oder greift ins Leere.
+	// The options stack belongs to the font and not to the text, but <h> holds
+	// only within this one string - renderText() lays down one display list per
+	// string, and an <h> could therefore not act across that boundary at all.
+	// The counter keeps the two apart: without it a missing </h> would turn
+	// every further text in the game italic, and an extra one would pop the
+	// caller's own saved options or reach into an empty stack.
 	size_t openTags = 0;
 
 	for(size_t i = 0; i < text.length(); i++)
@@ -237,7 +237,7 @@ void Font::renderTextPure(const std::string& text)
 		unsigned char c = text[i];
 		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
-			// Zeilenumbruch
+			// line break
 			cursor.x = 0;
 			cursor.y += static_cast<int>(options.lineSpacing * lineHeight);
 		}
@@ -295,7 +295,7 @@ void Font::renderTextPure(const std::string& text)
 		}
 	}
 
-	// Was der Text offen gelassen hat, schliesst er hier.
+	// Whatever the text left open, it closes here.
 	while(openTags > 0)
 	{
 		options = optionsStack.top();
@@ -309,8 +309,8 @@ void Font::renderTextPure(const std::string& text)
 
 namespace
 {
-	// Laenge des Auszeichnungselements, das an dieser Stelle beginnt; 0, wenn
-	// dort keines beginnt. Die Schrift kennt genau eines: <h>...</h>.
+	// Length of the markup element that begins at this position; 0 if none
+	// begins there. The font knows exactly one: <h>...</h>.
 	size_t tagLength(const std::string& text, size_t position)
 	{
 		if(text.compare(position, 3, "<h>") == 0) return 3;
@@ -318,8 +318,8 @@ namespace
 		return 0;
 	}
 
-	// Laenge des Elements, das genau vor dem Byte "end" aufhoert; 0, wenn dort
-	// keines endet. Das Gegenstueck zu tagLength() fuer den Blick zurueck.
+	// Length of the element that stops exactly before the byte "end"; 0 if
+	// none ends there. The counterpart to tagLength() for looking backwards.
 	size_t tagEndingAt(const std::string& text, size_t end)
 	{
 		if(end >= 4 && text.compare(end - 4, 4, "</h>") == 0) return 4;
@@ -327,11 +327,11 @@ namespace
 		return 0;
 	}
 
-	// Der Anfang des Textes bis zum Byte n, dahinter die drei Punkte. Ein
-	// angeschnittenes Element faellt ganz weg, ein offen gebliebenes <h> wird
-	// geschlossen: <h> legt etwas auf einen Stapel, den erst </h> wieder
-	// abtraegt, und dieser Stapel gehoert der Schrift und nicht dem Text - ein
-	// abgeschnittenes <h> faerbte allen weiteren Text im Spiel kursiv.
+	// The start of the text up to byte n, then the three dots. A half-cut
+	// element drops entirely and an <h> left open is closed: <h> pushes
+	// something onto a stack that only </h> takes off again, and that stack
+	// belongs to the font and not to the text - a cut-off <h> would turn every
+	// further text in the game italic.
 	std::string cutWithEllipsis(const std::string& text, size_t n)
 	{
 		size_t open = 0, i = 0;
@@ -358,14 +358,13 @@ std::string Font::fitText(const std::string& text,
 	measureText(text, &dim, 0);
 	if(dim.x <= maxWidth) return text;
 
-	// Binaere Suche ueber die Laenge, gemessen wird jedesmal der ganze Kandidat
-	// samt Punkten. Aus den Zeichenpositionen von measureText() liesse sich die
-	// Stelle zwar in einem Durchgang ablesen, aber nicht die Breite: die ist
-	// nicht cursor.x, sondern das Maximum ueber cursor.x + Zeichenbreite +
-	// Kursivneigung, ein Zeilenumbruch setzt cursor.x ohnehin zurueck, und wie
-	// breit die drei Punkte werden, haengt davon ab, ob an der Schnittstelle
-	// ein <h> offen ist. Den ganzen Kandidaten zu messen fragt genau das, was
-	// die Antwort sein soll.
+	// Binary search over the length, measuring the whole candidate including
+	// the dots every time. The character positions from measureText() would
+	// give the place in one pass, but not the width: that is not cursor.x but
+	// the maximum over cursor.x + character width + italic slant, a line break
+	// resets cursor.x anyway, and how wide the three dots come out depends on
+	// whether an <h> is open at the cut. Measuring the whole candidate asks
+	// exactly what the answer is supposed to be.
 	size_t lo = 0, hi = text.length();
 	while(lo < hi)
 	{
@@ -386,26 +385,26 @@ void Font::measureText(const std::string& text,
 	Vec2d cursor(0, 0);
 	Vec2d maximum(0, lineHeight);
 
-	// Wie in renderTextPure(): <h> endet spaetestens mit diesem Text.
+	// As in renderTextPure(): <h> ends with this text at the latest.
 	size_t openTags = 0;
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
 		uint r = static_cast<uint>(text.length() - i - 1);
 
-		// Eine Position je Byte, nicht je Durchlauf. Die Eingabefelder schlagen
-		// hier mit dem Byteindex nach, unter dem auch ihr Cursor steht, und ein
-		// <h> ist drei Bytes lang bei einem einzigen Durchlauf: die Schleife
-		// fuellt deshalb erst auf, was der vorige uebersprungen hat. Der Cursor
-		// steht dabei noch genauso wie vor dem Element, das keine Breite hat -
-		// wer mitten im <h> steht, steht eben an dessen Stelle.
+		// One position per byte, not per pass. The edit boxes look up here
+		// under the same byte index their caret sits at, and an <h> is three
+		// bytes long in a single pass: the loop therefore first fills in what
+		// the previous pass skipped. The cursor still stands exactly where it
+		// did before the element, which has no width - a caret inside an <h>
+		// stands at the place the element does.
 		if(p_outCharPositions)
 			while(p_outCharPositions->size() <= i) p_outCharPositions->push_back(cursor + offset);
 
 		unsigned char c = text[i];
 		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
-			// Zeilenumbruch
+			// line break
 			cursor.x = 0;
 			cursor.y += static_cast<double>(lineHeight) * options.lineSpacing;
 			maximum.y = max(maximum.y, cursor.y + lineHeight);
@@ -444,7 +443,7 @@ void Font::measureText(const std::string& text,
 		}
 	}
 
-	// Was der Text offen gelassen hat, schliesst er hier.
+	// Whatever the text left open, it closes here.
 	while(openTags > 0)
 	{
 		options = optionsStack.top();
@@ -452,9 +451,9 @@ void Font::measureText(const std::string& text,
 		openTags--;
 	}
 
-	// Bis einschliesslich text.length(), denn hinter dem letzten Zeichen darf
-	// der Cursor auch stehen. Der Vektor hat damit immer genau ein Feld mehr,
-	// als der Text Bytes hat.
+	// Up to and including text.length(), because the caret may stand behind
+	// the last character too. The vector therefore always has exactly one
+	// entry more than the text has bytes.
 	if(p_outCharPositions)
 		while(p_outCharPositions->size() <= text.length()) p_outCharPositions->push_back(cursor + offset);
 	if(p_outDimensions) *p_outDimensions = maximum;
@@ -468,10 +467,10 @@ std::string Font::adjustText(const std::string& text,
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
-		// <h> und </h> zeichnen nichts: sie zaehlen nicht zur Zeilenbreite und
-		// gehen unangetastet durch. Ein harter Umbruch schnitt sonst mitten
-		// hinein und machte aus dem Element sichtbaren Text - "<h>Kopf</h>"
-		// wurde zu "<h>Kopf<" und "/h>".
+		// <h> and </h> draw nothing: they do not count toward the line width
+		// and pass through untouched. A hard break would otherwise cut right
+		// into one and turn the element into visible text - "<h>Kopf</h>" would
+		// come out as "<h>Kopf<" and "/h>".
 		const size_t tag = tagLength(text, i);
 		if(tag > 0)
 		{
@@ -485,7 +484,7 @@ std::string Font::adjustText(const std::string& text,
 
 		if(c == '\n' || static_cast<char>(c) == '\xB6')
 		{
-			// Zeilenumbruch
+			// line break
 			cursorX = 0;
 		}
 		else
@@ -495,7 +494,7 @@ std::string Font::adjustText(const std::string& text,
 
 			if(currentWidth > maxWidth)
 			{
-				// das letzte Leerzeichen in dieser Zeile durch einen Zeilenumbruch ersetzen
+				// replace the last space in this line with a line break
 				int back = 0;
 				std::string::reverse_iterator j;
 				for(j = out.rbegin(); j != out.rend(); j++)
@@ -514,9 +513,9 @@ std::string Font::adjustText(const std::string& text,
 					}
 					else
 					{
-						// Auch rueckwaerts zaehlt ein Element nicht mit.
-						// out.rend() - j ist der Index dahinter, weil
-						// rend() - rbegin() die Laenge des Textes ist.
+						// Backwards too, an element does not count.
+						// out.rend() - j is the index behind it,
+						// because rend() - rbegin() is the text length.
 						const size_t back_tag = (d == '>')
 							? tagEndingAt(out, static_cast<size_t>(out.rend() - j)) : 0;
 						if(back_tag > 0) j += back_tag - 1;
@@ -526,7 +525,7 @@ std::string Font::adjustText(const std::string& text,
 
 				if(j == out.rend())
 				{
-					// brutaler Zeilenumbruch
+					// brutal line break
 					out[out.length() - 1] = '\n';
 					out.append(1, c);
 					cursorX = info.size.x + options.charSpacing;
@@ -560,7 +559,7 @@ void Font::setOptions(const Font::Options& options)
 	   this->options.charScaling != options.charScaling ||
 	   this->options.italic != options.italic)
 	{
-		// Der Cache ist jetzt ungueltig!
+		// The cache is invalid now!
 		stringCache.clear();
 		listFree = ~0;
 	}

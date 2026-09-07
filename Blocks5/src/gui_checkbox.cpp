@@ -21,19 +21,19 @@ void GUI_CheckBox::onRender()
 
 	if(useSkin())
 	{
-		// Hintergrund zeichnen
+		// draw the background
 		gui.renderFrame(Vec2i(0, 0), size, pushed && mouseOver ? Vec2i(144, 0) : Vec2i(96, 0));
 
 		if(checked)
 		{
-			// Haekchen zeichnen
+			// draw the checkmark
 			Vec2i offset = (size - Vec2i(16, 16)) / 2;
 			Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(32, 224), Vec2i(16, 16), Vec4d(1.0));
 		}
 	}
 	else
 	{
-		// Hintergrund zeichnen
+		// draw the background
 		glBegin(GL_QUADS);
 		if(pushed && mouseOver) glColor4d(0.9, 0.9, 0.9, 1.0);
 		else glColor4d(0.75, 0.75, 0.75, 1.0);
@@ -46,7 +46,7 @@ void GUI_CheckBox::onRender()
 
 		if(checked)
 		{
-			// "Haekchen" zeichnen
+			// draw the "checkmark"
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glVertex2i(4, 4);
 			glVertex2i(size.x - 3, 4);
@@ -57,7 +57,7 @@ void GUI_CheckBox::onRender()
 
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(0.0, 0.0, 0.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -67,7 +67,7 @@ void GUI_CheckBox::onRender()
 		glEnd();
 	}
 
-	// Titel schreiben
+	// write the title
 	Vec2i dim;
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
@@ -93,22 +93,21 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 
 		if(mouseOver)
 		{
-			// Signal ausloesen
+			// fire the signal
 			checked = newChecked;
 			changed(this);
 		}
 	}
 }
 
-// Die Beschriftung gehoert dazu. Gezeichnet wird sie in onRender() bei
-// Vec2i(size.x + 10, ...), und genau dieser Streifen zaehlt hier mit - ein
-// Klick auf den Text schaltet um, wie bei <label for="..."> im Browser.
+// The caption belongs to the control. It is drawn in onRender() at
+// Vec2i(size.x + 10, ...), and exactly that strip counts here - a click on
+// the text toggles, as <label for="..."> does in a browser.
 //
-// Gemessen statt geraten: waere der Streifen breiter als der Text, klaute er
-// Klicks von dem, was rechts daneben steht (Sprache und Details stehen in
-// options.xml in drei Spalten dicht nebeneinander). Ein leerer Titel ergibt
-// Breite 0, also bleibt es beim Kaestchen - die Filterknoepfe mit ihrer
-// eigenen <For>-Beschriftung merken davon nichts.
+// Measured, not guessed: a strip wider than the text would steal clicks
+// from whatever stands to the right of it (options.xml puts language and
+// detail in three tight columns). An empty title measures 0, leaving just
+// the box - the filter buttons with their own <For> caption are unaffected.
 bool GUI_CheckBox::containsPoint(const Vec2i& position)
 {
 	if(GUI_Element::containsPoint(position)) return true;
@@ -138,7 +137,7 @@ void GUI_CheckBox::check(bool check)
 	if(checked == check) return;
 	checked = check;
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 

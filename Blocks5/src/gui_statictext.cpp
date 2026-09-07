@@ -17,7 +17,7 @@ GUI_StaticText::~GUI_StaticText()
 
 void GUI_StaticText::onRender()
 {
-	// Text schreiben
+	// write the text
 	std::string str = localizeString(text);
 	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
 
@@ -65,11 +65,11 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 	if(p_element->FirstChildElement("CenterText")) centerText = true;
 }
 
-// w oder h auf -1: die Trefferflaeche ist so gross wie der Text, der wirklich
-// gezeichnet wird. Gemessen wird hier und nicht einmalig beim Laden, denn die
-// Beschriftung haengt an der Sprache - eine beim Start gemerkte Breite waere
-// nach dem Umschalten falsch. Das kostet ein measureText() je Bild fuer die
-// Elemente, ueber denen der Zeiger gerade steht.
+// w or h set to -1: the hit area is as big as the text that is actually
+// drawn. Measured here and not once at load time, because the caption hangs
+// off the language - a width remembered at startup would be wrong after a
+// switch. That costs one measureText() per frame for the elements the cursor
+// is currently over.
 bool GUI_StaticText::containsPoint(const Vec2i& position)
 {
 	if(size.x >= 0 && size.y >= 0) return GUI_Element::containsPoint(position);

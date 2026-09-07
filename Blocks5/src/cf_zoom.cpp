@@ -63,7 +63,7 @@ void CF_Zoom::render(double t,
 		double r = t * t * 1.5;
 		gluLookAt(camPos.x, camPos.y, z, camPos.x, camPos.y, 0.0, -sin(r), -cos(r), 0.0);
 
-		// Bild zeichnen
+		// draw the image
 		glBegin(GL_QUADS);
 		glColor4d(1.0, 1.0, 1.0, 1.0 - 0.5 * t * t);
 		glTexCoord2i(0, 0);
@@ -86,7 +86,7 @@ void CF_Zoom::render(double t,
 
 	glDisable(GL_TEXTURE_2D);
 
-	// Farbflaeche zeichnen
+	// draw the colour quad
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, t * t);
 	glVertex2i(0, 0);

@@ -1,33 +1,33 @@
 #ifndef GLEXTENSIONS_H
 #define GLEXTENSIONS_H
 
-// Die GL-Einstiegspunkte, die ueber GL 1.1 hinausgehen.
+// The GL entry points that go beyond GL 1.1.
 //
-// Der Rest des Spiels benutzt reine Fixed-Function-Pipeline, die schon in GL 1.1
-// steht und deshalb unter Windows direkt aus opengl32.dll kommt. Framebuffer
-// Objects tun das nicht: unter Windows muessen sie ueber
-// SDL_GL_GetProcAddress geholt werden, im Browser sind sie Kern von WebGL 1.
+// The rest of the game uses the plain fixed-function pipeline, which is already
+// in GL 1.1 and therefore comes straight out of opengl32.dll under Windows.
+// Framebuffer objects do not: under Windows they have to be fetched through
+// SDL_GL_GetProcAddress, in the browser they are core in WebGL 1.
 //
-// Deswegen zwei Wege in einer Schnittstelle: unter Emscripten sind die Namen
-// hier direkte Deklarationen der echten Funktionen, unter Windows
-// Funktionszeiger, die init() fuellt.
+// Hence two paths behind one interface: under Emscripten the names here are
+// direct declarations of the real functions, under Windows function pointers
+// that init() fills in.
 
 namespace GLExtensions
 {
-	// Einmal aufrufen, nachdem der GL-Kontext steht. Liefert true, wenn
-	// Framebuffer Objects benutzbar sind; sonst laeuft das Spiel wie frueher
-	// direkt in den Backbuffer.
+	// Call once the GL context is up. Returns true if framebuffer objects are
+	// usable; otherwise the game renders straight into the back buffer, as
+	// before.
 	bool init();
 
 	bool haveFrameBufferObjects();
 
-	// GL 2.0 / WebGL 1: alles, was die Praesentiershader brauchen.
+	// GL 2.0 / WebGL 1: everything the present shaders need.
 	bool haveShaders();
 }
 
-// Die Konstanten sind in EXT_framebuffer_object und im GL-3.0-Kern identisch,
-// nur anders benannt. SDL 1.2.15 liefert ein glext.h von 2011 mit; was darin
-// fehlt, steht hier.
+// The constants are identical in EXT_framebuffer_object and in the GL 3.0 core,
+// only named differently. SDL 1.2.15 ships a glext.h from 2011; what is missing
+// from it is here.
 #ifndef GL_FRAMEBUFFER_EXT
 #define GL_FRAMEBUFFER_EXT                0x8D40
 #define GL_RENDERBUFFER_EXT               0x8D41
@@ -37,7 +37,7 @@ namespace GLExtensions
 #define GL_FRAMEBUFFER_COMPLETE_EXT       0x8CD5
 #endif
 
-// EXT_packed_depth_stencil ist juenger als das mitgelieferte glext.h.
+// EXT_packed_depth_stencil is younger than the shipped glext.h.
 #ifndef GL_DEPTH24_STENCIL8_EXT
 #define GL_DEPTH24_STENCIL8_EXT           0x88F0
 #endif
@@ -50,9 +50,9 @@ namespace GLExtensions
 
 #ifdef __EMSCRIPTEN__
 
-// Kern von WebGL 1. GL/gl.h deklariert sie trotzdem nicht - das ist der
-// GL-1.x-Header - und GLES2/gl2.h daneben zu legen wirft Typkonflikte. Also
-// selbst deklarieren; gelinkt wird gegen Emscriptens GL-Bibliothek.
+// Core in WebGL 1. GL/gl.h still does not declare them - that is the GL 1.x
+// header - and putting GLES2/gl2.h beside it throws type conflicts. Declare
+// them here instead; the link goes against Emscripten's GL library.
 extern "C"
 {
 	void   glGenFramebuffers(GLsizei, GLuint*);

@@ -21,12 +21,12 @@ void GUI_EditBox::onRender()
 
 	if(useSkin())
 	{
-		// Eingabefeld zeichnen
+		// draw the edit box
 		gui.renderFrame(Vec2i(0, 0), size, focused ? Vec2i(48, 144) : Vec2i(0, 144));
 	}
 	else
 	{
-		// Hintergrund zeichnen
+		// draw the background
 		glBegin(GL_QUADS);
 		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
 		else glColor4d(0.4, 0.4, 0.4, 1.0);
@@ -38,7 +38,7 @@ void GUI_EditBox::onRender()
 		glVertex2i(0, size.y);
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(0.0, 0.0, 0.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -57,10 +57,10 @@ void GUI_EditBox::onRender()
 	std::vector<Vec2i> charPositions;
 	p_font->measureText(text, &dim, &charPositions, Vec2i(4, 0));
 
-	// Position des Cursors berechnen
+	// work out the caret position
 	Vec2i c = charPositions[cursor];
 
-	// Cursor unsichtbar?
+	// caret out of sight?
 	int vcx = c.x - scroll;
 	if(vcx < 16) scroll -= 16 - vcx;
 	else if(vcx > size.x - 16) scroll += vcx - (size.x - 16);
@@ -69,7 +69,7 @@ void GUI_EditBox::onRender()
 	glPushMatrix();
 	glTranslated(-scroll, 0.0, 0.0);
 
-	// Text schreiben
+	// write the text
 	int py = (size.y - dim.y) / 2;
 	p_font->renderText(text, Vec2i(4, py), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
 
@@ -77,7 +77,7 @@ void GUI_EditBox::onRender()
 	{
 		if(selStart != selEnd)
 		{
-			// Auswahl zeichnen
+			// draw the selection
 			glBegin(GL_QUADS);
 
 			int h = p_font->getLineHeight();
@@ -96,7 +96,7 @@ void GUI_EditBox::onRender()
 			glEnd();
 		}
 
-		// Cursor zeichnen
+		// draw the caret
 		glBegin(GL_LINES);
 		double alpha = 0.6 + 0.4 * sin(0.02 * Engine::inst().getTime());
 		glColor4d(1.0, 1.0, 1.0, alpha);
@@ -115,7 +115,7 @@ void GUI_EditBox::setText(const std::string& text)
 	cursor = scroll = 0;
 	selStart = selEnd = 0;
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 
@@ -138,19 +138,19 @@ void GUI_EditBox::onMouseMove(const Vec2i& position,
 
 void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// Uns interessiert nur, ob eine Taste gedrueckt wurde.
+	// Only a key press matters here.
 	if(event.type != SDL_KEYDOWN) return;
 
-	// Shift gedrueckt?
+	// Shift pressed?
 	bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 
-	// Strg gedrueckt?
+	// Ctrl pressed?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
-		// Ereignis an das Elternelement weiterleiten
+		// forward the event to the parent element
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_LEFT:
@@ -172,16 +172,17 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(active) backspace();
 		break;
 	case SDLK_RETURN:
-		// Gibt es keinen eigenen Knopf dafuer, gehoert Return dem Dialog: dort
-		// bedeutet es OK. Sonst kaeme in einem Eingabefeld nie etwas an.
-		// Der Knopf aber nur bei einem neuen Druck - er ist ein Befehl.
+		// With no button of its own for it, Return belongs to the dialog, where
+		// it means OK - otherwise nothing would ever arrive there from inside
+		// an edit box. The button only on a fresh press, though - it is a
+		// command.
 		if(active && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_ESCAPE:
-		// Escape ist nie eine Eingabe. Frueher landete es im default-Zweig, wo
-		// es wegen unicode < 32 stillschweigend verfiel - der Dialog dahinter
-		// sah es nie.
+		// Escape is never an input. In the default branch it would be dropped
+		// silently by the unicode < 32 test, and the dialog behind would never
+		// see it.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_a:
@@ -192,14 +193,14 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		{
 			if(event.keysym.sym == SDLK_a)
 			{
-				// alles auswaehlen
+				// select all
 				cursor = selStart = selEnd = 0;
 				setCursor(static_cast<uint>(text.length()), true);
 			}
 			else if(event.keysym.sym == SDLK_c ||
 					event.keysym.sym == SDLK_x)
 			{
-				// kopieren/ausschneiden
+				// copy/cut
 				if(selStart != selEnd)
 				{
 					GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
@@ -208,7 +209,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			}
 			else if(active && event.keysym.sym == SDLK_v)
 			{
-				// einfuegen
+				// paste
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
@@ -224,7 +225,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 
 void GUI_EditBox::onTabbedIn()
 {
-	// alles auswaehlen
+	// select all
 	cursor = selStart = selEnd = 0;
 	setCursor(static_cast<uint>(text.length()), true);
 }
@@ -247,7 +248,7 @@ void GUI_EditBox::replaceSelection(const std::string& replacement)
 		selStart = selEnd = 0;
 	}
 
-	// Signal ausloesen
+	// fire the signal
 	changed(this);
 }
 
@@ -262,7 +263,7 @@ void GUI_EditBox::del()
 			text = textBeforeCursor + textAfterCursor;
 			cursor = static_cast<uint>(textBeforeCursor.length());
 
-			// Signal ausloesen
+			// fire the signal
 			changed(this);
 		}
 	}
@@ -283,7 +284,7 @@ void GUI_EditBox::backspace()
 			text = textBeforeCursor + textAfterCursor;
 			cursor = static_cast<uint>(textBeforeCursor.length());
 
-			// Signal ausloesen
+			// fire the signal
 			changed(this);
 		}
 	}
@@ -302,7 +303,7 @@ void GUI_EditBox::setCursor(uint cursor,
 	{
 		if(selStart == selEnd)
 		{
-			// Bisher noch keine Auswahl!
+			// No selection yet.
 			if(cursor > this->cursor) selStart = this->cursor, selEnd = cursor;
 			else if(cursor < this->cursor) selStart = cursor, selEnd = this->cursor;
 		}
@@ -330,7 +331,7 @@ void GUI_EditBox::setCursor(uint cursor,
 	}
 	else
 	{
-		// Auswahl aufheben
+		// clear the selection
 		selStart = selEnd = 0;
 	}
 

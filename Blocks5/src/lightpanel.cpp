@@ -16,7 +16,7 @@ LightPanel::~LightPanel()
 
 void LightPanel::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(subType ? 64 : 32, 256));
 }
 

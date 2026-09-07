@@ -1,7 +1,7 @@
 #ifndef _SOUND_H
 #define _SOUND_H
 
-/*** Klasse fuer einen Sound ***/
+/*** Class for a sound ***/
 
 #include "resource.h"
 
@@ -19,9 +19,9 @@ public:
 
 	const std::set<SoundInstance*>& getInstances() const;
 
-	// Wie laut dieser Klang gegenueber seiner Datei gespielt wird - 1.0, wenn
-	// er nicht in data/sounds.xml steht. Einmal beim Anlegen nachgeschlagen und
-	// nicht bei jedem Abspielen, denn die Tabelle aendert sich nicht mehr.
+	// How loud this sound plays relative to its file - 1.0 if it is not in
+	// data/sounds.xml. Looked up once at construction and not on every
+	// playback, since the table never changes again.
 	double getVolumeFactor() const;
 
 	static uint getFreeSource();

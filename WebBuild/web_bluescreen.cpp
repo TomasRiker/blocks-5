@@ -7,8 +7,8 @@
 
 namespace
 {
-	// 80 Spalten, wie das Original. Reiner ASCII-Text, damit die Datei in jeder
-	// Kodierung dasselbe bedeutet.
+	// 80 columns, like the original. Pure ASCII: the file then means the same
+	// in every encoding.
 	const char* p_text =
 		"A problem has been detected and Blocks has been shut down to prevent damage\n"
 		"to your computer.\n"
@@ -44,14 +44,14 @@ namespace
 
 void WebBlueScreen::show()
 {
-	// Erst still werden. Die Hauptschleife steht gleich, und ohne
-	// updateSounds() liefe die Musik sonst noch eine Pufferlaenge weiter.
+	// Go silent first. The main loop is about to stop, and without
+	// updateSounds() the music would otherwise run on for one buffer length.
 	alListenerf(AL_GAIN, 0.0f);
 
 	EM_ASM({
 		if(document.getElementById('blocks5-bsod')) return;
 
-		// Aus dem Vollbild heraus, sonst laege die Einblendung dahinter.
+		// Leave fullscreen, or the overlay would sit behind it.
 		if(document.fullscreenElement && document.exitFullscreen) {
 			try { document.exitFullscreen(); } catch(e) {}
 		}
@@ -67,9 +67,9 @@ void WebBlueScreen::show()
 		var box = document.createElement('div');
 		box.appendChild(pre);
 		box.appendChild(hint);
-		// 80 Spalten sollen hineinpassen, ohne dass es auf einem grossen Schirm
-		// albern gross wird: 0.6em ist ungefaehr die Zeichenbreite einer
-		// Schreibmaschinenschrift, also 80 * 0.6 = 48em Textbreite.
+		// 80 columns have to fit without getting absurdly large on a big
+		// screen: 0.6em is about the character width of a typewriter font,
+		// giving 80 * 0.6 = 48em of text width.
 		box.style.cssText =
 			'font-family:"Lucida Console",Consolas,"Courier New",monospace;' +
 			'font-size:clamp(7px,min(1.55vw,2.6vh),19px);line-height:1.35;' +
@@ -84,8 +84,9 @@ void WebBlueScreen::show()
 			'cursor:none;overflow:hidden;';
 		document.body.appendChild(screen);
 
-		// Neustarten heisst hier: die Seite neu laden. Kurz gesperrt, damit der
-		// Klick, der das hier ausgeloest hat, ihn nicht sofort wieder wegnimmt.
+		// Restarting here means reloading the page. Locked out briefly: the
+		// click that triggered this must not take the blue screen away again
+		// at once.
 		var armed = false;
 		setTimeout(function(){ armed = true; }, 700);
 		var restart = function(){ if(armed) location.reload(); };
@@ -94,10 +95,10 @@ void WebBlueScreen::show()
 		window.addEventListener('touchstart', restart);
 	}, p_text);
 
-	// Die Beruehrungsabkuerzung ins Vollbild muss hier weg. Sonst holt genau
-	// der Fingertipp, der neu laden soll, den Bildschirm vorher noch einmal ins
-	// Vollbild - und die Einblendung laege wieder hinter dem Canvas, den sie
-	// gerade verdecken soll.
+	// The touch shortcut into fullscreen must be unregistered here. Otherwise
+	// the very tap that is meant to reload would first put the screen back
+	// into fullscreen - and the overlay would sit behind the canvas it is
+	// there to cover.
 	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
 	emscripten_set_touchend_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
 

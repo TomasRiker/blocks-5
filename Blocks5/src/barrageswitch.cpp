@@ -17,7 +17,7 @@ BarrageSwitch::~BarrageSwitch()
 
 void BarrageSwitch::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(160, 192), getStdColor(this->color));
 }
 
@@ -35,7 +35,7 @@ void BarrageSwitch::onTouchedByPlayer(Player* p_player)
 {
 	flash();
 
-	// schalten
+	// switch the barrages
 	level.changeBarrages(color);
 }
 

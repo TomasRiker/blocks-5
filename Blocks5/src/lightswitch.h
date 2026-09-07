@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Lichtschalter ***/
+/*** Class for light switches ***/
 
 class LightSwitch : public Object
 {

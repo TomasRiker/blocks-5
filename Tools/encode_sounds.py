@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-# Erzeugt die ausgelieferten .ogg aus den .wav daneben - eins zu eins, ohne
-# Pegelaenderung. Wo ein Klang leiser sein soll, steht das in
-# Blocks5/data/sounds.xml und wird beim Abspielen angewandt; die .wav bleibt
-# die unveraenderte Quelle in voller Aufloesung.
+# Produces the shipped .ogg from the .wav beside it - one to one, with no
+# level change. Where a sound should play quieter, that factor lives in
+# Blocks5/data/sounds.xml and is applied at playback; the .wav stays the
+# unaltered source at full resolution.
 #
-#     python3 Tools/encode_sounds.py            alle veralteten
-#     python3 Tools/encode_sounds.py ricochet   nur diese
-#     python3 Tools/encode_sounds.py --force    alle, ob veraltet oder nicht
+#     python3 Tools/encode_sounds.py            everything out of date
+#     python3 Tools/encode_sounds.py ricochet   only this one
+#     python3 Tools/encode_sounds.py --force    all of them, out of date or not
 #
-# Neu kodiert wird nur, was aelter ist als seine .wav. Zwei Laeufe ueber
-# dieselbe Quelle liefern naemlich nicht dieselbe Datei: die Ogg-Seiten tragen
-# eine zufaellige Stromkennung, und mit ihr aendern sich die Pruefsummen der
-# Seitenkoepfe - vierundzwanzig Byte von neuntausend, bei gleichem Ton. Ohne
-# diese Pruefung schriebe jeder Lauf fuenfundfuenfzig Binaerdateien um.
+# Only what is older than its .wav is re-encoded. Two runs over the same source
+# do not deliver the same file: the Ogg pages carry a random stream id, and
+# with it the checksums of the page headers change - twenty-four bytes of nine
+# thousand, for the same audio. Without that check every run would rewrite
+# fifty-five binary files.
 #
-# 96 kbit/s ist, was der groesste Teil des Bestandes traegt. Weniger ist fuer
-# kurze Effekte eine Falle: bei 45 kbit/s verschmiert der Kodierer eine
-# Transiente so weit, dass der Dekoder um Dezibel danebenliegt. libvorbis nimmt
-# 96 aber nicht bei jeder Abtastrate an - bei 11025 Hz mono ist bei 48 Schluss -,
-# deshalb wird nach unten gesucht statt eine Zahl vorzugeben.
+# 96 kbit/s is what the greater part of the stock carries. Less is a trap for
+# short effects: at 45 kbit/s the encoder smears a transient far enough that
+# the decoder is decibels out. But libvorbis does not accept 96 at every
+# sample rate - at 11025 Hz mono it stops at 48 - hence the search downward
+# instead of a fixed number.
 
 import os, subprocess, sys, glob
 
@@ -41,8 +41,9 @@ def main(argv):
     if names:
         wavs = [os.path.join(DATA, n if n.endswith('.wav') else n + '.wav') for n in names]
     else:
-        # Nur was schon eine .ogg hat: enemy2_laugh_original.wav ist eine
-        # abgelegte Quelle, und music3.wav gehoert zur Kampagne in blocks.zip.
+        # Only what already has an .ogg: enemy2_laugh_original.wav is a source
+        # that has been set aside, and music3.wav belongs to the campaign in
+        # blocks.zip.
         wavs = [w for w in sorted(glob.glob(os.path.join(DATA, '*.wav')))
                 if os.path.exists(w[:-4] + '.ogg')]
 

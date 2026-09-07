@@ -155,9 +155,9 @@
 				<Title>$LE_MENU_QUIT</Title>
 			</Button>
 		</Window>
-		<!-- x/y sind um den Rand von 8 Pixeln nach oben links versetzt. Dass
-		     das Feld drei Pixel ueber den Bildrand hinausragt, macht nichts:
-		     dort ist ohnehin nur Rand. -->
+		<!-- x/y are offset up and to the left by the 8-pixel border. That the
+		     cell sticks three pixels past the edge of the picture does not
+		     matter: there is nothing but border up there anyway. -->
 		<Button name="Quit" x="562" y="-3" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>

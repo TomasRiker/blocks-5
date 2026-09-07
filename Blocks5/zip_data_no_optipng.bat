@@ -1,6 +1,6 @@
-REM Wie zip_data.bat, nur ohne den langsamen optipng-Schritt. Zu den beiden
-REM 7za-Aufrufen, zur Suche nach Python und dazu, warum sein Fehlen den Build
-REM nicht anhaelt, steht dort das Noetige.
+REM Like zip_data.bat, only without the slow optipng step. The two 7za calls,
+REM the search for Python and why its absence does not stop the build are
+REM explained there.
 SETLOCAL
 SET "PY="
 py -3 -c "" >NUL 2>&1

@@ -1,7 +1,7 @@
 #ifndef _GS_CAMPAIGNEDITOR_H
 #define _GS_CAMPAIGNEDITOR_H
 
-/*** Klasse fuer den Kampagnen-Editor ***/
+/*** Class for the campaign editor ***/
 
 #include "gamestate.h"
 #include "engine.h"

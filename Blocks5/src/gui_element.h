@@ -1,7 +1,7 @@
 #ifndef _GUIELEMENT_H
 #define _GUIELEMENT_H
 
-/*** Klasse fuer ein GUI-Element ***/
+/*** Class for a GUI element ***/
 
 #include "gui.h"
 #include "font.h"
@@ -27,13 +27,12 @@ public:
 	virtual void onRenderEnd();
 	virtual void onUpdate();
 
-	// Jedes Element kann auf ein anderes zeigen (for="Name") - so wie
-	// <label for="..."> es im Browser tut. Bei einer Checkbox oder einem
-	// Radioknopf schaltet ein Klick auf das Element den Knopf um, bei allem
-	// anderen - Eingabefeldern vor allem - setzt er den Fokus dorthin. Das ist
-	// nichts, was nur eine Beschriftung koennte: die Sprachflaggen in
-	// options.xml sind <StaticImage> und gehoeren genauso zu ihrem Radioknopf
-	// wie das Wort daneben.
+	// Any element can point at another one (for="Name"), as <label for="...">
+	// does in a browser. On a checkbox or a radio button a click on the
+	// element toggles the button; on anything else - edit boxes above all - it
+	// moves the focus there. This is not something only a label could do:
+	// the language flags in options.xml are <StaticImage> and belong to their
+	// radio button exactly as the word beside it does.
 	virtual void onMouseDown(const Vec2i& position, int buttons);
 	virtual void onMouseUp(const Vec2i& position, int buttons);
 	virtual void onMouseEnter(int buttons);
@@ -45,11 +44,11 @@ public:
 	virtual std::string getType() const;
 
 	GUI_Element* getElementAt(const Vec2i& position);
-	// Was als "getroffen" gilt. Standard ist das eigene Rechteck; Checkbox und
-	// Radioknopf zeichnen ihre Beschriftung rechts daneben und nehmen sie mit
-	// dazu, damit ein Klick auf den Text genauso zaehlt wie einer auf das
-	// Kaestchen - so wie <label> im Browser. Nicht const: die Breite der
-	// Beschriftung wird dafuer gemessen.
+	// What counts as "hit". The default is the element's own rectangle; a
+	// checkbox or a radio button draws its caption to the right of it and
+	// takes that strip in as well, which makes a click on the text count
+	// exactly like one on the box - as <label> does in a browser. Not const:
+	// the caption's width is measured for it.
 	virtual bool containsPoint(const Vec2i& position);
 	void bringToFront();
 	bool isFocused();
@@ -99,8 +98,8 @@ public:
 protected:
 	bool useSkin() const;
 
-	// Das verknuepfte Element, relativ zum eigenen Elternelement gesucht.
-	// 0, wenn nichts verknuepft ist oder der Name ins Leere zeigt.
+	// The linked element, looked up relative to this element's own parent.
+	// 0 when nothing is linked or the name points nowhere.
 	GUI_Element* getLinkedTarget();
 
 	std::string name;

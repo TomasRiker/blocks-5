@@ -12,7 +12,7 @@ REM    /nodata         do not rebuild data.zip and the skin archives
 REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
 REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
-REM    /stage          also run Blocks5\stage.bat afterwards (Release only)
+REM    /stage          run Blocks5\stage.bat afterwards too (Release only)
 REM    /rebuild        clean first, then build
 REM    /clean          delete every build product and exit without building.
 REM                    Both configurations, both the compiler output and the
@@ -35,7 +35,7 @@ REM  $(DefaultPlatformToolset), which is whatever the Visual Studio doing the
 REM  build calls its own newest, so a version newer than this script needs no
 REM  change here. /toolset:vNNN still pins one explicitly.
 REM
-REM  This tree was pinned to v120 (Visual Studio 2013) for a decade, not by
+REM  This tree stayed pinned to v120 (Visual Studio 2013) for a decade, not by
 REM  choice but by two files: libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib
 REM  carried /FAILIFMISMATCH:"_MSC_VER=1800", so link.exe refused any other
 REM  toolset with LNK2038. They were the only files in libs\bin with any linker
@@ -44,16 +44,16 @@ REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
 REM  Getting off v120 needed one more thing, which the tree now has: SDL
 REM  compiled from source out of libs\SDL-1.2.15\src, in place of
-REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
-REM  imported __iob_func, which the Universal CRT removed, so it linked only on
-REM  v120; sdl.dll was the last file in the tree that needed MSVCR120.
+REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib, a pre-UCRT
+REM  library, imported __iob_func, which the Universal CRT removed, so it linked
+REM  only on v120; sdl.dll held the tree's last dependency on MSVCR120.
 REM
-REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
+REM  PWEncrypt lost a call to gets() too, which the Universal CRT no longer has,
 REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
 REM  hash_multimap were replaced by the standard unordered containers, which
-REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, which
-REM  was the only thing that needed it, and __STDC_CONSTANT_MACROS and
-REM  __STDC_LIMIT_MACROS went with the shim.
+REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, the
+REM  only thing that needed it; __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS
+REM  went with the shim.
 REM
 REM  Whether v120 or v140 still builds is an open question - the code has no
 REM  dependency that says otherwise, but nobody has tried since the libraries
@@ -238,7 +238,7 @@ GOTO fail
 :toolsetok
 
 REM ------------------------------------------------------------------- build
-REM No /p:PlatformToolset unless one was asked for: left alone, the project
+REM No /p:PlatformToolset unless /toolset: asks for one: left alone, the project
 REM files resolve $(DefaultPlatformToolset), which is this Visual Studio's own
 REM newest. A global /p: cannot be overridden from inside a project, so passing
 REM one here unconditionally would be hardcoding a version all over again.

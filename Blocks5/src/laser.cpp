@@ -26,7 +26,7 @@ Laser::Laser(Level& level,
 
 		if(numInstances == 1)
 		{
-			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
+			// This is the first instance. Create the sound instance and pause it.
 			Sound* p_sound = Manager<Sound>::inst().request("laser.ogg");
 			p_soundInst = p_sound->createInstance(true);
 			p_sound->release();
@@ -53,7 +53,7 @@ void Laser::onRemove()
 		numInstances--;
 		if(!numInstances)
 		{
-			// Das war die letzte Instanz. Sound stoppen.
+			// The last instance is gone. Stop the sound.
 			p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
@@ -99,7 +99,7 @@ void Laser::onRender(int layer,
 				}
 			}
 
-			// inneren und aeusseren Strahl rendern
+			// render the inner and the outer beam
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);
@@ -163,7 +163,7 @@ void Laser::onUpdate()
 	{
 		Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-		// Truemmer
+		// debris
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
 		const Sprites& debris = getSprites();
@@ -197,7 +197,7 @@ void Laser::onUpdate()
 	beam.clear();
 	if(on > 0.0)
 	{
-		// Strahl berechnen
+		// compute the beam
 		Vec2i beamDir = numberToDir(dir);
 		Vec2d beamPos = Vec2d(7.5, 7.5) + getShownPositionInPixels();
 		Vec2i beamPosF;
@@ -222,21 +222,21 @@ void Laser::onUpdate()
 
 			bool reflected = false;
 
-			// Ist an dieser Stelle etwas?
+			// Is there something at this spot?
 			Object* p_obj = 0;
 			Vec2i tileHit;
 			if(z > 2 && !level.isFreeAt2(beamPos, 0, &p_obj, &tileHit))
 			{
 				if(p_obj)
 				{
-					// Ein Objekt versperrt den Weg.
+					// An object blocks the way.
 					if(beamDir.x) beamPos.x = 7.5 + p_obj->getShownPositionInPixels().x;
 					else if(beamDir.y) beamPos.y = 7.5 + p_obj->getShownPositionInPixels().y;
 					beam.back() = beamPos;
 
 					if(p_obj->reflectLaser(beamDir))
 					{
-						// OK, das Objekt hat den Laser umgelenkt!
+						// OK, the object deflected the laser!
 						reflected = true;
 					}
 					else if(p_obj->getFlags() & OF_DESTROYABLE)
@@ -257,7 +257,7 @@ void Laser::onUpdate()
 				}
 				else
 				{
-					// Ein Tile versperrt den Weg.
+					// A tile blocks the way.
 					int tileID = level.getTileAt(1, tileHit);
 					const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 					if(tileInfo.type == 2)
@@ -310,7 +310,7 @@ void Laser::onUpdate()
 
 			if(!(counter % 2))
 			{
-				// Rauch
+				// smoke
 				p.lifetime = random(70, 100);
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
@@ -329,7 +329,7 @@ void Laser::onUpdate()
 
 			if(!(counter % 4))
 			{
-				// gluehende Partikel
+				// glowing particles
 				p.lifetime = random(80, 120);
 				p.damping = 0.9f;
 				p.gravity = 0.1f;
@@ -352,7 +352,7 @@ void Laser::onUpdate()
 			{
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-				// Truemmer
+				// debris
 				int n = p_sprites->getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
@@ -393,7 +393,7 @@ void Laser::onElectricitySwitch(bool on)
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 
-	// Sound kontrollieren
+	// control the sound
 	if(on)
 	{
 		p_soundInst->resume();
@@ -417,7 +417,7 @@ void Laser::frameBegin()
 		it != beam.end();
 		++it)
 	{
-		// Gegner sollten Laser meiden ...
+		// enemies should avoid lasers ...
 		level.setAIFlag((*it) / 16, 1);
 	}
 }

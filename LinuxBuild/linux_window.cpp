@@ -1,14 +1,14 @@
-// linux_window.cpp - der Vollbildwechsel unter X11.
+// linux_window.cpp - the fullscreen switch under X11.
 //
-// Eigene Uebersetzungseinheit, weil <X11/Xlib.h> hier hereinkommt: es macht
-// Font, Window, Screen und Cursor zu eigenen Typnamen, und engine.cpp benutzt
-// gleich hinter der Einbindung die Klassen des Spiels, die genauso heissen.
+// Its own translation unit, because <X11/Xlib.h> comes in here: it makes Font,
+// Window, Screen and Cursor type names of its own, and engine.cpp uses the
+// game's classes of the same name right after the include.
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <cstring>
 #ifdef SDL_VIDEO_DRIVER_X11
-// XSizeHints und XSetWMNormalHints stehen nicht in Xlib.h, das SDL_syswm.h
-// mitbringt, sondern eine Kopfdatei weiter.
+// XSizeHints and XSetWMNormalHints are not in the Xlib.h that SDL_syswm.h
+// brings along, but one header further on.
 #include <X11/Xutil.h>
 #endif
 #include "linux_window.h"
@@ -25,16 +25,16 @@ bool setFullScreen(bool wantFullScreen)
 
 	Display* p_display = info.info.x11.display;
 
-	// SDL zeichnet aus einem eigenen Faden; jeder Xlib-Aufruf von aussen
-	// gehoert zwischen diese beiden.
+	// SDL draws from a thread of its own; every Xlib call from outside belongs
+	// between these two.
 	if(info.info.x11.lock_func) info.info.x11.lock_func();
 
-	// Ein Programm setzt sein Fenster unter X11 nicht selbst auf Vollbild - es
-	// sagt dem Fenstermanager, dass es eines haben moechte, und der entscheidet
-	// ueber Groesse und Ort. Der Weg dafuer ist diese Nachricht an das
-	// Wurzelfenster, so beschrieben in der EWMH; jeder Fenstermanager der
-	// letzten zwanzig Jahre versteht sie. XMoveResizeWindow statt dessen ginge
-	// an ihm vorbei und liefe unter jedem einzelnen anders.
+	// A program does not put its own window into fullscreen under X11 - it
+	// tells the window manager that it wants one, and the window manager
+	// decides on size and position. The way to do that is this message to the
+	// root window, as described in the EWMH; every window manager of the last
+	// twenty years understands it. XMoveResizeWindow instead would go past the
+	// window manager and behave differently under every single one.
 	XEvent event;
 	memset(&event, 0, sizeof(event));
 	event.type                 = ClientMessage;
@@ -44,7 +44,7 @@ bool setFullScreen(bool wantFullScreen)
 	event.xclient.data.l[0]    = wantFullScreen ? 1 : 0;   // _NET_WM_STATE_ADD / _REMOVE
 	event.xclient.data.l[1]    = XInternAtom(p_display, "_NET_WM_STATE_FULLSCREEN", False);
 	event.xclient.data.l[2]    = 0;
-	event.xclient.data.l[3]    = 1;                        // von der Anwendung, nicht von einem Pager
+	event.xclient.data.l[3]    = 1;                        // from the application, not from a pager
 	XSendEvent(p_display, DefaultRootWindow(p_display), False,
 			   SubstructureNotifyMask | SubstructureRedirectMask, &event);
 	XFlush(p_display);
@@ -66,10 +66,10 @@ bool setFixedSize(int width, int height)
 
 	if(info.info.x11.lock_func) info.info.x11.lock_func();
 
-	// Gleiche Unter- wie Obergrenze: mehr braucht es nicht, das ist die in der
-	// ICCCM vorgesehene Art, ein Fenster unveraenderlich zu machen. Ein
-	// Fenstermanager sperrt daraufhin den Rand und den Maximierknopf. Der
-	// Speicher kommt von Xlib und muss auch dorthin zurueck.
+	// Equal minimum and maximum: no more is needed, that is the ICCCM way of
+	// saying this window has one size. A window manager then locks the border
+	// and the maximize button. The memory comes from Xlib and has to go back
+	// there too.
 	XSizeHints* p_hints = XAllocSizeHints();
 	if(p_hints)
 	{

@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer eine Gluehbirne ***/
+/*** Class for a light bulb ***/
 
 class E_LightBulb : public Electronics
 {

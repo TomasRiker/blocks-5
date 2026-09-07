@@ -5,73 +5,74 @@
 
 namespace
 {
-	// Wie hoch ein Streifen ist. Ein Videokopf liest eine Spur, und eine Spur
-	// ist ein Halbbild - hier sind es ein paar Zeilen, fein genug, dass die
-	// Naht zwischen zwei Vorlagen nirgends als gerade Kante stehenbleibt, und
-	// grob genug, dass 160 Streifen und nicht 480 zu zeichnen sind.
+	// How tall a strip is. A video head reads one track, and one track is one
+	// video field - here it is a few rows, fine enough that the seam between
+	// the two source images nowhere stands as a straight edge, and coarse
+	// enough that 160 strips have to be drawn and not 480.
 	const int STRIP_HEIGHT = 3;
 
-	// Wie weit das Bild waehrend des Ruecklaufs durchlaeuft, in Bildhoehen.
-	// Das Band rast, also rollt das Bild - der Bildfang haelt bei dem Tempo
-	// nicht mehr mit.
+	// How far the picture travels during the rewind, in picture heights. The
+	// tape races and therefore the picture rolls - at that speed the vertical
+	// hold no longer keeps up.
 	//
-	// Eine ganze Zahl, und das ist keine Willkuer: am Ende steht der Versatz
-	// dann auf einem Vielfachen der Bildhoehe, also wieder genau auf null. Bei
-	// 6.5 saesse das Bild im letzten Augenblick um eine halbe Hoehe verrutscht
-	// und sprungte beim Abblenden zurueck.
+	// A whole number, and not an arbitrary one: the offset then lands back on
+	// a multiple of the picture height - zero - exactly as the crossfade ends.
+	// At 6.5 the picture would sit half a screen out and jump straight when
+	// the effect stops.
 	//
-	// Zehn und nicht sieben, weil die Ueberblendung von 1,1 auf 1,5 Sekunden
-	// verlaengert wurde: die Zahl ist ein Weg und keine Geschwindigkeit, und
-	// sieben Hoehen in anderthalb Sekunden waeren gemuetlich statt hektisch.
+	// Ten rather than seven because this is a distance and not a speed: over
+	// the transition's 1.5 seconds, seven heights would read as leisurely
+	// rather than frantic.
 	const double ROLL_SCREENS = 10.0;
 
-	// Ueber welchen Teil des Schlusses das Laufwerk bremst und der Bildfang
-	// wieder einrastet. Ohne das hoerte der Bildsalat mit einem Schnitt auf.
+	// Over what part of the end the transport brakes and the vertical hold
+	// locks again. Without it the garbled picture would stop with a cut.
 	const double SETTLE = 0.18;
 
-	// Seitlicher Versatz je Streifen: der Kopf liest die Spur schraeg an, also
-	// faengt jede Zeile ein Stueck zu frueh oder zu spaet an.
+	// Sideways offset per strip: the head meets the track at an angle, and
+	// every line therefore starts a little early or a little late.
 	const double TRACKING_JITTER = 2.5;
 
-	// Und dasselbe an der Naht, wo die beiden Vorlagen aufeinandertreffen -
-	// dort ist die Spurlage am schlechtesten.
+	// And the same at the seam, where the two source images meet - the
+	// tracking is at its worst there.
 	const double SEAM_SHIFT = 16.0;
 
-	// Wie ausgefranst die Naht ist, als Anteil der Bildhoehe. Waere sie scharf,
-	// sae man eine Kante quer durchs Bild wandern und dahinter das fertige neue
-	// Bild - genau das, was hier verborgen werden soll.
+	// How frayed the seam is, as a fraction of the picture height. A sharp
+	// seam would show an edge travelling across the picture with the finished
+	// new picture behind it - exactly what is to be hidden here.
 	const double SEAM_WIDTH = 0.30;
 
-	// Rauschbalken: wo der Kopf zwischen zwei Spuren geraet, kommt gar kein
-	// Bild, sondern Schnee. Wie viele es sind, haengt am Tempo des Bandes.
+	// Noise bars: where the head lands between two tracks there is no picture
+	// at all but snow. How many there are depends on the speed of the tape.
 	const int NOISE_BARS = 5;
 	const int NOISE_BAR_MIN = 6;
 	const int NOISE_BAR_MAX = 22;
 
-	// Der Schnee ueber dem ganzen Bild und der graue Schleier darueber. Der
-	// Schleier ist die halbe Miete: VHS legt die Farbe als eigenen Traeger
-	// unter das Bild, und der ueberlebt das Spulen nicht - ein gesuchtes Bild
-	// ist fast grau.
+	// The snow over the whole picture and the grey wash on top of it. The
+	// wash does half the work: VHS puts the colour under the picture as a
+	// carrier of its own, and that does not survive the spooling - a picture
+	// in search is almost grey.
 	const double SNOW_ALPHA = 0.16;
 	const double WASH_ALPHA = 0.22;
 
-	// Kantenlaenge des Rauschbildes. Zweierpotenz, weil es gekachelt wird.
+	// Edge length of the noise image. A power of two, because it is tiled.
 	const int NOISE_SIZE = 256;
 
-	// Wo die Einblendung des Rekorders steht. Weit genug herein, dass die
-	// Woelbung des CRT-Filters sie nicht an der Ecke abschneidet.
+	// Where the recorder's on-screen display sits. Far enough in that the CRT
+	// filter's curvature does not cut it off at the corner.
 	const int OSD_X = 50;
 	const int OSD_Y = 50;
 
-	// Und wie rewind.png aufgeteilt ist: links das Wort, rechts daneben die
-	// beiden Dreiecke. Die Hoehe ist die des ganzen Bildes; was darunter leer
-	// ist, zeichnet nichts, und so haelt das hier auch eine hoehere Schrift aus.
+	// And how rewind.png is divided up: the word on the left, the two
+	// triangles next to it on the right. The height is that of the whole
+	// image; whatever is empty below draws nothing, and this therefore
+	// copes with taller lettering too.
 	const int OSD_TEXT_WIDTH = 162;
 	const int OSD_ARROWS_WIDTH = 56;
 	const int OSD_HEIGHT = 64;
 
-	// Wie lange die Pfeile jeweils an und aus sind. Ein Zeichengenerator kennt
-	// keine Ueberblendung: er schaltet.
+	// How long the arrows are on and off each time. A character generator
+	// knows no crossfade: it switches.
 	const uint OSD_BLINK_MS = 500;
 
 	double wrap(double value, double range)
@@ -86,14 +87,14 @@ CF_Rewind::CF_Rewind()
 	p_osd = Manager<Texture>::inst().request("misc.png");
 	startTicks = SDL_GetTicks();
 
-	// Das Laufwerk. Der Ton gehoert dem Effekt und nicht der Stelle, die ihn
-	// ausloest: es gibt nur einen Weg hierher, und so kann keiner den einen
-	// ohne den anderen bekommen. Er ist etwas laenger als die Ueberblendung,
-	// damit das Ausrollen nicht mit dem Bild zusammen abgeschnitten wird.
+	// The transport. The sound belongs to the effect and not to the place
+	// that triggers it: there is only one way in here, and nobody can
+	// therefore have the one without the other. It runs a little longer than
+	// the crossfade to keep the run-down from being cut off with the picture.
 	Engine::inst().playSound("rewind.ogg", false, 0.0, 100);
 
-	// Schnee, ein fuer alle Mal. Grau und nicht bunt: was der Kopf zwischen
-	// zwei Spuren aufnimmt, ist Rauschen ohne Farbtraeger.
+	// Snow, once and for all. Grey, not coloured: what the head picks up
+	// between two tracks is noise with no colour carrier.
 	unsigned char* p_pixels = new unsigned char[NOISE_SIZE * NOISE_SIZE * 3];
 	for(int i = 0; i < NOISE_SIZE * NOISE_SIZE; i++)
 	{
@@ -116,8 +117,8 @@ CF_Rewind::CF_Rewind()
 
 CF_Rewind::~CF_Rewind()
 {
-	// Die Engine loescht die Ueberblendung in der Hauptschleife, der
-	// GL-Kontext steht also noch.
+	// The Engine deletes the crossfade in the main loop; the GL context is
+	// therefore still up.
 	glDeleteTextures(1, &noiseID);
 	if(p_osd) p_osd->release();
 }
@@ -127,8 +128,7 @@ void CF_Rewind::drawStrip(int y,
 						  int sourceY,
 						  double shift) const
 {
-	// Die Texturkoordinaten stehen in Bildpunkten, siehe
-	// Crossfade::setupTexCoords().
+	// The texture coordinates are in pixels, see Crossfade::setupTexCoords().
 	glBegin(GL_QUADS);
 	glTexCoord2d(shift, sourceY);
 	glVertex2i(0, y);
@@ -163,29 +163,29 @@ void CF_Rewind::drawSnow(int y,
 	glEnd();
 }
 
-/* Warum ein Ruecklauf und nicht irgendein Effekt: beim Neustart springt das
-   Spiel vom jetzigen Stand auf den Anfang, ohne irgendetwas dazwischen. Ein
-   Videorekorder im Bildsuchlauf tut genau dasselbe und keiner stoert sich
-   daran - weil das Band schneller laeuft, als der Kopf einer Spur folgen kann,
-   und jeder Streifen des Bildes daher von einer anderen Stelle des Bandes
-   stammt, also aus einem anderen Augenblick. Streifen aus zwei Bildern
-   nebeneinander sind hier keine Notluege, sondern das, was ein Rekorder
-   wirklich liefert.
+/* Why a rewind and not just any effect: on a restart the game jumps from the
+   current state to the beginning with nothing in between. A video recorder in
+   picture search does exactly the same and nobody minds - because the tape
+   runs faster than the head can follow a track, and every strip of the
+   picture is therefore read from a different place on the tape, which is to
+   say from a different moment. Strips of two pictures side by side are not a
+   trick standing in for something the game never had; they are what a
+   recorder actually puts out.
 
-   Was daraus folgt und den Sprung verdeckt:
+   What follows from that, and what hides the cut:
 
-   - Zwischen den Spuren liegt nichts, also kommt dort Schnee. Das sind die
-     Rauschbalken, die durchs Bild wandern.
-   - Der Bildfang haelt nicht mehr mit, also rollt das Bild.
-   - Der Kopf trifft die Spur schraeg, also verrutscht jede Zeile ein Stueck
-     seitlich - das Bild franst aus.
-   - VHS traegt die Farbe getrennt und tieffrequent unter dem Bild; das
-     ueberlebt den Suchlauf nicht. Deshalb der graue Schleier.
+   - Nothing lies between the tracks; snow comes through there instead. Those
+     are the noise bars travelling through the picture.
+   - The vertical hold no longer keeps up, and the picture rolls.
+   - The head meets the track at an angle, and every line slips a little
+     sideways - the picture frays.
+   - VHS carries the colour separately and at a low frequency under the
+     picture; that does not survive the search. Hence the grey wash.
 
-   Eines darf ausdruecklich NICHT zittern: die Einblendung "<< REW". Die kommt
-   aus dem Zeichengenerator des Rekorders und wird hinter dem Bandweg
-   zugemischt. Sie steht ruhig, waehrend alles andere reisst - und genau das
-   macht aus dem Bildsalat ein Geraet. */
+   One thing must NOT jitter: the on-screen display "<< REW". It comes from the
+   recorder's own character generator and is mixed in behind the tape path. It
+   stands steady while everything else tears - and that is exactly what makes
+   the garbled picture read as a machine. */
 void CF_Rewind::render(double t,
 					   uint oldImageID,
 					   uint newImageID)
@@ -196,17 +196,16 @@ void CF_Rewind::render(double t,
 	glEnable(GL_TEXTURE_2D);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 
-	// Das Band faehrt an und bremst wieder ab.
+	// The tape spins up and brakes again.
 	const double eased = t * t * (3.0 - 2.0 * t);
 	const double roll = eased * ROLL_SCREENS * screenSize.y;
 
-	// Und zum Schluss faengt sich das Bild: Spurlage, Schnee und Schleier gehen
-	// zurueck, waehrend das Band ausrollt.
+	// And at the end the picture settles: tracking, snow and wash go back
+	// while the tape coasts to a stop.
 	const double settle = clamp((1.0 - t) / SETTLE, 0.0, 1.0);
 
-	// Die Naht wandert von unten nach oben durchs Bild: das Band laeuft
-	// rueckwaerts. Ueber SEAM_WIDTH hinweg entscheidet der Zufall, damit sie
-	// keine Kante ist.
+	// The seam travels up through the picture: the tape runs backwards. Over
+	// SEAM_WIDTH chance decides, to keep it from being an edge.
 	const double seam = (1.0 + SEAM_WIDTH) * (1.0 - t) - 0.5 * SEAM_WIDTH;
 
 	for(int y = 0; y < screenSize.y; y += STRIP_HEIGHT)
@@ -214,18 +213,18 @@ void CF_Rewind::render(double t,
 		const int height = min(STRIP_HEIGHT, screenSize.y - y);
 		const double where = static_cast<double>(y) / screenSize.y;
 
-		// Ober- und unterhalb der Naht ist die Sache klar, dazwischen nicht.
+		// Above and below the seam the answer is clear, in between it is not.
 		const double distance = (where - seam) / SEAM_WIDTH;
 		const bool useNew = (distance + random(-0.5, 0.5) > 0.0);
 
-		// Wie schlecht die Spurlage hier ist: an der Naht am schlechtesten.
+		// How bad the tracking is here: worst at the seam.
 		const double closeness = clamp(1.0 - fabs(distance), 0.0, 1.0);
 		const double shift = settle * (random(-TRACKING_JITTER, TRACKING_JITTER)
 									 + closeness * random(-SEAM_SHIFT, SEAM_SHIFT));
 
-		// Die Zeile, die dieser Streifen zeigt. Von Hand umgebrochen und nicht
-		// dem GL_REPEAT der Textur ueberlassen: das Bild fuellt nur 480 der 512
-		// Zeilen, der Rest der Zweierpotenz ist nie beschrieben worden.
+		// The row this strip shows. Wrapped by hand and not left to the
+		// texture's GL_REPEAT: the picture fills only 480 of the 512 rows,
+		// the rest of the power of two has never been written.
 		const int sourceY = static_cast<int>(wrap(y + roll, screenSize.y));
 		const int overlap = sourceY + height - screenSize.y;
 
@@ -233,26 +232,26 @@ void CF_Rewind::render(double t,
 		if(overlap <= 0) drawStrip(y, height, sourceY, shift);
 		else
 		{
-			// Genau hier liegt beim Rekorder der Kopfumschaltpunkt: das Ende
-			// des einen Halbbildes und der Anfang des naechsten, mit einem
-			// gerissenen Streifen dazwischen. Also beide Haelften einzeln, mit
-			// verschiedenem Versatz.
+			// This is exactly where a recorder has its head switching
+			// point: the end of one video field and the start of the
+			// next, with a torn strip in between. Hence both halves
+			// separately, with different offsets.
 			drawStrip(y, height - overlap, sourceY, shift);
 			drawStrip(y + height - overlap, overlap, 0,
 					  shift + settle * random(-SEAM_SHIFT, SEAM_SHIFT));
 		}
 	}
 
-	// --- Rauschen ---------------------------------------------------------
-	// Eigene Texturmatrix: das Rauschbild wird in 0..1 abgetastet, nicht in
-	// Bildpunkten des Schirms.
+	// --- Noise ------------------------------------------------------------
+	// A texture matrix of its own: the noise image is sampled in 0..1, not in
+	// pixels of the screen.
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
 	glMatrixMode(GL_MODELVIEW);
 	glBindTexture(GL_TEXTURE_2D, noiseID);
 
-	// Die Balken wandern nach unten und sind deckend: dort liegt kein Bild.
+	// The bars travel downward and are fully opaque: no picture lies there.
 	for(int i = 0; i < NOISE_BARS; i++)
 	{
 		const double speed = 0.6 + 0.5 * i;
@@ -262,7 +261,7 @@ void CF_Rewind::render(double t,
 		drawSnow(y, min(height, screenSize.y - y), settle);
 	}
 
-	// Und der Schnee ueber allem, addiert.
+	// And the snow over everything, added.
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	drawSnow(0, screenSize.y, settle * SNOW_ALPHA);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
@@ -271,7 +270,7 @@ void CF_Rewind::render(double t,
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 
-	// --- Der graue Schleier ------------------------------------------------
+	// --- The grey wash -----------------------------------------------------
 	glDisable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glColor4d(0.62, 0.63, 0.60, settle * WASH_ALPHA);
@@ -281,11 +280,12 @@ void CF_Rewind::render(double t,
 	glVertex2i(0, screenSize.y);
 	glEnd();
 
-	// --- Die Einblendung ---------------------------------------------------
-	// Sie gehoert dem Zeichengenerator des Rekorders und nicht dem Band: sie
-	// blendet deshalb weder ein noch aus und nimmt an settle nicht teil. Das
-	// Wort steht die ganze Zeit, die Pfeile blinken - hart, wie geschaltet, und
-	// gezaehlt ab dem Beginn des Effekts, damit sie sichtbar anfangen.
+	// --- The on-screen display ---------------------------------------------
+	// It belongs to the recorder's character generator and not to the tape: it
+	// therefore neither fades in nor out and takes no part in settle. The word
+	// stands the whole time, the arrows blink - hard, as if switched, and
+	// counted from the start of the effect, which is what makes them start
+	// visible.
 	if(p_osd)
 	{
 		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 112),

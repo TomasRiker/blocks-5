@@ -14,8 +14,8 @@ namespace
 		p_out->push_back(static_cast<uchar>(value));
 	}
 
-	// Laenge, Typ, Inhalt, Pruefsumme. Die CRC32 laeuft ueber Typ *und* Inhalt,
-	// die Laenge selbst zaehlt nicht mit.
+	// Length, type, content, checksum. The CRC32 runs over type *and* content;
+	// the length itself does not count.
 	void putChunk(std::vector<uchar>* p_out, const char* p_type,
 				  const uchar* p_data, uint numBytes)
 	{
@@ -27,10 +27,10 @@ namespace
 			crc32(0, &(*p_out)[crcStart], static_cast<uInt>(p_out->size() - crcStart))));
 	}
 
-	// Eine Zeile vorhersagen und die Abweichung schreiben. a ist der linke
-	// Nachbar, b der obere, c der obere linke; ausserhalb des Bildes sind alle
-	// drei 0. Typ 4 ist der Paeth-Vorhersager: er nimmt von den dreien den, der
-	// a+b-c am naechsten kommt.
+	// Predict a row and write the deviation. a is the left neighbour, b the one
+	// above, c the one above left; outside the image all three are 0. Type 4 is
+	// the Paeth predictor: of the three it takes the one that comes closest to
+	// a+b-c.
 	void applyFilter(int type, const uchar* p_row, const uchar* p_prev,
 					 uint bpp, uint stride, uchar* p_dest)
 	{
@@ -61,10 +61,10 @@ namespace
 		}
 	}
 
-	// Welcher Filter fuer diese Zeile der beste ist, entscheidet die
-	// Betragssumme ueber die gefilterten Bytes als vorzeichenbehaftete Zahlen.
-	// Das ist die Faustregel aus libpng, und sie ist ihre zwanzig Zeilen wert:
-	// gemessen an einem echten Bildschirmfoto 239 statt 283 KB.
+	// Which filter is best for this row is decided by the sum of magnitudes over
+	// the filtered bytes read as signed numbers. That is the rule of thumb from
+	// libpng, and it is worth its twenty lines: measured on a real screenshot,
+	// 239 instead of 283 KB.
 	uint filterScore(const uchar* p_line, uint stride)
 	{
 		uint sum = 0;
@@ -93,8 +93,8 @@ bool encodePNG(const uchar* p_pixels, const Vec2i& size,
 	const uint srcBpp = static_cast<uint>(srcChannels);
 	const uint stride = width * bpp;
 
-	// Jede Zeile bekommt ihr Filterbyte vorneweg; das ist der Strom, der
-	// komprimiert wird.
+	// Every row gets its filter byte in front of it; that is the stream that
+	// gets compressed.
 	std::vector<uchar> raw(static_cast<size_t>(stride + 1) * height);
 	std::vector<uchar> candidate(stride);
 	std::vector<uchar> best(stride);
@@ -107,8 +107,8 @@ bool encodePNG(const uchar* p_pixels, const Vec2i& size,
 		const uchar* p_source =
 			p_pixels + static_cast<size_t>(bottomUp ? (height - 1 - y) : y) * width * srcBpp;
 
-		// Ueberzaehlige Kanaele fallen hier weg, vor dem Filtern - danach waere
-		// die Vorhersage schon auf den falschen Abstand gelaufen.
+		// Surplus channels are dropped here, before the filtering - afterwards
+		// the prediction would already have run at the wrong spacing.
 		const uchar* p_row = p_source;
 		if(srcBpp != bpp)
 		{
@@ -151,11 +151,11 @@ bool encodePNG(const uchar* p_pixels, const Vec2i& size,
 	header[5] = static_cast<uchar>(height >> 16);
 	header[6] = static_cast<uchar>(height >> 8);
 	header[7] = static_cast<uchar>(height);
-	header[8] = 8;                                        // Bit je Kanal
-	header[9] = (dstChannels == 4) ? 6 : 2;               // mit oder ohne Alpha
+	header[8] = 8;                                        // bits per channel
+	header[9] = (dstChannels == 4) ? 6 : 2;               // with or without alpha
 	header[10] = 0;                                       // Deflate
-	header[11] = 0;                                       // Filter je Zeile
-	header[12] = 0;                                       // kein Interlace
+	header[11] = 0;                                       // per-row filter
+	header[12] = 0;                                       // no interlacing
 
 	p_out->clear();
 	p_out->reserve(compressedSize + 64);

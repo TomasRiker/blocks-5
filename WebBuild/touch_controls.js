@@ -7,15 +7,15 @@
 // the title demo - and movement would stay dead. See ROADMAP item 19.
 //
 // Nothing about the game changes. The pad sends a key, the action layer maps
-// it, so a rebinding in the options dialog is followed for free.
+// it, and a rebinding in the options dialog is followed for free.
 //
 // Stepping versus running needs no logic here either. The movement actions
-// keep registerAction's defaults, delay 240 and interval 80, so a tap is one
+// keep registerAction's defaults, delay 240 and interval 80: a tap is one
 // press - one step - and a held finger starts repeating after 240 ms. Holding
 // the key for exactly as long as the finger is down gives both.
 //
-// Where it sits: the game is 4:3 inside a phone's much wider screen, so there
-// are two black bars, 162 px on an iPhone 14 and 183 px on a Pixel 7. That is
+// Where it sits: the game is 4:3 inside a phone's much wider screen, leaving
+// two black bars, 162 px on an iPhone 14 and 183 px on a Pixel 7. That is
 // more than enough for a pad, and it covers nothing. Only where the bars are
 // too narrow does it lie over the picture, at reduced opacity.
 (function () {
@@ -37,9 +37,9 @@
   };
 
   // A finger can lift faster than the game looks. Engine::update runs every
-  // 20 ms and samples the keyboard once per run, so a press shorter than that
-  // can fall between two samples and be lost. Holding every press for at least
-  // this long makes a quick tap always worth one step.
+  // 20 ms and samples the keyboard once per run, and a press shorter than
+  // that can fall between two samples and be lost. Holding every press for at
+  // least this long makes a quick tap always worth one step.
   var MIN_HOLD_MS = 70;
 
   var held = {};        // name -> timestamp of the keydown
@@ -80,8 +80,9 @@
 
   var root = document.createElement('div');
   root.id = 'b5pad';
-  // The container lets everything through; only the controls themselves take a
-  // touch, so a tap between them still reaches the canvas and the game's GUI.
+  // The container lets everything through; only the controls themselves take
+  // a touch, and a tap between them still reaches the canvas and the game's
+  // GUI.
   root.setAttribute('style', 'position:fixed;left:0;top:0;right:0;bottom:0;' +
                              'pointer-events:none;z-index:10;display:none');
 
@@ -100,7 +101,7 @@
     '-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;' +
     'border-radius:24px;background:rgba(255,255,255,.07);' +
     'border:2px solid rgba(255,255,255,.22)}' +
-    // The four arrows are drawn, not written, so this file stays plain ASCII.
+    // The four arrows are drawn, not written, keeping this file plain ASCII.
     'div#b5pad .b5arrow{position:absolute;width:0;height:0;pointer-events:none;' +
     'opacity:.55;transition:opacity .06s}' +
     'div#b5pad .b5arrow.b5on{opacity:1}';
@@ -256,7 +257,7 @@
     bPut.style.width = big + 'px'; bPut.style.height = big + 'px';
 
     // Left, above the d-pad: switching the character. It is a move you make
-    // mid-level and often, so it wants a thumb that is already on this side -
+    // mid-level and often; it wants a thumb that is already on this side -
     // and it must not sit anywhere near Retry, which throws that level away.
     var sx = lx + Math.round((pad - big) / 2);
     var sy = Math.max(m, ly - big - m);
@@ -278,7 +279,7 @@
   // --- when to show it -----------------------------------------------------
   // There is no way to ask whether a physical keyboard exists. maxTouchPoints,
   // (pointer: coarse) and the Keyboard API all describe pointers or layouts,
-  // never presence, and a laptop can have a touchscreen too. So: guess from the
+  // never presence, and a laptop can have a touchscreen too. Guess from the
   // pointer, then correct from behaviour - a real keypress hides it, a touch
   // brings it back. ?pad=on / ?pad=off overrides and is remembered.
 
@@ -324,8 +325,8 @@
     window.visualViewport.addEventListener('resize', function () { if (visible) layout(); });
   }
 
-  // A real key hides the pad; the pad's own events are untrusted, so they
-  // cannot hide it by accident. That one flag is the whole filter.
+  // A real key hides the pad; the pad's own events are untrusted and cannot
+  // hide it by accident. That one flag is the whole filter.
   window.addEventListener('keydown', function (e) {
     if (e.isTrusted && visible) { show(false); remember('off'); }
   }, true);

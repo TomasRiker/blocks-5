@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer einen umschaltbaren 1- oder 0-Wert ***/
+/*** Class for a switchable 1 or 0 value ***/
 
 class E_ValueSwitch : public Electronics
 {

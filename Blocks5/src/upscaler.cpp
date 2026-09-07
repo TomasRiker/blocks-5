@@ -2,13 +2,13 @@
 #include "upscaler.h"
 #include "glextensions.h"
 
-/* Der Vertexshader aller Praesentierfilter. Die Eckpunkte kommen fertig in
-   Clipkoordinaten aus drawQuad(), es gibt also nichts zu transformieren. Kein
-   Anfassen des Fixed-Function-Zustands, und im Browser damit auch keine
-   Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
+/* The vertex shader of every present filter. The vertices arrive from
+   drawQuad() ready in clip coordinates; there is nothing to transform. It
+   touches no fixed-function state, and in the browser therefore never meets
+   Emscripten's immediate-mode reimplementation.
 
-   Kein #version: 110 auf dem Desktop, 100 unter GLSL ES, und der Quelltext
-   uebersetzt als beides. */
+   No #version: 110 on the desktop, 100 on the embedded shading language, and
+   the source compiles as both. */
 static const char* p_presentVertexShader =
 	"#ifdef GL_ES\n"
 	"precision highp float;\n"
@@ -24,7 +24,7 @@ static const char* p_presentVertexShader =
 
 namespace
 {
-	// Uebersetzt eine Stufe und gibt bei einem Fehler das Log aus.
+	// Compiles one stage and prints the log on an error.
 	uint compileShaderStage(GLenum type, const char* p_source, const char* p_what)
 	{
 		const uint shader = glExtCreateShader(type);
@@ -96,9 +96,9 @@ bool PresentProgram::create(const char* p_fragmentSource,
 
 void PresentProgram::destroy()
 {
-	// Nur das Programm. Die Uniformstellen sind ohnehin nur gueltig, solange es
-	// eines gibt - wer sie ausserdem zuruecksetzt, fuehrt eine zweite Liste,
-	// die vergessen werden kann.
+	// The program only. The uniform locations are valid just as long as there
+	// is one anyway - resetting them as well means keeping a second list, and
+	// a list can be forgotten.
 	if(id) { glExtDeleteProgram(id); id = 0; }
 }
 
@@ -125,9 +125,9 @@ void PresentProgram::use(const PresentContext& context) const
 	}
 	if(prescale >= 0)
 	{
-		// Der kleinste ganzzahlige Faktor, mit dem das 640x480-Bild das
-		// Zielrechteck ausfuellt. Genau um den wuerde man mit nearest
-		// vergroessern, bevor man heruntergeht - der Shader macht beides.
+		// The smallest integer factor with which the 640x480 frame fills the
+		// destination rectangle. That is exactly what one would nearest-upscale
+		// by before going back down - the shader does both.
 		const float x = static_cast<float>(max(1, static_cast<int>(
 			ceil(static_cast<double>(context.rectSize.x) / context.frameSize.x))));
 		const float y = static_cast<float>(max(1, static_cast<int>(
@@ -138,8 +138,8 @@ void PresentProgram::use(const PresentContext& context) const
 
 void PresentProgram::drawQuad(const PresentContext& context) const
 {
-	// Der Shader rechnet in Clipkoordinaten - keine Matrix und damit im Browser
-	// keine Beruehrung mit Emscriptens Immediate-Mode-Nachbau.
+	// The shader works in clip coordinates - no matrix, and in the browser
+	// therefore no contact with Emscripten's immediate-mode reimplementation.
 	const int x = context.rectPosition.x;
 	const int y = context.rectPosition.y;
 	const int w = context.rectSize.x;
@@ -150,11 +150,11 @@ void PresentProgram::drawQuad(const PresentContext& context) const
 	const float y0 = 2.0f * y       / context.displaySize.y - 1.0f;
 	const float y1 = 2.0f * (y + h) / context.displaySize.y - 1.0f;
 
-	// Benutzt wird nur die linke untere Ecke der Zweierpotenz-Textur.
+	// Only the bottom left corner of the power-of-two texture is used.
 	const float fu = static_cast<float>(context.frameSize.x) / context.textureSize.x;
 	const float fv = static_cast<float>(context.frameSize.y) / context.textureSize.y;
 
-	// Zwei Dreiecke als Streifen: Position, dann Texturkoordinate.
+	// Two triangles as a strip: position, then texture coordinate.
 	const float vertices[16] =
 	{
 		x0, y0, 0.0f, 0.0f,
@@ -188,9 +188,9 @@ Upscaler::~Upscaler()
 
 void Upscaler::present(const PresentContext& context)
 {
-	// Ohne Shader: ein Viereck der festen Funktionsstufe. Der Texturfilter
-	// steht schon, und er ist der ganze Unterschied zwischen "Scharf" und
-	// "Weich".
+	// Without a shader: a quad from the fixed-function stage. The texture
+	// filter is already set, and it is the whole difference between "Sharp"
+	// and "Smooth".
 	const double u = static_cast<double>(context.frameSize.x) / context.textureSize.x;
 	const double v = static_cast<double>(context.frameSize.y) / context.textureSize.y;
 	const int x = context.rectPosition.x;
@@ -208,7 +208,7 @@ void Upscaler::present(const PresentContext& context)
 
 void Upscaler::loadConfig(TiXmlElement* p_config)
 {
-	// Die meisten Filter haben nichts einzustellen.
+	// Most filters have nothing to set.
 }
 
 void Upscaler::saveConfig(TiXmlElement* p_config)

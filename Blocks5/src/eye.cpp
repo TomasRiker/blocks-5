@@ -22,8 +22,8 @@ Eye::~Eye()
 
 void Eye::updateSprites()
 {
-	// Auge und, wenn es offen ist, die Pupille darueber. Die Pupille sitzt
-	// nicht mittig, sondern schaut dorthin, wo der Spieler steht.
+	// The eye and, when it is open, the pupil over it. The pupil does not
+	// sit centred; it looks at where the player is standing.
 	sprites.add(Vec2i(closed ? 160 : 128, 448)).mirrorX = dir == 1;
 
 	if(!closed)
@@ -43,7 +43,7 @@ void Eye::onUpdate()
 	Player* p_player = level.getActivePlayer();
 	if(p_player)
 	{
-		// Verbindungsvektor zum Spieler suchen
+		// find the vector to the player
 		Vec2d playerPos = static_cast<Vec2d>(p_player->getShownPositionInPixels()) + Vec2d(7.5, 7.5);
 		Vec2d myPos = static_cast<Vec2d>(getShownPositionInPixels()) + Vec2d(7.5, 7.5);
 		Vec2d targetDir = playerPos - myPos;

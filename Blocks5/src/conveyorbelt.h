@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Fliessbaender ***/
+/*** Class for conveyor belts ***/
 
 class SoundInstance;
 

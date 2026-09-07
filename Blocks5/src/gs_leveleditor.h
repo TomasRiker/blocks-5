@@ -1,7 +1,7 @@
 #ifndef _GS_LEVELEDITOR_H
 #define _GS_LEVELEDITOR_H
 
-/*** Klasse fuer den Level-Editor ***/
+/*** Class for the level editor ***/
 
 #include "gamestate.h"
 #include "engine.h"

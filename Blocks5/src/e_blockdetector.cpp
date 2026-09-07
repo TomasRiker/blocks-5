@@ -6,7 +6,7 @@ E_BlockDetector::E_BlockDetector(Level& level,
 								 const Vec2i& position,
 								 int dir) : Electronics(level, position, dir)
 {
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(7, 15), PT_OUTPUT);
 }
 
@@ -42,7 +42,7 @@ void E_BlockDetector::doLogic()
 {
 	setValue(10, -1);
 
-	// Ist da ein Eins- oder Null-Block?
+	// Is there a one-block or a zero-block?
 	Vec2i p = position + intToDir(dir);
 	Object* p_obj = level.getFrontObjectAt(p);
 	if(p_obj)
