@@ -1,51 +1,53 @@
-Testlevel
-=========
+Test levels
+===========
 
-Level, die nicht mitgeliefert werden. Sie gehoeren zu einer Sache, die gerade
-untersucht wird, und stehen deshalb hier und nicht in `Blocks5/levels` - was
-dort liegt, wird beim ersten Start in den Ordner des Spielers kopiert und waere
-damit auf jeder Installation.
+Levels that are not shipped. They belong to something being looked at right
+now, and so they live here and not in `Blocks5/levels` - what lies there
+belongs to the game: it is read out of the game folder, it shows up in the
+player's level list, and `isShippedContent` makes it undeletable and
+un-overwritable.
 
-Zum Benutzen die Datei nach `My Documents\Blocks 5\levels` kopieren (unter Linux
-`~/.local/share/blocks5/levels`); sie steht dann in der Levelauswahl unter
-"Einzelne Levels".
+To use one, copy the file to `My Documents\Blocks 5\levels` (under Linux
+`~/.local/share/blocks5/levels`); it then appears in the level select screen
+under "Single levels".
 
 `diamondmachine.xml`
 --------------------
-Fuenf mal sechs Diamantenmaschinen, auf jeder ein Block. Der Strom ist aus, Bob
-steht neben dem Schalter - ein Schritt nach links, und alle Maschinen laufen
-gleichzeitig los. Jede *Spalte* ist ein anderer Blocktyp, damit zu sehen ist,
-wie die Farben verschiedener Bloecke sich machen; die fuenf Zeilen zeigen
-dasselbe fuenfmal und sind dazu da, den Effekt nebeneinander zu sehen statt
-einmal in der Mitte des Bildschirms.
+Five rows of six diamond machines, a block on each. The electricity is off and
+Bob stands beside the switch - one step to the left, and all the machines start
+at once. Each *column* is a different block type, which shows how the colours
+of different blocks come out; the five rows show the same thing five times and
+are there to see the effect side by side instead of once in the middle of the
+screen.
 
-Unten im Boden steht noch eine sechste Maschine, bei x = 6, und der Block darauf
-liegt auf Bobs eigener Hoehe. Der ist zum Abbrechen da: mitten in der Umwandlung
-wegschieben, oder den Strom wieder ausschalten. Der Block muss dann
-augenblicklich wieder voll deckend sein - ein halbdurchsichtiger Block, der
-davonrutscht, waere der Fehler, auf den es hier ankommt -, und die Funken, die
-noch unterwegs sind, muessen umkehren statt zu verschwinden.
+One more machine sits down in the floor, at x = 6, and the block on it lies at
+Bob's own height. That one is there for aborting: push it away in the middle of
+the conversion, or switch the electricity off again. The block must then be
+fully opaque again instantly - a half-transparent block sliding away would be
+exactly the bug that matters here - and the sparks still in flight must turn
+round instead of vanishing.
 
-Bob erreicht diese Maschine in gut einer Sekunde. Weiter weg duerfte sie nicht
-stehen: die Umwandlung dauert zwei, und was durch ist, laesst sich nicht mehr
-abbrechen.
+Bob reaches this machine in a good second. It must not be any further away:
+the conversion takes two, and what is through cannot be aborted any more.
 
-Ein Hinweis zum Schalter: `Player::move` setzt nach einer Beruehrung eine Sperre
-von 20 Takten. Wer die Taste laenger als 0.4 s haelt, schaltet den Strom also
-wieder aus.
+One thing about the switch: `Player::move` sets a lockout of 20 ticks after a
+touch. Holding the key longer than 0.4 s therefore switches the electricity
+back off.
 
 
 `contamination.xml`
 -------------------
-Bob steht im Giftgas, und ein Stueck weiter rechts liegen drei Spritzen
-hintereinander. Stehenbleiben, bis der Geigerzaehler knattert und der Bildschirm
-gruen wird, dann nach rechts durchlaufen.
+Bob stands in the toxic gas, and a little further right lie three syringes in a
+row. Stand still until the Geiger counter crackles and the screen turns green,
+then run through to the right.
 
-Die Verseuchung geht dabei unter null, und das soll sie: wer auf Vorrat sammelt,
-haelt es hinterher laenger im Gas aus. Es darf dann aber nichts knattern - der
-Spieler ist nicht vergiftet, sondern besser als sauber. Genau daran hing der
-Fehler: `gs_game.cpp` fragte `if(c)` statt `if(c > 0)` und wuerfelte mit
-`random(0, 2000 + c)`. Ab vier Spritzen wird diese Spanne negativ, und weil
-`MTRand::randInt()` vorzeichenlos entgegennimmt, wurden daraus vier Milliarden -
-der Geigerzaehler knatterte bis zum Neustart des Levels durch, gemessen
-neunundzwanzigmal je Sekunde.
+The contamination goes below zero doing that, and it is meant to: a player who
+collects syringes in reserve holds out longer in the gas afterwards. Nothing
+may crackle then - the player is not contaminated but better than clean. That
+is exactly what the bug hung on: `gs_game.cpp` asked `if(c)` instead of
+`if(c > 0)` and rolled `random(0, 2000 + c)`. From four syringes on, that span
+is negative, and because `MTRand::randInt()` takes it unsigned, four billion
+came out of it - the Geiger counter crackled on until the level was restarted,
+measured twenty-nine times a second. `random(int, int)` answers an empty span
+with `min` now instead of reading it unsigned - that is the real trap, and it
+would have caught every other caller the same way.

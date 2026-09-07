@@ -11,11 +11,11 @@
 #
 # Output only on an error; exit code 1 as soon as one file does not go through.
 #
-# Three files are left out, and always have been: main.cpp (WinMain and the
-# update checker pull in wininet and things mingw declares differently),
-# videorecorder.cpp (the three vendored encoders) and stackwalker.cpp
-# (dbghelp, third-party). They are left out of the web build as well, see
-# WebBuild/build.sh.
+# Three files are left out, and always have been: main.cpp, videorecorder.cpp
+# and stackwalker.cpp. The last two are left out of the web build as well, see
+# WebBuild/build.sh; main.cpp is compiled there. What mingw cannot parse in it
+# is the __try/__except crash handler, and that sits behind
+# "#if defined(_WIN32) && !defined(_DEBUG)" - true here, false under emcc.
 
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)

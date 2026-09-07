@@ -1,163 +1,166 @@
 # tools
 
-Zwei Pruefskripte fuer die Arbeit am Baum. Beide brauchen nur Python 3 und laufen
-in wenigen Sekunden.
+Three check scripts for working on the tree. Two of them need nothing but
+Python 3 and run in seconds.
 
 ## verify.py
 
-Statische Pruefungen. Sie suchen die Sorte Fehler, die beim Bearbeiten
-stillschweigend entsteht und die weder der Uebersetzer noch ein Blick auf den
-Diff findet.
+Static checks. They look for the sort of mistake that appears silently while
+editing and that neither the compiler nor a look at the diff will find.
 
-    python3 Tools/verify.py            alles
-    python3 Tools/verify.py --list     die Namen mit einer Zeile Erklaerung
+    python3 Tools/verify.py            everything
+    python3 Tools/verify.py --list     the names with one line of explanation
     python3 Tools/verify.py --only gui_paths
-    python3 Tools/verify.py --quiet    nur die Zusammenfassung
+    python3 Tools/verify.py --quiet    the summary only
 
-Rueckgabewert 1, sobald etwas beanstandet wird.
+Exit code 1 as soon as anything is reported.
 
-| Pruefung | was sie findet |
+| check | what it checks |
 | --- | --- |
-| `encoding` | ein Nicht-ASCII-Zeichen oder CRLF im Quellcode; fehlendes CRLF in den ausgelieferten Textdateien |
-| `project_files` | eine Quelldatei, die nicht in `Blocks5.vcxproj` *und* `.filters` steht - Visual Studio uebersetzt sie dann nicht |
-| `naming` | eine Klasse mit Basisklasse, deren Header nicht `kleingeschriebener_klassenname.h` heisst |
-| `version` | die vier Stellen mit der Versionsnummer, wenn sie auseinandergehen |
-| `gui_paths` | `gui["..."]` und `getChild("...")` mit einem Namen, den kein Dialog-XML kennt |
-| `strings` | eine `$ID` ohne Eintrag in `languages.txt`, und Eintraege ohne deutschen oder englischen Text |
-| `xml_attrs` | ein XML-Attribut, das geschrieben und nirgends gelesen wird |
-| `config` | ein Element der `config.xml`, das nur geschrieben oder nur gelesen wird |
-| `ctor_init` | eine neue Membervariable, die der Konstruktor nicht setzt |
-| `assets` | einen Dateinamen im Code, den es auf der Platte nicht gibt - oder nur anders geschrieben, was unter Linux ein Ladefehler ist |
-| `sounds` | einen Klang, den `playSound()` beim Namen nennt, ohne dass `gs_loading.cpp` ihn vorlaedt - er bleibt dann stumm |
-| `style` | Leerzeichen statt Tabulator, `if (` statt `if(`, Leerzeichen am Zeilenende |
-| `windows_icon` | ein Programmsymbol, das nicht mehr zu `data/window.png` passt, oder dem eine Groesse fehlt, die Windows anfragt |
-| `comments` | einen englischen Kommentar zwischen den deutschen; ausufernde Kommentardichte |
+| `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
+| `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
+| `naming` | The filename is the class name in lower case. |
+| `version` | The version number lives in four places and must not drift. |
+| `gui_paths` | Every element path in the code must exist in a dialog XML. |
+| `strings` | Every `$ID` must be in `languages.txt`, in English and in German. |
+| `xml_attrs` | An attribute written and read nowhere is dead weight or a typo. |
+| `config` | What `Engine::saveConfig` writes must be read back again. |
+| `ctor_init` | Scalar members that the constructor does not set. |
+| `assets` | A filename in the code must exist on disk, spelled exactly so. |
+| `sounds` | Every sound `playSound()` names must be preloaded in `loadSounds()`. |
+| `sound_volumes` | Every sound in `data/sounds.xml` must exist, with a factor under 1. |
+| `style` | Tabs, no space after a keyword, no whitespace at line end. |
+| `windows_icon` | The program icon must match `data/window.png`. |
+| `comments` | English comments - a German line among them is always a leftover. |
 
-Drei Pruefungen - `style`, `ctor_init` und die Kommentardichte - beurteilen
-nur, was seit dem Stand vor der Ueberarbeitung dazugekommen ist. Was 2015
-schon so dastand und seither taeglich laeuft, ist keine Beanstandung, und es
-jedesmal zu melden hiesse, die Ausgabe unlesbar zu machen. Der Vergleichsstand
-steht als `BASELINE` oben in `verify.py`.
+Two of them - `style` and `ctor_init` - judge only what has come in since the
+state before the overhaul. Code that already stood there in 2015 and has run
+daily ever since is not a finding, and reporting it at every run is how a
+check gets ignored. The state compared against is `BASELINE` at the top of
+`verify.py`.
 
 ## selftest.py
 
-Beweist, dass die Pruefungen etwas finden. Eine Sammlung, die immer "in
-Ordnung" sagt, koennte laengst an ihrem Muster vorbeigreifen, ohne dass es
-auffiele - so war die Attributpruefung anfangs wirkungslos, weil `Attribute(`
-auch auf das Ende von `SetAttribute(` passt und damit jedes geschriebene
-Attribut als gelesen galt.
+Proves that the checks find something. A set of checks that always says "ok"
+may long since have stopped matching what it looks for without anybody
+noticing - the attribute check was inert when it was first written, because
+`Attribute(` also matches the tail of `SetAttribute(`, so every written
+attribute counted as read.
 
-Das Skript baut deshalb je Pruefung genau den Fehler ein, den sie fangen soll,
-laesst sie laufen und legt die Datei danach byteweise zurueck.
+The script therefore injects, for each check, exactly the fault it is meant to
+catch, runs it, and puts the file back byte for byte afterwards.
 
     python3 Tools/selftest.py
 
 ## syntax.sh
 
-Uebersetzt jede Quelldatei des Spiels mit `i686-w64-mingw32-g++ -fsyntax-only`. Das ist die
-einzige Gelegenheit, den Windows-Code unter Linux durch einen Uebersetzer zu schicken, und
-sie kostet eine halbe Minute.
+Compiles every source of the game with `i686-w64-mingw32-g++ -fsyntax-only`. It
+is the only way to put a compiler over the Windows code from here, and it costs
+half a minute.
 
-    sh Tools/syntax.sh              alle 118 Dateien
-    sh Tools/syntax.sh engine.cpp   nur diese
+    sh Tools/syntax.sh              all 120 files
+    sh Tools/syntax.sh engine.cpp   only this one
 
-Die drei Dateien, die dabei aussen vor bleiben - `main.cpp`, `videorecorder.cpp`,
-`stackwalker.cpp` -, fallen aus denselben Gruenden auch aus dem Web-Build heraus.
-Eingecheckt werden muss nichts: die Kopfdateien, die der Baum mit grossem Anfangsbuchstaben
-einbindet (`<Windows.h>`, `<Shellapi.h>`, `<al.h>`), entstehen als Weiterleitungen in einem
-Wegwerfverzeichnis.
+Three files never go through it - `main.cpp`, `videorecorder.cpp` and
+`stackwalker.cpp`. The last two are left out of the web build for the same
+reasons; `main.cpp` is compiled there, because what mingw cannot parse in it is
+the SEH crash handler, and that sits behind `#if defined(_WIN32)`. Nothing has
+to be checked in for it: the headers mingw and OpenAL Soft file under other
+names (`<Windows.h>`, `<Shlobj.h>`, `<al.h>`) are written as forwarding headers
+into a throwaway directory.
 
-## Was daneben noch laeuft
+## What else runs
 
-    WebBuild/build.sh           uebersetzt und linkt den Browser-Build
-    WebBuild/build.sh hooks     dasselbe mit den Testhaken, nach build-test/
-    WebBuild/test/smoke.js      fuehrt den Browser-Build durch die Oberflaeche
+    LinuxBuild/build.sh         compiles and links the native build
+    LinuxBuild/build.sh hooks   the same with the test hooks, into build-test/
+    LinuxBuild/test/smoke.sh    drives the native build through the GUI
+    WebBuild/build.sh           compiles and links the browser build
+    WebBuild/build.sh hooks     the same with the test hooks, into build-test/
+    WebBuild/test/smoke.js      drives the browser build through the GUI
 
-Siehe `WebBuild/test/README.md`.
+See `LinuxBuild/README.md` and `WebBuild/test/README.md`.
 
 
-Erzeuger
---------
+Generators
+----------
 
-Daneben liegt ein Skript, das eine ausgelieferte Datei herstellt, statt sie zu
-pruefen; es ist reine Standardbibliothek:
+Two of the scripts here make a file that ships rather than checking one; both
+are stdlib only:
 
     python3 Tools/make_ico.py Blocks5/data/window.png Blocks5/src/icon1.ico
 
-`make_ico.py` baut das Programmsymbol fuer Windows; die `.ico` ist eingecheckt,
-weil der Windows-Build kein Python laufen laesst, und die Pruefung
-`windows_icon` haelt sie aktuell.
+`make_ico.py` builds the program icon for Windows; the `.ico` is committed,
+because the Windows build runs no Python, and the `windows_icon` check is what
+keeps it current.
 
-    python3 Tools/strip_xml_comments.py --out VERZEICHNIS Blocks5/data
+    python3 Tools/strip_xml_comments.py --out DIRECTORY Blocks5/data
 
-`strip_xml_comments.py` legt die XML-Dateien ohne ihre Kommentare in einem
-Zwischenverzeichnis ab, aus dem dann gepackt wird - die Notizen in den Dialogen
-bleiben in den Quelldateien und gehen niemanden etwas an, der `data.zip`
-oeffnet. `pack.sh` und `zip_data.bat` rufen es von sich aus auf; ein eigener
-Aufruf ist nur zum Nachsehen noetig. Anders als `make_ico.py` laeuft es damit
-auch unter Windows - und wo Python fehlt, sagen beide Skripte es und packen die
-XML-Dateien, wie sie sind, statt den Build anzuhalten.
+`strip_xml_comments.py` puts the XML files without their comments into a
+staging directory, and that is what gets packed - the notes in the dialogs stay
+in the sources and are nobody's business who opens `data.zip`. `pack.sh` and
+`zip_data.bat` call it of their own accord; calling it by hand is only needed
+to look at the result. Unlike `make_ico.py` it therefore runs under Windows
+too - and where Python is missing, both packing scripts say so and pack the XML
+files as they stand instead of stopping the build.
 
-Ein Kommentar wird nur entfernt, wenn er seine Zeilen fuer sich hat. Das ist
-kein Schoenheitsgrund: in einem Level steht in `<Row>` je Zeichen eine
-Kachelnummer, und `<!--` waeren die Kacheln 60, 33, 45, 45 - fuer einen Parser
-ein Kommentaranfang wie jeder andere. Eine Kachelzeile hat immer Daten vor sich
-auf ihrer Zeile, ein Kommentar in einem Dialog nie. Wer einen doch hinter etwas
-anderes setzt, bekommt ihn gemeldet und behaelt ihn im Archiv.
+A comment is removed only if it has its lines to itself. That is not a matter
+of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--`
+would be the tiles 60, 33, 45, 45 - to a parser the start of a comment like any
+other. A row of tiles always has data before it on its line, a comment in a
+dialog never does. One written after something else on the same line is
+reported and kept in the archive.
 
 
-Klaenge
--------
+Sounds
+------
 
-Zu jedem Effekt liegt in `Blocks5/data` die WAV als Quelle neben der Ogg, die
-ausgeliefert wird - `pack.sh` nimmt nur `*.ogg` mit. Wer eine WAV aendert, muss
-die Ogg neu erzeugen:
+Every effect has its .wav source beside the .ogg that ships, in
+`Blocks5/data` - `pack.sh` takes only the `*.ogg`. Change a .wav and the .ogg
+has to be produced again:
 
-    python3 Tools/encode_sounds.py            alle veralteten
-    python3 Tools/encode_sounds.py ricochet   nur diese
-    python3 Tools/encode_sounds.py --force    alle, ob veraltet oder nicht
+    python3 Tools/encode_sounds.py            everything out of date
+    python3 Tools/encode_sounds.py ricochet   only this one
+    python3 Tools/encode_sounds.py --force    all of them, out of date or not
 
-Neu kodiert wird nur, was aelter ist als seine WAV, und das ist kein Luxus:
-zwei Laeufe ueber dieselbe Quelle liefern nicht dieselbe Datei. Die Ogg-Seiten
-tragen eine zufaellige Stromkennung, und mit ihr aendern sich die Pruefsummen
-der Seitenkoepfe - vierundzwanzig Byte von neuntausend, bei gleichem Ton. Ohne
-die Pruefung schriebe jeder Lauf fuenfundfuenfzig Binaerdateien um.
+Only what is older than its .wav is re-encoded, and that is no luxury: two runs
+over the same source do not deliver the same file. The Ogg pages carry a random
+stream id, and with it the checksums of the page headers change - twenty-four
+bytes of nine thousand, for the same audio. Without the check every run would
+rewrite fifty-five binary files.
 
-Das Skript kodiert **eins zu eins**, ohne Pegelaenderung. 96 kbit/s ist, was der
-groesste Teil des Bestandes traegt; weniger ist fuer kurze Effekte eine Falle.
-Bei 45 kbit/s verschmiert der Kodierer eine Transiente so weit, dass der Dekoder
-um Dezibel danebenliegt - `thunder.ogg` lag so 4,9 dB unter seiner Quelle - und
-das Quantisierungsrauschen des letzten langen Blocks (2048 Samples, 46 ms) steht
-am Ende der Datei noch bei -46 dBFS statt bei -88. libvorbis nimmt 96 aber nicht
-bei jeder Abtastrate an: bei 11025 Hz mono ist bei 48 Schluss, deshalb sucht das
-Skript nach unten, statt eine Zahl vorzugeben.
+The script encodes **one to one**, with no level change. 96 kbit/s is what the
+greater part of the stock carries; less is a trap for short effects. At
+45 kbit/s the encoder smears a transient far enough that the decoder is
+decibels out - `thunder.ogg` came out 4.9 dB below its source - and the
+quantisation noise of the last long block (2048 samples, 46 ms) still stands
+at -46 dBFS at the end of the file instead of at -88. But libvorbis does not
+accept 96 at every sample rate: at 11025 Hz mono it stops at 48, hence the
+search downward instead of a fixed number.
 
-**Wo ein Klang leiser sein soll, steht das in `Blocks5/data/sounds.xml`** und
-wird beim Abspielen angewandt, nicht beim Kodieren. Die WAV bleibt damit die
-unveraenderte Quelle in voller Aufloesung, die Ogg ist reproduzierbar, und der
-Kodierer bekommt die volle Aussteuerung fuer dieselbe Rechenlast. Frueher steckte
-der Faktor in der Ogg, und weil die WAV daneben lauter blieb, ging die Absicht
-beim naechsten Neukodieren verloren - acht Dateien waeren dabei um bis zu 6,8 dB
-lauter geworden. Die Pruefung `sound_volumes` haelt die Tabelle mit dem Bestand
-im Einklang.
+**Where a sound should play quieter, that stands in `Blocks5/data/sounds.xml`**
+and is applied at playback, not at encoding. The .wav thereby stays the
+unaltered source at full resolution, the .ogg is reproducible, and the encoder
+gets the full level for the same computational load. A factor baked into the
+.ogg would live only in the compressed file, and since the .wav beside it stays
+loud, the next re-encode loses the intent - eight files were exported that way,
+and re-encoding them from their sources would have made them up to 6.8 dB
+louder. The `sound_volumes` check keeps the table and the stock in step.
 
-Zwei Dinge gehoeren in die WAV selbst, nicht in den Kodierer und nicht in die
-Tabelle. Anfang und Ende muessen auf null liegen - eine halbe Kosinuswelle ueber
-5 ms hinein und hinaus, bei sehr kurzen Klaengen entsprechend weniger. **Klaenge,
-die in einer Schleife laufen, bekommen keine Blende**, denn dort ist das Ende der
-Anfang: conveyorbelt, elevator, gas, laser, mask, rain, thunderstorm, toxic. Und
-ein Gleichanteil muss raus: er kostet Aussteuerung, er knackt an beiden Enden,
-und wenn eine Huellkurve darueber gelegt wurde, wandert er mit ihr und ist
-deshalb auch kein fester Wert, den man einfach abziehen koennte. Ein Hochpass bei
-20 Hz nimmt ihn und laesst alles Hoerbare stehen - gemessen kostet er nach
-ITU-R BS.1770 hoechstens 0,8 dB Lautheit, waehrend er bis zu 6,6 dB Effektivwert
-wegnimmt.
+Two things belong in the .wav itself, not in the encoder and not in the table.
+The endpoints must lie on zero - a half cosine of 5 ms in and out, and
+correspondingly less for very short sounds. **A sound that runs in a loop gets
+no fade**, because there the end is the beginning: conveyorbelt, elevator, gas,
+laser, mask, rain, thunderstorm, toxic. And a DC offset has to go: it costs
+headroom, it clicks at both ends, and where an envelope has been laid over it,
+it travels with that envelope and so is not even a fixed value that could
+simply be subtracted. A 20 Hz high-pass takes it and leaves everything audible
+standing - measured, it costs at most 0.8 dB of loudness to ITU-R BS.1770 while
+removing up to 6.6 dB of RMS.
 
-**Bei einem Schleifenklang muss dieser Hochpass zyklisch gefaltet werden.** Ein
-solcher Klang *ist* periodisch; linear gefaltet bekommen Anfang und Ende das
-Einschwingen des Filters ab, und der Sprung an der Naht war hinterher 10 bis
-12 dB groesser als vorher.
+**For a looping sound that high-pass has to be convolved circularly.** Such a
+sound *is* periodic; convolved linearly, both ends take the filter's transient,
+and the step at the seam came out 10 to 12 dB worse than before.
 
-Was sich damit nicht reparieren laesst, ist Uebersteuerung: die abgeschnittenen
-Spitzen sind weg, und sie wieder unter die Vollaussteuerung zu bringen hiesse,
-den Pegel zu senken. Elf Dateien tragen sie noch.
+What cannot be repaired this way is clipping: the clipped peaks are gone, and
+getting back under full scale would mean lowering the level. Eleven files still
+carry it.

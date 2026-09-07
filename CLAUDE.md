@@ -69,9 +69,12 @@ stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Rele
 `zip_*.bat` run `tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
 `zip_skins_no_optipng.bat` skip that step. Both require `tools\7za.exe`.
 
-**`Blocks5/pack.sh` is all four of those in one, without Windows** — `zip -9 -P` in place of
-`7za a -tzip -mx=9 -p` (both write traditional ZipCrypto, which is what minizip reads) and the
-distribution's `optipng` in place of `tools\optipng`. `./pack.sh` does everything, `data` or
+**`Blocks5/pack.sh` is all four of those in one, without Windows** — the distribution's `7za`
+and `optipng` in place of `tools\7za.exe` and `tools\optipng`, and it refuses to start without
+either. `7za` and not Info-ZIP's `zip -P`, although both write traditional ZipCrypto: Info-ZIP
+sets bit 3 of the general purpose flags and then writes the sizes in a trailing data descriptor,
+and takes its check byte from the time of day rather than from the CRC. What comes out here
+should be the archive the Windows build produces. `./pack.sh` does everything, `data` or
 `skins` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only checkout needs:
 `data.zip` and the skin archives are build products that are not in Git, and the game will not
 start without them.
@@ -165,7 +168,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      fourteen static checks over the whole tree
+python3 Tools/verify.py      fifteen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -196,9 +199,16 @@ no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing fr
 `Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
-`gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
-English comment among the German ones. Exit code 1 on any finding; `--list` names them,
+`gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
+German comment among the English ones. Exit code 1 on any finding; `--list` names them,
 `--only NAME` runs one. `Tools/README.md` has the table.
+
+The last of those reads the two languages against each other rather than searching for one of
+them, because both word lists contain traps: *the particles die* is English although `die` is a
+German article, and *so weit kommt das nicht* is German although `so` is an English word. A line
+is reported when the German words outnumber the English ones. The `style` check had to learn the
+same lesson from the other side — it skipped `//` lines but not the body of a `/* */` block, and
+where the German never wrote `for (`, an English sentence does.
 
 The attribute check exists because renaming the constant `numLayers` to `NUM_LAYERS` once
 took the XML attribute string with it, which silently disabled the level size guard for
@@ -222,11 +232,14 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 118 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 120 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
-files can never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp` — for
-the same reasons they are left out of the web build. It needs nothing checked in: the
-handful of case-aliasing headers the tree includes (`<Windows.h>`, `<Shellapi.h>`,
+files never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp`. The last two
+are left out of the web build for the same reasons; `main.cpp` is compiled there, and the
+difference is the one thing worth knowing about this list: what mingw cannot parse in it is
+the `__try`/`__except` crash handler, which sits behind `#if defined(_WIN32) && !defined(_DEBUG)`
+— true under mingw, false under emcc. It needs nothing checked in: the handful of headers the
+tree includes under names mingw and OpenAL Soft file differently (`<Windows.h>`, `<Shlobj.h>`,
 `<al.h>`) are generated into a temp directory. It passes `-w`; for a warning sweep, swap
 that for `-Wall -Wextra` and compare against the same sweep before your change, because the
 tree emits thousands of warnings that were all there in 2015.
@@ -1672,12 +1685,26 @@ filenames, shipped zipped in `levels/campaigns/`.
   more than a paragraph of archaeology, and if the reason is genuinely long, the length is
   earned.
 
-- Comments are in German, and **every source file is pure ASCII** — `Blocks5/src`, `WebBuild`,
-  `PWEncrypt` and `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS`
-  inside an all-caps word), so the encoding of these files no longer matters to anything:
-  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM
-  or a `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back
-  to being encoding-dependent.
+- **Comments are in English, and so is everything the build and test tools print.** The tree
+  was commented in German until 1.2.0 and the mixture with English code read badly; the sweep
+  that changed it moved no code at all, which is what made a change across 286 files
+  reviewable. German survives in exactly three places, all of them data rather than prose:
+  `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
+  `verify.py`'s `comments` check together with the fault `selftest.py` injects into it. The
+  shipped `readme.txt` files stay bilingual, because they are for players.
+
+  A shared glossary settled the vocabulary, and its traps are worth knowing before writing a
+  comment that reaches for the obvious word: `uebersetzen` in the filter code is *compile*,
+  `Zeiger` is the mouse *cursor* almost everywhere but a real pointer in `hint.cpp`, `massiv`
+  is *solid* (`OF_MASSIVE` means impassable), `Ebene` is *layer* — *level* would collide with
+  the class — and `Bild` is a *frame*, a *picture* or an *image* depending on which the
+  sentence means, which is the distinction the whole browser timing argument rests on.
+- **Every source file is pure ASCII** — `Blocks5/src`, `WebBuild`, `PWEncrypt` and
+  `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS` inside an
+  all-caps word), so the encoding of these files no longer matters to anything: ASCII is a
+  subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM or a
+  `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back to
+  being encoding-dependent.
 - **The two bytes that carry meaning are written as escapes.** `data/languages.txt` is
   Latin-1 and shipped that way; the game parses it with `'\xA7'` (the section sign, §) in
   `engine.cpp` and `'\xB6'` (the pilcrow, ¶) in `font.cpp`, and a few inline localized strings

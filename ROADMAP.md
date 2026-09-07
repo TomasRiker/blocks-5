@@ -179,26 +179,34 @@ shape. The music half was solved differently — a level says
 instead of carrying a copy.
 
 
-7. Translate all source comments to English
--------------------------------------------
-Comments across `Blocks5/src` are in German. The translation is mechanical but
-enormous, and it wants to be one sweep rather than a drip, because half-translated
-files are worse than either end state.
+7. Translate all source comments to English  — **DONE**
+--------------------------------------------------------
+One sweep, as the entry asked for: 4493 German comment lines across 286 files,
+plus the docstrings and printed output of the build and test tooling, plus the
+four READMEs. Half-translated files really would have been worse than either end
+state, so nothing was left behind — what German remains is data, not prose:
+`data/languages.txt`, the inline `"\xA7" "de:…"` strings, the two word lists in
+`verify.py`'s `comments` check and the fault `selftest.py` injects into it. The
+shipped `readme.txt` files stay bilingual, because they are for players.
 
-**The encoding half is already done, and it was the dangerous half.** Every source
-file is pure ASCII: umlauts are written `ae oe ue ss`, and the two bytes that are
-not text at all are explicit escapes — `'\xA7'` (§) in `engine.cpp` and `'\xB6'`
-(¶) in `font.cpp`, plus a few inline localized strings shaped `"\xA7" "de:…"`.
-Those are a wire format shared with `data/languages.txt`, which is Latin-1 and
-shipped that way; as characters they would have changed meaning the moment anybody
-re-encoded a source file, silently and with no compiler error.
+**The encoding half had already been done, and it was the dangerous half.** Every
+source file is pure ASCII, and the two bytes that are not text at all are explicit
+escapes — `'\xA7'` (§) in `engine.cpp` and `'\xB6'` (¶) in `font.cpp`. So the
+translation was only a translation: no `/utf-8` switch, no BOM, no encoding
+decision to get wrong halfway through.
 
-So the translation is now only a translation: no `/utf-8` switch to remember, no
-BOM, no encoding decision to get wrong halfway through. The one rule to keep is
-the one in CLAUDE.md — do not type an umlaut into a comment.
+Two things made a change this size reviewable. A shared glossary was built first,
+by reading the whole corpus rather than translating file by file — about a hundred
+traps where the obvious word would have been wrong, of which the worst was `Ebene`,
+whose obvious rendering *level* would have collided with the class of that name in
+the same files. And every file was reduced to its code tokens with whitespace
+normalised, before and after, and the two compared: not one byte of code moved
+anywhere. The web build confirmed it independently, stamping the same payload
+hashes as before the sweep.
 
-`data/languages.txt`, `readme.txt` and `levels/readme.txt` are shipped files with
-their own encoding and CRLF endings; they are not part of this.
+The `comments` check that used to catch an English comment among the German ones
+now catches the opposite, counting the two word lists against each other rather
+than searching for one of them.
 
 
 8. Rendering performance

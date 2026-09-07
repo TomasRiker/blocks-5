@@ -19,4 +19,4 @@ const h = require('./harness');
 		await page.waitForTimeout(ms);
 	}
 	await browser.close();
-})().catch(e => { console.log('FEHLGESCHLAGEN: ' + e.message); process.exit(1); });
+})().catch(e => { console.log('FAILED: ' + e.message); process.exit(1); });
