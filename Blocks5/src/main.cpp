@@ -246,13 +246,11 @@ uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
 		{
 			if(!fs.isShippedContent(sub + *i)) continue;
 
-			// The game's filesystem has no rename: copy, then delete the
-			// original. An existing .bak gives way: it comes from an earlier
-			// run and means the same file.
+			// An existing .bak gives way: it comes from an earlier run and
+			// means the same file.
 			const std::string from(homeDirectory + sub + *i);
 			const std::string to(from + ".bak");
-			fs.deleteFile(to);
-			if(fs.copyFile(from, to) && fs.deleteFile(from))
+			if(fs.renameFile(from, to))
 			{
 				printfLog("* Retired the old copy of \"%s%s\" as \"%s.bak\".\n",
 						  sub.c_str(), i->c_str(), i->c_str());
@@ -261,7 +259,6 @@ uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
 			else
 			{
 				printfLog("+ WARNING: Could not retire \"%s\".\n", from.c_str());
-				fs.deleteFile(to);
 			}
 		}
 	}

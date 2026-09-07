@@ -272,6 +272,34 @@ bool FileSystem::copyFile(const std::string& source,
 	return numBytesWritten == size;
 }
 
+bool FileSystem::renameFile(const std::string& source,
+							const std::string& dest)
+{
+	// Both plain files? An archive member has no name of its own on the disk,
+	// so there is nothing for rename() to move.
+	std::string sourcePath, sourceObject, sourcePassword;
+	std::string destPath, destObject, destPassword;
+	convertPath(evalPath(source), sourcePath, sourceObject, sourcePassword);
+	convertPath(evalPath(dest), destPath, destObject, destPassword);
+
+	if(!sourcePath.empty() && sourceObject.empty() &&
+	   !destPath.empty() && destObject.empty())
+	{
+		// The destination gives way only after the first attempt has failed:
+		// POSIX replaces it in one atomic step, and deleting it beforehand
+		// would open a window in which neither name exists. Windows refuses
+		// the replacement, which is what the second attempt is for.
+		if(rename(sourcePath.c_str(), destPath.c_str()) == 0) return true;
+		if(fileExists(dest) && deleteFile(dest) &&
+		   rename(sourcePath.c_str(), destPath.c_str()) == 0) return true;
+	}
+
+	// The copy has to be complete before the original goes, or a failure
+	// halfway would leave neither.
+	if(!copyFile(source, dest)) return false;
+	return deleteFile(source);
+}
+
 bool FileSystem::createDirectory(const std::string& directory)
 {
 #ifdef _WIN32
