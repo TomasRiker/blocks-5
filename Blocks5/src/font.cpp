@@ -124,6 +124,19 @@ void Font::reload()
 	p_fontElement->Attribute("lineHeight", &lineHeight);
 	p_fontElement->Attribute("offset", &offset);
 
+	// Where the letters sit inside a glyph cell: the row a capital begins at
+	// and the row the writing ends on. Both are optional and both default to
+	// the line box, which is where a font's ink normally sits - the two fonts
+	// in data/ measure out to exactly that. A font may hang its line lower
+	// than its ink, though, and the note's font does: without the correction
+	// its keycap frame sits under the word instead of around it. verify.py's
+	// font_metrics check reads both out of the image and reports a font whose
+	// figures do not describe it.
+	capTop = -offset;
+	capBottom = -offset + lineHeight - 1;
+	p_fontElement->Attribute("capTop", &capTop);
+	p_fontElement->Attribute("capBottom", &capBottom);
+
 	// process all child elements
 	TiXmlElement* p_charElement = p_fontElement->FirstChildElement("Character");
 	while(p_charElement)
@@ -156,8 +169,6 @@ void Font::reload()
 		error = 2;
 		return;
 	}
-
-	measureCapBox();
 
 	// clear the cache
 	stringCache.clear();
@@ -726,74 +737,6 @@ std::string Font::adjustText(const std::string& text,
 	}
 
 	return out;
-}
-
-void Font::measureCapBox()
-{
-	// Where the letters really sit inside a glyph cell. lineHeight and offset
-	// describe the line, not the ink, and a font is free to hang the one lower
-	// than the other: the note's font ends its letters nine pixels above the
-	// foot of its line box, so a keycap frame hung off the line box sits under
-	// the word instead of around it.
-	//
-	// Without an image the line box is the best guess there is, and it is what
-	// the two fonts in data/ measure out to anyway.
-	capTop = -offset;
-	capBottom = -offset + lineHeight - 1;
-
-	if(!p_texture) return;
-
-	// Nobody else keeps a font's image in memory, so asking for it here and
-	// giving it back leaves every other reader untouched - and where it is
-	// still there from the load, it is not ours to hand back.
-	const bool wasInMemory = p_texture->hasPixels();
-	if(!wasInMemory) p_texture->keepInMemory();
-
-	if(p_texture->hasPixels())
-	{
-		// The mode of the first and of the last inked row, over the printable
-		// characters: the row most letters begin at is the top of a capital
-		// and the row most of them end at is the baseline. Taking the extremes
-		// instead would let one brace and one comma decide, and those two are
-		// exactly the glyphs a key name never contains.
-		std::vector<int> topCount(256, 0);
-		std::vector<int> bottomCount(256, 0);
-
-		for(int c = 32; c < 127; c++)
-		{
-			const CharacterInfo& info = charInfo[c];
-			int top = -1, bottom = -1;
-
-			for(int y = 0; y < info.size.y && y < 256; y++)
-			{
-				for(int x = 0; x < info.size.x; x++)
-				{
-					if(p_texture->getPixel(info.position + Vec2i(x, y)).w > 0.0)
-					{
-						if(top < 0) top = y;
-						bottom = y;
-						break;
-					}
-				}
-			}
-
-			if(top >= 0)
-			{
-				topCount[top]++;
-				bottomCount[bottom]++;
-			}
-		}
-
-		int best = 0;
-		for(int y = 0; y < 256; y++) if(topCount[y] > topCount[best]) best = y;
-		if(topCount[best] > 0) capTop = best;
-
-		best = 0;
-		for(int y = 0; y < 256; y++) if(bottomCount[y] > bottomCount[best]) best = y;
-		if(bottomCount[best] > 0) capBottom = best;
-	}
-
-	if(!wasInMemory) p_texture->releasePixels();
 }
 
 Vec2i Font::getKeyBoxRows(double lineSpacing) const

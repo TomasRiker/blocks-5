@@ -180,6 +180,14 @@ def c_windows_icon(p):
     p.raw(p.original[:4] + b'\x02\x00' + p.original[6:])
 
 
+@case('font_metrics', 'Blocks5/levels/skins/blocks_01/hintfont.xml')
+def c_font_metrics(p):
+    # Take the correction off the note's font. Nothing else in the tree says
+    # where its letters sit, so the keycap frame goes back to the line box -
+    # and that one hangs five rows below the writing.
+    p.replace(' capTop="4" capBottom="16"', '')
+
+
 @case('comments', 'Blocks5/src/level.cpp')
 def c_comments(p):
     p.append('\n// Das ist ein deutscher Kommentar und der muss gemeldet werden.\n')

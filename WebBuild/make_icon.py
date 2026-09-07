@@ -33,14 +33,17 @@ import sys
 import zlib
 
 
-# Bytes per pixel for the 8-bit colour types from RFC 2083. The reader accepts
+# Samples per pixel for the colour types of RFC 2083. The reader accepts
 # exactly these and rejects everything else rather than getting it quietly
 # wrong: window.png is RGBA, data/font.png a palette.
-_BPP = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+_CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 
 
 def read_png(path):
-    """Returns (width, height, RGBA bytes) for an 8-bit PNG without interlacing."""
+    """Returns (width, height, RGBA bytes) for a PNG without interlacing.
+
+    Eight bits per sample, and for grey and palette also the narrower depths -
+    credits_font.png is a two-colour palette at one bit."""
     data = open(path, 'rb').read()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
         raise SystemExit('%s is not a PNG' % path)
@@ -56,7 +59,9 @@ def read_png(path):
         pos += 12 + length          # length, kind, body, checksum
         if kind == b'IHDR':
             width, height, depth, color, comp, filt, interlace = struct.unpack('>IIBBBBB', body)
-            if depth != 8 or comp != 0 or filt != 0 or interlace != 0 or color not in _BPP:
+            narrow = depth in (1, 2, 4) and color in (0, 3)
+            if (depth != 8 and not narrow) or comp != 0 or filt != 0 or interlace != 0 \
+                    or color not in _CHANNELS:
                 raise SystemExit('%s: expected 8 bit without interlacing, found '
                                  'depth=%d color=%d interlace=%d'
                                  % (path, depth, color, interlace))
@@ -69,9 +74,12 @@ def read_png(path):
         elif kind == b'IEND':
             break
 
-    bpp = _BPP[color]
+    # The filter works on whole bytes, and below one byte per pixel that is
+    # one byte - the sample is unpacked afterwards.
+    channels = _CHANNELS[color]
+    bpp = max(1, channels * depth // 8)
     raw = zlib.decompress(b''.join(idat))
-    stride = width * bpp
+    stride = (width * channels * depth + 7) // 8
     out = bytearray(height * stride)
     prev = bytearray(stride)
     at = 0
@@ -105,19 +113,29 @@ def read_png(path):
     if color == 6:
         return width, height, bytes(out)
 
+    def sample(i):
+        """Sample i of the row-packed image, whatever the bit depth is."""
+        if depth == 8:
+            return out[i]
+        perByte = 8 // depth
+        y, x = divmod(i, width)
+        byte = out[y * stride + x // perByte]
+        return (byte >> (8 - depth * (x % perByte + 1))) & ((1 << depth) - 1)
+
     # Bring everything else to RGBA, leaving callers only one case to know.
     rgba = bytearray(width * height * 4)
     for i in range(width * height):
         if color == 3:
-            k = out[i] * 3
+            index = sample(i)
+            k = index * 3
             if k + 3 > len(palette):
                 raise SystemExit('%s: palette index outside the PLTE' % path)
             r, g, b = palette[k], palette[k + 1], palette[k + 2]
-            a = alpha[out[i]] if out[i] < len(alpha) else 255
+            a = alpha[index] if index < len(alpha) else 255
         elif color == 2:
             r, g, b, a = out[i * 3], out[i * 3 + 1], out[i * 3 + 2], 255
         elif color == 0:
-            r = g = b = out[i]
+            r = g = b = sample(i) * 255 // ((1 << depth) - 1)
             a = 255
         else:                        # 4: grey with alpha
             r = g = b = out[i * 2]

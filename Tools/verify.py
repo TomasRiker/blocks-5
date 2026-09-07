@@ -21,6 +21,7 @@ Two slow checks stand beside it and run only on request:
     WebBuild/build.sh  builds the browser build
 """
 
+import glob
 import io
 import os
 import re
@@ -807,6 +808,105 @@ def check_windows_icon():
             bad.append('icon1.ico: the %dx%d entry differs in %d pixels from '
                        'data/window.png at %dx with %d pixels of margin - '
                        'run Tools/make_ico.py' % (size, size, wrong, scale, margin))
+    return bad
+
+
+@check('font_metrics')
+def check_font_metrics():
+    """A font must say where its letters sit, or the keycap frame misses them.
+
+    The frame around a <k>...</k> is placed from capTop and capBottom, and
+    those default to the line box - lineHeight and offset - which is where a
+    font's ink normally sits. A font is free to hang its line lower than its
+    own letters, though, and the note's font does: it ends its writing nine
+    rows above the foot of its line box, so the frame sat under the word
+    instead of around it. The two attributes correct that, and this is what
+    stops them from going stale when the art is redrawn, since nothing else
+    reads them and no compiler can see the picture.
+
+    Reported when the frame would cut into the letters, or sit off to one side
+    of them by more than half a row. The rows come out of the image: for every
+    printable character the first and the last inked row of its cell, and then
+    the most common of each - the top of a capital and the line the writing
+    sits on. The mode and not the extremes, because a brace reaches higher and
+    a comma lower than anything a key is called."""
+    sys.path.insert(0, os.path.join(ROOT, 'WebBuild'))
+    from make_icon import read_png
+
+    fonts = []
+    for pattern in ('Blocks5/data/*.xml', 'Blocks5/levels/skins/*/*.xml'):
+        for path in sorted(glob.glob(os.path.join(ROOT, pattern))):
+            # The root element, not a <Font>somewhere.xml</Font> naming one
+            # inside a dialog.
+            if re.match(r'\s*(<\?xml[^>]*\?>\s*)?<Font\b', read(path)):
+                fonts.append(path)
+
+    bad = []
+    for path in fonts:
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        text = read(path)
+
+        def number(name, fallback=None):
+            m = re.search(r'\b%s="(-?\d+)"' % name, text)
+            return int(m.group(1)) if m else fallback
+
+        image = re.search(r'image="([^"]+)"', text)
+        lineHeight, offset = number('lineHeight'), number('offset')
+        if not image or lineHeight is None or offset is None:
+            bad.append('%s: no image, lineHeight or offset' % rel)
+            continue
+
+        imagePath = os.path.join(os.path.dirname(path), image.group(1))
+        if not os.path.exists(imagePath):
+            bad.append('%s: the image "%s" is missing' % (rel, image.group(1)))
+            continue
+
+        width, height, pixels = read_png(imagePath)
+
+        # The first and the last inked row of every printable character, and
+        # the most common of each.
+        tops, bottoms = {}, {}
+        for m in re.finditer(r'code="(\d+)" x="(\d+)" y="(\d+)" w="(\d+)" h="(\d+)"', text):
+            code, x, y, w, h = [int(g) for g in m.groups()]
+            if not 32 <= code < 127:
+                continue
+            first = last = None
+            for row in range(h):
+                if y + row >= height:
+                    break
+                line = (y + row) * width * 4
+                if any(pixels[line + (x + column) * 4 + 3] for column in range(w) if x + column < width):
+                    first = row if first is None else first
+                    last = row
+            if first is not None:
+                tops[first] = tops.get(first, 0) + 1
+                bottoms[last] = bottoms.get(last, 0) + 1
+        if not tops:
+            bad.append('%s: no inked character in the image' % rel)
+            continue
+
+        inkTop = max(sorted(tops), key=lambda row: tops[row])
+        inkBottom = max(sorted(bottoms), key=lambda row: bottoms[row])
+
+        # What the game will do with it - Font::getKeyBoxRows(), at the font's
+        # own line height.
+        capTop = number('capTop', -offset)
+        capBottom = number('capBottom', -offset + lineHeight - 1)
+        top = (capTop + capBottom - lineHeight + 2) // 2
+        bottom = top + lineHeight - 1
+
+        fix = ('add capTop="%d" capBottom="%d" to <Font>' % (inkTop, inkBottom)
+               if number('capTop') is None else
+               'capTop="%d" capBottom="%d" no longer describe the image'
+               % (capTop, capBottom))
+        if top > inkTop or bottom < inkBottom:
+            bad.append('%s: the letters sit in rows %d..%d of a cell, the keycap frame '
+                       'in rows %d..%d - it cuts into them; %s'
+                       % (rel, inkTop, inkBottom, top, bottom, fix))
+        elif abs((top + bottom) - (inkTop + inkBottom)) > 1:
+            bad.append('%s: the letters sit in rows %d..%d of a cell, the keycap frame '
+                       'in rows %d..%d - it is not centred on them; %s'
+                       % (rel, inkTop, inkBottom, top, bottom, fix))
     return bad
 
 

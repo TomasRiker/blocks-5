@@ -1720,18 +1720,29 @@ glyphs; a keycap without the same shadow would look pasted on.
 
 **The frame is as tall as the line and centred on the letters, not on the line box.**
 `lineHeight` and `offset` describe the line a font is *set* at, and a font is free to hang that
-line lower than its own ink: the note's font ends its letters nine pixels above the foot of its
+line lower than its own ink: the note's font ends its letters nine rows above the foot of its
 line box, so a frame drawn on the line box sat under the word instead of around it, with its
-top edge through the capitals. `Font::measureCapBox` reads the font's image at load instead and
-takes the **mode** of the first and of the last inked row over the printable characters — which
-is the top of a capital and the baseline, and which one deep comma or one tall brace cannot
-move, as the extremes could. The pixels are borrowed and handed straight back
-(`Texture::releasePixels`); only the debris sampling holds on to them. The height stays the
-line's, capped at the pitch (`lineHeight × lineSpacing`), and that cap is what lets two keycaps
-on lines above one another share an edge instead of overlapping — not a rare case: two rows of
-the help table and any wrapped line of a hint note have keycaps directly above one another, and
-it is the same reason `KEY_BOX_GROW` is 0. For the two fonts in `data/` the measurement comes
-out as the line box to the pixel, so nothing in the help table or in a speech balloon moved.
+top edge through the capitals. Two optional `<Font>` attributes say where the letters really
+are — `capTop` and `capBottom`, the row a capital begins at and the row the writing ends on —
+and both default to the line box, which is what the two fonts in `data/` measure out to anyway.
+They are therefore written down in exactly one place, the two skins that bring a `hintfont.xml`,
+and nothing in the help table or in a speech balloon moved. The height stays the line's, capped
+at the pitch (`lineHeight × lineSpacing`), and that cap is what lets two keycaps on lines above
+one another share an edge instead of overlapping — not a rare case: two rows of the help table
+and any wrapped line of a hint note have keycaps directly above one another, and it is the same
+reason `KEY_BOX_GROW` is 0.
+
+**Data, and not the image measured at every start.** Where a font's letters sit is a constant
+of the art, and a statistic recomputed at load would move every keycap in the game by a pixel
+because somebody redrew one glyph — silently, with nothing in any diff to point at.
+`verify.py`'s `font_metrics` check is the other half of writing it down: it reads the first and
+the last inked row of every printable character out of the font's PNG, takes the **mode** of
+each — the top of a capital and the line the writing sits on, where a brace reaches higher and
+a comma lower than anything a key is ever called — and reports a font whose frame would cut
+into its letters or sit off to one side of them, naming the two numbers to write. It is the
+same arrangement as the committed `.ico`: the file is the source of record and the check is
+what stops it going stale. (`read_png` in `WebBuild/make_icon.py` learned the narrow bit depths
+for it — `credits_font.png` is a two-colour palette at one bit.)
 
 **A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole
 `<k>…</k>` run moves down together, the way any typesetter treats an inline box — and the

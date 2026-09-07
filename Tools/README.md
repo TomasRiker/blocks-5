@@ -31,6 +31,7 @@ Exit code 1 as soon as anything is reported.
 | `sound_volumes` | Every sound in `data/sounds.xml` must exist, with a factor under 1. |
 | `style` | Tabs, no space after a keyword, no whitespace at line end. |
 | `windows_icon` | The program icon must match `data/window.png`. |
+| `font_metrics` | A font's `capTop`/`capBottom` must be where its letters really are. |
 | `comments` | English comments - a German line among them is always a leftover. |
 
 Two of them - `style` and `ctor_init` - judge only what has come in since the
