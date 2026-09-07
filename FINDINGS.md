@@ -2,11 +2,13 @@ Blocks 5 - findings from the 1.2.0 English sweep
 ================================================
 
 What the translation pass turned up while reading every comment in the tree.
-The sweep itself was a translation and a convention pass; ten of the findings
-have since been fixed, all of them cases where the code had already decided
-what the fix must be. The Verified section below is the live list - what was fixed,
-what is still open, what turned out to be harmless and what did not survive
-checking. Everything under it is the unfiltered record of the reading.
+The sweep itself was a translation and a convention pass; twelve of the findings
+have since been fixed - ten where the code had already decided what the fix must
+be, and two that needed a decision first. The Verified section below is the live
+list - what was fixed, what is still open, what turned out to be harmless and what
+did not survive checking. Everything under it is the unfiltered record of the
+reading, left as each was first written: a finding's disposition is carried by
+the Verified section alone, so an entry there is not rewritten when it is fixed.
 
 Each entry is what an agent reported after reading the code around it. "confirmed"
 means a second, independent agent went back to the code and reached the same
@@ -28,7 +30,7 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-Ten are fixed. Four are open and want a decision that is about the game rather
+Twelve are fixed. Two are open and want a decision that is about the game rather
 than about the code. The rest are real and harmless, or refuted - and the
 refuted ones are the most useful part of this file, because they are what stops
 the same false alarm being raised again.
@@ -76,6 +78,29 @@ Fixed earlier, in 5085dd2, as conventions rather than defects: the four
 elements sharing a name in `leveleditor.xml` and `selectlevel.xml`.
 
 
+### Fixed in a5cf3e0
+
+Two of the decisions below, once they had been made.
+
+- **file_archived.cpp** - `deleteArchivedFile()` copies each surviving member's
+  local record verbatim - header, name, extra field and compressed data in one
+  block sized from the local header it just read - instead of reconstructing it
+  from the central directory. The two headers may carry different extra fields
+  (Info-ZIP writes 28 bytes locally against 24 centrally), and the old code
+  allocated from the central lengths and wrote from the local ones, so the
+  larger of the two read past the end of the heap block. Verified against a real
+  Info-ZIP archive: before, both survivors' extra fields came out with four
+  bytes of adjacent heap appended; after, byte-identical, and the archive
+  verifies.
+- **e_gate.cpp** - the constructor clamps `subType` to 0..7 and logs a warning,
+  which is where a value out of the level file can be caught once for all four
+  things that index on it: the pin count, the sprite region, the `switch` in
+  `doLogic()` and the tooltip table. With the range closed, the `switch` covers
+  every case that can reach it and the uninitialised `int z` can no longer be
+  read. `getToolTip()` keeps its own guard as the backstop for a ninth gate type
+  added without extending the table.
+
+
 ### Open - these want a decision, not a patch
 
 1.  **bomb.cpp:102, :163 and projectile.cpp:219 - the debris fades in.**
@@ -85,20 +110,7 @@ elements sharing a name in `leveleditor.xml` and `selectlevel.xml`.
     the look it produces may be the one everybody knows. Changing it changes
     what the game looks like.
 
-2.  **e_gate.cpp:111 - `int z;` and a switch with no default.**
-    Initialising it decides what an unknown `subType` publishes onto the output
-    pin, and `subType` arrives unchecked from the level file. That is an answer
-    about the electronics, not a missing `= 0`.
-
-3.  **file_archived.cpp:471 - the buffers are written with the wrong lengths.**
-    `p_filename` is allocated with `cde.filenameLength + 1` and `p_extraField`
-    with `cde.extraFieldLength`, but both are written out using the *local*
-    header's lengths. A zip writer may put a different extra field in each, so
-    where `lfh.extraFieldLength` is the larger this reads past the end of the
-    heap block. The over-read is certain; which of the two headers should be
-    authoritative for the output is real zip reasoning and not a one-liner.
-
-4.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
+2.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
     failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
     open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
     paths). Each is correct to fix and each is one object on a path taken rarely

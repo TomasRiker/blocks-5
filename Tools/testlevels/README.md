@@ -51,3 +51,26 @@ came out of it - the Geiger counter crackled on until the level was restarted,
 measured twenty-nine times a second. `random(int, int)` answers an empty span
 with `min` now instead of reading it unsigned - that is the real trap, and it
 would have caught every other caller the same way.
+
+
+`bomb.xml`
+----------
+A wall of 29 bombs on one row with a `Fire` on the leftmost of them, so the
+chain detonates on the first ticks and throws block debris across the whole
+screen. It is there for judging the debris particles - their colour, how long
+they last, and whether they fade out or brighten as they shrink.
+
+Three things about it are deliberate. The bombs are *adjacent*: a bomb reaches
+its neighbours only through the 3x3 loop in `Bomb::onUpdate`, so bombs two
+cells apart do not chain. The `Fire` sits on the *same* cell as the first bomb,
+because `onFire()` is what arms it and a fire beside it does nothing. And the
+title begins `!!!` so the level sorts to the top of the single-levels list,
+which is ordered by localized title - in a working tree that list also holds
+the 42 campaign sources, and finding the right entry blind is otherwise fiddly.
+
+What a recording of it cannot do is worth knowing before trying. The explosion
+lands inside the crossfade from the menu, and under llvmpipe a rendered frame
+costs a fifth of a second against a 20 ms logic tick, so the whole life of a
+debris particle is a handful of frames. Two recordings cannot be compared frame
+by frame either, even from the same seed: which tick a frame lands on depends
+on load, so the same offset is a different moment in each run.
