@@ -57,10 +57,10 @@ class Patch(object):
     def __exit__(self, *exc):
         open(self.path, 'wb').write(self.original)
         assert open(self.path, 'rb').read() == self.original, 'konnte %s nicht zuruecklegen!' % self.rel
-        # Auch der Zeitstempel gehoert zurueckgelegt. Sonst gilt jede Quelle,
-        # die hier angefasst wurde, danach als juenger als alles, was aus ihr
-        # gebaut wurde: der naechste Build uebersetzt den halben Baum neu, und
-        # die Altersprobe der Testumgebung schlaegt grundlos an.
+        # The timestamp has to be put back too. Otherwise every source touched
+        # here counts afterwards as younger than everything built from it: the
+        # next build recompiles half the tree, and the test harness's age check
+        # fires for no reason.
         os.utime(self.path, self.times)
         return False
 
@@ -115,9 +115,9 @@ def c_config(p):
     p.replace('new TiXmlElement("Upscaler")', 'new TiXmlElement("UpscalerX")')
 
 
-# Dasselbe eine Datei weiter: <CrtUpscaler> legt der Filter selbst an, und die
-# Pruefung sieht diese Haelfte nur, weil sie u_*.cpp mitliest. Ohne diesen Fall
-# waere nicht zu bemerken, dass sie es nicht mehr tut.
+# The same thing one file on: <CrtUpscaler> is created by the filter itself,
+# and the check sees that half only because it reads u_*.cpp too. Without this
+# case there would be nothing to show that it had stopped.
 @case('config', 'Blocks5/src/u_crt.cpp')
 def c_config_upscaler(p):
     p.replace('new TiXmlElement("CrtUpscaler")', 'new TiXmlElement("CrtUpscalerX")')
@@ -125,7 +125,7 @@ def c_config_upscaler(p):
 
 @case('ctor_init', 'Blocks5/src/engine.cpp')
 def c_ctor(p):
-    # Die erste der drei Stellen ist die im Konstruktor.
+    # The first of the three places is the one in the constructor.
     p.replace('\tframeDepthStencilID = 0;\n\trenderTargetID = 0;\n',
               '\tframeDepthStencilID = 0;\n')
 
@@ -135,9 +135,9 @@ def c_assets(p):
     p.replace('"menu.xml"', '"menu_typo.xml"')
 
 
-# Die zweite Haelfte derselben Pruefung: den Namen gibt es, nur anders
-# geschrieben. Unter Windows faellt das nie auf, unter Linux ist es ein
-# Ladefehler zur Laufzeit.
+# The second half of the same check: the name exists, only spelled differently.
+# Under Windows that never shows up, under Linux it is a load failure at
+# runtime.
 @case('assets', 'Blocks5/src/gs_menu.cpp')
 def c_assets_case(p):
     p.replace('"menu.xml"', '"Menu.xml"')
@@ -145,18 +145,18 @@ def c_assets_case(p):
 
 @case('sounds', 'Blocks5/src/gs_loading.cpp')
 def c_sounds(p):
-    # Einen vorgeladenen Klang aus der Liste nehmen. Gespielt wird er
-    # weiterhin, und genau diese Luecke ist der Fehler: Engine::playSound()
-    # gibt die Ressource sofort wieder frei, und ohne den Halter hier loescht
-    # ~Sound die Instanz, bevor ein Ton herauskommt.
+    # Take a preloaded sound out of the list. It is still played, and exactly
+    # that gap is the bug: Engine::playSound() releases the resource again at
+    # once, and without the holder here ~Sound deletes the instance before any
+    # sound comes out.
     p.replace('\tsndMgr.request("rewind.ogg");\n', '')
 
 
 @case('sound_volumes', 'Blocks5/data/sounds.xml')
 def c_sound_volumes(p):
-    # Einen Dateinamen verdrehen. Im Spiel faellt das nirgends auf: Engine
-    # liefert fuer einen unbekannten Namen 1.0, der Klang waere also einfach
-    # wieder so laut wie seine Datei.
+    # Scramble a filename. Nowhere in the game does that show up: Engine
+    # returns 1.0 for an unknown name, and the sound would simply be as loud as
+    # its own file again.
     p.replace('file="ricochet.ogg"', 'file="richochet.ogg"')
 
 
@@ -167,14 +167,14 @@ def c_style(p):
 
 @case('windows_icon', 'Blocks5/src/icon1.ico')
 def c_windows_icon(p):
-    # Die Zahl der Bilder im Verzeichniskopf auf zwei setzen: die uebrigen
-    # Groessen sind damit nicht mehr angemeldet, und genau das soll auffallen.
+    # Set the image count in the directory header to two: the remaining sizes
+    # are then no longer declared, and that is exactly what has to show up.
     p.raw(p.original[:4] + b'\x02\x00' + p.original[6:])
 
 
 @case('comments', 'Blocks5/src/level.cpp')
 def c_comments(p):
-    p.append('\n// This comment is written in English and should be reported.\n')
+    p.append('\n// Das ist ein deutscher Kommentar und der muss gemeldet werden.\n')
 
 
 def main():

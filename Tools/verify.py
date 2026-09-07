@@ -31,7 +31,7 @@ SRC = os.path.join(ROOT, 'Blocks5', 'src')
 DATA = os.path.join(ROOT, 'Blocks5', 'data')
 WEB = os.path.join(ROOT, 'WebBuild')
 
-# Vendored, nicht unseres. stackwalker ist zugekauft und CRLF.
+# Vendored, not ours. stackwalker is third-party and CRLF.
 VENDORED = ('stackwalker.cpp', 'stackwalker.h')
 
 CHECKS = []
@@ -62,7 +62,7 @@ def source_files(exts=('.cpp', '.h', '.c')):
     return out
 
 
-BASELINE = '95660bb'      # letzter Stand vor dieser Zusammenarbeit
+BASELINE = '95660bb'      # the last commit before this collaboration
 _baseline_cache = {}
 
 
@@ -164,7 +164,7 @@ def check_project_files():
     for f in sorted(os.listdir(SRC)):
         if not f.endswith(('.cpp', '.h')):
             continue
-        if f == 'pch.cpp':          # die Create-PCH-Einheit, steht mit eigener Regel drin
+        if f == 'pch.cpp':          # the Create-PCH unit, listed with a rule of its own
             pass
         for name, text in (('Blocks5.vcxproj', ptext), ('Blocks5.vcxproj.filters', ftext)):
             if ('src\\' + f) not in text and ('src/' + f) not in text:
@@ -258,11 +258,11 @@ def check_gui_paths():
         for m in re.finditer(r'name="([^"]+)"', read(os.path.join(DATA, f))):
             known.add(m.group(1))
 
-    # Im Code stehen ganze Pfade ("Menu.ManagerPane.Manager.Close"); geprueft
-    # wird jedes Glied, denn die XML nennt nur die einzelnen Namen.
+    # The code holds whole paths ("Menu.ManagerPane.Manager.Close"); each part
+    # is checked on its own, since the XML names only the individual pieces.
     allowed_missing = {
-        'Game',                                   # zur Laufzeit erzeugt
-        'LevelEditor.EditHintPane.EditHint.Text',  # dito
+        'Game',                                   # created at runtime
+        'LevelEditor.EditHintPane.EditHint.Text',  # ditto
     }
     bad = []
     pattern = re.compile(r'(?:gui\s*\[|getChild\s*\(|getElement\s*\()\s*"([A-Za-z][A-Za-z0-9_.]*)"')
@@ -294,8 +294,8 @@ def check_strings():
     ids, bodies, current = set(), {}, None
     for line in text.split('\r\n' if '\r\n' in text else '\n'):
         if line.startswith('$'):
-            # Ein '#' am Ende heisst "Zeilen nicht zusammenziehen" und gehoert
-            # nicht zur Kennung - loadStringDB() schneidet es genauso ab.
+            # A '#' at the end means "do not join the lines" and is no part of
+            # the id - loadStringDB() cuts it off just the same.
             current = line.strip().rstrip('#')
             ids.add(current)
             bodies[current] = set()
@@ -304,7 +304,7 @@ def check_strings():
 
     bad = []
     for i in sorted(ids):
-        if i == '$END_OF_FILE':      # Schlussmarke, kein Text
+        if i == '$END_OF_FILE':      # end marker, no text
             continue
         for want in ('en', 'de'):
             if want not in bodies.get(i, set()):
@@ -331,9 +331,9 @@ def check_xml_attrs():
     Konstanten einmal zu "NUM_LAYERS" geworden und die Groessenpruefung des
     Levels damit still ausgefallen."""
     written, readd = {}, set()
-    # Der Aufrufpfeil gehoert ins Muster: sonst passt "Attribute(" auch auf das
-    # Ende von "SetAttribute(", jedes geschriebene Attribut gilt als gelesen,
-    # und die Pruefung findet nie etwas.
+    # The call arrow belongs in the pattern: otherwise "Attribute(" matches the
+    # tail of "SetAttribute(" as well, every written attribute counts as read,
+    # and the check never finds anything.
     wpat = re.compile(r'(?:->|\.)\s*Set(?:Double|Int)?Attribute\s*\(\s*"([A-Za-z_][\w]*)"')
     rpat = re.compile(r'(?:->|\.)\s*(?:Query(?:Int|Double|Float|Bool)?Attribute|Attribute)'
                       r'\s*\(\s*"([A-Za-z_][\w]*)"')
@@ -345,8 +345,8 @@ def check_xml_attrs():
         for m in rpat.finditer(text):
             readd.add(m.group(1))
 
-    # Die GUI liest ihre Attribute ueber readAttributes(), nicht ueber diese
-    # Namen; das XML wird dort geschrieben, nicht gelesen.
+    # The GUI reads its attributes through readAttributes(), not through these
+    # names; the XML is written there, not read.
     return ['%s: Attribut "%s" wird geschrieben, aber nirgends gelesen' % (where, name)
             for name, where in sorted(written.items()) if name not in readd]
 
@@ -474,9 +474,9 @@ def check_ctor_init():
             return True
         if re.search(r'this->%s\s*=(?!=)' % re.escape(name), body):
             return True
-        if re.search(r'[:,]\s*%s\s*\(' % re.escape(name), body):        # Initialisierungsliste
+        if re.search(r'[:,]\s*%s\s*\(' % re.escape(name), body):        # initialiser list
             return True
-        if re.search(r'&%s\b' % re.escape(name), body):                  # per Adresse gefuellt
+        if re.search(r'&%s\b' % re.escape(name), body):                  # filled by address
             return True
         return False
 
@@ -494,8 +494,8 @@ def check_ctor_init():
             if body is None:
                 continue
             missing = [m for m in members if not is_set(m, body)]
-            # Setzt der Konstruktor weniger als die Haelfte, folgt die Klasse
-            # einer anderen Regel und die Pruefung sagt nichts ueber sie.
+            # If the constructor sets fewer than half of them, the class
+            # follows a different rule and the check says nothing about it.
             if len(missing) * 2 > len(members):
                 continue
             was = original_lines(rel)
@@ -522,7 +522,7 @@ def check_assets():
                 exact.add(f)
                 lower.setdefault(f.lower(), set()).add(f)
 
-    # Bruchstuecke, Formatzeichenketten und zur Laufzeit erzeugte Dateien.
+    # Fragments, format strings and files created at runtime.
     runtime = re.compile(r'%|^\.|^/|:|\*|,|\s')
     generated = {'config.xml', 'progress.zip', 'crash_log.txt', 'log.txt',
                  'keyboard.dat', 'campaign.xml', '~campaignsave.zip'}
@@ -530,8 +530,8 @@ def check_assets():
     lit = re.compile(r'"([A-Za-z0-9_][A-Za-z0-9_.\- ]*\.(?:png|xml|ogg|wav|txt|zip|dat))"')
     for p in source_files(('.cpp', '.h')):
         rel = os.path.relpath(p, ROOT)
-        # Ohne Kommentare: ein Dateiname, der in einem Kommentar als Beispiel
-        # steht, ist keiner, den das Spiel oeffnet.
+        # Comments stripped: a filename standing in a comment as an example is
+        # not one the game opens.
         for m in lit.finditer(strip_comments(read(p))):
             name = m.group(1)
             if runtime.search(name) or name.lower() in generated:
@@ -569,8 +569,8 @@ def check_sounds():
         rel = os.path.relpath(p, ROOT)
         text = strip_comments(read(p))
         for m in call.finditer(text):
-            # Bis zur schliessenden Klammer, damit auch beide Zweige eines
-            # "x ? a : b" mitkommen.
+            # Up to the closing bracket, to take in both branches of an
+            # "x ? a : b" as well.
             depth, i = 1, m.end()
             while i < len(text) and depth:
                 if text[i] == '(':
@@ -581,9 +581,9 @@ def check_sounds():
             for name in lit.findall(text[m.end():i]):
                 played.setdefault(name, rel)
 
-    # Die ganze Datei und nicht nur loadSounds(): das Logo wird in onEnter()
-    # angefordert und nie freigegeben, was denselben Dienst tut. Ein neuer
-    # Klang gehoert trotzdem in die Liste.
+    # The whole file and not just loadSounds(): the logo is requested in
+    # onEnter() and never released, which does the same job. A new sound
+    # belongs in the list all the same.
     loading = strip_comments(read(os.path.join(SRC, 'gs_loading.cpp')))
     preloaded = set(re.findall(r'request\("([^"]+\.ogg)"\)', loading))
 
@@ -651,8 +651,8 @@ def check_style():
         if spaces > 2 and spaces > tabs:
             bad.append('%s: mit Leerzeichen eingerueckt (%d Zeilen)' % (rel, spaces))
 
-        # In EM_ASM steht JavaScript, und dort ist "if (" richtig. Der Rumpf
-        # wird zeilenweise ausgeblendet, damit die Zeilennummern stimmen.
+        # EM_ASM holds JavaScript, where "if (" is correct. The body is masked
+        # out line by line to keep the line numbers right.
         masked = list(lines)
         for i, line in enumerate(lines):
             if 'EM_ASM' not in line:
@@ -665,8 +665,25 @@ def check_style():
                     break
                 j += 1
 
+        # Prose is masked out too. English comments say "for (getOverscan())"
+        # where the German ones never did, and a comment is not code style.
+        # The // lines are cheap to spot; a /* */ body needs the state.
+        inBlock = False
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if inBlock:
+                masked[i] = ''
+                if '*/' in line:
+                    inBlock = False
+                continue
+            if stripped.startswith('//'):
+                masked[i] = ''
+            elif '/*' in line and '*/' not in line[line.index('/*'):]:
+                masked[i] = line[:line.index('/*')]
+                inBlock = True
+
         for i, line in enumerate(masked):
-            if kw.search(line) and not line.strip().startswith('//') and line not in was:
+            if kw.search(line) and line not in was:
                 bad.append('%s:%d: "%s" - der Baum schreibt "if(" ohne Leerzeichen'
                            % (rel, i + 1, line.strip()[:60]))
         for i, line in enumerate(lines):
@@ -713,7 +730,7 @@ def check_windows_icon():
         bad.append('icon1.ico: es fehlen die Groessen %s - Windows skaliert die dann '
                    'selbst und glaettet dabei' % ', '.join(str(m) for m in missing))
 
-    # Die Kunst ist 16x16; window.png ist ihr sauberes 2x.
+    # The art is 16x16; window.png is its clean 2x.
     width, height, pixels = read_png(png)
     step = max(1, width // 16)
 
@@ -723,7 +740,7 @@ def check_windows_icon():
 
     for size, blob in entries:
         if blob[:8] == b'\x89PNG\r\n\x1a\n':
-            continue                    # das 256er liegt als PNG vor
+            continue                    # the 256 is stored as PNG
         bw, bh = struct.unpack('<ii', blob[4:12])
         bh //= 2
         if (bw, bh, struct.unpack('<H', blob[14:16])[0]) != (size, size, 32):
@@ -744,7 +761,7 @@ def check_windows_icon():
                 want_px = art((x - margin) // scale, (y - margin) // scale) if inside else (0, 0, 0, 0)
                 got = pixel(x, y)
                 if got[3] == 0 and want_px[3] == 0:
-                    continue            # durchsichtig ist durchsichtig, die Farbe darunter zaehlt nicht
+                    continue            # transparent is transparent, the colour under it does not count
                 if got != want_px:
                     wrong += 1
         if wrong:
@@ -756,12 +773,18 @@ def check_windows_icon():
 
 @check('comments')
 def check_comments():
-    """Deutsche Kommentare - ein englischer Block zwischen den anderen ist
-    immer ein Rest aus einer Bearbeitung.
+    """English comments - a German line among them is always a leftover.
 
-    Die Dichte steht nur als Notbremse dabei: der Baum liegt bei 5 bis 7
-    Prozent, aber ein paar Dateien erklaeren fast nur fremde Fehler und duerfen
-    dichter sein. Gemeldet wird erst, was zur Abhandlung geworden ist."""
+    The tree was German until the 1.2.0 sweep and the two languages read alike
+    at a glance, so the two word lists are counted against each other rather
+    than one being searched for: "the particles die" is English even though
+    "die" is on the German list, and "so weit kommt das nicht" is German even
+    though "so" is on the English one. A line is reported when the German words
+    outnumber the English ones.
+
+    The density is a second, unrelated guard: the tree sits at 5 to 7 per cent,
+    but a few files explain other people's bugs and are allowed to be denser.
+    What gets reported is a file that has turned into an essay."""
     en = re.compile(r'\b(the|is|are|and|that|which|with|this|for|not|but|from|'
                     r'when|would|can|does|it|its|of|to|be|has|have|so)\b', re.I)
     de = re.compile(r'\b(der|die|das|und|nicht|ist|sind|ein|eine|einen|dem|den|'
@@ -774,15 +797,16 @@ def check_comments():
         comment = sum(1 for l in lines if l.strip().startswith('//'))
         code = sum(1 for l in lines if l.strip() and not l.strip().startswith('//'))
         if code >= 100 and comment * 100.0 / code > 50.0:
-            bad.append('%s: %d%% Kommentar (%d/%d) - das ist keine Erlaeuterung mehr'
+            bad.append('%s: %d%% comment (%d/%d) - that is no longer an explanation'
                        % (rel, round(comment * 100.0 / code), comment, code))
         for i, line in enumerate(lines):
             s = line.strip()
             if not s.startswith('//'):
                 continue
             body = s[2:]
-            if len(body.split()) >= 5 and len(en.findall(body)) >= 2 and not de.search(body):
-                bad.append('%s:%d: englischer Kommentar - "%s"' % (rel, i + 1, body.strip()[:60]))
+            deHits = len(de.findall(body))
+            if len(body.split()) >= 5 and deHits >= 2 and deHits > len(en.findall(body)):
+                bad.append('%s:%d: German comment - "%s"' % (rel, i + 1, body.strip()[:60]))
     return bad
 
 
