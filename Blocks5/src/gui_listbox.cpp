@@ -170,6 +170,7 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(!items.empty()) setSelection(static_cast<int>(items.size() - 1));
 		break;
 	case SDLK_RETURN:
+	case SDLK_KP_ENTER:
 		// As in the edit box: with no button of its own for it, Return
 		// belongs to the dialog. And the button only on a fresh press.
 		if(!items.empty() && selection != -1 && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }

@@ -235,6 +235,7 @@ void GS_Credits::onUpdate()
 	if(time == 58 * 1000) engine.setGameState("GS_Menu");
 
 	if(engine.wasKeyPressed(SDLK_RETURN) ||
+	   engine.wasKeyPressed(SDLK_KP_ENTER) ||
 	   engine.wasKeyPressed(SDLK_ESCAPE) ||
 	   engine.wasKeyPressed(SDLK_SPACE))
 	{

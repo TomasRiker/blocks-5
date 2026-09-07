@@ -193,6 +193,7 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(active) backspace();
 		break;
 	case SDLK_RETURN:
+	case SDLK_KP_ENTER:
 		if(active) replaceSelection("\n");
 		break;
 	case SDLK_a:

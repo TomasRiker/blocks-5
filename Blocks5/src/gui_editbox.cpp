@@ -172,6 +172,7 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(active) backspace();
 		break;
 	case SDLK_RETURN:
+	case SDLK_KP_ENTER:
 		// With no button of its own for it, Return belongs to the dialog, where
 		// it means OK - otherwise nothing would ever arrive there from inside
 		// an edit box. The button only on a fresh press, though - it is a

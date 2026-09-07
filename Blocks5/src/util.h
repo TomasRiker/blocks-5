@@ -82,6 +82,18 @@ void openURL(const std::string& url);
 #endif
 void writeProfileLine(const std::string& name, double dt, double avgTime);
 
+// The two keys a player means by "Enter": the big one and the one on the
+// numeric keypad. A keyboard has two and nothing in this game distinguishes
+// them, so everything that answers to one has to answer to the other -
+// confirming a dialog, playing the selected level, leaving the credits,
+// toggling the fullscreen with Alt. The named actions get this for free,
+// since a binding has a primary and a secondary; these are the places that
+// read the SDL key itself.
+inline bool isReturnKey(int key)
+{
+	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
+}
+
 extern bool writingCrashLog;
 
 #define BEGIN_PROFILE(NAME) \

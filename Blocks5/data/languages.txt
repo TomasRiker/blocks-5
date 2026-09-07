@@ -331,8 +331,12 @@ $VK_KEYBOARD_RETURN
 §de:Eingabetaste
 
 $VK_KEYBOARD_KP_ENTER
-§en:Enter
-§de:Enter
+// The keypad prefix is about where the key sits, not what is printed on
+// it - which is why it is here as well. Without it this is the one key of
+// the numeric block that does not say where it lives, and the pair the
+// hotel shows would read as two names for one key.
+§en:Num Enter
+§de:Num Enter
 
 $VK_KEYBOARD_ESCAPE
 §en:Esc
@@ -666,7 +670,9 @@ $G_MENU_RETURN_TO_LEVEL_EDITOR
 §de:Zurück zum Level-Editor
 
 $G_HOTEL_WELCOME
-// Text displayed when the player enters a hotel
+// Text displayed when the player enters a hotel.
+// The German is formal where the rest of the game says "du": that is the
+// receptionist speaking, and it is meant. Same in $G_HOTEL_GOODBYE.
 §en:Welcome to the Hotel Blockofornia!¶Press %BINDING{$A_SAVE_IN_HOTEL} now¶to save your progress in this level.
 §de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt %BINDING{$A_SAVE_IN_HOTEL}, um den¶Spielstand zwischenzuspeichern.
 
@@ -2241,8 +2247,8 @@ $WEB_CLICK_TO_START
 $WEB_FULLSCREEN_HINT
 // Aside under the prompt above, in the browser build: a page has no button
 // for the game's own fullscreen, and nobody guesses Alt+Return unaided
-§en:Press <k>Alt</k>+<k>Return</k> / <k>Alt</k>+<k>Enter</k> to toggle fullscreen mode.
-§de:Drücke <k>Alt</k>+<k>Eingabetaste</k> / <k>Alt</k>+<k>Enter</k>, um den Vollbildmodus umzuschalten.
+§en:Press <k>Alt</k>+<k>Return</k> / <k>Alt</k>+<k>Num Enter</k> to toggle fullscreen mode.
+§de:Drücke <k>Alt</k>+<k>Eingabetaste</k> / <k>Alt</k>+<k>Num Enter</k>, um den Vollbildmodus umzuschalten.
 
 $CE_LEVEL_IN_ARCHIVE
 // Suffix shown in the campaign editor behind a level that is stored inside the

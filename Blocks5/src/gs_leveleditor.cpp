@@ -437,7 +437,7 @@ public:
 					handleClick(getChild("SettingsPane.Settings.Cancel"));
 					return;
 				}
-				if(event.keysym.sym == SDLK_RETURN)
+				if(isReturnKey(event.keysym.sym))
 				{
 					handleClick(getChild("SettingsPane.Settings.OK"));
 					return;

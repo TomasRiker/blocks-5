@@ -170,7 +170,7 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 	if(event.type == SDL_KEYDOWN && isVisible() && !GUI::inst().isKeyRepeat())
 	{
 		const SDLKey key = event.keysym.sym;
-		if(key == SDLK_ESCAPE || key == SDLK_RETURN)
+		if(key == SDLK_ESCAPE || isReturnKey(key))
 		{
 			// The key is spent here. The game states ask Engine::wasKeyPressed()
 			// alongside, and GUI::update() runs first - or the main menu would

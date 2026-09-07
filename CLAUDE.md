@@ -1728,6 +1728,16 @@ renderer is then never asked to draw half a frame. That is the whole answer to l
 inside a keycap, and it is why the run is measured rather than walked character by character:
 the padding either side belongs to its width.
 
+**A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey`
+(`util.h`) is the one place that says so, and everything reading the SDL key itself goes
+through it: confirming a dialog, playing the selected level, leaving the credits, the level
+editor's settings, and Alt+Return for the fullscreen. The named actions never needed it — a
+binding has a primary and a secondary, and `$A_SAVE_IN_HOTEL` has used both since it was
+written. The keypad key is `Num Enter` in both languages, which is the prefix the other
+seventeen keypad keys already carry; calling it plain `Enter` made it the one key of that
+block that did not say where it lived, and put the two of them side by side in the hotel
+message looking like two names for one key.
+
 **`VirtualKey::niceName` is what a player reads**, as against `name`, which is SDL's, and `id`,
 which config.xml holds and can therefore never be translated. It is a `$ID` and not the
 finished text because the language can change while the game runs. The table in `engine.cpp`

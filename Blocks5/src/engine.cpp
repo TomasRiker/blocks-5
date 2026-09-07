@@ -1036,8 +1036,10 @@ void Engine::mainLoopIteration()
 				}
 #endif
 				// Alt+Return toggles the fullscreen and is swallowed; the
-				// game must never see a bare Return in it.
-				if(event.key.keysym.sym == SDLK_RETURN &&
+				// game must never see a bare Return in it. The keypad's Enter
+				// counts, because a keyboard has two of these keys and nothing
+				// here tells them apart.
+				if(isReturnKey(event.key.keysym.sym) &&
 				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
 				{
 					swallowedReturn = true;
@@ -1077,7 +1079,7 @@ void Engine::mainLoopIteration()
 
 				// Do not hang it off the modifier: releasing Alt before Return
 				// would otherwise leave a release without a press.
-				if(event.key.keysym.sym == SDLK_RETURN && swallowedReturn)
+				if(isReturnKey(event.key.keysym.sym) && swallowedReturn)
 				{
 					swallowedReturn = false;
 					break;
