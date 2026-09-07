@@ -304,9 +304,12 @@ void Options::handleClick(GUI_Element* p_element)
 			else
 			{
 				const Action& action = *(actions[selection]);
-				const std::vector<VirtualKey>& vks = Engine::inst().getVKs();
-				p_primary->setTitle(action.primary == -1 ? "$O_NOT_ASSIGNED" : vks[action.primary].name);
-				p_secondary->setTitle(action.secondary == -1 ? "$O_NOT_ASSIGNED" : vks[action.secondary].name);
+
+				// Already localized, and an unassigned key says so itself, so
+				// what goes on the button is the finished text - "Links" and
+				// not "Keyboard left".
+				p_primary->setTitle(engine.getVKDisplayName(action.primary));
+				p_secondary->setTitle(engine.getVKDisplayName(action.secondary));
 				p_primary->activate();
 				p_secondary->activate();
 				p_resetSelected->activate();

@@ -300,6 +300,154 @@ $O_NOT_ASSIGNED
 §en:Not assigned
 §de:Nicht zugewiesen
 
+// **********
+// KEY NAMES
+// **********
+//
+// What a key is called where the player reads it - on a button in the
+// options and inside the boxes that %BINDING{...} puts into a sentence.
+// Short is what matters here: these are drawn in running text.
+// A key without an id keeps the name SDL gives it, with the first
+// letter raised, which is what the function keys live on.
+
+$VK_KEYBOARD_LEFT
+§en:Left
+§de:Links
+
+$VK_KEYBOARD_RIGHT
+§en:Right
+§de:Rechts
+
+$VK_KEYBOARD_UP
+§en:Up
+§de:Hoch
+
+$VK_KEYBOARD_DOWN
+§en:Down
+§de:Runter
+
+$VK_KEYBOARD_RETURN
+§en:Return
+§de:Eingabetaste
+
+$VK_KEYBOARD_KP_ENTER
+§en:Enter
+§de:Enter
+
+$VK_KEYBOARD_ESCAPE
+§en:Esc
+§de:Esc
+
+$VK_KEYBOARD_SPACE
+§en:Space
+§de:Leertaste
+
+$VK_KEYBOARD_TAB
+§en:Tab
+§de:Tab
+
+$VK_KEYBOARD_BACKSPACE
+§en:Backspace
+§de:Rücktaste
+
+$VK_KEYBOARD_DELETE
+§en:Del
+§de:Entf
+
+$VK_KEYBOARD_INSERT
+§en:Ins
+§de:Einfg
+
+$VK_KEYBOARD_HOME
+§en:Home
+§de:Pos1
+
+$VK_KEYBOARD_END
+§en:End
+§de:Ende
+
+$VK_KEYBOARD_PAGEUP
+§en:Page Up
+§de:Bild auf
+
+$VK_KEYBOARD_PAGEDOWN
+§en:Page Down
+§de:Bild ab
+
+$VK_KEYBOARD_LSHIFT
+§en:Shift left
+§de:Shift links
+
+$VK_KEYBOARD_RSHIFT
+§en:Shift right
+§de:Shift rechts
+
+$VK_KEYBOARD_LCTRL
+§en:Ctrl left
+§de:Strg links
+
+$VK_KEYBOARD_RCTRL
+§en:Ctrl right
+§de:Strg rechts
+
+$VK_KEYBOARD_LALT
+§en:Alt
+§de:Alt
+
+$VK_KEYBOARD_RALT
+§en:Alt Gr
+§de:Alt Gr
+
+$VK_KEYBOARD_PAUSE
+§en:Pause
+§de:Pause
+
+$VK_KEYBOARD_KP0
+§en:Num 0
+§de:Num 0
+
+$VK_KEYBOARD_KP1
+§en:Num 1
+§de:Num 1
+
+$VK_KEYBOARD_KP2
+§en:Num 2
+§de:Num 2
+
+$VK_KEYBOARD_KP3
+§en:Num 3
+§de:Num 3
+
+$VK_KEYBOARD_KP4
+§en:Num 4
+§de:Num 4
+
+$VK_KEYBOARD_KP5
+§en:Num 5
+§de:Num 5
+
+$VK_KEYBOARD_KP6
+§en:Num 6
+§de:Num 6
+
+$VK_KEYBOARD_KP7
+§en:Num 7
+§de:Num 7
+
+$VK_KEYBOARD_KP8
+§en:Num 8
+§de:Num 8
+
+$VK_KEYBOARD_KP9
+§en:Num 9
+§de:Num 9
+
+$VK_JOYSTICK
+// The device word in front of a joystick button, axis or hat. It stays
+// because "B3" beside a keyboard key would say nothing about where it is.
+§en:Joystick
+§de:Joystick
+
 // *******
 // ACTIONS
 // *******
@@ -478,13 +626,13 @@ $G_MENU_CONTINUE
 
 $G_MENU_RESTART
 // Caption of button to restart level
-§en:Restart Level (F5)
-§de:Level neu starten (F5)
+§en:Restart Level%BINDING_OPTIONAL_RIGHT{$A_RESTART_LEVEL}
+§de:Level neu starten%BINDING_OPTIONAL_RIGHT{$A_RESTART_LEVEL}
 
 $G_MENU_RESTART_FROM_HOTEL
 // Caption of button to restart level from hotel
-§en:Restart from Hotel (F10)
-§de:Vom Hotel aus neu starten (F10)
+§en:Restart from Hotel%BINDING_OPTIONAL_RIGHT{$A_RESTART_FROM_HOTEL}
+§de:Vom Hotel aus neu starten%BINDING_OPTIONAL_RIGHT{$A_RESTART_FROM_HOTEL}
 
 $G_MENU_RETURN_TO_LEVEL_SELECTION
 // Caption of button to return to level selection
@@ -498,8 +646,8 @@ $G_MENU_RETURN_TO_LEVEL_EDITOR
 
 $G_HOTEL_WELCOME
 // Text displayed when the player enters a hotel
-§en:Welcome to the Hotel Blockofornia!¶Press the Return/Enter key now¶to save your progress in this level.
-§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt Return/Enter, um den¶Spielstand zwischenzuspeichern.
+§en:Welcome to the Hotel Blockofornia!¶Press %BINDING{$A_SAVE_IN_HOTEL} now¶to save your progress in this level.
+§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt %BINDING{$A_SAVE_IN_HOTEL}, um den¶Spielstand zwischenzuspeichern.
 
 $G_HOTEL_GOODBYE
 // Text displayed when the player saved in a hotel
@@ -1360,36 +1508,36 @@ $H_HELP_PAGE1
 To complete a level, a certain number of diamonds have to be collected. Then, the exit will appear, which you have to reach.
 You will get all important information by reading the hints lying around.
 
-<h>Controls (standard)</h>
+<h>Controls</h>
 Move			Arrow keys
-Plant bomb		Shift + arrow key for direction
-Put bomb down		Ctrl + arrow key for direction
-Change player		Tab or click at player
-Restart level		F5
-Restart from hotel		F10
-Mute on/off		F1
-Save screenshot		F11
-Start/stop recording video	F12
+Plant bomb		%BINDING{$A_PLANT_BOMB} + arrow key
+Put bomb down		%BINDING{$A_PUT_DOWN_BOMB} + arrow key
+Change player		%BINDING{$A_SWITCH_CHARACTER} or click at player
+Restart level		%BINDING{$A_RESTART_LEVEL}
+Restart from hotel		%BINDING{$A_RESTART_FROM_HOTEL}
+Mute on/off		%BINDING{$A_TOGGLE_MUTE}
+Save screenshot		%BINDING{$A_CAPTURE_SCREENSHOT}
+Start/stop recording video	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Show menu		Escape
-Pause			P or Break
+Pause			%BINDING{$A_PAUSE}
 Window/full screen		Alt + Return
 // --------------------------------------------------------------------------------
 §de:<h>Spielziel</h>
 In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
 Alle wichtigen Informationen erhältst du im Spiel, indem du die Zettel liest, die in den Levels verteilt sind.
 
-<h>Steuerung (Standard)</h>
+<h>Steuerung</h>
 Bewegen			Pfeiltasten
-Bombe legen und zünden	Shift + Pfeiltaste für Richtung
-Bombe ablegen		Strg + Pfeiltaste für Richtung
-Spielfigur wechseln		Tab oder Figur anklicken
-Level neu starten		F5
-Vom Hotel aus neu starten	F10
-Ton aus/ein		F1
-Screenshot speichern		F11
-Videoaufnahme starten/stoppen	F12
+Bombe legen und zünden	%BINDING{$A_PLANT_BOMB} + Pfeiltaste
+Bombe ablegen		%BINDING{$A_PUT_DOWN_BOMB} + Pfeiltaste
+Spielfigur wechseln		%BINDING{$A_SWITCH_CHARACTER} oder Figur anklicken
+Level neu starten		%BINDING{$A_RESTART_LEVEL}
+Vom Hotel aus neu starten	%BINDING{$A_RESTART_FROM_HOTEL}
+Ton aus/ein		%BINDING{$A_TOGGLE_MUTE}
+Screenshot speichern		%BINDING{$A_CAPTURE_SCREENSHOT}
+Videoaufnahme starten/stoppen	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Menü aufrufen		Escape
-Pause			P oder Pause
+Pause			%BINDING{$A_PAUSE}
 Fenster/Vollbild		Alt + Return
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1768,11 +1916,11 @@ Das Gras hält Blöcke und Kisten auf. Du kannst es einsammeln, um den Weg freizum
 $HINT_BLOCKS_02_01
 // Hint text 01 for level 02 of campaign "blocks"
 §en:The wall down there doesn't look particularly stable ...
-You plant a bomb by holding down Shift and then pressing the arrow key for the desired direction at the same time. The place where you want to plant the bomb has to be free, of course. Bombs can be pushed once lit up. You can also put a bomb down (without lighting it up) by pressing Ctrl and an arrow key.
+You plant a bomb by holding down %BINDING{$A_PLANT_BOMB} and then pressing the arrow key for the desired direction at the same time. The place where you want to plant the bomb has to be free, of course. Bombs can be pushed once lit up. You can also put a bomb down (without lighting it up) by pressing %BINDING{$A_PUT_DOWN_BOMB} and an arrow key.
 // --------------------------------------------------------------------------------
 §de:Die Mauer da unten sieht nicht gerade stabil aus ...
-Du legst eine Bombe, indem du Shift gedrückt hältst und dann die Pfeiltaste für die Richtung drückst, in die du die Bombe legen willst. Die Stelle, an die du die Bombe legen möchtest, muss natürlich frei sein. Angezündete Bomben kannst du auch noch wegschieben.
-Um eine Bombe abzulegen, ohne sie anzuzünden, halte Strg gedrückt, und drücke dann die entsprechende Pfeiltaste.
+Du legst eine Bombe, indem du %BINDING{$A_PLANT_BOMB} gedrückt hältst und dann die Pfeiltaste für die Richtung drückst, in die du die Bombe legen willst. Die Stelle, an die du die Bombe legen möchtest, muss natürlich frei sein. Angezündete Bomben kannst du auch noch wegschieben.
+Um eine Bombe abzulegen, ohne sie anzuzünden, halte %BINDING{$A_PUT_DOWN_BOMB} gedrückt, und drücke dann die entsprechende Pfeiltaste.
 
 $HINT_BLOCKS_02_02
 // Hint text 02 for level 02 of campaign "blocks"
@@ -1824,10 +1972,10 @@ $HINT_BLOCKS_05_01
 
 $HINT_BLOCKS_05_02
 // Hint text 02 for level 05 of campaign "blocks"
-§en:In this level, there are multiple characters. To change the active character, either press the Tab key or click at the character that you want to control.
+§en:In this level, there are multiple characters. To change the active character, either press %BINDING{$A_SWITCH_CHARACTER} or click at the character that you want to control.
 This level can only be solved with "teamwork"!
 // --------------------------------------------------------------------------------
-§de:In diesem Level gibt es mehrere Spielfiguren. Um die Spielfigur zu wechseln, drücke Tab oder klicke die entsprechende Spielfigur mit der Maus an.
+§de:In diesem Level gibt es mehrere Spielfiguren. Um die Spielfigur zu wechseln, drücke %BINDING{$A_SWITCH_CHARACTER} oder klicke die entsprechende Spielfigur mit der Maus an.
 Dieser Level kann nur mit "Teamwork" gelöst werden.
 
 $HINT_BLOCKS_06_01
@@ -1838,17 +1986,17 @@ $HINT_BLOCKS_06_01
 
 $HINT_BLOCKS_07_01
 // Hint text 01 for level 07 of campaign "blocks"
-§en:The hotel on your left side allows you to save your progress in this level. Just walk into the hotel and press the Return/Enter key.
-If you wish to restart from the hotel later, press F10 or click on the according button in the menu.
+§en:The hotel on your left side allows you to save your progress in this level. Just walk into the hotel and press %BINDING{$A_SAVE_IN_HOTEL}.
+If you wish to restart from the hotel later, press %BINDING{$A_RESTART_FROM_HOTEL} or click on the according button in the menu.
 // --------------------------------------------------------------------------------
-§de:Das Hotel links von dir erlaubt es dir, deinen Spielstand zwischenzuspeichern. Gehe dazu zum Hotel, und drücke dann die Return/Enter-Taste.
-Um später wieder von dort aus zu starten, drücke F10, oder klicke den entsprechenden Button im Menü an.
+§de:Das Hotel links von dir erlaubt es dir, deinen Spielstand zwischenzuspeichern. Gehe dazu zum Hotel, und drücke dann %BINDING{$A_SAVE_IN_HOTEL}.
+Um später wieder von dort aus zu starten, drücke %BINDING{$A_RESTART_FROM_HOTEL}, oder klicke den entsprechenden Button im Menü an.
 
 $HINT_BLOCKS_08_01
 // Hint text 01 for level 08 of campaign "blocks"
-§en:Bombs can - just like blocks or boxes - be teleported by the blue teleporters. Also remember that you can put a bomb down without lighting it up by pressing Ctrl + arrow key.
+§en:Bombs can - just like blocks or boxes - be teleported by the blue teleporters. Also remember that you can put a bomb down without lighting it up by pressing %BINDING{$A_PUT_DOWN_BOMB} + arrow key.
 // --------------------------------------------------------------------------------
-§de:Bomben können - wie Blöcke oder Kisten - von den blauen Teleportern teleportiert werden. Denke daran, dass du eine Bombe auch ablegen kannst, ohne sie anzuzünden, indem du Strg + Pfeiltaste drückst.
+§de:Bomben können - wie Blöcke oder Kisten - von den blauen Teleportern teleportiert werden. Denke daran, dass du eine Bombe auch ablegen kannst, ohne sie anzuzünden, indem du %BINDING{$A_PUT_DOWN_BOMB} + Pfeiltaste drückst.
 
 $HINT_BLOCKS_10_01
 // Hint text 01 for level 10 of campaign "blocks"
@@ -2066,8 +2214,8 @@ $WEB_CLICK_TO_START
 $WEB_FULLSCREEN_HINT
 // Aside under the prompt above, in the browser build: a page has no button
 // for the game's own fullscreen, and nobody guesses Alt+Return unaided
-§en:Press Alt+Return / Alt+Enter to toggle fullscreen mode.
-§de:Drücke Alt+Return / Alt+Enter, um den Vollbildmodus umzuschalten.
+§en:Press <k>Alt</k>+<k>Return</k> / <k>Alt</k>+<k>Enter</k> to toggle fullscreen mode.
+§de:Drücke <k>Alt</k>+<k>Eingabetaste</k> / <k>Alt</k>+<k>Enter</k>, um den Vollbildmodus umzuschalten.
 
 $CE_LEVEL_IN_ARCHIVE
 // Suffix shown in the campaign editor behind a level that is stored inside the

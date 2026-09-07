@@ -216,6 +216,52 @@ namespace
 		sprintf(temp, "key:#%d", key);
 		return temp;
 	}
+
+	// What a key is called where the player reads it, as opposed to the id
+	// above, which config.xml holds and which can never be translated. Only the
+	// keys somebody is likely to bind are in here; everything else falls back
+	// to SDL's own name.
+	//
+	// The ids are spelled out and not composed from the key name, because
+	// verify.py collects "$..." literals out of the source: an id that
+	// languages.txt does not have is then a failed check rather than a player
+	// reading "$VK_KEYBOARD_LEFT" off a button.
+	const struct { int key; const char* p_id; } p_keyDisplayNames[] =
+	{
+		{SDLK_LEFT, "$VK_KEYBOARD_LEFT"},           {SDLK_RIGHT, "$VK_KEYBOARD_RIGHT"},
+		{SDLK_UP, "$VK_KEYBOARD_UP"},               {SDLK_DOWN, "$VK_KEYBOARD_DOWN"},
+		{SDLK_RETURN, "$VK_KEYBOARD_RETURN"},       {SDLK_KP_ENTER, "$VK_KEYBOARD_KP_ENTER"},
+		{SDLK_ESCAPE, "$VK_KEYBOARD_ESCAPE"},       {SDLK_SPACE, "$VK_KEYBOARD_SPACE"},
+		{SDLK_TAB, "$VK_KEYBOARD_TAB"},             {SDLK_BACKSPACE, "$VK_KEYBOARD_BACKSPACE"},
+		{SDLK_DELETE, "$VK_KEYBOARD_DELETE"},       {SDLK_INSERT, "$VK_KEYBOARD_INSERT"},
+		{SDLK_HOME, "$VK_KEYBOARD_HOME"},           {SDLK_END, "$VK_KEYBOARD_END"},
+		{SDLK_PAGEUP, "$VK_KEYBOARD_PAGEUP"},       {SDLK_PAGEDOWN, "$VK_KEYBOARD_PAGEDOWN"},
+		{SDLK_LSHIFT, "$VK_KEYBOARD_LSHIFT"},       {SDLK_RSHIFT, "$VK_KEYBOARD_RSHIFT"},
+		{SDLK_LCTRL, "$VK_KEYBOARD_LCTRL"},         {SDLK_RCTRL, "$VK_KEYBOARD_RCTRL"},
+		{SDLK_LALT, "$VK_KEYBOARD_LALT"},           {SDLK_RALT, "$VK_KEYBOARD_RALT"},
+		{SDLK_PAUSE, "$VK_KEYBOARD_PAUSE"},
+		{SDLK_KP0, "$VK_KEYBOARD_KP0"},             {SDLK_KP1, "$VK_KEYBOARD_KP1"},
+		{SDLK_KP2, "$VK_KEYBOARD_KP2"},             {SDLK_KP3, "$VK_KEYBOARD_KP3"},
+		{SDLK_KP4, "$VK_KEYBOARD_KP4"},             {SDLK_KP5, "$VK_KEYBOARD_KP5"},
+		{SDLK_KP6, "$VK_KEYBOARD_KP6"},             {SDLK_KP7, "$VK_KEYBOARD_KP7"},
+		{SDLK_KP8, "$VK_KEYBOARD_KP8"},             {SDLK_KP9, "$VK_KEYBOARD_KP9"},
+	};
+
+	std::string keyboardNiceName(int key, const char* p_sdlName)
+	{
+		for(uint i = 0; i < sizeof(p_keyDisplayNames) / sizeof(p_keyDisplayNames[0]); i++)
+		{
+			if(p_keyDisplayNames[i].key == key) return p_keyDisplayNames[i].p_id;
+		}
+
+		// SDL's own name otherwise, with the first letter raised: it hands back
+		// "f5" and "a", and a button captioned "f5" reads as a fault. The
+		// function keys need nothing more than this.
+		std::string name = p_sdlName ? p_sdlName : "";
+		if(name.empty()) return "?";
+		name[0] = static_cast<char>(toupper(static_cast<unsigned char>(name[0])));
+		return name;
+	}
 }
 
 bool Engine::init(const std::string& windowCaption,
@@ -263,6 +309,7 @@ bool Engine::init(const std::string& windowCaption,
 		VirtualKey vk;
 		const char* p_name = SDL_GetKeyName(static_cast<SDLKey>(k));
 		vk.name = std::string("Keyboard ") + (p_name ? p_name : "???");
+		vk.niceName = keyboardNiceName(k, p_name);
 		vk.id = keyboardVKId(k);
 		vk.key = k;
 		vk.down = false;
@@ -283,8 +330,9 @@ bool Engine::init(const std::string& windowCaption,
 			{
 				VirtualKey vk;
 				std::ostringstream str;
-				str << "Joystick" << index + 1 << " B" << k + 1;
-				vk.name = str.str();
+				str << index + 1 << " B" << k + 1;
+				vk.niceName = str.str();
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.device = index;
 				vk.key = k;
@@ -299,8 +347,9 @@ bool Engine::init(const std::string& windowCaption,
 				VirtualKey vk;
 
 				std::ostringstream str;
-				str << "Joystick" << index + 1 << " A" << a + 1 << "-";
-				vk.name = str.str();
+				str << index + 1 << " A" << a + 1 << "-";
+				vk.niceName = str.str();
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
@@ -308,8 +357,9 @@ bool Engine::init(const std::string& windowCaption,
 				virtualKeys.push_back(vk);
 
 				str.str("");
-				str << "Joystick" << index + 1 << " A" << a + 1 << "+";
-				vk.name = str.str();
+				str << index + 1 << " A" << a + 1 << "+";
+				vk.niceName = str.str();
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.device = index;
 				vk.axis = a;
@@ -324,46 +374,54 @@ bool Engine::init(const std::string& windowCaption,
 				VirtualKey vk;
 
 				std::ostringstream str;
-				str << "Joystick" << index + 1 << " H" << h + 1;
+				str << index + 1 << " H" << h + 1;
 				vk.device = index;
 				vk.hat = h;
 
-				vk.name = str.str() + "N";
+				vk.niceName = str.str() + "N";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_UP;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "NE";
+				vk.niceName = str.str() + "NE";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTUP;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "E";
+				vk.niceName = str.str() + "E";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHT;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "SE";
+				vk.niceName = str.str() + "SE";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_RIGHTDOWN;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "S";
+				vk.niceName = str.str() + "S";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_DOWN;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "SW";
+				vk.niceName = str.str() + "SW";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTDOWN;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "W";
+				vk.niceName = str.str() + "W";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFT;
 				virtualKeys.push_back(vk);
 
-				vk.name = str.str() + "NW";
+				vk.niceName = str.str() + "NW";
+				vk.name = "Joystick" + vk.niceName;
 				vk.id = vk.name;
 				vk.hatDir = SDL_HAT_LEFTUP;
 				virtualKeys.push_back(vk);
@@ -4116,6 +4174,11 @@ void Engine::loadStringDB(const std::string& filename)
 
 std::string Engine::localizeString(const std::string& text)
 {
+	return expandBindings(localizeStringRaw(text));
+}
+
+std::string Engine::localizeStringRaw(const std::string& text)
+{
 	if(!text.empty())
 	{
 		if(text[0] == '$')
@@ -4125,7 +4188,7 @@ std::string Engine::localizeString(const std::string& text)
 			if(i != stringDB.end())
 			{
 				// Yes! Localize it!
-				return localizeString(i->second);
+				return localizeStringRaw(i->second);
 			}
 		}
 	}
@@ -4147,7 +4210,7 @@ std::string Engine::localizeString(const std::string& text)
 			// try again in English ...
 			std::string oldLanguage = language;
 			language = "en";
-			std::string result = localizeString(text);
+			std::string result = localizeStringRaw(text);
 			language = oldLanguage;
 			return result;
 		}
@@ -4163,6 +4226,90 @@ std::string Engine::localizeString(const std::string& text)
 	}
 
 	return text.substr(textStart, textEnd - textStart);
+}
+
+std::string Engine::getVKDisplayName(int vk)
+{
+	if(vk < 0 || vk >= static_cast<int>(virtualKeys.size()))
+		return localizeStringRaw("$O_NOT_ASSIGNED");
+
+	const VirtualKey& key = virtualKeys[vk];
+
+	// A joystick keeps its device word, because "B3" beside a keyboard key
+	// would say nothing about where it is. The word is localized and the
+	// number is not, so the two are put together here rather than in the table.
+	if(key.device >= 0)
+		return localizeStringRaw("$VK_JOYSTICK") + " " + key.niceName;
+
+	return localizeStringRaw(key.niceName);
+}
+
+std::string Engine::getBindingMarkup(const std::string& actionName)
+{
+	const Action* p_action = getAction(actionName);
+
+	std::string out;
+	if(p_action)
+	{
+		// Either may be unbound on its own, so this is not "both or neither".
+		if(p_action->primary >= 0) out = "<k>" + getVKDisplayName(p_action->primary) + "</k>";
+		if(p_action->secondary >= 0)
+		{
+			if(!out.empty()) out += " / ";
+			out += "<k>" + getVKDisplayName(p_action->secondary) + "</k>";
+		}
+	}
+
+	if(out.empty()) out = "<k>" + localizeStringRaw("$O_NOT_ASSIGNED") + "</k>";
+	return out;
+}
+
+std::string Engine::expandBindings(const std::string& text)
+{
+	// Almost every string in the game has none of this, and localizeString()
+	// runs on every caption of every frame.
+	if(text.find('%') == std::string::npos) return text;
+
+	// The longer name has to be tested first: it begins with the shorter one.
+	static const char* const p_optional = "%BINDING_OPTIONAL_RIGHT{";
+	static const char* const p_plain = "%BINDING{";
+
+	std::string out;
+	size_t i = 0;
+	while(i < text.length())
+	{
+		bool optional = text.compare(i, strlen(p_optional), p_optional) == 0;
+		bool plain = !optional && text.compare(i, strlen(p_plain), p_plain) == 0;
+		if(!optional && !plain)
+		{
+			out += text[i++];
+			continue;
+		}
+
+		const size_t open = i + strlen(optional ? p_optional : p_plain);
+		const size_t close = text.find('}', open);
+		if(close == std::string::npos)
+		{
+			// Unterminated, so it is not markup after all - it stays as it is
+			// rather than swallowing the rest of the sentence.
+			out += text[i++];
+			continue;
+		}
+
+		const std::string action = text.substr(open, close - open);
+		const Action* p_action = getAction(action);
+		const bool bound = p_action && (p_action->primary >= 0 || p_action->secondary >= 0);
+
+		// The optional form is for a caption that names its own shortcut: with
+		// nothing bound there is no shortcut to name, and the space in front of
+		// it would otherwise be left hanging at the end of the word.
+		if(optional) { if(bound) out += " " + getBindingMarkup(action); }
+		else out += getBindingMarkup(action);
+
+		i = close + 1;
+	}
+
+	return out;
 }
 
 std::string Engine::loadString(const std::string& id) const

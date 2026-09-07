@@ -41,10 +41,15 @@ struct Action
 
 struct VirtualKey
 {
-	// name is what is displayed and, for keys, comes from SDL; id is what
-	// stands in config.xml and must therefore mean the same everywhere.
+	// name is what SDL calls it and id is what stands in config.xml, which must
+	// mean the same everywhere and so can never be translated. niceName is the
+	// third thing, and the only one a player ever reads: a $ID for a key that
+	// has a localized name, the plain text for one that does not, and for a
+	// joystick the part after the device word. It is an id and not the finished
+	// text because the language can change while the game runs.
 	std::string name;
 	std::string id;
+	std::string niceName;
 	int device;
 	int key;
 	int axis;
@@ -271,6 +276,14 @@ public:
 	// which joysticks were plugged in at startup.
 	const std::string& getVKId(int vk) const;
 	int getVKFromId(const std::string& id) const;
+
+	// What to show the player for a virtual key, localized and ready to draw.
+	// An unknown one reads as unassigned rather than as nothing.
+	std::string getVKDisplayName(int vk);
+
+	// The keycaps an action is bound to, as <k>...</k> - both separated by a
+	// slash, one on its own, and an unbound action as the word for it.
+	std::string getBindingMarkup(const std::string& actionName);
 	void resolveActionKeys();
 	void repairLostBindings();
 	Action* registerAction(const std::string& name, int primary, int secondary = -1);
@@ -337,6 +350,8 @@ public:
 	void setRecordingIcon(Texture* p_texture, const Vec2i& positionOnTexture, const Vec2i& size);
 
 	void loadStringDB(const std::string& filename);
+	// Looks the text up, picks the language, and then expands whatever key
+	// bindings it names - see expandBindings().
 	std::string localizeString(const std::string& text);
 
 	// Sounds that are to play quieter than their file is. The factor belongs
@@ -368,6 +383,17 @@ public:
 private:
 	Engine();
 	~Engine();
+
+	// The lookup and the language choice, without the binding expansion. It
+	// recurses - a $ID resolves to a body that is looked up again, and a
+	// missing German body falls back to the English one - and expanding on the
+	// way out of every one of those would be work done several times over.
+	std::string localizeStringRaw(const std::string& text);
+
+	// Replaces %BINDING{$A_...} and %BINDING_OPTIONAL_RIGHT{$A_...} with the
+	// keys the player has actually bound, so that no string in the game claims
+	// a key that is no longer the one.
+	std::string expandBindings(const std::string& text);
 
 	// One toast in the stack. There are three sections: sliding in, standing,
 	// sliding out. phaseTime restarts with each section.
