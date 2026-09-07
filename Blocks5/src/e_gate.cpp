@@ -7,6 +7,18 @@ E_Gate::E_Gate(Level& level,
 			   int subType,
 			   int dir) : Electronics(level, position, dir)
 {
+	// subType comes out of the level file unchecked (presets.cpp), and levels
+	// travel between players. Four things downstream index on it: the pin count
+	// just below, the sprite region in updateSprites(), the switch in doLogic()
+	// and the tooltip table. Catching it once here is what keeps all four safe,
+	// and 0 is what getToolTip() has always fallen back to.
+	if(subType < 0 || subType > 7)
+	{
+		printfLog("+ WARNING: Gate with subType %d, which does not exist. Treating it as AND.\n",
+				  subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
 
 	// create the inputs
@@ -63,9 +75,9 @@ std::string E_Gate::getToolTip() const
 										"$TT_GATE_NOT",
 										"$TT_GATE_PASS_THROUGH"};
 
-	// subType comes out of the level file unchecked (presets.cpp), and levels
-	// travel between players. A value outside the range would otherwise read
-	// past the end of the array.
+	// The constructor clamps subType into range, so this cannot fire today. It
+	// stays as the backstop for a ninth gate type added without extending the
+	// table: a wrong tooltip rather than a read past the end.
 	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
 		return p_str[0];
 

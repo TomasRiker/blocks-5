@@ -453,25 +453,35 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		}
 		else
 		{
-			// This file is to be copied. First read its local header.
+			// This file is to be copied, and the whole local record goes
+			// through byte for byte: header, filename, extra field and data.
+			// Rebuilding it from the central directory's copies is what must
+			// not happen - a zip writer may put a different extra field in
+			// each of the two, and the lengths that describe the local record
+			// are the local header's, so writing the central strings under
+			// them reads past the end of the shorter buffer.
+			//
+			// The size comes from the central directory, which carries the
+			// true one even where the local header does not. A trailing data
+			// descriptor is still not carried across; nothing this game packs
+			// sets the flag that calls for one, which is also why pack.sh
+			// reaches for 7za rather than Info-ZIP.
 			LocalFileHeader lfh;
 			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
-			fread(&lfh, sizeof(lfh), 1, p_in);
+			fread(&lfh, 1, sizeof(lfh), p_in);
 
-			// skip the filename and the extra field
-			fseek(p_in, lfh.filenameLength + lfh.extraFieldLength, SEEK_CUR);
+			const uint recordSize = static_cast<uint>(sizeof(lfh))
+									+ lfh.filenameLength
+									+ lfh.extraFieldLength
+									+ cde.compressedSize;
 
-			// read the data
-			char* p_fileData = new char[lfh.compressedSize];
-			fread(p_fileData, 1, lfh.compressedSize, p_in);
+			char* p_record = new char[recordSize];
+			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
+			fread(p_record, 1, recordSize, p_in);
 
-			// write the local header
 			cdeOut.localHeaderOffset = ftell(p_out);
-			fwrite(&lfh, 1, sizeof(lfh), p_out);
-			fwrite(p_filename, 1, lfh.filenameLength, p_out);
-			if(lfh.extraFieldLength) fwrite(p_extraField, 1, lfh.extraFieldLength, p_out);
-			fwrite(p_fileData, 1, lfh.compressedSize, p_out);
-			delete[] p_fileData;
+			fwrite(p_record, 1, recordSize, p_out);
+			delete[] p_record;
 
 			// remember the entry for the central directory
 			cdOut.push_back(cdeOut);
