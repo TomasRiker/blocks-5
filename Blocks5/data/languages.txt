@@ -673,8 +673,13 @@ $G_HOTEL_WELCOME
 // Text displayed when the player enters a hotel.
 // The German is formal where the rest of the game says "du": that is the
 // receptionist speaking, and it is meant. Same in $G_HOTEL_GOODBYE.
+// The keys stand on a line of their own because the speech balloon has no
+// width limit of its own: Object::render sizes it to the widest line and
+// only mirrors it to the left when it would run off the right edge, so past
+// about 320 px there is no placement left for a hotel near the middle of the
+// screen - which is where the camera puts the one you are standing on.
 §en:Welcome to the Hotel Blockofornia!¶Press %BINDING{$A_SAVE_IN_HOTEL} now¶to save your progress in this level.
-§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt %BINDING{$A_SAVE_IN_HOTEL}, um den¶Spielstand zwischenzuspeichern.
+§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt¶%BINDING{$A_SAVE_IN_HOTEL},¶um den Spielstand zwischenzuspeichern.
 
 $G_HOTEL_GOODBYE
 // Text displayed when the player saved in a hotel
