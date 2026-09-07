@@ -18,6 +18,156 @@ for a compiler or a run of the game.
     218 of them confirmed by a second agent
 
 
+Verified
+-------
+The 73 bug candidates below were each read by a second agent that went back to
+the code independently; 57 came back confirmed. Nine were then checked by hand
+against the source, and a further ten settled the same way after the second
+agent disagreed with the first. What follows is that triage. Nothing is fixed:
+every entry in the first two groups changes behaviour, which this sweep was told
+not to do.
+
+
+### Worth fixing, worst first
+
+1.  **hotel.cpp:66 - a static pointer outlives the object it points at.**
+    `Hotel::p_hotelToSave` is cleared in exactly two places: `onUpdate`, when the
+    player steps off the field, and `onSave`. Not in a destructor, and `Hotel`
+    overrides no `onRemove`. Restart or leave a level while standing on the
+    hotel and the static still points at the deleted object; `gs_game.cpp:395`
+    gates the save action on nothing but `if(Hotel::p_hotelToSave)`, so the next
+    press of `$A_SAVE_IN_HOTEL` - anywhere, in any level - calls `onSave()` on
+    freed memory. The smallest fix is to clear it in `Hotel::onRemove()`. That
+    changes what a player sees only in the case that is already broken.
+
+2.  **electronics.cpp:135 and :151 - the sentinel is one F short.**
+    Both loops set `v = 0x7FFFFFFF` (eight F) and then test `if(v != 0x7FFFFFF)`
+    (seven F). When a saved game's `<Electronics>` carries no `oldValue<N>`,
+    `QueryIntAttribute` leaves `v` at the sentinel, the test passes, and
+    `0x7FFFFFFF` is written into the pin as its old value. The `writeValue`
+    pairs immediately above use seven F on both sides and are correct. Fixing it
+    changes what such a saved game restores.
+
+3.  **font.cpp:250, 257, 419, 426 - the tag guards are off by one.**
+    `r` is `text.length() - i - 1`, the bytes remaining *after* `i`. `<h>` reads
+    `i..i+2` and needs `r >= 2`; the guard demands 3. `</h>` needs `r >= 3`; the
+    guard demands 4. A tag that ends a string is therefore never recognised and
+    its characters are drawn as glyphs. It is not academic: `cutWithEllipsis`
+    deliberately appends `</h>` to close what a cut left open, so a level title
+    containing `<h>` that gets truncated in the select screen renders the
+    literal `</h>` on screen.
+
+4.  **filesystem.cpp:213 - null dereference on an empty path.**
+    `p_file` starts at 0 and is only assigned inside `if(!filePath.empty())`; the
+    next statement is `if(p_file->getError())`. `convertPath` yields an empty
+    `filePath` for an empty path, which is reachable from data: an empty
+    `musicFilename`, an empty skin name.
+
+5.  **presets.cpp:423 - the Hint preset dereferences a missing child.**
+    Inside `if(p_element)`, `p_element->FirstChildElement("Text")` is stored and
+    immediately dereferenced by `p_text->GetText()`. The `const char*` that comes
+    back is checked; the element it came from is not. A `<Hint>` in a level file
+    or a `cat<N>.xml` with no `<Text>` child crashes the editor palette.
+
+6.  **tileset.cpp:10 - reload() reads badTile before it is set.**
+    The constructor calls `reload()` at line 10 and initialises `badTile` at
+    lines 12 to 14, while `reload()` starts every tile from `badTile` at line 94.
+    Every tile of the first load therefore begins from indeterminate memory, and
+    only the fields the XML overwrites are sound. Moving the three `badTile`
+    lines above the `reload()` call is behaviour-preserving in every other
+    respect.
+
+7.  **Uninitialised locals handed to TinyXML.** `TiXmlElement::Attribute` and
+    `QueryIntAttribute` leave the variable untouched when the attribute is
+    absent, so a local without an initialiser is read from the stack when a file
+    omits it. Six sites: `level.cpp:241` (`numDiamondsCollected`, which decides
+    when the exit appears), `level.cpp:352` (`destroyTime`, `ghost`),
+    `player.cpp:468` (`inv`, the inventory count), `e_barrage.cpp:61` (`up`),
+    and `e_gate.cpp:111` (`z`, published onto an output pin from a switch with
+    no `default` while `subType` arrives unchecked from the level file).
+    Everywhere else in the same functions the tree writes `int temp = 0;` first.
+
+8.  **bomb.cpp:102, :163 and projectile.cpp:219 - the debris fades in.**
+    `-0.5 * -p.color.a / p.lifetime`. The two minus signs cancel, so the alpha
+    delta is positive. Every other particle block in the same files is plainly
+    negative. Whether the current look is wanted is a matter of taste, which is
+    exactly why it is not being changed here.
+
+9.  **gui.cpp:40 - the guard comes after three dereferences.**
+    `request("font.xml")`, then `getOptions()`, `options.shadows = 1` and
+    `setOptions()`, and only then `if(!p_font) return false;`. The
+    `p_toolTipFont` block directly below has them in the right order, which is
+    what makes this look like a slip rather than a decision.
+
+10. **file_archived.cpp:471 - the buffers are written with the wrong lengths.**
+    `p_filename` is allocated with `cde.filenameLength + 1` and `p_extraField`
+    with `cde.extraFieldLength`, but both are written out using the *local*
+    header's lengths. A zip writer is allowed to put a different extra field in
+    the local header than in the central directory, and routinely does, so where
+    `lfh.extraFieldLength` is the larger this reads past the end of the heap
+    block.
+
+11. **util.cpp:285 - printfLog formats into a fixed static buffer.**
+    `static char text[1024]` filled by `vsprintf`, which has no bound, from
+    callers that pass filenames and full paths. `static` also makes it shared,
+    and `audiocapture.cpp`'s Linux `threadProc` calls `printfLog` from the
+    capture thread, which the Windows half of the same file says at line 482
+    must never happen.
+
+
+### Real, and nothing follows from it
+
+Confirmed true, and not worth a commit on its own. Recorded so nobody
+investigates them twice.
+
+- **Leaks on failure paths** - `manager.h:70` (a failed resource), `audiostream.cpp:61`
+  (a failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
+  open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
+  paths). All are one object on a path taken rarely in a process that ends.
+- **`engine.cpp:1129`** - the key-event queue is drained inside the per-key-slot
+  loop rather than beside it, so it happens `NUM_KEY_SLOTS` times per tick
+  instead of once. Idempotent; it reads as a misplaced brace.
+- **`singleton.h:21`** - `operator=` is declared to return a reference and has an
+  empty body. Nothing calls it.
+- **`parameterblock.h:27`** - `operator=` calls `clear()` with no self-assignment
+  guard, so `b = b` would empty the block. Nothing does that.
+- **`gui_radiobutton.cpp:146`** - `changed` fires twice on a click that selects,
+  once on a click that does not. No handler in the tree minds.
+- **`gui_window.cpp:69`** - the title is localized twice; the measured string is
+  localized once. Harmless while no localized body itself starts with `$`.
+- **`diamondmachine.cpp:541`** - `p_soundInst` is never assigned, so the `stop()`
+  branch is dead and an aborted conversion lets the sound run out.
+- **`gs_leveleditor.cpp:1538`** - the `else if(!shift)` branch is unreachable; the
+  three above it consume every case in which `!shift` holds.
+- **`engine.cpp:4048`** - `line.find_first_of("//") == 0` matches a single leading
+  slash, because `find_first_of` takes a character set. No line of
+  `languages.txt` begins with one.
+- **`linedrawer.cpp:71`** - `update()` returns before `vertices.clear()` below two
+  points while `draw()` clears `dirty` regardless, and `draw()` indexes
+  `vertices[0]` with no empty check. `glDrawArrays` with a count of zero reads
+  nothing, so the undefined behaviour has no victim; the stale-beam half would
+  need a run to see.
+- **Naming, not behaviour** - `INLINE_SETTER` is given getter names at
+  `gui_button.h:39` and `:41`, `gui_staticimage.h:28` and `gui_radiobutton.h:42`,
+  so each expands to a second overload of the getter and no `setPositionOnTexture`
+  exists. Two sibling GUI elements share a name in `leveleditor.xml` (`Static6`,
+  lines 173 and 214) and `selectlevel.xml` (`Static3`, lines 12 and 20), so
+  `getChild` can only ever reach the first.
+
+
+### Refuted
+
+- **`p_soundInst->stop()` without a null check** in `conveyorbelt.cpp:56`,
+  `laser.cpp:57`, and the same shape in `elevator.cpp`, `toxicgas.cpp` and
+  `player.cpp`. The claim was that `Sound::createInstance` can return 0 and these
+  destructors would then dereference it. It cannot, here: the only `return 0` in
+  `createInstance` sits inside `if(!forceCreation)`, and every one of these
+  callers passes `true`. The `if(p_soundInst)` in the constructors is belt and
+  braces, not evidence of a reachable null. The comment above that `return 0`
+  says as much - the looping sounds ask with `forceCreation` because it is "the
+  difference between running and crashing".
+
+
 Bug candidates
 --------------
 Something that looks wrong in the code itself. Nothing here has been fixed:
