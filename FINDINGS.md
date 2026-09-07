@@ -2,8 +2,11 @@ Blocks 5 - findings from the 1.2.0 English sweep
 ================================================
 
 What the translation pass turned up while reading every comment in the tree.
-Nothing here has been fixed. The sweep was a translation and a convention pass;
-game logic was not to change, and every bug candidate below would change it.
+The sweep itself was a translation and a convention pass; ten of the findings
+have since been fixed, all of them cases where the code had already decided
+what the fix must be. The Verified section below is the live list - what was fixed,
+what is still open, what turned out to be harmless and what did not survive
+checking. Everything under it is the unfiltered record of the reading.
 
 Each entry is what an agent reported after reading the code around it. "confirmed"
 means a second, independent agent went back to the code and reached the same
@@ -19,115 +22,87 @@ for a compiler or a run of the game.
 
 
 Verified
--------
+--------
 The 73 bug candidates below were each read by a second agent that went back to
 the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
-agent disagreed with the first. What follows is that triage. Nothing is fixed:
-every entry in the first two groups changes behaviour, which this sweep was told
-not to do.
+agent disagreed with the first.
+
+Ten are fixed. Four are open and want a decision that is about the game rather
+than about the code. The rest are real and harmless, or refuted - and the
+refuted ones are the most useful part of this file, because they are what stops
+the same false alarm being raised again.
+
+Nothing is deleted here as it is dealt with. A finding that turned out to be
+nothing is worth as much on the record as one that turned out to be real.
 
 
-### Worth fixing, worst first
+### Fixed in e99904d
 
-1.  **hotel.cpp:66 - a static pointer outlives the object it points at.**
-    `Hotel::p_hotelToSave` is cleared in exactly two places: `onUpdate`, when the
-    player steps off the field, and `onSave`. Not in a destructor, and `Hotel`
-    overrides no `onRemove`. Restart or leave a level while standing on the
-    hotel and the static still points at the deleted object; `gs_game.cpp:395`
-    gates the save action on nothing but `if(Hotel::p_hotelToSave)`, so the next
-    press of `$A_SAVE_IN_HOTEL` - anywhere, in any level - calls `onSave()` on
-    freed memory.
+Each was forced: a sibling block in the same function proved what was meant, or
+the definition of the variable did. None changed what a working game does. The
+reasoning is in the commit message and, where it is a gotcha, in the code.
 
-    The fix is `Hotel::onRemove()` clearing the static, and it must carry the
-    same guard `onUpdate` already uses: `if(p_hotelToSave == this)`. A level can
-    hold several `Player` objects - `Level::switchToNextPlayer` cycles through
-    them - so several characters can stand on several hotels at once. Only the
-    hotel under the *active* player claims the static, which is what keeps the
-    claim unique, and the `== this` in the `else` branch is what stops a hotel
-    with an inactive character on it from clearing somebody else's claim. An
-    unconditional clear in `onRemove` would reintroduce exactly that: blow up
-    one hotel while the active player stands on another and the second player
-    silently loses the ability to save. `onSave` may keep its unconditional
-    clear, because it only ever runs on the hotel that holds the claim.
+- **hotel.cpp** - `onRemove()` now clears the static `Hotel*` the save action
+  hangs off, guarded with `p_hotelToSave == this` exactly as `onUpdate()` guards
+  it. Without that guard the fix would itself have broken the multi-player case:
+  a level can hold several `Player` objects and `switchToNextPlayer()` cycles
+  through them, so several characters can stand on several hotels at once and
+  only the one under the active player holds the claim.
+- **electronics.cpp:135, :151** - the sentinel loses an `F` and now matches the
+  three sibling blocks. A saved game with no `oldValue<N>` no longer restores
+  `0x7FFFFFFF` into the pin.
+- **font.cpp:250, 257, 419, 426** - `r >= 3` becomes `r >= 2` and `r >= 4`
+  becomes `r >= 3`. A tag ending a string is recognised instead of drawn, so a
+  truncated level title no longer renders a literal `</h>`.
+- **filesystem.cpp:213** - `openFile()` checks `p_file` before dereferencing it.
+- **presets.cpp:423** - the Hint preset checks the `<Text>` element it asks for,
+  as the lines above and below it already check theirs.
+- **tileset.cpp:10** - the constructor sets `badTile` before `reload()`, which
+  starts every tile from it.
+- **gui.cpp:36** - `GUI::init()` tests `p_font` before using it three times, as
+  the tooltip font beside it does.
+- **util.cpp:292** - `vsprintf` becomes `vsnprintf`; the callers pass paths into
+  a 1024-byte buffer.
+- **singleton.h:21** - `operator=` returns `*this`.
+- **Five locals handed to TinyXML** start at 0 - `level.cpp:241` (`ndc`),
+  `level.cpp:352` (`destroyTime`, `ghost`), `player.cpp:468` (`inv`) and
+  `e_barrage.cpp:61` (`up`) - because TinyXML leaves them untouched when the
+  attribute is absent and every other site in the same functions writes the 0.
 
-    `~Hotel()` is the wrong place whatever the guard: `Level` calls `onRemove()`
-    at the point of unregistering (level.cpp:2036), which is when the pointer
-    must stop being valid.
+Fixed earlier, in 5085dd2, as conventions rather than defects: the four
+`INLINE_SETTER` declarations carrying getter names in `gui_button.h`,
+`gui_staticimage.h` and `gui_radiobutton.h`, and the two pairs of sibling GUI
+elements sharing a name in `leveleditor.xml` and `selectlevel.xml`.
 
-2.  **electronics.cpp:135 and :151 - the sentinel is one F short.**
-    Both loops set `v = 0x7FFFFFFF` (eight F) and then test `if(v != 0x7FFFFFF)`
-    (seven F). When a saved game's `<Electronics>` carries no `oldValue<N>`,
-    `QueryIntAttribute` leaves `v` at the sentinel, the test passes, and
-    `0x7FFFFFFF` is written into the pin as its old value. The `writeValue`
-    pairs immediately above use seven F on both sides and are correct. Fixing it
-    changes what such a saved game restores.
 
-3.  **font.cpp:250, 257, 419, 426 - the tag guards are off by one.**
-    `r` is `text.length() - i - 1`, the bytes remaining *after* `i`. `<h>` reads
-    `i..i+2` and needs `r >= 2`; the guard demands 3. `</h>` needs `r >= 3`; the
-    guard demands 4. A tag that ends a string is therefore never recognised and
-    its characters are drawn as glyphs. It is not academic: `cutWithEllipsis`
-    deliberately appends `</h>` to close what a cut left open, so a level title
-    containing `<h>` that gets truncated in the select screen renders the
-    literal `</h>` on screen.
+### Open - these want a decision, not a patch
 
-4.  **filesystem.cpp:213 - null dereference on an empty path.**
-    `p_file` starts at 0 and is only assigned inside `if(!filePath.empty())`; the
-    next statement is `if(p_file->getError())`. `convertPath` yields an empty
-    `filePath` for an empty path, which is reachable from data: an empty
-    `musicFilename`, an empty skin name.
-
-5.  **presets.cpp:423 - the Hint preset dereferences a missing child.**
-    Inside `if(p_element)`, `p_element->FirstChildElement("Text")` is stored and
-    immediately dereferenced by `p_text->GetText()`. The `const char*` that comes
-    back is checked; the element it came from is not. A `<Hint>` in a level file
-    or a `cat<N>.xml` with no `<Text>` child crashes the editor palette.
-
-6.  **tileset.cpp:10 - reload() reads badTile before it is set.**
-    The constructor calls `reload()` at line 10 and initialises `badTile` at
-    lines 12 to 14, while `reload()` starts every tile from `badTile` at line 94.
-    Every tile of the first load therefore begins from indeterminate memory, and
-    only the fields the XML overwrites are sound. Moving the three `badTile`
-    lines above the `reload()` call is behaviour-preserving in every other
-    respect.
-
-7.  **Uninitialised locals handed to TinyXML.** `TiXmlElement::Attribute` and
-    `QueryIntAttribute` leave the variable untouched when the attribute is
-    absent, so a local without an initialiser is read from the stack when a file
-    omits it. Six sites: `level.cpp:241` (`numDiamondsCollected`, which decides
-    when the exit appears), `level.cpp:352` (`destroyTime`, `ghost`),
-    `player.cpp:468` (`inv`, the inventory count), `e_barrage.cpp:61` (`up`),
-    and `e_gate.cpp:111` (`z`, published onto an output pin from a switch with
-    no `default` while `subType` arrives unchecked from the level file).
-    Everywhere else in the same functions the tree writes `int temp = 0;` first.
-
-8.  **bomb.cpp:102, :163 and projectile.cpp:219 - the debris fades in.**
+1.  **bomb.cpp:102, :163 and projectile.cpp:219 - the debris fades in.**
     `-0.5 * -p.color.a / p.lifetime`. The two minus signs cancel, so the alpha
-    delta is positive. Every other particle block in the same files is plainly
-    negative. Whether the current look is wanted is a matter of taste, which is
-    exactly why it is not being changed here.
+    delta is positive; every other particle block in the same files is plainly
+    negative. It is obviously a typo and it has shipped for years, which means
+    the look it produces may be the one everybody knows. Changing it changes
+    what the game looks like.
 
-9.  **gui.cpp:40 - the guard comes after three dereferences.**
-    `request("font.xml")`, then `getOptions()`, `options.shadows = 1` and
-    `setOptions()`, and only then `if(!p_font) return false;`. The
-    `p_toolTipFont` block directly below has them in the right order, which is
-    what makes this look like a slip rather than a decision.
+2.  **e_gate.cpp:111 - `int z;` and a switch with no default.**
+    Initialising it decides what an unknown `subType` publishes onto the output
+    pin, and `subType` arrives unchecked from the level file. That is an answer
+    about the electronics, not a missing `= 0`.
 
-10. **file_archived.cpp:471 - the buffers are written with the wrong lengths.**
+3.  **file_archived.cpp:471 - the buffers are written with the wrong lengths.**
     `p_filename` is allocated with `cde.filenameLength + 1` and `p_extraField`
     with `cde.extraFieldLength`, but both are written out using the *local*
-    header's lengths. A zip writer is allowed to put a different extra field in
-    the local header than in the central directory, and routinely does, so where
-    `lfh.extraFieldLength` is the larger this reads past the end of the heap
-    block.
+    header's lengths. A zip writer may put a different extra field in each, so
+    where `lfh.extraFieldLength` is the larger this reads past the end of the
+    heap block. The over-read is certain; which of the two headers should be
+    authoritative for the output is real zip reasoning and not a one-liner.
 
-11. **util.cpp:285 - printfLog formats into a fixed static buffer.**
-    `static char text[1024]` filled by `vsprintf`, which has no bound, from
-    callers that pass filenames and full paths. `static` also makes it shared,
-    and `audiocapture.cpp`'s Linux `threadProc` calls `printfLog` from the
-    capture thread, which the Windows half of the same file says at line 482
-    must never happen.
+4.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
+    failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
+    open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
+    paths). Each is correct to fix and each is one object on a path taken rarely
+    in a process that exits.
 
 
 ### Real, and nothing follows from it
@@ -135,15 +110,9 @@ not to do.
 Confirmed true, and not worth a commit on its own. Recorded so nobody
 investigates them twice.
 
-- **Leaks on failure paths** - `manager.h:70` (a failed resource), `audiostream.cpp:61`
-  (a failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
-  open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
-  paths). All are one object on a path taken rarely in a process that ends.
 - **`engine.cpp:1129`** - the key-event queue is drained inside the per-key-slot
   loop rather than beside it, so it happens `NUM_KEY_SLOTS` times per tick
   instead of once. Idempotent; it reads as a misplaced brace.
-- **`singleton.h:21`** - `operator=` is declared to return a reference and has an
-  empty body. Nothing calls it.
 - **`parameterblock.h:27`** - `operator=` calls `clear()` with no self-assignment
   guard, so `b = b` would empty the block. Nothing does that.
 - **`gui_radiobutton.cpp:146`** - `changed` fires twice on a click that selects,
@@ -162,12 +131,6 @@ investigates them twice.
   `vertices[0]` with no empty check. `glDrawArrays` with a count of zero reads
   nothing, so the undefined behaviour has no victim; the stale-beam half would
   need a run to see.
-- **Naming, not behaviour** - `INLINE_SETTER` is given getter names at
-  `gui_button.h:39` and `:41`, `gui_staticimage.h:28` and `gui_radiobutton.h:42`,
-  so each expands to a second overload of the getter and no `setPositionOnTexture`
-  exists. Two sibling GUI elements share a name in `leveleditor.xml` (`Static6`,
-  lines 173 and 214) and `selectlevel.xml` (`Static3`, lines 12 and 20), so
-  `getChild` can only ever reach the first.
 
 
 ### Refuted
@@ -185,8 +148,9 @@ investigates them twice.
 
 Bug candidates
 --------------
-Something that looks wrong in the code itself. Nothing here has been fixed:
-every one of them changes behaviour.
+The unfiltered record of what the reading agents reported, kept as it was
+written. The Verified section above supersedes it and says which of these were
+fixed, which are open, and which did not survive.
 
 ### as_ogg.cpp
 
