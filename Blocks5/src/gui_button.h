@@ -36,9 +36,9 @@ public:
 	// it afresh.
 	void setRawImageFilename(const std::string& rawImageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
-	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
+	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
 	INLINE_GETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
-	INLINE_SETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
+	INLINE_SETTER(Vec2i, setClickedPositionOnTexture, clickedPositionOnTexture);
 
 	INLINE_CONNECTOR(connectClicked, clicked);
 

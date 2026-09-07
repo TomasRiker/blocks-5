@@ -17,7 +17,7 @@
       <WordWrap />
       <Text></Text>
     </StaticText>
-    <StaticText name="Static3" x="280" y="40">
+    <StaticText name="Static2" x="280" y="40">
       <Text>$LS_SELECT_LEVEL</Text>
     </StaticText>
     <!-- In both states the disc sits centred in the cell; x/y are

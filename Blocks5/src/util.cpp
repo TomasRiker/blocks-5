@@ -355,7 +355,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 			points.push_back(c);
 
 			if(p > 0)
-			{ 
+			{
 				c.x += ix;
 				c.y += iy;
 				p += dpu;
@@ -365,7 +365,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 				c.x += ix;
 				p += dpr;
 			}
-		}		
+		}
 	}
 	else
 	{
@@ -378,7 +378,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 			points.push_back(c);
 
 			if(p > 0)
-			{ 
+			{
 				c.x += ix;
 				c.y += iy;
 				p += dpu;
@@ -388,7 +388,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 				c.y += iy;
 				p += dpr;
 			}
-		}		
+		}
 	}
 
 	return points;

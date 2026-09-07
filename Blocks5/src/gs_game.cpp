@@ -380,7 +380,7 @@ void GS_Game::onUpdate()
 		paused = false;
 	}
 	else if(!menuVisible)
-	{	
+	{
 		if(engine.wasActionPressed("$A_SWITCH_CHARACTER"))
 		{
 			if(!switchTimer)

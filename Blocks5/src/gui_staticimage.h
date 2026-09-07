@@ -25,7 +25,7 @@ public:
 	void setRawImageFilename(const std::string& rawImageFilename);
 	void onUpdate();
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
-	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
+	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
 	INLINE_GETTER(Vec4d, getColor, color);
 	INLINE_SETTER(Vec4d, setColor, color);
 

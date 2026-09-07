@@ -39,7 +39,7 @@ public:
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
-	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
+	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
 
 	INLINE_CONNECTOR(connectChanged, changed);
 

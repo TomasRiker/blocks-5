@@ -393,7 +393,7 @@ bool Engine::init(const std::string& windowCaption,
 
 	// initialize OpenGL
 	printfLog("* Initializing OpenGL ...\n");
-	
+
 	SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);

@@ -277,7 +277,7 @@ bool File_Archived::finish()
 	if(mode != FileSystem::FM_WRITE) return false;
 
 	// compute the checksum
-    uLong crc = crc32(0, 0, 0);
+	uLong crc = crc32(0, 0, 0);
 	crc = crc32(crc, reinterpret_cast<Bytef*>(p_data), pointer);
 
 	// create the new object

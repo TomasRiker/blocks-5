@@ -211,7 +211,7 @@
 				<TabStop id="1" />
 				<Text></Text>
 			</EditBox>
-			<StaticText name="Static6" x="10" y="250" w="200" h="30">
+			<StaticText name="Static18" x="10" y="250" w="200" h="30">
 				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
 			</StaticText>
 			<StaticText name="Static7" x="10" y="275"><Text>tileset.xml:</Text></StaticText>

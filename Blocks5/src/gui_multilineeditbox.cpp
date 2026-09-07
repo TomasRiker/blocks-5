@@ -303,7 +303,7 @@ void GUI_MultiLineEditBox::backspace()
 			changed(this);
 		}
 	}
-	else 
+	else
 	{
 		replaceSelection("");
 	}

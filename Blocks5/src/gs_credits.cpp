@@ -93,7 +93,7 @@ void GS_Credits::onRender()
 		double start;
 		double duration;
 	} texts[] = {
-		
+
 	Vec2i(0, 0),
 	"",
 	"$C_THANKS_FOR_PLAYING",
@@ -105,7 +105,7 @@ void GS_Credits::onRender()
 	"David Scherfgen",
 	6.0,
 	5.0,
-	
+
 	Vec2i(-100, -100),
 	"$C_GRAPHICS",
 	"David Scherfgen\nPatrick Jerusalem\nin2ear Productions",

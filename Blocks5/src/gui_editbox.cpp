@@ -288,7 +288,7 @@ void GUI_EditBox::backspace()
 			changed(this);
 		}
 	}
-	else 
+	else
 	{
 		replaceSelection("");
 	}

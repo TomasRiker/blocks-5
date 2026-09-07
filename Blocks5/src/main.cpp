@@ -502,7 +502,7 @@ int runTheGame(int argc,
 
 	// read the data out of the encrypted archive
 	fs.pushCurrentDir("data.zip[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]");
-	
+
 	// Alternatively: read the data from the local directory
 	// fs.pushCurrentDir("data");
 
