@@ -591,6 +591,12 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 
 void GS_Menu::pollImport()
 {
+	// Not while a question is on the screen. pollImport() latches its answer
+	// once, so asking for it here would take the import out of Transfer's
+	// hands and put its question over the one the player is still looking at.
+	// Leaving it in the pipe costs a tick or two and nothing else.
+	if(confirmMode != CONFIRM_NONE) return;
+
 	std::string path, untrustedName;
 	const int status = Transfer::pollImport(path, untrustedName);
 	if(status == Transfer::STATUS_BUSY) return;
@@ -707,6 +713,16 @@ void GS_Menu::completeImport(int kind,
 
 void GS_Menu::mergeImport(const std::string& path)
 {
+	// classify() only asked whether the archive lists a progress.xml, which
+	// the table of contents answers without opening it. Reading it can still
+	// fail, and an empty union would then be reported as a merge that worked.
+	if(!ProgressDB::canRead(path))
+	{
+		Transfer::finishImport();
+		engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_BROKEN");
+		return;
+	}
+
 	// The union, and no code of its own for it: read the imported database
 	// and mark everything in it as solved. markSolved() reads the player's
 	// own file first, so what comes out holds both.
@@ -758,7 +774,13 @@ void GS_Menu::askConfirmation(const std::string& text,
 void GS_Menu::closeConfirmation()
 {
 	gui["Menu.ConfirmPane"]->hide();
-	gui["Menu.ManagerPane.Manager"]->focus();
+
+	// Only back to the Manager if it is still open. focus() shows what it
+	// focuses and every parent of it, so on a file dialog the player left the
+	// Manager during - which is what the asynchronous ones allow - this would
+	// open the pane again by itself.
+	if(gui["Menu.ManagerPane"]->isVisible()) gui["Menu.ManagerPane.Manager"]->focus();
+	else                                     gui["Menu"]->focus();
 
 	confirmMode = CONFIRM_NONE;
 	pendingDeleteName = "";

@@ -115,7 +115,8 @@ bool ProgressDB::write(const Progress& progress)
 	return FileSystem::inst().writeStringToFile(xml, getFilename() + pw + p_member);
 }
 
-ProgressDB::Progress ProgressDB::query(const std::string& filename)
+ProgressDB::Progress ProgressDB::query(const std::string& filename,
+									   bool* p_intact)
 {
 	FileSystem& fs = FileSystem::inst();
 	const bool own = filename.empty();
@@ -123,6 +124,7 @@ ProgressDB::Progress ProgressDB::query(const std::string& filename)
 
 	Progress progress;
 	const bool readable = read(path, progress);
+	bool intact = true;
 
 	// Reading is the only place that can put a half-finished save right, so it
 	// is the place that does it. Both halves matter: a backup left standing
@@ -140,7 +142,19 @@ ProgressDB::Progress ProgressDB::query(const std::string& filename)
 			if(fs.renameFile(backup, path))
 			{
 				progress.clear();
+
+				// A backup that does not read either leaves nothing to
+				// protect, so this stays intact: the next save may write over
+				// it, which is the only way out of that state.
 				read(path, progress);
+			}
+			else
+			{
+				// The player's whole progress is still standing under the
+				// backup's name. Saying so is what stops the caller writing
+				// an empty database over it.
+				printfLog("+ ERROR: The backup could not be put back.\n");
+				intact = false;
 			}
 		}
 		else if(readable && fs.fileExists(backup))
@@ -149,6 +163,7 @@ ProgressDB::Progress ProgressDB::query(const std::string& filename)
 		}
 	}
 
+	if(p_intact) *p_intact = intact;
 	return progress;
 }
 
@@ -162,7 +177,17 @@ bool ProgressDB::markSolved(const std::vector<std::pair<std::string, uint> >& so
 	// when the screen was opened. That is also what makes two of these unable
 	// to lose each other's entries - and what makes a merge need no code of
 	// its own.
-	Progress progress = query();
+	bool intact = false;
+	Progress progress = query(std::string(), &intact);
+
+	if(!intact)
+	{
+		// An interrupted save that could not be put back. What came back is
+		// empty, and writing it would put that emptiness where the player's
+		// progress still is.
+		printfLog("+ ERROR: The progress database is not in a state to be written to.\n");
+		return false;
+	}
 
 	bool changed = false;
 	for(size_t i = 0; i < solved.size(); i++)
@@ -179,22 +204,81 @@ bool ProgressDB::markSolved(const std::vector<std::pair<std::string, uint> >& so
 	// member into a zip rebuilds the archive, and File_Archived deletes the old
 	// file before the new one exists - so without this a crash or a full disk
 	// in that window would leave the player with nothing at all.
-	if(fs.fileExists(path) && !fs.renameFile(path, backup))
+	bool placedBackup = false;
+	if(fs.fileExists(path))
 	{
-		printfLog("+ ERROR: Could not set the progress database aside; it has not been written.\n");
-		return false;
+		if(!fs.renameFile(path, backup))
+		{
+			printfLog("+ ERROR: Could not set the progress database aside; it has not been written.\n");
+			return false;
+		}
+		placedBackup = true;
 	}
 
 	if(write(progress))
 	{
-		fs.deleteFile(backup);
+		// Only the one this call put there. Deleting a backup on the strength
+		// of having written something would throw away whatever an earlier
+		// interrupted save left behind.
+		if(placedBackup) fs.deleteFile(backup);
 		return true;
 	}
 
 	printfLog("+ ERROR: Could not write the progress database - putting the old one back.\n");
-	fs.deleteFile(path);
-	fs.renameFile(backup, path);
+	if(placedBackup)
+	{
+		fs.deleteFile(path);
+		fs.renameFile(backup, path);
+	}
 	return false;
+}
+
+bool ProgressDB::installFrom(const std::string& source)
+{
+	FileSystem& fs = FileSystem::inst();
+
+	// An interrupted save is brought into the open first, so that what gets
+	// replaced is what the player would have had - and so that the backup is
+	// not left standing for a later query to take for a fresh interruption.
+	bool intact = false;
+	query(std::string(), &intact);
+	if(!intact) return false;
+
+	const std::string path(getFilename());
+	const std::string backup(getBackupFilename());
+
+	// The same step aside as a save, and for the same reason: copyFile opens
+	// the destination with "wb", so without this a copy that fails halfway
+	// leaves neither the old database nor the new one.
+	bool placedBackup = false;
+	if(fs.fileExists(path))
+	{
+		if(!fs.renameFile(path, backup)) return false;
+		placedBackup = true;
+	}
+
+	if(fs.copyFile(source, path))
+	{
+		if(placedBackup) fs.deleteFile(backup);
+		return true;
+	}
+
+	if(placedBackup)
+	{
+		fs.deleteFile(path);
+		fs.renameFile(backup, path);
+	}
+	return false;
+}
+
+bool ProgressDB::exists()
+{
+	FileSystem& fs = FileSystem::inst();
+
+	// Either name. Right after an interrupted save the whole database is
+	// standing under the backup's, and answering "there is none" would offer
+	// an import without the question that protects it.
+	return fs.fileExists(getFilename()) || fs.fileExists(getBackupFilename());
 }
 
 bool ProgressDB::remove()

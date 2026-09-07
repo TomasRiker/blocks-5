@@ -162,7 +162,10 @@ bool wouldReplace(Kind kind, const std::string& untrustedName)
 
 	// The user directory and not both roots: that is where install() writes,
 	// and a name the game folder holds is refused outright rather than
-	// replaced.
+	// replaced. For the progress database either name counts, or an import
+	// right after an interrupted save would replace it without asking.
+	if(kind == KIND_PROGRESS) return ProgressDB::inst().exists();
+
 	return FileSystem::inst().fileExists(directoryFor(kind) + name);
 }
 
@@ -204,7 +207,13 @@ std::string install(Kind kind,
 		return "";
 	}
 
-	if(!fs.copyFile(path, dir + name))
+	// The progress database is put in place by its own class: a plain copy
+	// truncates what is there, and it is the only kind with a backup that has
+	// to be brought into the open first and cleared afterwards.
+	const bool installed = (kind == KIND_PROGRESS)
+						   ? ProgressDB::inst().installFrom(path)
+						   : fs.copyFile(path, dir + name);
+	if(!installed)
 	{
 		errorId = "$TR_ERROR_FAILED";
 		return "";
@@ -230,8 +239,10 @@ std::vector<std::string> list(Kind kind)
 	// user directory: there is nothing to list and nothing to sort.
 	if(kind == KIND_PROGRESS)
 	{
-		const std::string name(targetName(kind, ""));
-		if(fs.fileExists(directoryFor(kind) + name)) result.push_back(name);
+		// exists() and not fileExists(): right after an interrupted save the
+		// whole database is standing under its backup's name, and an empty
+		// list would tell the player their progress is gone.
+		if(ProgressDB::inst().exists()) result.push_back(targetName(kind, ""));
 		return result;
 	}
 

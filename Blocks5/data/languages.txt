@@ -2353,7 +2353,7 @@ $TR_CONFIRM_DELETE
 $TR_CONFIRM_DELETE_PROGRESS
 // Deleting the progress database is a different matter from deleting a
 // file the player can import again
-§en:Really delete your progress? Every campaign then begins again from the front.
+§en:Really delete your progress? Every campaign will start from the beginning again.
 §de:Deinen Fortschritt wirklich löschen? Jede Kampagne fängt dann wieder von vorne an.
 
 $TR_CONFIRM_OVERWRITE
@@ -2364,8 +2364,8 @@ $TR_CONFIRM_OVERWRITE
 $TR_CONFIRM_MERGE
 // Asked when the file being imported is a progress database and there is
 // one already: replacing keeps only the new one, merging keeps both
-§en:There is a progress of your own already. Replace it, or merge the two?
-§de:Es gibt schon einen eigenen Fortschritt. Ersetzen oder beide zusammenführen?
+§en:Your own progress is already there. Replace it, or merge the two?
+§de:Dein eigener Fortschritt ist schon da. Ersetzen oder beides zusammenführen?
 
 $TR_MERGE_DO
 // The third answer to that question
@@ -2431,8 +2431,10 @@ $TR_MERGED
 §de:Fortschritt zusammengeführt.
 
 $TR_ERROR_UNKNOWN
-§en:ERROR: This is not a level, a campaign, a music file, a skin or a progress.
-§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück, ein Skin oder ein Fortschritt.
+// One line of a toast bar, which neither wraps nor clips - the German of
+// this one has to stay under about 620 pixels
+§en:ERROR: This is not a level, a campaign, a music file, a skin or a progress file.
+§de:FEHLER: Das ist weder Level noch Kampagne, Musikstück, Skin oder Fortschritt.
 
 $TR_ERROR_PROGRESS_SAVE
 // The old database is back in place when this appears - what is missing

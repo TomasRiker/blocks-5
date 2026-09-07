@@ -24,7 +24,14 @@ public:
 
 	// The whole database. An empty filename means the player's own; any other
 	// reads a foreign file, which is how a merge gets at what it is merging.
-	Progress query(const std::string& filename = std::string());
+	//
+	// p_intact answers whether what comes back is the whole of what lies on
+	// the disk. It is false in one case only: a save was interrupted and the
+	// backup could not be put back. Nothing may then write, because the one
+	// copy of the player's progress is still standing under the other name -
+	// an empty answer would otherwise be taken for "nothing solved yet" and
+	// written back over it.
+	Progress query(const std::string& filename = std::string(), bool* p_intact = 0);
 
 	// Mark levels as solved and write the database out. It reads the file
 	// first, so this adds to what is on the disk now rather than to what was
@@ -35,6 +42,15 @@ public:
 	// Delete the database, its backup with it: a backup left behind would be
 	// restored by the next query and undo the deletion.
 	bool remove();
+
+	// Put a file the player brought in in place of the database, through the
+	// same backup as a save: the copy truncates what is there, and a failure
+	// halfway would otherwise leave neither the old one nor the new one.
+	bool installFrom(const std::string& source);
+
+	// Is there a database at all? Under either name: right after an
+	// interrupted save the whole of it is standing under the backup's.
+	bool exists();
 
 	// The player's own database, and the name the old one is put aside under
 	// while a new one is written.

@@ -669,9 +669,14 @@ int GS_Game::loadLevel()
 		const ProgressDB::Progress progress = ProgressDB::inst().query();
 		const ProgressDB::Progress::const_iterator entry =
 			progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
-		const size_t completed = (entry == progress.end()) ? 0 : entry->second.size();
+		const size_t total = p_currentCampaign->getLevels().size();
+		const size_t completed = min((entry == progress.end()) ? size_t(0) : entry->second.size(),
+									 total);
 
-		if(completed < p_currentCampaign->getLevels().size() - 1)
+		// Clamped as in the level selection: a merged database can hold levels
+		// of a campaign that has since become shorter, and the two must not
+		// disagree about whether the bonus level is earned.
+		if(completed < total - 1)
 		{
 			return -2;
 		}
