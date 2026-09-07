@@ -2,13 +2,14 @@ Blocks 5 - findings from the 1.2.0 English sweep
 ================================================
 
 What the translation pass turned up while reading every comment in the tree.
-The sweep itself was a translation and a convention pass; twelve of the findings
-have since been fixed - ten where the code had already decided what the fix must
-be, and two that needed a decision first. The Verified section below is the live
-list - what was fixed, what is still open, what turned out to be harmless and what
-did not survive checking. Everything under it is the unfiltered record of the
-reading, left as each was first written: a finding's disposition is carried by
-the Verified section alone, so an entry there is not rewritten when it is fixed.
+The sweep itself was a translation and a convention pass; thirteen of the
+findings have since been fixed - ten where the code had already decided what the
+fix must be, and three that needed a decision first. The Verified section below
+is the live list - what was fixed, what is still open, what turned out to be
+harmless and what did not survive checking. Everything under it is the
+unfiltered record of the reading, left as each was first written: a finding's
+disposition is carried by the Verified section alone, so an entry there is not
+rewritten when it is fixed.
 
 Each entry is what an agent reported after reading the code around it. "confirmed"
 means a second, independent agent went back to the code and reached the same
@@ -30,8 +31,8 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-Twelve are fixed. Two are open and want a decision that is about the game rather
-than about the code. The rest are real and harmless, or refuted - and the
+Thirteen are fixed. One is open and wants a decision that is about the game
+rather than about the code. The rest are real and harmless, or refuted - and the
 refuted ones are the most useful part of this file, because they are what stops
 the same false alarm being raised again.
 
@@ -101,16 +102,23 @@ Two of the decisions below, once they had been made.
   added without extending the table.
 
 
+### Fixed in 9830da6
+
+- **bomb.cpp:102, :163 and projectile.cpp:219** - the debris alpha delta read
+  `-0.5 * -p.color.a / p.lifetime`, and the two minus signs cancel, so a
+  fragment grew more opaque while `deltaSize` shrank it to nothing.
+  `Sprites::sample()` hands back `DEBRIS_ALPHA` rather than the texel's own
+  alpha, so one starts at 0.55 to 0.75 and ended half again as opaque, clamped.
+  It is `-p.color.a / p.lifetime` now, which is what the fireball forty lines
+  below already says; the smoke, the blast wave and the core are all plainly
+  negative too, and the debris was the only particle in either file whose alpha
+  climbed. Decided from footage rather than from the arithmetic - the fixture is
+  `Tools/testlevels/bomb.xml`.
+
+
 ### Open - these want a decision, not a patch
 
-1.  **bomb.cpp:102, :163 and projectile.cpp:219 - the debris fades in.**
-    `-0.5 * -p.color.a / p.lifetime`. The two minus signs cancel, so the alpha
-    delta is positive; every other particle block in the same files is plainly
-    negative. It is obviously a typo and it has shipped for years, which means
-    the look it produces may be the one everybody knows. Changing it changes
-    what the game looks like.
-
-2.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
+1.  **The leaks.** `manager.h:70` (a failed resource), `audiostream.cpp:61` (a
     failed music or sound load), `filesystem.cpp:213` and `:306` (every failed
     open, and `fileExists` opens with `FM_TEST` routinely), `sound.cpp:42` (four
     paths). Each is correct to fix and each is one object on a path taken rarely
