@@ -93,15 +93,24 @@ are stdlib only:
 because the Windows build runs no Python, and the `windows_icon` check is what
 keeps it current.
 
-    python3 Tools/strip_xml_comments.py --out DIRECTORY Blocks5/data
+    python3 Tools/strip_comments.py --out DIRECTORY Blocks5/data
 
-`strip_xml_comments.py` puts the XML files without their comments into a
-staging directory, and that is what gets packed - the notes in the dialogs stay
-in the sources and are nobody's business who opens `data.zip`. `pack.sh` and
-`zip_data.bat` call it of their own accord; calling it by hand is only needed
-to look at the result. Unlike `make_ico.py` it therefore runs under Windows
-too - and where Python is missing, both packing scripts say so and pack the XML
-files as they stand instead of stopping the build.
+`strip_comments.py` puts the XML files and `languages.txt` without their
+comments into a staging directory, and that is what gets packed - the notes in
+the dialogs and in the string table stay in the sources and are nobody's
+business who opens `data.zip`. `pack.sh` and `zip_data.bat` call it of their own
+accord; calling it by hand is only needed to look at the result. Unlike
+`make_ico.py` it therefore runs under Windows too - and where Python is missing,
+both packing scripts say so and pack those files as they stand instead of
+stopping the build.
+
+Each format has its own rule and its own check afterwards. An XML comment goes
+only if it has its lines to itself, and the tree of tags, attributes and text is
+compared before and after. In `languages.txt` a line beginning with `//` goes
+whole, and the string table `Engine::loadStringDB` would build is compared
+before and after - the blank lines around a comment stay, because that parser
+counts them. Any other text file is copied through untouched: a skin's
+`password.txt` is one of those.
 
 A comment is removed only if it has its lines to itself. That is not a matter
 of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--`

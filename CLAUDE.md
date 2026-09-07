@@ -79,15 +79,26 @@ should be the archive the Windows build produces. `./pack.sh` does everything, `
 `data.zip` and the skin archives are build products that are not in Git, and the game will not
 start without them.
 
-**The XML files reach `data.zip` without their comments.** The dialogs in `data/` are commented
-the way the source is, and those notes are nobody's business who opens the archive — but they
-belong in the files. So the sources are left alone and
-`Tools/strip_xml_comments.py` writes stripped copies into a staging directory that the
+**The XML files and `languages.txt` reach `data.zip` without their comments.** The dialogs in
+`data/` are commented the way the source is, and the string table opens with a page explaining
+its own format; those notes are nobody's business who opens the archive — but they belong in
+the files. So the sources are left alone and
+`Tools/strip_comments.py` writes stripped copies into a staging directory that the
 packing scripts then pack from, which is why `pack.sh` and `zip_data.bat` call `7za` twice:
-everything else out of `data/`, the XML out of the staging directory. Python is what does the
+the images, the sounds and the demo out of `data/`, the XML and the text out of the staging
+directory. Python is what does the
 stripping, and it is the one thing here that Windows packing has no bundled tool for — so
-where it is missing, both scripts say so and pack the XML files as they stand. A note, not a
+where it is missing, both scripts say so and pack those files as they stand. A note, not a
 stopped build: `data.zip` is what the game needs to start, and the comments are a tidiness.
+
+`languages.txt` is the easier half: `Engine::loadStringDB` reads it a line at a time and its
+comment branch does nothing at all, so a `//` line can go whole without changing a string.
+The blank lines around one stay, because that parser counts them and the next text line
+flushes the count into the string. It is that file by name and not `*.txt`, for the same
+reason the packing scripts name `password.txt` rather than globbing: a pattern that swept up
+every text file would one day take a line out of a password. Both halves are checked the same
+way — the XML tree, and the string table the game would build, read out of the bytes before
+and after.
 
 A comment is removed only if it has its lines to itself, and that is a guard rather than a
 matter of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--` is
@@ -1642,9 +1653,11 @@ because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`
-elsewhere, and answers only `de` or `en` — of the 349 IDs in `languages.txt` exactly one has
-a French body and one a Spanish, so detecting `fr` would give an English game with a French
-label. It runs only when `config.xml` has no `<Language>`.
+elsewhere, and answers only `de` or `en` — every one of the 386 IDs in `languages.txt` has
+an English body and a German one and nothing else, so detecting `fr` would give a wholly
+English game that merely believed otherwise. The one `§fr:` and the one `§es:` in that file
+are the lines of its own header explaining what the tags mean. It runs only when
+`config.xml` has no `<Language>`.
 
 Nothing ships a `config.xml` template — not the installer, not the web build. The game writes
 the file itself on exit, which is what leaves the detection a chance to run at all.

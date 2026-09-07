@@ -84,24 +84,24 @@ packInto() { # $1=target  $2=password ("" for none)  rest=patterns
     fi
 }
 
-# The XML files come from a staging directory in which
-# Tools/strip_xml_comments.py has removed their comments: the notes in the
-# dialogs are to stay in the source files but not in the archive. Hence two
-# calls to 7za - the second appends, as with the skins.
+# The XML and the text files come from a staging directory in which
+# Tools/strip_comments.py has removed their comments: the notes in the dialogs
+# and in languages.txt are to stay in the source files but not in the archive.
+# Hence two calls to 7za - the second appends, as with the skins.
 packData() {
     echo "data.zip ..."
     local staged=""
     if [ $strip -eq 1 ]; then
         staged=$(mktemp -d) || return 1
-        python3 "$HERE/../Tools/strip_xml_comments.py" --out "$staged" "$HERE/data" || {
+        python3 "$HERE/../Tools/strip_comments.py" --out "$staged" "$HERE/data" || {
             rm -rf "$staged"; return 1; }
     fi
     ( cd "$HERE/data" || exit 1
       rm -f ../data.zip
       runOptipng
-      packInto ../data.zip "$DATA_PASSWORD" '*.png' '*.ogg' '*.txt' '*.dat'
+      packInto ../data.zip "$DATA_PASSWORD" '*.png' '*.ogg' '*.dat'
       cd "${staged:-$HERE/data}" || exit 1
-      packInto "$HERE/data.zip" "$DATA_PASSWORD" '*.xml' ) || {
+      packInto "$HERE/data.zip" "$DATA_PASSWORD" '*.xml' '*.txt' ) || {
         [ -n "$staged" ] && rm -rf "$staged"
         return 1; }
     if [ -n "$staged" ]; then rm -rf "$staged"; fi
