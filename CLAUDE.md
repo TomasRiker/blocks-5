@@ -1758,14 +1758,22 @@ name. That is every speech balloon, which sets italic for the whole text: the ho
 grows by the same amount, or the following word would move into the frame instead; the left
 side needs nothing, since the first letter's foot still stands on the cursor.
 
-**Between the two keys of one binding stands a half space** — `HALF_SPACE` in `font.h`, half
+**Between keycaps that belong together stands a half space** — `HALF_SPACE` in `font.h`, half
 of that font's own space and a space in every other respect: measured like one, and a line
 breaks at one and replaces it exactly as a break replaces a space. Each keycap already stands
-off its own frame, so a full space either side of the slash leaves the slash adrift between
-the two keys instead of the pair reading as one binding. It is a byte rather than an element
-like `<k>` because breaking is a matter of characters: `adjustText` searches backwards for the
-last one it may cut at, and an element would have to be taught to be a break as well as to be
-skipped over.
+off its own frame, so a full space either side of the slash leaves it adrift between the two
+keys instead of the pair reading as one binding, and the same holds for the plus of a chord:
+`<k>Alt</k>·+·<k>Enter</k>`. It is a byte rather than an element like `<k>` because breaking is
+a matter of characters: `adjustText` searches backwards for the last one it may cut at, and an
+element would have to be taught to be a break as well as to be skipped over.
+
+The byte is the **middle dot**, `\xB7` — the character an editor shows a space as, and the
+third of this file's meaningful bytes beside `§` and `¶`. It has to be a printable one because
+the chords are written out by hand in `languages.txt` (a `%BINDING{…}` cannot say *Alt*), and a
+control character there would be invisible to whoever edits the line. `Engine::getBindingMarkup`
+writes the same byte around its slash. The plus that joins a key to a *word* keeps its full
+space — `%BINDING{$A_PLANT_BOMB} + direction` — so the help table shows the hierarchy: tight
+where keys bind to each other, loose where prose follows.
 
 **A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey`
 (`util.h`) is the one place that says so, and everything reading the SDL key itself goes
@@ -1837,9 +1845,10 @@ filenames, shipped zipped in `levels/campaigns/`.
   subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM or a
   `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back to
   being encoding-dependent.
-- **The two bytes that carry meaning are written as escapes.** `data/languages.txt` is
+- **The three bytes that carry meaning are written as escapes.** `data/languages.txt` is
   Latin-1 and shipped that way; the game parses it with `'\xA7'` (the section sign, §) in
-  `engine.cpp` and `'\xB6'` (the pilcrow, ¶) in `font.cpp`, and a few inline localized strings
+  `engine.cpp`, `'\xB6'` (the pilcrow, ¶, a line break) in `font.cpp` and `'\xB7'` (the middle
+  dot, ·, a half space) in `font.h`; a few inline localized strings
   use the same syntax — `"\xA7" "de:…"`, split because a C++ hex escape is greedy and
   `"\xA7de:"` would parse as `\xA7d`. Those are a wire format shared with a data file, not
   text: they have to stay byte-exact whatever the source encoding is, which is the whole

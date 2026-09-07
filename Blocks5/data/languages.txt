@@ -13,6 +13,11 @@
 // §es: for Spanish
 //
 // The paragraph character (¶) can be used to insert newlines!
+//
+// The middle dot (·) is a space of half the width, and a space in every
+// other respect. It belongs between keys that are pressed together or that
+// stand for one another - <k>Alt</k>·+·<k>Enter</k> - where a full space
+// either side pushes the two apart.
 
 // *******
 // GENERAL
@@ -1558,7 +1563,7 @@ Save screenshot		%BINDING{$A_CAPTURE_SCREENSHOT}
 Start/stop recording video	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Show menu		<k>Esc</k>
 Pause			%BINDING{$A_PAUSE}
-Window/full screen		<k>Alt</k> + <k>Enter</k>
+Window/full screen		<k>Alt</k>·+·<k>Enter</k>
 // --------------------------------------------------------------------------------
 §de:<h>Spielziel</h>
 In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
@@ -1579,7 +1584,7 @@ Screenshot speichern		%BINDING{$A_CAPTURE_SCREENSHOT}
 Videoaufnahme starten/stoppen	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Menü aufrufen		<k>Esc</k>
 Pause			%BINDING{$A_PAUSE}
-Fenster/Vollbild		<k>Alt</k> + <k>Enter</k>
+Fenster/Vollbild		<k>Alt</k>·+·<k>Enter</k>
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE2
@@ -2255,8 +2260,8 @@ $WEB_CLICK_TO_START
 $WEB_FULLSCREEN_HINT
 // Aside under the prompt above, in the browser build: a page has no button
 // for the game's own fullscreen, and nobody guesses Alt+Return unaided
-§en:Press <k>Alt</k>+<k>Enter</k> / <k>Alt</k>+<k>Num Enter</k> to toggle fullscreen mode.
-§de:Drücke <k>Alt</k>+<k>Enter</k> / <k>Alt</k>+<k>Num Enter</k>, um den Vollbildmodus umzuschalten.
+§en:Press <k>Alt</k>·+·<k>Enter</k> / <k>Alt</k>·+·<k>Num Enter</k> to toggle fullscreen mode.
+§de:Drücke <k>Alt</k>·+·<k>Enter</k> / <k>Alt</k>·+·<k>Num Enter</k>, um den Vollbildmodus umzuschalten.
 
 $CE_LEVEL_IN_ARCHIVE
 // Suffix shown in the campaign editor behind a level that is stored inside the

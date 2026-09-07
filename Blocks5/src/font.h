@@ -9,16 +9,18 @@ class Texture;
 
 // A space of half a space's width, and a space in every other respect: it is
 // measured like one and a line breaks at one, replacing it exactly as a break
-// replaces a space. It stands between the two keycaps of an action bound to
-// two keys, where a full space either side of the slash pushes them apart -
-// each keycap already carries the padding of its own frame.
+// replaces a space. It stands between the keycaps that belong together - the
+// two keys of one action, and the two keys of a chord - where a full space
+// either side of the slash or the plus pushes them apart, since each keycap
+// already carries the padding of its own frame.
 //
 // A byte rather than an element like <k>, because a break is a matter of
 // characters: adjustText() looks backwards for the last one it may cut at, and
 // an element would have to be taught to be a break as well as to be skipped.
-// The byte is one no text can hold - the same idiom as the pilcrow that means
-// a line break inside a localized string, only this one is never typed.
-const char HALF_SPACE = '\x1F';
+// The middle dot, because that is the character an editor shows a space as,
+// and because it can be typed into languages.txt where the chords are written
+// out - the same idiom as the pilcrow that means a line break there.
+const unsigned char HALF_SPACE = '\xB7';
 
 class Font : public Resource<Font>
 {
