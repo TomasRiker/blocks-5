@@ -23,7 +23,7 @@ SET "ARCHIVE=%~dp0levels\campaigns\blocks.zip"
 IF EXIST "%STAGE%" RD /S /Q "%STAGE%"
 MKDIR "%STAGE%"
 
-"%~dp0tools\7za" x -y -pargonhydroxid267 -o"%STAGE%" "%ARCHIVE%" campaign.xml *.ogg >NUL
+"%~dp0Tools\7za" x -y -pargonhydroxid267 -o"%STAGE%" "%ARCHIVE%" campaign.xml *.ogg >NUL
 IF ERRORLEVEL 1 ECHO   ERROR: could not read campaign.xml and the music out of blocks.zip
 IF ERRORLEVEL 1 EXIT /B 1
 
@@ -32,6 +32,6 @@ FOR /L %%i IN (10,1,42) DO COPY "%~dp0levels\level_%%i.xml" "%STAGE%\level_%%i.x
 
 PUSHD "%STAGE%"
 IF EXIST "%ARCHIVE%" DEL "%ARCHIVE%"
-"%~dp0tools\7za" a -tzip -mx=9 -pargonhydroxid267 "%ARCHIVE%" campaign.xml level_*.xml *.ogg >NUL
+"%~dp0Tools\7za" a -tzip -mx=9 -pargonhydroxid267 "%ARCHIVE%" campaign.xml level_*.xml *.ogg >NUL
 POPD
 RD /S /Q "%STAGE%"

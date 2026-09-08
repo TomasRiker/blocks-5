@@ -312,7 +312,7 @@ IF NOT EXIST "Blocks5\levels\campaigns\blocks.zip" SET "MISSING=%MISSING% blocks
 IF DEFINED MISSING (
 	ECHO.
 	ECHO ERROR: packing did not produce:%MISSING%
-	ECHO        tools\7za.exe is needed for this step.
+	ECHO        Tools\7za.exe is needed for this step.
 	GOTO fail
 )
 :nodata

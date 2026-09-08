@@ -19,7 +19,7 @@ IF DEFINED PY SET "STRIPPED=%STAGE%"
 
 PUSHD data
 IF EXIST ..\data.zip DEL ..\data.zip
-..\tools\7za a -tzip -mx=9 -pargonhydroxid267 ..\data.zip *.png *.ogg *.dat
+..\Tools\7za a -tzip -mx=9 -pargonhydroxid267 ..\data.zip *.png *.ogg *.dat
 POPD
 PUSHD "%STRIPPED%"
 "%~dp0tools\7za" a -tzip -mx=9 -pargonhydroxid267 "%~dp0data.zip" *.xml *.txt
