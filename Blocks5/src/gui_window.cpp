@@ -113,13 +113,30 @@ void GUI_Window::onMouseUp(const Vec2i& position,
 
 void GUI_Window::onMouseLeave(int buttons)
 {
-	moving = false;
+	// Only once the button has gone. A window being dragged is left behind by
+	// a quick mouse as a matter of course: the cursor is read once per logic
+	// tick and the window follows it in that same tick, so a movement wider
+	// than the window puts the cursor outside it until the next one - and
+	// ending the drag there would drop the window in the middle of a gesture
+	// the hand is still making. The moves keep arriving meanwhile, because
+	// GUI::update() delivers them to the element the button went down on as
+	// well as to the one under the cursor.
+	if(!(buttons & 1)) moving = false;
 }
 
 void GUI_Window::onMouseMove(const Vec2i& position,
 							 const Vec2i& movement,
 							 int buttons)
 {
+	// The button has to still be held. A release the game never saw - the mouse
+	// let go outside its own window, where SDL may not report it - would
+	// otherwise leave the window stuck to the cursor for good.
+	if(!(buttons & 1))
+	{
+		moving = false;
+		return;
+	}
+
 	if(moving) setPosition(getPosition() + movement);
 }
 
