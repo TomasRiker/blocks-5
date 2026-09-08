@@ -139,6 +139,16 @@ void StreamedSound::setLoopBegin(double loopBegin)
 	loopBeginInSlices = secondsToSlices(loopBegin);
 }
 
+uint StreamedSound::tellStream() const
+{
+	return p_stream->tell();
+}
+
+void StreamedSound::seekStream(uint position)
+{
+	p_stream->seek(position);
+}
+
 uint StreamedSound::secondsToSlices(double t) const
 {
 	return static_cast<uint>(t * p_stream->getSampleRate());
@@ -212,8 +222,8 @@ bool StreamedSound::update()
 }
 
 // One pass through the OpenAL queue: collect what has been played and refill
-// it. Under Windows the decoder thread calls this every ten milliseconds; in
-// the browser there are no threads, and update() does it once per logic tick.
+// it. Under Windows/Linux the decoder thread calls this every ten milliseconds;
+// in the browser there are no threads, and update() does it every logic tick.
 void StreamedSound::pumpBuffers()
 {
 	// any buffers finished?
@@ -274,7 +284,7 @@ void StreamedSound::stream(uint bufferID)
 	alSourceQueueBuffers(sourceID, 1, &bufferID);
 }
 
-// Everything from here on exists only under Windows. In the browser
+// Everything from here on exists only under Windows/Linux. In the browser
 // SDL_CreateThread aborts and SDL_WaitThread calls abort(); its SDL does not
 // know semaphores at all.
 #ifdef __EMSCRIPTEN__

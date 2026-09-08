@@ -346,7 +346,7 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 
 void GS_Menu::onGetFocus()
 {
-	engine.playMusic("menu.ogg");
+	engine.playMusic("menu.ogg", 0.0, true);
 
 	// load the title level
 	p_titleLevel = new Level;

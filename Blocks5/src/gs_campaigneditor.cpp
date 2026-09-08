@@ -510,7 +510,7 @@ void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 
 void GS_CampaignEditor::onGetFocus()
 {
-	Engine::inst().playMusic("menu.ogg");
+	engine.playMusic("menu.ogg", 0.0, true);
 
 	gui["CampaignEditor"]->focus();
 }

@@ -2939,7 +2939,8 @@ void Engine::processGameStateChanges()
 }
 
 void Engine::playMusic(const std::string& filename,
-					   double loopBegin)
+					   double loopBegin,
+					   bool resumeWhereStopped)
 {
 	// Does the music have to change?
 	if(currentMusicFilename != filename)
@@ -2954,6 +2955,13 @@ void Engine::playMusic(const std::string& filename,
 			p_currentMusic = Manager<StreamedSound>::inst().request(filename);
 			if(p_currentMusic)
 			{
+				if(resumeWhereStopped)
+				{
+					// resume where music was last stopped
+					std::unordered_map<std::string, uint>::const_iterator it = musicStoppedAt.find(filename);
+					if (it != musicStoppedAt.end()) p_currentMusic->seekStream(it->second);
+				}
+				
 				p_currentMusic->setVolume(0.0);
 				p_currentMusic->play(loopBegin != -1.0);
 				p_currentMusic->slideVolume(1.0, 0.02);
@@ -2975,6 +2983,10 @@ void Engine::stopMusic()
 {
 	if(p_currentMusic)
 	{
+		// remember where the music was stopped (more or less, this just asks
+		// the audio stream's read cursor)
+		musicStoppedAt[currentMusicFilename] = p_currentMusic->tellStream();
+		
 		p_currentMusic->slideVolume(-1.0, 0.02);
 		p_currentMusic = 0;
 	}

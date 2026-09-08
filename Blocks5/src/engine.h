@@ -229,7 +229,7 @@ public:
 	GameState* getGameState();
 	void processGameStateChanges();
 
-	void playMusic(const std::string& filename, double loopBegin = 0.0);
+	void playMusic(const std::string& filename, double loopBegin = 0.0, bool resumeWhereStopped = false);
 	void stopMusic();
 
 	bool isKeyDown(SDLKey key) const;
@@ -531,6 +531,7 @@ private:
 	double crossfadeDuration;
 	StreamedSound* p_currentMusic;
 	std::string currentMusicFilename;
+	std::unordered_map<std::string, uint> musicStoppedAt;
 	// Framebuffer. frameTextureSize is a power of two, because WebGL 1 allows
 	// NPOT textures only with restrictions; the bottom left corner is used.
 	uint frameBufferID;

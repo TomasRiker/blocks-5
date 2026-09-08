@@ -24,6 +24,8 @@ public:
 	void setPitch(double pitch);
 	double getLoopBegin() const;
 	void setLoopBegin(double loopBegin);
+	uint tellStream() const;
+	void seekStream(uint position);
 
 	uint secondsToSlices(double t) const;
 
@@ -58,15 +60,15 @@ private:
 #ifndef __EMSCRIPTEN__
 	// Counted up when the decoder thread is to stop. SDL 1.2 has no atomic
 	// types, and a volatile bool is not synchronisation; a semaphore is both
-	// at once - the signal and the wait between two passes. Under Windows a
-	// real kernel object sits behind it (WaitForSingleObject), not the loop
+	// at once - the signal and the wait between two passes.
+	// Under Windows/Linux a real kernel object sits behind it, not the loop
 	// with 1 ms pauses that SDL_mutex.h warns about for other systems.
 	SDL_sem* p_stopSignal;
 #endif
 
 	// Is the stream at its end? Only whatever fills the buffers writes and
-	// reads this - the decoder thread under Windows, update() in the browser.
-	// It never crosses a thread boundary; hence no volatile.
+	// reads this - the decoder thread under Windows/Linux, update() in the
+	// browser. It never crosses a thread boundary; hence no volatile.
 	bool finish;
 
 	double volume;
