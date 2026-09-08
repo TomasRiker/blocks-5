@@ -1792,19 +1792,27 @@ it carries no texture — so the rectangles are collected while the text is laid
 once the batch is closed, which also carries them through the two shadow passes with the
 glyphs; a keycap without the same shadow would look pasted on.
 
-**The frame is as tall as the line and centred on the letters, not on the line box.**
-`lineHeight` and `offset` describe the line a font is *set* at, and a font is free to hang that
-line lower than its own ink: the note's font ends its letters nine rows above the foot of its
-line box, so a frame drawn on the line box sat under the word instead of around it, with its
-top edge through the capitals. Two optional `<Font>` attributes say where the letters really
-are — `capTop` and `capBottom`, the row a capital begins at and the row the writing ends on —
-and both default to the line box, which is what the two fonts in `data/` measure out to anyway.
-They are therefore written down in exactly one place, the two skins that bring a `hintfont.xml`,
-and nothing in the help table or in a speech balloon moved. The height stays the line's, capped
-at the pitch (`lineHeight × lineSpacing`), and that cap is what lets two keycaps on lines above
-one another share an edge instead of overlapping — not a rare case: two rows of the help table
-and any wrapped line of a hint note have keycaps directly above one another, and it is the same
-reason `KEY_BOX_GROW` is 0.
+**The frame is drawn on exactly rows `capTop`..`capBottom` of a glyph cell**, two optional
+`<Font>` attributes, and nothing about it is derived from the line. `lineHeight` and `offset`
+describe the line a font is *set* at, and the ink is free to sit elsewhere in either direction:
+the note's font ends its letters five rows above the foot of its line box, so a frame drawn on
+the line box sits under the word instead of around it, with its top edge through the capitals —
+while the tooltip font's letters are *taller* than its line, since `Backspace` reaches a row
+above the capitals and a row below the baseline and a ten-row line has room for neither.
+
+**That second case is why the frame carries its own height rather than the line's.** A frame
+fixed at the line height and merely centred cannot be placed in a font whose ink does not fit
+inside the line: only the sum of the two attributes is read, so every pair with the same sum
+gives the same frame and the next sum moves it a whole row — always one row too high or one too
+low, with no third option. Saying the frame outright is also what makes `verify.py`'s
+`font_metrics` check a straight comparison against the measured ink.
+
+They default to the line box, which is what `font.xml` and `credits_font.xml` measure out to
+anyway, so those two are unchanged. Three files carry them: `tooltip_font.xml`, at rows 1..12,
+and the two skins that bring a `hintfont.xml`. Keeping two keycaps on neighbouring lines apart
+is the font's own business now, since its author is the one saying how tall the frame is — and
+it is not a rare case: two rows of the help table and any wrapped line of a hint note have
+keycaps directly above one another.
 
 **Data, and not the image measured at every start.** Where a font's letters sit is a constant
 of the art, and a statistic recomputed at load would move every keycap in the game by a pixel

@@ -815,14 +815,14 @@ def check_windows_icon():
 def check_font_metrics():
     """A font must say where its letters sit, or the keycap frame misses them.
 
-    The frame around a <k>...</k> is placed from capTop and capBottom, and
-    those default to the line box - lineHeight and offset - which is where a
-    font's ink normally sits. A font is free to hang its line lower than its
-    own letters, though, and the note's font does: it ends its writing nine
-    rows above the foot of its line box, so the frame sat under the word
-    instead of around it. The two attributes correct that, and this is what
-    stops them from going stale when the art is redrawn, since nothing else
-    reads them and no compiler can see the picture.
+    The frame around a <k>...</k> is drawn on exactly rows capTop..capBottom
+    of a glyph cell, and those default to the line box - lineHeight and offset
+    - which is where a font's ink normally sits. A font is free to sit
+    elsewhere: the note's font ends its writing five rows above the foot of
+    its line box, and the tooltip font's key names are taller than its line in
+    both directions. The two attributes say where the ink really is, and this
+    is what stops them from going stale when the art is redrawn, since nothing
+    else reads them and no compiler can see the picture.
 
     Reported when the frame would cut into the letters, or sit off to one side
     of them by more than half a row. The rows come out of the image: for every
@@ -888,12 +888,11 @@ def check_font_metrics():
         inkTop = max(sorted(tops), key=lambda row: tops[row])
         inkBottom = max(sorted(bottoms), key=lambda row: bottoms[row])
 
-        # What the game will do with it - Font::getKeyBoxRows(), at the font's
-        # own line height.
+        # What the game will do with it - Font::getKeyBoxRows(), which draws
+        # the frame on exactly these two rows.
         capTop = number('capTop', -offset)
         capBottom = number('capBottom', -offset + lineHeight - 1)
-        top = (capTop + capBottom - lineHeight + 2) // 2
-        bottom = top + lineHeight - 1
+        top, bottom = capTop, capBottom
 
         fix = ('add capTop="%d" capBottom="%d" to <Font>' % (inkTop, inkBottom)
                if number('capTop') is None else

@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<Font image="tooltip_font.png" lineHeight="10" offset="-2">
+<Font image="tooltip_font.png" lineHeight="10" offset="-2" capTop="1" capBottom="12">
   <Character code="0" x="2" y="0" w="9" h="15" />
   <Character code="1" x="18" y="0" w="9" h="15" />
   <Character code="2" x="34" y="0" w="9" h="15" />

@@ -87,17 +87,15 @@ private:
 	int getCharacterWidth(unsigned char c) const;
 
 	// The rows a keycap frame occupies inside a glyph cell, as (top, height).
-	// The height is the line's, so that keycaps on two lines above one another
-	// share an edge rather than collide; the position is the letters', not the
-	// line box's.
-	Vec2i getKeyBoxRows(double lineSpacing) const;
+	Vec2i getKeyBoxRows() const;
 
 	int lineHeight;
 	int offset;
 
-	// The rows of a glyph cell the letters begin and end on, from the font's
+	// The rows of a glyph cell a keycap frame runs from and to, from the font's
 	// capTop/capBottom attributes and otherwise the line box. lineHeight and
-	// offset do not say this: a font may hang its line lower than its ink.
+	// offset do not say this: a font may hang its line lower than its ink, and
+	// a small font's letters may not fit inside its line at all.
 	int capTop;
 	int capBottom;
 

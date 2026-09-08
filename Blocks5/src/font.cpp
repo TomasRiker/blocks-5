@@ -18,18 +18,6 @@ const int KEY_BOX_GAP = 2;
 // nothing, because the first letter's foot is still on the cursor.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
-// How far the frame stands off the line box, which is where it is anchored:
-// every glyph in a font has the same height, but that cell is taller than the
-// line and a frame hung off it would float below the text.
-//
-// Zero, because these fonts fill their line box - the ink of the main font runs
-// from row 1 to row 15 of a line 15 high. A frame any taller than the line
-// collides with the one on the line below, which is not a rare case: two rows
-// of the help table and any wrapped line of a hint note have keycaps directly
-// above one another. At zero they share an edge instead, which reads as a grid
-// rather than a collision.
-const int KEY_BOX_GROW = 0;
-
 namespace
 {
 	// Where a line may be broken. The first two are replaced by the break and
@@ -55,9 +43,9 @@ namespace
 		const Vec2i start = open.back();
 		open.pop_back();
 		boxes.push_back(Vec4i(start.x,
-							  start.y - KEY_BOX_GROW,
+							  start.y,
 							  cursorX + KEY_BOX_PAD + italic,
-							  start.y + height + KEY_BOX_GROW));
+							  start.y + height));
 	}
 }
 
@@ -312,7 +300,7 @@ void Font::renderTextPure(const std::string& text)
 	// edge and the line top of every <k> not yet closed.
 	std::vector<Vec4i> boxes;
 	std::vector<Vec2i> openBoxes;
-	const Vec2i keyBoxRows = getKeyBoxRows(options.lineSpacing);
+	const Vec2i keyBoxRows = getKeyBoxRows();
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
@@ -739,19 +727,17 @@ std::string Font::adjustText(const std::string& text,
 	return out;
 }
 
-Vec2i Font::getKeyBoxRows(double lineSpacing) const
+Vec2i Font::getKeyBoxRows() const
 {
-	// As tall as the line, and never taller than the pitch the text is set at:
-	// that is what lets two keycaps on lines above one another share an edge
-	// instead of overlapping, which is also why KEY_BOX_GROW is 0.
-	const int pitch = static_cast<int>(lineSpacing * lineHeight);
-	const int height = max(1, min(lineHeight, pitch));
-
-	// Centred on the letters, and where that leaves one row over, it goes
-	// below the baseline rather than above the capitals: descenders hang into
-	// it - "Backspace", "Page Up", "Strg" - and nothing at all reaches above a
-	// capital in a key's name.
-	return Vec2i((capTop + capBottom - height + 2) / 2, height);
+	// Exactly the rows the font asks for. capTop and capBottom are the frame
+	// itself, not a hint about where to centre one of some other height, and
+	// the line cannot stand in for them in either direction: the note's font
+	// hangs its line five rows below its writing, while the tooltip font's
+	// letters are taller than its line - "Backspace" reaches a row above the
+	// capitals and a row below the baseline, and a ten-row line has room for
+	// neither. A frame that keeps the line's height is therefore unplaceable
+	// in a small font whatever it is centred on.
+	return Vec2i(capTop, max(1, capBottom - capTop + 1));
 }
 
 int Font::getCharacterWidth(unsigned char c) const
