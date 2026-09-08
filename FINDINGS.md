@@ -30,9 +30,10 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-All fourteen are fixed, and four of the harmless ones have since been taken as
+All fourteen are fixed, and seven of the harmless ones have since been taken as
 well - along with a real one that only turned up while taking them. What is
-left under "Real, and nothing follows from it" is what stays. The refuted ones
+left under "Real, and nothing follows from it" is one, and it is left standing
+deliberately: what to do about it is a decision about the level editor. The refuted ones
 are the most useful part of this file, because they are what stops the same
 false alarm being raised again.
 
@@ -172,20 +173,44 @@ And the one that turned up on the way, which is not harmless:
   supported thing to do, through `Sound::isLiveInstance`.
 
 
+### Fixed in a29ed8f
+
+The last three of the harmless ones, each a line.
+
+- **`parameterblock.h:27`** - `operator=` returns early on self-assignment. It
+  calls `clear()` before it copies, so `b = b` would have emptied the block.
+- **`gui_radiobutton.cpp:146`** - `onMouseUp` no longer fires `changed` on top
+  of the one `check()` already fires. A click that selects reported twice and
+  a click on the button already selected reported a change that did not
+  happen; the rule is the one the checkbox already carries, `check()` for "the
+  user clicked" and `setChecked()` for "the display caught up".
+- **`engine.cpp:4048`** - `compare(0, 2, "//")` instead of
+  `find_first_of("//")`, which takes a character set and therefore asked
+  whether the line begins with *a* slash.
+
+
 ### Real, and nothing follows from it
 
 Confirmed true, and not worth a commit on its own. Recorded so nobody
 investigates them twice.
 
-- **`parameterblock.h:27`** - `operator=` calls `clear()` with no self-assignment
-  guard, so `b = b` would empty the block. Nothing does that.
-- **`gui_radiobutton.cpp:146`** - `changed` fires twice on a click that selects,
-  once on a click that does not. No handler in the tree minds.
-- **`gs_leveleditor.cpp:1538`** - the `else if(!shift)` branch is unreachable; the
-  three above it consume every case in which `!shift` holds.
-- **`engine.cpp:4048`** - `line.find_first_of("//") == 0` matches a single leading
-  slash, because `find_first_of` takes a character set. No line of
-  `languages.txt` begins with one.
+- **`gs_leveleditor.cpp:1538`** - the `else if(!shift)` branch of `draw()` is
+  unreachable; the three above it consume every case in which `!shift` holds.
+  It is the chain's original general case - "a placement clears the cell it
+  lands in, unless shift is held" - left standing when that rule was
+  re-expressed at the *top* of the chain with the rail protection folded into
+  it (`objectType != "Rail" && objectType != "Hint" && !shift`, :1498) instead
+  of being edited in place. The two bodies say so: :1500 and the tail of the
+  Hint branch at :1534 are the same two statements under the same comment
+  ("Never delete rails here!"), and the dead one at :1540 is that pair without
+  the protection - the older, unprotected form.
+
+  Deleting it is safe and changes nothing. What it leaves behind is worth
+  knowing first, because it is the one live consequence: the Hint branch
+  (:1510) carries no `!shift`, so placing a note with shift held still clears
+  the cell while shift-placing anything else clears nothing. Whether that is
+  the note's privilege or an oversight is a decision about the editor, not
+  about the dead branch.
 
 
 ### Refuted
