@@ -1322,7 +1322,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 
 void GS_LevelEditor::onGetFocus()
 {
-	Engine::inst().playMusic("");
+	Engine::inst().playMusic("menu.ogg");
 
 	gui["LevelEditor"]->focus();
 }
