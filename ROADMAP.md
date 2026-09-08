@@ -1377,6 +1377,39 @@ Both gestures want it, and in the same order: resume, then dismiss, then act.
 Closing the note must not step either.
 
 
+36. Let the details setting reach the text shadows
+---------------------------------------------------
+Every string is drawn three times: `Font::renderText` (`font.cpp:246`) lays down
+two offset copies in black before the text itself, and `Engine::getDetails()` is
+not asked about it. Level rendering, the weather and the lightning all consult
+it (`level.cpp:719`, `:1068`, `lightning.cpp:48`); the font does not, so the one
+thing drawn on every screen in the game ignores the setting meant for exactly
+this.
+
+`Font::Options::shadows` is where it would go, and its name is the first thing
+to fix: it reads as a count and is an offset style. Both non-zero values draw
+**two** samples - 2 gives (2,1) and (1,2), 1 gives (1,0) and (0,1) - and the
+alpha is divided by the number of them, so dropping one is a matter of changing
+`0.7 / numSamples`, not of leaving a hole. 0 already means none, which is what
+`gs_credits.cpp:175` uses.
+
+Where it is worth most is the browser, and that is a reason to do it rather than
+a detail: there are no display lists in WebGL, so each pass is a full
+`renderTextPure` walk over the string - the tags parsed, the glyph quads built
+and the keycap frames collected again - where the desktop replays a display
+list. Three walks per string per frame becomes one at the low setting.
+
+Two things to decide:
+
+- **Whether the setting picks the sample count or the whole style.** One sample
+  at an offset of (1,1) is cheaper than two and still reads as a shadow; two
+  exist to soften the corner.
+- **Who wins where a caller already asked.** `gui.cpp:39`, `hint.cpp:161` and
+  the credits all set `shadows` themselves, so the details setting has to be a
+  ceiling over what they ask for rather than a replacement - the credits' 0 must
+  stay 0 at any detail level.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
