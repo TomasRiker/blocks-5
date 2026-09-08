@@ -1531,15 +1531,16 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					}
 				}
 
-				// No note there. Never delete rails here!
-				p_level->clearPosition(where, "Rail");
-				p_level->removeOldObjects();
-			}
-			else if(!shift)
-			{
-				// delete the objects at this cell
-				p_level->clearPosition(where);
-				p_level->removeOldObjects();
+				// No note there. Never delete rails here - and nothing at all
+				// with shift held, which is what it means in the two branches
+				// above and therefore has to mean here: a note was the one
+				// thing that cleared the cell it was put into whether shift
+				// was held or not.
+				if(!shift)
+				{
+					p_level->clearPosition(where, "Rail");
+					p_level->removeOldObjects();
+				}
 			}
 
 			// put the object into the chosen cell
