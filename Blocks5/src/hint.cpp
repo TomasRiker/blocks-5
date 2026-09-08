@@ -419,13 +419,13 @@ void Hint::onRender(int layer,
 		// strip in renderNoteMesh() are whole numbers anyway.
 		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
 
-		if(shownAlpha > 1.0 / 255.0 || layer == 43)
+		// a, and not shownAlpha: the editor forces a to 1 above and drives
+		// shownAlpha not at all, since it never runs Level::update().
+		if(a > 1.0 / 255.0)
 		{
-			// Note and text sit together in one texture, which makes the
-			// writing turn with the sheet and roll up with it. It is made on
-			// the first frame and again whenever the text is a different one -
-			// in the editor that is on every key press.
-			if(layer != 43) bakeNote();
+			// Sheet and writing bake into one texture, so the writing turns and
+			// rolls up with the paper; re-made whenever the text changes.
+			bakeNote();
 
 			glPushMatrix();
 			Vec2i p = -getShownPositionInPixels();
