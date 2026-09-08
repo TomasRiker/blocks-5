@@ -30,9 +30,11 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-All fourteen are fixed. The rest are real and harmless, or refuted - and the
-refuted ones are the most useful part of this file, because they are what stops
-the same false alarm being raised again.
+All fourteen are fixed, and four of the harmless ones have since been taken as
+well - along with a real one that only turned up while taking them. What is
+left under "Real, and nothing follows from it" is what stays. The refuted ones
+are the most useful part of this file, because they are what stops the same
+false alarm being raised again.
 
 Nothing is deleted here as it is dealt with. A finding that turned out to be
 nothing is worth as much on the record as one that turned out to be real.
@@ -140,32 +142,50 @@ Two of the decisions below, once they had been made.
   `_vorbis_block_ripcord`.
 
 
+### Fixed in dec6da9
+
+Four of the harmless ones, taken because each is a line or two and two of them
+are undefined behaviour on paper. The diamond machine's was turned into what
+the dead code was reaching for.
+
+- **`engine.cpp:1129`** - the key-event queue is drained beside the
+  per-key-slot loop now rather than inside it. It was idempotent, and it read
+  as a misplaced brace because that is what it was.
+- **`gui_window.cpp:69`** - the title is localized once, and the string that is
+  measured is the string that is drawn.
+- **`linedrawer.cpp:71`** - `draw()` returns on an empty vertex vector instead
+  of indexing `vertices[0]`. `glDrawArrays` with a count of zero read nothing,
+  so nothing was ever wrong; the indexing itself is what is undefined.
+- **`diamondmachine.cpp:541`** - `p_soundInst` is assigned now, and an aborted
+  conversion slides the sound down - quieter and slower at once - instead of
+  the dead `stop()`. To zero and not to a negative target: that one pauses the
+  instance at the end, a paused instance is never `AL_STOPPED`, and it would
+  hold an audio source for the rest of the level.
+
+And the one that turned up on the way, which is not harmless:
+
+- **`sound.cpp:83`** - `~Sound` deleted its instances without taking them out
+  of the static `allInstances`, which `getFreeSource()` walks and dereferences
+  every entry of. A sound released while its instances were listed left it
+  reading freed memory the next time the source pool ran dry - a level change
+  followed by a busy scene. Keeping an instance pointer across ticks is now a
+  supported thing to do, through `Sound::isLiveInstance`.
+
+
 ### Real, and nothing follows from it
 
 Confirmed true, and not worth a commit on its own. Recorded so nobody
 investigates them twice.
 
-- **`engine.cpp:1129`** - the key-event queue is drained inside the per-key-slot
-  loop rather than beside it, so it happens `NUM_KEY_SLOTS` times per tick
-  instead of once. Idempotent; it reads as a misplaced brace.
 - **`parameterblock.h:27`** - `operator=` calls `clear()` with no self-assignment
   guard, so `b = b` would empty the block. Nothing does that.
 - **`gui_radiobutton.cpp:146`** - `changed` fires twice on a click that selects,
   once on a click that does not. No handler in the tree minds.
-- **`gui_window.cpp:69`** - the title is localized twice; the measured string is
-  localized once. Harmless while no localized body itself starts with `$`.
-- **`diamondmachine.cpp:541`** - `p_soundInst` is never assigned, so the `stop()`
-  branch is dead and an aborted conversion lets the sound run out.
 - **`gs_leveleditor.cpp:1538`** - the `else if(!shift)` branch is unreachable; the
   three above it consume every case in which `!shift` holds.
 - **`engine.cpp:4048`** - `line.find_first_of("//") == 0` matches a single leading
   slash, because `find_first_of` takes a character set. No line of
   `languages.txt` begins with one.
-- **`linedrawer.cpp:71`** - `update()` returns before `vertices.clear()` below two
-  points while `draw()` clears `dirty` regardless, and `draw()` indexes
-  `vertices[0]` with no empty check. `glDrawArrays` with a count of zero reads
-  nothing, so the undefined behaviour has no victim; the stale-beam half would
-  need a run to see.
 
 
 ### Refuted
