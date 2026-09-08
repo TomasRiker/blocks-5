@@ -1321,6 +1321,31 @@ Two things not to lose:
   for every shadow sample (`font.cpp:261`) - there it is once per sample.
 
 
+34. Switch the language inside the hint editor
+-----------------------------------------------
+A hint's text is usually a `$ID`, and what the player reads is whatever
+`languages.txt` has under it in their language. The editor shows only the one
+the game is currently running in, so checking that a note fits its paper in
+both means leaving the editor, changing the language in the options and coming
+back. Two radio buttons in `EditHintPane` would answer it on the spot.
+
+Most of the machinery is already there. The preview is rendered by
+`gs_leveleditor.cpp:1246` at layer 43, from the edit box's text set one line
+above, and both render paths resolve it through `localizeString()` at draw time
+- so nothing has to be re-baked by hand, `bakeNote()` re-bakes on its own when
+the resolved text changes. `Engine::setLanguage()` is the switch.
+
+Two things to settle:
+
+- **It is a preview, not a preference.** `Engine::setLanguage` changes the whole
+  game, and `Engine::exit` writes `<Language>` to `config.xml` - so leaving the
+  editor on the other language would silently change the player's setting. Either
+  put it back on leaving the pane, or resolve the preview against a language the
+  note is told rather than against the engine's.
+- **The editor's own captions would switch too** if the engine's language is
+  what moves, which is a lot of visible churn for a preview of one note.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
