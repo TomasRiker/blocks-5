@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
-	<StaticText name="Static1" x="75" y="30" w="-1" h="-1" for="Filename">
+	<StaticText name="Static1" x="85" y="30" w="-1" h="-1" for="Filename">
 		<Text>$CE_MENU_FILENAME</Text>
 	</StaticText>
-	<EditBox name="Filename" x="165" y="30" w="255" h="20">
+	<EditBox name="Filename" x="170" y="30" w="265" h="20">
 		<TabStop id="0" />
 		<Text></Text>
 	</EditBox>
-	<Button name="Search" x="425" y="30" w="20" h="20">
+	<Button name="Search" x="440" y="30" w="20" h="20">
 		<Title>...</Title>
 	</Button>
-	<Button name="Load" x="20" y="55" w="135" h="30">
+	<Button name="Load" x="20" y="55" w="140" h="30">
 		<Title>$CE_MENU_LOAD</Title>
 	</Button>
-	<Button name="Save" x="165" y="55" w="135" h="30">
+	<Button name="Save" x="170" y="55" w="140" h="30">
 		<Title>$CE_MENU_SAVE</Title>
 	</Button>
-	<Button name="New" x="310" y="55" w="135" h="30">
+	<Button name="New" x="320" y="55" w="140" h="30">
 		<Title>$CE_MENU_NEW</Title>
 	</Button>
-	<Button name="Quit" x="455" y="55" w="135" h="30">
+	<Button name="Quit" x="470" y="55" w="140" h="30">
 		<Title>$CE_MENU_QUIT</Title>
 	</Button>
 
@@ -33,9 +33,11 @@
 	</Button>
 	<Button name="Up" x="570" y="140" w="50" h="20">
 		<Title>$CE_LEVEL_UP</Title>
+		<Font>tooltip_font.xml</Font>
 	</Button>
 	<Button name="Down" x="570" y="170" w="50" h="20">
 		<Title>$CE_LEVEL_DOWN</Title>
+		<Font>tooltip_font.xml</Font>
 	</Button>
 	<StaticText name="Static2" x="20" y="120">
 		<Text>$CE_AVAILABLE_LEVELS</Text>
@@ -73,9 +75,9 @@
 	<Button name="NumUnlockedLevels+" x="230" y="410" w="20" h="20">
 		<Title>+</Title>
 	</Button>
-  <CheckBox name="BonusLevel" x="20" y="435" w="14" h="14">
-    <Title>$CE_USE_BONUS_LEVEL</Title>
-  </CheckBox>
+	<CheckBox name="BonusLevel" x="20" y="435" w="14" h="14">
+		<Title>$CE_USE_BONUS_LEVEL</Title>
+	</CheckBox>
 
 	<Element name="MessageBoxPane" w="640" h="480">
 		<Hidden />
