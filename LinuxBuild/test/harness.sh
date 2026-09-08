@@ -66,9 +66,24 @@ b5_start()
 	[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
 	[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
 
+	# A run that was killed - a timeout, a Ctrl-C - leaves its Xvfb and its
+	# lock file standing. The next Xvfb then exits at once because the display
+	# is taken, and the game attaches to the old server instead, where it hangs
+	# in SDL_SetVideoMode with nothing to say. Clearing it first is what makes
+	# a rerun after an aborted run mean anything.
+	b5_clearDisplay
 	Xvfb "$B5_DISP" -screen 0 ${B5_SCREEN_W}x${B5_SCREEN_H}x24 >"$B5_OUT/xvfb.log" 2>&1 &
 	B5_XVFB_PID=$!
-	sleep 2
+
+	# Wait for the server itself rather than guessing: everything below talks
+	# to it, and a dead one costs a minute of timeouts to find out about.
+	local x
+	for x in $(seq 1 40); do
+		xdpyinfo -display "$B5_DISP" >/dev/null 2>&1 && break
+		kill -0 "$B5_XVFB_PID" 2>/dev/null || { echo "FAILED: Xvfb died - $(tail -1 "$B5_OUT/xvfb.log")"; exit 2; }
+		sleep 0.5
+	done
+	xdpyinfo -display "$B5_DISP" >/dev/null 2>&1 || { echo "FAILED: no X server on $B5_DISP"; exit 2; }
 	export DISPLAY="$B5_DISP"
 	if command -v openbox >/dev/null 2>&1; then
 		openbox >"$B5_OUT/wm.log" 2>&1 &
@@ -87,29 +102,76 @@ b5_start()
 	B5_GAME_PID=$!
 
 	# Wait for the window rather than guessing an interval: under llvmpipe the
-	# start takes half a minute, on real hardware a moment.
+	# start takes half a minute, on real hardware a moment. Both waits below
+	# give up rather than hang, and both watch the process while they wait: a
+	# game that has died or wedged in SDL_SetVideoMode is the common case, and
+	# waiting the whole deadline out for it wastes an afternoon.
 	echo "Waiting for the window ..."
 	B5_WIN=""
 	local i
 	for i in $(seq 1 60); do
+		b5_alive || { echo "FAILED: the game exited before its window appeared"; b5_diagnose; exit 2; }
 		B5_WIN=$(xdotool search --name "Blocks 5" 2>/dev/null | head -1)
 		[ -n "$B5_WIN" ] && break
 		sleep 1
 	done
-	[ -n "$B5_WIN" ] || { echo "FAILED: no window after 60 s"; tail -20 "$B5_OUT/run.log"; exit 1; }
+	[ -n "$B5_WIN" ] || { echo "FAILED: no window after 60 s"; b5_diagnose; exit 2; }
 
 	# And then for the hook to answer and have something to report: the window
 	# is up long before the GUI inside it is.
-	for i in $(seq 1 90); do
+	for i in $(seq 1 60); do
+		b5_alive || { echo "FAILED: the game exited during startup"; b5_diagnose; exit 2; }
 		if b5_dump 2>/dev/null && [ "$(b5_json "d['state']")" != "" ]; then break; fi
 		sleep 1
 	done
-	[ "$(b5_json "d['state']")" != "" ] || { echo "FAILED: the test hook does not answer"; exit 1; }
+	[ "$(b5_json "d['state']")" != "" ] || b5_hookFailed
 
 	xdotool windowactivate "$B5_WIN" 2>/dev/null
 	sleep 1
 	b5_geometry
 	echo "Window $B5_W x $B5_H at ($B5_X, $B5_Y)"
+}
+
+# Is the game still running? Everything that waits asks this, so that a run
+# ends in seconds when the game is gone instead of at the far end of a
+# deadline.
+b5_alive() { [ -n "${B5_GAME_PID:-}" ] && kill -0 "$B5_GAME_PID" 2>/dev/null; }
+
+# Why the hook went quiet: the game is gone, or it is standing there and not
+# answering. The two want different things looked at, so they are not one
+# message.
+b5_hookFailed()
+{
+	b5_alive && echo "FAILED: the test hook does not answer" \
+			 || echo "FAILED: the game is no longer running"
+	b5_diagnose
+	exit 2
+}
+
+# What to print when a wait gives up. The log's last lines say where it got to
+# - "Initializing SDL ..." with nothing after it is the wedged-X server case.
+b5_diagnose()
+{
+	echo "--- the last lines of $B5_OUT/run.log:"
+	tail -12 "$B5_OUT/run.log" 2>/dev/null | sed 's/^/    /'
+	b5_alive && echo "--- the game is still running (pid $B5_GAME_PID); killing it."
+	b5_stop
+}
+
+# Take down an X server left behind by a run that did not get to b5_stop. Its
+# own pid, never a pattern that could match this script.
+b5_clearDisplay()
+{
+	local stale
+	stale=$(pgrep -x Xvfb 2>/dev/null | while read -r p; do
+		tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q -- "$B5_DISP " && echo "$p"
+	done)
+	if [ -n "$stale" ]; then
+		echo "  (clearing an X server left behind on $B5_DISP)"
+		kill $stale 2>/dev/null
+		sleep 1
+	fi
+	rm -f "/tmp/.X${B5_DISP#:}-lock"
 }
 
 b5_stop()
@@ -146,13 +208,18 @@ b5_clientOrigin()
 }
 
 # Put a request to the hook and print the answer.
+# The hook answers once per logic tick, so a second is already generous and
+# five is the outside of any frame rate this runs at. Giving up matters more
+# than the number: b5_waitForState asks sixty times over, and at twenty
+# seconds a piece an unanswering game costs twenty minutes to notice.
 b5_ask()
 {
 	rm -f "$B5_TEST_DIR/response"
 	echo "$1" > "$B5_TEST_DIR/request"
 	local i
-	for i in $(seq 1 100); do
+	for i in $(seq 1 25); do
 		[ -f "$B5_TEST_DIR/response" ] && { cat "$B5_TEST_DIR/response"; return 0; }
+		b5_alive || return 1
 		sleep 0.2
 	done
 	return 1
@@ -211,7 +278,7 @@ b5_hold() { xdotool keydown --clearmodifiers "$1"; sleep 0.4; xdotool keyup --cl
 b5_click()
 {
 	local path=$1
-	b5_dump || { echo "FAILED: the test hook does not answer"; exit 1; }
+	b5_dump || b5_hookFailed
 
 	local shown active
 	shown=$(b5_json "el('$path')['shown']")
@@ -260,11 +327,13 @@ b5_waitForState()
 {
 	local want=$1 seconds=${2:-90} i
 	for i in $(seq 1 "$seconds"); do
+		b5_alive || { echo "FAILED: the game exited while waiting for $want"; b5_diagnose; exit 2; }
 		b5_dump || { sleep 1; continue; }
 		[ "$(b5_json "d['state']")" = "$want" ] && { b5_ok "game state $want"; return 0; }
 		sleep 1
 	done
 	echo "FAILED: $want not reached (last: $(b5_json "d['state']"))"
+	b5_diagnose
 	exit 1
 }
 
