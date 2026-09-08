@@ -1346,6 +1346,37 @@ Two things to settle:
   what moves, which is a lot of visible churn for a preview of one note.
 
 
+35. Close the hint note with a click, and spend the input that does it
+-----------------------------------------------------------------------
+Return and Escape put an open note away (`gs_game.cpp:147`); a click does not,
+although a click is what a player reaches for after the note has covered the
+play area they were looking at. The pause already takes any key *and* any
+button - `wasAnyKeyPressed() || wasAnyButtonPressed()`, `gs_game.cpp:378` - and
+the note should read the same way.
+
+**One input must do one thing, and today it does two.** The press that leaves
+the pause also closes the note, and it moves the player besides:
+
+- `GUI::update()` runs before `p_gs->onUpdate()`, so `GameGUI::onKeyEvent` has
+  already called `dismissDisplay()` by the time the resume is decided. One
+  Escape therefore resumes *and* closes.
+- `Player::onUpdate` reads `wasActionPressed("$A_LEFT")` and the rest -
+  an edge, not a held state - and the level is updated in the same tick the
+  resume clears `paused` (`gs_game.cpp:533`). So the key that resumes takes a
+  step as well. The `else if(!menuVisible)` chain around the resume protects
+  only the three actions inside it, and movement is not one of them.
+
+The shape that fits: one notion of "this input has been spent this tick",
+consulted by the GUI's key handler, by the dismissal and by the action layer -
+not a third guard beside the two that already disagree. `Engine::flushInput()`
+is the precedent and possibly the mechanism: the key grab already says "the
+keyboard belongs to something else this tick", and `Engine::update` acts on it
+by skipping `updateActions()`.
+
+Both gestures want it, and in the same order: resume, then dismiss, then act.
+Closing the note must not step either.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
