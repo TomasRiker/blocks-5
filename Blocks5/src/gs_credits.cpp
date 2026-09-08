@@ -35,8 +35,8 @@ void GS_Credits::onRender()
 	glVertex2i(0, 480);
 	glEnd();
 
-	const Vec2i& screenSize = Engine::inst().getScreenSize();
-	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
+	const Vec2i& screenSize = engine.getScreenSize();
+	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
@@ -228,7 +228,6 @@ void GS_Credits::onUpdate()
 	if(time >= 54 * 1000) speed = 1;
 	time += 20 * speed;
 
-	Engine& engine = Engine::inst();
 	if(time == 55 * 1000) engine.playSound("character1.ogg");
 	if(time == 56 * 1000) engine.playSound("character2.ogg");
 	if(time == 57 * 1000) engine.playSound("character3.ogg");
@@ -258,7 +257,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
-	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
+	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -281,7 +280,7 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 void GS_Credits::onGetFocus()
 {
 	SDL_ShowCursor(0);
-	Engine::inst().playMusic("credits.ogg", -1.0);
+	engine.playMusic("credits.ogg", -1.0);
 }
 
 void GS_Credits::onLoseFocus()

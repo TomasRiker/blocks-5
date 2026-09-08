@@ -37,6 +37,7 @@ public:
 	void setSavePoint();
 
 	void setMode(int mode, bool updateRadioButtons = true);
+	void setCat(int cat);
 	void draw(const Vec2i& where, bool shift = false);
 	void erase(const Vec2i& where, bool shift = false);
 	void clear(const Vec2i& where, bool allLayers = false);

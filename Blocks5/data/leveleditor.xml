@@ -39,30 +39,35 @@
 	</Button>
 	<RadioButton name="Cat0" x="10" y="430" w="65" h="15">
 		<Title>$LE_CATEGORY1</Title>
+		<ToolTip>$LE_TT_CATEGORY1</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat1" x="76" y="430" w="65" h="15">
 		<Title>$LE_CATEGORY2</Title>
+		<ToolTip>$LE_TT_CATEGORY2</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat2" x="10" y="446" w="65" h="15">
 		<Title>$LE_CATEGORY3</Title>
+		<ToolTip>$LE_TT_CATEGORY3</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat3" x="76" y="446" w="65" h="15">
 		<Title>$LE_CATEGORY4</Title>
+		<ToolTip>$LE_TT_CATEGORY4</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat4" x="10" y="462" w="65" h="15">
 		<Title>$LE_CATEGORY5</Title>
+		<ToolTip>$LE_TT_CATEGORY5</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>

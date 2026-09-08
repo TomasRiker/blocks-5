@@ -729,13 +729,13 @@ $LE_RELOAD_GRAPHICS
 
 $LE_UNDO
 // Tool tip of undo button
-§en:Undo (Ctrl+Y)
-§de:Rückgängig (Strg+Z)
+§en:Undo <k>Ctrl</k>·+·<k>Y</k>
+§de:Rückgängig <k>Strg</k>·+·<k>Z</k>
 
 $LE_REDO
 // Tool tip of redo button
-§en:Redo (Ctrl+Z)
-§de:Wiederherstellen (Strg+Y)
+§en:Redo <k>Ctrl</k>·+·<k>Z</k>
+§de:Wiederherstellen <k>Strg</k>·+·<k>Y</k>
 
 $LE_SETTINGS
 // Caption of button to show settings and title of settings window
@@ -772,42 +772,67 @@ $LE_CATEGORY5
 §en:Electronics
 §de:Elektronik
 
+$LE_TT_CATEGORY1
+// Tooltip for object category 1
+§en:Tiles (e.g. walls; select correct Layer)<k>Shift</k>·+·<k>1</k>
+§de:Tiles (z.B. Wände; richtigen Layer setzen) <k>Shift</k>·+·<k>1</k>
+
+$LE_TT_CATEGORY2
+// Tooltip for object category 2
+§en:Objects <k>Shift</k>·+·<k>2</k>
+§de:Objekte <k>Shift</k>·+·<k>2</k>
+
+$LE_TT_CATEGORY3
+// Tooltip for object category 3
+§en:Switches <k>Shift</k>·+·<k>3</k>
+§de:Schalter <k>Shift</k>·+·<k>3</k>
+
+$LE_TT_CATEGORY4
+// Tooltip for object category 4
+§en:Rails <k>Shift</k>·+·<k>4</k>
+§de:Schienen <k>Shift</k>·+·<k>4</k>
+
+$LE_TT_CATEGORY5
+// Tooltip for object category 5
+§en:Electronic components <k>Shift</k>·+·<k>5</k>
+§de:Elektronische Komponenten <k>Shift</k>·+·<k>5</k>
+
 $LE_MODE1
 // Title of drawing mode 1
-§en:Pen
-§de:Zeichenstift
+§en:Pen <k>1</k>
+§de:Zeichenstift <k>1</k>
 
 $LE_MODE2
 // Title of drawing mode 2
-§en:Modify objects
-§de:Objekte modifizieren
+§en:Modify objects <k>2</k>
+§de:Objekte modifizieren <k>2</k>
 
 $LE_MODE3
 // Title of drawing mode 3
-§en:Rectangle tool
-§de:Rechteck-Werkzeug
+§en:Rectangle tool <k>3</k>
+§de:Rechteck-Werkzeug <k>3</k>
 
 $LE_MODE4
 // Title of drawing mode 4
-§en:Transition tool
-§de:Übergang-Werkzeug
+§en:Transition tool <k>4</k>
+§de:Übergang-Werkzeug <k>4</k>
 
 $LE_MODE5
 // Title of drawing mode 5
-§en:Select
-§de:Auswählen
+§en:Select <k>5</k>
+§de:Auswählen <k>5</k>
 
 $LE_MODE6
 // Title of drawing mode 6
-§en:Pipette
-§de:Pipette
+§en:Pipette <k>6</k>
+§de:Pipette <k>6</k>
 
 $LE_MODE7
 // Title of drawing mode 7
-§en:Soldering iron
-§de:Lötkolben
+§en:Soldering iron <k>7</k>
+§de:Lötkolben <k>7</k>
 
-$LE_DEFAULT_HINT_TEXT#
+$LE_DEFAULT_HINT_TEXT
 // Default text for hints
 §en:English Text
 §de:Deutscher Text
@@ -1614,9 +1639,9 @@ $H_HELP_PAGE3
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Tools (1)</h>
 
-Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (e.g., a laser on a platform), hold the Shift key while drawing.
+Pen: Draws the selected tile/object. Use the right mouse button to erase. When drawing tiles, make sure that you have selected the right layer. Objects do not belong to a certain layer. If you want to stack objects (e.g., a laser on a platform), hold <k>Shift</k> while drawing.
 
-Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold the Shift key while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding Shift). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
+Modify: Use this tool to modify objects. Some objects can be modified in two ways. For the second one, hold <k>Shift</k> while clicking. Example: You can change the color of a cannon, but you can also turn the cannon (by holding <k>Shift</k>). The tool also allows you to change the text of a hint or a teleporter's target position (click and drag).
 
 Rectangle: Draws a rectangle using the selected tile/object. Press the right mouse button to erase the selected area.
 
@@ -1624,9 +1649,9 @@ Transition: Helps you drawing transitions between two types of ground on layer 0
 // --------------------------------------------------------------------------------
 §de:<h>Die Werkzeuge (1)</h>
 
-Zeichenstift: Zeichnet das gewählte Tile/Objekt. Die rechte Maustaste dient als Radiergummi. Achte bei Tiles darauf, dass du sie auf den richtigen Layer setzt! Objekte sind hingegen keinem Layer zugeordnet. Um mehrere Objekte übereinander zu setzen (z.B. einen Laser auf eine Plattform), halte Shift gedrückt.
+Zeichenstift: Zeichnet das gewählte Tile/Objekt. Die rechte Maustaste dient als Radiergummi. Achte bei Tiles darauf, dass du sie auf den richtigen Layer setzt! Objekte sind hingegen keinem Layer zugeordnet. Um mehrere Objekte übereinander zu setzen (z.B. einen Laser auf eine Plattform), halte <k>Shift</k> gedrückt.
 
-Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Objekt dazu einfach an. Manche Objekte lassen sich auf zwei Arten verändern. Halte dazu gleichzeitig die Shift-Taste gedrückt. Beispiel: Bei Kanonen kannst du durch normales Modifizieren die Farbe ändern. Beim Modifizieren mit Shift dreht sich die Kanone. Bei Hinweiszetteln kannst du durch Modifizieren den Text verändern und bei Teleportern durch Klicken und Ziehen den Zielort.
+Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Objekt dazu einfach an. Manche Objekte lassen sich auf zwei Arten verändern. Halte dazu gleichzeitig <k>Shift</k> gedrückt. Beispiel: Bei Kanonen kannst du durch normales Modifizieren die Farbe ändern. Beim Modifizieren mit <k>Shift</k> dreht sich die Kanone. Bei Hinweiszetteln kannst du durch Modifizieren den Text verändern und bei Teleportern durch Klicken und Ziehen den Zielort.
 
 Rechteck: Zeichnet ein Rechteck mit dem gewählten Tile/Objekt. Mit der rechten Maustaste wird der entsprechende Bereich geleert.
 
@@ -1638,7 +1663,7 @@ $H_HELP_PAGE4
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>The Tools (2)</h>
 
-Select: Allows you to select a certain area. You can then copy it by pressing Ctrl+C or move it around with the arrow keys. Press Del to clear the area. Ctrl+V pastes at the selection's top left corner. Press Ctrl+X to cut (copy and clear). If you want to move a single object, just place the cursor on it and move it around using the arrow keys.
+Select: Allows you to select a certain area. You can then copy it by pressing <k>Ctrl</k>·+·<k>C</k> or move it around with the arrow keys. Press Del to clear the area. <k>Ctrl</k>·+·<k>V</k> pastes at the selection's top left corner. Press <k>Ctrl</k>·+·<k>X</k> to cut (copy and clear). If you want to move a single object, just place the cursor on it and move it around using the arrow keys.
 
 Pipette: Click at a tile/object in your level. It will then be used for the pen tool. With objects, all modifications will be adopted.
 
@@ -1646,7 +1671,7 @@ Soldering iron: Use this tool to create connections between electronics parts. S
 // --------------------------------------------------------------------------------
 §de:<h>Die Werkzeuge (2)</h>
 
-Auswählen: Hiermit kannst du einen Bereich auswählen, um ihn dann beispielsweise mit Strg+C zu kopieren oder mit den Pfeiltasten zu bewegen. Mit Entf kannst du den gewählten Bereich leeren. Strg+V fügt bei der linken oberen Auswahlecke ein, und Strg+X schneidet aus (kopieren und leeren). Um ein einzelnes Objekt zu verschieben, reicht es, den Mauszeiger auf das Objekt zu setzen. Dann kannst du es mit den Pfeiltasten bewegen.
+Auswählen: Hiermit kannst du einen Bereich auswählen, um ihn dann beispielsweise mit <k>Strg</k>·+·<k>C</k> zu kopieren oder mit den Pfeiltasten zu bewegen. Mit Entf kannst du den gewählten Bereich leeren. <k>Strg</k>·+·<k>V</k> fügt bei der linken oberen Auswahlecke ein, und <k>Strg</k>·+·<k>X</k> schneidet aus (kopieren und leeren). Um ein einzelnes Objekt zu verschieben, reicht es, den Mauszeiger auf das Objekt zu setzen. Dann kannst du es mit den Pfeiltasten bewegen.
 
 Pipette: Klicke auf ein Tile/Objekt im Level, das dann genau so mit Hilfe des Zeichenstifts gezeichnet werden soll. Es werden alle Veränderungen, die du mit dem Modifizieren-Werkzeug gemacht hast, übernommen.
 
@@ -1657,31 +1682,31 @@ $H_HELP_PAGE5
 // Help page 5
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 §en:<h>Keys</h>
-Change tool		1, 2, 3, 4, 5, 6, 7
-Change layer		L
+Change tool		<k>1</k>, <k>2</k>, <k>3</k>, <k>4</k>, <k>5</k>, <k>6</k>, <k>7</k>
+Change layer		<k>L</k>
 Move object under cursor	Arrow keys
-Copy selection		Ctrl+C
-Paste (at selection's corner)	Ctrl+V
-Clear selection		Del
-Cut selection		Ctrl+X
-Save			Ctrl+S
-Play level			F5
-Reload graphics		F10
+Copy selection		<k>Ctrl</k>·+·<k>C</k>
+Paste (at selection's corner)	<k>Ctrl</k>·+·<k>V</k>
+Clear selection		<k>Del</k>
+Cut selection		<k>Ctrl</k>·+·<k>X</k>
+Save			<k>Ctrl</k>·+·<k>S</k>
+Play level			<k>F5</k>
+Reload graphics		<k>F10</k>
 
 <h>Skins</h>
 With skins, you can change almost every piece of graphics in the game. In the "Settings" window, you can enter a skin name for each graphics file. If you don't enter a name, the standard skin will be chosen for this file. Skins are zip archives that contain the customized files. As an example, you will find the skin "space" in the "levels/skins" directory. Other skins you can use are "blocks_02" (ice world) and "blocks_03" (technics world).
 // --------------------------------------------------------------------------------
 §de:<h>Tastenkombinationen</h>
-Werkzeug wechseln		1, 2, 3, 4, 5, 6, 7
-Layer wechseln		L
+Werkzeug wechseln		<k>1</k>, <k>2</k>, <k>3</k>, <k>4</k>, <k>5</k>, <k>6</k>, <k>7</k>
+Layer wechseln		<k>L</k>
 Objekt unter Maus verschieben	Pfeiltasten
-Auswahl kopieren		Strg+C
-Einfügen (Ecke der Auswahl)	Strg+V
-Auswahl löschen		Entf
-Auswahl ausschneiden		Strg+X
-Speichern			Strg+S
-Level spielen		F5
-Grafiken neu laden		F10
+Auswahl kopieren		<k>Strg</k>·+·<k>C</k>
+Einfügen (Ecke der Auswahl)	<k>Strg</k>·+·<k>V</k>
+Auswahl löschen		<k>Entf</k>
+Auswahl ausschneiden		<k>Strg</k>·+·<k>X</k>
+Speichern			<k>Strg</k>·+·<k>S</k>
+Level spielen		<k>F5</k>
+Grafiken neu laden		<k>F10</k>
 
 <h>Skins</h>
 Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Archive, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt) und "blocks_03" (Technik-Welt).

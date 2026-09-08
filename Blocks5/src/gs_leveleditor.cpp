@@ -482,13 +482,13 @@ public:
 			case SDLK_F10:
 				handleClick(getChild("Refresh"));
 				break;
-			case SDLK_1: editor.setMode(0); break;
-			case SDLK_2: editor.setMode(1); break;
-			case SDLK_3: editor.setMode(2); break;
-			case SDLK_4: editor.setMode(3); break;
-			case SDLK_5: editor.setMode(4); break;
-			case SDLK_6: editor.setMode(5); break;
-			case SDLK_7: editor.setMode(6); break;
+			case SDLK_1: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat0"))->check(); else editor.setMode(0); break;
+			case SDLK_2: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat1"))->check(); else editor.setMode(1); break;
+			case SDLK_3: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat2"))->check(); else editor.setMode(2); break;
+			case SDLK_4: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat3"))->check(); else editor.setMode(3); break;
+			case SDLK_5: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat4"))->check(); else editor.setMode(4); break;
+			case SDLK_6: if(!shift) editor.setMode(5); break;
+			case SDLK_7: if(!shift) editor.setMode(6); break;
 			case SDLK_y:
 				if(ctrl) editor.undo();
 				break;
@@ -682,31 +682,11 @@ public:
 		{
 			getChild("MenuPane.Menu")->focus();
 		}
-		else if(name == "LevelEditor.Cat0")
-		{
-			editor.currentCat = 0, editor.p_currentCat = editor.p_cat[0];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat1")
-		{
-			editor.currentCat = 1, editor.p_currentCat = editor.p_cat[1];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat2")
-		{
-			editor.currentCat = 2, editor.p_currentCat = editor.p_cat[2];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat3")
-		{
-			editor.currentCat = 3, editor.p_currentCat = editor.p_cat[3];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat4")
-		{
-			editor.currentCat = 4, editor.p_currentCat = editor.p_cat[4];
-			updateToolTips();
-		}
+		else if(name == "LevelEditor.Cat0") editor.setCat(0);
+		else if(name == "LevelEditor.Cat1") editor.setCat(1);
+		else if(name == "LevelEditor.Cat2") editor.setCat(2);
+		else if(name == "LevelEditor.Cat3") editor.setCat(3);
+		else if(name == "LevelEditor.Cat4") editor.setCat(4);
 		else if(name == "LevelEditor.Mode0") editor.setMode(0, false);
 		else if(name == "LevelEditor.Mode1") editor.setMode(1, false);
 		else if(name == "LevelEditor.Mode2") editor.setMode(2, false);
@@ -1322,7 +1302,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 
 void GS_LevelEditor::onGetFocus()
 {
-	Engine::inst().playMusic("menu.ogg");
+	engine.playMusic("menu.ogg");
 
 	gui["LevelEditor"]->focus();
 }
@@ -1448,6 +1428,13 @@ void GS_LevelEditor::setMode(int mode,
 		sprintf(name, "LevelEditor.Mode%d", mode);
 		static_cast<GUI_RadioButton*>(gui[name])->check();
 	}
+}
+
+void GS_LevelEditor::setCat(int cat)
+{
+	currentCat = cat;
+	p_currentCat = p_cat[cat];
+	static_cast<LevelEditorGUI*>(gui["LevelEditor"])->updateToolTips();
 }
 
 void GS_LevelEditor::draw(const Vec2i& where,
