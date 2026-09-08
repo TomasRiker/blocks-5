@@ -1272,6 +1272,55 @@ What was proposed:
   `Engine::musicVolume` need not follow the label.
 
 
+32. A sound when a hint note opens
+-----------------------------------
+Nothing is heard when a note flies up, which is the one thing on a field that
+opens a window over the play area. Two sounds rather than one: a generic one,
+and paper for the scroll type - `blocks_01`'s sheet unrolls, and a sheet of
+paper being handled is what that motion sounds like.
+
+`Level::isHintScroll()` already answers which of the two, and `hint.cpp:411`
+reads it for the same purpose. The tick to fire on is `hint.cpp:467`, `if(open
+&& activeTicks == 0)` - the one place that already runs exactly once per
+opening, which is why the flight target is decided there.
+
+What the tree will ask for:
+
+- **A committed `.wav` beside the `.ogg`.** `Tools/encode_sounds.py` makes the
+  one from the other; `data/sounds.xml` carries the playback gain if either
+  should sound quieter than its file.
+- **`gs_loading.cpp` must preload both by name**, and `verify.py`'s `sounds`
+  check enforces it - the first play is otherwise silent while the file is read.
+- **The scroll flag belongs to the skin, not to the level** (`hintscroll.txt`
+  beside the `hint.png` that is actually loaded), so a skin bringing its own
+  panel would want its own sound with it. That is item 30, and this is the
+  first concrete caller for it.
+
+
+33. Draw the keycap frames behind the text
+-------------------------------------------
+A frame is drawn over the letters it surrounds, and where the text sits a row
+high in its box - which a small font cannot always avoid, see the keycap notes
+in `CLAUDE.md` - the top edge crosses the capitals. Behind the glyphs it would
+pass under them instead, and the same row of overlap would stop being visible.
+
+The obstacle is the order the two are produced in. `Font::renderTextPure`
+(`font.cpp:280`) collects the rectangles in the same loop that emits the glyph
+quads, because a `<k>` is only closed when its `</k>` is reached, and draws them
+after `glEnd()` and `p_texture->unbind()` - untextured, and therefore
+necessarily after the batch. Putting them first means knowing them first: a
+layout pass ahead of the draw, over the walk `measureText` already does with
+exactly the same advances (`font.cpp:569`).
+
+Two things not to lose:
+
+- **The frames go through both shadow passes with the glyphs** (`font.cpp:246`),
+  or a keycap looks pasted on.
+- **`renderText` caches a display list per string**, so a second walk costs once
+  per new string. Not in WebGL, which has no display lists and redraws the text
+  for every shadow sample (`font.cpp:261`) - there it is once per sample.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1297,6 +1346,9 @@ How these connect
    26 (shipped content) ──> 27 (credits): the "was it the shipped campaign?"
                       test is a hardcoded path into the user's folder, and 26
                       moves that folder out from under it
+
+   30 (skin sounds) <──> 32 (hint sound): the paper one belongs to the skin
+                      that brings the paper, so 32 is 30's first real caller
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
