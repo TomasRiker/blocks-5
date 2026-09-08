@@ -371,21 +371,18 @@ POPD
 ENDLOCAL & EXIT /B %GAMEEXIT%
 
 REM ------------------------------------------------------------------- clean
-REM Everything removed here is a build product: MSBuild writes it, or
-REM zip_data.bat / zip_skins.bat / stage.bat do, and none of it is under version
-REM control. Both configurations go, not just the one named on the command line.
+REM Everything this script can build is removed here, and nothing else:
+REM MSBuild writes it, or zip_data.bat / zip_skins.bat / zip_campaign.bat /
+REM stage.bat do, and none of it is under version control. Both configurations
+REM go, not just the one named on the command line.
 REM
 REM Deliberately NOT touched:
 REM   *.suo, *.vcxproj.user   the IDE's per-user settings - debugger arguments,
 REM                           working directory. Regenerating those loses work,
 REM                           and they are not compiler output
-REM   levels\campaigns\blocks.zip
-REM                           a build product, but /nodata would then leave the
-REM                           tree with no campaign at all and nothing would say
-REM                           so - the packing step rebuilds it anyway
-REM   misc\3p_campaigns\*.zip  shipped files that happen to be archives. Those
-REM                           two are why the skin archives below are named one
-REM                           by one instead of matched with a wildcard
+REM   misc\3p_campaigns\*.zip  shipped files that happen to be archives, and the
+REM                           reason the archives below are named one by one: a
+REM                           *.zip sweep under Blocks5\ would take these too
 REM   My Documents\Blocks 5\   saves, progress, screenshots, videos. Nothing the
 REM                           build ever wrote
 :doclean
@@ -416,12 +413,13 @@ CALL :rmdir "ShowUserDir\Debug"
 REM stage.bat
 CALL :rmdir "Blocks5\stage"
 
-REM zip_data.bat and zip_skins.bat
+REM zip_data.bat, zip_skins.bat and zip_campaign.bat
 CALL :rmfile "Blocks5\data.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_01.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_02.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_03.zip"
 CALL :rmfile "Blocks5\levels\skins\space.zip"
+CALL :rmfile "Blocks5\levels\campaigns\blocks.zip"
 
 REM IntelliSense and browse-information caches. Pure caches, rebuilt on demand,
 REM and large enough to be worth removing.
