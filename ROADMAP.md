@@ -1248,6 +1248,30 @@ Four things will need deciding, and each is a trap:
 The export side is free: `Transfer` copies a skin archive as it stands, so an
 `.ogg` inside it travels with everything else.
 
+31. Menu music that picks up where it left off, with a slider of its own
+-------------------------------------------------------------------------
+The menu music plays in the level editor now, and editing means switching to a
+level and straight back — so a track that always restarts from zero is heard
+from the beginning a dozen times an hour and turns into a nag. The new piece is
+meant to be long enough to sit with, which only makes a restart worse.
+
+What was proposed:
+
+- **`Engine::playMusic` remembers where a track was stopped** and takes an
+  optional argument to resume from that position instead of from zero. It is the
+  one funnel — `gs_menu.cpp:349`, `gs_selectlevel.cpp:353`, `gs_game.cpp:598` and
+  `:710`, `gs_credits.cpp:284` and `gs_leveleditor.cpp:1325` all go through it —
+  and it already calls `stopMusic()` itself when another track displaces one, so
+  that is where the index would be taken.
+- **A separate volume slider for the menu and the editors**, in case somebody
+  gets tired of the music that follows them around. `options.xml:75-77` is the
+  one that exists; this is a second `ScrollBar` beside it and a second key
+  in `config.xml`, since `<MusicVolume>` is taken.
+- **Its default is copied from the existing music volume**, which is renamed in
+  the GUI to *in-game music*. `$O_VOLUME_MUSIC` is the string; the config key and
+  `Engine::musicVolume` need not follow the label.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
