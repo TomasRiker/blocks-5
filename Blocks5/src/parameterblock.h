@@ -26,6 +26,10 @@ public:
 
 	ParameterBlock& operator = (const ParameterBlock& rhs)
 	{
+		// Itself first: clear() runs before the copy, so without this b = b
+		// would empty the block and then copy nothing back into it.
+		if(this == &rhs) return *this;
+
 		clear();
 
 		// copy every parameter

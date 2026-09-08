@@ -143,9 +143,13 @@ void GUI_RadioButton::onMouseUp(const Vec2i& position,
 
 		if(mouseOver)
 		{
-			// fire the signal
+			// check() is what fires the signal - it means "the user clicked",
+			// as against setChecked(), which means "the display caught up".
+			// Firing a second one here made a click that selects report twice
+			// and a click on the one already selected report a change that did
+			// not happen; a handler that counts, toggles or takes an undo point
+			// would have believed both.
 			check();
-			changed(this);
 		}
 	}
 }

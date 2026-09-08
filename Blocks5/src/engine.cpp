@@ -4120,7 +4120,7 @@ void Engine::loadStringDB(const std::string& filename)
 				// An empty line is stored unless it stands at the beginning.
 				if(!texts.empty()) numEmptyLines++;
 			}
-			else if(line.find_first_of("//") == 0)
+			else if(line.compare(0, 2, "//") == 0)
 			{
 				// It is only a comment.
 			}
