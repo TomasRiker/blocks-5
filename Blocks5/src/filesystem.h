@@ -59,6 +59,14 @@ public:
 	bool fileExists(const std::string& filename);
 	bool deleteFile(const std::string& filename);
 	bool copyFile(const std::string& source, const std::string& dest);
+
+	// Put the file at the new path: a rename where the platform can do one,
+	// and a copy followed by a delete where it cannot. It cannot across a
+	// mount - the browser stages an upload outside the home directory, which
+	// is a filesystem of its own - and it cannot for a member inside an
+	// archive. Where it is a rename it is also atomic, which is what a save
+	// that swaps a side file into place is after.
+	bool renameFile(const std::string& source, const std::string& dest);
 	bool createDirectory(const std::string& directory);
 	bool deleteDirectory(const std::string& directory);
 	std::string readStringFromFile(const std::string& filename);

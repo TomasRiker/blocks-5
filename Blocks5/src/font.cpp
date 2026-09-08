@@ -35,7 +35,7 @@ namespace
 	// Where a line may be broken. The first two are replaced by the break and
 	// the other two already are one, which is why the caller has to tell them
 	// apart after searching for the last of them.
-	const char BREAK_CHARACTERS[] = { ' ', HALF_SPACE, '\n', '\xB6', 0 };
+	const char BREAK_CHARACTERS[] = { ' ', static_cast<char>(HALF_SPACE), '\n', '\xB6', 0 };
 
 	bool isBreakSpace(unsigned char c)
 	{

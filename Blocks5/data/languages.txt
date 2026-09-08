@@ -13,6 +13,11 @@
 // §es: for Spanish
 //
 // The paragraph character (¶) can be used to insert newlines!
+//
+// The middle dot (·) is a space of half the width, and a space in every
+// other respect. It belongs between keys that are pressed together or that
+// stand for one another - <k>Alt</k>·+·<k>Enter</k> - where a full space
+// either side pushes the two apart.
 
 // *******
 // GENERAL
@@ -1558,7 +1563,7 @@ Save screenshot		%BINDING{$A_CAPTURE_SCREENSHOT}
 Start/stop recording video	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Show menu		<k>Esc</k>
 Pause			%BINDING{$A_PAUSE}
-Window/full screen		<k>Alt</k> + <k>Enter</k>
+Window/full screen		<k>Alt</k>·+·<k>Enter</k>
 // --------------------------------------------------------------------------------
 §de:<h>Spielziel</h>
 In jedem Level gilt es eine bestimmte Anzahl von Diamanten einzusammeln. Wurde der letzte benötigte Diamant eingesammelt, erscheint der Ausgang.
@@ -1579,7 +1584,7 @@ Screenshot speichern		%BINDING{$A_CAPTURE_SCREENSHOT}
 Videoaufnahme starten/stoppen	%BINDING{$A_TOGGLE_CAPTURE_VIDEO}
 Menü aufrufen		<k>Esc</k>
 Pause			%BINDING{$A_PAUSE}
-Fenster/Vollbild		<k>Alt</k> + <k>Enter</k>
+Fenster/Vollbild		<k>Alt</k>·+·<k>Enter</k>
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE2
@@ -2255,8 +2260,8 @@ $WEB_CLICK_TO_START
 $WEB_FULLSCREEN_HINT
 // Aside under the prompt above, in the browser build: a page has no button
 // for the game's own fullscreen, and nobody guesses Alt+Return unaided
-§en:Press <k>Alt</k>+<k>Enter</k> / <k>Alt</k>+<k>Num Enter</k> to toggle fullscreen mode.
-§de:Drücke <k>Alt</k>+<k>Enter</k> / <k>Alt</k>+<k>Num Enter</k>, um den Vollbildmodus umzuschalten.
+§en:Press <k>Alt</k>·+·<k>Enter</k> / <k>Alt</k>·+·<k>Num Enter</k> to toggle fullscreen mode.
+§de:Drücke <k>Alt</k>·+·<k>Enter</k> / <k>Alt</k>·+·<k>Num Enter</k>, um den Vollbildmodus umzuschalten.
 
 $CE_LEVEL_IN_ARCHIVE
 // Suffix shown in the campaign editor behind a level that is stored inside the
@@ -2311,6 +2316,11 @@ $TR_KIND_SKIN
 §en:Skin
 §de:Skin
 
+$TR_KIND_PROGRESS
+// The player's own progress: which levels of which campaign are solved
+§en:Progress
+§de:Fortschritt
+
 $TR_REFRESH
 // Reads the list in the export window again
 §en:Refresh
@@ -2339,6 +2349,35 @@ $TR_CONFIRM_TITLE
 $TR_CONFIRM_DELETE
 §en:Really delete this file?
 §de:Diese Datei wirklich löschen?
+
+$TR_CONFIRM_DELETE_PROGRESS
+// Deleting the progress database is a different matter from deleting a
+// file the player can import again
+§en:Really delete your progress? Every campaign will start from the beginning again.
+§de:Deinen Fortschritt wirklich löschen? Jede Kampagne fängt dann wieder von vorne an.
+
+$TR_CONFIRM_OVERWRITE
+// Asked before an import replaces a file of the same name; the name follows
+§en:This file is already there and will be replaced:
+§de:Diese Datei ist schon da und wird ersetzt:
+
+$TR_CONFIRM_MERGE
+// Asked when the file being imported is a progress database and there is
+// one already: replacing keeps only the new one, merging keeps both
+§en:Your own progress is already there. Replace it, or merge the two?
+§de:Dein eigener Fortschritt ist schon da. Ersetzen oder beides zusammenführen?
+
+$TR_MERGE_DO
+// The third answer to that question
+§en:Merge
+§de:Zusammenführen
+
+$TR_REPLACE_DO
+// The first one. Yes and No are no answer to a question that offers
+// replacing and merging, so the two buttons are named after what they
+// do whenever the question is about an import.
+§en:Replace
+§de:Ersetzen
 
 $TR_DELETED
 // Shown after a successful delete, followed by the filename
@@ -2382,9 +2421,26 @@ $TR_IMPORTED_SKIN
 §en:Skin imported. Enter this name in the level settings:
 §de:Skin importiert. Diesen Namen in den Level-Einstellungen eintragen:
 
+$TR_IMPORTED_PROGRESS
+// No name follows this one: the progress database has only ever one
+§en:Progress imported.
+§de:Fortschritt importiert.
+
+$TR_MERGED
+§en:Progress merged.
+§de:Fortschritt zusammengeführt.
+
 $TR_ERROR_UNKNOWN
-§en:ERROR: This is not a level, a campaign, a music file or a skin.
-§de:FEHLER: Das ist weder ein Level noch eine Kampagne, ein Musikstück oder ein Skin.
+// One line of a toast bar, which neither wraps nor clips - the German of
+// this one has to stay under about 620 pixels
+§en:ERROR: This is not a level, a campaign, a music file, a skin or a progress file.
+§de:FEHLER: Das ist weder Level noch Kampagne, Musikstück, Skin oder Fortschritt.
+
+$TR_ERROR_PROGRESS_SAVE
+// The old database is back in place when this appears - what is missing
+// from it is the level just solved
+§en:ERROR: Your progress could not be saved.
+§de:FEHLER: Dein Fortschritt konnte nicht gespeichert werden.
 
 $TR_ERROR_BROKEN
 §en:ERROR: That file is damaged.

@@ -426,13 +426,14 @@ bool Campaign::save(const std::string& filename)
 		}
 	}
 
-	// Swap. copyFile opens the destination with "wb" and therefore truncates it.
-	if(!fs.copyFile(temp, filename))
+	// Swap. A rename where the platform can do one, which is the whole archive
+	// - megabytes for a campaign with its music - not written a second time,
+	// and the old file replaced in one step rather than truncated and refilled.
+	if(!fs.renameFile(temp, filename))
 	{
 		fs.deleteFile(temp);
 		return false;
 	}
-	fs.deleteFile(temp);
 
 	// Point the archive-backed references at the new archive, which is what
 	// makes a second save right. Loose references stay loose - otherwise a

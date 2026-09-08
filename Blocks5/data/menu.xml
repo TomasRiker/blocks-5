@@ -83,13 +83,16 @@
 			</Window>
 		</Element>
 
-		<!-- The Manager. The four buttons at the bottom sit in the columns
-		     of the four radios above - 92 pixels are enough for each of the
-		     eight captions, the longest measuring 66. -->
+		<!-- The Manager. Five kinds along the top in 92-pixel columns and four
+		     buttons along the bottom in four wider ones, both rows spanning
+		     the same x=10..486: the captions decide the first width and the
+		     window the second, and forcing one grid on both would either
+		     cramp "Zusammenfuehren" or leave a hole where the fifth button
+		     would be. -->
 		<Element name="ManagerPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />
-			<Window name="Manager" w="400" h="320">
+			<Window name="Manager" w="496" h="320">
 				<Title>$TR_MANAGER_TITLE</Title>
 				<Center />
 				<StaticText name="What" x="10" y="30">
@@ -115,43 +118,59 @@
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<ListBox name="Items" x="10" y="88" w="284" h="182">
+				<RadioButton name="KindProgress" x="394" y="52" w="92" h="24">
+					<Title>$TR_KIND_PROGRESS</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<ListBox name="Items" x="10" y="88" w="380" h="182">
 					<SubmitButton>Export</SubmitButton>
 				</ListBox>
-				<Button name="Refresh" x="298" y="88" w="92" h="24">
+				<Button name="Refresh" x="394" y="88" w="92" h="24">
 					<Title>$TR_REFRESH</Title>
 					<Font>tooltip_font.xml</Font>
 				</Button>
-				<Button name="Import" x="10" y="280" w="92" h="30">
+				<Button name="Import" x="10" y="280" w="116" h="30">
 					<Title>$TR_IMPORT_DO</Title>
 				</Button>
-				<Button name="Export" x="106" y="280" w="92" h="30">
+				<Button name="Export" x="130" y="280" w="116" h="30">
 					<Title>$TR_EXPORT_DO</Title>
 				</Button>
-				<Button name="Delete" x="202" y="280" w="92" h="30">
+				<Button name="Delete" x="250" y="280" w="116" h="30">
 					<Title>$TR_DELETE_DO</Title>
 				</Button>
-				<Button name="Close" x="298" y="280" w="92" h="30">
+				<Button name="Close" x="370" y="280" w="116" h="30">
 					<Title>$CLOSE</Title>
 				</Button>
 			</Window>
 		</Element>
 
-		<!-- The confirmation before a delete. It must come after the Manager,
-		     because the last child in the XML is drawn last and takes the
-		     clicks. -->
+		<!-- The confirmation, before a delete and before an import replaces
+		     something. It must come after the Manager, because the last child
+		     in the XML is drawn last and takes the clicks.
+
+		     Three columns, of which the middle one is used only where there
+		     is a third answer - merging an imported progress with the one
+		     already there. Yes and No therefore keep their places whether it
+		     is shown or not, and the text is set from the code, so it is
+		     wrapped rather than trusted to fit. -->
 		<Element name="ConfirmPane" w="640" h="480">
 			<Hidden />
-			<Window name="Confirm" w="420" h="120">
+			<Window name="Confirm" w="445" h="120">
 				<Title>$TR_CONFIRM_TITLE</Title>
 				<Center />
-				<StaticText name="Text" x="10" y="30">
+				<StaticText name="Text" x="10" y="30" w="425" h="40">
 					<Text>$TR_CONFIRM_DELETE</Text>
+					<WordWrap />
 				</StaticText>
 				<Button name="Yes" x="10" y="80" w="135" h="30">
 					<Title>$YES</Title>
 				</Button>
-				<Button name="No" x="275" y="80" w="135" h="30">
+				<Button name="Merge" x="155" y="80" w="135" h="30">
+					<Title>$TR_MERGE_DO</Title>
+					<Hidden />
+				</Button>
+				<Button name="No" x="300" y="80" w="135" h="30">
 					<Title>$NO</Title>
 				</Button>
 			</Window>

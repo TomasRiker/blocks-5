@@ -9,6 +9,7 @@
 #include "help.h"
 #include "filesystem.h"
 #include "transfer.h"
+#include "progressdb.h"
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -55,7 +56,9 @@ GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML
 	levelSaved = false;
 	pendingExportKind = 0;
 	pendingExport = false;
+	confirmMode = CONFIRM_NONE;
 	pendingDeleteKind = 0;
+	pendingImportKind = 0;
 }
 
 GS_Menu::~GS_Menu()
@@ -252,12 +255,14 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindCampaign"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindMusic"])->connectChanged(this, &GS_Menu::handleClick);
 	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindSkin"])->connectChanged(this, &GS_Menu::handleClick);
+	static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindProgress"])->connectChanged(this, &GS_Menu::handleClick);
 
 	// Export and Delete depend on the selection, hence the list has to say
 	// when it changes.
 	static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"])->connectChanged(this, &GS_Menu::handleClick);
 
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Yes"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Merge"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.No"])->connectClicked(this, &GS_Menu::handleClick);
 
 	FileSystem& fs = FileSystem::inst();
@@ -403,6 +408,7 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			name == "Menu.ManagerPane.Manager.KindCampaign" ||
 			name == "Menu.ManagerPane.Manager.KindMusic" ||
 			name == "Menu.ManagerPane.Manager.KindSkin" ||
+			name == "Menu.ManagerPane.Manager.KindProgress" ||
 			name == "Menu.ManagerPane.Manager.Refresh")
 	{
 		// Re-read on a change of kind and on request: while the pane is open
@@ -450,32 +456,55 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 
 		// The one thing in the Manager that cannot be undone - hence the
 		// question first. What gets deleted is settled from here on.
+		confirmMode = CONFIRM_DELETE;
 		pendingDeleteKind = currentManagerKind();
 		pendingDeleteName = p_list->getSelectedItemText();
 
-		gui["Menu.ConfirmPane"]->show();
-		gui["Menu.ConfirmPane.Confirm"]->focus();
+		// Deleting the progress is not the same as deleting a file that can
+		// be imported again, and the question says so.
+		askConfirmation(pendingDeleteKind == Transfer::KIND_PROGRESS
+						? "$TR_CONFIRM_DELETE_PROGRESS" : "$TR_CONFIRM_DELETE",
+						"$YES", "$NO", false);
 	}
 	else if(name == "Menu.ConfirmPane.Confirm.Yes")
 	{
-		gui["Menu.ConfirmPane"]->hide();
-		gui["Menu.ManagerPane.Manager"]->focus();
+		const int mode = confirmMode;
+		const int kind = pendingImportKind;
+		const std::string path(pendingImportPath), untrustedName(pendingImportName);
+		const std::string deleteName(pendingDeleteName);
+		closeConfirmation();
 
-		std::string errorId;
-		if(Transfer::remove(static_cast<Transfer::Kind>(pendingDeleteKind), pendingDeleteName, errorId))
+		if(mode == CONFIRM_OVERWRITE)
 		{
-			engine.showToast(Engine::TOAST_OK, localizeString("$TR_DELETED") + " \"" + pendingDeleteName + "\"");
+			completeImport(kind, path, untrustedName);
 		}
-		else engine.showToast(Engine::TOAST_ERROR, errorId.empty() ? "$TR_ERROR_FAILED" : errorId);
+		else if(mode == CONFIRM_DELETE)
+		{
+			std::string errorId;
+			if(Transfer::remove(static_cast<Transfer::Kind>(pendingDeleteKind), deleteName, errorId))
+			{
+				engine.showToast(Engine::TOAST_OK, localizeString("$TR_DELETED") + " \"" + deleteName + "\"");
+			}
+			else engine.showToast(Engine::TOAST_ERROR, errorId.empty() ? "$TR_ERROR_FAILED" : errorId);
 
-		pendingDeleteName = "";
-		refreshManagerList();
+			refreshManagerList();
+		}
+	}
+	else if(name == "Menu.ConfirmPane.Confirm.Merge")
+	{
+		const std::string path(pendingImportPath);
+		const bool merging = (confirmMode == CONFIRM_OVERWRITE);
+		closeConfirmation();
+		if(merging) mergeImport(path);
 	}
 	else if(name == "Menu.ConfirmPane.Confirm.No")
 	{
-		gui["Menu.ConfirmPane"]->hide();
-		gui["Menu.ManagerPane.Manager"]->focus();
-		pendingDeleteName = "";
+		// An import that was refused still has to be let go of: in the
+		// browser the bytes lie in a staging file, and nothing else deletes
+		// it once pollImport() has handed it over.
+		const bool wasImport = (confirmMode == CONFIRM_OVERWRITE);
+		closeConfirmation();
+		if(wasImport) Transfer::finishImport();
 	}
 	else if(name == "Menu.Quit")
 	{
@@ -562,6 +591,12 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 
 void GS_Menu::pollImport()
 {
+	// Not while a question is on the screen. pollImport() latches its answer
+	// once, so asking for it here would take the import out of Transfer's
+	// hands and put its question over the one the player is still looking at.
+	// Leaving it in the pipe costs a tick or two and nothing else.
+	if(confirmMode != CONFIRM_NONE) return;
+
 	std::string path, untrustedName;
 	const int status = Transfer::pollImport(path, untrustedName);
 	if(status == Transfer::STATUS_BUSY) return;
@@ -584,9 +619,39 @@ void GS_Menu::pollImport()
 		return;
 	}
 
+	// Something of the player's would be gone. Ask first - and hold the whole
+	// import back until the answer, finishImport() included, since in the
+	// browser that deletes the staging file the bytes are in.
+	if(Transfer::wouldReplace(kind, untrustedName))
+	{
+		confirmMode = CONFIRM_OVERWRITE;
+		pendingImportKind = kind;
+		pendingImportPath = path;
+		pendingImportName = untrustedName;
+
+		// Only a progress database can be taken into the one already there;
+		// for everything else there is nothing to combine.
+		const bool progress = (kind == Transfer::KIND_PROGRESS);
+		// Named after what they do, not after yes and no: neither is an answer
+		// to a question that offers replacing and merging.
+		askConfirmation(progress ? localizeString("$TR_CONFIRM_MERGE")
+								 : localizeString("$TR_CONFIRM_OVERWRITE") + " \"" +
+								   Transfer::targetName(kind, untrustedName) + "\"",
+						"$TR_REPLACE_DO", "$CANCEL", progress);
+		return;
+	}
+
+	completeImport(kind, path, untrustedName);
+}
+
+void GS_Menu::completeImport(int kind,
+							 const std::string& path,
+							 const std::string& untrustedName)
+{
 	std::string errorId;
 	bool replaced = false;
-	const std::string name(Transfer::install(kind, path, untrustedName, errorId, &replaced));
+	const std::string name(Transfer::install(static_cast<Transfer::Kind>(kind), path,
+											 untrustedName, errorId, &replaced));
 	Transfer::finishImport();
 
 	if(name.empty())
@@ -635,10 +700,92 @@ void GS_Menu::pollImport()
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_SKIN") + " \"" +
 										   name.substr(0, name.find_last_of('.')) + "\"");
 		break;
+	case Transfer::KIND_PROGRESS:
+		// No name with this one: there is only ever the one file, and saying
+		// "progress.zip" would tell the player nothing they can use.
+		engine.showToast(Engine::TOAST_OK, "$TR_IMPORTED_PROGRESS");
+		break;
 	default:
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_LEVEL") + " \"" + name + "\"");
 		break;
 	}
+}
+
+void GS_Menu::mergeImport(const std::string& path)
+{
+	// classify() only asked whether the archive lists a progress.xml, which
+	// the table of contents answers without opening it. Reading it can still
+	// fail, and an empty union would then be reported as a merge that worked.
+	if(!ProgressDB::canRead(path))
+	{
+		Transfer::finishImport();
+		engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_BROKEN");
+		return;
+	}
+
+	// The union, and no code of its own for it: read the imported database
+	// and mark everything in it as solved. markSolved() reads the player's
+	// own file first, so what comes out holds both.
+	ProgressDB& db = ProgressDB::inst();
+	const ProgressDB::Progress other(db.query(path));
+
+	std::vector<std::pair<std::string, uint> > solved;
+	for(ProgressDB::Progress::const_iterator i = other.begin(); i != other.end(); ++i)
+	{
+		for(std::set<uint>::const_iterator j = i->second.begin(); j != i->second.end(); ++j)
+		{
+			solved.push_back(std::make_pair(i->first, *j));
+		}
+	}
+
+	const bool ok = db.markSolved(solved);
+
+	// Only now: in the browser this deletes the staging file the database was
+	// read out of a moment ago.
+	Transfer::finishImport();
+
+	if(ok) engine.showToast(Engine::TOAST_OK, "$TR_MERGED");
+	else   engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_FAILED");
+
+	if(gui["Menu.ManagerPane"]->isVisible())
+	{
+		setManagerKind(Transfer::KIND_PROGRESS);
+		refreshManagerList();
+	}
+}
+
+void GS_Menu::askConfirmation(const std::string& text,
+							  const std::string& yesTitle,
+							  const std::string& noTitle,
+							  bool offerMerge)
+{
+	static_cast<GUI_StaticText*>(gui["Menu.ConfirmPane.Confirm.Text"])->setText(text);
+	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Yes"])->setTitle(yesTitle);
+	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.No"])->setTitle(noTitle);
+
+	GUI_Element* p_merge = gui["Menu.ConfirmPane.Confirm.Merge"];
+	if(offerMerge) p_merge->show();
+	else           p_merge->hide();
+
+	gui["Menu.ConfirmPane"]->show();
+	gui["Menu.ConfirmPane.Confirm"]->focus();
+}
+
+void GS_Menu::closeConfirmation()
+{
+	gui["Menu.ConfirmPane"]->hide();
+
+	// Only back to the Manager if it is still open. focus() shows what it
+	// focuses and every parent of it, so on a file dialog the player left the
+	// Manager during - which is what the asynchronous ones allow - this would
+	// open the pane again by itself.
+	if(gui["Menu.ManagerPane"]->isVisible()) gui["Menu.ManagerPane.Manager"]->focus();
+	else                                     gui["Menu"]->focus();
+
+	confirmMode = CONFIRM_NONE;
+	pendingDeleteName = "";
+	pendingImportPath = "";
+	pendingImportName = "";
 }
 
 void GS_Menu::pollExport()
@@ -666,6 +813,7 @@ int GS_Menu::currentManagerKind() const
 	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindCampaign"])->isChecked()) return Transfer::KIND_CAMPAIGN;
 	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindMusic"])->isChecked())    return Transfer::KIND_MUSIC;
 	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindSkin"])->isChecked())     return Transfer::KIND_SKIN;
+	if(static_cast<GUI_RadioButton*>(gui["Menu.ManagerPane.Manager.KindProgress"])->isChecked()) return Transfer::KIND_PROGRESS;
 	return Transfer::KIND_LEVEL;
 }
 
@@ -679,6 +827,7 @@ void GS_Menu::setManagerKind(int kind)
 	case Transfer::KIND_CAMPAIGN: p_name = "Menu.ManagerPane.Manager.KindCampaign"; break;
 	case Transfer::KIND_MUSIC:    p_name = "Menu.ManagerPane.Manager.KindMusic";    break;
 	case Transfer::KIND_SKIN:     p_name = "Menu.ManagerPane.Manager.KindSkin";     break;
+	case Transfer::KIND_PROGRESS: p_name = "Menu.ManagerPane.Manager.KindProgress"; break;
 	default: break;
 	}
 	static_cast<GUI_RadioButton*>(gui[p_name])->check();
