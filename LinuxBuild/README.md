@@ -22,18 +22,21 @@ the working directory. `build.sh run` does that; by hand:
 
     cd Blocks5 && ../LinuxBuild/build/blocks5 -windowed
 
-`data.zip` and `levels/skins/*.zip` are build products and are not in Git;
-without them the game does not start. `Blocks5/pack.sh` builds them -
-zip_data.bat and zip_skins.bat in one script, with the distribution's 7za and
-optipng instead of the ones in `tools\`. 7za and not the more obvious `zip`:
-Info-ZIP writes an encrypted entry differently - bit 3 of the general purpose
-flags, the data descriptor, and the time of day rather than the CRC for the
-check byte of the encryption header - and although the game reads either form,
-the archive that comes out here should be the one the Windows build produces:
+`data.zip`, `levels/skins/*.zip` and `levels/campaigns/blocks.zip` are build
+products and are not in Git; without the first two the game does not start, and
+without the third it starts with no campaign to play. `Blocks5/pack.sh` builds
+them all - zip_data.bat, zip_skins.bat and zip_campaign.bat in one script, with
+the distribution's 7za and optipng instead of the ones in `Tools\`. 7za and not
+the more obvious `zip`: Info-ZIP writes an encrypted entry differently - bit 3
+of the general purpose flags, the data descriptor, and the time of day rather
+than the CRC for the check byte of the encryption header - and although the game
+reads either form, the archive that comes out here should be the one the Windows
+build produces:
 
     sudo apt install p7zip-full optipng
     Blocks5/pack.sh                 everything
     Blocks5/pack.sh data            data.zip only
+    Blocks5/pack.sh campaign        levels/campaigns/blocks.zip only
     Blocks5/pack.sh --no-optipng    without the slow step
 
 **SDL 1.2 today is sdl12-compat**: Debian, Ubuntu and Fedora ship the

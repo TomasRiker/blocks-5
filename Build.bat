@@ -9,7 +9,7 @@ REM                    installed Visual Studio provides; see the note below
 REM    /sdk:VERSION    Windows SDK version for v141 and newer. Without it, 10.0,
 REM                    which MSBuild resolves to the newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
-REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
+REM    /optipng        run Tools\optipng over the PNGs before packing. Lossless
 REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
 REM    /stage          run Blocks5\stage.bat afterwards too (Release only)
@@ -279,13 +279,14 @@ IF NOT EXIST "%CONFIG%\blocks5.exe" (
 )
 
 REM ------------------------------------------------------------ pack the data
-REM data.zip and levels\skins\*.zip are build products, not checked in, and the
-REM game cannot start without them. Repacked on every build so that an edit to
-REM data\ cannot be left behind - pass /nodata to skip.
+REM data.zip, levels\skins\*.zip and levels\campaigns\blocks.zip are build
+REM products, not checked in, and the game cannot start without the first two.
+REM Repacked on every build so that an edit to data\ cannot be left behind -
+REM pass /nodata to skip.
 REM
-REM blocks.zip is packed with them although it is checked in: a level edited in
-REM levels\ otherwise reaches a developer, who plays the loose files, and never
-REM a player, who plays this archive. zip_campaign.bat says why in full.
+REM The campaign is packed with them because a level edited in levels\ otherwise
+REM reaches a developer, who plays the loose files, and never a player, who plays
+REM this archive. zip_campaign.bat says why in full.
 IF "%PACKDATA%"=="0" GOTO nodata
 
 ECHO.
@@ -378,10 +379,13 @@ REM Deliberately NOT touched:
 REM   *.suo, *.vcxproj.user   the IDE's per-user settings - debugger arguments,
 REM                           working directory. Regenerating those loses work,
 REM                           and they are not compiler output
-REM   levels\campaigns\blocks.zip and misc\3p_campaigns\*.zip
-REM                           shipped files that happen to be archives. This is
-REM                           why the skin archives below are named one by one
-REM                           instead of matched with a wildcard
+REM   levels\campaigns\blocks.zip
+REM                           a build product, but /nodata would then leave the
+REM                           tree with no campaign at all and nothing would say
+REM                           so - the packing step rebuilds it anyway
+REM   misc\3p_campaigns\*.zip  shipped files that happen to be archives. Those
+REM                           two are why the skin archives below are named one
+REM                           by one instead of matched with a wildcard
 REM   My Documents\Blocks 5\   saves, progress, screenshots, videos. Nothing the
 REM                           build ever wrote
 :doclean

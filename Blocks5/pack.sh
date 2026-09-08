@@ -2,7 +2,7 @@
 # pack.sh - build data.zip and the skin archives, without Windows.
 #
 # The same as zip_data.bat and zip_skins.bat together, only with the
-# distribution's 7za and optipng instead of the ones in tools\. data.zip and
+# distribution's 7za and optipng instead of the ones in Tools\. data.zip and
 # the skin archives are build products that are not in Git; without them the
 # game will not start.
 #
@@ -131,13 +131,19 @@ packSkin() { # $1=name  $2=password ("" for none)
       true ) || return 1
 }
 
-# The shipped campaign, out of the level sources that sit beside it. It has to
-# be built and not just committed, because a developer and a player read
-# different files: Campaign::load() serves the levels loose where all of them
-# lie in levels/, which is the case in a working tree and never on an installed
-# game - stage.bat ships blocks.zip and the two examples, not the 42 sources.
-# Editing a level and forgetting this step therefore changes nothing a player
-# sees, and nothing anywhere says so.
+# The shipped campaign, out of the sources that sit in the tree. It has to be
+# built and not just committed, because a developer and a player read different
+# files: Campaign::load() serves the levels loose where all of them lie in
+# levels/, which is the case in a working tree and never on an installed game -
+# stage.bat ships blocks.zip and the two examples, not the 42 sources. Editing a
+# level and forgetting this step therefore changes nothing a player sees, and
+# nothing anywhere says so.
+#
+# Every member has a source: the levels are levels/level_NN.xml, the ten music
+# tracks are the loose ones beside them, and campaign.xml lies in a folder of
+# its own next to the archive, the way a skin's sources do. Nothing is taken out
+# of the archive being replaced, which could not work anyway - it is a build
+# product and not in Git.
 #
 # The member names come from the index and not from the text in campaign.xml
 # (makeMemberName(): entry i is level_{i+1}.xml), so they are numbered here the
@@ -158,10 +164,17 @@ packCampaign() {
         i=$((i + 1))
     done
 
-    # campaign.xml and the music come out of the archive that is there: they are
-    # not generated from anything, and the music has no source beside it.
-    ( cd "$staged" && 7za x -y -p"$DATA_PASSWORD" "$out" campaign.xml '*.ogg' > /dev/null ) || {
+    cp "$dir/campaigns/blocks/campaign.xml" "$staged/" || {
+        echo "  levels/campaigns/blocks/campaign.xml is missing"
         rm -rf "$staged"; return 1; }
+
+    i=1
+    while [ $i -le 10 ]; do
+        src="$dir/music$i.ogg"
+        [ -f "$src" ] || { echo "  $src is missing"; rm -rf "$staged"; return 1; }
+        cp "$src" "$staged/" || { rm -rf "$staged"; return 1; }
+        i=$((i + 1))
+    done
 
     ( cd "$staged" || exit 1
       rm -f "$out"

@@ -114,7 +114,12 @@ cp "$GAME"/levels/skins/*.zip          "$WEBROOT/levels/skins/"     2>/dev/null
 cp "$GAME/screenshots/readme.txt"      "$WEBROOT/screenshots/" 2>/dev/null
 cp "$GAME/videos/readme.txt"           "$WEBROOT/videos/"      2>/dev/null
 PRELOAD="--preload-file $WEBROOT@/"
-[ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run zip_data.bat or the zip -P equivalent)"
+[ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - run Blocks5/pack.sh data)"
+# The campaign is a build product like data.zip and the skins, so a fresh
+# checkout has none - and the copy above is silent about it, which would
+# ship a game whose only campaign is whatever the player imports.
+[ -f "$GAME/levels/campaigns/blocks.zip" ] || echo "(warning: blocks.zip missing - run Blocks5/pack.sh campaign)"
+[ -f "$GAME/levels/skins/blocks_01.zip" ] || echo "(warning: the skin archives are missing - run Blocks5/pack.sh skins)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
 # -sINITIAL_MEMORY: 48 MiB, measured and not guessed. Started at 16 MiB the heap

@@ -20,8 +20,10 @@ git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest
 
 Serve `build/` over HTTP; `file://` will not work.
 
-`build.sh` also packs `data.zip` and the skin archives into the staged tree, so a
-clean clone needs no other preparation. `./build.sh clean` rebuilds from scratch.
+`build.sh` stages `data.zip`, the skin archives and the campaign into the tree it
+preloads, but it does not build them: they are build products and are not in Git,
+so a clean clone needs `Blocks5/pack.sh` first. Each of the three is warned about
+by name if it is missing. `./build.sh clean` rebuilds from scratch.
 
 ## What the player downloads
 

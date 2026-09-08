@@ -128,6 +128,10 @@ echo "### LINK OK -> $OUT/blocks5 ($(du -h "$OUT/blocks5" | cut -f1)) ###"
 # get past the loading screen, which looks like a fault in the build although
 # only one step is missing.
 [ -f "$GAME/data.zip" ] || echo "(warning: data.zip missing - Blocks5/pack.sh builds it)"
+# So is the campaign, and its absence is quieter still: the game comes up
+# normally and the level selection simply has nothing shipped in it.
+[ -f "$GAME/levels/campaigns/blocks.zip" ] || echo "(warning: blocks.zip missing - Blocks5/pack.sh campaign builds it)"
+[ -f "$GAME/levels/skins/blocks_01.zip" ] || echo "(warning: the skin archives are missing - Blocks5/pack.sh skins builds them)"
 
 # The game opens data.zip relative to the working directory and therefore has
 # to run out of Blocks5/ - exactly as under Windows.

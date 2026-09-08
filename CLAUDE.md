@@ -66,11 +66,14 @@ zip_skins.bat    :: pack levels\skins\<name>\ into levels\skins\<name>.zip
 stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Release\*.exe)
 ```
 
-`zip_*.bat` run `tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
-`zip_skins_no_optipng.bat` skip that step. Both require `tools\7za.exe`.
+`zip_*.bat` run `Tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
+`zip_skins_no_optipng.bat` skip that step. Both require `Tools\7za.exe`. Those two binaries
+sit in the same `Tools\` as the Python scripts and are reached through `%~dp0..\Tools\`
+rather than relative to the current directory, because the scripts `PUSHD` into the folder
+they are packing — and, for the XML half of `data.zip`, into `%TEMP%`.
 
 **`Blocks5/pack.sh` is all four of those in one, without Windows** — the distribution's `7za`
-and `optipng` in place of `tools\7za.exe` and `tools\optipng`, and it refuses to start without
+and `optipng` in place of `Tools\7za.exe` and `Tools\optipng`, and it refuses to start without
 either. `7za` and not Info-ZIP's `zip -P`, although both write traditional ZipCrypto: Info-ZIP
 sets bit 3 of the general purpose flags and then writes the sizes in a trailing data descriptor,
 and takes its check byte from the time of day rather than from the CRC. What comes out here
@@ -79,17 +82,22 @@ should be the archive the Windows build produces. `./pack.sh` does everything, `
 checkout needs: `data.zip` and the skin archives are build products that are not in Git, and
 the game will not start without them.
 
-**`levels/campaigns/blocks.zip` is packed too, although it *is* in Git**, and the reason is
-worth knowing before editing a level. `Campaign::load` serves a campaign's levels loose
-wherever all of them lie in `levels/` — which is true in a working tree and never on an
+**`levels/campaigns/blocks.zip` is a build product like the rest**, and the reason it has to
+be rebuilt is worth knowing before editing a level. `Campaign::load` serves a campaign's levels
+loose wherever all of them lie in `levels/` — which is true in a working tree and never on an
 installed game, since `stage.bat` ships the archive and the two examples and not the 42
 sources. So a level edited and not packed changes what a developer sees and nothing a player
 sees, with no error anywhere. `pack.sh campaign` and `zip_campaign.bat` (which `Build.bat`
 calls) rebuild it from `levels/level_NN.xml`, numbering the members from the index the way
 `makeMemberName` reads them back — entry *i* is `level_{i+1}.xml`, so the padded names in
-`campaign.xml` are display text only. `campaign.xml` and the ten music tracks are lifted out of
-the archive that is already there: neither is generated from anything, and the tracks have no
-source beside them. Verified by rebuilding: all 53 members come out byte-identical.
+`campaign.xml` are display text only.
+
+**Every one of its 53 members has a source in the tree**, which is what lets the archive be
+untracked at all: the 42 levels and the ten music tracks lie loose in `levels/`, and
+`campaign.xml` sits in `levels/campaigns/blocks/`, a source folder beside the archive in the
+same idiom as `levels/skins/<name>/`. Neither script reaches into the archive it is replacing,
+which is the shape the old ones had and which cannot work once the file is a build product.
+Verified against the last committed archive: same 53 members, every one byte-identical.
 
 **The XML files and `languages.txt` reach `data.zip` without their comments.** The dialogs in
 `data/` are commented the way the source is, and the string table opens with a page explaining
@@ -191,7 +199,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      fifteen static checks over the whole tree
+python3 Tools/verify.py      seventeen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
