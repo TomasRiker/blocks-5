@@ -1192,8 +1192,11 @@ void Engine::mainLoopIteration()
 
 				keyData[i] &= ~(2 | 4);
 				buttonData[i] &= ~(2 | 4);
-				while(!keyEventQueue.empty()) keyEventQueue.pop();
 			}
+
+			// One queue, once - not once per key slot, which is what it read
+			// as with the closing brace one line further down.
+			while(!keyEventQueue.empty()) keyEventQueue.pop();
 
 			// reset the action data
 			clearActionEdges();

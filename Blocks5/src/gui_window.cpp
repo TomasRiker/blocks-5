@@ -66,7 +66,7 @@ void GUI_Window::onRender()
 	Vec2i dim;
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
-	p_font->renderText(localizeString(title), Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4d(1.0, 1.0, 1.0, 1.0));
+	p_font->renderText(title, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4d(1.0, 1.0, 1.0, 1.0));
 
 	const Vec2i pos = getAbsPosition();
 	glEnable(GL_SCISSOR_TEST);

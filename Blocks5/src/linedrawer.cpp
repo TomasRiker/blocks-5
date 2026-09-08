@@ -30,6 +30,12 @@ void LineDrawer::draw()
 		dirty = false;
 	}
 
+	// update() gives up on fewer than two points and leaves whatever was
+	// there, and draw() clears dirty either way - so this can be empty, and
+	// vertices[0] on an empty vector is undefined however little glDrawArrays
+	// would then read.
+	if(vertices.empty()) return;
+
 	glColor4fv(color);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, sizeof(Vec2f), vertices[0].value);

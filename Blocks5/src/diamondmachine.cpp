@@ -3,6 +3,7 @@
 #include "presets.h"
 #include "engine.h"
 #include "particlesystem.h"
+#include "sound.h"
 #include "soundinstance.h"
 
 /* The conversion's shower of sparks.
@@ -73,6 +74,18 @@ namespace
 	const int SPARK_IN_START = 20;
 	const int SPARK_IN_FULL  = 60;
 	const int SPARK_IN_END   = 92;
+
+	// The sound of a conversion that is not going to happen. The slides are
+	// exponential and run once per logic tick, so the speed is the fraction
+	// of the way left that is covered each tick: at 0.04 the volume halves
+	// every 17 ticks, a third of a second, and is inaudible after about one.
+	// The pitch runs down with it, which is the sound a machine makes as it
+	// loses what it was doing.
+	//
+	// diamondmachine.ogg lasts exactly the two seconds of the conversion, so
+	// what is left to fade is whatever the abort came early enough to leave.
+	const double SOUND_FADE_SPEED = 0.04;
+	const double SOUND_FADE_PITCH = 0.35;
 
 	// Every inward spark lives exactly as long as the conversion has left -
 	// no matter when it sets off. They therefore do not arrive spread over a
@@ -339,6 +352,27 @@ Object* DiamondMachine::findLivingBlock()
 void DiamondMachine::abortConversion()
 {
 	counter = -1;
+
+	// The machine loses what it was doing, and its sound goes down with it:
+	// quieter and slower at once, which is the shape everything uses for
+	// something running out of power.
+	//
+	// Slid to zero and not to a negative target, although that would pause it
+	// at the end: a paused instance is never AL_STOPPED, so nothing reaps it
+	// and it would hold an audio source for the rest of the level. At zero it
+	// plays itself out inaudibly and goes the ordinary way. The pointer is
+	// dropped either way - it is one-shot, and after this nothing here has any
+	// business with it.
+	if(p_soundInst)
+	{
+		if(Sound::isLiveInstance(p_soundInst))
+		{
+			p_soundInst->slideVolume(0.0, SOUND_FADE_SPEED);
+			p_soundInst->slidePitch(SOUND_FADE_PITCH, SOUND_FADE_SPEED);
+		}
+		p_soundInst = 0;
+	}
+
 	if(!sparkId) return;
 
 	// How far the block has moved since the sparks set off, in pixels. Its
@@ -502,7 +536,10 @@ void DiamondMachine::onUpdate()
 					counter++;
 					if(!counter)
 					{
-						Engine::inst().playSound("diamondmachine.ogg", false, 0.0, 100);
+						// Kept, so that an abort can slide it down. It is a
+						// one-shot, so it may well have been reaped before
+						// then - Sound::isLiveInstance is what asks.
+						p_soundInst = Engine::inst().playSound("diamondmachine.ogg", false, 0.0, 100);
 					}
 				}
 				else
@@ -527,6 +564,10 @@ void DiamondMachine::onUpdate()
 					// expired in this very tick. The id is merely put aside for
 					// the next conversion to get one of its own.
 					sparkId = 0;
+
+					// The sound is let go of rather than stopped: the machine
+					// did what it was doing, and the sample ends with it.
+					p_soundInst = 0;
 				}
 			}
 			else abortConversion();
@@ -538,10 +579,4 @@ void DiamondMachine::onUpdate()
 		}
 	}
 	else abortConversion();
-
-	if(counter == -1 && p_soundInst)
-	{
-		p_soundInst->stop();
-		p_soundInst = 0;
-	}
 }

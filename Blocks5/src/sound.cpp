@@ -82,8 +82,15 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 
 Sound::~Sound()
 {
-	// delete all instances
-	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i) delete *i;
+	// delete all instances, and take them out of the list of all of them:
+	// getFreeSource() walks that one and dereferences every entry, so a sound
+	// released while its instances were still listed would leave it reading
+	// freed memory the next time the source pool ran dry.
+	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i)
+	{
+		allInstances.erase(*i);
+		delete *i;
+	}
 
 	// free the sound
 	if(bufferID) alDeleteBuffers(1, &bufferID);
@@ -145,6 +152,11 @@ void Sound::update()
 double Sound::getVolumeFactor() const
 {
 	return volumeFactor;
+}
+
+bool Sound::isLiveInstance(SoundInstance* p_instance)
+{
+	return p_instance && allInstances.find(p_instance) != allInstances.end();
 }
 
 const std::set<SoundInstance*>& Sound::getInstances() const
