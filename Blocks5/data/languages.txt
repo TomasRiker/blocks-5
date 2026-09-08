@@ -824,8 +824,8 @@ $LE_MENU_LOAD
 
 $LE_MENU_SAVE
 // Caption of button for saving the current level
-§en:Save (Ctrl+S)
-§de:Speichern (Strg+S)
+§en:Save <k>Ctrl</k>·+·<k>S</k>
+§de:Speichern <k>Strg</k>·+·<k>S</k>
 
 $LE_MENU_NEW
 // Caption of button for creating a new level
@@ -834,8 +834,8 @@ $LE_MENU_NEW
 
 $LE_MENU_PLAY
 // Caption of button for playing the current level
-§en:Play Level (F5)
-§de:Level spielen (F5)
+§en:Play Level <k>F5</k>
+§de:Level spielen <k>F5</k>
 
 $LE_MENU_CLEAR
 // Caption of button for clearing the current level

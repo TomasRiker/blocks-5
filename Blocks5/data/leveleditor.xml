@@ -118,40 +118,40 @@
 	</RadioButton>
 	<Element name="MenuPane" w="640" h="480">
 		<Hidden />
-		<Window name="Menu" w="320" h="285">
+		<Window name="Menu" w="340" h="285">
 			<Title>$LE_MENU</Title>
 			<Center />
 			<StaticText name="Static1" x="10" y="30" w="-1" h="-1" for="Filename">
 				<Text>$LE_MENU_FILENAME</Text>
 			</StaticText>
-			<EditBox name="Filename" x="10" y="50" w="275" h="20">
+			<EditBox name="Filename" x="10" y="50" w="295" h="20">
 				<Text></Text>
 			</EditBox>
-			<Button name="Search" x="290" y="50" w="20" h="20">
+			<Button name="Search" x="310" y="50" w="20" h="20">
 				<Title>...</Title>
 			</Button>
-			<Button name="Load" x="10" y="75" w="145" h="30">
+			<Button name="Load" x="10" y="75" w="155" h="30">
 				<Title>$LE_MENU_LOAD</Title>
 			</Button>
-			<Button name="Save" x="165" y="75" w="145" h="30">
+			<Button name="Save" x="175" y="75" w="155" h="30">
 				<Title>$LE_MENU_SAVE</Title>
 			</Button>
-			<Button name="New" x="10" y="110" w="145" h="30">
+			<Button name="New" x="10" y="110" w="155" h="30">
 				<Title>$LE_MENU_NEW</Title>
 			</Button>
-			<Button name="Play" x="10" y="150" w="145" h="30">
+			<Button name="Play" x="10" y="150" w="155" h="30">
 				<Title>$LE_MENU_PLAY</Title>
 			</Button>
-			<Button name="Help" x="165" y="150" w="145" h="30">
+			<Button name="Help" x="175" y="150" w="155" h="30">
 				<Title>$HELP</Title>
 			</Button>
-			<Button name="Clear" x="10" y="190" w="145" h="30">
+			<Button name="Clear" x="10" y="190" w="155" h="30">
 				<Title>$LE_MENU_CLEAR</Title>
 			</Button>
-			<Button name="OK" x="10" y="240" w="145" h="30">
+			<Button name="OK" x="10" y="240" w="155" h="30">
 				<Title>$OK</Title>
 			</Button>
-			<Button name="Quit" x="165" y="240" w="145" h="30">
+			<Button name="Quit" x="175" y="240" w="155" h="30">
 				<Title>$LE_MENU_QUIT</Title>
 			</Button>
 		</Window>
