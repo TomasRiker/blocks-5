@@ -30,12 +30,10 @@ the code independently; 57 came back confirmed. Nine were then checked by hand
 against the source, and a further ten settled the same way after the second
 agent disagreed with the first.
 
-All fourteen are fixed, and seven of the harmless ones have since been taken as
-well - along with a real one that only turned up while taking them. What is
-left under "Real, and nothing follows from it" is one, and it is left standing
-deliberately: what to do about it is a decision about the level editor. The refuted ones
-are the most useful part of this file, because they are what stops the same
-false alarm being raised again.
+All fourteen are fixed, and eight of the harmless ones have since been taken as
+well - along with a real one that only turned up while taking them. "Real, and
+nothing follows from it" is empty. The refuted ones are the most useful part of
+this file, because they are what stops the same false alarm being raised again.
 
 Nothing is deleted here as it is dealt with. A finding that turned out to be
 nothing is worth as much on the record as one that turned out to be real.
@@ -189,10 +187,26 @@ The last three of the harmless ones, each a line.
   whether the line begins with *a* slash.
 
 
-### Real, and nothing follows from it
+### Fixed in f684d02, 8a6cc98
 
-Confirmed true, and not worth a commit on its own. Recorded so nobody
-investigates them twice.
+- **`gs_leveleditor.cpp:1538`** - the dead branch is gone, and the decision the
+  entry below asked for went the other way from what the code did: the Hint
+  branch's clearing now sits under `!shift` like every other placement's. The
+  note had no privilege here, only an oversight.
+- **`Build.bat:309`, `Build.bat:12`** - `7za.exe` and `optipng.exe` moved into
+  the repository's own `Tools\`, so both lines are true as written rather than
+  being reworded to name `Blocks5\tools\`. The scripts reach them through
+  `%~dp0..\Tools\`.
+- **`zip_data.bat:33`** - one idiom throughout. Everything outside `data\` is
+  named through `%~dp0`, which the second 7za call needs anyway because it runs
+  from `%TEMP%`, and the header says so.
+
+
+### The level editor entry, as it was written
+
+Left here whole, because the reasoning is what the decision above was made
+from. It stood under "Real, and nothing follows from it" until that turned out
+not to be true of the live half of it.
 
 - **`gs_leveleditor.cpp:1538`** - the `else if(!shift)` branch of `draw()` is
   unreachable; the three above it consume every case in which `!shift` holds.
