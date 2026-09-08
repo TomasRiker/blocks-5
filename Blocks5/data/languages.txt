@@ -686,8 +686,8 @@ $G_HOTEL_WELCOME
 // only mirrors it to the left when it would run off the right edge, so past
 // about 320 px there is no placement left for a hotel near the middle of the
 // screen - which is where the camera puts the one you are standing on.
-§en:Welcome to the Hotel Blockofornia!¶Press %BINDING{$A_SAVE_IN_HOTEL} now¶to save your progress in this level.
-§de:Willkommen im Hotel Blockofornia!¶Drücken Sie jetzt¶%BINDING{$A_SAVE_IN_HOTEL},¶um den Spielstand zwischenzuspeichern.
+§en:Welcome to the Hotel Blockofornia!¶Press %BINDING{$A_SAVE_IN_HOTEL}¶to save your progress in this level.
+§de:Willkommen im Hotel Blockofornia!¶Drücken Sie %BINDING{$A_SAVE_IN_HOTEL},¶um den Spielstand zwischenzuspeichern.
 
 $G_HOTEL_GOODBYE
 // Text displayed when the player saved in a hotel
