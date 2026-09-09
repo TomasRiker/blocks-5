@@ -119,13 +119,13 @@ void ParticleSystem::render()
 	p_sprites->unbind();
 
 #ifdef PROFILE_PARTICLESYSTEM_RENDER
-	if(particles.size() > 1000) END_PROFILE(renderParticleSystem)
+	END_PROFILE(renderParticleSystem)
 #endif
 }
 
 // Off like every other PROFILE_ toggle in the tree. Switched on, every run
-// with more than 1000 particles writes a line to the log and to the console,
-// which during play means continuously.
+// writes a line to the log and to the console, which during play means
+// continuously.
 // #define PROFILE_PARTICLESYSTEM_UPDATE
 #define PREFETCH_UPDATE
 
@@ -171,7 +171,7 @@ void ParticleSystem::update()
 	}
 
 #ifdef PROFILE_PARTICLESYSTEM_UPDATE
-	if(particles.size() > 1000) END_PROFILE(updateParticleSystem)
+	END_PROFILE(updateParticleSystem)
 #endif
 }
 

@@ -87,7 +87,8 @@ private:
 
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 	Vertex* p_vertexBuffer;
-	static const uint VERTEX_BUFFER_SIZE = 1024;
+	// Must be a multiple of 4, because each particle is a quad.
+	static const uint VERTEX_BUFFER_SIZE = 4096;
 #endif
 };
 
