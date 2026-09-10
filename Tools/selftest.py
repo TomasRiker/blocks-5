@@ -193,6 +193,14 @@ def c_comments(p):
     p.append('\n// Das ist ein deutscher Kommentar und der muss gemeldet werden.\n')
 
 
+@case('comments', 'WebBuild/htaccess')
+def c_comments_prose(p):
+    # The same check on a file source_files() does not reach. It has no
+    # extension at all, which is how it kept a wholly German header through the
+    # translation sweep with every check passing.
+    p.append('\n# Das ist ein deutscher Kommentar und der muss gemeldet werden.\n')
+
+
 def main():
     print('%-14s %s' % ('CHECK', 'fires on an injected fault?'))
     print('-' * 52)

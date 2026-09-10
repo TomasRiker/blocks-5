@@ -63,6 +63,33 @@ def source_files(exts=('.cpp', '.h', '.c')):
     return out
 
 
+def prose_files():
+    """Files whose comments are prose but which source_files() does not reach.
+
+    LinuxBuild is not in that list at all - it is not part of the Windows
+    project, which is what most of the checks are about - and neither list has
+    ever held a script, a page or a config. That is how a wholly German
+    .htaccess sat in WebBuild through the translation sweep: it has no
+    extension, so nothing was looking at it. Each entry says how a comment
+    begins there."""
+    out = []
+    for base in ('LinuxBuild', 'WebBuild', 'Tools'):
+        for root, dirs, files in os.walk(os.path.join(ROOT, base)):
+            parts = root.split(os.sep)
+            if ('libs' in parts or 'build' in parts or 'build-test' in parts
+                    or 'build-asan' in parts or 'node_modules' in parts
+                    or '__pycache__' in parts):
+                continue
+            for f in sorted(files):
+                if f in VENDORED:
+                    continue
+                if f.endswith(('.cpp', '.h', '.c', '.js')):
+                    out.append((os.path.join(root, f), '//'))
+                elif f.endswith(('.sh', '.py')) or f == 'htaccess':
+                    out.append((os.path.join(root, f), '#'))
+    return out
+
+
 BASELINE = '95660bb'      # the last commit before this collaboration
 _baseline_cache = {}
 
@@ -937,11 +964,20 @@ def check_comments():
         if code >= 100 and comment * 100.0 / code > 50.0:
             bad.append('%s: %d%% comment (%d/%d) - that is no longer an explanation'
                        % (rel, round(comment * 100.0 / code), comment, code))
-        for i, line in enumerate(lines):
+
+    # The language half reaches further than the density half: a script or a
+    # page has no ratio worth judging, but its comments are prose like any
+    # other and are exactly where a German line survives unseen.
+    seen = set(os.path.relpath(p, ROOT) for p in source_files())
+    files = [(p, '//') for p in source_files()]
+    files += [(p, m) for p, m in prose_files() if os.path.relpath(p, ROOT) not in seen]
+    for p, mark in files:
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        for i, line in enumerate(read(p).split('\n')):
             s = line.strip()
-            if not s.startswith('//'):
+            if not s.startswith(mark):
                 continue
-            body = s[2:]
+            body = s[len(mark):]
             deHits = len(de.findall(body))
             if len(body.split()) >= 5 and deHits >= 2 and deHits > len(en.findall(body)):
                 bad.append('%s:%d: German comment - "%s"' % (rel, i + 1, body.strip()[:60]))

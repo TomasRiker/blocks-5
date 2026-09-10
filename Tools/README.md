@@ -32,7 +32,7 @@ Exit code 1 as soon as anything is reported.
 | `style` | Tabs, no space after a keyword, no whitespace at line end. |
 | `windows_icon` | The program icon must match `data/window.png`. |
 | `font_metrics` | A font's `capTop`/`capBottom` must be where its letters really are. |
-| `comments` | English comments - a German line among them is always a leftover. |
+| `comments` | English comments - a German line among them is always a leftover. Reads the scripts, the pages and `WebBuild/htaccess` as well as the sources. |
 
 Two of them - `style` and `ctor_init` - judge only what has come in since the
 state before the overhaul. Code that already stood there in 2015 and has run

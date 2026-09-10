@@ -20,6 +20,28 @@ git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest
 
 Serve `build/` over HTTP; `file://` will not work.
 
+`build.sh` writes `htaccess` out as `.htaccess` beside `index.html`, which gives
+Apache the headers the caching story depends on: a year of `immutable` for the
+three stamped payload files, `no-cache, must-revalidate` for `index.html`, `sw.js`
+and `manifest.json`, the wasm MIME type, and `ModPagespeed off`. The same for
+nginx, which reads no per-directory file and wants this in the server block:
+
+```nginx
+location ~ ^/blocks5-[0-9a-f]+\.(js|wasm|data)$ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+}
+location ~ ^/(index\.html|sw\.js|manifest\.json)$ {
+    add_header Cache-Control "no-cache, must-revalidate";
+}
+types { application/wasm wasm; }
+```
+
+The two directions are deliberate. A stamped URL's contents can never change, so
+asking about it could only confirm what is already there; `index.html` carries no
+stamp, because it is the entry point and the place the current stamp is written
+down, so serving *that* from a cache is exactly how a new build becomes invisible.
+`CLAUDE.md` has the whole argument, mod_pagespeed included.
+
 `build.sh` stages `data.zip`, the skin archives and the campaign into the tree it
 preloads, but it does not build them: they are build products and are not in Git,
 so a clean clone needs `Blocks5/pack.sh` first. Each of the three is warned about

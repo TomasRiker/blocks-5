@@ -1,36 +1,34 @@
-# .htaccess - die Kopfzeilen, die der ausgelieferte Web-Build braucht.
+# .htaccess - the headers the shipped web build needs.
 #
-# build.sh legt diese Datei neben index.html. Sie gilt nur fuer Apache; die
-# entsprechenden Zeilen fuer nginx stehen in README.txt.
+# build.sh puts this file beside index.html. It is for Apache alone; the
+# equivalent lines for nginx are in README.md.
 
-# Die drei Nutzlastdateien tragen die Kennung ihres Baus im Namen. Was unter
-# einer solchen URL liegt, aendert sich nie, also darf es fuer immer
-# zwischengespeichert werden.
+# The three payload files carry their build's stamp in the name. What lies
+# under such a URL never changes, so it may be cached for ever.
 <IfModule mod_headers.c>
   <FilesMatch "^blocks5-[0-9a-f]+\.(js|wasm|data)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
-  # Diese drei muessen bei jedem Aufruf nachgefragt werden. index.html nennt
-  # die Kennung des aktuellen Baus - wird sie zwischengespeichert, sieht
-  # niemand je eine neue Fassung. sw.js entscheidet ueber den
-  # Offline-Zwischenspeicher, manifest.json ueber das Installieren.
+  # These three have to be asked for on every visit. index.html is where the
+  # current build's stamp is written down - cache that and nobody ever sees a
+  # new version. sw.js decides what the offline cache holds, manifest.json
+  # what installing gives you.
   <FilesMatch "^(index\.html|sw\.js|manifest\.json)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>
 
-# Ohne den richtigen Typ nimmt der Browser den schnellen Weg nicht
-# (WebAssembly.instantiateStreaming) und laedt das Modul umstaendlicher.
+# Without the right type the browser does not take the fast path
+# (WebAssembly.instantiateStreaming) and loads the module the long way round.
 AddType application/wasm .wasm
 
-# mod_pagespeed hat hier realen Schaden angerichtet: es hat blocks5.js unter
-# einem eigenen Namen (blocks5.js.pagespeed.ce.*.js) aufbewahrt und spaeter
-# neben ein neueres blocks5.wasm gelegt. Das Spiel bricht dann mit
-# "No EM_ASM constant found at address ..." ab, denn die EM_ASM-Bausteine
-# liegen an Adressen, die nur zu genau einem wasm passen. Die Kennung im
-# Dateinamen macht das inzwischen unmoeglich, aber umzuschreiben gibt es hier
-# ohnehin nichts: die Dateien kommen fertig optimiert aus dem Build.
+# mod_pagespeed has done real damage here: it kept blocks5.js under a name of
+# its own (blocks5.js.pagespeed.ce.*.js) and later served that beside a newer
+# blocks5.wasm. The game then aborts with "No EM_ASM constant found at address
+# ...", because the EM_ASM fragments sit at addresses that fit exactly one
+# wasm. The stamp in the filename makes that impossible now, but there is
+# nothing here to rewrite anyway: the files come out of the build optimized.
 <IfModule pagespeed_module>
   ModPagespeed off
 </IfModule>

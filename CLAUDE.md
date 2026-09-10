@@ -1911,7 +1911,16 @@ filenames, shipped zipped in `levels/campaigns/`.
   that changed it moved no code at all, which is what made a change across 286 files
   reviewable. German survives in exactly three places, all of them data rather than prose:
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
-  `verify.py`'s `comments` check together with the fault `selftest.py` injects into it. The
+  `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
+
+  **That check reads further than the other sixteen**, and the reason is a file it did not
+  catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
+  extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
+  `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is
+  the second list: the sources plus every `.js`, `.sh` and `.py` in `LinuxBuild`, `WebBuild`
+  and `Tools`, plus `htaccess` by name, each with the marker its comments begin with. Only the
+  language half uses it; the density guard stays on the sources, since a shell script has no
+  ratio worth judging. The
   shipped `readme.txt` files are English, and always have been — the German that survives
   is the three places above and nothing else.
 
