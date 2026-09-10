@@ -1410,6 +1410,43 @@ Two things to decide:
   stay 0 at any detail level.
 
 
+37. SDL 1.2 -> SDL 3, planned and deliberately not done
+--------------------------------------------------------
+Surveyed in depth and written up in `SDL3-MIGRATION.md` at the repository root. **The decision
+was not to do it**, and the plan exists so that decision can be revisited from evidence rather
+than from memory.
+
+Why it is worth doing eventually: Emscripten's SDL 1.2 is a 134 KB hand-written *JavaScript*
+reimplementation, and `WebBuild/platform_stubs.cpp` exists only to patch its gaps; SDL 1.2 has had
+no upstream since 2013; 2.4 MB, 170 tracked files, 67 `.vcxproj` entries and two vendored patches
+would leave the tree; and `rememberWindowPlacement` and its neighbours, wholly inside `#ifdef
+_WIN32` today, become portable and therefore testable.
+
+Why not now: seven of the ten surveyed areas came back **hard** after adversarial review, the
+estimate is **36-52 engineer-days plus about nine hours on a Windows machine**, and **not one MSVC
+compile happened anywhere in the survey** - the largest cost centre is the least verified part, on
+the platform the game actually ships. The failure mode is the expensive kind: `SDL3` does not break
+this tree loudly. Three silent landmines were proven, of which the sharpest is that
+`LinuxBuild/linux_window.cpp` wraps its whole implementation in `#ifdef SDL_VIDEO_DRIVER_X11`, a
+macro SDL3 does not publish - after a header rename both functions compile to `return false` with
+no error and no warning, and Linux fullscreen is simply gone.
+
+**Not a reason to do it, contrary to a first reading:** the licence. SDL 1.2 is LGPL 2.1 and is
+statically linked, but the game is GPL v3 with its complete source published, which more than
+satisfies LGPL 2.1 section 6 - see the LICENCE section of `Blocks5/libs/sdl-1.2.15/PROVENANCE.txt`.
+`shine` is in the same position. Nothing has to change.
+
+Two things settled while planning, kept because they are cheap to lose and expensive to rediscover:
+
+- **Main callbacks do not require `SDL_MAIN_USE_CALLBACKS`.** `SDL_EnterAppMainCallbacks` is
+  declared unconditionally (`SDL_main.h:581`), so `main.cpp` keeps its own `main()` and its SEH
+  crash handler, and MSVC's `/Yu` rule - which silently discards anything written above
+  `#include "pch.h"` - never gets a chance to bite.
+- **A classic `main()` with `emscripten_set_main_loop_arg` works against SDL3 in the browser**,
+  measured here: 45 frames, 7 events, `driver=emscripten`, WebGL 1.0. So the callbacks restructure
+  is a preference and SDL3 is the goal, which is what makes the retreat in the plan real.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

@@ -64,7 +64,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\minih264;libs\minimp4;libs\shine;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\sdl-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\minih264;libs\minimp4;libs\shine;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TIXML_USE_STL;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;DECLSPEC=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -91,7 +91,7 @@
       <Optimization>Full</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\SDL-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\minih264;libs\minimp4;libs\shine;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>libs\zlib-1.3.1\contrib\minizip;libs\zlib-1.3.1;libs\tinyxml-2.6.2;libs\sigslot;libs\stb;libs\sdl-1.2.15\include;libs\openal-soft-1.25.2\include;libs\openal-soft-1.25.2\include\AL;libs\libvorbis-1.3.4\include;libs\libvorbis-1.3.4\lib;libs\libogg-1.3.2\include;libs\minih264;libs\minimp4;libs\shine;libs\mtrand-1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TIXML_USE_STL;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_DEPRECATE;DECLSPEC=;_SECURE_SCL=0;_SECURE_SCL_THROWS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -161,271 +161,271 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\main\win32\SDL_win32_main.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL_error.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL_error.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL_fatal.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL_fatal.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_audio.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audiocvt.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_audiocvt.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_mixer.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer_MMX_VC.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_mixer_MMX_VC.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_wave.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_wave.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\disk\SDL_diskaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\disk\SDL_diskaudio.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\dummy\SDL_dummyaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\dummy\SDL_dummyaudio.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\windib\SDL_dibaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\windib\SDL_dibaudio.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\windx5\SDL_dx5audio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\windx5\SDL_dx5audio.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\SDL_cdrom.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cdrom\SDL_cdrom.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\win32\SDL_syscdrom.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cdrom\win32\SDL_syscdrom.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cpuinfo\SDL_cpuinfo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cpuinfo\SDL_cpuinfo.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_active.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_active.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_events.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_events.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_expose.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_expose.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_keyboard.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_keyboard.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_mouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_mouse.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_quit.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_quit.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_resize.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_resize.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\file\SDL_rwops.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\file\SDL_rwops.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\joystick\SDL_joystick.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\joystick\SDL_joystick.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\joystick\win32\SDL_mmjoystick.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\joystick\win32\SDL_mmjoystick.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\loadso\win32\SDL_sysloadso.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\loadso\win32\SDL_sysloadso.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_getenv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_getenv.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_iconv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_iconv.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_malloc.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_malloc.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_qsort.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_qsort.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_stdlib.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_stdlib.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_string.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_string.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\SDL_thread.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\SDL_thread.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\generic\SDL_syscond.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\generic\SDL_syscond.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_sysmutex.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_sysmutex.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_syssem.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_syssem.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_systhread.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_systhread.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\timer\SDL_timer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\timer\SDL_timer.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\timer\win32\SDL_systimer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\timer\win32\SDL_systimer.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_RLEaccel.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_RLEaccel.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_0.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_0.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_1.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_1.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_A.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_A.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_N.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_N.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_bmp.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_bmp.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_cursor.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_cursor.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_gamma.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_gamma.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_pixels.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_pixels.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_stretch.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_stretch.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_surface.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_surface.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_video.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_video.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_yuv.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv_sw.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_yuv_sw.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullevents.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullmouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullmouse.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullvideo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullvideo.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_sysevents.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysmouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_sysmouse.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_syswm.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_syswm.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_wingl.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_wingl.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windib\SDL_dibevents.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibvideo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windib\SDL_dibvideo.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5events.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5events.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5video.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5video.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5yuv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5yuv.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>

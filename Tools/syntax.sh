@@ -41,7 +41,7 @@ echo '#include <AL/al.h>'  > "$SHIM/al.h"
 echo '#include <AL/alc.h>' > "$SHIM/alc.h"
 
 INC="-I$SRC -I$SHIM
-     -I$LIBS/SDL-1.2.15/include -I$LIBS/tinyxml-2.6.2
+     -I$LIBS/sdl-1.2.15/include -I$LIBS/tinyxml-2.6.2
      -I$LIBS/libogg-1.3.2/include -I$LIBS/libvorbis-1.3.4/include
      -I$LIBS/stb -I$LIBS/openal-soft-1.25.2/include
      -I$LIBS/minih264 -I$LIBS/minimp4 -I$LIBS/shine/src/lib

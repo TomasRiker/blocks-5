@@ -448,205 +448,205 @@
     <ClCompile Include="libs\shine\tables.c">
       <Filter>shine</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\main\win32\SDL_win32_main.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\main\win32\SDL_win32_main.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL_error.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL_error.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\SDL_fatal.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\SDL_fatal.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_audio.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_audiocvt.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_audiocvt.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_mixer.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_mixer_MMX_VC.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_mixer_MMX_VC.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\SDL_wave.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\SDL_wave.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\disk\SDL_diskaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\disk\SDL_diskaudio.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\dummy\SDL_dummyaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\dummy\SDL_dummyaudio.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\windib\SDL_dibaudio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\windib\SDL_dibaudio.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\audio\windx5\SDL_dx5audio.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\audio\windx5\SDL_dx5audio.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\SDL_cdrom.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cdrom\SDL_cdrom.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cdrom\win32\SDL_syscdrom.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cdrom\win32\SDL_syscdrom.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\cpuinfo\SDL_cpuinfo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\cpuinfo\SDL_cpuinfo.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_active.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_active.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_events.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_events.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_expose.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_expose.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_keyboard.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_keyboard.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_mouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_mouse.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_quit.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_quit.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\events\SDL_resize.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\events\SDL_resize.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\file\SDL_rwops.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\file\SDL_rwops.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\joystick\SDL_joystick.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\joystick\SDL_joystick.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\joystick\win32\SDL_mmjoystick.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\joystick\win32\SDL_mmjoystick.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\loadso\win32\SDL_sysloadso.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\loadso\win32\SDL_sysloadso.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_getenv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_getenv.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_iconv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_iconv.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_malloc.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_malloc.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_qsort.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_qsort.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_stdlib.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_stdlib.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\stdlib\SDL_string.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\stdlib\SDL_string.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\SDL_thread.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\SDL_thread.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\generic\SDL_syscond.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\generic\SDL_syscond.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_sysmutex.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_sysmutex.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_syssem.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_syssem.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\thread\win32\SDL_systhread.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\thread\win32\SDL_systhread.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\timer\SDL_timer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\timer\SDL_timer.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\timer\win32\SDL_systimer.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\timer\win32\SDL_systimer.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_RLEaccel.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_RLEaccel.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_0.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_0.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_1.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_1.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_A.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_A.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_blit_N.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_blit_N.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_bmp.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_bmp.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_cursor.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_cursor.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_gamma.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_gamma.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_pixels.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_pixels.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_stretch.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_stretch.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_surface.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_surface.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_video.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_video.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_yuv.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\SDL_yuv_sw.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\SDL_yuv_sw.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullevents.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullmouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullmouse.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\dummy\SDL_nullvideo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\dummy\SDL_nullvideo.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_sysevents.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_sysmouse.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_sysmouse.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_syswm.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_syswm.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\wincommon\SDL_wingl.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\wincommon\SDL_wingl.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibevents.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windib\SDL_dibevents.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windib\SDL_dibvideo.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windib\SDL_dibvideo.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5events.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5events.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5video.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5video.c">
       <Filter>SDL</Filter>
     </ClCompile>
-    <ClCompile Include="libs\SDL-1.2.15\src\video\windx5\SDL_dx5yuv.c">
+    <ClCompile Include="libs\sdl-1.2.15\src\video\windx5\SDL_dx5yuv.c">
       <Filter>SDL</Filter>
     </ClCompile>
     <ClCompile Include="libs\tinyxml-2.6.2\tinystr.cpp">

@@ -10,6 +10,7 @@ COPY "Donate (en).url" stage
 COPY OpenAL32.dll stage
 COPY ..\Release\pwencrypt.exe stage
 COPY readme.txt stage
+COPY ..\LICENSE.txt stage
 COPY ..\Release\showuserdir.exe stage
 COPY update_checker_disable.bat stage
 COPY update_checker_enable.bat stage
