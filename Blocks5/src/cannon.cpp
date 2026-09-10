@@ -78,7 +78,7 @@ void Cannon::onUpdate()
 		ParticleSystem::Particle p;
 
 		// smoke
-		p.lifetime = random(25, 50);
+		p.lifetime = static_cast<ushort>(random(25, 50));
 		p.damping = 0.99f;
 		p.gravity = 0.005f;
 		p.positionOnTexture = Vec2b(0, 0);
@@ -175,7 +175,7 @@ bool Cannon::fire()
 	// fire/smoke forward and to the sides
 	for(int i = 0; i < 100; i++)
 	{
-		p.lifetime = random(5, 10);
+		p.lifetime = static_cast<ushort>(random(5, 10));
 		p.damping = 0.99f;
 		p.gravity = 0.005f;
 		p.positionOnTexture = Vec2b(64, 0);

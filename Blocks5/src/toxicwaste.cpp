@@ -42,7 +42,7 @@ void ToxicWaste::onExplosion()
 	// green toxic gas cloud
 	for(int i = 0; i < 250; i++)
 	{
-		p.lifetime = random(150, 300);
+		p.lifetime = static_cast<ushort>(random(150, 300));
 		p.damping = 0.96f;
 		p.gravity = -0.005f;
 		if(randomInt() % 2) p.positionOnTexture = Vec2b(0, 64);

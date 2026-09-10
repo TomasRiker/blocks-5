@@ -850,7 +850,7 @@ void Object::burst()
 	const int numTries = sprites.getTryCount(75);
 	for(int i = 0; i < numTries; i++)
 	{
-		p.lifetime = random(20, 50);
+		p.lifetime = static_cast<ushort>(random(20, 50));
 		p.damping = 0.85f;
 		p.gravity = 0.1f;
 		p.positionOnTexture = Vec2b(96, 0);

@@ -1041,7 +1041,7 @@ void Level::update()
 			ParticleSystem::Particle p;
 			for(int i = 0; i < 150; i++)
 			{
-				p.lifetime = random(50, 100);
+				p.lifetime = static_cast<ushort>(random(50, 100));
 				p.damping = 0.95f;
 				p.gravity = 0.0f;
 				p.positionOnTexture = Vec2b(0, 32);
@@ -1085,7 +1085,7 @@ void Level::update()
 							if(random(0, r) == 0)
 							{
 								ParticleSystem::Particle p;
-								p.lifetime = random(5, 10);
+								p.lifetime = static_cast<ushort>(random(5, 10));
 								p.damping = 0.95f;
 								p.gravity = 0.1f;
 								p.positionOnTexture = Vec2b(96, 32);

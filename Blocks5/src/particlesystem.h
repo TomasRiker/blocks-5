@@ -14,7 +14,7 @@ public:
 	// reads from what only update() needs: the first six members are enough
 	// for a vertex and fit into one cache line together. Everything is single
 	// precision (float), not double - a Vec4f is one 16-byte access and a
-	// single vector addition, a Vec4d would be two. sizeof(Particle) = 84.
+	// single vector addition, a Vec4d would be two. sizeof(Particle) = 80.
 	struct Particle
 	{
 		float rotation;				//  0
@@ -24,19 +24,21 @@ public:
 		Vec2b sizeOnTexture;		// 26
 		Vec2f position;				// 28
 
-		float deltaSize;			// 36
-		uint lifetime;				// 40
+		// Who this particle belongs to, and how many ticks it has left. The two
+		// share the four bytes a single member would have taken, and neither is
+		// anywhere near its ceiling - 65535 ticks is twenty-two minutes. 0 means
+		// "nobody", which is the normal case for an id; anything that wants to
+		// find its own particles again stamps one in here and looks them up
+		// through begin()/end().
+		ushort id;					// 36
+		ushort lifetime;			// 38
+		float deltaSize;			// 40
 		Vec2f velocity;				// 44
 		float damping;				// 52
 		float gravity;				// 56
 		Vec4f deltaColor;			// 60
 		float deltaRotation;		// 76
-
-		// Who this particle belongs to. Right at the end, leaving the first six
-		// members their cache line. 0 means "nobody", which is the normal case;
-		// anything that wants to find its own particles again stamps an id in
-		// here and looks them up through begin()/end().
-		uint id;					// 80
+									// 80
 
 		// Everything to zero. The constructor is needed because the forty-nine
 		// callers of addParticle() build a Particle on the stack and set only
@@ -46,11 +48,11 @@ public:
 		Particle()
 			: rotation(0.0f), size(0.0f), color(0.0f),
 			  positionOnTexture(0), sizeOnTexture(0), position(0.0f),
-			  deltaSize(0.0f), lifetime(0), velocity(0.0f), damping(0.0f),
-			  gravity(0.0f), deltaColor(0.0f), deltaRotation(0.0f), id(0)
+			  id(0), lifetime(0), deltaSize(0.0f), velocity(0.0f),
+			  damping(0.0f), gravity(0.0f), deltaColor(0.0f), deltaRotation(0.0f)
 		{
 		}
-	};								// 84
+	};
 
 	typedef std::list<Particle> ParticleList;
 

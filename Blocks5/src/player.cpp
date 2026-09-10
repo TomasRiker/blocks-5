@@ -281,7 +281,7 @@ void Player::onUpdate()
 			// create the snoring particles
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem::Particle p;
-			p.lifetime = random(50, 100);
+			p.lifetime = static_cast<ushort>(random(50, 100));
 			p.damping = 0.99f;
 			p.gravity = 0.0f;
 			p.positionOnTexture = Vec2b(64, 32);
@@ -527,7 +527,7 @@ void Player::activate()
 		ParticleSystem::Particle p;
 		for(int i = 0; i < 50; i++)
 		{
-			p.lifetime = random(20, 50);
+			p.lifetime = static_cast<ushort>(random(20, 50));
 			p.damping = 0.85f;
 			p.gravity = 0.0f;
 			p.positionOnTexture = Vec2b(0, 32);

@@ -37,7 +37,7 @@ void Fire::onUpdate()
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 	ParticleSystem::Particle p;
-	p.lifetime = random(60, 100);
+	p.lifetime = static_cast<ushort>(random(60, 100));
 	p.damping = 0.9f;
 	p.gravity = -0.04f;
 	p.positionOnTexture = Vec2b(32, 0);
@@ -78,7 +78,7 @@ void Fire::onUpdate()
 				int n = debris.getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
-					p.lifetime = random(60, 120);
+					p.lifetime = static_cast<ushort>(random(60, 120));
 					p.damping = 0.9f;
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
@@ -106,7 +106,7 @@ void Fire::onUpdate()
 					const int numTries = ownDebris.getTryCount(50);
 					for(int i = 0; i < numTries; i++)
 					{
-						p.lifetime = random(80, 150);
+						p.lifetime = static_cast<ushort>(random(80, 150));
 						p.damping = 0.9f;
 						p.gravity = -0.03f;
 						p.positionOnTexture = Vec2b(0, 0);

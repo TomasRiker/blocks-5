@@ -237,7 +237,7 @@ void Enemy::onUpdate()
 				ParticleSystem::Particle p;
 				for(int i = 0; i < 10; i++)
 				{
-					p.lifetime = random(50, 75);
+					p.lifetime = static_cast<ushort>(random(50, 75));
 					p.damping = 0.99f;
 					p.gravity = random(-0.005f, -0.02f);
 					p.positionOnTexture = Vec2b(96, 32);
@@ -383,7 +383,7 @@ void Enemy::onUpdate()
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 			ParticleSystem::Particle p;
-			p.lifetime = random(40, 50);
+			p.lifetime = static_cast<ushort>(random(40, 50));
 			p.damping = 0.9f;
 			p.gravity = -0.04f;
 			p.positionOnTexture = Vec2b(32, 0);
