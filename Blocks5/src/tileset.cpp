@@ -94,8 +94,23 @@ void TileSet::reload()
 	{
 		TileInfo info = badTile;
 
-		// read the id
-		uint id = static_cast<uint>(p_tileElement->Attribute("id")[0]);
+		// The id is the attribute's first character taken as a byte, which is
+		// the whole id space: a level stores one id per character of its <Row>
+		// strings, and tiles[] is sized 256 for exactly that. Through unsigned
+		// char, or a tile named with a non-ASCII character would sign-extend
+		// to a huge index and be written far outside the array. A skin can
+		// come from a stranger, so a <Tile> carrying no id at all is a broken
+		// file rather than a null pointer to walk into.
+		const char* p_id = p_tileElement->Attribute("id");
+		if(!p_id || !*p_id)
+		{
+			printfLog("+ ERROR: Tileset \"%s\" has a <Tile> without an id.\n",
+					  filename.c_str());
+			error = 6;
+			return;
+		}
+
+		const uint id = static_cast<unsigned char>(*p_id);
 		maxTileID = max(maxTileID, id);
 
 		// read the position

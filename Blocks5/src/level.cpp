@@ -305,7 +305,11 @@ bool Level::load(TiXmlDocument* p_doc,
 					std::string content = p_row->GetText();
 					for(uint col = 0; col < content.length() && col < static_cast<uint>(WIDTH); col++)
 					{
-						uint tile = static_cast<uint>(content[col]);
+						// Through unsigned char: char is signed here, so an id
+						// of 0x80 or above would sign-extend to a huge number,
+						// and setTileAt would then find no destroy time for a
+						// tile that cannot exist. A row holds one id per byte.
+						uint tile = static_cast<unsigned char>(content[col]);
 						if(tile == ' ') tile = 0;
 						setTileAt(layer, Vec2i(col, row), tile);
 					}
@@ -516,7 +520,8 @@ TiXmlDocument* Level::save()
 			for(int x = 0; x < WIDTH; x++)
 			{
 				uint t = getTileAt(layer, Vec2i(x, y));
-				p_temp[x] = t ? t : ' ';
+				// One id per byte is the format; getTileAt masks to that range.
+				p_temp[x] = static_cast<char>(t ? t : ' ');
 			}
 
 			p_temp[WIDTH] = 0;
