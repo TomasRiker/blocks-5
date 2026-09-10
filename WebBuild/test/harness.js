@@ -96,9 +96,23 @@ async function launch(opts) {
 	});
 	page.on('pageerror', e => problems.push('pageerror: ' + e.message));
 
-	await page.goto('http://127.0.0.1:' + PORT + '/blocks5.html');
-	await waitForDump(page, o.bootTimeout);
+	await boot(page, o.query, o.bootTimeout);
 	return { browser, page };
+}
+
+// Load the game, optionally with a query string - the diagnostics knobs in
+// pre.js are read from there, and a comparison between two of them wants the
+// same binary and the same browser on both sides.
+async function boot(page, query, timeoutMs) {
+	await page.goto('http://127.0.0.1:' + PORT + '/blocks5.html' + (query || ''));
+	await waitForDump(page, timeoutMs);
+}
+
+// Where a measurement of the frame timings begins. The dump reports them
+// without clearing, because the -perf overlay reads the same numbers all the
+// time.
+async function resetStats(page) {
+	await page.evaluate(() => Module._blocks5_testResetStats());
 }
 
 async function dump(page) {
@@ -264,5 +278,6 @@ async function finish(browser) {
 
 function note(text) { problems.push(text); }
 
-module.exports = { launch, dump, find, clickPath, key, expectShown, expectState,
-                   shot, start, waitFor, shown, press, finish, note, problems };
+module.exports = { launch, boot, dump, find, clickPath, key, expectShown, expectState,
+                   shot, start, waitFor, shown, press, finish, note, problems,
+                   resetStats };

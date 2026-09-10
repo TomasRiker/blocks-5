@@ -109,6 +109,53 @@ coordinate but in the game.
     elements     per element: path, type, rect (game coordinates),
                  win (window coordinates), visible, shown, active
 
+## What a frame costs
+
+    WebBuild/build.sh hooks && node test/perf.js
+    B5_WINDOW=30 B5_REPEATS=5 node test/perf.js
+    node test/perf.js "?texunits=0" "?texunits=1" "?texunits=8"
+
+Every number is milliseconds of wall clock on the main thread, out of
+`FrameStats` in the game and through the test hook's `frames`. `render` and
+`present` are what *issuing* the draw calls costs, not what drawing them does.
+
+**In the browser nothing here sees the GPU at all.** `SDL_GL_SwapBuffers` is
+`Browser.doSwapBuffers?.()`, undefined off a worker, so `swap` measures 0.00;
+`glFinish` after render returns in 0.02 ms; and the page composites the canvas
+after the callback returns, outside every window this can time. What is left is
+exactly main-thread CPU, which is the half that starves the audio and the only
+half a setting like `GL_MAX_TEXTURE_IMAGE_UNITS` can move. It is no measure of
+the hardware: **`interval` minus `total` is what is left for that**, so a frame
+rate that falls while `total` stays flat is time going somewhere this cannot
+see.
+
+(Natively it is the opposite - the driver flushes inside `present` or `swap`,
+whichever it picks, so those two are one number there and mostly the
+rasterizer. `../../CLAUDE.md` has the measurements.)
+
+Two things about the method are the point of it:
+
+- **The arms are query strings, not builds.** `pre.js` reads the knobs off the
+  address, so both sides of a comparison are the same binary in the same
+  browser and nothing about the link can differ between them.
+- **They are interleaved, not run in blocks.** A machine that warms up or
+  throttles part-way through then hands that to both arms instead of to one.
+
+The scene is the menu's own title demo: a whole level animating plus the GUI,
+with no navigation to go wrong. It is not deterministic - bombs go off when
+they go off - so the report gives every repeat and the spread between them, and
+says outright when a difference is smaller than the spread within a single arm.
+
+`emscripten_get_now()` is coarsened by the browser to about a tenth of a
+millisecond, which is why the numbers land on those boundaries. A difference of
+one step is quantisation and not a result; the texunits comparison moved five.
+
+A knob that changes the timing has to be shown not to change the picture. The
+level editor is the scene for that - the busiest screen that does not animate -
+and two screenshots of it under the two arms should be pixel for pixel the
+same.
+
+
 ## A pointer that teleports
 
     B5_SHOTS=/tmp/blocks5-editor node editorstroke.js

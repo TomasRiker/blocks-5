@@ -316,6 +316,9 @@
     <ClCompile Include="src\font.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\framestats.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\gamestate.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1051,6 +1054,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\font.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framestats.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\gamestate.h">

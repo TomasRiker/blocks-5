@@ -137,7 +137,9 @@ there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
-`-nofbo` and `-noshader` — that is the whole list, and `readme.txt` documents all five.
+`-nofbo`, `-noshader` and `-perf` — that is the whole list, and `readme.txt` documents all six.
+`-perf` puts what the last few hundred frames cost in the corner; in the browser `?perf=1` on
+the address becomes the same switch. See **Measuring a frame** below.
 `-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
 `GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
 `true`, because the jingle hangs off the time threshold rather than off the logo.
@@ -377,6 +379,88 @@ named actions cannot be inferred from anything else the hook reports. It is what
 that an on-screen pad can drive the game with an ordinary DOM `keydown`/`keyup` on the
 document — a synthetic `ArrowLeft` with `isTrusted === false` shows up as `["$A_LEFT"]` and
 clears on `keyup`, where `Engine::setKeyData` would not have worked at all (ROADMAP item 19).
+
+### Measuring a frame
+
+`FrameStats` (`framestats.h`) keeps the last 512 frames' timings — the interval start to
+start, how long the turn held the main thread, and render, update and present inside it —
+and answers p50, p95 and the maximum. Percentiles and not a mean, because what tears the
+audio or drops a beat lives in the tail. It is recorded always: four clock reads a frame.
+
+**`render` and `present` are what *issuing* the draw calls costs, not what drawing them
+does.** GL is asynchronous, so the work queues and is paid for wherever the pipeline is next
+made to catch up — and where that is differs completely between the two platforms, which is
+why `swap` is a phase of its own.
+
+**Natively it is somewhere in `present` and `swap`, whichever the driver picks — read those
+two as one number.** Measured under llvmpipe with a `glFinish` inserted to find out: render
+*issues* in 2.2 ms and the finish after it takes another 5.9; the blit issues in 1.3 and takes
+3.0; `glXSwapBuffers` costs 3.9 once nothing is outstanding. Take the finish away and that
+same 5.9 turns up inside `present`, which then reads 8.5 against 1.3 of actual work. So a
+single `present` carrying all of it read as 14.9 ms and was really the level rasterizing: the
+wall clock was true and the label was a lie. Splitting the swap out does not isolate the wait —
+nothing short of a `glFinish` does — it just stops one number pretending to be the blit.
+
+**In the browser nothing here sees the GPU at all.** `SDL_GL_SwapBuffers` is
+`Browser.doSwapBuffers?.()`, and `doSwapBuffers` exists only on the worker path, so off the
+main thread it does nothing; measured, the swap is 0.00 ms and a `glFinish` after render
+returns in 0.02. The page composites the canvas after the callback returns, outside every
+window this can time. What is left is exactly main-thread CPU — the right measure for anything
+the emulation or the JavaScript does, and no measure of the hardware. **`interval` minus
+`total` is what is left for it:** a frame rate that falls while `total` stays flat is time
+going somewhere this cannot see.
+
+**What counts as a late frame is the logic rate**, 20 ms, because that is the frame budget
+fifty times a second asks for — and the overlay counts against it twice, because the two
+questions come apart. A frame whose **interval** went over is one the player did not get; one
+whose **work** went over is one this game is responsible for. Under swiftshader the browser
+ran at 38 ms a frame on 2.7 ms of work: counting the work alone would have reported nothing
+wrong at 26 fps. Natively in the menu the two read 277 and 169 of 512.
+
+A third count stays at 500 ms, and it is a different question again: that is what Emscripten's
+OpenAL has scheduled ahead, so a frame past it is a hole in the music — in the browser only,
+since the native decoder thread fills the queue whatever the main thread is doing. It was the
+*only* count once, which flattered everything: at 50 fps nominal it read `0 of 512` while a
+fifth of the frames were missing their budget.
+
+One caveat on the work count. `total` includes `swap`, and **nothing in the tree ever asks for
+vsync** — no `SDL_GL_SWAP_CONTROL`, no `SDL_GL_SetSwapInterval` — so it is the driver's
+default. Under Xvfb there is no vblank to wait for and `swap` is real work: measured, 6.9 ms by
+default and 6.8 with `vblank_mode=0`, which is the same number. On a real desktop, where Mesa
+syncs by default, that same phase would be a *sleep*, and the work count would then read a
+frame that merely waited as a frame that overran.
+
+Three ways to read it, and the platform decides which:
+
+- **`-perf`**, or `?perf=1` in a browser, draws the numbers in the bottom corner. That is the
+  phone's only way: no console, no command line, no harness — and the block lands in a
+  screenshot, which is how the figure gets off the device.
+- **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own
+  cost in the picture. It does not clear on read, because the overlay reads the same numbers
+  continuously; `blocks5_testResetStats()` (`resetstats` natively) is where a measurement
+  begins.
+- **`WebBuild/test/perf.js`** drives the comparison: arms are query strings rather than
+  builds, so both sides are one binary in one browser, and they are **interleaved** rather
+  than run in blocks, so a machine that warms up or throttles hands that to both.
+
+**`?texunits=N` is the first knob that rides on this**, and it shipped. Emscripten's GL
+emulation keeps state for as many texture units as WebGL reports — 8 to 16 — and loops over
+that count twice per draw call. This game never leaves unit 0: there is no `glActiveTexture`,
+`GL_TEXTURE0` or `glMultiTexCoord` anywhere in the tree. `pre.js` therefore sets
+`Module.GL_MAX_TEXTURE_IMAGE_UNITS` to 1 by default, and `?texunits=0` puts it back to asking
+WebGL, which is the arm to compare against. Measured on the menu's title demo, three
+interleaved runs of twenty seconds: the median frame **3.20 ms → 2.70**, its render half
+**2.40 → 2.00**, against a spread within an arm of 0.10 ms. The picture is untouched — 0 of
+512000 pixels differ.
+
+Two traps there. `Module.<anything>` has to be named in **`INCOMING_MODULE_JS_API`** or the
+start aborts; `build.sh` passes Emscripten's whole default list plus this one key, because
+naming the setting replaces it, and `-sFOO+=bar` is not a syntax emcc knows — at link time it
+is dropped without a word rather than refused. And the interval barely moved in that
+measurement, correctly: under swiftshader the frame rate is capped elsewhere, so the saving
+shows up as main-thread time and not as frames per second. On a phone, where the main thread
+*is* the limit, it is the same milliseconds either way.
+
 
 ## Architecture
 
