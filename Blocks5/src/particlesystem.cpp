@@ -77,6 +77,18 @@ void ParticleSystem::render()
 		const Vec2f halfSize = static_cast<Vec2f>(p.sizeOnTexture) * 0.5f * p.size;
 		const Vec2f axisX(halfSize.x * cosR, -halfSize.y * sinR);
 
+		// The quad is walked as an outline instead of being measured out from the
+		// centre four times over: only the first corner is built from the axes,
+		// and each of the others is one vector addition onto a corner that is
+		// already there. The two edges are perpendicular by construction, so the
+		// second is the first with its components swapped and one sign flipped.
+		const Vec2f edgeX = axisX + axisX;
+		const Vec2f edgeY(-edgeX.y, edgeX.x);
+		const Vec2f corner0(p.position.x - axisX.x + axisX.y, p.position.y - axisX.y - axisX.x);
+		const Vec2f corner1 = corner0 + edgeX;
+		const Vec2f corner2 = corner1 + edgeY;
+		const Vec2f corner3 = corner0 + edgeY;
+
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 		if(p_vertex - p_vertexBuffer >= VERTEX_BUFFER_SIZE)
 		{
@@ -85,25 +97,25 @@ void ParticleSystem::render()
 		}
 
 		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = p.color;
-		p_vertex[0].position = Vec2f(p.position.x - axisX.x + axisX.y, p.position.y - axisX.y - axisX.x);
+		p_vertex[0].position = corner0;
 		p_vertex[0].uv = p.positionOnTexture;
-		p_vertex[1].position = Vec2f(p.position.x + axisX.x + axisX.y, p.position.y + axisX.y - axisX.x);
+		p_vertex[1].position = corner1;
 		p_vertex[1].uv = Vec2i(p.positionOnTexture.x + p.sizeOnTexture.x, p.positionOnTexture.y);
-		p_vertex[2].position = Vec2f(p.position.x + axisX.x + -axisX.y, p.position.y + axisX.y + axisX.x);
+		p_vertex[2].position = corner2;
 		p_vertex[2].uv = p.positionOnTexture + p.sizeOnTexture;
-		p_vertex[3].position = Vec2f(p.position.x - axisX.x + -axisX.y, p.position.y - axisX.y + axisX.x);
+		p_vertex[3].position = corner3;
 		p_vertex[3].uv = Vec2i(p.positionOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
 		p_vertex += 4;
 #else
 		glColor4fv(p.color);
 		glTexCoord2i(p.positionOnTexture.x, p.positionOnTexture.y);
-		glVertex2f(p.position.x - axisX.x + axisX.y, p.position.y - axisX.y - axisX.x);
+		glVertex2f(corner0.x, corner0.y);
 		glTexCoord2i(p.positionOnTexture.x + p.sizeOnTexture.x, p.positionOnTexture.y);
-		glVertex2f(p.position.x + axisX.x + axisX.y, p.position.y + axisX.y - axisX.x);
+		glVertex2f(corner1.x, corner1.y);
 		glTexCoord2i(p.positionOnTexture.x + p.sizeOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
-		glVertex2f(p.position.x + axisX.x + -axisX.y, p.position.y + axisX.y + axisX.x);
+		glVertex2f(corner2.x, corner2.y);
 		glTexCoord2i(p.positionOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
-		glVertex2f(p.position.x - axisX.x + -axisX.y, p.position.y - axisX.y + axisX.x);
+		glVertex2f(corner3.x, corner3.y);
 #endif
 	}
 
