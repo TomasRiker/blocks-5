@@ -31,7 +31,7 @@ StreamedSound::StreamedSound(const std::string& filename) : Resource(filename)
 		return;
 	}
 
-	// Puffergroesse in Bytes berechnen (1/4 Sekunde)
+	// compute the buffer size in bytes (1/4 second)
 	bufferSize = p_stream->getSampleRate() / 4 * p_stream->getSliceSize();
 
 	if(!p_stream->getOpenALBufferFormat())
@@ -42,10 +42,10 @@ StreamedSound::StreamedSound(const std::string& filename) : Resource(filename)
 		return;
 	}
 
-	// Puffer reservieren
+	// allocate the buffer
 	p_buffer = new char[bufferSize];
 
-	// OpenAL-Puffer erzeugen
+	// create the OpenAL buffers
 	alGenBuffers(4, buffers);
 }
 
@@ -61,15 +61,15 @@ void StreamedSound::play(bool loop)
 	this->loop = loop;
 	if(playing) return;
 
-	// Audioquelle holen
+	// get an audio source
 	sourceID = Sound::getFreeSource();
 	setVolume(getVolume());
 	setPitch(getPitch());
 
-	// einen Puffer dekodieren und anhaengen
+	// decode one buffer and queue it
 	stream(buffers[0]);
 
-	// abspielen
+	// play
 	alSourcePlay(sourceID);
 
 	finish = false;
@@ -81,18 +81,18 @@ void StreamedSound::stop()
 {
 	if(!playing) return;
 
-	// Erst den Thread einsammeln, dann die Quelle anhalten: pumpBuffers()
-	// startet eine Quelle wieder, die es als AL_STOPPED vorfindet, koennte ein
-	// alSourceStop davor also ueberholen.
+	// Join the thread first, then stop the source: pumpBuffers() restarts a
+	// source it finds as AL_STOPPED and could therefore overtake an
+	// alSourceStop placed before it.
 	joinDecoderThread();
 	playing = false;
 
 	alSourceStop(sourceID);
 
-	// Soundquelle loeschen
+	// delete the sound source
 	alDeleteSources(1, &sourceID);
 
-	// alle Puffer loeschen
+	// delete all buffers
 	alDeleteBuffers(4, buffers);
 }
 
@@ -139,6 +139,16 @@ void StreamedSound::setLoopBegin(double loopBegin)
 	loopBeginInSlices = secondsToSlices(loopBegin);
 }
 
+uint StreamedSound::tellStream() const
+{
+	return p_stream->tell();
+}
+
+void StreamedSound::seekStream(uint position)
+{
+	p_stream->seek(position);
+}
+
 uint StreamedSound::secondsToSlices(double t) const
 {
 	return static_cast<uint>(t * p_stream->getSampleRate());
@@ -149,7 +159,7 @@ void StreamedSound::slideVolume(double targetVolume,
 {
 	if(targetVolume < 0.0)
 	{
-		// Danach anhalten!
+		// Stop afterwards!
 		targetVolume = 0.0;
 		stopAtSlideEnd = true;
 	}
@@ -171,8 +181,8 @@ bool StreamedSound::update()
 	if(Engine::inst().wasVolumeChanged()) setVolume(getVolume());
 
 #ifdef __EMSCRIPTEN__
-	// Hier gibt es keinen Dekodier-Thread; die Warteschlange wird aus dem
-	// Logiktakt heraus gefuellt.
+	// There is no decoder thread here; the queue is filled from the logic
+	// tick.
 	if(playing && !finish) pumpBuffers();
 #endif
 
@@ -187,7 +197,7 @@ bool StreamedSound::update()
 
 			if(stopAtSlideEnd)
 			{
-				// Jetzt anhalten!
+				// Stop now!
 				return false;
 			}
 		}
@@ -211,44 +221,42 @@ bool StreamedSound::update()
 	return true;
 }
 
-// Ein Durchgang durch die OpenAL-Warteschlange: einsammeln, was abgespielt
-// wurde, und wieder auffuellen. Unter Windows ruft der Dekodier-Thread das
-// alle zehn Millisekunden auf; im Browser gibt es keine Threads, dort macht
-// update() es einmal je Logiktakt.
+// One pass through the OpenAL queue: collect what has been played and refill
+// it. Under Windows/Linux the decoder thread calls this every ten milliseconds;
+// in the browser there are no threads, and update() does it every logic tick.
 void StreamedSound::pumpBuffers()
 {
-	// Irgendwelche Puffer fertig?
+	// any buffers finished?
 	int n = 0;
 	alGetSourcei(sourceID, AL_BUFFERS_PROCESSED, &n);
 	if(n > 0)
 	{
-		// Puffer holen
+		// get the buffers
 		uint* p_buffers = new uint[n];
 		alSourceUnqueueBuffers(sourceID, n, p_buffers);
 
-		// diese Puffer wieder auffuellen
+		// refill these buffers
 		for(int i = 0; i < n; i++) stream(p_buffers[i]);
 
 		delete[] p_buffers;
 	}
 
-	// Wie viele Puffer sind in der Warteschlange?
+	// how many buffers are in the queue?
 	n = 0;
 	alGetSourcei(sourceID, AL_BUFFERS_QUEUED, &n);
 	if(!n)
 	{
-		// Sound neu abspielen
+		// play the sound again
 		alSourcePlay(sourceID);
 		return;
 	}
 
-	// Laeuft die Warteschlange leer, haelt das die Quelle an, ohne sie zu
-	// leeren - das Auffuellen gibt ihr vier frische Puffer, und sie bleibt fuer
-	// den Rest der Sitzung AL_STOPPED. Im Browser ist das die normale Folge
-	// eines Tab-Wechsels: eine verborgene Seite bekommt kein
-	// requestAnimationFrame, und in der Warteschlange liegen vier
-	// Viertelsekunden. Eine absichtlich angehaltene Quelle muss angehalten
-	// bleiben, deshalb zaehlt nur AL_STOPPED als "bitte neu starten".
+	// If the queue runs dry, that stops the source without emptying it - the
+	// refill gives it four fresh buffers, and it stays AL_STOPPED for the rest
+	// of the session. In the browser that is the normal consequence of a tab
+	// switch: a hidden page gets no requestAnimationFrame, and the queue holds
+	// four quarter-seconds. A source halted on purpose must stay halted, which
+	// is why only AL_STOPPED counts as "please restart".
 	int state = AL_PLAYING;
 	alGetSourcei(sourceID, AL_SOURCE_STATE, &state);
 	if(state == AL_STOPPED) alSourcePlay(sourceID);
@@ -256,34 +264,35 @@ void StreamedSound::pumpBuffers()
 
 void StreamedSound::stream(uint bufferID)
 {
-	// lesen
+	// read
 	uint numSlices = bufferSize / p_stream->getSliceSize();
 	uint numSlicesRead = p_stream->read(p_buffer, numSlices);
 	if(numSlicesRead != numSlices)
 	{
 		if(loop)
 		{
-			// wieder von vorne anfangen
+			// start again from the beginning
 			p_stream->seek(loopBeginInSlices);
 		}
 		else finish = true;
 	}
 
-	// mit Daten fuellen
+	// fill with data
 	alBufferData(bufferID, p_stream->getOpenALBufferFormat(), p_buffer, numSlicesRead * p_stream->getSliceSize(), p_stream->getSampleRate());
 
-	// anhaengen
+	// queue it
 	alSourceQueueBuffers(sourceID, 1, &bufferID);
 }
 
-// Alles ab hier gibt es nur unter Windows. Im Browser bricht SDL_CreateThread
-// ab und SDL_WaitThread ruft abort(); Semaphoren kennt dessen SDL gar nicht.
+// Everything from here on exists only under Windows/Linux. In the browser
+// SDL_CreateThread aborts and SDL_WaitThread calls abort(); its SDL does not
+// know semaphores at all.
 #ifdef __EMSCRIPTEN__
 
 void StreamedSound::startDecoderThread()
 {
-	// Kein Thread: die uebrigen Puffer gleich hier fuellen, nachgelegt wird
-	// dann aus update() heraus, einmal je Logiktakt.
+	// No thread: fill the remaining buffers right here, and topping up then
+	// happens from update(), once per logic tick.
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 }
 
@@ -295,10 +304,10 @@ void StreamedSound::joinDecoderThread()
 
 void StreamedSound::startDecoderThread()
 {
-	// Das Semaphor gehoert zu diesem einen Durchgang und wird zusammen mit dem
-	// Thread angelegt und weggeraeumt. Eines, das den Sound ueberdauert,
-	// brachte womoeglich einen Zaehlerstand aus der vorigen Runde mit, und der
-	// naechste Thread wuerde sofort wieder aussteigen.
+	// The semaphore belongs to this one run and is created and cleaned up
+	// together with the thread. One that outlived the sound could carry a
+	// count over from the previous round, and the next thread would bail out
+	// immediately.
 	p_stopSignal = SDL_CreateSemaphore(0);
 	p_thread = SDL_CreateThread(streamedSoundThreadProc, this);
 }
@@ -317,13 +326,13 @@ void StreamedSound::joinDecoderThread()
 
 int StreamedSound::threadProc()
 {
-	// die uebrigen Puffer fuellen
+	// fill the remaining buffers
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 
-	// Die Wartezeit ist zugleich das Abbruchsignal: SDL_SemWaitTimeout kehrt
-	// mit SDL_MUTEX_TIMEDOUT zurueck, wenn die zehn Millisekunden verstrichen
-	// sind, und mit 0, sobald joinDecoderThread() gepostet hat. Alles andere
-	// (-1) ist ein Fehler und beendet den Thread ebenfalls.
+	// The wait doubles as the stop signal: SDL_SemWaitTimeout returns
+	// SDL_MUTEX_TIMEDOUT once the ten milliseconds have passed, and 0 as soon
+	// as joinDecoderThread() has posted. Anything else (-1) is an error and
+	// ends the thread as well.
 	while(!finish)
 	{
 		pumpBuffers();

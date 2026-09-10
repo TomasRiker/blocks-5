@@ -24,9 +24,9 @@ ConveyorBelt::ConveyorBelt(Level& level,
 
 		if(numInstances == 1)
 		{
-			// Das ist die erste Instanz. Soundinstanz erzeugen und pausieren.
+			// This is the first instance. Create the sound instance and pause it.
 			Sound* p_sound = Manager<Sound>::inst().request("conveyorbelt.ogg");
-			p_soundInst = p_sound->createInstance();
+			p_soundInst = p_sound->createInstance(true);
 			p_sound->release();
 
 			if(p_soundInst)
@@ -52,7 +52,7 @@ void ConveyorBelt::onRemove()
 
 		if(!numInstances)
 		{
-			// Das war die letzte Instanz. Sound stoppen.
+			// The last instance is gone. Stop the sound.
 			p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
@@ -62,7 +62,7 @@ void ConveyorBelt::onRemove()
 
 void ConveyorBelt::updateSprites()
 {
-	// Fliessband
+	// conveyor belt
 	sprites.add(Vec2i((anim / 2 % 7) * 32, 32)).mirrorX = dir == -1;
 }
 
@@ -78,7 +78,7 @@ void ConveyorBelt::onUpdate()
 
 	if(level.isElectricityOn())
 	{
-		// Befindet sich ein Objekt auf dem Fliessband?
+		// Is there an object on the conveyor belt?
 		Object* p_obj = level.getFrontObjectAt(position - Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -96,7 +96,7 @@ void ConveyorBelt::onUpdate()
 
 				if(counter >= 15)
 				{
-					// Das Objekt wird verschoben.
+					// The object is moved.
 					p_obj->onConveyorBelt = 15;
 					if(p_obj->move(Vec2i(dir, 0)))
 					{
@@ -121,7 +121,7 @@ void ConveyorBelt::onElectricitySwitch(bool on)
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 
-	// Sound kontrollieren
+	// control the sound
 	if(on)
 	{
 		p_soundInst->resume();

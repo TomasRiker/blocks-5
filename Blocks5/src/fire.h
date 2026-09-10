@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Feuer ***/
+/*** Class for fire ***/
 
 class Fire : public Object
 {

@@ -6,7 +6,7 @@
       <Text>$LS_SELECT_CAMPAIGN</Text>
 		</StaticText>
     <ListBox name="Campaigns" x="40" y="60" w="220" h="150" />
-    <StaticText name="Static2" x="40" y="220">
+    <StaticText name="ProgressLabel" x="40" y="220">
       <Text>$LS_PROGRESS</Text>
     </StaticText>
     <StaticText name="Static3" x="40" y="280">
@@ -17,12 +17,12 @@
       <WordWrap />
       <Text></Text>
     </StaticText>
-    <StaticText name="Static3" x="280" y="40">
+    <StaticText name="Static2" x="280" y="40">
       <Text>$LS_SELECT_LEVEL</Text>
     </StaticText>
-    <!-- Die Scheibe liegt in beiden Zustaenden mittig im Feld; x/y stehen
-         deshalb um den Rand nach oben links versetzt: 9 Pixel bei den
-         kleinen Knoepfen, 8 bei den grossen. -->
+    <!-- In both states the disc sits centred in the cell; x/y are
+         therefore offset up and to the left by the border: 9 pixels for
+         the small buttons, 8 for the large. -->
     <Button name="FirstLevel" x="279" y="296" w="50" h="50">
       <Title></Title>
 	<ExtendedStyle inset="9" />

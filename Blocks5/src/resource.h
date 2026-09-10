@@ -1,7 +1,7 @@
 #ifndef _RESOURCE_H
 #define _RESOURCE_H
 
-/*** Ressourcenklasse ***/
+/*** Resource class ***/
 
 template<typename T> class Manager;
 
@@ -19,7 +19,7 @@ public:
 	{
 		if(!--refCounter)
 		{
-			// Ressource abbauen
+			// tear the resource down
 			Manager<T>::inst().destroy(this);
 		}
 	}

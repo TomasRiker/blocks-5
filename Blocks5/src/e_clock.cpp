@@ -8,7 +8,7 @@ E_Clock::E_Clock(Level& level,
 {
 	value = 0;
 
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(15, 8), PT_OUTPUT);
 }
 

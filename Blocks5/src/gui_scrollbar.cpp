@@ -10,6 +10,7 @@ IMPL_CTOR(GUI_ScrollBar)
 	areaSize = 100;
 	pageSize = 10;
 	dragging = pushedUp = pushedDown = false;
+	dragOffset = 0;
 	pushTime = 0;
 	p_receiver = 0;
 	updateValues();
@@ -25,37 +26,37 @@ void GUI_ScrollBar::onRender()
 
 	if(useSkin())
 	{
-		// Scroll-Bar-Hintergrund zeichnen
+		// draw the scroll bar background
 		gui.renderFrame(Vec2i(0, 0), size, Vec2i(96, 96));
 
 		if(!dir)
 		{
-			// Buttons zeichnen
+			// draw the buttons
 			gui.renderFrame(Vec2i(0, 0), Vec2i(size.x, size.x), pushedUp ? Vec2i(48, 96) : Vec2i(0, 96));
 			gui.renderFrame(Vec2i(0, size.y - size.x), Vec2i(size.x, size.x), pushedDown ? Vec2i(48, 96) : Vec2i(0, 96));
 
-			// Pfeile zeichnen
+			// draw the arrows
 			Engine& engine = Engine::inst();
 			int offset = (size.x - 16) / 2;
 			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 0.0);
 			engine.renderSprite(gui.getSkin(), Vec2i(offset, size.y - size.x + offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 180.0);
 
-			// Drag-Bar zeichnen
+			// draw the drag bar
 			gui.renderFrame(Vec2i(0, dragBarY), Vec2i(size.x, dragBarHeight), dragging ? Vec2i(48, 96) : Vec2i(0, 96));
 		}
 		else
 		{
-			// Buttons zeichnen
+			// draw the buttons
 			gui.renderFrame(Vec2i(0, 0), Vec2i(size.y, size.y), pushedUp ? Vec2i(48, 96) : Vec2i(0, 96));
 			gui.renderFrame(Vec2i(size.x - size.y, 0), Vec2i(size.y, size.y), pushedDown ? Vec2i(48, 96) : Vec2i(0, 96));
 
-			// Pfeile zeichnen
+			// draw the arrows
 			Engine& engine = Engine::inst();
 			int offset = (size.y - 16) / 2;
 			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 270.0);
 			engine.renderSprite(gui.getSkin(), Vec2i(size.x - size.y + offset, offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 90.0);
 
-			// Drag-Bar zeichnen
+			// draw the drag bar
 			gui.renderFrame(Vec2i(dragBarY, 0), Vec2i(dragBarHeight, size.y), dragging ? Vec2i(48, 96) : Vec2i(0, 96));
 		}
 	}
@@ -63,7 +64,7 @@ void GUI_ScrollBar::onRender()
 	{
 		if(!dir)
 		{
-			// Scroll-Bar-Hintergrund und Button-Hintergrund zeichnen
+			// draw the scroll bar background and the button backgrounds
 			glBegin(GL_QUADS);
 
 			glColor4d(0.4, 0.4, 0.4, 1.0);
@@ -93,7 +94,7 @@ void GUI_ScrollBar::onRender()
 
 			glEnd();
 
-			// Pfeile zeichnen
+			// draw the arrows
 			glPushMatrix();
 			glTranslated(size.x / 2, size.x / 2, 0.0);
 			glScaled(0.5 * size.x, 0.5 * size.x, 1.0);
@@ -117,7 +118,7 @@ void GUI_ScrollBar::onRender()
 			glEnd();
 			glPopMatrix();
 
-			// Rahmen zeichnen
+			// draw the frame
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glBegin(GL_LINE_LOOP);
 			glVertex2i(0, 0);
@@ -132,7 +133,7 @@ void GUI_ScrollBar::onRender()
 			glVertex2i(size.x, size.y - size.x);
 			glEnd();
 
-			// Drag-Bar-Hintergrund zeichnen
+			// draw the drag bar background
 			glBegin(GL_QUADS);
 			if(dragging) glColor4d(0.9, 0.9, 0.9, 1.0);
 			else glColor4d(0.75, 0.75, 0.75, 1.0);
@@ -144,7 +145,7 @@ void GUI_ScrollBar::onRender()
 			glVertex2i(0, dragBarY + dragBarHeight);
 			glEnd();
 
-			// Rahmen zeichnen
+			// draw the frame
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glBegin(GL_LINE_LOOP);
 			glVertex2i(0, dragBarY);
@@ -155,7 +156,7 @@ void GUI_ScrollBar::onRender()
 		}
 		else
 		{
-			// Scroll-Bar-Hintergrund und Button-Hintergrund zeichnen
+			// draw the scroll bar background and the button backgrounds
 			glBegin(GL_QUADS);
 
 			glColor4d(0.4, 0.4, 0.4, 1.0);
@@ -185,7 +186,7 @@ void GUI_ScrollBar::onRender()
 
 			glEnd();
 
-			// Pfeile zeichnen
+			// draw the arrows
 			glPushMatrix();
 			glTranslated(size.y / 2, size.y / 2, 0.0);
 			glScaled(0.5 * size.y, 0.5 * size.y, 1.0);
@@ -209,7 +210,7 @@ void GUI_ScrollBar::onRender()
 			glEnd();
 			glPopMatrix();
 
-			// Rahmen zeichnen
+			// draw the frame
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glBegin(GL_LINE_LOOP);
 			glVertex2i(0, 0);
@@ -224,7 +225,7 @@ void GUI_ScrollBar::onRender()
 			glVertex2i(size.x - size.y, size.y);
 			glEnd();
 
-			// Drag-Bar-Hintergrund zeichnen
+			// draw the drag bar background
 			glBegin(GL_QUADS);
 			if(dragging) glColor4d(0.9, 0.9, 0.9, 1.0);
 			else glColor4d(0.75, 0.75, 0.75, 1.0);
@@ -236,7 +237,7 @@ void GUI_ScrollBar::onRender()
 			glVertex2i(dragBarY + dragBarHeight, 0);
 			glEnd();
 
-			// Rahmen zeichnen
+			// draw the frame
 			glColor4d(0.0, 0.0, 0.0, 1.0);
 			glBegin(GL_LINE_LOOP);
 			glVertex2i(dragBarY, 0);
@@ -262,7 +263,7 @@ void GUI_ScrollBar::onUpdate()
 
 			updateReceiver();
 
-			// Scroll-Signal ausloesen
+			// fire the scroll signal
 			changed(this);
 		}
 	}
@@ -277,7 +278,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 		{
 			dragging = position.y >= static_cast<int>(dragBarY) &&
 					   position.y < static_cast<int>(dragBarY + dragBarHeight);
-			if(dragging) dragStartY = position.x;
+			if(dragging) dragOffset = position.y - dragBarY;
 			pushedUp = position.y < size.x;
 			pushedDown = position.y >= size.y - size.x;
 		}
@@ -285,7 +286,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 		{
 			dragging = position.x >= static_cast<int>(dragBarY) &&
 					   position.x < static_cast<int>(dragBarY + dragBarHeight);
-			if(dragging) dragStartY = position.y;
+			if(dragging) dragOffset = position.x - dragBarY;
 			pushedUp = position.x < size.y;
 			pushedDown = position.x >= size.x - size.y;
 		}
@@ -299,7 +300,7 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 
 			updateReceiver();
 
-			// Scroll-Signal ausloesen
+			// fire the scroll signal
 			changed(this);
 		}
 		else if(!dragging)
@@ -325,8 +326,11 @@ void GUI_ScrollBar::onMouseMove(const Vec2i& position,
 {
 	if(dragging)
 	{
-		if(!dir) setDragBarY(position.y - dragStartY);
-		else setDragBarY(position.x - dragStartY);
+		// dragOffset is the point on the drag bar the hand took hold of, and
+		// the cursor stays exactly there. Without it the drag bar would jump
+		// under the hand on the first drag.
+		if(!dir) setDragBarY(position.y - dragOffset);
+		else setDragBarY(position.x - dragOffset);
 	}
 }
 
@@ -339,7 +343,7 @@ void GUI_ScrollBar::setScroll(int scroll)
 
 	updateReceiver();
 
-	// Scroll-Signal ausloesen
+	// fire the scroll signal
 	changed(this);
 }
 
@@ -418,7 +422,7 @@ void GUI_ScrollBar::setDragBarY(int dragBarY)
 
 	updateReceiver();
 
-	// Scroll-Signal ausloesen
+	// fire the scroll signal
 	changed(this);
 }
 

@@ -1,7 +1,7 @@
 #ifndef _TILESET_H
 #define _TILESET_H
 
-/*** Klasse fuer Tiles ***/
+/*** Class for tiles ***/
 
 #include "resource.h"
 #include "sprite.h"
@@ -13,12 +13,12 @@ class TileSet : public Resource<TileSet>
 	friend class Manager<TileSet>;
 
 public:
-	// Ein Tile ist 16x16, immer. Der Editor kennt nichts anderes, alle neun
-	// tileset.xml im Baum - die vier mitgelieferten Skins, ihre Archive und der
-	// fremde lego-Skin - nennen genau diese Groesse, und reload() weist eine
-	// Datei ab, die etwas anderes behauptet. Eine einzelne Zahl, weil Tiles
-	// quadratisch sind; so steht der Wert hier im Kopf und braucht keine
-	// Definition in der .cpp.
+	// A tile is 16x16, always. The editor knows nothing else, all nine
+	// tileset.xml in the tree - the four shipped skins, their archives and the
+	// third-party lego skin - name exactly that size, and reload() rejects a
+	// file that claims otherwise. A single number because tiles are square;
+	// that way the value stands here in the header and needs no definition in
+	// the .cpp.
 	static const int TILE_SIZE = 16;
 
 	struct TileInfo
@@ -27,10 +27,10 @@ public:
 		int type;
 		int destroyTime;
 
-		// Das Bild der Kachel, aus dem die Truemmer ihre Farbe ziehen. Genau
-		// ein Teilbild, ungedreht und ungefaerbt - Kacheln haben nichts
-		// Zusammengesetztes. Bei einer Kachel, die gar nicht zerstoerbar ist,
-		// bleibt die Liste leer, und dann entstehen auch keine Truemmer.
+		// The tile's image, which the debris takes its colour from. Exactly one
+		// sprite, unrotated and untinted - there is nothing composite about a
+		// tile. For a tile that is not destroyable at all the list stays empty,
+		// and then no debris appears either.
 		Sprites sprites;
 	};
 

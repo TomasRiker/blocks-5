@@ -117,8 +117,26 @@ Presets::~Presets()
 	p_sprites->release();
 }
 
+bool Presets::getPresetSprites(const std::string& name,
+							   Sprites* p_out) const
+{
+	std::unordered_map<std::string, Vec2i>::const_iterator i = texCoords.find(name);
+	if(i == texCoords.end()) return false;
+
+	// A negative x means mirrored, the same as in renderPreset().
+	Vec2i t = i->second;
+	const bool mirrorX = t.x < 0;
+	if(mirrorX) t.x = -t.x;
+
+	p_out->clear();
+	p_out->setTexture(p_sprites);
+	p_out->add(t).mirrorX = mirrorX;
+	return true;
+}
+
 void Presets::renderPreset(const std::string& name,
-						   const Vec2i& position)
+						   const Vec2i& position,
+						   const Vec4d& color)
 {
 	Engine& engine = Engine::inst();
 
@@ -130,7 +148,7 @@ void Presets::renderPreset(const std::string& name,
 	Vec2i t = texCoords[name];
 	bool mirrorX = t.x < 0;
 	if(mirrorX) t.x = -t.x;
-	engine.renderSprite(p_sprites, Vec2i(0, 0), t, Vec2i(16, 16), Vec4d(1.0, 1.0, 1.0, 1.0), mirrorX);
+	engine.renderSprite(p_sprites, Vec2i(0, 0), t, Vec2i(16, 16), color, mirrorX);
 
 	glPopMatrix();
 }
@@ -403,7 +421,7 @@ Object* Presets::instancePreset(const std::string& name,
 		if(p_element)
 		{
 			TiXmlElement* p_text = p_element->FirstChildElement("Text");
-			const char* p_textChr = p_text->GetText();
+			const char* p_textChr = p_text ? p_text->GetText() : 0;
 			if(p_textChr) text = p_textChr;
 		}
 
@@ -667,7 +685,7 @@ Object* Presets::instancePreset(const std::string& name,
 		p_theObject->setToolTip("$TT_BLOCK_DETECTOR");
 	}
 
-	// Objekttypen, die immer nur in Zwischenspeicherungen vorkommen
+	// object types that only ever occur in saved games
 	else if(name == "Damage")
 	{
 		double rotation = -1.0;
@@ -685,7 +703,7 @@ Object* Presets::instancePreset(const std::string& name,
 
 	if(p_theObject)
 	{
-		// Typ eintragen
+		// record the type
 		p_theObject->setType(newName);
 	}
 

@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer einen Pulsschalter ***/
+/*** Class for a pulse switch ***/
 
 class E_PulseSwitch : public Electronics
 {

@@ -1,7 +1,7 @@
 #ifndef _GUI_CHECKBOX_H
 #define _GUI_CHECKBOX_H
 
-/*** Klasse fuer eine Check-Box ***/
+/*** Class for a check box ***/
 
 #include "gui_element.h"
 
@@ -15,7 +15,7 @@ public:
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseEnter(int buttons);
-	// Die Beschriftung neben dem Kaestchen zaehlt als Trefferflaeche mit.
+	// The caption beside the box counts as part of the hit area.
 	bool containsPoint(const Vec2i& position);
 	void onMouseLeave(int buttons);
 	INLINE_GETTYPE("GUI_CheckBox");
@@ -25,15 +25,15 @@ public:
 	INLINE_GETTER(std::string, getTitle, title);
 	INLINE_SETTER(std::string, setTitle, title);
 	INLINE_GETTER(bool, isChecked, checked);
-	// check() ist der Benutzerklick: es loest das changed-Signal aus.
-	// setChecked() ist das Nachziehen der Anzeige und tut das nicht - wer
-	// eine Anzeige aktualisiert, meint keine Eingabe.
+	// check() is the user's click: it fires the changed signal. setChecked()
+	// is the display catching up and does not - refreshing a display is
+	// not an input.
 	//
-	// Nur checked, nie newChecked: newChecked ist der laufende Klick. Es wird
-	// in onMouseDown gesetzt und in onMouseUp gelesen, und dazwischen laeuft
-	// ein Bild. Wer es hier mitzieht, loescht den gedrueckten, noch nicht
-	// losgelassenen Klick - im Leveleditor sah das so aus, als spraenge die
-	// Elektrizitaet sofort wieder aus.
+	// Only checked, never newChecked: newChecked is the click in flight. It
+	// is written in onMouseDown and read in onMouseUp, and a frame passes in
+	// between. Clobbering it here swallows the click that is pressed and not
+	// yet released - in the level editor that looks like the electricity
+	// switching itself straight back off.
 	void check(bool check);
 	void setChecked(bool check) { checked = check; }
 

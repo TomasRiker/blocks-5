@@ -11,7 +11,7 @@ E_Barrage::E_Barrage(Level& level,
 	shownState = 0;
 	updateProperties();
 
-	// Eingang erzeugen
+	// create the input
 	createPin(0, Vec2i(7, 15), PT_INPUT);
 }
 
@@ -22,7 +22,7 @@ E_Barrage::~E_Barrage()
 void E_Barrage::updateSprites()
 {
 	Electronics::updateSprites();
-	// Blockade
+	// barrage
 	Vec2i positionOnTexture;
 	if(shownState == 5) positionOnTexture = Vec2i(0, 704);
 	else if(shownState > 0) positionOnTexture = Vec2i(32, 704);
@@ -58,7 +58,7 @@ void E_Barrage::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Electronics::loadExtendedAttributes(p_element);
 
-	int up; p_element->Attribute("up", &up);
+	int up = 0; p_element->Attribute("up", &up);
 	this->up = up ? true : false;
 
 	p_element->Attribute("shownState", &shownState);

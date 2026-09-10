@@ -21,9 +21,9 @@ ToxicGas::ToxicGas(Level& level,
 
 	if(numInstances == 1)
 	{
-		// Das ist die erste Instanz. Sound abspielen!
+		// This is the first instance. Play the sound!
 		Sound* p_sound = Manager<Sound>::inst().request("gas.ogg");
-		p_soundInst = p_sound->createInstance();
+		p_soundInst = p_sound->createInstance(true);
 		p_sound->release();
 		if(p_soundInst)
 		{
@@ -47,7 +47,7 @@ void ToxicGas::onRemove()
 	{
 		if(p_soundInst)
 		{
-			// Das war die letzte Instanz. Sound stoppen.
+			// The last instance is gone. Stop the sound.
 			p_soundInst->stop();
 			p_soundInst = 0;
 		}
@@ -95,21 +95,21 @@ void ToxicGas::onUpdate()
 	if(spreadCounter > 0) spreadCounter--;
 	else if(spreadCounter == 0)
 	{
-		// in alle freien Richtungen ausbreiten
+		// spread in every free direction
 		for(int dir = 0; dir < 4; dir++)
 		{
 			Vec2i p = position + intToDir(dir);
 			if(!level.isValidPosition(p)) continue;
 
-			// wenn da schon Gas ist, abbrechen
+			// if there is already gas there, skip it
 			if(level.getAIFlags(p) & 2) continue;
 
-			// Tiles blockieren das Gas.
+			// Tiles block the gas.
 			uint tileID = level.getTileAt(1, p);
 			const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 			if(tileInfo.type == 1 || tileInfo.type == 2) continue;
 
-			// Objekte?
+			// Objects?
 			objects = level.getObjectsAt(p);
 			bool blocked = false;
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
@@ -123,7 +123,7 @@ void ToxicGas::onUpdate()
 
 			if(blocked) continue;
 
-			// neues Gasobjekt erzeugen
+			// create a new gas object
 			new ToxicGas(level, p);
 		}
 

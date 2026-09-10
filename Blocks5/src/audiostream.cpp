@@ -39,29 +39,30 @@ AudioStream* AudioStream::open(const std::string& filename)
 {
 	AudioStream* p_stream = 0;
 
-	// WAV oder OGG?
+	// WAV or OGG?
 	std::string ext = getFilenameExtension(filename);
 	if(ext == "wav")
 	{
-		p_stream = new AS_WAV(filename);
+		p_stream = new AS_Wav(filename);
 	}
 	else if(ext == "ogg")
 	{
-		p_stream = new AS_OGG(filename);
+		p_stream = new AS_Ogg(filename);
 	}
 	else
 	{
-		// Unbekannter Dateityp!
+		// Unknown file type!
 		printfLog("+ ERROR: Unknown file extension \"%s\" for audio files.\n",
 				  ext.c_str());
 		return 0;
 	}
 
-	// Laden erfolgreich?
+	// Loaded successfully?
 	if(p_stream->getError())
 	{
 		printfLog("+ ERROR: Could not create audio stream for file \"%s\".\n",
 				  filename.c_str());
+		delete p_stream;
 		return 0;
 	}
 

@@ -18,7 +18,7 @@ ToxicWaste::~ToxicWaste()
 
 void ToxicWaste::updateSprites()
 {
-	// Giftmuellfass
+	// toxic waste barrel
 	sprites.add(Vec2i(192, 352));
 }
 
@@ -39,7 +39,7 @@ void ToxicWaste::onExplosion()
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 
-	// gruene Giftgaswolke
+	// green toxic gas cloud
 	for(int i = 0; i < 250; i++)
 	{
 		p.lifetime = random(150, 300);
@@ -60,7 +60,7 @@ void ToxicWaste::onExplosion()
 		p_particleSystem->addParticle(p);
 	}
 
-	// Gasobjekt erzeugen
+	// create the gas object
 	new ToxicGas(level, position);
 }
 

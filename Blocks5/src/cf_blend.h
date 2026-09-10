@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Normale Ueberblendung ***/
+/*** Plain crossfade ***/
 
 class CF_Blend : public Crossfade
 {

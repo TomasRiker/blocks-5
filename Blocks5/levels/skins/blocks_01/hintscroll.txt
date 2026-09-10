@@ -1,0 +1,6 @@
+This file makes the hint note behave like a sheet of paper: it flies in rolled
+up at both ends, unrolls as it lands, and rolls up again before it goes. Its
+contents are ignored, only its existence counts, and it belongs to the skin
+whose hint.png is actually loaded - a skin that reaches that picture through
+default_hint.png therefore rolls as well. Leave it out where the hint graphic
+is not paper: a hard-edged display panel that rolls up looks silly.

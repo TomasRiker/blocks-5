@@ -16,7 +16,7 @@ CannonPanel::~CannonPanel()
 
 void CannonPanel::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(224, 288), getStdColor(this->color));
 }
 

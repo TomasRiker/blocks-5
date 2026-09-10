@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer ein Hotel zum Zwischenspeichern ***/
+/*** Class for a hotel for saving the game ***/
 
 class Font;
 
@@ -16,6 +16,7 @@ public:
 	void onRender(int layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
+	void onRemove();
 	void onSave();
 
 	static Hotel* p_hotelToSave;

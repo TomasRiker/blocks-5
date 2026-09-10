@@ -7,11 +7,12 @@ TileSet::TileSet(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
 
-	reload();
-
+	// Before reload(), which starts every tile from badTile.
 	badTile.position = Vec2i(-1, -1);
 	badTile.type = -1;
 	badTile.destroyTime = 0;
+
+	reload();
 }
 
 TileSet::~TileSet()
@@ -21,7 +22,7 @@ TileSet::~TileSet()
 
 void TileSet::reload()
 {
-	// XML-Dokument laden
+	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename);
 	TiXmlDocument doc;
 	doc.Parse(text.c_str());
@@ -45,7 +46,7 @@ void TileSet::reload()
 		return;
 	}
 
-	// Dateiname des Bilds und Groesse der Tiles lesen
+	// read the image filename and the tile size
 	const char* p_imageFilename = p_tileSetElement->Attribute("image");
 	if(!p_imageFilename)
 	{
@@ -54,9 +55,9 @@ void TileSet::reload()
 		return;
 	}
 
-	// Die Groesse steht fest; die Datei wird nur beim Wort genommen. Fehlende
-	// Angaben gelten als richtig, weil TiXmlElement::Attribute den Wert
-	// unberuehrt laesst, wenn es das Attribut nicht gibt.
+	// The size is fixed; the file is only held to its word. A missing entry
+	// counts as correct, because TiXmlElement::Attribute leaves the value
+	// untouched when the attribute is absent.
 	int fileTileWidth = TILE_SIZE, fileTileHeight = TILE_SIZE;
 	p_tileSetElement->Attribute("tileWidth", &fileTileWidth);
 	p_tileSetElement->Attribute("tileHeight", &fileTileHeight);
@@ -70,7 +71,7 @@ void TileSet::reload()
 		return;
 	}
 
-	// Textur laden
+	// load the texture
 	std::string dir = FileSystem::inst().getPathDirectory(filename);
 	std::string imageFilename = dir + (dir.empty() ? "" : "/") + std::string(p_imageFilename);
 	p_texture = Manager<Texture>::inst().request(imageFilename);
@@ -87,34 +88,34 @@ void TileSet::reload()
 
 	maxTileID = 0;
 
-	// alle Kind-Elemente verarbeiten
+	// process all child elements
 	TiXmlElement* p_tileElement = p_tileSetElement->FirstChildElement("Tile");
 	while(p_tileElement)
 	{
 		TileInfo info = badTile;
 
-		// ID lesen
+		// read the id
 		uint id = static_cast<uint>(p_tileElement->Attribute("id")[0]);
 		maxTileID = max(maxTileID, id);
 
-		// Position lesen
+		// read the position
 		p_tileElement->Attribute("x", &info.position.x);
 		p_tileElement->Attribute("y", &info.position.y);
 
-		// Typ lesen
+		// read the type
 		p_tileElement->Attribute("type", &info.type);
 
 		if(info.type == 2)
 		{
-			// Zerstoerzeit lesen
+			// read the destroy time
 			p_tileElement->Attribute("destroyTime", &info.destroyTime);
 
-			// Woher die Truemmer ihre Farbe nehmen: aus dem Bild der Kachel.
+			// Where the debris takes its colour from: the tile's image.
 			info.sprites.setTexture(p_texture);
 			info.sprites.add(info.position);
 		}
 
-		// Tile-Typ eintragen
+		// record the tile type
 		tiles[id] = info;
 
 		p_tileElement = p_tileElement->NextSiblingElement("Tile");
@@ -125,12 +126,12 @@ void TileSet::cleanUp()
 {
 	if(p_texture)
 	{
-		// Textur loeschen
+		// release the texture
 		p_texture->release();
 		p_texture = 0;
 	}
 
-	// alle Tiles zuruecksetzen
+	// reset every tile
 	for(int i = 0; i < 256; i++) tiles[i] = badTile;
 }
 

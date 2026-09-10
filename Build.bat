@@ -9,10 +9,10 @@ REM                    installed Visual Studio provides; see the note below
 REM    /sdk:VERSION    Windows SDK version for v141 and newer. Without it, 10.0,
 REM                    which MSBuild resolves to the newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
-REM    /optipng        run tools\optipng over the PNGs before packing. Lossless
+REM    /optipng        run Tools\optipng over the PNGs before packing. Lossless
 REM                    but slow, and it rewrites files that are under version
 REM                    control, so it is off by default
-REM    /stage          also run Blocks5\stage.bat afterwards (Release only)
+REM    /stage          run Blocks5\stage.bat afterwards too (Release only)
 REM    /rebuild        clean first, then build
 REM    /clean          delete every build product and exit without building.
 REM                    Both configurations, both the compiler output and the
@@ -35,7 +35,7 @@ REM  $(DefaultPlatformToolset), which is whatever the Visual Studio doing the
 REM  build calls its own newest, so a version newer than this script needs no
 REM  change here. /toolset:vNNN still pins one explicitly.
 REM
-REM  This tree was pinned to v120 (Visual Studio 2013) for a decade, not by
+REM  This tree stayed pinned to v120 (Visual Studio 2013) for a decade, not by
 REM  choice but by two files: libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib
 REM  carried /FAILIFMISMATCH:"_MSC_VER=1800", so link.exe refused any other
 REM  toolset with LNK2038. They were the only files in libs\bin with any linker
@@ -44,16 +44,16 @@ REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
 REM  Getting off v120 needed one more thing, which the tree now has: SDL
 REM  compiled from source out of libs\SDL-1.2.15\src, in place of
-REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib was pre-UCRT and
-REM  imported __iob_func, which the Universal CRT removed, so it linked only on
-REM  v120; sdl.dll was the last file in the tree that needed MSVCR120.
+REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib, a pre-UCRT
+REM  library, imported __iob_func, which the Universal CRT removed, so it linked
+REM  only on v120; sdl.dll held the tree's last dependency on MSVCR120.
 REM
-REM  PWEncrypt also lost a call to gets(), which the Universal CRT no longer has,
+REM  PWEncrypt lost a call to gets() too, which the Universal CRT no longer has,
 REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
 REM  hash_multimap were replaced by the standard unordered containers, which
-REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, which
-REM  was the only thing that needed it, and __STDC_CONSTANT_MACROS and
-REM  __STDC_LIMIT_MACROS went with the shim.
+REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, the
+REM  only thing that needed it; __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS
+REM  went with the shim.
 REM
 REM  Whether v120 or v140 still builds is an open question - the code has no
 REM  dependency that says otherwise, but nobody has tried since the libraries
@@ -238,7 +238,7 @@ GOTO fail
 :toolsetok
 
 REM ------------------------------------------------------------------- build
-REM No /p:PlatformToolset unless one was asked for: left alone, the project
+REM No /p:PlatformToolset unless /toolset: asks for one: left alone, the project
 REM files resolve $(DefaultPlatformToolset), which is this Visual Studio's own
 REM newest. A global /p: cannot be overridden from inside a project, so passing
 REM one here unconditionally would be hardcoding a version all over again.
@@ -279,13 +279,18 @@ IF NOT EXIST "%CONFIG%\blocks5.exe" (
 )
 
 REM ------------------------------------------------------------ pack the data
-REM data.zip and levels\skins\*.zip are build products, not checked in, and the
-REM game cannot start without them. Repacked on every build so that an edit to
-REM data\ cannot be left behind - pass /nodata to skip.
+REM data.zip, levels\skins\*.zip and levels\campaigns\blocks.zip are build
+REM products, not checked in, and the game cannot start without the first two.
+REM Repacked on every build so that an edit to data\ cannot be left behind -
+REM pass /nodata to skip.
+REM
+REM The campaign is packed with them because a level edited in levels\ otherwise
+REM reaches a developer, who plays the loose files, and never a player, who plays
+REM this archive. zip_campaign.bat says why in full.
 IF "%PACKDATA%"=="0" GOTO nodata
 
 ECHO.
-ECHO === Packing data.zip and the skin archives ===
+ECHO === Packing data.zip, the skin archives and the campaign ===
 IF "%OPTIPNG%"=="1" ECHO     (optipng is on - this takes several minutes)
 PUSHD Blocks5
 IF "%OPTIPNG%"=="1" (
@@ -295,6 +300,7 @@ IF "%OPTIPNG%"=="1" (
 	CALL zip_data_no_optipng.bat
 	CALL zip_skins_no_optipng.bat
 )
+CALL zip_campaign.bat
 POPD
 
 SET "MISSING="
@@ -303,10 +309,11 @@ IF NOT EXIST "Blocks5\levels\skins\blocks_01.zip"  SET "MISSING=%MISSING% blocks
 IF NOT EXIST "Blocks5\levels\skins\blocks_02.zip"  SET "MISSING=%MISSING% blocks_02.zip"
 IF NOT EXIST "Blocks5\levels\skins\blocks_03.zip"  SET "MISSING=%MISSING% blocks_03.zip"
 IF NOT EXIST "Blocks5\levels\skins\space.zip"      SET "MISSING=%MISSING% space.zip"
+IF NOT EXIST "Blocks5\levels\campaigns\blocks.zip" SET "MISSING=%MISSING% blocks.zip"
 IF DEFINED MISSING (
 	ECHO.
 	ECHO ERROR: packing did not produce:%MISSING%
-	ECHO        tools\7za.exe is needed for this step.
+	ECHO        Tools\7za.exe is needed for this step.
 	GOTO fail
 )
 :nodata
@@ -364,18 +371,18 @@ POPD
 ENDLOCAL & EXIT /B %GAMEEXIT%
 
 REM ------------------------------------------------------------------- clean
-REM Everything removed here is a build product: MSBuild writes it, or
-REM zip_data.bat / zip_skins.bat / stage.bat do, and none of it is under version
-REM control. Both configurations go, not just the one named on the command line.
+REM Everything this script can build is removed here, and nothing else:
+REM MSBuild writes it, or zip_data.bat / zip_skins.bat / zip_campaign.bat /
+REM stage.bat do, and none of it is under version control. Both configurations
+REM go, not just the one named on the command line.
 REM
 REM Deliberately NOT touched:
 REM   *.suo, *.vcxproj.user   the IDE's per-user settings - debugger arguments,
 REM                           working directory. Regenerating those loses work,
 REM                           and they are not compiler output
-REM   levels\campaigns\blocks.zip and misc\3p_campaigns\*.zip
-REM                           shipped files that happen to be archives. This is
-REM                           why the skin archives below are named one by one
-REM                           instead of matched with a wildcard
+REM   misc\3p_campaigns\*.zip  shipped files that happen to be archives, and the
+REM                           reason the archives below are named one by one: a
+REM                           *.zip sweep under Blocks5\ would take these too
 REM   My Documents\Blocks 5\   saves, progress, screenshots, videos. Nothing the
 REM                           build ever wrote
 :doclean
@@ -406,12 +413,13 @@ CALL :rmdir "ShowUserDir\Debug"
 REM stage.bat
 CALL :rmdir "Blocks5\stage"
 
-REM zip_data.bat and zip_skins.bat
+REM zip_data.bat, zip_skins.bat and zip_campaign.bat
 CALL :rmfile "Blocks5\data.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_01.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_02.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_03.zip"
 CALL :rmfile "Blocks5\levels\skins\space.zip"
+CALL :rmfile "Blocks5\levels\campaigns\blocks.zip"
 
 REM IntelliSense and browse-information caches. Pure caches, rebuilt on demand,
 REM and large enough to be worth removing.

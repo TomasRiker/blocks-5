@@ -1,7 +1,7 @@
 #ifndef _GS_CREDITS_H
 #define _GS_CREDITS_H
 
-/*** Klasse fuer den Abspann ***/
+/*** Class for the credits ***/
 
 #include "gamestate.h"
 #include "engine.h"

@@ -3,28 +3,26 @@
 
 namespace
 {
-	// Groesse des Ringpuffers in Sekunden. Der Rekorder holt die Samples nur
-	// dann ab, wenn ein Videoframe fertig ist, also alle ~33 ms; ein paar
-	// Sekunden Reserve ueberbruecken auch laengere Haenger (Levelwechsel).
+	// Size of the ring buffer in seconds. The recorder fetches the samples
+	// only when a video frame is finished, that is every ~33 ms; a few
+	// seconds of slack bridge longer stalls (a level change) too.
 	const int k_ringBufferSeconds = 4;
 
-	// So weit darf der Ringpuffer hinter der Echtzeit zurueckfallen, bevor mit
-	// Stille aufgefuellt wird. Muss deutlich groesser sein als die Paketrate der
-	// Aufnahme (~10 ms), sonst wird gepolstert, obwohl gleich noch echte Daten
-	// kommen.
+	// How far the ring buffer may fall behind real time before it is padded
+	// with silence. Must be well above the capture's packet rate (~10 ms), or
+	// it pads while real data is about to arrive.
 	const int k_silenceSlackMS = 60;
 
-	// Hoechstens so viel Stille am Stueck einfuegen (in Sekunden)
+	// Insert at most this much silence in one go (in seconds)
 	const int k_maxSilenceBurstSeconds = 1;
 }
 
 // ---------------------------------------------------------------------------
-// Der Ringpuffer. Er steht vor der Fallunterscheidung, weil er auf beiden
-// Plattformen derselbe ist: was die Aufnahme liefert, sind hier wie dort
-// 16-Bit-Stereo-Samples, und verschieden ist nur der Weg dorthin - der
-// Loopback-Modus von WASAPI unter Windows, der Monitor der Standardsenke unter
-// Linux. Der Aufnahmefaden schreibt, der Rekorder liest, der Mutex trennt die
-// beiden.
+// The ring buffer. It stands ahead of the platform split because it is the
+// same on both: what the capture delivers is 16-bit stereo samples either way,
+// and only the path there differs - WASAPI's loopback mode under Windows, the
+// monitor source of the default sink under Linux. The capture thread writes,
+// the recorder reads, the mutex separates the two.
 // ---------------------------------------------------------------------------
 
 struct AudioRing
@@ -32,35 +30,34 @@ struct AudioRing
 	AudioRing();
 	~AudioRing();
 
-	// Puffer und Mutex anlegen bzw. wieder abraeumen.
+	// Create buffer and mutex, or tear them down again.
 	bool allocate(uint sampleRate);
 	void release();
 
-	// Alles wegwerfen, was noch vom letzten Mal darin liegt.
+	// Throw away everything still in there from last time.
 	void clearRing();
 
-	// Fertige Stereo-Samples anhaengen; ist kein Platz mehr, weichen die
-	// aeltesten.
+	// Append finished stereo samples; with no room left, the oldest give way.
 	void push(const short* p_samples, int numSamples);
 
-	// numSamples Stille anhaengen.
+	// Append numSamples of silence.
 	void pushSilence(int numSamples);
 
-	// Die Luecke nach der Uhr auffuellen. Solange nichts abgespielt wird, haelt
-	// der Audiodienst an und liefert gar keine Pakete mehr; ohne das hier waere
-	// die Tonspur kuerzer als das Video. expected ist die Zahl der Samples, die
-	// seit dem Start haetten kommen muessen.
+	// Fill the gap by the clock. While nothing is playing, the audio service
+	// stops and delivers no packets at all; without this the audio track would
+	// be shorter than the video. expected is the number of samples that should
+	// have arrived since the start.
 	void padToClock(long long expected);
 
-	// Die Leserseite, vom Rekorder aus einem anderen Faden gerufen.
+	// The reader side, called by the recorder from another thread.
 	int  available();
 	void read(short* p_buffer, int numSamples);
 
 	SDL_mutex* p_mutex;
 	short* p_ring;
-	int ringSize;   // in Samples
-	int ringRead;   // in Samples
-	int ringFill;   // in Samples
+	int ringSize;   // in samples
+	int ringRead;   // in samples
+	int ringFill;   // in samples
 	uint sampleRate;
 	bool opened;
 	bool overflowed;
@@ -127,14 +124,14 @@ void AudioRing::push(const short* p_samples, int numSamples)
 
 	SDL_LockMutex(p_mutex);
 
-	// mehr als der ganze Puffer auf einmal: nur das Ende behalten
+	// more than the whole buffer at once: keep only the end
 	if(numSamples > ringSize)
 	{
 		p_samples += 2 * (numSamples - ringSize);
 		numSamples = ringSize;
 	}
 
-	// ist kein Platz mehr, weichen die aeltesten Samples
+	// with no room left, the oldest samples give way
 	const int overflow = ringFill + numSamples - ringSize;
 	if(overflow > 0)
 	{
@@ -179,8 +176,8 @@ void AudioRing::padToClock(long long expected)
 	long long missing = expected - samplesWritten;
 	if(missing <= slack) return;
 
-	// War die Pause sehr lang (Levelwechsel, angehaltener Prozess), wird der
-	// Rest verworfen statt endlos aufgeholt.
+	// After a very long pause (a level change, a suspended process) the rest
+	// is dropped rather than caught up endlessly.
 	const long long maxBurst = (long long)sampleRate * k_maxSilenceBurstSeconds;
 	if(missing > maxBurst)
 	{
@@ -225,7 +222,7 @@ void AudioRing::read(short* p_buffer, int numSamples)
 
 	SDL_UnlockMutex(p_mutex);
 
-	// war nicht genug da, wird der Rest stumm
+	// not enough there: the rest goes silent
 	if(numAvailable < numSamples) memset(p_buffer + 2 * numAvailable, 0, (numSamples - numAvailable) * 2 * sizeof(short));
 }
 
@@ -239,19 +236,19 @@ void AudioRing::read(short* p_buffer, int numSamples)
 
 namespace
 {
-	// KSDATAFORMAT_SUBTYPE_PCM und KSDATAFORMAT_SUBTYPE_IEEE_FLOAT. Die stehen sonst
-	// in <ksmedia.h>, das aber den ganzen Kernel-Streaming-Kram nachzieht; hier werden
-	// nur diese beiden GUIDs gebraucht.
+	// KSDATAFORMAT_SUBTYPE_PCM and KSDATAFORMAT_SUBTYPE_IEEE_FLOAT. They otherwise
+	// live in <ksmedia.h>, which drags in the whole kernel-streaming apparatus; only
+	// these two GUIDs are needed here.
 	const GUID k_subformatPCM       = { 0x00000001, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } };
 	const GUID k_subformatIEEEFloat = { 0x00000003, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } };
 
-	// PKEY_Device_FriendlyName, sonst aus <functiondiscoverykeys_devpkey.h>
+	// PKEY_Device_FriendlyName, otherwise from <functiondiscoverykeys_devpkey.h>
 	const PROPERTYKEY k_deviceFriendlyName = { { 0xa45c254e, 0xdf1c, 0x4efd, { 0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0 } }, 14 };
 
-	// gewuenschte Laenge des WASAPI-Puffers in 100-ns-Einheiten (2 Sekunden)
+	// requested length of the WASAPI buffer in 100 ns units (2 seconds)
 	const REFERENCE_TIME k_wasapiBufferDuration = 20000000;
 
-	// Pause zwischen zwei Abholrunden
+	// pause between two fetch rounds
 	const int k_pollDelayMS = 5;
 
 	inline short floatToShort(float value)
@@ -269,13 +266,13 @@ struct AudioCaptureImpl : public AudioRing
 
 	int threadProc();
 
-	// Format des Geraets auswerten; false, wenn wir damit nichts anfangen koennen
+	// Work out the device's format; false where it cannot be used
 	bool setupSourceFormat(const WAVEFORMATEX* p_format);
 
-	// liest ein Frame des Geraets und macht daraus ein Stereo-Paar
+	// reads one device frame and turns it into a stereo pair
 	void readSourceFrame(const BYTE* p_frame, float& left, float& right) const;
 
-	// rechnet numFrames Geraetesamples um und schiebt sie in den Ringpuffer
+	// converts numFrames device samples and pushes them into the ring buffer
 	void convertAndPush(const BYTE* p_data, int numFrames, bool silent);
 
 	std::string deviceName;
@@ -288,14 +285,14 @@ struct AudioCaptureImpl : public AudioRing
 	volatile bool quit;
 	volatile bool capturing;
 
-	// Format des Geraets
+	// device format
 	int srcChannels;
 	int srcRate;
 	int srcBits;
 	int srcBlockAlign;
 	bool srcFloat;
 
-	// Zustand des Resamplers (nur im Capture-Thread)
+	// resampler state (capture thread only)
 	double resampleStep;
 	double resamplePos;
 	float prevLeft;
@@ -338,8 +335,8 @@ bool AudioCaptureImpl::setupSourceFormat(const WAVEFORMATEX* p_format)
 	else if(p_format->wFormatTag == WAVE_FORMAT_PCM) srcFloat = false;
 	else if(p_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE && p_format->cbSize >= 22)
 	{
-		// Der Mischer meldet fast immer WAVE_FORMAT_EXTENSIBLE; erst die SubFormat-GUID
-		// sagt, ob Fliesskomma oder Ganzzahl im Puffer steht.
+		// The mixer almost always reports WAVE_FORMAT_EXTENSIBLE; only the SubFormat
+		// GUID says whether the buffer holds floating point or integers.
 		const WAVEFORMATEXTENSIBLE* p_extensible = (const WAVEFORMATEXTENSIBLE*)p_format;
 		if(IsEqualGUID(p_extensible->SubFormat, k_subformatIEEEFloat)) srcFloat = true;
 		else if(IsEqualGUID(p_extensible->SubFormat, k_subformatPCM)) srcFloat = false;
@@ -362,8 +359,8 @@ void AudioCaptureImpl::readSourceFrame(const BYTE* p_frame, float& left, float& 
 	const int numChannels = srcChannels < 2 ? 1 : 2;
 	const int bytesPerChannel = srcBits / 8;
 
-	// Bei mehr als zwei Kanaelen (5.1, 7.1) sind die ersten beiden vorne links und
-	// rechts; die reichen fuer den Mitschnitt.
+	// With more than two channels (5.1, 7.1) the first two are front left and
+	// right; those are enough for the recording.
 	for(int c = 0; c < numChannels; c++)
 	{
 		const BYTE* p_sample = p_frame + c * bytesPerChannel;
@@ -400,9 +397,9 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 			havePrev = true;
 		}
 
-		// linear zwischen dem vorigen und dem aktuellen Geraetesample interpolieren.
-		// Bei gleicher Abtastrate ist resampleStep genau 1.0, dann kommt jedes Sample
-		// unveraendert durch.
+		// interpolate linearly between the previous and the current device sample.
+		// At an equal sample rate resampleStep is exactly 1.0 and every sample comes
+		// through unchanged.
 		while(resamplePos < 1.0)
 		{
 			const float t = (float)resamplePos;
@@ -431,8 +428,8 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 
 int AudioCaptureImpl::threadProc()
 {
-	// COM gehoert dem Thread, der es initialisiert - alle Schnittstellen unten werden
-	// deshalb nur hier angelegt, benutzt und wieder freigegeben.
+	// COM belongs to the thread that initializes it - every interface below is
+	// therefore created, used and released here and nowhere else.
 	long hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	const bool comInitialized = SUCCEEDED(hr);
 
@@ -447,7 +444,7 @@ int AudioCaptureImpl::threadProc()
 		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), 0, CLSCTX_ALL,
 							  __uuidof(IMMDeviceEnumerator), (void**)&p_enumerator);
 
-		// eRender statt eCapture: aufgenommen wird der Ausgang, nicht der Eingang
+		// eRender, not eCapture: what is recorded is the output, not the input
 		if(SUCCEEDED(hr)) hr = p_enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &p_device);
 
 		if(SUCCEEDED(hr))
@@ -471,7 +468,7 @@ int AudioCaptureImpl::threadProc()
 		if(SUCCEEDED(hr)) hr = p_device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, 0, (void**)&p_audioClient);
 		if(SUCCEEDED(hr)) hr = p_audioClient->GetMixFormat(&p_mixFormat);
 
-		// Im Shared Mode gibt der Mischer das Format vor, umgerechnet wird hier.
+		// In shared mode the mixer sets the format; the conversion happens here.
 		if(SUCCEEDED(hr) && !setupSourceFormat(p_mixFormat)) hr = AUDCLNT_E_UNSUPPORTED_FORMAT;
 
 		if(SUCCEEDED(hr)) hr = p_audioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
@@ -482,9 +479,9 @@ int AudioCaptureImpl::threadProc()
 	initResult = hr;
 	initOK = comInitialized && SUCCEEDED(hr) && p_captureClient != 0;
 
-	// Der Hauptthread wartet auf dieses Signal und wertet initOK aus. printfLog darf
-	// hier nicht benutzt werden, es hat einen statischen Puffer und ist nicht
-	// threadsicher - deshalb wird nur das Ergebnis hinterlegt.
+	// The main thread waits for this signal and reads initOK. printfLog must not
+	// be used here: it has a static buffer and is not thread-safe, which is why
+	// only the result is left behind.
 	SDL_SemPost(p_initSemaphore);
 
 	if(initOK)
@@ -500,13 +497,13 @@ int AudioCaptureImpl::threadProc()
 
 		while(!quit)
 		{
-			// started statt running, damit ein fehlgeschlagenes Start() nicht alle
-			// paar Millisekunden neu versucht wird
+			// started, not running: a failed Start() must not be retried every
+			// few milliseconds
 			if(capturing && !started)
 			{
 				started = true;
 
-				// alles wegwerfen, was noch vom letzten Mal herumliegt
+				// throw away everything still lying around from last time
 				clearRing();
 				havePrev = false;
 				resamplePos = 0.0;
@@ -530,7 +527,7 @@ int AudioCaptureImpl::threadProc()
 				continue;
 			}
 
-			// alle bereitliegenden Pakete abholen
+			// fetch every packet that is ready
 			while(running && !deviceLost)
 			{
 				UINT32 packetFrames = 0;
@@ -545,14 +542,14 @@ int AudioCaptureImpl::threadProc()
 				if(hr == AUDCLNT_S_BUFFER_EMPTY) break;
 				if(FAILED(hr)) { deviceLost = true; break; }
 
-				// Bei AUDCLNT_BUFFERFLAGS_SILENT zeigt p_data ins Leere, die Samples
-				// muessen aber trotzdem gezaehlt werden.
+				// With AUDCLNT_BUFFERFLAGS_SILENT p_data points at nothing, but
+				// the samples still have to be counted.
 				convertAndPush(p_data, (int)numFrames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
 				p_captureClient->ReleaseBuffer(numFrames);
 			}
 
-			// Solange nichts abgespielt wird, haelt die Audio-Engine an und liefert gar
-			// keine Pakete mehr; padToClock() fuellt die Luecke.
+			// While nothing is playing, the audio engine stops and delivers no
+			// packets at all; padToClock() fills the gap.
 			LARGE_INTEGER now;
 			QueryPerformanceCounter(&now);
 			padToClock((now.QuadPart - captureStart.QuadPart) * (LONGLONG)sampleRate / qpcFrequency.QuadPart);
@@ -612,7 +609,7 @@ bool AudioCapture::open(uint sampleRate)
 		return false;
 	}
 
-	// auf das Ergebnis der WASAPI-Initialisierung warten
+	// wait for the result of the WASAPI initialization
 	SDL_SemWait(p_impl->p_initSemaphore);
 	if(!p_impl->initOK)
 	{
@@ -665,30 +662,30 @@ void AudioCapture::stop()
 #elif !defined(__EMSCRIPTEN__)
 
 // ---------------------------------------------------------------------------
-// Linux. Was WASAPI den Loopback-Modus nennt, heisst bei PulseAudio Monitor:
-// zu jeder Ausgabesenke gibt es eine gleichnamige Quelle, die mithoert, was
-// gerade hinausgeht. "@DEFAULT_MONITOR@" ist die der Standardsenke, so dass
-// nichts aufgezaehlt werden muss. PipeWire bringt mit pipewire-pulse dieselbe
-// Schnittstelle mit, also deckt der eine Weg beide ab.
+// Linux. What WASAPI calls loopback mode is a monitor in PulseAudio: every
+// output sink has a source of the same name that listens in on what is going
+// out. "@DEFAULT_MONITOR@" is the default sink's, which saves enumerating
+// anything. PipeWire brings the same interface along with pipewire-pulse, and
+// the one path therefore covers both.
 //
-// libpulse wird zur Laufzeit geladen und nicht dazugebunden: das Spiel soll
-// auch dort starten, wo kein PulseAudio liegt - dann bleiben die Videos stumm,
-// wie bisher auf jeder Nicht-Windows-Plattform. Aus demselben Grund sind die
-// paar gebrauchten Deklarationen hier von Hand aufgeschrieben statt aus
-// <pulse/simple.h> geholt: sonst braeuchte der Build libpulse-dev.
+// libpulse is loaded at runtime rather than linked against: the game still
+// starts where PulseAudio is absent - the videos are then silent. For the same
+// reason the handful of declarations needed here are written out by hand
+// instead of taken from <pulse/simple.h>: otherwise the build would need
+// libpulse-dev.
 //
-// pa_simple bekommt gesagt, welches Format es liefern soll - S16LE, stereo,
-// 48 kHz -, und der Server rechnet um. Deshalb gibt es hier weder die
-// Formatumrechnung noch den Resampler der Windows-Seite.
+// pa_simple is told which format to deliver - S16LE, stereo, 48 kHz - and the
+// server converts. That is why neither the format conversion nor the
+// resampler of the Windows side exists here.
 // ---------------------------------------------------------------------------
 
 #include <dlfcn.h>
 
 namespace
 {
-	// Der Ausschnitt der libpulse-ABI, den diese Datei braucht. pa_simple_new
-	// nimmt fuer Kanalzuordnung und Pufferwuensche NULL, damit bleiben von den
-	// Strukturen nur die Formatangabe uebrig.
+	// The slice of the libpulse ABI this file needs. pa_simple_new takes NULL
+	// for the channel map and the buffer attributes, which leaves the format
+	// spec as the only struct.
 	enum { PA_SAMPLE_S16LE = 3 };
 	enum { PA_STREAM_RECORD = 2 };
 
@@ -722,16 +719,16 @@ namespace
 		{
 			if(p_library) return true;
 
-			// Die Version im Namen ist Absicht: libpulse-simple.so ohne Nummer
-			// gehoert zum Entwicklungspaket und liegt auf einem Spielrechner
-			// nicht.
+			// The version in the name is deliberate: the same name without the
+			// number belongs to the development package and is not on a
+			// player's machine.
 			p_library = dlopen("libpulse-simple.so.0", RTLD_LAZY | RTLD_LOCAL);
 			if(!p_library) return false;
 
 			simple_new  = (pa_simple_new_t) dlsym(p_library, "pa_simple_new");
 			simple_read = (pa_simple_read_t)dlsym(p_library, "pa_simple_read");
 			simple_free = (pa_simple_free_t)dlsym(p_library, "pa_simple_free");
-			// pa_strerror steht in libpulse selbst, nicht in libpulse-simple.
+			// pa_strerror lives in libpulse itself, not in libpulse-simple.
 			strerror    = (pa_strerror_t)   dlsym(p_library, "pa_strerror");
 
 			if(!simple_new || !simple_read || !simple_free)
@@ -749,9 +746,9 @@ namespace
 		}
 	};
 
-	// Wie viele Samples auf einmal geholt werden. pa_simple_read wartet, bis so
-	// viele da sind, also darf es nicht zu viel sein - sonst haengt der Faden
-	// beim Beenden zu lange. 10 ms sind auch das, was WASAPI je Paket liefert.
+	// How many samples are fetched at once. pa_simple_read waits until that
+	// many are there, and it must not be too many - the thread would otherwise
+	// hang too long on shutdown. 10 ms is what WASAPI delivers per packet too.
 	const int k_readSamples = 480;
 }
 
@@ -795,8 +792,8 @@ int AudioCaptureImpl::threadProc()
 	spec.rate     = sampleRate;
 	spec.channels = 2;
 
-	// "@DEFAULT_MONITOR@" loest der Server auf den Monitor der gerade
-	// eingestellten Standardsenke auf - genau das, was der Spieler hoert.
+	// The server resolves "@DEFAULT_MONITOR@" to the monitor of the currently
+	// selected default sink - exactly what the player hears.
 	p_stream = pulse.simple_new(0, "Blocks 5", PA_STREAM_RECORD, "@DEFAULT_MONITOR@",
 								"video capture", &spec, 0, 0, &initError);
 	initOK = p_stream != 0;
@@ -813,7 +810,7 @@ int AudioCaptureImpl::threadProc()
 		if(capturing && !started)
 		{
 			started = true;
-			// alles wegwerfen, was noch vom letzten Mal herumliegt
+			// throw away everything still lying around from last time
 			clearRing();
 			samplesWritten = 0;
 			overflowed = false;
@@ -831,17 +828,17 @@ int AudioCaptureImpl::threadProc()
 			break;
 		}
 
-		// Auch wenn gerade nicht aufgenommen wird, muss weitergelesen werden:
-		// sonst laeuft der Puffer des Servers ueber und die naechste Aufnahme
-		// beginnt mit Sekunden alter Musik.
+		// Reading has to continue even while nothing is being recorded:
+		// otherwise the server's buffer overflows and the next recording begins
+		// with music seconds old.
 		if(!started) continue;
 
 		push(buffer, k_readSamples);
 		samplesWritten += k_readSamples;
 
-		// Eine ruhende Senke liefert nichts mehr - module-suspend-on-idle ist
-		// voreingestellt geladen -, und pa_simple_read wartet dann. Die Luecke
-		// nach der Uhr auffuellen, damit die Tonspur so lang wird wie das Video.
+		// A suspended sink delivers nothing - module-suspend-on-idle is loaded
+		// by default - and pa_simple_read then waits. Fill the gap by the
+		// clock, keeping the audio track as long as the video.
 		padToClock((long long)((getExactTime() - captureStart) * sampleRate));
 	}
 
@@ -893,7 +890,7 @@ bool AudioCapture::open(uint sampleRate)
 		return false;
 	}
 
-	// auf das Ergebnis von pa_simple_new warten
+	// wait for the result of pa_simple_new
 	SDL_SemWait(p_impl->p_initSemaphore);
 	if(!p_impl->initOK)
 	{
@@ -952,10 +949,19 @@ void AudioCapture::stop()
 #else
 
 // ---------------------------------------------------------------------------
-// Browser. Eine Seite kann nicht mithoeren, was sie selbst ausgibt, und
-// aufgenommen wird dort ohnehin nicht: $A_TOGGLE_CAPTURE_VIDEO gibt es im
-// Web-Build gar nicht. Der Ringpuffer bleibt ungeoeffnet, damit die gemeinsame
-// Leserseite darunter Stille liefert.
+// Browser. A stub, because nothing is recorded there:
+// $A_TOGGLE_CAPTURE_VIDEO does not exist in the web build at all. The ring
+// buffer stays unopened, and the shared reader side below then delivers
+// silence.
+//
+// Not because a page could not listen in on its own output - it can. In
+// Emscripten's OpenAL every source hangs off AL.currentCtx.gain and that in
+// turn off ctx.destination; one extra connection from that sum node to a
+// createMediaStreamDestination() delivers exactly the finished mix, the same
+// thing WASAPI loopback under Windows and the monitor source under Linux are
+// needed for. What would remain is pushing the blocks from there into the
+// AudioRing as 16 bit stereo 48 kHz, out of an AudioWorklet. See ROADMAP,
+// item 28.
 // ---------------------------------------------------------------------------
 
 struct AudioCaptureImpl : public AudioRing
@@ -1005,7 +1011,7 @@ void AudioCapture::stop()
 #endif
 
 // ---------------------------------------------------------------------------
-// Die Leserseite gehoert beiden: sie liest nur den Ringpuffer.
+// The reader side belongs to both: it only reads the ring buffer.
 // ---------------------------------------------------------------------------
 
 int AudioCapture::getNumSamplesReady()

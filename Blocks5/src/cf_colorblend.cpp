@@ -18,7 +18,7 @@ void CF_ColorBlend::render(double t,
 
 	if(t <= timing)
 	{
-		// altes Bild zeichnen
+		// draw the old image
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, oldImageID);
 		glBegin(GL_QUADS);
@@ -35,7 +35,7 @@ void CF_ColorBlend::render(double t,
 		glDisable(GL_TEXTURE_2D);
 	}
 
-	// Farbflaeche zeichnen
+	// draw the colour quad
 	glBegin(GL_QUADS);
 	double alpha = 1.0 - (1.0 / (1.0 - timing)) * abs(t - timing);
 	glColor4d(color.r, color.g, color.b, alpha);

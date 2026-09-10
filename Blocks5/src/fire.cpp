@@ -17,7 +17,7 @@ Fire::~Fire()
 
 void Fire::updateSprites()
 {
-	// Feuer
+	// fire
 	sprites.add(Vec2i((anim / 5 % 8) * 32, 320), Vec4d(1.0, 1.0, 1.0, 0.5));
 }
 
@@ -33,7 +33,7 @@ void Fire::onRender(int layer,
 
 void Fire::onUpdate()
 {
-	// Feuer
+	// fire
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 	ParticleSystem::Particle p;
@@ -54,7 +54,7 @@ void Fire::onUpdate()
 	if(randomInt() % 2) p_particleSystem->addParticle(p);
 	else p_fireParticleSystem->addParticle(p);
 
-	// Befindet sich ein Objekt auf dem Feuer?
+	// Is there an object on the fire?
 	const std::vector<Object*> objectsOnMe = level.getObjectsAt(position);
 	for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
 	{
@@ -73,7 +73,7 @@ void Fire::onUpdate()
 
 				Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
-				// Truemmer
+				// debris
 				const Sprites& debris = p_destroyed->getSprites();
 				int n = debris.getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
@@ -101,7 +101,7 @@ void Fire::onUpdate()
 
 				if(p_obj->getFlags() & OF_KILL_FIRE)
 				{
-					// Das Feuer geht jetzt aus!
+					// The fire goes out now!
 					const Sprites& ownDebris = getSprites();
 					const int numTries = ownDebris.getTryCount(50);
 					for(int i = 0; i < numTries; i++)

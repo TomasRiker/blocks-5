@@ -1,7 +1,7 @@
 #ifndef _FILE_ARCHIVED_H
 #define _FILE_ARCHIVED_H
 
-/*** Klasse fuer eine archivierte Datei ***/
+/*** Class for an archived file ***/
 
 #include "file.h"
 #include <zip.h>

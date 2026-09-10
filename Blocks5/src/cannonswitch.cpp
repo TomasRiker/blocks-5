@@ -20,7 +20,7 @@ CannonSwitch::~CannonSwitch()
 
 void CannonSwitch::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(160 + subType * 32, 288), getStdColor(this->color));
 }
 
@@ -40,12 +40,12 @@ void CannonSwitch::onTouchedByPlayer(Player* p_player)
 
 	if(subType == 0)
 	{
-		// Kanonen abfeuern
+		// fire the cannons
 		level.fireCannons(color);
 	}
 	else
 	{
-		// Kanonen drehen
+		// rotate the cannons
 		level.rotateCannons(color);
 	}
 }

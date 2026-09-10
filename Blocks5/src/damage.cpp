@@ -20,7 +20,7 @@ Damage::~Damage()
 
 void Damage::updateSprites()
 {
-	// verbrannter Boden - das einzige Objektbild, das nicht 16x16 ist
+	// burnt ground - the only object sprite that is not 16x16
 	Sprite& sprite = sprites.add(Vec2i(209, 129));
 	sprite.size = Vec2i(46, 46);
 	sprite.offset = Vec2i(-16, -16);

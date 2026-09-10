@@ -8,7 +8,7 @@
 // meta mean anything: without isMobile the browser lays out at the window width
 // and the tag has nothing to do.
 //
-// Checked here, in order of how much each one hurt when it was missing:
+// Checked here, in order of how much each one hurt by its absence:
 //
 //   1. the layout viewport is the device width, not the ~980px default
 //   2. the page cannot be scrolled or zoomed away from the game
@@ -17,12 +17,12 @@
 //   5. the manifest is served, parses, and says what an install needs
 //   6. the service worker installs and has the payload in its cache
 //   7. with the network off, a reload still reaches the menu
-//   8. that first tap also takes the page fullscreen and asks for landscape
+//   8. that first tap takes the page fullscreen too and asks for landscape
 //
 // Number four is the one that needs the wait in the middle. The game samples
-// the mouse once per 20 ms logic tick, so a tap that presses and releases in
-// the same millisecond falls between two samples and is never seen - the same
-// trap as page.mouse.click(), and page.touchscreen.tap() has it too.
+// the mouse once per 20 ms logic tick; a tap that presses and releases in the
+// same millisecond therefore falls between two samples and is never seen - the
+// same trap as page.mouse.click(), and page.touchscreen.tap() has it too.
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -78,7 +78,7 @@ async function waitFor(page, want, what, timeoutMs) {
 }
 
 // "Booted" is the first dump that answers with a state at all. The GUI tree is
-// still empty in GS_Loading, so it cannot be part of the condition here.
+// still empty in GS_Loading and therefore cannot be part of the condition here.
 const booted = d => !!d.state;
 
 // A tap that the game can actually see: down, hold past a logic tick, up.
@@ -118,10 +118,10 @@ async function toPage(page, win) {
 	});
 	const context = await browser.newContext(PHONE);
 	// Whether the landscape lock is asked for is the only part of it that can be
-	// checked here: a headless browser has no orientation to turn, so the lock
-	// is refused whatever the page does. Recording the call still catches the
-	// regression that matters - the request going missing - and calling through
-	// keeps the refusal, which the page must swallow.
+	// checked here: a headless browser has no orientation to turn, which means
+	// the lock is refused whatever the page does. Recording the call still
+	// catches the regression that matters - the request going missing - and
+	// calling through keeps the refusal, which the page must swallow.
 	await context.addInitScript(() => {
 		window.__b5locks = [];
 		if (!window.screen || !screen.orientation) return;
@@ -162,9 +162,9 @@ async function toPage(page, win) {
 		} else {
 			bad('manifest is missing something an install needs');
 		}
-		// A launcher crops a maskable icon to a shape of its own choosing, so one
-		// has to exist and it must not be the full-bleed drawing - that would come
-		// back with its rim cut off.
+		// A launcher crops a maskable icon to a shape of its own choosing, which
+		// means one has to exist and it must not be the full-bleed drawing - that
+		// would come back with its rim cut off.
 		const maskable = icons.filter(i => /maskable/.test(i.purpose || ''));
 		if (maskable.length) {
 			const shot = await page.request.get(url.replace('index.html', maskable[0].src));
@@ -211,14 +211,20 @@ async function toPage(page, win) {
 
 		// --- 8. and took the page fullscreen ---------------------------------
 		// There is no button for this in mobile Chrome, and the API needs a real
-		// gesture, so the game takes the one tap it already requires. Portrait is
-		// unplayable at this size, hence the lock that goes with it.
+		// gesture, which is why the game takes the one tap it already requires.
+		// Portrait is unplayable at this size, hence the lock that goes with it.
+		//
+		// It has to be the ROOT element and not the canvas: the browser paints
+		// only the fullscreen element and what is inside it; with the canvas
+		// promoted the on-screen controls beside it are simply not drawn - while
+		// still reporting a full-size bounding rect, which is why measuring them
+		// would not have noticed.
 		const full = await page.evaluate(() => ({
-			el: (document.fullscreenElement || document.webkitFullscreenElement || {}).id || null,
+			el: (document.fullscreenElement || document.webkitFullscreenElement || {}).tagName || null,
 			locks: window.__b5locks.slice(),
 		}));
-		if (full.el === 'canvas') ok('the same tap took the canvas fullscreen');
-		else bad('not fullscreen after the tap (' + full.el + ')');
+		if (full.el === 'HTML') ok('the same tap took the page fullscreen');
+		else bad('the fullscreen element is ' + full.el + ', expected HTML');
 		if (full.locks.indexOf('landscape') >= 0) ok('landscape was requested');
 		else bad('no landscape lock was requested');
 
@@ -237,7 +243,7 @@ async function toPage(page, win) {
 		if (opts && opts.shown) ok('a tap on Menu.Options opened the options');
 		else bad('a tap on Menu.Options did not open the options');
 
-		// Back out again, so the reload below starts from the menu.
+		// Back out again - the reload below has to start from the menu.
 		await page.keyboard.press('Escape');
 		await wait(1500);
 
@@ -252,11 +258,10 @@ async function toPage(page, win) {
 			}
 			return { scope: reg.scope, names: names, held: held };
 		});
-		// Die drei Nutzlastdateien tragen die Kennung des Baus im Namen, damit
-		// kein Zwischenspeicher auf dem Weg die JavaScript-Datei des einen Baus
-		// neben das wasm eines anderen legen kann. Der Name des
-		// Zwischenspeichers traegt dieselbe Kennung, also steht hier keine
-		// Liste, die veralten koennte.
+		// The three payload files carry the build's stamp in their names, which
+		// keeps any cache on the way from putting one build's JavaScript file
+		// beside another build's wasm. The cache name carries the same stamp,
+		// leaving no list here that could go stale.
 		const build = (sw.names[0] || '').replace(/^blocks5-/, '');
 		const need = ['/index.html', '/blocks5-' + build + '.js',
 		              '/blocks5-' + build + '.wasm', '/blocks5-' + build + '.data'];
@@ -266,37 +271,36 @@ async function toPage(page, win) {
 		} else {
 			bad('service worker cache ' + JSON.stringify(sw.names) + ' is missing ' + missing.join(', '));
 		}
-		// Und nichts Ungestempeltes: genau daran ist es auf einem Server mit
-		// mod_pagespeed zerbrochen.
+		// And nothing unstamped: that is exactly what broke it on a server
+		// running mod_pagespeed.
 		const unstamped = sw.held.filter(f => /^\/blocks5\.(js|wasm|data)$/.test(f));
-		if (unstamped.length) bad('ungestempelte Namen im Zwischenspeicher: ' + unstamped.join(', '));
-		else ok('alle Nutzlastdateien tragen die Kennung des Baus');
+		if (unstamped.length) bad('unstamped names in the cache: ' + unstamped.join(', '));
+		else ok('every payload file carries the build stamp');
 
-		// --- 6b. ein neuer Bau kommt auch an ----------------------------------
-		// index.html traegt als einzige Datei keine Kennung im Namen, und der
-		// Worker hat sie frueher aus seinem Zwischenspeicher beantwortet - dann
-		// erfaehrt niemand je von einer neuen Fassung. Geprueft mit einem
-		// Marker, den das Spiel nicht anfasst: document.title taugt nicht, den
-		// setzt es ueber SDL_WM_SetCaption selbst.
+		// --- 6b. a new build gets through too --------------------------------
+		// index.html is the one file with no stamp in its name; answering it from
+		// the cache would keep a new version from ever becoming visible. Checked
+		// with a marker the game does not touch: document.title will not do, since
+		// the game sets that itself through SDL_WM_SetCaption.
 		const indexFile = path.join(DIR, 'index.html');
 		const original = fs.readFileSync(indexFile, 'utf8');
 		try {
 			fs.writeFileSync(indexFile, original.replace(
 				'<title>Blocks 5</title>',
-				'<title>Blocks 5</title><meta name="b5probe" content="neu">'));
+				'<title>Blocks 5</title><meta name="b5probe" content="new">'));
 			await page.reload();
 			await wait(2500);
 			const probe = await page.evaluate(() => {
 				const m = document.querySelector('meta[name=b5probe]');
 				return m ? m.content : '';
 			});
-			if (probe === 'neu') ok('ein geaendertes index.html kommt bei einem gewoehnlichen Neuladen an');
-			else bad('index.html kam aus dem Zwischenspeicher - eine neue Fassung wuerde nie sichtbar');
+			if (probe === 'new') ok('a changed index.html arrives on an ordinary reload');
+			else bad('index.html came from the cache - a new version would never become visible');
 		} finally {
 			fs.writeFileSync(indexFile, original);
 		}
 		await page.reload();
-		await waitFor(page, booted, 'den Neustart', 240000);
+		await waitFor(page, booted, 'the restart', 240000);
 
 		// --- 7. offline ------------------------------------------------------
 		await context.setOffline(true);

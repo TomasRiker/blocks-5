@@ -1,18 +1,18 @@
 #ifndef _SPRITE_H
 #define _SPRITE_H
 
-/*** Klassen fuer das Aussehen eines Objekts oder einer Kachel ***/
+/*** Classes for the appearance of an object or a tile ***/
 
 class Texture;
 
-// Deckkraft, mit der ein Truemmerpartikel startet.
+// Opacity a debris particle starts with.
 const double DEBRIS_ALPHA = 0.25;
 
-// Wuerfe je gewuenschtem Partikel; der Stellknopf fuer die Dichte der Wolke.
+// Tries per desired particle; the dial for the density of the cloud.
 const int DEBRIS_TRIES_PER_PARTICLE = 2;
 
-// Ein Teilbild. color ist die Eigenfaerbung des Objekts, nicht die des
-// Renderdurchgangs - die multipliziert renderSprites() dazu.
+// One sprite. color is the object's own tint, not the render pass's -
+// renderSprites() multiplies that one in.
 struct Sprite
 {
 	static const int SIZE = 16;
@@ -44,15 +44,15 @@ public:
 	void setTexture(Texture* p_texture);
 	Texture* getTexture() const;
 
-	// Kleinstes achsenparalleles Rechteck in Objektkoordinaten, das alle
-	// Teilbilder mit Drehung und Versatz enthaelt.
+	// Smallest axis-aligned rectangle in object coordinates holding every
+	// sprite with its rotation and offset.
 	void getFootprint(Vec2i* p_minOut, Vec2i* p_maxOut) const;
 
-	// Wuerfe fuer im Mittel numParticles Partikel; waechst mit der Flaeche.
+	// Tries for numParticles particles on average; grows with the area.
 	int getTryCount(int numParticles) const;
 
-	// Verwerfungsstichprobe fuer die Farbe eines Truemmerpartikels. false
-	// heisst: an der gewuerfelten Stelle ist nichts.
+	// Rejection sampling for the colour of a debris particle. false means:
+	// there is nothing at the spot the try landed on.
 	bool sample(Vec4d* p_colorOut, Vec2i* p_offsetOut) const;
 
 private:

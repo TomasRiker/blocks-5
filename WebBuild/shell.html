@@ -44,10 +44,31 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: #000; transition: opacity .4s;
   }
-  div#b5_boot img { width: 176px; max-width: 55vw; margin-bottom: 18px; }
-  div#b5_bar { width: 240px; max-width: 70vw; height: 6px; border-radius: 3px; background: #222; overflow: hidden; }
-  div#b5_bar > i { display: block; height: 100%; width: 0; background: #f0a000; transition: width .2s; }
-  div#b5_msg { min-height: 1.3em; margin-top: 12px; }
+  /* The whole boot screen is pixel art, because the game behind it is. The icon
+     is a 6x replication of a 32x32 drawing, so it is shown at an integer
+     multiple of 32 and told not to be resampled; the bar is drawn in whole
+     blocks; and the line of text is the game's own font, blown up the same way
+     (see drawMessage). */
+  /* The direct child only - the line of text is an img too, one level down,
+     and must keep the size drawMessage gives it. */
+  div#b5_boot > img {
+    width: 160px; max-width: 60vw; margin-bottom: 20px;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+  }
+  /* No rounded corners and no transition: a block appears or it does not. The
+     9-on-3-off gradient is what makes the fill look like discrete cells; the
+     track's own width is set in JS to a whole number of them, so a full bar
+     ends flush with its right edge instead of on a gap. */
+  div#b5_bar {
+    width: 237px; max-width: 70vw; height: 12px; background: #1a1a1a;
+    box-shadow: 0 0 0 3px #3a3a3a; overflow: hidden;
+  }
+  div#b5_bar > i {
+    display: block; height: 100%; width: 0;
+    background: repeating-linear-gradient(90deg, #f0a000 0 9px, transparent 9px 12px);
+  }
+  div#b5_msg { margin-top: 20px; }
+  div#b5_msg img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 </style>
 </head>
 <body>
@@ -59,7 +80,7 @@
 <div id="b5_boot">
   <img src="icon-192.png" alt="Blocks 5">
   <div id="b5_bar"><i></i></div>
-  <div id="b5_msg">Loading ...</div>
+  <div id="b5_msg"></div>
 </div>
 
 <script>
@@ -76,24 +97,85 @@
     setTimeout(function () { if (boot.parentNode) boot.parentNode.removeChild(boot); }, 450);
   }
 
+  // German or English, by the same rule the game uses in
+  // Engine::detectSystemLanguage: walk navigator.languages and take the first
+  // tag that is one or the other. Only those two exist - every string in
+  // data/languages.txt has an English body and a German one and nothing else -
+  // so everything else is English.
+  var german = (function () {
+    var list = navigator.languages || [navigator.language || ''];
+    for (var i = 0; i < list.length; i++) {
+      var tag = String(list[i] || '').toLowerCase();
+      if (tag.indexOf('de') === 0) return true;
+      if (tag.indexOf('en') === 0) return false;
+    }
+    return false;
+  })();
+
+  // The line is the game's own $LOADING, drawn in the game's own font: the page
+  // stands before data.zip and before any GL context, so it cannot render that
+  // font itself. build.sh does it instead (WebBuild/make_text.py) and stamps the
+  // two images in here, in their real pixels, which this then blows up by a
+  // whole factor. Same rule as the icons - replication at an integer factor,
+  // never a resize - and one fewer request than a file would cost.
+  var TEXTS = %%LOADTEXT%%;
+  var MESSAGE = TEXTS[german ? 'de' : 'en'];
+  var GAP_ABOVE = 20;               // same as div#b5_msg { margin-top }
+
+  function drawMessage(t) {
+    if (!t) return;
+    // Whole factors only, and only as far as the line may be wide: on a narrow
+    // phone, smaller rather than resampled.
+    var scale = Math.max(1, Math.min(3, Math.floor((window.innerWidth - 24) / t.w)));
+    var img = new Image();
+    img.src = 'data:image/png;base64,' + t.d;
+    img.style.width = (t.w * scale) + 'px';
+    img.style.height = (t.h * scale) + 'px';
+    img.alt = '';
+    msg.textContent = '';
+    msg.appendChild(img);
+
+    // The glyphs start t rows below the top edge of the image, and that gap
+    // grows with the scale. Left alone it makes the space above the line look
+    // wider than the one under Bob, so Bob gets the same amount added rather
+    // than the line being pulled up.
+    var icon = document.querySelector('div#b5_boot > img');
+    if (icon) icon.style.marginBottom = (GAP_ABOVE + t.t * scale) + 'px';
+  }
+
+  // The bar fills in whole blocks rather than continuously. n blocks carry only
+  // n-1 gaps, so the track is sized to that and not to a round 240: otherwise a
+  // full bar stops three pixels short of its own right edge, on the gap that
+  // belongs after the last block.
+  var BLOCK = 9, GAP = 3, CELL = BLOCK + GAP;
+  var BAR_MAX = 240;
+  var progress = 0;
+
+  function setProgress(fraction) {
+    progress = Math.max(0, Math.min(1, fraction));
+    var room = Math.min(BAR_MAX, Math.floor(window.innerWidth * 0.7));
+    var cells = Math.max(1, Math.floor((room + GAP) / CELL));
+    var filled = Math.round(progress * cells);
+    bar.parentNode.style.width = (cells * CELL - GAP) + 'px';
+    bar.style.width = (filled > 0 ? filled * CELL - GAP : 0) + 'px';
+  }
+
   // Emscripten reports progress as "Preparing... (3/7)" and ends with an empty
-  // string when everything is in; anything else is a plain message.
+  // string when everything is in.
   function setStatus(text) {
     if (gone) return;
     if (!text) { hideBoot(); return; }
-    var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+    var m = text.match(/\((\d+(\.\d+)?)\/(\d+)\)/);
     if (m) {
-      var done = parseFloat(m[2]), all = parseFloat(m[4]);
-      if (all > 0) bar.style.width = (100 * done / all) + '%';
-      msg.textContent = m[1].trim();
-    } else {
-      msg.textContent = text;
+      var all = parseFloat(m[3]);
+      if (all > 0) setProgress(parseFloat(m[1]) / all);
     }
+    drawMessage(MESSAGE);
   }
 
-  // build.sh stempelt hier die Kennung des Builds hinein. blocks5.js sucht
-  // seine beiden grossen Nachbarn ueber locateFile, also genuegt dieser eine
-  // Ort, damit alle drei Dateien den Namen desselben Baus tragen.
+  // build.sh stamps the build's id in here. blocks5.js finds its two large
+  // neighbours through locateFile, so this one place is enough for all three
+  // files to carry the name of the same build.
   var B5_BUILD = '%%BUILD%%';
 
   var Module = {
@@ -107,12 +189,22 @@
     totalDependencies: 0,
     monitorRunDependencies: function (left) {
       this.totalDependencies = Math.max(this.totalDependencies, left);
-      setStatus(left ? 'Loading ... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')'
-                     : '');
+      setStatus(left ? '(' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : '');
     }
   };
   Module['postRun'] = [hideBoot];
   window.Module = Module;
+
+  // Emscripten takes a moment to report the first status, and the line should
+  // not be empty until then. Turning the device recomputes both, since the
+  // scale and the block count depend on the width.
+  drawMessage(MESSAGE);
+  setProgress(0);
+  window.addEventListener('resize', function () {
+    if (gone) return;
+    setProgress(progress);
+    drawMessage(MESSAGE);
+  });
 
   // Losing the GL context is a real event on a phone: the browser may drop it
   // while the tab is in the background. The game cannot rebuild its textures,
@@ -154,9 +246,9 @@
   }
 })();
 </script>
-<!-- Die Bildschirmsteuerung. Eine gewoehnliche Seiten-Datei, kein Teil der
-     gestempelten Nutzlast: sie schickt nur Tastenereignisse und weiss vom
-     Spiel nichts. ?pad=on erzwingt sie, ?pad=off schaltet sie ab. -->
+<!-- The on-screen pad. An ordinary page file and no part of the stamped
+     payload: it only sends key events and knows nothing of the game. ?pad=on
+     forces it on, ?pad=off switches it off. -->
 <script src="touch_controls.js"></script>
 {{{ SCRIPT }}}
 </body>

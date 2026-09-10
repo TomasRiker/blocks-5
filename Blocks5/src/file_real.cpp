@@ -46,7 +46,7 @@ File_Real::File_Real(const std::string& filename,
 	}
 	else if(mode == FileSystem::FM_LIST)
 	{
-		// Dateien auflisten
+		// list the files
 #ifdef _WIN32
 		WIN32_FIND_DATAA findData;
 		HANDLE find = FindFirstFileA((filename + "/*.*").c_str(), &findData);
@@ -78,10 +78,10 @@ File_Real::File_Real(const std::string& filename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		// remove() liefert 0, wenn die Datei danach weg ist. Ohne diese Pruefung
-		// meldet FileSystem::deleteFile() auch dann Erfolg, wenn gar nichts
-		// geloescht wurde - eine schreibgeschuetzte oder offene Datei bleibt
-		// stehen, und der Manager sagt, sie sei fort.
+		// remove() returns 0 once the file is gone. Without this check
+		// FileSystem::deleteFile() reports success even when nothing has been
+		// deleted - a read-only or open file stays where it is and the Manager
+		// says it is gone.
 		if(remove(filename.c_str()) != 0) error = 9;
 	}
 	else

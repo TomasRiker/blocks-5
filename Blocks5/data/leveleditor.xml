@@ -39,30 +39,35 @@
 	</Button>
 	<RadioButton name="Cat0" x="10" y="430" w="65" h="15">
 		<Title>$LE_CATEGORY1</Title>
+		<ToolTip>$LE_TT_CATEGORY1</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat1" x="76" y="430" w="65" h="15">
 		<Title>$LE_CATEGORY2</Title>
+		<ToolTip>$LE_TT_CATEGORY2</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat2" x="10" y="446" w="65" h="15">
 		<Title>$LE_CATEGORY3</Title>
+		<ToolTip>$LE_TT_CATEGORY3</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat3" x="76" y="446" w="65" h="15">
 		<Title>$LE_CATEGORY4</Title>
+		<ToolTip>$LE_TT_CATEGORY4</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
 	</RadioButton>
 	<RadioButton name="Cat4" x="10" y="462" w="65" h="15">
 		<Title>$LE_CATEGORY5</Title>
+		<ToolTip>$LE_TT_CATEGORY5</ToolTip>
 		<Group>0</Group>
 		<ButtonLook />
 		<Font>tooltip_font.xml</Font>
@@ -118,46 +123,46 @@
 	</RadioButton>
 	<Element name="MenuPane" w="640" h="480">
 		<Hidden />
-		<Window name="Menu" w="320" h="285">
+		<Window name="Menu" w="340" h="285">
 			<Title>$LE_MENU</Title>
 			<Center />
 			<StaticText name="Static1" x="10" y="30" w="-1" h="-1" for="Filename">
 				<Text>$LE_MENU_FILENAME</Text>
 			</StaticText>
-			<EditBox name="Filename" x="10" y="50" w="275" h="20">
+			<EditBox name="Filename" x="10" y="50" w="295" h="20">
 				<Text></Text>
 			</EditBox>
-			<Button name="Search" x="290" y="50" w="20" h="20">
+			<Button name="Search" x="310" y="50" w="20" h="20">
 				<Title>...</Title>
 			</Button>
-			<Button name="Load" x="10" y="75" w="145" h="30">
+			<Button name="Load" x="10" y="75" w="155" h="30">
 				<Title>$LE_MENU_LOAD</Title>
 			</Button>
-			<Button name="Save" x="165" y="75" w="145" h="30">
+			<Button name="Save" x="175" y="75" w="155" h="30">
 				<Title>$LE_MENU_SAVE</Title>
 			</Button>
-			<Button name="New" x="10" y="110" w="145" h="30">
+			<Button name="New" x="10" y="110" w="155" h="30">
 				<Title>$LE_MENU_NEW</Title>
 			</Button>
-			<Button name="Play" x="10" y="150" w="145" h="30">
+			<Button name="Play" x="10" y="150" w="155" h="30">
 				<Title>$LE_MENU_PLAY</Title>
 			</Button>
-			<Button name="Help" x="165" y="150" w="145" h="30">
+			<Button name="Help" x="175" y="150" w="155" h="30">
 				<Title>$HELP</Title>
 			</Button>
-			<Button name="Clear" x="10" y="190" w="145" h="30">
+			<Button name="Clear" x="10" y="190" w="155" h="30">
 				<Title>$LE_MENU_CLEAR</Title>
 			</Button>
-			<Button name="OK" x="10" y="240" w="145" h="30">
+			<Button name="OK" x="10" y="240" w="155" h="30">
 				<Title>$OK</Title>
 			</Button>
-			<Button name="Quit" x="165" y="240" w="145" h="30">
+			<Button name="Quit" x="175" y="240" w="155" h="30">
 				<Title>$LE_MENU_QUIT</Title>
 			</Button>
 		</Window>
-		<!-- x/y sind um den Rand von 8 Pixeln nach oben links versetzt. Dass
-		     das Feld drei Pixel ueber den Bildrand hinausragt, macht nichts:
-		     dort ist ohnehin nur Rand. -->
+		<!-- x/y are offset up and to the left by the 8-pixel border. That the
+		     cell sticks three pixels past the edge of the picture does not
+		     matter: there is nothing but border up there anyway. -->
 		<Button name="Quit" x="562" y="-3" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
@@ -211,7 +216,7 @@
 				<TabStop id="1" />
 				<Text></Text>
 			</EditBox>
-			<StaticText name="Static6" x="10" y="250" w="200" h="30">
+			<StaticText name="Static18" x="10" y="250" w="200" h="30">
 				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
 			</StaticText>
 			<StaticText name="Static7" x="10" y="275"><Text>tileset.xml:</Text></StaticText>

@@ -53,7 +53,7 @@ void LightBarrierSender::onRender(int layer,
 				}
 			}
 
-			// inneren und aeusseren Strahl rendern
+			// render the inner and the outer beam
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);
@@ -103,7 +103,7 @@ void LightBarrierSender::onUpdate()
 {
 	beam.clear();
 
-	// Strahl berechnen
+	// compute the beam
 	Vec2i beamDir = numberToDir(dir);
 	Vec2d beamPos = Vec2d(7.5, 7.5) + getShownPositionInPixels();
 	Vec2i beamPosF;
@@ -124,21 +124,21 @@ void LightBarrierSender::onUpdate()
 
 		bool reflected = false;
 
-		// Ist an dieser Stelle etwas?
+		// Is there something at this spot?
 		Object* p_obj = 0;
 		Vec2i tileHit;
 		if(z > 2 && !level.isFreeAt2(beamPos, 0, &p_obj, &tileHit))
 		{
 			if(p_obj)
 			{
-				// Ein Objekt versperrt den Weg.
+				// An object blocks the way.
 				if(beamDir.x) beamPos.x = 7.5 + p_obj->getShownPositionInPixels().x;
 				else if(beamDir.y) beamPos.y = 7.5 + p_obj->getShownPositionInPixels().y;
 				beam.back() = beamPos;
 
 				if(p_obj->reflectLaser(beamDir, true))
 				{
-					// OK, das Objekt hat den Strahl umgelenkt!
+					// OK, the object deflected the beam!
 					reflected = true;
 				}
 				else
@@ -149,7 +149,7 @@ void LightBarrierSender::onUpdate()
 			}
 			else
 			{
-				// Ein Tile versperrt den Weg.
+				// A tile blocks the way.
 				if(beamDir.x) beamPos.x = 7.5 + beamPosF.x * 16;
 				else if(beamDir.y) beamPos.y = 7.5 + beamPosF.y * 16;
 				beamPos -= 5 * beamDir;

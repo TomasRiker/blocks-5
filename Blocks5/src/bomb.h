@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer eine Bombe ***/
+/*** Class for a bomb ***/
 
 class Bomb : public Object
 {

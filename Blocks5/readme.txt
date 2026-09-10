@@ -23,24 +23,29 @@ make your own levels, having a look at the help is probably a good idea.
 
 Command Line Options
 ====================
-Blocks 5 understands three options. Upper and lower case do not matter.
+Blocks 5 understands five options. Upper and lower case do not matter.
 
     -windowed      Start in a window.
     -fullscreen    Start in full screen.
     -nosplash      Skip the logo and the jingle and go straight to the main
                    menu.
+    -nofbo         Render without a framebuffer object, the way the game has
+                   to on very old graphics hardware. There is no upscaling
+                   filter, no screen transition and no rolled-up hint note.
+    -noshader      Render without shaders, likewise. "Sharp, fitted" and the
+                   CRT filter are then unavailable and "Sharp" is used.
 
 While playing you can switch between full screen and windowed mode at any time
-with Alt+Return.
+with Alt+Enter.
 
 
 Changelog
 =========
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no installation at
             all. Your progress, your own levels and your campaigns are stored by
-            the browser, so they survive closing the tab. Recording videos and
-            taking screenshots are the only things the browser version cannot
-            do. Look on the website for the link.
+            the browser, so they survive closing the tab. Recording videos is
+            the only thing the browser version cannot do. Look on the website
+            for the link.
 
           - New in the main menu: a button that manages your files, on both the
             browser version and this one. It brings files in, hands copies
@@ -65,7 +70,7 @@ Changelog
             used to freeze until you let go, and it can no longer be dragged
             smaller than the 640x480 the game draws.
 
-          - Alt+Return switches between the window and full screen at any time.
+          - Alt+Enter switches between the window and full screen at any time.
             The game remembers which of the two you left it in, where the window
             was and how big - and whether it was maximized, which it used to
             forget, coming back half off the screen.
@@ -88,6 +93,11 @@ Changelog
             are always the clean 640x480 picture, without the scaling and
             without the bars.
 
+          - Screenshots are PNG files now instead of bitmaps, which makes them
+            about a quarter of the size and something you can send to someone
+            without apologising. In the browser F11 works too; the picture
+            arrives in your downloads.
+
           - The HQ2X start menu entry is gone, and with it the HQ2X mode. It
             scaled the picture on the processor, cost about half of the time
             available for a frame, and changed less than 5% of the pixels. In
@@ -104,11 +114,13 @@ Changelog
                              curved glass tube with a phosphor mask, a glow
                              around bright things and scan lines
 
-          - "CRT settings ..." beside the list has five sliders: the scan lines,
-            the curvature of the screen, the glow around bright areas, and two
-            kinds of flicker: an unsteady brightness, and the scan lines
+          - "CRT settings ..." beside the list has six sliders: the scan lines,
+            the curvature of the screen, the glow around bright areas, two
+            kinds of flicker - an unsteady brightness, and the scan lines
             drifting slowly down the picture the way they never quite stood
-            still on a real set. Each can be turned all the way down.
+            still on a real set - and the colour fringes a set showed toward
+            the edges when its three electron beams were no longer perfectly
+            aligned. Each of the six can be turned all the way down.
 
           - "Sharp, fitted" and "CRT monitor" need a graphics card that can run
             shaders, which means anything made since about 2005. If yours
@@ -129,7 +141,7 @@ Changelog
             choice always wins.
 
           - Escape in the main menu quits the game. It also closes the level
-            editor's menu and its settings, the options and the help, and Return
+            editor's menu and its settings, the options and the help, and Enter
             confirms the settings and the options - the same way clicking OK or
             Cancel does.
 
@@ -140,6 +152,18 @@ Changelog
             same as clicking the box itself - and so does clicking either of the
             two language flags in the options. Clicking the caption of a text
             field puts the cursor into it.
+
+          - Restarting a level with the CRT monitor filter switched on now
+            looks and sounds like a video recorder winding the tape back,
+            with rolling noise bars and "<< REW" in the corner. The other
+            filters keep the old transition.
+
+          - A hint note is a real sheet of paper now. The text is written on it
+            before it flies up, so it turns and grows together with the paper
+            instead of appearing on top of it at the end, and the note arrives
+            rolled up at both ends and unrolls once it has come to rest. Skins
+            whose note is not paper keep it flat - the space skin's display
+            panel does not roll up.
 
           - Fixed: a hint note could be seen for a fraction of a second at the
             wrong place before unfolding, usually when stepping onto the same

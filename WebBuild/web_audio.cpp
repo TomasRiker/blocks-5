@@ -3,16 +3,15 @@
 #include "web_audio.h"
 #include <emscripten.h>
 
-// Achtung: EM_ASM-Rumpfe laufen durch den C-Praeprozessor. Ein einzelnes
-// Apostroph waere dort ein kaputtes Zeichenliteral - im JS also ausschliesslich
-// doppelte Anfuehrungszeichen benutzen.
+// Careful: EM_ASM bodies run through the C preprocessor. A single apostrophe
+// would be a broken character literal there; use nothing but double quotes in
+// the JS.
 
-// AL ist das Bibliotheksobjekt aus libopenal.js. Es liegt im selben
-// Modul-Gueltigkeitsbereich wie die eingebetteten EM_ASM-Rumpfe und wird vom
-// Minifier nicht umbenannt (Bibliotheksobjekte sind Namen auf oberster Ebene).
-// Trotzdem alles in try/catch: faellt der Zugriff aus, meldet das Spiel
-// "nicht blockiert" und laeuft ohne Torwaechter weiter - lieber stumm als
-// haengend.
+// AL is the library object out of libopenal.js. It sits in the same module
+// scope as the embedded EM_ASM bodies and the minifier does not rename it
+// (library objects are top-level names). Everything is in a try/catch all the
+// same: where the access fails, the game reports "not blocked" and carries on
+// without a gatekeeper - silent rather than hung.
 
 namespace WebAudio
 {
@@ -32,8 +31,8 @@ void resume()
 	EM_ASM({
 		try {
 			var ctx = AL.currentCtx && AL.currentCtx.audioCtx;
-			// resume() liefert ein Promise; ein Fehlschlag darf nicht als
-			// unbehandelte Ablehnung in der Konsole landen.
+			// resume() returns a promise; a failure must not land in the
+			// console as an unhandled rejection.
 			if (ctx && ctx.state === "suspended") ctx.resume().catch(function() {});
 		} catch (e) {}
 	});

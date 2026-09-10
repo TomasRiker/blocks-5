@@ -1,7 +1,7 @@
 #ifndef _TEXTURE_H
 #define _TEXTURE_H
 
-/*** Klasse fuer eine Textur ***/
+/*** Class for a texture ***/
 
 #include "resource.h"
 
@@ -20,25 +20,25 @@ public:
 	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size);
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 
-	// Die Pixel im Speicher behalten, damit getPixel() sie lesen kann. Laedt
-	// die Textur neu, wenn bind() sie schon freigegeben hat - das Flag allein
-	// holt nichts zurueck. Ohne das haenge die Truemmer-Stichprobe daran, dass
-	// jeder Aufrufer diese Zusage vor dem ersten bind() gibt.
+	// Keep the pixels in memory for getPixel() to read. Reloads the texture if
+	// bind() has already freed them - the flag alone brings nothing back.
+	// Without that, the debris sampling would depend on every caller making
+	// this promise before the first bind().
 	void keepInMemory();
 	Vec4d getPixel(const Vec2i& where) const;
 
-	// Liegen die Pixel noch im Speicher? bind() gibt sie frei, wenn nicht
-	// keepInMemory() gerufen wurde, und getPixel() liefert danach fuer alles
-	// durchsichtiges Schwarz - ohne Fehler, einfach falsch. Wer Pixel liest,
-	// fragt vorher.
+	// Are the pixels still in memory? bind() frees them unless keepInMemory()
+	// has been called, and getPixel() then returns transparent black for
+	// everything - no error, simply wrong. Anything that reads pixels asks
+	// first.
 	bool hasPixels() const;
 
 private:
 	Texture(const std::string& filename);
 	~Texture();
 
-	// Setzt GL_TEXTURE_WRAP_S/T, wenn die Kantenlaengen keine Zweierpotenzen
-	// sind. Muss laufen, solange die Textur gebunden ist.
+	// Sets GL_TEXTURE_WRAP_S/T if the edge lengths are not powers of two. Must
+	// run while the texture is bound.
 	void applyWrapMode() const;
 	void checkDimensions();
 

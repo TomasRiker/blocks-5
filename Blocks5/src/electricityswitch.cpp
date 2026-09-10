@@ -15,7 +15,7 @@ ElectricitySwitch::~ElectricitySwitch()
 
 void ElectricitySwitch::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(level.isElectricityOn() ? 160 : 128, 96));
 }
 

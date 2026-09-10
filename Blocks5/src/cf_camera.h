@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Ueberblendung durch Kamerafahrt ***/
+/*** Crossfade by camera move ***/
 
 class CF_Camera : public Crossfade
 {

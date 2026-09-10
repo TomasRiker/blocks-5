@@ -686,6 +686,7 @@
     <ClCompile Include="src\cf_colorblend.cpp" />
     <ClCompile Include="src\cf_cube.cpp" />
     <ClCompile Include="src\cf_mosaic.cpp" />
+    <ClCompile Include="src\cf_rewind.cpp" />
     <ClCompile Include="src\cf_slices.cpp" />
     <ClCompile Include="src\cf_star.cpp" />
     <ClCompile Include="src\cf_zoom.cpp" />
@@ -711,6 +712,7 @@
     <ClCompile Include="src\gui_statictext.cpp" />
     <ClCompile Include="src\gui_window.cpp" />
     <ClCompile Include="src\img_load.cpp" />
+    <ClCompile Include="src\img_save.cpp" />
     <ClCompile Include="src\linedrawer.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
     <ClCompile Include="src\pch.cpp">
@@ -723,6 +725,11 @@
     <ClCompile Include="src\testhooks.cpp" />
     <ClCompile Include="src\texture.cpp" />
     <ClCompile Include="src\transfer.cpp" />
+    <ClCompile Include="src\u_crt.cpp" />
+    <ClCompile Include="src\u_sharp.cpp" />
+    <ClCompile Include="src\u_sharpfit.cpp" />
+    <ClCompile Include="src\u_smooth.cpp" />
+    <ClCompile Include="src\upscaler.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\videorecorder.cpp" />
   </ItemGroup>
@@ -813,10 +820,10 @@
     <ClInclude Include="src\cf_colorblend.h" />
     <ClInclude Include="src\cf_cube.h" />
     <ClInclude Include="src\cf_mosaic.h" />
+    <ClInclude Include="src\cf_rewind.h" />
     <ClInclude Include="src\cf_slices.h" />
     <ClInclude Include="src\cf_star.h" />
     <ClInclude Include="src\cf_zoom.h" />
-    <ClInclude Include="src\crt_shader.h" />
     <ClInclude Include="src\crossfade.h" />
     <ClInclude Include="src\engine.h" />
     <ClInclude Include="src\glextensions.h" />
@@ -840,13 +847,13 @@
     <ClInclude Include="src\gui_statictext.h" />
     <ClInclude Include="src\gui_window.h" />
     <ClInclude Include="src\img_load.h" />
+    <ClInclude Include="src\img_save.h" />
     <ClInclude Include="src\linedrawer.h" />
     <ClInclude Include="src\manager.h" />
     <ClInclude Include="src\parameterblock.h" />
     <ClInclude Include="src\particlesystem.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\resource.h" />
-    <ClInclude Include="src\sharpfit_shader.h" />
     <ClInclude Include="src\singleton.h" />
     <ClInclude Include="src\sound.h" />
     <ClInclude Include="src\soundinstance.h" />
@@ -855,6 +862,12 @@
     <ClInclude Include="src\texture.h" />
     <ClInclude Include="src\transfer.h" />
     <ClInclude Include="src\typedefs.h" />
+    <ClInclude Include="src\u_all.h" />
+    <ClInclude Include="src\u_crt.h" />
+    <ClInclude Include="src\u_sharp.h" />
+    <ClInclude Include="src\u_sharpfit.h" />
+    <ClInclude Include="src\u_smooth.h" />
+    <ClInclude Include="src\upscaler.h" />
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\vec.h" />
     <ClInclude Include="src\videorecorder.h" />

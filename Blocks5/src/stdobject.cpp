@@ -26,7 +26,7 @@ StdObject::~StdObject()
 
 void StdObject::updateSprites()
 {
-	// Objekt mit seinem Animationsbild
+	// object with its animation frame
 	int frame = (anim / animSpeed) % numFrames;
 	if(level.isInEditor()) frame = 0;
 	sprites.add(positionOnTexture + Vec2i(frame * 32, 0));
@@ -51,13 +51,13 @@ void StdObject::onCollect(Player* p_player)
 {
 	if(inventoryIndex != ~0)
 	{
-		// dem Spieler den Gegenstand geben
+		// give the item to the player
 		if(!p_player->addInventory(inventoryIndex, 1)) return;
 	}
 
 	if(collectSoundFilename.length())
 	{
-		// Sound abspielen
+		// play the sound
 		Engine::inst().playSound(collectSoundFilename, false, 0.15, 100);
 	}
 

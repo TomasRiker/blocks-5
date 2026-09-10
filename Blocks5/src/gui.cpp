@@ -29,15 +29,15 @@ bool GUI::init()
 {
 	if(initialized) return false;
 
-	// Stammelement erzeugen
+	// create the root element
 	p_root = new GUI_Element("ROOT", 0, Vec2i(0, 0), Engine::inst().getScreenSize());
 
-	// Schriftarten laden
+	// load the fonts
 	p_font = Manager<Font>::inst().request("font.xml");
+	if(!p_font) return false;
 	Font::Options options = p_font->getOptions();
 	options.shadows = 1;
 	p_font->setOptions(options);
-	if(!p_font) return false;
 
 	p_toolTipFont = Manager<Font>::inst().request("tooltip_font.xml");
 	if(!p_toolTipFont) return false;
@@ -45,13 +45,14 @@ bool GUI::init()
 	options.shadows = 1;
 	p_toolTipFont->setOptions(options);
 
-	// Skin laden
+	// load the skin
 	p_skin = Manager<Texture>::inst().request("gui.png");
 
 	texID = 0;
 	setOpacity(0.85);
 
 	cursorPos = oldCursorPos = Engine::inst().getCursorPosition();
+	oldRawCursorPos = Engine::inst().getRawCursorPosition();
 	p_elementAtCursor = p_oldElementAtCursor = p_root;
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
@@ -67,15 +68,15 @@ void GUI::exit()
 {
 	if(!initialized) return;
 
-	// Stammelement (und damit alle Elemente) loeschen
+	// delete the root element (and with it every element)
 	delete p_root;
 	p_root = 0;
 
-	// Textur loeschen
+	// delete the texture
 	glDeleteTextures(1, &texID);
 	texID = 0;
 
-	// Skin und Schriftarten freigeben
+	// release the skin and the fonts
 	if(p_skin) p_skin->release();
 	p_font->release();
 	p_toolTipFont->release();
@@ -170,7 +171,7 @@ void GUI::display()
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, texID);
 
-		// Pixel-Texturkoordinaten
+		// pixel texture coordinates
 		glPushAttrib(GL_TRANSFORM_BIT);
 		glMatrixMode(GL_TEXTURE);
 		glLoadIdentity();
@@ -205,15 +206,28 @@ void GUI::update()
 	const int buttonsPressed = (engine.wasButtonPressed(1) ? 1 : 0) | (engine.wasButtonPressed(3) ? 2 : 0);
 	const int buttonsReleased = (engine.wasButtonReleased(1) ? 1 : 0) | (engine.wasButtonReleased(3) ? 2 : 0);
 
-	// Mausposition und das Element darunter aktualisieren
+	// update the mouse position and the element under it
 	oldCursorPos = cursorPos;
 	cursorPos = engine.getCursorPosition();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
 
-	// Das Element unter dem Zeiger gehoert hierher, vor die Klickbehandlung, und
-	// nicht ans Ende der Funktion: ein Finger setzt ohne vorherige Bewegung auf,
-	// Zeiger und Tastendruck kommen also im selben Takt. Weiter unten berechnet
-	// bekaeme den Druck noch das Element, das vorher unter dem Zeiger lag.
+	// A mouse-move event has to mean the mouse moved. cursorPos comes from
+	// getCursorPosition() and therefore through the CRT filter's barrel
+	// distortion: dragging its curvature slider shifts the mapping under the
+	// hand holding it, and the cursor travels in the picture with nothing
+	// having stirred. Such a phantom move would otherwise become a new slider
+	// value, that value a new curvature, and the slider would flip back and
+	// forth between two values at the logic rate. Demand both, then: the mouse
+	// must have moved, and it must have landed on another pixel in the process.
+	const Vec2i rawCursorPos = engine.getRawCursorPosition();
+	const bool cursorMoved = rawCursorPos != oldRawCursorPos && cursorPos != oldCursorPos;
+	oldRawCursorPos = rawCursorPos;
+
+	// The element under the cursor belongs here, before the click handling,
+	// not at the end of the function: a finger lands with no move before it,
+	// and cursor and press therefore arrive in the same tick. Were it computed
+	// further down, the press would still go to whatever lay under the cursor
+	// before.
 	p_oldElementAtCursor = p_elementAtCursor;
 	p_elementAtCursor = p_root->getElementAt(cursorPos);
 
@@ -222,17 +236,17 @@ void GUI::update()
 	else relCursorPos = cursorPos;
 	p_oldFocusElement = p_focusElement;
 
-	// Wurde das Element gewechselt?
+	// Did the element change?
 	if(p_elementAtCursor != p_oldElementAtCursor)
 	{
-		// den Elementen dies mitteilen
+		// tell the elements about it
 		if(p_oldElementAtCursor) p_oldElementAtCursor->onMouseLeave(buttonsDown);
 		if(p_elementAtCursor) p_elementAtCursor->onMouseEnter(buttonsDown);
 	}
 
 	if(p_elementAtCursor && p_elementAtCursor->isReallyVisible())
 	{
-		// Wurde geklickt?
+		// Did a click happen?
 		if(buttonsPressed)
 		{
 			p_focusElement = p_elementAtCursor;
@@ -250,30 +264,29 @@ void GUI::update()
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
 			{
-				// das Element, das beim Druecken der Taste unter dem Cursor war, informieren
+				// inform the element under the cursor at the time of the press
 				p_mouseDownElement->onMouseUp(cursorPos - p_mouseDownElement->getAbsPosition(), buttonsReleased);
 			}
 
 			p_mouseDownElement = 0;
 		}
 
-		// Wurde die Maus bewegt?
-		bool cursorMoved = cursorPos != oldCursorPos;
+		// Did the mouse move?
 		if(cursorMoved)
 		{
-			// dem Element dies mitteilen
+			// tell the element about it
 			p_elementAtCursor->onMouseMove(relCursorPos, cursorMovement, buttonsDown);
 
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
 			{
-				// das Element, das beim Druecken der Taste unter dem Cursor war, informieren
+				// inform the element under the cursor at the time of the press
 				p_mouseDownElement->onMouseMove(cursorPos - p_mouseDownElement->getAbsPosition(), cursorMovement, buttonsDown);
 			}
 		}
 	}
 
-	// Tastatur-Ereignisse?
+	// Keyboard events?
 	SDL_KeyboardEvent event;
 	while(engine.getKeyEvent(&event, &keyRepeat))
 	{
@@ -281,7 +294,7 @@ void GUI::update()
 	}
 	keyRepeat = false;
 
-	// Mausrad?
+	// Mouse wheel?
 	if(p_elementAtCursor)
 	{
 		int wheel = 0;
@@ -290,7 +303,7 @@ void GUI::update()
 		if(wheel) p_elementAtCursor->onMouseWheel(wheel);
 	}
 
-	if(cursorMovement.isZero()) noMoveCounter = min<uint>(20, noMoveCounter + 1);
+	if(!cursorMoved) noMoveCounter = min<uint>(20, noMoveCounter + 1);
 	else if(p_elementAtCursor != p_oldElementAtCursor && noMoveCounter) noMoveCounter--;
 
 	if(p_elementAtCursor && p_elementAtCursor->getToolTip().empty() && noMoveCounter) --noMoveCounter;
@@ -347,19 +360,19 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 
 		if(y == 0)
 		{
-			// erstes Tile auf der y-Achse
+			// first tile on the y axis
 			tileSize.y = firstSize.y;
 			texCoords.y = positionOnTexture.y;
 		}
 		else if(y == numTiles.y - 1)
 		{
-			// letztes Tile auf der y-Achse
+			// last tile on the y axis
 			tileSize.y = lastSize.y;
 			texCoords.y = positionOnTexture.y + 32 + (16 - lastSize.y);
 		}
 		else if(y == numTiles.y - 2 && numTiles.y >= 3)
 		{
-			// letztes Fuell-Tile auf der y-Achse
+			// last fill tile on the y axis
 			tileSize.y = lastFillTileSize.y;
 		}
 
@@ -370,23 +383,23 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 
 			if(x == 0)
 			{
-				// erstes Tile auf der x-Achse
+				// first tile on the x axis
 				tileSize.x = firstSize.x;
 				texCoords.x = positionOnTexture.x;
 			}
 			else if(x == numTiles.x - 1)
 			{
-				// letztes Tile auf der x-Achse
+				// last tile on the x axis
 				tileSize.x = lastSize.x;
 				texCoords.x = positionOnTexture.x + 32 + (16 - lastSize.x);
 			}
 			else if(x == numTiles.x - 2 && numTiles.x >= 3)
 			{
-				// letztes Fuell-Tile auf der x-Achse
+				// last fill tile on the x axis
 				tileSize.x = lastFillTileSize.x;
 			}
 
-			// Tile rendern
+			// render the tile
 			glTexCoord2i(texCoords.x, texCoords.y);
 			glVertex2i(cursor.x, cursor.y);
 			glTexCoord2i(texCoords.x + tileSize.x, texCoords.y);
@@ -475,14 +488,14 @@ void GUI::setOpacity(double opacity)
 
 	if(opacity == 1.0 && texID)
 	{
-		// Textur loeschen
+		// delete the texture
 		glDeleteTextures(1, &texID);
 		texID = 0;
 	}
 
 	if(opacity != 1.0 && !texID)
 	{
-		// Textur erzeugen
+		// create the texture
 		glGenTextures(1, &texID);
 		glBindTexture(GL_TEXTURE_2D, texID);
 		const Vec2i screenPow2Size = Engine::inst().getScreenPow2Size();

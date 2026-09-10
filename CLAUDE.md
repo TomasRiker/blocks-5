@@ -66,15 +66,68 @@ zip_skins.bat    :: pack levels\skins\<name>\ into levels\skins\<name>.zip
 stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Release\*.exe)
 ```
 
-`zip_*.bat` run `tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
-`zip_skins_no_optipng.bat` skip that step. Both require `tools\7za.exe`.
+`zip_*.bat` run `Tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
+`zip_skins_no_optipng.bat` skip that step. Both require `Tools\7za.exe`. Those two binaries
+sit in the same `Tools\` as the Python scripts and are reached through `%~dp0..\Tools\`
+rather than relative to the current directory, because the scripts `PUSHD` into the folder
+they are packing — and, for the XML half of `data.zip`, into `%TEMP%`.
 
-**`Blocks5/pack.sh` is all four of those in one, without Windows** — `zip -9 -P` in place of
-`7za a -tzip -mx=9 -p` (both write traditional ZipCrypto, which is what minizip reads) and the
-distribution's `optipng` in place of `tools\optipng`. `./pack.sh` does everything, `data` or
-`skins` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only checkout needs:
-`data.zip` and the skin archives are build products that are not in Git, and the game will not
-start without them.
+**`Blocks5/pack.sh` is all four of those in one, without Windows** — the distribution's `7za`
+and `optipng` in place of `Tools\7za.exe` and `Tools\optipng`, and it refuses to start without
+either. `7za` and not Info-ZIP's `zip -P`, although both write traditional ZipCrypto: Info-ZIP
+sets bit 3 of the general purpose flags and then writes the sizes in a trailing data descriptor,
+and takes its check byte from the time of day rather than from the CRC. What comes out here
+should be the archive the Windows build produces. `./pack.sh` does everything, `data`,
+`skins` or `campaign` narrows it, `--no-optipng` skips the slow step. It is what a Linux-only
+checkout needs: `data.zip` and the skin archives are build products that are not in Git, and
+the game will not start without them.
+
+**`levels/campaigns/blocks.zip` is a build product like the rest**, and the reason it has to
+be rebuilt is worth knowing before editing a level. `Campaign::load` serves a campaign's levels
+loose wherever all of them lie in `levels/` — which is true in a working tree and never on an
+installed game, since `stage.bat` ships the archive and the two examples and not the 42
+sources. So a level edited and not packed changes what a developer sees and nothing a player
+sees, with no error anywhere. `pack.sh campaign` and `zip_campaign.bat` (which `Build.bat`
+calls) rebuild it from `levels/level_NN.xml`, numbering the members from the index the way
+`makeMemberName` reads them back — entry *i* is `level_{i+1}.xml`, so the padded names in
+`campaign.xml` are display text only.
+
+**Every one of its 53 members has a source in the tree**, which is what lets the archive be
+untracked at all: the 42 levels and the ten music tracks lie loose in `levels/`, and
+`campaign.xml` sits in `levels/campaigns/blocks/`, a source folder beside the archive in the
+same idiom as `levels/skins/<name>/`. Neither script reaches into the archive it is replacing,
+which is the shape the old ones had and which cannot work once the file is a build product.
+Verified against the last committed archive: same 53 members, every one byte-identical.
+
+**The XML files and `languages.txt` reach `data.zip` without their comments.** The dialogs in
+`data/` are commented the way the source is, and the string table opens with a page explaining
+its own format; those notes are nobody's business who opens the archive — but they belong in
+the files. So the sources are left alone and
+`Tools/strip_comments.py` writes stripped copies into a staging directory that the
+packing scripts then pack from, which is why `pack.sh` and `zip_data.bat` call `7za` twice:
+the images, the sounds and the demo out of `data/`, the XML and the text out of the staging
+directory. Python is what does the
+stripping, and it is the one thing here that Windows packing has no bundled tool for — so
+where it is missing, both scripts say so and pack those files as they stand. A note, not a
+stopped build: `data.zip` is what the game needs to start, and the comments are a tidiness.
+
+`languages.txt` is the easier half: `Engine::loadStringDB` reads it a line at a time and its
+comment branch does nothing at all, so a `//` line can go whole without changing a string.
+The blank lines around one stay, because that parser counts them and the next text line
+flushes the count into the string. It is that file by name and not `*.txt`, for the same
+reason the packing scripts name `password.txt` rather than globbing: a pattern that swept up
+every text file would one day take a line out of a password. Both halves are checked the same
+way — the XML tree, and the string table the game would build, read out of the bytes before
+and after.
+
+A comment is removed only if it has its lines to itself, and that is a guard rather than a
+matter of tidiness: a level stores one tile id per character inside `<Row>`, so `<!--` is
+simply tiles 60, 33, 45, 45 — and to a parser that is the start of a comment like any other,
+which would swallow everything up to the next `-->` and quietly destroy the level. Asking
+whether the file is well-formed does not help, because it *is*: ElementTree reads
+`<Row>aaa<!--bbb</Row><Row>ccc-->ddd</Row>` without complaint. A row of tiles always has data
+before it on its line; a comment in a dialog never does. One written after something else on
+the same line is reported and kept.
 
 The game must run with `Blocks5\` as its working directory (VS's default `$(ProjectDir)` is
 correct) because it opens `data.zip` relative to the cwd. `Build.bat /run` builds and then
@@ -83,11 +136,48 @@ untouched (`Build.bat Debug /rebuild /run -windowed`). There is no unit-test sui
 there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
-Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen` and
-`-nosplash` — that is the whole list, and `readme.txt` documents all three. `-nosplash`
-skips the logo and the jingle by *not requesting* `logo.png`, which is the path
+Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
+`-nofbo` and `-noshader` — that is the whole list, and `readme.txt` documents all five.
+`-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
 `GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
-`true`, because the jingle hangs off the time threshold rather than off the logo. The
+`true`, because the jingle hangs off the time threshold rather than off the logo.
+
+**`-nofbo` and `-noshader` force the two fallback paths** that otherwise only appear on
+hardware nobody here has, and each is one early return: `createFrameBuffer()` gives up
+before asking the extension, `createUpscalerGL()` before allocating the shared vertex
+buffer — after which every shader filter reports itself unavailable of its own accord and
+`getEffectiveUpscaler` falls back to `Sharp`. Both paths are otherwise unreachable from
+this machine, and they carry real code: without a framebuffer object there is no upscaler,
+no crossfade and no rolled hint note.
+
+**Without one the window is nailed to 640x480**, and that is not a preference: the game then
+draws straight into the back buffer, the viewport is 640x480, and `presentFrame` returns
+without doing anything — so a larger window does not get a larger picture, it gets the same
+picture somewhere else, while `getCursorPosition` still believes `displaySize` and puts every
+click in the wrong place. `handleResize` has always clamped the size; what was missing is that
+nothing told the *window*, so maximizing left the frame large and the clamp then early-returned
+on an unchanged `displaySize` and did nothing at all. `Engine::fixWindowSize` takes
+`WS_THICKFRAME` and `WS_MAXIMIZEBOX` off the window under Windows (and answers
+`WM_GETMINMAXINFO` with the same size for the maximum as for the minimum, since Win+Arrow does
+not drag a border), and sets equal min and max size hints under X11, which is the ICCCM way of
+saying "this window has one size". Fullscreen was already refused on that path.
+
+**The mouse cursor follows the scale, and the framebuffer has nothing to do with it.** The
+arrow is drawn once at 16x16 — the size it was designed as, and the size the video recorder and
+`screenshot()` stamp into the 640x480 frame whatever the window is doing. `createCursor(factor)`
+builds the two the system can draw, 16 and 32, and `updateCursorSize` picks between them from
+the width of the rect `presentFrame` fills, not from the window: `Sharp` snaps to whole steps,
+so at a window scale between 1.5 and 2 it shows the picture unscaled where the other filters
+nearly double it. `render` asks once a frame rather than hanging off events: the answer moves
+on a resize, a fullscreen toggle, a filter change and the browser's canvas alike, and asking
+costs two divisions and a comparison.
+
+Two sizes are all there are — nothing takes a larger cursor — so the choice is which of 16 and
+32 lands closer to the 16·s the scale asks for: `|32 − 16s| < |16 − 16s|` from **s = 1.5**. At
+exactly 1 and exactly 2, where `getDefaultWindowSize` puts almost everyone, the chosen one is
+also pixel-exact against the picture. Measured at 1.40, 1.50 and 1.60: 16, 32, 32.
+
+The
 upscaling filter is *not* a switch; it is an in-game option like the language, saved as
 `<Upscaler>` in `config.xml`. Debug builds default to windowed + Console
 subsystem and skip the SEH crash handler; Release defaults to fullscreen + Windows subsystem
@@ -109,7 +199,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twelve static checks over the whole tree
+python3 Tools/verify.py      seventeen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -137,11 +227,19 @@ those are exactly what `Tools/syntax.sh` is for.
 **`Tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
-`Blocks5.vcxproj` or its `.filters`, the version number drifting apart across the four
-places it lives, a new member the constructor never sets, an asset filename that is not on
-disk or spelled with different case (which only Linux minds), a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, an
-English comment among the German ones. Exit code 1 on any finding; `--list` names them,
+`Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
+number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
+disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
+`gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
+German comment among the English ones. Exit code 1 on any finding; `--list` names them,
 `--only NAME` runs one. `Tools/README.md` has the table.
+
+The last of those reads the two languages against each other rather than searching for one of
+them, because both word lists contain traps: *the particles die* is English although `die` is a
+German article, and *so weit kommt das nicht* is German although `so` is an English word. A line
+is reported when the German words outnumber the English ones. The `style` check had to learn the
+same lesson from the other side — it skipped `//` lines but not the body of a `/* */` block, and
+where the German never wrote `for (`, an English sentence does.
 
 The attribute check exists because renaming the constant `numLayers` to `NUM_LAYERS` once
 took the XML attribute string with it, which silently disabled the level size guard for
@@ -165,11 +263,14 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 112 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 120 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
-files can never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp` — for
-the same reasons they are left out of the web build. It needs nothing checked in: the
-handful of case-aliasing headers the tree includes (`<Windows.h>`, `<Shellapi.h>`,
+files never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp`. The last two
+are left out of the web build for the same reasons; `main.cpp` is compiled there, and the
+difference is the one thing worth knowing about this list: what mingw cannot parse in it is
+the `__try`/`__except` crash handler, which sits behind `#if defined(_WIN32) && !defined(_DEBUG)`
+— true under mingw, false under emcc. It needs nothing checked in: the handful of headers the
+tree includes under names mingw and OpenAL Soft file differently (`<Windows.h>`, `<Shlobj.h>`,
 `<al.h>`) are generated into a temp directory. It passes `-w`; for a warning sweep, swap
 that for `-Wall -Wextra` and compare against the same sweep before your change, because the
 tree emits thousands of warnings that were all there in 2015.
@@ -191,12 +292,35 @@ closing the dialog and the second quitting the game. A key bound to a named *act
 held, not tapped, because `Engine::updateVKs` reads `SDL_GetKeyState`, a snapshot taken once
 per 20 ms tick, so a press and release in the same millisecond is never seen. The same
 sampling rule governs the mouse and the touchscreen, which is why `page.mouse.click()` and
-`page.touchscreen.tap()` are equally useless: move, settle, hold, release. Alt+Return
+`page.touchscreen.tap()` are equally useless: move, settle, hold, release. Alt+Enter
 misleads, because it hangs off `SDL_KEYDOWN` and events queue.
+
+**A tapped key is not the same as an instantaneous one, and that costs a whole extra press.**
+`b5_key` holds for 60 ms rather than calling `xdotool key`, which presses and releases in
+about twelve. `SDL_PollEvent` runs once per rendered frame, and under llvmpipe a frame is a
+fifth of a second — so a run that lands inside those twelve milliseconds sees the press and
+not the release, and at the *next* run SDL's own repeat, 140 ms overdue by then, posts a
+second key-down before the release is read. Measured, every fifth press arrived twice; at
+60 ms none did, eight times out of eight. A real machine renders at 60 Hz and a real finger
+holds far longer than either number, so this is the harness lying, not the game.
 
 `xdotool windowclose` calls `XDestroyWindow` and SDL then trips over a window it still
 believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
 never runs and `config.xml` is never written.
+
+**Two windows open themselves over the menu, and `b5_start` writes both markers away.**
+The CRT offer appears on a first start and the donation window once enough time has been
+played — which a machine that has run the tests often enough reaches on its own. Both are
+one-shot, so no test that touches the menu can be repeatable while they may appear;
+`.crt_offered` and `.donation_asked` are written exactly as the game writes them.
+
+**The harness drives `build-test/`, and `LinuxBuild/build.sh` without `hooks` writes
+`build/`.** Building the one and testing the other is a full afternoon's worth of a change
+that appears to have no effect, so `b5_start` compares the binary against `Blocks5/src` and
+`data.zip` against `Blocks5/data` and refuses to run on either one that is out of date — the
+same rule as `WebBuild/build.sh`'s exit code, for the same reason. `Tools/selftest.py` puts
+each file's mtime back along with its bytes, or every run of it would trip that check and
+force a full rebuild besides.
 
 ### Driving the game in a browser
 
@@ -257,7 +381,8 @@ clears on `keyup`, where `Engine::setKeyData` would not have worked at all (ROAD
 ## Architecture
 
 Everything for the game lives flat in `Blocks5/src`. The layering is by naming prefix, not by
-directory: `gs_*` = game states, `gui_*` = widgets, `cf_*` = crossfade effects, `e_*` =
+directory: `gs_*` = game states, `gui_*` = widgets, `cf_*` = crossfade effects, `u_*` =
+upscaling filters, `e_*` =
 electronics parts, `as_*`/`audiostream*` = audio decoding, `file*`/`filesystem*` = virtual FS.
 
 **Singletons and resources.** Global services derive from `Singleton<T>` (`singleton.h`) and are
@@ -281,13 +406,23 @@ whatever size the window is; only `computePresentRect` changes, and the cursor m
 read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 `glextensions.cpp` loads what the FBO needs: ten FBO entry points and twenty-five GL 2.0
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
-are core and the header just `#define`s them through. Four upscale filters
-(`Engine::UpscaleFilter`), a normal game option like the language and saved as `<Upscaler>`;
-`sharp-fit` is the default where the machine can run it:
+are core and the header just `#define`s them through.
 
-- `nearest` and `bilinear` are just `GL_TEXTURE_MAG_FILTER`. `nearest` additionally snaps the
-  blit to an integer scale, which is the whole point of choosing it.
-- `sharp-fit` (`src/sharpfit_shader.h`) is nearest at a fractional scale: conceptually the
+**Four upscale filters, and each is a class.** `upscaler.h` holds the base — a name, a
+texture filter, `present()`, whether it wants a whole-number scale, whether it distorts the
+cursor, and its own `loadConfig`/`saveConfig` — plus `PresentContext` (everything the Engine
+owns and lends out: the rect, the frame texture, the shared vertex buffer) and
+`PresentProgram` (a linked program and the four uniforms *every* present shader has). The
+four live in `u_sharp.*`, `u_smooth.*`, `u_sharpfit.*` and `u_crt.*`, `u_all.h` pulls them
+in, and `Engine` owns one of each in display order. It is a normal game option like the
+language, saved as `<Upscaler>` with the filter's own `getName()` — the one name each filter
+has, shared by the config value, the radio button in `options.xml`, the startup log and the
+test hook. `SharpFit` is the default where the machine can run it:
+
+- `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn by the base class's
+  fixed-function quad. `Sharp` additionally snaps the blit to an integer scale
+  (`wantsIntegerScale()`), which is the whole point of choosing it.
+- `SharpFit` (`src/u_sharpfit.cpp`) is nearest at a fractional scale: conceptually the
   frame is nearest-upscaled by the smallest integer that covers the destination and then
   resampled down. That is one texture fetch, not two passes — bilinear over a
   nearest-upscaled image is piecewise linear, so remapping the texture coordinate through
@@ -295,13 +430,15 @@ are core and the header just `#define`s them through. Four upscale filters
   result. Verified against a real two-pass: pixel-identical at an integer scale, max channel
   difference 1 (8-bit rounding in the intermediate) at fractional ones. It **must** sample
   with `GL_LINEAR` — the hardware interpolation *is* the filter.
-- `crt` (`src/crt_shader.h`) is a CRT monitor: beam profile, scan lines, phosphor mask,
+- `Crt` (`src/u_crt.cpp`) is a CRT monitor: beam profile, scan lines, phosphor mask,
   halation, barrel distortion, rounded corners, vignette. See **The CRT filter** below.
 
-Both shaders share `p_presentVertexShader`, the vertex buffer and four uniforms
-(`decal`, `TextureSize`, `FrameSize`, `Prescale`); the CRT one adds `Scanline` and
-`Curvature`. `Engine::PresentProgram` holds one set of them, `createPresentProgram` builds
-either, and a CRT that fails to link leaves sharp-fit alone.
+The two shader filters share the vertex shader (`upscaler.cpp`, the only place it is read),
+the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own eight on
+top. **There is no longer a place where a filter carries a uniform it does not have** — which
+is what the old twelve-slot struct did, and why `convergence` was once left unset in two
+hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
+sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
 
 **Anything that reads the rendered frame must bind the FBO itself.** The main loop binds it
 only on an iteration that ran a logic tick. Natively there is no other kind, because the
@@ -315,10 +452,10 @@ it read the default framebuffer, which WebGL clears before every frame. It calls
 that *was* rendered, which is exactly the screen being faded out.
 
 **The CRT filter.** Everything that gives it its character is a `const` at the top of
-`src/crt_shader.h`, meant to be edited. Two of them are runtime sliders instead
+`src/u_crt.cpp`, meant to be edited. Six of them are runtime sliders instead
 (Options → Scaling → *CRT settings …*, saved as
-`<Crt scanline= curvature= bloom= flicker= scanflicker=>`), because they are matters of taste
-rather than tuning.
+`<CrtUpscaler scanline= curvature= bloom= flicker= scanFlicker= convergence=>`), because they
+are matters of taste rather than tuning.
 
 **Nobody finds a filter buried in an options dialog**, so `Menu.CrtPane` offers it once on a
 first start, with a button that switches it on there and then. The marker is `.crt_offered` in
@@ -335,6 +472,69 @@ produces *no visible stripes at all*, because both output rows sit equally far f
 centre. That is physically right and useless as an effect, which is why the shipped default
 is `2.0`: pretend 240 lines arrive, and get the look people mean by "CRT". The slider fades
 that in; the constant decides which look it fades into.
+
+**Convergence** is the sixth slider, at 0.5 like the rest. A colour tube has three beams,
+converged at the centre and drifting apart toward the rim where the deflection is largest, so
+a vertical edge carries a red fringe on one side and a blue one on the other — nothing in the
+middle, most at the edge. It is **not** chromatic aberration: that happens in a lens because
+glass bends wavelengths differently, and a tube has no lens. Green stays put as the reference,
+exactly as it was set on the bench. `CONVERGENCE_MAX` (1.6) is the displacement of *each* of
+red and blue at the left and right edge, in source pixels, at full slider; they move apart, so
+the visible fringe is twice that. Horizontal only — a vertical component would need its own
+two rows and its own beam profile per channel, eight fetches instead of four, and the line
+structure hides it anyway.
+
+**The raster edge belongs to the beam, not to the picture.** A tube paints three rasters, and
+if red's is narrower than green's then the red *image* ends first — which is what you see at
+the rim of a misconverged set before you see anything on an edge inside the picture. So
+`rasterMask()` is evaluated at each channel's own source point, not at the output point:
+without that, the highest-contrast vertical edge in the whole frame — the picture against the
+black — is the one place a fringe could never appear. Measured off the shader: at the slider's
+default the outermost output column keeps 89% of its red, at full slider the outermost three
+keep 49%, 76% and 95%, and green and blue do not move at all.
+
+Those four fetches are part of the shipped cost now: one present measured 25.3 ms with the
+slider at 0 and 30.6 ms with it anywhere above (llvmpipe, 1280x960), a fifth more, and the
+same at 0.5 as at 1.0 — the shift changes the coordinate, not the work. On a real GPU it is
+noise, and `if(Convergence > 0.0)` hands the whole of it back to anyone who turns the slider
+down, since the condition is uniform across the draw.
+
+Measured by asking how far the red channel of a finished frame lags the blue one, which needs
+no second frame to compare against and so does not care that the title demo keeps moving: at
+0 the lag is within a tenth of a pixel everywhere, at full slider it is −5.3 output pixels at
+the left edge, −0.3 in the middle and +4.4 at the right, which is the antisymmetric ramp the
+shader asks for.
+
+That rectangle is a pixel wider than the picture on every side, so the fade lies entirely
+outside it and nothing inside the picture is touched: **at curvature 0 the CRT filter covers
+exactly what the other three filters cover.** The soft edge used to eat into the frame,
+leaving the outermost column at 64% and the next at 88% for no reason anybody had asked for —
+the fade is there for the barrel distortion, which at curvature 0 does not exist. Measured
+against sharp-fit on the same scene: zero shift in either axis, and the outermost three
+columns within 0.5% of the columns inside.
+
+**The whole raster then steps back from the edge of the glass, and that is `getOverscan()`.**
+The warp moves the corners outward and leaves the edge midpoints exactly where they are, so at
+the middle of each side the picture ran to the last output row and the fade, the convergence
+fringe and the halo — everything the shader draws *outside* the picture — had nowhere to go.
+Measured before: 0 black rows above the picture at the top centre, 4 at a quarter out, 20 at
+nine tenths. Soft and rounded everywhere, guillotined at four places.
+
+The step back is one isotropic factor on `w`, and it is the sum of the two things that need
+the room: the fade, twice `EDGE_ROWS` source rows, and the convergence offset, twice
+`CONVERGENCE_MAX` source columns. Isotropic because anything else would stop the pixels being
+square — horizontally both terms are needed, vertically only the first, and the rest is black
+surround. Measured after: 2 black rows at the top centre rising to 26, with the picture fading
+in over the next four; and at the right edge with convergence at full, red's raster dies at
+output column 1274, green's at 1277 and blue's is still burning at 1279, which is the point of
+giving each channel its own `rasterMask` in the first place.
+
+**It is exactly zero at curvature 0**, which is what keeps the promise above: measured against
+sharp-fit, zero shift in either axis and the picture still reaching row 0 and column 0. The
+price is a step of six output pixels at 2x as the curvature slider leaves its stop — a flat
+tube is pixel-exact, a curved one is inset. `warpToSource`/`warpToOutput` carry the same
+factor, so the cursor round trip stays exact: 0 of 34240 positions off, at curvature 0, 0.25,
+0.5 and 1.0 and at three window sizes.
 
 The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real
 shadow mask belongs to the glass and does not change when you switch resolution. That matters
@@ -379,7 +579,9 @@ build can land on a software path.
 
 **The barrel distortion goes through the mouse as well.** The shader maps output pixel to
 source pixel, which is the same direction `getCursorPosition` needs, so it uses the identical
-formula — `Engine::warpToSource`. `setCursorPosition` needs the inverse, and the coupled pair
+formula — `U_Crt::warpToSource`, which `Engine::warpToSource` forwards to (the base class
+returns what it was given, so no caller asks what kind of filter is on).
+`setCursorPosition` needs the inverse, and the coupled pair
 (`x` depends on `y²`, `y` on `x²`) has no closed form, so `warpToOutput` runs a fixed-point
 iteration: `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`. Measured: eight rounds land within 2.3e-4
 pixels even at an absurd curvature, and within 1e-5 at anything reachable from the slider.
@@ -393,8 +595,60 @@ positions land on a neighbouring tile. That is the minimum window size, where th
 no room to work anyway.
 
 Without an FBO the game renders straight to the back buffer as before; without a shader,
-sharp-fit degrades to nearest (`getEffectiveUpscaleFilter`) and the options dialog hides that
-entry. Neither is fatal.
+`isAvailable()` is false for that filter, `getEffectiveUpscaler` falls back to `Sharp` — a
+fixed fallback, not "the first available one", because the display order starts with
+`SharpFit` and belongs to the options dialog — and the dialog hides the entry. The wish
+itself stays in `config.xml` untouched, for the next machine. Neither is fatal.
+
+**Restarting a level rewinds the tape**, but only with the CRT filter on: `CF_Rewind`
+(`cf_rewind.cpp`) instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On
+sharp or sharp-fit the game does not claim to be a tube and a tape effect would be a costume.
+
+It exists because a restart is a cut — the game jumps from the current state to the level's
+first tick with nothing in between — and a tape in search is the one machine that cuts like
+that and is forgiven for it. **Every strip of a searched picture is read from a different place
+on the tape, which is to say from a different moment**, so a screen made of strips taken
+alternately from the old image and the new one is not a trick standing in for frames the game
+never had: it is what a recorder actually puts out. The rest follows from the same fact — no
+signal between the tracks, so bands of snow roll through; no lock for the vertical hold, so the
+picture rolls; the head meets each track at an angle, so every line starts early or late; and
+VHS carries colour on a separate low-frequency signal that does not survive the speed, hence
+the grey wash.
+
+Two things there are load-bearing. The on-screen display must **not** move with any of it, or
+fade with it either — it comes from the recorder's own character generator, mixed in behind
+the tape path, and that one steady thing is what makes the mess read as a machine. It is
+`data/rewind.png`, 256x64 with the word in the left 162 pixels and the two triangles in the
+56 next to it, so the blink is a source rectangle rather than a colour: the word is drawn
+every frame, the arrows every other half-second, hard on and hard off, counted from the tick
+the effect began so that they start visible. And `ROLL_SCREENS` is a whole number, so the
+roll offset lands back on a multiple of the picture height — zero — exactly as the crossfade
+ends; at 6.5 the picture would sit half a screen out and jump straight when the effect stops.
+The last sixth of the transition eases the tearing, the snow and the wash to nothing, which is
+the transport braking and the servo locking.
+
+**The sound is a granular resynthesis of a recording of a real transport**, and the two
+attempts at synthesising one from scratch are worth keeping as a lesson. The second of them
+matched the recording's third-octave curve to a mean error of 1.3 dB — two humps, a narrow one
+at 250 Hz and a broad one at 2.6 kHz with 500–1000 Hz sitting 13 dB lower, the envelope
+clattering at 46.5 and 12 Hz, a crest factor of 14 dB — and still sounded nothing like a
+machine. **A matched spectrum is not a matched timbre.** The recording carries narrow
+resonances standing up to 24 dB above its own noise floor, and a third-octave average is
+precisely the measurement that cannot see them; filtered noise shaped to that average is a
+hiss with a tilt.
+
+What ships instead is overlap-add: 30 ms Hann grains at a 7.5 ms hop, so four deep, each one
+resampled 7.5% short and given ±1.5 dB of its own. Where a grain is *read from* is what the
+gesture decides — the recording's own spin-up for the first 0.42 s, a random point in its long
+steady stretch for the middle, its brake for the last 0.47 s. The shape is therefore the
+machine's while no stretch of the result is a copy of any stretch of the recording: the grains
+arrive out of order, at another pitch, at another level, four at a time.
+
+`rewind.wav` is committed beside its `.ogg` exactly like every other effect, and it is the
+source of record — there is no script that rebuilds it, since rebuilding it would need the
+recording. `CF_Rewind`'s constructor plays it, so the picture and the sound cannot be had
+separately. It runs 1.75 s against the transition's 1.5 so that the run-down is not cut off
+with the picture.
 
 **xBR-lv2 was here and is gone**, together with hq2x before it, and the reasoning is worth
 keeping: both are edge-directed filters written for flat-shaded pixel art, and this game's art
@@ -414,8 +668,8 @@ bpp to be unchanged and `SDL_FULLSCREEN` to be clear. Setting `SDL_FULLSCREEN` o
 FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
 style to `WS_POPUP` and the size to the desktop directly, SDL notices through its own
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
-place that owns `displaySize` — picks it up. Dragging the border and Alt+Return therefore
-run the same code, and nothing is ever destroyed. Alt+Return is swallowed so the game never
+place that owns `displaySize` — picks it up. Dragging the border and Alt+Enter therefore
+run the same code, and nothing is ever destroyed. Alt+Enter is swallowed so the game never
 sees a bare Return.
 
 **A window that stops presenting loses control of what it shows.** While the app is inactive
@@ -446,8 +700,10 @@ procedure answers `WM_GETMINMAXINFO` (chaining first, since `DefWindowProc` fill
 fields) with 640x480 of client plus the frame from `AdjustWindowRectEx`, so the floor
 `handleResize` enforces applies *during* the drag instead of snapping back after it.
 
-**The window's placement is saved on exit, and the details matter.** `<WindowSize>`,
-`<WindowPosition>` and `<Fullscreen>` are written by `Engine::exit` — before that the only
+**The window's placement is saved on exit, and the details matter.** One
+`<Window positionX= positionY= sizeX= sizeY= maximized= fullscreen=>` is written by
+`Engine::exit`; the position is the only part that can be absent, because on a first start
+there is none and a 0,0 would be a claim rather than a fact. Before that the only
 caller of `saveConfig` was the options dialog's OK, so resizing and quitting lost the size.
 `rememberWindowPlacement` uses `GetWindowPlacement`, not `GetWindowRect`: a maximized
 window's rect is the maximized frame, with negative corners because the invisible grab
@@ -466,18 +722,41 @@ still gets 2x (2*480 = 960 = 1080-120, with nothing to spare). The same value go
 horizontally, where it is pure slack, because a taskbar is not always at the bottom.
 `-windowed`/`-fullscreen` set the state for that start rather than overriding it for one run,
 since `Engine::exit` always saves. In the browser the canvas fills the page
-(`WebBuild/pre.js`), Alt+Return goes through the Fullscreen API from a real DOM keydown — the
+(`WebBuild/pre.js`), Alt+Enter goes through the Fullscreen API from a real DOM keydown — the
 main loop's own events do not count as a user gesture — and the main loop reads the canvas
 size once a frame.
 
 **On a phone the game takes the fullscreen itself.** Mobile Chrome has no button for it, so
 without this the page is played under an address bar, and the picture is small enough already.
-`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Return one —
-`emscripten_set_touchstart_callback`, returning `EM_FALSE` so the touch still belongs to SDL —
-and requests the fullscreen on **every** touch that finds the document not in it, which is
-what makes it survive a swipe back out. There is no extra tap to pay for it: the browser
+`Engine::enforceTouchFullScreen` runs from a second DOM callback beside the Alt+Enter one,
+registered for **both** `touchstart` and `touchend` and returning `EM_FALSE` so the touch still
+belongs to SDL. It requests the fullscreen on every touch that finds the document not in it,
+which is what makes it survive a swipe back out.
+
+Both ends of the touch, because the API needs a *transient user activation* and a phone does
+not necessarily grant one as early as touchstart — `touchend` is the event the HTML spec names
+for it. `emscripten_request_fullscreen_strategy` hid that by deferring the request to the next
+handler allowed to perform it (its own allowlist for touch is exactly touchstart and touchend),
+and a plain `requestFullscreen()` has no such second chance: dropping the strategy took the
+fullscreen away on a real phone while headless, which grants activation at touchstart, kept
+working. `b5_setFullscreen` therefore also asks `navigator.userActivation.isActive` first and
+stays quiet when there is none, so the touchstart attempt costs no rejected promise. There is no extra tap to pay for it: the browser
 build already stops on "click to start", because `GS_Loading` waits for the gesture that
 unblocks the AudioContext, and that tap is the one that gets used.
+
+**The fullscreen goes on the root element, never on the canvas** (`Module.b5_setFullscreen`,
+not `emscripten_request_fullscreen_strategy("#canvas")`). A browser paints only the fullscreen
+element and its descendants, so with the canvas promoted the on-screen pad — its sibling —
+disappears the moment the game goes fullscreen. It still reports a full-size
+`getBoundingClientRect` while invisible, which is why a test that measured it saw nothing
+wrong. From `<html>` both are inside, and the canvas is 100%/100% of the page anyway, so
+nothing has to resize it.
+
+**That same callback resumes the AudioContext**, and not only `GS_Loading`. Going fullscreen
+turns the phone to landscape, and the rotation makes the browser cancel the touch in flight —
+SDL never sees the press, so `GS_Loading` does not know a gesture happened and waits for a
+second tap that the player should not have to give. In the DOM callback the gesture is
+unambiguous.
 
 Two conditions guard it. `Module.b5_isPhone()` in `pre.js` is coarse-pointer **and not**
 `(any-pointer: fine)` — a notebook with a touchscreen has a title bar somebody wants, a phone
@@ -545,6 +824,32 @@ exactly on the ceiling; 0.40 is quieter than it needs to be. It belongs in the s
 than in the options because it is a property of the mixture, not a preference — the player's
 own sliders are untouched and still read 100%.
 
+**The sound files are repaired sources, and the mix decisions are not in them.**
+`Blocks5/data` holds a WAV beside every shipped OGG, and `Tools/encode_sounds.py` produces
+the one from the other **one to one** — 96 kbit/s where libvorbis accepts it, stepping down
+where it does not (11025 Hz mono tops out at 48). Where a sound should play quieter than its
+file, that factor lives in `data/sounds.xml` and is applied at playback: `Sound` looks itself
+up once at construction and `SoundInstance` multiplies it into the single `alSourcef(…,
+AL_GAIN, …)` call, so it covers `slideVolume` and every caller that sets a volume itself.
+
+That split exists because the alternative had already failed silently. Eight OGGs had been
+exported at a reduced level while the WAV beside them kept the loud original, so the intent
+lived only in the compressed file: re-encoding from the source would have made `ricochet`
+6.8 dB louder, `push` 5.1, `thunder` 4.6. Measuring it back out needs the right comparison —
+the shipped OGG against a *freshly encoded* one from the same WAV, since WAV-against-OGG
+folds in the encoder's own frequency-dependent loss, which is the same order as the smallest
+of these factors (`syringe` at 0.914).
+
+Three things belong in the WAV instead: no DC offset, endpoints on zero, and nothing clipped.
+A 20 Hz high-pass takes the first — measured, it costs at most 0.8 dB of BS.1770 loudness
+while removing up to 6.6 dB of RMS, because what it removes is inaudible. Half-cosine fades
+of 5 ms take the second, **except on the eight looping sounds** (`conveyorbelt`, `elevator`,
+`gas`, `laser`, `mask`, `rain`, `thunderstorm`, `toxic`), where the end *is* the beginning.
+Those also need the high-pass convolved **circularly** rather than linearly: a looping sound
+is periodic, and the filter's transient otherwise droops both ends and made the seam 10–12 dB
+worse. The third cannot be repaired at all — clipped peaks are gone, and getting back under
+full scale means lowering the level.
+
 **Input** is two-layered. Physical keys/joystick axes/hats are mapped to *virtual keys*
 (`VirtualKey`), and named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and
 secondary VK. Gameplay queries `wasActionPressed(name)` / `isActionDown(name)`; bindings are
@@ -553,11 +858,20 @@ strengths there — *Reset selected* and *Reset all*, two stacked buttons under 
 since `Action` carries `defaultPrimary` and `defaultSecondary`. Those two and the two key
 buttons all grey out without a selection.
 
+**Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
+`wasAnyButtonPressed` read the same per-tick bits the named queries do. Coming back from
+another window is the case that makes it worth having, since `onAppLoseFocus` pauses and the
+click that returns is then the one that resumes. The press is *spent* on resuming, and that
+ordering is the whole trick: the resume sits in front of the action chain as its `if`, so the
+pause key cannot switch back on in the same tick what it just switched off.
+
 **Waiting for a key is a state, not a loop.** Clicking a key button sets its caption to
 `$O_PRESS_KEY` and calls `Engine::beginKeyGrab()`; `Options::onUpdate` asks `pollKeyGrab()` each
-tick and applies the answer — the pressed VK, `GRAB_CANCELLED` for Escape (the binding is left
-alone), or `GRAB_NO_KEY` on the three-second deadline, which clears it and is the only way to
-leave an action unbound.
+tick and applies the answer — the pressed VK, `GRAB_NO_KEY` for Escape, which clears the
+binding and is the only way to leave an action unbound, or `GRAB_TIMED_OUT` on the three-second
+deadline, which leaves it as it was. Waiting costs nothing on purpose: that is what somebody
+does who opened the grab by accident or thought better of it, and it must not take the key
+they had. The caption says which is which — `$O_PRESS_KEY` reads *Press key or Esc to clear*.
 
 A blocking loop around `SDL_PumpEvents` and `SDL_Delay` — the obvious shape, and what this was
 — **cannot work in the browser**: the event queue is filled by DOM listeners on the JS thread,
@@ -603,8 +917,241 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
 
+**Something that reacts lights up.** `Object::flash()` sets `flashAmount` to `FLASH_STRENGTH`;
+`frameBegin` decays it by `FLASH_DECAY` per tick and `Object::render` draws the object's own
+sprites over themselves once more, additively, at that brightness — about eight ticks, a
+sixth of a second. It is the acknowledgement a switch gives when it is pressed, and the two
+counters at the bottom left of the screen give the same one when a diamond or a bomb is
+collected: `Player::addInventory` is the single funnel both go through, so it calls
+`Level::flashHudIcon` there, and `GS_Game`'s HUD pass draws the preset a second time under
+the same additive blend. The two constants live in `object.cpp` and are `extern` so that the
+icons cannot drift away from the objects.
+
+**The diamond machine takes the block apart and puts it back together.** Sparks fly out of
+the block in its own colours, sampled texel by texel through the debris mechanism; from the
+cloud they leave behind, more sparks come back, taking on the colour the diamond will have
+where they land and die. The block itself fades to `CONVERSION_GHOST` over the same hundred
+ticks — `setConversionProgress` each tick, cleared by the block's own `frameBegin()`, so a
+machine that stops pushing lets it stand full again by itself. Both ends of the flight are
+computed rather than chosen: the integrator is `position += velocity; velocity *= damping`, so
+a spark covers `v0·(1−dⁿ)/(1−d)` over n ticks, which says where the outward cloud ends and, read
+backwards, gives the `v0` that lands an inward spark exactly on its target. **n is the number of
+moves, not the lifetime**: a particle does not move in its last tick — that update only counts
+down and erases — so aiming over the lifetime leaves every spark one step short, and because it
+accelerates, that is the longest step of all.
+
+**The handover is the part that has to be exact, and two off-by-one-ticks were spoiling it.**
+The inward sparks live one tick longer than the conversion has left, so they are still standing
+on their landing points in the last frame the block is drawn; the diamond appears in the next
+one, by which time they are gone. And the block does not come back: `frameBegin()` keeps the
+conversion progress once the object is dying **or scheduled to die**, the second half being the
+one that matters — `disappearNextFrame()` only records the death, `update()` applies it, and
+`update()` runs after `frameBegin()`, so `isAlive()` alone still answers "alive" in the tick
+where the value would be cleared. Without that the finished block snapped from a 22% ghost back
+to full opacity and then took half a second to fade off the new diamond, measured as a green
+cast of +38 grey levels over the settled colour; it is +9 now and gone within two frames.
+
+**Dust, not embers.** The outward sparks are many, large, slow, and carry the plain colour of
+the texel they came from — `OUT_BRIGHT` and `OUT_END` are both 1, so only the opacity falls.
+Glowing sparks read as welding, and the machine is handed rock, ice and grass as readily as
+metal. Additive blending was never an option either: there the result depends on the
+background, and the same brown would be an ember over rock and a glare over grass. The inward
+motes *do* start above 1, where GL clamps to [0,1] — but that is not a glow, it is the way
+around a green cast, since a linear ramp from a blue block to the diamond's warm white passes
+straight through green (measured 0.16 at t=0.6, 0.05 once over-brightened).
+
+The sprite must be the neutral white disc at (32,32) in `particles.png` — a particle is
+multiplied by its texture region, and (32,0) is a pre-coloured orange that turned every cyan
+spark olive.
+
+**An aborted conversion runs the sparks backwards**, because the block can be pushed away,
+blown up or switched off in the last moment and a cloud that simply vanishes is a hole in the
+middle of the motion. `DiamondMachine::abortConversion` reverses every delta and inverts the
+damping — it is a factor, not a summand — and the velocity gets that inverse as well, since the
+integrator shifts before it damps and the way back would otherwise be a tick out of step. The
+lifetime is *mirrored*: a spark that just set off is over at once, one that was nearly home has
+the whole way in front of it. It needs no extra field, because the elapsed count is in the
+spark itself — its alpha is a straight line over exactly that time.
+
+Which sparks turn round depends on what happened. The inward ones always do: they were flying
+at a diamond that is not coming. The outward ones are debris that is already out, and whether
+they are drawn back in depends on whether there is anything to draw them into —
+`findLivingBlock()` looks for the block in the level's object list rather than through
+`p_objOnMe`, which in exactly the interesting case points at nothing: a destroyed block is
+deleted at the start of a tick. Blown up (or teleported away) counts as gone and they fly on
+untouched; pushed aside or merely switched off and they are sucked back, aimed at the block's
+*logical* cell rather than its shown one, since it is still sliding and will be there by the
+time they arrive. The offset is one addend on the velocity — the same travel formula solved for
+`v0` — so the return path is translated rather than distorted. Only the gravity of one variant
+cannot be reversed exactly: it is added after the damping, not before, so flipping its sign is
+an approximation and that spark finds a slightly different arc home.
+
+**`Particle::id` is what makes any of this possible**, and it is the one field that stays 0
+everywhere else in the game — the machine stamps its own sparks with a fresh id per conversion
+and finds them again through `ParticleSystem::begin()`/`end()`. Filtering by id is an `if` at
+the call site rather than a method. And `Particle` has a constructor that zeroes every member,
+because the forty-nine callers of `addParticle` build one on the stack and set only what they
+need; a field none of them knows about would otherwise arrive as a random number.
+
 `Level::update()` is the tick order: remove/add pending objects → `frameBegin()` on all →
 `update()` on all → `Electronics::updateAll()` → particle systems → AI-trace decay → exit check.
+
+**The hint note is one texture, and it unrolls.** Standing on a note (`hint.cpp`) flies a
+300x400 sheet of paper to the middle of the screen. Paper and text are drawn *together* into
+one 512x512 texture (`Engine::getOffscreenTexture` + `beginRenderToTexture`), so the writing
+belongs to the sheet: it flies with it, turns with it and rolls up with it, instead of
+appearing on top once the sheet has landed. Two things about that texture are worth knowing.
+It is drawn with (0,0) at the top left like everything else in the game, so it ends up
+upside down in texture space — exactly as the game's own frame does in the framebuffer object,
+and the mesh samples it with `1 - py/512`. And it is composed with
+`glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`,
+which leaves the colour premultiplied by its own alpha and the alpha itself correct; it is
+therefore drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
+
+**At rest the sheet is drawn at exactly 1:1, on whole pixels.** It used to land at 0.9 of its
+size, which resamples every texel of a texture whose whole point is the writing on it — and
+the arrival never *finished*, because `shownAlpha` is an exponential ease towards 0.85 that
+only approaches it, so the scale stayed a hair under its target and the rotation a hair over
+zero for ever. Three fractions at once, and the text was soft. Once the residual falls below
+`SNAP_RESIDUAL` — half a pixel over the screen diagonal, the longest lever both the remaining
+travel and the remaining rotation act on — scale, angle and position are rounded to exactly 1,
+exactly 0 and exactly `targetPosition`, which is a `Vec2i`. The mesh's own corners are whole
+numbers anyway, so from there each texel covers exactly one pixel and is sampled at its centre.
+Measured off a screenshot: 17% of the outline pixels carried the font's own colour before,
+58% after. The sheet is therefore 300x400 rather than 270x360, which is exactly the height of
+the play area above the status bar — the note now covers the field it is read over.
+
+The texture belongs to the **Engine** and not to the note, and that is not tidiness: it falls
+with the framebuffer object, which `Engine::exit` destroys while the GL context still stands,
+whereas an `Object` is destroyed only after `main()` has returned.
+
+**More than one note can be on screen**, which is the whole reason it is a pool
+(`acquireOffscreenTexture` / `releaseOffscreenTexture`) rather than the single texture it
+started as: two notes on neighbouring fields overlap for the third of a second the outgoing
+one takes to fade. Sharing one texture between them was not *wrong* — each note bakes
+immediately before it draws, and GL runs the commands in order — but it meant a full
+render-to-texture, an FBO switch and a read-after-write stall **per visible note per frame**,
+for as long as they overlapped. A note borrows a texture when it first bakes and gives it back
+in `onUpdate` the moment `shownAlpha` reaches zero (and in `onRemove`, since the destructor
+runs when there may be no Engine left to hand it to), so the pool never grows past the largest
+number of notes visible at once — walking a row of them holds four or five, not one per note
+in the level.
+
+**The roll is geometry, not a shader.** Each end of the sheet is wound onto a cylinder of
+`ROLL_TURNS` (0.50) of a turn, tessellated into `ROLL_BANDS` (48) bands, with the perspective
+divide done by hand (`f = PERSPECTIVE / (PERSPECTIVE - depth)`) and a shading term per vertex.
+**The viewer stands to the left of the sheet**, `VIEW_OFFSET_X` (300) pixels off the axis, so
+what comes towards them also moves right — the slant the 16x16 sprite has. That is an ordinary
+off-axis projection and costs one term, `e·(f − 1)` added to x; in the plane of the paper `f`
+is 1 and the offset is zero, so the sheet at rest still lands pixel on pixel. Measured on a
+frame at full roll, the top band's centre sits 30 px right of the bottom band's, falling to
+1.5 px as the sheet flattens. **Half a turn is the hard limit, and the sheet now sits exactly on it**: this is a
+painter's-order limit rather than a matter of taste, because the pass has no depth buffer, so
+the only order that composes correctly is back to front, and only up to π does every further
+step of paper keep moving in one direction in depth. Beyond that the far end would come back
+round and still be painted in the wrong place. Radius, arc length and turn are one relation,
+so at a full half-turn there are only two numbers left rather than three: a fatter bead means
+rolling up more sheet. `ROLL_LENGTH` is 0.30, which leaves the middle 40% of the paper lying
+flat and makes the bead 38 pixels across — 0.5 rolled the sheet up to its own middle and
+looked wrong for it. The strip is
+`GL_TRIANGLE_STRIP` and not `GL_QUAD_STRIP` — WebGL has no such primitive, and
+`WebBuild/gl_immediate.cpp` hands the mode straight to it.
+
+**Whether it rolls at all belongs to the artwork.** A sheet of paper rolls up; the space skin's
+hint is a hard-edged display panel and rolling that would look silly. The switch is a marker
+file, `hintscroll.txt`, sitting beside the `hint.png` that is *actually loaded* — its contents
+are ignored, only its existence counts, and `Level::loadSkin` looks it up once and answers
+through `Level::isHintScroll()`. Without it `shownUnroll` is pinned to 1.0 and the mesh
+degenerates to the single flat quad.
+
+Beside the image, and not an attribute in `tileset.xml`, because **each skin slot is chosen
+separately**: `<Level skin0=… skin10=…>` is one name per entry of `p_skinFilenames`, so a level
+can take its tiles from one skin and its note from another, and a flag in the tileset would be
+describing a different file. Following `default_hint.png` costs nothing either — that link is
+resolved by `getSkinFilename` itself, which recurses and returns the *final* path, so the
+marker is looked for wherever the picture really came from. The four shipped skins need exactly
+one file between them: `blocks_01` has the paper and gets it, `blocks_02` and `blocks_03` reach
+that same paper through `default_hint.png` and roll too, and `space` brings its own panel and
+does not. Absence meaning "no roll" is also the right default for a skin somebody else wrote.
+
+It has to be named in the packing scripts rather than swept up as `*.txt`: `password.txt` is
+deliberately packed *unencrypted* in a second pass, and a `*.txt` pattern would take it into the
+encrypted set as well, where it would be the key to itself. In `pack.sh` the name is also tested
+for first, because `packInto` drops only *patterns* that match nothing — a plain filename
+survives an empty glob and 7za then fails on it, which is what broke the `space` archive once.
+
+**The unrolling counts ticks, not alpha.** `shownAlpha` is an exponential ease towards 0.85
+that never arrives, so a sheet driven by it would stay a little rolled up for ever.
+`activeTicks` counts up while the player stands on the field and down again when they leave;
+the sheet opens between tick 20, where it is at 96% of its size, and tick 40, and rolls up
+over the same twenty ticks.
+
+**Return and Escape put the note away**, without walking off the field. The sheet is 300x400
+and covers the play area it is read over, so the alternative was to move — and moving is a
+move you may not want to spend. `Object::dismiss()` is a virtual that answers false
+everywhere except on a hint that is currently showing something; `Level::dismissDisplay()`
+asks the objects on the *player's own* field and reports whether anything took the key.
+
+The key has to be caught in `GameGUI::onKeyEvent` rather than in `Hint::onUpdate`, and the
+tick order is why: `GUI::update()` runs before `p_gs->onUpdate()`, so by the time the level
+saw the key the game menu would already be open. Escape therefore asks `dismissDisplay()`
+first and only falls through to the menu when nothing was there to close — which is also what
+makes a second Escape open the menu as always.
+
+`dismissed` holds until the player leaves the field, or the note would simply open again on
+the next tick and the key would have done nothing. Reading it again means stepping off and
+back on; that is the same gesture as before and keeps Escape from turning into a toggle that
+never reaches the menu.
+
+**It rolls up before it starts to go**, which is why the roll is computed first in
+`onUpdate` and `alpha` reads it: while anything is still rolled out, the sheet stays fully
+opaque and in place, and only once `unroll` reaches 0 does it fade and fly back. Leaving a
+note therefore takes twice as long as it used to and shows what it is doing. The path
+without a framebuffer object has no roll to show, so `renderNoteFlat` scales the height to
+the part that is still flat — the same silhouette without the bead, and the writing squashes
+with it, which is the price of that path.
+
+**The top edge rolls toward the viewer and the bottom edge away from it**, matching the
+16x16 sprite on the field; a sheet that curled the same way at both ends would read as a
+tube. `direction` is −1 at the top and +1 at the bottom, so one sign in front of `depth`
+does it — but the draw order has to follow, because there is no depth buffer here. The
+bottom roll goes first and from its outer end inward, since that end is now the furthest
+away; then the flat sheet; then the top roll from the crease outward. Measured off a frame
+at full roll: the topmost rows come out 7% wider than the middle and the bottom rows 7%
+narrower, which is the perspective divide doing its work in opposite directions.
+
+**Past the quarter turn you are looking at the back of the paper, which is blank.** The baked
+texture therefore carries the sheet twice, side by side in 1024x512: the written face at x 0
+and the bare paper at x 512, with a gap so no texel of one bleeds into the other. Nothing is
+mirrored — the sheet curls about a horizontal axis, so left stays left. Each roll is split at
+θ = π/2 into a front and a back section, because the seam has to fall on a vertex or one quad
+would drag its texture across both panels; the split costs nothing visually, since at exactly
+π/2 the paper is edge-on and has no projected width. That makes five sections in all, and
+their order is the depth order: bottom-back, bottom-front, flat, top-front, top-back. The back
+is exactly as bright as the front, because it is the same sheet of paper.
+
+**The shading follows the surface normal, not the angle of rotation**, and that distinction is
+the whole of it: on the back you are looking at the *other* face, whose normal points back at
+you, so the term is `|cos θ|` rather than `cos θ` and the paper is at full brightness at both
+ends of the curl. `SHADE_EDGE` (0.75) is where it dips, at the quarter turn, where the sheet
+shows you its edge.
+
+**Where it flies to is decided once**, in the tick the note opens (`activeTicks == 0`), and
+never revisited. Asking again while the player is on the field means the sheet jumps to the
+other side of the screen in the very tick they step off — exactly while it is rolling up and
+leaving.
+
+**It fades only while it is small.** `FADE_UNTIL` (0.5) is how far along the flight the note
+reaches full opacity, and from there it is solid. A half-transparent sheet whose back is
+opaque and blank contradicts itself, and there was nothing to see through it anyway; the fade
+now does the one job it is good for, which is keeping the note from appearing out of nowhere
+while it is still a small shape in flight. `onCollect` is the wrong place for it (it only fires once the player stands within
+six pixels of centre, by which time the note is already on its way) and now does nothing at
+all — it exists solely to stop `Object::onCollect` making the note disappear.
+
+Without a framebuffer object none of this can happen, and `renderNoteFlat` then draws sheet and
+text one after the other under the same matrix — no roll, but the writing still flies with the
+paper.
 
 **Presets are the object factory.** `presets.cpp` maps a type-name string to a constructed
 `Object` in one long `if/else if` chain (`instancePreset`), plus a `texCoords` table for the
@@ -626,11 +1173,131 @@ of a zip archive; the archive is selected by path syntax:
 - `archive.zip[encryptedpw]/file.png` — password encrypted with `PWEncrypt` (see
   `decryptPassword` in `util.cpp`)
 
+**`renameFile` renames where the platform can and copies where it cannot** — across a mount,
+since the browser stages an upload outside the home directory, and for a member inside an
+archive, which has no name on the disk of its own. The destination gives way only after the
+first attempt has failed: POSIX replaces it in one atomic step and deleting it beforehand would
+open a window in which neither name exists, while Windows refuses the replacement and needs the
+second try. Three callers want exactly that — `retireShadowingCopies`, which said so in a
+comment (*"the game's filesystem has no rename"*) and did copy-then-delete; `Campaign::save`,
+whose swap otherwise wrote the whole archive a second time, megabytes for a campaign with its
+music; and the progress database's crash-safety file.
+
 `pushCurrentDir`/`popCurrentDir` maintain a search root, which is how `main.cpp` mounts
 `data.zip[...]` as the asset root (the commented-out `fs.pushCurrentDir("data")` next to it
 switches to loose files for development). User-writable state — saves, progress, custom levels,
 screenshots, videos — lives under `getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next
 to the executable.
+
+**Levels, campaigns and skins have two roots, and the game folder wins.** What ships stays
+beside the executable and is read from there, so it is always exactly as new as the program;
+the user directory holds only what the player made or imported.
+`FileSystem::resolveContentPath("levels/skins/space.zip")` asks the game folder first and falls
+back to the user directory, and `isShippedContent` — "it exists in the game folder" — is
+simultaneously the definition of undeletable, un-overwritable and un-saveable-over. The paths
+are absolute on purpose: a relative one would be resolved inside the mounted `data.zip`.
+
+The order matters and the other one is wrong. User-first would let a stale copy shadow a fresh
+shipped file, which is the bug this replaces: every installation used to carry a private copy
+of the campaign, the four skins and the two examples, frozen at whatever version it first
+installed, and that is how a skin marker went missing on a machine that had just built the
+current sources. Game-first has one cost, and it is the reason both editors now refuse to save
+under a shipped name: such a file could never be loaded again, because the game folder would
+answer first.
+
+**Seven files belong to the player even though they ship with the game**, and for them the
+order is reversed: `FileSystem::getPlayerFiles` lists the two example levels and the five
+`readme.txt`, `belongsToPlayer` makes `isShippedContent` say no for them, and
+`resolveContentPath` looks in the user directory first, falling back to the game folder's copy
+as a template. The two halves belong together — allowing the save while still answering from
+the game folder would write a file that could never be read back. The list is hard-written
+rather than a directory listing because a working tree also holds the forty-two campaign
+sources, which are nothing of the kind.
+
+Only the five `readme.txt` are *copied* on a first start, and only because nothing in the game
+ever reads them: without the copy they would sit in no folder at all. The examples are not
+copied. They are listed and loadable straight out of the game folder, and the player's own
+version appears the moment they save one — so an untouched installation keeps getting the
+newest examples, and Delete stays greyed until there is actually something of theirs to
+delete. That last part is why the Manager asks `Transfer::isRemovable` ("is there a copy in
+the user directory") rather than `isBuiltIn`.
+
+**On the first start of 1.2.0 the old copies are set aside.** `retireShadowingCopies` in
+`main.cpp` renames every file in the user directory whose name the game folder also has to
+`<name>.bak` — renamed and not deleted, because there is no way to tell from outside whether
+somebody edited one, and what is in a player's folder is theirs. `.bak` is inert everywhere:
+every lister filters on the exact extension, and `convertPath` recognises an archive by
+`.zip/`, not by `.zip`.
+
+**`ProgressDB` keys on the campaign's bare filename, not on its path**, and that is what made
+the move survivable. The key used to be the full path, so shifting `blocks.zip` from the user
+directory into the game folder would have silently reset everyone's 42 levels — no error,
+nothing in the log, just a progress bar back at zero. `keyFor` strips the directory on the way
+in and on the way out, which migrates an old `progress.zip` by reading it: no separate step,
+and the next save writes the short form. Case is **not** folded there, deliberately: under
+Linux `Blocks.zip` and `blocks.zip` are two different campaigns, and joining their solved sets
+could never be undone.
+
+**It holds nothing.** `query()` reads the file and `markSolved()` reads it, adds and writes it
+back; there is no map that lives for the process. That is what makes the Manager able to
+import, merge and delete a progress at all — a copy in memory would answer from what was there
+at startup and the next completed level would write it straight back over the import, a delete
+would undo itself within one level, and merging would need a `clear()` the class never had.
+Merging then needs no code of its own: read the imported file and mark everything in it as
+solved, which `markSolved` folds into what is on the disk.
+
+The reads are per frame — `getLevelStatus` and the progress bar are both inside
+`GS_SelectLevel::onRender` — so the screen keeps the answer for as long as it is shown and
+re-reads in **`onGetFocus`, not `onEnter`**: coming back from a played level is a *pop*, and
+`popGameState` gives the state underneath the focus without entering it again, so a level just
+solved would still be shown as unsolved. The count is clamped to the campaign's length, or a
+merged database would draw the bar past its own frame and label it *45/42*.
+
+**A save no longer destroys what it is replacing.** Writing a member into a zip rebuilds the
+archive, and `File_Archived` removes the old file before the new one exists (`remove` at
+`file_archived.cpp:526`), which for a one-member archive is every save — so a crash or a full
+disk in that window took everything. The database is renamed to `progress.zip.saving` first and
+that file deleted only once the new one stands; `query()` puts it back where the real file is
+missing or unreadable, and deletes it where the real file reads. The invariant is worth stating
+plainly: **the backup exists exactly while a save is in flight**, so one found lying about is
+from a run that died, and leaving it would mean the next unrelated fault restores a database
+months out of date. A delete takes it along for the same reason.
+
+That parse trusts nothing, because the Manager imports this file and it is therefore a
+stranger's: no root element, no `campaign` attribute and a level index that is negative or
+absurd are all skipped rather than crashing. It used to run at startup from `main()`, before
+`engine.init()` — no window, no toast, and in the browser a wasm trap that looks like a hang
+with the offending file locked away in IndexedDB.
+
+**A level somebody sent you is played from the level select screen, not from the editor.**
+`Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in
+the user's level folder, listed last in the campaign box under `$LS_SINGLE_LEVELS`. Opening
+such a level in the editor was the only way before, and the editor gives the puzzle away by
+design — `level.cpp` skips the darkness there (`if(nightVision && !inEditor)`) and
+`teleporter.cpp` draws a line to every teleporter's destination.
+
+It carries **no progress**, and that is what `isSingleLevels()` is asked about in five places:
+every level is unlocked, finishing one records nothing, the run ends back at the selection
+instead of at the next level, and both the *next to do* button and the progress bar — frame,
+label and all — are hidden. A bar that can never move reads as a fault, not as an empty one.
+Levels that have nothing to do with each other have no order to earn.
+
+The list is sorted by the **localized title**, not by filename: that is the line the player
+reads. Getting it means parsing each level's XML for the one `title` attribute
+(`readLevelTitle`), which is cheaper than a `Level::load` with all its objects and skins but
+is still a parse per file at dialog entry. The caption is
+`formatSingleLevelCaption` — `Title (filename.xml)` — because three levels called *Unnamed
+Level* are otherwise indistinguishable, while inside a campaign the filename would say
+nothing but `level_2.xml`.
+
+**The whole select screen is keyboard-operable.** Left and right step through the levels,
+Home and End jump to the ends, Return plays, Shift+Right is *next to do*, and up and down
+change the campaign. The last four go through `GS_SelectLevel::onUpdate` only while the
+campaign list does **not** hold the focus, because those are exactly the four keys
+`GUI_ListBox::onKeyEvent` handles itself; left, right and Return are unconditional, since the
+list ignores the arrows and forwards Return for want of a submit button. Everything runs
+through `pressButton`, which asks `isActive()` and `isReallyVisible()` first — otherwise
+Return would start a locked level that the mouse cannot even click.
 
 **One Manager button in the main menu** opens a dialog that imports, exports and deletes, on
 all three platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in the browser,
@@ -638,18 +1305,44 @@ all three platforms — `src/transfer.cpp` over `WebBuild/web_transfer.cpp` in t
 one interface: `beginImport` starts it and `pollImport` is asked each tick, so an asynchronous
 dialog and a modal one look the same to the caller.
 
-`Menu.ManagerPane` holds the four kind radios, the list, *Refresh*, and a bottom row of
-*Import*, *Export*, *Delete* and *Close* in the same four 92px columns as the radios above.
-Import needs no selection and comes first; Export and Delete work on the selection and grey
-themselves out without one. `Menu.ConfirmPane`, which must stay the **last** child in
-`menu.xml` so it draws last and takes the clicks, asks before a delete — the one thing here
-that cannot be undone.
+`Menu.ManagerPane` holds the five kind radios in 92px columns, the list, *Refresh*, and a
+bottom row of *Import*, *Export*, *Delete* and *Close* spread over the window's own width.
+The two rows span the same x=10..486 without sharing a grid: the captions decide the first
+width — "Zusammenfuehren" and "Aktualisieren" are what the 92 is for — and forcing that grid on
+the second would leave a hole where a fifth button would be. Import needs no selection and
+comes first; Export and Delete work on the selection and grey themselves out without one.
 
-**`Transfer::isBuiltIn` is the one place that knows what ships with the game**: `example01.xml`,
-`example02.xml`, `blocks.zip` and the four skins. Two callers, for the same reason — the Manager
-must not delete one, and an import must not take its name. They stay listed and exportable;
-only *Delete* greys out. The comparison is case-insensitive and hand-rolled, because `tolower`
-is locale-dependent and `pch.h` does not pull in `<cctype>`.
+**The progress database is the fifth kind, and it goes round the directory machinery rather
+than through it.** It is one file, with one name, in the user directory *itself*, and nothing
+of the sort ever ships — so `directoryFor` names it outright. An empty subdirectory would have
+been the obvious answer and is a trap: `list()` would then read the game folder's own root,
+where `data.zip` lies, and `remove()` would point at whatever it found there. `classify`
+recognises it by a `progress.xml` inside the archive, which a zip's table of contents answers
+without the password, and `install` refuses one that does not parse — the same guard a campaign
+has, so a damaged file cannot destroy a good one of the same name.
+
+`Menu.ConfirmPane`, which must stay the **last** child in `menu.xml` so it draws last and takes
+the clicks, asks before a delete and before an import replaces anything. Three columns, of
+which the middle one carries *Merge* and is shown only for a progress database, so *Yes* and
+*No* keep their places either way; the text is wrapped, since the code sets it and a filename
+can be any length. **The two buttons are renamed for an import** — *Replace* and *Cancel* —
+because yes and no are no answer to a question that offers replacing and merging.
+
+Asking before an overwrite needed somewhere to ask *from*: `install()` composed the destination
+name inside itself and tested for the overwrite two lines before the copy, so no caller could
+put the question first. `Transfer::targetName` and `wouldReplace` are that answer and
+`install()` is built on the same two, so the name asked about and the name written cannot drift
+apart. The whole import waits for the answer, `finishImport()` included — in the browser that
+call deletes the staging file the bytes are in.
+
+**`Transfer::isBuiltIn` no longer keeps a list**; it asks whether the file exists in the game
+folder — and answers no for the seven files that belong to the player. Three callers, all the
+same rule: an import must not take such a name, and neither editor may save under one. Delete
+goes through `isRemovable` instead, which is the stricter question. They stay listed and exportable; only
+*Delete* greys out. `Transfer::list` returns the union of both roots, sorted, and needs no rule
+for a name in both because no path can create one. Case is the file system's problem now rather
+than a hand-rolled comparison's, which is right: on Windows `Blocks.zip` *is* `blocks.zip`, and
+`fileExists` says so.
 
 **A finished import updates the open list.** `pollImport` runs every tick from `onUpdate`,
 because the browser's file dialog cannot be modal — so when it completes with the Manager still
@@ -709,6 +1402,34 @@ texture through its own `SDL_RWops` over the encrypted `data.zip`. stb_image (`l
 header) does that in about eighty lines; PNG and JPEG are enabled, and every image the game
 ships is a PNG.
 
+**Writing one needs no library at all**, and `img_save.cpp` is the mirror image of that
+reasoning: decoding PNG is hard, which is why stb_image is vendored; encoding it is not,
+because zlib does the work and zlib is already compiled into all three builds for minizip's
+sake. `compress2()` returns exactly the zlib datastream an `IDAT` chunk is defined to hold and
+`crc32()` is the checksum every chunk carries, so the whole encoder is a signature, three
+chunks and a filter loop. Screenshots are PNG because of it — `SDL_SaveBMP` and its 900 KB
+files are gone.
+
+Two things there are worth knowing. The per-row filter heuristic — pick the filter whose
+bytes have the smallest sum of magnitudes read as signed — is twenty lines and worth them:
+measured on a real 640x480 screenshot, 239 KB against 283 KB for no filtering at all, out of
+a 900 KB bitmap. And **the alpha channel is not free**, which is the opposite of what it looks
+like: `glReadPixels` must ask for `GL_RGBA` because that is the only combination WebGL 1
+allows, but a channel of nothing but 255 does not collapse in the deflate — it pushes every
+prediction one byte apart. The same frame is 330 KB as RGBA and 247 KB as RGB, so the encoder
+takes a source layout and a destination layout separately and drops the channel while
+building each row, before the filter ever sees it.
+
+**The browser gets screenshots too**, and this is what unblocked them: the two reasons F11 was
+refused there were `GL_BGR` and `SDL_SaveBMP_RW`, and neither is in the path any more. There is
+nowhere sensible to *put* the file, though — the IndexedDB is for saved games, and filling a
+player's quota with pictures they can never look at is not a trade worth making — so the bytes
+go straight into their downloads through `WebTransfer::downloadBytes`, the same Blob mechanism
+the Manager's export uses. It copies the heap slice (`new Uint8Array(HEAPU8.subarray(...))`)
+rather than handing the Blob a view, because `ALLOW_MEMORY_GROWTH` can invalidate one at any
+allocation. `$A_TOGGLE_CAPTURE_VIDEO` is still the one action `main.cpp` withholds from the
+web build.
+
 **The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated
 one, and everything in it is there because a phone needs it. `<meta name="viewport"
 content="width=device-width, ...">` is the important one: without it a phone lays the page out
@@ -721,14 +1442,53 @@ page also handles `webglcontextlost`, a real event when a tab goes to the backgr
 saying so instead of freezing: the game cannot rebuild its textures and its framebuffer object
 from where it stands.
 
+**Every function key belongs to the game, not to the browser.** `pre.js` swallows F1 to F24 in
+the capture phase, before SDL or the browser sees them, because they are bindable actions like
+any other key and the desktop build answers to all of them — a player who knows the game must
+not find half of them missing, and taking a named few would be the worst of both. Left alone,
+F1 opens the browser's help, F5 reloads the page and loses the level, F10 reaches for the menu
+bar, F11 goes fullscreen and F12 opens the developer tools. Nothing is lost by it: Ctrl+R and
+the address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Enter
+as it is on the desktop. Whether a browser hands a page F11 and F12 at all is its own decision;
+asking costs nothing where the answer is no.
+
+**Which is why the click prompt names Alt+Enter.** A desktop browser offers no way to reach the
+game's own fullscreen and nobody guesses that chord unaided, so `$WEB_FULLSCREEN_HINT` sits
+under `$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not on a phone,
+where the game takes the fullscreen itself on the first touch and there is no Alt to press;
+`Engine::isPhone()` is the one C++ place that asks, and it forwards to the `b5_isPhone` in
+`pre.js` that the page uses too.
+
+**The boot screen is pixel art too, and its line is the game's own.** It shows `$LOADING` from
+`data/languages.txt` — the same sentence the game puts up a moment later — in the game's own
+font, which the page cannot render itself: it stands before `data.zip` and before any GL
+context. `WebBuild/make_text.py` draws it at build time straight out of `data/font.xml` and
+`font.png` (the same glyph rects, the same advance, the same two-tap shadow `Font::renderText`
+uses) and `build.sh` stamps both languages into the page as data URIs, so the line is there
+with the first paint and costs no request. The page blows it up by a whole factor, 3 dropping
+to 2 or 1 where the line would not fit — replication at an integer factor, never a resize,
+the same rule as the icons. The bar fills in whole 12px blocks, and the icon is shown at 5x32
+with `image-rendering: pixelated`. Which language is decided the way
+`Engine::detectSystemLanguage` decides it, by the same walk over `navigator.languages`.
+
+**The click-to-start goes through the moment the gesture arrives**, and does not wait for the
+AudioContext. `resume()` returns a promise, and on a phone — where the fullscreen request
+turns the screen — it can take a second or two to settle; waiting for it left the line
+pulsing, which reads as "the tap did not register" and gets tapped again. `GS_Loading` starts
+the logo intro at once instead, and the jingle waits its turn: it hangs off `time >= 1000`, so
+there is a second of slack, and if the context is still suspended by `time >= 2000` the jingle
+is given up rather than fired into the menu. Measured with `resume()` stubbed out to never
+settle: the menu comes up 3.0 s after the tap, which is the intro and nothing else.
+
 **It installs.** `manifest.json` (fullscreen, landscape) and `sw.js` make it an ordinary
 add-to-home-screen web app that launches without the address bar and runs offline; that is
 also the answer to iPhone Safari, which has no element-level Fullscreen API.
 
 **Every icon is generated from `data/window.png`** — four for the web by
-`WebBuild/make_icon.py`, seven for Windows by `Tools/make_ico.py` (both stdlib only, sharing
-the PNG reader). **Pixel replication at an integer factor, never a resize**: a scaler that
-smooths turns 16x16 pixel art into a blur, and that is the whole reason both scripts exist.
+`WebBuild/make_icon.py`, seven for Windows by `Tools/make_ico.py`; `make_text.py` uses the same
+PNG reader for the loading line, and all three are stdlib only. **Pixel replication at an
+integer factor, never a resize**: a scaler that smooths turns 16x16 pixel art into a blur, and
+that is the whole reason these scripts exist.
 The `.ico` is **committed rather than generated**, because the Windows build runs no Python;
 `verify.py`'s `windows_icon` check is what stops it going stale.
 
@@ -828,6 +1588,32 @@ it is short of room; `navigator.storage.persist()` in `pre.js` asks for that not
 browser grants it silently once the page looks like something the user meant to keep and
 otherwise refuses, which costs nothing.
 
+**In the browser the program never ends, so nothing is ever destroyed.**
+`emscripten_set_main_loop_arg(…, 1)` asks for the simulated infinite loop, which unwinds the
+stack with a JavaScript `throw` — so `Engine::mainLoop` does not return, the `engine.exit()`
+standing after it in `main()` never runs, and no destructor runs either: not `~Engine`, not the
+game states that are locals of `main()`, not a `Level` and not an `Object`. The unwind is a JS
+exception and not a C++ one, so it does not run destructors on its way out. **Anything that has
+to happen must therefore hang off something that runs *during* play** — a logic tick, `onLeave`,
+`onRemove` — and never off teardown. Two consequences that are visible from outside:
+`config.xml` is written only where somebody asks for it (the options dialog's OK, and the CRT
+pane's *Try it*) and never on quit, so a browser player who never opens the options has the
+language detected afresh at every start; and every GL object the Engine owns is simply left to
+die with the page.
+
+**The flag is load-bearing and must not be tidied away.** Emscripten ends the call with
+`throw "unwind"`, and `callMain` swallows it without restoring `__stack_pointer` — so the
+abandoned frames stay above it and every later `requestAnimationFrame` allocates below them,
+which is exactly what keeps `main()`'s locals alive. Its three game states are such locals, and
+`Engine::registerGameState` keeps raw pointers to them. Passing 0 instead breaks two things at
+once: `mainLoop()` would return, so the `engine.exit()` after it would tear the engine down
+*before the first frame* and the loop would then run against the wreckage; and `main()` would
+return, destroying the game states the Engine still points at. Getting rid of the flag is
+therefore a restructure — game states off the stack, `exit()` moved into the quit path — and not
+a one-word change. To persist settings in the browser, a `pagehide` handler calling
+`saveConfig()` is the smaller answer, and it catches a closed tab, which the Quit button never
+sees.
+
 **The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a
 Windows blue screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT`
 case in `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it.
@@ -858,6 +1644,20 @@ is always at least one 20 ms tick. A finger has no such gap. The other half of t
 in `Engine`: `cursorPosition` used to come only from `SDL_MOUSEMOTION`, and a touch produces no
 motion at all, so both button events take the position from the event too. Either fix alone
 changes nothing; the pair is what makes a tap land.
+
+**A mouse-move event has to mean the mouse moved**, which is not the same question as whether
+`cursorPos` changed. That position comes from `Engine::getCursorPosition()` and therefore
+through the CRT filter's barrel distortion, so anything that changes the warp moves the cursor
+in game space with the hand perfectly still — and the one control that changes the warp is the
+curvature slider, which is dragged with the mouse. The synthetic `onMouseMove` set a new slider
+value, the value set a new curvature, and the loop closed: measured with the hand held on the
+handle, the slider took 249 values in six seconds, flipping between 0 and 1 at the logic rate.
+The step is what makes it reach that far — `getOverscan()` is deliberately zero at curvature 0
+and its full 1.3% the moment the slider leaves the stop, which a third of the way out from the
+centre is a pixel and a half, and the bar turns 1.7 pixels into one unit. So `GUI::update()`
+asks for both: the window's own cursor position (`Engine::getRawCursorPosition()`) must have
+changed **and** the game-space one must have landed on another pixel. `noMoveCounter`, which times the tooltips,
+reads the same answer.
 
 Two things about the toggles are worth knowing, because getting either wrong is quiet:
 
@@ -895,6 +1695,39 @@ Two things about the toggles are worth knowing, because getting either wrong is 
   default — is still never hit. An image needs none of this: it already has the size of the
   sprite it shows.
 
+**Text written to a fixed place has to be measured first.** `Font::renderText` neither wraps
+nor clips, so a level whose title is longer than the space kept for it simply draws over
+whatever is beside it — in the select screen across the description column and off the right
+edge, in the status bar across the Menu button. `Font::fitText(text, maxWidth)` cuts it down
+and ends it in three dots; `Font::adjustText` is the other answer, and wraps instead, which is
+what the multi-line help pages want. Both skip over `<h>…</h>`: it draws nothing, so it must
+not count toward a line's width, and a hard break landing inside it turned the markup into
+visible text — `<h>Kopf</h>` came out as `<h>Kopf<` and `/h>`, which is one long headline away
+in pages that already use `<h>`. The two callers keep the level *number* and the *filename*
+whole and shorten only the title, since those are what tells two levels called *Unnamed Level*
+apart: the caption is measured once with an empty title to learn what the frame costs, and the
+title gets the rest. A second pass over the finished caption is the backstop for a filename so
+long that even the frame does not fit.
+
+The cut may not land inside `<h>…</h>`, so `fitText` drops a half-cut tag entirely and closes
+whatever it left open. **`<h>` ends with the string it began in**, and both `measureText` and
+`renderTextPure` now enforce that with a counter: the option stack they push on belongs to the
+`Font` and not to the text, and `renderText` caches a display list per string, so markup could
+never have carried across a call anyway. An unclosed `<h>` used to leave `italic` set and an
+entry on the stack for the rest of the run; an extra `</h>` used to pop the *caller's* entry,
+or `top()` an empty stack — a level titled `</h>Hello` crashed the game, and a level title is
+a file from a stranger.
+
+**`measureText`'s position array is indexed by byte**, one entry per byte of the string and one
+behind it — `text.length() + 1`, always. The bytes of `<h>` and `</h>` get an entry each even
+though they draw nothing, all carrying the cursor the tag stands at. That is what the three
+callers need and already assumed: the edit boxes look a position up under the same byte index
+their caret uses, and `GUI_MultiLineEditBox` reads `[i + 1]` to size a selection. One entry per
+loop pass instead left the array short — two per `<h>`, three per `</h>` — so a caret at the end
+of such a text read past the vector. Typing `<h>abcdef` into the level editor's title field and
+pressing End put the caret 190 px right of the last letter, which is whatever stood one past the
+end.
+
 **Short messages are the Engine's, not a game state's.** `Engine::showToast(type, text,
 duration, suppressSound)` slides a bar in at the top edge, holds it, and slides it out again —
 green for `TOAST_OK`, red for `TOAST_ERROR`, 2 s and 4 s by default, with `teleport_failed.ogg`
@@ -925,9 +1758,11 @@ because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`
-elsewhere, and answers only `de` or `en` — of the 349 IDs in `languages.txt` exactly one has
-a French body and one a Spanish, so detecting `fr` would give an English game with a French
-label. It runs only when `config.xml` has no `<Language>`.
+elsewhere, and answers only `de` or `en` — every one of the 386 IDs in `languages.txt` has
+an English body and a German one and nothing else, so detecting `fr` would give a wholly
+English game that merely believed otherwise. The one `§fr:` and the one `§es:` in that file
+are the lines of its own header explaining what the tags mean. It runs only when
+`config.xml` has no `<Language>`.
 
 Nothing ships a `config.xml` template — not the installer, not the web build. The game writes
 the file itself on exit, which is what leaves the detection a chance to run at all.
@@ -938,6 +1773,109 @@ the file itself on exit, which is what leaves the detection a chance to run at a
 prefix is the section sign, 0xA7 in Latin-1, not the pilcrow. A separate character, `¶`
 (0xB6), inserts a newline inside a body. Missing translations fall back to English. Level titles,
 tooltips and menu captions in XML all use these IDs.
+
+**No string names a key.** A message that writes "(F5)" or "Return/Enter" into its text is a
+lie to everyone who rebound anything, so `%BINDING{$A_RESTART_LEVEL}` stands there instead and
+expands to whatever that action is bound to now: both keys separated by a slash, one on its
+own, or the word for unassigned. `%BINDING_OPTIONAL_RIGHT{…}` is the same with a leading space
+and *nothing at all* when the action is unbound, which is what a button caption naming its own
+shortcut wants — "Restart Level" and not "Restart Level ". `Engine::expandBindings` does it
+once, on the finished text, which is why `localizeString` is a shell around
+`localizeStringRaw`: the raw half recurses through the `$ID` lookup and the English fallback,
+and expanding on the way out of each of those would be the same work several times over.
+`verify.py`'s `bindings` check reads every marker against the `registerAction` calls in
+`main.cpp`, because an action that does not exist expands exactly like an unbound one and would
+otherwise be found by a player.
+
+**`<k>…</k>` is the keycap**, and the font draws the frame. It cannot go in the glyph batch —
+it carries no texture — so the rectangles are collected while the text is laid out and drawn
+once the batch is closed, which also carries them through the two shadow passes with the
+glyphs; a keycap without the same shadow would look pasted on.
+
+**The frame is drawn on exactly rows `capTop`..`capBottom` of a glyph cell**, two optional
+`<Font>` attributes, and nothing about it is derived from the line. `lineHeight` and `offset`
+describe the line a font is *set* at, and the ink is free to sit elsewhere in either direction:
+the note's font ends its letters five rows above the foot of its line box, so a frame drawn on
+the line box sits under the word instead of around it, with its top edge through the capitals —
+while the tooltip font's letters are *taller* than its line, since `Backspace` reaches a row
+above the capitals and a row below the baseline and a ten-row line has room for neither.
+
+**That second case is why the frame carries its own height rather than the line's.** A frame
+fixed at the line height and merely centred cannot be placed in a font whose ink does not fit
+inside the line: only the sum of the two attributes is read, so every pair with the same sum
+gives the same frame and the next sum moves it a whole row — always one row too high or one too
+low, with no third option. Saying the frame outright is also what makes `verify.py`'s
+`font_metrics` check a straight comparison against the measured ink.
+
+They default to the line box, which is what `font.xml` and `credits_font.xml` measure out to
+anyway, so those two are unchanged. Three files carry them: `tooltip_font.xml`, at rows 1..12,
+and the two skins that bring a `hintfont.xml`. Keeping two keycaps on neighbouring lines apart
+is the font's own business now, since its author is the one saying how tall the frame is — and
+it is not a rare case: two rows of the help table and any wrapped line of a hint note have
+keycaps directly above one another.
+
+**Data, and not the image measured at every start.** Where a font's letters sit is a constant
+of the art, and a statistic recomputed at load would move every keycap in the game by a pixel
+because somebody redrew one glyph — silently, with nothing in any diff to point at.
+`verify.py`'s `font_metrics` check is the other half of writing it down: it reads the first and
+the last inked row of every printable character out of the font's PNG, takes the **mode** of
+each — the top of a capital and the line the writing sits on, where a brace reaches higher and
+a comma lower than anything a key is ever called — and reports a font whose frame would cut
+into its letters or sit off to one side of them, naming the two numbers to write. It is the
+same arrangement as the committed `.ico`: the file is the source of record and the check is
+what stops it going stale. (`read_png` in `WebBuild/make_icon.py` learned the narrow bit depths
+for it — `credits_font.png` is a two-colour palette at one bit.)
+
+**A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole
+`<k>…</k>` run moves down together, the way any typesetter treats an inline box — and the
+renderer is then never asked to draw half a frame. That is the whole answer to line breaks
+inside a keycap, and it is why the run is measured rather than walked character by character:
+the padding either side belongs to its width.
+
+**The right side of the frame carries the slant.** An italic glyph leans right — its top is
+drawn `options.italic` pixels further along than its foot, while the cursor advances by the
+upright width — so a frame that ends where the cursor does cuts the last letter of the key
+name. That is every speech balloon, which sets italic for the whole text: the hotel's
+`[Enter] / [Num Enter]` had the *r* of each word touching the frame. The advance after `</k>`
+grows by the same amount, or the following word would move into the frame instead; the left
+side needs nothing, since the first letter's foot still stands on the cursor.
+
+**Between keycaps that belong together stands a half space** — `HALF_SPACE` in `font.h`, half
+of that font's own space and a space in every other respect: measured like one, and a line
+breaks at one and replaces it exactly as a break replaces a space. Each keycap already stands
+off its own frame, so a full space either side of the slash leaves it adrift between the two
+keys instead of the pair reading as one binding, and the same holds for the plus of a chord:
+`<k>Alt</k>·+·<k>Enter</k>`. It is a byte rather than an element like `<k>` because breaking is
+a matter of characters: `adjustText` searches backwards for the last one it may cut at, and an
+element would have to be taught to be a break as well as to be skipped over.
+
+The byte is the **middle dot**, `\xB7` — the character an editor shows a space as, and the
+third of this file's meaningful bytes beside `§` and `¶`. It has to be a printable one because
+the chords are written out by hand in `languages.txt` (a `%BINDING{…}` cannot say *Alt*), and a
+control character there would be invisible to whoever edits the line. `Engine::getBindingMarkup`
+writes the same byte around its slash. The plus that joins a key to a *word* keeps its full
+space — `%BINDING{$A_PLANT_BOMB} + direction` — so the help table shows the hierarchy: tight
+where keys bind to each other, loose where prose follows.
+
+**A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey`
+(`util.h`) is the one place that says so, and everything reading the SDL key itself goes
+through it: confirming a dialog, playing the selected level, leaving the credits, the level
+editor's settings, and Alt+Enter for the fullscreen. The named actions never needed it — a
+binding has a primary and a secondary, and `$A_SAVE_IN_HOTEL` has used both since it was
+written. Both are called `Enter` in both languages — `Enter` and `Num Enter` — which is the prefix
+the other seventeen keypad keys already carry. It is what a PC keycap prints (a German board
+prints the hooked arrow and no word at all, so there is nothing to copy off the cap) and it is
+the word every neighbouring language borrowed. `Return` was SDL's own name for the key, and
+since the fallback capitalises SDL's name, the English entry for it was replacing nothing.
+
+**`VirtualKey::niceName` is what a player reads**, as against `name`, which is SDL's, and `id`,
+which config.xml holds and can therefore never be translated. It is a `$ID` and not the
+finished text because the language can change while the game runs. The table in `engine.cpp`
+spells each id out rather than composing it from the key name, so that `verify.py`, which
+collects `"$…"` literals from the source, catches one that `languages.txt` does not have; a key
+with no entry keeps SDL's own name with the first letter raised, which is all `F5` needs. A
+joystick keeps a device word in front, localized separately, because `B3` beside a keyboard key
+would say nothing about where it is.
 
 **Level file format.** A level is XML: `<Level>` attributes for size, skins, weather, light
 color, diamonds needed and music; one `<Layer>` per tile layer containing `<Row>` strings where
@@ -968,15 +1906,40 @@ filenames, shipped zipped in `levels/campaigns/`.
   more than a paragraph of archaeology, and if the reason is genuinely long, the length is
   earned.
 
-- Comments are in German, and **every source file is pure ASCII** — `Blocks5/src`, `WebBuild`,
-  `PWEncrypt` and `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS`
-  inside an all-caps word), so the encoding of these files no longer matters to anything:
-  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM
-  or a `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back
-  to being encoding-dependent.
-- **The two bytes that carry meaning are written as escapes.** `data/languages.txt` is
+- **Comments are in English, and so is everything the build and test tools print.** The tree
+  was commented in German until 1.2.0 and the mixture with English code read badly; the sweep
+  that changed it moved no code at all, which is what made a change across 286 files
+  reviewable. German survives in exactly three places, all of them data rather than prose:
+  `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
+  `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
+
+  **That check reads further than the other sixteen**, and the reason is a file it did not
+  catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
+  extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
+  `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is
+  the second list: the sources plus every `.js`, `.sh` and `.py` in `LinuxBuild`, `WebBuild`
+  and `Tools`, plus `htaccess` by name, each with the marker its comments begin with. Only the
+  language half uses it; the density guard stays on the sources, since a shell script has no
+  ratio worth judging. The
+  shipped `readme.txt` files are English, and always have been — the German that survives
+  is the three places above and nothing else.
+
+  A shared glossary settled the vocabulary, and its traps are worth knowing before writing a
+  comment that reaches for the obvious word: `uebersetzen` in the filter code is *compile*,
+  `Zeiger` is the mouse *cursor* almost everywhere but a real pointer in `hint.cpp`, `massiv`
+  is *solid* (`OF_MASSIVE` means impassable), `Ebene` is *layer* — *level* would collide with
+  the class — and `Bild` is a *frame*, a *picture* or an *image* depending on which the
+  sentence means, which is the distinction the whole browser timing argument rests on.
+- **Every source file is pure ASCII** — `Blocks5/src`, `WebBuild`, `PWEncrypt` and
+  `ShowUserDir`, all of it. Umlauts are written `ae oe ue ss` (`AE OE UE SS` inside an
+  all-caps word), so the encoding of these files no longer matters to anything: ASCII is a
+  subset of UTF-8, of Latin-1 and of every codepage, and none of them needs a BOM or a
+  `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree back to
+  being encoding-dependent.
+- **The three bytes that carry meaning are written as escapes.** `data/languages.txt` is
   Latin-1 and shipped that way; the game parses it with `'\xA7'` (the section sign, §) in
-  `engine.cpp` and `'\xB6'` (the pilcrow, ¶) in `font.cpp`, and a few inline localized strings
+  `engine.cpp`, `'\xB6'` (the pilcrow, ¶, a line break) in `font.cpp` and `'\xB7'` (the middle
+  dot, ·, a half space) in `font.h`; a few inline localized strings
   use the same syntax — `"\xA7" "de:…"`, split because a C++ hex escape is greedy and
   `"\xA7de:"` would parse as `\xA7d`. Those are a wire format shared with a data file, not
   text: they have to stay byte-exact whatever the source encoding is, which is the whole

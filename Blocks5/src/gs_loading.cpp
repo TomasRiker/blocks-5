@@ -10,6 +10,12 @@
 #include "web_audio.h"
 #endif
 
+#ifdef __EMSCRIPTEN__
+// Between the pulsing line and the fullscreen hint under it. Far enough that
+// the two read as a message and an aside rather than as one paragraph.
+static const int HINT_GAP = 16;
+#endif
+
 GS_Loading::GS_Loading() : GameState("GS_Loading"), engine(Engine::inst())
 {
 }
@@ -26,17 +32,17 @@ void GS_Loading::onRender()
 #ifdef __EMSCRIPTEN__
 	if(waitingForClick)
 	{
-		// Sanftes Pulsieren, damit die Zeile nicht wie ein eingefrorenes
-		// Standbild wirkt. Das Logo bleibt aus: sein Auftritt gehoert zum
-		// Vorspann und laeuft erst mit dem Jingle zusammen los.
+		// Gentle pulsing, or the line would read as a frozen still. The logo
+		// stays off: its entrance belongs to the intro and only sets off
+		// together with the jingle.
 		const Vec4d color(1.0, 1.0, 1.0, 0.65 + 0.35 * sin(waitTime * 0.004));
 		const std::string text = localizeString("$WEB_CLICK_TO_START");
 
 		Vec2i dim;
 		p_font->measureText(text, &dim, 0);
 
-		// Jede Zeile fuer sich zentrieren - renderText setzt nach einem
-		// Umbruch wieder bei position.x an, also linksbuendig.
+		// Centre each line on its own - after a break renderText starts again
+		// at position.x, flush left.
 		int y = 240 - dim.y / 2;
 		for(size_t begin = 0; begin <= text.length(); )
 		{
@@ -50,6 +56,20 @@ void GS_Loading::onRender()
 
 			y += lineDim.y;
 			begin = end + 1;
+		}
+
+		// A desktop browser offers no way to reach the game's own fullscreen,
+		// and Alt+Enter is not a guess anybody makes, so it is said here - in
+		// the tooltip font, because it is an aside and not the message. Not on
+		// a phone: there the game takes the fullscreen itself on the first
+		// touch, and there is no Alt to press anyway.
+		Font* p_hintFont = GUI::inst().getToolTipFont();
+		if(p_hintFont && !engine.isPhone())
+		{
+			const std::string hint = localizeString("$WEB_FULLSCREEN_HINT");
+			Vec2i hintDim;
+			p_hintFont->measureText(hint, &hintDim, 0);
+			p_hintFont->renderText(hint, Vec2i(320 - hintDim.x / 2, y + HINT_GAP), color);
 		}
 
 		return;
@@ -98,13 +118,13 @@ void GS_Loading::onUpdate()
 	{
 		waitTime += 20;
 
-		// Jede Eingabe zaehlt als Geste. Emscripten haengt selbst einen
-		// Aufwecker an das erste mousedown/keydown/touchstart, verbraucht ihn
-		// aber auch dann, wenn das Aufwecken scheitert (once: true in
-		// autoResumeAudioContext) - hier wird deshalb nachgefasst.
-		// Nur echte Tasten (1-3); 4 und 5 sind das Mausrad, und Scrollen
-		// gilt dem Browser nicht als Geste - es wuerde also nur die
-		// Notbremse unten scharf machen, ohne den Ton freizuschalten.
+		// Every input counts as a gesture. Emscripten hangs its own resume on
+		// the first mousedown/keydown/touchstart but uses it up even when the
+		// resume fails (once: true in autoResumeAudioContext), hence the
+		// follow-up here. Only real mouse buttons (1-3); 4 and 5 are the
+		// wheel, and the browser does not count scrolling as a gesture - it
+		// would only arm the emergency brake below without unblocking the
+		// audio.
 		bool input = false;
 		for(uint button = SDL_BUTTON_LEFT; button <= SDL_BUTTON_RIGHT; button++)
 			if(engine.wasButtonPressed(button)) input = true;
@@ -119,16 +139,18 @@ void GS_Loading::onUpdate()
 			if(gestureTime < 0) gestureTime = waitTime;
 		}
 
-		// Weiter, sobald der Ton freigegeben ist - auch dann, wenn der Klick
-		// neben die Zeichenflaeche ging und nur der Browser ihn gesehen hat.
-		// Bleibt die Antwort nach einer Geste zwei Sekunden lang aus, wird
-		// trotzdem gestartet: ein stummes Spiel ist besser als ein
-		// Bildschirm, der nie weitergeht.
-		if(!WebAudio::isSuspended() ||
-		   (gestureTime >= 0 && waitTime - gestureTime >= 2000))
-		{
-			waitingForClick = false;
-		}
+		// Once the gesture is there it goes on in the same tick - it does not
+		// wait for the audio. That is the difference between "the tap
+		// registered" and "the screen is still blinking": resume() returns a
+		// promise, and on a phone two seconds can pass before it settles,
+		// while the line keeps pulsing and the player taps a second time. The
+		// jingle loses nothing by it: it hangs off time >= 1000 and, for its
+		// part, waits briefly for the audio below.
+		//
+		// Without a gesture it goes on as well once the audio is free of its
+		// own accord: the click may have landed beside the canvas, where only
+		// the browser saw it.
+		if(gestureTime >= 0 || !WebAudio::isSuspended()) waitingForClick = false;
 
 		return;
 	}
@@ -140,8 +162,18 @@ void GS_Loading::onUpdate()
 	{
 		if(!soundPlayed)
 		{
+#ifdef __EMSCRIPTEN__
+			// The context needs a few milliseconds after the gesture. A
+			// second of slack has passed here, which is almost always
+			// enough; if not, it waits until 2000 and then gives up, or the
+			// jingle would fire only as the menu comes up.
+			const bool ready = !WebAudio::isSuspended();
+			if(ready) engine.playSound("logo.ogg");
+			if(ready || time >= 2000) soundPlayed = true;
+#else
 			engine.playSound("logo.ogg");
 			soundPlayed = true;
+#endif
 		}
 
 		logoSizeVel += 0.02 * 80.0 * (1.0 - logoSize);
@@ -174,10 +206,10 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 {
 	p_font = GUI::inst().getFont();
 
-	// -nosplash holt Logo und Jingle gar nicht erst. Alles Weitere ergibt
-	// sich von selbst: ohne Logo faengt time schon bei 3000 an, und damit
-	// faellt der ganze Vorspann weg - derselbe Weg, den das Spiel ohnehin
-	// nimmt, wenn sich logo.png nicht laden laesst.
+	// -nosplash does not request logo and jingle in the first place.
+	// Everything else follows by itself: without a logo, time starts at 3000
+	// and the whole intro falls away - the same path the game takes anyway
+	// when logo.png will not load.
 	const bool skipSplash = Engine::inst().isSplashSkipped();
 	p_logo = 0;
 	if(!skipSplash)
@@ -192,9 +224,9 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	logoSizeVel = 0.0;
 	load = 0;
 
-	// Ohne Logo spielt der Jingle sonst trotzdem: time steht dann schon ueber
-	// der Schwelle, und der erste Takt loest ihn aus. Bei -nosplash ist das
-	// nicht gewollt; fehlt nur die Datei, bleibt es beim bisherigen Verhalten.
+	// Without a logo the jingle would otherwise still play: time is already
+	// over the threshold and the first tick fires it. -nosplash does not want
+	// that; where only the file is missing, the jingle still plays.
 	soundPlayed = skipSplash;
 
 #ifdef __EMSCRIPTEN__
@@ -223,7 +255,7 @@ void GS_Loading::onLoseFocus()
 
 void GS_Loading::loadGraphics()
 {
-	// Bilder laden
+	// load the images
 	printfLog("Loading graphics ...\n");
 	Manager<Texture>& texMgr = Manager<Texture>::inst();
 	texMgr.request("title.png");
@@ -239,7 +271,7 @@ void GS_Loading::loadGraphics()
 
 void GS_Loading::loadSounds()
 {
-	// Sounds laden
+	// load the sounds
 	printfLog("Loading sounds ...\n");
 	Manager<Sound>& sndMgr = Manager<Sound>::inst();
 	sndMgr.request("barrageswitch.ogg");
@@ -284,6 +316,7 @@ void GS_Loading::loadSounds()
 	sndMgr.request("player_burst.ogg");
 	sndMgr.request("push.ogg");
 	sndMgr.request("rain.ogg");
+	sndMgr.request("rewind.ogg");
 	sndMgr.request("ricochet.ogg");
 	sndMgr.request("screenshot.ogg");
 	sndMgr.request("syringe.ogg");

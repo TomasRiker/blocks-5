@@ -20,17 +20,17 @@ void GUI_Window::onRender()
 
 	if(useSkin())
 	{
-		// Titelleiste zeichnen
+		// draw the title bar
 		gui.renderFrame(Vec2i(0, -4), Vec2i(size.x, 24), front ? Vec2i(48, 0) : Vec2i(0, 0));
 
-		// Hintergrund zeichnen
+		// draw the background
 		gui.renderFrame(Vec2i(0, 20), Vec2i(size.x, size.y - 20), front ? Vec2i(48, 48) : Vec2i(0, 48));
 
 		offset = -4;
 	}
 	else
 	{
-		// Hintergrund und Titelleiste zeichnen
+		// draw the background and the title bar
 		glBegin(GL_QUADS);
 		glColor4d(0.65, 0.65, 0.65, 1.0);
 		glVertex2i(0, 20);
@@ -48,7 +48,7 @@ void GUI_Window::onRender()
 		glVertex2i(0, 20);
 		glEnd();
 
-		// Rahmen zeichnen
+		// draw the frame
 		glColor4d(1.0, 1.0, 1.0, 1.0);
 		glBegin(GL_LINE_LOOP);
 		glVertex2i(0, 0);
@@ -62,11 +62,11 @@ void GUI_Window::onRender()
 		glEnd();
 	}
 
-	// Titel schreiben
+	// write the title
 	Vec2i dim;
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
-	p_font->renderText(localizeString(title), Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4d(1.0, 1.0, 1.0, 1.0));
+	p_font->renderText(title, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4d(1.0, 1.0, 1.0, 1.0));
 
 	const Vec2i pos = getAbsPosition();
 	glEnable(GL_SCISSOR_TEST);
@@ -113,13 +113,30 @@ void GUI_Window::onMouseUp(const Vec2i& position,
 
 void GUI_Window::onMouseLeave(int buttons)
 {
-	moving = false;
+	// Only once the button has gone. A window being dragged is left behind by
+	// a quick mouse as a matter of course: the cursor is read once per logic
+	// tick and the window follows it in that same tick, so a movement wider
+	// than the window puts the cursor outside it until the next one - and
+	// ending the drag there would drop the window in the middle of a gesture
+	// the hand is still making. The moves keep arriving meanwhile, because
+	// GUI::update() delivers them to the element the button went down on as
+	// well as to the one under the cursor.
+	if(!(buttons & 1)) moving = false;
 }
 
 void GUI_Window::onMouseMove(const Vec2i& position,
 							 const Vec2i& movement,
 							 int buttons)
 {
+	// The button has to still be held. A release the game never saw - the mouse
+	// let go outside its own window, where SDL may not report it - would
+	// otherwise leave the window stuck to the cursor for good.
+	if(!(buttons & 1))
+	{
+		moving = false;
+		return;
+	}
+
 	if(moving) setPosition(getPosition() + movement);
 }
 

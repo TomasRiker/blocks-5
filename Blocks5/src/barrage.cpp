@@ -21,7 +21,7 @@ Barrage::~Barrage()
 
 void Barrage::updateSprites()
 {
-	// Blockade
+	// barrage
 	Vec2i positionOnTexture;
 	if(shownState == 5) positionOnTexture = Vec2i(64, 192);
 	else if(shownState > 0) positionOnTexture = Vec2i(96, 192);
@@ -68,7 +68,7 @@ void Barrage::saveAttributes(TiXmlElement* p_target)
 
 bool Barrage::change()
 {
-	// Wenn gerade ein Objekt da ist, dann geht es nicht!
+	// If an object is standing there right now, it cannot be done!
 	Object* p_obj = level.getFrontObjectAt(position);
 	if(p_obj)
 	{

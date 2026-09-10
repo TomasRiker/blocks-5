@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Teleporter ***/
+/*** Class for teleporters ***/
 
 class Teleporter : public Object
 {

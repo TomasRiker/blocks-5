@@ -179,26 +179,34 @@ shape. The music half was solved differently — a level says
 instead of carrying a copy.
 
 
-7. Translate all source comments to English
--------------------------------------------
-Comments across `Blocks5/src` are in German. The translation is mechanical but
-enormous, and it wants to be one sweep rather than a drip, because half-translated
-files are worse than either end state.
+7. Translate all source comments to English  — **DONE**
+--------------------------------------------------------
+One sweep, as the entry asked for: 4493 German comment lines across 286 files,
+plus the docstrings and printed output of the build and test tooling, plus the
+four READMEs. Half-translated files really would have been worse than either end
+state, so nothing was left behind — what German remains is data, not prose:
+`data/languages.txt`, the inline `"\xA7" "de:…"` strings, the two word lists in
+`verify.py`'s `comments` check and the fault `selftest.py` injects into it. The
+shipped `readme.txt` files stay bilingual, because they are for players.
 
-**The encoding half is already done, and it was the dangerous half.** Every source
-file is pure ASCII: umlauts are written `ae oe ue ss`, and the two bytes that are
-not text at all are explicit escapes — `'\xA7'` (§) in `engine.cpp` and `'\xB6'`
-(¶) in `font.cpp`, plus a few inline localized strings shaped `"\xA7" "de:…"`.
-Those are a wire format shared with `data/languages.txt`, which is Latin-1 and
-shipped that way; as characters they would have changed meaning the moment anybody
-re-encoded a source file, silently and with no compiler error.
+**The encoding half had already been done, and it was the dangerous half.** Every
+source file is pure ASCII, and the two bytes that are not text at all are explicit
+escapes — `'\xA7'` (§) in `engine.cpp` and `'\xB6'` (¶) in `font.cpp`. So the
+translation was only a translation: no `/utf-8` switch, no BOM, no encoding
+decision to get wrong halfway through.
 
-So the translation is now only a translation: no `/utf-8` switch to remember, no
-BOM, no encoding decision to get wrong halfway through. The one rule to keep is
-the one in CLAUDE.md — do not type an umlaut into a comment.
+Two things made a change this size reviewable. A shared glossary was built first,
+by reading the whole corpus rather than translating file by file — about a hundred
+traps where the obvious word would have been wrong, of which the worst was `Ebene`,
+whose obvious rendering *level* would have collided with the class of that name in
+the same files. And every file was reduced to its code tokens with whitespace
+normalised, before and after, and the two compared: not one byte of code moved
+anywhere. The web build confirmed it independently, stamping the same payload
+hashes as before the sweep.
 
-`data/languages.txt`, `readme.txt` and `levels/readme.txt` are shipped files with
-their own encoding and CRLF endings; they are not part of this.
+The `comments` check that used to catch an English comment among the German ones
+now catches the opposite, counting the two word lists against each other rather
+than searching for one of them.
 
 
 8. Rendering performance
@@ -277,7 +285,7 @@ The idea that replaced xBR, and a much better fit for what a nostalgic filter is
 for: it adds a period-correct presentation on top of the art as drawn instead of
 trying to reconstruct detail the art never had, and it is stable where xBR was
 not — no thresholds, no edge detection, only smooth functions, so a one-in-255
-nudge moves the output by about one. Shipped as `src/crt_shader.h`, a fourth entry
+nudge moves the output by about one. Shipped as `src/u_crt.cpp`, a fourth entry
 in Options → Scaling, with four sliders behind *CRT settings …*.
 
 The decisions worth keeping, all of them detailed in CLAUDE.md:
@@ -306,13 +314,71 @@ The decisions worth keeping, all of them detailed in CLAUDE.md:
   ramp whose slope depends on the slider: feeding it the wrapped clock would jump
   the lines at every wrap.
 
+**Convergence** was filed here as "chromatic aberration", which is the wrong name:
+that happens in a lens, because glass bends wavelengths differently, and a tube has
+no lens. What a tube has is three beams, converged at the centre and drifting apart
+toward the rim where the deflection is largest. Green stays put as the reference,
+red and blue are displaced in opposite directions in proportion to the horizontal
+distance from the centre, and `CONVERGENCE_MAX` is what that comes to at the edge in
+source pixels. Sixth slider, `<CrtUpscaler convergence=>`, at 0.5 like the other five.
+
+The two things this entry said to get right both held. It sits in the *source*
+sample and not in the halation ring, where it would have tripled the cost of
+something nobody can see in a blur; and it is horizontal only, since a vertical
+component would need its own two rows and its own beam profile per channel.
+`warpToSource` is untouched: a fringe is not a position, so the cursor mapping had
+nothing to learn from it.
+
+What it costs is four extra fetches, and with the slider at its default they are
+paid: one present measured 25.3 ms at 0 against 30.6 ms at anything above (llvmpipe,
+1280x960, so read it against the ratios below rather than as an absolute), a fifth
+more, and identical at 0.5 and 1.0 — the shift moves the coordinate, not the work.
+`if(Convergence > 0.0)` is uniform across the draw, so turning the slider down hands
+all of it back.
+
+That it works at all is measured as the lag of the red channel against the blue one
+*within a single frame*, which needs no second frame to compare against and so is
+not fooled by the title demo moving underneath: within a tenth of a pixel of zero
+everywhere at 0, and −5.3 / −0.3 / +4.4 output pixels at left, centre and right at
+full slider.
+
 Cost of one present on a software rasterizer, as ratios: nearest 1.0, bilinear
 1.3, sharp-fit 1.35, CRT 7.8 — halation about half of that, and
-`BLOOM_STRENGTH = 0` compiles it out (4.2). On any real GPU all of them are noise.
+`BLOOM_STRENGTH = 0` compiles it out (4.2). Those four were taken with convergence
+off; on top of the CRT figure it is a fifth more. On any real GPU all of them are
+noise.
 
 Left for later: anisotropic curvature (real tubes are not spherical), a shadow-mask
 dot triad as an alternative to the aperture grille, and moving halation to a second
 pass if the single-pass ring ever looks too tight.
+
+**A VCR rewind when a level restarts**  - **DONE**, and the ring of captures was
+not needed. `CF_Rewind` sits beside the other crossfade classes and both restart
+paths in `gs_game.cpp` choose it over `CF_Slices` when the CRT filter is the one
+in effect - on `sharp` or `sharp-fit` the game does not claim to be a tube, and a
+tape effect there would be a costume rather than a consequence.
+
+The design question above - what it rewinds *through*, given that a crossfade has
+only two images and both are the same level - answered itself once the physics was
+read up rather than guessed at. A tape in search runs faster than the head can
+follow a track, so **every strip of the picture is read from a different place on
+the tape, which is to say from a different moment**. Two images cut into strips and
+interleaved is therefore not a cheat standing in for frames the game does not have;
+it is what the machine actually puts out. Everything else follows from the same
+fact: where the head crosses between tracks there is no signal, so bands of snow
+roll through the picture; the vertical hold cannot lock to that, so the picture
+rolls; the head meets each track at an angle, so every line starts a little early
+or late and the image frays; and VHS carries colour as a separate low-frequency
+signal that does not survive the speed, so the picture goes nearly grey.
+
+One detail is worth keeping: the `<< REW` in the corner must *not* move with any of
+it. It comes from the recorder's own character generator and is mixed in behind the
+tape path, so it sits rock steady while everything else tears - and that one stable
+thing is what makes the mess read as a machine rather than as a broken renderer.
+
+`ROLL_SCREENS` is a whole number for a reason that is easy to miss: the roll offset
+therefore lands back on a multiple of the picture height, which is to say on zero,
+at exactly the moment the crossfade ends.
 
 
 12. Tell the player about the hardcoded keys  — **DONE**, it already did
@@ -756,6 +822,594 @@ Both hang off the one line in `GUI::update()` that computes `p_elementAtCursor`.
 a small button and expect it to fire.
 
 
+23. The hint note should be a sheet of paper  — **DONE**
+--------------------------------------------------------
+Two things were wrong with the note that flies up when the player steps on one.
+The sheet arrived first and the text was faded in on top of it afterwards, in its
+own coordinate system, so the writing did not turn or scale with the paper it was
+supposed to be written on - it simply appeared. And the sheet was a flat quad,
+which is a poster rather than a note somebody left behind.
+
+**Both fall out of the same change: bake the text into the paper.** The sheet and
+the text are rendered together into one 512x512 texture, and from then on there is
+only one thing on screen. The Engine grew the two calls that needs
+(`getOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
+belongs to it and not to the note, because it falls with the framebuffer object
+while the GL context still stands, and an `Object` is destroyed long after it is
+gone.
+
+With the writing part of the paper, the paper can be bent. The top and bottom are
+wound onto a cylinder and unroll once the note has almost reached its final size -
+48 bands each, the perspective divide by hand, no shader anywhere. **The one
+number that is a constraint rather than a taste is `ROLL_TURNS`**: at most half a
+turn, because this pass has no depth buffer and only up to a half turn does every
+further step of paper come closer to the viewer, which is what makes back-to-front
+painting correct. `CLAUDE.md` has the rest.
+
+The texture is borrowed from a small pool in the Engine, because more than one note can be on
+screen: stepping from one note onto its neighbour overlaps them for as long as the outgoing one
+takes to fade. One shared texture was not wrong there - each note bakes immediately before it
+draws - but it cost a render-to-texture and an FBO round trip per visible note per frame. A
+note gives its texture back as soon as it is invisible, so the pool is as large as the most
+notes ever seen at once and no larger.
+
+Whether a note rolls is a property of the picture, so it is switched by a marker file,
+`hintscroll.txt`, next to the hint.png that is actually loaded - existence only, no contents.
+It sits there rather than in tileset.xml because every skin slot is chosen on its own, so the
+note can come from a different skin than the tiles; and getSkinFilename() has already followed
+default_hint.png by the time it returns, so the marker is looked for where the picture really
+came from. The shipped set needs one file: blocks_01 has the paper, blocks_02 and blocks_03
+borrow it through default_hint.png, and the space skin's display panel stays flat.
+
+Left undone deliberately: **no mipmaps**. The note is minified while it flies in
+and out, and the 3D cube crossfade has the same problem at a steep angle; both
+want the same answer, and it is a separate piece of work.
+
+
+24. The diamond machine's conversion deserves a real effect  — **DONE**
+------------------------------------------------------------------------
+The block is taken apart and put back together. Sparks in its own colours fly
+out, sampled texel by texel through `Sprites::sample()`; from the cloud they
+leave behind, more sparks come back, each taking on the colour the diamond will
+have where it lands and dies. The block fades to `CONVERSION_GHOST` over the
+same hundred ticks and what is left standing is the diamond.
+
+**The spiral never happened, and it was the wrong question.** Three ways round
+the integrator were listed below; none was needed, because the shape that reads
+as a transformation is out-and-back, not round-and-round. Two straight flights
+with damping — `d < 1` outward so it disperses, `d > 1` inward so it snaps
+shut — say "apart" and "together" in a way a circle does not.
+
+**Plain dust beat the glowing version.** Five variants were built and looked at
+side by side; the winner is the one with no over-brightness at all, many large
+slow motes in the block's own colour. Glowing sparks read as welding, and the
+machine is handed rock, ice and grass as readily as metal. The over-bright trick
+survives only on the inward motes, and for an unrelated reason: a linear ramp
+from a blue block to the diamond's warm white passes through green.
+
+**The ownership split held exactly as reasoned.** The block owns
+`conversionProgress`, renders itself faint, and clears it in its own
+`frameBegin()`; the machine merely pushes the value each tick through the
+pointer it just looked up. Nobody reaches into `p_objOnMe`. One correction to
+that: `frameBegin()` must *not* clear it once the object is dying or scheduled
+to die, or the finished block snaps back to full opacity over the new diamond.
+
+**`Particle` did get a new field after all**, which this item called a last
+resort. `uint id`, four bytes at the very end, outside the six the vertex path
+keeps in one cache line — and the reason is the abort, which was not foreseen
+here: an abandoned conversion runs its sparks *backwards* rather than deleting
+them, and the machine has to find its own again. `ParticleSystem` hands out
+`begin()`/`end()` and filtering by id is an `if` at the call site.
+
+How the four traps landed:
+
+- **A faint ghost, not full transparency** — `CONVERSION_GHOST` is 0.22, and the
+  fade snaps back rather than eases when the block moves. Right as predicted.
+- **The effect must not depend on particles** — the fade and the machine's own
+  five-frame animation still carry it with `getParticleDensity()` at minimum.
+- **A hundred ticks** stayed a hundred; the spark phases are pinned to the
+  machine's own image changes at 20, 40, 60 and 80 so the two cannot drift.
+- **The sound** is still fire-and-forget; that is item 25, untouched.
+
+The test level is `Tools/testlevels/diamondmachine.xml`.
+
+25. The diamond machine's sound handle is never set
+----------------------------------------------------
+`DiamondMachine::p_soundInst` is assigned 0 in the constructor and nowhere else.
+The block at the foot of `onUpdate()` that stops it when the conversion is
+abandoned -
+
+    if(counter == -1 && p_soundInst) { p_soundInst->stop(); p_soundInst = 0; }
+
+- can therefore never run. The sound is played fire-and-forget instead, with
+`playSound("diamondmachine.ogg", false, 0.0, 100)`, whose return value (a
+`SoundInstance*`) is discarded; it is a one-shot, so a conversion that is
+abandoned half way through still plays it out to the end.
+
+Nothing is broken by this today - a two-second one-shot that outlives its cause
+by a moment is not something a player notices - so it is written down rather
+than patched. It matters for item 24: a longer conversion wants a looping sound
+that stops when the block is pushed off, and the member and the stop are already
+sitting there waiting for the one line that assigns them. `conveyorbelt.cpp` is
+the pattern to copy - `createInstance()`, `play(true)`, `stop()` - rather than
+`playSound()`, which is the fire-and-forget path.
+
+
+26. The shipped content should not be copied into the user's folder  — **DONE**
+--------------------------------------------------------------------
+`Level::getSkinFilename()` and `Campaign` look for skins, campaigns and levels
+in **one** place: `getAppHomeDirectory()`. The game's own `levels/` folder is
+never read at runtime - it is only the source for a one-time copy in `main.cpp`,
+which runs when `.initialized` says `not_played` or `<= 1.0.7` and never again.
+So every player's `My Documents\Blocks 5\levels` holds a private copy of the
+shipped campaign, the four skins and the two example levels, frozen at whatever
+version they first installed.
+
+That is how the `hintscroll.txt` marker went missing on a machine that had built
+the current sources: the archive the game reads was two weeks older than the one
+`zip_skins.bat` had just built. `Transfer::refreshBuiltIns()` now patches over
+it - on every start, each built-in whose size differs from the shipped one is
+copied across - but that is a plaster on the shape of the thing.
+
+**The shape it wants is two roots.** The shipped content stays in the game folder
+and is read from there, so it is always exactly as new as the executable; the
+user directory holds only what the player made or imported. `getSkinFilename()`
+would look in the user directory first and fall back to the game folder, and
+`isBuiltIn()` would stop being a hand-written list - "it lives in the game
+folder" *is* the definition, which is also what makes it undeletable and
+un-overwritable.
+
+What it touches: `Level::getSkinFilename()`, `Campaign::makeLooseRef()` and
+`resolveMusicPath()`, and in `Transfer` the `list()`, `remove()` and `install()`
+paths, which would have to merge two directories and keep the Manager's Delete
+greyed out for anything from the game folder. And an upgrade would want to
+*delete* the stale copies it finds in the user directory, or they would go on
+shadowing the shipped ones for ever - which is the one part that touches a
+player's folder and therefore wants care.
+
+**And one line that will break silently, so fix it in the same change:** the
+credits after the last level. `GS_Game::onUpdate` decides whether the game is
+over by comparing the campaign's filename against the literal
+`FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip"` - a
+hardcoded path into exactly the directory this item empties. Move the shipped
+campaign to the game folder and the comparison simply stops matching: no error,
+no warning, the player finishes all 42 levels and is dropped back into the level
+list. Nothing in the tree would notice, and nothing short of playing to the end
+would either.
+
+It is also the second place that knows what ships with the game, which is the
+thing this item is meant to end: once "it lives in the game folder" is the
+definition, that branch should ask `Transfer::isBuiltIn()` - or better, the
+campaign should say so itself - rather than spelling a path. See item 27, which
+wants the same answer for a Credits button in the menu.
+
+Worth doing before the next release that changes a shipped asset. `blocks.zip`
+is 8 MB, and every installation is carrying a second copy of it for no reason.
+
+**Done in 1.2.0, and with the search order the other way round from what stands
+above.** User-first is exactly how a stale copy shadows a fresh shipped file —
+the bug — so the game folder is asked first and the user directory is the
+fallback. `FileSystem::resolveContentPath` is the one place that knows, and
+`isShippedContent` ("it exists in the game folder") replaced the hand-written
+list in `Transfer::isBuiltIn`. `refreshBuiltIns()` and the one-time copy in
+`main.cpp` are both gone.
+
+Seven files belong to the player and reverse the order: the two example levels
+and the five `readme.txt` are looked up in the user directory first, with the
+game folder's copy as a template, and they never count as shipped.
+`FileSystem::getPlayerFiles` is that list. Only the readmes are actually copied
+on a first start, because nothing in the game reads them and they would
+otherwise sit in no folder; an example needs no copy, since it is listed and
+loadable from the game folder and the player's own version appears the moment
+they save one.
+
+Game-first costs one thing, and it is worth writing down: a user file carrying a
+shipped name could never be loaded again, because the game folder answers first.
+So both editors refuse to save under such a name, which is the same rule an
+import already followed. `retireShadowingCopies` renames the old copies to
+`<name>.bak` on the first start of 1.2.0 — renamed, not deleted, because nothing
+can tell from outside whether somebody edited one.
+
+**And a trap that was not in this item at all:** `ProgressDB` keyed on the
+campaign's *full path*. Moving `blocks.zip` into the game folder would have
+changed the key and silently reset every player's 42 levels, with no error and
+nothing in the log. It keys on the bare filename now, which also means an old
+`progress.zip` migrates simply by being read.
+
+
+27. A Credits button in the main menu
+--------------------------------------
+There is no way to see the credits except by finishing the shipped campaign - or
+by knowing that **Shift+C in the main menu** already runs them
+(`gs_menu.cpp`, in `onUpdate` beside the Shift+D that opens the user folder).
+That shortcut is undocumented and unconditional; the entry it stands for should
+be a visible one, in the style of the `Website` link at the top right of
+`menu.xml` rather than a ninth big button.
+
+Two presentations, chosen by whether the player has earned the first:
+
+- **Finished the shipped campaign** - the whole sequence, exactly as it runs
+  after the last level today.
+- **Not finished** - the names only, as scrolling text, without
+  `$C_THANKS_FOR_PLAYING` and `$C_STAY_TUNED`. Those two address someone who has
+  just won, and they give away that there is an ending to reach.
+
+**Asserted, and it holds: only the built-in campaign triggers the full credits.**
+`gs_game.cpp` compares the campaign's filename against the literal
+`FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/blocks.zip"`; every
+other campaign pops back to the level selection instead. A level run from the
+editor and the single levels never even reach that branch, because `ownLevel`
+forces `status` to -3 first.
+
+That comparison is the fragile part, and it is worth fixing while touching this.
+It is a **second** place that knows what ships with the game - `Transfer::isBuiltIn`
+is meant to be the only one - and it hardcodes the campaign into the *user's*
+directory, which is exactly what **item 26** proposes to stop doing. Move the
+shipped content out of `getAppHomeDirectory()` and this check quietly stops
+matching: the game would end with a level list instead of the credits, with
+nothing failing anywhere.
+
+Deciding "finished" from the menu needs the same bar the game uses, and it is not
+simply "all levels": `GS_Game::loadLevel` treats `getLevels().size() - 1` as the
+count when the campaign has a bonus level, since the bonus is the last entry and
+only unlocks once the rest is done. So the test is
+`ProgressDB::getNumLevelsCompleted(f)` against the number of non-bonus levels -
+and the menu holds no campaign, so it would have to `Campaign::load` the shipped
+one to learn that number. That is cheap (it reads only `campaign.xml`), but it is
+a load the menu does not do today.
+
+What the second presentation costs: `GS_Credits` is not a scroll and has no
+notion of a mode. `onRender` builds a local array of eight blocks - position,
+title, text, start time, duration - and each one fades and zooms in and out over
+a flying starfield with a motion-blur buffer. The clock is hardcoded against that
+table: the fade to black starts at 53 s, three `character*.ogg` play at 55, 56
+and 57 s, and `setGameState("GS_Menu")` fires at 58 s; Return, Escape and Space
+fast-forward at five times speed rather than skipping. A names-only variant is
+therefore not "hide two entries" - it is a second layout and a second timeline,
+and the table has to leave `onRender` first.
+
+28. Video recording in the browser
+----------------------------------
+Screenshots work there now (`img_save.cpp` writes the PNG, `WebTransfer::
+downloadBytes` delivers it), and `$A_TOGGLE_CAPTURE_VIDEO` is the one action
+`main.cpp:509` still withholds from the web build. Four things stand in the way,
+and only two of them are real.
+
+- **The action is not registered.** One `#ifndef __EMSCRIPTEN__`.
+- **The recorder is stubbed.** `WebBuild/build.sh:39` filters `videorecorder.cpp`
+  out and links `videorecorder_stub.cpp`, whose `getError()` answers `true`.
+  `minih264e_impl.c`, `minimp4_impl.c` and shine's nine files are not in that
+  build's `CSRCS` either.
+- **The encoder runs on its own thread.** `videorecorder.cpp:415` calls
+  `SDL_CreateThread` and `:428` `SDL_WaitThread`, and the thread proc blocks on
+  `SDL_SemWaitTimeout`. `streamedsound.cpp:279` already writes down what that
+  does here: `SDL_CreateThread` aborts, `SDL_WaitThread` calls `abort()`, and
+  Emscripten's SDL has no semaphores at all. The build passes no `-pthread`.
+- **Nothing captures the audio.** `audiocapture.cpp`'s `#else` branch is a stub
+  that reports silence.
+
+**The stub's stated reason for the last one was wrong, and the comment has been
+corrected.** A page *can* hear its own output: in Emscripten's OpenAL every
+source does `connect(AL.currentCtx.gain)` and that gain does
+`connect(ac.destination)`, so one extra connection from that summing node to a
+`createMediaStreamDestination()` yields exactly the finished mix - the same thing
+WASAPI loopback gives under Windows and the monitor source under Linux.
+`web_audio.cpp` already reaches `AL.currentCtx.audioCtx` for the suspend gate.
+
+Where the file goes is no longer a question either, and `GL_BGR` never was one
+on this path: `engine.cpp` already reads the frame as `GL_RGBA`.
+
+**The route to take: let the browser encode, off an offscreen 2D canvas.**
+`glReadPixels` at 640x480 stays exactly as it is - so does the cursor that
+`Engine` draws into that buffer by hand - and the frame goes into a 2D canvas
+that nothing displays. `canvas.captureStream()` on *that* canvas, plus the audio
+track from the summing node above, is a `MediaStream`, and `MediaRecorder`
+turns it into a file. No encoder in the wasm, no thread, and the chunks are
+Blob parts the browser may spill to disk rather than 22 MB of resident memory
+per minute (`engine.cpp` asks for 2.84 Mbit/s video and 160 kbit/s audio at
+30 fps).
+
+Capturing the *game's* canvas directly would be simpler still and is the wrong
+trade: `captureStream` sees the composited canvas, which is the upscaled,
+letterboxed picture. Screenshots and videos are deliberately the clean 640x480,
+and an off-screen canvas is what keeps that promise.
+
+Three details that decide the work:
+
+- **`VideoRecorder`'s interface survives unchanged.** `isReadyForNextFrame()` /
+  `getInputFrameBuffer()` / `encodeNextFrame(timecode)` map onto "hand JS a heap
+  buffer, then push it into the canvas", so `engine.cpp` needs no edit beyond
+  the missing action. A `WebBuild/videorecorder_web.cpp` replaces the stub.
+- **The frame arrives upside down.** OpenGL's first row is the bottom one, and
+  `putImageData` ignores the 2D context's transform - so the flip has to happen
+  while filling the `ImageData`, or through
+  `createImageBitmap(..., { imageOrientation: "flipY" })` and `drawImage`.
+- **The container is the browser's choice.** WebM/VP8 everywhere, MP4/H.264
+  where `MediaRecorder.isTypeSupported("video/mp4")` agrees. That is a step down
+  from the desktop's MP4, which was picked precisely because Windows plays it
+  with nothing installed - but a browser that recorded the file can play it back.
+
+The alternative is to port the existing encoder: drop the thread and run
+`convertFrame()` + `H264E_encode()` from the logic tick, the way `StreamedSound`
+gave up its decoder thread. It keeps one code path and the same MP4 on every
+platform, and it pays for that with a full 640x480 H.264 frame encoded 30 times
+a second inside the game's own frame budget, single-threaded
+(`createParam.max_threads = 0`), plus `minimp4`'s seek-and-write sink
+(`videorecorder.cpp:29`) holding the whole file in memory until it is closed.
+
+A backgrounded tab gets no `requestAnimationFrame` and therefore no frames,
+whichever route is taken - the recording simply stops there, which is also what
+`handleAppFocus` already does to it.
+
+29. Eight new levels for 1.2.0, and a skin to put them in
+---------------------------------------------------------
+The shipped campaign has **42** levels, so eight more make it 50.
+
+The list starts from what the campaign does not use. Three presets are placed in
+no shipped level and are not spawned by anything either — `TeleporterNoPlayer`,
+`ShieldedActivatorBlock` and `E_Multiplexer`. (`ToxicGas` is placed in none, but
+that means nothing: `ToxicWaste` makes it when a barrel is destroyed, and nine
+levels hold 39 barrels between them. What no level does is start with gas
+already there.) The electronics family is thin everywhere:
+`E_PulseSwitch` and `E_PulsePanel` live in one level between them, `E_HexDigit`
+in two, `LightSwitch` in exactly one level with exactly one piece. `Syringe`
+appears in three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
+
+1. **Stock up before you go in.** Collect enough syringes first, then survive
+   long enough inside the toxic gas to reach what is on the other side. The
+   syringes are a supply, not a cure: `contamination` is allowed to go negative
+   for exactly this, and `gs_game.cpp` only crackles and spreads toxin above
+   zero.
+
+   A `Hint` before the gas has to say so, in the shape of *"you will need enough
+   protection"* — the mechanic is invisible otherwise, since nothing on screen
+   counts the syringes and a player who walks in with two instead of five simply
+   dies. Hint text is a `$ID` in a `<Text><![CDATA[...]]></Text>` child, resolved
+   through `data/languages.txt`, so it needs an entry there with `§en:` and
+   `§de:` bodies, named like the existing `$HINT_BLOCKS_NN_MM`.
+
+   Placing the gas in the level file rather than bursting a barrel for it is the
+   first time the campaign does that.
+2. **The mask is worth more than the mask.** One mask, two gassed corridors, and
+   the mask has to be dropped and fetched again — `inventory[2]` holds only one.
+3. **A door that only blocks you.** `TeleporterNoPlayer` sends blocks somewhere
+   the player cannot follow, so the way through has to be built remotely.
+4. **Counting.** `E_HexDigit` as the visible goal: feed it a number with
+   `E_BlockDetector` and `E_Gate`, and the exit opens on the right one.
+5. **One switch, four places.** `E_Multiplexer` steering a single pulse train to
+   one of several barrages, so the order of the throws is the puzzle.
+6. **Light and mirrors.** `LightBarrierSender` and the receiver, with `Mirror`
+   redirecting the beam and blocks casting the gaps.
+7. **Everything on rails.** `Elevator` and `Rail` carrying blocks past `Spike`
+   rows on a timing the player sets with `E_Clock`.
+8. **The eye in the dark.** `Eye` plus `nightVision`, where what you cannot see
+   is watching, and `LightSwitch` decides which of you is blind.
+
+**A skin for them.** The four that ship are `blocks_01/02/03` — earth, brick and
+grass — and `space`. Both themes that would fit these levels are indoors, which
+is what neither existing family offers:
+
+- **Laboratory or chemical plant.** Tiled walls, pipework, warning stripes.
+  It covers the most of the list above at once — gas, syringe, mask, and the
+  diamond machine reads as a centrifuge rather than as magic. The hint would be
+  a clipboard on the wall, so no `hintscroll.txt` and no roll.
+- **Inside the machine.** Circuit board green, gold traces, solder pads; the
+  natural home for the `E_*` family, which is the thinnest part of the campaign.
+  The hint would be a small display, again unrolled.
+
+Of the two, the laboratory earns its keep across more levels; the circuit board
+is closer to a single level's gimmick. Other themes that were considered and are
+weaker for this set: ice cavern, volcano, temple ruins, sewers, greenhouse.
+
+A skin needs `tileset.xml`, `sprites.png` and its own `hint.png`; see
+`Level::loadSkin` and the packing rules in `Blocks5/pack.sh`.
+
+30. Let a skin override the sound effects too
+---------------------------------------------
+A skin replaces everything a level *looks* like and nothing it *sounds* like. The
+laboratory of item 29 would want its own door, its own machine, its own alarm,
+and a skin somebody else writes has no way to bring them.
+
+The two halves of the game meet nowhere at the moment, and that is the whole of
+the work. Pictures go through `Level::getSkinFilename(SKIN_*)`, which walks the
+loose folder, then `default_<name>`, then the archive, and answers with the
+*final* path — that is what makes `blocks_02` reach `blocks_01`'s paper through
+`default_hint.png`. Sounds go through `Engine::playSound(filename)` straight into
+`Manager<Sound>::inst().request(filename)`, which resolves against the asset root
+mounted in `main.cpp` and therefore always lands inside `data.zip`. Nothing in
+that path knows a level is loaded, let alone which skin it wears.
+
+The shape that fits the tree: keep `playSound` taking a bare filename, and give
+the resolution a hook — the level, when it has a skin, answers "this name comes
+from here instead". `p_skinFilenames` is a fixed table of eleven entries, one per
+`SKIN_*` slot, so sounds cannot join it as they are: there are fifty-odd effects
+and a skin would override two or three. A per-skin `sounds.xml` listing only what
+it replaces is the smaller answer, and it can share the file `data/sounds.xml`
+already uses for playback gains rather than inventing a second format.
+
+Four things will need deciding, and each is a trap:
+
+- **Which sounds may be overridden.** A skin taking over `screenshot.ogg` or the
+  menu jingle is nobody's idea of a skin. The set that belongs to the *level* —
+  blocks, machines, doors, weather — is not currently marked as such anywhere.
+- **`gs_loading.cpp` preloads every sound by name**, and `verify.py`'s `sounds`
+  check enforces that a `playSound()` name is preloaded, or the first play is
+  silent while the file is read. A skin's sounds are known only once a level is
+  loaded, so they need loading at `Level::loadSkin` time, not at startup.
+- **The cache is keyed by filename.** `Manager<Sound>` hands out one `Sound` per
+  name; two skins overriding `push.ogg` differently would collide unless the key
+  becomes the resolved path, which is what `getSkinFilename` already returns for
+  pictures.
+- **`Sound` looks up its playback gain once at construction** out of
+  `data/sounds.xml` (see the mix notes in `CLAUDE.md`). A skin's own file needs
+  the same treatment, or an imported effect plays at whatever level it was
+  exported at while the shipped ones sit 6 dB down.
+
+The export side is free: `Transfer` copies a skin archive as it stands, so an
+`.ogg` inside it travels with everything else.
+
+31. Menu music that picks up where it left off, with a slider of its own
+-------------------------------------------------------------------------
+The menu music plays in the level editor now, and editing means switching to a
+level and straight back — so a track that always restarts from zero is heard
+from the beginning a dozen times an hour and turns into a nag. The new piece is
+meant to be long enough to sit with, which only makes a restart worse.
+
+What was proposed:
+
+- **`Engine::playMusic` remembers where a track was stopped** and takes an
+  optional argument to resume from that position instead of from zero. It is the
+  one funnel — `gs_menu.cpp:349`, `gs_selectlevel.cpp:353`, `gs_game.cpp:598` and
+  `:710`, `gs_credits.cpp:284` and `gs_leveleditor.cpp:1325` all go through it —
+  and it already calls `stopMusic()` itself when another track displaces one, so
+  that is where the index would be taken.
+- **A separate volume slider for the menu and the editors**, in case somebody
+  gets tired of the music that follows them around. `options.xml:75-77` is the
+  one that exists; this is a second `ScrollBar` beside it and a second key
+  in `config.xml`, since `<MusicVolume>` is taken.
+- **Its default is copied from the existing music volume**, which is renamed in
+  the GUI to *in-game music*. `$O_VOLUME_MUSIC` is the string; the config key and
+  `Engine::musicVolume` need not follow the label.
+
+
+32. A sound when a hint note opens
+-----------------------------------
+Nothing is heard when a note flies up, which is the one thing on a field that
+opens a window over the play area. Two sounds rather than one: a generic one,
+and paper for the scroll type - `blocks_01`'s sheet unrolls, and a sheet of
+paper being handled is what that motion sounds like.
+
+`Level::isHintScroll()` already answers which of the two, and `hint.cpp:411`
+reads it for the same purpose. The tick to fire on is `hint.cpp:467`, `if(open
+&& activeTicks == 0)` - the one place that already runs exactly once per
+opening, which is why the flight target is decided there.
+
+What the tree will ask for:
+
+- **A committed `.wav` beside the `.ogg`.** `Tools/encode_sounds.py` makes the
+  one from the other; `data/sounds.xml` carries the playback gain if either
+  should sound quieter than its file.
+- **`gs_loading.cpp` must preload both by name**, and `verify.py`'s `sounds`
+  check enforces it - the first play is otherwise silent while the file is read.
+- **The scroll flag belongs to the skin, not to the level** (`hintscroll.txt`
+  beside the `hint.png` that is actually loaded), so a skin bringing its own
+  panel would want its own sound with it. That is item 30, and this is the
+  first concrete caller for it.
+
+
+33. Draw the keycap frames behind the text
+-------------------------------------------
+A frame is drawn over the letters it surrounds, and where the text sits a row
+high in its box - which a small font cannot always avoid, see the keycap notes
+in `CLAUDE.md` - the top edge crosses the capitals. Behind the glyphs it would
+pass under them instead, and the same row of overlap would stop being visible.
+
+The obstacle is the order the two are produced in. `Font::renderTextPure`
+(`font.cpp:280`) collects the rectangles in the same loop that emits the glyph
+quads, because a `<k>` is only closed when its `</k>` is reached, and draws them
+after `glEnd()` and `p_texture->unbind()` - untextured, and therefore
+necessarily after the batch. Putting them first means knowing them first: a
+layout pass ahead of the draw, over the walk `measureText` already does with
+exactly the same advances (`font.cpp:569`).
+
+Two things not to lose:
+
+- **The frames go through both shadow passes with the glyphs** (`font.cpp:246`),
+  or a keycap looks pasted on.
+- **`renderText` caches a display list per string**, so a second walk costs once
+  per new string. Not in WebGL, which has no display lists and redraws the text
+  for every shadow sample (`font.cpp:261`) - there it is once per sample.
+
+
+34. Switch the language inside the hint editor
+-----------------------------------------------
+A hint's text is usually a `$ID`, and what the player reads is whatever
+`languages.txt` has under it in their language. The editor shows only the one
+the game is currently running in, so checking that a note fits its paper in
+both means leaving the editor, changing the language in the options and coming
+back. Two radio buttons in `EditHintPane` would answer it on the spot.
+
+Most of the machinery is already there. The preview is rendered by
+`gs_leveleditor.cpp:1246` at layer 43, from the edit box's text set one line
+above, and both render paths resolve it through `localizeString()` at draw time
+- so nothing has to be re-baked by hand, `bakeNote()` re-bakes on its own when
+the resolved text changes. `Engine::setLanguage()` is the switch.
+
+Two things to settle:
+
+- **It is a preview, not a preference.** `Engine::setLanguage` changes the whole
+  game, and `Engine::exit` writes `<Language>` to `config.xml` - so leaving the
+  editor on the other language would silently change the player's setting. Either
+  put it back on leaving the pane, or resolve the preview against a language the
+  note is told rather than against the engine's.
+- **The editor's own captions would switch too** if the engine's language is
+  what moves, which is a lot of visible churn for a preview of one note.
+
+
+35. Close the hint note with a click, and spend the input that does it
+-----------------------------------------------------------------------
+Return and Escape put an open note away (`gs_game.cpp:147`); a click does not,
+although a click is what a player reaches for after the note has covered the
+play area they were looking at. The pause already takes any key *and* any
+button - `wasAnyKeyPressed() || wasAnyButtonPressed()`, `gs_game.cpp:378` - and
+the note should read the same way.
+
+**One input must do one thing, and today it does two.** The press that leaves
+the pause also closes the note, and it moves the player besides:
+
+- `GUI::update()` runs before `p_gs->onUpdate()`, so `GameGUI::onKeyEvent` has
+  already called `dismissDisplay()` by the time the resume is decided. One
+  Escape therefore resumes *and* closes.
+- `Player::onUpdate` reads `wasActionPressed("$A_LEFT")` and the rest -
+  an edge, not a held state - and the level is updated in the same tick the
+  resume clears `paused` (`gs_game.cpp:533`). So the key that resumes takes a
+  step as well. The `else if(!menuVisible)` chain around the resume protects
+  only the three actions inside it, and movement is not one of them.
+
+The shape that fits: one notion of "this input has been spent this tick",
+consulted by the GUI's key handler, by the dismissal and by the action layer -
+not a third guard beside the two that already disagree. `Engine::flushInput()`
+is the precedent and possibly the mechanism: the key grab already says "the
+keyboard belongs to something else this tick", and `Engine::update` acts on it
+by skipping `updateActions()`.
+
+Both gestures want it, and in the same order: resume, then dismiss, then act.
+Closing the note must not step either.
+
+
+36. Let the details setting reach the text shadows
+---------------------------------------------------
+Every string is drawn three times: `Font::renderText` (`font.cpp:246`) lays down
+two offset copies in black before the text itself, and `Engine::getDetails()` is
+not asked about it. Level rendering, the weather and the lightning all consult
+it (`level.cpp:719`, `:1068`, `lightning.cpp:48`); the font does not, so the one
+thing drawn on every screen in the game ignores the setting meant for exactly
+this.
+
+`Font::Options::shadows` is where it would go, and its name is the first thing
+to fix: it reads as a count and is an offset style. Both non-zero values draw
+**two** samples - 2 gives (2,1) and (1,2), 1 gives (1,0) and (0,1) - and the
+alpha is divided by the number of them, so dropping one is a matter of changing
+`0.7 / numSamples`, not of leaving a hole. 0 already means none, which is what
+`gs_credits.cpp:175` uses.
+
+Where it is worth most is the browser, and that is a reason to do it rather than
+a detail: there are no display lists in WebGL, so each pass is a full
+`renderTextPure` walk over the string - the tags parsed, the glyph quads built
+and the keycap frames collected again - where the desktop replays a display
+list. Three walks per string per frame becomes one at the low setting.
+
+Two things to decide:
+
+- **Whether the setting picks the sample count or the whole style.** One sample
+  at an offset of (1,1) is cheaper than two and still reads as a shadow; two
+  exist to soften the corner.
+- **Who wins where a caller already asked.** `gui.cpp:39`, `hint.cpp:161` and
+  the credits all set `shadows` themselves, so the details setting has to be a
+  ceiling over what they ask for rather than a replacement - the credits' 0 must
+  stay 0 at any detail level.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -774,6 +1428,16 @@ How these connect
                       all three, and 17 is where the delete lands
 
    19 (controls) <──> 22 (tap radius): the pad answers the keys, 22 the buttons
+
+   PNG screenshots ──> 28 (browser video): the browser half of the recording is
+                      what is left once the picture can leave the page at all
+
+   26 (shipped content) ──> 27 (credits): the "was it the shipped campaign?"
+                      test is a hardcoded path into the user's folder, and 26
+                      moves that folder out from under it
+
+   30 (skin sounds) <──> 32 (hint sound): the paper one belongs to the skin
+                      that brings the paper, so 32 is 30's first real caller
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was

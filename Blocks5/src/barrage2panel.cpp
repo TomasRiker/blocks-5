@@ -17,7 +17,7 @@ Barrage2Panel::~Barrage2Panel()
 
 void Barrage2Panel::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(subType ? 224 : 192, 256), getStdColor(this->color));
 }
 
@@ -51,7 +51,7 @@ void Barrage2Panel::saveAttributes(TiXmlElement* p_target)
 
 void Barrage2Panel::onTriggered(Object* p_sender)
 {
-	// schalten
+	// switch the barrages
 	bool up = subType ? false : true;
 	level.changeBarrages2(color, up);
 }

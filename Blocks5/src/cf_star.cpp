@@ -1,11 +1,11 @@
 #include "pch.h"
 #include "cf_star.h"
 
-// Der Stern hat 5 Zacken, Aussenradius 1.0 und Innenradius 0.4. Frueher wurde
-// diese konkave Kontur einmalig mit dem GLU-Tesselator zerlegt und in eine
-// Display-Liste gebacken - beides gibt es in WebGL nicht. Weil der Mittelpunkt
-// im Kern des Polygons liegt (Innenradius > 0), deckt ein Dreiecksfaecher vom
-// Mittelpunkt aus den Stern exakt ab: 10 Dreiecke, kein Tesselator, keine Liste.
+// The star has 5 points, an outer radius of 1.0 and an inner radius of 0.4.
+// The contour is concave, and WebGL has neither the GLU tessellator nor
+// display lists. Because the centre lies in the core of the polygon (inner
+// radius > 0), a triangle fan from the centre covers the star exactly: 10
+// triangles, no tessellator, no list.
 
 CF_Star::CF_Star()
 {
@@ -47,10 +47,10 @@ void CF_Star::render(double t,
 {
 	setupTexCoords();
 
-	// Stencil-Buffer leeren
+	// clear the stencil buffer
 	glClear(GL_STENCIL_BUFFER_BIT);
 
-	// altes Bild zeichnen
+	// draw the old image
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
 	glBegin(GL_QUADS);
@@ -66,7 +66,7 @@ void CF_Star::render(double t,
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 
-	// Stern (Rand) zeichnen
+	// draw the star (border)
 	glPushMatrix();
 	glTranslated(screenSize.x / 2, screenSize.y / 2, 0.0);
 	double size = t * t * 2 * screenSize.x;
@@ -75,7 +75,7 @@ void CF_Star::render(double t,
 	glColor4d(0.0, 0.0, 0.0, 1.0);
 	renderStar();
 
-	// Stern in den Stencil-Buffer zeichnen
+	// draw the star into the stencil buffer
 	glEnable(GL_STENCIL_TEST);
 	glStencilFunc(GL_ALWAYS, 1, ~0);
 	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
@@ -85,7 +85,7 @@ void CF_Star::render(double t,
 
 	glPopMatrix();
 
-	// neues Bild in den maskierten Bereich zeichnen
+	// draw the new image into the masked area
 	glStencilFunc(GL_EQUAL, 1, ~0);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 	glEnable(GL_TEXTURE_2D);

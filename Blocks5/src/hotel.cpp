@@ -36,7 +36,7 @@ void Hotel::onRender(int layer,
 
 void Hotel::onUpdate()
 {
-	// Rauch
+	// Smoke
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 	p.lifetime = random(30, 40);
@@ -54,7 +54,7 @@ void Hotel::onUpdate()
 	p.deltaSize = random(0.01f, 0.05f);
 	p_particleSystem->addParticle(p);
 
-	// Spieler da?
+	// Player here?
 	Object* p_obj = level.getFrontObjectAt(position);
 	if(p_obj == level.getActivePlayer())
 	{
@@ -76,6 +76,20 @@ void Hotel::onUpdate()
 
 		if(reset) state = 0;
 	}
+}
+
+void Hotel::onRemove()
+{
+	// gs_game.cpp gates the save action on nothing but this pointer, so a level
+	// torn down while somebody stands on a hotel would leave it aimed at freed
+	// memory.
+	//
+	// Guarded as onUpdate() guards it, and for the same reason: a level can hold
+	// several players and switchToNextPlayer() cycles through them, so several
+	// characters can stand on several hotels at once and only the one under the
+	// active player holds the claim. Clearing it unconditionally would let a
+	// hotel that never held it take it from the hotel that does.
+	if(p_hotelToSave == this) p_hotelToSave = 0;
 }
 
 void Hotel::onSave()

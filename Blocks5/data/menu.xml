@@ -4,11 +4,11 @@
 		<StaticText name="Version" x="5" y="5">
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<!-- Die Felder in buttons.png sind 80x80 (grosse Knoepfe) und 50x50
-		     (kleine), luecklos gepackt: Spalte 0 ungedrueckt, Spalte 80 bzw.
-		     210 gedrueckt. Die Scheibe liegt in beiden Zustaenden mittig im
-		     Feld, x/y stehen deshalb um den Rand nach oben links versetzt:
-		     8 Pixel bei den grossen, 9 bei den kleinen. -->
+		<!-- The cells in buttons.png are 80x80 (large buttons) and 50x50
+		     (small ones), packed with no gaps: unpressed at column 0, pressed
+		     at column 80 and 210 respectively. In both states the disc sits
+		     centred in the cell, so x/y are offset up and to the left by the
+		     border: 8 pixels for the large ones, 9 for the small. -->
 		<Button name="StartGame" x="12" y="97" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
@@ -51,9 +51,10 @@
 			<Title>$MM_QUIT</Title>
 			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
-		<!-- Die Adresse oben rechts gehoert zu menu.png und ist kein eigenes
-		     Element. Dieser Knopf liegt nur darueber und zeichnet nichts;
-		     der Text steht im fertigen Bild bei x 474..636, y 8..22. -->
+		<!-- The address at the top right belongs to menu.png and is not an
+		     element of its own. This button just sits over it and draws
+		     nothing; in the finished picture the text runs from x 474..636,
+		     y 8..22. -->
 		<Button name="Website" x="470" y="4" w="170" h="22">
 			<ExtendedStyle />
 			<Title></Title>
@@ -82,13 +83,16 @@
 			</Window>
 		</Element>
 
-		<!-- Der Manager. Die vier Knoepfe unten stehen in den Spalten der
-		     vier Radios darueber - 92 Pixel reichen fuer jede der acht
-		     Beschriftungen, die laengste misst 66. -->
+		<!-- The Manager. Five kinds along the top in 92-pixel columns and four
+		     buttons along the bottom in four wider ones, both rows spanning
+		     the same x=10..486: the captions decide the first width and the
+		     window the second, and forcing one grid on both would either
+		     cramp "Zusammenfuehren" or leave a hole where the fifth button
+		     would be. -->
 		<Element name="ManagerPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />
-			<Window name="Manager" w="400" h="320">
+			<Window name="Manager" w="496" h="320">
 				<Title>$TR_MANAGER_TITLE</Title>
 				<Center />
 				<StaticText name="What" x="10" y="30">
@@ -114,50 +118,66 @@
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
-				<ListBox name="Items" x="10" y="88" w="284" h="182">
+				<RadioButton name="KindProgress" x="394" y="52" w="92" h="24">
+					<Title>$TR_KIND_PROGRESS</Title>
+					<Group>1</Group>
+					<ButtonLook />
+				</RadioButton>
+				<ListBox name="Items" x="10" y="88" w="380" h="182">
 					<SubmitButton>Export</SubmitButton>
 				</ListBox>
-				<Button name="Refresh" x="298" y="88" w="92" h="24">
+				<Button name="Refresh" x="394" y="88" w="92" h="24">
 					<Title>$TR_REFRESH</Title>
 					<Font>tooltip_font.xml</Font>
 				</Button>
-				<Button name="Import" x="10" y="280" w="92" h="30">
+				<Button name="Import" x="10" y="280" w="116" h="30">
 					<Title>$TR_IMPORT_DO</Title>
 				</Button>
-				<Button name="Export" x="106" y="280" w="92" h="30">
+				<Button name="Export" x="130" y="280" w="116" h="30">
 					<Title>$TR_EXPORT_DO</Title>
 				</Button>
-				<Button name="Delete" x="202" y="280" w="92" h="30">
+				<Button name="Delete" x="250" y="280" w="116" h="30">
 					<Title>$TR_DELETE_DO</Title>
 				</Button>
-				<Button name="Close" x="298" y="280" w="92" h="30">
+				<Button name="Close" x="370" y="280" w="116" h="30">
 					<Title>$CLOSE</Title>
 				</Button>
 			</Window>
 		</Element>
 
-		<!-- Die Rueckfrage vors Loeschen. Sie muss nach dem Manager stehen,
-		     weil das letzte Kind im XML zuletzt gezeichnet wird und die
-		     Klicks bekommt. -->
+		<!-- The confirmation, before a delete and before an import replaces
+		     something. It must come after the Manager, because the last child
+		     in the XML is drawn last and takes the clicks.
+
+		     Three columns, of which the middle one is used only where there
+		     is a third answer - merging an imported progress with the one
+		     already there. Yes and No therefore keep their places whether it
+		     is shown or not, and the text is set from the code, so it is
+		     wrapped rather than trusted to fit. -->
 		<Element name="ConfirmPane" w="640" h="480">
 			<Hidden />
-			<Window name="Confirm" w="420" h="120">
+			<Window name="Confirm" w="445" h="120">
 				<Title>$TR_CONFIRM_TITLE</Title>
 				<Center />
-				<StaticText name="Text" x="10" y="30">
+				<StaticText name="Text" x="10" y="30" w="425" h="40">
 					<Text>$TR_CONFIRM_DELETE</Text>
+					<WordWrap />
 				</StaticText>
 				<Button name="Yes" x="10" y="80" w="135" h="30">
 					<Title>$YES</Title>
 				</Button>
-				<Button name="No" x="275" y="80" w="135" h="30">
+				<Button name="Merge" x="155" y="80" w="135" h="30">
+					<Title>$TR_MERGE_DO</Title>
+					<Hidden />
+				</Button>
+				<Button name="No" x="300" y="80" w="135" h="30">
 					<Title>$NO</Title>
 				</Button>
 			</Window>
 		</Element>
 
-		<!-- Einmalig beim ersten Start von 1.2.0: der Hinweis auf den
-		     CRT-Filter. -->
+		<!-- Once, on the first start of 1.2.0: the offer of the CRT
+		     filter. -->
 		<Element name="CrtPane" w="640" h="480">
 			<Hidden />
 			<Fill r="0" g="0" b="0" a="0.5" />

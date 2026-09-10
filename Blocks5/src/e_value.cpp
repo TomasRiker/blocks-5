@@ -9,7 +9,7 @@ E_Value::E_Value(Level& level,
 {
 	this->value = value;
 
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(8, 15), PT_OUTPUT);
 }
 

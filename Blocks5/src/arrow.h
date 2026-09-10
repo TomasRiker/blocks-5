@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer einen Durchgangspfeil ***/
+/*** Class for a one-way arrow ***/
 
 class Arrow : public Object
 {

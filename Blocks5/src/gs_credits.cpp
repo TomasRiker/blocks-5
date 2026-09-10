@@ -35,8 +35,8 @@ void GS_Credits::onRender()
 	glVertex2i(0, 480);
 	glEnd();
 
-	const Vec2i& screenSize = Engine::inst().getScreenSize();
-	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
+	const Vec2i& screenSize = engine.getScreenSize();
+	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
@@ -93,7 +93,7 @@ void GS_Credits::onRender()
 		double start;
 		double duration;
 	} texts[] = {
-		
+
 	Vec2i(0, 0),
 	"",
 	"$C_THANKS_FOR_PLAYING",
@@ -105,7 +105,7 @@ void GS_Credits::onRender()
 	"David Scherfgen",
 	6.0,
 	5.0,
-	
+
 	Vec2i(-100, -100),
 	"$C_GRAPHICS",
 	"David Scherfgen\nPatrick Jerusalem\nin2ear Productions",
@@ -228,13 +228,13 @@ void GS_Credits::onUpdate()
 	if(time >= 54 * 1000) speed = 1;
 	time += 20 * speed;
 
-	Engine& engine = Engine::inst();
 	if(time == 55 * 1000) engine.playSound("character1.ogg");
 	if(time == 56 * 1000) engine.playSound("character2.ogg");
 	if(time == 57 * 1000) engine.playSound("character3.ogg");
 	if(time == 58 * 1000) engine.setGameState("GS_Menu");
 
 	if(engine.wasKeyPressed(SDLK_RETURN) ||
+	   engine.wasKeyPressed(SDLK_KP_ENTER) ||
 	   engine.wasKeyPressed(SDLK_ESCAPE) ||
 	   engine.wasKeyPressed(SDLK_SPACE))
 	{
@@ -254,10 +254,10 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	p_level->load("title.xml");
 	p_sprites = p_level->getSpritesTexture();
 
-	// Textur fuer den Effekt-Puffer erzeugen
+	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
 	glBindTexture(GL_TEXTURE_2D, bufferID);
-	const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
+	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -280,7 +280,7 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 void GS_Credits::onGetFocus()
 {
 	SDL_ShowCursor(0);
-	Engine::inst().playMusic("credits.ogg", -1.0);
+	engine.playMusic("credits.ogg", -1.0);
 }
 
 void GS_Credits::onLoseFocus()
@@ -324,7 +324,7 @@ void GS_Credits::renderStars()
 
 void GS_Credits::updateStars()
 {
-	// Sterne entfernen, die nicht mehr sichtbar sind
+	// remove the stars that are no longer visible
 	for(std::list<Star>::iterator i = stars.begin(); i != stars.end();)
 	{
 		i->rotation += 0.02 * i->deltaRotation;
@@ -335,7 +335,7 @@ void GS_Credits::updateStars()
 		else i++;
 	}
 
-	// neue Sterne hinzufuegen
+	// add new stars
 	while(stars.size() < 400)
 	{
 		Star s;

@@ -17,7 +17,7 @@ Pin::Pin(Electronics* p_object,
 
 Pin::~Pin()
 {
-	// alle Verbindungen loesen
+	// break every connection
 	disconnectAll();
 }
 
@@ -39,22 +39,22 @@ const std::set<Pin*>& Pin::getConnectedPins() const
 bool Pin::connect(Pin* p_pin1,
 				  Pin* p_pin2)
 {
-	// Ein Pin kann nicht mit sich selbst verbunden werden.
+	// A pin cannot be connected to itself.
 	if(!p_pin1 || !p_pin2 || p_pin1 == p_pin2) return false;
 
-	// Es koennen keine Eingaenge oder Ausgaenge miteinander verbunden werden.
+	// Two inputs or two outputs cannot be connected to each other.
 	if(p_pin1->type == p_pin2->type) return false;
 
-	// Ein- und Ausgang bestimmen
+	// work out which is the input and which the output
 	Pin* p_input = p_pin1;
 	Pin* p_output = p_pin2;
 	if(p_pin2->type == PT_INPUT) p_input = p_pin2;
 	if(p_pin1->type == PT_OUTPUT) p_output = p_pin1;
 
-	// Der Eingang darf noch nicht verbunden sein.
+	// The input must not be connected yet.
 	if(p_input->isConnected()) return false;
 
-	// Verbinden!
+	// Connect!
 	p_pin1->connectedPins.insert(p_pin2);
 	p_pin2->connectedPins.insert(p_pin1);
 
@@ -68,11 +68,11 @@ void Pin::disconnect(Pin* p_pin1,
 	p_pin1->connectedPins.erase(p_pin2);
 	p_pin2->connectedPins.erase(p_pin1);
 
-	// Eingang bestimmen
+	// work out which is the input
 	Pin* p_input = p_pin1;
 	if(p_pin2->type == PT_INPUT) p_input = p_pin2;
 
-	// Der Eingang ist jetzt undefiniert.
+	// The input is undefined now.
 	p_input->setValue(-1);
 }
 
@@ -108,7 +108,7 @@ std::vector<Vec2f> Pin::getConnectionPath(const Pin* p_pin1,
 	m0 *= 60.0;
 	m1 *= -60.0;
 
-	// kubisches Spline
+	// cubic spline
 	const Vec2d a(m0 + m1 + 2.0 * (x0 - x1));
 	const Vec2d b(-2.0 * m0 - m1 - 3.0 * (x0 - x1));
 	const Vec2d c(m0);
@@ -193,7 +193,7 @@ int Pin::getValue() const
 
 void Pin::setValue(int value)
 {
-	// Nur Ausgaenge koennen gesetzt werden.
+	// Only outputs can be set.
 	if(type != PT_OUTPUT) return;
 
 	this->oldValue = this->value;
@@ -204,7 +204,7 @@ void Pin::propagate()
 {
 	if(type != PT_OUTPUT) return;
 
-	// den Wert an alle angeschlossenen Pins uebertragen
+	// pass the value on to every connected pin
 	for(std::set<Pin*>::const_iterator i = connectedPins.begin(); i != connectedPins.end(); ++i)
 	{
 		(*i)->oldValue = (*i)->value;

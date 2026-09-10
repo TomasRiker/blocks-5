@@ -25,7 +25,7 @@ void CF_Mosaic::render(double t,
 	double s = 0.01 + 3.96 * x * x;
 	Vec2i size = s * static_cast<Vec2d>(screenSize);
 
-	// verkleinerte Version des Bildes rendern
+	// render a shrunk-down version of the image
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, t <= 0.5 ? oldImageID : newImageID);
 	glBegin(GL_QUADS);
@@ -40,11 +40,11 @@ void CF_Mosaic::render(double t,
 	glVertex2i(0, size.y);
 	glEnd();
 
-	// in die Textur kopieren
+	// copy into the texture
 	glBindTexture(GL_TEXTURE_2D, bufferID);
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
-	// wieder auf die volle Bildschirmgroesse skalieren
+	// scale back up to full screen size
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(0, 0);

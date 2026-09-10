@@ -3,18 +3,18 @@
 
 #define PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 
-/*** Klasse fuer ein Partikelsystem ***/
+/*** Class for a particle system ***/
 
 class Texture;
 
 class ParticleSystem
 {
 public:
-	// Die Zahlen sind Byte-Offsets. Die Leerzeile trennt, was render() liest,
-	// von dem, was nur update() braucht: die ersten sechs Felder reichen fuer
-	// einen Vertex und passen zusammen in eine Cache-Zeile. Alles ist einfach
-	// genau (float), nicht doppelt - ein Vec4f ist ein 16-Byte-Zugriff und eine
-	// einzige Vektoraddition, ein Vec4d waeren zwei. sizeof(Particle) = 80.
+	// The numbers are byte offsets. The blank line separates what render()
+	// reads from what only update() needs: the first six members are enough
+	// for a vertex and fit into one cache line together. Everything is single
+	// precision (float), not double - a Vec4f is one 16-byte access and a
+	// single vector addition, a Vec4d would be two. sizeof(Particle) = 84.
 	struct Particle
 	{
 		float rotation;				//  0
@@ -31,7 +31,28 @@ public:
 		float gravity;				// 56
 		Vec4f deltaColor;			// 60
 		float deltaRotation;		// 76
-	};								// 80
+
+		// Who this particle belongs to. Right at the end, leaving the first six
+		// members their cache line. 0 means "nobody", which is the normal case;
+		// anything that wants to find its own particles again stamps an id in
+		// here and looks them up through begin()/end().
+		uint id;					// 80
+
+		// Everything to zero. The constructor is needed because the forty-nine
+		// callers of addParticle() build a Particle on the stack and set only
+		// what they need - a member none of them knows about would otherwise
+		// arrive as a random number. Vec has an empty constructor of its own,
+		// which is why a bare Particle() alone zeroes nothing.
+		Particle()
+			: rotation(0.0f), size(0.0f), color(0.0f),
+			  positionOnTexture(0), sizeOnTexture(0), position(0.0f),
+			  deltaSize(0.0f), lifetime(0), velocity(0.0f), damping(0.0f),
+			  gravity(0.0f), deltaColor(0.0f), deltaRotation(0.0f), id(0)
+		{
+		}
+	};								// 84
+
+	typedef std::list<Particle> ParticleList;
 
 	ParticleSystem(Texture* p_sprites);
 	~ParticleSystem();
@@ -42,20 +63,23 @@ public:
 	Particle* getNewParticle();
 	void clear();
 
+	// The living particles, for direct access. Anything that wants only its
+	// own checks id - filtering by it is an if and needs no method of its own.
+	ParticleList::iterator begin() { return particles.begin(); }
+	ParticleList::iterator end() { return particles.end(); }
+
 private:
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 	struct Vertex
 	{
 		Vec2f position;
-		// Float und nicht int: GL_INT ist in WebGL/GLES2 kein gueltiger Vertexattributtyp,
-		// und es sind Texturpixelkoordinaten weit innerhalb des exakten Bereichs von
-		// float. Dieselben 8 Byte, die Vertexanordnung bleibt also unveraendert.
+		// Float and not int: GL_INT is not a valid vertex attribute type in
+		// WebGL/GLES2, and these are texture pixel coordinates well inside float's
+		// exact range. The same 8 bytes, leaving the vertex layout unchanged.
 		Vec2f uv;
 		Vec4f color;
 	};
 #endif
-
-	typedef std::list<Particle> ParticleList;
 
 	Texture* p_sprites;
 	ParticleList particles;
@@ -63,7 +87,8 @@ private:
 
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 	Vertex* p_vertexBuffer;
-	static const uint VERTEX_BUFFER_SIZE = 1024;
+	// Must be a multiple of 4, because each particle is a quad.
+	static const uint VERTEX_BUFFER_SIZE = 4096;
 #endif
 };
 

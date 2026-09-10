@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<Font image="hintfont.png" lineHeight="21" offset="-5">
+<Font image="hintfont.png" lineHeight="21" offset="-5" capTop="4" capBottom="16">
   <Character code="0" x="5" y="0" w="15" h="22" />
   <Character code="1" x="31" y="0" w="15" h="22" />
   <Character code="2" x="57" y="0" w="15" h="22" />

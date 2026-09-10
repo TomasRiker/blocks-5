@@ -32,7 +32,7 @@ void CF_Cube::render(double t,
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_CULL_FACE);
 
-	// vordere Wuerfelseite zeichnen
+	// draw the front face of the cube
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -46,7 +46,7 @@ void CF_Cube::render(double t,
 	glVertex3i(-1, -1, -1);
 	glEnd();
 
-	// linke Wuerfelseite zeichnen
+	// draw the left face of the cube
 	glRotated(-90.0, 0.0, 1.0, 0.0);
 	glBindTexture(GL_TEXTURE_2D, newImageID);
 	glBegin(GL_QUADS);

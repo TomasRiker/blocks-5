@@ -2,12 +2,15 @@
 #include "sound.h"
 #include "soundinstance.h"
 #include "audiostream.h"
+#include "engine.h"
 
 std::set<SoundInstance*> Sound::allInstances;
 
 Sound::Sound(const std::string& filename) : Resource(filename)
 {
+	bufferID = 0;
 	lastInstanceCreatedAt = 0;
+	volumeFactor = Engine::inst().getSoundVolumeFactor(filename);
 
 	AudioStream* p_stream = AudioStream::open(filename);
 	if(!p_stream)
@@ -18,7 +21,7 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 		return;
 	}
 
-	// OpenAL-Buffer erzeugen
+	// create the OpenAL buffer
 	alGetError();
 	alGenBuffers(1, &bufferID);
 	ALenum err = alGetError();
@@ -28,20 +31,22 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  filename.c_str(),
 				  err);
 		error = 2;
+		delete p_stream;
 		return;
 	}
 
-	// Format holen
+	// get the format
 	ALenum format = p_stream->getOpenALBufferFormat();
 	if(!format)
 	{
 		printfLog("+ ERROR: Format of audio file \"%s\" is not supported.\n",
 				  filename.c_str());
 		error = 3;
+		delete p_stream;
 		return;
 	}
 
-	// Daten lesen
+	// read the data
 	uint length = p_stream->getLength();
 	uint size = length * p_stream->getSliceSize();
 	char* p_data = new char[size];
@@ -51,10 +56,11 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  filename.c_str());
 		error = 4;
 		delete[] p_data;
+		delete p_stream;
 		return;
 	}
 
-	// Buffer mit Daten fuellen
+	// fill the buffer with the data
 	alGetError();
 	alBufferData(bufferID, format, p_data, size, p_stream->getSampleRate());
 	err = alGetError();
@@ -65,25 +71,47 @@ Sound::Sound(const std::string& filename) : Resource(filename)
 				  err);
 		error = 5;
 		delete[] p_data;
+		delete p_stream;
 		return;
 	}
 
-	// Daten wieder freigeben
+	// free the data again
 	delete[] p_data;
 	delete p_stream;
 }
 
 Sound::~Sound()
 {
-	// alle Instanzen loeschen
-	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i) delete *i;
+	// delete all instances, and take them out of the list of all of them:
+	// getFreeSource() walks that one and dereferences every entry, so a sound
+	// released while its instances were still listed would leave it reading
+	// freed memory the next time the source pool ran dry.
+	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i)
+	{
+		allInstances.erase(*i);
+		delete *i;
+	}
 
-	// Sound freigeben
-	alDeleteBuffers(1, &bufferID);
+	// free the sound
+	if(bufferID) alDeleteBuffers(1, &bufferID);
 }
 
 SoundInstance* Sound::createInstance(bool forceCreation)
 {
+	// The same sound twice within 10 ms is one too many: a dozen falling blocks
+	// trigger the same impact a dozen times in one tick, and laid on top of
+	// each other that is not louder, it is broken. The lockout applies to the
+	// one-shots from Engine::playSound(), which can take a 0 as well - one
+	// impact out of twelve simply drops out.
+	//
+	// The looping sounds ask with forceCreation, and that is not a luxury but
+	// the difference between running and crashing. They hold their one instance
+	// in a static that goes to 0 with the last object and is refilled by the
+	// first object of the next level - and between those two moments lies
+	// nothing but the building of the new level. Measured on toxic and mask,
+	// the only two that sit in every level: 12 and 13 ms. The lockout stands at
+	// 10. Two milliseconds of slack on this machine, none on a faster one, and
+	// behind it waits a null pointer with setVolume() on it in the next line.
 	if(!forceCreation)
 	{
 		uint t = SDL_GetTicks();
@@ -103,7 +131,7 @@ void Sound::update()
 {
 	std::set<SoundInstance*> garbage;
 
-	// alle Instanzen durchgehen, aktualisieren und bei Bedarf loeschen
+	// go through all instances, update them and delete them where needed
 	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i)
 	{
 		SoundInstance* p_inst = *i;
@@ -111,7 +139,7 @@ void Sound::update()
 		if(p_inst->toBeRemoved()) garbage.insert(p_inst);
 	}
 
-	// Muell loeschen
+	// delete the garbage
 	for(std::set<SoundInstance*>::const_iterator i = garbage.begin(); i != garbage.end(); ++i)
 	{
 		SoundInstance* p_inst = *i;
@@ -119,6 +147,16 @@ void Sound::update()
 		instances.erase(p_inst);
 		allInstances.erase(p_inst);
 	}
+}
+
+double Sound::getVolumeFactor() const
+{
+	return volumeFactor;
+}
+
+bool Sound::isLiveInstance(SoundInstance* p_instance)
+{
+	return p_instance && allInstances.find(p_instance) != allInstances.end();
 }
 
 const std::set<SoundInstance*>& Sound::getInstances() const
@@ -136,7 +174,7 @@ uint Sound::getFreeSource()
 	{
 		alGetError();
 
-		// die Instanz mit der niedrigsten Prioritaet, die schon am laengsten spielt, suchen
+		// find the instance with the lowest priority that has been playing longest
 		int lowestPriority = 0x7FFFFFFF;
 		uint oldestTimestamp = ~0;
 		SoundInstance* p_oldestInstance = 0;
@@ -157,7 +195,7 @@ uint Sound::getFreeSource()
 
 		if(p_oldestInstance)
 		{
-			// dieser Instanz die Audioquelle entziehen
+			// take the audio source away from that instance
 			sourceID = p_oldestInstance->onLoseSource();
 		}
 

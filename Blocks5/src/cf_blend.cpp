@@ -17,7 +17,7 @@ void CF_Blend::render(double t,
 
 	glEnable(GL_TEXTURE_2D);
 
-	// altes Bild zeichnen
+	// draw the old image
 	glBindTexture(GL_TEXTURE_2D, oldImageID);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0 - t);

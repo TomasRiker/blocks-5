@@ -14,7 +14,7 @@ E_PulsePanel::E_PulsePanel(Level& level,
 	this->pulseValue = pulseValue;
 	value = !pulseValue;
 
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(8, 15), PT_OUTPUT);
 }
 
@@ -37,7 +37,7 @@ void E_PulsePanel::onRender(int layer,
 
 void E_PulsePanel::onUpdate()
 {
-	// Befindet sich ein Objekt auf dem Panel, das vorher noch nicht da war?
+	// Is there an object on the panel that had not been there before?
 	const std::vector<Object*> newObjectsOnMe = level.getObjectsAt2(position);
 	for(std::vector<Object*>::const_iterator i = newObjectsOnMe.begin(); i != newObjectsOnMe.end(); ++i)
 	{
@@ -48,7 +48,7 @@ void E_PulsePanel::onUpdate()
 		{
 			if(p_obj->getFlags() & OF_TRIGGER_PANELS)
 			{
-				// Panel ausloesen
+				// trigger the panel
 				flash();
 				value = pulseValue;
 				Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");

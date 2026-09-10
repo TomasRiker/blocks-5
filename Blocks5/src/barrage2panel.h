@@ -3,7 +3,7 @@
 
 #include "panel.h"
 
-/*** Klasse fuer eine Blockadenbodenplatte ***/
+/*** Class for a barrage panel ***/
 
 class Barrage2Panel : public Panel
 {

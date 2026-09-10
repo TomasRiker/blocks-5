@@ -3,7 +3,7 @@
 
 #include "electronics.h"
 
-/*** Klasse fuer eine elektronisch gesteuerte Barriere ***/
+/*** Class for an electronically controlled barrage ***/
 
 class E_Barrage : public Electronics
 {

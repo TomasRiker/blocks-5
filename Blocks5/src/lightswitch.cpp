@@ -16,7 +16,7 @@ LightSwitch::~LightSwitch()
 
 void LightSwitch::updateSprites()
 {
-	// Schalter
+	// switch
 	sprites.add(Vec2i(level.isNightVision() ? 192 : 224, 224));
 }
 

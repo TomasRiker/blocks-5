@@ -42,9 +42,9 @@ PFNGLDELETEBUFFERSPROC               glExtDeleteBuffers = 0;
 
 namespace
 {
-	// Erst den EXT-Namen, dann den Kernnamen. Treiber mit GL 3.0 fuehren beide,
-	// aeltere nur den mit Suffix, und die Semantik ist fuer alles, was hier
-	// benutzt wird, dieselbe.
+	// The EXT name first, then the core name. Drivers with GL 3.0 carry both,
+	// older ones only the suffixed one, and the semantics are the same for
+	// everything used here.
 	void* getProc(const char* p_name, const char* p_fallback)
 	{
 		void* p_proc = SDL_GL_GetProcAddress(p_name);
@@ -67,7 +67,7 @@ bool GLExtensions::init()
 
 #ifdef __EMSCRIPTEN__
 
-	// Kern von WebGL 1, es gibt nichts zu laden und nichts zu pruefen.
+	// Core in WebGL 1, there is nothing to load and nothing to check.
 	haveFBO = true;
 	printfLog("  Framebuffer objects are core in WebGL.\n");
 
@@ -94,17 +94,17 @@ bool GLExtensions::init()
 	          glExtDeleteRenderbuffers && glExtRenderbufferStorage &&
 	          glExtFramebufferRenderbuffer && glExtCheckFramebufferStatus;
 
-	// Die Erweiterungsliste ist nur eine Auskunft; entscheidend ist, ob alle
-	// zehn Zeiger da sind. Ein Treiber, der die Namen fuehrt sie aber nicht
-	// annonciert, ist brauchbar - umgekehrt nicht.
+	// The extension list is only information; what decides is whether all ten
+	// pointers are there. A driver that carries the names but does not
+	// advertise them is usable - the other way round is not.
 	printfLog("  Framebuffer objects: %s (extension string: %s)\n",
 			  haveFBO ? "available" : "NOT available",
 			  advertised ? "yes" : "no");
 
 #endif
 
-	// GL 2.0 fuer den Shader-Filter. Fehlt es, bleiben Nearest und Bilinear
-	// uebrig - die brauchen nur eine Texturfiltereinstellung.
+	// GL 2.0 for the shader filter. Without it, Nearest and Bilinear are what
+	// is left - they need nothing but a texture filter setting.
 #ifdef __EMSCRIPTEN__
 	haveGLSL = true;
 #else

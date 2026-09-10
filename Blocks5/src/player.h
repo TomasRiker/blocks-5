@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Spieler ***/
+/*** Class for players ***/
 
 class SoundInstance;
 

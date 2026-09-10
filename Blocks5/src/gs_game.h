@@ -1,7 +1,7 @@
 #ifndef _GS_GAME_H
 #define _GS_GAME_H
 
-/*** Klasse fuer den Hauptspielzustand ***/
+/*** Class for the main game state ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -28,9 +28,18 @@ public:
 	void onLoseFocus();
 	void onAppLoseFocus();
 
+	// Is the game paused? The test hook reports it - from outside the pause is
+	// otherwise only recognisable by a piece of lettering that changes colour.
+	bool isPaused() const { return paused; }
+
 private:
 	void updateMusic();
 	int loadLevel();
+
+	// The file the running level came from. Only the single levels show it;
+	// remembered rather than looked up, because levelNumber already stands one
+	// further on after the last diamond.
+	std::string levelFilename;
 
 	Engine& engine;
 	Level* p_level;

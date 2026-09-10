@@ -3,7 +3,7 @@
 
 #include "lightning.h"
 
-/*** Klasse fuer einen Level ***/
+/*** Class for a level ***/
 
 class Object;
 class Player;
@@ -25,19 +25,18 @@ class Level
 	friend class Exit;
 
 public:
-	// Groesse und Ebenenzahl sind fuer jeden Level dieselben und keine
-	// Eigenschaft der einzelnen Instanz: der Editor laesst nichts anderes zu,
-	// und alle 220 mitgelieferten und fremden Leveldateien im Baum nennen
-	// genau diese Werte. Die Leveldatei schreibt sie weiterhin mit, damit sie
-	// fuer sich lesbar bleibt und aeltere Fassungen des Spiels sie oeffnen
-	// koennen - beim Laden werden sie aber nur noch geprueft, nicht mehr
-	// uebernommen.
+	// Size and layer count are the same for every level and not a property of
+	// the individual instance: the editor allows nothing else, and all 220
+	// shipped and third-party level files in the tree name exactly these
+	// values. The level file still writes them out, to keep it readable on
+	// its own and openable by older versions of the game - but on load they
+	// are only checked, no longer adopted.
 	//
-	// Einzelne ints statt eines Vec2i, damit der Wert hier im Kopf stehen kann:
-	// ein ganzzahliges statisches Konstantenglied darf in der Klasse
-	// initialisiert werden und ist damit in jeder Uebersetzungseinheit ein
-	// konstanter Ausdruck. Ein Vec2i braucht eine Definition in einer .cpp und
-	// ist fuer alle anderen Dateien nur ein Symbol, das gelesen werden muss.
+	// Separate ints rather than a Vec2i, to let the value stand here in the
+	// header: an integral static const member may be initialised inside the
+	// class and is therefore a constant expression in every translation unit.
+	// A Vec2i needs a definition in a .cpp and is, to every other file, only
+	// a symbol that has to be read.
 	static const int WIDTH = 40;
 	static const int HEIGHT = 25;
 	static const int NUM_LAYERS = 2;
@@ -118,14 +117,30 @@ public:
 	Texture* getBackground();
 	Texture* getHint();
 	Font* getHintFont();
+
+	// Should the hint note roll up? That is decided by the artwork and not by
+	// the level: a sheet of paper rolls up, a tablet does not. See loadSkin().
+	bool isHintScroll() const;
 	Presets* getPresets();
 	const std::vector<Object*>& getObjects() const;
 	Player* getActivePlayer();
+
+	// Close whatever the player is currently being shown on their own field -
+	// today that is the hint note. Returns false when nothing needed closing;
+	// then the key belongs to its real recipient.
+	bool dismissDisplay();
+
 	void switchToNextPlayer();
 	Exit* getExit();
 	uint getNumDiamondsNeeded() const;
 	void setNumDiamondsNeeded(uint numDiamondsNeeded);
 	void setNumDiamondsCollected(uint numDiamondsCollected);
+
+	// The two icons at the bottom left light up when the player collects
+	// something - the same gesture with which a switch answers a press. The
+	// index is the inventory's: 0 the bomb, 1 the diamond.
+	void flashHudIcon(uint index);
+	double getHudIconFlash(uint index) const;
 	uint getNumDiamondsCollected() const;
 	bool isElectricityOn() const;
 	void setElectricityOn(bool electricityOn);
@@ -198,6 +213,7 @@ private:
 	Texture* p_background;
 	Texture* p_hint;
 	Font* p_hintFont;
+	bool hintScroll;
 	uint layerListBase;
 	uint layerDirty;
 	Presets* p_presets;
@@ -214,6 +230,7 @@ private:
 	Texture* p_particleSprites;
 	uint numDiamondsNeeded;
 	uint numDiamondsCollected;
+	double hudIconFlash[2];
 	bool electricityOn;
 	bool nightVision;
 	bool raining;

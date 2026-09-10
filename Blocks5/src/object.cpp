@@ -9,12 +9,18 @@
 #include "gui.h"
 #include "font.h"
 
-// Wie hell ein Objekt aufleuchtet, das flash() gerufen hat, und wie schnell
-// das wieder abklingt. Der Zerfall ist der des Blitzes in Level::update():
-// je Takt ein Fuenftel weniger, unter 1/256 aus - knapp acht Takte, gut
-// 0,15 s. Beides ist Geschmackssache und steht deshalb hier.
-const double FLASH_STRENGTH = 1.0;
-const double FLASH_DECAY = 0.8;
+// How brightly an object that has called flash() lights up, and how fast that
+// dies away again. The decay is that of the flash in Level::update(): a
+// fifth less per logic tick, off below 1/256 - just under eight ticks, a good
+// 0.15 s. Both are a matter of taste, which is why they live here. extern,
+// because the HUD icons light up with the same numbers.
+extern const double FLASH_STRENGTH = 1.0;
+extern const double FLASH_DECAY = 0.8;
+
+// What is left to see of a block at the end of the conversion. Not 0: it is
+// solid until the last tick, and an invisible obstacle would be a bug and not
+// an effect.
+static const double CONVERSION_GHOST = 0.22;
 
 int Object::nextFallingDepth = 1000000;
 
@@ -28,6 +34,7 @@ Object::Object(Level& level,
 	ghost = false;
 	destroyTime = 0;
 	deathCountDown = 1.0;
+	conversionProgress = 0.0;
 	deathSpeed = 0.0;
 	newDeathCountDown = 1.0;
 	newDeathSpeed = 0.0;
@@ -64,7 +71,11 @@ void Object::render(int layer,
 					const Vec2i& offset,
 					const Vec4d& color)
 {
-	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown);
+	// The block of a running conversion goes pale. CONVERSION_GHOST is what is
+	// left of it: it must not disappear entirely, because it can be pushed
+	// right up to the last moment.
+	const double converting = 1.0 - conversionProgress * (1.0 - CONVERSION_GHOST);
+	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
 
 	glPushMatrix();
 
@@ -113,15 +124,15 @@ void Object::render(int layer,
 
 	onRender(layer, realColor);
 
-	// Aufleuchten, additiv. Ueber die Sprite-Farbe ginge es nicht: die ist bei
-	// fuenf der sieben Schalter das voreingestellte Weiss, und glColor4dv
-	// klemmt auf 1 - heller als weiss gibt es im Farbwert nicht. Aufaddiert
-	// schon, und der Anteil kommt weiterhin aus der Farbe des Teilbilds, damit
-	// ein eingefaerbter Schalter in seiner eigenen Farbe aufleuchtet.
+	// The flash, additive. The sprite colour could not carry it: for five of
+	// the seven switches that is the default white, and glColor4dv clamps at
+	// 1 - there is nothing brighter than white in a colour value. Added on
+	// top there is, and the amount still comes from the sprite's colour,
+	// letting a tinted switch light up in its own colour.
 	//
-	// Nur auf der Ebene, auf der das Objekt eben sein Teilbild gezeichnet hat,
-	// und nicht im Schattendurchgang: der geht mit schwarzem RGB durch, ein
-	// additiver Durchgang machte daraus einen hellen Fleck mitten im Schatten.
+	// Only on the layer the object has just drawn its sprite on, and not in
+	// the shadow pass: that one goes through with black RGB, and an additive
+	// pass would turn it into a bright spot in the middle of the shadow.
 	if(flashAmount > 0.0 && layer == flashLayer && !shadowPass)
 	{
 		Engine& engine = Engine::inst();
@@ -229,10 +240,10 @@ void Object::update()
 
 	if((flags & OF_PROXY))
 	{
-		// Objekt aktualisieren
+		// update the object
 		onUpdate();
 
-		// Todes-Countdown runterzaehlen
+		// run the death countdown down
 		deathCountDown -= deathSpeed * 0.02;
 		return;
 	}
@@ -245,19 +256,19 @@ void Object::update()
 		{
 			fall = 0;
 
-			// Kollisions-Sound spielen
+			// play the collision sound
 			Engine::inst().playSound(collisionSound, false, 0.15, -100);
 
-			// Das Objekt ist mit einem anderen Objekt kollidiert. Welches ist es?
+			// The object has collided with another object. Which one is it?
 			Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 			if(p_obj)
 			{
 				if(flags & OF_DEADLY)
 				{
-					// Kann das Objekt platzen?
+					// Can the object burst?
 					if(p_obj->flags & OF_BURSTABLE)
 					{
-						// Ja, dann soll es das jetzt auch tun.
+						// Yes - then let it do that now.
 						p_obj->burst();
 					}
 				}
@@ -271,13 +282,13 @@ void Object::update()
 		{
 			if(flags & OF_GRAVITY)
 			{
-				// Gravitation
+				// gravity
 				move(Vec2i(0, 1));
 			}
 
 			if(slideDir != -1)
 			{
-				// Rutschen
+				// sliding
 				slideMove = true;
 				if(type == "Player") static_cast<Player*>(this)->move(intToDir(slideDir));
 				else move(intToDir(slideDir), mass);
@@ -285,7 +296,7 @@ void Object::update()
 			}
 		}
 
-		// Ist das Objekt einsammelbar, und ist ein Spieler hier?
+		// Is the object collectable, and is a player here?
 		if(flags & OF_COLLECTABLE && noCollect == 0.0)
 		{
 			std::vector<Object*> objects = level.getObjectsAt2(position);
@@ -306,11 +317,11 @@ void Object::update()
 			}
 		}
 
-		// Objekt aktualisieren
+		// update the object
 		onUpdate();
 	}
 
-	// gezeigte Position aktualisieren
+	// update the shown position
 	double i;
 	if(level.isElectricityOn() && level.getElevatorAt(position)) i = 0.12;
 	else i = interpolation;
@@ -338,7 +349,7 @@ void Object::update()
 		shownPosition = shownPosition * (1.0 - i) + Vec2d(position) * i;
 	}
 
-	// Todes-Countdown runterzaehlen
+	// run the death countdown down
 	if(newDeathTime != -1 && level.time >= newDeathTime)
 	{
 		deathCountDown = newDeathCountDown;
@@ -378,13 +389,13 @@ void Object::update()
 			p_particleSystem->addParticle(p);
 		}
 
-		// teleportieren
+		// teleport
 		if(teleporting > 0.0)
 		{
 			teleporting += 0.02;
 			if(teleporting > 1.0)
 			{
-				// Position veraendern
+				// change the position
 				if(level.isFreeAt(teleportingTo))
 				{
 					warpTo(teleportingTo);
@@ -397,7 +408,7 @@ void Object::update()
 					teleportFailed = true;
 					Engine::inst().playSound("teleport_failed.ogg", false, 0.0, 100);
 
-					// gluehende Partikel
+					// glowing particles
 					for(int i = 0; i < 100; i++)
 					{
 						p.lifetime = 100;
@@ -435,7 +446,7 @@ void Object::update()
 
 	if(teleporting == 0.0 && falling == 0.0 && isAlive() && !ghost)
 	{
-		// Ist unter uns ein Loch?
+		// Is there a hole below us?
 		uint tileID = level.getTileAt(0, position);
 		const TileSet::TileInfo& tileInfo = level.getTileSet()->getTileInfo(tileID);
 		if(tileInfo.type == 3)
@@ -444,13 +455,13 @@ void Object::update()
 
 			if(flags & OF_DONT_FALL) dontFall = true;
 
-			// Schienen fallen nicht.
+			// Rails do not fall.
 			else if(flags & OF_RAIL) dontFall = true;
 
-			// Objekte auf Aufzuegen fallen nicht.
+			// Objects on elevators do not fall.
 			else if(!(flags & OF_ELEVATOR) && (flags & OF_TRANSPORTABLE) && level.getElevatorAt(position)) dontFall = true;
 
-			// Aufzuege auf Schienen fallen nicht.
+			// Elevators on rails do not fall.
 			else if(flags & OF_ELEVATOR)
 			{
 				Object* p_back = level.getBackObjectAt(position);
@@ -460,17 +471,17 @@ void Object::update()
 				}
 			}
 
-			// Objekte, die einen Aufzug knapp verpasst haben, kriegen nochmal eine Chance.
+			// Objects that just missed an elevator get another chance.
 			else if(flags & OF_TRANSPORTABLE)
 			{
-				// die umgebenden 4 Felder nach Aufzuegen absuchen
+				// search the 4 surrounding fields for elevators
 				std::list<Elevator*> elevators;
 				Elevator* p_elevator = level.getElevatorAt(position + Vec2i(-1, 0)); if(p_elevator) elevators.push_back(p_elevator);
 				p_elevator = level.getElevatorAt(position + Vec2i(1, 0)); if(p_elevator) elevators.push_back(p_elevator);
 				p_elevator = level.getElevatorAt(position + Vec2i(0, -1)); if(p_elevator) elevators.push_back(p_elevator);
 				p_elevator = level.getElevatorAt(position + Vec2i(0, 1)); if(p_elevator) elevators.push_back(p_elevator);
 
-				// Entfernungen bestimmen
+				// work out the distances
 				Elevator* p_closestElevator = 0;
 				double closestDist = 0.0;
 				for(std::list<Elevator*>::const_iterator i = elevators.begin(); i != elevators.end(); ++i)
@@ -484,7 +495,7 @@ void Object::update()
 
 				if(p_closestElevator)
 				{
-					// Ist der naechste Aufzug nah genug?
+					// Is the nearest elevator close enough?
 					if(closestDist <= 0.5)
 					{
 						Vec2i d = p_closestElevator->getPosition() - position;
@@ -492,7 +503,7 @@ void Object::update()
 						if(lastMoveDir.x) d1 = Vec2i(0, d.y), d2 = Vec2i(d.x, 0);
 						else d1 = Vec2i(d.x, 0), d2 = Vec2i(0, d.y);
 
-						// das Objekt auf den Aufzug schieben
+						// push the object onto the elevator
 						moved = false;
 						if(getType() == "Player")
 						{
@@ -520,7 +531,7 @@ void Object::update()
 
 			if(!dontFall)
 			{
-				// Ja, fallen!
+				// Yes, fall!
 				Engine::inst().playSound("falling.ogg", false, 0.0, 100);
 				falling = 0.0001;
 				ghost = true;
@@ -569,7 +580,7 @@ void Object::onExplosion()
 {
 	if(flags & OF_DESTROYABLE)
 	{
-		// Objekt zerstoeren
+		// destroy the object
 		disappear(0.2);
 	}
 }
@@ -585,7 +596,7 @@ bool Object::move(const Vec2i& dir,
 
 	if(dir.x && !dir.y && isPushedFromAbove() && level.isElectricityOn())
 	{
-		// Liegt das Objekt auf einem Fliessband?
+		// Is the object lying on a conveyor belt?
 		Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 		if(p_obj)
 		{
@@ -594,7 +605,7 @@ bool Object::move(const Vec2i& dir,
 				ConveyorBelt* p_cb = reinterpret_cast<ConveyorBelt*>(p_obj);
 				if(p_cb->getDir() != dir.x)
 				{
-					// Schieben gegen Fliessbandrichtung nicht erlaubt!
+					// Pushing against the conveyor belt's direction is not allowed!
 					return false;
 				}
 			}
@@ -615,26 +626,26 @@ bool Object::move(const Vec2i& dir,
 		Object* p_obj = level.getFrontObjectAt(position + dir);
 		if(p_obj)
 		{
-			// Sind wir ein einsammelbares Objekt und das andere Objekt der Spieler?
+			// Are we a collectable object and the other object the player?
 			if((flags & OF_COLLECTABLE) && p_obj->getType() == "Player")
 			{
-				// Dann ist es OK.
+				// Then it is OK.
 				position += dir;
 				moved = true;
 			}
-			// Sind wir ein Aufzug und das andere Objekt transportierbar?
+			// Are we an elevator and the other object transportable?
 			else if((flags & OF_ELEVATOR) && (p_obj->getFlags() & OF_TRANSPORTABLE))
 			{
-				// Dann ist es OK.
+				// Then it is OK.
 				position += dir;
 				moved = true;
 			}
-			// Kann sich dieses Objekt bewegen?
+			// Can this object move?
 			else if(!(p_obj->getFlags() & OF_FIXED) && !p_obj->isPushedWithDeadlyWeight())
 			{
 				if(p_obj->isPushedFromAbove() && dir.y < 0)
 				{
-					// Nach oben schieben geht nicht, wenn das Objekt nach unten gedrueckt wird!
+					// Pushing upward does not work while the object is being pushed down!
 				}
 				else
 				{
@@ -660,10 +671,10 @@ bool Object::move(const Vec2i& dir,
 
 			if(!moved && !dir.x && dir.y == 1)
 			{
-				// Wird das Objekt mit extremer Kraft gedrueckt?
+				// Is the object being pushed with extreme force?
 				if(isPushedWithDeadlyWeight())
 				{
-					// Ist unter dem "toedlichen" Objekt ein Objekt?
+					// Is there an object below the "deadly" one?
 					Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
 					if(p_obj)
 					{
@@ -707,26 +718,26 @@ bool Object::move(const Vec2i& dir,
 		level.hashObject(this);
 	}
 
-	// Wurde das Objekt zur Seite bewegt?
+	// Has the object been moved sideways?
 	if(moved && dir.x && !dir.y)
 	{
-		// Befindet sich ueber diesem Objekt ein anderes (Stapel)?
+		// Is there another object above this one (a stack)?
 		Object* p_obj = level.getFrontObjectAt(oldPosition - Vec2i(0, 1));
 		if(p_obj)
 		{
 			if(p_obj->isPushedFromAbove())
 			{
-				// das Objekt ebenfalls verschieben
+				// move that object too
 				p_obj->onConveyorBelt = max(onConveyorBelt, p_obj->onConveyorBelt);
 				p_obj->move(dir, force);
 			}
 		}
 	}
 
-	// Ist dieses Objekt ein Aufzug?
+	// Is this object an elevator?
 	if(moved && (flags & OF_ELEVATOR))
 	{
-		// Alle Objekte darueber muessen mitbewegt werden.
+		// Every object above it has to move along with it.
 		std::vector<Object*> objectsOnMe = level.getObjectsAt(position - dir);
 		for(std::vector<Object*>::const_iterator i = objectsOnMe.begin(); i != objectsOnMe.end(); ++i)
 		{
@@ -740,7 +751,7 @@ bool Object::move(const Vec2i& dir,
 					{
 						if((*i)->getFlags() & OF_FIXED)
 						{
-							// Umkehren!
+							// Reverse!
 							position -= dir;
 							level.hashObject(this);
 							moved = false;
@@ -759,7 +770,7 @@ bool Object::move(const Vec2i& dir,
 
 		if(dir.y > 0)
 		{
-			// Das Objekt faellt.
+			// The object is falling.
 			fall = 1;
 		}
 
@@ -771,7 +782,7 @@ bool Object::move(const Vec2i& dir,
 
 		if(fall == 1 && dir.y > 0)
 		{
-			// Das Objekt ist auf ein anderes Objekt gefallen.
+			// The object has fallen onto another object.
 			fall = -1;
 		}
 	}
@@ -791,12 +802,12 @@ void Object::handleSliding()
 	{
 		if(!level.getElevatorAt(position))
 		{
-			// Sind wir auf Eis?
+			// Are we on ice?
 			uint l0 = level.getTileAt(0, position);
 			const TileSet::TileInfo& t0 = level.getTileSet()->getTileInfo(l0);
 			if(t0.type == 4)
 			{
-				// Ja!
+				// Yes!
 				slideDir = dirToInt(lastMoveDir);
 			}
 			else slideDir = -1;
@@ -831,7 +842,7 @@ void Object::onFire()
 
 void Object::burst()
 {
-	// platzen
+	// burst
 	Engine::inst().playSound(burstSound, false, 0.1, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
@@ -844,11 +855,11 @@ void Object::burst()
 		p.gravity = 0.1f;
 		p.positionOnTexture = Vec2b(96, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
-		// Farbe und Stelle aus dem Bild ziehen. Trifft der Wurf eine
-		// durchsichtige Stelle, entsteht kein Partikel - so wirft ein kleines
-		// Objekt weniger Truemmer als ein grosses, ohne dass das irgendwo
-		// eingestellt werden muesste. Die Stelle wird auch als Startpunkt
-		// benutzt, damit die Wolke die Form des Objekts behaelt.
+		// Take the colour and the spot from the image. If the try lands on a
+		// transparent spot, no particle is created - a small object therefore
+		// throws less debris than a big one, without that having to be set
+		// anywhere. The spot doubles as the starting point, which keeps the
+		// cloud in the object's shape.
 		Vec4d sampled;
 		Vec2i offset;
 		if(!sprites.sample(&sampled, &offset)) continue;
@@ -888,11 +899,11 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	// %f in sscanf schreibt einen float, shownPosition ist aber ein Vec2d: das
-	// ueberschreibt vier von acht Bytes und laesst die anderen stehen. Derselbe
-	// Fehler wie in cannon.cpp; MSVC meldet ihn als C4477. QueryDoubleAttribute
-	// liest den double richtig und laesst den Wert in Ruhe, wenn das Attribut
-	// fehlt.
+	// %f in sscanf writes a float, but shownPosition is a Vec2d: that
+	// overwrites four of eight bytes and leaves the others untouched. The same
+	// bug as in cannon.cpp; MSVC reports it as C4477. QueryDoubleAttribute
+	// reads the double correctly and leaves the value alone when the attribute
+	// is missing.
 	p_element->QueryDoubleAttribute("shownPositionX", &shownPosition.x);
 	p_element->QueryDoubleAttribute("shownPositionY", &shownPosition.y);
 }
@@ -901,8 +912,21 @@ void Object::frameBegin()
 {
 	moved = false;
 
-	// Der Zerfall gehoert hierher und nicht in onBeforeRender(): das laeuft je
-	// Bild, und das Aufleuchten haenge sonst an der Bildrate.
+	// See setConversionProgress(): clearing it and letting the machine set it
+	// again straight away is the undo nobody can forget. No longer once the
+	// block is dying: then nobody is pushing any more, and at the moment of
+	// the conversion the ghosted block would abruptly stand there as a full
+	// block again over the diamond the sparks have just built.
+	//
+	// newDeathTime has to be asked as well, and the whole case hangs on that:
+	// disappearNextFrame() only records the death, which takes effect in
+	// update() - that is, after this frameBegin(). isAlive() alone still says
+	// "alive" in the tick after, and that is exactly where it would be
+	// cleared.
+	if(isAlive() && newDeathTime == -1) conversionProgress = 0.0;
+
+	// The decay belongs here and not in onBeforeRender(): that runs per frame,
+	// and the flash would otherwise hang off the frame rate.
 	if(flashAmount > 0.0)
 	{
 		flashAmount *= FLASH_DECAY;
@@ -1028,7 +1052,7 @@ void Object::teleportTo(const Vec2i& position)
 	teleporting = 0.02;
 	teleportingTo = position;
 
-	// Beim Teleportieren muss das Objekt vor allen anderen sein.
+	// While teleporting the object has to be in front of all the others.
 	oldDepth = depth;
 	setDepth(-100);
 

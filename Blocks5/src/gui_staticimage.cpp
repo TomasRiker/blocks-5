@@ -19,7 +19,7 @@ void GUI_StaticImage::onRender()
 {
 	if(p_image)
 	{
-		// Bild rendern
+		// render the image
 		Engine::inst().renderSprite(p_image, Vec2i(0, 0), positionOnTexture, size, color);
 	}
 }
@@ -59,8 +59,8 @@ void GUI_StaticImage::setRawImageFilename(const std::string& rawImageFilename)
 	setImageFilename(localizeString(rawImageFilename));
 }
 
-// Der Hintergrund des Spendenfensters traegt $MM_DONATE_BACKGROUND_FILENAME.
-// Siehe GUI_Button::onUpdate - dieselbe Sache, derselbe Grund.
+// The donation window's background carries $MM_DONATE_BACKGROUND_FILENAME.
+// See GUI_Button::onUpdate - the same thing for the same reason.
 void GUI_StaticImage::onUpdate()
 {
 	if(rawImageFilename.empty()) return;

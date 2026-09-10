@@ -9,7 +9,7 @@ E_LightBulb::E_LightBulb(Level& level,
 	renderBox = false;
 	on = false;
 
-	// Eingang erzeugen
+	// create the input
 	createPin(0, Vec2i(7, 15), PT_INPUT);
 }
 

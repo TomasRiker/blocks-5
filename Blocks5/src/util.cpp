@@ -39,11 +39,11 @@ int nextPow2(int x)
 
 std::string getFilenameExtension(const std::string& filename)
 {
-	// letzten Punkt suchen
+	// look for the last dot
 	size_t index = filename.find_last_of('.');
 	if(index == std::string::npos)
 	{
-		// Keine Erweiterung!
+		// No extension!
 		return "";
 	}
 	else
@@ -60,19 +60,26 @@ std::string formatLevelCaption(int number,
 	return prefix + title;
 }
 
+std::string formatSingleLevelCaption(const std::string& title,
+									 const std::string& filename)
+{
+	if(filename.empty()) return title;
+	return title + " (" + filename + ")";
+}
+
 std::string setFilenameExtension(const std::string& filename,
 								 const std::string& extension)
 {
-	// letzten Punkt suchen
+	// look for the last dot
 	size_t index = filename.find_last_of('.');
 	if(index == std::string::npos)
 	{
-		// Keine Erweiterung!
+		// No extension!
 		return filename + "." + extension;
 	}
 	else
 	{
-		// die vorhandene Erweiterung ersetzen
+		// replace the existing extension
 		return std::string(filename.begin(), filename.begin() + index) + "." + extension;
 	}
 }
@@ -85,12 +92,12 @@ int randomInt()
 std::string sanitizeFilenameStem(const std::string& untrusted,
 								 const std::string& fallback)
 {
-	// nur den Basisnamen betrachten
+	// look at the base name only
 	std::string name(untrusted);
 	const size_t cut = name.find_last_of("/\\:");
 	if(cut != std::string::npos) name = name.substr(cut + 1);
 
-	// Erweiterung abschneiden - die bestimmt der Aufrufer, nicht die Datei
+	// cut the extension off - the caller decides that, not the file
 	const size_t dot = name.find_last_of('.');
 	if(dot != std::string::npos) name = name.substr(0, dot);
 
@@ -112,6 +119,10 @@ std::string sanitizeFilenameStem(const std::string& untrusted,
 int random(int min,
 		   int max)
 {
+	// An empty span is empty and not huge: MTRand::randInt() takes a uint32,
+	// and a negative max - min would become four billion there, with an
+	// arbitrary number far outside [min, max] coming out.
+	if(max <= min) return min;
 	return min + mt.randInt(max - min);
 }
 
@@ -160,7 +171,7 @@ void generatePrimes(uint* p_out,
 	uint numPrimes = 1;
 	while(numPrimes < maxNum)
 	{
-		// Ist n eine Primzahl?
+		// Is n a prime number?
 		bool isPrime = true;
 		for(uint i = 0; i < numPrimes; i++)
 		{
@@ -187,7 +198,7 @@ uint fromBase62(const char* p_in)
 	uint n = 0;
 	for(uint i = 0; i < 7; i++)
 	{
-		// Dekodierung
+		// decoding
 		if(p_in[i] >= 'a') n += (36 + p_in[i] - 'a') * base[i];
 		else if(p_in[i] >= 'A') n += (10 + p_in[i] - 'A') * base[i];
 		else n += (p_in[i] - '0') * base[i];
@@ -203,14 +214,14 @@ void decryptPassword(const char* p_in,
 	char step1[1024] = "";
 	for(uint i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
 	{
-		// immer 7 Zeichen zur Basis 62 in einen 32-Bit-Integer umwandeln
+		// always turn 7 base-62 characters into one 32-bit integer
 		uint n = fromBase62(&p_in[i]);
 
-		// entschluesseln
+		// decrypt
 		uint pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
 		n ^= pattern;
 
-		// schreiben
+		// write it
 		*(reinterpret_cast<uint*>(&step1[shift * 4])) = n;
 	}
 
@@ -219,22 +230,22 @@ void decryptPassword(const char* p_in,
 	uint indexIn = 0, indexOut = 0;
 	while(true)
 	{
-		// Anzahl der Terme lesen und entschluesseln
+		// read the number of terms and decrypt it
 		unsigned char numTerms = step1[indexIn++] ^ 0xB6;
 		if(!numTerms) break;
 
-		// Primzahlen und ihre Potenzen lesen und entschluesseln
+		// read the primes and their powers and decrypt them
 		uint c = 1;
 		for(uint i = 0; i < numTerms; i++)
 		{
 			unsigned char prime = step1[indexIn++] ^ 0x4D;
 			unsigned char power = step1[indexIn++] ^ 0xE9;
 
-			// Potenz einmultiplizieren
+			// multiply the power in
 			for(uint j = 0; j < power; j++) c *= p_primes[prime];
 		}
 
-		// Buchstabe entschluesseln und schreiben
+		// decrypt the letter and write it
 		c -= indexOut * 7;
 		step2[indexOut++] = static_cast<char>(c);
 	}
@@ -251,8 +262,9 @@ bool isSafeMemberName(const std::string& name)
 
 	for(size_t i = 0; i < name.length(); i++)
 	{
-		// Quelldateien sind ISO-8859-1: ohne die Umdeutung nach unsigned
-		// waere jeder Umlaut negativ und fiele durch den Steuerzeichentest.
+		// Source files are ISO-8859-1: without the reinterpretation as
+		// unsigned, every umlaut would be negative and would fail the control
+		// character test.
 		const unsigned char c = static_cast<unsigned char>(name[i]);
 		if(c < 0x20 || c == 0x7F) return false;
 		if(strchr("/\\:<>[]\"|?*", c)) return false;
@@ -275,9 +287,9 @@ void printfLog(const char* p_format,
 	text[0] = 0;
 	va_list vaList;
 
-	// Parameterliste anfertigen und den String erstellen
+	// build the parameter list and the string
 	va_start(vaList, p_format);
-	vsprintf(text, p_format, vaList);
+	vsnprintf(text, sizeof(text), p_format, vaList);
 	va_end(vaList);
 
 	char datetime[32];
@@ -286,7 +298,7 @@ void printfLog(const char* p_format,
 	strftime(datetime, 32, "%H:%M:%S", localtime(&t));
 	std::string finalLogText(std::string(datetime) + " // " + text);
 
-	// ausgeben
+	// output
 	printf("%s", finalLogText.c_str());
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");
 	FILE* p_file = fopen(logFilename.c_str(), "at");
@@ -343,7 +355,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 			points.push_back(c);
 
 			if(p > 0)
-			{ 
+			{
 				c.x += ix;
 				c.y += iy;
 				p += dpu;
@@ -353,7 +365,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 				c.x += ix;
 				p += dpr;
 			}
-		}		
+		}
 	}
 	else
 	{
@@ -366,7 +378,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 			points.push_back(c);
 
 			if(p > 0)
-			{ 
+			{
 				c.x += ix;
 				c.y += iy;
 				p += dpu;
@@ -376,7 +388,7 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 				c.y += iy;
 				p += dpr;
 			}
-		}		
+		}
 	}
 
 	return points;
@@ -404,8 +416,8 @@ double getExactTime()
 #elif defined(__EMSCRIPTEN__)
 	return emscripten_get_now() * 0.001;
 #else
-	// CLOCK_MONOTONIC und nicht CLOCK_REALTIME: gemessen werden Abstaende, und
-	// die duerfen sich nicht aendern, weil jemand die Uhr stellt.
+	// CLOCK_MONOTONIC and not CLOCK_REALTIME: what is measured are intervals,
+	// and those must not change because somebody sets the clock.
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	return t.tv_sec + t.tv_nsec * 1.0e-9;
@@ -420,10 +432,10 @@ uint getExactTimeMS()
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 void openURL(const std::string& url)
 {
-	// xdg-open ist das, was jede Arbeitsumgebung mitbringt und was auf den
-	// eingestellten Browser zeigt. Nur Adressen aus dem Programm kommen hier
-	// an, aber der Aufruf geht durch eine Shell, und ein Apostroph darin
-	// beendete das Argument - also gar nicht erst durchlassen.
+	// xdg-open is what every desktop environment brings along and what points
+	// at the configured browser. Only addresses from the program arrive here,
+	// but the call goes through a shell, and an apostrophe in one would end
+	// the argument - do not let one through in the first place.
 	if(url.find('\'') != std::string::npos)
 	{
 		printfLog("Refusing to open a URL containing a quote: %s\n", url.c_str());

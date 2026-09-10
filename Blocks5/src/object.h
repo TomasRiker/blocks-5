@@ -5,7 +5,13 @@
 
 #include "level.h"
 
-/*** Klasse fuer ein Spielobjekt ***/
+/*** Class for a game object ***/
+
+// How brightly something lights up and how fast that fades; the numbers are
+// in object.cpp. Not only objects light up with them - the HUD icons do too
+// (gs_game.cpp), and those must look exactly the same.
+extern const double FLASH_STRENGTH;
+extern const double FLASH_DECAY;
 
 class Player;
 
@@ -44,15 +50,15 @@ public:
 	void update();
 	virtual void onRemove();
 
-	// Laeuft einmal je Bild, bevor Level::render die Ebenen durchgeht. Bringt
-	// standardmaessig sprites auf den Stand; wer hier eigene Vorarbeit
-	// unterbringt, ruft Object::onBeforeRender() mit.
+	// Runs once per frame, before Level::render walks the layers. By default
+	// it brings sprites up to date; anything that does its own preparation
+	// here calls Object::onBeforeRender() as well.
 	//
-	// Warum nicht in onRender: das laeuft je Bild vierzehnmal (zwoelf Ebenen,
-	// davon Ebene 1 zweimal fuer die Schatten und einmal richtig), und die
-	// Farbe, die es bekommt, ist die des Durchgangs - beim Schattendurchgang
-	// also Schattenfarbe. Die Teilbilder tragen die Eigenfaerbung, die davon
-	// unabhaengig ist.
+	// Why not in onRender: that runs fourteen times per frame (twelve layers,
+	// of which layer 1 runs twice for the shadows and once properly), and the
+	// colour it is handed is the pass's - the shadow colour in the shadow
+	// pass. The sprites carry the object's own tint, which is independent of
+	// that.
 	virtual void onBeforeRender();
 
 	virtual void onRender(int layer, const Vec4d& color);
@@ -68,6 +74,12 @@ public:
 	virtual bool reflectProjectile(Vec2d& velocity);
 	virtual void onFire();
 	virtual void burst();
+
+	// Close something the player is currently being shown, without having to
+	// leave the field. Only the hint note can do that; anything that shows
+	// nothing answers false, and then the key belongs to whoever would
+	// otherwise have got it - for Escape, the game menu.
+	virtual bool dismiss() { return false; }
 
 	virtual bool changeInEditor(int mod);
 	virtual void saveAttributes(TiXmlElement* p_target);
@@ -108,18 +120,38 @@ public:
 	bool hasTeleportFailed() const;
 	bool isFalling() const;
 
-	// Die Teilbilder, aus denen dieses Objekt gerade besteht - frisch, auch
-	// wenn onBeforeRender in diesem Bild noch nicht lief. Genau das ist der
-	// Fall, wenn ein Objekt im selben Tick entsteht und zerplatzt, und beim
-	// allerersten Tick, den Level::update vor dem ersten Level::render macht.
+	// The sprites this object currently consists of - fresh, even if
+	// onBeforeRender has not run yet in this frame. That is exactly the case
+	// when an object is created and bursts in the same tick, and on the very
+	// first tick, which Level::update runs before the first Level::render.
 	const Sprites& getSprites();
 
-	// Kurz aufleuchten lassen. Gedacht ist es fuer die Schalter: drei von ihnen
-	// - Sperrfeuer, Kanone, Magnet - haben keinen eigenen Zustand und wirken
-	// irgendwo anders im Level, sind also vorher wie nachher dasselbe Bild.
-	// Wer aufleuchten will, ruft das selbst; Object::onTouchedByPlayer tut es
-	// nicht, denn das laeuft bei jedem Block, den der Spieler anrempelt.
+	// Light up briefly. It is meant for the switches: three of them - barrage,
+	// cannon, magnet - have no state of their own and act somewhere else in
+	// the level, and are therefore the same picture before as after. Anything
+	// that wants to light up calls it itself; Object::onTouchedByPlayer does
+	// not, because that runs for every block the player bumps into.
 	void flash();
+
+	// How far the conversion in a diamond machine has got, 0 to 1. It makes
+	// the block transparent - but never completely: the block stays solid the
+	// whole time and can still be pushed, and whatever blocks the way has to
+	// be visible.
+	//
+	// The value belongs to the block, not to the machine, and frameBegin()
+	// clears it every tick; the machine sets it again in its update(), which
+	// runs after all the frameBegin() calls. When the machine stops - because
+	// the block has been pushed away, blown up or teleported, or the power
+	// went off - the value stands at zero of its own accord in the next tick,
+	// without anybody having to trigger an undo. That is exactly why the
+	// opacity snaps back instead of fading back: a half-transparent block
+	// sliding away looks like a bug.
+	//
+	// The one exception is in frameBegin(): a dying block keeps its value, or
+	// the successful conversion would be the loudest case of snapping back
+	// there is.
+	void setConversionProgress(double progress) { conversionProgress = progress; }
+	double getConversionProgress() const { return conversionProgress; }
 
 	uint getMass() const;
 	void setMass(uint mass);
@@ -133,21 +165,22 @@ public:
 	static int dirToInt(const Vec2i& dir);
 
 	int lastHashedAt;
-	// Ist onRemove() schon gelaufen? Level::removeObject() darf nicht zweimal
-	// abmelden - siehe dort.
+	// Has onRemove() already run? Level::removeObject() must not unregister
+	// twice - see there.
 	bool removed;
 	int onConveyorBelt;
 	bool shadowPass;
 	double noCollect;
 	double flashAmount;
+	double conversionProgress;
 
 protected:
 	void handleSliding();
 
-	// Traegt die Teilbilder dieses Objekts in sprites ein. Wird immer mit
-	// geleerter Liste gerufen, also niemals selbst leeren und niemals an die
-	// Basisklasse ketten, ausser man will deren Teilbilder auch haben
-	// (Electronics zeichnet den Kasten, auf dem die anderen sitzen).
+	// Enters this object's sprites into sprites. It is always called with an
+	// empty list: never clear it yourself and never chain to the base class,
+	// unless its sprites are wanted as well (Electronics draws the box the
+	// others sit on).
 	virtual void updateSprites();
 
 	Sprites sprites;
@@ -184,16 +217,15 @@ protected:
 	std::string toolTip;
 	int slideDir;
 	bool slideMove;
-	// Die Ebene, auf der dieses Objekt sein Teilbild zeichnet, und damit die,
-	// auf der Object::render() das Aufleuchten daraufaddiert. Fast alle
-	// zeichnen auf 1; die Panels liegen auf dem Boden und zeichnen auf 0.
+	// The layer this object draws its sprite on, and therefore the one
+	// Object::render() adds the flash onto. Almost all of them draw on 1; the
+	// panels lie on the floor and draw on 0.
 	int flashLayer;
 	static int nextFallingDepth;
 
 private:
-	// Leeren, Textur eintragen, updateSprites() rufen. Der einzige Weg, auf
-	// dem sprites gefuellt wird - deshalb kann updateSprites() sich auf eine
-	// leere Liste verlassen.
+	// Clear, enter the texture, call updateSprites(). The only way sprites is
+	// ever filled - which is why updateSprites() can rely on an empty list.
 	void rebuildSprites();
 };
 

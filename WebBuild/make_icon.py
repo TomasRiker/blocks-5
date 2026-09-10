@@ -1,64 +1,85 @@
 #!/usr/bin/env python3
-"""make_icon.py - blaeht data/window.png fuer die Web-App auf, Pixel fuer Pixel.
+"""make_icon.py - blows data/window.png up for the web app, pixel by pixel.
 
-    python3 make_icon.py <ein.png> <aus.png> [--scale N] [--canvas N]
+    python3 make_icon.py <in.png> <out.png> [--scale N] [--canvas N]
                          [--background RRGGBB]
 
-Das Symbol der Seite ist dasselbe, das das Spielfenster traegt: Bobs Gesicht,
-32x32. Ein Telefon skaliert ein so kleines Bild fuer den Startbildschirm selbst
-hoch und nimmt dafuer eine glaettende Filterung - aus 32 Pixeln wird dann ein
-verwaschener Fleck. Vorher mit reiner Pixelvervielfachung vergroessert bleibt
-jede Kante hart, weil jeder Ausgabepunkt die unveraenderte Kopie eines
-Eingabepunkts ist.
+The page's icon is the one the game window carries: Bob's face, 32x32. A phone
+scales an image that small up itself for the home screen and takes a smoothing
+filter to do it - 32 pixels then become a blurred smear. Enlarged beforehand by
+pure pixel replication, the image keeps every edge hard, because each output
+pixel is an unchanged copy of an input pixel.
 
---scale ist dieser ganzzahlige Faktor, --canvas die Kantenlaenge des fertigen
-Bildes; ist sie groesser, sitzt das Bild mittig darin. Das ist der Unterschied
-zwischen den beiden Sorten, die eine Web-App braucht:
+--scale is that integer factor, --canvas the edge length of the finished image;
+where it is larger, the image sits centred in it. That is the difference
+between the two kinds a web app needs:
 
-  purpose "any"        randlos, mit Transparenz. Wird unveraendert angezeigt.
-  purpose "maskable"   Der Startbildschirm schneidet sich daraus eine Form
-                       eigener Wahl - Kreis, abgerundetes Quadrat, Tropfen.
-                       Sicher ist nur ein Kreis von 80% der Kantenlaenge in der
-                       Mitte; alles ausserhalb davon kann fehlen. Deshalb kleiner
-                       skaliert, mittig, und mit --background deckend gefuellt:
-                       ein durchsichtiges Pixel wird beim Maskieren zum Loch.
+  purpose "any"        full-bleed, with transparency. Shown as it is.
+  purpose "maskable"   The launcher crops a shape of its own choosing out of
+                       it - circle, rounded square, teardrop. Only a centred
+                       circle of 80% of the edge length is guaranteed to
+                       survive; everything outside it can be missing. Hence
+                       scaled smaller, centred, and filled opaque with
+                       --background: a transparent pixel becomes a hole when
+                       it is masked.
 
-Absichtlich ohne Pillow: der Web-Build braucht ohnehin ein python3 (Emscripten
-verlangt es), und eine weitere Abhaengigkeit waere schlecht getauscht. Gelesen
-wird deshalb genau der PNG-Fall, in dem window.png vorliegt - 8 Bit RGBA, nicht
-verschraenkt -, und alles andere wird abgelehnt statt still falsch gemacht.
+Deliberately without Pillow: the web build needs a python3 anyway (Emscripten
+requires one), and a further dependency would be a bad trade. So it reads
+exactly the one PNG case window.png comes in - 8-bit RGBA, not interlaced - and
+rejects everything else rather than getting it quietly wrong.
 """
 import struct
 import sys
 import zlib
 
 
+# Samples per pixel for the colour types of RFC 2083. The reader accepts
+# exactly these and rejects everything else rather than getting it quietly
+# wrong: window.png is RGBA, data/font.png a palette.
+_CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+
+
 def read_png(path):
-    """Liefert (breite, hoehe, bytes) fuer ein 8-Bit-RGBA-PNG ohne Interlacing."""
+    """Returns (width, height, RGBA bytes) for a PNG without interlacing.
+
+    Eight bits per sample, and for grey and palette also the narrower depths -
+    credits_font.png is a two-colour palette at one bit."""
     data = open(path, 'rb').read()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
-        raise SystemExit('%s ist kein PNG' % path)
+        raise SystemExit('%s is not a PNG' % path)
 
     pos = 8
-    width = height = 0
+    width = height = color = 0
+    palette = b''
+    alpha = b''
     idat = []
     while pos + 8 <= len(data):
         length, kind = struct.unpack('>I4s', data[pos:pos + 8])
         body = data[pos + 8:pos + 8 + length]
-        pos += 12 + length          # Laenge, Kennung, Rumpf, Pruefsumme
+        pos += 12 + length          # length, kind, body, checksum
         if kind == b'IHDR':
             width, height, depth, color, comp, filt, interlace = struct.unpack('>IIBBBBB', body)
-            if (depth, color, comp, filt, interlace) != (8, 6, 0, 0, 0):
-                raise SystemExit('%s: erwartet 8-Bit RGBA ohne Interlacing, '
-                                 'gefunden depth=%d color=%d interlace=%d'
+            narrow = depth in (1, 2, 4) and color in (0, 3)
+            if (depth != 8 and not narrow) or comp != 0 or filt != 0 or interlace != 0 \
+                    or color not in _CHANNELS:
+                raise SystemExit('%s: expected 8 bit without interlacing, found '
+                                 'depth=%d color=%d interlace=%d'
                                  % (path, depth, color, interlace))
+        elif kind == b'PLTE':
+            palette = body
+        elif kind == b'tRNS':
+            alpha = body
         elif kind == b'IDAT':
             idat.append(body)
         elif kind == b'IEND':
             break
 
+    # The filter works on whole bytes, and below one byte per pixel that is
+    # one byte - the sample is unpacked afterwards.
+    channels = _CHANNELS[color]
+    bpp = max(1, channels * depth // 8)
     raw = zlib.decompress(b''.join(idat))
-    stride = width * 4
+    stride = (width * channels * depth + 7) // 8
     out = bytearray(height * stride)
     prev = bytearray(stride)
     at = 0
@@ -66,11 +87,11 @@ def read_png(path):
         method = raw[at]
         line = bytearray(raw[at + 1:at + 1 + stride])
         at += 1 + stride
-        # Die fuenf Zeilenfilter aus RFC 2083, Abschnitt 6.
+        # The five row filters from RFC 2083, section 6.
         for x in range(stride):
-            a = line[x - 4] if x >= 4 else 0
+            a = line[x - bpp] if x >= bpp else 0
             b = prev[x]
-            c = prev[x - 4] if x >= 4 else 0
+            c = prev[x - bpp] if x >= bpp else 0
             if method == 0:
                 pass
             elif method == 1:
@@ -85,26 +106,62 @@ def read_png(path):
                 pred = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
                 line[x] = (line[x] + pred) & 0xFF
             else:
-                raise SystemExit('%s: unbekannter Zeilenfilter %d' % (path, method))
+                raise SystemExit('%s: unknown row filter %d' % (path, method))
         out[y * stride:(y + 1) * stride] = line
         prev = line
-    return width, height, bytes(out)
+
+    if color == 6:
+        return width, height, bytes(out)
+
+    def sample(i):
+        """Sample i of the row-packed image, whatever the bit depth is."""
+        if depth == 8:
+            return out[i]
+        perByte = 8 // depth
+        y, x = divmod(i, width)
+        byte = out[y * stride + x // perByte]
+        return (byte >> (8 - depth * (x % perByte + 1))) & ((1 << depth) - 1)
+
+    # Bring everything else to RGBA, leaving callers only one case to know.
+    rgba = bytearray(width * height * 4)
+    for i in range(width * height):
+        if color == 3:
+            index = sample(i)
+            k = index * 3
+            if k + 3 > len(palette):
+                raise SystemExit('%s: palette index outside the PLTE' % path)
+            r, g, b = palette[k], palette[k + 1], palette[k + 2]
+            a = alpha[index] if index < len(alpha) else 255
+        elif color == 2:
+            r, g, b, a = out[i * 3], out[i * 3 + 1], out[i * 3 + 2], 255
+        elif color == 0:
+            r = g = b = sample(i) * 255 // ((1 << depth) - 1)
+            a = 255
+        else:                        # 4: grey with alpha
+            r = g = b = out[i * 2]
+            a = out[i * 2 + 1]
+        rgba[i * 4:i * 4 + 4] = bytes((r, g, b, a))
+    return width, height, bytes(rgba)
 
 
-def write_png(path, width, height, pixels):
+def write_png(target, width, height, pixels):
+    """Writes an 8-bit RGBA PNG - target is a path or an open buffer."""
     def chunk(kind, body):
         return (struct.pack('>I', len(body)) + kind + body +
                 struct.pack('>I', zlib.crc32(kind + body) & 0xFFFFFFFF))
 
     stride = width * 4
-    # Filter 0 je Zeile: das Bild besteht aus grossen gleichfarbigen Bloecken,
-    # die zlib von sich aus kurz macht.
+    # Filter 0 per row: the image is made of large blocks of one colour, which
+    # zlib shortens by itself.
     raw = b''.join(b'\x00' + pixels[y * stride:(y + 1) * stride] for y in range(height))
     body = (b'\x89PNG\r\n\x1a\n'
             + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
             + chunk(b'IDAT', zlib.compress(raw, 9))
             + chunk(b'IEND', b''))
-    open(path, 'wb').write(body)
+    if hasattr(target, 'write'):
+        target.write(body)
+    else:
+        open(target, 'wb').write(body)
 
 
 def main():
@@ -130,28 +187,28 @@ def main():
 
     width, height, pixels = read_png(src)
     if width != height:
-        raise SystemExit('%s ist %dx%d - fuer ein Symbol wird ein Quadrat gebraucht'
+        raise SystemExit('%s is %dx%d - an icon needs a square'
                          % (src, width, height))
 
     if scale is None:
         target = canvas if canvas else 512
         if target % width:
-            raise SystemExit('%d ist kein ganzzahliges Vielfaches von %d - dann waere '
-                             'die Vergroesserung keine reine Pixelvervielfachung'
+            raise SystemExit('%d is not an integer multiple of %d - the enlargement '
+                             'would then not be pure pixel replication'
                              % (target, width))
         scale = target // width
     art = width * scale
     if canvas is None:
         canvas = art
     if art > canvas:
-        raise SystemExit('%dx%d passt nicht auf eine Flaeche von %d'
+        raise SystemExit('%dx%d does not fit on a canvas of %d'
                          % (art, art, canvas))
 
     if background is None:
         fill = bytes((0, 0, 0, 0))
     else:
         if len(background) != 6:
-            raise SystemExit('--background will RRGGBB, nicht "%s"' % background)
+            raise SystemExit('--background wants RRGGBB, not "%s"' % background)
         fill = bytes((int(background[0:2], 16), int(background[2:4], 16),
                       int(background[4:6], 16), 255))
 
@@ -159,12 +216,12 @@ def main():
     offset = (canvas - art) // 2
     stride = width * 4
     for y in range(height):
-        # Eine Eingabezeile einmal breitziehen ...
+        # Stretch one input row out ...
         row = bytearray(art * 4)
         for x in range(width):
             px = pixels[y * stride + 4 * x:y * stride + 4 * x + 4]
             row[4 * scale * x:4 * scale * (x + 1)] = px * scale
-        # ... und, wo der Untergrund durchscheint, ueber ihn legen.
+        # ... and, where the background shows through, lay the row over it.
         if background is not None:
             for i in range(art):
                 if row[4 * i + 3] != 255:
@@ -172,15 +229,15 @@ def main():
                     for c in range(3):
                         row[4 * i + c] = int(round(row[4 * i + c] * a + fill[c] * (1.0 - a)))
                     row[4 * i + 3] = 255
-        # ... und scale-mal untereinander.
+        # ... and scale times, one below the other.
         for k in range(scale):
             at = ((y * scale + k + offset) * canvas + offset) * 4
             out[at:at + art * 4] = row
 
     write_png(dst, canvas, canvas, bytes(out))
-    print('%s: %dx%d -> %dx%d auf %dx%d (%dx, nearest%s)'
+    print('%s: %dx%d -> %dx%d on %dx%d (%dx, nearest%s)'
           % (dst, width, height, art, art, canvas, canvas, scale,
-             '' if background is None else ', Untergrund #' + background))
+             '' if background is None else ', background #' + background))
 
 
 if __name__ == '__main__':

@@ -7,9 +7,21 @@ E_Gate::E_Gate(Level& level,
 			   int subType,
 			   int dir) : Electronics(level, position, dir)
 {
+	// subType comes out of the level file unchecked (presets.cpp), and levels
+	// travel between players. Four things downstream index on it: the pin count
+	// just below, the sprite region in updateSprites(), the switch in doLogic()
+	// and the tooltip table. Catching it once here is what keeps all four safe,
+	// and 0 is what getToolTip() has always fallen back to.
+	if(subType < 0 || subType > 7)
+	{
+		printfLog("+ WARNING: Gate with subType %d, which does not exist. Treating it as AND.\n",
+				  subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
 
-	// Eingaenge erzeugen
+	// create the inputs
 	if(subType == 6 || subType == 7)
 	{
 		createPin(0, Vec2i(0, 8), PT_INPUT);
@@ -20,7 +32,7 @@ E_Gate::E_Gate(Level& level,
 		createPin(1, Vec2i(0, 10), PT_INPUT);
 	}
 
-	// Ausgang erzeugen
+	// create the output
 	createPin(10, Vec2i(15, 8), PT_OUTPUT);
 }
 
@@ -52,8 +64,8 @@ void E_Gate::saveAttributes(TiXmlElement* p_target)
 
 std::string E_Gate::getToolTip() const
 {
-	// const, weil ein Stringliteral kein char* ist: seit C++11 ist das nicht
-	// mehr erlaubt, MSVC hat es nur noch angemeckert, GCC und Clang lehnen es ab.
+	// const, because a string literal is not a char*: that has not been allowed
+	// since C++11 - MSVC merely warned about it, GCC and Clang reject it.
 	static const char* const p_str[] = {"$TT_GATE_AND",
 										"$TT_GATE_NAND",
 										"$TT_GATE_OR",
@@ -63,8 +75,9 @@ std::string E_Gate::getToolTip() const
 										"$TT_GATE_NOT",
 										"$TT_GATE_PASS_THROUGH"};
 
-	// subType kommt ungeprueft aus der Leveldatei (presets.cpp), und Level
-	// wandern zwischen Spielern. Ein Wert ausserhalb liest sonst hier vorbei.
+	// The constructor clamps subType into range, so this cannot fire today. It
+	// stays as the backstop for a ninth gate type added without extending the
+	// table: a wrong tooltip rather than a read past the end.
 	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
 		return p_str[0];
 
@@ -89,7 +102,7 @@ bool E_Gate::changeInEditor(int mod)
 
 void E_Gate::doLogic()
 {
-	// Undefinierte Eingaenge fuehren zu einem undefinierten Ausgang.
+	// Undefined inputs give an undefined output.
 	if(!areAllInputsConnected() || isAnyInputUndefined())
 	{
 		setAllOutputsToUndefined();

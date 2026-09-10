@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<!-- Sounds that are to play quieter than their file is.
+
+     The .wav stays the unaltered source at full resolution and the .ogg is
+     produced from it one to one (Tools/encode_sounds.py); the factor belongs
+     in the mix, not in the file. Encoding it quieter would also be worse:
+     the encoder would get less signal level for the same computational load.
+
+     Anything not listed here plays at 1.0.
+
+     The numbers are measured, not handed down. The shipped .ogg was compared
+     against one freshly encoded from the same .wav: same source, same encoder,
+     same bitrate, so the difference is exactly the factor set by hand on
+     export. Loudness to ITU-R BS.1770. Change the .wav and the factor does
+     not change.
+
+     The obvious route - .wav against .ogg - is no good for it: what the
+     encoder itself loses in level depends on the frequency and is of the same
+     order as the smallest factors here. -->
+<Sounds>
+	<Sound file="cannon_fire.ogg" volume="0.860" />
+	<Sound file="grass.ogg" volume="0.872" />
+	<Sound file="push.ogg" volume="0.559" />
+	<Sound file="ricochet.ogg" volume="0.458" />
+	<Sound file="syringe.ogg" volume="0.914" />
+	<Sound file="teleport_begin.ogg" volume="0.666" />
+	<Sound file="teleport_end.ogg" volume="0.672" />
+	<Sound file="thunder.ogg" volume="0.587" />
+</Sounds>

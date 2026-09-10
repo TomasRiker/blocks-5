@@ -3,25 +3,24 @@
 
 #ifdef __EMSCRIPTEN__
 
-/*** Zugriff auf den AudioContext des Browsers ***
+/*** Access to the browser's AudioContext ***
 
-	Browser starten einen AudioContext, der ohne Benutzergeste angelegt wurde,
-	im Zustand "suspended": alles, was das Spiel bis zum ersten Klick abspielt,
-	ist verloren. Emscripten haengt zwar selbst einen Aufwecker an das erste
-	mousedown/keydown/touchstart (autoResumeAudioContext in libcore.js), aber
-	der Ladebildschirm braucht die Information trotzdem - er muss warten,
-	bevor der Jingle laeuft.
+	A browser starts an AudioContext created without a user gesture in the
+	"suspended" state: everything the game plays before the first click is
+	lost. Emscripten hangs a waker off the first mousedown/keydown/touchstart
+	itself (autoResumeAudioContext in libcore.js), but the loading screen
+	needs to know all the same - it has to wait before the jingle runs.
 */
 
 namespace WebAudio
 {
-	// true, solange der Browser die Tonausgabe blockiert. Gibt es gar keinen
-	// Kontext (kein Audiogeraet, OpenAL-Init fehlgeschlagen), lautet die
-	// Antwort false: dann gibt es auch nichts freizuschalten.
+	// true while the browser blocks the audio output. Where there is no
+	// context at all (no audio device, OpenAL init failed) the answer is
+	// false: then there is nothing to unblock either.
 	bool isSuspended();
 
-	// Weckt den Kontext. Muss aus einer Benutzergeste heraus aufgerufen
-	// werden, sonst bleibt es wirkungslos.
+	// Wakes the context. Must be called from within a user gesture, or it
+	// has no effect.
 	void resume();
 }
 

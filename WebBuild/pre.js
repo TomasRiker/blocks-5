@@ -54,19 +54,22 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
-// Three function keys the game binds mean something else to a browser, and the
-// browser wins unless the event is swallowed first: F1 mutes and unmutes but
-// opens the browser's help, F5 restarts the level but reloads the page, F10
-// restarts from the hotel but opens the menu bar in some of them. Losing the
-// session or the keyboard is not what somebody pressing one of these wants.
-// All three are taken in the capture phase, before SDL or the browser sees
-// them. F11 and F12 are left alone: they are screenshot and video recording,
-// and neither of those exists in this build. Ctrl+R and the address bar still
-// reload, so a page can never get stuck.
+// Every function key belongs to the game here, not to the browser. They are
+// bindable like any other key and the desktop build answers to all of them, so
+// a player who knows the game must not find half of them missing; taking a
+// named few and leaving the rest would be the worst of both. Swallowed in the
+// capture phase, before SDL or the browser sees them - F1 would otherwise open
+// the browser's help, F5 reload the page and lose the level, F10 reach for the
+// menu bar, F11 go fullscreen and F12 open the developer tools.
+//
+// Nothing is lost by it: fullscreen is Alt+Enter, the same idiom as on the
+// desktop and the one the loading screen names, while Ctrl+R and the address
+// bar still reload and Ctrl+Shift+I still opens the tools. Whether a browser
+// hands a page F11 and F12 at all is its own decision - asking costs nothing
+// where the answer is no.
 window.addEventListener('keydown', function (e) {
-  if (e.key === 'F1'  || e.keyCode === 112 ||
-      e.key === 'F5'  || e.keyCode === 116 ||
-      e.key === 'F10' || e.keyCode === 121) e.preventDefault();
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key) ||
+      (e.keyCode >= 112 && e.keyCode <= 135)) e.preventDefault();
 }, true);
 
 // The other half of "the music stopped when I switched tabs". A hidden page
@@ -121,6 +124,36 @@ Module['b5_isPhone'] = function () {
          !window.matchMedia('(any-pointer: fine)').matches;
 };
 
+// Fullscreen goes on the root element, never on the canvas. Only the fullscreen
+// element and its descendants are painted, so with the canvas itself promoted
+// the on-screen controls - a sibling of it - simply vanish, while still
+// reporting a full-size bounding rect, which is why this survived a test that
+// only measured. From <html> both are inside, and the canvas is 100%/100% of
+// the page anyway, so it fills the screen without anyone resizing it.
+//
+// It has to be called from a trusted event handler; C++ does that through
+// Engine::enforceTouchFullScreen and the Alt+Return callback.
+Module['b5_setFullscreen'] = function (on) {
+  try {
+    if (on) {
+      // Without transient activation the request is refused, and a phone does
+      // not necessarily grant it as early as touchstart. Say nothing then: the
+      // caller is registered for touchend as well, which does carry it, and a
+      // rejected promise per touch would only fill the console. This is the
+      // same test Emscripten's own doRequestFullscreen makes before deferring.
+      if (navigator.userActivation && !navigator.userActivation.isActive) return;
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      var p = req.call(el);
+      if (p && p['catch']) p['catch'](function () {});
+    } else {
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
+  } catch (e) {}
+};
+
 // Landscape, and only while the game holds the screen. The lock is refused
 // unless the document is fullscreen, which is why this hangs off the change
 // event rather than off the request: on Android the promise rejects if the two
@@ -153,12 +186,10 @@ Module['b5_lockOrientation'] = function () {
 Module['b5_fitCanvas'] = function () {
   var c = Module['canvas'];
   if (!c) return;
-  // In fullscreen the browser sizes the element itself; do not fight it.
-  var full = document.fullscreenElement || document.webkitFullscreenElement;
-  if (!full) {
-    c.style.width = '100%';
-    c.style.height = '100%';
-  }
+  // 100% of the page in both states, because it is the page that goes
+  // fullscreen and not the canvas - see b5_setFullscreen.
+  c.style.width = '100%';
+  c.style.height = '100%';
   var r = c.getBoundingClientRect();
   var w = Math.max(1, Math.round(r.width));
   var h = Math.max(1, Math.round(r.height));

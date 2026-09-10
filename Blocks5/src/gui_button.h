@@ -1,7 +1,7 @@
 #ifndef _GUI_BUTTON_H
 #define _GUI_BUTTON_H
 
-/*** Klasse fuer einen Button ***/
+/*** Class for a button ***/
 
 #include "gui_element.h"
 
@@ -31,13 +31,14 @@ public:
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
-	// Der Name, wie er in der XML steht. Ist es eine $ID, kann er je nach
-	// Sprache auf ein anderes Bild zeigen; onUpdate loest ihn deshalb neu auf.
+	// The name as it stands in the XML. If it is a $ID it can point to a
+	// different image depending on the language; onUpdate therefore resolves
+	// it afresh.
 	void setRawImageFilename(const std::string& rawImageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
-	INLINE_SETTER(Vec2i, getPositionOnTexture, positionOnTexture);
+	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
 	INLINE_GETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
-	INLINE_SETTER(Vec2i, getClickedPositionOnTexture, clickedPositionOnTexture);
+	INLINE_SETTER(Vec2i, setClickedPositionOnTexture, clickedPositionOnTexture);
 
 	INLINE_CONNECTOR(connectClicked, clicked);
 
@@ -48,11 +49,11 @@ private:
 
 	int style;
 
-	// Wie viele Pixel des Feldes ringsum nur Rand sind. Ein Feld in
-	// buttons.png ist groesser als die Scheibe darin - der Rest gehoert zum
-	// Schlagschatten und ist durchsichtig. Ohne diesen Abzug waere ein Knopf
-	// auch dort anklickbar, wo nichts zu sehen ist, und in der Levelauswahl
-	// griffen benachbarte Knoepfe einander in die Scheibe.
+	// How many pixels of the cell all round are only border. A cell in
+	// buttons.png is larger than the disc inside it - the rest belongs to
+	// the drop shadow and is transparent. Without this inset a button would
+	// be clickable where nothing is to be seen, and in the level selection
+	// neighbouring buttons would reach into each other's disc.
 	int imageInset;
 
 	std::string imageFilename;

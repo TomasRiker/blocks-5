@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gs_leveleditor.h"
+#include "transfer.h"
 #include "gui_all.h"
 #include "level.h"
 #include "tileset.h"
@@ -21,7 +22,7 @@ public:
 	{
 		load("leveleditor.xml");
 
-		// Tool-Tip-Elemente erstellen
+		// create the tooltip elements
 		for(int x = 0; x < 24; x++)
 		{
 			for(int y = 0; y < 3; y++)
@@ -111,10 +112,10 @@ public:
 		sprintf(s, "%s: %d", localizeString("$LE_DIAMONDS").c_str(), editor.p_level->getNumDiamondsNeeded());
 		static_cast<GUI_StaticText*>(getChild("NumDiamondsNeeded"))->setText(s);
 
-		// setChecked, nicht check: das hier zieht jedes Bild die Anzeige nach.
-		// Mit check() loeste ein Undo, das den Strom umschaltet, im naechsten
-		// Bild das changed-Signal aus, und der Handler legte prompt einen
-		// neuen Undo-Punkt an und warf die Redo-Liste weg.
+		// setChecked, not check: this keeps the display in step every frame.
+		// With check(), an Undo that toggles the electricity would fire the
+		// changed signal on the next frame, and the handler would promptly
+		// create a fresh undo point and throw the redo list away.
 		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->setChecked(editor.p_level->isElectricityOn());
 	}
 
@@ -131,10 +132,10 @@ public:
 			{
 				if(realDown)
 				{
-					// Ist das ein Abbruchversuch?
+					// Is this an attempt to cancel?
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
-						// Ja.
+						// Yes.
 						editor.undo();
 						editor.drawStartButtons = 0;
 						buttons = 0;
@@ -147,13 +148,13 @@ public:
 
 				if(buttons & 1)
 				{
-					// Zeichenstift anwenden
+					// apply the pen
 					if(realDown) editor.createUndoPoint();
 					editor.draw(p, shift);
 				}
 				else if(buttons & 3)
 				{
-					// Radiergummi
+					// eraser
 					if(realDown) editor.createUndoPoint();
 					editor.erase(p, shift);
 				}
@@ -166,12 +167,12 @@ public:
 
 					if(editor.p_teleporter)
 					{
-						// Zielpunkt des Teleporters setzen
+						// set the teleporter's target position
 						editor.p_teleporter->setTargetPosition(p);
 					}
 					else
 					{
-						// modifizieren
+						// modify
 						if(!editor.modify(p, buttons, shift)) editor.deleteLastUndoPoint();
 					}
 				}
@@ -180,16 +181,16 @@ public:
 			{
 				if(realDown)
 				{
-					// Ist das ein Abbruchversuch?
+					// Is this an attempt to cancel?
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
-						// Ja.
+						// Yes.
 						editor.rectStart = editor.rectEnd = Vec2i(-1, -1);
 						editor.drawStartButtons = 0;
 					}
 					else
 					{
-						// Startpunkt fuer das Rechteck setzen und merken, welche Maustaste gedrueckt wurde
+						// set the rectangle's start point and remember which mouse button is down
 						editor.rectStart = p;
 						editor.drawStartButtons = buttons;
 					}
@@ -201,10 +202,10 @@ public:
 			{
 				if(realDown)
 				{
-					// Ist das ein Abbruchversuch?
+					// Is this an attempt to cancel?
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
-						// Ja.
+						// Yes.
 						editor.undo();
 						editor.drawStartButtons = 0;
 						buttons = 0;
@@ -217,7 +218,7 @@ public:
 
 				if(buttons)
 				{
-					// Uebergang erzeugen
+					// create the transition
 					if(realDown) editor.createUndoPoint();
 					editor.transition(p);
 				}
@@ -230,18 +231,18 @@ public:
 					editor.pipetteObjectType = "";
 					editor.pipetteUsed = true;
 
-					// Ist da ein Objekt?
+					// Is there an object here?
 					Object* p_object = editor.p_level->getFrontObjectAt(p);
 					if(p_object)
 					{
-						// Typ und Attribute merken
+						// remember the type and the attributes
 						editor.pipetteObjectType = p_object->getType();
 						editor.pipetteObjectAttributes = TiXmlElement("");
 						p_object->saveAttributes(&editor.pipetteObjectAttributes);
 					}
 					else
 					{
-						// Welches Tile ist da auf dem aktuellen Layer?
+						// Which tile is on the current layer here?
 						editor.pipetteTileID = editor.p_level->getTileAt(editor.currentLayer, p);
 					}
 				}
@@ -254,7 +255,7 @@ public:
 					{
 						if(editor.p_startPin)
 						{
-							// verbinden
+							// connect
 							editor.createUndoPoint();
 							bool r = Pin::connect(editor.p_startPin, editor.p_currentPin);
 							if(!r)
@@ -272,7 +273,7 @@ public:
 					{
 						if(editor.p_currentPin->isConnected())
 						{
-							// alle Verbindungen dieses Pins loesen
+							// disconnect all of this pin's connections
 							editor.createUndoPoint();
 							editor.p_currentPin->disconnectAll();
 							editor.p_currentPin = editor.p_startPin = 0;
@@ -290,10 +291,10 @@ public:
 		}
 		else if(position.y >= 428 && position.x >= 245)
 		{
-			// Es wurde wahrscheinlich ein neues Tile/Objekt ausgewaehlt.
+			// A new tile or object has probably been selected.
 			Vec2i p = (position - Vec2i(245, 428)) / 16;
 
-			// Ist da ueberhaupt etwas in der aktuellen Kategorie?
+			// Is there anything at all in the current category?
 			uint l0 = editor.p_currentCat->getTileAt(0, p);
 			uint l1 = editor.p_currentCat->getTileAt(1, p);
 			const TileSet::TileInfo& i0 = editor.p_currentCat->getTileSet()->getTileInfo(l0);
@@ -303,7 +304,7 @@ public:
 
 			if(l0 || l1 || p_obj)
 			{
-				// Die Auswahl ist gueltig.
+				// The selection is valid.
 				editor.currentBrush = Vec3i(p.x, p.y, editor.currentCat);
 				editor.pipetteUsed = false;
 				if(editor.currentMode != 0 && editor.currentMode != 2) editor.setMode(0);
@@ -320,7 +321,7 @@ public:
 
 		if(editor.currentMode == 2 || editor.currentMode == 4)
 		{
-			// Rechteckpunkte von links oben nach rechts unten ordnen
+			// order the rectangle's corners from top left to bottom right
 			Vec2i pMin(min(editor.rectStart.x, editor.rectEnd.x), min(editor.rectStart.y, editor.rectEnd.y));
 			Vec2i pMax(max(editor.rectStart.x, editor.rectEnd.x), max(editor.rectStart.y, editor.rectEnd.y));
 			editor.rectStart = pMin;
@@ -329,7 +330,7 @@ public:
 
 		if(editor.currentMode == 2)
 		{
-			// Rechteck zeichnen
+			// draw the rectangle
 			if(editor.rectStart.x != -1)
 			{
 				editor.createUndoPoint();
@@ -349,7 +350,7 @@ public:
 
 		if(editor.currentMode == 5)
 		{
-			// in den Zeichenmodus gehen
+			// go into draw mode
 			editor.setMode(0);
 		}
 
@@ -419,14 +420,14 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
-		// Jede Taste hier ist ein Befehl, keine Eingabe: eine Wiederholung ist
-		// deshalb nichts wert. Ohne das oeffnet und schliesst ein liegendes
-		// Escape das Menue immer wieder.
+		// Every key here is a command, not input: a repeat is therefore worth
+		// nothing. Without that, a held Escape opens and closes the menu over
+		// and over.
 		if(GUI::inst().isKeyRepeat()) return;
 
-		// Erst die Dialoge, die oben liegen. Escape und Return heissen dort
-		// Abbrechen und OK, so wie ueberall sonst auch; der Editor darunter
-		// bekommt die Taste dann gar nicht mehr zu sehen.
+		// The dialogs on top come first. Escape and Return mean Cancel and OK
+		// there, as they do everywhere else; the editor underneath then never
+		// gets to see the key at all.
 		if(event.type == SDL_KEYDOWN)
 		{
 			if(getChild("SettingsPane")->isVisible())
@@ -436,7 +437,7 @@ public:
 					handleClick(getChild("SettingsPane.Settings.Cancel"));
 					return;
 				}
-				if(event.keysym.sym == SDLK_RETURN)
+				if(isReturnKey(event.keysym.sym))
 				{
 					handleClick(getChild("SettingsPane.Settings.OK"));
 					return;
@@ -447,9 +448,9 @@ public:
 					!getChild("MessageBoxPane")->isVisible() &&
 					event.keysym.sym == SDLK_ESCAPE)
 			{
-				// Das Menue hat nur OK, also schliesst Escape es. Nicht aber,
-				// wenn eine Rueckfrage oder der Hinweis-Dialog darueber steht:
-				// die gehoeren zum Menue und wuerden allein stehenbleiben.
+				// The menu has only OK, and Escape therefore closes it. But not
+				// while a confirmation or the hint dialog stands over it: those
+				// belong to the menu and would be left standing alone.
 				handleClick(getChild("MenuPane.Menu.OK"));
 				return;
 			}
@@ -457,10 +458,10 @@ public:
 
 		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 		{
-			// Uns interessiert nur, ob eine Taste gedrueckt wurde.
+			// Only a key press matters here.
 			if(event.type != SDL_KEYDOWN) return;
 
-			// Shift, Strg gedrueckt?
+			// Shift, Ctrl pressed?
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
@@ -481,13 +482,13 @@ public:
 			case SDLK_F10:
 				handleClick(getChild("Refresh"));
 				break;
-			case SDLK_1: editor.setMode(0); break;
-			case SDLK_2: editor.setMode(1); break;
-			case SDLK_3: editor.setMode(2); break;
-			case SDLK_4: editor.setMode(3); break;
-			case SDLK_5: editor.setMode(4); break;
-			case SDLK_6: editor.setMode(5); break;
-			case SDLK_7: editor.setMode(6); break;
+			case SDLK_1: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat0"))->check(); else editor.setMode(0); break;
+			case SDLK_2: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat1"))->check(); else editor.setMode(1); break;
+			case SDLK_3: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat2"))->check(); else editor.setMode(2); break;
+			case SDLK_4: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat3"))->check(); else editor.setMode(3); break;
+			case SDLK_5: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat4"))->check(); else editor.setMode(4); break;
+			case SDLK_6: if(!shift) editor.setMode(5); break;
+			case SDLK_7: if(!shift) editor.setMode(6); break;
 			case SDLK_y:
 				if(ctrl) editor.undo();
 				break;
@@ -568,7 +569,7 @@ public:
 									editor.createUndoPoint();
 									if(shift)
 									{
-										// Objekt kopieren
+										// copy the object
 										TiXmlElement e("");
 										p_obj->saveAttributes(&e);
 										if(p_obj->getType() != "Elevator" && !ctrl)
@@ -624,9 +625,8 @@ public:
 		}
 		else if(name == "LevelEditor.ElectricityOn")
 		{
-			// Nur wenn sich wirklich etwas aendert - ein Undo-Punkt fuer einen
-			// Zustand, der schon gilt, kostet einen Undo-Schritt und die
-			// gesamte Redo-Liste.
+			// Only when something really changes - an undo point for a state
+			// that already holds costs an undo step and the whole redo list.
 			const bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
 			if(on != editor.p_level->isElectricityOn())
 			{
@@ -682,31 +682,11 @@ public:
 		{
 			getChild("MenuPane.Menu")->focus();
 		}
-		else if(name == "LevelEditor.Cat0")
-		{
-			editor.currentCat = 0, editor.p_currentCat = editor.p_cat[0];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat1")
-		{
-			editor.currentCat = 1, editor.p_currentCat = editor.p_cat[1];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat2")
-		{
-			editor.currentCat = 2, editor.p_currentCat = editor.p_cat[2];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat3")
-		{
-			editor.currentCat = 3, editor.p_currentCat = editor.p_cat[3];
-			updateToolTips();
-		}
-		else if(name == "LevelEditor.Cat4")
-		{
-			editor.currentCat = 4, editor.p_currentCat = editor.p_cat[4];
-			updateToolTips();
-		}
+		else if(name == "LevelEditor.Cat0") editor.setCat(0);
+		else if(name == "LevelEditor.Cat1") editor.setCat(1);
+		else if(name == "LevelEditor.Cat2") editor.setCat(2);
+		else if(name == "LevelEditor.Cat3") editor.setCat(3);
+		else if(name == "LevelEditor.Cat4") editor.setCat(4);
 		else if(name == "LevelEditor.Mode0") editor.setMode(0, false);
 		else if(name == "LevelEditor.Mode1") editor.setMode(1, false);
 		else if(name == "LevelEditor.Mode2") editor.setMode(2, false);
@@ -773,28 +753,23 @@ public:
 		{
 			getChild("SearchPane.Search")->focus();
 
-			// Dateiliste fuellen
-			std::list<std::string> files = FileSystem::inst().listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels");
+			// Fill the file list from both roots: the example levels sit with
+			// the game, the player's own with the player.
+			const std::vector<std::string> files(Transfer::list(Transfer::KIND_LEVEL));
 			GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(getChild("SearchPane.Search.Files"));
 			p_listBox->clear();
-			for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+			for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 			{
-				std::string ext = getFilenameExtension(*i);
-				if(ext == "xml")
-				{
 #ifdef CHECK_IF_IT_REALLY_IS_A_LEVEL
-					// oberflaechliche Pruefung, ob es eine Level-Datei ist
-					TiXmlDocument doc;
-					std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().getAppHomeDirectory() + "levels/" + *i);
-					doc.Parse(str.c_str());
+				// shallow check whether this is a level file
+				TiXmlDocument doc;
+				std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().resolveContentPath("levels/" + *i));
+				doc.Parse(str.c_str());
 
-					if(doc.FirstChildElement("Level"))
+				if(!doc.FirstChildElement("Level")) continue;
 #endif
-					{
-						GUI_ListBox::ListItem item(*i, 0);
-						p_listBox->addItem(item);
-					}
-				}
+				GUI_ListBox::ListItem item(*i, 0);
+				p_listBox->addItem(item);
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Load")
@@ -803,7 +778,7 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + setFilenameExtension(filename, "xml");
+				path = FileSystem::inst().resolveContentPath("levels/" + setFilenameExtension(filename, "xml"));
 
 				if(FileSystem::inst().fileExists(path))
 				{
@@ -853,8 +828,8 @@ public:
 			}
 			else
 			{
-				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
-				// ging ins Leere und niemand erfuhr, warum.
+				// With no filename nothing would otherwise happen here at all -
+				// the click would go nowhere and nobody would learn why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -864,7 +839,19 @@ public:
 			std::string path;
 			if(!filename.empty())
 			{
-				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + setFilenameExtension(filename, "xml");
+				const std::string basename(setFilenameExtension(filename, "xml"));
+
+				// Saving always goes to the user directory - and never under a
+				// name the game itself ships: such a file could never even be
+				// loaded again, because the game folder answers first and would
+				// always hand back the shipped level.
+				if(Transfer::isBuiltIn(Transfer::KIND_LEVEL, basename))
+				{
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$TR_ERROR_RESERVED");
+					return;
+				}
+
+				path = FileSystem::inst().getAppHomeDirectory() + "levels/" + basename;
 
 				bool doSave = true;
 				if(path != editor.originalFilename && FileSystem::inst().fileExists(path))
@@ -899,8 +886,8 @@ public:
 			}
 			else
 			{
-				// Ohne Dateinamen passierte hier frueher gar nichts - der Klick
-				// ging ins Leere und niemand erfuhr, warum.
+				// With no filename nothing would otherwise happen here at all -
+				// the click would go nowhere and nobody would learn why.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -1094,13 +1081,13 @@ GS_LevelEditor::~GS_LevelEditor()
 
 void GS_LevelEditor::onRender()
 {
-	// Level rendern
+	// render the level
 	p_level->render();
 
 	Vec2i p = engine.getCursorPosition() / 16;
 	if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 	{
-		// aktuelles Tile hervorheben
+		// highlight the current tile
 		glBegin(GL_LINE_LOOP);
 		p *= 16;
 		glColor4d(1.0, 0.75, 0.75, 1.0);
@@ -1114,7 +1101,7 @@ void GS_LevelEditor::onRender()
 
 	if(currentMode == 6)
 	{
-		// ausgewaehlten Pin und Start-Pin hervorheben
+		// highlight the selected pin and the start pin
 
 		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_TEXTURE_2D);
@@ -1150,7 +1137,7 @@ void GS_LevelEditor::onRender()
 		glEnable(GL_LINE_SMOOTH);
 	}
 
-	// Hintergrundverlauf rendern
+	// render the background gradient
 	glBegin(GL_QUADS);
 	glColor4d(0.15, 0.2, 0.2, 1.0);
 	glVertex2i(0, 400);
@@ -1169,7 +1156,7 @@ void GS_LevelEditor::onRender()
 
 		if(currentMode == 2)
 		{
-			// Rechteck rendern
+			// render the rectangle
 			glBegin(GL_QUADS);
 			if(drawStartButtons & 1) glColor4d(0.25, 0.25, 1.0, 0.4);
 			else if(drawStartButtons & 3) glColor4d(1.0, 0.25, 0.25, 0.4);
@@ -1189,7 +1176,7 @@ void GS_LevelEditor::onRender()
 		}
 		else if(currentMode == 4)
 		{
-			// Rechteck rendern
+			// render the rectangle
 			glEnable(GL_LINE_STIPPLE);
 			glLineWidth(2.0f);
 			glLineStipple(1, (0xF0F0 << ((engine.getTime() / 40) % 8)) % 0xFFFF);
@@ -1212,12 +1199,12 @@ void GS_LevelEditor::onRender()
 		}
 	}
 
-	// ausgewaehlte Kategorie rendern
+	// render the selected category
 	glPushMatrix();
 	glTranslated(245.0, 428.0, 0.0);
 	p_currentCat->render();
 
-	// Auswahl rendern
+	// render the selection
 	if(currentCat == currentBrush.z && !pipetteUsed)
 	{
 		glBegin(GL_LINE_LOOP);
@@ -1242,19 +1229,19 @@ void GS_LevelEditor::onRender()
 
 void GS_LevelEditor::onUpdate()
 {
-	// alte Objekte loeschen, neue Objekte hinzufuegen
+	// remove the old objects, add the new ones
 	p_level->removeOldObjects();
 	p_level->addNewObjects();
 }
 
 void GS_LevelEditor::onEnter(const ParameterBlock& context)
 {
-	// leeren Level laden
+	// load an empty level
 	p_level = new Level;
 	p_level->setInEditor(true);
 	p_level->load("level_default.xml");
 
-	// Kategorien laden
+	// load the categories
 	for(int i = 0; i < 5; i++)
 	{
 		p_cat[i] = new Level;
@@ -1288,7 +1275,7 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 	originalFilename = "";
 	setSavePoint();
 
-	// Dialog erzeugen
+	// create the dialog
 	new LevelEditorGUI(*this);
 }
 
@@ -1297,7 +1284,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 	clearUndo();
 	clearRedo();
 
-	// Ressourcen loeschen
+	// free the resources
 	delete[] p_clipboard;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
@@ -1309,13 +1296,13 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 		p_cat[i] = 0;
 	}
 
-	// Dialog loeschen
+	// delete the dialog
 	delete gui["LevelEditor"];
 }
 
 void GS_LevelEditor::onGetFocus()
 {
-	Engine::inst().playMusic("");
+	engine.playMusic("menu.ogg", 0.0, true);
 
 	gui["LevelEditor"]->focus();
 }
@@ -1330,7 +1317,7 @@ void GS_LevelEditor::createUndoPoint()
 	clearRedo();
 	undoList.push_front(p_level->save());
 
-	// auf 64 Schritte begrenzen
+	// cap at 64 steps
 	while(undoList.size() > 64)
 	{
 		delete undoList.back();
@@ -1443,6 +1430,13 @@ void GS_LevelEditor::setMode(int mode,
 	}
 }
 
+void GS_LevelEditor::setCat(int cat)
+{
+	currentCat = cat;
+	p_currentCat = p_cat[cat];
+	static_cast<LevelEditorGUI*>(gui["LevelEditor"])->updateToolTips();
+}
+
 void GS_LevelEditor::draw(const Vec2i& where,
 						  bool shift)
 {
@@ -1456,13 +1450,13 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		if(pipetteUsed) tile = pipetteTileID;
 		else
 		{
-			// Es ist ein Tile ausgewaehlt. Welches?
+			// A tile is selected. Which one?
 			uint l0 = p_brushCat->getTileAt(0, brush);
 			uint l1 = p_brushCat->getTileAt(1, brush);
 			tile = l0 + l1;
 		}
 
-		// dieses Tile an der Stelle und dem gewaehlten Layer einsetzen
+		// put this tile into the cell on the chosen layer
 		p_level->setTileAt(currentLayer, where, tile);
 	}
 	else
@@ -1477,7 +1471,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		}
 		else
 		{
-			// Es ist ein Objekt ausgewaehlt. Welches?
+			// An object is selected. Which one?
 			Object* p_obj = p_brushCat->getFrontObjectAt(brush);
 			if(p_obj)
 			{
@@ -1490,19 +1484,19 @@ void GS_LevelEditor::draw(const Vec2i& where,
 		{
 			if(objectType != "Rail" && objectType != "Hint" && !shift)
 			{
-				// Schienen hier nicht loeschen!
+				// Never delete rails here!
 				p_level->clearPosition(where, "Rail");
 				p_level->removeOldObjects();
 			}
 			else if(objectType == "Rail" && !shift)
 			{
-				// Lava hier nicht loeschen
+				// Never delete lava here
 				p_level->clearPosition(where, "Lava");
 				p_level->removeOldObjects();
 			}
 			else if(objectType == "Hint")
 			{
-				// Ist da schon ein Zettel?
+				// Is there already a note here?
 				Object* p_oldObj = p_level->getFrontObjectAt(where);
 				if(p_oldObj)
 				{
@@ -1510,7 +1504,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					{
 						if(currentMode == 0)
 						{
-							// Es war wohl unabsichtlich. Statt den Zettel zu loeschen, gehen wir in den Modifizieren-Modus.
+							// Probably a slip. Instead of deleting the note, go into modify mode.
 							oldMode = currentMode;
 							setMode(1);
 							modify(where, 1, false);
@@ -1518,27 +1512,28 @@ void GS_LevelEditor::draw(const Vec2i& where,
 						}
 						else
 						{
-							// nichts tun
+							// do nothing
 							return;
 						}
 					}
 				}
 
-				// Kein Zettel da. Schienen hier nicht loeschen!
-				p_level->clearPosition(where, "Rail");
-				p_level->removeOldObjects();
-			}
-			else if(!shift)
-			{
-				// Objekte an dieser Stelle loeschen
-				p_level->clearPosition(where);
-				p_level->removeOldObjects();
+				// No note there. Never delete rails here - and nothing at all
+				// with shift held, which is what it means in the two branches
+				// above and therefore has to mean here: a note was the one
+				// thing that cleared the cell it was put into whether shift
+				// was held or not.
+				if(!shift)
+				{
+					p_level->clearPosition(where, "Rail");
+					p_level->removeOldObjects();
+				}
 			}
 
-			// das Objekt an der gewaehlten Stelle einsetzen
+			// put the object into the chosen cell
 			p_level->getPresets()->instancePreset(objectType, where, &objectAttributes);
 
-			// "eintueten"
+			// "make it stick"
 			p_level->removeOldObjects();
 			p_level->addNewObjects();
 
@@ -1550,7 +1545,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 				{
 					createUndoPoint();
 
-					// sofort in den Modifizieren-Modus gehen
+					// go into modify mode at once
 					oldMode = currentMode;
 					setMode(1);
 					modify(where, 1, false);
@@ -1563,12 +1558,12 @@ void GS_LevelEditor::draw(const Vec2i& where,
 void GS_LevelEditor::erase(const Vec2i& where,
 						   bool shift)
 {
-	// Ist da ein Objekt?
+	// Is there an object here?
 	Object* p_obj = shift ? 0 : p_level->getFrontObjectAt(where);
 	if(p_obj) p_level->removeObject(p_obj);
 	else
 	{
-		// Tile auf aktuellem Layer loeschen
+		// clear the tile on the current layer
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1578,7 +1573,7 @@ void GS_LevelEditor::erase(const Vec2i& where,
 void GS_LevelEditor::clear(const Vec2i& where,
 						   bool allLayers)
 {
-	// Objekte loeschen
+	// delete the objects
 	p_level->clearPosition(where);
 
 	if(allLayers)
@@ -1587,7 +1582,7 @@ void GS_LevelEditor::clear(const Vec2i& where,
 	}
 	else
 	{
-		// Tile auf aktuellem Layer loeschen
+		// clear the tile on the current layer
 		p_level->setTileAt(currentLayer, where, 0);
 	}
 
@@ -1598,7 +1593,7 @@ bool GS_LevelEditor::modify(const Vec2i& where,
 							int buttons,
 							bool shift)
 {
-	// Ist da ein Objekt?
+	// Is there an object here?
 	Object* p_obj = p_level->getFrontObjectAt(where);
 	if(p_obj)
 	{
@@ -1664,7 +1659,7 @@ void GS_LevelEditor::transition(const Vec2i& where)
 			br = tileAtCat0(Vec2i(0, 1));
 		}
 
-		// Umgebung scannen
+		// scan the surroundings
 		int x = p_level->getTileAt(0, where + Vec2i(-1, 0));
 		bool left = x == t1 || x == n_tl || x == n_bl || x == r;
 		x = p_level->getTileAt(0, where + Vec2i(1, 0));
@@ -1717,16 +1712,16 @@ bool GS_LevelEditor::copy()
 {
 	if(currentMode != 4 || rectStart.x < 0) return false;
 
-	// alte Zwischenablage loeschen
+	// free the old clipboard
 	delete[] p_clipboard;
 
-	// Platz fuer die neue Zwischenablage schaffen
+	// make room for the new clipboard
 	Vec2i pMin(min(rectStart.x, rectEnd.x), min(rectStart.y, rectEnd.y));
 	Vec2i pMax(max(rectStart.x, rectEnd.x), max(rectStart.y, rectEnd.y));
 	clipboardSize = Vec2i(1, 1) + pMax - pMin;
 	p_clipboard = new FieldInClipboard[clipboardSize.x * clipboardSize.y];
 
-	// reinkopieren
+	// copy into it
 	uint index = 0;
 	for(int x = pMin.x; x <= pMax.x; x++)
 	{
@@ -1734,10 +1729,10 @@ bool GS_LevelEditor::copy()
 		{
 			Vec2i p(x, y);
 
-			// Tiles kopieren
+			// copy the tiles
 			for(int layer = 0; layer < 2; layer++) p_clipboard[index].tile[layer] = p_level->getTileAt(layer, p);
 
-			// Objekte kopieren
+			// copy the objects
 			const std::vector<Object*>& objects = p_level->getObjectsAt(p);
 			for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 			{
@@ -1766,7 +1761,7 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 		{
 			Vec2i p = where + Vec2i(x, y);
 
-			// Tiles einfuegen
+			// paste the tiles
 			for(int layer = 0; layer < 2; layer++)
 			{
 				uint tile = p_clipboard[index].tile[layer];
@@ -1775,11 +1770,11 @@ bool GS_LevelEditor::paste(const Vec2i& where)
 
 			if(!p_clipboard[index].objectTypes.empty())
 			{
-				// alte Objekte loeschen
+				// delete the old objects
 				p_level->clearPosition(p);
 				p_level->removeOldObjects();
 
-				// Objekte einfuegen
+				// paste the objects
 				std::list<std::string>::const_iterator i;
 				std::list<TiXmlElement>::iterator j;
 				for(i = p_clipboard[index].objectTypes.begin(), j = p_clipboard[index].objectAttributes.begin();

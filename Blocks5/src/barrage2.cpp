@@ -20,7 +20,7 @@ Barrage2::~Barrage2()
 
 void Barrage2::updateSprites()
 {
-	// Blockade
+	// barrage
 	Vec2i positionOnTexture;
 	if(shownState == 5) positionOnTexture = Vec2i(96, 256);
 	else if(shownState > 0) positionOnTexture = Vec2i(128, 256);
@@ -69,7 +69,7 @@ int Barrage2::change(bool up)
 {
 	if(this->up == up) return 0;
 
-	// Wenn gerade ein Objekt da ist, dann geht es nicht!
+	// If an object is standing there right now, it cannot be done!
 	Object* p_obj = level.getFrontObjectAt(position);
 	if(p_obj)
 	{

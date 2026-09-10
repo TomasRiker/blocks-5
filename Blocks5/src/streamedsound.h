@@ -1,7 +1,7 @@
 #ifndef _STREAMEDSOUND_H
 #define _STREAMEDSOUND_H
 
-/*** Klasse fuer gestreamte Sounds (z.B. Musik) ***/
+/*** Class for streamed sounds (e.g. music) ***/
 
 #include "resource.h"
 
@@ -24,6 +24,8 @@ public:
 	void setPitch(double pitch);
 	double getLoopBegin() const;
 	void setLoopBegin(double loopBegin);
+	uint tellStream() const;
+	void seekStream(uint position);
 
 	uint secondsToSlices(double t) const;
 
@@ -36,9 +38,9 @@ private:
 	~StreamedSound();
 
 	int threadProc();
-	void startDecoderThread();   // beide sind im Browser fast leer
+	void startDecoderThread();   // both are nearly empty in the browser
 	void joinDecoderThread();
-	void pumpBuffers();   // ein Durchgang durch die OpenAL-Warteschlange
+	void pumpBuffers();   // one pass through the OpenAL queue
 	void stream(uint bufferID);
 
 	static bool forceReload() { return true; }
@@ -50,25 +52,23 @@ private:
 	uint bufferSize;
 	char* p_buffer;
 
-	// p_thread ist ausschliesslich der Dekodier-Thread und im Browser immer 0;
-	// ob dieser Sound laeuft, sagt playing. Frueher trug p_thread beides, und
-	// die Browser-Fassung brauchte deshalb einen Zeiger, der keiner war.
+	// p_thread is the decoder thread and nothing else, and always 0 in the
+	// browser; whether this sound is running is what playing says.
 	SDL_Thread* p_thread;
 	bool playing;
 
 #ifndef __EMSCRIPTEN__
-	// Wird hochgezaehlt, wenn der Dekodier-Thread aufhoeren soll. SDL 1.2 hat
-	// keine atomaren Typen, und ein volatile bool ist keine Synchronisierung;
-	// ein Semaphor ist dagegen beides zugleich - das Signal und die Wartezeit
-	// zwischen zwei Durchgaengen, die vorher ein SDL_Delay war. Unter Windows
-	// steht ein echtes Kernel-Objekt dahinter (WaitForSingleObject), nicht die
-	// Schleife mit 1-ms-Pausen, vor der SDL_mutex.h fuer andere Systeme warnt.
+	// Counted up when the decoder thread is to stop. SDL 1.2 has no atomic
+	// types, and a volatile bool is not synchronisation; a semaphore is both
+	// at once - the signal and the wait between two passes.
+	// Under Windows/Linux a real kernel object sits behind it, not the loop
+	// with 1 ms pauses that SDL_mutex.h warns about for other systems.
 	SDL_sem* p_stopSignal;
 #endif
 
-	// Ist der Datenstrom zu Ende? Das schreibt und liest ausschliesslich, wer
-	// die Puffer fuellt - unter Windows der Dekodier-Thread, im Browser
-	// update(). Es geht nie ueber eine Thread-Grenze, also kein volatile.
+	// Is the stream at its end? Only whatever fills the buffers writes and
+	// reads this - the decoder thread under Windows/Linux, update() in the
+	// browser. It never crosses a thread boundary; hence no volatile.
 	bool finish;
 
 	double volume;

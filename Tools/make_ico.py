@@ -1,61 +1,60 @@
 #!/usr/bin/env python3
-"""make_ico.py - baut das Programmsymbol fuer Windows aus data/window.png.
+"""make_ico.py - builds the Windows program icon out of data/window.png.
 
     python3 Tools/make_ico.py Blocks5/data/window.png Blocks5/src/icon1.ico
-    python3 Tools/make_ico.py --sizes 16,32,48,256 <ein.png> <aus.ico>
+    python3 Tools/make_ico.py --sizes 16,32,48,256 <in.png> <out.ico>
 
-Ein .ico enthaelt mehrere Bilder, und Windows sucht sich daraus eines aus.
-Fehlt die gefragte Groesse, skaliert es selbst - glaettend, und damit ist der
-Pixellook weg. Das gilt in beide Richtungen: Hochskalieren verwischt sichtbar,
-Herunterskalieren mittelt benachbarte Pixel und macht aus harten Kanten weiche.
-Ein einzelnes grosses Bild reicht also nicht; gebraucht wird jede Groesse, die
-die Shell wirklich anfragt, jede davon hier mit Nearest Neighbour vorgerendert.
+An .ico holds several images and Windows picks one of them out. Where the
+size it asks for is missing, it scales one itself, smoothly - and there goes
+the pixel look. That holds in both directions: scaling up blurs visibly,
+scaling down averages neighbouring pixels and turns hard edges into soft ones.
+One big image is therefore not enough; what is needed is every size the shell
+really asks for, each of them pre-rendered here with nearest neighbour.
 
-Die Kunst ist 16x16 - window.png ist deren sauberes 2x -, deshalb wird zuerst
-darauf zurueckgerechnet und dann vergroessert, und zwar **immer ganzzahlig**.
-Fuer 16, 32, 48, 64 und 256 geht das glatt auf. 20, 24 und 40 nicht: dort wird
-nicht krumm skaliert, sondern die naechstkleinere ganzzahlige Stufe mittig in
-die geforderte Flaeche gesetzt und der Rest durchsichtig gelassen -
+The art is 16x16 - window.png is its clean 2x - so it is reduced back to that
+first and then enlarged, and **always by a whole number**. For 16, 32, 48, 64
+and 256 that comes out even. 20, 24 and 40 do not: there the next integer step
+down is centred in the requested area and the rest left transparent, rather
+than scaled to a fractional size -
 
-    20 -> 16 (1x) mit 2 Pixeln Rand      40 -> 32 (2x) mit 4 Pixeln Rand
+    20 -> 16 (1x) with a 2 pixel margin   40 -> 32 (2x) with a 4 pixel margin
 
-Eine krumme Vergroesserung wuerde einen Teil der Spalten verdoppeln und den
-Rest nicht; genau das Gleichmass des Rasters ist aber, was Pixelgrafik als
-solche lesbar macht, und ohne es sieht das Bild nach Versehen aus statt nach
-Absicht. Ein etwas kleineres Symbol im Kasten faellt dagegen nicht auf - die
-Symbolvorlagen von Windows lassen selbst Rand.
+A fractional enlargement would double some of the columns and not the rest, and
+it is precisely the evenness of the grid that makes pixel art readable as such;
+without it the image looks like an accident rather than an intention. A
+slightly smaller icon in the box is not noticed - Windows' own icon templates
+leave a margin themselves.
 
-Eine Beschraenkung auf Zweierpotenzen gibt es nicht: im Verzeichniseintrag
-eines .ico steht die Kantenlaenge in je einem Byte, erlaubt ist also alles von
-1 bis 255 (und 0 bedeutet 256).
+There is no power-of-two restriction: an .ico directory entry stores each edge
+in a single byte, so anything from 1 to 255 is allowed (and 0 means 256).
 
-Das Ergebnis wird eingecheckt, wie icon1.ico es immer war: der Windows-Build
-ruft kein Python auf, und das soll so bleiben.
+The result is committed, as icon1.ico always was: the Windows build runs no
+Python, and it should stay that way.
 """
 import os
 import struct
 import sys
 
-# Der PNG-Leser steht in WebBuild/make_icon.py und wird hier nur benutzt, statt
-# ihn ein zweites Mal hinzuschreiben.
+# The PNG reader lives in WebBuild/make_icon.py and is used from there rather
+# than written out a second time.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                 'WebBuild'))
 from make_icon import read_png, write_png            # noqa: E402
 
-# Was die Windows-Shell anfragt: 16/32/48 sind die klassischen Groessen, 20 und
-# 40 kommen bei 125% DPI dazu, 64 bei 200%, und 256 ist die Kachel der Ansicht
-# "Extra grosse Symbole".
+# What the Windows shell asks for: 16/32/48 are the classic sizes, 20 and 40
+# come with 125% DPI, 64 with 200%, and 256 is the tile of the "Extra large
+# icons" view.
 #
-# 24 fehlt mit Absicht. Es ist die einzige Groesse, bei der die naechstkleinere
-# ganzzahlige Stufe die 1x waere: 16 von 24 Pixeln, also zwei Drittel der Kante
-# und knapp die Haelfte der Flaeche. So klein faellt der Rand auf. Windows
-# rechnet sich 24 stattdessen aus dem 32er herunter - weich, aber in voller
-# Groesse, und das ist an dieser einen Stelle das kleinere Uebel.
+# 24 is deliberately absent. It is the one size where the next integer step
+# down would be 1x: 16 pixels of 24, two thirds of the edge and barely half
+# the area. That much margin is visible. Windows scales 24 down from the 32
+# instead - smooth, but at full size, and at this one place that is the lesser
+# evil.
 DEFAULT_SIZES = (16, 20, 32, 40, 48, 64, 256)
 
 
 def reduce_to_art(width, height, pixels):
-    """window.png ist ein 2x-Nearest der 16x16-Kunst; das macht es rueckgaengig."""
+    """window.png is a 2x nearest of the 16x16 art; this undoes it."""
     if width % 2 or height % 2:
         return width, height, pixels
     stride = width * 4
@@ -74,13 +73,13 @@ def reduce_to_art(width, height, pixels):
             o = (y // 2) * half * 4 + 4 * (x // 2)
             out[o:o + 4] = px
     if not uniform:
-        return width, height, pixels     # doch kein reines 2x - unveraendert lassen
+        return width, height, pixels     # not a pure 2x after all - leave it alone
     return half, height // 2, bytes(out)
 
 
 def render(width, height, pixels, size):
-    """Die groesste ganzzahlige Vergroesserung, die in size x size passt, mittig
-    darin. Liefert (bytes, faktor, rand)."""
+    """The largest integer enlargement that fits into size x size, centred in
+    it. Returns (bytes, scale, margin)."""
     scale = max(1, size // width)
     art = width * scale
     offset = (size - art) // 2
@@ -98,9 +97,9 @@ def render(width, height, pixels, size):
 
 
 def dib_entry(size, rgba):
-    """Ein Bild als DIB, wie es vor Vista das einzig Moegliche war: 32 Bit
-    BGRA von unten nach oben, dahinter die 1-Bit-Maske. Die Maske traegt zwar
-    dieselbe Auskunft wie der Alphakanal, aber die alten Pfade lesen nur sie."""
+    """One image as a DIB, the only thing possible before Vista: 32-bit BGRA
+    bottom-up, with the 1-bit mask behind it. The mask carries the same
+    information as the alpha channel, but the legacy paths read only that."""
     header = struct.pack('<IiiHHIIiiII', 40, size, size * 2, 1, 32, 0, 0, 0, 0, 0, 0)
 
     rows = []
@@ -112,7 +111,7 @@ def dib_entry(size, rgba):
         rows.append(bytes(row))
     xor = b''.join(rows)
 
-    maskStride = ((size + 31) // 32) * 4      # auf 4 Byte aufgerundet
+    maskStride = ((size + 31) // 32) * 4      # rounded up to 4 bytes
     mask = bytearray()
     for y in range(size - 1, -1, -1):
         line = bytearray(maskStride)
@@ -139,7 +138,7 @@ def main():
 
     width, height, pixels = read_png(src)
     if width != height:
-        raise SystemExit('%s ist %dx%d - fuer ein Symbol wird ein Quadrat gebraucht'
+        raise SystemExit('%s is %dx%d - an icon needs a square'
                          % (src, width, height))
     width, height, pixels = reduce_to_art(width, height, pixels)
 
@@ -148,8 +147,8 @@ def main():
         rgba, scale, margin = render(width, height, pixels, size)
         notes.append((scale, margin))
         if size >= 256:
-            # Ab Vista darf ein Eintrag ein PNG sein, und bei 256x256 spart das
-            # eine Viertelmegabyte gegenueber einem DIB.
+            # From Vista on an entry may be a PNG, and at 256x256 that saves a
+            # quarter of a megabyte against a DIB.
             tmp = dst + '.tmp.png'
             write_png(tmp, size, size, rgba)
             blob = open(tmp, 'rb').read()
@@ -162,17 +161,17 @@ def main():
     offset = 6 + 16 * len(entries)
     out = bytearray(struct.pack('<HHH', 0, 1, len(entries)))
     for (size, length) in entries:
-        # 0 in einem Byte heisst 256 - groesser passt dort nicht hinein.
+        # 0 in a byte means 256 - nothing larger fits in there.
         out += struct.pack('<BBBBHHII', size & 0xFF, size & 0xFF, 0, 0, 1, 32, length, offset)
         offset += length
     for blob in blobs:
         out += blob
     open(dst, 'wb').write(bytes(out))
 
-    print('%s: %d Bilder aus %dx%d-Kunst, %d Bytes' % (dst, len(entries), width, height, len(out)))
+    print('%s: %d images from %dx%d art, %d bytes' % (dst, len(entries), width, height, len(out)))
     for (size, length), (scale, margin) in zip(entries, notes):
-        how = '%dx' % scale if not margin else '%dx + %d Rand' % (scale, margin)
-        print('    %3dx%-3d  %-14s %6d Bytes' % (size, size, how, length))
+        how = '%dx' % scale if not margin else '%dx + %d margin' % (scale, margin)
+        print('    %3dx%-3d  %-14s %6d bytes' % (size, size, how, length))
 
 
 if __name__ == '__main__':

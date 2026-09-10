@@ -1,7 +1,7 @@
 #ifndef _CROSSFADE_H
 #define _CROSSFADE_H
 
-// Klasse fuer Ueberblendungen
+// Class for crossfades
 
 class Crossfade
 {

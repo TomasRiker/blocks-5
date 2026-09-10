@@ -19,7 +19,7 @@ Rail::~Rail()
 
 void Rail::updateSprites()
 {
-	// Schiene
+	// rail
 	sprites.add(Vec2i(subType * 32, 384)).rotation = 90.0 * dir;
 }
 

@@ -2,8 +2,14 @@
 #include "as_ogg.h"
 #include "filesystem.h"
 
-AS_OGG::AS_OGG(const std::string& filename)
+AS_Ogg::AS_Ogg(const std::string& filename)
 {
+	// The destructor clears this whatever happened here, and the path below
+	// that gives up before ov_open_callbacks leaves it untouched. Zeroed is
+	// exactly the state ov_clear() itself leaves behind, so clearing one is a
+	// no-op rather than a walk through uninitialised pointers.
+	memset(&vorbisFile, 0, sizeof(vorbisFile));
+
 	sliceSize = 0;
 
 	eos = false;
@@ -22,18 +28,23 @@ AS_OGG::AS_OGG(const std::string& filename)
 		return;
 	}
 
-	// OGG-Vorbis-Handle erzeugen
+	// create the OGG Vorbis handle
 	int r = ov_open_callbacks(p_file, &vorbisFile, 0, 0, p_file->getOVCallbacks());
 	if(r)
 	{
 		printfLog("+ ERROR: Could not open OGG file \"%s\" (Error: %d).\n",
 				  filename.c_str(),
 				  r);
+
+		// A failed ov_open_callbacks() clears its handle and drops the
+		// datasource, so the close callback never runs and the file is ours
+		// again.
+		FileSystem::inst().closeFile(p_file);
 		error = 2;
 		return;
 	}
 
-	// Informationen eintragen
+	// fill in the information
 	vorbis_info* p_info = ov_info(&vorbisFile, -1);
 	sampleRate = p_info->rate;
 	numBitsPerSample = 16;
@@ -42,13 +53,13 @@ AS_OGG::AS_OGG(const std::string& filename)
 	length = static_cast<uint>(ov_pcm_total(&vorbisFile, -1));
 }
 
-AS_OGG::~AS_OGG()
+AS_Ogg::~AS_Ogg()
 {
-	// Datei schliessen
+	// close the file
 	ov_clear(&vorbisFile);
 }
 
-uint AS_OGG::read(void* p_dest,
+uint AS_Ogg::read(void* p_dest,
 				  uint numSlices)
 {
 	uint numBytesRead = 0;
@@ -60,14 +71,14 @@ uint AS_OGG::read(void* p_dest,
 		int n = ov_read(&vorbisFile, p_cursor, numBytesLeft, 0, 2, 1, &currentStream);
 		if(!n)
 		{
-			// Ende der Datei!
+			// End of file!
 			eos = true;
 			error = 0;
 			break;
 		}
 		else if(n < 0)
 		{
-			// Fehler!
+			// Error!
 			error = 1;
 			break;
 		}
@@ -82,44 +93,44 @@ uint AS_OGG::read(void* p_dest,
 	return numBytesRead / sliceSize;
 }
 
-uint AS_OGG::tell()
+uint AS_Ogg::tell()
 {
 	return static_cast<uint>(ov_pcm_tell(&vorbisFile));
 }
 
-void AS_OGG::seek(uint position)
+void AS_Ogg::seek(uint position)
 {
 	if(position > length) return;
 	ov_pcm_seek(&vorbisFile, position);
 	eos = false;
 }
 
-bool AS_OGG::isEOS()
+bool AS_Ogg::isEOS()
 {
 	return eos;
 }
 
-uint AS_OGG::getError()
+uint AS_Ogg::getError()
 {
 	return error;
 }
 
-uint AS_OGG::getSampleRate()
+uint AS_Ogg::getSampleRate()
 {
 	return sampleRate;
 }
 
-uint AS_OGG::getNumBitsPerSample()
+uint AS_Ogg::getNumBitsPerSample()
 {
 	return numBitsPerSample;
 }
 
-uint AS_OGG::getNumChannels()
+uint AS_Ogg::getNumChannels()
 {
 	return numChannels;
 }
 
-uint AS_OGG::getLength()
+uint AS_Ogg::getLength()
 {
 	return length;
 }

@@ -1,7 +1,7 @@
 #ifndef _GS_LOADING_H
 #define _GS_LOADING_H
 
-/*** Klasse fuer den Ladebildschirm ***/
+/*** Class for the loading screen ***/
 
 #include "gamestate.h"
 #include "engine.h"
@@ -35,9 +35,9 @@ private:
 	double logoSize;
 	double logoSizeVel;
 #ifdef __EMSCRIPTEN__
-	bool waitingForClick;   // Browser blockiert den Ton bis zur ersten Geste
-	int waitTime;           // Wartezeit in ms, treibt auch das Pulsieren
-	int gestureTime;        // waitTime der ersten Eingabe, sonst -1
+	bool waitingForClick;   // the browser blocks audio until the first gesture
+	int waitTime;           // wait time in ms, drives the pulsing too
+	int gestureTime;        // waitTime of the first input, otherwise -1
 #endif
 };
 

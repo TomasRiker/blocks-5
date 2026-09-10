@@ -4,7 +4,7 @@
 #include "object.h"
 #include "linedrawer.h"
 
-/*** Klasse fuer den Sender einer Lichtschranke ***/
+/*** Class for the sender of a light barrier ***/
 
 class LightBarrierSender : public Object
 {

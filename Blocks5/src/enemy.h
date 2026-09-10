@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Klasse fuer Feinde ***/
+/*** Class for enemies ***/
 
 class Enemy : public Object
 {

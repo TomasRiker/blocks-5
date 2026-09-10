@@ -3,7 +3,7 @@
 
 #include "crossfade.h"
 
-/*** Ueberblendung: Mosaik ***/
+/*** Crossfade: mosaic ***/
 
 class CF_Mosaic : public Crossfade
 {

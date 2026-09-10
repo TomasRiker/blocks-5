@@ -22,7 +22,7 @@ Arrow::~Arrow()
 
 void Arrow::updateSprites()
 {
-	// Pfeil
+	// Arrow
 	Sprite& sprite = sprites.add(Vec2i(96, 0), Vec4d(1.0, 1.0, 1.0, shownAlpha));
 	sprite.rotation = 90.0 * shownDir;
 }

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "engine.h"
 #include "filesystem.h"
+#include "transfer.h"
 #include "gs_menu.h"
 #include "gs_selectlevel.h"
 #include "gs_game.h"
@@ -10,7 +11,9 @@
 #include "gs_loading.h"
 #include "gui.h"
 #include "cf_all.h"
-#include "progressdb.h"
+#ifdef __EMSCRIPTEN__
+#include "web_transfer.h"
+#endif
 #ifdef _WIN32
 #include "stackwalker.h"
 #endif
@@ -62,16 +65,16 @@ std::string getCurrentVersion()
 
 		static DWORD WINAPI threadProc(void* p_param)
 		{
-			// Die Versionsnummer gehoert mit in die Kennung: im Serverprotokoll steht
-			// dann, welche Fassung gerade nachfragt. Aeltere Installationen schicken
-			// weiterhin den blossen Namen ohne Klammer.
+			// The version number belongs in the agent string: the server log
+			// then says which version is asking. Older installations still send
+			// the bare name without the bracket.
 			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return 1;
 
-			// INTERNET_FLAG_SECURE braucht InternetOpenUrl nicht gesagt zu bekommen -
-			// es liest das Schema aus der Adresse -, aber ausgeschrieben sieht man,
-			// dass https hier Absicht ist.
+			// InternetOpenUrl does not need to be told INTERNET_FLAG_SECURE -
+			// it reads the scheme from the address - but written out it shows
+			// that https is deliberate here.
 			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
 											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
 			if(!url)
@@ -109,7 +112,7 @@ std::string getCurrentVersion()
 		bool finished;
 	};
 
-	// Abfrage in einem Thread ausfuehren und maximal 2 Sekunden Zeit lassen
+	// Run the query in a thread and allow it two seconds at most
 	Task task;
 	DWORD threadID;
 	HANDLE thread = CreateThread(0, 0, Task::threadProc, &task, 0, &threadID);
@@ -118,16 +121,16 @@ std::string getCurrentVersion()
 #elif defined(__EMSCRIPTEN__)
 	return "";  // no update check in the browser build
 #else
-	// Kein eigener HTTP-Klient: das waere TLS, und dafuer eine Bibliothek mehr
-	// zu binden lohnt fuer sechzehn Bytes nicht. curl und wget liegen auf so
-	// gut wie jedem Linux, und wo keines von beiden liegt, faellt die Abfrage
-	// eben aus - sie ist ohnehin abschaltbar und im Auslieferungszustand aus.
+	// No HTTP client of our own: that would be TLS, and linking one more
+	// library for sixteen bytes is not worth it. curl and wget are on just
+	// about every Linux, and where neither is, the query simply does not
+	// happen - it can be switched off anyway and is off as shipped.
 	const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 	const char* const p_url = "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
 
-	// Die Zeitgrenze von zwei Sekunden ist dieselbe wie unter Windows, hier
-	// aber Sache des Programms, das die Abfrage macht. Beide schreiben nur nach
-	// stdout und schweigen sonst.
+	// The two-second limit is the same as under Windows, but here it is the
+	// job of the program that makes the query. Both write only to stdout and
+	// are otherwise silent.
 	std::string command = "curl -fsS --max-time 2 -A '" + agent + "' '" + p_url + "' 2>/dev/null";
 	if(::system("command -v curl >/dev/null 2>&1") != 0)
 	{
@@ -142,8 +145,8 @@ std::string getCurrentVersion()
 	const size_t numBytesRead = ::fread(buffer, 1, 16, p_pipe);
 	::pclose(p_pipe);
 
-	// Wie unter Windows: sechzehn Bytes heissen, dass da mehr steht als eine
-	// Versionsnummer - dann ist die Antwort nicht die erwartete.
+	// As under Windows: sixteen bytes mean there is more there than a
+	// version number - then the answer is not the one expected.
 	if(numBytesRead == 16) return "";
 	buffer[numBytesRead] = 0;
 	return buffer;
@@ -152,11 +155,11 @@ std::string getCurrentVersion()
 
 namespace
 {
-	// Die beiden Schalter fuer den Aktualisierungspruefer, dreimal gebraucht -
-	// bei der Erstinstallation und bei zwei Aktualisierungswegen. Die
-	// .bat-Dateien kommen nur unter Windows mit: anderswo laesst sich eine
-	// Stapelverarbeitung nicht ausfuehren, und .update_checker ist eine
-	// Textdatei mit einem Zeichen darin, die jeder Editor aendert.
+	// The two switches for the update checker, needed three times - at the
+	// first installation and on two update paths. The .bat files ship only
+	// under Windows: a batch file cannot be run anywhere else, and
+	// .update_checker is a text file with one character in it that any
+	// editor can change.
 	bool copyUpdateCheckerFiles(FileSystem& fs, const std::string& homeDirectory)
 	{
 		bool success = true;
@@ -168,9 +171,9 @@ namespace
 		return success;
 	}
 
-	// "1.2.0" zu 1002000, und alles, was keine Versionsnummer ist, zu -1.
-	// Bis zu drei Gruppen, fehlende gelten als 0, Leerraum vorn und hinten ist
-	// erlaubt.
+	// "1.2.0" to 1002000, and anything that is not a version number to -1.
+	// Up to three groups, a missing one counts as 0, whitespace before and
+	// after is allowed.
 	long parseVersion(const std::string& text)
 	{
 		size_t i = 0;
@@ -204,31 +207,85 @@ namespace
 bool isNewer(const std::string& version1,
 			 const std::string& version2)
 {
-	// Nach Zahlen vergleichen und nicht als Zeichenketten: ein angehaengter
-	// Zeilenumbruch, eine Fehlerseite des Servers oder schlicht "1.10.0" gegen
-	// "1.9.0" ergaeben sonst ein "Update verfuegbar" fuer jemanden, der die
-	// neueste Fassung hat. Was sich nicht als Versionsnummer lesen laesst, ist
-	// nie neuer - ein Suffix wie "1.3.0-beta" faellt damit auch durch.
+	// Compare as numbers and not as strings: a trailing newline, an error
+	// page from the server or simply "1.10.0" against "1.9.0" would
+	// otherwise produce an "update available" for somebody who has the
+	// newest version. Anything that cannot be read as a version number is
+	// never newer - a suffix like "1.3.0-beta" therefore falls through too.
 	const long v1 = parseVersion(version1);
 	const long v2 = parseVersion(version2);
 	if(v1 < 0 || v2 < 0) return false;
 	return v1 > v2;
 }
 
+// Set aside the copies of the shipped files in the user directory.
+//
+// Older installations copied everything the game ships into the user
+// directory once, on the first start. It lives in the game folder now and is
+// read from there, and the game folder comes first: those old copies would
+// be unreachable and would only appear twice in the Manager's list.
+//
+// Renamed and not deleted: from outside there is no telling whether somebody
+// has changed one of them. A player who called their own level
+// "example01.xml" must be able to find it again. The extension .bak takes them
+// out of every list, because every lister filters on the exact extension, and
+// out of the archive path as well: FileSystem::convertPath() recognises an
+// archive by ".zip/", not by ".zip".
+uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
+{
+	static const char* p_subdirs[] = { "levels/", "levels/campaigns/", "levels/skins/" };
+	uint retired = 0;
+
+	for(uint s = 0; s < sizeof(p_subdirs) / sizeof(p_subdirs[0]); s++)
+	{
+		const std::string sub(p_subdirs[s]);
+		const std::list<std::string> files(fs.listDirectory(homeDirectory + sub));
+
+		for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+		{
+			if(!fs.isShippedContent(sub + *i)) continue;
+
+			// An existing .bak gives way: it comes from an earlier run and
+			// means the same file.
+			const std::string from(homeDirectory + sub + *i);
+			const std::string to(from + ".bak");
+			if(fs.renameFile(from, to))
+			{
+				printfLog("* Retired the old copy of \"%s%s\" as \"%s.bak\".\n",
+						  sub.c_str(), i->c_str(), i->c_str());
+				retired++;
+			}
+			else
+			{
+				printfLog("+ WARNING: Could not retire \"%s\".\n", from.c_str());
+			}
+		}
+	}
+
+#ifdef __EMSCRIPTEN__
+	// Write through to IndexedDB at once, as after every other write in the
+	// browser: otherwise the old copies would stand there again after a
+	// reload, and the run would have the same work to do at every start.
+	if(retired) WebTransfer::syncHome();
+#endif
+
+	return retired;
+}
+
 const std::string detectInitializedVersion()
 {
-	// not_played:	kein "Blocks 5"-Ordner existiert im Benutzerverzeichnis und keine "progress.zip"-Datei existiert im Arbeitsverzeichnis
-	// <= 1.0.7:	kein "Blocks 5"-Ordner existiert im Benutzerverzeichnis
-	//    1.0.71:	"Blocks 5"-Ordner existiert im Benutzerverzeichnis
-	//    1.0.72:	".initialized"-Datei existiert
-	// >= 1.0.73:	".initialized"-Datei enthaelt die Versionsnummer
+	// not_played:	no "Blocks 5" folder in the user directory and no "progress.zip" file in the working directory
+	// <= 1.0.7:	no "Blocks 5" folder in the user directory
+	//    1.0.71:	"Blocks 5" folder exists in the user directory
+	//    1.0.72:	".initialized" file exists
+	// >= 1.0.73:	".initialized" file holds the version number
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
 	if(fs.listDirectory(homeDirectory).empty())
 	{
-		// TODO: Die "progress.zip" aus dem VirtualStore wird nicht gefunden! Warum nicht? Ging doch frueher!
+		// TODO: The "progress.zip" from the VirtualStore is not found! Why not? It used to work!
 		if(!fs.fileExists("progress.zip")) return "not_played";
 		else return "<= 1.0.7";
 	}
@@ -267,27 +324,38 @@ int runTheGame(int argc,
 		if(versionInitialized == "not_played" ||
 		   versionInitialized == "<= 1.0.7")
 		{
-			// Verzeichnis initialisieren
+			// initialize the directory
 			success &= fs.createDirectory(homeDirectory + "levels");
 			success &= fs.createDirectory(homeDirectory + "levels/campaigns");
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			// Das Spiel legt die config.xml beim Beenden selbst an. Eine mitgelieferte
-			// Vorlage gibt es nicht mehr: sie enthielt nur die Sprache des Installers
-			// und liess Engine::detectSystemLanguage() nie zum Zuge kommen.
-			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
+			// The game writes config.xml itself on exit. Nothing ships a
+			// template: it would hold nothing but the installer's language and
+			// would never let Engine::detectSystemLanguage() run.
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
-			std::list<std::string> fileList(fs.listDirectory("levels"));
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/") + *it, homeDirectory + "levels/" + *it);
-			fileList = fs.listDirectory("levels/campaigns");
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/campaigns/") + *it, homeDirectory + "levels/campaigns/" + *it);
-			fileList = fs.listDirectory("levels/skins");
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("levels/skins/") + *it, homeDirectory + "levels/skins/" + *it);
-			fileList = fs.listDirectory("screenshots");
-			for(std::list<std::string>::const_iterator it = fileList.begin(); it != fileList.end(); ++it) success &= fs.copyFile(std::string("screenshots/") + *it, homeDirectory + "screenshots/" + *it);
+			// The campaign and the skins are not copied over: they stay in the
+			// game folder and are read from there, which keeps them always
+			// exactly as new as the program beside them. The folders are
+			// created all the same, because that is where the editors and the
+			// import write.
+			//
+			// The five readme.txt are copied: they explain the player's own
+			// folders to them, and because the game never reads them, without
+			// this copy they would sit in no folder at all. The two example
+			// levels stand beside them in the list and are deliberately not
+			// copied - they are visible and loadable straight out of the game
+			// folder, and a player who changes one and saves it gets their own
+			// version by itself. Only on the very first start.
+			for(const FileSystem::PlayerFile* p_file = FileSystem::getPlayerFiles();
+				p_file->p_path; p_file++)
+			{
+				if(!p_file->copyOnFirstStart) continue;
+				success &= fs.copyFile(fs.getGameDirectory() + p_file->p_path,
+									   homeDirectory + p_file->p_path);
+			}
 
 			if(success)
 			{
@@ -342,6 +410,12 @@ int runTheGame(int argc,
 			if(!success) errorMsg = "Could not migrate all settings!";
 		}
 
+		// On every version change, not only on the jump to 1.2.0: the run
+		// costs nothing when there is nothing to do, and a player going from
+		// 1.2.0 to 1.2.1 can bring along a copy that 1.2.0 could not clear
+		// away. On a fresh installation there is nothing to find.
+		if(versionInitialized != "not_played") retireShadowingCopies(fs, homeDirectory);
+
 		if(success)
 		{
 			fs.writeStringToFile(p_localVersion, homeDirectory + ".initialized");
@@ -384,7 +458,7 @@ int runTheGame(int argc,
 	{
 		printfLog("Checking for update ...\n");
 
-		// Neue Version da?
+		// is there a new version?
 		std::string currentVersion = getCurrentVersion();
 		if(currentVersion.empty()) printfLog("Could not detect current version!\n");
 		else printfLog("Current game version:   %s\n", currentVersion.c_str());
@@ -401,17 +475,16 @@ int runTheGame(int argc,
 			int answer = MessageBoxA(0, str.str().c_str(), "Update available!", MB_YESNO | MB_ICONINFORMATION);
 			if(answer == IDYES)
 			{
-				// Seite oeffnen
+				// open the page
 				ShellExecuteA(0, "open", "Blocks 5 Website.url", NULL, NULL, SW_SHOWNORMAL);
 				return 0;
 			}
 #elif !defined(__EMSCRIPTEN__)
-			// Kein Fenster: hier laeuft die Engine noch nicht, es gibt also
-			// weder eine Toast-Leiste noch einen Dialog, und ein Browser, den
-			// niemand angefordert hat, wuerde beim Start einfach aufspringen.
-			// Die Abfrage ist ohnehin abschaltbar und im Auslieferungszustand
-			// aus - wer sie eingeschaltet hat, hat das in einer Textdatei
-			// getan und sieht auch diese Zeilen.
+			// No window: the engine is not running yet, and there is therefore
+			// neither a toast bar nor a dialog, and a browser nobody asked for
+			// would simply spring open at startup. The query can be switched
+			// off anyway and is off as shipped - anyone who switched it on did
+			// that in a text file and sees these lines as well.
 			printfLog("%s", str.str().c_str());
 			printfLog("https://www.david-scherfgen.de/meine-spiele/blocks-5/\n\n");
 #endif
@@ -419,18 +492,15 @@ int runTheGame(int argc,
 	}
 	else
 	{
-		// Keine automatischen Updates!
+		// No automatic updates!
 		printfLog("Not checking for update!\n");
 	}
 
-	// Daten aus dem verschluesselten Archiv lesen
+	// read the data out of the encrypted archive
 	fs.pushCurrentDir("data.zip[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]");
-	
-	// Alternativ: Daten aus dem lokalen Verzeichnis lesen
-	// fs.pushCurrentDir("data");
 
-	// Fortschritt laden
-	ProgressDB::inst().load();
+	// Alternatively: read the data from the local directory
+	// fs.pushCurrentDir("data");
 
 	bool fullScreen;
 
@@ -440,8 +510,9 @@ int runTheGame(int argc,
 	fullScreen = true;
 #endif
 
-	// Argumente parsen. Der Skalierungsfilter steht bewusst nicht dabei: er ist
-	// eine Einstellung wie die Sprache und wird im Optionsdialog gewaehlt.
+	// Parse the arguments. The upscaling filter is deliberately not among
+	// them: it is a setting like the language and is chosen in the options
+	// dialog.
 	Engine& engine = Engine::inst();
 
 	for(int i = 0; i < argc; i++)
@@ -450,11 +521,13 @@ int runTheGame(int argc,
 		if(equalsNoCase(p_arg, "-windowed")) engine.overrideFullScreen(false);
 		else if(equalsNoCase(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
+		else if(equalsNoCase(p_arg, "-noFBO")) engine.disableFrameBuffer();
+		else if(equalsNoCase(p_arg, "-noShader")) engine.disableShaders();
 	}
 
 	printfLog("Initializing engine ...\n");
 
-	// Spielaktionen festlegen
+	// define the game actions
 	Action* p_action = engine.registerAction("$A_LEFT", engine.getKeyboardVK(SDLK_LEFT), engine.getKeyboardVK(SDLK_KP4));
 	p_action->resetsActions.push_back("$A_UP");
 	p_action->resetsActions.push_back("$A_DOWN");
@@ -481,17 +554,18 @@ int runTheGame(int argc,
 	p_action->delay = 200;
 	p_action->interval = 500;
 
-	// Engine-Aktionen festlegen
-	// Schalter, keine Dauerfeuer-Aktionen: einmal je Druck.
+	// define the engine actions
+	// Toggles, not auto-fire actions: once per press.
 	p_action = engine.registerAction("$A_TOGGLE_MUTE", engine.getKeyboardVK(SDLK_F1));
 	p_action->repeats = false;
-#ifndef __EMSCRIPTEN__
-	// Screenshots und Videoaufnahme gibt es im Web-Build nicht, deshalb werden
-	// diese beiden Aktionen gar nicht erst registriert - sonst stuenden sie
-	// nutzlos in der Tastenbelegungsliste. Die Abfragen in Engine::update
-	// bleiben unveraendert: getAction() liefert 0 fuer einen unbekannten Namen.
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->repeats = false;
+#ifndef __EMSCRIPTEN__
+	// There is no video recording in the web build, and the action is
+	// therefore not registered there at all - it would otherwise stand
+	// uselessly in the key binding list. The query in Engine::update stays
+	// unchanged: getAction() returns 0 for an unknown name. Screenshots do
+	// exist there; they are only downloaded instead of stored.
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));
 	p_action->repeats = false;
 #endif
@@ -502,10 +576,13 @@ int runTheGame(int argc,
 		return 1;
 	}
 
-	// Lokalisierung laden
+	// load the localization
 	engine.loadStringDB("languages.txt");
 
-	// Instanzen der Spielzustandsklassen erzeugen
+	// Before the sounds are loaded: Sound looks its factor up at construction.
+	engine.loadSoundVolumes("sounds.xml");
+
+	// create instances of the game state classes
 	GS_Menu menu;
 	GS_SelectLevel selectLevel;
 	GS_Game game;
@@ -530,11 +607,11 @@ int runTheGame(int argc,
 int main(int argc,
 		 char** pp_argv)
 {
-	// TODO: http://blog.kalmbachnet.de/?postid=75 beachten (StackWalker-Homepage: http://stackwalker.codeplex.com/releases/view/35258)
+	// TODO: take http://blog.kalmbachnet.de/?postid=75 into account (StackWalker homepage: http://stackwalker.codeplex.com/releases/view/35258)
 
-	// Der Absturzfaenger ist SEH und damit Windows-eigen. Im Debug-Build steht
-	// er auch dort nicht davor, denn dann faengt er den Fehler vor dem
-	// Debugger ab.
+	// The crash handler is SEH and therefore Windows-only. In a Debug build
+	// it is not put in front even there, because it would then catch the error
+	// before the debugger does.
 #if defined(_WIN32) && !defined(_DEBUG)
 	__try
 	{

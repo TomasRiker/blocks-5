@@ -4,11 +4,11 @@
 
 SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 {
-	// Audioquelle erzeugen
+	// create the audio source
 	sourceID = Sound::getFreeSource();
 	if(sourceID)
 	{
-		// Audio-Buffer einsetzen
+		// plug in the audio buffer
 		alSourcei(sourceID, AL_BUFFER, sound.bufferID);
 
 		setVolume(1.0);
@@ -33,7 +33,7 @@ SoundInstance::~SoundInstance()
 {
 	if(!sourceID) return;
 
-	// Audioquelle stoppen und freigeben
+	// stop and free the audio source
 	stop();
 	alDeleteSources(1, &sourceID);
 }
@@ -42,11 +42,11 @@ void SoundInstance::play(bool loop)
 {
 	if(!sourceID) return;
 
-	// Parameter setzen
+	// set the parameters
 	alSourcei(sourceID, AL_LOOPING, loop ? 1 : 0);
 	this->looping = loop;
 
-	// abspielen
+	// play it
 	alSourcePlay(sourceID);
 }
 
@@ -78,7 +78,11 @@ void SoundInstance::setVolume(double volume)
 	if(!sourceID) return;
 
 	this->volume = volume;
-	alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getSoundVolume()));
+	// The sound's own factor comes in here and not into volume: this is the one
+	// place where a volume reaches OpenAL, which makes it apply to
+	// slideVolume() and to every caller that sets volume itself.
+	alSourcef(sourceID, AL_GAIN, static_cast<float>(
+		volume * sound.getVolumeFactor() * Engine::inst().getSoundVolume()));
 }
 
 double SoundInstance::getPitch() const
@@ -99,7 +103,7 @@ void SoundInstance::slideVolume(double targetVolume,
 {
 	if(targetVolume < 0.0)
 	{
-		// Danach anhalten!
+		// Pause afterwards!
 		targetVolume = 0.0;
 		pauseAtSlideEnd = true;
 	}
@@ -156,7 +160,7 @@ void SoundInstance::update()
 
 			if(pauseAtSlideEnd)
 			{
-				// Jetzt anhalten!
+				// Pause now!
 				pause();
 				pauseAtSlideEnd = false;
 			}
@@ -183,7 +187,7 @@ bool SoundInstance::toBeRemoved() const
 {
 	if(!sourceID) return true;
 
-	// Ist der Sound fertig?
+	// Is the sound finished?
 	ALint state = 0;
 	alGetSourcei(sourceID, AL_SOURCE_STATE, &state);
 	return state == AL_STOPPED;

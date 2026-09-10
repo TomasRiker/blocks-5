@@ -1,41 +1,51 @@
 #ifndef _CAMPAIGN_H
 #define _CAMPAIGN_H
 
-/*** Klasse fuer eine Kampagne ***/
+/*** Class for a campaign ***/
 
 class Campaign
 {
 public:
-	// Ein Level einer Kampagne. Die Identitaet ist das Paar (sourceDir,
-	// member); "name" ist blosser Anzeigetext aus campaign.xml und wird nie zu
-	// einem Pfad zusammengesetzt.
+	// One level of a campaign. The identity is the pair (sourceDir, member);
+	// "name" is nothing but display text out of campaign.xml and is never
+	// composed into a path.
 	struct LevelRef
 	{
 		LevelRef() : fromArchive(false) {}
 
 		std::string source() const { return sourceDir + member; }
 
-		std::string name;        // Text aus campaign.xml, nur zur Anzeige
-		std::string sourceDir;   // "<home>levels/" oder "<kampagne>.zip[pw]/"
-		std::string member;      // Dateiname bzw. Name des Archivmitglieds
+		std::string name;        // text from campaign.xml, display only
+		std::string sourceDir;   // "<home>levels/" or "<campaign>.zip[pw]/"
+		std::string member;      // filename or name of the archive member
 		bool fromArchive;
 	};
 
-	// Verweis auf eine lose Datei im Level-Ordner des Benutzers.
+	// Reference to a loose file in the user's level folder.
 	static LevelRef makeLooseRef(const std::string& filename);
 
-	// Wohin ein musicFilename zeigt. sourceDir ist das Verzeichnis, in dem
-	// gewoehnliche Stuecke des Levels liegen - "<home>levels/" fuer einen
-	// losen Level, "<kampagne>.zip[pw]/" fuer einen aus einem Archiv. Faengt
-	// der Name mit "blocks:" an, meint er ein Stueck der mitgelieferten
-	// Kampagne und sourceDir ist ohne Belang; save() packt ein solches Stueck
-	// deshalb auch nicht mit ein.
+	// The individual levels in the user's folder as a campaign that exists as
+	// no file: that is how a level somebody sent you gets played without
+	// opening it in the editor, which does not show the darkness and draws in
+	// the teleporters' destinations. Returns false if there is nothing there.
+	bool loadSingleLevels();
+
+	// Is this that campaign? It carries no progress: everything is unlocked
+	// from the start, nothing is recorded as finished, and after the last
+	// diamond it goes back to the selection instead of to the next level.
+	bool isSingleLevels() const;
+
+	// Where a musicFilename points. sourceDir is the directory holding the
+	// level's ordinary tracks - "<home>levels/" for a loose level,
+	// "<campaign>.zip[pw]/" for one out of an archive. A name beginning with
+	// "blocks:" means a track of the shipped campaign and sourceDir does not
+	// matter; save() therefore does not pack such a track either.
 	static std::string resolveMusicPath(const std::string& musicFilename,
 										const std::string& sourceDir);
 
-	// Ein von aussen hereingereichtes Archiv annehmen. Getrennt in Pruefen und
-	// Ablegen, damit der Aufrufer "das ist keine Kampagne" und "das Kopieren
-	// ging schief" auseinanderhalten kann.
+	// Accept an archive handed in from outside. Split into checking and
+	// storing, which lets the caller tell "that is not a campaign" from "the
+	// copy failed".
 	static bool isImportableArchive(const std::string& archivePath);
 
 	Campaign();
@@ -43,19 +53,19 @@ public:
 
 	void clear();
 
-	// quiet unterdrueckt die Fehlermeldung. Das braucht nur
-	// isImportableArchive(): etwas, das gar keine Kampagne sein will, ist auch
-	// keine kaputte.
+	// quiet suppresses the error message. Only isImportableArchive() needs
+	// that: something that never claimed to be a campaign is not a broken one
+	// either.
 	bool load(const std::string& filename, bool quiet = false);
 	bool loadInfo(TiXmlDocument* p_doc);
 	bool save(const std::string& filename);
 	TiXmlDocument* saveInfo();
 
-	// Sind alle Levels lesbar? Liefert im Fehlerfall die fehlende Quelle.
+	// Are all levels readable? Reports the missing source on failure.
 	bool sourcesExist(std::string& missing) const;
 
-	// Zustand fuer den Aenderungsvergleich des Editors: die XML-Daten plus
-	// die Quellen, denn zwei Eintraege koennen denselben Namen tragen.
+	// State for the editor's change comparison: the XML data plus the
+	// sources, because two entries can carry the same name.
 	std::string getStateString();
 
 	void addLevel(const LevelRef& level);
@@ -81,6 +91,7 @@ private:
 	std::vector<LevelRef> levels;
 	int numUnlockedLevels;
 	bool iHaveABonusLevel;
+	bool singleLevels;
 };
 
 #endif

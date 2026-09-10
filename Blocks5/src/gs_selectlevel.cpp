@@ -8,8 +8,7 @@
 #include "campaign.h"
 #include "level.h"
 #include "progressdb.h"
-
-const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
+#include "transfer.h"
 
 GS_SelectLevel::GS_SelectLevel() : GameState("GS_SelectLevel"), engine(Engine::inst())
 {
@@ -26,7 +25,7 @@ GS_SelectLevel::~GS_SelectLevel()
 
 void GS_SelectLevel::onRender()
 {
-	// Hintergrundbild rendern
+	// render the background image
 	p_background->bind();
 	glBegin(GL_QUADS);
 	glColor3d(1.0, 1.0, 1.0);
@@ -46,7 +45,7 @@ void GS_SelectLevel::onRender()
 	{
 		status = getLevelStatus(currentLevel);
 
-		// Level-Vorschau rendern
+		// render the level preview
 		glEnable(GL_SCISSOR_TEST);
 		glScissor(280, 480 - 60 - 200, 320, 200);
 		glPushMatrix();
@@ -56,12 +55,34 @@ void GS_SelectLevel::onRender()
 		glPopMatrix();
 		glDisable(GL_SCISSOR_TEST);
 
-		// Name des Levels schreiben
+		// write the level's name
 		Font* p_font = GUI::inst().getFont();
 		Vec2i dim;
 		const std::string title = localizeString(p_currentLevel->getTitle());
-		const std::string caption = formatLevelCaption(currentLevel + 1,
-													  status ? title : std::string("???"));
+		const std::string shown = status ? title : std::string("???");
+		// As wide as the preview above it (the glScissor above), because the
+		// name sits centred under it. Anything wider runs left into the
+		// description and right off the picture: renderText() clips nothing.
+		const int captionWidth = 320;
+
+		// Only the title is shortened. The number and the filename are what
+		// tells two levels of the same name apart, and they therefore stay
+		// whole - how much is left for the title is what the same caption
+		// with an empty one says.
+		const bool single = p_currentCampaign->isSingleLevels();
+		const std::string member = single
+			? p_currentCampaign->getLevels()[currentLevel].member : std::string();
+		Vec2i frameDim;
+		p_font->measureText(single ? formatSingleLevelCaption(std::string(), member)
+								   : formatLevelCaption(currentLevel + 1, std::string()),
+							&frameDim, 0);
+		const std::string fitted = p_font->fitText(shown, captionWidth - frameDim.x);
+
+		// And once more over the whole caption, in case the frame alone is
+		// already too wide: then the filename does get cut after all.
+		const std::string caption = p_font->fitText(
+			single ? formatSingleLevelCaption(fitted, member)
+				   : formatLevelCaption(currentLevel + 1, fitted), captionWidth);
 		p_font->measureText(caption, &dim, 0);
 		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
 	}
@@ -92,7 +113,7 @@ void GS_SelectLevel::onRender()
 	{
 		if(status == 0 || status == -1)
 		{
-			// Level abdunkeln
+			// darken the level
 			glBegin(GL_QUADS);
 			glColor4d(0.0, 0.0, 0.0, 0.9);
 			glVertex2i(280, 60);
@@ -116,17 +137,20 @@ void GS_SelectLevel::onRender()
 		engine.renderSprite(p_misc, Vec2i(280 + 320 - 20, 60 + 200 - 20), positionOnTexture, Vec2i(39, 39), Vec4d(1.0));
 	}
 
-	glBegin(GL_QUADS);
-	glColor4d(0.0, 0.0, 0.0, 0.5);
-	glVertex2i(40, 240);
-	glVertex2i(260, 240);
-	glVertex2i(260, 260);
-	glVertex2i(40, 260);
-	glEnd();
-
-	if(p_currentCampaign)
+	// The bar counts completed levels. The single levels carry no progress,
+	// and there the empty frame goes too - a bar that can never move reads as
+	// a fault. The label above it disappears with it, in handleClick().
+	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{
-		uint n = ProgressDB::inst().getNumLevelsCompleted(p_currentCampaign->getFilename());
+		glBegin(GL_QUADS);
+		glColor4d(0.0, 0.0, 0.0, 0.5);
+		glVertex2i(40, 240);
+		glVertex2i(260, 240);
+		glVertex2i(260, 260);
+		glVertex2i(40, 260);
+		glEnd();
+
+		uint n = getNumLevelsCompleted();
 		double p = static_cast<double>(n) / static_cast<double>(p_currentCampaign->getLevels().size());
 		int pi = static_cast<int>(p * 220.0);
 
@@ -152,15 +176,15 @@ void GS_SelectLevel::onRender()
 		sprintf(text, "%d/%d", n, static_cast<int>(p_currentCampaign->getLevels().size()));
 		p_font->measureText(text, &dim, 0);
 		p_font->renderText(text, Vec2i(150, 249) - dim / 2, Vec4d(1.0));
-	}
 
-	glBegin(GL_LINE_LOOP);
-	glColor4d(0.0, 0.0, 0.0, 0.5);
-	glVertex2i(40, 240);
-	glVertex2i(260, 240);
-	glVertex2i(260, 260);
-	glVertex2i(40, 260);
-	glEnd();
+		glBegin(GL_LINE_LOOP);
+		glColor4d(0.0, 0.0, 0.0, 0.5);
+		glVertex2i(40, 240);
+		glVertex2i(260, 240);
+		glVertex2i(260, 260);
+		glVertex2i(40, 260);
+		glEnd();
+	}
 
 	glEnable(GL_LINE_SMOOTH);
 }
@@ -169,39 +193,88 @@ void GS_SelectLevel::onUpdate()
 {
 	if(p_currentLevel)
 	{
-		// Level bewegen
+		// move the level
 		p_currentLevel->update();
 	}
+
+	const bool shift = engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT);
+
+	// While the campaign list holds the focus, the four keys it evaluates
+	// itself belong to it - up, down, Home and End. The rest always operates
+	// the dialog: the list does not know left and right at all, and forwards
+	// Return anyway for want of a submit button.
+	const bool listHasKeys = gui["SelectLevel.Campaigns"]->isFocusedIndirectly();
 
 	if(engine.wasKeyPressed(SDLK_ESCAPE))
 	{
 		handleClick(gui["SelectLevel.Quit"]);
 	}
-	else if(engine.wasKeyPressed(SDLK_F7) &&
-			(engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT)))
+	else if(engine.wasKeyPressed(SDLK_F7) && shift)
 	{
-		if(p_currentCampaign)
+		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 		{
-			// alle Levels der Kampagne freischalten
+			// unlock every level of the campaign
+			std::vector<std::pair<std::string, uint> > solved;
 			for(uint i = 0; i < p_currentCampaign->getLevels().size(); i++)
 			{
-				ProgressDB::inst().setLevelCompleted(p_currentCampaign->getFilename(), i);
+				solved.push_back(std::make_pair(p_currentCampaign->getFilename(), i));
 			}
 
-			ProgressDB::inst().save();
+			ProgressDB::inst().markSolved(solved);
+			refreshProgress();
 
 			static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->activate();
 		}
 	}
+	else if(engine.wasKeyPressed(SDLK_LEFT))
+	{
+		pressButton(gui["SelectLevel.PreviousLevel"]);
+	}
+	else if(engine.wasKeyPressed(SDLK_RIGHT))
+	{
+		if(shift) pressButton(gui["SelectLevel.NextLevelToDo"]);
+		else      pressButton(gui["SelectLevel.NextLevel"]);
+	}
+	else if(engine.wasKeyPressed(SDLK_RETURN) || engine.wasKeyPressed(SDLK_KP_ENTER))
+	{
+		pressButton(gui["SelectLevel.PlayLevel"]);
+	}
+	else if(!listHasKeys)
+	{
+		if(engine.wasKeyPressed(SDLK_HOME)) pressButton(gui["SelectLevel.FirstLevel"]);
+		else if(engine.wasKeyPressed(SDLK_END)) pressButton(gui["SelectLevel.LastLevel"]);
+		else if(engine.wasKeyPressed(SDLK_UP)) selectCampaign(-1);
+		else if(engine.wasKeyPressed(SDLK_DOWN)) selectCampaign(1);
+	}
+}
+
+// What the keyboard triggers must have the same limits as the mouse: a locked
+// level cannot be played with Return either, and there is no "next to do"
+// button for the single levels. click() checks neither - with the mouse the
+// GUI catches it beforehand.
+void GS_SelectLevel::pressButton(GUI_Element* p_button)
+{
+	if(p_button->isActive() && p_button->isReallyVisible()) handleClick(p_button);
+}
+
+// One campaign forward or back. setSelection() fires changed(), which is
+// what runs handleClick() afterwards and with it everything else.
+void GS_SelectLevel::selectCampaign(int delta)
+{
+	const int count = static_cast<int>(campaigns.size());
+	if(!count) return;
+
+	GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
+	p_list->setSelection(clamp(p_list->getSelection() + delta, 0, count - 1));
 }
 
 void GS_SelectLevel::onEnter(const ParameterBlock& context)
 {
-	// Bilder laden
+	// load the images
 	p_background = Manager<Texture>::inst().request("selectlevel.png");
 	p_misc = Manager<Texture>::inst().request("misc.png");
 
-	// Menue erzeugen
+	// build the menu
 	gui.getRoot()->load("selectlevel.xml");
 
 	static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"])->connectChanged(this, &GS_SelectLevel::handleClick);
@@ -213,63 +286,111 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->connectClicked(this, &GS_SelectLevel::handleClick);
 	static_cast<GUI_Button*>(gui["SelectLevel.Quit"])->connectClicked(this, &GS_SelectLevel::handleClick);
 
-	// Kampagnen aufzaehlen
+	// enumerate the campaigns
 	FileSystem& fs = FileSystem::inst();
 	GUI_ListBox* p_listBox = static_cast<GUI_ListBox*>(gui["SelectLevel.Campaigns"]);
 	p_listBox->clear();
 	campaigns.clear();
-	std::list<std::string> files = fs.listDirectory(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns");
-	for(std::list<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+	// Both roots: the shipped campaign sits with the game, imported and
+	// self-made ones with the player. Transfer::list() already unites them,
+	// in the right order and sorted.
+	const std::vector<std::string> files(Transfer::list(Transfer::KIND_CAMPAIGN));
+	for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 	{
-		std::string ext = getFilenameExtension(*i);
-		if(ext == "zip")
+		const std::string path(fs.resolveContentPath("levels/campaigns/" + *i));
+		if(!fs.fileExists(path + "/campaign.xml")) continue;
+
+		// load the campaign
+		Campaign* p_campaign = new Campaign;
+		if(p_campaign->load(path))
 		{
-			if(fs.fileExists(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + *i + "/campaign.xml"))
-			{
-				// Kampagne laden
-				Campaign* p_campaign = new Campaign;
-				if(p_campaign->load(FileSystem::inst().getAppHomeDirectory() + "levels/campaigns/" + *i))
-				{
-					GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
-					p_listBox->addItem(item);
-					campaigns.push_back(p_campaign);
-				}
-				else delete p_campaign;
-			}
+			GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
+			p_listBox->addItem(item);
+			campaigns.push_back(p_campaign);
 		}
+		else delete p_campaign;
 	}
+
+	// And last the single levels from the level folder, if there are any: a
+	// campaign that exists as no file. It comes last because the shipped
+	// campaign is what a new player is looking for.
+	Campaign* p_single = new Campaign;
+	if(p_single->loadSingleLevels())
+	{
+		GUI_ListBox::ListItem item(p_single->getTitle(), 0);
+		p_listBox->addItem(item);
+		campaigns.push_back(p_single);
+	}
+	else delete p_single;
 
 	p_listBox->setSelection(0);
 }
 
 void GS_SelectLevel::onLeave(const ParameterBlock& context)
 {
-	// Bilder loeschen
+	// release the images
 	p_background->release();
 	p_misc->release();
 	p_background = 0;
 	p_misc = 0;
 
-	// Kampagnen loeschen
+	// delete the campaigns
 	for(uint i = 0; i < campaigns.size(); i++) delete campaigns[i];
 	campaigns.clear();
 	p_currentCampaign = 0;
 
-	// Level loeschen
+	// delete the level
 	delete p_currentLevel;
 	p_currentLevel = 0;
 	currentLevel = 0;
 
-	// Menue loeschen
+	// delete the menu
 	delete gui["SelectLevel"];
 }
 
 void GS_SelectLevel::onGetFocus()
 {
-	engine.playMusic("menu.ogg");
+	engine.playMusic("menu.ogg", 0.0, true);
+
+	// Here and not in onEnter(): coming back from a played level is a pop, and
+	// popGameState() gives the state underneath the focus without entering it
+	// again. Read there, a level just solved would still be shown as unsolved.
+	refreshProgress();
 
 	gui["SelectLevel"]->focus();
 	loadLevel();
+}
+
+void GS_SelectLevel::refreshProgress()
+{
+	progress = ProgressDB::inst().query();
+}
+
+uint GS_SelectLevel::getNumLevelsCompleted() const
+{
+	if(!p_currentCampaign) return 0;
+
+	const ProgressDB::Progress::const_iterator i =
+		progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
+	const uint completed = (i == progress.end()) ? 0 : static_cast<uint>(i->second.size());
+
+	// Never more than the campaign holds. A merged database can carry levels
+	// of a campaign that has since become shorter, or of another campaign of
+	// the same name, and the count drives a progress bar that would then be
+	// drawn past its own frame and a label that would read "45/42".
+	const uint total = static_cast<uint>(p_currentCampaign->getLevels().size());
+	return min(completed, total);
+}
+
+bool GS_SelectLevel::wasLevelCompleted(uint level) const
+{
+	if(!p_currentCampaign) return false;
+
+	const ProgressDB::Progress::const_iterator i =
+		progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
+	if(i == progress.end()) return false;
+
+	return i->second.find(level) != i->second.end();
 }
 
 void GS_SelectLevel::onLoseFocus()
@@ -282,7 +403,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 	const std::string& name = p_element->getFullName();
 	if(name == "SelectLevel.Campaigns")
 	{
-		// Es wurde eine Kampagne ausgewaehlt. Beschreibungstext anzeigen!
+		// A campaign has been selected; show the description text.
 		static_cast<GUI_Button*>(gui["SelectLevel.PlayLevel"])->deactivate();
 		int i = static_cast<GUI_ListBox*>(p_element)->getSelection();
 		currentLevel = 0;
@@ -297,6 +418,22 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 		std::string desc = "\xA7" "de:Keine Kampagne ausgew\xE4hlt.\xA7" "en:No campaign selected.";
 		if(p_currentCampaign) desc = p_currentCampaign->getDescription();
 		static_cast<GUI_StaticText*>(gui["SelectLevel.CampaignDescription"])->setText(desc);
+
+		// "Next to do" looks for the next level not yet completed. Among the
+		// single levels that is all of them, and the button would have no
+		// business there; likewise the label above the progress bar, which
+		// onRender() does not draw there in the first place.
+		const bool single = p_currentCampaign && p_currentCampaign->isSingleLevels();
+		if(single)
+		{
+			gui["SelectLevel.NextLevelToDo"]->hide();
+			gui["SelectLevel.ProgressLabel"]->hide();
+		}
+		else
+		{
+			gui["SelectLevel.NextLevelToDo"]->show();
+			gui["SelectLevel.ProgressLabel"]->show();
+		}
 
 		loadLevel();
 	}
@@ -331,7 +468,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 	{
 		if(p_currentCampaign)
 		{
-			// naechsten Level suchen, der noch nicht geschafft wurde
+			// look for the next level not yet completed
 			uint oldLevel = currentLevel;
 			uint numLevels = static_cast<uint>(p_currentCampaign->getLevels().size());
 			uint i = currentLevel;
@@ -412,11 +549,12 @@ void GS_SelectLevel::loadLevel()
 		p_oldLevel->removeOldObjects();
 	}
 
+	// The entry knows for itself where it lies - in the campaign's archive
+	// or as a loose file in the level folder. Composing "level_N.xml" by hand
+	// would work only for the first case.
 	p_currentLevel = new Level;
 	p_currentLevel->setInPreview(true);
-	char levelName[256] = "";
-	sprintf(levelName, "level_%d.xml", currentLevel + 1);
-	p_currentLevel->load(p_currentCampaign->getFilename() + pw + "/" + levelName);
+	p_currentLevel->load(p_currentCampaign->getLevels()[currentLevel].source());
 
 	if(p_oldLevel) delete p_oldLevel;
 
@@ -430,26 +568,24 @@ int GS_SelectLevel::getLevelStatus(uint level)
 {
 	if(!p_currentCampaign) return -2;
 
-	// Wurde der Level geschafft?
-	ProgressDB& db = ProgressDB::inst();
-	const std::string& campaign = p_currentCampaign->getFilename();
-	if(db.wasLevelCompleted(campaign, level)) return 2;
+	// Has the level been completed?
+	if(wasLevelCompleted(level)) return 2;
 
-	// Ist es der letzte Level, und hat die Kampagne einen Bonus-Level?
+	// Is it the last level, and does the campaign have a bonus level?
 	uint numLevelsInCampaign = static_cast<uint>(p_currentCampaign->getLevels().size());
 	if(level == numLevelsInCampaign - 1 && p_currentCampaign->hasBonusLevel())
 	{
-		// Der Level ist nur dann freigeschaltet, wenn alle anderen geschafft sind.
-		if(db.getNumLevelsCompleted(campaign) == numLevelsInCampaign - 1) return 1;
+		// The level is unlocked only once all the others are completed.
+		if(getNumLevelsCompleted() == numLevelsInCampaign - 1) return 1;
 		else return -1;
 	}
 
-	// Ist der Level schon freigeschaltet?
-	uint numLevelsCompleted = db.getNumLevelsCompleted(campaign);
+	// Is the level unlocked already?
+	uint numLevelsCompleted = getNumLevelsCompleted();
 	uint numLevelsUnlocked = p_currentCampaign->getNumUnlockedLevels() + numLevelsCompleted;
 	if(level < numLevelsUnlocked) return 1;
 
-	// Der Level ist noch nicht freigeschaltet.
+	// The level is not unlocked yet.
 	return 0;
 }
 
@@ -457,12 +593,15 @@ void GS_SelectLevel::updateNote()
 {
 	GUI_StaticText* p_note = static_cast<GUI_StaticText*>(gui["SelectLevel.Note"]);
 
+	// The same reasoning as for the progress bar: the note lists what is
+	// unlocked and still unsolved, and among the single levels that is every
+	// one of them.
 	std::string text;
-	if(p_currentCampaign)
+	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{
 		std::ostringstream str;
 
-		// Gibt es mehr als einen Level, der gespielt werden kann, aber noch nicht geschafft wurde?
+		// Is there more than one level that can be played but has not been completed yet?
 		uint numLevelsPlayableButUnsolved = 0;
 		for(uint level = 0; level < static_cast<uint>(p_currentCampaign->getLevels().size()); level++)
 		{
