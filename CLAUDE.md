@@ -410,6 +410,26 @@ the emulation or the JavaScript does, and no measure of the hardware. **`interva
 `total` is what is left for it:** a frame rate that falls while `total` stays flat is time
 going somewhere this cannot see.
 
+**What counts as a late frame is the logic rate**, 20 ms, because that is the frame budget
+fifty times a second asks for — and the overlay counts against it twice, because the two
+questions come apart. A frame whose **interval** went over is one the player did not get; one
+whose **work** went over is one this game is responsible for. Under swiftshader the browser
+ran at 38 ms a frame on 2.7 ms of work: counting the work alone would have reported nothing
+wrong at 26 fps. Natively in the menu the two read 277 and 169 of 512.
+
+A third count stays at 500 ms, and it is a different question again: that is what Emscripten's
+OpenAL has scheduled ahead, so a frame past it is a hole in the music — in the browser only,
+since the native decoder thread fills the queue whatever the main thread is doing. It was the
+*only* count once, which flattered everything: at 50 fps nominal it read `0 of 512` while a
+fifth of the frames were missing their budget.
+
+One caveat on the work count. `total` includes `swap`, and **nothing in the tree ever asks for
+vsync** — no `SDL_GL_SWAP_CONTROL`, no `SDL_GL_SetSwapInterval` — so it is the driver's
+default. Under Xvfb there is no vblank to wait for and `swap` is real work: measured, 6.9 ms by
+default and 6.8 with `vblank_mode=0`, which is the same number. On a real desktop, where Mesa
+syncs by default, that same phase would be a *sleep*, and the work count would then read a
+frame that merely waited as a frame that overran.
+
 Three ways to read it, and the platform decides which:
 
 - **`-perf`**, or `?perf=1` in a browser, draws the numbers in the bottom corner. That is the

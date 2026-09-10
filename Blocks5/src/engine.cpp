@@ -2758,10 +2758,7 @@ void Engine::drawPerformance()
 	// requestAnimationFrame always does.
 	const float interval = frameStats.getPercentile(FrameStats::FS_INTERVAL, 50);
 
-	// 500 ms because that is what Emscripten's OpenAL has scheduled ahead
-	// (AL.QUEUE_LOOKAHEAD, raised in initOpenAL): a frame longer than that is
-	// a hole in the music, so the count is the number of audible faults.
-	char line[3][80];
+	char line[3][96];
 	snprintf(line[0], sizeof(line[0]), "%.0f fps   frame %.1f %.1f %.1f ms  (50/95/max)",
 			 interval > 0.0f ? 1000.0f / interval : 0.0f,
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
@@ -2772,9 +2769,26 @@ void Engine::drawPerformance()
 			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
 			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
 			 frameStats.getPercentile(FrameStats::FS_SWAP, 50));
-	snprintf(line[2], sizeof(line[2]), "over 500 ms: %u of %u frames",
-			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f),
-			 frameStats.getCount());
+	// The budget is the logic rate - 20 ms, fifty frames a second - and the
+	// two counts against it answer different questions. A frame whose
+	// *interval* went over is one the player did not get; one whose *work*
+	// went over is one this game is responsible for. They come apart exactly
+	// where it matters: under swiftshader the browser ran at 38 ms a frame on
+	// 2.7 ms of work, so counting the work alone would have reported nothing
+	// wrong while the game ran at 26 fps.
+	//
+	// 500 ms is a third question. That is what Emscripten's OpenAL has
+	// scheduled ahead (AL.QUEUE_LOOKAHEAD, raised in initOpenAL), so a frame
+	// longer than that is a hole in the music - in the browser only, since
+	// natively the decoder thread fills the queue whatever the main thread is
+	// doing.
+	const float budget = static_cast<float>(logicRate);
+	snprintf(line[2], sizeof(line[2]), "of %u frames: %u over %.0f ms, %u of work, %u over 500 ms",
+			 frameStats.getCount(),
+			 frameStats.getCountOver(FrameStats::FS_INTERVAL, budget),
+			 budget,
+			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
+			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
 	const int lineHeight = p_font->getLineHeight();
 	const int height = 3 * lineHeight + 8;

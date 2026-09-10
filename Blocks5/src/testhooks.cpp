@@ -252,6 +252,20 @@ namespace
 			appendPhase(out, "update", FrameStats::FS_UPDATE);
 			appendPhase(out, "present", FrameStats::FS_PRESENT);
 			appendPhase(out, "swap", FrameStats::FS_SWAP);
+			// Counted against the frame budget, which is the logic rate: a
+			// frame whose interval went over is one the player did not get,
+			// one whose work went over is one the game is responsible for.
+			// Both, because they come apart - a browser at 38 ms a frame on
+			// 2.7 ms of work has none of the second and all of the first.
+			// over500 is the third question: that is Emscripten's Web Audio
+			// lookahead, so a frame past it is a hole in the music.
+			const float budget = static_cast<float>(Engine::inst().getLogicRate());
+			out += ",\"budgetMs\":";
+			appendInt(out, static_cast<int>(budget));
+			out += ",\"late\":";
+			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_INTERVAL, budget)));
+			out += ",\"lateWork\":";
+			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, budget)));
 			out += ",\"over500\":";
 			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, 500.0f)));
 			out += "}";
