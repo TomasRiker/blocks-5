@@ -65,6 +65,15 @@ public:
 	Particle* getNewParticle();
 	void clear();
 
+	// The largest number of particles one system has had to draw since the
+	// last call, and 0 again afterwards. It is what decides
+	// VERTEX_BUFFER_SIZE, and one number is enough for that: which system it
+	// was does not matter when they all carry a buffer of the same size.
+	// A static and not an #ifdef, because a member that exists in some
+	// translation units and not in others is two different classes; the cost
+	// is a comparison per system per frame, not per particle.
+	static uint takePeakCount();
+
 	// The living particles, for direct access. Anything that wants only its
 	// own checks id - filtering by it is an if and needs no method of its own.
 	ParticleList::iterator begin() { return particles.begin(); }
@@ -87,10 +96,26 @@ private:
 	ParticleList particles;
 	MTRand mt;
 
+	static uint peakCount;
+
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-	Vertex* p_vertexBuffer;
-	// Must be a multiple of 4, because each particle is a quad.
-	static const uint VERTEX_BUFFER_SIZE = 4096;
+	// Must be a multiple of 4, because each particle is a quad. 32768 is
+	// 8192 particles and exactly one MiB, against a measured worst case of
+	// 4506 in the whole campaign (level 41; the four levels of the last
+	// chapter sit near 2900, and 24 of the 42 stay under 400). Above it
+	// render() simply draws the frame in more than one glDrawArrays, so the
+	// headroom buys smoothness rather than correctness: nine bombs going off
+	// together - LinuxBuild/test/particle_stress.xml - reach 8264 and cost a
+	// second draw.
+	static const uint VERTEX_BUFFER_SIZE = 32768;
+
+	// One buffer for every particle system there is, and that is what makes
+	// the size above affordable: it is pure scratch, filled and drawn inside
+	// a single render() call and never read between two, and rendering is
+	// single-threaded. The level editor holds six Levels - the one being
+	// edited and the five palettes - so a buffer per system would be eighteen
+	// megabytes of it, most belonging to palettes that never spawn a particle.
+	static Vertex* vertexBuffer();
 #endif
 };
 

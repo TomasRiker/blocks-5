@@ -52,6 +52,8 @@ that the Visual Studio project compiles.
     linux_window.h      their interface, with no Xlib in it
     test/harness.sh     start the game and drive it by element names
     test/smoke.sh       one round through the GUI
+    test/particles.sh   how many particles are alive at once, level by level
+    test/particle_stress.xml  nine bombs standing in fire, for the worst case
 
 `linux_window.cpp` is a file of its own for one reason: `<X11/Xlib.h>` makes
 `Font`, `Window`, `Screen` and `Cursor` type names of its own, and the game has
@@ -123,6 +125,32 @@ through Escape.
 `B5_SHOTS` says where the images go (default `/tmp/blocks5-smoke`). **That
 directory is deleted and created afresh at the start** - so name one of your
 own, and not a directory with anything else in it.
+
+### Counting particles
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/particles.sh
+
+Walks the select screen's level previews - which run the level for real, rain,
+fire and lava included - and reports the largest number of particles one system
+has had to draw in each. That number is what sizes `VERTEX_BUFFER_SIZE` in
+`ParticleSystem`; above it, `render()` splits the frame into more than one
+`glDrawArrays`.
+
+It writes its own `config.xml` first, because the detail setting decides the
+particle density and a measurement at anything but the highest says nothing.
+`B5_DWELL` is the seconds spent in each preview (5), `B5_LEVELS` how many
+campaign levels to walk (42).
+
+The single levels come last, and their first entry is `particle_stress.xml`,
+which the script copies into the player's level folder: nine bombs each
+standing in a fire, in a field of destructible brick, so that the whole level
+detonates in the first tick. Its title begins with `!!` so that the title sort
+puts it first and `Home` reaches it without anybody having to read the screen.
+
+The order inside the measurement is what makes it mean anything: clear the
+peak, *then* load the level, then dwell. A level that throws its whole load in
+the first tick has peaked and gone before a clearing dump placed after the load
+would run.
 
 Clicks go to element names and not to coordinates. The test hook from
 `Blocks5/src/testhooks.cpp` - the same one the browser uses - puts the GUI tree

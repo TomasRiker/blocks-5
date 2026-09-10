@@ -16,6 +16,7 @@
 #include "gs_game.h"
 #include "gui.h"
 #include "gui_element.h"
+#include "particlesystem.h"
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
@@ -203,6 +204,14 @@ namespace
 			}
 		}
 		out += "]";
+
+		// The largest number of particles one system has had to draw since the
+		// last time this report was asked for, which is what sizes the vertex
+		// buffer in ParticleSystem. Reading it clears it, so a test that dumps
+		// once at the start of a scene and once at the end gets the peak over
+		// exactly that stretch and cannot miss a spike between two polls.
+		out += ",\"particlePeak\":";
+		appendInt(out, static_cast<int>(ParticleSystem::takePeakCount()));
 
 		out += ",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");

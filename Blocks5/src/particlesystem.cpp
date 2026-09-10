@@ -13,19 +13,31 @@ ParticleSystem::ParticleSystem(Texture* p_sprites)
 {
 	p_sprites->addRef();
 	this->p_sprites = p_sprites;
-
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-	p_vertexBuffer = new Vertex[VERTEX_BUFFER_SIZE];
-#endif
 }
 
 ParticleSystem::~ParticleSystem()
 {
 	p_sprites->release();
+}
+
+uint ParticleSystem::peakCount = 0;
 
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-	delete[] p_vertexBuffer;
+ParticleSystem::Vertex* ParticleSystem::vertexBuffer()
+{
+	// A function-local static rather than a member: it costs no allocation,
+	// no destruction order and no lifetime question, and the array is plain
+	// enough that zeroed storage is a valid starting state.
+	static Vertex buffer[VERTEX_BUFFER_SIZE];
+	return buffer;
+}
 #endif
+
+uint ParticleSystem::takePeakCount()
+{
+	const uint peak = peakCount;
+	peakCount = 0;
+	return peak;
 }
 
 // #define PROFILE_PARTICLESYSTEM_RENDER
@@ -41,7 +53,11 @@ void ParticleSystem::render()
 
 	p_sprites->bind();
 
+	const uint count = static_cast<uint>(particles.size());
+	if(count > peakCount) peakCount = count;
+
 #ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
+	Vertex* const p_vertexBuffer = vertexBuffer();
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
