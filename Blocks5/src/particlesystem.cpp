@@ -75,16 +75,20 @@ void ParticleSystem::render()
 		const float sinR = sinf(p.rotation);
 		const float cosR = cosf(p.rotation);
 		const Vec2f halfSize = static_cast<Vec2f>(p.sizeOnTexture) * 0.5f * p.size;
-		const Vec2f axisX(halfSize.x * cosR, -halfSize.y * sinR);
 
-		// The quad is walked as an outline instead of being measured out from the
-		// centre four times over: only the first corner is built from the axes,
-		// and each of the others is one vector addition onto a corner that is
-		// already there. The two edges are perpendicular by construction, so the
-		// second is the first with its components swapped and one sign flipped.
-		const Vec2f edgeX = axisX + axisX;
-		const Vec2f edgeY(-edgeX.y, edgeX.x);
-		const Vec2f corner0(p.position.x - axisX.x + axisX.y, p.position.y - axisX.y - axisX.x);
+		// The two half-axes of the quad. They are perpendicular, but each keeps
+		// its own length, so the second cannot be had by swapping the first
+		// one's components - that would give a square whatever sprite went in.
+		const Vec2f halfX(halfSize.x * cosR, -halfSize.x * sinR);
+		const Vec2f halfY(halfSize.y * sinR, halfSize.y * cosR);
+
+		// The quad is walked as an outline instead of being measured out from
+		// the centre four times over: only the first corner is built from the
+		// axes, and each of the others is one vector addition onto a corner
+		// that is already there.
+		const Vec2f edgeX = halfX + halfX;
+		const Vec2f edgeY = halfY + halfY;
+		const Vec2f corner0 = p.position - halfX - halfY;
 		const Vec2f corner1 = corner0 + edgeX;
 		const Vec2f corner2 = corner1 + edgeY;
 		const Vec2f corner3 = corner0 + edgeY;
