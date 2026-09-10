@@ -122,6 +122,21 @@ public:
 	void onMouseDown(const Vec2i& position,
 					 int buttons)
 	{
+		// A press is where a stroke begins, and oldCursor has to say so.
+		// onMouseMove interpolates from it, so that dragging faster than the
+		// events arrive still leaves a continuous line; with a mouse nothing
+		// more is needed, because the button-less moves between two strokes
+		// keep it under the pointer by themselves. A finger makes no such
+		// moves - it lifts at one corner and presses at the other - and the
+		// first move of the new stroke would then draw all the way back to
+		// where the last one ended.
+		//
+		// Here and not in onMouseUp, because a touch can be cancelled without
+		// an up ever arriving; a press starts a stroke whatever came before
+		// it. And only a real one: the presses below are the interpolation
+		// itself, and resetting on those would undo it.
+		if(realDown) oldCursor = position / 16;
+
 		bool shift = editor.engine.isKeyDown(SDLK_LSHIFT) || editor.engine.isKeyDown(SDLK_RSHIFT);
 
 		if(position.y < 400)
