@@ -109,6 +109,38 @@ coordinate but in the game.
     elements     per element: path, type, rect (game coordinates),
                  win (window coordinates), visible, shown, active
 
+## A pointer that teleports
+
+    B5_SHOTS=/tmp/blocks5-editor node editorstroke.js
+
+The level editor interpolates between the previous cursor cell and this one, so
+that dragging faster than the events arrive still leaves a continuous stroke.
+That makes it the one place where a **finger** and a mouse are not the same
+input: a mouse cannot lift at one corner and press at the other without moving
+across everything in between, and moving is exactly what keeps the previous cell
+current.
+
+`page.mouse.down()` presses wherever the last `move` left the pointer, so
+Playwright's own API can never produce the case. CDP can:
+
+    cdp.send('Input.dispatchMouseEvent',
+             { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 })
+
+with no `mouseMoved` before it. That is the shape a touch delivers, and the game
+sees it as one too, because both button events take their position from the
+event rather than from the last motion.
+
+The verdict comes off the picture, since no hook reports the level's tiles and
+the canvas is WebGL without `preserveDrawingBuffer` - `drawImage` after a frame
+hands back an empty image. `count_painted.py` reads the screenshot instead and
+counts the 16x16 cells that differ from the median of all of them, which
+calibrates itself against whatever the empty field looks like rather than
+naming a colour.
+
+Two strokes of three cells are drawn far apart. Both must paint about four
+cells; a stroke that paints thirty has drawn a line back to where the last one
+ended.
+
 ## Measuring an effect in the picture
 
 The hooks see only the GUI tree. Whether an effect in the level is really

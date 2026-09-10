@@ -1481,34 +1481,34 @@ Two things to settle first:
   than for a mouse.
 
 
-39. The level editor paints a line to wherever the finger last was
---------------------------------------------------------------------
-`LevelEditorGUI::onMouseMove` interpolates: `bresenham(oldCursor, p)`
-(`gs_leveleditor.cpp:385`) fills in the cells between the last position and this
-one, so that a fast drag with a mouse leaves a continuous stroke instead of a
-dotted one. `oldCursor` is written at the end of every move (`:418`) and cleared
-in exactly two places - at construction (`:92`) and when the press belongs to
-another element (`:378`). **Nothing clears it when the button is released.**
-
-With a mouse that is invisible, because a move with no buttons held still falls
-through to `:418` and keeps `oldCursor` under the pointer between strokes. A
-finger produces no such moves at all: lift at one corner, press at the other,
-and the first move with a button down draws a line right across the level. It is
-the same shape as the two touch bugs already fixed in `GUI::update()` and
-`Engine::cursorPosition` - code that was correct only because a mouse never
+39. The level editor paints a line to wherever the finger last was  - **DONE**
+-------------------------------------------------------------------------------
+`LevelEditorGUI::onMouseMove` interpolates with `bresenham(oldCursor, p)`
+(`gs_leveleditor.cpp:385`) so that dragging faster than the events arrive still
+leaves a continuous stroke rather than a dotted one. `oldCursor` was never
+cleared when the button was released - invisible with a mouse, because the
+button-less moves between two strokes keep it under the pointer by themselves,
+and with a finger a line from the end of one stroke to the start of the next.
+Same shape as the two touch bugs already fixed in `GUI::update()` and
+`Engine::cursorPosition`: code that was correct only because a mouse never
 teleports.
 
-The fix is a line, and the interesting part is where it goes: `oldCursor` has to
-be cleared on the **up**, not on the next down, because the down is what starts
-the stroke and by then the damage is already committed. `GUI_Element` has no
-`onMouseUp` override here yet, and `realDown` (`:380`) shows the class already
-distinguishes a synthesised press from a real one - the reset belongs beside
-that distinction.
+`onMouseDown` now sets it, and three things about that must not be undone:
 
-Worth doing at the same time: the editor is the one place where a drag *should*
-paint rather than scroll, so whatever item 38 settles about tap-versus-drag has
-to leave this field alone deliberately rather than by accident.
+- **The `realDown` guard.** `onMouseMove` calls `onMouseDown` for every cell of
+  the interpolated line with the flag false. Resetting on those would undo the
+  interpolation it is there to perform.
+- **The press and not the release.** A touch can be cancelled without an up ever
+  arriving; a press starts a stroke whatever came before it.
+- **The press position and not `Vec2i(-1, -1)`.** The sentinel makes the first
+  move of a stroke start from wherever that move landed, which loses the cells
+  between it and the press - the very gap the interpolation exists to fill.
 
+`WebBuild/test/editorstroke.js` is the check, and it has to be a browser: a
+mouse cannot reproduce this at all, since moving the pointer somewhere is
+exactly what keeps `oldCursor` current. CDP dispatches a `mousePressed` with no
+`mouseMoved` before it, which is the shape a touch has. Measured against the
+unfixed build, a three-cell drag painted 30 cells; four after.
 
 How these connect
 -----------------
@@ -1539,9 +1539,9 @@ How these connect
    30 (skin sounds) <──> 32 (hint sound): the paper one belongs to the skin
                       that brings the paper, so 32 is 30's first real caller
 
-   38 (gestures) <──> 39 (editor strokes): both are code that is correct only
-                      because a mouse never teleports, and 38 has to leave the
-                      editor's field painting rather than scrolling
+   38 (gestures) <──> 39 (editor strokes, done): both are code that is correct
+                      only because a mouse never teleports. 39 is fixed; 38 has
+                      to leave the editor's field painting rather than scrolling
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
