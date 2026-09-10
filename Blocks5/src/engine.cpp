@@ -704,6 +704,38 @@ bool Engine::init(const std::string& windowCaption,
 
 	alcProcessContext(p_audioContext);
 
+#ifdef __EMSCRIPTEN__
+	// Emscripten's OpenAL turns queued buffers into Web Audio nodes from a
+	// setInterval on the main thread, and schedules only 0.1 s ahead. A frame
+	// longer than that leaves the streamed music with nothing scheduled and
+	// tears a hole in it - so the gaps arrive at the frame rate rather than on
+	// the quarter-second buffer boundaries, which is what tells this apart
+	// from a queue that is simply not being refilled.
+	//
+	// Half a second costs two more AudioBufferSourceNodes on the one streaming
+	// source there is, and no latency anywhere: stopping, pausing and
+	// restarting all go through stopSourceAudio(), which stops every scheduled
+	// node outright. Past one second there would be nothing left to schedule -
+	// that is all the audio the four queued buffers hold. The effects need
+	// none of it either way, since a looping one is a single node with
+	// loop = true and a one-shot is its whole buffer in one node, and neither
+	// is ever rescheduled.
+	//
+	// QUEUE_LOOKAHEAD belongs to Emscripten - read out of emsdk 6.0.8 - and an
+	// upgrade may move it, so the value is read back rather than assumed and
+	// the log line is what says whether it took.
+	const double WEB_AUDIO_LOOKAHEAD = 0.5;
+	const double lookahead = EM_ASM_DOUBLE(
+	{
+		if(typeof AL === 'undefined' || typeof AL.QUEUE_LOOKAHEAD !== 'number') return -1.0;
+		AL.QUEUE_LOOKAHEAD = $0;
+		return AL.QUEUE_LOOKAHEAD;
+	}, WEB_AUDIO_LOOKAHEAD);
+
+	if(lookahead < 0.0) printfLog("+ WARNING: No AL.QUEUE_LOOKAHEAD to raise - the music will break up on a long frame.\n");
+	else printfLog("  Web Audio lookahead: %.0f ms\n", lookahead * 1000.0);
+#endif
+
 	// Headroom for the mix. The individual sources stay as they are - only the
 	// finished mix gets quieter, and it does that before OpenAL Soft clamps it
 	// to [-1, 1].
