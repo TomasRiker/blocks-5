@@ -11,6 +11,30 @@ public:
 	// thread, which is a different number whenever something else sets the
 	// pace: in the browser requestAnimationFrame does, natively the SDL_Delay
 	// at the foot of the loop does.
+	//
+	// RENDER and PRESENT are what issuing the draw calls costs and not what
+	// drawing them does. GL is asynchronous, so the work queues up and is paid
+	// for wherever the driver next flushes - and natively that is somewhere in
+	// PRESENT and SWAP, whichever it picks. Read those two as one number:
+	// their split is the driver's choice and not a fact about the game.
+	//
+	// Measured under llvmpipe with a glFinish inserted to find out: render
+	// *issues* in 2.2 ms and the finish after it takes another 5.9, the blit
+	// issues in 1.3 and takes 3.0, and glXSwapBuffers costs 3.9 once nothing
+	// is outstanding. Without that finish the same 5.9 turns up inside
+	// PRESENT, which then reads 8.5 against 1.3 of actual work. So a single
+	// PRESENT carrying all of it read as 14.9 ms and was really the level
+	// rasterizing: the wall clock was true and the label was a lie.
+	//
+	// In the browser none of it appears anywhere: SDL_GL_SwapBuffers is
+	// Browser.doSwapBuffers?.(), which is undefined off a worker and therefore
+	// does nothing, and glFinish returns in 0.02 ms. The page composites the
+	// canvas after the callback returns, so **the GPU cost is outside every
+	// window here** and what is left is exactly main-thread CPU. That is the
+	// right measure for anything the emulation or the JavaScript does, and no
+	// measure at all of the hardware. INTERVAL minus TOTAL is what is left for
+	// it: if the frame rate falls while TOTAL stays flat, the time is going
+	// somewhere this cannot see.
 	enum Phase
 	{
 		FS_INTERVAL = 0,
@@ -18,6 +42,7 @@ public:
 		FS_RENDER,
 		FS_UPDATE,
 		FS_PRESENT,
+		FS_SWAP,
 		FS_NUM_PHASES
 	};
 

@@ -967,12 +967,13 @@ void Engine::mainLoopIteration()
 #endif
 		Uint32 start = SDL_GetTicks();
 
-		// What this turn of the loop costs, in milliseconds. Every one of
-		// these is wall clock on the main thread and none of them waits for
-		// the GPU: WebGL hands the driver a command and returns, so RENDER and
-		// PRESENT are what the emulation and the JavaScript cost, not what the
-		// hardware does. That is the number that matters here - it is the main
-		// thread that starves the audio and drops the frame.
+		// What this turn of the loop costs, in milliseconds. RENDER and
+		// PRESENT are what *issuing* the draw calls costs; GL is asynchronous
+		// and the drawing itself is paid for wherever the pipeline is next
+		// made to catch up, which natively is the flush inside
+		// glXSwapBuffers - hence SWAP as a phase of its own. In the browser
+		// the swap does nothing at all and the compositing happens after this
+		// function returns, so nothing here sees the GPU. See framestats.h.
 		const double frameBegin = getExactTime();
 		float phases[FrameStats::FS_NUM_PHASES];
 		for(int i = 0; i < FrameStats::FS_NUM_PHASES; i++) phases[i] = 0.0f;
@@ -1369,10 +1370,12 @@ void Engine::mainLoopIteration()
 			const double presentBegin = getExactTime();
 			unbindFrameBuffer();
 			presentFrame();
+			const double swapBegin = getExactTime();
+			phases[FrameStats::FS_PRESENT] = static_cast<float>((swapBegin - presentBegin) * 1000.0);
 
 			// show the rendered frame
 			SDL_GL_SwapBuffers();
-			phases[FrameStats::FS_PRESENT] = static_cast<float>((getExactTime() - presentBegin) * 1000.0);
+			phases[FrameStats::FS_SWAP] = static_cast<float>((getExactTime() - swapBegin) * 1000.0);
 		}
 
 		Uint32 end = SDL_GetTicks();
@@ -2764,10 +2767,11 @@ void Engine::drawPerformance()
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 100));
-	snprintf(line[1], sizeof(line[1]), "render %.1f   update %.1f   present %.1f",
+	snprintf(line[1], sizeof(line[1]), "render %.1f  update %.1f  present %.1f  swap %.1f",
 			 frameStats.getPercentile(FrameStats::FS_RENDER, 50),
 			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
-			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50));
+			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
+			 frameStats.getPercentile(FrameStats::FS_SWAP, 50));
 	snprintf(line[2], sizeof(line[2]), "over 500 ms: %u of %u frames",
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f),
 			 frameStats.getCount());

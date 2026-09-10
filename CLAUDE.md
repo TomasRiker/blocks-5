@@ -387,11 +387,28 @@ start, how long the turn held the main thread, and render, update and present in
 and answers p50, p95 and the maximum. Percentiles and not a mean, because what tears the
 audio or drops a beat lives in the tail. It is recorded always: four clock reads a frame.
 
-**Everything it reports is main-thread wall clock and none of it waits for the GPU.** WebGL
-takes a command and returns, so `render` and `present` are what the emulation and the
-JavaScript cost. That is the half worth having: it is the main thread that starves the audio
-(Emscripten's OpenAL schedules from a `setInterval`) and the half a setting like
-`GL_MAX_TEXTURE_IMAGE_UNITS` can move at all.
+**`render` and `present` are what *issuing* the draw calls costs, not what drawing them
+does.** GL is asynchronous, so the work queues and is paid for wherever the pipeline is next
+made to catch up — and where that is differs completely between the two platforms, which is
+why `swap` is a phase of its own.
+
+**Natively it is somewhere in `present` and `swap`, whichever the driver picks — read those
+two as one number.** Measured under llvmpipe with a `glFinish` inserted to find out: render
+*issues* in 2.2 ms and the finish after it takes another 5.9; the blit issues in 1.3 and takes
+3.0; `glXSwapBuffers` costs 3.9 once nothing is outstanding. Take the finish away and that
+same 5.9 turns up inside `present`, which then reads 8.5 against 1.3 of actual work. So a
+single `present` carrying all of it read as 14.9 ms and was really the level rasterizing: the
+wall clock was true and the label was a lie. Splitting the swap out does not isolate the wait —
+nothing short of a `glFinish` does — it just stops one number pretending to be the blit.
+
+**In the browser nothing here sees the GPU at all.** `SDL_GL_SwapBuffers` is
+`Browser.doSwapBuffers?.()`, and `doSwapBuffers` exists only on the worker path, so off the
+main thread it does nothing; measured, the swap is 0.00 ms and a `glFinish` after render
+returns in 0.02. The page composites the canvas after the callback returns, outside every
+window this can time. What is left is exactly main-thread CPU — the right measure for anything
+the emulation or the JavaScript does, and no measure of the hardware. **`interval` minus
+`total` is what is left for it:** a frame rate that falls while `total` stays flat is time
+going somewhere this cannot see.
 
 Three ways to read it, and the platform decides which:
 

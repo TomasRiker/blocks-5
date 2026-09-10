@@ -251,6 +251,7 @@ namespace
 			appendPhase(out, "render", FrameStats::FS_RENDER);
 			appendPhase(out, "update", FrameStats::FS_UPDATE);
 			appendPhase(out, "present", FrameStats::FS_PRESENT);
+			appendPhase(out, "swap", FrameStats::FS_SWAP);
 			out += ",\"over500\":";
 			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, 500.0f)));
 			out += "}";

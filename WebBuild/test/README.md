@@ -116,11 +116,22 @@ coordinate but in the game.
     node test/perf.js "?texunits=0" "?texunits=1" "?texunits=8"
 
 Every number is milliseconds of wall clock on the main thread, out of
-`FrameStats` in the game and through the test hook's `frames`. **None of it
-waits for the GPU** - WebGL takes a command and returns - so `render` and
-`present` are what the emulation and the JavaScript cost, which is the half
-that starves the audio and drops the frame, and the half a setting like
-`GL_MAX_TEXTURE_IMAGE_UNITS` can move at all.
+`FrameStats` in the game and through the test hook's `frames`. `render` and
+`present` are what *issuing* the draw calls costs, not what drawing them does.
+
+**In the browser nothing here sees the GPU at all.** `SDL_GL_SwapBuffers` is
+`Browser.doSwapBuffers?.()`, undefined off a worker, so `swap` measures 0.00;
+`glFinish` after render returns in 0.02 ms; and the page composites the canvas
+after the callback returns, outside every window this can time. What is left is
+exactly main-thread CPU, which is the half that starves the audio and the only
+half a setting like `GL_MAX_TEXTURE_IMAGE_UNITS` can move. It is no measure of
+the hardware: **`interval` minus `total` is what is left for that**, so a frame
+rate that falls while `total` stays flat is time going somewhere this cannot
+see.
+
+(Natively it is the opposite - the driver flushes inside `present` or `swap`,
+whichever it picks, so those two are one number there and mostly the
+rasterizer. `../../CLAUDE.md` has the measurements.)
 
 Two things about the method are the point of it:
 

@@ -68,7 +68,7 @@ const median = xs => {
 		}
 	}
 
-	const PHASES = ['total', 'render', 'update', 'present', 'interval'];
+	const PHASES = ['total', 'render', 'update', 'present', 'swap', 'interval'];
 	console.log('\n  median over ' + REPEATS + ' runs of ' + WINDOW + ' s, p50 of each run (ms):');
 	console.log('  ' + 'arm'.padEnd(12) + PHASES.map(p => p.padStart(10)).join(''));
 	const summary = {};
