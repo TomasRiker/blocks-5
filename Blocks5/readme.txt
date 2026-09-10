@@ -23,7 +23,7 @@ make your own levels, having a look at the help is probably a good idea.
 
 Command Line Options
 ====================
-Blocks 5 understands five options. Upper and lower case do not matter.
+Blocks 5 understands six options. Upper and lower case do not matter.
 
     -windowed      Start in a window.
     -fullscreen    Start in full screen.
@@ -34,6 +34,9 @@ Blocks 5 understands five options. Upper and lower case do not matter.
                    filter, no screen transition and no rolled-up hint note.
     -noshader      Render without shaders, likewise. "Sharp, fitted" and the
                    CRT filter are then unavailable and "Sharp" is used.
+    -perf          Show in the bottom corner what the last few hundred frames
+                   cost, which is a diagnostic and not a feature. In a browser
+                   the same thing is reached by adding ?perf=1 to the address.
 
 While playing you can switch between full screen and windowed mode at any time
 with Alt+Enter.

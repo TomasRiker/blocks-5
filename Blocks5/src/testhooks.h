@@ -31,6 +31,12 @@ namespace TestHooks
 	// question a test otherwise fails on: is something else lying on top?
 	std::string hitAt(int x, int y);
 
+	// Throw away the frame timings and start again. The dump reports them
+	// without clearing, because the -perf overlay reads the same numbers
+	// continuously; a measurement therefore says where it begins rather than
+	// having the reading define it.
+	void resetStats();
+
 #ifndef __EMSCRIPTEN__
 	// Once per logic tick from Engine::update(). If a request is sitting in
 	// the test directory, it is answered.

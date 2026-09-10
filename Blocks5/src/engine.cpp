@@ -111,6 +111,8 @@ Engine::Engine()
 	splashSkipped = false;
 	frameBufferDisabled = false;
 	shadersDisabled = false;
+	performanceShown = false;
+	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
 	windowedPosition = Vec2i(0, 0);
@@ -965,6 +967,16 @@ void Engine::mainLoopIteration()
 #endif
 		Uint32 start = SDL_GetTicks();
 
+		// What this turn of the loop costs, in milliseconds. Every one of
+		// these is wall clock on the main thread and none of them waits for
+		// the GPU: WebGL hands the driver a command and returns, so RENDER and
+		// PRESENT are what the emulation and the JavaScript cost, not what the
+		// hardware does. That is the number that matters here - it is the main
+		// thread that starves the audio and drops the frame.
+		const double frameBegin = getExactTime();
+		float phases[FrameStats::FS_NUM_PHASES];
+		for(int i = 0; i < FrameStats::FS_NUM_PHASES; i++) phases[i] = 0.0f;
+
 #ifdef __EMSCRIPTEN__
 		// SDL 1.2 makes no SDL_VIDEORESIZE out of a change of canvas size;
 		// looking once per frame catches both the window and the API.
@@ -995,8 +1007,10 @@ void Engine::mainLoopIteration()
 		// render
 		if(appActive && timeProcessed)
 		{
+			const double renderBegin = getExactTime();
 			bindFrameBuffer();
 			render();
+			phases[FrameStats::FS_RENDER] = static_cast<float>((getExactTime() - renderBegin) * 1000.0);
 			frameRendered = true;
 		}
 
@@ -1188,6 +1202,7 @@ void Engine::mainLoopIteration()
 
 		// move
 		timeProcessed = 0;
+		const double updateBegin = getExactTime();
 		while(timeToProcess >= logicRate)
 		{
 			update();
@@ -1245,6 +1260,8 @@ void Engine::mainLoopIteration()
 			timeProcessed += logicRate;
 			time += logicRate;
 		}
+
+		phases[FrameStats::FS_UPDATE] = static_cast<float>((getExactTime() - updateBegin) * 1000.0);
 
 		if(crossfadeTime == -0.51)
 		{
@@ -1349,15 +1366,30 @@ void Engine::mainLoopIteration()
 			}
 
 			// put the framebuffer on the screen
+			const double presentBegin = getExactTime();
 			unbindFrameBuffer();
 			presentFrame();
 
 			// show the rendered frame
 			SDL_GL_SwapBuffers();
+			phases[FrameStats::FS_PRESENT] = static_cast<float>((getExactTime() - presentBegin) * 1000.0);
 		}
 
 		Uint32 end = SDL_GetTicks();
 		if(frameRendered) frameTime = end - start;
+
+		// TOTAL stops here and not after the SDL_Delay below: what is wanted
+		// is the work, not the waiting. INTERVAL is start to start and so
+		// carries the wait with it, which is what makes the two different
+		// numbers worth having side by side.
+		{
+			const double frameEnd = getExactTime();
+			phases[FrameStats::FS_TOTAL] = static_cast<float>((frameEnd - frameBegin) * 1000.0);
+			if(lastFrameBegin > 0.0)
+				phases[FrameStats::FS_INTERVAL] = static_cast<float>((frameBegin - lastFrameBegin) * 1000.0);
+			lastFrameBegin = frameBegin;
+			frameStats.addFrame(phases);
+		}
 
 		// wait if there is still enough time
 		uint dt = end - start;
@@ -2694,6 +2726,70 @@ void Engine::drawOverlays()
 	{
 		renderSprite(p_recordingIconTexture, Vec2i(screenSize.x - recordingIconSize.x - 5, 5),
 					 recordingIconPositionOnTexture, recordingIconSize, Vec4d(1.0, 1.0, 1.0, 0.75));
+	}
+
+	if(performanceShown) drawPerformance();
+}
+
+// What the last few hundred frames cost, in the bottom left corner. This is
+// how the numbers are read on a phone: there is no console there and no test
+// harness, and how long a frame took is precisely what cannot be measured from
+// outside. In a desktop browser the same numbers come out of the test hook
+// instead, and then without the cost of drawing them.
+//
+// drawOverlays() runs after the frame and before the present, so this lands in
+// neither the RENDER nor the PRESENT the block reports - and it lands in a
+// screenshot, which on a phone is how the figure gets off the device at all.
+//
+// The bottom and not the top, although both corners are taken: at the bottom
+// it covers the status bar, whose numbers stand still and can be read by
+// turning the overlay off, and at the top it would cover the toasts, which
+// slide past once and are how the game reports a fault.
+void Engine::drawPerformance()
+{
+	Font* p_font = GUI::inst().getFont();
+	if(!p_font) return;
+
+	// The frame rate off the interval and the rest off the work: the two
+	// differ whenever something else sets the pace, which in the browser
+	// requestAnimationFrame always does.
+	const float interval = frameStats.getPercentile(FrameStats::FS_INTERVAL, 50);
+
+	// 500 ms because that is what Emscripten's OpenAL has scheduled ahead
+	// (AL.QUEUE_LOOKAHEAD, raised in initOpenAL): a frame longer than that is
+	// a hole in the music, so the count is the number of audible faults.
+	char line[3][80];
+	snprintf(line[0], sizeof(line[0]), "%.0f fps   frame %.1f %.1f %.1f ms  (50/95/max)",
+			 interval > 0.0f ? 1000.0f / interval : 0.0f,
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 100));
+	snprintf(line[1], sizeof(line[1]), "render %.1f   update %.1f   present %.1f",
+			 frameStats.getPercentile(FrameStats::FS_RENDER, 50),
+			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
+			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50));
+	snprintf(line[2], sizeof(line[2]), "over 500 ms: %u of %u frames",
+			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f),
+			 frameStats.getCount());
+
+	const int lineHeight = p_font->getLineHeight();
+	const int height = 3 * lineHeight + 8;
+	const int top = screenSize.y - height;
+
+	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	glDisable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
+	glColor4d(0.0, 0.0, 0.0, 0.7);
+	glVertex2i(0, top);
+	glVertex2i(screenSize.x, top);
+	glVertex2i(screenSize.x, screenSize.y);
+	glVertex2i(0, screenSize.y);
+	glEnd();
+	glEnable(GL_TEXTURE_2D);
+
+	for(int i = 0; i < 3; i++)
+	{
+		p_font->renderText(line[i], Vec2i(6, top + 4 + i * lineHeight), Vec4d(1.0, 1.0, 1.0, 1.0));
 	}
 }
 

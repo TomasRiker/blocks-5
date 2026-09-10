@@ -1,4 +1,46 @@
 // pre.js - browser-side setup that must happen before main() runs.
+
+// Two knobs on the query string, both diagnostics. They live here because a
+// phone has no console, no command line and no test harness: typing a URL is
+// the only way to reach them, and it is the same URL on a desktop.
+//
+//   ?perf=1       put the frame timings on the screen. It becomes the -perf
+//                 the desktop build takes on its command line, so both
+//                 platforms run one piece of code. Turning a query string into
+//                 argv is Emscripten's own idiom - see its emrun_prejs.js.
+//
+//   ?texunits=N   how many texture units Emscripten's GL emulation keeps state
+//                 for (Module.GL_MAX_TEXTURE_IMAGE_UNITS). Left alone it asks
+//                 WebGL, which answers 8 to 16, and then loops over that count
+//                 twice per draw call in the FFP renderer's prepare() and
+//                 cleanup(). This game never leaves unit 0 - there is no
+//                 glActiveTexture, GL_TEXTURE0 or glMultiTexCoord anywhere in
+//                 the tree - so one is all it needs, and one is the default
+//                 here. Measured with test/perf.js on the menu's title demo,
+//                 three interleaved runs of twenty seconds: the median frame
+//                 went from 3.20 ms to 2.70 and its render half from 2.40 to
+//                 2.00, against a spread within an arm of 0.10 ms. The picture
+//                 is untouched - 0 of 512000 pixels differ.
+//
+//                 texunits=0 puts it back to asking WebGL, which is the arm to
+//                 compare against. It has to be set before the GL context
+//                 exists, which is why it lives here and not in the game, and
+//                 it is a URL parameter rather than a build flag so that both
+//                 arms of a comparison are one binary. The build has to allow
+//                 the property through - see INCOMING_MODULE_JS_API in
+//                 build.sh.
+(function () {
+  var query;
+  try { query = new URLSearchParams(location.search); } catch (e) { return; }
+
+  if (query.get('perf')) {
+    Module['arguments'] = (Module['arguments'] || []).concat(['-perf']);
+  }
+
+  var units = query.has('texunits') ? parseInt(query.get('texunits'), 10) : 1;
+  if (units > 0) Module['GL_MAX_TEXTURE_IMAGE_UNITS'] = units;
+})();
+
 Module['preRun'] = Module['preRun'] || [];
 Module['preRun'].push(function () {
   // FileSystem::getAppHomeDirectory() returns "/blocks5_home/" in this build.

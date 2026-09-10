@@ -17,6 +17,7 @@
 #include "gui.h"
 #include "gui_element.h"
 #include "particlesystem.h"
+#include "framestats.h"
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
@@ -46,6 +47,29 @@ namespace
 		char buffer[32];
 		sprintf(buffer, "%d", value);
 		out += buffer;
+	}
+
+	// Two decimals: a frame is milliseconds and the interesting differences
+	// here are fractions of one.
+	void appendFixed(std::string& out, double value)
+	{
+		char buffer[32];
+		sprintf(buffer, "%.2f", value);
+		out += buffer;
+	}
+
+	// p50, p95 and the maximum of one phase. Three numbers rather than a mean,
+	// because what costs a frame or tears the audio lives in the tail.
+	void appendPhase(std::string& out, const char* p_key, FrameStats::Phase phase)
+	{
+		const FrameStats& stats = Engine::inst().getFrameStats();
+		out += ",\"";
+		out += p_key;
+		out += "\":[";
+		appendFixed(out, stats.getPercentile(phase, 50)); out += ",";
+		appendFixed(out, stats.getPercentile(phase, 95)); out += ",";
+		appendFixed(out, stats.getPercentile(phase, 100));
+		out += "]";
 	}
 
 	void appendPoint(std::string& out, const char* p_key, int x, int y)
@@ -213,6 +237,25 @@ namespace
 		out += ",\"particlePeak\":";
 		appendInt(out, static_cast<int>(ParticleSystem::takePeakCount()));
 
+		// What the frames since the last resetStats() cost, all in
+		// milliseconds on the main thread. None of it waits for the GPU -
+		// WebGL hands over a command and returns - so these are what the
+		// emulation and the JavaScript cost, which is the half that starves
+		// the audio and drops the frame.
+		{
+			const FrameStats& stats = Engine::inst().getFrameStats();
+			out += ",\"frames\":{\"count\":";
+			appendInt(out, static_cast<int>(stats.getCount()));
+			appendPhase(out, "interval", FrameStats::FS_INTERVAL);
+			appendPhase(out, "total", FrameStats::FS_TOTAL);
+			appendPhase(out, "render", FrameStats::FS_RENDER);
+			appendPhase(out, "update", FrameStats::FS_UPDATE);
+			appendPhase(out, "present", FrameStats::FS_PRESENT);
+			out += ",\"over500\":";
+			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, 500.0f)));
+			out += "}";
+		}
+
 		out += ",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";
@@ -245,6 +288,11 @@ namespace TestHooks
 std::string dump()
 {
 	return buildDump();
+}
+
+void resetStats()
+{
+	Engine::inst().getFrameStats().clear();
 }
 
 std::string hitAt(int x, int y)
@@ -288,6 +336,7 @@ void pollRequests()
 	std::string answer;
 	int x = 0, y = 0;
 	if(sscanf(line, "hit %d %d", &x, &y) == 2) answer = hitAt(x, y);
+	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
 	else answer = dump();
 
 	const std::string temporaryPath(directory + "/response.tmp");

@@ -137,7 +137,9 @@ there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
-`-nofbo` and `-noshader` — that is the whole list, and `readme.txt` documents all five.
+`-nofbo`, `-noshader` and `-perf` — that is the whole list, and `readme.txt` documents all six.
+`-perf` puts what the last few hundred frames cost in the corner; in the browser `?perf=1` on
+the address becomes the same switch. See **Measuring a frame** below.
 `-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
 `GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
 `true`, because the jingle hangs off the time threshold rather than off the logo.
@@ -377,6 +379,51 @@ named actions cannot be inferred from anything else the hook reports. It is what
 that an on-screen pad can drive the game with an ordinary DOM `keydown`/`keyup` on the
 document — a synthetic `ArrowLeft` with `isTrusted === false` shows up as `["$A_LEFT"]` and
 clears on `keyup`, where `Engine::setKeyData` would not have worked at all (ROADMAP item 19).
+
+### Measuring a frame
+
+`FrameStats` (`framestats.h`) keeps the last 512 frames' timings — the interval start to
+start, how long the turn held the main thread, and render, update and present inside it —
+and answers p50, p95 and the maximum. Percentiles and not a mean, because what tears the
+audio or drops a beat lives in the tail. It is recorded always: four clock reads a frame.
+
+**Everything it reports is main-thread wall clock and none of it waits for the GPU.** WebGL
+takes a command and returns, so `render` and `present` are what the emulation and the
+JavaScript cost. That is the half worth having: it is the main thread that starves the audio
+(Emscripten's OpenAL schedules from a `setInterval`) and the half a setting like
+`GL_MAX_TEXTURE_IMAGE_UNITS` can move at all.
+
+Three ways to read it, and the platform decides which:
+
+- **`-perf`**, or `?perf=1` in a browser, draws the numbers in the bottom corner. That is the
+  phone's only way: no console, no command line, no harness — and the block lands in a
+  screenshot, which is how the figure gets off the device.
+- **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own
+  cost in the picture. It does not clear on read, because the overlay reads the same numbers
+  continuously; `blocks5_testResetStats()` (`resetstats` natively) is where a measurement
+  begins.
+- **`WebBuild/test/perf.js`** drives the comparison: arms are query strings rather than
+  builds, so both sides are one binary in one browser, and they are **interleaved** rather
+  than run in blocks, so a machine that warms up or throttles hands that to both.
+
+**`?texunits=N` is the first knob that rides on this**, and it shipped. Emscripten's GL
+emulation keeps state for as many texture units as WebGL reports — 8 to 16 — and loops over
+that count twice per draw call. This game never leaves unit 0: there is no `glActiveTexture`,
+`GL_TEXTURE0` or `glMultiTexCoord` anywhere in the tree. `pre.js` therefore sets
+`Module.GL_MAX_TEXTURE_IMAGE_UNITS` to 1 by default, and `?texunits=0` puts it back to asking
+WebGL, which is the arm to compare against. Measured on the menu's title demo, three
+interleaved runs of twenty seconds: the median frame **3.20 ms → 2.70**, its render half
+**2.40 → 2.00**, against a spread within an arm of 0.10 ms. The picture is untouched — 0 of
+512000 pixels differ.
+
+Two traps there. `Module.<anything>` has to be named in **`INCOMING_MODULE_JS_API`** or the
+start aborts; `build.sh` passes Emscripten's whole default list plus this one key, because
+naming the setting replaces it, and `-sFOO+=bar` is not a syntax emcc knows — at link time it
+is dropped without a word rather than refused. And the interval barely moved in that
+measurement, correctly: under swiftshader the frame rate is capped elsewhere, so the saving
+shows up as main-thread time and not as frames per second. On a phone, where the main thread
+*is* the limit, it is the same milliseconds either way.
+
 
 ## Architecture
 

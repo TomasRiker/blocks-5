@@ -523,6 +523,7 @@ int runTheGame(int argc,
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
 		else if(equalsNoCase(p_arg, "-noFBO")) engine.disableFrameBuffer();
 		else if(equalsNoCase(p_arg, "-noShader")) engine.disableShaders();
+		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
 	}
 
 	printfLog("Initializing engine ...\n");
