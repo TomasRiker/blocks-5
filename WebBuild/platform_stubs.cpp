@@ -84,7 +84,7 @@ extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
 // F5 - is a letter or a digit, and the gap therefore hit every one of them.
 //
 // The table is SDL 1.2.15's own, out of
-// libs/SDL-1.2.15/src/events/SDL_keyboard.c, which this tree ships and the
+// libs/sdl-1.2.15/src/events/SDL_keyboard.c, which this tree ships and the
 // Windows build compiles - both builds therefore name a key the same way. The
 // SDLK_WORLD_0..95 entries are missing because Emscripten brings SDL2 headers
 // with a 1.2 compatibility layer and does not declare them; they are the Latin-1

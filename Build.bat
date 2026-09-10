@@ -43,7 +43,7 @@ REM  directive at all. TinyXML 2.6.2 is now compiled from vendored source
 REM  instead and those libraries are gone, so the constraint is gone with them.
 REM
 REM  Getting off v120 needed one more thing, which the tree now has: SDL
-REM  compiled from source out of libs\SDL-1.2.15\src, in place of
+REM  compiled from source out of libs\sdl-1.2.15\src, in place of
 REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib, a pre-UCRT
 REM  library, imported __iob_func, which the Universal CRT removed, so it linked
 REM  only on v120; sdl.dll held the tree's last dependency on MSVCR120.

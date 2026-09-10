@@ -6,6 +6,44 @@ libs/bin/sdl.lib any more: sdl.dll was the last file in the tree that pulled in
 MSVCR120.dll, so it was the last reason the installer had to offer a Visual C++
 redistributable.
 
+LICENCE
+-------
+LGPL 2.1. The full text is in COPYING beside this file, byte-identical to the
+one in the upstream release; the per-file banner is at the head of every source,
+for example include/SDL.h:5-17.
+
+SDL is *statically* linked into blocks5.exe - the paragraph above is the whole
+reason - and that is worth a sentence, because static linking is the case LGPL
+2.1 section 6 puts terms on: whoever receives the program must be able to modify
+SDL and relink it.
+
+Those terms are met here, and the reason is the game's own licence rather than
+anything about SDL. Blocks 5 is GPL v3 (LICENSE.txt at the repository root), so
+the complete corresponding source of the whole program is published already, at
+https://github.com/TomasRiker/blocks-5, together with the vendored SDL sources
+exactly as they were compiled and a build system that turns the two into the
+executable from a fresh clone. That is more than section 6(a) asks for, not
+less, and LGPL 2.1 section 3 expressly allows an LGPL library to be taken under
+the GPL, which is what a GPL v3 program does with it. Build.bat is therefore
+part of the licence position and not only a convenience.
+
+Two things follow that are easy to get wrong later:
+
+1. It is the *publication* that does the work, not the linkage. If the sources
+ever stop being published, or the build stops working from a clean checkout,
+the static link stops being covered - and the fix would then be to ship sdl.dll
+and give up the single-DLL arrangement CLAUDE.md describes. Keeping the repo
+public is cheaper than that.
+
+2. shine is in exactly the same position - LGPL v2, compiled into the same
+executable - and OpenAL Soft is the dynamic case. readme.txt names all three,
+because section 6 wants the notice to travel with the copy the player receives,
+not to sit only in this file.
+
+SDL3 is zlib-licensed and retires the whole question; SDL3-MIGRATION.md at the
+repository root is the plan for getting there, and the licence is one of the
+arguments in it.
+
 Taken verbatim from the upstream release, tag release-1.2.15:
 
   https://github.com/libsdl-org/SDL-1.2   tag release-1.2.15
@@ -132,7 +170,7 @@ default driver is windib, exactly as before.
 
 BUILDING
 --------
-One include directory, libs/SDL-1.2.15/include, which the project already had.
+One include directory, libs/sdl-1.2.15/include, which the project already had.
 The sources use relative includes for everything internal.
 
 Two extra libraries, both from the Windows SDK, both named by SDL's own project:

@@ -129,7 +129,7 @@ alongside the window size and fullscreen state in `config.xml`.
 
 The game needs no Visual C++ redistributable, no system-wide OpenAL and no codec pack: the
 three executables link the CRT statically, SDL 1.2.15 is compiled in from
-`Blocks5/libs/SDL-1.2.15/src`, video recording writes H.264 and MP3 into an MP4 that Windows
+`Blocks5/libs/sdl-1.2.15/src`, video recording writes H.264 and MP3 into an MP4 that Windows
 plays out of the box, and the only DLL that ships is `Blocks5/OpenAL32.dll` — OpenAL Soft,
 whose only CRT import is `msvcrt.dll`, part of Windows, rather than a versioned runtime that
 would need a redistributable. Every vendored library under `Blocks5/libs` has a

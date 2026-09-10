@@ -39,6 +39,31 @@ While playing you can switch between full screen and windowed mode at any time
 with Alt+Enter.
 
 
+Licenses
+========
+Blocks 5 is free software: you can use it, study it, change it and pass it on,
+under the terms of the GNU General Public License, version 3. The full text is
+in LICENSE.txt. The complete source code - the game, every library it is built
+from, and the scripts that turn one into the other - is at
+
+    https://github.com/TomasRiker/blocks-5
+
+Three of those libraries are covered by the GNU Lesser (or Library) General
+Public License, and this is the notice that license asks for. You may modify
+any of them and relink Blocks 5 against your own version; everything you need
+in order to do that is at the address above, each library in its own folder
+under Blocks5/libs with its own COPYING file.
+
+    SDL 1.2.15     LGPL 2.1   compiled into blocks5.exe
+    shine          LGPL 2     compiled into blocks5.exe
+    OpenAL Soft    LGPL 2     shipped beside it, as OpenAL32.dll
+
+The others are used under permissive licenses, and are named here with thanks
+to the people who wrote them: zlib and TinyXML (zlib license), libogg and
+libvorbis (BSD), the Mersenne Twister (BSD), and minih264, minimp4, stb_image
+and sigslot (public domain).
+
+
 Changelog
 =========
 1.2.0 ... - Blocks 5 can now be played in a web browser, with no installation at

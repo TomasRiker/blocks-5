@@ -51,7 +51,7 @@ reasoning about the code, never a compiler run — the plumbing for them is stil
 (`/toolset:v120` skips the SDK property), but it is untried.
 
 **SDL itself is compiled from source**, all 67 files of the Win32 subset out of
-`libs/SDL-1.2.15/src` — the same set SDL's own `VisualC/SDL/SDL.vcproj` builds. It needs one
+`libs/sdl-1.2.15/src` — the same set SDL's own `VisualC/SDL/SDL.vcproj` builds. It needs one
 include directory, `winmm.lib` and `dxguid.lib` from the Windows SDK, and `DECLSPEC=` among
 the defines (`begin_code.h` guards it with `#ifndef` and would otherwise mark every entry
 point `__declspec(dllexport)`, which is wrong for a static build). Two files carry local
