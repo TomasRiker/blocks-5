@@ -39,7 +39,7 @@ void Hotel::onUpdate()
 	// Smoke
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
-	p.lifetime = random(30, 40);
+	p.lifetime = static_cast<ushort>(random(30, 40));
 	p.damping = 0.99f;
 	p.gravity = 0.005f;
 	p.positionOnTexture = Vec2b(0, 0);

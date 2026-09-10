@@ -85,7 +85,7 @@ void Bomb::onUpdate()
 					const int numTries = debris.getTryCount(random(30, 40));
 					for(int i = 0; i < numTries; i++)
 					{
-						p.lifetime = random(40, 80);
+						p.lifetime = static_cast<ushort>(random(40, 80));
 						p.damping = 0.95f;
 						p.gravity = 0.075f;
 						p.positionOnTexture = Vec2b(96, 0);
@@ -147,7 +147,7 @@ void Bomb::onUpdate()
 							int n = p_sprites->getTryCount(random(30, 40));
 							for(int i = 0; i < n; i++)
 							{
-								p.lifetime = random(40, 80);
+								p.lifetime = static_cast<ushort>(random(40, 80));
 								p.damping = 0.95f;
 								p.gravity = 0.075f;
 								p.positionOnTexture = Vec2b(96, 0);
@@ -194,7 +194,7 @@ void Bomb::onUpdate()
 				// fireball
 				for(int i = 0; i < 500; i++)
 				{
-					p.lifetime = random(100, 200);
+					p.lifetime = static_cast<ushort>(random(100, 200));
 					p.damping = 0.8f;
 					p.gravity = 0.0f;
 					p.positionOnTexture = Vec2b(32, 0);
@@ -216,7 +216,7 @@ void Bomb::onUpdate()
 				// core
 				for(int i = 0; i < 100; i++)
 				{
-					p.lifetime = random(100, 150);
+					p.lifetime = static_cast<ushort>(random(100, 150));
 					p.damping = 0.7f;
 					p.gravity = 0.0f;
 					p.positionOnTexture = Vec2b(64, 0);

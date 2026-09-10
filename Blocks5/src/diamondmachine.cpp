@@ -162,10 +162,10 @@ namespace
 	// The id for the sparks of one conversion. The high bit is always set:
 	// everything else in the game carries 0, and no id can therefore ever
 	// collide with ordinary particles - not even the very first one.
-	uint nextSparkId()
+	ushort nextSparkId()
 	{
 		static uint counter = 0;
-		return 0x80000000u | (++counter & 0x7FFFFFFFu);
+		return static_cast<ushort>(0x8000u | (++counter & 0x7FFFu));
 	}
 
 	// The distance travelled after n ticks, see above.
@@ -309,7 +309,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 						target.b * IN_BRIGHT, IN_ALPHA);
 
 		ParticleSystem::Particle p;
-		p.lifetime = static_cast<uint>(life);
+		p.lifetime = static_cast<ushort>(life);
 		p.damping = static_cast<float>(d);
 		p.gravity = 0.0f;
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
@@ -416,8 +416,7 @@ void DiamondMachine::abortConversion()
 		// is known, and what is left of it is lifetime.
 		uint elapsed = 0;
 		if(inward) elapsed = static_cast<uint>(p.color.a / p.deltaColor.a + 0.5f);
-		else if(p.lifetime < static_cast<uint>(OUT_LIFE))
-			elapsed = static_cast<uint>(OUT_LIFE) - p.lifetime;
+		else if(p.lifetime < OUT_LIFE) elapsed = OUT_LIFE - p.lifetime;
 
 		if(p.damping != 0.0f)
 		{
@@ -448,7 +447,7 @@ void DiamondMachine::abortConversion()
 		// One tick more than moves: the last update only counts down and
 		// erases, it no longer moves anything. And 0 would be fatal here - the
 		// counter is unsigned and would wrap.
-		p.lifetime = elapsed + 1;
+		p.lifetime = static_cast<ushort>(elapsed + 1);
 	}
 
 	sparkId = 0;
@@ -504,7 +503,7 @@ void DiamondMachine::onUpdate()
 						ParticleSystem* p_particleSystem = level.getParticleSystem();
 						ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 						ParticleSystem::Particle p;
-						p.lifetime = random(80, 120);
+						p.lifetime = static_cast<ushort>(random(80, 120));
 						p.damping = 0.99f;
 						p.gravity = 0.005f;
 						p.positionOnTexture = Vec2b(0, 0);

@@ -156,7 +156,7 @@ void Projectile::onUpdate()
 					// dust
 					for(int i = 0; i < 30; i++)
 					{
-						p.lifetime = random(25, 50);
+						p.lifetime = static_cast<ushort>(random(25, 50));
 						p.damping = 0.99f;
 						p.gravity = -0.005f;
 						p.positionOnTexture = Vec2b(0, 0);
@@ -177,7 +177,7 @@ void Projectile::onUpdate()
 					// glowing particles
 					for(int i = 0; i < 20; i++)
 					{
-						p.lifetime = random(80, 120);
+						p.lifetime = static_cast<ushort>(random(80, 120));
 						p.damping = 0.9f;
 						p.gravity = 0.1f;
 						p.positionOnTexture = Vec2b(32, 32);
@@ -202,7 +202,7 @@ void Projectile::onUpdate()
 						int n = p_sprites->getTryCount(random(30, 40));
 						for(int i = 0; i < n; i++)
 						{
-							p.lifetime = random(40, 70);
+							p.lifetime = static_cast<ushort>(random(40, 70));
 							p.damping = 0.9f;
 							p.gravity = 0.1f;
 							p.positionOnTexture = Vec2b(96, 0);

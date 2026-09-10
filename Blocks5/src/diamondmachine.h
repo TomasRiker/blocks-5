@@ -36,7 +36,7 @@ private:
 	// The id the inward sparks of this conversion are marked with; 0 while
 	// none is running. It is how abortConversion() finds them again in the
 	// particle system, where everything else in the game carries 0.
-	uint sparkId;
+	ushort sparkId;
 	int counter;
 	SoundInstance* p_soundInst;
 };

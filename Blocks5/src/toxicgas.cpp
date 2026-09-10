@@ -63,7 +63,7 @@ void ToxicGas::onUpdate()
 		ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 		ParticleSystem::Particle p;
 
-		p.lifetime = random(10, 20);
+		p.lifetime = static_cast<ushort>(random(10, 20));
 		p.damping = 0.96f;
 		p.gravity = -0.005f;
 		if(randomInt() % 2) p.positionOnTexture = Vec2b(0, 64);

@@ -235,7 +235,7 @@ void Lava::onUpdate()
 	if(!(randomInt() % 20))
 	{
 		// steam
-		p.lifetime = random(20, 30);
+		p.lifetime = static_cast<ushort>(random(20, 30));
 		p.damping = 0.9f;
 		p.gravity = -0.04f;
 		p.positionOnTexture = Vec2b(0, 0);
@@ -288,7 +288,7 @@ void Lava::onUpdate()
 					int n = debris.getTryCount(random(50, 80));
 					for(int i = 0; i < n; i++)
 					{
-						p.lifetime = random(60, 120);
+						p.lifetime = static_cast<ushort>(random(60, 120));
 						p.damping = 0.9f;
 						p.gravity = -0.1f;
 						p.positionOnTexture = Vec2b(96, 0);

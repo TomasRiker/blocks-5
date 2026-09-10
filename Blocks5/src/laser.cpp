@@ -170,7 +170,7 @@ void Laser::onUpdate()
 		int n = debris.getTryCount(random(50, 80));
 		for(int i = 0; i < n; i++)
 		{
-			p.lifetime = random(60, 120);
+			p.lifetime = static_cast<ushort>(random(60, 120));
 			p.damping = 0.9f;
 			p.gravity = -0.1f;
 			p.positionOnTexture = Vec2b(96, 0);
@@ -311,7 +311,7 @@ void Laser::onUpdate()
 			if(!(counter % 2))
 			{
 				// smoke
-				p.lifetime = random(70, 100);
+				p.lifetime = static_cast<ushort>(random(70, 100));
 				p.damping = 0.99f;
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
@@ -330,7 +330,7 @@ void Laser::onUpdate()
 			if(!(counter % 4))
 			{
 				// glowing particles
-				p.lifetime = random(80, 120);
+				p.lifetime = static_cast<ushort>(random(80, 120));
 				p.damping = 0.9f;
 				p.gravity = 0.1f;
 				p.positionOnTexture = Vec2b(32, 32);
@@ -356,7 +356,7 @@ void Laser::onUpdate()
 				int n = p_sprites->getTryCount(random(50, 80));
 				for(int i = 0; i < n; i++)
 				{
-					p.lifetime = random(60, 120);
+					p.lifetime = static_cast<ushort>(random(60, 120));
 					p.damping = 0.9f;
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
