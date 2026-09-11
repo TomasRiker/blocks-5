@@ -1674,6 +1674,14 @@ void Engine::update()
 	TestHooks::pollRequests();
 #endif
 
+	// The on-screen pad labels its buttons with the names of the keys they
+	// send, and those names are translated, so it has to be told which
+	// language the game settled on. Asked here rather than pushed from the
+	// places that assign it, because there are four of them - the detection,
+	// the config, the options dialog and the string-table fallback - and a
+	// fifth would be added one day without a call.
+	publishLanguage();
+
 	// update the virtual keys and actions
 	updateVKs();
 
@@ -3878,6 +3886,26 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 		crossfadeTime = -0.5;
 	}
+}
+
+// Tells the page's on-screen pad which language to label its buttons in. A
+// static and not a member because it is the memory of one singleton talking to
+// one page, and it keeps the string from crossing into JavaScript every tick
+// for the whole run. Nothing outside the browser has a pad to tell.
+void Engine::publishLanguage()
+{
+#ifdef __EMSCRIPTEN__
+	static std::string published;
+	if(language == published) return;
+	published = language;
+
+	EM_ASM({
+		if(typeof window.b5_setPadLanguage === 'function')
+		{
+			window.b5_setPadLanguage(UTF8ToString($0));
+		}
+	}, language.c_str());
+#endif
 }
 
 std::string Engine::detectSystemLanguage()

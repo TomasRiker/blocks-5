@@ -1510,6 +1510,54 @@ exactly what keeps `oldCursor` current. CDP dispatches a `mousePressed` with no
 `mouseMoved` before it, which is the shape a touch has. Measured against the
 unfixed build, a three-cell drag painted 30 cells; four after.
 
+40. A pad button says which key it sends; it does not say what that does
+------------------------------------------------------------------------
+The on-screen pad's six buttons are labelled `Shift`, `Ctrl`, `Tab`, `F5`, `F10`
+and `Esc` - the keys they dispatch - and not `Bomb`, `Put`, `Swap`, `Retry`,
+`Hotel` and `Menu`, which is what they used to say. The reason is that the label
+has to be true, and only one of the two always is: the pad sends a **fixed** key
+(`KEYS` in `WebBuild/touch_controls.js`) and the game's action layer maps it, so
+a rebinding in the options dialog moves the meaning and leaves the key alone. A
+button reading `Bomb` after the player has bound something else to Shift is
+simply wrong, and nothing would ever correct it. The other half of the argument
+is that the game goes on naming keys by name - in the hints, in the help table,
+in the options dialog - and a thumb should be able to find the button that
+sentence is talking about. The words are the game's own, shortened from
+`$VK_KEYBOARD_LCTRL` and its neighbours in `data/languages.txt`, and they follow
+the language the game settled on rather than the browser's, through
+`Engine::publishLanguage()`.
+
+What is missing is the *other* information, which the old labels did carry: what
+the key is for. The answer is a symbol beside the name rather than instead of
+it - a fused bomb on the key bound to `$A_PLANT_BOMB`, an inert one on
+`$A_PUT_DOWN_BOMB`, three figures with arrows between them on
+`$A_SWITCH_CHARACTER`. A picture needs no translating, which is the same reason
+the four arrows of the d-pad are drawn and not written (`.b5arrow`, and it keeps
+that file plain ASCII).
+
+Two things to settle first, and the second is the real work:
+
+- **Where the art comes from.** The pad is DOM and not GL, so it cannot sample
+  the sprite sheet the game draws from - and the sheet is inside `data.zip`
+  behind its password anyway, which no page script can open. So these are new
+  drawings, inline in the page as SVG or as a data URI, in the idiom
+  `WebBuild/make_icon.py` and `make_text.py` already use for the icons and the
+  boot line: generated at build time from something committed, never fetched.
+
+- **Which button gets which symbol.** That is a question about the *current*
+  bindings, and the pad does not know them - by design, since not knowing is
+  exactly what lets a rebinding work for free. Baking the symbol to the default
+  binding would reintroduce the lie the key names were chosen to avoid, only in
+  a form that cannot be read off the screen. So the pad needs the bindings
+  pushed to it, which is the channel `publishLanguage()` has just opened: the
+  same idea, carrying `$A_*` names per key instead of a language, republished
+  whenever the options dialog changes one. Until that exists the symbols would
+  be decoration that is right by luck.
+
+Item 22 (tap radius) is the neighbour: both are about a button a finger has to
+find, one by size and this one by what it says.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1542,6 +1590,10 @@ How these connect
    38 (gestures) <──> 39 (editor strokes, done): both are code that is correct
                       only because a mouse never teleports. 39 is fixed; 38 has
                       to leave the editor's field painting rather than scrolling
+
+   22 (tap radius) <──> 40 (pad labels): a button a finger has to find, by size
+                      and by what it says. 40's symbols wait on the bindings
+                      being pushed to the page, which publishLanguage() started
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was

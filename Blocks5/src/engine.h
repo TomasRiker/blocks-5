@@ -351,6 +351,7 @@ public:
 	// What the system speaks, boiled down to "de" or "en". Asked only where
 	// config.xml names no language at all - see loadConfig().
 	static std::string detectSystemLanguage();
+	void publishLanguage();
 	double getSoundVolume() const;
 	void setSoundVolume(double soundVolume);
 	double getMusicVolume() const;

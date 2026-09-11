@@ -28,13 +28,49 @@
     right:  { key: 'ArrowRight', code: 'ArrowRight',  keyCode: 39 },
     up:     { key: 'ArrowUp',    code: 'ArrowUp',     keyCode: 38 },
     down:   { key: 'ArrowDown',  code: 'ArrowDown',   keyCode: 40 },
-    bomb:   { key: 'Shift',      code: 'ShiftLeft',   keyCode: 16 },
-    put:    { key: 'Control',    code: 'ControlLeft', keyCode: 17 },
-    swap:   { key: 'Tab',        code: 'Tab',         keyCode: 9  },
-    retry:  { key: 'F5',         code: 'F5',          keyCode: 116 },
-    hotel:  { key: 'F10',        code: 'F10',         keyCode: 121 },
-    menu:   { key: 'Escape',     code: 'Escape',      keyCode: 27 }
+    shift:  { key: 'Shift',      code: 'ShiftLeft',   keyCode: 16 },
+    ctrl:   { key: 'Control',    code: 'ControlLeft', keyCode: 17 },
+    tab:    { key: 'Tab',        code: 'Tab',         keyCode: 9  },
+    f5:     { key: 'F5',         code: 'F5',          keyCode: 116 },
+    f10:    { key: 'F10',        code: 'F10',         keyCode: 121 },
+    esc:    { key: 'Escape',     code: 'Escape',      keyCode: 27 }
   };
+
+  // What each button says, and it says which key it sends rather than what
+  // that key does. The pad dispatches a fixed key and the action layer maps
+  // it, so a rebinding in the options dialog changes the meaning and not the
+  // label - and the game goes on naming these keys by name in its hints, its
+  // help table and the options dialog, so the button a thumb is on has to
+  // read the same as the sentence that mentions it.
+  //
+  // The words are the game's own, from data/languages.txt, shortened: its
+  // $VK_KEYBOARD_LCTRL is "Left Ctrl" / "Strg links", which no round button
+  // can hold and which would claim a side the pad does not have. Every
+  // language is spelled out even where two of them agree, because a third one
+  // will not, and a map with holes in it is where that goes wrong.
+  //
+  // The four arrows stay symbols: they are drawn, not written, and an arrow
+  // needs no translating. ROADMAP item 40 is the other half of this - a
+  // symbol for the action beside the name of the key.
+  var LABELS = {
+    en: { shift: 'Shift', ctrl: 'Ctrl', tab: 'Tab', f5: 'F5', f10: 'F10', esc: 'Esc' },
+    de: { shift: 'Shift', ctrl: 'Strg', tab: 'Tab', f5: 'F5', f10: 'F10', esc: 'Esc' }
+  };
+
+  // The game decides, and says so through Engine::publishLanguage() as soon as
+  // it knows - which is after this file has run and again whenever the options
+  // dialog changes it. Until then, the same walk over navigator.languages that
+  // Engine::detectSystemLanguage and the boot screen make, so the pad is never
+  // unlabelled and is already right for almost everybody.
+  function detectLanguage() {
+    var list = navigator.languages || [navigator.language || ''];
+    for (var i = 0; i < list.length; i++) {
+      var tag = String(list[i] || '').toLowerCase();
+      if (tag.indexOf('de') === 0) return 'de';
+      if (tag.indexOf('en') === 0) return 'en';
+    }
+    return 'en';
+  }
 
   // A finger can lift faster than the game looks. Engine::update runs every
   // 20 ms and samples the keyboard once per run, so a press shorter than that
@@ -107,10 +143,9 @@
   var style = document.createElement('style');
   style.textContent = CSS;
 
-  function button(name, label, big) {
+  function button(name, big) {
     var b = document.createElement('div');
     b.className = 'b5btn' + (big ? ' b5big' : '');
-    b.textContent = label;
     var id = null;
     b.addEventListener('pointerdown', function (e) {
       e.preventDefault();
@@ -191,15 +226,32 @@
   dpad.addEventListener('pointerup', dpadUp);
   dpad.addEventListener('pointercancel', dpadUp);
 
-  var bBomb  = button('bomb',  'Bomb', true);
-  var bPut   = button('put',   'Put',  true);
-  // Swap belongs with the gameplay buttons, not with the three careful ones:
-  // round and large like Bomb and Put, and on the far side of the screen from
-  // Retry and Hotel.
-  var bSwap  = button('swap',  'Swap', true);
-  var bRetry = button('retry', 'Retry');
-  var bHotel = button('hotel', 'Hotel');
-  var bMenu  = button('menu',  'Menu');
+  // Created empty and labelled a line later, so that there is exactly one
+  // place where a label is chosen.
+  var bShift = button('shift', true);
+  var bCtrl  = button('ctrl',  true);
+  // Tab switches character: a gameplay button, not one of the three careful
+  // ones, so it is round and large like the other two and sits on the far
+  // side of the screen from F5.
+  var bTab   = button('tab',   true);
+  var bF5    = button('f5');
+  var bF10   = button('f10');
+  var bEsc   = button('esc');
+
+  var BUTTONS = { shift: bShift, ctrl: bCtrl, tab: bTab, f5: bF5, f10: bF10, esc: bEsc };
+
+  // Called by the engine through window.b5_setPadLanguage as well; an unknown
+  // language falls back to English exactly as localizeString does.
+  function setPadLanguage(lang) {
+    var map = LABELS[lang] || LABELS.en;
+    for (var name in BUTTONS) {
+      if (Object.prototype.hasOwnProperty.call(BUTTONS, name)) {
+        BUTTONS[name].textContent = map[name];
+      }
+    }
+  }
+  window.b5_setPadLanguage = setPadLanguage;
+  setPadLanguage(detectLanguage());
 
   // --- layout --------------------------------------------------------------
   // The same arithmetic the game uses in computePresentRect: the picture is
@@ -246,28 +298,30 @@
     }
     ['up', 'down', 'left', 'right'].forEach(function (d) { arrow(arrows[d], d); });
 
-    // Right, low: the two the thumb rests on. Bomb is the nearer one.
+    // Right, low: the two the thumb rests on. Shift, which plants a bomb by
+    // default, is the nearer one.
     var rRight = inBars ? Math.round((bar - big) / 2) : m;
     var by = Math.round(h - big - Math.max(m, h * 0.06));
-    bBomb.style.right = rRight + 'px'; bBomb.style.top = by + 'px';
-    bBomb.style.width = big + 'px'; bBomb.style.height = big + 'px';
-    bPut.style.right = (rRight + Math.round(big * 0.20)) + 'px';
-    bPut.style.top = (by - big - m) + 'px';
-    bPut.style.width = big + 'px'; bPut.style.height = big + 'px';
+    bShift.style.right = rRight + 'px'; bShift.style.top = by + 'px';
+    bShift.style.width = big + 'px'; bShift.style.height = big + 'px';
+    bCtrl.style.right = (rRight + Math.round(big * 0.20)) + 'px';
+    bCtrl.style.top = (by - big - m) + 'px';
+    bCtrl.style.width = big + 'px'; bCtrl.style.height = big + 'px';
 
     // Left, above the d-pad: switching the character. It is a move you make
     // mid-level and often, so it wants a thumb that is already on this side -
-    // and it must not sit anywhere near Retry, which throws that level away.
+    // and it must not sit anywhere near F5, which throws that level away.
     var sx = lx + Math.round((pad - big) / 2);
     var sy = Math.max(m, ly - big - m);
-    bSwap.style.left = sx + 'px'; bSwap.style.top = sy + 'px';
-    bSwap.style.width = big + 'px'; bSwap.style.height = big + 'px';
+    bTab.style.left = sx + 'px'; bTab.style.top = sy + 'px';
+    bTab.style.width = big + 'px'; bTab.style.height = big + 'px';
 
-    // Right, high and out of the way: the ones a mistake would hurt. Retry and
-    // Hotel side by side under Menu, because those two are the pair.
+    // Right, high and out of the way: the ones a mistake would hurt. F5 and
+    // F10 side by side under Esc, because those two are the pair - restart the
+    // level, and restart from the hotel.
     var gx = inBars ? Math.round((bar - (2 * small + m)) / 2) : m;
     var gy = Math.max(m, Math.round(h * 0.05));
-    [[bMenu, 0, 0], [bRetry, 0, 1], [bHotel, 1, 1]].forEach(function (t) {
+    [[bEsc, 0, 0], [bF5, 0, 1], [bF10, 1, 1]].forEach(function (t) {
       var el = t[0];
       el.style.right = (gx + t[1] * (small + m)) + 'px';
       el.style.top = (gy + t[2] * (small + m)) + 'px';
