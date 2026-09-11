@@ -134,9 +134,27 @@ echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 # default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
 # campaign, saving progress - clobbered the stack and trapped with "table index
 # is out of bounds". Reads were unaffected, which is why it stayed hidden.
+# Which Module.* properties the runtime will accept. It has to be given whole:
+# "+=" is not a syntax emcc knows, and at link time it is dropped without a
+# word rather than refused, so the build succeeds and the setting does nothing.
+# Everything before the last entry is Emscripten's own default list (emsdk
+# 6.0.8, src/settings.js) - naming it replaces it, so a key Emscripten adds
+# later would be dropped here. That fails loudly and not quietly: with
+# ASSERTIONS on, a Module property nobody allowed aborts the start and names
+# itself.
+#
+# The last entry is ours. GL_MAX_TEXTURE_IMAGE_UNITS tells the GL emulation how
+# many texture units to keep state for, and pre.js sets it from ?texunits=N so
+# that both arms of a comparison are one binary. See WebBuild/test/perf.js.
+INCOMING_MODULE_JS_API="ENVIRONMENT,arguments,canvas,dynamicLibraries,elementPointerLock,\
+instantiateWasm,locateFile,monitorRunDependencies,noExitRuntime,noInitialRun,onAbort,onExit,\
+onRuntimeInitialized,postRun,preInit,preRun,print,printErr,setStatus,statusMessage,stderr,\
+stdin,stdout,thisProgram,wasm,websocket,GL_MAX_TEXTURE_IMAGE_UNITS"
+
 em++ $OBJS -o "$OUT/blocks5.html" \
   -O2 -sASSERTIONS=1 -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
+  -sINCOMING_MODULE_JS_API="$INCOMING_MODULE_JS_API" \
   -Wl,--wrap=SDL_CreateRGBSurface \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=50331648 \
   -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \

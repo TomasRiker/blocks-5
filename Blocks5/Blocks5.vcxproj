@@ -698,6 +698,7 @@
     <ClCompile Include="src\file_real.cpp" />
     <ClCompile Include="src\filesystem.cpp" />
     <ClCompile Include="src\font.cpp" />
+    <ClCompile Include="src\framestats.cpp" />
     <ClCompile Include="src\gamestate.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\gui_button.cpp" />
@@ -832,6 +833,7 @@
     <ClInclude Include="src\file_real.h" />
     <ClInclude Include="src\filesystem.h" />
     <ClInclude Include="src\font.h" />
+    <ClInclude Include="src\framestats.h" />
     <ClInclude Include="src\gamestate.h" />
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\gui_all.h" />

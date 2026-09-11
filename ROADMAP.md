@@ -1447,6 +1447,69 @@ Two things settled while planning, kept because they are cheap to lose and expen
   is a preference and SDL3 is the goal, which is what makes the retreat in the plan real.
 
 
+38. A finger cannot scroll a list
+----------------------------------
+`GUI_ListBox` scrolls two ways and a phone has neither. `onMouseWheel`
+(`gui_listbox.cpp:133`) needs a wheel, and the `GUI_ScrollBar` the constructor
+puts down the right-hand edge (`:12`) is **16 pixels wide** - a quarter of the
+48-pixel target a finger wants, and at a 2x window still only 32 device pixels.
+A touch on the list body goes to `onMouseDown` (`:101`), which selects the item
+under it and nothing else. So on a phone the entries past the bottom of the box
+are reachable only by hitting a 16-pixel bar.
+
+Three lists carry real content: the campaign list in the select screen, the
+action list in the options, and the Manager's file list, which is as long as the
+player's folder.
+
+What is missing is a *gesture* layer, and that is the item rather than the list
+box alone. The GUI knows down, up, move and wheel; a touch surface wants at
+least drag-to-scroll with the press held back until the finger has moved less
+than a threshold - otherwise every scroll also selects whatever it started on -
+and probably a fling with friction after it, since the whole point is to cross a
+long list quickly. Both belong above `GUI_ListBox`: a multi-line edit box and
+the level editor's own field want the same distinction between a tap and a drag.
+
+Two things to settle first:
+
+- **Where the threshold lives.** `GUI::update()` already has the answer to "did
+  the pointer move" and holds `p_elementAtCursor`; a drag that has passed the
+  threshold has to reach the element as something other than a click, which
+  means a new event and not a flag on the old one.
+- **What a scrollbar is for afterwards.** Once the body scrolls, the bar is a
+  position indicator that could stop being a control - which frees its 16
+  pixels, and would be the first widget in the tree drawn for a phone rather
+  than for a mouse.
+
+
+39. The level editor paints a line to wherever the finger last was  - **DONE**
+-------------------------------------------------------------------------------
+`LevelEditorGUI::onMouseMove` interpolates with `bresenham(oldCursor, p)`
+(`gs_leveleditor.cpp:385`) so that dragging faster than the events arrive still
+leaves a continuous stroke rather than a dotted one. `oldCursor` was never
+cleared when the button was released - invisible with a mouse, because the
+button-less moves between two strokes keep it under the pointer by themselves,
+and with a finger a line from the end of one stroke to the start of the next.
+Same shape as the two touch bugs already fixed in `GUI::update()` and
+`Engine::cursorPosition`: code that was correct only because a mouse never
+teleports.
+
+`onMouseDown` now sets it, and three things about that must not be undone:
+
+- **The `realDown` guard.** `onMouseMove` calls `onMouseDown` for every cell of
+  the interpolated line with the flag false. Resetting on those would undo the
+  interpolation it is there to perform.
+- **The press and not the release.** A touch can be cancelled without an up ever
+  arriving; a press starts a stroke whatever came before it.
+- **The press position and not `Vec2i(-1, -1)`.** The sentinel makes the first
+  move of a stroke start from wherever that move landed, which loses the cells
+  between it and the press - the very gap the interpolation exists to fill.
+
+`WebBuild/test/editorstroke.js` is the check, and it has to be a browser: a
+mouse cannot reproduce this at all, since moving the pointer somewhere is
+exactly what keeps `oldCursor` current. CDP dispatches a `mousePressed` with no
+`mouseMoved` before it, which is the shape a touch has. Measured against the
+unfixed build, a three-cell drag painted 30 cells; four after.
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1475,6 +1538,10 @@ How these connect
 
    30 (skin sounds) <──> 32 (hint sound): the paper one belongs to the skin
                       that brings the paper, so 32 is 30's first real caller
+
+   38 (gestures) <──> 39 (editor strokes, done): both are code that is correct
+                      only because a mouse never teleports. 39 is fixed; 38 has
+                      to leave the editor's field painting rather than scrolling
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was

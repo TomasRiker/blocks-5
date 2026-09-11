@@ -26,6 +26,15 @@ extern "C"
 		EM_ASM({ Module["b5_test"] = UTF8ToString($0); }, json.c_str());
 	}
 
+	// Where a measurement begins. The dump reports the frame timings without
+	// clearing them, since the -perf overlay reads the same numbers all the
+	// time; a test therefore says when its window opens instead of letting
+	// the reading decide.
+	EMSCRIPTEN_KEEPALIVE void blocks5_testResetStats(void)
+	{
+		TestHooks::resetStats();
+	}
+
 	// On its own and not as a field in the dump: for a toggle containsPoint()
 	// measures the width of its caption, and doing that per element for every
 	// element would be forty thousand measurements at two hundred elements.

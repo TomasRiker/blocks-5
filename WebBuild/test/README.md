@@ -109,6 +109,85 @@ coordinate but in the game.
     elements     per element: path, type, rect (game coordinates),
                  win (window coordinates), visible, shown, active
 
+## What a frame costs
+
+    WebBuild/build.sh hooks && node test/perf.js
+    B5_WINDOW=30 B5_REPEATS=5 node test/perf.js
+    node test/perf.js "?texunits=0" "?texunits=1" "?texunits=8"
+
+Every number is milliseconds of wall clock on the main thread, out of
+`FrameStats` in the game and through the test hook's `frames`. `render` and
+`present` are what *issuing* the draw calls costs, not what drawing them does.
+
+**In the browser nothing here sees the GPU at all.** `SDL_GL_SwapBuffers` is
+`Browser.doSwapBuffers?.()`, undefined off a worker, so `swap` measures 0.00;
+`glFinish` after render returns in 0.02 ms; and the page composites the canvas
+after the callback returns, outside every window this can time. What is left is
+exactly main-thread CPU, which is the half that starves the audio and the only
+half a setting like `GL_MAX_TEXTURE_IMAGE_UNITS` can move. It is no measure of
+the hardware: **`interval` minus `total` is what is left for that**, so a frame
+rate that falls while `total` stays flat is time going somewhere this cannot
+see.
+
+(Natively it is the opposite - the driver flushes inside `present` or `swap`,
+whichever it picks, so those two are one number there and mostly the
+rasterizer. `../../CLAUDE.md` has the measurements.)
+
+Two things about the method are the point of it:
+
+- **The arms are query strings, not builds.** `pre.js` reads the knobs off the
+  address, so both sides of a comparison are the same binary in the same
+  browser and nothing about the link can differ between them.
+- **They are interleaved, not run in blocks.** A machine that warms up or
+  throttles part-way through then hands that to both arms instead of to one.
+
+The scene is the menu's own title demo: a whole level animating plus the GUI,
+with no navigation to go wrong. It is not deterministic - bombs go off when
+they go off - so the report gives every repeat and the spread between them, and
+says outright when a difference is smaller than the spread within a single arm.
+
+`emscripten_get_now()` is coarsened by the browser to about a tenth of a
+millisecond, which is why the numbers land on those boundaries. A difference of
+one step is quantisation and not a result; the texunits comparison moved five.
+
+A knob that changes the timing has to be shown not to change the picture. The
+level editor is the scene for that - the busiest screen that does not animate -
+and two screenshots of it under the two arms should be pixel for pixel the
+same.
+
+
+## A pointer that teleports
+
+    B5_SHOTS=/tmp/blocks5-editor node editorstroke.js
+
+The level editor interpolates between the previous cursor cell and this one, so
+that dragging faster than the events arrive still leaves a continuous stroke.
+That makes it the one place where a **finger** and a mouse are not the same
+input: a mouse cannot lift at one corner and press at the other without moving
+across everything in between, and moving is exactly what keeps the previous cell
+current.
+
+`page.mouse.down()` presses wherever the last `move` left the pointer, so
+Playwright's own API can never produce the case. CDP can:
+
+    cdp.send('Input.dispatchMouseEvent',
+             { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 })
+
+with no `mouseMoved` before it. That is the shape a touch delivers, and the game
+sees it as one too, because both button events take their position from the
+event rather than from the last motion.
+
+The verdict comes off the picture, since no hook reports the level's tiles and
+the canvas is WebGL without `preserveDrawingBuffer` - `drawImage` after a frame
+hands back an empty image. `count_painted.py` reads the screenshot instead and
+counts the 16x16 cells that differ from the median of all of them, which
+calibrates itself against whatever the empty field looks like rather than
+naming a colour.
+
+Two strokes of three cells are drawn far apart. Both must paint about four
+cells; a stroke that paints thirty has drawn a line back to where the last one
+ended.
+
 ## Measuring an effect in the picture
 
 The hooks see only the GUI tree. Whether an effect in the level is really

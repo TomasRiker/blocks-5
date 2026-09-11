@@ -4,6 +4,7 @@
 /*** The Engine class ***/
 
 #include "parameterblock.h"
+#include "framestats.h"
 
 class GameState;
 class SoundInstance;
@@ -91,6 +92,7 @@ public:
 
 	std::string getBestOpenALDevice();
 	void drawOverlays();
+	void drawPerformance();
 	// false where no image could be produced. In the browser it goes to the
 	// player as a download instead of as a file in the user directory.
 	bool screenshot();
@@ -147,6 +149,15 @@ public:
 	// as well.
 	void disableFrameBuffer() { frameBufferDisabled = true; }
 	void disableShaders() { shadersDisabled = true; }
+
+	// -perf: put what the last few hundred frames cost on the screen. The
+	// timings are recorded either way - four clock reads a frame - and this
+	// only decides whether anybody sees them. It is how the numbers are read
+	// on a phone, where there is no console and no test harness; in a desktop
+	// browser the same numbers come out of the test hook instead, without the
+	// overlay's own cost landing in the picture.
+	void showPerformance() { performanceShown = true; }
+	bool isPerformanceShown() const { return performanceShown; }
 	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
 	// Forget everything that has piled up in keys and mouse buttons: after
 	// anything that stopped the main loop, the input state is useless.
@@ -321,6 +332,8 @@ public:
 	void setLogicRate(uint logicRate);
 	uint getFrameTime() const;
 	uint getTime() const;
+
+	FrameStats& getFrameStats() { return frameStats; }
 
 	const Vec2i& getScreenSize() const;
 	const Vec2i& getScreenPow2Size() const;
@@ -511,6 +524,13 @@ private:
 	std::unordered_map<std::string, GameState*> gameStates;
 	std::stack<GameState*> currentGameStates;
 	uint frameTime;
+	FrameStats frameStats;
+	bool performanceShown;
+	// The start of the previous turn of the main loop, for the interval
+	// between two. A member and not a static in the loop, because in the
+	// browser one turn is one call and nothing may live on the stack between
+	// them.
+	double lastFrameBegin;
 	uint time;
 	Vec2i screenSize;
 	Vec2i screenPow2Size;

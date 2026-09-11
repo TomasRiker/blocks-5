@@ -222,7 +222,7 @@ bool StreamedSound::update()
 }
 
 // One pass through the OpenAL queue: collect what has been played and refill
-// it. Under Windows/Linux the decoder thread calls this every ten milliseconds;
+// it. Under Windows/Linux the decoder thread calls this on its own interval;
 // in the browser there are no threads, and update() does it every logic tick.
 void StreamedSound::pumpBuffers()
 {
@@ -302,6 +302,11 @@ void StreamedSound::joinDecoderThread()
 
 #else
 
+// How long the decoder thread sleeps between two passes, and the floor that
+// caps how far the pitch below may shorten it.
+static const uint PUMP_INTERVAL = 100;
+static const uint PUMP_INTERVAL_MIN = 10;
+
 void StreamedSound::startDecoderThread()
 {
 	// The semaphore belongs to this one run and is created and cleaned up
@@ -330,13 +335,30 @@ int StreamedSound::threadProc()
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 
 	// The wait doubles as the stop signal: SDL_SemWaitTimeout returns
-	// SDL_MUTEX_TIMEDOUT once the ten milliseconds have passed, and 0 as soon
-	// as joinDecoderThread() has posted. Anything else (-1) is an error and
-	// ends the thread as well.
+	// SDL_MUTEX_TIMEDOUT once the interval has passed, and 0 as soon as
+	// joinDecoderThread() has posted. Anything else (-1) is an error and ends
+	// the thread as well. Stopping is therefore as prompt as the post is,
+	// however long the interval between two passes.
 	while(!finish)
 	{
 		pumpBuffers();
-		if(SDL_SemWaitTimeout(p_stopSignal, 10) != SDL_MUTEX_TIMEDOUT) break;
+
+		// The queue is four buffers of a quarter second, so one falls free
+		// every 250 ms and a pass leaves the other 750 ms still standing ahead
+		// of the play cursor. Pitch is what turns that into a range rather than
+		// a number: it resamples, so a source at 2x eats the queue twice as
+		// fast, and dividing keeps the margin the same fraction of the queue
+		// whatever the pitch. Only upward - below 1 a buffer lasts longer than
+		// it does here, and waiting longer for it would buy nothing and make
+		// the restart of a dry queue look sluggish. Asked of OpenAL and not
+		// read off the member, which belongs to the main thread.
+		float sourcePitch = 1.0f;
+		alGetSourcef(sourceID, AL_PITCH, &sourcePitch);
+		uint interval = PUMP_INTERVAL;
+		if(sourcePitch > 1.0f)
+			interval = max(PUMP_INTERVAL_MIN, static_cast<uint>(PUMP_INTERVAL / sourcePitch));
+
+		if(SDL_SemWaitTimeout(p_stopSignal, interval) != SDL_MUTEX_TIMEDOUT) break;
 	}
 
 	return 0;
