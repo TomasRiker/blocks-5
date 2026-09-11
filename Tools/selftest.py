@@ -24,9 +24,16 @@ VERIFY = os.path.join(ROOT, 'Tools', 'verify.py')
 
 
 def run_check(name):
+    """Whether the check reported something, and what it said.
+
+    A check that throws is reported by verify.py as one finding and exits 1,
+    which would otherwise read here exactly like the fault being caught - so an
+    injection that merely breaks the check would pass this script."""
     out = subprocess.run([sys.executable, VERIFY, '--only', name],
                          capture_output=True, text=True, cwd=ROOT)
-    return out.returncode != 0, out.stdout
+    if 'the check itself failed' in out.stdout:
+        return False, out.stdout
+    return out.returncode == 1, out.stdout
 
 
 class Patch(object):
@@ -39,11 +46,17 @@ class Patch(object):
     def __enter__(self):
         self.original = open(self.path, 'rb').read()
         st = os.stat(self.path)
-        self.times = (st.st_atime, st.st_mtime)
+        # Nanoseconds, not the float seconds: st_mtime near 1.8e9 has a ulp of
+        # about 240 ns, and the harness's age check compares with find -newer,
+        # which is exact. Putting a file back a hair *newer* than it was is the
+        # one direction that costs a rebuild.
+        self.times = (st.st_atime_ns, st.st_mtime_ns)
         return self
 
     def replace(self, old, new):
-        text = self.original.decode('latin-1')
+        # From what is on disk, not from self.original: a case may inject twice,
+        # and reading the pristine bytes each time would undo the first edit.
+        text = io.open(self.path, encoding='latin-1', newline='').read()
         assert text.count(old) >= 1, 'pattern not found in %s: %r' % (self.rel, old[:60])
         io.open(self.path, 'w', encoding='latin-1', newline='').write(text.replace(old, new, 1))
 
@@ -61,16 +74,20 @@ class Patch(object):
         # here counts afterwards as younger than everything built from it: the
         # next build recompiles half the tree, and the test harness's age check
         # fires for no reason.
-        os.utime(self.path, self.times)
+        os.utime(self.path, ns=self.times)
         return False
 
 
 CASES = []
 
 
-def case(name, rel):
+def case(name, rel, quiet=False):
+    """Register an injection for `name`. Normally it is a fault and the check
+    has to report it; with quiet=True it is a legitimate edit and the check has
+    to stay silent, which is the other half of a check being worth keeping. A
+    check nobody can refactor around gets deleted rather than fixed."""
     def wrap(fn):
-        CASES.append((name, rel, fn))
+        CASES.append((name, rel, fn, quiet))
         return fn
     return wrap
 
@@ -92,7 +109,7 @@ def c_version(p):
 
 @case('gui_paths', 'Blocks5/src/gs_menu.cpp')
 def c_gui(p):
-    p.replace('"Menu.Quit"', '"Menu.Qiut"')
+    p.replace('gui["Menu.Quit"]', 'gui["Menu.Qiut"]')
 
 
 @case('strings', 'Blocks5/src/gs_menu.cpp')
@@ -184,37 +201,117 @@ def c_gl_state_wrapped(p):
     p.replace('GLState::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
 
 
-# A flush inside an if() says nothing about the code after that block. This is
-# the shape player.cpp has - its only flush sits inside if(censored).
-@case('sprite_batch', 'Blocks5/src/player.cpp')
-def c_sprite_batch_scope(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tif(layer == RL_MAIN)\n\t{\n\t\tEngine::inst().renderSprites(sprites, color);\n\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n\t}')
-
-
-# A free helper at column 0 is a new function too, and must not inherit the
-# flush of the member above it.
+# A flush covers only as far as the block it stands in. A loop body is the
+# shape that isolates the rule: the branches of an if/else chain are read as
+# alternatives, so a flush in one of those is a different question.
 @case('sprite_batch', 'Blocks5/src/lava.cpp')
+def c_sprite_batch_scope(p):
+    p.replace('\t\tEngine::inst().flushSprites();',
+              '\t\tfor(int pass = 0; pass < 1; pass++)\n\t\t{\n\t\t\tEngine::inst().flushSprites();\n\t\t}')
+
+
+# A helper is a new function and must not inherit the flush of the one above
+# it. Texture::bind() is the one that ends flushed, so it is what the case has
+# to follow for the inheritance to be the thing under test.
+@case('sprite_batch', 'Blocks5/src/texture.cpp')
 def c_sprite_batch_helper(p):
-    p.replace('void Lava::onUpdate()',
-              'static void drawBubble()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Lava::onUpdate()')
+    p.replace('void Texture::unbind() const',
+              'static void drawBlob()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Texture::unbind() const')
 
 
-# Queue and draw on one line: the draw comes after the queue and is not covered
-# by whatever flushed before it.
+# The same helper one level in, inside an anonymous namespace - the idiom
+# hint.cpp, font.cpp and diamondmachine.cpp already use - and placed right
+# after an exempt function, which is what it would silently inherit if a line
+# walk looked only at column 0 for a new one.
+@case('gl_state', 'Blocks5/src/texture.cpp')
+def c_gl_state_namespace(p):
+    p.replace('void Texture::cleanUp()',
+              'namespace\n{\n\tvoid debugBind(GLuint id)\n\t{\n'
+              '\t\tglBindTexture(GL_TEXTURE_2D, id);\n\t}\n}\n\nvoid Texture::cleanUp()')
+
+
+# Queue and draw on one line, after a flush that really does stand above them
+# and with nothing drawing after: the draw comes after the queue and is not
+# covered by it, which only reading the two in column order can see.
 @case('sprite_batch', 'Blocks5/src/stdobject.cpp')
 def c_sprite_batch_sameline(p):
-    p.replace('Engine::inst().renderSprites(sprites, color);',
-              'Engine::inst().renderSprites(sprites, color); drawQuadArray(0, 0);')
+    p.replace('\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n',
+              '\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n'
+              '\tEngine::inst().flushSprites();\n'
+              '\tEngine::inst().renderSprites(sprites, color); drawQuadArray(0, 0);\n')
 
 
-# A flush written as the body of a braceless if covers the rest of its own
+# A loop whose body queues: the second turn round begins with the batch
+# non-empty, so a flush standing outside the loop does not cover a draw inside
+# it - and a walk down the lines reads the draw before the queue.
+@case('sprite_batch', 'Blocks5/src/bomb.cpp')
+def c_sprite_batch_loop(p):
+    p.replace('\tif(layer == RL_MAIN)',
+              '\tEngine::inst().flushSprites();\n\tfor(int i = 0; i < 4; i++)\n\t{\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
+              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n\tif(layer == RL_MAIN)')
+
+
+# An onRender whose parameter is spelled differently still overrides, and would
+# take its whole file out of both checks with nothing to say so.
+@case('sprite_batch', 'Blocks5/src/bomb.cpp')
+def c_sprite_batch_unscanned(p):
+    p.replace('void Bomb::onRender(RenderLayer layer,', 'void Bomb::onRender(const RenderLayer layer,')
+
+
+# A character literal holding a quote opens a string to the rest of the file
+# for anything that lexes only ". testhooks.cpp writes exactly that byte
+# sequence, and it blanked 165 lines of code that no check then read.
+@case('gl_state', 'Blocks5/src/bomb.cpp')
+def c_gl_state_char_literal(p):
+    p.replace('\tif(layer == RL_MAIN)',
+              '\tchar quote = \'"\'; glBindTexture(GL_TEXTURE_2D, 0);\n\tif(layer == RL_MAIN)')
+
+
+# glPushAttrib saves whatever its mask asks for, so the ban names none: one
+# written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake.
+@case('gl_state', 'Blocks5/src/lava.cpp')
+def c_gl_state_push_mask(p):
+    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);')
+
+
+# texture.cpp has no exception of its own: its two glPushAttrib brackets are
+# inside the two exempt functions, so a pop added to the funnel is reported.
+@case('gl_state', 'Blocks5/src/texture.cpp')
+def c_gl_state_texture_pop(p):
+    p.replace('void Texture::unbind() const\n{', 'void Texture::unbind() const\n{\n\tglPopAttrib();')
+
+
+# The gl_state half of the dead-name guard. It has to name one of the helpers
+# read by name rather than an exemption: renaming an exempt function reports
+# through the ordinary path as well, so it would not tell the two apart.
+@case('gl_state', 'Blocks5/src/font.cpp')
+def c_gl_state_dead_name(p):
+    p.replace('void Font::drawText(', 'void Font::drawGlyphs(')
+
+
+# A flush written as the body of a braceless loop covers the rest of its own
 # line and nothing after it, which no indentation rule can see: what follows
-# stands at the same column as the flush itself.
+# stands at the same column as the flush itself. A loop rather than an if,
+# because an if/else chain is read branch by branch and would answer this on
+# its own.
 @case('sprite_batch', 'Blocks5/src/projectile.cpp')
 def c_sprite_batch_braceless(p):
     p.replace('\t\tGLState::setTexturing(false);',
-              '\t\tif(life > 0.5) GLState::setTexturing(false);')
+              '\t\tfor(int i = 0; i < 1; i++) GLState::setTexturing(false);')
+
+
+# The other half: a flush hoisted to the top of a function is not made wrong by
+# a queue in one branch of an if/else chain below it, because the branch that
+# draws is the branch that did not queue.
+@case('sprite_batch', 'Blocks5/src/lava.cpp', quiet=True)
+def c_sprite_batch_chain(p):
+    p.replace('\t\t// Raw quads from here on, so anything queued by an object before this\n'
+              '\t\t// one has to be on the screen first - there is no depth buffer to put\n'
+              '\t\t// the two in order afterwards.\n\t\tEngine::inst().flushSprites();\n\n', '')
+    p.replace('void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n',
+              'void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n'
+              '\tEngine::inst().flushSprites();\n')
 
 
 # LineDrawer::draw() is the raw glDrawArrays behind every laser, wire and shot,
@@ -299,7 +396,8 @@ def c_bindings(p):
     # Misspell the action a %BINDING names. Nothing anywhere says so: the
     # expansion answers an unknown action exactly as it answers an unbound one,
     # so the sentence quietly stops naming a key.
-    p.replace('%BINDING{$A_SAVE_IN_HOTEL}', '%BINDING{$A_SAVE_IN_HOTELL}')
+    p.replace('Press %BINDING{$A_SAVE_IN_HOTEL}',
+              'Press %BINDING{$A_SAVE_IN_HOTELL}')
 
 
 @case('sound_volumes', 'Blocks5/data/sounds.xml')
@@ -344,10 +442,10 @@ def c_comments_prose(p):
 
 
 def main():
-    print('%-14s %s' % ('CHECK', 'fires on an injected fault?'))
+    print('%-14s %s' % ('CHECK', 'answers an injected edit correctly?'))
     print('-' * 52)
     failures = 0
-    for name, rel, mutate in CASES:
+    for name, rel, mutate, quiet in CASES:
         clean_fired, _ = run_check(name)
         if clean_fired:
             print('%-14s SKIPPED - reports something even without a fault' % name)
@@ -356,8 +454,12 @@ def main():
         with Patch(rel) as p:
             mutate(p)
             fired, output = run_check(name)
-        if fired:
-            print('%-14s yes' % name)
+        if fired != quiet:
+            print('%-14s %s' % (name, 'stays quiet' if quiet else 'yes'))
+        elif quiet:
+            print('%-14s FALSE POSITIVE - reports a change that is not a fault' % name)
+            print(output)
+            failures += 1
         else:
             print('%-14s NO - the check does not fire' % name)
             print(output)
@@ -365,9 +467,9 @@ def main():
 
     print('')
     if failures:
-        print('%d check(s) with no effect' % failures)
+        print('%d case(s) answered wrongly' % failures)
     else:
-        print('all %d checks fire' % len(CASES))
+        print('all %d cases answered correctly' % len(CASES))
     return 1 if failures else 0
 
 

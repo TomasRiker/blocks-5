@@ -1729,8 +1729,9 @@ Two things would change the answer:
   state back before skipping and report a mismatch. Then the invariant is tested
   by the smoke run rather than argued about, and the routing can be done a file
   at a time instead of in one sweep. Half of this is already written:
-  `Engine::queueSprite` reads `GL_TEXTURE_BINDING_2D` and `glIsEnabled` at queue
-  time and `flushSprites` compares them, both under that flag.
+  `Engine::queueSprite` reads `GL_TEXTURE_BINDING_2D`, `glIsEnabled` and
+  `GL_TEXTURE_MATRIX` at queue time and `flushSprites` compares all three, both
+  under that flag.
 - **A platform where the calls are not cheap.** These numbers come from
   swiftshader in a desktop browser. A phone, where the main thread *is* the
   limit, may read differently - and `WebBuild/test/perf.js` with an arm that

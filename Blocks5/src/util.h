@@ -32,9 +32,10 @@ template<typename T> const T& clamp(const T& value,
 // there as well.
 //
 // The two callers are the only places a colour reaches GL without being cut off
-// on the way: a colour array. Every other path either sets glColor inside a
-// glBegin block, which the emulation quantises to a byte and so clamps, or
-// carries a value that cannot leave [0,1] to begin with.
+// on the way: a colour array. Every other path sets it through some glColor*,
+// and the emulation funnels all sixteen of those into one glColor4f that clamps
+// each channel on the way in, inside a glBegin block and outside one alike. A
+// vertex attribute array goes nowhere near it.
 #ifdef __EMSCRIPTEN__
 template<typename T, int DIM> Vec<T, DIM> clampColor(const Vec<T, DIM>& color)
 {

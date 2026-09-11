@@ -121,6 +121,20 @@ def original_lines(rel):
     return lines
 
 
+def end_of_literal(text, i):
+    """One past the closing quote of the literal opening at text[i], which is
+    a \' or a ". The character literal has to be lexed even though nothing
+    here looks inside one: '"' otherwise opens a string that runs to the next
+    quote in the file, and testhooks.cpp writes exactly that - one line of it
+    blanked 165 lines of code that no check then read."""
+    quote, j, n = text[i], i + 1, len(text)
+    while j < n and text[j] != quote:
+        if text[j] == '\n':
+            break                      # neither kind spans a line unescaped
+        j += 2 if text[j] == '\\' else 1
+    return min(j + 1, n)
+
+
 def strip_comments(text):
     """Empty out the comments and keep the strings - so that a pattern does
     not fire inside a commented-out leftover."""
@@ -129,16 +143,16 @@ def strip_comments(text):
     while i < n:
         if text.startswith('//', i):
             j = text.find('\n', i)
+            while j > 0 and text[j - 1] == '\\':       # a continued comment
+                j = text.find('\n', j + 1)
             i = n if j < 0 else j
         elif text.startswith('/*', i):
             j = text.find('*/', i + 2)
             i = n if j < 0 else j + 2
-        elif text[i] == '"':
-            j = i + 1
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == '\\' else 1
-            out.append(text[i:j + 1])
-            i = j + 1
+        elif text[i] in '"\'':
+            j = end_of_literal(text, i)
+            out.append(text[i:j])
+            i = j
         else:
             out.append(text[i])
             i += 1
@@ -154,9 +168,12 @@ def blank_noncode(text):
     while i < n:
         if text.startswith('//', i):
             j = text.find('\n', i)
+            while j > 0 and text[j - 1] == '\\':       # a continued comment
+                j = text.find('\n', j + 1)
             j = n if j < 0 else j
             for k in range(i, j):
-                out[k] = ' '
+                if out[k] != '\n':
+                    out[k] = ' '
             i = j
         elif text.startswith('/*', i):
             j = text.find('*/', i + 2)
@@ -165,17 +182,43 @@ def blank_noncode(text):
                 if out[k] != '\n':
                     out[k] = ' '
             i = j
-        elif text[i] == '"':
-            j = i + 1
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == '\\' else 1
-            for k in range(i + 1, min(j, n)):
+        elif text[i] in '"\'':
+            j = end_of_literal(text, i)
+            for k in range(i + 1, j - 1):
                 if out[k] != '\n':
                     out[k] = ' '
-            i = min(j + 1, n)
+            i = j
         else:
             i += 1
     return ''.join(out)
+
+
+def function_starts(code):
+    """Where each function definition begins, as (offset, line, name) triples
+    in order, over text already blanked by blank_noncode().
+
+    A definition sits at column 0 - or one level in, inside the anonymous
+    namespace that hint.cpp, font.cpp and diamondmachine.cpp open, which is
+    why this counts the namespace nesting instead of testing for column 0. A
+    helper missed there does not merely go unattributed: it inherits the name,
+    and therefore the exemption, of the function above it."""
+    out = []
+    base, stack, offset = 0, [], 0
+    for line in code.split('\n'):
+        indent = len(line) - len(line.lstrip())
+        bare = line.strip()
+        if bare.startswith('namespace') and indent == base:
+            stack.append(base)
+            base = indent + 1
+        elif bare.startswith('}') and stack and indent == base - 1:
+            base = stack.pop()
+        elif indent == base and bare and bare[0] not in '#}/*' and '(' in line:
+            m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
+            if m:
+                out.append((offset + m.start(1), code.count('\n', 0, offset) + 1,
+                            m.group(1)))
+        offset += len(line) + 1
+    return out
 
 
 def batch_sources():
@@ -331,6 +374,28 @@ def check_render_layers():
 
 
 
+def unscanned_onrender(scanned):
+    """Sources declaring an onRender that batch_sources() does not read.
+
+    The set is discovered by matching one spelling, and a declaration that
+    spells its parameter differently - `const RenderLayer` is legal, and still
+    overrides - would take a whole file out of both checks with nothing
+    anywhere to say so. Asserting the set is what turns that from silence into
+    a finding, the same reasoning as dead_names()."""
+    decl = re.compile(r'\bonRender\s*\(\s*(?:const\s+)?RenderLayer')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not decl.search(read(p)):
+            continue
+        stem = rel.rsplit('.', 1)[0]
+        if stem + '.cpp' in scanned or stem + '.h' in scanned:
+            continue
+        bad.append('%s: declares an onRender that the sprite_batch and gl_state '
+                   'checks do not read - see batch_sources()' % rel)
+    return bad
+
+
 @check('sprite_batch')
 def check_sprite_batch():
     """Anything an object draws outside the sprite batch has to flush it first.
@@ -346,12 +411,24 @@ def check_sprite_batch():
     move, so the object that broke the rule looks right and its neighbours do
     not - and only on the screen that happens to have both.
 
-    A flush covers only as far as the block it stands in: one inside an if()
-    says nothing about the code after it, which is the shape player.cpp has.
-    One written as the body of a braceless if or loop covers less still - only
-    the rest of its own line, since what follows stands at the same column and
-    no indentation rule can tell the two apart."""
-    breaking = re.compile(r'\bglBegin\s*\(|\bglDrawArrays\s*\(|\bglDrawElements\s*\(|'
+    How far a flush reaches, in the three shapes that are not the obvious one.
+    It covers only as far as the block it stands in: one inside an if() says
+    nothing about the code after it, which is the shape player.cpp has. One
+    written as the body of a braceless if or loop covers less still - only the
+    rest of its own line, since what follows stands at the same column and no
+    indentation rule can tell the two apart. And one standing *outside* a loop
+    whose body queues does not cover a draw inside that loop at all: the second
+    turn round begins with the batch non-empty, which a walk down the lines
+    cannot see because the draw is written above the queue.
+
+    The branches of one if/else chain are read as the alternatives they are, so
+    a queue in the first does not ask the second to flush again - but whatever
+    the chain as a whole may have queued stands after it.
+
+    What it cannot see is a call: a helper of an object's own that queues, or
+    one that draws, is a name to this and nothing more. That is why
+    LineDrawer::draw flushes at its own definition rather than at its callers."""
+    breaking = re.compile(r'\bglBegin\s*\(|\bglDraw\w*\s*\(|\bglRect\w*\s*\(|'
                           r'\bdrawQuadArray\s*\(')
     # The two spellings that leave a quad in the batch, and the whole set of
     # them: every other way of drawing a sprite from here - Level::renderShine,
@@ -362,12 +439,15 @@ def check_sprite_batch():
     # reaching a flush - and so is Texture::bind()/unbind(), which is written
     # that way and nothing else in these files is.
     flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::|'
-                         r'\w\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
+                         r'[\w)\]]\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
     # A statement written as the body of a braceless conditional, on the line
     # of the conditional itself.
     conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
                              r'|^\s*else\s+\S'
                              r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
+    loopHead = re.compile(r'^\s*(?:for|while)\s*\(|^\s*do\b')
+    ifHead = re.compile(r'^\s*if\s*\(')
+    elseHead = re.compile(r'^\s*(?:\}\s*)?else\b')
     # Helpers entered with the batch already put up, which is the whole of the
     # exemption: what such a function does from there is read like any other.
     # Qualified, so that a same-named method of another class does not inherit
@@ -380,22 +460,80 @@ def check_sprite_batch():
         # Engine::beginRenderToTexture() - and that flushes at both ends.
         'Hint::bakeNote',
     }
-    bad, seen, named = [], set(), set(EXEMPT)
+    bad, seen, named, scanned = [], set(), set(EXEMPT), set()
     for rel, text, only in batch_sources():
+        scanned.add(rel)
         named |= (only or set())
-        func, flushed, flushIndent = '', False, 0
-        for n, line in enumerate(text.split('\n'), 1):
+        lines = text.split('\n')
+        starts = dict((n, name) for _, n, name in function_starts(text))
+        seen |= set(starts.values())
+
+        # Loops whose body queues, by line index: a flush before such a loop
+        # says nothing about the draw inside it.
+        requeues = set()
+        for i, line in enumerate(lines):
+            if not loopHead.match(line):
+                continue
+            indent = len(line) - len(line.lstrip())
+            body, j, opened = [line], i + 1, False
+            while j < len(lines):
+                bare = lines[j].strip()
+                if bare:
+                    # The brace of the body stands at the loop's own column in
+                    # this tree, so it cannot be the end of the body.
+                    if bare == '{' and not opened:
+                        opened = True
+                    elif len(lines[j]) - len(lines[j].lstrip()) <= indent:
+                        break
+                    else:
+                        body.append(lines[j])
+                j += 1
+            if any(queues.search(b) for b in body):
+                requeues.add(i)
+
+        # A closing brace whose `else` stands on the next line, which is how
+        # this tree writes a chain: the branch is not over there, so the chain
+        # must not be closed and merged until the last branch really ends.
+        heldOpen = set()
+        for i, line in enumerate(lines):
+            if not line.strip().startswith('}'):
+                continue
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines) and re.match(r'^\s*else\b', lines[j]) and \
+               len(lines[j]) - len(lines[j].lstrip()) == len(line) - len(line.lstrip()):
+                heldOpen.add(i)
+
+        func, flushed, flushIndent, chain = '', False, 0, {}
+        for n, line in enumerate(lines, 1):
             if line.strip():
                 indent = len(line) - len(line.lstrip())
-                # A new function at column 0 - a member or a free helper alike.
-                if not line[0].isspace() and '(' in line and line[0] not in '#}/*':
-                    m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
-                    func = m.group(1) if m else ''
-                    seen.add(func)
+                if n in starts:
+                    func, chain = starts[n], {}
                     flushed, flushIndent = func in EXEMPT, 0
-                # A flush holds only inside the block it stands in.
-                elif flushed and indent < flushIndent:
-                    flushed = False
+                else:
+                    # An if/else chain the line has stepped out of: what stands
+                    # after it is the state before it, minus anything any
+                    # branch queued.
+                    # A lone brace is the chain's own body opening, and a
+                    # closing one whose else stands on the next line ends a
+                    # branch rather than the chain: this tree writes both at the
+                    # column of the if they belong to.
+                    if line.strip() != '{' and (n - 1) not in heldOpen:
+                        for k in sorted(chain, reverse=True):
+                            if indent < k or (indent == k and not elseHead.match(line)):
+                                head, headIndent, queued = chain.pop(k)
+                                flushed, flushIndent = head and not queued, headIndent
+                    # A flush holds only inside the block it stands in.
+                    if flushed and indent < flushIndent:
+                        flushed = False
+                    if elseHead.match(line) and indent in chain:
+                        flushed, flushIndent = chain[indent][0], chain[indent][1]
+                    elif ifHead.match(line):
+                        chain[indent] = [flushed, flushIndent, False]
+            if (n - 1) in requeues:
+                flushed = False
             wasFlushed, wasIndent = flushed, flushIndent
             # In column order, because a line can both queue and draw.
             events = ([(m.start(), 'f') for m in flushes.finditer(line)] +
@@ -407,12 +545,15 @@ def check_sprite_batch():
                     flushIndent = len(line) - len(line.lstrip())
                 elif e[1] == 'q':
                     flushed = False
+                    for entry in chain.values():
+                        entry[2] = True
                 elif not flushed and (only is None or func in only):
                     bad.append('%s:%d: %s() draws with sprites possibly queued - '
                                'flush the batch first' % (rel, n, func))
             if conditional.match(line):
                 flushed, flushIndent = flushed and wasFlushed, wasIndent
-    return bad + dead_names(named, seen, 'the sprite_batch check')
+    return (bad + dead_names(named, seen, 'the sprite_batch check')
+            + unscanned_onrender(scanned))
 
 
 @check('gl_state')
@@ -426,44 +567,44 @@ def check_gl_state():
     afterwards - so whatever moves one of the three has to put the batch up
     first. GLState does that; the raw calls do not.
 
-    There is no exemption list and none is needed: a GLState call with nothing
-    queued costs one comparison, so going through it is free even where the
-    batch provably cannot be open.
+    The two exemptions below are not about cost - a GLState call with nothing
+    queued is one comparison, so going through it is free even where the batch
+    provably cannot be open. They are the two places that build a value rather
+    than set drawing state.
 
     Scoped to what Level::renderObjects can reach with a batch open - see
     batch_sources(). The crossfades, the GUI and the credits run with none open
     and are left alone deliberately, which keeps the ban small enough to read.
 
     What it cannot see: GL_TEXTURE_2D reached through a variable rather than
-    written out. A regex has no types, and that is the honest limit."""
-    raw = (r'\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
-           r'|\bglBindTexture\s*\('
-           r'|\bglPushAttrib\s*\(\s*GL_ENABLE_BIT\s*\)'
-           r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
-    # texture.cpp keeps its glPushAttrib(GL_TRANSFORM_BIT) bracket, which is
-    # about the matrix mode rather than the enables, so its pops are its own.
-    withPop = re.compile(raw + r'|\bglPopAttrib\s*\(')
-    noPop = re.compile(raw)
+    written out, and anything a called function does. A regex has no types and
+    follows no calls, and that is the honest limit."""
+    raw = re.compile(r'\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
+                     r'|\bglBindTexture\s*\('
+                     r'|\bglPushAttrib\s*\(|\bglPopAttrib\s*\('
+                     r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
     # Two that build a value rather than set drawing state: they put a scale on
     # the texture matrix stack and read it straight back with glGetDoublev, at
     # load time, with no batch open. Doing the arithmetic in C++ instead would
     # be tidier and is not the same thing - a driver that keeps the stack in
     # floats hands back a rounded matrix, and that rounding is what the game has
-    # always sampled with.
+    # always sampled with. Their glPushAttrib(GL_TRANSFORM_BIT) bracket is also
+    # why the ban above names no mask: a push saves whatever its mask asks for,
+    # and one written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake as one
+    # written GL_ENABLE_BIT.
     EXEMPT = {'Texture::reload', 'Texture::loadSubTexture'}
-    bad, seen = [], set()
+    bad, seen, named = [], set(), set(EXEMPT)
     for rel, text, only in batch_sources():
-        pattern = noPop if rel.endswith('/texture.cpp') else withPop
+        named |= (only or set())
         # Where each function starts, so a match can be attributed to one. The
         # search itself runs over the whole text and not line by line, because
         # every pattern above allows whitespace inside the call - a glDisable
         # with its argument on the next line is the same mistake.
-        starts = [(m.start(), m.group(1)) for m in
-                  re.finditer(r'^\w[^;\n]*?\b(\w+::\w+|\w+)\s*\(', text, re.M)]
-        seen |= set(name for at, name in starts)
-        for m in pattern.finditer(text):
+        starts = function_starts(text)
+        seen |= set(name for _, _, name in starts)
+        for m in raw.finditer(text):
             func = ''
-            for at, name in starts:
+            for at, _, name in starts:
                 if at > m.start():
                     break
                 func = name
@@ -472,7 +613,7 @@ def check_gl_state():
             n = text.count('\n', 0, m.start()) + 1
             bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
                        % (rel, n, ' '.join(m.group(0).split())))
-    return bad + dead_names(EXEMPT, seen, 'the gl_state check')
+    return bad + dead_names(named, seen, 'the gl_state check')
 
 
 @check('naming')
@@ -1294,6 +1435,13 @@ def main(argv):
             only = argv[i + 1]
         if a == '--quiet':
             quiet = True
+
+    # A name nothing matches used to run no check and then say "all clear",
+    # which is the answer a passing run gives - so a check renamed out from
+    # under selftest.py, or a typo on the command line, read as success.
+    if only and only not in [name for name, fn in CHECKS]:
+        print('no such check: %s (--list names them)' % only)
+        return 2
 
     total = 0
     for name, fn in CHECKS:

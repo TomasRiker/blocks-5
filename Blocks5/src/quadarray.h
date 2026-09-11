@@ -31,7 +31,8 @@ struct QuadVertex
 // 8 + 8 + 16 = 32 bytes, and the three attributes therefore share a stride
 // that is exactly their summed size. Emscripten's GL emulation requires both
 // - one stride for all of them, and no smaller than what they occupy - or it
-// copies the whole array through a scratch buffer behind a single warning.
+// copies the whole array through a scratch buffer every draw. Silently: the
+// warning it can print sits behind GL_ASSERTIONS, which is off here.
 struct ColorQuadVertex
 {
 	Vec2f position;

@@ -38,9 +38,9 @@ void LineDrawer::draw()
 	if(vertices.empty()) return;
 
 	// The sprite batch is drawn with the state standing at the flush, so this
-	// raw array has to put it up first. Here and not at the four call sites:
-	// every one of them is inside an onRender, and every one of them reaches
-	// this through a LineDrawer of its own, which no static check can follow.
+	// raw array has to put it up first. Here and not at the seven call sites:
+	// every one of them is inside an onRender, and each reaches this through a
+	// LineDrawer of its own, which no static check can follow.
 	Engine::inst().flushSprites();
 
 	glColor4fv(color);

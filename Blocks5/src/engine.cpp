@@ -3129,9 +3129,9 @@ void Engine::queueSprite(const Vec2i& position,
 	const int v[4] = {v0, v0, v1, v1};
 
 	// clampColor, because renderShine hands this deathCountDown * 5.0 from an
-	// exploding bomb and expects GL to cut it off. Immediate mode cut it off
-	// twice over - the hardware by specification, and Emscripten by quantising
-	// the value to a byte - and a colour array has neither.
+	// exploding bomb and expects GL to cut it off. Immediate mode did, on both
+	// platforms - the hardware by specification, and Emscripten inside its own
+	// glColor4f - and a colour array goes through neither.
 	const Vec4d cut = clampColor(color);
 	const Vec4f col(static_cast<float>(cut.r), static_cast<float>(cut.g),
 					static_cast<float>(cut.b), static_cast<float>(cut.a));

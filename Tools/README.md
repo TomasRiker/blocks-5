@@ -21,8 +21,8 @@ Exit code 1 as soon as anything is reported.
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
 | `display_lists` | No display lists anywhere, in either build. |
 | `render_layers` | A render layer is named, never a number. |
-| `sprite_batch` | Anything an object draws outside the sprite batch flushes it first. |
-| `gl_state` | An object changes the texture state through GLState, never raw. |
+| `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
+| `gl_state` | An object changes the texture state through GLState, never raw (same scope). |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |
@@ -53,7 +53,11 @@ noticing - the attribute check was inert when it was first written, because
 attribute counted as read.
 
 The script therefore injects, for each check, exactly the fault it is meant to
-catch, runs it, and puts the file back byte for byte afterwards.
+catch, runs it, and puts the file back byte for byte afterwards. A handful of
+cases go the other way (`quiet=True`): they inject a legitimate edit - a flush
+hoisted to the top of a function, say - and the check has to stay silent. A
+check that reports an honest refactor gets deleted rather than fixed, so that
+half is worth testing too.
 
     python3 Tools/selftest.py
 

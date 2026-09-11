@@ -520,16 +520,16 @@ batch. Measured in the browser, `?nobatch=1` against the default: **276 draw cal
 in a played level, 243 → 48 on the menu's title demo, 314 → 72 on the level select. In the played
 level the median frame goes **3.90 ms → 2.40** and its render half **2.40 → 1.10**, against a
 spread within an arm of 0.90 and 0.30. The vertex count does not move — the same geometry, in a
-fortieth of the calls.
+quarter to an eighth of the calls.
 
-**The transform is baked into the vertices, and that is what the batch costs.** A sprite is
-drawn under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the
-squash of a teleporting object, the unbalanced `glTranslated` `Enemy` does inside its own
-`onRender`, the half pixel `Level::render` puts under the wires — and sprites from different
-objects cannot share a draw call while that lives in the matrix stack. So `queueSprite` reads
-it back with `glGetFloatv(GL_MODELVIEW_MATRIX)` and multiplies the four corners itself: one GL
-call in place of the seven the immediate path made, and in the browser that read is a copy of
-sixteen floats out of a JavaScript array, not a pipeline stall.
+**The transform is baked into the vertices, and that is what the batch costs.** A sprite is drawn
+under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the squash of
+a teleporting object, the unbalanced `glTranslated` `Enemy` does inside its own `onRender`, the
+half pixel `Level::render` puts under the wires — and sprites from different objects cannot share
+a draw call while that lives in the matrix stack. So `queueSprite` reads it back with
+`glGetFloatv(GL_MODELVIEW_MATRIX)` and multiplies the four corners itself: one GL call in place of
+the fourteen to sixteen the immediate path made per sprite, and in the browser that read is a copy
+of sixteen floats out of a JavaScript array, not a pipeline stall.
 
 **The flush must therefore draw under `glLoadIdentity`**, and getting that wrong is invisible
 almost everywhere. The vertices already carry the matrix; leaving it applied puts it on twice. A
@@ -541,33 +541,36 @@ palettes are what caught it, as they caught the render-layer conversion before.
 
 **A queued quad is drawn with the state standing at the flush, not at the call.** There is no
 depth buffer in this 2D path, so painter's order is the only order there is: anything that draws,
-or that moves the texture binding, the texture matrix, the blend function or the framebuffer, has
-to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
-`beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` do it themselves, so
-most of it is automatic. The object sources reach the other three through **`GLState`**
-(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the texture matrix,
-which is the third piece of state and the one the first draft of the check was blind to — all of
-which flush before they change anything, so the rule lives in one file instead of at a dozen call
-sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped
-to what the batch can reach: the sources that define an `Object::onRender`, plus `texture.cpp` and
-`linedrawer.cpp`, which every one of them draws through, plus `Level::renderShine` and
-`Font::drawText` by name out of two files that are otherwise full of drawing with no batch open.
-The crossfades, the GUI and the credits are deliberately left alone, which is what keeps the ban
-something a reader can check.
+or that moves any state the queued quads will be drawn under, has to flush first. In the tree as
+it stands that is the texture binding, the texture matrix, the blend function and the framebuffer —
+nothing the batch can reach touches the scissor box, the colour mask, the stencil or the alpha
+test, and neither check would notice if something started to. `Texture::bind`, `Texture::unbind`,
+`Engine::setBlendFunc`, `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture`
+do it themselves, so most of it is automatic. The object sources reach the other three through
+**`GLState`** (`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the
+texture matrix, which is the third piece of state and the one the first draft of the check was
+blind to — all of which flush before they change anything, so the rule lives in one file instead
+of at a dozen call sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw
+forms there, scoped to what the batch can reach: the sources that define an `Object::onRender`,
+plus `texture.cpp` and `linedrawer.cpp`, which every one of them draws through, plus
+`Level::renderShine` and `Font::drawText` by name out of two files that are otherwise full of
+drawing with no batch open. The crossfades, the GUI and the credits are deliberately left alone,
+which is what keeps the ban something a reader can check.
 
 **`GLState` is not a cache, and that was measured rather than assumed.** Skipping a call that sets
-what is already set is worth about a quarter of the texture binds in a level — and the whole of
-the state traffic is about six per cent of what the game asks of the driver, which after the
-sprite batch has taken its share is well under the spread between two runs. Against that: all 37
+what is already set is worth about a quarter of the texture binds in a played level — 28 calls of
+the 290 the state layer issues, out of 4833 in all, measured under swiftshader in a browser before
+the batch landed. The batch has since taken the geometry away, so those same 28 are a larger share
+of a much smaller number and still well under the spread between two runs. Against that: all 37
 raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables outside those two files — 39 in the
 crossfades and the rest across the engine, the credits, the GUI, `level.cpp` and the level editor —
 would have to come through it too, the failure mode of a stale entry is a wrong picture rather
 than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)` restores the binding on
 the desktop while `gl_compat.cpp` restores only the mode and the enables — so the invalidation
-would differ per platform. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)` stays for a
-different reason: replacing it is safe as the tree stands, but it would leave `bind()` with a
-silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues no GL
-call at all. ROADMAP 44 has both.
+would differ per platform. The `glPushAttrib(GL_TRANSFORM_BIT)` that `Texture::bind` reaches
+through `GLState::loadTextureMatrix` stays for a different reason: replacing it is safe as the
+tree stands, but it would leave `bind()` with a silent precondition, and it would save nothing in
+the browser, where `glPushAttrib` issues no GL call at all. ROADMAP 44 has both.
 
 **The flush says which matrix stack it means**, and that is not pedantry. It draws under
 `glLoadIdentity` because the vertices already carry their modelview — but a flush happens wherever
@@ -615,9 +618,10 @@ switches on. So the browser computes `clamp(colour · texel)` where the desktop 
 out a hard-edged blob. `clampColor()` in `util.h` puts it back, in the two places a colour reaches
 GL without being cut off on the way — `Engine::queueSprite` and `ParticleSystem::render`, both
 colour arrays — and **only in the browser build**, because everywhere else the hardware has
-already done it. Every other path either sets `glColor` inside a `glBegin` block, where the byte
-quantisation clamps it, or carries a value that cannot leave [0,1]. ROADMAP item 42 is how to stop
-paying for it on the CPU at all.
+already done it. A colour array is the only unprotected path: every `glColor*` spelling the
+emulation offers funnels into one `glColor4f` that clamps each channel on the way in, inside a
+`glBegin` block and outside one alike, and a vertex attribute goes nowhere near it. ROADMAP item
+42 is how to stop paying for it on the CPU at all.
 
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
