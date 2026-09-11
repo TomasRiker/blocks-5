@@ -1607,6 +1607,80 @@ Four things are in the way.
   linear light, and a slider rather than an imposition.
 
 
+42. Clamp the vertex colour where it is free, not on the CPU
+------------------------------------------------------------
+The game hands GL colours above 1 on purpose - `Level::renderShine` takes
+`deathCountDown * 5.0` from an exploding bomb, the teleport swirl ramps its red
+from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), the two spark bursts reach
+1.5 (`object.cpp:424`, `projectile.cpp:190`) - and relies on GL to cut them off.
+Desktop GL does: a primitive colour is clamped to [0,1] before it is multiplied
+by the texel. The browser does not. Dumping the shader Emscripten's emulation
+generates for this game gives a vertex stage of
+
+    v_color = a_color;
+
+with no clamp anywhere; the emulation emits `v_color = clamp(v_color, 0.0, 1.0)`
+only inside its lighting branch, and this tree never enables `GL_LIGHTING`. The
+colour therefore reaches the fragment stage raw, is multiplied by the texel, and
+is only clamped when `gl_FragColor` is written - so the browser computes
+`clamp(colour * texel)` where the desktop computes `clamp(colour) * texel`. At a
+red of 2.0 every texel above 0.5 saturates, which eats the particle's falloff and
+turns a soft glow into a hard-edged blob.
+
+The clamp is on the CPU today, per vertex, in the two places that write a colour
+array - `ParticleSystem::render` and `Engine::queueSprite` - and under
+`#ifdef __EMSCRIPTEN__`, because on the desktop it is work that GL has already
+done. That is the stopgap, not the answer: it is four `clamp` calls per quad in
+C++ for something a GPU does for nothing.
+
+Two ways out, both cheap:
+
+- **Ask the emulation for the clamp.** It is already written; it just sits behind
+  `GL_LIGHTING`. Whether a lighting setup exists that emits the clamp and changes
+  nothing else - ambient only, `u_lightModelAmbient` at 1 and every material at
+  1 - is a question about `libglemu.js`'s generated vertex shader, and the answer
+  is one shader dump away. If it works it is two `glEnable`/`glLightModel` calls
+  at startup and the CPU clamp goes.
+
+- **Give the browser build its own vertex shader.** Item 41 wants a shader path
+  for ordinary drawing anyway, and a `clamp` in the vertex stage is the cheapest
+  line in it.
+
+The desktop must not pay for either. Whatever lands, `-nobatch` and the native
+build should still reach GL with the raw colour and let the hardware clamp it.
+
+43. One quad budget for all fonts, and a way to say "do not cache this"
+-----------------------------------------------------------------------
+`Font` keeps 32 laid-out strings (`font.cpp`), and the number is the wrong
+measure twice over. It is per font, so the four fonts in play - the GUI's, the
+tooltip's, the credits', a skin's hint font - hold 128 entries between them with
+no ceiling on what that costs; and an entry is a `std::vector<QuadVertex>`, so
+what 32 actually reserves depends entirely on how long the strings are. Thirty-two
+keycaps and thirty-two wrapped help pages are the same number and two orders of
+magnitude apart in geometry.
+
+Count the quads instead, and share one budget across every font, the way the
+particle systems share one vertex buffer. Then the cost is stated in the one unit
+that matters and a font that is barely used stops holding a slot a busy one needs.
+
+The other half is a caller that knows better. `renderText` should take a "do not
+cache" option for a string that is certainly not coming back:
+
+- the **credits**, which animate `charScaling`, so every frame lays the same text
+  out at a size it will never see again - every one of those is a cache miss that
+  also evicts something useful;
+- **anything drawn while the colour changes per frame** and the layout does not,
+  where the entry is a hit but the cache is doing no work - the paused game's
+  pulsing text is the case that prompted this.
+
+Mind what the key does and does not carry: it is the string plus the five options
+the layout depends on (`tabSize`, `charSpacing`, `lineSpacing`, `charScaling`,
+`italic`) and deliberately not `shadows` or the colour, which is what lets one
+entry serve the three passes `renderText` makes. A "do not cache" flag must not
+leak into the key, or it would double every entry.
+
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

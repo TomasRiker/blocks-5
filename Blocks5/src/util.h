@@ -20,6 +20,36 @@ template<typename T> const T& clamp(const T& value,
 	else return value;
 }
 
+// A colour on its way into a vertex array, cut off where GL would have cut it
+// off. The game hands out colours above 1 on purpose and lets the hardware do
+// it: Level::renderShine takes deathCountDown * 5.0 from an exploding bomb, the
+// teleport swirl ramps its red to 2.1 and the two spark bursts to 1.5. Desktop
+// GL clamps a primitive colour before it multiplies the texel; Emscripten's
+// emulation clamps only gl_FragColor, after the multiply, so an over-bright
+// colour eats the texture's falloff and a soft glow comes out a hard-edged
+// blob. Hence the browser build alone, and hence a function rather than a clamp
+// written out at each site - see ROADMAP item 42 for how to stop paying for it
+// there as well.
+//
+// The two callers are the only places a colour reaches GL without being cut off
+// on the way: a colour array. Every other path either sets glColor inside a
+// glBegin block, which the emulation quantises to a byte and so clamps, or
+// carries a value that cannot leave [0,1] to begin with.
+#ifdef __EMSCRIPTEN__
+template<typename T, int DIM> Vec<T, DIM> clampColor(const Vec<T, DIM>& color)
+{
+	Vec<T, DIM> out;
+	for(int i = 0; i < DIM; i++)
+		out.value[i] = clamp(color.value[i], static_cast<T>(0), static_cast<T>(1));
+	return out;
+}
+#else
+template<typename T, int DIM> const Vec<T, DIM>& clampColor(const Vec<T, DIM>& color)
+{
+	return color;
+}
+#endif
+
 int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);

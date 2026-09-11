@@ -3105,18 +3105,13 @@ void Engine::queueSprite(const Vec2i& position,
 	const int u[4] = {u0, u1, u1, u0};
 	const int v[4] = {v0, v0, v1, v1};
 
-	// Clamped, because callers pass colours above 1 on purpose - renderShine
-	// takes deathCountDown * 5.0 from an exploding bomb - and rely on GL to cut
-	// them off. Immediate mode did cut them off twice over: desktop GL clamps a
-	// primitive colour by specification, and Emscripten quantised the value to a
-	// byte on the way into the vertex buffer. A float colour array in an array
-	// draw has neither, and this game never switches lighting on, which is the
-	// only path the emulation clamps in - so the halo would come out a
-	// saturated disc with a hard edge instead of a falloff.
-	const Vec4f col(static_cast<float>(clamp(color.r, 0.0, 1.0)),
-					static_cast<float>(clamp(color.g, 0.0, 1.0)),
-					static_cast<float>(clamp(color.b, 0.0, 1.0)),
-					static_cast<float>(clamp(color.a, 0.0, 1.0)));
+	// clampColor, because renderShine hands this deathCountDown * 5.0 from an
+	// exploding bomb and expects GL to cut it off. Immediate mode cut it off
+	// twice over - the hardware by specification, and Emscripten by quantising
+	// the value to a byte - and a colour array has neither.
+	const Vec4d cut = clampColor(color);
+	const Vec4f col(static_cast<float>(cut.r), static_cast<float>(cut.g),
+					static_cast<float>(cut.b), static_cast<float>(cut.a));
 
 	for(int i = 0; i < 4; i++)
 	{

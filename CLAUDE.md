@@ -558,6 +558,22 @@ float colour array is not. Object shadows, which are drawn at alpha 0.35, move b
 level there. The desktop is byte-identical — the four editor palettes that do not animate hold
 an instance of every object type in the game, and all four come out unchanged.
 
+**The same array also loses the clamp, and that one is not cosmetic.** The game hands GL
+colours above 1 deliberately — `Level::renderShine` takes `deathCountDown * 5.0` from an
+exploding bomb, the teleport swirl ramps its red to 2.1, the two spark bursts to 1.5 — and
+relies on the hardware to cut them off. Desktop GL clamps a primitive colour *before* it
+multiplies the texel. Emscripten's emulation does not: dumping the vertex shader it generates
+for this game gives `v_color = a_color;`, and the `clamp` it can emit sits behind
+`GL_LIGHTING`, which this tree never switches on. So the browser computes
+`clamp(colour · texel)` where the desktop computes `clamp(colour) · texel` — at a red of 2.0
+every texel above 0.5 saturates, and a soft glow comes out a hard-edged blob. `clampColor()`
+in `util.h` puts it back, in the two places a colour reaches GL without being cut off on the
+way — `Engine::queueSprite` and `ParticleSystem::render`, both colour arrays — and **only in
+the browser build**, because everywhere else the hardware has already done it. Every other
+path either sets `glColor` inside a `glBegin` block, where the byte quantisation clamps it, or
+carries a value that cannot leave [0,1]. ROADMAP item 42 is how to stop paying for it on the
+CPU at all.
+
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
 in a batch of their own, the keycap frames, which carry no texture — and draws them three
@@ -1170,7 +1186,8 @@ the texel they came from — `OUT_BRIGHT` and `OUT_END` are both 1, so only the 
 Glowing sparks read as welding, and the machine is handed rock, ice and grass as readily as
 metal. Additive blending was never an option either: there the result depends on the
 background, and the same brown would be an ember over rock and a glare over grass. The inward
-motes *do* start above 1, where GL clamps to [0,1] — but that is not a glow, it is the way
+motes *do* start above 1, where GL clamps to [0,1] (in the browser `clampColor()` does it
+instead — see the presentation section) — but that is not a glow, it is the way
 around a green cast, since a linear ramp from a blue block to the diamond's warm white passes
 straight through green (measured 0.16 at t=0.6, 0.05 once over-brightened).
 
