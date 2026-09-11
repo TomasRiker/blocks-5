@@ -11,7 +11,7 @@ public:
 	E_PulsePanel(Level& level, const Vec2i& position, int pulseValue, int dir);
 	~E_PulsePanel();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void saveAttributes(TiXmlElement* p_target);

@@ -7,6 +7,7 @@ E_Gate::E_Gate(Level& level,
 			   int subType,
 			   int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	// subType comes out of the level file unchecked (presets.cpp), and levels
 	// travel between players. Four things downstream index on it: the pin count
 	// just below, the sprite region in updateSprites(), the switch in doLogic()
@@ -48,11 +49,11 @@ void E_Gate::updateSprites()
 	sprites.add(t).rotation = 90.0 * dir;
 }
 
-void E_Gate::onRender(int layer,
+void E_Gate::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Gate::saveAttributes(TiXmlElement* p_target)

@@ -225,6 +225,34 @@ def check_display_lists():
     return bad
 
 
+@check('render_layers')
+def check_render_layers():
+    """A render layer is named, never a number.
+
+    RenderLayer's values are single bits, so every one of the old magic
+    numbers - 0, 1, 16, 42, 255, 736, 939 - now means either nothing or the
+    wrong layer. C++ compares an enum to an int without a word, so such a
+    line builds on all three platforms and is simply never true: the sprite
+    texture stops being bound for the lava passes, the wires lose their
+    offset, the speech balloons stop appearing. That is what this found the
+    first time, in the five places the conversion missed."""
+    calls = re.compile(r'\blayer\s*[=!]=\s*-?\d|\brenderObjects\s*\(\s*-?\d')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/'):
+            continue
+        for n, line in enumerate(read(p).split('\n'), 1):
+            # The editor walks the two TILE layers by number, which is a
+            # different thing entirely and stays a plain int.
+            if 'setTileAt' in line or 'getTileAt' in line or 'tile[layer]' in line:
+                continue
+            if calls.search(line):
+                bad.append('%s:%d: a render layer written as a number - use the RenderLayer name'
+                           % (rel, n))
+    return bad
+
+
 @check('naming')
 def check_naming():
     """The filename is the class name in lower case.

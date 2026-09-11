@@ -7,6 +7,7 @@ E_Value::E_Value(Level& level,
 				 int value,
 				 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	this->value = value;
 
 	// create the output
@@ -23,11 +24,11 @@ void E_Value::updateSprites()
 	sprites.add(Vec2i(32 * value, 608)).rotation = 90.0 * dir;
 }
 
-void E_Value::onRender(int layer,
+void E_Value::onRender(RenderLayer layer,
 					   const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Value::saveAttributes(TiXmlElement* p_target)

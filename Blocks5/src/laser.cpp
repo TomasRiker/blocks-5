@@ -13,6 +13,7 @@ Laser::Laser(Level& level,
 			 const Vec2i& position,
 			 int dir) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT | RL_SPARKLE;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
@@ -67,13 +68,13 @@ void Laser::updateSprites()
 	sprites.add(Vec2i(level.isElectricityOn() ? 32 : 0, 192)).rotation = 90.0 * dir;
 }
 
-void Laser::onRender(int layer,
+void Laser::onRender(RenderLayer layer,
 					 const Vec4d& color)
 {
 	Vec2i sp = getShownPositionInPixels();
 
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 16 || layer == 17)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_EFFECT || layer == RL_SPARKLE)
 	{
 		if(on > 0.0 && !beam.empty())
 		{
@@ -106,7 +107,7 @@ void Laser::onRender(int layer,
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
-			if(layer == 16) color = Vec4d(1.0, 0.25, 0.0, on * deathCountDown * (0.2 + 0.05 * sin(x)));
+			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.25, 0.0, on * deathCountDown * (0.2 + 0.05 * sin(x)));
 			else color = Vec4d(0.0, 0.25, 0.0, 0.4 * on * deathCountDown * (0.2 + 0.05 * sin(x)));
 			line.setWidth(6.5f);
 			line.setColor(color);
@@ -117,7 +118,7 @@ void Laser::onRender(int layer,
 			glVertex2dv(p);
 			glEnd();
 
-			if(layer == 16) color = Vec4d(1.0, random(0.6, 0.65), 0.0, on * deathCountDown * (0.9 + 0.1 * cos(x)));
+			if(layer == RL_EFFECT) color = Vec4d(1.0, random(0.6, 0.65), 0.0, on * deathCountDown * (0.9 + 0.1 * cos(x)));
 			else color = Vec4d(0.0, random(0.6, 0.65), 0.0, 0.4 * on * deathCountDown * (0.9 + 0.1 * cos(x)));
 			line.setWidth(1.5f);
 			line.setColor(color);
@@ -132,7 +133,7 @@ void Laser::onRender(int layer,
 			glPopMatrix();
 		}
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		if(on > 0.0)
 		{

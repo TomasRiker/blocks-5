@@ -9,6 +9,7 @@ StdObject::StdObject(Level& level,
 					 int depth,
 					 const Vec2i& positionOnTexture) : Object(level, depth)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	this->flags = flags;
 	this->positionOnTexture = positionOnTexture;
@@ -32,11 +33,11 @@ void StdObject::updateSprites()
 	sprites.add(positionOnTexture + Vec2i(frame * 32, 0));
 }
 
-void StdObject::onRender(int layer,
+void StdObject::onRender(RenderLayer layer,
 						 const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18 && glow)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT && glow)
 	{
 		level.renderShine(0.35, 0.35 + random(-0.05, 0.05));
 	}

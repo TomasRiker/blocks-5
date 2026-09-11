@@ -8,6 +8,7 @@ CannonSwitch::CannonSwitch(Level& level,
 						   int subType,
 						   uint color) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED;
 	this->subType = subType;
@@ -24,10 +25,10 @@ void CannonSwitch::updateSprites()
 	sprites.add(Vec2i(160 + subType * 32, 288), getStdColor(this->color));
 }
 
-void CannonSwitch::onRender(int layer,
+void CannonSwitch::onRender(RenderLayer layer,
 							const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void CannonSwitch::onUpdate()

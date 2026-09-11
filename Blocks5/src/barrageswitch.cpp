@@ -6,6 +6,7 @@ BarrageSwitch::BarrageSwitch(Level& level,
 							 const Vec2i& position,
 							 uint color) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED;
 	this->color = color;
@@ -21,10 +22,10 @@ void BarrageSwitch::updateSprites()
 	sprites.add(Vec2i(160, 192), getStdColor(this->color));
 }
 
-void BarrageSwitch::onRender(int layer,
+void BarrageSwitch::onRender(RenderLayer layer,
 							 const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void BarrageSwitch::onUpdate()

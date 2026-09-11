@@ -5,6 +5,7 @@
 ElectricitySwitch::ElectricitySwitch(Level& level,
 									 const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED;
 }
@@ -19,10 +20,10 @@ void ElectricitySwitch::updateSprites()
 	sprites.add(Vec2i(level.isElectricityOn() ? 160 : 128, 96));
 }
 
-void ElectricitySwitch::onRender(int layer,
+void ElectricitySwitch::onRender(RenderLayer layer,
 								 const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void ElectricitySwitch::onUpdate()

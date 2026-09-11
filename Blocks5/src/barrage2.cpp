@@ -7,6 +7,7 @@ Barrage2::Barrage2(Level& level,
 				   bool up,
 				   uint color) : Object(level, 0)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	this->up = up;
 	this->color = color;
@@ -28,10 +29,10 @@ void Barrage2::updateSprites()
 	sprites.add(positionOnTexture, getStdColor(this->color));
 }
 
-void Barrage2::onRender(int layer,
+void Barrage2::onRender(RenderLayer layer,
 						const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Barrage2::onUpdate()

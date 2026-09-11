@@ -1173,6 +1173,9 @@
     <ClInclude Include="src\quadarray.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="src\renderlayer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="src\util.h">
       <Filter>Engine</Filter>
     </ClInclude>

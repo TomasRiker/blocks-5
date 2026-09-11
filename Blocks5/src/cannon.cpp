@@ -10,6 +10,7 @@ Cannon::Cannon(Level& level,
 			   uint color,
 			   int dir) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
@@ -37,11 +38,11 @@ void Cannon::updateSprites()
 	sprites.add(Vec2i(128 + frame * 32, 416), realColor).rotation = 90.0 * shownDir;
 }
 
-void Cannon::onRender(int layer,
+void Cannon::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		if(reload)
 		{

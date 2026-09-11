@@ -119,6 +119,13 @@ def c_display_list_stub(p):
     p.append('\nGLAPI void GLAPIENTRY glEndList(void) {}\n')
 
 
+# The shape the conversion to RenderLayer actually got wrong: a comparison
+# outside onRender, which compiles and is silently never true.
+@case('render_layers', 'Blocks5/src/object.cpp')
+def c_render_layers(p):
+    p.replace('if(layer == RL_WIRE)', 'if(layer == 939)')
+
+
 @case('naming', 'Blocks5/src/u_crt.h')
 def c_naming(p):
     p.replace('class U_Crt : public Upscaler', 'class U_Tube : public Upscaler')

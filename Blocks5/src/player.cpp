@@ -20,6 +20,7 @@ Player::Player(Level& level,
 			   uint character,
 			   bool active) : Object(level, 0)
 {
+	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRIGGER_PANELS | OF_TRANSPORTABLE | OF_BURSTABLE;
 	destroyTime = 1;
@@ -112,11 +113,11 @@ void Player::updateSprites()
 	}
 }
 
-void Player::onRender(int layer,
+void Player::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 16)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_EFFECT)
 	{
 		if(censored)
 		{
@@ -149,7 +150,7 @@ void Player::onRender(int layer,
 			level.getSpritesTexture()->bind();
 		}
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + random(-0.05, 0.05));
 	}

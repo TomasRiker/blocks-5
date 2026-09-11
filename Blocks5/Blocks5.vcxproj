@@ -807,6 +807,7 @@
     <ClInclude Include="src\presets.h" />
     <ClInclude Include="src\projectile.h" />
     <ClInclude Include="src\quadarray.h" />
+    <ClInclude Include="src\renderlayer.h" />
     <ClInclude Include="src\rail.h" />
     <ClInclude Include="src\sprite.h" />
     <ClInclude Include="src\stdobject.h" />

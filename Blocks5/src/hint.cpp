@@ -141,6 +141,7 @@ Hint::Hint(Level& level,
 		   const Vec2i& position,
 		   const std::string& text) : Object(level, 2)
 {
+	renderLayers = RL_MAIN | RL_OVERLAY | RL_HINT_PREVIEW;
 	warpTo(position);
 	flags = OF_FIXED | OF_TRANSPORTABLE | OF_COLLECTABLE;
 	this->text = text;
@@ -388,11 +389,11 @@ void Hint::renderNoteFlat(const Vec4d& color,
 	glPopMatrix();
 }
 
-void Hint::onRender(int layer,
+void Hint::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 42 || layer == 43)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_OVERLAY || layer == RL_HINT_PREVIEW)
 	{
 		double r = (0.85 - shownAlpha) * 45.0;
 		double i = shownAlpha / 0.85;
@@ -409,7 +410,7 @@ void Hint::onRender(int layer,
 		// the single quad.
 		Vec2i target = targetPosition;
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
-		if(layer == 43) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
+		if(layer == RL_HINT_PREVIEW) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
 
 		// Arrived means exactly arrived: shownAlpha only approaches 0.85, and
 		// scale, angle and position would stay fractions off for ever, with

@@ -11,7 +11,7 @@ public:
 	Barrage2Panel(Level& level, const Vec2i& position, int subType, uint color);
 	~Barrage2Panel();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

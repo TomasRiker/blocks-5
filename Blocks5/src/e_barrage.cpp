@@ -6,6 +6,7 @@ E_Barrage::E_Barrage(Level& level,
 					 const Vec2i& position,
 					 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	renderBox = false;
 	up = false;
 	shownState = 0;
@@ -30,11 +31,11 @@ void E_Barrage::updateSprites()
 	sprites.add(positionOnTexture).rotation = 90.0 * dir;
 }
 
-void E_Barrage::onRender(int layer,
+void E_Barrage::onRender(RenderLayer layer,
 						 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Barrage::onUpdate()

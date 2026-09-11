@@ -6,6 +6,7 @@ E_Multiplexer::E_Multiplexer(Level& level,
 							 const Vec2i& position,
 							 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	value = -1;
 
 	// create the inputs
@@ -27,11 +28,11 @@ void E_Multiplexer::updateSprites()
 	sprites.add(Vec2i(value == -1 ? 0 : (value == 0 ? 32 : 64), 576)).rotation = 90.0 * dir;
 }
 
-void E_Multiplexer::onRender(int layer,
+void E_Multiplexer::onRender(RenderLayer layer,
 							 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_Multiplexer::saveExtendedAttributes(TiXmlElement* p_target)

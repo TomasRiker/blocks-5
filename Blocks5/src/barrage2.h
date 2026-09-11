@@ -11,7 +11,7 @@ public:
 	Barrage2(Level& level, const Vec2i& position, bool up, uint color);
 	~Barrage2();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);

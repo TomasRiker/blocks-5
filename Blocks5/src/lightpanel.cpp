@@ -7,6 +7,7 @@ LightPanel::LightPanel(Level& level,
 					   const Vec2i& position,
 					   int subType) : Panel(level, position)
 {
+	renderLayers = RL_FLOOR | RL_LIGHT;
 	this->subType = subType;
 }
 
@@ -20,11 +21,11 @@ void LightPanel::updateSprites()
 	sprites.add(Vec2i(subType ? 64 : 32, 256));
 }
 
-void LightPanel::onRender(int layer,
+void LightPanel::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.35, 0.25 + random(-0.05, 0.05));
 	}

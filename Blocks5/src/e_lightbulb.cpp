@@ -6,6 +6,7 @@ E_LightBulb::E_LightBulb(Level& level,
 						 const Vec2i& position,
 						 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	renderBox = false;
 	on = false;
 
@@ -23,12 +24,12 @@ void E_LightBulb::updateSprites()
 	sprites.add(Vec2i(on ? 160 : 128, 608)).rotation = 90.0 * dir;
 }
 
-void E_LightBulb::onRender(int layer,
+void E_LightBulb::onRender(RenderLayer layer,
 						   const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18 && on)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT && on)
 	{
 		level.renderShine(1.0, 1.5 + random(-0.05, 0.05));
 	}

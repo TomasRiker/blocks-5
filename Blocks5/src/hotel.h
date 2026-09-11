@@ -13,7 +13,7 @@ public:
 	Hotel(Level& level, const Vec2i& position);
 	~Hotel();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void onRemove();

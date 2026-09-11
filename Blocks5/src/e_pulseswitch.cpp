@@ -7,6 +7,7 @@ E_PulseSwitch::E_PulseSwitch(Level& level,
 							 int pulseValue,
 							 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	this->pulseValue = pulseValue;
 	value = !pulseValue;
 
@@ -24,11 +25,11 @@ void E_PulseSwitch::updateSprites()
 	sprites.add(Vec2i(96 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
 }
 
-void E_PulseSwitch::onRender(int layer,
+void E_PulseSwitch::onRender(RenderLayer layer,
 							 const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_PulseSwitch::saveAttributes(TiXmlElement* p_target)

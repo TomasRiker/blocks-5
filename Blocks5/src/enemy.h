@@ -11,7 +11,7 @@ public:
 	Enemy(Level& level, const Vec2i& position, int subType, int dir);
 	~Enemy();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);

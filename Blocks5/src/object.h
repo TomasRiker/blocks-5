@@ -2,6 +2,7 @@
 #define _OBJECT_H
 
 #include "sprite.h"
+#include "renderlayer.h"
 
 #include "level.h"
 
@@ -46,7 +47,7 @@ public:
 	Object(Level& level, int depth);
 	virtual ~Object();
 
-	void render(int layer, const Vec2i& offset, const Vec4d& color);
+	void render(RenderLayer layer, const Vec2i& offset, const Vec4d& color);
 	void update();
 	virtual void onRemove();
 
@@ -61,7 +62,7 @@ public:
 	// that.
 	virtual void onBeforeRender();
 
-	virtual void onRender(int layer, const Vec4d& color);
+	virtual void onRender(RenderLayer layer, const Vec4d& color);
 	virtual void onUpdate();
 	virtual void onElectricitySwitch(bool on);
 	virtual void onCollect(Player* p_player);
@@ -107,6 +108,19 @@ public:
 	Vec2i getShownPositionInPixels() const;
 	uint getFlags() const;
 	void setFlags(uint flags);
+
+	// Which layers this object may draw on, as bits from . Level
+	// walks the passes and skips an object whose bit is clear, which is most
+	// of them on most passes: with twelve layers and one drawing on one or two
+	// of them, the walk used to spend eleven twelfths of itself on a matrix
+	// bracket and a virtual call that drew nothing.
+	//
+	// A plain member and not a virtual, so that asking is a load rather than a
+	// call - and, more to the point, so that a subclass cannot answer
+	// differently from the onRender it inherits. It may name a layer the
+	// object does not always draw on; it may never omit one it does, so the
+	// bits are only ever added to.
+	uint getRenderLayers() const { return renderLayers; }
 	int getDepth() const;
 	void setDepth(int depth);
 	bool isGhost() const;
@@ -218,9 +232,14 @@ protected:
 	int slideDir;
 	bool slideMove;
 	// The layer this object draws its sprite on, and therefore the one
-	// Object::render() adds the flash onto. Almost all of them draw on 1; the
-	// panels lie on the floor and draw on 0.
-	int flashLayer;
+	// Object::render() adds the flash onto. Almost all of them draw on the
+	// middle ground; the panels lie on the floor.
+	RenderLayer flashLayer;
+
+	// Set by whichever class defines onRender, in its own constructor - see
+	// getRenderLayers(). say() and flash() add their own bits when they first
+	// have something to draw.
+	uint renderLayers;
 	static int nextFallingDepth;
 
 private:

@@ -11,7 +11,7 @@ public:
 	E_PulseSwitch(Level& level, const Vec2i& position, int pulseValue, int dir);
 	~E_PulseSwitch();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	void saveExtendedAttributes(TiXmlElement* p_target);

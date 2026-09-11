@@ -6,6 +6,7 @@ LightBarrierSender::LightBarrierSender(Level& level,
 									   const Vec2i& position,
 									   int dir) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT | RL_SPARKLE;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_TRANSPORTABLE;
 	this->dir = dir;
@@ -21,13 +22,13 @@ void LightBarrierSender::updateSprites()
 	sprites.add(Vec2i(64, 608)).rotation = 90.0 * dir;
 }
 
-void LightBarrierSender::onRender(int layer,
+void LightBarrierSender::onRender(RenderLayer layer,
 								  const Vec4d& color)
 {
 	Vec2i sp = getShownPositionInPixels();
 
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 16 || layer == 17)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_EFFECT || layer == RL_SPARKLE)
 	{
 		if(!beam.empty())
 		{
@@ -60,7 +61,7 @@ void LightBarrierSender::onRender(int layer,
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
-			if(layer == 16) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
+			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
 			else color = Vec4d(0.0, 0.1, 0.0, 0.4 * (0.2 + 0.05 * sin(x)));
 			line.setWidth(2.5f);
 			line.setColor(color);
@@ -71,7 +72,7 @@ void LightBarrierSender::onRender(int layer,
 			glVertex2dv(p);
 			glEnd();
 
-			if(layer == 16) color = Vec4d(1.0, random(0.2, 0.25), 0.0, 0.3 + 0.1 * cos(x));
+			if(layer == RL_EFFECT) color = Vec4d(1.0, random(0.2, 0.25), 0.0, 0.3 + 0.1 * cos(x));
 			else color = Vec4d(0.0, random(0.2, 0.25), 0.0, 0.4 * (0.3 + 0.1 * cos(x)));
 			line.setWidth(0.5f);
 			line.setColor(color);
@@ -86,7 +87,7 @@ void LightBarrierSender::onRender(int layer,
 			glPopMatrix();
 		}
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
 		{

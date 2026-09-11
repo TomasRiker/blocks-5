@@ -676,8 +676,7 @@ void Level::render()
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	glColorMask(0, 0, 0, 0);
 
-	renderObjects(735, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	renderObjects(736, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	glDisable(GL_ALPHA_TEST);
 	glColorMask(1, 1, 1, 1);
@@ -691,23 +690,23 @@ void Level::render()
 
 	// render the lava
 	p_lava[0]->bind();
-	renderObjects(737, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	p_lava[0]->unbind();
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	p_lava[1]->bind();
-	renderObjects(738, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	p_lava[1]->unbind();
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 	glDisable(GL_STENCIL_TEST);
 
 	// render the background objects
-	renderObjects(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_FLOOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// render the electronics connections
 	glPushMatrix();
 	glTranslated(0.5, 0.5, 0.0);
-	renderObjects(939, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_WIRE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	glPopMatrix();
 
 	// render the rain particle system
@@ -723,12 +722,12 @@ void Level::render()
 	for(int i = 0; i < numSamples; i++)
 	{
 		renderTiles(1, samples[start + i], shadowColor);
-		renderObjects(1, samples[start + i], shadowColor, true);
+		renderObjects(RL_MAIN, samples[start + i], shadowColor, true);
 	}
 
 	// render the middle ground
 	renderTiles(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
-	renderObjects(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_MAIN, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// render the particle systems
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -737,9 +736,9 @@ void Level::render()
 	p_particleSystem->render();
 
 	// render the special effect layer
-	renderObjects(16, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_EFFECT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	if(inEditor && !inCat && !inPreview) renderObjects(255, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	if(inEditor && !inCat && !inPreview) renderObjects(RL_EDITOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// Rain
 	if(!inEditor && raining)
@@ -923,7 +922,7 @@ void Level::render()
 
 		// accumulate the lights
 		engine.setBlendFunc(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
-		renderObjects(18, Vec2i(0, 0), Vec4d(1.0), false);
+		renderObjects(RL_LIGHT, Vec2i(0, 0), Vec4d(1.0), false);
 		if(thunderstorm) lightning.render();
 
 		glColorMask(1, 1, 1, 0);
@@ -943,7 +942,7 @@ void Level::render()
 		glColorMask(1, 1, 1, 1);
 
 		// render the "Funkel-Layer"
-		renderObjects(17, Vec2i(0, 0), Vec4d(1.0), false);
+		renderObjects(RL_SPARKLE, Vec2i(0, 0), Vec4d(1.0), false);
 
 		// render the noise
 		engine.setBlendFunc(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
@@ -975,7 +974,7 @@ void Level::render()
 	}
 
 	// render the layer on which overlays are shown
-	renderObjects(42, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_OVERLAY, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	if(flash > 0.0)
 	{
@@ -1233,15 +1232,23 @@ void Level::renderTiles(int layer,
 	glPopMatrix();
 }
 
-void Level::renderObjects(int layer,
+void Level::renderObjects(RenderLayer layer,
 						  const Vec2i& offset,
 						  const Vec4d& color,
 						  bool shadow)
 {
-	if(layer != 939 && layer != 735 && layer != 736 && layer != 737 && layer != 738) p_sprites->bind();
+	// The passes that bring a texture of their own: the wires draw untextured
+	// and the three lava passes bind lava_edges or the lava itself.
+	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
+	if(!(layer & ownTexture)) p_sprites->bind();
 
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
+		// Most objects draw on one or two of the twelve layers, so most of
+		// this walk is a matrix bracket and a virtual call that would draw
+		// nothing. The mask is a plain member, so asking costs a load.
+		if(!((*i)->getRenderLayers() & layer)) continue;
+
 		if(!shadow || (shadow && !((*i)->getFlags() & Object::OF_NO_SHADOW)))
 		{
 			(*i)->shadowPass = shadow;
@@ -1249,7 +1256,7 @@ void Level::renderObjects(int layer,
 		}
 	}
 
-	if(layer != 939 && layer != 735 && layer != 736 && layer != 737 && layer != 738) p_sprites->unbind();
+	if(!(layer & ownTexture)) p_sprites->unbind();
 }
 
 void Level::sortObjects()

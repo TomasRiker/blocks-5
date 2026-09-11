@@ -11,7 +11,7 @@ public:
 	E_Multiplexer(Level& level, const Vec2i& position, int dir);
 	~E_Multiplexer();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);

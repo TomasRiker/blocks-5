@@ -11,7 +11,7 @@ public:
 	Projectile(Level& level, const Vec2d& positionInPixels, const Vec2d& velocity);
 	~Projectile();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void onUpdate();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);

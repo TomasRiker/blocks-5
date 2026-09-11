@@ -11,7 +11,7 @@ public:
 	Lava(Level& level, const Vec2i& position, int dir);
 	~Lava();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void onUpdate();
 	void frameBegin();
 	bool changeInEditor(int mod);

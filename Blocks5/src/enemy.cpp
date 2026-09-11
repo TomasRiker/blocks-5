@@ -10,6 +10,7 @@ Enemy::Enemy(Level& level,
 			 int subType,
 			 int dir) : Object(level, 0)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	setMass(1);
 	this->subType = subType;
@@ -65,7 +66,7 @@ void Enemy::updateSprites()
 	}
 }
 
-void Enemy::onRender(int layer,
+void Enemy::onRender(RenderLayer layer,
 					 const Vec4d& color)
 {
 	Vec4d realColor = color;
@@ -75,7 +76,7 @@ void Enemy::onRender(int layer,
 		realColor.a -= 0.1 * invisibility;
 	}
 
-	if(layer == 1)
+	if(layer == RL_MAIN)
 	{
 		if(subType == 1)
 		{
@@ -89,7 +90,7 @@ void Enemy::onRender(int layer,
 
 		Engine::inst().renderSprites(sprites, realColor);
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		if(subType == 1)
 		{

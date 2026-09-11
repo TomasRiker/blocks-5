@@ -53,7 +53,8 @@ Object::Object(Level& level,
 	lastHashedAt = -1;
 	removed = false;
 	flashAmount = 0.0;
-	flashLayer = 1;
+	flashLayer = RL_MAIN;
+	renderLayers = 0;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
@@ -67,7 +68,7 @@ Object::~Object()
 {
 }
 
-void Object::render(int layer,
+void Object::render(RenderLayer layer,
 					const Vec2i& offset,
 					const Vec4d& color)
 {
@@ -81,14 +82,14 @@ void Object::render(int layer,
 
 	if(!(flags & OF_PROXY))
 	{
-		if(layer == 939) glTranslated(offset.x, offset.y, 0.0);
+		if(layer == RL_WIRE) glTranslated(offset.x, offset.y, 0.0);
 		else
 		{
 			Vec2i sp = getShownPositionInPixels();
 			glTranslated(sp.x + offset.x, sp.y + offset.y, 0.0);
 		}
 
-		if(layer != 18)
+		if(layer != RL_LIGHT)
 		{
 			double o = -16.0;
 			if(getType() == "Enemy") o = -17.0;
@@ -141,7 +142,7 @@ void Object::render(int layer,
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 
-	if(layer == 42 &&
+	if(layer == RL_OVERLAY &&
 	   sayTime > 0.0 &&
 	   !sayText.empty())
 	{
@@ -550,7 +551,7 @@ void Object::onRemove()
 {
 }
 
-void Object::onRender(int layer,
+void Object::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
 }
@@ -937,6 +938,12 @@ void Object::frameBegin()
 void Object::flash()
 {
 	flashAmount = FLASH_STRENGTH;
+
+	// render() puts the flash on flashLayer, which is not necessarily a layer
+	// this object's own sprites reach. The bit goes in here and never comes
+	// out: a mask may name a layer the object is not drawing on this frame,
+	// and may never omit one it is.
+	renderLayers |= flashLayer;
 }
 
 void Object::disappear(double duration)
@@ -1016,6 +1023,11 @@ void Object::say(const std::string& text,
 {
 	sayText = text;
 	sayTime = duration;
+
+	// The balloon is render()'s own, not onRender()'s, so the class that set
+	// the mask in its constructor knows nothing about it. As in flash(), the
+	// bit is added and never removed.
+	renderLayers |= RL_OVERLAY;
 }
 
 const std::string& Object::getType() const

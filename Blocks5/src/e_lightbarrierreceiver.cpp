@@ -6,6 +6,7 @@ E_LightBarrierReceiver::E_LightBarrierReceiver(Level& level,
 											   const Vec2i& position,
 											   int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	renderBox = false;
 	value = 0;
 
@@ -29,11 +30,11 @@ void E_LightBarrierReceiver::updateSprites()
 	sprites.add(Vec2i(96, 608)).rotation = 90.0 * dir;
 }
 
-void E_LightBarrierReceiver::onRender(int layer,
+void E_LightBarrierReceiver::onRender(RenderLayer layer,
 									  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_LightBarrierReceiver::saveExtendedAttributes(TiXmlElement* p_target)

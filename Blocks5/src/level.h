@@ -5,6 +5,7 @@
 // For QuadVertex, which the per-layer arrays below are made of. The forward
 // declaration of TileSet a few lines down is enough for the rest.
 #include "quadarray.h"
+#include "renderlayer.h"
 
 /*** Class for a level ***/
 
@@ -56,7 +57,7 @@ public:
 	void render();
 	void update();
 	void renderTiles(int layer, const Vec2i& offset, const Vec4d& color);
-	void renderObjects(int layer, const Vec2i& offset, const Vec4d& color, bool shadow);
+	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4d& color, bool shadow);
 	void sortObjects();
 	void renderShine(double intensity, double size);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);

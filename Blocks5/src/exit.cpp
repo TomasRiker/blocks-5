@@ -6,6 +6,7 @@
 Exit::Exit(Level& level,
 		   const Vec2i& position) : Object(level, 255)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED;
 	ghost = !level.isInEditor();
@@ -32,12 +33,12 @@ void Exit::updateSprites()
 	sprites.add(Vec2i(224, 32), Vec4d(1.0, 1.0, 1.0, alpha));
 }
 
-void Exit::onRender(int layer,
+void Exit::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
 	if(ghost) return;
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.5, 0.4 + random(-0.05, 0.05));
 	}

@@ -9,6 +9,7 @@ Projectile::Projectile(Level& level,
 					   const Vec2d& positionInPixels,
 					   const Vec2d& velocity) : Object(level, 0)
 {
+	renderLayers = RL_EFFECT | RL_LIGHT;
 	type = "Projectile";
 	warpTo(Vec2i(0, 0));
 	flags = OF_PROXY | OF_NO_SHADOW;
@@ -25,10 +26,10 @@ Projectile::~Projectile()
 {
 }
 
-void Projectile::onRender(int layer,
+void Projectile::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
-	if(layer == 16 && life > 0.0)
+	if(layer == RL_EFFECT && life > 0.0)
 	{
 		double traceLength = min(distance, 0.035 * speed);
 
@@ -56,7 +57,7 @@ void Projectile::onRender(int layer,
 
 		glEnable(GL_TEXTURE_2D);
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		// make the projectile shine
 		glPushMatrix();

@@ -6,6 +6,7 @@ Damage::Damage(Level& level,
 			   const Vec2i& position,
 			   double rotation) : Object(level, 400)
 {
+	renderLayers = RL_FLOOR;
 	type = "Damage";
 	warpTo(position);
 	flags = 0;
@@ -27,10 +28,10 @@ void Damage::updateSprites()
 	sprite.rotation = rotation;
 }
 
-void Damage::onRender(int layer,
+void Damage::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }
 
 void Damage::onUpdate()

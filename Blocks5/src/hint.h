@@ -15,7 +15,7 @@ public:
 	Hint(Level& level, const Vec2i& position, const std::string& text);
 	~Hint();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void onRemove();

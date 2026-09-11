@@ -11,6 +11,7 @@ ConveyorBelt::ConveyorBelt(Level& level,
 						   const Vec2i& position,
 						   int dir) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_BLOCK_GAS;
 	this->dir = dir;
@@ -66,10 +67,10 @@ void ConveyorBelt::updateSprites()
 	sprites.add(Vec2i((anim / 2 % 7) * 32, 32)).mirrorX = dir == -1;
 }
 
-void ConveyorBelt::onRender(int layer,
+void ConveyorBelt::onRender(RenderLayer layer,
 							const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void ConveyorBelt::onUpdate()

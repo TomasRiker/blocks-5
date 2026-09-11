@@ -6,6 +6,7 @@ E_BlockDetector::E_BlockDetector(Level& level,
 								 const Vec2i& position,
 								 int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	// create the output
 	createPin(10, Vec2i(7, 15), PT_OUTPUT);
 }
@@ -20,11 +21,11 @@ void E_BlockDetector::updateSprites()
 	sprites.add(Vec2i(224, 576)).rotation = 90.0 * dir;
 }
 
-void E_BlockDetector::onRender(int layer,
+void E_BlockDetector::onRender(RenderLayer layer,
 							   const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 bool E_BlockDetector::changeInEditor(int mod)

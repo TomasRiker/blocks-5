@@ -7,6 +7,7 @@ CannonPanel::CannonPanel(Level& level,
 						 const Vec2i& position,
 						 uint color) : Panel(level, position)
 {
+	renderLayers = RL_FLOOR;
 	this->color = color;
 }
 
@@ -20,10 +21,10 @@ void CannonPanel::updateSprites()
 	sprites.add(Vec2i(224, 288), getStdColor(this->color));
 }
 
-void CannonPanel::onRender(int layer,
+void CannonPanel::onRender(RenderLayer layer,
 						   const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }
 
 bool CannonPanel::changeInEditor(int mod)

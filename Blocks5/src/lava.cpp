@@ -7,6 +7,7 @@ Lava::Lava(Level& level,
 		   const Vec2i& position,
 		   int dir) : Object(level, 401)
 {
+	renderLayers = RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT | RL_EDITOR | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED | OF_DONT_FALL | OF_NO_SHADOW;
 	this->dir = dir;
@@ -17,10 +18,10 @@ Lava::~Lava()
 {
 }
 
-void Lava::onRender(int layer,
+void Lava::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 736)
+	if(layer == RL_LAVA_EDGE)
 	{
 		Engine& engine = Engine::inst();
 
@@ -47,13 +48,13 @@ void Lava::onRender(int layer,
 		if(r && t && !tr)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 16), Vec2i(16, 16), Vec4d(1.0));
 		if(r && b && !br)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 0), Vec2i(16, 16), Vec4d(1.0));
 	}
-	else if(layer == 737 || layer == 738)
+	else if(layer == RL_LAVA_BACK || layer == RL_LAVA_FRONT)
 	{
 		// render the lava
 		Vec2d shift(2.0 * sin(0.1 * anim), 3.0 * cos(0.05 * anim));
 		double a[4];
-		if(layer == 737) getAlpha1(position, a);
-		else if(layer == 738) getAlpha2(position, a);
+		if(layer == RL_LAVA_BACK) getAlpha1(position, a);
+		else if(layer == RL_LAVA_FRONT) getAlpha2(position, a);
 
 		int numPasses = 1;
 		if(dir > 3) numPasses = 2;
@@ -100,7 +101,7 @@ void Lava::onRender(int layer,
 
 			t += shift;
 
-			if(layer == 737)
+			if(layer == RL_LAVA_BACK)
 			{
 				glBegin(GL_QUADS);
 				glColor4d(1.0, 1.0, 1.0, a[0] * tl);
@@ -120,7 +121,7 @@ void Lava::onRender(int layer,
 
 			t /= 2.0;
 
-			if(layer == 738)
+			if(layer == RL_LAVA_FRONT)
 			{
 				glBegin(GL_QUADS);
 				glColor4d(1.0, 1.0, 1.0, a[0] * tl);
@@ -139,12 +140,12 @@ void Lava::onRender(int layer,
 			}
 		}
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.75, 0.35 + random(-0.05, 0.05));
 	}
 
-	if(layer == 255)
+	if(layer == RL_EDITOR)
 	{
 		// show the flow direction
 		glPushAttrib(GL_ENABLE_BIT);

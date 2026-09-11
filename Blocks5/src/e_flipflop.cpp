@@ -8,6 +8,7 @@ E_FlipFlop::E_FlipFlop(Level& level,
 					   int value,
 					   int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_MAIN;
 	this->subType = subType;
 	this->value = value;
 
@@ -40,11 +41,11 @@ void E_FlipFlop::updateSprites()
 	sprites.add(Vec2i(64 * subType + 32 * value, 544)).rotation = 90.0 * dir;
 }
 
-void E_FlipFlop::onRender(int layer,
+void E_FlipFlop::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_FlipFlop::saveAttributes(TiXmlElement* p_target)

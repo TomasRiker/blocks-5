@@ -201,7 +201,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      eighteen static checks over the whole tree
+python3 Tools/verify.py      nineteen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -230,7 +230,7 @@ those are exactly what `Tools/syntax.sh` is for.
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, a display list added back to a tree that has none, a class
-whose header is not named after it, the version
+whose header is not named after it, a render layer written as a number, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
 `gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
@@ -531,6 +531,32 @@ float the code asked for — the same screen read back from the framebuffer at 6
 byte-identical before and after. Worth knowing before the next renderer moves: every colour
 the remaining `glBegin` blocks set is truncated down to the next 1/255 — a weaker alpha and
 a darker tint than the code asks for.
+
+**A render layer is a pass, and it has a name.** `renderlayer.h` holds the twelve `RL_*` that
+`Level::render` walks in order, and each is a single bit, so an object's set of them is the OR
+of the ones it draws on. `Object::getRenderLayers()` is a plain member behind an inline getter
+and deliberately **not** a virtual: asking costs a load, and — the real reason — a subclass
+cannot then answer differently from the `onRender` it inherits. The mask may name a layer the
+object is not drawing this frame and may never omit one it is, so `say()` and `flash()`, which
+draw from `Object::render` rather than from `onRender`, add their bit and never remove it.
+
+`Level::renderObjects` skips an object whose bit is clear, which is most of them on most
+passes. **That is worth almost nothing in milliseconds and was measured before it was built**:
+adding 27,720 no-op matrix operations per frame costs 1.0 ms, so removing the 2,772 that the
+old unconditional bracket spent was worth 0.1 ms, and the finished change measures 1.7 ms of
+render against 1.6. It earns its place as names rather than as speed — and it earned it
+immediately, by making a dead pass visible. `renderObjects(735, …)` walked all 84 objects with
+a matrix bracket and a virtual call each, and no `onRender` in the tree had ever handled 735.
+
+**The trap it set on the way in is what `verify.py`'s `render_layers` check is for.** The
+values moved, so every surviving magic number — `layer == 939`, `layer != 18` — became either
+meaningless or the wrong layer; and C++ compares an enum to an int without a word, so five such
+lines built on all three platforms and were simply never true. The sprite texture stopped being
+bound for the lava passes, the wires lost their offset, the speech balloons stopped appearing.
+The five palette levels are what caught it: `cat0`..`cat4` hold an instance of every object
+type there is, so walking them draws every `onRender` in the game, and four of the five are
+byte-identical across a change like this. The fifth holds an Arrow and a ConveyorBelt and
+therefore differs run to run by a couple of hundred pixels whatever you do.
 
 **There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
 They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
@@ -2104,7 +2130,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other seventeen**, and the reason is a file it did not
+  **That check reads further than the other eighteen**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

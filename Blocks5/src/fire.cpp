@@ -6,6 +6,7 @@
 Fire::Fire(Level& level,
 		   const Vec2i& position) : Object(level, 100)
 {
+	renderLayers = RL_FLOOR | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED;
 	anim = position.x * 5 + position.y * 200;
@@ -21,11 +22,11 @@ void Fire::updateSprites()
 	sprites.add(Vec2i((anim / 5 % 8) * 32, 320), Vec4d(1.0, 1.0, 1.0, 0.5));
 }
 
-void Fire::onRender(int layer,
+void Fire::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.5, 1.0 + 0.05 * sin(anim / 5.0) + random(-0.05, 0.05));
 	}

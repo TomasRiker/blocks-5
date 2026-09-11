@@ -9,6 +9,7 @@ Hotel* Hotel::p_hotelToSave = 0;
 Hotel::Hotel(Level& level,
 			 const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED;
 	state = -1;
@@ -24,11 +25,11 @@ void Hotel::updateSprites()
 	sprites.add(Vec2i(32, 448));
 }
 
-void Hotel::onRender(int layer,
+void Hotel::onRender(RenderLayer layer,
 					 const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.4, 0.4 + random(-0.05, 0.05));
 	}

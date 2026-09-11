@@ -8,6 +8,7 @@ Electronics::Electronics(Level& level,
 						 const Vec2i& position,
 						 int dir) : Object(level, 1)
 {
+	renderLayers = RL_WIRE;
 	warpTo(position);
 	flags = OF_FIXED | OF_MASSIVE | OF_ELECTRONICS;
 	this->dir = dir;
@@ -52,10 +53,10 @@ void Electronics::updateSprites()
 	if(renderBox) sprites.add(Vec2i(0, 512));
 }
 
-void Electronics::onRender(int layer,
+void Electronics::onRender(RenderLayer layer,
 						   const Vec4d& color)
 {
-	if(layer == 939)
+	if(layer == RL_WIRE)
 	{
 		const Vec4d wireColor[] = {Vec4d(0.35, 0.3, 0.3, 1.0),
 								   Vec4d(0.3, 0.35, 0.3, 1.0),

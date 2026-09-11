@@ -11,7 +11,7 @@ public:
 	E_Value(Level& level, const Vec2i& position, int value, int dir);
 	~E_Value();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void saveAttributes(TiXmlElement* p_target);
 	std::string getToolTip() const;

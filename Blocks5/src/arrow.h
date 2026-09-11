@@ -11,7 +11,7 @@ public:
 	Arrow(Level& level, const Vec2i& position, int dir);
 	~Arrow();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	bool allowMovement(const Vec2i& dir);

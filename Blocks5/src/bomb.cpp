@@ -9,6 +9,7 @@
 Bomb::Bomb(Level& level,
 		   const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_COLLECTABLE | OF_TRANSPORTABLE;
 	countDown = 0;
@@ -25,11 +26,11 @@ void Bomb::updateSprites()
 	else sprites.add(Vec2i(32 + 32 * ((countDown / 6) % 4), 160));
 }
 
-void Bomb::onRender(int layer,
+void Bomb::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		if(!(flags & OF_COLLECTABLE) &&
 		   deathCountDown != 1.0)

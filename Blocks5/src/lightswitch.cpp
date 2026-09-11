@@ -6,6 +6,7 @@
 LightSwitch::LightSwitch(Level& level,
 						 const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED;
 }
@@ -20,11 +21,11 @@ void LightSwitch::updateSprites()
 	sprites.add(Vec2i(level.isNightVision() ? 192 : 224, 224));
 }
 
-void LightSwitch::onRender(int layer,
+void LightSwitch::onRender(RenderLayer layer,
 						   const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 18)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_LIGHT)
 	{
 		level.renderShine(0.35, 0.25 + random(-0.05, 0.05));
 	}
