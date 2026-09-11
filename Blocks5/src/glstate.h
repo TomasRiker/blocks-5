@@ -42,10 +42,11 @@ namespace GLState
 	// wants something else there for a moment, which is how the hint note
 	// samples its own sheet in 0..1 rather than in texels.
 	//
-	// load() restores the matrix mode through the attribute stack rather than
-	// setting GL_MODELVIEW, because Level::render binds the snow and the clouds
-	// with GL_TEXTURE already current. The push/pop pair returns to
-	// GL_MODELVIEW, which is what its one caller wants and does today.
+	// All three put the matrix mode back through the attribute stack rather
+	// than setting GL_MODELVIEW, because Level::render binds the snow and the
+	// clouds with GL_TEXTURE already current - and because three functions in
+	// one namespace that differ on a thing like that are a trap for whoever
+	// adds the fourth.
 	void loadTextureMatrix(const GLdouble* p_matrix);
 	void pushTextureMatrix();
 	void popTextureMatrix();

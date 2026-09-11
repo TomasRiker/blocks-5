@@ -3002,14 +3002,23 @@ void Engine::flushSprites()
 #ifdef BLOCKS5_TEST_HOOKS
 	{
 		GLint texture = 0;
+		GLdouble textureMatrix[16];
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
-		if(texture != batchTexture || glIsEnabled(GL_TEXTURE_2D) != batchTexturing)
+		glGetDoublev(GL_TEXTURE_MATRIX, textureMatrix);
+		// All three of the states GLState owns, because the static check reads
+		// the sources and this reads what happened - and a helper living in
+		// level.cpp or engine.cpp is outside the check's scope while still
+		// running with a batch open.
+		if(texture != batchTexture || glIsEnabled(GL_TEXTURE_2D) != batchTexturing ||
+		   memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix)))
 		{
 			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d/%d "
-					  "and is being drawn against %d/%d - a flush is missing.\n",
+					  "and is being drawn against %d/%d%s - a flush is missing.\n",
 					  static_cast<uint>(spriteBatch.size() / 4),
 					  static_cast<int>(batchTexture), static_cast<int>(batchTexturing),
-					  static_cast<int>(texture), static_cast<int>(glIsEnabled(GL_TEXTURE_2D)));
+					  static_cast<int>(texture), static_cast<int>(glIsEnabled(GL_TEXTURE_2D)),
+					  memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix))
+						  ? ", and under another texture matrix" : "");
 		}
 	}
 #endif
@@ -3025,9 +3034,14 @@ void Engine::flushSprites()
 	// Texture::bind() - and Level::render binds the snow and the clouds with
 	// GL_TEXTURE current, so an unqualified glPushMatrix here would push, wipe
 	// and pop the *texture* matrix and leave the sprites under whatever
-	// modelview happened to stand. It is empty at that call today, which is the
-	// only reason this has never shown; saying the mode costs two calls a flush
-	// and stops it being a question.
+	// modelview happened to stand.
+	//
+	// What actually keeps that safe is that the batch is closed there:
+	// endSpriteBatch() runs long before the weather block. This is the cheaper
+	// half of a belt and braces, not the whole answer - a batch left open
+	// across that block would still draw under the texture matrix the weather
+	// scrolls, which no bracket here can help with. Three calls a flush on the
+	// desktop, two in the browser, where gl_compat's glPushAttrib issues none.
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -3074,6 +3088,7 @@ void Engine::queueSprite(const Vec2i& position,
 	{
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &batchTexture);
 		batchTexturing = glIsEnabled(GL_TEXTURE_2D);
+		glGetDoublev(GL_TEXTURE_MATRIX, batchTextureMatrix);
 	}
 #endif
 
