@@ -271,7 +271,7 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 120 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 123 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
 files never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp`. The last two
 are left out of the web build for the same reasons; `main.cpp` is compiled there, and the
@@ -596,9 +596,9 @@ the weather scrolls, which no bracket at the flush can help with. What keeps tha
 **Two explicit flushes survive.** In `lava.cpp` the two lava passes draw raw quads under a texture
 bound from outside and change no state on the way in, so nothing else would flush for them. And
 `LineDrawer::draw` — the raw `glDrawArrays` behind every laser, wire and shot — flushes at its own
-definition rather than at its four call sites, because each of those reaches it through a
-`LineDrawer` of its own and no static check can follow that. That is what `sprite_batch` still
-checks for, now that `gl_state` has the state half.
+definition rather than at its seven call sites, because each of the four `LineDrawer`s they share
+reaches it as a member or a local and no static check can follow that. That is what `sprite_batch`
+still checks for, now that `gl_state` has the state half.
 
 **`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
 the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is
@@ -624,7 +624,7 @@ immediate path for this reason alone.
 
 **The same array also loses the clamp, and that one is not cosmetic.** The game hands GL colours
 above 1 deliberately — `Level::renderShine` takes `deathCountDown * 5.0` from an exploding bomb,
-the teleport swirl ramps its red to 2.1, and the two spark bursts add half a level of red a tick
+the teleport swirl ramps its red to 2.1, and the three spark bursts add half a level of red a tick
 until the particle has shrunk away, which lands between 5.5 and 25.5 — and relies on the hardware
 to cut them off. Desktop GL clamps a primitive colour *before* it multiplies the texel.
 Emscripten's emulation does not: dumping the vertex shader it generates for this game gives

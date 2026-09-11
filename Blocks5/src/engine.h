@@ -551,9 +551,9 @@ private:
 	bool spriteBatchDisabled;
 	// What the first quad of the open batch was queued against; in a test-hooks
 	// build the flush checks the state is still that. Declared whatever the
-	// build, because BLOCKS5_TEST_HOOKS reaches only two translation units and
-	// a member behind it would give this class two different sizes - which is
-	// the one way to make singletons lie on top of each other in memory.
+	// build, because BLOCKS5_TEST_HOOKS reaches three translation units at most
+	// and a member behind it would give this class two different sizes - which
+	// is the one way to make singletons lie on top of each other in memory.
 	GLint batchTexture;
 	GLboolean batchTexturing;
 	GLdouble batchTextureMatrix[16];

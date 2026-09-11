@@ -117,7 +117,7 @@ void ParticleSystem::render()
 		}
 
 		// deltaColor runs a particle's colour past 1 on purpose - the teleport
-		// swirl takes its red to 2.1, and the two spark bursts add half a level
+		// swirl takes its red to 2.1, and the three spark bursts add half a level
 		// of it a tick until the particle has shrunk away, which lands between
 		// 5.5 and 25.5 - and GL is what cuts it off. A colour array in the
 		// browser is the one path that does not; see clampColor().

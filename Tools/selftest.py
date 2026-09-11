@@ -341,7 +341,93 @@ def c_sprite_batch_reached(p):
 # case was thought about.
 @case('sprite_batch', 'Blocks5/src/hint.cpp')
 def c_sprite_batch_dead_exemption(p):
-    p.replace('void Hint::bakeNote(', 'void Hint::bakeNoteTexture(')
+    p.replace('void Hint::renderNoteMesh(', 'void Hint::renderNoteStrip(')
+
+
+# The third way an exemption goes stale: the function is still there and still
+# read, and no longer holds what it was excused for. dead_names() cannot see
+# that one, because the name resolves.
+@case('sprite_batch', 'Blocks5/src/hint.cpp')
+def c_sprite_batch_idle_exemption(p):
+    p.replace('\t\tglBegin(GL_TRIANGLE_STRIP);', '\t\tEngine::inst().flushSprites();')
+
+
+# Whatever an if/else chain queued in any of its branches stands after the
+# chain, even though the branches are read as alternatives while inside it. The
+# last branch must not flush, or the indentation rule would answer this on its
+# own and the merge would go untested.
+@case('sprite_batch', 'Blocks5/src/eye.cpp')
+def c_sprite_batch_chain_queued(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tEngine::inst().flushSprites();\n'
+              '\tif(layer == RL_MAIN)\n\t{\n'
+              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
+              '\telse\n\t{\n\t\tglPushMatrix();\n\t\tglPopMatrix();\n\t}\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();')
+
+
+# A flush written as a braceless else body is as conditional as one written as
+# a braceless if body, and stands at the same column as what follows it.
+@case('sprite_batch', 'Blocks5/src/exit.cpp')
+def c_sprite_batch_braceless_else(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\telse if(layer == RL_LIGHT)',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\telse Engine::inst().flushSprites();\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n'
+              '\tif(layer == RL_LIGHT)')
+
+
+# glRect is a draw as much as glBegin and glDrawArrays are.
+@case('sprite_batch', 'Blocks5/src/exit.cpp')
+def c_sprite_batch_glrect(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\tglRecti(0, 0, 16, 16);')
+
+
+# A flush written as a same-line case body reaches to the end of that line and
+# no further, exactly as a braceless if does - and the switch's own braces sit
+# at the column of the statement after it, so no indentation rule can see it.
+@case('sprite_batch', 'Blocks5/src/eye.cpp')
+def c_sprite_batch_case(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tswitch(layer)\n\t{\n'
+              '\tcase RL_MAIN: Engine::inst().flushSprites(); break;\n\t}\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();')
+
+
+# The other direction: what is written in a comment is not code. batch_sources()
+# blanks them, and without that a commented-out draw would be a finding.
+@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
+def c_sprite_batch_commented_draw(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\t// glBegin(GL_QUADS); glEnd();')
+
+
+# A preprocessor line carries no scope. Read as a dedent it would ask for the
+# flush again, and this tree writes them at column 0 wherever they sit.
+@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
+def c_sprite_batch_preprocessor(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tEngine::inst().flushSprites();\n#ifdef __EMSCRIPTEN__\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
+
+
+# An attribute mask that carries nothing a batched quad is drawn under is left
+# alone, because GLState has no entry point that could stand in for it.
+@case('gl_state', 'Blocks5/src/object.cpp', quiet=True)
+def c_gl_state_safe_mask(p):
+    p.replace('\t\tglDisable(GL_LINE_SMOOTH);',
+              '\t\tglPushAttrib(GL_LINE_BIT);\n\t\tglDisable(GL_LINE_SMOOTH);')
+    p.replace('\t\tglEnable(GL_LINE_SMOOTH);', '\t\tglPopAttrib();')
+
+
+# And one that does. GL_COLOR_BUFFER_BIT carries the blend function.
+@case('gl_state', 'Blocks5/src/lava.cpp')
+def c_gl_state_colour_mask(p):
+    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_COLOR_BUFFER_BIT);')
 
 
 @case('naming', 'Blocks5/src/u_crt.h')

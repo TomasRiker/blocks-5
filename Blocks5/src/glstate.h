@@ -21,8 +21,8 @@
 // worth about four percent of what the game asks of the driver once the sprite
 // batch has taken its share - measured under swiftshader in a browser, in a
 // played level, and well under the spread between two runs. And it would be
-// sound only if the fifty-six raw calls in the crossfades, the GUI and the
-// credits came through here too. See ROADMAP 44.
+// sound only if the fifty-one raw calls in the crossfades, the GUI and the
+// credits came through here too - seventy-two across the tree. See ROADMAP 44.
 namespace GLState
 {
 	// glEnable/glDisable(GL_TEXTURE_2D).

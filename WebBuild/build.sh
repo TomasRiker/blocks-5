@@ -6,9 +6,10 @@
 #   ./build.sh clean      from scratch
 #   ./build.sh hooks      plus the test hooks from test_hooks.cpp
 #
-# "hooks" compiles test_hooks.cpp with -DBLOCKS5_TEST_HOOKS and builds into
-# build-test/ instead of build/, keeping a build with hooks from ever becoming
-# the shipped one by accident. Without the word the translation unit is empty.
+# "hooks" compiles test_hooks.cpp and engine.cpp with -DBLOCKS5_TEST_HOOKS and
+# builds into build-test/ instead of build/, keeping a build with hooks from
+# ever becoming the shipped one by accident. Without the word the translation
+# unit is empty.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
@@ -79,7 +80,7 @@ for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continu
 for f in $SRCS;  do
   n=$((n+1))
   # Only the three that get anything out of it. It is not in CXXFLAGS, or
-  # switching between the two kinds of build would recompile all 160 units -
+  # switching between the two kinds of build would recompile every unit -
   # the two output directories keep them apart anyway.
   extra=""
   case "$f" in */test_hooks.cpp|*/testhooks.cpp|*/engine.cpp) extra="$HOOKS";; esac

@@ -1611,13 +1611,13 @@ Four things are in the way.
 ------------------------------------------------------------
 The game hands GL colours above 1 on purpose - `Level::renderShine` takes
 `deathCountDown * 5.0` from an exploding bomb, the teleport swirl ramps its red
-from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), and the two spark bursts
-(`object.cpp:424`, `projectile.cpp:190`) add half a level of red a tick with no
-lifetime in the divisor, so where they stop is where the particle has shrunk
-away: between 5.5 and 25.5 - and all of it relies on GL to cut them off.
-Desktop GL does: a primitive colour is clamped to [0,1] before it is multiplied
-by the texel. The browser does not. Dumping the shader Emscripten's emulation
-generates for this game gives a vertex stage of
+from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), and the three spark bursts
+(`object.cpp:424`, `projectile.cpp:190`, `laser.cpp:343`) add half a level of
+red a tick with no lifetime in the divisor, so where they stop is where the
+particle has shrunk away: between 5.5 and 25.5 - and all of it relies on GL to
+cut them off. Desktop GL does: a primitive colour is clamped to [0,1] before it
+is multiplied by the texel. The browser does not. Dumping the shader
+Emscripten's emulation generates for this game gives a vertex stage of
 
     v_color = a_color;
 

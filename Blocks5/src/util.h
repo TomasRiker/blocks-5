@@ -23,7 +23,8 @@ template<typename T> const T& clamp(const T& value,
 // A colour on its way into a vertex array, cut off where GL would have cut it
 // off. The game hands out colours above 1 on purpose and lets the hardware do
 // it: Level::renderShine takes deathCountDown * 5.0 from an exploding bomb, the
-// teleport swirl ramps its red to 2.1 and the two spark bursts to 1.5. Desktop
+// teleport swirl ramps its red to 2.1 and the three spark bursts climb past 5
+// and as far as 25. Desktop
 // GL clamps a primitive colour before it multiplies the texel; Emscripten's
 // emulation clamps only gl_FragColor, after the multiply, so an over-bright
 // colour eats the texture's falloff and a soft glow comes out a hard-edged

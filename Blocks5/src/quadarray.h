@@ -52,8 +52,9 @@ void drawQuadArray(const QuadVertex* p_vertices, uint count);
 // around a key's name.
 void drawQuadArray(const Vec2f* p_positions, uint count);
 
-// And the same for quads carrying their own colours. glColor is ignored for
-// the length of the draw and left alone afterwards.
+// And the same for quads carrying their own colours. glColor is ignored for the
+// length of the draw, and by specification indeterminate afterwards - both
+// targets happen to leave it standing, which Engine::flushSprites relies on.
 void drawQuadArray(const ColorQuadVertex* p_vertices, uint count);
 
 #endif

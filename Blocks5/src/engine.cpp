@@ -3104,7 +3104,8 @@ void Engine::queueSprite(const Vec2i& position,
 	// glTranslated Enemy does inside its own onRender, the half pixel
 	// Level::render puts under the wires - and baking it is what lets sprites
 	// from different objects share one draw call. Reading it costs one call
-	// against the seven this path no longer makes: in the browser a copy of
+	// against the fourteen to sixteen a sprite this path no longer makes: in
+	// the browser a copy of
 	// sixteen floats out of a JavaScript array, on a desktop client-side
 	// driver state and not a pipeline stall.
 	GLfloat m[16];

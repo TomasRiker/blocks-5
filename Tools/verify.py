@@ -265,6 +265,15 @@ def dead_names(names, seen, what):
             % (what, ', '.join(sorted(set(names) - seen)))] if set(names) - seen else []
 
 
+def idle_names(names, used, what):
+    """Whichever of `names` suppressed nothing. The third way an exemption goes
+    stale: the function is still there and still read, and no longer contains
+    what it was excused for - so the entry reads as a considered decision while
+    standing for nothing, and dead_names() cannot see it."""
+    return ['Tools/verify.py: %s excuses %s, which has nothing left to excuse'
+            % (what, ', '.join(sorted(set(names) - used)))] if set(names) - used else []
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -441,7 +450,11 @@ def check_sprite_batch():
     flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::|'
                          r'[\w)\]]\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
     # A statement written as the body of a braceless conditional, on the line
-    # of the conditional itself.
+    # of the conditional itself. The bare `else` alternative is a backstop: the
+    # chain bookkeeping below already answers an else it has paired with an if,
+    # which is every one written at the same column - so nothing can reach it
+    # while that pairing holds, and it costs one alternative to be right when it
+    # does not.
     conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
                              r'|^\s*else\s+\S'
                              r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
@@ -456,11 +469,8 @@ def check_sprite_batch():
         # Hint::renderNote() flushes and then binds its own texture; the mesh
         # is the geometry it draws under that binding.
         'Hint::renderNoteMesh',
-        # Reached only from Hint::bakeNote(), which is inside
-        # Engine::beginRenderToTexture() - and that flushes at both ends.
-        'Hint::bakeNote',
     }
-    bad, seen, named, scanned = [], set(), set(EXEMPT), set()
+    bad, seen, named, scanned, used = [], set(), set(EXEMPT), set(), set()
     for rel, text, only in batch_sources():
         scanned.add(rel)
         named |= (only or set())
@@ -505,13 +515,17 @@ def check_sprite_batch():
                len(lines[j]) - len(lines[j].lstrip()) == len(line) - len(line.lstrip()):
                 heldOpen.add(i)
 
-        func, flushed, flushIndent, chain = '', False, 0, {}
+        func, flushed, flushIndent, chain, exemptCover = '', False, 0, {}, False
         for n, line in enumerate(lines, 1):
-            if line.strip():
+            # A preprocessor line carries no scope, and this tree writes them at
+            # column 0 wherever they sit - so reading one as a dedent would ask
+            # for a flush again after every #ifdef inside a function body.
+            if line.strip() and not line.lstrip().startswith('#'):
                 indent = len(line) - len(line.lstrip())
                 if n in starts:
                     func, chain = starts[n], {}
                     flushed, flushIndent = func in EXEMPT, 0
+                    exemptCover = flushed
                 else:
                     # An if/else chain the line has stepped out of: what stands
                     # after it is the state before it, minus anything any
@@ -543,6 +557,7 @@ def check_sprite_batch():
                 if e[1] == 'f':
                     flushed = True
                     flushIndent = len(line) - len(line.lstrip())
+                    exemptCover = False
                 elif e[1] == 'q':
                     flushed = False
                     for entry in chain.values():
@@ -550,9 +565,14 @@ def check_sprite_batch():
                 elif not flushed and (only is None or func in only):
                     bad.append('%s:%d: %s() draws with sprites possibly queued - '
                                'flush the batch first' % (rel, n, func))
+                elif exemptCover:
+                    # Drawn under the exemption rather than under a flush of
+                    # this function's own, which is the entry doing its work.
+                    used.add(func)
             if conditional.match(line):
                 flushed, flushIndent = flushed and wasFlushed, wasIndent
     return (bad + dead_names(named, seen, 'the sprite_batch check')
+            + idle_names(EXEMPT, used, 'the sprite_batch check')
             + unscanned_onrender(scanned))
 
 
@@ -581,8 +601,18 @@ def check_gl_state():
     follows no calls, and that is the honest limit."""
     raw = re.compile(r'\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
                      r'|\bglBindTexture\s*\('
-                     r'|\bglPushAttrib\s*\(|\bglPopAttrib\s*\('
                      r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
+    # The attribute stack is judged by its mask, and a pop by the pushes in the
+    # same function - there being no way to pair the two by reading. These five
+    # masks carry nothing a GL_QUADS batch is drawn under, so a bracket around a
+    # glLineWidth or a glPointSize is left alone: banning it would be a dead end,
+    # since GLState has no entry point that could stand in for one. Everything
+    # else is reported, a mask this list does not know included - GL_ENABLE_BIT
+    # carries the texturing enable, and GL_COLOR_BUFFER_BIT the blend function.
+    SAFE_BITS = ('GL_LINE_BIT', 'GL_POINT_BIT', 'GL_CURRENT_BIT',
+                 'GL_TRANSFORM_BIT', 'GL_HINT_BIT')
+    push = re.compile(r'\bglPushAttrib\s*\(([^);]*)\)')
+    pop = re.compile(r'\bglPopAttrib\s*\(')
     # Two that build a value rather than set drawing state: they put a scale on
     # the texture matrix stack and read it straight back with glGetDoublev, at
     # load time, with no batch open. Doing the arithmetic in C++ instead would
@@ -602,17 +632,40 @@ def check_gl_state():
         # with its argument on the next line is the same mistake.
         starts = function_starts(text)
         seen |= set(name for _, _, name in starts)
-        for m in raw.finditer(text):
+
+        def owner(at):
             func = ''
-            for at, _, name in starts:
-                if at > m.start():
+            for start, _, name in starts:
+                if start > at:
                     break
                 func = name
+            return func
+
+        # A function whose every glPushAttrib names only safe bits may pop as
+        # well. One that pops without pushing is restoring something it cannot
+        # be read against, so it is reported.
+        pushes = {}
+        for m in push.finditer(text):
+            safe = all(b in SAFE_BITS for b in re.findall(r'\bGL_\w+', m.group(1)))
+            pushes.setdefault(owner(m.start()), []).append((m, safe))
+        risky = set(f for f, ms in pushes.items() if not all(safe for _, safe in ms))
+
+        hits = [(m, m.group(0)) for m in raw.finditer(text)]
+        for f, ms in pushes.items():
+            if f in risky:
+                hits += [(m, m.group(0)) for m, _ in ms]
+        for m in pop.finditer(text):
+            f = owner(m.start())
+            if f in risky or f not in pushes:
+                hits.append((m, m.group(0)))
+
+        for m, hit in sorted(hits, key=lambda h: h[0].start()):
+            func = owner(m.start())
             if func in EXEMPT or (only is not None and func not in only):
                 continue
             n = text.count('\n', 0, m.start()) + 1
             bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
-                       % (rel, n, ' '.join(m.group(0).split())))
+                       % (rel, n, ' '.join(hit.split())))
     return bad + dead_names(named, seen, 'the gl_state check')
 
 
