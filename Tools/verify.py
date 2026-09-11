@@ -271,10 +271,9 @@ def check_sprite_batch():
     move, so the object that broke the rule looks right and its neighbours do
     not - and only on the screen that happens to have both."""
     breaking = re.compile(r'\bglBegin\s*\(|\bglDrawArrays\s*\(|\bglDrawElements\s*\(|'
-                          r'\bglBindTexture\s*\(|\bglPushAttrib\s*\(|'
-                          r'\bglDisable\s*\(\s*GL_TEXTURE_2D\s*\)|\bdrawQuadArray\s*\(')
+                          r'\bdrawQuadArray\s*\(')
     queues = re.compile(r'\brenderSprites?\s*\(')
-    flushes = re.compile(r'\bflushSprites\s*\(')
+    flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::')
     # Helpers that never run except from a caller that has just flushed. Each
     # is a private member of the same class, called from one place.
     EXEMPT = {
@@ -308,6 +307,39 @@ def check_sprite_batch():
                 bad.append('%s:%d: %s() draws or changes the texture state with sprites '
                            'possibly queued - Engine::inst().flushSprites() first'
                            % (rel, n, func))
+    return bad
+
+
+
+@check('gl_state')
+def check_gl_state():
+    """An object changes the texture state through GLState, never raw.
+
+    Three pieces of GL state decide what a queued sprite comes out looking
+    like: the GL_TEXTURE_2D binding, whether texturing is on, and the texture
+    matrix. A batched quad is drawn with the state standing at the flush and
+    not at the call, and there is no depth buffer here to sort it out
+    afterwards - so whatever moves one of the three has to put the batch up
+    first. GLState does that; the raw calls do not.
+
+    Scoped to the sources that define an Object::onRender, because those are
+    what Level::renderObjects can reach with a batch open. Everything else -
+    the crossfades, the GUI, the credits - runs with none open and is left
+    alone deliberately, so the ban stays something a reader can check."""
+    raw = re.compile(r'\bgl(Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)|'
+                     r'\bglBindTexture\s*\(|\bglPush(Attrib)\s*\(|\bglPopAttrib\s*\(')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        text = read(p)
+        if '::onRender(RenderLayer' not in text:
+            continue
+        for n, line in enumerate(text.split('\n'), 1):
+            code = line.split('//')[0]
+            m = raw.search(code)
+            if m:
+                bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
+                           % (rel, n, m.group(0).strip()))
     return bad
 
 

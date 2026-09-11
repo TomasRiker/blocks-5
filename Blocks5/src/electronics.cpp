@@ -3,6 +3,7 @@
 #include "pin.h"
 #include "engine.h"
 #include "linedrawer.h"
+#include "glstate.h"
 
 Electronics::Electronics(Level& level,
 						 const Vec2i& position,
@@ -66,8 +67,7 @@ void Electronics::onRender(RenderLayer layer,
 								   Vec4d(0.3, 0.35, 0.35, 1.0),
 								   Vec4d(0.35, 0.35, 0.35, 1.0)};
 
-		Engine::inst().flushSprites();
-		glDisable(GL_TEXTURE_2D);
+		GLState::setTexturing(false);
 
 		// render the outputs' connections
 		int n = position.x + position.y;
@@ -83,7 +83,7 @@ void Electronics::onRender(RenderLayer layer,
 			}
 		}
 
-		glEnable(GL_TEXTURE_2D);
+		GLState::setTexturing(true);
 	}
 }
 

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "lightbarriersender.h"
 #include "engine.h"
+#include "glstate.h"
 
 LightBarrierSender::LightBarrierSender(Level& level,
 									   const Vec2i& position,
@@ -55,10 +56,9 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			}
 
 			// render the inner and the outer beam
-			Engine::inst().flushSprites();
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
-			glDisable(GL_TEXTURE_2D);
+			GLState::setTexturing(false);
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
@@ -84,7 +84,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glVertex2dv(p);
 			glEnd();
 
-			glEnable(GL_TEXTURE_2D);
+			GLState::setTexturing(true);
 			glPopMatrix();
 		}
 	}

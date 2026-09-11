@@ -1681,6 +1681,57 @@ leak into the key, or it would double every entry.
 
 
 
+44. Cache the GL state, or decide once and for all not to
+---------------------------------------------------------
+`GLState` (`glstate.h`) owns the flush and nothing else: `setTexturing`,
+`bindTexture` and the enable-stack pair put the sprite batch on the screen
+before they change what a queued quad reads. What it deliberately does **not**
+do is skip a call that sets what is already set, and the reason is a
+measurement rather than an oversight.
+
+Instrumenting the whole tree - every state entry point redirected to a counting
+wrapper, with the attribute stack modelled properly - gave, per frame in a
+played level: 4833 GL entry points in all, of which 2928 were immediate-mode
+geometry, 1615 matrix work and **290 state**, and of that state **28 calls were
+redundant**. A quarter of the texture binds and a third of the texture-matrix
+loads set what was already set, which sounds worth having until it is put beside
+the total. The sprite batch has since taken the geometry and most of the matrix
+traffic away, so the same 28 calls are now a larger share of a much smaller
+number - and still nowhere near the spread between two runs of the same build.
+
+What a cache would cost is the other half of the arithmetic. It is sound only if
+*everything* comes through it: there are some forty raw `glBindTexture` calls and
+fifty raw `GL_TEXTURE_2D` enables in the crossfades, the GUI, the credits, the
+upscalers and the framebuffer code, and one missed call leaves an entry saying
+the wrong thing - after which the next skipped call is a wrong picture rather
+than a missing optimisation. The `gl_state` check keeps the object sources
+honest precisely because that set is small enough to read; a hundred sites
+across the whole renderer is a different proposition.
+
+Two things would change the answer:
+
+- **A cache that checks itself.** In a `BLOCKS5_TEST_HOOKS` build, read the real
+  state back before skipping and report a mismatch. Then the invariant is tested
+  by the smoke run rather than argued about, and the routing can be done a file
+  at a time instead of in one sweep.
+- **A platform where the calls are not cheap.** These numbers come from
+  swiftshader in a desktop browser. A phone, where the main thread *is* the
+  limit, may read differently - and `WebBuild/test/perf.js` with an arm that
+  turns the cache off is how to find out rather than guess.
+
+The same file holds the second half of this: `Texture::bind` brackets its
+texture-matrix load in `glPushAttrib(GL_TRANSFORM_BIT)`/`glPopAttrib`, two of
+the heaviest calls in the API to restore one enum. Replacing them with an
+explicit `glMatrixMode(GL_MODELVIEW)` would save about forty calls a frame and
+is **not** safe as it stands: `Level::render` binds the rain, the snow and the
+clouds with `GL_TEXTURE` already current, and only happens to survive because
+each of those three sets the mode again straight after. Tracking the matrix mode
+in `GLState` would settle it, and that means routing the fifty-odd
+`glMatrixMode` calls through it as well - the same sweep, and the same argument
+about whether it earns its keep.
+
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

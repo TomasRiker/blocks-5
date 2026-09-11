@@ -133,21 +133,26 @@ def c_render_layers(p):
     p.replace('if(layer == RL_WIRE)', 'if(layer == 939)')
 
 
-# The shape a missing flush actually has: raw geometry inside an onRender with
-# the batch left standing. The player's censor bar is the site that was written
-# down in the plan and then not written into the tree.
-@case('sprite_batch', 'Blocks5/src/player.cpp')
+# The one raw draw left inside an onRender: the lava's two quads, which change
+# no state on the way in and so are reached by nothing but this flush.
+@case('sprite_batch', 'Blocks5/src/lava.cpp')
 def c_sprite_batch(p):
-    p.replace('\t\t\tEngine::inst().flushSprites();\n\t\t\tglDisable(GL_TEXTURE_2D);',
-              '\t\t\tglDisable(GL_TEXTURE_2D);')
+    p.replace('\t\tEngine::inst().flushSprites();\n', '')
 
 
-# And the other half: a texture bound raw, where the queued sprites would come
-# out wearing it.
-@case('sprite_batch', 'Blocks5/src/teleporter.cpp')
-def c_sprite_batch_bind(p):
-    p.replace('\t\t\tEngine::inst().flushSprites();\n\t\t\tglPushAttrib(GL_ENABLE_BIT);',
-              '\t\t\tglPushAttrib(GL_ENABLE_BIT);')
+# The shape a raw state change has: texturing switched off around an object's
+# own geometry, with the batch left standing. The player's censor bar is the
+# site that was written down in the plan and then not written into the tree.
+@case('gl_state', 'Blocks5/src/player.cpp')
+def c_gl_state(p):
+    p.replace('GLState::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
+
+
+# And the other half: the attribute stack, where the pop is what puts texturing
+# back and is just as much a state change as the push.
+@case('gl_state', 'Blocks5/src/teleporter.cpp')
+def c_gl_state_attrib(p):
+    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_ENABLE_BIT);')
 
 
 @case('naming', 'Blocks5/src/u_crt.h')

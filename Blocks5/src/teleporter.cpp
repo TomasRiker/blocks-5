@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "teleporter.h"
 #include "engine.h"
+#include "glstate.h"
 
 Teleporter::Teleporter(Level& level,
 					   const Vec2i& position,
@@ -34,9 +35,8 @@ void Teleporter::onRender(RenderLayer layer,
 		if(targetPosition != position)
 		{
 			// mark the target
-			Engine::inst().flushSprites();
-			glPushAttrib(GL_ENABLE_BIT);
-			glDisable(GL_TEXTURE_2D);
+			GLState::pushEnables();
+			GLState::setTexturing(false);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
 			glBegin(GL_LINES);
 			glColor4d(0.0, 1.0, 0.5, 0.25);
@@ -52,7 +52,7 @@ void Teleporter::onRender(RenderLayer layer,
 			glVertex2i(t.x, t.y);
 			glVertex2d(p2.x, p2.y);
 			glEnd();
-			glPopAttrib();
+			GLState::popEnables();
 		}
 	}
 }

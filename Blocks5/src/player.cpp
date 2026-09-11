@@ -9,6 +9,7 @@
 #include "sound.h"
 #include "soundinstance.h"
 #include "particlesystem.h"
+#include "glstate.h"
 
 uint Player::numInstances = 0;
 std::list<Player*> Player::instances;
@@ -122,8 +123,7 @@ void Player::onRender(RenderLayer layer,
 		if(censored)
 		{
 			// render the censor bar
-			Engine::inst().flushSprites();
-			glDisable(GL_TEXTURE_2D);
+			GLState::setTexturing(false);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);
 			glRotated(10.0, 0.0, 0.0, 1.0);
@@ -141,7 +141,7 @@ void Player::onRender(RenderLayer layer,
 			glVertex2i(-35, 13);
 			glEnd();
 			glPopMatrix();
-			glEnable(GL_TEXTURE_2D);
+			GLState::setTexturing(true);
 
 			Font* p_font = GUI::inst().getFont();
 			std::string text = localizeString("$G_CENSORED");

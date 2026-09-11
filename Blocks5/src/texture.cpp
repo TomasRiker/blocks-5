@@ -2,6 +2,7 @@
 #include "texture.h"
 #include "filesystem.h"
 #include "engine.h"
+#include "glstate.h"
 
 Texture::Texture(const std::string& filename) : Resource(filename)
 {
@@ -58,7 +59,7 @@ void Texture::reload()
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
+	GLState::bindTexture(texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -115,11 +116,6 @@ void Texture::cleanUp()
 
 void Texture::bind() const
 {
-	// Queued sprites were queued against the binding and the texture matrix
-	// that are about to change, and there is no depth buffer to sort them out
-	// afterwards - so they go up first. Costs nothing when no batch is open.
-	Engine::inst().flushSprites();
-
 	if(!doKeepInMemory && p_rgba)
 	{
 		// unlock and free the surface
@@ -128,10 +124,15 @@ void Texture::bind() const
 		p_rgba = 0;
 	}
 
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texID);
+	// Through GLState, which flushes the sprite batch: whatever is queued was
+	// queued against the binding and the matrix about to be replaced.
+	GLState::setTexturing(true);
+	GLState::bindTexture(texID);
 
-	// pixel texture coordinates
+	// pixel texture coordinates. The attrib bracket stays: it restores the
+	// matrix mode, and Level::render binds textures with GL_TEXTURE current
+	// while it scrolls the rain, the snow and the clouds. Nothing has queued
+	// since the bind above, so the batch is already empty here.
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glLoadMatrixd(matrix);
@@ -140,8 +141,7 @@ void Texture::bind() const
 
 void Texture::unbind() const
 {
-	Engine::inst().flushSprites();
-	glDisable(GL_TEXTURE_2D);
+	GLState::setTexturing(false);
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
@@ -171,7 +171,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
+	GLState::bindTexture(texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();

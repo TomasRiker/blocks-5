@@ -4,6 +4,7 @@
 #include "tileset.h"
 #include "particlesystem.h"
 #include "linedrawer.h"
+#include "glstate.h"
 
 Projectile::Projectile(Level& level,
 					   const Vec2d& positionInPixels,
@@ -34,8 +35,7 @@ void Projectile::onRender(RenderLayer layer,
 		double traceLength = min(distance, 0.035 * speed);
 
 		Engine& engine = Engine::inst();
-		engine.flushSprites();
-		glDisable(GL_TEXTURE_2D);
+		GLState::setTexturing(false);
 
 		// render the glow
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -56,7 +56,7 @@ void Projectile::onRender(RenderLayer layer,
 		glVertex2dv(positionInPixels);
 		glEnd();
 
-		glEnable(GL_TEXTURE_2D);
+		GLState::setTexturing(true);
 	}
 	else if(layer == RL_LIGHT)
 	{

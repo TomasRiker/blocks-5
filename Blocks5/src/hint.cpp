@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "font.h"
 #include "texture.h"
+#include "glstate.h"
 
 namespace
 {
@@ -325,10 +326,9 @@ void Hint::renderNote(const Vec4d& color,
 					  double unroll) const
 {
 	Engine& engine = Engine::inst();
-	engine.flushSprites();
 
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, noteTexture);
+	GLState::setTexturing(true);
+	GLState::bindTexture(noteTexture);
 
 	// This texture does not come from Texture::bind(): the pixel matrix of the
 	// last image is still in place. Here the maths runs in 0..1.
@@ -356,8 +356,8 @@ void Hint::renderNote(const Vec4d& color,
 
 	// Leave it as tidy as Texture::unbind() would: right afterwards the level
 	// draws the flash, and that wants no texture.
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+	GLState::bindTexture(0);
+	GLState::setTexturing(false);
 }
 
 void Hint::renderNoteFlat(const Vec4d& color,

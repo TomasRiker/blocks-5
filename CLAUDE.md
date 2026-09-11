@@ -204,7 +204,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twenty static checks over the whole tree
+python3 Tools/verify.py      twenty-one static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -234,7 +234,8 @@ no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing fr
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, a display list added back to a tree that has none, a class
 whose header is not named after it, a render layer written as a number, an object that
-draws raw geometry without flushing the sprite batch first, the version
+draws raw geometry without flushing the sprite batch first or changes the texture state
+without going through GLState, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
 `gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
@@ -542,9 +543,27 @@ depth buffer in this 2D path, so painter's order is the only order there is: any
 draws, or that moves the texture binding, the texture matrix, the blend function or the
 framebuffer, has to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
 `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` do it themselves, so
-most of it is automatic; nine places in the object sources draw raw geometry and say so
-explicitly. `verify.py`'s `sprite_batch` check is what keeps that true — each of the nine was
-removed in turn to confirm the check names it.
+most of it is automatic. The object sources reach the other three through **`GLState`**
+(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` — which flush before
+they change anything, so the rule lives in one file instead of at a dozen call sites where it
+can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped to the
+sources that define an `Object::onRender` because those are what the batch can reach; the
+crossfades, the GUI and the credits run with no batch open and are deliberately left alone,
+which is what keeps the ban something a reader can check.
+
+**`GLState` is not a cache, and that was measured rather than assumed.** Skipping a call that
+sets what is already set is worth about a quarter of the texture binds in a level — and the
+whole of the state traffic is about six per cent of what the game asks of the driver, which
+after the sprite batch has taken its share is well under the spread between two runs. Against
+that: every one of the hundred-odd raw calls in the crossfades, the GUI and the credits would
+have to come through it too, and the failure mode of a stale entry is a wrong picture rather
+than a slow one. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)` stays for the same kind of
+reason — it restores the matrix mode, and `Level::render` binds textures with `GL_TEXTURE`
+current while it scrolls the rain, the snow and the clouds. ROADMAP 44 has both.
+
+**One explicit flush survives**, in `lava.cpp`: the two lava passes draw raw quads under a
+texture bound from outside and change no state on the way in, so nothing else would flush for
+them. That is what `sprite_batch` still checks for, now that `gl_state` has the state half.
 
 **`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
 the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is

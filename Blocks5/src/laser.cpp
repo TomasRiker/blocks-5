@@ -4,6 +4,7 @@
 #include "soundinstance.h"
 #include "tileset.h"
 #include "engine.h"
+#include "glstate.h"
 
 uint Laser::numInstances = 0;
 SoundInstance* Laser::p_soundInst = 0;
@@ -101,10 +102,9 @@ void Laser::onRender(RenderLayer layer,
 			}
 
 			// render the inner and the outer beam
-			Engine::inst().flushSprites();
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
-			glDisable(GL_TEXTURE_2D);
+			GLState::setTexturing(false);
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
@@ -130,7 +130,7 @@ void Laser::onRender(RenderLayer layer,
 			glVertex2dv(p);
 			glEnd();
 
-			glEnable(GL_TEXTURE_2D);
+			GLState::setTexturing(true);
 			glPopMatrix();
 		}
 	}

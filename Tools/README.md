@@ -22,6 +22,7 @@ Exit code 1 as soon as anything is reported.
 | `display_lists` | No display lists anywhere, in either build. |
 | `render_layers` | A render layer is named, never a number. |
 | `sprite_batch` | Anything an object draws outside the sprite batch flushes it first. |
+| `gl_state` | An object changes the texture state through GLState, never raw. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |
