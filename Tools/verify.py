@@ -1005,6 +1005,24 @@ def check_comments():
     de = re.compile(r'\b(der|die|das|und|nicht|ist|sind|ein|eine|einen|dem|den|'
                     r'wird|werden|wenn|aber|auch|nur|noch|hier|dann|dass|sich|'
                     r'von|zu|es|im|bei|fuer|als|ueber|schon|kein|keine|man)\b', re.I)
+
+    # The list above is counted against the English one because every word on
+    # it has an English twin. These have none, so one hit is enough - and one
+    # is all there ever is: what the 1.2.0 sweep left behind was not a German
+    # sentence but a single German noun inside an English one, which no
+    # majority rule can see.
+    #
+    # Nouns and verbs only, and only where there is genuinely no English
+    # reading. The first draft of this list held the German for "key", which
+    # fired on four English lines about a matter of taste before it had been
+    # in the tree a minute; a symbol would be as bad, since rand() would put
+    # rand on it.
+    deWord = re.compile(r'\b(funkel|spuren|verwischen|schein|aufloesung|abstand|'
+                        r'anzahl|breite|hoehe|groesse|farbe|zeiger|bild|ebene|'
+                        r'massiv|uebersetzen|aendern|loeschen|pruefen|zeichnen|'
+                        r'erzeugen|berechnen|richtung|zeile|spalte|maus|'
+                        r'fenster|speicher|datei|laenge|flimmern|schatten|kante|'
+                        r'gegner|spieler|geschwindigkeit|einstellung)\b', re.I)
     bad = []
     for p in source_files():
         rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
@@ -1031,6 +1049,11 @@ def check_comments():
             deHits = len(de.findall(body))
             if len(body.split()) >= 5 and deHits >= 2 and deHits > len(en.findall(body)):
                 bad.append('%s:%d: German comment - "%s"' % (rel, i + 1, body.strip()[:60]))
+            else:
+                m = deWord.search(body)
+                if m:
+                    bad.append('%s:%d: German word "%s" - "%s"'
+                               % (rel, i + 1, m.group(0), body.strip()[:60]))
     return bad
 
 

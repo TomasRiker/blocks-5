@@ -941,7 +941,7 @@ void Level::render()
 
 		glColorMask(1, 1, 1, 1);
 
-		// render the "Funkel-Layer"
+		// render the sparkle layer
 		renderObjects(RL_SPARKLE, Vec2i(0, 0), Vec4d(1.0), false);
 
 		// render the noise
@@ -1031,7 +1031,8 @@ void Level::update()
 	p_fireParticleSystem->update();
 	p_rainParticleSystem->update();
 
-	// "Spuren verwischen"
+	// Let the AI traces fade, one step per tick off every cell that still
+	// carries one.
 	for(int i = 0; i < WIDTH * HEIGHT; i++)
 	{
 		uint trace = p_aiFlags[i] & 0xFFFFFF00;
@@ -2464,7 +2465,7 @@ void Level::loadSkin(bool forceReload)
 	p_noise = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_NOISE));
 	if(p_oldNoise) p_oldNoise->release();
 
-	// load the "Schein"
+	// load the shine
 	Texture* p_oldShine = p_shine;
 	p_shine = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SHINE));
 	if(p_oldShine) p_oldShine->release();
