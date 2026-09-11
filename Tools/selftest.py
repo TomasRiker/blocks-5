@@ -105,6 +105,20 @@ def c_attrs(p):
     p.replace('SetAttribute("numLayers"', 'SetAttribute("NUM_LAYERS"')
 
 
+# Two files, because the two builds fail differently: a list in the game's own
+# sources compiles everywhere and only misbehaves in the browser, and a stub in
+# gl_compat.cpp is what used to make that link succeed quietly.
+@case('display_lists', 'Blocks5/src/lightning.cpp')
+def c_display_lists(p):
+    p.replace('void Lightning::render()',
+              'void Lightning::renderOld() { glCallList(1); }\n\nvoid Lightning::render()')
+
+
+@case('display_lists', 'WebBuild/gl_compat.cpp')
+def c_display_list_stub(p):
+    p.append('\nGLAPI void GLAPIENTRY glEndList(void) {}\n')
+
+
 @case('naming', 'Blocks5/src/u_crt.h')
 def c_naming(p):
     p.replace('class U_Crt : public Upscaler', 'class U_Tube : public Upscaler')

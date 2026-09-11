@@ -1195,7 +1195,7 @@ void Level::renderTiles(int layer,
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);
 
-	std::vector<TileSet::Vertex>& vertices = tileVertices[layer];
+	std::vector<QuadVertex>& vertices = tileVertices[layer];
 
 	// Built only where layerDirty says the grid changed. Six places set that
 	// mask - load(), allocateTiles(), setTileAt(), setTileSet(), invalidate()

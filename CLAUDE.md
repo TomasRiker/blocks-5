@@ -201,7 +201,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      seventeen static checks over the whole tree
+python3 Tools/verify.py      eighteen static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -229,7 +229,8 @@ those are exactly what `Tools/syntax.sh` is for.
 **`Tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
-`Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
+`Blocks5.vcxproj` or its `.filters`, a display list added back to a tree that has none, a class
+whose header is not named after it, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
 `gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
@@ -493,16 +494,14 @@ ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the b
 are core and the header just `#define`s them through.
 
 **The tile grid is a vertex array, built once and drawn three times.** `Level::renderTiles`
-writes the layer into a `std::vector<TileSet::Vertex>` whenever `layerDirty` says it changed
-and hands that to one `glDrawArrays(GL_QUADS)` out of client memory — no display list on the
-desktop, and in the browser no thousand quads re-emitted through `glBegin`/`glEnd` every
-frame, which is what that path used to do. The vertices carry a position and a texture
-coordinate and **no colour**, and that is the point: `Level::render` makes three passes over a
-layer — two shadow samples and the picture — differing in nothing but a `glColor` and a
-translate, so one built array serves all three. Six places set `layerDirty`, and between them
-they cover every way a tile or the picture it is cut from can move; a tile id alone would not,
-since the texture coordinates come from the `TileSet` and a skin change moves every tile
-without moving an id. Measured on the menu title demo, three interleaved runs of twenty
+writes the layer into a `std::vector<QuadVertex>` whenever `layerDirty` says it changed and
+hands that to one `glDrawArrays(GL_QUADS)` out of client memory. The vertices carry a position
+and a texture coordinate and **no colour**, and that is the point: `Level::render` makes three
+passes over a layer — two shadow samples and the picture — differing in nothing but a
+`glColor` and a translate, so one built array serves all three. Six places set `layerDirty`,
+and between them they cover every way a tile or the picture it is cut from can move; a tile id
+alone would not, since the texture coordinates come from the `TileSet` and a skin change moves
+every tile without moving an id. Measured on the menu title demo, three interleaved runs of twenty
 seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
 0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
 
@@ -532,6 +531,18 @@ float the code asked for — the same screen read back from the framebuffer at 6
 byte-identical before and after. Worth knowing before the next renderer moves: every colour
 the remaining `glBegin` blocks set is truncated down to the next 1/255 — a weaker alpha and
 a darker tint than the code asks for.
+
+**There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
+They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
+all — so every place that used one carried a browser path of its own under `#ifdef
+__EMSCRIPTEN__`, and a stub in `gl_compat.cpp` so the browser would link. The `display_lists`
+check reports `glNewList` and its six relations in either build: added back, one would compile
+on Windows, link on Linux and misbehave only in the browser, which is the build nobody runs
+first. The three that used them are the tile grid, the font and `Lightning`, whose two passes
+are built when the bolt is generated and then drawn unchanged for the forty frames it takes to
+fade — only the colour and the alpha move. `quadarray.h` is where the three meet: `QuadVertex`,
+a position and a texture coordinate and no colour, and one `drawQuadArray` so that the
+client-state dance is written once rather than three times.
 
 **Four upscale filters, and each is a class.** `upscaler.h` holds the base — a name, a
 texture filter, `present()`, whether it wants a whole-number scale, whether it distorts the
@@ -789,8 +800,7 @@ ROADMAP items 2 and 11.
 `SDL_OPENGL | SDL_RESIZABLE` for the whole life of the process and must stay that way** —
 `DIB_SetVideoMode` keeps the GL context only on its fast path, which requires the flags and
 bpp to be unchanged and `SDL_FULLSCREEN` to be clear. Setting `SDL_FULLSCREEN` or
-`SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and takes every texture, display list and the
-FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
+`SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and takes every texture and the FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
 style to `WS_POPUP` and the size to the desktop directly, SDL notices through its own
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
 place that owns `displaySize` — picks it up. Dragging the border and Alt+Enter therefore
@@ -2094,7 +2104,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other sixteen**, and the reason is a file it did not
+  **That check reads further than the other seventeen**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

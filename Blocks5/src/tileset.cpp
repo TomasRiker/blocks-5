@@ -152,7 +152,7 @@ void TileSet::cleanUp()
 
 void TileSet::writeTile(uint id,
 						const Vec2f& position,
-						std::vector<Vertex>& out) const
+						std::vector<QuadVertex>& out) const
 {
 	if(id == 0) return;
 
@@ -161,48 +161,24 @@ void TileSet::writeTile(uint id,
 
 	// TILE_SIZE is the tile's edge in the picture and in the texture alike,
 	// which is why one constant does for both here.
-	const float s = static_cast<float>(TILE_SIZE);
-	const float x = position.x, y = position.y;
-	const float u = static_cast<float>(tile.position.x);
-	const float v = static_cast<float>(tile.position.y);
+	const double s = TILE_SIZE;
+	const double x = position.x, y = position.y;
+	const double u = tile.position.x, v = tile.position.y;
 
-	// The corners in the order the immediate-mode quad had them: the winding
-	// is the tree's everywhere and face culling is never switched on, but a
-	// silently different order is not worth finding out about later.
-	Vertex corner;
-	corner.position = Vec2f(x,     y);     corner.uv = Vec2f(u,     v);     out.push_back(corner);
-	corner.position = Vec2f(x + s, y);     corner.uv = Vec2f(u + s, v);     out.push_back(corner);
-	corner.position = Vec2f(x + s, y + s); corner.uv = Vec2f(u + s, v + s); out.push_back(corner);
-	corner.position = Vec2f(x,     y + s); corner.uv = Vec2f(u,     v + s); out.push_back(corner);
+	out.push_back(QuadVertex(x,     y,     u,     v));
+	out.push_back(QuadVertex(x + s, y,     u + s, v));
+	out.push_back(QuadVertex(x + s, y + s, u + s, v + s));
+	out.push_back(QuadVertex(x,     y + s, u,     v + s));
 }
 
-void TileSet::drawVertices(const Vertex* p_vertices,
+void TileSet::drawVertices(const QuadVertex* p_vertices,
 						   uint count) const
 {
 	// The bind and the unbind happen even for a layer with no tiles in it,
 	// because unbind() is glDisable(GL_TEXTURE_2D) and the state every later
 	// draw inherits must not depend on whether a layer happened to be empty.
 	p_texture->bind();
-
-	if(count && p_vertices)
-	{
-		// The draw states what it needs rather than inheriting it. A colour
-		// array left enabled by an earlier one would be read with this draw's
-		// vertex count through a pointer belonging to somebody else, and the
-		// grid deliberately has no colour of its own - the caller's glColor is
-		// what tints a shadow pass.
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		glDisableClientState(GL_COLOR_ARRAY);
-
-		glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertices->position);
-		glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertices->uv);
-		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(count));
-
-		glDisableClientState(GL_VERTEX_ARRAY);
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	}
-
+	drawQuadArray(p_vertices, count);
 	p_texture->unbind();
 }
 

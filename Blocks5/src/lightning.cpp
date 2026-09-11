@@ -9,17 +9,15 @@ Lightning::Lightning()
 	// uninitialised value until the first generate().
 	alpha = 0.0;
 
-	// generate the display lists
-	listBase = glGenLists(2);
+	// Until the first generate() there is nothing to draw, and drawPass() is
+	// asked for a size before it is asked for any geometry.
+	for(int pass = 0; pass < 2; pass++) passes[pass].pointSize = 0.0;
 
 	p_lineTexture = Manager<Texture>::inst().request("lightning.png");
 }
 
 Lightning::~Lightning()
 {
-	// delete the display lists
-	glDeleteLists(listBase, 2);
-
 	p_lineTexture->release();
 }
 
@@ -67,15 +65,9 @@ void Lightning::generate()
 		}
 	}
 
-#ifndef __EMSCRIPTEN__
-	// pre-render
-	glNewList(listBase, GL_COMPILE);
-	renderPass(0);
-	glEndList();
-	glNewList(listBase + 1, GL_COMPILE);
-	renderPass(1);
-	glEndList();
-#endif
+	// The geometry is settled here and does not move again: a bolt is drawn for
+	// as long as it takes to fade, and only its colour and alpha change.
+	for(int pass = 0; pass < 2; pass++) buildPass(pass);
 }
 
 void Lightning::render()
@@ -84,19 +76,11 @@ void Lightning::render()
 
 	// Pass 0
 	glColor4d(0.4, 0.2, 1.0, 0.2 * alpha);
-#ifdef __EMSCRIPTEN__
-	renderPass(0);   // WebGL has no display lists
-#else
-	glCallList(listBase);
-#endif
+	drawPass(0);
 
 	// Pass 1
 	glColor4d(1.0, 1.0, 0.75, 0.85 * alpha);
-#ifdef __EMSCRIPTEN__
-	renderPass(1);
-#else
-	glCallList(listBase + 1);
-#endif
+	drawPass(1);
 }
 
 void Lightning::update()
@@ -104,35 +88,49 @@ void Lightning::update()
 	alpha *= 0.85;
 }
 
-void Lightning::renderPass(int pass)
+void Lightning::buildPass(int pass)
 {
+	Pass& p = passes[pass];
+	p.mainBranch.clear();
+	p.otherBranches.clear();
+	p.pointSize = 0.0;
 	if(branches.empty()) return;
 
-	p_lineTexture->bind();
-
 	// main branch
-	const double mainWidth = branchWidth(branches[0], pass);
-	glBegin(GL_QUADS);
-	renderBranch(branches[0], mainWidth);
-	glEnd();
-
-	// end point of the main branch
-	p_lineTexture->unbind();
-	glPointSize(static_cast<float>(mainWidth));
-	glBegin(GL_POINTS);
-	glVertex2dv(branches[0].points.back());
-	glEnd();
-	p_lineTexture->bind();
+	p.pointSize = branchWidth(branches[0], pass);
+	p.endPoint = branches[0].points.back();
+	buildBranch(branches[0], p.pointSize, p.mainBranch);
 
 	// all remaining branches in a single block
-	glBegin(GL_QUADS);
 	for(uint i = 1; i < branches.size(); i++)
 	{
-		renderBranch(branches[i], branchWidth(branches[i], pass));
+		buildBranch(branches[i], branchWidth(branches[i], pass), p.otherBranches);
 	}
+}
+
+void Lightning::drawPass(int pass)
+{
+	const Pass& p = passes[pass];
+	if(p.mainBranch.empty()) return;
+
+	p_lineTexture->bind();
+	drawQuadArray(&p.mainBranch[0], static_cast<uint>(p.mainBranch.size()));
+	p_lineTexture->unbind();
+
+	// The end point of the main branch, as a single point of the same width.
+	// It goes between the two batches and not after them, because the other
+	// branches are drawn over it.
+	glPointSize(static_cast<float>(p.pointSize));
+	glBegin(GL_POINTS);
+	glVertex2dv(p.endPoint);
 	glEnd();
 
-	p_lineTexture->unbind();
+	if(!p.otherBranches.empty())
+	{
+		p_lineTexture->bind();
+		drawQuadArray(&p.otherBranches[0], static_cast<uint>(p.otherBranches.size()));
+		p_lineTexture->unbind();
+	}
 }
 
 double Lightning::branchWidth(const Branch& branch,
@@ -145,13 +143,14 @@ double Lightning::branchWidth(const Branch& branch,
 	return clamp(width, 1.0, 19.0);
 }
 
-void Lightning::renderBranch(const Branch& branch,
-							 double width)
+void Lightning::buildBranch(const Branch& branch,
+							double width,
+							std::vector<QuadVertex>& out)
 {
 	LineJoint joint;
 	for(uint j = 0; j + 1 < branch.points.size(); j++)
 	{
-		drawLine(branch.points[j], branch.points[j + 1], width, joint);
+		addLine(branch.points[j], branch.points[j + 1], width, joint, out);
 	}
 }
 
@@ -178,10 +177,11 @@ Lightning::Branch Lightning::generateSecondaryBranch(const Branch& b,
 	return r;
 }
 
-void Lightning::drawLine(Vec2d p1,
-						 Vec2d p2,
-						 double width,
-						 LineJoint& joint)
+void Lightning::addLine(Vec2d p1,
+						Vec2d p2,
+						double width,
+						LineJoint& joint,
+						std::vector<QuadVertex>& out)
 {
 	// tbl has 19 entries (widths 1 to 19). The texture is 256 pixels wide and
 	// has no room for a width of 20: the clamp is to 19 and never to 20,
@@ -197,28 +197,19 @@ void Lightning::drawLine(Vec2d p1,
 
 	int u = tbl[w - 1];
 
-	if(joint.valid && joint.lastEndPoint == p1)
-	{
-		glTexCoord2i(u, 0);
-		glVertex2dv(joint.lastCorner2);
-		glTexCoord2i(u + w + 2, 0);
-		glVertex2dv(joint.lastCorner1);
-	}
-	else
-	{
-		glTexCoord2i(u, 0);
-		glVertex2dv(p1 - halfAxis);
-		glTexCoord2i(u + w + 2, 0);
-		glVertex2dv(p1 + halfAxis);
-	}
+	// The first two corners join onto the previous segment where there is one,
+	// so that consecutive segments of a branch share an edge and the seam does
+	// not show.
+	const Vec2d start1 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner2 : p1 - halfAxis;
+	const Vec2d start2 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner1 : p1 + halfAxis;
 
 	joint.valid = true;
 	joint.lastEndPoint = p2;
 	joint.lastCorner1 = p2 + halfAxis;
 	joint.lastCorner2 = p2 - halfAxis;
 
-	glTexCoord2i(u + w + 2, 16);
-	glVertex2dv(joint.lastCorner1);
-	glTexCoord2i(u, 16);
-	glVertex2dv(joint.lastCorner2);
+	out.push_back(QuadVertex(start1.x, start1.y, u, 0));
+	out.push_back(QuadVertex(start2.x, start2.y, u + w + 2, 0));
+	out.push_back(QuadVertex(joint.lastCorner1.x, joint.lastCorner1.y, u + w + 2, 16));
+	out.push_back(QuadVertex(joint.lastCorner2.x, joint.lastCorner2.y, u, 16));
 }

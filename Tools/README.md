@@ -19,6 +19,7 @@ Exit code 1 as soon as anything is reported.
 | --- | --- |
 | `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
+| `display_lists` | No display lists anywhere, in either build. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |

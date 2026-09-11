@@ -671,6 +671,7 @@
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\presets.cpp" />
     <ClCompile Include="src\projectile.cpp" />
+    <ClCompile Include="src\quadarray.cpp" />
     <ClCompile Include="src\rail.cpp" />
     <ClCompile Include="src\sprite.cpp" />
     <ClCompile Include="src\stdobject.cpp" />
@@ -805,6 +806,7 @@
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\presets.h" />
     <ClInclude Include="src\projectile.h" />
+    <ClInclude Include="src\quadarray.h" />
     <ClInclude Include="src\rail.h" />
     <ClInclude Include="src\sprite.h" />
     <ClInclude Include="src\stdobject.h" />

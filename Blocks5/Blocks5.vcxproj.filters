@@ -406,6 +406,9 @@
     <ClCompile Include="src\upscaler.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\quadarray.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\util.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1165,6 +1168,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\upscaler.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\quadarray.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\util.h">

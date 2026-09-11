@@ -203,6 +203,28 @@ def check_project_files():
     return bad
 
 
+@check('display_lists')
+def check_display_lists():
+    """No display lists anywhere, in either build.
+
+    They were a second way of keeping geometry beside the vertex arrays, and
+    one that WebGL does not have at all - so every place that used one carried
+    a second path under #ifdef __EMSCRIPTEN__, and a stub in gl_compat.cpp to
+    make the browser link. All of that is gone; a glNewList added back would
+    compile on Windows, link on Linux and fail only in the browser, which is
+    the build nobody runs first."""
+    calls = re.compile(r'\bgl(GenLists|NewList|EndList|CallLists?|DeleteLists|ListBase|IsList)\b')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        for n, line in enumerate(read(p).split('\n'), 1):
+            m = calls.search(line)
+            if m:
+                bad.append('%s:%d: gl%s - display lists are gone from this tree'
+                           % (rel, n, m.group(1)))
+    return bad
+
+
 @check('naming')
 def check_naming():
     """The filename is the class name in lower case.

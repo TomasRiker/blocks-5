@@ -2,9 +2,9 @@
 #define _LEVEL_H
 
 #include "lightning.h"
-// For TileSet::Vertex, which the per-layer arrays below are made of. The
-// forward declaration a few lines down is not enough for a member.
-#include "tileset.h"
+// For QuadVertex, which the per-layer arrays below are made of. The forward
+// declaration of TileSet a few lines down is enough for the rest.
+#include "quadarray.h"
 
 /*** Class for a level ***/
 
@@ -230,7 +230,7 @@ private:
 	// and the picture are three draws of one array. A full layer is 1000 tiles
 	// and so 64 KB; a palette level is nearly empty and costs nearly nothing,
 	// which matters because the editor holds six Levels at once.
-	std::vector<TileSet::Vertex> tileVertices[NUM_LAYERS];
+	std::vector<QuadVertex> tileVertices[NUM_LAYERS];
 	Presets* p_presets;
 	std::vector<Object*> emptyObjectList;
 	std::vector<Object*>* p_objectsAt;

@@ -264,40 +264,21 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text)
 
 void Font::drawText(const StringCacheEntry& entry) const
 {
-	// The draw states what it needs rather than inheriting it. A colour array
-	// left enabled by an earlier one would be read with this draw's vertex
-	// count through a pointer belonging to somebody else, and a string has no
-	// colour of its own - the caller's glColor is what makes a pass a shadow.
-	glDisableClientState(GL_COLOR_ARRAY);
-
 	p_texture->bind();
-	if(!entry.glyphs.empty())
-	{
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &entry.glyphs[0].position);
-		glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &entry.glyphs[0].uv);
-		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(entry.glyphs.size()));
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-		glDisableClientState(GL_VERTEX_ARRAY);
-	}
+	drawQuadArray(entry.glyphs.empty() ? 0 : &entry.glyphs[0],
+				  static_cast<uint>(entry.glyphs.size()));
 	p_texture->unbind();
 
 	// Untextured, and only now: unbind() has just switched texturing off. Four
 	// thin quads to a frame and not a line loop, because a line's pixel
 	// coverage is a matter of the rasterizer's opinion and every other edge in
 	// this game sits on whole pixels.
-	if(!entry.keyBoxes.empty())
-	{
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(2, GL_FLOAT, sizeof(Vec2f), &entry.keyBoxes[0]);
-		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(entry.keyBoxes.size()));
-		glDisableClientState(GL_VERTEX_ARRAY);
-	}
+	drawQuadArray(entry.keyBoxes.empty() ? 0 : &entry.keyBoxes[0],
+				  static_cast<uint>(entry.keyBoxes.size()));
 }
 
 void Font::buildText(const std::string& text,
-					 std::vector<Vertex>& glyphs,
+					 std::vector<QuadVertex>& glyphs,
 					 std::vector<Vec2f>& keyBoxes)
 {
 	glyphs.clear();
@@ -392,10 +373,10 @@ void Font::buildText(const std::string& text,
 			const Vec2i& t = info.position;
 			const Vec2i& ts = info.size;
 
-			glyphs.push_back(Vertex(x + lean,     y,     t.x,        t.y));
-			glyphs.push_back(Vertex(x + w + lean, y,     t.x + ts.x, t.y));
-			glyphs.push_back(Vertex(x + w,        y + h, t.x + ts.x, t.y + ts.y));
-			glyphs.push_back(Vertex(x,            y + h, t.x,        t.y + ts.y));
+			glyphs.push_back(QuadVertex(x + lean,     y,     t.x,        t.y));
+			glyphs.push_back(QuadVertex(x + w + lean, y,     t.x + ts.x, t.y));
+			glyphs.push_back(QuadVertex(x + w,        y + h, t.x + ts.x, t.y + ts.y));
+			glyphs.push_back(QuadVertex(x,            y + h, t.x,        t.y + ts.y));
 
 			// The advance is the unscaled width: the scaling stretches the
 			// glyph and not the setting.
