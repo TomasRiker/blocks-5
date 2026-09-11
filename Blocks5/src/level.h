@@ -2,6 +2,9 @@
 #define _LEVEL_H
 
 #include "lightning.h"
+// For TileSet::Vertex, which the per-layer arrays below are made of. The
+// forward declaration a few lines down is not enough for a member.
+#include "tileset.h"
 
 /*** Class for a level ***/
 
@@ -220,8 +223,14 @@ private:
 	Texture* p_hint;
 	Font* p_hintFont;
 	bool hintScroll;
-	uint layerListBase;
 	uint layerDirty;
+	// The grid as vertices, one array per layer, built only when layerDirty
+	// says the layer changed. They hold the layer's own coordinates, so the
+	// offset and the colour of a pass stay outside and the two shadow samples
+	// and the picture are three draws of one array. A full layer is 1000 tiles
+	// and so 64 KB; a palette level is nearly empty and costs nearly nothing,
+	// which matters because the editor holds six Levels at once.
+	std::vector<TileSet::Vertex> tileVertices[NUM_LAYERS];
 	Presets* p_presets;
 	std::vector<Object*> emptyObjectList;
 	std::vector<Object*>* p_objectsAt;

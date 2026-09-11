@@ -40,9 +40,21 @@ public:
 	void reload();
 	void cleanUp();
 
-	void beginRender();
-	void endRender();
-	void renderTile(uint id, const Vec2d& position);
+	// One corner of a tile. Position and texture coordinate and nothing else:
+	// the grid carries no per-vertex colour, which is exactly what lets one
+	// built array serve all three passes Level::render makes over a layer -
+	// two shadow samples and the picture - under nothing but a different
+	// glColor and a different translate. Float and not int, because GL_INT is
+	// not a valid vertex attribute type in WebGL/GLES2, and a texel and a whole
+	// pixel are both well inside float's exact range.
+	struct Vertex
+	{
+		Vec2f position;
+		Vec2f uv;
+	};
+
+	void writeTile(uint id, const Vec2f& position, std::vector<Vertex>& out) const;
+	void drawVertices(const Vertex* p_vertices, uint count) const;
 
 	Texture* getTexture();
 	const TileInfo& getTileInfo(uint id) const;

@@ -150,37 +150,60 @@ void TileSet::cleanUp()
 	for(int i = 0; i < 256; i++) tiles[i] = badTile;
 }
 
-void TileSet::beginRender()
-{
-	p_texture->bind();
-	glBegin(GL_QUADS);
-}
-
-void TileSet::endRender()
-{
-	glEnd();
-	p_texture->unbind();
-}
-
-void TileSet::renderTile(uint id,
-						 const Vec2d& position)
+void TileSet::writeTile(uint id,
+						const Vec2f& position,
+						std::vector<Vertex>& out) const
 {
 	if(id == 0) return;
 
 	const TileInfo& tile = getTileInfo(id);
 	if(tile.type == -1) return;
 
-	glTexCoord2i(tile.position.x, tile.position.y);
-	glVertex2d(position.x, position.y);
+	// TILE_SIZE is the tile's edge in the picture and in the texture alike,
+	// which is why one constant does for both here.
+	const float s = static_cast<float>(TILE_SIZE);
+	const float x = position.x, y = position.y;
+	const float u = static_cast<float>(tile.position.x);
+	const float v = static_cast<float>(tile.position.y);
 
-	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y);
-	glVertex2d(position.x + TILE_SIZE, position.y);
+	// The corners in the order the immediate-mode quad had them: the winding
+	// is the tree's everywhere and face culling is never switched on, but a
+	// silently different order is not worth finding out about later.
+	Vertex corner;
+	corner.position = Vec2f(x,     y);     corner.uv = Vec2f(u,     v);     out.push_back(corner);
+	corner.position = Vec2f(x + s, y);     corner.uv = Vec2f(u + s, v);     out.push_back(corner);
+	corner.position = Vec2f(x + s, y + s); corner.uv = Vec2f(u + s, v + s); out.push_back(corner);
+	corner.position = Vec2f(x,     y + s); corner.uv = Vec2f(u,     v + s); out.push_back(corner);
+}
 
-	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y + TILE_SIZE);
-	glVertex2d(position.x + TILE_SIZE, position.y + TILE_SIZE);
+void TileSet::drawVertices(const Vertex* p_vertices,
+						   uint count) const
+{
+	// The bind and the unbind happen even for a layer with no tiles in it,
+	// because unbind() is glDisable(GL_TEXTURE_2D) and the state every later
+	// draw inherits must not depend on whether a layer happened to be empty.
+	p_texture->bind();
 
-	glTexCoord2i(tile.position.x, tile.position.y + TILE_SIZE);
-	glVertex2d(position.x, position.y + TILE_SIZE);
+	if(count && p_vertices)
+	{
+		// The draw states what it needs rather than inheriting it. A colour
+		// array left enabled by an earlier one would be read with this draw's
+		// vertex count through a pointer belonging to somebody else, and the
+		// grid deliberately has no colour of its own - the caller's glColor is
+		// what tints a shadow pass.
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+
+		glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertices->position);
+		glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertices->uv);
+		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(count));
+
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+
+	p_texture->unbind();
 }
 
 Texture* TileSet::getTexture()

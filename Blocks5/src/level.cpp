@@ -51,7 +51,6 @@ Level::Level()
 	inCat = false;
 	inPreview = false;
 	inMenu = false;
-	layerListBase = 0;
 	cameraShake = 0.0;
 	flash = 0.0;
 	flashJitter = 0.0;
@@ -131,11 +130,9 @@ void Level::clear()
 	// delete the tiles
 	delete[] p_tiles;
 	p_tiles = 0;
-	if(layerListBase)
-	{
-		glDeleteLists(layerListBase, NUM_LAYERS);
-		layerListBase = 0;
-	}
+	// The layer arrays need no GL call to release and no context to be current
+	// while they go, which is the half of this that display lists could not do.
+	for(int i = 0; i < NUM_LAYERS; i++) tileVertices[i].clear();
 
 	delete[] p_aiFlags;
 	p_aiFlags = 0;
@@ -447,8 +444,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	p_temp = p_level->Attribute("musicFilename");
 	if(p_temp) musicFilename = p_temp;
 
-	// create the display lists for the layers
-	layerListBase = glGenLists(NUM_LAYERS);
+	// Every layer has to be built before it is first drawn.
 	layerDirty = ~0;
 
 	return true;
@@ -1190,56 +1186,43 @@ void Level::renderTiles(int layer,
 {
 	if(Engine::inst().isRenderSuppressed()) return;
 
+	// Before the matrix is pushed, so that nothing has to be popped again. A
+	// level whose skin would not load has no tile set, and drawing nothing is
+	// what Level::loadSkin's toast already promises the player.
+	if(!isValidLayer(layer) || !p_tileSet) return;
+
 	glColor4dv(color);
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);
 
-#ifdef __EMSCRIPTEN__
-	// WebGL has no display lists, and the tile grid is therefore emitted afresh
-	// every frame. A level is 1000 quads per layer, which is affordable.
-	{
-		p_tileSet->beginRender();
+	std::vector<TileSet::Vertex>& vertices = tileVertices[layer];
 
-		for(int x = 0; x < WIDTH; x++)
-		{
-			for(int y = 0; y < HEIGHT; y++)
-			{
-				Vec2i p(x, y);
-				uint tileID = getTileAt(layer, p);
-				p_tileSet->renderTile(tileID, p * 16);
-			}
-		}
-
-		p_tileSet->endRender();
-	}
-#else
-	// Does this layer have to be redrawn?
+	// Built only where layerDirty says the grid changed. Six places set that
+	// mask - load(), allocateTiles(), setTileAt(), setTileSet(), invalidate()
+	// and loadSkin() - which between them cover every way a tile or the picture
+	// it is cut from can move. A tile id alone would not: the texture
+	// coordinates come from the TileSet, so a skin change moves every tile
+	// without moving a single id.
 	if(layerDirty & (1 << layer))
 	{
-		glNewList(layerListBase + layer, GL_COMPILE);
-
-		p_tileSet->beginRender();
+		vertices.clear();
 
 		for(int x = 0; x < WIDTH; x++)
 		{
 			for(int y = 0; y < HEIGHT; y++)
 			{
-				Vec2i p(x, y);
-				uint tileID = getTileAt(layer, p);
-				p_tileSet->renderTile(tileID, p * 16);
+				const Vec2i p(x, y);
+				const Vec2f corner(static_cast<float>(p.x * TileSet::TILE_SIZE),
+								   static_cast<float>(p.y * TileSet::TILE_SIZE));
+				p_tileSet->writeTile(getTileAt(layer, p), corner, vertices);
 			}
 		}
 
-		p_tileSet->endRender();
-
-		glEndList();
-
-		// The layer is no longer dirty.
 		layerDirty &= ~(1 << layer);
 	}
 
-	glCallList(layerListBase + layer);
-#endif
+	p_tileSet->drawVertices(vertices.empty() ? 0 : &vertices[0],
+							static_cast<uint>(vertices.size()));
 
 	glPopMatrix();
 }

@@ -492,6 +492,34 @@ read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
 are core and the header just `#define`s them through.
 
+**The tile grid is a vertex array, built once and drawn three times.** `Level::renderTiles`
+writes the layer into a `std::vector<TileSet::Vertex>` whenever `layerDirty` says it changed
+and hands that to one `glDrawArrays(GL_QUADS)` out of client memory — no display list on the
+desktop, and in the browser no thousand quads re-emitted through `glBegin`/`glEnd` every
+frame, which is what that path used to do. The vertices carry a position and a texture
+coordinate and **no colour**, and that is the point: `Level::render` makes three passes over a
+layer — two shadow samples and the picture — differing in nothing but a `glColor` and a
+translate, so one built array serves all three. Six places set `layerDirty`, and between them
+they cover every way a tile or the picture it is cut from can move; a tile id alone would not,
+since the texture coordinates come from the `TileSet` and a skin change moves every tile
+without moving an id. Measured on the menu title demo, three interleaved runs of twenty
+seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
+0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
+
+**A colour set inside `glBegin`/`glEnd` is quantised to a byte in the browser; the same call
+outside one is not.** Emscripten's GL emulation writes a `glColor4f` issued between the two
+into its vertex buffer as four unsigned bytes and reads the attribute back normalized, where
+outside a block it becomes a constant `vertexAttrib4fv` at full float. The shadow pass's alpha
+of 0.35 therefore used to arrive as 89/255, and now arrives as 0.35 — one four-hundredth
+stronger, which puts 40 of the 256 possible background values one level lower. Measured on
+the level editor: 3230 of 512000 pixels differ by exactly one, every one of them inside a
+tile shadow, and building the new path with the alpha quantised the old way reproduces the
+old screenshot byte for byte. The desktop never had it, where the colour has always been the
+float the code asked for — the same screen read back from the framebuffer at 640x480 is
+byte-identical before and after. Worth knowing before the next renderer moves: every colour
+the remaining `glBegin` blocks set is truncated down to the next 1/255 — a weaker alpha and
+a darker tint than the code asks for.
+
 **Four upscale filters, and each is a class.** `upscaler.h` holds the base — a name, a
 texture filter, `present()`, whether it wants a whole-number scale, whether it distorts the
 cursor, and its own `loadConfig`/`saveConfig` — plus `PresentContext` (everything the Engine
