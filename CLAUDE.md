@@ -1478,6 +1478,17 @@ offsets up to 900000. Two things to keep right: the wrap goes **after** the `sin
 the same offset, whose phase has to follow the unwrapped value, and the period is the
 *texture's* own size, since a skin brings its own art.
 
+**The angle those sines are given needs no such care**, and the arithmetic is worth having
+once: they are `double` throughout, so one ULP at argument *A* is `A/2^52`. The snow's
+argument grows at 0.2 rad/s and its sine is scaled by 500 pixels, so half a pixel of error
+needs 1.7e-3 rad and arrives in about **700 000 years**; after 25 days of rain - the fastest
+of them - one ULP is 9.6e-9 rad. What runs out first by a wide margin is the millisecond
+counter feeding it: `Level::time` is `int` and undefined after **24.9 days** in one level,
+`GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7. All three reset on entering a
+level or the menu, so reaching any of them means a machine left on one screen for weeks. In
+`float` the same rain argument would have a ULP of 4 radians, which is the same distinction
+as the `mediump` one above, two steps further along.
+
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two
 texture as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL
 error, and the default is `GL_REPEAT` — which rain, snow and clouds genuinely need, since

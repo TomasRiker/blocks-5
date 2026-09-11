@@ -170,6 +170,12 @@ public:
 	void loadSkin(bool forceReload = false);
 
 	int counter;
+	// Milliseconds since the level was loaded, 20 to a tick. Signed, so it is
+	// undefined after 24.9 days in one level - where GS_Menu's and Engine's
+	// own counters are uint and merely wrap, at 49.7. Neither is reachable by
+	// playing; both need a machine left on one screen for weeks. Making this
+	// uint too would turn the undefined case into a defined one, and is worth
+	// folding into the next edit here rather than doing on its own.
 	int time;
 	bool finished;
 	std::set<Electronics*> allElectronics;
