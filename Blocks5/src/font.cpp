@@ -2,6 +2,7 @@
 #include "font.h"
 #include "filesystem.h"
 #include "texture.h"
+#include "engine.h"
 
 // The <k> box - a keycap drawn around a key's name, so that "press Esc" reads
 // as a key and not as a word. The padding keeps the frame off the glyphs
@@ -177,6 +178,8 @@ void Font::renderText(const std::string& text,
 					  const Vec2i& position,
 					  const Vec4d& color)
 {
+	if(Engine::inst().isRenderSuppressed()) return;
+
 	bool cached;
 	uint listIndex;
 

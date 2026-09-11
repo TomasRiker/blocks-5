@@ -1178,6 +1178,8 @@ void Level::renderTiles(int layer,
 						const Vec2i& offset,
 						const Vec4d& color)
 {
+	if(Engine::inst().isRenderSuppressed()) return;
+
 	glColor4dv(color);
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);

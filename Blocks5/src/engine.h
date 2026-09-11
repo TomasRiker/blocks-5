@@ -158,6 +158,9 @@ public:
 	// overlay's own cost landing in the picture.
 	void showPerformance() { performanceShown = true; }
 	bool isPerformanceShown() const { return performanceShown; }
+
+	// The -perf upper-bound measurement; see where it is set in render().
+	bool isRenderSuppressed() const { return renderSuppressed; }
 	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
 	// Forget everything that has piled up in keys and mouse buttons: after
 	// anything that stopped the main loop, the input state is useless.
@@ -526,6 +529,8 @@ private:
 	uint frameTime;
 	FrameStats frameStats;
 	bool performanceShown;
+	bool renderSuppressed;
+	bool renderSuppressWanted;
 	// The start of the previous turn of the main loop, for the interval
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between

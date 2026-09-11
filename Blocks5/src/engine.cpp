@@ -112,6 +112,8 @@ Engine::Engine()
 	frameBufferDisabled = false;
 	shadersDisabled = false;
 	performanceShown = false;
+	renderSuppressed = false;
+	renderSuppressWanted = false;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
@@ -1618,6 +1620,23 @@ void Engine::render()
 	// the browser's canvas - and asking costs two divisions and a comparison.
 	updateCursorSize();
 
+	// An upper bound on what drawing costs, measured by not doing it: with
+	// -perf on and "plant bomb" held, renderTiles(), renderSprite() and
+	// Font::renderText() return at once, so the overlay reads what a frame
+	// would cost if all three were free. A held button and not a switch,
+	// because the phone is where the question matters and has no command
+	// line; the on-screen pad's Bomb sends the Shift that action is bound to.
+	// The statistics are cleared on each edge, or the percentile would mix
+	// suppressed frames with ordinary ones for the twenty seconds the ring
+	// holds at a phone's frame rate, and the button would look inert.
+	const bool suppressWanted = performanceShown && isActionDown("$A_PLANT_BOMB");
+	if(suppressWanted != renderSuppressWanted)
+	{
+		renderSuppressWanted = suppressWanted;
+		frameStats.clear();
+	}
+	renderSuppressed = suppressWanted;
+
 	// render the GUI
 	GUI::inst().render();
 
@@ -1630,6 +1649,11 @@ void Engine::render()
 
 	// Toasts last: they sit over the GUI and over the editors' panes.
 	renderToasts();
+
+	// Off before drawOverlays(), which draws -perf's own numbers through the
+	// same Font::renderText this suppresses. Without it the experiment would
+	// hide its own answer.
+	renderSuppressed = false;
 
 #ifdef PROFILE_ENGINE_RENDER
 	END_PROFILE(engineRender)
@@ -2880,6 +2904,8 @@ void Engine::renderSprite(const Vec2i& position,
 						  double rotation,
 						  double scaling)
 {
+	if(renderSuppressed) return;
+
 	const Vec2i halfSize(size / 2);
 
 	glPushMatrix();
