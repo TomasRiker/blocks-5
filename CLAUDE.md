@@ -544,9 +544,10 @@ draws, or that moves the texture binding, the texture matrix, the blend function
 framebuffer, has to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
 `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` do it themselves, so
 most of it is automatic. The object sources reach the other three through **`GLState`**
-(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` — which flush before
-they change anything, so the rule lives in one file instead of at a dozen call sites where it
-can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped to the
+(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the texture
+matrix, which is the third piece of state and the one the first draft of the check was blind
+to — all of which flush before they change anything, so the rule lives in one file instead of
+at a dozen call sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped to the
 sources that define an `Object::onRender` because those are what the batch can reach; the
 crossfades, the GUI and the credits run with no batch open and are deliberately left alone,
 which is what keeps the ban something a reader can check.
@@ -563,6 +564,14 @@ so the invalidation would differ per platform. `Texture::bind`'s `glPushAttrib(G
 stays for a different reason: replacing it is safe as the tree stands, but it would leave `bind()`
 with a silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues
 no GL call at all. ROADMAP 44 has both.
+
+**The flush says which matrix stack it means**, and that is not pedantry. It draws under
+`glLoadIdentity` because the vertices already carry their modelview — but a flush happens
+wherever the state moves, `Texture::bind` included, and `Level::render` binds the snow and the
+clouds with `GL_TEXTURE` current. An unqualified `glPushMatrix` there would push, wipe and pop
+the *texture* matrix and leave the sprites under whatever modelview happened to stand. The
+batch is empty at that call today, which is the only reason it never showed; the
+`glPushAttrib(GL_TRANSFORM_BIT)` bracket costs two calls a flush and stops it being a question.
 
 **One explicit flush survives**, in `lava.cpp`: the two lava passes draw raw quads under a
 texture bound from outside and change no state on the way in, so nothing else would flush for

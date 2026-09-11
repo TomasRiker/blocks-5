@@ -140,19 +140,72 @@ def c_sprite_batch(p):
     p.replace('\t\tEngine::inst().flushSprites();\n', '')
 
 
-# The shape a raw state change has: texturing switched off around an object's
-# own geometry, with the batch left standing. The player's censor bar is the
-# site that was written down in the plan and then not written into the tree.
+# Each of the four things gl_state bans, because a case that injects only one
+# of them leaves the other three free to be dropped from the pattern without
+# anything noticing. Disable and enable are separate halves of one alternation,
+# and the pop is a separate call from the push.
 @case('gl_state', 'Blocks5/src/player.cpp')
-def c_gl_state(p):
+def c_gl_state_disable(p):
     p.replace('GLState::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
 
 
-# And the other half: the attribute stack, where the pop is what puts texturing
-# back and is just as much a state change as the push.
+@case('gl_state', 'Blocks5/src/player.cpp')
+def c_gl_state_enable(p):
+    p.replace('GLState::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
+
+
 @case('gl_state', 'Blocks5/src/teleporter.cpp')
-def c_gl_state_attrib(p):
+def c_gl_state_push(p):
     p.replace('GLState::pushEnables();', 'glPushAttrib(GL_ENABLE_BIT);')
+
+
+@case('gl_state', 'Blocks5/src/teleporter.cpp')
+def c_gl_state_pop(p):
+    p.replace('GLState::popEnables();', 'glPopAttrib();')
+
+
+@case('gl_state', 'Blocks5/src/hint.cpp')
+def c_gl_state_bind(p):
+    p.replace('GLState::bindTexture(noteTexture);',
+              'glBindTexture(GL_TEXTURE_2D, noteTexture);')
+
+
+# The texture matrix is the third of the three the docstring names, and the one
+# the first draft of the check did not look at.
+@case('gl_state', 'Blocks5/src/hint.cpp')
+def c_gl_state_matrix(p):
+    p.replace('GLState::pushTextureMatrix();',
+              'glMatrixMode(GL_TEXTURE);\n\tglPushMatrix();\n\tglLoadIdentity();\n\tglMatrixMode(GL_MODELVIEW);')
+
+
+# A call split over two lines, which a line-at-a-time search cannot see.
+@case('gl_state', 'Blocks5/src/electronics.cpp')
+def c_gl_state_wrapped(p):
+    p.replace('GLState::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
+
+
+# A flush inside an if() says nothing about the code after that block. This is
+# the shape player.cpp has - its only flush sits inside if(censored).
+@case('sprite_batch', 'Blocks5/src/player.cpp')
+def c_sprite_batch_scope(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN)\n\t{\n\t\tEngine::inst().renderSprites(sprites, color);\n\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n\t}')
+
+
+# A free helper at column 0 is a new function too, and must not inherit the
+# flush of the member above it.
+@case('sprite_batch', 'Blocks5/src/lava.cpp')
+def c_sprite_batch_helper(p):
+    p.replace('void Lava::onUpdate()',
+              'static void drawBubble()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Lava::onUpdate()')
+
+
+# Queue and draw on one line: the draw comes after the queue and is not covered
+# by whatever flushed before it.
+@case('sprite_batch', 'Blocks5/src/stdobject.cpp')
+def c_sprite_batch_sameline(p):
+    p.replace('Engine::inst().renderSprites(sprites, color);',
+              'Engine::inst().renderSprites(sprites, color); drawQuadArray(0, 0);')
 
 
 @case('naming', 'Blocks5/src/u_crt.h')

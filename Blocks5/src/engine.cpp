@@ -3020,13 +3020,21 @@ void Engine::flushSprites()
 	// spans objects that each pushed their own. The projection still applies,
 	// which is what puts the whole thing on the screen.
 	//
-	// GL_MODELVIEW is the resting matrix mode everywhere in this tree - every
-	// place that switches to GL_TEXTURE puts it back - so this needs no
-	// glMatrixMode of its own.
+	// The matrix mode is said rather than assumed, and the attrib bracket is
+	// what says it. A flush happens wherever the state moves, which includes
+	// Texture::bind() - and Level::render binds the snow and the clouds with
+	// GL_TEXTURE current, so an unqualified glPushMatrix here would push, wipe
+	// and pop the *texture* matrix and leave the sprites under whatever
+	// modelview happened to stand. It is empty at that call today, which is the
+	// only reason this has never shown; saying the mode costs two calls a flush
+	// and stops it being a question.
+	glPushAttrib(GL_TRANSFORM_BIT);
+	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
 	drawQuadArray(&spriteBatch[0], static_cast<uint>(spriteBatch.size()));
 	glPopMatrix();
+	glPopAttrib();
 
 	// The current colour is deliberately left alone. Immediate mode used to
 	// leave the last sprite's colour standing, and putting that back here

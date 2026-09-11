@@ -31,4 +31,30 @@ namespace GLState
 		Engine::inst().flushSprites();
 		glPopAttrib();
 	}
+
+	void loadTextureMatrix(const GLdouble* p_matrix)
+	{
+		Engine::inst().flushSprites();
+		glPushAttrib(GL_TRANSFORM_BIT);
+		glMatrixMode(GL_TEXTURE);
+		glLoadMatrixd(p_matrix);
+		glPopAttrib();
+	}
+
+	void pushTextureMatrix()
+	{
+		Engine::inst().flushSprites();
+		glMatrixMode(GL_TEXTURE);
+		glPushMatrix();
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+	}
+
+	void popTextureMatrix()
+	{
+		Engine::inst().flushSprites();
+		glMatrixMode(GL_TEXTURE);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
+	}
 }

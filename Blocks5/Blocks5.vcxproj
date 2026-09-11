@@ -602,6 +602,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\campaign.cpp" />
+    <ClCompile Include="src\glstate.cpp" />
     <ClCompile Include="src\gs_campaigneditor.cpp" />
     <ClCompile Include="src\gs_credits.cpp" />
     <ClCompile Include="src\gs_game.cpp" />
@@ -671,7 +672,6 @@
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\presets.cpp" />
     <ClCompile Include="src\projectile.cpp" />
-    <ClCompile Include="src\glstate.cpp" />
     <ClCompile Include="src\quadarray.cpp" />
     <ClCompile Include="src\rail.cpp" />
     <ClCompile Include="src\sprite.cpp" />
@@ -743,6 +743,7 @@
     <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\unzip.h" />
     <ClInclude Include="libs\zlib-1.3.1\contrib\minizip\zip.h" />
     <ClInclude Include="src\campaign.h" />
+    <ClInclude Include="src\glstate.h" />
     <ClInclude Include="src\gs_campaigneditor.h" />
     <ClInclude Include="src\gs_credits.h" />
     <ClInclude Include="src\gs_game.h" />
@@ -807,7 +808,6 @@
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\presets.h" />
     <ClInclude Include="src\projectile.h" />
-    <ClInclude Include="src\glstate.h" />
     <ClInclude Include="src\quadarray.h" />
     <ClInclude Include="src\renderlayer.h" />
     <ClInclude Include="src\rail.h" />

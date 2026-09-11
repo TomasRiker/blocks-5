@@ -330,12 +330,8 @@ void Hint::renderNote(const Vec4d& color,
 	GLState::setTexturing(true);
 	GLState::bindTexture(noteTexture);
 
-	// This texture does not come from Texture::bind(): the pixel matrix of the
-	// last image is still in place. Here the maths runs in 0..1.
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
+	// Not Texture::bind()'s pixel matrix: this one's maths runs in 0..1.
+	GLState::pushTextureMatrix();
 
 	// Blend premultiplied, because the texture came about that way.
 	engine.setBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -350,9 +346,7 @@ void Hint::renderNote(const Vec4d& color,
 
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
+	GLState::popTextureMatrix();
 
 	// Leave it as tidy as Texture::unbind() would: right afterwards the level
 	// draws the flash, and that wants no texture.

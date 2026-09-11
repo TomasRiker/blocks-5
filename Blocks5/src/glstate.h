@@ -35,6 +35,20 @@ namespace GLState
 	// teleporter.cpp put texturing back after drawing their own geometry.
 	void pushEnables();
 	void popEnables();
+
+	// The texture matrix - the third of the three, and the one that decides
+	// what a queued sprite's texel coordinates mean. load() puts a Texture's
+	// pixel matrix in place; the push/pop pair lends the stack to a caller that
+	// wants something else there for a moment, which is how the hint note
+	// samples its own sheet in 0..1 rather than in texels.
+	//
+	// load() restores the matrix mode through the attribute stack rather than
+	// setting GL_MODELVIEW, because Level::render binds the snow and the clouds
+	// with GL_TEXTURE already current. The push/pop pair returns to
+	// GL_MODELVIEW, which is what its one caller wants and does today.
+	void loadTextureMatrix(const GLdouble* p_matrix);
+	void pushTextureMatrix();
+	void popTextureMatrix();
 }
 
 #endif

@@ -145,6 +145,60 @@ def strip_comments(text):
     return ''.join(out)
 
 
+def blank_noncode(text):
+    """Comments and the insides of strings replaced by spaces, with every
+    newline kept - so a pattern cannot fire inside one and the line numbers
+    still line up. strip_comments() collapses instead, which loses them."""
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                out[k] = ' '
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            for k in range(i, min(j, n)):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = j
+        elif text[i] == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == '\\' else 1
+            for k in range(i + 1, min(j, n)):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = min(j + 1, n)
+        else:
+            i += 1
+    return ''.join(out)
+
+
+def batch_sources():
+    """The sources the sprite batch can reach, as (path, code) pairs with the
+    comments and strings blanked out.
+
+    Those that define an Object::onRender, which is the set
+    Level::renderObjects walks - matched loosely, because a wrapped signature
+    is still one. Plus texture.cpp: Texture::bind() is the funnel every one of
+    them binds through, and inlining that wrapper back to raw calls is a
+    plausible tidy-up that would break all of them at once."""
+    signature = re.compile(r'::onRender\s*\(\s*RenderLayer')
+    out = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/'):
+            continue
+        text = read(p)
+        if signature.search(text) or rel.endswith('/texture.cpp'):
+            out.append((rel, blank_noncode(text)))
+    return out
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -262,20 +316,25 @@ def check_sprite_batch():
     object loop, and one glDrawArrays puts them up at the end. This game has no
     depth buffer, so painter's order is the only order there is: a queued quad
     is drawn with the GL state standing at the flush, not at the call. An object
-    that draws raw geometry, binds a texture of its own or switches texturing
-    off therefore has to call Engine::inst().flushSprites() first, or everything
-    queued before it lands on top of what it drew instead of underneath, and
-    lands with its texture.
+    that draws raw geometry therefore has to flush first, or everything queued
+    before it lands on top of what it drew instead of underneath.
 
     Nothing else would catch it. The sprites of the objects around it are what
     move, so the object that broke the rule looks right and its neighbours do
-    not - and only on the screen that happens to have both."""
+    not - and only on the screen that happens to have both.
+
+    A flush covers only as far as the block it stands in: one inside an if()
+    says nothing about the code after it, which is the shape player.cpp has."""
     breaking = re.compile(r'\bglBegin\s*\(|\bglDrawArrays\s*\(|\bglDrawElements\s*\(|'
                           r'\bdrawQuadArray\s*\(')
     queues = re.compile(r'\brenderSprites?\s*\(')
+    # GLState's wrappers flush before they change anything, so reaching one is
+    # reaching a flush.
     flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::')
     # Helpers that never run except from a caller that has just flushed. Each
     # is a private member of the same class, called from one place.
+    # Qualified, so that a same-named method of another class does not inherit
+    # the exemption.
     EXEMPT = {
         # Hint::renderNote() flushes and then binds its own texture; the mesh
         # is the geometry it draws under that binding.
@@ -283,32 +342,39 @@ def check_sprite_batch():
         # Reached only from Hint::bakeNote(), which is inside
         # Engine::beginRenderToTexture() - and that flushes at both ends.
         'Hint::bakeNote',
+        # Font::drawText brackets its two arrays in bind()/unbind(), and both
+        # of those flush; Level::renderShine draws through the Texture*
+        # overload of renderSprite, which does the same.
+        'Font::drawText',
+        'Level::renderShine',
     }
     bad = []
-    for p in source_files():
-        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
-        text = read(p)
-        # Only the classes the batch can actually reach: those that override
-        # Object::onRender. The GUI's onRender() takes no arguments and runs
-        # with no batch open.
-        if '::onRender(RenderLayer' not in text:
-            continue
-        func, flushed = '', False
+    for rel, text in batch_sources():
+        func, flushed, flushIndent = '', False, 0
         for n, line in enumerate(text.split('\n'), 1):
-            code = line.split('//')[0]
-            m = re.match(r'(?:\w[\w:<>&*\s]*?)\b(\w+::\w+)\s*\(', line)
-            if m and not line.startswith((' ', '\t')):
-                func, flushed = m.group(1), False
-            if flushes.search(code):
-                flushed = True
-            elif queues.search(code):
-                flushed = False
-            elif breaking.search(code) and not flushed and func not in EXEMPT:
-                bad.append('%s:%d: %s() draws or changes the texture state with sprites '
-                           'possibly queued - Engine::inst().flushSprites() first'
-                           % (rel, n, func))
+            if line.strip():
+                indent = len(line) - len(line.lstrip())
+                # A new function at column 0 - a member or a free helper alike.
+                if not line[0].isspace() and '(' in line and line[0] not in '#}/*':
+                    m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
+                    func, flushed = (m.group(1) if m else ''), False
+                # A flush holds only inside the block it stands in.
+                elif flushed and indent < flushIndent:
+                    flushed = False
+            # In column order, because a line can both queue and draw.
+            events = ([(m.start(), 'f') for m in flushes.finditer(line)] +
+                      [(m.start(), 'q') for m in queues.finditer(line)] +
+                      [(m.start(), 'b') for m in breaking.finditer(line)])
+            for e in sorted(events, key=lambda e: e[0]):
+                if e[1] == 'f':
+                    flushed = True
+                    flushIndent = len(line) - len(line.lstrip())
+                elif e[1] == 'q':
+                    flushed = False
+                elif not flushed and func not in EXEMPT:
+                    bad.append('%s:%d: %s() draws with sprites possibly queued - '
+                               'flush the batch first' % (rel, n, func))
     return bad
-
 
 
 @check('gl_state')
@@ -322,24 +388,51 @@ def check_gl_state():
     afterwards - so whatever moves one of the three has to put the batch up
     first. GLState does that; the raw calls do not.
 
-    Scoped to the sources that define an Object::onRender, because those are
-    what Level::renderObjects can reach with a batch open. Everything else -
-    the crossfades, the GUI, the credits - runs with none open and is left
-    alone deliberately, so the ban stays something a reader can check."""
-    raw = re.compile(r'\bgl(Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)|'
-                     r'\bglBindTexture\s*\(|\bglPush(Attrib)\s*\(|\bglPopAttrib\s*\(')
+    There is no exemption list and none is needed: a GLState call with nothing
+    queued costs one comparison, so going through it is free even where the
+    batch provably cannot be open.
+
+    Scoped to what Level::renderObjects can reach with a batch open - see
+    batch_sources(). The crossfades, the GUI and the credits run with none open
+    and are left alone deliberately, which keeps the ban small enough to read.
+
+    What it cannot see: GL_TEXTURE_2D reached through a variable rather than
+    written out. A regex has no types, and that is the honest limit."""
+    raw = (r'\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
+           r'|\bglBindTexture\s*\('
+           r'|\bglPushAttrib\s*\(\s*GL_ENABLE_BIT\s*\)'
+           r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
+    # texture.cpp keeps its glPushAttrib(GL_TRANSFORM_BIT) bracket, which is
+    # about the matrix mode rather than the enables, so its pops are its own.
+    withPop = re.compile(raw + r'|\bglPopAttrib\s*\(')
+    noPop = re.compile(raw)
+    # Two that build a value rather than set drawing state: they put a scale on
+    # the texture matrix stack and read it straight back with glGetDoublev, at
+    # load time, with no batch open. Doing the arithmetic in C++ instead would
+    # be tidier and is not the same thing - a driver that keeps the stack in
+    # floats hands back a rounded matrix, and that rounding is what the game has
+    # always sampled with.
+    EXEMPT = {'Texture::reload', 'Texture::loadSubTexture'}
     bad = []
-    for p in source_files():
-        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
-        text = read(p)
-        if '::onRender(RenderLayer' not in text:
-            continue
-        for n, line in enumerate(text.split('\n'), 1):
-            code = line.split('//')[0]
-            m = raw.search(code)
-            if m:
-                bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
-                           % (rel, n, m.group(0).strip()))
+    for rel, text in batch_sources():
+        pattern = noPop if rel.endswith('/texture.cpp') else withPop
+        # Where each function starts, so a match can be attributed to one. The
+        # search itself runs over the whole text and not line by line, because
+        # every pattern above allows whitespace inside the call - a glDisable
+        # with its argument on the next line is the same mistake.
+        starts = [(m.start(), m.group(1)) for m in
+                  re.finditer(r'^\w[^;\n]*?\b(\w+::\w+|\w+)\s*\(', text, re.M)]
+        for m in pattern.finditer(text):
+            func = ''
+            for at, name in starts:
+                if at > m.start():
+                    break
+                func = name
+            if func in EXEMPT:
+                continue
+            n = text.count('\n', 0, m.start()) + 1
+            bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
+                       % (rel, n, ' '.join(m.group(0).split())))
     return bad
 
 
