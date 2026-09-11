@@ -23,6 +23,22 @@ struct QuadVertex
 	Vec2f uv;
 };
 
+// The same corner with a colour of its own, for an array whose quads do not
+// share one. That is what a batch of sprites is: each carries the object's
+// tint, its death countdown and whatever the pass multiplied in, so a colour
+// held in glColor would flush the batch at every object.
+//
+// 8 + 8 + 16 = 32 bytes, and the three attributes therefore share a stride
+// that is exactly their summed size. Emscripten's GL emulation requires both
+// - one stride for all of them, and no smaller than what they occupy - or it
+// copies the whole array through a scratch buffer behind a single warning.
+struct ColorQuadVertex
+{
+	Vec2f position;
+	Vec2f uv;
+	Vec4f color;
+};
+
 // Draw count vertices as GL_QUADS out of client memory. Whatever texture the
 // caller has bound applies, and so does its glColor.
 //
@@ -34,5 +50,9 @@ void drawQuadArray(const QuadVertex* p_vertices, uint count);
 // The same for a shape with no texture on it - the keycap frames a font draws
 // around a key's name.
 void drawQuadArray(const Vec2f* p_positions, uint count);
+
+// And the same for quads carrying their own colours. glColor is ignored for
+// the length of the draw and left alone afterwards.
+void drawQuadArray(const ColorQuadVertex* p_vertices, uint count);
 
 #endif

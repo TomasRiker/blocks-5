@@ -137,7 +137,10 @@ there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
-`-nofbo`, `-noshader` and `-perf` — that is the whole list, and `readme.txt` documents all six.
+`-nofbo`, `-noshader`, `-perf` and `-nobatch` — that is the whole list, and `readme.txt`
+documents all seven. `-nobatch` makes `renderSprite` draw every quad on its own again instead
+of collecting a render pass into one call; it is the arm to measure the sprite batch against,
+and `?nobatch=1` is the same switch in the browser.
 `-perf` puts what the last few hundred frames cost in the corner; in the browser `?perf=1` on
 the address becomes the same switch. See **Measuring a frame** below.
 `-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
@@ -201,7 +204,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      nineteen static checks over the whole tree
+python3 Tools/verify.py      twenty static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -230,7 +233,8 @@ those are exactly what `Tools/syntax.sh` is for.
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
 `Blocks5.vcxproj` or its `.filters`, a display list added back to a tree that has none, a class
-whose header is not named after it, a render layer written as a number, the version
+whose header is not named after it, a render layer written as a number, an object that
+draws raw geometry without flushing the sprite batch first, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
 `gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
@@ -504,6 +508,55 @@ alone would not, since the texture coordinates come from the `TileSet` and a ski
 every tile without moving an id. Measured on the menu title demo, three interleaved runs of twenty
 seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
 0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
+
+**A whole render pass of sprites is one draw call.** `Level::renderObjects` opens a batch
+around its object loop (`Engine::beginSpriteBatch`), and while one is open `Engine::renderSprite`
+appends four `ColorQuadVertex` — a position, a texture coordinate and a colour of its own —
+instead of drawing. `flushSprites` puts the lot up with one `glDrawArrays(GL_QUADS)`. The
+colour has to be per vertex and not in `glColor`, because every object brings its own tint,
+death countdown and conversion ghost; a shared colour would flush at every object and there
+would be nothing left to batch. Measured in the browser, `?nobatch=1` against the default:
+**276 draw calls a frame → 35** in a played level, 243 → 48 on the menu's title demo, 314 → 72
+on the level select. The median frame goes **3.90 ms → 2.40** and its render half **2.40 →
+1.10**, against a spread within an arm of 0.90 and 0.30. The vertex count does not move — the
+same geometry, in a fortieth of the calls.
+
+**The transform is baked into the vertices, and that is what the batch costs.** A sprite is
+drawn under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the
+squash of a teleporting object, the unbalanced `glTranslated` `Enemy` does inside its own
+`onRender`, the half pixel `Level::render` puts under the wires — and sprites from different
+objects cannot share a draw call while that lives in the matrix stack. So `queueSprite` reads
+it back with `glGetFloatv(GL_MODELVIEW_MATRIX)` and multiplies the four corners itself: one GL
+call in place of the seven the immediate path made, and in the browser that read is a copy of
+sixteen floats out of a JavaScript array, not a pipeline stall.
+
+**The flush must therefore draw under `glLoadIdentity`**, and getting that wrong is invisible
+almost everywhere. The vertices already carry the matrix; leaving it applied puts it on twice.
+Every level renders under an identity modelview, so the game looked perfect — until the level
+editor, which draws its object palette under `glTranslated(245, 428, 0)` and lost every sprite
+in it off the right of the screen. The five palettes are what caught it, as they caught the
+render-layer conversion before.
+
+**A queued quad is drawn with the state standing at the flush, not at the call.** There is no
+depth buffer in this 2D path, so painter's order is the only order there is: anything that
+draws, or that moves the texture binding, the texture matrix, the blend function or the
+framebuffer, has to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
+`beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` do it themselves, so
+most of it is automatic; nine places in the object sources draw raw geometry and say so
+explicitly. `verify.py`'s `sprite_batch` check is what keeps that true — each of the nine was
+removed in turn to confirm the check names it.
+
+**`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
+the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is
+not: a flush happens wherever the state moves, which includes the middle of somebody else's
+drawing. `Font::renderText` sets its shadow colour and then calls `drawText`, whose first act is
+a bind — so the restore repainted every text shadow in the last sprite's colour.
+
+**In the browser the batched colour arrives unquantised**, the same effect the tile grid has:
+a `glColor4dv` inside `glBegin`/`glEnd` is truncated to a byte by Emscripten's emulation, and a
+float colour array is not. Object shadows, which are drawn at alpha 0.35, move by one grey
+level there. The desktop is byte-identical — the four editor palettes that do not animate hold
+an instance of every object type in the game, and all four come out unchanged.
 
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,

@@ -37,3 +37,27 @@ void drawQuadArray(const Vec2f* p_positions,
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
+
+// The three attributes must share one stride and it must be exactly what they
+// occupy, or Emscripten's GL emulation copies the whole array through a scratch
+// buffer behind a single warning. Nothing else would report it, so say it here.
+static_assert(sizeof(ColorQuadVertex) == 32, "ColorQuadVertex must stay tightly packed at 32 bytes");
+
+void drawQuadArray(const ColorQuadVertex* p_vertices,
+				   uint count)
+{
+	if(!count || !p_vertices) return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	glVertexPointer(2, GL_FLOAT, sizeof(ColorQuadVertex), &p_vertices->position);
+	glTexCoordPointer(2, GL_FLOAT, sizeof(ColorQuadVertex), &p_vertices->uv);
+	glColorPointer(4, GL_FLOAT, sizeof(ColorQuadVertex), &p_vertices->color);
+	glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(count));
+
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+}

@@ -5,6 +5,7 @@
 
 #include "parameterblock.h"
 #include "framestats.h"
+#include "quadarray.h"
 
 class GameState;
 class SoundInstance;
@@ -149,6 +150,9 @@ public:
 	// as well.
 	void disableFrameBuffer() { frameBufferDisabled = true; }
 	void disableShaders() { shadersDisabled = true; }
+	// -nobatch: the A/B arm for the sprite batch, and the way out if a driver
+	// ever mishandles a client-side colour array.
+	void disableSpriteBatch() { spriteBatchDisabled = true; }
 
 	// -perf: put what the last few hundred frames cost on the screen. The
 	// timings are recorded either way - four clock reads a frame - and this
@@ -231,6 +235,14 @@ public:
 	// Draw all sprites of an object. color is the colour of the render pass;
 	// each sprite's own tint comes on top of it.
 	void renderSprites(const Sprites& sprites, const Vec4d& color);
+
+	// While a batch is open, renderSprite queues its four corners instead of
+	// drawing them, and one glDrawArrays puts the lot up at the flush. Opened
+	// around the object loop in Level::renderObjects and nowhere else; see
+	// queueSprite() in engine.cpp for what a flush has to come before.
+	void beginSpriteBatch();
+	void flushSprites();
+	void endSpriteBatch();
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
 
 	void setBlendFunc(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
@@ -532,6 +544,23 @@ private:
 	bool performanceShown;
 	bool renderSuppressed;
 	bool renderSuppressWanted;
+	// The queued sprite corners, four per sprite. Cleared and never shrunk, so
+	// it reaches the size of the busiest frame once and stays there.
+	std::vector<ColorQuadVertex> spriteBatch;
+	bool spriteBatchOpen;
+	bool spriteBatchDisabled;
+	// What the first quad of the open batch was queued against; in a test-hooks
+	// build the flush checks the state is still that. Declared whatever the
+	// build, because BLOCKS5_TEST_HOOKS reaches only two translation units and
+	// a member behind it would give this class two different sizes - which is
+	// the one way to make singletons lie on top of each other in memory.
+	GLint batchTexture;
+	GLboolean batchTexturing;
+	// The batched half of renderSprite, taking the corners already worked out
+	// so the two paths cannot drift apart on the geometry.
+	void queueSprite(const Vec2i& position, const Vec2i& halfSize, const Vec2i& otherHalf,
+					 int u0, int u1, int v0, int v1,
+					 const Vec4d& color, double rotation, double scaling);
 	// The start of the previous turn of the main loop, for the interval
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between

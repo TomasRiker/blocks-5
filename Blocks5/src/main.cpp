@@ -524,6 +524,7 @@ int runTheGame(int argc,
 		else if(equalsNoCase(p_arg, "-noFBO")) engine.disableFrameBuffer();
 		else if(equalsNoCase(p_arg, "-noShader")) engine.disableShaders();
 		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
+		else if(equalsNoCase(p_arg, "-noBatch")) engine.disableSpriteBatch();
 	}
 
 	printfLog("Initializing engine ...\n");

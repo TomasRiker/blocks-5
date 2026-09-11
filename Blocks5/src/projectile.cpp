@@ -33,10 +33,11 @@ void Projectile::onRender(RenderLayer layer,
 	{
 		double traceLength = min(distance, 0.035 * speed);
 
+		Engine& engine = Engine::inst();
+		engine.flushSprites();
 		glDisable(GL_TEXTURE_2D);
 
 		// render the glow
-		Engine& engine = Engine::inst();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 		LineDrawer line;
 		line.addPoint(positionInPixels - traceLength * velocity);

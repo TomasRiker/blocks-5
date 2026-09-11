@@ -325,6 +325,7 @@ void Hint::renderNote(const Vec4d& color,
 					  double unroll) const
 {
 	Engine& engine = Engine::inst();
+	engine.flushSprites();
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, noteTexture);

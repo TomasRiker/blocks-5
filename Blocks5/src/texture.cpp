@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "texture.h"
 #include "filesystem.h"
+#include "engine.h"
 
 Texture::Texture(const std::string& filename) : Resource(filename)
 {
@@ -114,6 +115,11 @@ void Texture::cleanUp()
 
 void Texture::bind() const
 {
+	// Queued sprites were queued against the binding and the texture matrix
+	// that are about to change, and there is no depth buffer to sort them out
+	// afterwards - so they go up first. Costs nothing when no batch is open.
+	Engine::inst().flushSprites();
+
 	if(!doKeepInMemory && p_rgba)
 	{
 		// unlock and free the surface
@@ -134,6 +140,7 @@ void Texture::bind() const
 
 void Texture::unbind() const
 {
+	Engine::inst().flushSprites();
 	glDisable(GL_TEXTURE_2D);
 }
 

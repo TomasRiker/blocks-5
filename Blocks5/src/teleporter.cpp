@@ -34,6 +34,7 @@ void Teleporter::onRender(RenderLayer layer,
 		if(targetPosition != position)
 		{
 			// mark the target
+			Engine::inst().flushSprites();
 			glPushAttrib(GL_ENABLE_BIT);
 			glDisable(GL_TEXTURE_2D);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);

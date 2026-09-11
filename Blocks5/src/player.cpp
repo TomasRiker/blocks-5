@@ -122,6 +122,7 @@ void Player::onRender(RenderLayer layer,
 		if(censored)
 		{
 			// render the censor bar
+			Engine::inst().flushSprites();
 			glDisable(GL_TEXTURE_2D);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);

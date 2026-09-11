@@ -169,6 +169,7 @@ void Object::render(RenderLayer layer,
 		if(mirrorY == -1) glScaled(1.0, -1.0, 1.0);
 		glTranslated(8.0, 8.0, 0.0);
 
+		Engine::inst().flushSprites();
 		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_TEXTURE_2D);
 		glLineWidth(1.0f);

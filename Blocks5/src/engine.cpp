@@ -114,6 +114,10 @@ Engine::Engine()
 	performanceShown = false;
 	renderSuppressed = false;
 	renderSuppressWanted = false;
+	spriteBatchOpen = false;
+	spriteBatchDisabled = false;
+	batchTexture = 0;
+	batchTexturing = GL_FALSE;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
@@ -1980,6 +1984,11 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
 	if(!useFrameBuffer) return 0;
 
+	// The miss path binds a texture raw, so it is a state change like any
+	// other, and it happens before the caller reaches beginRenderToTexture -
+	// whose flush would be one step too late.
+	flushSprites();
+
 	// One of the right size that nobody is holding?
 	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
@@ -2026,6 +2035,11 @@ void Engine::releaseOffscreenTexture(uint textureID)
 bool Engine::beginRenderToTexture(uint textureID,
 								  const Vec2i& size)
 {
+	// Both ends of the switch flush, which is what makes a bake inside an open
+	// batch safe: quads queued before it belong on the screen, quads queued
+	// during it belong on the texture, and each goes up where it was issued.
+	flushSprites();
+
 	if(!useFrameBuffer || !textureID) return false;
 
 	if(!renderTargetID)
@@ -2061,6 +2075,8 @@ bool Engine::beginRenderToTexture(uint textureID,
 
 void Engine::endRenderToTexture()
 {
+	flushSprites();
+
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
@@ -2925,11 +2941,6 @@ void Engine::renderSprite(const Vec2i& position,
 	const Vec2i halfSize(size / 2);
 	const Vec2i otherHalf(size - halfSize);
 
-	glPushMatrix();
-	glTranslated(position.x + halfSize.x, position.y + halfSize.y, 0.0);
-	if(scaling != 1.0) glScaled(scaling, scaling, 1.0);
-	if(rotation != 0.0) glRotated(rotation, 0.0, 0.0, 1.0);
-
 	// Mirroring swaps the texture coordinates instead of scaling x by -1, and
 	// that is not the same thing once the quad is no longer symmetric about its
 	// centre: the scale reflects the footprint as well, which moves an odd
@@ -2938,6 +2949,19 @@ void Engine::renderSprite(const Vec2i& position,
 	const int u1 = positionOnTexture.x + (mirrorX ? 0 : size.x);
 	const int v0 = positionOnTexture.y;
 	const int v1 = positionOnTexture.y + size.y;
+
+	// Before the bracket below, not inside it: the batch bakes the sprite's own
+	// transform itself, and the matrix it reads back must be the caller's.
+	if(spriteBatchOpen)
+	{
+		queueSprite(position, halfSize, otherHalf, u0, u1, v0, v1, color, rotation, scaling);
+		return;
+	}
+
+	glPushMatrix();
+	glTranslated(position.x + halfSize.x, position.y + halfSize.y, 0.0);
+	if(scaling != 1.0) glScaled(scaling, scaling, 1.0);
+	if(rotation != 0.0) glRotated(rotation, 0.0, 0.0, 1.0);
 
 	glBegin(GL_QUADS);
 	glColor4dv(color);
@@ -2952,6 +2976,163 @@ void Engine::renderSprite(const Vec2i& position,
 	glEnd();
 
 	glPopMatrix();
+}
+
+// GL_QUADS out of a client array has two ceilings in the browser and at this
+// stride they are the same number. The emulation's quad index table is a
+// Uint16Array, so it wraps at vertex 65536; and it asserts that the vertices
+// times the stride fit its 2 MiB scratch buffer, which at 32 bytes is again
+// 65536. A level frame issues a few hundred quads, so this is a backstop.
+const uint BATCH_MAX_QUADS = 16384;
+
+void Engine::beginSpriteBatch()
+{
+	// Anything still queued belongs to whatever was drawing before this, and
+	// drawing it now would be under the new pass's state. Empty in practice -
+	// endSpriteBatch() sees to that - but a pass that ever returns early would
+	// otherwise carry its quads into the next one.
+	flushSprites();
+	spriteBatchOpen = !spriteBatchDisabled;
+}
+
+void Engine::flushSprites()
+{
+	if(spriteBatch.empty()) return;
+
+#ifdef BLOCKS5_TEST_HOOKS
+	{
+		GLint texture = 0;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
+		if(texture != batchTexture || glIsEnabled(GL_TEXTURE_2D) != batchTexturing)
+		{
+			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d/%d "
+					  "and is being drawn against %d/%d - a flush is missing.\n",
+					  static_cast<uint>(spriteBatch.size() / 4),
+					  static_cast<int>(batchTexture), static_cast<int>(batchTexturing),
+					  static_cast<int>(texture), static_cast<int>(glIsEnabled(GL_TEXTURE_2D)));
+		}
+	}
+#endif
+
+	// The vertices already carry the modelview they were queued under, so the
+	// draw has to happen under none: otherwise GL applies it a second time.
+	// Identity and not "the matrix the queue began with", because one batch
+	// spans objects that each pushed their own. The projection still applies,
+	// which is what puts the whole thing on the screen.
+	//
+	// GL_MODELVIEW is the resting matrix mode everywhere in this tree - every
+	// place that switches to GL_TEXTURE puts it back - so this needs no
+	// glMatrixMode of its own.
+	glPushMatrix();
+	glLoadIdentity();
+	drawQuadArray(&spriteBatch[0], static_cast<uint>(spriteBatch.size()));
+	glPopMatrix();
+
+	// The current colour is deliberately left alone. Immediate mode used to
+	// leave the last sprite's colour standing, and putting that back here
+	// looked like the faithful thing to do - but a flush happens wherever the
+	// state moves, which includes the middle of somebody else's drawing.
+	// Font::renderText sets its shadow colour and then calls drawText, whose
+	// first act is a bind: restoring the colour there painted every shadow of
+	// every string in the last sprite's colour instead.
+	spriteBatch.clear();
+}
+
+void Engine::endSpriteBatch()
+{
+	flushSprites();
+	spriteBatchOpen = false;
+}
+
+void Engine::queueSprite(const Vec2i& position,
+						 const Vec2i& halfSize,
+						 const Vec2i& otherHalf,
+						 int u0,
+						 int u1,
+						 int v0,
+						 int v1,
+						 const Vec4d& color,
+						 double rotation,
+						 double scaling)
+{
+	if(spriteBatch.size() >= 4 * BATCH_MAX_QUADS) flushSprites();
+
+#ifdef BLOCKS5_TEST_HOOKS
+	// A queued quad is drawn with the state standing at the flush, not at the
+	// call - so anything that moves that state in between has to flush first.
+	// The static check reads the sources for it; this reads what actually
+	// happened, and says which pass let it through.
+	if(spriteBatch.empty())
+	{
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &batchTexture);
+		batchTexturing = glIsEnabled(GL_TEXTURE_2D);
+	}
+#endif
+
+	// The transform the caller set up is read back rather than tracked. It is
+	// whatever Object::render and everything above it pushed - the translate
+	// to the object's cell, the squash of a teleporting object, the unbalanced
+	// glTranslated Enemy does inside its own onRender, the half pixel
+	// Level::render puts under the wires - and baking it is what lets sprites
+	// from different objects share one draw call. Reading it costs one call
+	// against the seven this path no longer makes: in the browser a copy of
+	// sixteen floats out of a JavaScript array, on a desktop client-side
+	// driver state and not a pipeline stall.
+	GLfloat m[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, m);
+
+	// The sprite's own transform, in the order immediate mode applies it.
+	// Mirroring is already in the texture coordinates, so what is left is
+	// rotate, then scale, then translate to the centre.
+	double c = scaling;
+	double s = 0.0;
+	if(rotation != 0.0)
+	{
+		const double a = rotation * (3.1415926535897932384626433832795 / 180.0);
+		c = scaling * cos(a);
+		s = scaling * sin(a);
+	}
+
+	const double tx = position.x + halfSize.x;
+	const double ty = position.y + halfSize.y;
+
+	// Widened one at a time and not inside the braces: a braced initializer
+	// list forbids a narrowing conversion, and clang says so where gcc does not.
+	const double left = -halfSize.x, right = otherHalf.x;
+	const double top = -halfSize.y, bottom = otherHalf.y;
+	const double lx[4] = {left, right, right, left};
+	const double ly[4] = {top, top, bottom, bottom};
+	const int u[4] = {u0, u1, u1, u0};
+	const int v[4] = {v0, v0, v1, v1};
+
+	// Clamped, because callers pass colours above 1 on purpose - renderShine
+	// takes deathCountDown * 5.0 from an exploding bomb - and rely on GL to cut
+	// them off. Immediate mode did cut them off twice over: desktop GL clamps a
+	// primitive colour by specification, and Emscripten quantised the value to a
+	// byte on the way into the vertex buffer. A float colour array in an array
+	// draw has neither, and this game never switches lighting on, which is the
+	// only path the emulation clamps in - so the halo would come out a
+	// saturated disc with a hard edge instead of a falloff.
+	const Vec4f col(static_cast<float>(clamp(color.r, 0.0, 1.0)),
+					static_cast<float>(clamp(color.g, 0.0, 1.0)),
+					static_cast<float>(clamp(color.b, 0.0, 1.0)),
+					static_cast<float>(clamp(color.a, 0.0, 1.0)));
+
+	for(int i = 0; i < 4; i++)
+	{
+		const double x = tx + c * lx[i] - s * ly[i];
+		const double y = ty + s * lx[i] + c * ly[i];
+
+		// The modelview is column major and, in this game, always an affine
+		// map of the plane: z is never anything but 0, so two columns and the
+		// translation are the whole of it.
+		ColorQuadVertex vertex;
+		vertex.position = Vec2f(static_cast<float>(m[0] * x + m[4] * y + m[12]),
+								static_cast<float>(m[1] * x + m[5] * y + m[13]));
+		vertex.uv = Vec2f(static_cast<float>(u[i]), static_cast<float>(v[i]));
+		vertex.color = col;
+		spriteBatch.push_back(vertex);
+	}
 }
 
 void Engine::renderSprite(Texture* p_sprite,
@@ -3021,6 +3202,9 @@ void Engine::setBlendFunc(GLenum srcRGB,
 						  GLenum srcAlpha,
 						  GLenum dstAlpha)
 {
+	// Queued sprites were queued to be blended the old way.
+	flushSprites();
+
 	if(glExtBlendFuncSeparate) glExtBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	else glBlendFunc(srcRGB, dstRGB);
 }

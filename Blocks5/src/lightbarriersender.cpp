@@ -55,6 +55,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			}
 
 			// render the inner and the outer beam
+			Engine::inst().flushSprites();
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			glDisable(GL_TEXTURE_2D);

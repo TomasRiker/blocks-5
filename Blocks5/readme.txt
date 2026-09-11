@@ -23,7 +23,7 @@ make your own levels, having a look at the help is probably a good idea.
 
 Command Line Options
 ====================
-Blocks 5 understands six options. Upper and lower case do not matter.
+Blocks 5 understands seven options. Upper and lower case do not matter.
 
     -windowed      Start in a window.
     -fullscreen    Start in full screen.
@@ -37,6 +37,10 @@ Blocks 5 understands six options. Upper and lower case do not matter.
     -perf          Show in the bottom corner what the last few hundred frames
                    cost, which is a diagnostic and not a feature. In a browser
                    the same thing is reached by adding ?perf=1 to the address.
+    -nobatch       Draw every sprite on its own instead of collecting a whole
+                   render pass into one call. Slower, and only of interest if
+                   a graphics driver draws the collected form wrongly. In a
+                   browser: ?nobatch=1.
 
 While playing you can switch between full screen and windowed mode at any time
 with Alt+Enter.

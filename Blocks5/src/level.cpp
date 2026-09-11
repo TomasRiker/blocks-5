@@ -1243,6 +1243,14 @@ void Level::renderObjects(RenderLayer layer,
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
 	if(!(layer & ownTexture)) p_sprites->bind();
 
+	// One pass over one layer is one draw call, or a few where an object in
+	// the middle of it draws something the batch cannot carry. This is the
+	// only place in the game that opens a batch: what runs inside it is the
+	// fifty onRender overrides and nothing else, which is a set small enough
+	// to have been read through.
+	Engine& engine = Engine::inst();
+	engine.beginSpriteBatch();
+
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		// Most objects draw on one or two of the twelve layers, so most of
@@ -1256,6 +1264,8 @@ void Level::renderObjects(RenderLayer layer,
 			(*i)->render(layer, offset, color);
 		}
 	}
+
+	engine.endSpriteBatch();
 
 	if(!(layer & ownTexture)) p_sprites->unbind();
 }

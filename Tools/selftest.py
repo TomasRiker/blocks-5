@@ -133,6 +133,23 @@ def c_render_layers(p):
     p.replace('if(layer == RL_WIRE)', 'if(layer == 939)')
 
 
+# The shape a missing flush actually has: raw geometry inside an onRender with
+# the batch left standing. The player's censor bar is the site that was written
+# down in the plan and then not written into the tree.
+@case('sprite_batch', 'Blocks5/src/player.cpp')
+def c_sprite_batch(p):
+    p.replace('\t\t\tEngine::inst().flushSprites();\n\t\t\tglDisable(GL_TEXTURE_2D);',
+              '\t\t\tglDisable(GL_TEXTURE_2D);')
+
+
+# And the other half: a texture bound raw, where the queued sprites would come
+# out wearing it.
+@case('sprite_batch', 'Blocks5/src/teleporter.cpp')
+def c_sprite_batch_bind(p):
+    p.replace('\t\t\tEngine::inst().flushSprites();\n\t\t\tglPushAttrib(GL_ENABLE_BIT);',
+              '\t\t\tglPushAttrib(GL_ENABLE_BIT);')
+
+
 @case('naming', 'Blocks5/src/u_crt.h')
 def c_naming(p):
     p.replace('class U_Crt : public Upscaler', 'class U_Tube : public Upscaler')

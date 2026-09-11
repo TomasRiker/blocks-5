@@ -50,6 +50,11 @@ void Lava::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LAVA_BACK || layer == RL_LAVA_FRONT)
 	{
+		// Raw quads from here on, so anything queued by an object before this
+		// one has to be on the screen first - there is no depth buffer to put
+		// the two in order afterwards.
+		Engine::inst().flushSprites();
+
 		// render the lava
 		Vec2d shift(2.0 * sin(0.1 * anim), 3.0 * cos(0.05 * anim));
 		double a[4];
@@ -148,6 +153,7 @@ void Lava::onRender(RenderLayer layer,
 	if(layer == RL_EDITOR)
 	{
 		// show the flow direction
+		Engine::inst().flushSprites();
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_TEXTURE_2D);
 		glPushMatrix();

@@ -66,6 +66,7 @@ void Electronics::onRender(RenderLayer layer,
 								   Vec4d(0.3, 0.35, 0.35, 1.0),
 								   Vec4d(0.35, 0.35, 0.35, 1.0)};
 
+		Engine::inst().flushSprites();
 		glDisable(GL_TEXTURE_2D);
 
 		// render the outputs' connections

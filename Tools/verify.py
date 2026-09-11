@@ -253,6 +253,64 @@ def check_render_layers():
     return bad
 
 
+
+@check('sprite_batch')
+def check_sprite_batch():
+    """Anything an object draws outside the sprite batch has to flush it first.
+
+    Level::renderObjects keeps a batch of sprite corners open across the whole
+    object loop, and one glDrawArrays puts them up at the end. This game has no
+    depth buffer, so painter's order is the only order there is: a queued quad
+    is drawn with the GL state standing at the flush, not at the call. An object
+    that draws raw geometry, binds a texture of its own or switches texturing
+    off therefore has to call Engine::inst().flushSprites() first, or everything
+    queued before it lands on top of what it drew instead of underneath, and
+    lands with its texture.
+
+    Nothing else would catch it. The sprites of the objects around it are what
+    move, so the object that broke the rule looks right and its neighbours do
+    not - and only on the screen that happens to have both."""
+    breaking = re.compile(r'\bglBegin\s*\(|\bglDrawArrays\s*\(|\bglDrawElements\s*\(|'
+                          r'\bglBindTexture\s*\(|\bglPushAttrib\s*\(|'
+                          r'\bglDisable\s*\(\s*GL_TEXTURE_2D\s*\)|\bdrawQuadArray\s*\(')
+    queues = re.compile(r'\brenderSprites?\s*\(')
+    flushes = re.compile(r'\bflushSprites\s*\(')
+    # Helpers that never run except from a caller that has just flushed. Each
+    # is a private member of the same class, called from one place.
+    EXEMPT = {
+        # Hint::renderNote() flushes and then binds its own texture; the mesh
+        # is the geometry it draws under that binding.
+        'Hint::renderNoteMesh',
+        # Reached only from Hint::bakeNote(), which is inside
+        # Engine::beginRenderToTexture() - and that flushes at both ends.
+        'Hint::bakeNote',
+    }
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        text = read(p)
+        # Only the classes the batch can actually reach: those that override
+        # Object::onRender. The GUI's onRender() takes no arguments and runs
+        # with no batch open.
+        if '::onRender(RenderLayer' not in text:
+            continue
+        func, flushed = '', False
+        for n, line in enumerate(text.split('\n'), 1):
+            code = line.split('//')[0]
+            m = re.match(r'(?:\w[\w:<>&*\s]*?)\b(\w+::\w+)\s*\(', line)
+            if m and not line.startswith((' ', '\t')):
+                func, flushed = m.group(1), False
+            if flushes.search(code):
+                flushed = True
+            elif queues.search(code):
+                flushed = False
+            elif breaking.search(code) and not flushed and func not in EXEMPT:
+                bad.append('%s:%d: %s() draws or changes the texture state with sprites '
+                           'possibly queued - Engine::inst().flushSprites() first'
+                           % (rel, n, func))
+    return bad
+
+
 @check('naming')
 def check_naming():
     """The filename is the class name in lower case.
