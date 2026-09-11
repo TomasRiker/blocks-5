@@ -129,10 +129,15 @@ void Texture::bind() const
 	GLState::setTexturing(true);
 	GLState::bindTexture(texID);
 
-	// pixel texture coordinates. The attrib bracket stays: it restores the
-	// matrix mode, and Level::render binds textures with GL_TEXTURE current
-	// while it scrolls the rain, the snow and the clouds. Nothing has queued
-	// since the bind above, so the batch is already empty here.
+	// pixel texture coordinates. The attrib bracket restores the matrix mode,
+	// and it stays for the guarantee rather than for the cost: a trailing
+	// glMatrixMode(GL_MODELVIEW) would do the same work today - Level::render
+	// is the only caller that binds with GL_TEXTURE current, and it re-issues
+	// the mode on the line after each bind - but it would leave bind() with a
+	// precondition, and one that fails silently. In the browser it would save
+	// nothing at all: gl_compat.cpp's glPushAttrib issues no GL call and its
+	// glPopAttrib issues exactly the one glMatrixMode the replacement would.
+	// Nothing has queued since the bind above, so the batch is empty here.
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_TEXTURE);
 	glLoadMatrixd(matrix);

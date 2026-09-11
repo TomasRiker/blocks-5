@@ -555,11 +555,14 @@ which is what keeps the ban something a reader can check.
 sets what is already set is worth about a quarter of the texture binds in a level — and the
 whole of the state traffic is about six per cent of what the game asks of the driver, which
 after the sprite batch has taken its share is well under the spread between two runs. Against
-that: every one of the hundred-odd raw calls in the crossfades, the GUI and the credits would
-have to come through it too, and the failure mode of a stale entry is a wrong picture rather
-than a slow one. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)` stays for the same kind of
-reason — it restores the matrix mode, and `Level::render` binds textures with `GL_TEXTURE`
-current while it scrolls the rain, the snow and the clouds. ROADMAP 44 has both.
+that: all 37 raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables in the crossfades, the GUI,
+the credits and the engine would have to come through it too, the failure mode of a stale entry
+is a wrong picture rather than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)`
+restores the binding on the desktop while `gl_compat.cpp` restores only the mode and the enables —
+so the invalidation would differ per platform. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)`
+stays for a different reason: replacing it is safe as the tree stands, but it would leave `bind()`
+with a silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues
+no GL call at all. ROADMAP 44 has both.
 
 **One explicit flush survives**, in `lava.cpp`: the two lava passes draw raw quads under a
 texture bound from outside and change no state on the way in, so nothing else would flush for
