@@ -506,6 +506,19 @@ without moving an id. Measured on the menu title demo, three interleaved runs of
 seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
 0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
 
+**Text is the same arrangement, keyed on what it was laid out with.**
+`Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
+in a batch of their own, the keycap frames, which carry no texture — and draws them three
+times: twice as a shadow, once as the text. The key is the string together with every option
+the layout depends on (`tabSize`, `charSpacing`, `lineSpacing`, `charScaling`, `italic`), and
+deliberately not `shadows`, which changes nothing that is built. **That key is what lets
+`setOptions` leave the cache alone.** It used to empty the whole of it whenever any of those
+five changed, and the callers change them constantly — a speech balloon sets `italic` and puts
+it back on every frame it is on screen, the credits animate `charScaling` — so one balloon
+threw away every cached string in the GUI twice a frame. Measured in the browser on the help
+page, the most text the game puts on one screen: the median frame's render half **3.1 ms →
+2.5 ms**; on the menu 1.7 → 1.5, in the level editor 0.9 → 0.8.
+
 **A colour set inside `glBegin`/`glEnd` is quantised to a byte in the browser; the same call
 outside one is not.** Emscripten's GL emulation writes a `glColor4f` issued between the two
 into its vertex buffer as four unsigned bytes and reads the attribute back normalized, where
@@ -1879,8 +1892,8 @@ long that even the frame does not fit.
 
 The cut may not land inside `<h>…</h>`, so `fitText` drops a half-cut tag entirely and closes
 whatever it left open. **`<h>` ends with the string it began in**, and both `measureText` and
-`renderTextPure` now enforce that with a counter: the option stack they push on belongs to the
-`Font` and not to the text, and `renderText` caches a display list per string, so markup could
+`buildText` now enforce that with a counter: the option stack they push on belongs to the
+`Font` and not to the text, and a string is laid out on its own, so markup could
 never have carried across a call anyway. An unclosed `<h>` used to leave `italic` set and an
 entry on the stack for the rest of the run; an extra `</h>` used to pop the *caller's* entry,
 or `top()` an empty stack — a level titled `</h>Hello` crashed the game, and a level title is

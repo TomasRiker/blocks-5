@@ -1205,6 +1205,12 @@ void Level::renderTiles(int layer,
 	// without moving a single id.
 	if(layerDirty & (1 << layer))
 	{
+		// Not reserved to WIDTH * HEIGHT * 4, though that is the ceiling and is
+		// known here: clear() keeps the capacity, so a layer reaches the size it
+		// needs on its first build and never allocates again, and a full one
+		// ends up holding the same 64 KB either way. Reserving would only add
+		// it to the five palette levels the editor keeps alongside, which are
+		// nearly empty.
 		vertices.clear();
 
 		for(int x = 0; x < WIDTH; x++)

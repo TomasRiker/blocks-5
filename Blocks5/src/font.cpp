@@ -19,6 +19,10 @@ const int KEY_BOX_GAP = 2;
 // nothing, because the first letter's foot is still on the cursor.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
+// How many laid-out strings a font keeps. Every screen in the game stays well
+// under it, and one that did not would simply rebuild its oldest string.
+const size_t STRING_CACHE_SIZE = 32;
+
 namespace
 {
 	// Where a line may be broken. The first two are replaced by the break and
@@ -29,6 +33,12 @@ namespace
 	bool isBreakSpace(unsigned char c)
 	{
 		return c == ' ' || c == HALF_SPACE;
+	}
+
+	// One value's bytes, appended to a cache key.
+	template<typename T> void appendRaw(std::string& key, const T& value)
+	{
+		key.append(reinterpret_cast<const char*>(&value), sizeof(value));
 	}
 
 	// Close the innermost keycap still open: its frame runs from the left edge
@@ -53,7 +63,6 @@ namespace
 Font::Font(const std::string& filename) : Resource(filename)
 {
 	p_texture = 0;
-	listBase = 0;
 	lineHeight = 0;
 	offset = 0;
 	capTop = 0;
@@ -67,23 +76,11 @@ Font::Font(const std::string& filename) : Resource(filename)
 	options.shadows = 2;
 	options.italic = 0;
 
-	// generate the lists
-	numLists = 32;
-	listBase = glGenLists(numLists);
-	listFree = ~0;
-
 	reload();
 }
 
 Font::~Font()
 {
-	if(listBase)
-	{
-		// delete the lists
-		glDeleteLists(listBase, numLists);
-		listBase = 0;
-	}
-
 	cleanUp();
 }
 
@@ -159,9 +156,8 @@ void Font::reload()
 		return;
 	}
 
-	// clear the cache
+	// The glyph rectangles have just moved, so every laid-out string is stale.
 	stringCache.clear();
-	listFree = ~0;
 }
 
 void Font::cleanUp()
@@ -180,67 +176,7 @@ void Font::renderText(const std::string& text,
 {
 	if(Engine::inst().isRenderSuppressed()) return;
 
-	bool cached;
-	uint listIndex;
-
-	// Is this string already in the cache?
-	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(text);
-	if(entry != stringCache.end())
-	{
-		// Yes, already in the cache!
-		listIndex = entry->second.listIndex;
-		entry->second.lastTimeUsed = SDL_GetTicks();
-		cached = true;
-	}
-	else
-	{
-		// The string has to be generated afresh because it is not in the
-		// cache. Is there still room in the cache?
-		if(stringCache.size() < numLists)
-		{
-			// Yes, there is still room. Find a free list!
-			listIndex = 0;
-			while(!(listFree & (1 << listIndex))) listIndex++;
-
-			// This list is taken now.
-			listFree &= ~(1 << listIndex);
-		}
-		else
-		{
-			// The oldest entry gets overwritten.
-			uint minTime = ~0;
-			std::unordered_map<std::string, StringCacheEntry>::iterator oldestEntry;
-			for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
-			{
-				if(i->second.lastTimeUsed < minTime)
-				{
-					minTime = i->second.lastTimeUsed;
-					oldestEntry = i;
-				}
-			}
-
-			// remember the list index and delete the entry
-			listIndex = oldestEntry->second.listIndex;
-			stringCache.erase(oldestEntry);
-		}
-
-		// create the new entry
-		StringCacheEntry newEntry;
-		newEntry.lastTimeUsed = SDL_GetTicks();
-		newEntry.listIndex = listIndex;
-		stringCache[text] = newEntry;
-
-		cached = false;
-	}
-
-#ifndef __EMSCRIPTEN__
-	if(!cached)
-	{
-		glNewList(listBase + listIndex, GL_COMPILE);
-		renderTextPure(text);
-		glEndList();
-	}
-#endif
+	const StringCacheEntry& entry = lookUpText(text);
 
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
@@ -260,47 +196,135 @@ void Font::renderText(const std::string& text,
 			glColor4dv(shadowColor);
 			glPushMatrix();
 			glTranslated(samples[i].x, samples[i].y, 0.0);
-#ifdef __EMSCRIPTEN__
-			renderTextPure(text);   // no display lists in WebGL - draw it again
-#else
-			glCallList(listBase + listIndex);
-#endif
+			drawText(entry);
 			glPopMatrix();
 		}
 	}
 
 	// draw the string
 	glColor4dv(color);
-#ifdef __EMSCRIPTEN__
-	renderTextPure(text);
-#else
-	glCallList(listBase + listIndex);
-#endif
+	drawText(entry);
 
 	glPopMatrix();
 }
 
-void Font::renderTextPure(const std::string& text)
+const std::string& Font::cacheKey(const std::string& text)
 {
-	p_texture->bind();
+	// The options go in one at a time rather than as the bytes of a struct: a
+	// struct carries its padding with it, padding bytes are indeterminate, and
+	// two identical option sets would then be free to hash apart.
+	//
+	// shadows is deliberately absent. renderText() draws the shadow by drawing
+	// the same arrays again at an offset, so it changes nothing that is built,
+	// and a key that split on it would hold two copies of every string.
+	cacheKeyBuffer.clear();
+	appendRaw(cacheKeyBuffer, options.tabSize);
+	appendRaw(cacheKeyBuffer, options.charSpacing);
+	appendRaw(cacheKeyBuffer, options.lineSpacing);
+	appendRaw(cacheKeyBuffer, options.charScaling);
+	appendRaw(cacheKeyBuffer, options.italic);
+	cacheKeyBuffer += text;
+	return cacheKeyBuffer;
+}
 
-	glBegin(GL_QUADS);
+const Font::StringCacheEntry& Font::lookUpText(const std::string& text)
+{
+	const std::string& key = cacheKey(text);
+
+	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(key);
+	if(entry != stringCache.end())
+	{
+		entry->second.lastTimeUsed = SDL_GetTicks();
+		return entry->second;
+	}
+
+	// Room first: the entry that has gone longest unused gives way.
+	if(stringCache.size() >= STRING_CACHE_SIZE)
+	{
+		uint minTime = ~0u;
+		std::unordered_map<std::string, StringCacheEntry>::iterator oldest = stringCache.begin();
+		for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
+		{
+			if(i->second.lastTimeUsed < minTime)
+			{
+				minTime = i->second.lastTimeUsed;
+				oldest = i;
+			}
+		}
+		stringCache.erase(oldest);
+	}
+
+	// A reference into an unordered_map stays valid across a later insertion,
+	// which is what lets renderText() hold this one over three draws.
+	StringCacheEntry& created = stringCache[key];
+	created.lastTimeUsed = SDL_GetTicks();
+	buildText(text, created.glyphs, created.keyBoxes);
+	return created;
+}
+
+void Font::drawText(const StringCacheEntry& entry) const
+{
+	// The draw states what it needs rather than inheriting it. A colour array
+	// left enabled by an earlier one would be read with this draw's vertex
+	// count through a pointer belonging to somebody else, and a string has no
+	// colour of its own - the caller's glColor is what makes a pass a shadow.
+	glDisableClientState(GL_COLOR_ARRAY);
+
+	p_texture->bind();
+	if(!entry.glyphs.empty())
+	{
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &entry.glyphs[0].position);
+		glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &entry.glyphs[0].uv);
+		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(entry.glyphs.size()));
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
+	p_texture->unbind();
+
+	// Untextured, and only now: unbind() has just switched texturing off. Four
+	// thin quads to a frame and not a line loop, because a line's pixel
+	// coverage is a matter of the rasterizer's opinion and every other edge in
+	// this game sits on whole pixels.
+	if(!entry.keyBoxes.empty())
+	{
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(2, GL_FLOAT, sizeof(Vec2f), &entry.keyBoxes[0]);
+		glDrawArrays(GL_QUADS, 0, static_cast<GLsizei>(entry.keyBoxes.size()));
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
+}
+
+void Font::buildText(const std::string& text,
+					 std::vector<Vertex>& glyphs,
+					 std::vector<Vec2f>& keyBoxes)
+{
+	glyphs.clear();
+	keyBoxes.clear();
+
+	// One quad per byte is the ceiling and nearly the floor: every character
+	// emits exactly one, and only a line break, a tab, a half space and the
+	// bytes of <h>/<k> emit none. An entry is built into fresh vectors, so
+	// without this a long string grows through a dozen reallocations every
+	// time it is laid out.
+	glyphs.reserve(text.length() * 4);
 
 	Vec2i cursor(0, offset);
 
 	// The options stack belongs to the font and not to the text, but <h> holds
-	// only within this one string - renderText() lays down one display list per
-	// string, and an <h> could therefore not act across that boundary at all.
-	// The counter keeps the two apart: without it a missing </h> would turn
-	// every further text in the game italic, and an extra one would pop the
-	// caller's own saved options or reach into an empty stack.
+	// only within this one string - one string is laid out at a time, and an
+	// <h> could therefore not act across that boundary at all. The counter
+	// keeps the two apart: without it a missing </h> would turn every further
+	// text in the game italic, and an extra one would pop the caller's own
+	// saved options or reach into an empty stack.
 	size_t openTags = 0;
 
 	// A keycap frame carries no texture and so cannot go into the glyph batch.
-	// The rectangles are collected here and drawn once the batch is closed,
-	// which also puts them through the shadow passes with the text - a keycap
-	// without the same shadow would look pasted on. openBoxes holds the left
-	// edge and the line top of every <k> not yet closed.
+	// The rectangles are collected here and turned into quads once the walk is
+	// over, and drawText() then draws them with the glyphs - a keycap without
+	// the same shadow would look pasted on. openBoxes holds the left edge and
+	// the line top of every <k> not yet closed.
 	std::vector<Vec4i> boxes;
 	std::vector<Vec2i> openBoxes;
 	const Vec2i keyBoxRows = getKeyBoxRows();
@@ -359,29 +383,22 @@ void Font::renderTextPure(const std::string& text)
 		{
 			const CharacterInfo& info = charInfo[c];
 
-			if(options.charScaling == 1.0)
-			{
-				glTexCoord2i(info.position.x, info.position.y);
-				glVertex2i(cursor.x + options.italic, cursor.y);
-				glTexCoord2i(info.position.x + info.size.x, info.position.y);
-				glVertex2i(cursor.x + info.size.x + options.italic, cursor.y);
-				glTexCoord2i(info.position.x + info.size.x, info.position.y + info.size.y);
-				glVertex2i(cursor.x + info.size.x, cursor.y + info.size.y);
-				glTexCoord2i(info.position.x, info.position.y + info.size.y);
-				glVertex2i(cursor.x, cursor.y + info.size.y);
-			}
-			else
-			{
-				glTexCoord2i(info.position.x, info.position.y);
-				glVertex2d(cursor.x + options.italic, cursor.y);
-				glTexCoord2i(info.position.x + info.size.x, info.position.y);
-				glVertex2d(cursor.x + options.charScaling *info.size.x + options.italic, cursor.y);
-				glTexCoord2i(info.position.x + info.size.x, info.position.y + info.size.y);
-				glVertex2d(cursor.x + options.charScaling *info.size.x, cursor.y + options.charScaling *info.size.y);
-				glTexCoord2i(info.position.x, info.position.y + info.size.y);
-				glVertex2d(cursor.x, cursor.y + options.charScaling *info.size.y);
-			}
+			// Only the two top corners carry the italic lean: a slanted glyph
+			// is drawn that many pixels further along at its top than at its
+			// foot, while the cursor advances by the upright width.
+			const double w = options.charScaling * info.size.x;
+			const double h = options.charScaling * info.size.y;
+			const double x = cursor.x, y = cursor.y, lean = options.italic;
+			const Vec2i& t = info.position;
+			const Vec2i& ts = info.size;
 
+			glyphs.push_back(Vertex(x + lean,     y,     t.x,        t.y));
+			glyphs.push_back(Vertex(x + w + lean, y,     t.x + ts.x, t.y));
+			glyphs.push_back(Vertex(x + w,        y + h, t.x + ts.x, t.y + ts.y));
+			glyphs.push_back(Vertex(x,            y + h, t.x,        t.y + ts.y));
+
+			// The advance is the unscaled width: the scaling stretches the
+			// glyph and not the setting.
 			cursor.x += info.size.x + options.charSpacing;
 		}
 	}
@@ -395,32 +412,27 @@ void Font::renderTextPure(const std::string& text)
 	}
 	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, options.italic);
 
-	glEnd();
-	p_texture->unbind();
+	// Four thin quads to a frame, and by now the frames are counted.
+	keyBoxes.reserve(boxes.size() * 16);
 
-	// Untextured, and only now: unbind() has just switched texturing off. Four
-	// thin quads and not a line loop, because a line's pixel coverage is a
-	// matter of the rasterizer's opinion and every other edge in this game sits
-	// on whole pixels.
-	if(!boxes.empty())
+	for(size_t b = 0; b < boxes.size(); b++)
 	{
-		glBegin(GL_QUADS);
-		for(size_t b = 0; b < boxes.size(); b++)
+		const Vec4i& r = boxes[b];
+		const int edges[4][4] = {{r.x, r.y, r.z, r.y + 1},          // top
+								 {r.x, r.w - 1, r.z, r.w},          // bottom
+								 {r.x, r.y, r.x + 1, r.w},          // left
+								 {r.z - 1, r.y, r.z, r.w}};         // right
+		for(int e = 0; e < 4; e++)
 		{
-			const Vec4i& r = boxes[b];
-			const int edges[4][4] = {{r.x, r.y, r.z, r.y + 1},          // top
-									 {r.x, r.w - 1, r.z, r.w},          // bottom
-									 {r.x, r.y, r.x + 1, r.w},          // left
-									 {r.z - 1, r.y, r.z, r.w}};         // right
-			for(int e = 0; e < 4; e++)
-			{
-				glVertex2i(edges[e][0], edges[e][1]);
-				glVertex2i(edges[e][2], edges[e][1]);
-				glVertex2i(edges[e][2], edges[e][3]);
-				glVertex2i(edges[e][0], edges[e][3]);
-			}
+			const float x0 = static_cast<float>(edges[e][0]);
+			const float y0 = static_cast<float>(edges[e][1]);
+			const float x1 = static_cast<float>(edges[e][2]);
+			const float y1 = static_cast<float>(edges[e][3]);
+			keyBoxes.push_back(Vec2f(x0, y0));
+			keyBoxes.push_back(Vec2f(x1, y0));
+			keyBoxes.push_back(Vec2f(x1, y1));
+			keyBoxes.push_back(Vec2f(x0, y1));
 		}
-		glEnd();
 	}
 }
 
@@ -512,7 +524,7 @@ void Font::measureText(const std::string& text,
 	Vec2d cursor(0, 0);
 	Vec2d maximum(0, lineHeight);
 
-	// As in renderTextPure(): <h> ends with this text at the latest.
+	// As in buildText(): <h> ends with this text at the latest.
 	size_t openTags = 0;
 
 	for(size_t i = 0; i < text.length(); i++)
@@ -569,7 +581,7 @@ void Font::measureText(const std::string& text,
 		}
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'k' && text[i + 2] == '>')
 		{
-			// Exactly what renderTextPure() advances by, or a keycap would be
+			// Exactly what buildText() advances by, or a keycap would be
 			// drawn wider than it was measured.
 			cursor.x += KEY_BOX_SIDE;
 			maximum.x = max(maximum.x, cursor.x);
@@ -763,17 +775,12 @@ const Font::Options& Font::getOptions() const
 
 void Font::setOptions(const Font::Options& options)
 {
-	if(this->options.tabSize != options.tabSize ||
-	   this->options.charSpacing != options.charSpacing ||
-	   this->options.lineSpacing != options.lineSpacing ||
-	   this->options.charScaling != options.charScaling ||
-	   this->options.italic != options.italic)
-	{
-		// The cache is invalid now!
-		stringCache.clear();
-		listFree = ~0;
-	}
-
+	// Nothing to invalidate: every option the layout depends on is part of the
+	// cache key, so a string laid out under other options is a different entry
+	// rather than a wrong one. That matters because the callers change options
+	// constantly - a speech balloon sets italic and puts it back on every frame
+	// it is on screen, and the credits animate charScaling - and a font that
+	// emptied its cache on each of those would keep none of the GUI's strings.
 	this->options = options;
 }
 

@@ -41,7 +41,6 @@ public:
 	void cleanUp();
 
 	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color);
-	void renderTextPure(const std::string& text);
 	// p_outCharPositions gets one position per byte of the text and one behind
 	// it, always text.length() + 1 of them - including the bytes of <h> and
 	// </h>, which draw nothing themselves. The edit boxes look up here under
@@ -71,10 +70,29 @@ private:
 		Vec2i size;
 	};
 
+	// One corner of a glyph quad: a position and a texture coordinate, and no
+	// colour. That is what lets one built string serve all three passes
+	// renderText() makes over it - two shadow samples and the text - under
+	// nothing but a different glColor and a different translate. Float and not
+	// int, because GL_INT is not a valid vertex attribute type in WebGL/GLES2,
+	// and a glyph's pixels are well inside float's exact range.
+	struct Vertex
+	{
+		Vertex(double px, double py, double u, double v)
+			: position(static_cast<float>(px), static_cast<float>(py)),
+			  uv(static_cast<float>(u), static_cast<float>(v)) {}
+
+		Vec2f position;
+		Vec2f uv;
+	};
+
+	// A laid-out string, ready to draw. The keycap frames are a batch of their
+	// own because they carry no texture at all - four thin quads to a frame.
 	struct StringCacheEntry
 	{
 		uint lastTimeUsed;
-		uint listIndex;
+		std::vector<Vertex> glyphs;
+		std::vector<Vec2f> keyBoxes;
 	};
 
 	Font(const std::string& filename);
@@ -89,6 +107,16 @@ private:
 	// The rows a keycap frame occupies inside a glyph cell, as (top, height).
 	Vec2i getKeyBoxRows() const;
 
+	// The laid-out string for this text under the options in force, built on
+	// the first ask and kept until it is the oldest entry in the cache.
+	const StringCacheEntry& lookUpText(const std::string& text);
+	void buildText(const std::string& text, std::vector<Vertex>& glyphs, std::vector<Vec2f>& keyBoxes);
+	void drawText(const StringCacheEntry& entry) const;
+
+	// The key that entry sits under: the text, with every option the layout
+	// depends on in front of it. Returns a reference into cacheKeyBuffer.
+	const std::string& cacheKey(const std::string& text);
+
 	int lineHeight;
 	int offset;
 
@@ -102,10 +130,11 @@ private:
 	CharacterInfo charInfo[256];
 	Texture* p_texture;
 	Options options;
-	uint listBase;
-	uint numLists;
-	uint listFree;
 	std::unordered_map<std::string, StringCacheEntry> stringCache;
+	// Reused rather than returned by value: cacheKey() runs for every string
+	// drawn in every frame, and a key built into a fresh string would be an
+	// allocation each time.
+	std::string cacheKeyBuffer;
 	std::stack<Options> optionsStack;
 };
 

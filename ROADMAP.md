@@ -1314,7 +1314,7 @@ exactly the same advances (`font.cpp:569`).
 
 Two things not to lose:
 
-- **The frames go through both shadow passes with the glyphs** (`font.cpp:246`),
+- **The frames go through both shadow passes with the glyphs** (`font.cpp:173`),
   or a keycap looks pasted on.
 - **`renderText` caches a display list per string**, so a second walk costs once
   per new string. Not in WebGL, which has no display lists and redraws the text
@@ -1379,7 +1379,7 @@ Closing the note must not step either.
 
 36. Let the details setting reach the text shadows
 ---------------------------------------------------
-Every string is drawn three times: `Font::renderText` (`font.cpp:246`) lays down
+Every string is drawn three times: `Font::renderText` (`font.cpp:173`) lays down
 two offset copies in black before the text itself, and `Engine::getDetails()` is
 not asked about it. Level rendering, the weather and the lightning all consult
 it (`level.cpp:719`, `:1068`, `lightning.cpp:48`); the font does not, so the one
@@ -1393,11 +1393,13 @@ alpha is divided by the number of them, so dropping one is a matter of changing
 `0.7 / numSamples`, not of leaving a hole. 0 already means none, which is what
 `gs_credits.cpp:175` uses.
 
-Where it is worth most is the browser, and that is a reason to do it rather than
-a detail: there are no display lists in WebGL, so each pass is a full
-`renderTextPure` walk over the string - the tags parsed, the glyph quads built
-and the keycap frames collected again - where the desktop replays a display
-list. Three walks per string per frame becomes one at the low setting.
+Where it is worth most is still the browser, though less than when this was
+written. Each pass there used to be a full walk over the string - the tags
+parsed, the glyph quads built and the keycap frames collected again - because
+WebGL has no display lists; both builds now lay a string out once and draw the
+cached arrays three times. So a dropped sample saves a draw call per string per
+frame rather than a whole walk over the text, which on a phone is still worth
+having and is no longer the headline.
 
 Two things to decide:
 
@@ -1558,6 +1560,53 @@ Item 22 (tap radius) is the neighbour: both are about a button a finger has to
 find, one by size and this one by what it says.
 
 
+41. Blurred shadows in one pass, with a shader
+-----------------------------------------------
+Every shadow in the game is the same geometry drawn again in black at an offset:
+the tile grid and the objects two or three times at (2,1), (1,2) and (2,2)
+(`level.cpp:717`), every string twice at the first two of those (`font.cpp:191`),
+each sample at `0.7 / numSamples` so that the copies sum to one shadow. Two
+offset copies of a hard-edged glyph are not a blur, they are a double image; what
+softness there is comes from the corner where the two overlap. Draw the shadow
+**once** instead, in a fragment shader, with a real falloff.
+
+It is worth doing twice over: one draw in place of two or three on everything the
+game puts on the screen, and it retires the sample count that item 36 was going
+to hang a detail setting on.
+
+Four things are in the way.
+
+- **There is no shader path for ordinary drawing.** The only programs the game
+  builds are the present filters (`upscaler.cpp`, `u_sharpfit.cpp`,
+  `u_crt.cpp`), and each runs on one quad at the very end of the frame with
+  `PresentContext` handing it the finished frame. Putting the level or the text
+  through a shader means a second kind of program with its own uniforms and a
+  fixed-function path beside it for `-noshader` and for any machine where
+  `createUpscalerGL` gives up - so this is an addition, never a replacement.
+
+- **The atlases have no margin to blur into.** A shadow computed from the same
+  texture fetch needs taps around the sample point, and the glyph rectangles in
+  `data/font.xml` sit about five pixels apart with six pairs touching outright
+  (measured over all 256 entries), so a tap would pick up the neighbouring
+  letter. `sprites.png` and the tile sets are packed the same way. Either every
+  atlas gains a margin - which moves every rectangle in every `*.xml`, skins
+  other people made included - or the shadow comes from a silhouette rendered
+  into a texture of its own, which is the second pass this item set out to
+  avoid.
+
+- **The shadow is not one silhouette.** `Level::render` draws the tile shadow and
+  the object shadow from separate passes at the same offsets, objects opt out of
+  it with `OF_NO_SHADOW` (`level.cpp:1239`), and the text shadow has to cover the
+  keycap frames, which carry no texture at all. A shader handed "the frame" would
+  shadow everything on the screen, the GUI over it included.
+
+- **What it should look like is a taste decision, not an optimisation.** The
+  shadow today is two pixels down and to the right and hard-edged; a soft one
+  changes the look of every screen in the game. `u_crt.cpp`'s halation is the
+  precedent for both halves of that - two rings of four taps thresholded in
+  linear light, and a slider rather than an imposition.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1594,6 +1643,11 @@ How these connect
    22 (tap radius) <──> 40 (pad labels): a button a finger has to find, by size
                       and by what it says. 40's symbols wait on the bindings
                       being pushed to the page, which publishLanguage() started
+
+   36 (shadow detail) <──> 41 (one-pass shadows): 36 makes the sample count a
+                      setting, 41 removes the count altogether - so 41 is the
+                      answer 36 is a stopgap for, and 36 is worth doing only
+                      while 41 is out of reach
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
