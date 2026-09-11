@@ -3,25 +3,29 @@
 # build.sh puts this file beside index.html. It is for Apache alone; the
 # equivalent lines for nginx are in README.md.
 
-# The three payload files carry their build's stamp in the name. What lies
-# under such a URL never changes, so it may be cached for ever.
+# The three payload files carry their build's stamp in the name, and the
+# on-screen pad carries a stamp of its own. What lies under such a URL never
+# changes, so it may be cached for ever.
 <IfModule mod_headers.c>
-  <FilesMatch "^blocks5-[0-9a-f]+\.(js|wasm|data)$">
+  <FilesMatch "^(blocks5-[0-9a-f]+\.(js|wasm|data)|touch_controls-[0-9a-f]+\.js)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
   # Everything that is NOT stamped has to be asked for on every visit, and the
   # rule is that blunt on purpose: a file with no stamp and no header here gets
   # a heuristic lifetime in the browser - a fraction of its age - and goes
-  # stale with nothing to say so. touch_controls.js was exactly that: the page
-  # and the payload updated, the on-screen pad did not, and only a private
-  # window showed the new one.
+  # stale with nothing to say so. The pad was exactly that before it was given
+  # a stamp: the page and the payload updated, the on-screen pad did not, and
+  # only a private window showed the new one.
   #
-  # index.html is where the current build's stamp is written down, so caching
-  # it means nobody ever sees a new build. sw.js decides what the offline cache
-  # holds and manifest.json what installing gives you. The pad and the icons
-  # carry no stamp either and change like any other source file.
-  <FilesMatch "^(index\.html|blocks5\.html|sw\.js|manifest\.json|touch_controls\.js|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$">
+  # index.html is where the stamps are written down, so caching it means nobody
+  # ever sees a new build - and it is one of the two that can never carry a
+  # stamp itself. sw.js is the other: it is registered under a fixed URL, and a
+  # stamped one would leave the old worker alive under the old name. The icons
+  # and the manifest could be stamped and are not, because they change once in
+  # a few years and the manifest would have to be generated rather than copied
+  # to name them.
+  <FilesMatch "^(index\.html|blocks5\.html|sw\.js|manifest\.json|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>

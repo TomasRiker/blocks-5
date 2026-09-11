@@ -188,6 +188,14 @@ mv "$OUT/blocks5.js"   "$OUT/blocks5-$version.js"
 mv "$OUT/blocks5.wasm" "$OUT/blocks5-$version.wasm"
 mv "$OUT/blocks5.data" "$OUT/blocks5-$version.data"
 
+# The pad gets a stamp too, and its OWN hash rather than the payload's. Reusing
+# $version would be worse than leaving it alone: it is the md5 of the three
+# payload files, so editing only the pad would not move it, the URL would not
+# move either - and the file would now be served with a year of immutable
+# instead of a heuristic few hours. A permanent staleness in place of a
+# temporary one.
+padVersion=$(md5sum "$HERE/touch_controls.js" | cut -c1-12)
+
 # The loading screen's line, in the game's own font. The page stands before
 # data.zip and before any GL context and cannot draw that font itself, hence it
 # is drawn here and stamped into the page as a data URI: no extra request,
@@ -201,7 +209,8 @@ loadtext=$(python3 "$HERE/make_text.py" --js "$GAME/data/font.xml" '$LOADING')
 # loading line. The last of these is substituted by python3 and not by sed,
 # because base64 contains slashes and plus signs.
 for page in "$OUT/blocks5.html" "$OUT/index.html"; do
-  sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" "$page"
+  sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" \
+         -e "s/touch_controls\.js/touch_controls-$padVersion.js/g" "$page"
   python3 - "$page" "$loadtext" <<'PYEOF'
 import io, sys
 path, text = sys.argv[1], sys.argv[2]
@@ -221,10 +230,15 @@ done
 # never end up beside a blocks5.data from another build. See the header of
 # sw.js and ROADMAP.md, item 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
-cp "$HERE/touch_controls.js" "$OUT/touch_controls.js"
-# The headers for Apache. index.html is the only file carrying no stamp in its
-# name and is therefore the one that must not be cached - otherwise nobody
-# learns of a new build.
+# Both spellings: the stamped names of older builds, and the unstamped one an
+# output directory from before the pad was stamped still has lying in it. That
+# leftover is the worse of the two - nothing references it, so it would be
+# uploaded and then sit there under no rule at all.
+rm -f "$OUT"/touch_controls*.js
+cp "$HERE/touch_controls.js" "$OUT/touch_controls-$padVersion.js"
+# The headers for Apache. What carries a stamp may be cached for ever; what
+# does not has to be revalidated on every visit, and index.html above all,
+# since it is where the stamps are written down.
 cp "$HERE/htaccess" "$OUT/.htaccess"
 # The icon is the same one the game window carries - 32x32, and therefore too
 # small for a home screen. A phone would otherwise scale it up itself and smooth
@@ -250,7 +264,7 @@ python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-maskable-512.png
         --scale 10 --canvas 512 --background 000000 >/dev/null
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/apple-touch-icon.png" \
         --scale 16 --canvas 512 --background 000000 >/dev/null
-sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
+sed -e "s/%%VERSION%%/$version/" -e "s/%%PAD%%/$padVersion/" "$HERE/sw.js" > "$OUT/sw.js"
 echo "### PWA: manifest.json, 4 icons, sw.js (cache blocks5-$version) ###"
 
 [ -f "$OUT/blocks5-$version.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }

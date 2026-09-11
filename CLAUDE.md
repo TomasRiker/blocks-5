@@ -1639,23 +1639,37 @@ anything else through untouched: while a new worker installs, the old one is sti
 and without that it would pull the new build's payload into its own doomed cache — both
 bundles on disk for the duration.
 
-`WebBuild/htaccess` ships as `.htaccess` beside `index.html` with the matching headers:
-a year of `immutable` for the stamped three, `no-cache, must-revalidate` for **everything
-that carries no stamp** — `index.html`, `blocks5.html`, `sw.js`, `manifest.json`,
-`touch_controls.js` and the four icons — `AddType application/wasm`, and `ModPagespeed off`
-— there is nothing here for a rewriter to improve, and it has already done damage.
+**`touch_controls.js` carries a stamp of its own**, `touch_controls-<hash>.js`, and the hash
+is the md5 of that one file rather than the payload's. Reusing the build stamp would be worse
+than leaving it unstamped: it hashes the three payload files, so a pad-only edit would not
+move it, the URL would not move either — and the file would then be served `immutable` for a
+year instead of for a few heuristic hours. Measured: editing the pad moves
+`8cb19d724ef9` → `3aa14d7f1448` while `blocks5-164c6a033fd7` stays put, so a 17 KB change
+drags no part of the 13 MB payload with it. `build.sh` rewrites the name in both pages and
+substitutes `%%PAD%%` into `sw.js`, the same way it already does for `blocks5.js` and
+`%%BUILD%%`.
+
+**Two files can never carry a stamp**, which is why the header half still exists:
+`index.html` is where the stamps are written down, and `sw.js` is registered under a fixed
+URL — a stamped one would leave the old worker alive under the old name. `WebBuild/htaccess`
+ships as `.htaccess` beside `index.html`: a year of `immutable` for anything stamped,
+`no-cache, must-revalidate` for everything that is not — those two plus `blocks5.html`,
+`manifest.json` and the four icons — `AddType application/wasm`, and `ModPagespeed off`.
+The icons and the manifest could be stamped and are not, because they change once in a few
+years and the manifest would have to be generated rather than copied to name them.
 
 **That list is every unstamped file and not a chosen few, because the gap is silent.** A
 file with neither a stamp nor a rule gets a *heuristic* lifetime in the browser, a fraction
-of its age, and then goes stale with nothing anywhere to say so. `touch_controls.js` was
-exactly that: a new build's page and payload arrived, the on-screen pad did not, and only a
-private window showed the new one. **The service worker cannot fix this and it is worth knowing why**:
-a subresource the browser's HTTP cache still thinks fresh never reaches the worker at all.
-Measured on a reload, `touch_controls.js` came back with `workerStart` 0, `transferSize` 0
-and `deliveryType` "cache" — so fetching it inside the worker with `cache: 'no-cache'`
-changes nothing, and with the header in place the same measurement reads `workerStart` 79.7
-and the new bytes arrive. The worker's network-first branch is what keeps the page working
-offline; freshness is the header's job alone.
+of its age, and then goes stale with nothing anywhere to say so. The pad was exactly that
+before it was stamped: a new build's page and payload arrived, the on-screen pad did not, and
+only a private window showed the new one. **The service worker cannot fix that and it is
+worth knowing why**: a subresource the browser's HTTP cache still thinks fresh never reaches
+the worker at all. Measured on a reload, the pad came back with `workerStart` 0,
+`transferSize` 0 and `deliveryType` "cache" — so fetching it inside the worker with
+`cache: 'no-cache'` changes nothing, and with a header in place the same measurement reads
+`workerStart` 79.7 and the new bytes arrive. The worker's network-first branch is what keeps
+the page working offline; freshness is the URL's job, and the header's only where there can
+be no stamp.
 
 **`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap
 grows exactly once, to 40 MiB, and stays there through the loading screen, the menu, the

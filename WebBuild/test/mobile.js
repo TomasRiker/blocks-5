@@ -308,35 +308,28 @@ async function toPage(page, win) {
 		await page.reload();
 		await waitFor(page, booted, 'the restart', 240000);
 
-		// --- 6c. and so does a changed file that is neither stamped nor index --
-		// touch_controls.js is the case that went wrong in the field: the page
-		// and the payload updated, the on-screen pad did not, and only a private
-		// window showed the new one. The fault needs the file to look OLD to be
-		// reproduced at all - a browser gives a response with no Cache-Control a
-		// heuristic lifetime of about a tenth of its age, so one written seconds
-		// ago is revalidated anyway and the check would pass while broken. So:
-		// age it, load it once to seed the cache with that long freshness, then
-		// change it with a current timestamp and ask for it again.
-		const padFile = path.join(DIR, 'touch_controls.js');
-		const padOriginal = fs.readFileSync(padFile, 'utf8');
-		try {
-			const old = Date.now() / 1000 - 30 * 24 * 3600;
-			fs.utimesSync(padFile, old, old);
-			await page.reload();
-			await waitFor(page, booted, 'the seeding load', 240000);
-
-			fs.writeFileSync(padFile, padOriginal + '\nwindow.b5padprobe = "new";\n');
-			await page.reload();
-			await waitFor(page, booted, 'the reload after the change', 240000);
-			const padProbe = await page.evaluate(() => window.b5padprobe || '');
-			if (padProbe === 'new') ok('a changed unstamped file arrives on a reload too');
-			else bad('touch_controls.js came from the browser cache - an unstamped ' +
-			         'file with no Cache-Control goes stale and says nothing');
-		} finally {
-			fs.writeFileSync(padFile, padOriginal);
+		// --- 6c. the pad is stamped, and the page really loads it -----------
+		// This is what replaced the header rule for touch_controls.js, and it is
+		// the stronger mechanism: a stamped URL is immutable, so no cache
+		// anywhere can go stale on it and no server has to be configured for it
+		// to be true. The stamp is the pad's OWN hash and not the payload's -
+		// reusing $version would not move when only the pad changed, and the file
+		// would then be served immutable for a year, which is worse than the bug
+		// it replaced. So: the page must name a stamped pad, that file must exist,
+		// and it must have run.
+		const indexText = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
+		const padRef = indexText.match(/touch_controls-([0-9a-f]+)\.js/);
+		if (!padRef) {
+			bad('index.html does not reference a stamped touch_controls-<hash>.js');
+		} else if (/["'\/]touch_controls\.js/.test(indexText)) {
+			bad('index.html still references the unstamped touch_controls.js');
+		} else if (!fs.existsSync(path.join(DIR, padRef[0]))) {
+			bad(padRef[0] + ' is named by the page but not in the build');
+		} else {
+			const ran = await page.evaluate(() => typeof window.b5_setPadLanguage === 'function');
+			if (ran) ok('the pad is stamped (' + padRef[0] + ') and ran');
+			else bad(padRef[0] + ' was served but did not run');
 		}
-		await page.reload();
-		await waitFor(page, booted, 'the restart', 240000);
 
 		// --- 7. offline ------------------------------------------------------
 		await context.setOffline(true);

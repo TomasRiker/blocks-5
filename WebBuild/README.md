@@ -27,10 +27,10 @@ and `manifest.json`, the wasm MIME type, and `ModPagespeed off`. The same for
 nginx, which reads no per-directory file and wants this in the server block:
 
 ```nginx
-location ~ ^/blocks5-[0-9a-f]+\.(js|wasm|data)$ {
+location ~ ^/(blocks5-[0-9a-f]+\.(js|wasm|data)|touch_controls-[0-9a-f]+\.js)$ {
     add_header Cache-Control "public, max-age=31536000, immutable";
 }
-location ~ ^/(index\.html|blocks5\.html|sw\.js|manifest\.json|touch_controls\.js|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$ {
+location ~ ^/(index\.html|blocks5\.html|sw\.js|manifest\.json|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$ {
     add_header Cache-Control "no-cache, must-revalidate";
 }
 types { application/wasm wasm; }

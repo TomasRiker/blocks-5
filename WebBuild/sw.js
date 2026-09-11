@@ -27,6 +27,10 @@
 // %%VERSION%% is replaced by build.sh with a hash of the three files, so the
 // cache name changes exactly when the payload does and never otherwise.
 var BUILD = '%%VERSION%%';
+// The pad's own stamp. Separate from BUILD because touch_controls.js is not one
+// of the three files BUILD hashes, so the two move independently - which is the
+// whole point of giving it a stamp at all.
+var PAD = '%%PAD%%';
 var CACHE = 'blocks5-' + BUILD;
 
 // Without these the game cannot start, and a half-cached set is worse than
@@ -38,13 +42,14 @@ var PAYLOAD = ['./index.html',
 
 // Nice to have. './' is what a home-screen launch asks for, but a server that
 // does not serve a directory index would fail the whole install over it.
-var EXTRA = ['./', './blocks5.html', './manifest.json', './touch_controls.js',
+var EXTRA = ['./', './blocks5.html', './manifest.json', './touch_controls-' + PAD + '.js',
              './icon-192.png', './icon-512.png', './icon-maskable-512.png',
              './apple-touch-icon.png'];
 
-// Stamped and therefore immutable - and of those, this build's own three.
-var STAMPED = /\/blocks5-[0-9a-f]+\.(js|wasm|data)$/;
-var MINE = new RegExp('/blocks5-' + BUILD + '\\.(js|wasm|data)$');
+// Stamped and therefore immutable - and of those, the ones this build owns.
+var STAMPED = /\/(blocks5-[0-9a-f]+\.(js|wasm|data)|touch_controls-[0-9a-f]+\.js)$/;
+var MINE = new RegExp('/(blocks5-' + BUILD + '\\.(js|wasm|data)|' +
+                      'touch_controls-' + PAD + '\\.js)$');
 
 self.addEventListener('install', function (e) {
 	self.skipWaiting();
