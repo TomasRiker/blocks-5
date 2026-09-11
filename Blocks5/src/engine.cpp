@@ -2914,24 +2914,41 @@ void Engine::renderSprite(const Vec2i& position,
 {
 	if(renderSuppressed) return;
 
+	// The quad runs from -halfSize to otherHalf, and the two are only the same
+	// number while the size is even. Taking halfSize for both would draw an odd
+	// sprite one pixel short while its texture coordinates still spanned all
+	// size texels, so the picture is resampled and a row of it falls out: at
+	// 39x39 texel 19 is never reached. Only the centre stays truncated, which
+	// keeps the corners on whole pixels and a nearest-sampled sprite sharp - at
+	// an odd size that puts the axis of the rotation half a pixel off the
+	// middle, which is the cheaper of the two errors.
 	const Vec2i halfSize(size / 2);
+	const Vec2i otherHalf(size - halfSize);
 
 	glPushMatrix();
 	glTranslated(position.x + halfSize.x, position.y + halfSize.y, 0.0);
 	if(scaling != 1.0) glScaled(scaling, scaling, 1.0);
 	if(rotation != 0.0) glRotated(rotation, 0.0, 0.0, 1.0);
-	if(mirrorX) glScaled(-1.0, 1.0, 1.0);
+
+	// Mirroring swaps the texture coordinates instead of scaling x by -1, and
+	// that is not the same thing once the quad is no longer symmetric about its
+	// centre: the scale reflects the footprint as well, which moves an odd
+	// sprite a pixel to the left of where the unmirrored one stands.
+	const int u0 = positionOnTexture.x + (mirrorX ? size.x : 0);
+	const int u1 = positionOnTexture.x + (mirrorX ? 0 : size.x);
+	const int v0 = positionOnTexture.y;
+	const int v1 = positionOnTexture.y + size.y;
 
 	glBegin(GL_QUADS);
 	glColor4dv(color);
-	glTexCoord2i(positionOnTexture.x, positionOnTexture.y);
+	glTexCoord2i(u0, v0);
 	glVertex2i(-halfSize.x, -halfSize.y);
-	glTexCoord2i(positionOnTexture.x + size.x, positionOnTexture.y);
-	glVertex2i(halfSize.x, -halfSize.y);
-	glTexCoord2i(positionOnTexture.x + size.x, positionOnTexture.y + size.y);
-	glVertex2i(halfSize.x, halfSize.y);
-	glTexCoord2i(positionOnTexture.x, positionOnTexture.y + size.y);
-	glVertex2i(-halfSize.x, halfSize.y);
+	glTexCoord2i(u1, v0);
+	glVertex2i(otherHalf.x, -halfSize.y);
+	glTexCoord2i(u1, v1);
+	glVertex2i(otherHalf.x, otherHalf.y);
+	glTexCoord2i(u0, v1);
+	glVertex2i(-halfSize.x, otherHalf.y);
 	glEnd();
 
 	glPopMatrix();
