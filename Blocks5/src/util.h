@@ -94,6 +94,21 @@ inline bool isReturnKey(int key)
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
 }
 
+// Reduces a scrolling texture offset, in texels, to one period of the texture.
+// Exact under GL_REPEAT: whole periods move the finished coordinate by a whole
+// number and it samples the same texel. It is needed because the weather and
+// the title clouds scroll by an offset that has been growing since the level
+// began, and a texture coordinate reaches the fragment shader as a varying -
+// which Emscripten's GL emulation declares under "precision mediump float",
+// ten mantissa bits on a phone. The step it quantizes to is offset/2048 texels,
+// so the drift turns visibly steppy about a minute in and gets worse from
+// there. Keeping the offset inside one period keeps the precision constant.
+inline double wrapTextureOffset(double offset, int period)
+{
+	if(period <= 0) return offset;
+	return fmod(offset, static_cast<double>(period));
+}
+
 extern bool writingCrashLog;
 
 #define BEGIN_PROFILE(NAME) \

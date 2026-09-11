@@ -1460,6 +1460,24 @@ the player would otherwise get that something of theirs is gone. A campaign is c
 `isImportableArchive` *before* the copy, so a damaged archive cannot destroy a good one of the
 same name.
 
+**A scrolling texture offset is reduced to one period, and that is a phone bug.**
+`wrapTextureOffset` (`util.h`) is called on all four scrollers - the menu's title clouds, and
+the level's rain, snow and clouds - because each of them translates the texture matrix by an
+offset that had been growing since the level began. A texture coordinate reaches the fragment
+shader as a *varying*, and the shader Emscripten's GL emulation builds opens with
+`precision mediump float;` with the texcoord varyings declared under it: ten mantissa bits,
+which a desktop GPU implements as fp32 and a phone actually honours. The step it quantizes to
+is **offset/2048 texels**, so the clouds - moving one texel a tick - drift smoothly for about
+forty seconds and then go visibly steppy, and the rain, at twenty texels a tick, crosses the
+same line in two seconds. Nothing is wrong on any desktop, which is what makes it hard to see.
+
+Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a
+whole number and samples the same texel. Verified against the real matrix order - bind's
+`1/w,1/h`, the scale, the translate and the rotate - for all four, deviation 0.000e+00 at
+offsets up to 900000. Two things to keep right: the wrap goes **after** the `sin` that reads
+the same offset, whose phase has to follow the unwrapped value, and the period is the
+*texture's* own size, since a skin brings its own art.
+
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two
 texture as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL
 error, and the default is `GL_REPEAT` — which rain, snow and clouds genuinely need, since

@@ -242,10 +242,11 @@ void Texture::applyWrapMode() const
 	// WebGL 1 treats a texture whose edge lengths are not powers of two as
 	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
 	// Otherwise every access returns black - not as an error but silently.
-	// The default is GL_REPEAT, and rain, snow and clouds rest on it:
-	// level.cpp scrolls the texture matrix without bound for them to tile.
-	// Therefore do not switch it across the board, but exactly where REPEAT
-	// could never have worked anyway.
+	// The default is GL_REPEAT, and rain, snow and clouds rest on it: they
+	// tile by a scrolling texture matrix, and wrapTextureOffset() keeps that
+	// offset inside one period precisely because REPEAT makes a whole period
+	// an exact no-op. Therefore do not switch it across the board, but exactly
+	// where REPEAT could never have worked anyway.
 	//
 	// The game's own art is all power of two, which leaves imported skins as
 	// the only case here. Deliberately under Windows too, where NPOT with

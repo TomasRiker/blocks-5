@@ -765,6 +765,9 @@ void Level::render()
 			double y = 100.0 * i + 1000.0 * 0.001 * time;
 			double s[] = {1.0, 0.5, 0.25};
 			double angle = 15.0 + sin(0.02 * y * s[i] + i);
+			// After the angle, which reads the unwrapped offset. Rain scrolls
+			// twenty texels a tick, so it is the first of these to go steppy.
+			y = wrapTextureOffset(y, p_rain->getSize().y);
 
 			glPushMatrix();
 			glScaled(s[i], s[i], s[i]);
@@ -810,6 +813,11 @@ void Level::render()
 			double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
 			double x = 500.0 * sin(t * f + i);
 			double y = 150.0 * t + 300.0 * cos(t * f + i);
+			// x is bounded by its own sine and y is not, but both are wrapped:
+			// the snow translates on both axes, and one rule is easier to keep
+			// right than two.
+			x = wrapTextureOffset(x, p_snow->getSize().x);
+			y = wrapTextureOffset(y, p_snow->getSize().y);
 
 			glPushMatrix();
 			glTranslated(-x, -y, 0.0);
@@ -848,6 +856,8 @@ void Level::render()
 			double s[] = {1.0, 0.5, 0.25};
 			double x = 100.0 * i + 50.0 * 0.001 * time;
 			x += 2.0 * sin(0.02 * x * s[i] + i);
+			// After the wobble, whose phase has to follow the unwrapped offset.
+			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 			glPushMatrix();
 			glScaled(s[i], s[i] * 2.0, s[i]);

@@ -89,6 +89,8 @@ void GS_Menu::onRender()
 		double s[] = {1.0, 0.5, 0.25};
 		double x = 100.0 * i + 50.0 * 0.001 * time;
 		x += 2.0 * sin(0.02 * x * s[i] + i);
+		// After the wobble, whose phase has to follow the unwrapped offset.
+		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 		glPushMatrix();
 		glScaled(s[i], s[i], s[i]);
