@@ -108,8 +108,14 @@ async function toPage(page, win) {
 		console.log('no index.html in ' + DIR + ' - run ./build.sh hooks first');
 		process.exit(2);
 	}
-	const server = spawn('python3', ['-m', 'http.server', String(PORT)],
-	                     { cwd: DIR, stdio: 'ignore', detached: true });
+	// server.py and not python3 -m http.server: the built-in one sends no
+	// Cache-Control at all, which is a configuration nobody deploys, and every
+	// caching check below would then be asking about the wrong server. It reads
+	// the rules out of WebBuild/htaccess, so what the browser is told here is
+	// what a real one is told.
+	const server = spawn('python3', [path.join(__dirname, 'server.py'),
+	                                 String(PORT), DIR],
+	                     { stdio: 'ignore', detached: true });
 	await wait(1500);
 
 	const browser = await chromium.launch({
@@ -298,6 +304,36 @@ async function toPage(page, win) {
 			else bad('index.html came from the cache - a new version would never become visible');
 		} finally {
 			fs.writeFileSync(indexFile, original);
+		}
+		await page.reload();
+		await waitFor(page, booted, 'the restart', 240000);
+
+		// --- 6c. and so does a changed file that is neither stamped nor index --
+		// touch_controls.js is the case that went wrong in the field: the page
+		// and the payload updated, the on-screen pad did not, and only a private
+		// window showed the new one. The fault needs the file to look OLD to be
+		// reproduced at all - a browser gives a response with no Cache-Control a
+		// heuristic lifetime of about a tenth of its age, so one written seconds
+		// ago is revalidated anyway and the check would pass while broken. So:
+		// age it, load it once to seed the cache with that long freshness, then
+		// change it with a current timestamp and ask for it again.
+		const padFile = path.join(DIR, 'touch_controls.js');
+		const padOriginal = fs.readFileSync(padFile, 'utf8');
+		try {
+			const old = Date.now() / 1000 - 30 * 24 * 3600;
+			fs.utimesSync(padFile, old, old);
+			await page.reload();
+			await waitFor(page, booted, 'the seeding load', 240000);
+
+			fs.writeFileSync(padFile, padOriginal + '\nwindow.b5padprobe = "new";\n');
+			await page.reload();
+			await waitFor(page, booted, 'the reload after the change', 240000);
+			const padProbe = await page.evaluate(() => window.b5padprobe || '');
+			if (padProbe === 'new') ok('a changed unstamped file arrives on a reload too');
+			else bad('touch_controls.js came from the browser cache - an unstamped ' +
+			         'file with no Cache-Control goes stale and says nothing');
+		} finally {
+			fs.writeFileSync(padFile, padOriginal);
 		}
 		await page.reload();
 		await waitFor(page, booted, 'the restart', 240000);

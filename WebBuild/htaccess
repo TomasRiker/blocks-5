@@ -10,11 +10,18 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
-  # These three have to be asked for on every visit. index.html is where the
-  # current build's stamp is written down - cache that and nobody ever sees a
-  # new version. sw.js decides what the offline cache holds, manifest.json
-  # what installing gives you.
-  <FilesMatch "^(index\.html|sw\.js|manifest\.json)$">
+  # Everything that is NOT stamped has to be asked for on every visit, and the
+  # rule is that blunt on purpose: a file with no stamp and no header here gets
+  # a heuristic lifetime in the browser - a fraction of its age - and goes
+  # stale with nothing to say so. touch_controls.js was exactly that: the page
+  # and the payload updated, the on-screen pad did not, and only a private
+  # window showed the new one.
+  #
+  # index.html is where the current build's stamp is written down, so caching
+  # it means nobody ever sees a new build. sw.js decides what the offline cache
+  # holds and manifest.json what installing gives you. The pad and the icons
+  # carry no stamp either and change like any other source file.
+  <FilesMatch "^(index\.html|blocks5\.html|sw\.js|manifest\.json|touch_controls\.js|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>

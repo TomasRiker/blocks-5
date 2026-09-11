@@ -30,7 +30,7 @@ nginx, which reads no per-directory file and wants this in the server block:
 location ~ ^/blocks5-[0-9a-f]+\.(js|wasm|data)$ {
     add_header Cache-Control "public, max-age=31536000, immutable";
 }
-location ~ ^/(index\.html|sw\.js|manifest\.json)$ {
+location ~ ^/(index\.html|blocks5\.html|sw\.js|manifest\.json|touch_controls\.js|icon-[0-9a-z-]+\.png|apple-touch-icon\.png)$ {
     add_header Cache-Control "no-cache, must-revalidate";
 }
 types { application/wasm wasm; }

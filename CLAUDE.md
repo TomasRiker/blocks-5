@@ -1640,9 +1640,22 @@ and without that it would pull the new build's payload into its own doomed cache
 bundles on disk for the duration.
 
 `WebBuild/htaccess` ships as `.htaccess` beside `index.html` with the matching headers:
-a year of `immutable` for the stamped three, `no-cache, must-revalidate` for `index.html`,
-`sw.js` and `manifest.json`, `AddType application/wasm`, and `ModPagespeed off` — there is
-nothing here for a rewriter to improve, and it has already done damage.
+a year of `immutable` for the stamped three, `no-cache, must-revalidate` for **everything
+that carries no stamp** — `index.html`, `blocks5.html`, `sw.js`, `manifest.json`,
+`touch_controls.js` and the four icons — `AddType application/wasm`, and `ModPagespeed off`
+— there is nothing here for a rewriter to improve, and it has already done damage.
+
+**That list is every unstamped file and not a chosen few, because the gap is silent.** A
+file with neither a stamp nor a rule gets a *heuristic* lifetime in the browser, a fraction
+of its age, and then goes stale with nothing anywhere to say so. `touch_controls.js` was
+exactly that: a new build's page and payload arrived, the on-screen pad did not, and only a
+private window showed the new one. **The service worker cannot fix this and it is worth knowing why**:
+a subresource the browser's HTTP cache still thinks fresh never reaches the worker at all.
+Measured on a reload, `touch_controls.js` came back with `workerStart` 0, `transferSize` 0
+and `deliveryType` "cache" — so fetching it inside the worker with `cache: 'no-cache'`
+changes nothing, and with the header in place the same measurement reads `workerStart` 79.7
+and the new bytes arrive. The worker's network-first branch is what keeps the page working
+offline; freshness is the header's job alone.
 
 **`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap
 grows exactly once, to 40 MiB, and stays there through the loading screen, the menu, the

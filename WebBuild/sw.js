@@ -92,6 +92,16 @@ self.addEventListener('fetch', function (e) {
 		return;
 	}
 
+	// Network first - but a worker cannot make that true on its own, and it is
+	// worth knowing why before trying. A subresource the browser's own HTTP
+	// cache still considers fresh is served from there without this handler
+	// ever running: measured on a reload, touch_controls.js came back with
+	// workerStart 0, transferSize 0 and deliveryType "cache". So fetching it
+	// here with cache 'no-cache' fixes nothing - by the time this code runs,
+	// the HTTP cache has already declined to answer. What decides it is the
+	// Cache-Control the server sends, which is why WebBuild/htaccess names
+	// every unstamped file and not a chosen few. This branch is what keeps the
+	// page working offline; freshness is the header's job.
 	e.respondWith(caches.open(CACHE).then(function (c) {
 		return fetch(req).then(function (res) {
 			return keep(c, res);
