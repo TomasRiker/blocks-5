@@ -510,17 +510,17 @@ every tile without moving an id. Measured on the menu title demo, three interlea
 seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
 0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
 
-**A whole render pass of sprites is one draw call.** `Level::renderObjects` opens a batch
-around its object loop (`Engine::beginSpriteBatch`), and while one is open `Engine::renderSprite`
-appends four `ColorQuadVertex` — a position, a texture coordinate and a colour of its own —
-instead of drawing. `flushSprites` puts the lot up with one `glDrawArrays(GL_QUADS)`. The
-colour has to be per vertex and not in `glColor`, because every object brings its own tint,
-death countdown and conversion ghost; a shared colour would flush at every object and there
-would be nothing left to batch. Measured in the browser, `?nobatch=1` against the default:
-**276 draw calls a frame → 35** in a played level, 243 → 48 on the menu's title demo, 314 → 72
-on the level select. The median frame goes **3.90 ms → 2.40** and its render half **2.40 →
-1.10**, against a spread within an arm of 0.90 and 0.30. The vertex count does not move — the
-same geometry, in a fortieth of the calls.
+**A whole render pass of sprites is one draw call.** `Level::renderObjects` opens a batch around
+its object loop (`Engine::beginSpriteBatch`), and while one is open `Engine::renderSprite` appends
+four `ColorQuadVertex` — a position, a texture coordinate and a colour of its own — instead of
+drawing. `flushSprites` puts the lot up with one `glDrawArrays(GL_QUADS)`. The colour has to be
+per vertex and not in `glColor`, because every object brings its own tint, death countdown and
+conversion ghost; a shared colour would flush at every object and there would be nothing left to
+batch. Measured in the browser, `?nobatch=1` against the default: **276 draw calls a frame → 35**
+in a played level, 243 → 48 on the menu's title demo, 314 → 72 on the level select. In the played
+level the median frame goes **3.90 ms → 2.40** and its render half **2.40 → 1.10**, against a
+spread within an arm of 0.90 and 0.30. The vertex count does not move — the same geometry, in a
+fortieth of the calls.
 
 **The transform is baked into the vertices, and that is what the batch costs.** A sprite is
 drawn under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the
@@ -532,50 +532,61 @@ call in place of the seven the immediate path made, and in the browser that read
 sixteen floats out of a JavaScript array, not a pipeline stall.
 
 **The flush must therefore draw under `glLoadIdentity`**, and getting that wrong is invisible
-almost everywhere. The vertices already carry the matrix; leaving it applied puts it on twice.
-Every level renders under an identity modelview, so the game looked perfect — until the level
-editor, which draws its object palette under `glTranslated(245, 428, 0)` and lost every sprite
-in it off the right of the screen. The five palettes are what caught it, as they caught the
-render-layer conversion before.
+almost everywhere. The vertices already carry the matrix; leaving it applied puts it on twice. A
+level renders under an identity modelview almost everywhere — the camera shake and the half pixel
+under the wires are the exceptions, and either applied twice passes for the effect itself — so the
+game looked perfect until the level editor, which draws its object palette under
+`glTranslated(245, 428, 0)` and lost every sprite in it off the right of the screen. The five
+palettes are what caught it, as they caught the render-layer conversion before.
 
 **A queued quad is drawn with the state standing at the flush, not at the call.** There is no
-depth buffer in this 2D path, so painter's order is the only order there is: anything that
-draws, or that moves the texture binding, the texture matrix, the blend function or the
-framebuffer, has to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
+depth buffer in this 2D path, so painter's order is the only order there is: anything that draws,
+or that moves the texture binding, the texture matrix, the blend function or the framebuffer, has
+to flush first. `Texture::bind`, `Texture::unbind`, `Engine::setBlendFunc`,
 `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` do it themselves, so
 most of it is automatic. The object sources reach the other three through **`GLState`**
-(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the texture
-matrix, which is the third piece of state and the one the first draft of the check was blind
-to — all of which flush before they change anything, so the rule lives in one file instead of
-at a dozen call sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped to the
-sources that define an `Object::onRender` because those are what the batch can reach; the
-crossfades, the GUI and the credits run with no batch open and are deliberately left alone,
-which is what keeps the ban something a reader can check.
+(`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the texture matrix,
+which is the third piece of state and the one the first draft of the check was blind to — all of
+which flush before they change anything, so the rule lives in one file instead of at a dozen call
+sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw forms there, scoped
+to what the batch can reach: the sources that define an `Object::onRender`, plus `texture.cpp` and
+`linedrawer.cpp`, which every one of them draws through, plus `Level::renderShine` and
+`Font::drawText` by name out of two files that are otherwise full of drawing with no batch open.
+The crossfades, the GUI and the credits are deliberately left alone, which is what keeps the ban
+something a reader can check.
 
-**`GLState` is not a cache, and that was measured rather than assumed.** Skipping a call that
-sets what is already set is worth about a quarter of the texture binds in a level — and the
-whole of the state traffic is about six per cent of what the game asks of the driver, which
-after the sprite batch has taken its share is well under the spread between two runs. Against
-that: all 37 raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables in the crossfades, the GUI,
-the credits and the engine would have to come through it too, the failure mode of a stale entry
-is a wrong picture rather than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)`
-restores the binding on the desktop while `gl_compat.cpp` restores only the mode and the enables —
-so the invalidation would differ per platform. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)`
-stays for a different reason: replacing it is safe as the tree stands, but it would leave `bind()`
-with a silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues
-no GL call at all. ROADMAP 44 has both.
+**`GLState` is not a cache, and that was measured rather than assumed.** Skipping a call that sets
+what is already set is worth about a quarter of the texture binds in a level — and the whole of
+the state traffic is about six per cent of what the game asks of the driver, which after the
+sprite batch has taken its share is well under the spread between two runs. Against that: all 37
+raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables outside those two files — 39 in the
+crossfades and the rest across the engine, the credits, the GUI, `level.cpp` and the level editor —
+would have to come through it too, the failure mode of a stale entry is a wrong picture rather
+than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)` restores the binding on
+the desktop while `gl_compat.cpp` restores only the mode and the enables — so the invalidation
+would differ per platform. `Texture::bind`'s `glPushAttrib(GL_TRANSFORM_BIT)` stays for a
+different reason: replacing it is safe as the tree stands, but it would leave `bind()` with a
+silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues no GL
+call at all. ROADMAP 44 has both.
 
 **The flush says which matrix stack it means**, and that is not pedantry. It draws under
-`glLoadIdentity` because the vertices already carry their modelview — but a flush happens
-wherever the state moves, `Texture::bind` included, and `Level::render` binds the snow and the
-clouds with `GL_TEXTURE` current. An unqualified `glPushMatrix` there would push, wipe and pop
-the *texture* matrix and leave the sprites under whatever modelview happened to stand. The
-batch is empty at that call today, which is the only reason it never showed; the
-`glPushAttrib(GL_TRANSFORM_BIT)` bracket costs two calls a flush and stops it being a question.
+`glLoadIdentity` because the vertices already carry their modelview — but a flush happens wherever
+the state moves, `Texture::bind` included, and `Level::render` binds the snow and the clouds with
+`GL_TEXTURE` current. An unqualified `glPushMatrix` there would push, wipe and pop the *texture*
+matrix and leave the sprites under whatever modelview happened to stand. The batch is empty at
+that call today, which is the only reason it never showed. The `glPushAttrib(GL_TRANSFORM_BIT)`
+bracket costs three calls a flush on the desktop and two in the browser, where `gl_compat.cpp`'s
+push issues none — and it is the cheap half of a belt and braces rather than the whole answer,
+since a batch left *open* across the weather block would still be drawn under the texture matrix
+the weather scrolls, which no bracket at the flush can help with. What keeps that safe is that
+`endSpriteBatch` runs long before it.
 
-**One explicit flush survives**, in `lava.cpp`: the two lava passes draw raw quads under a
-texture bound from outside and change no state on the way in, so nothing else would flush for
-them. That is what `sprite_batch` still checks for, now that `gl_state` has the state half.
+**Two explicit flushes survive.** In `lava.cpp` the two lava passes draw raw quads under a texture
+bound from outside and change no state on the way in, so nothing else would flush for them. And
+`LineDrawer::draw` — the raw `glDrawArrays` behind every laser, wire and shot — flushes at its own
+definition rather than at its four call sites, because each of those reaches it through a
+`LineDrawer` of its own and no static check can follow that. That is what `sprite_batch` still
+checks for, now that `gl_state` has the state half.
 
 **`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
 the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is
@@ -583,27 +594,30 @@ not: a flush happens wherever the state moves, which includes the middle of some
 drawing. `Font::renderText` sets its shadow colour and then calls `drawText`, whose first act is
 a bind — so the restore repainted every text shadow in the last sprite's colour.
 
-**In the browser the batched colour arrives unquantised**, the same effect the tile grid has:
-a `glColor4dv` inside `glBegin`/`glEnd` is truncated to a byte by Emscripten's emulation, and a
-float colour array is not. Object shadows, which are drawn at alpha 0.35, move by one grey
-level there. The desktop is byte-identical — the four editor palettes that do not animate hold
-an instance of every object type in the game, and all four come out unchanged.
+**In the browser the batched colour arrives unquantised**, the same effect the tile grid has: a
+`glColor4dv` inside `glBegin`/`glEnd` is truncated to a byte by Emscripten's emulation, and a
+float colour array is not. Object shadows, which are drawn at alpha 0.35, move by one grey level
+there. The desktop is byte-identical — the four editor palettes that do not animate hold 29 of the
+65 types between them, and all four come out unchanged. It follows that **`-nobatch` is not a
+byte-exact oracle in the browser**: it is one on the desktop, where the same frame reads back
+identically either way, and in the browser every batched sprite may differ by 1/255 from the
+immediate path for this reason alone.
 
-**The same array also loses the clamp, and that one is not cosmetic.** The game hands GL
-colours above 1 deliberately — `Level::renderShine` takes `deathCountDown * 5.0` from an
-exploding bomb, the teleport swirl ramps its red to 2.1, the two spark bursts to 1.5 — and
-relies on the hardware to cut them off. Desktop GL clamps a primitive colour *before* it
-multiplies the texel. Emscripten's emulation does not: dumping the vertex shader it generates
-for this game gives `v_color = a_color;`, and the `clamp` it can emit sits behind
-`GL_LIGHTING`, which this tree never switches on. So the browser computes
-`clamp(colour · texel)` where the desktop computes `clamp(colour) · texel` — at a red of 2.0
-every texel above 0.5 saturates, and a soft glow comes out a hard-edged blob. `clampColor()`
-in `util.h` puts it back, in the two places a colour reaches GL without being cut off on the
-way — `Engine::queueSprite` and `ParticleSystem::render`, both colour arrays — and **only in
-the browser build**, because everywhere else the hardware has already done it. Every other
-path either sets `glColor` inside a `glBegin` block, where the byte quantisation clamps it, or
-carries a value that cannot leave [0,1]. ROADMAP item 42 is how to stop paying for it on the
-CPU at all.
+**The same array also loses the clamp, and that one is not cosmetic.** The game hands GL colours
+above 1 deliberately — `Level::renderShine` takes `deathCountDown * 5.0` from an exploding bomb,
+the teleport swirl ramps its red to 2.1, and the two spark bursts add half a level of red a tick
+until the particle has shrunk away, which lands between 5.5 and 25.5 — and relies on the hardware
+to cut them off. Desktop GL clamps a primitive colour *before* it multiplies the texel.
+Emscripten's emulation does not: dumping the vertex shader it generates for this game gives
+`v_color = a_color;`, and the `clamp` it can emit sits behind `GL_LIGHTING`, which this tree never
+switches on. So the browser computes `clamp(colour · texel)` where the desktop computes
+`clamp(colour) · texel` — at a red of 2.0 every texel above 0.5 saturates, and a soft glow comes
+out a hard-edged blob. `clampColor()` in `util.h` puts it back, in the two places a colour reaches
+GL without being cut off on the way — `Engine::queueSprite` and `ParticleSystem::render`, both
+colour arrays — and **only in the browser build**, because everywhere else the hardware has
+already done it. Every other path either sets `glColor` inside a `glBegin` block, where the byte
+quantisation clamps it, or carries a value that cannot leave [0,1]. ROADMAP item 42 is how to stop
+paying for it on the CPU at all.
 
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
@@ -648,15 +662,17 @@ render against 1.6. It earns its place as names rather than as speed — and it 
 immediately, by making a dead pass visible. `renderObjects(735, …)` walked all 84 objects with
 a matrix bracket and a virtual call each, and no `onRender` in the tree had ever handled 735.
 
-**The trap it set on the way in is what `verify.py`'s `render_layers` check is for.** The
-values moved, so every surviving magic number — `layer == 939`, `layer != 18` — became either
-meaningless or the wrong layer; and C++ compares an enum to an int without a word, so five such
-lines built on all three platforms and were simply never true. The sprite texture stopped being
-bound for the lava passes, the wires lost their offset, the speech balloons stopped appearing.
-The five palette levels are what caught it: `cat0`..`cat4` hold an instance of every object
-type there is, so walking them draws every `onRender` in the game, and four of the five are
-byte-identical across a change like this. The fifth holds an Arrow and a ConveyorBelt and
-therefore differs run to run by a couple of hundred pixels whatever you do.
+**The trap it set on the way in is what `verify.py`'s `render_layers` check is for.** The values
+moved, so every surviving magic number — `layer == 939`, `layer != 18` — became either meaningless
+or the wrong layer; and C++ compares an enum to an int without a word, so five such lines built on
+all three platforms and were simply never true. The sprite texture stopped being bound for the
+lava passes, the wires lost their offset, the speech balloons stopped appearing. The five palette
+levels are what caught it: `cat0`..`cat4` hold an instance of 60 of the 65 types `instancePreset`
+knows, so walking them draws all but two of the `onRender`s in the tree — `Damage` and
+`Projectile`, which the game spawns during play and no palette can place — and four of the five
+are byte-identical across a change like this. The fifth is `cat1`, whose two
+ConveyorBelts start their band at `random(0, 6)` in the constructor, so it differs run to run by
+a couple of hundred pixels whatever you do.
 
 **There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
 They were a second way of keeping geometry beside these arrays, and one WebGL does not have at

@@ -208,6 +208,45 @@ def c_sprite_batch_sameline(p):
               'Engine::inst().renderSprites(sprites, color); drawQuadArray(0, 0);')
 
 
+# A flush written as the body of a braceless if covers the rest of its own
+# line and nothing after it, which no indentation rule can see: what follows
+# stands at the same column as the flush itself.
+@case('sprite_batch', 'Blocks5/src/projectile.cpp')
+def c_sprite_batch_braceless(p):
+    p.replace('\t\tGLState::setTexturing(false);',
+              '\t\tif(life > 0.5) GLState::setTexturing(false);')
+
+
+# LineDrawer::draw() is the raw glDrawArrays behind every laser, wire and shot,
+# and its file defines no onRender - so it is in the scanned set by name.
+@case('sprite_batch', 'Blocks5/src/linedrawer.cpp')
+def c_sprite_batch_linedrawer(p):
+    p.replace('\tEngine::inst().flushSprites();\n', '')
+
+
+# An exemption says the batch was put up before the function was entered. It
+# does not say the function may queue and then draw.
+@case('sprite_batch', 'Blocks5/src/hint.cpp')
+def c_sprite_batch_exempt_queues(p):
+    p.replace('\tconst double uWidth',
+              '\tEngine::inst().renderSprites(sprites, color);\n\tconst double uWidth')
+
+
+# Level::renderShine draws with a batch open although the rest of level.cpp
+# does not, so that one function is read and the rest of the file is not.
+@case('sprite_batch', 'Blocks5/src/level.cpp')
+def c_sprite_batch_reached(p):
+    p.replace('\tEngine::inst().renderSprite(p_shine,',
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n\tEngine::inst().renderSprite(p_shine,')
+
+
+# An exemption for a function that no longer exists is silent, and says the
+# case was thought about.
+@case('sprite_batch', 'Blocks5/src/hint.cpp')
+def c_sprite_batch_dead_exemption(p):
+    p.replace('void Hint::bakeNote(', 'void Hint::bakeNoteTexture(')
+
+
 @case('naming', 'Blocks5/src/u_crt.h')
 def c_naming(p):
     p.replace('class U_Crt : public Upscaler', 'class U_Tube : public Upscaler')

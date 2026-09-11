@@ -117,9 +117,10 @@ void ParticleSystem::render()
 		}
 
 		// deltaColor runs a particle's colour past 1 on purpose - the teleport
-		// swirl takes its red to 2.1, the two spark bursts to 1.5 - and GL is
-		// what cuts it off. A colour array in the browser is the one path that
-		// does not; see clampColor().
+		// swirl takes its red to 2.1, and the two spark bursts add half a level
+		// of it a tick until the particle has shrunk away, which lands between
+		// 5 and 25 - and GL is what cuts it off. A colour array in the browser
+		// is the one path that does not; see clampColor().
 		const Vec4f color = clampColor(p.color);
 		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = color;
 		p_vertex[0].position = corner0;

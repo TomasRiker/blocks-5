@@ -179,24 +179,47 @@ def blank_noncode(text):
 
 
 def batch_sources():
-    """The sources the sprite batch can reach, as (path, code) pairs with the
-    comments and strings blanked out.
+    """The sources the sprite batch can reach, as (path, code, only) triples
+    with the comments and strings blanked out. `only` names the functions to
+    read; None means the whole file.
 
     Those that define an Object::onRender, which is the set
     Level::renderObjects walks - matched loosely, because a wrapped signature
-    is still one. Plus texture.cpp: Texture::bind() is the funnel every one of
-    them binds through, and inlining that wrapper back to raw calls is a
-    plausible tidy-up that would break all of them at once."""
+    is still one. Plus two files with no onRender in them that every one of
+    those reaches: texture.cpp, whose Texture::bind() is the funnel they all
+    bind through, and linedrawer.cpp, whose draw() is the raw glDrawArrays
+    behind every laser, wire and shot.
+
+    And two named helpers, Level::renderShine and Font::drawText, which draw
+    with a batch open although the rest of their files do not. Those two files
+    are read for those two functions alone - level.cpp and font.cpp are
+    otherwise full of drawing that runs with no batch at all, and reading them
+    whole would report every line of it."""
     signature = re.compile(r'::onRender\s*\(\s*RenderLayer')
+    WHOLE = ('Blocks5/src/texture.cpp', 'Blocks5/src/linedrawer.cpp')
+    REACHED = {
+        'Blocks5/src/level.cpp': {'Level::renderShine'},
+        'Blocks5/src/font.cpp': {'Font::drawText'},
+    }
     out = []
     for p in source_files():
         rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
         if not rel.startswith('Blocks5/src/'):
             continue
         text = read(p)
-        if signature.search(text) or rel.endswith('/texture.cpp'):
-            out.append((rel, blank_noncode(text)))
+        if signature.search(text) or rel in WHOLE:
+            out.append((rel, blank_noncode(text), None))
+        elif rel in REACHED:
+            out.append((rel, blank_noncode(text), REACHED[rel]))
     return out
+
+
+def dead_names(names, seen, what):
+    """Whichever of `names` no longer names a function that was read. An
+    exemption for a function that has been renamed or deleted is worse than no
+    exemption at all: it is silent, and it says the case was thought about."""
+    return ['Tools/verify.py: %s names %s, which no source defines any more'
+            % (what, ', '.join(sorted(set(names) - seen)))] if set(names) - seen else []
 
 
 # ---------------------------------------------------------------------------
@@ -324,17 +347,31 @@ def check_sprite_batch():
     not - and only on the screen that happens to have both.
 
     A flush covers only as far as the block it stands in: one inside an if()
-    says nothing about the code after it, which is the shape player.cpp has."""
+    says nothing about the code after it, which is the shape player.cpp has.
+    One written as the body of a braceless if or loop covers less still - only
+    the rest of its own line, since what follows stands at the same column and
+    no indentation rule can tell the two apart."""
     breaking = re.compile(r'\bglBegin\s*\(|\bglDrawArrays\s*\(|\bglDrawElements\s*\(|'
                           r'\bdrawQuadArray\s*\(')
+    # The two spellings that leave a quad in the batch, and the whole set of
+    # them: every other way of drawing a sprite from here - Level::renderShine,
+    # Font::renderText - binds a texture of its own and so flushes on the way
+    # in and on the way out again.
     queues = re.compile(r'\brenderSprites?\s*\(')
     # GLState's wrappers flush before they change anything, so reaching one is
-    # reaching a flush.
-    flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::')
-    # Helpers that never run except from a caller that has just flushed. Each
-    # is a private member of the same class, called from one place.
+    # reaching a flush - and so is Texture::bind()/unbind(), which is written
+    # that way and nothing else in these files is.
+    flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::|'
+                         r'\w\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
+    # A statement written as the body of a braceless conditional, on the line
+    # of the conditional itself.
+    conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
+                             r'|^\s*else\s+\S'
+                             r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
+    # Helpers entered with the batch already put up, which is the whole of the
+    # exemption: what such a function does from there is read like any other.
     # Qualified, so that a same-named method of another class does not inherit
-    # the exemption.
+    # it.
     EXEMPT = {
         # Hint::renderNote() flushes and then binds its own texture; the mesh
         # is the geometry it draws under that binding.
@@ -342,14 +379,10 @@ def check_sprite_batch():
         # Reached only from Hint::bakeNote(), which is inside
         # Engine::beginRenderToTexture() - and that flushes at both ends.
         'Hint::bakeNote',
-        # Font::drawText brackets its two arrays in bind()/unbind(), and both
-        # of those flush; Level::renderShine draws through the Texture*
-        # overload of renderSprite, which does the same.
-        'Font::drawText',
-        'Level::renderShine',
     }
-    bad = []
-    for rel, text in batch_sources():
+    bad, seen, named = [], set(), set(EXEMPT)
+    for rel, text, only in batch_sources():
+        named |= (only or set())
         func, flushed, flushIndent = '', False, 0
         for n, line in enumerate(text.split('\n'), 1):
             if line.strip():
@@ -357,10 +390,13 @@ def check_sprite_batch():
                 # A new function at column 0 - a member or a free helper alike.
                 if not line[0].isspace() and '(' in line and line[0] not in '#}/*':
                     m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
-                    func, flushed = (m.group(1) if m else ''), False
+                    func = m.group(1) if m else ''
+                    seen.add(func)
+                    flushed, flushIndent = func in EXEMPT, 0
                 # A flush holds only inside the block it stands in.
                 elif flushed and indent < flushIndent:
                     flushed = False
+            wasFlushed, wasIndent = flushed, flushIndent
             # In column order, because a line can both queue and draw.
             events = ([(m.start(), 'f') for m in flushes.finditer(line)] +
                       [(m.start(), 'q') for m in queues.finditer(line)] +
@@ -371,10 +407,12 @@ def check_sprite_batch():
                     flushIndent = len(line) - len(line.lstrip())
                 elif e[1] == 'q':
                     flushed = False
-                elif not flushed and func not in EXEMPT:
+                elif not flushed and (only is None or func in only):
                     bad.append('%s:%d: %s() draws with sprites possibly queued - '
                                'flush the batch first' % (rel, n, func))
-    return bad
+            if conditional.match(line):
+                flushed, flushIndent = flushed and wasFlushed, wasIndent
+    return bad + dead_names(named, seen, 'the sprite_batch check')
 
 
 @check('gl_state')
@@ -413,8 +451,8 @@ def check_gl_state():
     # floats hands back a rounded matrix, and that rounding is what the game has
     # always sampled with.
     EXEMPT = {'Texture::reload', 'Texture::loadSubTexture'}
-    bad = []
-    for rel, text in batch_sources():
+    bad, seen = [], set()
+    for rel, text, only in batch_sources():
         pattern = noPop if rel.endswith('/texture.cpp') else withPop
         # Where each function starts, so a match can be attributed to one. The
         # search itself runs over the whole text and not line by line, because
@@ -422,18 +460,19 @@ def check_gl_state():
         # with its argument on the next line is the same mistake.
         starts = [(m.start(), m.group(1)) for m in
                   re.finditer(r'^\w[^;\n]*?\b(\w+::\w+|\w+)\s*\(', text, re.M)]
+        seen |= set(name for at, name in starts)
         for m in pattern.finditer(text):
             func = ''
             for at, name in starts:
                 if at > m.start():
                     break
                 func = name
-            if func in EXEMPT:
+            if func in EXEMPT or (only is not None and func not in only):
                 continue
             n = text.count('\n', 0, m.start()) + 1
             bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
                        % (rel, n, ' '.join(m.group(0).split())))
-    return bad
+    return bad + dead_names(EXEMPT, seen, 'the gl_state check')
 
 
 @check('naming')

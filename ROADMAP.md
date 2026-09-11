@@ -1611,8 +1611,10 @@ Four things are in the way.
 ------------------------------------------------------------
 The game hands GL colours above 1 on purpose - `Level::renderShine` takes
 `deathCountDown * 5.0` from an exploding bomb, the teleport swirl ramps its red
-from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), the two spark bursts reach
-1.5 (`object.cpp:424`, `projectile.cpp:190`) - and relies on GL to cut them off.
+from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), and the two spark bursts
+(`object.cpp:424`, `projectile.cpp:190`) add half a level of red a tick with no
+lifetime in the divisor, so where they stop is where the particle has shrunk
+away: between 5.5 and 25.5 - and all of it relies on GL to cut them off.
 Desktop GL does: a primitive colour is clamped to [0,1] before it is multiplied
 by the texel. The browser does not. Dumping the shader Emscripten's emulation
 generates for this game gives a vertex stage of
@@ -1702,14 +1704,15 @@ number - and still nowhere near the spread between two runs of the same build.
 What a cache would cost is the other half of the arithmetic. It is sound only if
 *everything* comes through it, and outside `glstate.cpp` and `texture.cpp` that
 is 37 raw `glBindTexture` calls and 35 raw `GL_TEXTURE_2D` enables and disables -
-39 of them in the crossfades, 16 in `engine.cpp`, 7 in the credits, 5 in the GUI,
-4 in `level.cpp`. (Not in the upscalers: `upscaler.cpp` and the four `u_*.cpp`
-contain none.) Only four are init-only; `presentFrame` and the GUI issue theirs
-every frame. One missed call leaves an entry saying the wrong thing, after which
-the next skipped call is a wrong picture rather than a missing optimisation - for
-instance `Texture::bind(A)`, then a hint note baking, whose
-`acquireOffscreenTexture` binds the pooled texture and then 0 behind the cache's
-back, and the next `bind(A)` is skipped while texture 0 is what is actually bound.
+39 of them in the crossfades, 16 in `engine.cpp`, 7 in the credits, 5 in the
+GUI, 4 in `level.cpp` and 1 in `gs_leveleditor.cpp`. (Not in the upscalers:
+`upscaler.cpp` and the four `u_*.cpp` contain none.) Only four are init-only;
+`presentFrame` and the GUI issue theirs every frame. One missed call leaves an
+entry saying the wrong thing, after which the next skipped call is a wrong
+picture rather than a missing optimisation - for instance `Texture::bind(A)`,
+then a hint note baking, whose `acquireOffscreenTexture` binds the pooled
+texture and then 0 behind the cache's back, and the next `bind(A)` is skipped
+while texture 0 is what is actually bound.
 
 Two of the restores make it harder than a list of call sites suggests.
 `presentFrame` brackets itself in `glPushAttrib(GL_ALL_ATTRIB_BITS)`, which on
@@ -1738,7 +1741,8 @@ texture-matrix load in `glPushAttrib(GL_TRANSFORM_BIT)`/`glPopAttrib` to restore
 the matrix mode, and a trailing `glMatrixMode(GL_MODELVIEW)` would do the same
 work: of the seventeen places that switch to `GL_TEXTURE`, only `Level::render`
 binds a texture while it is current - the snow at `level.cpp:793` and the clouds
-at `:840` - and both re-issue the mode on the line after the bind. So it is safe
+at `:842`, the rain before them being the one that arrives with `GL_MODELVIEW`
+standing - and both re-issue the mode on the line after the bind. So it is safe
 as the tree stands.
 
 It is left alone for two reasons that are not "it would break". It would give
