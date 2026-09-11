@@ -78,11 +78,11 @@ OBJS=""
 for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS;  do
   n=$((n+1))
-  # Only test_hooks.cpp sees the define. It is not in CXXFLAGS, or switching
-  # between the two kinds of build would recompile all 160 units - the two
-  # output directories keep them apart anyway.
+  # Only the three that get anything out of it. It is not in CXXFLAGS, or
+  # switching between the two kinds of build would recompile all 160 units -
+  # the two output directories keep them apart anyway.
   extra=""
-  case "$f" in */test_hooks.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
+  case "$f" in */test_hooks.cpp|*/testhooks.cpp|*/engine.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

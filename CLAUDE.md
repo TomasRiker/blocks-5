@@ -522,6 +522,15 @@ level the median frame goes **3.90 ms → 2.40** and its render half **2.40 → 
 spread within an arm of 0.90 and 0.30. The vertex count does not move — the same geometry, in a
 quarter to an eighth of the calls.
 
+**A sprite is drawn at the size it was given, odd numbers included.** `renderSprite` used to
+halve the size and span `size` texels over `size - 1` pixels, so anything odd came out a pixel
+short and resampled. `halfSize` and `otherHalf` split it instead, and mirroring swaps the two `u`
+coordinates rather than applying `glScaled(-1, 1, 1)`, which on an asymmetric quad would shift it
+a pixel. Two shipped screens change by a pixel because of it, and no `-nobatch` comparison can
+see either, since neither runs inside a batch: the 39x39 level-status stamp in the select screen
+(`gs_selectlevel.cpp`) and `Menu.Donate`, which is 100x43 in `menu.xml`. They are the only odd
+sizes in the tree — the rewind OSD, the shine, the note and every tile are even.
+
 **The transform is baked into the vertices, and that is what the batch costs.** A sprite is drawn
 under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the squash of
 a teleporting object, the unbalanced `glTranslated` `Enemy` does inside its own `onRender`, the
@@ -596,6 +605,13 @@ the last sprite's colour standing, and restoring it looked like the faithful thi
 not: a flush happens wherever the state moves, which includes the middle of somebody else's
 drawing. `Font::renderText` sets its shadow colour and then calls `drawText`, whose first act is
 a bind — so the restore repainted every text shadow in the last sprite's colour.
+
+What the *spec* says about the other direction is worth knowing before the next renderer moves: a
+draw with `GL_COLOR_ARRAY` enabled leaves the current colour **indeterminate**, so a strict
+reading has `renderText`'s first shadow pass drawing in whatever the batch left. Measured, both
+targets keep it — llvmpipe answers `GL_CURRENT_COLOR` unchanged after an array draw, and
+Emscripten writes `GLImmediate.clientColor` only from a `glColor*` — so nothing is wrong today.
+It is the kind of thing that stops being true on a driver nobody here has.
 
 **In the browser the batched colour arrives unquantised**, the same effect the tile grid has: a
 `glColor4dv` inside `glBegin`/`glEnd` is truncated to a byte by Emscripten's emulation, and a

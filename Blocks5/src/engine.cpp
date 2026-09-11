@@ -118,6 +118,7 @@ Engine::Engine()
 	spriteBatchDisabled = false;
 	batchTexture = 0;
 	batchTexturing = GL_FALSE;
+	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
@@ -3009,6 +3010,11 @@ void Engine::flushSprites()
 		// the sources and this reads what happened - and a helper living in
 		// level.cpp or engine.cpp is outside the check's scope while still
 		// running with a batch open.
+		//
+		// Two of the three in the browser: Emscripten's glIsEnabled answers 0
+		// for anything outside its own capability table, and GL_TEXTURE_2D is
+		// not in it, so both sides of that comparison are 0 and it can only
+		// pass. The binding and the matrix are real queries there.
 		if(texture != batchTexture || glIsEnabled(GL_TEXTURE_2D) != batchTexturing ||
 		   memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix)))
 		{

@@ -38,11 +38,20 @@
   var query;
   try { query = new URLSearchParams(location.search); } catch (e) { return; }
 
-  if (query.get('perf')) {
+  // Present and not switched off. A bare query.get() would read "0" as on,
+  // since every non-empty string is truthy - and ?perf=0 asking for the
+  // overlay is the opposite of what anybody types it for.
+  function wants(name) {
+    if (!query.has(name)) return false;
+    var v = query.get(name);
+    return v !== '0' && v !== 'false' && v !== 'off';
+  }
+
+  if (wants('perf')) {
     Module['arguments'] = (Module['arguments'] || []).concat(['-perf']);
   }
 
-  if (query.get('nobatch')) {
+  if (wants('nobatch')) {
     Module['arguments'] = (Module['arguments'] || []).concat(['-nobatch']);
   }
 
