@@ -628,9 +628,8 @@ back off sit around every single `Engine::renderSprite(Texture*)`, which is what
 Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run: a night-vision
 level **1.1 → 19.0**, the level select **1.1 → 19.0**. The other three scenes do not move — the
 menu's title demo stays at 50.2 and a plain level at 4.0, neither of which has a shine in it, and
-the level editor at 1.0, which opens on a palette tab with no objects on it and therefore has
-almost nothing to batch either way — and between 11% and 25% of the calls into `GL::` now do
-nothing at all, depending on the scene.
+the level editor at 21.5, whose palette has no shine in it either — and between 11% and 25% of
+the calls into `GL::` now do nothing at all, depending on the scene.
 
 **What made it affordable is that the two objections were answered rather than argued with.** The
 routing is complete: every raw `glBindTexture`, `GL_TEXTURE_2D` enable, `glDeleteTextures` and
@@ -754,7 +753,9 @@ knows, so walking them draws all but two of the `onRender`s in the tree — `Dam
 `Projectile`, which the game spawns during play and no palette can place — and four of the five
 are byte-identical across a change like this. The fifth is `cat1`, whose two
 ConveyorBelts start their band at `random(0, 6)` in the constructor, so it differs run to run by
-a couple of hundred pixels whatever you do.
+a couple of hundred pixels unless the generator is seeded. `frames.sh` does seed it — `B5_SEED`,
+and `cat1` is the tab its editor scene opens, reproducible over repeated full runs — so the
+palette that used to be the awkward one is now the one under the oracle.
 
 **There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
 They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
@@ -1737,9 +1738,9 @@ the player would otherwise get that something of theirs is gone. A campaign is c
 same name.
 
 **A scrolling texture offset is reduced to one period, and that is a phone bug.**
-`wrapTextureOffset` (`util.h`) is called on all four scrollers - the menu's title clouds, and
-the level's rain, snow and clouds - because each of them translates the texture matrix by an
-offset that had been growing since the level began. A texture coordinate reaches the fragment
+`wrapTextureOffset` (`util.h`) is called on all five scrollers - the menu's title clouds, the
+level's rain, snow and clouds, and the lava - because each of them scrolls by an offset that had
+been growing since the level began. A texture coordinate reaches the fragment
 shader as a *varying*, and the shader Emscripten's GL emulation builds opens with
 `precision mediump float;` with the texcoord varyings declared under it: ten mantissa bits,
 which a desktop GPU implements as fp32 and a phone actually honours. The step it quantizes to
@@ -1749,10 +1750,22 @@ same line in two seconds. Nothing is wrong on any desktop, which is what makes i
 
 Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a
 whole number and samples the same texel. Verified against the real matrix order - bind's
-`1/w,1/h`, the scale, the translate and the rotate - for all four, deviation 0.000e+00 at
-offsets up to 900000. Two things to keep right: the wrap goes **after** the `sin` that reads
-the same offset, whose phase has to follow the unwrapped value, and the period is the
+`1/w,1/h`, the scale, the translate and the rotate - for the four weather scrollers, deviation
+0.000e+00 at offsets up to 900000. Two things to keep right: the wrap goes **after** the `sin`
+that reads the same offset, whose phase has to follow the unwrapped value, and the period is the
 *texture's* own size, since a skin brings its own art.
+
+**The lava is the one whose period is not the texture**, and getting it wrong is a jump of half
+a tile. Its four `wrapTextureOffset` cousins hand GL a texture matrix; `Lava::onRender` writes
+the texels into `glTexCoord2d` itself, on a 16x16 sub-texture cut out of the skin's sprite sheet
+by `createSubTexture` - a real 16x16 texture of its own, so `GL_REPEAT` wraps at 16. But the
+front pass halves the *whole* coordinate (`t /= 2.0`) before it draws, so a jump of 16 moves
+that pass by eight texels and only 32 moves it by a period. `SCROLL_PERIOD` is therefore twice
+the tile, which is also exact for the back pass at two periods. The `shift` beside it is
+`2·sin(0.1·anim)` and `3·cos(0.05·anim)`, and `anim` stays unwrapped for it: neither of those
+periods divides 32, so wrapping what feeds them would jog the wobble every time it came round.
+Measured over `anim` 0..900000, both signs and both axes, the sampled fraction agrees to 4e-12
+of a texel; the same wrap at 16 puts the front pass out by exactly 0.5.
 
 **The angle those sines are given needs no such care**, and the arithmetic is worth having
 once: they are `double` throughout, so one ULP at argument *A* is `A/2^52`. The snow's

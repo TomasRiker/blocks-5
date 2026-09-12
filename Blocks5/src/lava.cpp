@@ -3,6 +3,13 @@
 #include "engine.h"
 #include "particlesystem.h"
 
+// The flow scrolls one texel a tick and never stops, so the offset is reduced
+// to whole periods of the picture before it reaches GL - see wrapTextureOffset
+// for what an unbounded one does to a phone. Twice the 16-texel tile and not
+// once, because the front pass halves the whole coordinate: a jump of 16 would
+// move that pass by half a tile, where 32 moves it by exactly one.
+const int SCROLL_PERIOD = 32;
+
 Lava::Lava(Level& level,
 		   const Vec2i& position,
 		   int dir) : Object(level, 401)
@@ -95,13 +102,19 @@ void Lava::onRender(RenderLayer layer,
 				}
 			}
 
+			// Only the scroll is wrapped. The shift above reads the same
+			// anim and its two periods divide neither the tile nor each
+			// other, so wrapping what feeds those sines would jog the wobble
+			// every time it came round.
+			const double scroll = wrapTextureOffset(anim, SCROLL_PERIOD);
+
 			Vec2d t;
 			switch(ndir % 4)
 			{
-			case 0: t = Vec2i(0, anim); break;
-			case 1: t = Vec2i(-anim, 0); break;
-			case 2: t = Vec2i(0, -anim); break;
-			case 3: t = Vec2i(anim, 0); break;
+			case 0: t = Vec2d(0.0, scroll); break;
+			case 1: t = Vec2d(-scroll, 0.0); break;
+			case 2: t = Vec2d(0.0, -scroll); break;
+			case 3: t = Vec2d(scroll, 0.0); break;
 			}
 
 			t += shift;

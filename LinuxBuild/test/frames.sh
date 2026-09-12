@@ -232,13 +232,13 @@ fi
 if wanted editor; then
 	# The editor draws its object palette under a glTranslated of its own, so
 	# a sprite drawn under the wrong matrix leaves the screen there and nowhere
-	# else - which is how the batch's first two bugs showed. This scene opens
-	# on the first palette tab, and cat0.xml holds no objects at all, so what
-	# it watches for now is the rest of the editor: the tile grid, the panes
-	# and the cursor. Catching the palette again means clicking a tab that has
-	# something in it, which moves this scene's picture.
+	# else - which is how the batch's first two bugs showed. The editor opens
+	# on Cat0, which holds no objects at all, so the tab is switched: Cat1 is
+	# the fullest of the five at 53, and between them they are why the palette
+	# catches what a played level does not.
 	b5_click Menu.LevelEditor
 	b5_waitForState GS_LevelEditor
+	b5_click LevelEditor.Cat1
 	b5_frame editor 2000
 	b5_release
 fi

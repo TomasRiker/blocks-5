@@ -1706,9 +1706,8 @@ batch**. `Texture::bind` and `Texture::unbind` sit around every single
 level full of shines queued one quad, drew it, queued the next and drew that.
 Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run:
 a night-vision level **1.1 -> 19.0**, the level select **1.1 -> 19.0**. The
-other three do not move: the menu's title demo 50.2 and a plain level 4.0 have
-no shine in them, and the level editor's 1.0 is a palette tab with no objects
-on it, which has almost nothing to batch either way. Between 11% and 25% of the
+other three do not move: the menu's title demo 50.2, a plain level 4.0 and the
+level editor's palette 21.5 have no shine between them. Between 11% and 25% of the
 calls into `GL::` now do nothing at all - counting the two doors the game's own
 drawing goes through, `setTexturing` and `bindTexture`, and not the flush's own
 bracket. The saving was never the state calls. It was the
