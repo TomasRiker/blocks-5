@@ -549,10 +549,10 @@ quarter to an eighth of the calls.
 Those five numbers were taken before the GL state layer learned to skip a call that sets what is
 already set, and the default arm has moved a long way since: the same flushes that were skipping
 nothing were also breaking the batch at every `renderSprite(Texture*)`, so the *shines* in a
-played level each got a draw call of their own. `LinuxBuild/test/frames.sh` reports draw calls per
-frame and quads per draw for five scenes on every run, and `WebBuild/test/perf.js` reports both
-beside its milliseconds; a fresh `?nobatch=1` comparison would now flatter the batch further
-still.
+played level each got a draw call of their own. `LinuxBuild/test/frames.sh` reports sprite-batch draws per
+frame and quads per draw for five scenes on every run, and `WebBuild/test/perf.js` reports the
+frame's real GL draw calls beside its milliseconds; a fresh `?nobatch=1` comparison would now
+flatter the batch further still.
 
 **A sprite is drawn at the size it was given, odd numbers included.** `renderSprite` used to
 halve the size and span `size` texels over `size - 1` pixels, so anything odd came out a pixel
@@ -606,9 +606,10 @@ bound picture's own inside a balanced push and pop of its own.
 **So the ordering is said where the drawing is.** The seven `onRender`s that draw raw geometry —
 the laser's and the light barrier's beam points, the lava's flow arrow, the censor bar, the
 projectile's point, the teleporter's target line and the speech balloon — each call
-`flushSprites()` themselves, and `drawQuadArray`'s two array forms and `LineDrawer::draw` flush
-at their own definition, because a built array is reached as a member or a local through layers
-of call that no static check can follow. `verify.py`'s `sprite_batch` check counts nothing else
+`flushSprites()` themselves, plus the two lava passes, which draw raw quads under a texture bound
+from outside and so move no state that anything else would flush for. `drawQuadArray`'s two array
+forms and `LineDrawer::draw` flush at their own definition instead, because a built array is
+reached as a member or a local through layers of call that no static check can follow. `verify.py`'s `sprite_batch` check counts nothing else
 as a flush: it used to accept a `GL::` call or a `Texture::bind()`, which was true right up to
 the moment the comparison went in.
 
@@ -625,9 +626,11 @@ it missed is that each of those redundant calls *flushed the sprite batch*. A bi
 back off sit around every single `Engine::renderSprite(Texture*)`, which is what
 `Level::renderShine` is, so a level full of shines queued one quad and drew it, over and over.
 Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run: a night-vision
-level **1.1 → 19.0**, the level select **1.1 → 19.0**. The three scenes with no shines in them do
-not move — the menu's title demo stays at 50.2, a plain level at 4.0, the level editor at 1.0 —
-and between 11% and 25% of the calls into `GL::` now do nothing at all, depending on the scene.
+level **1.1 → 19.0**, the level select **1.1 → 19.0**. The other three scenes do not move — the
+menu's title demo stays at 50.2 and a plain level at 4.0, neither of which has a shine in it, and
+the level editor at 1.0, which opens on a palette tab with no objects on it and therefore has
+almost nothing to batch either way — and between 11% and 25% of the calls into `GL::` now do
+nothing at all, depending on the scene.
 
 **What made it affordable is that the two objections were answered rather than argued with.** The
 routing is complete: every raw `glBindTexture`, `GL_TEXTURE_2D` enable, `glDeleteTextures` and
@@ -658,13 +661,6 @@ push issues none — and it is the cheap half of a belt and braces rather than t
 since a batch left *open* across the weather block would still be drawn under the texture matrix
 the weather scrolls, which no bracket at the flush can help with. What keeps that safe is that
 `endSpriteBatch` runs long before it.
-
-**Two explicit flushes survive.** In `lava.cpp` the two lava passes draw raw quads under a texture
-bound from outside and change no state on the way in, so nothing else would flush for them. And
-`LineDrawer::draw` — the raw `glDrawArrays` behind every laser, wire and shot — flushes at its own
-definition rather than at its seven call sites, because each of the four `LineDrawer`s they share
-reaches it as a member or a local and no static check can follow that. That is what `sprite_batch`
-still checks for, now that `gl_state` has the state half.
 
 **`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
 the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is

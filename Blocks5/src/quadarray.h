@@ -46,7 +46,10 @@ struct ColorQuadVertex
 //
 // A vertex buffer object would be the obvious next step and is not one: the
 // browser's GL emulation aborts on glDrawArrays(GL_QUADS) with a buffer bound,
-// where client arrays go through the same path that immediate mode does.
+// where client arrays go through the same path that immediate mode does. Going
+// there would mean GL_TRIANGLES and an index table of our own, which is also
+// what would lift Engine's BATCH_MAX_QUADS: both halves of that ceiling belong
+// to the emulation's client-array path and neither to the hardware.
 void drawQuadArray(const QuadVertex* p_vertices, uint count);
 
 // The same for a shape with no texture on it - the keycap frames a font draws

@@ -35,16 +35,16 @@ public:
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 
 	// Keep the pixels in memory for getPixel() to read. Reloads the texture if
-	// bind() has already freed them - the flag alone brings nothing back.
+	// the sweep has already freed them - the flag alone brings nothing back.
 	// Without that, the debris sampling would depend on every caller making
-	// this promise before the first bind().
+	// this promise before the first sweep.
 	void keepInMemory();
 	Vec4d getPixel(const Vec2i& where) const;
 
-	// Are the pixels still in memory? bind() frees them unless keepInMemory()
-	// has been called, and getPixel() then returns transparent black for
-	// everything - no error, simply wrong. Anything that reads pixels asks
-	// first.
+	// Are the pixels still in memory? freeUnkeptPixels() hands back everything
+	// keepInMemory() was not called on, and getPixel() then returns transparent
+	// black for everything - no error, simply wrong. Anything that reads pixels
+	// asks first.
 	bool hasPixels() const;
 
 private:

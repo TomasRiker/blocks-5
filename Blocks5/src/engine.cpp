@@ -2047,11 +2047,10 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
 	if(!useFrameBuffer) return 0;
 
-	// The miss path binds a texture raw, so it is a state change like any
-	// other, and it happens before the caller reaches beginRenderToTexture -
-	// whose flush would be one step too late.
-	flushSprites();
-
+	// Nothing here needs a flush of its own: the hit path issues no GL at all,
+	// and the miss path's two binds go through GL::, which puts the batch up
+	// itself where the binding moves.
+	//
 	// One of the right size that nobody is holding?
 	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)

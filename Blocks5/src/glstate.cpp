@@ -64,10 +64,21 @@ namespace
 			// All sixteen and not the two on the diagonal: a scroll left in the
 			// matrix by the weather would be an offset, which is exactly the
 			// mistake worth catching and lives outside them.
+			//
+			// Compared as floats, which is what GL keeps the matrix in: a scale
+			// of 1/300 - any texture whose edge is not a power of two, so any
+			// skin somebody imported - comes back from the driver as the float
+			// nearest to it, and a memcmp of the doubles would then report a
+			// disagreement that is the round trip and not a fault.
 			GLdouble real[16], want[16];
 			glGetDoublev(GL_TEXTURE_MATRIX, real);
 			texelMatrix(g_state.texelScale, want);
-			if(memcmp(real, want, sizeof(want)))
+			bool same = true;
+			for(int i = 0; i < 16; i++)
+			{
+				if(static_cast<float>(real[i]) != static_cast<float>(want[i])) same = false;
+			}
+			if(!same)
 			{
 				printfLog("+ ERROR: GL::%s believes the texel scale is %g, %g; "
 						  "GL holds %g, %g%s.\n", p_where,
@@ -183,11 +194,17 @@ namespace GL
 	{
 		// GL_ENABLE_BIT is every enable and not only texturing, so the pop can
 		// put back a blend or an alpha test that a queued quad does read - and
-		// this file cannot name what the matching push saved. Hence the flush,
-		// and hence the record forgotten rather than guessed at.
-		g_state.texturing = -1;
+		// this file cannot name what the matching push saved. Hence the flush.
 		Engine::inst().flushSprites();
 		glPopAttrib();
+
+		// And the record is forgotten after the pop, not before it. The flush
+		// goes through beginBatchDraw, which switches texturing on where the
+		// record knows nothing and records that it did - so forgetting first
+		// would leave the record claiming "on" while the pop puts GL back to
+		// off, after which the next setTexturing(true) is skipped and whatever
+		// draws next comes out untextured.
+		g_state.texturing = -1;
 	}
 
 	void invalidate()

@@ -211,19 +211,22 @@ than searching for one of them.
 
 8. Rendering performance
 ------------------------
-The renderer is fixed-function immediate mode: 120 `glBegin` blocks across 38
-source files, one draw call per sprite, per GUI element, per particle. On the
-desktop this is old but survivable; in the browser every one of them goes through
+The renderer is fixed-function immediate mode: 118 `glBegin` blocks across 39
+source files, 73 of them a single `GL_QUADS`. A played level's sprites and the
+tile grid are batched now - the first bullet below - so what is left one call at
+a time is the GUI, the crossfades, the credits and the particles. On the desktop
+this is old but survivable; in the browser every one of them goes through
 Emscripten's `-sLEGACY_GL_EMULATION`, which rebuilds a vertex buffer per block and
 prints "do not expect it to work" on every start. `WebBuild/gl_immediate.cpp`
 exists purely to make the game's blocks palatable to that emulator.
 
 The work, in order of payoff:
 
-- **Batch sprites.** Everything drawn through `Engine::renderSprite` shares a
-  texture atlas per tileset; accumulating quads into one vertex buffer and issuing
-  a single draw per texture would collapse thousands of calls into a handful. This
-  is where the big win is, in both builds.
+- **Batch sprites.** Done for `Level::renderObjects`, which is where the
+  thousands of calls were, and for the tile grid beside it. What an atlas per
+  tileset would add on top is a batch that survives a change of picture - the
+  shines, the notes and the weather each still break the run - and that is the
+  remaining half of this.
 - Then, if it is still worth it, a programmable pipeline for the rest.
 - `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping wasm contains
   no vector instructions at all.
@@ -1703,9 +1706,12 @@ batch**. `Texture::bind` and `Texture::unbind` sit around every single
 level full of shines queued one quad, drew it, queued the next and drew that.
 Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run:
 a night-vision level **1.1 -> 19.0**, the level select **1.1 -> 19.0**. The
-three scenes with no shines do not move (the menu's title demo 50.2, a plain
-level 4.0, the level editor 1.0), and between 11% and 25% of the calls into
-`GL::` now do nothing at all. The saving was never the state calls. It was the
+other three do not move: the menu's title demo 50.2 and a plain level 4.0 have
+no shine in them, and the level editor's 1.0 is a palette tab with no objects
+on it, which has almost nothing to batch either way. Between 11% and 25% of the
+calls into `GL::` now do nothing at all - counting the two doors the game's own
+drawing goes through, `setTexturing` and `bindTexture`, and not the flush's own
+bracket. The saving was never the state calls. It was the
 draw calls they were breaking.
 
 Both objections were answered rather than argued with.

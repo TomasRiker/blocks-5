@@ -149,7 +149,12 @@ b5_frame()
 	# Per frame and per draw, not the raw counters: those accumulate over
 	# however many frames the machine managed between the reset and the freeze,
 	# so only a ratio is comparable between two runs.
-	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
+	#
+	# "batch draws" is sprite-batch flushes that drew something, not the
+	# frame's GL draw calls - every glBegin block and every drawQuadArray is
+	# outside this count. What it is good for is the quads-per-draw beside it,
+	# which is how much each flush carried.
+	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f batch draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
 }
 
 # Every scene starts from the menu, so one game serves the lot: the frames are
@@ -225,9 +230,13 @@ if wanted select || wanted plain || wanted night; then
 fi
 
 if wanted editor; then
-	# The editor is where the sprite batch's own bugs have shown first, twice:
-	# its object palette draws under a glTranslated of its own, so a sprite
-	# drawn under the wrong matrix leaves the screen there and nowhere else.
+	# The editor draws its object palette under a glTranslated of its own, so
+	# a sprite drawn under the wrong matrix leaves the screen there and nowhere
+	# else - which is how the batch's first two bugs showed. This scene opens
+	# on the first palette tab, and cat0.xml holds no objects at all, so what
+	# it watches for now is the rest of the editor: the tile grid, the panes
+	# and the cursor. Catching the palette again means clicking a tab that has
+	# something in it, which moves this scene's picture.
 	b5_click Menu.LevelEditor
 	b5_waitForState GS_LevelEditor
 	b5_frame editor 2000

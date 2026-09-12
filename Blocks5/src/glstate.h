@@ -93,11 +93,16 @@ namespace GL
 	// know without asking the driver.
 	const GLState& state();
 
-	// How many calls into this file did something and how many did not have to
-	// - entry points and not GL calls, which is the one number that means the
-	// same on both platforms (a matrix load is four calls on the desktop and
-	// two in the browser). That ratio is what the comparison is worth, and the
-	// test hook reports both so it can be measured rather than argued about.
+	// How many calls to setTexturing and bindTexture did something and how many
+	// did not have to. Those two and no others, because they are what the
+	// game's own drawing calls: the rest of this file is either a flush's own
+	// bracket or a once-per-texture event, and counting them would mix a
+	// saving nobody asked for into the ratio.
+	//
+	// Entry points and not GL calls, which is the one number that means the
+	// same on both platforms - a matrix load is four calls on the desktop and
+	// two in the browser. The test hook reports both, so the ratio can be
+	// measured rather than argued about.
 	uint callsIssued();
 	uint callsSkipped();
 	void resetCallCounts();
