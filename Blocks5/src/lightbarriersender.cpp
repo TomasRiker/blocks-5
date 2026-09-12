@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "lightbarriersender.h"
 #include "engine.h"
-#include "glstate.h"
 
 LightBarrierSender::LightBarrierSender(Level& level,
 									   const Vec2i& position,

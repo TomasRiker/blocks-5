@@ -14,8 +14,6 @@ void CF_Zoom::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	setupTexCoords();
-
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -36,7 +34,7 @@ void CF_Zoom::render(double t,
 	}
 
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, imageID);
+	GL::bindTexture(imageID, screenTexelScale);
 
 	double ts = t - 25.0 * 0.01;
 	for(int i = 0; i < 25; i++)

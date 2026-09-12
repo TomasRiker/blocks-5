@@ -4,7 +4,6 @@
 #include "tileset.h"
 #include "particlesystem.h"
 #include "linedrawer.h"
-#include "glstate.h"
 
 Projectile::Projectile(Level& level,
 					   const Vec2d& positionInPixels,

@@ -2766,6 +2766,11 @@ void Engine::presentFrame()
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
+	// Raw and not through GL::, which is what the three matrix stacks and the
+	// attribute stack are for: every piece of state this touches is given back
+	// before the function returns, so nothing the game drew under it can be
+	// disturbed. It is also the one place that draws while no game code is
+	// running, so there is no batch of its own to put up.
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
@@ -4171,6 +4176,16 @@ const Vec2i& Engine::getScreenSize() const
 const Vec2i& Engine::getScreenPow2Size() const
 {
 	return screenPow2Size;
+}
+
+// What a screen-sized copy of the frame is sampled with, for texture
+// coordinates given in the game's own pixels. The y is negative for two
+// reasons at once: the game's y runs downward where GL's texture y runs up,
+// and the copy sits at the top of the pow2 texture rather than at its origin -
+// under GL_REPEAT a negative coordinate wraps to exactly that band.
+Vec2d Engine::getScreenTexelScale() const
+{
+	return Vec2d(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y);
 }
 
 const Vec2i& Engine::getDisplaySize() const

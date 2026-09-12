@@ -100,7 +100,7 @@ Level::Level()
 
 	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -744,6 +744,12 @@ void Level::render()
 	if(!inEditor && raining)
 	{
 		p_rain->bind();
+
+		// The mode stays on GL_TEXTURE for the loop below, which is the one
+		// thing GL:: does not model: each layer scrolls on top of the
+		// picture's own scale inside a push and pop of its own. The snow and
+		// the clouds do the same, and one glMatrixMode(GL_MODELVIEW) past the
+		// clouds puts it back for all three.
 		glMatrixMode(GL_TEXTURE);
 
 		glEnable(GL_ALPHA_TEST);
@@ -2398,7 +2404,8 @@ void Level::renderToxicEffect()
 	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	// The scale is what puts the grid's texture coordinates below in pixels.
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 	const double t = static_cast<double>(time) / 1000.0;
@@ -2429,12 +2436,6 @@ void Level::renderToxicEffect()
 			}
 		}
 	}
-
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	double w = static_cast<double>(screenPow2Size.x), h = static_cast<double>(screenPow2Size.y);
-	glScaled(1.0 / w, -1.0 / h, 1.0);
-	glMatrixMode(GL_MODELVIEW);
 
 	// draw the grid
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "teleporter.h"
 #include "engine.h"
-#include "glstate.h"
 
 Teleporter::Teleporter(Level& level,
 					   const Vec2i& position,

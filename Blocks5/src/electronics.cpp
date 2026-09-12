@@ -3,7 +3,6 @@
 #include "pin.h"
 #include "engine.h"
 #include "linedrawer.h"
-#include "glstate.h"
 
 Electronics::Electronics(Level& level,
 						 const Vec2i& position,

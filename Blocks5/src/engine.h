@@ -363,6 +363,7 @@ public:
 
 	const Vec2i& getScreenSize() const;
 	const Vec2i& getScreenPow2Size() const;
+	Vec2d getScreenTexelScale() const;
 	const Vec2i& getDisplaySize() const;
 
 	void crossfade(Crossfade* p_crossfade, double duration, bool immediately = false);

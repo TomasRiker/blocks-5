@@ -14,13 +14,11 @@ void CF_ColorBlend::render(double t,
 						   uint oldImageID,
 						   uint newImageID)
 {
-	setupTexCoords();
-
 	if(t <= timing)
 	{
 		// draw the old image
 		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, oldImageID);
+		GL::bindTexture(oldImageID, screenTexelScale);
 		glBegin(GL_QUADS);
 		glColor4d(1.0, 1.0, 1.0, 1.0);
 		glTexCoord2i(0, 0);

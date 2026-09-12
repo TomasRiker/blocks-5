@@ -79,6 +79,10 @@ void GS_Menu::onRender()
 
 	// render the clouds
 	p_clouds->bind();
+
+	// The mode stays on GL_TEXTURE for the loop below, which is the one thing
+	// GL:: does not model: each layer scrolls on top of the picture's own
+	// scale inside a push and pop of its own.
 	glMatrixMode(GL_TEXTURE);
 
 	glEnable(GL_ALPHA_TEST);

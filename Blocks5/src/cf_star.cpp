@@ -45,14 +45,12 @@ void CF_Star::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	setupTexCoords();
-
 	// clear the stencil buffer
 	glClear(GL_STENCIL_BUFFER_BIT);
 
 	// draw the old image
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::bindTexture(oldImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(0, 0);
@@ -89,7 +87,7 @@ void CF_Star::render(double t,
 	glStencilFunc(GL_EQUAL, 1, ~0);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::bindTexture(newImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(t, t * t, t * t * t, 1.0);
 	glTexCoord2i(0, 0);

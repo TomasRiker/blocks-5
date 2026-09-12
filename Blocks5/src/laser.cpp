@@ -4,7 +4,6 @@
 #include "soundinstance.h"
 #include "tileset.h"
 #include "engine.h"
-#include "glstate.h"
 
 uint Laser::numInstances = 0;
 SoundInstance* Laser::p_soundInst = 0;

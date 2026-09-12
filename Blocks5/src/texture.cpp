@@ -2,7 +2,6 @@
 #include "texture.h"
 #include "filesystem.h"
 #include "engine.h"
-#include "glstate.h"
 
 Texture::Texture(const std::string& filename) : Resource(filename)
 {
@@ -57,10 +56,11 @@ void Texture::reload()
 	if(size.y == -1) size.y = p_surface->h;
 
 	checkDimensions();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	GL::bindTexture(texID);
+	GL::bindTexture(texID, texelScale);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -84,8 +84,6 @@ void Texture::reload()
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 }
 
 void Texture::cleanUp()
@@ -117,12 +115,11 @@ void Texture::bind() const
 	}
 
 	// Through GL::, which flushes the sprite batch: whatever is queued was
-	// queued against the binding and the matrix about to be replaced.
+	// queued against the binding and the matrix about to be replaced. The
+	// scale is what makes texture coordinates read in this picture's own
+	// texels, which is what every caller writes.
 	GL::setTexturing(true);
-	GL::bindTexture(texID);
-
-	// pixel texture coordinates
-	GL::loadTexelMatrix(texelScale);
+	GL::bindTexture(texID, texelScale);
 }
 
 void Texture::unbind() const
@@ -154,10 +151,11 @@ void Texture::loadSubTexture(Texture* p_parent,
 	this->size = size;
 
 	checkDimensions();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	GL::bindTexture(texID);
+	GL::bindTexture(texID, texelScale);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -181,8 +179,6 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 }
 
 const Vec2i& Texture::getSize() const

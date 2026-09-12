@@ -58,6 +58,10 @@ namespace
 	// Edge length of the noise image. A power of two, because it is tiled.
 	const int NOISE_SIZE = 256;
 
+	// drawSnow writes its texture coordinates in fractions of the image, so
+	// the noise is bound with the identity rather than with a texel scale.
+	const Vec2d NOISE_TEXEL_SCALE(1.0, 1.0);
+
 	// Where the recorder's on-screen display sits. Far enough in that the CRT
 	// filter's curvature does not cut it off at the corner.
 	const int OSD_X = 50;
@@ -105,12 +109,12 @@ CF_Rewind::CF_Rewind()
 	}
 
 	glGenTextures(1, &noiseID);
-	glBindTexture(GL_TEXTURE_2D, noiseID);
+	GL::bindTexture(noiseID, NOISE_TEXEL_SCALE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, NOISE_SIZE, NOISE_SIZE, 0,
 				 GL_RGB, GL_UNSIGNED_BYTE, p_pixels);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	delete[] p_pixels;
 }
@@ -128,7 +132,8 @@ void CF_Rewind::drawStrip(int y,
 						  int sourceY,
 						  double shift) const
 {
-	// The texture coordinates are in pixels, see Crossfade::setupTexCoords().
+	// The texture coordinates are in pixels, which is what screenTexelScale
+	// is for; the strip's own bind is what puts it in the matrix.
 	glBegin(GL_QUADS);
 	glTexCoord2d(shift, sourceY);
 	glVertex2i(0, y);
@@ -191,7 +196,6 @@ void CF_Rewind::render(double t,
 					   uint newImageID)
 {
 	Engine& engine = Engine::inst();
-	setupTexCoords();
 
 	glEnable(GL_TEXTURE_2D);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -228,7 +232,7 @@ void CF_Rewind::render(double t,
 		const int sourceY = static_cast<int>(wrap(y + roll, screenSize.y));
 		const int overlap = sourceY + height - screenSize.y;
 
-		glBindTexture(GL_TEXTURE_2D, useNew ? newImageID : oldImageID);
+		GL::bindTexture(useNew ? newImageID : oldImageID, screenTexelScale);
 		if(overlap <= 0) drawStrip(y, height, sourceY, shift);
 		else
 		{
@@ -243,13 +247,9 @@ void CF_Rewind::render(double t,
 	}
 
 	// --- Noise ------------------------------------------------------------
-	// A texture matrix of its own: the noise image is sampled in 0..1, not in
-	// pixels of the screen.
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glBindTexture(GL_TEXTURE_2D, noiseID);
+	// A scale of its own, which the bind carries: the noise image is sampled
+	// in 0..1 and not in pixels of the screen.
+	GL::bindTexture(noiseID, NOISE_TEXEL_SCALE);
 
 	// The bars travel downward and are fully opaque: no picture lies there.
 	for(int i = 0; i < NOISE_BARS; i++)
@@ -265,10 +265,6 @@ void CF_Rewind::render(double t,
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	drawSnow(0, screenSize.y, settle * SNOW_ALPHA);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
 
 	// --- The grey wash -----------------------------------------------------
 	glDisable(GL_TEXTURE_2D);

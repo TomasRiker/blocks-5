@@ -35,4 +35,10 @@
 #include "util.h"
 #include "manager.h"
 
+// After vec.h and SDL_opengl.h, whose types it names. It is here rather than
+// per file because every source that draws anything reaches GL:: - a raw
+// glBindTexture or GL_TEXTURE_2D enable is what verify.py's gl_state check
+// bans - and a missing include is then the one way to get a raw call past it.
+#include "glstate.h"
+
 #endif

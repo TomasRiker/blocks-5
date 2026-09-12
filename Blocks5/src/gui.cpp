@@ -109,7 +109,7 @@ void GUI::render()
 		Engine& engine = Engine::inst();
 		const Vec2i& screenSize = engine.getScreenSize();
 		const Vec2i& screenPow2Size = engine.getScreenPow2Size();
-		glBindTexture(GL_TEXTURE_2D, texID);
+		GL::bindTexture(texID, engine.getScreenTexelScale());
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 	}
 }
@@ -169,15 +169,9 @@ void GUI::display()
 	else
 	{
 		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, texID);
 
-		// pixel texture coordinates
-		glPushAttrib(GL_TRANSFORM_BIT);
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
-		const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
-		glScaled(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y, 1.0);
-		glPopAttrib();
+		// The scale is what puts the texture coordinates below in pixels.
+		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
 
 		const Vec2i& screenSize = Engine::inst().getScreenSize();
 		glBegin(GL_QUADS);

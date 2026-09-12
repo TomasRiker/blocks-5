@@ -13,8 +13,6 @@ void CF_Camera::render(double t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	setupTexCoords();
-
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -37,7 +35,7 @@ void CF_Camera::render(double t,
 	glEnable(GL_TEXTURE_2D);
 
 	// draw the old image
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::bindTexture(oldImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(screenSize.x, 0);
@@ -51,7 +49,7 @@ void CF_Camera::render(double t,
 	glEnd();
 
 	// draw the new image
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::bindTexture(newImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(screenSize.x, 0);

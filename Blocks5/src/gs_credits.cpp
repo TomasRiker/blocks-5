@@ -38,12 +38,9 @@ void GS_Credits::onRender()
 	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	double w = static_cast<double>(screenPow2Size.x), h = static_cast<double>(screenPow2Size.y);
-	glScaled(1.0 / w, -1.0 / h, 1.0);
+	// The scale is what puts the texture coordinates below in pixels.
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 0.75);
 	glTexCoord2i(0, 0);
@@ -74,7 +71,7 @@ void GS_Credits::onRender()
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 	Vec4d textColors[] = {Vec4d(1.0, 1.0, 1.0, 1.0),
@@ -256,7 +253,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 
 	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

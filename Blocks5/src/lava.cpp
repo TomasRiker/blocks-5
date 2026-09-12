@@ -2,7 +2,6 @@
 #include "lava.h"
 #include "engine.h"
 #include "particlesystem.h"
-#include "glstate.h"
 
 Lava::Lava(Level& level,
 		   const Vec2i& position,

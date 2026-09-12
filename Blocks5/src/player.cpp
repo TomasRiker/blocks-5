@@ -9,7 +9,6 @@
 #include "sound.h"
 #include "soundinstance.h"
 #include "particlesystem.h"
-#include "glstate.h"
 
 uint Player::numInstances = 0;
 std::list<Player*> Player::instances;

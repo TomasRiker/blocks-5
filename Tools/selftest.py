@@ -192,16 +192,19 @@ def c_gl_state_pop(p):
 
 @case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_bind(p):
-    p.replace('GL::bindTexture(noteTexture);',
+    p.replace('GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));',
               'glBindTexture(GL_TEXTURE_2D, noteTexture);')
 
 
 # The texture matrix is the third of the three the docstring names, and the one
-# the first draft of the check did not look at.
+# the first draft of the check did not look at. It rides on the bind now, so
+# the fault is a raw one set beside a correct bind rather than in place of it.
 @case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_matrix(p):
-    p.replace('GL::pushTextureMatrix();',
-              'glMatrixMode(GL_TEXTURE);\n\tglPushMatrix();\n\tglLoadIdentity();\n\tglMatrixMode(GL_MODELVIEW);')
+    p.replace('GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));',
+              'GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));\n'
+              '\tglMatrixMode(GL_TEXTURE);\n\tglLoadIdentity();\n'
+              '\tglMatrixMode(GL_MODELVIEW);')
 
 
 # A call split over two lines, which a line-at-a-time search cannot see.

@@ -580,11 +580,18 @@ nothing the batch can reach touches the scissor box, the colour mask, the stenci
 test, and neither check would notice if something started to. `Texture::bind`, `Texture::unbind`,
 `Engine::setBlendFunc`, `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture`
 do it themselves, so most of it is automatic. The object sources reach the other three through
-**`GLState`** (`glstate.h`) — `setTexturing`, `bindTexture`, `pushEnables`/`popEnables` and the
-texture matrix, which is the third piece of state and the one the first draft of the check was
-blind to — all of which flush before they change anything, so the rule lives in one file instead
-of at a dozen call sites where it can be forgotten. `verify.py`'s `gl_state` check bans the raw
-forms there, scoped to what the batch can reach: the sources that define an `Object::onRender`,
+**`GL::`** (`glstate.h`, which `pch.h` pulls in everywhere) — `setTexturing`, `bindTexture`,
+`pushTexturing`/`popTexturing` — all of which flush before they change anything, so the rule
+lives in one file instead of at a dozen call sites where it can be forgotten. The texture matrix
+is the third piece of state and the one the first draft of the check was blind to; it has no
+entry point of its own, because **every absolute matrix this tree sets is a function of the
+binding** — a `Texture`'s own `1/w, 1/h`, or a screen copy's `1/pow2` with a flipped y — so
+`bindTexture` takes the two numbers it is made of as its second argument and there is no way to
+bind without saying how the picture is sampled. `GLState` is the record of what the three are
+believed to hold. The weather is the one thing that wants more than a scale, and it composes its
+scroll on top of the bound picture's own inside a balanced push and pop of its own.
+
+`verify.py`'s `gl_state` check bans the raw forms there, scoped to what the batch can reach: the sources that define an `Object::onRender`,
 plus `texture.cpp` and `linedrawer.cpp`, which every one of them draws through, plus
 `Level::renderShine` and `Font::drawText` by name out of two files that are otherwise full of
 drawing with no batch open. The crossfades, the GUI and the credits are deliberately left alone,
@@ -601,10 +608,10 @@ crossfades and the rest across the engine, the credits, the GUI, `level.cpp` and
 would have to come through it too, the failure mode of a stale entry is a wrong picture rather
 than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)` restores the binding on
 the desktop while `gl_compat.cpp` restores only the mode and the enables — so the invalidation
-would differ per platform. The `glPushAttrib(GL_TRANSFORM_BIT)` that `Texture::bind` reaches
-through `GLState::loadTextureMatrix` stays for a different reason: replacing it is safe as the
-tree stands, but it would leave `bind()` with a silent precondition, and it would save nothing in
-the browser, where `glPushAttrib` issues no GL call at all. ROADMAP 44 has both.
+would differ per platform. The `glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` stays
+for a different reason: replacing it is safe as the tree stands, but it would leave the call with
+a silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues no
+GL call at all. ROADMAP 44 has both.
 
 **The flush says which matrix stack it means**, and that is not pedantry. It draws under
 `glLoadIdentity` because the vertices already carry their modelview — but a flush happens wherever
@@ -2267,7 +2274,10 @@ filenames, shipped zipped in `levels/campaigns/`.
 - Every `src/*.cpp` uses the precompiled header: `#include "pch.h"` must be the first line
   (`pch.cpp` is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, GLU,
   OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers
-  (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`), so don't re-include those.
+  (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`, `glstate.h`), so don't
+  re-include those. `glstate.h` is in that list rather than per file because every source that
+  draws reaches `GL::`, and a forgotten include is then the one way to get a raw
+  `glBindTexture` past the `gl_state` check.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj`
   **and** `Blocks5.vcxproj.filters`. `Tools/verify.py` checks this — nothing else will,
   since the Emscripten build globs `src/*.cpp` and so never notices.
