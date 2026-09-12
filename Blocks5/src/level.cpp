@@ -63,6 +63,8 @@ Level::Level()
 	p_sprites = 0;
 	p_lava[0] = p_lava[1] = 0;
 	p_noise = 0;
+	noiseOffset1 = Vec2i(0, 0);
+	noiseOffset2 = Vec2i(0, 0);
 	p_shine = 0;
 	p_rain = 0;
 	p_clouds = 0;
@@ -953,8 +955,8 @@ void Level::render()
 		// render the noise
 		engine.setBlendFunc(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
 		p_noise->bind();
-		Vec2i o1(random(0, 512 - 200), random(0, 512 - 160));
-		Vec2i o2(random(0, 512 - 300), random(0, 512 - 240));
+		const Vec2i& o1 = noiseOffset1;
+		const Vec2i& o2 = noiseOffset2;
 		glBegin(GL_QUADS);
 		glColor4d(0.4, 1.0, 0.4, 1.0);
 		glTexCoord2i(o1.x, o1.y);
@@ -1001,6 +1003,11 @@ void Level::render()
 void Level::update()
 {
 	clearAIFlags(Vec2i(-1, -1));
+
+	// The night vision's noise, on the tick like everything else that moves.
+	// The two spans are the quads' own in render().
+	noiseOffset1 = Vec2i(random(0, 512 - 200), random(0, 512 - 160));
+	noiseOffset2 = Vec2i(random(0, 512 - 300), random(0, 512 - 240));
 
 	// remove the old objects, add the new ones
 	removeOldObjects();

@@ -109,7 +109,7 @@ public:
 	uint getFlags() const;
 	void setFlags(uint flags);
 
-	// Which layers this object may draw on, as bits from . Level
+	// Which layers this object may draw on, as bits from renderlayer.h. Level
 	// walks the passes and skips an object whose bit is clear, which is most
 	// of them on most passes: with twelve layers and one drawing on one or two
 	// of them, the walk used to spend eleven twelfths of itself on a matrix
@@ -186,6 +186,17 @@ public:
 	bool shadowPass;
 	double noCollect;
 	double flashAmount;
+
+	// A random value in [-1, 1] that the shines and the two beams vary their
+	// brightness by, redrawn once per tick in frameBegin() and never in
+	// onRender(), which runs per *frame*: a random() there shimmers at the
+	// frame rate, making the same glow a strobe at 25 fps and a smooth haze
+	// at 200. One value per object, so different objects stay independent -
+	// the part that is visible - while an object's own draws move together.
+	// Never updated (an editor palette, a preview) it keeps the 0 it was
+	// built with, which is the brightness the caller asked for.
+	double glowJitter;
+
 	double conversionProgress;
 
 protected:

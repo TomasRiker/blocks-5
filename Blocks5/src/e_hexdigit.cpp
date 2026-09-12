@@ -37,7 +37,7 @@ void E_HexDigit::onRender(RenderLayer layer,
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.5, 0.5 + random(-0.05, 0.05));
+		level.renderShine(0.5, 0.5 + 0.05 * glowJitter);
 	}
 }
 

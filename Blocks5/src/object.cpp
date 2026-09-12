@@ -34,6 +34,7 @@ Object::Object(Level& level,
 	ghost = false;
 	destroyTime = 0;
 	deathCountDown = 1.0;
+	glowJitter = 0.0;
 	conversionProgress = 0.0;
 	deathSpeed = 0.0;
 	newDeathCountDown = 1.0;
@@ -936,6 +937,12 @@ void Object::frameBegin()
 		flashAmount *= FLASH_DECAY;
 		if(flashAmount < 1.0 / 256.0) flashAmount = 0.0;
 	}
+
+	// And the glow's unsteadiness for the same reason - see glowJitter. Drawn
+	// for every object rather than only for the ones that glow, because a
+	// draw from the shared generator has to happen the same number of times
+	// whatever is on screen, or a frame stops being reproducible from a seed.
+	glowJitter = random(-1.0, 1.0);
 }
 
 void Object::flash()

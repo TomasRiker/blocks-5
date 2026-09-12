@@ -276,8 +276,8 @@ def c_gl_state_namespace(p):
 # covered by it, which only reading the two in column order can see.
 @case('sprite_batch', 'Blocks5/src/stdobject.cpp')
 def c_sprite_batch_sameline(p):
-    p.replace('\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n',
-              '\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n'
+    p.replace('\t\tlevel.renderShine(0.35, 0.35 + 0.05 * glowJitter);\n\t}\n',
+              '\t\tlevel.renderShine(0.35, 0.35 + 0.05 * glowJitter);\n\t}\n'
               '\tEngine::inst().flushSprites();\n'
               '\tEngine::inst().renderSprites(sprites, color); glBegin(GL_QUADS); glEnd();\n')
 

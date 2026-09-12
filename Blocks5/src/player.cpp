@@ -154,7 +154,7 @@ void Player::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + random(-0.05, 0.05));
+		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + 0.05 * glowJitter);
 	}
 }
 

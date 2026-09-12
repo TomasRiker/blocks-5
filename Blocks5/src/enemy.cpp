@@ -94,7 +94,7 @@ void Enemy::onRender(RenderLayer layer,
 	{
 		if(subType == 1)
 		{
-			if(interest >= 10000) level.renderShine(0.6, 0.4 + random(-0.05, 0.05));
+			if(interest >= 10000) level.renderShine(0.6, 0.4 + 0.05 * glowJitter);
 		}
 	}
 }

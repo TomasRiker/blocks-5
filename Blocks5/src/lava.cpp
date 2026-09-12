@@ -160,7 +160,7 @@ void Lava::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.75, 0.35 + random(-0.05, 0.05));
+		level.renderShine(0.75, 0.35 + 0.05 * glowJitter);
 	}
 
 	if(layer == RL_EDITOR)

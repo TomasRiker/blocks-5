@@ -27,7 +27,7 @@ void LightSwitch::onRender(RenderLayer layer,
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.35, 0.25 + random(-0.05, 0.05));
+		level.renderShine(0.35, 0.25 + 0.05 * glowJitter);
 	}
 }
 

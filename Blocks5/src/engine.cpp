@@ -2891,12 +2891,22 @@ void Engine::drawPerformance()
 			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
 			 frameStats.getPercentile(FrameStats::FS_SWAP, 50));
 	// The budget is the logic rate - 20 ms, fifty frames a second - and the
-	// two counts against it answer different questions. A frame whose
-	// *interval* went over is one the player did not get; one whose *work*
-	// went over is one this game is responsible for. They come apart exactly
-	// where it matters: under swiftshader the browser ran at 38 ms a frame on
-	// 2.7 ms of work, so counting the work alone would have reported nothing
-	// wrong while the game ran at 26 fps.
+	// two counts answer different questions. A frame whose *interval* went
+	// over is one the player did not get; one whose *work* went over is one
+	// this game is responsible for. They come apart exactly where it matters:
+	// under swiftshader the browser ran at 38 ms a frame on 2.7 ms of work,
+	// so counting the work alone would have reported nothing wrong while the
+	// game ran at 26 fps.
+	//
+	// **The interval is counted against two ticks and the work against one**,
+	// and the asymmetry is the whole point. The loop aims each iteration at
+	// exactly one tick - the SDL_Delay at the foot of mainLoopIteration - so
+	// an interval threshold of one tick sits on the number the code is
+	// targeting, and a millisecond of timer granularity trips it: measured in
+	// the menu, 277 of 512 frames read as late while not one had been dropped.
+	// A frame the player actually lost is an interval of two. The work has no
+	// such problem, because nothing aims it anywhere: one tick is simply the
+	// budget a frame has to fit inside.
 	//
 	// 500 ms is a third question. That is what Emscripten's OpenAL has
 	// scheduled ahead (AL.QUEUE_LOOKAHEAD, raised in initOpenAL), so a frame
@@ -2904,11 +2914,11 @@ void Engine::drawPerformance()
 	// natively the decoder thread fills the queue whatever the main thread is
 	// doing.
 	const float budget = static_cast<float>(logicRate);
-	snprintf(line[2], sizeof(line[2]), "of %u frames: %u over %.0f ms, %u of work, %u over 500 ms",
+	snprintf(line[2], sizeof(line[2]), "%u frames: %u dropped, %u work >%.0f ms, %u >500 ms",
 			 frameStats.getCount(),
-			 frameStats.getCountOver(FrameStats::FS_INTERVAL, budget),
-			 budget,
+			 frameStats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
+			 budget,
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
 	const int lineHeight = p_font->getLineHeight();

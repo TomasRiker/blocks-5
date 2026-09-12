@@ -440,12 +440,18 @@ the emulation or the JavaScript does, and no measure of the hardware. **`interva
 `total` is what is left for it:** a frame rate that falls while `total` stays flat is time
 going somewhere this cannot see.
 
-**What counts as a late frame is the logic rate**, 20 ms, because that is the frame budget
-fifty times a second asks for — and the overlay counts against it twice, because the two
-questions come apart. A frame whose **interval** went over is one the player did not get; one
-whose **work** went over is one this game is responsible for. Under swiftshader the browser
-ran at 38 ms a frame on 2.7 ms of work: counting the work alone would have reported nothing
-wrong at 26 fps. Natively in the menu the two read 277 and 169 of 512.
+**The overlay counts two things against the logic rate, and the thresholds differ.** A frame
+whose **interval** went over is one the player did not get; one whose **work** went over is one
+this game is responsible for. Under swiftshader the browser ran at 38 ms a frame on 2.7 ms of
+work: counting the work alone would have reported nothing wrong at 26 fps.
+
+The interval is counted against **two** ticks and the work against one, and that asymmetry is
+load-bearing. The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of
+`mainLoopIteration` — so an interval threshold of one tick sits on the number the code is
+targeting and a millisecond of timer granularity trips it: the menu read **277 of 512 frames
+late while not one had been dropped**. A frame the player actually lost is an interval of two.
+The work has no such problem, because nothing aims it anywhere; one tick is simply the budget a
+frame has to fit inside.
 
 A third count stays at 500 ms, and it is a different question again: that is what Emscripten's
 OpenAL has scheduled ahead, so a frame past it is a hole in the music — in the browser only,
@@ -1276,6 +1282,31 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 (`OF_MASSIVE`, `OF_GRAVITY`, `OF_DEADLY`, `OF_ELECTRONICS`, …) plus virtual `onUpdate`,
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
+
+**Nothing in the render path draws a random number.** `onRender` runs once per *frame* while
+the logic runs at a fixed 20 ms, so a `random()` inside one shimmers at the frame rate: the
+same glow was a strobe at 25 fps and a smooth haze at 200, which made the effect a different
+effect on every machine. Thirteen `onRender`s did that, and `Level::render` did it twice more
+for the night vision's noise offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
+`frameBegin()`, and `noiseOffset1`/`noiseOffset2` are redrawn in `Level::update()` — both once
+per tick, the same place and for the same reason the flash decays there.
+
+One jitter per object and not one per use: an object's own draws in a frame therefore move
+together, which nothing can see, while different objects stay independent, which is the part
+that reads as a field of lights. It is drawn for *every* object rather than only the ones that
+glow, because a draw from the shared generator has to happen the same number of times whatever
+is on screen, or a frame stops being reproducible from a seed. An object that is never updated —
+an editor palette, a level select preview — keeps the 0 it was built with, which is exactly the
+brightness the caller asked for.
+
+**All of it is night-vision-only**, which is what bounds the change: `Level::render` walks
+`RL_LIGHT` inside `if(nightVision && !inEditor)`, so a level without night vision draws no
+shines at all. Of the frame oracle's five scenes only the two night-vision ones moved.
+
+The one place a per-frame random is still right is `CF_Rewind`: a tape's snow, tracking jitter
+and seam shift belong to an analogue signal that is synchronised to nothing, and the effect
+lasts a second and a half. It is also why a rewind transition cannot be captured by a
+byte-exact oracle.
 
 **Something that reacts lights up.** `Object::flash()` sets `flashAmount` to `FLASH_STRENGTH`;
 `frameBegin` decays it by `FLASH_DECAY` per tick and `Object::render` draws the object's own

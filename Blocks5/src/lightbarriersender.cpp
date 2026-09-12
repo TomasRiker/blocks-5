@@ -85,8 +85,8 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glVertex2dv(p);
 			glEnd();
 
-			if(layer == RL_EFFECT) color = Vec4d(1.0, random(0.2, 0.25), 0.0, 0.3 + 0.1 * cos(x));
-			else color = Vec4d(0.0, random(0.6, 0.65), 0.0, 0.2 * (0.9 + 0.1 * cos(x)));
+			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.225 + 0.025 * glowJitter, 0.0, 0.3 + 0.1 * cos(x));
+			else color = Vec4d(0.0, 0.625 + 0.025 * glowJitter, 0.0, 0.2 * (0.9 + 0.1 * cos(x)));
 			line.setWidth(0.5f);
 			line.setColor(color);
 			line.draw();

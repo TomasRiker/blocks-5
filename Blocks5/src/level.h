@@ -225,6 +225,14 @@ private:
 	Texture* p_sprites;
 	Texture* p_lava[2];
 	Texture* p_noise;
+
+	// Where the two night-vision noise quads are cut from, redrawn once per
+	// logic tick by update() and not per frame. A random() in render() makes
+	// the noise crawl at the frame rate, so the same effect is a coarse
+	// flicker at 25 fps and a fine hiss at 200 - the same reason the objects'
+	// glowJitter and their flash both live on the tick.
+	Vec2i noiseOffset1;
+	Vec2i noiseOffset2;
 	Texture* p_shine;
 	Texture* p_rain;
 	Texture* p_clouds;

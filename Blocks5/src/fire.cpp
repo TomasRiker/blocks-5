@@ -28,7 +28,7 @@ void Fire::onRender(RenderLayer layer,
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.5, 1.0 + 0.05 * sin(anim / 5.0) + random(-0.05, 0.05));
+		level.renderShine(0.5, 1.0 + 0.05 * sin(anim / 5.0) + 0.05 * glowJitter);
 	}
 }
 

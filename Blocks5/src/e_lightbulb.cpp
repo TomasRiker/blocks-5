@@ -31,7 +31,7 @@ void E_LightBulb::onRender(RenderLayer layer,
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT && on)
 	{
-		level.renderShine(1.0, 1.5 + random(-0.05, 0.05));
+		level.renderShine(1.0, 1.5 + 0.05 * glowJitter);
 	}
 }
 
