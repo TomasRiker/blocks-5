@@ -1616,8 +1616,9 @@ from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), and the three spark bursts
 red a tick with no lifetime in the divisor, so where they stop is where the
 particle has shrunk away: between 5.5 and 25.5 - and all of it relies on GL to
 cut them off. Desktop GL does: a primitive colour is clamped to [0,1] before it
-is multiplied by the texel. The browser does not. Dumping the shader
-Emscripten's emulation generates for this game gives a vertex stage of
+is multiplied by the texel. So does Emscripten, inside the one glColor4f every
+glColor* spelling reaches - but a colour *array* goes near neither. Dumping the
+shader the emulation generates for this game gives a vertex stage of
 
     v_color = a_color;
 

@@ -17,10 +17,12 @@
 // no trace in a diff, since it puts the sprites of its *neighbours* in the
 // wrong place and only on a screen that happens to hold both.
 //
-// Deliberately not a cache. Skipping a call that sets what is already set is
-// worth about four percent of what the game asks of the driver once the sprite
-// batch has taken its share - measured under swiftshader in a browser, in a
-// played level, and well under the spread between two runs. And it would be
+// Deliberately not a cache. What was measured, under swiftshader in a browser
+// and in a played level, is 28 redundant calls of the 290 the state layer
+// issues, out of 4833 in all - before the batch landed. The batch took the
+// geometry away rather than the state, so those 28 are a larger share of a much
+// smaller number now and still well under the spread between two runs. And it
+// would be
 // sound only if the fifty-one raw calls in the crossfades, the GUI and the
 // credits came through here too - seventy-two across the tree. See ROADMAP 44.
 namespace GLState

@@ -107,7 +107,7 @@ for f in $CSRCS; do o=$(compile "$f" "$CFLAGS")   || { fail=1; continue; }; OBJS
 for f in $SRCS
 do
   # Only the two that get anything out of it. It is not in CXXFLAGS: otherwise
-  # switching between the build kinds would recompile all 167 units - the two
+  # switching between the build kinds would recompile every unit - the two
   # output directories separate them anyway.
   extra=""
   case "$f" in */engine.cpp|*/testhooks.cpp) extra="$HOOKS";; esac

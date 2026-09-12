@@ -43,8 +43,8 @@
   // overlay is the opposite of what anybody types it for.
   function wants(name) {
     if (!query.has(name)) return false;
-    var v = query.get(name);
-    return v !== '0' && v !== 'false' && v !== 'off';
+    var v = query.get(name).toLowerCase();
+    return v !== '0' && v !== 'false' && v !== 'off' && v !== 'no';
   }
 
   if (wants('perf')) {

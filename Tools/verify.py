@@ -203,14 +203,25 @@ def function_starts(code):
     helper missed there does not merely go unattributed: it inherits the name,
     and therefore the exemption, of the function above it."""
     out = []
+    lines = code.split('\n')
     base, stack, offset = 0, [], 0
-    for line in code.split('\n'):
+    for i, line in enumerate(lines):
         indent = len(line) - len(line.lstrip())
         bare = line.strip()
-        if bare.startswith('namespace') and indent == base:
+        if bare.startswith('namespace') and indent == base and not bare.endswith(';'):
             stack.append(base)
+            # Where the body really sits, not one column in: a helper indented
+            # with spaces would otherwise not be a function start at all, and
+            # would inherit the name - and the exemption - of the one above.
             base = indent + 1
-        elif bare.startswith('}') and stack and indent == base - 1:
+            for j in range(i + 1, len(lines)):
+                nxt = lines[j].strip()
+                if not nxt or nxt == '{':
+                    continue
+                if not nxt.startswith('}'):
+                    base = len(lines[j]) - len(lines[j].lstrip())
+                break
+        elif bare.startswith('}') and stack and indent < base:
             base = stack.pop()
         elif indent == base and bare and bare[0] not in '#}/*' and '(' in line:
             m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
@@ -249,11 +260,11 @@ def batch_sources():
         rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
         if not rel.startswith('Blocks5/src/'):
             continue
-        text = read(p)
-        if signature.search(text) or rel in WHOLE:
-            out.append((rel, blank_noncode(text), None))
+        code = blank_noncode(read(p))
+        if signature.search(code) or rel in WHOLE:
+            out.append((rel, code, None))
         elif rel in REACHED:
-            out.append((rel, blank_noncode(text), REACHED[rel]))
+            out.append((rel, code, REACHED[rel]))
     return out
 
 
@@ -395,7 +406,7 @@ def unscanned_onrender(scanned):
     bad = []
     for p in source_files():
         rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
-        if not rel.startswith('Blocks5/src/') or not decl.search(read(p)):
+        if not rel.startswith('Blocks5/src/') or not decl.search(blank_noncode(read(p))):
             continue
         stem = rel.rsplit('.', 1)[0]
         if stem + '.cpp' in scanned or stem + '.h' in scanned:
@@ -432,7 +443,13 @@ def check_sprite_batch():
 
     The branches of one if/else chain are read as the alternatives they are, so
     a queue in the first does not ask the second to flush again - but whatever
-    the chain as a whole may have queued stands after it.
+    the chain as a whole may have queued stands after it. The arms of a
+    preprocessor conditional get the same treatment for a stronger reason: they
+    never both compile. A preprocessor line is not a dedent either, and the body
+    of a macro is not code at the point its #define stands.
+
+    What it cannot see, besides a call: a one-line if/else holding both a flush
+    and a draw, since a line is read as one sequence in column order.
 
     What it cannot see is a call: a helper of an object's own that queues, or
     one that draws, is a name to this and nothing more. That is why
@@ -458,9 +475,15 @@ def check_sprite_batch():
     conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
                              r'|^\s*else\s+\S'
                              r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
-    loopHead = re.compile(r'^\s*(?:for|while)\s*\(|^\s*do\b')
+    # A loop head anywhere on its line - `if(x) for(...)` is one, and the tree
+    # writes that - but never the `} while(...)` that ends a do-block, whose
+    # body is above it rather than below.
+    loopHead = re.compile(r'\b(?:for|while)\s*\(|^\s*do\b')
     ifHead = re.compile(r'^\s*if\s*\(')
     elseHead = re.compile(r'^\s*(?:\}\s*)?else\b')
+    ppIf = re.compile(r'^\s*#\s*if')
+    ppElse = re.compile(r'^\s*#\s*el(?:se|if)')
+    ppEnd = re.compile(r'^\s*#\s*endif')
     # Helpers entered with the batch already put up, which is the whole of the
     # exemption: what such a function does from there is read like any other.
     # Qualified, so that a same-named method of another class does not inherit
@@ -482,15 +505,18 @@ def check_sprite_batch():
         # says nothing about the draw inside it.
         requeues = set()
         for i, line in enumerate(lines):
-            if not loopHead.match(line):
+            if not loopHead.search(line) or line.strip().startswith('}'):
                 continue
             indent = len(line) - len(line.lstrip())
             body, j, opened = [line], i + 1, False
             while j < len(lines):
                 bare = lines[j].strip()
-                if bare:
+                if bare and not bare.startswith('#'):
                     # The brace of the body stands at the loop's own column in
-                    # this tree, so it cannot be the end of the body.
+                    # this tree, so it cannot be the end of the body - and a
+                    # preprocessor line carries no scope, so reading one as the
+                    # end would hide everything a loop queues below its first
+                    # #ifdef.
                     if bare == '{' and not opened:
                         opened = True
                     elif len(lines[j]) - len(lines[j].lstrip()) <= indent:
@@ -511,19 +537,39 @@ def check_sprite_batch():
             j = i + 1
             while j < len(lines) and not lines[j].strip():
                 j += 1
-            if j < len(lines) and re.match(r'^\s*else\b', lines[j]) and \
-               len(lines[j]) - len(lines[j].lstrip()) == len(line) - len(line.lstrip()):
+            if j < len(lines) and re.match(r'^\s*else\b', lines[j]):
                 heldOpen.add(i)
 
         func, flushed, flushIndent, chain, exemptCover = '', False, 0, {}, False
+        # The arms of a preprocessor conditional, as a stack of
+        # [state at the #if, its indent, anything any arm queued]. It cannot be
+        # keyed on the column the way an else chain is: these stand at column 0
+        # whatever they wrap.
+        pp, continued = [], False
         for n, line in enumerate(lines, 1):
+            # A #define continued with a backslash is still the directive: its
+            # body is not code at this point in the file, and reading it as code
+            # attributes whatever it holds to the function above.
+            if continued:
+                continued = line.rstrip().endswith('\\')
+                continue
+            if line.lstrip().startswith('#') and line.rstrip().endswith('\\'):
+                continued = True
+                continue
+            if ppIf.match(line):
+                pp.append([flushed, flushIndent, False])
+            elif ppElse.match(line) and pp:
+                flushed, flushIndent = pp[-1][0], pp[-1][1]
+            elif ppEnd.match(line) and pp:
+                head, headIndent, queued = pp.pop()
+                flushed, flushIndent = head and not queued, headIndent
             # A preprocessor line carries no scope, and this tree writes them at
             # column 0 wherever they sit - so reading one as a dedent would ask
             # for a flush again after every #ifdef inside a function body.
             if line.strip() and not line.lstrip().startswith('#'):
                 indent = len(line) - len(line.lstrip())
                 if n in starts:
-                    func, chain = starts[n], {}
+                    func, chain, pp = starts[n], {}, []
                     flushed, flushIndent = func in EXEMPT, 0
                     exemptCover = flushed
                 else:
@@ -542,8 +588,14 @@ def check_sprite_batch():
                     # A flush holds only inside the block it stands in.
                     if flushed and indent < flushIndent:
                         flushed = False
-                    if elseHead.match(line) and indent in chain:
-                        flushed, flushIndent = chain[indent][0], chain[indent][1]
+                    # The nearest chain this else can belong to, rather than
+                    # one at its exact column: a reindent or a hand-merge moves
+                    # an else without making it any less an alternative to the
+                    # branch above it.
+                    outer = [k for k in chain if k <= indent]
+                    if elseHead.match(line) and outer:
+                        head = chain[max(outer)]
+                        flushed, flushIndent = head[0], head[1]
                     elif ifHead.match(line):
                         chain[indent] = [flushed, flushIndent, False]
             if (n - 1) in requeues:
@@ -560,7 +612,7 @@ def check_sprite_batch():
                     exemptCover = False
                 elif e[1] == 'q':
                     flushed = False
-                    for entry in chain.values():
+                    for entry in list(chain.values()) + pp:
                         entry[2] = True
                 elif not flushed and (only is None or func in only):
                     bad.append('%s:%d: %s() draws with sprites possibly queued - '
@@ -644,9 +696,15 @@ def check_gl_state():
         # A function whose every glPushAttrib names only safe bits may pop as
         # well. One that pops without pushing is restoring something it cannot
         # be read against, so it is reported.
+        #
+        # Per function and not per file, which changes how much is reported
+        # rather than whether: a risky push is a finding on its own, and asking
+        # the file would add the safe bracket beside it. There is no selftest
+        # case behind that half for the same reason - both shapes report.
         pushes = {}
         for m in push.finditer(text):
-            safe = all(b in SAFE_BITS for b in re.findall(r'\bGL_\w+', m.group(1)))
+            bits = re.findall(r'\bGL_\w+', m.group(1))
+            safe = bool(bits) and all(b in SAFE_BITS for b in bits)
             pushes.setdefault(owner(m.start()), []).append((m, safe))
         risky = set(f for f, ms in pushes.items() if not all(safe for _, safe in ms))
 

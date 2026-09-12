@@ -3099,14 +3099,13 @@ void Engine::queueSprite(const Vec2i& position,
 #endif
 
 	// The transform the caller set up is read back rather than tracked. It is
-	// whatever Object::render and everything above it pushed - the translate
-	// to the object's cell, the squash of a teleporting object, the unbalanced
+	// whatever Object::render and everything above it pushed - the translate to
+	// the object's cell, the squash of a teleporting object, the unbalanced
 	// glTranslated Enemy does inside its own onRender, the half pixel
-	// Level::render puts under the wires - and baking it is what lets sprites
-	// from different objects share one draw call. Reading it costs one call
-	// against the fourteen to sixteen a sprite this path no longer makes: in
-	// the browser a copy of
-	// sixteen floats out of a JavaScript array, on a desktop client-side
+	// Level::render puts under the wires - and baking it is what lets sprites from
+	// different objects share one draw call. Reading it costs one call against the
+	// fourteen to sixteen a sprite this path no longer makes: in the browser a
+	// copy of sixteen floats out of a JavaScript array, on a desktop client-side
 	// driver state and not a pipeline stall.
 	GLfloat m[16];
 	glGetFloatv(GL_MODELVIEW_MATRIX, m);

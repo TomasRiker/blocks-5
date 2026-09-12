@@ -52,6 +52,11 @@ b5_start()
 		command -v $t >/dev/null 2>&1 || { echo "$t is missing."; exit 2; }
 	done
 
+	# Before the first destructive step, not beside the Xvfb further down:
+	# B5_OUT is the other run's screenshots and its hook directory as much as
+	# this one's, and a refusal after it is gone has refused nothing.
+	b5_clearDisplay || exit 2
+
 	rm -rf "$B5_OUT"; mkdir -p "$B5_OUT"
 	B5_TEST_DIR="$B5_OUT/hook"; mkdir -p "$B5_TEST_DIR"; export B5_TEST_DIR
 
@@ -71,7 +76,6 @@ b5_start()
 	# is taken, and the game attaches to the old server instead, where it hangs
 	# in SDL_SetVideoMode with nothing to say. Clearing it first is what makes
 	# a rerun after an aborted run mean anything.
-	b5_clearDisplay || return 1
 	Xvfb "$B5_DISP" -screen 0 ${B5_SCREEN_W}x${B5_SCREEN_H}x24 >"$B5_OUT/xvfb.log" 2>&1 &
 	B5_XVFB_PID=$!
 
@@ -164,22 +168,28 @@ b5_diagnose()
 # A server with the game still attached to it belongs to a run that is not over,
 # and killing that one takes the other run's game down mid-frame - which reads
 # as a rendering fault rather than as a collision. Two harnesses on one display
-# is the shape that produces it, so this stops instead and says which variable
-# separates them.
+# is the shape that produces it, so this stops instead and says which two
+# variables separate them - the display and the shots directory, since the hook
+# file both games poll lives in the second.
 b5_clearDisplay()
 {
 	local stale p
 	stale=$(pgrep -x Xvfb 2>/dev/null | while read -r p; do
-		tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q -- "$B5_DISP " && echo "$p"
+		tr '\0' ' ' 2>/dev/null < "/proc/$p/cmdline" | grep -q -- "$B5_DISP " && echo "$p"
 	done)
 	if [ -n "$stale" ]; then
 		# The game's own environment, not a global pgrep: a run on another
 		# display is none of this one's business.
 		for p in $(pgrep -x blocks5 2>/dev/null); do
-			if tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null |
+			# The redirections are applied left to right, so the 2>/dev/null has
+			# to come first or the shell's own "no such file" for a process that
+			# has just exited reaches the terminal.
+			if tr '\0' '\n' 2>/dev/null < "/proc/$p/environ" |
 			   grep -qx -- "DISPLAY=$B5_DISP"; then
 				echo "  ! a blocks5 is still attached to $B5_DISP, so another run is"
-				echo "    using it. Set B5_DISPLAY to something else for this one."
+				echo "    using it. Give this one its own B5_DISPLAY *and* its own"
+				echo "    B5_SHOTS: the display separates the two X servers, and the"
+				echo "    shots directory the hook file both games poll."
 				return 1
 			fi
 		done

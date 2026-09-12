@@ -259,9 +259,10 @@ there unchanged when the art moves, and it had. The `windows_icon` check compare
 image against `data/window.png` and insists on the sizes the shell asks for;
 `Tools/make_ico.py` rebuilds it.
 
-**Three checks judge only what changed since `95660bb`**, the last commit before the
+**Two checks judge only what changed since `95660bb`**, the last commit before the
 2025 overhaul, whose id is `BASELINE` at the top of `verify.py`: indentation and
-whitespace, uninitialised members, and comment density. Code that has been there for ten
+whitespace, and uninitialised members. The comment-density half of `comments` is an
+absolute 50% and judges every line. Code that has been there for ten
 years and works is not a finding, and reporting it on every run is how a check gets
 ignored.
 
@@ -325,9 +326,11 @@ a frame taken while the server was going down is not evidence of anything.
 
 **The select screen's campaign list keeps the keyboard focus after a click**, which is
 deliberate — `GUI_ListBox` handles the same four keys — and is a trap for a test that picks a
-campaign and then presses End to reach the last level. The press goes to the list, the
-selection does not move, and the screenshot is of level index 0 with nothing anywhere saying
-so. Click a level in the list of levels first, or drive it by name.
+campaign and then presses End to reach the last level. The press goes to the list, which selects
+its own last entry and therefore *another campaign* at level 0, and the screenshot is of a level
+nobody asked for with nothing anywhere saying so. There is no list of levels to click instead —
+the screen has one list box and six buttons — so take the focus off it by clicking any of them,
+or drive the navigation by element name.
 
 **Two windows open themselves over the menu, and `b5_start` writes both markers away.**
 The CRT offer appears on a first start and the donation window once enough time has been
@@ -584,7 +587,8 @@ what is already set is worth about a quarter of the texture binds in a played le
 the 290 the state layer issues, out of 4833 in all, measured under swiftshader in a browser before
 the batch landed. The batch has since taken the geometry away, so those same 28 are a larger share
 of a much smaller number and still well under the spread between two runs. Against that: all 37
-raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables outside those two files — 39 in the
+raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables outside `glstate.cpp` and `texture.cpp` —
+39 in the
 crossfades and the rest across the engine, the credits, the GUI, `level.cpp` and the level editor —
 would have to come through it too, the failure mode of a stale entry is a wrong picture rather
 than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)` restores the binding on

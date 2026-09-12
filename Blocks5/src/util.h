@@ -23,14 +23,13 @@ template<typename T> const T& clamp(const T& value,
 // A colour on its way into a vertex array, cut off where GL would have cut it
 // off. The game hands out colours above 1 on purpose and lets the hardware do
 // it: Level::renderShine takes deathCountDown * 5.0 from an exploding bomb, the
-// teleport swirl ramps its red to 2.1 and the three spark bursts climb past 5
-// and as far as 25. Desktop
-// GL clamps a primitive colour before it multiplies the texel; Emscripten's
-// emulation clamps only gl_FragColor, after the multiply, so an over-bright
-// colour eats the texture's falloff and a soft glow comes out a hard-edged
-// blob. Hence the browser build alone, and hence a function rather than a clamp
-// written out at each site - see ROADMAP item 42 for how to stop paying for it
-// there as well.
+// teleport swirl ramps its red to 2.1 and the three spark bursts climb from 5.5
+// as far as 25.5. Desktop GL clamps a primitive colour before it multiplies the
+// texel; Emscripten's emulation clamps only gl_FragColor, after the multiply,
+// so an over-bright colour eats the texture's falloff and a soft glow comes out
+// a hard-edged blob. Hence the browser build alone, and hence a function rather
+// than a clamp written out at each site - see ROADMAP item 42 for how to stop
+// paying for it there as well.
 //
 // The two callers are the only places a colour reaches GL without being cut off
 // on the way: a colour array. Every other path sets it through some glColor*,

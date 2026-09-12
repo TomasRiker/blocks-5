@@ -27,6 +27,7 @@ Exit code 1 as soon as anything is reported.
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |
 | `strings` | Every `$ID` must be in `languages.txt`, in English and in German. |
+| `bindings` | Every `%BINDING{...}` must name an action that `main.cpp` registers. |
 | `xml_attrs` | An attribute written and read nowhere is dead weight or a typo. |
 | `config` | What `Engine::saveConfig` writes must be read back again. |
 | `ctor_init` | Scalar members that the constructor does not set. |

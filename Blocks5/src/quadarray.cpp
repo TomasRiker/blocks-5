@@ -39,8 +39,8 @@ void drawQuadArray(const Vec2f* p_positions,
 }
 
 // The three attributes must share one stride and it must be no smaller than
-// what they occupy, or Emscripten's GL emulation copies the whole array through a scratch
-// buffer every draw, and says nothing: its warning for that is behind
+// what they occupy, or Emscripten's GL emulation copies the whole array through
+// a scratch buffer every draw, and says nothing: its warning for that is behind
 // GL_ASSERTIONS, which this build leaves off. Nothing else would report it.
 static_assert(sizeof(ColorQuadVertex) == 32, "ColorQuadVertex must stay tightly packed at 32 bytes");
 

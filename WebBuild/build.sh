@@ -4,12 +4,12 @@
 # Run from anywhere; paths are resolved relative to this script.
 #   ./build.sh            incremental
 #   ./build.sh clean      from scratch
-#   ./build.sh hooks      plus the test hooks from test_hooks.cpp
+#   ./build.sh hooks      plus the test hooks
 #
-# "hooks" compiles test_hooks.cpp and engine.cpp with -DBLOCKS5_TEST_HOOKS and
-# builds into build-test/ instead of build/, keeping a build with hooks from
-# ever becoming the shipped one by accident. Without the word the translation
-# unit is empty.
+# "hooks" compiles test_hooks.cpp, testhooks.cpp and engine.cpp with
+# -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, keeping a
+# build with hooks from ever becoming the shipped one by accident. Without the
+# word the first two translation units are empty and the third loses its guard.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
@@ -55,7 +55,11 @@ for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/t
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
 compile() { # $1=file $2=flags
-  local o="$OUT/obj/$(echo "$1" | md5sum | cut -c1-12)-$(basename "$1").o"
+  # The flags go into the name, not only the path: otherwise moving a file into
+  # or out of the hooks list leaves the old object lying there, because it is
+  # newer than the source - and a hooks build then links a unit built without
+  # the define, which is a test that cannot fail.
+  local o="$OUT/obj/$(echo "$1 $2" | md5sum | cut -c1-12)-$(basename "$1").o"
   local d="$o.d"
   # Reuse the object only if it is newer than the source AND every header the
   # source pulled in last time. Without the header check, editing a header that
