@@ -546,6 +546,14 @@ level the median frame goes **3.90 ms → 2.40** and its render half **2.40 → 
 spread within an arm of 0.90 and 0.30. The vertex count does not move — the same geometry, in a
 quarter to an eighth of the calls.
 
+Those five numbers were taken before the GL state layer learned to skip a call that sets what is
+already set, and the default arm has moved a long way since: the same flushes that were skipping
+nothing were also breaking the batch at every `renderSprite(Texture*)`, so the *shines* in a
+played level each got a draw call of their own. `LinuxBuild/test/frames.sh` reports draw calls per
+frame and quads per draw for five scenes on every run, and `WebBuild/test/perf.js` reports both
+beside its milliseconds; a fresh `?nobatch=1` comparison would now flatter the batch further
+still.
+
 **A sprite is drawn at the size it was given, odd numbers included.** `renderSprite` used to
 halve the size and span `size` texels over `size - 1` pixels, so anything odd came out a pixel
 short and resampled. `halfSize` and `otherHalf` split it instead, and mirroring swaps the two `u`

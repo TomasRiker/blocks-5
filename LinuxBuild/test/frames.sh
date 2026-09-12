@@ -146,7 +146,10 @@ b5_frame()
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi
-	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), batch $(b5_json "'%d/%d flushes, %d quads' % (d['batch']['draws'], d['batch']['flushes'], d['batch']['quads'])"), state $(b5_json "'%d issued, %d skipped' % (d['glstate']['issued'], d['glstate']['skipped'])"))"
+	# Per frame and per draw, not the raw counters: those accumulate over
+	# however many frames the machine managed between the reset and the freeze,
+	# so only a ratio is comparable between two runs.
+	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
 }
 
 # Every scene starts from the menu, so one game serves the lot: the frames are

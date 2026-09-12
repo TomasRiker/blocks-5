@@ -83,10 +83,10 @@ namespace GL
 
 	// Forget the lot, and nothing else: no flush and no GL call, because
 	// nothing here moves any state. For a caller that hands GL's own stacks a
-	// piece of this state and takes it back again: presentFrame's glPushAttrib bracket
-	// restores the binding on the desktop and, in the browser, only the mode
-	// and the enables - so what stands afterwards differs per platform and is
-	// not worth working out.
+	// piece of this state and takes it back again: presentFrame's glPushAttrib
+	// bracket restores the binding on the desktop and, in the browser, only
+	// the mode and the enables - so what stands afterwards differs per
+	// platform and is not worth working out.
 	void invalidate();
 
 	// What this file believes OpenGL is holding, for a caller that wants to

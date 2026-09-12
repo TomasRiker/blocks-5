@@ -181,10 +181,10 @@ namespace GL
 
 	void popTexturing()
 	{
-		// The pop restores texturing, which is state a queued quad reads, so
-		// it flushes like the rest. What it restores is whatever the matching
-		// push saved, and that is GL's business rather than this file's -
-		// hence the record is forgotten rather than guessed at.
+		// GL_ENABLE_BIT is every enable and not only texturing, so the pop can
+		// put back a blend or an alpha test that a queued quad does read - and
+		// this file cannot name what the matching push saved. Hence the flush,
+		// and hence the record forgotten rather than guessed at.
 		g_state.texturing = -1;
 		Engine::inst().flushSprites();
 		glPopAttrib();

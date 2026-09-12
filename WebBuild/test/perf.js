@@ -41,7 +41,10 @@ async function measure(page, arm) {
 	await page.waitForTimeout(WINDOW * 1000);
 	const d = await h.dump(page);
 	if (!d.frames) throw new Error('the dump carries no frame timings - is this a hooks build?');
-	return d.frames;
+	// The batch and state counters come along, because a render change usually
+	// moves those first and the milliseconds only as a consequence - and
+	// because both are accumulated over the same window as the timings.
+	return { frames: d.frames, batch: d.batch, glstate: d.glstate };
 }
 
 const median = xs => {
@@ -57,14 +60,20 @@ const median = xs => {
 	// Interleaved: repeat by repeat, not arm by arm.
 	for (let r = 0; r < REPEATS; r++) {
 		for (const arm of ARMS) {
-			const f = await measure(page, arm);
+			const m = await measure(page, arm);
+			const f = m.frames;
 			runs[arm].push(f);
+			const b = m.batch, g = m.glstate;
 			console.log('  run ' + (r + 1) + '  ' + name(arm).padEnd(12) +
 			            '  frames ' + String(f.count).padStart(4) +
 			            '   total p50 ' + f.total[0].toFixed(2) +
 			            '  p95 ' + f.total[1].toFixed(2) +
 			            '   render p50 ' + f.render[0].toFixed(2) +
-			            '   present p50 ' + f.present[0].toFixed(2));
+			            '   present p50 ' + f.present[0].toFixed(2) +
+			            (b ? '   ' + (b.draws / Math.max(f.count, 1)).toFixed(1) + ' draws/frame' +
+			                 '  ' + (b.quads / Math.max(b.draws, 1)).toFixed(1) + ' quads/draw' : '') +
+			            (g ? '  ' + (100 * g.skipped / Math.max(g.issued + g.skipped, 1)).toFixed(0) +
+			                 '% state skipped' : ''));
 		}
 	}
 
