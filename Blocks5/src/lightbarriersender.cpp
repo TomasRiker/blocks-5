@@ -90,15 +90,24 @@ void LightBarrierSender::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		// One glow per beam point, where the laser takes only every fourth of
-		// its own. The points are four pixels apart on both, but the laser's
-		// glow is half again as wide and covers the gaps; these do not. And
-		// the night vision darkens by the alpha they write, so a light field
-		// with gaps in it leaves the beam itself dark.
+		// Every fourth beam point and the laser's own glow width, which is
+		// the laser's light field exactly: the points are four pixels apart
+		// on both, so both light one pixel in sixteen, and what a line of
+		// glows lays down along a beam goes as intensity * size / spacing.
+		// The width has to come with the stride. At sixteen pixels a
+		// thirty-two pixel disc leaves gaps, and since the night vision
+		// darkens by the alpha this field writes, a beam standing in a gap
+		// comes out dark rather than dim.
+		int j = 0;
 		for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
 		{
-			const Vec2d p = *i - sp;
-			level.renderShine(0.25, 0.25 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
+			if(!(j % 4))
+			{
+				const Vec2d p = *i - sp;
+				level.renderShine(0.25, 0.4 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
+			}
+
+			j++;
 		}
 	}
 }
