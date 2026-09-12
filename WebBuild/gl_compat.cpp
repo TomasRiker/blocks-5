@@ -75,7 +75,13 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 // lava.cpp and teleporter.cpp depend on it.
 //
 // The game uses three masks - GL_TRANSFORM_BIT, GL_ENABLE_BIT and
-// GL_ALL_ATTRIB_BITS - which is why the mask is honoured, not ignored.
+// GL_ALL_ATTRIB_BITS - which is why the mask is honoured, not ignored. Test
+// each bit on its own and never against GL_ALL_ATTRIB_BITS: that one is
+// 0x000FFFFF and contains both of the others, so "mask & (GL_ENABLE_BIT |
+// GL_ALL_ATTRIB_BITS)" is "mask != 0" and every push would restore
+// everything. Desktop GL restores exactly what it was asked to, and a
+// browser that restores more is a divergence nothing on this machine can
+// see.
 static GLenum currentMatrixMode = GL_MODELVIEW;
 
 // Only the capabilities this game actually toggles - that keeps each saved
@@ -141,9 +147,9 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 	if(attribDepth >= (int)(sizeof(attribStack) / sizeof(attribStack[0]))) return;
 
 	const AttribFrame& f = attribStack[attribDepth];
-	if(f.mask & (GL_TRANSFORM_BIT | GL_ALL_ATTRIB_BITS))
+	if(f.mask & GL_TRANSFORM_BIT)
 		glMatrixMode(f.matrixMode);
-	if(f.mask & (GL_ENABLE_BIT | GL_ALL_ATTRIB_BITS))
+	if(f.mask & GL_ENABLE_BIT)
 		for(int i = 0; i < numTrackedCaps; ++i)
 			if(f.enabled[i] != capEnabled[i])
 				f.enabled[i] ? glEnable(trackedCaps[i]) : glDisable(trackedCaps[i]);
