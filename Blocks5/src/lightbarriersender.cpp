@@ -90,19 +90,15 @@ void LightBarrierSender::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		// Every fourth pixel of the beam, as the laser lights its own: a beam
-		// holds one point per pixel, and a glow every one of them is four times
-		// the light for four times the cost.
-		int j = 0;
+		// One glow per beam point, where the laser takes only every fourth of
+		// its own. The points are four pixels apart on both, but the laser's
+		// glow is half again as wide and covers the gaps; these do not. And
+		// the night vision darkens by the alpha they write, so a light field
+		// with gaps in it leaves the beam itself dark.
 		for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
 		{
-			if(!(j % 4))
-			{
-				const Vec2d p = *i - sp;
-				level.renderShine(0.25, 0.25 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
-			}
-
-			j++;
+			const Vec2d p = *i - sp;
+			level.renderShine(0.25, 0.25 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
 		}
 	}
 }
