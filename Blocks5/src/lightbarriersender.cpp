@@ -60,10 +60,17 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glTranslated(-sp.x, -sp.y, 0.0);
 			GLState::setTexturing(false);
 
+			// The sparkle pass is what the night vision shows of the beam:
+			// it is drawn after the quad that darkens everything unlit, so it
+			// is the one part not multiplied down by the light field. In
+			// daylight this beam is a thin faint thing beside the laser's,
+			// deliberately, and scaling that down again by the same 0.4
+			// leaves nothing to see in the dark - so in the dark it is drawn
+			// at the laser's strength, and only its own width is kept.
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
-			else color = Vec4d(0.0, 0.1, 0.0, 0.4 * (0.2 + 0.05 * sin(x)));
+			else color = Vec4d(0.0, 0.25, 0.0, 0.4 * (0.2 + 0.05 * sin(x)));
 			line.setWidth(2.5f);
 			line.setColor(color);
 			line.draw();
@@ -74,7 +81,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glEnd();
 
 			if(layer == RL_EFFECT) color = Vec4d(1.0, random(0.2, 0.25), 0.0, 0.3 + 0.1 * cos(x));
-			else color = Vec4d(0.0, random(0.2, 0.25), 0.0, 0.4 * (0.3 + 0.1 * cos(x)));
+			else color = Vec4d(0.0, random(0.6, 0.65), 0.0, 0.4 * (0.9 + 0.1 * cos(x)));
 			line.setWidth(0.5f);
 			line.setColor(color);
 			line.draw();
