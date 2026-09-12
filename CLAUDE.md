@@ -214,6 +214,14 @@ There are three ways to *run* it, all scripted: `LinuxBuild/test/smoke.sh` nativ
 `WebBuild/test/smoke.js` in a desktop browser, and `WebBuild/test/mobile.js` in an emulated
 phone — see **Driving the game** below.
 
+**A change whose whole question is what it looks like goes to the author to try, unbuilt.**
+Tuning a glow, a colour, a width, a timing: the build takes minutes, the screenshot oracle
+takes longer still, and neither of them can answer *is that the look I want* — only the person
+asking can, and they have the game in front of them. So make the edit, say what the numbers
+mean and which way to turn them, and stop. Everything above still applies to anything a
+compiler or a check can judge, and to a visual change that also moves code around, where the
+question is no longer only what it looks like.
+
 **A check that can pass on a previous run's artifact is worse than no check.**
 `WebBuild/build.sh` used to pipe `em++` through `tail`, so the status it tested was `tail`'s,
 and the check after it only asked whether `blocks5.wasm` existed — which it did, from the run
