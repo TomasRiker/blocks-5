@@ -169,6 +169,9 @@ void Object::render(RenderLayer layer,
 		if(mirrorY == -1) glScaled(1.0, -1.0, 1.0);
 		glTranslated(8.0, 8.0, 0.0);
 
+		// Raw geometry, so the queued sprites have to go up first: they belong
+		// underneath it.
+		Engine::inst().flushSprites();
 		glDisable(GL_LINE_SMOOTH);
 		GL::setTexturing(false);
 		glLineWidth(1.0f);

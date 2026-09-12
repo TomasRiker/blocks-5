@@ -1,15 +1,23 @@
 #include "pch.h"
 #include "quadarray.h"
+#include "engine.h"
 
-// Both of these state what they need rather than inheriting it, and that
-// includes switching off what they do not use. An array left enabled by an
-// earlier draw would be read with this draw's vertex count through a pointer
-// belonging to somebody else, which is a wild read and not a wrong picture.
+// All three state what they need rather than inheriting it, and that includes
+// switching off what they do not use. An array left enabled by an earlier draw
+// would be read with this draw's vertex count through a pointer belonging to
+// somebody else, which is a wild read and not a wrong picture.
+//
+// The first two put the sprite batch up before they draw, and that is the
+// reason it can be done here rather than at each of their callers: a built
+// array is reached as a member or a local through several layers of call, which
+// no static check can follow - the same argument LineDrawer::draw makes. The
+// third cannot, because it *is* the flush.
 
 void drawQuadArray(const QuadVertex* p_vertices,
 				   uint count)
 {
 	if(!count || !p_vertices) return;
+	Engine::inst().flushSprites();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -27,6 +35,7 @@ void drawQuadArray(const Vec2f* p_positions,
 				   uint count)
 {
 	if(!count || !p_positions) return;
+	Engine::inst().flushSprites();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);

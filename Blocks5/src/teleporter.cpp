@@ -33,7 +33,9 @@ void Teleporter::onRender(RenderLayer layer,
 	{
 		if(targetPosition != position)
 		{
-			// mark the target
+			// mark the target. Raw geometry, so the queued sprites have to go
+			// up first: they belong underneath it.
+			Engine::inst().flushSprites();
 			GL::pushTexturing();
 			GL::setTexturing(false);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);

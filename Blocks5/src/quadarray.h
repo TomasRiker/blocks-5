@@ -41,7 +41,8 @@ struct ColorQuadVertex
 };
 
 // Draw count vertices as GL_QUADS out of client memory. Whatever texture the
-// caller has bound applies, and so does its glColor.
+// caller has bound applies, and so does its glColor. Puts the sprite batch up
+// first, so a caller needs no flush of its own.
 //
 // A vertex buffer object would be the obvious next step and is not one: the
 // browser's GL emulation aborts on glDrawArrays(GL_QUADS) with a buffer bound,
@@ -55,6 +56,7 @@ void drawQuadArray(const Vec2f* p_positions, uint count);
 // And the same for quads carrying their own colours. glColor is ignored for the
 // length of the draw, and by specification indeterminate afterwards - both
 // targets happen to leave it standing, which Engine::flushSprites relies on.
+// This one does not flush the batch: it is what Engine::flushSprites calls.
 void drawQuadArray(const ColorQuadVertex* p_vertices, uint count);
 
 #endif

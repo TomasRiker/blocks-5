@@ -121,7 +121,9 @@ void Player::onRender(RenderLayer layer,
 	{
 		if(censored)
 		{
-			// render the censor bar
+			// render the censor bar. Raw geometry, so the queued sprites have
+			// to go up first: they belong underneath it.
+			Engine::inst().flushSprites();
 			GL::setTexturing(false);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);

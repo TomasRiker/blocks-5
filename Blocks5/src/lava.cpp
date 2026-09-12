@@ -152,7 +152,9 @@ void Lava::onRender(RenderLayer layer,
 
 	if(layer == RL_EDITOR)
 	{
-		// show the flow direction
+		// show the flow direction. Raw geometry, so the queued sprites have to
+		// go up first: they belong underneath it.
+		Engine::inst().flushSprites();
 		GL::pushTexturing();
 		GL::setTexturing(false);
 		glPushMatrix();

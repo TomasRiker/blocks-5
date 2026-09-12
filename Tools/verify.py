@@ -493,18 +493,24 @@ def check_sprite_batch():
     What it cannot see is a call: a helper of an object's own that queues, or
     one that draws, is a name to this and nothing more. That is why
     LineDrawer::draw flushes at its own definition rather than at its callers."""
-    breaking = re.compile(r'\bglBegin\s*\(|\bglDraw\w*\s*\(|\bglRect\w*\s*\(|'
-                          r'\bdrawQuadArray\s*\(')
+    # drawQuadArray is deliberately not here. Its two array forms flush at
+    # their own definition, for the reason LineDrawer::draw does: a built array
+    # is reached as a member or a local through layers of call that no static
+    # check can follow. Those two are the whole of what flushes for its callers,
+    # and everything else has to say so where it draws.
+    breaking = re.compile(r'\bglBegin\s*\(|\bglDraw\w*\s*\(|\bglRect\w*\s*\(')
     # The two spellings that leave a quad in the batch, and the whole set of
     # them: every other way of drawing a sprite from here - Level::renderShine,
     # Font::renderText - binds a texture of its own and so flushes on the way
     # in and on the way out again.
     queues = re.compile(r'\brenderSprites?\s*\(')
-    # GL::'s wrappers flush before they change anything, so reaching one is
-    # reaching a flush - and so is Texture::bind()/unbind(), which is written
-    # that way and nothing else in these files is.
-    flushes = re.compile(r'\bflushSprites\s*\(|\bGL::|'
-                         r'[\w)\]]\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
+    # A flush and nothing else. GL::'s wrappers and Texture::bind() used to
+    # count, because each of them put the batch up whatever it was about to
+    # change - but a state layer that can tell an unchanged state from a changed
+    # one flushes only when something moves, and "the texture was already bound"
+    # is exactly the case where it does not. So the ordering has to be said out
+    # loud wherever raw geometry is drawn.
+    flushes = re.compile(r'\bflushSprites\s*\(')
     # A statement written as the body of a braceless conditional, on the line
     # of the conditional itself. The bare `else` alternative is a backstop: the
     # chain bookkeeping below already answers an else it has paired with an if,

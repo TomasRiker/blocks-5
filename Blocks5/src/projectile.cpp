@@ -34,6 +34,10 @@ void Projectile::onRender(RenderLayer layer,
 		double traceLength = min(distance, 0.035 * speed);
 
 		Engine& engine = Engine::inst();
+
+		// Raw geometry, so the queued sprites have to go up first: they belong
+		// underneath it.
+		engine.flushSprites();
 		GL::setTexturing(false);
 
 		// render the glow

@@ -279,7 +279,7 @@ def c_sprite_batch_sameline(p):
     p.replace('\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n',
               '\t\tlevel.renderShine(0.35, 0.35 + random(-0.05, 0.05));\n\t}\n'
               '\tEngine::inst().flushSprites();\n'
-              '\tEngine::inst().renderSprites(sprites, color); drawQuadArray(0, 0);\n')
+              '\tEngine::inst().renderSprites(sprites, color); glBegin(GL_QUADS); glEnd();\n')
 
 
 # A loop whose body queues: the second turn round begins with the batch
@@ -338,8 +338,8 @@ def c_gl_state_dead_name(p):
 # its own.
 @case('sprite_batch', 'Blocks5/src/projectile.cpp')
 def c_sprite_batch_braceless(p):
-    p.replace('\t\tGL::setTexturing(false);',
-              '\t\tfor(int i = 0; i < 1; i++) GL::setTexturing(false);')
+    p.replace('\t\tengine.flushSprites();',
+              '\t\tfor(int i = 0; i < 1; i++) engine.flushSprites();')
 
 
 # The other half: a flush hoisted to the top of a function is not made wrong by

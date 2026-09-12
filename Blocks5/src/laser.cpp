@@ -101,6 +101,9 @@ void Laser::onRender(RenderLayer layer,
 			}
 
 			// render the inner and the outer beam
+			// Raw geometry, so the queued sprites have to go up first: they
+			// belong underneath it.
+			Engine::inst().flushSprites();
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
 			GL::setTexturing(false);

@@ -57,6 +57,9 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// render the inner and the outer beam
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
+			// Raw geometry, so the queued sprites have to go up first: they
+			// belong underneath it.
+			Engine::inst().flushSprites();
 			GL::setTexturing(false);
 
 			// The sparkle pass is what the night vision shows of the beam:
