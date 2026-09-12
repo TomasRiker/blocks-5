@@ -567,7 +567,6 @@ private:
 	// and a member behind it would give this class two different sizes - which
 	// is the one way to make singletons lie on top of each other in memory.
 	GLint batchTexture;
-	GLboolean batchTexturing;
 	GLdouble batchTextureMatrix[16];
 	// The batched half of renderSprite, taking the corners already worked out
 	// so the two paths cannot drift apart on the geometry.

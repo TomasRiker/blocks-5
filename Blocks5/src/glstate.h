@@ -53,6 +53,14 @@ namespace GL
 	// does not touch it.
 	void deleteTexture(GLuint id);
 
+	// Around Engine::flushSprites's own draw. The batch is sprites and a
+	// sprite is textured, so the flush says so rather than inheriting whatever
+	// stands - and that is what takes texturing out of the batch's state: a
+	// setTexturing() then moves nothing a queued quad reads. Neither flushes,
+	// for the obvious reason.
+	void beginBatchDraw();
+	void endBatchDraw();
+
 	// glPushAttrib(GL_ENABLE_BIT) and its pop, which is how lava.cpp and
 	// teleporter.cpp put texturing back after drawing their own geometry.
 	// Named for the one bit of it the batch cares about, which is also the

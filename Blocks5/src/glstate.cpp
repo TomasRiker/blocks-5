@@ -56,6 +56,21 @@ namespace GL
 		glDeleteTextures(1, &id);
 	}
 
+	void beginBatchDraw()
+	{
+		if(g_state.texturing == 1) return;
+		glEnable(GL_TEXTURE_2D);
+		// Where the record knew nothing, the enable establishes it and there
+		// is nothing to put back. Where it knew texturing was off, that is the
+		// game's wish and endBatchDraw() restores it.
+		if(g_state.texturing < 0) g_state.texturing = 1;
+	}
+
+	void endBatchDraw()
+	{
+		if(g_state.texturing == 0) glDisable(GL_TEXTURE_2D);
+	}
+
 	void pushTexturing()
 	{
 		Engine::inst().flushSprites();

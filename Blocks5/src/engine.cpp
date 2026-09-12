@@ -121,7 +121,6 @@ Engine::Engine()
 	batchDraws = 0;
 	batchQuads = 0;
 	sceneTick = 0;
-	batchTexturing = GL_FALSE;
 	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
@@ -3113,23 +3112,23 @@ void Engine::flushSprites()
 		GLdouble textureMatrix[16];
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
 		glGetDoublev(GL_TEXTURE_MATRIX, textureMatrix);
-		// All three of the states GL:: owns, because the static check reads
+		// The binding and the texture matrix, because the static check reads
 		// the sources and this reads what happened - and a helper living in
 		// level.cpp or engine.cpp is outside the check's scope while still
 		// running with a batch open.
 		//
-		// Two of the three in the browser: Emscripten's glIsEnabled answers 0
-		// for anything outside its own capability table, and GL_TEXTURE_2D is
-		// not in it, so both sides of that comparison are 0 and it can only
-		// pass. The binding and the matrix are real queries there.
-		if(texture != batchTexture || glIsEnabled(GL_TEXTURE_2D) != batchTexturing ||
+		// Not whether texturing is on: the draw below declares that for
+		// itself, so it is no longer a state the queue depends on. It could
+		// not have been checked in the browser anyway, where Emscripten's
+		// glIsEnabled answers 0 for anything outside its own capability table
+		// and GL_TEXTURE_2D is not in it.
+		if(texture != batchTexture ||
 		   memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix)))
 		{
-			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d/%d "
-					  "and is being drawn against %d/%d%s - a flush is missing.\n",
+			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d "
+					  "and is being drawn against %d%s - a flush is missing.\n",
 					  static_cast<uint>(spriteBatch.size() / 4),
-					  static_cast<int>(batchTexture), static_cast<int>(batchTexturing),
-					  static_cast<int>(texture), static_cast<int>(glIsEnabled(GL_TEXTURE_2D)),
+					  static_cast<int>(batchTexture), static_cast<int>(texture),
 					  memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix))
 						  ? ", and under another texture matrix" : "");
 		}
@@ -3155,6 +3154,9 @@ void Engine::flushSprites()
 	// across that block would still draw under the texture matrix the weather
 	// scrolls, which no bracket here can help with. Three calls a flush on the
 	// desktop, two in the browser, where gl_compat's glPushAttrib issues none.
+	// And the texturing is said rather than inherited, which is what takes it
+	// out of the batch's state - see GL::beginBatchDraw.
+	GL::beginBatchDraw();
 	glPushAttrib(GL_TRANSFORM_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -3162,6 +3164,7 @@ void Engine::flushSprites()
 	drawQuadArray(&spriteBatch[0], static_cast<uint>(spriteBatch.size()));
 	glPopMatrix();
 	glPopAttrib();
+	GL::endBatchDraw();
 
 	// The current colour is deliberately left alone. Immediate mode used to
 	// leave the last sprite's colour standing, and putting that back here
@@ -3200,7 +3203,6 @@ void Engine::queueSprite(const Vec2d& position,
 	if(spriteBatch.empty())
 	{
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &batchTexture);
-		batchTexturing = glIsEnabled(GL_TEXTURE_2D);
 		glGetDoublev(GL_TEXTURE_MATRIX, batchTextureMatrix);
 	}
 #endif
