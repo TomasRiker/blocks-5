@@ -1684,78 +1684,72 @@ leak into the key, or it would double every entry.
 
 
 
-44. Cache the GL state, or decide once and for all not to
----------------------------------------------------------
-`GLState` (`glstate.h`) owns the flush and nothing else: `setTexturing`,
-`bindTexture` and the enable-stack pair put the sprite batch on the screen
-before they change what a queued quad reads. What it deliberately does **not**
-do is skip a call that sets what is already set, and the reason is a
-measurement rather than an oversight.
+44. Cache the GL state, or decide once and for all not to  — **DONE**, cached
+---------------------------------------------------------------------------
+It is a cache now, and the arithmetic that said not to was asking the wrong
+question.
 
-Instrumenting the whole tree - every state entry point redirected to a counting
-wrapper, with the attribute stack modelled properly - gave, per frame in a
-played level: 4833 GL entry points in all, of which 2928 were immediate-mode
-geometry, 1615 matrix work and **290 state**, and of that state **28 calls were
-redundant**. A quarter of the texture binds and a third of the texture-matrix
-loads set what was already set, which sounds worth having until it is put beside
-the total. The sprite batch has since taken the geometry and most of the matrix
-traffic away, so the same 28 calls are now a larger share of a much smaller
-number - and still nowhere near the spread between two runs of the same build.
+The old measurement stands: instrumenting the whole tree - every state entry
+point redirected to a counting wrapper, with the attribute stack modelled
+properly - gave, per frame in a played level, 4833 GL entry points in all, of
+which 2928 were immediate-mode geometry, 1615 matrix work and **290 state**,
+and of that state **28 calls were redundant**. Twenty-eight calls of nearly
+five thousand is noise, and on that number the answer was to leave the
+comparison out.
 
-What a cache would cost is the other half of the arithmetic. It is sound only if
-*everything* comes through it, and outside `glstate.cpp` and `texture.cpp` that
-is 37 raw `glBindTexture` calls and 35 raw `GL_TEXTURE_2D` enables and disables -
-39 of them in the crossfades, 16 in `engine.cpp`, 7 in the credits, 5 in the
-GUI, 4 in `level.cpp` and 1 in `gs_leveleditor.cpp`. (Not in the upscalers:
-`upscaler.cpp` and the four `u_*.cpp` contain none.) Only four are init-only;
-`presentFrame` and the GUI issue theirs every frame. One missed call leaves an
-entry saying the wrong thing, after which the next skipped call is a wrong
-picture rather than a missing optimisation - for instance `Texture::bind(A)`,
-then a hint note baking, whose `acquireOffscreenTexture` binds the pooled
-texture and then 0 behind the cache's back, and the next `bind(A)` is skipped
-while texture 0 is what is actually bound.
+What it missed is that each of those redundant calls **flushed the sprite
+batch**. `Texture::bind` and `Texture::unbind` sit around every single
+`Engine::renderSprite(Texture*)`, which is what `Level::renderShine` is - so a
+level full of shines queued one quad, drew it, queued the next and drew that.
+Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run:
+a night-vision level **1.1 -> 19.0**, the level select **1.1 -> 19.0**. The
+three scenes with no shines do not move (the menu's title demo 50.2, a plain
+level 4.0, the level editor 1.0), and between 11% and 25% of the calls into
+`GL::` now do nothing at all. The saving was never the state calls. It was the
+draw calls they were breaking.
 
-Two of the restores make it harder than a list of call sites suggests.
-`presentFrame` brackets itself in `glPushAttrib(GL_ALL_ATTRIB_BITS)`, which on
-desktop GL puts the texture binding back and in `WebBuild/gl_compat.cpp` does
-not - it restores the matrix mode and the enables only. And `GLState::popEnables`
-restores texturing to whatever its matching push saved, which is GL's business
-and not this file's. So the invalidation rules would differ between the desktop
-and the browser, which is the shape of thing that is right for a year and then
-quietly is not.
+Both objections were answered rather than argued with.
 
-Two things would change the answer:
+- **Everything comes through it.** The 11 remaining raw `glBindTexture`, the 35
+  raw `GL_TEXTURE_2D` enables and the 11 `glDeleteTextures` are routed, and
+  `verify.py`'s new `gl_doors` check reads the whole tree - headers included -
+  for another. A delete needed an entry point of its own, because GL reverts
+  the binding to 0 when the bound texture is deleted. The absolute texture
+  matrix needed no entry point at all: every one this tree sets is a diagonal
+  scale and a function of the binding, so it rides on `GL::bindTexture` as a
+  second argument and `Crossfade::setupTexCoords` and its three cousins are
+  gone.
+- **The per-platform restore.** `presentFrame` keeps its raw calls inside
+  `glPushAttrib(GL_ALL_ATTRIB_BITS)` and calls `GL::invalidate()` afterwards.
+  What the pop puts back does still differ between the desktop and the browser;
+  the answer is that a record nobody can work out is dropped rather than
+  guessed, after which nothing is skipped until something establishes it again.
 
-- **A cache that checks itself.** In a `BLOCKS5_TEST_HOOKS` build, read the real
-  state back before skipping and report a mismatch. Then the invariant is tested
-  by the smoke run rather than argued about, and the routing can be done a file
-  at a time instead of in one sweep. Half of this is already written:
-  `Engine::queueSprite` reads `GL_TEXTURE_BINDING_2D`, `glIsEnabled` and
-  `GL_TEXTURE_MATRIX` at queue time and `flushSprites` compares all three, both
-  under that flag.
-- **A platform where the calls are not cheap.** These numbers come from
-  swiftshader in a desktop browser. A phone, where the main thread *is* the
-  limit, may read differently - and `WebBuild/test/perf.js` with an arm that
-  turns the cache off is how to find out rather than guess.
+And the cache checks itself, which is what this item asked for. A **native**
+test-hooks build reads the real binding, the real texture matrix and the real
+enable back on **every** call and reports a record that disagrees; `frames.sh`
+fails the run on any such line. Proved both ways: all five scenes come through
+silent, and a raw `glBindTexture(GL_TEXTURE_2D, 0)` added inside
+`Texture::bind()` for one run gives
+`+ ERROR: GL::setTexturing believes texture 8 is bound; GL says 0.` and a
+non-zero exit. Not in the browser, where the same line is a WebGL
+`getParameter` per call and would swamp everything `perf.js` measures - what it
+looks for is the tree's own code, and that is the same on both platforms.
 
-The same file holds a smaller second half. `Texture::bind` brackets its
-texture-matrix load in `glPushAttrib(GL_TRANSFORM_BIT)`/`glPopAttrib` to restore
-the matrix mode, and a trailing `glMatrixMode(GL_MODELVIEW)` would do the same
-work: of the seventeen places that switch to `GL_TEXTURE`, only `Level::render`
-binds a texture while it is current - the snow at `level.cpp:793` and the clouds
-at `:842`, the rain before them being the one that arrives with `GL_MODELVIEW`
-standing - and both re-issue the mode on the line after the bind. So it is safe
-as the tree stands.
-
-It is left alone for two reasons that are not "it would break". It would give
-`bind()` a precondition - bind only with `GL_MODELVIEW` current, or set your own
-mode afterwards - and that is the kind that fails silently and years later. And
-the saving is smaller than it looks: in the browser it is **zero**, because
-`gl_compat.cpp`'s `glPushAttrib` issues no GL call at all and its `glPopAttrib`
-issues exactly the one `glMatrixMode` the replacement would. Natively it is one
-call per bind, about forty a frame. Anyone picking this up should measure it on
-the desktop, since every number above this line was taken under swiftshader in a
-browser, where this particular change does nothing.
+The second half of this item is still open, and still for the same reason. The
+`glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` could be a trailing
+`glMatrixMode(GL_MODELVIEW)`: of the places that switch to `GL_TEXTURE`, only
+`Level::render` binds a texture while it is current - the snow and the clouds,
+the rain before them arriving with `GL_MODELVIEW` standing - and both re-issue
+the mode on the line after the bind. So it is safe as the tree stands. It is
+left alone because it would give `bindTexture()` a precondition - bind only
+with `GL_MODELVIEW` current, or set your own mode afterwards - which is the
+kind that fails silently and years later; and because the saving is **zero** in
+the browser, where `gl_compat.cpp`'s `glPushAttrib` issues no GL call at all
+and its `glPopAttrib` issues exactly the one `glMatrixMode` the replacement
+would. Natively it is one call per bind. Anyone picking it up should measure it
+on the desktop, since the numbers above the `frames.sh` ones were taken under
+swiftshader in a browser, where this particular change does nothing.
 
 
 

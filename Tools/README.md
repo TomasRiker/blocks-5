@@ -86,11 +86,17 @@ into a throwaway directory.
     LinuxBuild/build.sh         compiles and links the native build
     LinuxBuild/build.sh hooks   the same with the test hooks, into build-test/
     LinuxBuild/test/smoke.sh    drives the native build through the GUI
+    LinuxBuild/test/frames.sh   five named scenes as byte-reproducible PNGs
     WebBuild/build.sh           compiles and links the browser build
     WebBuild/build.sh hooks     the same with the test hooks, into build-test/
     WebBuild/test/smoke.js      drives the browser build through the GUI
 
 See `LinuxBuild/README.md` and `WebBuild/test/README.md`.
+
+`frames.sh` is the oracle a rendering change is checked against: run it before
+and after and compare the bytes, rather than arguing that nothing can have
+moved. It also reads the game's log at the end, which is where a hooks build
+reports a GL state record that disagrees with what OpenGL is really holding.
 
 
 Generators

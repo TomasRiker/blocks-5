@@ -257,6 +257,19 @@ namespace
 		appendInt(out, static_cast<int>(engine.batchQuads));
 		out += "}";
 
+		// And what the state layer did with the same calls: how many it had to
+		// issue against how many it could skip because OpenGL was already
+		// holding what the caller asked for.
+		out += ",\"glstate\":{\"issued\":";
+		appendInt(out, static_cast<int>(GL::callsIssued()));
+		out += ",\"skipped\":";
+		appendInt(out, static_cast<int>(GL::callsSkipped()));
+		out += ",\"texture\":";
+		appendInt(out, static_cast<int>(GL::state().texture));
+		out += ",\"texturing\":";
+		appendInt(out, GL::state().texturing);
+		out += "}";
+
 		// What the frames since the last resetStats() cost, all in
 		// milliseconds on the main thread. None of it waits for the GPU -
 		// WebGL hands over a command and returns - so these are what the
@@ -357,6 +370,7 @@ void resetStats()
 	engine.batchFlushes = 0;
 	engine.batchDraws = 0;
 	engine.batchQuads = 0;
+	GL::resetCallCounts();
 }
 
 std::string hitAt(int x, int y)

@@ -18,6 +18,14 @@
 // weather is the only thing that asks for more, and it composes its scroll on
 // top of the bound picture's own scale inside a balanced push and pop of its
 // own.
+//
+// The record decides: a call that sets what is already set is not issued, and
+// a bind that changes nothing does not flush either - which is what
+// Engine::renderSprite(Texture*) does over and over with the same texture. It
+// is sound only because every door into this state in the tree comes through
+// here, which verify.py's gl_doors check is what says, and because a
+// test-hooks build reads the real state back on every call and reports a
+// record that disagrees.
 struct GLState
 {
 	GLState();
@@ -34,13 +42,18 @@ struct GLState
 
 namespace GL
 {
-	// glEnable/glDisable(GL_TEXTURE_2D).
+	// glEnable/glDisable(GL_TEXTURE_2D). Does not flush: Engine::flushSprites
+	// declares texturing for its own draw, so nothing queued reads this.
 	void setTexturing(bool on);
 
 	// Bind to GL_TEXTURE_2D and say how the picture is to be sampled, which
 	// goes into the texture matrix. There is no one-argument form on purpose:
 	// the two belong together, and a bind that did not say would leave the
 	// matrix describing the picture before it.
+	//
+	// This is the one call here that still flushes, and only where something
+	// really moves: what is queued was queued against the binding and the
+	// scale about to be replaced.
 	//
 	// The matrix mode is put back through the attribute stack rather than set
 	// to GL_MODELVIEW, because Level::render binds the snow and the clouds
@@ -76,14 +89,18 @@ namespace GL
 	// not worth working out.
 	void invalidate();
 
-	// What this file believes OpenGL is holding. Written by every call above
-	// and, for now, read by nobody: the proxies still issue every GL call and
-	// still flush on every one, so the record cannot yet be wrong in a way
-	// that shows. Making it decide anything is a later step, and verify.py's
-	// gl_doors check is what says the record is complete enough for it: every
-	// raw door into the texture state in the tree is either through here or on
-	// a named list with a reason.
+	// What this file believes OpenGL is holding, for a caller that wants to
+	// know without asking the driver.
 	const GLState& state();
+
+	// How many calls into this file did something and how many did not have to
+	// - entry points and not GL calls, which is the one number that means the
+	// same on both platforms (a matrix load is four calls on the desktop and
+	// two in the browser). That ratio is what the comparison is worth, and the
+	// test hook reports both so it can be measured rather than argued about.
+	uint callsIssued();
+	uint callsSkipped();
+	void resetCallCounts();
 }
 
 #endif

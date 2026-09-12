@@ -9,7 +9,11 @@
 # "hooks" compiles test_hooks.cpp, testhooks.cpp and engine.cpp with
 # -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, keeping a
 # build with hooks from ever becoming the shipped one by accident. Without the
-# word the first two translation units are empty and the third loses its guard.
+# word the first two translation units are empty and the third loses the
+# readback that says a sprite batch is being drawn under state it was not
+# queued under. glstate.cpp is deliberately not on the list: its own readback
+# is a getParameter per state call, which would swamp what perf.js measures -
+# see checkRecord() there.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"

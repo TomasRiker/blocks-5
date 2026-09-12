@@ -7,10 +7,11 @@
 #   ./build.sh hooks      with the test hooks, into build-test/
 #   ./build.sh run [...]  build and start, everything after it goes to the game
 #
-# "hooks" compiles engine.cpp and testhooks.cpp with -DBLOCKS5_TEST_HOOKS and
-# builds into build-test/ instead of build/, which keeps a build with hooks from
-# ever being the shipped one by accident. Without the word, testhooks.cpp is an
-# empty translation unit.
+# "hooks" compiles engine.cpp, testhooks.cpp and glstate.cpp with
+# -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, which
+# keeps a build with hooks from ever being the shipped one by accident. Without
+# the word, testhooks.cpp is an empty translation unit and the other two lose
+# the readback checks that say a batch or the state record is being lied to.
 #
 # Needed: g++, SDL 1.2 (sdl12-compat everywhere today, hence SDL 2 underneath),
 # OpenAL, OpenGL and GLU. On Debian and Ubuntu:
@@ -112,11 +113,11 @@ total=$(echo $SRCS $CSRCS | wc -w)
 for f in $CSRCS; do o=$(compile "$f" "$CFLAGS")   || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS
 do
-  # Only the two that get anything out of it. It is not in CXXFLAGS: otherwise
-  # switching between the build kinds would recompile every unit - the two
-  # output directories separate them anyway.
+  # Only the three that get anything out of it. It is not in CXXFLAGS:
+  # otherwise switching between the build kinds would recompile every unit -
+  # the two output directories separate them anyway.
   extra=""
-  case "$f" in */engine.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
+  case "$f" in */engine.cpp|*/testhooks.cpp|*/glstate.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

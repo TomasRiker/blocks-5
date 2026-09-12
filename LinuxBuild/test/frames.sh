@@ -28,6 +28,12 @@
 # scene starts from a clean config and the developer's own levels, saves and
 # progress are neither read nor written.
 #
+# It is also the run that puts the GL state layer through its paces, which is
+# why it ends by reading the log: a hooks build reads the real binding, texture
+# matrix and enable back on every GL:: call and reports a record that
+# disagrees, and every onRender in the tree goes past here. A line there is a
+# problem and the exit code says so.
+#
 #   frames.sh <outdir> [scene ...]     default: every scene
 #   frames.sh --list
 
@@ -140,7 +146,7 @@ b5_frame()
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi
-	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), batch $(b5_json "'%d/%d flushes, %d quads' % (d['batch']['draws'], d['batch']['flushes'], d['batch']['quads'])"))"
+	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), batch $(b5_json "'%d/%d flushes, %d quads' % (d['batch']['draws'], d['batch']['flushes'], d['batch']['quads'])"), state $(b5_json "'%d issued, %d skipped' % (d['glstate']['issued'], d['glstate']['skipped'])"))"
 }
 
 # Every scene starts from the menu, so one game serves the lot: the frames are
@@ -225,7 +231,15 @@ if wanted editor; then
 	b5_release
 fi
 
+# Every "+ ERROR" the run logged, which is where GL:: reports a record that
+# disagrees with what OpenGL is really holding - a hooks build reads the state
+# back on every call. A wrong record is a wrong picture somewhere nobody was
+# looking, and a message in a log nobody reads is not a check.
 echo
+grep -q "ERROR" "$B5_OUT/run.log" \
+	&& b5_note "ERROR in the log: $(grep -m3 ERROR "$B5_OUT/run.log" | tr '\n' ' ')" \
+	|| b5_ok "no error line in the log"
+
 echo "frames in $B5_OUTDIR"
 b5_stop
 b5_finish

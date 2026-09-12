@@ -577,19 +577,32 @@ depth buffer in this 2D path, so painter's order is the only order there is: any
 or that moves any state the queued quads will be drawn under, has to flush first. In the tree as
 it stands that is the texture binding, the texture matrix, the blend function and the framebuffer —
 nothing the batch can reach touches the scissor box, the colour mask, the stencil or the alpha
-test, and neither check would notice if something started to. `Texture::bind`, `Texture::unbind`,
-`Engine::setBlendFunc`, `beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture`
-do it themselves, so most of it is automatic. The object sources reach the other three through
-**`GL::`** (`glstate.h`, which `pch.h` pulls in everywhere) — `setTexturing`, `bindTexture`,
-`pushTexturing`/`popTexturing` — all of which flush before they change anything, so the rule
-lives in one file instead of at a dozen call sites where it can be forgotten. The texture matrix
-is the third piece of state and the one the first draft of the check was blind to; it has no
-entry point of its own, because **every absolute matrix this tree sets is a function of the
-binding** — a `Texture`'s own `1/w, 1/h`, or a screen copy's `1/pow2` with a flipped y — so
-`bindTexture` takes the two numbers it is made of as its second argument and there is no way to
-bind without saying how the picture is sampled. `GLState` is the record of what the three are
-believed to hold. The weather is the one thing that wants more than a scale, and it composes its
-scroll on top of the bound picture's own inside a balanced push and pop of its own.
+test, and neither check would notice if something started to. `Engine::setBlendFunc`,
+`beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` flush themselves, and
+the object sources reach the texture state through **`GL::`** (`glstate.h`, which `pch.h` pulls
+in everywhere) — `setTexturing`, `bindTexture`, `deleteTexture`, `pushTexturing`/`popTexturing` —
+so the rule lives in one file instead of at a dozen call sites where it can be forgotten.
+
+**Only one of those still flushes, and only when something moves.** `GL::bindTexture` does, since
+what is queued was queued against the binding about to be replaced. `setTexturing` does not:
+`flushSprites` declares texturing for its own draw (`GL::beginBatchDraw`) and puts the game's
+wish back afterwards, which takes the enable out of the batch's state altogether. The texture
+matrix is the third piece and the one the first draft of the check was blind to; it has no entry
+point of its own, because **every absolute matrix this tree sets is a function of the binding** —
+a `Texture`'s own `1/w, 1/h`, or a screen copy's `1/pow2` with a flipped y — so `bindTexture`
+takes the two numbers it is made of as its second argument, there is no way to bind without
+saying how the picture is sampled, and the matrix is therefore not independent state at all. The
+weather is the one thing that wants more than a scale, and it composes its scroll on top of the
+bound picture's own inside a balanced push and pop of its own.
+
+**So the ordering is said where the drawing is.** The seven `onRender`s that draw raw geometry —
+the laser's and the light barrier's beam points, the lava's flow arrow, the censor bar, the
+projectile's point, the teleporter's target line and the speech balloon — each call
+`flushSprites()` themselves, and `drawQuadArray`'s two array forms and `LineDrawer::draw` flush
+at their own definition, because a built array is reached as a member or a local through layers
+of call that no static check can follow. `verify.py`'s `sprite_batch` check counts nothing else
+as a flush: it used to accept a `GL::` call or a `Texture::bind()`, which was true right up to
+the moment the comparison went in.
 
 `verify.py`'s `gl_state` check bans the raw forms there, scoped to what the batch can reach: the sources that define an `Object::onRender`,
 plus `texture.cpp` and `linedrawer.cpp`, which every one of them draws through, plus
@@ -597,21 +610,34 @@ plus `texture.cpp` and `linedrawer.cpp`, which every one of them draws through, 
 drawing with no batch open. The crossfades, the GUI and the credits are deliberately left alone,
 which is what keeps the ban something a reader can check.
 
-**`GLState` is not a cache, and that was measured rather than assumed.** Skipping a call that sets
-what is already set is worth about a quarter of the texture binds in a played level — 28 calls of
-the 290 the state layer issues, out of 4833 in all, measured under swiftshader in a browser before
-the batch landed. The batch has since taken the geometry away, so those same 28 are a larger share
-of a much smaller number and still well under the spread between two runs. Against that: all 37
-raw `glBindTexture` and 35 raw `GL_TEXTURE_2D` enables outside `glstate.cpp` and `texture.cpp` —
-39 in the
-crossfades and the rest across the engine, the credits, the GUI, `level.cpp` and the level editor —
-would have to come through it too, the failure mode of a stale entry is a wrong picture rather
-than a slow one, and `presentFrame`'s `glPushAttrib(GL_ALL_ATTRIB_BITS)` restores the binding on
-the desktop while `gl_compat.cpp` restores only the mode and the enables — so the invalidation
-would differ per platform. The `glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` stays
-for a different reason: replacing it is safe as the tree stands, but it would leave the call with
-a silent precondition, and it would save nothing in the browser, where `glPushAttrib` issues no
-GL call at all. ROADMAP 44 has both.
+**`GLState` skips a call that sets what is already set, and what that is worth is not the calls —
+it is the draw calls.** The old measurement asked the wrong question: 28 redundant state calls of
+4833 GL entry points a frame, which is noise, and the answer was to leave the comparison out. What
+it missed is that each of those redundant calls *flushed the sprite batch*. `Texture::bind` and
+`Texture::unbind` sit around every single `Engine::renderSprite(Texture*)`, which is what
+`Level::renderShine` is, so a level full of shines queued one quad and drew it, over and over.
+Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run: a night-vision
+level **1.1 → 19.0**, the level select **1.1 → 19.0**. The three scenes with no shines in them do
+not move — the menu's title demo stays at 50.2, a plain level at 4.0, the level editor at 1.0 —
+and between 11% and 25% of the calls into `GL::` now do nothing at all, depending on the scene.
+
+**What made it affordable is that the two objections were answered rather than argued with.** The
+routing is complete: every raw `glBindTexture`, `GL_TEXTURE_2D` enable, `glDeleteTextures` and
+absolute texture matrix in the tree comes through `GL::`, which is what the `gl_doors` check
+says — a delete included, because GL reverts the binding to 0 when the bound texture is deleted.
+`presentFrame` keeps its raw calls inside `glPushAttrib(GL_ALL_ATTRIB_BITS)` and calls
+`GL::invalidate()` afterwards, since what the pop restores differs between the desktop and the
+browser and a record nobody can work out is better dropped than guessed. And the failure mode —
+a wrong picture rather than a slow one — is checked rather than reasoned about: a **native**
+test-hooks build reads the real binding, matrix and enable back on **every** call and reports a
+record that disagrees, `frames.sh` fails on any such line, and all five scenes come through
+silent. Not in the browser, where the same line is a WebGL `getParameter` per call and would
+swamp everything `perf.js` measures; what it looks for is the tree's own code, which is the same
+on both platforms.
+
+The `glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` stays for a different reason:
+replacing it is safe as the tree stands, but it would leave the call with a silent precondition,
+and it would save nothing in the browser, where `glPushAttrib` issues no GL call at all.
 
 **The flush says which matrix stack it means**, and that is not pedantry. It draws under
 `glLoadIdentity` because the vertices already carry their modelview — but a flush happens wherever
