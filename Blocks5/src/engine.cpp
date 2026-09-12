@@ -117,6 +117,10 @@ Engine::Engine()
 	spriteBatchOpen = false;
 	spriteBatchDisabled = false;
 	batchTexture = 0;
+	batchFlushes = 0;
+	batchDraws = 0;
+	batchQuads = 0;
+	sceneTick = 0;
 	batchTexturing = GL_FALSE;
 	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
@@ -1213,6 +1217,22 @@ void Engine::mainLoopIteration()
 		const double updateBegin = getExactTime();
 		while(timeToProcess >= logicRate)
 		{
+#ifdef BLOCKS5_TEST_HOOKS
+			// Asked before the tick runs, so the clock stops on exactly the
+			// tick that was asked for. While it is stopped the harness must
+			// still be answered, or it could neither take its picture nor
+			// quit the game - but nothing else of the tick happens, and time
+			// does not move, so every frame from here on is the same one.
+			TestHooks::checkFreeze(sceneTick);
+			if(TestHooks::frozen())
+			{
+#ifndef __EMSCRIPTEN__
+				TestHooks::pollRequests();
+#endif
+				timeToProcess = 0;
+				break;
+			}
+#endif
 			update();
 
 #ifdef RECORD
@@ -1613,10 +1633,43 @@ void Engine::renderToasts()
 
 // #define PROFILE_ENGINE_RENDER
 
+#ifdef BLOCKS5_TEST_HOOKS
+// What B5_SEED asks for, or 0 for "leave the generator alone". Asked once:
+// getenv is not free and this sits at the top of two per-tick functions.
+static uint testSeed()
+{
+	static uint seed = 0;
+	static bool asked = false;
+	if(!asked)
+	{
+		asked = true;
+		const char* p_seed = ::getenv("B5_SEED");
+		if(p_seed && *p_seed) seed = static_cast<uint>(atoi(p_seed));
+	}
+	return seed;
+}
+#endif
+
 void Engine::render()
 {
 #ifdef PROFILE_ENGINE_RENDER
 	BEGIN_PROFILE(engineRender)
+#endif
+
+#ifdef BLOCKS5_TEST_HOOKS
+	// One random stream per rendered frame, keyed on the scene's tick and on
+	// nothing else. A rendered frame makes draws of its own - renderShine's
+	// jitter, the night vision's two noise offsets, a particle's colour - and
+	// how many renders fall inside one 20 ms tick is up to the frame rate, so
+	// without this the picture at a given tick depends on how fast the machine
+	// is. The odd half of the pair; update() takes the even one, which keeps
+	// the logic one stream per tick whatever the renderer does.
+	//
+	// sceneTick and not getTime(), because the engine's clock counts from
+	// startup and a harness's click lands at whatever tick the machine got to
+	// - so two runs would freeze with the level at two different ages. A
+	// level's clock starts at zero when the level loads.
+	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2 + 1);
 #endif
 
 	// Does the mouse cursor still match what is on the screen? Asked once a
@@ -1671,6 +1724,11 @@ void Engine::update()
 {
 #ifdef PROFILE_ENGINE_UPDATE
 	BEGIN_PROFILE(engineUpdate)
+#endif
+
+#ifdef BLOCKS5_TEST_HOOKS
+	// The even half of render()'s pair - see there.
+	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2);
 #endif
 
 #if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
@@ -2860,7 +2918,7 @@ void Engine::drawPerformance()
 	}
 }
 
-bool Engine::screenshot()
+bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 {
 	// Always the internal 640x480 frame: the filter and the black bars are
 	// display settings and do not belong in the file.
@@ -2874,12 +2932,43 @@ bool Engine::screenshot()
 	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
-	std::vector<uchar> png;
-	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, &png))
+	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, p_pngOut))
 	{
 		printfLog("+ ERROR: Could not encode the screenshot.\n");
 		return false;
 	}
+
+	return true;
+}
+
+bool Engine::writeScreenshot(const std::string& path)
+{
+	// The frame oracle's half of screenshot(): a name the caller chose instead
+	// of the dated one, and no sound. It goes through FileSystem like every
+	// other write, so the browser's IDBFS path works too if a test ever wants
+	// it.
+	std::vector<uchar> png;
+	if(!encodeFrame(&png)) return false;
+
+	FileSystem& fs = FileSystem::inst();
+	File* p_file = fs.openFile(path, FileSystem::FM_WRITE);
+	if(!p_file)
+	{
+		printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+		return false;
+	}
+
+	const uint numBytes = static_cast<uint>(png.size());
+	const bool saved = p_file->write(&png[0], numBytes) == numBytes && p_file->finish();
+	fs.closeFile(p_file);
+	if(!saved) printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+	return saved;
+}
+
+bool Engine::screenshot()
+{
+	std::vector<uchar> png;
+	if(!encodeFrame(&png)) return false;
 
 	char screenshotDateTime[256];
 	const time_t t = ::time(0);
@@ -2998,7 +3087,14 @@ void Engine::beginSpriteBatch()
 
 void Engine::flushSprites()
 {
+	// Counted either side of the early return, because that is exactly where
+	// the two numbers this work is aimed at come apart: a flush asked for with
+	// nothing queued costs nothing at all, and one asked for with a pass half
+	// collected costs a draw call. Only the second is worth removing.
+	batchFlushes++;
 	if(spriteBatch.empty()) return;
+	batchDraws++;
+	batchQuads += static_cast<uint>(spriteBatch.size() / 4);
 
 #ifdef BLOCKS5_TEST_HOOKS
 	{

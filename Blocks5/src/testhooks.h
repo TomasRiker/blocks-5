@@ -37,6 +37,16 @@ namespace TestHooks
 	// having the reading define it.
 	void resetStats();
 
+	// Stop the logic clock at a named tick, which is what makes a frame
+	// comparable between two builds: the seeded generator is keyed on the
+	// tick, and how many ticks a machine catches up with inside one rendered
+	// frame is up to how fast it is. checkFreeze() is asked at the top of
+	// every tick, before it runs, so the tick it stops on is exactly the one
+	// that was asked for.
+	void freezeAt(uint tick);
+	void checkFreeze(uint tick);
+	bool frozen();
+
 #ifndef __EMSCRIPTEN__
 	// Once per logic tick from Engine::update(). If a request is sitting in
 	// the test directory, it is answered.

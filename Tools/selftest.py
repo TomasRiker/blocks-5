@@ -122,6 +122,15 @@ def c_attrs(p):
     p.replace('SetAttribute("numLayers"', 'SetAttribute("NUM_LAYERS"')
 
 
+# The bug this catches is the one that costs the most to find by hand: the two
+# sizes are consistent within each translation unit, so the compiler is happy
+# and the wreckage turns up as a corrupt pointer somewhere else entirely.
+@case('hooks_layout', 'Blocks5/src/engine.h')
+def c_hooks_layout(p):
+    p.replace('\tuint batchFlushes;',
+              '#ifdef BLOCKS5_TEST_HOOKS\n\tuint batchFlushes;\n#endif')
+
+
 # Two files, because the two builds fail differently: a list in the game's own
 # sources compiles everywhere and only misbehaves in the browser, and a stub in
 # gl_compat.cpp is what used to make that link succeed quietly.

@@ -92,6 +92,13 @@ int randomInt();
 int random(int min, int max);
 float random(float min, float max);
 double random(double min, double max);
+
+// Seed the one generator all four of those draw from. Only the test build
+// calls it, and only where B5_SEED asks: a shipped game wants MTRand's own
+// seeding from the clock. It is here so that a frame can be made
+// byte-reproducible, which is what lets a change that should move no pixel be
+// proved rather than asserted - see LinuxBuild/test/frames.sh.
+void seedRandom(uint seed);
 Vec2i numberToDir(int dir);
 void generatePrimes(uint* p_out, uint maxNum);
 uint fromBase62(const char* p_in);

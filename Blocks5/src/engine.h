@@ -97,6 +97,15 @@ public:
 	// false where no image could be produced. In the browser it goes to the
 	// player as a download instead of as a file in the user directory.
 	bool screenshot();
+	// The frame as PNG bytes, and the same under a name the caller chose.
+	bool encodeFrame(std::vector<uchar>* p_pngOut);
+	bool writeScreenshot(const std::string& path);
+	// See flushSprites() and Level::update(); unconditional for the reason
+	// batchTexture gives below.
+	uint batchFlushes;
+	uint batchDraws;
+	uint batchQuads;
+	uint sceneTick;
 
 	// The framebuffer the game renders into: always 640x480, whatever the
 	// window size. Every calculation in screen coordinates stays valid.

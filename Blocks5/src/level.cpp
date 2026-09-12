@@ -1178,6 +1178,14 @@ void Level::update()
 
 	counter++;
 	time += 20;
+
+	// The clock the frame oracle runs on - see Engine::sceneTick. Reported
+	// from here because a level is the only thing in the game with a clock
+	// that starts at zero when the screen does. Not behind
+	// BLOCKS5_TEST_HOOKS: that define reaches engine.cpp and testhooks.cpp
+	// and no other translation unit, so a guard here would simply never
+	// compile.
+	Engine::inst().sceneTick = static_cast<uint>(time);
 }
 
 void Level::renderTiles(int layer,

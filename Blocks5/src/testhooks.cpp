@@ -237,6 +237,26 @@ namespace
 		out += ",\"particlePeak\":";
 		appendInt(out, static_cast<int>(ParticleSystem::takePeakCount()));
 
+		// The logic tick, in milliseconds. A test that wants a named frame
+		// waits for this rather than for an interval: it is what the seeded
+		// generator is keyed on, so two runs agree on the picture only where
+		// they agree on this.
+		out += ",\"time\":";
+		appendInt(out, static_cast<int>(engine.getTime()));
+		out += ",\"scene\":";
+		appendInt(out, static_cast<int>(engine.sceneTick));
+		out += ",\"frozen\":";
+		out += TestHooks::frozen() ? "true" : "false";
+
+		// What the sprite batch did since the last resetstats.
+		out += ",\"batch\":{\"flushes\":";
+		appendInt(out, static_cast<int>(engine.batchFlushes));
+		out += ",\"draws\":";
+		appendInt(out, static_cast<int>(engine.batchDraws));
+		out += ",\"quads\":";
+		appendInt(out, static_cast<int>(engine.batchQuads));
+		out += "}";
+
 		// What the frames since the last resetStats() cost, all in
 		// milliseconds on the main thread. None of it waits for the GPU -
 		// WebGL hands over a command and returns - so these are what the
@@ -305,9 +325,38 @@ std::string dump()
 	return buildDump();
 }
 
+namespace
+{
+	// ~0u for "never". A tick and not a countdown, so two runs that reach it
+	// after a different number of rendered frames still stop in the same
+	// place.
+	uint freezeTick = ~0u;
+	bool isFrozen = false;
+}
+
+void freezeAt(uint tick)
+{
+	freezeTick = tick;
+	isFrozen = false;
+}
+
+void checkFreeze(uint tick)
+{
+	if(tick >= freezeTick) isFrozen = true;
+}
+
+bool frozen()
+{
+	return isFrozen;
+}
+
 void resetStats()
 {
-	Engine::inst().getFrameStats().clear();
+	Engine& engine = Engine::inst();
+	engine.getFrameStats().clear();
+	engine.batchFlushes = 0;
+	engine.batchDraws = 0;
+	engine.batchQuads = 0;
 }
 
 std::string hitAt(int x, int y)
@@ -350,8 +399,25 @@ void pollRequests()
 
 	std::string answer;
 	int x = 0, y = 0;
+	uint freezeMs = 0;
 	if(sscanf(line, "hit %d %d", &x, &y) == 2) answer = hitAt(x, y);
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
+	else if(sscanf(line, "freeze %u", &freezeMs) == 1)
+	{
+		freezeAt(freezeMs);
+		answer = "ok\n";
+	}
+	else if(!strncmp(line, "shot ", 5))
+	{
+		// The picture the game itself read out of its framebuffer, at
+		// 640x480 whatever the window is doing - so the oracle compares the
+		// game's own frame and not a screen grab of a scaled window. fgets
+		// leaves the newline on.
+		std::string path(line + 5);
+		while(!path.empty() && (path[path.length() - 1] == '\n' ||
+								path[path.length() - 1] == '\r')) path.resize(path.length() - 1);
+		answer = Engine::inst().writeScreenshot(path) ? "ok\n" : "failed\n";
+	}
 	else answer = dump();
 
 	const std::string temporaryPath(directory + "/response.tmp");

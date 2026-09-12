@@ -365,6 +365,45 @@ def check_display_lists():
     return bad
 
 
+@check('hooks_layout')
+def check_hooks_layout():
+    """No BLOCKS5_TEST_HOOKS conditional in a header under Blocks5/src.
+
+    The define reaches engine.cpp and testhooks.cpp and no other translation
+    unit of the hundred and twenty, so a member declared behind it gives its
+    class two sizes: the two files that have the define see one layout and
+    everything else sees another, and every access from the rest of the tree
+    then lands at the wrong offset. What that looks like is not a compile
+    error and not a wrong number - it is a corrupt pointer in some unrelated
+    read, which is as far from the cause as a bug gets.
+
+    The rule is therefore that a header declares the same thing whatever the
+    build, and the cost of obeying it is a few unused members in a shipped
+    binary. engine.h says so beside batchTexture, two hundred lines from
+    where the next person will add theirs, which is what this check is for.
+
+    testhooks.h is exempt: what it guards is free function declarations in a
+    namespace, and a declaration nobody calls has no layout to disagree
+    about."""
+    EXEMPT = {'Blocks5/src/testhooks.h'}
+    guard = re.compile(r'^\s*#\s*(?:if|ifdef|ifndef|elif)\b.*\bBLOCKS5_TEST_HOOKS\b')
+    bad = []
+    seen = set()
+    for path in source_files():
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not rel.endswith('.h'):
+            continue
+        if rel in EXEMPT:
+            seen.add(rel)
+            continue
+        for n, line in enumerate(read(path).split('\n'), 1):
+            if guard.search(line):
+                bad.append('%s:%d: BLOCKS5_TEST_HOOKS in a header - declare it '
+                           'whatever the build, or the class gets two sizes' % (rel, n))
+    bad.extend(dead_names(EXEMPT, seen, 'the hooks_layout check'))
+    return bad
+
+
 @check('render_layers')
 def check_render_layers():
     """A render layer is named, never a number.
