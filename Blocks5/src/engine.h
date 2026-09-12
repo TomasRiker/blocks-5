@@ -229,8 +229,10 @@ public:
 	// any one: the options dialog sets its six sliders, and the main menu
 	// offers it once.
 	U_Crt& getCrt() const { return *p_crt; }
-	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
-	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+	// A Vec2d position, so that a sprite off the grid needs no glTranslated of
+	// its own - see Level::renderShine.
+	void renderSprite(const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+	void renderSprite(Texture* p_sprite, const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 
 	// Draw all sprites of an object. color is the colour of the render pass;
 	// each sprite's own tint comes on top of it.
@@ -559,7 +561,7 @@ private:
 	GLdouble batchTextureMatrix[16];
 	// The batched half of renderSprite, taking the corners already worked out
 	// so the two paths cannot drift apart on the geometry.
-	void queueSprite(const Vec2i& position, const Vec2i& halfSize, const Vec2i& otherHalf,
+	void queueSprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
 					 int u0, int u1, int v0, int v1,
 					 const Vec4d& color, double rotation, double scaling);
 	// The start of the previous turn of the main loop, for the interval

@@ -90,13 +90,19 @@ void LightBarrierSender::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
+		// Every fourth pixel of the beam, as the laser lights its own: a beam
+		// holds one point per pixel, and a glow every one of them is four times
+		// the light for four times the cost.
+		int j = 0;
 		for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
 		{
-			Vec2d p = *i - sp;
-			glPushMatrix();
-			glTranslated(p.x - 7.5, p.y - 7.5, 0.0);
-			level.renderShine(0.25, 0.25 + random(-0.05, 0.05));
-			glPopMatrix();
+			if(!(j % 4))
+			{
+				const Vec2d p = *i - sp;
+				level.renderShine(0.25, 0.25 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
+			}
+
+			j++;
 		}
 	}
 }

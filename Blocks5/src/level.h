@@ -59,7 +59,12 @@ public:
 	void renderTiles(int layer, const Vec2i& offset, const Vec4d& color);
 	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4d& color, bool shadow);
 	void sortObjects();
-	void renderShine(double intensity, double size);
+	// The offset is added inside the caller's own matrix, which is why it is not
+	// called a position: it is where the glow sits relative to the cell the
+	// object is already drawn in. A laser wants one per four pixels of beam and
+	// a light barrier one per pixel, and a matrix bracket each would be the
+	// most expensive thing in the frame.
+	void renderShine(double intensity, double size, const Vec2d& offset = Vec2d(0.0));
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);
 	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, double radiusSq = 74.0);
 	Object* getFrontObjectAt(const Vec2i& position);

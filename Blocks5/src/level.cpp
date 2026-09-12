@@ -1296,9 +1296,10 @@ void Level::sortObjects()
 }
 
 void Level::renderShine(double intensity,
-						double size)
+						double size,
+						const Vec2d& offset)
 {
-	Engine::inst().renderSprite(p_shine, Vec2i(-56, -56), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
+	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
 }
 
 bool Level::isFreeAt(const Vec2i& position,

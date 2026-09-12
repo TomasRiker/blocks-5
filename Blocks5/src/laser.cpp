@@ -143,11 +143,9 @@ void Laser::onRender(RenderLayer layer,
 			{
 				if(!(j % 4))
 				{
-					Vec2d p = *i - sp;
-					glPushMatrix();
-					glTranslated(p.x - 7.5, p.y - 7.5, 0.0);
-					level.renderShine(0.25, on * (0.4 + random(-0.05, 0.05)));
-					glPopMatrix();
+					const Vec2d p = *i - sp;
+					level.renderShine(0.25, on * (0.4 + random(-0.05, 0.05)),
+									  p - Vec2d(7.5, 7.5));
 				}
 
 				j++;

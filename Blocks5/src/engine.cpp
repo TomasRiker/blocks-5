@@ -2921,7 +2921,7 @@ bool Engine::screenshot()
 #endif
 }
 
-void Engine::renderSprite(const Vec2i& position,
+void Engine::renderSprite(const Vec2d& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
 						  const Vec4d& color,
@@ -3072,7 +3072,7 @@ void Engine::endSpriteBatch()
 	spriteBatchOpen = false;
 }
 
-void Engine::queueSprite(const Vec2i& position,
+void Engine::queueSprite(const Vec2d& position,
 						 const Vec2i& halfSize,
 						 const Vec2i& otherHalf,
 						 int u0,
@@ -3160,7 +3160,7 @@ void Engine::queueSprite(const Vec2i& position,
 }
 
 void Engine::renderSprite(Texture* p_sprite,
-						  const Vec2i& position,
+						  const Vec2d& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
 						  const Vec4d& color,

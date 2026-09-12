@@ -61,11 +61,8 @@ void Projectile::onRender(RenderLayer layer,
 	else if(layer == RL_LIGHT)
 	{
 		// make the projectile shine
-		glPushMatrix();
-		glTranslated(positionInPixels.x - 8.0, positionInPixels.y - 8.0, 0.0);
-		double s = fabs(life);
-		level.renderShine(0.5 * s, 0.4 * s);
-		glPopMatrix();
+		const double s = fabs(life);
+		level.renderShine(0.5 * s, 0.4 * s, positionInPixels - Vec2d(8.0, 8.0));
 	}
 }
 

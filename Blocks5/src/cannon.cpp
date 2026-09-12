@@ -51,11 +51,8 @@ void Cannon::onRender(RenderLayer layer,
 			s *= s;
 			s *= s;
 			s *= s;
-			Vec2d up = 6 * intToDir(dir);
-			glPushMatrix();
-			glTranslated(up.x, up.y, 0.0);
-			level.renderShine(s * 2.0, s * 2.0);
-			glPopMatrix();
+			const Vec2d up = 6 * intToDir(dir);
+			level.renderShine(s * 2.0, s * 2.0, up);
 		}
 	}
 }
