@@ -252,12 +252,12 @@ def c_sprite_batch_scope(p):
 
 
 # A helper is a new function and must not inherit the flush of the one above
-# it. Texture::bind() is the one that ends flushed, so it is what the case has
-# to follow for the inheritance to be the thing under test.
-@case('sprite_batch', 'Blocks5/src/texture.cpp')
+# it. LineDrawer::draw() is the one that ends flushed, so it is what the case
+# has to follow for the inheritance to be the thing under test.
+@case('sprite_batch', 'Blocks5/src/linedrawer.cpp')
 def c_sprite_batch_helper(p):
-    p.replace('void Texture::unbind() const',
-              'static void drawBlob()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Texture::unbind() const')
+    p.replace('void LineDrawer::setPoints(',
+              'static void drawBlob()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid LineDrawer::setPoints(')
 
 
 # The same helper one level in, inside an anonymous namespace - the idiom
@@ -316,11 +316,12 @@ def c_gl_state_push_mask(p):
     p.replace('GL::pushTexturing();', 'glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);')
 
 
-# texture.cpp has no exception of its own: its two glPushAttrib brackets are
-# inside the two exempt functions, so a pop added to the funnel is reported.
+# texture.cpp pushes no attributes of its own at all, so a pop added to the
+# funnel every object binds through restores something that cannot be read
+# against a push, and is reported.
 @case('gl_state', 'Blocks5/src/texture.cpp')
 def c_gl_state_texture_pop(p):
-    p.replace('void Texture::unbind() const\n{', 'void Texture::unbind() const\n{\n\tglPopAttrib();')
+    p.replace('void Texture::bind() const\n{', 'void Texture::bind() const\n{\n\tglPopAttrib();')
 
 
 # The gl_state half of the dead-name guard. It has to name one of the helpers

@@ -613,8 +613,8 @@ which is what keeps the ban something a reader can check.
 **`GLState` skips a call that sets what is already set, and what that is worth is not the calls —
 it is the draw calls.** The old measurement asked the wrong question: 28 redundant state calls of
 4833 GL entry points a frame, which is noise, and the answer was to leave the comparison out. What
-it missed is that each of those redundant calls *flushed the sprite batch*. `Texture::bind` and
-`Texture::unbind` sit around every single `Engine::renderSprite(Texture*)`, which is what
+it missed is that each of those redundant calls *flushed the sprite batch*. A bind and a switch
+back off sit around every single `Engine::renderSprite(Texture*)`, which is what
 `Level::renderShine` is, so a level full of shines queued one quad and drew it, over and over.
 Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run: a night-vision
 level **1.1 → 19.0**, the level select **1.1 → 19.0**. The three scenes with no shines in them do
@@ -2320,7 +2320,7 @@ filenames, shipped zipped in `levels/campaigns/`.
 
   ```
   sh Tools/compile_db.sh
-  clang-rename-18 -i --qualified-name='Texture::unbind' --new-name='...' Blocks5/src/*.cpp
+  clang-rename-18 -i --qualified-name='Texture::bind' --new-name='...' Blocks5/src/*.cpp
   ```
 
   The reason is not tidiness. A `sed` over `GLState::` → `GL::` also rewrites

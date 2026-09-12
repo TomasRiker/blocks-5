@@ -174,12 +174,12 @@ void TileSet::writeTile(uint id,
 void TileSet::drawVertices(const QuadVertex* p_vertices,
 						   uint count) const
 {
-	// The bind and the unbind happen even for a layer with no tiles in it,
-	// because unbind() is glDisable(GL_TEXTURE_2D) and the state every later
-	// draw inherits must not depend on whether a layer happened to be empty.
+	// The bind and the switch back off happen even for a layer with no tiles in
+	// it: the state every later draw inherits must not depend on whether a
+	// layer happened to be empty.
 	p_texture->bind();
 	drawQuadArray(p_vertices, count);
-	p_texture->unbind();
+	GL::setTexturing(false);
 }
 
 Texture* TileSet::getTexture()

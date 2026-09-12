@@ -154,7 +154,7 @@ void ParticleSystem::render()
 	glEnd();
 #endif
 
-	p_sprites->unbind();
+	GL::setTexturing(false);
 
 #ifdef PROFILE_PARTICLESYSTEM_RENDER
 	END_PROFILE(renderParticleSystem)

@@ -118,7 +118,7 @@ void GS_Menu::onRender()
 
 	glDisable(GL_ALPHA_TEST);
 
-	p_clouds->unbind();
+	GL::setTexturing(false);
 	glMatrixMode(GL_MODELVIEW);
 
 	// render the title level
@@ -140,7 +140,7 @@ void GS_Menu::onRender()
 	glTexCoord2i(0, 480);
 	glVertex2i(0, 480);
 	glEnd();
-	p_background->unbind();
+	GL::setTexturing(false);
 }
 
 void GS_Menu::onUpdate()

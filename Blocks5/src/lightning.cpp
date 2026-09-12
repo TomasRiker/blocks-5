@@ -115,7 +115,7 @@ void Lightning::drawPass(int pass)
 
 	p_lineTexture->bind();
 	drawQuadArray(&p.mainBranch[0], static_cast<uint>(p.mainBranch.size()));
-	p_lineTexture->unbind();
+	GL::setTexturing(false);
 
 	// The end point of the main branch, as a single point of the same width.
 	// It goes between the two batches and not after them, because the other
@@ -129,7 +129,7 @@ void Lightning::drawPass(int pass)
 	{
 		p_lineTexture->bind();
 		drawQuadArray(&p.otherBranches[0], static_cast<uint>(p.otherBranches.size()));
-		p_lineTexture->unbind();
+		GL::setTexturing(false);
 	}
 }
 

@@ -316,7 +316,7 @@ void GS_Credits::renderStars()
 		glPopMatrix();
 	}
 
-	p_sprites->unbind();
+	GL::setTexturing(false);
 }
 
 void GS_Credits::updateStars()

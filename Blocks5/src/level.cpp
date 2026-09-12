@@ -642,7 +642,7 @@ void Level::render()
 			glTexCoord2i(0, 480);
 			glVertex2i(0, 480);
 			glEnd();
-			p_background->unbind();
+			GL::setTexturing(false);
 		}
 	}
 
@@ -681,7 +681,7 @@ void Level::render()
 	glDisable(GL_ALPHA_TEST);
 	glColorMask(1, 1, 1, 1);
 
-	p_lavaEdges->unbind();
+	GL::setTexturing(false);
 	p_lavaEdges->release();
 
 	glStencilFunc(GL_EQUAL, 0, ~0);
@@ -691,11 +691,11 @@ void Level::render()
 	// render the lava
 	p_lava[0]->bind();
 	renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	p_lava[0]->unbind();
+	GL::setTexturing(false);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	p_lava[1]->bind();
 	renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	p_lava[1]->unbind();
+	GL::setTexturing(false);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 	glDisable(GL_STENCIL_TEST);
@@ -790,7 +790,7 @@ void Level::render()
 
 		glDisable(GL_ALPHA_TEST);
 
-		p_rain->unbind();
+		GL::setTexturing(false);
 	}
 
 	// Snow
@@ -839,7 +839,7 @@ void Level::render()
 
 		glDisable(GL_ALPHA_TEST);
 
-		p_snow->unbind();
+		GL::setTexturing(false);
 	}
 
 	// Clouds
@@ -880,7 +880,7 @@ void Level::render()
 			glPopMatrix();
 		}
 
-		p_clouds->unbind();
+		GL::setTexturing(false);
 	}
 
 	glMatrixMode(GL_MODELVIEW);
@@ -974,7 +974,7 @@ void Level::render()
 		glTexCoord2i(o2.x, o2.y + 240);
 		glVertex2i(-100, 580);
 		glEnd();
-		p_noise->unbind();
+		GL::setTexturing(false);
 
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
@@ -1281,7 +1281,7 @@ void Level::renderObjects(RenderLayer layer,
 
 	engine.endSpriteBatch();
 
-	if(!(layer & ownTexture)) p_sprites->unbind();
+	if(!(layer & ownTexture)) GL::setTexturing(false);
 }
 
 void Level::sortObjects()

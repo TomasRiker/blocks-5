@@ -1736,6 +1736,11 @@ void Engine::update()
 	TestHooks::pollRequests();
 #endif
 
+	// Nothing needs a texture's decoded pixels after the tick it was loaded in:
+	// the two callers that do ask to keep them (the tile set and the level's
+	// sprites, for the debris sampling) ask before this runs.
+	Texture::freeUnkeptPixels();
+
 	// The on-screen pad labels its buttons with the names of the keys they
 	// send, and those names are translated, so it has to be told which
 	// language the game settled on. Asked here rather than pushed from the
@@ -3277,9 +3282,13 @@ void Engine::renderSprite(Texture* p_sprite,
 						  double rotation,
 						  double scaling)
 {
+	// The switch back off stays. It costs one GL call now and no flush at all,
+	// which is what the whole state layer was for - and everything that draws
+	// untextured after a sprite has always been able to rely on it, down to
+	// LineDrawer::draw, which installs a vertex array and nothing else.
 	p_sprite->bind();
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
-	p_sprite->unbind();
+	GL::setTexturing(false);
 }
 
 void Engine::renderSprites(const Sprites& sprites,

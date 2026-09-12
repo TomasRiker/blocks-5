@@ -412,7 +412,7 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 
 	glEnd();
 
-	p_skin->unbind();
+	GL::setTexturing(false);
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)

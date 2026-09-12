@@ -13,9 +13,23 @@ public:
 	void reload();
 	void cleanUp();
 
+	// Texturing on, this picture bound, and the texture matrix set to its own
+	// 1/w, 1/h - all three through GL::, which issues only what has moved.
+	// There is no unbind(): switching texturing off says nothing about this
+	// texture or any other, so it is GL::setTexturing(false) at the caller.
 	void bind() const;
-	void unbind() const;
 	const Vec2i& getSize() const;
+
+	// Hand the decoded pixels back for every texture that was not asked to
+	// keep them. Once a logic tick, from Engine::update().
+	//
+	// Not at the end of reload(): both keepInMemory() callers ask immediately
+	// after their request(), and each would then force a second load. And not
+	// inside bind(), which is called thousands of times a frame and is about
+	// drawing. A sub-texture frees at the end of its own load instead: it is
+	// not in the Manager, so no sweep reaches it, and nothing ever asks to
+	// keep one.
+	static void freeUnkeptPixels();
 
 	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size);
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
@@ -41,10 +55,11 @@ private:
 	// run while the texture is bound.
 	void applyWrapMode() const;
 	void checkDimensions();
+	void freePixels();
 
 	static bool forceReload() { return false; }
 
-	mutable SDL_Surface* p_rgba;
+	SDL_Surface* p_rgba;
 	unsigned int texID;
 	Vec2i offset;
 	Vec2i size;

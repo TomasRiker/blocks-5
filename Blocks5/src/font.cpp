@@ -267,9 +267,9 @@ void Font::drawText(const StringCacheEntry& entry) const
 	p_texture->bind();
 	drawQuadArray(entry.glyphs.empty() ? 0 : &entry.glyphs[0],
 				  static_cast<uint>(entry.glyphs.size()));
-	p_texture->unbind();
+	GL::setTexturing(false);
 
-	// Untextured, and only now: unbind() has just switched texturing off. Four
+	// Untextured, and only now: texturing has just been switched off. Four
 	// thin quads to a frame and not a line loop, because a line's pixel
 	// coverage is a matter of the rasterizer's opinion and every other edge in
 	// this game sits on whole pixels.

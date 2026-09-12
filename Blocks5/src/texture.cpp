@@ -106,25 +106,13 @@ void Texture::cleanUp()
 
 void Texture::bind() const
 {
-	if(!doKeepInMemory && p_rgba)
-	{
-		// unlock and free the surface
-		SDL_UnlockSurface(p_rgba);
-		SDL_FreeSurface(p_rgba);
-		p_rgba = 0;
-	}
-
-	// Through GL::, which flushes the sprite batch: whatever is queued was
-	// queued against the binding and the matrix about to be replaced. The
-	// scale is what makes texture coordinates read in this picture's own
-	// texels, which is what every caller writes.
+	// Through GL::, which issues only what has moved and flushes the sprite
+	// batch where the binding does: whatever is queued was queued against the
+	// binding and the matrix about to be replaced. The scale is what makes
+	// texture coordinates read in this picture's own texels, which is what
+	// every caller writes.
 	GL::setTexturing(true);
 	GL::bindTexture(texID, texelScale);
-}
-
-void Texture::unbind() const
-{
-	GL::setTexturing(false);
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
@@ -179,6 +167,30 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+	// A sub-texture is not in the Manager, so freeUnkeptPixels() never reaches
+	// it - and nothing asks to keep one, since createSubTexture() is called on
+	// a parent that was asked and hands the result straight to a caller that
+	// draws it.
+	if(!doKeepInMemory) freePixels();
+}
+
+void Texture::freePixels()
+{
+	if(!p_rgba) return;
+	SDL_UnlockSurface(p_rgba);
+	SDL_FreeSurface(p_rgba);
+	p_rgba = 0;
+}
+
+void Texture::freeUnkeptPixels()
+{
+	typedef std::unordered_multimap<std::string, Texture*> mapType;
+	const mapType& items = Manager<Texture>::inst().getItems();
+	for(mapType::const_iterator i = items.begin(); i != items.end(); ++i)
+	{
+		if(!i->second->doKeepInMemory) i->second->freePixels();
+	}
 }
 
 const Vec2i& Texture::getSize() const
@@ -191,8 +203,8 @@ void Texture::keepInMemory()
 	if(doKeepInMemory) return;
 	doKeepInMemory = true;
 
-	// The pixels are already gone because the texture had been bound earlier.
-	// The flag does not bring them back, hence the reload. If nothing could be
+	// The pixels are already gone where a tick has passed since the load. The
+	// flag does not bring them back, hence the reload. If nothing could be
 	// loaded at all (texID == 0), a second attempt would only give the same
 	// error.
 	if(!p_rgba && texID) reload();

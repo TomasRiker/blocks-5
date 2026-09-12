@@ -38,7 +38,7 @@ void GS_SelectLevel::onRender()
 	glTexCoord2i(0, 480);
 	glVertex2i(0, 480);
 	glEnd();
-	p_background->unbind();
+	GL::setTexturing(false);
 
 	int status = 0;
 	if(p_currentLevel)
