@@ -41,17 +41,18 @@ namespace GLState
 	void popEnables();
 
 	// The texture matrix - the third of the three, and the one that decides
-	// what a queued sprite's texel coordinates mean. load() puts a Texture's
-	// pixel matrix in place; the push/pop pair lends the stack to a caller that
-	// wants something else there for a moment, which is how the hint note
-	// samples its own sheet in 0..1 rather than in texels.
+	// what a queued sprite's texel coordinates mean. loadTexelMatrix() puts a
+	// Texture's own 1/w, 1/h there, which is the only absolute matrix this
+	// tree ever sets; the push/pop pair lends the stack to a caller that wants
+	// something else there for a moment, which is how the hint note samples
+	// its own sheet in 0..1 rather than in texels.
 	//
 	// All three put the matrix mode back through the attribute stack rather
 	// than setting GL_MODELVIEW, because Level::render binds the snow and the
 	// clouds with GL_TEXTURE already current - and because three functions in
 	// one namespace that differ on a thing like that are a trap for whoever
 	// adds the fourth.
-	void loadTextureMatrix(const GLdouble* p_matrix);
+	void loadTexelMatrix(const Vec2d& texelScale);
 	void pushTextureMatrix();
 	void popTextureMatrix();
 }

@@ -678,11 +678,6 @@ def check_gl_state():
     afterwards - so whatever moves one of the three has to put the batch up
     first. GLState does that; the raw calls do not.
 
-    The two exemptions below are not about cost - a GLState call with nothing
-    queued is one comparison, so going through it is free even where the batch
-    provably cannot be open. They are the two places that build a value rather
-    than set drawing state.
-
     Scoped to what Level::renderObjects can reach with a batch open - see
     batch_sources(). The crossfades, the GUI and the credits run with none open
     and are left alone deliberately, which keeps the ban small enough to read.
@@ -704,17 +699,11 @@ def check_gl_state():
                  'GL_TRANSFORM_BIT', 'GL_HINT_BIT')
     push = re.compile(r'\bglPushAttrib\s*\(([^);]*)\)')
     pop = re.compile(r'\bglPopAttrib\s*\(')
-    # Two that build a value rather than set drawing state: they put a scale on
-    # the texture matrix stack and read it straight back with glGetDoublev, at
-    # load time, with no batch open. Doing the arithmetic in C++ instead would
-    # be tidier and is not the same thing - a driver that keeps the stack in
-    # floats hands back a rounded matrix, and that rounding is what the game has
-    # always sampled with. Their glPushAttrib(GL_TRANSFORM_BIT) bracket is also
-    # why the ban above names no mask: a push saves whatever its mask asks for,
-    # and one written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake as one
-    # written GL_ENABLE_BIT.
-    EXEMPT = {'Texture::reload', 'Texture::loadSubTexture'}
-    bad, seen, named = [], set(), set(EXEMPT)
+    # Nothing is exempt. The ban above names no mask for glPushAttrib because a
+    # push saves whatever its mask asks for, and one written
+    # GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake as one written
+    # GL_ENABLE_BIT.
+    bad, seen, named = [], set(), set()
     for rel, text, only in batch_sources():
         named |= (only or set())
         # Where each function starts, so a match can be attributed to one. The
@@ -758,7 +747,7 @@ def check_gl_state():
 
         for m, hit in sorted(hits, key=lambda h: h[0].start()):
             func = owner(m.start())
-            if func in EXEMPT or (only is not None and func not in only):
+            if only is not None and func not in only:
                 continue
             n = text.count('\n', 0, m.start()) + 1
             bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'

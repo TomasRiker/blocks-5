@@ -32,12 +32,19 @@ namespace GLState
 		glPopAttrib();
 	}
 
-	void loadTextureMatrix(const GLdouble* p_matrix)
+	void loadTexelMatrix(const Vec2d& texelScale)
 	{
+		// Column major, and the two zeros in the first two columns are what
+		// make the bake in Engine::queueSprite the same arithmetic as this:
+		// a texel coordinate is multiplied by the scale and nothing else.
+		const GLdouble m[16] = {texelScale.x, 0.0,          0.0, 0.0,
+								0.0,          texelScale.y, 0.0, 0.0,
+								0.0,          0.0,          1.0, 0.0,
+								0.0,          0.0,          0.0, 1.0};
 		Engine::inst().flushSprites();
 		glPushAttrib(GL_TRANSFORM_BIT);
 		glMatrixMode(GL_TEXTURE);
-		glLoadMatrixd(p_matrix);
+		glLoadMatrixd(m);
 		glPopAttrib();
 	}
 

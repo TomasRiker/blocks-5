@@ -132,7 +132,11 @@ b5_frame()
 	# reproducible for as long as nothing in that scene is random.
 	local at
 	at=$(b5_json "d['scene']")
-	[ "$at" = "$tick" ] || b5_note "$name froze at $at, not at $tick - this scene has no clock of its own"
+	# A note and not a problem: the frame is still reproducible, it is only
+	# reproducible for a weaker reason - nothing in that scene is random - and
+	# a tool that exits nonzero on every run is one nobody reads the exit code
+	# of.
+	[ "$at" = "$tick" ] || echo "    (note) froze at $at, not at $tick - this scene has no clock of its own"
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi

@@ -11,6 +11,7 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	doKeepInMemory = false;
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
+	texelScale = Vec2d(1.0, 1.0);
 	p_parent = 0;
 
 	reload();
@@ -84,16 +85,7 @@ void Texture::reload()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-	// build the matrix
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
-	glScaled(1.0 / w, 1.0 / h, 1.0);
-	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-	glPopMatrix();
-	glPopAttrib();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 }
 
 void Texture::cleanUp()
@@ -130,7 +122,7 @@ void Texture::bind() const
 	GLState::bindTexture(texID);
 
 	// pixel texture coordinates
-	GLState::loadTextureMatrix(matrix);
+	GLState::loadTexelMatrix(texelScale);
 }
 
 void Texture::unbind() const
@@ -190,16 +182,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-	// build the matrix
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
-	glScaled(1.0 / w, 1.0 / h, 1.0);
-	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-	glPopMatrix();
-	glPopAttrib();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 }
 
 const Vec2i& Texture::getSize() const

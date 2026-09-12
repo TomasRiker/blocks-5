@@ -528,11 +528,18 @@ def c_sprite_batch_macro_body(p):
 
 # A name is a function boundary only where it is a definition: a macro taking
 # an argument at column 0 is not one, and reading it as one would hand the
-# lines below it a name of their own and lose an exemption.
-@case('gl_state', 'Blocks5/src/texture.cpp', quiet=True)
+# lines below it a name of their own.
+#
+# level.cpp is where that is observable, because it is the file gl_state reads
+# by named function rather than whole - so a raw call wrongly attributed to
+# "TEX_TRACE" falls outside the scope and is silently let through. The macro
+# and the fault therefore go in together, and the check has to report anyway.
+@case('gl_state', 'Blocks5/src/level.cpp')
 def c_gl_state_macro_not_a_start(p):
-    p.replace('\tglPushAttrib(GL_TRANSFORM_BIT);',
-              '#define TEX_TRACE(x) ((void)0)\n\tglPushAttrib(GL_TRANSFORM_BIT);')
+    p.replace('\tEngine::inst().renderSprite(p_shine,',
+              '#define TEX_TRACE(x) ((void)0)\n'
+              '\tglBindTexture(GL_TEXTURE_2D, 0);\n'
+              '\tEngine::inst().renderSprite(p_shine,')
 
 
 # An attribute mask this check cannot read is not thereby safe.

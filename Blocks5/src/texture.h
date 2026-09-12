@@ -49,7 +49,11 @@ private:
 	Vec2i offset;
 	Vec2i size;
 	bool doKeepInMemory;
-	double matrix[16];
+	// What one texel of this picture is worth, 1/w and 1/h. Every texture
+	// matrix this game ever samples a sprite under is that diagonal and
+	// nothing else, so it is kept as the two numbers it is made of rather
+	// than as sixteen.
+	Vec2d texelScale;
 	Texture* p_parent;
 };
 
