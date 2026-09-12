@@ -316,6 +316,19 @@ holds far longer than either number, so this is the harness lying, not the game.
 believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
 never runs and `config.xml` is never written.
 
+**Two harnesses on one display take each other down**, and the wreckage reads as a rendering
+fault rather than as a collision: `b5_clearDisplay` exists to clear the Xvfb an aborted run
+left behind, and on the shared default `:99` it cannot tell that server from a live one. It
+now refuses where a `blocks5` is still attached to that display and names `B5_DISPLAY`, which
+is what separates two runs. Worth knowing before comparing screenshots from a parallel run:
+a frame taken while the server was going down is not evidence of anything.
+
+**The select screen's campaign list keeps the keyboard focus after a click**, which is
+deliberate — `GUI_ListBox` handles the same four keys — and is a trap for a test that picks a
+campaign and then presses End to reach the last level. The press goes to the list, the
+selection does not move, and the screenshot is of level index 0 with nothing anywhere saying
+so. Click a level in the list of levels first, or drive it by name.
+
 **Two windows open themselves over the menu, and `b5_start` writes both markers away.**
 The CRT offer appears on a first start and the donation window once enough time has been
 played — which a machine that has run the tests often enough reaches on its own. Both are

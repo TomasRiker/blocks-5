@@ -71,7 +71,7 @@ b5_start()
 	# is taken, and the game attaches to the old server instead, where it hangs
 	# in SDL_SetVideoMode with nothing to say. Clearing it first is what makes
 	# a rerun after an aborted run mean anything.
-	b5_clearDisplay
+	b5_clearDisplay || return 1
 	Xvfb "$B5_DISP" -screen 0 ${B5_SCREEN_W}x${B5_SCREEN_H}x24 >"$B5_OUT/xvfb.log" 2>&1 &
 	B5_XVFB_PID=$!
 
@@ -160,13 +160,29 @@ b5_diagnose()
 
 # Take down an X server left behind by a run that did not get to b5_stop. Its
 # own pid, never a pattern that could match this script.
+#
+# A server with the game still attached to it belongs to a run that is not over,
+# and killing that one takes the other run's game down mid-frame - which reads
+# as a rendering fault rather than as a collision. Two harnesses on one display
+# is the shape that produces it, so this stops instead and says which variable
+# separates them.
 b5_clearDisplay()
 {
-	local stale
+	local stale p
 	stale=$(pgrep -x Xvfb 2>/dev/null | while read -r p; do
 		tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q -- "$B5_DISP " && echo "$p"
 	done)
 	if [ -n "$stale" ]; then
+		# The game's own environment, not a global pgrep: a run on another
+		# display is none of this one's business.
+		for p in $(pgrep -x blocks5 2>/dev/null); do
+			if tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null |
+			   grep -qx -- "DISPLAY=$B5_DISP"; then
+				echo "  ! a blocks5 is still attached to $B5_DISP, so another run is"
+				echo "    using it. Set B5_DISPLAY to something else for this one."
+				return 1
+			fi
+		done
 		echo "  (clearing an X server left behind on $B5_DISP)"
 		kill $stale 2>/dev/null
 		sleep 1
