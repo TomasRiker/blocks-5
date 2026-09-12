@@ -136,21 +136,9 @@ void Laser::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		if(on > 0.0)
-		{
-			int j = 0;
-			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
-			{
-				if(!(j % 4))
-				{
-					const Vec2d p = *i - sp;
-					level.renderShine(0.25, on * (0.4 + random(-0.05, 0.05)),
-									  p - Vec2d(7.5, 7.5));
-				}
-
-				j++;
-			}
-		}
+		// The jitter ramps with the beam, so a laser coming on brightens
+		// evenly instead of flickering at full depth from the first tick.
+		if(on > 0.0) level.renderBeamShines(beam, sp, 0.25, on * 0.4, on * 0.05);
 	}
 }
 

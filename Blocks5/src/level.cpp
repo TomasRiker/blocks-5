@@ -1302,6 +1302,56 @@ void Level::renderShine(double intensity,
 	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
 }
 
+void Level::renderBeamShines(const std::list<Vec2d>& beam,
+							 const Vec2i& origin,
+							 double intensity,
+							 double size,
+							 double jitter)
+{
+	if(beam.empty()) return;
+
+	// A beam holds a point every four pixels, and a glow on every fourth of
+	// them is what carries the light along it. What such a line lays down
+	// goes as intensity * size / spacing, and the size is the delicate half:
+	// the disc is 128 * size pixels across, so below about 0.25 the next
+	// glow's centre falls outside it and the field beads instead of running.
+	// The night vision darkens the picture by the alpha this field writes, so
+	// a beam lying between two glows that no longer meet comes out dark
+	// rather than dim.
+	//
+	// The corners are drawn whatever the count. A corner is a mirror - the
+	// one place along a beam the light really is brightest - and a stride of
+	// four would land on it three times in four by luck alone. So are the two
+	// ends: the emitter, and whatever the beam stops against.
+	Vec2d previous(0.0);
+	int n = 0;
+
+	for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, n++)
+	{
+		std::list<Vec2d>::const_iterator after = i;
+		++after;
+
+		bool corner = (i == beam.begin() || after == beam.end());
+		if(!corner)
+		{
+			// The step in against the step out, as a cross product rather
+			// than a comparison: the walk snaps the point at a mirror onto
+			// the mirror's own centre, so the step into a corner is shorter
+			// than a whole one and two steps of unequal length along one
+			// straight run would otherwise read as a turn.
+			const Vec2d in(*i - previous);
+			const Vec2d out(*after - *i);
+			corner = (in.x * out.y != in.y * out.x);
+		}
+
+		previous = *i;
+		if(n % 4 && !corner) continue;
+
+		renderShine(intensity, size + random(-jitter, jitter),
+					*i - origin - Vec2d(7.5, 7.5));
+	}
+}
+
 bool Level::isFreeAt(const Vec2i& position,
 					 int* p_tileTypeOut)
 {

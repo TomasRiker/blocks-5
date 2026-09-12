@@ -65,6 +65,10 @@ public:
 	// a light barrier one per pixel, and a matrix bracket each would be the
 	// most expensive thing in the frame.
 	void renderShine(double intensity, double size, const Vec2d& offset = Vec2d(0.0));
+	// The light a laser or a light barrier lays along its beam. Drawn inside
+	// the object's own matrix, so the points are taken relative to origin.
+	void renderBeamShines(const std::list<Vec2d>& beam, const Vec2i& origin,
+						  double intensity, double size, double jitter);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);
 	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, double radiusSq = 74.0);
 	Object* getFrontObjectAt(const Vec2i& position);

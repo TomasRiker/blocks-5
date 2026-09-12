@@ -100,29 +100,9 @@ void LightBarrierSender::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LIGHT)
 	{
-		// Every fourth beam point, which is the laser's stride: its points
-		// are four pixels apart too, so both light one pixel in sixteen. What
-		// a line of glows lays down along a beam goes as intensity * size /
-		// spacing, so at 0.3 this is three quarters of the laser's light.
-		//
-		// The size is the delicate half of that product, because it is also
-		// what makes one glow reach the next: the disc is 128 * size pixels
-		// across, so below about 0.25 the next glow's centre falls outside it
-		// and the field beads instead of running along the beam. The night
-		// vision darkens the picture by the alpha this field writes, so a
-		// beam lying between two glows that no longer meet comes out dark
-		// rather than dim.
-		int j = 0;
-		for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
-		{
-			if(!(j % 4))
-			{
-				const Vec2d p = *i - sp;
-				level.renderShine(0.25, 0.3 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
-			}
-
-			j++;
-		}
+		// A size of 0.3 against the laser's 0.4, which by the relation
+		// renderBeamShines describes is three quarters of its light.
+		level.renderBeamShines(beam, sp, 0.25, 0.3, 0.05);
 	}
 }
 
