@@ -1,16 +1,11 @@
 #!/bin/bash
 # frames.sh - one named scene, one 640x480 PNG, meant to be byte-reproducible.
 #
-# NOT YET AN ORACLE. The mechanism below works - "menu" and "editor" have come
-# back byte-identical across two runs - but the scenes that load a level of
-# their own have not, and why is not yet known. Until they do, this cannot be
-# used to prove a change moved no pixel.
-#
-# So: run it twice into two directories and cmp before believing any
-# comparison it is put to, and treat a scene that differs between those two
-# runs as having no opinion rather than as a finding. A check that can pass on
-# something it did not measure is worse than no check, which is the whole
-# reason this file exists.
+# Proved both ways, which is what makes it worth trusting. Two runs at one
+# seed: all five scenes byte-identical. Two runs at different seeds: menu,
+# select and night differ, so the seed really does reach the draws a rendered
+# frame makes; editor and plain do not, because nothing in either is random.
+# An oracle that can only answer "identical" is one that measures nothing.
 #
 # This is the oracle the rest of the render work is checked against: a change
 # that should move no pixel is proved by running this before and after and
@@ -130,6 +125,14 @@ b5_frame()
 		sleep 0.5
 	done
 	[ "$(b5_json "d['frozen']")" = "True" ] || { echo "FAILED: $name never froze"; exit 1; }
+
+	# Say so when the clock stopped somewhere else than it was asked to. It
+	# means the scene has no level that ticks - the editor's does not - so the
+	# freeze fired on whatever the last one left behind, and the frame is only
+	# reproducible for as long as nothing in that scene is random.
+	local at
+	at=$(b5_json "d['scene']")
+	[ "$at" = "$tick" ] || b5_note "$name froze at $at, not at $tick - this scene has no clock of its own"
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi

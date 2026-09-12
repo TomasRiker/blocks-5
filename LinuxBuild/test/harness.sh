@@ -244,7 +244,17 @@ b5_ask()
 	echo "$1" > "$B5_TEST_DIR/request"
 	local i
 	for i in $(seq 1 25); do
-		[ -f "$B5_TEST_DIR/response" ] && { cat "$B5_TEST_DIR/response"; return 0; }
+		# The request has to be gone before the answer counts. The game
+		# deletes it and writes the response in the same pass, so a response
+		# appearing while the request is still lying there belongs to an
+		# earlier ask that gave up - and reading it answers the wrong
+		# question. What that looks like is not a timeout but a wrong answer:
+		# a click reporting that a whole dump is "on top" of the button,
+		# because that is what the previous ask was going to return.
+		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ]; then
+			cat "$B5_TEST_DIR/response"
+			return 0
+		fi
 		b5_alive || return 1
 		sleep 0.2
 	done
