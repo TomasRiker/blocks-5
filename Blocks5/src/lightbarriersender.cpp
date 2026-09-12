@@ -66,13 +66,14 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// daylight this beam is a thin faint thing beside the laser's,
 			// deliberately, and scaling that down again the way the laser
 			// scales its own leaves nothing to see in the dark. So it is the
-			// laser's colours here and three quarters of its factor - a
-			// little behind the laser rather than a ninth of it - and only
-			// its own width is kept.
+			// laser's colours here at half its factor - the same kind of beam
+			// a step behind it, rather than the ninth of it that scaling this
+			// object's own daylight beam gives - and only its own width is
+			// kept.
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
-			else color = Vec4d(0.0, 0.25, 0.0, 0.3 * (0.2 + 0.05 * sin(x)));
+			else color = Vec4d(0.0, 0.25, 0.0, 0.2 * (0.2 + 0.05 * sin(x)));
 			line.setWidth(2.5f);
 			line.setColor(color);
 			line.draw();
@@ -83,7 +84,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glEnd();
 
 			if(layer == RL_EFFECT) color = Vec4d(1.0, random(0.2, 0.25), 0.0, 0.3 + 0.1 * cos(x));
-			else color = Vec4d(0.0, random(0.6, 0.65), 0.0, 0.3 * (0.9 + 0.1 * cos(x)));
+			else color = Vec4d(0.0, random(0.6, 0.65), 0.0, 0.2 * (0.9 + 0.1 * cos(x)));
 			line.setWidth(0.5f);
 			line.setColor(color);
 			line.draw();
@@ -102,11 +103,12 @@ void LightBarrierSender::onRender(RenderLayer layer,
 		// Every fourth beam point, which is the laser's stride: its points
 		// are four pixels apart too, so both light one pixel in sixteen. What
 		// a line of glows lays down along a beam goes as intensity * size /
-		// spacing, so at 0.2 this is half the laser's light.
+		// spacing, so at 0.3 this is three quarters of the laser's light.
 		//
 		// The size is the delicate half of that product, because it is also
-		// what makes one glow reach the next: a disc of 128 * size pixels at
-		// a stride of sixteen stops overlapping below about 0.25. The night
+		// what makes one glow reach the next: the disc is 128 * size pixels
+		// across, so below about 0.25 the next glow's centre falls outside it
+		// and the field beads instead of running along the beam. The night
 		// vision darkens the picture by the alpha this field writes, so a
 		// beam lying between two glows that no longer meet comes out dark
 		// rather than dim.
@@ -116,7 +118,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			if(!(j % 4))
 			{
 				const Vec2d p = *i - sp;
-				level.renderShine(0.25, 0.2 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
+				level.renderShine(0.25, 0.3 + random(-0.05, 0.05), p - Vec2d(7.5, 7.5));
 			}
 
 			j++;
