@@ -110,7 +110,7 @@ Level::~Level()
 {
 	clear();
 
-	if(bufferID) glDeleteTextures(1, &bufferID);
+	if(bufferID) GL::deleteTexture(bufferID);
 }
 
 void Level::clear()
@@ -2439,7 +2439,7 @@ void Level::renderToxicEffect()
 
 	// draw the grid
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glBegin(GL_QUADS);
 
 	for(int x = 0; x < 64; x++)
@@ -2463,7 +2463,7 @@ void Level::renderToxicEffect()
 	}
 
 	glEnd();
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 }
 
 void Level::invalidate()

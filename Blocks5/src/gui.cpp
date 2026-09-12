@@ -73,7 +73,7 @@ void GUI::exit()
 	p_root = 0;
 
 	// delete the texture
-	glDeleteTextures(1, &texID);
+	GL::deleteTexture(texID);
 	texID = 0;
 
 	// release the skin and the fonts
@@ -168,7 +168,7 @@ void GUI::display()
 	}
 	else
 	{
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 
 		// The scale is what puts the texture coordinates below in pixels.
 		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
@@ -186,7 +186,7 @@ void GUI::display()
 		glVertex2i(0, screenSize.y);
 		glEnd();
 
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 	}
 }
 
@@ -483,7 +483,7 @@ void GUI::setOpacity(double opacity)
 	if(opacity == 1.0 && texID)
 	{
 		// delete the texture
-		glDeleteTextures(1, &texID);
+		GL::deleteTexture(texID);
 		texID = 0;
 	}
 
@@ -491,7 +491,7 @@ void GUI::setOpacity(double opacity)
 	{
 		// create the texture
 		glGenTextures(1, &texID);
-		glBindTexture(GL_TEXTURE_2D, texID);
+		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
 		const Vec2i screenPow2Size = Engine::inst().getScreenPow2Size();
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenPow2Size.x, screenPow2Size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

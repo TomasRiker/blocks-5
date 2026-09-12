@@ -13,7 +13,7 @@ void CF_Blend::render(double t,
 					  uint oldImageID,
 					  uint newImageID)
 {
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 
 	// draw the old image
 	GL::bindTexture(oldImageID, screenTexelScale);
@@ -29,5 +29,5 @@ void CF_Blend::render(double t,
 	glVertex2i(0, screenSize.y);
 	glEnd();
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 }

@@ -47,6 +47,15 @@ namespace GL
 		glPopAttrib();
 	}
 
+	void deleteTexture(GLuint id)
+	{
+		// Flushes like the rest, and for the same reason: whatever is queued
+		// may be about to be drawn out of the texture being thrown away.
+		Engine::inst().flushSprites();
+		if(g_state.texture == static_cast<GLint>(id)) g_state.texture = 0;
+		glDeleteTextures(1, &id);
+	}
+
 	void pushTexturing()
 	{
 		Engine::inst().flushSprites();
@@ -62,6 +71,12 @@ namespace GL
 		g_state.texturing = -1;
 		Engine::inst().flushSprites();
 		glPopAttrib();
+	}
+
+	void invalidate()
+	{
+		g_state.texture = -1;
+		g_state.texturing = -1;
 	}
 
 	const GLState& state()

@@ -123,7 +123,7 @@ CF_Rewind::~CF_Rewind()
 {
 	// The Engine deletes the crossfade in the main loop; the GL context is
 	// therefore still up.
-	glDeleteTextures(1, &noiseID);
+	GL::deleteTexture(noiseID);
 	if(p_osd) p_osd->release();
 }
 
@@ -197,7 +197,7 @@ void CF_Rewind::render(double t,
 {
 	Engine& engine = Engine::inst();
 
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 
 	// The tape spins up and brakes again.
@@ -267,7 +267,7 @@ void CF_Rewind::render(double t,
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 	// --- The grey wash -----------------------------------------------------
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	glColor4d(0.62, 0.63, 0.60, settle * WASH_ALPHA);
 	glVertex2i(0, 0);
@@ -295,5 +295,5 @@ void CF_Rewind::render(double t,
 		}
 	}
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 }

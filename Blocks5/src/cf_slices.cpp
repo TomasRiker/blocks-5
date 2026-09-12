@@ -26,7 +26,7 @@ void CF_Slices::render(double t,
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glEnable(GL_CULL_FACE);
 
 	const int n = 20;
@@ -74,7 +74,7 @@ void CF_Slices::render(double t,
 		glPopMatrix();
 	}
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glDisable(GL_CULL_FACE);
 
 	glPopMatrix();

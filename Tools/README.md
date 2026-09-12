@@ -20,9 +20,11 @@ Exit code 1 as soon as anything is reported.
 | `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
 | `display_lists` | No display lists anywhere, in either build. |
+| `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |
 | `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
-| `gl_state` | An object changes the texture state through GLState, never raw (same scope). |
+| `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
+| `gl_doors` | And so does the whole tree, or `GLState`'s record of it is a belief. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |

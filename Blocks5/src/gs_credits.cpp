@@ -18,7 +18,7 @@ void GS_Credits::onRender()
 {
 	glColorMask(true, true, true, false);
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	double t = 0.001 * time;
 	Vec3d color(0.05 + 0.05 * sin(t * 0.26), 0.05 + 0.05 * cos(t * 0.31), 0.05 + 0.05 * sin(t * 0.413));
@@ -39,7 +39,7 @@ void GS_Credits::onRender()
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
 	// The scale is what puts the texture coordinates below in pixels.
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 0.75);
@@ -196,7 +196,7 @@ void GS_Credits::onRender()
 	else if(t > 53.0) darkness = 0.5 * (t - 53.0);
 	if(darkness > 0.0)
 	{
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glBegin(GL_QUADS);
 		glColor4d(0.0, 0.0, 0.0, darkness);
 		glVertex2i(0, 0);
@@ -204,7 +204,7 @@ void GS_Credits::onRender()
 		glVertex2i(640, 480);
 		glVertex2i(0, 480);
 		glEnd();
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 	}
 }
 
@@ -270,7 +270,7 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 	delete p_level;
 	p_level = 0;
 	p_sprites = 0;
-	glDeleteTextures(1, &bufferID);
+	GL::deleteTexture(bufferID);
 	bufferID = 0;
 }
 

@@ -213,6 +213,35 @@ def c_gl_state_wrapped(p):
     p.replace('GL::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
 
 
+# gl_doors reads the whole tree and not only what a batch can reach, so the
+# faults for it go in files gl_state does not look at: a crossfade, and the
+# credits. One per kind of door, because the record needs all four.
+@case('gl_doors', 'Blocks5/src/cf_blend.cpp')
+def c_gl_doors_bind(p):
+    p.replace('GL::bindTexture(oldImageID, screenTexelScale);',
+              'glBindTexture(GL_TEXTURE_2D, oldImageID);')
+
+
+@case('gl_doors', 'Blocks5/src/cf_blend.cpp')
+def c_gl_doors_enable(p):
+    p.replace('GL::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
+
+
+# GL reverts the binding to 0 when the bound texture is deleted, which is a
+# change nothing else would tell the record about.
+@case('gl_doors', 'Blocks5/src/gs_credits.cpp')
+def c_gl_doors_delete(p):
+    p.replace('GL::deleteTexture(bufferID);', 'glDeleteTextures(1, &bufferID);')
+
+
+# The texture matrix, set absolutely outside a bind. The weather is excused for
+# setting it relatively; this is the other thing.
+@case('gl_doors', 'Blocks5/src/gs_credits.cpp')
+def c_gl_doors_matrix(p):
+    p.replace('\tGL::setTexturing(true);\n',
+              '\tglMatrixMode(GL_TEXTURE);\n\tglLoadIdentity();\n\tGL::setTexturing(true);\n')
+
+
 # A flush covers only as far as the block it stands in. A loop body is the
 # shape that isolates the rule: the branches of an if/else chain are read as
 # alternatives, so a flush in one of those is a different question.

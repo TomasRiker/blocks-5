@@ -32,7 +32,7 @@ void CF_Camera::render(double t,
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 
 	// draw the old image
 	GL::bindTexture(oldImageID, screenTexelScale);
@@ -62,7 +62,7 @@ void CF_Camera::render(double t,
 	glVertex3i(-1, 3, 0);
 	glEnd();
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 
 	glPopMatrix();
 	glMatrixMode(GL_PROJECTION);

@@ -99,7 +99,7 @@ void Texture::cleanUp()
 	if(texID)
 	{
 		// delete the texture
-		glDeleteTextures(1, &texID);
+		GL::deleteTexture(texID);
 		texID = 0;
 	}
 }

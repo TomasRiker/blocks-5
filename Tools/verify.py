@@ -756,6 +756,79 @@ def check_gl_state():
     return bad + dead_names(named, seen, 'the gl_state check')
 
 
+@check('gl_doors')
+def check_gl_doors():
+    """Every door into the texture state goes through GL::, in the whole tree.
+
+    gl_state asks the same thing of the sources a batch can reach, and that is
+    a question about ordering: a queued quad is drawn with the state at the
+    flush. This one is about the *record*. GLState is only allowed to decide
+    that a call can be skipped if it knows what OpenGL is holding, and it knows
+    that exactly as far as every bind, every enable, every delete and every
+    absolute texture matrix in the tree comes through here. One raw call
+    anywhere - in a crossfade, in the credits, in a constructor that uploads a
+    texture once - and the record is a belief rather than a fact, with a wrong
+    picture for a failure mode.
+
+    A delete counts because GL reverts the binding to 0 when the bound texture
+    is deleted, which is a change this file would otherwise not see.
+
+    The exemptions are the places that hand a piece of this state to GL's own
+    stacks and take it back. There the record cannot be kept by writing it,
+    only by dropping it, and each says so."""
+    doors = re.compile(r'\bglBindTexture\s*\('
+                       r'|\bglDeleteTextures\s*\('
+                       r'|\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
+                       r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
+    # The implementation itself, which is where the raw calls belong.
+    WHOLE = {'Blocks5/src/glstate.cpp'}
+    EXEMPT = {
+        # Draws the finished frame inside a glPushAttrib(GL_ALL_ATTRIB_BITS)
+        # and three matrix brackets, and calls GL::invalidate() at the end
+        # because what the pop restores differs between the desktop and the
+        # browser.
+        'Engine::presentFrame',
+        # The rain, the snow and the clouds leave GL_TEXTURE current so that
+        # each layer can scroll on top of the bound picture's own scale in a
+        # push and pop of its own. That is a relative matrix, which is the one
+        # thing GL:: does not model - and it is balanced, so the record still
+        # describes what stands before and after.
+        'Level::render',
+        # The menu's title clouds, the same arrangement.
+        'GS_Menu::onRender',
+    }
+    bad, seen, used = [], set(), set()
+    # Headers too: this tree has inline drawing in one (quadarray.h), and a
+    # door in a header would otherwise be the one place left to put one.
+    for path in source_files():
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        if rel in WHOLE:
+            used.add(rel)
+            continue
+        text = blank_noncode(read(path))
+        starts = function_starts(text)
+        seen |= set(name for _, _, name in starts)
+
+        def owner(at):
+            func = ''
+            for start, _, name in starts:
+                if start > at:
+                    break
+                func = name
+            return func
+
+        for m in doors.finditer(text):
+            func = owner(m.start())
+            if func in EXEMPT:
+                used.add(func)
+                continue
+            n = text.count('\n', 0, m.start()) + 1
+            bad.append('%s:%d: %s - go through GL::, or the record is a belief'
+                       % (rel, n, ' '.join(m.group(0).split())))
+    return (bad + dead_names(EXEMPT, seen, 'the gl_doors check')
+            + idle_names(EXEMPT | WHOLE, used, 'the gl_doors check'))
+
+
 @check('naming')
 def check_naming():
     """The filename is the class name in lower case.

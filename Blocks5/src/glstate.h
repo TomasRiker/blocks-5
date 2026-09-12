@@ -24,7 +24,9 @@ struct GLState
 
 	// -1 in either of the first two means "not known", which is what they
 	// start as: nothing may be skipped on the strength of a belief that was
-	// never established.
+	// never established. A texture of -1 says the scale is unknown as well,
+	// there being no unknown Vec2d - which costs nothing, since the two are
+	// set by the same call and forgotten by the same one.
 	GLint texture;
 	int texturing;
 	Vec2d texelScale;
@@ -45,6 +47,12 @@ namespace GL
 	// with GL_TEXTURE already current.
 	void bindTexture(GLuint id, const Vec2d& texelScale);
 
+	// glDeleteTextures for one. GL reverts the binding to 0 where the deleted
+	// texture was the bound one, which is knowledge rather than a guess, so
+	// that much is recorded - and the matrix is left alone, because a delete
+	// does not touch it.
+	void deleteTexture(GLuint id);
+
 	// glPushAttrib(GL_ENABLE_BIT) and its pop, which is how lava.cpp and
 	// teleporter.cpp put texturing back after drawing their own geometry.
 	// Named for the one bit of it the batch cares about, which is also the
@@ -52,12 +60,21 @@ namespace GL
 	void pushTexturing();
 	void popTexturing();
 
+	// Forget the lot, and nothing else: no flush and no GL call, because
+	// nothing here moves any state. For a caller that hands GL's own stacks a
+	// piece of this state and takes it back again: presentFrame's glPushAttrib bracket
+	// restores the binding on the desktop and, in the browser, only the mode
+	// and the enables - so what stands afterwards differs per platform and is
+	// not worth working out.
+	void invalidate();
+
 	// What this file believes OpenGL is holding. Written by every call above
 	// and, for now, read by nobody: the proxies still issue every GL call and
 	// still flush on every one, so the record cannot yet be wrong in a way
-	// that shows. Making it decide anything is a later step, and it is only
-	// sound once every raw glBindTexture and GL_TEXTURE_2D enable in the tree
-	// comes through here.
+	// that shows. Making it decide anything is a later step, and verify.py's
+	// gl_doors check is what says the record is complete enough for it: every
+	// raw door into the texture state in the tree is either through here or on
+	// a named list with a reason.
 	const GLState& state();
 }
 

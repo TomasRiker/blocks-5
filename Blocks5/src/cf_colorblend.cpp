@@ -17,7 +17,7 @@ void CF_ColorBlend::render(double t,
 	if(t <= timing)
 	{
 		// draw the old image
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 		GL::bindTexture(oldImageID, screenTexelScale);
 		glBegin(GL_QUADS);
 		glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -30,7 +30,7 @@ void CF_ColorBlend::render(double t,
 		glTexCoord2i(0, screenSize.y);
 		glVertex2i(0, screenSize.y);
 		glEnd();
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 	}
 
 	// draw the colour quad

@@ -1119,7 +1119,7 @@ void GS_LevelEditor::onRender()
 		// highlight the selected pin and the start pin
 
 		glDisable(GL_LINE_SMOOTH);
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glLineWidth(1.0f);
 		glPushMatrix();
 		glTranslated(0.5, 0.5, 0.0);

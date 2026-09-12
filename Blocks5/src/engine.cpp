@@ -657,11 +657,11 @@ bool Engine::init(const std::string& windowCaption,
 	// create the textures for crossfading
 	glGenTextures(1, &oldImageID);
 	glGenTextures(1, &newImageID);
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::bindTexture(oldImageID, getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::bindTexture(newImageID, getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -855,8 +855,8 @@ void Engine::exit()
 
 	// delete the crossfade and the textures
 	crossfade(0, 0.0);
-	glDeleteTextures(1, &oldImageID);
-	glDeleteTextures(1, &newImageID);
+	GL::deleteTexture(oldImageID);
+	GL::deleteTexture(newImageID);
 
 	// close the joysticks
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
@@ -1297,14 +1297,14 @@ void Engine::mainLoopIteration()
 			// for that: without a logic tick nothing is rendered, and then the
 			// screen is still bound - which WebGL clears before every frame.
 			bindFrameBuffer();
-			glBindTexture(GL_TEXTURE_2D, oldImageID);
+			GL::bindTexture(oldImageID, getScreenTexelScale());
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 			crossfadeTime = -0.5;
 		}
 		else if(crossfadeTime >= -0.5 && frameRendered)
 		{
 			// fetch the current image
-			glBindTexture(GL_TEXTURE_2D, newImageID);
+			GL::bindTexture(newImageID, getScreenTexelScale());
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 			// render the crossfade
@@ -1609,7 +1609,7 @@ void Engine::renderToasts()
 		glPushMatrix();
 		glTranslated(0.0, floor(i->y + 0.5), 0.0);
 
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glBegin(GL_QUADS);
 		glColor4d(color.r, color.g, color.b, 0.75 * alpha);
 		glVertex2i(0, 0);
@@ -1623,7 +1623,7 @@ void Engine::renderToasts()
 		glVertex2i(0, TOAST_HEIGHT);
 		glVertex2i(640, TOAST_HEIGHT);
 		glEnd();
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 
 		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
 
@@ -1974,14 +1974,14 @@ bool Engine::createFrameBuffer()
 	frameTextureSize = screenPow2Size;
 
 	glGenTextures(1, &frameTextureID);
-	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+	GL::bindTexture(frameTextureID, Vec2d(1.0, 1.0));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameTextureSize.x, frameTextureSize.y, 0,
 				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	glExtGenFramebuffers(1, &frameBufferID);
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
@@ -2028,13 +2028,13 @@ void Engine::destroyFrameBuffer()
 {
 	if(frameDepthStencilID)  { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
 	if(frameBufferID)        { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
-	if(frameTextureID)       { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+	if(frameTextureID)       { GL::deleteTexture(frameTextureID);                 frameTextureID = 0; }
 	if(renderTargetID)       { glExtDeleteFramebuffers(1, &renderTargetID);       renderTargetID = 0; }
 
 	for(std::vector<OffscreenTexture>::const_iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
 	{
-		glDeleteTextures(1, &i->id);
+		GL::deleteTexture(i->id);
 	}
 	offscreenTextures.clear();
 }
@@ -2063,7 +2063,7 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 	glGenTextures(1, &entry.id);
 	if(!entry.id) return 0;
 
-	glBindTexture(GL_TEXTURE_2D, entry.id);
+	GL::bindTexture(entry.id, Vec2d(1.0, 1.0));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0,
 				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -2073,7 +2073,7 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 	// is a power of two, but clamped is right here anyway.
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	offscreenTextures.push_back(entry);
 	return entry.id;
@@ -2826,6 +2826,12 @@ void Engine::presentFrame()
 	glMatrixMode(GL_MODELVIEW);
 
 	glPopAttrib();
+
+	// What that pop put back differs per platform: GL_ALL_ATTRIB_BITS carries
+	// the binding and the enables on the desktop, and gl_compat.cpp restores
+	// only the mode and the enables in the browser. So the record is dropped
+	// rather than worked out.
+	GL::invalidate();
 }
 
 void Engine::drawOverlays()
@@ -2907,7 +2913,7 @@ void Engine::drawPerformance()
 	const int top = screenSize.y - height;
 
 	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	glColor4d(0.0, 0.0, 0.0, 0.7);
 	glVertex2i(0, top);
@@ -2915,7 +2921,7 @@ void Engine::drawPerformance()
 	glVertex2i(screenSize.x, screenSize.y);
 	glVertex2i(0, screenSize.y);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 
 	for(int i = 0; i < 3; i++)
 	{
@@ -4218,7 +4224,7 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		// save the old image - as above out of the framebuffer object, not out
 		// of whatever is bound right now.
 		bindFrameBuffer();
-		glBindTexture(GL_TEXTURE_2D, oldImageID);
+		GL::bindTexture(oldImageID, getScreenTexelScale());
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 		crossfadeTime = -0.5;
 	}

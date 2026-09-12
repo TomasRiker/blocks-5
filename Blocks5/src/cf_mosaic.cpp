@@ -12,7 +12,7 @@ CF_Mosaic::CF_Mosaic()
 
 CF_Mosaic::~CF_Mosaic()
 {
-	glDeleteTextures(1, &bufferID);
+	GL::deleteTexture(bufferID);
 }
 
 void CF_Mosaic::render(double t,
@@ -24,7 +24,7 @@ void CF_Mosaic::render(double t,
 	Vec2i size = s * static_cast<Vec2d>(screenSize);
 
 	// render a shrunk-down version of the image
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	GL::bindTexture(t <= 0.5 ? oldImageID : newImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
@@ -55,5 +55,5 @@ void CF_Mosaic::render(double t,
 	glVertex2i(0, screenSize.y);
 	glEnd();
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 }
