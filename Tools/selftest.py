@@ -172,27 +172,27 @@ def c_sprite_batch(p):
 # and the pop is a separate call from the push.
 @case('gl_state', 'Blocks5/src/player.cpp')
 def c_gl_state_disable(p):
-    p.replace('GLState::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
+    p.replace('GL::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
 
 
 @case('gl_state', 'Blocks5/src/player.cpp')
 def c_gl_state_enable(p):
-    p.replace('GLState::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
+    p.replace('GL::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
 
 
 @case('gl_state', 'Blocks5/src/teleporter.cpp')
 def c_gl_state_push(p):
-    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_ENABLE_BIT);')
+    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_ENABLE_BIT);')
 
 
 @case('gl_state', 'Blocks5/src/teleporter.cpp')
 def c_gl_state_pop(p):
-    p.replace('GLState::popEnables();', 'glPopAttrib();')
+    p.replace('GL::popTexturing();', 'glPopAttrib();')
 
 
 @case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_bind(p):
-    p.replace('GLState::bindTexture(noteTexture);',
+    p.replace('GL::bindTexture(noteTexture);',
               'glBindTexture(GL_TEXTURE_2D, noteTexture);')
 
 
@@ -200,14 +200,14 @@ def c_gl_state_bind(p):
 # the first draft of the check did not look at.
 @case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_matrix(p):
-    p.replace('GLState::pushTextureMatrix();',
+    p.replace('GL::pushTextureMatrix();',
               'glMatrixMode(GL_TEXTURE);\n\tglPushMatrix();\n\tglLoadIdentity();\n\tglMatrixMode(GL_MODELVIEW);')
 
 
 # A call split over two lines, which a line-at-a-time search cannot see.
 @case('gl_state', 'Blocks5/src/electronics.cpp')
 def c_gl_state_wrapped(p):
-    p.replace('GLState::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
+    p.replace('GL::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
 
 
 # A flush covers only as far as the block it stands in. A loop body is the
@@ -281,7 +281,7 @@ def c_gl_state_char_literal(p):
 # written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_push_mask(p):
-    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);')
+    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);')
 
 
 # texture.cpp has no exception of its own: its two glPushAttrib brackets are
@@ -306,8 +306,8 @@ def c_gl_state_dead_name(p):
 # its own.
 @case('sprite_batch', 'Blocks5/src/projectile.cpp')
 def c_sprite_batch_braceless(p):
-    p.replace('\t\tGLState::setTexturing(false);',
-              '\t\tfor(int i = 0; i < 1; i++) GLState::setTexturing(false);')
+    p.replace('\t\tGL::setTexturing(false);',
+              '\t\tfor(int i = 0; i < 1; i++) GL::setTexturing(false);')
 
 
 # The other half: a flush hoisted to the top of a function is not made wrong by
@@ -436,7 +436,7 @@ def c_gl_state_safe_mask(p):
 # And one that does. GL_COLOR_BUFFER_BIT carries the blend function.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_colour_mask(p):
-    p.replace('GLState::pushEnables();', 'glPushAttrib(GL_COLOR_BUFFER_BIT);')
+    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_COLOR_BUFFER_BIT);')
 
 
 # A preprocessor line carries no scope in the body scan either, or everything a
@@ -545,16 +545,16 @@ def c_gl_state_macro_not_a_start(p):
 # An attribute mask this check cannot read is not thereby safe.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_opaque_mask(p):
-    p.replace('GLState::pushEnables();', 'glPushAttrib(savedBits);')
+    p.replace('GL::pushTexturing();', 'glPushAttrib(savedBits);')
 
 
 # Whether a bracket is safe is a question about its own function, not the file.
 @case('gl_state', 'Blocks5/src/teleporter.cpp', quiet=True)
 def c_gl_state_mask_per_function(p):
-    p.replace('GLState::pushEnables();',
-              'glPushAttrib(GL_LINE_BIT);\n\tGLState::pushEnables();')
-    p.replace('GLState::popEnables();',
-              'GLState::popEnables();\n\tglPopAttrib();')
+    p.replace('GL::pushTexturing();',
+              'glPushAttrib(GL_LINE_BIT);\n\tGL::pushTexturing();')
+    p.replace('GL::popTexturing();',
+              'GL::popTexturing();\n\tglPopAttrib();')
 
 
 # A helper indented some other way is still a function, and must not inherit

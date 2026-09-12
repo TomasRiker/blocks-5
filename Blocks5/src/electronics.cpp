@@ -67,7 +67,7 @@ void Electronics::onRender(RenderLayer layer,
 								   Vec4d(0.3, 0.35, 0.35, 1.0),
 								   Vec4d(0.35, 0.35, 0.35, 1.0)};
 
-		GLState::setTexturing(false);
+		GL::setTexturing(false);
 
 		// render the outputs' connections
 		int n = position.x + position.y;
@@ -83,7 +83,7 @@ void Electronics::onRender(RenderLayer layer,
 			}
 		}
 
-		GLState::setTexturing(true);
+		GL::setTexturing(true);
 	}
 }
 

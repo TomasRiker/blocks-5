@@ -60,7 +60,7 @@ void Texture::reload()
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	GLState::bindTexture(texID);
+	GL::bindTexture(texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -116,18 +116,18 @@ void Texture::bind() const
 		p_rgba = 0;
 	}
 
-	// Through GLState, which flushes the sprite batch: whatever is queued was
+	// Through GL::, which flushes the sprite batch: whatever is queued was
 	// queued against the binding and the matrix about to be replaced.
-	GLState::setTexturing(true);
-	GLState::bindTexture(texID);
+	GL::setTexturing(true);
+	GL::bindTexture(texID);
 
 	// pixel texture coordinates
-	GLState::loadTexelMatrix(texelScale);
+	GL::loadTexelMatrix(texelScale);
 }
 
 void Texture::unbind() const
 {
-	GLState::setTexturing(false);
+	GL::setTexturing(false);
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
@@ -157,7 +157,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	GLState::bindTexture(texID);
+	GL::bindTexture(texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();

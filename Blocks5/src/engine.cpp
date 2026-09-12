@@ -3102,7 +3102,7 @@ void Engine::flushSprites()
 		GLdouble textureMatrix[16];
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
 		glGetDoublev(GL_TEXTURE_MATRIX, textureMatrix);
-		// All three of the states GLState owns, because the static check reads
+		// All three of the states GL:: owns, because the static check reads
 		// the sources and this reads what happened - and a helper living in
 		// level.cpp or engine.cpp is outside the check's scope while still
 		// running with a batch open.

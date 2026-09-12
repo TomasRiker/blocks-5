@@ -171,7 +171,7 @@ void Object::render(RenderLayer layer,
 		glTranslated(8.0, 8.0, 0.0);
 
 		glDisable(GL_LINE_SMOOTH);
-		GLState::setTexturing(false);
+		GL::setTexturing(false);
 		glLineWidth(1.0f);
 
 		glBegin(GL_TRIANGLES);

@@ -123,7 +123,7 @@ void Player::onRender(RenderLayer layer,
 		if(censored)
 		{
 			// render the censor bar
-			GLState::setTexturing(false);
+			GL::setTexturing(false);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);
 			glRotated(10.0, 0.0, 0.0, 1.0);
@@ -141,7 +141,7 @@ void Player::onRender(RenderLayer layer,
 			glVertex2i(-35, 13);
 			glEnd();
 			glPopMatrix();
-			GLState::setTexturing(true);
+			GL::setTexturing(true);
 
 			Font* p_font = GUI::inst().getFont();
 			std::string text = localizeString("$G_CENSORED");

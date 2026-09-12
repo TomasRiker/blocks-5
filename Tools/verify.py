@@ -500,10 +500,10 @@ def check_sprite_batch():
     # Font::renderText - binds a texture of its own and so flushes on the way
     # in and on the way out again.
     queues = re.compile(r'\brenderSprites?\s*\(')
-    # GLState's wrappers flush before they change anything, so reaching one is
+    # GL::'s wrappers flush before they change anything, so reaching one is
     # reaching a flush - and so is Texture::bind()/unbind(), which is written
     # that way and nothing else in these files is.
-    flushes = re.compile(r'\bflushSprites\s*\(|\bGLState::|'
+    flushes = re.compile(r'\bflushSprites\s*\(|\bGL::|'
                          r'[\w)\]]\s*(?:->|\.)\s*(?:un)?bind\s*\(\s*\)')
     # A statement written as the body of a braceless conditional, on the line
     # of the conditional itself. The bare `else` alternative is a backstop: the
@@ -669,14 +669,15 @@ def check_sprite_batch():
 
 @check('gl_state')
 def check_gl_state():
-    """An object changes the texture state through GLState, never raw.
+    """An object changes the texture state through GL::, never raw.
 
     Three pieces of GL state decide what a queued sprite comes out looking
     like: the GL_TEXTURE_2D binding, whether texturing is on, and the texture
     matrix. A batched quad is drawn with the state standing at the flush and
     not at the call, and there is no depth buffer here to sort it out
     afterwards - so whatever moves one of the three has to put the batch up
-    first. GLState does that; the raw calls do not.
+    first. GL:: does that, and records what it put there in a GLState; the
+    raw calls do neither.
 
     Scoped to what Level::renderObjects can reach with a batch open - see
     batch_sources(). The crossfades, the GUI and the credits run with none open
@@ -692,7 +693,7 @@ def check_gl_state():
     # same function - there being no way to pair the two by reading. These five
     # masks carry nothing a GL_QUADS batch is drawn under, so a bracket around a
     # glLineWidth or a glPointSize is left alone: banning it would be a dead end,
-    # since GLState has no entry point that could stand in for one. Everything
+    # since GL:: has no entry point that could stand in for one. Everything
     # else is reported, a mask this list does not know included - GL_ENABLE_BIT
     # carries the texturing enable, and GL_COLOR_BUFFER_BIT the blend function.
     SAFE_BITS = ('GL_LINE_BIT', 'GL_POINT_BIT', 'GL_CURRENT_BIT',
@@ -750,7 +751,7 @@ def check_gl_state():
             if only is not None and func not in only:
                 continue
             n = text.count('\n', 0, m.start()) + 1
-            bad.append('%s:%d: %s - go through GLState, which flushes the sprite batch'
+            bad.append('%s:%d: %s - go through GL::, which flushes the sprite batch'
                        % (rel, n, ' '.join(hit.split())))
     return bad + dead_names(named, seen, 'the gl_state check')
 

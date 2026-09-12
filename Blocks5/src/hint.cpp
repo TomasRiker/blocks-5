@@ -327,11 +327,11 @@ void Hint::renderNote(const Vec4d& color,
 {
 	Engine& engine = Engine::inst();
 
-	GLState::setTexturing(true);
-	GLState::bindTexture(noteTexture);
+	GL::setTexturing(true);
+	GL::bindTexture(noteTexture);
 
 	// Not Texture::bind()'s pixel matrix: this one's maths runs in 0..1.
-	GLState::pushTextureMatrix();
+	GL::pushTextureMatrix();
 
 	// Blend premultiplied, because the texture came about that way.
 	engine.setBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -346,12 +346,12 @@ void Hint::renderNote(const Vec4d& color,
 
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
-	GLState::popTextureMatrix();
+	GL::popTextureMatrix();
 
 	// Leave it as tidy as Texture::unbind() would: right afterwards the level
 	// draws the flash, and that wants no texture.
-	GLState::bindTexture(0);
-	GLState::setTexturing(false);
+	GL::bindTexture(0);
+	GL::setTexturing(false);
 }
 
 void Hint::renderNoteFlat(const Vec4d& color,

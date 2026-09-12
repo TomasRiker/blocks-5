@@ -58,7 +58,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// render the inner and the outer beam
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
-			GLState::setTexturing(false);
+			GL::setTexturing(false);
 
 			// The sparkle pass is what the night vision shows of the beam:
 			// it is drawn after the quad that darkens everything unlit, so it
@@ -94,7 +94,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			glVertex2dv(p);
 			glEnd();
 
-			GLState::setTexturing(true);
+			GL::setTexturing(true);
 			glPopMatrix();
 		}
 	}

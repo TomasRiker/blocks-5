@@ -154,8 +154,8 @@ void Lava::onRender(RenderLayer layer,
 	if(layer == RL_EDITOR)
 	{
 		// show the flow direction
-		GLState::pushEnables();
-		GLState::setTexturing(false);
+		GL::pushTexturing();
+		GL::setTexturing(false);
 		glPushMatrix();
 		glTranslated(7.5, 7.5, 0.0);
 		glRotated(90.0 * (dir % 4), 0.0, 0.0, 1.0);
@@ -230,7 +230,7 @@ void Lava::onRender(RenderLayer layer,
 		glEnd();
 
 		glPopMatrix();
-		GLState::popEnables();
+		GL::popTexturing();
 	}
 }
 

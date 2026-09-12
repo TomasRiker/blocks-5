@@ -35,7 +35,7 @@ void Projectile::onRender(RenderLayer layer,
 		double traceLength = min(distance, 0.035 * speed);
 
 		Engine& engine = Engine::inst();
-		GLState::setTexturing(false);
+		GL::setTexturing(false);
 
 		// render the glow
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -56,7 +56,7 @@ void Projectile::onRender(RenderLayer layer,
 		glVertex2dv(positionInPixels);
 		glEnd();
 
-		GLState::setTexturing(true);
+		GL::setTexturing(true);
 	}
 	else if(layer == RL_LIGHT)
 	{

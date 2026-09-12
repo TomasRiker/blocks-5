@@ -1,7 +1,7 @@
 #ifndef _GLSTATE_H
 #define _GLSTATE_H
 
-/*** The GL state a queued sprite depends on ***/
+/*** What OpenGL is holding, and the proxies that put it there ***/
 
 // Three things decide what a batched sprite comes out looking like: which
 // texture is bound to GL_TEXTURE_2D, whether texturing is on at all, and what
@@ -10,22 +10,26 @@
 // there is no sorting it out afterwards: whatever moves one of the three has
 // to put the batch on the screen first.
 //
-// These do that, so that the rule lives in one place instead of at a dozen
-// call sites where it can be forgotten. verify.py's gl_state check bans the raw
-// forms in the sources the batch can reach - an object drawing raw geometry
-// straight through glDisable(GL_TEXTURE_2D) is exactly the mistake that leaves
-// no trace in a diff, since it puts the sprites of its *neighbours* in the
-// wrong place and only on a screen that happens to hold both.
-//
-// Deliberately not a cache. What was measured, under swiftshader in a browser
-// and in a played level, is 28 redundant calls of the 290 the state layer
-// issues, out of 4833 in all - before the batch landed. The batch took the
-// geometry away rather than the state, so those 28 are a larger share of a much
-// smaller number now and still well under the spread between two runs. And it
-// would be
-// sound only if the fifty-one raw calls in the crossfades, the GUI and the
-// credits came through here too - seventy-two across the tree. See ROADMAP 44.
-namespace GLState
+// The third is not sixteen doubles. Every absolute matrix this tree sets is a
+// diagonal scale - a Texture's own 1/w, 1/h, or a framebuffer copy's
+// 1/pow2 - and it is a function of the binding and of nothing else, so it is
+// kept as the two numbers it is made of. Vec2d(1.0, 1.0) is the identity a
+// texture sampled in 0..1 wants. The weather is the only thing that asks for
+// more, and it composes its scroll on top of the bound picture's own scale
+// inside a balanced push and pop of its own.
+struct GLState
+{
+	GLState();
+
+	// -1 in either of the first two means "not known", which is what they
+	// start as: nothing may be skipped on the strength of a belief that was
+	// never established.
+	GLint texture;
+	int texturing;
+	Vec2d texelScale;
+};
+
+namespace GL
 {
 	// glEnable/glDisable(GL_TEXTURE_2D).
 	void setTexturing(bool on);
@@ -37,15 +41,15 @@ namespace GLState
 
 	// glPushAttrib(GL_ENABLE_BIT) and its pop, which is how lava.cpp and
 	// teleporter.cpp put texturing back after drawing their own geometry.
-	void pushEnables();
-	void popEnables();
+	// Named for the one bit of it the batch cares about, which is also the
+	// only bit either of them changes inside the bracket.
+	void pushTexturing();
+	void popTexturing();
 
-	// The texture matrix - the third of the three, and the one that decides
-	// what a queued sprite's texel coordinates mean. loadTexelMatrix() puts a
-	// Texture's own 1/w, 1/h there, which is the only absolute matrix this
-	// tree ever sets; the push/pop pair lends the stack to a caller that wants
-	// something else there for a moment, which is how the hint note samples
-	// its own sheet in 0..1 rather than in texels.
+	// The texture matrix. loadTexelMatrix() puts a Texture's own 1/w, 1/h
+	// there; the push/pop pair lends the stack to a caller that wants
+	// something else for a moment, which is how the hint note samples its own
+	// sheet in 0..1 rather than in texels.
 	//
 	// All three put the matrix mode back through the attribute stack rather
 	// than setting GL_MODELVIEW, because Level::render binds the snow and the
@@ -55,6 +59,14 @@ namespace GLState
 	void loadTexelMatrix(const Vec2d& texelScale);
 	void pushTextureMatrix();
 	void popTextureMatrix();
+
+	// What this file believes OpenGL is holding. Written by every call above
+	// and, for now, read by nobody: the proxies still issue every GL call and
+	// still flush on every one, so the record cannot yet be wrong in a way
+	// that shows. Making it decide anything is a later step, and it is only
+	// sound once every raw glBindTexture and GL_TEXTURE_2D enable in the tree
+	// comes through here.
+	const GLState& state();
 }
 
 #endif

@@ -51,6 +51,12 @@ INC="-I$GAME/src -I$HERE
 CFLAGS="-O2 -fno-strict-aliasing -DTIXML_USE_STL $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register"
 
+# "flags" prints them and stops, which is how Tools/compile_db.sh builds the
+# compilation database the clang tools need. Asking rather than copying is the
+# point: a compile_commands.json with its own idea of the include paths is a
+# refactoring tool parsing a different program from the one that ships.
+if [ "${1:-}" = "flags" ]; then echo "$CXXFLAGS"; exit 0; fi
+
 # The game's sources without the three that do not come along here:
 #   stackwalker  - Win32 SEH, exists only there
 #   audiocapture - the #else branch is a stub, but it does come along

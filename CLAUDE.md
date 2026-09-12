@@ -2273,6 +2273,30 @@ filenames, shipped zipped in `levels/campaigns/`.
   since the Emscripten build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).
+- **A rename goes through a tool that parses the code, never through a text
+  substitution.** `clang-rename` and `clang-change-namespace` are installed
+  (LLVM 18, `/usr/lib/llvm-18/bin/`), and `sh Tools/compile_db.sh` writes the
+  `compile_commands.json` they need — asking `LinuxBuild/build.sh flags` for
+  the real compile flags rather than keeping a copy of them, because a database
+  with its own idea of the include paths has a refactoring tool parsing a
+  different program from the one that ships. The file is a build product and is
+  gitignored.
+
+  ```
+  sh Tools/compile_db.sh
+  clang-rename-18 -i --qualified-name='Texture::unbind' --new-name='...' Blocks5/src/*.cpp
+  ```
+
+  The reason is not tidiness. A `sed` over `GLState::` → `GL::` also rewrites
+  `GLState::GLState`, the constructor of the struct of that name — measured:
+  `clang-rename` asked for the same namespace rename leaves that line alone,
+  and `sed` breaks it. The same shape waits wherever a member, a local or a
+  word inside a comment or a string literal shares a name with the thing being
+  renamed. What saves a blind replacement here is that `Tools/syntax.sh`
+  compiles all 123 sources in seconds, so the mistake is a compile error
+  rather than a silent one — but that is a backstop, not a method, and it
+  catches nothing that still compiles.
+
 - **A comment says what the code does and why, never what it used to do.** The reader is
   looking at the current code; the previous version is in the history, and an account of it in
   the file is noise they have to read past. No "used to be", no "this was moved from here", no

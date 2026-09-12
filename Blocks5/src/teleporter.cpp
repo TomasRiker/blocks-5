@@ -35,8 +35,8 @@ void Teleporter::onRender(RenderLayer layer,
 		if(targetPosition != position)
 		{
 			// mark the target
-			GLState::pushEnables();
-			GLState::setTexturing(false);
+			GL::pushTexturing();
+			GL::setTexturing(false);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
 			glBegin(GL_LINES);
 			glColor4d(0.0, 1.0, 0.5, 0.25);
@@ -52,7 +52,7 @@ void Teleporter::onRender(RenderLayer layer,
 			glVertex2i(t.x, t.y);
 			glVertex2d(p2.x, p2.y);
 			glEnd();
-			GLState::popEnables();
+			GL::popTexturing();
 		}
 	}
 }

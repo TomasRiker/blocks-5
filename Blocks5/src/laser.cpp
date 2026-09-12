@@ -104,7 +104,7 @@ void Laser::onRender(RenderLayer layer,
 			// render the inner and the outer beam
 			glPushMatrix();
 			glTranslated(-sp.x, -sp.y, 0.0);
-			GLState::setTexturing(false);
+			GL::setTexturing(false);
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
@@ -130,7 +130,7 @@ void Laser::onRender(RenderLayer layer,
 			glVertex2dv(p);
 			glEnd();
 
-			GLState::setTexturing(true);
+			GL::setTexturing(true);
 			glPopMatrix();
 		}
 	}
