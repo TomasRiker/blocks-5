@@ -157,9 +157,11 @@ b5_frame()
 	# which is how much each flush carried.
 	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f batch draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
 	# The font cache beside them: what it is holding, and whether it is
-	# earning it. quads * 64 bytes is the geometry; measures is the layout
-	# walk that nothing caches at all.
-	b5_ok "  font cache: $(b5_json "'%d entries, %d quads (%.0f KB), %.0f%% of %d lookups hit, %d evictions, %d uncached measures' % (d['fontcache']['entries'], d['fontcache']['quads'], d['fontcache']['quads'] * 64.0 / 1024.0, 100.0 * d['fontcache']['hits'] / max(d['fontcache']['hits'] + d['fontcache']['misses'], 1), d['fontcache']['hits'] + d['fontcache']['misses'], d['fontcache']['evictions'], d['fontcache']['measures'])")"
+	# earning it. quads * 64 bytes is the geometry; the measures are what
+	# measureText() was asked, and the walks are the ones it had to answer by
+	# reading the string.
+	b5_ok "  font cache: $(b5_json "'%d entries, %d quads (%.0f KB), %.0f%% of %d lookups hit, %d evictions' % (d['fontcache']['entries'], d['fontcache']['quads'], d['fontcache']['quads'] * 64.0 / 1024.0, 100.0 * d['fontcache']['hits'] / max(d['fontcache']['hits'] + d['fontcache']['misses'], 1), d['fontcache']['hits'] + d['fontcache']['misses'], d['fontcache']['evictions'])")"
+	b5_ok "  measures:   $(b5_json "'%d asked, %d by a laid-out string, %d by the %d dimensions kept (%.0f KB, %d evictions), %d walks' % (d['fontcache']['measures'], d['fontcache']['measureHits'], d['fontcache']['dimHits'], d['fontcache']['dimEntries'], d['fontcache']['dimBytes'] / 1024.0, d['fontcache']['dimEvictions'], d['fontcache']['measures'] - d['fontcache']['measureHits'] - d['fontcache']['dimHits'])")"
 }
 
 # Is the picture really the game's 640x480 frame, or a magnified corner of it?

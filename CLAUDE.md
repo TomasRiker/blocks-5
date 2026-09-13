@@ -729,11 +729,36 @@ five oracle scenes plus the help page, every lookup hits — 100% of 1530 on the
 the help page — with zero evictions, and the most the cache ever holds is 825 quads, 52 KB. The
 memory was never the problem in practice; the unit and the missing ceiling were.
 
-**The uncached half is the bigger one and is still uncached.** `measureText` walks the same
-string the same way and nothing keeps the answer: `fitText` runs a binary search with one per
-probe and `adjustText` one per run and per line. Measured, it runs about twice as often as the
-cached path does — 2448 walks against 1088 lookups over four seconds of the help page, 1377
-against 1530 on the menu. That is the next thing to look at, not the cache.
+**Measuring is cached too, in two tiers, and the first of them costs nothing.** `measureText`
+used to walk the string every time it was asked, and it was asked about twice as often as
+anything was drawn — `fitText` runs a binary search with one per probe, `adjustText` one per run
+and per line. A laid-out string now carries its own dimensions, so everything that is both
+measured and drawn is measured for free: that is every GUI widget, each of which asks its
+caption's size in the `onRender` that draws it. The second tier is for the strings nothing draws
+— the runs `adjustText` wraps, the candidates `fitText` probes — and holds dimensions and no
+geometry, which for those would be 64 bytes a character that never reaches the screen.
+
+**Measured, every measure in the frame oracle's five scenes was a walk and none is**: 1026 on the
+menu, 190 on the level select, 1015 in a night-vision level, 315 in a plain one and 264 in the
+editor, all to zero, with the same five frames byte-identical. The help page, which is the most
+text this game wraps at once, goes from 2448 walks to **66 of 2376** — and those are the
+deactivated `GUI_EditBox` behind the page asking for character positions on every frame.
+
+**That path is uncached on purpose.** The positions depend on the `offset` the caller passes,
+which is no part of the key, and there is one per byte of the string; the four callers are the
+edit boxes, of which one is on screen at a time.
+
+**The dimensions cache is budgeted in bytes of key** — an entry is two numbers, so what one costs
+is how long its key is — and nothing in the game comes near it: the help page holds 22 entries and
+1.1 KB, the five oracle scenes six between them. `DIM_BUDGET` is 64 KB, a ceiling for the one
+shape that could grow without one, which is stepping through a campaign: every level measures a
+fresh set of `fitText` candidates, and a folder of single levels has no length anybody promised.
+
+**Two orderings inside it are load-bearing.** The dimensions are measured *before* the geometry
+entry is inserted, because `measureText` reads that same cache and an entry standing in it but not
+yet measured would answer with whatever was in the field. And `lookUpText` holds a *copy* of its
+key across the build, because `cacheKey` returns a reference into one buffer per font and the
+measure builds a key of its own into it.
 
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,

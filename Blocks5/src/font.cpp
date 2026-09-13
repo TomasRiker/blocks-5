@@ -27,7 +27,16 @@ const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 // visited still in the cache. It is a ceiling and not a target.
 const size_t QUAD_BUDGET = 8192;
 
-Font::CacheStats Font::cacheStats = {0, 0, 0, 0, 0, 0};
+// And what the dimensions of strings nothing draws may cost, in bytes of key
+// and entry. Measured, no screen in the game comes near it: the help page,
+// which is the most text this game wraps at once, holds 22 entries and 1.1 KB,
+// and the five scenes the frame oracle walks hold six between them. It is a
+// ceiling for the one case that could grow without one - stepping through a
+// campaign measures a fresh set of fitText() candidates per level, and a
+// folder of single levels has no length anybody promised.
+const size_t DIM_BUDGET = 65536;
+
+Font::CacheStats Font::cacheStats = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 std::vector<Font*> Font::liveFonts;
 uint Font::lruClock = 0;
 
@@ -47,6 +56,9 @@ void Font::resetCacheStats()
 	cacheStats.misses = 0;
 	cacheStats.evictions = 0;
 	cacheStats.measures = 0;
+	cacheStats.measureHits = 0;
+	cacheStats.dimHits = 0;
+	cacheStats.dimEvictions = 0;
 }
 
 namespace
@@ -157,6 +169,76 @@ bool Font::makeRoom(size_t quads)
 	return true;
 }
 
+size_t Font::dimEntryBytes(const std::string& key)
+{
+	// The key is the whole of it: the entry itself is two numbers and a
+	// counter, and the map's own node is a constant nobody here can name.
+	return key.length() + sizeof(DimCacheEntry);
+}
+
+bool Font::makeDimRoom(size_t bytes)
+{
+	if(bytes > DIM_BUDGET) return false;
+
+	while(cacheStats.dimBytes + bytes > DIM_BUDGET)
+	{
+		// The oldest of every font's, off the same clock the geometry cache
+		// ticks: one notion of which entry has gone longest unused.
+		Font* p_oldestFont = 0;
+		std::unordered_map<std::string, DimCacheEntry>::iterator oldest;
+		uint oldestUsed = ~0u;
+
+		for(std::vector<Font*>::iterator f = liveFonts.begin(); f != liveFonts.end(); ++f)
+		{
+			for(std::unordered_map<std::string, DimCacheEntry>::iterator i = (*f)->dimCache.begin();
+				i != (*f)->dimCache.end(); ++i)
+			{
+				if(i->second.lastUsed < oldestUsed)
+				{
+					oldestUsed = i->second.lastUsed;
+					oldest = i;
+					p_oldestFont = *f;
+				}
+			}
+		}
+
+		if(!p_oldestFont) return false;
+
+		cacheStats.dimEvictions++;
+		cacheStats.dimEntries--;
+		cacheStats.dimBytes -= dimEntryBytes(oldest->first);
+		p_oldestFont->dimCache.erase(oldest);
+	}
+
+	return true;
+}
+
+void Font::rememberDimensions(const std::string& text, const Vec2i& dimensions)
+{
+	const std::string& key = cacheKey(text);
+	const size_t bytes = dimEntryBytes(key);
+
+	// makeDimRoom() erases from these maps and builds no key of its own, so
+	// the reference above still stands under it.
+	if(!makeDimRoom(bytes)) return;
+
+	DimCacheEntry& created = dimCache[key];
+	created.lastUsed = ++lruClock;
+	created.dimensions = dimensions;
+	cacheStats.dimEntries++;
+	cacheStats.dimBytes += bytes;
+}
+
+void Font::forgetDimensions(const std::string& key)
+{
+	std::unordered_map<std::string, DimCacheEntry>::iterator i = dimCache.find(key);
+	if(i == dimCache.end()) return;
+
+	cacheStats.dimEntries--;
+	cacheStats.dimBytes -= dimEntryBytes(key);
+	dimCache.erase(i);
+}
+
 void Font::reload()
 {
 	cleanUp();
@@ -235,6 +317,8 @@ void Font::reload()
 
 void Font::dropCache()
 {
+	// In cleanUp(), so that a reload and a destruction both come through here.
+
 	for(std::unordered_map<std::string, StringCacheEntry>::const_iterator i = stringCache.begin();
 		i != stringCache.end(); ++i)
 	{
@@ -242,6 +326,14 @@ void Font::dropCache()
 		cacheStats.quads -= entryQuads(i->second);
 	}
 	stringCache.clear();
+
+	for(std::unordered_map<std::string, DimCacheEntry>::const_iterator i = dimCache.begin();
+		i != dimCache.end(); ++i)
+	{
+		cacheStats.dimEntries--;
+		cacheStats.dimBytes -= dimEntryBytes(i->first);
+	}
+	dimCache.clear();
 }
 
 void Font::cleanUp()
@@ -261,6 +353,12 @@ void Font::renderText(const std::string& text,
 					  const Vec4d& color,
 					  bool cache)
 {
+	// cache=false is for a string whose layout will not be asked for again.
+	// The credits animate charScaling, so every frame of them builds a key no
+	// frame will use twice: measured over six seconds, 0% of 244 lookups hit
+	// and 212 entries were evicted for text already on its way out. It is a
+	// parameter and never part of the key, which would hold two copies of
+	// every string that is asked for both ways.
 	if(Engine::inst().isRenderSuppressed()) return;
 
 	const StringCacheEntry& entry = lookUpText(text, cache);
@@ -318,9 +416,7 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 {
 	if(cache)
 	{
-		const std::string& key = cacheKey(text);
-
-		std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(key);
+		std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(cacheKey(text));
 		if(entry != stringCache.end())
 		{
 			cacheStats.hits++;
@@ -330,6 +426,11 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 
 		cacheStats.misses++;
 
+		// A copy, where the hit above used the reference cacheKey() returns:
+		// the measureText() below builds a key of its own into that same
+		// buffer, so nothing held across it survives.
+		const std::string key = cacheKey(text);
+
 		// Built once to learn what it costs, then kept if the budget can be
 		// made to hold it. Laying it out twice would be the obvious way to
 		// avoid the copy and is the more expensive one.
@@ -337,14 +438,26 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 
 		if(makeRoom(entryQuads(scratchEntry)))
 		{
-			// cacheKey() returns a reference into cacheKeyBuffer, which the
-			// buildText() above does not touch, so the key still stands.
+			// Measured before the insertion, because measureText() reads this
+			// same cache: an entry already standing in it but not yet measured
+			// would answer with whatever was in the field.
 			//
+			// The walk costs one miss and saves every later measure of this
+			// string, which is why a string laid out into the scratch entry is
+			// not measured at all - it has no later.
+			Vec2i dimensions;
+			measureText(text, &dimensions, 0);
+
 			// A reference into an unordered_map stays valid across a later
 			// insertion, which is what lets renderText() hold this one over
 			// three draws.
+			// The geometry entry answers every later measure of this string,
+			// so a dimensions entry the walk above left behind is dead weight.
+			forgetDimensions(key);
+
 			StringCacheEntry& created = stringCache[key];
 			created.lastUsed = ++lruClock;
+			created.dimensions = dimensions;
 			created.glyphs.swap(scratchEntry.glyphs);
 			created.keyBoxes.swap(scratchEntry.keyBoxes);
 			cacheStats.entries++;
@@ -574,6 +687,8 @@ namespace
 std::string Font::fitText(const std::string& text,
 						  int maxWidth)
 {
+	// Down to at most maxWidth pixels, with what no longer fits replaced by
+	// three dots.
 	Vec2i dim;
 	measureText(text, &dim, 0);
 	if(dim.x <= maxWidth) return text;
@@ -602,10 +717,49 @@ void Font::measureText(const std::string& text,
 					   std::vector<Vec2i>* p_outCharPositions,
 					   const Vec2i& offset)
 {
-	// Counted beside the cache's own three, because this is the same walk over
-	// the same string and nothing caches it: fitText() runs a binary search
-	// with one of these per probe, and adjustText() one per run and per line.
+	// Counted beside the cache's own three: fitText() runs a binary search
+	// with one of these per probe, and adjustText() one per run and per line,
+	// so what the walks cost is not read off the hit rate of the drawing.
 	cacheStats.measures++;
+
+	// A string that has been drawn has already been walked, and the entry that
+	// holds its geometry holds the answer to this too. That covers every GUI
+	// widget, each of which measures its own caption in the onRender() that
+	// draws it.
+	//
+	// Only where nothing but the size is wanted. The character positions
+	// depend on the offset, which is no part of the key, and are asked for by
+	// the four edit boxes alone - one of which is on screen at a time.
+	const bool sizeOnly = p_outDimensions && !p_outCharPositions;
+	if(sizeOnly)
+	{
+		const std::string& key = cacheKey(text);
+
+		std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(key);
+		if(entry != stringCache.end())
+		{
+			cacheStats.measureHits++;
+			entry->second.lastUsed = ++lruClock;
+			*p_outDimensions = entry->second.dimensions;
+			return;
+		}
+
+		// And the strings nothing draws. adjustText() asks for the same runs
+		// and the same line tails on every frame it wraps the same text, and
+		// fitText()'s binary search for the same candidates - so these hit for
+		// the same reason the drawn ones do, while never being laid out.
+		//
+		// Nothing stands between the two lookups that could build a key, so
+		// the reference above is still this text's.
+		std::unordered_map<std::string, DimCacheEntry>::iterator dim = dimCache.find(key);
+		if(dim != dimCache.end())
+		{
+			cacheStats.dimHits++;
+			dim->second.lastUsed = ++lruClock;
+			*p_outDimensions = dim->second.dimensions;
+			return;
+		}
+	}
 
 	Vec2d cursor(0, 0);
 	Vec2d maximum(0, lineHeight);
@@ -703,6 +857,7 @@ void Font::measureText(const std::string& text,
 	if(p_outCharPositions)
 		while(p_outCharPositions->size() <= text.length()) p_outCharPositions->push_back(cursor + offset);
 	if(p_outDimensions) *p_outDimensions = maximum;
+	if(sizeOnly) rememberDimensions(text, *p_outDimensions);
 }
 
 std::string Font::adjustText(const std::string& text,
@@ -843,7 +998,9 @@ Vec2i Font::getKeyBoxRows() const
 
 int Font::getCharacterWidth(unsigned char c) const
 {
-	// Half of this font's own space, so the gap keeps its proportion in the
+	// What one character advances the cursor by, before the character spacing
+	// the caller adds on top. Half of this font's own space for the half
+	// space, which has no glyph, so the gap keeps its proportion in the
 	// tooltip font as well.
 	if(c == HALF_SPACE) return charInfo[' '].size.x / 2;
 	return charInfo[c].size.x;

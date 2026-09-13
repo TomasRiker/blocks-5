@@ -1685,12 +1685,15 @@ The `SDL_GetTicks()` eviction stamp went with it. It wraps at 49.7 days, after
 which every standing entry looks newer than every fresh one and the cache evicts
 what it has just built for ever; a counter is both correct and cheaper.
 
-**The bigger half of this is not the cache.** `measureText` walks the same
-strings and nothing keeps the answer - `fitText` runs a binary search with one
-per probe, `adjustText` one per run and per line - and it runs about twice as
-often as the cached path: 2448 walks against 1088 lookups over four seconds of
-the help page, 1377 against 1530 on the menu. That is where the next look
-belongs.
+**The bigger half of this was not the cache, and it is done too.** `measureText`
+walked the same strings and nothing kept the answer - `fitText` runs a binary
+search with one per probe, `adjustText` one per run and per line - and it ran
+about twice as often as the cached path did. It is cached in two tiers now: the
+laid-out entry carries its own dimensions, so a string that is drawn is measured
+for free, and a second cache holds dimensions alone for the strings nothing
+draws. Every measure in the five oracle scenes was a walk and none is; the help
+page goes from 2448 walks to 66 of 2376, which are the deactivated edit box
+behind it asking for character positions. The five frames are byte-identical.
 
 The original item follows.
 

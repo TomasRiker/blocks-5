@@ -274,8 +274,9 @@ namespace
 		// What the font's string cache did with the same frames. quads is what
 		// it is holding right now and not a count since the reset - that is
 		// the number the budget is spent in, 64 bytes of glyph geometry to a
-		// character. measures counts the layout walk nothing caches:
-		// fitText()'s binary search makes one per probe.
+		// character. measures counts every call to measureText(), measureHits
+		// those a laid-out string answered and dimHits those the dimensions
+		// cache did; what is left over are the walks.
 		const Font::CacheStats& fc = Font::getCacheStats();
 		out += ",\"fontcache\":{\"hits\":";
 		appendInt(out, static_cast<int>(fc.hits));
@@ -285,6 +286,16 @@ namespace
 		appendInt(out, static_cast<int>(fc.evictions));
 		out += ",\"measures\":";
 		appendInt(out, static_cast<int>(fc.measures));
+		out += ",\"measureHits\":";
+		appendInt(out, static_cast<int>(fc.measureHits));
+		out += ",\"dimHits\":";
+		appendInt(out, static_cast<int>(fc.dimHits));
+		out += ",\"dimEvictions\":";
+		appendInt(out, static_cast<int>(fc.dimEvictions));
+		out += ",\"dimEntries\":";
+		appendInt(out, static_cast<int>(fc.dimEntries));
+		out += ",\"dimBytes\":";
+		appendInt(out, static_cast<int>(fc.dimBytes));
 		out += ",\"entries\":";
 		appendInt(out, static_cast<int>(fc.entries));
 		out += ",\"quads\":";
