@@ -174,7 +174,9 @@ void GS_Credits::onRender()
 			options.charScaling = scaling;
 			options.lineSpacing = (i == 5 || i == 6) ? 0.75 : 1.0;
 			p_font->setOptions(options);
-			p_font->renderText(title, Vec2i(0, 0), Vec4d(0.75, 0.75, 1.0, alpha));
+			// Not cached: charScaling is animated, so this key belongs to this
+			// frame and to no other.
+			p_font->renderText(title, Vec2i(0, 0), Vec4d(0.75, 0.75, 1.0, alpha), false);
 
 			glPopMatrix();
 			glPushMatrix();
@@ -183,7 +185,9 @@ void GS_Credits::onRender()
 			glTranslated(texts[i].position.x, texts[i].position.y, 0.0);
 			glTranslated(textSize.x / -2, 0.0, 0.0);
 
-			p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4d(1.0, 1.0, 1.0, alpha));
+			// Uncached for the same reason as the title above: scaling is
+			// 0.75 + 0.25 * alpha and both draws are laid out under it.
+			p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4d(1.0, 1.0, 1.0, alpha), false);
 
 			glPopMatrix();
 		}

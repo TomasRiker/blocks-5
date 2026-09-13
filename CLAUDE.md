@@ -706,6 +706,35 @@ emulation offers funnels into one `glColor4f` that clamps each channel on the wa
 `glBegin` block and outside one alike, and a vertex attribute goes nowhere near it. ROADMAP item
 42 is how to stop paying for it on the CPU at all.
 
+**The cache is budgeted in quads, and the budget is shared.** `QUAD_BUDGET` (8192, half a
+megabyte of glyph geometry) replaces a cap of 32 *entries* per font, which was the wrong unit
+twice: an entry is a `std::vector<QuadVertex>` at 64 bytes a character, so thirty-two keycaps
+and thirty-two wrapped help pages were the same number and two orders of magnitude apart — and
+four fonts holding 32 each was not one budget but four. Eviction now takes the oldest entry of
+any live font, from a registry `Font` keeps of itself, so a font that is barely used stops
+holding what a busy one needs. The stamp is a counter and not `SDL_GetTicks()`, which wraps at
+49.7 days and after that makes every standing entry look newer than every fresh one — a cache
+that evicts what it has just built, for ever.
+
+**`renderText` takes a `cache` flag for a string whose layout will not be asked for again**, a
+parameter and never part of the key, which would double every entry asked for both ways. One
+caller uses it: the credits, whose `charScaling` is `0.75 + 0.25 * alpha` and animated, so both
+of their draws build a key no frame will use twice. Measured over six seconds of credits,
+**212 evictions → 0** and the cache holding 42 entries of throwaway text → the menu's own 10.
+The hit rate there stays 0% and correctly so; what changed is that those misses no longer
+destroy anything else.
+
+**What the measurement said about the rest of it is that it was already working.** Across the
+five oracle scenes plus the help page, every lookup hits — 100% of 1530 on the menu, of 1088 on
+the help page — with zero evictions, and the most the cache ever holds is 825 quads, 52 KB. The
+memory was never the problem in practice; the unit and the missing ceiling were.
+
+**The uncached half is the bigger one and is still uncached.** `measureText` walks the same
+string the same way and nothing keeps the answer: `fitText` runs a binary search with one per
+probe and `adjustText` one per run and per line. Measured, it runs about twice as often as the
+cached path does — 2448 walks against 1088 lookups over four seconds of the help page, 1377
+against 1530 on the menu. That is the next thing to look at, not the cache.
+
 **Text is the same arrangement, keyed on what it was laid out with.**
 `Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
 in a batch of their own, the keycap frames, which carry no texture — and draws them three

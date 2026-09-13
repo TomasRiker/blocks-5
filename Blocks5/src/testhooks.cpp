@@ -18,6 +18,7 @@
 #include "gui_element.h"
 #include "particlesystem.h"
 #include "framestats.h"
+#include "font.h"
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
@@ -270,6 +271,26 @@ namespace
 		appendInt(out, GL::state().texturing);
 		out += "}";
 
+		// What the font's string cache did with the same frames. quads is what
+		// it is holding right now and not a count since the reset - that is
+		// the number the budget is spent in, 64 bytes of glyph geometry to a
+		// character. measures counts the layout walk nothing caches:
+		// fitText()'s binary search makes one per probe.
+		const Font::CacheStats& fc = Font::getCacheStats();
+		out += ",\"fontcache\":{\"hits\":";
+		appendInt(out, static_cast<int>(fc.hits));
+		out += ",\"misses\":";
+		appendInt(out, static_cast<int>(fc.misses));
+		out += ",\"evictions\":";
+		appendInt(out, static_cast<int>(fc.evictions));
+		out += ",\"measures\":";
+		appendInt(out, static_cast<int>(fc.measures));
+		out += ",\"entries\":";
+		appendInt(out, static_cast<int>(fc.entries));
+		out += ",\"quads\":";
+		appendInt(out, static_cast<int>(fc.quads));
+		out += "}";
+
 		// What the frames since the last resetStats() cost, all in
 		// milliseconds on the main thread. None of it waits for the GPU -
 		// WebGL hands over a command and returns - so these are what the
@@ -367,6 +388,7 @@ void resetStats()
 {
 	Engine& engine = Engine::inst();
 	engine.getFrameStats().clear();
+	Font::resetCacheStats();
 	engine.batchFlushes = 0;
 	engine.batchDraws = 0;
 	engine.batchQuads = 0;

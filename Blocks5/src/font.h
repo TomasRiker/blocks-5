@@ -42,7 +42,14 @@ public:
 	void reload();
 	void cleanUp();
 
-	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color);
+	// cache=false for a string whose layout will not be asked for again: the
+	// credits animate charScaling, so every frame builds a key no frame will
+	// use twice. Measured over six seconds of them, 0% of 244 lookups hit and
+	// 212 entries were evicted for text already on its way out. A parameter
+	// and never part of the key, which would double every entry asked for
+	// both ways.
+	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color,
+					bool cache = true);
 	// p_outCharPositions gets one position per byte of the text and one behind
 	// it, always text.length() + 1 of them - including the bytes of <h> and
 	// </h>, which draw nothing themselves. The edit boxes look up here under
@@ -65,6 +72,23 @@ public:
 
 	Texture* getTexture();
 
+	// What the string cache has done since the last reset. Counted always, at
+	// a few integer increments per string drawn: the question the numbers
+	// answer - is the cache earning its memory - cannot be asked of a build
+	// that does not have them.
+	struct CacheStats
+	{
+		uint hits;
+		uint misses;
+		uint evictions;
+		uint measures;
+		size_t entries;
+		size_t quads;
+	};
+
+	static const CacheStats& getCacheStats() { return cacheStats; }
+	static void resetCacheStats();
+
 private:
 	struct CharacterInfo
 	{
@@ -76,7 +100,11 @@ private:
 	// own because they carry no texture at all - four thin quads to a frame.
 	struct StringCacheEntry
 	{
-		uint lastTimeUsed;
+		// A counter and not SDL_GetTicks(): that wraps at 49.7 days, after
+		// which every standing entry looks newer than every fresh one and the
+		// cache evicts what it has just built, for ever. Order is all this
+		// needs, not the time.
+		uint lastUsed;
 		std::vector<QuadVertex> glyphs;
 		std::vector<Vec2f> keyBoxes;
 	};
@@ -95,7 +123,12 @@ private:
 
 	// The laid-out string for this text under the options in force, built on
 	// the first ask and kept until it is the oldest entry in the cache.
-	const StringCacheEntry& lookUpText(const std::string& text);
+	const StringCacheEntry& lookUpText(const std::string& text, bool cache);
+
+	// Make room for that many more quads by evicting the entry that has gone
+	// longest unused - from any font, since the budget is shared. False if the
+	// string is larger than the whole budget, which is then not cached at all.
+	static bool makeRoom(size_t quads);
 	void buildText(const std::string& text, std::vector<QuadVertex>& glyphs, std::vector<Vec2f>& keyBoxes);
 	void drawText(const StringCacheEntry& entry) const;
 
@@ -122,6 +155,30 @@ private:
 	// allocation each time.
 	std::string cacheKeyBuffer;
 	std::stack<Options> optionsStack;
+
+	// Shared by every font, because what an entry costs is quads and not
+	// slots: a keycap is twenty and a wrapped help page is thousands.
+	static CacheStats cacheStats;
+
+	// Every font alive, so eviction can take the oldest entry wherever it
+	// lives. Four fonts holding 32 entries each was not one budget but four,
+	// each of them in the wrong unit.
+	static std::vector<Font*> liveFonts;
+
+	// Ticks once per lookup.
+	static uint lruClock;
+
+	// Where a string goes that the caller said not to keep. One per font is
+	// enough: renderText() draws from it three times and nothing re-enters
+	// while it does.
+	StringCacheEntry scratchEntry;
+
+	// The quads one entry holds, for the running total above.
+	static size_t entryQuads(const StringCacheEntry& entry);
+
+	// Empty the cache and take its entries out of the running total. In
+	// cleanUp() so that a reload and a destruction both go through it.
+	void dropCache();
 };
 
 #endif

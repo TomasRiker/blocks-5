@@ -1655,8 +1655,46 @@ Two ways out, both cheap:
 The desktop must not pay for either. Whatever lands, `-nobatch` and the native
 build should still reach GL with the raw colour and let the hardware clamp it.
 
-43. One quad budget for all fonts, and a way to say "do not cache this"
------------------------------------------------------------------------
+43. One quad budget for all fonts, and a way to say "do not cache this"  - **DONE**
+-----------------------------------------------------------------------------------
+Both halves are in, and the measurement that went first said the item was half
+right. The budget is `QUAD_BUDGET` (8192 quads, 512 KB) shared across every live
+font, evicting the oldest entry wherever it lives; the flag is a `cache`
+parameter on `renderText` that never reaches the key, and the credits are its
+one caller.
+
+What was right: the credits churn. Six seconds of them ran **0% of 244 lookups
+hit with 212 evictions**, flooding the cache with 42 entries of text already on
+its way out. With the flag: **0 evictions**, and the cache holds the menu's own
+10 entries throughout.
+
+What was not: the memory. Every other screen already hits 100% with zero
+evictions - 1530 lookups on the menu, 1088 on the help page - and the most the
+cache ever holds is 825 quads, 52 KB. The unbounded four-fonts-times-32 was real
+in principle and tiny in practice, so this is a correct ceiling rather than a
+saving.
+
+And the second "do not cache" case named below is better answered by the budget
+than by the flag. The paused game's pulsing text is `renderText("Pause", ...)`
+with the colour and the position outside the key, so it is one entry hit every
+frame - the cache doing exactly its job. It is cheap to rebuild and so gains
+little by being kept, but under an *entry* cap it still cost a whole slot; under
+a quad budget its twenty quads cost nothing worth excluding.
+
+The `SDL_GetTicks()` eviction stamp went with it. It wraps at 49.7 days, after
+which every standing entry looks newer than every fresh one and the cache evicts
+what it has just built for ever; a counter is both correct and cheaper.
+
+**The bigger half of this is not the cache.** `measureText` walks the same
+strings and nothing keeps the answer - `fitText` runs a binary search with one
+per probe, `adjustText` one per run and per line - and it runs about twice as
+often as the cached path: 2448 walks against 1088 lookups over four seconds of
+the help page, 1377 against 1530 on the menu. That is where the next look
+belongs.
+
+The original item follows.
+
+
 `Font` keeps 32 laid-out strings (`font.cpp`), and the number is the wrong
 measure twice over. It is per font, so the four fonts in play - the GUI's, the
 tooltip's, the credits', a skin's hint font - hold 128 entries between them with

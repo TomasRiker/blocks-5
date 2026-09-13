@@ -21,7 +21,33 @@ const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
 // How many laid-out strings a font keeps. Every screen in the game stays well
 // under it, and one that did not would simply rebuild its oldest string.
-const size_t STRING_CACHE_SIZE = 32;
+// Quads and not entries, and one budget for every font rather than one each.
+// A quad is four QuadVertex of 16 bytes, so this is 512 KB of glyph geometry,
+// against a measured worst case of 825 quads with every screen the game has
+// visited still in the cache. It is a ceiling and not a target.
+const size_t QUAD_BUDGET = 8192;
+
+Font::CacheStats Font::cacheStats = {0, 0, 0, 0, 0, 0};
+std::vector<Font*> Font::liveFonts;
+uint Font::lruClock = 0;
+
+size_t Font::entryQuads(const StringCacheEntry& entry)
+{
+	// Four vertices to a quad in both, and the keycap frames are four thin
+	// quads apiece rather than a line loop.
+	return (entry.glyphs.size() + entry.keyBoxes.size()) / 4;
+}
+
+void Font::resetCacheStats()
+{
+	// The four counters and not the two sizes: entries and quads are what is
+	// standing right now, so clearing them would report a cache that is full
+	// as empty until the next miss.
+	cacheStats.hits = 0;
+	cacheStats.misses = 0;
+	cacheStats.evictions = 0;
+	cacheStats.measures = 0;
+}
 
 namespace
 {
@@ -62,6 +88,8 @@ namespace
 
 Font::Font(const std::string& filename) : Resource(filename)
 {
+	liveFonts.push_back(this);
+
 	p_texture = 0;
 	lineHeight = 0;
 	offset = 0;
@@ -82,6 +110,51 @@ Font::Font(const std::string& filename) : Resource(filename)
 Font::~Font()
 {
 	cleanUp();
+
+	for(std::vector<Font*>::iterator i = liveFonts.begin(); i != liveFonts.end(); ++i)
+	{
+		if(*i == this) { liveFonts.erase(i); break; }
+	}
+}
+
+bool Font::makeRoom(size_t quads)
+{
+	if(quads > QUAD_BUDGET) return false;
+
+	while(cacheStats.quads + quads > QUAD_BUDGET)
+	{
+		// The oldest of every font's entries, not of this one's: a font that
+		// is barely used must not go on holding what a busy one needs.
+		Font* p_oldestFont = 0;
+		std::unordered_map<std::string, StringCacheEntry>::iterator oldest;
+		uint oldestUsed = ~0u;
+
+		for(std::vector<Font*>::iterator f = liveFonts.begin(); f != liveFonts.end(); ++f)
+		{
+			for(std::unordered_map<std::string, StringCacheEntry>::iterator i = (*f)->stringCache.begin();
+				i != (*f)->stringCache.end(); ++i)
+			{
+				if(i->second.lastUsed < oldestUsed)
+				{
+					oldestUsed = i->second.lastUsed;
+					oldest = i;
+					p_oldestFont = *f;
+				}
+			}
+		}
+
+		// Nothing left to give: the budget is smaller than one string wants,
+		// which the guard above has already ruled out, so this cannot happen -
+		// but a loop that can spin for ever is worth one comparison.
+		if(!p_oldestFont) return false;
+
+		cacheStats.evictions++;
+		cacheStats.entries--;
+		cacheStats.quads -= entryQuads(oldest->second);
+		p_oldestFont->stringCache.erase(oldest);
+	}
+
+	return true;
 }
 
 void Font::reload()
@@ -157,11 +230,24 @@ void Font::reload()
 	}
 
 	// The glyph rectangles have just moved, so every laid-out string is stale.
+	// cleanUp() above has already emptied it; this is where the reason lives.
+}
+
+void Font::dropCache()
+{
+	for(std::unordered_map<std::string, StringCacheEntry>::const_iterator i = stringCache.begin();
+		i != stringCache.end(); ++i)
+	{
+		cacheStats.entries--;
+		cacheStats.quads -= entryQuads(i->second);
+	}
 	stringCache.clear();
 }
 
 void Font::cleanUp()
 {
+	dropCache();
+
 	if(p_texture)
 	{
 		// release the texture
@@ -172,11 +258,12 @@ void Font::cleanUp()
 
 void Font::renderText(const std::string& text,
 					  const Vec2i& position,
-					  const Vec4d& color)
+					  const Vec4d& color,
+					  bool cache)
 {
 	if(Engine::inst().isRenderSuppressed()) return;
 
-	const StringCacheEntry& entry = lookUpText(text);
+	const StringCacheEntry& entry = lookUpText(text, cache);
 
 	glPushMatrix();
 	glTranslated(position.x, position.y, 0.0);
@@ -227,39 +314,52 @@ const std::string& Font::cacheKey(const std::string& text)
 	return cacheKeyBuffer;
 }
 
-const Font::StringCacheEntry& Font::lookUpText(const std::string& text)
+const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cache)
 {
-	const std::string& key = cacheKey(text);
-
-	std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(key);
-	if(entry != stringCache.end())
+	if(cache)
 	{
-		entry->second.lastTimeUsed = SDL_GetTicks();
-		return entry->second;
-	}
+		const std::string& key = cacheKey(text);
 
-	// Room first: the entry that has gone longest unused gives way.
-	if(stringCache.size() >= STRING_CACHE_SIZE)
-	{
-		uint minTime = ~0u;
-		std::unordered_map<std::string, StringCacheEntry>::iterator oldest = stringCache.begin();
-		for(std::unordered_map<std::string, StringCacheEntry>::iterator i = stringCache.begin(); i != stringCache.end(); ++i)
+		std::unordered_map<std::string, StringCacheEntry>::iterator entry = stringCache.find(key);
+		if(entry != stringCache.end())
 		{
-			if(i->second.lastTimeUsed < minTime)
-			{
-				minTime = i->second.lastTimeUsed;
-				oldest = i;
-			}
+			cacheStats.hits++;
+			entry->second.lastUsed = ++lruClock;
+			return entry->second;
 		}
-		stringCache.erase(oldest);
+
+		cacheStats.misses++;
+
+		// Built once to learn what it costs, then kept if the budget can be
+		// made to hold it. Laying it out twice would be the obvious way to
+		// avoid the copy and is the more expensive one.
+		buildText(text, scratchEntry.glyphs, scratchEntry.keyBoxes);
+
+		if(makeRoom(entryQuads(scratchEntry)))
+		{
+			// cacheKey() returns a reference into cacheKeyBuffer, which the
+			// buildText() above does not touch, so the key still stands.
+			//
+			// A reference into an unordered_map stays valid across a later
+			// insertion, which is what lets renderText() hold this one over
+			// three draws.
+			StringCacheEntry& created = stringCache[key];
+			created.lastUsed = ++lruClock;
+			created.glyphs.swap(scratchEntry.glyphs);
+			created.keyBoxes.swap(scratchEntry.keyBoxes);
+			cacheStats.entries++;
+			cacheStats.quads += entryQuads(created);
+			return created;
+		}
+
+		// Too big for the budget on its own. Drawn from the scratch entry,
+		// like a string the caller asked not to keep.
+		return scratchEntry;
 	}
 
-	// A reference into an unordered_map stays valid across a later insertion,
-	// which is what lets renderText() hold this one over three draws.
-	StringCacheEntry& created = stringCache[key];
-	created.lastTimeUsed = SDL_GetTicks();
-	buildText(text, created.glyphs, created.keyBoxes);
-	return created;
+	cacheStats.misses++;
+	buildText(text, scratchEntry.glyphs, scratchEntry.keyBoxes);
+	return scratchEntry;
 }
 
 void Font::drawText(const StringCacheEntry& entry) const
@@ -502,6 +602,11 @@ void Font::measureText(const std::string& text,
 					   std::vector<Vec2i>* p_outCharPositions,
 					   const Vec2i& offset)
 {
+	// Counted beside the cache's own three, because this is the same walk over
+	// the same string and nothing caches it: fitText() runs a binary search
+	// with one of these per probe, and adjustText() one per run and per line.
+	cacheStats.measures++;
+
 	Vec2d cursor(0, 0);
 	Vec2d maximum(0, lineHeight);
 
