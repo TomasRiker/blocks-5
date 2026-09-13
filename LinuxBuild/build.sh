@@ -34,10 +34,36 @@ if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-t
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"
 
+# libogg's os_types.h ends in "#include <ogg/config_types.h>" for every
+# compiler it does not know by name, GCC on Linux among them, and that header
+# is one configure writes: it is not in the tarball and so not in the tree.
+# It is generated here, as syntax.sh generates its forwarding headers, so that
+# the build does not depend on a system libogg-dev happening to be installed.
+# Written only when its content changes: the objects depend on it, and a fresh
+# mtime on every run would recompile the whole tree every time.
+GEN="$OUT/gen"
+mkdir -p "$GEN/ogg"
+cat > "$GEN/ogg/config_types.h.new" <<'EOF'
+#ifndef __CONFIG_TYPES_H__
+#define __CONFIG_TYPES_H__
+#include <stdint.h>
+typedef int16_t ogg_int16_t;
+typedef uint16_t ogg_uint16_t;
+typedef int32_t ogg_int32_t;
+typedef uint32_t ogg_uint32_t;
+typedef int64_t ogg_int64_t;
+#endif
+EOF
+if cmp -s "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"; then
+    rm "$GEN/ogg/config_types.h.new"
+else
+    mv "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"
+fi
+
 command -v sdl-config >/dev/null 2>&1 || {
     echo "sdl-config not found - libsdl1.2-dev is missing."; exit 2; }
 
-INC="-I$GAME/src -I$HERE
+INC="-I$GAME/src -I$HERE -I$GEN
      -I$LIBS/tinyxml-2.6.2 -I$LIBS/sigslot -I$LIBS/mtrand-1.1
      -I$LIBS/openal-soft-1.25.2/include -I$LIBS/openal-soft-1.25.2/include/AL
      -I$LIBS/libvorbis-1.3.4/include -I$LIBS/libvorbis-1.3.4/lib

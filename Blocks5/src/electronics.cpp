@@ -8,6 +8,8 @@ Electronics::Electronics(Level& level,
 						 const Vec2i& position,
 						 int dir) : Object(level, 1)
 {
+	// The wire pass is the base class's own; a part adds the layers it draws
+	// its picture on with |=, or the connections are never drawn.
 	renderLayers = RL_WIRE;
 	warpTo(position);
 	flags = OF_FIXED | OF_MASSIVE | OF_ELECTRONICS;

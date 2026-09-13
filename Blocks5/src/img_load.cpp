@@ -66,10 +66,5 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 	return p_surface;
 }
 
-SDL_Surface* IMG_Load(const char* p_filename)
-{
-	SDL_RWops* p_rwOps = SDL_RWFromFile(p_filename, "rb");
-	return p_rwOps ? IMG_Load_RW(p_rwOps, 1) : 0;
-}
 
 }

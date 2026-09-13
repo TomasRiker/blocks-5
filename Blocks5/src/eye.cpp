@@ -29,7 +29,8 @@ void Eye::updateSprites()
 
 	if(!closed)
 	{
-		sprites.add(Vec2i(192, 448)).offset = Vec2d(0.5, 0.5) + 3.0 * viewDir;
+		sprites.add(Vec2i(192, 448)).offset = Vec2i(static_cast<int>(floor(3.0 * viewDir.x + 0.5)),
+											   static_cast<int>(floor(3.0 * viewDir.y + 0.5)));
 	}
 }
 

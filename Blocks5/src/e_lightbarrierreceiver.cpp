@@ -6,7 +6,7 @@ E_LightBarrierReceiver::E_LightBarrierReceiver(Level& level,
 											   const Vec2i& position,
 											   int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	renderBox = false;
 	value = 0;
 

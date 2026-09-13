@@ -6,7 +6,7 @@ E_Barrage::E_Barrage(Level& level,
 					 const Vec2i& position,
 					 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	renderBox = false;
 	up = false;
 	shownState = 0;

@@ -67,7 +67,7 @@ namespace
 	const int OSD_X = 50;
 	const int OSD_Y = 50;
 
-	// And how rewind.png is divided up: the word on the left, the two
+	// And how the 218x64 strip at (0,112) of misc.png is divided up: the word on the left, the two
 	// triangles next to it on the right. The height is that of the whole
 	// image; whatever is empty below draws nothing, and this therefore
 	// copes with taller lettering too.

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "texture.h"
 #include "filesystem.h"
-#include "engine.h"
 
 Texture::Texture(const std::string& filename) : Resource(filename)
 {

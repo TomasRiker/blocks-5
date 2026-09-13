@@ -170,7 +170,6 @@ public:
 	// browser the same numbers come out of the test hook instead, without the
 	// overlay's own cost landing in the picture.
 	void showPerformance() { performanceShown = true; }
-	bool isPerformanceShown() const { return performanceShown; }
 
 	// The -perf upper-bound measurement; see where it is set in render().
 	bool isRenderSuppressed() const { return renderSuppressed; }
@@ -202,7 +201,6 @@ public:
 #endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
-	bool isFullScreen() const { return fullScreen; }
 #ifdef __EMSCRIPTEN__
 	// On a phone the game takes the fullscreen back itself on every touch.
 	// Called from the DOM callback and nowhere else: the Fullscreen API needs a
@@ -303,7 +301,6 @@ public:
 	bool isGUIFocused();
 	void unfocusGUI();
 
-	const std::vector<VirtualKey>& getVKs() const;
 	const std::unordered_map<std::string, Action*>& getActions() const;
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
@@ -343,7 +340,6 @@ public:
 
 	// timeOutMS <= 0 waits without a deadline.
 	void beginKeyGrab(int timeOutMS = 3000);
-	bool isGrabbingKey() const;
 
 	// Returns GRAB_WAITING while nothing is decided; otherwise the result
 	// once, and that ends the key grab.
@@ -566,9 +562,7 @@ private:
 	bool spriteBatchDisabled;
 	// What the first quad of the open batch was queued against; in a test-hooks
 	// build the flush checks the state is still that. Declared whatever the
-	// build, because BLOCKS5_TEST_HOOKS reaches three translation units at most
-	// and a member behind it would give this class two different sizes - which
-	// is the one way to make singletons lie on top of each other in memory.
+	// build: a member behind BLOCKS5_TEST_HOOKS would give the class two sizes.
 	GLint batchTexture;
 	GLdouble batchTextureMatrix[16];
 	// The batched half of renderSprite, taking the corners already worked out

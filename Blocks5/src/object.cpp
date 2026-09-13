@@ -851,8 +851,8 @@ void Object::burst()
 	Engine::inst().playSound(burstSound, false, 0.1, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
-	const Sprites& sprites = getSprites();
-	const int numTries = sprites.getTryCount(75);
+	const Sprites& debris = getSprites();
+	const int numTries = debris.getTryCount(75);
 	for(int i = 0; i < numTries; i++)
 	{
 		p.lifetime = static_cast<ushort>(random(20, 50));
@@ -867,7 +867,7 @@ void Object::burst()
 		// cloud in the object's shape.
 		Vec4d sampled;
 		Vec2i offset;
-		if(!sprites.sample(&sampled, &offset)) continue;
+		if(!debris.sample(&sampled, &offset)) continue;
 
 		p.position = position * 16 + offset;
 		const double r = random(0.0, 6.283);

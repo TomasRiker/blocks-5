@@ -22,7 +22,6 @@
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
-#include <unistd.h>
 #endif
 
 namespace

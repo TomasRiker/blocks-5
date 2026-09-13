@@ -7,7 +7,7 @@ E_PulsePanel::E_PulsePanel(Level& level,
 						   int pulseValue,
 						   int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_FLOOR;
+	renderLayers |= RL_FLOOR;
 	renderBox = false;
 	flags &= ~OF_MASSIVE;
 	flashLayer = RL_FLOOR;

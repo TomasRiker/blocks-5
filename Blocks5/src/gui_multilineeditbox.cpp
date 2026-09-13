@@ -158,6 +158,11 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 
 	switch(event.keysym.sym)
 	{
+	case SDLK_ESCAPE:
+		// Escape is never an input: it belongs to the dialog behind, as in the
+		// single-line box.
+		if(p_parent) p_parent->onKeyEvent(event);
+		break;
 	case SDLK_TAB:
 		// forward the event to the parent element
 		if(p_parent) p_parent->onKeyEvent(event);

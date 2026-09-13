@@ -4,9 +4,10 @@
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/smoke.sh
 #
 # Clicks go to element names, not to coordinates; harness.sh says how. It needs
-# Xvfb, a window manager (openbox), xdotool and ffmpeg:
+# Xvfb, a window manager (openbox), xdotool, ffmpeg and xdpyinfo (x11-utils),
+# which is what it waits on for the server to come up:
 #
-#   sudo apt install xvfb openbox xdotool ffmpeg
+#   sudo apt install xvfb openbox xdotool ffmpeg x11-utils
 #
 # Without a window manager everything runs except the fullscreen switch: the
 # game asks for that through EWMH, and with no window manager nobody hears it.

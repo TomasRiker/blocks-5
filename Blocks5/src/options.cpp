@@ -95,7 +95,7 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	{
 		const std::string element(std::string("Options.") + (*i)->getName());
 		GUI_Element* p_button = getChild(element);
-		// The label is an element of its own (<For> points back at the button)
+		// The label is an element of its own (its for="..." points back at the button)
 		// and therefore has to move along with it.
 		GUI_Element* p_label = getChild(element + "Label");
 		if((*i)->isAvailable())

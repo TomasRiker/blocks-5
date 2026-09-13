@@ -267,9 +267,9 @@ bool isSafeMemberName(const std::string& name)
 
 	for(size_t i = 0; i < name.length(); i++)
 	{
-		// Source files are ISO-8859-1: without the reinterpretation as
-		// unsigned, every umlaut would be negative and would fail the control
-		// character test.
+		// The XML these names come out of is ISO-8859-1: without the
+		// reinterpretation as unsigned, every umlaut would be negative and would
+		// fail the control character test.
 		const unsigned char c = static_cast<unsigned char>(name[i]);
 		if(c < 0x20 || c == 0x7F) return false;
 		if(strchr("/\\:<>[]\"|?*", c)) return false;

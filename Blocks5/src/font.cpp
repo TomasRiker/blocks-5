@@ -49,7 +49,7 @@ size_t Font::entryQuads(const StringCacheEntry& entry)
 
 void Font::resetCacheStats()
 {
-	// The four counters and not the two sizes: entries and quads are what is
+	// The seven counters and not the four sizes: entries and quads are what is
 	// standing right now, so clearing them would report a cache that is full
 	// as empty until the next miss.
 	cacheStats.hits = 0;

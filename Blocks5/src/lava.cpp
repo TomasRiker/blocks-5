@@ -300,12 +300,11 @@ void Lava::onUpdate()
 				if(!p_obj->getDestroyTime())
 				{
 					p_obj->disappear(0.2);
-					Object* p_destroyed = p_obj;
 
 					Engine::inst().playSound("vaporize.ogg", false, 0.15);
 
 					// debris
-					const Sprites& debris = p_destroyed->getSprites();
+					const Sprites& debris = p_obj->getSprites();
 					int n = debris.getTryCount(random(50, 80));
 					for(int i = 0; i < n; i++)
 					{

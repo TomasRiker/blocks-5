@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "transfer.h"
 #include "filesystem.h"
-#include "file.h"
 #include "campaign.h"
 #include "progressdb.h"
 #include "util.h"
@@ -195,7 +194,10 @@ std::string install(Kind kind,
 		return "";
 	}
 
-	const bool replaced = fs.fileExists(dir + name);
+	// The same question wouldReplace() answers, and for the progress database
+	// that includes a backup left by an interrupted save.
+	const bool replaced = (kind == KIND_PROGRESS) ? ProgressDB::inst().exists()
+	                                              : fs.fileExists(dir + name);
 
 	// A campaign must be loadable as well, not merely contain a campaign.xml,
 	// and a progress database must parse. Both are checked before anything is
