@@ -1684,12 +1684,14 @@ void Engine::render()
 
 #ifdef BLOCKS5_TEST_HOOKS
 	// One random stream per rendered frame, keyed on the scene's tick and on
-	// nothing else. A rendered frame makes draws of its own - renderShine's
-	// jitter, the night vision's two noise offsets, a particle's colour - and
-	// how many renders fall inside one 20 ms tick is up to the frame rate, so
-	// without this the picture at a given tick depends on how fast the machine
-	// is. The odd half of the pair; update() takes the even one, which keeps
-	// the logic one stream per tick whatever the renderer does.
+	// nothing else. A rendered frame makes draws of its own - the night
+	// vision's two noise offsets, a particle's colour - and a slow machine
+	// renders fewer frames than it runs ticks (the render is gated on a tick
+	// having run, so there is never more than one per tick and there can be
+	// fewer), so without this the picture at a given tick depends on how many
+	// frames the machine dropped on the way there. The odd half of the pair;
+	// update() takes the even one, which keeps the logic one stream per tick
+	// whatever the renderer does.
 	//
 	// sceneTick and not getTime(), because the engine's clock counts from
 	// startup and a harness's click lands at whatever tick the machine got to

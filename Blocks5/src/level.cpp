@@ -1332,18 +1332,18 @@ namespace
 	// A value in [-1, 1] for one point of a beam: steady for as long as the
 	// seed is, different from its neighbours along the beam.
 	//
-	// Both halves are needed and neither alone will do. A random() here is
-	// drawn per *frame*, so the glow strobed at 25 fps and hazed at 200 - the
-	// same fault the thirteen onRender overrides were cleared of. One value
-	// for the whole object is drawn per tick and is steady, but every point of
-	// the beam then breathes in unison, which reads as the beam pulsing rather
-	// than as light scattering along it. Hashing the caller's per-tick value
-	// together with the point's index gives both: it stands still within a
-	// tick and still differs from point to point.
+	// One value for the whole object - the caller's bare glowJitter - is what
+	// this replaces, and it is the thing to keep away from: every point of the
+	// beam then breathes in unison, which reads as the beam pulsing rather
+	// than as light scattering along it.
 	//
-	// The hash is the usual fract(sin(x) * large) - cheap, no state, and it
-	// draws nothing from the shared generator, so a frame stays reproducible
-	// from a seed however many times it is rendered.
+	// A random() per point would look the same as this and is what stood here
+	// before. What it costs is not shimmer - the loop renders at most once per
+	// tick, so it cannot shimmer faster than the jitter is meant to - but
+	// draws from the shared generator, a variable number of them, since the
+	// beam's length moves with its mirrors. In a shipped build there is no
+	// per-frame reseed, so those draws shift the sequence the logic reads.
+	// The hash is the usual fract(sin(x) * large): no state, no draws.
 	double pointJitter(double seed, int index)
 	{
 		double h = sin(seed * 12.9898 + index * 78.233) * 43758.5453;

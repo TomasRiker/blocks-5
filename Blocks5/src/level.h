@@ -69,8 +69,6 @@ public:
 	// the object's own matrix, so the points are taken relative to origin.
 	// Each shine's size varies by up to jitter, differently along the beam and
 	// steady for as long as seed is - pass the object's per-tick glowJitter.
-	// Nothing here draws a random number: that would be once per frame, and
-	// the glow would strobe at 25 fps and haze at 200.
 	void renderBeamShines(const std::list<Vec2d>& beam, const Vec2i& origin,
 						  double intensity, double size, double jitter, double seed);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);

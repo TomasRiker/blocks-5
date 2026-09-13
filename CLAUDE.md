@@ -1360,22 +1360,29 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
 
-**Nothing in the render path draws a random number.** `onRender` runs once per *frame* while
-the logic runs at a fixed 20 ms, so a `random()` inside one shimmers at the frame rate: the
-same glow was a strobe at 25 fps and a smooth haze at 200, which made the effect a different
-effect on every machine. Thirteen `onRender`s did that, and `Level::render` did it twice more
-for the night vision's noise offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
+**Nothing in the render path draws a random number**, and the reason is not the one it looks
+like. **The loop renders at most once per tick**: `timeProcessed` is zeroed at the top of each
+iteration and only raised inside `while(timeToProcess >= logicRate)`, and the render is gated
+on it — so a machine that cannot keep up renders *fewer* frames than it runs ticks, and one
+that flies cannot render more. A `random()` in an `onRender` therefore never shimmered faster
+than 50 Hz and the effect was never "a strobe at 25 fps and a haze at 200", whatever this file
+said before. What such a draw really costs is the *shared generator*: a shipped build has no
+per-frame reseed (the one in `render()` is inside `BLOCKS5_TEST_HOOKS`), so every draw the
+renderer makes shifts the sequence the logic then reads, by an amount that depends on how many
+frames the machine dropped and on how much was on screen. That is the coupling worth removing.
+Thirteen `onRender`s did it, and `Level::render` did it twice more for the night vision's noise
+offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
 `frameBegin()`, and `noiseOffset1`/`noiseOffset2` are redrawn in `Level::update()` — both once
 per tick, the same place and for the same reason the flash decays there.
 
 **`Level::renderBeamShines` was a fourteenth and survived that sweep**, drawing one `random()`
-per glow per frame along a laser's or a light barrier's beam. Handing it the object's own
-`glowJitter` instead is steady but wrong in a way worth naming: one value for the whole object
-makes every point of the beam breathe in unison, which reads as the beam pulsing rather than as
-light scattering along it. `pointJitter(seed, index)` hashes the per-tick value together with
-the point's index — `fract(sin(x) * 43758.5453)`, no state, nothing drawn from the shared
-generator — so the jitter stands still within a tick *and* differs from point to point, which is
-what the effect was after in the first place.
+per glow per frame along a laser's or a light barrier's beam — and, by the paragraph above, it
+did not look wrong for it. Handing it the object's own `glowJitter` instead *does* look wrong:
+one value for the whole object makes every point of the beam breathe in unison, which reads as
+the beam pulsing rather than as light scattering along it. `pointJitter(seed, index)` hashes the
+per-tick value together with the point's index — `fract(sin(x) * 43758.5453)`, no state — so the
+jitter differs from point to point as it always did, and the beam draws nothing at all from the
+shared generator. The picture is the one it had before; what changed is the coupling.
 
 One jitter per object and not one per use: an object's own draws in a frame therefore move
 together, which nothing can see, while different objects stay independent, which is the part
