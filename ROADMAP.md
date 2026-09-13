@@ -1299,6 +1299,13 @@ What the tree will ask for:
   panel would want its own sound with it. That is item 30, and this is the
   first concrete caller for it.
 
+Where it stands: `data/hint.wav` and `data/hintscroll.wav` are in the tree and
+are the two recordings this item asks for. Nothing else is done - there is no
+`.ogg` beside either, `gs_loading.cpp` preloads neither, `sounds.xml` names
+neither and no `playSound()` anywhere says either name, so `hint.cpp` is
+untouched. They also make `data.zip` stale on every checkout until `pack.sh
+data` runs, which is what the harness's own staleness guard reports.
+
 
 33. Draw the keycap frames behind the text
 -------------------------------------------
@@ -1797,6 +1804,116 @@ would. Natively it is one call per bind. Anyone picking it up should measure it
 on the desktop, since the numbers above the `frames.sh` ones were taken under
 swiftshader in a browser, where this particular change does nothing.
 
+
+
+45. The window creeps down the screen where the taskbar is at the top
+---------------------------------------------------------------------
+`rememberWindowPlacement()` saves `wp.rcNormalPosition` from
+`GetWindowPlacement`, and `restoreWindowPosition()` puts it back with
+`SetWindowPos`. Those two are not in the same coordinate system:
+`rcNormalPosition` is in **workspace** coordinates - relative to the work area
+of the window's monitor - while `SetWindowPos` takes **screen** coordinates.
+
+With the taskbar at the bottom or the right the work area starts at (0,0) and
+the two agree, which is why this is invisible to almost everybody. With the
+taskbar at the **top** or the **left**, every save and restore shifts the
+window by the height or width of it, in the same direction each time, so the
+window walks across the desktop over a run of sessions. `MonitorFromRect` in
+the same function is fed the same workspace rectangle and judged against
+screen coordinates, so the "does that spot still exist" test is off by the same
+offset and can refuse a perfectly good position.
+
+The fix is to restore with `SetWindowPlacement` rather than `SetWindowPos`:
+it takes `rcNormalPosition` in the coordinates `GetWindowPlacement` handed
+over, so the round trip closes, and it replays `showCmd` as well - which would
+take the separate `ShowWindow(SW_MAXIMIZE)` with it. It needs a Windows machine
+to do and to check; nothing here compiles that branch, let alone runs it.
+
+
+46. Open the loopback capture when a recording starts, not at every start
+--------------------------------------------------------------------------
+`Engine::init()` opens `AudioCapture` unconditionally and nothing closes it
+before `Engine::exit()`. `startCapture()` and `stopCapture()` only move a
+`capturing` flag; the device stays open and the thread keeps reading either
+way. Under Linux that is a `pa_simple_read` on the monitor of the default sink
+for the whole session, and under Windows a WASAPI loopback client for the whole
+session - so a desktop that shows a recording indicator shows one the entire
+time the game is running, whether or not anything is being recorded.
+
+It is deliberate as it stands, and the reason is written where the loop reads:
+*"Reading has to continue even while nothing is being recorded: otherwise the
+server's buffer overflows and the next recording begins with music seconds
+old."* Opening lazily therefore cannot be a matter of moving the `open()` call
+- it has to answer that, either by accepting that the first recording starts
+with whatever latency `pa_simple_new` costs, or by opening on the keypress and
+throwing the first buffers away. Both are a restructuring of the ring and its
+clock-based padding rather than a fix.
+
+
+47. tellStream() reads the decoder thread's position without a lock
+---------------------------------------------------------------------
+`Engine::stopMusic()` calls `p_currentMusic->tellStream()`, which is
+`ov_pcm_tell(&vorbisFile)`, on a `StreamedSound` whose decoder thread is still
+running - the volume slide that ends it happens afterwards. That thread is
+inside `ov_read` and `ov_pcm_seek` on the same `OggVorbis_File`, so the main
+thread reads a field the decoder thread writes with nothing between them.
+
+`ov_pcm_tell` is `return vf->pcm_offset;` on an aligned 64-bit field, so on
+every platform this ships to the load is atomic in practice and the worst real
+outcome is a resume position a fraction of a second stale - which the caller's
+own comment already allows for (*"more or less, this just asks the audio
+stream's read cursor"*). It is still a data race by the language's definition,
+and `threadProc` right beside it already takes the trouble to ask OpenAL for
+the pitch rather than read the member, *"which belongs to the main thread"* -
+so the ownership rule is stated in the file and this is the one place that
+breaks it. The cheap answer is a `pcmOffset` the decoder thread publishes under
+the mutex the ring already has; the honest one is to say in the file that the
+read is deliberate and why it is safe here.
+
+
+48. adjustText can break a line inside a keycap whose key name has a space
+----------------------------------------------------------------------------
+A keycap is an atom on the way **in**: `adjustText` finds the `</k>` that
+closes a run, measures the whole run and moves it to the next line as one
+piece. The backward search that picks the break point does not know that. When
+a later word overruns, the walk goes back through `out` looking for the last
+break character, skipping *elements* through `tagEndingAt` - and a space inside
+a keycap run it has already appended is not an element, it is a space. It
+breaks there.
+
+`<k>Num Enter</k>` is exactly such a run, and `%BINDING{$A_SAVE_IN_HOTEL}`
+expands to one. The result is `<k>Num` at the end of one line and `Enter</k>`
+at the start of the next, with `buildText` opening the frame on the first line
+and closing it on the second - a box drawn across a line break, which is the
+one thing the atom rule exists to prevent.
+
+Nothing in the shipped text hits it today: it needs the overflow to land with
+no other break candidate between the keycap and the end of the line. A hint
+note somebody writes, a longer translation or a rebound key is all it takes.
+The fix is for the backward walk to know where a `<k>` run begins - skip back
+over the whole run the way it skips back over a tag - rather than to forbid
+spaces in a key name.
+
+
+49. CLAUDE.md is 188 KB, and every session reads all of it
+------------------------------------------------------------
+2547 lines, 192366 bytes, loaded whole into the context of every session that
+touches this tree. It earns a great deal of that: the measurements, the traps
+and the reasons behind decisions that look arbitrary are exactly what a reader
+without the history cannot reconstruct, and losing them costs more than the
+tokens do.
+
+What it carries beyond that is narrative - the same fact stated in the
+architecture section and again in a roadmap entry, measurements kept at full
+precision long after the conclusion they support has been settled, and passages
+that are an account of how something was arrived at rather than what it is. A
+pass that keeps every number that still decides something and cuts the retelling
+would take a good fraction off without losing a single fact a reader needs.
+
+It is not free to do: the file is also the place several of those facts exist at
+all, and a condensing pass is the kind that quietly drops the one sentence that
+would have saved the next afternoon. Worth doing deliberately and with the
+diff read closely, not as tidying.
 
 
 How these connect
