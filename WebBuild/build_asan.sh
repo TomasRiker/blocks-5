@@ -9,7 +9,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
 ZLIB="$GAME/libs/zlib-1.3.1"
 OUT="$HERE/build-asan"
-source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
+# emsdk_env.sh puts em++ on the PATH. Skipped where it already is, so a shell
+# that activated an emsdk of its own is left alone; EMSDK names the checkout.
+command -v em++ >/dev/null 2>&1 || source "${EMSDK:-$HOME/emsdk}/emsdk_env.sh" >/dev/null 2>&1
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"

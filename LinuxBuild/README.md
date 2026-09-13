@@ -52,6 +52,7 @@ that the Visual Studio project compiles.
     linux_window.h      their interface, with no Xlib in it
     test/harness.sh     start the game and drive it by element names
     test/smoke.sh       one round through the GUI
+    test/frames.sh      five named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
 

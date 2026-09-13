@@ -48,7 +48,7 @@ b5_start()
 	b5_stale "$B5_GAME/data.zip" "$B5_GAME/data" \
 		"Run 'Blocks5/pack.sh data' first." || exit 2
 
-	for t in Xvfb xdotool ffmpeg python3; do
+	for t in Xvfb xdpyinfo xdotool ffmpeg python3; do
 		command -v $t >/dev/null 2>&1 || { echo "$t is missing."; exit 2; }
 	done
 

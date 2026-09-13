@@ -21,12 +21,39 @@ ZLIB="$GAME/libs/zlib-1.3.1"
 OUT="$HERE/build"
 HOOKS=""
 if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"; fi
-source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
+# emsdk_env.sh puts em++ on the PATH. Skipped where it already is, so a shell
+# that activated an emsdk of its own is left alone; EMSDK names the checkout.
+command -v em++ >/dev/null 2>&1 || source "${EMSDK:-$HOME/emsdk}/emsdk_env.sh" >/dev/null 2>&1
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"
 
-INC="-I$GAME/src -I$HERE
+# libogg's os_types.h ends in "#include <ogg/config_types.h>" for every
+# compiler it does not know by name, emcc among them, and that header is one
+# configure writes: it is not in the tarball and so not in the tree. It is
+# generated here, as LinuxBuild/build.sh generates it, so that the build does
+# not depend on a copy that some earlier port left in the emsdk sysroot.
+# Written only when its content changes, since the objects depend on it.
+GEN="$OUT/gen"
+mkdir -p "$GEN/ogg"
+cat > "$GEN/ogg/config_types.h.new" <<'EOF'
+#ifndef __CONFIG_TYPES_H__
+#define __CONFIG_TYPES_H__
+#include <stdint.h>
+typedef int16_t ogg_int16_t;
+typedef uint16_t ogg_uint16_t;
+typedef int32_t ogg_int32_t;
+typedef uint32_t ogg_uint32_t;
+typedef int64_t ogg_int64_t;
+#endif
+EOF
+if cmp -s "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"; then
+    rm "$GEN/ogg/config_types.h.new"
+else
+    mv "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"
+fi
+
+INC="-I$GAME/src -I$HERE -I$GEN
      -I$GAME/libs/tinyxml-2.6.2 -I$GAME/libs/sigslot -I$GAME/libs/mtrand-1.1
      -I$GAME/libs/openal-soft-1.25.2/include -I$GAME/libs/openal-soft-1.25.2/include/AL
      -I$GAME/libs/libvorbis-1.3.4/include -I$GAME/libs/libvorbis-1.3.4/lib
