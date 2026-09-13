@@ -222,6 +222,10 @@ bool Level::load(const std::string& filename,
 bool Level::load(TiXmlDocument* p_doc,
 				 bool dontReallyLoad)
 {
+	// Both load() overloads come through here, and so does every object this
+	// level is about to construct - which is what has to be reproducible.
+	Engine::inst().seedForLoad();
+
 	clear();
 
 	TiXmlElement* p_level = p_doc->FirstChildElement("Level");

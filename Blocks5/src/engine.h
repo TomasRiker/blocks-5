@@ -359,6 +359,9 @@ public:
 	uint getFrameTime() const;
 	uint getTime() const;
 
+	// Pins the generator for a level about to load; empty in a normal build.
+	void seedForLoad();
+
 	FrameStats& getFrameStats() { return frameStats; }
 
 	const Vec2i& getScreenSize() const;

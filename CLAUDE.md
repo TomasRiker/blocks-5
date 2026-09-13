@@ -1311,6 +1311,19 @@ is on screen, or a frame stops being reproducible from a seed. An object that is
 an editor palette, a level select preview — keeps the 0 it was built with, which is exactly the
 brightness the caller asked for.
 
+**Three seeded streams, not two.** `Engine::render` and `Engine::update` each reseed from
+`testSeed()` and the scene's tick — the odd half and the even half — which is what makes a
+frame reproducible however many renders a machine fits inside one 20 ms tick. A **level load**
+falls between ticks, where neither reaches, and a level's objects draw from the generator in
+their constructors: a `Diamond` is `setAnimation(4, 5)` over an `anim` that starts at
+`random(0, 100000)`. So the phase every object starts on continued a sequence whose length
+depended on how many frames the machine had managed on the way there, and the same diamond
+stood on a different animation frame from one run to the next — 178 pixels of `plain.png`,
+invisible for as long as the oracle was capturing a quarter of the screen. `Engine::seedForLoad`
+is the third stream, called from the `Level::load` that both overloads come through, offset
+`0x40000000` clear of the tick's two. It is declared without a guard because
+`BLOCKS5_TEST_HOOKS` does not reach `level.cpp`, and is an empty function in a normal build.
+
 **All of it is night-vision-only**, which is what bounds the change: `Level::render` walks
 `RL_LIGHT` inside `if(nightVision && !inEditor)`, so a level without night vision draws no
 shines at all. Of the frame oracle's five scenes only the two night-vision ones moved.

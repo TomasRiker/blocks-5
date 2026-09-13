@@ -1647,7 +1647,28 @@ static uint testSeed()
 	}
 	return seed;
 }
+
+// The load's own stream, clear of the two the tick uses. Those are
+// 2 * sceneTick and 2 * sceneTick + 1, and a level's clock is an int counting
+// milliseconds, so nothing a run reaches comes near this.
+const uint LOAD_STREAM = 0x40000000;
 #endif
+
+// Declared without a guard so that Level::load can call it without one:
+// BLOCKS5_TEST_HOOKS reaches engine.cpp and testhooks.cpp and not level.cpp,
+// and in a normal build this is an empty function the loader calls once.
+void Engine::seedForLoad()
+{
+#ifdef BLOCKS5_TEST_HOOKS
+	// A level's objects draw from the generator in their constructors - a
+	// Diamond's animation phase is random(0, 100000) - and a load happens
+	// between ticks, which is exactly where neither per-tick stream reaches.
+	// Those draws would otherwise continue a sequence whose length depends on
+	// how many frames the machine managed on the way to the load, so the same
+	// diamond stood on a different animation frame from one run to the next.
+	if(testSeed()) seedRandom(testSeed() * 2 + LOAD_STREAM);
+#endif
+}
 
 void Engine::render()
 {
