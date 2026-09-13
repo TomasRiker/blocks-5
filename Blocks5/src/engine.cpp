@@ -2953,6 +2953,15 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 	// img_save.h, the alpha would be a quarter more for nothing but 255. The
 	// encoder flips the rows along the way; no second buffer is needed.
 	std::vector<uchar> pixels(static_cast<size_t>(shotSize.x) * shotSize.y * 4);
+	// The frame belongs to the game's own framebuffer, so this binds it rather
+	// than reading GL_COLOR_ATTACHMENT0 of whatever happens to be bound. The
+	// two callers inside the main loop have it bound already - the screenshot
+	// key and the video recorder both sit in the frameRendered block, above
+	// the unbindFrameBuffer() that precedes the present - but a caller from
+	// anywhere else does not, and the attachment it would read then is not
+	// this game's picture. It also puts the viewport back to 640x480, which
+	// is the size this read assumes.
+	if(useFrameBuffer) bindFrameBuffer();
 	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 

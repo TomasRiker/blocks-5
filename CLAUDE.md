@@ -807,7 +807,19 @@ is what the old twelve-slot struct did, and why `convergence` was once left unse
 hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
 sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
 
-**Anything that reads the rendered frame must bind the FBO itself.** The main loop binds it
+**Anything that reads the rendered frame must bind the FBO itself**, and `Engine::encodeFrame`
+is the second half of that rule: it binds the frame buffer before `glReadPixels` rather than
+reading `GL_COLOR_ATTACHMENT0` of whatever stands bound. Its two callers inside the main loop
+have it bound already — the screenshot key and the video recorder both sit in the
+`frameRendered` block, above the `unbindFrameBuffer()` that precedes the present — but the
+test hook asks from the *frozen* branch, where no iteration has rendered and the last present
+left the window's own viewport standing. What came back then was the frame rasterized at 2x
+under a 1280x960 viewport, of which a 640x480 read takes one quarter, so **the frame oracle
+compared a doubled quarter-screen for as long as it existed** — silently, because a doubled
+quarter is perfectly reproducible. `frames.sh` now fails any capture whose every row *and*
+every column pair is a copy, which is the shape of an integer upscale whatever caused it.
+
+The main loop binds it
 only on an iteration that ran a logic tick. Natively there is no other kind, because the
 `SDL_Delay` at the foot of the loop stretches every iteration to at least one tick; in the
 browser `requestAnimationFrame` sets the pace instead, so at 16.7 ms against a 20 ms tick most

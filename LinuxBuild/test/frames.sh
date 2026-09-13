@@ -146,6 +146,7 @@ b5_frame()
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi
+	b5_checkNotDoubled "$B5_OUTDIR/$name.png" "$name"
 	# Per frame and per draw, not the raw counters: those accumulate over
 	# however many frames the machine managed between the reset and the freeze,
 	# so only a ratio is comparable between two runs.
@@ -155,6 +156,45 @@ b5_frame()
 	# outside this count. What it is good for is the quads-per-draw beside it,
 	# which is how much each flush carried.
 	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f batch draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
+}
+
+# Is the picture really the game's 640x480 frame, or a magnified corner of it?
+# encodeFrame reads GL_COLOR_ATTACHMENT0, so a caller that has not bound the
+# game's own framebuffer gets whatever else is - and what came back then was
+# the frame rasterized at 2x under the window's viewport, of which a 640x480
+# read takes one quarter. Every pixel was its own neighbour and the oracle
+# compared a doubled quarter-screen for as long as it existed, silently,
+# because a doubled frame is still perfectly reproducible.
+#
+# The test is that shape and not the bug: a frame whose every row pair AND
+# every column pair is identical has been through an integer upscale, whatever
+# caused it. Real art at 640x480 has thousands of pairs that differ.
+b5_checkNotDoubled()
+{
+	local png=$1 name=$2 verdict
+	verdict=$(B5_PNG="$png" B5_WEB="$B5_HERE/../../WebBuild" python3 - <<'PYEND'
+import os, sys
+sys.path.insert(0, os.environ['B5_WEB'])
+from make_icon import read_png
+w, h, px = read_png(os.environ['B5_PNG'])
+
+def row(y):
+    return px[(y * w) * 4:((y + 1) * w) * 4]
+
+def column(x):
+    return [px[(y * w + x) * 4:(y * w + x) * 4 + 3] for y in range(h)]
+
+# Stop at the first pair that differs: a healthy frame answers in two
+# comparisons, and only a doubled one pays for the whole image.
+doubled = all(row(y) == row(y + 1) for y in range(0, h - 1, 2)) and \
+          all(column(x) == column(x + 1) for x in range(0, w - 1, 2))
+print('doubled' if doubled else 'ok')
+PYEND
+	)
+	if [ "$verdict" = "doubled" ]; then
+		echo "FAILED: $name is a 2x upscale of a quarter frame - every row and column pair is a copy"
+		exit 1
+	fi
 }
 
 # Every scene starts from the menu, so one game serves the lot: the frames are
