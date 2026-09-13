@@ -8,7 +8,7 @@ E_FlipFlop::E_FlipFlop(Level& level,
 					   int value,
 					   int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	this->subType = subType;
 	this->value = value;
 

@@ -107,7 +107,7 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 // Measured, not assumed: a strip wider than the text would steal clicks from
 // whatever stands to the right of it (options.xml puts language and detail
 // radios in three tight columns). An empty title measures 0, leaving just the
-// box - the filter buttons with their own <For> label are unaffected.
+// box - the filter buttons with a label of their own (for="...") are unaffected.
 bool GUI_CheckBox::containsPoint(const Vec2i& position)
 {
 	if(GUI_Element::containsPoint(position)) return true;

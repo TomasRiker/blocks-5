@@ -7,7 +7,7 @@ E_Gate::E_Gate(Level& level,
 			   int subType,
 			   int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	// subType comes out of the level file unchecked (presets.cpp), and levels
 	// travel between players. Four things downstream index on it: the pin count
 	// just below, the sprite region in updateSprites(), the switch in doLogic()

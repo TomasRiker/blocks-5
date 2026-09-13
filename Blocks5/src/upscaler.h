@@ -19,7 +19,6 @@ struct PresentContext
 	Vec2i displaySize;    // window size, for the clip coordinates
 	Vec2i frameSize;      // the rendered frame, always 640x480
 	Vec2i textureSize;    // power of two; frameSize sits at its bottom left
-	uint textureID;
 	uint vertexBuffer;    // WebGL forbids vertex data from application memory
 };
 

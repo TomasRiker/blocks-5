@@ -133,6 +133,7 @@ void ToxicGas::onUpdate()
 
 void ToxicGas::frameBegin()
 {
+	Object::frameBegin();
 	level.setAIFlag(position, 2);
 }
 

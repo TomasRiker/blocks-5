@@ -21,14 +21,14 @@ Sprite::Sprite()
 
 namespace
 {
-	const double p_degToRad = 3.1415926535897932384626433832795 / 180.0;
+	const double degToRad = 3.1415926535897932384626433832795 / 180.0;
 
 	// What the footprint is trimmed by before floor() and ceil() go at it.
 	// cos(90 degrees) is 6.1e-17 and not 0, the left edge of a quarter turn
 	// comes out as -8.9e-16, and the cell would be 17x17 for no reason -
 	// getTryCount() works from the area and would roll 13% more debris than the
 	// same sprite unrotated.
-	const double p_footprintEpsilon = 1.0e-6;
+	const double footprintEpsilon = 1.0e-6;
 
 	// Trace the spot in object coordinates back into the cell renderSprite
 	// fetched it from: first the offset, then the inverse rotation, then the
@@ -47,7 +47,7 @@ namespace
 		Vec2d m(d);
 		if(sprite.rotation != 0.0)
 		{
-			const double a = sprite.rotation * p_degToRad;
+			const double a = sprite.rotation * degToRad;
 			const double c = cos(a);
 			const double s = sin(a);
 			m.x =  c * d.x + s * d.y;
@@ -137,7 +137,7 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		double s = 0.0;
 		if(sprite.rotation != 0.0)
 		{
-			const double a = sprite.rotation * p_degToRad;
+			const double a = sprite.rotation * degToRad;
 			c = cos(a);
 			s = sin(a);
 		}
@@ -156,10 +156,10 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		}
 	}
 
-	*p_minOut = Vec2i(static_cast<int>(floor(lo.x + p_footprintEpsilon)),
-					  static_cast<int>(floor(lo.y + p_footprintEpsilon)));
-	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x - p_footprintEpsilon)),
-					  static_cast<int>(ceil(hi.y - p_footprintEpsilon)));
+	*p_minOut = Vec2i(static_cast<int>(floor(lo.x + footprintEpsilon)),
+					  static_cast<int>(floor(lo.y + footprintEpsilon)));
+	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x - footprintEpsilon)),
+					  static_cast<int>(ceil(hi.y - footprintEpsilon)));
 }
 
 int Sprites::getTryCount(int numParticles) const

@@ -6,7 +6,7 @@ E_Multiplexer::E_Multiplexer(Level& level,
 							 const Vec2i& position,
 							 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	value = -1;
 
 	// create the inputs

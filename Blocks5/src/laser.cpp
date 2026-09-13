@@ -141,7 +141,7 @@ void Laser::onRender(RenderLayer layer,
 	{
 		// The jitter ramps with the beam, so a laser coming on brightens
 		// evenly instead of flickering at full depth from the first tick.
-		if(on > 0.0) level.renderBeamShines(beam, sp, 0.25, on * 0.4, on * 0.05);
+		if(on > 0.0) level.renderBeamShines(beam, sp, 0.25, on * 0.4, on * 0.05 * glowJitter);
 	}
 }
 

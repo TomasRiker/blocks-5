@@ -123,6 +123,13 @@
 					<Group>1</Group>
 					<ButtonLook />
 				</RadioButton>
+				<!-- Before the list on purpose: a list resolves its SubmitButton by
+				     name while it loads, and a button named further down does not
+				     exist yet - Return and a double-click in the list would then do
+				     nothing. -->
+				<Button name="Export" x="130" y="280" w="116" h="30">
+					<Title>$TR_EXPORT_DO</Title>
+				</Button>
 				<ListBox name="Items" x="10" y="88" w="380" h="182">
 					<SubmitButton>Export</SubmitButton>
 				</ListBox>
@@ -132,9 +139,6 @@
 				</Button>
 				<Button name="Import" x="10" y="280" w="116" h="30">
 					<Title>$TR_IMPORT_DO</Title>
-				</Button>
-				<Button name="Export" x="130" y="280" w="116" h="30">
-					<Title>$TR_EXPORT_DO</Title>
 				</Button>
 				<Button name="Delete" x="250" y="280" w="116" h="30">
 					<Title>$TR_DELETE_DO</Title>

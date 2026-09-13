@@ -386,7 +386,7 @@ void Hint::onRender(RenderLayer layer,
 		double s = i;
 		double a = clamp(i / FADE_UNTIL, 0.0, 1.0);
 
-		// Layer 43 is the preview in the level editor: fully unrolled, centred.
+		// RL_HINT_PREVIEW is the preview in the level editor: fully unrolled, centred.
 		// That is a display matter and must not change targetPosition -
 		// otherwise the note points somewhere else in the game afterwards.
 		//

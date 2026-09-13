@@ -60,7 +60,6 @@ struct AudioRing
 	int ringFill;   // in samples
 	uint sampleRate;
 	bool opened;
-	bool overflowed;
 	long long samplesWritten;
 };
 
@@ -72,7 +71,6 @@ AudioRing::AudioRing()
 	, ringFill(0)
 	, sampleRate(48000)
 	, opened(false)
-	, overflowed(false)
 	, samplesWritten(0)
 {
 }
@@ -90,7 +88,6 @@ bool AudioRing::allocate(uint sampleRate)
 	ringRead = 0;
 	ringFill = 0;
 	samplesWritten = 0;
-	overflowed = false;
 	p_mutex = SDL_CreateMutex();
 	return p_mutex != 0;
 }
@@ -137,7 +134,6 @@ void AudioRing::push(const short* p_samples, int numSamples)
 	{
 		ringRead = (ringRead + overflow) % ringSize;
 		ringFill -= overflow;
-		overflowed = true;
 	}
 
 	int write = (ringRead + ringFill) % ringSize;
@@ -508,7 +504,6 @@ int AudioCaptureImpl::threadProc()
 				havePrev = false;
 				resamplePos = 0.0;
 				samplesWritten = 0;
-				overflowed = false;
 				p_audioClient->Reset();
 				QueryPerformanceCounter(&captureStart);
 				running = SUCCEEDED(p_audioClient->Start());
@@ -813,7 +808,6 @@ int AudioCaptureImpl::threadProc()
 			// throw away everything still lying around from last time
 			clearRing();
 			samplesWritten = 0;
-			overflowed = false;
 			captureStart = getExactTime();
 		}
 		else if(!capturing && started)

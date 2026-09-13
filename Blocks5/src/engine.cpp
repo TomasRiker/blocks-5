@@ -835,6 +835,12 @@ void Engine::exit()
 	destroyUpscalerGL();
 	destroyFrameBuffer();
 
+	// delete the crossfade and the textures - before the managers go, since a
+	// crossfade may hold a resource of theirs (CF_Rewind's OSD picture)
+	crossfade(0, 0.0);
+	GL::deleteTexture(oldImageID);
+	GL::deleteTexture(newImageID);
+
 	// shut down the managers
 	printfLog("* Shutting down resource managers ...\n");
 	Manager<TileSet>::inst().exit();
@@ -852,10 +858,6 @@ void Engine::exit()
 	delete p_audioCapture;
 	p_audioCapture = 0;
 
-	// delete the crossfade and the textures
-	crossfade(0, 0.0);
-	GL::deleteTexture(oldImageID);
-	GL::deleteTexture(newImageID);
 
 	// close the joysticks
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
@@ -869,8 +871,9 @@ void Engine::exit()
 
 	// shut down SDL
 	printfLog("* Shutting down SDL ...\n");
-	SDL_Cursor* p_cursor = SDL_GetCursor();
-	SDL_FreeCursor(p_cursor);
+	SDL_FreeCursor(p_cursor1x);
+	SDL_FreeCursor(p_cursor2x);
+	p_cursor1x = p_cursor2x = 0;
 	SDL_Quit();
 
 	// delete the actions
@@ -1199,6 +1202,9 @@ void Engine::mainLoopIteration()
 
 			updateSounds();
 			SDL_Delay(50);
+			// Or the first frame after the return would report the whole
+			// inactive stretch as its interval.
+			lastFrameBegin = 0.0;
 			continue;
 		}
 
@@ -1835,14 +1841,14 @@ void Engine::update()
 	}
 
 #ifdef STRESS_TEST
-	static int wurst = 0;
-	if(!(wurst % 40))
+	static int stressTicks = 0;
+	if(!(stressTicks % 40))
 	{
 		const char* s[] = {"GS_LevelEditor", "GS_SelectLevel", "GS_CampaignEditor"};
 		pushGameState(s[randomInt() % 3]);
 	}
-	else if(!((wurst + 20) % 40)) popGameState();
-	wurst++;
+	else if(!((stressTicks + 20) % 40)) popGameState();
+	stressTicks++;
 #endif
 
 	// update the GUI
@@ -2826,7 +2832,6 @@ void Engine::presentFrame()
 	context.displaySize  = displaySize;
 	context.frameSize    = screenSize;
 	context.textureSize  = frameTextureSize;
-	context.textureID    = frameTextureID;
 	context.vertexBuffer = presentVertexBuffer;
 
 	Upscaler* p_upscaler = getEffectiveUpscaler();
@@ -3663,11 +3668,6 @@ void Engine::unfocusGUI()
 	GUI::inst().setFocusElement(0);
 }
 
-const std::vector<VirtualKey>& Engine::getVKs() const
-{
-	return virtualKeys;
-}
-
 const std::unordered_map<std::string, Action*>& Engine::getActions() const
 {
 	return actions;
@@ -4007,11 +4007,6 @@ void Engine::beginKeyGrab(int timeOutMS)
 	grabbingKey = true;
 }
 
-bool Engine::isGrabbingKey() const
-{
-	return grabbingKey;
-}
-
 int Engine::pollKeyGrab()
 {
 	if(grabbingKey) return GRAB_WAITING;
@@ -4263,7 +4258,9 @@ void Engine::crossfade(Crossfade* p_crossfade,
 	}
 	else
 	{
-		// start the crossfade
+		// start the crossfade - and let go of one still running, which would
+		// otherwise be leaked with whatever textures it holds
+		delete this->p_crossfade;
 		this->p_crossfade = p_crossfade;
 		crossfadeTime = -0.51;
 		crossfadeDuration = duration;
@@ -4302,7 +4299,7 @@ void Engine::publishLanguage()
 
 std::string Engine::detectSystemLanguage()
 {
-	// Only "de" or "en". Of the 349 strings in data/languages.txt exactly one
+	// Only "de" or "en". Of the 440 strings in data/languages.txt exactly one
 	// has a French body and one a Spanish, so detecting "fr" here would give an
 	// English game with a French label.
 #if defined(__EMSCRIPTEN__)
@@ -4385,8 +4382,11 @@ void Engine::loadConfig()
 
 		// The window: position, size, maximized, fullscreen. All four apply at
 		// the next start - during play the player switches for themselves.
+		// Only before the window exists: read while the game runs - the options
+		// dialog's Cancel reloads the file - it would overwrite what handleResize()
+		// and applyWindowStyle() know about the window that is actually up.
 		TiXmlElement* p_window = p_config->FirstChildElement("Window");
-		if(p_window)
+		if(p_window && !initialized)
 		{
 			// Negative values are allowed: a second screen to the left of the
 			// first has them. restoreWindowPosition() checks the spot.

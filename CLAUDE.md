@@ -855,7 +855,7 @@ test hook. `SharpFit` is the default where the machine can run it:
   halation, barrel distortion, rounded corners, vignette. See **The CRT filter** below.
 
 The two shader filters share the vertex shader (`upscaler.cpp`, the only place it is read),
-the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own eight on
+the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own nine on
 top. **There is no longer a place where a filter carries a uniform it does not have** — which
 is what the old twelve-slot struct did, and why `convergence` was once left unset in two
 hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
@@ -1051,7 +1051,7 @@ the grey wash.
 Two things there are load-bearing. The on-screen display must **not** move with any of it, or
 fade with it either — it comes from the recorder's own character generator, mixed in behind
 the tape path, and that one steady thing is what makes the mess read as a machine. It is
-`data/rewind.png`, 256x64 with the word in the left 162 pixels and the two triangles in the
+the 218x64 strip at (0,112) of `data/misc.png`, with the word in the left 162 pixels and the two triangles in the
 56 next to it, so the blink is a source rectangle rather than a colour: the word is drawn
 every frame, the arrows every other half-second, hard on and hard off, counted from the tick
 the effect began so that they start visible. And `ROLL_SCREENS` is a whole number, so the

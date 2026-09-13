@@ -6,7 +6,7 @@ E_HexDigit::E_HexDigit(Level& level,
 					   const Vec2i& position,
 					   int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN | RL_LIGHT;
+	renderLayers |= RL_MAIN | RL_LIGHT;
 	value = -1;
 
 	// create the inputs

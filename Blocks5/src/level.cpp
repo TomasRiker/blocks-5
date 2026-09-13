@@ -133,7 +133,7 @@ void Level::clear()
 	delete[] p_tiles;
 	p_tiles = 0;
 	// The layer arrays need no GL call to release and no context to be current
-	// while they go, which is the half of this that display lists could not do.
+	// while they go.
 	for(int i = 0; i < NUM_LAYERS; i++) tileVertices[i].clear();
 
 	delete[] p_aiFlags;
@@ -1372,7 +1372,7 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 		previous = *i;
 		if(n % 4 && !corner) continue;
 
-		renderShine(intensity, size + random(-jitter, jitter),
+		renderShine(intensity, size + jitter,
 					*i - origin - Vec2d(7.5, 7.5));
 	}
 }

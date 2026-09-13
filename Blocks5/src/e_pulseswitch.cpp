@@ -7,7 +7,7 @@ E_PulseSwitch::E_PulseSwitch(Level& level,
 							 int pulseValue,
 							 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	this->pulseValue = pulseValue;
 	value = !pulseValue;
 

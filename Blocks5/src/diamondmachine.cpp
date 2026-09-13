@@ -544,11 +544,13 @@ void DiamondMachine::onUpdate()
 				}
 				else
 				{
-					p_objOnMe = p_obj;
+					// abortConversion() first: it finds the block the sparks belong
+					// to through p_objOnMe, and that is still the old one.
 					abortConversion();
+					p_objOnMe = p_obj;
 				}
 
-				if(counter >= 100)
+				if(counter >= CONVERSION_TICKS)
 				{
 					// The block is converted. It disappears fast: it stands at
 					// CONVERSION_GHOST and keeps that while dying too (see
@@ -574,8 +576,8 @@ void DiamondMachine::onUpdate()
 		}
 		else
 		{
-			p_objOnMe = 0;
 			abortConversion();
+			p_objOnMe = 0;
 		}
 	}
 	else abortConversion();
