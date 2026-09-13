@@ -29,8 +29,10 @@ void Eye::updateSprites()
 
 	if(!closed)
 	{
-		sprites.add(Vec2i(192, 448)).offset = Vec2i(static_cast<int>(floor(3.0 * viewDir.x + 0.5)),
-											   static_cast<int>(floor(3.0 * viewDir.y + 0.5)));
+		// Rounded, not truncated: offset is a Vec2i, and a plain conversion of
+		// 0.5 + 3*viewDir cuts towards zero - the pupil moved three pixels one
+		// way and two the other.
+		sprites.add(Vec2i(192, 448)).offset = roundToVec2i(3.0 * viewDir);
 	}
 }
 

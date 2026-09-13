@@ -104,7 +104,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 	{
 		// A size of 0.3 against the laser's 0.4, which by the relation
 		// renderBeamShines describes is three quarters of its light.
-		level.renderBeamShines(beam, sp, 0.25, 0.3, 0.05 * glowJitter);
+		level.renderBeamShines(beam, sp, 0.25, 0.3, 0.05, glowJitter);
 	}
 }
 

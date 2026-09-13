@@ -338,8 +338,10 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	// control is open: at vbv_size_bytes == 0 minih264 skips both branches
 	// that claw an outlier back afterwards, and desired_frame_bytes is then
 	// only a starting value per frame that a single frame may exceed up to
-	// sixteenfold. Measured on a level with rain, snow and a thunderstorm:
-	// 3091 kbit/s against 2840 wanted, with the buffer 2877.
+	// sixteenfold. Measured on a level with rain, snow, a thunderstorm and a
+	// laser, twenty seconds of it, 616 frames either way: unset the video
+	// comes out at 3073 kbit/s against the 2840 asked for, and with the buffer
+	// at 2849 - an overshoot of 8.2% against one of 0.3%.
 	createParam.num_layers = 1;
 	createParam.vbv_size_bytes = videoBitrate / 8;
 	createParam.max_threads = 0;

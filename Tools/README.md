@@ -22,6 +22,7 @@ Exit code 1 as soon as anything is reported.
 | `display_lists` | No display lists anywhere, in either build. |
 | `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |
+| `layer_bits` | A subclass adds its render layers with `\|=`; it does not replace the bits its base set. |
 | `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
 | `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
 | `gl_doors` | And so does the whole tree, or `GLState`'s record of it is a belief. |

@@ -67,11 +67,12 @@ public:
 	void renderShine(double intensity, double size, const Vec2d& offset = Vec2d(0.0));
 	// The light a laser or a light barrier lays along its beam. Drawn inside
 	// the object's own matrix, so the points are taken relative to origin.
-	// jitter is added to the size as it is: the caller scales its own
-	// per-tick glowJitter, since a random number drawn here would shimmer at
-	// the frame rate.
+	// Each shine's size varies by up to jitter, differently along the beam and
+	// steady for as long as seed is - pass the object's per-tick glowJitter.
+	// Nothing here draws a random number: that would be once per frame, and
+	// the glow would strobe at 25 fps and haze at 200.
 	void renderBeamShines(const std::list<Vec2d>& beam, const Vec2i& origin,
-						  double intensity, double size, double jitter);
+						  double intensity, double size, double jitter, double seed);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);
 	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, double radiusSq = 74.0);
 	Object* getFrontObjectAt(const Vec2i& position);

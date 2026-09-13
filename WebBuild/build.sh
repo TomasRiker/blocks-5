@@ -34,8 +34,25 @@ if [ "${1:-}" = "asan" ]; then
     OPT="-O1 -g2 -fsanitize=address"; ASSERT=2; MEMORY=536870912; OUT="$HERE/build-asan"
 fi
 # emsdk_env.sh puts em++ on the PATH. Skipped where it already is, so a shell
-# that activated an emsdk of its own is left alone; EMSDK names the checkout.
-command -v em++ >/dev/null 2>&1 || source "${EMSDK:-$HOME/emsdk}/emsdk_env.sh" >/dev/null 2>&1
+# that activated an emsdk of its own is left alone. $EMSDK first, then the two
+# places a checkout actually sits here - $HOME is not the account the toolchain
+# was installed under in this container, so $HOME/emsdk alone finds nothing.
+#
+# The failure is reported rather than swallowed: sourcing a script that is not
+# there is silent, and without this the run dies a hundred lines further down
+# with "emcc: command not found", which names neither the cause nor the fix.
+if ! command -v em++ >/dev/null 2>&1; then
+    for d in "${EMSDK:-}" "$HOME/emsdk" /home/user/emsdk; do
+        if [ -n "$d" ] && [ -f "$d/emsdk_env.sh" ]; then
+            . "$d/emsdk_env.sh" >/dev/null 2>&1
+            break
+        fi
+    done
+fi
+command -v em++ >/dev/null 2>&1 || {
+    echo "em++ not found. Activate an emsdk, or point \$EMSDK at one:"
+    echo "  git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest && emsdk/emsdk activate latest"
+    exit 2; }
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"

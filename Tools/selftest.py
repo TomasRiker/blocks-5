@@ -159,6 +159,13 @@ def c_render_layers(p):
     p.replace('if(layer == RL_WIRE)', 'if(layer == 939)')
 
 
+# The shape that cost every wire in the game: a part replacing the render
+# layers its base set instead of adding to them.
+@case('layer_bits', 'Blocks5/src/e_clock.cpp')
+def c_layer_bits(p):
+    p.replace('renderLayers |= RL_MAIN;', 'renderLayers = RL_MAIN;')
+
+
 # The one raw draw left inside an onRender: the lava's two quads, which change
 # no state on the way in and so are reached by nothing but this flush.
 @case('sprite_batch', 'Blocks5/src/lava.cpp')

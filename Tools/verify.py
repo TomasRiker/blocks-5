@@ -453,6 +453,86 @@ def unscanned_onrender(scanned):
     return bad
 
 
+@check('layer_bits')
+def check_layer_bits():
+    """A subclass adds its render layers; it does not replace its base's.
+
+    Electronics sets RL_WIRE in its own constructor and draws every
+    connection on that pass. All thirteen parts then ran "renderLayers =
+    RL_MAIN" in theirs, which runs after the base and wipes the bit - and
+    Level::renderObjects skips an object whose bit is clear, so from the
+    commit that gave the layers names until this check was written, not one
+    wire was drawn anywhere in the game. Nothing said so: it compiles, it
+    runs, and the only symptom is a picture with something missing from it.
+
+    The rule is therefore about the base chain and not about the file: an
+    assignment is fine where the base leaves renderLayers at 0, which is what
+    Object's constructor does, and Panel's subclasses rely on. It is a
+    finding only where an ancestor put bits there to be kept."""
+    base_of = {}
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not rel.endswith('.h'):
+            continue
+        for m in re.finditer(r'\bclass\s+(\w+)\s*:\s*public\s+(\w+)', read(p)):
+            base_of[m.group(1)] = m.group(2)
+
+    # Which classes put bits into renderLayers in their own constructor. The
+    # zero Object starts from is not bits, and reading it as such would make
+    # every direct subclass in the tree a finding.
+    sets_bits = {}
+    assigns = re.compile(r'^\s*renderLayers\s*=\s*([^;]+);')
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not rel.endswith('.cpp'):
+            continue
+        text = blank_noncode(read(p))
+        for n, line in enumerate(text.split('\n'), 1):
+            m = assigns.match(line)
+            if not m:
+                continue
+            cls = None
+            for c, b in base_of.items():
+                if rel.endswith('/' + c.lower() + '.cpp'):
+                    cls = c
+                    break
+            if cls is None:
+                continue
+            sets_bits[cls] = sets_bits.get(cls, False) or m.group(1).strip() != '0'
+    # Object is not in base_of (it derives from nothing here) and its zero is
+    # the neutral start every direct subclass is entitled to replace.
+    def ancestor_keeps_bits(cls):
+        seen = set()
+        b = base_of.get(cls)
+        while b and b not in seen:
+            seen.add(b)
+            if sets_bits.get(b):
+                return b
+            b = base_of.get(b)
+        return None
+
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not rel.endswith('.cpp'):
+            continue
+        cls = None
+        for c in base_of:
+            if rel.endswith('/' + c.lower() + '.cpp'):
+                cls = c
+                break
+        if cls is None:
+            continue
+        keeper = ancestor_keeps_bits(cls)
+        if not keeper:
+            continue
+        for n, line in enumerate(blank_noncode(read(p)).split('\n'), 1):
+            if assigns.match(line):
+                bad.append('%s:%d: %s replaces renderLayers, wiping the bits %s set - use |='
+                           % (rel, n, cls, keeper))
+    return bad
+
+
 @check('sprite_batch')
 def check_sprite_batch():
     """Anything an object draws outside the sprite batch has to flush it first.

@@ -204,7 +204,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twenty-three static checks over the whole tree
+python3 Tools/verify.py      twenty-four static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -817,6 +817,18 @@ a couple of hundred pixels unless the generator is seeded. `frames.sh` does seed
 and `cat1` is the tab its editor scene opens, reproducible over repeated full runs — so the
 palette that used to be the awkward one is now the one under the oracle.
 
+**A sixth place broke that no palette could have caught, and it stayed broken for months.**
+`Electronics` sets `RL_WIRE` in its own constructor and draws every connection on that pass;
+all thirteen parts then ran `renderLayers = RL_MAIN` in theirs, which runs after the base and
+wipes the bit — and `renderObjects` skips an object whose bit is clear, so **not one wire was
+drawn anywhere in the game** from the commit that gave the layers names. Nothing said so: it
+compiles, it runs, and the only symptom is a picture with something missing from it. The
+palettes are blind to it because `cat4` holds the parts and nothing in it is *connected*, and
+so were all five oracle scenes. Two things close that: `verify.py`'s `layer_bits` check, which
+knows which ancestor put bits in `renderLayers` and reports a subclass that replaces rather
+than adds, and a clock wired to a light bulb in the `plain` oracle level, so the wire pass now
+draws something a byte-exact comparison can see.
+
 **There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
 They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
 all — so every place that used one carried a browser path of its own under `#ifdef
@@ -1355,6 +1367,15 @@ effect on every machine. Thirteen `onRender`s did that, and `Level::render` did 
 for the night vision's noise offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
 `frameBegin()`, and `noiseOffset1`/`noiseOffset2` are redrawn in `Level::update()` — both once
 per tick, the same place and for the same reason the flash decays there.
+
+**`Level::renderBeamShines` was a fourteenth and survived that sweep**, drawing one `random()`
+per glow per frame along a laser's or a light barrier's beam. Handing it the object's own
+`glowJitter` instead is steady but wrong in a way worth naming: one value for the whole object
+makes every point of the beam breathe in unison, which reads as the beam pulsing rather than as
+light scattering along it. `pointJitter(seed, index)` hashes the per-tick value together with
+the point's index — `fract(sin(x) * 43758.5453)`, no state, nothing drawn from the shared
+generator — so the jitter stands still within a tick *and* differs from point to point, which is
+what the effect was after in the first place.
 
 One jitter per object and not one per use: an object's own draws in a frame therefore move
 together, which nothing can see, while different objects stay independent, which is the part
@@ -2478,7 +2499,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other twenty-two**, and the reason is a file it did not
+  **That check reads further than the other twenty-three**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

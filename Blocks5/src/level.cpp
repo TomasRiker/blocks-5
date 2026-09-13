@@ -1327,11 +1327,37 @@ void Level::renderShine(double intensity,
 	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
 }
 
+namespace
+{
+	// A value in [-1, 1] for one point of a beam: steady for as long as the
+	// seed is, different from its neighbours along the beam.
+	//
+	// Both halves are needed and neither alone will do. A random() here is
+	// drawn per *frame*, so the glow strobed at 25 fps and hazed at 200 - the
+	// same fault the thirteen onRender overrides were cleared of. One value
+	// for the whole object is drawn per tick and is steady, but every point of
+	// the beam then breathes in unison, which reads as the beam pulsing rather
+	// than as light scattering along it. Hashing the caller's per-tick value
+	// together with the point's index gives both: it stands still within a
+	// tick and still differs from point to point.
+	//
+	// The hash is the usual fract(sin(x) * large) - cheap, no state, and it
+	// draws nothing from the shared generator, so a frame stays reproducible
+	// from a seed however many times it is rendered.
+	double pointJitter(double seed, int index)
+	{
+		double h = sin(seed * 12.9898 + index * 78.233) * 43758.5453;
+		h -= floor(h);
+		return h * 2.0 - 1.0;
+	}
+}
+
 void Level::renderBeamShines(const std::list<Vec2d>& beam,
 							 const Vec2i& origin,
 							 double intensity,
 							 double size,
-							 double jitter)
+							 double jitter,
+							 double seed)
 {
 	if(beam.empty()) return;
 
@@ -1372,7 +1398,7 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 		previous = *i;
 		if(n % 4 && !corner) continue;
 
-		renderShine(intensity, size + jitter,
+		renderShine(intensity, size + jitter * pointJitter(seed, n),
 					*i - origin - Vec2d(7.5, 7.5));
 	}
 }

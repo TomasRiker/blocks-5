@@ -106,8 +106,15 @@ PY
 # which is the part that went wrong: the select screen's list keeps the
 # keyboard focus, and a click on a level button is one more thing to get
 # right for no benefit.
+# The electronics pair is here for the wire pass, and it is the reason this
+# scene has objects that have nothing to do with each other. Electronics sets
+# RL_WIRE in its own constructor and every part used to replace it, so
+# renderObjects skipped all of them and no connection was drawn anywhere in the
+# game - silently, for as long as the layers have had names, because none of
+# the five scenes had a wire in it. The editor palettes could not catch this
+# one either: cat4 holds the parts and nothing in it is connected.
 write_level '!2plain' 0 \
-	'<Object type="Player" x="3" y="3" character="0" active="1"/><Object type="Diamond" x="10" y="6"/><Object type="Block" x="12" y="6"/><Object type="Exit" x="36" y="21"/>'
+	'<Object type="Player" x="3" y="3" character="0" active="1"/><Object type="Diamond" x="10" y="6"/><Object type="Block" x="12" y="6"/><Object type="E_Clock" x="10" y="14" dir="0" value="0"><OutputConnections><Connection sourcePinID="10" targetX="25" targetY="14" targetPinID="0" /></OutputConnections></Object><Object type="E_LightBulb" x="25" y="14" dir="0"><OutputConnections /></Object><Object type="Exit" x="36" y="21"/>'
 write_level '!1night' 1 \
 	'<Object type="Player" x="3" y="3" character="0" active="1"/><Object type="Laser" x="20" y="21" dir="3"/><Object type="LightBarrierSender" x="2" y="12" dir="1"/><Object type="LightBarrierSender" x="34" y="4" dir="2"/><Object type="Fire" x="8" y="16"/>'
 

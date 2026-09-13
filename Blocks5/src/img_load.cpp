@@ -66,5 +66,4 @@ SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc)
 	return p_surface;
 }
 
-
 }
