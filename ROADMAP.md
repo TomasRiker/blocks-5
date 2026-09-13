@@ -211,19 +211,22 @@ than searching for one of them.
 
 8. Rendering performance
 ------------------------
-The renderer is fixed-function immediate mode: 120 `glBegin` blocks across 38
-source files, one draw call per sprite, per GUI element, per particle. On the
-desktop this is old but survivable; in the browser every one of them goes through
+The renderer is fixed-function immediate mode: 118 `glBegin` blocks across 39
+source files, 73 of them a single `GL_QUADS`. A played level's sprites and the
+tile grid are batched now - the first bullet below - so what is left one call at
+a time is the GUI, the crossfades, the credits and the particles. On the desktop
+this is old but survivable; in the browser every one of them goes through
 Emscripten's `-sLEGACY_GL_EMULATION`, which rebuilds a vertex buffer per block and
 prints "do not expect it to work" on every start. `WebBuild/gl_immediate.cpp`
 exists purely to make the game's blocks palatable to that emulator.
 
 The work, in order of payoff:
 
-- **Batch sprites.** Everything drawn through `Engine::renderSprite` shares a
-  texture atlas per tileset; accumulating quads into one vertex buffer and issuing
-  a single draw per texture would collapse thousands of calls into a handful. This
-  is where the big win is, in both builds.
+- **Batch sprites.** Done for `Level::renderObjects`, which is where the
+  thousands of calls were, and for the tile grid beside it. What an atlas per
+  tileset would add on top is a batch that survives a change of picture - the
+  shines, the notes and the weather each still break the run - and that is the
+  remaining half of this.
 - Then, if it is still worth it, a programmable pipeline for the rest.
 - `-msimd128` is not passed by `WebBuild/build.sh`, so the shipping wasm contains
   no vector instructions at all.
@@ -1314,7 +1317,7 @@ exactly the same advances (`font.cpp:569`).
 
 Two things not to lose:
 
-- **The frames go through both shadow passes with the glyphs** (`font.cpp:246`),
+- **The frames go through both shadow passes with the glyphs** (`font.cpp:173`),
   or a keycap looks pasted on.
 - **`renderText` caches a display list per string**, so a second walk costs once
   per new string. Not in WebGL, which has no display lists and redraws the text
@@ -1379,7 +1382,7 @@ Closing the note must not step either.
 
 36. Let the details setting reach the text shadows
 ---------------------------------------------------
-Every string is drawn three times: `Font::renderText` (`font.cpp:246`) lays down
+Every string is drawn three times: `Font::renderText` (`font.cpp:173`) lays down
 two offset copies in black before the text itself, and `Engine::getDetails()` is
 not asked about it. Level rendering, the weather and the lightning all consult
 it (`level.cpp:719`, `:1068`, `lightning.cpp:48`); the font does not, so the one
@@ -1393,11 +1396,13 @@ alpha is divided by the number of them, so dropping one is a matter of changing
 `0.7 / numSamples`, not of leaving a hole. 0 already means none, which is what
 `gs_credits.cpp:175` uses.
 
-Where it is worth most is the browser, and that is a reason to do it rather than
-a detail: there are no display lists in WebGL, so each pass is a full
-`renderTextPure` walk over the string - the tags parsed, the glyph quads built
-and the keycap frames collected again - where the desktop replays a display
-list. Three walks per string per frame becomes one at the low setting.
+Where it is worth most is still the browser, though less than when this was
+written. Each pass there used to be a full walk over the string - the tags
+parsed, the glyph quads built and the keycap frames collected again - because
+WebGL has no display lists; both builds now lay a string out once and draw the
+cached arrays three times. So a dropped sample saves a draw call per string per
+frame rather than a whole walk over the text, which on a phone is still worth
+having and is no longer the headline.
 
 Two things to decide:
 
@@ -1510,6 +1515,290 @@ exactly what keeps `oldCursor` current. CDP dispatches a `mousePressed` with no
 `mouseMoved` before it, which is the shape a touch has. Measured against the
 unfixed build, a three-cell drag painted 30 cells; four after.
 
+40. A pad button says which key it sends; it does not say what that does
+------------------------------------------------------------------------
+The on-screen pad's six buttons are labelled `Shift`, `Ctrl`, `Tab`, `F5`, `F10`
+and `Esc` - the keys they dispatch - and not `Bomb`, `Put`, `Swap`, `Retry`,
+`Hotel` and `Menu`, which is what they used to say. The reason is that the label
+has to be true, and only one of the two always is: the pad sends a **fixed** key
+(`KEYS` in `WebBuild/touch_controls.js`) and the game's action layer maps it, so
+a rebinding in the options dialog moves the meaning and leaves the key alone. A
+button reading `Bomb` after the player has bound something else to Shift is
+simply wrong, and nothing would ever correct it. The other half of the argument
+is that the game goes on naming keys by name - in the hints, in the help table,
+in the options dialog - and a thumb should be able to find the button that
+sentence is talking about. The words are the game's own, shortened from
+`$VK_KEYBOARD_LCTRL` and its neighbours in `data/languages.txt`, and they follow
+the language the game settled on rather than the browser's, through
+`Engine::publishLanguage()`.
+
+What is missing is the *other* information, which the old labels did carry: what
+the key is for. The answer is a symbol beside the name rather than instead of
+it - a fused bomb on the key bound to `$A_PLANT_BOMB`, an inert one on
+`$A_PUT_DOWN_BOMB`, three figures with arrows between them on
+`$A_SWITCH_CHARACTER`. A picture needs no translating, which is the same reason
+the four arrows of the d-pad are drawn and not written (`.b5arrow`, and it keeps
+that file plain ASCII).
+
+Two things to settle first, and the second is the real work:
+
+- **Where the art comes from.** The pad is DOM and not GL, so it cannot sample
+  the sprite sheet the game draws from - and the sheet is inside `data.zip`
+  behind its password anyway, which no page script can open. So these are new
+  drawings, inline in the page as SVG or as a data URI, in the idiom
+  `WebBuild/make_icon.py` and `make_text.py` already use for the icons and the
+  boot line: generated at build time from something committed, never fetched.
+
+- **Which button gets which symbol.** That is a question about the *current*
+  bindings, and the pad does not know them - by design, since not knowing is
+  exactly what lets a rebinding work for free. Baking the symbol to the default
+  binding would reintroduce the lie the key names were chosen to avoid, only in
+  a form that cannot be read off the screen. So the pad needs the bindings
+  pushed to it, which is the channel `publishLanguage()` has just opened: the
+  same idea, carrying `$A_*` names per key instead of a language, republished
+  whenever the options dialog changes one. Until that exists the symbols would
+  be decoration that is right by luck.
+
+Item 22 (tap radius) is the neighbour: both are about a button a finger has to
+find, one by size and this one by what it says.
+
+
+41. Blurred shadows in one pass, with a shader
+-----------------------------------------------
+Every shadow in the game is the same geometry drawn again in black at an offset:
+the tile grid and the objects two or three times at (2,1), (1,2) and (2,2)
+(`level.cpp:717`), every string twice at the first two of those (`font.cpp:191`),
+each sample at `0.7 / numSamples` so that the copies sum to one shadow. Two
+offset copies of a hard-edged glyph are not a blur, they are a double image; what
+softness there is comes from the corner where the two overlap. Draw the shadow
+**once** instead, in a fragment shader, with a real falloff.
+
+It is worth doing twice over: one draw in place of two or three on everything the
+game puts on the screen, and it retires the sample count that item 36 was going
+to hang a detail setting on.
+
+Four things are in the way.
+
+- **There is no shader path for ordinary drawing.** The only programs the game
+  builds are the present filters (`upscaler.cpp`, `u_sharpfit.cpp`,
+  `u_crt.cpp`), and each runs on one quad at the very end of the frame with
+  `PresentContext` handing it the finished frame. Putting the level or the text
+  through a shader means a second kind of program with its own uniforms and a
+  fixed-function path beside it for `-noshader` and for any machine where
+  `createUpscalerGL` gives up - so this is an addition, never a replacement.
+
+- **The atlases have no margin to blur into.** A shadow computed from the same
+  texture fetch needs taps around the sample point, and the glyph rectangles in
+  `data/font.xml` sit about five pixels apart with six pairs touching outright
+  (measured over all 256 entries), so a tap would pick up the neighbouring
+  letter. `sprites.png` and the tile sets are packed the same way. Either every
+  atlas gains a margin - which moves every rectangle in every `*.xml`, skins
+  other people made included - or the shadow comes from a silhouette rendered
+  into a texture of its own, which is the second pass this item set out to
+  avoid.
+
+- **The shadow is not one silhouette.** `Level::render` draws the tile shadow and
+  the object shadow from separate passes at the same offsets, objects opt out of
+  it with `OF_NO_SHADOW` (`level.cpp:1239`), and the text shadow has to cover the
+  keycap frames, which carry no texture at all. A shader handed "the frame" would
+  shadow everything on the screen, the GUI over it included.
+
+- **What it should look like is a taste decision, not an optimisation.** The
+  shadow today is two pixels down and to the right and hard-edged; a soft one
+  changes the look of every screen in the game. `u_crt.cpp`'s halation is the
+  precedent for both halves of that - two rings of four taps thresholded in
+  linear light, and a slider rather than an imposition.
+
+
+42. Clamp the vertex colour where it is free, not on the CPU
+------------------------------------------------------------
+The game hands GL colours above 1 on purpose - `Level::renderShine` takes
+`deathCountDown * 5.0` from an exploding bomb, the teleport swirl ramps its red
+from 0.1 to 2.1 over sixty ticks (`object.cpp:385`), and the three spark bursts
+(`object.cpp:424`, `projectile.cpp:190`, `laser.cpp:343`) add half a level of
+red a tick with no lifetime in the divisor, so where they stop is where the
+particle has shrunk away: between 5.5 and 25.5 - and all of it relies on GL to
+cut them off. Desktop GL does: a primitive colour is clamped to [0,1] before it
+is multiplied by the texel. So does Emscripten, inside the one glColor4f every
+glColor* spelling reaches - but a colour *array* goes near neither. Dumping the
+shader the emulation generates for this game gives a vertex stage of
+
+    v_color = a_color;
+
+with no clamp anywhere; the emulation emits `v_color = clamp(v_color, 0.0, 1.0)`
+only inside its lighting branch, and this tree never enables `GL_LIGHTING`. The
+colour therefore reaches the fragment stage raw, is multiplied by the texel, and
+is only clamped when `gl_FragColor` is written - so the browser computes
+`clamp(colour * texel)` where the desktop computes `clamp(colour) * texel`. At a
+red of 2.0 every texel above 0.5 saturates, which eats the particle's falloff and
+turns a soft glow into a hard-edged blob.
+
+The clamp is on the CPU today, per vertex, in the two places that write a colour
+array - `ParticleSystem::render` and `Engine::queueSprite` - and under
+`#ifdef __EMSCRIPTEN__`, because on the desktop it is work that GL has already
+done. That is the stopgap, not the answer: it is four `clamp` calls per quad in
+C++ for something a GPU does for nothing.
+
+Two ways out, both cheap:
+
+- **Ask the emulation for the clamp.** It is already written; it just sits behind
+  `GL_LIGHTING`. Whether a lighting setup exists that emits the clamp and changes
+  nothing else - ambient only, `u_lightModelAmbient` at 1 and every material at
+  1 - is a question about `libglemu.js`'s generated vertex shader, and the answer
+  is one shader dump away. If it works it is two `glEnable`/`glLightModel` calls
+  at startup and the CPU clamp goes.
+
+- **Give the browser build its own vertex shader.** Item 41 wants a shader path
+  for ordinary drawing anyway, and a `clamp` in the vertex stage is the cheapest
+  line in it.
+
+The desktop must not pay for either. Whatever lands, `-nobatch` and the native
+build should still reach GL with the raw colour and let the hardware clamp it.
+
+43. One quad budget for all fonts, and a way to say "do not cache this"  - **DONE**
+-----------------------------------------------------------------------------------
+Both halves are in, and the measurement that went first said the item was half
+right. The budget is `QUAD_BUDGET` (8192 quads, 512 KB) shared across every live
+font, evicting the oldest entry wherever it lives; the flag is a `cache`
+parameter on `renderText` that never reaches the key, and the credits are its
+one caller.
+
+What was right: the credits churn. Six seconds of them ran **0% of 244 lookups
+hit with 212 evictions**, flooding the cache with 42 entries of text already on
+its way out. With the flag: **0 evictions**, and the cache holds the menu's own
+10 entries throughout.
+
+What was not: the memory. Every other screen already hits 100% with zero
+evictions - 1530 lookups on the menu, 1088 on the help page - and the most the
+cache ever holds is 825 quads, 52 KB. The unbounded four-fonts-times-32 was real
+in principle and tiny in practice, so this is a correct ceiling rather than a
+saving.
+
+And the second "do not cache" case named below is better answered by the budget
+than by the flag. The paused game's pulsing text is `renderText("Pause", ...)`
+with the colour and the position outside the key, so it is one entry hit every
+frame - the cache doing exactly its job. It is cheap to rebuild and so gains
+little by being kept, but under an *entry* cap it still cost a whole slot; under
+a quad budget its twenty quads cost nothing worth excluding.
+
+The `SDL_GetTicks()` eviction stamp went with it. It wraps at 49.7 days, after
+which every standing entry looks newer than every fresh one and the cache evicts
+what it has just built for ever; a counter is both correct and cheaper.
+
+**The bigger half of this was not the cache, and it is done too.** `measureText`
+walked the same strings and nothing kept the answer - `fitText` runs a binary
+search with one per probe, `adjustText` one per run and per line - and it ran
+about twice as often as the cached path did. It is cached in two tiers now: the
+laid-out entry carries its own dimensions, so a string that is drawn is measured
+for free, and a second cache holds dimensions alone for the strings nothing
+draws. Every measure in the five oracle scenes was a walk and none is; the help
+page goes from 2448 walks to 66 of 2376, which are the deactivated edit box
+behind it asking for character positions. The five frames are byte-identical.
+
+The original item follows.
+
+
+`Font` keeps 32 laid-out strings (`font.cpp`), and the number is the wrong
+measure twice over. It is per font, so the four fonts in play - the GUI's, the
+tooltip's, the credits', a skin's hint font - hold 128 entries between them with
+no ceiling on what that costs; and an entry is a `std::vector<QuadVertex>`, so
+what 32 actually reserves depends entirely on how long the strings are. Thirty-two
+keycaps and thirty-two wrapped help pages are the same number and two orders of
+magnitude apart in geometry.
+
+Count the quads instead, and share one budget across every font, the way the
+particle systems share one vertex buffer. Then the cost is stated in the one unit
+that matters and a font that is barely used stops holding a slot a busy one needs.
+
+The other half is a caller that knows better. `renderText` should take a "do not
+cache" option for a string that is certainly not coming back:
+
+- the **credits**, which animate `charScaling`, so every frame lays the same text
+  out at a size it will never see again - every one of those is a cache miss that
+  also evicts something useful;
+- **anything drawn while the colour changes per frame** and the layout does not,
+  where the entry is a hit but the cache is doing no work - the paused game's
+  pulsing text is the case that prompted this.
+
+Mind what the key does and does not carry: it is the string plus the five options
+the layout depends on (`tabSize`, `charSpacing`, `lineSpacing`, `charScaling`,
+`italic`) and deliberately not `shadows` or the colour, which is what lets one
+entry serve the three passes `renderText` makes. A "do not cache" flag must not
+leak into the key, or it would double every entry.
+
+
+
+44. Cache the GL state, or decide once and for all not to  — **DONE**, cached
+---------------------------------------------------------------------------
+It is a cache now, and the arithmetic that said not to was asking the wrong
+question.
+
+The old measurement stands: instrumenting the whole tree - every state entry
+point redirected to a counting wrapper, with the attribute stack modelled
+properly - gave, per frame in a played level, 4833 GL entry points in all, of
+which 2928 were immediate-mode geometry, 1615 matrix work and **290 state**,
+and of that state **28 calls were redundant**. Twenty-eight calls of nearly
+five thousand is noise, and on that number the answer was to leave the
+comparison out.
+
+What it missed is that each of those redundant calls **flushed the sprite
+batch**. `Texture::bind` and `Texture::unbind` sit around every single
+`Engine::renderSprite(Texture*)`, which is what `Level::renderShine` is - so a
+level full of shines queued one quad, drew it, queued the next and drew that.
+Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run:
+a night-vision level **1.1 -> 19.0**, the level select **1.1 -> 19.0**. The
+other three do not move: the menu's title demo 50.2, a plain level 4.0 and the
+level editor's palette 21.5 have no shine between them. Between 11% and 25% of the
+calls into `GL::` now do nothing at all - counting the two doors the game's own
+drawing goes through, `setTexturing` and `bindTexture`, and not the flush's own
+bracket. The saving was never the state calls. It was the
+draw calls they were breaking.
+
+Both objections were answered rather than argued with.
+
+- **Everything comes through it.** The 11 remaining raw `glBindTexture`, the 35
+  raw `GL_TEXTURE_2D` enables and the 11 `glDeleteTextures` are routed, and
+  `verify.py`'s new `gl_doors` check reads the whole tree - headers included -
+  for another. A delete needed an entry point of its own, because GL reverts
+  the binding to 0 when the bound texture is deleted. The absolute texture
+  matrix needed no entry point at all: every one this tree sets is a diagonal
+  scale and a function of the binding, so it rides on `GL::bindTexture` as a
+  second argument and `Crossfade::setupTexCoords` and its three cousins are
+  gone.
+- **The per-platform restore.** `presentFrame` keeps its raw calls inside
+  `glPushAttrib(GL_ALL_ATTRIB_BITS)` and calls `GL::invalidate()` afterwards.
+  What the pop puts back does still differ between the desktop and the browser;
+  the answer is that a record nobody can work out is dropped rather than
+  guessed, after which nothing is skipped until something establishes it again.
+
+And the cache checks itself, which is what this item asked for. A **native**
+test-hooks build reads the real binding, the real texture matrix and the real
+enable back on **every** call and reports a record that disagrees; `frames.sh`
+fails the run on any such line. Proved both ways: all five scenes come through
+silent, and a raw `glBindTexture(GL_TEXTURE_2D, 0)` added inside
+`Texture::bind()` for one run gives
+`+ ERROR: GL::setTexturing believes texture 8 is bound; GL says 0.` and a
+non-zero exit. Not in the browser, where the same line is a WebGL
+`getParameter` per call and would swamp everything `perf.js` measures - what it
+looks for is the tree's own code, and that is the same on both platforms.
+
+The second half of this item is still open, and still for the same reason. The
+`glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` could be a trailing
+`glMatrixMode(GL_MODELVIEW)`: of the places that switch to `GL_TEXTURE`, only
+`Level::render` binds a texture while it is current - the snow and the clouds,
+the rain before them arriving with `GL_MODELVIEW` standing - and both re-issue
+the mode on the line after the bind. So it is safe as the tree stands. It is
+left alone because it would give `bindTexture()` a precondition - bind only
+with `GL_MODELVIEW` current, or set your own mode afterwards - which is the
+kind that fails silently and years later; and because the saving is **zero** in
+the browser, where `gl_compat.cpp`'s `glPushAttrib` issues no GL call at all
+and its `glPopAttrib` issues exactly the one `glMatrixMode` the replacement
+would. Natively it is one call per bind. Anyone picking it up should measure it
+on the desktop, since the numbers above the `frames.sh` ones were taken under
+swiftshader in a browser, where this particular change does nothing.
+
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1542,6 +1831,15 @@ How these connect
    38 (gestures) <──> 39 (editor strokes, done): both are code that is correct
                       only because a mouse never teleports. 39 is fixed; 38 has
                       to leave the editor's field painting rather than scrolling
+
+   22 (tap radius) <──> 40 (pad labels): a button a finger has to find, by size
+                      and by what it says. 40's symbols wait on the bindings
+                      being pushed to the page, which publishLanguage() started
+
+   36 (shadow detail) <──> 41 (one-pass shadows): 36 makes the sample count a
+                      setting, 41 removes the count altogether - so 41 is the
+                      answer 36 is a stopgap for, and 36 is worth doing only
+                      while 41 is out of reach
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was

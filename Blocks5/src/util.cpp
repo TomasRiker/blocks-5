@@ -116,6 +116,11 @@ std::string sanitizeFilenameStem(const std::string& untrusted,
 	return result.empty() ? fallback : result;
 }
 
+void seedRandom(uint seed)
+{
+	mt.seed(seed);
+}
+
 int random(int min,
 		   int max)
 {

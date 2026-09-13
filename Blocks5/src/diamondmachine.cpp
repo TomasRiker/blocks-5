@@ -179,6 +179,7 @@ namespace
 DiamondMachine::DiamondMachine(Level& level,
 							   const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_BLOCK_GAS;
 	p_objOnMe = 0;
@@ -465,10 +466,10 @@ void DiamondMachine::updateSprites()
 	sprites.add(positionOnTexture);
 }
 
-void DiamondMachine::onRender(int layer,
+void DiamondMachine::onRender(RenderLayer layer,
 							  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void DiamondMachine::onUpdate()

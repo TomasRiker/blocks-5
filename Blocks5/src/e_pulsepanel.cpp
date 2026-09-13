@@ -7,9 +7,10 @@ E_PulsePanel::E_PulsePanel(Level& level,
 						   int pulseValue,
 						   int dir) : Electronics(level, position, dir)
 {
+	renderLayers = RL_FLOOR;
 	renderBox = false;
 	flags &= ~OF_MASSIVE;
-	flashLayer = 0;
+	flashLayer = RL_FLOOR;
 
 	this->pulseValue = pulseValue;
 	value = !pulseValue;
@@ -28,11 +29,11 @@ void E_PulsePanel::updateSprites()
 	sprites.add(Vec2i(160 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
 }
 
-void E_PulsePanel::onRender(int layer,
+void E_PulsePanel::onRender(RenderLayer layer,
 							const Vec4d& color)
 {
 	Electronics::onRender(layer, color);
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }
 
 void E_PulsePanel::onUpdate()

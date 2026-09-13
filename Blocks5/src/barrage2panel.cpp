@@ -7,6 +7,7 @@ Barrage2Panel::Barrage2Panel(Level& level,
 							 int subType,
 							 uint color) : Panel(level, position)
 {
+	renderLayers = RL_FLOOR;
 	this->subType = subType;
 	this->color = color;
 }
@@ -21,10 +22,10 @@ void Barrage2Panel::updateSprites()
 	sprites.add(Vec2i(subType ? 224 : 192, 256), getStdColor(this->color));
 }
 
-void Barrage2Panel::onRender(int layer,
+void Barrage2Panel::onRender(RenderLayer layer,
 							 const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }
 
 bool Barrage2Panel::changeInEditor(int mod)

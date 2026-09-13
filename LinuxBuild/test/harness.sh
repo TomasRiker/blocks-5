@@ -52,6 +52,11 @@ b5_start()
 		command -v $t >/dev/null 2>&1 || { echo "$t is missing."; exit 2; }
 	done
 
+	# Before the first destructive step, not beside the Xvfb further down:
+	# B5_OUT is the other run's screenshots and its hook directory as much as
+	# this one's, and a refusal after it is gone has refused nothing.
+	b5_clearDisplay || exit 2
+
 	rm -rf "$B5_OUT"; mkdir -p "$B5_OUT"
 	B5_TEST_DIR="$B5_OUT/hook"; mkdir -p "$B5_TEST_DIR"; export B5_TEST_DIR
 
@@ -71,7 +76,6 @@ b5_start()
 	# is taken, and the game attaches to the old server instead, where it hangs
 	# in SDL_SetVideoMode with nothing to say. Clearing it first is what makes
 	# a rerun after an aborted run mean anything.
-	b5_clearDisplay
 	Xvfb "$B5_DISP" -screen 0 ${B5_SCREEN_W}x${B5_SCREEN_H}x24 >"$B5_OUT/xvfb.log" 2>&1 &
 	B5_XVFB_PID=$!
 
@@ -160,13 +164,35 @@ b5_diagnose()
 
 # Take down an X server left behind by a run that did not get to b5_stop. Its
 # own pid, never a pattern that could match this script.
+#
+# A server with the game still attached to it belongs to a run that is not over,
+# and killing that one takes the other run's game down mid-frame - which reads
+# as a rendering fault rather than as a collision. Two harnesses on one display
+# is the shape that produces it, so this stops instead and says which two
+# variables separate them - the display and the shots directory, since the hook
+# file both games poll lives in the second.
 b5_clearDisplay()
 {
-	local stale
+	local stale p
 	stale=$(pgrep -x Xvfb 2>/dev/null | while read -r p; do
-		tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q -- "$B5_DISP " && echo "$p"
+		tr '\0' ' ' 2>/dev/null < "/proc/$p/cmdline" | grep -q -- "$B5_DISP " && echo "$p"
 	done)
 	if [ -n "$stale" ]; then
+		# The game's own environment, not a global pgrep: a run on another
+		# display is none of this one's business.
+		for p in $(pgrep -x blocks5 2>/dev/null); do
+			# The redirections are applied left to right, so the 2>/dev/null has
+			# to come first or the shell's own "no such file" for a process that
+			# has just exited reaches the terminal.
+			if tr '\0' '\n' 2>/dev/null < "/proc/$p/environ" |
+			   grep -qx -- "DISPLAY=$B5_DISP"; then
+				echo "  ! a blocks5 is still attached to $B5_DISP, so another run is"
+				echo "    using it. Give this one its own B5_DISPLAY *and* its own"
+				echo "    B5_SHOTS: the display separates the two X servers, and the"
+				echo "    shots directory the hook file both games poll."
+				return 1
+			fi
+		done
 		echo "  (clearing an X server left behind on $B5_DISP)"
 		kill $stale 2>/dev/null
 		sleep 1
@@ -218,7 +244,17 @@ b5_ask()
 	echo "$1" > "$B5_TEST_DIR/request"
 	local i
 	for i in $(seq 1 25); do
-		[ -f "$B5_TEST_DIR/response" ] && { cat "$B5_TEST_DIR/response"; return 0; }
+		# The request has to be gone before the answer counts. The game
+		# deletes it and writes the response in the same pass, so a response
+		# appearing while the request is still lying there belongs to an
+		# earlier ask that gave up - and reading it answers the wrong
+		# question. What that looks like is not a timeout but a wrong answer:
+		# a click reporting that a whole dump is "on top" of the button,
+		# because that is what the previous ask was going to return.
+		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ]; then
+			cat "$B5_TEST_DIR/response"
+			return 0
+		fi
 		b5_alive || return 1
 		sleep 0.2
 	done

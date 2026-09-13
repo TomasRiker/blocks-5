@@ -5,6 +5,7 @@
 
 #include "parameterblock.h"
 #include "framestats.h"
+#include "quadarray.h"
 
 class GameState;
 class SoundInstance;
@@ -96,6 +97,15 @@ public:
 	// false where no image could be produced. In the browser it goes to the
 	// player as a download instead of as a file in the user directory.
 	bool screenshot();
+	// The frame as PNG bytes, and the same under a name the caller chose.
+	bool encodeFrame(std::vector<uchar>* p_pngOut);
+	bool writeScreenshot(const std::string& path);
+	// See flushSprites() and Level::update(); unconditional for the reason
+	// batchTexture gives below.
+	uint batchFlushes;
+	uint batchDraws;
+	uint batchQuads;
+	uint sceneTick;
 
 	// The framebuffer the game renders into: always 640x480, whatever the
 	// window size. Every calculation in screen coordinates stays valid.
@@ -149,6 +159,9 @@ public:
 	// as well.
 	void disableFrameBuffer() { frameBufferDisabled = true; }
 	void disableShaders() { shadersDisabled = true; }
+	// -nobatch: the A/B arm for the sprite batch, and the way out if a driver
+	// ever mishandles a client-side colour array.
+	void disableSpriteBatch() { spriteBatchDisabled = true; }
 
 	// -perf: put what the last few hundred frames cost on the screen. The
 	// timings are recorded either way - four clock reads a frame - and this
@@ -158,6 +171,9 @@ public:
 	// overlay's own cost landing in the picture.
 	void showPerformance() { performanceShown = true; }
 	bool isPerformanceShown() const { return performanceShown; }
+
+	// The -perf upper-bound measurement; see where it is set in render().
+	bool isRenderSuppressed() const { return renderSuppressed; }
 	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
 	// Forget everything that has piled up in keys and mouse buttons: after
 	// anything that stopped the main loop, the input state is useless.
@@ -222,12 +238,22 @@ public:
 	// any one: the options dialog sets its six sliders, and the main menu
 	// offers it once.
 	U_Crt& getCrt() const { return *p_crt; }
-	void renderSprite(const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
-	void renderSprite(Texture* p_sprite, const Vec2i& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+	// A Vec2d position, so that a sprite off the grid needs no glTranslated of
+	// its own - see Level::renderShine.
+	void renderSprite(const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+	void renderSprite(Texture* p_sprite, const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
 
 	// Draw all sprites of an object. color is the colour of the render pass;
 	// each sprite's own tint comes on top of it.
 	void renderSprites(const Sprites& sprites, const Vec4d& color);
+
+	// While a batch is open, renderSprite queues its four corners instead of
+	// drawing them, and one glDrawArrays puts the lot up at the flush. Opened
+	// around the object loop in Level::renderObjects and nowhere else; see
+	// queueSprite() in engine.cpp for what a flush has to come before.
+	void beginSpriteBatch();
+	void flushSprites();
+	void endSpriteBatch();
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
 
 	void setBlendFunc(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
@@ -333,10 +359,14 @@ public:
 	uint getFrameTime() const;
 	uint getTime() const;
 
+	// Pins the generator for a level about to load; empty in a normal build.
+	void seedForLoad();
+
 	FrameStats& getFrameStats() { return frameStats; }
 
 	const Vec2i& getScreenSize() const;
 	const Vec2i& getScreenPow2Size() const;
+	Vec2d getScreenTexelScale() const;
 	const Vec2i& getDisplaySize() const;
 
 	void crossfade(Crossfade* p_crossfade, double duration, bool immediately = false);
@@ -348,6 +378,7 @@ public:
 	// What the system speaks, boiled down to "de" or "en". Asked only where
 	// config.xml names no language at all - see loadConfig().
 	static std::string detectSystemLanguage();
+	void publishLanguage();
 	double getSoundVolume() const;
 	void setSoundVolume(double soundVolume);
 	double getMusicVolume() const;
@@ -526,6 +557,25 @@ private:
 	uint frameTime;
 	FrameStats frameStats;
 	bool performanceShown;
+	bool renderSuppressed;
+	bool renderSuppressWanted;
+	// The queued sprite corners, four per sprite. Cleared and never shrunk, so
+	// it reaches the size of the busiest frame once and stays there.
+	std::vector<ColorQuadVertex> spriteBatch;
+	bool spriteBatchOpen;
+	bool spriteBatchDisabled;
+	// What the first quad of the open batch was queued against; in a test-hooks
+	// build the flush checks the state is still that. Declared whatever the
+	// build, because BLOCKS5_TEST_HOOKS reaches three translation units at most
+	// and a member behind it would give this class two different sizes - which
+	// is the one way to make singletons lie on top of each other in memory.
+	GLint batchTexture;
+	GLdouble batchTextureMatrix[16];
+	// The batched half of renderSprite, taking the corners already worked out
+	// so the two paths cannot drift apart on the geometry.
+	void queueSprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
+					 int u0, int u1, int v0, int v1,
+					 const Vec4d& color, double rotation, double scaling);
 	// The start of the previous turn of the main loop, for the interval
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between

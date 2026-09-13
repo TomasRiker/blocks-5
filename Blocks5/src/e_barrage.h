@@ -11,7 +11,7 @@ public:
 	E_Barrage(Level& level, const Vec2i& position, int dir);
 	~E_Barrage();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void saveExtendedAttributes(TiXmlElement* p_target);

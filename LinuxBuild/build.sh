@@ -7,10 +7,11 @@
 #   ./build.sh hooks      with the test hooks, into build-test/
 #   ./build.sh run [...]  build and start, everything after it goes to the game
 #
-# "hooks" compiles engine.cpp and testhooks.cpp with -DBLOCKS5_TEST_HOOKS and
-# builds into build-test/ instead of build/, which keeps a build with hooks from
-# ever being the shipped one by accident. Without the word, testhooks.cpp is an
-# empty translation unit.
+# "hooks" compiles engine.cpp, testhooks.cpp and glstate.cpp with
+# -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, which
+# keeps a build with hooks from ever being the shipped one by accident. Without
+# the word, testhooks.cpp is an empty translation unit and the other two lose
+# the readback checks that say a batch or the state record is being lied to.
 #
 # Needed: g++, SDL 1.2 (sdl12-compat everywhere today, hence SDL 2 underneath),
 # OpenAL, OpenGL and GLU. On Debian and Ubuntu:
@@ -50,6 +51,12 @@ INC="-I$GAME/src -I$HERE
 # it too) and GCC would otherwise be allowed to optimise that away.
 CFLAGS="-O2 -fno-strict-aliasing -DTIXML_USE_STL $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register"
+
+# "flags" prints them and stops, which is how Tools/compile_db.sh builds the
+# compilation database the clang tools need. Asking rather than copying is the
+# point: a compile_commands.json with its own idea of the include paths is a
+# refactoring tool parsing a different program from the one that ships.
+if [ "${1:-}" = "flags" ]; then echo "$CXXFLAGS"; exit 0; fi
 
 # The game's sources without the three that do not come along here:
 #   stackwalker  - Win32 SEH, exists only there
@@ -106,11 +113,11 @@ total=$(echo $SRCS $CSRCS | wc -w)
 for f in $CSRCS; do o=$(compile "$f" "$CFLAGS")   || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS
 do
-  # Only the two that get anything out of it. It is not in CXXFLAGS: otherwise
-  # switching between the build kinds would recompile all 167 units - the two
-  # output directories separate them anyway.
+  # Only the three that get anything out of it. It is not in CXXFLAGS:
+  # otherwise switching between the build kinds would recompile every unit -
+  # the two output directories separate them anyway.
   extra=""
-  case "$f" in */engine.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
+  case "$f" in */engine.cpp|*/testhooks.cpp|*/glstate.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

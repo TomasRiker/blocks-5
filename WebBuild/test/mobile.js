@@ -108,8 +108,14 @@ async function toPage(page, win) {
 		console.log('no index.html in ' + DIR + ' - run ./build.sh hooks first');
 		process.exit(2);
 	}
-	const server = spawn('python3', ['-m', 'http.server', String(PORT)],
-	                     { cwd: DIR, stdio: 'ignore', detached: true });
+	// server.py and not python3 -m http.server: the built-in one sends no
+	// Cache-Control at all, which is a configuration nobody deploys, and every
+	// caching check below would then be asking about the wrong server. It reads
+	// the rules out of WebBuild/htaccess, so what the browser is told here is
+	// what a real one is told.
+	const server = spawn('python3', [path.join(__dirname, 'server.py'),
+	                                 String(PORT), DIR],
+	                     { stdio: 'ignore', detached: true });
 	await wait(1500);
 
 	const browser = await chromium.launch({
@@ -301,6 +307,29 @@ async function toPage(page, win) {
 		}
 		await page.reload();
 		await waitFor(page, booted, 'the restart', 240000);
+
+		// --- 6c. the pad is stamped, and the page really loads it -----------
+		// This is what replaced the header rule for touch_controls.js, and it is
+		// the stronger mechanism: a stamped URL is immutable, so no cache
+		// anywhere can go stale on it and no server has to be configured for it
+		// to be true. The stamp is the pad's OWN hash and not the payload's -
+		// reusing $version would not move when only the pad changed, and the file
+		// would then be served immutable for a year, which is worse than the bug
+		// it replaced. So: the page must name a stamped pad, that file must exist,
+		// and it must have run.
+		const indexText = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
+		const padRef = indexText.match(/touch_controls-([0-9a-f]+)\.js/);
+		if (!padRef) {
+			bad('index.html does not reference a stamped touch_controls-<hash>.js');
+		} else if (/["'\/]touch_controls\.js/.test(indexText)) {
+			bad('index.html still references the unstamped touch_controls.js');
+		} else if (!fs.existsSync(path.join(DIR, padRef[0]))) {
+			bad(padRef[0] + ' is named by the page but not in the build');
+		} else {
+			const ran = await page.evaluate(() => typeof window.b5_setPadLanguage === 'function');
+			if (ran) ok('the pad is stamped (' + padRef[0] + ') and ran');
+			else bad(padRef[0] + ' was served but did not run');
+		}
 
 		// --- 7. offline ------------------------------------------------------
 		await context.setOffline(true);

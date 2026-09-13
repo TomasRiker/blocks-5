@@ -73,7 +73,7 @@ void GUI::exit()
 	p_root = 0;
 
 	// delete the texture
-	glDeleteTextures(1, &texID);
+	GL::deleteTexture(texID);
 	texID = 0;
 
 	// release the skin and the fonts
@@ -109,7 +109,7 @@ void GUI::render()
 		Engine& engine = Engine::inst();
 		const Vec2i& screenSize = engine.getScreenSize();
 		const Vec2i& screenPow2Size = engine.getScreenPow2Size();
-		glBindTexture(GL_TEXTURE_2D, texID);
+		GL::bindTexture(texID, engine.getScreenTexelScale());
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 	}
 }
@@ -168,16 +168,10 @@ void GUI::display()
 	}
 	else
 	{
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, texID);
+		GL::setTexturing(true);
 
-		// pixel texture coordinates
-		glPushAttrib(GL_TRANSFORM_BIT);
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
-		const Vec2i& screenPow2Size = Engine::inst().getScreenPow2Size();
-		glScaled(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y, 1.0);
-		glPopAttrib();
+		// The scale is what puts the texture coordinates below in pixels.
+		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
 
 		const Vec2i& screenSize = Engine::inst().getScreenSize();
 		glBegin(GL_QUADS);
@@ -192,7 +186,7 @@ void GUI::display()
 		glVertex2i(0, screenSize.y);
 		glEnd();
 
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 	}
 }
 
@@ -418,7 +412,7 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 
 	glEnd();
 
-	p_skin->unbind();
+	GL::setTexturing(false);
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)
@@ -489,7 +483,7 @@ void GUI::setOpacity(double opacity)
 	if(opacity == 1.0 && texID)
 	{
 		// delete the texture
-		glDeleteTextures(1, &texID);
+		GL::deleteTexture(texID);
 		texID = 0;
 	}
 
@@ -497,7 +491,7 @@ void GUI::setOpacity(double opacity)
 	{
 		// create the texture
 		glGenTextures(1, &texID);
-		glBindTexture(GL_TEXTURE_2D, texID);
+		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
 		const Vec2i screenPow2Size = Engine::inst().getScreenPow2Size();
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenPow2Size.x, screenPow2Size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

@@ -24,7 +24,6 @@ namespace
 	const int TEXT_TOP = 45;
 	const int TEXT_WIDTH = 230;
 
-	// The shadow lies underneath, offset by five pixels.
 	const int SHADOW_OFFSET = 5;
 	const double SHADOW_ALPHA = 0.3;
 
@@ -141,6 +140,7 @@ Hint::Hint(Level& level,
 		   const Vec2i& position,
 		   const std::string& text) : Object(level, 2)
 {
+	renderLayers = RL_MAIN | RL_OVERLAY | RL_HINT_PREVIEW;
 	warpTo(position);
 	flags = OF_FIXED | OF_TRANSPORTABLE | OF_COLLECTABLE;
 	this->text = text;
@@ -174,10 +174,8 @@ Hint::~Hint()
 	// a running level holds one, and that level belongs to a local variable of
 	// main() - which falls before the static Engine.
 	//
-	// In the browser this destructor never runs anyway: mainLoop() does not
-	// return there. The texture is handed back in onUpdate() as soon as the
-	// note is invisible, and in onRemove() on a level change - both run during
-	// play and not at shutdown.
+	// In the browser no destructor runs at all: onUpdate() and onRemove() are
+	// what hand the texture back there, and both run during play.
 	releaseNoteTexture();
 }
 
@@ -298,7 +296,6 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			const double py = from + (to - from) * k / steps[section];
 			const NotePoint np = rollPoint(py, unroll);
 
-			// Perspective divide by hand: what lies nearer gets bigger.
 			const double f = PERSPECTIVE / (PERSPECTIVE - np.depth);
 			const double x = 0.5 * NOTE_WIDTH * f;
 			const double y = np.y * f;
@@ -325,15 +322,10 @@ void Hint::renderNote(const Vec4d& color,
 {
 	Engine& engine = Engine::inst();
 
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, noteTexture);
-
-	// This texture does not come from Texture::bind(): the pixel matrix of the
-	// last image is still in place. Here the maths runs in 0..1.
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
+	// The identity and not Texture::bind()'s pixel scale: the mesh samples a
+	// fraction of its own baked sheet rather than a count of texels.
+	GL::setTexturing(true);
+	GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));
 
 	// Blend premultiplied, because the texture came about that way.
 	engine.setBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -348,14 +340,9 @@ void Hint::renderNote(const Vec4d& color,
 
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-
-	// Leave it as tidy as Texture::unbind() would: right afterwards the level
-	// draws the flash, and that wants no texture.
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+	// The level draws the flash next, which wants no texture. The binding is
+	// left standing: nothing reads it while texturing is off.
+	GL::setTexturing(false);
 }
 
 void Hint::renderNoteFlat(const Vec4d& color,
@@ -388,11 +375,11 @@ void Hint::renderNoteFlat(const Vec4d& color,
 	glPopMatrix();
 }
 
-void Hint::onRender(int layer,
+void Hint::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 42 || layer == 43)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_OVERLAY || layer == RL_HINT_PREVIEW)
 	{
 		double r = (0.85 - shownAlpha) * 45.0;
 		double i = shownAlpha / 0.85;
@@ -409,7 +396,7 @@ void Hint::onRender(int layer,
 		// the single quad.
 		Vec2i target = targetPosition;
 		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
-		if(layer == 43) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
+		if(layer == RL_HINT_PREVIEW) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
 
 		// Arrived means exactly arrived: shownAlpha only approaches 0.85, and
 		// scale, angle and position would stay fractions off for ever, with
@@ -450,7 +437,6 @@ void Hint::onRender(int layer,
 
 void Hint::onUpdate()
 {
-	// Player here?
 	Object* p_obj = level.getFrontObjectAt(position);
 	const bool playerIsHere = (p_obj == level.getActivePlayer());
 

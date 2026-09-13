@@ -150,37 +150,36 @@ void TileSet::cleanUp()
 	for(int i = 0; i < 256; i++) tiles[i] = badTile;
 }
 
-void TileSet::beginRender()
-{
-	p_texture->bind();
-	glBegin(GL_QUADS);
-}
-
-void TileSet::endRender()
-{
-	glEnd();
-	p_texture->unbind();
-}
-
-void TileSet::renderTile(uint id,
-						 const Vec2d& position)
+void TileSet::writeTile(uint id,
+						const Vec2f& position,
+						std::vector<QuadVertex>& out) const
 {
 	if(id == 0) return;
 
 	const TileInfo& tile = getTileInfo(id);
 	if(tile.type == -1) return;
 
-	glTexCoord2i(tile.position.x, tile.position.y);
-	glVertex2d(position.x, position.y);
+	// TILE_SIZE is the tile's edge in the picture and in the texture alike,
+	// which is why one constant does for both here.
+	const double s = TILE_SIZE;
+	const double x = position.x, y = position.y;
+	const double u = tile.position.x, v = tile.position.y;
 
-	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y);
-	glVertex2d(position.x + TILE_SIZE, position.y);
+	out.push_back(QuadVertex(x,     y,     u,     v));
+	out.push_back(QuadVertex(x + s, y,     u + s, v));
+	out.push_back(QuadVertex(x + s, y + s, u + s, v + s));
+	out.push_back(QuadVertex(x,     y + s, u,     v + s));
+}
 
-	glTexCoord2i(tile.position.x + TILE_SIZE, tile.position.y + TILE_SIZE);
-	glVertex2d(position.x + TILE_SIZE, position.y + TILE_SIZE);
-
-	glTexCoord2i(tile.position.x, tile.position.y + TILE_SIZE);
-	glVertex2d(position.x, position.y + TILE_SIZE);
+void TileSet::drawVertices(const QuadVertex* p_vertices,
+						   uint count) const
+{
+	// The bind and the switch back off happen even for a layer with no tiles in
+	// it: the state every later draw inherits must not depend on whether a
+	// layer happened to be empty.
+	p_texture->bind();
+	drawQuadArray(p_vertices, count);
+	GL::setTexturing(false);
 }
 
 Texture* TileSet::getTexture()

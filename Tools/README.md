@@ -19,10 +19,17 @@ Exit code 1 as soon as anything is reported.
 | --- | --- |
 | `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
+| `display_lists` | No display lists anywhere, in either build. |
+| `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
+| `render_layers` | A render layer is named, never a number. |
+| `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
+| `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
+| `gl_doors` | And so does the whole tree, or `GLState`'s record of it is a belief. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |
 | `strings` | Every `$ID` must be in `languages.txt`, in English and in German. |
+| `bindings` | Every `%BINDING{...}` must name an action that `main.cpp` registers. |
 | `xml_attrs` | An attribute written and read nowhere is dead weight or a typo. |
 | `config` | What `Engine::saveConfig` writes must be read back again. |
 | `ctor_init` | Scalar members that the constructor does not set. |
@@ -49,7 +56,11 @@ noticing - the attribute check was inert when it was first written, because
 attribute counted as read.
 
 The script therefore injects, for each check, exactly the fault it is meant to
-catch, runs it, and puts the file back byte for byte afterwards.
+catch, runs it, and puts the file back byte for byte afterwards. A handful of
+cases go the other way (`quiet=True`): they inject a legitimate edit - a flush
+hoisted to the top of a function, say - and the check has to stay silent. A
+check that reports an honest refactor gets deleted rather than fixed, so that
+half is worth testing too.
 
     python3 Tools/selftest.py
 
@@ -59,7 +70,7 @@ Compiles every source of the game with `i686-w64-mingw32-g++ -fsyntax-only`. It
 is the only way to put a compiler over the Windows code from here, and it costs
 half a minute.
 
-    sh Tools/syntax.sh              all 120 files
+    sh Tools/syntax.sh              all 123 files
     sh Tools/syntax.sh engine.cpp   only this one
 
 Three files never go through it - `main.cpp`, `videorecorder.cpp` and
@@ -75,11 +86,17 @@ into a throwaway directory.
     LinuxBuild/build.sh         compiles and links the native build
     LinuxBuild/build.sh hooks   the same with the test hooks, into build-test/
     LinuxBuild/test/smoke.sh    drives the native build through the GUI
+    LinuxBuild/test/frames.sh   five named scenes as byte-reproducible PNGs
     WebBuild/build.sh           compiles and links the browser build
     WebBuild/build.sh hooks     the same with the test hooks, into build-test/
     WebBuild/test/smoke.js      drives the browser build through the GUI
 
 See `LinuxBuild/README.md` and `WebBuild/test/README.md`.
+
+`frames.sh` is the oracle a rendering change is checked against: run it before
+and after and compare the bytes, rather than arguing that nothing can have
+moved. It also reads the game's log at the end, which is where a hooks build
+reports a GL state record that disagrees with what OpenGL is really holding.
 
 
 Generators

@@ -1,6 +1,6 @@
 // pre.js - browser-side setup that must happen before main() runs.
 
-// Two knobs on the query string, both diagnostics. They live here because a
+// Three knobs on the query string, all diagnostics. They live here because a
 // phone has no console, no command line and no test harness: typing a URL is
 // the only way to reach them, and it is the same URL on a desktop.
 //
@@ -8,6 +8,11 @@
 //                 the desktop build takes on its command line, so both
 //                 platforms run one piece of code. Turning a query string into
 //                 argv is Emscripten's own idiom - see its emrun_prejs.js.
+//
+//   ?nobatch=1    becomes -nobatch, which makes renderSprite draw each quad on
+//                 its own again instead of queueing it. That is the arm to
+//                 compare the sprite batch against, and it is a query string
+//                 rather than a build flag so that both arms are one binary.
 //
 //   ?texunits=N   how many texture units Emscripten's GL emulation keeps state
 //                 for (Module.GL_MAX_TEXTURE_IMAGE_UNITS). Left alone it asks
@@ -33,8 +38,21 @@
   var query;
   try { query = new URLSearchParams(location.search); } catch (e) { return; }
 
-  if (query.get('perf')) {
+  // Present and not switched off. A bare query.get() would read "0" as on,
+  // since every non-empty string is truthy - and ?perf=0 asking for the
+  // overlay is the opposite of what anybody types it for.
+  function wants(name) {
+    if (!query.has(name)) return false;
+    var v = query.get(name).toLowerCase();
+    return v !== '0' && v !== 'false' && v !== 'off' && v !== 'no';
+  }
+
+  if (wants('perf')) {
     Module['arguments'] = (Module['arguments'] || []).concat(['-perf']);
+  }
+
+  if (wants('nobatch')) {
+    Module['arguments'] = (Module['arguments'] || []).concat(['-nobatch']);
   }
 
   var units = query.has('texunits') ? parseInt(query.get('texunits'), 10) : 1;

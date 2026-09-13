@@ -11,7 +11,7 @@ public:
 	E_HexDigit(Level& level, const Vec2i& position, int dir);
 	~E_HexDigit();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();

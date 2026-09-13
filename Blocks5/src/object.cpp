@@ -34,6 +34,7 @@ Object::Object(Level& level,
 	ghost = false;
 	destroyTime = 0;
 	deathCountDown = 1.0;
+	glowJitter = 0.0;
 	conversionProgress = 0.0;
 	deathSpeed = 0.0;
 	newDeathCountDown = 1.0;
@@ -53,7 +54,8 @@ Object::Object(Level& level,
 	lastHashedAt = -1;
 	removed = false;
 	flashAmount = 0.0;
-	flashLayer = 1;
+	flashLayer = RL_MAIN;
+	renderLayers = 0;
 	sayText = "";
 	sayTime = 0.0;
 	sayAlpha = 0.0;
@@ -67,7 +69,7 @@ Object::~Object()
 {
 }
 
-void Object::render(int layer,
+void Object::render(RenderLayer layer,
 					const Vec2i& offset,
 					const Vec4d& color)
 {
@@ -81,14 +83,14 @@ void Object::render(int layer,
 
 	if(!(flags & OF_PROXY))
 	{
-		if(layer == 939) glTranslated(offset.x, offset.y, 0.0);
+		if(layer == RL_WIRE) glTranslated(offset.x, offset.y, 0.0);
 		else
 		{
 			Vec2i sp = getShownPositionInPixels();
 			glTranslated(sp.x + offset.x, sp.y + offset.y, 0.0);
 		}
 
-		if(layer != 18)
+		if(layer != RL_LIGHT)
 		{
 			double o = -16.0;
 			if(getType() == "Enemy") o = -17.0;
@@ -141,7 +143,7 @@ void Object::render(int layer,
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 
-	if(layer == 42 &&
+	if(layer == RL_OVERLAY &&
 	   sayTime > 0.0 &&
 	   !sayText.empty())
 	{
@@ -168,8 +170,11 @@ void Object::render(int layer,
 		if(mirrorY == -1) glScaled(1.0, -1.0, 1.0);
 		glTranslated(8.0, 8.0, 0.0);
 
+		// Raw geometry, so the queued sprites have to go up first: they belong
+		// underneath it.
+		Engine::inst().flushSprites();
 		glDisable(GL_LINE_SMOOTH);
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glLineWidth(1.0f);
 
 		glBegin(GL_TRIANGLES);
@@ -550,7 +555,7 @@ void Object::onRemove()
 {
 }
 
-void Object::onRender(int layer,
+void Object::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
 }
@@ -932,11 +937,23 @@ void Object::frameBegin()
 		flashAmount *= FLASH_DECAY;
 		if(flashAmount < 1.0 / 256.0) flashAmount = 0.0;
 	}
+
+	// And the glow's unsteadiness for the same reason - see glowJitter. Drawn
+	// for every object rather than only for the ones that glow, because a
+	// draw from the shared generator has to happen the same number of times
+	// whatever is on screen, or a frame stops being reproducible from a seed.
+	glowJitter = random(-1.0, 1.0);
 }
 
 void Object::flash()
 {
 	flashAmount = FLASH_STRENGTH;
+
+	// render() puts the flash on flashLayer, which is not necessarily a layer
+	// this object's own sprites reach. The bit goes in here and never comes
+	// out: a mask may name a layer the object is not drawing on this frame,
+	// and may never omit one it is.
+	renderLayers |= flashLayer;
 }
 
 void Object::disappear(double duration)
@@ -1016,6 +1033,11 @@ void Object::say(const std::string& text,
 {
 	sayText = text;
 	sayTime = duration;
+
+	// The balloon is render()'s own, not onRender()'s, so the class that set
+	// the mask in its constructor knows nothing about it. As in flash(), the
+	// bit is added and never removed.
+	renderLayers |= RL_OVERLAY;
 }
 
 const std::string& Object::getType() const

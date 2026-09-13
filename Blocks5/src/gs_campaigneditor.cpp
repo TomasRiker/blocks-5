@@ -473,7 +473,7 @@ void GS_CampaignEditor::onRender()
 	glTexCoord2i(0, 480);
 	glVertex2i(0, 480);
 	glEnd();
-	p_background->unbind();
+	GL::setTexturing(false);
 }
 
 void GS_CampaignEditor::onUpdate()

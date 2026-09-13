@@ -51,7 +51,6 @@ Level::Level()
 	inCat = false;
 	inPreview = false;
 	inMenu = false;
-	layerListBase = 0;
 	cameraShake = 0.0;
 	flash = 0.0;
 	flashJitter = 0.0;
@@ -64,6 +63,8 @@ Level::Level()
 	p_sprites = 0;
 	p_lava[0] = p_lava[1] = 0;
 	p_noise = 0;
+	noiseOffset1 = Vec2i(0, 0);
+	noiseOffset2 = Vec2i(0, 0);
 	p_shine = 0;
 	p_rain = 0;
 	p_clouds = 0;
@@ -101,7 +102,7 @@ Level::Level()
 
 	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -111,7 +112,7 @@ Level::~Level()
 {
 	clear();
 
-	if(bufferID) glDeleteTextures(1, &bufferID);
+	if(bufferID) GL::deleteTexture(bufferID);
 }
 
 void Level::clear()
@@ -131,11 +132,9 @@ void Level::clear()
 	// delete the tiles
 	delete[] p_tiles;
 	p_tiles = 0;
-	if(layerListBase)
-	{
-		glDeleteLists(layerListBase, NUM_LAYERS);
-		layerListBase = 0;
-	}
+	// The layer arrays need no GL call to release and no context to be current
+	// while they go, which is the half of this that display lists could not do.
+	for(int i = 0; i < NUM_LAYERS; i++) tileVertices[i].clear();
 
 	delete[] p_aiFlags;
 	p_aiFlags = 0;
@@ -223,6 +222,10 @@ bool Level::load(const std::string& filename,
 bool Level::load(TiXmlDocument* p_doc,
 				 bool dontReallyLoad)
 {
+	// Both load() overloads come through here, and so does every object this
+	// level is about to construct - which is what has to be reproducible.
+	Engine::inst().seedForLoad();
+
 	clear();
 
 	TiXmlElement* p_level = p_doc->FirstChildElement("Level");
@@ -447,8 +450,7 @@ bool Level::load(TiXmlDocument* p_doc,
 	p_temp = p_level->Attribute("musicFilename");
 	if(p_temp) musicFilename = p_temp;
 
-	// create the display lists for the layers
-	layerListBase = glGenLists(NUM_LAYERS);
+	// Every layer has to be built before it is first drawn.
 	layerDirty = ~0;
 
 	return true;
@@ -646,7 +648,7 @@ void Level::render()
 			glTexCoord2i(0, 480);
 			glVertex2i(0, 480);
 			glEnd();
-			p_background->unbind();
+			GL::setTexturing(false);
 		}
 	}
 
@@ -680,13 +682,12 @@ void Level::render()
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	glColorMask(0, 0, 0, 0);
 
-	renderObjects(735, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	renderObjects(736, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	glDisable(GL_ALPHA_TEST);
 	glColorMask(1, 1, 1, 1);
 
-	p_lavaEdges->unbind();
+	GL::setTexturing(false);
 	p_lavaEdges->release();
 
 	glStencilFunc(GL_EQUAL, 0, ~0);
@@ -695,23 +696,23 @@ void Level::render()
 
 	// render the lava
 	p_lava[0]->bind();
-	renderObjects(737, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	p_lava[0]->unbind();
+	renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	GL::setTexturing(false);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 	p_lava[1]->bind();
-	renderObjects(738, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-	p_lava[1]->unbind();
+	renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	GL::setTexturing(false);
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 	glDisable(GL_STENCIL_TEST);
 
 	// render the background objects
-	renderObjects(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_FLOOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// render the electronics connections
 	glPushMatrix();
 	glTranslated(0.5, 0.5, 0.0);
-	renderObjects(939, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_WIRE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	glPopMatrix();
 
 	// render the rain particle system
@@ -727,12 +728,12 @@ void Level::render()
 	for(int i = 0; i < numSamples; i++)
 	{
 		renderTiles(1, samples[start + i], shadowColor);
-		renderObjects(1, samples[start + i], shadowColor, true);
+		renderObjects(RL_MAIN, samples[start + i], shadowColor, true);
 	}
 
 	// render the middle ground
 	renderTiles(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
-	renderObjects(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_MAIN, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// render the particle systems
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
@@ -741,14 +742,20 @@ void Level::render()
 	p_particleSystem->render();
 
 	// render the special effect layer
-	renderObjects(16, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_EFFECT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	if(inEditor && !inCat && !inPreview) renderObjects(255, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	if(inEditor && !inCat && !inPreview) renderObjects(RL_EDITOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	// Rain
 	if(!inEditor && raining)
 	{
 		p_rain->bind();
+
+		// The mode stays on GL_TEXTURE for the loop below, which is the one
+		// thing GL:: does not model: each layer scrolls on top of the
+		// picture's own scale inside a push and pop of its own. The snow and
+		// the clouds do the same, and one glMatrixMode(GL_MODELVIEW) past the
+		// clouds puts it back for all three.
 		glMatrixMode(GL_TEXTURE);
 
 		glEnable(GL_ALPHA_TEST);
@@ -765,6 +772,9 @@ void Level::render()
 			double y = 100.0 * i + 1000.0 * 0.001 * time;
 			double s[] = {1.0, 0.5, 0.25};
 			double angle = 15.0 + sin(0.02 * y * s[i] + i);
+			// After the angle, which reads the unwrapped offset. Rain scrolls
+			// twenty texels a tick, so it is the first of these to go steppy.
+			y = wrapTextureOffset(y, p_rain->getSize().y);
 
 			glPushMatrix();
 			glScaled(s[i], s[i], s[i]);
@@ -786,7 +796,7 @@ void Level::render()
 
 		glDisable(GL_ALPHA_TEST);
 
-		p_rain->unbind();
+		GL::setTexturing(false);
 	}
 
 	// Snow
@@ -810,6 +820,11 @@ void Level::render()
 			double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
 			double x = 500.0 * sin(t * f + i);
 			double y = 150.0 * t + 300.0 * cos(t * f + i);
+			// x is bounded by its own sine and y is not, but both are wrapped:
+			// the snow translates on both axes, and one rule is easier to keep
+			// right than two.
+			x = wrapTextureOffset(x, p_snow->getSize().x);
+			y = wrapTextureOffset(y, p_snow->getSize().y);
 
 			glPushMatrix();
 			glTranslated(-x, -y, 0.0);
@@ -830,7 +845,7 @@ void Level::render()
 
 		glDisable(GL_ALPHA_TEST);
 
-		p_snow->unbind();
+		GL::setTexturing(false);
 	}
 
 	// Clouds
@@ -848,6 +863,8 @@ void Level::render()
 			double s[] = {1.0, 0.5, 0.25};
 			double x = 100.0 * i + 50.0 * 0.001 * time;
 			x += 2.0 * sin(0.02 * x * s[i] + i);
+			// After the wobble, whose phase has to follow the unwrapped offset.
+			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 			glPushMatrix();
 			glScaled(s[i], s[i] * 2.0, s[i]);
@@ -869,7 +886,7 @@ void Level::render()
 			glPopMatrix();
 		}
 
-		p_clouds->unbind();
+		GL::setTexturing(false);
 	}
 
 	glMatrixMode(GL_MODELVIEW);
@@ -917,7 +934,7 @@ void Level::render()
 
 		// accumulate the lights
 		engine.setBlendFunc(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
-		renderObjects(18, Vec2i(0, 0), Vec4d(1.0), false);
+		renderObjects(RL_LIGHT, Vec2i(0, 0), Vec4d(1.0), false);
 		if(thunderstorm) lightning.render();
 
 		glColorMask(1, 1, 1, 0);
@@ -936,14 +953,14 @@ void Level::render()
 
 		glColorMask(1, 1, 1, 1);
 
-		// render the "Funkel-Layer"
-		renderObjects(17, Vec2i(0, 0), Vec4d(1.0), false);
+		// render the sparkle layer
+		renderObjects(RL_SPARKLE, Vec2i(0, 0), Vec4d(1.0), false);
 
 		// render the noise
 		engine.setBlendFunc(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
 		p_noise->bind();
-		Vec2i o1(random(0, 512 - 200), random(0, 512 - 160));
-		Vec2i o2(random(0, 512 - 300), random(0, 512 - 240));
+		const Vec2i& o1 = noiseOffset1;
+		const Vec2i& o2 = noiseOffset2;
 		glBegin(GL_QUADS);
 		glColor4d(0.4, 1.0, 0.4, 1.0);
 		glTexCoord2i(o1.x, o1.y);
@@ -963,13 +980,13 @@ void Level::render()
 		glTexCoord2i(o2.x, o2.y + 240);
 		glVertex2i(-100, 580);
 		glEnd();
-		p_noise->unbind();
+		GL::setTexturing(false);
 
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 
 	// render the layer on which overlays are shown
-	renderObjects(42, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_OVERLAY, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
 	if(flash > 0.0)
 	{
@@ -990,6 +1007,11 @@ void Level::render()
 void Level::update()
 {
 	clearAIFlags(Vec2i(-1, -1));
+
+	// The night vision's noise, on the tick like everything else that moves.
+	// The two spans are the quads' own in render().
+	noiseOffset1 = Vec2i(random(0, 512 - 200), random(0, 512 - 160));
+	noiseOffset2 = Vec2i(random(0, 512 - 300), random(0, 512 - 240));
 
 	// remove the old objects, add the new ones
 	removeOldObjects();
@@ -1026,7 +1048,8 @@ void Level::update()
 	p_fireParticleSystem->update();
 	p_rainParticleSystem->update();
 
-	// "Spuren verwischen"
+	// Let the AI traces fade, one step per tick off every cell that still
+	// carries one.
 	for(int i = 0; i < WIDTH * HEIGHT; i++)
 	{
 		uint trace = p_aiFlags[i] & 0xFFFFFF00;
@@ -1172,75 +1195,94 @@ void Level::update()
 
 	counter++;
 	time += 20;
+
+	// The clock the frame oracle runs on - see Engine::sceneTick. Reported
+	// from here because a level is the only thing in the game with a clock
+	// that starts at zero when the screen does. Not behind
+	// BLOCKS5_TEST_HOOKS: that define reaches engine.cpp and testhooks.cpp
+	// and no other translation unit, so a guard here would simply never
+	// compile.
+	Engine::inst().sceneTick = static_cast<uint>(time);
 }
 
 void Level::renderTiles(int layer,
 						const Vec2i& offset,
 						const Vec4d& color)
 {
+	if(Engine::inst().isRenderSuppressed()) return;
+
+	// Before the matrix is pushed, so that nothing has to be popped again. A
+	// level whose skin would not load has no tile set, and drawing nothing is
+	// what Level::loadSkin's toast already promises the player.
+	if(!isValidLayer(layer) || !p_tileSet) return;
+
 	glColor4dv(color);
 	glPushMatrix();
 	glTranslated(offset.x, offset.y, 0.0);
 
-#ifdef __EMSCRIPTEN__
-	// WebGL has no display lists, and the tile grid is therefore emitted afresh
-	// every frame. A level is 1000 quads per layer, which is affordable.
-	{
-		p_tileSet->beginRender();
+	std::vector<QuadVertex>& vertices = tileVertices[layer];
 
-		for(int x = 0; x < WIDTH; x++)
-		{
-			for(int y = 0; y < HEIGHT; y++)
-			{
-				Vec2i p(x, y);
-				uint tileID = getTileAt(layer, p);
-				p_tileSet->renderTile(tileID, p * 16);
-			}
-		}
-
-		p_tileSet->endRender();
-	}
-#else
-	// Does this layer have to be redrawn?
+	// Built only where layerDirty says the grid changed. Six places set that
+	// mask - load(), allocateTiles(), setTileAt(), setTileSet(), invalidate()
+	// and loadSkin() - which between them cover every way a tile or the picture
+	// it is cut from can move. A tile id alone would not: the texture
+	// coordinates come from the TileSet, so a skin change moves every tile
+	// without moving a single id.
 	if(layerDirty & (1 << layer))
 	{
-		glNewList(layerListBase + layer, GL_COMPILE);
-
-		p_tileSet->beginRender();
+		// Not reserved to WIDTH * HEIGHT * 4, though that is the ceiling and is
+		// known here: clear() keeps the capacity, so a layer reaches the size it
+		// needs on its first build and never allocates again, and a full one
+		// ends up holding the same 64 KB either way. Reserving would only add
+		// it to the five palette levels the editor keeps alongside, which are
+		// nearly empty.
+		vertices.clear();
 
 		for(int x = 0; x < WIDTH; x++)
 		{
 			for(int y = 0; y < HEIGHT; y++)
 			{
-				Vec2i p(x, y);
-				uint tileID = getTileAt(layer, p);
-				p_tileSet->renderTile(tileID, p * 16);
+				const Vec2i p(x, y);
+				const Vec2f corner(static_cast<float>(p.x * TileSet::TILE_SIZE),
+								   static_cast<float>(p.y * TileSet::TILE_SIZE));
+				p_tileSet->writeTile(getTileAt(layer, p), corner, vertices);
 			}
 		}
 
-		p_tileSet->endRender();
-
-		glEndList();
-
-		// The layer is no longer dirty.
 		layerDirty &= ~(1 << layer);
 	}
 
-	glCallList(layerListBase + layer);
-#endif
+	p_tileSet->drawVertices(vertices.empty() ? 0 : &vertices[0],
+							static_cast<uint>(vertices.size()));
 
 	glPopMatrix();
 }
 
-void Level::renderObjects(int layer,
+void Level::renderObjects(RenderLayer layer,
 						  const Vec2i& offset,
 						  const Vec4d& color,
 						  bool shadow)
 {
-	if(layer != 939 && layer != 735 && layer != 736 && layer != 737 && layer != 738) p_sprites->bind();
+	// The passes that bring a texture of their own: the wires draw untextured
+	// and the three lava passes bind lava_edges or the lava itself.
+	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
+	if(!(layer & ownTexture)) p_sprites->bind();
+
+	// One pass over one layer is one draw call, or a few where an object in
+	// the middle of it draws something the batch cannot carry. This is the
+	// only place in the game that opens a batch: what runs inside it is the
+	// fifty onRender overrides and nothing else, which is a set small enough
+	// to have been read through.
+	Engine& engine = Engine::inst();
+	engine.beginSpriteBatch();
 
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
+		// Most objects draw on one or two of the twelve layers, so most of
+		// this walk is a matrix bracket and a virtual call that would draw
+		// nothing. The mask is a plain member, so asking costs a load.
+		if(!((*i)->getRenderLayers() & layer)) continue;
+
 		if(!shadow || (shadow && !((*i)->getFlags() & Object::OF_NO_SHADOW)))
 		{
 			(*i)->shadowPass = shadow;
@@ -1248,7 +1290,9 @@ void Level::renderObjects(int layer,
 		}
 	}
 
-	if(layer != 939 && layer != 735 && layer != 736 && layer != 737 && layer != 738) p_sprites->unbind();
+	engine.endSpriteBatch();
+
+	if(!(layer & ownTexture)) GL::setTexturing(false);
 }
 
 void Level::sortObjects()
@@ -1277,9 +1321,60 @@ void Level::sortObjects()
 }
 
 void Level::renderShine(double intensity,
-						double size)
+						double size,
+						const Vec2d& offset)
 {
-	Engine::inst().renderSprite(p_shine, Vec2i(-56, -56), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
+	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
+}
+
+void Level::renderBeamShines(const std::list<Vec2d>& beam,
+							 const Vec2i& origin,
+							 double intensity,
+							 double size,
+							 double jitter)
+{
+	if(beam.empty()) return;
+
+	// A beam holds a point every four pixels, and a glow on every fourth of
+	// them is what carries the light along it. What such a line lays down
+	// goes as intensity * size / spacing, and the size is the delicate half:
+	// the disc is 128 * size pixels across, so below about 0.25 the next
+	// glow's centre falls outside it and the field beads instead of running.
+	// The night vision darkens the picture by the alpha this field writes, so
+	// a beam lying between two glows that no longer meet comes out dark
+	// rather than dim.
+	//
+	// The corners are drawn whatever the count. A corner is a mirror - the
+	// one place along a beam the light really is brightest - and a stride of
+	// four would land on it three times in four by luck alone. So are the two
+	// ends: the emitter, and whatever the beam stops against.
+	Vec2d previous(0.0);
+	int n = 0;
+
+	for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, n++)
+	{
+		std::list<Vec2d>::const_iterator after = i;
+		++after;
+
+		bool corner = (i == beam.begin() || after == beam.end());
+		if(!corner)
+		{
+			// The step in against the step out, as a cross product rather
+			// than a comparison: the walk snaps the point at a mirror onto
+			// the mirror's own centre, so the step into a corner is shorter
+			// than a whole one and two steps of unequal length along one
+			// straight run would otherwise read as a turn.
+			const Vec2d in(*i - previous);
+			const Vec2d out(*after - *i);
+			corner = (in.x * out.y != in.y * out.x);
+		}
+
+		previous = *i;
+		if(n % 4 && !corner) continue;
+
+		renderShine(intensity, size + random(-jitter, jitter),
+					*i - origin - Vec2d(7.5, 7.5));
+	}
 }
 
 bool Level::isFreeAt(const Vec2i& position,
@@ -2320,7 +2415,8 @@ void Level::renderToxicEffect()
 	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	// The scale is what puts the grid's texture coordinates below in pixels.
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 	const double t = static_cast<double>(time) / 1000.0;
@@ -2352,15 +2448,9 @@ void Level::renderToxicEffect()
 		}
 	}
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	double w = static_cast<double>(screenPow2Size.x), h = static_cast<double>(screenPow2Size.y);
-	glScaled(1.0 / w, -1.0 / h, 1.0);
-	glMatrixMode(GL_MODELVIEW);
-
 	// draw the grid
 	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glBegin(GL_QUADS);
 
 	for(int x = 0; x < 64; x++)
@@ -2384,7 +2474,7 @@ void Level::renderToxicEffect()
 	}
 
 	glEnd();
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 }
 
 void Level::invalidate()
@@ -2456,7 +2546,7 @@ void Level::loadSkin(bool forceReload)
 	p_noise = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_NOISE));
 	if(p_oldNoise) p_oldNoise->release();
 
-	// load the "Schein"
+	// load the shine
 	Texture* p_oldShine = p_shine;
 	p_shine = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SHINE));
 	if(p_oldShine) p_oldShine->release();

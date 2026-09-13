@@ -18,7 +18,7 @@ void GS_Credits::onRender()
 {
 	glColorMask(true, true, true, false);
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	double t = 0.001 * time;
 	Vec3d color(0.05 + 0.05 * sin(t * 0.26), 0.05 + 0.05 * cos(t * 0.31), 0.05 + 0.05 * sin(t * 0.413));
@@ -38,12 +38,9 @@ void GS_Credits::onRender()
 	const Vec2i& screenSize = engine.getScreenSize();
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	double w = static_cast<double>(screenPow2Size.x), h = static_cast<double>(screenPow2Size.y);
-	glScaled(1.0 / w, -1.0 / h, 1.0);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	// The scale is what puts the texture coordinates below in pixels.
+	GL::setTexturing(true);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 0.75);
 	glTexCoord2i(0, 0);
@@ -74,7 +71,7 @@ void GS_Credits::onRender()
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 	Vec4d textColors[] = {Vec4d(1.0, 1.0, 1.0, 1.0),
@@ -177,7 +174,9 @@ void GS_Credits::onRender()
 			options.charScaling = scaling;
 			options.lineSpacing = (i == 5 || i == 6) ? 0.75 : 1.0;
 			p_font->setOptions(options);
-			p_font->renderText(title, Vec2i(0, 0), Vec4d(0.75, 0.75, 1.0, alpha));
+			// Not cached: charScaling is animated, so this key belongs to this
+			// frame and to no other.
+			p_font->renderText(title, Vec2i(0, 0), Vec4d(0.75, 0.75, 1.0, alpha), false);
 
 			glPopMatrix();
 			glPushMatrix();
@@ -186,7 +185,9 @@ void GS_Credits::onRender()
 			glTranslated(texts[i].position.x, texts[i].position.y, 0.0);
 			glTranslated(textSize.x / -2, 0.0, 0.0);
 
-			p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4d(1.0, 1.0, 1.0, alpha));
+			// Uncached for the same reason as the title above: scaling is
+			// 0.75 + 0.25 * alpha and both draws are laid out under it.
+			p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4d(1.0, 1.0, 1.0, alpha), false);
 
 			glPopMatrix();
 		}
@@ -199,7 +200,7 @@ void GS_Credits::onRender()
 	else if(t > 53.0) darkness = 0.5 * (t - 53.0);
 	if(darkness > 0.0)
 	{
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glBegin(GL_QUADS);
 		glColor4d(0.0, 0.0, 0.0, darkness);
 		glVertex2i(0, 0);
@@ -207,7 +208,7 @@ void GS_Credits::onRender()
 		glVertex2i(640, 480);
 		glVertex2i(0, 480);
 		glEnd();
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 	}
 }
 
@@ -256,7 +257,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 
 	// create the texture for the effect buffer
 	glGenTextures(1, &bufferID);
-	glBindTexture(GL_TEXTURE_2D, bufferID);
+	GL::bindTexture(bufferID, engine.getScreenTexelScale());
 	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -273,7 +274,7 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 	delete p_level;
 	p_level = 0;
 	p_sprites = 0;
-	glDeleteTextures(1, &bufferID);
+	GL::deleteTexture(bufferID);
 	bufferID = 0;
 }
 
@@ -319,7 +320,7 @@ void GS_Credits::renderStars()
 		glPopMatrix();
 	}
 
-	p_sprites->unbind();
+	GL::setTexturing(false);
 }
 
 void GS_Credits::updateStars()

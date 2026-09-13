@@ -97,7 +97,7 @@ void GS_Loading::onRender()
 		glVertex2i(-256, 256);
 		glEnd();
 
-		p_logo->unbind();
+		GL::setTexturing(false);
 	}
 
 	glPopMatrix();

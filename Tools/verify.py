@@ -121,6 +121,20 @@ def original_lines(rel):
     return lines
 
 
+def end_of_literal(text, i):
+    """One past the closing quote of the literal opening at text[i], which is
+    a \' or a ". The character literal has to be lexed even though nothing
+    here looks inside one: '"' otherwise opens a string that runs to the next
+    quote in the file, and testhooks.cpp writes exactly that - one line of it
+    blanked 165 lines of code that no check then read."""
+    quote, j, n = text[i], i + 1, len(text)
+    while j < n and text[j] != quote:
+        if text[j] == '\n':
+            break                      # neither kind spans a line unescaped
+        j += 2 if text[j] == '\\' else 1
+    return min(j + 1, n)
+
+
 def strip_comments(text):
     """Empty out the comments and keep the strings - so that a pattern does
     not fire inside a commented-out leftover."""
@@ -129,20 +143,146 @@ def strip_comments(text):
     while i < n:
         if text.startswith('//', i):
             j = text.find('\n', i)
+            while j > 0 and text[j - 1] == '\\':       # a continued comment
+                j = text.find('\n', j + 1)
             i = n if j < 0 else j
         elif text.startswith('/*', i):
             j = text.find('*/', i + 2)
             i = n if j < 0 else j + 2
-        elif text[i] == '"':
-            j = i + 1
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == '\\' else 1
-            out.append(text[i:j + 1])
-            i = j + 1
+        elif text[i] in '"\'':
+            j = end_of_literal(text, i)
+            out.append(text[i:j])
+            i = j
         else:
             out.append(text[i])
             i += 1
     return ''.join(out)
+
+
+def blank_noncode(text):
+    """Comments and the insides of strings replaced by spaces, with every
+    newline kept - so a pattern cannot fire inside one and the line numbers
+    still line up. strip_comments() collapses instead, which loses them."""
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            while j > 0 and text[j - 1] == '\\':       # a continued comment
+                j = text.find('\n', j + 1)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            for k in range(i, min(j, n)):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = j
+        elif text[i] in '"\'':
+            j = end_of_literal(text, i)
+            for k in range(i + 1, j - 1):
+                if out[k] != '\n':
+                    out[k] = ' '
+            i = j
+        else:
+            i += 1
+    return ''.join(out)
+
+
+def function_starts(code):
+    """Where each function definition begins, as (offset, line, name) triples
+    in order, over text already blanked by blank_noncode().
+
+    A definition sits at column 0 - or one level in, inside the anonymous
+    namespace that hint.cpp, font.cpp and diamondmachine.cpp open, which is
+    why this counts the namespace nesting instead of testing for column 0. A
+    helper missed there does not merely go unattributed: it inherits the name,
+    and therefore the exemption, of the function above it."""
+    out = []
+    lines = code.split('\n')
+    base, stack, offset = 0, [], 0
+    for i, line in enumerate(lines):
+        indent = len(line) - len(line.lstrip())
+        bare = line.strip()
+        if bare.startswith('namespace') and indent == base and not bare.endswith(';'):
+            stack.append(base)
+            # Where the body really sits, not one column in: a helper indented
+            # with spaces would otherwise not be a function start at all, and
+            # would inherit the name - and the exemption - of the one above.
+            base = indent + 1
+            for j in range(i + 1, len(lines)):
+                nxt = lines[j].strip()
+                if not nxt or nxt == '{':
+                    continue
+                if not nxt.startswith('}'):
+                    base = len(lines[j]) - len(lines[j].lstrip())
+                break
+        elif bare.startswith('}') and stack and indent < base:
+            base = stack.pop()
+        elif indent == base and bare and bare[0] not in '#}/*' and '(' in line:
+            m = re.search(r'\b(\w+::\w+|\w+)\s*\(', line)
+            if m:
+                out.append((offset + m.start(1), code.count('\n', 0, offset) + 1,
+                            m.group(1)))
+        offset += len(line) + 1
+    return out
+
+
+def batch_sources():
+    """The sources the sprite batch can reach, as (path, code, only) triples
+    with the comments and strings blanked out. `only` names the functions to
+    read; None means the whole file.
+
+    Those that define an Object::onRender, which is the set
+    Level::renderObjects walks - matched loosely, because a wrapped signature
+    is still one. Plus two files with no onRender in them that every one of
+    those reaches: texture.cpp, whose Texture::bind() is the funnel they all
+    bind through, and linedrawer.cpp, whose draw() is the raw glDrawArrays
+    behind every laser, wire and shot.
+
+    And two named helpers, Level::renderShine and Font::drawText, which draw
+    with a batch open although the rest of their files do not. Those two files
+    are read for those two functions alone - level.cpp and font.cpp are
+    otherwise full of drawing that runs with no batch at all, and reading them
+    whole would report every line of it."""
+    signature = re.compile(r'::onRender\s*\(\s*RenderLayer')
+    WHOLE = ('Blocks5/src/texture.cpp', 'Blocks5/src/linedrawer.cpp')
+    REACHED = {
+        'Blocks5/src/level.cpp': {'Level::renderShine'},
+        'Blocks5/src/font.cpp': {'Font::drawText'},
+    }
+    out = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/'):
+            continue
+        code = blank_noncode(read(p))
+        if signature.search(code) or rel in WHOLE:
+            out.append((rel, code, None))
+        elif rel in REACHED:
+            out.append((rel, code, REACHED[rel]))
+    return out
+
+
+def dead_names(names, seen, what):
+    """Whichever of `names` no longer names a function that was read. An
+    exemption for a function that has been renamed or deleted is worse than no
+    exemption at all: it is silent, and it says the case was thought about."""
+    return ['Tools/verify.py: %s names %s, which no source defines any more'
+            % (what, ', '.join(sorted(set(names) - seen)))] if set(names) - seen else []
+
+
+def idle_names(names, used, what):
+    """Whichever of `names` suppressed nothing. The third way an exemption goes
+    stale: the function is still there and still read, and no longer contains
+    what it was excused for - so the entry reads as a considered decision while
+    standing for nothing, and dead_names() cannot see it."""
+    return ['Tools/verify.py: %s excuses %s, which has nothing left to excuse'
+            % (what, ', '.join(sorted(set(names) - used)))] if set(names) - used else []
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +341,498 @@ def check_project_files():
             if ('src\\' + f) not in text and ('src/' + f) not in text:
                 bad.append('%s missing from %s' % (f, name))
     return bad
+
+
+@check('display_lists')
+def check_display_lists():
+    """No display lists anywhere, in either build.
+
+    They were a second way of keeping geometry beside the vertex arrays, and
+    one that WebGL does not have at all - so every place that used one carried
+    a second path under #ifdef __EMSCRIPTEN__, and a stub in gl_compat.cpp to
+    make the browser link. All of that is gone; a glNewList added back would
+    compile on Windows, link on Linux and fail only in the browser, which is
+    the build nobody runs first."""
+    calls = re.compile(r'\bgl(GenLists|NewList|EndList|CallLists?|DeleteLists|ListBase|IsList)\b')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        for n, line in enumerate(read(p).split('\n'), 1):
+            m = calls.search(line)
+            if m:
+                bad.append('%s:%d: gl%s - display lists are gone from this tree'
+                           % (rel, n, m.group(1)))
+    return bad
+
+
+@check('hooks_layout')
+def check_hooks_layout():
+    """No BLOCKS5_TEST_HOOKS conditional in a header under Blocks5/src.
+
+    The define reaches engine.cpp and testhooks.cpp and no other translation
+    unit of the hundred and twenty, so a member declared behind it gives its
+    class two sizes: the two files that have the define see one layout and
+    everything else sees another, and every access from the rest of the tree
+    then lands at the wrong offset. What that looks like is not a compile
+    error and not a wrong number - it is a corrupt pointer in some unrelated
+    read, which is as far from the cause as a bug gets.
+
+    The rule is therefore that a header declares the same thing whatever the
+    build, and the cost of obeying it is a few unused members in a shipped
+    binary. engine.h says so beside batchTexture, two hundred lines from
+    where the next person will add theirs, which is what this check is for.
+
+    testhooks.h is exempt: what it guards is free function declarations in a
+    namespace, and a declaration nobody calls has no layout to disagree
+    about."""
+    EXEMPT = {'Blocks5/src/testhooks.h'}
+    guard = re.compile(r'^\s*#\s*(?:if|ifdef|ifndef|elif)\b.*\bBLOCKS5_TEST_HOOKS\b')
+    bad = []
+    seen = set()
+    for path in source_files():
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not rel.endswith('.h'):
+            continue
+        if rel in EXEMPT:
+            seen.add(rel)
+            continue
+        for n, line in enumerate(read(path).split('\n'), 1):
+            if guard.search(line):
+                bad.append('%s:%d: BLOCKS5_TEST_HOOKS in a header - declare it '
+                           'whatever the build, or the class gets two sizes' % (rel, n))
+    bad.extend(dead_names(EXEMPT, seen, 'the hooks_layout check'))
+    return bad
+
+
+@check('render_layers')
+def check_render_layers():
+    """A render layer is named, never a number.
+
+    RenderLayer's values are single bits, so every one of the old magic
+    numbers - 0, 1, 16, 42, 255, 736, 939 - now means either nothing or the
+    wrong layer. C++ compares an enum to an int without a word, so such a
+    line builds on all three platforms and is simply never true: the sprite
+    texture stops being bound for the lava passes, the wires lose their
+    offset, the speech balloons stop appearing. That is what this found the
+    first time, in the five places the conversion missed."""
+    calls = re.compile(r'\blayer\s*[=!]=\s*-?\d|\brenderObjects\s*\(\s*-?\d')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/'):
+            continue
+        for n, line in enumerate(read(p).split('\n'), 1):
+            # The editor walks the two TILE layers by number, which is a
+            # different thing entirely and stays a plain int.
+            if 'setTileAt' in line or 'getTileAt' in line or 'tile[layer]' in line:
+                continue
+            if calls.search(line):
+                bad.append('%s:%d: a render layer written as a number - use the RenderLayer name'
+                           % (rel, n))
+    return bad
+
+
+
+def unscanned_onrender(scanned):
+    """Sources declaring an onRender that batch_sources() does not read.
+
+    The set is discovered by matching one spelling, and a declaration that
+    spells its parameter differently - `const RenderLayer` is legal, and still
+    overrides - would take a whole file out of both checks with nothing
+    anywhere to say so. Asserting the set is what turns that from silence into
+    a finding, the same reasoning as dead_names()."""
+    decl = re.compile(r'\bonRender\s*\(\s*(?:const\s+)?RenderLayer')
+    bad = []
+    for p in source_files():
+        rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
+        if not rel.startswith('Blocks5/src/') or not decl.search(blank_noncode(read(p))):
+            continue
+        stem = rel.rsplit('.', 1)[0]
+        if stem + '.cpp' in scanned or stem + '.h' in scanned:
+            continue
+        bad.append('%s: declares an onRender that the sprite_batch and gl_state '
+                   'checks do not read - see batch_sources()' % rel)
+    return bad
+
+
+@check('sprite_batch')
+def check_sprite_batch():
+    """Anything an object draws outside the sprite batch has to flush it first.
+
+    Level::renderObjects keeps a batch of sprite corners open across the whole
+    object loop, and one glDrawArrays puts them up at the end. This game has no
+    depth buffer, so painter's order is the only order there is: a queued quad
+    is drawn with the GL state standing at the flush, not at the call. An object
+    that draws raw geometry therefore has to flush first, or everything queued
+    before it lands on top of what it drew instead of underneath.
+
+    Nothing else would catch it. The sprites of the objects around it are what
+    move, so the object that broke the rule looks right and its neighbours do
+    not - and only on the screen that happens to have both.
+
+    How far a flush reaches, in the three shapes that are not the obvious one.
+    It covers only as far as the block it stands in: one inside an if() says
+    nothing about the code after it, which is the shape player.cpp has. One
+    written as the body of a braceless if or loop covers less still - only the
+    rest of its own line, since what follows stands at the same column and no
+    indentation rule can tell the two apart. And one standing *outside* a loop
+    whose body queues does not cover a draw inside that loop at all: the second
+    turn round begins with the batch non-empty, which a walk down the lines
+    cannot see because the draw is written above the queue.
+
+    The branches of one if/else chain are read as the alternatives they are, so
+    a queue in the first does not ask the second to flush again - but whatever
+    the chain as a whole may have queued stands after it. The arms of a
+    preprocessor conditional get the same treatment for a stronger reason: they
+    never both compile. A preprocessor line is not a dedent either, and the body
+    of a macro is not code at the point its #define stands.
+
+    What it cannot see, besides a call: a one-line if/else holding both a flush
+    and a draw, since a line is read as one sequence in column order.
+
+    What it cannot see is a call: a helper of an object's own that queues, or
+    one that draws, is a name to this and nothing more. That is why
+    LineDrawer::draw flushes at its own definition rather than at its callers."""
+    # drawQuadArray is deliberately not here. Its two array forms flush at
+    # their own definition, for the reason LineDrawer::draw does: a built array
+    # is reached as a member or a local through layers of call that no static
+    # check can follow. Those two are the whole of what flushes for its callers,
+    # and everything else has to say so where it draws.
+    breaking = re.compile(r'\bglBegin\s*\(|\bglDraw\w*\s*\(|\bglRect\w*\s*\(')
+    # The two spellings that leave a quad in the batch, and the whole set of
+    # them: every other way of drawing a sprite from here - Level::renderShine,
+    # Font::renderText - binds a texture of its own and so flushes on the way
+    # in and on the way out again.
+    queues = re.compile(r'\brenderSprites?\s*\(')
+    # A flush and nothing else. GL::'s wrappers and Texture::bind() used to
+    # count, because each of them put the batch up whatever it was about to
+    # change - but a state layer that can tell an unchanged state from a changed
+    # one flushes only when something moves, and "the texture was already bound"
+    # is exactly the case where it does not. So the ordering has to be said out
+    # loud wherever raw geometry is drawn.
+    flushes = re.compile(r'\bflushSprites\s*\(')
+    # A statement written as the body of a braceless conditional, on the line
+    # of the conditional itself. The bare `else` alternative is a backstop: the
+    # chain bookkeeping below already answers an else it has paired with an if,
+    # which is every one written at the same column - so nothing can reach it
+    # while that pairing holds, and it costs one alternative to be right when it
+    # does not.
+    conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
+                             r'|^\s*else\s+\S'
+                             r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
+    # A loop head anywhere on its line - `if(x) for(...)` is one, and the tree
+    # writes that - but never the `} while(...)` that ends a do-block, whose
+    # body is above it rather than below.
+    loopHead = re.compile(r'\b(?:for|while)\s*\(|^\s*do\b')
+    ifHead = re.compile(r'^\s*if\s*\(')
+    elseHead = re.compile(r'^\s*(?:\}\s*)?else\b')
+    ppIf = re.compile(r'^\s*#\s*if')
+    ppElse = re.compile(r'^\s*#\s*el(?:se|if)')
+    ppEnd = re.compile(r'^\s*#\s*endif')
+    # Helpers entered with the batch already put up, which is the whole of the
+    # exemption: what such a function does from there is read like any other.
+    # Qualified, so that a same-named method of another class does not inherit
+    # it.
+    EXEMPT = {
+        # Hint::renderNote() flushes and then binds its own texture; the mesh
+        # is the geometry it draws under that binding.
+        'Hint::renderNoteMesh',
+    }
+    bad, seen, named, scanned, used = [], set(), set(EXEMPT), set(), set()
+    for rel, text, only in batch_sources():
+        scanned.add(rel)
+        named |= (only or set())
+        lines = text.split('\n')
+        starts = dict((n, name) for _, n, name in function_starts(text))
+        seen |= set(starts.values())
+
+        # Loops whose body queues, by line index: a flush before such a loop
+        # says nothing about the draw inside it.
+        requeues = set()
+        for i, line in enumerate(lines):
+            if not loopHead.search(line) or line.strip().startswith('}'):
+                continue
+            indent = len(line) - len(line.lstrip())
+            body, j, opened = [line], i + 1, False
+            while j < len(lines):
+                bare = lines[j].strip()
+                if bare and not bare.startswith('#'):
+                    # The brace of the body stands at the loop's own column in
+                    # this tree, so it cannot be the end of the body - and a
+                    # preprocessor line carries no scope, so reading one as the
+                    # end would hide everything a loop queues below its first
+                    # #ifdef.
+                    if bare == '{' and not opened:
+                        opened = True
+                    elif len(lines[j]) - len(lines[j].lstrip()) <= indent:
+                        break
+                    else:
+                        body.append(lines[j])
+                j += 1
+            if any(queues.search(b) for b in body):
+                requeues.add(i)
+
+        # A closing brace whose `else` stands on the next line, which is how
+        # this tree writes a chain: the branch is not over there, so the chain
+        # must not be closed and merged until the last branch really ends.
+        heldOpen = set()
+        for i, line in enumerate(lines):
+            if not line.strip().startswith('}'):
+                continue
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines) and re.match(r'^\s*else\b', lines[j]):
+                heldOpen.add(i)
+
+        func, flushed, flushIndent, chain, exemptCover = '', False, 0, {}, False
+        # The arms of a preprocessor conditional, as a stack of
+        # [state at the #if, its indent, anything any arm queued]. It cannot be
+        # keyed on the column the way an else chain is: these stand at column 0
+        # whatever they wrap.
+        pp, continued = [], False
+        for n, line in enumerate(lines, 1):
+            # A #define continued with a backslash is still the directive: its
+            # body is not code at this point in the file, and reading it as code
+            # attributes whatever it holds to the function above.
+            if continued:
+                continued = line.rstrip().endswith('\\')
+                continue
+            if line.lstrip().startswith('#') and line.rstrip().endswith('\\'):
+                continued = True
+                continue
+            if ppIf.match(line):
+                pp.append([flushed, flushIndent, False])
+            elif ppElse.match(line) and pp:
+                flushed, flushIndent = pp[-1][0], pp[-1][1]
+            elif ppEnd.match(line) and pp:
+                head, headIndent, queued = pp.pop()
+                flushed, flushIndent = head and not queued, headIndent
+            # A preprocessor line carries no scope, and this tree writes them at
+            # column 0 wherever they sit - so reading one as a dedent would ask
+            # for a flush again after every #ifdef inside a function body.
+            if line.strip() and not line.lstrip().startswith('#'):
+                indent = len(line) - len(line.lstrip())
+                if n in starts:
+                    func, chain, pp = starts[n], {}, []
+                    flushed, flushIndent = func in EXEMPT, 0
+                    exemptCover = flushed
+                else:
+                    # An if/else chain the line has stepped out of: what stands
+                    # after it is the state before it, minus anything any
+                    # branch queued.
+                    # A lone brace is the chain's own body opening, and a
+                    # closing one whose else stands on the next line ends a
+                    # branch rather than the chain: this tree writes both at the
+                    # column of the if they belong to.
+                    if line.strip() != '{' and (n - 1) not in heldOpen:
+                        for k in sorted(chain, reverse=True):
+                            if indent < k or (indent == k and not elseHead.match(line)):
+                                head, headIndent, queued = chain.pop(k)
+                                flushed, flushIndent = head and not queued, headIndent
+                    # A flush holds only inside the block it stands in.
+                    if flushed and indent < flushIndent:
+                        flushed = False
+                    # The nearest chain this else can belong to, rather than
+                    # one at its exact column: a reindent or a hand-merge moves
+                    # an else without making it any less an alternative to the
+                    # branch above it.
+                    outer = [k for k in chain if k <= indent]
+                    if elseHead.match(line) and outer:
+                        head = chain[max(outer)]
+                        flushed, flushIndent = head[0], head[1]
+                    elif ifHead.match(line):
+                        chain[indent] = [flushed, flushIndent, False]
+            if (n - 1) in requeues:
+                flushed = False
+            wasFlushed, wasIndent = flushed, flushIndent
+            # In column order, because a line can both queue and draw.
+            events = ([(m.start(), 'f') for m in flushes.finditer(line)] +
+                      [(m.start(), 'q') for m in queues.finditer(line)] +
+                      [(m.start(), 'b') for m in breaking.finditer(line)])
+            for e in sorted(events, key=lambda e: e[0]):
+                if e[1] == 'f':
+                    flushed = True
+                    flushIndent = len(line) - len(line.lstrip())
+                    exemptCover = False
+                elif e[1] == 'q':
+                    flushed = False
+                    for entry in list(chain.values()) + pp:
+                        entry[2] = True
+                elif not flushed and (only is None or func in only):
+                    bad.append('%s:%d: %s() draws with sprites possibly queued - '
+                               'flush the batch first' % (rel, n, func))
+                elif exemptCover:
+                    # Drawn under the exemption rather than under a flush of
+                    # this function's own, which is the entry doing its work.
+                    used.add(func)
+            if conditional.match(line):
+                flushed, flushIndent = flushed and wasFlushed, wasIndent
+    return (bad + dead_names(named, seen, 'the sprite_batch check')
+            + idle_names(EXEMPT, used, 'the sprite_batch check')
+            + unscanned_onrender(scanned))
+
+
+@check('gl_state')
+def check_gl_state():
+    """An object changes the texture state through GL::, never raw.
+
+    Three pieces of GL state decide what a queued sprite comes out looking
+    like: the GL_TEXTURE_2D binding, whether texturing is on, and the texture
+    matrix. A batched quad is drawn with the state standing at the flush and
+    not at the call, and there is no depth buffer here to sort it out
+    afterwards - so whatever moves one of the three has to put the batch up
+    first. GL:: does that, and records what it put there in a GLState; the
+    raw calls do neither.
+
+    Scoped to what Level::renderObjects can reach with a batch open - see
+    batch_sources(). The crossfades, the GUI and the credits run with none open
+    and are left alone deliberately, which keeps the ban small enough to read.
+
+    What it cannot see: GL_TEXTURE_2D reached through a variable rather than
+    written out, and anything a called function does. A regex has no types and
+    follows no calls, and that is the honest limit."""
+    raw = re.compile(r'\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
+                     r'|\bglBindTexture\s*\('
+                     r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
+    # The attribute stack is judged by its mask, and a pop by the pushes in the
+    # same function - there being no way to pair the two by reading. These five
+    # masks carry nothing a GL_QUADS batch is drawn under, so a bracket around a
+    # glLineWidth or a glPointSize is left alone: banning it would be a dead end,
+    # since GL:: has no entry point that could stand in for one. Everything
+    # else is reported, a mask this list does not know included - GL_ENABLE_BIT
+    # carries the texturing enable, and GL_COLOR_BUFFER_BIT the blend function.
+    SAFE_BITS = ('GL_LINE_BIT', 'GL_POINT_BIT', 'GL_CURRENT_BIT',
+                 'GL_TRANSFORM_BIT', 'GL_HINT_BIT')
+    push = re.compile(r'\bglPushAttrib\s*\(([^);]*)\)')
+    pop = re.compile(r'\bglPopAttrib\s*\(')
+    # Nothing is exempt. The ban above names no mask for glPushAttrib because a
+    # push saves whatever its mask asks for, and one written
+    # GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake as one written
+    # GL_ENABLE_BIT.
+    bad, seen, named = [], set(), set()
+    for rel, text, only in batch_sources():
+        named |= (only or set())
+        # Where each function starts, so a match can be attributed to one. The
+        # search itself runs over the whole text and not line by line, because
+        # every pattern above allows whitespace inside the call - a glDisable
+        # with its argument on the next line is the same mistake.
+        starts = function_starts(text)
+        seen |= set(name for _, _, name in starts)
+
+        def owner(at):
+            func = ''
+            for start, _, name in starts:
+                if start > at:
+                    break
+                func = name
+            return func
+
+        # A function whose every glPushAttrib names only safe bits may pop as
+        # well. One that pops without pushing is restoring something it cannot
+        # be read against, so it is reported.
+        #
+        # Per function and not per file, which changes how much is reported
+        # rather than whether: a risky push is a finding on its own, and asking
+        # the file would add the safe bracket beside it. There is no selftest
+        # case behind that half for the same reason - both shapes report.
+        pushes = {}
+        for m in push.finditer(text):
+            bits = re.findall(r'\bGL_\w+', m.group(1))
+            safe = bool(bits) and all(b in SAFE_BITS for b in bits)
+            pushes.setdefault(owner(m.start()), []).append((m, safe))
+        risky = set(f for f, ms in pushes.items() if not all(safe for _, safe in ms))
+
+        hits = [(m, m.group(0)) for m in raw.finditer(text)]
+        for f, ms in pushes.items():
+            if f in risky:
+                hits += [(m, m.group(0)) for m, _ in ms]
+        for m in pop.finditer(text):
+            f = owner(m.start())
+            if f in risky or f not in pushes:
+                hits.append((m, m.group(0)))
+
+        for m, hit in sorted(hits, key=lambda h: h[0].start()):
+            func = owner(m.start())
+            if only is not None and func not in only:
+                continue
+            n = text.count('\n', 0, m.start()) + 1
+            bad.append('%s:%d: %s - go through GL::, which flushes the sprite batch'
+                       % (rel, n, ' '.join(hit.split())))
+    return bad + dead_names(named, seen, 'the gl_state check')
+
+
+@check('gl_doors')
+def check_gl_doors():
+    """Every door into the texture state goes through GL::, in the whole tree.
+
+    gl_state asks the same thing of the sources a batch can reach, and that is
+    a question about ordering: a queued quad is drawn with the state at the
+    flush. This one is about the *record*. GLState is only allowed to decide
+    that a call can be skipped if it knows what OpenGL is holding, and it knows
+    that exactly as far as every bind, every enable, every delete and every
+    absolute texture matrix in the tree comes through here. One raw call
+    anywhere - in a crossfade, in the credits, in a constructor that uploads a
+    texture once - and the record is a belief rather than a fact, with a wrong
+    picture for a failure mode.
+
+    A delete counts because GL reverts the binding to 0 when the bound texture
+    is deleted, which is a change this file would otherwise not see.
+
+    The exemptions are the places that hand a piece of this state to GL's own
+    stacks and take it back. There the record cannot be kept by writing it,
+    only by dropping it, and each says so."""
+    doors = re.compile(r'\bglBindTexture\s*\('
+                       r'|\bglDeleteTextures\s*\('
+                       r'|\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
+                       r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
+    # The implementation itself, which is where the raw calls belong.
+    WHOLE = {'Blocks5/src/glstate.cpp'}
+    EXEMPT = {
+        # Draws the finished frame inside a glPushAttrib(GL_ALL_ATTRIB_BITS)
+        # and three matrix brackets, and calls GL::invalidate() at the end
+        # because what the pop restores differs between the desktop and the
+        # browser.
+        'Engine::presentFrame',
+        # The rain, the snow and the clouds leave GL_TEXTURE current so that
+        # each layer can scroll on top of the bound picture's own scale in a
+        # push and pop of its own. That is a relative matrix, which is the one
+        # thing GL:: does not model - and it is balanced, so the record still
+        # describes what stands before and after.
+        'Level::render',
+        # The menu's title clouds, the same arrangement.
+        'GS_Menu::onRender',
+    }
+    bad, seen, used = [], set(), set()
+    # Headers too: this tree has inline drawing in one (quadarray.h), and a
+    # door in a header would otherwise be the one place left to put one.
+    for path in source_files():
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        if rel in WHOLE:
+            used.add(rel)
+            continue
+        text = blank_noncode(read(path))
+        starts = function_starts(text)
+        seen |= set(name for _, _, name in starts)
+
+        def owner(at):
+            func = ''
+            for start, _, name in starts:
+                if start > at:
+                    break
+                func = name
+            return func
+
+        for m in doors.finditer(text):
+            func = owner(m.start())
+            if func in EXEMPT:
+                used.add(func)
+                continue
+            n = text.count('\n', 0, m.start()) + 1
+            bad.append('%s:%d: %s - go through GL::, or the record is a belief'
+                       % (rel, n, ' '.join(m.group(0).split())))
+    return (bad + dead_names(EXEMPT, seen, 'the gl_doors check')
+            + idle_names(EXEMPT | WHOLE, used, 'the gl_doors check'))
 
 
 @check('naming')
@@ -955,6 +1587,24 @@ def check_comments():
     de = re.compile(r'\b(der|die|das|und|nicht|ist|sind|ein|eine|einen|dem|den|'
                     r'wird|werden|wenn|aber|auch|nur|noch|hier|dann|dass|sich|'
                     r'von|zu|es|im|bei|fuer|als|ueber|schon|kein|keine|man)\b', re.I)
+
+    # The list above is counted against the English one because every word on
+    # it has an English twin. These have none, so one hit is enough - and one
+    # is all there ever is: what the 1.2.0 sweep left behind was not a German
+    # sentence but a single German noun inside an English one, which no
+    # majority rule can see.
+    #
+    # Nouns and verbs only, and only where there is genuinely no English
+    # reading. The first draft of this list held the German for "key", which
+    # fired on four English lines about a matter of taste before it had been
+    # in the tree a minute; a symbol would be as bad, since rand() would put
+    # rand on it.
+    deWord = re.compile(r'\b(funkel|spuren|verwischen|schein|aufloesung|abstand|'
+                        r'anzahl|breite|hoehe|groesse|farbe|zeiger|bild|ebene|'
+                        r'massiv|uebersetzen|aendern|loeschen|pruefen|zeichnen|'
+                        r'erzeugen|berechnen|richtung|zeile|spalte|maus|'
+                        r'fenster|speicher|datei|laenge|flimmern|schatten|kante|'
+                        r'gegner|spieler|geschwindigkeit|einstellung)\b', re.I)
     bad = []
     for p in source_files():
         rel = os.path.relpath(p, ROOT).replace(os.sep, '/')
@@ -981,6 +1631,11 @@ def check_comments():
             deHits = len(de.findall(body))
             if len(body.split()) >= 5 and deHits >= 2 and deHits > len(en.findall(body)):
                 bad.append('%s:%d: German comment - "%s"' % (rel, i + 1, body.strip()[:60]))
+            else:
+                m = deWord.search(body)
+                if m:
+                    bad.append('%s:%d: German word "%s" - "%s"'
+                               % (rel, i + 1, m.group(0), body.strip()[:60]))
     return bad
 
 
@@ -999,6 +1654,13 @@ def main(argv):
             only = argv[i + 1]
         if a == '--quiet':
             quiet = True
+
+    # A name nothing matches used to run no check and then say "all clear",
+    # which is the answer a passing run gives - so a check renamed out from
+    # under selftest.py, or a typo on the command line, read as success.
+    if only and only not in [name for name, fn in CHECKS]:
+        print('no such check: %s (--list names them)' % only)
+        return 2
 
     total = 0
     for name, fn in CHECKS:

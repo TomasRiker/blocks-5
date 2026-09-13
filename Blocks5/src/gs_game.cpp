@@ -261,7 +261,7 @@ void GS_Game::onRender()
 	glTexCoord2i(0, 560);
 	glVertex2i(0, 480);
 	glEnd();
-	p_level->getBackground()->unbind();
+	GL::setTexturing(false);
 
 	Font* p_font = gui.getFont();
 

@@ -9,6 +9,7 @@ Projectile::Projectile(Level& level,
 					   const Vec2d& positionInPixels,
 					   const Vec2d& velocity) : Object(level, 0)
 {
+	renderLayers = RL_EFFECT | RL_LIGHT;
 	type = "Projectile";
 	warpTo(Vec2i(0, 0));
 	flags = OF_PROXY | OF_NO_SHADOW;
@@ -25,17 +26,21 @@ Projectile::~Projectile()
 {
 }
 
-void Projectile::onRender(int layer,
+void Projectile::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
-	if(layer == 16 && life > 0.0)
+	if(layer == RL_EFFECT && life > 0.0)
 	{
 		double traceLength = min(distance, 0.035 * speed);
 
-		glDisable(GL_TEXTURE_2D);
+		Engine& engine = Engine::inst();
+
+		// Raw geometry, so the queued sprites have to go up first: they belong
+		// underneath it.
+		engine.flushSprites();
+		GL::setTexturing(false);
 
 		// render the glow
-		Engine& engine = Engine::inst();
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 		LineDrawer line;
 		line.addPoint(positionInPixels - traceLength * velocity);
@@ -54,16 +59,13 @@ void Projectile::onRender(int layer,
 		glVertex2dv(positionInPixels);
 		glEnd();
 
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
 		// make the projectile shine
-		glPushMatrix();
-		glTranslated(positionInPixels.x - 8.0, positionInPixels.y - 8.0, 0.0);
-		double s = fabs(life);
-		level.renderShine(0.5 * s, 0.4 * s);
-		glPopMatrix();
+		const double s = fabs(life);
+		level.renderShine(0.5 * s, 0.4 * s, positionInPixels - Vec2d(8.0, 8.0));
 	}
 }
 

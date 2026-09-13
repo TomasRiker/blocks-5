@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "texture.h"
 #include "filesystem.h"
+#include "engine.h"
 
 Texture::Texture(const std::string& filename) : Resource(filename)
 {
@@ -9,6 +10,7 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	doKeepInMemory = false;
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
+	texelScale = Vec2d(1.0, 1.0);
 	p_parent = 0;
 
 	reload();
@@ -54,10 +56,11 @@ void Texture::reload()
 	if(size.y == -1) size.y = p_surface->h;
 
 	checkDimensions();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
+	GL::bindTexture(texID, texelScale);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -81,17 +84,6 @@ void Texture::reload()
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-
-	// build the matrix
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
-	glScaled(1.0 / w, 1.0 / h, 1.0);
-	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-	glPopMatrix();
-	glPopAttrib();
 }
 
 void Texture::cleanUp()
@@ -107,34 +99,20 @@ void Texture::cleanUp()
 	if(texID)
 	{
 		// delete the texture
-		glDeleteTextures(1, &texID);
+		GL::deleteTexture(texID);
 		texID = 0;
 	}
 }
 
 void Texture::bind() const
 {
-	if(!doKeepInMemory && p_rgba)
-	{
-		// unlock and free the surface
-		SDL_UnlockSurface(p_rgba);
-		SDL_FreeSurface(p_rgba);
-		p_rgba = 0;
-	}
-
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texID);
-
-	// pixel texture coordinates
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glLoadMatrixd(matrix);
-	glPopAttrib();
-}
-
-void Texture::unbind() const
-{
-	glDisable(GL_TEXTURE_2D);
+	// Through GL::, which issues only what has moved and flushes the sprite
+	// batch where the binding does: whatever is queued was queued against the
+	// binding and the matrix about to be replaced. The scale is what makes
+	// texture coordinates read in this picture's own texels, which is what
+	// every caller writes.
+	GL::setTexturing(true);
+	GL::bindTexture(texID, texelScale);
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
@@ -161,10 +139,11 @@ void Texture::loadSubTexture(Texture* p_parent,
 	this->size = size;
 
 	checkDimensions();
+	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
 	// set up the OpenGL texture
 	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
+	GL::bindTexture(texID, texelScale);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -189,16 +168,29 @@ void Texture::loadSubTexture(Texture* p_parent,
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-	// build the matrix
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	double w = static_cast<double>(size.x), h = static_cast<double>(size.y);
-	glScaled(1.0 / w, 1.0 / h, 1.0);
-	glGetDoublev(GL_TEXTURE_MATRIX, matrix);
-	glPopMatrix();
-	glPopAttrib();
+	// A sub-texture is not in the Manager, so freeUnkeptPixels() never reaches
+	// it - and nothing asks to keep one, since createSubTexture() is called on
+	// a parent that was asked and hands the result straight to a caller that
+	// draws it.
+	if(!doKeepInMemory) freePixels();
+}
+
+void Texture::freePixels()
+{
+	if(!p_rgba) return;
+	SDL_UnlockSurface(p_rgba);
+	SDL_FreeSurface(p_rgba);
+	p_rgba = 0;
+}
+
+void Texture::freeUnkeptPixels()
+{
+	typedef std::unordered_multimap<std::string, Texture*> mapType;
+	const mapType& items = Manager<Texture>::inst().getItems();
+	for(mapType::const_iterator i = items.begin(); i != items.end(); ++i)
+	{
+		if(!i->second->doKeepInMemory) i->second->freePixels();
+	}
 }
 
 const Vec2i& Texture::getSize() const
@@ -211,8 +203,8 @@ void Texture::keepInMemory()
 	if(doKeepInMemory) return;
 	doKeepInMemory = true;
 
-	// The pixels are already gone because the texture had been bound earlier.
-	// The flag does not bring them back, hence the reload. If nothing could be
+	// The pixels are already gone where a tick has passed since the load. The
+	// flag does not bring them back, hence the reload. If nothing could be
 	// loaded at all (texID == 0), a second attempt would only give the same
 	// error.
 	if(!p_rgba && texID) reload();
@@ -242,10 +234,11 @@ void Texture::applyWrapMode() const
 	// WebGL 1 treats a texture whose edge lengths are not powers of two as
 	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
 	// Otherwise every access returns black - not as an error but silently.
-	// The default is GL_REPEAT, and rain, snow and clouds rest on it:
-	// level.cpp scrolls the texture matrix without bound for them to tile.
-	// Therefore do not switch it across the board, but exactly where REPEAT
-	// could never have worked anyway.
+	// The default is GL_REPEAT, and rain, snow and clouds rest on it: they
+	// tile by a scrolling texture matrix, and wrapTextureOffset() keeps that
+	// offset inside one period precisely because REPEAT makes a whole period
+	// an exact no-op. Therefore do not switch it across the board, but exactly
+	// where REPEAT could never have worked anyway.
 	//
 	// The game's own art is all power of two, which leaves imported skins as
 	// the only case here. Deliberately under Windows too, where NPOT with

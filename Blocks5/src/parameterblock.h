@@ -74,7 +74,7 @@ public:
 			if(!p_spec)
 			{
 				// Wrong type!
-				throw "Falscher Parametertyp!";
+				throw "Wrong parameter type!";
 			}
 			else
 			{

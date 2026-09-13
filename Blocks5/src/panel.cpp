@@ -6,7 +6,7 @@ Panel::Panel(Level& level,
 {
 	warpTo(position);
 	flags = OF_FIXED;
-	flashLayer = 0;
+	flashLayer = RL_FLOOR;
 }
 
 Panel::~Panel()

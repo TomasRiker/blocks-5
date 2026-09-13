@@ -13,8 +13,6 @@ void CF_Cube::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	setupTexCoords();
-
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -29,11 +27,11 @@ void CF_Cube::render(double t,
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glEnable(GL_CULL_FACE);
 
 	// draw the front face of the cube
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::bindTexture(oldImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(screenSize.x, 0);
@@ -48,7 +46,7 @@ void CF_Cube::render(double t,
 
 	// draw the left face of the cube
 	glRotated(-90.0, 0.0, 1.0, 0.0);
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::bindTexture(newImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(screenSize.x, 0);
@@ -61,7 +59,7 @@ void CF_Cube::render(double t,
 	glVertex3i(-1, -1, -1);
 	glEnd();
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glDisable(GL_CULL_FACE);
 
 	glPopMatrix();

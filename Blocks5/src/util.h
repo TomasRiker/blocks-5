@@ -20,6 +20,37 @@ template<typename T> const T& clamp(const T& value,
 	else return value;
 }
 
+// A colour on its way into a vertex array, cut off where GL would have cut it
+// off. The game hands out colours above 1 on purpose and lets the hardware do
+// it: Level::renderShine takes deathCountDown * 5.0 from an exploding bomb, the
+// teleport swirl ramps its red to 2.1 and the three spark bursts climb from 5.5
+// as far as 25.5. Desktop GL clamps a primitive colour before it multiplies the
+// texel; Emscripten's emulation clamps only gl_FragColor, after the multiply,
+// so an over-bright colour eats the texture's falloff and a soft glow comes out
+// a hard-edged blob. Hence the browser build alone, and hence a function rather
+// than a clamp written out at each site - see ROADMAP item 42 for how to stop
+// paying for it there as well.
+//
+// The two callers are the only places a colour reaches GL without being cut off
+// on the way: a colour array. Every other path sets it through some glColor*,
+// and the emulation funnels all sixteen of those into one glColor4f that clamps
+// each channel on the way in, inside a glBegin block and outside one alike. A
+// vertex attribute array goes nowhere near it.
+#ifdef __EMSCRIPTEN__
+template<typename T, int DIM> Vec<T, DIM> clampColor(const Vec<T, DIM>& color)
+{
+	Vec<T, DIM> out;
+	for(int i = 0; i < DIM; i++)
+		out.value[i] = clamp(color.value[i], static_cast<T>(0), static_cast<T>(1));
+	return out;
+}
+#else
+template<typename T, int DIM> const Vec<T, DIM>& clampColor(const Vec<T, DIM>& color)
+{
+	return color;
+}
+#endif
+
 int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
@@ -61,6 +92,13 @@ int randomInt();
 int random(int min, int max);
 float random(float min, float max);
 double random(double min, double max);
+
+// Seed the one generator all four of those draw from. Only the test build
+// calls it, and only where B5_SEED asks: a shipped game wants MTRand's own
+// seeding from the clock. It is here so that a frame can be made
+// byte-reproducible, which is what lets a change that should move no pixel be
+// proved rather than asserted - see LinuxBuild/test/frames.sh.
+void seedRandom(uint seed);
 Vec2i numberToDir(int dir);
 void generatePrimes(uint* p_out, uint maxNum);
 uint fromBase62(const char* p_in);
@@ -92,6 +130,21 @@ void writeProfileLine(const std::string& name, double dt, double avgTime);
 inline bool isReturnKey(int key)
 {
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
+}
+
+// Reduces a scrolling texture offset, in texels, to one period of the texture.
+// Exact under GL_REPEAT: whole periods move the finished coordinate by a whole
+// number and it samples the same texel. It is needed because the weather and
+// the title clouds scroll by an offset that has been growing since the level
+// began, and a texture coordinate reaches the fragment shader as a varying -
+// which Emscripten's GL emulation declares under "precision mediump float",
+// ten mantissa bits on a phone. The step it quantizes to is offset/2048 texels,
+// so the drift turns visibly steppy about a minute in and gets worse from
+// there. Keeping the offset inside one period keeps the precision constant.
+inline double wrapTextureOffset(double offset, int period)
+{
+	if(period <= 0) return offset;
+	return fmod(offset, static_cast<double>(period));
 }
 
 extern bool writingCrashLog;

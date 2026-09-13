@@ -5,6 +5,7 @@
 Magnet::Magnet(Level& level,
 			   const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_TRANSPORTABLE;
 }
@@ -18,10 +19,10 @@ void Magnet::updateSprites()
 	sprites.add(Vec2i(224, 96));
 }
 
-void Magnet::onRender(int layer,
+void Magnet::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Magnet::onUpdate()

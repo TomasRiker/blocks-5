@@ -16,3 +16,6 @@ WebBuild/build-test
 __pycache__
 LinuxBuild/build-test
 WebBuild/test/node_modules
+
+# Build product: what Tools/compile_db.sh writes for the clang refactoring tools.
+compile_commands.json

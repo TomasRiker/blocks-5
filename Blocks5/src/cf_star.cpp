@@ -45,14 +45,12 @@ void CF_Star::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	setupTexCoords();
-
 	// clear the stencil buffer
 	glClear(GL_STENCIL_BUFFER_BIT);
 
 	// draw the old image
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::setTexturing(true);
+	GL::bindTexture(oldImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 	glTexCoord2i(0, 0);
@@ -64,7 +62,7 @@ void CF_Star::render(double t,
 	glTexCoord2i(0, screenSize.y);
 	glVertex2i(0, screenSize.y);
 	glEnd();
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 
 	// draw the star (border)
 	glPushMatrix();
@@ -88,8 +86,8 @@ void CF_Star::render(double t,
 	// draw the new image into the masked area
 	glStencilFunc(GL_EQUAL, 1, ~0);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::setTexturing(true);
+	GL::bindTexture(newImageID, screenTexelScale);
 	glBegin(GL_QUADS);
 	glColor4d(t, t * t, t * t * t, 1.0);
 	glTexCoord2i(0, 0);
@@ -101,6 +99,6 @@ void CF_Star::render(double t,
 	glTexCoord2i(0, screenSize.y);
 	glVertex2i(0, screenSize.y);
 	glEnd();
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glDisable(GL_STENCIL_TEST);
 }

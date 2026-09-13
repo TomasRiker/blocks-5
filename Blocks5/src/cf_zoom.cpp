@@ -14,8 +14,6 @@ void CF_Zoom::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	setupTexCoords();
-
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -35,8 +33,8 @@ void CF_Zoom::render(double t,
 		targetPos = Vec2d(-1.0, -1.0) + static_cast<Vec2d>(2 * targetOut) / screenSize;
 	}
 
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, imageID);
+	GL::setTexturing(true);
+	GL::bindTexture(imageID, screenTexelScale);
 
 	double ts = t - 25.0 * 0.01;
 	for(int i = 0; i < 25; i++)
@@ -84,7 +82,7 @@ void CF_Zoom::render(double t,
 		ts += 0.01;
 	}
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 
 	// draw the colour quad
 	glBegin(GL_QUADS);

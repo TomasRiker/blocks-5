@@ -2,6 +2,10 @@
 #define _LEVEL_H
 
 #include "lightning.h"
+// For QuadVertex, which the per-layer arrays below are made of. The forward
+// declaration of TileSet a few lines down is enough for the rest.
+#include "quadarray.h"
+#include "renderlayer.h"
 
 /*** Class for a level ***/
 
@@ -53,9 +57,18 @@ public:
 	void render();
 	void update();
 	void renderTiles(int layer, const Vec2i& offset, const Vec4d& color);
-	void renderObjects(int layer, const Vec2i& offset, const Vec4d& color, bool shadow);
+	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4d& color, bool shadow);
 	void sortObjects();
-	void renderShine(double intensity, double size);
+	// The offset is added inside the caller's own matrix, which is why it is not
+	// called a position: it is where the glow sits relative to the cell the
+	// object is already drawn in. A laser wants one per four pixels of beam and
+	// a light barrier one per pixel, and a matrix bracket each would be the
+	// most expensive thing in the frame.
+	void renderShine(double intensity, double size, const Vec2d& offset = Vec2d(0.0));
+	// The light a laser or a light barrier lays along its beam. Drawn inside
+	// the object's own matrix, so the points are taken relative to origin.
+	void renderBeamShines(const std::list<Vec2d>& beam, const Vec2i& origin,
+						  double intensity, double size, double jitter);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);
 	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, double radiusSq = 74.0);
 	Object* getFrontObjectAt(const Vec2i& position);
@@ -170,6 +183,12 @@ public:
 	void loadSkin(bool forceReload = false);
 
 	int counter;
+	// Milliseconds since the level was loaded, 20 to a tick. Signed, so it is
+	// undefined after 24.9 days in one level - where GS_Menu's and Engine's
+	// own counters are uint and merely wrap, at 49.7. Neither is reachable by
+	// playing; both need a machine left on one screen for weeks. Making this
+	// uint too would turn the undefined case into a defined one, and is worth
+	// folding into the next edit here rather than doing on its own.
 	int time;
 	bool finished;
 	std::set<Electronics*> allElectronics;
@@ -206,6 +225,14 @@ private:
 	Texture* p_sprites;
 	Texture* p_lava[2];
 	Texture* p_noise;
+
+	// Where the two night-vision noise quads are cut from, redrawn once per
+	// logic tick by update() and not per frame. A random() in render() makes
+	// the noise crawl at the frame rate, so the same effect is a coarse
+	// flicker at 25 fps and a fine hiss at 200 - the same reason the objects'
+	// glowJitter and their flash both live on the tick.
+	Vec2i noiseOffset1;
+	Vec2i noiseOffset2;
 	Texture* p_shine;
 	Texture* p_rain;
 	Texture* p_clouds;
@@ -214,8 +241,14 @@ private:
 	Texture* p_hint;
 	Font* p_hintFont;
 	bool hintScroll;
-	uint layerListBase;
 	uint layerDirty;
+	// The grid as vertices, one array per layer, built only when layerDirty
+	// says the layer changed. They hold the layer's own coordinates, so the
+	// offset and the colour of a pass stay outside and the two shadow samples
+	// and the picture are three draws of one array. A full layer is 1000 tiles
+	// and so 64 KB; a palette level is nearly empty and costs nearly nothing,
+	// which matters because the editor holds six Levels at once.
+	std::vector<QuadVertex> tileVertices[NUM_LAYERS];
 	Presets* p_presets;
 	std::vector<Object*> emptyObjectList;
 	std::vector<Object*>* p_objectsAt;

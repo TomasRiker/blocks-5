@@ -7,6 +7,7 @@ Teleporter::Teleporter(Level& level,
 					   const Vec2i& targetPosition,
 					   int subType) : Object(level, 100)
 {
+	renderLayers = RL_FLOOR | RL_EDITOR;
 	warpTo(position);
 	flags = OF_FIXED | OF_NO_SHADOW;
 	this->targetPosition = targetPosition;
@@ -24,17 +25,19 @@ void Teleporter::updateSprites()
 	sprites.add(Vec2i((anim / 3 % 8) * 32, 64), subType == 0 ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.0, 1.0, 1.0, 1.0));
 }
 
-void Teleporter::onRender(int layer,
+void Teleporter::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
-	if(layer == 0) Engine::inst().renderSprites(sprites, color);
-	if(layer == 255)
+	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_EDITOR)
 	{
 		if(targetPosition != position)
 		{
-			// mark the target
-			glPushAttrib(GL_ENABLE_BIT);
-			glDisable(GL_TEXTURE_2D);
+			// mark the target. Raw geometry, so the queued sprites have to go
+			// up first: they belong underneath it.
+			Engine::inst().flushSprites();
+			GL::pushTexturing();
+			GL::setTexturing(false);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
 			glBegin(GL_LINES);
 			glColor4d(0.0, 1.0, 0.5, 0.25);
@@ -50,7 +53,7 @@ void Teleporter::onRender(int layer,
 			glVertex2i(t.x, t.y);
 			glVertex2d(p2.x, p2.y);
 			glEnd();
-			glPopAttrib();
+			GL::popTexturing();
 		}
 	}
 }

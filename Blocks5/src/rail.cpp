@@ -7,6 +7,7 @@ Rail::Rail(Level& level,
 		   int subType,
 		   int dir) : Object(level, 301)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_RAIL;
 	this->subType = subType;
@@ -23,10 +24,10 @@ void Rail::updateSprites()
 	sprites.add(Vec2i(subType * 32, 384)).rotation = 90.0 * dir;
 }
 
-void Rail::onRender(int layer,
+void Rail::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Rail::onUpdate()

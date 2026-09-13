@@ -116,7 +116,13 @@ void ParticleSystem::render()
 			p_vertex = p_vertexBuffer;
 		}
 
-		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = p.color;
+		// deltaColor runs a particle's colour past 1 on purpose - the teleport
+		// swirl takes its red to 2.1, and the three spark bursts add half a level
+		// of it a tick until the particle has shrunk away, which lands between
+		// 5.5 and 25.5 - and GL is what cuts it off. A colour array in the
+		// browser is the one path that does not; see clampColor().
+		const Vec4f color = clampColor(p.color);
+		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = color;
 		p_vertex[0].position = corner0;
 		p_vertex[0].uv = p.positionOnTexture;
 		p_vertex[1].position = corner1;
@@ -148,7 +154,7 @@ void ParticleSystem::render()
 	glEnd();
 #endif
 
-	p_sprites->unbind();
+	GL::setTexturing(false);
 
 #ifdef PROFILE_PARTICLESYSTEM_RENDER
 	END_PROFILE(renderParticleSystem)

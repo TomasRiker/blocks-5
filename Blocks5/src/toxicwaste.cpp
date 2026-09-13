@@ -7,6 +7,7 @@
 ToxicWaste::ToxicWaste(Level& level,
 					   const Vec2i& position) : Object(level, 1)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_TRANSPORTABLE | OF_DESTROYABLE;
 	destroyTime = 1;
@@ -22,10 +23,10 @@ void ToxicWaste::updateSprites()
 	sprites.add(Vec2i(192, 352));
 }
 
-void ToxicWaste::onRender(int layer,
+void ToxicWaste::onRender(RenderLayer layer,
 						  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void ToxicWaste::onUpdate()

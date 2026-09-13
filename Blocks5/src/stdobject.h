@@ -11,7 +11,7 @@ public:
 	StdObject(Level& level, const Vec2i& position, uint flags, int depth, const Vec2i& positionOnTexture);
 	~StdObject();
 
-	void onRender(int layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);

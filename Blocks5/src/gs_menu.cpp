@@ -79,6 +79,10 @@ void GS_Menu::onRender()
 
 	// render the clouds
 	p_clouds->bind();
+
+	// The mode stays on GL_TEXTURE for the loop below, which is the one thing
+	// GL:: does not model: each layer scrolls on top of the picture's own
+	// scale inside a push and pop of its own.
 	glMatrixMode(GL_TEXTURE);
 
 	glEnable(GL_ALPHA_TEST);
@@ -89,6 +93,8 @@ void GS_Menu::onRender()
 		double s[] = {1.0, 0.5, 0.25};
 		double x = 100.0 * i + 50.0 * 0.001 * time;
 		x += 2.0 * sin(0.02 * x * s[i] + i);
+		// After the wobble, whose phase has to follow the unwrapped offset.
+		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 		glPushMatrix();
 		glScaled(s[i], s[i], s[i]);
@@ -112,7 +118,7 @@ void GS_Menu::onRender()
 
 	glDisable(GL_ALPHA_TEST);
 
-	p_clouds->unbind();
+	GL::setTexturing(false);
 	glMatrixMode(GL_MODELVIEW);
 
 	// render the title level
@@ -134,7 +140,7 @@ void GS_Menu::onRender()
 	glTexCoord2i(0, 480);
 	glVertex2i(0, 480);
 	glEnd();
-	p_background->unbind();
+	GL::setTexturing(false);
 }
 
 void GS_Menu::onUpdate()

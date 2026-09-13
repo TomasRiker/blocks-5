@@ -112,6 +112,16 @@ Engine::Engine()
 	frameBufferDisabled = false;
 	shadersDisabled = false;
 	performanceShown = false;
+	renderSuppressed = false;
+	renderSuppressWanted = false;
+	spriteBatchOpen = false;
+	spriteBatchDisabled = false;
+	batchTexture = 0;
+	batchFlushes = 0;
+	batchDraws = 0;
+	batchQuads = 0;
+	sceneTick = 0;
+	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
@@ -646,11 +656,11 @@ bool Engine::init(const std::string& windowCaption,
 	// create the textures for crossfading
 	glGenTextures(1, &oldImageID);
 	glGenTextures(1, &newImageID);
-	glBindTexture(GL_TEXTURE_2D, oldImageID);
+	GL::bindTexture(oldImageID, getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, newImageID);
+	GL::bindTexture(newImageID, getScreenTexelScale());
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -844,8 +854,8 @@ void Engine::exit()
 
 	// delete the crossfade and the textures
 	crossfade(0, 0.0);
-	glDeleteTextures(1, &oldImageID);
-	glDeleteTextures(1, &newImageID);
+	GL::deleteTexture(oldImageID);
+	GL::deleteTexture(newImageID);
 
 	// close the joysticks
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
@@ -1206,6 +1216,22 @@ void Engine::mainLoopIteration()
 		const double updateBegin = getExactTime();
 		while(timeToProcess >= logicRate)
 		{
+#ifdef BLOCKS5_TEST_HOOKS
+			// Asked before the tick runs, so the clock stops on exactly the
+			// tick that was asked for. While it is stopped the harness must
+			// still be answered, or it could neither take its picture nor
+			// quit the game - but nothing else of the tick happens, and time
+			// does not move, so every frame from here on is the same one.
+			TestHooks::checkFreeze(sceneTick);
+			if(TestHooks::frozen())
+			{
+#ifndef __EMSCRIPTEN__
+				TestHooks::pollRequests();
+#endif
+				timeToProcess = 0;
+				break;
+			}
+#endif
 			update();
 
 #ifdef RECORD
@@ -1270,14 +1296,14 @@ void Engine::mainLoopIteration()
 			// for that: without a logic tick nothing is rendered, and then the
 			// screen is still bound - which WebGL clears before every frame.
 			bindFrameBuffer();
-			glBindTexture(GL_TEXTURE_2D, oldImageID);
+			GL::bindTexture(oldImageID, getScreenTexelScale());
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 			crossfadeTime = -0.5;
 		}
 		else if(crossfadeTime >= -0.5 && frameRendered)
 		{
 			// fetch the current image
-			glBindTexture(GL_TEXTURE_2D, newImageID);
+			GL::bindTexture(newImageID, getScreenTexelScale());
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 
 			// render the crossfade
@@ -1582,7 +1608,7 @@ void Engine::renderToasts()
 		glPushMatrix();
 		glTranslated(0.0, floor(i->y + 0.5), 0.0);
 
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glBegin(GL_QUADS);
 		glColor4d(color.r, color.g, color.b, 0.75 * alpha);
 		glVertex2i(0, 0);
@@ -1596,7 +1622,7 @@ void Engine::renderToasts()
 		glVertex2i(0, TOAST_HEIGHT);
 		glVertex2i(640, TOAST_HEIGHT);
 		glEnd();
-		glEnable(GL_TEXTURE_2D);
+		GL::setTexturing(true);
 
 		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
 
@@ -1606,10 +1632,64 @@ void Engine::renderToasts()
 
 // #define PROFILE_ENGINE_RENDER
 
+#ifdef BLOCKS5_TEST_HOOKS
+// What B5_SEED asks for, or 0 for "leave the generator alone". Asked once:
+// getenv is not free and this sits at the top of two per-tick functions.
+static uint testSeed()
+{
+	static uint seed = 0;
+	static bool asked = false;
+	if(!asked)
+	{
+		asked = true;
+		const char* p_seed = ::getenv("B5_SEED");
+		if(p_seed && *p_seed) seed = static_cast<uint>(atoi(p_seed));
+	}
+	return seed;
+}
+
+// The load's own stream, clear of the two the tick uses. Those are
+// 2 * sceneTick and 2 * sceneTick + 1, and a level's clock is an int counting
+// milliseconds, so nothing a run reaches comes near this.
+const uint LOAD_STREAM = 0x40000000;
+#endif
+
+// Declared without a guard so that Level::load can call it without one:
+// BLOCKS5_TEST_HOOKS reaches engine.cpp and testhooks.cpp and not level.cpp,
+// and in a normal build this is an empty function the loader calls once.
+void Engine::seedForLoad()
+{
+#ifdef BLOCKS5_TEST_HOOKS
+	// A level's objects draw from the generator in their constructors - a
+	// Diamond's animation phase is random(0, 100000) - and a load happens
+	// between ticks, which is exactly where neither per-tick stream reaches.
+	// Those draws would otherwise continue a sequence whose length depends on
+	// how many frames the machine managed on the way to the load, so the same
+	// diamond stood on a different animation frame from one run to the next.
+	if(testSeed()) seedRandom(testSeed() * 2 + LOAD_STREAM);
+#endif
+}
+
 void Engine::render()
 {
 #ifdef PROFILE_ENGINE_RENDER
 	BEGIN_PROFILE(engineRender)
+#endif
+
+#ifdef BLOCKS5_TEST_HOOKS
+	// One random stream per rendered frame, keyed on the scene's tick and on
+	// nothing else. A rendered frame makes draws of its own - renderShine's
+	// jitter, the night vision's two noise offsets, a particle's colour - and
+	// how many renders fall inside one 20 ms tick is up to the frame rate, so
+	// without this the picture at a given tick depends on how fast the machine
+	// is. The odd half of the pair; update() takes the even one, which keeps
+	// the logic one stream per tick whatever the renderer does.
+	//
+	// sceneTick and not getTime(), because the engine's clock counts from
+	// startup and a harness's click lands at whatever tick the machine got to
+	// - so two runs would freeze with the level at two different ages. A
+	// level's clock starts at zero when the level loads.
+	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2 + 1);
 #endif
 
 	// Does the mouse cursor still match what is on the screen? Asked once a
@@ -1617,6 +1697,23 @@ void Engine::render()
 	// than one wants to remember - window size, fullscreen, a filter change,
 	// the browser's canvas - and asking costs two divisions and a comparison.
 	updateCursorSize();
+
+	// An upper bound on what drawing costs, measured by not doing it: with
+	// -perf on and "plant bomb" held, renderTiles(), renderSprite() and
+	// Font::renderText() return at once, so the overlay reads what a frame
+	// would cost if all three were free. A held button and not a switch,
+	// because the phone is where the question matters and has no command
+	// line; the on-screen pad's Bomb sends the Shift that action is bound to.
+	// The statistics are cleared on each edge, or the percentile would mix
+	// suppressed frames with ordinary ones for the twenty seconds the ring
+	// holds at a phone's frame rate, and the button would look inert.
+	const bool suppressWanted = performanceShown && isActionDown("$A_PLANT_BOMB");
+	if(suppressWanted != renderSuppressWanted)
+	{
+		renderSuppressWanted = suppressWanted;
+		frameStats.clear();
+	}
+	renderSuppressed = suppressWanted;
 
 	// render the GUI
 	GUI::inst().render();
@@ -1631,6 +1728,11 @@ void Engine::render()
 	// Toasts last: they sit over the GUI and over the editors' panes.
 	renderToasts();
 
+	// Off before drawOverlays(), which draws -perf's own numbers through the
+	// same Font::renderText this suppresses. Without it the experiment would
+	// hide its own answer.
+	renderSuppressed = false;
+
 #ifdef PROFILE_ENGINE_RENDER
 	END_PROFILE(engineRender)
 #endif
@@ -1644,11 +1746,29 @@ void Engine::update()
 	BEGIN_PROFILE(engineUpdate)
 #endif
 
+#ifdef BLOCKS5_TEST_HOOKS
+	// The even half of render()'s pair - see there.
+	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2);
+#endif
+
 #if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
 	// Test build only. In the browser JavaScript calls the dump itself;
 	// natively there is no such channel - see testhooks.cpp.
 	TestHooks::pollRequests();
 #endif
+
+	// Nothing needs a texture's decoded pixels after the tick it was loaded in:
+	// the two callers that do ask to keep them (the tile set and the level's
+	// sprites, for the debris sampling) ask before this runs.
+	Texture::freeUnkeptPixels();
+
+	// The on-screen pad labels its buttons with the names of the keys they
+	// send, and those names are translated, so it has to be told which
+	// language the game settled on. Asked here rather than pushed from the
+	// places that assign it, because there are four of them - the detection,
+	// the config, the options dialog and the string-table fallback - and a
+	// fifth would be added one day without a call.
+	publishLanguage();
 
 	// update the virtual keys and actions
 	updateVKs();
@@ -1879,14 +1999,14 @@ bool Engine::createFrameBuffer()
 	frameTextureSize = screenPow2Size;
 
 	glGenTextures(1, &frameTextureID);
-	glBindTexture(GL_TEXTURE_2D, frameTextureID);
+	GL::bindTexture(frameTextureID, Vec2d(1.0, 1.0));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameTextureSize.x, frameTextureSize.y, 0,
 				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	glExtGenFramebuffers(1, &frameBufferID);
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
@@ -1933,13 +2053,13 @@ void Engine::destroyFrameBuffer()
 {
 	if(frameDepthStencilID)  { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
 	if(frameBufferID)        { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
-	if(frameTextureID)       { glDeleteTextures(1, &frameTextureID);              frameTextureID = 0; }
+	if(frameTextureID)       { GL::deleteTexture(frameTextureID);                 frameTextureID = 0; }
 	if(renderTargetID)       { glExtDeleteFramebuffers(1, &renderTargetID);       renderTargetID = 0; }
 
 	for(std::vector<OffscreenTexture>::const_iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
 	{
-		glDeleteTextures(1, &i->id);
+		GL::deleteTexture(i->id);
 	}
 	offscreenTextures.clear();
 }
@@ -1948,6 +2068,10 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
 	if(!useFrameBuffer) return 0;
 
+	// Nothing here needs a flush of its own: the hit path issues no GL at all,
+	// and the miss path's two binds go through GL::, which puts the batch up
+	// itself where the binding moves.
+	//
 	// One of the right size that nobody is holding?
 	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
@@ -1963,7 +2087,7 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 	glGenTextures(1, &entry.id);
 	if(!entry.id) return 0;
 
-	glBindTexture(GL_TEXTURE_2D, entry.id);
+	GL::bindTexture(entry.id, Vec2d(1.0, 1.0));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0,
 				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1973,7 +2097,7 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 	// is a power of two, but clamped is right here anyway.
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	offscreenTextures.push_back(entry);
 	return entry.id;
@@ -1994,6 +2118,11 @@ void Engine::releaseOffscreenTexture(uint textureID)
 bool Engine::beginRenderToTexture(uint textureID,
 								  const Vec2i& size)
 {
+	// Both ends of the switch flush, which is what makes a bake inside an open
+	// batch safe: quads queued before it belong on the screen, quads queued
+	// during it belong on the texture, and each goes up where it was issued.
+	flushSprites();
+
 	if(!useFrameBuffer || !textureID) return false;
 
 	if(!renderTargetID)
@@ -2029,6 +2158,8 @@ bool Engine::beginRenderToTexture(uint textureID,
 
 void Engine::endRenderToTexture()
 {
+	flushSprites();
+
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
@@ -2659,6 +2790,11 @@ void Engine::presentFrame()
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
+	// Raw and not through GL::, which is what the three matrix stacks and the
+	// attribute stack are for: every piece of state this touches is given back
+	// before the function returns, so nothing the game drew under it can be
+	// disturbed. It is also the one place that draws while no game code is
+	// running, so there is no batch of its own to put up.
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
@@ -2714,6 +2850,12 @@ void Engine::presentFrame()
 	glMatrixMode(GL_MODELVIEW);
 
 	glPopAttrib();
+
+	// What that pop put back differs per platform: GL_ALL_ATTRIB_BITS carries
+	// the binding and the enables on the desktop, and gl_compat.cpp restores
+	// only the mode and the enables in the browser. So the record is dropped
+	// rather than worked out.
+	GL::invalidate();
 }
 
 void Engine::drawOverlays()
@@ -2770,12 +2912,22 @@ void Engine::drawPerformance()
 			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
 			 frameStats.getPercentile(FrameStats::FS_SWAP, 50));
 	// The budget is the logic rate - 20 ms, fifty frames a second - and the
-	// two counts against it answer different questions. A frame whose
-	// *interval* went over is one the player did not get; one whose *work*
-	// went over is one this game is responsible for. They come apart exactly
-	// where it matters: under swiftshader the browser ran at 38 ms a frame on
-	// 2.7 ms of work, so counting the work alone would have reported nothing
-	// wrong while the game ran at 26 fps.
+	// two counts answer different questions. A frame whose *interval* went
+	// over is one the player did not get; one whose *work* went over is one
+	// this game is responsible for. They come apart exactly where it matters:
+	// under swiftshader the browser ran at 38 ms a frame on 2.7 ms of work,
+	// so counting the work alone would have reported nothing wrong while the
+	// game ran at 26 fps.
+	//
+	// **The interval is counted against two ticks and the work against one**,
+	// and the asymmetry is the whole point. The loop aims each iteration at
+	// exactly one tick - the SDL_Delay at the foot of mainLoopIteration - so
+	// an interval threshold of one tick sits on the number the code is
+	// targeting, and a millisecond of timer granularity trips it: measured in
+	// the menu, 277 of 512 frames read as late while not one had been dropped.
+	// A frame the player actually lost is an interval of two. The work has no
+	// such problem, because nothing aims it anywhere: one tick is simply the
+	// budget a frame has to fit inside.
 	//
 	// 500 ms is a third question. That is what Emscripten's OpenAL has
 	// scheduled ahead (AL.QUEUE_LOOKAHEAD, raised in initOpenAL), so a frame
@@ -2783,11 +2935,11 @@ void Engine::drawPerformance()
 	// natively the decoder thread fills the queue whatever the main thread is
 	// doing.
 	const float budget = static_cast<float>(logicRate);
-	snprintf(line[2], sizeof(line[2]), "of %u frames: %u over %.0f ms, %u of work, %u over 500 ms",
+	snprintf(line[2], sizeof(line[2]), "%u frames: %u dropped, %u work >%.0f ms, %u >500 ms",
 			 frameStats.getCount(),
-			 frameStats.getCountOver(FrameStats::FS_INTERVAL, budget),
-			 budget,
+			 frameStats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
+			 budget,
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
 	const int lineHeight = p_font->getLineHeight();
@@ -2795,7 +2947,7 @@ void Engine::drawPerformance()
 	const int top = screenSize.y - height;
 
 	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	glColor4d(0.0, 0.0, 0.0, 0.7);
 	glVertex2i(0, top);
@@ -2803,7 +2955,7 @@ void Engine::drawPerformance()
 	glVertex2i(screenSize.x, screenSize.y);
 	glVertex2i(0, screenSize.y);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 
 	for(int i = 0; i < 3; i++)
 	{
@@ -2811,7 +2963,7 @@ void Engine::drawPerformance()
 	}
 }
 
-bool Engine::screenshot()
+bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 {
 	// Always the internal 640x480 frame: the filter and the black bars are
 	// display settings and do not belong in the file.
@@ -2822,15 +2974,55 @@ bool Engine::screenshot()
 	// img_save.h, the alpha would be a quarter more for nothing but 255. The
 	// encoder flips the rows along the way; no second buffer is needed.
 	std::vector<uchar> pixels(static_cast<size_t>(shotSize.x) * shotSize.y * 4);
+	// The frame belongs to the game's own framebuffer, so this binds it rather
+	// than reading GL_COLOR_ATTACHMENT0 of whatever happens to be bound. The
+	// two callers inside the main loop have it bound already - the screenshot
+	// key and the video recorder both sit in the frameRendered block, above
+	// the unbindFrameBuffer() that precedes the present - but a caller from
+	// anywhere else does not, and the attachment it would read then is not
+	// this game's picture. It also puts the viewport back to 640x480, which
+	// is the size this read assumes.
+	if(useFrameBuffer) bindFrameBuffer();
 	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
 	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
-	std::vector<uchar> png;
-	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, &png))
+	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, p_pngOut))
 	{
 		printfLog("+ ERROR: Could not encode the screenshot.\n");
 		return false;
 	}
+
+	return true;
+}
+
+bool Engine::writeScreenshot(const std::string& path)
+{
+	// The frame oracle's half of screenshot(): a name the caller chose instead
+	// of the dated one, and no sound. It goes through FileSystem like every
+	// other write, so the browser's IDBFS path works too if a test ever wants
+	// it.
+	std::vector<uchar> png;
+	if(!encodeFrame(&png)) return false;
+
+	FileSystem& fs = FileSystem::inst();
+	File* p_file = fs.openFile(path, FileSystem::FM_WRITE);
+	if(!p_file)
+	{
+		printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+		return false;
+	}
+
+	const uint numBytes = static_cast<uint>(png.size());
+	const bool saved = p_file->write(&png[0], numBytes) == numBytes && p_file->finish();
+	fs.closeFile(p_file);
+	if(!saved) printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+	return saved;
+}
+
+bool Engine::screenshot()
+{
+	std::vector<uchar> png;
+	if(!encodeFrame(&png)) return false;
 
 	char screenshotDateTime[256];
 	const time_t t = ::time(0);
@@ -2872,7 +3064,7 @@ bool Engine::screenshot()
 #endif
 }
 
-void Engine::renderSprite(const Vec2i& position,
+void Engine::renderSprite(const Vec2d& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
 						  const Vec4d& color,
@@ -2880,31 +3072,248 @@ void Engine::renderSprite(const Vec2i& position,
 						  double rotation,
 						  double scaling)
 {
+	if(renderSuppressed) return;
+
+	// The quad runs from -halfSize to otherHalf, and the two are only the same
+	// number while the size is even. Taking halfSize for both would draw an odd
+	// sprite one pixel short while its texture coordinates still spanned all
+	// size texels, so the picture is resampled and a row of it falls out: at
+	// 39x39 texel 19 is never reached. Only the centre stays truncated, which
+	// keeps the corners on whole pixels and a nearest-sampled sprite sharp - at
+	// an odd size that puts the axis of the rotation half a pixel off the
+	// middle, which is the cheaper of the two errors.
 	const Vec2i halfSize(size / 2);
+	const Vec2i otherHalf(size - halfSize);
+
+	// Mirroring swaps the texture coordinates instead of scaling x by -1, and
+	// that is not the same thing once the quad is no longer symmetric about its
+	// centre: the scale reflects the footprint as well, which moves an odd
+	// sprite a pixel to the left of where the unmirrored one stands.
+	const int u0 = positionOnTexture.x + (mirrorX ? size.x : 0);
+	const int u1 = positionOnTexture.x + (mirrorX ? 0 : size.x);
+	const int v0 = positionOnTexture.y;
+	const int v1 = positionOnTexture.y + size.y;
+
+	// Before the bracket below, not inside it: the batch bakes the sprite's own
+	// transform itself, and the matrix it reads back must be the caller's.
+	if(spriteBatchOpen)
+	{
+		queueSprite(position, halfSize, otherHalf, u0, u1, v0, v1, color, rotation, scaling);
+		return;
+	}
 
 	glPushMatrix();
 	glTranslated(position.x + halfSize.x, position.y + halfSize.y, 0.0);
 	if(scaling != 1.0) glScaled(scaling, scaling, 1.0);
 	if(rotation != 0.0) glRotated(rotation, 0.0, 0.0, 1.0);
-	if(mirrorX) glScaled(-1.0, 1.0, 1.0);
 
 	glBegin(GL_QUADS);
 	glColor4dv(color);
-	glTexCoord2i(positionOnTexture.x, positionOnTexture.y);
+	glTexCoord2i(u0, v0);
 	glVertex2i(-halfSize.x, -halfSize.y);
-	glTexCoord2i(positionOnTexture.x + size.x, positionOnTexture.y);
-	glVertex2i(halfSize.x, -halfSize.y);
-	glTexCoord2i(positionOnTexture.x + size.x, positionOnTexture.y + size.y);
-	glVertex2i(halfSize.x, halfSize.y);
-	glTexCoord2i(positionOnTexture.x, positionOnTexture.y + size.y);
-	glVertex2i(-halfSize.x, halfSize.y);
+	glTexCoord2i(u1, v0);
+	glVertex2i(otherHalf.x, -halfSize.y);
+	glTexCoord2i(u1, v1);
+	glVertex2i(otherHalf.x, otherHalf.y);
+	glTexCoord2i(u0, v1);
+	glVertex2i(-halfSize.x, otherHalf.y);
 	glEnd();
 
 	glPopMatrix();
 }
 
+// GL_QUADS out of a client array has two ceilings in the browser and at this
+// stride they are the same number. The emulation's quad index table is a
+// Uint16Array, so it wraps at vertex 65536; and it asserts that the vertices
+// times the stride fit its 2 MiB scratch buffer, which at 32 bytes is again
+// 65536. A level frame issues a few hundred quads, so this is a backstop.
+const uint BATCH_MAX_QUADS = 16384;
+
+void Engine::beginSpriteBatch()
+{
+	// Anything still queued belongs to whatever was drawing before this, and
+	// drawing it now would be under the new pass's state. Empty in practice -
+	// endSpriteBatch() sees to that - but a pass that ever returns early would
+	// otherwise carry its quads into the next one.
+	flushSprites();
+	spriteBatchOpen = !spriteBatchDisabled;
+}
+
+void Engine::flushSprites()
+{
+	// Counted either side of the early return, because that is exactly where
+	// the two numbers this work is aimed at come apart: a flush asked for with
+	// nothing queued costs nothing at all, and one asked for with a pass half
+	// collected costs a draw call. Only the second is worth removing.
+	batchFlushes++;
+	if(spriteBatch.empty()) return;
+	batchDraws++;
+	batchQuads += static_cast<uint>(spriteBatch.size() / 4);
+
+#ifdef BLOCKS5_TEST_HOOKS
+	{
+		GLint texture = 0;
+		GLdouble textureMatrix[16];
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
+		glGetDoublev(GL_TEXTURE_MATRIX, textureMatrix);
+		// The binding and the texture matrix, because the static check reads
+		// the sources and this reads what happened - and a helper living in
+		// level.cpp or engine.cpp is outside the check's scope while still
+		// running with a batch open.
+		//
+		// Not whether texturing is on: the draw below declares that for
+		// itself, so it is no longer a state the queue depends on. It could
+		// not have been checked in the browser anyway, where Emscripten's
+		// glIsEnabled answers 0 for anything outside its own capability table
+		// and GL_TEXTURE_2D is not in it.
+		if(texture != batchTexture ||
+		   memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix)))
+		{
+			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d "
+					  "and is being drawn against %d%s - a flush is missing.\n",
+					  static_cast<uint>(spriteBatch.size() / 4),
+					  static_cast<int>(batchTexture), static_cast<int>(texture),
+					  memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix))
+						  ? ", and under another texture matrix" : "");
+		}
+	}
+#endif
+
+	// The vertices already carry the modelview they were queued under, so the
+	// draw has to happen under none: otherwise GL applies it a second time.
+	// Identity and not "the matrix the queue began with", because one batch
+	// spans objects that each pushed their own. The projection still applies,
+	// which is what puts the whole thing on the screen.
+	//
+	// The matrix mode is said rather than assumed, and the attrib bracket is
+	// what says it. A flush happens wherever the state moves, which includes
+	// Texture::bind() - and Level::render binds the snow and the clouds with
+	// GL_TEXTURE current, so an unqualified glPushMatrix here would push, wipe
+	// and pop the *texture* matrix and leave the sprites under whatever
+	// modelview happened to stand.
+	//
+	// What actually keeps that safe is that the batch is closed there:
+	// endSpriteBatch() runs long before the weather block. This is the cheaper
+	// half of a belt and braces, not the whole answer - a batch left open
+	// across that block would still draw under the texture matrix the weather
+	// scrolls, which no bracket here can help with. Three calls a flush on the
+	// desktop, two in the browser, where gl_compat's glPushAttrib issues none.
+	// And the texturing is said rather than inherited, which is what takes it
+	// out of the batch's state - see GL::beginBatchDraw.
+	GL::beginBatchDraw();
+	glPushAttrib(GL_TRANSFORM_BIT);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	drawQuadArray(&spriteBatch[0], static_cast<uint>(spriteBatch.size()));
+	glPopMatrix();
+	glPopAttrib();
+	GL::endBatchDraw();
+
+	// The current colour is deliberately left alone. Immediate mode used to
+	// leave the last sprite's colour standing, and putting that back here
+	// looked like the faithful thing to do - but a flush happens wherever the
+	// state moves, which includes the middle of somebody else's drawing.
+	// Font::renderText sets its shadow colour and then calls drawText, whose
+	// first act is a bind: restoring the colour there painted every shadow of
+	// every string in the last sprite's colour instead.
+	spriteBatch.clear();
+}
+
+void Engine::endSpriteBatch()
+{
+	flushSprites();
+	spriteBatchOpen = false;
+}
+
+void Engine::queueSprite(const Vec2d& position,
+						 const Vec2i& halfSize,
+						 const Vec2i& otherHalf,
+						 int u0,
+						 int u1,
+						 int v0,
+						 int v1,
+						 const Vec4d& color,
+						 double rotation,
+						 double scaling)
+{
+	if(spriteBatch.size() >= 4 * BATCH_MAX_QUADS) flushSprites();
+
+#ifdef BLOCKS5_TEST_HOOKS
+	// A queued quad is drawn with the state standing at the flush, not at the
+	// call - so anything that moves that state in between has to flush first.
+	// The static check reads the sources for it; this reads what actually
+	// happened, and says which pass let it through.
+	if(spriteBatch.empty())
+	{
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &batchTexture);
+		glGetDoublev(GL_TEXTURE_MATRIX, batchTextureMatrix);
+	}
+#endif
+
+	// The transform the caller set up is read back rather than tracked. It is
+	// whatever Object::render and everything above it pushed - the translate to
+	// the object's cell, the squash of a teleporting object, the unbalanced
+	// glTranslated Enemy does inside its own onRender, the half pixel
+	// Level::render puts under the wires - and baking it is what lets sprites from
+	// different objects share one draw call. Reading it costs one call against the
+	// fourteen to sixteen a sprite this path no longer makes: in the browser a
+	// copy of sixteen floats out of a JavaScript array, on a desktop client-side
+	// driver state and not a pipeline stall.
+	GLfloat m[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, m);
+
+	// The sprite's own transform, in the order immediate mode applies it.
+	// Mirroring is already in the texture coordinates, so what is left is
+	// rotate, then scale, then translate to the centre.
+	double c = scaling;
+	double s = 0.0;
+	if(rotation != 0.0)
+	{
+		const double a = rotation * (3.1415926535897932384626433832795 / 180.0);
+		c = scaling * cos(a);
+		s = scaling * sin(a);
+	}
+
+	const double tx = position.x + halfSize.x;
+	const double ty = position.y + halfSize.y;
+
+	// Widened one at a time and not inside the braces: a braced initializer
+	// list forbids a narrowing conversion, and clang says so where gcc does not.
+	const double left = -halfSize.x, right = otherHalf.x;
+	const double top = -halfSize.y, bottom = otherHalf.y;
+	const double lx[4] = {left, right, right, left};
+	const double ly[4] = {top, top, bottom, bottom};
+	const int u[4] = {u0, u1, u1, u0};
+	const int v[4] = {v0, v0, v1, v1};
+
+	// clampColor, because renderShine hands this deathCountDown * 5.0 from an
+	// exploding bomb and expects GL to cut it off. Immediate mode did, on both
+	// platforms - the hardware by specification, and Emscripten inside its own
+	// glColor4f - and a colour array goes through neither.
+	const Vec4d cut = clampColor(color);
+	const Vec4f col(static_cast<float>(cut.r), static_cast<float>(cut.g),
+					static_cast<float>(cut.b), static_cast<float>(cut.a));
+
+	for(int i = 0; i < 4; i++)
+	{
+		const double x = tx + c * lx[i] - s * ly[i];
+		const double y = ty + s * lx[i] + c * ly[i];
+
+		// The modelview is column major and, in this game, always an affine
+		// map of the plane: z is never anything but 0, so two columns and the
+		// translation are the whole of it.
+		ColorQuadVertex vertex;
+		vertex.position = Vec2f(static_cast<float>(m[0] * x + m[4] * y + m[12]),
+								static_cast<float>(m[1] * x + m[5] * y + m[13]));
+		vertex.uv = Vec2f(static_cast<float>(u[i]), static_cast<float>(v[i]));
+		vertex.color = col;
+		spriteBatch.push_back(vertex);
+	}
+}
+
 void Engine::renderSprite(Texture* p_sprite,
-						  const Vec2i& position,
+						  const Vec2d& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
 						  const Vec4d& color,
@@ -2912,9 +3321,13 @@ void Engine::renderSprite(Texture* p_sprite,
 						  double rotation,
 						  double scaling)
 {
+	// The switch back off stays. It costs one GL call now and no flush at all,
+	// which is what the whole state layer was for - and everything that draws
+	// untextured after a sprite has always been able to rely on it, down to
+	// LineDrawer::draw, which installs a vertex array and nothing else.
 	p_sprite->bind();
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
-	p_sprite->unbind();
+	GL::setTexturing(false);
 }
 
 void Engine::renderSprites(const Sprites& sprites,
@@ -2970,6 +3383,9 @@ void Engine::setBlendFunc(GLenum srcRGB,
 						  GLenum srcAlpha,
 						  GLenum dstAlpha)
 {
+	// Queued sprites were queued to be blended the old way.
+	flushSprites();
+
 	if(glExtBlendFuncSeparate) glExtBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	else glBlendFunc(srcRGB, dstRGB);
 }
@@ -3818,6 +4234,16 @@ const Vec2i& Engine::getScreenPow2Size() const
 	return screenPow2Size;
 }
 
+// What a screen-sized copy of the frame is sampled with, for texture
+// coordinates given in the game's own pixels. The y is negative for two
+// reasons at once: the game's y runs downward where GL's texture y runs up,
+// and the copy sits at the top of the pow2 texture rather than at its origin -
+// under GL_REPEAT a negative coordinate wraps to exactly that band.
+Vec2d Engine::getScreenTexelScale() const
+{
+	return Vec2d(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y);
+}
+
 const Vec2i& Engine::getDisplaySize() const
 {
 	return displaySize;
@@ -3848,10 +4274,30 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		// save the old image - as above out of the framebuffer object, not out
 		// of whatever is bound right now.
 		bindFrameBuffer();
-		glBindTexture(GL_TEXTURE_2D, oldImageID);
+		GL::bindTexture(oldImageID, getScreenTexelScale());
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
 		crossfadeTime = -0.5;
 	}
+}
+
+// Tells the page's on-screen pad which language to label its buttons in. A
+// static and not a member because it is the memory of one singleton talking to
+// one page, and it keeps the string from crossing into JavaScript every tick
+// for the whole run. Nothing outside the browser has a pad to tell.
+void Engine::publishLanguage()
+{
+#ifdef __EMSCRIPTEN__
+	static std::string published;
+	if(language == published) return;
+	published = language;
+
+	EM_ASM({
+		if(typeof window.b5_setPadLanguage === 'function')
+		{
+			window.b5_setPadLanguage(UTF8ToString($0));
+		}
+	}, language.c_str());
+#endif
 }
 
 std::string Engine::detectSystemLanguage()

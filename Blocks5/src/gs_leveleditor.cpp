@@ -1119,7 +1119,7 @@ void GS_LevelEditor::onRender()
 		// highlight the selected pin and the start pin
 
 		glDisable(GL_LINE_SMOOTH);
-		glDisable(GL_TEXTURE_2D);
+		GL::setTexturing(false);
 		glLineWidth(1.0f);
 		glPushMatrix();
 		glTranslated(0.5, 0.5, 0.0);
@@ -1238,7 +1238,7 @@ void GS_LevelEditor::onRender()
 	if(p_hint)
 	{
 		p_hint->setText(static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->getText());
-		p_hint->render(43, Vec2i(0, 0), Vec4d(1.0));
+		p_hint->render(RL_HINT_PREVIEW, Vec2i(0, 0), Vec4d(1.0));
 	}
 }
 

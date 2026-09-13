@@ -4,11 +4,16 @@
 # Run from anywhere; paths are resolved relative to this script.
 #   ./build.sh            incremental
 #   ./build.sh clean      from scratch
-#   ./build.sh hooks      plus the test hooks from test_hooks.cpp
+#   ./build.sh hooks      plus the test hooks
 #
-# "hooks" compiles test_hooks.cpp with -DBLOCKS5_TEST_HOOKS and builds into
-# build-test/ instead of build/, keeping a build with hooks from ever becoming
-# the shipped one by accident. Without the word the translation unit is empty.
+# "hooks" compiles test_hooks.cpp, testhooks.cpp and engine.cpp with
+# -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, keeping a
+# build with hooks from ever becoming the shipped one by accident. Without the
+# word the first two translation units are empty and the third loses the
+# readback that says a sprite batch is being drawn under state it was not
+# queued under. glstate.cpp is deliberately not on the list: its own readback
+# is a getParameter per state call, which would swamp what perf.js measures -
+# see checkRecord() there.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"
@@ -54,7 +59,11 @@ for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $GAME/libs/t
 
 fail=0; n=0; total=$(echo $SRCS $CSRCS | wc -w)
 compile() { # $1=file $2=flags
-  local o="$OUT/obj/$(echo "$1" | md5sum | cut -c1-12)-$(basename "$1").o"
+  # The flags go into the name, not only the path: otherwise moving a file into
+  # or out of the hooks list leaves the old object lying there, because it is
+  # newer than the source - and a hooks build then links a unit built without
+  # the define, which is a test that cannot fail.
+  local o="$OUT/obj/$(echo "$1 $2" | md5sum | cut -c1-12)-$(basename "$1").o"
   local d="$o.d"
   # Reuse the object only if it is newer than the source AND every header the
   # source pulled in last time. Without the header check, editing a header that
@@ -78,11 +87,11 @@ OBJS=""
 for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS;  do
   n=$((n+1))
-  # Only test_hooks.cpp sees the define. It is not in CXXFLAGS, or switching
-  # between the two kinds of build would recompile all 160 units - the two
-  # output directories keep them apart anyway.
+  # Only the three that get anything out of it. It is not in CXXFLAGS, or
+  # switching between the two kinds of build would recompile every unit -
+  # the two output directories keep them apart anyway.
   extra=""
-  case "$f" in */test_hooks.cpp|*/testhooks.cpp) extra="$HOOKS";; esac
+  case "$f" in */test_hooks.cpp|*/testhooks.cpp|*/engine.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done
@@ -188,6 +197,14 @@ mv "$OUT/blocks5.js"   "$OUT/blocks5-$version.js"
 mv "$OUT/blocks5.wasm" "$OUT/blocks5-$version.wasm"
 mv "$OUT/blocks5.data" "$OUT/blocks5-$version.data"
 
+# The pad gets a stamp too, and its OWN hash rather than the payload's. Reusing
+# $version would be worse than leaving it alone: it is the md5 of the three
+# payload files, so editing only the pad would not move it, the URL would not
+# move either - and the file would now be served with a year of immutable
+# instead of a heuristic few hours. A permanent staleness in place of a
+# temporary one.
+padVersion=$(md5sum "$HERE/touch_controls.js" | cut -c1-12)
+
 # The loading screen's line, in the game's own font. The page stands before
 # data.zip and before any GL context and cannot draw that font itself, hence it
 # is drawn here and stamped into the page as a data URI: no extra request,
@@ -201,7 +218,8 @@ loadtext=$(python3 "$HERE/make_text.py" --js "$GAME/data/font.xml" '$LOADING')
 # loading line. The last of these is substituted by python3 and not by sed,
 # because base64 contains slashes and plus signs.
 for page in "$OUT/blocks5.html" "$OUT/index.html"; do
-  sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" "$page"
+  sed -i -e "s/blocks5\.js/blocks5-$version.js/g" -e "s/%%BUILD%%/$version/g" \
+         -e "s/touch_controls\.js/touch_controls-$padVersion.js/g" "$page"
   python3 - "$page" "$loadtext" <<'PYEOF'
 import io, sys
 path, text = sys.argv[1], sys.argv[2]
@@ -221,10 +239,15 @@ done
 # never end up beside a blocks5.data from another build. See the header of
 # sw.js and ROADMAP.md, item 20.
 cp "$HERE/manifest.json" "$OUT/manifest.json"
-cp "$HERE/touch_controls.js" "$OUT/touch_controls.js"
-# The headers for Apache. index.html is the only file carrying no stamp in its
-# name and is therefore the one that must not be cached - otherwise nobody
-# learns of a new build.
+# Both spellings: the stamped names of older builds, and the unstamped one an
+# output directory from before the pad was stamped still has lying in it. That
+# leftover is the worse of the two - nothing references it, so it would be
+# uploaded and then sit there under no rule at all.
+rm -f "$OUT"/touch_controls*.js
+cp "$HERE/touch_controls.js" "$OUT/touch_controls-$padVersion.js"
+# The headers for Apache. What carries a stamp may be cached for ever; what
+# does not has to be revalidated on every visit, and index.html above all,
+# since it is where the stamps are written down.
 cp "$HERE/htaccess" "$OUT/.htaccess"
 # The icon is the same one the game window carries - 32x32, and therefore too
 # small for a home screen. A phone would otherwise scale it up itself and smooth
@@ -250,7 +273,7 @@ python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/icon-maskable-512.png
         --scale 10 --canvas 512 --background 000000 >/dev/null
 python3 "$HERE/make_icon.py" "$GAME/data/window.png" "$OUT/apple-touch-icon.png" \
         --scale 16 --canvas 512 --background 000000 >/dev/null
-sed "s/%%VERSION%%/$version/" "$HERE/sw.js" > "$OUT/sw.js"
+sed -e "s/%%VERSION%%/$version/" -e "s/%%PAD%%/$padVersion/" "$HERE/sw.js" > "$OUT/sw.js"
 echo "### PWA: manifest.json, 4 icons, sw.js (cache blocks5-$version) ###"
 
 [ -f "$OUT/blocks5-$version.wasm" ] || { echo "### LINK FAILED ###"; exit 1; }

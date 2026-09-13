@@ -13,8 +13,6 @@ void CF_Slices::render(double t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	setupTexCoords();
-
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -28,7 +26,7 @@ void CF_Slices::render(double t,
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glEnable(GL_TEXTURE_2D);
+	GL::setTexturing(true);
 	glEnable(GL_CULL_FACE);
 
 	const int n = 20;
@@ -43,7 +41,7 @@ void CF_Slices::render(double t,
 		glScaled(1.0 / n, 1.0, 1.0);
 
 		// draw the front face
-		glBindTexture(GL_TEXTURE_2D, oldImageID);
+		GL::bindTexture(oldImageID, screenTexelScale);
 		glBegin(GL_QUADS);
 		double c = 1.0 - angle / 180.0;
 		glColor4d(c, c, c, 1.0);
@@ -59,7 +57,7 @@ void CF_Slices::render(double t,
 
 		// draw the back face
 		glRotated(180.0, 0.0, 1.0, 0.0);
-		glBindTexture(GL_TEXTURE_2D, newImageID);
+		GL::bindTexture(newImageID, screenTexelScale);
 		glBegin(GL_QUADS);
 		c = angle / 180.0;
 		glColor4d(c, c, c, 1.0);
@@ -76,7 +74,7 @@ void CF_Slices::render(double t,
 		glPopMatrix();
 	}
 
-	glDisable(GL_TEXTURE_2D);
+	GL::setTexturing(false);
 	glDisable(GL_CULL_FACE);
 
 	glPopMatrix();

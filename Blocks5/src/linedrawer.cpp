@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "linedrawer.h"
+#include "engine.h"
 
 LineDrawer::LineDrawer()
 	: width(1.0f)
@@ -35,6 +36,13 @@ void LineDrawer::draw()
 	// vertices[0] on an empty vector is undefined however little glDrawArrays
 	// would then read.
 	if(vertices.empty()) return;
+
+	// The sprite batch is drawn with the state standing at the flush, so this
+	// raw array has to put it up first. Here and not at the seven call sites:
+	// every one of them is inside an onRender, and each reaches this through one
+	// of four LineDrawers held as a member or a local, which no static check can
+	// follow.
+	Engine::inst().flushSprites();
 
 	glColor4fv(color);
 	glEnableClientState(GL_VERTEX_ARRAY);

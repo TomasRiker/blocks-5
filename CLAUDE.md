@@ -137,7 +137,10 @@ there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
-`-nofbo`, `-noshader` and `-perf` — that is the whole list, and `readme.txt` documents all six.
+`-nofbo`, `-noshader`, `-perf` and `-nobatch` — that is the whole list, and `readme.txt`
+documents all seven. `-nobatch` makes `renderSprite` draw every quad on its own again instead
+of collecting a render pass into one call; it is the arm to measure the sprite batch against,
+and `?nobatch=1` is the same switch in the browser.
 `-perf` puts what the last few hundred frames cost in the corner; in the browser `?perf=1` on
 the address becomes the same switch. See **Measuring a frame** below.
 `-nosplash` skips the logo and the jingle by *not requesting* `logo.png`, which is the path
@@ -201,7 +204,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      seventeen static checks over the whole tree
+python3 Tools/verify.py      twenty-one static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -210,6 +213,14 @@ cd WebBuild && ./build.sh    the browser port actually builds and links
 There are three ways to *run* it, all scripted: `LinuxBuild/test/smoke.sh` natively,
 `WebBuild/test/smoke.js` in a desktop browser, and `WebBuild/test/mobile.js` in an emulated
 phone — see **Driving the game** below.
+
+**A change whose whole question is what it looks like goes to the author to try, unbuilt.**
+Tuning a glow, a colour, a width, a timing: the build takes minutes, the screenshot oracle
+takes longer still, and neither of them can answer *is that the look I want* — only the person
+asking can, and they have the game in front of them. So make the edit, say what the numbers
+mean and which way to turn them, and stop. Everything above still applies to anything a
+compiler or a check can judge, and to a visual change that also moves code around, where the
+question is no longer only what it looks like.
 
 **A check that can pass on a previous run's artifact is worse than no check.**
 `WebBuild/build.sh` used to pipe `em++` through `tail`, so the status it tested was `tail`'s,
@@ -229,7 +240,10 @@ those are exactly what `Tools/syntax.sh` is for.
 **`Tools/verify.py`** looks for the kind of mistake that leaves no trace in a diff and that
 no compiler can see: a `gui["…"]` path no dialog XML knows, a `$ID` missing from
 `languages.txt`, an XML attribute written and never read, a source file missing from
-`Blocks5.vcxproj` or its `.filters`, a class whose header is not named after it, the version
+`Blocks5.vcxproj` or its `.filters`, a display list added back to a tree that has none, a class
+whose header is not named after it, a render layer written as a number, an object that
+draws raw geometry without flushing the sprite batch first or changes the texture state
+without going through GLState, the version
 number drifting apart across the four places it lives, a new member the constructor never sets, an asset filename that is not on
 disk or spelled with different case (which only Linux minds), a sound `playSound()` names that
 `gs_loading.cpp` does not preload, a non-ASCII byte or a CRLF in a source file, `if (` where the tree writes `if(`, a
@@ -253,9 +267,10 @@ there unchanged when the art moves, and it had. The `windows_icon` check compare
 image against `data/window.png` and insists on the sizes the shell asks for;
 `Tools/make_ico.py` rebuilds it.
 
-**Three checks judge only what changed since `95660bb`**, the last commit before the
+**Two checks judge only what changed since `95660bb`**, the last commit before the
 2025 overhaul, whose id is `BASELINE` at the top of `verify.py`: indentation and
-whitespace, uninitialised members, and comment density. Code that has been there for ten
+whitespace, and uninitialised members. The comment-density half of `comments` is an
+absolute 50% and judges every line. Code that has been there for ten
 years and works is not a finding, and reporting it on every run is how a check gets
 ignored.
 
@@ -265,7 +280,7 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 120 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 123 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
 files never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp`. The last two
 are left out of the web build for the same reasons; `main.cpp` is compiled there, and the
@@ -309,6 +324,21 @@ holds far longer than either number, so this is the harness lying, not the game.
 `xdotool windowclose` calls `XDestroyWindow` and SDL then trips over a window it still
 believes is its own. Quit the way a player does — Escape in the menu — or `Engine::exit()`
 never runs and `config.xml` is never written.
+
+**Two harnesses on one display take each other down**, and the wreckage reads as a rendering
+fault rather than as a collision: `b5_clearDisplay` exists to clear the Xvfb an aborted run
+left behind, and on the shared default `:99` it cannot tell that server from a live one. It
+now refuses where a `blocks5` is still attached to that display and names `B5_DISPLAY`, which
+is what separates two runs. Worth knowing before comparing screenshots from a parallel run:
+a frame taken while the server was going down is not evidence of anything.
+
+**The select screen's campaign list keeps the keyboard focus after a click**, which is
+deliberate — `GUI_ListBox` handles the same four keys — and is a trap for a test that picks a
+campaign and then presses End to reach the last level. The press goes to the list, which selects
+its own last entry and therefore *another campaign* at level 0, and the screenshot is of a level
+nobody asked for with nothing anywhere saying so. There is no list of levels to click instead —
+the screen has one list box and six buttons — so take the focus off it by clicking any of them,
+or drive the navigation by element name.
 
 **Two windows open themselves over the menu, and `b5_start` writes both markers away.**
 The CRT offer appears on a first start and the donation window once enough time has been
@@ -410,12 +440,18 @@ the emulation or the JavaScript does, and no measure of the hardware. **`interva
 `total` is what is left for it:** a frame rate that falls while `total` stays flat is time
 going somewhere this cannot see.
 
-**What counts as a late frame is the logic rate**, 20 ms, because that is the frame budget
-fifty times a second asks for — and the overlay counts against it twice, because the two
-questions come apart. A frame whose **interval** went over is one the player did not get; one
-whose **work** went over is one this game is responsible for. Under swiftshader the browser
-ran at 38 ms a frame on 2.7 ms of work: counting the work alone would have reported nothing
-wrong at 26 fps. Natively in the menu the two read 277 and 169 of 512.
+**The overlay counts two things against the logic rate, and the thresholds differ.** A frame
+whose **interval** went over is one the player did not get; one whose **work** went over is one
+this game is responsible for. Under swiftshader the browser ran at 38 ms a frame on 2.7 ms of
+work: counting the work alone would have reported nothing wrong at 26 fps.
+
+The interval is counted against **two** ticks and the work against one, and that asymmetry is
+load-bearing. The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of
+`mainLoopIteration` — so an interval threshold of one tick sits on the number the code is
+targeting and a millisecond of timer granularity trips it: the menu read **277 of 512 frames
+late while not one had been dropped**. A frame the player actually lost is an interval of two.
+The work has no such problem, because nothing aims it anywhere; one tick is simply the budget a
+frame has to fit inside.
 
 A third count stays at 500 ms, and it is a different question again: that is what Emscripten's
 OpenAL has scheduled ahead, so a frame past it is a hole in the music — in the browser only,
@@ -492,6 +528,307 @@ read `GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size at all.
 ones, `glGenFramebuffersEXT` first and the core spelling as a fallback; in the browser they
 are core and the header just `#define`s them through.
 
+**The tile grid is a vertex array, built once and drawn three times.** `Level::renderTiles`
+writes the layer into a `std::vector<QuadVertex>` whenever `layerDirty` says it changed and
+hands that to one `glDrawArrays(GL_QUADS)` out of client memory. The vertices carry a position
+and a texture coordinate and **no colour**, and that is the point: `Level::render` makes three
+passes over a layer — two shadow samples and the picture — differing in nothing but a
+`glColor` and a translate, so one built array serves all three. Six places set `layerDirty`,
+and between them they cover every way a tile or the picture it is cut from can move; a tile id
+alone would not, since the texture coordinates come from the `TileSet` and a skin change moves
+every tile without moving an id. Measured on the menu title demo, three interleaved runs of twenty
+seconds: the median frame's render half **2.1 ms → 1.7 ms**, against a spread within an arm of
+0.1 ms. The interval does not move, for the same reason it did not move for `?texunits`.
+
+**A whole render pass of sprites is one draw call.** `Level::renderObjects` opens a batch around
+its object loop (`Engine::beginSpriteBatch`), and while one is open `Engine::renderSprite` appends
+four `ColorQuadVertex` — a position, a texture coordinate and a colour of its own — instead of
+drawing. `flushSprites` puts the lot up with one `glDrawArrays(GL_QUADS)`. The colour has to be
+per vertex and not in `glColor`, because every object brings its own tint, death countdown and
+conversion ghost; a shared colour would flush at every object and there would be nothing left to
+batch. Measured in the browser, `?nobatch=1` against the default: **276 draw calls a frame → 35**
+in a played level, 243 → 48 on the menu's title demo, 314 → 72 on the level select. In the played
+level the median frame goes **3.90 ms → 2.40** and its render half **2.40 → 1.10**, against a
+spread within an arm of 0.90 and 0.30. The vertex count does not move — the same geometry, in a
+quarter to an eighth of the calls.
+
+Those five numbers were taken before the GL state layer learned to skip a call that sets what is
+already set, and the default arm has moved a long way since: the same flushes that were skipping
+nothing were also breaking the batch at every `renderSprite(Texture*)`, so the *shines* in a
+played level each got a draw call of their own. `LinuxBuild/test/frames.sh` reports sprite-batch draws per
+frame and quads per draw for five scenes on every run, and `WebBuild/test/perf.js` reports the
+frame's real GL draw calls beside its milliseconds; a fresh `?nobatch=1` comparison would now
+flatter the batch further still.
+
+**A sprite is drawn at the size it was given, odd numbers included.** `renderSprite` used to
+halve the size and span `size` texels over `size - 1` pixels, so anything odd came out a pixel
+short and resampled. `halfSize` and `otherHalf` split it instead, and mirroring swaps the two `u`
+coordinates rather than applying `glScaled(-1, 1, 1)`, which on an asymmetric quad would shift it
+a pixel. Two shipped screens change by a pixel because of it, and no `-nobatch` comparison can
+see either, since neither runs inside a batch: the 39x39 level-status stamp in the select screen
+(`gs_selectlevel.cpp`) and `Menu.Donate`, which is 100x43 in `menu.xml`. They are the only odd
+sizes in the tree — the rewind OSD, the shine, the note and every tile are even.
+
+**The transform is baked into the vertices, and that is what the batch costs.** A sprite is drawn
+under whatever matrix its caller pushed — `Object::render`'s translate to the cell, the squash of
+a teleporting object, the unbalanced `glTranslated` `Enemy` does inside its own `onRender`, the
+half pixel `Level::render` puts under the wires — and sprites from different objects cannot share
+a draw call while that lives in the matrix stack. So `queueSprite` reads it back with
+`glGetFloatv(GL_MODELVIEW_MATRIX)` and multiplies the four corners itself: one GL call in place of
+the fourteen to sixteen the immediate path made per sprite, and in the browser that read is a copy
+of sixteen floats out of a JavaScript array, not a pipeline stall.
+
+**The flush must therefore draw under `glLoadIdentity`**, and getting that wrong is invisible
+almost everywhere. The vertices already carry the matrix; leaving it applied puts it on twice. A
+level renders under an identity modelview almost everywhere — the camera shake and the half pixel
+under the wires are the exceptions, and either applied twice passes for the effect itself — so the
+game looked perfect until the level editor, which draws its object palette under
+`glTranslated(245, 428, 0)` and lost every sprite in it off the right of the screen. The five
+palettes are what caught it, as they caught the render-layer conversion before.
+
+**A queued quad is drawn with the state standing at the flush, not at the call.** There is no
+depth buffer in this 2D path, so painter's order is the only order there is: anything that draws,
+or that moves any state the queued quads will be drawn under, has to flush first. In the tree as
+it stands that is the texture binding, the texture matrix, the blend function and the framebuffer —
+nothing the batch can reach touches the scissor box, the colour mask, the stencil or the alpha
+test, and neither check would notice if something started to. `Engine::setBlendFunc`,
+`beginRenderToTexture`, `endRenderToTexture` and `acquireOffscreenTexture` flush themselves, and
+the object sources reach the texture state through **`GL::`** (`glstate.h`, which `pch.h` pulls
+in everywhere) — `setTexturing`, `bindTexture`, `deleteTexture`, `pushTexturing`/`popTexturing` —
+so the rule lives in one file instead of at a dozen call sites where it can be forgotten.
+
+**Only one of those still flushes, and only when something moves.** `GL::bindTexture` does, since
+what is queued was queued against the binding about to be replaced. `setTexturing` does not:
+`flushSprites` declares texturing for its own draw (`GL::beginBatchDraw`) and puts the game's
+wish back afterwards, which takes the enable out of the batch's state altogether. The texture
+matrix is the third piece and the one the first draft of the check was blind to; it has no entry
+point of its own, because **every absolute matrix this tree sets is a function of the binding** —
+a `Texture`'s own `1/w, 1/h`, or a screen copy's `1/pow2` with a flipped y — so `bindTexture`
+takes the two numbers it is made of as its second argument, there is no way to bind without
+saying how the picture is sampled, and the matrix is therefore not independent state at all. The
+weather is the one thing that wants more than a scale, and it composes its scroll on top of the
+bound picture's own inside a balanced push and pop of its own.
+
+**So the ordering is said where the drawing is.** The seven `onRender`s that draw raw geometry —
+the laser's and the light barrier's beam points, the lava's flow arrow, the censor bar, the
+projectile's point, the teleporter's target line and the speech balloon — each call
+`flushSprites()` themselves, plus the two lava passes, which draw raw quads under a texture bound
+from outside and so move no state that anything else would flush for. `drawQuadArray`'s two array
+forms and `LineDrawer::draw` flush at their own definition instead, because a built array is
+reached as a member or a local through layers of call that no static check can follow. `verify.py`'s `sprite_batch` check counts nothing else
+as a flush: it used to accept a `GL::` call or a `Texture::bind()`, which was true right up to
+the moment the comparison went in.
+
+`verify.py`'s `gl_state` check bans the raw forms there, scoped to what the batch can reach: the sources that define an `Object::onRender`,
+plus `texture.cpp` and `linedrawer.cpp`, which every one of them draws through, plus
+`Level::renderShine` and `Font::drawText` by name out of two files that are otherwise full of
+drawing with no batch open. The crossfades, the GUI and the credits are deliberately left alone,
+which is what keeps the ban something a reader can check.
+
+**`GLState` skips a call that sets what is already set, and what that is worth is not the calls —
+it is the draw calls.** The old measurement asked the wrong question: 28 redundant state calls of
+4833 GL entry points a frame, which is noise, and the answer was to leave the comparison out. What
+it missed is that each of those redundant calls *flushed the sprite batch*. A bind and a switch
+back off sit around every single `Engine::renderSprite(Texture*)`, which is what
+`Level::renderShine` is, so a level full of shines queued one quad and drew it, over and over.
+Measured with `LinuxBuild/test/frames.sh`, quads per draw call within one run: a night-vision
+level **1.1 → 19.0**, the level select **1.1 → 19.0**. The other three scenes do not move — the
+menu's title demo stays at 50.2 and a plain level at 4.0, neither of which has a shine in it, and
+the level editor at 21.5, whose palette has no shine in it either — and between 11% and 25% of
+the calls into `GL::` now do nothing at all, depending on the scene.
+
+**What made it affordable is that the two objections were answered rather than argued with.** The
+routing is complete: every raw `glBindTexture`, `GL_TEXTURE_2D` enable, `glDeleteTextures` and
+absolute texture matrix in the tree comes through `GL::`, which is what the `gl_doors` check
+says — a delete included, because GL reverts the binding to 0 when the bound texture is deleted.
+`presentFrame` keeps its raw calls inside `glPushAttrib(GL_ALL_ATTRIB_BITS)` and calls
+`GL::invalidate()` afterwards, since what the pop restores differs between the desktop and the
+browser and a record nobody can work out is better dropped than guessed. And the failure mode —
+a wrong picture rather than a slow one — is checked rather than reasoned about: a **native**
+test-hooks build reads the real binding, matrix and enable back on **every** call and reports a
+record that disagrees, `frames.sh` fails on any such line, and all five scenes come through
+silent. Not in the browser, where the same line is a WebGL `getParameter` per call and would
+swamp everything `perf.js` measures; what it looks for is the tree's own code, which is the same
+on both platforms.
+
+The `glPushAttrib(GL_TRANSFORM_BIT)` inside `GL::bindTexture` stays for a different reason:
+replacing it is safe as the tree stands, but it would leave the call with a silent precondition,
+and it would save nothing in the browser, where `glPushAttrib` issues no GL call at all.
+
+**The flush says which matrix stack it means**, and that is not pedantry. It draws under
+`glLoadIdentity` because the vertices already carry their modelview — but a flush happens wherever
+the state moves, `Texture::bind` included, and `Level::render` binds the snow and the clouds with
+`GL_TEXTURE` current. An unqualified `glPushMatrix` there would push, wipe and pop the *texture*
+matrix and leave the sprites under whatever modelview happened to stand. The batch is empty at
+that call today, which is the only reason it never showed. The `glPushAttrib(GL_TRANSFORM_BIT)`
+bracket costs three calls a flush on the desktop and two in the browser, where `gl_compat.cpp`'s
+push issues none — and it is the cheap half of a belt and braces rather than the whole answer,
+since a batch left *open* across the weather block would still be drawn under the texture matrix
+the weather scrolls, which no bracket at the flush can help with. What keeps that safe is that
+`endSpriteBatch` runs long before it.
+
+**`flushSprites` deliberately does not put the current `glColor` back.** Immediate mode left
+the last sprite's colour standing, and restoring it looked like the faithful thing to do. It is
+not: a flush happens wherever the state moves, which includes the middle of somebody else's
+drawing. `Font::renderText` sets its shadow colour and then calls `drawText`, whose first act is
+a bind — so the restore repainted every text shadow in the last sprite's colour.
+
+What the *spec* says about the other direction is worth knowing before the next renderer moves: a
+draw with `GL_COLOR_ARRAY` enabled leaves the current colour **indeterminate**, so a strict
+reading has `renderText`'s first shadow pass drawing in whatever the batch left. Measured, both
+targets keep it — llvmpipe answers `GL_CURRENT_COLOR` unchanged after an array draw, and
+Emscripten writes `GLImmediate.clientColor` only from a `glColor*` — so nothing is wrong today.
+It is the kind of thing that stops being true on a driver nobody here has.
+
+**In the browser the batched colour arrives unquantised**, the same effect the tile grid has: a
+`glColor4dv` inside `glBegin`/`glEnd` is truncated to a byte by Emscripten's emulation, and a
+float colour array is not. Object shadows, which are drawn at alpha 0.35, move by one grey level
+there. The desktop is byte-identical — the four editor palettes that do not animate hold 29 of the
+65 types between them, and all four come out unchanged. It follows that **`-nobatch` is not a
+byte-exact oracle in the browser**: it is one on the desktop, where the same frame reads back
+identically either way, and in the browser every batched sprite may differ by 1/255 from the
+immediate path for this reason alone.
+
+**The same array also loses the clamp, and that one is not cosmetic.** The game hands GL colours
+above 1 deliberately — `Level::renderShine` takes `deathCountDown * 5.0` from an exploding bomb,
+the teleport swirl ramps its red to 2.1, and the three spark bursts add half a level of red a tick
+until the particle has shrunk away, which lands between 5.5 and 25.5 — and relies on the hardware
+to cut them off. Desktop GL clamps a primitive colour *before* it multiplies the texel.
+Emscripten's emulation does not: dumping the vertex shader it generates for this game gives
+`v_color = a_color;`, and the `clamp` it can emit sits behind `GL_LIGHTING`, which this tree never
+switches on. So the browser computes `clamp(colour · texel)` where the desktop computes
+`clamp(colour) · texel` — at a red of 2.0 every texel above 0.5 saturates, and a soft glow comes
+out a hard-edged blob. `clampColor()` in `util.h` puts it back, in the two places a colour reaches
+GL without being cut off on the way — `Engine::queueSprite` and `ParticleSystem::render`, both
+colour arrays — and **only in the browser build**, because everywhere else the hardware has
+already done it. A colour array is the only unprotected path: every `glColor*` spelling the
+emulation offers funnels into one `glColor4f` that clamps each channel on the way in, inside a
+`glBegin` block and outside one alike, and a vertex attribute goes nowhere near it. ROADMAP item
+42 is how to stop paying for it on the CPU at all.
+
+**The cache is budgeted in quads, and the budget is shared.** `QUAD_BUDGET` (8192, half a
+megabyte of glyph geometry) replaces a cap of 32 *entries* per font, which was the wrong unit
+twice: an entry is a `std::vector<QuadVertex>` at 64 bytes a character, so thirty-two keycaps
+and thirty-two wrapped help pages were the same number and two orders of magnitude apart — and
+four fonts holding 32 each was not one budget but four. Eviction now takes the oldest entry of
+any live font, from a registry `Font` keeps of itself, so a font that is barely used stops
+holding what a busy one needs. The stamp is a counter and not `SDL_GetTicks()`, which wraps at
+49.7 days and after that makes every standing entry look newer than every fresh one — a cache
+that evicts what it has just built, for ever.
+
+**`renderText` takes a `cache` flag for a string whose layout will not be asked for again**, a
+parameter and never part of the key, which would double every entry asked for both ways. One
+caller uses it: the credits, whose `charScaling` is `0.75 + 0.25 * alpha` and animated, so both
+of their draws build a key no frame will use twice. Measured over six seconds of credits,
+**212 evictions → 0** and the cache holding 42 entries of throwaway text → the menu's own 10.
+The hit rate there stays 0% and correctly so; what changed is that those misses no longer
+destroy anything else.
+
+**What the measurement said about the rest of it is that it was already working.** Across the
+five oracle scenes plus the help page, every lookup hits — 100% of 1530 on the menu, of 1088 on
+the help page — with zero evictions, and the most the cache ever holds is 825 quads, 52 KB. The
+memory was never the problem in practice; the unit and the missing ceiling were.
+
+**Measuring is cached too, in two tiers, and the first of them costs nothing.** `measureText`
+used to walk the string every time it was asked, and it was asked about twice as often as
+anything was drawn — `fitText` runs a binary search with one per probe, `adjustText` one per run
+and per line. A laid-out string now carries its own dimensions, so everything that is both
+measured and drawn is measured for free: that is every GUI widget, each of which asks its
+caption's size in the `onRender` that draws it. The second tier is for the strings nothing draws
+— the runs `adjustText` wraps, the candidates `fitText` probes — and holds dimensions and no
+geometry, which for those would be 64 bytes a character that never reaches the screen.
+
+**Measured, every measure in the frame oracle's five scenes was a walk and none is**: 1026 on the
+menu, 190 on the level select, 1015 in a night-vision level, 315 in a plain one and 264 in the
+editor, all to zero, with the same five frames byte-identical. The help page, which is the most
+text this game wraps at once, goes from 2448 walks to **66 of 2376** — and those are the
+deactivated `GUI_EditBox` behind the page asking for character positions on every frame.
+
+**That path is uncached on purpose.** The positions depend on the `offset` the caller passes,
+which is no part of the key, and there is one per byte of the string; the four callers are the
+edit boxes, of which one is on screen at a time.
+
+**The dimensions cache is budgeted in bytes of key** — an entry is two numbers, so what one costs
+is how long its key is — and nothing in the game comes near it: the help page holds 22 entries and
+1.1 KB, the five oracle scenes six between them. `DIM_BUDGET` is 64 KB, a ceiling for the one
+shape that could grow without one, which is stepping through a campaign: every level measures a
+fresh set of `fitText` candidates, and a folder of single levels has no length anybody promised.
+
+**Two orderings inside it are load-bearing.** The dimensions are measured *before* the geometry
+entry is inserted, because `measureText` reads that same cache and an entry standing in it but not
+yet measured would answer with whatever was in the field. And `lookUpText` holds a *copy* of its
+key across the build, because `cacheKey` returns a reference into one buffer per font and the
+measure builds a key of its own into it.
+
+**Text is the same arrangement, keyed on what it was laid out with.**
+`Font::renderText` looks a string up in a cache of 32 laid-out entries — the glyph quads and,
+in a batch of their own, the keycap frames, which carry no texture — and draws them three
+times: twice as a shadow, once as the text. The key is the string together with every option
+the layout depends on (`tabSize`, `charSpacing`, `lineSpacing`, `charScaling`, `italic`), and
+deliberately not `shadows`, which changes nothing that is built. **That key is what lets
+`setOptions` leave the cache alone.** It used to empty the whole of it whenever any of those
+five changed, and the callers change them constantly — a speech balloon sets `italic` and puts
+it back on every frame it is on screen, the credits animate `charScaling` — so one balloon
+threw away every cached string in the GUI twice a frame. Measured in the browser on the help
+page, the most text the game puts on one screen: the median frame's render half **3.1 ms →
+2.5 ms**; on the menu 1.7 → 1.5, in the level editor 0.9 → 0.8.
+
+**A colour set inside `glBegin`/`glEnd` is quantised to a byte in the browser; the same call
+outside one is not.** Emscripten's GL emulation writes a `glColor4f` issued between the two
+into its vertex buffer as four unsigned bytes and reads the attribute back normalized, where
+outside a block it becomes a constant `vertexAttrib4fv` at full float. The shadow pass's alpha
+of 0.35 therefore used to arrive as 89/255, and now arrives as 0.35 — one four-hundredth
+stronger, which puts 40 of the 256 possible background values one level lower. Measured on
+the level editor: 3230 of 512000 pixels differ by exactly one, every one of them inside a
+tile shadow, and building the new path with the alpha quantised the old way reproduces the
+old screenshot byte for byte. The desktop never had it, where the colour has always been the
+float the code asked for — the same screen read back from the framebuffer at 640x480 is
+byte-identical before and after. Worth knowing before the next renderer moves: every colour
+the remaining `glBegin` blocks set is truncated down to the next 1/255 — a weaker alpha and
+a darker tint than the code asks for.
+
+**A render layer is a pass, and it has a name.** `renderlayer.h` holds the twelve `RL_*` that
+`Level::render` walks in order, and each is a single bit, so an object's set of them is the OR
+of the ones it draws on. `Object::getRenderLayers()` is a plain member behind an inline getter
+and deliberately **not** a virtual: asking costs a load, and — the real reason — a subclass
+cannot then answer differently from the `onRender` it inherits. The mask may name a layer the
+object is not drawing this frame and may never omit one it is, so `say()` and `flash()`, which
+draw from `Object::render` rather than from `onRender`, add their bit and never remove it.
+
+`Level::renderObjects` skips an object whose bit is clear, which is most of them on most
+passes. **That is worth almost nothing in milliseconds and was measured before it was built**:
+adding 27,720 no-op matrix operations per frame costs 1.0 ms, so removing the 2,772 that the
+old unconditional bracket spent was worth 0.1 ms, and the finished change measures 1.7 ms of
+render against 1.6. It earns its place as names rather than as speed — and it earned it
+immediately, by making a dead pass visible. `renderObjects(735, …)` walked all 84 objects with
+a matrix bracket and a virtual call each, and no `onRender` in the tree had ever handled 735.
+
+**The trap it set on the way in is what `verify.py`'s `render_layers` check is for.** The values
+moved, so every surviving magic number — `layer == 939`, `layer != 18` — became either meaningless
+or the wrong layer; and C++ compares an enum to an int without a word, so five such lines built on
+all three platforms and were simply never true. The sprite texture stopped being bound for the
+lava passes, the wires lost their offset, the speech balloons stopped appearing. The five palette
+levels are what caught it: `cat0`..`cat4` hold an instance of 60 of the 65 types `instancePreset`
+knows, so walking them draws all but two of the `onRender`s in the tree — `Damage` and
+`Projectile`, which the game spawns during play and no palette can place — and four of the five
+are byte-identical across a change like this. The fifth is `cat1`, whose two
+ConveyorBelts start their band at `random(0, 6)` in the constructor, so it differs run to run by
+a couple of hundred pixels unless the generator is seeded. `frames.sh` does seed it — `B5_SEED`,
+and `cat1` is the tab its editor scene opens, reproducible over repeated full runs — so the
+palette that used to be the awkward one is now the one under the oracle.
+
+**There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
+They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
+all — so every place that used one carried a browser path of its own under `#ifdef
+__EMSCRIPTEN__`, and a stub in `gl_compat.cpp` so the browser would link. The `display_lists`
+check reports `glNewList` and its six relations in either build: added back, one would compile
+on Windows, link on Linux and misbehave only in the browser, which is the build nobody runs
+first. The three that used them are the tile grid, the font and `Lightning`, whose two passes
+are built when the bolt is generated and then drawn unchanged for the forty frames it takes to
+fade — only the colour and the alpha move. `quadarray.h` is where the three meet: `QuadVertex`,
+a position and a texture coordinate and no colour, and one `drawQuadArray` so that the
+client-state dance is written once rather than three times.
+
 **Four upscale filters, and each is a class.** `upscaler.h` holds the base — a name, a
 texture filter, `present()`, whether it wants a whole-number scale, whether it distorts the
 cursor, and its own `loadConfig`/`saveConfig` — plus `PresentContext` (everything the Engine
@@ -524,7 +861,19 @@ is what the old twelve-slot struct did, and why `convergence` was once left unse
 hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
 sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
 
-**Anything that reads the rendered frame must bind the FBO itself.** The main loop binds it
+**Anything that reads the rendered frame must bind the FBO itself**, and `Engine::encodeFrame`
+is the second half of that rule: it binds the frame buffer before `glReadPixels` rather than
+reading `GL_COLOR_ATTACHMENT0` of whatever stands bound. Its two callers inside the main loop
+have it bound already — the screenshot key and the video recorder both sit in the
+`frameRendered` block, above the `unbindFrameBuffer()` that precedes the present — but the
+test hook asks from the *frozen* branch, where no iteration has rendered and the last present
+left the window's own viewport standing. What came back then was the frame rasterized at 2x
+under a 1280x960 viewport, of which a 640x480 read takes one quarter, so **the frame oracle
+compared a doubled quarter-screen for as long as it existed** — silently, because a doubled
+quarter is perfectly reproducible. `frames.sh` now fails any capture whose every row *and*
+every column pair is a copy, which is the shape of an integer upscale whatever caused it.
+
+The main loop binds it
 only on an iteration that ran a logic tick. Natively there is no other kind, because the
 `SDL_Delay` at the foot of the loop stretches every iteration to at least one tick; in the
 browser `requestAnimationFrame` sets the pace instead, so at 16.7 ms against a 20 ms tick most
@@ -748,8 +1097,7 @@ ROADMAP items 2 and 11.
 `SDL_OPENGL | SDL_RESIZABLE` for the whole life of the process and must stay that way** —
 `DIB_SetVideoMode` keeps the GL context only on its fast path, which requires the flags and
 bpp to be unchanged and `SDL_FULLSCREEN` to be clear. Setting `SDL_FULLSCREEN` or
-`SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and takes every texture, display list and the
-FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
+`SDL_NOFRAME` runs `WIN_GL_ShutDown` instead and takes every texture and the FBO with it. So fullscreen is *not* an SDL flag here: `applyWindowStyle` sets the Win32
 style to `WS_POPUP` and the size to the desktop directly, SDL notices through its own
 `WM_WINDOWPOSCHANGED` and posts an ordinary `SDL_VIDEORESIZE`, and `handleResize` — the one
 place that owns `displaySize` — picks it up. Dragging the border and Alt+Enter therefore
@@ -1001,6 +1349,44 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
 
+**Nothing in the render path draws a random number.** `onRender` runs once per *frame* while
+the logic runs at a fixed 20 ms, so a `random()` inside one shimmers at the frame rate: the
+same glow was a strobe at 25 fps and a smooth haze at 200, which made the effect a different
+effect on every machine. Thirteen `onRender`s did that, and `Level::render` did it twice more
+for the night vision's noise offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
+`frameBegin()`, and `noiseOffset1`/`noiseOffset2` are redrawn in `Level::update()` — both once
+per tick, the same place and for the same reason the flash decays there.
+
+One jitter per object and not one per use: an object's own draws in a frame therefore move
+together, which nothing can see, while different objects stay independent, which is the part
+that reads as a field of lights. It is drawn for *every* object rather than only the ones that
+glow, because a draw from the shared generator has to happen the same number of times whatever
+is on screen, or a frame stops being reproducible from a seed. An object that is never updated —
+an editor palette, a level select preview — keeps the 0 it was built with, which is exactly the
+brightness the caller asked for.
+
+**Three seeded streams, not two.** `Engine::render` and `Engine::update` each reseed from
+`testSeed()` and the scene's tick — the odd half and the even half — which is what makes a
+frame reproducible however many renders a machine fits inside one 20 ms tick. A **level load**
+falls between ticks, where neither reaches, and a level's objects draw from the generator in
+their constructors: a `Diamond` is `setAnimation(4, 5)` over an `anim` that starts at
+`random(0, 100000)`. So the phase every object starts on continued a sequence whose length
+depended on how many frames the machine had managed on the way there, and the same diamond
+stood on a different animation frame from one run to the next — 178 pixels of `plain.png`,
+invisible for as long as the oracle was capturing a quarter of the screen. `Engine::seedForLoad`
+is the third stream, called from the `Level::load` that both overloads come through, offset
+`0x40000000` clear of the tick's two. It is declared without a guard because
+`BLOCKS5_TEST_HOOKS` does not reach `level.cpp`, and is an empty function in a normal build.
+
+**All of it is night-vision-only**, which is what bounds the change: `Level::render` walks
+`RL_LIGHT` inside `if(nightVision && !inEditor)`, so a level without night vision draws no
+shines at all. Of the frame oracle's five scenes only the two night-vision ones moved.
+
+The one place a per-frame random is still right is `CF_Rewind`: a tape's snow, tracking jitter
+and seam shift belong to an analogue signal that is synchronised to nothing, and the effect
+lasts a second and a half. It is also why a rewind transition cannot be captured by a
+byte-exact oracle.
+
 **Something that reacts lights up.** `Object::flash()` sets `flashAmount` to `FLASH_STRENGTH`;
 `frameBegin` decays it by `FLASH_DECAY` per tick and `Object::render` draws the object's own
 sprites over themselves once more, additively, at that brightness — about eight ticks, a
@@ -1040,7 +1426,8 @@ the texel they came from — `OUT_BRIGHT` and `OUT_END` are both 1, so only the 
 Glowing sparks read as welding, and the machine is handed rock, ice and grass as readily as
 metal. Additive blending was never an option either: there the result depends on the
 background, and the same brown would be an ember over rock and a glare over grass. The inward
-motes *do* start above 1, where GL clamps to [0,1] — but that is not a glow, it is the way
+motes *do* start above 1, where GL clamps to [0,1] (in the browser `clampColor()` does it
+instead — see the presentation section) — but that is not a glow, it is the way
 around a green cast, since a linear ramp from a blue block to the diamond's warm white passes
 straight through green (measured 0.16 at t=0.6, 0.05 once over-brightened).
 
@@ -1460,6 +1847,47 @@ the player would otherwise get that something of theirs is gone. A campaign is c
 `isImportableArchive` *before* the copy, so a damaged archive cannot destroy a good one of the
 same name.
 
+**A scrolling texture offset is reduced to one period, and that is a phone bug.**
+`wrapTextureOffset` (`util.h`) is called on all five scrollers - the menu's title clouds, the
+level's rain, snow and clouds, and the lava - because each of them scrolls by an offset that had
+been growing since the level began. A texture coordinate reaches the fragment
+shader as a *varying*, and the shader Emscripten's GL emulation builds opens with
+`precision mediump float;` with the texcoord varyings declared under it: ten mantissa bits,
+which a desktop GPU implements as fp32 and a phone actually honours. The step it quantizes to
+is **offset/2048 texels**, so the clouds - moving one texel a tick - drift smoothly for about
+forty seconds and then go visibly steppy, and the rain, at twenty texels a tick, crosses the
+same line in two seconds. Nothing is wrong on any desktop, which is what makes it hard to see.
+
+Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a
+whole number and samples the same texel. Verified against the real matrix order - bind's
+`1/w,1/h`, the scale, the translate and the rotate - for the four weather scrollers, deviation
+0.000e+00 at offsets up to 900000. Two things to keep right: the wrap goes **after** the `sin`
+that reads the same offset, whose phase has to follow the unwrapped value, and the period is the
+*texture's* own size, since a skin brings its own art.
+
+**The lava is the one whose period is not the texture**, and getting it wrong is a jump of half
+a tile. Its four `wrapTextureOffset` cousins hand GL a texture matrix; `Lava::onRender` writes
+the texels into `glTexCoord2d` itself, on a 16x16 sub-texture cut out of the skin's sprite sheet
+by `createSubTexture` - a real 16x16 texture of its own, so `GL_REPEAT` wraps at 16. But the
+front pass halves the *whole* coordinate (`t /= 2.0`) before it draws, so a jump of 16 moves
+that pass by eight texels and only 32 moves it by a period. `SCROLL_PERIOD` is therefore twice
+the tile, which is also exact for the back pass at two periods. The `shift` beside it is
+`2·sin(0.1·anim)` and `3·cos(0.05·anim)`, and `anim` stays unwrapped for it: neither of those
+periods divides 32, so wrapping what feeds them would jog the wobble every time it came round.
+Measured over `anim` 0..900000, both signs and both axes, the sampled fraction agrees to 4e-12
+of a texel; the same wrap at 16 puts the front pass out by exactly 0.5.
+
+**The angle those sines are given needs no such care**, and the arithmetic is worth having
+once: they are `double` throughout, so one ULP at argument *A* is `A/2^52`. The snow's
+argument grows at 0.2 rad/s and its sine is scaled by 500 pixels, so half a pixel of error
+needs 1.7e-3 rad and arrives in about **700 000 years**; after 25 days of rain - the fastest
+of them - one ULP is 9.6e-9 rad. What runs out first by a wide margin is the millisecond
+counter feeding it: `Level::time` is `int` and undefined after **24.9 days** in one level,
+`GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7. All three reset on entering a
+level or the menu, so reaching any of them means a machine left on one screen for weeks. In
+`float` the same rain argument would have a ULP of 4 radians, which is the same distinction
+as the `mediump` one above, two steps further along.
+
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two
 texture as pure black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL
 error, and the default is `GL_REPEAT` — which rain, snow and clouds genuinely need, since
@@ -1639,10 +2067,37 @@ anything else through untouched: while a new worker installs, the old one is sti
 and without that it would pull the new build's payload into its own doomed cache — both
 bundles on disk for the duration.
 
-`WebBuild/htaccess` ships as `.htaccess` beside `index.html` with the matching headers:
-a year of `immutable` for the stamped three, `no-cache, must-revalidate` for `index.html`,
-`sw.js` and `manifest.json`, `AddType application/wasm`, and `ModPagespeed off` — there is
-nothing here for a rewriter to improve, and it has already done damage.
+**`touch_controls.js` carries a stamp of its own**, `touch_controls-<hash>.js`, and the hash
+is the md5 of that one file rather than the payload's. Reusing the build stamp would be worse
+than leaving it unstamped: it hashes the three payload files, so a pad-only edit would not
+move it, the URL would not move either — and the file would then be served `immutable` for a
+year instead of for a few heuristic hours. Measured: editing the pad moves
+`8cb19d724ef9` → `3aa14d7f1448` while `blocks5-164c6a033fd7` stays put, so a 17 KB change
+drags no part of the 13 MB payload with it. `build.sh` rewrites the name in both pages and
+substitutes `%%PAD%%` into `sw.js`, the same way it already does for `blocks5.js` and
+`%%BUILD%%`.
+
+**Two files can never carry a stamp**, which is why the header half still exists:
+`index.html` is where the stamps are written down, and `sw.js` is registered under a fixed
+URL — a stamped one would leave the old worker alive under the old name. `WebBuild/htaccess`
+ships as `.htaccess` beside `index.html`: a year of `immutable` for anything stamped,
+`no-cache, must-revalidate` for everything that is not — those two plus `blocks5.html`,
+`manifest.json` and the four icons — `AddType application/wasm`, and `ModPagespeed off`.
+The icons and the manifest could be stamped and are not, because they change once in a few
+years and the manifest would have to be generated rather than copied to name them.
+
+**That list is every unstamped file and not a chosen few, because the gap is silent.** A
+file with neither a stamp nor a rule gets a *heuristic* lifetime in the browser, a fraction
+of its age, and then goes stale with nothing anywhere to say so. The pad was exactly that
+before it was stamped: a new build's page and payload arrived, the on-screen pad did not, and
+only a private window showed the new one. **The service worker cannot fix that and it is
+worth knowing why**: a subresource the browser's HTTP cache still thinks fresh never reaches
+the worker at all. Measured on a reload, the pad came back with `workerStart` 0,
+`transferSize` 0 and `deliveryType` "cache" — so fetching it inside the worker with
+`cache: 'no-cache'` changes nothing, and with a header in place the same measurement reads
+`workerStart` 79.7 and the new bytes arrive. The worker's network-first branch is what keeps
+the page working offline; freshness is the URL's job, and the header's only where there can
+be no stamp.
 
 **`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap
 grows exactly once, to 40 MiB, and stays there through the loading screen, the menu, the
@@ -1795,8 +2250,8 @@ long that even the frame does not fit.
 
 The cut may not land inside `<h>…</h>`, so `fitText` drops a half-cut tag entirely and closes
 whatever it left open. **`<h>` ends with the string it began in**, and both `measureText` and
-`renderTextPure` now enforce that with a counter: the option stack they push on belongs to the
-`Font` and not to the text, and `renderText` caches a display list per string, so markup could
+`buildText` now enforce that with a counter: the option stack they push on belongs to the
+`Font` and not to the text, and a string is laid out on its own, so markup could
 never have carried across a call anyway. An unclosed `<h>` used to leave `italic` set and an
 entry on the stack for the rest of the run; an extra `</h>` used to pop the *caller's* entry,
 or `top()` an empty stack — a level titled `</h>Hello` crashed the game, and a level title is
@@ -1972,12 +2427,39 @@ filenames, shipped zipped in `levels/campaigns/`.
 - Every `src/*.cpp` uses the precompiled header: `#include "pch.h"` must be the first line
   (`pch.cpp` is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, GLU,
   OpenAL, libvorbis, TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers
-  (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`), so don't re-include those.
+  (`singleton.h`, `vec.h`, `typedefs.h`, `util.h`, `manager.h`, `glstate.h`), so don't
+  re-include those. `glstate.h` is in that list rather than per file because every source that
+  draws reaches `GL::`, and a forgotten include is then the one way to get a raw
+  `glBindTexture` past the `gl_state` check.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj`
   **and** `Blocks5.vcxproj.filters`. `Tools/verify.py` checks this — nothing else will,
   since the Emscripten build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
   `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`).
+- **A rename goes through a tool that parses the code, never through a text
+  substitution.** `clang-rename` and `clang-change-namespace` are installed
+  (LLVM 18, `/usr/lib/llvm-18/bin/`), and `sh Tools/compile_db.sh` writes the
+  `compile_commands.json` they need — asking `LinuxBuild/build.sh flags` for
+  the real compile flags rather than keeping a copy of them, because a database
+  with its own idea of the include paths has a refactoring tool parsing a
+  different program from the one that ships. The file is a build product and is
+  gitignored.
+
+  ```
+  sh Tools/compile_db.sh
+  clang-rename-18 -i --qualified-name='Texture::bind' --new-name='...' Blocks5/src/*.cpp
+  ```
+
+  The reason is not tidiness. A `sed` over `GLState::` → `GL::` also rewrites
+  `GLState::GLState`, the constructor of the struct of that name — measured:
+  `clang-rename` asked for the same namespace rename leaves that line alone,
+  and `sed` breaks it. The same shape waits wherever a member, a local or a
+  word inside a comment or a string literal shares a name with the thing being
+  renamed. What saves a blind replacement here is that `Tools/syntax.sh`
+  compiles all 123 sources in seconds, so the mistake is a compile error
+  rather than a silent one — but that is a backstop, not a method, and it
+  catches nothing that still compiles.
+
 - **A comment says what the code does and why, never what it used to do.** The reader is
   looking at the current code; the previous version is in the history, and an account of it in
   the file is noise they have to read past. No "used to be", no "this was moved from here", no
@@ -1997,7 +2479,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other sixteen**, and the reason is a file it did not
+  **That check reads further than the other eighteen**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

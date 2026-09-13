@@ -2,8 +2,9 @@
 //
 // Emscripten's -sLEGACY_GL_EMULATION covers most of the fixed-function
 // pipeline this game uses: glBegin/glEnd, the matrix stack, glColor4d,
-// glVertex2i. Twenty of the eighty GL entry points used are only declared and
-// never defined, though, which makes the link fail on them - those are here.
+// glVertex2i. Thirteen of the GL entry points the game calls are only declared
+// and never defined, though, which makes the link fail on them - those are the
+// thirteen here.
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <cstring>
@@ -24,16 +25,6 @@ GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble* params) {
 	glGetFloatv(pname, tmp);
 	for(int i = 0; i < 16; ++i) params[i] = (GLdouble)tmp[i];
 }
-
-// --- 2. Display lists ----------------------------------------------------------
-// WebGL has none, and Emscripten does not reimplement them. The three places
-// that use them - font.cpp, level.cpp, lightning.cpp - draw directly in the
-// browser; these stubs exist only to make the link succeed.
-GLAPI GLuint GLAPIENTRY glGenLists(GLsizei)          { return 1; }
-GLAPI void   GLAPIENTRY glNewList(GLuint, GLenum)    {}
-GLAPI void   GLAPIENTRY glEndList(void)              {}
-GLAPI void   GLAPIENTRY glCallList(GLuint)           {}
-GLAPI void   GLAPIENTRY glDeleteLists(GLuint, GLsizei) {}
 
 // --- Row length on upload ------------------------------------------------------
 // texture.cpp uploads a region of an SDL surface and sets GL_UNPACK_ROW_LENGTH
@@ -70,7 +61,7 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 	delete[] p_tight;
 }
 
-// --- 3. The attribute stack ----------------------------------------------------
+// --- The attribute stack ----------------------------------------------------
 // Emscripten has neither glPushAttrib nor glPopAttrib, and leaving them empty
 // would not be survivable: Texture::bind() sets GL_TEXTURE as the matrix mode
 // and restores it through glPopAttrib(GL_TRANSFORM_BIT). Without that the mode
@@ -84,7 +75,13 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 // lava.cpp and teleporter.cpp depend on it.
 //
 // The game uses three masks - GL_TRANSFORM_BIT, GL_ENABLE_BIT and
-// GL_ALL_ATTRIB_BITS - which is why the mask is honoured, not ignored.
+// GL_ALL_ATTRIB_BITS - which is why the mask is honoured, not ignored. Test
+// each bit on its own and never against GL_ALL_ATTRIB_BITS: that one is
+// 0x000FFFFF and contains both of the others, so "mask & (GL_ENABLE_BIT |
+// GL_ALL_ATTRIB_BITS)" is "mask != 0" and every push would restore
+// everything. Desktop GL restores exactly what it was asked to, and a
+// browser that restores more is a divergence nothing on this machine can
+// see.
 static GLenum currentMatrixMode = GL_MODELVIEW;
 
 // Only the capabilities this game actually toggles - that keeps each saved
@@ -150,9 +147,9 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 	if(attribDepth >= (int)(sizeof(attribStack) / sizeof(attribStack[0]))) return;
 
 	const AttribFrame& f = attribStack[attribDepth];
-	if(f.mask & (GL_TRANSFORM_BIT | GL_ALL_ATTRIB_BITS))
+	if(f.mask & GL_TRANSFORM_BIT)
 		glMatrixMode(f.matrixMode);
-	if(f.mask & (GL_ENABLE_BIT | GL_ALL_ATTRIB_BITS))
+	if(f.mask & GL_ENABLE_BIT)
 		for(int i = 0; i < numTrackedCaps; ++i)
 			if(f.enabled[i] != capEnabled[i])
 				f.enabled[i] ? glEnable(trackedCaps[i]) : glDisable(trackedCaps[i]);
@@ -164,7 +161,7 @@ GLAPI void GLAPIENTRY glPopAttrib(void)
 GLAPI void GLAPIENTRY glReadBuffer(GLenum) {}
 GLAPI void GLAPIENTRY glDrawBuffer(GLenum) {}
 
-// --- 4. gluLookAt --------------------------------------------------------------
+// --- gluLookAt --------------------------------------------------------------
 // Emscripten's own gluLookAt does nothing at all. libglemu.js calls
 //
 //     mat4.lookAt(GLImmediate.matrix[cur], eye, center, up)

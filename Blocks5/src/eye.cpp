@@ -9,6 +9,7 @@ Eye::Eye(Level& level,
 		 const Vec2i& position,
 		 int dir) : Object(level, 2)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_DESTROYABLE | OF_NO_SHADOW;
 	this->dir = dir;
@@ -32,10 +33,10 @@ void Eye::updateSprites()
 	}
 }
 
-void Eye::onRender(int layer,
+void Eye::onRender(RenderLayer layer,
 				   const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Eye::onUpdate()

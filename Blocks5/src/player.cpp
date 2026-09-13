@@ -20,6 +20,7 @@ Player::Player(Level& level,
 			   uint character,
 			   bool active) : Object(level, 0)
 {
+	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRIGGER_PANELS | OF_TRANSPORTABLE | OF_BURSTABLE;
 	destroyTime = 1;
@@ -112,16 +113,18 @@ void Player::updateSprites()
 	}
 }
 
-void Player::onRender(int layer,
+void Player::onRender(RenderLayer layer,
 					  const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
-	else if(layer == 16)
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
+	else if(layer == RL_EFFECT)
 	{
 		if(censored)
 		{
-			// render the censor bar
-			glDisable(GL_TEXTURE_2D);
+			// render the censor bar. Raw geometry, so the queued sprites have
+			// to go up first: they belong underneath it.
+			Engine::inst().flushSprites();
+			GL::setTexturing(false);
 			glPushMatrix();
 			glTranslated(8.0, 8.0, 0.0);
 			glRotated(10.0, 0.0, 0.0, 1.0);
@@ -139,7 +142,7 @@ void Player::onRender(int layer,
 			glVertex2i(-35, 13);
 			glEnd();
 			glPopMatrix();
-			glEnable(GL_TEXTURE_2D);
+			GL::setTexturing(true);
 
 			Font* p_font = GUI::inst().getFont();
 			std::string text = localizeString("$G_CENSORED");
@@ -149,9 +152,9 @@ void Player::onRender(int layer,
 			level.getSpritesTexture()->bind();
 		}
 	}
-	else if(layer == 18)
+	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + random(-0.05, 0.05));
+		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + 0.05 * glowJitter);
 	}
 }
 

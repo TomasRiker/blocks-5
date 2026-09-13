@@ -7,6 +7,7 @@ Arrow::Arrow(Level& level,
 			 const Vec2i& position,
 			 int dir) : Object(level, 255)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_ARROWTYPE;
 	this->dir = dir;
@@ -27,10 +28,10 @@ void Arrow::updateSprites()
 	sprite.rotation = 90.0 * shownDir;
 }
 
-void Arrow::onRender(int layer,
+void Arrow::onRender(RenderLayer layer,
 					 const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Arrow::onUpdate()

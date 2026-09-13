@@ -12,6 +12,7 @@ Elevator::Elevator(Level& level,
 				   const Vec2i& position,
 				   int dir) : Object(level, 300)
 {
+	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_ELEVATOR;
 	this->dir = dir;
@@ -69,10 +70,10 @@ void Elevator::updateSprites()
 	sprites.add(Vec2i(frame * 32, 352));
 }
 
-void Elevator::onRender(int layer,
+void Elevator::onRender(RenderLayer layer,
 						const Vec4d& color)
 {
-	if(layer == 1) Engine::inst().renderSprites(sprites, color);
+	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Elevator::onUpdate()
