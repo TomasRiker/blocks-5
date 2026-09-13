@@ -18,9 +18,9 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
-# Ask build.sh for its own variables instead of duplicating them: it is a
-# shell script, so sourcing the first fifty lines gets INC and CXXFLAGS
-# exactly as the compiler sees them.
+# Ask build.sh for its own flags instead of duplicating them: "flags" makes
+# it print CXXFLAGS, include paths and all, exactly as the compiler sees
+# them, and stop.
 CXXFLAGS="$("$ROOT/LinuxBuild/build.sh" flags)"
 
 python3 - "$ROOT" "$CXXFLAGS" <<'PY'

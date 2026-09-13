@@ -204,7 +204,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twenty-one static checks over the whole tree
+python3 Tools/verify.py      twenty-three static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -894,7 +894,7 @@ are matters of taste rather than tuning.
 first start, with a button that switches it on there and then. The marker is `.crt_offered` in
 the user directory, the same idiom as `.donation_asked` — absent on a clean install *and*
 after an upgrade, which is exactly the set of people who have not seen the filter. Skipped
-where `canUseCrt()` is false or the filter is already CRT, and it suppresses the donation
+where the CRT filter reports itself unavailable or is already the one in use, and it suppresses the donation
 window for that one start so the two never stack.
 
 The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
@@ -1106,8 +1106,7 @@ sees a bare Return.
 
 **A window that stops presenting loses control of what it shows.** While the app is inactive
 the main loop skips both the logic and the rendering, but it must still put the last frame up
-— `showLastFrame()` does that every 50 ms (unbind, `presentFrame`, swap; `renderAndPresent`
-is the same plus a render). A bare `SDL_GL_SwapBuffers` without drawing is not enough: it
+— `showLastFrame()` does that every 50 ms (unbind, `presentFrame`, swap). A bare `SDL_GL_SwapBuffers` without drawing is not enough: it
 flips to the other buffer and shows the frame before the last one. And a full-screen popup is
 exactly the shape Windows may hand a direct scanout path, after which the compositor's own
 copy of the window stops being updated — with the Start menu open over one, the game showed a
@@ -1469,7 +1468,7 @@ need; a field none of them knows about would otherwise arrive as a random number
 
 **The hint note is one texture, and it unrolls.** Standing on a note (`hint.cpp`) flies a
 300x400 sheet of paper to the middle of the screen. Paper and text are drawn *together* into
-one 512x512 texture (`Engine::getOffscreenTexture` + `beginRenderToTexture`), so the writing
+one 512x512 texture (`Engine::acquireOffscreenTexture` + `beginRenderToTexture`), so the writing
 belongs to the sheet: it flies with it, turns with it and rolls up with it, instead of
 appearing on top once the sheet has landed. Two things about that texture are worth knowing.
 It is drawn with (0,0) at the top left like everything else in the game, so it ends up
@@ -2297,7 +2296,7 @@ because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`
-elsewhere, and answers only `de` or `en` — every one of the 386 IDs in `languages.txt` has
+elsewhere, and answers only `de` or `en` — every one of the 440 IDs in `languages.txt` has
 an English body and a German one and nothing else, so detecting `fr` would give a wholly
 English game that merely believed otherwise. The one `§fr:` and the one `§es:` in that file
 are the lines of its own header explaining what the tags mean. It runs only when
@@ -2479,7 +2478,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other eighteen**, and the reason is a file it did not
+  **That check reads further than the other twenty-two**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

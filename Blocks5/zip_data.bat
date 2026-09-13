@@ -13,9 +13,9 @@ REM lines with nothing saying why.
 REM
 REM The py launcher first, then python on the path. Asked with a run that has
 REM nothing to do, and checked with IF ERRORLEVEL rather than with ||: single
-REM line IFs only, no bracketed blocks and no GOTO - this file, like the rest
-REM of the tree, has no Windows-style line endings, and cmd miscounts when it
-REM jumps in such a file.
+REM line IFs only, no bracketed blocks and no GOTO - this file has LF line
+REM endings, as the other packing scripts do, and cmd miscounts when it jumps
+REM in such a file.
 SETLOCAL
 SET "PY="
 py -3 -c "" >NUL 2>&1

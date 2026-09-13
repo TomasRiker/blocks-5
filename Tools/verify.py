@@ -335,8 +335,6 @@ def check_project_files():
     for f in sorted(os.listdir(SRC)):
         if not f.endswith(('.cpp', '.h')):
             continue
-        if f == 'pch.cpp':          # the Create-PCH unit, listed with a rule of its own
-            pass
         for name, text in (('Blocks5.vcxproj', ptext), ('Blocks5.vcxproj.filters', ftext)):
             if ('src\\' + f) not in text and ('src/' + f) not in text:
                 bad.append('%s missing from %s' % (f, name))

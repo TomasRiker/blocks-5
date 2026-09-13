@@ -836,7 +836,7 @@ which is a poster rather than a note somebody left behind.
 **Both fall out of the same change: bake the text into the paper.** The sheet and
 the text are rendered together into one 512x512 texture, and from then on there is
 only one thing on screen. The Engine grew the two calls that needs
-(`getOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
+(`acquireOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
 belongs to it and not to the note, because it falls with the framebuffer object
 while the GL context still stands, and an `Object` is destroyed long after it is
 gone.
