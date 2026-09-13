@@ -44,12 +44,17 @@ struct ColorQuadVertex
 // caller has bound applies, and so does its glColor. Puts the sprite batch up
 // first, so a caller needs no flush of its own.
 //
-// A vertex buffer object would be the obvious next step and is not one: the
-// browser's GL emulation aborts on glDrawArrays(GL_QUADS) with a buffer bound,
-// where client arrays go through the same path that immediate mode does. Going
-// there would mean GL_TRIANGLES and an index table of our own, which is also
-// what would lift Engine's BATCH_MAX_QUADS: both halves of that ceiling belong
-// to the emulation's client-array path and neither to the hardware.
+// A vertex buffer object is the obvious next step and carries one condition
+// that is not obvious. The browser's GL emulation draws GL_QUADS by indexing a
+// shared quad index table, and it reads the offset into that table from a first
+// vertex it only updates on a draw that does *not* use a buffer. So a buffered
+// GL_QUADS draw is right exactly while every such draw in the frame starts at
+// vertex 0 - which every caller here does - and silently loses its quad where
+// one does not: measured, a buffered draw following a client-array
+// glDrawArrays(GL_QUADS, 4, 4) draws nothing at all, with no GL error.
+// GL_TRIANGLES and an index table of our own is the way out, and is also what
+// would lift Engine's BATCH_MAX_QUADS: both belong to the emulation's handling
+// of GL_QUADS and neither to the hardware.
 void drawQuadArray(const QuadVertex* p_vertices, uint count);
 
 // The same for a shape with no texture on it - the keycap frames a font draws
