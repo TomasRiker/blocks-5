@@ -67,7 +67,13 @@ b5_start()
 	# repeatable while they may appear. The markers are exactly the ones the
 	# game itself writes.
 	B5_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
-	mkdir -p "$B5_HOME"
+	# The five folders the game lays out on a first start, laid out here as
+	# well: main.cpp reads a home folder that exists without ".initialized" as
+	# one that version 1.0.71 created, and that update path adds only videos/.
+	# A first start into the folder the markers below need would therefore
+	# come up without screenshots/ and levels/, and F11 would fail on it.
+	mkdir -p "$B5_HOME/levels/campaigns" "$B5_HOME/levels/skins" \
+	         "$B5_HOME/screenshots" "$B5_HOME/videos"
 	[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
 	[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
 
