@@ -26,7 +26,7 @@ namespace
 	// it stays with the slices.
 	void crossfadeRestart(Engine& engine)
 	{
-		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
+		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
 		else engine.crossfade(new CF_Slices, 0.85);
 	}
 

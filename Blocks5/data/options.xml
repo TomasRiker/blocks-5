@@ -25,8 +25,6 @@
 		<StaticText name="Static11" x="210" y="30">
 			<Text>$O_UPSCALER</Text>
 		</StaticText>
-		<!-- Options::show() sets the y values; here they merely stand in
-		     their places for completeness. -->
 		<RadioButton name="SharpFit" x="210" y="50" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
@@ -59,8 +57,6 @@
 			<Text>$O_UPSCALER_CRT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<!-- Options::show() sets y, directly below the last visible entry
-		     in the list. -->
 		<Button name="CrtSettings" x="210" y="130" w="115" h="18">
 			<Title>$O_CRT_SETTINGS</Title>
 			<Font>tooltip_font.xml</Font>

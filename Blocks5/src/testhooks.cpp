@@ -187,12 +187,12 @@ namespace
 		out += "\",\"language\":\"";
 		appendEscaped(out, engine.getLanguage());
 		out += "\",\"filter\":\"";
-		appendEscaped(out, engine.getEffectiveUpscaler()->getName());
+		appendEscaped(out, engine.getUpscaler()->getName());
 		// Not "is the CRT filter on" but "is anything warping the picture":
 		// only then are the window coordinates above no longer right. The key
 		// is still called crt - WebBuild/test/harness.js reads it that way.
 		out += "\",\"crt\":";
-		out += engine.getEffectiveUpscaler()->distortsCursor() ? "true" : "false";
+		out += engine.getUpscaler()->distortsCursor() ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
 		// Where the game sees the cursor and what it is pressing on. From

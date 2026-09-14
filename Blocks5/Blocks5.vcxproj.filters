@@ -304,6 +304,9 @@
     <ClCompile Include="src\file.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\fatalerror.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\file_archived.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1048,6 +1051,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\file.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fatalerror.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\file_archived.h">

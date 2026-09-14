@@ -109,7 +109,7 @@ public:
 
 	// The framebuffer the game renders into: always 640x480, whatever the
 	// window size. Every calculation in screen coordinates stays valid.
-	bool createFrameBuffer();
+	void createFrameBuffer();
 	void destroyFrameBuffer();
 	void bindFrameBuffer();      // target = framebuffer, viewport 640x480
 	void unbindFrameBuffer();    // target = window
@@ -150,15 +150,6 @@ public:
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 
-	// -nofbo and -noshader: force the two fallback paths that otherwise only
-	// old hardware takes. Without a framebuffer object the game draws unscaled
-	// into the back buffer, there is no upscaling filter, no crossfade and no
-	// rolled hint note; without shaders SharpFit and the CRT filter stay
-	// unavailable. Neither can be checked other than by hand, because no
-	// machine here is that old - hence the switches. To be set before init()
-	// as well.
-	void disableFrameBuffer() { frameBufferDisabled = true; }
-	void disableShaders() { shadersDisabled = true; }
 	// -nobatch: the A/B arm for the sprite batch, and the way out if a driver
 	// ever mishandles a client-side colour array.
 	void disableSpriteBatch() { spriteBatchDisabled = true; }
@@ -194,10 +185,6 @@ public:
 	// Smallest window size handleResize() allows, as a window rect including
 	// the frame - for WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;
-	// Without a framebuffer object the window stays at 640x480 - see
-	// fixWindowSize(). The window procedure asks in order to give Windows the
-	// maximum as well.
-	bool hasFixedWindowSize() const { return !useFrameBuffer; }
 #endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
@@ -217,17 +204,16 @@ public:
 	Vec2i getDefaultWindowSize() const;
 
 	// The filters' GL state: the shared vertex buffer and, where one is
-	// needed, the compiled program. If one will not compile, that filter
-	// reports itself unavailable and the presentation falls back to Sharp; the
-	// game runs either way.
+	// needed, the compiled program. Ends the program where a driver cannot
+	// supply either - see fatalerror.h.
 	void createUpscalerGL();
 	void destroyUpscalerGL();
 
-	// getUpscaler() is the wish out of config.xml, getEffectiveUpscaler() what
-	// is left of it on this machine.
+	// The filter in use, out of config.xml. Every one of the four works on
+	// every machine the game starts on at all, so there is nothing between
+	// the wish and the picture.
 	void setUpscaler(Upscaler* p_upscaler);
 	Upscaler* getUpscaler() const { return p_wantedUpscaler; }
-	Upscaler* getEffectiveUpscaler() const;
 	// All four, in the order they appear in the options dialog.
 	const std::vector<Upscaler*>& getUpscalers() const { return upscalers; }
 	// The filter for its name out of config.xml; 0 if none is called that.
@@ -451,7 +437,6 @@ private:
 	void setupCursor();
 	SDL_Cursor* createCursor(int factor) const;
 	void updateCursorSize();
-	void fixWindowSize();
 	void updateToasts();
 	void renderToasts();
 
@@ -506,8 +491,6 @@ private:
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = nothing given on the command line
 	bool splashSkipped;        // -nosplash
-	bool frameBufferDisabled;  // -nofbo
-	bool shadersDisabled;      // -noshader
 	bool swallowedReturn;      // Alt+Return swallowed: the release too
 	Vec2i windowedSize;        // size that leaving fullscreen falls back to
 	Vec2i windowedPosition;    // ditto for the position
@@ -612,7 +595,6 @@ private:
 		bool lent;
 	};
 	std::vector<OffscreenTexture> offscreenTextures;
-	bool useFrameBuffer;
 	// The four filters. upscalers owns them and holds the options dialog's
 	// order; the four pointers beside it are the shortcut to them.
 	std::vector<Upscaler*> upscalers;

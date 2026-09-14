@@ -18,6 +18,7 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #endif
 #include "engine.h"
 #include "glextensions.h"
+#include "fatalerror.h"
 #include "testhooks.h"
 #include "u_all.h"
 #ifdef __EMSCRIPTEN__
@@ -92,7 +93,6 @@ Engine::Engine()
 	renderTargetID = 0;
 	renderTargetScissor = false;
 	presentVertexBuffer = 0;
-	useFrameBuffer = false;
 	// The four filters. They stand before loadConfig(), which looks one of them
 	// up by name, and that is long before the GL context; their GL state comes
 	// into being only in createUpscalerGL(). The order is the options dialog's:
@@ -105,12 +105,10 @@ Engine::Engine()
 	upscalers.push_back(p_sharp);
 	upscalers.push_back(p_smooth);
 	upscalers.push_back(p_crt);
-	p_wantedUpscaler = p_sharpFit;   // without shaders this becomes Sharp
+	p_wantedUpscaler = p_sharpFit;
 	fullScreen = false;
 	fullScreenOverride = -1;
 	splashSkipped = false;
-	frameBufferDisabled = false;
-	shadersDisabled = false;
 	performanceShown = false;
 	renderSuppressed = false;
 	renderSuppressWanted = false;
@@ -615,40 +613,15 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
-	// Create the framebuffer object. If that fails, rendering goes straight
-	// into the back buffer.
+	// All three end the program with a message where this machine cannot do
+	// what the game is built on - see fatalerror.h.
 	GLExtensions::init();
-	useFrameBuffer = createFrameBuffer();
-	if(!useFrameBuffer)
-	{
-		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
+	createFrameBuffer();
+	createUpscalerGL();
 
-		// Then it stays at 640x480, see handleResize(): a size taken from
-		// config.xml has to go back, and there is no fullscreen, because a
-		// screen-filling window would put the picture in a corner.
-		fullScreen = false;
-		handleResize(screenSize.x, screenSize.y);
-		fixWindowSize();
-	}
-	else if(GLExtensions::haveShaders())
-	{
-		createUpscalerGL();
-	}
-
-	// If the game starts in fullscreen, the style change comes now - only here,
-	// because handleResize() has to know the framebuffer.
+	// If the game starts in fullscreen, the style change comes now.
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
-	{
-		std::string available;
-		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
-		{
-			if(!(*i)->isAvailable()) continue;
-			if(!available.empty()) available += ", ";
-			available += (*i)->getName();
-		}
-		printfLog("  Upscale filters:  %s\n", available.c_str());
-	}
-	printfLog("  Upscaling:        %s\n", getEffectiveUpscaler()->getName());
+	printfLog("  Upscaling:        %s\n", p_wantedUpscaler->getName());
 
 	// Only here: how large the cursor must be hangs off the framebuffer.
 	setupCursor();
@@ -1197,8 +1170,7 @@ void Engine::mainLoopIteration()
 			// Do not compute, do not draw - but keep presenting. A window
 			// that puts nothing up any more shows whatever Windows last had
 			// of it, and that can be seconds old.
-			if(useFrameBuffer) showLastFrame();
-			else if(!fullScreen) SDL_GL_SwapBuffers();
+			showLastFrame();
 
 			updateSounds();
 			SDL_Delay(50);
@@ -1351,7 +1323,7 @@ void Engine::mainLoopIteration()
 
 					// Fetch the frame. Always 640x480 out of the framebuffer, whatever
 					// the window size - the video encoder is set up for that once.
-					glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+					glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
 
 					if(SDL_ShowCursor(-1))
@@ -1922,36 +1894,30 @@ std::string Engine::getBestOpenALDevice()
 
 void Engine::createUpscalerGL()
 {
-	if(shadersDisabled)
-	{
-		// No vertex buffer, no compiled programs: the filters then report
-		// themselves as unavailable of their own accord, and
-		// getEffectiveUpscaler() falls back to Sharp.
-		printfLog("  Shaders:             switched off (-noshader)\n");
-		return;
-	}
-
 	// WebGL forbids vertex data out of application memory, it has to be a
 	// buffer. Four vertices, refilled every frame; every filter that uses a
 	// shader shares this one.
 	glExtGenBuffers(1, &presentVertexBuffer);
 	if(!presentVertexBuffer)
 	{
-		// Without it no shader filter can draw. They are then simply left
-		// uncompiled and report themselves as unavailable of their own accord -
-		// no second condition is needed for that.
-		printfLog("- WARNING: Could not create the present vertex buffer.\n");
-		return;
+		fatalError("Blocks 5 - graphics error",
+				   "The graphics driver would not create a vertex buffer.\n\n"
+				   "There is nothing to be done about this from here; a driver\n"
+				   "update is the thing to try.");
 	}
 
-	// Each on its own: a CRT filter that does not compile is no reason to drop
-	// SharpFit as well.
+	// A driver that resolved every GL 2.0 entry point and then will not compile
+	// these two shaders is broken rather than old, so this ends the program as
+	// well. Leaving the filter out instead is what the whole of the rest of
+	// this file no longer has to reckon with.
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
-		if(!(*i)->createGL())
-		{
-			printfLog("- WARNING: The %s filter will not be available.\n", (*i)->getName());
-		}
+		if((*i)->createGL()) continue;
+
+		fatalError("Blocks 5 - graphics error",
+				   std::string("The \"") + (*i)->getName() + "\" display filter would not compile.\n\n"
+				   "log.txt, in the folder with your saved games, has the\n"
+				   "compiler's own message. A driver update is the thing to try.");
 	}
 }
 
@@ -1966,8 +1932,8 @@ void Engine::destroyUpscalerGL()
 
 void Engine::setUpscaler(Upscaler* p_upscaler)
 {
-	// Only remembered. Whether the filter really works on this machine is
-	// getEffectiveUpscaler()'s decision - there may be no GL context here yet.
+	// Never null: every filter works on every machine the game starts on, and
+	// a name config.xml does not know leaves the one standing.
 	if(p_upscaler) p_wantedUpscaler = p_upscaler;
 }
 
@@ -1981,29 +1947,8 @@ Upscaler* Engine::findUpscaler(const char* p_name) const
 	return 0;
 }
 
-Upscaler* Engine::getEffectiveUpscaler() const
+void Engine::createFrameBuffer()
 {
-	// Without a compiled program, sharp rather than no picture at all. The
-	// wish stays as it is, for the next machine - nothing is rewritten here.
-	//
-	// The fallback is fixed Sharp and not "the first one that works": the
-	// display order begins with SharpFit, and that belongs to the options
-	// dialog. Otherwise its sorting would one day decide what a machine
-	// without shaders shows.
-	if(p_wantedUpscaler && p_wantedUpscaler->isAvailable()) return p_wantedUpscaler;
-	return p_sharp;
-}
-
-bool Engine::createFrameBuffer()
-{
-	if(frameBufferDisabled)
-	{
-		printfLog("  Framebuffer objects: switched off (-nofbo)\n");
-		return false;
-	}
-
-	if(!GLExtensions::haveFrameBufferObjects()) return false;
-
 	frameTextureSize = screenPow2Size;
 
 	glGenTextures(1, &frameTextureID);
@@ -2047,14 +1992,18 @@ bool Engine::createFrameBuffer()
 
 	if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
 	{
-		printfLog("- WARNING: Framebuffer object is incomplete (status 0x%x).\n", status);
 		destroyFrameBuffer();
-		return false;
+
+		char detail[64];
+		sprintf(detail, "status 0x%x", static_cast<unsigned>(status));
+		fatalError("Blocks 5 - graphics error",
+				   std::string("The graphics driver would not give the game a render\n"
+				   "target to draw into (") + detail + ").\n\n"
+				   "A driver update is the thing to try.");
 	}
 
 	printfLog("  Render target:    %dx%d in a %dx%d texture\n",
 			  screenSize.x, screenSize.y, frameTextureSize.x, frameTextureSize.y);
-	return true;
 }
 
 void Engine::destroyFrameBuffer()
@@ -2074,8 +2023,6 @@ void Engine::destroyFrameBuffer()
 
 uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
-	if(!useFrameBuffer) return 0;
-
 	// Nothing here needs a flush of its own: the hit path issues no GL at all,
 	// and the miss path's two binds go through GL::, which puts the batch up
 	// itself where the binding moves.
@@ -2131,7 +2078,7 @@ bool Engine::beginRenderToTexture(uint textureID,
 	// during it belong on the texture, and each goes up where it was issued.
 	flushSprites();
 
-	if(!useFrameBuffer || !textureID) return false;
+	if(!textureID) return false;
 
 	if(!renderTargetID)
 	{
@@ -2183,14 +2130,12 @@ void Engine::endRenderToTexture()
 
 void Engine::bindFrameBuffer()
 {
-	if(!useFrameBuffer) return;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
 	glViewport(0, 0, screenSize.x, screenSize.y);
 }
 
 void Engine::unbindFrameBuffer()
 {
-	if(!useFrameBuffer) return;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
 	glViewport(0, 0, displaySize.x, displaySize.y);
 }
@@ -2243,10 +2188,6 @@ void Engine::enforceTouchFullScreen()
 	// is no way at all to ask for the fullscreen by hand - the game therefore
 	// takes it itself.
 	if(!isPhone()) return;
-
-	// The same condition as for Alt+Return: without a framebuffer object there
-	// is no presentFrame() that would fill another area with black bars.
-	if(!useFrameBuffer) return;
 
 	// The browser is asked and not our own flag: leaving the fullscreen with a
 	// swipe leaves fullScreen standing at true, and setFullScreen(true) would
@@ -2446,18 +2387,6 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				MINMAXINFO* p_info = reinterpret_cast<MINMAXINFO*>(lParam);
 				p_info->ptMinTrackSize.x = minimum.x;
 				p_info->ptMinTrackSize.y = minimum.y;
-
-				// Without a framebuffer object the lower bound is the upper
-				// one as well. The style alone ought to be enough, but
-				// Windows has ways to get at the window that do not drag
-				// a border - Win+Arrow for one.
-				if(engine.hasFixedWindowSize())
-				{
-					p_info->ptMaxTrackSize.x = minimum.x;
-					p_info->ptMaxTrackSize.y = minimum.y;
-					p_info->ptMaxSize.x      = minimum.x;
-					p_info->ptMaxSize.y      = minimum.y;
-				}
 			}
 
 			return result;
@@ -2542,7 +2471,7 @@ void Engine::repaintDuringSizeMove()
 {
 	// Only during the foreign message loop. Outside it the main loop draws,
 	// and nothing may cut in on it.
-	if(!inSizeMove || !initialized || !useFrameBuffer) return;
+	if(!inSizeMove || !initialized) return;
 
 	// SwapBuffers can itself deliver messages; a second pass in the middle of
 	// the first would be bad.
@@ -2585,44 +2514,6 @@ void Engine::repaintDuringSizeMove()
 	busy = false;
 }
 #endif
-
-void Engine::fixWindowSize()
-{
-	// Without a framebuffer object the game draws straight into the back
-	// buffer. The viewport is 640x480 and there is no presentFrame(), and a
-	// larger window therefore does not fill with a larger picture - it shows
-	// the same picture somewhere else, and the mouse mapping, which believes
-	// displaySize, misses. handleResize() clamps the size to 640x480 anyway;
-	// this tells the window itself, keeping it from growing in the first place.
-#ifdef _WIN32
-	SDL_SysWMinfo info;
-	SDL_VERSION(&info.version);
-	if(!SDL_GetWMInfo(&info) || !info.window) return;
-
-	HWND hwnd = info.window;
-
-	// Restore first: restoreWindowPosition() runs before the decision about
-	// the framebuffer object, and a window remembered as maximized would still
-	// stand that way here. A SetWindowPos alone does not take the flag off it.
-	if(IsZoomed(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-
-	// WS_THICKFRAME is the grab handle at the border, WS_MAXIMIZEBOX the
-	// button - and with it the double click on the title bar goes too. Change
-	// the style first, then measure: getMinimumWindowSize() reckons with the
-	// one that is set.
-	SetWindowLong(hwnd, GWL_STYLE,
-				  GetWindowLong(hwnd, GWL_STYLE) & ~(WS_THICKFRAME | WS_MAXIMIZEBOX));
-
-	const Vec2i frame = getMinimumWindowSize();
-	if(frame.x > 0 && frame.y > 0)
-	{
-		SetWindowPos(hwnd, 0, 0, 0, frame.x, frame.y,
-					 SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-	}
-#elif !defined(__EMSCRIPTEN__)
-	LinuxWindow::setFixedSize(screenSize.x, screenSize.y);
-#endif
-}
 
 void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
@@ -2704,10 +2595,6 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 
 void Engine::setFullScreen(bool wantFullScreen)
 {
-	// Without a framebuffer object the picture stays at 640x480, see
-	// handleResize().
-	if(wantFullScreen && initialized && !useFrameBuffer) return;
-
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
 
 	fullScreen = wantFullScreen;
@@ -2724,17 +2611,6 @@ void Engine::setFullScreen(bool wantFullScreen)
 
 void Engine::handleResize(int width, int height)
 {
-	// Without a framebuffer object the game draws straight into the back
-	// buffer: there is no presentFrame() to pick up a different window size,
-	// the viewport has been 640x480 since init(), and the mouse mapping and the
-	// crossfade reckon with that too. The window therefore keeps its size
-	// instead of showing a picture in the corner.
-	if(!useFrameBuffer)
-	{
-		width  = screenSize.x;
-		height = screenSize.y;
-	}
-
 #ifndef __EMSCRIPTEN__
 	// The window may not become smaller than the internal picture: below that
 	// Sharp has no integer step left. In the browser the canvas sets the size,
@@ -2760,17 +2636,17 @@ void Engine::handleResize(int width, int height)
 	displaySize = Vec2i(width, height);
 	// Do not write down a maximized size: the remembered window size would
 	// then be the maximized window's, and "restore" would have no target left.
-	if(useFrameBuffer && !fullScreen && !isWindowMaximized()) windowedSize = displaySize;
+	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
 }
 
 Vec2d Engine::warpToSource(const Vec2d& p) const
 {
-	return getEffectiveUpscaler()->warpToSource(p);
+	return p_wantedUpscaler->warpToSource(p);
 }
 
 Vec2d Engine::warpToOutput(const Vec2d& p) const
 {
-	return getEffectiveUpscaler()->warpToOutput(p);
+	return p_wantedUpscaler->warpToOutput(p);
 }
 
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
@@ -2783,7 +2659,7 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 	// Sharp needs an integer step. At a fractional factor nearest doubles some
 	// source pixels and not others - uneven stroke widths, ragged lettering.
 	// Below 1:1 there is no such step.
-	if(getEffectiveUpscaler()->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
+	if(p_wantedUpscaler->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
 
 	w = static_cast<int>(screenSize.x * scale);
 	h = static_cast<int>(screenSize.y * scale);
@@ -2793,8 +2669,6 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 
 void Engine::presentFrame()
 {
-	if(!useFrameBuffer) return;
-
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
@@ -2836,7 +2710,7 @@ void Engine::presentFrame()
 	context.textureSize  = frameTextureSize;
 	context.vertexBuffer = presentVertexBuffer;
 
-	Upscaler* p_upscaler = getEffectiveUpscaler();
+	Upscaler* p_upscaler = p_wantedUpscaler;
 
 	// Sharp and Smooth are nothing but this setting; SharpFit and the CRT
 	// filter remap the texture coordinate for the hardware interpolation to
@@ -2974,7 +2848,7 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 {
 	// Always the internal 640x480 frame: the filter and the black bars are
 	// display settings and do not belong in the file.
-	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
+	const Vec2i shotSize(screenSize);
 
 	// GL_RGBA and not GL_RGB or GL_BGR: that is the only combination WebGL 1
 	// allows too. Only the three colour channels of it reach the file - see
@@ -2989,8 +2863,8 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 	// anywhere else does not, and the attachment it would read then is not
 	// this game's picture. It also puts the viewport back to 640x480, which
 	// is the size this read assumes.
-	if(useFrameBuffer) bindFrameBuffer();
-	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+	bindFrameBuffer();
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
 	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, p_pngOut))
@@ -4139,26 +4013,22 @@ Vec2i Engine::getCursorPosition() const
 {
 	Vec2i position = cursorPosition;
 
-	if(useFrameBuffer)
+	// Exactly the inverse of what presentFrame() draws. The rectangle is centred,
+	// so the arithmetic holds in SDL's window coordinates as well as in GL's.
+	// Computed with pixel centres; only that makes the round trip exact.
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	if(w > 0 && h > 0)
 	{
-		// Exactly the inverse of what presentFrame() draws. The rectangle is
-		// centred, so the arithmetic holds in SDL's window coordinates as
-		// well as in GL's. Computed with pixel centres; only that makes the
-		// round trip exact.
-		int x, y, w, h;
-		computePresentRect(x, y, w, h);
-		if(w > 0 && h > 0)
-		{
-			Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
+		Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
 
-			// The same curvature as in the shader: the cursor sits on the glass.
-			// Without curvature warpToSource returns the coordinate unchanged.
-			const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
-			n = (warped + Vec2d(1.0, 1.0)) * 0.5;
+		// The same curvature as in the shader: the cursor sits on the glass.
+		// Without curvature warpToSource returns the coordinate unchanged.
+		const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
+		n = (warped + Vec2d(1.0, 1.0)) * 0.5;
 
-			position.x = static_cast<int>(floor(n.x * screenSize.x));
-			position.y = static_cast<int>(floor(n.y * screenSize.y));
-		}
+		position.x = static_cast<int>(floor(n.x * screenSize.x));
+		position.y = static_cast<int>(floor(n.y * screenSize.y));
 	}
 
 	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
@@ -4179,22 +4049,19 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 	Vec2i temp = Vec2i(clamp(cursorPosition.x, 0, screenSize.x - 1),
 					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
-	if(useFrameBuffer)
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	if(screenSize.x > 0 && screenSize.y > 0)
 	{
-		int x, y, w, h;
-		computePresentRect(x, y, w, h);
-		if(screenSize.x > 0 && screenSize.y > 0)
-		{
-			Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
+		Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
 
-			// The way back through the curvature. With the CRT filter off this
-			// is the identity.
-			const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
-			n = (out + Vec2d(1.0, 1.0)) * 0.5;
+		// The way back through the curvature. With the CRT filter off this
+		// is the identity.
+		const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
+		n = (out + Vec2d(1.0, 1.0)) * 0.5;
 
-			temp.x = x + static_cast<int>(floor(n.x * w));
-			temp.y = y + static_cast<int>(floor(n.y * h));
-		}
+		temp.x = x + static_cast<int>(floor(n.x * w));
+		temp.y = y + static_cast<int>(floor(n.y * h));
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);
@@ -4360,8 +4227,7 @@ void Engine::loadConfig()
 		}
 		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
-		// Read the upscaling filter. Whether it really works is decided later
-		// by getEffectiveUpscaler() - there is no GL context here.
+		// Read the upscaling filter.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler)
 		{

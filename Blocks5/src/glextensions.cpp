@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "glextensions.h"
+#include "fatalerror.h"
 
 #ifndef __EMSCRIPTEN__
 
@@ -51,25 +52,48 @@ namespace
 		if(!p_proc) p_proc = SDL_GL_GetProcAddress(p_fallback);
 		return p_proc;
 	}
+
+	// The game cannot run without any of these, so a missing one is the end
+	// rather than something to report. The message is the whole of what the
+	// player can act on: the OpenGL version and the renderer name say which
+	// machine this is, and "GDI Generic" there is Windows saying no graphics
+	// driver is in play at all - a fresh installation, safe mode, or a remote
+	// desktop session. It is deliberately English: init() runs before
+	// main() loads languages.txt, so there is no string table yet.
+	void require(bool present, const char* p_what)
+	{
+		if(present) return;
+
+		const char* p_version  = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+		const char* p_renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+		const char* p_vendor   = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+
+		std::string message("Blocks 5 needs a graphics driver with OpenGL 2.0.\n\n");
+		message += "Missing:   ";
+		message += p_what;
+		message += "\n\nOpenGL:    ";
+		message += p_version  ? p_version  : "(none)";
+		message += "\nRenderer:  ";
+		message += p_renderer ? p_renderer : "(none)";
+		message += "\nVendor:    ";
+		message += p_vendor   ? p_vendor   : "(none)";
+		message += "\n\nThis usually means that no graphics driver is installed, or\n"
+		           "that the game is running through a remote desktop session.\n"
+		           "Installing the driver for your graphics card should fix it.";
+
+		fatalError("Blocks 5 - graphics driver too old", message);
+	}
 }
 
 #endif
 
-namespace
+void GLExtensions::init()
 {
-	bool haveFBO = false;
-	bool haveGLSL = false;
-}
-
-bool GLExtensions::init()
-{
-	haveFBO = false;
-
 #ifdef __EMSCRIPTEN__
 
-	// Core in WebGL 1, there is nothing to load and nothing to check.
-	haveFBO = true;
-	printfLog("  Framebuffer objects are core in WebGL.\n");
+	// Framebuffer objects, shaders and vertex buffers are all core in WebGL 1,
+	// so there is nothing to load here and nothing that can be missing.
+	printfLog("  GL: framebuffer objects, shaders and buffers are core in WebGL.\n");
 
 #else
 
@@ -89,25 +113,18 @@ bool GLExtensions::init()
 	glExtFramebufferRenderbuffer = reinterpret_cast<PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC>(getProc("glFramebufferRenderbufferEXT", "glFramebufferRenderbuffer"));
 	glExtCheckFramebufferStatus  = reinterpret_cast<PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC> (getProc("glCheckFramebufferStatusEXT",  "glCheckFramebufferStatus"));
 
-	haveFBO = glExtGenFramebuffers && glExtBindFramebuffer && glExtDeleteFramebuffers &&
-	          glExtFramebufferTexture2D && glExtGenRenderbuffers && glExtBindRenderbuffer &&
-	          glExtDeleteRenderbuffers && glExtRenderbufferStorage &&
-	          glExtFramebufferRenderbuffer && glExtCheckFramebufferStatus;
-
 	// The extension list is only information; what decides is whether all ten
 	// pointers are there. A driver that carries the names but does not
 	// advertise them is usable - the other way round is not.
-	printfLog("  Framebuffer objects: %s (extension string: %s)\n",
-			  haveFBO ? "available" : "NOT available",
-			  advertised ? "yes" : "no");
+	printfLog("  Framebuffer objects: extension string says %s\n", advertised ? "yes" : "no");
+	require(glExtGenFramebuffers && glExtBindFramebuffer && glExtDeleteFramebuffers &&
+	        glExtFramebufferTexture2D && glExtGenRenderbuffers && glExtBindRenderbuffer &&
+	        glExtDeleteRenderbuffers && glExtRenderbufferStorage &&
+	        glExtFramebufferRenderbuffer && glExtCheckFramebufferStatus,
+	        "framebuffer objects");
 
-#endif
-
-	// GL 2.0 for the shader filter. Without it, Nearest and Bilinear are what
-	// is left - they need nothing but a texture filter setting.
-#ifdef __EMSCRIPTEN__
-	haveGLSL = true;
-#else
+	// GL 2.0: the shaders the present filters are, and the vertex buffers they
+	// draw out of.
 	glExtCreateShader             = reinterpret_cast<PFNGLCREATESHADERPROC>(SDL_GL_GetProcAddress("glCreateShader"));
 	glExtShaderSource             = reinterpret_cast<PFNGLSHADERSOURCEPROC>(SDL_GL_GetProcAddress("glShaderSource"));
 	glExtCompileShader            = reinterpret_cast<PFNGLCOMPILESHADERPROC>(SDL_GL_GetProcAddress("glCompileShader"));
@@ -134,44 +151,29 @@ bool GLExtensions::init()
 	glExtBufferData               = reinterpret_cast<PFNGLBUFFERDATAPROC>(SDL_GL_GetProcAddress("glBufferData"));
 	glExtDeleteBuffers            = reinterpret_cast<PFNGLDELETEBUFFERSPROC>(SDL_GL_GetProcAddress("glDeleteBuffers"));
 
-	haveGLSL = glExtCreateShader &&
-	           glExtShaderSource &&
-	           glExtCompileShader &&
-	           glExtGetShaderiv &&
-	           glExtGetShaderInfoLog &&
-	           glExtDeleteShader &&
-	           glExtCreateProgram &&
-	           glExtAttachShader &&
-	           glExtBindAttribLocation &&
-	           glExtLinkProgram &&
-	           glExtGetProgramiv &&
-	           glExtGetProgramInfoLog &&
-	           glExtUseProgram &&
-	           glExtDeleteProgram &&
-	           glExtGetUniformLocation &&
-	           glExtUniform1i &&
-	           glExtUniform1f &&
-	           glExtUniform2f &&
-	           glExtEnableVertexAttribArray &&
-	           glExtDisableVertexAttribArray &&
-	           glExtVertexAttribPointer &&
-	           glExtGenBuffers &&
-	           glExtBindBuffer &&
-	           glExtBufferData &&
-	           glExtDeleteBuffers;
-
-	printfLog("  Shaders (GL 2.0):    %s\n", haveGLSL ? "available" : "NOT available");
+	require(glExtCreateShader &&
+	        glExtShaderSource &&
+	        glExtCompileShader &&
+	        glExtGetShaderiv &&
+	        glExtGetShaderInfoLog &&
+	        glExtDeleteShader &&
+	        glExtCreateProgram &&
+	        glExtAttachShader &&
+	        glExtBindAttribLocation &&
+	        glExtLinkProgram &&
+	        glExtGetProgramiv &&
+	        glExtGetProgramInfoLog &&
+	        glExtUseProgram &&
+	        glExtDeleteProgram &&
+	        glExtGetUniformLocation &&
+	        glExtUniform1i &&
+	        glExtUniform1f &&
+	        glExtUniform2f &&
+	        glExtEnableVertexAttribArray &&
+	        glExtDisableVertexAttribArray &&
+	        glExtVertexAttribPointer,
+	        "shaders (OpenGL 2.0)");
+	require(glExtGenBuffers && glExtBindBuffer && glExtBufferData && glExtDeleteBuffers,
+	        "vertex buffer objects");
 #endif
-
-	return haveFBO;
-}
-
-bool GLExtensions::haveShaders()
-{
-	return haveGLSL;
-}
-
-bool GLExtensions::haveFrameBufferObjects()
-{
-	return haveFBO;
 }

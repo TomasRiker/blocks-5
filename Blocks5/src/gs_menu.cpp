@@ -275,11 +275,9 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	// Offer the CRT filter once: on a first start after the installation and
 	// equally after an update, because the marker file exists nowhere before
-	// 1.2.0. Only where the machine can show the filter and it is not
-	// already switched on.
+	// 1.2.0. Not to somebody who has it on already.
 	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
-	const bool offerCrt = engine.getCrt().isAvailable() &&
-						  engine.getUpscaler() != &engine.getCrt() &&
+	const bool offerCrt = engine.getUpscaler() != &engine.getCrt() &&
 						  !fs.fileExists(crtOfferedPath);
 	if(offerCrt) gui["Menu.CrtPane.Crt"]->focus();
 

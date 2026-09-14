@@ -22,7 +22,6 @@ public:
 
 	bool createGL();
 	void destroyGL();
-	bool isAvailable() const { return program.isLinked(); }
 
 	void present(const PresentContext& context);
 

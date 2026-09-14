@@ -41,10 +41,6 @@ private:
 	void renderNote(const Vec4d& color, double unroll) const;
 	void renderNoteMesh(const Vec4d& color, double unroll) const;
 
-	// The path without a framebuffer object: note and text one after the other,
-	// no roll - instead the height shrinks to the part that is still flat.
-	void renderNoteFlat(const Vec4d& color, double unroll) const;
-
 	std::string text;
 	double alpha;
 	double shownAlpha;

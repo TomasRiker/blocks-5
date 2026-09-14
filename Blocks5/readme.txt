@@ -23,17 +23,12 @@ make your own levels, having a look at the help is probably a good idea.
 
 Command Line Options
 ====================
-Blocks 5 understands seven options. Upper and lower case do not matter.
+Blocks 5 understands five options. Upper and lower case do not matter.
 
     -windowed      Start in a window.
     -fullscreen    Start in full screen.
     -nosplash      Skip the logo and the jingle and go straight to the main
                    menu.
-    -nofbo         Render without a framebuffer object, the way the game has
-                   to on very old graphics hardware. There is no upscaling
-                   filter, no screen transition and no rolled-up hint note.
-    -noshader      Render without shaders, likewise. "Sharp, fitted" and the
-                   CRT filter are then unavailable and "Sharp" is used.
     -perf          Show in the bottom corner what the last few hundred frames
                    cost, which is a diagnostic and not a feature. In a browser
                    the same thing is reached by adding ?perf=1 to the address.

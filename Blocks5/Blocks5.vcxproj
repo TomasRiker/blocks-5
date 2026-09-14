@@ -696,6 +696,7 @@
     <ClCompile Include="src\engine.cpp" />
     <ClCompile Include="src\glextensions.cpp" />
     <ClCompile Include="src\file.cpp" />
+    <ClCompile Include="src\fatalerror.cpp" />
     <ClCompile Include="src\file_archived.cpp" />
     <ClCompile Include="src\file_real.cpp" />
     <ClCompile Include="src\filesystem.cpp" />
@@ -834,6 +835,7 @@
     <ClInclude Include="src\engine.h" />
     <ClInclude Include="src\glextensions.h" />
     <ClInclude Include="src\file.h" />
+    <ClInclude Include="src\fatalerror.h" />
     <ClInclude Include="src\file_archived.h" />
     <ClInclude Include="src\file_real.h" />
     <ClInclude Include="src\filesystem.h" />

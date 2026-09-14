@@ -106,8 +106,8 @@ b5_start()
 
 	# ALSOFT_DRIVERS=null: on a machine with no audio output the game would
 	# otherwise abort at startup, and that is not what this is about.
-	# B5_ARGS appends further switches - -nofbo and -noshader force the two
-	# fallback paths that otherwise do not exist on this machine.
+	# B5_ARGS appends further switches - -perf and -nobatch, the two that
+	# change what a run measures or draws.
 	( cd "$B5_GAME" && ALSOFT_DRIVERS=null "$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
 	B5_GAME_PID=$!
 

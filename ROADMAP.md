@@ -1590,9 +1590,11 @@ Four things are in the way.
   builds are the present filters (`upscaler.cpp`, `u_sharpfit.cpp`,
   `u_crt.cpp`), and each runs on one quad at the very end of the frame with
   `PresentContext` handing it the finished frame. Putting the level or the text
-  through a shader means a second kind of program with its own uniforms and a
-  fixed-function path beside it for `-noshader` and for any machine where
-  `createUpscalerGL` gives up - so this is an addition, never a replacement.
+  through a shader means a second kind of program with its own uniforms - an
+  addition to the present filters, not a replacement for them. Item 50 at least
+  took the second half of this away: there is no `-noshader` any more and no
+  machine where `createUpscalerGL` gives up, so the new path needs no
+  fixed-function twin beside it.
 
 - **The atlases have no margin to blur into.** A shadow computed from the same
   texture fetch needs taps around the sample point, and the glyph rectangles in
@@ -1914,6 +1916,47 @@ It is not free to do: the file is also the place several of those facts exist at
 all, and a condensing pass is the kind that quietly drops the one sentence that
 would have saved the next afternoon. Worth doing deliberately and with the
 diff read closely, not as tidying.
+
+
+50. OpenGL 2.0 is a requirement now, not a hope  - **DONE**
+------------------------------------------------------------
+Framebuffer objects, GL 2.0 shaders and vertex buffer objects are what this game
+is built on. `GLExtensions::init` resolves all three and ends the program with a
+message where a driver cannot supply one; `createFrameBuffer` and
+`createUpscalerGL` do the same for a framebuffer that will not complete and a
+shader that will not link.
+
+The dates are the whole argument: vertex buffers are core in GL 1.5 (2003),
+shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004, and both software
+rasterizers this project is tested against - llvmpipe under Xvfb and SwiftShader
+in the browser - carry all three. In the browser they are core in WebGL 1, so the
+fallback branches had been unreachable there since the day that build was
+written.
+
+What went with them: `-nofbo` and `-noshader` (seven command line switches become
+five), `useFrameBuffer` and its twenty branches in `engine.cpp`,
+`Engine::fixWindowSize` and `LinuxWindow::setFixedSize` with the 640x480 window
+pin, `hasFixedWindowSize` and the `WM_GETMINMAXINFO` maximum it fed,
+`Hint::renderNoteFlat`, `Upscaler::isAvailable`, `Engine::getEffectiveUpscaler`
+and the Sharp fallback behind it, and the options dialog's whole show/hide/reflow
+loop - all four filters are always offered, so the radio buttons keep the places
+`options.xml` gives them.
+
+**The message is the part worth getting right, and it is why this is not simply
+an assert.** It names the missing group, `GL_VERSION`, `GL_RENDERER` and
+`GL_VENDOR`, and says to install a graphics driver. The case it is written for is
+not an old machine but a new one in a particular state: Windows with no GPU driver
+in play - a fresh installation, safe mode, a virtual machine, an RDP session -
+falls back to `opengl32.dll`'s GDI Generic renderer, which is OpenGL 1.1. Seeing
+"GDI Generic" in that box is what turns a support mail into a self-fix.
+
+`fatalError()` (`fatalerror.h`) is the one way the game gives up, written once per
+platform because that is the whole of what differs: a Win32 message box, zenity or
+kdialog under Linux through `fork`/`execlp` rather than a shell - the message
+carries driver strings and an argument handed straight to the program can carry no
+command in it - and a DOM overlay in the browser. English, and deliberately so:
+`Engine::init` runs before `main()` loads `languages.txt`, so there is no string
+table yet.
 
 
 How these connect
