@@ -531,7 +531,7 @@ bool Engine::init(const std::string& windowCaption,
 	}
 
 	// Back to where it last stood.
-	restoreWindowPosition(true);
+	restoreWindowPosition();
 
 #ifdef _WIN32
 	// The window stands from here; our own window procedure can go in front.
@@ -2288,7 +2288,7 @@ void Engine::rememberWindowPlacement()
 #endif
 }
 
-void Engine::restoreWindowPosition(bool replayMaximized)
+void Engine::restoreWindowPosition()
 {
 #ifdef _WIN32
 	if(!windowedPositionKnown) return;
@@ -2333,9 +2333,12 @@ void Engine::restoreWindowPosition(bool replayMaximized)
 	wp.rcNormalPosition.right  = windowedPosition.x + width;
 	wp.rcNormalPosition.bottom = windowedPosition.y + height;
 
-	// SDL turns the maximize into an SDL_VIDEORESIZE of its own accord, which
-	// handleResize() picks up.
-	wp.showCmd = (maximized && replayMaximized) ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+	// The maximized state is part of the placement rather than a separate
+	// ShowWindow(), and replaying it costs the caller nothing: DIB_ResizeWindow
+	// does its whole body inside if(!SDL_windowid && !IsZoomed(SDL_Window)), so
+	// the SDL_SetVideoMode that follows moves no window while this one is
+	// maximized - it resizes SDL's own surface and the viewport and stops.
+	wp.showCmd = maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
 	SetWindowPlacement(info.window, &wp);
 #endif
 }
@@ -2551,6 +2554,10 @@ void Engine::repaintDuringSizeMove()
 
 void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
+	// What handleResize() is finally told. Leaving fullscreen into a maximized
+	// window is the one case where it is not what the caller asked for.
+	Vec2i clientSize = size;
+
 	// SDL's flags are deliberately left alone: SDL_FULLSCREEN or SDL_NOFRAME
 	// force DIB_SetVideoMode onto the slow path, and that calls
 	// WIN_GL_ShutDown - the GL context and every texture would be gone. The
@@ -2585,17 +2592,24 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		{
 			// The style first, because restoreWindowPosition() computes the
 			// frame from the style that is set when it runs. It then puts the
-			// position and the size back through the same API that took them,
-			// which is what keeps the workspace coordinates of
-			// rcNormalPosition round-tripping.
-			//
-			// The handleResize() at the foot of this function does not undo
-			// it: this game sets neither SDL_VIDEO_WINDOW_POS nor
-			// SDL_VIDEO_CENTERED, so DIB_SetVideoMode takes the branch that
-			// passes SWP_NOMOVE and resizes the window where it stands.
+			// position, the size and the maximized state back through the same
+			// API that took them, which is what keeps the workspace
+			// coordinates of rcNormalPosition round-tripping.
 			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
-			restoreWindowPosition(false);
+			restoreWindowPosition();
 			savedWindowStyle = 0;
+
+			// The size the window actually became, and not the one the caller
+			// offered: setFullScreen() has only the *windowed* size to hand
+			// over, and a window that has just come back maximized is the size
+			// of the work area instead. Passing the windowed size on would
+			// resize the maximize away in the same breath as restoring it.
+			RECT client;
+			if(GetClientRect(hwnd, &client) && client.right > 0 && client.bottom > 0)
+			{
+				clientSize = Vec2i(static_cast<int>(client.right),
+								   static_cast<int>(client.bottom));
+			}
 		}
 		else
 		{
@@ -2632,7 +2646,7 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 
 	// Always through here: displaySize belongs to handleResize, and SDL has to
 	// learn the new size - otherwise the mouse cursor is stuck on the old area.
-	handleResize(size.x, size.y);
+	handleResize(clientSize.x, clientSize.y);
 }
 
 void Engine::setFullScreen(bool wantFullScreen)

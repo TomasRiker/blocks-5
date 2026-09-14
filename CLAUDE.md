@@ -1181,10 +1181,16 @@ been maximized before Alt+Enter it wrote the maximized frame's corner, a few pix
 top left, with `maximized` left at whatever the last session had said.
 
 `handleResize` skips updating `windowedSize` while `IsZoomed`, so the remembered size is
-always the windowed one. The maximized state is replayed at startup only, which is what
-`restoreWindowPosition`'s `replayMaximized` says: leaving fullscreen runs `handleResize` with
-the windowed size immediately afterwards, and that would pull the window straight back out of
-a maximize.
+always the windowed one — and the maximized state is replayed on both paths, at startup and
+on the way out of fullscreen. What makes the second one work is a line in the vendored SDL:
+`DIB_ResizeWindow` does its entire body inside
+`if ( !SDL_windowid && !IsZoomed(SDL_Window) )`, so the `SDL_SetVideoMode` that
+`handleResize` performs afterwards moves and sizes **nothing** while the window is maximized —
+it resizes SDL's own surface and the viewport and stops. The one thing `applyWindowStyle` has
+to do for it is hand `handleResize` the size the window actually became, read back with
+`GetClientRect`, instead of the `windowedSize` that `setFullScreen` passed down: a window that
+has just come back maximized is the size of the work area, and passing the windowed size on
+would resize the maximize away in the same breath as restoring it.
 
 On first run, or when the stored size no longer fits, `getDefaultWindowSize` picks the largest
 integer multiple of 640x480 leaving a 120px margin in *both* directions, so "sharp" starts

@@ -1841,13 +1841,19 @@ start put a windowed-size window into the corner of the screen. `setFullScreen()
 asks `rememberWindowPlacement()` before it switches, while the window is still the one
 config.xml is about, and `applyWindowStyle()` keeps nothing but the style.
 
-**What is deliberately not fixed**: a window that was maximized before Alt+Enter comes
-back from fullscreen as a normal window of the remembered size rather than maximized.
-`applyWindowStyle()` ends in `handleResize()` with the windowed size, which would pull
-the window straight out of a maximize again, and the `SDL_VIDEORESIZE` that the
-maximize queues would then arrive and size it a third time. Getting that ordering
-right wants a Windows machine in front of you, and it is a smaller wrong than the one
-this item is about. `restoreWindowPosition()`'s `replayMaximized` is where it would go.
+**A third: maximize, Alt+Enter, Alt+Enter came back as a normal window.** The first
+version of this fix left that alone on the reasoning that `applyWindowStyle()` ends in
+`handleResize()` with the windowed size and would resize any maximize straight away.
+The reasoning was wrong, and the vendored SDL says so: `DIB_ResizeWindow` puts its
+entire body inside `if ( !SDL_windowid && !IsZoomed(SDL_Window) )`, so the
+`SDL_SetVideoMode` that `handleResize()` performs moves and sizes nothing at all while
+the window is maximized - it resizes SDL's own surface and the viewport and stops.
+Restoring the maximize is therefore free, and `restoreWindowPosition()` replays
+`showCmd` on both paths rather than only at startup; the parameter that used to say
+which is gone. The one piece `applyWindowStyle()` owes it is the size to hand on: a
+window that just came back maximized is the size of the work area, where
+`setFullScreen()` has only the windowed size to offer, so the client rect is read back
+with `GetClientRect()` after the placement is set.
 
 **Unverified.** None of this can be compiled here beyond `Tools/syntax.sh`, let alone
 run: it is all inside `#ifdef _WIN32`. `rememberWindowPlacement()` logs

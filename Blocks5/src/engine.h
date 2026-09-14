@@ -456,11 +456,9 @@ private:
 	// The window's placement for config.xml, through GetWindowPlacement and
 	// SetWindowPlacement so that its workspace coordinates round-trip. Both
 	// want the windowed window: remember() before a switch into fullscreen,
-	// restore() after the style is back. replayMaximized is false there,
-	// because handleResize() follows with the windowed size and would pull the
-	// window straight back out of a maximize; at startup nothing follows.
+	// restore() at startup and once the style is back.
 	void rememberWindowPlacement();
-	void restoreWindowPosition(bool replayMaximized);
+	void restoreWindowPosition();
 	bool isWindowMaximized() const;   // maximized? then track nothing
 #ifdef _WIN32
 	void hookWindowProc();            // put our own window procedure in front
