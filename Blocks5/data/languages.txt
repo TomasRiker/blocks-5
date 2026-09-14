@@ -1580,7 +1580,7 @@ Move up			%BINDING{$A_UP}
 Move down		%BINDING{$A_DOWN}
 Plant bomb		%BINDING{$A_PLANT_BOMB} + direction
 Put bomb down		%BINDING{$A_PUT_DOWN_BOMB} + direction
-Change player		%BINDING{$A_SWITCH_CHARACTER} or click at player
+Switch character		%BINDING{$A_SWITCH_CHARACTER} or click at character
 Restart level		%BINDING{$A_RESTART_LEVEL}
 Restart from hotel		%BINDING{$A_RESTART_FROM_HOTEL}
 Mute on/off		%BINDING{$A_TOGGLE_MUTE}
@@ -1601,7 +1601,7 @@ Nach oben			%BINDING{$A_UP}
 Nach unten			%BINDING{$A_DOWN}
 Bombe legen und zünden	%BINDING{$A_PLANT_BOMB} + Richtung
 Bombe ablegen		%BINDING{$A_PUT_DOWN_BOMB} + Richtung
-Spielfigur wechseln		%BINDING{$A_SWITCH_CHARACTER} oder Figur anklicken
+Spielfigur wechseln		%BINDING{$A_SWITCH_CHARACTER} oder Spielfigur anklicken
 Level neu starten		%BINDING{$A_RESTART_LEVEL}
 Vom Hotel aus neu starten	%BINDING{$A_RESTART_FROM_HOTEL}
 Ton aus/ein		%BINDING{$A_TOGGLE_MUTE}
@@ -2043,7 +2043,7 @@ $HINT_BLOCKS_05_01
 
 $HINT_BLOCKS_05_02
 // Hint text 02 for level 05 of campaign "blocks"
-§en:In this level, there are multiple characters. To change the active character, either press %BINDING{$A_SWITCH_CHARACTER} or click at the character that you want to control.
+§en:In this level, there are multiple characters. To switch between the characters, either press %BINDING{$A_SWITCH_CHARACTER} or click at the character that you want to control.
 This level can only be solved with "teamwork"!
 // --------------------------------------------------------------------------------
 §de:In diesem Level gibt es mehrere Spielfiguren. Um die Spielfigur zu wechseln, drücke %BINDING{$A_SWITCH_CHARACTER} oder klicke die entsprechende Spielfigur mit der Maus an.
