@@ -133,7 +133,7 @@ void Level::clear()
 	delete[] p_tiles;
 	p_tiles = 0;
 	// The layer arrays need no GL call to release and no context to be current
-	// while they go, which is the half of this that display lists could not do.
+	// while they go.
 	for(int i = 0; i < NUM_LAYERS; i++) tileVertices[i].clear();
 
 	delete[] p_aiFlags;
@@ -1327,11 +1327,37 @@ void Level::renderShine(double intensity,
 	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
 }
 
+namespace
+{
+	// A value in [-1, 1] for one point of a beam: steady for as long as the
+	// seed is, different from its neighbours along the beam.
+	//
+	// One value for the whole object - the caller's bare glowJitter - is what
+	// this replaces, and it is the thing to keep away from: every point of the
+	// beam then breathes in unison, which reads as the beam pulsing rather
+	// than as light scattering along it.
+	//
+	// A random() per point would look the same as this and is what stood here
+	// before. What it costs is not shimmer - the loop renders at most once per
+	// tick, so it cannot shimmer faster than the jitter is meant to - but
+	// draws from the shared generator, a variable number of them, since the
+	// beam's length moves with its mirrors. In a shipped build there is no
+	// per-frame reseed, so those draws shift the sequence the logic reads.
+	// The hash is the usual fract(sin(x) * large): no state, no draws.
+	double pointJitter(double seed, int index)
+	{
+		double h = sin(seed * 12.9898 + index * 78.233) * 43758.5453;
+		h -= floor(h);
+		return h * 2.0 - 1.0;
+	}
+}
+
 void Level::renderBeamShines(const std::list<Vec2d>& beam,
 							 const Vec2i& origin,
 							 double intensity,
 							 double size,
-							 double jitter)
+							 double jitter,
+							 double seed)
 {
 	if(beam.empty()) return;
 
@@ -1372,7 +1398,7 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 		previous = *i;
 		if(n % 4 && !corner) continue;
 
-		renderShine(intensity, size + random(-jitter, jitter),
+		renderShine(intensity, size + jitter * pointJitter(seed, n),
 					*i - origin - Vec2d(7.5, 7.5));
 	}
 }

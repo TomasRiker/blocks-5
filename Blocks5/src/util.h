@@ -147,6 +147,16 @@ inline double wrapTextureOffset(double offset, int period)
 	return fmod(offset, static_cast<double>(period));
 }
 
+// To the nearest whole pixel, both signs alike. A plain conversion to Vec2i
+// cuts towards zero, so adding 0.5 first - the obvious rounding - rounds up
+// above zero and down below it, and a symmetric movement comes out a pixel
+// short on one side.
+inline Vec2i roundToVec2i(const Vec2d& v)
+{
+	return Vec2i(static_cast<int>(floor(v.x + 0.5)),
+				 static_cast<int>(floor(v.y + 0.5)));
+}
+
 extern bool writingCrashLog;
 
 #define BEGIN_PROFILE(NAME) \

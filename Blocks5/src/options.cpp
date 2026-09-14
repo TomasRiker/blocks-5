@@ -77,59 +77,15 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->setChecked();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->setChecked();
 
-	// The upscale filters, the best first. Without a shader SharpFit is not
-	// there to be seen at all and the rest move up. The CRT filter comes last:
-	// the three above it are upscalers sorted by quality, the fourth is a
-	// matter of style. It needs the same shader and disappears without it just
-	// the same.
+	// The upscale filter. All four are always there - every one of them works
+	// on every machine the game starts on at all - so the four radio buttons
+	// and the CRT settings button keep the places options.xml gives them, and
+	// this has only to tick the one in use.
 	//
-	// The order lives in the Engine, and the radio button is named after the
-	// filter - "Options." + getName() is therefore not a convenience but the
-	// one place that spells that mapping out.
-	const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
-
-	// 50 is the top edge of the language flags beside them (options.xml,
-	// Static3).
-	int filterY = 50;
-	for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
-	{
-		const std::string element(std::string("Options.") + (*i)->getName());
-		GUI_Element* p_button = getChild(element);
-		// The label is an element of its own (<For> points back at the button)
-		// and therefore has to move along with it.
-		GUI_Element* p_label = getChild(element + "Label");
-		if((*i)->isAvailable())
-		{
-			p_button->setPosition(Vec2i(p_button->getPosition().x, filterY));
-			p_button->show();
-			if(p_label)
-			{
-				p_label->setPosition(Vec2i(p_label->getPosition().x, filterY + 3));
-				p_label->show();
-			}
-			filterY += 20;
-		}
-		else
-		{
-			p_button->hide();
-			if(p_label) p_label->hide();
-		}
-	}
-
-	// The button to the sliders slides in under the last visible entry.
-	GUI_Element* p_crtSettings = getChild("Options.CrtSettings");
-	if(engine.getCrt().isAvailable())
-	{
-		// After the loop filterY stands exactly one step below the last entry,
-		// giving the button the same spacing as the buttons have between
-		// themselves. 20 is the line pitch of the other dialogs.
-		p_crtSettings->setPosition(Vec2i(p_crtSettings->getPosition().x, filterY));
-		p_crtSettings->show();
-	}
-	else p_crtSettings->hide();
-
+	// The radio button is named after the filter: "Options." + getName() is
+	// not a convenience but the one place that spells that mapping out.
 	static_cast<GUI_RadioButton*>(getChild(
-		std::string("Options.") + engine.getEffectiveUpscaler()->getName()))->setChecked();
+		std::string("Options.") + engine.getUpscaler()->getName()))->setChecked();
 
 	// Fetch the slider settings from the Engine, 0..1 as 0..100.
 	U_Crt& crt = engine.getCrt();

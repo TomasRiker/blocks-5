@@ -2,8 +2,8 @@
 
 An Emscripten build of the game, and the one behind the "play in your browser"
 link for 1.2.0. It plays the whole campaign and runs both editors; recording
-video and taking screenshots are the only things it cannot do, and in exchange
-it has Import and Export buttons for moving levels, campaigns and skins between
+video is the only thing it cannot do (a screenshot lands in the downloads), and
+the Manager in the main menu moves levels, campaigns, music and skins between
 the browser and your machine. The Visual Studio build is untouched by all of
 it: every change to `Blocks5/src` sits behind `#ifdef __EMSCRIPTEN__` or is a
 standards-conformance or bug fix that MSVC also accepts.
@@ -15,7 +15,9 @@ tree.
 
 ```sh
 git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest && emsdk/emsdk activate latest
-./build.sh
+./build.sh              # into build/
+./build.sh hooks        # with the test hooks, into build-test/
+./build.sh asan         # under AddressSanitizer, into build-asan/
 ```
 
 Serve `build/` over HTTP; `file://` will not work.
@@ -105,34 +107,39 @@ video, OpenGL, OpenAL, texture loading straight out of the encrypted `data.zip`,
 the fixed-timestep main loop, mouse and keyboard input, and rendering — tile
 layers, sprites, fonts, the GUI, particles and weather.
 
-Amputated: video capture (`videorecorder_stub.cpp`), screenshots
-(`Engine::screenshot` returns early), the SEH crash handler, and the update
-checker. The
-$A_CAPTURE_SCREENSHOT and $A_TOGGLE_CAPTURE_VIDEO actions are not registered
-under `__EMSCRIPTEN__`, so F11/F12 no longer appear in Options -> Controls.
+Amputated: video capture (`videorecorder_stub.cpp`), the SEH crash handler, and
+the update checker. The $A_TOGGLE_CAPTURE_VIDEO action is not registered under
+`__EMSCRIPTEN__`, so F12 does not appear in Options -> Controls; F11 does, and a
+screenshot goes to the browser's downloads through `WebTransfer::downloadBytes`.
 
 Sound is gated on a click, because browsers refuse to start an `AudioContext`
 without one - see below.
 
-No display lists remain. All four sites re-emit their geometry directly: the
-tilemap and the glyph cache under `#ifdef __EMSCRIPTEN__` (the Windows build
-keeps its compiled lists), the thunderstorm bolt likewise, and the star wipe on
-both toolchains - `CF_Star` lost its GLU tessellator as well, since the star is
-a fixed shape a triangle fan covers exactly.
+No display lists remain, on any build: the tile grid, the glyph cache and the
+thunderstorm bolt are vertex arrays now (`quadarray.h`), and the star wipe is a
+triangle fan on both toolchains - `CF_Star` lost its GLU tessellator, since the
+star is a fixed shape a fan covers exactly.
 
 ## The pieces
 
 | file | what it does |
 |---|---|
 | `build.sh` | the whole build; also stages the runtime tree, mirroring `stage.bat` |
-| `compat.h` | force-included; MSVC CRT spellings and the `random()` clash with POSIX |
+| `compat.h` | force-included; the MSVC CRT spellings `_stricmp` and `_strnicmp` |
 | `gl_immediate.cpp` | intercepts immediate mode and re-emits every attribute per vertex (see below) |
 | `gl_compat.cpp` | the GL entry points Emscripten declares but never implements |
-| `platform_stubs.cpp` | SDL cursors, SDL surface locking |
+| `platform_stubs.cpp` | SDL cursors, surface locking, a real `SDL_UpperBlit`, SDL 1.2's key names, and the pixel-format fields `SDL_CreateRGBSurface` leaves unset |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
-| `web_transfer.cpp` | the download/file-picker bridge behind Export and Import (four channels: level, campaign, skin, select-level) |
+| `web_transfer.cpp` | the download/file-picker bridge under `Blocks5/src/transfer.cpp`: Blobs, `<input type="file">` staged by extension, `FS.syncfs` |
+| `web_bluescreen.cpp` | what the Quit button does where a page cannot close its tab |
+| `test_hooks.cpp` | the test hook's way into `Module["b5_test"]`; empty without `-DBLOCKS5_TEST_HOOKS` |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
-| `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, and wakes the `AudioContext` when the page comes back |
+| `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, swallows the function keys, and wakes the `AudioContext` when the page comes back |
+| `shell.html` | the page: viewport, boot screen, `locateFile` with the build's stamp, service worker registration |
+| `sw.js`, `manifest.json`, `htaccess` | the offline cache, the install manifest and the Apache headers (see above) |
+| `touch_controls.js` | the on-screen pad, an ordinary page file with a stamp of its own |
+| `make_icon.py`, `make_text.py` | the icons and the boot screen's line, generated at build time from `data/` |
+| `test/` | the Playwright harness and its scripts; see `test/README.md` |
 
 One of those deserves explanation.
 
@@ -228,8 +235,8 @@ again half a second after the frames resume.
 
 ## Getting levels, campaigns, music and skins in and out
 
-Two buttons in the main menu, **Import** and **Export**, on both platforms. The
-platform-independent half is `Blocks5/src/transfer.cpp`; this file is only the
+One **Manager** button in the main menu, on all three platforms, with Import,
+Export and Delete. The platform-independent half is `Blocks5/src/transfer.cpp`; this file is only the
 bridge under it - Blobs, `<input type="file">` and `FS.syncfs`, nothing about
 levels or skins. Windows uses `GetOpenFileNameA`/`GetSaveFileNameA` through the
 same interface: `beginImport()` starts the dialog and `pollImport()` is asked
@@ -246,8 +253,8 @@ composes none. The browser's filename is only a suggestion, run through
 `sanitizeFilenameStem`. On success the import forces an `FS.syncfs` so it is
 durable immediately rather than up to five seconds later.
 
-Export asks for the kind first, lists what is installed, and re-reads that list
-on every switch and on *Refresh*. What it writes is a plain copy - including for
+The Manager asks for the kind first, lists what is installed, and re-reads that
+list on every switch and on *Refresh*. What it writes is a plain copy - including for
 a password-protected skin, where decrypting on the way out would be a back door
 around the reason it is packed that way. Such an archive cannot be opened by the
 recipient but is still perfectly usable by their game: the password travels

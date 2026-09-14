@@ -7,7 +7,7 @@ E_ValueSwitch::E_ValueSwitch(Level& level,
 							 int value,
 							 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	this->value = value;
 
 	// create the output

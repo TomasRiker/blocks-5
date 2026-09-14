@@ -17,7 +17,6 @@
 extern "C"
 {
 	SDL_Surface* IMG_Load_RW(SDL_RWops* p_src, int freeSrc);
-	SDL_Surface* IMG_Load(const char* p_filename);
 }
 
 #endif

@@ -145,8 +145,6 @@ def c_display_list_stub(p):
     p.append('\nGLAPI void GLAPIENTRY glEndList(void) {}\n')
 
 
-# The shape the conversion to RenderLayer actually got wrong: a comparison
-# outside onRender, which compiles and is silently never true.
 # The shape the 1.2.0 translation sweep actually left behind: one German noun
 # inside an otherwise English line, which the majority rule cannot see.
 @case('comments', 'Blocks5/src/level.cpp')
@@ -154,9 +152,18 @@ def c_german_word(p):
     p.replace('// render the sparkle layer', '// render the "Funkel-Layer"')
 
 
+# The shape the conversion to RenderLayer actually got wrong: a comparison
+# outside onRender, which compiles and is silently never true.
 @case('render_layers', 'Blocks5/src/object.cpp')
 def c_render_layers(p):
     p.replace('if(layer == RL_WIRE)', 'if(layer == 939)')
+
+
+# The shape that cost every wire in the game: a part replacing the render
+# layers its base set instead of adding to them.
+@case('layer_bits', 'Blocks5/src/e_clock.cpp')
+def c_layer_bits(p):
+    p.replace('renderLayers |= RL_MAIN;', 'renderLayers = RL_MAIN;')
 
 
 # The one raw draw left inside an onRender: the lava's two quads, which change

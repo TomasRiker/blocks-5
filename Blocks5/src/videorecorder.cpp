@@ -26,7 +26,13 @@ namespace
 	int writeCallback(int64_t offset, const void* p_buffer, size_t size, void* p_token)
 	{
 		FILE* p_file = static_cast<FILE*>(p_token);
-		if(fseek(p_file, static_cast<long>(offset), SEEK_SET)) return 1;
+		// minimp4 seeks back to patch the header when it closes, and a long is
+		// 32 bits on Windows: past 2 GB the cast would go negative.
+#ifdef _WIN32
+		if(_fseeki64(p_file, offset, SEEK_SET)) return 1;
+#else
+		if(fseeko(p_file, static_cast<off_t>(offset), SEEK_SET)) return 1;
+#endif
 		return fwrite(p_buffer, 1, size, p_file) != size;
 	}
 
@@ -332,9 +338,12 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	// control is open: at vbv_size_bytes == 0 minih264 skips both branches
 	// that claw an outlier back afterwards, and desired_frame_bytes is then
 	// only a starting value per frame that a single frame may exceed up to
-	// sixteenfold. Measured on a level with rain, snow and a thunderstorm:
-	// 3091 kbit/s against 2840 wanted, with the buffer 2877.
+	// sixteenfold. Measured on a level with rain, snow, a thunderstorm and a
+	// laser, twenty seconds of it, 616 frames either way: unset the video
+	// comes out at 3073 kbit/s against the 2840 asked for, and with the buffer
+	// at 2849 - an overshoot of 8.2% against one of 0.3%.
 	createParam.num_layers = 1;
+	createParam.vbv_size_bytes = videoBitrate / 8;
 	createParam.max_threads = 0;
 
 	int persistSize = 0, scratchSize = 0;

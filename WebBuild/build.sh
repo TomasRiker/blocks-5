@@ -5,6 +5,7 @@
 #   ./build.sh            incremental
 #   ./build.sh clean      from scratch
 #   ./build.sh hooks      plus the test hooks
+#   ./build.sh asan       with AddressSanitizer, into build-asan/
 #
 # "hooks" compiles test_hooks.cpp, testhooks.cpp and engine.cpp with
 # -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, keeping a
@@ -21,19 +22,74 @@ ZLIB="$GAME/libs/zlib-1.3.1"
 OUT="$HERE/build"
 HOOKS=""
 if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"; fi
-source /home/user/emsdk/emsdk_env.sh >/dev/null 2>&1
+# "asan" is the same build under AddressSanitizer: -O1 so that the report
+# names a line, ASSERTIONS at 2 for the runtime's own checks, and a heap big
+# enough for the shadow memory. It is one script and not a copy of this one,
+# because a copy drifts: the last one still compiled libvorbis's misc.c and
+# lacked INCOMING_MODULE_JS_API, which aborts the start under ASSERTIONS.
+OPT="-O2"
+ASSERT=1
+MEMORY=50331648
+if [ "${1:-}" = "asan" ]; then
+    OPT="-O1 -g2 -fsanitize=address"; ASSERT=2; MEMORY=536870912; OUT="$HERE/build-asan"
+fi
+# emsdk_env.sh puts em++ on the PATH. Skipped where it already is, so a shell
+# that activated an emsdk of its own is left alone. $EMSDK first, then the two
+# places a checkout actually sits here - $HOME is not the account the toolchain
+# was installed under in this container, so $HOME/emsdk alone finds nothing.
+#
+# The failure is reported rather than swallowed: sourcing a script that is not
+# there is silent, and without this the run dies a hundred lines further down
+# with "emcc: command not found", which names neither the cause nor the fix.
+if ! command -v em++ >/dev/null 2>&1; then
+    for d in "${EMSDK:-}" "$HOME/emsdk" /home/user/emsdk; do
+        if [ -n "$d" ] && [ -f "$d/emsdk_env.sh" ]; then
+            . "$d/emsdk_env.sh" >/dev/null 2>&1
+            break
+        fi
+    done
+fi
+command -v em++ >/dev/null 2>&1 || {
+    echo "em++ not found. Activate an emsdk, or point \$EMSDK at one:"
+    echo "  git clone https://github.com/emscripten-core/emsdk && emsdk/emsdk install latest && emsdk/emsdk activate latest"
+    exit 2; }
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"
 
-INC="-I$GAME/src -I$HERE
+# libogg's os_types.h ends in "#include <ogg/config_types.h>" for every
+# compiler it does not know by name, emcc among them, and that header is one
+# configure writes: it is not in the tarball and so not in the tree. It is
+# generated here, as LinuxBuild/build.sh generates it, so that the build does
+# not depend on a copy that some earlier port left in the emsdk sysroot.
+# Written only when its content changes, since the objects depend on it.
+GEN="$OUT/gen"
+mkdir -p "$GEN/ogg"
+cat > "$GEN/ogg/config_types.h.new" <<'EOF'
+#ifndef __CONFIG_TYPES_H__
+#define __CONFIG_TYPES_H__
+#include <stdint.h>
+typedef int16_t ogg_int16_t;
+typedef uint16_t ogg_uint16_t;
+typedef int32_t ogg_int32_t;
+typedef uint32_t ogg_uint32_t;
+typedef int64_t ogg_int64_t;
+#endif
+EOF
+if cmp -s "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"; then
+    rm "$GEN/ogg/config_types.h.new"
+else
+    mv "$GEN/ogg/config_types.h.new" "$GEN/ogg/config_types.h"
+fi
+
+INC="-I$GAME/src -I$HERE -I$GEN
      -I$GAME/libs/tinyxml-2.6.2 -I$GAME/libs/sigslot -I$GAME/libs/mtrand-1.1
      -I$GAME/libs/openal-soft-1.25.2/include -I$GAME/libs/openal-soft-1.25.2/include/AL
      -I$GAME/libs/libvorbis-1.3.4/include -I$GAME/libs/libvorbis-1.3.4/lib
      -I$GAME/libs/libogg-1.3.2/include -I$GAME/libs/zlib-1.3.1 -I$GAME/libs/stb
      -I$GAME/libs/zlib-1.3.1/contrib/minizip"
 
-CFLAGS="-O2 -DTIXML_USE_STL -sUSE_SDL=1 $INC"
+CFLAGS="$OPT -DTIXML_USE_STL -sUSE_SDL=1 $INC"
 CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 
 # The game's sources, minus the three that cannot come along:
@@ -161,11 +217,11 @@ onRuntimeInitialized,postRun,preInit,preRun,print,printErr,setStatus,statusMessa
 stdin,stdout,thisProgram,wasm,websocket,GL_MAX_TEXTURE_IMAGE_UNITS"
 
 em++ $OBJS -o "$OUT/blocks5.html" \
-  -O2 -sASSERTIONS=1 -sUSE_SDL=1 -lopenal \
+  $OPT -sASSERTIONS=$ASSERT -sUSE_SDL=1 -lopenal \
   -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
   -sINCOMING_MODULE_JS_API="$INCOMING_MODULE_JS_API" \
   -Wl,--wrap=SDL_CreateRGBSurface \
-  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=50331648 \
+  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=$MEMORY \
   -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \
   --shell-file $HERE/shell.html \
   $PRELOAD \

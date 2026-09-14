@@ -10,7 +10,7 @@
 // The values are single bits, so that an object's set of layers is the OR of
 // the ones it draws on and testing a pass against it is one AND - see
 // Object::getRenderLayers(). That puts a ceiling of 32 layers on this list,
-// which is twelve away and would be a different design anyway.
+// which is twenty away and would be a different design anyway.
 //
 // The order is the order the passes run in, which is the order a reader wants
 // them. Nothing outside the program sees the values - a level file stores an

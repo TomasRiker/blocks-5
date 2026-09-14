@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "engine.h"
 #include "filesystem.h"
-#include "transfer.h"
 #include "gs_menu.h"
 #include "gs_selectlevel.h"
 #include "gs_game.h"
@@ -521,8 +520,6 @@ int runTheGame(int argc,
 		if(equalsNoCase(p_arg, "-windowed")) engine.overrideFullScreen(false);
 		else if(equalsNoCase(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
-		else if(equalsNoCase(p_arg, "-noFBO")) engine.disableFrameBuffer();
-		else if(equalsNoCase(p_arg, "-noShader")) engine.disableShaders();
 		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
 		else if(equalsNoCase(p_arg, "-noBatch")) engine.disableSpriteBatch();
 	}

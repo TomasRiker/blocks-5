@@ -14,15 +14,12 @@
 
 namespace GLExtensions
 {
-	// Call once the GL context is up. Returns true if framebuffer objects are
-	// usable; otherwise the game renders straight into the back buffer, as
-	// before.
-	bool init();
-
-	bool haveFrameBufferObjects();
-
-	// GL 2.0 / WebGL 1: everything the present shaders need.
-	bool haveShaders();
+	// Call once the GL context is up. Resolves everything below and ends the
+	// program with a message where a driver cannot supply it: framebuffer
+	// objects, GL 2.0 shaders and vertex buffer objects are what this game is
+	// built on, not features it can do without. There is therefore nothing to
+	// ask afterwards and no availability to branch on.
+	void init();
 }
 
 // The constants are identical in EXT_framebuffer_object and in the GL 3.0 core,

@@ -109,7 +109,7 @@ public:
 
 	// The framebuffer the game renders into: always 640x480, whatever the
 	// window size. Every calculation in screen coordinates stays valid.
-	bool createFrameBuffer();
+	void createFrameBuffer();
 	void destroyFrameBuffer();
 	void bindFrameBuffer();      // target = framebuffer, viewport 640x480
 	void unbindFrameBuffer();    // target = window
@@ -128,12 +128,8 @@ public:
 	// is torn down only long after that context is gone. acquire gives 0 where
 	// it does not work.
 	//
-	// A pool and not a single texture, because several hint notes can be
-	// visible at once - stepping from one onto its neighbour fades the one out
-	// while the other fades in. With a shared texture the second would draw
-	// into it while the first still read from it, and both would then show the
-	// same text. The pool grows only up to the largest number of textures
-	// borrowed at once.
+	// A pool and not one texture, because two hint notes overlap while one
+	// fades out and the next fades in, and both would then show the same text.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
 	// Where in the window the 640x480 picture goes: centred, aspect kept. The
@@ -150,27 +146,15 @@ public:
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 
-	// -nofbo and -noshader: force the two fallback paths that otherwise only
-	// old hardware takes. Without a framebuffer object the game draws unscaled
-	// into the back buffer, there is no upscaling filter, no crossfade and no
-	// rolled hint note; without shaders SharpFit and the CRT filter stay
-	// unavailable. Neither can be checked other than by hand, because no
-	// machine here is that old - hence the switches. To be set before init()
-	// as well.
-	void disableFrameBuffer() { frameBufferDisabled = true; }
-	void disableShaders() { shadersDisabled = true; }
 	// -nobatch: the A/B arm for the sprite batch, and the way out if a driver
 	// ever mishandles a client-side colour array.
 	void disableSpriteBatch() { spriteBatchDisabled = true; }
 
 	// -perf: put what the last few hundred frames cost on the screen. The
 	// timings are recorded either way - four clock reads a frame - and this
-	// only decides whether anybody sees them. It is how the numbers are read
-	// on a phone, where there is no console and no test harness; in a desktop
-	// browser the same numbers come out of the test hook instead, without the
-	// overlay's own cost landing in the picture.
+	// only decides whether anybody sees them, which a phone has no other way
+	// to do.
 	void showPerformance() { performanceShown = true; }
-	bool isPerformanceShown() const { return performanceShown; }
 
 	// The -perf upper-bound measurement; see where it is set in render().
 	bool isRenderSuppressed() const { return renderSuppressed; }
@@ -195,14 +179,9 @@ public:
 	// Smallest window size handleResize() allows, as a window rect including
 	// the frame - for WM_GETMINMAXINFO.
 	Vec2i getMinimumWindowSize() const;
-	// Without a framebuffer object the window stays at 640x480 - see
-	// fixWindowSize(). The window procedure asks in order to give Windows the
-	// maximum as well.
-	bool hasFixedWindowSize() const { return !useFrameBuffer; }
 #endif
 	void setFullScreen(bool wantFullScreen);
 	void toggleFullScreen() { setFullScreen(!fullScreen); }
-	bool isFullScreen() const { return fullScreen; }
 #ifdef __EMSCRIPTEN__
 	// On a phone the game takes the fullscreen back itself on every touch.
 	// Called from the DOM callback and nowhere else: the Fullscreen API needs a
@@ -219,17 +198,16 @@ public:
 	Vec2i getDefaultWindowSize() const;
 
 	// The filters' GL state: the shared vertex buffer and, where one is
-	// needed, the compiled program. If one will not compile, that filter
-	// reports itself unavailable and the presentation falls back to Sharp; the
-	// game runs either way.
+	// needed, the compiled program. Ends the program where a driver cannot
+	// supply either - see fatalerror.h.
 	void createUpscalerGL();
 	void destroyUpscalerGL();
 
-	// getUpscaler() is the wish out of config.xml, getEffectiveUpscaler() what
-	// is left of it on this machine.
+	// The filter in use, out of config.xml. Every one of the four works on
+	// every machine the game starts on at all, so there is nothing between
+	// the wish and the picture.
 	void setUpscaler(Upscaler* p_upscaler);
 	Upscaler* getUpscaler() const { return p_wantedUpscaler; }
-	Upscaler* getEffectiveUpscaler() const;
 	// All four, in the order they appear in the options dialog.
 	const std::vector<Upscaler*>& getUpscalers() const { return upscalers; }
 	// The filter for its name out of config.xml; 0 if none is called that.
@@ -303,7 +281,6 @@ public:
 	bool isGUIFocused();
 	void unfocusGUI();
 
-	const std::vector<VirtualKey>& getVKs() const;
 	const std::unordered_map<std::string, Action*>& getActions() const;
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
@@ -343,7 +320,6 @@ public:
 
 	// timeOutMS <= 0 waits without a deadline.
 	void beginKeyGrab(int timeOutMS = 3000);
-	bool isGrabbingKey() const;
 
 	// Returns GRAB_WAITING while nothing is decided; otherwise the result
 	// once, and that ends the key grab.
@@ -455,7 +431,6 @@ private:
 	void setupCursor();
 	SDL_Cursor* createCursor(int factor) const;
 	void updateCursorSize();
-	void fixWindowSize();
 	void updateToasts();
 	void renderToasts();
 
@@ -478,9 +453,13 @@ private:
 	// change itself is Win32; the size always goes through handleResize().
 	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
 
-	void rememberWindowPlacement();   // reads position/size off the window
+	// The window's placement for config.xml, through GetWindowPlacement and
+	// SetWindowPlacement so that its workspace coordinates round-trip. Both
+	// want the windowed window: remember() before a switch into fullscreen,
+	// restore() at startup and once the style is back.
+	void rememberWindowPlacement();
+	void restoreWindowPosition();
 	bool isWindowMaximized() const;   // maximized? then track nothing
-	void restoreWindowPosition();     // puts them back at startup
 #ifdef _WIN32
 	void hookWindowProc();            // put our own window procedure in front
 	void unhookWindowProc();          // and take it out again
@@ -510,8 +489,6 @@ private:
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = nothing given on the command line
 	bool splashSkipped;        // -nosplash
-	bool frameBufferDisabled;  // -nofbo
-	bool shadersDisabled;      // -noshader
 	bool swallowedReturn;      // Alt+Return swallowed: the release too
 	Vec2i windowedSize;        // size that leaving fullscreen falls back to
 	Vec2i windowedPosition;    // ditto for the position
@@ -521,7 +498,6 @@ private:
 	bool inSizeMove;           // user is holding the border or the title bar
 #endif
 	long savedWindowStyle;     // Win32: the style before fullscreen
-	int savedWindowRect[4];    // Win32: x, y, w, h before fullscreen
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;
@@ -566,9 +542,7 @@ private:
 	bool spriteBatchDisabled;
 	// What the first quad of the open batch was queued against; in a test-hooks
 	// build the flush checks the state is still that. Declared whatever the
-	// build, because BLOCKS5_TEST_HOOKS reaches three translation units at most
-	// and a member behind it would give this class two different sizes - which
-	// is the one way to make singletons lie on top of each other in memory.
+	// build: a member behind BLOCKS5_TEST_HOOKS would give the class two sizes.
 	GLint batchTexture;
 	GLdouble batchTextureMatrix[16];
 	// The batched half of renderSprite, taking the corners already worked out
@@ -618,12 +592,12 @@ private:
 		bool lent;
 	};
 	std::vector<OffscreenTexture> offscreenTextures;
-	bool useFrameBuffer;
 	// The four filters. upscalers owns them and holds the options dialog's
-	// order; the four pointers beside it are the shortcut to them.
+	// order. Two are named beside it because two places want exactly that one
+	// and not whichever is in use: SharpFit is the default, and the CRT
+	// filter has its own six sliders. Sharp and Smooth are reached like any
+	// other, through the vector or by name.
 	std::vector<Upscaler*> upscalers;
-	U_Sharp* p_sharp;
-	U_Smooth* p_smooth;
 	U_SharpFit* p_sharpFit;
 	U_Crt* p_crt;
 	Upscaler* p_wantedUpscaler;

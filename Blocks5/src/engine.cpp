@@ -18,6 +18,7 @@ static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #endif
 #include "engine.h"
 #include "glextensions.h"
+#include "fatalerror.h"
 #include "testhooks.h"
 #include "u_all.h"
 #ifdef __EMSCRIPTEN__
@@ -92,25 +93,20 @@ Engine::Engine()
 	renderTargetID = 0;
 	renderTargetScissor = false;
 	presentVertexBuffer = 0;
-	useFrameBuffer = false;
 	// The four filters. They stand before loadConfig(), which looks one of them
 	// up by name, and that is long before the GL context; their GL state comes
 	// into being only in createUpscalerGL(). The order is the options dialog's:
 	// the best first, the matter of style last.
 	p_sharpFit = new U_SharpFit();
-	p_sharp    = new U_Sharp();
-	p_smooth   = new U_Smooth();
 	p_crt      = new U_Crt();
 	upscalers.push_back(p_sharpFit);
-	upscalers.push_back(p_sharp);
-	upscalers.push_back(p_smooth);
+	upscalers.push_back(new U_Sharp());
+	upscalers.push_back(new U_Smooth());
 	upscalers.push_back(p_crt);
-	p_wantedUpscaler = p_sharpFit;   // without shaders this becomes Sharp
+	p_wantedUpscaler = p_sharpFit;
 	fullScreen = false;
 	fullScreenOverride = -1;
 	splashSkipped = false;
-	frameBufferDisabled = false;
-	shadersDisabled = false;
 	performanceShown = false;
 	renderSuppressed = false;
 	renderSuppressWanted = false;
@@ -132,7 +128,6 @@ Engine::Engine()
 	inSizeMove = false;
 #endif
 	savedWindowStyle = 0;
-	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -149,8 +144,6 @@ Engine::~Engine()
 		delete *i;
 	}
 	upscalers.clear();
-	p_sharp = 0;
-	p_smooth = 0;
 	p_sharpFit = 0;
 	p_crt = 0;
 	p_wantedUpscaler = 0;
@@ -615,42 +608,19 @@ bool Engine::init(const std::string& windowCaption,
 		}
 	}
 
-	// Create the framebuffer object. If that fails, rendering goes straight
-	// into the back buffer.
+	// All three end the program with a message where this machine cannot do
+	// what the game is built on - see fatalerror.h.
 	GLExtensions::init();
-	useFrameBuffer = createFrameBuffer();
-	if(!useFrameBuffer)
-	{
-		printfLog("- WARNING: No framebuffer object; rendering straight to the back buffer.\n");
+	createFrameBuffer();
+	createUpscalerGL();
 
-		// Then it stays at 640x480, see handleResize(): a size taken from
-		// config.xml has to go back, and there is no fullscreen, because a
-		// screen-filling window would put the picture in a corner.
-		fullScreen = false;
-		handleResize(screenSize.x, screenSize.y);
-		fixWindowSize();
-	}
-	else if(GLExtensions::haveShaders())
-	{
-		createUpscalerGL();
-	}
-
-	// If the game starts in fullscreen, the style change comes now - only here,
-	// because handleResize() has to know the framebuffer.
+	// If the game starts in fullscreen, the style change comes now.
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
-	{
-		std::string available;
-		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
-		{
-			if(!(*i)->isAvailable()) continue;
-			if(!available.empty()) available += ", ";
-			available += (*i)->getName();
-		}
-		printfLog("  Upscale filters:  %s\n", available.c_str());
-	}
-	printfLog("  Upscaling:        %s\n", getEffectiveUpscaler()->getName());
+	printfLog("  Upscaling:        %s\n", p_wantedUpscaler->getName());
 
-	// Only here: how large the cursor must be hangs off the framebuffer.
+	// Only here: setupCursor() ends in updateCursorSize(), which measures the
+	// rectangle presentFrame() fills - so the window must have its final size
+	// and the filter must be the one that will draw.
 	setupCursor();
 
 	// create the textures for crossfading
@@ -835,6 +805,12 @@ void Engine::exit()
 	destroyUpscalerGL();
 	destroyFrameBuffer();
 
+	// delete the crossfade and the textures - before the managers go, since a
+	// crossfade may hold a resource of theirs (CF_Rewind's OSD picture)
+	crossfade(0, 0.0);
+	GL::deleteTexture(oldImageID);
+	GL::deleteTexture(newImageID);
+
 	// shut down the managers
 	printfLog("* Shutting down resource managers ...\n");
 	Manager<TileSet>::inst().exit();
@@ -852,10 +828,6 @@ void Engine::exit()
 	delete p_audioCapture;
 	p_audioCapture = 0;
 
-	// delete the crossfade and the textures
-	crossfade(0, 0.0);
-	GL::deleteTexture(oldImageID);
-	GL::deleteTexture(newImageID);
 
 	// close the joysticks
 	for(std::vector<SDL_Joystick*>::const_iterator it = joysticks.begin();
@@ -869,8 +841,9 @@ void Engine::exit()
 
 	// shut down SDL
 	printfLog("* Shutting down SDL ...\n");
-	SDL_Cursor* p_cursor = SDL_GetCursor();
-	SDL_FreeCursor(p_cursor);
+	SDL_FreeCursor(p_cursor1x);
+	SDL_FreeCursor(p_cursor2x);
+	p_cursor1x = p_cursor2x = 0;
 	SDL_Quit();
 
 	// delete the actions
@@ -1194,11 +1167,13 @@ void Engine::mainLoopIteration()
 			// Do not compute, do not draw - but keep presenting. A window
 			// that puts nothing up any more shows whatever Windows last had
 			// of it, and that can be seconds old.
-			if(useFrameBuffer) showLastFrame();
-			else if(!fullScreen) SDL_GL_SwapBuffers();
+			showLastFrame();
 
 			updateSounds();
 			SDL_Delay(50);
+			// Or the first frame after the return would report the whole
+			// inactive stretch as its interval.
+			lastFrameBegin = 0.0;
 			continue;
 		}
 
@@ -1345,7 +1320,7 @@ void Engine::mainLoopIteration()
 
 					// Fetch the frame. Always 640x480 out of the framebuffer, whatever
 					// the window size - the video encoder is set up for that once.
-					glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+					glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
 
 					if(SDL_ShowCursor(-1))
@@ -1678,12 +1653,14 @@ void Engine::render()
 
 #ifdef BLOCKS5_TEST_HOOKS
 	// One random stream per rendered frame, keyed on the scene's tick and on
-	// nothing else. A rendered frame makes draws of its own - renderShine's
-	// jitter, the night vision's two noise offsets, a particle's colour - and
-	// how many renders fall inside one 20 ms tick is up to the frame rate, so
-	// without this the picture at a given tick depends on how fast the machine
-	// is. The odd half of the pair; update() takes the even one, which keeps
-	// the logic one stream per tick whatever the renderer does.
+	// nothing else. A rendered frame makes draws of its own - the night
+	// vision's two noise offsets, a particle's colour - and a slow machine
+	// renders fewer frames than it runs ticks (the render is gated on a tick
+	// having run, so there is never more than one per tick and there can be
+	// fewer), so without this the picture at a given tick depends on how many
+	// frames the machine dropped on the way there. The odd half of the pair;
+	// update() takes the even one, which keeps the logic one stream per tick
+	// whatever the renderer does.
 	//
 	// sceneTick and not getTime(), because the engine's clock counts from
 	// startup and a harness's click lands at whatever tick the machine got to
@@ -1835,14 +1812,14 @@ void Engine::update()
 	}
 
 #ifdef STRESS_TEST
-	static int wurst = 0;
-	if(!(wurst % 40))
+	static int stressTicks = 0;
+	if(!(stressTicks % 40))
 	{
 		const char* s[] = {"GS_LevelEditor", "GS_SelectLevel", "GS_CampaignEditor"};
 		pushGameState(s[randomInt() % 3]);
 	}
-	else if(!((wurst + 20) % 40)) popGameState();
-	wurst++;
+	else if(!((stressTicks + 20) % 40)) popGameState();
+	stressTicks++;
 #endif
 
 	// update the GUI
@@ -1914,36 +1891,31 @@ std::string Engine::getBestOpenALDevice()
 
 void Engine::createUpscalerGL()
 {
-	if(shadersDisabled)
-	{
-		// No vertex buffer, no compiled programs: the filters then report
-		// themselves as unavailable of their own accord, and
-		// getEffectiveUpscaler() falls back to Sharp.
-		printfLog("  Shaders:             switched off (-noshader)\n");
-		return;
-	}
-
 	// WebGL forbids vertex data out of application memory, it has to be a
 	// buffer. Four vertices, refilled every frame; every filter that uses a
 	// shader shares this one.
 	glExtGenBuffers(1, &presentVertexBuffer);
 	if(!presentVertexBuffer)
 	{
-		// Without it no shader filter can draw. They are then simply left
-		// uncompiled and report themselves as unavailable of their own accord -
-		// no second condition is needed for that.
-		printfLog("- WARNING: Could not create the present vertex buffer.\n");
-		return;
+		fatalError("Blocks 5 - graphics error",
+				   "The graphics driver would not create a vertex buffer.\n\n"
+				   "There is nothing to be done about this from here; a driver\n"
+				   "update is the thing to try.");
 	}
 
-	// Each on its own: a CRT filter that does not compile is no reason to drop
-	// SharpFit as well.
+	// Four filters, of which two have a shader; the other two answer from the
+	// base class and cannot fail. A driver that resolved every GL 2.0 entry
+	// point and then will not compile one of those two is broken rather than
+	// old, so this ends the program as well - leaving a filter out instead is
+	// what the whole of the rest of this file no longer has to reckon with.
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
-		if(!(*i)->createGL())
-		{
-			printfLog("- WARNING: The %s filter will not be available.\n", (*i)->getName());
-		}
+		if((*i)->createGL()) continue;
+
+		fatalError("Blocks 5 - graphics error",
+				   std::string("The \"") + (*i)->getName() + "\" display filter would not compile.\n\n"
+				   "log.txt, in the folder with your saved games, has the\n"
+				   "compiler's own message. A driver update is the thing to try.");
 	}
 }
 
@@ -1958,8 +1930,8 @@ void Engine::destroyUpscalerGL()
 
 void Engine::setUpscaler(Upscaler* p_upscaler)
 {
-	// Only remembered. Whether the filter really works on this machine is
-	// getEffectiveUpscaler()'s decision - there may be no GL context here yet.
+	// Never null: every filter works on every machine the game starts on, and
+	// a name config.xml does not know leaves the one standing.
 	if(p_upscaler) p_wantedUpscaler = p_upscaler;
 }
 
@@ -1973,29 +1945,8 @@ Upscaler* Engine::findUpscaler(const char* p_name) const
 	return 0;
 }
 
-Upscaler* Engine::getEffectiveUpscaler() const
+void Engine::createFrameBuffer()
 {
-	// Without a compiled program, sharp rather than no picture at all. The
-	// wish stays as it is, for the next machine - nothing is rewritten here.
-	//
-	// The fallback is fixed Sharp and not "the first one that works": the
-	// display order begins with SharpFit, and that belongs to the options
-	// dialog. Otherwise its sorting would one day decide what a machine
-	// without shaders shows.
-	if(p_wantedUpscaler && p_wantedUpscaler->isAvailable()) return p_wantedUpscaler;
-	return p_sharp;
-}
-
-bool Engine::createFrameBuffer()
-{
-	if(frameBufferDisabled)
-	{
-		printfLog("  Framebuffer objects: switched off (-nofbo)\n");
-		return false;
-	}
-
-	if(!GLExtensions::haveFrameBufferObjects()) return false;
-
 	frameTextureSize = screenPow2Size;
 
 	glGenTextures(1, &frameTextureID);
@@ -2039,14 +1990,16 @@ bool Engine::createFrameBuffer()
 
 	if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
 	{
-		printfLog("- WARNING: Framebuffer object is incomplete (status 0x%x).\n", status);
-		destroyFrameBuffer();
-		return false;
+		char detail[64];
+		sprintf(detail, "status 0x%x", static_cast<unsigned>(status));
+		fatalError("Blocks 5 - graphics error",
+				   std::string("The graphics driver would not give the game a render\n"
+				   "target to draw into (") + detail + ").\n\n"
+				   "A driver update is the thing to try.");
 	}
 
 	printfLog("  Render target:    %dx%d in a %dx%d texture\n",
 			  screenSize.x, screenSize.y, frameTextureSize.x, frameTextureSize.y);
-	return true;
 }
 
 void Engine::destroyFrameBuffer()
@@ -2066,8 +2019,6 @@ void Engine::destroyFrameBuffer()
 
 uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
-	if(!useFrameBuffer) return 0;
-
 	// Nothing here needs a flush of its own: the hit path issues no GL at all,
 	// and the miss path's two binds go through GL::, which puts the batch up
 	// itself where the binding moves.
@@ -2123,7 +2074,7 @@ bool Engine::beginRenderToTexture(uint textureID,
 	// during it belong on the texture, and each goes up where it was issued.
 	flushSprites();
 
-	if(!useFrameBuffer || !textureID) return false;
+	if(!textureID) return false;
 
 	if(!renderTargetID)
 	{
@@ -2175,14 +2126,12 @@ void Engine::endRenderToTexture()
 
 void Engine::bindFrameBuffer()
 {
-	if(!useFrameBuffer) return;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
 	glViewport(0, 0, screenSize.x, screenSize.y);
 }
 
 void Engine::unbindFrameBuffer()
 {
-	if(!useFrameBuffer) return;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
 	glViewport(0, 0, displaySize.x, displaySize.y);
 }
@@ -2236,10 +2185,6 @@ void Engine::enforceTouchFullScreen()
 	// takes it itself.
 	if(!isPhone()) return;
 
-	// The same condition as for Alt+Return: without a framebuffer object there
-	// is no presentFrame() that would fill another area with black bars.
-	if(!useFrameBuffer) return;
-
 	// The browser is asked and not our own flag: leaving the fullscreen with a
 	// swipe leaves fullScreen standing at true, and setFullScreen(true) would
 	// then never reach the API at all.
@@ -2288,25 +2233,19 @@ Vec2i Engine::getDefaultWindowSize() const
 void Engine::rememberWindowPlacement()
 {
 #ifdef _WIN32
-	// In fullscreen the window sits at (0,0) and is screen-sized. What counts
-	// then is what applyWindowStyle() remembered before the switch.
-	if(fullScreen)
-	{
-		if(savedWindowStyle)
-		{
-			windowedPosition = Vec2i(savedWindowRect[0], savedWindowRect[1]);
-			windowedPositionKnown = true;
-		}
-		return;
-	}
+	// The window has to be the windowed one. In fullscreen it is the
+	// screen-sized popup with nothing here to read, which is why
+	// setFullScreen() asks before it switches rather than after.
+	if(fullScreen) return;
 
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
 	// GetWindowPlacement rather than GetWindowRect: for a maximized window
-	// GetWindowRect gives the maximized frame. rcNormalPosition is what
-	// "restore" goes back to, and that is what gets saved.
+	// GetWindowRect gives the maximized frame, whose corner sits off the
+	// screen by the width of the invisible grab handles. rcNormalPosition is
+	// what "restore" goes back to, and that is what gets saved.
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(wp);
 	if(!GetWindowPlacement(info.window, &wp)) return;
@@ -2326,6 +2265,26 @@ void Engine::rememberWindowPlacement()
 		const int h = (wp.rcNormalPosition.bottom - wp.rcNormalPosition.top)  - (frame.bottom - frame.top);
 		if(w >= screenSize.x && h >= screenSize.y) windowedSize = Vec2i(w, h);
 	}
+
+	// Both rectangles, because they are not in the same coordinate system and
+	// the difference between them is the whole of the trap this function and
+	// restoreWindowPosition() are written around: rcNormalPosition is in
+	// *workspace* coordinates - the work area, with the taskbar and any docked
+	// toolbar taken out of it - where GetWindowRect gives *screen* ones. The
+	// two agree exactly while the work area begins at the top left corner of
+	// the monitor, which is what a taskbar along the bottom or the right
+	// gives, and that is why the difference is invisible on almost every
+	// machine. Written down rather than reasoned about: nothing that builds
+	// this tree can run it.
+	RECT onScreen = { 0, 0, 0, 0 };
+	GetWindowRect(info.window, &onScreen);
+	printfLog("  Window: normal %d,%d %dx%d, on screen %d,%d, maximized %d\n",
+			  static_cast<int>(wp.rcNormalPosition.left),
+			  static_cast<int>(wp.rcNormalPosition.top),
+			  static_cast<int>(wp.rcNormalPosition.right  - wp.rcNormalPosition.left),
+			  static_cast<int>(wp.rcNormalPosition.bottom - wp.rcNormalPosition.top),
+			  static_cast<int>(onScreen.left), static_cast<int>(onScreen.top),
+			  maximized ? 1 : 0);
 #endif
 }
 
@@ -2338,22 +2297,49 @@ void Engine::restoreWindowPosition()
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
-	// If the window would land on no screen at all, better leave it where
-	// Windows put it. MonitorFromRect answers that correctly for negative
-	// coordinates too, which a monitor to the left of the first one has.
-	RECT r;
-	r.left   = windowedPosition.x;
-	r.top    = windowedPosition.y;
-	r.right  = windowedPosition.x + displaySize.x;
-	r.bottom = windowedPosition.y + displaySize.y;
-	if(!MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) return;
+	// SetWindowPlacement and not SetWindowPos, because what was saved is
+	// rcNormalPosition and that is in workspace coordinates while SetWindowPos
+	// takes screen ones. The two only round-trip while the work area starts at
+	// the top left corner of the monitor; where it does not - a taskbar along
+	// the top or the left - every save and restore shifts the window by the
+	// size of it, in the same direction each time, and over a run of sessions
+	// the window walks across the desktop.
+	//
+	// It carries two other things that used to be done by hand here: showCmd
+	// is the whole of the maximized state, and a placement that would put the
+	// window on no screen at all is moved back onto one by Windows itself.
+	WINDOWPLACEMENT wp;
+	wp.length = sizeof(wp);
+	if(!GetWindowPlacement(info.window, &wp)) return;
 
-	SetWindowPos(info.window, HWND_NOTOPMOST, windowedPosition.x, windowedPosition.y,
-				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	// rcNormalPosition is a window rect and windowedSize a client area, so the
+	// frame has to be added back: AdjustWindowRectEx on an empty rectangle is
+	// exactly what the border costs, and this is rememberWindowPlacement()'s
+	// own arithmetic run backwards. Where it fails the rectangle keeps the size
+	// it already had.
+	LONG width  = wp.rcNormalPosition.right  - wp.rcNormalPosition.left;
+	LONG height = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
+	RECT frame = { 0, 0, 0, 0 };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(AdjustWindowRectEx(&frame, style & ~WS_MAXIMIZE, FALSE, exStyle))
+	{
+		width  = windowedSize.x + (frame.right  - frame.left);
+		height = windowedSize.y + (frame.bottom - frame.top);
+	}
 
-	// Maximized before, maximized again. SDL turns that into an
-	// SDL_VIDEORESIZE of its own accord, which handleResize() picks up.
-	if(maximized) ShowWindow(info.window, SW_MAXIMIZE);
+	wp.rcNormalPosition.left   = windowedPosition.x;
+	wp.rcNormalPosition.top    = windowedPosition.y;
+	wp.rcNormalPosition.right  = windowedPosition.x + width;
+	wp.rcNormalPosition.bottom = windowedPosition.y + height;
+
+	// The maximized state is part of the placement rather than a separate
+	// ShowWindow(), and replaying it costs the caller nothing: DIB_ResizeWindow
+	// does its whole body inside if(!SDL_windowid && !IsZoomed(SDL_Window)), so
+	// the SDL_SetVideoMode that follows moves no window while this one is
+	// maximized - it resizes SDL's own surface and the viewport and stops.
+	wp.showCmd = maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+	SetWindowPlacement(info.window, &wp);
 #endif
 }
 
@@ -2438,18 +2424,6 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				MINMAXINFO* p_info = reinterpret_cast<MINMAXINFO*>(lParam);
 				p_info->ptMinTrackSize.x = minimum.x;
 				p_info->ptMinTrackSize.y = minimum.y;
-
-				// Without a framebuffer object the lower bound is the upper
-				// one as well. The style alone ought to be enough, but
-				// Windows has ways to get at the window that do not drag
-				// a border - Win+Arrow for one.
-				if(engine.hasFixedWindowSize())
-				{
-					p_info->ptMaxTrackSize.x = minimum.x;
-					p_info->ptMaxTrackSize.y = minimum.y;
-					p_info->ptMaxSize.x      = minimum.x;
-					p_info->ptMaxSize.y      = minimum.y;
-				}
 			}
 
 			return result;
@@ -2534,7 +2508,7 @@ void Engine::repaintDuringSizeMove()
 {
 	// Only during the foreign message loop. Outside it the main loop draws,
 	// and nothing may cut in on it.
-	if(!inSizeMove || !initialized || !useFrameBuffer) return;
+	if(!inSizeMove || !initialized) return;
 
 	// SwapBuffers can itself deliver messages; a second pass in the middle of
 	// the first would be bad.
@@ -2578,46 +2552,12 @@ void Engine::repaintDuringSizeMove()
 }
 #endif
 
-void Engine::fixWindowSize()
-{
-	// Without a framebuffer object the game draws straight into the back
-	// buffer. The viewport is 640x480 and there is no presentFrame(), and a
-	// larger window therefore does not fill with a larger picture - it shows
-	// the same picture somewhere else, and the mouse mapping, which believes
-	// displaySize, misses. handleResize() clamps the size to 640x480 anyway;
-	// this tells the window itself, keeping it from growing in the first place.
-#ifdef _WIN32
-	SDL_SysWMinfo info;
-	SDL_VERSION(&info.version);
-	if(!SDL_GetWMInfo(&info) || !info.window) return;
-
-	HWND hwnd = info.window;
-
-	// Restore first: restoreWindowPosition() runs before the decision about
-	// the framebuffer object, and a window remembered as maximized would still
-	// stand that way here. A SetWindowPos alone does not take the flag off it.
-	if(IsZoomed(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-
-	// WS_THICKFRAME is the grab handle at the border, WS_MAXIMIZEBOX the
-	// button - and with it the double click on the title bar goes too. Change
-	// the style first, then measure: getMinimumWindowSize() reckons with the
-	// one that is set.
-	SetWindowLong(hwnd, GWL_STYLE,
-				  GetWindowLong(hwnd, GWL_STYLE) & ~(WS_THICKFRAME | WS_MAXIMIZEBOX));
-
-	const Vec2i frame = getMinimumWindowSize();
-	if(frame.x > 0 && frame.y > 0)
-	{
-		SetWindowPos(hwnd, 0, 0, 0, frame.x, frame.y,
-					 SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-	}
-#elif !defined(__EMSCRIPTEN__)
-	LinuxWindow::setFixedSize(screenSize.x, screenSize.y);
-#endif
-}
-
 void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 {
+	// What handleResize() is finally told. Leaving fullscreen into a maximized
+	// window is the one case where it is not what the caller asked for.
+	Vec2i clientSize = size;
+
 	// SDL's flags are deliberately left alone: SDL_FULLSCREEN or SDL_NOFRAME
 	// force DIB_SetVideoMode onto the slow path, and that calls
 	// WIN_GL_ShutDown - the GL context and every texture would be gone. The
@@ -2633,18 +2573,14 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		{
 			// Only the first time: a second pass would remember the WS_POPUP
 			// that is already set - there would be no way out of fullscreen.
-			if(!savedWindowStyle)
-			{
-				savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
-				RECT r;
-				if(GetWindowRect(hwnd, &r))
-				{
-					savedWindowRect[0] = r.left;
-					savedWindowRect[1] = r.top;
-					savedWindowRect[2] = r.right - r.left;
-					savedWindowRect[3] = r.bottom - r.top;
-				}
-			}
+			//
+			// The style is all that is kept here. Where the window stood and
+			// whether it was maximized belongs to setFullScreen(), which asks
+			// rememberWindowPlacement() before it switches: GetWindowRect on a
+			// maximized window gives the maximized frame, whose corner hangs
+			// off the screen, and it answers in screen coordinates where the
+			// rest of this pair works in the workspace ones.
+			if(!savedWindowStyle) savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
 
 			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 			// HWND_TOP, not HWND_TOPMOST: a borderless fullscreen window that
@@ -2652,27 +2588,46 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 			SetWindowPos(hwnd, HWND_TOP, 0, 0, size.x, size.y,
 						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
+		else if(savedWindowStyle && windowedPositionKnown)
+		{
+			// The style first, because restoreWindowPosition() computes the
+			// frame from the style that is set when it runs. It then puts the
+			// position, the size and the maximized state back through the same
+			// API that took them, which is what keeps the workspace
+			// coordinates of rcNormalPosition round-tripping.
+			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
+			restoreWindowPosition();
+			savedWindowStyle = 0;
+
+			// The size the window actually became, and not the one the caller
+			// offered: setFullScreen() has only the *windowed* size to hand
+			// over, and a window that has just come back maximized is the size
+			// of the work area instead. Passing the windowed size on would
+			// resize the maximize away in the same breath as restoring it.
+			RECT client;
+			if(GetClientRect(hwnd, &client) && client.right > 0 && client.bottom > 0)
+			{
+				clientSize = Vec2i(static_cast<int>(client.right),
+								   static_cast<int>(client.bottom));
+			}
+		}
 		else
 		{
+			// No remembered position - back into a window all the same. There
+			// must always be a way out of fullscreen. This rectangle is
+			// computed against the desktop rather than read off a window, so it
+			// is in screen coordinates and SetWindowPos is what takes those.
 			long style = savedWindowStyle;
-			int x = savedWindowRect[0], y = savedWindowRect[1];
-			int w = savedWindowRect[2], h = savedWindowRect[3];
-
-			if(!style)
-			{
-				// Nothing remembered - back into a window all the same. There
-				// must always be a way out of fullscreen.
-				style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-				RECT r = { 0, 0, size.x, size.y };
-				AdjustWindowRect(&r, style, FALSE);
-				w = r.right - r.left;
-				h = r.bottom - r.top;
-				const Vec2i desktop = getDesktopSize();
-				x = (desktop.x - w) / 2;
-				y = (desktop.y - h) / 2;
-				if(x < 0) x = 0;
-				if(y < 0) y = 0;
-			}
+			if(!style) style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+			RECT r = { 0, 0, size.x, size.y };
+			AdjustWindowRect(&r, style, FALSE);
+			const int w = r.right - r.left;
+			const int h = r.bottom - r.top;
+			const Vec2i desktop = getDesktopSize();
+			int x = (desktop.x - w) / 2;
+			int y = (desktop.y - h) / 2;
+			if(x < 0) x = 0;
+			if(y < 0) y = 0;
 
 			SetWindowLong(hwnd, GWL_STYLE, style);
 			SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, w, h,
@@ -2691,16 +2646,18 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 
 	// Always through here: displaySize belongs to handleResize, and SDL has to
 	// learn the new size - otherwise the mouse cursor is stuck on the old area.
-	handleResize(size.x, size.y);
+	handleResize(clientSize.x, clientSize.y);
 }
 
 void Engine::setFullScreen(bool wantFullScreen)
 {
-	// Without a framebuffer object the picture stays at 640x480, see
-	// handleResize().
-	if(wantFullScreen && initialized && !useFrameBuffer) return;
-
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
+
+	// Going fullscreen takes the windowed placement away - the window becomes
+	// the screen-sized popup - so Engine::exit() would find nothing left to
+	// read. It is taken here instead, while the window is still the one
+	// config.xml is about.
+	if(wantFullScreen) rememberWindowPlacement();
 
 	fullScreen = wantFullScreen;
 	printfLog("* %s\n", wantFullScreen ? "Going fullscreen" : "Leaving fullscreen");
@@ -2716,17 +2673,6 @@ void Engine::setFullScreen(bool wantFullScreen)
 
 void Engine::handleResize(int width, int height)
 {
-	// Without a framebuffer object the game draws straight into the back
-	// buffer: there is no presentFrame() to pick up a different window size,
-	// the viewport has been 640x480 since init(), and the mouse mapping and the
-	// crossfade reckon with that too. The window therefore keeps its size
-	// instead of showing a picture in the corner.
-	if(!useFrameBuffer)
-	{
-		width  = screenSize.x;
-		height = screenSize.y;
-	}
-
 #ifndef __EMSCRIPTEN__
 	// The window may not become smaller than the internal picture: below that
 	// Sharp has no integer step left. In the browser the canvas sets the size,
@@ -2752,17 +2698,17 @@ void Engine::handleResize(int width, int height)
 	displaySize = Vec2i(width, height);
 	// Do not write down a maximized size: the remembered window size would
 	// then be the maximized window's, and "restore" would have no target left.
-	if(useFrameBuffer && !fullScreen && !isWindowMaximized()) windowedSize = displaySize;
+	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
 }
 
 Vec2d Engine::warpToSource(const Vec2d& p) const
 {
-	return getEffectiveUpscaler()->warpToSource(p);
+	return p_wantedUpscaler->warpToSource(p);
 }
 
 Vec2d Engine::warpToOutput(const Vec2d& p) const
 {
-	return getEffectiveUpscaler()->warpToOutput(p);
+	return p_wantedUpscaler->warpToOutput(p);
 }
 
 void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
@@ -2775,7 +2721,7 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 	// Sharp needs an integer step. At a fractional factor nearest doubles some
 	// source pixels and not others - uneven stroke widths, ragged lettering.
 	// Below 1:1 there is no such step.
-	if(getEffectiveUpscaler()->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
+	if(p_wantedUpscaler->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
 
 	w = static_cast<int>(screenSize.x * scale);
 	h = static_cast<int>(screenSize.y * scale);
@@ -2785,8 +2731,6 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 
 void Engine::presentFrame()
 {
-	if(!useFrameBuffer) return;
-
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
@@ -2826,10 +2770,9 @@ void Engine::presentFrame()
 	context.displaySize  = displaySize;
 	context.frameSize    = screenSize;
 	context.textureSize  = frameTextureSize;
-	context.textureID    = frameTextureID;
 	context.vertexBuffer = presentVertexBuffer;
 
-	Upscaler* p_upscaler = getEffectiveUpscaler();
+	Upscaler* p_upscaler = p_wantedUpscaler;
 
 	// Sharp and Smooth are nothing but this setting; SharpFit and the CRT
 	// filter remap the texture coordinate for the hardware interpolation to
@@ -2967,7 +2910,7 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 {
 	// Always the internal 640x480 frame: the filter and the black bars are
 	// display settings and do not belong in the file.
-	const Vec2i shotSize(useFrameBuffer ? screenSize : displaySize);
+	const Vec2i shotSize(screenSize);
 
 	// GL_RGBA and not GL_RGB or GL_BGR: that is the only combination WebGL 1
 	// allows too. Only the three colour channels of it reach the file - see
@@ -2982,8 +2925,8 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 	// anywhere else does not, and the attachment it would read then is not
 	// this game's picture. It also puts the viewport back to 640x480, which
 	// is the size this read assumes.
-	if(useFrameBuffer) bindFrameBuffer();
-	glReadBuffer(useFrameBuffer ? GL_COLOR_ATTACHMENT0_EXT : GL_BACK);
+	bindFrameBuffer();
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
 	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, p_pngOut))
@@ -3663,11 +3606,6 @@ void Engine::unfocusGUI()
 	GUI::inst().setFocusElement(0);
 }
 
-const std::vector<VirtualKey>& Engine::getVKs() const
-{
-	return virtualKeys;
-}
-
 const std::unordered_map<std::string, Action*>& Engine::getActions() const
 {
 	return actions;
@@ -4007,11 +3945,6 @@ void Engine::beginKeyGrab(int timeOutMS)
 	grabbingKey = true;
 }
 
-bool Engine::isGrabbingKey() const
-{
-	return grabbingKey;
-}
-
 int Engine::pollKeyGrab()
 {
 	if(grabbingKey) return GRAB_WAITING;
@@ -4142,26 +4075,22 @@ Vec2i Engine::getCursorPosition() const
 {
 	Vec2i position = cursorPosition;
 
-	if(useFrameBuffer)
+	// Exactly the inverse of what presentFrame() draws. The rectangle is centred,
+	// so the arithmetic holds in SDL's window coordinates as well as in GL's.
+	// Computed with pixel centres; only that makes the round trip exact.
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	if(w > 0 && h > 0)
 	{
-		// Exactly the inverse of what presentFrame() draws. The rectangle is
-		// centred, so the arithmetic holds in SDL's window coordinates as
-		// well as in GL's. Computed with pixel centres; only that makes the
-		// round trip exact.
-		int x, y, w, h;
-		computePresentRect(x, y, w, h);
-		if(w > 0 && h > 0)
-		{
-			Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
+		Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
 
-			// The same curvature as in the shader: the cursor sits on the glass.
-			// Without curvature warpToSource returns the coordinate unchanged.
-			const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
-			n = (warped + Vec2d(1.0, 1.0)) * 0.5;
+		// The same curvature as in the shader: the cursor sits on the glass.
+		// Without curvature warpToSource returns the coordinate unchanged.
+		const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
+		n = (warped + Vec2d(1.0, 1.0)) * 0.5;
 
-			position.x = static_cast<int>(floor(n.x * screenSize.x));
-			position.y = static_cast<int>(floor(n.y * screenSize.y));
-		}
+		position.x = static_cast<int>(floor(n.x * screenSize.x));
+		position.y = static_cast<int>(floor(n.y * screenSize.y));
 	}
 
 	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
@@ -4182,22 +4111,19 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 	Vec2i temp = Vec2i(clamp(cursorPosition.x, 0, screenSize.x - 1),
 					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
-	if(useFrameBuffer)
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	if(screenSize.x > 0 && screenSize.y > 0)
 	{
-		int x, y, w, h;
-		computePresentRect(x, y, w, h);
-		if(screenSize.x > 0 && screenSize.y > 0)
-		{
-			Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
+		Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
 
-			// The way back through the curvature. With the CRT filter off this
-			// is the identity.
-			const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
-			n = (out + Vec2d(1.0, 1.0)) * 0.5;
+		// The way back through the curvature. With the CRT filter off this
+		// is the identity.
+		const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
+		n = (out + Vec2d(1.0, 1.0)) * 0.5;
 
-			temp.x = x + static_cast<int>(floor(n.x * w));
-			temp.y = y + static_cast<int>(floor(n.y * h));
-		}
+		temp.x = x + static_cast<int>(floor(n.x * w));
+		temp.y = y + static_cast<int>(floor(n.y * h));
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);
@@ -4263,7 +4189,9 @@ void Engine::crossfade(Crossfade* p_crossfade,
 	}
 	else
 	{
-		// start the crossfade
+		// start the crossfade - and let go of one still running, which would
+		// otherwise be leaked with whatever textures it holds
+		delete this->p_crossfade;
 		this->p_crossfade = p_crossfade;
 		crossfadeTime = -0.51;
 		crossfadeDuration = duration;
@@ -4302,7 +4230,7 @@ void Engine::publishLanguage()
 
 std::string Engine::detectSystemLanguage()
 {
-	// Only "de" or "en". Of the 349 strings in data/languages.txt exactly one
+	// Only "de" or "en". Of the 440 strings in data/languages.txt exactly one
 	// has a French body and one a Spanish, so detecting "fr" here would give an
 	// English game with a French label.
 #if defined(__EMSCRIPTEN__)
@@ -4361,8 +4289,7 @@ void Engine::loadConfig()
 		}
 		else printfLog("  No <Language> in config.xml; using the system language: %s\n", language.c_str());
 
-		// Read the upscaling filter. Whether it really works is decided later
-		// by getEffectiveUpscaler() - there is no GL context here.
+		// Read the upscaling filter.
 		TiXmlElement* p_upscaler = p_config->FirstChildElement("Upscaler");
 		if(p_upscaler)
 		{
@@ -4385,11 +4312,16 @@ void Engine::loadConfig()
 
 		// The window: position, size, maximized, fullscreen. All four apply at
 		// the next start - during play the player switches for themselves.
+		// Only before the window exists: read while the game runs - the options
+		// dialog's Cancel reloads the file - it would overwrite what handleResize()
+		// and applyWindowStyle() know about the window that is actually up.
 		TiXmlElement* p_window = p_config->FirstChildElement("Window");
-		if(p_window)
+		if(p_window && !initialized)
 		{
 			// Negative values are allowed: a second screen to the left of the
-			// first has them. restoreWindowPosition() checks the spot.
+			// first has them, and so does a window on a monitor above the
+			// primary one. A spot that no longer exists at all is Windows'
+			// problem - SetWindowPlacement puts such a window back on a screen.
 			int x = 0, y = 0;
 			const bool haveX = p_window->QueryIntAttribute("positionX", &x) == TIXML_SUCCESS;
 			const bool haveY = p_window->QueryIntAttribute("positionY", &y) == TIXML_SUCCESS;

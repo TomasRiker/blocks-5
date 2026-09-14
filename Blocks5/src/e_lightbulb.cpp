@@ -6,7 +6,7 @@ E_LightBulb::E_LightBulb(Level& level,
 						 const Vec2i& position,
 						 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN | RL_LIGHT;
+	renderLayers |= RL_MAIN | RL_LIGHT;
 	renderBox = false;
 	on = false;
 

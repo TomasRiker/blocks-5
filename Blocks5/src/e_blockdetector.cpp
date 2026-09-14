@@ -6,7 +6,7 @@ E_BlockDetector::E_BlockDetector(Level& level,
 								 const Vec2i& position,
 								 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	// create the output
 	createPin(10, Vec2i(7, 15), PT_OUTPUT);
 }

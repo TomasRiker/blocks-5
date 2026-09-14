@@ -22,6 +22,7 @@ Exit code 1 as soon as anything is reported.
 | `display_lists` | No display lists anywhere, in either build. |
 | `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |
+| `layer_bits` | A subclass adds its render layers with `\|=`; it does not replace the bits its base set. |
 | `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
 | `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
 | `gl_doors` | And so does the whole tree, or `GLState`'s record of it is a belief. |
@@ -70,7 +71,7 @@ Compiles every source of the game with `i686-w64-mingw32-g++ -fsyntax-only`. It
 is the only way to put a compiler over the Windows code from here, and it costs
 half a minute.
 
-    sh Tools/syntax.sh              all 123 files
+    sh Tools/syntax.sh              all 124 files
     sh Tools/syntax.sh engine.cpp   only this one
 
 Three files never go through it - `main.cpp`, `videorecorder.cpp` and

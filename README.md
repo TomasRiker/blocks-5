@@ -7,8 +7,8 @@ A 2D tile-based puzzle/action game in C++, on SDL 1.2, OpenGL and OpenAL Soft.
 Building on Windows
 -------------------
 Run `Build.bat` from the repository root. It locates MSBuild, builds all three projects for
-`Win32`, and then packs `data.zip` and `levels/skins/*.zip` — build products that are not in
-Git and that the game cannot start without.
+`Win32`, and then packs `data.zip`, `levels/skins/*.zip` and `levels/campaigns/blocks.zip` —
+build products that are not in Git and that the game cannot start without.
 
     Build.bat                     Release, newest toolset this Visual Studio has
     Build.bat Debug
@@ -45,7 +45,7 @@ The second one skips the logo and the jingle, which is what you want when you ar
 game for the twentieth time that afternoon.
 
 To build from the IDE instead, open `Blocks5.sln`, build all three projects, and run
-`zip_data.bat` and `zip_skins.bat` in `Blocks5\` once.
+`zip_data.bat`, `zip_skins.bat` and `zip_campaign.bat` in `Blocks5\` once.
 
 
 Building on Linux
@@ -64,11 +64,13 @@ other two builds use.
 `libsdl1.2-dev` is sdl12-compat on every current distribution — the 1.2 API reimplemented on
 SDL 2 — which is what a player gets and what this is tested against.
 
-`data.zip` and `levels/skins/*.zip` are build products that are not in Git, and the game will
-not start without them. `Blocks5/pack.sh` builds them here — it is `zip_data.bat` and
-`zip_skins.bat` in one script, with `zip` in place of `7za` and the distribution's `optipng`:
+`data.zip`, `levels/skins/*.zip` and `levels/campaigns/blocks.zip` are build products that
+are not in Git, and the game will not start without them. `Blocks5/pack.sh` builds them here —
+it is `zip_data.bat`, `zip_skins.bat` and `zip_campaign.bat` in one script, with the
+distribution's `7za` and `optipng` (`7za` and not `zip`, so that the same tool writes the
+same archive as under Windows):
 
-    sudo apt install zip optipng
+    sudo apt install p7zip-full optipng
     Blocks5/pack.sh                 everything
     Blocks5/pack.sh --no-optipng    skip the slow step
 
@@ -104,16 +106,22 @@ them one by one.
 `WebBuild/test/smoke.js` drive the real game through its menus by element name rather than
 by guessed pixel coordinates. See `WebBuild/test/README.md`.
 
-`LinuxBuild/test/smoke.sh` does the same for the native build, under Xvfb and openbox. It has
-no introspection hook and clicks on coordinates, so it checks less: that the menus, the
-options dialog and the manager open, that Alt+Return reaches fullscreen and comes back, that
-F11 writes a screenshot, and that quitting writes `config.xml`.
+`LinuxBuild/test/smoke.sh` does the same for the native build, under Xvfb and openbox, with
+the same hook (`Blocks5/src/testhooks.cpp`, compiled in by `LinuxBuild/build.sh hooks` and
+answering through a file, since there is no JavaScript to call it): the menus, the options
+dialog and the manager open, a played level starts and its menu opens, Alt+Return reaches
+fullscreen and comes back, F11 writes a screenshot, and quitting writes `config.xml`.
+`LinuxBuild/test/frames.sh` renders five named scenes as byte-reproducible PNGs, which is the
+oracle a rendering change is checked against.
 
 
 Layout
 ------
+    CLAUDE.md       how the tree is built, checked and put together, in detail
     ROADMAP.md      planned work and what stands in the way of each item
-    Tools/          verify.py and selftest.py, the static checks over the tree
+    FINDINGS.md     the review findings of the 1.2.0 overhaul and what became of each
+    SDL3-MIGRATION.md  a plan for moving off SDL 1.2, not started
+    Tools/          the static checks (verify.py, selftest.py, syntax.sh) and the generators
     Blocks5/        the game: sources in src/, assets in data/, levels and skins in levels/
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths
     ShowUserDir/    opens the user data folder in Explorer

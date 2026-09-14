@@ -19,7 +19,6 @@ struct PresentContext
 	Vec2i displaySize;    // window size, for the clip coordinates
 	Vec2i frameSize;      // the rendered frame, always 640x480
 	Vec2i textureSize;    // power of two; frameSize sits at its bottom left
-	uint textureID;
 	uint vertexBuffer;    // WebGL forbids vertex data from application memory
 };
 
@@ -37,7 +36,6 @@ struct PresentProgram
 	// lost.
 	bool create(const char* p_fragmentSource, const char* p_name);
 	void destroy();
-	bool isLinked() const { return id != 0; }
 
 	// Bind the program and set the four shared uniforms. A filter can then add
 	// its own afterwards, before drawQuad().
@@ -74,14 +72,11 @@ public:
 
 	// Create and tear down GL state, both only with a standing context and
 	// both allowed more than once. A filter that needs none leaves the base
-	// case alone.
+	// case alone. False from createGL() ends the program: every one of these
+	// four has to work, or the options dialog would be offering a picture the
+	// machine cannot draw.
 	virtual bool createGL() { return true; }
 	virtual void destroyGL() {}
-
-	// Can this filter draw on this machine? Without a compiled program, no. A
-	// framebuffer object is not a condition but a precondition: without one
-	// the Engine never even calls createGL().
-	virtual bool isAvailable() const { return true; }
 
 	// GL_NEAREST or GL_LINEAR for the framebuffer texture.
 	virtual GLint getTextureFilter() const = 0;

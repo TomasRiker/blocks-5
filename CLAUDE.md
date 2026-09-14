@@ -137,8 +137,8 @@ there are checks that run in seconds and a way to drive the real game — see
 **Checking a change** below.
 
 Command line / launcher scripts: `-windowed` (`windowed.bat`), `-fullscreen`, `-nosplash`,
-`-nofbo`, `-noshader`, `-perf` and `-nobatch` — that is the whole list, and `readme.txt`
-documents all seven. `-nobatch` makes `renderSprite` draw every quad on its own again instead
+`-perf` and `-nobatch` — that is the whole list, and `readme.txt` documents all five.
+`-nobatch` makes `renderSprite` draw every quad on its own again instead
 of collecting a render pass into one call; it is the arm to measure the sprite batch against,
 and `?nobatch=1` is the same switch in the browser.
 `-perf` puts what the last few hundred frames cost in the corner; in the browser `?perf=1` on
@@ -147,25 +147,33 @@ the address becomes the same switch. See **Measuring a frame** below.
 `GS_Loading` already takes when the texture will not load; only `soundPlayed` has to start
 `true`, because the jingle hangs off the time threshold rather than off the logo.
 
-**`-nofbo` and `-noshader` force the two fallback paths** that otherwise only appear on
-hardware nobody here has, and each is one early return: `createFrameBuffer()` gives up
-before asking the extension, `createUpscalerGL()` before allocating the shared vertex
-buffer — after which every shader filter reports itself unavailable of its own accord and
-`getEffectiveUpscaler` falls back to `Sharp`. Both paths are otherwise unreachable from
-this machine, and they carry real code: without a framebuffer object there is no upscaler,
-no crossfade and no rolled hint note.
+**Framebuffer objects, GL 2.0 shaders and vertex buffer objects are requirements, and the
+game says so and stops where one is missing.** `GLExtensions::init` resolves all three;
+`createFrameBuffer` and `createUpscalerGL` add the two failures a resolved entry point can
+still produce, a framebuffer that will not complete and a shader that will not link. There
+is therefore no availability to branch on anywhere: no `useFrameBuffer`, no
+`Upscaler::isAvailable`, no fallback to `Sharp`, no unrolled hint note, no 640x480 window
+pin, and no `-nofbo`/`-noshader` to force paths that no longer exist. The dates are the
+argument — buffers are core in GL 1.5 (2003), shaders in GL 2.0 (2004), framebuffer objects
+an EXT from 2004 — and both software rasterizers this tree is tested against, llvmpipe and
+SwiftShader, carry all three. In the browser they are core in WebGL 1, so those branches had
+been unreachable in that build from the start.
 
-**Without one the window is nailed to 640x480**, and that is not a preference: the game then
-draws straight into the back buffer, the viewport is 640x480, and `presentFrame` returns
-without doing anything — so a larger window does not get a larger picture, it gets the same
-picture somewhere else, while `getCursorPosition` still believes `displaySize` and puts every
-click in the wrong place. `handleResize` has always clamped the size; what was missing is that
-nothing told the *window*, so maximizing left the frame large and the clamp then early-returned
-on an unchanged `displaySize` and did nothing at all. `Engine::fixWindowSize` takes
-`WS_THICKFRAME` and `WS_MAXIMIZEBOX` off the window under Windows (and answers
-`WM_GETMINMAXINFO` with the same size for the maximum as for the minimum, since Win+Arrow does
-not drag a border), and sets equal min and max size hints under X11, which is the ICCCM way of
-saying "this window has one size". Fullscreen was already refused on that path.
+**The case the message is written for is not an old machine but a new one in a particular
+state.** Windows with no graphics driver in play — a fresh installation, safe mode, a virtual
+machine, an RDP session — hands out `opengl32.dll`'s GDI Generic renderer, which is OpenGL
+1.1. So the box names the missing group together with `GL_VERSION`, `GL_RENDERER` and
+`GL_VENDOR` and says to install the driver: seeing *GDI Generic* there is what turns a
+support mail into a self-fix. It is English, because `Engine::init` runs before `main()`
+loads `languages.txt`.
+
+**`fatalError()` (`fatalerror.h`) is the one way the game gives up**, and it is written once
+per platform because that is the whole of what differs: `MessageBoxA` under Windows, zenity
+or kdialog under Linux — the same pair the file dialogs reach for — and a DOM overlay in the
+browser. The Linux half goes through `fork`/`execlp` rather than `system()`: the message
+carries strings the driver wrote, and an argument handed straight to the program needs no
+quoting and can carry no command in it. `execlp` returns only where the program is missing,
+so the child's `_exit(127)` is how the parent knows to try the other one.
 
 **The mouse cursor follows the scale, and the framebuffer has nothing to do with it.** The
 arrow is drawn once at 16x16 — the size it was designed as, and the size the video recorder and
@@ -204,7 +212,7 @@ Four things run here, none of them needing Windows. Run at least the first two a
 edit; they take about half a minute together.
 
 ```
-python3 Tools/verify.py      twenty-one static checks over the whole tree
+python3 Tools/verify.py      twenty-four static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -280,7 +288,7 @@ ceremony: the attribute check was inert when first written, because `Attribute(`
 matches the tail of `SetAttribute(` and so every written attribute counted as read — the
 one check aimed at the bug above would have found nothing.
 
-**`sh Tools/syntax.sh`** compiles all 123 sources with `i686-w64-mingw32-g++
+**`sh Tools/syntax.sh`** compiles all 124 sources with `i686-w64-mingw32-g++
 -fsyntax-only`. It is the only way to put a compiler over the Windows code from here. Three
 files never go through it — `main.cpp`, `videorecorder.cpp`, `stackwalker.cpp`. The last two
 are left out of the web build for the same reasons; `main.cpp` is compiled there, and the
@@ -817,6 +825,18 @@ a couple of hundred pixels unless the generator is seeded. `frames.sh` does seed
 and `cat1` is the tab its editor scene opens, reproducible over repeated full runs — so the
 palette that used to be the awkward one is now the one under the oracle.
 
+**A sixth place broke that no palette could have caught, and it stayed broken for months.**
+`Electronics` sets `RL_WIRE` in its own constructor and draws every connection on that pass;
+all thirteen parts then ran `renderLayers = RL_MAIN` in theirs, which runs after the base and
+wipes the bit — and `renderObjects` skips an object whose bit is clear, so **not one wire was
+drawn anywhere in the game** from the commit that gave the layers names. Nothing said so: it
+compiles, it runs, and the only symptom is a picture with something missing from it. The
+palettes are blind to it because `cat4` holds the parts and nothing in it is *connected*, and
+so were all five oracle scenes. Two things close that: `verify.py`'s `layer_bits` check, which
+knows which ancestor put bits in `renderLayers` and reports a subclass that replaces rather
+than adds, and a clock wired to a light bulb in the `plain` oracle level, so the wire pass now
+draws something a byte-exact comparison can see.
+
 **There are no display lists anywhere in the tree, and `verify.py` is what keeps it that way.**
 They were a second way of keeping geometry beside these arrays, and one WebGL does not have at
 all — so every place that used one carried a browser path of its own under `#ifdef
@@ -838,7 +858,7 @@ four live in `u_sharp.*`, `u_smooth.*`, `u_sharpfit.*` and `u_crt.*`, `u_all.h` 
 in, and `Engine` owns one of each in display order. It is a normal game option like the
 language, saved as `<Upscaler>` with the filter's own `getName()` — the one name each filter
 has, shared by the config value, the radio button in `options.xml`, the startup log and the
-test hook. `SharpFit` is the default where the machine can run it:
+test hook. `SharpFit` is the default:
 
 - `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn by the base class's
   fixed-function quad. `Sharp` additionally snaps the blit to an integer scale
@@ -855,11 +875,12 @@ test hook. `SharpFit` is the default where the machine can run it:
   halation, barrel distortion, rounded corners, vignette. See **The CRT filter** below.
 
 The two shader filters share the vertex shader (`upscaler.cpp`, the only place it is read),
-the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own eight on
+the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own nine on
 top. **There is no longer a place where a filter carries a uniform it does not have** — which
 is what the old twelve-slot struct did, and why `convergence` was once left unset in two
-hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
-sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
+hand-written lists. Each filter compiles on its own, and a failure to link is fatal for all
+of them alike: every one of the four is offered unconditionally, so a driver that will not
+build one of these two shaders cannot be left quietly showing three filters instead of four.
 
 **Anything that reads the rendered frame must bind the FBO itself**, and `Engine::encodeFrame`
 is the second half of that rule: it binds the frame buffer before `glReadPixels` rather than
@@ -894,8 +915,8 @@ are matters of taste rather than tuning.
 first start, with a button that switches it on there and then. The marker is `.crt_offered` in
 the user directory, the same idiom as `.donation_asked` — absent on a clean install *and*
 after an upgrade, which is exactly the set of people who have not seen the filter. Skipped
-where `canUseCrt()` is false or the filter is already CRT, and it suppresses the donation
-window for that one start so the two never stack.
+where the CRT filter is already the one in use, and it suppresses the donation window for
+that one start so the two never stack.
 
 The one that decides what it *is* is `SCANLINE_PERIOD`. Visible gaps between scan lines are
 an artifact of 240p: a console drew 240 lines into a 480-line raster. A VGA monitor showing
@@ -1027,11 +1048,10 @@ where 640 window pixels and 640 game pixels cannot both hold a non-identity warp
 positions land on a neighbouring tile. That is the minimum window size, where the effect has
 no room to work anyway.
 
-Without an FBO the game renders straight to the back buffer as before; without a shader,
-`isAvailable()` is false for that filter, `getEffectiveUpscaler` falls back to `Sharp` — a
-fixed fallback, not "the first available one", because the display order starts with
-`SharpFit` and belongs to the options dialog — and the dialog hides the entry. The wish
-itself stays in `config.xml` untouched, for the next machine. Neither is fatal.
+All four are always offered: every one of them works on any machine the game starts on at
+all, so the options dialog ticks the filter in use and leaves the four radio buttons and the
+CRT settings button in the places `options.xml` gives them. There is no show/hide/reflow loop
+and no entry that can be missing.
 
 **Restarting a level rewinds the tape**, but only with the CRT filter on: `CF_Rewind`
 (`cf_rewind.cpp`) instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On
@@ -1051,7 +1071,7 @@ the grey wash.
 Two things there are load-bearing. The on-screen display must **not** move with any of it, or
 fade with it either — it comes from the recorder's own character generator, mixed in behind
 the tape path, and that one steady thing is what makes the mess read as a machine. It is
-`data/rewind.png`, 256x64 with the word in the left 162 pixels and the two triangles in the
+the 218x64 strip at (0,112) of `data/misc.png`, with the word in the left 162 pixels and the two triangles in the
 56 next to it, so the blink is a source rectangle rather than a colour: the word is drawn
 every frame, the arrows every other half-second, hard on and hard off, counted from the tick
 the effect began so that they start visible. And `ROLL_SCREENS` is a whole number, so the
@@ -1106,13 +1126,11 @@ sees a bare Return.
 
 **A window that stops presenting loses control of what it shows.** While the app is inactive
 the main loop skips both the logic and the rendering, but it must still put the last frame up
-— `showLastFrame()` does that every 50 ms (unbind, `presentFrame`, swap; `renderAndPresent`
-is the same plus a render). A bare `SDL_GL_SwapBuffers` without drawing is not enough: it
+— `showLastFrame()` does that every 50 ms (unbind, `presentFrame`, swap). A bare `SDL_GL_SwapBuffers` without drawing is not enough: it
 flips to the other buffer and shows the frame before the last one. And a full-screen popup is
 exactly the shape Windows may hand a direct scanout path, after which the compositor's own
 copy of the window stops being updated — with the Start menu open over one, the game showed a
-frame from seconds earlier. Re-presenting keeps a fresh copy there. Without an FBO there is
-nothing to repeat, so that case keeps the bare swap.
+frame from seconds earlier. Re-presenting keeps a fresh copy there.
 
 **Drawing while the border is dragged** needs one thing SDL cannot give: while the user holds
 the border or the title bar, `DefWindowProc` runs *its own* modal message loop and the main
@@ -1137,15 +1155,42 @@ fields) with 640x480 of client plus the frame from `AdjustWindowRectEx`, so the 
 `Engine::exit`; the position is the only part that can be absent, because on a first start
 there is none and a 0,0 would be a claim rather than a fact. Before that the only
 caller of `saveConfig` was the options dialog's OK, so resizing and quitting lost the size.
-`rememberWindowPlacement` uses `GetWindowPlacement`, not `GetWindowRect`: a maximized
-window's rect is the maximized frame, with negative corners because the invisible grab
-handles count, and restoring *that* puts a screen-sized window half off the desktop.
-`rcNormalPosition` is what "restore" goes back to and is what gets saved, with a `maximized`
-flag that `restoreWindowPosition` replays. `handleResize` skips updating `windowedSize` while
-`IsZoomed`, and in fullscreen the rect `applyWindowStyle` saved is used instead, so the
-remembered window is always the windowed one. Whether the stored spot still exists is
-`MonitorFromRect`'s job, which gets negative coordinates right — a monitor to the left of the
-first one has them.
+**`GetWindowPlacement` and `SetWindowPlacement`, and never either of them paired with
+`SetWindowPos`.** `GetWindowRect` on a maximized window gives the maximized frame, whose
+corners are negative because the invisible grab handles count, so what is saved is
+`rcNormalPosition` — the rectangle "restore" goes back to — together with `showCmd` as the
+`maximized` flag. And `rcNormalPosition` is in **workspace** coordinates: the work area, with
+the taskbar and any docked toolbar taken out of it, where `SetWindowPos` takes **screen**
+coordinates. The two agree exactly while the work area begins at the monitor's top left
+corner, which is what a taskbar along the bottom or the right gives — and that is why putting
+the one back with the other was invisible to almost everybody. With the taskbar at the top or
+the left, every save and restore shifts the window by the size of it, in the same direction
+each time, until it has walked into the corner. `SetWindowPlacement` closes the round trip,
+replays `showCmd` itself, and moves a window that would land on no screen at all back onto
+one — three hand-written things gone, `MonitorFromRect` among them.
+`rememberWindowPlacement` logs both rectangles, because that is the one place in the tree
+where the two systems meet and the only way to read a machine's work-area offset off a log.
+
+**The same coordinate system has to reach the fullscreen path**, which is why `setFullScreen`
+asks `rememberWindowPlacement` *before* it flips the flag rather than letting `Engine::exit`
+ask afterwards: in fullscreen the window is the screen-sized popup and has no windowed
+placement left to read. `applyWindowStyle` therefore keeps only the style. It used to keep a
+`GetWindowRect` beside it and hand that to the same field, so quitting from fullscreen wrote a
+screen rectangle where quitting from a window wrote a workspace one — and where the window had
+been maximized before Alt+Enter it wrote the maximized frame's corner, a few pixels off the
+top left, with `maximized` left at whatever the last session had said.
+
+`handleResize` skips updating `windowedSize` while `IsZoomed`, so the remembered size is
+always the windowed one — and the maximized state is replayed on both paths, at startup and
+on the way out of fullscreen. What makes the second one work is a line in the vendored SDL:
+`DIB_ResizeWindow` does its entire body inside
+`if ( !SDL_windowid && !IsZoomed(SDL_Window) )`, so the `SDL_SetVideoMode` that
+`handleResize` performs afterwards moves and sizes **nothing** while the window is maximized —
+it resizes SDL's own surface and the viewport and stops. The one thing `applyWindowStyle` has
+to do for it is hand `handleResize` the size the window actually became, read back with
+`GetClientRect`, instead of the `windowedSize` that `setFullScreen` passed down: a window that
+has just come back maximized is the size of the work area, and passing the windowed size on
+would resize the maximize away in the same breath as restoring it.
 
 On first run, or when the stored size no longer fits, `getDefaultWindowSize` picks the largest
 integer multiple of 640x480 leaving a 120px margin in *both* directions, so "sharp" starts
@@ -1349,13 +1394,29 @@ context, and are applied at a safe point by `processGameStateChanges()`, not imm
 `onRender`, `onCollision`, `move`, `reflectLaser`, … `StdObject` covers the plain sprite cases
 (blocks, diamonds, grass) so most simple types need no new class at all.
 
-**Nothing in the render path draws a random number.** `onRender` runs once per *frame* while
-the logic runs at a fixed 20 ms, so a `random()` inside one shimmers at the frame rate: the
-same glow was a strobe at 25 fps and a smooth haze at 200, which made the effect a different
-effect on every machine. Thirteen `onRender`s did that, and `Level::render` did it twice more
-for the night vision's noise offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
+**Nothing in the render path draws a random number**, and the reason is not the one it looks
+like. **The loop renders at most once per tick**: `timeProcessed` is zeroed at the top of each
+iteration and only raised inside `while(timeToProcess >= logicRate)`, and the render is gated
+on it — so a machine that cannot keep up renders *fewer* frames than it runs ticks, and one
+that flies cannot render more. A `random()` in an `onRender` therefore never shimmered faster
+than 50 Hz and the effect was never "a strobe at 25 fps and a haze at 200", whatever this file
+said before. What such a draw really costs is the *shared generator*: a shipped build has no
+per-frame reseed (the one in `render()` is inside `BLOCKS5_TEST_HOOKS`), so every draw the
+renderer makes shifts the sequence the logic then reads, by an amount that depends on how many
+frames the machine dropped and on how much was on screen. That is the coupling worth removing.
+Thirteen `onRender`s did it, and `Level::render` did it twice more for the night vision's noise
+offsets. `Object::glowJitter` is one value in [-1, 1] redrawn in
 `frameBegin()`, and `noiseOffset1`/`noiseOffset2` are redrawn in `Level::update()` — both once
 per tick, the same place and for the same reason the flash decays there.
+
+**`Level::renderBeamShines` was a fourteenth and survived that sweep**, drawing one `random()`
+per glow per frame along a laser's or a light barrier's beam — and, by the paragraph above, it
+did not look wrong for it. Handing it the object's own `glowJitter` instead *does* look wrong:
+one value for the whole object makes every point of the beam breathe in unison, which reads as
+the beam pulsing rather than as light scattering along it. `pointJitter(seed, index)` hashes the
+per-tick value together with the point's index — `fract(sin(x) * 43758.5453)`, no state — so the
+jitter differs from point to point as it always did, and the beam draws nothing at all from the
+shared generator. The picture is the one it had before; what changed is the coupling.
 
 One jitter per object and not one per use: an object's own draws in a frame therefore move
 together, which nothing can see, while different objects stay independent, which is the part
@@ -1469,7 +1530,7 @@ need; a field none of them knows about would otherwise arrive as a random number
 
 **The hint note is one texture, and it unrolls.** Standing on a note (`hint.cpp`) flies a
 300x400 sheet of paper to the middle of the screen. Paper and text are drawn *together* into
-one 512x512 texture (`Engine::getOffscreenTexture` + `beginRenderToTexture`), so the writing
+one 512x512 texture (`Engine::acquireOffscreenTexture` + `beginRenderToTexture`), so the writing
 belongs to the sheet: it flies with it, turns with it and rolls up with it, instead of
 appearing on top once the sheet has landed. Two things about that texture are worth knowing.
 It is drawn with (0,0) at the top left like everything else in the game, so it ends up
@@ -1577,10 +1638,7 @@ never reaches the menu.
 **It rolls up before it starts to go**, which is why the roll is computed first in
 `onUpdate` and `alpha` reads it: while anything is still rolled out, the sheet stays fully
 opaque and in place, and only once `unroll` reaches 0 does it fade and fly back. Leaving a
-note therefore takes twice as long as it used to and shows what it is doing. The path
-without a framebuffer object has no roll to show, so `renderNoteFlat` scales the height to
-the part that is still flat — the same silhouette without the bead, and the writing squashes
-with it, which is the price of that path.
+note therefore takes twice as long as it used to and shows what it is doing.
 
 **The top edge rolls toward the viewer and the bottom edge away from it**, matching the
 16x16 sprite on the field; a sheet that curled the same way at both ends would read as a
@@ -1620,9 +1678,9 @@ while it is still a small shape in flight. `onCollect` is the wrong place for it
 six pixels of centre, by which time the note is already on its way) and now does nothing at
 all — it exists solely to stop `Object::onCollect` making the note disappear.
 
-Without a framebuffer object none of this can happen, and `renderNoteFlat` then draws sheet and
-text one after the other under the same matrix — no roll, but the writing still flies with the
-paper.
+A bake that fails — out of texture memory, a lost context — draws nothing that frame rather
+than falling back to a flat sheet; `bakeNote` runs again on the next one, and the note
+appears as soon as one succeeds.
 
 **Presets are the object factory.** `presets.cpp` maps a type-name string to a constructed
 `Object` in one long `if/else if` chain (`instancePreset`), plus a `texCoords` table for the
@@ -2297,7 +2355,7 @@ because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage`
 asks `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG`
-elsewhere, and answers only `de` or `en` — every one of the 386 IDs in `languages.txt` has
+elsewhere, and answers only `de` or `en` — every one of the 440 IDs in `languages.txt` has
 an English body and a German one and nothing else, so detecting `fr` would give a wholly
 English game that merely believed otherwise. The one `§fr:` and the one `§es:` in that file
 are the lines of its own header explaining what the tags mean. It runs only when
@@ -2456,7 +2514,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   and `sed` breaks it. The same shape waits wherever a member, a local or a
   word inside a comment or a string literal shares a name with the thing being
   renamed. What saves a blind replacement here is that `Tools/syntax.sh`
-  compiles all 123 sources in seconds, so the mistake is a compile error
+  compiles all 124 sources in seconds, so the mistake is a compile error
   rather than a silent one — but that is a backstop, not a method, and it
   catches nothing that still compiles.
 
@@ -2479,7 +2537,7 @@ filenames, shipped zipped in `levels/campaigns/`.
   `data/languages.txt`, the inline `"\xA7" "de:…"` strings, and the two word lists in
   `verify.py`'s `comments` check together with the two faults `selftest.py` injects into it.
 
-  **That check reads further than the other eighteen**, and the reason is a file it did not
+  **That check reads further than the other twenty-three**, and the reason is a file it did not
   catch: `WebBuild/htaccess` was wholly German through the whole sweep, because it has no
   extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`,
   `PWEncrypt` and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is

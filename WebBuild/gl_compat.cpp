@@ -18,8 +18,6 @@ extern "C" void emscripten_glTexImage2D(GLenum target, GLint level, GLint intern
 										GLsizei width, GLsizei height, GLint border,
 										GLenum format, GLenum type, const GLvoid* pixels);
 
-// (immediate-mode variants moved to gl_immediate.cpp)
-
 GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble* params) {
 	GLfloat tmp[16] = {0};
 	glGetFloatv(pname, tmp);

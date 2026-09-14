@@ -13,9 +13,10 @@ REM lines with nothing saying why.
 REM
 REM The py launcher first, then python on the path. Asked with a run that has
 REM nothing to do, and checked with IF ERRORLEVEL rather than with ||: single
-REM line IFs only, no bracketed blocks and no GOTO - this file, like the rest
-REM of the tree, has no Windows-style line endings, and cmd miscounts when it
-REM jumps in such a file.
+REM line IFs only, no bracketed blocks and no GOTO - this file has LF line
+REM endings (zip_skins.bat and Build.bat have CRLF; there is no rule here, only
+REM what each one happens to carry), and cmd miscounts when it jumps in a file
+REM with LF endings.
 SETLOCAL
 SET "PY="
 py -3 -c "" >NUL 2>&1

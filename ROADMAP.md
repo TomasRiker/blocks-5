@@ -836,7 +836,7 @@ which is a poster rather than a note somebody left behind.
 **Both fall out of the same change: bake the text into the paper.** The sheet and
 the text are rendered together into one 512x512 texture, and from then on there is
 only one thing on screen. The Engine grew the two calls that needs
-(`getOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
+(`acquireOffscreenTexture`, `beginRenderToTexture`/`endRenderToTexture`); the texture
 belongs to it and not to the note, because it falls with the framebuffer object
 while the GL context still stands, and an `Object` is destroyed long after it is
 gone.
@@ -1299,6 +1299,13 @@ What the tree will ask for:
   panel would want its own sound with it. That is item 30, and this is the
   first concrete caller for it.
 
+Where it stands: `data/hint.wav` and `data/hintscroll.wav` are in the tree and
+are the two recordings this item asks for. Nothing else is done - there is no
+`.ogg` beside either, `gs_loading.cpp` preloads neither, `sounds.xml` names
+neither and no `playSound()` anywhere says either name, so `hint.cpp` is
+untouched. They also make `data.zip` stale on every checkout until `pack.sh
+data` runs, which is what the harness's own staleness guard reports.
+
 
 33. Draw the keycap frames behind the text
 -------------------------------------------
@@ -1583,9 +1590,11 @@ Four things are in the way.
   builds are the present filters (`upscaler.cpp`, `u_sharpfit.cpp`,
   `u_crt.cpp`), and each runs on one quad at the very end of the frame with
   `PresentContext` handing it the finished frame. Putting the level or the text
-  through a shader means a second kind of program with its own uniforms and a
-  fixed-function path beside it for `-noshader` and for any machine where
-  `createUpscalerGL` gives up - so this is an addition, never a replacement.
+  through a shader means a second kind of program with its own uniforms - an
+  addition to the present filters, not a replacement for them. Item 50 at least
+  took the second half of this away: there is no `-noshader` any more and no
+  machine where `createUpscalerGL` gives up, so the new path needs no
+  fixed-function twin beside it.
 
 - **The atlases have no margin to blur into.** A shadow computed from the same
   texture fetch needs taps around the sample point, and the glyph rectangles in
@@ -1799,6 +1808,259 @@ swiftshader in a browser, where this particular change does nothing.
 
 
 
+45. The window creeps where the taskbar is not at the bottom  — **DONE**, unverified
+-------------------------------------------------------------------------------------
+`rememberWindowPlacement()` saved `wp.rcNormalPosition` from `GetWindowPlacement` and
+`restoreWindowPosition()` put it back with `SetWindowPos`. Those two are not in the
+same coordinate system: `rcNormalPosition` is in **workspace** coordinates - the work
+area of the monitor, with the taskbar and any docked toolbar taken out of it - while
+`SetWindowPos` takes **screen** coordinates.
+
+With the taskbar at the bottom or the right the work area starts at the monitor's top
+left corner and the two agree exactly, which is why this is invisible to almost
+everybody. With it at the **top** or the **left**, every save and restore shifts the
+window by the height or width of it, in the same direction each time, so the window
+walks across the desktop over a run of sessions. `MonitorFromRect` in the same
+function was fed the same workspace rectangle and judged it against screen
+coordinates, so the "does that spot still exist" test was off by the same offset.
+
+The fix is `SetWindowPlacement`, which takes `rcNormalPosition` in the coordinates
+`GetWindowPlacement` handed over. It also replays `showCmd` - which took the separate
+`ShowWindow(SW_MAXIMIZE)` with it - and puts a window that would land on no screen at
+all back onto one, which took `MonitorFromRect` with it.
+
+**A second half came out of the same search, and that one is visible on any taskbar.**
+`applyWindowStyle()` saved a `GetWindowRect` on the way into fullscreen, and
+`rememberWindowPlacement()` handed those coordinates to the same field that otherwise
+holds `rcNormalPosition`: quitting from fullscreen wrote a screen rectangle where
+quitting from a window wrote a workspace one. Worse, `GetWindowRect` on a maximized
+window is the *maximized frame*, whose corner sits a few pixels off the top left
+because the invisible grab handles count - so maximize, Alt+Enter, quit wrote that
+corner, with `maximized` left at whatever the previous session had said, and the next
+start put a windowed-size window into the corner of the screen. `setFullScreen()` now
+asks `rememberWindowPlacement()` before it switches, while the window is still the one
+config.xml is about, and `applyWindowStyle()` keeps nothing but the style.
+
+**A third: maximize, Alt+Enter, Alt+Enter came back as a normal window.** The first
+version of this fix left that alone on the reasoning that `applyWindowStyle()` ends in
+`handleResize()` with the windowed size and would resize any maximize straight away.
+The reasoning was wrong, and the vendored SDL says so: `DIB_ResizeWindow` puts its
+entire body inside `if ( !SDL_windowid && !IsZoomed(SDL_Window) )`, so the
+`SDL_SetVideoMode` that `handleResize()` performs moves and sizes nothing at all while
+the window is maximized - it resizes SDL's own surface and the viewport and stops.
+Restoring the maximize is therefore free, and `restoreWindowPosition()` replays
+`showCmd` on both paths rather than only at startup; the parameter that used to say
+which is gone. The one piece `applyWindowStyle()` owes it is the size to hand on: a
+window that just came back maximized is the size of the work area, where
+`setFullScreen()` has only the windowed size to offer, so the client rect is read back
+with `GetClientRect()` after the placement is set.
+
+**Unverified.** None of this can be compiled here beyond `Tools/syntax.sh`, let alone
+run: it is all inside `#ifdef _WIN32`. `rememberWindowPlacement()` logs
+`rcNormalPosition` next to `GetWindowRect` for exactly that reason - one line of
+`log.txt` says whether a machine's work area starts at (0,0), and therefore whether
+the creep was ever reachable on it.
+
+
+46. Open the loopback capture when a recording starts, not at every start
+--------------------------------------------------------------------------
+`Engine::init()` opens `AudioCapture` unconditionally and nothing closes it
+before `Engine::exit()`. `startCapture()` and `stopCapture()` only move a
+`capturing` flag; the device stays open and the thread keeps reading either
+way. Under Linux that is a `pa_simple_read` on the monitor of the default sink
+for the whole session, and under Windows a WASAPI loopback client for the whole
+session - so a desktop that shows a recording indicator shows one the entire
+time the game is running, whether or not anything is being recorded.
+
+It is deliberate as it stands, and the reason is written where the loop reads:
+*"Reading has to continue even while nothing is being recorded: otherwise the
+server's buffer overflows and the next recording begins with music seconds
+old."* Opening lazily therefore cannot be a matter of moving the `open()` call
+- it has to answer that, either by accepting that the first recording starts
+with whatever latency `pa_simple_new` costs, or by opening on the keypress and
+throwing the first buffers away. Both are a restructuring of the ring and its
+clock-based padding rather than a fix.
+
+
+47. tellStream() reads the decoder thread's position without a lock
+---------------------------------------------------------------------
+`Engine::stopMusic()` calls `p_currentMusic->tellStream()`, which is
+`ov_pcm_tell(&vorbisFile)`, on a `StreamedSound` whose decoder thread is still
+running - the volume slide that ends it happens afterwards. That thread is
+inside `ov_read` and `ov_pcm_seek` on the same `OggVorbis_File`, so the main
+thread reads a field the decoder thread writes with nothing between them.
+
+`ov_pcm_tell` is `return vf->pcm_offset;` on an aligned 64-bit field, so on
+every platform this ships to the load is atomic in practice and the worst real
+outcome is a resume position a fraction of a second stale - which the caller's
+own comment already allows for (*"more or less, this just asks the audio
+stream's read cursor"*). It is still a data race by the language's definition,
+and `threadProc` right beside it already takes the trouble to ask OpenAL for
+the pitch rather than read the member, *"which belongs to the main thread"* -
+so the ownership rule is stated in the file and this is the one place that
+breaks it. The cheap answer is a `pcmOffset` the decoder thread publishes under
+the mutex the ring already has; the honest one is to say in the file that the
+read is deliberate and why it is safe here.
+
+
+48. adjustText can break a line inside a keycap whose key name has a space
+----------------------------------------------------------------------------
+A keycap is an atom on the way **in**: `adjustText` finds the `</k>` that
+closes a run, measures the whole run and moves it to the next line as one
+piece. The backward search that picks the break point does not know that. When
+a later word overruns, the walk goes back through `out` looking for the last
+break character, skipping *elements* through `tagEndingAt` - and a space inside
+a keycap run it has already appended is not an element, it is a space. It
+breaks there.
+
+`<k>Num Enter</k>` is exactly such a run, and `%BINDING{$A_SAVE_IN_HOTEL}`
+expands to one. The result is `<k>Num` at the end of one line and `Enter</k>`
+at the start of the next, with `buildText` opening the frame on the first line
+and closing it on the second - a box drawn across a line break, which is the
+one thing the atom rule exists to prevent.
+
+Nothing in the shipped text hits it today: it needs the overflow to land with
+no other break candidate between the keycap and the end of the line. A hint
+note somebody writes, a longer translation or a rebound key is all it takes.
+The fix is for the backward walk to know where a `<k>` run begins - skip back
+over the whole run the way it skips back over a tag - rather than to forbid
+spaces in a key name.
+
+
+49. CLAUDE.md is 188 KB, and every session reads all of it
+------------------------------------------------------------
+2547 lines, 192366 bytes, loaded whole into the context of every session that
+touches this tree. It earns a great deal of that: the measurements, the traps
+and the reasons behind decisions that look arbitrary are exactly what a reader
+without the history cannot reconstruct, and losing them costs more than the
+tokens do.
+
+What it carries beyond that is narrative - the same fact stated in the
+architecture section and again in a roadmap entry, measurements kept at full
+precision long after the conclusion they support has been settled, and passages
+that are an account of how something was arrived at rather than what it is. A
+pass that keeps every number that still decides something and cuts the retelling
+would take a good fraction off without losing a single fact a reader needs.
+
+It is not free to do: the file is also the place several of those facts exist at
+all, and a condensing pass is the kind that quietly drops the one sentence that
+would have saved the next afternoon. Worth doing deliberately and with the
+diff read closely, not as tidying.
+
+
+50. OpenGL 2.0 is a requirement now, not a hope  - **DONE**
+------------------------------------------------------------
+Framebuffer objects, GL 2.0 shaders and vertex buffer objects are what this game
+is built on. `GLExtensions::init` resolves all three and ends the program with a
+message where a driver cannot supply one; `createFrameBuffer` and
+`createUpscalerGL` do the same for a framebuffer that will not complete and a
+shader that will not link.
+
+The dates are the whole argument: vertex buffers are core in GL 1.5 (2003),
+shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004, and both software
+rasterizers this project is tested against - llvmpipe under Xvfb and SwiftShader
+in the browser - carry all three. In the browser they are core in WebGL 1, so the
+fallback branches had been unreachable there since the day that build was
+written.
+
+What went with them: `-nofbo` and `-noshader` (seven command line switches become
+five), `useFrameBuffer` and its twenty branches in `engine.cpp`,
+`Engine::fixWindowSize` and `LinuxWindow::setFixedSize` with the 640x480 window
+pin, `hasFixedWindowSize` and the `WM_GETMINMAXINFO` maximum it fed,
+`Hint::renderNoteFlat`, `Upscaler::isAvailable`, `Engine::getEffectiveUpscaler`
+and the Sharp fallback behind it, and the options dialog's whole show/hide/reflow
+loop - all four filters are always offered, so the radio buttons keep the places
+`options.xml` gives them.
+
+And what those left behind: `PresentProgram::isLinked`, which only `isAvailable`
+ever asked; `Engine::p_sharp`, which existed to be the fallback, together with
+`p_smooth` beside it, so `upscalers` now owns all four and only the two that some
+place needs *by name* - the default and the CRT - are still members; and
+`<X11/Xutil.h>` in `linux_window.cpp`, which came in for `setFixedSize`'s size
+hints. A sweep with `-Wall -Wextra` over both compilers, before against after,
+is what says there is nothing else: the same 106 unused-code warnings on GCC and
+the same 8 on mingw, none added and none orphaned.
+
+**The message is the part worth getting right, and it is why this is not simply
+an assert.** It names the missing group, `GL_VERSION`, `GL_RENDERER` and
+`GL_VENDOR`, and says to install a graphics driver. The case it is written for is
+not an old machine but a new one in a particular state: Windows with no GPU driver
+in play - a fresh installation, safe mode, a virtual machine, an RDP session -
+falls back to `opengl32.dll`'s GDI Generic renderer, which is OpenGL 1.1. Seeing
+"GDI Generic" in that box is what turns a support mail into a self-fix.
+
+`fatalError()` (`fatalerror.h`) is the one way the game gives up, written once per
+platform because that is the whole of what differs: a Win32 message box, zenity or
+kdialog under Linux through `fork`/`execlp` rather than a shell - the message
+carries driver strings and an argument handed straight to the program can carry no
+command in it - and a DOM overlay in the browser. English, and deliberately so:
+`Engine::init` runs before `main()` loads `languages.txt`, so there is no string
+table yet.
+51. Throw every small texture into one atlas so a bind stops breaking the batch
+---------------------------------------------------------------------------------
+The sprite batch collects a whole render pass into one `glDrawArrays`, and the one
+thing that still cuts it is `GL::bindTexture`, which flushes because what is queued
+was queued against the binding about to be replaced. An atlas removes the cut at its
+source: pictures that share a binding need no bind between them, so sprites and tiles
+could be drawn together, and so could the GUI and the font.
+
+**Which textures are worth it is not obvious, and the sizes decide it.** The big ones
+are full-screen backdrops bound once a frame - `background.png` at 1024x1024, `menu.png`,
+`selectlevel.png`, `title.png` and `campaigneditor.png` at 1024x512, `buttons.png` at
+512x1024 - and atlassing one of those gains nothing while filling the sheet. What is
+bound over and over is small: a played level's `tileset.png` (128x128), `sprites.png`
+(256x1024), `particles.png` and `shine.png` (128x128 each), plus `data/font.png`
+(512x256), `gui.png` and `misc.png` (256x256), `icons.png` (256x128), `lava_edges.png`
+(128x64) and `lightning.png` (256x16). Those ten are 618496 texels between them, which
+is 59% of a single 1024x1024 sheet - so the whole of what a level and its HUD draw
+from fits in one atlas with room for the padding, and that is the version to build.
+
+**Four of a level's textures can never go in**, and they are exactly the ones that look
+like they should: `rain.png`, `snow.png`, `clouds.png` and `noise.png` are scrolled
+under `GL_REPEAT` without bound, which wraps the whole texture and not a region of one.
+The lava is the same case one step further along - `createSubTexture` cuts a real 16x16
+texture out of the skin's sheet precisely so that `GL_REPEAT` wraps at 16.
+
+**The architectural cost is one invariant, and it is the one the GL state layer rests
+on.** Every absolute texture matrix in this tree is a function of the binding - a
+`Texture`'s own `1/w, 1/h` - which is why `GL::bindTexture` takes those two numbers as
+its second argument and why there is no way to bind without saying how the picture is
+sampled. An atlas breaks that: two pictures in one binding need different *offsets*,
+and an offset is per sprite, not per bind. The answer is not to put the matrix back on
+the outside but to bake the atlas offset into the texture coordinates where the
+transform already gets baked in - `Engine::queueSprite` reads the modelview back and
+multiplies the four corners itself, and it would equally place the four texture
+coordinates into atlas space. `Texture` then carries an origin and a scale within its
+sheet instead of an id of its own.
+
+**Tiles and sprites in one draw call costs the tile grid its best trick**, which is
+worth knowing before promising it. `QuadVertex` is a position and a texture coordinate
+and no colour, and that is what lets `Level::render` make three passes over one built
+array - two shadow samples and the picture - differing in nothing but a `glColor` and a
+translate. Sharing a draw call with `ColorQuadVertex` means a colour per tile vertex,
+so either the array is built three times or the shadow passes stop being free. The
+font's glyph quads are `QuadVertex` too and have the same question; the keycap frames
+carry no texture at all and are already a batch of their own.
+
+Two smaller things that bite. Every game texture is `GL_LINEAR`, so regions need a
+gutter or a duplicated edge row, since anything drawn at other than 1:1 - a particle, a
+teleport squash, the hint note turning - will fetch across a boundary. And an imported
+skin brings a `sprites.png` of a size nobody promised, so the sheet has to be packed at
+runtime when the skin loads rather than at build time; nothing in the tree asks
+`GL_MAX_TEXTURE_SIZE` today, and a 1024 atlas needs no such question while a 2048 one
+does.
+
+**What it is worth is unmeasured, and measuring it is the first step rather than part
+of the work.** `frames.sh` reports sprite-batch draws per frame and quads per draw for
+five scenes, but not binds per frame - and `GL::bindTexture` is the single door every
+bind in the tree goes through, so a counter there is one line. The number that decides
+this item is how many of a scene's draw calls exist only because the binding moved: in
+a plain level the batch manages 4.0 quads per draw against the menu's 50.2, and until
+that gap is attributed to binds rather than to the seven `onRender`s that flush for raw
+geometry, the size of the prize is a guess.
+
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
@@ -1840,6 +2102,10 @@ How these connect
                       setting, 41 removes the count altogether - so 41 is the
                       answer 36 is a stopgap for, and 36 is worth doing only
                       while 41 is out of reach
+
+   44 (GL state cache, done) ──> 51 (texture atlas): 44 stopped a bind that
+                      changes nothing from breaking the sprite batch; 51 is the
+                      other half, which is to stop the bind happening at all
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was

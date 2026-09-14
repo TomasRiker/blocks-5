@@ -6,11 +6,6 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <cstring>
-#ifdef SDL_VIDEO_DRIVER_X11
-// XSizeHints and XSetWMNormalHints are not in the Xlib.h that SDL_syswm.h
-// brings along, but one header further on.
-#include <X11/Xutil.h>
-#endif
 #include "linux_window.h"
 
 namespace LinuxWindow
@@ -53,38 +48,6 @@ bool setFullScreen(bool wantFullScreen)
 	return true;
 #else
 	(void)wantFullScreen;
-	return false;
-#endif
-}
-
-bool setFixedSize(int width, int height)
-{
-#ifdef SDL_VIDEO_DRIVER_X11
-	SDL_SysWMinfo info;
-	SDL_VERSION(&info.version);
-	if(!SDL_GetWMInfo(&info) || info.subsystem != SDL_SYSWM_X11 || !info.info.x11.display) return false;
-
-	if(info.info.x11.lock_func) info.info.x11.lock_func();
-
-	// Equal minimum and maximum: no more is needed, that is the ICCCM way of
-	// saying this window has one size. A window manager then locks the border
-	// and the maximize button. The memory comes from Xlib and has to go back
-	// there too.
-	XSizeHints* p_hints = XAllocSizeHints();
-	if(p_hints)
-	{
-		p_hints->flags      = PMinSize | PMaxSize;
-		p_hints->min_width  = p_hints->max_width  = width;
-		p_hints->min_height = p_hints->max_height = height;
-		XSetWMNormalHints(info.info.x11.display, info.info.x11.window, p_hints);
-		XFree(p_hints);
-		XFlush(info.info.x11.display);
-	}
-
-	if(info.info.x11.unlock_func) info.info.x11.unlock_func();
-	return p_hints != 0;
-#else
-	(void)width; (void)height;
 	return false;
 #endif
 }

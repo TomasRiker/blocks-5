@@ -48,7 +48,7 @@ b5_start()
 	b5_stale "$B5_GAME/data.zip" "$B5_GAME/data" \
 		"Run 'Blocks5/pack.sh data' first." || exit 2
 
-	for t in Xvfb xdotool ffmpeg python3; do
+	for t in Xvfb xdpyinfo xdotool ffmpeg python3; do
 		command -v $t >/dev/null 2>&1 || { echo "$t is missing."; exit 2; }
 	done
 
@@ -67,7 +67,13 @@ b5_start()
 	# repeatable while they may appear. The markers are exactly the ones the
 	# game itself writes.
 	B5_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/blocks5"
-	mkdir -p "$B5_HOME"
+	# The five folders the game lays out on a first start, laid out here as
+	# well: main.cpp reads a home folder that exists without ".initialized" as
+	# one that version 1.0.71 created, and that update path adds only videos/.
+	# A first start into the folder the markers below need would therefore
+	# come up without screenshots/ and levels/, and F11 would fail on it.
+	mkdir -p "$B5_HOME/levels/campaigns" "$B5_HOME/levels/skins" \
+	         "$B5_HOME/screenshots" "$B5_HOME/videos"
 	[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
 	[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
 
@@ -100,8 +106,8 @@ b5_start()
 
 	# ALSOFT_DRIVERS=null: on a machine with no audio output the game would
 	# otherwise abort at startup, and that is not what this is about.
-	# B5_ARGS appends further switches - -nofbo and -noshader force the two
-	# fallback paths that otherwise do not exist on this machine.
+	# B5_ARGS appends further switches - -perf and -nobatch, the two that
+	# change what a run measures or draws.
 	( cd "$B5_GAME" && ALSOFT_DRIVERS=null "$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
 	B5_GAME_PID=$!
 

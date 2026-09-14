@@ -164,18 +164,12 @@ Hint::Hint(Level& level,
 
 Hint::~Hint()
 {
-	// The usual way is onRemove(): Level::removeObject() calls it, and
-	// removeOldObjects() is the only place that ever deletes an Object - a
-	// note cannot disappear without it having run. It stands here a second
-	// time; handing the texture back must not hang on a single hook.
-	//
-	// Reaching the Engine is safe here because releaseNoteTexture() bails out
-	// first when no texture is borrowed at all: only a note that has drawn in
-	// a running level holds one, and that level belongs to a local variable of
-	// main() - which falls before the static Engine.
-	//
-	// In the browser no destructor runs at all: onUpdate() and onRemove() are
-	// what hand the texture back there, and both run during play.
+	// onRemove() is the usual way and the only one the browser has, where no
+	// destructor runs; this is the second belt, since handing the texture back
+	// must not hang on one hook. Reaching the Engine from a destructor is safe
+	// only because releaseNoteTexture() bails out where nothing is borrowed: a
+	// note that holds one belongs to a running level, and that level is a local
+	// of main(), which falls before the static Engine.
 	releaseNoteTexture();
 }
 
@@ -195,7 +189,6 @@ void Hint::releaseNoteTexture()
 
 void Hint::updateSprites()
 {
-	// Note object
 	sprites.add(Vec2i(96, 288));
 }
 
@@ -211,7 +204,7 @@ void Hint::bakeNote()
 	// other is reading from.
 	const Vec2i size(NOTE_TEXTURE_W, NOTE_TEXTURE_H);
 	const uint target = noteTexture ? noteTexture : engine.acquireOffscreenTexture(size);
-	if(!target) return;   // no framebuffer object: then without one, see onRender()
+	if(!target) return;
 
 	if(!engine.beginRenderToTexture(target, size))
 	{
@@ -345,36 +338,6 @@ void Hint::renderNote(const Vec4d& color,
 	GL::setTexturing(false);
 }
 
-void Hint::renderNoteFlat(const Vec4d& color,
-						  double unroll) const
-{
-	// Without a framebuffer object there is no texture that note and text
-	// could be drawn into together. Then the two go one after the other -
-	// under the same matrix, so the writing at least flies with the paper
-	// instead of appearing out of nowhere at the end.
-	Engine& engine = Engine::inst();
-	const Vec2i corner(-NOTE_WIDTH / 2, -NOTE_HEIGHT / 2);
-
-	// Nothing rolls here, but the time for it passes all the same - with
-	// nothing to see, that would look as if the game had hung. At least the
-	// height shrinks to the part lying flat; the writing squashes with it, and
-	// that is the price of this path.
-	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
-	const double radius = rolled / (ROLL_TURNS * 2.0 * PI);
-	glPushMatrix();
-	glScaled(1.0, ((NOTE_HEIGHT - 2.0 * rolled) + 2.0 * radius) / NOTE_HEIGHT, 1.0);
-
-	p_sprite->bind();
-	engine.renderSprite(corner + Vec2i(SHADOW_OFFSET, SHADOW_OFFSET), Vec2i(0, 0),
-						Vec2i(NOTE_WIDTH, NOTE_HEIGHT),
-						Vec4d(0.0, 0.0, 0.0, color.a * SHADOW_ALPHA));
-	engine.renderSprite(corner, Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), color);
-	p_font->renderText(p_font->adjustText(localizeString(text), TEXT_WIDTH),
-					   corner + Vec2i(TEXT_LEFT, TEXT_TOP), color);
-
-	glPopMatrix();
-}
-
 void Hint::onRender(RenderLayer layer,
 					const Vec4d& color)
 {
@@ -386,7 +349,7 @@ void Hint::onRender(RenderLayer layer,
 		double s = i;
 		double a = clamp(i / FADE_UNTIL, 0.0, 1.0);
 
-		// Layer 43 is the preview in the level editor: fully unrolled, centred.
+		// RL_HINT_PREVIEW is the preview in the level editor: fully unrolled, centred.
 		// That is a display matter and must not change targetPosition -
 		// otherwise the note points somewhere else in the game afterwards.
 		//
@@ -426,8 +389,9 @@ void Hint::onRender(RenderLayer layer,
 			glScaled(s, s, 1.0);
 			glRotated(r, 0.0, 0.0, 1.0);
 
+			// Nothing where the bake failed - out of texture memory, a lost
+			// context. It is tried again next frame and shows when one works.
 			if(noteTexture) renderNote(realColor, shownUnroll);
-			else renderNoteFlat(realColor, shownUnroll);
 
 			glPopMatrix();
 			glPopMatrix();

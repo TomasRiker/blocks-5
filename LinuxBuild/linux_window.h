@@ -14,11 +14,6 @@ namespace LinuxWindow
 	// bring it back out. false means "no X11 running here" - the caller is then
 	// on its own.
 	bool setFullScreen(bool wantFullScreen);
-
-	// Tell the window manager that this window is to have exactly this size and
-	// no other. The manager then takes the drag handle off the border and the
-	// effect off the maximize button. false again means "no X11 running here".
-	bool setFixedSize(int width, int height);
 }
 
 #endif

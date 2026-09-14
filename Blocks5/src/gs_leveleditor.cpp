@@ -458,6 +458,16 @@ public:
 					return;
 				}
 			}
+			else if(getChild("EditHintPane")->isVisible())
+			{
+				// Escape cancels the hint dialog; Return stays a line break in its
+				// text box.
+				if(event.keysym.sym == SDLK_ESCAPE)
+				{
+					handleClick(getChild("EditHintPane.EditHint.Cancel"));
+					return;
+				}
+			}
 			else if(getChild("MenuPane")->isVisible() &&
 					!getChild("EditHintPane")->isVisible() &&
 					!getChild("MessageBoxPane")->isVisible() &&

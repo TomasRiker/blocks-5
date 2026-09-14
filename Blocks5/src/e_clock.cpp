@@ -6,7 +6,7 @@ E_Clock::E_Clock(Level& level,
 				 const Vec2i& position,
 				 int dir) : Electronics(level, position, dir)
 {
-	renderLayers = RL_MAIN;
+	renderLayers |= RL_MAIN;
 	value = 0;
 
 	// create the output

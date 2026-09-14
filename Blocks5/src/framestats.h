@@ -47,7 +47,7 @@ public:
 	};
 
 	// Enough for eight seconds at sixty frames, which is the stretch anybody
-	// looks at, and 10 KB.
+	// looks at, and 12 KB.
 	static const uint CAPACITY = 512;
 
 	FrameStats();

@@ -9,6 +9,13 @@
 #include "exit.h"
 #include "cf_all.h"
 #include "u_crt.h"
+#include "streamedsound.h"
+#include "texture.h"
+#include "options.h"
+#include "help.h"
+#include "campaign.h"
+#include "transfer.h"
+#include "progressdb.h"
 
 namespace
 {
@@ -19,7 +26,7 @@ namespace
 	// it stays with the slices.
 	void crossfadeRestart(Engine& engine)
 	{
-		if(engine.getEffectiveUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
+		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
 		else engine.crossfade(new CF_Slices, 0.85);
 	}
 
@@ -40,13 +47,6 @@ namespace
 		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	}
 }
-#include "streamedsound.h"
-#include "texture.h"
-#include "options.h"
-#include "help.h"
-#include "campaign.h"
-#include "transfer.h"
-#include "progressdb.h"
 #include "hotel.h"
 
 class GameGUI : public GUI_Element, public sigslot::has_slots<>

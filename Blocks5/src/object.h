@@ -55,8 +55,8 @@ public:
 	// it brings sprites up to date; anything that does its own preparation
 	// here calls Object::onBeforeRender() as well.
 	//
-	// Why not in onRender: that runs fourteen times per frame (twelve layers,
-	// of which layer 1 runs twice for the shadows and once properly), and the
+	// Why not in onRender: that runs once per render layer and frame (RL_MAIN
+	// twice more for the shadows), and the
 	// colour it is handed is the pass's - the shadow colour in the shadow
 	// pass. The sprites carry the object's own tint, which is independent of
 	// that.
@@ -165,7 +165,6 @@ public:
 	// the successful conversion would be the loudest case of snapping back
 	// there is.
 	void setConversionProgress(double progress) { conversionProgress = progress; }
-	double getConversionProgress() const { return conversionProgress; }
 
 	uint getMass() const;
 	void setMass(uint mass);
