@@ -1990,6 +1990,69 @@ carries driver strings and an argument handed straight to the program can carry 
 command in it - and a DOM overlay in the browser. English, and deliberately so:
 `Engine::init` runs before `main()` loads `languages.txt`, so there is no string
 table yet.
+51. Throw every small texture into one atlas so a bind stops breaking the batch
+---------------------------------------------------------------------------------
+The sprite batch collects a whole render pass into one `glDrawArrays`, and the one
+thing that still cuts it is `GL::bindTexture`, which flushes because what is queued
+was queued against the binding about to be replaced. An atlas removes the cut at its
+source: pictures that share a binding need no bind between them, so sprites and tiles
+could be drawn together, and so could the GUI and the font.
+
+**Which textures are worth it is not obvious, and the sizes decide it.** The big ones
+are full-screen backdrops bound once a frame - `background.png` at 1024x1024, `menu.png`,
+`selectlevel.png`, `title.png` and `campaigneditor.png` at 1024x512, `buttons.png` at
+512x1024 - and atlassing one of those gains nothing while filling the sheet. What is
+bound over and over is small: a played level's `tileset.png` (128x128), `sprites.png`
+(256x1024), `particles.png` and `shine.png` (128x128 each), plus `data/font.png`
+(512x256), `gui.png` and `misc.png` (256x256), `icons.png` (256x128), `lava_edges.png`
+(128x64) and `lightning.png` (256x16). Those ten are 618496 texels between them, which
+is 59% of a single 1024x1024 sheet - so the whole of what a level and its HUD draw
+from fits in one atlas with room for the padding, and that is the version to build.
+
+**Four of a level's textures can never go in**, and they are exactly the ones that look
+like they should: `rain.png`, `snow.png`, `clouds.png` and `noise.png` are scrolled
+under `GL_REPEAT` without bound, which wraps the whole texture and not a region of one.
+The lava is the same case one step further along - `createSubTexture` cuts a real 16x16
+texture out of the skin's sheet precisely so that `GL_REPEAT` wraps at 16.
+
+**The architectural cost is one invariant, and it is the one the GL state layer rests
+on.** Every absolute texture matrix in this tree is a function of the binding - a
+`Texture`'s own `1/w, 1/h` - which is why `GL::bindTexture` takes those two numbers as
+its second argument and why there is no way to bind without saying how the picture is
+sampled. An atlas breaks that: two pictures in one binding need different *offsets*,
+and an offset is per sprite, not per bind. The answer is not to put the matrix back on
+the outside but to bake the atlas offset into the texture coordinates where the
+transform already gets baked in - `Engine::queueSprite` reads the modelview back and
+multiplies the four corners itself, and it would equally place the four texture
+coordinates into atlas space. `Texture` then carries an origin and a scale within its
+sheet instead of an id of its own.
+
+**Tiles and sprites in one draw call costs the tile grid its best trick**, which is
+worth knowing before promising it. `QuadVertex` is a position and a texture coordinate
+and no colour, and that is what lets `Level::render` make three passes over one built
+array - two shadow samples and the picture - differing in nothing but a `glColor` and a
+translate. Sharing a draw call with `ColorQuadVertex` means a colour per tile vertex,
+so either the array is built three times or the shadow passes stop being free. The
+font's glyph quads are `QuadVertex` too and have the same question; the keycap frames
+carry no texture at all and are already a batch of their own.
+
+Two smaller things that bite. Every game texture is `GL_LINEAR`, so regions need a
+gutter or a duplicated edge row, since anything drawn at other than 1:1 - a particle, a
+teleport squash, the hint note turning - will fetch across a boundary. And an imported
+skin brings a `sprites.png` of a size nobody promised, so the sheet has to be packed at
+runtime when the skin loads rather than at build time; nothing in the tree asks
+`GL_MAX_TEXTURE_SIZE` today, and a 1024 atlas needs no such question while a 2048 one
+does.
+
+**What it is worth is unmeasured, and measuring it is the first step rather than part
+of the work.** `frames.sh` reports sprite-batch draws per frame and quads per draw for
+five scenes, but not binds per frame - and `GL::bindTexture` is the single door every
+bind in the tree goes through, so a counter there is one line. The number that decides
+this item is how many of a scene's draw calls exist only because the binding moved: in
+a plain level the batch manages 4.0 quads per draw against the menu's 50.2, and until
+that gap is attributed to binds rather than to the seven `onRender`s that flush for raw
+geometry, the size of the prize is a guess.
+
 
 
 How these connect
@@ -2033,6 +2096,10 @@ How these connect
                       setting, 41 removes the count altogether - so 41 is the
                       answer 36 is a stopgap for, and 36 is worth doing only
                       while 41 is out of reach
+
+   44 (GL state cache, done) ──> 51 (texture atlas): 44 stopped a bind that
+                      changes nothing from breaking the sprite batch; 51 is the
+                      other half, which is to stop the bind happening at all
 
 The one change under both 2 and 10 was the same 80 lines: render into a
 framebuffer object instead of the back buffer. Everything else in either item was
