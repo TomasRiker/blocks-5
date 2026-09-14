@@ -596,10 +596,11 @@ private:
 	};
 	std::vector<OffscreenTexture> offscreenTextures;
 	// The four filters. upscalers owns them and holds the options dialog's
-	// order; the four pointers beside it are the shortcut to them.
+	// order. Two are named beside it because two places want exactly that one
+	// and not whichever is in use: SharpFit is the default, and the CRT
+	// filter has its own six sliders. Sharp and Smooth are reached like any
+	// other, through the vector or by name.
 	std::vector<Upscaler*> upscalers;
-	U_Sharp* p_sharp;
-	U_Smooth* p_smooth;
 	U_SharpFit* p_sharpFit;
 	U_Crt* p_crt;
 	Upscaler* p_wantedUpscaler;

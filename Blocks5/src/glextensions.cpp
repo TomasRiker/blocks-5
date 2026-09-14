@@ -116,7 +116,8 @@ void GLExtensions::init()
 	// The extension list is only information; what decides is whether all ten
 	// pointers are there. A driver that carries the names but does not
 	// advertise them is usable - the other way round is not.
-	printfLog("  Framebuffer objects: extension string says %s\n", advertised ? "yes" : "no");
+	printfLog("  Framebuffer objects: %s in the extension string\n",
+			  advertised ? "advertised" : "NOT advertised");
 	require(glExtGenFramebuffers && glExtBindFramebuffer && glExtDeleteFramebuffers &&
 	        glExtFramebufferTexture2D && glExtGenRenderbuffers && glExtBindRenderbuffer &&
 	        glExtDeleteRenderbuffers && glExtRenderbufferStorage &&

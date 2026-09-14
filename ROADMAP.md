@@ -1942,6 +1942,15 @@ and the Sharp fallback behind it, and the options dialog's whole show/hide/reflo
 loop - all four filters are always offered, so the radio buttons keep the places
 `options.xml` gives them.
 
+And what those left behind: `PresentProgram::isLinked`, which only `isAvailable`
+ever asked; `Engine::p_sharp`, which existed to be the fallback, together with
+`p_smooth` beside it, so `upscalers` now owns all four and only the two that some
+place needs *by name* - the default and the CRT - are still members; and
+`<X11/Xutil.h>` in `linux_window.cpp`, which came in for `setFixedSize`'s size
+hints. A sweep with `-Wall -Wextra` over both compilers, before against after,
+is what says there is nothing else: the same 106 unused-code warnings on GCC and
+the same 8 on mingw, none added and none orphaned.
+
 **The message is the part worth getting right, and it is why this is not simply
 an assert.** It names the missing group, `GL_VERSION`, `GL_RENDERER` and
 `GL_VENDOR`, and says to install a graphics driver. The case it is written for is

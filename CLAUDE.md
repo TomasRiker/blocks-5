@@ -878,8 +878,9 @@ The two shader filters share the vertex shader (`upscaler.cpp`, the only place i
 the vertex buffer and the four uniforms in `PresentProgram`; `U_Crt` holds its own nine on
 top. **There is no longer a place where a filter carries a uniform it does not have** — which
 is what the old twelve-slot struct did, and why `convergence` was once left unset in two
-hand-written lists. Each filter compiles on its own, so a CRT that fails to link leaves
-sharp-fit alone — and, unlike before, a sharp-fit failure no longer takes the CRT with it.
+hand-written lists. Each filter compiles on its own, and a failure to link is fatal for all
+of them alike: every one of the four is offered unconditionally, so a driver that will not
+build one of these two shaders cannot be left quietly showing three filters instead of four.
 
 **Anything that reads the rendered frame must bind the FBO itself**, and `Engine::encodeFrame`
 is the second half of that rule: it binds the frame buffer before `glReadPixels` rather than

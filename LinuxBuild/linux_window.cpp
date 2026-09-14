@@ -6,11 +6,6 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <cstring>
-#ifdef SDL_VIDEO_DRIVER_X11
-// XSizeHints and XSetWMNormalHints are not in the Xlib.h that SDL_syswm.h
-// brings along, but one header further on.
-#include <X11/Xutil.h>
-#endif
 #include "linux_window.h"
 
 namespace LinuxWindow

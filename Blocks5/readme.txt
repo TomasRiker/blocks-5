@@ -149,9 +149,12 @@ Changelog
             the edges when its three electron beams were no longer perfectly
             aligned. Each of the six can be turned all the way down.
 
-          - "Sharp, fitted" and "CRT monitor" need a graphics card that can run
-            shaders, which means anything made since about 2005. If yours
-            cannot, they are not offered and the game uses "Sharp".
+          - Blocks 5 now needs a graphics card that can run shaders, which
+            means anything made since about 2005. Where it cannot, the game
+            says so at the start and names what is missing, instead of
+            quietly showing a picture it was not designed for. On Windows the
+            usual cause is not an old card but a missing graphics driver - a
+            fresh installation, safe mode, or a remote desktop session.
 
           - Video recording now records the game's own sound. Until now it
             recorded whatever Windows had selected as the recording device,

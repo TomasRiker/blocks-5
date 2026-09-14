@@ -98,12 +98,10 @@ Engine::Engine()
 	// into being only in createUpscalerGL(). The order is the options dialog's:
 	// the best first, the matter of style last.
 	p_sharpFit = new U_SharpFit();
-	p_sharp    = new U_Sharp();
-	p_smooth   = new U_Smooth();
 	p_crt      = new U_Crt();
 	upscalers.push_back(p_sharpFit);
-	upscalers.push_back(p_sharp);
-	upscalers.push_back(p_smooth);
+	upscalers.push_back(new U_Sharp());
+	upscalers.push_back(new U_Smooth());
 	upscalers.push_back(p_crt);
 	p_wantedUpscaler = p_sharpFit;
 	fullScreen = false;
@@ -147,8 +145,6 @@ Engine::~Engine()
 		delete *i;
 	}
 	upscalers.clear();
-	p_sharp = 0;
-	p_smooth = 0;
 	p_sharpFit = 0;
 	p_crt = 0;
 	p_wantedUpscaler = 0;
@@ -623,7 +619,9 @@ bool Engine::init(const std::string& windowCaption,
 	if(fullScreen) applyWindowStyle(true, getDesktopSize());
 	printfLog("  Upscaling:        %s\n", p_wantedUpscaler->getName());
 
-	// Only here: how large the cursor must be hangs off the framebuffer.
+	// Only here: setupCursor() ends in updateCursorSize(), which measures the
+	// rectangle presentFrame() fills - so the window must have its final size
+	// and the filter must be the one that will draw.
 	setupCursor();
 
 	// create the textures for crossfading
@@ -1906,10 +1904,11 @@ void Engine::createUpscalerGL()
 				   "update is the thing to try.");
 	}
 
-	// A driver that resolved every GL 2.0 entry point and then will not compile
-	// these two shaders is broken rather than old, so this ends the program as
-	// well. Leaving the filter out instead is what the whole of the rest of
-	// this file no longer has to reckon with.
+	// Four filters, of which two have a shader; the other two answer from the
+	// base class and cannot fail. A driver that resolved every GL 2.0 entry
+	// point and then will not compile one of those two is broken rather than
+	// old, so this ends the program as well - leaving a filter out instead is
+	// what the whole of the rest of this file no longer has to reckon with.
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
 		if((*i)->createGL()) continue;
@@ -1992,8 +1991,6 @@ void Engine::createFrameBuffer()
 
 	if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
 	{
-		destroyFrameBuffer();
-
 		char detail[64];
 		sprintf(detail, "status 0x%x", static_cast<unsigned>(status));
 		fatalError("Blocks 5 - graphics error",
