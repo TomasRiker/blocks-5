@@ -128,12 +128,8 @@ public:
 	// is torn down only long after that context is gone. acquire gives 0 where
 	// it does not work.
 	//
-	// A pool and not a single texture, because several hint notes can be
-	// visible at once - stepping from one onto its neighbour fades the one out
-	// while the other fades in. With a shared texture the second would draw
-	// into it while the first still read from it, and both would then show the
-	// same text. The pool grows only up to the largest number of textures
-	// borrowed at once.
+	// A pool and not one texture, because two hint notes overlap while one
+	// fades out and the next fades in, and both would then show the same text.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
 	// Where in the window the 640x480 picture goes: centred, aspect kept. The
@@ -156,10 +152,8 @@ public:
 
 	// -perf: put what the last few hundred frames cost on the screen. The
 	// timings are recorded either way - four clock reads a frame - and this
-	// only decides whether anybody sees them. It is how the numbers are read
-	// on a phone, where there is no console and no test harness; in a desktop
-	// browser the same numbers come out of the test hook instead, without the
-	// overlay's own cost landing in the picture.
+	// only decides whether anybody sees them, which a phone has no other way
+	// to do.
 	void showPerformance() { performanceShown = true; }
 
 	// The -perf upper-bound measurement; see where it is set in render().
@@ -459,9 +453,15 @@ private:
 	// change itself is Win32; the size always goes through handleResize().
 	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
 
-	void rememberWindowPlacement();   // reads position/size off the window
+	// The window's placement for config.xml, through GetWindowPlacement and
+	// SetWindowPlacement so that its workspace coordinates round-trip. Both
+	// want the windowed window: remember() before a switch into fullscreen,
+	// restore() after the style is back. replayMaximized is false there,
+	// because handleResize() follows with the windowed size and would pull the
+	// window straight back out of a maximize; at startup nothing follows.
+	void rememberWindowPlacement();
+	void restoreWindowPosition(bool replayMaximized);
 	bool isWindowMaximized() const;   // maximized? then track nothing
-	void restoreWindowPosition();     // puts them back at startup
 #ifdef _WIN32
 	void hookWindowProc();            // put our own window procedure in front
 	void unhookWindowProc();          // and take it out again
@@ -500,7 +500,6 @@ private:
 	bool inSizeMove;           // user is holding the border or the title bar
 #endif
 	long savedWindowStyle;     // Win32: the style before fullscreen
-	int savedWindowRect[4];    // Win32: x, y, w, h before fullscreen
 	SDL_Surface* p_display;
 	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;

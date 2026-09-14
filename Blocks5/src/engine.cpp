@@ -128,7 +128,6 @@ Engine::Engine()
 	inSizeMove = false;
 #endif
 	savedWindowStyle = 0;
-	savedWindowRect[0] = savedWindowRect[1] = savedWindowRect[2] = savedWindowRect[3] = 0;
 	oldSoundVolume = -1.0;
 	oldMusicVolume = -1.0;
 	timePlayed = 0;
@@ -532,7 +531,7 @@ bool Engine::init(const std::string& windowCaption,
 	}
 
 	// Back to where it last stood.
-	restoreWindowPosition();
+	restoreWindowPosition(true);
 
 #ifdef _WIN32
 	// The window stands from here; our own window procedure can go in front.
@@ -2234,25 +2233,19 @@ Vec2i Engine::getDefaultWindowSize() const
 void Engine::rememberWindowPlacement()
 {
 #ifdef _WIN32
-	// In fullscreen the window sits at (0,0) and is screen-sized. What counts
-	// then is what applyWindowStyle() remembered before the switch.
-	if(fullScreen)
-	{
-		if(savedWindowStyle)
-		{
-			windowedPosition = Vec2i(savedWindowRect[0], savedWindowRect[1]);
-			windowedPositionKnown = true;
-		}
-		return;
-	}
+	// The window has to be the windowed one. In fullscreen it is the
+	// screen-sized popup with nothing here to read, which is why
+	// setFullScreen() asks before it switches rather than after.
+	if(fullScreen) return;
 
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
 	// GetWindowPlacement rather than GetWindowRect: for a maximized window
-	// GetWindowRect gives the maximized frame. rcNormalPosition is what
-	// "restore" goes back to, and that is what gets saved.
+	// GetWindowRect gives the maximized frame, whose corner sits off the
+	// screen by the width of the invisible grab handles. rcNormalPosition is
+	// what "restore" goes back to, and that is what gets saved.
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(wp);
 	if(!GetWindowPlacement(info.window, &wp)) return;
@@ -2272,10 +2265,30 @@ void Engine::rememberWindowPlacement()
 		const int h = (wp.rcNormalPosition.bottom - wp.rcNormalPosition.top)  - (frame.bottom - frame.top);
 		if(w >= screenSize.x && h >= screenSize.y) windowedSize = Vec2i(w, h);
 	}
+
+	// Both rectangles, because they are not in the same coordinate system and
+	// the difference between them is the whole of the trap this function and
+	// restoreWindowPosition() are written around: rcNormalPosition is in
+	// *workspace* coordinates - the work area, with the taskbar and any docked
+	// toolbar taken out of it - where GetWindowRect gives *screen* ones. The
+	// two agree exactly while the work area begins at the top left corner of
+	// the monitor, which is what a taskbar along the bottom or the right
+	// gives, and that is why the difference is invisible on almost every
+	// machine. Written down rather than reasoned about: nothing that builds
+	// this tree can run it.
+	RECT onScreen = { 0, 0, 0, 0 };
+	GetWindowRect(info.window, &onScreen);
+	printfLog("  Window: normal %d,%d %dx%d, on screen %d,%d, maximized %d\n",
+			  static_cast<int>(wp.rcNormalPosition.left),
+			  static_cast<int>(wp.rcNormalPosition.top),
+			  static_cast<int>(wp.rcNormalPosition.right  - wp.rcNormalPosition.left),
+			  static_cast<int>(wp.rcNormalPosition.bottom - wp.rcNormalPosition.top),
+			  static_cast<int>(onScreen.left), static_cast<int>(onScreen.top),
+			  maximized ? 1 : 0);
 #endif
 }
 
-void Engine::restoreWindowPosition()
+void Engine::restoreWindowPosition(bool replayMaximized)
 {
 #ifdef _WIN32
 	if(!windowedPositionKnown) return;
@@ -2284,22 +2297,46 @@ void Engine::restoreWindowPosition()
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
-	// If the window would land on no screen at all, better leave it where
-	// Windows put it. MonitorFromRect answers that correctly for negative
-	// coordinates too, which a monitor to the left of the first one has.
-	RECT r;
-	r.left   = windowedPosition.x;
-	r.top    = windowedPosition.y;
-	r.right  = windowedPosition.x + displaySize.x;
-	r.bottom = windowedPosition.y + displaySize.y;
-	if(!MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) return;
+	// SetWindowPlacement and not SetWindowPos, because what was saved is
+	// rcNormalPosition and that is in workspace coordinates while SetWindowPos
+	// takes screen ones. The two only round-trip while the work area starts at
+	// the top left corner of the monitor; where it does not - a taskbar along
+	// the top or the left - every save and restore shifts the window by the
+	// size of it, in the same direction each time, and over a run of sessions
+	// the window walks across the desktop.
+	//
+	// It carries two other things that used to be done by hand here: showCmd
+	// is the whole of the maximized state, and a placement that would put the
+	// window on no screen at all is moved back onto one by Windows itself.
+	WINDOWPLACEMENT wp;
+	wp.length = sizeof(wp);
+	if(!GetWindowPlacement(info.window, &wp)) return;
 
-	SetWindowPos(info.window, HWND_NOTOPMOST, windowedPosition.x, windowedPosition.y,
-				 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	// rcNormalPosition is a window rect and windowedSize a client area, so the
+	// frame has to be added back: AdjustWindowRectEx on an empty rectangle is
+	// exactly what the border costs, and this is rememberWindowPlacement()'s
+	// own arithmetic run backwards. Where it fails the rectangle keeps the size
+	// it already had.
+	LONG width  = wp.rcNormalPosition.right  - wp.rcNormalPosition.left;
+	LONG height = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
+	RECT frame = { 0, 0, 0, 0 };
+	const LONG style   = GetWindowLong(info.window, GWL_STYLE);
+	const LONG exStyle = GetWindowLong(info.window, GWL_EXSTYLE);
+	if(AdjustWindowRectEx(&frame, style & ~WS_MAXIMIZE, FALSE, exStyle))
+	{
+		width  = windowedSize.x + (frame.right  - frame.left);
+		height = windowedSize.y + (frame.bottom - frame.top);
+	}
 
-	// Maximized before, maximized again. SDL turns that into an
-	// SDL_VIDEORESIZE of its own accord, which handleResize() picks up.
-	if(maximized) ShowWindow(info.window, SW_MAXIMIZE);
+	wp.rcNormalPosition.left   = windowedPosition.x;
+	wp.rcNormalPosition.top    = windowedPosition.y;
+	wp.rcNormalPosition.right  = windowedPosition.x + width;
+	wp.rcNormalPosition.bottom = windowedPosition.y + height;
+
+	// SDL turns the maximize into an SDL_VIDEORESIZE of its own accord, which
+	// handleResize() picks up.
+	wp.showCmd = (maximized && replayMaximized) ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+	SetWindowPlacement(info.window, &wp);
 #endif
 }
 
@@ -2529,18 +2566,14 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		{
 			// Only the first time: a second pass would remember the WS_POPUP
 			// that is already set - there would be no way out of fullscreen.
-			if(!savedWindowStyle)
-			{
-				savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
-				RECT r;
-				if(GetWindowRect(hwnd, &r))
-				{
-					savedWindowRect[0] = r.left;
-					savedWindowRect[1] = r.top;
-					savedWindowRect[2] = r.right - r.left;
-					savedWindowRect[3] = r.bottom - r.top;
-				}
-			}
+			//
+			// The style is all that is kept here. Where the window stood and
+			// whether it was maximized belongs to setFullScreen(), which asks
+			// rememberWindowPlacement() before it switches: GetWindowRect on a
+			// maximized window gives the maximized frame, whose corner hangs
+			// off the screen, and it answers in screen coordinates where the
+			// rest of this pair works in the workspace ones.
+			if(!savedWindowStyle) savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
 
 			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 			// HWND_TOP, not HWND_TOPMOST: a borderless fullscreen window that
@@ -2548,27 +2581,39 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 			SetWindowPos(hwnd, HWND_TOP, 0, 0, size.x, size.y,
 						 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
+		else if(savedWindowStyle && windowedPositionKnown)
+		{
+			// The style first, because restoreWindowPosition() computes the
+			// frame from the style that is set when it runs. It then puts the
+			// position and the size back through the same API that took them,
+			// which is what keeps the workspace coordinates of
+			// rcNormalPosition round-tripping.
+			//
+			// The handleResize() at the foot of this function does not undo
+			// it: this game sets neither SDL_VIDEO_WINDOW_POS nor
+			// SDL_VIDEO_CENTERED, so DIB_SetVideoMode takes the branch that
+			// passes SWP_NOMOVE and resizes the window where it stands.
+			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
+			restoreWindowPosition(false);
+			savedWindowStyle = 0;
+		}
 		else
 		{
+			// No remembered position - back into a window all the same. There
+			// must always be a way out of fullscreen. This rectangle is
+			// computed against the desktop rather than read off a window, so it
+			// is in screen coordinates and SetWindowPos is what takes those.
 			long style = savedWindowStyle;
-			int x = savedWindowRect[0], y = savedWindowRect[1];
-			int w = savedWindowRect[2], h = savedWindowRect[3];
-
-			if(!style)
-			{
-				// Nothing remembered - back into a window all the same. There
-				// must always be a way out of fullscreen.
-				style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-				RECT r = { 0, 0, size.x, size.y };
-				AdjustWindowRect(&r, style, FALSE);
-				w = r.right - r.left;
-				h = r.bottom - r.top;
-				const Vec2i desktop = getDesktopSize();
-				x = (desktop.x - w) / 2;
-				y = (desktop.y - h) / 2;
-				if(x < 0) x = 0;
-				if(y < 0) y = 0;
-			}
+			if(!style) style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+			RECT r = { 0, 0, size.x, size.y };
+			AdjustWindowRect(&r, style, FALSE);
+			const int w = r.right - r.left;
+			const int h = r.bottom - r.top;
+			const Vec2i desktop = getDesktopSize();
+			int x = (desktop.x - w) / 2;
+			int y = (desktop.y - h) / 2;
+			if(x < 0) x = 0;
+			if(y < 0) y = 0;
 
 			SetWindowLong(hwnd, GWL_STYLE, style);
 			SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, w, h,
@@ -2593,6 +2638,12 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 void Engine::setFullScreen(bool wantFullScreen)
 {
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
+
+	// Going fullscreen takes the windowed placement away - the window becomes
+	// the screen-sized popup - so Engine::exit() would find nothing left to
+	// read. It is taken here instead, while the window is still the one
+	// config.xml is about.
+	if(wantFullScreen) rememberWindowPlacement();
 
 	fullScreen = wantFullScreen;
 	printfLog("* %s\n", wantFullScreen ? "Going fullscreen" : "Leaving fullscreen");
@@ -4254,7 +4305,9 @@ void Engine::loadConfig()
 		if(p_window && !initialized)
 		{
 			// Negative values are allowed: a second screen to the left of the
-			// first has them. restoreWindowPosition() checks the spot.
+			// first has them, and so does a window on a monitor above the
+			// primary one. A spot that no longer exists at all is Windows'
+			// problem - SetWindowPlacement puts such a window back on a screen.
 			int x = 0, y = 0;
 			const bool haveX = p_window->QueryIntAttribute("positionX", &x) == TIXML_SUCCESS;
 			const bool haveY = p_window->QueryIntAttribute("positionY", &y) == TIXML_SUCCESS;

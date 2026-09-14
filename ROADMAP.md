@@ -1808,28 +1808,52 @@ swiftshader in a browser, where this particular change does nothing.
 
 
 
-45. The window creeps down the screen where the taskbar is at the top
----------------------------------------------------------------------
-`rememberWindowPlacement()` saves `wp.rcNormalPosition` from
-`GetWindowPlacement`, and `restoreWindowPosition()` puts it back with
-`SetWindowPos`. Those two are not in the same coordinate system:
-`rcNormalPosition` is in **workspace** coordinates - relative to the work area
-of the window's monitor - while `SetWindowPos` takes **screen** coordinates.
+45. The window creeps where the taskbar is not at the bottom  — **DONE**, unverified
+-------------------------------------------------------------------------------------
+`rememberWindowPlacement()` saved `wp.rcNormalPosition` from `GetWindowPlacement` and
+`restoreWindowPosition()` put it back with `SetWindowPos`. Those two are not in the
+same coordinate system: `rcNormalPosition` is in **workspace** coordinates - the work
+area of the monitor, with the taskbar and any docked toolbar taken out of it - while
+`SetWindowPos` takes **screen** coordinates.
 
-With the taskbar at the bottom or the right the work area starts at (0,0) and
-the two agree, which is why this is invisible to almost everybody. With the
-taskbar at the **top** or the **left**, every save and restore shifts the
-window by the height or width of it, in the same direction each time, so the
-window walks across the desktop over a run of sessions. `MonitorFromRect` in
-the same function is fed the same workspace rectangle and judged against
-screen coordinates, so the "does that spot still exist" test is off by the same
-offset and can refuse a perfectly good position.
+With the taskbar at the bottom or the right the work area starts at the monitor's top
+left corner and the two agree exactly, which is why this is invisible to almost
+everybody. With it at the **top** or the **left**, every save and restore shifts the
+window by the height or width of it, in the same direction each time, so the window
+walks across the desktop over a run of sessions. `MonitorFromRect` in the same
+function was fed the same workspace rectangle and judged it against screen
+coordinates, so the "does that spot still exist" test was off by the same offset.
 
-The fix is to restore with `SetWindowPlacement` rather than `SetWindowPos`:
-it takes `rcNormalPosition` in the coordinates `GetWindowPlacement` handed
-over, so the round trip closes, and it replays `showCmd` as well - which would
-take the separate `ShowWindow(SW_MAXIMIZE)` with it. It needs a Windows machine
-to do and to check; nothing here compiles that branch, let alone runs it.
+The fix is `SetWindowPlacement`, which takes `rcNormalPosition` in the coordinates
+`GetWindowPlacement` handed over. It also replays `showCmd` - which took the separate
+`ShowWindow(SW_MAXIMIZE)` with it - and puts a window that would land on no screen at
+all back onto one, which took `MonitorFromRect` with it.
+
+**A second half came out of the same search, and that one is visible on any taskbar.**
+`applyWindowStyle()` saved a `GetWindowRect` on the way into fullscreen, and
+`rememberWindowPlacement()` handed those coordinates to the same field that otherwise
+holds `rcNormalPosition`: quitting from fullscreen wrote a screen rectangle where
+quitting from a window wrote a workspace one. Worse, `GetWindowRect` on a maximized
+window is the *maximized frame*, whose corner sits a few pixels off the top left
+because the invisible grab handles count - so maximize, Alt+Enter, quit wrote that
+corner, with `maximized` left at whatever the previous session had said, and the next
+start put a windowed-size window into the corner of the screen. `setFullScreen()` now
+asks `rememberWindowPlacement()` before it switches, while the window is still the one
+config.xml is about, and `applyWindowStyle()` keeps nothing but the style.
+
+**What is deliberately not fixed**: a window that was maximized before Alt+Enter comes
+back from fullscreen as a normal window of the remembered size rather than maximized.
+`applyWindowStyle()` ends in `handleResize()` with the windowed size, which would pull
+the window straight out of a maximize again, and the `SDL_VIDEORESIZE` that the
+maximize queues would then arrive and size it a third time. Getting that ordering
+right wants a Windows machine in front of you, and it is a smaller wrong than the one
+this item is about. `restoreWindowPosition()`'s `replayMaximized` is where it would go.
+
+**Unverified.** None of this can be compiled here beyond `Tools/syntax.sh`, let alone
+run: it is all inside `#ifdef _WIN32`. `rememberWindowPlacement()` logs
+`rcNormalPosition` next to `GetWindowRect` for exactly that reason - one line of
+`log.txt` says whether a machine's work area starts at (0,0), and therefore whether
+the creep was ever reachable on it.
 
 
 46. Open the loopback capture when a recording starts, not at every start

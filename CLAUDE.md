@@ -1155,15 +1155,36 @@ fields) with 640x480 of client plus the frame from `AdjustWindowRectEx`, so the 
 `Engine::exit`; the position is the only part that can be absent, because on a first start
 there is none and a 0,0 would be a claim rather than a fact. Before that the only
 caller of `saveConfig` was the options dialog's OK, so resizing and quitting lost the size.
-`rememberWindowPlacement` uses `GetWindowPlacement`, not `GetWindowRect`: a maximized
-window's rect is the maximized frame, with negative corners because the invisible grab
-handles count, and restoring *that* puts a screen-sized window half off the desktop.
-`rcNormalPosition` is what "restore" goes back to and is what gets saved, with a `maximized`
-flag that `restoreWindowPosition` replays. `handleResize` skips updating `windowedSize` while
-`IsZoomed`, and in fullscreen the rect `applyWindowStyle` saved is used instead, so the
-remembered window is always the windowed one. Whether the stored spot still exists is
-`MonitorFromRect`'s job, which gets negative coordinates right — a monitor to the left of the
-first one has them.
+**`GetWindowPlacement` and `SetWindowPlacement`, and never either of them paired with
+`SetWindowPos`.** `GetWindowRect` on a maximized window gives the maximized frame, whose
+corners are negative because the invisible grab handles count, so what is saved is
+`rcNormalPosition` — the rectangle "restore" goes back to — together with `showCmd` as the
+`maximized` flag. And `rcNormalPosition` is in **workspace** coordinates: the work area, with
+the taskbar and any docked toolbar taken out of it, where `SetWindowPos` takes **screen**
+coordinates. The two agree exactly while the work area begins at the monitor's top left
+corner, which is what a taskbar along the bottom or the right gives — and that is why putting
+the one back with the other was invisible to almost everybody. With the taskbar at the top or
+the left, every save and restore shifts the window by the size of it, in the same direction
+each time, until it has walked into the corner. `SetWindowPlacement` closes the round trip,
+replays `showCmd` itself, and moves a window that would land on no screen at all back onto
+one — three hand-written things gone, `MonitorFromRect` among them.
+`rememberWindowPlacement` logs both rectangles, because that is the one place in the tree
+where the two systems meet and the only way to read a machine's work-area offset off a log.
+
+**The same coordinate system has to reach the fullscreen path**, which is why `setFullScreen`
+asks `rememberWindowPlacement` *before* it flips the flag rather than letting `Engine::exit`
+ask afterwards: in fullscreen the window is the screen-sized popup and has no windowed
+placement left to read. `applyWindowStyle` therefore keeps only the style. It used to keep a
+`GetWindowRect` beside it and hand that to the same field, so quitting from fullscreen wrote a
+screen rectangle where quitting from a window wrote a workspace one — and where the window had
+been maximized before Alt+Enter it wrote the maximized frame's corner, a few pixels off the
+top left, with `maximized` left at whatever the last session had said.
+
+`handleResize` skips updating `windowedSize` while `IsZoomed`, so the remembered size is
+always the windowed one. The maximized state is replayed at startup only, which is what
+`restoreWindowPosition`'s `replayMaximized` says: leaving fullscreen runs `handleResize` with
+the windowed size immediately afterwards, and that would pull the window straight back out of
+a maximize.
 
 On first run, or when the stored size no longer fits, `getDefaultWindowSize` picks the largest
 integer multiple of 640x480 leaving a 120px margin in *both* directions, so "sharp" starts
