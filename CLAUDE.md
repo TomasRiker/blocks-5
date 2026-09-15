@@ -568,6 +568,26 @@ frame and quads per draw for five scenes on every run, and `WebBuild/test/perf.j
 frame's real GL draw calls beside its milliseconds; a fresh `?nobatch=1` comparison would now
 flatter the batch further still.
 
+**On a real phone the batch is worth six times as much as any of those numbers say.** Measured
+with `?perf=1` on a level with a full tile map and grass objects over the whole of it, the frame
+went **57 ms with `?nobatch=1` and 9 ms without it**. Against a 20 ms logic tick those are two
+different games: 57 ms is nearly three ticks, so every single frame was one the player did not
+get, and 9 ms sits comfortably inside the budget.
+
+**The size of the gap is the interesting part, and it is a property of the platform rather than
+of the scene.** Under swiftshader the same comparison in a played level moved the median frame
+3.90 ms to 2.40 - a bit over one and a half times - because there the frame rate is capped by
+rasterizing and a draw call saved is not the bottleneck. On a phone the main thread *is* the
+limit, and each draw call carries Emscripten's GL emulation through a stretch of JavaScript; so
+removing draw calls removes exactly the work the phone is short of. **Read every browser number
+in this section as a lower bound on what a phone gets.**
+
+The scene is the batch's best case and worth naming as such. `-nobatch` does not touch the tile
+map at all - `Level::renderTiles` hands its layer to one `glDrawArrays` either way - so the whole
+of that 48 ms is the *grass*, which is `StdObject` and therefore `renderSprite`. A field of them
+all drawn from the skin's one sprite sheet queues hundreds of quads with nothing in between to
+break the batch, which is the shape the arrangement was built for.
+
 **A sprite is drawn at the size it was given, odd numbers included.** `renderSprite` used to
 halve the size and span `size` texels over `size - 1` pixels, so anything odd came out a pixel
 short and resampled. `halfSize` and `otherHalf` split it instead, and mirroring swaps the two `u`
