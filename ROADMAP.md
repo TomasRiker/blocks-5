@@ -1927,25 +1927,45 @@ over the whole run the way it skips back over a tag - rather than to forbid
 spaces in a key name.
 
 
-49. CLAUDE.md is 188 KB, and every session reads all of it
-------------------------------------------------------------
-2547 lines, 192366 bytes, loaded whole into the context of every session that
-touches this tree. It earns a great deal of that: the measurements, the traps
-and the reasons behind decisions that look arbitrary are exactly what a reader
-without the history cannot reconstruct, and losing them costs more than the
-tokens do.
+49. CLAUDE.md is 194 KB, and every session reads all of it  - **DONE**, 16% off
+--------------------------------------------------------------------------------
+198685 bytes to 166349, loaded whole into the context of every session that
+touches this tree. The pass went the way this item asked: keep every number that
+still decides something, cut the retelling.
 
-What it carries beyond that is narrative - the same fact stated in the
-architecture section and again in a roadmap entry, measurements kept at full
-precision long after the conclusion they support has been settled, and passages
-that are an account of how something was arrived at rather than what it is. A
-pass that keeps every number that still decides something and cuts the retelling
-would take a good fraction off without losing a single fact a reader needs.
+What came out. Prose tightened throughout, at roughly a quarter of the bytes
+wherever a paragraph was an account of how something was arrived at rather than
+what it is. Evidence for a conclusion already settled, where the conclusion is
+kept and the working is not: the llvmpipe glFinish breakdown, the ?nobatch draw
+counts for three of five scenes (the entry says outright that they predate the
+GL state layer and understate it), the per-scene text-cache walk counts, the
+German-to-English glossary now that the sweep is finished. Three passages about
+browser colour - the batch's unquantised array, the glBegin truncation, the lost
+clamp - merged into one, since they are one mechanism seen three times.
 
-It is not free to do: the file is also the place several of those facts exist at
-all, and a condensing pass is the kind that quietly drops the one sentence that
-would have saved the next afternoon. Worth doing deliberately and with the
-diff read closely, not as tidying.
+**The real lever was duplication with the sources, and it is worth knowing which
+way it cuts.** `hint.cpp` carries 134 comment lines in 489, `cf_rewind.cpp` 78 in
+299, `diamondmachine.cpp` 155 in 583 - all near the 50% ceiling `verify.py`
+enforces - and the geometry, the flight arithmetic and the draw order are derived
+there almost in the words CLAUDE.md was using. Those three sections are now
+orientation plus the parts that reach *outside* their own file: `Particle::id`
+staying 0 everywhere else, the offscreen texture belonging to the Engine because
+it falls with the FBO, `GL_TRIANGLE_STRIP` because WebGL has no quad strip, the
+`hintscroll.txt` marker and what it costs the packing scripts.
+
+**`u_crt.cpp` is the exception and the next lever**: 42 comment lines in 663, so
+the CRT reasoning - `SCANLINE_PERIOD` being a choice between a VGA monitor and a
+240p console, `getOverscan()` being the sum of the fade and the convergence
+offset, the mask sitting in output pixels because everyone runs at 2x - exists
+*only* in CLAUDE.md. It stays there in full until somebody moves it into the
+shader file, which is a code change and not a deletion; that would take another
+10 KB off.
+
+Verified rather than trusted: every identifier, filename and number in the old
+file was extracted and diffed against the new one. Three tokens are gone on
+purpose (`plain.png` from a measurement detail, and two `*_no_optipng.bat` names
+that were spelled out again once the diff named them), and every emphasised claim
+without a textual match was checked back against the source that now carries it.
 
 
 50. OpenGL 2.0 is a requirement now, not a hope  - **DONE**
