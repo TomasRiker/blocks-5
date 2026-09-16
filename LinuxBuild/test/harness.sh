@@ -246,19 +246,21 @@ b5_clientOrigin()
 # seconds a piece an unanswering game costs twenty minutes to notice.
 b5_ask()
 {
+	# The request carries a serial and the answer repeats it on its first
+	# line, so a late answer to an earlier ask that gave up is never taken
+	# for this one. Without it, what that looked like was not a timeout but
+	# a wrong answer: a click reporting that a whole dump is "on top" of the
+	# button, because that is what the previous ask was going to return.
+	# The clock and not a counter, because this runs inside $(...) as often
+	# as not, where a counter's increment would be lost with the subshell.
+	local serial i
+	serial="#$(date +%s%N)"
 	rm -f "$B5_TEST_DIR/response"
-	echo "$1" > "$B5_TEST_DIR/request"
-	local i
+	echo "$serial $1" > "$B5_TEST_DIR/request"
 	for i in $(seq 1 25); do
-		# The request has to be gone before the answer counts. The game
-		# deletes it and writes the response in the same pass, so a response
-		# appearing while the request is still lying there belongs to an
-		# earlier ask that gave up - and reading it answers the wrong
-		# question. What that looks like is not a timeout but a wrong answer:
-		# a click reporting that a whole dump is "on top" of the button,
-		# because that is what the previous ask was going to return.
-		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ]; then
-			cat "$B5_TEST_DIR/response"
+		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ] &&
+		   [ "$(head -n 1 "$B5_TEST_DIR/response" 2>/dev/null)" = "$serial" ]; then
+			tail -n +2 "$B5_TEST_DIR/response"
 			return 0
 		fi
 		b5_alive || return 1

@@ -514,10 +514,25 @@ void pollRequests()
 	FILE* p_request = fopen(requestPath.c_str(), "rb");
 	if(!p_request) return;
 
-	char line[128] = "";
-	if(!fgets(line, sizeof(line), p_request)) line[0] = 0;
+	char buffer[128] = "";
+	if(!fgets(buffer, sizeof(buffer), p_request)) buffer[0] = 0;
 	fclose(p_request);
 	::remove(requestPath.c_str());
+
+	// "#<serial> <request>": the serial goes back on the answer's first
+	// line, which is how the harness tells the answer to this request from
+	// a late one to an earlier request it had given up on.
+	std::string serial;
+	const char* line = buffer;
+	if(*line == '#')
+	{
+		const char* p_space = strchr(line, ' ');
+		if(p_space)
+		{
+			serial.assign(line, p_space - line);
+			line = p_space + 1;
+		}
+	}
 
 	// The rest of the line after a keyword, without the newline fgets
 	// leaves on.
@@ -605,6 +620,8 @@ void pollRequests()
 		answer = Engine::inst().writeScreenshot(Argument::of(line + 5)) ? "ok\n" : "failed\n";
 	}
 	else answer = dump();
+
+	if(!serial.empty()) answer = serial + "\n" + answer;
 
 	const std::string temporaryPath(directory + "/response.tmp");
 	FILE* p_response = fopen(temporaryPath.c_str(), "wb");

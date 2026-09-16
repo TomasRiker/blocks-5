@@ -15,7 +15,9 @@ paths:
 manager, toggles fullscreen, screenshots with F11, quits with Escape. It clicks by element name, not
 coordinate: `Blocks5/src/testhooks.cpp` — the same hook the browser uses — reports the GUI tree, and
 since there is no JavaScript here the request goes through a file (`$B5_TEST_DIR/request`, answered once
-per logic tick). That catches what a screenshot cannot: on a first start `Menu.CrtPane` covers
+per logic tick). Every request carries a serial and the answer repeats it on its first line, so a late
+answer to an ask that had given up is never taken for the current one — which used to read as a click
+finding a whole dump "on top" of its button. That catches what a screenshot cannot: on a first start `Menu.CrtPane` covers
 everything, so a click on the middle of `Menu.Options` lands on the pane.
 
 **The two input layers want opposite treatment — the trap that costs the most time.** A key the GUI reads
