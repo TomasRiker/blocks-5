@@ -160,9 +160,8 @@ b5_release() { b5_ask "freeze 4294967295" >/dev/null; }
 
 # Freeze at a tick of the running scene and write its frame. "now" instead of
 # a tick freezes at the next tick whatever it is, for a screen without a
-# clock of its own - the editor's level does not tick, nor does the select
-# screen's preview - whose frame is reproducible for the weaker reason that
-# nothing in it moves. The wait is on the reported state and never on an
+# clock of its own - the editor's level does not tick - whose frame is
+# reproducible for the weaker reason that nothing in it moves. The wait is on the reported state and never on an
 # interval: under llvmpipe a frame is a fifth of a second, so a guessed sleep
 # is either wrong or slow.
 b5_frame()   # $1 name, $2 tick or "now"
@@ -174,15 +173,6 @@ b5_frame()   # $1 name, $2 tick or "now"
 	b5_takeFrozen "$name" "$tick"
 }
 
-# The same for a crossfade: arm the stop on the transition's own clock, then
-# make the click that starts it, then b5_takeFrozen. The two halves are
-# separate because the click lies between them.
-b5_armFade()
-{
-	b5_ask resetstats >/dev/null
-	b5_ask "freeze fade $1" >/dev/null
-}
-
 # A crossfade's clock moves once per iteration of the main loop and the
 # screen under it once per tick, and how many ticks an iteration bunches is
 # up to the machine: the level's load alone is a backlog of several. Left
@@ -191,15 +181,27 @@ b5_armFade()
 # clocks to each other, so the fade's 400 ms is always the same tick of the
 # screen behind it. On from before the click that starts the transition,
 # off once the frame is taken.
-b5_armFadeLockstep()
-{
-	b5_ask "lockstep 1" >/dev/null
-	b5_armFade "$1"
-}
 b5_releaseLockstep()
 {
 	b5_release
 	b5_ask "lockstep 0" >/dev/null
+}
+
+# A transition started by the hook from a frozen screen: the old image is
+# that screen at a named tick - a click that lands on a tick, which no real
+# click can - and under lockstep the fade's 400 ms is a fixed number of
+# frames later. Both screens a crossfade is taken from here tick: the menu's
+# title demo and the select screen's preview level.
+b5_transition()   # $1 button, $2 tick to freeze the old screen on, $3 frame name
+{
+	b5_ask resetstats >/dev/null
+	b5_ask "freeze $2" >/dev/null
+	b5_waitFrozen "$3" "$2"
+	b5_ask "lockstep 1" >/dev/null
+	[ "$(b5_ask "click $1")" = "ok" ] || { echo "FAILED: the hook found no button $1"; exit 1; }
+	b5_ask "freeze fade 400" >/dev/null
+	b5_takeFrozen "$3"
+	b5_releaseLockstep
 }
 
 b5_waitFrozen()   # $1 name, [$2 the tick it must have stopped on]
@@ -353,14 +355,7 @@ fi
 # frames later.
 if needs editor help editbox editor-select editor-connect star; then
 	if wanted star; then
-		b5_ask resetstats >/dev/null
-		b5_ask "freeze 36000" >/dev/null
-		b5_waitFrozen star 36000
-		b5_ask "lockstep 1" >/dev/null
-		[ "$(b5_ask "click Menu.LevelEditor")" = "ok" ] || { echo "FAILED: the hook found no button Menu.LevelEditor"; exit 1; }
-		b5_ask "freeze fade 400" >/dev/null
-		b5_takeFrozen star
-		b5_releaseLockstep
+		b5_transition Menu.LevelEditor 36000 star
 	else
 		b5_click Menu.LevelEditor
 	fi
@@ -454,9 +449,10 @@ playLevel()   # $1 index, [$2 name of a frame of the crossfade into it]
 		b5_click SelectLevel.NextLevel
 		LEVEL_AT=$((LEVEL_AT + 1))
 	done
-	[ -n "${2:-}" ] && b5_armFadeLockstep 400
-	b5_click SelectLevel.PlayLevel
-	if [ -n "${2:-}" ]; then b5_takeFrozen "$2"; b5_releaseLockstep; fi
+	# The select screen's preview level ticks, so a crossfade out of it
+	# starts from a frozen tick like the star does.
+	if [ -n "${2:-}" ]; then b5_transition SelectLevel.PlayLevel 6000 "$2"
+	else b5_click SelectLevel.PlayLevel; fi
 	b5_waitForState GS_Game
 }
 quitLevel()
@@ -472,11 +468,14 @@ quitLevel()
 
 if needs select cube night plain lava toxic hint; then
 	goSelect
-	if wanted select; then b5_frame select now; b5_release; fi
+	# The select screen has a clock after all: its preview is a level, and
+	# the level ticks - with the night vision's noise and the fire's
+	# particles in it.
+	if wanted select; then b5_frame select 4000; b5_release; fi
 	if needs cube night; then
 		# The cube is the crossfade into a level from the select screen, frozen
-		# 400 ms into its 850: the old image is the select screen, which has no
-		# clock, and the new one the level at a fixed early tick.
+		# 400 ms into its 850: the old image is the select screen with its
+		# preview at 6000, and the new one the level at a fixed early tick.
 		playLevel 0 $(wanted cube && echo cube)
 		if wanted night; then b5_frame night 6000; b5_release; fi
 		quitLevel

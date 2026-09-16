@@ -116,8 +116,10 @@ at another; `b5_type` and `b5_chord` type into whatever has the focus. Three tra
 scenes: **Escape closes an open hint note before it opens the game menu**, so `quitLevel` looks whether
 the menu came up and presses again if not; the editor's quit asks a yes/no question once the level is
 modified, and the scenes that modify it answer it by name; and a scene without a clock of its own — the
-editor's level does not tick, nor does the select screen's preview — asks for `now`, the next tick
-whatever it is, rather than a tick it could miss. The script traps its own exit and stops the game and
+editor's level does not tick — asks for `now`, the next tick whatever it is, rather than a tick it could
+miss. The select screen is not such a scene: its preview is a level and the level ticks, with the night
+vision's noise and the fire's particles in it, so `select` freezes on a tick and the cube crossfade out
+of it starts from a frozen one. The script traps its own exit and stops the game and
 the X server it started, because a `FAILED` from inside a function otherwise leaves both attached to
 `:88`, which the next run refuses to start over.
 
@@ -126,12 +128,17 @@ editors and a played level are *pushed* on top of the menu, and the menu's own c
 demo's recording and the clouds run on — carries on across the visit while the restored title level's
 starts again from zero; after a pop the two stand apart by whatever the harness's timing made of the
 visit, and the clouds at a level tick are a different picture on every run. So the menu and its dialogs
-are photographed on the first visit, when both start together, and the `star` — the crossfade into the
-editor — is started by the hook's `click <element>` request while the menu stands frozen at a named tick:
-a click that lands on a tick, which no real click can. The other clock is the level's own: `Level::clear`
+are photographed on the first visit, when both start together, and both crossfades — the `star` into the
+editor, the `cube` into a level — are started by the hook's `click <element>` request while the screen
+they leave stands frozen at a named tick (`b5_transition`): a click that lands on a tick, which no real
+click can. The other clock is the level's own: `Level::clear`
 resets `sceneTick`, because `Engine::update` seeds a tick on the clock as it stands, and before that a
 new level's first tick was seeded on the previous level's last — a gas cloud's first particles then took
-different slots from one run to the next, and alpha-blended particles are drawn in slot order.
+different slots from one run to the next, and alpha-blended particles are drawn in slot order. And one
+table was built from the shared generator on the first frame that needed it: the toxic effect's noise,
+which therefore depended on how many frames the process had rendered by then — it now comes from a
+generator of its own with a fixed seed (`Level::renderToxicEffect`), the one place a render path still
+drew from `random()`.
 
 ## In a browser
 
