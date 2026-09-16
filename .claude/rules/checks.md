@@ -48,6 +48,10 @@ id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitia
 comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
 ten years is not a finding, and reporting it every run is how a check gets ignored.
 
+**Four of the checks police the sprite batch's convention** - `sprite_batch`, `gl_state`, `gl_doors`
+and `display_lists` - and `RENDERER-REDESIGN.md` (ROADMAP 54) replaces them with two, `raw_gl` and
+`direct_gl_scope`, once every draw goes through the renderer. Until then they stand as they are.
+
 **`Tools/selftest.py`** injects each fault in turn, confirms the matching check fires, restores the file
 byte-for-byte. Run it after touching `verify.py`. Not ceremony: the attribute check was inert when first
 written, because `Attribute(` also matches the tail of `SetAttribute(`.
