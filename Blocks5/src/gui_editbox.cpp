@@ -214,7 +214,14 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
+			// Handled, and the letter must not go on to be typed as well.
+			// What unicode a Ctrl combination carries is the platform's
+			// choice - under X11 it is the letter itself, measured: Ctrl+A
+			// selected everything and put an "a" in its place - so that
+			// cannot be left to the unicode test below.
+			break;
 		}
+		// Without Ctrl the letter is text like any other.
 	default:
 		{
 			char c = static_cast<char>(event.keysym.unicode);

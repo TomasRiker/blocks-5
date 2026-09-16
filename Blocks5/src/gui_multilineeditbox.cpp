@@ -229,7 +229,11 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 				const std::string& clipboard = GUI::inst().getClipboard();
 				if(!clipboard.empty()) replaceSelection(clipboard);
 			}
+			// Handled, and the letter must not go on to be typed as well -
+			// see GUI_EditBox for the platform that hands over the letter.
+			break;
 		}
+		// Without Ctrl the letter is text like any other.
 	default:
 		{
 			char c = static_cast<char>(event.keysym.unicode);
