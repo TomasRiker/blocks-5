@@ -32,8 +32,8 @@ Two things follow that are easy to get wrong later:
 1. It is the *publication* that does the work, not the linkage. If the sources
 ever stop being published, or the build stops working from a clean checkout,
 the static link stops being covered - and the fix would then be to ship sdl.dll
-and give up the single-DLL arrangement CLAUDE.md describes. Keeping the repo
-public is cheaper than that.
+and give up the single-DLL arrangement that .claude/rules/build-windows.md
+describes. Keeping the repo public is cheaper than that.
 
 2. shine is in exactly the same position - LGPL v2, compiled into the same
 executable - and OpenAL Soft is the dynamic case. readme.txt names all three,

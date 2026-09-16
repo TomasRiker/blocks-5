@@ -922,7 +922,7 @@ def check_naming():
     just as File_Real in file_real.h - and in a flat directory with over
     two hundred entries it is the whole navigation: symbol seen, file known,
     without a search. That is exactly why it stands here: a rule that lives
-    only in CLAUDE.md goes stale.
+    only in a document goes stale.
 
     Only what has a base class is looked at. A forward declaration has none,
     and a helper class without a base - Sprites in sprite.h - follows a rule

@@ -1,0 +1,94 @@
+---
+paths:
+  - "Build.bat"
+  - "Blocks5.sln"
+  - "Blocks5/Blocks5.vcxproj*"
+  - "Blocks5/setup/**"
+  - "Blocks5/src/resources.rc"
+  - "Blocks5/src/stackwalker.*"
+  - "Blocks5/src/main.cpp"
+  - "Blocks5/libs/**"
+  - "Blocks5/readme.txt"
+  - "PWEncrypt/**"
+  - "ShowUserDir/**"
+---
+
+# The Windows build, the installer and the vendored libraries
+
+`Build.bat` does everything from a fresh clone — finds MSBuild, checks the toolset, builds
+`Blocks5.sln` for `Win32`, packs `data.zip` and `levels/skins/*.zip` (gitignored build products the
+game cannot start without). `Build.bat /?` lists options.
+
+**Toolset: whatever the installed Visual Studio calls newest.** The `.vcxproj` files set
+`<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>`, and `Build.bat` passes no
+`/p:PlatformToolset` unless `/toolset:vNNN` asks — a global property could not be overridden from
+inside the project, so passing one always would hardcode a version again.
+`WindowsTargetPlatformVersion` follows the same rule: `10.0` (newest installed 10.x) past v140.
+**Tested with v143 and v145 only**; that v120/v140 still build was reasoning, never a compiler run
+(`/toolset:v120` skips the SDK property).
+
+**SDL is compiled from source**, all 67 files of the Win32 subset from `libs/sdl-1.2.15/src` — the
+set SDL's own `VisualC/SDL/SDL.vcproj` builds. Needs one include directory, `winmm.lib` and
+`dxguid.lib`, and `DECLSPEC=` among the defines (`begin_code.h` guards it with `#ifndef` and would
+otherwise mark every entry point `__declspec(dllexport)`, wrong for a static build).
+
+By hand: open `Blocks5.sln` (only `Debug|Win32` and `Release|Win32` exist), build all three projects,
+then from `Blocks5`:
+
+```bat
+zip_data.bat     :: pack data\ into the encrypted data.zip the game reads at runtime
+zip_skins.bat    :: pack levels\skins\<name>\ into levels\skins\<name>.zip
+stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Release\*.exe)
+```
+
+`zip_*.bat` run `Tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
+`zip_skins_no_optipng.bat` skip it. Both
+need `Tools\7za.exe`. Those binaries are reached through `%~dp0..\Tools\` rather than relatively,
+because the scripts `PUSHD` into the folder they pack — and, for the XML half of `data.zip`, into
+`%TEMP%`.
+
+Installer: `setup\Blocks 5.iss` (Inno Setup). The version number lives in **four** places that must
+stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in the `.iss`, the
+banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus the two string values in
+`src/resources.rc`, which is what Explorer shows and a crash log reports. The `.rc` had been missed
+before and sat at 1.1.1 through the whole of 1.1.2.
+
+**OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
+library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to
+be used without the router. Because the app directory beats `system32` in the DLL search order, the game
+always gets this implementation and never whatever Creative's 2009 installer left. The game calls only core
+AL/ALC 1.1 (23 functions, no extensions, no `alGetProcAddress`), so the switch needed no source change. The
+DLL is LGPL v2 and must stay dynamically linked.
+
+**Deployment.** All three projects link the CRT statically (`/MT`, `/MTd` for Debug), so nothing needs a
+Visual C++ redistributable — the installer has no runtime task at all any more. Exactly one DLL ships beside
+the executables, `OpenAL32.dll`, and the only CRT it imports is `msvcrt.dll`, part of Windows — not a
+versioned `MSVCR*`/`VCRUNTIME*`. Its other imports are all core Windows: `KERNEL32`, `USER32`, `SHELL32`,
+`ole32`, `WINMM`, `AVRT`. Keep it that way: a new dependency needing a redistributable, or a second DLL,
+undoes the whole arrangement.
+
+## Every local change to a vendored library
+
+Four libraries are patched, in seven files. Everything else is byte-identical to upstream. Each is
+explained where it lives — in the file itself and in that library's `PROVENANCE.txt`.
+
+| library | file | what |
+| --- | --- | --- |
+| SDL 1.2.15 | `src/main/win32/SDL_win32_main.c` | `#undef UNICODE`/`#undef _UNICODE`; inert under MultiByte, kept as a guard |
+| SDL 1.2.15 | `include/SDL_syswm.h` | brackets `#include <windows.h>` out of `#pragma pack(push,4)`, or every `C_ASSERT` in a modern `winnt.h` fails |
+| zlib 1.3.1 | `contrib/minizip/unzip.c` | `NOUNCRYPT` commented out — without it nothing in the password-protected `data.zip` can be read |
+| zlib 1.3.1 | `contrib/minizip/iowin32.c` | `IOWIN32_USING_WINRT_API` commented out; this is a desktop build |
+| shine | `l3mdct.c`, `l3subband.c` | `__attribute__((unused))` guarded for MSVC as well as Borland |
+| minimp4 | `minimp4.h` | the `esds` descriptor: real `objectTypeIndication`, optional DSI, reserved bit, `SLConfigDescriptor`, measured bitrate |
+
+`libogg` and `libvorbis` differ from their git tags only in expanded SVN `$Id$` keywords in five headers,
+which marks them as coming from the release tarballs rather than a checkout — not a local change.
+`minih264e_impl.c` and `minimp4_impl.c` are ours by design: the single translation units that instantiate
+those two headers.
+
+**Re-checking after a library update.** `raw.githubusercontent.com` is reachable from the build
+environment, so every vendored file can be fetched at its upstream tag and compared; doing that across
+the whole tree finds nothing but the table above. Three libraries cannot be checked that way and are
+documented from the tree's own history instead: TinyXML has no upstream git repository (only the
+SourceForge tarball, and the GitHub forks that fill the gap carry patches this tree deliberately does
+not), and sigslot and MersenneTwister have no reachable upstream at all.

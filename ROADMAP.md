@@ -6,8 +6,9 @@ actually in the way, with file references where they are known, so the next
 person does not have to rediscover it. Nothing here is scheduled.
 
 Finished items are kept as short entries: what was decided, and the parts that
-must not be undone by accident. How things work now is in `CLAUDE.md`; this file
-is about what to do next and why the done things came out the way they did.
+must not be undone by accident. How things work now is in `CLAUDE.md` and
+`.claude/rules/`; this file is about what to do next and why the done things came
+out the way they did.
 
 
 1. Auto-detect the user's language on first start  — **DONE**
@@ -2128,6 +2129,44 @@ The ceiling to work against is verify.py's comments check: 50% of `//` lines to
 code lines, on files with at least 100 code lines. A `/* */` block counts as code
 there, which is why u_crt.cpp measured 8% while carrying a page of prose. After
 this, u_crt.cpp is at 11%, audiocapture.cpp at 17%.
+
+
+53. The detail in CLAUDE.md belongs in path-scoped rule files  - **DONE**
+--------------------------------------------------------------------------------
+Item 49 took CLAUDE.md from 194 KB to 156 KB and item 52 moved a filter's worth
+of it into the filter; every session still read 1881 lines of it before doing
+anything. Claude Code's `.claude/rules/*.md` are the mechanism this wanted: a rule
+with a `paths:` list in its front matter loads itself when a file matching one of
+its globs is read, and not otherwise.
+
+So CLAUDE.md is the orientation now - 256 lines, 20 KB: the project, the build
+and its switches, the GL requirement, the checks, the architecture in four
+paragraphs, the rules every source obeys as one-liners, the conventions, and an
+index of the rule files - and the other 1600 lines went into fifteen rules by
+area: build-windows, packing, checks, testing, perf, rendering, upscalers, window,
+audio-video, input, objects, filesystem, images, web, gui-text. Reading engine.cpp
+loads rendering, window and input; reading bomb.cpp loads objects; reading a
+script under WebBuild/test loads web and testing.
+
+Three decisions worth keeping. **The rules every source obeys stay in CLAUDE.md
+as one-liners** (flush before raw geometry, GL::, |= on renderLayers, no display
+lists, no random() in a render path, bind the FBO before reading it, nothing off
+teardown in the browser, no string names a key) with the argument in the rule -
+a path-scoped rule cannot help before its file is opened, and somebody writing a
+new onRender has not opened rendering.md. **objects.md repeats the drawing rules
+in short form** for the same reason: every object source loads it and none of
+them loads rendering.md. **The index in CLAUDE.md names what each rule holds**, so
+a question about an area is answered by reading the rule rather than by opening
+a file in the hope of triggering it.
+
+Checked the way item 49 was: every identifier and every number of the old file
+against the new set (two numbers dropped on purpose - a measurement that sw.js
+carries and the file count of the translation sweep), every `paths` glob against
+the tree (all fifteen front matters parse, no glob matches nothing), and
+verify.py clean. The compaction on the way removed archaeology rather than facts
+- "used to", "no longer", "before" - and fixed one thing the old text had wrong:
+the font cache was described as holding 32 entries when it is budgeted in quads
+(QUAD_BUDGET), not in entries at all.
 
 
 How these connect
