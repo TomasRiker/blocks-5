@@ -175,6 +175,13 @@ void Level::clear()
 
 	counter = 0;
 	time = 0;
+	// The frame oracle's clock starts over with the level, before its first
+	// tick: Engine::update seeds that tick on the clock as it stands, and
+	// what stood was the previous level's last tick - a number the harness's
+	// timing decided. A gas cloud's first particles then landed in different
+	// slots from one run to the next, and the order of alpha-blended
+	// particles is the order they are drawn in.
+	Engine::inst().sceneTick = 0;
 	numDiamondsNeeded = 0;
 	numDiamondsCollected = 0;
 	hudIconFlash[0] = hudIconFlash[1] = 0.0;

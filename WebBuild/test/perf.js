@@ -41,9 +41,13 @@ async function measure(page, arm) {
 	await page.waitForTimeout(WINDOW * 1000);
 	const d = await h.dump(page);
 	if (!d.frames) throw new Error('the dump carries no frame timings - is this a hooks build?');
-	// The batch and state counters come along, because a render change usually
-	// moves those first and the milliseconds only as a consequence - and
-	// because both are accumulated over the same window as the timings.
+	// The draw-call, batch and state counters come along, because a render
+	// change usually moves those first and the milliseconds only as a
+	// consequence - and because all of them are accumulated over the same
+	// window as the timings. draws is what reached WebGL per rendered frame
+	// (harness.js counts it on the context); the batch's own draws are the
+	// sprite batch's flushes, a part of that.
+	if (d.draws) d.frames.drawsPerFrame = d.draws.calls / Math.max(d.draws.frames, 1);
 	return { frames: d.frames, batch: d.batch, glstate: d.glstate };
 }
 
@@ -70,7 +74,8 @@ const median = xs => {
 			            '  p95 ' + f.total[1].toFixed(2) +
 			            '   render p50 ' + f.render[0].toFixed(2) +
 			            '   present p50 ' + f.present[0].toFixed(2) +
-			            (b ? '   ' + (b.draws / Math.max(f.count, 1)).toFixed(1) + ' draws/frame' +
+			            (f.drawsPerFrame !== undefined ? '   ' + f.drawsPerFrame.toFixed(1) + ' draw calls/frame' : '') +
+			            (b ? '   batch ' + (b.draws / Math.max(f.count, 1)).toFixed(1) + ' draws/frame' +
 			                 '  ' + (b.quads / Math.max(b.draws, 1)).toFixed(1) + ' quads/draw' : '') +
 			            (g ? '  ' + (100 * g.skipped / Math.max(g.issued + g.skipped, 1)).toFixed(0) +
 			                 '% state skipped' : ''));
@@ -90,6 +95,12 @@ const median = xs => {
 			row += v.toFixed(2).padStart(10);
 		}
 		console.log(row);
+	}
+	// Draw calls beside the milliseconds: the count a renderer change moves
+	// first, and one that does not wobble with the machine.
+	for (const arm of ARMS) {
+		const xs = runs[arm].map(f => f.drawsPerFrame).filter(x => x !== undefined);
+		if (xs.length) console.log('  ' + name(arm).padEnd(12) + median(xs).toFixed(1) + ' draw calls/frame (median)');
 	}
 
 	// Whether a difference means anything: compare it against how far the

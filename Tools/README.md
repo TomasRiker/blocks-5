@@ -87,7 +87,7 @@ into a throwaway directory.
     LinuxBuild/build.sh         compiles and links the native build
     LinuxBuild/build.sh hooks   the same with the test hooks, into build-test/
     LinuxBuild/test/smoke.sh    drives the native build through the GUI
-    LinuxBuild/test/frames.sh   five named scenes as byte-reproducible PNGs
+    LinuxBuild/test/frames.sh   nineteen named scenes as byte-reproducible PNGs
     WebBuild/build.sh           compiles and links the browser build
     WebBuild/build.sh hooks     the same with the test hooks, into build-test/
     WebBuild/test/smoke.js      drives the browser build through the GUI

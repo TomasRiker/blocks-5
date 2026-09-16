@@ -387,6 +387,55 @@ b5_expectState()
 	[ "$have" = "$want" ] && b5_ok "game state $have" || b5_note "game state is $have, expected $want"
 }
 
+# The mouse at a point given in game pixels, through the rect the frame is
+# presented in - the window is larger than 640x480, and only the dump knows by
+# how much. Rests there, because the GUI samples the cursor once a tick.
+b5_mouseAt()
+{
+	local gx=$1 gy=$2 wx wy
+	b5_dump || b5_hookFailed
+	b5_clientOrigin
+	wx=$(b5_json "d['present'][0] + int(($gx + 0.5) * d['present'][2] / d['screen'][2])")
+	wy=$(b5_json "d['present'][1] + int(($gy + 0.5) * d['present'][3] / d['screen'][3])")
+	xdotool mousemove $((B5_CX + wx)) $((B5_CY + wy))
+	sleep 0.4
+}
+
+# A click on a game coordinate rather than on an element, for what is drawn
+# and not GUI: the editor's palette and the pins of its parts. The rest
+# before the press is what lets a hover register first - the editor finds
+# the pin under the cursor on the move and reads it on the press.
+b5_clickAt()
+{
+	b5_mouseAt "$1" "$2"
+	xdotool mousedown 1; sleep 0.4; xdotool mouseup 1; sleep 1.5
+}
+
+# Press at one point and release at another, with a rest at each end for the
+# same reason a click has one.
+b5_drag()
+{
+	b5_mouseAt "$1" "$2"
+	xdotool mousedown 1; sleep 0.4
+	b5_mouseAt "$3" "$4"
+	sleep 0.4; xdotool mouseup 1; sleep 1.5
+}
+
+# Type into whatever has the focus. Slowly: an edit box reads key events, and
+# two in one frame would still both arrive, but a modifier state that changed
+# between them would not.
+b5_type() { xdotool type --delay 120 "$1"; sleep 1.5; }
+
+# A chord such as "ctrl a": the modifier is held across the key, so that the
+# key's own event carries it - an edit box reads the modifier state off the
+# event and not the keyboard.
+b5_chord()
+{
+	xdotool keydown --clearmodifiers "$1"; sleep 0.1
+	xdotool keydown "$2"; sleep 0.06; xdotool keyup "$2"; sleep 0.1
+	xdotool keyup "$1"; sleep 1.5
+}
+
 b5_finish()
 {
 	echo

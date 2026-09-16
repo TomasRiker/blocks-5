@@ -60,10 +60,14 @@ Three ways to read it:
   clears the stats, giving the upper bound of a frame that draws nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
   not clear on read, because the overlay reads the same numbers continuously;
-  `blocks5_testResetStats()` (`resetstats` natively) begins a measurement.
+  `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same
+  window: `draws` (real draw calls and the frames they were made in — `testing.md` says where each
+  platform counts them), `batch` (the sprite batch's flushes, draws and quads, and `byReason`, which says
+  what broke the batch) and `glstate` (calls the state layer issued against calls it could skip).
 - **`WebBuild/test/perf.js`** drives the comparison: arms are query strings rather than builds, so both
   sides are one binary in one browser, and they are **interleaved** rather than run in blocks, so a machine
-  that warms up or throttles hands that to both.
+  that warms up or throttles hands that to both. It prints draw calls per frame beside the milliseconds,
+  because a renderer change moves that number first and it does not wobble with the machine.
 
 **`?texunits=N` is the first knob riding on this**, and it shipped; it goes with the GL emulation in
 the last stage of `RENDERER-REDESIGN.md`. Emscripten's GL emulation keeps state

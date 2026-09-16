@@ -138,7 +138,7 @@ namespace GL
 		// Whatever is queued was queued against the binding and the scale
 		// about to be replaced. This is the one flush left in this file that
 		// the batch actually needs.
-		Engine::inst().flushSprites();
+		Engine::inst().flushSprites(Engine::FR_TEXTURE);
 
 		if(!sameTexture)
 		{
@@ -164,7 +164,7 @@ namespace GL
 
 		// Flushes like the rest, and for the same reason: whatever is queued
 		// may be about to be drawn out of the texture being thrown away.
-		Engine::inst().flushSprites();
+		Engine::inst().flushSprites(Engine::FR_DELETE);
 		if(g_state.texture == static_cast<GLint>(id)) g_state.texture = 0;
 		glDeleteTextures(1, &id);
 	}
@@ -195,7 +195,7 @@ namespace GL
 		// GL_ENABLE_BIT is every enable and not only texturing, so the pop can
 		// put back a blend or an alpha test that a queued quad does read - and
 		// this file cannot name what the matching push saved. Hence the flush.
-		Engine::inst().flushSprites();
+		Engine::inst().flushSprites(Engine::FR_ATTRIB);
 		glPopAttrib();
 
 		// And the record is forgotten after the pop, not before it. The flush

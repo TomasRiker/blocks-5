@@ -44,8 +44,29 @@ namespace TestHooks
 	// every tick, before it runs, so the tick it stops on is exactly the one
 	// that was asked for.
 	void freezeAt(uint tick);
-	void checkFreeze(uint tick);
+	// The same for a crossfade: stop at the first tick at which the running
+	// crossfade has reached ms milliseconds, whatever screen clock stands.
+	void freezeAtFade(uint ms);
+	// fadeMs is the running crossfade's progress in milliseconds, or -1
+	// where none runs.
+	void checkFreeze(uint tick, int fadeMs);
 	bool frozen();
+	// True exactly once after the clock stops: the main loop renders the
+	// frozen tick's frame once more with getTime() pinned, so that the
+	// picture the harness takes depends on nothing the harness's own timing
+	// decides. See Engine::mainLoopIteration.
+	bool frozenFrameDue();
+
+	// One logic tick per rendered frame, for a screen whose picture depends
+	// on how many frames were rendered rather than on how many ticks ran.
+	void setLockstep(bool on);
+	bool lockstep();
+
+	// Every draw call the game issues - natively, fed by the wrappers at the
+	// foot of testhooks.cpp; Engine::render() reads it before and after. In
+	// the browser nothing feeds it: the harness counts on the WebGL context
+	// there, see WebBuild/test/perf.js.
+	extern uint drawCalls;
 
 #ifndef __EMSCRIPTEN__
 	// Once per logic tick from Engine::update(). If a request is sitting in

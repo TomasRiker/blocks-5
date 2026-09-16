@@ -62,6 +62,77 @@ compares the binary against `Blocks5/src` and `data.zip` against `Blocks5/data` 
 either out of date. `Tools/selftest.py` puts each file's mtime back along with its bytes, or every run
 would trip that check.
 
+## The frame oracle
+
+`LinuxBuild/test/frames.sh` renders nineteen named scenes as 640x480 PNGs meant to be byte-identical
+between two runs of one binary, and between two binaries when nothing should have moved. It is what
+every stage of `RENDERER-REDESIGN.md` is checked against, so what makes a frame reproducible is worth
+knowing before adding one. Three things do it, and every scene needs all three: `B5_SEED` seeds the
+generator per rendered frame and per tick, keyed on the scene's clock (`Engine::render`, `Engine::update`,
+`seedForLoad`); `freeze <tick>` stops the logic at a named tick of that clock, checked before the tick
+runs; `shot <path>` writes what the game read out of its own framebuffer. **The scene's clock is
+`Engine::sceneTick`**, which a level, the credits and the logo screen each set from their own count — the
+engine's `getTime()` counts from program start and stands wherever the harness's timing put it, which is
+exactly what a named tick must not depend on.
+
+**The frozen frame is rendered once more, with `getTime()` pinned to zero.** The caret's pulse, the
+editor's marching ants, the contamination's throb and the "Pause" text read the engine clock, so a frame
+that merely stopped would carry the harness's timing in those pixels. `TestHooks::frozenFrameDue()` is the
+one-shot that asks for that render; the request is answered while frozen, since the harness still has to
+take its picture and quit.
+
+**A crossfade's clock moves once per loop iteration and the screen under it once per tick**, and how
+many ticks an iteration bunches is the machine's business — a level load alone is a backlog of several.
+So a frame in a transition needs two things: `freeze fade <ms>` stops at the first tick at which the running
+crossfade has reached that many milliseconds, and `lockstep 1` makes every iteration exactly one tick
+(`Engine::mainLoopIteration` throws the backlog away), which pins the fade to the screen behind it. The
+`cube` and `star` scenes are that; measured without lockstep the cube froze at level tick 540 on one run
+and 500 on the next. The credits need lockstep for a different reason: they draw their own last frame back
+into the next one, so their picture depends on how many frames were rendered, not only on the tick.
+`state <name>` switches game state by name, which is how the credits and the logo screen are reached.
+
+**Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
+`--wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
+objects passes through the wrappers at the foot of `testhooks.cpp`; no header carries the define and no
+other translation unit needs it, which is what the `hooks_layout` check protects. The dump reports them
+as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the sprite batch's
+own draws and a histogram of what flushed it (`batch.byReason`: raw geometry, a texture change, a blend
+change, a render-target switch, an attribute pop, a texture delete, the batch's own edges, a full batch).
+In the browser the same key comes from `WebBuild/test/harness.js`, which counts `drawArrays` and
+`drawElements` on the WebGL context's prototype — what is left after the GL emulation, the number a phone
+pays — and `resetStats()` starts both counters in one evaluate so no frame falls between them.
+
+**The CRT settings button leaves the filter on, and a fresh home cannot take it back.** The button
+switches to the CRT filter there and then, and the dialog's Cancel undoes it through `loadConfig()` —
+which returns early where there is no `config.xml`, and a harness run starts from a home that has none.
+The filter then stays on with its curvature, every later click is warped off its element, and what that
+looks like is a scene three steps later failing on a button that "is not visible". The `crt` scene clicks
+the previous filter's own radio button before Cancel, under the name the dump reports as `filter`.
+
+Scenes are driven by element name where there is one and by game coordinate where there is not:
+`b5_clickAt` and `b5_mouseAt` take a 640x480 coordinate and map it through the present rectangle, which is
+how the editor's palette and the pins of its parts are reached; `b5_drag` presses at one point and releases
+at another; `b5_type` and `b5_chord` type into whatever has the focus. Three traps found building the
+scenes: **Escape closes an open hint note before it opens the game menu**, so `quitLevel` looks whether
+the menu came up and presses again if not; the editor's quit asks a yes/no question once the level is
+modified, and the scenes that modify it answer it by name; and a scene without a clock of its own — the
+editor's level does not tick, nor does the select screen's preview — asks for `now`, the next tick
+whatever it is, rather than a tick it could miss. The script traps its own exit and stops the game and
+the X server it started, because a `FAILED` from inside a function otherwise leaves both attached to
+`:88`, which the next run refuses to start over.
+
+**Two clocks that come apart, and the order of the scenes follows from them.** The select screen, the
+editors and a played level are *pushed* on top of the menu, and the menu's own clock — the one the title
+demo's recording and the clouds run on — carries on across the visit while the restored title level's
+starts again from zero; after a pop the two stand apart by whatever the harness's timing made of the
+visit, and the clouds at a level tick are a different picture on every run. So the menu and its dialogs
+are photographed on the first visit, when both start together, and the `star` — the crossfade into the
+editor — is started by the hook's `click <element>` request while the menu stands frozen at a named tick:
+a click that lands on a tick, which no real click can. The other clock is the level's own: `Level::clear`
+resets `sceneTick`, because `Engine::update` seeds a tick on the clock as it stands, and before that a
+new level's first tick was seeded on the previous level's last — a gas cloud's first particles then took
+different slots from one run to the next, and alpha-blended particles are drawn in slot order.
+
 ## In a browser
 
 `WebBuild/build.sh hooks` builds to `build-test/` with `-DBLOCKS5_TEST_HOOKS`, turning on

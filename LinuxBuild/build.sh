@@ -28,8 +28,15 @@ GAME="$HERE/../Blocks5"
 LIBS="$GAME/libs"
 ZLIB="$LIBS/zlib-1.3.1"
 OUT="$HERE/build"
-HOOKS=""
-if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"; fi
+HOOKS=""; WRAP=""
+if [ "${1:-}" = "hooks" ]; then
+  HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"
+  # The test hook's draw-call count: every call to these three from the
+  # game's objects lands on the __wrap_ versions at the foot of testhooks.cpp,
+  # which count and go on to the real one. At the link rather than through a
+  # macro, so no header and no other translation unit sees the define.
+  WRAP="-Wl,--wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements"
+fi
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"
 mkdir -p "$OUT/obj"
@@ -153,7 +160,7 @@ echo "### compiled $total translation units OK ###"
 # -lX11 for the fullscreen switch in linux_window.cpp. SDL brings it along
 # itself, but that cannot be relied on: under sdl12-compat there is SDL 2
 # underneath, and that loads its video drivers only at runtime.
-g++ $OBJS -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lGLU -lX11 -lm -lpthread || {
+g++ $OBJS $WRAP -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lGLU -lX11 -lm -lpthread || {
     echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5 ($(du -h "$OUT/blocks5" | cut -f1)) ###"
 

@@ -39,7 +39,7 @@
 
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCENES="menu select plain night editor"
+SCENES="menu options crt manager star editor help editbox editor-select editor-connect select cube night plain lava toxic hint loading credits"
 
 if [ "$1" = "--list" ]; then echo $SCENES; exit 0; fi
 
@@ -76,11 +76,11 @@ printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 # The oracle levels. Written here rather than committed, because their whole
 # content is "one screen holding the objects this scene is about" and a reader
 # of the scene list should be able to see what that is.
-write_level()   # $1 title, $2 nightVision, $3 objects
+write_level()   # $1 title, $2 nightVision, $3 objects, [$4 raining, $5 thunderstorm, $6 clouds]
 {
-	python3 - "$1" "$2" "$3" "$B5_PRIVATE_HOME/levels/$1.xml" <<'PY'
+	python3 - "$1" "$2" "$3" "${4:-0}" "${5:-0}" "${6:-0}" "$B5_PRIVATE_HOME/levels/$1.xml" <<'PY'
 import sys
-title, night, objects, path = sys.argv[1:5]
+title, night, objects, raining, thunderstorm, clouds, path = sys.argv[1:8]
 W, H = 40, 25
 rows = lambda f: ''.join('<Row>%s</Row>' % f(y) for y in range(H))
 empty = rows(lambda y: ' ' * W)
@@ -89,9 +89,9 @@ head = ('<?xml version="1.0" ?><Level title="%s" '
         'skin0="" skin1="" skin2="" skin3="" skin4="" skin5="" skin6="" '
         'skin7="" skin8="" skin9="" skin10="" width="40" height="25" '
         'numLayers="2" numDiamondsNeeded="0" electricityOn="1" '
-        'nightVision="%s" raining="0" clouds="0" snowing="0" thunderstorm="0" '
+        'nightVision="%s" raining="%s" clouds="%s" snowing="0" thunderstorm="%s" '
         'lightColorR="255" lightColorG="255" lightColorB="255" '
-        'musicFilename="">' % (title, night))
+        'musicFilename="">' % (title, night, raining, clouds, thunderstorm))
 open(path, 'w', encoding='latin-1').write(
     head + '<Layer>' + empty + '</Layer><Layer>' + walls + '</Layer>' + objects + '</Level>')
 PY
@@ -118,38 +118,118 @@ write_level '!2plain' 0 \
 write_level '!1night' 1 \
 	'<Object type="Player" x="3" y="3" character="0" active="1"/><Object type="Laser" x="20" y="21" dir="3"/><Object type="LightBarrierSender" x="2" y="12" dir="1"/><Object type="LightBarrierSender" x="34" y="4" dir="2"/><Object type="Fire" x="8" y="16"/>'
 
+# A pool of lava under rain, thunder and clouds: the three lava passes with
+# their stencil, the weather's scrolling textures, the lightning's two passes
+# and the flash, none of which the two levels above draw. The pool's rows
+# take the three shapes of lava the shipped levels use most, straight flows
+# (0, 3) and a two-pass one (8).
+lava_pool=$(python3 -c "
+print(''.join('<Object type=\"Lava\" x=\"%d\" y=\"%d\" dir=\"%d\"/>' % (x, y, {14: 0, 15: 8, 16: 3}[y]) for y in (14, 15, 16) for x in range(14, 20)))")
+write_level '!3lava' 0 \
+	"<Object type=\"Player\" x=\"3\" y=\"3\" character=\"0\" active=\"1\"/>$lava_pool<Object type=\"Fire\" x=\"8\" y=\"16\"/><Object type=\"Fire\" x=\"30\" y=\"10\"/><Object type=\"Laser\" x=\"20\" y=\"21\" dir=\"3\"/><Object type=\"Diamond\" x=\"10\" y=\"6\"/><Object type=\"Exit\" x=\"36\" y=\"21\"/>" \
+	1 1 1
+
+# Two of the levels Tools/testlevels keeps: Bob standing in toxic gas, which
+# is the one way to put the contamination effect on the screen, and a hint
+# note with keycaps under Bob's feet, which opens by itself. Retitled so that
+# they sort behind the levels above - the campaign lists by title, and every
+# scene below counts on the order.
+retitle()   # $1 source, $2 title
+{
+	python3 - "$1" "$2" "$B5_PRIVATE_HOME/levels/$2.xml" <<'PY'
+import re, sys
+src, title, path = sys.argv[1:4]
+text = open(src, encoding='latin-1').read()
+text = re.sub(r'(<Level\b[^>]*?\btitle=")[^"]*(")', lambda m: m.group(1) + title + m.group(2), text, count=1)
+open(path, 'w', encoding='latin-1').write(text)
+PY
+}
+retitle "$B5_HERE/../../Tools/testlevels/contamination.xml" '!4toxic'
+retitle "$B5_HERE/../../Tools/testlevels/keycaps.xml" '!5hint'
+
 . "$B5_HERE/harness.sh"
+
+# However this script leaves - every FAILED above exits from inside a
+# function - the game and the X server it started go with it. Left behind,
+# they are what the next run finds attached to the display and refuses to
+# start over.
+trap 'b5_stop' EXIT
 
 # Let the clock run again. ~0u is the "never" the freeze starts at.
 b5_release() { b5_ask "freeze 4294967295" >/dev/null; }
 
-# Freeze at a tick of the running level and write its frame. The wait is on
-# the reported state and never on an interval: under llvmpipe a frame is a
-# fifth of a second, so a guessed sleep is either wrong or slow.
-b5_frame()
+# Freeze at a tick of the running scene and write its frame. "now" instead of
+# a tick freezes at the next tick whatever it is, for a screen without a
+# clock of its own - the editor's level does not tick, nor does the select
+# screen's preview - whose frame is reproducible for the weaker reason that
+# nothing in it moves. The wait is on the reported state and never on an
+# interval: under llvmpipe a frame is a fifth of a second, so a guessed sleep
+# is either wrong or slow.
+b5_frame()   # $1 name, $2 tick or "now"
 {
-	local name=$1 tick=$2 i
+	local name=$1 tick=$2
 	b5_ask resetstats >/dev/null
-	b5_ask "freeze $tick" >/dev/null
+	if [ "$tick" = now ]; then b5_ask "freeze 0" >/dev/null; tick=""
+	else b5_ask "freeze $tick" >/dev/null; fi
+	b5_takeFrozen "$name" "$tick"
+}
+
+# The same for a crossfade: arm the stop on the transition's own clock, then
+# make the click that starts it, then b5_takeFrozen. The two halves are
+# separate because the click lies between them.
+b5_armFade()
+{
+	b5_ask resetstats >/dev/null
+	b5_ask "freeze fade $1" >/dev/null
+}
+
+# A crossfade's clock moves once per iteration of the main loop and the
+# screen under it once per tick, and how many ticks an iteration bunches is
+# up to the machine: the level's load alone is a backlog of several. Left
+# to itself the fade therefore reaches its 400 ms at a different tick of the
+# new screen on every run. Lockstep - one tick per iteration - pins the two
+# clocks to each other, so the fade's 400 ms is always the same tick of the
+# screen behind it. On from before the click that starts the transition,
+# off once the frame is taken.
+b5_armFadeLockstep()
+{
+	b5_ask "lockstep 1" >/dev/null
+	b5_armFade "$1"
+}
+b5_releaseLockstep()
+{
+	b5_release
+	b5_ask "lockstep 0" >/dev/null
+}
+
+b5_waitFrozen()   # $1 name, [$2 the tick it must have stopped on]
+{
+	local name=$1 tick=${2:-} i
 	for i in $(seq 1 120); do
-		b5_alive || { echo "FAILED: the game exited while waiting for tick $tick"; b5_diagnose; exit 2; }
+		b5_alive || { echo "FAILED: the game exited while waiting for $name to freeze"; b5_diagnose; exit 2; }
 		b5_dump || { sleep 1; continue; }
 		[ "$(b5_json "d['frozen']")" = "True" ] && break
 		sleep 0.5
 	done
 	[ "$(b5_json "d['frozen']")" = "True" ] || { echo "FAILED: $name never froze"; exit 1; }
 
-	# Say so when the clock stopped somewhere else than it was asked to. It
-	# means the scene has no level that ticks - the editor's does not - so the
-	# freeze fired on whatever the last one left behind, and the frame is only
-	# reproducible for as long as nothing in that scene is random.
-	local at
-	at=$(b5_json "d['scene']")
-	# A note and not a problem: the frame is still reproducible, it is only
-	# reproducible for a weaker reason - nothing in that scene is random - and
-	# a tool that exits nonzero on every run is one nobody reads the exit code
-	# of.
-	[ "$at" = "$tick" ] || echo "    (note) froze at $at, not at $tick - this scene has no clock of its own"
+	# The clock stopped somewhere else than it was asked to: the tick had
+	# passed before the request arrived, and the frame belongs to whatever
+	# tick the harness's own timing reached.
+	if [ -n "$tick" ]; then
+		local at
+		at=$(b5_json "d['scene']")
+		if [ "$at" != "$tick" ]; then
+			echo "FAILED: $name froze at tick $at, not at $tick - the tick had passed before the freeze was asked for"
+			exit 1
+		fi
+	fi
+}
+
+b5_takeFrozen()   # $1 name, [$2 tick]
+{
+	local name=$1
+	b5_waitFrozen "$@"
 	if [ "$(b5_ask "shot $B5_OUTDIR/$name.png")" != "ok" ]; then
 		echo "FAILED: $name could not be written"; exit 1
 	fi
@@ -158,11 +238,13 @@ b5_frame()
 	# however many frames the machine managed between the reset and the freeze,
 	# so only a ratio is comparable between two runs.
 	#
-	# "batch draws" is sprite-batch flushes that drew something, not the
-	# frame's GL draw calls - every glBegin block and every drawQuadArray is
-	# outside this count. What it is good for is the quads-per-draw beside it,
-	# which is how much each flush carried.
-	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f batch draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['frames']['count'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
+	# "draw calls" is every glBegin block and every array draw render() made,
+	# counted at the link (see the foot of testhooks.cpp) - the number the
+	# renderer redesign is measured by. "batch draws" beside it is the sprite
+	# batch's own flushes that drew something, and the reasons say what broke
+	# the batch: those are the draw calls the redesign removes first.
+	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draw calls/frame' % (d['draws']['calls'] / max(d['draws']['frames'], 1))"), batch $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['draws']['frames'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
+	b5_ok "  batch flushes by reason: $(b5_json "', '.join('%s %d' % (k, v) for k, v in d['batch']['byReason'].items() if v) or 'none'")"
 	# The font cache beside them: what it is holding, and whether it is
 	# earning it. quads * 64 bytes is the geometry; the measures are what
 	# measureText() was asked, and the walks are the ones it had to answer by
@@ -216,84 +298,234 @@ b5_start
 b5_waitForState GS_Menu
 
 wanted() { case " $WANT " in *" $1 "*) return 0;; esac; return 1; }
-
 for scene in $WANT; do
-	case "$scene" in
-	menu|select|plain|night|editor) ;;
+	case " $SCENES " in
+	*" $scene "*) ;;
 	*) echo "unknown scene \"$scene\" - try --list"; exit 2;;
 	esac
 done
+needs() { local s; for s in "$@"; do wanted "$s" && return 0; done; return 1; }
 
-# One game for the lot: the startup costs half a minute under llvmpipe, and
-# the navigation between scenes is the same walk a player makes. The clock is
-# released after each frame, or nothing would move again.
-
+# The menu and its dialogs come first, on the menu's first visit. The select
+# screen, the editors and a played level are pushed on top of the menu, and
+# the menu's own clock - which the title demo's recording and the clouds run
+# on - carries on across that while the restored title level's starts again;
+# after a pop the two therefore stand apart by whatever the harness's timing
+# made of the visit, and the clouds at a level tick are a different picture on
+# every run. On the first visit both start at zero. The ticks asked for leave
+# the navigation room to arrive first.
 if wanted menu; then
-	# The title demo, which is a level like any other and so has the clock
-	# everything here hangs on.
 	b5_frame menu 4000
 	b5_release
 fi
+if needs options crt; then
+	# The CRT settings button switches the filter on there and then, and
+	# Cancel takes that back through loadConfig() - which on this run's
+	# fresh home has no config.xml to load and so takes back nothing. Left
+	# on, the CRT's curvature warps every later click off its element; the
+	# filter that was on is therefore clicked back by its own radio button,
+	# named as the dump names the filter.
+	b5_dump
+	FILTER=$(b5_json "d['filter']")
+	b5_click Menu.Options
+	if wanted options; then b5_frame options 8000; b5_release; fi
+	if wanted crt; then
+		b5_click OptionsPane.Options.CrtSettings
+		b5_frame crt 14000
+		b5_release
+		b5_click OptionsPane.CrtOptions.Close
+		b5_click "OptionsPane.Options.$FILTER"
+	fi
+	b5_click OptionsPane.Options.Cancel
+fi
+if wanted manager; then
+	b5_click Menu.Manager
+	b5_frame manager 26000
+	b5_release
+	b5_click Menu.ManagerPane.Manager.Close
+fi
 
-if wanted select || wanted plain || wanted night; then
+# The editor scenes. The star is the crossfade from the menu into the editor,
+# and for the reason above it is started by the hook while the menu stands
+# frozen at 32000 - a click on a named tick, which no real click can be - so
+# the old image is the menu at that tick and the new one the editor, which
+# has no clock. Under lockstep the fade's 400 ms is then a fixed number of
+# frames later.
+if needs editor help editbox editor-select editor-connect star; then
+	if wanted star; then
+		b5_ask resetstats >/dev/null
+		b5_ask "freeze 32000" >/dev/null
+		b5_waitFrozen star 32000
+		b5_ask "lockstep 1" >/dev/null
+		[ "$(b5_ask "click Menu.LevelEditor")" = "ok" ] || { echo "FAILED: the hook found no button Menu.LevelEditor"; exit 1; }
+		b5_ask "freeze fade 400" >/dev/null
+		b5_takeFrozen star
+		b5_releaseLockstep
+	else
+		b5_click Menu.LevelEditor
+	fi
+	b5_waitForState GS_LevelEditor
+	if wanted editor; then
+		b5_click LevelEditor.Cat1
+		b5_frame editor now
+		b5_release
+	fi
+	if wanted help; then
+		b5_click LevelEditor.ShowMenu
+		b5_click LevelEditor.MenuPane.Menu.Help
+		b5_frame help now
+		b5_release
+		b5_click LevelEditor.HelpPane.Help.OK
+		b5_click LevelEditor.MenuPane.Menu.OK
+	fi
+	if wanted editbox; then
+		# A selection and the caret in the title box; the caret's pulse reads
+		# the engine clock, which the frozen frame pins. The title is
+		# replaced first: a click lands the caret wherever it was, and the
+		# level's default title is a localized string of both languages.
+		b5_click LevelEditor.ShowSettings
+		b5_click LevelEditor.SettingsPane.Settings.Title
+		b5_chord ctrl a
+		b5_type "Selected text"
+		b5_chord ctrl a
+		b5_frame editbox now
+		b5_release
+		b5_click LevelEditor.SettingsPane.Settings.Cancel
+	fi
+	if wanted editor-select; then
+		# Select mode, a rectangle dragged over tiles (5,5) to (12,9), the
+		# cursor left inside the level: the marching ants and the smoothed
+		# tile highlight, the two lines the renderer redesign changes.
+		b5_click LevelEditor.Mode4
+		b5_drag 88 88 200 152
+		b5_frame editor-select now
+		b5_release
+		b5_click LevelEditor.Mode0
+	fi
+	if wanted editor-connect; then
+		# Connection mode over a clock and a light bulb placed from the
+		# electronics palette: the clock's output pin clicked as the start of
+		# a wire and the bulb's input pin under the cursor, which draws the
+		# two pin frames - unsmoothed one-pixel loops at a half-pixel offset,
+		# the case the redesign has to reproduce exactly. The palette is
+		# drawn, not GUI, so its entries are clicked by coordinate: it starts
+		# at (245,428) in 16-pixel cells, and cat4.xml puts the clock at cell
+		# (1,2) and the bulb at (4,0). A pin is found within three pixels of
+		# its own spot in the part's cell, (15,8) for the clock's output and
+		# (7,15) for the bulb's input.
+		b5_click LevelEditor.Cat4
+		b5_clickAt 269 468
+		b5_clickAt 168 232
+		b5_clickAt 317 436
+		b5_clickAt 408 232
+		b5_click LevelEditor.Mode6
+		b5_clickAt 175 232
+		b5_mouseAt 407 239
+		b5_frame editor-connect now
+		b5_release
+		b5_click LevelEditor.Mode0
+	fi
+	# The editor asks whether to throw a modified level away.
+	b5_click LevelEditor.ShowMenu
+	b5_click LevelEditor.MenuPane.Menu.Quit
+	b5_dump
+	if [ "$(b5_json "el('LevelEditor.MessageBoxPane.MessageBox.Yes')['shown']")" = "True" ]; then
+		b5_click LevelEditor.MessageBoxPane.MessageBox.Yes
+	fi
+	b5_waitForState GS_Menu
+fi
+
+# The level scenes. The single-level campaign lists the levels this script
+# wrote by title, so index 0 is !1night, 1 is !2plain, 2 is !3lava, 3 is
+# !4toxic and 4 is !5hint; the select screen stays on the level that was
+# played last, and LEVEL_AT tracks that.
+LEVEL_AT=0
+goSelect()
+{
 	b5_click Menu.StartGame
 	b5_waitForState GS_SelectLevel
-
-	# The single levels are the last campaign, and the list keeps the keyboard
-	# focus after a click - which is what makes End reach them. The two oracle
-	# levels sort last of all by their leading tildes, "~~night" behind
-	# "~plain", so the last level of the last campaign is the night-vision one.
-	# End on the campaign list, which keeps the keyboard focus after a click -
-	# that is what reaches the single levels, listed last. The level index is
-	# then 0, which is "!1night" by the sort above.
 	b5_click SelectLevel.Campaigns
 	b5_key End
-
-	# The preview is a loaded level, so the select screen has a clock too -
-	# and the frame carries the 39x39 status stamp, which is one of only two
-	# odd-sized sprites in the game.
-	if wanted select; then b5_frame select 2000; b5_release; fi
-
-	if wanted night; then
-		b5_click SelectLevel.PlayLevel
-		b5_waitForState GS_Game
-		# Far enough in that the laser has ramped up and both light barriers
-		# are steady; the fire and its particles are still animating, which is
-		# the point of taking it here rather than at tick 0.
-		b5_frame night 6000
-		b5_release
-		b5_key Escape
-		b5_click Game.MenuPane.Menu.Quit
-		b5_waitForState GS_SelectLevel
-	fi
-
-	if wanted plain; then
+	LEVEL_AT=0
+}
+playLevel()   # $1 index, [$2 name of a frame of the crossfade into it]
+{
+	while [ "$LEVEL_AT" -lt "$1" ]; do
 		b5_click SelectLevel.NextLevel
-		b5_click SelectLevel.PlayLevel
-		b5_waitForState GS_Game
-		b5_frame plain 3000
-		b5_release
-		b5_key Escape
-		b5_click Game.MenuPane.Menu.Quit
-		b5_waitForState GS_SelectLevel
-	fi
+		LEVEL_AT=$((LEVEL_AT + 1))
+	done
+	[ -n "${2:-}" ] && b5_armFadeLockstep 400
+	b5_click SelectLevel.PlayLevel
+	if [ -n "${2:-}" ]; then b5_takeFrozen "$2"; b5_releaseLockstep; fi
+	b5_waitForState GS_Game
+}
+quitLevel()
+{
+	# Escape closes an open hint note before it opens the menu, so a level
+	# whose note is up needs a second one.
+	b5_key Escape
+	b5_dump
+	if [ "$(b5_json "el('Game.MenuPane.Menu.Quit')['shown']")" != "True" ]; then b5_key Escape; fi
+	b5_click Game.MenuPane.Menu.Quit
+	b5_waitForState GS_SelectLevel
+}
 
+if needs select cube night plain lava toxic hint; then
+	goSelect
+	if wanted select; then b5_frame select now; b5_release; fi
+	if needs cube night; then
+		# The cube is the crossfade into a level from the select screen, frozen
+		# 400 ms into its 850: the old image is the select screen, which has no
+		# clock, and the new one the level at a fixed early tick.
+		playLevel 0 $(wanted cube && echo cube)
+		if wanted night; then b5_frame night 6000; b5_release; fi
+		quitLevel
+	fi
+	if wanted plain; then playLevel 1; b5_frame plain 3000; b5_release; quitLevel; fi
+	# The bolt: under this seed the thunderstorm's flash is at about 15050
+	# and the bolt it announces is generated 200 ms later, so at 15300 the
+	# bolt stands bright and the flash has all but faded. Probed by shots
+	# without a freeze, then frozen at four ticks around it; the counters
+	# behind both are drawn from the seeded streams and the bolt fades per
+	# tick, so this is the same tick on every run - and another seed moves
+	# it, which is what the scene is worth as an oracle.
+	if wanted lava; then playLevel 2; b5_frame lava 15300; b5_release; quitLevel; fi
+	# Bob stands in the gas from the first tick, so the contamination has
+	# long settled at its ceiling by now; earlier than about the second
+	# second the harness's own latency has not delivered the freeze yet.
+	if wanted toxic; then playLevel 3; b5_frame toxic 3000; b5_release; quitLevel; fi
+	# The note opens between the twentieth and the fortieth tick and settles
+	# on whole pixels once its ease has run out; 3000 is well past both.
+	if wanted hint; then playLevel 4; b5_frame hint 3000; b5_release; quitLevel; fi
 	b5_key Escape
 	b5_waitForState GS_Menu
 fi
 
-if wanted editor; then
-	# The editor draws its object palette under a glTranslated of its own, so
-	# a sprite drawn under the wrong matrix leaves the screen there and nowhere
-	# else - which is how the batch's first two bugs showed. The editor opens
-	# on Cat0, which holds no objects at all, so the tab is switched: Cat1 is
-	# the fullest of the five at 53, and between them they are why the palette
-	# catches what a played level does not.
-	b5_click Menu.LevelEditor
-	b5_waitForState GS_LevelEditor
-	b5_click LevelEditor.Cat1
-	b5_frame editor 2000
+# The logo screen, entered again from the menu: the intro's one textured
+# quad at its settled size, with the loading line that appears at 2900 under
+# it. Released, the state loads what is already loaded and runs on into the
+# menu by itself.
+if wanted loading; then
+	b5_ask "state GS_Loading" >/dev/null
+	b5_waitForState GS_Loading
+	b5_frame loading 2920
 	b5_release
+	b5_waitForState GS_Menu
+fi
+
+# The credits draw their own last frame back into the next one, so the
+# picture depends on how many frames were rendered and not only on the tick:
+# lockstep makes those the same number. Their clock starts two seconds before
+# zero and the oracle's tick counts from there.
+if wanted credits; then
+	b5_ask "lockstep 1" >/dev/null
+	b5_ask "state GS_Credits" >/dev/null
+	b5_waitForState GS_Credits
+	b5_frame credits 3000
+	b5_release
+	b5_ask "lockstep 0" >/dev/null
+	b5_ask "state GS_Menu" >/dev/null
+	b5_waitForState GS_Menu
 fi
 
 # Every "+ ERROR" the run logged, which is where GL:: reports a record that

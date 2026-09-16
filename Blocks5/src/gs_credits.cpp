@@ -214,6 +214,12 @@ void GS_Credits::onRender()
 
 void GS_Credits::onUpdate()
 {
+	// The clock the frame oracle freezes on, as Level::update reports its
+	// own: the credits are the one screen outside a level with a clock that
+	// starts when the screen does. Shifted by the two seconds of lead-in so
+	// that it never goes negative.
+	engine.sceneTick = static_cast<uint>(time + 2000);
+
 	cameraPos += 0.02 * 50.0 * cameraDir * speed;
 
 	cameraDir += Vec3d(random(-0.002, 0.002), random(-0.002, 0.002), random(-0.002, 0.002));

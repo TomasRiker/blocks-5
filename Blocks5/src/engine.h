@@ -100,11 +100,34 @@ public:
 	// The frame as PNG bytes, and the same under a name the caller chose.
 	bool encodeFrame(std::vector<uchar>* p_pngOut);
 	bool writeScreenshot(const std::string& path);
+	// Why the sprite batch is put up before it is full. The histogram the test
+	// hook reports counts the flushes that drew something, by reason - which
+	// is the number that says what each reason costs in draw calls, and the
+	// one RENDERER-REDESIGN.md is measured against.
+	enum FlushReason
+	{
+		FR_RAW,       // an onRender, drawQuadArray or LineDrawer about to draw raw geometry
+		FR_TEXTURE,   // GL::bindTexture moved the binding or the texel scale
+		FR_BLEND,     // setBlendFunc
+		FR_TARGET,    // beginRenderToTexture / endRenderToTexture
+		FR_ATTRIB,    // GL::popTexturing
+		FR_DELETE,    // GL::deleteTexture
+		FR_EDGE,      // beginSpriteBatch / endSpriteBatch
+		FR_FULL,      // BATCH_MAX_QUADS reached
+		FR_COUNT
+	};
+
 	// See flushSprites() and Level::update(); unconditional for the reason
-	// batchTexture gives below.
+	// batchTexture gives below. renderDraws is every draw call render() made
+	// - a glBegin block, a glDrawArrays, a glDrawElements - counted by the
+	// link-time wrappers at the foot of testhooks.cpp in a native test-hooks
+	// build and never otherwise, over renderedFrames frames.
 	uint batchFlushes;
 	uint batchDraws;
 	uint batchQuads;
+	uint batchDrawsByReason[FR_COUNT];
+	uint renderDraws;
+	uint renderedFrames;
 	uint sceneTick;
 
 	// The framebuffer the game renders into: always 640x480, whatever the
@@ -230,7 +253,7 @@ public:
 	// around the object loop in Level::renderObjects and nowhere else; see
 	// queueSprite() in engine.cpp for what a flush has to come before.
 	void beginSpriteBatch();
-	void flushSprites();
+	void flushSprites(FlushReason reason = FR_RAW);
 	void endSpriteBatch();
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
 
