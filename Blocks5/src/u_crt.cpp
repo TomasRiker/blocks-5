@@ -129,7 +129,18 @@ static const char* p_crtFragmentShader =
 
 	   BLOOM_STRENGTH is the value with the slider at full; the slider (uniform
 	   Bloom) scales it. Set to 0 the whole block is compiled away - see
-	   below. */
+	   below.
+
+	   Measured off a bright spot: +23 grey levels at the centre, falling to +4
+	   at 70 output pixels. The taps sit on TWO rings, four axial and four
+	   diagonal - eight on one radius makes a hard-edged ring rather than a
+	   glow.
+
+	   What the filter costs, as ratios of one present on a software
+	   rasterizer: nearest 1.0, bilinear 1.3, sharp-fit 1.35, crt 7.8. The
+	   halation is about half of that - with BLOOM_STRENGTH at 0 the same
+	   measurement reads 4.2. On real hardware all of them are noise, but the
+	   browser build can land on a software path. */
 	"const float BLOOM_STRENGTH  = 0.38;\n"
 	"const float BLOOM_THRESHOLD = 0.22;\n"
 	"const float BLOOM_RADIUS    = 2.5;\n"   /* inner ring, source pixels */
@@ -157,6 +168,17 @@ static const char* p_crtFragmentShader =
 	   triads in the corners, which is one or two source pixels here. Set to 0
 	   the block is compiled away, as with the halation. */
 	"const float CONVERGENCE_MAX = " CRT_STR(CRT_CONVERGENCE_MAX) ";\n"
+
+	/* Measured off the shader, at the slider's default the outermost output
+	   column keeps 89% of its red; at full slider the outermost three keep
+	   49%, 76% and 95%, while green and blue do not move at all - that is
+	   rasterMask being evaluated at each channel's own source point.
+
+	   Measured on a finished frame by asking how far the red channel lags the
+	   blue (which needs no second frame, so the moving title demo does not
+	   matter): at 0 within a tenth of a pixel everywhere; at full slider -5.3
+	   output pixels at the left edge, -0.3 in the middle and +4.4 at the
+	   right - the antisymmetric ramp the shader asks for. */
 
 	/* Curvature with the slider at full. Lottes takes 1/32 and 1/24; here it
 	   may go further, since the slider does not normally sit at the stop. The
@@ -192,6 +214,8 @@ static const char* p_crtFragmentShader =
 	   them hang off the clock alone, never off the previous frame - the fault
 	   xBR foundered on cannot arise here. Values with the slider at full;
 	   where the bar is unwanted, set HUM_DEPTH to 0. */
+	/* Measured, the three terms together give 1.7% peak-to-peak between frames
+	   with both sliders at full. */
 	"const float FLICKER_DEPTH = 0.0367;\n"  /* fast brightness shimmer */
 	"const float HUM_DEPTH     = 0.0147;\n"  /* depth of the rolling bar */
 	"const float HUM_BARS      = 0.75;\n"    /* how many bars fit the picture */
@@ -226,7 +250,8 @@ static const char* p_crtFragmentShader =
 	   shader below computes that back out itself (MASK_AVG and SCAN_AVG), and
 	   from the constants - change something above and the brightness comes
 	   back on its own, with nothing to adjust here. 1.0 = as bright as with no
-	   filter. */
+	   filter. Measured, the scan-line slider moves the mean brightness of a
+	   frame by 0.5% from one end of its travel to the other. */
 	"const float BRIGHTNESS = 1.0;\n"
 
 	/* ------------------------------------------------------------------ */
@@ -577,6 +602,18 @@ double U_Crt::getOverscan() const
 	// One single value for both axes, or the pixels would no longer be square:
 	// horizontally the sum is needed, vertically only the first term, and the
 	// rest is black surround there.
+	//
+	// Measured without it: 0 black rows above the picture at the top centre, 4
+	// a quarter of the way out, 20 at nine tenths - soft and rounded
+	// everywhere, guillotined at four places. With it: 2 rows at the top
+	// centre rising to 26, the picture fading in over the next four. And at
+	// the right edge with the convergence at full, red's raster dies at output
+	// column 1274, green's at 1277 and blue's is still burning at 1279, which
+	// is the whole point of giving each channel its own rasterMask.
+	//
+	// The price is paid the moment the slider leaves its stop: at a 2x window
+	// the picture steps back by six output pixels. A flat tube is pixel-exact,
+	// a curved one is inset.
 	if(curvature <= 0.0) return 0.0;
 
 	const double fade   = 2.0 * (crtEdgeRows * 2.0 / frameSize.y);
@@ -610,7 +647,16 @@ Vec2d U_Crt::warpToOutput(const Vec2d& s) const
 	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
 	//
 	// it contracts very fast: after eight rounds the error is under 2.3e-4
-	// pixels even at an absurd curvature.
+	// pixels even at an absurd curvature, and under 1e-5 at anything the
+	// slider can reach.
+	//
+	// That is what keeps the cursor honest. Both directions map pixel centres
+	// and floor rather than left edges and truncation, so get(set(g)) == g
+	// exactly: measured, 0 of 34240 positions off, at curvature 0, 0.25, 0.5
+	// and 1.0 and at three window sizes. The one exception is exactly 1x,
+	// where 640 window pixels and 640 game pixels cannot both hold a
+	// non-identity warp and 0.5% of positions land on a neighbouring tile -
+	// the minimum window size, where the effect has no room to work anyway.
 	// The overscan is a smooth factor and is taken back out beforehand.
 	const double k = 1.0 + getOverscan();
 	const double u = s.x / k;

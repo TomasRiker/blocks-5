@@ -696,12 +696,8 @@ the test hook. `SharpFit` is the default.
 
 - `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn by the base class's fixed-function quad.
   `Sharp` additionally snaps the blit to an integer scale (`wantsIntegerScale()`), the whole point of it.
-- `SharpFit` (`src/u_sharpfit.cpp`) is nearest at a fractional scale: conceptually the frame is nearest-upscaled by the smallest
-  integer covering the destination and then resampled down. That is one texture fetch, not two passes —
-  bilinear over a nearest-upscaled image is piecewise linear, so remapping the texture coordinate through
-  the same piecewise function and letting the hardware interpolate gives the identical result. Verified
-  against a real two-pass: pixel-identical at an integer scale, max channel difference 1 at fractional ones.
-  It **must** sample with `GL_LINEAR` — the hardware interpolation *is* the filter.
+- `SharpFit` (`src/u_sharpfit.cpp`) is nearest at a fractional scale, in one texture fetch rather than two
+  passes; that file derives why, and why it **must** sample with `GL_LINEAR`.
 - `Crt` is a CRT monitor: beam profile, scan lines, phosphor mask, halation, barrel distortion, rounded
   corners, vignette.
 
@@ -733,112 +729,27 @@ inside a `frameRendered` block, so it read the default framebuffer, which WebGL 
 calls `bindFrameBuffer()` first now, right on either platform: the FBO holds the last frame that *was*
 rendered, which is exactly the screen being faded out.
 
-**The CRT filter.** Everything giving it its character is a `const` at the top of `src/u_crt.cpp`, meant to
-be edited. Six are runtime sliders instead (Options → Scaling → *CRT settings …*, saved as `<CrtUpscaler
-scanline= curvature= bloom= flicker= scanFlicker= convergence=>`), because they are matters of taste rather
-than tuning.
+**The CRT filter** (`src/u_crt.cpp`). Everything that gives it its character is a `const` at the top of
+that file, meant to be edited, and that file carries the reasoning and the measurements for all of it:
+which monitor it imitates (`SCANLINE_PERIOD` — a VGA set at 1.0, the 240p console look at the shipped
+2.0), why the mask sits in output and not source pixels, what `getOverscan()` is the sum of and why it
+is exactly zero at curvature 0, the convergence model and its per-channel `rasterMask`, the halation
+rings, the flicker terms, and what each of them measured.
 
-**Nobody finds a filter buried in an options dialog**, so `Menu.CrtPane` offers it once on a first start,
-with a button that switches it on there and then. The marker is `.crt_offered` in the user directory, the
-same idiom as `.donation_asked` — absent on a clean install *and* after an upgrade, exactly the set of people
-who have not seen the filter. Skipped where the CRT filter is already in use, and it suppresses the donation
-window for that start so the two never stack.
+Three things about it are not that file's business and live here:
 
-`SCANLINE_PERIOD` decides what it *is*. Visible gaps between scan lines are an artifact of 240p: a console
-drew 240 lines into a 480-line raster. A VGA monitor showing 640x480 drew all 480 with the beam profiles
-overlapping and had no gaps. The honest reference is the VGA monitor, `SCANLINE_PERIOD = 1.0` — which at a 2x
-window produces *no visible stripes at all*, because both output rows sit equally far from the row centre.
-Physically right and useless as an effect, which is why the shipped default is `2.0`.
-
-**Convergence** (slider six, 0.5 like the rest). A colour tube has three beams, converged at the centre and
-drifting apart toward the rim where deflection is largest, so a vertical edge carries a red fringe on one
-side and a blue on the other — nothing in the middle, most at the edge. It is **not** chromatic aberration:
-that happens in a lens, and a tube has no lens. Green stays put as the reference, as it was set on the bench.
-`CONVERGENCE_MAX` (1.6) is the displacement of *each* of red and blue at the left and right edge, in source
-pixels, at full slider; they move apart, so the visible fringe is twice that. Horizontal only — a vertical
-component would need its own two rows and beam profile per channel, eight fetches instead of four.
-
-**The raster edge belongs to the beam, not the picture.** A tube paints three rasters, and if red's is
-narrower than green's the red *image* ends first — what you see at the rim of a misconverged set before you
-see anything on an edge inside the picture. So `rasterMask()` is evaluated at each channel's own source
-point, not at the output point: without that, the highest-contrast vertical edge in the frame — the picture
-against the black — is the one place a fringe could never appear. Measured: at the default the outermost
-output column keeps 89% of its red; at full slider the outermost three keep 49%, 76% and 95%, and green and
-blue do not move.
-
-Those four fetches are part of the shipped cost: one present measured 25.3 ms with the slider at 0 and
-30.6 ms with it anywhere above (llvmpipe, 1280x960), and the same at 0.5 as at 1.0 — the shift changes the
-coordinate, not the work. On a real GPU it is noise, and `if(Convergence > 0.0)` hands it all back to anyone
-who turns the slider down, since the condition is uniform across the draw. Measured by how far the red
-channel of a finished frame lags the blue, which needs no second frame and so does not care that the title
-demo keeps moving: at 0 within a tenth of a pixel everywhere; at full slider −5.3 output pixels at the left
-edge, −0.3 in the middle, +4.4 at the right — the antisymmetric ramp the shader asks for.
-
-The drawn rectangle is a pixel wider than the picture on every side, so the fade lies entirely outside it:
-**at curvature 0 the CRT filter covers exactly what the other three cover.** The fade exists for the barrel
-distortion, which at curvature 0 does not. Measured against sharp-fit: zero shift in either axis, outermost
-three columns within 0.5% of the columns inside.
-
-**The whole raster then steps back from the edge of the glass — `getOverscan()`.** The warp moves the corners
-outward and leaves the edge midpoints where they are, so at the middle of each side the picture ran to the
-last output row and the fade, fringe and halo had nowhere to go (measured before: 0 black rows at the top
-centre, 4 at a quarter out, 20 at nine tenths — soft and rounded everywhere, guillotined at four places). The
-step back is one isotropic factor on `w`, the sum of the two things needing room: the fade, twice
-`EDGE_ROWS` source rows, and the convergence offset, twice `CONVERGENCE_MAX` source columns. Isotropic
-because anything else would stop the pixels being square. Measured after: 2 black rows at the top centre
-rising to 26, picture fading in over the next four; at the right edge with convergence full, red's raster
-dies at output column 1274, green's at 1277, blue's still burning at 1279 — the point of per-channel
-`rasterMask`.
-
-**It is exactly zero at curvature 0**, which keeps the promise above: zero shift, picture still reaching row
-0 and column 0. The price is a step of six output pixels at 2x as the slider leaves its stop.
-`warpToSource`/`warpToOutput` carry the same factor, so the cursor round trip stays exact: 0 of 34240
-positions off, at curvature 0, 0.25, 0.5 and 1.0 and three window sizes.
-
-The mask sits in **output** pixels (`gl_FragCoord`, `MASK_PITCH`), not source pixels — a real shadow mask
-belongs to the glass and does not change with resolution. That matters because almost everyone runs at
-exactly 2x (`getDefaultWindowSize` gives 2x on 1080p *and* 1440p), where three source-locked subpixels are
-impossible. Brightness is **derived, not tuned**: `MASK_AVG` and `scanAvg` are computed from the constants,
-so mask and scan lines are light-neutral by construction and editing any constant needs no compensating edit
-(measured, the scan-line slider moves mean frame brightness 0.5% end to end).
-
-The flicker is the one part that reads the clock, with three terms — all zero-mean, so none costs brightness,
-and all functions of `Time` alone, never of the previous frame, which is why none can turn into the xBR
-problem. A fast brightness shimmer at roughly 12, 19 and 29 Hz; a much weaker mains-hum bar rolling slowly
-down; and the scan lines crawling downward. The first two are one slider (`Flicker`), the third its own
-(`ScanFlicker`), because unsteady brightness and a drifting line structure are separate tastes. Frequencies
-are whole cycles per `FLICKER_CYCLE` (8 s) and `presentFrame` feeds `SDL_GetTicks()` modulo that, so the
-clock wraps seamlessly — the wall clock and not `Engine::getTime()`, which counts logic ticks and stops when
-the game pauses, where a screen flickers anyway. At maximum the depths give 1.7% peak-to-peak.
-
-The crawl is the one term computed on the **CPU**, as the `ScanPhase` uniform: a ramp rather than an
-oscillation, with a slope depending on the slider, so feeding it the already-wrapped `Time` would jump the
-scan lines by `fract(flicker · speed)` of a period at every wrap. `fmod(seconds · CRT_CRAWL_SPEED ·
-crtFlicker, 1.0)` off the unwrapped clock is continuous instead.
-
-**Halation averages in linear light, per tap.** Averaging in gamma space and linearising the result produces
-almost no visible halo: the ring around a bright spot is a mixture of bright and dark, and `pow()` on that
-mixture falls far below the threshold. Linearising each tap (with `x*x` — for a soft halo indistinguishable
-from gamma 2.4, and a multiply instead of a `pow`) and thresholding the linear average gives a real glow,
-+23 grey levels at the centre falling to +4 at 70 output pixels. The taps sit on **two** rings, four axial
-and four diagonal; eight on one radius makes a hard-edged ring rather than a glow.
-
-Relative present cost on a software rasterizer, as ratios: nearest 1.0, bilinear 1.3, sharp-fit 1.35, **crt
-7.8** — halation about half of that, and `BLOOM_STRENGTH = 0` compiles the whole block away (4.2). On real
-hardware all are noise, but the browser build can land on a software path.
-
-**The barrel distortion goes through the mouse as well.** The shader maps output pixel to source pixel, the
-direction `getCursorPosition` needs, so it uses the identical formula — `U_Crt::warpToSource`, which
-`Engine::warpToSource` forwards to (the base class returns what it was given, so no caller asks what filter
-is on). `setCursorPosition` needs the inverse, and the coupled pair (`x` depends on `y²`, `y` on `x²`) has no
-closed form, so `warpToOutput` runs a fixed-point iteration: `x <- u/(1+a·y²)`, `y <- v/(1+b·x²)`. Eight
-rounds land within 2.3e-4 pixels even at an absurd curvature, 1e-5 at anything reachable from the slider.
-`CRT_CURVE_X`/`CRT_CURVE_Y` are `#define`d once and stringified into the GLSL *and* read as C++ doubles, so
-the two cannot drift apart. Both cursor functions map **pixel centres** and `floor`, not left edges and
-truncation, so `get(set(g)) == g` is exact at every scale and curvature — except at exactly 1x, where 640
-window pixels and 640 game pixels cannot both hold a non-identity warp and 0.5% of positions land on a
-neighbouring tile. That is the minimum window size, where the effect has no room anyway.
-
+- Six of the constants are runtime sliders instead, because they are matters of taste rather than
+  tuning: Options → Scaling → *CRT settings …*, saved as `<CrtUpscaler scanline= curvature= bloom=
+  flicker= scanFlicker= convergence=>` in `config.xml`.
+- **Nobody finds a filter buried in an options dialog**, so `Menu.CrtPane` offers it once on a first
+  start with a button that switches it on there and then. The marker is `.crt_offered` in the user
+  directory, the same idiom as `.donation_asked` — absent on a clean install *and* after an upgrade,
+  exactly the set of people who have not seen the filter. Skipped where the CRT filter is already in
+  use, and it suppresses the donation window for that one start so the two never stack.
+- **The barrel distortion goes through the mouse**, so it reaches `Engine`: `Engine::warpToSource` and
+  `warpToOutput` forward to the filter, and the base class returns what it was given, so no caller asks
+  what kind of filter is on. `CRT_CURVE_X`/`CRT_CURVE_Y` are `#define`d once and stringified into the
+  GLSL *and* read as C++ doubles, so the shader and the cursor cannot drift apart.
 **Restarting a level rewinds the tape**, but only with the CRT filter on: `CF_Rewind` (`cf_rewind.cpp`)
 instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On sharp or sharp-fit the game does
 not claim to be a tube and a tape effect would be a costume.
@@ -899,20 +810,10 @@ other buffer and shows the frame before the last. And a full-screen popup is exa
 hand a direct scanout path, after which the compositor's own copy stops being updated — with the Start menu
 open over one, the game showed a frame from seconds earlier.
 
-**Drawing while the border is dragged** needs one thing SDL cannot give: while the user holds the border or
-title bar, `DefWindowProc` runs *its own* modal message loop and the main loop sits in `SDL_PollEvent` until
-the mouse comes up. The only code still running is the window procedure, so `Engine::hookWindowProc` puts one
-in front of SDL's with `SetWindowLongPtr(GWLP_WNDPROC)` — the same subclassing SDL does for `SDL_WINDOWID`,
-safe because the HWND is created once in `DIB_VideoInit` and no later `SDL_SetVideoMode` replaces it.
-`WM_ENTERSIZEMOVE` starts a 15 ms timer; `WM_SIZE` (every drag step) and `WM_TIMER` (when the user holds
-still, where no `WM_SIZE` comes) both call `repaintDuringSizeMove`, which re-presents the framebuffer at the
-new client size, so upscaler, letterbox and aspect track the drag live. No logic tick runs. Two traps: it
-**borrows** `displaySize` and must put it back, because `handleResize` early-returns on an unchanged size and
-would then never call `SDL_SetVideoMode`, leaving SDL's surface stuck at the old size for the session; and
-`SDL_SetVideoMode` must *not* be called during the drag at all, since it calls `SetWindowPos` and fights the
-user's mouse. The same procedure answers `WM_GETMINMAXINFO` (chaining first, since `DefWindowProc` fills four
-other fields) with 640x480 of client plus the frame from `AdjustWindowRectEx`, so the floor `handleResize`
-enforces applies *during* the drag instead of snapping back after.
+**Drawing while the border is dragged** needs a window procedure of the game's own in front of SDL's
+(`Engine::hookWindowProc`), because `DefWindowProc` runs its own modal message loop and the main loop sits
+in `SDL_PollEvent` until the mouse comes up. `engine.cpp` carries the mechanism and its traps — what may not
+be called during a drag, and what has to be put back afterwards.
 
 **The window's placement is saved on exit.** One `<Window positionX= positionY= sizeX= sizeY= maximized=
 fullscreen=>` is written by `Engine::exit`; the position is the only part that can be absent, because on a
@@ -1004,16 +905,10 @@ so an eventual Linux build can use the same ones. `videorecorder.cpp` does its o
 frame's duration is only known when the next arrives. minih264 needs the frame size to be a multiple of 16;
 640x480 is.
 
-**Recorded audio** does not come from OpenAL: `alcCaptureOpenDevice` can only open an *input* device, which
-would record the microphone into every video. `audiocapture.cpp` does a loopback capture of what the machine
-is *playing* — WASAPI's loopback mode on the default render endpoint under Windows, the monitor source of the
-default sink under Linux. Both end at 16-bit stereo 48 kHz, what `videorecorder.cpp` wants, so the ring
-buffer, reader side and clock-based silence padding (`AudioRing`) are shared and only the two `threadProc`s
-differ. Windows converts the format itself, since the device hands over whatever mix format it likes; Linux
-needs none of that because `pa_simple_new` is *told* the format and the server resamples, which is why that
-half is a third of the size. libpulse is `dlopen`'d with its declarations written out by hand, so the build
-needs no libpulse-dev and the game still starts where PulseAudio is absent. The browser has no loopback;
-there `open()` fails and videos are silent.
+**Recorded audio is a loopback capture of what the machine is playing**, not OpenAL — `audiocapture.cpp`
+says why and how the two platforms differ. One thing about it is a build fact rather than an audio one:
+libpulse is `dlopen`'d with its declarations written out by hand, so the build needs no libpulse-dev and the
+game still starts where PulseAudio is absent.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to
@@ -1022,17 +917,12 @@ always gets this implementation and never whatever Creative's 2009 installer lef
 AL/ALC 1.1 (23 functions, no extensions, no `alGetProcAddress`), so the switch needed no source change. The
 DLL is LGPL v2 and must stay dynamically linked.
 
-**The mix is turned down, and that is not a taste setting.** The game plays music and a dozen effects at once,
-each source at full volume, and the sum stood above the ceiling: measured in the main menu, **-8.8 LUFS at a
-true peak of +0.9 dBFS, with 0.73% of samples hard against the limit and therefore clipped by OpenAL Soft** —
-audible as distortion, in the game and in a recorded video alike. `MASTER_HEADROOM` (0.45, top of
-`engine.cpp`) goes in as `alListenerf(AL_GAIN, …)` right after `alcProcessContext`, scaling the finished mix
-inside OpenAL Soft's float pipeline *before* that clamp; the same passage then measures **-15.5 LUFS at -1.1
-dBFS**. Two standards decide the number: a true peak no higher than **-1 dBTP**, because a lossy decoder —
-MP3 for the videos here — can overshoot the samples it was handed, and an integrated loudness of **-14 to -16
-LUFS**, where YouTube and Spotify normalise anyway. 0.50 lands exactly on the ceiling; 0.40 is quieter than
-it needs to be. It belongs in the source rather than the options because it is a property of the mixture, not
-a preference — the player's own sliders are untouched and still read 100%.
+**The mix is turned down, and that is not a taste setting.** A dozen effects and the music at full volume
+summed above the ceiling and were clipped by OpenAL Soft — audible as distortion, in the game and in a
+recorded video alike. `MASTER_HEADROOM` at the top of `engine.cpp` scales the finished mix before that
+clamp, and the comment there carries the measurement and the two standards that pick the number. It belongs
+in the source rather than the options because it is a property of the mixture, not a preference — the
+player's own sliders are untouched and still read 100%.
 
 **The sound files are repaired sources, and the mix decisions are not in them.** `Blocks5/data` holds a WAV
 beside every shipped OGG, and `Tools/encode_sounds.py` produces one from the other **one to one** — 96 kbit/s
@@ -1701,12 +1591,9 @@ the tooltips, reads the same answer.
 
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 
-- **`check()` means "the user clicked"; `setChecked()` means "the display caught up".** Only the first
-  fires `changed`: refreshing a checkbox from model state with `check()` makes the handler run as if the
-  player had clicked, which in the editor meant an Undo that toggled the electricity produced a *fresh*
-  undo point and threw the redo list away. And `GUI_CheckBox::setChecked` must touch **only `checked`,
-  never `newChecked`** — `newChecked` is the click in flight, written by `onMouseDown` and read by
-  `onMouseUp`, so a per-frame refresh lands between the two and clobbering it swallows the click.
+- **`check()` is the user's click and fires `changed`; `setChecked()` is the display catching up and
+  does not** — and `setChecked` must touch only `checked`, never the in-flight `newChecked`.
+  `gui_checkbox.h` says why both halves matter and what each one broke.
 - **Escape and Return belong to the dialog.** `GUI_EditBox` and `GUI_ListBox` forward both to the parent
   when they have nothing of their own to do, which lets a dialog implement Escape = Cancel and Return =
   OK while focus sits in a text field or a list.
