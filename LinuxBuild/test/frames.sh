@@ -328,10 +328,10 @@ if needs options crt; then
 	b5_dump
 	FILTER=$(b5_json "d['filter']")
 	b5_click Menu.Options
-	if wanted options; then b5_frame options 8000; b5_release; fi
+	if wanted options; then b5_frame options 10000; b5_release; fi
 	if wanted crt; then
 		b5_click OptionsPane.Options.CrtSettings
-		b5_frame crt 14000
+		b5_frame crt 16000
 		b5_release
 		b5_click OptionsPane.CrtOptions.Close
 		b5_click "OptionsPane.Options.$FILTER"
@@ -340,22 +340,22 @@ if needs options crt; then
 fi
 if wanted manager; then
 	b5_click Menu.Manager
-	b5_frame manager 26000
+	b5_frame manager 30000
 	b5_release
 	b5_click Menu.ManagerPane.Manager.Close
 fi
 
 # The editor scenes. The star is the crossfade from the menu into the editor,
 # and for the reason above it is started by the hook while the menu stands
-# frozen at 32000 - a click on a named tick, which no real click can be - so
+# frozen at 36000 - a click on a named tick, which no real click can be - so
 # the old image is the menu at that tick and the new one the editor, which
 # has no clock. Under lockstep the fade's 400 ms is then a fixed number of
 # frames later.
 if needs editor help editbox editor-select editor-connect star; then
 	if wanted star; then
 		b5_ask resetstats >/dev/null
-		b5_ask "freeze 32000" >/dev/null
-		b5_waitFrozen star 32000
+		b5_ask "freeze 36000" >/dev/null
+		b5_waitFrozen star 36000
 		b5_ask "lockstep 1" >/dev/null
 		[ "$(b5_ask "click Menu.LevelEditor")" = "ok" ] || { echo "FAILED: the hook found no button Menu.LevelEditor"; exit 1; }
 		b5_ask "freeze fade 400" >/dev/null
