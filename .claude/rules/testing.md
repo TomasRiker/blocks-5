@@ -138,7 +138,11 @@ different slots from one run to the next, and alpha-blended particles are drawn 
 table was built from the shared generator on the first frame that needed it: the toxic effect's noise,
 which therefore depended on how many frames the process had rendered by then — it now comes from a
 generator of its own with a fixed seed (`Level::renderToxicEffect`), the one place a render path still
-drew from `random()`.
+drew from `random()`. The last one hid behind the audio clock: `Sound::createInstance` drops a one-shot
+that follows the same sound within ten milliseconds of *wall* time, and `Engine::playSound` drew its
+random pitch only when the instance came — so two ticks the machine bunched into one iteration consumed
+one draw fewer than two it ran apart, and the gas cloud spread differently from one run to the next.
+The pitch is now drawn before the lockout is asked.
 
 ## In a browser
 

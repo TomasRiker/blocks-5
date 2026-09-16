@@ -3345,13 +3345,21 @@ SoundInstance* Engine::playSound(const std::string& filename,
 	Sound* p_sound = Manager<Sound>::inst().request(filename);
 	if(p_sound)
 	{
+		// The pitch is drawn whether or not the instance comes.
+		// Sound::createInstance drops a one-shot that follows the same sound
+		// within ten milliseconds of wall time, and a draw behind that made
+		// the generator's sequence - which every tick of a level runs
+		// through in order - depend on how the machine bunched its ticks:
+		// the same level came out differently from one run to the next.
+		const double pitch = pitchSpectrum != 0.0 ? 1.0 + random(-pitchSpectrum, pitchSpectrum) : 1.0;
+
 		SoundInstance* p_inst = p_sound->createInstance(forceCreation);
 		p_sound->release();
 
 		if(p_inst)
 		{
 			// set the pitch
-			if(pitchSpectrum != 0.0) p_inst->setPitch(1.0 + random(-pitchSpectrum, pitchSpectrum));
+			if(pitchSpectrum != 0.0) p_inst->setPitch(pitch);
 
 			// set the priority
 			p_inst->setPriority(priority);
