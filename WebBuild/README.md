@@ -42,7 +42,7 @@ The two directions are deliberate. A stamped URL's contents can never change, so
 asking about it could only confirm what is already there; `index.html` carries no
 stamp, because it is the entry point and the place the current stamp is written
 down, so serving *that* from a cache is exactly how a new build becomes invisible.
-`CLAUDE.md` has the whole argument, mod_pagespeed included.
+`.claude/rules/web.md` has the whole argument, mod_pagespeed included.
 
 `build.sh` stages `data.zip`, the skin archives and the campaign into the tree it
 preloads, but it does not build them: they are build products and are not in Git,

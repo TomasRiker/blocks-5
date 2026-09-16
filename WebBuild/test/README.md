@@ -131,7 +131,7 @@ see.
 
 (Natively it is the opposite - the driver flushes inside `present` or `swap`,
 whichever it picks, so those two are one number there and mostly the
-rasterizer. `../../CLAUDE.md` has the measurements.)
+rasterizer. `../../.claude/rules/perf.md` has the measurements.)
 
 Two things about the method are the point of it:
 

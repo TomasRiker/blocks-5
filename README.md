@@ -117,7 +117,8 @@ oracle a rendering change is checked against.
 
 Layout
 ------
-    CLAUDE.md       how the tree is built, checked and put together, in detail
+    CLAUDE.md       how the tree is built, checked and put together; the orientation
+    .claude/rules/  the detail, one file per area, loaded when a file of that area is read
     ROADMAP.md      planned work and what stands in the way of each item
     FINDINGS.md     the review findings of the 1.2.0 overhaul and what became of each
     SDL3-MIGRATION.md  a plan for moving off SDL 1.2, not started
