@@ -29,6 +29,16 @@
    or to 1, which is the ramp at the pixel border. At N = 1 the flat part
    disappears and ordinary bilinear is left.
 
+   Verified against a real two-pass implementation: pixel-identical at an
+   integer scale, and at fractional ones the largest channel difference is 1 -
+   the 8-bit rounding in the intermediate image the two-pass version has and
+   this one does not.
+
+   It MUST be sampled with GL_LINEAR. The hardware interpolation is not a
+   nicety here, it is the second half of the filter; with GL_NEAREST the
+   remapped coordinate lands back on the texel it started from and the whole
+   thing degenerates to plain nearest at a fractional scale.
+
    The same arithmetic is known in emulator circles as "sharp bilinear"
    (Themaister, libretro); it is derived afresh here, and none of the code
    is borrowed.

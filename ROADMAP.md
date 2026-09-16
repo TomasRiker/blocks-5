@@ -2081,6 +2081,55 @@ geometry, the size of the prize is a guess.
 
 
 
+52. Documentation that describes one file belongs in that file  - **DONE** for the
+    upscalers, mapped for the rest
+--------------------------------------------------------------------------------
+CLAUDE.md is read whole by every session, and item 49 found that a good part of
+its bulk was the *why* of a single source file, said a second time. The rule that
+came out of it: CLAUDE.md carries orientation - what exists, where it lives, the
+rules and the traps that span files - and the reasoning about one file's internals
+belongs in that file.
+
+Done here. The CRT filter, which item 49 named as the exception and the next lever:
+u_crt.cpp already derived the monitor it imitates, the mask raster, the overscan
+and the warp in a header block the density check does not even see, so what moved
+was the part that existed nowhere else - the measured results (the raster keep per
+channel, the red-lags-blue ramp, the black rows before and after the overscan, the
+per-channel raster death columns, the halo in grey levels, the present cost ratios,
+the cursor round trip over 34240 positions). CLAUDE.md's ten kilobytes became one
+and a half: the sliders and their config key, the one-shot CrtPane offer, and the
+warp reaching Engine through the cursor. u_sharpfit.cpp, which had no comments at
+all beyond its header, gained the two-pass verification and why GL_LINEAR is not
+optional. audiocapture.cpp gained the one thing it never said: why the capture is
+loopback and not alcCaptureOpenDevice, which is that OpenAL can only open an input
+device and would record the microphone into every video.
+
+**What the survey found, and it is the useful part.** Most of what looked like
+duplication already *is* in the code, and the remaining job is mostly deletion
+rather than moving. Checked file by file: the window procedure's size-move
+handling, the window placement's two coordinate systems, MASTER_HEADROOM's LUFS
+argument, the toast stack, the seeded streams, the lava's scroll period, fitText
+and the per-byte position array, the seven images in icon1.ico, the boot screen,
+and the service worker's two caching directions are all carried by engine.cpp,
+lava.cpp, font.cpp, make_ico.py, make_text.py and sw.js already - and
+gui_checkbox.h says more about check() versus setChecked() than CLAUDE.md did.
+Four of those are cut to pointers here; the rest are the same edit, one paragraph
+at a time.
+
+Two things are *not* candidates and should stay. A rule that binds every caller -
+flush the sprite batch before drawing raw geometry, route texture state through
+GL::, never omit a render layer bit you draw on - belongs where somebody writing a
+new onRender will read it, which is here and not in whichever file they happen to
+open. And a fact with no file to live in: the rewind sound is a granular
+resynthesis of a recording that no script rebuilds, so CLAUDE.md is the only place
+that record exists.
+
+The ceiling to work against is verify.py's comments check: 50% of `//` lines to
+code lines, on files with at least 100 code lines. A `/* */` block counts as code
+there, which is why u_crt.cpp measured 8% while carrying a page of prose. After
+this, u_crt.cpp is at 11%, audiocapture.cpp at 17%.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone

@@ -1,6 +1,17 @@
 #include "pch.h"
 #include "audiocapture.h"
 
+// What a recorded video needs is what the machine is *playing*, and OpenAL
+// cannot give it: alcCaptureOpenDevice opens an *input* device, so recording
+// through it would put the microphone into every video. So this is a loopback
+// capture instead - WASAPI's loopback mode on the default render endpoint
+// under Windows, the monitor source of the default sink under Linux. Both end
+// at 16-bit stereo 48 kHz, which is what videorecorder.cpp wants, so the ring
+// buffer, the reader side and the silence padding below are shared and only
+// the two threadProcs differ.
+//
+// The browser has no loopback at all; there open() fails and videos are silent.
+
 namespace
 {
 	// Size of the ring buffer in seconds. The recorder fetches the samples
