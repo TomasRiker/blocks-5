@@ -21,8 +21,10 @@ spatial hash (`hashObject`/`getAllObjectsAt`). `Object` (`object.h`) is the base
 behaviour is driven by an `OF_*` flag bitmask (`OF_MASSIVE`, `OF_GRAVITY`, `OF_DEADLY`, `OF_ELECTRONICS`, …)
 plus virtual `onUpdate`, `onRender`, `onCollision`, `move`, `reflectLaser`, …. `StdObject` covers the plain
 sprite cases (blocks, diamonds, grass), so most simple types need no new class. `Level::update()` is the tick
-order: remove/add pending objects → `frameBegin()` on all → `update()` on all → `Electronics::updateAll()` →
-particle systems → AI-trace decay → exit check.
+order: remove/add pending objects → sort them (depth, shown position, UID — the order `Level::render` paints
+in, sorted here again so that a tick walks the same order whether or not a frame was rendered since the
+last one) → `frameBegin()` on all → `update()` on all → `Electronics::updateAll()` → particle systems →
+AI-trace decay → exit check.
 
 **Drawing from an `onRender` obeys the sprite batch**, and `.claude/rules/rendering.md` has the whole of it.
 The short form: a sprite drawn with `Engine::renderSprite` is queued, not drawn, so anything that draws raw

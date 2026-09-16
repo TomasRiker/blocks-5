@@ -142,7 +142,12 @@ drew from `random()`. The last one hid behind the audio clock: `Sound::createIns
 that follows the same sound within ten milliseconds of *wall* time, and `Engine::playSound` drew its
 random pitch only when the instance came — so two ticks the machine bunched into one iteration consumed
 one draw fewer than two it ran apart, and the gas cloud spread differently from one run to the next.
-The pitch is now drawn before the lockout is asked.
+The pitch is now drawn before the lockout is asked. And the order the objects are walked in was the
+render's: `Level::render` sorts the object vector by depth and shown position for painting, so a tick
+that followed a rendered frame walked a sorted vector and a tick that followed another tick walked the
+spawns in the order they were appended — the same random draws went to different gas cells. The particle
+dump of the hook (`particles`) is what showed it: the same particles, sixteen pixels apart.
+`Level::update` now sorts before it walks.
 
 ## In a browser
 

@@ -14,6 +14,7 @@
 #include "upscaler.h"
 #include "gamestate.h"
 #include "gs_game.h"
+#include "level.h"
 #include "gui.h"
 #include "gui_element.h"
 #include "gui_button.h"
@@ -569,6 +570,32 @@ void pollRequests()
 			answer = "ok\n";
 		}
 		else answer = p_element ? "not a button\n" : "no such element\n";
+	}
+	else if(!strncmp(line, "particles", 9))
+	{
+		// Every live particle of the played level's two systems, one per
+		// line: which system, position, ticks left, size, colour. The
+		// diagnostic behind the frame oracle: two frames that differ in a
+		// cloud say that something differed, and this says which particle
+		// and, from its lifetime, when.
+		GameState* p_state = Engine::inst().getGameState();
+		Level* p_level = (p_state && p_state->getName() == "GS_Game")
+						 ? static_cast<GS_Game*>(p_state)->getLevel() : 0;
+		ParticleSystem* systems[2] = {p_level ? p_level->getParticleSystem() : 0,
+									  p_level ? p_level->getFireParticleSystem() : 0};
+		for(int s = 0; s < 2; s++)
+		{
+			if(!systems[s]) continue;
+			for(ParticleSystem::ParticleList::iterator i = systems[s]->begin(); i != systems[s]->end(); ++i)
+			{
+				char buffer[160];
+				sprintf(buffer, "%d %.3f %.3f %u %.4f %.3f %.3f %.3f %.3f\n", s,
+						i->position.x, i->position.y, static_cast<unsigned int>(i->lifetime),
+						i->size, i->color.r, i->color.g, i->color.b, i->color.a);
+				answer += buffer;
+			}
+		}
+		if(answer.empty()) answer = "none\n";
 	}
 	else if(!strncmp(line, "shot ", 5))
 	{

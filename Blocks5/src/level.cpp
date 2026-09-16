@@ -1024,6 +1024,14 @@ void Level::update()
 	removeOldObjects();
 	addNewObjects();
 
+	// Walked in the order render() paints in - depth, shown position, UID -
+	// whether or not a frame was rendered since the last tick. render() sorts
+	// the vector for its own sake, and a tick that runs straight after
+	// another, the machine catching up, would otherwise walk the objects in
+	// the order the spawns appended them: which gas cell got which of a
+	// tick's random draws then depended on the frame rate.
+	sortObjects();
+
 	// Begin the frame
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{

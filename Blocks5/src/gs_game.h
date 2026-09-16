@@ -20,6 +20,10 @@ public:
 	GS_Game();
 	~GS_Game();
 
+	// The level being played, for the test hook's particle dump; 0 outside
+	// a level.
+	Level* getLevel() const { return p_level; }
+
 	void onRender();
 	void onUpdate();
 	void onEnter(const ParameterBlock& context);
