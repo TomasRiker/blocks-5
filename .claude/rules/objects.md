@@ -27,9 +27,10 @@ particle systems → AI-trace decay → exit check.
 **Drawing from an `onRender` obeys the sprite batch**, and `.claude/rules/rendering.md` has the whole of it.
 The short form: a sprite drawn with `Engine::renderSprite` is queued, not drawn, so anything that draws raw
 geometry or moves the state the queued quads will be drawn under calls `flushSprites()` first; texture
-state goes through `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`), never raw; a subclass adds to
-`renderLayers` with `|=` and never assigns, or it wipes the bit an ancestor set, and the mask may name a
-layer the object does not draw this frame but may never omit one it does; a strip is `GL_TRIANGLE_STRIP`,
+state goes through `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`), never raw; a class whose
+ancestor already put bits in `renderLayers` — every `Electronics` part — adds with `|=`, since assigning
+wipes them, and the mask may name a layer the object does not draw this frame but may never omit one it
+does; a strip is `GL_TRIANGLE_STRIP`,
 never `GL_QUAD_STRIP`, because WebGL has no such primitive; and nothing in a render path calls `random()`.
 `verify.py`'s `sprite_batch`, `gl_state`, `layer_bits` and `render_layers` checks catch the first three.
 

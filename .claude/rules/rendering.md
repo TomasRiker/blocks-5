@@ -2,13 +2,33 @@
 paths:
   - "Blocks5/src/{level,texture,tileset,sprite,linedrawer,particlesystem,lightning,lava,glextensions,glstate,quadarray,engine}.{cpp,h}"
   - "Blocks5/src/renderlayer.h"
+  - "Blocks5/src/fatalerror.{cpp,h}"
   - "Blocks5/src/util.h"
   - "WebBuild/gl_compat.cpp"
   - "WebBuild/gl_immediate.cpp"
   - "WebBuild/compat.h"
 ---
 
-# Rendering: the tile grid, the sprite batch and GL state
+# Rendering: the GL floor, the tile grid, the sprite batch and GL state
+
+**The floor is GL 2.0 with framebuffer objects, and it is a floor, not a hope.** Buffers are core in GL
+1.5 (2003), shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004; both software rasterizers
+tested against, llvmpipe and SwiftShader, carry all three, and in WebGL 1 they are core — so
+`GLExtensions::init` resolves all three and stops where one is missing, and `createFrameBuffer` and
+`createUpscalerGL` add the two failures a resolved entry point can still produce, a framebuffer that
+will not complete and a shader that will not link. The message is written for a new machine in a
+particular state, not an old one: Windows with no graphics driver in play — fresh installation, safe
+mode, a VM, an RDP session — hands out `opengl32.dll`'s GDI Generic renderer, OpenGL 1.1, so the box
+names the missing group with `GL_VERSION`, `GL_RENDERER` and `GL_VENDOR` and says to install the
+driver, which turns a support mail into a self-fix. English, because `Engine::init` runs before
+`main()` loads `languages.txt`.
+
+**`fatalError()` (`fatalerror.h`) is the one way the game gives up**, written once per platform because
+that is the whole of what differs: `MessageBoxA` under Windows, zenity or kdialog under Linux (the pair
+the file dialogs reach for), a DOM overlay in the browser. The Linux half uses `fork`/`execlp` rather
+than `system()`: the message carries strings the driver wrote, and an argument handed straight to the
+program needs no quoting and can carry no command. `execlp` returns only where the program is missing,
+so the child's `_exit(127)` is how the parent knows to try the other.
 
 **The tile grid is a vertex array, built once and drawn three times.** `Level::renderTiles` writes the layer
 into a `std::vector<QuadVertex>` whenever `layerDirty` says it changed and hands that to one
@@ -56,9 +76,9 @@ the browser that read is a copy of sixteen floats out of a JavaScript array, not
 
 **The flush must therefore draw under `glLoadIdentity`**, and getting that wrong is invisible almost
 everywhere: a level renders under an identity modelview except for the camera shake and the half pixel
-under the wires, and either applied twice passes for the effect itself. The level editor is what shows it —
-its object palette is drawn under `glTranslated(245, 428, 0)` and loses every sprite off the right of the
-screen.
+under the wires, and either applied twice passes for the effect itself. The level editor is what shows it:
+its object palette is drawn under `glTranslated(245, 428, 0)`, and a flush that leaves the matrix applied
+puts every sprite in it off the right of the screen.
 
 **A queued quad is drawn with the state at the flush, not at the call.** No depth buffer in this 2D path, so
 painter's order is the only order: anything that draws, or moves state the queued quads will be drawn under,

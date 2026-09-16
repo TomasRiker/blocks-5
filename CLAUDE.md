@@ -13,21 +13,11 @@ Studio), native Linux (`LinuxBuild/build.sh`), and an Emscripten port in `WebBui
 build and run here, so a change can be compiled, run and driven without Windows — see
 `LinuxBuild/README.md` and `WebBuild/README.md`.
 
-**Windows builds on v143 and v145** (Windows 11, VS 2022 Community). Three compile errors had to be
-fixed, all in vendored libraries, each written up in the relevant `libs/*/PROVENANCE.txt`: shine's
-`__attribute__((unused))`, which MSVC rejects; `misc.c` in the libvorbis file lists, a pthreads debug
-allocator upstream never compiles; and `windows.h` inside SDL's `#pragma pack(push,4)`, which makes
-every `C_ASSERT` in a modern `winnt.h` fail.
-
-**The fourth fix is a rule: build MultiByte, never Unicode.** SDL 1.2 is an ANSI codebase — `char*`
-throughout, calling `RegisterClass`, `LoadLibrary`, `GetLocaleInfo` unsuffixed. It was a DLL before,
-built ANSI by SDL's own project, so `CharacterSet` never mattered; now that its 67 sources compile
-*inside* `Blocks5.vcxproj`, `Unicode` resolves those to the `...W` variants and MSVC merely warns
-(C4133). The first such build died in `SDL_RegisterApp`: `GetCodePage` passes `char buff[8]` and
-`sizeof(buff)` to `GetLocaleInfo`, whose last parameter counts *characters*, so `GetLocaleInfoW` wrote
-16 bytes into 8 — and forty other C4133 warnings were the same bug waiting to happen. The game's own
-code never depended on Unicode: `MessageBoxA`, `ShellExecuteA` explicitly, no `TCHAR`, `TEXT()` or
-`wchar_t` outside vendored `stackwalker.cpp`. `SDL_win32_main.c` keeps `#undef UNICODE` as a guard.
+**Windows builds on v143 and v145** (Windows 11, VS 2022 Community), and **it is built MultiByte, never
+Unicode**: SDL 1.2 is an ANSI codebase and its 67 sources compile inside `Blocks5.vcxproj`, so
+`Unicode` turns every unsuffixed Win32 call into its `...W` variant with no more than a warning, and
+the first such build smashed a stack frame in `SDL_RegisterApp`. `build-windows.md` has that story
+and the three vendored-library fixes the toolset needed.
 
 ## Build & run
 
@@ -51,24 +41,11 @@ texture will not load; only `soundPlayed` has to start `true`, because the jingl
 threshold rather than the logo.
 
 **Framebuffer objects, GL 2.0 shaders and vertex buffer objects are requirements; the game says so and
-stops where one is missing.** `GLExtensions::init` resolves all three; `createFrameBuffer` and
-`createUpscalerGL` add the two failures a resolved entry point can still produce, a framebuffer that
-will not complete and a shader that will not link. There is no availability to branch on anywhere — no
-`useFrameBuffer`, no `Upscaler::isAvailable`, no fallback to `Sharp`, no 640x480 window pin, no
-`-nofbo`/`-noshader` — because buffers are core in GL 1.5 (2003), shaders in GL 2.0 (2004), framebuffer
-objects an EXT from 2004, both software rasterizers tested against (llvmpipe, SwiftShader) carry all
-three, and in WebGL 1 they are core. The message is written for a new machine in a particular state, not
-an old one: Windows with no graphics driver in play — fresh installation, safe mode, a VM, an RDP session
-— hands out `opengl32.dll`'s GDI Generic renderer, OpenGL 1.1, so the box names the missing group with
-`GL_VERSION`, `GL_RENDERER` and `GL_VENDOR` and says to install the driver, which turns a support mail
-into a self-fix. English, because `Engine::init` runs before `main()` loads `languages.txt`.
-
-**`fatalError()` (`fatalerror.h`) is the one way the game gives up**, written once per platform because
-that is the whole of what differs: `MessageBoxA` under Windows, zenity or kdialog under Linux (the pair
-the file dialogs reach for), a DOM overlay in the browser. The Linux half uses `fork`/`execlp` rather
-than `system()`: the message carries strings the driver wrote, and an argument handed straight to the
-program needs no quoting and can carry no command. `execlp` returns only where the program is missing,
-so the child's `_exit(127)` is how the parent knows to try the other.
+stops where one is missing** (`GLExtensions::init`, `createFrameBuffer`, `createUpscalerGL`), so there is
+no availability to branch on anywhere — no `useFrameBuffer`, no `Upscaler::isAvailable`, no fallback to
+`Sharp`, no 640x480 window pin, no `-nofbo`/`-noshader`. `fatalError()` (`fatalerror.h`) is the one way
+the game gives up, written once per platform. `rendering.md` has the argument for the floor, who the
+message is written for, and why the Linux half uses `fork`/`execlp`.
 
 The upscaling filter is not a switch but an in-game option like the language, saved as `<Upscaler>` in
 `config.xml`. Debug builds default to windowed + Console subsystem and skip the SEH crash handler;
@@ -145,8 +122,9 @@ browser they are core and the header `#define`s them through.
   first.** A sprite drawn with `Engine::renderSprite` is queued and put up at the next flush under the
   state standing *then*; texture state goes through `GL::` (`bindTexture`, `setTexturing`,
   `deleteTexture`), never raw (`rendering.md`).
-- **A subclass adds to `renderLayers` with `|=`**, never assigns — the base already put bits there — and a
-  render layer is an `RL_*` name, never a number (`rendering.md`).
+- **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`
+  parts, whose base sets `RL_WIRE`; assigning wipes the bit and nothing says so — and a render layer is
+  an `RL_*` name, never a number (`rendering.md`).
 - **No display lists and no `GL_QUAD_STRIP`**: WebGL has neither, and the browser is the build nobody
   runs first (`rendering.md`, `objects.md`).
 - **Nothing in a render path draws a random number**; per-tick jitter comes from `frameBegin()` and
@@ -171,8 +149,9 @@ browser they are core and the header `#define`s them through.
   `Blocks5.vcxproj.filters`. `Tools/verify.py` checks this — nothing else will, since the Emscripten
   build globs `src/*.cpp` and so never notices.
 - Naming: `p_` prefixes a pointer, `pp_` a pointer-to-pointer; classes are `PascalCase`, methods
-  `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`). A class's header is named after
-  it, without exception — in a flat directory of two hundred files that is the whole navigation.
+  `camelCase`, enum constants `PREFIX_UPPER` (`OF_*`, `SKIN_*`, `FM_*`). Every class with a base class
+  lives in the header named after it, lower-cased (`CF_Star` in `cf_star.h`) — in a flat directory of
+  two hundred files that is the whole navigation, and the `naming` check holds it.
 - **A rename goes through a tool that parses the code, never through a text substitution.**
   `clang-rename` and `clang-change-namespace` are installed (LLVM 18, `/usr/lib/llvm-18/bin/`), and
   `sh Tools/compile_db.sh` writes the `compile_commands.json` they need — asking `LinuxBuild/build.sh
@@ -241,7 +220,7 @@ and do not repeat it.
 | --- | --- | --- |
 | `build-windows.md` | `Build.bat`, the `.sln`/`.vcxproj`, `setup/`, `resources.rc`, `main.cpp`, `libs/`, `PWEncrypt`, `ShowUserDir` | the toolset, SDL from source, the by-hand build, the version in four places, OpenAL Soft, deployment, every vendored patch |
 | `packing.md` | `pack.sh`, `zip_*.bat`, `levels/`, `data/*.xml`, `languages.txt`, `campaign.cpp` | `data.zip`, the skins and `blocks.zip` as build products, and the comment stripping |
-| `checks.md` | `Tools/` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
+| `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
 | `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, `?texunits` |
 | `rendering.md` | `level`, `texture`, `tileset`, `sprite`, `engine`, `glstate`, `quadarray`, `linedrawer`, `particlesystem`, `lava`, `lightning`, the GL shims | the tile grid, the sprite batch and its flush rule, `GL::`, browser colour, render layers, display lists, the FBO bind rule, texture wrapping |

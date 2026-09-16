@@ -27,6 +27,21 @@ inside the project, so passing one always would hardcode a version again.
 **Tested with v143 and v145 only**; that v120/v140 still build was reasoning, never a compiler run
 (`/toolset:v120` skips the SDK property).
 
+**Three compile errors had to be fixed to get there**, all in vendored libraries, each written up in
+the relevant `libs/*/PROVENANCE.txt`: shine's `__attribute__((unused))`, which MSVC rejects; `misc.c`
+in the libvorbis file lists, a pthreads debug allocator upstream never compiles; and `windows.h`
+inside SDL's `#pragma pack(push,4)`, which makes every `C_ASSERT` in a modern `winnt.h` fail.
+
+**The fourth fix is a rule: build MultiByte, never Unicode.** SDL 1.2 is an ANSI codebase — `char*`
+throughout, calling `RegisterClass`, `LoadLibrary`, `GetLocaleInfo` unsuffixed. It was a DLL before,
+built ANSI by SDL's own project, so `CharacterSet` never mattered; now that its 67 sources compile
+*inside* `Blocks5.vcxproj`, `Unicode` resolves those to the `...W` variants and MSVC merely warns
+(C4133). The first such build died in `SDL_RegisterApp`: `GetCodePage` passes `char buff[8]` and
+`sizeof(buff)` to `GetLocaleInfo`, whose last parameter counts *characters*, so `GetLocaleInfoW` wrote
+16 bytes into 8 — and forty other C4133 warnings were the same bug waiting to happen. The game's own
+code never depended on Unicode: `MessageBoxA`, `ShellExecuteA` explicitly, no `TCHAR`, `TEXT()` or
+`wchar_t` outside vendored `stackwalker.cpp`. `SDL_win32_main.c` keeps `#undef UNICODE` as a guard.
+
 **SDL is compiled from source**, all 67 files of the Win32 subset from `libs/sdl-1.2.15/src` — the
 set SDL's own `VisualC/SDL/SDL.vcproj` builds. Needs one include directory, `winmm.lib` and
 `dxguid.lib`, and `DECLSPEC=` among the defines (`begin_code.h` guards it with `#ifndef` and would

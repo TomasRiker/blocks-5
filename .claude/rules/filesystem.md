@@ -2,6 +2,7 @@
 paths:
   - "Blocks5/src/{file,file_archived,file_real,filesystem,progressdb,transfer,campaign,gs_selectlevel,gs_menu,main}.{cpp,h}"
   - "Blocks5/src/manager.h"
+  - "Blocks5/src/util.cpp"
   - "WebBuild/web_transfer.{cpp,h}"
   - "Blocks5/data/menu.xml"
   - "Blocks5/data/selectlevel.xml"

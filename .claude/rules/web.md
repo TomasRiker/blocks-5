@@ -65,7 +65,7 @@ knows the stamp; `build.sh` writes it in after the link.
 **The service worker (`sw.js`) therefore caches its two halves in opposite directions** — the stamped
 payload cache-first, everything else network-first with the cache as fallback, above all `index.html`,
 which cannot carry a stamp because it is the entry point and the place the current stamp is written down.
-Its header carries the whole argument: why `skipWaiting()` and `clients.claim()` are safe, the all-or-nothing
+The file carries the whole argument: why `skipWaiting()` and `clients.claim()` are safe, the all-or-nothing
 `addAll`, `activate` dropping every cache whose name is not the current stamp, and the `MINE` guard that
 keeps an old worker from pulling a new build's payload into its own doomed cache. Registration is the page's
 half: `updateViaCache: 'none'`, or a cached `sw.js` would keep a stale worker alive indefinitely, and then
