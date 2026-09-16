@@ -147,7 +147,9 @@ render's: `Level::render` sorts the object vector by depth and shown position fo
 that followed a rendered frame walked a sorted vector and a tick that followed another tick walked the
 spawns in the order they were appended — the same random draws went to different gas cells. The particle
 dump of the hook (`particles`) is what showed it: the same particles, sixteen pixels apart.
-`Level::update` now sorts before it walks.
+`Level::update` now sorts before it walks — and the sort's last word, the UID, is unique now: spawned
+objects were numbered from the *new* last object's UID, which was still zero, so every spawn reused the
+load's numbers and two gas cells of one row had no order at all.
 
 ## In a browser
 

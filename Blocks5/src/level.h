@@ -257,6 +257,8 @@ private:
 	std::vector<Object*> objects;
 	std::vector<Object*> objectsToAdd;
 	std::vector<Object*> objectsToRemove;
+	// The last UID given out, per level; addNewObjects() counts on from it.
+	uint nextUID;
 	Player* p_activePlayer;
 	Exit* p_exit;
 	ParticleSystem* p_particleSystem;

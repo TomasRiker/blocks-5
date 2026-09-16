@@ -128,6 +128,7 @@ void Level::clear()
 	objects.clear();
 	objectsToAdd.clear();
 	objectsToRemove.clear();
+	nextUID = 0;
 
 	// delete the tiles
 	delete[] p_tiles;
@@ -2185,12 +2186,15 @@ void Level::addNewObjects()
 	// add the new objects
 	objects.insert(objects.end(), objectsToAdd.begin(), objectsToAdd.end());
 
-	// hash the new objects and give them their UIDs
-	uint uid = objects.back()->getUID();
+	// Hash the new objects and give them their UIDs, from a counter of the
+	// level's own so that no two objects ever share one: the UID is the
+	// last word in sortObjects()' comparison, and with a duplicate in it
+	// two objects of one depth and row have no order - the sort then puts
+	// them either way round, and a tick walks them in whichever it was.
 	for(std::vector<Object*>::const_iterator i = objectsToAdd.begin(); i != objectsToAdd.end(); ++i)
 	{
 		hashObject(*i);
-		(*i)->setUID(++uid);
+		(*i)->setUID(++nextUID);
 	}
 
 	objectsToAdd.clear();
