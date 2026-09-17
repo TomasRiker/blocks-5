@@ -2,10 +2,14 @@
 # frames.sh - one named scene, one 640x480 PNG, meant to be byte-reproducible.
 #
 # Proved both ways, which is what makes it worth trusting. Two runs at one
-# seed: all five scenes byte-identical. Two runs at different seeds: menu,
-# select and night differ, so the seed really does reach the draws a rendered
-# frame makes; editor and plain do not, because nothing in either is random.
-# An oracle that can only answer "identical" is one that measures nothing.
+# seed: all nineteen scenes byte-identical. A run at another seed moves
+# fifteen of them, so the seed really does reach the draws a tick and a
+# rendered frame make; editor-connect, hint, loading and plain stay, because
+# nothing in those four is random. An oracle that can only answer
+# "identical" is one that measures nothing. Getting there took five changes
+# to the game itself - RENDERER-REDESIGN.md section 9 lists them - and each
+# was a frame that came out differently on a machine that bunched its ticks
+# differently, which is to say on any two machines.
 #
 # This is the oracle the rest of the render work is checked against: a change
 # that should move no pixel is proved by running this before and after and
