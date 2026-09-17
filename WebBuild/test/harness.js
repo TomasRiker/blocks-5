@@ -130,8 +130,8 @@ async function launch(opts) {
 
 	// Every draw call that reaches WebGL, counted on the context's prototype
 	// before the game creates its context - so in place on every load. This
-	// is the number a phone pays: what is left after the GL emulation has
-	// turned the game's own calls into these. dump() puts it beside the
+	// is the number a phone pays - the game's own draws, one to one, since
+	// nothing stands between them and WebGL. dump() puts it beside the
 	// native hook's own count under the same key, and resetStats() starts
 	// both together.
 	await page.addInitScript(() => {

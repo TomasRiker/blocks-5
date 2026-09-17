@@ -100,7 +100,7 @@ into the next one, so their picture depends on how many frames were rendered, no
 `state <name>` switches game state by name, which is how the credits and the logo screen are reached.
 
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
-`--wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
+`--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
 objects passes through the wrappers at the foot of `testhooks.cpp`; no header carries the define and no
 other translation unit needs it, which is what the `hooks_layout` check protects. The dump reports them
 as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the renderer's

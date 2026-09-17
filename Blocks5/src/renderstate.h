@@ -11,10 +11,10 @@
 // compare. RENDERER-REDESIGN.md section 3.1 has the argument.
 
 // A GL texture and how its texels map onto uv: every caller writes uv in
-// texels, as glTexCoord2i always did, and the renderer multiplies by this at
-// submission - the same multiply the fixed-function texture matrix did in the
-// vertex stage, in float. An id of 0 is the renderer's own white texel, which
-// is what "texturing off" means to a shader.
+// texels, and the renderer multiplies by this at submission, in float - the
+// multiply a texture matrix would do in the vertex stage. An id of 0 is the
+// renderer's own white texel, which is what "texturing off" means to a
+// shader.
 struct TextureRef
 {
 	TextureRef() : id(0), texelScale(1.0f, 1.0f) {}

@@ -622,31 +622,23 @@ void pollRequests()
 #ifndef __EMSCRIPTEN__
 
 // What feeds drawCalls. The hooks build links with
-// --wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements (LinuxBuild/
-// build.sh), which sends every call to those three from the game's own
-// objects here and leaves the real entry point under its __real_ name. At
-// the link rather than through a macro, so no header carries the define and
-// no other translation unit needs it - and the shipped build has none of
-// this. The three are the whole of what draws in this tree - the renderer
-// with glDrawElements, the present with the other two - since verify.py's
-// raw_gl check keeps every gl* call to the files that own raw GL, and
-// nothing draws for the game from inside a library, where a wrap could not
-// see it.
+// --wrap=glDrawArrays,--wrap=glDrawElements (LinuxBuild/build.sh), which
+// sends every call to those two from the game's own objects here and leaves
+// the real entry point under its __real_ name. At the link rather than
+// through a macro, so no header carries the define and no other translation
+// unit needs it - and the shipped build has none of this. The two are the
+// whole of what draws in this tree - the renderer with glDrawElements, the
+// present with glDrawArrays - since verify.py's raw_gl check keeps every gl*
+// call to the files that own raw GL, and nothing draws for the game from
+// inside a library, where a wrap could not see it.
 //
 // Not in the browser, where perf.js counts the draws on the WebGL context
 // itself - the same number, since nothing stands between the game and WebGL
 // there.
 extern "C"
 {
-	void __real_glBegin(GLenum mode);
 	void __real_glDrawArrays(GLenum mode, GLint first, GLsizei count);
 	void __real_glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* p_indices);
-
-	void __wrap_glBegin(GLenum mode)
-	{
-		TestHooks::drawCalls++;
-		__real_glBegin(mode);
-	}
 
 	void __wrap_glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	{

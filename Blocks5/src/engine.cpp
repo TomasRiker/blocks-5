@@ -456,12 +456,17 @@ bool Engine::init(const std::string& windowCaption,
 	// initialize OpenGL
 	printfLog("* Initializing OpenGL ...\n");
 
+	// A colour buffer and nothing else is asked of the window: the game
+	// renders into its framebuffer object, whose texture, depth and stencil
+	// are its own, and the window only ever receives the present. Nor is
+	// there a GL version to ask for - SDL 1.2 has no such attribute, the
+	// context is whatever the driver gives a legacy request, and
+	// GLExtensions::init resolves what the game needs out of it and stops
+	// where something is missing.
 	SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	if(!windowIconFilename.empty())
@@ -3854,26 +3859,11 @@ const Vec2i& Engine::getScreenSize() const
 	return screenSize;
 }
 
-const Vec2i& Engine::getScreenPow2Size() const
-{
-	return screenPow2Size;
-}
-
-// What a screen-sized copy of the frame is sampled with, for texture
-// coordinates given in the game's own pixels. The y is negative for two
-// reasons at once: the game's y runs downward where GL's texture y runs up,
-// and the copy sits at the top of the pow2 texture rather than at its origin -
-// under GL_REPEAT a negative coordinate wraps to exactly that band.
-Vec2d Engine::getScreenTexelScale() const
-{
-	return Vec2d(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y);
-}
-
 uint Engine::createFrameCopyTexture(bool withAlpha,
 									bool smooth)
 {
-	// Repeating, not clamped: the scale above reaches the band through the
-	// wrap.
+	// Repeating, not clamped: getFrameCopyRef's scale reaches the band
+	// through the wrap.
 	return Texture::createGLTexture(screenPow2Size, 0, withAlpha, smooth, false);
 }
 
@@ -3884,8 +3874,13 @@ void Engine::captureFrame(uint textureID)
 
 TextureRef Engine::getFrameCopyRef(uint textureID) const
 {
-	const Vec2d scale = getScreenTexelScale();
-	return TextureRef(textureID, Vec2f(static_cast<float>(scale.x), static_cast<float>(scale.y)));
+	// What a screen-sized copy of the frame is sampled with, for texture
+	// coordinates given in the game's own pixels. The y is negative for two
+	// reasons at once: the game's y runs downward where GL's texture y runs
+	// up, and the copy sits at the top of the pow2 texture rather than at its
+	// origin - under GL_REPEAT a negative coordinate wraps to exactly that
+	// band.
+	return TextureRef(textureID, Vec2f(1.0f / screenPow2Size.x, -1.0f / screenPow2Size.y));
 }
 
 void Engine::readFrame(uchar* p_rgba)

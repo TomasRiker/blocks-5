@@ -128,8 +128,9 @@ void Object::render(RenderLayer layer,
 	onRender(layer, realColor);
 
 	// The flash, additive. The sprite colour could not carry it: for five of
-	// the seven switches that is the default white, and glColor4dv clamps at
-	// 1 - there is nothing brighter than white in a colour value. Added on
+	// the seven switches that is the default white, and the vertex stage
+	// clamps a colour at 1 - there is nothing brighter than white in a colour
+	// value. Added on
 	// top there is, and the amount still comes from the sprite's colour,
 	// letting a tinted switch light up in its own colour.
 	//

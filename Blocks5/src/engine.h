@@ -337,8 +337,6 @@ public:
 	FrameStats& getFrameStats() { return frameStats; }
 
 	const Vec2i& getScreenSize() const;
-	const Vec2i& getScreenPow2Size() const;
-	Vec2d getScreenTexelScale() const;
 	// A texture the frame can be copied into and drawn back from: empty,
 	// the frame's power-of-two size. captureFrame copies the bound frame
 	// into its top band, which getFrameCopyRef addresses in pixels.
