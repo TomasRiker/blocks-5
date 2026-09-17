@@ -17,7 +17,8 @@
 //   5. the manifest is served, parses, and says what an install needs
 //   6. the service worker installs and has the payload in its cache
 //   7. with the network off, a reload still reaches the menu
-//   8. that first tap takes the page fullscreen too and asks for landscape
+//   8. that first tap takes the page fullscreen too, asks for landscape and
+//      locks Escape, and the pad offers a button to toggle it
 //
 // Number four is the one that needs the wait in the middle. The game samples
 // the mouse once per 20 ms logic tick; a tap that presses and releases in the
@@ -130,6 +131,15 @@ async function toPage(page, win) {
 	// calling through keeps the refusal, which the page must swallow.
 	await context.addInitScript(() => {
 		window.__b5locks = [];
+		// The keyboard lock the same way: Escape has to stay with the game.
+		if (navigator.keyboard && navigator.keyboard.lock) {
+			const klock = navigator.keyboard.lock;
+			Object.defineProperty(navigator.keyboard, 'lock', { configurable: true,
+				value: function (keys) {
+					window.__b5locks.push('keys:' + (keys || []).join(','));
+					return klock.call(this, keys);
+				} });
+		}
 		if (!window.screen || !screen.orientation) return;
 		const lock = screen.orientation.lock, unlock = screen.orientation.unlock;
 		Object.defineProperty(screen.orientation, 'lock', { configurable: true,
@@ -216,9 +226,9 @@ async function toPage(page, win) {
 		ok('a tap on the title screen started the game');
 
 		// --- 8. and took the page fullscreen ---------------------------------
-		// There is no button for this in mobile Chrome, and the API needs a real
-		// gesture, which is why the game takes the one tap it already requires.
-		// Portrait is unplayable at this size, hence the lock that goes with it.
+		// The first gesture takes it, on every device, and this tap is the first.
+		// Portrait is unplayable at this size, hence the lock that goes with it,
+		// and Escape is locked so that the menu gets it and not the browser.
 		//
 		// It has to be the ROOT element and not the canvas: the browser paints
 		// only the fullscreen element and what is inside it; with the canvas
@@ -233,6 +243,21 @@ async function toPage(page, win) {
 		else bad('the fullscreen element is ' + full.el + ', expected HTML');
 		if (full.locks.indexOf('landscape') >= 0) ok('landscape was requested');
 		else bad('no landscape lock was requested');
+		if (full.locks.indexOf('keys:Escape') >= 0) ok('Escape was locked to the page');
+		else bad('Escape was not locked: ' + JSON.stringify(full.locks));
+		// Shown, and with a rectangle on the screen: a hidden pad root or an
+		// unsized button both come out as an empty rectangle.
+		const padButton = await page.evaluate(() => {
+			const g = document.querySelector('#b5pad .b5corners');
+			if (!g) return null;
+			const r = g.parentNode.getBoundingClientRect();
+			return { pad: window.b5pad.isVisible(), w: r.width, h: r.height,
+			         inside: r.left >= 0 && r.top >= 0 &&
+			                 r.right <= innerWidth && r.bottom <= innerHeight };
+		});
+		if (padButton && padButton.pad && padButton.w > 0 && padButton.h > 0 && padButton.inside)
+			ok('the pad offers a fullscreen button (' + padButton.w + 'x' + padButton.h + ')');
+		else bad('the pad has no visible fullscreen button: ' + JSON.stringify(padButton));
 
 		const crt = d.elements.find(e => e.path === 'Menu.CrtPane.Crt.NoThanks');
 		if (crt && crt.shown) {

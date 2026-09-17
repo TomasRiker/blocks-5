@@ -60,14 +60,17 @@ has to reach `Menu.Options` - `page.touchscreen.tap()` is as useless as
 `page.mouse.click()`, because a press and a release in the same millisecond
 fall between two logic ticks.
 
-The same tap takes the page fullscreen, and that is checked here too: that
-afterwards the root element is the fullscreen one, and that landscape was asked
-for. The root and not the canvas, because a browser paints only the fullscreen
+The same tap takes the page fullscreen - the first gesture does, on every
+device - and that is checked here too: that afterwards the root element is the
+fullscreen one, that landscape was asked for, that Escape was locked to the
+page, and that the pad shows its fullscreen button. The root and not the
+canvas, because a browser paints only the fullscreen
 element and what is inside it - with the canvas promoted the on-screen pad
 beside it is simply not drawn. Whether landscape is *granted* cannot be checked
 here: a headless emulation has no orientation that could be turned, and refuses
 the lock in any case. The test therefore records the call (`addInitScript` puts
-itself in front of `screen.orientation.lock`) and passes it on, so that the
+itself in front of `screen.orientation.lock`, and in front of
+`navigator.keyboard.lock` the same way) and passes it on, so that the
 refusal stands - that is what the page has to swallow.
 
 ## A test

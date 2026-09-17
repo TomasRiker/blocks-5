@@ -58,13 +58,13 @@ void GS_Loading::onRender()
 			begin = end + 1;
 		}
 
-		// A desktop browser offers no way to reach the game's own fullscreen,
-		// and Alt+Enter is not a guess anybody makes, so it is said here - in
-		// the tooltip font, because it is an aside and not the message. Not on
-		// a phone: there the game takes the fullscreen itself on the first
-		// touch, and there is no Alt to press anyway.
+		// The first gesture takes the fullscreen, but the way back into it is
+		// Alt+Enter, which is not a guess anybody makes, so it is said here - in
+		// the tooltip font, because it is an aside and not the message. Not
+		// where the on-screen pad is up: that has a button for it, and there is
+		// no Alt to press anyway.
 		Font* p_hintFont = GUI::inst().getToolTipFont();
-		if(p_hintFont && !engine.isPhone())
+		if(p_hintFont && !engine.isPadShown())
 		{
 			const std::string hint = localizeString("$WEB_FULLSCREEN_HINT");
 			Vec2i hintDim;

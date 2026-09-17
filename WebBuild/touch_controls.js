@@ -139,7 +139,18 @@
     // The four arrows are drawn, not written, so this file stays plain ASCII.
     'div#b5pad .b5arrow{position:absolute;width:0;height:0;pointer-events:none;' +
     'opacity:.55;transition:opacity .06s}' +
-    'div#b5pad .b5arrow.b5on{opacity:1}';
+    'div#b5pad .b5arrow.b5on{opacity:1}' +
+    // The fullscreen button's glyph, the four corners of a screen: eight
+    // gradients, a bar and a post per corner, for the same reason.
+    'div#b5pad .b5corners{width:46%;height:46%;pointer-events:none;' +
+    'background-image:linear-gradient(#fff,#fff),linear-gradient(#fff,#fff),' +
+    'linear-gradient(#fff,#fff),linear-gradient(#fff,#fff),linear-gradient(#fff,#fff),' +
+    'linear-gradient(#fff,#fff),linear-gradient(#fff,#fff),linear-gradient(#fff,#fff);' +
+    'background-repeat:no-repeat;' +
+    'background-size:32% 2px,2px 32%,32% 2px,2px 32%,32% 2px,2px 32%,32% 2px,2px 32%;' +
+    'background-position:left top,left top,right top,right top,' +
+    'left bottom,left bottom,right bottom,right bottom;opacity:.78}' +
+    'div#b5pad .b5btn.b5on .b5corners{opacity:1}';
   var style = document.createElement('style');
   style.textContent = CSS;
 
@@ -162,6 +173,45 @@
     }
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
+    root.appendChild(b);
+    return b;
+  }
+
+  // The fullscreen toggle. Not a key: it calls the page, which asks the
+  // Fullscreen API under the activation this pointer-up carries. It is left
+  // out where there is nothing to toggle - iPhone Safari has no element-level
+  // fullscreen, and a page installed to the home screen is fullscreen already.
+  function canToggleFullscreen() {
+    var el = document.documentElement;
+    if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+    if (navigator.standalone) return false;
+    if (window.matchMedia && (window.matchMedia('(display-mode: fullscreen)').matches ||
+                              window.matchMedia('(display-mode: standalone)').matches)) return false;
+    return true;
+  }
+
+  function fullscreenButton() {
+    var b = document.createElement('div');
+    b.className = 'b5btn';
+    var glyph = document.createElement('div');
+    glyph.className = 'b5corners';
+    b.appendChild(glyph);
+    if (!canToggleFullscreen()) b.style.display = 'none';
+    var id = null;
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      id = e.pointerId;
+      try { b.setPointerCapture(id); } catch (x) {}
+      b.classList.add('b5on');
+    });
+    function up(e, act) {
+      if (id === null || (e && e.pointerId !== id)) return;
+      id = null;
+      b.classList.remove('b5on');
+      if (act && window.Module && Module.b5_toggleFullscreen) Module.b5_toggleFullscreen();
+    }
+    b.addEventListener('pointerup', function (e) { up(e, true); });
+    b.addEventListener('pointercancel', function (e) { up(e, false); });
     root.appendChild(b);
     return b;
   }
@@ -237,6 +287,7 @@
   var bF5    = button('f5');
   var bF10   = button('f10');
   var bEsc   = button('esc');
+  var bFull  = fullscreenButton();
 
   var BUTTONS = { shift: bShift, ctrl: bCtrl, tab: bTab, f5: bF5, f10: bF10, esc: bEsc };
 
@@ -318,10 +369,10 @@
 
     // Right, high and out of the way: the ones a mistake would hurt. F5 and
     // F10 side by side under Esc, because those two are the pair - restart the
-    // level, and restart from the hotel.
+    // level, and restart from the hotel - and the fullscreen toggle beside Esc.
     var gx = inBars ? Math.round((bar - (2 * small + m)) / 2) : m;
     var gy = Math.max(m, Math.round(h * 0.05));
-    [[bEsc, 0, 0], [bF5, 0, 1], [bF10, 1, 1]].forEach(function (t) {
+    [[bEsc, 0, 0], [bFull, 1, 0], [bF5, 0, 1], [bF10, 1, 1]].forEach(function (t) {
       var el = t[0];
       el.style.right = (gx + t[1] * (small + m)) + 'px';
       el.style.top = (gy + t[2] * (small + m)) + 'px';

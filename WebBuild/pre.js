@@ -151,18 +151,9 @@ window.addEventListener('keydown', function (e) {
     if (document.hidden) suspend(); else resume();
   });
   window.addEventListener('focus', resume);
+  // And the first gesture, from the listener further down.
+  Module['b5_resumeAudio'] = resume;
 })();
-
-// A phone, meaning a device with no mouse. (any-pointer: fine) is what a mouse
-// or a stylus reports, so its absence together with a coarse pointer is the
-// closest the platform gets to the question actually being asked. It is one
-// function rather than two copies because Engine::enforceTouchFullScreen asks
-// it too, through Module.
-Module['b5_isPhone'] = function () {
-  if (!window.matchMedia) return navigator.maxTouchPoints > 0;
-  return window.matchMedia('(any-pointer: coarse)').matches &&
-         !window.matchMedia('(any-pointer: fine)').matches;
-};
 
 // Fullscreen goes on the root element, never on the canvas. Only the fullscreen
 // element and its descendants are painted, so with the canvas itself promoted
@@ -171,25 +162,84 @@ Module['b5_isPhone'] = function () {
 // only measured. From <html> both are inside, and the canvas is 100%/100% of
 // the page anyway, so it fills the screen without anyone resizing it.
 //
-// It has to be called from a trusted event handler; C++ does that through
-// Engine::enforceTouchFullScreen and the Alt+Return callback.
+// It has to be called under a transient user activation: from the first
+// gesture below, from the pad's button or from the Alt+Return callback at the
+// DOM. Returns whether a request was made at all.
 Module['b5_setFullscreen'] = function (on) {
   try {
     if (on) {
       // Without transient activation the request is refused, and a phone does
-      // not necessarily grant it as early as touchstart. Say nothing then: the
-      // caller is registered for touchend as well, which does carry it, and a
+      // not necessarily grant it as early as touchstart. Say nothing then: a
       // rejected promise per touch would only fill the console. This is the
       // same test Emscripten's own doRequestFullscreen makes before deferring.
-      if (navigator.userActivation && !navigator.userActivation.isActive) return;
+      if (navigator.userActivation && !navigator.userActivation.isActive) return false;
       var el = document.documentElement;
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
-      if (!req) return;
+      if (!req) return false;
       var p = req.call(el);
       if (p && p['catch']) p['catch'](function () {});
-    } else {
-      var exit = document.exitFullscreen || document.webkitExitFullscreen;
-      if (exit) exit.call(document);
+      return true;
+    }
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exit) return false;
+    exit.call(document);
+    return true;
+  } catch (e) { return false; }
+};
+
+Module['b5_isFullscreen'] = function () {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+};
+
+// The pad's button: whichever way the page is, the other.
+Module['b5_toggleFullscreen'] = function () {
+  Module['b5_setFullscreen'](!Module['b5_isFullscreen']());
+};
+
+// The first gesture takes the fullscreen, on every device, and never again on
+// its own: a swipe or a long Escape out of it is meant, and Alt+Return or the
+// pad's button bring it back. No guess about the device is involved. The one
+// that stood here, a coarse pointer and no fine one, called a Galaxy with no
+// pen and no mouse a notebook and left it under the address bar.
+//
+// The events are the ones that carry the activation the API demands: a mouse
+// button going down, a finger or a pen lifting, a key other than Escape. The
+// loading screen already stops for a gesture, so nobody pays an extra one. The
+// listeners stay armed until a request was actually made, in case the first
+// event arrives without activation after all.
+//
+// The AudioContext is resumed from the same event, and not only in
+// GS_Loading: going fullscreen turns a phone to landscape, the rotation makes
+// the browser cancel the touch in flight, and SDL then never sees the press
+// that was the gesture.
+(function () {
+  var types = ['mousedown', 'pointerup', 'touchend', 'keydown'];
+  function first(e) {
+    if (!e.isTrusted) return;
+    if (e.type === 'keydown' && e.key === 'Escape') return;
+    if (e.type === 'pointerup' && e.pointerType === 'mouse') return;
+    Module['b5_resumeAudio']();
+    if (!Module['b5_setFullscreen'](true)) return;
+    types.forEach(function (t) { window.removeEventListener(t, first, true); });
+  }
+  types.forEach(function (t) { window.addEventListener(t, first, true); });
+})();
+
+// Escape stays with the game while fullscreen, where the browser allows it:
+// the menu, the note and the dialogs all hang off that key, and the browser's
+// own exit would otherwise take the first press. Chromium alone has the API;
+// it asks for a long Escape to leave instead and says so in its own bubble.
+// Firefox and Safari keep their exit, and the game gets its Escape on the
+// next press. Every path swallows the failure, as with the orientation.
+Module['b5_lockEscape'] = function () {
+  var k = navigator.keyboard;
+  if (!k || !k.lock) return;
+  try {
+    if (Module['b5_isFullscreen']()) {
+      var p = k.lock(['Escape']);
+      if (p && p['catch']) p['catch'](function () {});
+    } else if (k.unlock) {
+      k.unlock();
     }
   } catch (e) {}
 };
@@ -198,15 +248,16 @@ Module['b5_setFullscreen'] = function (on) {
 // unless the document is fullscreen, which is why this hangs off the change
 // event rather than off the request: on Android the promise rejects if the two
 // are the wrong way round. It rejects on a desktop in any case - there is no
-// orientation to lock - so every path here swallows the failure.
+// orientation to lock - so every path here swallows the failure, and it is
+// simply attempted on every entry: a tablet held upright gets the picture the
+// right way round like a phone does.
 //
 // The manifest asks for landscape as well, but that only counts once the game
 // has been installed to the home screen. This is the same answer for the page.
 Module['b5_lockOrientation'] = function () {
   var o = window.screen && screen.orientation;
-  if (!o || !Module['b5_isPhone']()) return;
-  var full = document.fullscreenElement || document.webkitFullscreenElement;
-  if (full) {
+  if (!o) return;
+  if (Module['b5_isFullscreen']()) {
     if (!o.lock) return;
     try {
       var p = o.lock('landscape');
@@ -252,6 +303,8 @@ Module['postRun'].push(function () {
     document.addEventListener('webkitfullscreenchange', Module['b5_fitCanvas']);
     document.addEventListener('fullscreenchange', Module['b5_lockOrientation']);
     document.addEventListener('webkitfullscreenchange', Module['b5_lockOrientation']);
+    document.addEventListener('fullscreenchange', Module['b5_lockEscape']);
+    document.addEventListener('webkitfullscreenchange', Module['b5_lockEscape']);
     Module['b5_fitCanvas']();
   }
 

@@ -95,13 +95,6 @@ void WebBlueScreen::show()
 		window.addEventListener('touchstart', restart);
 	}, p_text);
 
-	// The touch shortcut into fullscreen must be unregistered here. Otherwise
-	// the very tap that is meant to reload would first put the screen back
-	// into fullscreen - and the overlay would sit behind the canvas it is
-	// there to cover.
-	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
-	emscripten_set_touchend_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, 0);
-
 	emscripten_cancel_main_loop();
 }
 

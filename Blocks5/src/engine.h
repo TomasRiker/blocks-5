@@ -186,16 +186,15 @@ public:
 	Vec2i getMinimumWindowSize() const;
 #endif
 	void setFullScreen(bool wantFullScreen);
-	void toggleFullScreen() { setFullScreen(!fullScreen); }
+	void toggleFullScreen() { setFullScreen(!isFullScreen()); }
+	// In the browser the document's state and not the member: the page takes
+	// the fullscreen on its own first gesture and loses it to a swipe or a
+	// long Escape, and neither tells the engine.
+	bool isFullScreen() const;
 #ifdef __EMSCRIPTEN__
-	// On a phone the game takes the fullscreen back itself on every touch.
-	// Called from the DOM callback and nowhere else: the Fullscreen API needs a
-	// real user gesture, and the events out of the animation loop are not one.
-	void enforceTouchFullScreen();
-
-	// A coarse pointer and no fine one: a notebook with a touchscreen is not a
-	// phone. The rule itself lives in pre.js, where the page needs it too.
-	bool isPhone() const;
+	// Whether the page shows the on-screen pad, which it decides from behaviour
+	// (a touch shows it, a real key hides it): the one sign of no keyboard.
+	bool isPadShown() const;
 #endif
 	Vec2i getDesktopSize() const;
 	// The window size a freshly installed game gets: the largest integer

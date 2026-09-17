@@ -18,6 +18,13 @@ const zlib = require('zlib');
 	await h.expectState(page, 'GS_Menu');
 	await h.shot(page, 'smoke-1-menu');
 
+	// The click that started the game was the first gesture, and on a desktop
+	// too it takes the page fullscreen - on the root element, so that the pad
+	// beside the canvas stays painted where it is shown.
+	const fsTag = await page.evaluate(() =>
+		document.fullscreenElement ? document.fullscreenElement.tagName : null);
+	if (fsTag !== 'HTML') h.note('the first click did not take the page fullscreen (' + fsTag + ')');
+
 	// --- options: open, close again -------------------------------------------
 	await h.clickPath(page, 'Menu.Options');
 	await h.expectShown(page, 'OptionsPane.Options');

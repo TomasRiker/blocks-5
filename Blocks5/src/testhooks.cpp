@@ -498,7 +498,10 @@ void pollRequests()
 	FILE* p_request = fopen(requestPath.c_str(), "rb");
 	if(!p_request) return;
 
-	char buffer[128] = "";
+	// One line per request. The path of a shot alone runs past a hundred
+	// characters in a session's scratchpad directory, and fgets would cut a
+	// longer line short without a word, so the buffer is generous.
+	char buffer[1024] = "";
 	if(!fgets(buffer, sizeof(buffer), p_request)) buffer[0] = 0;
 	fclose(p_request);
 	::remove(requestPath.c_str());

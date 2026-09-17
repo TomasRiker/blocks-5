@@ -83,19 +83,26 @@ comparison. Two sizes exist, so the choice is which of 16 and 32 lands closer to
 16s|` from **s = 1.5**. At exactly 1 and 2, where `getDefaultWindowSize` puts almost everyone, the chosen
 one is pixel-exact. Measured at 1.40/1.50/1.60: 16, 32, 32.
 
-**On a phone the game takes the fullscreen itself.** Mobile Chrome has no button for it, so without this the
-page is played under an address bar. `Engine::enforceTouchFullScreen` runs from a second DOM callback beside
-the Alt+Enter one, registered for **both** `touchstart` and `touchend` and returning `EM_FALSE` so the touch
-still belongs to SDL. It requests the fullscreen on every touch that finds the document not in it, which is
-what makes it survive a swipe back out.
+**The first gesture takes the fullscreen, on every device, and never again on its own.** `pre.js` listens in
+the capture phase for the events that carry a *transient user activation*, which the Fullscreen API demands:
+a mouse button going down, a finger or a pen lifting, a key other than Escape. The loading screen already
+stops for a gesture, so nobody pays an extra one, and the listeners stay armed until a request was actually
+made. After that a swipe or a long Escape out of it is meant: Alt+Enter or the pad's button bring it back,
+through `Module.b5_setFullscreen`, which asks `navigator.userActivation.isActive` first and stays quiet
+when there is none. There is no device test in any of it. The one that stood here, a coarse pointer and no fine one, called a Galaxy with no pen and no
+mouse a notebook and left it under the address bar for good.
 
-Both ends of the touch, because the API needs a *transient user activation* and a phone does not necessarily
-grant one as early as touchstart — `touchend` is the event the HTML spec names for it.
-`emscripten_request_fullscreen_strategy` hid that by deferring the request to the next handler allowed to
-perform it, and a plain `requestFullscreen()` has no such second chance: dropping the strategy took the
-fullscreen away on a real phone while headless, which grants activation at touchstart, kept working.
-`b5_setFullscreen` therefore also asks `navigator.userActivation.isActive` first and stays quiet when there
-is none. There is no extra tap to pay for it: the browser build already stops on "click to start".
+**That same first gesture resumes the AudioContext**, and not only `GS_Loading`. Going fullscreen turns the
+phone to landscape, and the rotation makes the browser cancel the touch in flight — SDL never sees the
+press, so `GS_Loading` does not know a gesture happened and waits for a second tap the player should not
+have to give.
+
+**Escape stays with the game while fullscreen, where the browser allows it.** The menu, the note and the
+dialogs all hang off that key, and a browser's own exit would take the first press. `Module.b5_lockEscape`
+asks the Keyboard Lock API for Escape on every entry and unlocks on the way out; Chromium alone has it,
+asks for a long Escape to leave instead and says so in its own bubble. Firefox and Safari keep their exit,
+and the game gets its Escape on the next press. The pad's Esc is a synthetic key, which no browser treats
+as the exit, so a phone player keeps the fullscreen.
 
 **The fullscreen goes on the root element, never on the canvas** (`Module.b5_setFullscreen`, not
 `emscripten_request_fullscreen_strategy("#canvas")`). A browser paints only the fullscreen element and its
@@ -103,22 +110,19 @@ descendants, so with the canvas promoted the on-screen pad — its sibling — d
 fullscreen. It still reports a full-size `getBoundingClientRect` while invisible, which is why a test that
 measured it saw nothing wrong. From `<html>` both are inside, and the canvas is 100%/100% of the page anyway.
 
-**That same callback resumes the AudioContext**, and not only `GS_Loading`. Going fullscreen turns the phone
-to landscape, and the rotation makes the browser cancel the touch in flight — SDL never sees the press, so
-`GS_Loading` does not know a gesture happened and waits for a second tap the player should not have to give.
+**The engine asks the browser whether it is fullscreen, never its own flag.** `Engine::isFullScreen` reads
+the document's state in the browser build and `setFullScreen` refreshes the member from it first: the page
+takes the fullscreen on its own first gesture and loses it to a swipe or a long Escape, and neither tells the
+engine, so Alt+Enter would otherwise need two presses the first time.
 
-Two conditions guard it. `Module.b5_isPhone()` in `pre.js` is coarse-pointer **and not** `(any-pointer:
-fine)` — a notebook with a touchscreen has a title bar somebody wants, a phone has none — and it is one
-function rather than two copies precisely because C++ asks it too. And the *browser* is asked whether it is
-fullscreen, not `Engine::fullScreen`: leaving by a swipe does not tell the engine anything, so the member says
-`true` while the page is windowed and `setFullScreen(true)` would return before reaching the API.
+**The pad's button** (`touch_controls.js`) sits in the slot beside Esc and calls `Module.b5_toggleFullscreen`
+on pointer-up, which carries the activation. It is left out where there is nothing to toggle: iPhone Safari
+has no element-level Fullscreen API, and a page installed to the home screen is fullscreen already. The
+loading screen's Alt+Enter hint follows the pad the other way round, shown only where the pad is hidden
+(`Engine::isPadShown`), since that is the one signal there is for playing without a keyboard.
 
 **The landscape lock hangs off `fullscreenchange`, not the request.** `screen.orientation.lock` is refused
 unless the document is already fullscreen, so the other order simply rejects; `Module.b5_lockOrientation`
-waits for the event and unlocks on the way out. Android-only — iPhone Safari has neither API — and it rejects
-on a desktop, so every path swallows the failure. The manifest asks for landscape too, but only an installed
-app gets that.
-
-`WebBlueScreen::show` unregisters the touch callback. Otherwise the tap meant to reload the page would first
-put the canvas back into fullscreen and the overlay would sit behind it — the very thing `exitFullscreen()`
-at the top of that function avoids.
+waits for the event and unlocks on the way out. It is attempted on every entry: it rejects on a desktop, and
+on a tablet held upright it turns the picture the right way like on a phone, so every path swallows the
+failure. The manifest asks for landscape too, but only an installed app gets that.
