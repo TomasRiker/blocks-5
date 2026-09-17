@@ -10,8 +10,8 @@ paths:
 
 # Rendering: the GL floor, the renderer, its bracket, the files that own raw GL
 
-**The renderer is under the whole game, and `RENDERER-REDESIGN.md` (ROADMAP 54) is the plan, all three
-stages of it landed.** Everything the game draws — the level, the GUI, the game states, the crossfades, the
+**The renderer is under the whole game** (ROADMAP 54 is the redesign that put it there). Everything the
+game draws — the level, the GUI, the game states, the crossfades, the
 credits, the weather, the toxic grid, the hint's note — goes through `Renderer` (`renderer.h`), the present
 draws through a `PresentProgram` of the filter's, and raw GL survives only in the files that own it, which
 `verify.py`'s `RAW_GL_FILES` lists with a reason each: the renderer itself, the texture upload, the engine's
@@ -102,7 +102,7 @@ whose attributes are not affine across it — the lava's four alphas, the lightn
 different pictures along the two diagonals. Mesa uses this diagonal for a `glBegin(GL_QUADS)` quad and
 the other for a quad out of an array, so the oracle's frames hold both, and the renderer can draw only
 one. It keeps the `GL_QUADS` diagonal because those quads are the many; the lightning is the one array-drawn
-non-affine quad in the game, and `RENDERER-REDESIGN.md` section 6 carries it as an accepted difference.
+non-affine quad in the game, and its bolt moving by up to twelve levels inside is the accepted cost.
 
 **`-flushall` is the bisecting tool.** It makes the renderer flush after every quad, so every quad is
 drawn under the state that stood when it was handed in; the picture must be byte-identical to the

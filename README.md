@@ -121,8 +121,7 @@ Layout
     .claude/rules/  the detail, one file per area, loaded when a file of that area is read
     ROADMAP.md      planned work and what stands in the way of each item
     FINDINGS.md     the review findings of the 1.2.0 overhaul and what became of each
-    SDL3-MIGRATION.md  a plan for moving off SDL 1.2, not started
-    RENDERER-REDESIGN.md  the plan for one batched renderer in place of immediate mode, not started
+    SDL3-MIGRATION.md  a plan for moving off SDL 1.2, surveyed and deliberately not started
     Tools/          the static checks (verify.py, selftest.py, syntax.sh) and the generators
     Blocks5/        the game: sources in src/, assets in data/, levels and skins in levels/
     PWEncrypt/      CLI that encrypts an archive password into the bracket form used in paths

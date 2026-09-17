@@ -72,10 +72,21 @@ Three ways to read it:
   because a renderer change moves that number first and it does not wobble with the machine.
 
 **`?texunits=N` was the first knob riding on this** — how many texture units Emscripten's GL emulation
-kept state for, a loop over every unit twice per draw — and it went with the emulation in stage 3 of
-`RENDERER-REDESIGN.md`, which took the whole emulation out from under the draws. Two things it taught stay
+kept state for, a loop over every unit twice per draw — and it went with the emulation when the renderer
+redesign (ROADMAP 54) took the whole emulation out from under the draws. Two things it taught stay
 true. A knob that sets a `Module.*` property Emscripten reads has to be named in **`INCOMING_MODULE_JS_API`**,
 given whole, since naming the setting replaces Emscripten's default list and `-sFOO+=bar` is a syntax emcc
 drops at link without a word; the two knobs left, `?perf=1` and `?flushall=1`, are arguments and need none
 of it. And under swiftshader the frame rate is capped elsewhere, so a saving in main-thread time barely
 moves the interval; on a phone, where the main thread *is* the limit, it is the same milliseconds either way.
+
+**What the renderer redesign bought, in these numbers**, measured with this method on the same scenes and
+ticks before and after, so that a later change is read against them. Draw calls per rendered frame on the
+desktop, immediate mode against the renderer: `menu` 47 → 29, `options` 209 → 71, `manager` 256 → 58,
+`select` 80 → 28, `night` 55 → 24, `lava` 86 → 24; `credits` stays at 403, one `quads3D` draw per star
+under its own matrix. The browser's title demo under swiftshader: main-thread work per frame 1.70 → 1.10
+ms, WebGL draw calls 48.6 → 30.6, and the page's JavaScript 30% smaller once the emulation went. What ends
+a batch now is the texture — the skin's and the fonts' taking turns down a dialog — and the scissor scope a
+window, an edit box or a list opens for its children, which is what `byReason` reports and what the atlas
+(ROADMAP 51) would remove at the source. The tag `render-baseline` marks the last immediate-mode binary,
+the one all of it was measured against; `testing.md` says how to run the oracle on two binaries.
