@@ -14,7 +14,7 @@ public:
 	void render(double t, uint oldImageID, uint newImageID);
 
 private:
-	void renderStar();
+	void renderStar(const Vec4f& color);
 };
 
 #endif

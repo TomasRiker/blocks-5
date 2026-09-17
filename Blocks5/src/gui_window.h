@@ -12,7 +12,7 @@ public:
 	~GUI_Window();
 
 	void onRender();
-	void onRenderEnd();
+	bool getClipRect(Vec2i* p_position, Vec2i* p_size) const;
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseLeave(int buttons);

@@ -212,11 +212,7 @@ void Hint::bakeNote()
 		return;
 	}
 
-	GLfloat oldClear[4];
-	glGetFloatv(GL_COLOR_CLEAR_VALUE, oldClear);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(oldClear[0], oldClear[1], oldClear[2], oldClear[3]);
+	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));
 
 	// The alpha channel has to be right, because the texture is itself blended
 	// again in a moment: the colour arrives weighted (GL_SRC_ALPHA), the alpha
@@ -224,7 +220,7 @@ void Hint::bakeNote()
 	// exactly how it is drawn again below.
 	Renderer::inst().setBlend(BM_BAKE);
 
-	p_sprite->bind();
+	Renderer::inst().setTexture(p_sprite->ref());
 	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
 
 	// The same sheet once more beside it, this time without the text: that is
@@ -241,7 +237,8 @@ void Hint::bakeNote()
 	bakedText = wanted;
 }
 
-void Hint::renderNoteMesh(const Vec4d& color,
+void Hint::renderNoteMesh(const RenderState& state,
+						  const Vec4d& color,
 						  double unroll) const
 {
 	// Back to front, the only order there is without a depth buffer. The
@@ -271,9 +268,12 @@ void Hint::renderNoteMesh(const Vec4d& color,
 	sections[3][0] = flatTop;             sections[3][1] = flatTop - half;    steps[3] = ROLL_BANDS / 2; back[3] = false;
 	sections[4][0] = flatTop - half;      sections[4][1] = 0.0;               steps[4] = ROLL_BANDS / 2; back[4] = true;
 
-	// A triangle strip and not GL_QUAD_STRIP: WebGL does not know that one, and
-	// the web build hands the mode straight through (WebBuild/gl_immediate.cpp).
-	// For a strip of quads the two are the same.
+	// Each band of the strip is two triangles, split as a triangle strip
+	// splits them - from the left edge of one row to the right edge of the
+	// next - because a band is a trapezoid whose texture is not affine
+	// across it, and the diagonal shows.
+	Renderer& renderer = Renderer::inst();
+	std::vector<Vertex> triangles;
 	for(int section = 0; section < NUM_SECTIONS; section++)
 	{
 		const double from = sections[section][0];
@@ -283,7 +283,7 @@ void Hint::renderNoteMesh(const Vec4d& color,
 		const double u0 = back[section] ? uBack : 0.0;
 		const double u1 = u0 + uWidth;
 
-		glBegin(GL_TRIANGLE_STRIP);
+		Vertex left, right, previousLeft, previousRight;
 		for(int k = 0; k <= steps[section]; k++)
 		{
 			const double py = from + (to - from) * k / steps[section];
@@ -302,40 +302,47 @@ void Hint::renderNoteMesh(const Vec4d& color,
 			// Premultiplied: the colour already carries the alpha in itself,
 			// and the vertex colour we paint with has to take it along.
 			const double b = np.shade * color.a;
-			glColor4d(color.r * b, color.g * b, color.b * b, color.a);
-			glTexCoord2d(u0, t); glVertex2d(dx - x, y);
-			glTexCoord2d(u1, t); glVertex2d(dx + x, y);
+			const Vec4f shaded(static_cast<float>(color.r * b), static_cast<float>(color.g * b),
+							   static_cast<float>(color.b * b), static_cast<float>(color.a));
+			left.position = Vec2f(static_cast<float>(dx - x), static_cast<float>(y));
+			left.uv = Vec2f(static_cast<float>(u0), static_cast<float>(t));
+			left.color = shaded;
+			right.position = Vec2f(static_cast<float>(dx + x), static_cast<float>(y));
+			right.uv = Vec2f(static_cast<float>(u1), static_cast<float>(t));
+			right.color = shaded;
+
+			if(k)
+			{
+				triangles.push_back(previousLeft);
+				triangles.push_back(previousRight);
+				triangles.push_back(left);
+				triangles.push_back(left);
+				triangles.push_back(previousRight);
+				triangles.push_back(right);
+			}
+			previousLeft = left;
+			previousRight = right;
 		}
-		glEnd();
 	}
+	if(!triangles.empty()) renderer.triangles(state, &triangles[0], static_cast<uint>(triangles.size()));
 }
 
 void Hint::renderNote(const Vec4d& color,
 					  double unroll) const
 {
-	Engine& engine = Engine::inst();
-
-	// The identity and not Texture::bind()'s pixel scale: the mesh samples a
-	// fraction of its own baked sheet rather than a count of texels.
-	GL::setTexturing(true);
-	GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));
-
-	// Blend premultiplied, because the texture came about that way.
-	Renderer::inst().setBlend(BM_PREMULTIPLIED);
+	// The identity and not a texel scale: the mesh samples a fraction of
+	// its own baked sheet rather than a count of texels. Blended
+	// premultiplied, because the texture came about that way.
+	const RenderState state(TextureRef(noteTexture, Vec2f(1.0f, 1.0f)), BM_PREMULTIPLIED);
+	Renderer& renderer = Renderer::inst();
 
 	// The shadow is the same paper in black, offset a little way.
-	glPushMatrix();
-	glTranslated(SHADOW_OFFSET, SHADOW_OFFSET, 0.0);
-	renderNoteMesh(Vec4d(0.0, 0.0, 0.0, color.a * SHADOW_ALPHA), unroll);
-	glPopMatrix();
+	renderer.push();
+	renderer.translate(SHADOW_OFFSET, SHADOW_OFFSET);
+	renderNoteMesh(state, Vec4d(0.0, 0.0, 0.0, color.a * SHADOW_ALPHA), unroll);
+	renderer.pop();
 
-	renderNoteMesh(color, unroll);
-
-	Renderer::inst().setBlend(BM_NORMAL);
-
-	// The level draws the flash next, which wants no texture. The binding is
-	// left standing: nothing reads it while texturing is off.
-	GL::setTexturing(false);
+	renderNoteMesh(state, color, unroll);
 }
 
 void Hint::onRender(RenderLayer layer,
@@ -377,29 +384,25 @@ void Hint::onRender(RenderLayer layer,
 			// rolls up with the paper; re-made whenever the text changes.
 			bakeNote();
 
-			// The note's mesh still draws raw, in a bracket of its own: the
-			// objects drawn before this one go up first, and the fixed
-			// function starts from this object's own transform.
-			Renderer::DirectGL direct;
-
-			glPushMatrix();
+			Renderer& renderer = Renderer::inst();
+			renderer.push();
 			Vec2i p = -getShownPositionInPixels();
-			glTranslated(p.x, p.y, 0.0);
+			renderer.translate(p.x, p.y);
 
 			Vec4d realColor(color.r, color.g, color.b, color.a * a);
 
-			glPushMatrix();
+			renderer.push();
 			Vec2d sp = (1.0 - i) * static_cast<Vec2d>(getShownPositionInPixels()) + i * static_cast<Vec2d>(target);
-			glTranslated(sp.x, sp.y, 0.0);
-			glScaled(s, s, 1.0);
-			glRotated(r, 0.0, 0.0, 1.0);
+			renderer.translate(sp.x, sp.y);
+			renderer.scale(s, s);
+			renderer.rotate(r);
 
 			// Nothing where the bake failed - out of texture memory, a lost
 			// context. It is tried again next frame and shows when one works.
 			if(noteTexture) renderNote(realColor, shownUnroll);
 
-			glPopMatrix();
-			glPopMatrix();
+			renderer.pop();
+			renderer.pop();
 		}
 	}
 }

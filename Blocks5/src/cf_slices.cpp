@@ -13,21 +13,14 @@ void CF_Slices::render(double t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluPerspective(90.0, 1.0, 0.1, 100.0);
+	// Twenty vertical slices, each with the old image on its front and the
+	// new one on its back, turning over one after another.
+	const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);
+	const Mat4 view = Mat4::lookAt(0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	gluLookAt(0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	GL::setTexturing(true);
-	glEnable(GL_CULL_FACE);
+	const Vec3f face[4] = {Vec3f(-1.0f, 1.0f, 0.0f), Vec3f(1.0f, 1.0f, 0.0f), Vec3f(1.0f, -1.0f, 0.0f), Vec3f(-1.0f, -1.0f, 0.0f)};
 
 	const int n = 20;
 	double x = 1.0 - 1.0 / n;
@@ -35,50 +28,20 @@ void CF_Slices::render(double t,
 	for(int i = 0; i < n; i++, x -= 2.0 / n)
 	{
 		double angle = clamp((180.0 + (n - 1) * 10.0) * t - i * 10.0, 0.0, 180.0);
-		glPushMatrix();
-		glTranslated(x, 0.0, 0.0);
-		glRotated(angle, 0.0, 1.0, 0.0);
-		glScaled(1.0 / n, 1.0, 1.0);
+		Mat4 modelview = view;
+		modelview.translate(x, 0.0, 0.0);
+		modelview.rotate(angle, 0.0, 1.0, 0.0);
+		modelview.scale(1.0 / n, 1.0, 1.0);
+
+		const Vec2f uvs[4] = {Vec2f(i * tex + tex, 0.0f), Vec2f(i * tex, 0.0f), Vec2f(i * tex, screenSize.y), Vec2f(i * tex + tex, screenSize.y)};
 
 		// draw the front face
-		GL::bindTexture(oldImageID, screenTexelScale);
-		glBegin(GL_QUADS);
-		double c = 1.0 - angle / 180.0;
-		glColor4d(c, c, c, 1.0);
-		glTexCoord2i(i * tex + tex, 0);
-		glVertex3i(-1, 1, 0);
-		glTexCoord2i(i * tex, 0);
-		glVertex3i(1, 1, 0);
-		glTexCoord2i(i * tex, screenSize.y);
-		glVertex3i(1, -1, 0);
-		glTexCoord2i(i * tex + tex, screenSize.y);
-		glVertex3i(-1, -1, 0);
-		glEnd();
+		float c = static_cast<float>(1.0 - angle / 180.0);
+		drawImage3D(oldImageID, projection * modelview, face, uvs, Vec4f(c, c, c, 1.0f), true);
 
 		// draw the back face
-		glRotated(180.0, 0.0, 1.0, 0.0);
-		GL::bindTexture(newImageID, screenTexelScale);
-		glBegin(GL_QUADS);
-		c = angle / 180.0;
-		glColor4d(c, c, c, 1.0);
-		glTexCoord2i(i * tex + tex, 0);
-		glVertex3i(-1, 1, 0);
-		glTexCoord2i(i * tex, 0);
-		glVertex3i(1, 1, 0);
-		glTexCoord2i(i * tex, screenSize.y);
-		glVertex3i(1, -1, 0);
-		glTexCoord2i(i * tex + tex, screenSize.y);
-		glVertex3i(-1, -1, 0);
-		glEnd();
-
-		glPopMatrix();
+		modelview.rotate(180.0, 0.0, 1.0, 0.0);
+		c = static_cast<float>(angle / 180.0);
+		drawImage3D(newImageID, projection * modelview, face, uvs, Vec4f(c, c, c, 1.0f), true);
 	}
-
-	GL::setTexturing(false);
-	glDisable(GL_CULL_FACE);
-
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
 }

@@ -61,36 +61,26 @@ void GUI_Button::onRender()
 				Vec2i t = positionOnTexture;
 				if(pushed && mouseOver) t = clickedPositionOnTexture;
 
-				glPushMatrix();
-				glTranslated(size.x / 2, size.y / 2, 0.0);
-				glScaled(currentScaling, currentScaling, 1.0);
+				Renderer& renderer = Renderer::inst();
+				renderer.push();
+				renderer.translate(size.x / 2, size.y / 2);
+				renderer.scale(currentScaling, currentScaling);
 				Engine::inst().renderSprite(p_image, -size / 2, t, size, currentColor);
-				glPopMatrix();
+				renderer.pop();
 			}
 		}
 	}
 	else
 	{
-		// draw the background
-		glBegin(GL_QUADS);
-		if(pushed && mouseOver) glColor4d(0.9, 0.9, 0.9, 1.0);
-		else glColor4d(0.75, 0.75, 0.75, 1.0);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		if(pushed && mouseOver) glColor4d(0.8, 0.8, 0.8, 1.0);
-		else glColor4d(0.65, 0.65, 0.65, 1.0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
-
-		// draw the frame
-		glColor4d(0.0, 0.0, 0.0, 1.0);
-		glBegin(GL_LINE_LOOP);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
+		// draw the background and the frame
+		Renderer& renderer = Renderer::inst();
+		const bool lit = pushed && mouseOver;
+		const Vec4f top = lit ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f);
+		const Vec4f bottom = lit ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
 	// write the title

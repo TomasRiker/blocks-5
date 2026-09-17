@@ -57,9 +57,11 @@ void Texture::reload()
 	checkDimensions();
 	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
-	// set up the OpenGL texture
+	// set up the OpenGL texture: raw, in a bracket, so that what was queued
+	// before goes up first and the renderer forgets the binding afterwards
+	Renderer::DirectGL direct;
 	glGenTextures(1, &texID);
-	GL::bindTexture(texID, texelScale);
+	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -98,20 +100,38 @@ void Texture::cleanUp()
 	if(texID)
 	{
 		// delete the texture
-		GL::deleteTexture(texID);
+		Renderer::inst().deleteTexture(texID);
 		texID = 0;
 	}
-}
-
-void Texture::bind() const
-{
-	GL::setTexturing(true);
-	GL::bindTexture(texID, texelScale);
 }
 
 TextureRef Texture::ref() const
 {
 	return TextureRef(texID, Vec2f(static_cast<float>(texelScale.x), static_cast<float>(texelScale.y)));
+}
+
+uint Texture::createGLTexture(const Vec2i& size,
+							  const uchar* p_pixels,
+							  bool withAlpha,
+							  bool smooth,
+							  bool clamp)
+{
+	Renderer::DirectGL direct;
+	uint id = 0;
+	glGenTextures(1, &id);
+	if(!id) return 0;
+	const GLenum format = withAlpha ? GL_RGBA : GL_RGB;
+	const GLint filter = smooth ? GL_LINEAR : GL_NEAREST;
+	glBindTexture(GL_TEXTURE_2D, id);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+	if(clamp)
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, format, size.x, size.y, 0, format, GL_UNSIGNED_BYTE, p_pixels);
+	return id;
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
@@ -140,9 +160,10 @@ void Texture::loadSubTexture(Texture* p_parent,
 	checkDimensions();
 	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
 
-	// set up the OpenGL texture
+	// set up the OpenGL texture, raw in a bracket as in reload()
+	Renderer::DirectGL direct;
 	glGenTextures(1, &texID);
-	GL::bindTexture(texID, texelScale);
+	glBindTexture(GL_TEXTURE_2D, texID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	applyWrapMode();
@@ -230,6 +251,7 @@ Vec4d Texture::getPixel(const Vec2i& where) const
 
 void Texture::applyWrapMode() const
 {
+	Renderer::DirectGL direct;
 	// WebGL 1 treats a texture whose edge lengths are not powers of two as
 	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
 	// Otherwise every access returns black - not as an error but silently.

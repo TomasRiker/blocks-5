@@ -20,7 +20,7 @@ public:
 private:
 	// One strip of picture, right across the screen: row y on the screen shows
 	// row sourceY of the source image, slipped sideways by shift pixels.
-	void drawStrip(int y, int height, int sourceY, double shift) const;
+	void drawStrip(uint imageID, int y, int height, int sourceY, double shift) const;
 
 	// One strip of snow. Every call rolls for a fresh spot in the noise image.
 	void drawSnow(int y, int height, double alpha) const;

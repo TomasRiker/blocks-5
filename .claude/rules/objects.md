@@ -28,17 +28,16 @@ AI-trace decay → exit check.
 
 **Drawing from an `onRender` goes through the renderer**, and `.claude/rules/rendering.md` has the whole
 of it. The short form: a sprite drawn with `Engine::renderSprite` is queued, not drawn, and so is a
-`Renderer::inst().line()`, `polyline()`, `point()`, `rect()` or `quad()`, which is what a beam, a wire,
-a shot or a balloon is now; a `glBegin` that has to stay raw for the moment - the hint's note mesh -
-stands inside a `Renderer::DirectGL` bracket, which flushes what was queued before it and sets the fixed
-function up; texture state goes through `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`) or
-`Texture::bind()`, never raw; a class whose ancestor already put bits in `renderLayers` — every
-`Electronics` part — adds with `|=`, since assigning wipes them, and the mask may name a layer the object
-does not draw this frame but may never omit one it does; a strip is `GL_TRIANGLE_STRIP`, never
-`GL_QUAD_STRIP`, because WebGL has no such primitive; and nothing in a render path calls `random()`.
-`verify.py`'s `direct_gl`, `gl_state`, `layer_bits` and `render_layers` checks catch the first three.
-`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan: stage 1 put the level through the renderer, stage 2
-takes the bracket and `GL::` away with the last `glBegin`.
+`Renderer::inst().line()`, `polyline()`, `point()`, `rect()`, `quad()` or `triangles()`, which is what a
+beam, a wire, a shot, a balloon and the hint's note mesh are; there is no `gl*` call in an object and
+no way to make one, since `verify.py`'s `raw_gl` check keeps them to the files that own raw GL; the
+texture is `Renderer::inst().setTexture(p_texture->ref())` for the sprites of a pass, or a
+`RenderState` of the object's own for one draw; a class whose ancestor already put bits in
+`renderLayers` — every `Electronics` part — adds with `|=`, since assigning wipes them, and the mask may
+name a layer the object does not draw this frame but may never omit one it does; and nothing in a
+render path calls `random()`. `layer_bits` and `render_layers` catch the layer mistakes.
+`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan: stages 1 and 2 put everything through the renderer,
+stage 3 cuts the GL emulation out of the browser.
 
 **Nothing in the render path draws a random number**, and the reason is not the one it looks like. **The loop
 renders at most once per tick**: `timeProcessed` is zeroed at the top of each iteration and only raised inside
@@ -130,8 +129,9 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
   objects on the player's own field. The key must be caught in `GameGUI::onKeyEvent` and not `Hint::onUpdate`,
   because `GUI::update()` runs before `p_gs->onUpdate()` and the game menu would already be open; Escape
   therefore asks `dismissDisplay()` first and falls through to the menu only when nothing took it.
-- The mesh is a `GL_TRIANGLE_STRIP` and **not** a `GL_QUAD_STRIP`: WebGL has no such primitive, and
-  `WebBuild/gl_immediate.cpp` hands the mode straight to it. That applies to any strip added anywhere.
+- The mesh is `Renderer::triangles`, two a band in the order a triangle strip lays them, so every band's
+  diagonal runs the same way. Nothing in the tree draws a `GL_QUAD_STRIP`, which WebGL does not have, and
+  nothing new may: a strip is triangles handed to the renderer.
 - `Hint::onCollect` is deliberately empty, existing solely to stop `Object::onCollect` making the note
   disappear. And a bake that fails — out of texture memory, a lost context — draws nothing that frame rather
   than falling back to a flat sheet; `bakeNote` runs again on the next.

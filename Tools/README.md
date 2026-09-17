@@ -19,13 +19,11 @@ Exit code 1 as soon as anything is reported.
 | --- | --- |
 | `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
-| `display_lists` | No display lists anywhere, in either build. |
 | `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |
 | `layer_bits` | A subclass adds its render layers with `\|=`; it does not replace the bits its base set. |
-| `direct_gl` | Raw GL inside an `onRender` stands in a block that declared a `Renderer::DirectGL` before it (in what `batch_sources()` reads). |
-| `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
-| `gl_doors` | And so does the whole tree, or the renderer's record of it is a belief. |
+| `raw_gl` | Every `gl*`, `glu*` or `glExt*` call stands in a file that owns raw GL (`RAW_GL_FILES`), and every owner still holds one. |
+| `direct_gl_scope` | In `texture.cpp` and `engine.cpp`, a raw call stands in a block that declared a `Renderer::DirectGL` before it. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |
@@ -71,7 +69,7 @@ Compiles every source of the game with `i686-w64-mingw32-g++ -fsyntax-only`. It
 is the only way to put a compiler over the Windows code from here, and it costs
 half a minute.
 
-    sh Tools/syntax.sh              all 124 files
+    sh Tools/syntax.sh              all 122 files
     sh Tools/syntax.sh engine.cpp   only this one
 
 Three files never go through it - `main.cpp`, `videorecorder.cpp` and

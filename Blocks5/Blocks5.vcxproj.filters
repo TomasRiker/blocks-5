@@ -406,9 +406,6 @@
     <ClCompile Include="src\upscaler.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="src\glstate.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
     <ClCompile Include="src\renderer.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1171,9 +1168,6 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\upscaler.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="src\glstate.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\renderer.h">

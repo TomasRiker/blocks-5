@@ -61,32 +61,33 @@ GLAPI void GLAPIENTRY glTexImage2D(GLenum target, GLint level, GLint internalFor
 
 // --- The attribute stack ----------------------------------------------------
 // Emscripten has neither glPushAttrib nor glPopAttrib, and leaving them empty
-// would not be survivable: Texture::bind() sets GL_TEXTURE as the matrix mode
-// and restores it through glPopAttrib(GL_TRANSFORM_BIT). Without that the mode
-// would stay, and from then on every glPushMatrix/glTranslated would move
-// texture coordinates instead of geometry - with no error, just black.
+// would not do: Engine::presentFrame pushes GL_ALL_ATTRIB_BITS, switches the
+// blend, stencil and scissor tests, texturing and the matrix mode for the
+// filter's fixed-function draw, and pops. The renderer drops its record
+// across that bracket and puts the stencil and scissor state back at its
+// next flush, but blending it enables once, in Renderer::init(), and would
+// draw the next frame unblended - with no error, just wrong - unless the pop
+// restores it as a real one would: the matrix mode under GL_TRANSFORM_BIT,
+// the tracked enables under GL_ENABLE_BIT.
 //
-// GL_ENABLE_BIT counts just as much. libglemu.js wraps glEnable twice; the
-// outer wrapper calls TexEnvJIT.hook_enable(cap), which clears enabled_tex2D,
-// whereupon the generated shader leaves its texture2D() call out entirely.
-// glDisable(GL_TEXTURE_2D) is therefore real state and has to be restored;
-// lava.cpp and teleporter.cpp depend on it.
+// GL_ENABLE_BIT is real state here: libglemu.js wraps glEnable twice, and
+// the outer wrapper calls TexEnvJIT.hook_enable(cap), which clears
+// enabled_tex2D, whereupon the generated shader leaves its texture2D() call
+// out entirely.
 //
-// The game uses three masks - GL_TRANSFORM_BIT, GL_ENABLE_BIT and
-// GL_ALL_ATTRIB_BITS - which is why the mask is honoured, not ignored. Test
-// each bit on its own and never against GL_ALL_ATTRIB_BITS: that one is
-// 0x000FFFFF and contains both of the others, so "mask & (GL_ENABLE_BIT |
-// GL_ALL_ATTRIB_BITS)" is "mask != 0" and every push would restore
-// everything. Desktop GL restores exactly what it was asked to, and a
-// browser that restores more is a divergence nothing on this machine can
-// see.
+// The mask is honoured, not ignored. Test each bit on its own and never
+// against GL_ALL_ATTRIB_BITS: that one is 0x000FFFFF and contains every
+// other bit, so "mask & (GL_ENABLE_BIT | GL_ALL_ATTRIB_BITS)" is "mask != 0"
+// and every push would restore everything. Desktop GL restores exactly what
+// it was asked to, and a browser that restores more is a divergence nothing
+// on this machine can see.
 static GLenum currentMatrixMode = GL_MODELVIEW;
 
-// Only the capabilities this game actually toggles - that keeps each saved
-// set small.
+// The capabilities anything in the game still toggles - the renderer's
+// tests and culling, the present's texturing - and no more, so a saved set
+// stays small.
 static const GLenum trackedCaps[] = {
-	GL_TEXTURE_2D, GL_BLEND, GL_ALPHA_TEST, GL_SCISSOR_TEST,
-	GL_STENCIL_TEST, GL_CULL_FACE, GL_LINE_SMOOTH, GL_POINT_SMOOTH
+	GL_TEXTURE_2D, GL_BLEND, GL_SCISSOR_TEST, GL_STENCIL_TEST, GL_CULL_FACE
 };
 static const int numTrackedCaps = (int)(sizeof(trackedCaps) / sizeof(trackedCaps[0]));
 
@@ -94,11 +95,11 @@ struct AttribFrame
 {
 	GLbitfield mask;
 	GLenum     matrixMode;
-	bool       enabled[8];
+	bool       enabled[numTrackedCaps];
 };
 static AttribFrame attribStack[16];
 static int  attribDepth = 0;
-static bool capEnabled[8] = { false, false, false, false, false, false, false, false };
+static bool capEnabled[numTrackedCaps] = { false, false, false, false, false };
 
 static int trackedCapIndex(GLenum cap)
 {

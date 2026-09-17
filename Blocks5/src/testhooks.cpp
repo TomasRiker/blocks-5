@@ -627,9 +627,11 @@ void pollRequests()
 // objects here and leaves the real entry point under its __real_ name. At
 // the link rather than through a macro, so no header carries the define and
 // no other translation unit needs it - and the shipped build has none of
-// this. The three are the whole of what draws in this tree: verify.py's
-// gl_state check names no other spelling, and nothing draws for the game
-// from inside a library, where a wrap could not see it.
+// this. The three are the whole of what draws in this tree - the renderer
+// with glDrawElements, the present with the other two - since verify.py's
+// raw_gl check keeps every gl* call to the files that own raw GL, and
+// nothing draws for the game from inside a library, where a wrap could not
+// see it.
 //
 // Not in the browser, where a draw call is what reaches WebGL after the
 // emulation has had its say - perf.js counts those on the context itself.

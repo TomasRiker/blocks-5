@@ -64,8 +64,8 @@ Three ways to read it:
   window: `draws` (real draw calls and the frames they were made in — `testing.md` says where each
   platform counts them) and `batch` (the renderer's flushes, the draws among them, the quads they put up,
   and `byReason`, which says what ended each batch - `texture`, `blend`, `scope`, `full`, `explicit`,
-  `frame` or `direct`, the last being every draw call made inside a `Renderer::DirectGL` bracket, which
-  is what the screens outside the level still cost).
+  `frame` or `direct`, the last being a `Renderer::DirectGL` bracket opening for raw GL: a copy of the
+  frame, a render target, the present).
 - **`WebBuild/test/perf.js`** drives the comparison: arms are query strings rather than builds, so both
   sides are one binary in one browser, and they are **interleaved** rather than run in blocks, so a machine
   that warms up or throttles hands that to both. It prints draw calls per frame beside the milliseconds,

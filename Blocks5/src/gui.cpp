@@ -73,7 +73,7 @@ void GUI::exit()
 	p_root = 0;
 
 	// delete the texture
-	GL::deleteTexture(texID);
+	Renderer::inst().deleteTexture(texID);
 	texID = 0;
 
 	// release the skin and the fonts
@@ -91,27 +91,17 @@ void GUI::render()
 {
 	if(opacity == 1.0 || opacity == 0.0) return;
 
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glLineWidth(1.0f);
-	glDisable(GL_LINE_SMOOTH);
-	Renderer::inst().setBlend(BM_NORMAL);
+	// Drawn onto a cleared frame and copied off it, so that display() can
+	// put the whole of it back over the game at the chosen opacity.
+	Renderer& renderer = Renderer::inst();
+	renderer.clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));
+	renderer.setBlend(BM_NORMAL);
 
 	GUI_Element::numElementsRendered = 0;
 	p_root->render();
 	renderToolTip();
 
-	glEnable(GL_LINE_SMOOTH);
-
-	if(GUI_Element::numElementsRendered)
-	{
-		Engine& engine = Engine::inst();
-		const Vec2i& screenSize = engine.getScreenSize();
-		const Vec2i& screenPow2Size = engine.getScreenPow2Size();
-		GL::bindTexture(texID, engine.getScreenTexelScale());
-		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
-	}
+	if(GUI_Element::numElementsRendered) Engine::inst().captureFrame(texID);
 }
 
 void GUI::renderToolTip()
@@ -130,20 +120,10 @@ void GUI::renderToolTip()
 			if(ttPos.x + ttDim.x > screenSize.x - 1) ttPos.x = screenSize.x - ttDim.x - 1;
 			if(ttPos.y + ttDim.y > screenSize.y) ttPos.y = screenSize.y - ttDim.y;
 
-			glBegin(GL_QUADS);
-			glColor4d(1.0, 1.0, 0.5, 0.9);
-			glVertex2i(ttPos.x, ttPos.y);
-			glVertex2i(ttPos.x + ttDim.x, ttPos.y);
-			glVertex2i(ttPos.x + ttDim.x, ttPos.y + ttDim.y);
-			glVertex2i(ttPos.x, ttPos.y + ttDim.y);
-			glEnd();
-			glBegin(GL_LINE_LOOP);
-			glColor4d(0.0, 0.0, 0.0, 0.9);
-			glVertex2i(ttPos.x, ttPos.y);
-			glVertex2i(ttPos.x + ttDim.x, ttPos.y);
-			glVertex2i(ttPos.x + ttDim.x, ttPos.y + ttDim.y);
-			glVertex2i(ttPos.x, ttPos.y + ttDim.y);
-			glEnd();
+			Renderer& renderer = Renderer::inst();
+			const Vec2f min(ttPos.x, ttPos.y), max(ttPos.x + ttDim.x, ttPos.y + ttDim.y);
+			renderer.rect(min, max, Vec4f(1.0f, 1.0f, 0.5f, 0.9f));
+			renderer.hairlineRect(min, max, Vec4f(0.0f, 0.0f, 0.0f, 0.9f));
 
 			p_toolTipFont->renderText(toolTip, ttPos + Vec2i(3, 3), Vec4d(1.0));
 		}
@@ -156,37 +136,22 @@ void GUI::display()
 
 	if(opacity == 1.0)
 	{
-		glLineWidth(1.0f);
-		glDisable(GL_LINE_SMOOTH);
 		Renderer::inst().setBlend(BM_NORMAL);
 
 		GUI_Element::numElementsRendered = 0;
 		p_root->render();
 		renderToolTip();
-
-		glEnable(GL_LINE_SMOOTH);
 	}
 	else
 	{
-		GL::setTexturing(true);
-
-		// The scale is what puts the texture coordinates below in pixels.
-		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
-
-		const Vec2i& screenSize = Engine::inst().getScreenSize();
-		glBegin(GL_QUADS);
-		glColor4d(1.0, 1.0, 1.0, opacity);
-		glTexCoord2i(0, 0);
-		glVertex2i(0, 0);
-		glTexCoord2i(screenSize.x, 0);
-		glVertex2i(screenSize.x, 0);
-		glTexCoord2i(screenSize.x, screenSize.y);
-		glVertex2i(screenSize.x, screenSize.y);
-		glTexCoord2i(0, screenSize.y);
-		glVertex2i(0, screenSize.y);
-		glEnd();
-
-		GL::setTexturing(false);
+		// The copy render() took, over the game; its texel scale puts the
+		// coordinates in pixels.
+		Engine& engine = Engine::inst();
+		const Vec2i& screenSize = engine.getScreenSize();
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f),
+								  Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+		Renderer::inst().quad(RenderState(engine.getFrameCopyRef(texID), BM_NORMAL), corners, corners,
+							  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(opacity)));
 	}
 }
 
@@ -309,7 +274,6 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 {
 	if(!p_skin) return;
 
-	p_skin->bind();
 
 	Vec2i firstSize;
 	Vec2i lastSize;
@@ -341,8 +305,9 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 	Vec2i numTiles(2 + numFillTiles.x, 2 + numFillTiles.y);
 	Vec2i lastFillTileSize = Vec2i(16, 16) - (numFillTiles * 16 - fillSize);
 
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
+	// The tiles as one array of quads, uv in the skin's texels.
+	std::vector<QuadVertex> quads;
+	quads.reserve(numTiles.x * numTiles.y * 4);
 
 	Vec2i cursor = targetPosition;
 	for(int y = 0; y < numTiles.y; y++)
@@ -394,14 +359,10 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 			}
 
 			// render the tile
-			glTexCoord2i(texCoords.x, texCoords.y);
-			glVertex2i(cursor.x, cursor.y);
-			glTexCoord2i(texCoords.x + tileSize.x, texCoords.y);
-			glVertex2i(cursor.x + tileSize.x, cursor.y);
-			glTexCoord2i(texCoords.x + tileSize.x, texCoords.y + tileSize.y);
-			glVertex2i(cursor.x + tileSize.x, cursor.y + tileSize.y);
-			glTexCoord2i(texCoords.x, texCoords.y + tileSize.y);
-			glVertex2i(cursor.x, cursor.y + tileSize.y);
+			quads.push_back(QuadVertex(cursor.x, cursor.y, texCoords.x, texCoords.y));
+			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y, texCoords.x + tileSize.x, texCoords.y));
+			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y + tileSize.y, texCoords.x + tileSize.x, texCoords.y + tileSize.y));
+			quads.push_back(QuadVertex(cursor.x, cursor.y + tileSize.y, texCoords.x, texCoords.y + tileSize.y));
 
 			cursor.x += tileSize.x;
 		}
@@ -410,9 +371,9 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 		cursor.x = targetPosition.x;
 	}
 
-	glEnd();
-
-	GL::setTexturing(false);
+	Renderer& renderer = Renderer::inst();
+	renderer.setTexture(p_skin->ref());
+	renderer.quads(renderer.state(), &quads[0], static_cast<uint>(quads.size()), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)
@@ -483,19 +444,14 @@ void GUI::setOpacity(double opacity)
 	if(opacity == 1.0 && texID)
 	{
 		// delete the texture
-		GL::deleteTexture(texID);
+		Renderer::inst().deleteTexture(texID);
 		texID = 0;
 	}
 
 	if(opacity != 1.0 && !texID)
 	{
-		// create the texture
-		glGenTextures(1, &texID);
-		GL::bindTexture(texID, Engine::inst().getScreenTexelScale());
-		const Vec2i screenPow2Size = Engine::inst().getScreenPow2Size();
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenPow2Size.x, screenPow2Size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// create the texture, with alpha: the GUI is drawn onto nothing
+		texID = Engine::inst().createFrameCopyTexture(true, true);
 	}
 }
 

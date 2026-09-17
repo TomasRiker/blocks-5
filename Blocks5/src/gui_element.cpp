@@ -43,23 +43,33 @@ void GUI_Element::render()
 {
 	if(!visible) return;
 
-	glPushMatrix();
-	glTranslated(position.x, position.y, 0.0);
+	Renderer& renderer = Renderer::inst();
+	renderer.push();
+	renderer.translate(position.x, position.y);
 
 	// render itself
 	onRender();
 
-	// render the children
+	// render the children, clipped where the element asks for it
+	Vec2i clipPosition, clipSize;
+	if(getClipRect(&clipPosition, &clipSize))
+	{
+		Renderer::ScissorScope clip(getAbsPosition() + clipPosition, clipSize);
+		renderChildren();
+	}
+	else renderChildren();
+
+	renderer.pop();
+
+	if(getType() != "GUI_Element") numElementsRendered++;
+}
+
+void GUI_Element::renderChildren()
+{
 	for(std::list<GUI_Element*>::const_iterator i = children.begin(); i != children.end(); ++i)
 	{
 		(*i)->render();
 	}
-
-	onRenderEnd();
-
-	glPopMatrix();
-
-	if(getType() != "GUI_Element") numElementsRendered++;
 }
 
 void GUI_Element::update()
@@ -78,18 +88,14 @@ void GUI_Element::onRender()
 {
 	if(fill)
 	{
-		glBegin(GL_QUADS);
-		glColor4dv(fillColor);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
+		Renderer::inst().rect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), static_cast<Vec4f>(fillColor));
 	}
 }
 
-void GUI_Element::onRenderEnd()
+bool GUI_Element::getClipRect(Vec2i* p_position,
+							  Vec2i* p_size) const
 {
+	return false;
 }
 
 void GUI_Element::onUpdate()

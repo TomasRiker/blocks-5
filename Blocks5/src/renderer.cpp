@@ -122,41 +122,48 @@ namespace
 		else glDisable(GL_STENCIL_TEST);
 	}
 
-	// Mesa's arithmetic for glRotated about z, so that a corner baked here
-	// lands where its matrix stack put it: the angle to float first, the
-	// radians in double, the sine and cosine in float - which is why a right
-	// angle has a cosine of -4.4e-8 and not 0.
-	void rotationTerms(double degrees, float* p_sin, float* p_cos)
+	// The pixels a one-pixel GL line lit along its length, measured on
+	// llvmpipe: a pixel whose centre lies in the half-open span from the
+	// start point (inclusive) to the end point (exclusive) in the direction
+	// of travel - so a line on whole coordinates covers [start, end)
+	// whichever way it runs, and one through pixel centres lights the pixel
+	// it starts in and not the one it ends in. Returns the [first, last)
+	// pixel span.
+	void lineSpan(float start, float end, float* p_first, float* p_last)
 	{
-		const float angle = static_cast<float>(degrees);
-		const double radians = angle * 3.14159265358979323846 / 180.0;
-		*p_sin = sinf(static_cast<float>(radians));
-		*p_cos = cosf(static_cast<float>(radians));
+		if(start <= end)
+		{
+			*p_first = ceilf(start - 0.5f);
+			*p_last = ceilf(end - 0.5f);
+		}
+		else
+		{
+			*p_first = floorf(end - 0.5f) + 1.0f;
+			*p_last = floorf(start - 0.5f) + 1.0f;
+		}
 	}
 }
 
 Renderer::Renderer()
 {
-	texturingOn = false;
-	directMatrixKnown = false;
-	for(int i = 0; i < 16; i++) directMatrix[i] = (i % 5 == 0) ? 1.0f : 0.0f;
 	colorMask[0] = colorMask[1] = colorMask[2] = colorMask[3] = true;
 	stencilWriteRef = stencilTestRef = -1;
 	discardTransparent = false;
-	scopeDepth = 0;
-	directDepth = 0;
+	scissorOn = false;
+	scissorPosition = scissorSize = Vec2i(0, 0);
+	targetSize = Vec2i(0, 0);
 	program = vertexBuffer = indexBuffer = whiteTexture = 0;
 	uniformProjection = uniformTexture = uniformDiscard = -1;
 	glKnown = false;
+	glRareKnown = false;
 	glBinding = 0;
 	glBindingKnown = false;
-	glTexelScale = Vec2f(1.0f, 1.0f);
-	glScaleKnown = false;
-	glTexturing = -1;
 	glBlend = BM_NORMAL;
 	glBlendKnown = false;
 	glWriteMask[0] = glWriteMask[1] = glWriteMask[2] = glWriteMask[3] = true;
 	glStencilWriteRef = glStencilTestRef = -1;
+	glScissorOn = false;
+	glScissorPosition = glScissorSize = Vec2i(0, 0);
 	glDiscard = false;
 	projection = Mat4::identity();
 	projectionDirty = true;
@@ -270,8 +277,8 @@ void Renderer::init()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BUILTIN_SIZE, BUILTIN_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
-		glBindTexture(GL_TEXTURE_2D, bound.id);
-		glBinding = bound.id;
+		glBindTexture(GL_TEXTURE_2D, current.texture.id);
+		glBinding = current.texture.id;
 		glBindingKnown = true;
 	}
 
@@ -299,20 +306,26 @@ void Renderer::init()
 		glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
+	// Blending is on for good: every quad in the game blends, and the blend
+	// function is state this file applies.
+	glEnable(GL_BLEND);
+
 	stream.reserve(4 * 4096);
 	glKnown = false;
 	printfLog("  Renderer: program %u, built-in texture %u, %u quads a draw.\n", program, whiteTexture, MAX_QUADS);
 }
 
-void Renderer::frameBegin()
+void Renderer::frameBegin(const Vec2i& size)
 {
-	projection = Mat4::ortho(0.0f, 640.0f, 480.0f, 0.0f, -1.0f, 1.0f);
+	targetSize = size;
+	targets.clear();
+	projection = Mat4::ortho(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f, -1.0f, 1.0f);
 	projectionDirty = true;
 	// Every frame starts on the identity: a push without its pop would
 	// otherwise carry into the next frame, where nothing would explain it.
 	transforms.resize(1);
 	loadIdentity();
-	glKnown = false;
+	scissorOn = false;
 }
 
 void Renderer::frameEnd()
@@ -320,11 +333,42 @@ void Renderer::frameEnd()
 	flush(FR_FRAME);
 }
 
-void Renderer::setProjection(const Mat4& matrix)
+void Renderer::beginTarget(const Vec2i& size)
 {
 	flush(FR_EXPLICIT);
-	projection = matrix;
+	Target target;
+	target.projection = projection;
+	target.size = targetSize;
+	target.scissorOn = scissorOn;
+	target.scissorPosition = scissorPosition;
+	target.scissorSize = scissorSize;
+	targets.push_back(target);
+
+	// A scissor set for the frame is in the frame's pixels and would clip
+	// the texture here, the clear included.
+	scissorOn = false;
+	targetSize = size;
+	projection = Mat4::ortho(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f, -1.0f, 1.0f);
 	projectionDirty = true;
+	// A bake starts from the texture's origin whichever transform the
+	// caller stood under.
+	transforms.push_back(transforms.back());
+	loadIdentity();
+}
+
+void Renderer::endTarget()
+{
+	flush(FR_EXPLICIT);
+	if(targets.empty()) return;
+	const Target& target = targets.back();
+	projection = target.projection;
+	targetSize = target.size;
+	scissorOn = target.scissorOn;
+	scissorPosition = target.scissorPosition;
+	scissorSize = target.scissorSize;
+	targets.pop_back();
+	projectionDirty = true;
+	if(transforms.size() > 1) transforms.pop_back();
 }
 
 RenderState Renderer::flatState() const
@@ -342,29 +386,6 @@ void Renderer::bindReal(uint id)
 	glBindingKnown = true;
 }
 
-void Renderer::applyTexelScale(const Vec2f& scale)
-{
-	// The fixed-function texture matrix, for raw code that writes texels:
-	// a diagonal, and glScalef on the identity stores the two floats as
-	// they are.
-	if(glScaleKnown && glTexelScale == scale) return;
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glScalef(scale.x, scale.y, 1.0f);
-	glMatrixMode(GL_MODELVIEW);
-	glTexelScale = scale;
-	glScaleKnown = true;
-}
-
-void Renderer::applyTexturing(bool on)
-{
-	const int want = on ? 1 : 0;
-	if(glTexturing == want) return;
-	if(on) glEnable(GL_TEXTURE_2D);
-	else glDisable(GL_TEXTURE_2D);
-	glTexturing = want;
-}
-
 void Renderer::applyBlendMode(BlendMode blend)
 {
 	if(glBlendKnown && glBlend == blend) return;
@@ -373,38 +394,37 @@ void Renderer::applyBlendMode(BlendMode blend)
 	glBlendKnown = true;
 }
 
+void Renderer::applyScissor()
+{
+	if(scissorOn)
+	{
+		// GL's box has its origin at the bottom left of the target.
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(scissorPosition.x, targetSize.y - scissorPosition.y - scissorSize.y,
+				  scissorSize.x, scissorSize.y);
+	}
+	else glDisable(GL_SCISSOR_TEST);
+}
+
 // --- state -----------------------------------------------------------------
 
 void Renderer::setTexture(const TextureRef& texture)
 {
-	bound = texture;
-	if(texturingOn) current.texture = texture;
+	current.texture = texture;
 	bindReal(texture.id);
-	if(directDepth) applyTexelScale(texture.texelScale);
-}
-
-void Renderer::setTexturing(bool on)
-{
-	texturingOn = on;
-	current.texture = on ? bound : TextureRef();
-	if(directDepth) applyTexturing(on);
 }
 
 void Renderer::setBlend(BlendMode blend)
 {
 	current.blend = blend;
-	if(directDepth) applyBlendMode(blend);
 }
 
 void Renderer::deleteTexture(uint id)
 {
 	flush(FR_EXPLICIT);
 	glDeleteTextures(1, &id);
-	if(bound.id == id)
-	{
-		bound = TextureRef();
-		if(texturingOn) current.texture = bound;
-	}
+	if(current.texture.id == id) current.texture = TextureRef();
+	// GL unbinds a deleted texture itself.
 	if(glBindingKnown && glBinding == id) glBinding = 0;
 }
 
@@ -413,13 +433,11 @@ void Renderer::deleteTexture(uint id)
 void Renderer::push()
 {
 	transforms.push_back(transforms.back());
-	if(directDepth) { glPushMatrix(); directMatrixKnown = false; }
 }
 
 void Renderer::pop()
 {
 	if(transforms.size() > 1) transforms.pop_back();
-	if(directDepth) { glPopMatrix(); directMatrixKnown = false; }
 }
 
 void Renderer::translate(double x, double y)
@@ -431,7 +449,6 @@ void Renderer::translate(double x, double y)
 	const float fx = static_cast<float>(x), fy = static_cast<float>(y);
 	t.tx = t.m00 * fx + t.m01 * fy + t.tx;
 	t.ty = t.m10 * fx + t.m11 * fy + t.ty;
-	if(directDepth) { glTranslated(x, y, 0.0); directMatrixKnown = false; }
 }
 
 void Renderer::scale(double x, double y)
@@ -441,13 +458,12 @@ void Renderer::scale(double x, double y)
 	t.m00 *= fx; t.m10 *= fx;
 	t.m01 *= fy; t.m11 *= fy;
 	t.translationOnly = false;
-	if(directDepth) { glScaled(x, y, 1.0); directMatrixKnown = false; }
 }
 
 void Renderer::rotate(double degrees)
 {
 	float s, c;
-	rotationTerms(degrees, &s, &c);
+	Mat4::rotationTerms(degrees, &s, &c);
 	Transform& t = transforms.back();
 	const float m00 = t.m00 * c + t.m01 * s;
 	const float m01 = t.m00 * -s + t.m01 * c;
@@ -455,7 +471,6 @@ void Renderer::rotate(double degrees)
 	const float m11 = t.m10 * -s + t.m11 * c;
 	t.m00 = m00; t.m01 = m01; t.m10 = m10; t.m11 = m11;
 	t.translationOnly = false;
-	if(directDepth) { glRotated(degrees, 0.0, 0.0, 1.0); directMatrixKnown = false; }
 }
 
 void Renderer::loadIdentity()
@@ -464,13 +479,12 @@ void Renderer::loadIdentity()
 	t.m00 = t.m11 = 1.0f;
 	t.m01 = t.m10 = t.tx = t.ty = 0.0f;
 	t.translationOnly = true;
-	if(directDepth) { glLoadIdentity(); directMatrixKnown = false; }
 }
 
 void Renderer::bakePoint(double x, double y, float* p_outX, float* p_outY) const
 {
 	// The float matrix entries promote to double and the sum rounds once, to
-	// float - the arithmetic Engine::queueSprite did with the matrix it read
+	// float - the arithmetic the old sprite batch did with the matrix it read
 	// back from GL, kept so that a baked corner is the same float.
 	const Transform& t = transforms.back();
 	if(t.translationOnly)
@@ -496,36 +510,30 @@ void Renderer::requireState(const RenderState& s)
 	if(stream.empty()) streamState = s;
 }
 
-void Renderer::submit(const RenderState& s, const double* p_x, const double* p_y,
-					  const float* p_u, const float* p_v, const Vec4f* p_colors)
+void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors)
 {
 	requireState(s);
-
-	// Inside a DirectGL the transform is GL's own modelview: the raw code
-	// around this draw pushed and translated GL's stack, and the stack here
-	// mirrors only what came through the renderer. Read once per call.
-	if(directDepth && !directMatrixKnown)
-	{
-		glGetFloatv(GL_MODELVIEW_MATRIX, directMatrix);
-		directMatrixKnown = true;
-	}
-
 	for(int i = 0; i < 4; i++)
 	{
 		Vertex vertex;
-		if(directDepth)
-		{
-			const float* m = directMatrix;
-			vertex.position = Vec2f(static_cast<float>(m[0] * p_x[i] + m[4] * p_y[i] + m[12]),
-									static_cast<float>(m[1] * p_x[i] + m[5] * p_y[i] + m[13]));
-		}
-		else bakePoint(p_x[i], p_y[i], &vertex.position.x, &vertex.position.y);
-		vertex.uv = Vec2f(p_u[i] * s.texture.texelScale.x, p_v[i] * s.texture.texelScale.y);
+		vertex.position = p_positions[i];
+		vertex.uv = Vec2f(p_uvs[i].x * s.texture.texelScale.x, p_uvs[i].y * s.texture.texelScale.y);
 		vertex.color = p_colors[i];
 		stream.push_back(vertex);
 	}
-
 	if(flushAll) flush(FR_EXPLICIT);
+}
+
+void Renderer::submit(const RenderState& s, const double* p_x, const double* p_y,
+					  const float* p_u, const float* p_v, const Vec4f* p_colors)
+{
+	Vec2f positions[4], uvs[4];
+	for(int i = 0; i < 4; i++)
+	{
+		bakePoint(p_x[i], p_y[i], &positions[i].x, &positions[i].y);
+		uvs[i] = Vec2f(p_u[i], p_v[i]);
+	}
+	pushQuad(s, positions, uvs, p_colors);
 }
 
 void Renderer::submitFlat(const double* p_x, const double* p_y, const Vec4f& color)
@@ -534,13 +542,6 @@ void Renderer::submitFlat(const double* p_x, const double* p_y, const Vec4f& col
 	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
 	const Vec4f colors[4] = {color, color, color, color};
 	submit(flatState(), p_x, p_y, u, v, colors);
-}
-
-void Renderer::endCall()
-{
-	if(!directDepth) return;
-	flush(FR_DIRECT);
-	directMatrixKnown = false;
 }
 
 void Renderer::sprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
@@ -580,7 +581,6 @@ void Renderer::sprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i&
 					static_cast<float>(color.b), static_cast<float>(color.a));
 	const Vec4f colors[4] = {col, col, col, col};
 	submit(current, x, y, u, v, colors);
-	endCall();
 }
 
 void Renderer::quads(const RenderState& s, const QuadVertex* p_vertices, uint count, const Vec4f& color)
@@ -599,7 +599,6 @@ void Renderer::quads(const RenderState& s, const QuadVertex* p_vertices, uint co
 		}
 		submit(s, x, y, u, v, colors);
 	}
-	endCall();
 }
 
 void Renderer::quads(const RenderState& s, const Vertex* p_vertices, uint count)
@@ -619,7 +618,6 @@ void Renderer::quads(const RenderState& s, const Vertex* p_vertices, uint count)
 		}
 		submit(s, x, y, u, v, colors);
 	}
-	endCall();
 }
 
 void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
@@ -638,7 +636,118 @@ void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p
 		u[i] = p_uvs[i].x; v[i] = p_uvs[i].y;
 	}
 	submit(s, x, y, u, v, p_colors);
-	endCall();
+}
+
+void Renderer::scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
+{
+	Vec2f uvs[4];
+	for(int i = 0; i < 4; i++) uvs[i] = textureMatrix.transformPoint2D(p_uvs[i]);
+	quad(RenderState(TextureRef(textureId, Vec2f(1.0f, 1.0f)), current.blend), p_corners, uvs, color);
+}
+
+void Renderer::quad(const Vec2f* p_corners, const Vec4f* p_colors)
+{
+	double x[4], y[4];
+	const float u[4] = {BLOCK_U, BLOCK_U, BLOCK_U, BLOCK_U};
+	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
+	for(int i = 0; i < 4; i++)
+	{
+		x[i] = p_corners[i].x; y[i] = p_corners[i].y;
+	}
+	submit(flatState(), x, y, u, v, p_colors);
+}
+
+void Renderer::triangles(const RenderState& s, const Vertex* p_vertices, uint count)
+{
+	// A triangle is a quad whose fourth corner repeats its third: the
+	// second triangle of the split has no area and no pixel, and the first
+	// keeps the three vertices in the order given.
+	for(uint t = 0; t + 3 <= count; t += 3)
+	{
+		double x[4], y[4];
+		float u[4], v[4];
+		Vec4f colors[4];
+		for(int i = 0; i < 4; i++)
+		{
+			const Vertex& vertex = p_vertices[t + (i < 3 ? i : 2)];
+			x[i] = vertex.position.x;
+			y[i] = vertex.position.y;
+			u[i] = vertex.uv.x;
+			v[i] = vertex.uv.y;
+			colors[i] = vertex.color;
+		}
+		submit(s, x, y, u, v, colors);
+	}
+}
+
+void Renderer::triangles(const Vec2f* p_positions, const Vec4f* p_colors, uint count)
+{
+	const float u[4] = {BLOCK_U, BLOCK_U, BLOCK_U, BLOCK_U};
+	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
+	for(uint t = 0; t + 3 <= count; t += 3)
+	{
+		double x[4], y[4];
+		Vec4f colors[4];
+		for(int i = 0; i < 4; i++)
+		{
+			const uint k = t + (i < 3 ? i : 2);
+			x[i] = p_positions[k].x;
+			y[i] = p_positions[k].y;
+			colors[i] = p_colors[k];
+		}
+		submit(flatState(), x, y, u, v, colors);
+	}
+}
+
+void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex3* p_vertices, uint count, bool cullBackFaces)
+{
+	// One draw of its own: the batch goes up first, then the 3D layout and
+	// the caller's matrix take the program over for this draw, and the
+	// next flush puts the 2D layout and the projection back - glKnown and
+	// projectionDirty see to that.
+	flush(FR_EXPLICIT);
+	applyRareState();
+	glExtUseProgram(program);
+	glExtBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+	glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+	glExtVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3), reinterpret_cast<const void*>(0));
+	glExtVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3), reinterpret_cast<const void*>(3 * sizeof(float)));
+	glExtVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3), reinterpret_cast<const void*>(5 * sizeof(float)));
+	glExtEnableVertexAttribArray(0);
+	glExtEnableVertexAttribArray(1);
+	glExtEnableVertexAttribArray(2);
+	glExtUniformMatrix4fv(uniformProjection, 1, GL_FALSE, transform.m);
+	projectionDirty = true;
+	if(glDiscard != discardTransparent)
+	{
+		glExtUniform1i(uniformDiscard, discardTransparent ? 1 : 0);
+		glDiscard = discardTransparent;
+	}
+	bindReal(s.texture.id ? s.texture.id : whiteTexture);
+	applyBlendMode(s.blend);
+	if(cullBackFaces) glEnable(GL_CULL_FACE);
+
+	// The uv normalised on the way in, as for a 2D quad.
+	std::vector<Vertex3> baked;
+	for(uint q = 0; q + 4 <= count; q += MAX_QUADS * 4)
+	{
+		const uint n = min(count - q, MAX_QUADS * 4) / 4 * 4;
+		baked.assign(p_vertices + q, p_vertices + q + n);
+		for(uint i = 0; i < n; i++)
+		{
+			baked[i].uv.x *= s.texture.texelScale.x;
+			baked[i].uv.y *= s.texture.texelScale.y;
+		}
+		glExtBufferData(GL_ARRAY_BUFFER, n * sizeof(Vertex3), &baked[0], GL_STREAM_DRAW);
+		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(n / 4 * 6), GL_UNSIGNED_SHORT, reinterpret_cast<const void*>(0));
+		counters.draws++;
+		counters.drawsByReason[FR_EXPLICIT]++;
+		counters.quads += n / 4;
+	}
+
+	if(cullBackFaces) glDisable(GL_CULL_FACE);
+	bindReal(current.texture.id);
+	glKnown = false;
 }
 
 void Renderer::rect(const Vec2f& min, const Vec2f& max, const Vec4f& color)
@@ -646,7 +755,6 @@ void Renderer::rect(const Vec2f& min, const Vec2f& max, const Vec4f& color)
 	const double x[4] = {min.x, max.x, max.x, min.x};
 	const double y[4] = {min.y, min.y, max.y, max.y};
 	submitFlat(x, y, color);
-	endCall();
 }
 
 void Renderer::quads(const Vec2f* p_positions, uint count, const Vec4f& color)
@@ -661,7 +769,6 @@ void Renderer::quads(const Vec2f* p_positions, uint count, const Vec4f& color)
 		}
 		submitFlat(x, y, color);
 	}
-	endCall();
 }
 
 void Renderer::rectOutline(const Vec2f& min, const Vec2f& max, float width, const Vec4f& color)
@@ -680,7 +787,6 @@ void Renderer::rectOutline(const Vec2f& min, const Vec2f& max, float width, cons
 		const double y[4] = {bars[b][1], bars[b][1], bars[b][3], bars[b][3]};
 		submitFlat(x, y, color);
 	}
-	endCall();
 }
 
 void Renderer::line(const Vec2f& a, const Vec2f& b, float width, const Vec4f& color)
@@ -693,11 +799,11 @@ void Renderer::line(const Vec2f& a, const Vec2f& b, float width, const Vec4f& co
 
 void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec4f& color, bool closed)
 {
-	// The geometry LineDrawer built, so a beam looks as it did: one quad per
-	// segment, half the width to either side, and at a turn of up to ninety
-	// degrees a wedge on the outside of the corner - a quad with two corners
-	// on the point, which is a triangle - between the two segments' ends.
-	// A closed loop gets its last segment and no wedge at the seam.
+	// One quad per segment, half the width to either side, and at a turn of
+	// up to ninety degrees a wedge on the outside of the corner - a quad with
+	// two corners on the point, which is a triangle - between the two
+	// segments' ends, so a beam has no notch where it bends. A closed loop
+	// gets its last segment and no wedge at the seam.
 	const size_t n = points.size();
 	if(n < 2) return;
 	const size_t segments = closed ? n : n - 1;
@@ -739,7 +845,6 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		prevUp = up;
 		havePrev = true;
 	}
-	endCall();
 }
 
 void Renderer::point(const Vec2f& p, float size, const Vec4f& color)
@@ -751,10 +856,142 @@ void Renderer::point(const Vec2f& p, float size, const Vec4f& color)
 	const float v[4] = {DISC_V0, DISC_V0, DISC_V1, DISC_V1};
 	const Vec4f colors[4] = {color, color, color, color};
 	submit(flatState(), x, y, u, v, colors);
-	endCall();
+}
+
+void Renderer::hairline(const Vec2f& a, const Vec2f& b, const Vec4f& colorA, const Vec4f& colorB)
+{
+	// Baked first, so that the rule below is applied where the pixels are.
+	// Across the line a pixel is the one containing the coordinate, a
+	// boundary going to the lower side in GL's own coordinates - the column
+	// to the left, the row below on the screen - which is llvmpipe's
+	// tie-break, measured; along it, lineSpan. A line that is not
+	// axis-aligned is the quad polyline would build for it.
+	Vec2f p, q;
+	bakePoint(a.x, a.y, &p.x, &p.y);
+	bakePoint(b.x, b.y, &q.x, &q.y);
+	Vec2f corners[4];
+	Vec4f colors[4];
+	if(p.y == q.y)
+	{
+		const float row = floorf(p.y);
+		float first, last;
+		lineSpan(p.x, q.x, &first, &last);
+		corners[0] = Vec2f(first, row);
+		corners[1] = Vec2f(last, row);
+		corners[2] = Vec2f(last, row + 1.0f);
+		corners[3] = Vec2f(first, row + 1.0f);
+		const bool aFirst = p.x <= q.x;
+		colors[0] = colors[3] = aFirst ? colorA : colorB;
+		colors[1] = colors[2] = aFirst ? colorB : colorA;
+	}
+	else if(p.x == q.x)
+	{
+		const float column = ceilf(p.x) - 1.0f;
+		float first, last;
+		lineSpan(p.y, q.y, &first, &last);
+		corners[0] = Vec2f(column, first);
+		corners[1] = Vec2f(column + 1.0f, first);
+		corners[2] = Vec2f(column + 1.0f, last);
+		corners[3] = Vec2f(column, last);
+		const bool aFirst = p.y <= q.y;
+		colors[0] = colors[1] = aFirst ? colorA : colorB;
+		colors[2] = colors[3] = aFirst ? colorB : colorA;
+	}
+	else
+	{
+		Vec2f dir(q.x - p.x, q.y - p.y);
+		const float length = sqrtf(dir.x * dir.x + dir.y * dir.y);
+		dir.x /= length; dir.y /= length;
+		const Vec2f up(dir.y * 0.5f, -dir.x * 0.5f);
+		corners[0] = Vec2f(p.x + up.x, p.y + up.y);
+		corners[1] = Vec2f(q.x + up.x, q.y + up.y);
+		corners[2] = Vec2f(q.x - up.x, q.y - up.y);
+		corners[3] = Vec2f(p.x - up.x, p.y - up.y);
+		colors[0] = colors[3] = colorA;
+		colors[1] = colors[2] = colorB;
+	}
+	const Vec2f uvs[4] = {Vec2f(BLOCK_U, BLOCK_V), Vec2f(BLOCK_U, BLOCK_V), Vec2f(BLOCK_U, BLOCK_V), Vec2f(BLOCK_U, BLOCK_V)};
+	pushQuad(flatState(), corners, uvs, colors);
+}
+
+void Renderer::hairlineRect(const Vec2f& min, const Vec2f& max, const Vec4f& color)
+{
+	// The four lines of a loop drawn clockwise from the top left, each on
+	// its own: where two of them meet on the same pixel it is lit twice, as
+	// GL lit it.
+	const Vec2f topRight(max.x, min.y), bottomLeft(min.x, max.y);
+	hairline(min, topRight, color);
+	hairline(topRight, max, color);
+	hairline(max, bottomLeft, color);
+	hairline(bottomLeft, min, color);
+}
+
+void Renderer::dashes(const std::vector<Vec2f>& points, float width, const Vec4f& color,
+					  float on, float off, float phase, bool closed)
+{
+	const size_t n = points.size();
+	const float period = on + off;
+	if(n < 2 || period <= 0.0f) return;
+	const size_t segments = closed ? n : n - 1;
+
+	// Where along the pattern the path stands; it runs on across corners.
+	float travelled = phase;
+	for(size_t i = 0; i < segments; i++)
+	{
+		const Vec2f& a = points[i];
+		const Vec2f& b = points[(i + 1) % n];
+		Vec2f dir(b.x - a.x, b.y - a.y);
+		const float length = sqrtf(dir.x * dir.x + dir.y * dir.y);
+		if(length <= 0.0f) continue;
+		dir.x /= length; dir.y /= length;
+		const Vec2f up(dir.y * 0.5f * width, -dir.x * 0.5f * width);
+
+		float at = 0.0f;
+		while(at < length)
+		{
+			float inPattern = fmodf(travelled + at, period);
+			if(inPattern < 0.0f) inPattern += period;
+			if(inPattern < on)
+			{
+				const float run = min(on - inPattern, length - at);
+				const Vec2f from(a.x + dir.x * at, a.y + dir.y * at);
+				const Vec2f to(a.x + dir.x * (at + run), a.y + dir.y * (at + run));
+				const double x[4] = {from.x + up.x, to.x + up.x, to.x - up.x, from.x - up.x};
+				const double y[4] = {from.y + up.y, to.y + up.y, to.y - up.y, from.y - up.y};
+				submitFlat(x, y, color);
+				at += run;
+			}
+			else at += period - inPattern;
+		}
+		travelled += length;
+	}
 }
 
 // --- the flush ---------------------------------------------------------------
+
+void Renderer::applyRareState()
+{
+	if(!glRareKnown || memcmp(glWriteMask, colorMask, sizeof(colorMask)))
+	{
+		glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+		memcpy(glWriteMask, colorMask, sizeof(colorMask));
+	}
+	if(!glRareKnown || glStencilWriteRef != stencilWriteRef || glStencilTestRef != stencilTestRef)
+	{
+		applyStencil(stencilWriteRef, stencilTestRef);
+		glStencilWriteRef = stencilWriteRef;
+		glStencilTestRef = stencilTestRef;
+	}
+	if(!glRareKnown || glScissorOn != scissorOn ||
+	   (scissorOn && (glScissorPosition != scissorPosition || glScissorSize != scissorSize)))
+	{
+		applyScissor();
+		glScissorOn = scissorOn;
+		glScissorPosition = scissorPosition;
+		glScissorSize = scissorSize;
+	}
+	glRareKnown = true;
+}
 
 void Renderer::applyState()
 {
@@ -770,36 +1007,9 @@ void Renderer::applyState()
 		glExtEnableVertexAttribArray(0);
 		glExtEnableVertexAttribArray(1);
 		glExtEnableVertexAttribArray(2);
-
-		if(!directDepth)
-		{
-			// Batched drawing owns the rare state: what the scopes say, and
-			// nothing the raw code before it may have left on. Inside a
-			// DirectGL the raw code's own enables apply to this draw as they
-			// applied to its own - the scissor of a GUI window, say.
-			glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
-			applyStencil(stencilWriteRef, stencilTestRef);
-			glDisable(GL_ALPHA_TEST);
-			for(int i = 0; i < 4; i++) glWriteMask[i] = colorMask[i];
-			glStencilWriteRef = stencilWriteRef;
-			glStencilTestRef = stencilTestRef;
-		}
 		glKnown = true;
 	}
-	else if(!directDepth)
-	{
-		if(memcmp(glWriteMask, colorMask, sizeof(colorMask)))
-		{
-			glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
-			for(int i = 0; i < 4; i++) glWriteMask[i] = colorMask[i];
-		}
-		if(glStencilWriteRef != stencilWriteRef || glStencilTestRef != stencilTestRef)
-		{
-			applyStencil(stencilWriteRef, stencilTestRef);
-			glStencilWriteRef = stencilWriteRef;
-			glStencilTestRef = stencilTestRef;
-		}
-	}
+	applyRareState();
 
 	// The uniforms live in the program and are set only where they moved.
 	if(projectionDirty)
@@ -838,28 +1048,15 @@ void Renderer::flush(FlushReason reason)
 	checkRecord();
 	stream.clear();
 
-	// The binding is the bound texture again, which a raw upload or copy
-	// after a bind relies on.
-	bindReal(bound.id);
-
-	if(directDepth)
-	{
-		// Back to the fixed function the raw code around this draw is using:
-		// no program, no arrays, and the blend it set.
-		glExtDisableVertexAttribArray(0);
-		glExtDisableVertexAttribArray(1);
-		glExtDisableVertexAttribArray(2);
-		glExtBindBuffer(GL_ARRAY_BUFFER, 0);
-		glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		glExtUseProgram(0);
-		applyBlendMode(current.blend);
-		glKnown = false;
-	}
+	// The binding is the current texture again, which a raw upload or copy
+	// after a setTexture relies on.
+	bindReal(current.texture.id);
 }
 
 void Renderer::clear(const Vec4f& color)
 {
 	flush(FR_EXPLICIT);
+	applyRareState();
 	glClearColor(color.r, color.g, color.b, color.a);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
@@ -867,18 +1064,25 @@ void Renderer::clear(const Vec4f& color)
 void Renderer::clearStencil()
 {
 	flush(FR_EXPLICIT);
+	applyRareState();
 	glClearStencil(0);
 	glClear(GL_STENCIL_BUFFER_BIT);
+}
+
+void Renderer::copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size)
+{
+	flush(FR_EXPLICIT);
+	bindReal(textureId);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, destination.x, destination.y, 0, 0, size.x, size.y);
+	bindReal(current.texture.id);
 }
 
 void Renderer::invalidate()
 {
 	glKnown = false;
+	glRareKnown = false;
 	glBindingKnown = false;
-	glScaleKnown = false;
-	glTexturing = -1;
 	glBlendKnown = false;
-	directMatrixKnown = false;
 }
 
 void Renderer::resetStats()
@@ -895,7 +1099,6 @@ Renderer::ColorMaskScope::ColorMaskScope(bool r, bool g, bool b, bool a)
 	memcpy(previous, renderer.colorMask, sizeof(previous));
 	renderer.colorMask[0] = r; renderer.colorMask[1] = g;
 	renderer.colorMask[2] = b; renderer.colorMask[3] = a;
-	renderer.scopeDepth++;
 }
 
 Renderer::ColorMaskScope::~ColorMaskScope()
@@ -903,7 +1106,6 @@ Renderer::ColorMaskScope::~ColorMaskScope()
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	memcpy(renderer.colorMask, previous, sizeof(previous));
-	renderer.scopeDepth--;
 }
 
 Renderer::StencilWriteScope::StencilWriteScope(int ref)
@@ -911,7 +1113,6 @@ Renderer::StencilWriteScope::StencilWriteScope(int ref)
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.stencilWriteRef = ref;
-	renderer.scopeDepth++;
 }
 
 Renderer::StencilWriteScope::~StencilWriteScope()
@@ -919,7 +1120,6 @@ Renderer::StencilWriteScope::~StencilWriteScope()
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.stencilWriteRef = -1;
-	renderer.scopeDepth--;
 }
 
 Renderer::StencilTestScope::StencilTestScope(int ref)
@@ -927,7 +1127,6 @@ Renderer::StencilTestScope::StencilTestScope(int ref)
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.stencilTestRef = ref;
-	renderer.scopeDepth++;
 }
 
 Renderer::StencilTestScope::~StencilTestScope()
@@ -935,7 +1134,6 @@ Renderer::StencilTestScope::~StencilTestScope()
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.stencilTestRef = -1;
-	renderer.scopeDepth--;
 }
 
 Renderer::DiscardTransparentScope::DiscardTransparentScope()
@@ -943,7 +1141,6 @@ Renderer::DiscardTransparentScope::DiscardTransparentScope()
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.discardTransparent = true;
-	renderer.scopeDepth++;
 }
 
 Renderer::DiscardTransparentScope::~DiscardTransparentScope()
@@ -951,107 +1148,48 @@ Renderer::DiscardTransparentScope::~DiscardTransparentScope()
 	Renderer& renderer = Renderer::inst();
 	renderer.flush(FR_SCOPE);
 	renderer.discardTransparent = false;
-	renderer.scopeDepth--;
 }
 
-void Renderer::enterDirect()
+Renderer::ScissorScope::ScissorScope(const Vec2i& position, const Vec2i& size)
 {
-	// The fixed function, as raw code expects to find it: no program and no
-	// arrays of ours, the texture bound, scaled and enabled as the record
-	// says, the blend set, and the rare state at its defaults. The modelview
-	// is the caller's business: DirectGL loads the stack into it, Batched
-	// never touched it.
-	if(scopeDepth) printfLog("+ ERROR: raw GL begins with %d renderer scope(s) still open.\n", scopeDepth);
-	glExtUseProgram(0);
-	glExtDisableVertexAttribArray(0);
-	glExtDisableVertexAttribArray(1);
-	glExtDisableVertexAttribArray(2);
-	glExtBindBuffer(GL_ARRAY_BUFFER, 0);
-	glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	Renderer& renderer = Renderer::inst();
+	renderer.flush(FR_SCOPE);
+	previousOn = renderer.scissorOn;
+	previousPosition = renderer.scissorPosition;
+	previousSize = renderer.scissorSize;
 
-	applyTexelScale(bound.texelScale);
-	bindReal(bound.id);
-	applyTexturing(texturingOn);
-	applyBlendMode(current.blend);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDisable(GL_STENCIL_TEST);
-	glDisable(GL_ALPHA_TEST);
-	glKnown = false;
-	directMatrixKnown = false;
+	Vec2i lower = position, upper = position + size;
+	if(previousOn)
+	{
+		lower.x = max(lower.x, previousPosition.x);
+		lower.y = max(lower.y, previousPosition.y);
+		upper.x = min(upper.x, previousPosition.x + previousSize.x);
+		upper.y = min(upper.y, previousPosition.y + previousSize.y);
+	}
+	renderer.scissorOn = true;
+	renderer.scissorPosition = lower;
+	renderer.scissorSize = Vec2i(max(0, upper.x - lower.x), max(0, upper.y - lower.y));
+}
+
+Renderer::ScissorScope::~ScissorScope()
+{
+	Renderer& renderer = Renderer::inst();
+	renderer.flush(FR_SCOPE);
+	renderer.scissorOn = previousOn;
+	renderer.scissorPosition = previousPosition;
+	renderer.scissorSize = previousSize;
 }
 
 Renderer::DirectGL::DirectGL()
 {
-	Renderer& renderer = Renderer::inst();
-	if(renderer.directDepth)
-	{
-		renderer.directDepth++;
-		return;
-	}
-
-	// Flushed before the depth moves, so that what was queued goes up as
-	// batched drawing: under the scopes' record, with the stencil and the
-	// mask applied for it. A flush in direct mode leaves the rare state to
-	// the raw code, and here that would be whatever the last batched draw
-	// set - the lava's stencil test, on the shadows of the objects after it.
-	renderer.flush(FR_DIRECT);
-	renderer.directDepth = 1;
-	renderer.enterDirect();
-
-	// The stack goes into GL's modelview on top of a push of its own, so
-	// that what the raw code around had there comes back at the end: a
-	// bracket inside the level starts from the level's shake and must not
-	// leave it behind for the screen that drew the level.
-	const Transform& t = renderer.transforms.back();
-	const float m[16] = {t.m00, t.m10, 0.0f, 0.0f,
-						 t.m01, t.m11, 0.0f, 0.0f,
-						 0.0f, 0.0f, 1.0f, 0.0f,
-						 t.tx, t.ty, 0.0f, 1.0f};
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadMatrixf(m);
+	Renderer::inst().flush(FR_DIRECT);
 }
 
 Renderer::DirectGL::~DirectGL()
 {
-	Renderer& renderer = Renderer::inst();
-	if(--renderer.directDepth) return;
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
 	// What the raw code left in GL is its business; the next flush applies
 	// everything again.
-	renderer.glKnown = false;
-	renderer.directMatrixKnown = false;
-}
-
-Renderer::Batched::Batched()
-{
-	Renderer& renderer = Renderer::inst();
-	suspended = renderer.directDepth;
-	if(!suspended) return;
-	renderer.flush(FR_DIRECT);
-	renderer.directDepth = 0;
-
-	// The raw code around has pushed and translated GL's own stack; what
-	// it draws next, batched, is relative to that.
-	float m[16];
-	glGetFloatv(GL_MODELVIEW_MATRIX, m);
-	Transform t;
-	t.m00 = m[0]; t.m01 = m[4]; t.tx = m[12];
-	t.m10 = m[1]; t.m11 = m[5]; t.ty = m[13];
-	t.translationOnly = (m[0] == 1.0f && m[5] == 1.0f && m[4] == 0.0f && m[1] == 0.0f);
-	renderer.transforms.push_back(t);
-	renderer.glKnown = false;
-}
-
-Renderer::Batched::~Batched()
-{
-	if(!suspended) return;
-	Renderer& renderer = Renderer::inst();
-	renderer.flush(FR_DIRECT);
-	if(renderer.transforms.size() > 1) renderer.transforms.pop_back();
-	renderer.directDepth = suspended;
-	renderer.enterDirect();
+	Renderer::inst().invalidate();
 }
 
 // --- the read-back -----------------------------------------------------------
@@ -1077,21 +1215,27 @@ void Renderer::checkRecord()
 	glGetIntegerv(GL_BLEND_DST_ALPHA, &blend[3]);
 	for(int i = 0; i < 4; i++)
 		if(static_cast<GLenum>(blend[i]) != BLEND_FACTORS[s.blend][i]) { wrong += " blend"; break; }
+	if(!glIsEnabled(GL_BLEND)) wrong += " blend-enable";
 	glGetIntegerv(GL_CURRENT_PROGRAM, &value);
 	if(static_cast<uint>(value) != program) wrong += " program";
 	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &value);
 	if(static_cast<uint>(value) != vertexBuffer) wrong += " vertex-buffer";
 	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &value);
 	if(static_cast<uint>(value) != indexBuffer) wrong += " index-buffer";
-	if(!directDepth)
+	GLboolean mask[4];
+	glGetBooleanv(GL_COLOR_WRITEMASK, mask);
+	for(int i = 0; i < 4; i++)
+		if((mask[i] != 0) != colorMask[i]) { wrong += " color-mask"; break; }
+	const bool stencilOn = glIsEnabled(GL_STENCIL_TEST) != 0;
+	if(stencilOn != (stencilWriteRef >= 0 || stencilTestRef >= 0)) wrong += " stencil";
+	const bool scissorIsOn = glIsEnabled(GL_SCISSOR_TEST) != 0;
+	if(scissorIsOn != scissorOn) wrong += " scissor";
+	else if(scissorOn)
 	{
-		GLboolean mask[4];
-		glGetBooleanv(GL_COLOR_WRITEMASK, mask);
-		for(int i = 0; i < 4; i++)
-			if((mask[i] != 0) != colorMask[i]) { wrong += " color-mask"; break; }
-		const bool stencilOn = glIsEnabled(GL_STENCIL_TEST) != 0;
-		if(stencilOn != (stencilWriteRef >= 0 || stencilTestRef >= 0)) wrong += " stencil";
-		if(glIsEnabled(GL_ALPHA_TEST)) wrong += " alpha-test";
+		GLint box[4];
+		glGetIntegerv(GL_SCISSOR_BOX, box);
+		if(box[0] != scissorPosition.x || box[1] != targetSize.y - scissorPosition.y - scissorSize.y ||
+		   box[2] != scissorSize.x || box[3] != scissorSize.y) wrong += " scissor-box";
 	}
 	if(!wrong.empty())
 	{

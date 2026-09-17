@@ -58,6 +58,12 @@ has run the tests often enough reaches on its own. Both are one-shot, so no test
 repeatable while they may appear; `.crt_offered` and `.donation_asked` are written exactly as the game
 writes them.
 
+**A request reaches the hook by rename, never by redirection.** The hook polls `request` every frame
+and `echo > request` creates the file empty before it writes, so a poll in that gap reads an empty line,
+answers with a dump under no serial and deletes the file with the real request in it; `b5_ask` then
+waits its five seconds and the scene fails as "could not be written". `b5_ask` writes `request.tmp` and
+renames it, as the hook itself publishes `response`, so a poll sees the whole line or no file.
+
 **The harness drives `build-test/`; `LinuxBuild/build.sh` without `hooks` writes `build/`.** Building one
 and testing the other is an afternoon's worth of a change that appears to do nothing, so `b5_start`
 compares the binary against `Blocks5/src` and `data.zip` against `Blocks5/data` and refuses to run on
@@ -99,8 +105,8 @@ objects passes through the wrappers at the foot of `testhooks.cpp`; no header ca
 other translation unit needs it, which is what the `hooks_layout` check protects. The dump reports them
 as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the renderer's
 own draws and a histogram of what ended each batch (`batch.byReason`: a texture change, a blend change, a
-scope, a full stream, an explicit flush before a copy, clear or delete, the end of the frame, and a draw
-call inside a `Renderer::DirectGL` bracket - `perf.md` reads the same keys).
+scope, a full stream, an explicit flush before a copy, a clear, a 3D draw or a target switch, the end of
+the frame, and a `Renderer::DirectGL` bracket opening for raw GL - `perf.md` reads the same keys).
 In the browser the same key comes from `WebBuild/test/harness.js`, which counts `drawArrays` and
 `drawElements` on the WebGL context's prototype — what is left after the GL emulation, the number a phone
 pays — and `resetStats()` starts both counters in one evaluate so no frame falls between them.
@@ -158,7 +164,10 @@ load's numbers and two gas cells of one row had no order at all.
 
 `WebBuild/build.sh hooks` builds to `build-test/` with `-DBLOCKS5_TEST_HOOKS`, turning on
 `WebBuild/test_hooks.cpp`. The shipped build has none of it — the whole translation unit is inside the
-`#ifdef`, and `blocks5_testDump` does not appear in `build/blocks5.js`.
+`#ifdef`, and `blocks5_testDump` does not appear in `build/blocks5.js`. `./build.sh` without `hooks`
+writes `build/` and leaves `build-test/` as it was, so `harness.js` refuses a `build-test/` older than
+`Blocks5/src` or than what `build.sh` reads from `WebBuild`, as `b5_start` does natively: a smoke or
+perf run against the previous build passes for a game that no longer exists.
 
 The hook only reads. It puts the GUI tree into `Module["b5_test"]` as JSON — every element with its window
 rectangle, whether visible and enabled, plus game state, language and filter — and `blocks5_testHitAt(x,

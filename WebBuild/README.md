@@ -115,10 +115,10 @@ screenshot goes to the browser's downloads through `WebTransfer::downloadBytes`.
 Sound is gated on a click, because browsers refuse to start an `AudioContext`
 without one - see below.
 
-No display lists remain, on any build: the tile grid, the glyph cache and the
-thunderstorm bolt are vertex arrays now (`quadarray.h`), and the star wipe is a
-triangle fan on both toolchains - `CF_Star` lost its GLU tessellator, since the
-star is a fixed shape a fan covers exactly.
+No display lists on any build: everything draws through `Renderer`, which is
+a vertex buffer and one shader, and the star wipe is a fan of
+`Renderer::triangles` on both toolchains - `CF_Star` needs no GLU tessellator,
+since the star is a fixed shape a fan covers exactly.
 
 ## The pieces
 
@@ -146,10 +146,11 @@ One of those deserves explanation.
 **`gl_immediate.cpp`.** Emscripten's GL emulation computes a block's vertex count
 as `4 * floatsWritten / bytesPerVertex` and asserts the result is whole — which
 only holds if every vertex carries every attribute. Like most fixed-function code,
-this game sets a colour once and then emits four vertices, and most of its 120
-`glBegin` blocks are shaped that way. Rather than rewrite them all, this file
-buffers each block and replays it with the current colour and texcoord attached to
-every vertex.
+this game set a colour once and then emitted four vertices, and its 120 `glBegin`
+blocks were shaped that way; the one left, the plain filters' quad in
+`Upscaler::present`, still is. This file buffers a block and replays it with the
+current colour and texcoord attached to every vertex, and goes with the emulation
+in stage 3 of `RENDERER-REDESIGN.md`.
 
 **`gluLookAt` is not merely missing, it is wrong.** Everything else in
 `gl_compat.cpp` fills a gap; this one corrects Emscripten. `libglemu.js` calls
@@ -312,11 +313,13 @@ that name without removing that entry first.
 
 Worth recording, because none of it was predictable from reading the code.
 
-1. **`glPushAttrib`/`glPopAttrib` as no-ops turned the screen black.**
-   `Texture::bind()` brackets a `glMatrixMode(GL_TEXTURE)` edit with them, so the
-   matrix mode stayed `GL_TEXTURE` after the first texture bind and every
+1. **`glPushAttrib`/`glPopAttrib` as no-ops turned the screen black.** The
+   texture binding of the time bracketed a `glMatrixMode(GL_TEXTURE)` edit with
+   them, so the matrix mode stayed `GL_TEXTURE` after the first bind and every
    `glPushMatrix`/`glTranslated` in the game transformed texture coordinates
-   instead of geometry. Nothing errored.
+   instead of geometry. Nothing errored. The one push left is
+   `Engine::presentFrame`'s, and what its pop restores that nothing else puts
+   back is the blend enable - `gl_compat.cpp` says which.
 2. **`SDL_BlitSurface` is implemented on a 2D canvas.** It `drawImage`s from a
    source canvas, which only exists for surfaces Emscripten's own SDL created
    from an image. Every surface this game blits is written directly in memory, so

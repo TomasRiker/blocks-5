@@ -477,12 +477,11 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 void Font::drawText(const StringCacheEntry& entry, const Vec4f& color) const
 {
 	Renderer& renderer = Renderer::inst();
-	p_texture->bind();
+	renderer.setTexture(p_texture->ref());
 	if(!entry.glyphs.empty())
 	{
 		renderer.quads(renderer.state(), &entry.glyphs[0], static_cast<uint>(entry.glyphs.size()), color);
 	}
-	GL::setTexturing(false);
 
 	// Four thin quads to a frame and not a line loop, because a line's pixel
 	// coverage is a matter of the rasterizer's opinion and every other edge in

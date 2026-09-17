@@ -14,32 +14,11 @@ void CF_ColorBlend::render(double t,
 						   uint oldImageID,
 						   uint newImageID)
 {
-	if(t <= timing)
-	{
-		// draw the old image
-		GL::setTexturing(true);
-		GL::bindTexture(oldImageID, screenTexelScale);
-		glBegin(GL_QUADS);
-		glColor4d(1.0, 1.0, 1.0, 1.0);
-		glTexCoord2i(0, 0);
-		glVertex2i(0, 0);
-		glTexCoord2i(screenSize.x, 0);
-		glVertex2i(screenSize.x, 0);
-		glTexCoord2i(screenSize.x, screenSize.y);
-		glVertex2i(screenSize.x, screenSize.y);
-		glTexCoord2i(0, screenSize.y);
-		glVertex2i(0, screenSize.y);
-		glEnd();
-		GL::setTexturing(false);
-	}
+	// the old image until the colour has covered it
+	if(t <= timing) drawImage(oldImageID, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
-	// draw the colour quad
-	glBegin(GL_QUADS);
-	double alpha = 1.0 - (1.0 / (1.0 - timing)) * abs(t - timing);
-	glColor4d(color.r, color.g, color.b, alpha);
-	glVertex2i(0, 0);
-	glVertex2i(screenSize.x, 0);
-	glVertex2i(screenSize.x, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
+	// the colour, opaque at `timing` and transparent at both ends
+	const double alpha = 1.0 - (1.0 / (1.0 - timing)) * abs(t - timing);
+	drawColor(Vec4f(static_cast<float>(color.r), static_cast<float>(color.g),
+					static_cast<float>(color.b), static_cast<float>(alpha)));
 }

@@ -1,18 +1,16 @@
 #include "pch.h"
 #include "cf_mosaic.h"
+#include "engine.h"
 
 CF_Mosaic::CF_Mosaic()
 {
-	glGenTextures(1, &bufferID);
-	GL::bindTexture(bufferID, screenTexelScale);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	// Sampled nearest: the blocks are the point.
+	bufferID = Engine::inst().createFrameCopyTexture(false, false);
 }
 
 CF_Mosaic::~CF_Mosaic()
 {
-	GL::deleteTexture(bufferID);
+	Renderer::inst().deleteTexture(bufferID);
 }
 
 void CF_Mosaic::render(double t,
@@ -23,37 +21,18 @@ void CF_Mosaic::render(double t,
 	double s = 0.01 + 3.96 * x * x;
 	Vec2i size = s * static_cast<Vec2d>(screenSize);
 
+	Renderer& renderer = Renderer::inst();
+	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f),
+							 Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+	const Vec2f shrunk[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+
 	// render a shrunk-down version of the image
-	GL::setTexturing(true);
-	GL::bindTexture(t <= 0.5 ? oldImageID : newImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex2i(size.x, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex2i(size.x, size.y);
-	glTexCoord2i(0, screenSize.y);
-	glVertex2i(0, size.y);
-	glEnd();
+	renderer.quad(imageState(t <= 0.5 ? oldImageID : newImageID), shrunk, screen, white);
 
 	// copy into the texture
-	GL::bindTexture(bufferID, screenTexelScale);
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
+	Engine::inst().captureFrame(bufferID);
 
 	// scale back up to full screen size
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(size.x, 0);
-	glVertex2i(screenSize.x, 0);
-	glTexCoord2i(size.x, size.y);
-	glVertex2i(screenSize.x, screenSize.y);
-	glTexCoord2i(0, size.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
-
-	GL::setTexturing(false);
+	renderer.quad(imageState(bufferID), screen, shrunk, white);
 }

@@ -14,14 +14,17 @@ public:
 	void reload();
 	void cleanUp();
 
-	// Texturing on and this picture bound, through the renderer, which is
-	// what makes texture coordinates read in this picture's own texels. There
-	// is no unbind(): switching texturing off says nothing about this texture
-	// or any other, so it is GL::setTexturing(false) at the caller.
-	void bind() const;
-	// The picture as a render state names it: the GL name and 1/w, 1/h.
+	// The picture as a render state names it: the GL name and 1/w, 1/h,
+	// which is what makes texture coordinates read in its own texels.
 	TextureRef ref() const;
 	const Vec2i& getSize() const;
+
+	// A GL texture that is not a picture from a file: the frame copies and
+	// the rewind's noise, from pixels or empty where p_pixels is 0, RGBA or
+	// RGB, sampled linearly or not, clamped or repeating. The one place a
+	// texture is made besides reload(), so that the upload stays in this
+	// file; Renderer::deleteTexture takes it back.
+	static uint createGLTexture(const Vec2i& size, const uchar* p_pixels, bool withAlpha, bool smooth, bool clamp);
 
 	// Hand the decoded pixels back for every texture that was not asked to
 	// keep them. Once a logic tick, from Engine::update().

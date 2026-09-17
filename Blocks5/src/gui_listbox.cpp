@@ -25,6 +25,7 @@ GUI_ListBox::~GUI_ListBox()
 void GUI_ListBox::onRender()
 {
 	GUI& gui = GUI::inst();
+	Renderer& renderer = Renderer::inst();
 	bool focused = isFocused() || p_scrollBar->isFocused();
 
 	if(useSkin())
@@ -34,39 +35,25 @@ void GUI_ListBox::onRender()
 	}
 	else
 	{
-		// draw the background
-		glBegin(GL_QUADS);
-		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
-		else glColor4d(0.4, 0.4, 0.4, 1.0);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		if(focused) glColor4d(0.5, 0.5, 0.5, 1.0);
-		else glColor4d(0.3, 0.3, 0.3, 1.0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
-
-		// draw the frame
-		glColor4d(0.0, 0.0, 0.0, 1.0);
-		glBegin(GL_LINE_LOOP);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
+		// draw the background and the frame
+		const Vec4f top = focused ? Vec4f(0.6f, 0.6f, 0.6f, 1.0f) : Vec4f(0.4f, 0.4f, 0.4f, 1.0f);
+		const Vec4f bottom = focused ? Vec4f(0.5f, 0.5f, 0.5f, 1.0f) : Vec4f(0.3f, 0.3f, 0.3f, 1.0f);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
-	const Vec2i pos = getAbsPosition();
-	glEnable(GL_SCISSOR_TEST);
-	int h = gui.getRoot()->getSize().y;
-	glScissor(pos.x + 2, h - pos.y - size.y + 2, size.x - 4, size.y - 4);
+	// The items and the selection clipped to the inside of the frame; the
+	// scroll bar is a child and draws after this, outside the scope.
+	Renderer::ScissorScope clip(getAbsPosition() + Vec2i(2, 2), size - Vec2i(4, 4));
 
-	glPushMatrix();
-	glTranslated(0.0, -scroll, 0.0);
+	renderer.push();
+	renderer.translate(0.0, -scroll);
 
 	// render the list items
 	int y = 2;
-	h = p_font->getLineHeight();
+	int h = p_font->getLineHeight();
 	for(std::vector<ListItem>::const_iterator i = items.begin(); i != items.end(); ++i)
 	{
 		p_font->renderText(localizeString(i->text), Vec2i(4, y), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
@@ -76,21 +63,15 @@ void GUI_ListBox::onRender()
 	// draw the selection
 	if(selection != -1)
 	{
-		glBegin(GL_QUADS);
-		if(focused) glColor4d(0.25, 0.25, 1.0, 0.5);
-		else glColor4d(0.25, 0.25, 0.7, 0.5);
+		const Vec4f top = focused ? Vec4f(0.25f, 0.25f, 1.0f, 0.5f) : Vec4f(0.25f, 0.25f, 0.7f, 0.5f);
+		const Vec4f bottom = focused ? Vec4f(0.2f, 0.2f, 0.8f, 0.5f) : Vec4f(0.15f, 0.15f, 0.5f, 0.5f);
 		int y = selection * h + 2;
-		glVertex2i(2, y);
-		glVertex2i(size.x - 2, y);
-		if(focused) glColor4d(0.2, 0.2, 0.8, 0.5);
-		else glColor4d(0.15, 0.15, 0.5, 0.5);
-		glVertex2i(size.x - 2, y + h);
-		glVertex2i(2, y + h);
-		glEnd();
+		const Vec2f corners[4] = {Vec2f(2.0f, y), Vec2f(size.x - 2, y), Vec2f(size.x - 2, y + h), Vec2f(2.0f, y + h)};
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
 	}
 
-	glPopMatrix();
-	glDisable(GL_SCISSOR_TEST);
+	renderer.pop();
 }
 
 void GUI_ListBox::onUpdate()

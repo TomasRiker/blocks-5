@@ -7,11 +7,11 @@
 #   ./build.sh hooks      with the test hooks, into build-test/
 #   ./build.sh run [...]  build and start, everything after it goes to the game
 #
-# "hooks" compiles engine.cpp, testhooks.cpp and glstate.cpp with
+# "hooks" compiles engine.cpp, testhooks.cpp and renderer.cpp with
 # -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, which
 # keeps a build with hooks from ever being the shipped one by accident. Without
 # the word, testhooks.cpp is an empty translation unit and the other two lose
-# the readback checks that say a batch or the state record is being lied to.
+# the readback checks that say the renderer's record is being lied to.
 #
 # Needed: g++, SDL 1.2 (sdl12-compat everywhere today, hence SDL 2 underneath),
 # OpenAL, OpenGL and GLU. On Debian and Ubuntu:

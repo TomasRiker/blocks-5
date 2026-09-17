@@ -34,28 +34,15 @@ void GUI_RadioButton::onRender()
 		}
 		else
 		{
-			// draw the background
-			glBegin(GL_QUADS);
-			if(pushed && mouseOver) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else if(checked) glColor4d(1.0, 1.0, 1.0, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			if(pushed && mouseOver) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else if(checked) glColor4d(0.85, 0.85, 0.85, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-			glEnd();
-
-			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-			glEnd();
+			// draw the background and the frame
+			Renderer& renderer = Renderer::inst();
+			Vec4f top(0.75f, 0.75f, 0.75f, 1.0f), bottom(0.65f, 0.65f, 0.65f, 1.0f);
+			if(pushed && mouseOver) top = Vec4f(0.9f, 0.9f, 0.9f, 1.0f), bottom = Vec4f(0.8f, 0.8f, 0.8f, 1.0f);
+			else if(checked) top = Vec4f(1.0f, 1.0f, 1.0f, 1.0f), bottom = Vec4f(0.85f, 0.85f, 0.85f, 1.0f);
+			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+			const Vec4f colors[4] = {top, top, bottom, bottom};
+			renderer.quad(corners, colors);
+			renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 		}
 
 		// write the title
@@ -87,37 +74,25 @@ void GUI_RadioButton::onRender()
 		else
 		{
 			// draw the background
-			glBegin(GL_QUADS);
-			if(pushed && mouseOver) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			if(pushed && mouseOver) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
+			Renderer& renderer = Renderer::inst();
+			const bool lit = pushed && mouseOver;
+			const Vec4f top = lit ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f);
+			const Vec4f bottom = lit ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f);
+			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+			const Vec4f colors[4] = {top, top, bottom, bottom};
+			renderer.quad(corners, colors);
 
 			if(checked)
 			{
 				// draw the "checkmark"
-				glColor4d(0.0, 0.0, 0.0, 1.0);
-				glVertex2i(4, 4);
-				glVertex2i(size.x - 3, 4);
-				glColor4d(0.25, 0.25, 0.25, 1.0);
-				glVertex2i(size.x - 3, size.y - 3);
-				glVertex2i(4, size.y - 3);
+				const Vec2f mark[4] = {Vec2f(4.0f, 4.0f), Vec2f(size.x - 3, 4.0f), Vec2f(size.x - 3, size.y - 3), Vec2f(4.0f, size.y - 3)};
+				const Vec4f markTop(0.0f, 0.0f, 0.0f, 1.0f), markBottom(0.25f, 0.25f, 0.25f, 1.0f);
+				const Vec4f markColors[4] = {markTop, markTop, markBottom, markBottom};
+				renderer.quad(mark, markColors);
 			}
 
-			glEnd();
-
 			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-			glEnd();
+			renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 		}
 
 		// write the title

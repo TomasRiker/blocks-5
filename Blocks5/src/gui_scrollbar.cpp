@@ -62,191 +62,76 @@ void GUI_ScrollBar::onRender()
 	}
 	else
 	{
+		// The same picture along either axis: a background, a button at each
+		// end with an arrow pointing outward, and the drag bar between them.
+		// Along the bar's axis a is the position and b the thickness; the
+		// corner helper turns the two back into x and y.
+		Renderer& renderer = Renderer::inst();
+		const int thickness = dir ? size.y : size.x;
+		const int length = dir ? size.x : size.y;
+		const Vec4f frame(0.0f, 0.0f, 0.0f, 1.0f);
+
+		gradient(0, length, Vec4f(0.4f, 0.4f, 0.4f, 1.0f), Vec4f(0.3f, 0.3f, 0.3f, 1.0f));
+		gradient(0, thickness, pushedUp ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f),
+				 pushedUp ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f));
+		gradient(length - thickness, length, pushedDown ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f),
+				 pushedDown ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f));
+
+		// draw the arrows: a triangle in a unit box, scaled to the button and
+		// mirrored for the far end
+		const Vec4f dark(0.0f, 0.0f, 0.0f, 1.0f), grey(0.25f, 0.25f, 0.25f, 1.0f);
+		const Vec2f upward[3] = {Vec2f(0.0f, -0.5f), Vec2f(0.5f, 0.5f), Vec2f(-0.5f, 0.5f)};
+		const Vec2f leftward[3] = {Vec2f(-0.5f, 0.0f), Vec2f(0.5f, -0.5f), Vec2f(0.5f, 0.5f)};
+		const Vec4f nearColors[3] = {dark, grey, grey};
+		const Vec4f farColors[3] = {grey, dark, dark};
+		renderer.push();
+		renderer.translate(thickness / 2, thickness / 2);
+		renderer.scale(0.5 * thickness, 0.5 * thickness);
+		renderer.triangles(dir ? leftward : upward, nearColors, 3);
+		renderer.pop();
+		renderer.push();
 		if(!dir)
 		{
-			// draw the scroll bar background and the button backgrounds
-			glBegin(GL_QUADS);
-
-			glColor4d(0.4, 0.4, 0.4, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glColor4d(0.3, 0.3, 0.3, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-
-			if(pushedUp) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			if(pushedUp) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, size.x);
-			glVertex2i(0, size.x);
-
-			if(pushedDown) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, size.y - size.x);
-			glVertex2i(size.x, size.y - size.x);
-			if(pushedDown) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-
-			glEnd();
-
-			// draw the arrows
-			glPushMatrix();
-			glTranslated(size.x / 2, size.x / 2, 0.0);
-			glScaled(0.5 * size.x, 0.5 * size.x, 1.0);
-			glBegin(GL_TRIANGLES);
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glVertex2d(0.0, -0.5);
-			glColor4d(0.25, 0.25, 0.25, 1.0);
-			glVertex2d(0.5, 0.5);
-			glVertex2d(-0.5, 0.5);
-			glEnd();
-			glPopMatrix();
-			glPushMatrix();
-			glTranslated(size.x / 2, size.y - size.x / 2, 0.0);
-			glScaled(0.5 * size.x, -0.5 * size.x, 1.0);
-			glBegin(GL_TRIANGLES);
-			glColor4d(0.25, 0.25, 0.25, 1.0);
-			glVertex2d(0.0, -0.5);
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glVertex2d(0.5, 0.5);
-			glVertex2d(-0.5, 0.5);
-			glEnd();
-			glPopMatrix();
-
-			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-			glEnd();
-			glBegin(GL_LINES);
-			glVertex2i(0, size.x);
-			glVertex2i(size.x, size.x);
-			glVertex2i(0, size.y - size.x);
-			glVertex2i(size.x, size.y - size.x);
-			glEnd();
-
-			// draw the drag bar background
-			glBegin(GL_QUADS);
-			if(dragging) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, dragBarY);
-			glVertex2i(size.x, dragBarY);
-			if(dragging) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, dragBarY + dragBarHeight);
-			glVertex2i(0, dragBarY + dragBarHeight);
-			glEnd();
-
-			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(0, dragBarY);
-			glVertex2i(size.x, dragBarY);
-			glVertex2i(size.x, dragBarY + dragBarHeight);
-			glVertex2i(0, dragBarY + dragBarHeight);
-			glEnd();
+			renderer.translate(thickness / 2, length - thickness / 2);
+			renderer.scale(0.5 * thickness, -0.5 * thickness);
 		}
 		else
 		{
-			// draw the scroll bar background and the button backgrounds
-			glBegin(GL_QUADS);
-
-			glColor4d(0.4, 0.4, 0.4, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glColor4d(0.3, 0.3, 0.3, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-
-			if(pushedUp) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(0, 0);
-			glVertex2i(size.y, 0);
-			if(pushedUp) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.y, size.y);
-			glVertex2i(0, size.y);
-
-			if(pushedDown) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(size.x - size.y, 0);
-			glVertex2i(size.x, 0);
-			if(pushedDown) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(size.x - size.y, size.y);
-
-			glEnd();
-
-			// draw the arrows
-			glPushMatrix();
-			glTranslated(size.y / 2, size.y / 2, 0.0);
-			glScaled(0.5 * size.y, 0.5 * size.y, 1.0);
-			glBegin(GL_TRIANGLES);
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glVertex2d(-0.5, 0.0);
-			glColor4d(0.25, 0.25, 0.25, 1.0);
-			glVertex2d(0.5, -0.5);
-			glVertex2d(0.5, 0.5);
-			glEnd();
-			glPopMatrix();
-			glPushMatrix();
-			glTranslated(size.x - size.y / 2, size.y / 2, 0.0);
-			glScaled(0.5 * size.y, -0.5 * size.y, 1.0);
-			glBegin(GL_TRIANGLES);
-			glColor4d(0.25, 0.25, 0.25, 1.0);
-			glVertex2d(0.5, 0.0);
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glVertex2d(-0.5, 0.5);
-			glVertex2d(-0.5, -0.5);
-			glEnd();
-			glPopMatrix();
-
-			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(0, 0);
-			glVertex2i(size.x, 0);
-			glVertex2i(size.x, size.y);
-			glVertex2i(0, size.y);
-			glEnd();
-			glBegin(GL_LINES);
-			glVertex2i(size.y, 0);
-			glVertex2i(size.y, size.y);
-			glVertex2i(size.x - size.y, 0);
-			glVertex2i(size.x - size.y, size.y);
-			glEnd();
-
-			// draw the drag bar background
-			glBegin(GL_QUADS);
-			if(dragging) glColor4d(0.9, 0.9, 0.9, 1.0);
-			else glColor4d(0.75, 0.75, 0.75, 1.0);
-			glVertex2i(dragBarY, 0);
-			glVertex2i(dragBarY, size.y);
-			if(dragging) glColor4d(0.8, 0.8, 0.8, 1.0);
-			else glColor4d(0.65, 0.65, 0.65, 1.0);
-			glVertex2i(dragBarY + dragBarHeight, size.y);
-			glVertex2i(dragBarY + dragBarHeight, 0);
-			glEnd();
-
-			// draw the frame
-			glColor4d(0.0, 0.0, 0.0, 1.0);
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(dragBarY, 0);
-			glVertex2i(dragBarY, size.y);
-			glVertex2i(dragBarY + dragBarHeight, size.y);
-			glVertex2i(dragBarY + dragBarHeight, 0);
-			glEnd();
+			renderer.translate(length - thickness / 2, thickness / 2);
+			renderer.scale(-0.5 * thickness, 0.5 * thickness);
 		}
+		renderer.triangles(dir ? leftward : upward, farColors, 3);
+		renderer.pop();
+
+		// draw the frame and the lines that cut the buttons off
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), frame);
+		renderer.hairline(corner(thickness, 0), corner(thickness, thickness), frame);
+		renderer.hairline(corner(length - thickness, 0), corner(length - thickness, thickness), frame);
+
+		// draw the drag bar and its frame
+		gradient(dragBarY, dragBarY + dragBarHeight,
+				 dragging ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f),
+				 dragging ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f));
+		renderer.hairlineRect(corner(dragBarY, 0), corner(dragBarY + dragBarHeight, thickness), frame);
 	}
+}
+
+Vec2f GUI_ScrollBar::corner(int along,
+							 int across) const
+{
+	return dir ? Vec2f(along, across) : Vec2f(across, along);
+}
+
+void GUI_ScrollBar::gradient(int from,
+							 int to,
+							 const Vec4f& colorFrom,
+							 const Vec4f& colorTo) const
+{
+	// The two colours run along the bar's axis, the first at `from`.
+	const int thickness = dir ? size.y : size.x;
+	const Vec2f corners[4] = {corner(from, 0), corner(from, thickness), corner(to, thickness), corner(to, 0)};
+	const Vec4f colors[4] = {colorFrom, colorFrom, colorTo, colorTo};
+	Renderer::inst().quad(corners, colors);
 }
 
 void GUI_ScrollBar::onUpdate()

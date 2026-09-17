@@ -248,20 +248,13 @@ void GS_Game::onRender()
 	// render the level
 	p_level->render();
 
-	// render the panel
-	p_level->getBackground()->bind();
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(0, 480);
-	glVertex2i(0, 400);
-	glTexCoord2i(640, 480);
-	glVertex2i(640, 400);
-	glTexCoord2i(640, 560);
-	glVertex2i(640, 480);
-	glTexCoord2i(0, 560);
-	glVertex2i(0, 480);
-	glEnd();
-	GL::setTexturing(false);
+	// render the panel: the strip below the level's picture in the
+	// background image
+	Renderer& renderer = Renderer::inst();
+	const Vec2f corners[4] = {Vec2f(0.0f, 400.0f), Vec2f(640.0f, 400.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+	const Vec2f uvs[4] = {Vec2f(0.0f, 480.0f), Vec2f(640.0f, 480.0f), Vec2f(640.0f, 560.0f), Vec2f(0.0f, 560.0f)};
+	renderer.setTexture(p_level->getBackground()->ref());
+	renderer.quad(renderer.state(), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 	Font* p_font = gui.getFont();
 

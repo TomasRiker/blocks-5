@@ -141,7 +141,7 @@ void Player::onRender(RenderLayer layer,
 			Vec2i dim;
 			p_font->measureText(text, &dim, 0);
 			p_font->renderText(text, Vec2i(8, 7) + dim / -2, Vec4d(0.85, 0.15, 0.15, 1.0));
-			level.getSpritesTexture()->bind();
+			renderer.setTexture(level.getSpritesTexture()->ref());
 		}
 	}
 	else if(layer == RL_LIGHT)

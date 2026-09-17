@@ -98,21 +98,16 @@ Level::Level()
 	}
 
 	Engine&	engine = Engine::inst();
-	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
 	// create the texture for the effect buffer
-	glGenTextures(1, &bufferID);
-	GL::bindTexture(bufferID, engine.getScreenTexelScale());
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	bufferID = engine.createFrameCopyTexture(false, true);
 }
 
 Level::~Level()
 {
 	clear();
 
-	if(bufferID) GL::deleteTexture(bufferID);
+	if(bufferID) Renderer::inst().deleteTexture(bufferID);
 }
 
 void Level::clear()
@@ -599,11 +594,7 @@ void Level::render()
 		(*i)->onBeforeRender();
 	}
 
-	// The level draws batched, whatever the screen around it does: the
-	// bracket starts from GL's modelview as that screen left it and puts the
-	// fixed function back at the end.
 	Renderer& renderer = Renderer::inst();
-	Renderer::Batched batched;
 
 	bool targetRaining = raining;
 	bool targetThunderstorm = thunderstorm;
@@ -650,10 +641,9 @@ void Level::render()
 		if(!inMenu)
 		{
 			// render the background image
-			p_background->bind();
+			renderer.setTexture(p_background->ref());
 			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
 			renderer.quad(renderer.state(), corners, corners, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
-			GL::setTexturing(false);
 		}
 	}
 
@@ -680,7 +670,7 @@ void Level::render()
 	// not. Scopes, so that the mask, the stencil and the discard cannot be
 	// left on: each puts the previous state back when it ends.
 	Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
-	p_lavaEdges->bind();
+	renderer.setTexture(p_lavaEdges->ref());
 	renderer.clearStencil();
 	{
 		Renderer::DiscardTransparentScope discard;
@@ -688,20 +678,17 @@ void Level::render()
 		Renderer::ColorMaskScope mask(false, false, false, false);
 		renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 	}
-	GL::setTexturing(false);
 	p_lavaEdges->release();
 	Engine& engine = Engine::inst();
 
 	// render the lava
 	{
 		Renderer::StencilTestScope test(0);
-		p_lava[0]->bind();
+		renderer.setTexture(p_lava[0]->ref());
 		renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-		GL::setTexturing(false);
 		renderer.setBlend(BM_ADDITIVE);
-		p_lava[1]->bind();
+		renderer.setTexture(p_lava[1]->ref());
 		renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
-		GL::setTexturing(false);
 		renderer.setBlend(BM_NORMAL);
 	}
 
@@ -745,159 +732,94 @@ void Level::render()
 
 	if(inEditor && !inCat && !inPreview) renderObjects(RL_EDITOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
 
-	// The weather still draws raw, with its scroll composed on the texture
-	// matrix: bracketed, so that what the level queued before it is on the
-	// screen first and the fixed function stands where this code expects
-	// it, under the shake. Only where there is weather - the bracket costs a
-	// flush and a trip through the fixed function.
-	if(!inEditor && (raining || snowing || cloudy))
+	// The weather: layers of one picture each, scrolling on top of the
+	// picture's own scale through a texture matrix of their own, which the
+	// renderer applies to the corners in GL's own arithmetic.
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+
+	// Rain
+	if(!inEditor && raining)
 	{
-		Renderer::DirectGL direct;
+		const TextureRef rain = p_rain->ref();
 
-		// Rain
-		if(!inEditor && raining)
+		int start = 2;
+		int numLayers = 3;
+		double alpha = 0.12;
+		if(details == 0) start = 1, numLayers = 1, alpha = 0.2;
+		else if(details == 1) start = 2, numLayers = 2, alpha = 0.16;
+
+		for(int i = start; i > start - numLayers; i--)
 		{
-			p_rain->bind();
+			double y = 100.0 * i + 1000.0 * 0.001 * time;
+			double s[] = {1.0, 0.5, 0.25};
+			double angle = 15.0 + sin(0.02 * y * s[i] + i);
+			// After the angle, which reads the unwrapped offset. Rain scrolls
+			// twenty texels a tick, so it is the first of these to go steppy.
+			y = wrapTextureOffset(y, p_rain->getSize().y);
 
-			// The mode stays on GL_TEXTURE for the loop below: each layer scrolls
-			// on top of the picture's own scale inside a push and pop of its own.
-			// The snow and the clouds do the same, and one
-			// glMatrixMode(GL_MODELVIEW) past the clouds puts it back for all
-			// three.
-			glMatrixMode(GL_TEXTURE);
-
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_NOTEQUAL, 0.0f);
-
-			int start = 2;
-			int numLayers = 3;
-			double alpha = 0.12;
-			if(details == 0) start = 1, numLayers = 1, alpha = 0.2;
-			else if(details == 1) start = 2, numLayers = 2, alpha = 0.16;
-
-			for(int i = start; i > start - numLayers; i--)
-			{
-				double y = 100.0 * i + 1000.0 * 0.001 * time;
-				double s[] = {1.0, 0.5, 0.25};
-				double angle = 15.0 + sin(0.02 * y * s[i] + i);
-				// After the angle, which reads the unwrapped offset. Rain scrolls
-				// twenty texels a tick, so it is the first of these to go steppy.
-				y = wrapTextureOffset(y, p_rain->getSize().y);
-
-				glPushMatrix();
-				glScaled(s[i], s[i], s[i]);
-				glTranslated(0.0, -y / s[i], 0.0);
-				glRotated(angle, 0.0, 0.0, 1.0);
-				glBegin(GL_QUADS);
-				glColor4d(0.8, 0.8, 0.8, alpha);
-				glTexCoord2i(0, 0);
-				glVertex2i(0, 0);
-				glTexCoord2i(640, 0);
-				glVertex2i(640, 0);
-				glTexCoord2i(640, 480);
-				glVertex2i(640, 480);
-				glTexCoord2i(0, 480);
-				glVertex2i(0, 480);
-				glEnd();
-				glPopMatrix();
-			}
-
-			glDisable(GL_ALPHA_TEST);
-
-			GL::setTexturing(false);
+			Mat4 scroll = Mat4::scaling(rain.texelScale.x, rain.texelScale.y, 1.0);
+			scroll.scale(s[i], s[i], s[i]);
+			scroll.translate(0.0, -y / s[i], 0.0);
+			scroll.rotate(angle, 0.0, 0.0, 1.0);
+			renderer.scrolledQuad(rain.id, scroll, screen, screen, Vec4f(0.8f, 0.8f, 0.8f, static_cast<float>(alpha)));
 		}
+	}
 
-		// Snow
-		if(!inEditor && snowing)
+	// Snow
+	if(!inEditor && snowing)
+	{
+		const TextureRef snow = p_snow->ref();
+
+		int numLayers = 3;
+		if(details == 0) numLayers = 1;
+		else if(details == 1) numLayers = 2;
+		double alphaFactor = 3.0 / static_cast<double>(numLayers);
+
+		for(int i = numLayers - 1; i >= 0; i--)
 		{
-			p_snow->bind();
-			glMatrixMode(GL_TEXTURE);
+			double s[] = {1.0, 1.5, 1.75};
+			double t = 0.001 * time;
+			double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
+			double x = 500.0 * sin(t * f + i);
+			double y = 150.0 * t + 300.0 * cos(t * f + i);
+			// x is bounded by its own sine and y is not, but both are wrapped:
+			// the snow translates on both axes, and one rule is easier to keep
+			// right than two.
+			x = wrapTextureOffset(x, p_snow->getSize().x);
+			y = wrapTextureOffset(y, p_snow->getSize().y);
 
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_NOTEQUAL, 0.0f);
-
-			int numLayers = 3;
-			if(details == 0) numLayers = 1;
-			else if(details == 1) numLayers = 2;
-			double alphaFactor = 3.0 / static_cast<double>(numLayers);
-
-			for(int i = numLayers - 1; i >= 0; i--)
-			{
-				double s[] = {1.0, 1.5, 1.75};
-				double t = 0.001 * time;
-				double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
-				double x = 500.0 * sin(t * f + i);
-				double y = 150.0 * t + 300.0 * cos(t * f + i);
-				// x is bounded by its own sine and y is not, but both are wrapped:
-				// the snow translates on both axes, and one rule is easier to keep
-				// right than two.
-				x = wrapTextureOffset(x, p_snow->getSize().x);
-				y = wrapTextureOffset(y, p_snow->getSize().y);
-
-				glPushMatrix();
-				glTranslated(-x, -y, 0.0);
-				glScaled(s[i], s[i], s[i]);
-				glBegin(GL_QUADS);
-				glColor4d(1.0, 1.0, 1.0, 0.65 * alphaFactor);
-				glTexCoord2i(0, 0);
-				glVertex2i(0, 0);
-				glTexCoord2i(640, 0);
-				glVertex2i(640, 0);
-				glTexCoord2i(640, 480);
-				glVertex2i(640, 480);
-				glTexCoord2i(0, 480);
-				glVertex2i(0, 480);
-				glEnd();
-				glPopMatrix();
-			}
-
-			glDisable(GL_ALPHA_TEST);
-
-			GL::setTexturing(false);
+			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0);
+			scroll.translate(-x, -y, 0.0);
+			scroll.scale(s[i], s[i], s[i]);
+			renderer.scrolledQuad(snow.id, scroll, screen, screen, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.65 * alphaFactor)));
 		}
+	}
 
-		// Clouds
-		if(!inEditor && cloudy)
+	// Clouds
+	if(!inEditor && cloudy)
+	{
+		const TextureRef clouds = p_clouds->ref();
+
+		int numLayers = 3;
+		if(details == 0) numLayers = 1;
+		else if(details == 1) numLayers = 2;
+
+		for(int i = numLayers - 1; i >= 0; i--)
 		{
-			p_clouds->bind();
-			glMatrixMode(GL_TEXTURE);
+			double s[] = {1.0, 0.5, 0.25};
+			double x = 100.0 * i + 50.0 * 0.001 * time;
+			x += 2.0 * sin(0.02 * x * s[i] + i);
+			// After the wobble, whose phase has to follow the unwrapped offset.
+			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
-			int numLayers = 3;
-			if(details == 0) numLayers = 1;
-			else if(details == 1) numLayers = 2;
-
-			for(int i = numLayers - 1; i >= 0; i--)
-			{
-				double s[] = {1.0, 0.5, 0.25};
-				double x = 100.0 * i + 50.0 * 0.001 * time;
-				x += 2.0 * sin(0.02 * x * s[i] + i);
-				// After the wobble, whose phase has to follow the unwrapped offset.
-				x = wrapTextureOffset(x, p_clouds->getSize().x);
-
-				glPushMatrix();
-				glScaled(s[i], s[i] * 2.0, s[i]);
-				glTranslated(-x / s[i], 0.0, 0.0);
-				glRotated(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
-				glBegin(GL_QUADS);
-				const double c = 1.0 - 0.05 * i;
-				const double a = 0.175 - 0.05 * i;
-				glColor4d(c, c, c, a);
-				glTexCoord2i(0, 0);
-				glVertex2i(0, 0);
-				glTexCoord2i(640, 0);
-				glVertex2i(640, 0);
-				glTexCoord2i(640, 480);
-				glVertex2i(640, 480);
-				glTexCoord2i(0, 480);
-				glVertex2i(0, 480);
-				glEnd();
-				glPopMatrix();
-			}
-
-			GL::setTexturing(false);
+			Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0);
+			scroll.scale(s[i], s[i] * 2.0, s[i]);
+			scroll.translate(-x / s[i], 0.0, 0.0);
+			scroll.rotate(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
+			const float c = static_cast<float>(1.0 - 0.05 * i);
+			const float a = static_cast<float>(0.175 - 0.05 * i);
+			renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 		}
-
-		glMatrixMode(GL_MODELVIEW);
 	}
 
 	// Light
@@ -946,7 +868,7 @@ void Level::render()
 
 		// render the noise
 		renderer.setBlend(BM_MULTIPLY);
-		p_noise->bind();
+		renderer.setTexture(p_noise->ref());
 		const Vec2i& o1 = noiseOffset1;
 		const Vec2i& o2 = noiseOffset2;
 		const Vec2f uv1[4] = {Vec2f(o1.x, o1.y), Vec2f(o1.x + 200, o1.y), Vec2f(o1.x + 200, o1.y + 160), Vec2f(o1.x, o1.y + 160)};
@@ -954,7 +876,6 @@ void Level::render()
 		const Vec4f green(0.4f, 1.0f, 0.4f, 1.0f);
 		renderer.quad(renderer.state(), screen, uv1, green);
 		renderer.quad(renderer.state(), screen, uv2, green);
-		GL::setTexturing(false);
 		renderer.setBlend(BM_NORMAL);
 	}
 
@@ -1242,7 +1163,7 @@ void Level::renderObjects(RenderLayer layer,
 	// The passes that bring a texture of their own: the wires draw untextured
 	// and the three lava passes bind lava_edges or the lava itself.
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
-	if(!(layer & ownTexture)) p_sprites->bind();
+	if(!(layer & ownTexture)) Renderer::inst().setTexture(p_sprites->ref());
 
 	// One pass over one layer is one draw of the renderer's, or a few where
 	// an object in the middle of it changes the texture or the blend.
@@ -1259,8 +1180,6 @@ void Level::renderObjects(RenderLayer layer,
 			(*i)->render(layer, offset, color);
 		}
 	}
-
-	if(!(layer & ownTexture)) GL::setTexturing(false);
 }
 
 void Level::sortObjects()
@@ -2416,18 +2335,10 @@ void Level::renderToxicEffect()
 	}
 
 	Engine& engine = Engine::inst();
-	const Vec2i& screenSize = engine.getScreenSize();
-	const Vec2i& screenPow2Size = engine.getScreenPow2Size();
 
-	// Raw from here on: 2560 quads with a colour and a texture coordinate a
-	// corner, in a bracket of their own. The bracket comes first, because
-	// its flush is what puts the level's queued quads into the frame the
-	// copy below reads.
-	Renderer::DirectGL direct;
-
-	// The scale is what puts the grid's texture coordinates below in pixels.
-	GL::bindTexture(bufferID, engine.getScreenTexelScale());
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
+	// The frame so far, the level's queued quads included, into the buffer
+	// the grid samples in pixels.
+	engine.captureFrame(bufferID);
 
 	const double t = static_cast<double>(time) / 1000.0;
 	const double r = min(6.0, toxic * 6.0);
@@ -2458,33 +2369,27 @@ void Level::renderToxicEffect()
 		}
 	}
 
-	// draw the grid
-	Renderer::inst().setBlend(BM_NORMAL);
-	GL::setTexturing(true);
-	glBegin(GL_QUADS);
-
+	// draw the grid: 2560 quads with a colour and a texture coordinate a
+	// corner, the corners in the same order as the cells
+	static std::vector<Vertex> vertices;
+	vertices.resize(64 * 40 * 4);
+	Vertex* p_vertex = &vertices[0];
 	for(int x = 0; x < 64; x++)
 	{
 		for(int y = 0; y < 40; y++)
 		{
-			Vec2i p(x * 10, y * 10);
-			glColor4dv(color[x][y]);
-			glTexCoord2dv(grid[x][y]);
-			glVertex2i(p.x, p.y);
-			glColor4dv(color[x + 1][y]);
-			glTexCoord2dv(grid[x + 1][y]);
-			glVertex2i(p.x + 10, p.y);
-			glColor4dv(color[x + 1][y + 1]);
-			glTexCoord2dv(grid[x + 1][y + 1]);
-			glVertex2i(p.x + 10, p.y + 10);
-			glColor4dv(color[x][y + 1]);
-			glTexCoord2dv(grid[x][y + 1]);
-			glVertex2i(p.x, p.y + 10);
+			const int cx[4] = {x, x + 1, x + 1, x};
+			const int cy[4] = {y, y, y + 1, y + 1};
+			for(int k = 0; k < 4; k++)
+			{
+				p_vertex->position = Vec2f(cx[k] * 10, cy[k] * 10);
+				p_vertex->uv = static_cast<Vec2f>(grid[cx[k]][cy[k]]);
+				p_vertex->color = static_cast<Vec4f>(color[cx[k]][cy[k]]);
+				p_vertex++;
+			}
 		}
 	}
-
-	glEnd();
-	GL::setTexturing(false);
+	Renderer::inst().quads(RenderState(engine.getFrameCopyRef(bufferID), BM_NORMAL), &vertices[0], static_cast<uint>(vertices.size()));
 }
 
 void Level::invalidate()

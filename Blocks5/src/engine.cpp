@@ -90,7 +90,6 @@ Engine::Engine()
 	frameTextureID = 0;
 	frameDepthStencilID = 0;
 	renderTargetID = 0;
-	renderTargetScissor = false;
 	presentVertexBuffer = 0;
 	// The four filters. They stand before loadConfig(), which looks one of them
 	// up by name, and that is long before the GL context; their GL state comes
@@ -598,16 +597,8 @@ bool Engine::init(const std::string& windowCaption,
 	setupCursor();
 
 	// create the textures for crossfading
-	glGenTextures(1, &oldImageID);
-	glGenTextures(1, &newImageID);
-	GL::bindTexture(oldImageID, getScreenTexelScale());
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	GL::bindTexture(newImageID, getScreenTexelScale());
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenPow2Size.x, screenPow2Size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	oldImageID = createFrameCopyTexture(false, true);
+	newImageID = createFrameCopyTexture(false, true);
 
 	// initialize OpenAL
 	printfLog("* Initializing OpenAL ...\n");
@@ -704,31 +695,7 @@ bool Engine::init(const std::string& windowCaption,
 		return false;
 	}
 
-	// set the OpenGL settings
-	glViewport(0, 0, width, height);
-#ifndef __EMSCRIPTEN__
-	// GL_SMOOTH is the default; Emscripten's GL reimplementation aborts on it.
-	glShadeModel(GL_SMOOTH);
-#endif
-	glEnable(GL_BLEND);
-	glEnable(GL_POINT_SMOOTH);
-#ifndef __EMSCRIPTEN__
-	// Neither hint target exists in WebGL (INVALID_ENUM).
-	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-#endif
-
 	Renderer::inst().setBlend(BM_NORMAL);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	// pixel screen coordinates
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluOrtho2D(0.0, width, height, 0.0);
-
-	glMatrixMode(GL_MODELVIEW);
 
 	setLogicRate(20);
 
@@ -781,8 +748,8 @@ void Engine::exit()
 	// delete the crossfade and the textures - before the managers go, since a
 	// crossfade may hold a resource of theirs (CF_Rewind's OSD picture)
 	crossfade(0, 0.0);
-	GL::deleteTexture(oldImageID);
-	GL::deleteTexture(newImageID);
+	Renderer::inst().deleteTexture(oldImageID);
+	Renderer::inst().deleteTexture(newImageID);
 
 	// shut down the managers
 	printfLog("* Shutting down resource managers ...\n");
@@ -885,6 +852,19 @@ void Engine::handleAppFocus(bool gained)
 	}
 }
 
+namespace
+{
+	// A query and no state, so it stands outside a bracket.
+	void reportGLError()
+	{
+		const uint err = glGetError();
+		if(err != GL_NO_ERROR)
+		{
+			printfLog("+ An OpenGL error occured (Error: %d).\n", err);
+		}
+	}
+}
+
 void Engine::mainLoop()
 {
 #ifndef __EMSCRIPTEN__
@@ -947,13 +927,9 @@ void Engine::mainLoopIteration()
 #endif
 
 		// has an OpenGL error occurred?
-		uint err = glGetError();
-		if(err != GL_NO_ERROR)
-		{
-			printfLog("+ An OpenGL error occured (Error: %d).\n", err);
-		}
+		reportGLError();
 
-		err = alGetError();
+		uint err = alGetError();
 		if(err != AL_NO_ERROR)
 		{
 			printfLog("+ An OpenAL error occured (Error: %d).\n", err);
@@ -1273,20 +1249,13 @@ void Engine::mainLoopIteration()
 			// for that: without a logic tick nothing is rendered, and then the
 			// screen is still bound - which WebGL clears before every frame.
 			bindFrameBuffer();
-			GL::bindTexture(oldImageID, getScreenTexelScale());
-			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
+			captureFrame(oldImageID);
 			crossfadeTime = -0.5;
 		}
 		else if(crossfadeTime >= -0.5 && frameRendered)
 		{
-			// The crossfades still draw raw.
-			Renderer::DirectGL direct;
-
-			// fetch the current image
-			GL::bindTexture(newImageID, getScreenTexelScale());
-			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
-
-			// render the crossfade
+			// fetch the current image and draw the crossfade over it
+			captureFrame(newImageID);
 			p_crossfade->render(max(0.0, crossfadeTime / crossfadeDuration), oldImageID, newImageID);
 		}
 
@@ -1325,8 +1294,7 @@ void Engine::mainLoopIteration()
 
 					// Fetch the frame. Always 640x480 out of the framebuffer, whatever
 					// the window size - the video encoder is set up for that once.
-					glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
-					glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_inputFrameBuffer);
+					readFrame(static_cast<uchar*>(p_inputFrameBuffer));
 
 					if(SDL_ShowCursor(-1))
 					{
@@ -1569,8 +1537,8 @@ void Engine::renderToasts()
 
 	Font* p_font = GUI::inst().getFont();
 
-	Renderer::inst().setBlend(BM_NORMAL);
-	glLineWidth(1.0f);
+	Renderer& renderer = Renderer::inst();
+	renderer.setBlend(BM_NORMAL);
 
 	// Oldest first: the newer ones then lie on top, and a toast sliding out
 	// disappears behind its younger neighbour.
@@ -1585,28 +1553,19 @@ void Engine::renderToasts()
 
 		const Vec3d color = i->type == TOAST_ERROR ? Vec3d(0.5, 0.0, 0.0) : Vec3d(0.0, 0.5, 0.0);
 
-		glPushMatrix();
-		glTranslated(0.0, floor(i->y + 0.5), 0.0);
+		renderer.push();
+		renderer.translate(0.0, floor(i->y + 0.5));
 
-		GL::setTexturing(false);
-		glBegin(GL_QUADS);
-		glColor4d(color.r, color.g, color.b, 0.75 * alpha);
-		glVertex2i(0, 0);
-		glVertex2i(640, 0);
-		glColor4d(color.r, color.g, color.b, 0.9 * alpha);
-		glVertex2i(640, TOAST_HEIGHT);
-		glVertex2i(0, TOAST_HEIGHT);
-		glEnd();
-		glBegin(GL_LINES);
-		glColor4d(0.0, 0.0, 0.0, 0.9 * alpha);
-		glVertex2i(0, TOAST_HEIGHT);
-		glVertex2i(640, TOAST_HEIGHT);
-		glEnd();
-		GL::setTexturing(true);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, TOAST_HEIGHT), Vec2f(0.0f, TOAST_HEIGHT)};
+		const Vec4f top(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), static_cast<float>(0.75 * alpha));
+		const Vec4f bottom(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), static_cast<float>(0.9 * alpha));
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+		renderer.hairline(Vec2f(0.0f, TOAST_HEIGHT), Vec2f(640.0f, TOAST_HEIGHT), Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9 * alpha)));
 
 		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
 
-		glPopMatrix();
+		renderer.pop();
 	}
 }
 
@@ -1704,25 +1663,21 @@ void Engine::render()
 #endif
 
 	Renderer& renderer = Renderer::inst();
-	renderer.frameBegin();
-	{
-		// The GUI and the game states still draw raw; the level opens a
-		// Renderer::Batched bracket of its own inside this one.
-		Renderer::DirectGL direct;
+	renderer.frameBegin(screenSize);
 
-		// render the GUI
-		GUI::inst().render();
+	// render the GUI
+	GUI::inst().render();
 
-		// render the game
-		GameState* p_gs = getGameState();
-		if(p_gs) p_gs->onRender();
+	// render the game
+	GameState* p_gs = getGameState();
+	if(p_gs) p_gs->onRender();
 
-		// display the GUI
-		GUI::inst().display();
+	// display the GUI
+	GUI::inst().display();
 
-		// Toasts last: they sit over the GUI and over the editors' panes.
-		renderToasts();
-	}
+	// Toasts last: they sit over the GUI and over the editors' panes.
+	renderToasts();
+
 	renderer.frameEnd();
 
 	// Off before drawOverlays(), which draws -perf's own numbers through the
@@ -1916,6 +1871,7 @@ std::string Engine::getBestOpenALDevice()
 
 void Engine::createUpscalerGL()
 {
+	Renderer::DirectGL direct;
 	// WebGL forbids vertex data out of application memory, it has to be a
 	// buffer. Four vertices, refilled every frame; every filter that uses a
 	// shader shares this one.
@@ -1946,6 +1902,7 @@ void Engine::createUpscalerGL()
 
 void Engine::destroyUpscalerGL()
 {
+	Renderer::DirectGL direct;
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
 		(*i)->destroyGL();
@@ -1973,17 +1930,9 @@ Upscaler* Engine::findUpscaler(const char* p_name) const
 void Engine::createFrameBuffer()
 {
 	frameTextureSize = screenPow2Size;
+	frameTextureID = Texture::createGLTexture(frameTextureSize, 0, true, true, true);
 
-	glGenTextures(1, &frameTextureID);
-	GL::bindTexture(frameTextureID, Vec2d(1.0, 1.0));
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameTextureSize.x, frameTextureSize.y, 0,
-				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	GL::bindTexture(0, Vec2d(1.0, 1.0));
-
+	Renderer::DirectGL direct;
 	glExtGenFramebuffers(1, &frameBufferID);
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
 	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
@@ -2029,25 +1978,23 @@ void Engine::createFrameBuffer()
 
 void Engine::destroyFrameBuffer()
 {
+	Renderer& renderer = Renderer::inst();
+	Renderer::DirectGL direct;
 	if(frameDepthStencilID)  { glExtDeleteRenderbuffers(1, &frameDepthStencilID); frameDepthStencilID = 0; }
 	if(frameBufferID)        { glExtDeleteFramebuffers(1, &frameBufferID);        frameBufferID = 0; }
-	if(frameTextureID)       { GL::deleteTexture(frameTextureID);                 frameTextureID = 0; }
+	if(frameTextureID)       { renderer.deleteTexture(frameTextureID);            frameTextureID = 0; }
 	if(renderTargetID)       { glExtDeleteFramebuffers(1, &renderTargetID);       renderTargetID = 0; }
 
 	for(std::vector<OffscreenTexture>::const_iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
 	{
-		GL::deleteTexture(i->id);
+		renderer.deleteTexture(i->id);
 	}
 	offscreenTextures.clear();
 }
 
 uint Engine::acquireOffscreenTexture(const Vec2i& size)
 {
-	// Nothing here needs a flush of its own: the hit path issues no GL at all,
-	// and the miss path's two binds go through GL::, which puts the batch up
-	// itself where the binding moves.
-	//
 	// One of the right size that nobody is holding?
 	for(std::vector<OffscreenTexture>::iterator i = offscreenTextures.begin();
 		i != offscreenTextures.end(); ++i)
@@ -2056,24 +2003,13 @@ uint Engine::acquireOffscreenTexture(const Vec2i& size)
 	}
 
 	OffscreenTexture entry;
-	entry.id = 0;
+	// Clamped: WebGL 1 samples a texture whose edges are not a power of two
+	// as pure black when it is repeated rather than clamped - with no error.
+	// This one is a power of two, but clamped is right here anyway.
+	entry.id = Texture::createGLTexture(size, 0, true, true, true);
 	entry.size = size;
 	entry.lent = true;
-
-	glGenTextures(1, &entry.id);
 	if(!entry.id) return 0;
-
-	GL::bindTexture(entry.id, Vec2d(1.0, 1.0));
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0,
-				 GL_RGBA, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// WebGL 1 samples a texture whose edges are not a power of two as pure
-	// black when it is repeated rather than clamped - with no error. This one
-	// is a power of two, but clamped is right here anyway.
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	GL::bindTexture(0, Vec2d(1.0, 1.0));
 
 	offscreenTextures.push_back(entry);
 	return entry.id;
@@ -2094,13 +2030,12 @@ void Engine::releaseOffscreenTexture(uint textureID)
 bool Engine::beginRenderToTexture(uint textureID,
 								  const Vec2i& size)
 {
-	// Both ends of the switch flush, which is what makes a bake inside an open
-	// batch safe: quads queued before it belong on the screen, quads queued
-	// during it belong on the texture, and each goes up where it was issued.
-	Renderer& renderer = Renderer::inst();
-	renderer.flush();
-
 	if(!textureID) return false;
+
+	// The bracket flushes, which is what makes a bake inside an open batch
+	// safe: quads queued before it belong on the screen and go up before the
+	// target moves, quads queued during it belong on the texture.
+	Renderer::DirectGL direct;
 
 	if(!renderTargetID)
 	{
@@ -2117,55 +2052,38 @@ bool Engine::beginRenderToTexture(uint textureID,
 		return false;
 	}
 
-	// A scissor box set elsewhere is in window coordinates and would clip the
-	// texture here - the clear included.
-	renderTargetScissor = (glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE);
-	if(renderTargetScissor) glDisable(GL_SCISSOR_TEST);
-
-	// The projection twice over, for the two kinds of drawing: GL's own
-	// stack for the raw code of a bake, the renderer's for its quads. The
-	// modelview through the renderer, which inside a DirectGL moves GL's
-	// stack as well: a bake starts from the texture's origin whichever
-	// transform the caller stood under.
+	// The projection, the transform and the scissor are the renderer's:
+	// its target begins from the texture's origin whichever transform the
+	// caller stood under, with no scissor of the frame's clipping it.
 	glViewport(0, 0, size.x, size.y);
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(0.0, size.x, size.y, 0.0);
-	glMatrixMode(GL_MODELVIEW);
-	renderer.push();
-	renderer.loadIdentity();
-	renderer.setProjection(Mat4::ortho(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f, -1.0f, 1.0f));
+	Renderer::inst().beginTarget(size);
 	return true;
 }
 
 void Engine::endRenderToTexture()
 {
-	Renderer& renderer = Renderer::inst();
-	renderer.flush();
-
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	renderer.pop();
-	renderer.setProjection(Mat4::ortho(0.0f, static_cast<float>(screenSize.x), static_cast<float>(screenSize.y), 0.0f, -1.0f, 1.0f));
+	// The bracket flushes the bake onto the texture while it is still the
+	// target; then the target goes back to the frame.
+	Renderer::DirectGL direct;
+	Renderer::inst().endTarget();
 
 	// Detach the texture again: it is read in a moment, and a target that
 	// doubles as a source is undefined.
 	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
 							  GL_TEXTURE_2D, 0, 0);
-	if(renderTargetScissor) glEnable(GL_SCISSOR_TEST);
 	bindFrameBuffer();
 }
 
 void Engine::bindFrameBuffer()
 {
+	Renderer::DirectGL direct;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID);
 	glViewport(0, 0, screenSize.x, screenSize.y);
 }
 
 void Engine::unbindFrameBuffer()
 {
+	Renderer::DirectGL direct;
 	glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
 	glViewport(0, 0, displaySize.x, displaySize.y);
 }
@@ -2768,11 +2686,11 @@ void Engine::presentFrame()
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
-	// Raw and not through GL::, which is what the three matrix stacks and the
-	// attribute stack are for: every piece of state this touches is given back
-	// before the function returns, so nothing the game drew under it can be
-	// disturbed. It is also the one place that draws while no game code is
-	// running, so there is no batch of its own to put up.
+	// Raw, inside a bracket: whatever the overlays queued goes up first, and
+	// the renderer forgets what GL holds at the end - what the pops below put
+	// back differs between the desktop and the browser, and a record nobody
+	// can work out is better dropped than guessed.
+	Renderer::DirectGL direct;
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
@@ -2827,20 +2745,10 @@ void Engine::presentFrame()
 	glMatrixMode(GL_MODELVIEW);
 
 	glPopAttrib();
-
-	// What that pop put back differs per platform: GL_ALL_ATTRIB_BITS carries
-	// the binding and the enables on the desktop, and gl_compat.cpp restores
-	// only the mode and the enables in the browser. So the record is dropped
-	// rather than worked out.
-	GL::invalidate();
 }
 
 void Engine::drawOverlays()
 {
-	// After the frame's own bracket has closed, and drawn raw like the rest
-	// of the screen.
-	Renderer::DirectGL direct;
-
 	if(p_muteIconTexture && soundVolume == 0.0 && musicVolume == 0.0)
 	{
 		renderSprite(p_muteIconTexture, Vec2i(5, 5),
@@ -2928,15 +2836,7 @@ void Engine::drawPerformance()
 	const int top = screenSize.y - height;
 
 	Renderer::inst().setBlend(BM_NORMAL);
-	GL::setTexturing(false);
-	glBegin(GL_QUADS);
-	glColor4d(0.0, 0.0, 0.0, 0.7);
-	glVertex2i(0, top);
-	glVertex2i(screenSize.x, top);
-	glVertex2i(screenSize.x, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
-	GL::setTexturing(true);
+	Renderer::inst().rect(Vec2f(0.0f, top), Vec2f(screenSize.x, screenSize.y), Vec4f(0.0f, 0.0f, 0.0f, 0.7f));
 
 	for(int i = 0; i < 3; i++)
 	{
@@ -2964,8 +2864,7 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 	// this game's picture. It also puts the viewport back to 640x480, which
 	// is the size this read assumes.
 	bindFrameBuffer();
-	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
-	glReadPixels(0, 0, shotSize.x, shotSize.y, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
+	readFrame(&pixels[0]);
 
 	if(!encodePNG(&pixels[0], shotSize, 4, 3, true, p_pngOut))
 	{
@@ -3092,11 +2991,8 @@ void Engine::renderSprite(Texture* p_sprite,
 						  double rotation,
 						  double scaling)
 {
-	// The switch back off stays: everything that draws untextured after a
-	// sprite has always been able to rely on it.
-	p_sprite->bind();
+	Renderer::inst().setTexture(p_sprite->ref());
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
-	GL::setTexturing(false);
 }
 
 void Engine::renderSprites(const Sprites& sprites,
@@ -3992,6 +3888,32 @@ Vec2d Engine::getScreenTexelScale() const
 	return Vec2d(1.0 / screenPow2Size.x, -1.0 / screenPow2Size.y);
 }
 
+uint Engine::createFrameCopyTexture(bool withAlpha,
+									bool smooth)
+{
+	// Repeating, not clamped: the scale above reaches the band through the
+	// wrap.
+	return Texture::createGLTexture(screenPow2Size, 0, withAlpha, smooth, false);
+}
+
+void Engine::captureFrame(uint textureID)
+{
+	Renderer::inst().copyFrame(textureID, Vec2i(0, screenPow2Size.y - screenSize.y), screenSize);
+}
+
+TextureRef Engine::getFrameCopyRef(uint textureID) const
+{
+	const Vec2d scale = getScreenTexelScale();
+	return TextureRef(textureID, Vec2f(static_cast<float>(scale.x), static_cast<float>(scale.y)));
+}
+
+void Engine::readFrame(uchar* p_rgba)
+{
+	Renderer::DirectGL direct;
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba);
+}
+
 const Vec2i& Engine::getDisplaySize() const
 {
 	return displaySize;
@@ -4024,8 +3946,7 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		// save the old image - as above out of the framebuffer object, not out
 		// of whatever is bound right now.
 		bindFrameBuffer();
-		GL::bindTexture(oldImageID, getScreenTexelScale());
-		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
+		captureFrame(oldImageID);
 		crossfadeTime = -0.5;
 	}
 }

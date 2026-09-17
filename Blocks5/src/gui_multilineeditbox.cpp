@@ -27,6 +27,7 @@ GUI_MultiLineEditBox::~GUI_MultiLineEditBox()
 void GUI_MultiLineEditBox::onRender()
 {
 	GUI& gui = GUI::inst();
+	Renderer& renderer = Renderer::inst();
 	bool focused = isFocusedIndirectly();
 
 	if(useSkin())
@@ -36,38 +37,25 @@ void GUI_MultiLineEditBox::onRender()
 	}
 	else
 	{
-		// draw the background
-		glBegin(GL_QUADS);
-		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
-		else glColor4d(0.4, 0.4, 0.4, 1.0);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		if(focused) glColor4d(0.5, 0.5, 0.5, 1.0);
-		else glColor4d(0.3, 0.3, 0.3, 1.0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
-
-		// draw the frame
-		glColor4d(0.0, 0.0, 0.0, 1.0);
-		glBegin(GL_LINE_LOOP);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
+		// draw the background and the frame
+		const Vec4f top = focused ? Vec4f(0.6f, 0.6f, 0.6f, 1.0f) : Vec4f(0.4f, 0.4f, 0.4f, 1.0f);
+		const Vec4f bottom = focused ? Vec4f(0.5f, 0.5f, 0.5f, 1.0f) : Vec4f(0.3f, 0.3f, 0.3f, 1.0f);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
-	const Vec2i pos = getAbsPosition();
-	glEnable(GL_SCISSOR_TEST);
-	int h = gui.getRoot()->getSize().y;
-	glScissor(pos.x + 2, h - pos.y - size.y + 18, size.x - 20, size.y - 20);
+	// The text, the selection and the caret clipped to the inside of the
+	// frame, short of the two scroll bars; those are children and draw
+	// after this, outside the scope.
+	Renderer::ScissorScope clip(getAbsPosition() + Vec2i(2, 2), size - Vec2i(20, 20));
 
 	// work out the caret position
 	Vec2i c = textCharPositions[cursor];
 
-	glPushMatrix();
-	glTranslated(-scroll.x, -scroll.y, 0.0);
+	renderer.push();
+	renderer.translate(-scroll.x, -scroll.y);
 
 	// write the text
 	p_font->renderText(text, Vec2i(4, 2), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
@@ -77,36 +65,26 @@ void GUI_MultiLineEditBox::onRender()
 		if(selStart != selEnd)
 		{
 			// draw the selection
-			glBegin(GL_QUADS);
-
+			const Vec4f top(0.25f, 0.25f, 1.0f, 0.5f), bottom(0.2f, 0.2f, 0.8f, 0.5f);
+			const Vec4f colors[4] = {top, top, bottom, bottom};
 			int h = p_font->getLineHeight();
 			for(uint i = selStart; i < selEnd; i++)
 			{
 				const Vec2i p = textCharPositions[i];
 				int w = max(0, textCharPositions[i + 1].x - p.x);
-				glColor4d(0.25, 0.25, 1.0, 0.5);
-				glVertex2i(p.x, p.y + 1);
-				glVertex2i(p.x + w, p.y + 1);
-				glColor4d(0.2, 0.2, 0.8, 0.5);
-				glVertex2i(p.x + w, p.y + 1 + h);
-				glVertex2i(p.x, p.y + 1 + h);
+				const Vec2f corners[4] = {Vec2f(p.x, p.y + 1), Vec2f(p.x + w, p.y + 1),
+										  Vec2f(p.x + w, p.y + 1 + h), Vec2f(p.x, p.y + 1 + h)};
+				renderer.quad(corners, colors);
 			}
-
-			glEnd();
 		}
 
 		// draw the caret
-		glBegin(GL_LINES);
-		double alpha = 0.6 + 0.4 * sin(0.02 * Engine::inst().getTime());
-		if(active) glColor4d(1.0, 1.0, 1.0, alpha);
-		else glColor4d(0.5, 0.5, 0.5, alpha);
-		glVertex2i(c.x, c.y + 1);
-		glVertex2i(c.x, c.y + 1 + p_font->getLineHeight());
-		glEnd();
+		const float alpha = static_cast<float>(0.6 + 0.4 * sin(0.02 * Engine::inst().getTime()));
+		const Vec4f color = active ? Vec4f(1.0f, 1.0f, 1.0f, alpha) : Vec4f(0.5f, 0.5f, 0.5f, alpha);
+		renderer.hairline(Vec2f(c.x, c.y + 1), Vec2f(c.x, c.y + 1 + p_font->getLineHeight()), color);
 	}
 
-	glPopMatrix();
-	glDisable(GL_SCISSOR_TEST);
+	renderer.pop();
 }
 
 void GUI_MultiLineEditBox::setText(const std::string& text)

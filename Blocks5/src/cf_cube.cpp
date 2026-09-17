@@ -13,57 +13,24 @@ void CF_Cube::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluPerspective(90.0, 1.0, 0.1, 100.0);
+	// A cube with the old image on its front and the new one on its left,
+	// turned a quarter while the camera pulls back and in again.
+	const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);
+	Mat4 modelview = Mat4::lookAt(0.0, 0.0, -2.0 - sin(t * 3.1415926535897932384626433832795), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	modelview.rotate(90.0 * t, 0.0, 1.0, 0.0);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	gluLookAt(0.0, 0.0, -2.0 - sin(t * 3.1415926535897932384626433832795), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	glRotated(90.0 * t, 0.0, 1.0, 0.0);
+	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	GL::setTexturing(true);
-	glEnable(GL_CULL_FACE);
+	// the same face both times, turned by the rotation between the draws;
+	// the back faces are culled so the far side never shows through
+	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+	const Vec3f face[4] = {Vec3f(-1.0f, 1.0f, -1.0f), Vec3f(1.0f, 1.0f, -1.0f), Vec3f(1.0f, -1.0f, -1.0f), Vec3f(-1.0f, -1.0f, -1.0f)};
+	const Vec2f uvs[4] = {Vec2f(screenSize.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, screenSize.y), Vec2f(screenSize.x, screenSize.y)};
 
 	// draw the front face of the cube
-	GL::bindTexture(oldImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex3i(-1, 1, -1);
-	glTexCoord2i(0, 0);
-	glVertex3i(1, 1, -1);
-	glTexCoord2i(0, screenSize.y);
-	glVertex3i(1, -1, -1);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex3i(-1, -1, -1);
-	glEnd();
+	drawImage3D(oldImageID, projection * modelview, face, uvs, white, true);
 
 	// draw the left face of the cube
-	glRotated(-90.0, 0.0, 1.0, 0.0);
-	GL::bindTexture(newImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex3i(-1, 1, -1);
-	glTexCoord2i(0, 0);
-	glVertex3i(1, 1, -1);
-	glTexCoord2i(0, screenSize.y);
-	glVertex3i(1, -1, -1);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex3i(-1, -1, -1);
-	glEnd();
-
-	GL::setTexturing(false);
-	glDisable(GL_CULL_FACE);
-
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
+	modelview.rotate(-90.0, 0.0, 1.0, 0.0);
+	drawImage3D(newImageID, projection * modelview, face, uvs, white, true);
 }

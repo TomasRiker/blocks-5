@@ -5,10 +5,9 @@
 
 namespace
 {
-	// How tall a strip is. A video head reads one track, and one track is one
-	// video field - here it is a few rows, fine enough that the seam between
-	// the two source images nowhere stands as a straight edge, and coarse
-	// enough that 160 strips have to be drawn and not 480.
+	// How tall a strip is: a few rows, fine enough that the seam between the
+	// two source images nowhere stands as a straight edge, and coarse enough
+	// that 160 strips have to be drawn and not 480.
 	const int STRIP_HEIGHT = 3;
 
 	// How far the picture travels during the rewind, in picture heights. The
@@ -21,8 +20,7 @@ namespace
 	// the effect stops.
 	//
 	// Ten rather than seven because this is a distance and not a speed: over
-	// the transition's 1.5 seconds, seven heights would read as leisurely
-	// rather than frantic.
+	// 1.5 seconds, seven heights would read as leisurely rather than frantic.
 	const double ROLL_SCREENS = 10.0;
 
 	// Over what part of the end the transport brakes and the vertical hold
@@ -59,8 +57,8 @@ namespace
 	const int NOISE_SIZE = 256;
 
 	// drawSnow writes its texture coordinates in fractions of the image, so
-	// the noise is bound with the identity rather than with a texel scale.
-	const Vec2d NOISE_TEXEL_SCALE(1.0, 1.0);
+	// the noise is drawn with the identity rather than with a texel scale.
+	const Vec2f NOISE_TEXEL_SCALE(1.0f, 1.0f);
 
 	// Where the recorder's on-screen display sits. Far enough in that the CRT
 	// filter's curvature does not cut it off at the corner.
@@ -108,13 +106,9 @@ CF_Rewind::CF_Rewind()
 		p_pixels[i * 3 + 2] = v;
 	}
 
-	glGenTextures(1, &noiseID);
-	GL::bindTexture(noiseID, NOISE_TEXEL_SCALE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, NOISE_SIZE, NOISE_SIZE, 0,
-				 GL_RGB, GL_UNSIGNED_BYTE, p_pixels);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	GL::bindTexture(0, Vec2d(1.0, 1.0));
+	// Nearest and repeating: snow has no soft edges, and a strip samples
+	// more than one width of it.
+	noiseID = Texture::createGLTexture(Vec2i(NOISE_SIZE, NOISE_SIZE), p_pixels, false, false, false);
 
 	delete[] p_pixels;
 }
@@ -123,27 +117,21 @@ CF_Rewind::~CF_Rewind()
 {
 	// The Engine deletes the crossfade in the main loop; the GL context is
 	// therefore still up.
-	GL::deleteTexture(noiseID);
+	Renderer::inst().deleteTexture(noiseID);
 	if(p_osd) p_osd->release();
 }
 
-void CF_Rewind::drawStrip(int y,
+void CF_Rewind::drawStrip(uint imageID,
+						  int y,
 						  int height,
 						  int sourceY,
 						  double shift) const
 {
-	// The texture coordinates are in pixels, which is what screenTexelScale
-	// is for; the strip's own bind is what puts it in the matrix.
-	glBegin(GL_QUADS);
-	glTexCoord2d(shift, sourceY);
-	glVertex2i(0, y);
-	glTexCoord2d(shift + screenSize.x, sourceY);
-	glVertex2i(screenSize.x, y);
-	glTexCoord2d(shift + screenSize.x, sourceY + height);
-	glVertex2i(screenSize.x, y + height);
-	glTexCoord2d(shift, sourceY + height);
-	glVertex2i(0, y + height);
-	glEnd();
+	// The texture coordinates are in pixels, as the image's state is sampled.
+	const Vec2f corners[4] = {Vec2f(0.0f, y), Vec2f(screenSize.x, y), Vec2f(screenSize.x, y + height), Vec2f(0.0f, y + height)};
+	const float u0 = static_cast<float>(shift), u1 = static_cast<float>(shift + screenSize.x);
+	const Vec2f uvs[4] = {Vec2f(u0, sourceY), Vec2f(u1, sourceY), Vec2f(u1, sourceY + height), Vec2f(u0, sourceY + height)};
+	Renderer::inst().quad(imageState(imageID), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void CF_Rewind::drawSnow(int y,
@@ -155,17 +143,11 @@ void CF_Rewind::drawSnow(int y,
 	const double du = static_cast<double>(screenSize.x) / NOISE_SIZE;
 	const double dv = static_cast<double>(height) / NOISE_SIZE;
 
-	glColor4d(1.0, 1.0, 1.0, alpha);
-	glBegin(GL_QUADS);
-	glTexCoord2d(u, v);
-	glVertex2i(0, y);
-	glTexCoord2d(u + du, v);
-	glVertex2i(screenSize.x, y);
-	glTexCoord2d(u + du, v + dv);
-	glVertex2i(screenSize.x, y + height);
-	glTexCoord2d(u, v + dv);
-	glVertex2i(0, y + height);
-	glEnd();
+	Renderer& renderer = Renderer::inst();
+	const Vec2f corners[4] = {Vec2f(0.0f, y), Vec2f(screenSize.x, y), Vec2f(screenSize.x, y + height), Vec2f(0.0f, y + height)};
+	const Vec2f uvs[4] = {Vec2f(u, v), Vec2f(u + du, v), Vec2f(u + du, v + dv), Vec2f(u, v + dv)};
+	renderer.quad(RenderState(TextureRef(noiseID, NOISE_TEXEL_SCALE), renderer.state().blend), corners, uvs,
+				  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha)));
 }
 
 /* Why a rewind and not just any effect: on a restart the game jumps from the
@@ -196,9 +178,7 @@ void CF_Rewind::render(double t,
 					   uint newImageID)
 {
 	Engine& engine = Engine::inst();
-
-	GL::setTexturing(true);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
+	Renderer::inst().setBlend(BM_NORMAL);
 
 	// The tape spins up and brakes again.
 	const double eased = t * t * (3.0 - 2.0 * t);
@@ -232,25 +212,21 @@ void CF_Rewind::render(double t,
 		const int sourceY = static_cast<int>(wrap(y + roll, screenSize.y));
 		const int overlap = sourceY + height - screenSize.y;
 
-		GL::bindTexture(useNew ? newImageID : oldImageID, screenTexelScale);
-		if(overlap <= 0) drawStrip(y, height, sourceY, shift);
+		const uint imageID = useNew ? newImageID : oldImageID;
+		if(overlap <= 0) drawStrip(imageID, y, height, sourceY, shift);
 		else
 		{
 			// This is exactly where a recorder has its head switching
 			// point: the end of one video field and the start of the
 			// next, with a torn strip in between. Hence both halves
 			// separately, with different offsets.
-			drawStrip(y, height - overlap, sourceY, shift);
-			drawStrip(y + height - overlap, overlap, 0,
+			drawStrip(imageID, y, height - overlap, sourceY, shift);
+			drawStrip(imageID, y + height - overlap, overlap, 0,
 					  shift + settle * random(-SEAM_SHIFT, SEAM_SHIFT));
 		}
 	}
 
 	// --- Noise ------------------------------------------------------------
-	// A scale of its own, which the bind carries: the noise image is sampled
-	// in 0..1 and not in pixels of the screen.
-	GL::bindTexture(noiseID, NOISE_TEXEL_SCALE);
-
 	// The bars travel downward and are fully opaque: no picture lies there.
 	for(int i = 0; i < NOISE_BARS; i++)
 	{
@@ -267,14 +243,7 @@ void CF_Rewind::render(double t,
 	Renderer::inst().setBlend(BM_NORMAL);
 
 	// --- The grey wash -----------------------------------------------------
-	GL::setTexturing(false);
-	glBegin(GL_QUADS);
-	glColor4d(0.62, 0.63, 0.60, settle * WASH_ALPHA);
-	glVertex2i(0, 0);
-	glVertex2i(screenSize.x, 0);
-	glVertex2i(screenSize.x, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
+	drawColor(Vec4f(0.62f, 0.63f, 0.60f, static_cast<float>(settle * WASH_ALPHA)));
 
 	// --- The on-screen display ---------------------------------------------
 	// It belongs to the recorder's character generator and not to the tape: it
@@ -294,6 +263,4 @@ void CF_Rewind::render(double t,
 								Vec2i(OSD_ARROWS_WIDTH, OSD_HEIGHT), Vec4d(1.0));
 		}
 	}
-
-	GL::setTexturing(false);
 }
