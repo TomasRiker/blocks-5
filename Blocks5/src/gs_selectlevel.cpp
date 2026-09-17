@@ -53,7 +53,9 @@ void GS_SelectLevel::onRender()
 		Font* p_font = GUI::inst().getFont();
 		Vec2i dim;
 		const std::string title = localizeString(p_currentLevel->getTitle());
-		const std::string shown = status ? title : std::string("???");
+		// -1 is the bonus level while it is still locked; it hides its name
+		// like any other locked level, as the darkening below treats it.
+		const std::string shown = status == 0 || status == -1 ? std::string("???") : title;
 		// As wide as the preview above it (the clip above), because the
 		// name sits centred under it. Anything wider runs left into the
 		// description and right off the picture: renderText() clips nothing.

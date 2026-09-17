@@ -15,6 +15,21 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	reload();
 }
 
+Texture::Texture(Texture* p_parent,
+				 const Vec2i& offset,
+				 const Vec2i& size) : Resource(p_parent->filename)
+{
+	p_rgba = 0;
+	texID = 0;
+	doKeepInMemory = false;
+	this->offset = offset;
+	this->size = size;
+	texelScale = Vec2d(1.0, 1.0);
+	this->p_parent = p_parent;
+
+	loadSubTexture(p_parent, offset, size);
+}
+
 Texture::~Texture()
 {
 	cleanUp();
@@ -159,13 +174,7 @@ Texture* Texture::createSubTexture(const Vec2i& offset,
 {
 	if(!doKeepInMemory) return 0;
 
-	Texture* p_texture = new Texture(filename);
-	p_texture->p_parent = this;
-	p_texture->offset = offset;
-	p_texture->size = size;
-	p_texture->reload();
-
-	return p_texture;
+	return new Texture(this, offset, size);
 }
 
 void Texture::loadSubTexture(Texture* p_parent,

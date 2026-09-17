@@ -234,7 +234,7 @@ void GUI_RadioButton::readAttributes(TiXmlElement* p_element)
 	if(e)
 	{
 		const char* p_imageFilename = e->GetText();
-		if(p_imageFilename) setImageFilename(p_imageFilename);
+		if(p_imageFilename) setRawImageFilename(p_imageFilename);
 
 		e->QueryIntAttribute("u", &positionOnTexture.x);
 		e->QueryIntAttribute("v", &positionOnTexture.y);
@@ -246,4 +246,21 @@ void GUI_RadioButton::setImageFilename(const std::string& imageFilename)
 	if(p_image) p_image->release();
 	this->imageFilename = imageFilename;
 	p_image = Manager<Texture>::inst().request(imageFilename);
+}
+
+void GUI_RadioButton::setRawImageFilename(const std::string& rawImageFilename)
+{
+	this->rawImageFilename = rawImageFilename;
+	setImageFilename(localizeString(rawImageFilename));
+}
+
+// A $ID image follows a language switch, as GUI_Button's and
+// GUI_StaticImage's do. The texture is requested only when a different name
+// really comes out.
+void GUI_RadioButton::onUpdate()
+{
+	if(rawImageFilename.empty()) return;
+
+	const std::string wanted = localizeString(rawImageFilename);
+	if(wanted != imageFilename) setImageFilename(wanted);
 }

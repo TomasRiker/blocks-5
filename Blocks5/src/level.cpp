@@ -2094,11 +2094,13 @@ void Level::removeOldObjects()
 
 void Level::hashObject(Object* p_obj)
 {
-	// insert the object into the list of the corresponding field
+	// insert the object into the list of the corresponding field. Both
+	// coordinates are tested, not the flat index: x == WIDTH would otherwise
+	// land in the first cell of the next row.
 	const Vec2i& p = p_obj->getPosition();
-	int index = p.y * WIDTH + p.x;
-	if(index >= 0 && index < WIDTH * HEIGHT)
+	if(p.x >= 0 && p.x < WIDTH && p.y >= 0 && p.y < HEIGHT)
 	{
+		const int index = p.y * WIDTH + p.x;
 		if(p_obj->lastHashedAt == index) return;
 		else unhashObject(p_obj);
 

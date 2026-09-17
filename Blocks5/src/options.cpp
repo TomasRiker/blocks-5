@@ -60,6 +60,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 {
 	this->p_focusWhenClosed = p_focusWhenClosed;
 
+	// Every click below sets it, the closing ones included, so it starts
+	// fresh here: Cancel reloads config.xml only when something was touched.
+	changed = false;
+
 	Engine& engine = Engine::inst();
 
 	// set the current language

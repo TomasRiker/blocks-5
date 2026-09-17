@@ -128,7 +128,7 @@
 			<Title>OK</Title>
 		</Button>
 		<Button name="Cancel" x="155" y="425" w="135" h="30">
-			<Title>§de:Abbrechen§en:Cancel</Title>
+			<Title>$CANCEL</Title>
 		</Button>
 	</Window>
 

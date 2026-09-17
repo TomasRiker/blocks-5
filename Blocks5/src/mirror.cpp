@@ -12,6 +12,18 @@ Mirror::Mirror(Level& level,
 	flags = OF_MASSIVE | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	interpolation = 0.3;
 	destroyTime = 50;
+
+	// subType comes out of the level file unchecked (presets.cpp), and only
+	// 0 and 1 mean anything: the two reflect methods, the sprite and the
+	// tooltip each test for one of the two, so any other value would be a
+	// mirror that reflects nothing.
+	if(subType < 0 || subType > 1)
+	{
+		printfLog("+ WARNING: Mirror with subType %d, which does not exist. Treating it as a laser mirror.\n",
+				  subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
 	this->dir = dir;
 }
@@ -173,7 +185,7 @@ void Mirror::saveAttributes(TiXmlElement* p_target)
 
 std::string Mirror::getToolTip() const
 {
-	switch(subType % 2)
+	switch(subType)
 	{
 	case 0: return "$TT_MIRROR_LASER";
 	case 1: return "$TT_MIRROR_CANNON";

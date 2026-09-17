@@ -66,7 +66,7 @@ void Eye::onUpdate()
 			enemy.SetAttribute("subType", random(0, 1));
 			enemy.SetAttribute("dir", random(0, 3));
 			Enemy* p_enemy = static_cast<Enemy*>(level.getPresets()->instancePreset("Enemy", position, &enemy));
-			p_enemy->setInvisibility(50);
+			if(p_enemy) p_enemy->setInvisibility(50);
 		}
 	}
 	else

@@ -9,6 +9,17 @@ E_FlipFlop::E_FlipFlop(Level& level,
 					   int dir) : Electronics(level, position, dir)
 {
 	renderLayers |= RL_MAIN;
+
+	// subType comes out of the level file unchecked (presets.cpp): 0 is the
+	// RS, 1 the D and 2 the JK flip-flop, and any other value would be a
+	// part with no pins at all.
+	if(subType < 0 || subType > 2)
+	{
+		printfLog("+ WARNING: Flip-flop with subType %d, which does not exist. Treating it as RS.\n",
+				  subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
 	this->value = value;
 

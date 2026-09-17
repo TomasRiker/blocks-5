@@ -232,8 +232,11 @@ int main()
 	char tempFilename[256] = "";
 	sprintf(tempFilename, "%spwencrypt.txt", tempPath);
 	FILE* p_file = fopen(tempFilename, "at");
-	fprintf(p_file, "Password:  %s\nEncrypted: %s\n\n", in, out);
-	fclose(p_file);
+	if(p_file)
+	{
+		fprintf(p_file, "Password:  %s\nEncrypted: %s\n\n", in, out);
+		fclose(p_file);
+	}
 	char cmd[256] = "";
 	sprintf(cmd, "NOTEPAD.EXE \"%s\"", tempFilename);
 	system(cmd);

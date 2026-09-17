@@ -197,6 +197,10 @@ public:
 						p_clickWhenConfirmed = p_element;
 					}
 				}
+				else
+				{
+					Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_FILE_DOESNT_EXIST");
+				}
 			}
 			else
 			{

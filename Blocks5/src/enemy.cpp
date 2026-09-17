@@ -275,7 +275,8 @@ void Enemy::onUpdate()
 			switch(r)
 			{
 			case 0:
-				tryToMove(intToDir(random(0, 4)));
+				// random() is inclusive at both ends, and there are four ways.
+				tryToMove(intToDir(random(0, 3)));
 				break;
 			default:
 				if(targetPosition.x != -1)

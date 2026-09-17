@@ -37,20 +37,6 @@ void E_LightBarrierReceiver::onRender(RenderLayer layer,
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
-void E_LightBarrierReceiver::saveExtendedAttributes(TiXmlElement* p_target)
-{
-	Electronics::saveExtendedAttributes(p_target);
-
-	p_target->SetAttribute("value", value);
-}
-
-void E_LightBarrierReceiver::loadExtendedAttributes(TiXmlElement* p_element)
-{
-	Electronics::loadExtendedAttributes(p_element);
-
-	p_element->Attribute("value", &value);
-}
-
 bool E_LightBarrierReceiver::changeInEditor(int mod)
 {
 	if(!mod)

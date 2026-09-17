@@ -34,21 +34,25 @@ void LightBarrierSender::onRender(RenderLayer layer,
 		{
 			Vec2d oldDir(0.0);
 			Vec2d oldP(0.0);
-			Vec2d dir;
-			Vec2d p;
+			Vec2d dir(0.0);
+			Vec2d p(0.0);
 
 			beamPoints.clear();
 
 			std::list<Vec2d>::const_iterator last = beam.end();
 			last--;
-			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
+			uint n = 0;
+			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, ++n)
 			{
 				oldP = p;
 				oldDir = dir;
 				p = *i;
 				dir = p - oldP;
 
-				if(i == beam.begin() || i == last || dir != oldDir)
+				// The first two points and the last always: the second is
+				// where the first real direction exists, and only from the
+				// third on does a point that keeps it add nothing.
+				if(n < 2 || i == last || dir != oldDir)
 				{
 					beamPoints.push_back(static_cast<Vec2f>(p));
 				}
@@ -167,9 +171,11 @@ void LightBarrierSender::onUpdate()
 
 		beamPos += beamDir * 4;
 		z++;
-
-		counter++;
 	}
+
+	// Once per tick, as the laser's: the pulse in onRender() runs at one
+	// rate whatever the beam's length.
+	counter++;
 }
 
 bool LightBarrierSender::changeInEditor(int mod)

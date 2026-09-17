@@ -54,7 +54,7 @@ void ConveyorBelt::onRemove()
 		if(!numInstances)
 		{
 			// The last instance is gone. Stop the sound.
-			p_soundInst->stop();
+			if(p_soundInst) p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
 		}

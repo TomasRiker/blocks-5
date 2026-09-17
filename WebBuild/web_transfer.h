@@ -47,8 +47,9 @@ namespace WebTransfer
 	// finished; otherwise the status and the (unchecked) requested name.
 	int pollImport(std::string& untrustedName);
 
-	// Discards a dialog that is still open. The caller clears the staging
-	// files away itself - it named them, after all.
+	// Discards a dialog that is still open: a file picked after this is
+	// neither written nor reported. The caller clears the staging files
+	// away itself - it named them, after all.
 	void abandon();
 
 	// Forces an FS.syncfs to land an import in IndexedDB at once.

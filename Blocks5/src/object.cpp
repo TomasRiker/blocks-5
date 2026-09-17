@@ -11,9 +11,9 @@
 
 // How brightly an object that has called flash() lights up, and how fast that
 // dies away again. The decay is that of the flash in Level::update(): a
-// fifth less per logic tick, off below 1/256 - just under eight ticks, a good
-// 0.15 s. Both are a matter of taste, which is why they live here. extern,
-// because the HUD icons light up with the same numbers.
+// fifth less per logic tick, off below 1/256 - 25 ticks, half a second. Both
+// are a matter of taste, which is why they live here. extern, because the
+// HUD icons light up with the same numbers.
 extern const double FLASH_STRENGTH = 1.0;
 extern const double FLASH_DECAY = 0.8;
 

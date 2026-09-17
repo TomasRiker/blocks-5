@@ -191,10 +191,10 @@ void Electronics::loadConnections(TiXmlElement* p_source)
 		TiXmlElement* p_connection = p_outputs->FirstChildElement("Connection");
 		while(p_connection)
 		{
-			int sourcePinID; p_connection->Attribute("sourcePinID", &sourcePinID);
-			int targetX; p_connection->Attribute("targetX", &targetX);
-			int targetY; p_connection->Attribute("targetY", &targetY);
-			int targetPinID; p_connection->Attribute("targetPinID", &targetPinID);
+			int sourcePinID = 0; p_connection->Attribute("sourcePinID", &sourcePinID);
+			int targetX = 0; p_connection->Attribute("targetX", &targetX);
+			int targetY = 0; p_connection->Attribute("targetY", &targetY);
+			int targetPinID = 0; p_connection->Attribute("targetPinID", &targetPinID);
 			Pin* p_sourcePin = getPinByID(sourcePinID);
 
 			// find the electronics object at that cell

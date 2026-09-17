@@ -51,19 +51,25 @@ Player::Player(Level& level,
 			p_toxicSoundInst = p_sound->createInstance(true);
 			p_sound->release();
 
-			p_toxicSoundInst->setVolume(0.0);
-			p_toxicSoundInst->setPitch(0.1);
-			p_toxicSoundInst->play(true);
-			p_toxicSoundInst->pause();
+			if(p_toxicSoundInst)
+			{
+				p_toxicSoundInst->setVolume(0.0);
+				p_toxicSoundInst->setPitch(0.1);
+				p_toxicSoundInst->play(true);
+				p_toxicSoundInst->pause();
+			}
 
 			p_sound = Manager<Sound>::inst().request("mask.ogg");
 			p_maskSoundInst = p_sound->createInstance(true);
 			p_sound->release();
 
-			p_maskSoundInst->setVolume(0.0);
-			p_maskSoundInst->setPitch(0.1);
-			p_maskSoundInst->play(true);
-			p_maskSoundInst->pause();
+			if(p_maskSoundInst)
+			{
+				p_maskSoundInst->setVolume(0.0);
+				p_maskSoundInst->setPitch(0.1);
+				p_maskSoundInst->play(true);
+				p_maskSoundInst->pause();
+			}
 		}
 	}
 
@@ -94,9 +100,9 @@ void Player::onRemove()
 		if(!numInstances)
 		{
 			// The last instance is gone. Stop the sound.
-			p_toxicSoundInst->stop();
+			if(p_toxicSoundInst) p_toxicSoundInst->stop();
 			p_toxicSoundInst = 0;
-			p_maskSoundInst->stop();
+			if(p_maskSoundInst) p_maskSoundInst->stop();
 			p_maskSoundInst = 0;
 		}
 	}

@@ -141,6 +141,10 @@ void ToxicGas::updateSound()
 {
 	if(!p_soundInst) return;
 
-	double volume = 1.0 / (40.0 * 20.0) * numInstances;
-	p_soundInst->setVolume(clamp(volume, 0.5, 1.0));
+	// The hiss follows the amount of gas, and slides there rather than
+	// jumping: from the 0 the first cloud starts it at, 0.05 per tick has it
+	// most of the way up after half a second and settled after one and a
+	// half. Larger is quicker.
+	const double volume = 1.0 / (40.0 * 20.0) * numInstances;
+	p_soundInst->slideVolume(clamp(volume, 0.5, 1.0), 0.05);
 }

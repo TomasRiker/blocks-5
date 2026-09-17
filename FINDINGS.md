@@ -6,10 +6,10 @@ bug candidates, comments that contradict the code, stale claims, doubts and
 typos, each reported by an agent reading the code around it and most of them
 re-read by a second agent that went back to the code independently.
 
-Every entry was checked again against the tree as it stands on 2026-09-17, by
+Every entry was checked again against the tree as it stood on 2026-09-17, by
 identifier and not by line number - the line numbers the reading agents gave
 belong to the sweep's revision and have not survived it, so an entry names the
-function or the phrase instead. The dispositions:
+function or the phrase instead. The dispositions at that check:
 
 | category | entries | fixed | not a defect | gone with the code | still open |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -21,278 +21,19 @@ function or the phrase instead. The dispositions:
 | **all** | **355** | **117** | **31** | **33** | **174** |
 
 Many entries came in twice (the first reader's and the second's), so the 174
-open entries are about 120 distinct things, and most of those are a comment
-that says one thing while the code does another. The ones worth a change come
-first; the settled record follows in short form. A finding that turned out to
-be nothing is kept with its reason, because that is what stops the same false
+open entries were about 120 distinct things. A branch straight after the check
+then fixed everything that was worth a change in code - the eleven wrong
+behaviours a player could meet, the latent hazards, the dead code, and the
+three the author was asked to decide - so what is still open is comments and
+documents that say one thing while the code does another, and a short list of
+things worth knowing. Both come first; the settled record follows in short
+form, each fix with the commit that made it. A finding that turned out to be
+nothing is kept with its reason, because that is what stops the same false
 alarm being raised again.
 
 
-Still open: worth fixing
-------------------------
-Ordered by what it costs the player, then by what it costs the next reader.
-Each names where the code is now and what the fix is.
-
-### Wrong behaviour a player can meet
-
-1. **The mute key and the focus loss share one stash, and lose the volumes.**
-   `engine.cpp`, the `$A_TOGGLE_MUTE` branch of `update()` and
-   `handleAppFocus()`. Both keep the pre-mute volumes in `oldSoundVolume` /
-   `oldMusicVolume`; the key tests "both volumes are 0" with no `-1` guard where
-   the focus path has one. Mute with F1, then let the window lose focus: the
-   focus loss stashes 0.0 over the real volumes, the return restores 0.0 and
-   sets the sentinel, and from then on F1 can never unmute, the mute icon stays
-   up, and the settings are gone until the options dialog is opened. Both
-   options sliders at 0 reach the same dead state the original entry described.
-   Fix: give the key a `muted` flag of its own and restore only when it is set,
-   and let `handleAppFocus()` skip its stash and restore while muted.
-2. **`File_Archived::deleteArchivedFile()` dereferences a null `FILE*`.**
-   Neither `fopen()` result is checked before the signature scan reads from
-   `p_in`. The `FM_DELETE` branch of the constructor calls it straight away, so
-   `FileSystem::deleteFile()` on an archive that is missing, or whose directory
-   cannot be written, crashes rather than reporting. Fix: check both handles,
-   close what opened, log and return 0.
-3. **A paste near the right or bottom edge instances objects outside the level.**
-   `GS_LevelEditor::paste()` refuses only when *both* corners of the destination
-   are invalid; the cell loop then calls `instancePreset` for every cell, and
-   `Level::hashObject()` tests the flat index `y * WIDTH + x` alone, so an
-   object at `x == WIDTH` lands in the next row's first cell. Fix: `||` in the
-   guard, or skip every invalid cell in the loop.
-4. **The devil walks up twice as often as any other way.** `enemy.cpp`,
-   `tryToMove(intToDir(random(0, 4)))`: `random(min, max)` is inclusive, so
-   five values feed four directions and `intToDir`'s `% 4` folds 4 onto up.
-   Every other draw in the file uses the inclusive form correctly. Fix:
-   `random(0, 3)`. This changes gameplay, so the oracle will move on any scene
-   with a devil in it, as it should.
-5. **The update check's thread outlives the stack frame it writes to.**
-   `main.cpp`, `getCurrentVersion()` (Windows, and only with `.update_checker`
-   holding `1`; it is created holding `0`): `CreateThread`, a two-second
-   `WaitForSingleObject`, then `return` - no `CloseHandle`, the thread not
-   stopped, and its last act is `task.currentVersion = ...; task.finished =
-   true;` into the local `Task` of a function that has returned. Fix: put the
-   `Task` on the heap and let the thread own and free it, copy the result out
-   only when `finished` was set inside the wait, and close the handle.
-6. **A mirror or a teleporter with a `subType` outside 0..1 does nothing and
-   lies about it.** `mirror.cpp` tests `subType != 0` in `reflectLaser` and
-   `!= 1` in `reflectProjectile`, draws with `== 0 ? ... : ...`, normalises only
-   in `changeInEditor` (`%= 2`) and names the tooltip through `% 2`;
-   `teleporter.cpp` is the same shape with `getToolTip()` as the odd one out.
-   The loader (`presets.cpp`) hands the file's value through unchecked, so a
-   foreign level with `subType="2"` gets a mirror that reflects nothing, looks
-   like one kind and is described as the other. Fix: clamp in the constructor
-   with a warning, as `E_Gate` does since its own fix, and drop the per-site
-   `% 2`.
-7. **Page Up and Page Down in the actions list page by the wrong font.**
-   `GUI_ListBox`'s two page keys size the page with the GUI's font while every
-   other line of the file uses the element's own `p_font`; `options.xml` gives
-   the `Actions` list `tooltip_font.xml` (line height 10 against 15), so a page
-   is 5 rows where 7 are drawn. The selection stays visible; only the step is
-   wrong. Fix: `p_font->getLineHeight()` at both keys.
-8. **A locked bonus level shows its real title.** `gs_selectlevel.cpp`,
-   `shown = status ? title : "???"`: `getLevelStatus()` answers `-1` for the
-   bonus level while it is locked, which is truthy, although twelve lines on
-   `status == 0 || status == -1` darkens the preview and prints the locked
-   caption. Fix: the same pair in the title test, unless the reveal is meant.
-9. **The campaign editor's Load says nothing for a name that is no file.**
-   `CampaignEditorGUI::handleClick`, the `Load` branch: `if(fileExists(path))`
-   has no `else`, so a typed name that resolves to nothing falls out silently -
-   the failure the "nothing would otherwise happen here" comment in the same
-   function exists to prevent for the empty name, and which the level editor
-   answers with `$LE_ERROR_FILE_DOESNT_EXIST`. Fix: the same toast.
-10. **`encode_sounds.py` prints a negative count.** `bad` is counted before the
-    `continue` for a missing `.wav` and `done` only after it, and the summary
-    prints `done - bad`: `python3 Tools/encode_sounds.py nosuchsound` says
-    "-1 of 1 file(s) encoded, 1 error(s)". Fix: count only successful encodes
-    and print `done`.
-11. **`CF_ColorBlend` is 89% opaque in its first frame, or its comment is
-    wrong.** `cf_colorblend.cpp` uses one slope, `1 / (1 - timing)`, on both
-    sides of the peak, so with the `timing = 0.1` that `lightpanel.cpp` and
-    `lightswitch.cpp` pass the colour quad starts at 0.889 rather than the
-    "transparent at both ends" the comment promises; only the default 0.5 makes
-    the two slopes coincide. Either two slopes (`t < timing ? t / timing :
-    (1 - t) / (1 - timing)`) or a comment saying the flash is meant to be
-    instant. A look question for the author.
-
-### Latent, and cheap to close
-
-Undefined behaviour on paper, a hazard behind a precondition nobody has hit, or
-a guard every sibling has and one site lacks. None is known to misbehave today.
-
-- **`as_wav.cpp` skips no RIFF pad byte.** All three seek sites advance by the
-  chunk size alone; an odd-sized `LIST` or `fact` chunk before `data` throws the
-  loop one byte out of step and the load fails with "WAV file ... is
-  incomplete". Only a user level's `musicFilename` reaches the decoder (the
-  shipped stock is Ogg), and every `.wav` in the tree has even chunks. Fix:
-  advance by `size + (size & 1)`.
-- **`GUI_ScrollBar::setDragBarY()` divides 0 by 0 when the content fits.** With
-  `pageSize >= areaSize` the bar fills the track and the divisor is exactly 0;
-  any press on the bar sets `dragging` and the first move computes `NaN` cast
-  to `int`. Measured harmless on both platforms - x86 gives `INT_MIN`, which the
-  clamp turns into 0, and the browser build's conversions are all saturating
-  (`i32.trunc_sat_f64_s`, no trapping variant in the wasm), so the trap the
-  entry feared cannot happen - but it is undefined behaviour reachable from any
-  short list. Fix: return early when `pageSize >= areaSize`.
-- **`deleteArchivedFile()`'s unknown-signature branch leaks both handles** and
-  leaves the empty `<archive>_` on disk; the `FM_WRITE` caller then appends a
-  second member of the same name into the intact archive, where the stale one
-  keeps winning, and `FM_DELETE` reports "not found". Only a record the scan
-  does not know reaches it (zip64, a data descriptor after a flag-bit-3 entry,
-  a truncated file, where a short `fread` also leaves `signature`
-  uninitialised). Fix: close both, remove the side file, initialise
-  `signature`, and return a distinct code both callers treat as "cannot
-  rewrite".
-- **The five objects holding a `SoundInstance*` across ticks never ask
-  `Sound::isLiveInstance()`.** A `SoundInstance` built while
-  `Sound::getFreeSource()` returns 0 keeps `sourceID == 0`, reports itself
-  removable, and is deleted at the next `Sound::update()` - and nothing clears
-  the holder's pointer, so `conveyorbelt.cpp`, `laser.cpp`, `elevator.cpp`
-  (which has no null guard at all), `toxicgas.cpp` and `player.cpp` then call
-  into freed memory. The precondition is `alGenSources` failing with every
-  listed instance looping, i.e. an exhausted source pool, which OpenAL Soft's
-  default 256 makes remote. `hint.cpp` and `diamondmachine.cpp` show the
-  pattern that closes it. Fix: `isLiveInstance()` before each use, or make
-  `createInstance(true)` delete a source-less instance and return 0, which
-  then wants the null guards in `elevator.cpp` and `player.cpp`.
-- **`SoundInstance`'s constructor leaves seven members indeterminate** on the
-  no-source branch (`volume`, `pitch`, `targetVolume`, `targetPitch`, both
-  slide speeds, `pauseAtSlideEnd`), and `targetVolume`/`targetPitch` on the
-  other. Nothing outside the file reads them any more and a source-less
-  instance dies at the next update, so the exposure has shrunk. Fix: set every
-  member before the branch.
-- **`StreamedSound::stop()` leaves `sourceID` stale** after `alDeleteSources`;
-  `setVolume`/`setPitch` guard on it and `pause`/`resume` do not. Unreachable
-  as the tree stands (`stop()` runs only from the destructor, `pause`/`resume`
-  have no callers). Fix: `sourceID = 0` after the delete.
-- **`printfLog`'s crash-log branch opens `crash_log.txt` unchecked** while the
-  `log.txt` block directly above guards its `fopen`; it runs inside the SEH
-  handler, where a second fault loses the report. Fix: the same `if(p_file)`.
-- **The Linux capture thread logs through `printfLog`** (`audiocapture.cpp`,
-  the PulseAudio `threadProc`'s read-failure warning), which the Windows half's
-  own comment forbids: a static buffer and `localtime`. Fix: store the failure
-  as `initResult` is stored and let the main thread log it.
-- **`Pin::disconnect()` calls `setValue(-1)` on an input pin**, which is a
-  no-op (`setValue` returns unless the pin is an output), under the comment
-  "The input is undefined now." Unreachable in play - the editor is the only
-  caller and never runs logic. Fix: `writeValue(-1)` and `writeOldValue(-1)`.
-- **`pin.cpp`'s `#ifdef EDGY_CONNECTIONS` block cannot compile**: it redeclares
-  `pin1`/`pin2` in the same scope and its `Vec2i d` collides with the spline's
-  `const Vec2d d`; the macro is defined nowhere. Fix: delete it.
-- **`presets.cpp`'s "Damage" branch reads its attribute without `if(p_element)`**
-  where every comparable branch guards, and six electronics branches
-  (`E_Value`, `E_ValueSwitch`, `E_PulseSwitch`, `E_PulsePanel`, `E_Gate`,
-  `E_FlipFlop`) construct *inside* `if(p_element)` and so hand back 0 where the
-  other fifty branches build a default. No caller hits either today. Fix: the
-  guard, and construct after the block.
-- **`LightBarrierSender::onRender()` and `Laser::onRender()` compare against an
-  uninitialised `Vec2d`**: `dir` and `p` are default-constructed (empty
-  `Vec()`), so on a beam's second point `dir != oldDir` reads garbage - a
-  spurious or missing collinear vertex, invisible. Fix: initialise both and
-  keep the second point unconditionally.
-- **`Lightning::generateSecondaryBranch()` walks a `Vec2i`** where `generate()`
-  walks a `Vec2d`, truncating each step. Fix: `Vec2d pos`.
-- **Locals handed to TinyXML uninitialised, the same shape the sweep fixed
-  five of**: `int blink` in `Elevator::loadExtendedAttributes`, and
-  `sourcePinID`, `targetX`, `targetY`, `targetPinID` in
-  `Electronics::loadExtendedAttributes`. Files the game writes always carry
-  them. Fix: `= 0`.
-- **`E_FlipFlop`'s constructor has no `default:`** for a `subType` outside
-  0..2, which yields a part with no pins (inert, never crashing), and the JK
-  case lacks its `break` (harmless as the last case, a trap for the next). Fix:
-  log and clamp; add the `break`.
-- **`Eye` dereferences `instancePreset("Enemy", ...)` unchecked.** It returns 0
-  for an unknown name. Fix: `if(p_enemy)`.
-- **`File_Real::tell()` calls `ftell(p_handle)` with no null test** and
-  `getSize()` routes every non-read mode through it; `size` is set only on the
-  read and write paths. No caller asks a listing or deletion handle for its
-  size. Fix: guard, and `size = 0` in the constructor.
-- **`FileSystem::getAppHomeDirectory()` hands `SHGetFolderPathA` a
-  `char[256]`** where the contract is `MAX_PATH`, and ignores the `HRESULT`.
-  Fix: `MAX_PATH`, check, fall back.
-- **`evalRelativePath()` writes `i < path.length() - 2`**, the `size_t`
-  subtraction the `convertPath` comment above it argues against; harmless
-  because the short `substr` cannot match. Fix: `i + 3 <= path.length()`.
-- **`GS_Game`'s constructor leaves `levelNumber` and `p_currentCampaign`
-  uninitialised**, and the editor's trial run increments `levelNumber` on the
-  indeterminate value before every later read is guarded away. Fix: initialise
-  both in the constructor.
-- **`gs_leveleditor.cpp`'s mode-6 `if(buttons & 3)`** has no preceding `& 1`
-  test, so the left button runs a body meant for the right; it only clears two
-  pointers. Fix: `& 2`.
-- **`GS_Menu` looks up `keyData.find(time - 500)`** for the first 25 ticks on a
-  key near 2^32; the miss is the intended delay, by wraparound. The same file
-  guards the same shape for `.donation_asked`. Fix: `if(time >= 500)`.
-- **`GUI_CheckBox::readAttributes` answers `<Checked>` with `check(true)`**, the
-  user-click path that fires `changed`, not `setChecked(true)`; harmless only
-  because nothing is connected while the tree is built. Fix: `setChecked`.
-- **`GUI_MultiLineEditBox` writes `static_cast<uint>(text.length() - 1)`** at
-  two places fenced off only by the guard above each. Fix: `i + 1 ==
-  text.length()`.
-- **`GUI_RadioButton` never re-resolves a `$ID` image**, unlike `GUI_Button` and
-  `GUI_StaticImage`; no shipped dialog gives one a localized image. Fix: mirror
-  `GUI_StaticImage`, or a note that radio-button images are never localized.
-- **`Engine::setCursorPosition()` guards on `screenSize`** (always 640x480)
-  where `getCursorPosition()` guards on the present rectangle it just computed,
-  although both promise to be exact inverses. Fix: `if(w > 0 && h > 0)`.
-- **`Arrow::turn()` does a bare `dir++`** where `changeInEditor` wraps with
-  `%= 4`; every reader takes `dir % 4`, but a mid-game save writes the unwrapped
-  number. Fix: `dir = (dir + 1) % 4`.
-- **`AudioRing::clearRing()` locks `p_mutex` unchecked** where the other three
-  entry points guard, and the Linux `AudioCapture::start()` lacks the Windows
-  half's `if(opened)`. Both unreachable today. Fix: the guards.
-- **`CF_Zoom` draws its white flash from the loop's trailing `t`**, one 0.01
-  step behind the transition parameter, because the loop reuses the variable.
-  Invisible; the reuse hides it. Fix: a loop variable of its own.
-- **`ElectricityPanel` plays `electricityswitch.ogg` at priority 0** where the
-  switch and the structurally identical `lightpanel.cpp` pass 100, so under
-  source pressure the panel's click is the first cut. Fix: 100.
-- **`WebTransfer::abandon()` discards nothing on the page.** It resets the C
-  side, while the `<input type=file>` keeps its listeners and its 300 s
-  timeout; a file chosen after leaving the menu is written and installed on
-  the next visit, and a second picker can be credited with the first one's
-  late result. Fix: keep the pending input in a `Module` slot and finish and
-  remove it in `abandon()`, which makes the header's "discards a dialog that
-  is still open" true.
-- **`Texture::createSubTexture()` decodes and uploads the whole parent image
-  first**, because `new Texture(filename)` ends in `reload()` before `p_parent`
-  is set, then reloads as a sub-texture and throws the first result away: two
-  full decodes of `sprites.png` per skin load. Fix: a constructor that takes
-  parent, offset and size.
-- **`Sprites::add()` silently replaces the last sprite** once `numSprites` has
-  reached `MAX_SPRITES` (4). Fix: say so in a comment, or assert.
-- **`Laser`'s `destroyTime` keeps decrementing below zero** for the rest of the
-  object's life; the burst fires once only because the test is `== 0`. Fix:
-  guard the decrement and fire on the transition.
-- **`Options::changed` is set true by the OK and Cancel clicks themselves** and
-  reset only in the constructor, so from the first close on every Cancel
-  reloads `config.xml`; the reload restores what is already in memory, so
-  nothing visible changes. Fix: `changed = false` at the top of `show()`.
-- **`options.xml`'s Cancel caption is an inline `\xA7de:Abbrechen\xA7en:Cancel`**
-  while `$CANCEL` exists and every other caption is a `$ID`. Fix: `$CANCEL`.
-- **`PWEncrypt/main.cpp` writes to an unchecked `fopen()`** of a temp file
-  (Windows). Fix: `if(p_file)`.
-- **Dead code**: `prepareForTinyXML()` in `util.cpp` returns its argument and
-  has neither declaration nor caller; `GS_Game::updateMusic()` is declared and
-  never defined; `bool quit` in `main.cpp` is never set; `AS_Ogg`'s `FILE*
-  p_file` member is never touched (the constructor's `File* p_file` is a
-  local); `transfer.h` forward-declares a `Campaign` nothing there uses;
-  `Pin::connect()`'s `p_output` is computed and never read; `e_barrage.h`'s
-  include guard is `_E_BARRIER_H`; `gs_leveleditor.cpp` carries an `#ifdef
-  CHECK_IF_IT_REALLY_IS_A_LEVEL` block nothing defines;
-  `E_LightBarrierReceiver` saves and loads a `value` that `frameBegin()` zeroes
-  before anything can read it.
-- **Three that are the author's to judge by eye or ear**, each with a comment
-  that promises something the numbers do not deliver: `toxicgas.cpp`'s volume
-  ramp `1 / (40 * 20) * numInstances` clamped to `[0.5, 1]` never leaves 0.5
-  below 400 clouds, and the constructor's `setVolume(0.0)` is overwritten in
-  the same call, so the sound never fades in; `LightBarrierSender`'s `counter++`
-  sits inside the beam-tracing loop, so the pulse phase advances by the beam's
-  length in steps and jumps when the beam changes length; and `object.cpp`'s
-  flash comment says "just under eight ticks, a good 0.15 s" over
-  `FLASH_DECAY = 0.8`, which reaches 1/256 after 25 ticks, half a second
-  (`objects.md` repeats the claim; 0.5 would be the decay that fits it).
-
-### Comments and documents that still disagree with the code
-
+Still open: comments and documents that disagree with the code
+--------------------------------------------------------------
 Each is a rewording, and the fix is in the entry.
 
 - `LinuxBuild/build.sh`: "without the three that do not come along" and
@@ -384,11 +125,10 @@ Each is a rewording, and the fix is in the entry.
   a destroyed object starts from the beam's cell rather than the object's
   position as `lava.cpp` does. `lava.cpp`: the debris loop's `int i` shadows
   the live iterator.
-- `sound.cpp`: "setVolume() on it in the next line" is three lines on in
-  `player.cpp`. `streamedsound.cpp`: "stops the source without emptying it" -
-  the queue. `sounds.xml`: "less signal level for the same computational load"
-  - the same bitrate. `audiocapture.h`: the header states the sample format and
-  not the rate contract the code honours.
+- `streamedsound.cpp`: "stops the source without emptying it" - the queue.
+  `sounds.xml`: "less signal level for the same computational load" - the
+  same bitrate. `audiocapture.h`: the header states the sample format and not
+  the rate contract the code honours.
 - `cf_rewind.cpp`: "How many there are depends on the speed of the tape" over a
   fixed `NOISE_BARS = 5` - where they sit does. `cf_star.cpp`: "a triangle fan"
   for plain triangles with the centre repeated. `e_gate.cpp`: "undefined inputs
@@ -467,9 +207,6 @@ Still open: worth knowing, not worth a change
 - `tileset.h`'s "all nine tileset.xml in the tree" counts the four skin
   archives, as its own enumeration says; five are in Git.
 - Ctrl+Y is undo and Ctrl+Z redo, QWERTZ-natural and documented in the tooltips.
-- `gs_leveleditor.cpp`'s paste and `Level::hashObject()`: see item 3 above -
-  the hash's flat index is what turns a bad paste into an object in the next
-  row.
 
 
 Settled
@@ -581,15 +318,142 @@ Settled
   translation; the four-space indent in `file_archived.cpp`, the trailing
   space in `gui_multilineeditbox.cpp` and the lone tab in `main.cpp` are gone.
 
+### Fixed on the branch after the check
+
+Engine and sound (c8adb02):
+
+- **engine.cpp, engine.h** - the mute key and a lost focus no longer write 0
+  into the volume settings. `muted` and `appActive` silence the output through
+  `getEffectiveSoundVolume()` / `getEffectiveMusicVolume()`, which the sound
+  instances and the music streams read; the settings stay what the user chose,
+  so F1, the focus, the options dialog and config.xml can no longer overwrite
+  each other's copy of them. `setCursorPosition()` guards on the present
+  rectangle, as its inverse does.
+- **sound.cpp** - `createInstance()` deletes an instance that got no source
+  and returns 0, so no object can keep a pointer the next `update()` reaps;
+  the five holders guard the 0 (`elevator.cpp` and `player.cpp` gained theirs),
+  and the comment on `forceCreation` says what a 0 costs now: a level whose
+  ambience never starts, not a crash (2af6608).
+- **soundinstance.cpp** - the constructor sets every member before asking for
+  a source.
+- **streamedsound.cpp** - `stop()` clears `sourceID`.
+- **audiocapture.cpp** - `AudioRing::clearRing()` tests the mutex; the Linux
+  `start()` tests `opened`; the Linux thread stores a failed read and
+  `stop()` / `close()` log it on the main thread.
+- **as_wav.cpp** - the chunk walk skips the RIFF pad byte after an odd-sized
+  chunk. **as_ogg.h** - the unused `FILE*` member is gone.
+- **toxicgas.cpp** - the hiss slides to its volume, 0.05 per tick, instead of
+  jumping, so it fades in from the first cloud on (the author's decision).
+- **electricitypanel.cpp** - the click plays at priority 100 like the switch's.
+
+Files and logging (70523c3):
+
+- **file_archived.cpp** - `deleteArchivedFile()` checks both `fopen()`
+  results, starts `signature` at 0, tests the `fread`, and on a record it
+  cannot rewrite closes both files, removes the side file and returns -2 -
+  which `FM_WRITE` turns into an error instead of appending a second member
+  of the same name, and `FM_DELETE` into "not deleted" (2af6608 starts
+  `outArchive` at 0 for that early return).
+- **file_real.cpp** - `tell()` answers 0 without a handle; `size` starts at 0.
+- **filesystem.cpp** - `getAppHomeDirectory()` hands `SHGetFolderPathA` a
+  `MAX_PATH` buffer and falls back to the working directory when the call
+  fails; `evalRelativePath()` tests `i + 3 <= length()` instead of subtracting
+  from a `size_t`.
+- **util.cpp** - the crash log's `fopen()` is checked; `prepareForTinyXML()`
+  is gone. **PWEncrypt/main.cpp** - the temp file's `fopen()` is checked.
+- **main.cpp** - the update check's `Task` lives on the heap and is freed by
+  whichever of the caller and the thread lets go last; the handle is closed;
+  the result counts only when the thread was seen to finish. The dead `quit`
+  is gone.
+
+Editors and game states (c946ebb):
+
+- **gs_leveleditor.cpp** - `paste()` refuses a rectangle with either corner
+  outside the level; the `CHECK_IF_IT_REALLY_IS_A_LEVEL` block is gone.
+  **level.cpp** - `hashObject()` tests both coordinates, not the flat index.
+- **gs_campaigneditor.cpp** - Load shows `$LE_ERROR_FILE_DOESNT_EXIST` for a
+  name that is no file.
+- **gs_game.cpp, gs_game.h** - `levelNumber` and `p_currentCampaign` start at
+  0; the undefined `updateMusic()` declaration is gone.
+- **gs_menu.cpp** - the demo's key lookup waits for `time >= 500` instead of
+  wrapping.
+- **gs_selectlevel.cpp** - a locked bonus level shows "???" like any other
+  locked level.
+
+Objects (731d13b):
+
+- **enemy.cpp** - the devil draws `random(0, 3)`: four ways, each as likely.
+- **mirror.cpp, teleporter.cpp** - the constructor clamps `subType` to 0..1
+  with a warning, as `E_Gate` does, and the tooltips switch on the value
+  itself. **e_flipflop.cpp** - the same for 0..2, and the JK case has its
+  `break`.
+- **eye.cpp** - the spawned enemy is tested before use.
+- **arrow.cpp** - `turn()` wraps `dir` and `shownDir` together, so a save
+  carries 0..3 and the animation keeps turning the same way.
+- **laser.cpp** - `destroyTime` stops at the burst, which fires on the step
+  that reaches 0; `onRender()` starts its beam vectors at 0 and always keeps
+  the first two points (**lightbarriersender.cpp** the same).
+- **lightbarriersender.cpp** - `counter` advances once per tick, outside the
+  beam loop, as the laser's does (the author's decision: the pulse runs at one
+  rate whatever the beam's length).
+- **lightning.cpp** - the secondary branch walks a `Vec2d`.
+- **elevator.cpp, electronics.cpp** - the TinyXML locals start at 0.
+- **presets.cpp** - the "Damage" branch tests `p_element`; the six electronics
+  branches construct after the attribute block, so a preset asked for without
+  an element still yields an object.
+- **pin.cpp** - `disconnect()` writes the input's value and old value
+  directly; `connect()` drops its unread `p_output`; the `EDGY_CONNECTIONS`
+  block is gone.
+- **sprite.cpp** - `add()` says that it reuses the last slot past
+  `MAX_SPRITES`.
+- **e_lightbarrierreceiver.cpp, e_lightbarrierreceiver.h** - `value` is
+  neither saved nor loaded, since `frameBegin()` zeroes it before anything
+  reads it. **e_barrage.h** - the include guard is `_E_BARRAGE_H`.
+- **object.cpp, objects.md** - the flash comment says 25 ticks, half a second,
+  which is what `FLASH_DECAY = 0.8` does; the decay itself is the author's
+  choice and stays.
+
+GUI, options, crossfades, textures, the browser and the tools (4bf936c):
+
+- **gui_listbox.cpp** - Page Up and Page Down size the page by the list's own
+  font.
+- **gui_scrollbar.cpp** - `setDragBarY()` returns when the content fits.
+- **gui_checkbox.cpp** - `<Checked>` goes through `setChecked()`, so loading
+  fires nothing.
+- **gui_multilineeditbox.cpp** - the two end-of-text tests add instead of
+  subtracting.
+- **gui_radiobutton.cpp, gui_radiobutton.h** - a `$ID` image is re-resolved
+  on a language switch, as the button's and the static image's are.
+- **options.xml** - Cancel's caption is `$CANCEL`. **options.cpp** - `changed`
+  starts false in `show()`, so Cancel reloads config.xml only when something
+  was touched.
+- **cf_zoom.cpp** - the zoom loop has a variable of its own; the white flash
+  uses the transition's `t`.
+- **cf_colorblend.cpp** - each side of the peak has its own slope, so the
+  colour is transparent at both ends whatever `timing` is, and `timing` is
+  clamped away from 0 and 1.
+- **texture.cpp, texture.h** - a sub-texture is built by a constructor that
+  copies straight out of the parent's pixels, so the sheet is decoded once per
+  skin.
+- **transfer.h** - the unused `Campaign` forward declaration is gone.
+- **web_transfer.cpp, web_transfer.h** - `abandon()` closes the picker on the
+  page side: a file chosen afterwards is neither written nor reported.
+- **Tools/encode_sounds.py** - the summary counts the encodes that succeeded.
+
 ### Not a defect
 
 Kept with the reason, so the alarm is not raised twice.
 
 - **`p_soundInst->stop()` without a null check** in `conveyorbelt.cpp`,
-  `laser.cpp`, `elevator.cpp`, `toxicgas.cpp`, `player.cpp`: the only
-  `return 0` in `Sound::createInstance` sits inside `if(!forceCreation)`, and
-  every one of these callers passes `true`. The dangling hazard behind them is
-  real and listed above; the null is not.
+  `laser.cpp`, `elevator.cpp`, `toxicgas.cpp`, `player.cpp`: at the time of
+  the check the only `return 0` in `Sound::createInstance` sat inside
+  `if(!forceCreation)`, and every one of these callers passes `true`. The
+  dangling hazard behind them was real and is fixed above, and since that fix
+  `createInstance()` can answer 0, which every holder now tests.
+- **`gs_leveleditor.cpp`'s bare `if(buttons & 3)` in the pin-connection mode**:
+  either button on empty space cancels a pending connection, which is what a
+  click away from a pin should do; the `& 2` the entry proposed would leave a
+  left click doing nothing there.
 - **`as_wav.cpp` sets `error = 0` at end of stream**: `as_ogg.cpp` does the
   same; reaching the end is not an error state, by the design of both.
 - **`cf_rewind.cpp`'s "texture coordinates are in pixels"** holds where it

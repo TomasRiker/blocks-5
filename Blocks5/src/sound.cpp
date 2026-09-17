@@ -104,14 +104,15 @@ SoundInstance* Sound::createInstance(bool forceCreation)
 	// one-shots from Engine::playSound(), which can take a 0 as well - one
 	// impact out of twelve simply drops out.
 	//
-	// The looping sounds ask with forceCreation, and that is not a luxury but
-	// the difference between running and crashing. They hold their one instance
-	// in a static that goes to 0 with the last object and is refilled by the
-	// first object of the next level - and between those two moments lies
-	// nothing but the building of the new level. Measured on toxic and mask,
-	// the only two that sit in every level: 12 and 13 ms. The lockout stands at
-	// 10. Two milliseconds of slack on this machine, none on a faster one, and
-	// behind it waits a null pointer with setVolume() on it in the next line.
+	// The looping sounds ask with forceCreation, and that is not a luxury.
+	// They hold their one instance in a static that goes to 0 with the last
+	// object and is refilled by the first object of the next level - and
+	// between those two moments lies nothing but the building of the new
+	// level. Measured on toxic and mask, the only two that sit in every level:
+	// 12 and 13 ms. The lockout stands at 10. Two milliseconds of slack on
+	// this machine, none on a faster one, and behind it a level whose
+	// ambience never starts: the holders test the 0 they would get, and
+	// nothing refills the static until the last object is gone.
 	if(!forceCreation)
 	{
 		uint t = SDL_GetTicks();
@@ -120,6 +121,16 @@ SoundInstance* Sound::createInstance(bool forceCreation)
 	}
 
 	SoundInstance* p_inst = new SoundInstance(*this);
+	if(!p_inst->sourceID)
+	{
+		// No source, and no one-shot to take one from. An instance without
+		// one would be reaped at the next update(), and an object keeping the
+		// pointer across ticks would then call into freed memory - so nothing
+		// plays, and the caller learns so from the 0.
+		delete p_inst;
+		return 0;
+	}
+
 	instances.insert(p_inst);
 	allInstances.insert(p_inst);
 	lastInstanceCreatedAt = SDL_GetTicks();

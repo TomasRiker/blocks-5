@@ -10,6 +10,7 @@ File_Real::File_Real(const std::string& filename,
 					 int mode) : File(mode)
 {
 	p_handle = 0;
+	size = 0;
 
 	if(mode == FileSystem::FM_READ)
 	{
@@ -111,8 +112,9 @@ uint File_Real::getSize() const
 
 uint File_Real::tell() const
 {
-	uint pointer = ftell(p_handle);
-	return pointer;
+	// A listing or a deletion holds no handle and has no position.
+	if(!p_handle) return 0;
+	return static_cast<uint>(ftell(p_handle));
 }
 
 uint File_Real::read(void* p_dest,

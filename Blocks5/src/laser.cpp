@@ -55,7 +55,7 @@ void Laser::onRemove()
 		if(!numInstances)
 		{
 			// The last instance is gone. Stop the sound.
-			p_soundInst->stop();
+			if(p_soundInst) p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
 		}
@@ -80,21 +80,25 @@ void Laser::onRender(RenderLayer layer,
 		{
 			Vec2d oldDir(0.0);
 			Vec2d oldP(0.0);
-			Vec2d dir;
-			Vec2d p;
+			Vec2d dir(0.0);
+			Vec2d p(0.0);
 
 			beamPoints.clear();
 
 			std::list<Vec2d>::const_iterator last = beam.end();
 			last--;
-			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i)
+			uint n = 0;
+			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, ++n)
 			{
 				oldP = p;
 				oldDir = dir;
 				p = *i;
 				dir = p - oldP;
 
-				if(i == beam.begin() || i == last || dir != oldDir)
+				// The first two points and the last always: the second is
+				// where the first real direction exists, and only from the
+				// third on does a point that keeps it add nothing.
+				if(n < 2 || i == last || dir != oldDir)
 				{
 					beamPoints.push_back(static_cast<Vec2f>(p));
 				}
@@ -132,9 +136,12 @@ void Laser::onRender(RenderLayer layer,
 void Laser::onUpdate()
 {
 	soundChanged = false;
-	if(destroyTime < 5) destroyTime--;
 
-	if(!destroyTime)
+	// Once fire or a beam has worn destroyTime down below 5 the laser runs
+	// the rest of the countdown itself and bursts on reaching 0 - once, on
+	// the step that gets there, and the count stops.
+	const bool burst = destroyTime > 0 && destroyTime < 5 && --destroyTime == 0;
+	if(burst)
 	{
 		Engine::inst().playSound("vaporize.ogg", false, 0.15);
 

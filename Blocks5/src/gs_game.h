@@ -37,7 +37,6 @@ public:
 	bool isPaused() const { return paused; }
 
 private:
-	void updateMusic();
 	int loadLevel();
 
 	// The file the running level came from. Only the single levels show it;
