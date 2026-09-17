@@ -490,9 +490,21 @@ and there is no `config.xml` yet; the `crt` scene clicks the previous filter
 back by hand.
 
 **Browser.** `WebBuild/test/perf.js` on the title demo, the shipped build's
-default arm: see the run recorded in the pull request for this stage; the
-draw calls it counts are what reaches WebGL after the emulation, on the
-context itself.
+default arm, three interleaved runs of twenty seconds under swiftshader
+(`B5_REPEATS=3 B5_WINDOW=20 node test/perf.js ""`); the draw calls are
+what reaches WebGL after the emulation, counted on the context itself.
+
+| | p50 of each run, median over the runs |
+| --- | ---: |
+| main-thread work per frame (`total`) | 1.70 ms |
+| of which `render` / `update` / `present` | 1.00 / 0.20 / 0.10 ms |
+| frame interval | 52.70 ms (swiftshader's rasterizing, not the game's) |
+| WebGL draw calls per frame | 48.6 |
+| sprite-batch draws per frame, quads per draw | 4.3, 45 |
+| state calls skipped | 13% |
+
+The native `menu` scene's 47.0 GL calls a frame and the browser's 48.6
+WebGL calls are the same frame seen from the two ends of the emulation.
 
 **Rebuilding the old binary** for a comparison:
 
