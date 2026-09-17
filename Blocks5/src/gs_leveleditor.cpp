@@ -1192,8 +1192,10 @@ void GS_LevelEditor::onRender()
 			const bool blue = (drawStartButtons & 1) != 0;
 			const Vec4f fill = blue ? Vec4f(0.25f, 0.25f, 1.0f, 0.4f) : Vec4f(1.0f, 0.25f, 0.25f, 0.4f);
 			const Vec4f frame = blue ? Vec4f(0.25f, 0.25f, 1.0f, 0.85f) : Vec4f(1.0f, 0.25f, 0.25f, 0.85f);
-			renderer.rect(Vec2f(p1.x, p1.y), Vec2f(p2.x, p2.y), fill);
-			renderer.hairlineRect(Vec2f(p1.x, p1.y), Vec2f(p2.x, p2.y), frame);
+			const Vec2f from = static_cast<Vec2f>(p1);
+			const Vec2f to = static_cast<Vec2f>(p2);
+			renderer.rect(from, to, fill);
+			renderer.hairlineRect(from, to, frame);
 		}
 		else if(currentMode == 4)
 		{
