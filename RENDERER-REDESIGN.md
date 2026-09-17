@@ -710,3 +710,12 @@ and the scissor scope a window, an edit box or a list opens for its children.
 draw under its own matrix, as it was its own `glBegin`, and only a matrix per
 vertex would fold them, which is not this stage's. `loading` is the one draw
 a frame it always was.
+
+**Browser**, the same measurement as section 9 (`B5_REPEATS=3 B5_WINDOW=20
+node test/perf.js ""`, the title demo under swiftshader): main-thread work per
+frame 1.10 ms (was 2.00), of which `render` 0.40 (was 0.70) / `update` 0.20 /
+`present` 0.10; 30.4 WebGL draw calls per frame (was 48.4), of which the batch's
+own 29.4 at 64 quads a draw - the desktop `menu` scene's count to the decimal,
+since the menu around the title level now draws in the batch, one call per
+texture instead of one per sprite or string. The interval is swiftshader's
+rasterizing, not the game's.

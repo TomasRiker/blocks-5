@@ -58,6 +58,12 @@ has run the tests often enough reaches on its own. Both are one-shot, so no test
 repeatable while they may appear; `.crt_offered` and `.donation_asked` are written exactly as the game
 writes them.
 
+**A request reaches the hook by rename, never by redirection.** The hook polls `request` every frame
+and `echo > request` creates the file empty before it writes, so a poll in that gap reads an empty line,
+answers with a dump under no serial and deletes the file with the real request in it; `b5_ask` then
+waits its five seconds and the scene fails as "could not be written". `b5_ask` writes `request.tmp` and
+renames it, as the hook itself publishes `response`, so a poll sees the whole line or no file.
+
 **The harness drives `build-test/`; `LinuxBuild/build.sh` without `hooks` writes `build/`.** Building one
 and testing the other is an afternoon's worth of a change that appears to do nothing, so `b5_start`
 compares the binary against `Blocks5/src` and `data.zip` against `Blocks5/data` and refuses to run on

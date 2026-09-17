@@ -256,7 +256,14 @@ b5_ask()
 	local serial i
 	serial="#$(date +%s%N)"
 	rm -f "$B5_TEST_DIR/response"
-	echo "$serial $1" > "$B5_TEST_DIR/request"
+	# Written under another name and renamed into place, because the game
+	# polls for the file every frame and a redirection creates it empty
+	# before writing it: read in that gap, the request is an empty line the
+	# hook answers with a dump under no serial, deleting the file with the
+	# real request in it, and this ask waits its five seconds for nothing.
+	# A rename is atomic, so the hook sees the whole line or no file.
+	echo "$serial $1" > "$B5_TEST_DIR/request.tmp"
+	mv "$B5_TEST_DIR/request.tmp" "$B5_TEST_DIR/request"
 	for i in $(seq 1 25); do
 		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ] &&
 		   [ "$(head -n 1 "$B5_TEST_DIR/response" 2>/dev/null)" = "$serial" ]; then
