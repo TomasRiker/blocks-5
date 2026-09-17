@@ -2278,9 +2278,9 @@ $HINT_BLOCKS_41_02
 
 $WEB_CLICK_TO_START
 // Prompt shown by the browser build before the intro, because a browser
-// will not play any sound until the page has been clicked once
-§en:Click to start!¶Your browser needs this to play sound.
-§de:Zum Starten klicken!¶Der Browser braucht das für den Ton.
+// will not play any sound until the page has had a click or a key press
+§en:Press a key or click to start!¶Your browser needs this to play sound.
+§de:Zum Starten eine Taste drücken oder klicken!¶Der Browser braucht das für den Ton.
 
 $WEB_FULLSCREEN_HINT
 // Aside under the prompt above, in the browser build: a page has no button
