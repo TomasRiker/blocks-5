@@ -1276,7 +1276,7 @@ What was proposed:
   `Engine::musicVolume` need not follow the label.
 
 
-32. A sound when a hint note opens
+32. A sound when a hint note opens  — **DONE**
 -----------------------------------
 Nothing is heard when a note flies up, which is the one thing on a field that
 opens a window over the play area. Two sounds rather than one: a generic one,
@@ -1300,12 +1300,17 @@ What the tree will ask for:
   panel would want its own sound with it. That is item 30, and this is the
   first concrete caller for it.
 
-Where it stands: `data/hint.wav` and `data/hintscroll.wav` are in the tree and
-are the two recordings this item asks for. Nothing else is done - there is no
-`.ogg` beside either, `gs_loading.cpp` preloads neither, `sounds.xml` names
-neither and no `playSound()` anywhere says either name, so `hint.cpp` is
-untouched. They also make `data.zip` stale on every checkout until `pack.sh
-data` runs, which is what the harness's own staleness guard reports.
+Where it stands: done. Both recordings went through the stock's treatment - no
+offset, nothing under 20 Hz, nothing clipped, so only the 5 ms fades - and
+`hintscroll.wav` lost its first 135 ms besides: a noise floor at -60 dBFS rms
+ahead of the rustle it is played for, which would have put the sound that far
+behind the unrolling. Both are encoded at 96 kbit/s, preloaded, and played from
+`Hint::onUpdate`: `hint.ogg` in the tick the note opens, `hintscroll.ogg` in the
+tick the paper begins to unroll, the latter under `isHintScroll()`. `sounds.xml`
+names neither - `hint` sits at -14.5 LUFS between `hotel` and `push`,
+`hintscroll` at -29 beside `grass` - and the rustle outlasts the unrolling,
+865 ms against the 400 from `UNROLL_START` to `UNROLL_END`; both are the
+author's to weigh. Item 30 would give a skin's own panel its own sound.
 
 
 33. Draw the keycap frames behind the text

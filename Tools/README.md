@@ -152,7 +152,7 @@ Only what is older than its .wav is re-encoded, and that is no luxury: two runs
 over the same source do not deliver the same file. The Ogg pages carry a random
 stream id, and with it the checksums of the page headers change - twenty-four
 bytes of nine thousand, for the same audio. Without the check every run would
-rewrite fifty-five binary files.
+rewrite fifty-seven binary files.
 
 The script encodes **one to one**, with no level change. 96 kbit/s is what the
 greater part of the stock carries; less is a trap for short effects. At

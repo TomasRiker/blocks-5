@@ -4,6 +4,8 @@
 #include "engine.h"
 #include "font.h"
 #include "texture.h"
+#include "sound.h"
+#include "soundinstance.h"
 
 namespace
 {
@@ -74,6 +76,13 @@ namespace
 	// size - it has almost landed by the time the unrolling begins.
 	const int UNROLL_START = 20;
 	const int UNROLL_END = 40;
+
+	// How fast the rustle goes when the note closes under it. The slide is
+	// exponential, once per logic tick, and the speed is the fraction of the
+	// way left covered each tick: at 0.3 the volume halves every two ticks,
+	// is inaudible after seven - 140 ms - and the slide ends by the
+	// thirteenth.
+	const double SCROLL_FADE_SPEED = 0.3;
 
 	// On leaving, the note rolls up again at the same speed it opened at. It
 	// stays where it is until it is done (onUpdate); nothing hurries it.
@@ -149,6 +158,7 @@ Hint::Hint(Level& level,
 	activeTicks = 0;
 	dismissed = false;
 	noteTexture = 0;
+	p_scrollSound = 0;
 	// Vec2i has no initialising default constructor.
 	targetPosition = Vec2i(320, 200);
 
@@ -177,6 +187,20 @@ void Hint::onRemove()
 {
 	Object::onRemove();
 	releaseNoteTexture();
+	fadeScrollSound();
+}
+
+void Hint::fadeScrollSound()
+{
+	if(!p_scrollSound) return;
+
+	// Slid to zero and not to a negative target, which would pause it at the
+	// end: a paused instance is never AL_STOPPED, so nothing reaps it and it
+	// would hold an audio source for the rest of the level. At zero it plays
+	// itself out inaudibly and goes the ordinary way. The pointer is dropped
+	// either way - the fade is the last thing the note has to do with it.
+	if(Sound::isLiveInstance(p_scrollSound)) p_scrollSound->slideVolume(0.0, SCROLL_FADE_SPEED);
+	p_scrollSound = 0;
 }
 
 void Hint::releaseNoteTexture()
@@ -422,15 +446,37 @@ void Hint::onUpdate()
 	// screen as the player steps off the field - exactly while it is
 	// disappearing. Not in onCollect(): that only runs once the player stands
 	// at the centre, and by then the note is already on its way.
-	if(open && activeTicks == 0) updateTargetPosition();
+	if(open && activeTicks == 0)
+	{
+		updateTargetPosition();
+
+		// No pitch spread: it would draw from the level's generator and shift
+		// every random number after it, and the note is one event, not a
+		// dozen blocks landing at once.
+		Engine::inst().playSound("hint.ogg", false, 0.0, 100);
+	}
 
 	// The unrolling runs by the clock and not by shownAlpha: that only
 	// approaches its target and would never quite arrive, leaving the note a
 	// little rolled up for ever.
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
 	else     { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
+	const bool wasRolled = unroll <= 0.0;
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
+
+	// The rustle starts with the unrolling, and only where there is paper to
+	// unroll: a skin without the hintscroll.txt marker shows a display panel,
+	// drawn flat (onRender), and that makes no sound.
+	if(wasRolled && unroll > 0.0 && level.isHintScroll())
+	{
+		p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0, 100);
+	}
+
+	// A note that closes takes the rustle with it, whatever closed it - the
+	// player walking off, Return, Escape - and quickly: the paper is rolling
+	// back up, not unrolling.
+	if(!open) fadeScrollSound();
 
 	// Roll up first, then disappear - hence the rolling above. While anything
 	// is still left to roll up, the note stays fully visible and in place.
