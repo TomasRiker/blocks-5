@@ -360,7 +360,7 @@ uint GUI_MultiLineEditBox::getIndexAt(const Vec2i& position)
 		{
 			if(textCharPositions[i].x + 2 >= position.x + scroll.x) break;
 			else if(text[i] == '\n') break;
-			else if(i == static_cast<uint>(text.length() - 1))
+			else if(i + 1 == text.length())
 			{
 				i++;
 				break;
@@ -388,7 +388,7 @@ uint GUI_MultiLineEditBox::findLineEnd(uint cursor) const
 
 	while(true)
 	{
-		if(cursor == static_cast<uint>(text.length() - 1)) return cursor + 1;
+		if(cursor + 1 == text.length()) return cursor + 1;
 		cursor++;
 		if(text[cursor] == '\n') return cursor;
 	}

@@ -55,6 +55,9 @@ public:
 
 private:
 	Texture(const std::string& filename);
+	// A part of another picture, for createSubTexture(): copies the region
+	// straight out of the parent's pixels, without decoding the file first.
+	Texture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 	~Texture();
 
 	// Sets GL_TEXTURE_WRAP_S/T if the edge lengths are not powers of two. Must

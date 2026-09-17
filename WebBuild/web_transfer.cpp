@@ -113,6 +113,7 @@ bool openPicker(const std::string& stagingOgg,
 		function done(status, name) {
 			if (finished) return;
 			finished = true;
+			Module["b5_abandonPicker"] = null;
 			if (name) {
 				// Only a suggestion - C composes the target path itself.
 				var p   = Module["_blocks5_importNameBuffer"]();
@@ -157,6 +158,14 @@ bool openPicker(const std::string& stagingOgg,
 			r.readAsArrayBuffer(f);
 		});
 		document.body.appendChild(input);
+		// What abandon() reaches: the dialog itself cannot be closed from
+		// here, but a file chosen after this is neither written nor
+		// reported, and the element does not stay in the page.
+		Module["b5_abandonPicker"] = function() {
+			finished = true;
+			Module["b5_abandonPicker"] = null;
+			if (input.parentNode) input.remove();
+		};
 		input.click();
 		// Browsers without a "cancel" event would otherwise tie the button up
 		// for ever. The game never blocks - it only polls.
@@ -178,6 +187,8 @@ int pollImport(std::string& untrustedName)
 
 void abandon()
 {
+	// The page side first, so that a pick still in flight lands nowhere.
+	EM_ASM({ if (Module["b5_abandonPicker"]) Module["b5_abandonPicker"](); });
 	importStatus = IMPORT_IDLE;
 	busy = false;
 	importName[0] = 0;

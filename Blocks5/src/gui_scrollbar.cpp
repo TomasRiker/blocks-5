@@ -292,6 +292,10 @@ void GUI_ScrollBar::updateValues()
 
 void GUI_ScrollBar::setDragBarY(int dragBarY)
 {
+	// With the content fitting, the bar fills the track and has nowhere to
+	// go - and the divisors below are 0.
+	if(pageSize >= areaSize) return;
+
 	if(!dir)
 	{
 		this->dragBarY = clamp(dragBarY, size.x, size.y - size.x - dragBarHeight);

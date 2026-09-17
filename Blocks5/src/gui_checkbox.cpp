@@ -139,6 +139,7 @@ void GUI_CheckBox::readAttributes(TiXmlElement* p_element)
 		setTitle(p_title ? p_title : "");
 	}
 
+	// The display catching up with the file, not a click: nothing may fire.
 	e = p_element->FirstChildElement("Checked");
-	if(e) check(true);
+	if(e) setChecked(true);
 }

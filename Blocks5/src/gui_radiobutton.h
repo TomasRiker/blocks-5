@@ -14,6 +14,7 @@ public:
 	~GUI_RadioButton();
 
 	void onRender();
+	void onUpdate();
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseEnter(int buttons);
@@ -38,6 +39,8 @@ public:
 
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
+	// The name as the file gives it, a $ID included; see GUI_StaticImage.
+	void setRawImageFilename(const std::string& rawImageFilename);
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
 
@@ -52,6 +55,7 @@ private:
 	bool mouseOver;
 
 	std::string imageFilename;
+	std::string rawImageFilename;
 	Vec2i positionOnTexture;
 	Texture* p_image;
 

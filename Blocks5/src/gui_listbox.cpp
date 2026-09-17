@@ -141,10 +141,10 @@ void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		if(!items.empty() && selection != -1) setSelection(selection < static_cast<int>(items.size() - 1) ? selection + 1 : selection);
 		break;
 	case SDLK_PAGEUP:
-		if(!items.empty() && selection != -1) setSelection(max(0, selection - size.y / GUI::inst().getFont()->getLineHeight()));
+		if(!items.empty() && selection != -1) setSelection(max(0, selection - size.y / p_font->getLineHeight()));
 		break;
 	case SDLK_PAGEDOWN:
-		if(!items.empty() && selection != -1) setSelection(min(static_cast<int>(items.size() - 1), selection + size.y / GUI::inst().getFont()->getLineHeight()));
+		if(!items.empty() && selection != -1) setSelection(min(static_cast<int>(items.size() - 1), selection + size.y / p_font->getLineHeight()));
 		break;
 	case SDLK_HOME:
 		if(!items.empty()) setSelection(0);

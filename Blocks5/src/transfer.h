@@ -8,8 +8,6 @@
 // directly; in the browser it is asynchronous and puts a copy into a staging
 // file. beginImport()/pollImport() hide that.
 
-class Campaign;
-
 namespace Transfer
 {
 	enum Kind

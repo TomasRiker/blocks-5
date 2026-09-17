@@ -41,23 +41,24 @@ void CF_Zoom::render(double t,
 	double ts = t - 25.0 * 0.01;
 	for(int i = 0; i < 25; i++)
 	{
-		t = clamp(ts, 0.0, 1.0);
+		// the copy's own place along the zoom; t stays the transition's
+		const double tc = clamp(ts, 0.0, 1.0);
 
-		double fov = 90.0 - t * t * 80.0;
+		double fov = 90.0 - tc * tc * 80.0;
 		Mat4 projection = Mat4::perspective(fov, 1.0, 0.001, 10.0);
 		projection.translate(1.0 / screenSize.x, -1.0 / screenSize.y, 0.0);
 
 		double s;
-		if(t > 0.81649) s = 1.0;
-		else s = sin(1.5 * t * t * 1.5707963267948966192313216916398);
+		if(tc > 0.81649) s = 1.0;
+		else s = sin(1.5 * tc * tc * 1.5707963267948966192313216916398);
 		Vec2d camPos = s * targetPos;
-		double z = -1.0 + 0.99 * t;
-		double r = t * t * 1.5;
+		double z = -1.0 + 0.99 * tc;
+		double r = tc * tc * 1.5;
 		const Mat4 modelview = Mat4::lookAt(camPos.x, camPos.y, z, camPos.x, camPos.y, 0.0, -sin(r), -cos(r), 0.0);
 
 		// draw the image
 		drawImage3D(imageID, projection * modelview, corners, uvs,
-					Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(1.0 - 0.5 * t * t)), false);
+					Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(1.0 - 0.5 * tc * tc)), false);
 
 		ts += 0.01;
 	}
