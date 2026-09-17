@@ -332,10 +332,17 @@ b5_click()
 	[ "$active" = "True" ] || { echo "FAILED: $path is disabled"; exit 1; }
 
 	# Would the click really land here? getElementAt() goes the same way as
-	# GUI::update().
-	local game hit
+	# GUI::update(). Asked a few times over before it counts as a failure:
+	# a pane that has just been opened answers from a tick or two in which
+	# it is not yet where the dump says it is, and once in a dozen runs the
+	# first ask landed in that gap.
+	local game hit i
 	game=$(b5_json "'%d %d' % (el('$path')['rect'][0] + el('$path')['rect'][2]//2, el('$path')['rect'][1] + el('$path')['rect'][3]//2)")
-	hit=$(b5_ask "hit $game")
+	for i in 1 2 3 4 5; do
+		hit=$(b5_ask "hit $game")
+		[ "$hit" = "$path" ] && break
+		sleep 0.4
+	done
 	if [ "$hit" != "$path" ]; then
 		echo "FAILED: a click on the middle of $path would go to \"${hit:-nothing}\" - something is on top"
 		exit 1

@@ -407,3 +407,101 @@ stage is not done until it is.
 5. `-nobatch` becomes `-flushall` (3.7).
 6. Pixel differences are accepted only against the list in section 6.
 7. The atlas is not part of this work (5).
+
+## 9. Stage 0 - the baseline
+
+Done on `claude/render-stage0`; the tag `render-baseline` marks the commit whose
+binary every later stage is compared against.
+
+**The oracle.** `LinuxBuild/test/frames.sh` renders nineteen scenes, every one
+of them frozen on a tick of the scene's own clock, photographed out of the
+game's own framebuffer, and proved reproducible both ways: two runs at one
+seed give nineteen byte-identical frames, and a run at another seed moves
+fifteen of them and leaves four - `editor-connect`, `hint`, `loading`,
+`plain` - because nothing in those four is random. The four scenes the old
+binary rendered on the same ticks (`menu`, `night`, `plain`, `editor`) are
+byte-identical between the tagged binary and its predecessor f2efb8b, so
+none of the fixes below moved a pixel there. `.claude/rules/testing.md`
+("The frame oracle") has the mechanics: the frozen frame with the engine
+clock pinned, `freeze fade` and `lockstep` for the crossfades and the
+credits, `state` and `click` for screens and transitions no real input can
+reach on a named tick, and the two clocks that come apart.
+
+**The numbers a change is measured against.** Draw calls are what reached
+GL per rendered frame - a `glBegin` block, a `glDrawArrays`, a
+`glDrawElements`, counted at the link (`--wrap`) - and the batch's own
+draws are the sprite batch's flushes among them, with what caused each
+flush. Today the batch flushes almost only at its own edges
+(`beginSpriteBatch`/`endSpriteBatch` around each render pass); the `crt`
+scene adds a few blend changes. Everything else a frame draws is immediate
+mode, one draw call per `glBegin`, which is what the options dialog's 209,
+the manager's 256 and the credits' 403 are made of.
+
+| scene | tick | draw calls / frame | batch draws / frame | quads / batch draw | what flushed the batch | md5 (first 12) |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| `menu` | 4000 | 47.0 | 4.0 | 50.2 | edge 340 | `5a1923d007c7` |
+| `options` | 10000 | 209.0 | 4.0 | 49.5 | edge 344 | `6bf311aa9cfc` |
+| `crt` | 16000 | 290.7 | 4.7 | 40.9 | blend 26, edge 148 | `7368e41e18bd` |
+| `manager` | 30000 | 256.0 | 4.0 | 46.9 | edge 232 | `77e1b2fd4128` |
+| `star` | 0 | 57.6 | 3.8 | 38.7 | edge 485 | `6614780948da` |
+| `editor` | 0 | 92.0 | 8.0 | 21.5 | edge 88 | `592f92665c27` |
+| `help` | 0 | 109.0 | 8.0 | 21.5 | edge 72 | `2423aa2035b6` |
+| `editbox` | 0 | 217.0 | 8.0 | 21.5 | edge 64 | `12135896399c` |
+| `editor-select` | 0 | 87.0 | 8.0 | 21.5 | edge 88 | `078076f8af16` |
+| `editor-connect` | 0 | 85.0 | 7.0 | 21.4 | edge 77 | `3a6a1d2ad654` |
+| `select` | 4000 | 80.0 | 5.0 | 19.0 | edge 545 | `8db8e3d97b2a` |
+| `cube` | 440 | 74.6 | 5.0 | 19.0 | edge 535 | `a28958b2b1f6` |
+| `night` | 6000 | 55.0 | 5.0 | 19.0 | edge 1020 | `9581c2c5fb5f` |
+| `plain` | 3000 | 25.4 | 3.0 | 7.0 | edge 180 | `0c1f93ff4d53` |
+| `lava` | 15300 | 86.3 | 5.0 | 7.2 | edge 2375 | `b8e827239518` |
+| `toxic` | 3000 | 29.0 | 3.0 | 4.0 | edge 150 | `3ebd84025c4e` |
+| `hint` | 3000 | 28.0 | 3.0 | 3.0 | edge 183 | `938241ff7321` |
+| `loading` | 2920 | 1.1 | 0.0 | 0.0 | none | `b2dda9398d02` |
+| `credits` | 3000 | 402.6 | 0.0 | 0.0 | none | `21699b37863a` |
+
+md5 is of the PNG `frames.sh` writes; a run of the tagged binary reproduces
+each of them exactly (seed 12345, the script's default).
+
+**What had to be fixed for the frames to be reproducible**, each a real
+behaviour of the game and not of the harness:
+
+1. `Level::render` sorted the object vector for painting, so a tick that
+   followed a rendered frame walked a sorted vector and a tick that followed
+   another tick walked the spawns in the order they were appended - the same
+   random draws went to different gas cells. `Level::update` now sorts before
+   it walks, and spawned objects get UIDs no loaded object has
+   (`addNewObjects` numbered them from the new last object's UID, still
+   zero), which makes the sort's order total.
+2. `Engine::playSound` drew its random pitch only when the instance came, and
+   `Sound::createInstance` drops a one-shot within ten milliseconds of wall
+   time of the last - two ticks bunched into one iteration consumed one
+   draw fewer than two run apart. The pitch is drawn first now.
+3. `Level::renderToxicEffect` built its noise table from the shared generator
+   on the first frame that needed it. It comes from a fixed seed now.
+4. `Level::clear` resets the scene clock, so a level's first tick is seeded
+   the same on every run rather than on the previous level's last tick.
+5. Ctrl+A, C, X and V in both edit boxes fell through into the character
+   insert; under X11 the event's unicode is the letter, so Ctrl+A typed an
+   "a" over the selection. Fixed, and `.claude/rules/gui-text.md` says why.
+
+One thing found and left: on a fresh home the options dialog's Cancel cannot
+undo the CRT settings preview, because it restores through `loadConfig()`
+and there is no `config.xml` yet; the `crt` scene clicks the previous filter
+back by hand.
+
+**Browser.** `WebBuild/test/perf.js` on the title demo, the shipped build's
+default arm: see the run recorded in the pull request for this stage; the
+draw calls it counts are what reaches WebGL after the emulation, on the
+context itself.
+
+**Rebuilding the old binary** for a comparison:
+
+```
+git worktree add /tmp/b5-base render-baseline
+cd /tmp/b5-base && Blocks5/pack.sh data --no-optipng && LinuxBuild/build.sh hooks
+B5_DISPLAY=:89 B5_SHOTS=/tmp/blocks5-frames-base B5_FRAMES_XDG=/tmp/blocks5-frames-xdg-base \
+  LinuxBuild/test/frames.sh /tmp/frames-base
+```
+
+Two runs cannot share a display, a shots directory or a home, which is what
+the three variables separate.
