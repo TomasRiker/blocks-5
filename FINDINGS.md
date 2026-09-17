@@ -333,7 +333,7 @@ Engine and sound (c8adb02):
   and returns 0, so no object can keep a pointer the next `update()` reaps;
   the five holders guard the 0 (`elevator.cpp` and `player.cpp` gained theirs),
   and the comment on `forceCreation` says what a 0 costs now: a level whose
-  ambience never starts, not a crash.
+  ambience never starts, not a crash (2af6608).
 - **soundinstance.cpp** - the constructor sets every member before asking for
   a source.
 - **streamedsound.cpp** - `stop()` clears `sourceID`.
@@ -352,7 +352,8 @@ Files and logging (70523c3):
   results, starts `signature` at 0, tests the `fread`, and on a record it
   cannot rewrite closes both files, removes the side file and returns -2 -
   which `FM_WRITE` turns into an error instead of appending a second member
-  of the same name, and `FM_DELETE` into "not deleted".
+  of the same name, and `FM_DELETE` into "not deleted" (2af6608 starts
+  `outArchive` at 0 for that early return).
 - **file_real.cpp** - `tell()` answers 0 without a handle; `size` starts at 0.
 - **filesystem.cpp** - `getAppHomeDirectory()` hands `SHGetFolderPathA` a
   `MAX_PATH` buffer and falls back to the working directory when the call
