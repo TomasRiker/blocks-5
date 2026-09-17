@@ -31,11 +31,11 @@ Nothing is lost: Ctrl+R and the address bar still reload, Ctrl+Shift+I still ope
 fullscreen is Alt+Enter as on the desktop. Whether a browser hands a page F11 and F12 at all is its own
 decision; asking costs nothing where the answer is no.
 
-**Which is why the click prompt names Alt+Enter.** A desktop browser offers no way to reach the game's own
-fullscreen and nobody guesses that chord unaided, so `$WEB_FULLSCREEN_HINT` sits under
-`$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not on a phone, where the game takes
-the fullscreen itself on the first touch and there is no Alt to press; `Engine::isPhone()` is the one C++
-place that asks, forwarding to the `b5_isPhone` in `pre.js` that the page uses too.
+**Which is why the click prompt names Alt+Enter.** The first gesture takes the fullscreen, but the way back
+into it on a keyboard is that chord, which nobody guesses unaided, so `$WEB_FULLSCREEN_HINT` sits under
+`$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not where the on-screen pad is up,
+which has a button for it and no Alt to press; `Engine::isPadShown()` is the one C++ place that asks, and
+`window.md` has the whole fullscreen story.
 
 **The boot screen is pixel art too, and its line is the game's own.** It shows `$LOADING` from
 `data/languages.txt` — the same sentence the game puts up a moment later — in the game's own font, which

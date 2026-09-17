@@ -639,12 +639,12 @@ movement actions keep `registerAction`'s defaults (`delay 240`, `interval 80`), 
 a tap is one step and a held finger runs. Menu is not optional: `GS_Game` opens
 its menu on Escape and there is no other way out of a level without a keyboard.
 
-**The page around it takes care of itself now.** The one tap the browser build
-already demands — `GS_Loading` waits for the gesture that unblocks the
-AudioContext — also puts the canvas into fullscreen and asks for landscape, and
-every later touch that finds the document out of fullscreen puts it back. Mobile
-Chrome offers no way to do either by hand, and at this size portrait is
-unplayable. See `Engine::enforceTouchFullScreen` and `Module.b5_lockOrientation`.
+**The page around it takes care of itself now.** The one gesture the browser build
+already demands — `GS_Loading` waits for the one that unblocks the AudioContext —
+also puts the page into fullscreen and asks for landscape, on every device and
+never again on its own; the pad has a button to toggle it, since mobile Chrome
+offers no way to do it by hand, and at this size portrait is unplayable. See
+`Module.b5_setFullscreen` and `Module.b5_lockOrientation` in `pre.js`.
 
 What is still missing is points 3 and 5 below, and a proper place to switch the
 pad on other than a URL parameter.

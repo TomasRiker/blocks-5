@@ -5,7 +5,6 @@
 #include "web_audio.h"
 // Defined further down, next to setFullScreen().
 static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
-static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*);
 #endif
 #ifdef _WIN32
 // For the fullscreen switch: the window style is set directly, bypassing SDL.
@@ -538,24 +537,10 @@ bool Engine::init(const std::string& windowCaption,
 
 #ifdef __EMSCRIPTEN__
 	// Only a real key press may trigger the Fullscreen API, hence at the DOM.
+	// The first gesture of all, and the pad's button, are the page's own
+	// business - pre.js and touch_controls.js.
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
 									engineFullScreenHotkey);
-	// And on a phone the same for the finger: there the game takes the
-	// fullscreen itself, see enforceTouchFullScreen().
-	//
-	// Both ends of the touch, and that is not belt and braces: the Fullscreen
-	// API demands a *transient* user activation, and a phone does not
-	// necessarily grant one as early as the finger going down - touchend is
-	// the event the specification names for it. Emscripten's own
-	// emscripten_request_fullscreen_strategy defers the request in exactly
-	// this case to the next event allowed to perform it, and a plain
-	// requestFullscreen() has no such second chance. Both are therefore
-	// registered; whichever is allowed first wins, and the second call finds
-	// the fullscreen already standing.
-	emscripten_set_touchstart_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
-									   engineTouchFullScreen);
-	emscripten_set_touchend_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
-									 engineTouchFullScreen);
 #endif
 
 	SDL_ShowCursor(0);
@@ -2116,41 +2101,9 @@ static void emscriptenSetFullScreen(bool fullScreen)
 	EM_ASM({ Module['b5_setFullscreen']($0); }, fullScreen ? 1 : 0);
 }
 
-static EM_BOOL engineTouchFullScreen(int, const EmscriptenTouchEvent*, void*)
+bool Engine::isPadShown() const
 {
-	// The audio from here as well, and not only from GS_Loading. Going
-	// fullscreen turns the screen on a phone, and that makes the browser
-	// cancel the touch in flight - SDL never sees the press, GS_Loading knows
-	// nothing of the gesture and waits for a second one. Here the gesture is
-	// real and unambiguous.
-	WebAudio::resume();
-	Engine::inst().enforceTouchFullScreen();
-	// EM_FALSE: the touch still belongs to SDL. It is the click that takes the
-	// loading screen further and the click the game is played with.
-	return EM_FALSE;
-}
-
-bool Engine::isPhone() const
-{
-	return EM_ASM_INT({ return (Module['b5_isPhone'] && Module['b5_isPhone']()) ? 1 : 0; }) != 0;
-}
-
-void Engine::enforceTouchFullScreen()
-{
-	// Only on a device without a mouse. A notebook with a touchscreen has a
-	// title bar somebody wants; a phone has none, and in mobile Chrome there
-	// is no way at all to ask for the fullscreen by hand - the game therefore
-	// takes it itself.
-	if(!isPhone()) return;
-
-	// The browser is asked and not our own flag: leaving the fullscreen with a
-	// swipe leaves fullScreen standing at true, and setFullScreen(true) would
-	// then never reach the API at all.
-	if(EM_ASM_INT({ return (document.fullscreenElement ||
-							document.webkitFullscreenElement) ? 1 : 0; })) return;
-
-	emscriptenSetFullScreen(true);
-	fullScreen = true;
+	return EM_ASM_INT({ return (window.b5pad && window.b5pad.isVisible()) ? 1 : 0; }) != 0;
 }
 #endif
 
@@ -2607,8 +2560,21 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 	handleResize(clientSize.x, clientSize.y);
 }
 
+bool Engine::isFullScreen() const
+{
+#ifdef __EMSCRIPTEN__
+	return EM_ASM_INT({ return (document.fullscreenElement ||
+								document.webkitFullscreenElement) ? 1 : 0; }) != 0;
+#else
+	return fullScreen;
+#endif
+}
+
 void Engine::setFullScreen(bool wantFullScreen)
 {
+#ifdef __EMSCRIPTEN__
+	fullScreen = isFullScreen();
+#endif
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
 
 	// Going fullscreen takes the windowed placement away - the window becomes
@@ -2621,8 +2587,8 @@ void Engine::setFullScreen(bool wantFullScreen)
 	printfLog("* %s\n", wantFullScreen ? "Going fullscreen" : "Leaving fullscreen");
 
 #ifdef __EMSCRIPTEN__
-	// In the browser the Fullscreen API does this, and it demands a real key
-	// press - hence only from engineFullScreenHotkey() at the DOM.
+	// In the browser the Fullscreen API does this, and it demands a transient
+	// user activation - hence only from the Alt+Return callback at the DOM.
 	emscriptenSetFullScreen(wantFullScreen);
 #else
 	applyWindowStyle(wantFullScreen, wantFullScreen ? getDesktopSize() : windowedSize);
