@@ -62,7 +62,7 @@ minute together.
 
 ```
 python3 Tools/verify.py      twenty-two static checks over the whole tree
-sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
+sh Tools/syntax.sh           compile every source with mingw; an integer handed to a float fails it
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
 ```

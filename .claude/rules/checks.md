@@ -69,6 +69,11 @@ to put a compiler over the Windows code from here. Three files never go through 
 `main.cpp` is compiled there, and the difference is what mingw cannot parse in it: the `__try`/`__except`
 crash handler behind `#if defined(_WIN32) && !defined(_DEBUG)` — true under mingw, false under emcc. It
 needs nothing checked in: the headers mingw and OpenAL Soft file differently (`<Windows.h>`,
-`<Shlobj.h>`, `<al.h>`) are generated into a temp directory. It passes `-w`; for a warning sweep swap
-that for `-Wall -Wextra` and compare against the same sweep before your change, because the tree emits
+`<Shlobj.h>`, `<al.h>`) are generated into a temp directory. It compiles with `-Wconversion` and drops
+everything that says except one family, which fails the run: **an integer handed to a float**. MSVC
+reports that as C4244 at the project's level 3, mingw only under `-Wconversion`, and it arrived one
+line per build as the files happened to recompile - an int vector's component given to a float
+vector's constructor every time, in code that had compiled clean here. `static_cast<Vec2f>(v)` is the
+spelling that says it on purpose, `static_cast<float>(n)` for a single value. For a warning sweep add
+`-Wall -Wextra` and compare against the same sweep before your change, because the tree emits
 thousands of warnings that were all there in 2015.

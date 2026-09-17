@@ -10,6 +10,12 @@
 #     sh Tools/syntax.sh engine.cpp only this one
 #
 # Output only on an error; exit code 1 as soon as one file does not go through.
+# One warning counts as an error: an integer handed to a float. MSVC reports
+# that as C4244 at the project's level 3, this compiler only under
+# -Wconversion, and it arrived one line per build as the files happened to
+# recompile - an int vector's component given to a float vector's
+# constructor every time. static_cast<Vec2f>(v) is the spelling that says it
+# on purpose, static_cast<float>(n) for a single value.
 #
 # Three files are left out, and always have been: main.cpp, videorecorder.cpp
 # and stackwalker.cpp. The last two are left out of the web build as well, see
@@ -48,11 +54,12 @@ INC="-I$SRC -I$SHIM
      -I$LIBS/zlib-1.3.1 -I$LIBS/zlib-1.3.1/contrib/minizip
      -I$LIBS/sigslot -I$LIBS/mtrand-1.1"
 
-# -w, not -Wall: the tree is ten years old and emits thousands of warnings
-# that were all there in 2015. What is wanted here is errors. For a warning
-# sweep: swap this -w for -Wall -Wextra and compare the output against the
-# same sweep before the change.
-FLAGS="-fsyntax-only -std=c++14 -DTIXML_USE_STL -DDECLSPEC= -w"
+# -Wconversion and no -Wall: the tree is ten years old and emits thousands of
+# warnings under -Wall that were all there in 2015, so what is wanted here is
+# errors - and, out of everything -Wconversion says, the one family above; the
+# rest of its output is dropped. For a warning sweep: add -Wall -Wextra and
+# compare the output against the same sweep before the change.
+FLAGS="-fsyntax-only -std=c++14 -DTIXML_USE_STL -DDECLSPEC= -Wconversion"
 
 if [ $# -gt 0 ]; then
     FILES=$*
@@ -65,15 +72,22 @@ n=0
 for f in $FILES; do
     n=$((n + 1))
     out=$(cd "$SRC" && i686-w64-mingw32-g++ $FLAGS $INC "$f" 2>&1)
-    if [ -n "$out" ]; then
+    rc=$?
+    narrowed=$(echo "$out" | grep -E "conversion from '[^']*(char|short|int|long)[^']*' to 'float'" | grep -v 'long double')
+    if [ $rc -ne 0 ]; then
+        # Once more with the warnings off, so that what is printed is the error.
         echo "### $f"
-        echo "$out"
+        (cd "$SRC" && i686-w64-mingw32-g++ $FLAGS -w $INC "$f" 2>&1)
+        fail=1
+    elif [ -n "$narrowed" ]; then
+        echo "### $f: an integer handed to a float, which MSVC reports as C4244"
+        echo "$narrowed"
         fail=1
     fi
 done
 
 if [ $fail -eq 0 ]; then
-    echo "$n source files compile without errors"
+    echo "$n source files compile without errors, and none hands an integer to a float"
 else
     echo "### ERROR ###"
 fi
