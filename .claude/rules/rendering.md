@@ -55,9 +55,10 @@ brings its own tint, death countdown and conversion ghost, and a shared colour w
 Measured in the browser, `?nobatch=1` against the default: **276 draw calls a frame → 35** in a played
 level, median frame **3.90 → 2.40 ms**, render half **2.40 → 1.10**, same vertex count — and those numbers
 understate it, since they were taken while redundant state calls still broke the batch at every
-`renderSprite(Texture*)`. `LinuxBuild/test/frames.sh` reports sprite-batch draws per frame and quads per
-draw for five scenes on every run; `WebBuild/test/perf.js` reports real GL draw calls beside its
-milliseconds.
+`renderSprite(Texture*)`. `LinuxBuild/test/frames.sh` reports real draw calls per frame, sprite-batch
+draws per frame, quads per draw and what broke the batch for nineteen scenes on every run;
+`WebBuild/test/perf.js` reports the draw calls that reach WebGL beside its milliseconds (`testing.md` has
+where each count comes from).
 
 **On a real phone the batch is worth six times as much as any desktop number says**: `?perf=1` on a level
 with a full tile map and grass objects over the whole of it gave **57 ms a frame with `?nobatch=1` and 9 ms

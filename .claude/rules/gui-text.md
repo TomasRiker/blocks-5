@@ -96,6 +96,11 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
 - **Escape and Return belong to the dialog.** `GUI_EditBox` and `GUI_ListBox` forward both to the parent
   when they have nothing of their own to do, which lets a dialog implement Escape = Cancel and Return =
   OK while focus sits in a text field or a list.
+- **A Ctrl combination is handled and done.** Both edit boxes take Ctrl+A, C, X and V in the letter's
+  own `case`, and that case must `break` rather than run on into the character insert below it: what
+  unicode such an event carries is the platform's choice, and under X11 it is the letter itself —
+  measured, Ctrl+A selected everything and typed an "a" over it. Without Ctrl the same case falls
+  through, because the letter is then text like any other.
 - **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
   `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
   testing `size` inline — counts that strip as part of the control. The width is *measured*, not

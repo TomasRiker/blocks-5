@@ -116,6 +116,9 @@ Engine::Engine()
 	batchFlushes = 0;
 	batchDraws = 0;
 	batchQuads = 0;
+	for(int i = 0; i < FR_COUNT; i++) batchDrawsByReason[i] = 0;
+	renderDraws = 0;
+	renderedFrames = 0;
 	sceneTick = 0;
 	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
@@ -988,12 +991,32 @@ void Engine::mainLoopIteration()
 
 		bool frameRendered = false;
 
+#ifdef BLOCKS5_TEST_HOOKS
+		// The frame the harness photographs is rendered once more after the
+		// clock stopped, with the engine's own clock pinned to zero for the
+		// length of that one render: the caret, the editor's marching ants and
+		// the contamination pulse read getTime(), which counts ticks since the
+		// program started and so stands at whatever the harness's timing made
+		// it. Pinned and not skipped, because a scene's every other clock is
+		// already deterministic and the picture should be too.
+		const bool frozenFrame = TestHooks::frozenFrameDue();
+#else
+		const bool frozenFrame = false;
+#endif
+
 		// render
-		if(appActive && timeProcessed)
+		if(appActive && (timeProcessed || frozenFrame))
 		{
 			const double renderBegin = getExactTime();
 			bindFrameBuffer();
+#ifdef BLOCKS5_TEST_HOOKS
+			const uint realTime = time;
+			if(frozenFrame) time = 0;
+#endif
 			render();
+#ifdef BLOCKS5_TEST_HOOKS
+			if(frozenFrame) time = realTime;
+#endif
 			phases[FrameStats::FS_RENDER] = static_cast<float>((getExactTime() - renderBegin) * 1000.0);
 			frameRendered = true;
 		}
@@ -1197,7 +1220,7 @@ void Engine::mainLoopIteration()
 			// still be answered, or it could neither take its picture nor
 			// quit the game - but nothing else of the tick happens, and time
 			// does not move, so every frame from here on is the same one.
-			TestHooks::checkFreeze(sceneTick);
+			TestHooks::checkFreeze(sceneTick, p_crossfade ? static_cast<int>(crossfadeTime * 1000.0) : -1);
 			if(TestHooks::frozen())
 			{
 #ifndef __EMSCRIPTEN__
@@ -1261,6 +1284,15 @@ void Engine::mainLoopIteration()
 			timeToProcess -= logicRate;
 			timeProcessed += logicRate;
 			time += logicRate;
+
+#ifdef BLOCKS5_TEST_HOOKS
+			// One tick per rendered frame while the harness asks for it, so
+			// that a screen which draws its own last frame back into the next
+			// one - the credits - sees the same frames on a machine that
+			// drops some as on one that drops none. The backlog is thrown
+			// away rather than caught up with later, which is the point.
+			if(TestHooks::lockstep()) { timeToProcess = 0; break; }
+#endif
 		}
 
 		phases[FrameStats::FS_UPDATE] = static_cast<float>((getExactTime() - updateBegin) * 1000.0);
@@ -1692,6 +1724,12 @@ void Engine::render()
 	}
 	renderSuppressed = suppressWanted;
 
+#ifdef BLOCKS5_TEST_HOOKS
+	// Every draw call between here and the end of this function, so that the
+	// present's own quad and showLastFrame() stay out of the count.
+	const uint drawsBefore = TestHooks::drawCalls;
+#endif
+
 	// render the GUI
 	GUI::inst().render();
 
@@ -1709,6 +1747,11 @@ void Engine::render()
 	// same Font::renderText this suppresses. Without it the experiment would
 	// hide its own answer.
 	renderSuppressed = false;
+
+#ifdef BLOCKS5_TEST_HOOKS
+	renderDraws += TestHooks::drawCalls - drawsBefore;
+	renderedFrames++;
+#endif
 
 #ifdef PROFILE_ENGINE_RENDER
 	END_PROFILE(engineRender)
@@ -2072,7 +2115,7 @@ bool Engine::beginRenderToTexture(uint textureID,
 	// Both ends of the switch flush, which is what makes a bake inside an open
 	// batch safe: quads queued before it belong on the screen, quads queued
 	// during it belong on the texture, and each goes up where it was issued.
-	flushSprites();
+	flushSprites(FR_TARGET);
 
 	if(!textureID) return false;
 
@@ -2109,7 +2152,7 @@ bool Engine::beginRenderToTexture(uint textureID,
 
 void Engine::endRenderToTexture()
 {
-	flushSprites();
+	flushSprites(FR_TARGET);
 
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
@@ -3078,19 +3121,21 @@ void Engine::beginSpriteBatch()
 	// drawing it now would be under the new pass's state. Empty in practice -
 	// endSpriteBatch() sees to that - but a pass that ever returns early would
 	// otherwise carry its quads into the next one.
-	flushSprites();
+	flushSprites(FR_EDGE);
 	spriteBatchOpen = !spriteBatchDisabled;
 }
 
-void Engine::flushSprites()
+void Engine::flushSprites(FlushReason reason)
 {
 	// Counted either side of the early return, because that is exactly where
 	// the two numbers this work is aimed at come apart: a flush asked for with
 	// nothing queued costs nothing at all, and one asked for with a pass half
-	// collected costs a draw call. Only the second is worth removing.
+	// collected costs a draw call. Only the second is worth removing, and the
+	// reason says which of them it is.
 	batchFlushes++;
 	if(spriteBatch.empty()) return;
 	batchDraws++;
+	batchDrawsByReason[reason]++;
 	batchQuads += static_cast<uint>(spriteBatch.size() / 4);
 
 #ifdef BLOCKS5_TEST_HOOKS
@@ -3165,7 +3210,7 @@ void Engine::flushSprites()
 
 void Engine::endSpriteBatch()
 {
-	flushSprites();
+	flushSprites(FR_EDGE);
 	spriteBatchOpen = false;
 }
 
@@ -3180,7 +3225,7 @@ void Engine::queueSprite(const Vec2d& position,
 						 double rotation,
 						 double scaling)
 {
-	if(spriteBatch.size() >= 4 * BATCH_MAX_QUADS) flushSprites();
+	if(spriteBatch.size() >= 4 * BATCH_MAX_QUADS) flushSprites(FR_FULL);
 
 #ifdef BLOCKS5_TEST_HOOKS
 	// A queued quad is drawn with the state standing at the flush, not at the
@@ -3300,13 +3345,21 @@ SoundInstance* Engine::playSound(const std::string& filename,
 	Sound* p_sound = Manager<Sound>::inst().request(filename);
 	if(p_sound)
 	{
+		// The pitch is drawn whether or not the instance comes.
+		// Sound::createInstance drops a one-shot that follows the same sound
+		// within ten milliseconds of wall time, and a draw behind that made
+		// the generator's sequence - which every tick of a level runs
+		// through in order - depend on how the machine bunched its ticks:
+		// the same level came out differently from one run to the next.
+		const double pitch = pitchSpectrum != 0.0 ? 1.0 + random(-pitchSpectrum, pitchSpectrum) : 1.0;
+
 		SoundInstance* p_inst = p_sound->createInstance(forceCreation);
 		p_sound->release();
 
 		if(p_inst)
 		{
 			// set the pitch
-			if(pitchSpectrum != 0.0) p_inst->setPitch(1.0 + random(-pitchSpectrum, pitchSpectrum));
+			if(pitchSpectrum != 0.0) p_inst->setPitch(pitch);
 
 			// set the priority
 			p_inst->setPriority(priority);
@@ -3327,7 +3380,7 @@ void Engine::setBlendFunc(GLenum srcRGB,
 						  GLenum dstAlpha)
 {
 	// Queued sprites were queued to be blended the old way.
-	flushSprites();
+	flushSprites(FR_BLEND);
 
 	if(glExtBlendFuncSeparate) glExtBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	else glBlendFunc(srcRGB, dstRGB);

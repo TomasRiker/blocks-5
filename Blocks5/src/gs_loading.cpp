@@ -158,6 +158,11 @@ void GS_Loading::onUpdate()
 
 	time += 20;
 
+	// The clock the frame oracle runs on, as Level::update and the credits
+	// report theirs - this screen's starts at zero on entry and the logo,
+	// the jingle and the loading line all hang off it.
+	engine.sceneTick = static_cast<uint>(time);
+
 	if(time >= 1000)
 	{
 		if(!soundPlayed)

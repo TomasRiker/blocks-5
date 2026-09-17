@@ -128,6 +128,7 @@ void Level::clear()
 	objects.clear();
 	objectsToAdd.clear();
 	objectsToRemove.clear();
+	nextUID = 0;
 
 	// delete the tiles
 	delete[] p_tiles;
@@ -175,6 +176,13 @@ void Level::clear()
 
 	counter = 0;
 	time = 0;
+	// The frame oracle's clock starts over with the level, before its first
+	// tick: Engine::update seeds that tick on the clock as it stands, and
+	// what stood was the previous level's last tick - a number the harness's
+	// timing decided. A gas cloud's first particles then landed in different
+	// slots from one run to the next, and the order of alpha-blended
+	// particles is the order they are drawn in.
+	Engine::inst().sceneTick = 0;
 	numDiamondsNeeded = 0;
 	numDiamondsCollected = 0;
 	hudIconFlash[0] = hudIconFlash[1] = 0.0;
@@ -1016,6 +1024,14 @@ void Level::update()
 	// remove the old objects, add the new ones
 	removeOldObjects();
 	addNewObjects();
+
+	// Walked in the order render() paints in - depth, shown position, UID -
+	// whether or not a frame was rendered since the last tick. render() sorts
+	// the vector for its own sake, and a tick that runs straight after
+	// another, the machine catching up, would otherwise walk the objects in
+	// the order the spawns appended them: which gas cell got which of a
+	// tick's random draws then depended on the frame rate.
+	sortObjects();
 
 	// Begin the frame
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
@@ -2170,12 +2186,15 @@ void Level::addNewObjects()
 	// add the new objects
 	objects.insert(objects.end(), objectsToAdd.begin(), objectsToAdd.end());
 
-	// hash the new objects and give them their UIDs
-	uint uid = objects.back()->getUID();
+	// Hash the new objects and give them their UIDs, from a counter of the
+	// level's own so that no two objects ever share one: the UID is the
+	// last word in sortObjects()' comparison, and with a duplicate in it
+	// two objects of one depth and row have no order - the sort then puts
+	// them either way round, and a tick walks them in whichever it was.
 	for(std::vector<Object*>::const_iterator i = objectsToAdd.begin(); i != objectsToAdd.end(); ++i)
 	{
 		hashObject(*i);
-		(*i)->setUID(++uid);
+		(*i)->setUID(++nextUID);
 	}
 
 	objectsToAdd.clear();
@@ -2416,12 +2435,19 @@ void Level::renderToxicEffect()
 	{
 		tablesInitialized = true;
 
+		// From a generator of its own with a fixed seed, not from random():
+		// the table is built once, on the first frame that needs it, and the
+		// shared generator stands then wherever the frames before it left it
+		// - so the same level came out with a different table depending on
+		// how many frames the process had rendered by then. Noise from a
+		// fixed seed is the same noise, and now the same on every run.
+		MTRand table(0x70C1);
 		double temp[65][41];
 		for(int x = 0; x <= 64; x++)
 		{
 			for(int y = 0; y <= 40; y++)
 			{
-				temp[x][y] = random(0.0, 2.5);
+				temp[x][y] = table.rand(2.5);
 			}
 		}
 

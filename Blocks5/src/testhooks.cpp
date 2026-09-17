@@ -14,8 +14,10 @@
 #include "upscaler.h"
 #include "gamestate.h"
 #include "gs_game.h"
+#include "level.h"
 #include "gui.h"
 #include "gui_element.h"
+#include "gui_button.h"
 #include "particlesystem.h"
 #include "framestats.h"
 #include "font.h"
@@ -255,6 +257,33 @@ namespace
 		appendInt(out, static_cast<int>(engine.batchDraws));
 		out += ",\"quads\":";
 		appendInt(out, static_cast<int>(engine.batchQuads));
+		// The flushes that drew something, by what asked for them. The names
+		// follow Engine::FlushReason in order.
+		static const char* const REASONS[Engine::FR_COUNT] =
+			{"raw", "texture", "blend", "target", "attrib", "delete", "edge", "full"};
+		out += ",\"byReason\":{";
+		for(int i = 0; i < Engine::FR_COUNT; i++)
+		{
+			if(i) out += ",";
+			out += "\"";
+			out += REASONS[i];
+			out += "\":";
+			appendInt(out, static_cast<int>(engine.batchDrawsByReason[i]));
+		}
+		out += "}}";
+		// Every draw call render() made, over the frames it made them in -
+		// the number a renderer change is measured by, where the batch's own
+		// count above sees only its own flushes. The count is native only:
+		// it comes from the wrappers at the foot of this file, and in the
+		// browser the harness counts on the WebGL context instead - so the
+		// key is left out there rather than reported as a zero, which would
+		// read as a frame that drew nothing.
+		out += ",\"draws\":{\"frames\":";
+		appendInt(out, static_cast<int>(engine.renderedFrames));
+#ifndef __EMSCRIPTEN__
+		out += ",\"calls\":";
+		appendInt(out, static_cast<int>(engine.renderDraws));
+#endif
 		out += "}";
 
 		// And what the state layer did with the same calls: how many it had to
@@ -364,6 +393,8 @@ namespace
 namespace TestHooks
 {
 
+uint drawCalls = 0;
+
 std::string dump()
 {
 	return buildDump();
@@ -375,23 +406,65 @@ namespace
 	// after a different number of rendered frames still stop in the same
 	// place.
 	uint freezeTick = ~0u;
+	// The same for a crossfade's own clock, in milliseconds of its progress.
+	uint freezeFadeMs = ~0u;
 	bool isFrozen = false;
+	bool frameDue = false;
 }
 
 void freezeAt(uint tick)
 {
 	freezeTick = tick;
+	freezeFadeMs = ~0u;
 	isFrozen = false;
+	frameDue = false;
 }
 
-void checkFreeze(uint tick)
+void freezeAtFade(uint ms)
 {
-	if(tick >= freezeTick) isFrozen = true;
+	freezeFadeMs = ms;
+	freezeTick = ~0u;
+	isFrozen = false;
+	frameDue = false;
+}
+
+void checkFreeze(uint tick, int fadeMs)
+{
+	if(isFrozen) return;
+	const bool fadeReached = (freezeFadeMs != ~0u && fadeMs >= 0 &&
+							  static_cast<uint>(fadeMs) >= freezeFadeMs);
+	if(tick >= freezeTick || fadeReached)
+	{
+		isFrozen = true;
+		frameDue = true;
+	}
 }
 
 bool frozen()
 {
 	return isFrozen;
+}
+
+bool frozenFrameDue()
+{
+	const bool due = frameDue;
+	frameDue = false;
+	return due;
+}
+
+namespace
+{
+	bool lockstepOn = false;
+}
+
+void setLockstep(bool on)
+{
+	lockstepOn = on;
+}
+
+bool lockstep()
+{
+	return lockstepOn;
 }
 
 void resetStats()
@@ -402,6 +475,9 @@ void resetStats()
 	engine.batchFlushes = 0;
 	engine.batchDraws = 0;
 	engine.batchQuads = 0;
+	for(int i = 0; i < Engine::FR_COUNT; i++) engine.batchDrawsByReason[i] = 0;
+	engine.renderDraws = 0;
+	engine.renderedFrames = 0;
 	GL::resetCallCounts();
 }
 
@@ -438,33 +514,114 @@ void pollRequests()
 	FILE* p_request = fopen(requestPath.c_str(), "rb");
 	if(!p_request) return;
 
-	char line[128] = "";
-	if(!fgets(line, sizeof(line), p_request)) line[0] = 0;
+	char buffer[128] = "";
+	if(!fgets(buffer, sizeof(buffer), p_request)) buffer[0] = 0;
 	fclose(p_request);
 	::remove(requestPath.c_str());
+
+	// "#<serial> <request>": the serial goes back on the answer's first
+	// line, which is how the harness tells the answer to this request from
+	// a late one to an earlier request it had given up on.
+	std::string serial;
+	const char* line = buffer;
+	if(*line == '#')
+	{
+		const char* p_space = strchr(line, ' ');
+		if(p_space)
+		{
+			serial.assign(line, p_space - line);
+			line = p_space + 1;
+		}
+	}
+
+	// The rest of the line after a keyword, without the newline fgets
+	// leaves on.
+	struct Argument
+	{
+		static std::string of(const char* p_text)
+		{
+			std::string s(p_text);
+			while(!s.empty() && (s[s.length() - 1] == '\n' || s[s.length() - 1] == '\r'))
+				s.resize(s.length() - 1);
+			return s;
+		}
+	};
 
 	std::string answer;
 	int x = 0, y = 0;
 	uint freezeMs = 0;
 	if(sscanf(line, "hit %d %d", &x, &y) == 2) answer = hitAt(x, y);
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
+	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
+	{
+		freezeAtFade(freezeMs);
+		answer = "ok\n";
+	}
 	else if(sscanf(line, "freeze %u", &freezeMs) == 1)
 	{
 		freezeAt(freezeMs);
 		answer = "ok\n";
 	}
+	else if(sscanf(line, "lockstep %d", &x) == 1) { setLockstep(x != 0); answer = "ok\n"; }
+	else if(!strncmp(line, "state ", 6))
+	{
+		// Switch to a named game state, applied at the loop's safe point like
+		// any other change. It is how the harness reaches the credits, which
+		// the menu offers only to a held Shift+C.
+		Engine::inst().setGameState(Argument::of(line + 6));
+		answer = "ok\n";
+	}
+	else if(!strncmp(line, "click ", 6))
+	{
+		// Press a named button from inside the game, clock frozen or not -
+		// which is the one thing a real click cannot be: one that lands on a
+		// named tick. A screen entered this way starts from a picture the
+		// tick decides, and not the harness's timing; the star scene leaves
+		// the menu like this.
+		GUI_Element* p_element = GUI::inst()[Argument::of(line + 6)];
+		if(p_element && p_element->getType() == "GUI_Button")
+		{
+			static_cast<GUI_Button*>(p_element)->click();
+			answer = "ok\n";
+		}
+		else answer = p_element ? "not a button\n" : "no such element\n";
+	}
+	else if(!strncmp(line, "particles", 9))
+	{
+		// Every live particle of the played level's two systems, one per
+		// line: which system, position, ticks left, size, colour. The
+		// diagnostic behind the frame oracle: two frames that differ in a
+		// cloud say that something differed, and this says which particle
+		// and, from its lifetime, when.
+		GameState* p_state = Engine::inst().getGameState();
+		Level* p_level = (p_state && p_state->getName() == "GS_Game")
+						 ? static_cast<GS_Game*>(p_state)->getLevel() : 0;
+		ParticleSystem* systems[2] = {p_level ? p_level->getParticleSystem() : 0,
+									  p_level ? p_level->getFireParticleSystem() : 0};
+		for(int s = 0; s < 2; s++)
+		{
+			if(!systems[s]) continue;
+			for(ParticleSystem::ParticleList::iterator i = systems[s]->begin(); i != systems[s]->end(); ++i)
+			{
+				char buffer[160];
+				sprintf(buffer, "%d %.3f %.3f %u %.4f %.3f %.3f %.3f %.3f\n", s,
+						i->position.x, i->position.y, static_cast<unsigned int>(i->lifetime),
+						i->size, i->color.r, i->color.g, i->color.b, i->color.a);
+				answer += buffer;
+			}
+		}
+		if(answer.empty()) answer = "none\n";
+	}
 	else if(!strncmp(line, "shot ", 5))
 	{
 		// The picture the game itself read out of its framebuffer, at
 		// 640x480 whatever the window is doing - so the oracle compares the
-		// game's own frame and not a screen grab of a scaled window. fgets
-		// leaves the newline on.
-		std::string path(line + 5);
-		while(!path.empty() && (path[path.length() - 1] == '\n' ||
-								path[path.length() - 1] == '\r')) path.resize(path.length() - 1);
-		answer = Engine::inst().writeScreenshot(path) ? "ok\n" : "failed\n";
+		// game's own frame and not a screen grab of a scaled window.
+		answer = Engine::inst().writeScreenshot(Argument::of(line + 5)) ? "ok\n" : "failed\n";
 	}
 	else answer = dump();
+
+	if(!serial.empty()) answer = serial + "\n" + answer;
 
 	const std::string temporaryPath(directory + "/response.tmp");
 	FILE* p_response = fopen(temporaryPath.c_str(), "wb");
@@ -477,5 +634,46 @@ void pollRequests()
 #endif // !__EMSCRIPTEN__
 
 }
+
+#ifndef __EMSCRIPTEN__
+
+// What feeds drawCalls. The hooks build links with
+// --wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements (LinuxBuild/
+// build.sh), which sends every call to those three from the game's own
+// objects here and leaves the real entry point under its __real_ name. At
+// the link rather than through a macro, so no header carries the define and
+// no other translation unit needs it - and the shipped build has none of
+// this. The three are the whole of what draws in this tree: verify.py's
+// gl_state check names no other spelling, and nothing draws for the game
+// from inside a library, where a wrap could not see it.
+//
+// Not in the browser, where a draw call is what reaches WebGL after the
+// emulation has had its say - perf.js counts those on the context itself.
+extern "C"
+{
+	void __real_glBegin(GLenum mode);
+	void __real_glDrawArrays(GLenum mode, GLint first, GLsizei count);
+	void __real_glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* p_indices);
+
+	void __wrap_glBegin(GLenum mode)
+	{
+		TestHooks::drawCalls++;
+		__real_glBegin(mode);
+	}
+
+	void __wrap_glDrawArrays(GLenum mode, GLint first, GLsizei count)
+	{
+		TestHooks::drawCalls++;
+		__real_glDrawArrays(mode, first, count);
+	}
+
+	void __wrap_glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* p_indices)
+	{
+		TestHooks::drawCalls++;
+		__real_glDrawElements(mode, count, type, p_indices);
+	}
+}
+
+#endif // !__EMSCRIPTEN__
 
 #endif // BLOCKS5_TEST_HOOKS

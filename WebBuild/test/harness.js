@@ -96,6 +96,23 @@ async function launch(opts) {
 	});
 	page.on('pageerror', e => problems.push('pageerror: ' + e.message));
 
+	// Every draw call that reaches WebGL, counted on the context's prototype
+	// before the game creates its context - so in place on every load. This
+	// is the number a phone pays: what is left after the GL emulation has
+	// turned the game's own calls into these. dump() puts it beside the
+	// native hook's own count under the same key, and resetStats() starts
+	// both together.
+	await page.addInitScript(() => {
+		window.b5_drawCalls = 0;
+		for (const ctx of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+			if (!ctx) continue;
+			for (const fn of ['drawArrays', 'drawElements']) {
+				const real = ctx.prototype[fn];
+				ctx.prototype[fn] = function () { window.b5_drawCalls++; return real.apply(this, arguments); };
+			}
+		}
+	});
+
 	await boot(page, o.query, o.bootTimeout);
 	return { browser, page };
 }
@@ -112,15 +129,20 @@ async function boot(page, query, timeoutMs) {
 // without clearing, because the -perf overlay reads the same numbers all the
 // time.
 async function resetStats(page) {
-	await page.evaluate(() => Module._blocks5_testResetStats());
+	// One evaluate for both counters, so that no frame falls between them.
+	await page.evaluate(() => { Module._blocks5_testResetStats(); window.b5_drawCalls = 0; });
 }
 
 async function dump(page) {
-	const json = await page.evaluate(() => {
+	const r = await page.evaluate(() => {
 		Module._blocks5_testDump();
-		return Module.b5_test;
+		return { json: Module.b5_test, calls: window.b5_drawCalls };
 	});
-	return JSON.parse(json);
+	const d = JSON.parse(r.json);
+	// The native hook counts its draw calls itself (see testhooks.cpp); here
+	// the count comes from the context and goes in under the same key.
+	if (d.draws) d.draws.calls = r.calls;
+	return d;
 }
 
 function find(d, pathName) {

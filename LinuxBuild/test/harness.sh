@@ -246,19 +246,21 @@ b5_clientOrigin()
 # seconds a piece an unanswering game costs twenty minutes to notice.
 b5_ask()
 {
+	# The request carries a serial and the answer repeats it on its first
+	# line, so a late answer to an earlier ask that gave up is never taken
+	# for this one. Without it, what that looked like was not a timeout but
+	# a wrong answer: a click reporting that a whole dump is "on top" of the
+	# button, because that is what the previous ask was going to return.
+	# The clock and not a counter, because this runs inside $(...) as often
+	# as not, where a counter's increment would be lost with the subshell.
+	local serial i
+	serial="#$(date +%s%N)"
 	rm -f "$B5_TEST_DIR/response"
-	echo "$1" > "$B5_TEST_DIR/request"
-	local i
+	echo "$serial $1" > "$B5_TEST_DIR/request"
 	for i in $(seq 1 25); do
-		# The request has to be gone before the answer counts. The game
-		# deletes it and writes the response in the same pass, so a response
-		# appearing while the request is still lying there belongs to an
-		# earlier ask that gave up - and reading it answers the wrong
-		# question. What that looks like is not a timeout but a wrong answer:
-		# a click reporting that a whole dump is "on top" of the button,
-		# because that is what the previous ask was going to return.
-		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ]; then
-			cat "$B5_TEST_DIR/response"
+		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ] &&
+		   [ "$(head -n 1 "$B5_TEST_DIR/response" 2>/dev/null)" = "$serial" ]; then
+			tail -n +2 "$B5_TEST_DIR/response"
 			return 0
 		fi
 		b5_alive || return 1
@@ -330,10 +332,17 @@ b5_click()
 	[ "$active" = "True" ] || { echo "FAILED: $path is disabled"; exit 1; }
 
 	# Would the click really land here? getElementAt() goes the same way as
-	# GUI::update().
-	local game hit
+	# GUI::update(). Asked a few times over before it counts as a failure:
+	# a pane that has just been opened answers from a tick or two in which
+	# it is not yet where the dump says it is, and once in a dozen runs the
+	# first ask landed in that gap.
+	local game hit i
 	game=$(b5_json "'%d %d' % (el('$path')['rect'][0] + el('$path')['rect'][2]//2, el('$path')['rect'][1] + el('$path')['rect'][3]//2)")
-	hit=$(b5_ask "hit $game")
+	for i in 1 2 3 4 5; do
+		hit=$(b5_ask "hit $game")
+		[ "$hit" = "$path" ] && break
+		sleep 0.4
+	done
 	if [ "$hit" != "$path" ]; then
 		echo "FAILED: a click on the middle of $path would go to \"${hit:-nothing}\" - something is on top"
 		exit 1
@@ -385,6 +394,55 @@ b5_expectState()
 	b5_dump
 	have=$(b5_json "d['state']")
 	[ "$have" = "$want" ] && b5_ok "game state $have" || b5_note "game state is $have, expected $want"
+}
+
+# The mouse at a point given in game pixels, through the rect the frame is
+# presented in - the window is larger than 640x480, and only the dump knows by
+# how much. Rests there, because the GUI samples the cursor once a tick.
+b5_mouseAt()
+{
+	local gx=$1 gy=$2 wx wy
+	b5_dump || b5_hookFailed
+	b5_clientOrigin
+	wx=$(b5_json "d['present'][0] + int(($gx + 0.5) * d['present'][2] / d['screen'][2])")
+	wy=$(b5_json "d['present'][1] + int(($gy + 0.5) * d['present'][3] / d['screen'][3])")
+	xdotool mousemove $((B5_CX + wx)) $((B5_CY + wy))
+	sleep 0.4
+}
+
+# A click on a game coordinate rather than on an element, for what is drawn
+# and not GUI: the editor's palette and the pins of its parts. The rest
+# before the press is what lets a hover register first - the editor finds
+# the pin under the cursor on the move and reads it on the press.
+b5_clickAt()
+{
+	b5_mouseAt "$1" "$2"
+	xdotool mousedown 1; sleep 0.4; xdotool mouseup 1; sleep 1.5
+}
+
+# Press at one point and release at another, with a rest at each end for the
+# same reason a click has one.
+b5_drag()
+{
+	b5_mouseAt "$1" "$2"
+	xdotool mousedown 1; sleep 0.4
+	b5_mouseAt "$3" "$4"
+	sleep 0.4; xdotool mouseup 1; sleep 1.5
+}
+
+# Type into whatever has the focus. Slowly: an edit box reads key events, and
+# two in one frame would still both arrive, but a modifier state that changed
+# between them would not.
+b5_type() { xdotool type --delay 120 "$1"; sleep 1.5; }
+
+# A chord such as "ctrl a": the modifier is held across the key, so that the
+# key's own event carries it - an edit box reads the modifier state off the
+# event and not the keyboard.
+b5_chord()
+{
+	xdotool keydown --clearmodifiers "$1"; sleep 0.1
+	xdotool keydown "$2"; sleep 0.06; xdotool keyup "$2"; sleep 0.1
+	xdotool keyup "$1"; sleep 1.5
 }
 
 b5_finish()
