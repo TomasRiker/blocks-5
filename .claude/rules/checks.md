@@ -49,7 +49,7 @@ id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitia
 comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
 ten years is not a finding, and reporting it every run is how a check gets ignored.
 
-**Two of the checks police the renderer's convention** (`RENDERER-REDESIGN.md`, ROADMAP 54). `raw_gl`
+**Two of the checks police the renderer's convention** (ROADMAP 54). `raw_gl`
 reads the whole tree with comments and strings blanked and reports every `gl*`, `glu*` or `glExt*`
 call outside `RAW_GL_FILES`, the files that own raw GL - which is also what keeps display lists, wide
 lines, `GL_QUADS` and the alpha test out of a game the browser has to run; an owner holding no call

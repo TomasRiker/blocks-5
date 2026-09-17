@@ -7,7 +7,7 @@
 # rendered frame make; editor-connect, hint, loading and plain stay, because
 # nothing in those four is random. An oracle that can only answer
 # "identical" is one that measures nothing. Getting there took five changes
-# to the game itself - RENDERER-REDESIGN.md section 9 lists them - and each
+# to the game itself - .claude/rules/testing.md lists them - and each
 # was a frame that came out differently on a machine that bunched its ticks
 # differently, which is to say on any two machines.
 #

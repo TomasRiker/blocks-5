@@ -142,7 +142,7 @@ since the star is a fixed shape a fan covers exactly.
 No GL file among them. The build links against Emscripten's plain WebGL library,
 with no `-sLEGACY_GL_EMULATION` and no shim of its own: everything the game draws
 goes through `Renderer` and the present filters' programs, which is what made
-that possible (`RENDERER-REDESIGN.md`), and it is also what keeps it so - a
+that possible (ROADMAP item 54), and it is also what keeps it so - a
 fixed-function call anywhere in `Blocks5/src` is an undefined symbol at this
 link, so the desktop cannot quietly grow one the browser lacks.
 
@@ -279,7 +279,7 @@ that name without removing that entry first.
 
 Worth recording, because none of it was predictable from reading the code. The
 first, the fourth and the fifth concern the legacy GL emulation the build ran
-on until stage 3 of `RENDERER-REDESIGN.md` took it out; they stay for the
+on until the renderer redesign (ROADMAP item 54) took it out; they stay for the
 technique.
 
 1. **`glPushAttrib`/`glPopAttrib` as no-ops turned the screen black.** The

@@ -8,8 +8,8 @@
 // flush, which happens only where the state a quad is drawn under changes
 // (the texture or the blend, see renderstate.h), where a scope begins or
 // ends, where the stream is full, or where raw GL is about to read or
-// replace what was drawn. RENDERER-REDESIGN.md is the design; renderer.cpp
-// carries the reasons.
+// replace what was drawn. .claude/rules/rendering.md has the design;
+// renderer.cpp carries the reasons.
 
 #include "renderstate.h"
 

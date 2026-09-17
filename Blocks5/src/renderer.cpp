@@ -288,8 +288,8 @@ void Renderer::init()
 	// quad - the lava's four alphas, the lightning's trapezoids - and Mesa
 	// splits a GL_QUADS quad along this one and an array's quad along the
 	// other. The oracle's frames hold GL_QUADS almost everywhere, so this is
-	// the diagonal that keeps them; RENDERER-REDESIGN.md section 6 names the
-	// lightning, the one array-drawn quad, as the cost.
+	// the diagonal that keeps them, and the lightning, the one array-drawn
+	// quad, is the cost: up to twelve levels inside the bolt.
 	glExtGenBuffers(1, &vertexBuffer);
 	glExtGenBuffers(1, &indexBuffer);
 	{

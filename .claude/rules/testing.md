@@ -74,7 +74,7 @@ would trip that check.
 
 `LinuxBuild/test/frames.sh` renders nineteen named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
-every stage of `RENDERER-REDESIGN.md` is checked against, so what makes a frame reproducible is worth
+every rendering change is checked against, so what makes a frame reproducible is worth
 knowing before adding one. Three things do it, and every scene needs all three: `B5_SEED` seeds the
 generator per rendered frame and per tick, keyed on the scene's clock (`Engine::render`, `Engine::update`,
 `seedForLoad`); `freeze <tick>` stops the logic at a named tick of that clock, checked before the tick
@@ -132,6 +132,13 @@ vision's noise and the fire's particles in it, so `select` freezes on a tick and
 of it starts from a frozen one. The script traps its own exit and stops the game and
 the X server it started, because a `FAILED` from inside a function otherwise leaves both attached to
 `:88`, which the next run refuses to start over.
+
+**Two binaries are compared by running the oracle twice, each in a home of its own.** A worktree of the
+other commit is built with `Blocks5/pack.sh data --no-optipng && LinuxBuild/build.sh hooks`, and its run
+gets `B5_DISPLAY`, `B5_SHOTS` and `B5_FRAMES_XDG` of its own, because two runs cannot share a display, a
+shots directory or a home; then `cmp` over the nineteen PNGs says which scenes moved, and a pixel diff of
+one says where. The tag `render-baseline` marks the last immediate-mode binary, the one the renderer
+redesign was measured against, so that comparison can still be made.
 
 **Two clocks that come apart, and the order of the scenes follows from them.** The select screen, the
 editors and a played level are *pushed* on top of the menu, and the menu's own clock — the one the title

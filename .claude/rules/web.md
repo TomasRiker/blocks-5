@@ -9,7 +9,7 @@ paths:
 `-sLEGACY_GL_EMULATION`, no GL shim of the tree's own. Every GL call in the game is WebGL 1 core or one of
 the `glExt*` names `glextensions.h` declares, the renderer and the present filters draw through programs of
 their own, and a fixed-function call that slips into a source fails the browser link as an undefined
-symbol, which is a better failure than a picture that is wrong only here. `RENDERER-REDESIGN.md` (ROADMAP
+symbol, which is a better failure than a picture that is wrong only here. The renderer redesign (ROADMAP
 54) is how it got there; `rendering.md` has the rule.
 
 **The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated one, and

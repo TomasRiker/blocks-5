@@ -8,7 +8,7 @@
 // the colour mask, the stencil, the scissor, the target - is a bracket around
 // a whole group of quads and lives as a scope on the Renderer (renderer.h),
 // so that this stays two fields and comparing two states stays one 64-bit
-// compare. RENDERER-REDESIGN.md section 3.1 has the argument.
+// compare.
 
 // A GL texture and how its texels map onto uv: every caller writes uv in
 // texels, and the renderer multiplies by this at submission, in float - the

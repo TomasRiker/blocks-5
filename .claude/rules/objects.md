@@ -36,8 +36,8 @@ texture is `Renderer::inst().setTexture(p_texture->ref())` for the sprites of a 
 `renderLayers` — every `Electronics` part — adds with `|=`, since assigning wipes them, and the mask may
 name a layer the object does not draw this frame but may never omit one it does; and nothing in a
 render path calls `random()`. `layer_bits` and `render_layers` catch the layer mistakes.
-`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan, and all three stages have landed: everything through the
-renderer, and the browser build with no GL emulation under it.
+ROADMAP 54 is the redesign that put everything through the renderer and took the GL emulation out from
+under the browser build.
 
 **Nothing in the render path draws a random number**, and the reason is not the one it looks like. **The loop
 renders at most once per tick**: `timeProcessed` is zeroed at the top of each iteration and only raised inside
