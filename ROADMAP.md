@@ -1306,7 +1306,8 @@ offset, nothing under 20 Hz, nothing clipped, so only the 5 ms fades - and
 ahead of the rustle it is played for, which would have put the sound that far
 behind the unrolling. Both are encoded at 96 kbit/s, preloaded, and played from
 `Hint::onUpdate`: `hint.ogg` in the tick the note opens, `hintscroll.ogg` in the
-tick the paper begins to unroll, the latter under `isHintScroll()`. `sounds.xml`
+tick the paper sets off, unrolling or rolling up, under `isHintScroll()`; a
+motion cut short fades its rustle out. `sounds.xml`
 names neither - `hint` sits at -14.5 LUFS between `hotel` and `push`,
 `hintscroll` at -29 beside `grass` - and the rustle outlasts the unrolling,
 865 ms against the 400 from `UNROLL_START` to `UNROLL_END`; both are the

@@ -63,10 +63,13 @@ private:
 	double unroll;
 	int activeTicks;
 
-	// The rustle of the unrolling, held only to fade it out when the note
-	// closes under it. Sound deletes an instance the moment it has played
-	// out, so Sound::isLiveInstance() is asked before the pointer is used.
+	// The rustle of the paper in motion, held only to fade it out when the
+	// motion it belongs to is cut short. Sound deletes an instance the moment
+	// it has played out, so Sound::isLiveInstance() is asked before the
+	// pointer is used. scrollDirection is the paper's motion in the last
+	// tick: 1 unrolling, -1 rolling up, 0 at rest.
 	SoundInstance* p_scrollSound;
+	int scrollDirection;
 	void fadeScrollSound();
 
 	// Dismissed even though the player is still standing on the field. Holds
