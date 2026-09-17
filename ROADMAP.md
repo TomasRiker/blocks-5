@@ -2174,7 +2174,7 @@ the font cache was described as holding 32 entries when it is budgeted in quads
 (QUAD_BUDGET), not in entries at all.
 
 
-54. One renderer in place of the sprite batch and immediate mode
+54. One renderer in place of the sprite batch and immediate mode  — **DONE**
 -----------------------------------------------------------------
 The plan is `RENDERER-REDESIGN.md` at the root, written and checked against
 the tree before any of it was started; this entry is the pointer and the
@@ -2217,7 +2217,13 @@ that own it and `GL::`, `Texture::bind()` and the renderer's direct mode are
 gone. Eight scenes are byte-identical to the baseline and the rest differ only
 by the plan's listed causes: the beam end points, now discs, the lightning's
 diagonal, the smoothed editor lines, and a last-place rounding of the vertex
-stage. Item 42 is closed by it. Stage 3, the emulator, remains.
+stage. Item 42 is closed by it. Stage 3 took the GL emulation out of the
+browser build: the present draws through a program like every filter, the
+renderer owns the blend enable, the texture upload needs no row length, and
+`gl_immediate.cpp`, `gl_compat.cpp`, `-sLEGACY_GL_EMULATION` and the
+`?texunits` knob are gone, so a fixed-function call anywhere in the tree is
+an undefined symbol at the browser link. The plan's section 12 has the
+numbers.
 
 
 How these connect

@@ -14,7 +14,7 @@
 # the readback checks that say the renderer's record is being lied to.
 #
 # Needed: g++, SDL 1.2 (sdl12-compat everywhere today, hence SDL 2 underneath),
-# OpenAL, OpenGL and GLU. On Debian and Ubuntu:
+# OpenAL and OpenGL. On Debian and Ubuntu:
 #
 #   sudo apt install build-essential libsdl1.2-dev libopenal-dev \
 #                    libglu1-mesa-dev libgl1-mesa-dev
@@ -160,7 +160,7 @@ echo "### compiled $total translation units OK ###"
 # -lX11 for the fullscreen switch in linux_window.cpp. SDL brings it along
 # itself, but that cannot be relied on: under sdl12-compat there is SDL 2
 # underneath, and that loads its video drivers only at runtime.
-g++ $OBJS $WRAP -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lGLU -lX11 -lm -lpthread || {
+g++ $OBJS $WRAP -o "$OUT/blocks5" $(sdl-config --libs) -lopenal -lGL -lX11 -lm -lpthread || {
     echo "### LINK FAILED ###"; exit 1; }
 echo "### LINK OK -> $OUT/blocks5 ($(du -h "$OUT/blocks5" | cut -f1)) ###"
 

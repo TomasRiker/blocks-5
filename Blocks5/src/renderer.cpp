@@ -306,10 +306,6 @@ void Renderer::init()
 		glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
-	// Blending is on for good: every quad in the game blends, and the blend
-	// function is state this file applies.
-	glEnable(GL_BLEND);
-
 	stream.reserve(4 * 4096);
 	glKnown = false;
 	printfLog("  Renderer: program %u, built-in texture %u, %u quads a draw.\n", program, whiteTexture, MAX_QUADS);
@@ -389,6 +385,10 @@ void Renderer::bindReal(uint id)
 void Renderer::applyBlendMode(BlendMode blend)
 {
 	if(glBlendKnown && glBlend == blend) return;
+	// The enable is this file's state as much as the function is: a
+	// DirectGL bracket that switched it off - the present does - drops the
+	// record, and the next flush puts both back.
+	if(!glBlendKnown) glEnable(GL_BLEND);
 	applyBlend(blend);
 	glBlend = blend;
 	glBlendKnown = true;

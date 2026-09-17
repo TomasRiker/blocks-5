@@ -3,10 +3,11 @@
 
 // The GL entry points that go beyond GL 1.1.
 //
-// The rest of the game uses the plain fixed-function pipeline, which is already
-// in GL 1.1 and therefore comes straight out of opengl32.dll under Windows.
-// Framebuffer objects do not: under Windows they have to be fetched through
-// SDL_GL_GetProcAddress, in the browser they are core in WebGL 1.
+// Everything else the game calls - textures, blending, the tests, clears and
+// reads - is GL 1.1 and comes straight out of opengl32.dll under Windows.
+// Framebuffer objects, shaders and buffers do not: under Windows they have to
+// be fetched through SDL_GL_GetProcAddress, in the browser they are core in
+// WebGL 1.
 //
 // Hence two paths behind one interface: under Emscripten the names here are
 // direct declarations of the real functions, under Windows function pointers

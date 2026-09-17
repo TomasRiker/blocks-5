@@ -71,12 +71,14 @@ public:
 	virtual const char* getName() const = 0;
 
 	// Create and tear down GL state, both only with a standing context and
-	// both allowed more than once. A filter that needs none leaves the base
-	// case alone. False from createGL() ends the program: every one of these
+	// both allowed more than once. The base class compiles the filter's
+	// fragment shader into program; a filter with uniforms of its own fetches
+	// their locations after that, and they stay valid exactly as long as the
+	// program does. False from createGL() ends the game: every one of these
 	// four has to work, or the options dialog would be offering a picture the
 	// machine cannot draw.
-	virtual bool createGL() { return true; }
-	virtual void destroyGL() {}
+	virtual bool createGL();
+	virtual void destroyGL();
 
 	// GL_NEAREST or GL_LINEAR for the framebuffer texture.
 	virtual GLint getTextureFilter() const = 0;
@@ -85,9 +87,9 @@ public:
 	// doubles some source pixels and not others.
 	virtual bool wantsIntegerScale() const { return false; }
 
-	// Put the picture on the screen. Texture filter, matrices and the black
-	// background are already set, the texture is bound. The default is the
-	// fixed-function quad - Sharp and Smooth differ in nothing but the texture
+	// Put the picture on the screen. Texture filter and the black background
+	// are already set, the texture is bound. The default draws the rect
+	// through program - Sharp and Smooth differ in nothing but the texture
 	// filter and both draw that way.
 	virtual void present(const PresentContext& context);
 
@@ -112,6 +114,14 @@ public:
 	// middle of the game. Read only what is there and reset nothing.
 	virtual void loadConfig(TiXmlElement* p_config);
 	virtual void saveConfig(TiXmlElement* p_config);
+
+protected:
+	// The fragment shader createGL() builds program from. The base class's
+	// hands the texel through as it is; SharpFit and the CRT filter bring
+	// their own.
+	virtual const char* getFragmentSource() const;
+
+	PresentProgram program;
 };
 
 #endif

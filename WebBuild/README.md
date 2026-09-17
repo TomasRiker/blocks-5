@@ -126,8 +126,6 @@ since the star is a fixed shape a fan covers exactly.
 |---|---|
 | `build.sh` | the whole build; also stages the runtime tree, mirroring `stage.bat` |
 | `compat.h` | force-included; the MSVC CRT spellings `_stricmp` and `_strnicmp` |
-| `gl_immediate.cpp` | intercepts immediate mode and re-emits every attribute per vertex (see below) |
-| `gl_compat.cpp` | the GL entry points Emscripten declares but never implements |
 | `platform_stubs.cpp` | SDL cursors, surface locking, a real `SDL_UpperBlit`, SDL 1.2's key names, and the pixel-format fields `SDL_CreateRGBSurface` leaves unset |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
 | `web_transfer.cpp` | the download/file-picker bridge under `Blocks5/src/transfer.cpp`: Blobs, `<input type="file">` staged by extension, `FS.syncfs` |
@@ -141,44 +139,12 @@ since the star is a fixed shape a fan covers exactly.
 | `make_icon.py`, `make_text.py` | the icons and the boot screen's line, generated at build time from `data/` |
 | `test/` | the Playwright harness and its scripts; see `test/README.md` |
 
-One of those deserves explanation.
-
-**`gl_immediate.cpp`.** Emscripten's GL emulation computes a block's vertex count
-as `4 * floatsWritten / bytesPerVertex` and asserts the result is whole — which
-only holds if every vertex carries every attribute. Like most fixed-function code,
-this game set a colour once and then emitted four vertices, and its 120 `glBegin`
-blocks were shaped that way; the one left, the plain filters' quad in
-`Upscaler::present`, still is. This file buffers a block and replays it with the
-current colour and texcoord attached to every vertex, and goes with the emulation
-in stage 3 of `RENDERER-REDESIGN.md`.
-
-**`gluLookAt` is not merely missing, it is wrong.** Everything else in
-`gl_compat.cpp` fills a gap; this one corrects Emscripten. `libglemu.js` calls
-
-    mat4.lookAt(GLImmediate.matrix[cur], [ex,ey,ez], [cx,cy,cz], [ux,uy,uz])
-
-which is gl-matrix 2.x's "destination first" convention - but the gl-matrix
-bundled with Emscripten is 1.x, where the signature is
-`mat4.lookAt(eye, center, up, dest)`. So the current matrix goes in as the eye,
-every real argument shifts one place along, and the result is written into the
-three-element array that was meant to be the up vector and then dropped. The
-modelview matrix is never assigned. Nothing errors, nothing warns: `gluLookAt`
-is simply a no-op, and after the `glLoadIdentity` that precedes every call in
-this game the camera sits at the origin looking down -Z.
-
-Five places depend on it, and all five were quietly broken: the cube transition
-(`cf_cube.cpp`) showed a flat still instead of a rotating cube, the end-of-level
-zoom (`cf_zoom.cpp`) neither panned to the player nor rolled, `cf_slices.cpp`
-and the unused `cf_camera.cpp` likewise, and the credits scene never moved.
-`glMultMatrixd` is sound - `mat4.multiply(current, m)` post-multiplies, which is
-the GL order - so `gl_compat.cpp` defines `gluLookAt` itself, Mesa's version on
-top of it. Checked against a reference implementation for each of those cameras,
-including `cf_zoom`'s rotated up vector: worst element error 4.7e-7, which is
-float32 readback noise.
-
-`gluPerspective` is correct but *replaces* the current matrix where real GLU
-multiplies into it. Every call site here does `glLoadIdentity` first, so the two
-agree; it goes through `glFrustum` now anyway, so they still would if one did not.
+No GL file among them. The build links against Emscripten's plain WebGL library,
+with no `-sLEGACY_GL_EMULATION` and no shim of its own: everything the game draws
+goes through `Renderer` and the present filters' programs, which is what made
+that possible (`RENDERER-REDESIGN.md`), and it is also what keeps it so - a
+fixed-function call anywhere in `Blocks5/src` is an undefined symbol at this
+link, so the desktop cannot quietly grow one the browser lacks.
 
 ## Click to start
 
@@ -311,15 +277,17 @@ that name without removing that entry first.
 
 ## What was actually wrong
 
-Worth recording, because none of it was predictable from reading the code.
+Worth recording, because none of it was predictable from reading the code. The
+first, the fourth and the fifth concern the legacy GL emulation the build ran
+on until stage 3 of `RENDERER-REDESIGN.md` took it out; they stay for the
+technique.
 
 1. **`glPushAttrib`/`glPopAttrib` as no-ops turned the screen black.** The
    texture binding of the time bracketed a `glMatrixMode(GL_TEXTURE)` edit with
    them, so the matrix mode stayed `GL_TEXTURE` after the first bind and every
    `glPushMatrix`/`glTranslated` in the game transformed texture coordinates
-   instead of geometry. Nothing errored. The one push left is
-   `Engine::presentFrame`'s, and what its pop restores that nothing else puts
-   back is the blend enable - `gl_compat.cpp` says which.
+   instead of geometry. Nothing errored. A shim restored the mode and the
+   enables until the emulation went; nothing pushes any more.
 2. **`SDL_BlitSurface` is implemented on a 2D canvas.** It `drawImage`s from a
    source canvas, which only exists for surfaces Emscripten's own SDL created
    from an image. Every surface this game blits is written directly in memory, so
@@ -329,7 +297,16 @@ Worth recording, because none of it was predictable from reading the code.
    overflow read back as Shift+F7, which is the unlock-all-levels cheat.
 4. **`GL_INT` is not a valid vertex-attribute type in WebGL**, and
    **`GL_UNPACK_ROW_LENGTH` does not exist** — both silently ignored after
-   raising `INVALID_ENUM`.
+   raising `INVALID_ENUM`. The upload no longer asks for a row length: a 32-bit
+   SDL surface's rows are tight on every platform, and `texture.cpp` checks
+   that rather than assuming it.
+5. **Emscripten's own `gluLookAt` was a no-op.** `libglemu.js` called
+   gl-matrix's `mat4.lookAt` in the 2.x argument order while bundling the 1.x
+   library, so every argument slid one place, the result landed in the
+   three-element up vector and the modelview was never assigned. The cube
+   transition, the end-of-level zoom, the slices and the credits all stood
+   still. A shim defined `gluLookAt` itself, Mesa's version, until `Mat4` in
+   `vec.h` took those cameras onto the CPU and the emulation went.
 
 Emscripten's own legacy-GL texturing, texture matrices and immediate mode were
 all fine; each was ruled out with a standalone 40-line test program before

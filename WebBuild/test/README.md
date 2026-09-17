@@ -113,7 +113,8 @@ coordinate but in the game.
 
     WebBuild/build.sh hooks && node test/perf.js
     B5_WINDOW=30 B5_REPEATS=5 node test/perf.js
-    node test/perf.js "?texunits=0" "?texunits=1" "?texunits=8"
+    node test/perf.js "" "?flushall=1"
+    B5_DIR=/path/to/an/older/build-test B5_STALE_OK=1 node test/perf.js
 
 Every number is milliseconds of wall clock on the main thread, out of
 `FrameStats` in the game and through the test hook's `frames`. `render` and
@@ -124,7 +125,7 @@ Every number is milliseconds of wall clock on the main thread, out of
 `glFinish` after render returns in 0.02 ms; and the page composites the canvas
 after the callback returns, outside every window this can time. What is left is
 exactly main-thread CPU, which is the half that starves the audio and the only
-half a setting like `GL_MAX_TEXTURE_IMAGE_UNITS` can move. It is no measure of
+half a change to the game's own code can move. It is no measure of
 the hardware: **`interval` minus `total` is what is left for that**, so a frame
 rate that falls while `total` stays flat is time going somewhere this cannot
 see.
@@ -140,6 +141,11 @@ Two things about the method are the point of it:
   browser and nothing about the link can differ between them.
 - **They are interleaved, not run in blocks.** A machine that warms up or
   throttles part-way through then hands that to both arms instead of to one.
+- **Two builds are the one comparison that cannot be arms.** `B5_DIR` points a
+  run at another build directory, and `B5_STALE_OK=1` lets it be older than the
+  sources, which a previous build is by definition - `harness.js` refuses
+  otherwise, since a stale build passes for a game that no longer exists. Run
+  once against each with `B5_REPEATS=1`, alternating, and compare the medians.
 
 The scene is the menu's own title demo: a whole level animating plus the GUI,
 with no navigation to go wrong. It is not deterministic - bombs go off when
@@ -148,7 +154,7 @@ says outright when a difference is smaller than the spread within a single arm.
 
 `emscripten_get_now()` is coarsened by the browser to about a tenth of a
 millisecond, which is why the numbers land on those boundaries. A difference of
-one step is quantisation and not a result; the texunits comparison moved five.
+one step is quantisation and not a result.
 
 A knob that changes the timing has to be shown not to change the picture. The
 level editor is the scene for that - the busiest screen that does not animate -

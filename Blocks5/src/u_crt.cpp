@@ -530,9 +530,14 @@ U_Crt::~U_Crt()
 {
 }
 
+const char* U_Crt::getFragmentSource() const
+{
+	return p_crtFragmentShader;
+}
+
 bool U_Crt::createGL()
 {
-	if(!program.create(p_crtFragmentShader, "crt fragment")) return false;
+	if(!Upscaler::createGL()) return false;
 
 	locScanline    = glExtGetUniformLocation(program.id, "Scanline");
 	locCurvature   = glExtGetUniformLocation(program.id, "Curvature");
@@ -544,14 +549,6 @@ bool U_Crt::createGL()
 	locTime        = glExtGetUniformLocation(program.id, "Time");
 	locScanPhase   = glExtGetUniformLocation(program.id, "ScanPhase");
 	return true;
-}
-
-void U_Crt::destroyGL()
-{
-	// The uniform locations stay as they are. They are only valid while there
-	// is a program anyway, and a second list would be a second list that
-	// somebody forgets to extend.
-	program.destroy();
 }
 
 void U_Crt::present(const PresentContext& context)

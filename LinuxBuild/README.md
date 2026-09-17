@@ -6,8 +6,7 @@ game's `.cpp` files and in this one translation unit here.
 
 ## Building
 
-    sudo apt install build-essential libsdl1.2-dev libopenal-dev \
-                     libglu1-mesa-dev libgl1-mesa-dev
+    sudo apt install build-essential libsdl1.2-dev libopenal-dev libgl1-mesa-dev
 
     LinuxBuild/build.sh              incremental
     LinuxBuild/build.sh clean        from scratch

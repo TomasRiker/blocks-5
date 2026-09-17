@@ -18,9 +18,6 @@
 #include <SDL.h>
 #include <SDL_thread.h>
 #include <SDL_opengl.h>
-#ifndef _WIN32
-#include <GL/glu.h>
-#endif
 #include "img_load.h"
 #include <al.h>
 #include <alc.h>

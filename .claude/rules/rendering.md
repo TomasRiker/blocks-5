@@ -6,20 +6,18 @@ paths:
   - "Blocks5/src/renderlayer.h"
   - "Blocks5/src/fatalerror.{cpp,h}"
   - "Blocks5/src/util.h"
-  - "WebBuild/gl_compat.cpp"
-  - "WebBuild/gl_immediate.cpp"
-  - "WebBuild/compat.h"
 ---
 
 # Rendering: the GL floor, the renderer, its bracket, the files that own raw GL
 
-**The renderer is under the whole game, and `RENDERER-REDESIGN.md` (ROADMAP 54) is the plan.** Stages 1
-and 2 have landed: everything the game draws — the level, the GUI, the game states, the crossfades, the
-credits, the weather, the toxic grid, the hint's note — goes through `Renderer` (`renderer.h`), and raw GL
-survives only in the files that own it, which `verify.py`'s `RAW_GL_FILES` lists with a reason each: the
-renderer itself, the texture upload, the engine's framebuffer, render target, readback and present, the
-present filters, the entry-point loader, and the browser's GL shims. Stage 3 cuts the GL emulation out of
-the browser build, which the shims and the present's one fixed-function quad still need.
+**The renderer is under the whole game, and `RENDERER-REDESIGN.md` (ROADMAP 54) is the plan, all three
+stages of it landed.** Everything the game draws — the level, the GUI, the game states, the crossfades, the
+credits, the weather, the toxic grid, the hint's note — goes through `Renderer` (`renderer.h`), the present
+draws through a `PresentProgram` of the filter's, and raw GL survives only in the files that own it, which
+`verify.py`'s `RAW_GL_FILES` lists with a reason each: the renderer itself, the texture upload, the engine's
+framebuffer, render target, readback and present, the present filters, and the entry-point loader. Nothing
+fixed-function is left on any platform, and the browser build links against WebGL alone, with no emulation
+in between.
 
 **The floor is GL 2.0 with framebuffer objects, and it is a floor, not a hope.** Buffers are core in GL
 1.5 (2003), shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004; both software rasterizers
@@ -121,8 +119,8 @@ reads or replaces is on the target; its destructor makes the renderer forget wha
 next flush applies everything again. "Restore" means invalidate, never reconstruct. `direct_gl_scope` is
 the check, and it reads those two files with the block, chain and preprocessor rules a C++ object obeys;
 `glGetError` and `glGetString` are queries and stand outside. The other owners need no bracket: the
-renderer's own file is what the bracket exists for, the loader runs before the first quad, the present
-filters run inside `presentFrame`'s bracket, and the shims are the emulation itself.
+renderer's own file is what the bracket exists for, the loader runs before the first quad, and the present
+filters run inside `presentFrame`'s bracket.
 
 **GL's texture binding is the current texture at all times except inside a flush.** `Renderer::setTexture`
 binds for real, so that a `glTexImage2D` right after it lands in that texture, and a flush that bound the
@@ -139,11 +137,10 @@ mask, the stencil enable, the scissor enable and its box against what the render
 message in a log nobody reads is not a check. Not in the browser, where that is a WebGL `getParameter`
 per draw and would swamp `perf.js`; what it looks for is the tree's own code, the same on both platforms.
 
-**In the browser the renderer's draws pass through Emscripten's GL emulation untouched.** A
-`glDrawElements` with no client-state array enabled, `GL_TRIANGLES` and an element buffer bound goes
-straight to WebGL, and `glUseProgram` is wrapped so that the emulation rebinds its own program at its
-next fixed-function draw — the present's quad, the one left. The emulation costs a lookup per switch
-and stage 3 deletes it.
+**In the browser every draw reaches WebGL as it was issued.** The build links against Emscripten's plain
+WebGL library — no `-sLEGACY_GL_EMULATION`, no shim of the tree's own — so the renderer's `glDrawElements`
+and the present's `glDrawArrays` are the WebGL calls a phone pays for, one to one, and a fixed-function
+call anywhere in the tree fails the browser link as an undefined symbol. `web.md` has the rest.
 
 ## The tile grid, the sprites, the passes
 
@@ -177,10 +174,9 @@ shifts it a pixel. The only odd sizes in the tree are the 39x39 level-status sta
 **Browser colour is the desktop's.** Every colour reaches WebGL as a float attribute of the renderer's
 and is clamped in the vertex stage, the desktop's fixed-function clamp on every platform:
 `Level::renderShine` hands in `deathCountDown * 5.0` from an exploding bomb and the spark bursts run a
-particle's red past 5, and both come out as the desktop draws them, where the emulation computed
-`clamp(colour * texel)` and made a soft glow a hard-edged blob. That closes ROADMAP 42, and
-`clampColor()` is gone with its two callers. The quirk the emulation had — a `glColor*` inside a
-`glBegin` block truncated to a byte — no longer reaches a colour of the game's, since no block is left.
+particle's red past 5, and both come out as the desktop draws them; the GL emulation the browser ran on
+until stage 3 computed `clamp(colour * texel)` instead and made a soft glow a hard-edged blob, which was
+ROADMAP 42, and `clampColor()` is gone with its two callers.
 
 **A render layer is a pass, and it has a name.** `renderlayer.h` holds the twelve `RL_*` that `Level::render`
 walks in order, each a single bit, so an object's set is the OR of the ones it draws on.
@@ -226,8 +222,8 @@ the wire pass visible to a byte-exact comparison.
 
 **There are no display lists anywhere, and `raw_gl` keeps it that way.** They were a second way of keeping
 geometry beside these arrays, and one WebGL does not have — so every place that used one carried a browser
-path under `#ifdef __EMSCRIPTEN__` and a stub in `gl_compat.cpp`; added back, one would compile on
-Windows, link on Linux and misbehave only in the browser, the build nobody runs first. The three that
+path under `#ifdef __EMSCRIPTEN__`; added back, one would compile on Windows, link on Linux and fail the
+browser link, where no emulation stands in for it. The three that
 used them are the tile grid, the font and `Lightning`, whose two passes are built when the bolt is
 generated and drawn unchanged for the forty frames it takes to fade — only colour and alpha move.
 `QuadVertex` in `renderer.h` is where the three meet.
@@ -254,13 +250,12 @@ rendered, which is exactly the screen being faded out.
 **A scrolling texture offset is reduced to one period, and that is a phone bug.** `wrapTextureOffset`
 (`util.h`) is called on all five scrollers — the menu's title clouds, the level's rain, snow and clouds,
 and the lava — because each scrolls by an offset that has been growing since the level began. A texture
-coordinate reaches the fragment shader as a *varying*, and the shader Emscripten's GL emulation builds
-opens with `precision mediump float;` with the texcoord varyings under it: ten mantissa bits, which a
-desktop GPU implements as fp32 and a phone actually honours. The step it quantizes to is
-**offset/2048 texels**, so the clouds — moving one texel a tick — drift smoothly for about forty seconds
-and then go visibly steppy, and the rain, at twenty texels a tick, crosses the same line in two seconds.
-Nothing is wrong on any desktop, which is what makes it hard to see. The renderer's own fragment shader
-asks for `highp` where the browser has it, which is what the lava, the one scroller through it, gets.
+coordinate reaches the fragment shader as a *varying* at that shader's float precision, and the renderer's
+fragment shader asks for `highp` only where `GL_FRAGMENT_PRECISION_HIGH` says the browser has it; a phone
+without it gets `mediump`: ten mantissa bits, which a desktop GPU implements as fp32 and the phone actually
+honours. The step it quantizes to is **offset/2048 texels**, so the clouds — moving one texel a tick —
+drift smoothly for about forty seconds and then go visibly steppy, and the rain, at twenty texels a tick,
+crosses the same line in two seconds. Nothing is wrong on any desktop, which is what makes it hard to see.
 
 Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a whole
 number and samples the same texel. Verified against the real matrix order — bind's `1/w,1/h`, the scale,

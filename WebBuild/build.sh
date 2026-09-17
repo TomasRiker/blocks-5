@@ -24,8 +24,7 @@ if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-t
 # "asan" is the same build under AddressSanitizer: -O1 so that the report
 # names a line, ASSERTIONS at 2 for the runtime's own checks, and a heap big
 # enough for the shadow memory. It is one script and not a copy of this one,
-# because a copy drifts: the last one still compiled libvorbis's misc.c and
-# lacked INCOMING_MODULE_JS_API, which aborts the start under ASSERTIONS.
+# because a copy drifts: the last one still compiled libvorbis's misc.c.
 OPT="-O2"
 ASSERT=1
 MEMORY=50331648
@@ -97,7 +96,7 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
 #                  no audio either (replaced by videorecorder_stub.cpp)
 #   pch          - the translation unit that creates the PCH under MSVC
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
-SRCS="$SRCS $HERE/gl_compat.cpp $HERE/gl_immediate.cpp $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
+SRCS="$SRCS $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/unzip.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/zip.c
@@ -198,27 +197,15 @@ echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 # default 64 KiB stack is exactly consumed by it, so every zip WRITE - saving a
 # campaign, saving progress - clobbered the stack and trapped with "table index
 # is out of bounds". Reads were unaffected, which is why it stayed hidden.
-# Which Module.* properties the runtime will accept. It has to be given whole:
-# "+=" is not a syntax emcc knows, and at link time it is dropped without a
-# word rather than refused, so the build succeeds and the setting does nothing.
-# Everything before the last entry is Emscripten's own default list (emsdk
-# 6.0.8, src/settings.js) - naming it replaces it, so a key Emscripten adds
-# later would be dropped here. That fails loudly and not quietly: with
-# ASSERTIONS on, a Module property nobody allowed aborts the start and names
-# itself.
 #
-# The last entry is ours. GL_MAX_TEXTURE_IMAGE_UNITS tells the GL emulation how
-# many texture units to keep state for, and pre.js sets it from ?texunits=N so
-# that both arms of a comparison are one binary. See WebBuild/test/perf.js.
-INCOMING_MODULE_JS_API="ENVIRONMENT,arguments,canvas,dynamicLibraries,elementPointerLock,\
-instantiateWasm,locateFile,monitorRunDependencies,noExitRuntime,noInitialRun,onAbort,onExit,\
-onRuntimeInitialized,postRun,preInit,preRun,print,printErr,setStatus,statusMessage,stderr,\
-stdin,stdout,thisProgram,wasm,websocket,GL_MAX_TEXTURE_IMAGE_UNITS"
-
+# No -sLEGACY_GL_EMULATION: every GL call in the tree is WebGL 1 core or one
+# of the glExt* names glextensions.h declares, so the link goes against
+# Emscripten's plain WebGL library, and a fixed-function call that slips into
+# a source fails right here as an undefined symbol instead of being emulated
+# at a shader per draw. A Module.* property Emscripten reads would have to be
+# named in -sINCOMING_MODULE_JS_API, given whole; pre.js sets none.
 em++ $OBJS -o "$OUT/blocks5.html" \
   $OPT -sASSERTIONS=$ASSERT -sUSE_SDL=1 -lopenal \
-  -sLEGACY_GL_EMULATION=1 -sGL_UNSAFE_OPTS=0 \
-  -sINCOMING_MODULE_JS_API="$INCOMING_MODULE_JS_API" \
   -Wl,--wrap=SDL_CreateRGBSurface \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=$MEMORY \
   -sEXIT_RUNTIME=0 -sSTACK_SIZE=4194304 -lidbfs.js --pre-js $HERE/pre.js \

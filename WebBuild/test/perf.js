@@ -2,19 +2,23 @@
 //
 //   WebBuild/build.sh hooks && node WebBuild/test/perf.js
 //   B5_WINDOW=30 B5_REPEATS=5 node WebBuild/test/perf.js
-//   node WebBuild/test/perf.js "" "?texunits=1" "?texunits=4"
+//   node WebBuild/test/perf.js "" "?flushall=1"
+//   B5_DIR=/somewhere/build-test B5_STALE_OK=1 node WebBuild/test/perf.js
 //
 // Every number is milliseconds of wall clock on the main thread, from
 // FrameStats in the game. None of it waits for the GPU - WebGL takes a command
-// and returns - so this measures what the emulation and the JavaScript cost.
-// That is the half worth measuring here: it is the main thread that starves
-// the audio and drops the frame, and it is the half a setting like
-// GL_MAX_TEXTURE_IMAGE_UNITS can move at all.
+// and returns - so this measures what the game and the JavaScript around it
+// cost. That is the half worth measuring here: it is the main thread that
+// starves the audio and drops the frame, and it is the half a change to the
+// game's own code can move at all.
 //
 // The arms are query strings rather than builds, so both sides of a comparison
 // are the same binary in the same browser, and they are interleaved rather than
 // run in blocks, so a machine that warms up or throttles part-way through
-// spreads that over both instead of handing it to one.
+// spreads that over both instead of handing it to one. Two builds - a before
+// and an after - are the one comparison that cannot be arms: run this once
+// against each with B5_REPEATS=1, alternating, and B5_DIR names the other
+// build (harness.js says why it needs B5_STALE_OK beside it).
 //
 // The scene is the menu's own title demo: a whole level animating, plus the
 // GUI, with no navigation to go wrong. It is not deterministic - bombs go off
@@ -22,9 +26,9 @@
 // between them, and not one number with an air of authority.
 const h = require('./harness.js');
 
-// Both written out, so the labels say what was run: an empty query is now
-// texunits=1, and texunits=0 is what the emulation does when nobody tells it.
-const ARMS = process.argv.length > 2 ? process.argv.slice(2) : ['?texunits=0', '?texunits=1'];
+// One arm unless told otherwise: the build as it is. Two or more and the last
+// section says whether they differ by more than the noise.
+const ARMS = process.argv.length > 2 ? process.argv.slice(2) : [''];
 const REPEATS = parseInt(process.env.B5_REPEATS || '3', 10);
 const WINDOW = parseInt(process.env.B5_WINDOW || '20', 10);   // seconds per run
 

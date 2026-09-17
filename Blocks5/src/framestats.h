@@ -31,7 +31,7 @@ public:
 	// does nothing, and glFinish returns in 0.02 ms. The page composites the
 	// canvas after the callback returns, so **the GPU cost is outside every
 	// window here** and what is left is exactly main-thread CPU. That is the
-	// right measure for anything the emulation or the JavaScript does, and no
+	// right measure for anything the game or the JavaScript does, and no
 	// measure at all of the hardware. INTERVAL minus TOTAL is what is left for
 	// it: if the frame rate falls while TOTAL stays flat, the time is going
 	// somewhere this cannot see.

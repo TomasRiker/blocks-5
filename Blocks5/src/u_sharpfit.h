@@ -20,13 +20,8 @@ public:
 	const char* getName() const { return "SharpFit"; }
 	GLint getTextureFilter() const { return GL_LINEAR; }
 
-	bool createGL();
-	void destroyGL();
-
-	void present(const PresentContext& context);
-
-private:
-	PresentProgram program;
+protected:
+	const char* getFragmentSource() const;
 };
 
 #endif

@@ -5,11 +5,12 @@ paths:
 
 # The browser build's page, its caching and its lifetime
 
-**`gl_immediate.cpp`, `gl_compat.cpp`'s attribute stack and `-sLEGACY_GL_EMULATION` exist because the
-present still draws in fixed-function immediate mode** - `Upscaler::present`'s quad, and the matrix and
-enable state `Engine::presentFrame` sets around it. `RENDERER-REDESIGN.md` (ROADMAP 54) removes all
-three in its last stage, once nothing but GL 2.0 shader and buffer calls remain; until then they are
-what makes the build run, and a change to either should be read against that plan.
+**The browser build links against Emscripten's plain WebGL library and nothing else** - no
+`-sLEGACY_GL_EMULATION`, no GL shim of the tree's own. Every GL call in the game is WebGL 1 core or one of
+the `glExt*` names `glextensions.h` declares, the renderer and the present filters draw through programs of
+their own, and a fixed-function call that slips into a source fails the browser link as an undefined
+symbol, which is a better failure than a picture that is wrong only here. `RENDERER-REDESIGN.md` (ROADMAP
+54) is how it got there; `rendering.md` has the rule.
 
 **The page around the browser build is `WebBuild/shell.html`**, not Emscripten's generated one, and
 everything in it is there because a phone needs it. `<meta name="viewport" content="width=device-width,

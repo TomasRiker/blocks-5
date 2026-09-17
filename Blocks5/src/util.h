@@ -105,11 +105,12 @@ inline bool isReturnKey(int key)
 // Exact under GL_REPEAT: whole periods move the finished coordinate by a whole
 // number and it samples the same texel. It is needed because the weather and
 // the title clouds scroll by an offset that has been growing since the level
-// began, and a texture coordinate reaches the fragment shader as a varying -
-// which Emscripten's GL emulation declares under "precision mediump float",
-// ten mantissa bits on a phone. The step it quantizes to is offset/2048 texels,
-// so the drift turns visibly steppy about a minute in and gets worse from
-// there. Keeping the offset inside one period keeps the precision constant.
+// began, and a texture coordinate reaches the fragment shader as a varying at
+// that shader's float precision - highp where the browser has it, mediump on
+// a phone that has not, ten mantissa bits. The step it quantizes to is
+// offset/2048 texels, so the drift turns visibly steppy about a minute in and
+// gets worse from there. Keeping the offset inside one period keeps the
+// precision constant.
 inline double wrapTextureOffset(double offset, int period)
 {
 	if(period <= 0) return offset;

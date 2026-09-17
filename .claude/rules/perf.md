@@ -26,7 +26,7 @@ one number pretending to be the blit.
 which exists only on the worker path, so off the main thread it does nothing; measured, the swap is 0.00 ms
 and a `glFinish` after render returns in 0.02. The page composites the canvas after the callback returns,
 outside every window this can time. What is left is exactly main-thread CPU — the right measure for
-anything the emulation or the JavaScript does, and no measure of the hardware. **`interval` minus `total`
+anything the game or the JavaScript does, and no measure of the hardware. **`interval` minus `total`
 is what is left for it:** a frame rate that falls while `total` stays flat is time going somewhere this
 cannot see.
 
@@ -71,18 +71,11 @@ Three ways to read it:
   that warms up or throttles hands that to both. It prints draw calls per frame beside the milliseconds,
   because a renderer change moves that number first and it does not wobble with the machine.
 
-**`?texunits=N` is the first knob riding on this**, and it shipped; it goes with the GL emulation in
-the last stage of `RENDERER-REDESIGN.md`. Emscripten's GL emulation keeps state
-for as many texture units as WebGL reports — 8 to 16 — and loops over that count twice per draw call. This
-game never leaves unit 0: no `glActiveTexture`, `GL_TEXTURE0` or `glMultiTexCoord` anywhere. `pre.js` sets
-`Module.GL_MAX_TEXTURE_IMAGE_UNITS` to 1 by default; `?texunits=0` puts it back to asking WebGL, the arm to
-compare against. Measured on the title demo, three interleaved twenty-second runs: median frame **3.20 ms →
-2.70**, render half **2.40 → 2.00**, spread within an arm 0.10 ms, picture untouched (0 of 512000 pixels
-differ).
-
-Two traps. `Module.<anything>` must be named in **`INCOMING_MODULE_JS_API`** or the start aborts;
-`build.sh` passes Emscripten's whole default list plus this key, because naming the setting replaces it,
-and `-sFOO+=bar` is not a syntax emcc knows — at link time it is dropped without a word rather than
-refused. And the interval barely moved in that measurement, correctly: under swiftshader the frame rate is
-capped elsewhere, so the saving shows up as main-thread time. On a phone, where the main thread *is* the
-limit, it is the same milliseconds either way.
+**`?texunits=N` was the first knob riding on this** — how many texture units Emscripten's GL emulation
+kept state for, a loop over every unit twice per draw — and it went with the emulation in stage 3 of
+`RENDERER-REDESIGN.md`, which took the whole emulation out from under the draws. Two things it taught stay
+true. A knob that sets a `Module.*` property Emscripten reads has to be named in **`INCOMING_MODULE_JS_API`**,
+given whole, since naming the setting replaces Emscripten's default list and `-sFOO+=bar` is a syntax emcc
+drops at link without a word; the two knobs left, `?perf=1` and `?flushall=1`, are arguments and need none
+of it. And under swiftshader the frame rate is capped elsewhere, so a saving in main-thread time barely
+moves the interval; on a phone, where the main thread *is* the limit, it is the same milliseconds either way.

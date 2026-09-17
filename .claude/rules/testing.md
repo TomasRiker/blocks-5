@@ -108,8 +108,9 @@ own draws and a histogram of what ended each batch (`batch.byReason`: a texture 
 scope, a full stream, an explicit flush before a copy, a clear, a 3D draw or a target switch, the end of
 the frame, and a `Renderer::DirectGL` bracket opening for raw GL - `perf.md` reads the same keys).
 In the browser the same key comes from `WebBuild/test/harness.js`, which counts `drawArrays` and
-`drawElements` on the WebGL context's prototype — what is left after the GL emulation, the number a phone
-pays — and `resetStats()` starts both counters in one evaluate so no frame falls between them.
+`drawElements` on the WebGL context's prototype — what reaches WebGL, the number a phone pays: the
+renderer's draws and the present's, one to one, with no emulation in between — and `resetStats()` starts
+both counters in one evaluate so no frame falls between them.
 
 **The CRT settings button leaves the filter on, and a fresh home cannot take it back.** The button
 switches to the CRT filter there and then, and the dialog's Cancel undoes it through `loadConfig()` —

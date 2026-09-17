@@ -18,15 +18,16 @@ in display order. It is a normal game option, saved as `<Upscaler>` with the fil
 one name each filter has, shared by the config value, the radio button in `options.xml`, the startup log and
 the test hook. `SharpFit` is the default.
 
-- `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn by the base class's fixed-function quad.
+- `Sharp` and `Smooth` are just `GL_TEXTURE_MAG_FILTER`, drawn through the base class's pass-through program.
   `Sharp` additionally snaps the blit to an integer scale (`wantsIntegerScale()`), the whole point of it.
 - `SharpFit` (`src/u_sharpfit.cpp`) is nearest at a fractional scale, in one texture fetch rather than two
   passes; that file derives why, and why it **must** sample with `GL_LINEAR`.
 - `Crt` is a CRT monitor: beam profile, scan lines, phosphor mask, halation, barrel distortion, rounded
   corners, vignette.
 
-The two shader filters share the vertex shader (`upscaler.cpp`, the only place it is read), the vertex buffer
-and `PresentProgram`'s four uniforms; `U_Crt` holds its own nine on top. **No filter carries a uniform it
+All four are a `PresentProgram`: one vertex shader (`upscaler.cpp`, the only place it is read), the filter's
+fragment shader — the base class's pass-through for `Sharp` and `Smooth`, their own for the other two — the
+shared vertex buffer and `PresentProgram`'s four uniforms; `U_Crt` holds its own nine on top. **No filter carries a uniform it
 does not have** — a shared slot table for every filter's uniforms is how `convergence` was once left unset
 in two hand-written lists. A failure to link is fatal for all alike: all four are offered unconditionally, so a
 driver that will not build one of these shaders cannot be left quietly showing three. The options dialog
