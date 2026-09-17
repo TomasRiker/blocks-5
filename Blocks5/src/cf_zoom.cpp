@@ -35,7 +35,8 @@ void CF_Zoom::render(double t,
 	// Twenty-five copies of the image a step apart along the zoom, each
 	// fainter than the last, which is what smears it.
 	const Vec3f corners[4] = {Vec3f(-1.0f, -1.0f, 0.0f), Vec3f(1.0f, -1.0f, 0.0f), Vec3f(1.0f, 1.0f, 0.0f), Vec3f(-1.0f, 1.0f, 0.0f)};
-	const Vec2f uvs[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f), Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+	const Vec2f s = static_cast<Vec2f>(screenSize);
+	const Vec2f uvs[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 
 	double ts = t - 25.0 * 0.01;
 	for(int i = 0; i < 25; i++)

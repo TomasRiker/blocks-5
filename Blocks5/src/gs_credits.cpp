@@ -43,7 +43,8 @@ void GS_Credits::onRender()
 
 		// The last frame's stars at three quarters, which is what makes the
 		// trails; the scale puts the texture coordinates in pixels.
-		const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f), Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+		const Vec2f s = static_cast<Vec2f>(screenSize);
+		const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 		renderer.quad(RenderState(engine.getFrameCopyRef(bufferID), BM_NORMAL), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
 
 		const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 500.0);
@@ -279,12 +280,12 @@ void GS_Credits::renderStars(const Mat4& projection,
 		double distSq = (i->position - cameraPos).lengthSq();
 		double alpha = 1.0 / (1.0 + 0.001 * distSq);
 
-		const Vec2i& t = i->positionOnTexture;
+		const Vec2f t = static_cast<Vec2f>(i->positionOnTexture);
 		Vertex3 vertices[4];
-		vertices[0].position = Vec3f(-0.5f, 0.5f, 0.0f);  vertices[0].uv = Vec2f(t.x, t.y);
-		vertices[1].position = Vec3f(0.5f, 0.5f, 0.0f);   vertices[1].uv = Vec2f(t.x + 16, t.y);
-		vertices[2].position = Vec3f(0.5f, -0.5f, 0.0f);  vertices[2].uv = Vec2f(t.x + 16, t.y + 16);
-		vertices[3].position = Vec3f(-0.5f, -0.5f, 0.0f); vertices[3].uv = Vec2f(t.x, t.y + 16);
+		vertices[0].position = Vec3f(-0.5f, 0.5f, 0.0f);  vertices[0].uv = t;
+		vertices[1].position = Vec3f(0.5f, 0.5f, 0.0f);   vertices[1].uv = t + Vec2f(16.0f, 0.0f);
+		vertices[2].position = Vec3f(0.5f, -0.5f, 0.0f);  vertices[2].uv = t + Vec2f(16.0f, 16.0f);
+		vertices[3].position = Vec3f(-0.5f, -0.5f, 0.0f); vertices[3].uv = t + Vec2f(0.0f, 16.0f);
 		for(int k = 0; k < 4; k++) vertices[k].color = Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha));
 		Renderer::inst().quads3D(state, projection * modelview, vertices, 4, false);
 	}

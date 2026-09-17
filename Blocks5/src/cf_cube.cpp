@@ -25,7 +25,8 @@ void CF_Cube::render(double t,
 	// the back faces are culled so the far side never shows through
 	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
 	const Vec3f face[4] = {Vec3f(-1.0f, 1.0f, -1.0f), Vec3f(1.0f, 1.0f, -1.0f), Vec3f(1.0f, -1.0f, -1.0f), Vec3f(-1.0f, -1.0f, -1.0f)};
-	const Vec2f uvs[4] = {Vec2f(screenSize.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, screenSize.y), Vec2f(screenSize.x, screenSize.y)};
+	const Vec2f s = static_cast<Vec2f>(screenSize);
+	const Vec2f uvs[4] = {Vec2f(s.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, s.y), s};
 
 	// draw the front face of the cube
 	drawImage3D(oldImageID, projection * modelview, face, uvs, white, true);

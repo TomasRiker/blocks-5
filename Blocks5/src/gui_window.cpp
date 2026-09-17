@@ -32,11 +32,12 @@ void GUI_Window::onRender()
 	{
 		// draw the background and the title bar
 		Renderer& renderer = Renderer::inst();
-		const Vec2f body[4] = {Vec2f(0.0f, 20.0f), Vec2f(size.x, 20.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec2f s = static_cast<Vec2f>(size);
+		const Vec2f body[4] = {Vec2f(0.0f, 20.0f), Vec2f(s.x, 20.0f), s, Vec2f(0.0f, s.y)};
 		const Vec4f bodyTop(0.65f, 0.65f, 0.65f, 1.0f), bodyBottom(0.55f, 0.55f, 0.55f, 1.0f);
 		const Vec4f bodyColors[4] = {bodyTop, bodyTop, bodyBottom, bodyBottom};
 		renderer.quad(body, bodyColors);
-		const Vec2f bar[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, 20.0f), Vec2f(0.0f, 20.0f)};
+		const Vec2f bar[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), Vec2f(s.x, 20.0f), Vec2f(0.0f, 20.0f)};
 		const Vec4f barTop = front ? Vec4f(0.5f, 0.5f, 1.0f, 1.0f) : Vec4f(0.4f, 0.4f, 0.7f, 1.0f);
 		const Vec4f barBottom = front ? Vec4f(0.35f, 0.35f, 1.0f, 1.0f) : Vec4f(0.3f, 0.3f, 0.7f, 1.0f);
 		const Vec4f barColors[4] = {barTop, barTop, barBottom, barBottom};
@@ -44,8 +45,8 @@ void GUI_Window::onRender()
 
 		// draw the frame
 		const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
-		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), white);
-		renderer.hairline(Vec2f(0.0f, 20.0f), Vec2f(size.x, 20.0f), white);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), s, white);
+		renderer.hairline(Vec2f(0.0f, 20.0f), Vec2f(s.x, 20.0f), white);
 	}
 
 	// write the title

@@ -40,10 +40,11 @@ void GUI_MultiLineEditBox::onRender()
 		// draw the background and the frame
 		const Vec4f top = focused ? Vec4f(0.6f, 0.6f, 0.6f, 1.0f) : Vec4f(0.4f, 0.4f, 0.4f, 1.0f);
 		const Vec4f bottom = focused ? Vec4f(0.5f, 0.5f, 0.5f, 1.0f) : Vec4f(0.3f, 0.3f, 0.3f, 1.0f);
-		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec2f s = static_cast<Vec2f>(size);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 		const Vec4f colors[4] = {top, top, bottom, bottom};
 		renderer.quad(corners, colors);
-		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), s, Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
 	// The text, the selection and the caret clipped to the inside of the
@@ -72,8 +73,8 @@ void GUI_MultiLineEditBox::onRender()
 			{
 				const Vec2i p = textCharPositions[i];
 				int w = max(0, textCharPositions[i + 1].x - p.x);
-				const Vec2f corners[4] = {Vec2f(p.x, p.y + 1), Vec2f(p.x + w, p.y + 1),
-										  Vec2f(p.x + w, p.y + 1 + h), Vec2f(p.x, p.y + 1 + h)};
+				const Vec2f lo = static_cast<Vec2f>(p + Vec2i(0, 1)), hi = static_cast<Vec2f>(p + Vec2i(w, 1 + h));
+				const Vec2f corners[4] = {lo, Vec2f(hi.x, lo.y), hi, Vec2f(lo.x, hi.y)};
 				renderer.quad(corners, colors);
 			}
 		}
@@ -81,7 +82,7 @@ void GUI_MultiLineEditBox::onRender()
 		// draw the caret
 		const float alpha = static_cast<float>(0.6 + 0.4 * sin(0.02 * Engine::inst().getTime()));
 		const Vec4f color = active ? Vec4f(1.0f, 1.0f, 1.0f, alpha) : Vec4f(0.5f, 0.5f, 0.5f, alpha);
-		renderer.hairline(Vec2f(c.x, c.y + 1), Vec2f(c.x, c.y + 1 + p_font->getLineHeight()), color);
+		renderer.hairline(static_cast<Vec2f>(c + Vec2i(0, 1)), static_cast<Vec2f>(c + Vec2i(0, 1 + p_font->getLineHeight())), color);
 	}
 
 	renderer.pop();

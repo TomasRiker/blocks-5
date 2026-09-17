@@ -164,14 +164,15 @@ void PresentProgram::drawQuad(const PresentContext& context) const
 	const int w = context.rectSize.x;
 	const int h = context.rectSize.y;
 
-	const float x0 = 2.0f * x       / context.displaySize.x - 1.0f;
-	const float x1 = 2.0f * (x + w) / context.displaySize.x - 1.0f;
-	const float y0 = 2.0f * y       / context.displaySize.y - 1.0f;
-	const float y1 = 2.0f * (y + h) / context.displaySize.y - 1.0f;
+	const Vec2f display = static_cast<Vec2f>(context.displaySize);
+	const float x0 = 2.0f * static_cast<float>(x)     / display.x - 1.0f;
+	const float x1 = 2.0f * static_cast<float>(x + w) / display.x - 1.0f;
+	const float y0 = 2.0f * static_cast<float>(y)     / display.y - 1.0f;
+	const float y1 = 2.0f * static_cast<float>(y + h) / display.y - 1.0f;
 
 	// Only the bottom left corner of the power-of-two texture is used.
-	const float fu = static_cast<float>(context.frameSize.x) / context.textureSize.x;
-	const float fv = static_cast<float>(context.frameSize.y) / context.textureSize.y;
+	const float fu = static_cast<float>(context.frameSize.x) / static_cast<float>(context.textureSize.x);
+	const float fv = static_cast<float>(context.frameSize.y) / static_cast<float>(context.textureSize.y);
 
 	// Two triangles as a strip: position, then texture coordinate.
 	const float vertices[16] =

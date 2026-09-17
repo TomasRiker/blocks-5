@@ -33,7 +33,8 @@ void CF_Slices::render(double t,
 		modelview.rotate(angle, 0.0, 1.0, 0.0);
 		modelview.scale(1.0 / n, 1.0, 1.0);
 
-		const Vec2f uvs[4] = {Vec2f(i * tex + tex, 0.0f), Vec2f(i * tex, 0.0f), Vec2f(i * tex, screenSize.y), Vec2f(i * tex + tex, screenSize.y)};
+		const float left = static_cast<float>(i * tex), right = static_cast<float>(i * tex + tex), bottom = static_cast<float>(screenSize.y);
+		const Vec2f uvs[4] = {Vec2f(right, 0.0f), Vec2f(left, 0.0f), Vec2f(left, bottom), Vec2f(right, bottom)};
 
 		// draw the front face
 		float c = static_cast<float>(1.0 - angle / 180.0);
