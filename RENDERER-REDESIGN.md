@@ -410,8 +410,9 @@ stage is not done until it is.
 
 ## 9. Stage 0 - the baseline
 
-Done on `claude/render-stage0`; the tag `render-baseline` marks the commit whose
-binary every later stage is compared against.
+Done on `claude/render-stage0`; the tag `render-baseline` marks commit
+e470780, the one whose binary every later stage is compared against (the
+commits after it change documentation only).
 
 **The oracle.** `LinuxBuild/test/frames.sh` renders nineteen scenes, every one
 of them frozen on a tick of the scene's own clock, photographed out of the
