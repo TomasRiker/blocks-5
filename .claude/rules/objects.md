@@ -119,6 +119,8 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
 - **Whether it rolls at all belongs to the artwork**: a marker file `hintscroll.txt` beside the `hint.png`
   that is *actually loaded* — contents ignored, existence counts, resolved by `getSkinFilename` so it follows
   `default_hint.png` to wherever the picture really came from, and answered through `Level::isHintScroll()`.
+  The way the note goes follows it: the paper rolls up first, the twenty ticks it took to unroll, and a
+  panel has nothing to roll and goes the moment the note closes.
   Beside the image and not an attribute in `tileset.xml`, because `<Level skin0=… skin10=…>` picks each slot
   separately and a flag in the tileset would describe a different file. It must be **named** in the packing
   scripts rather than swept up as `*.txt`, since `password.txt` is deliberately packed unencrypted in a second

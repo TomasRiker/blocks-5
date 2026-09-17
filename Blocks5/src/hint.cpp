@@ -459,9 +459,12 @@ void Hint::onUpdate()
 
 	// The unrolling runs by the clock and not by shownAlpha: that only
 	// approaches its target and would never quite arrive, leaving the note a
-	// little rolled up for ever.
+	// little rolled up for ever. A closed note rolls up first, at the speed
+	// it opened at - where there is paper to roll. The panel of a skin
+	// without the marker has nothing to roll and goes the moment it closes.
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
-	else     { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
+	else if(level.isHintScroll()) { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
+	else { activeTicks = 0; }
 	const double before = unroll;
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
