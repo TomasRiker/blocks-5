@@ -2,7 +2,6 @@
 #define _LASER_H
 
 #include "object.h"
-#include "linedrawer.h"
 
 /*** Class for a laser ***/
 
@@ -28,7 +27,8 @@ private:
 	int counter;
 	double on;
 	std::list<Vec2d> beam;
-	LineDrawer line;
+	// The corners of the beam, for the renderer's polyline.
+	std::vector<Vec2f> beamPoints;
 
 	static uint numInstances;
 	static SoundInstance* p_soundInst;

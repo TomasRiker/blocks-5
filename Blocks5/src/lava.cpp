@@ -57,12 +57,11 @@ void Lava::onRender(RenderLayer layer,
 	}
 	else if(layer == RL_LAVA_BACK || layer == RL_LAVA_FRONT)
 	{
-		// Raw quads from here on, so anything queued by an object before this
-		// one has to be on the screen first - there is no depth buffer to put
-		// the two in order afterwards.
-		Engine::inst().flushSprites();
-
-		// render the lava
+		// render the lava. The pass bound the picture and set the blend; the
+		// alpha runs across the quad, a corner each.
+		Renderer& renderer = Renderer::inst();
+		const RenderState state = renderer.state();
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(16.0f, 0.0f), Vec2f(16.0f, 16.0f), Vec2f(0.0f, 16.0f)};
 		Vec2d shift(2.0 * sin(0.1 * anim), 3.0 * cos(0.05 * anim));
 		double a[4];
 		if(layer == RL_LAVA_BACK) getAlpha1(position, a);
@@ -119,43 +118,14 @@ void Lava::onRender(RenderLayer layer,
 
 			t += shift;
 
-			if(layer == RL_LAVA_BACK)
-			{
-				glBegin(GL_QUADS);
-				glColor4d(1.0, 1.0, 1.0, a[0] * tl);
-				glTexCoord2d(t.x, t.y);
-				glVertex2d(0, 0);
-				glColor4d(1.0, 1.0, 1.0, a[1] * tr);
-				glTexCoord2d(t.x + 16.0, t.y);
-				glVertex2i(16, 0);
-				glColor4d(1.0, 1.0, 1.0, a[2] * br);
-				glTexCoord2d(t.x + 16.0, t.y + 16.0);
-				glVertex2i(16, 16);
-				glColor4d(1.0, 1.0, 1.0, a[3] * bl);
-				glTexCoord2d(t.x, t.y + 16.0);
-				glVertex2i(0, 16);
-				glEnd();
-			}
+			const Vec4f colors[4] = {Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[0] * tl)),
+									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[1] * tr)),
+									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[2] * br)),
+									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[3] * bl))};
 
-			t /= 2.0;
-
-			if(layer == RL_LAVA_FRONT)
-			{
-				glBegin(GL_QUADS);
-				glColor4d(1.0, 1.0, 1.0, a[0] * tl);
-				glTexCoord2d(t.x, t.y);
-				glVertex2d(0, 0);
-				glColor4d(1.0, 1.0, 1.0, a[1] * tr);
-				glTexCoord2d(t.x + 16.0, t.y);
-				glVertex2i(16, 0);
-				glColor4d(1.0, 1.0, 1.0, a[2] * br);
-				glTexCoord2d(t.x + 16.0, t.y + 16.0);
-				glVertex2i(16, 16);
-				glColor4d(1.0, 1.0, 1.0, a[3] * bl);
-				glTexCoord2d(t.x, t.y + 16.0);
-				glVertex2i(0, 16);
-				glEnd();
-			}
+			if(layer == RL_LAVA_FRONT) t /= 2.0;
+			const Vec2f uvs[4] = {Vec2f(t.x, t.y), Vec2f(t.x + 16.0, t.y), Vec2f(t.x + 16.0, t.y + 16.0), Vec2f(t.x, t.y + 16.0)};
+			renderer.quad(state, corners, uvs, colors);
 		}
 	}
 	else if(layer == RL_LIGHT)
@@ -165,86 +135,39 @@ void Lava::onRender(RenderLayer layer,
 
 	if(layer == RL_EDITOR)
 	{
-		// show the flow direction. Raw geometry, so the queued sprites have to
-		// go up first: they belong underneath it.
-		Engine::inst().flushSprites();
-		GL::pushTexturing();
-		GL::setTexturing(false);
-		glPushMatrix();
-		glTranslated(7.5, 7.5, 0.0);
-		glRotated(90.0 * (dir % 4), 0.0, 0.0, 1.0);
-
-		glBegin(GL_LINES);
-		glColor4d(1.0, 1.0, 1.0, 1.0);
-
-		if(dir <= 3)
+		// show the flow direction: an arrow per shape, as pairs of end
+		// points, turned by the direction's quarter
+		static const int ARROWS[5][24] =
 		{
-			glVertex2i(0, 5);
-			glVertex2i(0, -5);
-			glVertex2i(0, -5);
-			glVertex2i(-3, -2);
-			glVertex2i(0, -5);
-			glVertex2i(3, -2);
-		}
-		else if(dir <= 7)
-		{
-			glVertex2i(5, 5);
-			glVertex2i(5, -5);
-			glVertex2i(5, -5);
-			glVertex2i(-5, -5);
-			glVertex2i(-5, -5);
-			glVertex2i(-2, -8);
-			glVertex2i(-5, -5);
-			glVertex2i(-2, -2);
-		}
-		else if(dir <= 11)
-		{
-			glVertex2i(-5, 5);
-			glVertex2i(-5, -5);
-			glVertex2i(-5, -5);
-			glVertex2i(5, -5);
-			glVertex2i(5, -5);
-			glVertex2i(2, -8);
-			glVertex2i(5, -5);
-			glVertex2i(2, -2);
-		}
-		else if(dir <= 15)
-		{
-			glVertex2i(-5, 5);
-			glVertex2i(-5, -5);
-			glVertex2i(-5, -5);
-			glVertex2i(-8, -2);
-			glVertex2i(-5, -5);
-			glVertex2i(-2, -2);
+			{0, 5, 0, -5, 0, -5, -3, -2, 0, -5, 3, -2},
+			{5, 5, 5, -5, 5, -5, -5, -5, -5, -5, -2, -8, -5, -5, -2, -2},
+			{-5, 5, -5, -5, -5, -5, 5, -5, 5, -5, 2, -8, 5, -5, 2, -2},
+			{-5, 5, -5, -5, -5, -5, -8, -2, -5, -5, -2, -2, 5, -5, 5, 5, 5, 5, 2, 2, 5, 5, 8, 2},
+			{-5, -5, -5, 5, -5, 5, -8, 2, -5, 5, -2, 2, 5, 5, 5, -5, 5, -5, 2, -2, 5, -5, 8, -2}
+		};
+		static const int ARROW_LENGTH[5] = {12, 16, 16, 24, 24};
+		int shape = -1;
+		if(dir <= 3) shape = 0;
+		else if(dir <= 7) shape = 1;
+		else if(dir <= 11) shape = 2;
+		else if(dir <= 15) shape = 3;
+		else if(dir <= 19) shape = 4;
 
-			glVertex2i(5, -5);
-			glVertex2i(5, 5);
-			glVertex2i(5, 5);
-			glVertex2i(2, 2);
-			glVertex2i(5, 5);
-			glVertex2i(8, 2);
-		}
-		else if(dir <= 19)
+		if(shape >= 0)
 		{
-			glVertex2i(-5, -5);
-			glVertex2i(-5, 5);
-			glVertex2i(-5, 5);
-			glVertex2i(-8, 2);
-			glVertex2i(-5, 5);
-			glVertex2i(-2, 2);
-
-			glVertex2i(5, 5);
-			glVertex2i(5, -5);
-			glVertex2i(5, -5);
-			glVertex2i(2, -2);
-			glVertex2i(5, -5);
-			glVertex2i(8, -2);
+			Renderer& renderer = Renderer::inst();
+			renderer.push();
+			renderer.translate(7.5, 7.5);
+			renderer.rotate(90.0 * (dir % 4));
+			const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+			const int* p = ARROWS[shape];
+			for(int i = 0; i < ARROW_LENGTH[shape]; i += 4)
+			{
+				renderer.line(Vec2f(static_cast<float>(p[i]), static_cast<float>(p[i + 1])),
+							  Vec2f(static_cast<float>(p[i + 2]), static_cast<float>(p[i + 3])), 1.0f, white);
+			}
+			renderer.pop();
 		}
-
-		glEnd();
-
-		glPopMatrix();
-		GL::popTexturing();
 	}
 }
 

@@ -3,7 +3,6 @@
 #include "engine.h"
 #include "tileset.h"
 #include "particlesystem.h"
-#include "linedrawer.h"
 
 Projectile::Projectile(Level& level,
 					   const Vec2d& positionInPixels,
@@ -33,33 +32,19 @@ void Projectile::onRender(RenderLayer layer,
 	{
 		double traceLength = min(distance, 0.035 * speed);
 
-		Engine& engine = Engine::inst();
-
-		// Raw geometry, so the queued sprites have to go up first: they belong
-		// underneath it.
-		engine.flushSprites();
-		GL::setTexturing(false);
+		Renderer& renderer = Renderer::inst();
+		const Vec2f tail(static_cast<Vec2f>(positionInPixels - traceLength * velocity));
+		const Vec2f head(static_cast<Vec2f>(positionInPixels));
 
 		// render the glow
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
-		LineDrawer line;
-		line.addPoint(positionInPixels - traceLength * velocity);
-		line.addPoint(positionInPixels);
-		line.setWidth(5.0f);
-		line.setColor(Vec4d(1.0, 1.0, 1.0, 0.1 * min(life, 1.0)));
-		line.draw();
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+		renderer.setBlend(BM_ADDITIVE);
+		renderer.line(tail, head, 5.0f, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.1 * min(life, 1.0))));
+		renderer.setBlend(BM_NORMAL);
 
 		// render the projectile
-		line.setWidth(2.0f);
-		line.setColor(Vec4d(1.0, 0.75, 0.1, life));
-		line.draw();
-		glPointSize(2.0f);
-		glBegin(GL_POINTS);
-		glVertex2dv(positionInPixels);
-		glEnd();
-
-		GL::setTexturing(true);
+		const Vec4f color(1.0f, 0.75f, 0.1f, static_cast<float>(life));
+		renderer.line(tail, head, 2.0f, color);
+		renderer.point(head, 2.0f, color);
 	}
 	else if(layer == RL_LIGHT)
 	{

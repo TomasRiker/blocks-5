@@ -14,7 +14,7 @@ paths:
 `gui["…"]` path no dialog XML knows, a `$ID` missing from `languages.txt`, an XML attribute written and
 never read, a source file missing from `Blocks5.vcxproj` or its `.filters`, a display list added back, a
 class whose header is not named after it, a render layer written as a number, an object that draws raw
-geometry without flushing the sprite batch or changes texture state outside `GL::`, the version number
+geometry outside a `Renderer::DirectGL` bracket or changes texture state outside `GL::`, the version number
 drifting across its four places, a member the constructor never sets, an asset filename not on disk or
 spelled with different case (only Linux minds), a sound `playSound()` names that `gs_loading.cpp` does
 not preload, a non-ASCII byte or CRLF in a source file, `if (` where the tree writes `if(`, a German
@@ -48,9 +48,12 @@ id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitia
 comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
 ten years is not a finding, and reporting it every run is how a check gets ignored.
 
-**Four of the checks police the sprite batch's convention** - `sprite_batch`, `gl_state`, `gl_doors`
-and `display_lists` - and `RENDERER-REDESIGN.md` (ROADMAP 54) replaces them with two, `raw_gl` and
-`direct_gl_scope`, once every draw goes through the renderer. Until then they stand as they are.
+**Four of the checks police the renderer's convention** - `direct_gl`, `gl_state`, `gl_doors` and
+`display_lists` - and `RENDERER-REDESIGN.md` (ROADMAP 54) replaces them with two, `raw_gl` and
+`direct_gl_scope`, once every draw goes through the renderer. `direct_gl` is the first of those two
+scoped to what the level reaches: a `glBegin` in an `onRender` source has to stand in a block that
+declared a `Renderer::DirectGL` before it, read with the block, chain and preprocessor rules its
+docstring lists.
 
 **`Tools/selftest.py`** injects each fault in turn, confirms the matching check fires, restores the file
 byte-for-byte. Run it after touching `verify.py`. Not ceremony: the attribute check was inert when first

@@ -95,6 +95,7 @@ extern "C"
 	void glUniform1i (GLint, GLint);
 	void glUniform1f (GLint, GLfloat);
 	void glUniform2f (GLint, GLfloat, GLfloat);
+	void glUniformMatrix4fv (GLint, GLsizei, GLboolean, const GLfloat*);
 	void glEnableVertexAttribArray (GLuint);
 	void glDisableVertexAttribArray (GLuint);
 	void glVertexAttribPointer (GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
@@ -122,6 +123,7 @@ extern "C"
 #define glExtUniform1i                glUniform1i
 #define glExtUniform1f                glUniform1f
 #define glExtUniform2f                glUniform2f
+#define glExtUniformMatrix4fv         glUniformMatrix4fv
 #define glExtEnableVertexAttribArray  glEnableVertexAttribArray
 #define glExtDisableVertexAttribArray glDisableVertexAttribArray
 #define glExtVertexAttribPointer      glVertexAttribPointer
@@ -161,6 +163,7 @@ extern PFNGLGETUNIFORMLOCATIONPROC          glExtGetUniformLocation;
 extern PFNGLUNIFORM1IPROC                   glExtUniform1i;
 extern PFNGLUNIFORM1FPROC                   glExtUniform1f;
 extern PFNGLUNIFORM2FPROC                   glExtUniform2f;
+extern PFNGLUNIFORMMATRIX4FVPROC            glExtUniformMatrix4fv;
 extern PFNGLENABLEVERTEXATTRIBARRAYPROC     glExtEnableVertexAttribArray;
 extern PFNGLDISABLEVERTEXATTRIBARRAYPROC    glExtDisableVertexAttribArray;
 extern PFNGLVERTEXATTRIBPOINTERPROC         glExtVertexAttribPointer;

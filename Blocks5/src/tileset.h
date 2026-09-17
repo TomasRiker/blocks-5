@@ -6,7 +6,7 @@
 #include "resource.h"
 #include "sprite.h"
 // For QuadVertex, which writeTile() fills and drawVertices() draws.
-#include "quadarray.h"
+#include "renderer.h"
 
 class Texture;
 
@@ -43,7 +43,7 @@ public:
 	void cleanUp();
 
 	void writeTile(uint id, const Vec2f& position, std::vector<QuadVertex>& out) const;
-	void drawVertices(const QuadVertex* p_vertices, uint count) const;
+	void drawVertices(const QuadVertex* p_vertices, uint count, const Vec4f& color) const;
 
 	Texture* getTexture();
 	const TileInfo& getTileInfo(uint id) const;

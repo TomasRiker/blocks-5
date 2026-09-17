@@ -42,9 +42,9 @@ namespace
 		if(f <= 0.0) return;
 
 		Engine& engine = Engine::inst();
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+		Renderer::inst().setBlend(BM_ADDITIVE);
 		level.getPresets()->renderPreset(p_preset, position, Vec4d(f, f, f, 1.0));
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+		Renderer::inst().setBlend(BM_NORMAL);
 	}
 }
 #include "hotel.h"

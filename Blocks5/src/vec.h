@@ -307,4 +307,48 @@ template<typename T, int DIM> Vec<T, DIM> operator * (T lhs, const Vec<T, DIM>& 
 	return rhs * lhs;
 }
 
+// A 4x4 float matrix in OpenGL's column-major order - the layout
+// glUniformMatrix4fv takes as it is, which is what it exists for. The
+// renderer's projection is one, and the 3D crossfades bake theirs with it.
+struct Mat4
+{
+	float m[16];
+
+	static Mat4 identity()
+	{
+		Mat4 r;
+		for(int i = 0; i < 16; i++) r.m[i] = (i % 5 == 0) ? 1.0f : 0.0f;
+		return r;
+	}
+
+	// The same matrix glOrtho builds, in float from the start.
+	static Mat4 ortho(float left, float right, float bottom, float top, float zNear, float zFar)
+	{
+		Mat4 r = identity();
+		r.m[0] = 2.0f / (right - left);
+		r.m[5] = 2.0f / (top - bottom);
+		r.m[10] = -2.0f / (zFar - zNear);
+		r.m[12] = -(right + left) / (right - left);
+		r.m[13] = -(top + bottom) / (top - bottom);
+		r.m[14] = -(zFar + zNear) / (zFar - zNear);
+		return r;
+	}
+
+	// this * rhs, in GL's convention: the right-hand matrix is applied first.
+	Mat4 operator * (const Mat4& rhs) const
+	{
+		Mat4 r;
+		for(int col = 0; col < 4; col++)
+		{
+			for(int row = 0; row < 4; row++)
+			{
+				float sum = 0.0f;
+				for(int k = 0; k < 4; k++) sum += m[k * 4 + row] * rhs.m[col * 4 + k];
+				r.m[col * 4 + row] = sum;
+			}
+		}
+		return r;
+	}
+};
+
 #endif

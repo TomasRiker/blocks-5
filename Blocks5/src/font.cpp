@@ -363,8 +363,9 @@ void Font::renderText(const std::string& text,
 
 	const StringCacheEntry& entry = lookUpText(text, cache);
 
-	glPushMatrix();
-	glTranslated(position.x, position.y, 0.0);
+	Renderer& renderer = Renderer::inst();
+	renderer.push();
+	renderer.translate(position.x, position.y);
 
 	// draw the shadow if wanted
 	if(options.shadows)
@@ -378,19 +379,17 @@ void Font::renderText(const std::string& text,
 
 		for(int i = 0; i < numSamples; i++)
 		{
-			glColor4dv(shadowColor);
-			glPushMatrix();
-			glTranslated(samples[i].x, samples[i].y, 0.0);
-			drawText(entry);
-			glPopMatrix();
+			renderer.push();
+			renderer.translate(samples[i].x, samples[i].y);
+			drawText(entry, static_cast<Vec4f>(shadowColor));
+			renderer.pop();
 		}
 	}
 
 	// draw the string
-	glColor4dv(color);
-	drawText(entry);
+	drawText(entry, static_cast<Vec4f>(color));
 
-	glPopMatrix();
+	renderer.pop();
 }
 
 const std::string& Font::cacheKey(const std::string& text)
@@ -475,19 +474,23 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 	return scratchEntry;
 }
 
-void Font::drawText(const StringCacheEntry& entry) const
+void Font::drawText(const StringCacheEntry& entry, const Vec4f& color) const
 {
+	Renderer& renderer = Renderer::inst();
 	p_texture->bind();
-	drawQuadArray(entry.glyphs.empty() ? 0 : &entry.glyphs[0],
-				  static_cast<uint>(entry.glyphs.size()));
+	if(!entry.glyphs.empty())
+	{
+		renderer.quads(renderer.state(), &entry.glyphs[0], static_cast<uint>(entry.glyphs.size()), color);
+	}
 	GL::setTexturing(false);
 
-	// Untextured, and only now: texturing has just been switched off. Four
-	// thin quads to a frame and not a line loop, because a line's pixel
+	// Four thin quads to a frame and not a line loop, because a line's pixel
 	// coverage is a matter of the rasterizer's opinion and every other edge in
 	// this game sits on whole pixels.
-	drawQuadArray(entry.keyBoxes.empty() ? 0 : &entry.keyBoxes[0],
-				  static_cast<uint>(entry.keyBoxes.size()));
+	if(!entry.keyBoxes.empty())
+	{
+		renderer.quads(&entry.keyBoxes[0], static_cast<uint>(entry.keyBoxes.size()), color);
+	}
 }
 
 void Font::buildText(const std::string& text,

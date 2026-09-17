@@ -147,7 +147,7 @@ for f in $SRCS;  do
   # switching between the two kinds of build would recompile every unit -
   # the two output directories keep them apart anyway.
   extra=""
-  case "$f" in */test_hooks.cpp|*/testhooks.cpp|*/engine.cpp) extra="$HOOKS";; esac
+  case "$f" in */test_hooks.cpp|*/testhooks.cpp|*/engine.cpp|*/renderer.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

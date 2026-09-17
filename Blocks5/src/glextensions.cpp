@@ -33,6 +33,7 @@ PFNGLGETUNIFORMLOCATIONPROC          glExtGetUniformLocation = 0;
 PFNGLUNIFORM1IPROC                   glExtUniform1i = 0;
 PFNGLUNIFORM1FPROC                   glExtUniform1f = 0;
 PFNGLUNIFORM2FPROC                   glExtUniform2f = 0;
+PFNGLUNIFORMMATRIX4FVPROC            glExtUniformMatrix4fv = 0;
 PFNGLENABLEVERTEXATTRIBARRAYPROC     glExtEnableVertexAttribArray = 0;
 PFNGLDISABLEVERTEXATTRIBARRAYPROC    glExtDisableVertexAttribArray = 0;
 PFNGLVERTEXATTRIBPOINTERPROC         glExtVertexAttribPointer = 0;
@@ -144,6 +145,7 @@ void GLExtensions::init()
 	glExtUniform1i                = reinterpret_cast<PFNGLUNIFORM1IPROC>(SDL_GL_GetProcAddress("glUniform1i"));
 	glExtUniform1f                = reinterpret_cast<PFNGLUNIFORM1FPROC>(SDL_GL_GetProcAddress("glUniform1f"));
 	glExtUniform2f                = reinterpret_cast<PFNGLUNIFORM2FPROC>(SDL_GL_GetProcAddress("glUniform2f"));
+	glExtUniformMatrix4fv         = reinterpret_cast<PFNGLUNIFORMMATRIX4FVPROC>(SDL_GL_GetProcAddress("glUniformMatrix4fv"));
 	glExtEnableVertexAttribArray  = reinterpret_cast<PFNGLENABLEVERTEXATTRIBARRAYPROC>(SDL_GL_GetProcAddress("glEnableVertexAttribArray"));
 	glExtDisableVertexAttribArray = reinterpret_cast<PFNGLDISABLEVERTEXATTRIBARRAYPROC>(SDL_GL_GetProcAddress("glDisableVertexAttribArray"));
 	glExtVertexAttribPointer      = reinterpret_cast<PFNGLVERTEXATTRIBPOINTERPROC>(SDL_GL_GetProcAddress("glVertexAttribPointer"));
@@ -170,6 +172,7 @@ void GLExtensions::init()
 	        glExtUniform1i &&
 	        glExtUniform1f &&
 	        glExtUniform2f &&
+	        glExtUniformMatrix4fv &&
 	        glExtEnableVertexAttribArray &&
 	        glExtDisableVertexAttribArray &&
 	        glExtVertexAttribPointer,

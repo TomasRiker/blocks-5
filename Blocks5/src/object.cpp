@@ -79,15 +79,16 @@ void Object::render(RenderLayer layer,
 	const double converting = 1.0 - conversionProgress * (1.0 - CONVERSION_GHOST);
 	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
 
-	glPushMatrix();
+	Renderer& renderer = Renderer::inst();
+	renderer.push();
 
 	if(!(flags & OF_PROXY))
 	{
-		if(layer == RL_WIRE) glTranslated(offset.x, offset.y, 0.0);
+		if(layer == RL_WIRE) renderer.translate(offset.x, offset.y);
 		else
 		{
 			Vec2i sp = getShownPositionInPixels();
-			glTranslated(sp.x + offset.x, sp.y + offset.y, 0.0);
+			renderer.translate(sp.x + offset.x, sp.y + offset.y);
 		}
 
 		if(layer != RL_LIGHT)
@@ -98,15 +99,15 @@ void Object::render(RenderLayer layer,
 			if(teleporting > 0.0)
 			{
 				double y = 1.0 + teleporting * teleporting * 500.0;
-				glTranslated(0.0, y * o + 16.0, 0.0);
-				glScaled(1.0, y, 1.0);
+				renderer.translate(0.0, y * o + 16.0);
+				renderer.scale(1.0, y);
 				realColor *= 1.0 - teleporting;
 			}
 			else if(teleporting < 0.0)
 			{
 				double y = 1.0 + teleporting * teleporting * 500.0;
-				glTranslated(0.0, y * o + 16.0, 0.0);
-				glScaled(1.0, y, 1.0);
+				renderer.translate(0.0, y * o + 16.0);
+				renderer.scale(1.0, y);
 				realColor *= 1.0 + teleporting;
 			}
 			else if(falling > 0.0)
@@ -114,9 +115,9 @@ void Object::render(RenderLayer layer,
 				double f = 1.0 / (1.0 + 4.0 * falling);
 				double size = 16.0 * f;
 				double add = (16.0 - size) * 0.5;
-				glTranslated(add, add, 0.0);
-				glScaled(f, f, 1.0);
-				glRotated(falling * 120.0, 0.0, 0.0, 1.0);
+				renderer.translate(add, add);
+				renderer.scale(f, f);
+				renderer.rotate(falling * 120.0);
 				realColor.r *= f;
 				realColor.g *= f;
 				realColor.b *= f;
@@ -137,10 +138,9 @@ void Object::render(RenderLayer layer,
 	// pass would turn it into a bright spot in the middle of the shadow.
 	if(flashAmount > 0.0 && layer == flashLayer && !shadowPass)
 	{
-		Engine& engine = Engine::inst();
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
-		engine.renderSprites(sprites, Vec4d(flashAmount, flashAmount, flashAmount, realColor.a));
-		engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+		renderer.setBlend(BM_ADDITIVE);
+		Engine::inst().renderSprites(sprites, Vec4d(flashAmount, flashAmount, flashAmount, realColor.a));
+		renderer.setBlend(BM_NORMAL);
 	}
 
 	if(layer == RL_OVERLAY &&
@@ -163,46 +163,38 @@ void Object::render(RenderLayer layer,
 		int mirrorX = p.x + 20 + 15 + dim.x - 25 >= 640 ? -1 : 1;
 		int mirrorY = p.y + 20 + 15 + dim.y >= 400 ? -1 : 1;
 
-		glPushMatrix();
+		renderer.push();
 
-		glTranslated(8.0, 8.0, 0.0);
-		if(mirrorX == -1) glScaled(-1.0, 1.0, 1.0);
-		if(mirrorY == -1) glScaled(1.0, -1.0, 1.0);
-		glTranslated(8.0, 8.0, 0.0);
+		renderer.translate(8.0, 8.0);
+		if(mirrorX == -1) renderer.scale(-1.0, 1.0);
+		if(mirrorY == -1) renderer.scale(1.0, -1.0);
+		renderer.translate(8.0, 8.0);
 
-		// Raw geometry, so the queued sprites have to go up first: they belong
-		// underneath it.
-		Engine::inst().flushSprites();
-		glDisable(GL_LINE_SMOOTH);
-		GL::setTexturing(false);
-		glLineWidth(1.0f);
+		// The tail is a triangle: a quad with its last corner doubled draws
+		// it and a second triangle of no area.
+		const float top = static_cast<float>(0.85 * sayAlpha);
+		const float bottom = static_cast<float>(0.6 * sayAlpha);
+		const Vec4f fill(0.75f, 0.75f, 1.0f, top);
+		const float right = static_cast<float>(15 + dim.x - 25);
+		const float low = static_cast<float>(15 + dim.y);
+		const Vec2f tail[4] = {Vec2f(2.0f, 2.0f), Vec2f(15.0f, 15.0f), Vec2f(5.0f, 15.0f), Vec2f(5.0f, 15.0f)};
+		const Vec2f flat[4] = {Vec2f(8.5f, 8.5f), Vec2f(8.5f, 8.5f), Vec2f(8.5f, 8.5f), Vec2f(8.5f, 8.5f)};
+		renderer.quad(renderer.state(), tail, flat, fill);
+		const Vec2f body[4] = {Vec2f(-10.0f, 15.0f), Vec2f(right, 15.0f), Vec2f(right, low), Vec2f(-10.0f, low)};
+		const Vec4f bodyColors[4] = {fill, fill, Vec4f(0.75f, 0.75f, 1.0f, bottom), Vec4f(0.75f, 0.75f, 1.0f, bottom)};
+		renderer.quad(renderer.state(), body, flat, bodyColors);
 
-		glBegin(GL_TRIANGLES);
-		glColor4d(0.75, 0.75, 1.0, 0.85 * sayAlpha);
-		glVertex2i(2, 2);
-		glVertex2i(15, 15);
-		glVertex2i(5, 15);
-		glEnd();
-		glBegin(GL_QUADS);
-		glVertex2i(-10, 15);
-		glVertex2i(15 + dim.x - 25, 15);
-		glColor4d(0.75, 0.75, 1.0, 0.6 * sayAlpha);
-		glVertex2i(15 + dim.x - 25, 15 + dim.y);
-		glVertex2i(-10, 15 + dim.y);
-		glEnd();
+		std::vector<Vec2f> outline;
+		outline.push_back(Vec2f(2.0f, 2.0f));
+		outline.push_back(Vec2f(15.0f, 15.0f));
+		outline.push_back(Vec2f(right, 15.0f));
+		outline.push_back(Vec2f(right, low));
+		outline.push_back(Vec2f(-10.0f, low));
+		outline.push_back(Vec2f(-10.0f, 15.0f));
+		outline.push_back(Vec2f(5.0f, 15.0f));
+		renderer.polyline(outline, 1.0f, Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9 * sayAlpha)), true);
 
-		glBegin(GL_LINE_LOOP);
-		glColor4d(0.0, 0.0, 0.0, 0.9 * sayAlpha);
-		glVertex2i(2, 2);
-		glVertex2i(15, 15);
-		glVertex2i(15 + dim.x - 25, 15);
-		glVertex2i(15 + dim.x - 25, 15 + dim.y);
-		glVertex2i(-10, 15 + dim.y);
-		glVertex2i(-10, 15);
-		glVertex2i(5, 15);
-		glEnd();
-
-		glPopMatrix();
+		renderer.pop();
 
 		Vec2i textPosition(3 * mirrorX, 28 * mirrorY);
 		if(mirrorX == -1) textPosition.x -= dim.x - 10;
@@ -210,11 +202,9 @@ void Object::render(RenderLayer layer,
 		p_font->renderText(str, Vec2i(8, 7) + textPosition, Vec4d(1.0, 1.0, 1.0, sayAlpha));
 
 		p_font->popOptions();
-
-		glEnable(GL_LINE_SMOOTH);
 	}
 
-	glPopMatrix();
+	renderer.pop();
 }
 
 void Object::update()

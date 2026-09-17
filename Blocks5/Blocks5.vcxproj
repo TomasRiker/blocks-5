@@ -672,7 +672,7 @@
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\presets.cpp" />
     <ClCompile Include="src\projectile.cpp" />
-    <ClCompile Include="src\quadarray.cpp" />
+    <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\rail.cpp" />
     <ClCompile Include="src\sprite.cpp" />
     <ClCompile Include="src\stdobject.cpp" />
@@ -717,7 +717,6 @@
     <ClCompile Include="src\gui_window.cpp" />
     <ClCompile Include="src\img_load.cpp" />
     <ClCompile Include="src\img_save.cpp" />
-    <ClCompile Include="src\linedrawer.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -809,7 +808,8 @@
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\presets.h" />
     <ClInclude Include="src\projectile.h" />
-    <ClInclude Include="src\quadarray.h" />
+    <ClInclude Include="src\renderer.h" />
+    <ClInclude Include="src\renderstate.h" />
     <ClInclude Include="src\renderlayer.h" />
     <ClInclude Include="src\rail.h" />
     <ClInclude Include="src\sprite.h" />
@@ -857,7 +857,6 @@
     <ClInclude Include="src\gui_window.h" />
     <ClInclude Include="src\img_load.h" />
     <ClInclude Include="src\img_save.h" />
-    <ClInclude Include="src\linedrawer.h" />
     <ClInclude Include="src\manager.h" />
     <ClInclude Include="src\parameterblock.h" />
     <ClInclude Include="src\particlesystem.h" />

@@ -23,9 +23,9 @@ Exit code 1 as soon as anything is reported.
 | `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |
 | `layer_bits` | A subclass adds its render layers with `\|=`; it does not replace the bits its base set. |
-| `sprite_batch` | Anything an object draws outside the sprite batch flushes it first (in what `batch_sources()` reads). |
+| `direct_gl` | Raw GL inside an `onRender` stands in a block that declared a `Renderer::DirectGL` before it (in what `batch_sources()` reads). |
 | `gl_state` | An object changes the texture state through `GL::`, never raw (same scope). |
-| `gl_doors` | And so does the whole tree, or `GLState`'s record of it is a belief. |
+| `gl_doors` | And so does the whole tree, or the renderer's record of it is a belief. |
 | `naming` | The filename is the class name in lower case. |
 | `version` | The version number lives in four places and must not drift. |
 | `gui_paths` | Every element path in the code must exist in a dialog XML. |

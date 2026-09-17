@@ -97,9 +97,10 @@ into the next one, so their picture depends on how many frames were rendered, no
 `--wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
 objects passes through the wrappers at the foot of `testhooks.cpp`; no header carries the define and no
 other translation unit needs it, which is what the `hooks_layout` check protects. The dump reports them
-as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the sprite batch's
-own draws and a histogram of what flushed it (`batch.byReason`: raw geometry, a texture change, a blend
-change, a render-target switch, an attribute pop, a texture delete, the batch's own edges, a full batch).
+as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the renderer's
+own draws and a histogram of what ended each batch (`batch.byReason`: a texture change, a blend change, a
+scope, a full stream, an explicit flush before a copy, clear or delete, the end of the frame, and a draw
+call inside a `Renderer::DirectGL` bracket - `perf.md` reads the same keys).
 In the browser the same key comes from `WebBuild/test/harness.js`, which counts `drawArrays` and
 `drawElements` on the WebGL context's prototype — what is left after the GL emulation, the number a phone
 pays — and `resetStats()` starts both counters in one evaluate so no frame falls between them.

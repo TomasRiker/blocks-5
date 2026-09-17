@@ -9,9 +9,9 @@
 //                 platforms run one piece of code. Turning a query string into
 //                 argv is Emscripten's own idiom - see its emrun_prejs.js.
 //
-//   ?nobatch=1    becomes -nobatch, which makes renderSprite draw each quad on
-//                 its own again instead of queueing it. That is the arm to
-//                 compare the sprite batch against, and it is a query string
+//   ?flushall=1   becomes -flushall, which makes the renderer put every quad
+//                 up on its own instead of batching it. That is the arm to
+//                 compare the batching against, and it is a query string
 //                 rather than a build flag so that both arms are one binary.
 //
 //   ?texunits=N   how many texture units Emscripten's GL emulation keeps state
@@ -51,8 +51,8 @@
     Module['arguments'] = (Module['arguments'] || []).concat(['-perf']);
   }
 
-  if (wants('nobatch')) {
-    Module['arguments'] = (Module['arguments'] || []).concat(['-nobatch']);
+  if (wants('flushall')) {
+    Module['arguments'] = (Module['arguments'] || []).concat(['-flushall']);
   }
 
   var units = query.has('texunits') ? parseInt(query.get('texunits'), 10) : 1;

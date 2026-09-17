@@ -32,10 +32,10 @@ Blocks 5 understands five options. Upper and lower case do not matter.
     -perf          Show in the bottom corner what the last few hundred frames
                    cost, which is a diagnostic and not a feature. In a browser
                    the same thing is reached by adding ?perf=1 to the address.
-    -nobatch       Draw every sprite on its own instead of collecting a whole
+    -flushall      Draw every quad on its own instead of collecting a whole
                    render pass into one call. Slower, and only of interest if
                    a graphics driver draws the collected form wrongly. In a
-                   browser: ?nobatch=1.
+                   browser: ?flushall=1.
 
 While playing you can switch between full screen and windowed mode at any time
 with Alt+Enter.

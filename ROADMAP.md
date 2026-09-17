@@ -1665,6 +1665,11 @@ Two ways out, both cheap:
 The desktop must not pay for either. Whatever lands, `-nobatch` and the native
 build should still reach GL with the raw colour and let the hardware clamp it.
 
+Done with stage 1 of item 54: the renderer's own vertex shader clamps the
+colour (`v_color = clamp(a_color, 0.0, 1.0)`) on every platform, which is the
+desktop's fixed-function clamp, and `clampColor()` and its two callers are gone
+with the colour arrays they guarded.
+
 43. One quad budget for all fonts, and a way to say "do not cache this"  - **DONE**
 -----------------------------------------------------------------------------------
 Both halves are in, and the measurement that went first said the item was half
@@ -2201,6 +2206,15 @@ level; every remaining `glBegin`; then cut the emulator out of the browser
 build and delete `gl_immediate.cpp` with it. Items 42 and 41 fall out of it
 (the vertex-stage clamp, the shader path shadows needed); item 51, the atlas,
 becomes a uv offset and stays separate.
+
+Stages 0 and 1 have landed (the plan's sections 9 and 10 record them): the
+oracle's nineteen scenes and their baseline, then `Renderer` under the level
+with every sprite, string, tile, particle, beam and lightning bolt through it,
+the sprite batch, `quadarray.*` and `LineDrawer` deleted, and the screens
+outside the level still raw inside `Renderer::DirectGL` brackets. Sixteen
+scenes are byte-identical to the baseline; the other three differ by the beam
+end points, now discs, and the lightning's quad diagonal. Item 42 is closed by
+it. Stages 2 and 3 remain.
 
 
 How these connect

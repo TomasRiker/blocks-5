@@ -74,13 +74,8 @@ void Lightning::render()
 {
 	if(alpha < 1.0 / 256.0) return;
 
-	// Pass 0
-	glColor4d(0.4, 0.2, 1.0, 0.2 * alpha);
-	drawPass(0);
-
-	// Pass 1
-	glColor4d(1.0, 1.0, 0.75, 0.85 * alpha);
-	drawPass(1);
+	drawPass(0, Vec4f(0.4f, 0.2f, 1.0f, static_cast<float>(0.2 * alpha)));
+	drawPass(1, Vec4f(1.0f, 1.0f, 0.75f, static_cast<float>(0.85 * alpha)));
 }
 
 void Lightning::update()
@@ -108,27 +103,25 @@ void Lightning::buildPass(int pass)
 	}
 }
 
-void Lightning::drawPass(int pass)
+void Lightning::drawPass(int pass, const Vec4f& color)
 {
 	const Pass& p = passes[pass];
 	if(p.mainBranch.empty()) return;
 
+	Renderer& renderer = Renderer::inst();
 	p_lineTexture->bind();
-	drawQuadArray(&p.mainBranch[0], static_cast<uint>(p.mainBranch.size()));
+	renderer.quads(renderer.state(), &p.mainBranch[0], static_cast<uint>(p.mainBranch.size()), color);
 	GL::setTexturing(false);
 
 	// The end point of the main branch, as a single point of the same width.
 	// It goes between the two batches and not after them, because the other
 	// branches are drawn over it.
-	glPointSize(static_cast<float>(p.pointSize));
-	glBegin(GL_POINTS);
-	glVertex2dv(p.endPoint);
-	glEnd();
+	renderer.point(static_cast<Vec2f>(p.endPoint), static_cast<float>(p.pointSize), color);
 
 	if(!p.otherBranches.empty())
 	{
 		p_lineTexture->bind();
-		drawQuadArray(&p.otherBranches[0], static_cast<uint>(p.otherBranches.size()));
+		renderer.quads(renderer.state(), &p.otherBranches[0], static_cast<uint>(p.otherBranches.size()), color);
 		GL::setTexturing(false);
 	}
 }

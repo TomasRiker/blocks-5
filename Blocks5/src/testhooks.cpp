@@ -250,25 +250,26 @@ namespace
 		out += ",\"frozen\":";
 		out += TestHooks::frozen() ? "true" : "false";
 
-		// What the sprite batch did since the last resetstats.
+		// What the renderer did since the last resetstats.
+		const Renderer::Stats& batch = Renderer::inst().stats();
 		out += ",\"batch\":{\"flushes\":";
-		appendInt(out, static_cast<int>(engine.batchFlushes));
+		appendInt(out, static_cast<int>(batch.flushes));
 		out += ",\"draws\":";
-		appendInt(out, static_cast<int>(engine.batchDraws));
+		appendInt(out, static_cast<int>(batch.draws));
 		out += ",\"quads\":";
-		appendInt(out, static_cast<int>(engine.batchQuads));
+		appendInt(out, static_cast<int>(batch.quads));
 		// The flushes that drew something, by what asked for them. The names
-		// follow Engine::FlushReason in order.
-		static const char* const REASONS[Engine::FR_COUNT] =
-			{"raw", "texture", "blend", "target", "attrib", "delete", "edge", "full"};
+		// follow Renderer::FlushReason in order.
+		static const char* const REASONS[Renderer::FR_COUNT] =
+			{"texture", "blend", "scope", "full", "explicit", "frame", "direct"};
 		out += ",\"byReason\":{";
-		for(int i = 0; i < Engine::FR_COUNT; i++)
+		for(int i = 0; i < Renderer::FR_COUNT; i++)
 		{
 			if(i) out += ",";
 			out += "\"";
 			out += REASONS[i];
 			out += "\":";
-			appendInt(out, static_cast<int>(engine.batchDrawsByReason[i]));
+			appendInt(out, static_cast<int>(batch.drawsByReason[i]));
 		}
 		out += "}}";
 		// Every draw call render() made, over the frames it made them in -
@@ -284,19 +285,6 @@ namespace
 		out += ",\"calls\":";
 		appendInt(out, static_cast<int>(engine.renderDraws));
 #endif
-		out += "}";
-
-		// And what the state layer did with the same calls: how many it had to
-		// issue against how many it could skip because OpenGL was already
-		// holding what the caller asked for.
-		out += ",\"glstate\":{\"issued\":";
-		appendInt(out, static_cast<int>(GL::callsIssued()));
-		out += ",\"skipped\":";
-		appendInt(out, static_cast<int>(GL::callsSkipped()));
-		out += ",\"texture\":";
-		appendInt(out, static_cast<int>(GL::state().texture));
-		out += ",\"texturing\":";
-		appendInt(out, GL::state().texturing);
 		out += "}";
 
 		// What the font's string cache did with the same frames. quads is what
@@ -472,13 +460,9 @@ void resetStats()
 	Engine& engine = Engine::inst();
 	engine.getFrameStats().clear();
 	Font::resetCacheStats();
-	engine.batchFlushes = 0;
-	engine.batchDraws = 0;
-	engine.batchQuads = 0;
-	for(int i = 0; i < Engine::FR_COUNT; i++) engine.batchDrawsByReason[i] = 0;
+	Renderer::inst().resetStats();
 	engine.renderDraws = 0;
 	engine.renderedFrames = 0;
-	GL::resetCallCounts();
 }
 
 std::string hitAt(int x, int y)

@@ -4,7 +4,7 @@
 /*** Class for lightning bolts ***/
 
 // For QuadVertex, which a built pass is made of.
-#include "quadarray.h"
+#include "renderer.h"
 
 class Texture;
 
@@ -52,7 +52,7 @@ private:
 	Pass passes[2];
 
 	void buildPass(int pass);
-	void drawPass(int pass);
+	void drawPass(int pass, const Vec4f& color);
 	double branchWidth(const Branch& branch, int pass) const;
 	void buildBranch(const Branch& branch, double width, std::vector<QuadVertex>& out);
 	Branch generateSecondaryBranch(const Branch& b, int minLength, int maxLength);

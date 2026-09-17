@@ -127,8 +127,8 @@ def c_attrs(p):
 # and the wreckage turns up as a corrupt pointer somewhere else entirely.
 @case('hooks_layout', 'Blocks5/src/engine.h')
 def c_hooks_layout(p):
-    p.replace('\tuint batchFlushes;',
-              '#ifdef BLOCKS5_TEST_HOOKS\n\tuint batchFlushes;\n#endif')
+    p.replace('\tuint renderDraws;',
+              '#ifdef BLOCKS5_TEST_HOOKS\n\tuint renderDraws;\n#endif')
 
 
 # Two files, because the two builds fail differently: a list in the game's own
@@ -166,35 +166,239 @@ def c_layer_bits(p):
     p.replace('renderLayers |= RL_MAIN;', 'renderLayers = RL_MAIN;')
 
 
-# The one raw draw left inside an onRender: the lava's two quads, which change
-# no state on the way in and so are reached by nothing but this flush.
-@case('sprite_batch', 'Blocks5/src/lava.cpp')
-def c_sprite_batch(p):
-    p.replace('\t\tEngine::inst().flushSprites();\n', '')
+# A raw draw in an onRender with no bracket around it: the lava's edge pass,
+# which otherwise hands everything to the renderer.
+@case('direct_gl', 'Blocks5/src/lava.cpp')
+def c_direct_gl(p):
+    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
+              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+
+
+# The same draw under a bracket declared in the same block is the shape the
+# rule asks for, and must not be reported.
+@case('direct_gl', 'Blocks5/src/lava.cpp', quiet=True)
+def c_direct_gl_bracketed(p):
+    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
+              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
+              '\t\tRenderer::DirectGL direct;\n\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+
+
+# A bracket lives to the end of the block it stands in and no further. A loop
+# body is the shape that isolates the rule: the branches of an if/else chain
+# are read as alternatives, so a bracket in one of those is a different
+# question.
+@case('direct_gl', 'Blocks5/src/lava.cpp')
+def c_direct_gl_scope(p):
+    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
+              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
+              '\t\tfor(int pass = 0; pass < 1; pass++)\n\t\t{\n\t\t\tRenderer::DirectGL direct;\n\t\t}\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+
+
+# A helper is a new function and must not inherit the bracket of the one
+# above it: the first blob is fine, the second is the finding.
+@case('direct_gl', 'Blocks5/src/texture.cpp')
+def c_direct_gl_helper(p):
+    p.replace('void Texture::cleanUp()',
+              'static void drawBlobA()\n{\n\tRenderer::DirectGL direct;\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\n'
+              'static void drawBlobB()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Texture::cleanUp()')
+
+
+# A bracket before a loop covers the draws inside it: the object stands for
+# the rest of its block, every turn of the loop included.
+@case('direct_gl', 'Blocks5/src/bomb.cpp', quiet=True)
+def c_direct_gl_loop(p):
+    p.replace('\tif(layer == RL_MAIN)',
+              '\tRenderer::DirectGL direct;\n\tfor(int i = 0; i < 4; i++)\n\t{\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n\t}\n\tif(layer == RL_MAIN)')
+
+
+# An onRender whose parameter is spelled differently still overrides, and would
+# take its whole file out of both checks with nothing to say so.
+@case('direct_gl', 'Blocks5/src/bomb.cpp')
+def c_direct_gl_unscanned(p):
+    p.replace('void Bomb::onRender(RenderLayer layer,', 'void Bomb::onRender(const RenderLayer layer,')
+
+
+# A bracket written as the body of a braceless loop is destroyed at the end of
+# its own line, which no indentation rule can see: what follows stands at the
+# same column. A loop rather than an if, because an if/else chain is read
+# branch by branch and would answer this on its own.
+@case('direct_gl', 'Blocks5/src/projectile.cpp')
+def c_direct_gl_braceless(p):
+    p.replace('\t\tRenderer& renderer = Renderer::inst();\n\t\tconst Vec2f tail(',
+              '\t\tfor(int i = 0; i < 1; i++) Renderer::DirectGL direct;\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
+              '\t\tRenderer& renderer = Renderer::inst();\n\t\tconst Vec2f tail(')
+
+
+# A bracket at the top of a function covers a draw in any branch below it.
+@case('direct_gl', 'Blocks5/src/lava.cpp', quiet=True)
+def c_direct_gl_chain(p):
+    p.replace('void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n',
+              'void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n'
+              '\tRenderer::DirectGL direct;\n')
+    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
+              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
+              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+
+
+# A bracket inside one branch of an if/else chain is gone after the chain,
+# whichever branch ran: what stands after the chain is the state before it.
+@case('direct_gl', 'Blocks5/src/eye.cpp')
+def c_direct_gl_chain_branch(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN)\n\t{\n\t\tRenderer::DirectGL direct;\n'
+              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
+              '\telse\n\t{\n\t\tglPushMatrix();\n\t\tglPopMatrix();\n\t}\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();')
+
+
+# A bracket written as a braceless else body is as conditional as one written
+# as a braceless if body, and stands at the same column as what follows it.
+@case('direct_gl', 'Blocks5/src/exit.cpp')
+def c_direct_gl_braceless_else(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\telse if(layer == RL_LIGHT)',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\telse Renderer::DirectGL direct;\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n'
+              '\tif(layer == RL_LIGHT)')
+
+
+# glRect is a draw as much as glBegin and glDrawArrays are.
+@case('direct_gl', 'Blocks5/src/exit.cpp')
+def c_direct_gl_glrect(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\tglRecti(0, 0, 16, 16);')
+
+
+# A bracket written as a same-line case body reaches to the end of that line
+# and no further, exactly as a braceless if does - and the switch's own braces
+# sit at the column of the statement after it, so no indentation rule can see
+# it.
+@case('direct_gl', 'Blocks5/src/eye.cpp')
+def c_direct_gl_case(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tswitch(layer)\n\t{\n'
+              '\tcase RL_MAIN: Renderer::DirectGL direct; break;\n\t}\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();')
+
+
+# The other direction: what is written in a comment is not code. batch_sources()
+# blanks them, and without that a commented-out draw would be a finding.
+@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
+def c_direct_gl_commented_draw(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
+              '\t// glBegin(GL_QUADS); glEnd();')
+
+
+# A preprocessor line carries no scope. Read as a dedent it would end the
+# bracket, and this tree writes them at column 0 wherever they sit.
+@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
+def c_direct_gl_preprocessor(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tRenderer::DirectGL direct;\n#ifdef __EMSCRIPTEN__\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
+
+
+# The arms of a preprocessor conditional never both compile, so a bracket in
+# one does not cover a draw in the other - the same rule the branches of an
+# else chain get, and the shape an #ifdef around a raw pass would take.
+@case('direct_gl', 'Blocks5/src/eye.cpp')
+def c_direct_gl_pp_arms(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '#ifdef __EMSCRIPTEN__\n\tRenderer::DirectGL direct;\n#else\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
+
+
+# And what an arm opened is gone after the #endif.
+@case('direct_gl', 'Blocks5/src/eye.cpp')
+def c_direct_gl_pp_merge(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '#ifdef __EMSCRIPTEN__\n\tRenderer::DirectGL direct;\n#endif\n'
+              '\tglBegin(GL_QUADS);\n\tglEnd();')
+
+
+# An else belongs to its if wherever it is written. A reindent moves one
+# without making it any less an alternative to the branch above - and the
+# bracket at the top covers both.
+@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
+def c_direct_gl_else_column(p):
+    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
+              '\tRenderer::DirectGL direct;\n\tif(layer == RL_MAIN)\n\t{\n'
+              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
+              '\t\telse\n\t\t{\n\t\t\tglBegin(GL_QUADS);\n\t\t\tglEnd();\n\t\t}')
+
+
+# A macro body is not code at the point the directive stands, and reading it as
+# code attributes whatever it holds to the function above.
+@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
+def c_direct_gl_macro_body(p):
+    p.replace('void Eye::onRender(RenderLayer layer,',
+              '#define DRAW_QUAD() \\\n\tglBegin(GL_QUADS); \\\n\tglEnd();\n\n'
+              'void Eye::onRender(RenderLayer layer,')
+
+
+# Level::renderShine draws from inside an object's render although the rest
+# of level.cpp does not, so that one function is read and the rest of the
+# file is not.
+@case('direct_gl', 'Blocks5/src/level.cpp')
+def c_direct_gl_reached(p):
+    p.replace('\tEngine::inst().renderSprite(p_shine,',
+              '\tglBegin(GL_QUADS);\n\tglEnd();\n\tEngine::inst().renderSprite(p_shine,')
+
+
+# A commented-out draw inside one of the two functions read by name is not a
+# draw either.
+@case('direct_gl', 'Blocks5/src/level.cpp', quiet=True)
+def c_direct_gl_reached_comment(p):
+    p.replace('\tEngine::inst().renderSprite(p_shine,',
+              '\t// glBegin(GL_QUADS); glEnd();\n\tEngine::inst().renderSprite(p_shine,')
+
+
+# An exemption for a function that no longer exists is silent, and says the
+# case was thought about.
+@case('direct_gl', 'Blocks5/src/level.cpp')
+def c_direct_gl_dead_exemption(p):
+    p.replace('void Level::renderShine(', 'void Level::renderGlow(')
+
+
+# The third way an exemption goes stale: the function is still there and still
+# read, and no longer holds what it was excused for. dead_names() cannot see
+# that one, because the name resolves.
+@case('direct_gl', 'Blocks5/src/hint.cpp')
+def c_direct_gl_idle_exemption(p):
+    p.replace('\t\tglBegin(GL_TRIANGLE_STRIP);', '\t\tRenderer::DirectGL direct;')
 
 
 # Each of the four things gl_state bans, because a case that injects only one
 # of them leaves the other three free to be dropped from the pattern without
 # anything noticing. Disable and enable are separate halves of one alternation,
 # and the pop is a separate call from the push.
-@case('gl_state', 'Blocks5/src/player.cpp')
+@case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_disable(p):
     p.replace('GL::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
 
 
-@case('gl_state', 'Blocks5/src/player.cpp')
+@case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_enable(p):
     p.replace('GL::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
 
 
 @case('gl_state', 'Blocks5/src/teleporter.cpp')
 def c_gl_state_push(p):
-    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_ENABLE_BIT);')
+    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
+              '\t\t\tglPushAttrib(GL_ENABLE_BIT);\n')
 
 
 @case('gl_state', 'Blocks5/src/teleporter.cpp')
 def c_gl_state_pop(p):
-    p.replace('GL::popTexturing();', 'glPopAttrib();')
+    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
+              '\t\t\tglPopAttrib();\n')
 
 
 @case('gl_state', 'Blocks5/src/hint.cpp')
@@ -215,7 +419,7 @@ def c_gl_state_matrix(p):
 
 
 # A call split over two lines, which a line-at-a-time search cannot see.
-@case('gl_state', 'Blocks5/src/electronics.cpp')
+@case('gl_state', 'Blocks5/src/hint.cpp')
 def c_gl_state_wrapped(p):
     p.replace('GL::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
 
@@ -249,24 +453,6 @@ def c_gl_doors_matrix(p):
               '\tglMatrixMode(GL_TEXTURE);\n\tglLoadIdentity();\n\tGL::setTexturing(true);\n')
 
 
-# A flush covers only as far as the block it stands in. A loop body is the
-# shape that isolates the rule: the branches of an if/else chain are read as
-# alternatives, so a flush in one of those is a different question.
-@case('sprite_batch', 'Blocks5/src/lava.cpp')
-def c_sprite_batch_scope(p):
-    p.replace('\t\tEngine::inst().flushSprites();',
-              '\t\tfor(int pass = 0; pass < 1; pass++)\n\t\t{\n\t\t\tEngine::inst().flushSprites();\n\t\t}')
-
-
-# A helper is a new function and must not inherit the flush of the one above
-# it. LineDrawer::draw() is the one that ends flushed, so it is what the case
-# has to follow for the inheritance to be the thing under test.
-@case('sprite_batch', 'Blocks5/src/linedrawer.cpp')
-def c_sprite_batch_helper(p):
-    p.replace('void LineDrawer::setPoints(',
-              'static void drawBlob()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid LineDrawer::setPoints(')
-
-
 # The same helper one level in, inside an anonymous namespace - the idiom
 # hint.cpp, font.cpp and diamondmachine.cpp already use - and placed right
 # after an exempt function, which is what it would silently inherit if a line
@@ -276,35 +462,6 @@ def c_gl_state_namespace(p):
     p.replace('void Texture::cleanUp()',
               'namespace\n{\n\tvoid debugBind(GLuint id)\n\t{\n'
               '\t\tglBindTexture(GL_TEXTURE_2D, id);\n\t}\n}\n\nvoid Texture::cleanUp()')
-
-
-# Queue and draw on one line, after a flush that really does stand above them
-# and with nothing drawing after: the draw comes after the queue and is not
-# covered by it, which only reading the two in column order can see.
-@case('sprite_batch', 'Blocks5/src/stdobject.cpp')
-def c_sprite_batch_sameline(p):
-    p.replace('\t\tlevel.renderShine(0.35, 0.35 + 0.05 * glowJitter);\n\t}\n',
-              '\t\tlevel.renderShine(0.35, 0.35 + 0.05 * glowJitter);\n\t}\n'
-              '\tEngine::inst().flushSprites();\n'
-              '\tEngine::inst().renderSprites(sprites, color); glBegin(GL_QUADS); glEnd();\n')
-
-
-# A loop whose body queues: the second turn round begins with the batch
-# non-empty, so a flush standing outside the loop does not cover a draw inside
-# it - and a walk down the lines reads the draw before the queue.
-@case('sprite_batch', 'Blocks5/src/bomb.cpp')
-def c_sprite_batch_loop(p):
-    p.replace('\tif(layer == RL_MAIN)',
-              '\tEngine::inst().flushSprites();\n\tfor(int i = 0; i < 4; i++)\n\t{\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n\tif(layer == RL_MAIN)')
-
-
-# An onRender whose parameter is spelled differently still overrides, and would
-# take its whole file out of both checks with nothing to say so.
-@case('sprite_batch', 'Blocks5/src/bomb.cpp')
-def c_sprite_batch_unscanned(p):
-    p.replace('void Bomb::onRender(RenderLayer layer,', 'void Bomb::onRender(const RenderLayer layer,')
 
 
 # A character literal holding a quote opens a string to the rest of the file
@@ -320,7 +477,8 @@ def c_gl_state_char_literal(p):
 # written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_push_mask(p):
-    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);')
+    p.replace('\t\tEngine& engine = Engine::inst();\n',
+              '\t\tglPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);\n\t\tEngine& engine = Engine::inst();\n')
 
 
 # texture.cpp pushes no attributes of its own at all, so a pop added to the
@@ -339,231 +497,21 @@ def c_gl_state_dead_name(p):
     p.replace('void Font::drawText(', 'void Font::drawGlyphs(')
 
 
-# A flush written as the body of a braceless loop covers the rest of its own
-# line and nothing after it, which no indentation rule can see: what follows
-# stands at the same column as the flush itself. A loop rather than an if,
-# because an if/else chain is read branch by branch and would answer this on
-# its own.
-@case('sprite_batch', 'Blocks5/src/projectile.cpp')
-def c_sprite_batch_braceless(p):
-    p.replace('\t\tengine.flushSprites();',
-              '\t\tfor(int i = 0; i < 1; i++) engine.flushSprites();')
-
-
-# The other half: a flush hoisted to the top of a function is not made wrong by
-# a queue in one branch of an if/else chain below it, because the branch that
-# draws is the branch that did not queue.
-@case('sprite_batch', 'Blocks5/src/lava.cpp', quiet=True)
-def c_sprite_batch_chain(p):
-    p.replace('\t\t// Raw quads from here on, so anything queued by an object before this\n'
-              '\t\t// one has to be on the screen first - there is no depth buffer to put\n'
-              '\t\t// the two in order afterwards.\n\t\tEngine::inst().flushSprites();\n\n', '')
-    p.replace('void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n',
-              'void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n'
-              '\tEngine::inst().flushSprites();\n')
-
-
-# LineDrawer::draw() is the raw glDrawArrays behind every laser, wire and shot,
-# and its file defines no onRender - so it is in the scanned set by name.
-@case('sprite_batch', 'Blocks5/src/linedrawer.cpp')
-def c_sprite_batch_linedrawer(p):
-    p.replace('\tEngine::inst().flushSprites();\n', '')
-
-
-# An exemption says the batch was put up before the function was entered. It
-# does not say the function may queue and then draw.
-@case('sprite_batch', 'Blocks5/src/hint.cpp')
-def c_sprite_batch_exempt_queues(p):
-    p.replace('\tconst double uWidth',
-              '\tEngine::inst().renderSprites(sprites, color);\n\tconst double uWidth')
-
-
-# Level::renderShine draws with a batch open although the rest of level.cpp
-# does not, so that one function is read and the rest of the file is not.
-@case('sprite_batch', 'Blocks5/src/level.cpp')
-def c_sprite_batch_reached(p):
-    p.replace('\tEngine::inst().renderSprite(p_shine,',
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n\tEngine::inst().renderSprite(p_shine,')
-
-
-# An exemption for a function that no longer exists is silent, and says the
-# case was thought about.
-@case('sprite_batch', 'Blocks5/src/level.cpp')
-def c_sprite_batch_dead_exemption(p):
-    p.replace('void Level::renderShine(', 'void Level::renderGlow(')
-
-
-# The third way an exemption goes stale: the function is still there and still
-# read, and no longer holds what it was excused for. dead_names() cannot see
-# that one, because the name resolves.
-@case('sprite_batch', 'Blocks5/src/hint.cpp')
-def c_sprite_batch_idle_exemption(p):
-    p.replace('\t\tglBegin(GL_TRIANGLE_STRIP);', '\t\tEngine::inst().flushSprites();')
-
-
-# Whatever an if/else chain queued in any of its branches stands after the
-# chain, even though the branches are read as alternatives while inside it. The
-# last branch must not flush, or the indentation rule would answer this on its
-# own and the merge would go untested.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_chain_queued(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n'
-              '\tif(layer == RL_MAIN)\n\t{\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
-              '\telse\n\t{\n\t\tglPushMatrix();\n\t\tglPopMatrix();\n\t}\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# A flush written as a braceless else body is as conditional as one written as
-# a braceless if body, and stands at the same column as what follows it.
-@case('sprite_batch', 'Blocks5/src/exit.cpp')
-def c_sprite_batch_braceless_else(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\telse if(layer == RL_LIGHT)',
-              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\telse Engine::inst().flushSprites();\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n'
-              '\tif(layer == RL_LIGHT)')
-
-
-# glRect is a draw as much as glBegin and glDrawArrays are.
-@case('sprite_batch', 'Blocks5/src/exit.cpp')
-def c_sprite_batch_glrect(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\tglRecti(0, 0, 16, 16);')
-
-
-# A flush written as a same-line case body reaches to the end of that line and
-# no further, exactly as a braceless if does - and the switch's own braces sit
-# at the column of the statement after it, so no indentation rule can see it.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_case(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tswitch(layer)\n\t{\n'
-              '\tcase RL_MAIN: Engine::inst().flushSprites(); break;\n\t}\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# The other direction: what is written in a comment is not code. batch_sources()
-# blanks them, and without that a commented-out draw would be a finding.
-@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
-def c_sprite_batch_commented_draw(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\t// glBegin(GL_QUADS); glEnd();')
-
-
-# A preprocessor line carries no scope. Read as a dedent it would ask for the
-# flush again, and this tree writes them at column 0 wherever they sit.
-@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
-def c_sprite_batch_preprocessor(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n#ifdef __EMSCRIPTEN__\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
-
-
 # An attribute mask that carries nothing a batched quad is drawn under is left
 # alone, because GLState has no entry point that could stand in for it.
 @case('gl_state', 'Blocks5/src/object.cpp', quiet=True)
 def c_gl_state_safe_mask(p):
-    p.replace('\t\tglDisable(GL_LINE_SMOOTH);',
-              '\t\tglPushAttrib(GL_LINE_BIT);\n\t\tglDisable(GL_LINE_SMOOTH);')
-    p.replace('\t\tglEnable(GL_LINE_SMOOTH);', '\t\tglPopAttrib();')
+    p.replace('\t\trenderer.push();\n\n\t\trenderer.translate(8.0, 8.0);',
+              '\t\tglPushAttrib(GL_LINE_BIT);\n\t\trenderer.push();\n\n\t\trenderer.translate(8.0, 8.0);')
+    p.replace('\t\trenderer.pop();\n\n\t\tVec2i textPosition',
+              '\t\trenderer.pop();\n\t\tglPopAttrib();\n\n\t\tVec2i textPosition')
 
 
 # And one that does. GL_COLOR_BUFFER_BIT carries the blend function.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_colour_mask(p):
-    p.replace('GL::pushTexturing();', 'glPushAttrib(GL_COLOR_BUFFER_BIT);')
-
-
-# A preprocessor line carries no scope in the body scan either, or everything a
-# loop queues below its first #ifdef is invisible and the loop is never marked.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_loop_ifdef(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n\tfor(int i = 0; i < 4; i++)\n\t{\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
-              '#ifdef PREFETCH_RENDER\n\t\tprefetch(i);\n#endif\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}')
-
-
-# The arms of a preprocessor conditional never both compile, so a queue in one
-# does not ask the other to flush - the same rule the branches of an else chain
-# get, and the shape an #ifdef around a raw pass would take.
-@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
-def c_sprite_batch_pp_arms(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n#ifdef __EMSCRIPTEN__\n'
-              '\tEngine::inst().renderSprites(sprites, color);\n#else\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
-
-
-# What an arm queued still stands after the #endif, though.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_pp_merge(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n#ifdef __EMSCRIPTEN__\n'
-              '\tEngine::inst().renderSprites(sprites, color);\n#endif\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# A loop head need not begin its line.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_inline_loop(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n\tif(alive) for(int i = 0; i < 4; i++)\n\t{\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}')
-
-
-# A do-block is a loop as much as a for is.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_do_loop(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n\tdo\n\t{\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t} while(alive);')
-
-
-# The loop's own head line is part of its body: a one-liner queues there.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_loop_oneline(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n'
-              '\tfor(int i = 0; i < 4; i++) { glBegin(GL_QUADS); glEnd(); '
-              'Engine::inst().renderSprite(pos, t, s, color); }')
-
-
-# renderSprite in the singular queues as much as renderSprites does - it is
-# what Level::renderShine calls.
-@case('sprite_batch', 'Blocks5/src/eye.cpp')
-def c_sprite_batch_singular_queue(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n'
-              '\tEngine::inst().renderSprite(pos, t, s, color);\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# An else belongs to its if wherever it is written. A reindent moves one
-# without making it any less an alternative to the branch above.
-@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
-def c_sprite_batch_else_column(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tEngine::inst().flushSprites();\n\tif(layer == RL_MAIN)\n\t{\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
-              '\t\telse\n\t\t{\n\t\t\tglBegin(GL_QUADS);\n\t\t\tglEnd();\n\t\t}')
-
-
-# A macro body is not code at the point the directive stands, and reading it as
-# code attributes whatever it holds to the function above.
-@case('sprite_batch', 'Blocks5/src/eye.cpp', quiet=True)
-def c_sprite_batch_macro_body(p):
-    p.replace('void Eye::onRender(RenderLayer layer,',
-              '#define DRAW_QUAD() \\\n\tglBegin(GL_QUADS); \\\n\tglEnd();\n\n'
-              'void Eye::onRender(RenderLayer layer,')
+    p.replace('\t\tEngine& engine = Engine::inst();\n',
+              '\t\tglPushAttrib(GL_COLOR_BUFFER_BIT);\n\t\tEngine& engine = Engine::inst();\n')
 
 
 # A name is a function boundary only where it is a definition: a macro taking
@@ -585,16 +533,15 @@ def c_gl_state_macro_not_a_start(p):
 # An attribute mask this check cannot read is not thereby safe.
 @case('gl_state', 'Blocks5/src/lava.cpp')
 def c_gl_state_opaque_mask(p):
-    p.replace('GL::pushTexturing();', 'glPushAttrib(savedBits);')
+    p.replace('\t\tEngine& engine = Engine::inst();\n',
+              '\t\tglPushAttrib(savedBits);\n\t\tEngine& engine = Engine::inst();\n')
 
 
 # Whether a bracket is safe is a question about its own function, not the file.
 @case('gl_state', 'Blocks5/src/teleporter.cpp', quiet=True)
 def c_gl_state_mask_per_function(p):
-    p.replace('GL::pushTexturing();',
-              'glPushAttrib(GL_LINE_BIT);\n\tGL::pushTexturing();')
-    p.replace('GL::popTexturing();',
-              'GL::popTexturing();\n\tglPopAttrib();')
+    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
+              '\t\t\tglPushAttrib(GL_LINE_BIT);\n\t\t\tglPopAttrib();\n')
 
 
 # A helper indented some other way is still a function, and must not inherit
@@ -613,14 +560,6 @@ def c_gl_state_comment_signature(p):
     p.replace('void GS_Menu::onRender()',
               '// The object layer draws through Object::onRender(RenderLayer layer, ...).\n'
               'void GS_Menu::onRender()')
-
-
-# A commented-out draw inside one of the two functions read by name is not a
-# draw either.
-@case('sprite_batch', 'Blocks5/src/level.cpp', quiet=True)
-def c_sprite_batch_reached_comment(p):
-    p.replace('\tEngine::inst().renderSprite(p_shine,',
-              '\t// glBegin(GL_QUADS); glEnd();\n\tEngine::inst().renderSprite(p_shine,')
 
 
 @case('naming', 'Blocks5/src/u_crt.h')

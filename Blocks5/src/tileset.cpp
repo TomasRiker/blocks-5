@@ -172,13 +172,15 @@ void TileSet::writeTile(uint id,
 }
 
 void TileSet::drawVertices(const QuadVertex* p_vertices,
-						   uint count) const
+						   uint count,
+						   const Vec4f& color) const
 {
 	// The bind and the switch back off happen even for a layer with no tiles in
 	// it: the state every later draw inherits must not depend on whether a
 	// layer happened to be empty.
+	Renderer& renderer = Renderer::inst();
 	p_texture->bind();
-	drawQuadArray(p_vertices, count);
+	if(count) renderer.quads(renderer.state(), p_vertices, count, color);
 	GL::setTexturing(false);
 }
 

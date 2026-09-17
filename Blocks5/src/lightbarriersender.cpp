@@ -37,7 +37,7 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			Vec2d dir;
 			Vec2d p;
 
-			line.clear();
+			beamPoints.clear();
 
 			std::list<Vec2d>::const_iterator last = beam.end();
 			last--;
@@ -50,17 +50,14 @@ void LightBarrierSender::onRender(RenderLayer layer,
 
 				if(i == beam.begin() || i == last || dir != oldDir)
 				{
-					line.addPoint(p);
+					beamPoints.push_back(static_cast<Vec2f>(p));
 				}
 			}
 
 			// render the inner and the outer beam
-			glPushMatrix();
-			glTranslated(-sp.x, -sp.y, 0.0);
-			// Raw geometry, so the queued sprites have to go up first: they
-			// belong underneath it.
-			Engine::inst().flushSprites();
-			GL::setTexturing(false);
+			Renderer& renderer = Renderer::inst();
+			renderer.push();
+			renderer.translate(-sp.x, -sp.y);
 
 			// The sparkle pass is what the night vision shows of the beam:
 			// it is drawn after the quad that darkens everything unlit, so it
@@ -76,28 +73,15 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
 			else color = Vec4d(0.0, 0.25, 0.0, 0.2 * (0.2 + 0.05 * sin(x)));
-			line.setWidth(2.5f);
-			line.setColor(color);
-			line.draw();
-			glPointSize(3.0f);
-			glBegin(GL_POINTS);
-			glColor4dv(color);
-			glVertex2dv(p);
-			glEnd();
+			renderer.polyline(beamPoints, 2.5f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 3.0f, static_cast<Vec4f>(color));
 
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.225 + 0.025 * glowJitter, 0.0, 0.3 + 0.1 * cos(x));
 			else color = Vec4d(0.0, 0.625 + 0.025 * glowJitter, 0.0, 0.2 * (0.9 + 0.1 * cos(x)));
-			line.setWidth(0.5f);
-			line.setColor(color);
-			line.draw();
-			glPointSize(1.5f);
-			glBegin(GL_POINTS);
-			glColor4dv(color);
-			glVertex2dv(p);
-			glEnd();
+			renderer.polyline(beamPoints, 0.5f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 1.5f, static_cast<Vec4f>(color));
 
-			GL::setTexturing(true);
-			glPopMatrix();
+			renderer.pop();
 		}
 	}
 	else if(layer == RL_LIGHT)

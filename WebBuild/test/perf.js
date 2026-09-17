@@ -41,14 +41,14 @@ async function measure(page, arm) {
 	await page.waitForTimeout(WINDOW * 1000);
 	const d = await h.dump(page);
 	if (!d.frames) throw new Error('the dump carries no frame timings - is this a hooks build?');
-	// The draw-call, batch and state counters come along, because a render
-	// change usually moves those first and the milliseconds only as a
-	// consequence - and because all of them are accumulated over the same
-	// window as the timings. draws is what reached WebGL per rendered frame
-	// (harness.js counts it on the context); the batch's own draws are the
-	// sprite batch's flushes, a part of that.
+	// The draw-call and batch counters come along, because a render change
+	// usually moves those first and the milliseconds only as a consequence -
+	// and because both are accumulated over the same window as the timings.
+	// draws is what reached WebGL per rendered frame (harness.js counts it on
+	// the context); the batch's own draws are the renderer's flushes, a part
+	// of that.
 	if (d.draws) d.frames.drawsPerFrame = d.draws.calls / Math.max(d.draws.frames, 1);
-	return { frames: d.frames, batch: d.batch, glstate: d.glstate };
+	return { frames: d.frames, batch: d.batch };
 }
 
 const median = xs => {
@@ -67,7 +67,7 @@ const median = xs => {
 			const m = await measure(page, arm);
 			const f = m.frames;
 			runs[arm].push(f);
-			const b = m.batch, g = m.glstate;
+			const b = m.batch;
 			console.log('  run ' + (r + 1) + '  ' + name(arm).padEnd(12) +
 			            '  frames ' + String(f.count).padStart(4) +
 			            '   total p50 ' + f.total[0].toFixed(2) +
@@ -76,9 +76,7 @@ const median = xs => {
 			            '   present p50 ' + f.present[0].toFixed(2) +
 			            (f.drawsPerFrame !== undefined ? '   ' + f.drawsPerFrame.toFixed(1) + ' draw calls/frame' : '') +
 			            (b ? '   batch ' + (b.draws / Math.max(f.count, 1)).toFixed(1) + ' draws/frame' +
-			                 '  ' + (b.quads / Math.max(b.draws, 1)).toFixed(1) + ' quads/draw' : '') +
-			            (g ? '  ' + (100 * g.skipped / Math.max(g.issued + g.skipped, 1)).toFixed(0) +
-			                 '% state skipped' : ''));
+			                 '  ' + (b.quads / Math.max(b.draws, 1)).toFixed(1) + ' quads/draw' : ''));
 		}
 	}
 

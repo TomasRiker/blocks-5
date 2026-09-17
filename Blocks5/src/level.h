@@ -4,7 +4,7 @@
 #include "lightning.h"
 // For QuadVertex, which the per-layer arrays below are made of. The forward
 // declaration of TileSet a few lines down is enough for the rest.
-#include "quadarray.h"
+#include "renderer.h"
 #include "renderlayer.h"
 
 /*** Class for a level ***/

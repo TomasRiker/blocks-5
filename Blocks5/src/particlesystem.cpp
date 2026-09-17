@@ -22,8 +22,7 @@ ParticleSystem::~ParticleSystem()
 
 uint ParticleSystem::peakCount = 0;
 
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-ParticleSystem::Vertex* ParticleSystem::vertexBuffer()
+Vertex* ParticleSystem::vertexBuffer()
 {
 	// A function-local static rather than a member: it costs no allocation,
 	// no destruction order and no lifetime question, and the array is plain
@@ -31,7 +30,6 @@ ParticleSystem::Vertex* ParticleSystem::vertexBuffer()
 	static Vertex buffer[VERTEX_BUFFER_SIZE];
 	return buffer;
 }
-#endif
 
 uint ParticleSystem::takePeakCount()
 {
@@ -56,18 +54,13 @@ void ParticleSystem::render()
 	const uint count = static_cast<uint>(particles.size());
 	if(count > peakCount) peakCount = count;
 
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
+	// The pass bound the picture and set the blend; the buffer is filled
+	// and handed to the renderer in one piece, or in several where a frame
+	// has more particles than it holds.
+	Renderer& renderer = Renderer::inst();
+	const RenderState state = renderer.state();
 	Vertex* const p_vertexBuffer = vertexBuffer();
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->position);
-	glTexCoordPointer(2, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->uv);
-	glColorPointer(4, GL_FLOAT, sizeof(Vertex), &p_vertexBuffer->color);
 	Vertex* p_vertex = p_vertexBuffer;
-#else
-	glBegin(GL_QUADS);
-#endif
 
 #ifdef PREFETCH_RENDER
 	static const uint PREFETCH_STRIDE = 2;
@@ -109,20 +102,17 @@ void ParticleSystem::render()
 		const Vec2f corner2 = corner1 + edgeY;
 		const Vec2f corner3 = corner0 + edgeY;
 
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 		if(p_vertex - p_vertexBuffer >= VERTEX_BUFFER_SIZE)
 		{
-			glDrawArrays(GL_QUADS, 0, p_vertex - p_vertexBuffer);
+			renderer.quads(state, p_vertexBuffer, static_cast<uint>(p_vertex - p_vertexBuffer));
 			p_vertex = p_vertexBuffer;
 		}
 
 		// deltaColor runs a particle's colour past 1 on purpose - the teleport
 		// swirl takes its red to 2.1, and the three spark bursts add half a level
 		// of it a tick until the particle has shrunk away, which lands between
-		// 5.5 and 25.5 - and GL is what cuts it off. A colour array in the
-		// browser is the one path that does not; see clampColor().
-		const Vec4f color = clampColor(p.color);
-		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = color;
+		// 5.5 and 25.5 - and the renderer's program is what cuts it off.
+		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = p.color;
 		p_vertex[0].position = corner0;
 		p_vertex[0].uv = p.positionOnTexture;
 		p_vertex[1].position = corner1;
@@ -132,27 +122,9 @@ void ParticleSystem::render()
 		p_vertex[3].position = corner3;
 		p_vertex[3].uv = Vec2i(p.positionOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
 		p_vertex += 4;
-#else
-		glColor4fv(p.color);
-		glTexCoord2i(p.positionOnTexture.x, p.positionOnTexture.y);
-		glVertex2f(corner0.x, corner0.y);
-		glTexCoord2i(p.positionOnTexture.x + p.sizeOnTexture.x, p.positionOnTexture.y);
-		glVertex2f(corner1.x, corner1.y);
-		glTexCoord2i(p.positionOnTexture.x + p.sizeOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
-		glVertex2f(corner2.x, corner2.y);
-		glTexCoord2i(p.positionOnTexture.x, p.positionOnTexture.y + p.sizeOnTexture.y);
-		glVertex2f(corner3.x, corner3.y);
-#endif
 	}
 
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-	if(p_vertex != p_vertexBuffer) glDrawArrays(GL_QUADS, 0, p_vertex - p_vertexBuffer);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-#else
-	glEnd();
-#endif
+	if(p_vertex != p_vertexBuffer) renderer.quads(state, p_vertexBuffer, static_cast<uint>(p_vertex - p_vertexBuffer));
 
 	GL::setTexturing(false);
 

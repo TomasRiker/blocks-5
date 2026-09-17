@@ -521,7 +521,7 @@ int runTheGame(int argc,
 		else if(equalsNoCase(p_arg, "-fullScreen")) engine.overrideFullScreen(true);
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
 		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
-		else if(equalsNoCase(p_arg, "-noBatch")) engine.disableSpriteBatch();
+		else if(equalsNoCase(p_arg, "-flushAll")) engine.enableFlushAll();
 	}
 
 	printfLog("Initializing engine ...\n");

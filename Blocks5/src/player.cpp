@@ -121,28 +121,20 @@ void Player::onRender(RenderLayer layer,
 	{
 		if(censored)
 		{
-			// render the censor bar. Raw geometry, so the queued sprites have
-			// to go up first: they belong underneath it.
-			Engine::inst().flushSprites();
-			GL::setTexturing(false);
-			glPushMatrix();
-			glTranslated(8.0, 8.0, 0.0);
-			glRotated(10.0, 0.0, 0.0, 1.0);
-			glBegin(GL_QUADS);
-			glColor3d(0.15, 0.15, 0.15);
-			glVertex2i(-35, -13);
-			glVertex2i(35, -13);
-			glVertex2i(35, 13);
-			glVertex2i(-35, 13);
-			glEnd();
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(-35, -13);
-			glVertex2i(35, -13);
-			glVertex2i(35, 13);
-			glVertex2i(-35, 13);
-			glEnd();
-			glPopMatrix();
-			GL::setTexturing(true);
+			// render the censor bar
+			Renderer& renderer = Renderer::inst();
+			renderer.push();
+			renderer.translate(8.0, 8.0);
+			renderer.rotate(10.0);
+			const Vec4f grey(0.15f, 0.15f, 0.15f, 1.0f);
+			renderer.rect(Vec2f(-35.0f, -13.0f), Vec2f(35.0f, 13.0f), grey);
+			std::vector<Vec2f> frame;
+			frame.push_back(Vec2f(-35.0f, -13.0f));
+			frame.push_back(Vec2f(35.0f, -13.0f));
+			frame.push_back(Vec2f(35.0f, 13.0f));
+			frame.push_back(Vec2f(-35.0f, 13.0f));
+			renderer.polyline(frame, 1.0f, grey, true);
+			renderer.pop();
 
 			Font* p_font = GUI::inst().getFont();
 			std::string text = localizeString("$G_CENSORED");

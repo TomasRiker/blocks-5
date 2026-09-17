@@ -83,7 +83,7 @@ void Laser::onRender(RenderLayer layer,
 			Vec2d dir;
 			Vec2d p;
 
-			line.clear();
+			beamPoints.clear();
 
 			std::list<Vec2d>::const_iterator last = beam.end();
 			last--;
@@ -96,45 +96,29 @@ void Laser::onRender(RenderLayer layer,
 
 				if(i == beam.begin() || i == last || dir != oldDir)
 				{
-					line.addPoint(p);
+					beamPoints.push_back(static_cast<Vec2f>(p));
 				}
 			}
 
 			// render the inner and the outer beam
-			// Raw geometry, so the queued sprites have to go up first: they
-			// belong underneath it.
-			Engine::inst().flushSprites();
-			glPushMatrix();
-			glTranslated(-sp.x, -sp.y, 0.0);
-			GL::setTexturing(false);
+			Renderer& renderer = Renderer::inst();
+			renderer.push();
+			renderer.translate(-sp.x, -sp.y);
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.25, 0.0, on * deathCountDown * (0.2 + 0.05 * sin(x)));
 			else color = Vec4d(0.0, 0.25, 0.0, 0.4 * on * deathCountDown * (0.2 + 0.05 * sin(x)));
-			line.setWidth(6.5f);
-			line.setColor(color);
-			line.draw();
-			glPointSize(7.0f);
-			glBegin(GL_POINTS);
-			glColor4dv(color);
-			glVertex2dv(p);
-			glEnd();
+			renderer.polyline(beamPoints, 6.5f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 7.0f, static_cast<Vec4f>(color));
 
 			const double green = 0.625 + 0.025 * glowJitter;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, green, 0.0, on * deathCountDown * (0.9 + 0.1 * cos(x)));
 			else color = Vec4d(0.0, green, 0.0, 0.4 * on * deathCountDown * (0.9 + 0.1 * cos(x)));
-			line.setWidth(1.5f);
-			line.setColor(color);
-			line.draw();
-			glPointSize(3.0f);
-			glBegin(GL_POINTS);
-			glColor4dv(color);
-			glVertex2dv(p);
-			glEnd();
+			renderer.polyline(beamPoints, 1.5f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 3.0f, static_cast<Vec4f>(color));
 
-			GL::setTexturing(true);
-			glPopMatrix();
+			renderer.pop();
 		}
 	}
 	else if(layer == RL_LIGHT)

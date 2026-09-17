@@ -5,7 +5,7 @@
 
 #include "parameterblock.h"
 #include "framestats.h"
-#include "quadarray.h"
+#include "renderer.h"
 
 class GameState;
 class SoundInstance;
@@ -100,32 +100,11 @@ public:
 	// The frame as PNG bytes, and the same under a name the caller chose.
 	bool encodeFrame(std::vector<uchar>* p_pngOut);
 	bool writeScreenshot(const std::string& path);
-	// Why the sprite batch is put up before it is full. The histogram the test
-	// hook reports counts the flushes that drew something, by reason - which
-	// is the number that says what each reason costs in draw calls, and the
-	// one RENDERER-REDESIGN.md is measured against.
-	enum FlushReason
-	{
-		FR_RAW,       // an onRender, drawQuadArray or LineDrawer about to draw raw geometry
-		FR_TEXTURE,   // GL::bindTexture moved the binding or the texel scale
-		FR_BLEND,     // setBlendFunc
-		FR_TARGET,    // beginRenderToTexture / endRenderToTexture
-		FR_ATTRIB,    // GL::popTexturing
-		FR_DELETE,    // GL::deleteTexture
-		FR_EDGE,      // beginSpriteBatch / endSpriteBatch
-		FR_FULL,      // BATCH_MAX_QUADS reached
-		FR_COUNT
-	};
-
-	// See flushSprites() and Level::update(); unconditional for the reason
-	// batchTexture gives below. renderDraws is every draw call render() made
-	// - a glBegin block, a glDrawArrays, a glDrawElements - counted by the
-	// link-time wrappers at the foot of testhooks.cpp in a native test-hooks
-	// build and never otherwise, over renderedFrames frames.
-	uint batchFlushes;
-	uint batchDraws;
-	uint batchQuads;
-	uint batchDrawsByReason[FR_COUNT];
+	// renderDraws is every draw call render() made - a glBegin block, a
+	// glDrawArrays, a glDrawElements - counted by the link-time wrappers at
+	// the foot of testhooks.cpp in a native test-hooks build and never
+	// otherwise, over renderedFrames frames. Unconditional members: one
+	// behind BLOCKS5_TEST_HOOKS would give the class two sizes.
 	uint renderDraws;
 	uint renderedFrames;
 	uint sceneTick;
@@ -169,9 +148,9 @@ public:
 	void skipSplash() { splashSkipped = true; }
 	bool isSplashSkipped() const { return splashSkipped; }
 
-	// -nobatch: the A/B arm for the sprite batch, and the way out if a driver
-	// ever mishandles a client-side colour array.
-	void disableSpriteBatch() { spriteBatchDisabled = true; }
+	// -flushall: the renderer puts every quad up on its own, the A/B arm for
+	// the batching and the bisecting tool for an ordering bug.
+	void enableFlushAll();
 
 	// -perf: put what the last few hundred frames cost on the screen. The
 	// timings are recorded either way - four clock reads a frame - and this
@@ -248,16 +227,7 @@ public:
 	// each sprite's own tint comes on top of it.
 	void renderSprites(const Sprites& sprites, const Vec4d& color);
 
-	// While a batch is open, renderSprite queues its four corners instead of
-	// drawing them, and one glDrawArrays puts the lot up at the flush. Opened
-	// around the object loop in Level::renderObjects and nowhere else; see
-	// queueSprite() in engine.cpp for what a flush has to come before.
-	void beginSpriteBatch();
-	void flushSprites(FlushReason reason = FR_RAW);
-	void endSpriteBatch();
 	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
-
-	void setBlendFunc(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 
 	void registerGameState(GameState* p_gs);
 	GameState* findGameState(const std::string& gs);
@@ -522,7 +492,6 @@ private:
 #endif
 	long savedWindowStyle;     // Win32: the style before fullscreen
 	SDL_Surface* p_display;
-	PFNGLBLENDFUNCSEPARATEEXTPROC glExtBlendFuncSeparate;
 	ALCdevice* p_audioDevice;
 	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
@@ -558,21 +527,6 @@ private:
 	bool performanceShown;
 	bool renderSuppressed;
 	bool renderSuppressWanted;
-	// The queued sprite corners, four per sprite. Cleared and never shrunk, so
-	// it reaches the size of the busiest frame once and stays there.
-	std::vector<ColorQuadVertex> spriteBatch;
-	bool spriteBatchOpen;
-	bool spriteBatchDisabled;
-	// What the first quad of the open batch was queued against; in a test-hooks
-	// build the flush checks the state is still that. Declared whatever the
-	// build: a member behind BLOCKS5_TEST_HOOKS would give the class two sizes.
-	GLint batchTexture;
-	GLdouble batchTextureMatrix[16];
-	// The batched half of renderSprite, taking the corners already worked out
-	// so the two paths cannot drift apart on the geometry.
-	void queueSprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
-					 int u0, int u1, int v0, int v1,
-					 const Vec4d& color, double rotation, double scaling);
 	// The start of the previous turn of the main loop, for the interval
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between

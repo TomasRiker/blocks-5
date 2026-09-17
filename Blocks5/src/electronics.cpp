@@ -2,7 +2,6 @@
 #include "electronics.h"
 #include "pin.h"
 #include "engine.h"
-#include "linedrawer.h"
 
 Electronics::Electronics(Level& level,
 						 const Vec2i& position,
@@ -68,7 +67,7 @@ void Electronics::onRender(RenderLayer layer,
 								   Vec4d(0.3, 0.35, 0.35, 1.0),
 								   Vec4d(0.35, 0.35, 0.35, 1.0)};
 
-		GL::setTexturing(false);
+		Renderer& renderer = Renderer::inst();
 
 		// render the outputs' connections
 		int n = position.x + position.y;
@@ -79,12 +78,9 @@ void Electronics::onRender(RenderLayer layer,
 			for(std::set<Pin*>::const_iterator j = connectedPins.begin(); j != connectedPins.end(); ++j)
 			{
 				const Pin* p_pin2 = *j;
-				LineDrawer line(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, wireColor[n++ % 7]);
-				line.draw();
+				renderer.polyline(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, static_cast<Vec4f>(wireColor[n++ % 7]));
 			}
 		}
-
-		GL::setTexturing(true);
 	}
 }
 
