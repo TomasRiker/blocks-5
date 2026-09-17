@@ -27,7 +27,6 @@ protected:
 					 const Vec2f* p_uvs, const Vec4f& color, bool cullBackFaces) const;
 
 	Vec2i screenSize;
-	Vec2i screenPow2Size;
 	Vec2f screenTexelScale;
 };
 

@@ -6,7 +6,6 @@ Crossfade::Crossfade()
 {
 	Engine& engine = Engine::inst();
 	screenSize = engine.getScreenSize();
-	screenPow2Size = engine.getScreenPow2Size();
 	screenTexelScale = engine.getFrameCopyRef(0).texelScale;
 }
 

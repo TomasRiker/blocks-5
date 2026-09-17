@@ -286,10 +286,10 @@ void Renderer::init()
 	// quad, split along the diagonal from the first corner to the third.
 	// Which diagonal shows wherever an attribute is not affine across the
 	// quad - the lava's four alphas, the lightning's trapezoids - and Mesa
-	// uses this one for a glBegin(GL_QUADS) quad and the other for a quad
-	// out of an array. The one the immediate-mode quads had, because they
-	// are the many; RENDERER-REDESIGN.md section 6 names the lightning as
-	// the cost.
+	// splits a GL_QUADS quad along this one and an array's quad along the
+	// other. The oracle's frames hold GL_QUADS almost everywhere, so this is
+	// the diagonal that keeps them; RENDERER-REDESIGN.md section 6 names the
+	// lightning, the one array-drawn quad, as the cost.
 	glExtGenBuffers(1, &vertexBuffer);
 	glExtGenBuffers(1, &indexBuffer);
 	{
@@ -484,8 +484,9 @@ void Renderer::loadIdentity()
 void Renderer::bakePoint(double x, double y, float* p_outX, float* p_outY) const
 {
 	// The float matrix entries promote to double and the sum rounds once, to
-	// float - the arithmetic the old sprite batch did with the matrix it read
-	// back from GL, kept so that a baked corner is the same float.
+	// float - the arithmetic GL's own vertex stage does with a float matrix,
+	// kept so that a baked corner is the float the oracle's frames were
+	// drawn with.
 	const Transform& t = transforms.back();
 	if(t.translationOnly)
 	{
@@ -767,24 +768,6 @@ void Renderer::quads(const Vec2f* p_positions, uint count, const Vec4f& color)
 			x[i] = p_positions[q + i].x;
 			y[i] = p_positions[q + i].y;
 		}
-		submitFlat(x, y, color);
-	}
-}
-
-void Renderer::rectOutline(const Vec2f& min, const Vec2f& max, float width, const Vec4f& color)
-{
-	// Four bars that meet at the corners, the outline a line loop drew.
-	const double bars[4][4] =
-	{
-		{min.x, min.y, max.x, min.y + width},
-		{min.x, max.y - width, max.x, max.y},
-		{min.x, min.y + width, min.x + width, max.y - width},
-		{max.x - width, min.y + width, max.x, max.y - width}
-	};
-	for(int b = 0; b < 4; b++)
-	{
-		const double x[4] = {bars[b][0], bars[b][2], bars[b][2], bars[b][0]};
-		const double y[4] = {bars[b][1], bars[b][1], bars[b][3], bars[b][3]};
 		submitFlat(x, y, color);
 	}
 }

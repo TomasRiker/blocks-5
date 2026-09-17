@@ -59,7 +59,7 @@ the disc over its own size, which is what `GL_POINT_SMOOTH` made of `GL_POINTS`.
 therefore a texture like any other, the flat things share one draw among themselves, and the GL enable is
 no longer state the batch is drawn under. A line is a quad per segment, half the width to either side,
 with a wedge on the outside of a turn so a laser, a wire or a shot has no notch where it bends —
-`Renderer::polyline`, `line`, `point`, `rect` and `rectOutline` in place of a `glBegin`.
+`Renderer::polyline`, `line`, `point` and `rect` in place of a `glBegin`.
 
 **The rare state is a scope, never a field.** Colour mask, stencil write, stencil test, the alpha discard
 and the scissor are RAII objects (`ColorMaskScope`, `StencilWriteScope`, `StencilTestScope`,
@@ -79,8 +79,8 @@ projection, an identity transform and no scissor, and `endTarget` puts all three
 products first, the old translation last — and a rotate takes its sine and cosine as Mesa does, the angle
 to `float`, the radians in `double`, `sinf` and `cosf`, which is why a right angle has a cosine of
 -4.4e-8 and not 0. A corner is then the `float` entries promoted to `double`, summed, and rounded to
-`float` once — the arithmetic the old sprite batch did with the matrix it read back from GL. The
-projection is the one matrix left to the GPU, as a uniform; `Mat4::ortho` (`vec.h`) builds the same
+`float` once — the arithmetic GL's own vertex stage does with a float matrix, so that a baked corner is
+the float the oracle's frames were drawn with. The projection is the one matrix left to the GPU, as a uniform; `Mat4::ortho` (`vec.h`) builds the same
 numbers `gluOrtho2D` did. The same `Mat4` does GL's arithmetic for every other matrix the game once
 asked GL for: `gluPerspective`'s and `gluLookAt`'s entries, Mesa's in-place translate, scale and rotate,
 its left-to-right float sums in a product. The four 3D crossfades and the credits' stars hand
@@ -100,8 +100,8 @@ lit twice, as GL lit it. The editor's marching ants are `dashes`.
 **The index buffer splits every quad from its first corner to its third, and the choice shows.** A quad
 whose attributes are not affine across it — the lava's four alphas, the lightning's trapezoids — is two
 different pictures along the two diagonals. Mesa uses this diagonal for a `glBegin(GL_QUADS)` quad and
-the other for a quad out of an array, so the old tree drew both, and the renderer can draw only one. It
-keeps the immediate-mode one because those quads are the many; the lightning is the one array-drawn
+the other for a quad out of an array, so the oracle's frames hold both, and the renderer can draw only
+one. It keeps the `GL_QUADS` diagonal because those quads are the many; the lightning is the one array-drawn
 non-affine quad in the game, and `RENDERER-REDESIGN.md` section 6 carries it as an accepted difference.
 
 **`-flushall` is the bisecting tool.** It makes the renderer flush after every quad, so every quad is
@@ -161,8 +161,8 @@ calls a frame where it drew 55, the lava level 24 where it drew 86, the level se
 the options dialog 71 where it drew 209 and the Manager 58 where it drew 253 - a dialog's strings and
 frames now share a draw wherever they share the skin. On a real phone batching is worth six times what
 any desktop number says: the sprite batch that
-preceded the renderer took a full level from **57 ms a frame to 9** under `?nobatch=1` against the
-default, and that measurement is the reason the redesign exists; read every browser number as a lower
+preceded the renderer took a full level from **57 ms a frame to 9** against the same build with the
+batching off, and that measurement is the reason the redesign exists; read every browser number as a lower
 bound on what a phone gets.
 
 **A sprite is drawn at the size it was given, odd numbers included.** `halfSize` and `otherHalf` split an

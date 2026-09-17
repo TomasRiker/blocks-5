@@ -54,7 +54,7 @@ public:
 		FR_BLEND,     // the next quad blends differently
 		FR_SCOPE,     // a scope began or ended
 		FR_FULL,      // the stream held its 16384 quads
-		FR_EXPLICIT,  // flush() from outside, a clear, a copy, a 3D draw, a target switch
+		FR_EXPLICIT,  // a clear, a copy, a 3D draw, a target switch
 		FR_FRAME,     // the end of the frame
 		FR_DIRECT,    // a DirectGL bracket opening
 		FR_COUNT
@@ -151,7 +151,6 @@ public:
 	// Flat geometry, all under the current blend; a point is the disc of
 	// the built-in texture.
 	void rect(const Vec2f& min, const Vec2f& max, const Vec4f& color);
-	void rectOutline(const Vec2f& min, const Vec2f& max, float width, const Vec4f& color);
 	void line(const Vec2f& a, const Vec2f& b, float width, const Vec4f& color);
 	void polyline(const std::vector<Vec2f>& points, float width, const Vec4f& color, bool closed = false);
 	void point(const Vec2f& p, float size, const Vec4f& color);
@@ -166,9 +165,6 @@ public:
 	// along the path - the editor's marching ants.
 	void dashes(const std::vector<Vec2f>& points, float width, const Vec4f& color,
 				float on, float off, float phase, bool closed);
-
-	// Put up everything queued, under the state it was queued against.
-	void flush(FlushReason reason = FR_EXPLICIT);
 
 	// Clears flush first, because they replace what was drawn; the scissor
 	// and the mask apply to them as to a draw.
@@ -240,20 +236,25 @@ public:
 		~DirectGL();
 	};
 
-	// Forget what GL is holding, and nothing else.
-	void invalidate();
-
 	// --- measuring ----------------------------------------------------------
 	const Stats& stats() const { return counters; }
 	void resetStats();
 
 	// -flushall: a flush after every quad.
 	void setFlushAll(bool on) { flushAll = on; }
-	bool isFlushAll() const { return flushAll; }
 
 private:
 	Renderer();
 	~Renderer();
+
+	// Put up everything queued, under the state it was queued against. Every
+	// flush is one of this file's own: a state change, a scope, a full
+	// stream, a clear, a copy, a 3D draw, a target switch, the frame's end
+	// or a DirectGL bracket opening - nothing outside asks for one.
+	void flush(FlushReason reason = FR_EXPLICIT);
+
+	// Forget what GL is holding, and nothing else; the bracket's destructor.
+	void invalidate();
 
 	// x' = m00 * x + m01 * y + tx; y' = m10 * x + m11 * y + ty. Float, as
 	// GL's matrix stack was.

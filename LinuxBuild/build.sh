@@ -31,11 +31,11 @@ OUT="$HERE/build"
 HOOKS=""; WRAP=""
 if [ "${1:-}" = "hooks" ]; then
   HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-test"
-  # The test hook's draw-call count: every call to these three from the
-  # game's objects lands on the __wrap_ versions at the foot of testhooks.cpp,
-  # which count and go on to the real one. At the link rather than through a
-  # macro, so no header and no other translation unit sees the define.
-  WRAP="-Wl,--wrap=glBegin,--wrap=glDrawArrays,--wrap=glDrawElements"
+  # The test hook's draw-call count: every call to these two from the game's
+  # objects lands on the __wrap_ versions at the foot of testhooks.cpp, which
+  # count and go on to the real one. At the link rather than through a macro,
+  # so no header and no other translation unit sees the define.
+  WRAP="-Wl,--wrap=glDrawArrays,--wrap=glDrawElements"
 fi
 
 [ "${1:-}" = "clean" ] && rm -rf "$OUT"

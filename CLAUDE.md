@@ -228,7 +228,7 @@ and do not repeat it.
 | `packing.md` | `pack.sh`, `zip_*.bat`, `levels/`, `data/*.xml`, `languages.txt`, `campaign.cpp` | `data.zip`, the skins and `blocks.zip` as build products, and the comment stripping |
 | `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
-| `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, `?texunits` |
+| `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, the query knobs |
 | `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, texture wrapping |
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
