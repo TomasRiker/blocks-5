@@ -119,6 +119,8 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
 - **Whether it rolls at all belongs to the artwork**: a marker file `hintscroll.txt` beside the `hint.png`
   that is *actually loaded* — contents ignored, existence counts, resolved by `getSkinFilename` so it follows
   `default_hint.png` to wherever the picture really came from, and answered through `Level::isHintScroll()`.
+  The way the note goes follows it: the paper rolls up first, the twenty ticks it took to unroll, and a
+  panel has nothing to roll and goes the moment the note closes.
   Beside the image and not an attribute in `tileset.xml`, because `<Level skin0=… skin10=…>` picks each slot
   separately and a flag in the tileset would describe a different file. It must be **named** in the packing
   scripts rather than swept up as `*.txt`, since `password.txt` is deliberately packed unencrypted in a second
@@ -132,6 +134,11 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
 - The mesh is `Renderer::triangles`, two a band in the order a triangle strip lays them, so every band's
   diagonal runs the same way. Nothing in the tree draws a `GL_QUAD_STRIP`, which WebGL does not have, and
   nothing new may: a strip is triangles handed to the renderer.
+- **The editor's preview follows the caret**: inside a `\xA7xx:` section of the text box it shows that
+  language, ahead of the first marker the active one - `languageAtCursor` in `gs_leveleditor.cpp`,
+  handed to `Hint::setPreviewLanguage`, which the preview layer alone reads, so a note in a running
+  level never bakes in it. `Engine::localizeString(text, language)` swaps the language for the one call,
+  the way the English fallback does inside, so the key names the bindings expand to follow it as well.
 - `Hint::onCollect` is deliberately empty, existing solely to stop `Object::onCollect` making the note
   disappear. **The two sounds are in `onUpdate`, by its clock, and not there**: `Object::update` calls
   `onCollect` on every tick a player stands within six pixels of the centre, and since the note never

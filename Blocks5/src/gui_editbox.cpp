@@ -327,13 +327,16 @@ void GUI_EditBox::setCursor(uint cursor,
 
 uint GUI_EditBox::getIndexAt(const Vec2i& position)
 {
+	// The characters where they are drawn, so that the rule reads the same
+	// as the multi-line box's: a click within the first two pixels of a
+	// character lands before it, from the third after it.
 	std::vector<Vec2i> charPositions;
-	p_font->measureText(text, 0, &charPositions);
+	p_font->measureText(text, 0, &charPositions, Vec2i(4, 0));
 
 	uint i;
 	for(i = 0; i < static_cast<uint>(text.length()); i++)
 	{
-		if(charPositions[i].x + 6 >= position.x + scroll) break;
+		if(charPositions[i].x + 2 >= position.x + scroll) break;
 	}
 
 	return i;

@@ -27,6 +27,11 @@ public:
 	const std::string& getText() const;
 	void setText(const std::string& text);
 
+	// The language the level editor's preview shows, "" for the active one.
+	// The preview layer alone reads it, so a note in a running level never
+	// bakes in it.
+	void setPreviewLanguage(const std::string& language);
+
 private:
 	// Where the note opens to. Must be decided before the first frame of it is
 	// visible - see onUpdate().
@@ -34,8 +39,9 @@ private:
 
 	// Draw note and text together into one texture. After that the writing is
 	// part of the paper: it flies with it, turns with it and rolls up with it,
-	// instead of appearing on top at the end.
-	void bakeNote();
+	// instead of appearing on top at the end. inLanguage picks the text's
+	// language, "" the active one.
+	void bakeNote(const std::string& inLanguage);
 
 	// The paper as a strip of quads: flat in the middle, rolled up at the top
 	// and at the bottom. unroll runs from 0 (fully rolled up) to 1 (flat).
@@ -55,6 +61,7 @@ private:
 	// texture.
 	uint noteTexture;
 	std::string bakedText;
+	std::string previewLanguage;
 
 	void releaseNoteTexture();
 

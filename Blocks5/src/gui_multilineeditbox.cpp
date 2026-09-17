@@ -157,7 +157,10 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	case SDLK_PAGEUP:
 	case SDLK_PAGEDOWN:
 		{
-			Vec2i c = textCharPositions[cursor] + Vec2i(2, 0);
+			// Two pixels left of the caret: with getIndexAt() landing from the
+			// third pixel of a character, a boundary up to four pixels short of
+			// the caret's column on the other line still counts as that column.
+			Vec2i c = textCharPositions[cursor] + Vec2i(-2, 0);
 			if(event.keysym.sym == SDLK_UP) setCursor(getIndexAt(c - scroll + Vec2i(0, -4)), shift);
 			else if(event.keysym.sym == SDLK_DOWN) setCursor(getIndexAt(c - scroll + Vec2i(0, p_font->getLineHeight() + 4)), shift);
 			else if(event.keysym.sym == SDLK_PAGEUP) setCursor(getIndexAt(c - scroll + Vec2i(0, -size.y - 4)), shift);
@@ -346,12 +349,16 @@ void GUI_MultiLineEditBox::setCursor(uint cursor,
 
 uint GUI_MultiLineEditBox::getIndexAt(const Vec2i& position)
 {
+	// textCharPositions are the characters where they are drawn. A click
+	// within the first two pixels of a character lands before it, from the
+	// third after it - the single-line box's rule, so a click means the same
+	// in either.
 	uint i;
 	for(i = 0; i < static_cast<uint>(text.length()); i++)
 	{
 		if(textCharPositions[i].y + p_font->getLineHeight() >= position.y + scroll.y)
 		{
-			if(textCharPositions[i].x + 6 >= position.x + scroll.x) break;
+			if(textCharPositions[i].x + 2 >= position.x + scroll.x) break;
 			else if(text[i] == '\n') break;
 			else if(i == static_cast<uint>(text.length() - 1))
 			{

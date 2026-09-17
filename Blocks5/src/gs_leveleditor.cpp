@@ -1106,6 +1106,27 @@ GS_LevelEditor::~GS_LevelEditor()
 
 namespace
 {
+	// The language of the text around the caret: that of the last "\xA7xx:"
+	// marker ahead of it, "" for the active language ahead of the first. A
+	// caret right before a marker still stands in the section before it. The
+	// sign is the byte languages.txt carries, hence the escape.
+	std::string languageAtCursor(const std::string& text, uint cursor)
+	{
+		std::string::size_type at = cursor;
+		while(at > 0)
+		{
+			at = text.rfind('\xA7', at - 1);
+			if(at == std::string::npos) break;
+
+			// A marker is the sign, one to eight letters and a colon. Anything
+			// else with the sign in it is text, and the search goes on behind it.
+			std::string::size_type end = at + 1;
+			while(end < text.length() && end - at <= 8 && isalpha(static_cast<unsigned char>(text[end]))) end++;
+			if(end > at + 1 && end < text.length() && text[end] == ':') return text.substr(at + 1, end - at - 1);
+		}
+		return "";
+	}
+
 	// The red frame around a tile, one corner lighter than the other three.
 	void highlightTile(Renderer& renderer, const Vec2i& p)
 	{
@@ -1221,7 +1242,9 @@ void GS_LevelEditor::onRender()
 
 	if(p_hint)
 	{
-		p_hint->setText(static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->getText());
+		GUI_MultiLineEditBox* p_box = static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"]);
+		p_hint->setText(p_box->getText());
+		p_hint->setPreviewLanguage(languageAtCursor(p_box->getText(), p_box->getCursor()));
 		p_hint->render(RL_HINT_PREVIEW, Vec2i(0, 0), Vec4d(1.0));
 	}
 }
