@@ -235,7 +235,7 @@ private:
 	Help* p_help;
 };
 
-GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), showCursor(0), ignoreNextCursorMovement(false)
+GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false)
 {
 }
 

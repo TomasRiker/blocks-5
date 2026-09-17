@@ -785,14 +785,6 @@ public:
 			p_listBox->clear();
 			for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 			{
-#ifdef CHECK_IF_IT_REALLY_IS_A_LEVEL
-				// shallow check whether this is a level file
-				TiXmlDocument doc;
-				std::string str = FileSystem::inst().readStringFromFile(FileSystem::inst().resolveContentPath("levels/" + *i));
-				doc.Parse(str.c_str());
-
-				if(!doc.FirstChildElement("Level")) continue;
-#endif
 				GUI_ListBox::ListItem item(*i, 0);
 				p_listBox->addItem(item);
 			}
@@ -1774,7 +1766,10 @@ bool GS_LevelEditor::copy()
 bool GS_LevelEditor::paste(const Vec2i& where)
 {
 	if(!p_clipboard || !clipboardSize.x || !clipboardSize.y) return false;
-	if(!p_level->isValidPosition(where) && !p_level->isValidPosition(where + clipboardSize + Vec2i(-1, -1))) return false;
+
+	// The whole rectangle has to fit: a corner outside the level would put
+	// tiles and objects where no cell is.
+	if(!p_level->isValidPosition(where) || !p_level->isValidPosition(where + clipboardSize + Vec2i(-1, -1))) return false;
 
 	uint index = 0;
 	for(int x = 0; x < clipboardSize.x; x++)

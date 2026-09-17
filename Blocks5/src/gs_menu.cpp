@@ -171,7 +171,10 @@ void GS_Menu::onUpdate()
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
 	}
 
-	std::unordered_map<uint, std::list<uint> >::const_iterator i = keyData.find(time - 500);
+	// The recording replays half a second in. Before that there is nothing
+	// to find, and time - 500 must not wrap.
+	std::unordered_map<uint, std::list<uint> >::const_iterator i =
+		time >= 500 ? keyData.find(time - 500) : keyData.end();
 	if(i != keyData.end())
 	{
 		const std::list<uint>& list = i->second;
