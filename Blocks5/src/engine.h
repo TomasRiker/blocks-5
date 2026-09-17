@@ -374,6 +374,9 @@ public:
 	// bindings it names - see expandBindings().
 	std::string localizeString(const std::string& text);
 
+	// The same in a named language; the editor's preview asks for the one under its caret.
+	std::string localizeString(const std::string& text, const std::string& inLanguage);
+
 	// Sounds that are to play quieter than their file is. The factor belongs
 	// in the mix and not in the ogg: the .wav stays the unaltered source, and a
 	// quietly encoded sound would have less level for the same computing cost.

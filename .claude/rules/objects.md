@@ -134,6 +134,11 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
 - The mesh is `Renderer::triangles`, two a band in the order a triangle strip lays them, so every band's
   diagonal runs the same way. Nothing in the tree draws a `GL_QUAD_STRIP`, which WebGL does not have, and
   nothing new may: a strip is triangles handed to the renderer.
+- **The editor's preview follows the caret**: inside a `\xA7xx:` section of the text box it shows that
+  language, ahead of the first marker the active one - `languageAtCursor` in `gs_leveleditor.cpp`,
+  handed to `Hint::setPreviewLanguage`, which the preview layer alone reads, so a note in a running
+  level never bakes in it. `Engine::localizeString(text, language)` swaps the language for the one call,
+  the way the English fallback does inside, so the key names the bindings expand to follow it as well.
 - `Hint::onCollect` is deliberately empty, existing solely to stop `Object::onCollect` making the note
   disappear. **The two sounds are in `onUpdate`, by its clock, and not there**: `Object::update` calls
   `onCollect` on every tick a player stands within six pixels of the centre, and since the note never

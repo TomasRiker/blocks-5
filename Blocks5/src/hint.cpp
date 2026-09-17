@@ -217,11 +217,12 @@ void Hint::updateSprites()
 	sprites.add(Vec2i(96, 288));
 }
 
-void Hint::bakeNote()
+void Hint::bakeNote(const std::string& inLanguage)
 {
 	Engine& engine = Engine::inst();
 
-	const std::string wanted = p_font->adjustText(localizeString(text), TEXT_WIDTH);
+	const std::string localized = inLanguage.empty() ? engine.localizeString(text) : engine.localizeString(text, inLanguage);
+	const std::string wanted = p_font->adjustText(localized, TEXT_WIDTH);
 	if(noteTexture && wanted == bakedText) return;
 
 	// Its own texture, not a shared one: on the step from one note to its
@@ -407,7 +408,7 @@ void Hint::onRender(RenderLayer layer,
 		{
 			// Sheet and writing bake into one texture, so the writing turns and
 			// rolls up with the paper; re-made whenever the text changes.
-			bakeNote();
+			bakeNote(layer == RL_HINT_PREVIEW ? previewLanguage : "");
 
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
@@ -545,6 +546,11 @@ void Hint::saveAttributes(TiXmlElement* p_target)
 const std::string& Hint::getText() const
 {
 	return text;
+}
+
+void Hint::setPreviewLanguage(const std::string& language)
+{
+	previewLanguage = language;
 }
 
 void Hint::setText(const std::string& text)

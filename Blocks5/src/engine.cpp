@@ -4445,6 +4445,19 @@ std::string Engine::localizeString(const std::string& text)
 	return expandBindings(localizeStringRaw(text));
 }
 
+std::string Engine::localizeString(const std::string& text,
+								   const std::string& inLanguage)
+{
+	// The language is swapped for the duration, the way localizeStringRaw()
+	// falls back to English inside: so the lookup, the section picked and
+	// the key names the bindings expand to all follow the one asked for.
+	const std::string active = language;
+	language = inLanguage;
+	const std::string result = localizeString(text);
+	language = active;
+	return result;
+}
+
 std::string Engine::localizeStringRaw(const std::string& text)
 {
 	if(!text.empty())
