@@ -363,8 +363,11 @@ if needs editor help editbox editor-select editor-connect star; then
 		b5_click Menu.LevelEditor
 	fi
 	b5_waitForState GS_LevelEditor
+	# The palette's category is in every frame of this group, so the click
+	# that picks it is not the editor scene's own: a run asked for editbox
+	# alone has to show the palette the full run shows.
+	b5_click LevelEditor.Cat1
 	if wanted editor; then
-		b5_click LevelEditor.Cat1
 		b5_frame editor now
 		b5_release
 	fi

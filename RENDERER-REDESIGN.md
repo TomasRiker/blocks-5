@@ -673,31 +673,33 @@ parentheses:
 
 | scene | draw calls / frame (stage 1) | batch draws / frame | quads / draw | what ended the batches |
 | --- | ---: | ---: | ---: | --- |
-| `menu` | 29.0 (47.0) | 29.5 | 64.1 | texture 1638, explicit 142, frame 63, direct 14 |
-| `options` | 71.0 (209.0) | 71.0 | 55.2 | texture 3250, scope 200, explicit 50, frame 50 |
-| `crt` | 92.7 (290.7) | 92.7 | 56.6 | texture 1764, blend 14, scope 126, explicit 21, frame 21 |
-| `manager` | 58.0 (253.0) | 58.0 | 88.5 | texture 1224, blend 24, scope 96, explicit 24, frame 24 |
-| `star` | 37.5 (54.7) | 38.6 | 51.5 | texture 2841, blend 61, scope 69, explicit 191, frame 84 |
-| `editor` | 63.0 (89.0) | 63.0 | 32.0 | texture 342, scope 12, explicit 18, frame 6 |
-| `help` | 73.0 (106.0) | 73.0 | 80.6 | texture 390, scope 30, explicit 12, frame 6 |
-| `editbox` | 95.0 (214.0) | 95.0 | 42.1 | texture 450, scope 102, explicit 12, frame 6 |
-| `editor-select` | 56.0 (84.0) | 56.0 | 36.6 | texture 100, scope 4, explicit 6, frame 2 |
-| `editor-connect` | 54.0 (82.0) | 54.0 | 35.8 | texture 550, explicit 33, frame 11 |
-| `select` | 28.0 (58.0) | 28.0 | 53.7 | texture 1887, blend 111, scope 777, explicit 222, frame 111 |
-| `cube` | 27.1 (51.2) | 27.6 | 47.9 | texture 1785, blend 105, scope 643, explicit 256, frame 105 |
-| `night` | 24.0 (33.0) | 24.0 | 31.6 | texture 3043, blend 179, scope 537, explicit 358, frame 179 |
-| `plain` | 16.4 (25.3) | 16.4 | 31.6 | texture 791, blend 11, explicit 120, frame 60 |
-| `lava` | 24.2 (37.2) | 24.2 | 32.4 | texture 8477, blend 465, scope 930, explicit 930, frame 465 |
-| `toxic` | 21.0 (29.0) | 21.0 | 183.4 | texture 848, blend 53, explicit 159, frame 53 |
-| `hint` | 18.0 (28.0) | 18.0 | 62.4 | texture 870, explicit 116, frame 58 |
-| `loading` | 1.0 (1.1) | 1.0 | 2.3 | texture 2, frame 123 |
-| `credits` | 402.6 (402.6) | 402.9 | 1.0 | texture 140, explicit 56161, frame 87, direct 19 |
+| `menu` | 29.0 (47.0) | 29.4 | 64.2 | texture 3250, explicit 279, frame 125, direct 27 |
+| `options` | 71.0 (209.0) | 71.0 | 55.2 | texture 4940, scope 304, explicit 76, frame 76 |
+| `crt` | 92.7 (290.7) | 92.7 | 56.6 | texture 3024, blend 26, scope 216, explicit 36, frame 36 |
+| `manager` | 58.0 (253.0) | 58.0 | 88.6 | texture 3060, blend 60, scope 240, explicit 60, frame 60 |
+| `star` | 35.6 (54.7) | 36.4 | 55.1 | texture 3813, blend 97, scope 69, explicit 263, frame 120 |
+| `editor` | 63.0 (89.0) | 63.0 | 32.0 | texture 570, scope 20, explicit 30, frame 10 |
+| `help` | 73.0 (106.0) | 73.0 | 80.6 | texture 130, scope 10, explicit 4, frame 2 |
+| `editbox` | 95.0 (214.0) | 95.0 | 42.1 | texture 825, scope 187, explicit 22, frame 11 |
+| `editor-select` | 56.0 (84.0) | 56.0 | 36.7 | texture 600, scope 24, explicit 36, frame 12 |
+| `editor-connect` | 54.0 (82.0) | 54.0 | 35.8 | texture 450, explicit 27, frame 9 |
+| `select` | 28.0 (58.0) | 28.0 | 53.7 | texture 1938, blend 114, scope 798, explicit 228, frame 114 |
+| `cube` | 27.2 (51.2) | 27.6 | 48.2 | texture 1870, blend 110, scope 678, explicit 266, frame 110 |
+| `night` | 24.0 (33.0) | 24.0 | 31.6 | texture 3519, blend 207, scope 621, explicit 414, frame 207 |
+| `plain` | 16.4 (25.3) | 16.4 | 31.6 | texture 817, blend 11, explicit 124, frame 62 |
+| `lava` | 24.2 (37.2) | 24.2 | 32.5 | texture 9233, blend 506, scope 1012, explicit 1012, frame 506 |
+| `toxic` | 21.0 (29.0) | 21.0 | 183.4 | texture 864, blend 54, explicit 162, frame 54 |
+| `hint` | 18.0 (28.0) | 18.0 | 62.4 | texture 825, explicit 110, frame 55 |
+| `loading` | 1.0 (1.1) | 1.0 | 2.9 | texture 3, frame 123 |
+| `credits` | 402.6 (402.6) | 402.9 | 1.0 | texture 136, explicit 54554, frame 83, direct 16 |
 
 Every draw the game makes is one of the renderer's flushes now, so the two
 counts agree to the frame; where `batch` is the larger - `menu`, `star`,
 `cube`, `credits` - the excess is the crossfade, which `mainLoopIteration`
 draws after `render()` has returned and the link count has closed, and its
-`direct` flushes are the frame-buffer binds around the captures. The dialogs
+`direct` flushes are the frame-buffer binds around the captures. Those three
+scenes and `menu` average over a window with a fade in it, and their averages
+move by a few tenths from one run to the next; their frames do not. The dialogs
 fell by two thirds to three quarters - `options` 209 to 71, `crt` 291 to 93,
 `manager` 253 to 58, `editbox` 214 to 95 - because a dialog's frames, strings
 and sprites share a draw until the texture changes; the level scenes by a
