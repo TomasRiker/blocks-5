@@ -7,9 +7,9 @@
 // uv, colour - into a stream of 32-byte vertices and drawn with the next
 // flush, which happens only where the state a quad is drawn under changes
 // (the texture or the blend, see renderstate.h), where a scope begins or
-// ends, where the stream is full, or where something raw needs the screen
-// in order. RENDERER-REDESIGN.md is the design, .claude/rules/rendering.md
-// what the two modes of the interim are; renderer.cpp carries the reasons.
+// ends, where the stream is full, or where raw GL is about to read or
+// replace what was drawn. RENDERER-REDESIGN.md is the design; renderer.cpp
+// carries the reasons.
 
 #include "renderstate.h"
 
@@ -17,6 +17,15 @@
 struct Vertex
 {
 	Vec2f position;
+	Vec2f uv;
+	Vec4f color;
+};
+
+// The 3D vertex of the crossfades and the credits: 36 bytes, drawn through
+// quads3D under a matrix of the caller's own.
+struct Vertex3
+{
+	Vec3f position;
 	Vec2f uv;
 	Vec4f color;
 };
@@ -45,9 +54,9 @@ public:
 		FR_BLEND,     // the next quad blends differently
 		FR_SCOPE,     // a scope began or ended
 		FR_FULL,      // the stream held its 16384 quads
-		FR_EXPLICIT,  // flush() from outside, before a copy, a clear or a delete
+		FR_EXPLICIT,  // flush() from outside, a clear, a copy, a 3D draw, a target switch
 		FR_FRAME,     // the end of the frame
-		FR_DIRECT,    // a draw call inside a DirectGL bracket, or a bracket opening
+		FR_DIRECT,    // a DirectGL bracket opening
 		FR_COUNT
 	};
 
@@ -63,26 +72,25 @@ public:
 	// where the program will not link.
 	void init();
 
-	// Per frame: the frame buffer's 640x480 projection, the stack on the
-	// identity.
-	void frameBegin();
+	// Per frame: the frame's projection, the stack on the identity, no
+	// scissor.
+	void frameBegin(const Vec2i& size);
 	void frameEnd();
 
-	// Another projection for the length of a render-to-texture; flushes.
-	void setProjection(const Mat4& matrix);
-	const Mat4& getProjection() const { return projection; }
+	// A target of another size for the length of a bake, which
+	// Engine::beginRenderToTexture binds the framebuffer around: its
+	// projection, an identity transform on top of the stack, the scissor
+	// suspended; endTarget puts all three back. Both flush.
+	void beginTarget(const Vec2i& size);
+	void endTarget();
 
 	// --- the state a quad is drawn under ---------------------------------
 	//
-	// "Texturing off" is the white texel; the bound texture is remembered
-	// across it. setTexture binds for real whatever the mode, so that a raw
-	// upload or copy right after it lands in that texture.
+	// setTexture binds for real as well, so that a raw upload or copy right
+	// after it lands in that texture.
 	void setTexture(const TextureRef& texture);
-	void setTexturing(bool on);
 	void setBlend(BlendMode blend);
 	const RenderState& state() const { return current; }
-	const TextureRef& boundTexture() const { return bound; }
-	bool texturing() const { return texturingOn; }
 
 	// glDeleteTextures for one, after a flush.
 	void deleteTexture(uint id);
@@ -90,7 +98,7 @@ public:
 	// --- the transform, baked on the CPU -----------------------------------
 	//
 	// A 2D affine stack, applied at submission, so a change of it never
-	// breaks a batch. Inside a DirectGL it moves GL's modelview as well.
+	// breaks a batch.
 	void push();
 	void pop();
 	void translate(double x, double y);
@@ -108,18 +116,37 @@ public:
 				int u0, int u1, int v0, int v1,
 				const Vec4d& color, double rotation, double scaling);
 
-	// A built array of quads under one colour: the tile grid, the font.
+	// A built array of quads under one colour: the tile grid, the font, the
+	// GUI's frames.
 	void quads(const RenderState& s, const QuadVertex* p_vertices, uint count, const Vec4f& color);
 
 	// The same from positions alone, flat: the font's keycap frames.
 	void quads(const Vec2f* p_positions, uint count, const Vec4f& color);
 
-	// Quads with a colour per vertex: the particle systems.
+	// Quads with a colour per vertex: the particle systems, the toxic grid.
 	void quads(const RenderState& s, const Vertex* p_vertices, uint count);
 
-	// One quad from four corners in order, one colour or a colour a corner.
+	// A quad whose texture coordinates go through a matrix first, in the
+	// float arithmetic GL's texture matrix used: the weather and the menu's
+	// clouds scroll that way. The matrix starts from the texture's texel
+	// scale (Mat4::scaling), as the matrix under a bind did.
+	void scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
+
+	// One quad from four corners in order, one colour or a colour a corner;
+	// the last is flat with a colour a corner, the GUI's gradients.
 	void quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
 	void quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f* p_colors);
+	void quad(const Vec2f* p_corners, const Vec4f* p_colors);
+
+	// Triangles, three vertices each: the hint's note mesh, the star wipe,
+	// the scrollbar arrows.
+	void triangles(const RenderState& s, const Vertex* p_vertices, uint count);
+	void triangles(const Vec2f* p_positions, const Vec4f* p_colors, uint count);
+
+	// Quads in 3D under a matrix of the caller's own, projection included
+	// (vec.h's Mat4 builds one as GL did), each call one draw: the four 3D
+	// crossfades and the credits' stars. The 2D stack does not apply.
+	void quads3D(const RenderState& s, const Mat4& transform, const Vertex3* p_vertices, uint count, bool cullBackFaces);
 
 	// Flat geometry, all under the current blend; a point is the disc of
 	// the built-in texture.
@@ -129,18 +156,33 @@ public:
 	void polyline(const std::vector<Vec2f>& points, float width, const Vec4f& color, bool closed = false);
 	void point(const Vec2f& p, float size, const Vec4f& color);
 
+	// A one-pixel line on the pixels GL's rasterizer lit for it, and the
+	// four of a rectangle's outline; the colour runs from a to b.
+	void hairline(const Vec2f& a, const Vec2f& b, const Vec4f& colorA, const Vec4f& colorB);
+	void hairline(const Vec2f& a, const Vec2f& b, const Vec4f& color) { hairline(a, b, color, color); }
+	void hairlineRect(const Vec2f& min, const Vec2f& max, const Vec4f& color);
+
+	// A dashed polyline: `on` units drawn, `off` skipped, from `phase`
+	// along the path - the editor's marching ants.
+	void dashes(const std::vector<Vec2f>& points, float width, const Vec4f& color,
+				float on, float off, float phase, bool closed);
+
 	// Put up everything queued, under the state it was queued against.
 	void flush(FlushReason reason = FR_EXPLICIT);
 
-	// Clears flush first, because they replace what was drawn.
+	// Clears flush first, because they replace what was drawn; the scissor
+	// and the mask apply to them as to a draw.
 	void clear(const Vec4f& color);
 	void clearStencil();
+
+	// The target's pixels from its origin, size wide, into a texture at
+	// destination, after a flush.
+	void copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size);
 
 	// --- the rare state, as scopes ------------------------------------------
 	//
 	// Each flushes at both ends and puts the previous value back. Drawing
-	// inside one is ordinary batched drawing; none may be open where a
-	// DirectGL begins.
+	// inside one is ordinary batched drawing.
 
 	class ColorMaskScope
 	{
@@ -175,9 +217,22 @@ public:
 		~DiscardTransparentScope();
 	};
 
-	// Raw GL for the length of a bracket: the constructor flushes and sets
-	// the fixed function up, the destructor makes the renderer forget what
-	// GL holds. Nests; only the outermost does anything.
+	// Clip to a rectangle of the target, top-left origin; one inside
+	// another clips to their intersection.
+	class ScissorScope
+	{
+	public:
+		ScissorScope(const Vec2i& position, const Vec2i& size);
+		~ScissorScope();
+	private:
+		bool previousOn;
+		Vec2i previousPosition;
+		Vec2i previousSize;
+	};
+
+	// Raw GL for the length of a bracket: the constructor flushes, so that
+	// what the raw code reads or replaces is on the target, and the
+	// destructor makes the renderer forget what GL holds.
 	class DirectGL
 	{
 	public:
@@ -185,20 +240,7 @@ public:
 		~DirectGL();
 	};
 
-	// The other way round: batched drawing inside a DirectGL, starting from
-	// GL's modelview as the raw code left it. Nothing where none is open.
-	class Batched
-	{
-	public:
-		Batched();
-		~Batched();
-	private:
-		int suspended;
-	};
-
-	bool inDirectGL() const { return directDepth > 0; }
-
-	// Forget what GL is holding, and nothing else (presentFrame).
+	// Forget what GL is holding, and nothing else.
 	void invalidate();
 
 	// --- measuring ----------------------------------------------------------
@@ -221,25 +263,31 @@ private:
 		bool translationOnly;
 	};
 
+	// What beginTarget saves for endTarget.
+	struct Target
+	{
+		Mat4 projection;
+		Vec2i size;
+		bool scissorOn;
+		Vec2i scissorPosition;
+		Vec2i scissorSize;
+	};
+
 	void submit(const RenderState& s, const double* p_x, const double* p_y,
 				const float* p_u, const float* p_v, const Vec4f* p_colors);
 	void submitFlat(const double* p_x, const double* p_y, const Vec4f& color);
-	// The end of every public draw call: inside a DirectGL it goes up at once.
-	void endCall();
+	// A quad already in the target's pixels.
+	void pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors);
 	void requireState(const RenderState& s);
+	void applyRareState();
 	void applyState();
 	void draw();
 	void checkRecord();
 	void bakePoint(double x, double y, float* p_outX, float* p_outY) const;
 	RenderState flatState() const;
-	// The GL calls behind the state, issued only where GL does not hold it.
 	void bindReal(uint id);
-	void applyTexelScale(const Vec2f& scale);
-	void applyTexturing(bool on);
 	void applyBlendMode(BlendMode blend);
-	// The fixed-function pipeline as raw code expects it: DirectGL's entry
-	// and Batched's exit.
-	void enterDirect();
+	void applyScissor();
 
 	// What is queued, and what it was queued against.
 	std::vector<Vertex> stream;
@@ -247,26 +295,23 @@ private:
 
 	// The state the next quad is drawn under.
 	RenderState current;
-	TextureRef bound;
-	bool texturingOn;
 
 	std::vector<Transform> transforms;
-	// GL's modelview, read at the first draw of a call inside a DirectGL.
-	bool directMatrixKnown;
-	float directMatrix[16];
 
 	// The rare state as the scopes left it.
 	bool colorMask[4];
 	int stencilWriteRef;   // -1 for none
 	int stencilTestRef;    // -1 for none
 	bool discardTransparent;
-	int scopeDepth;
-	int directDepth;
+	bool scissorOn;
+	Vec2i scissorPosition;
+	Vec2i scissorSize;
+
+	Vec2i targetSize;
+	std::vector<Target> targets;
 
 	// GL objects, and what GL is believed to hold. glKnown covers the program,
-	// its buffers and arrays, and the rare state; the binding, the texel
-	// scale, the texturing enable and the blend are known on their own, since
-	// every door to them comes through here, and so survive a raw section.
+	// its buffers and arrays; the rest is known on its own.
 	uint program;
 	uint vertexBuffer;
 	uint indexBuffer;
@@ -275,16 +320,17 @@ private:
 	int uniformTexture;
 	int uniformDiscard;
 	bool glKnown;
+	bool glRareKnown;
 	uint glBinding;
 	bool glBindingKnown;
-	Vec2f glTexelScale;
-	bool glScaleKnown;
-	int glTexturing;       // -1 unknown, else 0 or 1
 	BlendMode glBlend;
 	bool glBlendKnown;
 	bool glWriteMask[4];
 	int glStencilWriteRef;
 	int glStencilTestRef;
+	bool glScissorOn;
+	Vec2i glScissorPosition;
+	Vec2i glScissorSize;
 	bool glDiscard;
 	Mat4 projection;
 	bool projectionDirty;

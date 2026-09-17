@@ -61,7 +61,7 @@ Four things run here, none needing Windows. Run at least the first two after any
 minute together.
 
 ```
-python3 Tools/verify.py      twenty-four static checks over the whole tree
+python3 Tools/verify.py      twenty-two static checks over the whole tree
 sh Tools/syntax.sh           compile every source with mingw (-fsyntax-only)
 LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
@@ -119,16 +119,18 @@ browser they are core and the header `#define`s them through.
 
 **Rules every source obeys**, each argued in its rule file:
 
-- **The level draws through `Renderer` and nothing else; raw GL inside it stands in a
-  `Renderer::DirectGL` bracket.** A quad handed to the renderer is queued and put up at the next flush,
-  and a `glBegin` in an `onRender` without the bracket lands underneath what was queued before it;
-  texture state goes through the renderer or `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`),
-  never raw (`rendering.md`).
+- **Everything draws through `Renderer`, and raw GL lives in the files that own it** - the renderer
+  itself, the texture upload, the engine's framebuffer and present, the present filters, the loader and
+  the browser shims. A quad handed to the renderer is queued and put up at the next flush, so a raw
+  draw anywhere else would land underneath what was queued before it and a raw state change would
+  fool the renderer's record; in `texture.cpp` and `engine.cpp` a raw call stands inside a
+  `Renderer::DirectGL` bracket, which flushes first and forgets what GL holds after (`rendering.md`).
 - **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`
   parts, whose base sets `RL_WIRE`; assigning wipes the bit and nothing says so — and a render layer is
   an `RL_*` name, never a number (`rendering.md`).
-- **No display lists and no `GL_QUAD_STRIP`**: WebGL has neither, and the browser is the build nobody
-  runs first (`rendering.md`, `objects.md`).
+- **No display lists, no `GL_QUADS`, no wide lines, no alpha test**: WebGL has none of them, and the
+  browser is the build nobody runs first. The rule above is what keeps them out, since nothing outside
+  the renderer can reach GL to ask (`rendering.md`).
 - **Nothing in a render path draws a random number**; per-tick jitter comes from `frameBegin()` and
   `Level::update()`, so a frame stays reproducible from a seed (`objects.md`).
 - **Anything that reads the rendered frame binds the FBO itself** (`rendering.md`).
@@ -144,9 +146,9 @@ browser they are core and the header `#define`s them through.
 - Every `src/*.cpp` uses the precompiled header: `#include "pch.h"` must be the first line (`pch.cpp`
   is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, GLU, OpenAL, libvorbis,
   TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers (`singleton.h`, `vec.h`,
-  `typedefs.h`, `util.h`, `manager.h`, `glstate.h`), so don't re-include those. `glstate.h` is in that
-  list rather than per file because every source that draws reaches `GL::`, and a forgotten include is
-  then the one way to get a raw `glBindTexture` past the `gl_state` check.
+  `typedefs.h`, `util.h`, `manager.h`, `renderer.h`), so don't re-include those. `renderer.h` is in that
+  list rather than per file because every source that draws anything reaches `Renderer`, the one way
+  to put a pixel on the screen.
 - There is no glob-based build: a new source file must be added to `Blocks5/Blocks5.vcxproj` **and**
   `Blocks5.vcxproj.filters`. `Tools/verify.py` checks this — nothing else will, since the Emscripten
   build globs `src/*.cpp` and so never notices.
@@ -163,14 +165,14 @@ browser they are core and the header `#define`s them through.
 
   ```
   sh Tools/compile_db.sh
-  clang-rename-18 -i --qualified-name='Texture::bind' --new-name='...' Blocks5/src/*.cpp
+  clang-rename-18 -i --qualified-name='Texture::ref' --new-name='...' Blocks5/src/*.cpp
   ```
 
   The reason is not tidiness. A `sed` over `GLState::` → `GL::` also rewrites `GLState::GLState`, the
   constructor of the struct of that name — measured: `clang-rename` asked for the same namespace rename
   leaves that line alone, and `sed` breaks it. The same shape waits wherever a member, a local or a word
   inside a comment or string literal shares a name with the thing being renamed. What saves a blind
-  replacement here is that `Tools/syntax.sh` compiles all 124 sources in seconds, so the mistake is a
+  replacement here is that `Tools/syntax.sh` compiles all 122 sources in seconds, so the mistake is a
   compile error rather than a silent one — but that is a backstop, not a method, and it catches nothing
   that still compiles.
 - **A comment says what the code does and why, never what it used to do.** The reader is looking at the
@@ -225,7 +227,7 @@ and do not repeat it.
 | `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
 | `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, `?texunits` |
-| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `glstate`, `particlesystem`, `lava`, `lightning`, the GL shims | the renderer, its two modes and brackets, what it bakes and why it is byte-exact, `GL::`, browser colour, render layers, display lists, the FBO bind rule, texture wrapping |
+| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades, the GL shims | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, texture wrapping |
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |

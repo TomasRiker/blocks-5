@@ -39,7 +39,7 @@ private:
 	// The paper as a strip of quads: flat in the middle, rolled up at the top
 	// and at the bottom. unroll runs from 0 (fully rolled up) to 1 (flat).
 	void renderNote(const Vec4d& color, double unroll) const;
-	void renderNoteMesh(const Vec4d& color, double unroll) const;
+	void renderNoteMesh(const RenderState& state, const Vec4d& color, double unroll) const;
 
 	std::string text;
 	double alpha;

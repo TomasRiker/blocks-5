@@ -2207,14 +2207,17 @@ build and delete `gl_immediate.cpp` with it. Items 42 and 41 fall out of it
 (the vertex-stage clamp, the shader path shadows needed); item 51, the atlas,
 becomes a uv offset and stays separate.
 
-Stages 0 and 1 have landed (the plan's sections 9 and 10 record them): the
-oracle's nineteen scenes and their baseline, then `Renderer` under the level
+Stages 0, 1 and 2 have landed (the plan's sections 9, 10 and 11 record them):
+the oracle's nineteen scenes and their baseline; `Renderer` under the level
 with every sprite, string, tile, particle, beam and lightning bolt through it,
-the sprite batch, `quadarray.*` and `LineDrawer` deleted, and the screens
-outside the level still raw inside `Renderer::DirectGL` brackets. Sixteen
-scenes are byte-identical to the baseline; the other three differ by the beam
-end points, now discs, and the lightning's quad diagonal. Item 42 is closed by
-it. Stages 2 and 3 remain.
+the sprite batch, `quadarray.*` and `LineDrawer` deleted; then every remaining
+`glBegin` - the GUI, the game states, the weather, the toxic grid, the hint's
+note, the crossfades, the credits - so that raw GL survives only in the files
+that own it and `GL::`, `Texture::bind()` and the renderer's direct mode are
+gone. Eight scenes are byte-identical to the baseline and the rest differ only
+by the plan's listed causes: the beam end points, now discs, the lightning's
+diagonal, the smoothed editor lines, and a last-place rounding of the vertex
+stage. Item 42 is closed by it. Stage 3, the emulator, remains.
 
 
 How these connect

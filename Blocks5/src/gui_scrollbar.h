@@ -14,6 +14,8 @@ public:
 	~GUI_ScrollBar();
 
 	void onRender();
+	Vec2f corner(int along, int across) const;
+	void gradient(int from, int to, const Vec4f& colorFrom, const Vec4f& colorTo) const;
 	void onUpdate();
 	void onMouseDown(const Vec2i& position, int buttons);
 	void onMouseUp(const Vec2i& position, int buttons);

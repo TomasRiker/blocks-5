@@ -140,17 +140,18 @@ void Presets::renderPreset(const std::string& name,
 {
 	Engine& engine = Engine::inst();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	glTranslated(position.x, position.y, 0.0);
+	// From the screen's origin, whatever the caller stood under.
+	Renderer& renderer = Renderer::inst();
+	renderer.push();
+	renderer.loadIdentity();
+	renderer.translate(position.x, position.y);
 
 	Vec2i t = texCoords[name];
 	bool mirrorX = t.x < 0;
 	if(mirrorX) t.x = -t.x;
 	engine.renderSprite(p_sprites, Vec2i(0, 0), t, Vec2i(16, 16), color, mirrorX);
 
-	glPopMatrix();
+	renderer.pop();
 }
 
 Object* Presets::instancePreset(const std::string& name,

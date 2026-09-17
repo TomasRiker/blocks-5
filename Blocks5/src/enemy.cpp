@@ -83,9 +83,9 @@ void Enemy::onRender(RenderLayer layer,
 			// The devil's face floats. Its image rises with the height while
 			// its shadow stays on the ground and grows fainter. That is a
 			// matter of the pass and therefore does not belong in the sprites.
-			// Object::render brackets the whole thing in glPushMatrix.
+			// Object::render brackets the whole thing in a push of its own.
 			if(shadowPass) realColor.a /= 1.0 + 0.25 * height;
-			else glTranslated(0.0, static_cast<int>(-height), 0.0);
+			else Renderer::inst().translate(0.0, static_cast<int>(-height));
 		}
 
 		Engine::inst().renderSprites(sprites, realColor);

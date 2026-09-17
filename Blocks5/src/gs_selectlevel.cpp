@@ -25,42 +25,36 @@ GS_SelectLevel::~GS_SelectLevel()
 
 void GS_SelectLevel::onRender()
 {
+	Renderer& renderer = Renderer::inst();
+	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+	const Vec2f preview[4] = {Vec2f(280.0f, 60.0f), Vec2f(600.0f, 60.0f), Vec2f(600.0f, 260.0f), Vec2f(280.0f, 260.0f)};
+
 	// render the background image
-	p_background->bind();
-	glBegin(GL_QUADS);
-	glColor3d(1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(640, 0);
-	glVertex2i(640, 0);
-	glTexCoord2i(640, 480);
-	glVertex2i(640, 480);
-	glTexCoord2i(0, 480);
-	glVertex2i(0, 480);
-	glEnd();
-	GL::setTexturing(false);
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+	renderer.setTexture(p_background->ref());
+	renderer.quad(renderer.state(), screen, screen, white);
 
 	int status = 0;
 	if(p_currentLevel)
 	{
 		status = getLevelStatus(currentLevel);
 
-		// render the level preview
-		glEnable(GL_SCISSOR_TEST);
-		glScissor(280, 480 - 60 - 200, 320, 200);
-		glPushMatrix();
-		glTranslated(280.0, 60.0, 0.0);
-		glScaled(0.5, 0.5, 1.0);
-		p_currentLevel->render();
-		glPopMatrix();
-		glDisable(GL_SCISSOR_TEST);
+		// render the level preview at half size, clipped to its frame
+		{
+			Renderer::ScissorScope clip(Vec2i(280, 60), Vec2i(320, 200));
+			renderer.push();
+			renderer.translate(280.0, 60.0);
+			renderer.scale(0.5, 0.5);
+			p_currentLevel->render();
+			renderer.pop();
+		}
 
 		// write the level's name
 		Font* p_font = GUI::inst().getFont();
 		Vec2i dim;
 		const std::string title = localizeString(p_currentLevel->getTitle());
 		const std::string shown = status ? title : std::string("???");
-		// As wide as the preview above it (the glScissor above), because the
+		// As wide as the preview above it (the clip above), because the
 		// name sits centred under it. Anything wider runs left into the
 		// description and right off the picture: renderText() clips nothing.
 		const int captionWidth = 320;
@@ -88,24 +82,10 @@ void GS_SelectLevel::onRender()
 	}
 	else
 	{
-		glBegin(GL_QUADS);
-		glColor4d(0.0, 0.0, 0.0, 0.75);
-		glVertex2i(280, 60);
-		glVertex2i(280 + 320, 60);
-		glVertex2i(280 + 320, 60 + 200);
-		glVertex2i(280, 60 + 200);
-		glEnd();
+		renderer.rect(preview[0], preview[2], Vec4f(0.0f, 0.0f, 0.0f, 0.75f));
 	}
 
-	glDisable(GL_LINE_SMOOTH);
-	glLineWidth(1.0f);
-	glBegin(GL_LINE_LOOP);
-	glColor4d(0.0, 0.0, 0.0, 0.5);
-	glVertex2i(280, 60);
-	glVertex2i(280 + 320, 60);
-	glVertex2i(280 + 320, 60 + 200);
-	glVertex2i(280, 60 + 200);
-	glEnd();
+	renderer.hairlineRect(preview[0], preview[2], Vec4f(0.0f, 0.0f, 0.0f, 0.5f));
 
 	Font* p_font = GUI::inst().getFont();
 
@@ -114,13 +94,7 @@ void GS_SelectLevel::onRender()
 		if(status == 0 || status == -1)
 		{
 			// darken the level
-			glBegin(GL_QUADS);
-			glColor4d(0.0, 0.0, 0.0, 0.9);
-			glVertex2i(280, 60);
-			glVertex2i(280 + 320, 60);
-			glVertex2i(280 + 320, 60 + 200);
-			glVertex2i(280, 60 + 200);
-			glEnd();
+			renderer.rect(preview[0], preview[2], Vec4f(0.0f, 0.0f, 0.0f, 0.9f));
 
 			std::string text;
 			if(status == 0) text = localizeString("$LS_LEVEL_LOCKED");
@@ -142,13 +116,8 @@ void GS_SelectLevel::onRender()
 	// a fault. The label above it disappears with it, in handleClick().
 	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{
-		glBegin(GL_QUADS);
-		glColor4d(0.0, 0.0, 0.0, 0.5);
-		glVertex2i(40, 240);
-		glVertex2i(260, 240);
-		glVertex2i(260, 260);
-		glVertex2i(40, 260);
-		glEnd();
+		const Vec2f barMin(40.0f, 240.0f), barMax(260.0f, 260.0f);
+		renderer.rect(barMin, barMax, Vec4f(0.0f, 0.0f, 0.0f, 0.5f));
 
 		uint n = getNumLevelsCompleted();
 		double p = static_cast<double>(n) / static_cast<double>(p_currentCampaign->getLevels().size());
@@ -161,14 +130,13 @@ void GS_SelectLevel::onRender()
 			r = max(0.2, r);
 			g = max(0.2, g);
 
-			glBegin(GL_QUADS);
-			glColor4d(r, g, 0.0, 0.9);
-			glVertex2i(40 + pi, 240);
-			glVertex2i(40 + pi, 260);
-			glColor4d(r, g, 0.0, 0.5);
-			glVertex2i(40, 260);
-			glVertex2i(40, 240);
-			glEnd();
+			// Its own corner order, from the moving end back to the fixed
+			// one, so the fade runs across the bar as it did.
+			const Vec4f front(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.9f);
+			const Vec4f back(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.5f);
+			const Vec2f corners[4] = {Vec2f(40 + pi, 240.0f), Vec2f(40 + pi, 260.0f), Vec2f(40.0f, 260.0f), Vec2f(40.0f, 240.0f)};
+			const Vec4f colors[4] = {front, front, back, back};
+			renderer.quad(corners, colors);
 		}
 
 		Vec2i dim;
@@ -177,16 +145,8 @@ void GS_SelectLevel::onRender()
 		p_font->measureText(text, &dim, 0);
 		p_font->renderText(text, Vec2i(150, 249) - dim / 2, Vec4d(1.0));
 
-		glBegin(GL_LINE_LOOP);
-		glColor4d(0.0, 0.0, 0.0, 0.5);
-		glVertex2i(40, 240);
-		glVertex2i(260, 240);
-		glVertex2i(260, 260);
-		glVertex2i(40, 260);
-		glEnd();
+		renderer.hairlineRect(barMin, barMax, Vec4f(0.0f, 0.0f, 0.0f, 0.5f));
 	}
-
-	glEnable(GL_LINE_SMOOTH);
 }
 
 void GS_SelectLevel::onUpdate()

@@ -109,9 +109,8 @@ void Lightning::drawPass(int pass, const Vec4f& color)
 	if(p.mainBranch.empty()) return;
 
 	Renderer& renderer = Renderer::inst();
-	p_lineTexture->bind();
+	renderer.setTexture(p_lineTexture->ref());
 	renderer.quads(renderer.state(), &p.mainBranch[0], static_cast<uint>(p.mainBranch.size()), color);
-	GL::setTexturing(false);
 
 	// The end point of the main branch, as a single point of the same width.
 	// It goes between the two batches and not after them, because the other
@@ -120,9 +119,7 @@ void Lightning::drawPass(int pass, const Vec4f& color)
 
 	if(!p.otherBranches.empty())
 	{
-		p_lineTexture->bind();
 		renderer.quads(renderer.state(), &p.otherBranches[0], static_cast<uint>(p.otherBranches.size()), color);
-		GL::setTexturing(false);
 	}
 }
 

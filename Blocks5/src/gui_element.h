@@ -24,8 +24,12 @@ public:
 	void render();
 	void update();
 	virtual void onRender();
-	virtual void onRenderEnd();
 	virtual void onUpdate();
+
+	// The rectangle the children are clipped to, in the element's own
+	// coordinates; false for none. render() opens the renderer's scissor
+	// scope around the children for it.
+	virtual bool getClipRect(Vec2i* p_position, Vec2i* p_size) const;
 
 	// Any element can point at another one (for="Name"), as <label for="...">
 	// does in a browser. On a checkbox or a radio button a click on the
@@ -97,6 +101,7 @@ public:
 
 protected:
 	bool useSkin() const;
+	void renderChildren();
 
 	// The linked element, looked up relative to this element's own parent.
 	// 0 when nothing is linked or the name points nowhere.

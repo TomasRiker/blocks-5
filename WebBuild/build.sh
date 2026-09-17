@@ -7,14 +7,13 @@
 #   ./build.sh hooks      plus the test hooks
 #   ./build.sh asan       with AddressSanitizer, into build-asan/
 #
-# "hooks" compiles test_hooks.cpp, testhooks.cpp and engine.cpp with
-# -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, keeping a
-# build with hooks from ever becoming the shipped one by accident. Without the
-# word the first two translation units are empty and the third loses the
-# readback that says a sprite batch is being drawn under state it was not
-# queued under. glstate.cpp is deliberately not on the list: its own readback
-# is a getParameter per state call, which would swamp what perf.js measures -
-# see checkRecord() there.
+# "hooks" compiles test_hooks.cpp, testhooks.cpp, engine.cpp and renderer.cpp
+# with -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/,
+# keeping a build with hooks from ever becoming the shipped one by accident.
+# Without the word the first two translation units are empty and the other
+# two lose the test hook's counters. The renderer's read-back stays out of
+# the browser build either way: a getParameter per draw would swamp what
+# perf.js measures - see checkRecord() there.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GAME="$HERE/../Blocks5"

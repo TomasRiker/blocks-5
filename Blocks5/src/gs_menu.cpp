@@ -67,27 +67,19 @@ GS_Menu::~GS_Menu()
 
 void GS_Menu::onRender()
 {
+	Renderer& renderer = Renderer::inst();
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+
 	// render the colour gradient
-	glBegin(GL_QUADS);
-	glColor3d(0.5, 0.5, 1.0);
-	glVertex2i(0, 0);
-	glVertex2i(640, 0);
-	glColor3d(0.75, 0.7, 1.0);
-	glVertex2i(640, 480);
-	glVertex2i(0, 480);
-	glEnd();
+	{
+		const Vec4f top(0.5f, 0.5f, 1.0f, 1.0f), bottom(0.75f, 0.7f, 1.0f, 1.0f);
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(screen, colors);
+	}
 
-	// render the clouds
-	p_clouds->bind();
-
-	// The mode stays on GL_TEXTURE for the loop below, which is the one thing
-	// GL:: does not model: each layer scrolls on top of the picture's own
-	// scale inside a push and pop of its own.
-	glMatrixMode(GL_TEXTURE);
-
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_NOTEQUAL, 0.0f);
-
+	// render the clouds: each layer scrolls on top of the picture's own
+	// scale, a texture matrix of its own
+	const TextureRef clouds = p_clouds->ref();
 	for(int i = 2; i >= 0; i--)
 	{
 		double s[] = {1.0, 0.5, 0.25};
@@ -96,51 +88,24 @@ void GS_Menu::onRender()
 		// After the wobble, whose phase has to follow the unwrapped offset.
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
-		glPushMatrix();
-		glScaled(s[i], s[i], s[i]);
-		glTranslated(-x / s[i], 0.0, 0.0);
-		glRotated(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
-		glBegin(GL_QUADS);
-		const double c = 1.0 - 0.05 * i;
-		const double a = 0.4 - 0.05 * i;
-		glColor4d(c, c, c, a);
-		glTexCoord2i(0, 0);
-		glVertex2i(0, 0);
-		glTexCoord2i(640, 0);
-		glVertex2i(640, 0);
-		glTexCoord2i(640, 480);
-		glVertex2i(640, 480);
-		glTexCoord2i(0, 480);
-		glVertex2i(0, 480);
-		glEnd();
-		glPopMatrix();
+		Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0);
+		scroll.scale(s[i], s[i], s[i]);
+		scroll.translate(-x / s[i], 0.0, 0.0);
+		scroll.rotate(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
+		const float c = static_cast<float>(1.0 - 0.05 * i);
+		const float a = static_cast<float>(0.4 - 0.05 * i);
+		renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 	}
 
-	glDisable(GL_ALPHA_TEST);
-
-	GL::setTexturing(false);
-	glMatrixMode(GL_MODELVIEW);
-
 	// render the title level
-	glPushMatrix();
-	glTranslated(0.0, 65.0, 0.0);
+	renderer.push();
+	renderer.translate(0.0, 65.0);
 	p_titleLevel->render();
-	glPopMatrix();
+	renderer.pop();
 
 	// render the background image
-	p_background->bind();
-	glBegin(GL_QUADS);
-	glColor3d(1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(640, 0);
-	glVertex2i(640, 0);
-	glTexCoord2i(640, 480);
-	glVertex2i(640, 480);
-	glTexCoord2i(0, 480);
-	glVertex2i(0, 480);
-	glEnd();
-	GL::setTexturing(false);
+	renderer.setTexture(p_background->ref());
+	renderer.quad(renderer.state(), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void GS_Menu::onUpdate()

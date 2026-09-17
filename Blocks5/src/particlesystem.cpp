@@ -49,7 +49,7 @@ void ParticleSystem::render()
 
 	// TODO: parallelization: n threads each prepare a vertex buffer, which are then drawn one after another
 
-	p_sprites->bind();
+	Renderer::inst().setTexture(p_sprites->ref());
 
 	const uint count = static_cast<uint>(particles.size());
 	if(count > peakCount) peakCount = count;
@@ -125,8 +125,6 @@ void ParticleSystem::render()
 	}
 
 	if(p_vertex != p_vertexBuffer) renderer.quads(state, p_vertexBuffer, static_cast<uint>(p_vertex - p_vertexBuffer));
-
-	GL::setTexturing(false);
 
 #ifdef PROFILE_PARTICLESYSTEM_RENDER
 	END_PROFILE(renderParticleSystem)

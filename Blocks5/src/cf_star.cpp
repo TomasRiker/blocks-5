@@ -15,7 +15,7 @@ CF_Star::~CF_Star()
 {
 }
 
-void CF_Star::renderStar()
+void CF_Star::renderStar(const Vec4f& color)
 {
 	const int n = 5;
 	const double outerRadius = 1.0;
@@ -31,74 +31,53 @@ void CF_Star::renderStar()
 		angle += angleStep;
 	}
 
-	glBegin(GL_TRIANGLES);
+	Vec2f positions[2 * n * 3];
+	Vec4f colors[2 * n * 3];
 	for(int i = 0; i < 2 * n; i++)
 	{
-		glVertex2d(0.0, 0.0);
-		glVertex2dv(v[i]);
-		glVertex2dv(v[(i + 1) % (2 * n)]);
+		positions[i * 3] = Vec2f(0.0f, 0.0f);
+		positions[i * 3 + 1] = static_cast<Vec2f>(v[i]);
+		positions[i * 3 + 2] = static_cast<Vec2f>(v[(i + 1) % (2 * n)]);
+		colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = color;
 	}
-	glEnd();
+	Renderer::inst().triangles(positions, colors, 2 * n * 3);
 }
 
 void CF_Star::render(double t,
 					 uint oldImageID,
 					 uint newImageID)
 {
+	Renderer& renderer = Renderer::inst();
+	renderer.setBlend(BM_NORMAL);
+
 	// clear the stencil buffer
-	glClear(GL_STENCIL_BUFFER_BIT);
+	renderer.clearStencil();
 
 	// draw the old image
-	GL::setTexturing(true);
-	GL::bindTexture(oldImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex2i(screenSize.x, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex2i(screenSize.x, screenSize.y);
-	glTexCoord2i(0, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
-	GL::setTexturing(false);
+	drawImage(oldImageID, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 	// draw the star (border)
-	glPushMatrix();
-	glTranslated(screenSize.x / 2, screenSize.y / 2, 0.0);
+	const Vec4f black(0.0f, 0.0f, 0.0f, 1.0f);
+	renderer.push();
+	renderer.translate(screenSize.x / 2, screenSize.y / 2);
 	double size = t * t * 2 * screenSize.x;
-	glScaled(size, size, 1.0);
-	glRotated(t * 180.0, 0.0, 0.0, 1.0);
-	glColor4d(0.0, 0.0, 0.0, 1.0);
-	renderStar();
+	renderer.scale(size, size);
+	renderer.rotate(t * 180.0);
+	renderStar(black);
 
-	// draw the star into the stencil buffer
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_ALWAYS, 1, ~0);
-	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-	glScaled(0.9, 0.9, 1.0);
-	glColor4d(0.0, 0.0, 0.0, 1.0);
-	renderStar();
+	{
+		// draw the star into the stencil buffer, in colour too: the ring
+		// between the two is the border
+		Renderer::StencilWriteScope write(1);
+		renderer.scale(0.9, 0.9);
+		renderStar(black);
+	}
 
-	glPopMatrix();
+	renderer.pop();
 
 	// draw the new image into the masked area
-	glStencilFunc(GL_EQUAL, 1, ~0);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	GL::setTexturing(true);
-	GL::bindTexture(newImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(t, t * t, t * t * t, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex2i(screenSize.x, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex2i(screenSize.x, screenSize.y);
-	glTexCoord2i(0, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
-	GL::setTexturing(false);
-	glDisable(GL_STENCIL_TEST);
+	{
+		Renderer::StencilTestScope test(1);
+		drawImage(newImageID, Vec4f(static_cast<float>(t), static_cast<float>(t * t), static_cast<float>(t * t * t), 1.0f));
+	}
 }

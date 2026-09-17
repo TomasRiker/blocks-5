@@ -1104,8 +1104,40 @@ GS_LevelEditor::~GS_LevelEditor()
 {
 }
 
+namespace
+{
+	// The red frame around a tile, one corner lighter than the other three.
+	void highlightTile(Renderer& renderer, const Vec2i& p)
+	{
+		const Vec4f light(1.0f, 0.75f, 0.75f, 1.0f), dark(1.0f, 0.15f, 0.15f, 1.0f);
+		const Vec2f a(p.x, p.y), b(p.x + 16, p.y), c(p.x + 16, p.y + 16), d(p.x, p.y + 16);
+		renderer.hairline(a, b, light, dark);
+		renderer.hairline(b, c, dark);
+		renderer.hairline(c, d, dark);
+		renderer.hairline(d, a, dark, light);
+	}
+
+	// The marching ants around a selection: a black loop a pixel down and
+	// right, a white one over it, both two pixels wide and dashed four on,
+	// four off, the dashes moving one pixel every 40 ms.
+	void marchingAnts(Renderer& renderer, const Vec2i& p1, const Vec2i& p2, uint time)
+	{
+		const float phase = 4.0f - static_cast<float>((time / 40) % 8);
+		std::vector<Vec2f> loop;
+		loop.push_back(Vec2f(p1.x + 1, p1.y + 1));
+		loop.push_back(Vec2f(p2.x + 1, p1.y + 1));
+		loop.push_back(Vec2f(p2.x + 1, p2.y + 1));
+		loop.push_back(Vec2f(p1.x + 1, p2.y + 1));
+		renderer.dashes(loop, 2.0f, Vec4f(0.0f, 0.0f, 0.0f, 0.75f), 4.0f, 4.0f, phase, true);
+		for(size_t i = 0; i < loop.size(); i++) loop[i] -= Vec2f(1.0f, 1.0f);
+		renderer.dashes(loop, 2.0f, Vec4f(1.0f, 1.0f, 1.0f, 0.75f), 4.0f, 4.0f, phase, true);
+	}
+}
+
 void GS_LevelEditor::onRender()
 {
+	Renderer& renderer = Renderer::inst();
+
 	// render the level
 	p_level->render();
 
@@ -1113,64 +1145,38 @@ void GS_LevelEditor::onRender()
 	if(p.x < Level::WIDTH && p.y < Level::HEIGHT)
 	{
 		// highlight the current tile
-		glBegin(GL_LINE_LOOP);
-		p *= 16;
-		glColor4d(1.0, 0.75, 0.75, 1.0);
-		glVertex2i(p.x, p.y);
-		glColor4d(1.0, 0.15, 0.15, 1.0);
-		glVertex2i(p.x + 16, p.y);
-		glVertex2i(p.x + 16, p.y + 16);
-		glVertex2i(p.x, p.y + 16);
-		glEnd();
+		highlightTile(renderer, p * 16);
 	}
 
 	if(currentMode == 6)
 	{
-		// highlight the selected pin and the start pin
-
-		glDisable(GL_LINE_SMOOTH);
-		GL::setTexturing(false);
-		glLineWidth(1.0f);
-		glPushMatrix();
-		glTranslated(0.5, 0.5, 0.0);
+		// highlight the selected pin and the start pin: frames through the
+		// pixel centres
+		renderer.push();
+		renderer.translate(0.5, 0.5);
 
 		if(p_currentPin)
 		{
-			glBegin(GL_LINE_LOOP);
-			glColor4d(0.0, 0.0, 1.0, 0.75);
-			Vec2i p = p_currentPin->getScreenPosition();
-			glVertex2i(p.x - 2, p.y - 2);
-			glVertex2i(p.x + 2, p.y - 2);
-			glVertex2i(p.x + 2, p.y + 2);
-			glVertex2i(p.x - 2, p.y + 2);
-			glEnd();
+			const Vec2i p = p_currentPin->getScreenPosition();
+			renderer.hairlineRect(Vec2f(p.x - 2, p.y - 2), Vec2f(p.x + 2, p.y + 2), Vec4f(0.0f, 0.0f, 1.0f, 0.75f));
 		}
 
 		if(p_startPin)
 		{
-			glBegin(GL_LINE_LOOP);
-			glColor4d(0.5, 0.5, 1.0, 1.0);
-			Vec2i p = p_startPin->getScreenPosition();
-			glVertex2i(p.x - 2, p.y - 2);
-			glVertex2i(p.x + 2, p.y - 2);
-			glVertex2i(p.x + 2, p.y + 2);
-			glVertex2i(p.x - 2, p.y + 2);
-			glEnd();
+			const Vec2i p = p_startPin->getScreenPosition();
+			renderer.hairlineRect(Vec2f(p.x - 2, p.y - 2), Vec2f(p.x + 2, p.y + 2), Vec4f(0.5f, 0.5f, 1.0f, 1.0f));
 		}
 
-		glPopMatrix();
-		glEnable(GL_LINE_SMOOTH);
+		renderer.pop();
 	}
 
 	// render the background gradient
-	glBegin(GL_QUADS);
-	glColor4d(0.15, 0.2, 0.2, 1.0);
-	glVertex2i(0, 400);
-	glVertex2i(640, 400);
-	glColor4d(0.4, 0.51, 0.25, 1.0);
-	glVertex2i(640, 480);
-	glVertex2i(0, 480);
-	glEnd();
+	{
+		const Vec2f corners[4] = {Vec2f(0.0f, 400.0f), Vec2f(640.0f, 400.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+		const Vec4f top(0.15f, 0.2f, 0.2f, 1.0f), bottom(0.4f, 0.51f, 0.25f, 1.0f);
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+	}
 
 	if(rectStart.x != -1)
 	{
@@ -1181,69 +1187,33 @@ void GS_LevelEditor::onRender()
 
 		if(currentMode == 2)
 		{
-			// render the rectangle
-			glBegin(GL_QUADS);
-			if(drawStartButtons & 1) glColor4d(0.25, 0.25, 1.0, 0.4);
-			else if(drawStartButtons & 3) glColor4d(1.0, 0.25, 0.25, 0.4);
-			glVertex2i(p1.x, p1.y);
-			glVertex2i(p2.x, p1.y);
-			glVertex2i(p2.x, p2.y);
-			glVertex2i(p1.x, p2.y);
-			glEnd();
-			glBegin(GL_LINE_LOOP);
-			if(drawStartButtons & 1) glColor4d(0.25, 0.25, 1.0, 0.85);
-			else if(drawStartButtons & 3) glColor4d(1.0, 0.25, 0.25, 0.85);
-			glVertex2i(p1.x, p1.y);
-			glVertex2i(p2.x, p1.y);
-			glVertex2i(p2.x, p2.y);
-			glVertex2i(p1.x, p2.y);
-			glEnd();
+			// render the rectangle, blue for the left button and red for
+			// the right
+			const bool blue = (drawStartButtons & 1) != 0;
+			const Vec4f fill = blue ? Vec4f(0.25f, 0.25f, 1.0f, 0.4f) : Vec4f(1.0f, 0.25f, 0.25f, 0.4f);
+			const Vec4f frame = blue ? Vec4f(0.25f, 0.25f, 1.0f, 0.85f) : Vec4f(1.0f, 0.25f, 0.25f, 0.85f);
+			renderer.rect(Vec2f(p1.x, p1.y), Vec2f(p2.x, p2.y), fill);
+			renderer.hairlineRect(Vec2f(p1.x, p1.y), Vec2f(p2.x, p2.y), frame);
 		}
 		else if(currentMode == 4)
 		{
 			// render the rectangle
-			glEnable(GL_LINE_STIPPLE);
-			glLineWidth(2.0f);
-			glLineStipple(1, (0xF0F0 << ((engine.getTime() / 40) % 8)) % 0xFFFF);
-			glBegin(GL_LINE_LOOP);
-			glColor4d(0.0, 0.0, 0.0, 0.75);
-			glVertex2i(p1.x + 1, p1.y + 1);
-			glVertex2i(p2.x + 1, p1.y + 1);
-			glVertex2i(p2.x + 1, p2.y + 1);
-			glVertex2i(p1.x + 1, p2.y + 1);
-			glEnd();
-			glBegin(GL_LINE_LOOP);
-			glColor4d(1.0, 1.0, 1.0, 0.75);
-			glVertex2i(p1.x, p1.y);
-			glVertex2i(p2.x, p1.y);
-			glVertex2i(p2.x, p2.y);
-			glVertex2i(p1.x, p2.y);
-			glEnd();
-			glLineWidth(1.0f);
-			glDisable(GL_LINE_STIPPLE);
+			marchingAnts(renderer, p1, p2, engine.getTime());
 		}
 	}
 
 	// render the selected category
-	glPushMatrix();
-	glTranslated(245.0, 428.0, 0.0);
+	renderer.push();
+	renderer.translate(245.0, 428.0);
 	p_currentCat->render();
 
 	// render the selection
 	if(currentCat == currentBrush.z && !pipetteUsed)
 	{
-		glBegin(GL_LINE_LOOP);
-		Vec2i p(currentBrush.x * 16, currentBrush.y * 16);
-		glColor4d(1.0, 0.75, 0.75, 1.0);
-		glVertex2i(p.x, p.y);
-		glColor4d(1.0, 0.15, 0.15, 1.0);
-		glVertex2i(p.x + 16, p.y);
-		glVertex2i(p.x + 16, p.y + 16);
-		glVertex2i(p.x, p.y + 16);
-		glEnd();
+		highlightTile(renderer, Vec2i(currentBrush.x * 16, currentBrush.y * 16));
 	}
 
-	glPopMatrix();
+	renderer.pop();
 
 	if(p_hint)
 	{

@@ -131,20 +131,6 @@ def c_hooks_layout(p):
               '#ifdef BLOCKS5_TEST_HOOKS\n\tuint renderDraws;\n#endif')
 
 
-# Two files, because the two builds fail differently: a list in the game's own
-# sources compiles everywhere and only misbehaves in the browser, and a stub in
-# gl_compat.cpp is what used to make that link succeed quietly.
-@case('display_lists', 'Blocks5/src/lightning.cpp')
-def c_display_lists(p):
-    p.replace('void Lightning::render()',
-              'void Lightning::renderOld() { glCallList(1); }\n\nvoid Lightning::render()')
-
-
-@case('display_lists', 'WebBuild/gl_compat.cpp')
-def c_display_list_stub(p):
-    p.append('\nGLAPI void GLAPIENTRY glEndList(void) {}\n')
-
-
 # The shape the 1.2.0 translation sweep actually left behind: one German noun
 # inside an otherwise English line, which the majority rule cannot see.
 @case('comments', 'Blocks5/src/level.cpp')
@@ -168,398 +154,183 @@ def c_layer_bits(p):
 
 # A raw draw in an onRender with no bracket around it: the lava's edge pass,
 # which otherwise hands everything to the renderer.
-@case('direct_gl', 'Blocks5/src/lava.cpp')
-def c_direct_gl(p):
+# --- raw_gl: every gl* call outside the files that own raw GL, whatever its
+# shape. One case per family of name - gl*, glu*, glExt* - because the pattern
+# is one alternation and a family dropped from it would go unnoticed.
+@case('raw_gl', 'Blocks5/src/lava.cpp')
+def c_raw_gl_draw(p):
     p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
               '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
               '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
 
 
-# The same draw under a bracket declared in the same block is the shape the
-# rule asks for, and must not be reported.
-@case('direct_gl', 'Blocks5/src/lava.cpp', quiet=True)
-def c_direct_gl_bracketed(p):
-    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
-              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
-              '\t\tRenderer::DirectGL direct;\n\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+@case('raw_gl', 'Blocks5/src/cf_blend.cpp')
+def c_raw_gl_bind(p):
+    p.replace('\tdrawImage(oldImageID,',
+              '\tglBindTexture(GL_TEXTURE_2D, oldImageID);\n\tdrawImage(oldImageID,')
 
 
-# A bracket lives to the end of the block it stands in and no further. A loop
-# body is the shape that isolates the rule: the branches of an if/else chain
-# are read as alternatives, so a bracket in one of those is a different
-# question.
-@case('direct_gl', 'Blocks5/src/lava.cpp')
-def c_direct_gl_scope(p):
-    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
-              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
-              '\t\tfor(int pass = 0; pass < 1; pass++)\n\t\t{\n\t\t\tRenderer::DirectGL direct;\n\t\t}\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
+@case('raw_gl', 'Blocks5/src/cf_cube.cpp')
+def c_raw_gl_glu(p):
+    p.replace('\tconst Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);',
+              '\tgluPerspective(90.0, 1.0, 0.1, 100.0);\n'
+              '\tconst Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);')
 
 
-# A helper is a new function and must not inherit the bracket of the one
-# above it: the first blob is fine, the second is the finding.
-@case('direct_gl', 'Blocks5/src/texture.cpp')
-def c_direct_gl_helper(p):
-    p.replace('void Texture::cleanUp()',
-              'static void drawBlobA()\n{\n\tRenderer::DirectGL direct;\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\n'
-              'static void drawBlobB()\n{\n\tglBegin(GL_QUADS);\n\tglEnd();\n}\n\nvoid Texture::cleanUp()')
+@case('raw_gl', 'Blocks5/src/gs_credits.cpp')
+def c_raw_gl_ext(p):
+    p.replace('\t\tengine.captureFrame(bufferID);',
+              '\t\tglExtUseProgram(0);\n\t\tengine.captureFrame(bufferID);')
 
 
-# A bracket before a loop covers the draws inside it: the object stands for
-# the rest of its block, every turn of the loop included.
-@case('direct_gl', 'Blocks5/src/bomb.cpp', quiet=True)
-def c_direct_gl_loop(p):
-    p.replace('\tif(layer == RL_MAIN)',
-              '\tRenderer::DirectGL direct;\n\tfor(int i = 0; i < 4; i++)\n\t{\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n\t}\n\tif(layer == RL_MAIN)')
+# A call split over two lines, which a line-at-a-time search cannot see.
+@case('raw_gl', 'Blocks5/src/hint.cpp')
+def c_raw_gl_wrapped(p):
+    p.replace('\tRenderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));',
+              '\tglDisable(\n\t\tGL_TEXTURE_2D);\n\tRenderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));')
 
 
-# An onRender whose parameter is spelled differently still overrides, and would
-# take its whole file out of both checks with nothing to say so.
-@case('direct_gl', 'Blocks5/src/bomb.cpp')
-def c_direct_gl_unscanned(p):
-    p.replace('void Bomb::onRender(RenderLayer layer,', 'void Bomb::onRender(const RenderLayer layer,')
-
-
-# A bracket written as the body of a braceless loop is destroyed at the end of
-# its own line, which no indentation rule can see: what follows stands at the
-# same column. A loop rather than an if, because an if/else chain is read
-# branch by branch and would answer this on its own.
-@case('direct_gl', 'Blocks5/src/projectile.cpp')
-def c_direct_gl_braceless(p):
-    p.replace('\t\tRenderer& renderer = Renderer::inst();\n\t\tconst Vec2f tail(',
-              '\t\tfor(int i = 0; i < 1; i++) Renderer::DirectGL direct;\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n'
-              '\t\tRenderer& renderer = Renderer::inst();\n\t\tconst Vec2f tail(')
-
-
-# A bracket at the top of a function covers a draw in any branch below it.
-@case('direct_gl', 'Blocks5/src/lava.cpp', quiet=True)
-def c_direct_gl_chain(p):
-    p.replace('void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n',
-              'void Lava::onRender(RenderLayer layer,\n\t\t\t\t\tconst Vec4d& color)\n{\n'
-              '\tRenderer::DirectGL direct;\n')
-    p.replace('\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n',
-              '\tif(layer == RL_LAVA_EDGE)\n\t{\n\t\tEngine& engine = Engine::inst();\n'
-              '\t\tglBegin(GL_QUADS);\n\t\tglEnd();\n')
-
-
-# A bracket inside one branch of an if/else chain is gone after the chain,
-# whichever branch ran: what stands after the chain is the state before it.
-@case('direct_gl', 'Blocks5/src/eye.cpp')
-def c_direct_gl_chain_branch(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tif(layer == RL_MAIN)\n\t{\n\t\tRenderer::DirectGL direct;\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
-              '\telse\n\t{\n\t\tglPushMatrix();\n\t\tglPopMatrix();\n\t}\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# A bracket written as a braceless else body is as conditional as one written
-# as a braceless if body, and stands at the same column as what follows it.
-@case('direct_gl', 'Blocks5/src/exit.cpp')
-def c_direct_gl_braceless_else(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\telse if(layer == RL_LIGHT)',
-              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\telse Renderer::DirectGL direct;\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n'
-              '\tif(layer == RL_LIGHT)')
-
-
-# glRect is a draw as much as glBegin and glDrawArrays are.
-@case('direct_gl', 'Blocks5/src/exit.cpp')
-def c_direct_gl_glrect(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
-              '\tglRecti(0, 0, 16, 16);')
-
-
-# A bracket written as a same-line case body reaches to the end of that line
-# and no further, exactly as a braceless if does - and the switch's own braces
-# sit at the column of the statement after it, so no indentation rule can see
-# it.
-@case('direct_gl', 'Blocks5/src/eye.cpp')
-def c_direct_gl_case(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tswitch(layer)\n\t{\n'
-              '\tcase RL_MAIN: Renderer::DirectGL direct; break;\n\t}\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# The other direction: what is written in a comment is not code. batch_sources()
-# blanks them, and without that a commented-out draw would be a finding.
-@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
-def c_direct_gl_commented_draw(p):
+# What is written in a comment is not code. blank_noncode() blanks them, and
+# without that a commented-out draw would be a finding.
+@case('raw_gl', 'Blocks5/src/eye.cpp', quiet=True)
+def c_raw_gl_comment(p):
     p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
               '\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);\n'
               '\t// glBegin(GL_QUADS); glEnd();')
 
 
-# A preprocessor line carries no scope. Read as a dedent it would end the
-# bracket, and this tree writes them at column 0 wherever they sit.
-@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
-def c_direct_gl_preprocessor(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tRenderer::DirectGL direct;\n#ifdef __EMSCRIPTEN__\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
-
-
-# The arms of a preprocessor conditional never both compile, so a bracket in
-# one does not cover a draw in the other - the same rule the branches of an
-# else chain get, and the shape an #ifdef around a raw pass would take.
-@case('direct_gl', 'Blocks5/src/eye.cpp')
-def c_direct_gl_pp_arms(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '#ifdef __EMSCRIPTEN__\n\tRenderer::DirectGL direct;\n#else\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n#endif')
-
-
-# And what an arm opened is gone after the #endif.
-@case('direct_gl', 'Blocks5/src/eye.cpp')
-def c_direct_gl_pp_merge(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '#ifdef __EMSCRIPTEN__\n\tRenderer::DirectGL direct;\n#endif\n'
-              '\tglBegin(GL_QUADS);\n\tglEnd();')
-
-
-# An else belongs to its if wherever it is written. A reindent moves one
-# without making it any less an alternative to the branch above - and the
-# bracket at the top covers both.
-@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
-def c_direct_gl_else_column(p):
-    p.replace('\tif(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);',
-              '\tRenderer::DirectGL direct;\n\tif(layer == RL_MAIN)\n\t{\n'
-              '\t\tEngine::inst().renderSprites(sprites, color);\n\t}\n'
-              '\t\telse\n\t\t{\n\t\t\tglBegin(GL_QUADS);\n\t\t\tglEnd();\n\t\t}')
-
-
-# A macro body is not code at the point the directive stands, and reading it as
-# code attributes whatever it holds to the function above.
-@case('direct_gl', 'Blocks5/src/eye.cpp', quiet=True)
-def c_direct_gl_macro_body(p):
-    p.replace('void Eye::onRender(RenderLayer layer,',
-              '#define DRAW_QUAD() \\\n\tglBegin(GL_QUADS); \\\n\tglEnd();\n\n'
-              'void Eye::onRender(RenderLayer layer,')
-
-
-# Level::renderShine draws from inside an object's render although the rest
-# of level.cpp does not, so that one function is read and the rest of the
-# file is not.
-@case('direct_gl', 'Blocks5/src/level.cpp')
-def c_direct_gl_reached(p):
-    p.replace('\tEngine::inst().renderSprite(p_shine,',
-              '\tglBegin(GL_QUADS);\n\tglEnd();\n\tEngine::inst().renderSprite(p_shine,')
-
-
-# A commented-out draw inside one of the two functions read by name is not a
-# draw either.
-@case('direct_gl', 'Blocks5/src/level.cpp', quiet=True)
-def c_direct_gl_reached_comment(p):
-    p.replace('\tEngine::inst().renderSprite(p_shine,',
-              '\t// glBegin(GL_QUADS); glEnd();\n\tEngine::inst().renderSprite(p_shine,')
-
-
-# An exemption for a function that no longer exists is silent, and says the
-# case was thought about.
-@case('direct_gl', 'Blocks5/src/level.cpp')
-def c_direct_gl_dead_exemption(p):
-    p.replace('void Level::renderShine(', 'void Level::renderGlow(')
-
-
-# The third way an exemption goes stale: the function is still there and still
-# read, and no longer holds what it was excused for. dead_names() cannot see
-# that one, because the name resolves.
-@case('direct_gl', 'Blocks5/src/hint.cpp')
-def c_direct_gl_idle_exemption(p):
-    p.replace('\t\tglBegin(GL_TRIANGLE_STRIP);', '\t\tRenderer::DirectGL direct;')
-
-
-# Each of the four things gl_state bans, because a case that injects only one
-# of them leaves the other three free to be dropped from the pattern without
-# anything noticing. Disable and enable are separate halves of one alternation,
-# and the pop is a separate call from the push.
-@case('gl_state', 'Blocks5/src/hint.cpp')
-def c_gl_state_disable(p):
-    p.replace('GL::setTexturing(false);', 'glDisable(GL_TEXTURE_2D);')
-
-
-@case('gl_state', 'Blocks5/src/hint.cpp')
-def c_gl_state_enable(p):
-    p.replace('GL::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
-
-
-@case('gl_state', 'Blocks5/src/teleporter.cpp')
-def c_gl_state_push(p):
-    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
-              '\t\t\tglPushAttrib(GL_ENABLE_BIT);\n')
-
-
-@case('gl_state', 'Blocks5/src/teleporter.cpp')
-def c_gl_state_pop(p):
-    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
-              '\t\t\tglPopAttrib();\n')
-
-
-@case('gl_state', 'Blocks5/src/hint.cpp')
-def c_gl_state_bind(p):
-    p.replace('GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));',
-              'glBindTexture(GL_TEXTURE_2D, noteTexture);')
-
-
-# The texture matrix is the third of the three the docstring names, and the one
-# the first draft of the check did not look at. It rides on the bind now, so
-# the fault is a raw one set beside a correct bind rather than in place of it.
-@case('gl_state', 'Blocks5/src/hint.cpp')
-def c_gl_state_matrix(p):
-    p.replace('GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));',
-              'GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));\n'
-              '\tglMatrixMode(GL_TEXTURE);\n\tglLoadIdentity();\n'
-              '\tglMatrixMode(GL_MODELVIEW);')
-
-
-# A call split over two lines, which a line-at-a-time search cannot see.
-@case('gl_state', 'Blocks5/src/hint.cpp')
-def c_gl_state_wrapped(p):
-    p.replace('GL::setTexturing(false);', 'glDisable(\n\t\t\tGL_TEXTURE_2D);')
-
-
-# gl_doors reads the whole tree and not only what a batch can reach, so the
-# faults for it go in files gl_state does not look at: a crossfade, and the
-# credits. One per kind of door, because the record needs all four.
-@case('gl_doors', 'Blocks5/src/cf_blend.cpp')
-def c_gl_doors_bind(p):
-    p.replace('GL::bindTexture(oldImageID, screenTexelScale);',
-              'glBindTexture(GL_TEXTURE_2D, oldImageID);')
-
-
-@case('gl_doors', 'Blocks5/src/cf_blend.cpp')
-def c_gl_doors_enable(p):
-    p.replace('GL::setTexturing(true);', 'glEnable(GL_TEXTURE_2D);')
-
-
-# GL reverts the binding to 0 when the bound texture is deleted, which is a
-# change nothing else would tell the record about.
-@case('gl_doors', 'Blocks5/src/gs_credits.cpp')
-def c_gl_doors_delete(p):
-    p.replace('GL::deleteTexture(bufferID);', 'glDeleteTextures(1, &bufferID);')
-
-
-# The texture matrix, set absolutely outside a bind. The weather is excused for
-# setting it relatively; this is the other thing.
-@case('gl_doors', 'Blocks5/src/gs_credits.cpp')
-def c_gl_doors_matrix(p):
-    p.replace('\tGL::setTexturing(true);\n',
-              '\tglMatrixMode(GL_TEXTURE);\n\tglLoadIdentity();\n\tGL::setTexturing(true);\n')
-
-
-# The same helper one level in, inside an anonymous namespace - the idiom
-# hint.cpp, font.cpp and diamondmachine.cpp already use - and placed right
-# after an exempt function, which is what it would silently inherit if a line
-# walk looked only at column 0 for a new one.
-@case('gl_state', 'Blocks5/src/texture.cpp')
-def c_gl_state_namespace(p):
-    p.replace('void Texture::cleanUp()',
-              'namespace\n{\n\tvoid debugBind(GLuint id)\n\t{\n'
-              '\t\tglBindTexture(GL_TEXTURE_2D, id);\n\t}\n}\n\nvoid Texture::cleanUp()')
-
-
 # A character literal holding a quote opens a string to the rest of the file
 # for anything that lexes only ". testhooks.cpp writes exactly that byte
 # sequence, and it blanked 165 lines of code that no check then read.
-@case('gl_state', 'Blocks5/src/bomb.cpp')
-def c_gl_state_char_literal(p):
+@case('raw_gl', 'Blocks5/src/bomb.cpp')
+def c_raw_gl_char_literal(p):
     p.replace('\tif(layer == RL_MAIN)',
               '\tchar quote = \'"\'; glBindTexture(GL_TEXTURE_2D, 0);\n\tif(layer == RL_MAIN)')
 
 
-# glPushAttrib saves whatever its mask asks for, so the ban names none: one
-# written GL_ENABLE_BIT | GL_TEXTURE_BIT is the same mistake.
-@case('gl_state', 'Blocks5/src/lava.cpp')
-def c_gl_state_push_mask(p):
-    p.replace('\t\tEngine& engine = Engine::inst();\n',
-              '\t\tglPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT);\n\t\tEngine& engine = Engine::inst();\n')
+# A file that owns raw GL may call it.
+@case('raw_gl', 'Blocks5/src/renderer.cpp', quiet=True)
+def c_raw_gl_owner(p):
+    p.replace('void Renderer::frameEnd()\n{\n', 'void Renderer::frameEnd()\n{\n\tglFlush();\n')
 
 
-# texture.cpp pushes no attributes of its own at all, so a pop added to the
-# funnel every object binds through restores something that cannot be read
-# against a push, and is reported.
-@case('gl_state', 'Blocks5/src/texture.cpp')
-def c_gl_state_texture_pop(p):
-    p.replace('void Texture::bind() const\n{', 'void Texture::bind() const\n{\n\tglPopAttrib();')
+# An owner with nothing left to own is reported: the entry would otherwise
+# read as a considered exception while standing for nothing. u_crt.cpp owns
+# raw GL for its nine uniform lookups and nothing else.
+@case('raw_gl', 'Blocks5/src/u_crt.cpp')
+def c_raw_gl_idle_owner(p):
+    for i in range(9):
+        p.replace('glExtGetUniformLocation(', 'lookupUniform(')
 
 
-# The gl_state half of the dead-name guard. It has to name one of the helpers
-# read by name rather than an exemption: renaming an exempt function reports
-# through the ordinary path as well, so it would not tell the two apart.
-@case('gl_state', 'Blocks5/src/font.cpp')
-def c_gl_state_dead_name(p):
-    p.replace('void Font::drawText(', 'void Font::drawGlyphs(')
+# --- direct_gl_scope: raw GL in the two owners that run while the renderer
+# may hold quads, read with the same block, chain and preprocessor rules a
+# C++ object obeys. Texture::cleanUp() is the site: it starts with a call
+# through the renderer and no bracket of its own.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_unbracketed(p):
+    p.replace('void Texture::cleanUp()\n{\n', 'void Texture::cleanUp()\n{\n\tglFinish();\n')
 
 
-# An attribute mask that carries nothing a batched quad is drawn under is left
-# alone, because GLState has no entry point that could stand in for it.
-@case('gl_state', 'Blocks5/src/object.cpp', quiet=True)
-def c_gl_state_safe_mask(p):
-    p.replace('\t\trenderer.push();\n\n\t\trenderer.translate(8.0, 8.0);',
-              '\t\tglPushAttrib(GL_LINE_BIT);\n\t\trenderer.push();\n\n\t\trenderer.translate(8.0, 8.0);')
-    p.replace('\t\trenderer.pop();\n\n\t\tVec2i textPosition',
-              '\t\trenderer.pop();\n\t\tglPopAttrib();\n\n\t\tVec2i textPosition')
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_bracketed(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tRenderer::DirectGL direct;\n\tglFinish();\n')
 
 
-# And one that does. GL_COLOR_BUFFER_BIT carries the blend function.
-@case('gl_state', 'Blocks5/src/lava.cpp')
-def c_gl_state_colour_mask(p):
-    p.replace('\t\tEngine& engine = Engine::inst();\n',
-              '\t\tglPushAttrib(GL_COLOR_BUFFER_BIT);\n\t\tEngine& engine = Engine::inst();\n')
+# A query touches nothing and needs no bracket.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_query(p):
+    p.replace('void Texture::cleanUp()\n{\n', 'void Texture::cleanUp()\n{\n\tglGetError();\n')
 
 
-# A name is a function boundary only where it is a definition: a macro taking
-# an argument at column 0 is not one, and reading it as one would hand the
-# lines below it a name of their own.
-#
-# level.cpp is where that is observable, because it is the file gl_state reads
-# by named function rather than whole - so a raw call wrongly attributed to
-# "TEX_TRACE" falls outside the scope and is silently let through. The macro
-# and the fault therefore go in together, and the check has to report anyway.
-@case('gl_state', 'Blocks5/src/level.cpp')
-def c_gl_state_macro_not_a_start(p):
-    p.replace('\tEngine::inst().renderSprite(p_shine,',
-              '#define TEX_TRACE(x) ((void)0)\n'
-              '\tglBindTexture(GL_TEXTURE_2D, 0);\n'
-              '\tEngine::inst().renderSprite(p_shine,')
+# The other file read.
+@case('direct_gl_scope', 'Blocks5/src/engine.cpp')
+def c_scope_engine(p):
+    p.replace('void Engine::drawOverlays()\n{\n', 'void Engine::drawOverlays()\n{\n\tglFinish();\n')
 
 
-# An attribute mask this check cannot read is not thereby safe.
-@case('gl_state', 'Blocks5/src/lava.cpp')
-def c_gl_state_opaque_mask(p):
-    p.replace('\t\tEngine& engine = Engine::inst();\n',
-              '\t\tglPushAttrib(savedBits);\n\t\tEngine& engine = Engine::inst();\n')
+# A bracket lives to the end of the block it stands in and no further.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_block(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tfor(int pass = 0; pass < 1; pass++)\n\t{\n'
+              '\t\tRenderer::DirectGL direct;\n\t}\n\tglFinish();\n')
 
 
-# Whether a bracket is safe is a question about its own function, not the file.
-@case('gl_state', 'Blocks5/src/teleporter.cpp', quiet=True)
-def c_gl_state_mask_per_function(p):
-    p.replace('\t\t\t// mark the target: a line to it with an arrowhead\n',
-              '\t\t\tglPushAttrib(GL_LINE_BIT);\n\t\t\tglPopAttrib();\n')
+# A bracket before a loop covers the calls inside it.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_loop(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tRenderer::DirectGL direct;\n'
+              '\tfor(int i = 0; i < 4; i++)\n\t{\n\t\tglFinish();\n\t}\n')
 
 
-# A helper indented some other way is still a function, and must not inherit
-# the name - and so the exemption - of the one above it.
-@case('gl_state', 'Blocks5/src/texture.cpp')
-def c_gl_state_space_indent(p):
+# A helper is a new function and must not inherit the bracket of the one
+# above it: the first is fine, the second is the finding.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_helper(p):
     p.replace('void Texture::cleanUp()',
-              'namespace\n{\n    void debugBind(GLuint id)\n    {\n'
-              '        glBindTexture(GL_TEXTURE_2D, id);\n    }\n}\n\nvoid Texture::cleanUp()')
+              'static void finishA()\n{\n\tRenderer::DirectGL direct;\n\tglFinish();\n}\n\n'
+              'static void finishB()\n{\n\tglFinish();\n}\n\nvoid Texture::cleanUp()')
 
 
-# An onRender named in a comment is prose, not a declaration, and must not pull
-# a whole file into the scanned set or report one that is already in it.
-@case('gl_state', 'Blocks5/src/gs_menu.cpp', quiet=True)
-def c_gl_state_comment_signature(p):
-    p.replace('void GS_Menu::onRender()',
-              '// The object layer draws through Object::onRender(RenderLayer layer, ...).\n'
-              'void GS_Menu::onRender()')
+# The same helper one level in, inside an anonymous namespace, with a
+# bracket of its own.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_namespace_helper(p):
+    p.replace('void Texture::cleanUp()',
+              'namespace\n{\n\tvoid finish()\n\t{\n\t\tRenderer::DirectGL direct;\n\t\tglFinish();\n\t}\n}\n\n'
+              'void Texture::cleanUp()')
+
+
+# A bracket written as the body of a braceless loop is destroyed at the end of
+# its own line, which no indentation rule can see.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_braceless(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tfor(int i = 0; i < 1; i++) Renderer::DirectGL direct;\n\tglFinish();\n')
+
+
+# A bracket inside one branch of an if/else chain is gone after the chain,
+# whichever branch ran.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_chain_branch(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tif(texID)\n\t{\n\t\tRenderer::DirectGL direct;\n\t}\n'
+              '\telse\n\t{\n\t\tp_rgba = 0;\n\t}\n\tglFinish();\n')
+
+
+# A bracket at the top of a function covers a call in any branch below it.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_chain_top(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tRenderer::DirectGL direct;\n\tif(texID)\n\t{\n\t\tglFinish();\n\t}\n')
+
+
+# The arms of a preprocessor conditional never both compile, so a bracket in
+# one does not cover a call in the other.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp')
+def c_scope_pp_arms(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n#ifdef __EMSCRIPTEN__\n\tRenderer::DirectGL direct;\n#else\n'
+              '\tglFinish();\n#endif\n')
+
+
+# A preprocessor line carries no scope. Read as a dedent it would end the
+# bracket, and this tree writes them at column 0 wherever they sit.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_preprocessor(p):
+    p.replace('void Texture::cleanUp()\n{\n',
+              'void Texture::cleanUp()\n{\n\tRenderer::DirectGL direct;\n#ifdef __EMSCRIPTEN__\n'
+              '\tglFinish();\n#endif\n')
+
+
+# A macro body is not code at the point the directive stands.
+@case('direct_gl_scope', 'Blocks5/src/texture.cpp', quiet=True)
+def c_scope_macro_body(p):
+    p.replace('void Texture::cleanUp()',
+              '#define FINISH() \\\n\tglFinish();\n\nvoid Texture::cleanUp()')
 
 
 @case('naming', 'Blocks5/src/u_crt.h')

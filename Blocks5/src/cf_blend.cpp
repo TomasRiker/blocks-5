@@ -13,21 +13,6 @@ void CF_Blend::render(double t,
 					  uint oldImageID,
 					  uint newImageID)
 {
-	GL::setTexturing(true);
-
-	// draw the old image
-	GL::bindTexture(oldImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0 - t);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex2i(screenSize.x, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex2i(screenSize.x, screenSize.y);
-	glTexCoord2i(0, screenSize.y);
-	glVertex2i(0, screenSize.y);
-	glEnd();
-
-	GL::setTexturing(false);
+	// the old image, fading out over the new one already on the screen
+	drawImage(oldImageID, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(1.0 - t)));
 }

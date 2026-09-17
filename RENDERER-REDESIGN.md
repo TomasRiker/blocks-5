@@ -389,6 +389,16 @@ cause from this list, and any other difference is a bug:
    quads are the many - the lava's four alphas, every gradient in the GUI -
    and the lightning's trapezoids, the one array-drawn non-affine quad, move
    by up to twelve levels inside the bolt.
+6. The renderer's vertex stage and the fixed function's round a transformed
+   corner differently in the last place: the fixed function multiplied a
+   vertex by one matrix with the translation already inside it, the renderer
+   translates on the CPU and projects on the GPU, and its own program does
+   the 3D crossfades' and the credits' matrix product in another order of
+   float operations than the fixed-function pipeline did. An interpolated
+   colour or texel that sits on a rounding boundary then lands one level
+   over: eight pixels of the edit box's selection gradient by one level of
+   blue, three pixels of the cube's turning face and seven of the credits'
+   stars by one or two levels (stage 2).
 
 Every quad the game draws is expected byte-identical on the desktop, and a
 stage is not done until it is.
@@ -605,3 +615,98 @@ frame 2.00 ms, of which `render` 0.70 (was 1.00) / `update` 0.20 / `present`
 0.10; 48.4 WebGL draw calls per frame (was 48.6) - the title level's sprites
 were the batch already, and the menu around it still draws raw, one call a
 sprite or string. The interval is swiftshader's rasterizing, not the game's.
+
+## 11. Stage 2 - every remaining `glBegin`
+
+Done on `claude/render-stage2`. What landed: the GUI (every widget, the
+skin's frames as one array of quads, the windows', edit boxes' and lists'
+clipping as `ScissorScope`), the game states, the toasts, the weather and the
+menu's clouds (their texture matrices composed on the CPU in GL's own float
+arithmetic, `Mat4` in `vec.h`, and applied to the corners by `scrolledQuad`),
+the toxic grid (2560 quads with a colour and a texel a corner, one draw), the
+hint's note mesh (triangles in the strip's own order), the eight crossfades
+and the credits (`quads3D` under a `Mat4` that builds `gluPerspective`'s and
+`gluLookAt`'s matrices as GLU built them), the star wipe under the stencil
+scopes, and the frame copies through `Engine::captureFrame`. Deleted: `GL::`
+and `glstate.*`, `Texture::bind()`, `Renderer::Batched`, the renderer's
+direct mode and its mirroring of the fixed-function texture state, the alpha
+test, `GL_LINE_SMOOTH`, `GL_POINT_SMOOTH`, the fixed-function projection.
+`Renderer::DirectGL` is now a flush and an invalidate around the raw GL that
+survives in `texture.cpp` and `engine.cpp`. `verify.py`'s `raw_gl` and
+`direct_gl_scope` replace `direct_gl`, `gl_state`, `gl_doors` and
+`display_lists`, each with its `selftest.py` faults.
+
+**One-pixel lines are measured, not derived.** The GUI's frames, the level
+select's preview frame, the edit box's caret and the editor's pin frames were
+GL lines on whole or half coordinates, and where llvmpipe puts such a line is
+a fact about llvmpipe: along the line a pixel is lit when its centre lies in
+the half-open span from the start point to the end, across it the pixel
+containing the coordinate is the one, a boundary going to the lower side in
+GL's own coordinates. `Renderer::hairline` does that, and `hairlineRect`
+draws a loop's four lines separately so that the corner two of them share is
+lit twice, as GL lit it. Measured with a test program under Xvfb before the
+first frame was compared, in both directions and on both kinds of
+coordinate.
+
+**The oracle.** Eight of the nineteen scenes are byte-identical to the
+stage-0 baseline, six more are byte-identical to the stage-1 run and differ
+from the baseline only by what section 10 already lists, and the other five
+differ only by the causes in section 6:
+
+| scene | pixels | cause |
+| --- | ---: | --- |
+| `menu`, `options`, `crt`, `editor`, `plain`, `toxic`, `hint`, `loading` | 0 | - |
+| `manager`, `star`, `select`, `night`, `lava` | 37, 41, 52, 37, 976 | as stage 1: the beam end points (6.2), the lightning's diagonal (6.5) |
+| `cube` | 18 | 15 as stage 1 (6.2), three by one level inside the turning face (6.6) |
+| `help`, `editbox` | 124, 132 | the editor's smoothed tile highlight under the cursor (6.1); eight pixels of the selection gradient by one level of blue (6.6) |
+| `editor-select` | 291 | the marching ants and the tile highlight, both smoothed lines (6.1) |
+| `editor-connect` | 248 | two smoothed tile highlights, the level's and the palette's (6.1); the pins' unsmoothed frames are identical |
+| `credits` | 7 | one or two levels in the stars (6.6) |
+
+The weather, the toxic grid, the hint's note, the GUI's every dialog and the
+menu's clouds - the conversions this stage was about - moved no pixel, and
+`-flushall` reproduces the batched run byte for byte. No record error in
+either run.
+
+**The draw calls**, the same measurement as section 10, stage 1's count in
+parentheses:
+
+| scene | draw calls / frame (stage 1) | batch draws / frame | quads / draw | what ended the batches |
+| --- | ---: | ---: | ---: | --- |
+| `menu` | 29.0 (47.0) | 29.5 | 64.1 | texture 1638, explicit 142, frame 63, direct 14 |
+| `options` | 71.0 (209.0) | 71.0 | 55.2 | texture 3250, scope 200, explicit 50, frame 50 |
+| `crt` | 92.7 (290.7) | 92.7 | 56.6 | texture 1764, blend 14, scope 126, explicit 21, frame 21 |
+| `manager` | 58.0 (253.0) | 58.0 | 88.5 | texture 1224, blend 24, scope 96, explicit 24, frame 24 |
+| `star` | 37.5 (54.7) | 38.6 | 51.5 | texture 2841, blend 61, scope 69, explicit 191, frame 84 |
+| `editor` | 63.0 (89.0) | 63.0 | 32.0 | texture 342, scope 12, explicit 18, frame 6 |
+| `help` | 73.0 (106.0) | 73.0 | 80.6 | texture 390, scope 30, explicit 12, frame 6 |
+| `editbox` | 95.0 (214.0) | 95.0 | 42.1 | texture 450, scope 102, explicit 12, frame 6 |
+| `editor-select` | 56.0 (84.0) | 56.0 | 36.6 | texture 100, scope 4, explicit 6, frame 2 |
+| `editor-connect` | 54.0 (82.0) | 54.0 | 35.8 | texture 550, explicit 33, frame 11 |
+| `select` | 28.0 (58.0) | 28.0 | 53.7 | texture 1887, blend 111, scope 777, explicit 222, frame 111 |
+| `cube` | 27.1 (51.2) | 27.6 | 47.9 | texture 1785, blend 105, scope 643, explicit 256, frame 105 |
+| `night` | 24.0 (33.0) | 24.0 | 31.6 | texture 3043, blend 179, scope 537, explicit 358, frame 179 |
+| `plain` | 16.4 (25.3) | 16.4 | 31.6 | texture 791, blend 11, explicit 120, frame 60 |
+| `lava` | 24.2 (37.2) | 24.2 | 32.4 | texture 8477, blend 465, scope 930, explicit 930, frame 465 |
+| `toxic` | 21.0 (29.0) | 21.0 | 183.4 | texture 848, blend 53, explicit 159, frame 53 |
+| `hint` | 18.0 (28.0) | 18.0 | 62.4 | texture 870, explicit 116, frame 58 |
+| `loading` | 1.0 (1.1) | 1.0 | 2.3 | texture 2, frame 123 |
+| `credits` | 402.6 (402.6) | 402.9 | 1.0 | texture 140, explicit 56161, frame 87, direct 19 |
+
+Every draw the game makes is one of the renderer's flushes now, so the two
+counts agree to the frame; where `batch` is the larger - `menu`, `star`,
+`cube`, `credits` - the excess is the crossfade, which `mainLoopIteration`
+draws after `render()` has returned and the link count has closed, and its
+`direct` flushes are the frame-buffer binds around the captures. The dialogs
+fell by two thirds to three quarters - `options` 209 to 71, `crt` 291 to 93,
+`manager` 253 to 58, `editbox` 214 to 95 - because a dialog's frames, strings
+and sprites share a draw until the texture changes; the level scenes by a
+third to a half again - `night` 33 to 24, `lava` 37 to 24, `plain` 25 to 16,
+`select` 58 to 28 - because the fifteen raw draws a frame around the level,
+the panel, the weather, the GUI's strings, are in the batch. What ends a
+batch is the texture, the skin's and the fonts' taking turns down a dialog,
+and the scissor scope a window, an edit box or a list opens for its children.
+`credits` stays at 402.6: each of the four hundred stars is its own `quads3D`
+draw under its own matrix, as it was its own `glBegin`, and only a matrix per
+vertex would fold them, which is not this stage's. `loading` is the one draw
+a frame it always was.

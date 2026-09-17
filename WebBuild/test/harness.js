@@ -60,10 +60,38 @@ async function waitForDump(page, timeoutMs) {
 	}
 }
 
+// A build older than a source answers for a game that no longer exists, and
+// nothing in a passing result would say so; the native harness refuses the
+// same way (LinuxBuild/test/harness.sh). blocks5.html is the link's output,
+// so a source newer than it changed after the compile; the sources are
+// Blocks5/src and everything build.sh reads from WebBuild itself - not test/,
+// which drives the build without being in it.
+function newerThanBuild(dir) {
+	const built = fs.statSync(path.join(dir, 'blocks5.html')).mtimeMs;
+	const newer = [];
+	const walk = (d, skip) => {
+		for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+			const p = path.join(d, e.name);
+			if (e.isDirectory()) { if (!skip.has(e.name)) walk(p, skip); }
+			else if (!skip.has(e.name) && fs.statSync(p).mtimeMs > built) newer.push(p);
+		}
+	};
+	walk(path.join(__dirname, '..', '..', 'Blocks5', 'src'), new Set());
+	walk(path.join(__dirname, '..'),
+	     new Set(['build', 'build-test', 'build-asan', 'test', '__pycache__', 'README.md']));
+	return newer;
+}
+
 async function serve(dir) {
 	if (server) return;
 	if (!fs.existsSync(path.join(dir, 'blocks5.html'))) {
 		throw new Error('no blocks5.html in ' + dir);
+	}
+	const newer = newerThanBuild(dir);
+	if (newer.length) {
+		throw new Error(path.basename(dir) + '/blocks5.html is older than:\n' +
+		                newer.slice(0, 3).map(f => '  ' + path.basename(f)).join('\n') +
+		                '\nRun \'./build.sh hooks\' first.');
 	}
 	server = spawn('python3', ['-m', 'http.server', String(PORT)],
 	               { cwd: dir, stdio: 'ignore', detached: true });

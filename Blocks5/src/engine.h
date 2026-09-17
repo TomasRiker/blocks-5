@@ -100,11 +100,14 @@ public:
 	// The frame as PNG bytes, and the same under a name the caller chose.
 	bool encodeFrame(std::vector<uchar>* p_pngOut);
 	bool writeScreenshot(const std::string& path);
-	// renderDraws is every draw call render() made - a glBegin block, a
-	// glDrawArrays, a glDrawElements - counted by the link-time wrappers at
-	// the foot of testhooks.cpp in a native test-hooks build and never
-	// otherwise, over renderedFrames frames. Unconditional members: one
-	// behind BLOCKS5_TEST_HOOKS would give the class two sizes.
+	// The frame's pixels, 640x480 RGBA and bottom-up, out of the bound
+	// framebuffer: the screenshot and the video recorder.
+	void readFrame(uchar* p_rgba);
+	// renderDraws is every draw call render() made - each glDrawElements of
+	// the renderer's - counted by the link-time wrappers at the foot of
+	// testhooks.cpp in a native test-hooks build and never otherwise, over
+	// renderedFrames frames. Unconditional members: one behind
+	// BLOCKS5_TEST_HOOKS would give the class two sizes.
 	uint renderDraws;
 	uint renderedFrames;
 	uint sceneTick;
@@ -336,6 +339,12 @@ public:
 	const Vec2i& getScreenSize() const;
 	const Vec2i& getScreenPow2Size() const;
 	Vec2d getScreenTexelScale() const;
+	// A texture the frame can be copied into and drawn back from: empty,
+	// the frame's power-of-two size. captureFrame copies the bound frame
+	// into its top band, which getFrameCopyRef addresses in pixels.
+	uint createFrameCopyTexture(bool withAlpha, bool smooth);
+	void captureFrame(uint textureID);
+	TextureRef getFrameCopyRef(uint textureID) const;
 	const Vec2i& getDisplaySize() const;
 
 	void crossfade(Crossfade* p_crossfade, double duration, bool immediately = false);
@@ -560,7 +569,6 @@ private:
 	uint frameDepthStencilID;
 	Vec2i frameTextureSize;
 	uint renderTargetID;       // the FBO to draw into, with no fixed texture
-	bool renderTargetScissor;  // was the scissor box on when this began?
 	// The pool of textures to draw into, see acquireOffscreenTexture().
 	struct OffscreenTexture
 	{

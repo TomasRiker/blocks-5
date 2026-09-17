@@ -13,59 +13,27 @@ void CF_Camera::render(double t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluPerspective(90.0, 1.0, 0.1, 100.0);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	// The camera looks along the y axis, from the old image up to the new
+	// one four units above it.
+	const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);
 
 	double s1 = sin(t * 1.5707963267948966192313216916398);
 	double s2 = sin(t * 3.1415926535897932384626433832795);
 	double y = s1 * s1 * s1 * s1 * s1 * s1 * 4.0;
 	double l = y + s2 * s2 * s2 * s2 * 4.0;
 
-	gluLookAt(0.0, y, -1.0, 0.0, l, 0.0, 0.0, 1.0, 0.0);
+	const Mat4 transform = projection * Mat4::lookAt(0.0, y, -1.0, 0.0, l, 0.0, 0.0, 1.0, 0.0);
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
-	GL::setTexturing(true);
+	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+	const Vec2f uvs[4] = {Vec2f(screenSize.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, screenSize.y), Vec2f(screenSize.x, screenSize.y)};
 
 	// draw the old image
-	GL::bindTexture(oldImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex3i(-1, 1, 0);
-	glTexCoord2i(0, 0);
-	glVertex3i(1, 1, 0);
-	glTexCoord2i(0, screenSize.y);
-	glVertex3i(1, -1, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex3i(-1, -1, 0);
-	glEnd();
+	const Vec3f oldCorners[4] = {Vec3f(-1.0f, 1.0f, 0.0f), Vec3f(1.0f, 1.0f, 0.0f), Vec3f(1.0f, -1.0f, 0.0f), Vec3f(-1.0f, -1.0f, 0.0f)};
+	drawImage3D(oldImageID, transform, oldCorners, uvs, white, false);
 
 	// draw the new image
-	GL::bindTexture(newImageID, screenTexelScale);
-	glBegin(GL_QUADS);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glTexCoord2i(screenSize.x, 0);
-	glVertex3i(-1, 5, 0);
-	glTexCoord2i(0, 0);
-	glVertex3i(1, 5, 0);
-	glTexCoord2i(0, screenSize.y);
-	glVertex3i(1, 3, 0);
-	glTexCoord2i(screenSize.x, screenSize.y);
-	glVertex3i(-1, 3, 0);
-	glEnd();
-
-	GL::setTexturing(false);
-
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
+	const Vec3f newCorners[4] = {Vec3f(-1.0f, 5.0f, 0.0f), Vec3f(1.0f, 5.0f, 0.0f), Vec3f(1.0f, 3.0f, 0.0f), Vec3f(-1.0f, 3.0f, 0.0f)};
+	drawImage3D(newImageID, transform, newCorners, uvs, white, false);
 }

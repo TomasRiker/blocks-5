@@ -461,19 +461,10 @@ GS_CampaignEditor::~GS_CampaignEditor()
 void GS_CampaignEditor::onRender()
 {
 	// render the background image
-	p_background->bind();
-	glBegin(GL_QUADS);
-	glColor3d(1.0, 1.0, 1.0);
-	glTexCoord2i(0, 0);
-	glVertex2i(0, 0);
-	glTexCoord2i(640, 0);
-	glVertex2i(640, 0);
-	glTexCoord2i(640, 480);
-	glVertex2i(640, 480);
-	glTexCoord2i(0, 480);
-	glVertex2i(0, 480);
-	glEnd();
-	GL::setTexturing(false);
+	Renderer& renderer = Renderer::inst();
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+	renderer.setTexture(p_background->ref());
+	renderer.quad(renderer.state(), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void GS_CampaignEditor::onUpdate()

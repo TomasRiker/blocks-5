@@ -1,6 +1,8 @@
 ---
 paths:
-  - "Blocks5/src/{renderer,renderstate,level,texture,tileset,sprite,particlesystem,lightning,lava,glextensions,glstate,engine}.{cpp,h}"
+  - "Blocks5/src/{renderer,renderstate,level,texture,tileset,sprite,particlesystem,lightning,lava,glextensions,engine,crossfade,hint}.{cpp,h}"
+  - "Blocks5/src/cf_*.{cpp,h}"
+  - "Blocks5/src/vec.h"
   - "Blocks5/src/renderlayer.h"
   - "Blocks5/src/fatalerror.{cpp,h}"
   - "Blocks5/src/util.h"
@@ -9,14 +11,15 @@ paths:
   - "WebBuild/compat.h"
 ---
 
-# Rendering: the GL floor, the renderer and its two modes, GL state
+# Rendering: the GL floor, the renderer, its bracket, the files that own raw GL
 
-**The renderer is being put under the whole game in stages, and `RENDERER-REDESIGN.md` (ROADMAP 54)
-is the plan.** Stage 1 has landed: everything the *level* draws goes through `Renderer` (`renderer.h`),
-and so does every sprite, string and shine anywhere; the GUI, the game states, the crossfades, the weather,
-the toxic grid and the hint's note mesh still draw fixed-function immediate mode, and the two coexist
-through the brackets described below. Stage 2 converts those, deletes `GL::` and the brackets, and the
-browser stops needing the GL emulation in stage 3. Until then everything below is what the code does.
+**The renderer is under the whole game, and `RENDERER-REDESIGN.md` (ROADMAP 54) is the plan.** Stages 1
+and 2 have landed: everything the game draws — the level, the GUI, the game states, the crossfades, the
+credits, the weather, the toxic grid, the hint's note — goes through `Renderer` (`renderer.h`), and raw GL
+survives only in the files that own it, which `verify.py`'s `RAW_GL_FILES` lists with a reason each: the
+renderer itself, the texture upload, the engine's framebuffer, render target, readback and present, the
+present filters, the entry-point loader, and the browser's GL shims. Stage 3 cuts the GL emulation out of
+the browser build, which the shims and the present's one fixed-function quad still need.
 
 **The floor is GL 2.0 with framebuffer objects, and it is a floor, not a hope.** Buffers are core in GL
 1.5 (2003), shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004; both software rasterizers
@@ -56,17 +59,21 @@ A rectangle, a line, a keycap frame or a beam samples the centre of a texel insi
 so that linear filtering has one texel to weigh and the sample is exactly white — and a point stretches
 the disc over its own size, which is what `GL_POINT_SMOOTH` made of `GL_POINTS`. "Texturing off" is
 therefore a texture like any other, the flat things share one draw among themselves, and the GL enable is
-no longer state the batch is drawn under. Lines are the quads `LineDrawer` used to build — one per
-segment, a wedge on the outside of a turn — so a laser, a wire or a shot looks as it did, with
+no longer state the batch is drawn under. A line is a quad per segment, half the width to either side,
+with a wedge on the outside of a turn so a laser, a wire or a shot has no notch where it bends —
 `Renderer::polyline`, `line`, `point`, `rect` and `rectOutline` in place of a `glBegin`.
 
-**The rare state is a scope, never a field.** Colour mask, stencil write, stencil test and the alpha
-discard are RAII objects (`ColorMaskScope`, `StencilWriteScope`, `StencilTestScope`,
-`DiscardTransparentScope`): each flushes on construction, applies through the renderer at the next
-flush, flushes on destruction and puts the previous value back, so a restore cannot be forgotten and
-nesting is the C stack. The lava is the whole use today: the edge pass writes the stencil under a colour
-mask of nothing and the discard, and the two lava passes draw where it wrote nothing. Drawing inside a
-scope is ordinary batched drawing.
+**The rare state is a scope, never a field.** Colour mask, stencil write, stencil test, the alpha discard
+and the scissor are RAII objects (`ColorMaskScope`, `StencilWriteScope`, `StencilTestScope`,
+`DiscardTransparentScope`, `ScissorScope`): each flushes on construction, applies through the renderer at
+the next flush, flushes on destruction and puts the previous value back, so a restore cannot be forgotten
+and nesting is the C stack — a scissor inside a scissor clips to their intersection. The lava writes the
+stencil under a colour mask of nothing and the discard and draws where it wrote nothing; the star wipe
+writes it and draws where it did; the night vision and the credits mask channels; a window, an edit box
+and a list clip their contents, the level select its preview. Drawing inside a scope is ordinary batched
+drawing, and a clear obeys the scopes as a draw does. A render target of another size
+(`Renderer::beginTarget`, inside `Engine::beginRenderToTexture`'s framebuffer switch) pushes the
+projection, an identity transform and no scissor, and `endTarget` puts all three back.
 
 **The transform is baked in `float`, in GL's own arithmetic, and that is what makes a frame byte-exact.**
 `Renderer::push`, `pop`, `translate`, `scale`, `rotate` and `loadIdentity` keep a 2D affine stack of
@@ -76,9 +83,21 @@ to `float`, the radians in `double`, `sinf` and `cosf`, which is why a right ang
 -4.4e-8 and not 0. A corner is then the `float` entries promoted to `double`, summed, and rounded to
 `float` once — the arithmetic the old sprite batch did with the matrix it read back from GL. The
 projection is the one matrix left to the GPU, as a uniform; `Mat4::ortho` (`vec.h`) builds the same
-numbers `gluOrtho2D` did. `Engine::beginRenderToTexture` pushes both the projection and an identity
-transform, so a bake starts from the texture's origin whichever transform the caller stood under — the
-hint's note was the frame that showed it.
+numbers `gluOrtho2D` did. The same `Mat4` does GL's arithmetic for every other matrix the game once
+asked GL for: `gluPerspective`'s and `gluLookAt`'s entries, Mesa's in-place translate, scale and rotate,
+its left-to-right float sums in a product. The four 3D crossfades and the credits' stars hand
+`Renderer::quads3D` a matrix built that way with the projection in it, one draw a call, and the rain,
+the snow and the clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which
+is applied to the corners' uv in the order the fixed-function vertex stage summed it.
+
+**Three shapes are not quads, and each is one with a rule.** A triangle is a quad whose fourth corner
+repeats the third, so the second triangle of the split has no area — the hint's note mesh, the star
+wipe, the scrollbar arrows. A one-pixel line is `Renderer::hairline`, which lights the pixels llvmpipe
+lit for GL's own line, measured rather than derived: along the line a pixel whose centre lies in the
+half-open span from the start point to the end, across it the pixel containing the coordinate, a
+boundary going to the lower side in GL's coordinates — the column to the left, the row below on the
+screen. `hairlineRect` is the four of a loop drawn separately, so that the corner two of them share is
+lit twice, as GL lit it. The editor's marching ants are `dashes`.
 
 **The index buffer splits every quad from its first corner to its third, and the choice shows.** A quad
 whose attributes are not affine across it — the lava's four alphas, the lightning's trapezoids — is two
@@ -92,51 +111,39 @@ drawn under the state that stood when it was handed in; the picture must be byte
 batched one, and where it is not, the difference bisects to the draw that was queued under the wrong
 state. `?flushall=1` is the same switch in the browser.
 
-## Two modes, until the last `glBegin` goes
+## The bracket, and the files that own raw GL
 
-**Outside a `Renderer::DirectGL` bracket the renderer batches; inside one, the code around is raw GL and
-the renderer draws at once.** The bracket's constructor flushes what is queued and puts the fixed-function
-pipeline where raw code expects it — no program, no arrays of ours, the current transform loaded into the
-modelview on top of a push of its own, the current texture bound and enabled with the texture matrix
-holding its texel scale, the current blend set — and its destructor pops that modelview and makes the
-renderer forget what GL is holding, so that the next flush applies everything again. "Restore" means
-invalidate, never reconstruct. Inside the bracket a draw call is the unit: a sprite, a string, a
-polyline bakes under GL's own modelview, read once per call, and goes up before the call returns, and
-the state calls — `setTexture`, `setTexturing`, `setBlend`, the transform — reach GL as well as the
-record, so that raw `glBegin` blocks and renderer draws interleave in order. That is what every screen
-outside the level costs today (`batch.byReason.direct`), and what stage 2 removes.
+**Raw GL stands inside a `Renderer::DirectGL` bracket wherever it runs while the renderer may hold quads.**
+That is two files, `texture.cpp` and `engine.cpp`: a texture upload replaces what a queued quad samples, a
+framebuffer switch moves where the queue lands, a copy or a read of the frame wants what is queued on it
+first, and the present follows the overlays. The bracket's constructor flushes, so that what the raw code
+reads or replaces is on the target; its destructor makes the renderer forget what GL holds, so that the
+next flush applies everything again. "Restore" means invalidate, never reconstruct. `direct_gl_scope` is
+the check, and it reads those two files with the block, chain and preprocessor rules a C++ object obeys;
+`glGetError` and `glGetString` are queries and stand outside. The other owners need no bracket: the
+renderer's own file is what the bracket exists for, the loader runs before the first quad, the present
+filters run inside `presentFrame`'s bracket, and the shims are the emulation itself.
 
-**`Renderer::Batched` is the bracket the other way round.** `Level::render` opens one: inside a screen
-that is still raw, it reads GL's modelview as the raw code left it — the menu's `glTranslated(0, 65)`,
-the select screen's half scale, the editor's palette offset — as the base of the transform stack, batches
-everything the level draws, and puts the fixed function back at its end. Inside the level the three
-places that still draw raw — the weather, the toxic grid, the hint's note mesh — open a `DirectGL` of
-their own, which is where the outer push of the modelview matters: the weather's bracket starts from the
-level's camera shake and must not leave it behind for the screen that drew the level.
-
-**GL's texture binding is the bound texture at all times except inside a flush.** `Renderer::setTexture`
-binds for real whatever the mode, so that a `glTexImage2D` or a `glCopyTexSubImage2D` right after a bind
-lands in that texture — the crossfade's capture, the toxic effect's copy, a texture upload — and a flush
-that bound the stream's texture binds it back afterwards. The record beside it — binding, texel scale,
-texturing enable, blend — survives a raw section, because every door to those in the tree comes through
-the renderer, which is what the `gl_doors` check says: `GL::` (`glstate.h`) is four forwarding calls kept
-for the sources not yet converted, and `Texture::bind()` is `setTexturing(true)` plus `setTexture`.
-`presentFrame` keeps its raw calls inside `glPushAttrib(GL_ALL_ATTRIB_BITS)` and calls `GL::invalidate()`
-afterwards, since what the pop restores differs between desktop and browser and a record nobody can work
-out is better dropped than guessed.
+**GL's texture binding is the current texture at all times except inside a flush.** `Renderer::setTexture`
+binds for real, so that a `glTexImage2D` right after it lands in that texture, and a flush that bound the
+stream's texture binds the current one back afterwards. The frame copies — `Engine::captureFrame` into a
+texture from `createFrameCopyTexture`, drawn back through `getFrameCopyRef` in the game's own pixels —
+bind for themselves inside `Renderer::copyFrame`, which flushes first because the copy reads the frame.
+Every other GL texture the game makes comes from `Texture::createGLTexture`, so the upload stays in the
+one file that owns it.
 
 **A native test-hooks build reads GL back after every draw.** `Renderer::checkRecord` compares the
-binding, the four blend factors, the program, both buffer bindings and, outside a bracket, the colour
-mask, the stencil enable and the alpha test against what the renderer applied, and `frames.sh` fails on
-any line it prints. A wrong record is a wrong picture rather than a slow one, and a message in a log
-nobody reads is not a check. Not in the browser, where that is a WebGL `getParameter` per draw and would
-swamp `perf.js`; what it looks for is the tree's own code, the same on both platforms.
+binding, the four blend factors and the blend enable, the program, both buffer bindings, the colour
+mask, the stencil enable, the scissor enable and its box against what the renderer applied, and
+`frames.sh` fails on any line it prints. A wrong record is a wrong picture rather than a slow one, and a
+message in a log nobody reads is not a check. Not in the browser, where that is a WebGL `getParameter`
+per draw and would swamp `perf.js`; what it looks for is the tree's own code, the same on both platforms.
 
-**In the browser the two modes share one WebGL context with Emscripten's GL emulation.** The renderer's
-`glDrawElements` passes through to WebGL because no client-state array is enabled, the mode is
-`GL_TRIANGLES` and an element buffer is bound; `glUseProgram` resets the emulation's own program; the
-attribute pointers are re-specified at every direct-mode draw because the emulation's immediate-mode
-renderer sets its own. Each switch costs the emulation a lookup, which stage 3 deletes with the emulation.
+**In the browser the renderer's draws pass through Emscripten's GL emulation untouched.** A
+`glDrawElements` with no client-state array enabled, `GL_TRIANGLES` and an element buffer bound goes
+straight to WebGL, and `glUseProgram` is wrapped so that the emulation rebinds its own program at its
+next fixed-function draw — the present's quad, the one left. The emulation costs a lookup per switch
+and stage 3 deletes it.
 
 ## The tile grid, the sprites, the passes
 
@@ -152,10 +159,11 @@ skin change moves every tile without moving a single id. The font keeps its stri
 **A level frame is a few draws, and the passes merge.** `Level::renderObjects` walks the objects of one
 layer and each hands its sprites to `Engine::renderSprite`, which is `Renderer::sprite`; nothing between
 two passes flushes unless the texture or the blend changes, so the tile grid's three passes, the objects
-between them and the particles run together. Measured with the oracle: a night-vision level draws 33
-calls a frame where it drew 55, the lava level 37 where it drew 86, the level select 58 where it drew 80.
-The screens around the level are unchanged at 209 and 253 (options, manager) because they still draw
-raw. On a real phone batching is worth six times what any desktop number says: the sprite batch that
+between them and the particles run together. Measured with the oracle: a night-vision level draws 24
+calls a frame where it drew 55, the lava level 24 where it drew 86, the level select 28 where it drew 80,
+the options dialog 71 where it drew 209 and the Manager 58 where it drew 253 - a dialog's strings and
+frames now share a draw wherever they share the skin. On a real phone batching is worth six times what
+any desktop number says: the sprite batch that
 preceded the renderer took a full level from **57 ms a frame to 9** under `?nobatch=1` against the
 default, and that measurement is the reason the redesign exists; read every browser number as a lower
 bound on what a phone gets.
@@ -166,15 +174,13 @@ mirroring swaps the two `u` coordinates rather than applying a scale of -1, whic
 shifts it a pixel. The only odd sizes in the tree are the 39x39 level-status stamp in
 `gs_selectlevel.cpp` and `Menu.Donate` at 100x43 in `menu.xml`.
 
-**Browser colour has one quirk left, and it is confined to the raw draws.** Emscripten truncates a
-`glColor*` issued inside `glBegin`/`glEnd` to a byte, where the same call outside a block becomes a
-constant `vertexAttrib4fv` at full float — so a colour the remaining `glBegin` blocks set is still
-rounded down to the next 1/255 in the browser, and the browser is not a byte-exact oracle for them. The
-renderer's own draws carry their colours as float attributes and clamp them in the vertex stage, the
-desktop's fixed-function clamp on every platform: `Level::renderShine` hands in `deathCountDown * 5.0`
-from an exploding bomb and the spark bursts run a particle's red past 5, and both come out as the desktop
-draws them, where the emulation computed `clamp(colour * texel)` and made a soft glow a hard-edged blob.
-That closes ROADMAP 42, and `clampColor()` is gone with its two callers.
+**Browser colour is the desktop's.** Every colour reaches WebGL as a float attribute of the renderer's
+and is clamped in the vertex stage, the desktop's fixed-function clamp on every platform:
+`Level::renderShine` hands in `deathCountDown * 5.0` from an exploding bomb and the spark bursts run a
+particle's red past 5, and both come out as the desktop draws them, where the emulation computed
+`clamp(colour * texel)` and made a soft glow a hard-edged blob. That closes ROADMAP 42, and
+`clampColor()` is gone with its two callers. The quirk the emulation had — a `glColor*` inside a
+`glBegin` block truncated to a byte — no longer reaches a colour of the game's, since no block is left.
 
 **A render layer is a pass, and it has a name.** `renderlayer.h` holds the twelve `RL_*` that `Level::render`
 walks in order, each a single bit, so an object's set is the OR of the ones it draws on.
@@ -200,16 +206,14 @@ runs after the base and wipes the bit — **not one wire was drawn anywhere in t
 only symptom is a picture with something missing. The check knows which ancestor put bits in `renderLayers`
 and reports a subclass that replaces rather than adds.
 
-**Three more police the renderer's convention, scoped to what the level reaches.** `direct_gl`: a
-`glBegin`, `glDraw*` or `glRect*` in a source defining an `onRender` — plus `texture.cpp`, which every
-object binds through, and `Level::renderShine` and `Font::drawText` by name — has to stand in a block
-that declared a `Renderer::DirectGL` before it, read with the block, chain and preprocessor rules its
-docstring lists, because a raw draw outside the bracket lands underneath everything queued before it and
-the object that broke the rule looks right while its neighbours do not. `gl_state`: the same sources
-change texture state through `GL::` or `Texture::bind()` and never raw. `gl_doors`: the whole tree does,
-because the record is only as good as its coverage. The crossfades, GUI and credits are left to the
-first two deliberately, which keeps the ban checkable by a reader; `Hint::renderNoteMesh` is the one
-exemption, called from inside the bracket `Hint::onRender` opens for it.
+**Two more police the renderer's convention, over the whole tree.** `raw_gl`: every `gl*`, `glu*` or
+`glExt*` call stands in a file that owns raw GL, and every owner still holds one, because a raw draw
+anywhere else lands underneath everything queued before it — the object that broke the rule looks right
+while its neighbours do not — and a raw state change fools a record that is only as good as its
+coverage. `direct_gl_scope`: in the two owners whose raw GL runs mid-frame, the call stands in a
+`Renderer::DirectGL` bracket. The first is also what keeps WebGL's missing primitives out: a display
+list, a wide line, `GL_QUADS` or the alpha test is a `gl*` call, and there is nowhere outside the owners
+to write one.
 
 **The five palette levels are the oracle for the first kind and blind to the second.** `cat0`..`cat4` hold
 an instance of 60 of the 65 types `instancePreset` knows, so walking them draws all but two of the
@@ -220,14 +224,13 @@ ConveyorBelts that start their band at `random(0, 6)` in the constructor, so `fr
 *connected*, so the `plain` oracle level carries a clock wired to a light bulb — the one thing that makes
 the wire pass visible to a byte-exact comparison.
 
-**There are no display lists anywhere, and `verify.py` keeps it that way.** They were a second way of keeping
+**There are no display lists anywhere, and `raw_gl` keeps it that way.** They were a second way of keeping
 geometry beside these arrays, and one WebGL does not have — so every place that used one carried a browser
-path under `#ifdef __EMSCRIPTEN__` and a stub in `gl_compat.cpp`. The `display_lists` check reports
-`glNewList` and its six relations in either build: added back, one would compile on Windows, link on Linux
-and misbehave only in the browser, the build nobody runs first. The three that used them are the tile grid,
-the font and `Lightning`, whose two passes are built when the bolt is generated and drawn unchanged for the
-forty frames it takes to fade — only colour and alpha move. `QuadVertex` in `renderer.h` is where the three
-meet.
+path under `#ifdef __EMSCRIPTEN__` and a stub in `gl_compat.cpp`; added back, one would compile on
+Windows, link on Linux and misbehave only in the browser, the build nobody runs first. The three that
+used them are the tile grid, the font and `Lightning`, whose two passes are built when the bolt is
+generated and drawn unchanged for the forty frames it takes to fade — only colour and alpha move.
+`QuadVertex` in `renderer.h` is where the three meet.
 
 **Anything that reads the rendered frame must bind the FBO itself**, and `Engine::encodeFrame` is the second
 half of that rule: it binds the frame buffer before `glReadPixels` rather than reading
@@ -267,7 +270,7 @@ phase has to follow the unwrapped value, and the period is the *texture's* own s
 its own art.
 
 **The lava is the one whose period is not the texture**, and getting it wrong is a jump of half a tile.
-Its four cousins hand GL a texture matrix; `Lava::onRender` writes the texels into its quad's uv itself,
+Its four cousins scroll through the matrix they hand `scrolledQuad`; `Lava::onRender` writes the texels into its quad's uv itself,
 on a 16x16 sub-texture cut out of the skin's sprite sheet by `createSubTexture` — a real 16x16 texture of
 its own, so `GL_REPEAT` wraps at 16. But the front pass halves the *whole* coordinate (`t /= 2.0`) before
 it draws, so a jump of 16 moves that pass by eight texels and only 32 moves it by a period.

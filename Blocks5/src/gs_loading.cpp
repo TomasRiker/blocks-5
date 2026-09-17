@@ -26,8 +26,8 @@ GS_Loading::~GS_Loading()
 
 void GS_Loading::onRender()
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	Renderer& renderer = Renderer::inst();
+	renderer.clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));
 
 #ifdef __EMSCRIPTEN__
 	if(waitingForClick)
@@ -76,31 +76,20 @@ void GS_Loading::onRender()
 	}
 #endif
 
-	glPushMatrix();
-	glLoadIdentity();
-	glTranslated(320.0, 220.0, 0.0);
-	glScaled(logoSize, logoSize, 1.0);
+	renderer.push();
+	renderer.loadIdentity();
+	renderer.translate(320.0, 220.0);
+	renderer.scale(logoSize, logoSize);
 
 	if(p_logo)
 	{
-		p_logo->bind();
-
-		glBegin(GL_QUADS);
-		glColor4d(1.0, 1.0, 1.0, 1.0);
-		glTexCoord2i(0, 0);
-		glVertex2i(-256, -256);
-		glTexCoord2i(512, 0);
-		glVertex2i(256, -256);
-		glTexCoord2i(512, 512);
-		glVertex2i(256, 256);
-		glTexCoord2i(0, 512);
-		glVertex2i(-256, 256);
-		glEnd();
-
-		GL::setTexturing(false);
+		const Vec2f corners[4] = {Vec2f(-256.0f, -256.0f), Vec2f(256.0f, -256.0f), Vec2f(256.0f, 256.0f), Vec2f(-256.0f, 256.0f)};
+		const Vec2f uvs[4] = {Vec2f(0.0f, 0.0f), Vec2f(512.0f, 0.0f), Vec2f(512.0f, 512.0f), Vec2f(0.0f, 512.0f)};
+		renderer.setTexture(p_logo->ref());
+		renderer.quad(renderer.state(), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 	}
 
-	glPopMatrix();
+	renderer.pop();
 
 	if(time >= 2900)
 	{

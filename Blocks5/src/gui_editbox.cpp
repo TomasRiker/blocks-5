@@ -17,6 +17,7 @@ GUI_EditBox::~GUI_EditBox()
 void GUI_EditBox::onRender()
 {
 	GUI& gui = GUI::inst();
+	Renderer& renderer = Renderer::inst();
 	bool focused = isFocused();
 
 	if(useSkin())
@@ -26,32 +27,18 @@ void GUI_EditBox::onRender()
 	}
 	else
 	{
-		// draw the background
-		glBegin(GL_QUADS);
-		if(focused) glColor4d(0.6, 0.6, 0.6, 1.0);
-		else glColor4d(0.4, 0.4, 0.4, 1.0);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		if(focused) glColor4d(0.5, 0.5, 0.5, 1.0);
-		else glColor4d(0.3, 0.3, 0.3, 1.0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
-
-		// draw the frame
-		glColor4d(0.0, 0.0, 0.0, 1.0);
-		glBegin(GL_LINE_LOOP);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
+		// draw the background and the frame
+		const Vec4f top = focused ? Vec4f(0.6f, 0.6f, 0.6f, 1.0f) : Vec4f(0.4f, 0.4f, 0.4f, 1.0f);
+		const Vec4f bottom = focused ? Vec4f(0.5f, 0.5f, 0.5f, 1.0f) : Vec4f(0.3f, 0.3f, 0.3f, 1.0f);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec4f colors[4] = {top, top, bottom, bottom};
+		renderer.quad(corners, colors);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
-	const Vec2i pos = getAbsPosition();
-	glEnable(GL_SCISSOR_TEST);
-	int h = gui.getRoot()->getSize().y;
-	glScissor(pos.x + 2, h - pos.y - size.y + 2, size.x - 4, size.y - 4);
+	// The text, the selection and the caret clipped to the inside of the
+	// frame: the scope ends with the function.
+	Renderer::ScissorScope clip(getAbsPosition() + Vec2i(2, 2), size - Vec2i(4, 4));
 
 	Vec2i dim;
 	std::vector<Vec2i> charPositions;
@@ -66,8 +53,8 @@ void GUI_EditBox::onRender()
 	else if(vcx > size.x - 16) scroll += vcx - (size.x - 16);
 	if(scroll < 0) scroll = 0;
 
-	glPushMatrix();
-	glTranslated(-scroll, 0.0, 0.0);
+	renderer.push();
+	renderer.translate(-scroll, 0.0);
 
 	// write the text
 	int py = (size.y - dim.y) / 2;
@@ -78,35 +65,26 @@ void GUI_EditBox::onRender()
 		if(selStart != selEnd)
 		{
 			// draw the selection
-			glBegin(GL_QUADS);
-
+			const Vec4f top(0.25f, 0.25f, 1.0f, 0.5f), bottom(0.2f, 0.2f, 0.8f, 0.5f);
+			const Vec4f colors[4] = {top, top, bottom, bottom};
 			int h = p_font->getLineHeight();
 			for(uint i = selStart; i < selEnd; i++)
 			{
 				const Vec2i p = charPositions[i];
 				int w = max(0, charPositions[i + 1].x - p.x);
-				glColor4d(0.25, 0.25, 1.0, 0.5);
-				glVertex2i(p.x, p.y + py + 1);
-				glVertex2i(p.x + w, p.y + py + 1);
-				glColor4d(0.2, 0.2, 0.8, 0.5);
-				glVertex2i(p.x + w, p.y + py + 1 + h);
-				glVertex2i(p.x, p.y + py + 1 + h);
+				const Vec2f corners[4] = {Vec2f(p.x, p.y + py + 1), Vec2f(p.x + w, p.y + py + 1),
+										  Vec2f(p.x + w, p.y + py + 1 + h), Vec2f(p.x, p.y + py + 1 + h)};
+				renderer.quad(corners, colors);
 			}
-
-			glEnd();
 		}
 
 		// draw the caret
-		glBegin(GL_LINES);
 		double alpha = 0.6 + 0.4 * sin(0.02 * Engine::inst().getTime());
-		glColor4d(1.0, 1.0, 1.0, alpha);
-		glVertex2i(c.x, c.y + py + 1);
-		glVertex2i(c.x, c.y + py + 1 + p_font->getLineHeight());
-		glEnd();
+		renderer.hairline(Vec2f(c.x, c.y + py + 1), Vec2f(c.x, c.y + py + 1 + p_font->getLineHeight()),
+						  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha)));
 	}
 
-	glPopMatrix();
-	glDisable(GL_SCISSOR_TEST);
+	renderer.pop();
 }
 
 void GUI_EditBox::setText(const std::string& text)

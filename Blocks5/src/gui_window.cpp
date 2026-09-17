@@ -31,35 +31,21 @@ void GUI_Window::onRender()
 	else
 	{
 		// draw the background and the title bar
-		glBegin(GL_QUADS);
-		glColor4d(0.65, 0.65, 0.65, 1.0);
-		glVertex2i(0, 20);
-		glVertex2i(size.x, 20);
-		glColor4d(0.55, 0.55, 0.55, 1.0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		if(front) glColor4d(0.5, 0.5, 1.0, 1.0);
-		else glColor4d(0.4, 0.4, 0.7, 1.0);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		if(front) glColor4d(0.35, 0.35, 1.0, 1.0);
-		else glColor4d(0.3, 0.3, 0.7, 1.0);
-		glVertex2i(size.x, 20);
-		glVertex2i(0, 20);
-		glEnd();
+		Renderer& renderer = Renderer::inst();
+		const Vec2f body[4] = {Vec2f(0.0f, 20.0f), Vec2f(size.x, 20.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec4f bodyTop(0.65f, 0.65f, 0.65f, 1.0f), bodyBottom(0.55f, 0.55f, 0.55f, 1.0f);
+		const Vec4f bodyColors[4] = {bodyTop, bodyTop, bodyBottom, bodyBottom};
+		renderer.quad(body, bodyColors);
+		const Vec2f bar[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, 20.0f), Vec2f(0.0f, 20.0f)};
+		const Vec4f barTop = front ? Vec4f(0.5f, 0.5f, 1.0f, 1.0f) : Vec4f(0.4f, 0.4f, 0.7f, 1.0f);
+		const Vec4f barBottom = front ? Vec4f(0.35f, 0.35f, 1.0f, 1.0f) : Vec4f(0.3f, 0.3f, 0.7f, 1.0f);
+		const Vec4f barColors[4] = {barTop, barTop, barBottom, barBottom};
+		renderer.quad(bar, barColors);
 
 		// draw the frame
-		glColor4d(1.0, 1.0, 1.0, 1.0);
-		glBegin(GL_LINE_LOOP);
-		glVertex2i(0, 0);
-		glVertex2i(size.x, 0);
-		glVertex2i(size.x, size.y);
-		glVertex2i(0, size.y);
-		glEnd();
-		glBegin(GL_LINES);
-		glVertex2i(0, 20);
-		glVertex2i(size.x, 20);
-		glEnd();
+		const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), white);
+		renderer.hairline(Vec2f(0.0f, 20.0f), Vec2f(size.x, 20.0f), white);
 	}
 
 	// write the title
@@ -67,16 +53,15 @@ void GUI_Window::onRender()
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
 	p_font->renderText(title, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4d(1.0, 1.0, 1.0, 1.0));
-
-	const Vec2i pos = getAbsPosition();
-	glEnable(GL_SCISSOR_TEST);
-	int h = GUI::inst().getRoot()->getSize().y;
-	glScissor(pos.x + 1, h - pos.y - size.y + 1, size.x - 1, size.y - 21);
 }
 
-void GUI_Window::onRenderEnd()
+bool GUI_Window::getClipRect(Vec2i* p_position,
+							 Vec2i* p_size) const
 {
-	glDisable(GL_SCISSOR_TEST);
+	// The area under the title bar, one pixel in from the frame.
+	*p_position = Vec2i(1, 20);
+	*p_size = Vec2i(size.x - 1, size.y - 21);
+	return true;
 }
 
 void GUI_Window::onMouseDown(const Vec2i& position,

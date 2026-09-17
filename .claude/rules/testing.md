@@ -99,8 +99,8 @@ objects passes through the wrappers at the foot of `testhooks.cpp`; no header ca
 other translation unit needs it, which is what the `hooks_layout` check protects. The dump reports them
 as `draws.calls` over `draws.frames`, and `frames.sh` prints the ratio per scene beside the renderer's
 own draws and a histogram of what ended each batch (`batch.byReason`: a texture change, a blend change, a
-scope, a full stream, an explicit flush before a copy, clear or delete, the end of the frame, and a draw
-call inside a `Renderer::DirectGL` bracket - `perf.md` reads the same keys).
+scope, a full stream, an explicit flush before a copy, a clear, a 3D draw or a target switch, the end of
+the frame, and a `Renderer::DirectGL` bracket opening for raw GL - `perf.md` reads the same keys).
 In the browser the same key comes from `WebBuild/test/harness.js`, which counts `drawArrays` and
 `drawElements` on the WebGL context's prototype — what is left after the GL emulation, the number a phone
 pays — and `resetStats()` starts both counters in one evaluate so no frame falls between them.
@@ -158,7 +158,10 @@ load's numbers and two gas cells of one row had no order at all.
 
 `WebBuild/build.sh hooks` builds to `build-test/` with `-DBLOCKS5_TEST_HOOKS`, turning on
 `WebBuild/test_hooks.cpp`. The shipped build has none of it — the whole translation unit is inside the
-`#ifdef`, and `blocks5_testDump` does not appear in `build/blocks5.js`.
+`#ifdef`, and `blocks5_testDump` does not appear in `build/blocks5.js`. `./build.sh` without `hooks`
+writes `build/` and leaves `build-test/` as it was, so `harness.js` refuses a `build-test/` older than
+`Blocks5/src` or than what `build.sh` reads from `WebBuild`, as `b5_start` does natively: a smoke or
+perf run against the previous build passes for a game that no longer exists.
 
 The hook only reads. It puts the GUI tree into `Module["b5_test"]` as JSON — every element with its window
 rectangle, whether visible and enabled, plus game state, language and filter — and `blocks5_testHitAt(x,

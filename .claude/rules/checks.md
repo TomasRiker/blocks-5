@@ -12,16 +12,17 @@ paths:
 
 **`Tools/verify.py`** looks for the mistake that leaves no trace in a diff and that no compiler sees: a
 `gui["…"]` path no dialog XML knows, a `$ID` missing from `languages.txt`, an XML attribute written and
-never read, a source file missing from `Blocks5.vcxproj` or its `.filters`, a display list added back, a
-class whose header is not named after it, a render layer written as a number, an object that draws raw
-geometry outside a `Renderer::DirectGL` bracket or changes texture state outside `GL::`, the version number
+never read, a source file missing from `Blocks5.vcxproj` or its `.filters`, a `gl*` call in a file that
+does not own raw GL (a display list added back, say), a raw call in `texture.cpp` or `engine.cpp`
+outside a `Renderer::DirectGL` bracket, a class whose header is not named after it, a render layer
+written as a number, the version number
 drifting across its four places, a member the constructor never sets, an asset filename not on disk or
 spelled with different case (only Linux minds), a sound `playSound()` names that `gs_loading.cpp` does
 not preload, a non-ASCII byte or CRLF in a source file, `if (` where the tree writes `if(`, a German
 comment among the English. Exit 1 on any finding; `--list` names them, `--only NAME` runs one.
 `Tools/README.md` has the table.
 
-**The `comments` check reads further than the other twenty-three**, and the reason is a file it did not
+**The `comments` check reads further than the other twenty-one**, and the reason is a file it did not
 catch: `WebBuild/htaccess` was wholly German through the whole translation sweep, because it has no
 extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`, `PWEncrypt`
 and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is the second list: the
@@ -48,18 +49,21 @@ id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitia
 comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
 ten years is not a finding, and reporting it every run is how a check gets ignored.
 
-**Four of the checks police the renderer's convention** - `direct_gl`, `gl_state`, `gl_doors` and
-`display_lists` - and `RENDERER-REDESIGN.md` (ROADMAP 54) replaces them with two, `raw_gl` and
-`direct_gl_scope`, once every draw goes through the renderer. `direct_gl` is the first of those two
-scoped to what the level reaches: a `glBegin` in an `onRender` source has to stand in a block that
-declared a `Renderer::DirectGL` before it, read with the block, chain and preprocessor rules its
-docstring lists.
+**Two of the checks police the renderer's convention** (`RENDERER-REDESIGN.md`, ROADMAP 54). `raw_gl`
+reads the whole tree with comments and strings blanked and reports every `gl*`, `glu*` or `glExt*`
+call outside `RAW_GL_FILES`, the files that own raw GL - which is also what keeps display lists, wide
+lines, `GL_QUADS` and the alpha test out of a game the browser has to run; an owner holding no call
+is reported too, since a stale entry reads as a considered exception. `direct_gl_scope` reads the two
+owners whose raw GL runs while the renderer may hold quads, `texture.cpp` and `engine.cpp`, and asks
+that every raw call stand in a block that declared a `Renderer::DirectGL` before it, with the block,
+chain and preprocessor rules `bracket_violations()` lists; `glGetError` and `glGetString` are queries
+and exempt.
 
 **`Tools/selftest.py`** injects each fault in turn, confirms the matching check fires, restores the file
 byte-for-byte. Run it after touching `verify.py`. Not ceremony: the attribute check was inert when first
 written, because `Attribute(` also matches the tail of `SetAttribute(`.
 
-**`sh Tools/syntax.sh`** compiles all 124 sources with `i686-w64-mingw32-g++ -fsyntax-only`, the only way
+**`sh Tools/syntax.sh`** compiles all 122 sources with `i686-w64-mingw32-g++ -fsyntax-only`, the only way
 to put a compiler over the Windows code from here. Three files never go through it — `main.cpp`,
 `videorecorder.cpp`, `stackwalker.cpp`. The last two are left out of the web build for the same reasons;
 `main.cpp` is compiled there, and the difference is what mingw cannot parse in it: the `__try`/`__except`

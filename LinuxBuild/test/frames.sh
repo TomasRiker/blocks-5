@@ -32,11 +32,11 @@
 # scene starts from a clean config and the developer's own levels, saves and
 # progress are neither read nor written.
 #
-# It is also the run that puts the GL state layer through its paces, which is
-# why it ends by reading the log: a hooks build reads the real binding, texture
-# matrix and enable back on every GL:: call and reports a record that
-# disagrees, and every onRender in the tree goes past here. A line there is a
-# problem and the exit code says so.
+# It is also the run that puts the renderer's record through its paces, which
+# is why it ends by reading the log: a hooks build reads the real binding,
+# blend, program, buffers, mask, stencil and scissor back after every draw and
+# reports a record that disagrees, and every onRender in the tree goes past
+# here. A line there is a problem and the exit code says so.
 #
 #   frames.sh <outdir> [scene ...]     default: every scene
 #   frames.sh --list
@@ -244,11 +244,10 @@ b5_takeFrozen()   # $1 name, [$2 tick]
 	# however many frames the machine managed between the reset and the freeze,
 	# so only a ratio is comparable between two runs.
 	#
-	# "draw calls" is every glBegin block and every array draw render() made,
-	# counted at the link (see the foot of testhooks.cpp) - the number the
-	# renderer redesign is measured by. "batch draws" beside it is the
-	# renderer's own flushes that drew something, and the reasons say what
-	# ended each batch: those are the draw calls the redesign removes first.
+	# "draw calls" is every draw render() made, counted at the link (see the
+	# foot of testhooks.cpp) - the number the renderer redesign is measured
+	# by. "batch draws" beside it is the renderer's own flushes that drew
+	# something, and the reasons say what ended each batch.
 	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draw calls/frame' % (d['draws']['calls'] / max(d['draws']['frames'], 1))"), batch $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['draws']['frames'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"))"
 	b5_ok "  batch flushes by reason: $(b5_json "', '.join('%s %d' % (k, v) for k, v in d['batch']['byReason'].items() if v) or 'none'")"
 	# The font cache beside them: what it is holding, and whether it is
@@ -531,10 +530,10 @@ if wanted credits; then
 	b5_waitForState GS_Menu
 fi
 
-# Every "+ ERROR" the run logged, which is where GL:: reports a record that
-# disagrees with what OpenGL is really holding - a hooks build reads the state
-# back on every call. A wrong record is a wrong picture somewhere nobody was
-# looking, and a message in a log nobody reads is not a check.
+# Every "+ ERROR" the run logged, which is where the renderer reports a record
+# that disagrees with what OpenGL is really holding - a hooks build reads the
+# state back after every draw. A wrong record is a wrong picture somewhere
+# nobody was looking, and a message in a log nobody reads is not a check.
 echo
 grep -q "ERROR" "$B5_OUT/run.log" \
 	&& b5_note "ERROR in the log: $(grep -m3 ERROR "$B5_OUT/run.log" | tr '\n' ' ')" \
