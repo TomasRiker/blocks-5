@@ -56,20 +56,35 @@ std::string getCurrentVersion()
 #ifdef _WIN32
 	struct Task
 	{
-		Task()
+		Task() : refs(2)
 		{
-			currentVersion = "";
-			finished = false;
+		}
+
+		// Freed by whichever of the two lets go last, the caller or the
+		// thread: the caller gives up after two seconds, and the thread may
+		// still be about to write its result then.
+		static void release(Task* p_task)
+		{
+			if(InterlockedDecrement(&p_task->refs) == 0) delete p_task;
 		}
 
 		static DWORD WINAPI threadProc(void* p_param)
+		{
+			Task* p_task = reinterpret_cast<Task*>(p_param);
+			p_task->currentVersion = fetch();
+			release(p_task);
+			return 0;
+		}
+
+		// The version the server names, or "" when anything went wrong.
+		static std::string fetch()
 		{
 			// The version number belongs in the agent string: the server log
 			// then says which version is asking. Older installations still send
 			// the bare name without the bracket.
 			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
-			if(!inet) return 1;
+			if(!inet) return "";
 
 			// InternetOpenUrl does not need to be told INTERNET_FLAG_SECURE -
 			// it reads the scheme from the address - but written out it shows
@@ -79,7 +94,7 @@ std::string getCurrentVersion()
 			if(!url)
 			{
 				InternetCloseHandle(inet);
-				return 1;
+				return "";
 			}
 
 			char buffer[17] = {0};
@@ -91,7 +106,7 @@ std::string getCurrentVersion()
 			{
 				InternetCloseHandle(url);
 				InternetCloseHandle(inet);
-				return 1;
+				return "";
 			}
 
 			buffer[numBytesRead] = 0;
@@ -100,23 +115,29 @@ std::string getCurrentVersion()
 			InternetCloseHandle(url);
 			InternetCloseHandle(inet);
 
-			Task& task = *reinterpret_cast<Task*>(p_param);
-			task.currentVersion = buffer;
-			task.finished = true;
-
-			return 0;
+			return buffer;
 		}
 
 		std::string currentVersion;
-		bool finished;
+		volatile LONG refs;
 	};
 
-	// Run the query in a thread and allow it two seconds at most
-	Task task;
+	// Run the query in a thread and allow it two seconds at most. The result
+	// counts only when the thread was seen to finish: then its writes are
+	// done, and the wait is what makes them visible here.
+	Task* p_task = new Task;
 	DWORD threadID;
-	HANDLE thread = CreateThread(0, 0, Task::threadProc, &task, 0, &threadID);
-	WaitForSingleObject(thread, 2000);
-	return task.finished ? task.currentVersion : "";
+	HANDLE thread = CreateThread(0, 0, Task::threadProc, p_task, 0, &threadID);
+	if(!thread)
+	{
+		delete p_task;
+		return "";
+	}
+	const bool finished = WaitForSingleObject(thread, 2000) == WAIT_OBJECT_0;
+	CloseHandle(thread);
+	const std::string currentVersion = finished ? p_task->currentVersion : "";
+	Task::release(p_task);
+	return currentVersion;
 #elif defined(__EMSCRIPTEN__)
 	return "";  // no update check in the browser build
 #else
@@ -318,7 +339,6 @@ int runTheGame(int argc,
 		bool success = true;
 		std::string errorMsg;
 		bool severeError = false;
-		bool quit = false;
 
 		if(versionInitialized == "not_played" ||
 		   versionInitialized == "<= 1.0.7")
@@ -447,8 +467,6 @@ int runTheGame(int argc,
 			printfLog("%s\n", errorMsg.c_str());
 			if(severeError) return 1;
 		}
-
-		if(quit) return 0;
 	}
 
 	if(!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");

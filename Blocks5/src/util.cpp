@@ -160,11 +160,6 @@ Vec2i numberToDir(int dir)
 	return Vec2i(0, 0);
 }
 
-std::string prepareForTinyXML(const std::string& text)
-{
-	return text;
-}
-
 void generatePrimes(uint* p_out,
 					uint maxNum)
 {
@@ -320,11 +315,14 @@ void printfLog(const char* p_format,
 	{
 		const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "crash_log.txt");
 		FILE* p_file = fopen(logFilename.c_str(), "at");
-		fprintf(p_file, "%s", finalLogText.c_str());
+		if(p_file)
+		{
+			fprintf(p_file, "%s", finalLogText.c_str());
 #ifdef _DEBUG
-		fflush(p_file);
+			fflush(p_file);
 #endif
-		fclose(p_file);
+			fclose(p_file);
+		}
 	}
 }
 

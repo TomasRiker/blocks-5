@@ -141,8 +141,10 @@ std::string FileSystem::evalPath(const std::string& path) const
 std::string FileSystem::getAppHomeDirectory() const
 {
 #ifdef _WIN32
-	char path[256];
-	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
+	// MAX_PATH is the size the call is specified for. Without a Documents
+	// folder the working directory is left, as under Linux without HOME.
+	char path[MAX_PATH];
+	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path))) return "./Blocks 5/";
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
 	// Mounted by the page as IDBFS to let saved games and the player's own
@@ -450,7 +452,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 	std::string result = basePath;
 	for(uint i = 0; i < path.length();)
 	{
-		if(i < path.length() - 2 &&
+		if(i + 3 <= path.length() &&
 		   path.substr(i, 3) == "../")
 		{
 			// go up one level in the directory tree
@@ -465,7 +467,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 			result += '/';
 			i += 3;
 		}
-		else if(i < path.length() - 1 &&
+		else if(i + 2 <= path.length() &&
 				path.substr(i, 2) == "./")
 		{
 			// ignore it

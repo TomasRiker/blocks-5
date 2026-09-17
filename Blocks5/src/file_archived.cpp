@@ -148,6 +148,13 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 				// delete the object
 				int r = deleteArchivedFile(archiveFilename, objectName);
 				if(r == -1) archiveExists = false;
+				else if(r != 1)
+				{
+					// The old member is still in there, and one appended
+					// under the same name would lose to it.
+					error = 10;
+					return;
+				}
 			}
 		}
 
@@ -166,8 +173,10 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	else if(mode == FileSystem::FM_DELETE)
 	{
 		// Delete the object. 1 means deleted, -1 deleted and the archive left
-		// empty in the process, 0 not found - and then nothing is gone.
-		if(deleteArchivedFile(archiveFilename, objectName) == 0) error = 9;
+		// empty in the process, 0 not found and -2 an archive that could not
+		// be rewritten - and in the last two cases nothing is gone.
+		const int r = deleteArchivedFile(archiveFilename, objectName);
+		if(r == 0 || r == -2) error = 9;
 	}
 	else
 	{
@@ -368,37 +377,60 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		uint localHeaderOffset;
 	};
 
+	// The survivors are copied into a side file, which replaces the archive
+	// once it is complete; until then the archive is untouched, so every
+	// failure below leaves it as it was and reports -2.
+	const std::string tempFilename = archiveFilename + "_";
 	FILE* p_in = fopen(archiveFilename.c_str(), "rb");
-	FILE* p_out = fopen((archiveFilename + "_").c_str(), "wb");
+	if(!p_in)
+	{
+		printfLog("+ ERROR: Could not open archive \"%s\" for rewriting.\n",
+				  archiveFilename.c_str());
+		return -2;
+	}
+	FILE* p_out = fopen(tempFilename.c_str(), "wb");
+	if(!p_out)
+	{
+		printfLog("+ ERROR: Could not create \"%s\".\n", tempFilename.c_str());
+		fclose(p_in);
+		return -2;
+	}
 
 	// find the central directory
 	while(true)
 	{
-		uint signature;
+		uint signature = 0;
 		uint pos = ftell(p_in);
-		fread(&signature, 1, 4, p_in);
+		const bool read = fread(&signature, 1, 4, p_in) == 4;
 		fseek(p_in, pos, SEEK_SET);
 
-		if(signature == 0x04034B50)
+		if(read && signature == 0x04034B50)
 		{
 			LocalFileHeader lfh;
 			fread(&lfh, 1, sizeof(lfh), p_in);
 			fseek(p_in, lfh.filenameLength + lfh.extraFieldLength + lfh.compressedSize, SEEK_CUR);
 		}
-		else if(signature == 0x02014B50)
+		else if(read && signature == 0x02014B50)
 		{
 			CentralDirectoryEntry cde;
 			fread(&cde, 1, sizeof(cde), p_in);
 			fseek(p_in, cde.filenameLength + cde.extraFieldLength + cde.commentLength, SEEK_CUR);
 		}
-		else if(signature == 0x06054B50)
+		else if(read && signature == 0x06054B50)
 		{
 			// That is what we were looking for.
 			break;
 		}
 		else
 		{
-			return false;
+			// A record this scan does not know - zip64, a data descriptor
+			// behind an entry with flag bit 3 set - or a truncated file.
+			printfLog("+ ERROR: Archive \"%s\" has a record that cannot be rewritten.\n",
+					  archiveFilename.c_str());
+			fclose(p_in);
+			fclose(p_out);
+			remove(tempFilename.c_str());
+			return -2;
 		}
 	}
 
@@ -528,12 +560,12 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	if(ecdOut.totalEntries)
 	{
 		// rename the new file
-		rename((archiveFilename + "_").c_str(), archiveFilename.c_str());
+		rename(tempFilename.c_str(), archiveFilename.c_str());
 	}
 	else
 	{
 		// delete the new file
-		remove((archiveFilename + "_").c_str());
+		remove(tempFilename.c_str());
 		result = -1;
 	}
 
