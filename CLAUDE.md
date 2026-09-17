@@ -77,6 +77,12 @@ answer *is that the look I want*. Make the edit, say what the numbers mean and w
 stop. Everything else still applies to anything a compiler or check can judge, and to a visual change
 that also moves code around.
 
+**The same holds for sound: a change whose whole question is how it sounds goes to the author to hear.**
+Whether a cue lands with its animation, a fade is quick enough or a level sits right in the mix is a
+question the author's ears answer in a few seconds. A spy on the audio calls or a decoded waveform can
+prove, at the cost of minutes, that the call was made and when - never that it sounds right. Make the
+edit, say what the numbers mean and which way to turn them, stop.
+
 **A check that can pass on a previous run's artifact is worse than no check.** `WebBuild/build.sh` tests
 `${PIPESTATUS[0]}` — the `em++` it pipes through `tail`, not `tail` — and exits 1 on it, rather than
 asking afterwards whether `blocks5.wasm` exists, which it would from the run before. Worse than stale:

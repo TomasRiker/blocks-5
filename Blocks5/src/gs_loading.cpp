@@ -301,6 +301,8 @@ void GS_Loading::loadSounds()
 	sndMgr.request("gas.ogg");
 	sndMgr.request("geiger.ogg");
 	sndMgr.request("grass.ogg");
+	sndMgr.request("hint.ogg");
+	sndMgr.request("hintscroll.ogg");
 	sndMgr.request("hotel.ogg");
 	sndMgr.request("laser.ogg");
 	sndMgr.request("light_off.ogg");

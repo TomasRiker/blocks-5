@@ -8,6 +8,7 @@
 class Font;
 class Texture;
 class Player;
+class SoundInstance;
 
 class Hint : public Object
 {
@@ -61,6 +62,12 @@ private:
 	// target and never arrives.
 	double unroll;
 	int activeTicks;
+
+	// The rustle of the unrolling, held only to fade it out when the note
+	// closes under it. Sound deletes an instance the moment it has played
+	// out, so Sound::isLiveInstance() is asked before the pointer is used.
+	SoundInstance* p_scrollSound;
+	void fadeScrollSound();
 
 	// Dismissed even though the player is still standing on the field. Holds
 	// until they leave it - otherwise the note would open again on the next

@@ -12,7 +12,7 @@
 # do not deliver the same file: the Ogg pages carry a random stream id, and
 # with it the checksums of the page headers change - twenty-four bytes of nine
 # thousand, for the same audio. Without that check every run would rewrite
-# fifty-five binary files.
+# fifty-seven binary files.
 #
 # 96 kbit/s is what the greater part of the stock carries. Less is a trap for
 # short effects: at 45 kbit/s the encoder smears a transient far enough that
