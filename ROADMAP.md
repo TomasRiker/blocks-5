@@ -156,9 +156,9 @@ halation as a second pass.
 `CF_Slices` only while the CRT filter is in effect: on `sharp` the game does not
 claim to be a tube. Two images cut into strips and interleaved is what a tape in
 search really puts out, and everything else follows from the physics
-(`cf_rewind.cpp`). The `<< REW` in the corner must not move with any of it: it
-comes from the recorder's own character generator, and that one steady thing is
-what makes the mess read as a machine. `ROLL_SCREENS` is a whole number so the
+(`cf_rewind.cpp`). The `REWIND` and its two arrows in the corner must not move
+with any of it: they come from the recorder's own character generator, and that
+one steady thing is what makes the mess read as a machine. `ROLL_SCREENS` is a whole number so the
 roll lands back on zero exactly when the crossfade ends.
 
 
