@@ -721,3 +721,47 @@ own 29.4 at 64 quads a draw - the desktop `menu` scene's count to the decimal,
 since the menu around the title level now draws in the batch, one call per
 texture instead of one per sprite or string. The interval is swiftshader's
 rasterizing, not the game's.
+
+## 12. Stage 3 - cut the emulator
+
+Done on `claude/render-stage3`. What landed: every present filter is a
+`PresentProgram` - the base class compiles a pass-through fragment shader for
+`Sharp` and `Smooth`, `SharpFit` and the CRT filter hand in their own through
+`getFragmentSource()` - and `Engine::presentFrame` has no matrix, colour or
+attribute call left: it switches the blend, the tests and the mask off inside
+its bracket and puts nothing back, since the renderer owns the blend enable
+now and applies it with the function whenever its record was dropped.
+`readFrame` names no read buffer, the framebuffer object's one attachment
+being the default, and the texture upload asks for no row length, a 32-bit
+SDL surface's rows being tight on every platform, which `texture.cpp` checks
+rather than assumes. With that `WebBuild/build.sh` links against Emscripten's
+plain WebGL library: `-sLEGACY_GL_EMULATION`, `gl_immediate.cpp`,
+`gl_compat.cpp`, the `INCOMING_MODULE_JS_API` entry and the `?texunits` knob
+are gone, and a fixed-function call anywhere in `Blocks5/src` is an undefined
+symbol at that link. GLU went with it, out of `pch.h` and both links.
+
+**The oracle.** All nineteen scenes byte-identical to the stage-2 run, no
+record error, the draw counts unchanged - the present is outside `render()`
+and nothing inside it moved. `LinuxBuild/test/smoke.sh`, which grabs the
+presented window, passes its 45 checks through the shader present under
+llvmpipe; `smoke.js` and `mobile.js` pass on the emulation-free build.
+
+**Browser**, stage 2's hooks build against stage 3's on the title demo, three
+twenty-second runs each, alternating (`B5_DIR` and `B5_STALE_OK` in
+`harness.js`; medians of the three, milliseconds on the main thread):
+
+| build | total | render | update | present | WebGL draws / frame | page JavaScript |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| stage 2 | 1.20 | 0.50 | 0.20 | 0.10 | 30.5 | 329,419 bytes |
+| stage 3 | 1.10 | 0.50 | 0.20 | 0.00 | 30.6 | 231,165 bytes |
+
+The main thread saw one quantisation step of `emscripten_get_now()` leave the
+present - 0.10 to 0.00 in all three pairs - and nothing else it can see: the
+total's step is within the spread of an arm, and with one fixed-function draw
+a frame left after stage 2 the emulation had little left to cost on this
+desktop. What the stage buys is what it removes: the emulation's JavaScript,
+30% of the page's, the two shims, the knob that existed for the emulation's
+texture-unit loop, and the possibility of a fixed-function call reaching the
+browser at all, which now fails the link instead. The phone's number, the
+plan's last measurement, is the author's to take: `?perf=1` on the same level
+as before, against the 9 ms the sprite batch alone reached.
