@@ -172,8 +172,9 @@ void CF_Rewind::drawSnow(int y,
    - VHS carries the colour separately and at a low frequency under the
      picture; that does not survive the search. Hence the grey wash.
 
-   One thing must NOT jitter: the on-screen display "<< REW". It comes from the
-   recorder's own character generator and is mixed in behind the tape path. It
+   One thing must NOT jitter: the on-screen display, "REWIND" and its two
+   arrows. It comes from the recorder's own character generator and is mixed
+   in behind the tape path. It
    stands steady while everything else tears - and that is exactly what makes
    the garbled picture read as a machine. */
 void CF_Rewind::render(double t,
