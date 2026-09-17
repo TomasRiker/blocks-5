@@ -869,10 +869,10 @@ void Level::render()
 		// render the noise
 		renderer.setBlend(BM_MULTIPLY);
 		renderer.setTexture(p_noise->ref());
-		const Vec2i& o1 = noiseOffset1;
-		const Vec2i& o2 = noiseOffset2;
-		const Vec2f uv1[4] = {Vec2f(o1.x, o1.y), Vec2f(o1.x + 200, o1.y), Vec2f(o1.x + 200, o1.y + 160), Vec2f(o1.x, o1.y + 160)};
-		const Vec2f uv2[4] = {Vec2f(o2.x, o2.y), Vec2f(o2.x + 300, o2.y), Vec2f(o2.x + 300, o2.y + 240), Vec2f(o2.x, o2.y + 240)};
+		const Vec2f o1 = static_cast<Vec2f>(noiseOffset1);
+		const Vec2f o2 = static_cast<Vec2f>(noiseOffset2);
+		const Vec2f uv1[4] = {o1, o1 + Vec2f(200.0f, 0.0f), o1 + Vec2f(200.0f, 160.0f), o1 + Vec2f(0.0f, 160.0f)};
+		const Vec2f uv2[4] = {o2, o2 + Vec2f(300.0f, 0.0f), o2 + Vec2f(300.0f, 240.0f), o2 + Vec2f(0.0f, 240.0f)};
 		const Vec4f green(0.4f, 1.0f, 0.4f, 1.0f);
 		renderer.quad(renderer.state(), screen, uv1, green);
 		renderer.quad(renderer.state(), screen, uv2, green);
@@ -2382,7 +2382,7 @@ void Level::renderToxicEffect()
 			const int cy[4] = {y, y, y + 1, y + 1};
 			for(int k = 0; k < 4; k++)
 			{
-				p_vertex->position = Vec2f(cx[k] * 10, cy[k] * 10);
+				p_vertex->position = static_cast<Vec2f>(Vec2i(cx[k] * 10, cy[k] * 10));
 				p_vertex->uv = static_cast<Vec2f>(grid[cx[k]][cy[k]]);
 				p_vertex->color = static_cast<Vec4f>(color[cx[k]][cy[k]]);
 				p_vertex++;

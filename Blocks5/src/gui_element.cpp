@@ -88,7 +88,7 @@ void GUI_Element::onRender()
 {
 	if(fill)
 	{
-		Renderer::inst().rect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), static_cast<Vec4f>(fillColor));
+		Renderer::inst().rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), static_cast<Vec4f>(fillColor));
 	}
 }
 

@@ -104,7 +104,7 @@ void GUI_ScrollBar::onRender()
 		renderer.pop();
 
 		// draw the frame and the lines that cut the buttons off
-		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), frame);
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), frame);
 		renderer.hairline(corner(thickness, 0), corner(thickness, thickness), frame);
 		renderer.hairline(corner(length - thickness, 0), corner(length - thickness, thickness), frame);
 
@@ -119,7 +119,7 @@ void GUI_ScrollBar::onRender()
 Vec2f GUI_ScrollBar::corner(int along,
 							 int across) const
 {
-	return dir ? Vec2f(along, across) : Vec2f(across, along);
+	return static_cast<Vec2f>(dir ? Vec2i(along, across) : Vec2i(across, along));
 }
 
 void GUI_ScrollBar::gradient(int from,

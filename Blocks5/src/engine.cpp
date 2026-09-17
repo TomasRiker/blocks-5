@@ -2822,7 +2822,7 @@ void Engine::drawPerformance()
 	const int top = screenSize.y - height;
 
 	Renderer::inst().setBlend(BM_NORMAL);
-	Renderer::inst().rect(Vec2f(0.0f, top), Vec2f(screenSize.x, screenSize.y), Vec4f(0.0f, 0.0f, 0.0f, 0.7f));
+	Renderer::inst().rect(Vec2f(0.0f, static_cast<float>(top)), static_cast<Vec2f>(screenSize), Vec4f(0.0f, 0.0f, 0.0f, 0.7f));
 
 	for(int i = 0; i < 3; i++)
 	{
@@ -3880,7 +3880,7 @@ TextureRef Engine::getFrameCopyRef(uint textureID) const
 	// up, and the copy sits at the top of the pow2 texture rather than at its
 	// origin - under GL_REPEAT a negative coordinate wraps to exactly that
 	// band.
-	return TextureRef(textureID, Vec2f(1.0f / screenPow2Size.x, -1.0f / screenPow2Size.y));
+	return TextureRef(textureID, Vec2f(1.0f / static_cast<float>(screenPow2Size.x), -1.0f / static_cast<float>(screenPow2Size.y)));
 }
 
 void Engine::readFrame(uchar* p_rgba)

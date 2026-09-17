@@ -259,8 +259,8 @@ void Renderer::init()
 				// Alpha 1 to a radius of 7, 0 from 8, a ramp between: one
 				// texel of edge, which linear filtering spreads over the
 				// size the point is drawn at. (x, y) is local to the cell.
-				const float dx = x + 0.5f - 8.0f;
-				const float dy = y + 0.5f - 8.0f;
+				const float dx = static_cast<float>(x) + 0.5f - 8.0f;
+				const float dy = static_cast<float>(y) + 0.5f - 8.0f;
 				const float distance = sqrtf(dx * dx + dy * dy);
 				float alpha = 8.0f - distance;
 				if(alpha < 0.0f) alpha = 0.0f;

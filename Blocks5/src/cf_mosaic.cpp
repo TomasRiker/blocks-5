@@ -23,9 +23,9 @@ void CF_Mosaic::render(double t,
 
 	Renderer& renderer = Renderer::inst();
 	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
-	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f),
-							 Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
-	const Vec2f shrunk[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+	const Vec2f whole = static_cast<Vec2f>(screenSize), part = static_cast<Vec2f>(size);
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(whole.x, 0.0f), whole, Vec2f(0.0f, whole.y)};
+	const Vec2f shrunk[4] = {Vec2f(0.0f, 0.0f), Vec2f(part.x, 0.0f), part, Vec2f(0.0f, part.y)};
 
 	// render a shrunk-down version of the image
 	renderer.quad(imageState(t <= 0.5 ? oldImageID : newImageID), shrunk, screen, white);

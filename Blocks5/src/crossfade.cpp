@@ -27,8 +27,8 @@ RenderState Crossfade::imageState(uint imageID) const
 void Crossfade::drawImage(uint imageID,
 						  const Vec4f& color) const
 {
-	const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f),
-							  Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+	const Vec2f s = static_cast<Vec2f>(screenSize);
+	const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 	Renderer::inst().quad(imageState(imageID), corners, corners, color);
 }
 
@@ -36,7 +36,7 @@ void Crossfade::drawColor(const Vec4f& color) const
 {
 	Renderer& renderer = Renderer::inst();
 	renderer.setBlend(BM_NORMAL);
-	renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, screenSize.y), color);
+	renderer.rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(screenSize), color);
 }
 
 void Crossfade::drawImage3D(uint imageID,

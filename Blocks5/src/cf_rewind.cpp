@@ -128,9 +128,11 @@ void CF_Rewind::drawStrip(uint imageID,
 						  double shift) const
 {
 	// The texture coordinates are in pixels, as the image's state is sampled.
-	const Vec2f corners[4] = {Vec2f(0.0f, y), Vec2f(screenSize.x, y), Vec2f(screenSize.x, y + height), Vec2f(0.0f, y + height)};
+	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
+	const Vec2f corners[4] = {Vec2f(0.0f, top), Vec2f(right, top), Vec2f(right, bottom), Vec2f(0.0f, bottom)};
 	const float u0 = static_cast<float>(shift), u1 = static_cast<float>(shift + screenSize.x);
-	const Vec2f uvs[4] = {Vec2f(u0, sourceY), Vec2f(u1, sourceY), Vec2f(u1, sourceY + height), Vec2f(u0, sourceY + height)};
+	const float v0 = static_cast<float>(sourceY), v1 = static_cast<float>(sourceY + height);
+	const Vec2f uvs[4] = {Vec2f(u0, v0), Vec2f(u1, v0), Vec2f(u1, v1), Vec2f(u0, v1)};
 	Renderer::inst().quad(imageState(imageID), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
@@ -144,7 +146,8 @@ void CF_Rewind::drawSnow(int y,
 	const double dv = static_cast<double>(height) / NOISE_SIZE;
 
 	Renderer& renderer = Renderer::inst();
-	const Vec2f corners[4] = {Vec2f(0.0f, y), Vec2f(screenSize.x, y), Vec2f(screenSize.x, y + height), Vec2f(0.0f, y + height)};
+	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
+	const Vec2f corners[4] = {Vec2f(0.0f, top), Vec2f(right, top), Vec2f(right, bottom), Vec2f(0.0f, bottom)};
 	const Vec2f uvs[4] = {Vec2f(u, v), Vec2f(u + du, v), Vec2f(u + du, v + dv), Vec2f(u, v + dv)};
 	renderer.quad(RenderState(TextureRef(noiseID, NOISE_TEXEL_SCALE), renderer.state().blend), corners, uvs,
 				  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha)));

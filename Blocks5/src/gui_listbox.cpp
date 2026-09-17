@@ -38,10 +38,11 @@ void GUI_ListBox::onRender()
 		// draw the background and the frame
 		const Vec4f top = focused ? Vec4f(0.6f, 0.6f, 0.6f, 1.0f) : Vec4f(0.4f, 0.4f, 0.4f, 1.0f);
 		const Vec4f bottom = focused ? Vec4f(0.5f, 0.5f, 0.5f, 1.0f) : Vec4f(0.3f, 0.3f, 0.3f, 1.0f);
-		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+		const Vec2f s = static_cast<Vec2f>(size);
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 		const Vec4f colors[4] = {top, top, bottom, bottom};
 		renderer.quad(corners, colors);
-		renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+		renderer.hairlineRect(Vec2f(0.0f, 0.0f), s, Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
 	// The items and the selection clipped to the inside of the frame; the
@@ -66,7 +67,8 @@ void GUI_ListBox::onRender()
 		const Vec4f top = focused ? Vec4f(0.25f, 0.25f, 1.0f, 0.5f) : Vec4f(0.25f, 0.25f, 0.7f, 0.5f);
 		const Vec4f bottom = focused ? Vec4f(0.2f, 0.2f, 0.8f, 0.5f) : Vec4f(0.15f, 0.15f, 0.5f, 0.5f);
 		int y = selection * h + 2;
-		const Vec2f corners[4] = {Vec2f(2.0f, y), Vec2f(size.x - 2, y), Vec2f(size.x - 2, y + h), Vec2f(2.0f, y + h)};
+		const float y0 = static_cast<float>(y), y1 = static_cast<float>(y + h), right = static_cast<float>(size.x - 2);
+		const Vec2f corners[4] = {Vec2f(2.0f, y0), Vec2f(right, y0), Vec2f(right, y1), Vec2f(2.0f, y1)};
 		const Vec4f colors[4] = {top, top, bottom, bottom};
 		renderer.quad(corners, colors);
 	}

@@ -121,7 +121,7 @@ void GUI::renderToolTip()
 			if(ttPos.y + ttDim.y > screenSize.y) ttPos.y = screenSize.y - ttDim.y;
 
 			Renderer& renderer = Renderer::inst();
-			const Vec2f min(ttPos.x, ttPos.y), max(ttPos.x + ttDim.x, ttPos.y + ttDim.y);
+			const Vec2f min = static_cast<Vec2f>(ttPos), max = static_cast<Vec2f>(ttPos + ttDim);
 			renderer.rect(min, max, Vec4f(1.0f, 1.0f, 0.5f, 0.9f));
 			renderer.hairlineRect(min, max, Vec4f(0.0f, 0.0f, 0.0f, 0.9f));
 
@@ -147,9 +147,8 @@ void GUI::display()
 		// The copy render() took, over the game; its texel scale puts the
 		// coordinates in pixels.
 		Engine& engine = Engine::inst();
-		const Vec2i& screenSize = engine.getScreenSize();
-		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f),
-								  Vec2f(screenSize.x, screenSize.y), Vec2f(0.0f, screenSize.y)};
+		const Vec2f screenSize = static_cast<Vec2f>(engine.getScreenSize());
+		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f), screenSize, Vec2f(0.0f, screenSize.y)};
 		Renderer::inst().quad(RenderState(engine.getFrameCopyRef(texID), BM_NORMAL), corners, corners,
 							  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(opacity)));
 	}

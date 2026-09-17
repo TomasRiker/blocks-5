@@ -27,7 +27,8 @@ void CF_Camera::render(double t,
 	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
 	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
-	const Vec2f uvs[4] = {Vec2f(screenSize.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, screenSize.y), Vec2f(screenSize.x, screenSize.y)};
+	const Vec2f s = static_cast<Vec2f>(screenSize);
+	const Vec2f uvs[4] = {Vec2f(s.x, 0.0f), Vec2f(0.0f, 0.0f), Vec2f(0.0f, s.y), s};
 
 	// draw the old image
 	const Vec3f oldCorners[4] = {Vec3f(-1.0f, 1.0f, 0.0f), Vec3f(1.0f, 1.0f, 0.0f), Vec3f(1.0f, -1.0f, 0.0f), Vec3f(-1.0f, -1.0f, 0.0f)};

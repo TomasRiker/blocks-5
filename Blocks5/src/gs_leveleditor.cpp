@@ -1110,7 +1110,8 @@ namespace
 	void highlightTile(Renderer& renderer, const Vec2i& p)
 	{
 		const Vec4f light(1.0f, 0.75f, 0.75f, 1.0f), dark(1.0f, 0.15f, 0.15f, 1.0f);
-		const Vec2f a(p.x, p.y), b(p.x + 16, p.y), c(p.x + 16, p.y + 16), d(p.x, p.y + 16);
+		const Vec2f a = static_cast<Vec2f>(p);
+		const Vec2f b = a + Vec2f(16.0f, 0.0f), c = a + Vec2f(16.0f, 16.0f), d = a + Vec2f(0.0f, 16.0f);
 		renderer.hairline(a, b, light, dark);
 		renderer.hairline(b, c, dark);
 		renderer.hairline(c, d, dark);
@@ -1124,10 +1125,11 @@ namespace
 	{
 		const float phase = 4.0f - static_cast<float>((time / 40) % 8);
 		std::vector<Vec2f> loop;
-		loop.push_back(Vec2f(p1.x + 1, p1.y + 1));
-		loop.push_back(Vec2f(p2.x + 1, p1.y + 1));
-		loop.push_back(Vec2f(p2.x + 1, p2.y + 1));
-		loop.push_back(Vec2f(p1.x + 1, p2.y + 1));
+		const Vec2f lo = static_cast<Vec2f>(p1 + Vec2i(1, 1)), hi = static_cast<Vec2f>(p2 + Vec2i(1, 1));
+		loop.push_back(lo);
+		loop.push_back(Vec2f(hi.x, lo.y));
+		loop.push_back(hi);
+		loop.push_back(Vec2f(lo.x, hi.y));
 		renderer.dashes(loop, 2.0f, Vec4f(0.0f, 0.0f, 0.0f, 0.75f), 4.0f, 4.0f, phase, true);
 		for(size_t i = 0; i < loop.size(); i++) loop[i] -= Vec2f(1.0f, 1.0f);
 		renderer.dashes(loop, 2.0f, Vec4f(1.0f, 1.0f, 1.0f, 0.75f), 4.0f, 4.0f, phase, true);
@@ -1158,13 +1160,13 @@ void GS_LevelEditor::onRender()
 		if(p_currentPin)
 		{
 			const Vec2i p = p_currentPin->getScreenPosition();
-			renderer.hairlineRect(Vec2f(p.x - 2, p.y - 2), Vec2f(p.x + 2, p.y + 2), Vec4f(0.0f, 0.0f, 1.0f, 0.75f));
+			renderer.hairlineRect(static_cast<Vec2f>(p - Vec2i(2, 2)), static_cast<Vec2f>(p + Vec2i(2, 2)), Vec4f(0.0f, 0.0f, 1.0f, 0.75f));
 		}
 
 		if(p_startPin)
 		{
 			const Vec2i p = p_startPin->getScreenPosition();
-			renderer.hairlineRect(Vec2f(p.x - 2, p.y - 2), Vec2f(p.x + 2, p.y + 2), Vec4f(0.5f, 0.5f, 1.0f, 1.0f));
+			renderer.hairlineRect(static_cast<Vec2f>(p - Vec2i(2, 2)), static_cast<Vec2f>(p + Vec2i(2, 2)), Vec4f(0.5f, 0.5f, 1.0f, 1.0f));
 		}
 
 		renderer.pop();

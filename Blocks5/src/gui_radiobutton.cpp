@@ -39,10 +39,11 @@ void GUI_RadioButton::onRender()
 			Vec4f top(0.75f, 0.75f, 0.75f, 1.0f), bottom(0.65f, 0.65f, 0.65f, 1.0f);
 			if(pushed && mouseOver) top = Vec4f(0.9f, 0.9f, 0.9f, 1.0f), bottom = Vec4f(0.8f, 0.8f, 0.8f, 1.0f);
 			else if(checked) top = Vec4f(1.0f, 1.0f, 1.0f, 1.0f), bottom = Vec4f(0.85f, 0.85f, 0.85f, 1.0f);
-			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+			const Vec2f s = static_cast<Vec2f>(size);
+			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 			const Vec4f colors[4] = {top, top, bottom, bottom};
 			renderer.quad(corners, colors);
-			renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+			renderer.hairlineRect(Vec2f(0.0f, 0.0f), s, Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 		}
 
 		// write the title
@@ -78,21 +79,22 @@ void GUI_RadioButton::onRender()
 			const bool lit = pushed && mouseOver;
 			const Vec4f top = lit ? Vec4f(0.9f, 0.9f, 0.9f, 1.0f) : Vec4f(0.75f, 0.75f, 0.75f, 1.0f);
 			const Vec4f bottom = lit ? Vec4f(0.8f, 0.8f, 0.8f, 1.0f) : Vec4f(0.65f, 0.65f, 0.65f, 1.0f);
-			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(size.x, 0.0f), Vec2f(size.x, size.y), Vec2f(0.0f, size.y)};
+			const Vec2f s = static_cast<Vec2f>(size);
+			const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 			const Vec4f colors[4] = {top, top, bottom, bottom};
 			renderer.quad(corners, colors);
 
 			if(checked)
 			{
 				// draw the "checkmark"
-				const Vec2f mark[4] = {Vec2f(4.0f, 4.0f), Vec2f(size.x - 3, 4.0f), Vec2f(size.x - 3, size.y - 3), Vec2f(4.0f, size.y - 3)};
+				const Vec2f mark[4] = {Vec2f(4.0f, 4.0f), Vec2f(s.x - 3.0f, 4.0f), s - Vec2f(3.0f, 3.0f), Vec2f(4.0f, s.y - 3.0f)};
 				const Vec4f markTop(0.0f, 0.0f, 0.0f, 1.0f), markBottom(0.25f, 0.25f, 0.25f, 1.0f);
 				const Vec4f markColors[4] = {markTop, markTop, markBottom, markBottom};
 				renderer.quad(mark, markColors);
 			}
 
 			// draw the frame
-			renderer.hairlineRect(Vec2f(0.0f, 0.0f), Vec2f(size.x, size.y), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+			renderer.hairlineRect(Vec2f(0.0f, 0.0f), s, Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 		}
 
 		// write the title
