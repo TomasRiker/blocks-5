@@ -120,8 +120,7 @@ Engine::Engine()
 	inSizeMove = false;
 #endif
 	savedWindowStyle = 0;
-	oldSoundVolume = -1.0;
-	oldMusicVolume = -1.0;
+	muted = false;
 	timePlayed = 0;
 	doScreenshot = false;
 }
@@ -808,24 +807,15 @@ void Engine::handleAppFocus(bool gained)
 	if(gained == appActive) return;
 	appActive = gained;
 
+	// The effective volumes just changed; the sounds re-read them next tick.
+	volumeChanged = true;
+
 	if(gained)
 	{
-		if(oldSoundVolume != -1.0)
-		{
-			setSoundVolume(oldSoundVolume);
-			setMusicVolume(oldMusicVolume);
-			oldSoundVolume = -1.0;
-		}
-
 		GameState* p_gs = getGameState();
 		if(p_gs) p_gs->onAppGetFocus();
 		return;
 	}
-
-	oldSoundVolume = soundVolume;
-	oldMusicVolume = musicVolume;
-	setSoundVolume(0.0);
-	setMusicVolume(0.0);
 
 	// No release arrives after a change of focus. A key left standing as held
 	// here would never yield a key press again.
@@ -1735,20 +1725,8 @@ void Engine::update()
 
 	if(wasActionPressed("$A_TOGGLE_MUTE"))
 	{
-		if(soundVolume == 0.0 && musicVolume == 0.0)
-		{
-			setSoundVolume(oldSoundVolume);
-			setMusicVolume(oldMusicVolume);
-			oldSoundVolume = oldMusicVolume = -1.0;
-		}
-		else
-		{
-			// mute
-			oldSoundVolume = getSoundVolume();
-			oldMusicVolume = getMusicVolume();
-			setSoundVolume(0.0);
-			setMusicVolume(0.0);
-		}
+		muted = !muted;
+		volumeChanged = true;
 	}
 
 	if(wasActionPressed("$A_TOGGLE_CAPTURE_VIDEO"))
@@ -2701,7 +2679,7 @@ void Engine::presentFrame()
 
 void Engine::drawOverlays()
 {
-	if(p_muteIconTexture && soundVolume == 0.0 && musicVolume == 0.0)
+	if(p_muteIconTexture && getEffectiveSoundVolume() == 0.0 && getEffectiveMusicVolume() == 0.0)
 	{
 		renderSprite(p_muteIconTexture, Vec2i(5, 5),
 					 muteIconPositionOnTexture, muteIconSize, Vec4d(1.0, 1.0, 1.0, 0.75));
@@ -3783,7 +3761,7 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
-	if(screenSize.x > 0 && screenSize.y > 0)
+	if(w > 0 && h > 0)
 	{
 		Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
 
@@ -4227,6 +4205,20 @@ void Engine::setMusicVolume(double musicVolume)
 
 	this->musicVolume = musicVolume;
 	volumeChanged = true;
+}
+
+double Engine::getEffectiveSoundVolume() const
+{
+	// The mute key and a lost focus silence the output here rather than by
+	// writing 0 into the setting: the options dialog and config.xml keep
+	// seeing the volume the user chose, and neither can overwrite the
+	// other's idea of it.
+	return muted || !appActive ? 0.0 : soundVolume;
+}
+
+double Engine::getEffectiveMusicVolume() const
+{
+	return muted || !appActive ? 0.0 : musicVolume;
 }
 
 bool Engine::wasVolumeChanged() const

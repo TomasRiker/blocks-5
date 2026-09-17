@@ -91,6 +91,7 @@ void StreamedSound::stop()
 
 	// delete the sound source
 	alDeleteSources(1, &sourceID);
+	sourceID = 0;
 
 	// delete all buffers
 	alDeleteBuffers(4, buffers);
@@ -114,7 +115,7 @@ double StreamedSound::getVolume() const
 void StreamedSound::setVolume(double volume)
 {
 	this->volume = volume;
-	if(sourceID) alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getMusicVolume()));
+	if(sourceID) alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getEffectiveMusicVolume()));
 }
 
 double StreamedSound::getPitch() const

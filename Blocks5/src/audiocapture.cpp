@@ -120,6 +120,7 @@ void AudioRing::release()
 
 void AudioRing::clearRing()
 {
+	if(!p_mutex) return;
 	SDL_LockMutex(p_mutex);
 	ringRead = 0;
 	ringFill = 0;
@@ -772,6 +773,9 @@ struct AudioCaptureImpl : public AudioRing
 	SDL_sem* p_initSemaphore;
 	bool initOK;
 	int initError;
+	// A read that failed, left for the main thread to log: printfLog is not
+	// thread-safe, as the Windows half says at its own signal.
+	volatile int readError;
 
 	volatile bool quit;
 	volatile bool capturing;
@@ -786,6 +790,7 @@ AudioCaptureImpl::AudioCaptureImpl()
 	, p_initSemaphore(0)
 	, initOK(false)
 	, initError(0)
+	, readError(0)
 	, quit(false)
 	, capturing(false)
 {
@@ -829,7 +834,7 @@ int AudioCaptureImpl::threadProc()
 		int error = 0;
 		if(pulse.simple_read(p_stream, buffer, sizeof(buffer), &error) < 0)
 		{
-			printfLog("+ WARNING: Audio capture read failed (%s).\n", pulse.errorText(error));
+			readError = error;
 			break;
 		}
 
@@ -909,6 +914,15 @@ bool AudioCapture::open(uint sampleRate)
 	return true;
 }
 
+// The thread's read failure, logged from here on the main thread, once.
+static void logReadError(AudioCaptureImpl* p_impl)
+{
+	if(!p_impl->readError) return;
+	printfLog("+ WARNING: Audio capture read failed (%s).\n",
+			  p_impl->pulse.errorText(p_impl->readError));
+	p_impl->readError = 0;
+}
+
 void AudioCapture::close()
 {
 	if(p_impl->p_thread)
@@ -918,6 +932,7 @@ void AudioCapture::close()
 		SDL_WaitThread(p_impl->p_thread, 0);
 		p_impl->p_thread = 0;
 	}
+	logReadError(p_impl);
 	if(p_impl->p_stream)
 	{
 		p_impl->pulse.simple_free(p_impl->p_stream);
@@ -943,12 +958,13 @@ const std::string& AudioCapture::getDeviceName() const
 
 void AudioCapture::start()
 {
-	p_impl->capturing = true;
+	if(p_impl->opened) p_impl->capturing = true;
 }
 
 void AudioCapture::stop()
 {
 	p_impl->capturing = false;
+	logReadError(p_impl);
 }
 
 #else

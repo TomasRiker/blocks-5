@@ -22,7 +22,6 @@ public:
 	uint getLength();
 
 private:
-	FILE* p_file;
 	OggVorbis_File vorbisFile;
 	uint sliceSize;
 

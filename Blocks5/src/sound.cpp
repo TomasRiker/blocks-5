@@ -120,6 +120,16 @@ SoundInstance* Sound::createInstance(bool forceCreation)
 	}
 
 	SoundInstance* p_inst = new SoundInstance(*this);
+	if(!p_inst->sourceID)
+	{
+		// No source, and no one-shot to take one from. An instance without
+		// one would be reaped at the next update(), and an object keeping the
+		// pointer across ticks would then call into freed memory - so nothing
+		// plays, and the caller learns so from the 0.
+		delete p_inst;
+		return 0;
+	}
+
 	instances.insert(p_inst);
 	allInstances.insert(p_inst);
 	lastInstanceCreatedAt = SDL_GetTicks();

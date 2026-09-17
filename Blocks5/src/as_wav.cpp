@@ -75,8 +75,9 @@ AS_Wav::AS_Wav(const std::string& filename)
 				numChannels = fmt.numChannels;
 				sliceSize = numBitsPerSample / 8 * numChannels;
 
-				// skip the rest of this chunk
-				p_file->seek(chunkDataOffset + chunkHeader[1]);
+				// Skip the rest of this chunk. RIFF pads an odd-sized chunk
+				// to an even length, and the pad byte is not in the size.
+				p_file->seek(chunkDataOffset + chunkHeader[1] + (chunkHeader[1] & 1));
 
 				fmtChunkFound = true;
 			}
@@ -88,8 +89,8 @@ AS_Wav::AS_Wav(const std::string& filename)
 				dataOffset = chunkDataOffset;
 				dataSize = chunkHeader[1];
 
-				// skip the rest of this chunk
-				p_file->seek(chunkDataOffset + chunkHeader[1]);
+				// skip the rest of this chunk, pad byte included
+				p_file->seek(chunkDataOffset + chunkHeader[1] + (chunkHeader[1] & 1));
 
 				dataChunkFound = true;
 			}
@@ -97,7 +98,7 @@ AS_Wav::AS_Wav(const std::string& filename)
 
 		default:
 			// This chunk is of no interest.
-			p_file->seek(p_file->tell() + chunkHeader[1]);
+			p_file->seek(p_file->tell() + chunkHeader[1] + (chunkHeader[1] & 1));
 			break;
 		}
 

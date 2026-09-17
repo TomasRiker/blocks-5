@@ -46,11 +46,11 @@ void ElectricityPanel::onTriggered(Object* p_sender)
 	if(subType == 0 && !eo)
 	{
 		level.setElectricityOn(true);
-		Engine::inst().playSound("electricityswitch.ogg", false, 0.15);
+		Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
 	}
 	else if(subType == 1 && eo)
 	{
 		level.setElectricityOn(false);
-		Engine::inst().playSound("electricityswitch.ogg", false, 0.15);
+		Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
 	}
 }

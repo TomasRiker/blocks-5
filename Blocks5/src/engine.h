@@ -358,6 +358,8 @@ public:
 	void setSoundVolume(double soundVolume);
 	double getMusicVolume() const;
 	void setMusicVolume(double musicVolume);
+	double getEffectiveSoundVolume() const;
+	double getEffectiveMusicVolume() const;
 	bool wasVolumeChanged() const;
 	bool isAppActive() const;
 	int getDetails() const;
@@ -609,8 +611,7 @@ private:
 	// live on the stack between them - and because the test hook reports it.
 	bool appActive;
 
-	double oldSoundVolume;
-	double oldMusicVolume;
+	bool muted;
 	int details;
 	double particleDensity;
 	Texture* p_muteIconTexture;

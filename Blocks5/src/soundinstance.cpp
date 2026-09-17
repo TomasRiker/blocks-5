@@ -4,6 +4,17 @@
 
 SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 {
+	// Every member before the source is asked for, so that an instance that
+	// gets none is still a whole object for the delete that follows.
+	timestamp = ~0;
+	priority = 0;
+	looping = false;
+	volume = targetVolume = 1.0;
+	pitch = targetPitch = 1.0;
+	volumeSlideSpeed = 0.0;
+	pitchSlideSpeed = 0.0;
+	pauseAtSlideEnd = false;
+
 	// create the audio source
 	sourceID = Sound::getFreeSource();
 	if(sourceID)
@@ -15,17 +26,6 @@ SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 		setPitch(1.0);
 
 		timestamp = Engine::inst().getTime();
-		priority = 0;
-		looping = false;
-		volumeSlideSpeed = 0.0;
-		pitchSlideSpeed = 0.0;
-		pauseAtSlideEnd = false;
-	}
-	else
-	{
-		timestamp = ~0;
-		priority = 0;
-		looping = false;
 	}
 }
 
@@ -82,7 +82,7 @@ void SoundInstance::setVolume(double volume)
 	// place where a volume reaches OpenAL, which makes it apply to
 	// slideVolume() and to every caller that sets volume itself.
 	alSourcef(sourceID, AL_GAIN, static_cast<float>(
-		volume * sound.getVolumeFactor() * Engine::inst().getSoundVolume()));
+		volume * sound.getVolumeFactor() * Engine::inst().getEffectiveSoundVolume()));
 }
 
 double SoundInstance::getPitch() const
