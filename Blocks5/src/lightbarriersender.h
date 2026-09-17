@@ -2,7 +2,6 @@
 #define _LIGHTBARRIERSENDER_H
 
 #include "object.h"
-#include "linedrawer.h"
 
 /*** Class for the sender of a light barrier ***/
 
@@ -22,7 +21,8 @@ private:
 	int dir;
 	int counter;
 	std::list<Vec2d> beam;
-	LineDrawer line;
+	// The corners of the beam, for the renderer's polyline.
+	std::vector<Vec2f> beamPoints;
 };
 
 #endif

@@ -4,6 +4,7 @@
 /*** Class for a texture ***/
 
 #include "resource.h"
+#include "renderstate.h"
 
 class Texture : public Resource<Texture>
 {
@@ -13,11 +14,13 @@ public:
 	void reload();
 	void cleanUp();
 
-	// Texturing on, this picture bound, and the texture matrix set to its own
-	// 1/w, 1/h - all three through GL::, which issues only what has moved.
-	// There is no unbind(): switching texturing off says nothing about this
-	// texture or any other, so it is GL::setTexturing(false) at the caller.
+	// Texturing on and this picture bound, through the renderer, which is
+	// what makes texture coordinates read in this picture's own texels. There
+	// is no unbind(): switching texturing off says nothing about this texture
+	// or any other, so it is GL::setTexturing(false) at the caller.
 	void bind() const;
+	// The picture as a render state names it: the GL name and 1/w, 1/h.
+	TextureRef ref() const;
 	const Vec2i& getSize() const;
 
 	// Hand the decoded pixels back for every texture that was not asked to

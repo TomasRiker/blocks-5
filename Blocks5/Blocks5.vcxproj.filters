@@ -367,9 +367,6 @@
     <ClCompile Include="src\img_save.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="src\linedrawer.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
     <ClCompile Include="src\particlesystem.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -412,7 +409,7 @@
     <ClCompile Include="src\glstate.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="src\quadarray.cpp">
+    <ClCompile Include="src\renderer.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
     <ClCompile Include="src\util.cpp">
@@ -1119,9 +1116,6 @@
     <ClInclude Include="src\img_save.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="src\linedrawer.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
     <ClInclude Include="src\manager.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -1182,7 +1176,10 @@
     <ClInclude Include="src\glstate.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="src\quadarray.h">
+    <ClInclude Include="src\renderer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderstate.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\renderlayer.h">

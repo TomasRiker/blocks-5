@@ -62,8 +62,10 @@ Three ways to read it:
   not clear on read, because the overlay reads the same numbers continuously;
   `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same
   window: `draws` (real draw calls and the frames they were made in — `testing.md` says where each
-  platform counts them), `batch` (the sprite batch's flushes, draws and quads, and `byReason`, which says
-  what broke the batch) and `glstate` (calls the state layer issued against calls it could skip).
+  platform counts them) and `batch` (the renderer's flushes, the draws among them, the quads they put up,
+  and `byReason`, which says what ended each batch - `texture`, `blend`, `scope`, `full`, `explicit`,
+  `frame` or `direct`, the last being every draw call made inside a `Renderer::DirectGL` bracket, which
+  is what the screens outside the level still cost).
 - **`WebBuild/test/perf.js`** drives the comparison: arms are query strings rather than builds, so both
   sides are one binary in one browser, and they are **interleaved** rather than run in blocks, so a machine
   that warms up or throttles hands that to both. It prints draw calls per frame beside the milliseconds,

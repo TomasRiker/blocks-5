@@ -150,7 +150,7 @@ do
   # otherwise switching between the build kinds would recompile every unit -
   # the two output directories separate them anyway.
   extra=""
-  case "$f" in */engine.cpp|*/testhooks.cpp|*/glstate.cpp) extra="$HOOKS";; esac
+  case "$f" in */engine.cpp|*/testhooks.cpp|*/renderer.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

@@ -246,10 +246,10 @@ b5_takeFrozen()   # $1 name, [$2 tick]
 	#
 	# "draw calls" is every glBegin block and every array draw render() made,
 	# counted at the link (see the foot of testhooks.cpp) - the number the
-	# renderer redesign is measured by. "batch draws" beside it is the sprite
-	# batch's own flushes that drew something, and the reasons say what broke
-	# the batch: those are the draw calls the redesign removes first.
-	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draw calls/frame' % (d['draws']['calls'] / max(d['draws']['frames'], 1))"), batch $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['draws']['frames'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"), state $(b5_json "'%.0f%% of %d calls skipped' % (100.0 * d['glstate']['skipped'] / max(d['glstate']['issued'] + d['glstate']['skipped'], 1), d['glstate']['issued'] + d['glstate']['skipped'])"))"
+	# renderer redesign is measured by. "batch draws" beside it is the
+	# renderer's own flushes that drew something, and the reasons say what
+	# ended each batch: those are the draw calls the redesign removes first.
+	b5_ok "$name.png  (scene tick $(b5_json "d['scene']"), $(b5_json "'%.1f draw calls/frame' % (d['draws']['calls'] / max(d['draws']['frames'], 1))"), batch $(b5_json "'%.1f draws/frame, %.1f quads/draw' % (d['batch']['draws'] / max(d['draws']['frames'], 1), d['batch']['quads'] / max(d['batch']['draws'], 1))"))"
 	b5_ok "  batch flushes by reason: $(b5_json "', '.join('%s %d' % (k, v) for k, v in d['batch']['byReason'].items() if v) or 'none'")"
 	# The font cache beside them: what it is holding, and whether it is
 	# earning it. quads * 64 bytes is the geometry; the measures are what

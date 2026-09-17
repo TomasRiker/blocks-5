@@ -33,27 +33,19 @@ void Teleporter::onRender(RenderLayer layer,
 	{
 		if(targetPosition != position)
 		{
-			// mark the target. Raw geometry, so the queued sprites have to go
-			// up first: they belong underneath it.
-			Engine::inst().flushSprites();
-			GL::pushTexturing();
-			GL::setTexturing(false);
+			// mark the target: a line to it with an arrowhead
+			Renderer& renderer = Renderer::inst();
+			const Vec4f color(0.0f, 1.0f, 0.5f, 0.25f);
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
-			glBegin(GL_LINES);
-			glColor4d(0.0, 1.0, 0.5, 0.25);
-			glVertex2i(7, 7);
-			glVertex2i(t.x, t.y);
+			const Vec2f tip(static_cast<Vec2f>(t));
+			renderer.line(Vec2f(7.0f, 7.0f), tip, 1.0f, color);
 			Vec2d y(targetPosition - position);
 			y.normalize();
 			Vec2d x(-y.y, y.x);
 			Vec2d p1 = Vec2d(t.x, t.y) - 10.0 * y - 10.0 * x;
 			Vec2d p2 = Vec2d(t.x, t.y) - 10.0 * y + 10.0 * x;
-			glVertex2d(p1.x, p1.y);
-			glVertex2i(t.x, t.y);
-			glVertex2i(t.x, t.y);
-			glVertex2d(p2.x, p2.y);
-			glEnd();
-			GL::popTexturing();
+			renderer.line(static_cast<Vec2f>(p1), tip, 1.0f, color);
+			renderer.line(tip, static_cast<Vec2f>(p2), 1.0f, color);
 		}
 	}
 }

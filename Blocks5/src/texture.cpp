@@ -105,13 +105,13 @@ void Texture::cleanUp()
 
 void Texture::bind() const
 {
-	// Through GL::, which issues only what has moved and flushes the sprite
-	// batch where the binding does: whatever is queued was queued against the
-	// binding and the matrix about to be replaced. The scale is what makes
-	// texture coordinates read in this picture's own texels, which is what
-	// every caller writes.
 	GL::setTexturing(true);
 	GL::bindTexture(texID, texelScale);
+}
+
+TextureRef Texture::ref() const
+{
+	return TextureRef(texID, Vec2f(static_cast<float>(texelScale.x), static_cast<float>(texelScale.y)));
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,

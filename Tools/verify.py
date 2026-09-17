@@ -233,24 +233,23 @@ def function_starts(code):
 
 
 def batch_sources():
-    """The sources the sprite batch can reach, as (path, code, only) triples
-    with the comments and strings blanked out. `only` names the functions to
-    read; None means the whole file.
+    """The sources the level's batched drawing reaches, as (path, code, only)
+    triples with the comments and strings blanked out. `only` names the
+    functions to read; None means the whole file.
 
     Those that define an Object::onRender, which is the set
     Level::renderObjects walks - matched loosely, because a wrapped signature
-    is still one. Plus two files with no onRender in them that every one of
+    is still one. Plus one file with no onRender in it that every one of
     those reaches: texture.cpp, whose Texture::bind() is the funnel they all
-    bind through, and linedrawer.cpp, whose draw() is the raw glDrawArrays
-    behind every laser, wire and shot.
+    bind through.
 
     And two named helpers, Level::renderShine and Font::drawText, which draw
-    with a batch open although the rest of their files do not. Those two files
-    are read for those two functions alone - level.cpp and font.cpp are
-    otherwise full of drawing that runs with no batch at all, and reading them
-    whole would report every line of it."""
+    from inside an object's render although the rest of their files do not.
+    Those two files are read for those two functions alone - level.cpp and
+    font.cpp are otherwise full of drawing on their own terms, and reading
+    them whole would report every line of it."""
     signature = re.compile(r'::onRender\s*\(\s*RenderLayer')
-    WHOLE = ('Blocks5/src/texture.cpp', 'Blocks5/src/linedrawer.cpp')
+    WHOLE = ('Blocks5/src/texture.cpp',)
     REACHED = {
         'Blocks5/src/level.cpp': {'Level::renderShine'},
         'Blocks5/src/font.cpp': {'Font::drawText'},
@@ -377,7 +376,7 @@ def check_hooks_layout():
 
     The rule is therefore that a header declares the same thing whatever the
     build, and the cost of obeying it is a few unused members in a shipped
-    binary. engine.h says so beside batchTexture, two hundred lines from
+    binary. engine.h says so beside renderDraws, two hundred lines from
     where the next person will add theirs, which is what this check is for.
 
     testhooks.h is exempt: what it guards is free function declarations in a
@@ -448,7 +447,7 @@ def unscanned_onrender(scanned):
         stem = rel.rsplit('.', 1)[0]
         if stem + '.cpp' in scanned or stem + '.h' in scanned:
             continue
-        bad.append('%s: declares an onRender that the sprite_batch and gl_state '
+        bad.append('%s: declares an onRender that the direct_gl and gl_state '
                    'checks do not read - see batch_sources()' % rel)
     return bad
 
@@ -533,62 +532,40 @@ def check_layer_bits():
     return bad
 
 
-@check('sprite_batch')
-def check_sprite_batch():
-    """Anything an object draws outside the sprite batch has to flush it first.
+@check('direct_gl')
+def check_direct_gl():
+    """Raw GL inside an onRender stands inside a Renderer::DirectGL bracket.
 
-    Level::renderObjects keeps a batch of sprite corners open across the whole
-    object loop, and one glDrawArrays puts them up at the end. This game has no
-    depth buffer, so painter's order is the only order there is: a queued quad
-    is drawn with the GL state standing at the flush, not at the call. An object
-    that draws raw geometry therefore has to flush first, or everything queued
-    before it lands on top of what it drew instead of underneath.
+    The level draws batched: what an object hands the renderer is queued and
+    put up at the next flush, and this game has no depth buffer, so painter's
+    order is the only order there is. A glBegin in an onRender draws at once,
+    under whatever GL happens to hold, and everything queued before it then
+    lands on top of what it drew instead of underneath. Renderer::DirectGL is
+    the bracket that makes the two agree: its constructor flushes and sets
+    the fixed function up, its destructor hands GL back. So a raw draw in an
+    onRender source has to stand in a block that declared one before it.
 
-    Nothing else would catch it. The sprites of the objects around it are what
-    move, so the object that broke the rule looks right and its neighbours do
-    not - and only on the screen that happens to have both.
+    Nothing else would catch it. The sprites of the objects around it are
+    what move, so the object that broke the rule looks right and its
+    neighbours do not - and only on the screen that happens to have both.
 
-    How far a flush reaches, in the three shapes that are not the obvious one.
-    It covers only as far as the block it stands in: one inside an if() says
-    nothing about the code after it, which is the shape player.cpp has. One
-    written as the body of a braceless if or loop covers less still - only the
-    rest of its own line, since what follows stands at the same column and no
-    indentation rule can tell the two apart. And one standing *outside* a loop
-    whose body queues does not cover a draw inside that loop at all: the second
-    turn round begins with the batch non-empty, which a walk down the lines
-    cannot see because the draw is written above the queue.
+    How far a bracket reaches, in the shapes that are not the obvious one. It
+    covers the rest of the block it stands in and no more, as a C++ object
+    does: one inside an if() says nothing about the code after it. One
+    written as the body of a braceless if or loop covers only the rest of its
+    own line, since what follows stands at the same column and no
+    indentation rule can tell the two apart. The branches of one if/else
+    chain are read as the alternatives they are, and so are the arms of a
+    preprocessor conditional, which never both compile; a preprocessor line
+    is not a dedent either, and the body of a macro is not code at the point
+    its #define stands.
 
-    The branches of one if/else chain are read as the alternatives they are, so
-    a queue in the first does not ask the second to flush again - but whatever
-    the chain as a whole may have queued stands after it. The arms of a
-    preprocessor conditional get the same treatment for a stronger reason: they
-    never both compile. A preprocessor line is not a dedent either, and the body
-    of a macro is not code at the point its #define stands.
-
-    What it cannot see, besides a call: a one-line if/else holding both a flush
-    and a draw, since a line is read as one sequence in column order.
-
-    What it cannot see is a call: a helper of an object's own that queues, or
-    one that draws, is a name to this and nothing more. That is why
-    LineDrawer::draw flushes at its own definition rather than at its callers."""
-    # drawQuadArray is deliberately not here. Its two array forms flush at
-    # their own definition, for the reason LineDrawer::draw does: a built array
-    # is reached as a member or a local through layers of call that no static
-    # check can follow. Those two are the whole of what flushes for its callers,
-    # and everything else has to say so where it draws.
+    What it cannot see is a call: a helper of an object's own that draws is a
+    name to this and nothing more, which is what the exemption is for."""
     breaking = re.compile(r'\bglBegin\s*\(|\bglDraw\w*\s*\(|\bglRect\w*\s*\(')
-    # The two spellings that leave a quad in the batch, and the whole set of
-    # them: every other way of drawing a sprite from here - Level::renderShine,
-    # Font::renderText - binds a texture of its own and so flushes on the way
-    # in and on the way out again.
-    queues = re.compile(r'\brenderSprites?\s*\(')
-    # A flush and nothing else. GL::'s wrappers and Texture::bind() used to
-    # count, because each of them put the batch up whatever it was about to
-    # change - but a state layer that can tell an unchanged state from a changed
-    # one flushes only when something moves, and "the texture was already bound"
-    # is exactly the case where it does not. So the ordering has to be said out
-    # loud wherever raw geometry is drawn.
-    flushes = re.compile(r'\bflushSprites\s*\(')
+    # The bracket as a declaration: the name after it is the author's, and
+    # the object lives to the end of its block.
+    brackets = re.compile(r'\bRenderer::DirectGL\s+\w+')
     # A statement written as the body of a braceless conditional, on the line
     # of the conditional itself. The bare `else` alternative is a backstop: the
     # chain bookkeeping below already answers an else it has paired with an if,
@@ -598,22 +575,18 @@ def check_sprite_batch():
     conditional = re.compile(r'^\s*(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(.*\)\s*\S'
                              r'|^\s*else\s+\S'
                              r'|^\s*(?:case\b[^:]*|default\s*):\s*\S')
-    # A loop head anywhere on its line - `if(x) for(...)` is one, and the tree
-    # writes that - but never the `} while(...)` that ends a do-block, whose
-    # body is above it rather than below.
-    loopHead = re.compile(r'\b(?:for|while)\s*\(|^\s*do\b')
     ifHead = re.compile(r'^\s*if\s*\(')
     elseHead = re.compile(r'^\s*(?:\}\s*)?else\b')
     ppIf = re.compile(r'^\s*#\s*if')
     ppElse = re.compile(r'^\s*#\s*el(?:se|if)')
     ppEnd = re.compile(r'^\s*#\s*endif')
-    # Helpers entered with the batch already put up, which is the whole of the
-    # exemption: what such a function does from there is read like any other.
-    # Qualified, so that a same-named method of another class does not inherit
-    # it.
+    # Helpers entered with a bracket already open around the call, which is
+    # the whole of the exemption: what such a function does from there is read
+    # like any other. Qualified, so that a same-named method of another class
+    # does not inherit it.
     EXEMPT = {
-        # Hint::renderNote() flushes and then binds its own texture; the mesh
-        # is the geometry it draws under that binding.
+        # Hint::onRender opens the bracket and calls this inside it; the mesh
+        # is the geometry it draws there.
         'Hint::renderNoteMesh',
     }
     bad, seen, named, scanned, used = [], set(), set(EXEMPT), set(), set()
@@ -623,32 +596,6 @@ def check_sprite_batch():
         lines = text.split('\n')
         starts = dict((n, name) for _, n, name in function_starts(text))
         seen |= set(starts.values())
-
-        # Loops whose body queues, by line index: a flush before such a loop
-        # says nothing about the draw inside it.
-        requeues = set()
-        for i, line in enumerate(lines):
-            if not loopHead.search(line) or line.strip().startswith('}'):
-                continue
-            indent = len(line) - len(line.lstrip())
-            body, j, opened = [line], i + 1, False
-            while j < len(lines):
-                bare = lines[j].strip()
-                if bare and not bare.startswith('#'):
-                    # The brace of the body stands at the loop's own column in
-                    # this tree, so it cannot be the end of the body - and a
-                    # preprocessor line carries no scope, so reading one as the
-                    # end would hide everything a loop queues below its first
-                    # #ifdef.
-                    if bare == '{' and not opened:
-                        opened = True
-                    elif len(lines[j]) - len(lines[j].lstrip()) <= indent:
-                        break
-                    else:
-                        body.append(lines[j])
-                j += 1
-            if any(queues.search(b) for b in body):
-                requeues.add(i)
 
         # A closing brace whose `else` stands on the next line, which is how
         # this tree writes a chain: the branch is not over there, so the chain
@@ -663,11 +610,10 @@ def check_sprite_batch():
             if j < len(lines) and re.match(r'^\s*else\b', lines[j]):
                 heldOpen.add(i)
 
-        func, flushed, flushIndent, chain, exemptCover = '', False, 0, {}, False
+        func, covered, coverIndent, chain, exemptCover = '', False, 0, {}, False
         # The arms of a preprocessor conditional, as a stack of
-        # [state at the #if, its indent, anything any arm queued]. It cannot be
-        # keyed on the column the way an else chain is: these stand at column 0
-        # whatever they wrap.
+        # [state at the #if, its indent]. It cannot be keyed on the column the
+        # way an else chain is: these stand at column 0 whatever they wrap.
         pp, continued = [], False
         for n, line in enumerate(lines, 1):
             # A #define continued with a backslash is still the directive: its
@@ -680,74 +626,63 @@ def check_sprite_batch():
                 continued = True
                 continue
             if ppIf.match(line):
-                pp.append([flushed, flushIndent, False])
+                pp.append([covered, coverIndent])
             elif ppElse.match(line) and pp:
-                flushed, flushIndent = pp[-1][0], pp[-1][1]
+                covered, coverIndent = pp[-1][0], pp[-1][1]
             elif ppEnd.match(line) and pp:
-                head, headIndent, queued = pp.pop()
-                flushed, flushIndent = head and not queued, headIndent
+                covered, coverIndent = pp.pop()
             # A preprocessor line carries no scope, and this tree writes them at
-            # column 0 wherever they sit - so reading one as a dedent would ask
-            # for a flush again after every #ifdef inside a function body.
+            # column 0 wherever they sit - so reading one as a dedent would end
+            # the bracket at every #ifdef inside a function body.
+            indent = len(line) - len(line.lstrip())
             if line.strip() and not line.lstrip().startswith('#'):
-                indent = len(line) - len(line.lstrip())
                 if n in starts:
                     func, chain, pp = starts[n], {}, []
-                    flushed, flushIndent = func in EXEMPT, 0
-                    exemptCover = flushed
+                    covered, coverIndent = func in EXEMPT, 0
+                    exemptCover = covered
                 else:
                     # An if/else chain the line has stepped out of: what stands
-                    # after it is the state before it, minus anything any
-                    # branch queued.
-                    # A lone brace is the chain's own body opening, and a
-                    # closing one whose else stands on the next line ends a
-                    # branch rather than the chain: this tree writes both at the
-                    # column of the if they belong to.
+                    # after it is the state before it. A lone brace is the
+                    # chain's own body opening, and a closing one whose else
+                    # stands on the next line ends a branch rather than the
+                    # chain: this tree writes both at the column of the if
+                    # they belong to.
                     if line.strip() != '{' and (n - 1) not in heldOpen:
                         for k in sorted(chain, reverse=True):
                             if indent < k or (indent == k and not elseHead.match(line)):
-                                head, headIndent, queued = chain.pop(k)
-                                flushed, flushIndent = head and not queued, headIndent
-                    # A flush holds only inside the block it stands in.
-                    if flushed and indent < flushIndent:
-                        flushed = False
+                                covered, coverIndent = chain.pop(k)
+                    # A bracket holds only inside the block it stands in.
+                    if covered and indent < coverIndent:
+                        covered = False
                     # The nearest chain this else can belong to, rather than
                     # one at its exact column: a reindent or a hand-merge moves
                     # an else without making it any less an alternative to the
                     # branch above it.
                     outer = [k for k in chain if k <= indent]
                     if elseHead.match(line) and outer:
-                        head = chain[max(outer)]
-                        flushed, flushIndent = head[0], head[1]
+                        covered, coverIndent = chain[max(outer)]
                     elif ifHead.match(line):
-                        chain[indent] = [flushed, flushIndent, False]
-            if (n - 1) in requeues:
-                flushed = False
-            wasFlushed, wasIndent = flushed, flushIndent
-            # In column order, because a line can both queue and draw.
-            events = ([(m.start(), 'f') for m in flushes.finditer(line)] +
-                      [(m.start(), 'q') for m in queues.finditer(line)] +
-                      [(m.start(), 'b') for m in breaking.finditer(line)])
+                        chain[indent] = [covered, coverIndent]
+            wasCovered, wasIndent = covered, coverIndent
+            # In column order, because a line can both open a bracket and draw.
+            events = ([(m.start(), 'b') for m in brackets.finditer(line)] +
+                      [(m.start(), 'd') for m in breaking.finditer(line)])
             for e in sorted(events, key=lambda e: e[0]):
-                if e[1] == 'f':
-                    flushed = True
-                    flushIndent = len(line) - len(line.lstrip())
+                if e[1] == 'b':
+                    covered = True
+                    coverIndent = indent
                     exemptCover = False
-                elif e[1] == 'q':
-                    flushed = False
-                    for entry in list(chain.values()) + pp:
-                        entry[2] = True
-                elif not flushed and (only is None or func in only):
-                    bad.append('%s:%d: %s() draws with sprites possibly queued - '
-                               'flush the batch first' % (rel, n, func))
+                elif not covered and (only is None or func in only):
+                    bad.append('%s:%d: %s() draws raw GL outside a Renderer::DirectGL '
+                               'bracket - the level is batched around it' % (rel, n, func))
                 elif exemptCover:
-                    # Drawn under the exemption rather than under a flush of
+                    # Drawn under the exemption rather than under a bracket of
                     # this function's own, which is the entry doing its work.
                     used.add(func)
             if conditional.match(line):
-                flushed, flushIndent = flushed and wasFlushed, wasIndent
-    return (bad + dead_names(named, seen, 'the sprite_batch check')
-            + idle_names(EXEMPT, used, 'the sprite_batch check')
+                covered, coverIndent = covered and wasCovered, wasIndent
+    return (bad + dead_names(named, seen, 'the direct_gl check')
+            + idle_names(EXEMPT, used, 'the direct_gl check')
             + unscanned_onrender(scanned))
 
 
@@ -755,16 +690,14 @@ def check_sprite_batch():
 def check_gl_state():
     """An object changes the texture state through GL::, never raw.
 
-    Three pieces of GL state decide what a queued sprite comes out looking
+    Three pieces of GL state decide what a queued quad comes out looking
     like: the GL_TEXTURE_2D binding, whether texturing is on, and the texture
-    matrix. A batched quad is drawn with the state standing at the flush and
-    not at the call, and there is no depth buffer here to sort it out
-    afterwards - so whatever moves one of the three has to put the batch up
-    first. GL:: does that, and records what it put there in a GLState; the
-    raw calls do neither.
+    matrix. The renderer keeps the record of all three and applies it at the
+    flush; a raw call changes GL behind that record, and a wrong record is a
+    wrong picture rather than a slow one.
 
-    Scoped to what Level::renderObjects can reach with a batch open - see
-    batch_sources(). The crossfades, the GUI and the credits run with none open
+    Scoped to what the level's batched drawing can reach - see
+    batch_sources(). The crossfades, the GUI and the credits still draw raw
     and are left alone deliberately, which keeps the ban small enough to read.
 
     What it cannot see: GL_TEXTURE_2D reached through a variable rather than
@@ -835,7 +768,7 @@ def check_gl_state():
             if only is not None and func not in only:
                 continue
             n = text.count('\n', 0, m.start()) + 1
-            bad.append('%s:%d: %s - go through GL::, which flushes the sprite batch'
+            bad.append('%s:%d: %s - go through GL::, which keeps the renderer\'s record'
                        % (rel, n, ' '.join(hit.split())))
     return bad + dead_names(named, seen, 'the gl_state check')
 
@@ -844,12 +777,11 @@ def check_gl_state():
 def check_gl_doors():
     """Every door into the texture state goes through GL::, in the whole tree.
 
-    gl_state asks the same thing of the sources a batch can reach, and that is
-    a question about ordering: a queued quad is drawn with the state at the
-    flush. This one is about the *record*. GLState is only allowed to decide
-    that a call can be skipped if it knows what OpenGL is holding, and it knows
-    that exactly as far as every bind, every enable, every delete and every
-    absolute texture matrix in the tree comes through here. One raw call
+    gl_state asks the same thing of the sources the level's batching can
+    reach. This one is about the *record*: the renderer is only allowed to
+    decide that a call can be skipped if it knows what OpenGL is holding, and
+    it knows that exactly as far as every bind, every enable, every delete and
+    every absolute texture matrix in the tree comes through it. One raw call
     anywhere - in a crossfade, in the credits, in a constructor that uploads a
     texture once - and the record is a belief rather than a fact, with a wrong
     picture for a failure mode.
@@ -865,7 +797,7 @@ def check_gl_doors():
                        r'|\bgl(?:Enable|Disable)\s*\(\s*GL_TEXTURE_2D\s*\)'
                        r'|\bglMatrixMode\s*\(\s*GL_TEXTURE\s*\)')
     # The implementation itself, which is where the raw calls belong.
-    WHOLE = {'Blocks5/src/glstate.cpp'}
+    WHOLE = {'Blocks5/src/renderer.cpp'}
     EXEMPT = {
         # Draws the finished frame inside a glPushAttrib(GL_ALL_ATTRIB_BITS)
         # and three matrix brackets, and calls GL::invalidate() at the end
@@ -882,8 +814,8 @@ def check_gl_doors():
         'GS_Menu::onRender',
     }
     bad, seen, used = [], set(), set()
-    # Headers too: this tree has inline drawing in one (quadarray.h), and a
-    # door in a header would otherwise be the one place left to put one.
+    # Headers too: a door in a header would otherwise be the one place left
+    # to put one.
     for path in source_files():
         rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
         if rel in WHOLE:

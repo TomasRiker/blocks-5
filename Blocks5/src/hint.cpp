@@ -222,7 +222,7 @@ void Hint::bakeNote()
 	// again in a moment: the colour arrives weighted (GL_SRC_ALPHA), the alpha
 	// unweighted (GL_ONE). What comes out is premultiplied - and that is
 	// exactly how it is drawn again below.
-	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	Renderer::inst().setBlend(BM_BAKE);
 
 	p_sprite->bind();
 	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
@@ -234,7 +234,7 @@ void Hint::bakeNote()
 
 	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4d(1.0));
 
-	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 	engine.endRenderToTexture();
 
 	noteTexture = target;
@@ -321,7 +321,7 @@ void Hint::renderNote(const Vec4d& color,
 	GL::bindTexture(noteTexture, Vec2d(1.0, 1.0));
 
 	// Blend premultiplied, because the texture came about that way.
-	engine.setBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	Renderer::inst().setBlend(BM_PREMULTIPLIED);
 
 	// The shadow is the same paper in black, offset a little way.
 	glPushMatrix();
@@ -331,7 +331,7 @@ void Hint::renderNote(const Vec4d& color,
 
 	renderNoteMesh(color, unroll);
 
-	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 
 	// The level draws the flash next, which wants no texture. The binding is
 	// left standing: nothing reads it while texturing is off.
@@ -376,6 +376,11 @@ void Hint::onRender(RenderLayer layer,
 			// Sheet and writing bake into one texture, so the writing turns and
 			// rolls up with the paper; re-made whenever the text changes.
 			bakeNote();
+
+			// The note's mesh still draws raw, in a bracket of its own: the
+			// objects drawn before this one go up first, and the fixed
+			// function starts from this object's own transform.
+			Renderer::DirectGL direct;
 
 			glPushMatrix();
 			Vec2i p = -getShownPositionInPixels();

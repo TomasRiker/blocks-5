@@ -26,18 +26,19 @@ in, sorted here again so that a tick walks the same order whether or not a frame
 last one) → `frameBegin()` on all → `update()` on all → `Electronics::updateAll()` → particle systems →
 AI-trace decay → exit check.
 
-**Drawing from an `onRender` obeys the sprite batch**, and `.claude/rules/rendering.md` has the whole of it.
-The short form: a sprite drawn with `Engine::renderSprite` is queued, not drawn, so anything that draws raw
-geometry or moves the state the queued quads will be drawn under calls `flushSprites()` first; texture
-state goes through `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`), never raw; a class whose
-ancestor already put bits in `renderLayers` — every `Electronics` part — adds with `|=`, since assigning
-wipes them, and the mask may name a layer the object does not draw this frame but may never omit one it
-does; a strip is `GL_TRIANGLE_STRIP`,
-never `GL_QUAD_STRIP`, because WebGL has no such primitive; and nothing in a render path calls `random()`.
-`verify.py`'s `sprite_batch`, `gl_state`, `layer_bits` and `render_layers` checks catch the first three.
-`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan under which the flush and `GL::` rules disappear -
-an `onRender` will draw lines and points through the renderer and never touch GL; until it lands
-they hold.
+**Drawing from an `onRender` goes through the renderer**, and `.claude/rules/rendering.md` has the whole
+of it. The short form: a sprite drawn with `Engine::renderSprite` is queued, not drawn, and so is a
+`Renderer::inst().line()`, `polyline()`, `point()`, `rect()` or `quad()`, which is what a beam, a wire,
+a shot or a balloon is now; a `glBegin` that has to stay raw for the moment - the hint's note mesh -
+stands inside a `Renderer::DirectGL` bracket, which flushes what was queued before it and sets the fixed
+function up; texture state goes through `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`) or
+`Texture::bind()`, never raw; a class whose ancestor already put bits in `renderLayers` — every
+`Electronics` part — adds with `|=`, since assigning wipes them, and the mask may name a layer the object
+does not draw this frame but may never omit one it does; a strip is `GL_TRIANGLE_STRIP`, never
+`GL_QUAD_STRIP`, because WebGL has no such primitive; and nothing in a render path calls `random()`.
+`verify.py`'s `direct_gl`, `gl_state`, `layer_bits` and `render_layers` checks catch the first three.
+`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan: stage 1 put the level through the renderer, stage 2
+takes the bracket and `GL::` away with the last `glBegin`.
 
 **Nothing in the render path draws a random number**, and the reason is not the one it looks like. **The loop
 renders at most once per tick**: `timeProcessed` is zeroed at the top of each iteration and only raised inside

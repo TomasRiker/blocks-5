@@ -33,9 +33,10 @@ The game must run with `Blocks5\` as working directory (VS's default `$(ProjectD
 after it goes to `blocks5.exe` untouched (`Build.bat Debug /rebuild /run -windowed`).
 
 Command line / launcher scripts — the whole list, all five documented in `readme.txt`: `-windowed`
-(`windowed.bat`), `-fullscreen`, `-nosplash`, `-perf`, `-nobatch`. `-nobatch` makes `renderSprite` draw
-every quad on its own instead of collecting a render pass into one call, the arm to measure the sprite
-batch against; `?nobatch=1` is the same switch in the browser, as `?perf=1` is for `-perf`. `-nosplash`
+(`windowed.bat`), `-fullscreen`, `-nosplash`, `-perf`, `-flushall`. `-flushall` makes the renderer put
+every quad up on its own instead of batching it, the arm to measure the batching against and the
+bisecting tool for an ordering bug; `?flushall=1` is the same switch in the browser, as `?perf=1` is for
+`-perf`. `-nosplash`
 skips the logo and jingle by *not requesting* `logo.png`, the path `GS_Loading` already takes when the
 texture will not load; only `soundPlayed` has to start `true`, because the jingle hangs off the time
 threshold rather than the logo.
@@ -118,10 +119,11 @@ browser they are core and the header `#define`s them through.
 
 **Rules every source obeys**, each argued in its rule file:
 
-- **Nothing draws raw geometry or moves GL state while a sprite batch is open without `flushSprites()`
-  first.** A sprite drawn with `Engine::renderSprite` is queued and put up at the next flush under the
-  state standing *then*; texture state goes through `GL::` (`bindTexture`, `setTexturing`,
-  `deleteTexture`), never raw (`rendering.md`).
+- **The level draws through `Renderer` and nothing else; raw GL inside it stands in a
+  `Renderer::DirectGL` bracket.** A quad handed to the renderer is queued and put up at the next flush,
+  and a `glBegin` in an `onRender` without the bracket lands underneath what was queued before it;
+  texture state goes through the renderer or `GL::` (`bindTexture`, `setTexturing`, `deleteTexture`),
+  never raw (`rendering.md`).
 - **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`
   parts, whose base sets `RL_WIRE`; assigning wipes the bit and nothing says so — and a render layer is
   an `RL_*` name, never a number (`rendering.md`).
@@ -223,7 +225,7 @@ and do not repeat it.
 | `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
 | `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, `?texunits` |
-| `rendering.md` | `level`, `texture`, `tileset`, `sprite`, `engine`, `glstate`, `quadarray`, `linedrawer`, `particlesystem`, `lava`, `lightning`, the GL shims | the tile grid, the sprite batch and its flush rule, `GL::`, browser colour, render layers, display lists, the FBO bind rule, texture wrapping |
+| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `glstate`, `particlesystem`, `lava`, `lightning`, the GL shims | the renderer, its two modes and brackets, what it bakes and why it is byte-exact, `GL::`, browser colour, render layers, display lists, the FBO bind rule, texture wrapping |
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |

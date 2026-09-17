@@ -378,7 +378,17 @@ cause from this list, and any other difference is a bug:
 4. A rotation or scale computed on the CPU in `double` rather than by GL's
    `float` matrix stack may move an edge pixel of a rotated sprite; sprites in
    a level already go through the CPU bake today, so the exposure is the
-   handful of rotated sprites outside a batch.
+   handful of rotated sprites outside a batch. (Stage 1 took the exposure
+   away by composing the stack as Mesa does - `float` entries, its order of
+   operations for a translate, its `sinf`/`cosf` of the `float` angle for a
+   rotate - so that a corner baked on the CPU is the corner GL produced.)
+5. A quad whose attributes are not affine across it is two pictures along
+   its two diagonals, and Mesa split a `glBegin(GL_QUADS)` quad along the
+   first-to-third diagonal and an array-drawn `GL_QUADS` quad along the
+   other. The renderer keeps the immediate-mode diagonal, because those
+   quads are the many - the lava's four alphas, every gradient in the GUI -
+   and the lightning's trapezoids, the one array-drawn non-affine quad, move
+   by up to twelve levels inside the bolt.
 
 Every quad the game draws is expected byte-identical on the desktop, and a
 stage is not done until it is.
@@ -518,3 +528,80 @@ B5_DISPLAY=:89 B5_SHOTS=/tmp/blocks5-frames-base B5_FRAMES_XDG=/tmp/blocks5-fram
 
 Two runs cannot share a display, a shots directory or a home, which is what
 the three variables separate.
+
+## 10. Stage 1 - the renderer under the level
+
+Done on `claude/render-stage1`. What landed: `renderstate.h`, `renderer.h/.cpp`,
+`Mat4` in `vec.h`, `glUniformMatrix4fv` in `glextensions`; `Engine::renderSprite`,
+the tile grid, `Font::drawText`, `ParticleSystem`, `Lightning`, the level's own
+quads, the lava's passes under stencil scopes, the night vision under colour-mask
+scopes, and the seven `onRender`s that drew raw geometry - the laser and
+light-barrier beams and points, the projectile, the teleporter's target line,
+the lava's flow arrow, the censor bar, the speech balloon - all through the
+renderer. The sprite batch in `Engine`, `quadarray.*`, `LineDrawer` and
+`clampColor()` are deleted; `GL::` is four forwarding calls. Everything outside
+the level still draws raw inside a `Renderer::DirectGL` bracket, the level
+inside a `Renderer::Batched` one, and the weather, the toxic grid and the hint's
+note mesh inside brackets of their own; `.claude/rules/rendering.md` has the two
+modes. `-flushall` replaces `-nobatch`, and `verify.py`'s `direct_gl` replaces
+`sprite_batch`.
+
+**The oracle.** Thirteen of the nineteen scenes are byte-identical to the
+stage-0 baseline, and every differing pixel of the other six has a cause from
+section 6 - two of them, both found by the oracle rather than assumed:
+
+| scene | pixels | cause |
+| --- | ---: | --- |
+| `manager`, `star` | 37, 41 | the title level's laser end point, a 7-pixel disc now (6.2) |
+| `select`, `cube` | 52, 15 | the same point and the light barriers' in the title level, the cube's through its projection (6.2) |
+| `night` | 37 | the laser's and the two light barriers' end points (6.2) |
+| `lava` | 976 | the lightning bolt, up to twelve levels inside it (6.5), and the laser's end point (6.2) |
+
+Two bugs the oracle caught on the way, both ordering: a bake into an offscreen
+texture started from the caller's transform rather than the texture's origin,
+which moved the hint's note by its object's position; and a `DirectGL` bracket
+flushed what was queued *after* switching to direct mode, so the level's
+sprites went up without the scopes' record and the lava's stencil test clipped
+the shadows of its neighbours. `-flushall` found the second by being
+byte-identical to the baseline where the batched run was not.
+
+**The numbers**, the same scenes and ticks as section 9. A draw call is what
+reached GL per rendered frame; the batch draws are the renderer's own among
+them, and what ended each batch is the histogram the hook reports.
+
+| scene | draw calls / frame (stage 0) | batch draws / frame | quads / draw | what ended the batches |
+| --- | ---: | ---: | ---: | --- |
+| `menu` | 47.0 (47.0) | 41.0 | 46.0 | texture 679, explicit 97, direct 3201 |
+| `options` | 209.0 (209.0) | 172.0 | 17.1 | texture 581, explicit 83, direct 13612 |
+| `crt` | 290.7 (290.7) | 226.7 | 15.5 | texture 231, blend 24, explicit 33, direct 7194 |
+| `manager` | 253.0 (256.0) | 228.0 | 17.7 | texture 480, blend 60, explicit 60, direct 13080 |
+| `star` | 54.7 (57.6) | 45.3 | 43.5 | texture 986, blend 106, explicit 152, direct 4596 |
+| `editor` | 89.0 (92.0) | 64.0 | 29.2 | texture 70, scope 20, explicit 10, direct 540 |
+| `help` | 106.0 (109.0) | 76.0 | 49.6 | texture 63, scope 18, explicit 9, direct 594 |
+| `editbox` | 214.0 (217.0) | 154.0 | 17.5 | texture 49, scope 14, explicit 7, direct 1008 |
+| `editor-select` | 84.0 (87.0) | 58.0 | 31.1 | texture 63, scope 18, explicit 9, direct 432 |
+| `editor-connect` | 82.0 (85.0) | 55.0 | 32.3 | texture 60, explicit 10, direct 480 |
+| `select` | 58.0 (80.0) | 49.0 | 27.0 | texture 830, blend 83, scope 249, explicit 83, direct 2822 |
+| `cube` | 51.2 (74.6) | 43.9 | 26.1 | texture 850, blend 85, scope 255, explicit 85, direct 2453 |
+| `night` | 33.0 (55.0) | 30.0 | 24.9 | texture 1710, blend 171, scope 513, explicit 171, direct 2565 |
+| `plain` | 25.3 (25.4) | 22.3 | 22.6 | texture 364, blend 10, explicit 59, direct 885 |
+| `lava` | 37.2 (86.3) | 28.2 | 27.2 | texture 3951, blend 432, scope 864, explicit 432, direct 6514 |
+| `toxic` | 29.0 (29.0) | 25.0 | 51.2 | texture 182, blend 26, explicit 26, direct 416 |
+| `hint` | 28.0 (28.0) | 23.0 | 48.1 | texture 231, explicit 33, direct 495 |
+| `loading` | 1.1 (1.1) | 0.1 | 27.0 | direct 9 |
+| `credits` | 402.6 (402.6) | 0.0 | 0.0 | none |
+
+Where the level is most of the frame the calls fell by a third to a half -
+`night` 55 to 33, `lava` 86 to 37, `select` 80 to 58 - because the passes
+between two texture changes now share a draw: the three tile passes, the
+objects between them, the particles, the shines. Where the screen is a
+dialog nothing moved, and `direct` says why: every sprite and string the
+GUI draws is one draw call inside the bracket, as it was one `glBegin` before.
+That is the stage 2 work, and the histogram is how it is measured.
+
+**Browser**, the same measurement as section 9 (`B5_REPEATS=3 B5_WINDOW=20
+node test/perf.js ""`, the title demo under swiftshader): main-thread work per
+frame 2.00 ms, of which `render` 0.70 (was 1.00) / `update` 0.20 / `present`
+0.10; 48.4 WebGL draw calls per frame (was 48.6) - the title level's sprites
+were the batch already, and the menu around it still draws raw, one call a
+sprite or string. The interval is swiftshader's rasterizing, not the game's.

@@ -1,9 +1,10 @@
 #ifndef _PARTICLESYSTEM_H
 #define _PARTICLESYSTEM_H
 
-#define PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-
 /*** Class for a particle system ***/
+
+// For Vertex, which the scratch buffer below is made of.
+#include "renderer.h"
 
 class Texture;
 
@@ -80,25 +81,12 @@ public:
 	ParticleList::iterator end() { return particles.end(); }
 
 private:
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
-	struct Vertex
-	{
-		Vec2f position;
-		// Float and not int: GL_INT is not a valid vertex attribute type in
-		// WebGL/GLES2, and these are texture pixel coordinates well inside float's
-		// exact range. The same 8 bytes, leaving the vertex layout unchanged.
-		Vec2f uv;
-		Vec4f color;
-	};
-#endif
-
 	Texture* p_sprites;
 	ParticleList particles;
 	MTRand mt;
 
 	static uint peakCount;
 
-#ifdef PARTICLE_SYSTEM_USE_VERTEX_ARRAY
 	// Must be a multiple of 4, because each particle is a quad. 32768 is
 	// 8192 particles and exactly one MiB, against a measured worst case of
 	// 4506 in the whole campaign (level 41; the four levels of the last
@@ -116,7 +104,6 @@ private:
 	// edited and the five palettes - so a buffer per system would be eighteen
 	// megabytes of it, most belonging to palettes that never spawn a particle.
 	static Vertex* vertexBuffer();
-#endif
 };
 
 #endif

@@ -80,7 +80,6 @@ Engine::Engine()
 	p_crossfade = 0;
 	crossfadeTime = -1.0;
 	crossfadeDuration = 0.0;
-	glExtBlendFuncSeparate = 0;
 	p_videoRecorder = 0;
 	p_audioCapture = 0;
 	p_muteIconTexture = 0;
@@ -110,17 +109,9 @@ Engine::Engine()
 	performanceShown = false;
 	renderSuppressed = false;
 	renderSuppressWanted = false;
-	spriteBatchOpen = false;
-	spriteBatchDisabled = false;
-	batchTexture = 0;
-	batchFlushes = 0;
-	batchDraws = 0;
-	batchQuads = 0;
-	for(int i = 0; i < FR_COUNT; i++) batchDrawsByReason[i] = 0;
 	renderDraws = 0;
 	renderedFrames = 0;
 	sceneTick = 0;
-	for(int i = 0; i < 16; i++) batchTextureMatrix[i] = 0.0;
 	lastFrameBegin = 0.0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
@@ -590,30 +581,10 @@ bool Engine::init(const std::string& windowCaption,
 	printfLog("  SDL display:      Flags=%x, BPP=%d, Masks=(%x, %x, %x, %x)\n", p_display->flags, p_display->format->BitsPerPixel, p_display->format->Rmask, p_display->format->Gmask, p_display->format->Bmask, p_display->format->Amask);
 	printfLog("  ============================================================\n");
 
-#ifdef __EMSCRIPTEN__
-	// In GLES2/WebGL glBlendFuncSeparate is core, but the extension is not
-	// advertised - the query below could never find it.
-	glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(&glBlendFuncSeparate);
-	printfLog("  Separate blending is core in WebGL; using it directly.\n");
-	printfLog("  ============================================================\n");
-#endif
-
-	// query the extensions
-	const char* p_extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-	if(strstr(p_extensions, "GL_EXT_blend_func_separate"))
-	{
-		void* p_proc = SDL_GL_GetProcAddress("glBlendFuncSeparate");
-		if(p_proc)
-		{
-			printfLog("  Extension GL_EXT_blend_func_separate is available.\n");
-			printfLog("  ============================================================\n");
-			glExtBlendFuncSeparate = reinterpret_cast<PFNGLBLENDFUNCSEPARATEEXTPROC>(p_proc);
-		}
-	}
-
-	// All three end the program with a message where this machine cannot do
+	// All four end the program with a message where this machine cannot do
 	// what the game is built on - see fatalerror.h.
 	GLExtensions::init();
+	Renderer::inst().init();
 	createFrameBuffer();
 	createUpscalerGL();
 
@@ -747,8 +718,7 @@ bool Engine::init(const std::string& windowCaption,
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 #endif
 
-	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-	if(!glExtBlendFuncSeparate) GUI::inst().setOpacity(1.0);
+	Renderer::inst().setBlend(BM_NORMAL);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -1309,6 +1279,9 @@ void Engine::mainLoopIteration()
 		}
 		else if(crossfadeTime >= -0.5 && frameRendered)
 		{
+			// The crossfades still draw raw.
+			Renderer::DirectGL direct;
+
 			// fetch the current image
 			GL::bindTexture(newImageID, getScreenTexelScale());
 			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, screenPow2Size.y - screenSize.y, 0, 0, screenSize.x, screenSize.y);
@@ -1596,7 +1569,7 @@ void Engine::renderToasts()
 
 	Font* p_font = GUI::inst().getFont();
 
-	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 	glLineWidth(1.0f);
 
 	// Oldest first: the newer ones then lie on top, and a toast sliding out
@@ -1730,18 +1703,27 @@ void Engine::render()
 	const uint drawsBefore = TestHooks::drawCalls;
 #endif
 
-	// render the GUI
-	GUI::inst().render();
+	Renderer& renderer = Renderer::inst();
+	renderer.frameBegin();
+	{
+		// The GUI and the game states still draw raw; the level opens a
+		// Renderer::Batched bracket of its own inside this one.
+		Renderer::DirectGL direct;
 
-	// render the game
-	GameState* p_gs = getGameState();
-	if(p_gs) p_gs->onRender();
+		// render the GUI
+		GUI::inst().render();
 
-	// display the GUI
-	GUI::inst().display();
+		// render the game
+		GameState* p_gs = getGameState();
+		if(p_gs) p_gs->onRender();
 
-	// Toasts last: they sit over the GUI and over the editors' panes.
-	renderToasts();
+		// display the GUI
+		GUI::inst().display();
+
+		// Toasts last: they sit over the GUI and over the editors' panes.
+		renderToasts();
+	}
+	renderer.frameEnd();
 
 	// Off before drawOverlays(), which draws -perf's own numbers through the
 	// same Font::renderText this suppresses. Without it the experiment would
@@ -2115,7 +2097,8 @@ bool Engine::beginRenderToTexture(uint textureID,
 	// Both ends of the switch flush, which is what makes a bake inside an open
 	// batch safe: quads queued before it belong on the screen, quads queued
 	// during it belong on the texture, and each goes up where it was issued.
-	flushSprites(FR_TARGET);
+	Renderer& renderer = Renderer::inst();
+	renderer.flush();
 
 	if(!textureID) return false;
 
@@ -2139,25 +2122,33 @@ bool Engine::beginRenderToTexture(uint textureID,
 	renderTargetScissor = (glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE);
 	if(renderTargetScissor) glDisable(GL_SCISSOR_TEST);
 
+	// The projection twice over, for the two kinds of drawing: GL's own
+	// stack for the raw code of a bake, the renderer's for its quads. The
+	// modelview through the renderer, which inside a DirectGL moves GL's
+	// stack as well: a bake starts from the texture's origin whichever
+	// transform the caller stood under.
 	glViewport(0, 0, size.x, size.y);
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
 	gluOrtho2D(0.0, size.x, size.y, 0.0);
 	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	renderer.push();
+	renderer.loadIdentity();
+	renderer.setProjection(Mat4::ortho(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f, -1.0f, 1.0f));
 	return true;
 }
 
 void Engine::endRenderToTexture()
 {
-	flushSprites(FR_TARGET);
+	Renderer& renderer = Renderer::inst();
+	renderer.flush();
 
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	renderer.pop();
+	renderer.setProjection(Mat4::ortho(0.0f, static_cast<float>(screenSize.x), static_cast<float>(screenSize.y), 0.0f, -1.0f, 1.0f));
 
 	// Detach the texture again: it is read in a moment, and a target that
 	// doubles as a source is undefined.
@@ -2846,6 +2837,10 @@ void Engine::presentFrame()
 
 void Engine::drawOverlays()
 {
+	// After the frame's own bracket has closed, and drawn raw like the rest
+	// of the screen.
+	Renderer::DirectGL direct;
+
 	if(p_muteIconTexture && soundVolume == 0.0 && musicVolume == 0.0)
 	{
 		renderSprite(p_muteIconTexture, Vec2i(5, 5),
@@ -2932,7 +2927,7 @@ void Engine::drawPerformance()
 	const int height = 3 * lineHeight + 8;
 	const int top = screenSize.y - height;
 
-	setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 	GL::setTexturing(false);
 	glBegin(GL_QUADS);
 	glColor4d(0.0, 0.0, 0.0, 0.7);
@@ -3080,224 +3075,12 @@ void Engine::renderSprite(const Vec2d& position,
 	const int v0 = positionOnTexture.y;
 	const int v1 = positionOnTexture.y + size.y;
 
-	// Before the bracket below, not inside it: the batch bakes the sprite's own
-	// transform itself, and the matrix it reads back must be the caller's.
-	if(spriteBatchOpen)
-	{
-		queueSprite(position, halfSize, otherHalf, u0, u1, v0, v1, color, rotation, scaling);
-		return;
-	}
-
-	glPushMatrix();
-	glTranslated(position.x + halfSize.x, position.y + halfSize.y, 0.0);
-	if(scaling != 1.0) glScaled(scaling, scaling, 1.0);
-	if(rotation != 0.0) glRotated(rotation, 0.0, 0.0, 1.0);
-
-	glBegin(GL_QUADS);
-	glColor4dv(color);
-	glTexCoord2i(u0, v0);
-	glVertex2i(-halfSize.x, -halfSize.y);
-	glTexCoord2i(u1, v0);
-	glVertex2i(otherHalf.x, -halfSize.y);
-	glTexCoord2i(u1, v1);
-	glVertex2i(otherHalf.x, otherHalf.y);
-	glTexCoord2i(u0, v1);
-	glVertex2i(-halfSize.x, otherHalf.y);
-	glEnd();
-
-	glPopMatrix();
+	Renderer::inst().sprite(position, halfSize, otherHalf, u0, u1, v0, v1, color, rotation, scaling);
 }
 
-// GL_QUADS out of a client array has two ceilings in the browser and at this
-// stride they are the same number. The emulation's quad index table is a
-// Uint16Array, so it wraps at vertex 65536; and it asserts that the vertices
-// times the stride fit its 2 MiB scratch buffer, which at 32 bytes is again
-// 65536. A level frame issues a few hundred quads, so this is a backstop.
-const uint BATCH_MAX_QUADS = 16384;
-
-void Engine::beginSpriteBatch()
+void Engine::enableFlushAll()
 {
-	// Anything still queued belongs to whatever was drawing before this, and
-	// drawing it now would be under the new pass's state. Empty in practice -
-	// endSpriteBatch() sees to that - but a pass that ever returns early would
-	// otherwise carry its quads into the next one.
-	flushSprites(FR_EDGE);
-	spriteBatchOpen = !spriteBatchDisabled;
-}
-
-void Engine::flushSprites(FlushReason reason)
-{
-	// Counted either side of the early return, because that is exactly where
-	// the two numbers this work is aimed at come apart: a flush asked for with
-	// nothing queued costs nothing at all, and one asked for with a pass half
-	// collected costs a draw call. Only the second is worth removing, and the
-	// reason says which of them it is.
-	batchFlushes++;
-	if(spriteBatch.empty()) return;
-	batchDraws++;
-	batchDrawsByReason[reason]++;
-	batchQuads += static_cast<uint>(spriteBatch.size() / 4);
-
-#ifdef BLOCKS5_TEST_HOOKS
-	{
-		GLint texture = 0;
-		GLdouble textureMatrix[16];
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
-		glGetDoublev(GL_TEXTURE_MATRIX, textureMatrix);
-		// The binding and the texture matrix, because the static check reads
-		// the sources and this reads what happened - and a helper living in
-		// level.cpp or engine.cpp is outside the check's scope while still
-		// running with a batch open.
-		//
-		// Not whether texturing is on: the draw below declares that for
-		// itself, so it is no longer a state the queue depends on. It could
-		// not have been checked in the browser anyway, where Emscripten's
-		// glIsEnabled answers 0 for anything outside its own capability table
-		// and GL_TEXTURE_2D is not in it.
-		if(texture != batchTexture ||
-		   memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix)))
-		{
-			printfLog("+ ERROR: sprite batch of %u quads was queued against texture %d "
-					  "and is being drawn against %d%s - a flush is missing.\n",
-					  static_cast<uint>(spriteBatch.size() / 4),
-					  static_cast<int>(batchTexture), static_cast<int>(texture),
-					  memcmp(textureMatrix, batchTextureMatrix, sizeof(textureMatrix))
-						  ? ", and under another texture matrix" : "");
-		}
-	}
-#endif
-
-	// The vertices already carry the modelview they were queued under, so the
-	// draw has to happen under none: otherwise GL applies it a second time.
-	// Identity and not "the matrix the queue began with", because one batch
-	// spans objects that each pushed their own. The projection still applies,
-	// which is what puts the whole thing on the screen.
-	//
-	// The matrix mode is said rather than assumed, and the attrib bracket is
-	// what says it. A flush happens wherever the state moves, which includes
-	// Texture::bind() - and Level::render binds the snow and the clouds with
-	// GL_TEXTURE current, so an unqualified glPushMatrix here would push, wipe
-	// and pop the *texture* matrix and leave the sprites under whatever
-	// modelview happened to stand.
-	//
-	// What actually keeps that safe is that the batch is closed there:
-	// endSpriteBatch() runs long before the weather block. This is the cheaper
-	// half of a belt and braces, not the whole answer - a batch left open
-	// across that block would still draw under the texture matrix the weather
-	// scrolls, which no bracket here can help with. Three calls a flush on the
-	// desktop, two in the browser, where gl_compat's glPushAttrib issues none.
-	// And the texturing is said rather than inherited, which is what takes it
-	// out of the batch's state - see GL::beginBatchDraw.
-	GL::beginBatchDraw();
-	glPushAttrib(GL_TRANSFORM_BIT);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	drawQuadArray(&spriteBatch[0], static_cast<uint>(spriteBatch.size()));
-	glPopMatrix();
-	glPopAttrib();
-	GL::endBatchDraw();
-
-	// The current colour is deliberately left alone. Immediate mode used to
-	// leave the last sprite's colour standing, and putting that back here
-	// looked like the faithful thing to do - but a flush happens wherever the
-	// state moves, which includes the middle of somebody else's drawing.
-	// Font::renderText sets its shadow colour and then calls drawText, whose
-	// first act is a bind: restoring the colour there painted every shadow of
-	// every string in the last sprite's colour instead.
-	spriteBatch.clear();
-}
-
-void Engine::endSpriteBatch()
-{
-	flushSprites(FR_EDGE);
-	spriteBatchOpen = false;
-}
-
-void Engine::queueSprite(const Vec2d& position,
-						 const Vec2i& halfSize,
-						 const Vec2i& otherHalf,
-						 int u0,
-						 int u1,
-						 int v0,
-						 int v1,
-						 const Vec4d& color,
-						 double rotation,
-						 double scaling)
-{
-	if(spriteBatch.size() >= 4 * BATCH_MAX_QUADS) flushSprites(FR_FULL);
-
-#ifdef BLOCKS5_TEST_HOOKS
-	// A queued quad is drawn with the state standing at the flush, not at the
-	// call - so anything that moves that state in between has to flush first.
-	// The static check reads the sources for it; this reads what actually
-	// happened, and says which pass let it through.
-	if(spriteBatch.empty())
-	{
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &batchTexture);
-		glGetDoublev(GL_TEXTURE_MATRIX, batchTextureMatrix);
-	}
-#endif
-
-	// The transform the caller set up is read back rather than tracked. It is
-	// whatever Object::render and everything above it pushed - the translate to
-	// the object's cell, the squash of a teleporting object, the unbalanced
-	// glTranslated Enemy does inside its own onRender, the half pixel
-	// Level::render puts under the wires - and baking it is what lets sprites from
-	// different objects share one draw call. Reading it costs one call against the
-	// fourteen to sixteen a sprite this path no longer makes: in the browser a
-	// copy of sixteen floats out of a JavaScript array, on a desktop client-side
-	// driver state and not a pipeline stall.
-	GLfloat m[16];
-	glGetFloatv(GL_MODELVIEW_MATRIX, m);
-
-	// The sprite's own transform, in the order immediate mode applies it.
-	// Mirroring is already in the texture coordinates, so what is left is
-	// rotate, then scale, then translate to the centre.
-	double c = scaling;
-	double s = 0.0;
-	if(rotation != 0.0)
-	{
-		const double a = rotation * (3.1415926535897932384626433832795 / 180.0);
-		c = scaling * cos(a);
-		s = scaling * sin(a);
-	}
-
-	const double tx = position.x + halfSize.x;
-	const double ty = position.y + halfSize.y;
-
-	// Widened one at a time and not inside the braces: a braced initializer
-	// list forbids a narrowing conversion, and clang says so where gcc does not.
-	const double left = -halfSize.x, right = otherHalf.x;
-	const double top = -halfSize.y, bottom = otherHalf.y;
-	const double lx[4] = {left, right, right, left};
-	const double ly[4] = {top, top, bottom, bottom};
-	const int u[4] = {u0, u1, u1, u0};
-	const int v[4] = {v0, v0, v1, v1};
-
-	// clampColor, because renderShine hands this deathCountDown * 5.0 from an
-	// exploding bomb and expects GL to cut it off. Immediate mode did, on both
-	// platforms - the hardware by specification, and Emscripten inside its own
-	// glColor4f - and a colour array goes through neither.
-	const Vec4d cut = clampColor(color);
-	const Vec4f col(static_cast<float>(cut.r), static_cast<float>(cut.g),
-					static_cast<float>(cut.b), static_cast<float>(cut.a));
-
-	for(int i = 0; i < 4; i++)
-	{
-		const double x = tx + c * lx[i] - s * ly[i];
-		const double y = ty + s * lx[i] + c * ly[i];
-
-		// The modelview is column major and, in this game, always an affine
-		// map of the plane: z is never anything but 0, so two columns and the
-		// translation are the whole of it.
-		ColorQuadVertex vertex;
-		vertex.position = Vec2f(static_cast<float>(m[0] * x + m[4] * y + m[12]),
-								static_cast<float>(m[1] * x + m[5] * y + m[13]));
-		vertex.uv = Vec2f(static_cast<float>(u[i]), static_cast<float>(v[i]));
-		vertex.color = col;
-		spriteBatch.push_back(vertex);
-	}
+	Renderer::inst().setFlushAll(true);
 }
 
 void Engine::renderSprite(Texture* p_sprite,
@@ -3309,10 +3092,8 @@ void Engine::renderSprite(Texture* p_sprite,
 						  double rotation,
 						  double scaling)
 {
-	// The switch back off stays. It costs one GL call now and no flush at all,
-	// which is what the whole state layer was for - and everything that draws
-	// untextured after a sprite has always been able to rely on it, down to
-	// LineDrawer::draw, which installs a vertex array and nothing else.
+	// The switch back off stays: everything that draws untextured after a
+	// sprite has always been able to rely on it.
 	p_sprite->bind();
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
 	GL::setTexturing(false);
@@ -3372,18 +3153,6 @@ SoundInstance* Engine::playSound(const std::string& filename,
 	}
 
 	return 0;
-}
-
-void Engine::setBlendFunc(GLenum srcRGB,
-						  GLenum dstRGB,
-						  GLenum srcAlpha,
-						  GLenum dstAlpha)
-{
-	// Queued sprites were queued to be blended the old way.
-	flushSprites(FR_BLEND);
-
-	if(glExtBlendFuncSeparate) glExtBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
-	else glBlendFunc(srcRGB, dstRGB);
 }
 
 void Engine::registerGameState(GameState* p_gs)

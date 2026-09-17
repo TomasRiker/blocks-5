@@ -5,7 +5,7 @@
 
 #include "resource.h"
 // For QuadVertex, which a laid-out string is made of.
-#include "quadarray.h"
+#include "renderer.h"
 
 class Texture;
 
@@ -136,7 +136,7 @@ private:
 	void rememberDimensions(const std::string& text, const Vec2i& dimensions);
 	void forgetDimensions(const std::string& key);
 	void buildText(const std::string& text, std::vector<QuadVertex>& glyphs, std::vector<Vec2f>& keyBoxes);
-	void drawText(const StringCacheEntry& entry) const;
+	void drawText(const StringCacheEntry& entry, const Vec4f& color) const;
 
 	// Both caches key on this, and it is a reference into cacheKeyBuffer.
 	const std::string& cacheKey(const std::string& text);

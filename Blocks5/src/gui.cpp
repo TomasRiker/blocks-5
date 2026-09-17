@@ -96,7 +96,7 @@ void GUI::render()
 
 	glLineWidth(1.0f);
 	glDisable(GL_LINE_SMOOTH);
-	Engine::inst().setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 
 	GUI_Element::numElementsRendered = 0;
 	p_root->render();
@@ -158,7 +158,7 @@ void GUI::display()
 	{
 		glLineWidth(1.0f);
 		glDisable(GL_LINE_SMOOTH);
-		Engine::inst().setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+		Renderer::inst().setBlend(BM_NORMAL);
 
 		GUI_Element::numElementsRendered = 0;
 		p_root->render();

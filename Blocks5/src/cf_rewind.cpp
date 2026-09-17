@@ -262,9 +262,9 @@ void CF_Rewind::render(double t,
 	}
 
 	// And the snow over everything, added.
-	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_ADDITIVE);
 	drawSnow(0, screenSize.y, settle * SNOW_ALPHA);
-	engine.setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+	Renderer::inst().setBlend(BM_NORMAL);
 
 	// --- The grey wash -----------------------------------------------------
 	GL::setTexturing(false);
