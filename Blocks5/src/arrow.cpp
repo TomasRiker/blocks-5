@@ -110,4 +110,12 @@ void Arrow::saveAttributes(TiXmlElement* p_target)
 void Arrow::turn()
 {
 	dir++;
+
+	// shownDir chases dir the short way round, so the two wrap together:
+	// dir alone at 0 again would send the animation three quarters back.
+	if(dir >= 4)
+	{
+		dir -= 4;
+		shownDir -= 4.0;
+	}
 }

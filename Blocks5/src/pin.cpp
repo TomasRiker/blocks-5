@@ -45,11 +45,9 @@ bool Pin::connect(Pin* p_pin1,
 	// Two inputs or two outputs cannot be connected to each other.
 	if(p_pin1->type == p_pin2->type) return false;
 
-	// work out which is the input and which the output
+	// work out which is the input
 	Pin* p_input = p_pin1;
-	Pin* p_output = p_pin2;
 	if(p_pin2->type == PT_INPUT) p_input = p_pin2;
-	if(p_pin1->type == PT_OUTPUT) p_output = p_pin1;
 
 	// The input must not be connected yet.
 	if(p_input->isConnected()) return false;
@@ -72,8 +70,10 @@ void Pin::disconnect(Pin* p_pin1,
 	Pin* p_input = p_pin1;
 	if(p_pin2->type == PT_INPUT) p_input = p_pin2;
 
-	// The input is undefined now.
-	p_input->setValue(-1);
+	// The input is undefined now. Written directly: setValue() takes outputs
+	// only and would leave the old value standing.
+	p_input->writeValue(-1);
+	p_input->writeOldValue(-1);
 }
 
 void Pin::disconnectAll()
@@ -120,53 +120,6 @@ std::vector<Vec2f> Pin::getConnectionPath(const Pin* p_pin1,
 		const Vec2d p(a * (t * t * t) + b * (t * t) + c * t + d);
 		path.push_back(p);
 	}
-
-#ifdef EDGY_CONNECTIONS
-	Vec2i start = p_pin1->getScreenPosition();
-	Vec2i end = p_pin2->getScreenPosition();
-
-	path.push_back(start);
-
-	const Vec2i& pin1 = p_pin1->getObject()->transformToScreen(p_pin1->getPosition());
-	const Vec2i& pin2 = p_pin2->getObject()->transformToScreen(p_pin2->getPosition());
-	Vec2i dir1, dir2;
-	if(pin1.x == 0) dir1 = Vec2i(-1, 0);
-	else if(pin1.y == 0) dir1 = Vec2i(0, -1);
-	else if(pin1.x == 15) dir1 = Vec2i(1, 0);
-	else if(pin1.y == 15) dir1 = Vec2i(0, 1);
-	if(pin2.x == 0) dir2 = Vec2i(-1, 0);
-	else if(pin2.y == 0) dir2 = Vec2i(0, -1);
-	else if(pin2.x == 15) dir2 = Vec2i(1, 0);
-	else if(pin2.y == 15) dir2 = Vec2i(0, 1);
-
-	Vec2i cursor = path.front();
-	int dist = 4;
-	if(p_pin1->getPinID() < 10) dist += p_pin1->getPinID() * 2;
-	else if(p_pin1->getPinID() >= 10) dist += (p_pin1->getPinID() - 10) * 2;
-	if(p_pin2->getPinID() < 10) dist += p_pin2->getPinID() * 2;
-	else if(p_pin2->getPinID() >= 10) dist += (p_pin2->getPinID() - 10) * 2;
-	cursor += dir1 * dist;
-	path.push_back(cursor);
-
-	Vec2i n = end + dir2 * dist;
-	Vec2i d = n - cursor;
-	if(abs(d.x) >= abs(d.y))
-	{
-		cursor.y += d.y;
-		path.push_back(cursor);
-		cursor.x += d.x;
-		path.push_back(cursor);
-	}
-	else
-	{
-		cursor.x += d.x;
-		path.push_back(cursor);
-		cursor.y += d.y;
-		path.push_back(cursor);
-	}
-
-	path.push_back(end);
-#endif
 
 	return path;
 }

@@ -11,6 +11,17 @@ Teleporter::Teleporter(Level& level,
 	warpTo(position);
 	flags = OF_FIXED | OF_NO_SHADOW;
 	this->targetPosition = targetPosition;
+
+	// subType comes out of the level file unchecked (presets.cpp), and only
+	// 0 and 1 mean anything: onUpdate() teleports nobody through any other
+	// value, while the sprite and the tooltip would still claim one kind.
+	if(subType < 0 || subType > 1)
+	{
+		printfLog("+ WARNING: Teleporter with subType %d, which does not exist. Treating it as one for everybody.\n",
+				  subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
 	anim = 0;
 }
@@ -103,7 +114,7 @@ void Teleporter::saveAttributes(TiXmlElement* p_target)
 
 std::string Teleporter::getToolTip() const
 {
-	switch(subType % 2)
+	switch(subType)
 	{
 	case 0: return "$TT_TELEPORTER";
 	case 1: return "$TT_TELEPORTER_NO_PLAYER";

@@ -1,5 +1,5 @@
-#ifndef _E_BARRIER_H
-#define _E_BARRIER_H
+#ifndef _E_BARRAGE_H
+#define _E_BARRAGE_H
 
 #include "electronics.h"
 

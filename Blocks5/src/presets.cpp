@@ -568,8 +568,8 @@ Object* Presets::instancePreset(const std::string& name,
 		{
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("value", &value);
-			p_theObject = new E_Value(level, position, value, dir);
 		}
+		p_theObject = new E_Value(level, position, value, dir);
 	}
 	else if(name == "E_ValueSwitch")
 	{
@@ -579,9 +579,9 @@ Object* Presets::instancePreset(const std::string& name,
 		{
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("value", &value);
-			p_theObject = new E_ValueSwitch(level, position, value, dir);
-			p_theObject->setToolTip("$TT_VALUE_SWITCH");
 		}
+		p_theObject = new E_ValueSwitch(level, position, value, dir);
+		p_theObject->setToolTip("$TT_VALUE_SWITCH");
 	}
 	else if(name == "E_PulseSwitch")
 	{
@@ -591,8 +591,8 @@ Object* Presets::instancePreset(const std::string& name,
 		{
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("pulseValue", &pulseValue);
-			p_theObject = new E_PulseSwitch(level, position, pulseValue, dir);
 		}
+		p_theObject = new E_PulseSwitch(level, position, pulseValue, dir);
 	}
 	else if(name == "E_PulsePanel")
 	{
@@ -602,8 +602,8 @@ Object* Presets::instancePreset(const std::string& name,
 		{
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("pulseValue", &pulseValue);
-			p_theObject = new E_PulsePanel(level, position, pulseValue, dir);
 		}
+		p_theObject = new E_PulsePanel(level, position, pulseValue, dir);
 	}
 	else if(name == "E_Clock")
 	{
@@ -641,8 +641,8 @@ Object* Presets::instancePreset(const std::string& name,
 		{
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("subType", &subType);
-			p_theObject = new E_Gate(level, position, subType, dir);
 		}
+		p_theObject = new E_Gate(level, position, subType, dir);
 	}
 	else if(name == "E_FlipFlop")
 	{
@@ -654,8 +654,8 @@ Object* Presets::instancePreset(const std::string& name,
 			p_element->QueryIntAttribute("dir", &dir);
 			p_element->QueryIntAttribute("subType", &subType);
 			p_element->QueryIntAttribute("value", &value);
-			p_theObject = new E_FlipFlop(level, position, subType, value, dir);
 		}
+		p_theObject = new E_FlipFlop(level, position, subType, value, dir);
 	}
 	else if(name == "LightBarrierSender")
 	{
@@ -690,7 +690,7 @@ Object* Presets::instancePreset(const std::string& name,
 	else if(name == "Damage")
 	{
 		double rotation = -1.0;
-		p_element->QueryDoubleAttribute("rotation", &rotation);
+		if(p_element) p_element->QueryDoubleAttribute("rotation", &rotation);
 		p_theObject = new Damage(level, position, rotation);
 	}
 	else if(name == "ToxicGas")

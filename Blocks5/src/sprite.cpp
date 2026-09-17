@@ -78,6 +78,7 @@ void Sprites::clear()
 
 Sprite& Sprites::add(const Vec2i& positionOnTexture)
 {
+	// Past MAX_SPRITES the last slot is reused rather than the array overrun.
 	if(numSprites < MAX_SPRITES) numSprites++;
 
 	Sprite& sprite = sprites[numSprites - 1];

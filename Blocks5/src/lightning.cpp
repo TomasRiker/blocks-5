@@ -153,7 +153,7 @@ Lightning::Branch Lightning::generateSecondaryBranch(const Branch& b,
 
 	// find two consecutive points
 	int start = random(0, static_cast<int>(b.points.size()) - 2);
-	Vec2i pos = b.points[start];
+	Vec2d pos = b.points[start];
 	Vec2d dir = (b.points[start + 1] - b.points[start]).normalize();
 	int length = random(minLength, maxLength);
 	for(int i = 0; i < length; i++)

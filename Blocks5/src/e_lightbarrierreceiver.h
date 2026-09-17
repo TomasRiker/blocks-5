@@ -14,8 +14,6 @@ public:
 	void onRender(RenderLayer layer, const Vec4d& color);
 	void updateSprites();
 	void frameBegin();
-	void saveExtendedAttributes(TiXmlElement* p_target);
-	void loadExtendedAttributes(TiXmlElement* p_element);
 	bool changeInEditor(int mod);
 	void doLogic();
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);

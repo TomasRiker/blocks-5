@@ -33,10 +33,13 @@ Elevator::Elevator(Level& level,
 			p_soundInst = p_sound->createInstance(true);
 			p_sound->release();
 
-			p_soundInst->setVolume(0.0);
-			p_soundInst->setPitch(0.1);
-			p_soundInst->play(true);
-			p_soundInst->pause();
+			if(p_soundInst)
+			{
+				p_soundInst->setVolume(0.0);
+				p_soundInst->setPitch(0.1);
+				p_soundInst->play(true);
+				p_soundInst->pause();
+			}
 		}
 	}
 }
@@ -54,7 +57,7 @@ void Elevator::onRemove()
 		if(!numInstances)
 		{
 			// The last instance is gone. Stop the sound.
-			p_soundInst->stop();
+			if(p_soundInst) p_soundInst->stop();
 			p_soundInst = 0;
 			soundChanged = false;
 		}
@@ -204,6 +207,7 @@ void Elevator::onUpdate()
 void Elevator::onElectricitySwitch(bool on)
 {
 	if(soundChanged) return;
+	if(!p_soundInst) return;
 
 	// control the sound
 	if(on)
@@ -251,7 +255,7 @@ void Elevator::loadExtendedAttributes(TiXmlElement* p_element)
 	p_element->Attribute("moveCounter", &moveCounter);
 	p_element->Attribute("newDir", &newDir);
 	p_element->Attribute("origDir", &origDir);
-	int blink;
+	int blink = 0;
 	p_element->Attribute("blink", &blink);
 	this->blink = blink ? true : false;
 }

@@ -78,7 +78,7 @@ nothing — which is also why a rewind transition cannot be captured by a byte-e
 
 **Something that reacts lights up.** `Object::flash()` sets `flashAmount` to `FLASH_STRENGTH`; `frameBegin`
 decays it by `FLASH_DECAY` per tick and `Object::render` draws the object's own sprites over themselves once
-more, additively — about eight ticks, a sixth of a second. It is the acknowledgement a switch gives when
+more, additively — about 25 ticks, half a second. It is the acknowledgement a switch gives when
 pressed, and the two counters at the bottom left give the same one when a diamond or bomb is collected:
 `Player::addInventory` is the single funnel both go through, so it calls `Level::flashHudIcon` there, and
 `GS_Game`'s HUD pass draws the preset a second time under the same additive blend. The two constants live in
