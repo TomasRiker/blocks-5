@@ -136,12 +136,13 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
   disappear. **The two sounds are in `onUpdate`, by its clock, and not there**: `Object::update` calls
   `onCollect` on every tick a player stands within six pixels of the centre, and since the note never
   disappears, that is every tick of a visit. `hint.ogg` plays in the tick the note opens (`activeTicks` at
-  0, where the flight target is decided), `hintscroll.ogg` in the tick `unroll` first leaves 0, and the
-  second only under `isHintScroll()`, because the panel a skin without the marker draws is flat and rolls
-  nothing. Neither spreads its pitch: a spread draws from the level's generator and would move every
-  random number after it, the oracle's `hint` scene included. The rustle's instance is kept and slid to
-  zero when the note closes under it, whatever closed it - to zero and not paused, because a paused
-  instance is never reaped (`diamondmachine.cpp` has that trap written out). And a bake that fails — out of texture memory, a lost context — draws nothing that frame rather
+  0, where the flight target is decided), `hintscroll.ogg` in the tick the paper sets off, unrolling or
+  rolling up, and the second only under `isHintScroll()`, because the panel a skin without the marker
+  draws is flat and rolls nothing. Neither spreads its pitch: a spread draws from the level's generator
+  and would move every random number after it, the oracle's `hint` scene included. The rustle's instance
+  is kept, and a motion cut short - a reversal, or the object removed - slides it to zero while the new
+  motion gets its own; a motion that runs to its end lets it play out. To zero and not paused, because a
+  paused instance is never reaped (`diamondmachine.cpp` has that trap written out). And a bake that fails — out of texture memory, a lost context — draws nothing that frame rather
   than falling back to a flat sheet; `bakeNote` runs again on the next.
 
 **Presets are the object factory.** `presets.cpp` maps a type-name string to a constructed `Object` in one

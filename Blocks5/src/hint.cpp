@@ -77,7 +77,7 @@ namespace
 	const int UNROLL_START = 20;
 	const int UNROLL_END = 40;
 
-	// How fast the rustle goes when the note closes under it. The slide is
+	// How fast a rustle goes when its motion is cut short. The slide is
 	// exponential, once per logic tick, and the speed is the fraction of the
 	// way left covered each tick: at 0.3 the volume halves every two ticks,
 	// is inaudible after seven - 140 ms - and the slide ends by the
@@ -159,6 +159,7 @@ Hint::Hint(Level& level,
 	dismissed = false;
 	noteTexture = 0;
 	p_scrollSound = 0;
+	scrollDirection = 0;
 	// Vec2i has no initialising default constructor.
 	targetPosition = Vec2i(320, 200);
 
@@ -461,22 +462,28 @@ void Hint::onUpdate()
 	// little rolled up for ever.
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
 	else     { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
-	const bool wasRolled = unroll <= 0.0;
+	const double before = unroll;
 	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
 
-	// The rustle starts with the unrolling, and only where there is paper to
-	// unroll: a skin without the hintscroll.txt marker shows a display panel,
-	// drawn flat (onRender), and that makes no sound.
-	if(wasRolled && unroll > 0.0 && level.isHintScroll())
+	// The paper's motion this tick, and the rustle that goes with it: one
+	// when the paper sets off unrolling, one when it sets off rolling up,
+	// whichever way it was moving before. A motion cut short - the note
+	// closed under the unrolling, the player back on the field under the
+	// roll-up - takes its rustle with it, quickly; one that runs to its end
+	// lets the rustle play out. Only where there is paper: a skin without
+	// the hintscroll.txt marker shows a display panel, drawn flat
+	// (onRender), and that makes no sound.
+	const int direction = unroll > before ? 1 : unroll < before ? -1 : 0;
+	if(direction != scrollDirection)
 	{
-		p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0, 100);
+		if(direction != 0)
+		{
+			fadeScrollSound();
+			if(level.isHintScroll()) p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0, 100);
+		}
+		scrollDirection = direction;
 	}
-
-	// A note that closes takes the rustle with it, whatever closed it - the
-	// player walking off, Return, Escape - and quickly: the paper is rolling
-	// back up, not unrolling.
-	if(!open) fadeScrollSound();
 
 	// Roll up first, then disappear - hence the rolling above. While anything
 	// is still left to roll up, the note stays fully visible and in place.
