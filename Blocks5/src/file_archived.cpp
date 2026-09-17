@@ -13,6 +13,8 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	pointer = 0;
 	size = 0;
 	eof = false;
+	// Before any early return: the destructor asks finish() to close it.
+	outArchive = 0;
 
 	if(archiveFilename.empty() || objectName.empty())
 	{
