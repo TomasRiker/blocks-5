@@ -65,7 +65,8 @@ Three ways to read it:
   sides are one binary in one browser, and they are **interleaved** rather than run in blocks, so a machine
   that warms up or throttles hands that to both.
 
-**`?texunits=N` is the first knob riding on this**, and it shipped. Emscripten's GL emulation keeps state
+**`?texunits=N` is the first knob riding on this**, and it shipped; it goes with the GL emulation in
+the last stage of `RENDERER-REDESIGN.md`. Emscripten's GL emulation keeps state
 for as many texture units as WebGL reports — 8 to 16 — and loops over that count twice per draw call. This
 game never leaves unit 0: no `glActiveTexture`, `GL_TEXTURE0` or `glMultiTexCoord` anywhere. `pre.js` sets
 `Module.GL_MAX_TEXTURE_IMAGE_UNITS` to 1 by default; `?texunits=0` puts it back to asking WebGL, the arm to

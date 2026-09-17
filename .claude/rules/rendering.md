@@ -11,6 +11,14 @@ paths:
 
 # Rendering: the GL floor, the tile grid, the sprite batch and GL state
 
+**A redesign of this whole layer is planned and written down in
+`RENDERER-REDESIGN.md`** (ROADMAP 54): one renderer that every draw goes through,
+batching by itself and flushing only where the texture or the blend changes, rare
+state as scopes, the transform baked on the CPU, no fixed-function anywhere and no
+GL emulation in the browser. Until its stages land, everything below is what the
+code does and the rules here hold; a change to the batch or to `GL::` should be
+read against that plan first.
+
 **The floor is GL 2.0 with framebuffer objects, and it is a floor, not a hope.** Buffers are core in GL
 1.5 (2003), shaders in GL 2.0 (2004), framebuffer objects an EXT from 2004; both software rasterizers
 tested against, llvmpipe and SwiftShader, carry all three, and in WebGL 1 they are core — so

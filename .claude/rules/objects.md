@@ -33,6 +33,9 @@ wipes them, and the mask may name a layer the object does not draw this frame bu
 does; a strip is `GL_TRIANGLE_STRIP`,
 never `GL_QUAD_STRIP`, because WebGL has no such primitive; and nothing in a render path calls `random()`.
 `verify.py`'s `sprite_batch`, `gl_state`, `layer_bits` and `render_layers` checks catch the first three.
+`RENDERER-REDESIGN.md` (ROADMAP 54) is the plan under which the flush and `GL::` rules disappear -
+an `onRender` will draw lines and points through the renderer and never touch GL; until it lands
+they hold.
 
 **Nothing in the render path draws a random number**, and the reason is not the one it looks like. **The loop
 renders at most once per tick**: `timeProcessed` is zeroed at the top of each iteration and only raised inside

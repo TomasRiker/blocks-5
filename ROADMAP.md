@@ -2169,6 +2169,40 @@ the font cache was described as holding 32 entries when it is budgeted in quads
 (QUAD_BUDGET), not in entries at all.
 
 
+54. One renderer in place of the sprite batch and immediate mode
+-----------------------------------------------------------------
+The plan is `RENDERER-REDESIGN.md` at the root, written and checked against
+the tree before any of it was started; this entry is the pointer and the
+short form.
+
+The sprite batch covers `Level::renderObjects` and nothing else. The other 118
+`glBegin` blocks in 39 files - the GUI, the game states, the weather, the
+crossfades, the credits, the hint mesh, the toxic grid, the lava passes - are
+fixed-function immediate mode, kept in order with the batch by a convention that
+`sprite_batch`, `gl_state`, `gl_doors` and a runtime read-back police, and in
+the browser every one of them runs through `-sLEGACY_GL_EMULATION`, which is
+the cost the phone pays: batching the sprites alone took a full level from 57
+ms a frame to 9.
+
+What replaces it: one `Renderer` that every draw goes through, batching by
+itself and flushing only where the texture or the blend mode changes - the two
+things that alternate per quad. Everything rarer - scissor, colour mask,
+stencil, the alpha test, an offscreen target, a 3D projection - is a scope
+that flushes at both ends and restores what it found, because every one of
+them is used as a bracket and never per quad. The transform is baked on the
+CPU, the vertex is 2D and 32 bytes, one GL 2.0 program serves textured and
+flat drawing alike through a built-in white texel, and painter's order holds
+by construction rather than by discipline. The tile and font caches keep their
+16-byte vertices and are expanded at submission.
+
+Four stages, one PR each, every one byte-identical on the frame oracle except
+for the causes the plan lists: widen the oracle first; the renderer under the
+level; every remaining `glBegin`; then cut the emulator out of the browser
+build and delete `gl_immediate.cpp` with it. Items 42 and 41 fall out of it
+(the vertex-stage clamp, the shader path shadows needed); item 51, the atlas,
+becomes a uv offset and stays separate.
+
+
 How these connect
 -----------------
     2 (scaling) ──┬─> 8 (shader upscaler, no readback)  — the readback is gone
