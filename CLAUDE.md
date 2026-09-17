@@ -120,17 +120,19 @@ browser they are core and the header `#define`s them through.
 **Rules every source obeys**, each argued in its rule file:
 
 - **Everything draws through `Renderer`, and raw GL lives in the files that own it** - the renderer
-  itself, the texture upload, the engine's framebuffer and present, the present filters, the loader and
-  the browser shims. A quad handed to the renderer is queued and put up at the next flush, so a raw
+  itself, the texture upload, the engine's framebuffer and present, the present filters and the loader.
+  A quad handed to the renderer is queued and put up at the next flush, so a raw
   draw anywhere else would land underneath what was queued before it and a raw state change would
   fool the renderer's record; in `texture.cpp` and `engine.cpp` a raw call stands inside a
   `Renderer::DirectGL` bracket, which flushes first and forgets what GL holds after (`rendering.md`).
 - **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`
   parts, whose base sets `RL_WIRE`; assigning wipes the bit and nothing says so — and a render layer is
   an `RL_*` name, never a number (`rendering.md`).
-- **No display lists, no `GL_QUADS`, no wide lines, no alpha test**: WebGL has none of them, and the
-  browser is the build nobody runs first. The rule above is what keeps them out, since nothing outside
-  the renderer can reach GL to ask (`rendering.md`).
+- **No display lists, no `GL_QUADS`, no wide lines, no alpha test, no fixed function at all**: WebGL has
+  none of them, and the browser is the build nobody runs first. The rule above is what keeps them out,
+  since nothing outside the renderer can reach GL to ask, and the browser build links against plain WebGL
+  with no emulation, so one that slipped in would be an undefined symbol there rather than a black screen
+  (`rendering.md`, `web.md`).
 - **Nothing in a render path draws a random number**; per-tick jitter comes from `frameBegin()` and
   `Level::update()`, so a frame stays reproducible from a seed (`objects.md`).
 - **Anything that reads the rendered frame binds the FBO itself** (`rendering.md`).
@@ -144,7 +146,7 @@ browser they are core and the header `#define`s them through.
 ## Conventions
 
 - Every `src/*.cpp` uses the precompiled header: `#include "pch.h"` must be the first line (`pch.cpp`
-  is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, GLU, OpenAL, libvorbis,
+  is the Create-PCH translation unit). `pch.h` already pulls in SDL, OpenGL, OpenAL, libvorbis,
   TinyXML, sigslot, MersenneTwister, `img_load.h` and the core helpers (`singleton.h`, `vec.h`,
   `typedefs.h`, `util.h`, `manager.h`, `renderer.h`), so don't re-include those. `renderer.h` is in that
   list rather than per file because every source that draws anything reaches `Renderer`, the one way
@@ -227,7 +229,7 @@ and do not repeat it.
 | `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
 | `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, `?texunits` |
-| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades, the GL shims | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, texture wrapping |
+| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, texture wrapping |
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |

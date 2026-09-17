@@ -79,18 +79,7 @@ U_SharpFit::~U_SharpFit()
 {
 }
 
-bool U_SharpFit::createGL()
+const char* U_SharpFit::getFragmentSource() const
 {
-	return program.create(p_sharpFitFragmentShader, "sharp-fit fragment");
-}
-
-void U_SharpFit::destroyGL()
-{
-	program.destroy();
-}
-
-void U_SharpFit::present(const PresentContext& context)
-{
-	program.use(context);
-	program.drawQuad(context);
+	return p_sharpFitFragmentShader;
 }

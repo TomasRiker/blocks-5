@@ -88,10 +88,13 @@ async function serve(dir) {
 		throw new Error('no blocks5.html in ' + dir);
 	}
 	const newer = newerThanBuild(dir);
-	if (newer.length) {
+	if (newer.length && process.env.B5_STALE_OK) {
+		console.log('  (B5_STALE_OK: ' + dir + ' is older than ' + newer.length + ' source file' +
+		            (newer.length === 1 ? '' : 's') + ', measured on purpose)');
+	} else if (newer.length) {
 		throw new Error(path.basename(dir) + '/blocks5.html is older than:\n' +
 		                newer.slice(0, 3).map(f => '  ' + path.basename(f)).join('\n') +
-		                '\nRun \'./build.sh hooks\' first.');
+		                '\nRun \'./build.sh hooks\' first, or B5_STALE_OK=1 to measure an old build on purpose.');
 	}
 	server = spawn('python3', ['-m', 'http.server', String(PORT)],
 	               { cwd: dir, stdio: 'ignore', detached: true });
@@ -100,7 +103,10 @@ async function serve(dir) {
 
 async function launch(opts) {
 	const o = opts || {};
-	const dir = o.dir || path.join(__dirname, '..', 'build-test');
+	// B5_DIR points a run at another build - the previous one, for a
+	// before-and-after - and B5_STALE_OK=1 lets that build be older than the
+	// sources, which it is by definition. Both are said out loud below.
+	const dir = o.dir || process.env.B5_DIR || path.join(__dirname, '..', 'build-test');
 	await serve(dir);
 
 	const browser = await chromium.launch({
@@ -110,11 +116,9 @@ async function launch(opts) {
 	const page = await browser.newPage({
 		viewport: { width: o.width || 800, height: o.height || 640 },
 	});
-	// Three notices always appear and mean nothing: Emscripten announcing its GL
-	// emulation twice, and the game reporting that a browser has no loopback
-	// audio device to record from.
+	// One notice always appears and means nothing: the game reporting that a
+	// browser has no loopback audio device to record from.
 	const EXPECTED = [
-		/using emscripten GL/i,
 		/Could not open audio capture device/i,
 	];
 	page.on('console', m => {

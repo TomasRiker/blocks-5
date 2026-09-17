@@ -475,14 +475,11 @@ RAW_GL_FILES = {
     # The entry-point loader and the entry points.
     'Blocks5/src/glextensions.cpp',
     'Blocks5/src/glextensions.h',
-    # The browser's GL shims, until stage 3 of RENDERER-REDESIGN.md.
-    'WebBuild/gl_compat.cpp',
-    'WebBuild/gl_immediate.cpp',
 }
 
 # The two owners whose raw GL runs while the renderer may hold quads. The
-# rest are the renderer itself, the loader, the shims, and the present
-# filters, which run inside presentFrame's bracket.
+# rest are the renderer itself, the loader, and the present filters, which
+# run inside presentFrame's bracket.
 BRACKETED_FILES = ('Blocks5/src/texture.cpp', 'Blocks5/src/engine.cpp')
 
 # Queries that touch nothing, which may stand outside a bracket.
@@ -655,9 +652,8 @@ def check_direct_gl_scope():
     and glGetString touch nothing.
 
     The other owners are not read: the renderer's own file is the thing
-    the bracket exists for, the loader runs before the first quad, the
-    present filters run inside presentFrame's bracket, and the browser
-    shims are the emulation itself."""
+    the bracket exists for, the loader runs before the first quad, and the
+    present filters run inside presentFrame's bracket."""
     bad = []
     for rel in BRACKETED_FILES:
         text = blank_noncode(read(os.path.join(ROOT, rel)))

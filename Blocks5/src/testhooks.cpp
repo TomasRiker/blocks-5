@@ -321,7 +321,7 @@ namespace
 		// What the frames since the last resetStats() cost, all in
 		// milliseconds on the main thread. None of it waits for the GPU -
 		// WebGL hands over a command and returns - so these are what the
-		// emulation and the JavaScript cost, which is the half that starves
+		// game and the JavaScript cost, which is the half that starves
 		// the audio and drops the frame.
 		{
 			const FrameStats& stats = Engine::inst().getFrameStats();
@@ -633,8 +633,9 @@ void pollRequests()
 // nothing draws for the game from inside a library, where a wrap could not
 // see it.
 //
-// Not in the browser, where a draw call is what reaches WebGL after the
-// emulation has had its say - perf.js counts those on the context itself.
+// Not in the browser, where perf.js counts the draws on the WebGL context
+// itself - the same number, since nothing stands between the game and WebGL
+// there.
 extern "C"
 {
 	void __real_glBegin(GLenum mode);

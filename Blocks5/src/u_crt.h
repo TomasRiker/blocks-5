@@ -24,8 +24,8 @@ public:
 	// only softer. Both need GL_LINEAR for it.
 	GLint getTextureFilter() const { return GL_LINEAR; }
 
+	// The base class's program plus the locations of the uniforms below.
 	bool createGL();
-	void destroyGL();
 
 	void present(const PresentContext& context);
 
@@ -57,9 +57,10 @@ public:
 	void setScanFlicker(double value);
 	void setConvergence(double value);
 
-private:
-	PresentProgram program;
+protected:
+	const char* getFragmentSource() const;
 
+private:
 	// The uniform locations that exist only here. One per line so that
 	// Tools/verify.py sees them - it overlooks a collected declaration,
 	// and that is exactly what "convergence" depended on.

@@ -3,9 +3,7 @@
 #include "glextensions.h"
 
 /* The vertex shader of every present filter. The vertices arrive from
-   drawQuad() ready in clip coordinates; there is nothing to transform. It
-   touches no fixed-function state, and in the browser therefore never meets
-   Emscripten's immediate-mode reimplementation.
+   drawQuad() ready in clip coordinates; there is nothing to transform.
 
    No #version: 110 on the desktop, 100 on the embedded shading language, and
    the source compiles as both. */
@@ -20,6 +18,27 @@ static const char* p_presentVertexShader =
 	"{\n"
 	"    texCoord = aTexCoord;\n"
 	"    gl_Position = vec4(aPosition, 0.0, 1.0);\n"
+	"}\n";
+
+/* The fragment shader of the two filters that bring none: the texel as the
+   texture filter delivers it, opaque. Sharp and Smooth are that filter and
+   nothing else, and it is set on the texture before present() runs. The
+   precision preamble is the one every present shader uses: highp where the
+   browser has it, since a texel of a 1024-wide texture is 1/1024 and a
+   mediump coordinate has ten bits. */
+static const char* p_plainFragmentShader =
+	"#ifdef GL_ES\n"
+	"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
+	"precision highp float;\n"
+	"#else\n"
+	"precision mediump float;\n"
+	"#endif\n"
+	"#endif\n"
+	"uniform sampler2D decal;\n"
+	"varying vec2 texCoord;\n"
+	"void main()\n"
+	"{\n"
+	"    gl_FragColor = vec4(texture2D(decal, texCoord).rgb, 1.0);\n"
 	"}\n";
 
 namespace
@@ -138,8 +157,8 @@ void PresentProgram::use(const PresentContext& context) const
 
 void PresentProgram::drawQuad(const PresentContext& context) const
 {
-	// The shader works in clip coordinates - no matrix, and in the browser
-	// therefore no contact with Emscripten's immediate-mode reimplementation.
+	// The shader works in clip coordinates, so the rect and the window size
+	// are all it takes: no matrix anywhere.
 	const int x = context.rectPosition.x;
 	const int y = context.rectPosition.y;
 	const int w = context.rectSize.x;
@@ -186,24 +205,25 @@ Upscaler::~Upscaler()
 {
 }
 
+bool Upscaler::createGL()
+{
+	return program.create(getFragmentSource(), getName());
+}
+
+void Upscaler::destroyGL()
+{
+	program.destroy();
+}
+
+const char* Upscaler::getFragmentSource() const
+{
+	return p_plainFragmentShader;
+}
+
 void Upscaler::present(const PresentContext& context)
 {
-	// Without a shader: a quad from the fixed-function stage. The texture
-	// filter is already set, and it is the whole difference between "Sharp"
-	// and "Smooth".
-	const double u = static_cast<double>(context.frameSize.x) / context.textureSize.x;
-	const double v = static_cast<double>(context.frameSize.y) / context.textureSize.y;
-	const int x = context.rectPosition.x;
-	const int y = context.rectPosition.y;
-	const int w = context.rectSize.x;
-	const int h = context.rectSize.y;
-
-	glBegin(GL_QUADS);
-	glTexCoord2d(0.0, 0.0); glVertex2i(x,     y);
-	glTexCoord2d(u,   0.0); glVertex2i(x + w, y);
-	glTexCoord2d(u,   v);   glVertex2i(x + w, y + h);
-	glTexCoord2d(0.0, v);   glVertex2i(x,     y + h);
-	glEnd();
+	program.use(context);
+	program.drawQuad(context);
 }
 
 void Upscaler::loadConfig(TiXmlElement* p_config)

@@ -20,6 +20,28 @@ Texture::~Texture()
 	cleanUp();
 }
 
+namespace
+{
+	// The rows of a 32-bit SDL surface are tight, so the upload needs no
+	// GL_UNPACK_ROW_LENGTH, which WebGL 1 does not have: SDL_CalculatePitch
+	// pads a row to four bytes, which four bytes a pixel already are, and
+	// Emscripten's SDL makes the pitch width * 4 outright. Checked rather
+	// than assumed, since a padded row would arrive skewed with no GL error
+	// to say so.
+	bool uploadRGBA(const SDL_Surface* p_rgba, const char* p_name)
+	{
+		if(p_rgba->pitch != p_rgba->w * 4)
+		{
+			printfLog("+ ERROR: The image \"%s\" has a pitch of %d bytes for a width of %d, which the upload cannot take.\n",
+					  p_name, p_rgba->pitch, p_rgba->w);
+			return false;
+		}
+		Renderer::DirectGL direct;
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
+		return true;
+	}
+}
+
 void Texture::reload()
 {
 	cleanUp();
@@ -82,9 +104,7 @@ void Texture::reload()
 	SDL_LockSurface(p_rgba);
 
 	// copy the image data into the texture
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	if(!uploadRGBA(p_rgba, filename.c_str())) error = 1;
 }
 
 void Texture::cleanUp()
@@ -184,9 +204,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	SDL_LockSurface(p_rgba);
 
 	// copy the image data into the texture
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, p_rgba->pitch / p_rgba->format->BytesPerPixel);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	if(!uploadRGBA(p_rgba, filename.c_str())) error = 1;
 
 	// A sub-texture is not in the Manager, so freeUnkeptPixels() never reaches
 	// it - and nothing asks to keep one, since createSubTexture() is called on

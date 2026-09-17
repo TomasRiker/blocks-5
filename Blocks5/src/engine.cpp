@@ -1884,11 +1884,12 @@ void Engine::createUpscalerGL()
 				   "update is the thing to try.");
 	}
 
-	// Four filters, of which two have a shader; the other two answer from the
-	// base class and cannot fail. A driver that resolved every GL 2.0 entry
-	// point and then will not compile one of those two is broken rather than
-	// old, so this ends the program as well - leaving a filter out instead is
-	// what the whole of the rest of this file no longer has to reckon with.
+	// Four filters, each a program: two bring a fragment shader of their own,
+	// two draw through the base class's pass-through. A driver that resolved
+	// every GL 2.0 entry point and then will not compile one of them is
+	// broken rather than old, so this ends the program as well - leaving a
+	// filter out instead is what the whole of the rest of this file no
+	// longer has to reckon with.
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
 		if((*i)->createGL()) continue;
@@ -2687,27 +2688,16 @@ void Engine::presentFrame()
 	computePresentRect(x, y, w, h);
 
 	// Raw, inside a bracket: whatever the overlays queued goes up first, and
-	// the renderer forgets what GL holds at the end - what the pops below put
-	// back differs between the desktop and the browser, and a record nobody
-	// can work out is better dropped than guessed.
+	// the renderer forgets what GL holds at the end and applies all of it
+	// again at its next flush - the blend enable, the tests, the mask - so
+	// nothing switched here has to be put back. The mask is set rather than
+	// assumed: a scope that closed after the frame's last draw leaves its
+	// mask in GL until that next flush, which comes after this.
 	Renderer::DirectGL direct;
-	glPushAttrib(GL_ALL_ATTRIB_BITS);
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
 	glDisable(GL_SCISSOR_TEST);
-	glEnable(GL_TEXTURE_2D);
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(0.0, displaySize.x, 0.0, displaySize.y);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -2736,15 +2726,6 @@ void Engine::presentFrame()
 	p_upscaler->present(context);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-
-	glPopAttrib();
 }
 
 void Engine::drawOverlays()
@@ -3909,8 +3890,10 @@ TextureRef Engine::getFrameCopyRef(uint textureID) const
 
 void Engine::readFrame(uchar* p_rgba)
 {
+	// The framebuffer object is bound, and its read buffer is its one colour
+	// attachment from the moment it exists; WebGL has no glReadBuffer to say
+	// so with.
 	Renderer::DirectGL direct;
-	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 	glReadPixels(0, 0, screenSize.x, screenSize.y, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba);
 }
 

@@ -5,8 +5,8 @@
 
 /*** "Sharp" - every source pixel the same size ***/
 
-// Needs no shader: the base class's fixed-function quad draws it, and the whole
-// of the filter is GL_NEAREST plus the integer step below.
+// Brings no shader: the base class's pass-through program draws it, and the
+// whole of the filter is GL_NEAREST plus the integer step below.
 class U_Sharp : public Upscaler
 {
 public:
