@@ -17,6 +17,25 @@
 extern const double FLASH_STRENGTH = 1.0;
 extern const double FLASH_DECAY = 0.8;
 
+// Where a beam is drawn, against where its emitter traced it. Laser and
+// LightBarrierSender both start at getShownPositionInPixels() + 7.5, the
+// centre of pixel 7 - but a 16-pixel cell has its centre on the boundary
+// between pixels 7 and 8, and that is the line the art is drawn about: the
+// laser's ruby has its two strong columns at 7 and 8, and the light barrier's
+// lens is symmetric to the pixel about the same boundary, in every shipped
+// skin. A quad is rasterised by whether a pixel's centre lies inside it, so a
+// line centred half a pixel to the left of that boundary lights column 7 and
+// not column 8 - which is why the beam looked as if it left the emitter beside
+// its ruby rather than out of it.
+//
+// The traced points cannot move: the hit test reads them. So the drawing adds
+// this, and once a beam is centred on the boundary every cross-width is an
+// even number of pixels. That is not tidiness: at that centre an odd width
+// puts its two edges exactly on two pixel centres, where the fill rule decides
+// what is lit, and a width below one pixel passes between two centres and
+// draws nothing at all.
+extern const double BEAM_DRAW_OFFSET = 0.5;
+
 // What is left to see of a block at the end of the conversion. Not 0: it is
 // solid until the last tick, and an invisible obstacle would be a bug and not
 // an effect.

@@ -14,6 +14,9 @@
 extern const double FLASH_STRENGTH;
 extern const double FLASH_DECAY;
 
+// Where a beam is drawn against where its emitter traced it; see object.cpp.
+extern const double BEAM_DRAW_OFFSET;
+
 class Player;
 
 class Object

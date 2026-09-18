@@ -61,7 +61,10 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// render the inner and the outer beam
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
-			renderer.translate(-sp.x, -sp.y);
+			// Onto the cell's centre line, where the lens is - see
+			// BEAM_DRAW_OFFSET. The widths below are pixel counts: two for
+			// the core, four for the glow.
+			renderer.translate(-sp.x + BEAM_DRAW_OFFSET, -sp.y + BEAM_DRAW_OFFSET);
 
 			// The sparkle pass is what the night vision shows of the beam:
 			// it is drawn after the quad that darkens everything unlit, so it
@@ -77,13 +80,13 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.1, 0.0, 0.2 + 0.05 * sin(x));
 			else color = Vec4d(0.0, 0.25, 0.0, 0.2 * (0.2 + 0.05 * sin(x)));
-			renderer.polyline(beamPoints, 2.5f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 3.0f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 4.0f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 4.0f, static_cast<Vec4f>(color));
 
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.225 + 0.025 * glowJitter, 0.0, 0.3 + 0.1 * cos(x));
 			else color = Vec4d(0.0, 0.625 + 0.025 * glowJitter, 0.0, 0.2 * (0.9 + 0.1 * cos(x)));
-			renderer.polyline(beamPoints, 0.5f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 1.5f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 2.0f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 2.0f, static_cast<Vec4f>(color));
 
 			renderer.pop();
 		}

@@ -107,20 +107,24 @@ void Laser::onRender(RenderLayer layer,
 			// render the inner and the outer beam
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
-			renderer.translate(-sp.x, -sp.y);
+			// Onto the cell's centre line, which is where the ruby is - see
+			// BEAM_DRAW_OFFSET. Every width below is then the number of
+			// pixels it lights: two for the core, the ruby's own two columns,
+			// and six for the glow, two more to each side of it.
+			renderer.translate(-sp.x + BEAM_DRAW_OFFSET, -sp.y + BEAM_DRAW_OFFSET);
 
 			double x = static_cast<double>(counter) * 0.8;
 			Vec4d color;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.25, 0.0, on * deathCountDown * (0.2 + 0.05 * sin(x)));
 			else color = Vec4d(0.0, 0.25, 0.0, 0.4 * on * deathCountDown * (0.2 + 0.05 * sin(x)));
-			renderer.polyline(beamPoints, 6.5f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 7.0f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 6.0f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 6.0f, static_cast<Vec4f>(color));
 
 			const double green = 0.625 + 0.025 * glowJitter;
 			if(layer == RL_EFFECT) color = Vec4d(1.0, green, 0.0, on * deathCountDown * (0.9 + 0.1 * cos(x)));
 			else color = Vec4d(0.0, green, 0.0, 0.4 * on * deathCountDown * (0.9 + 0.1 * cos(x)));
-			renderer.polyline(beamPoints, 1.5f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 3.0f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 2.0f, static_cast<Vec4f>(color));
+			renderer.point(static_cast<Vec2f>(p), 4.0f, static_cast<Vec4f>(color));
 
 			renderer.pop();
 		}

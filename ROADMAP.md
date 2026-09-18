@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51, 55, 56 and 57. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48, 51, 56 and 57. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1218,55 +1218,32 @@ atlas, is the half left, and the tag `render-baseline` marks the last
 immediate-mode binary.
 
 
-55. The laser beam leaves the emitter half a pixel beside its ruby
-------------------------------------------------------------------
-Measured, and it is a parity problem rather than a rounding one. Both emitters
-trace from `Vec2d(7.5, 7.5) + getShownPositionInPixels()`, the centre of *pixel
-7*, while a 16-pixel cell has its centre on the boundary between pixels 7 and
-8, at 8.0 - and both apertures are drawn about that boundary. In `sprites.png`
-the laser's ruby (at (0, 192) unpowered, (32, 192) powered) is four columns with
-the two strong ones at 7 and 8, a centre of mass of 8.03;
-`LightBarrierSender`'s lens (at (64, 608)) is symmetric to the pixel - columns 6
-to 9 carry 10, 11, 11 and 10 opaque rows - so its centre of mass is 8.0
-exactly, in all four shipped skins. The drawn core misses that by the half
-pixel: `Laser::onRender` puts a 1.5-pixel polyline about 7.5, covering the whole
-of pixel 7 and a quarter of pixel 8, and the light barrier's 0.5-pixel core sits
-inside pixel 7 altogether. An even aperture has no middle pixel to leave from,
-and the beam picks the left one.
+55. The laser beam leaves the emitter half a pixel beside its ruby  - **DONE**
+------------------------------------------------------------------------------
+A parity problem rather than a rounding one. Both emitters trace from
+`getShownPositionInPixels() + 7.5`, the centre of pixel 7, while a 16-pixel cell
+has its centre on the boundary between pixels 7 and 8 - and that boundary is the
+line the art is drawn about: the laser's ruby has its two strong columns at 7 and
+8, and the light barrier's lens is symmetric to the pixel about it in all four
+shipped skins. A quad lights a pixel whose centre falls inside it, so the core
+lit column 7 alone and the beam left the emitter beside its ruby.
 
-Two ways out, both the author's to choose by eye:
+The drawing adds `BEAM_DRAW_OFFSET` (`object.h`, the reasoning in `object.cpp`)
+in `Laser::onRender` and `LightBarrierSender::onRender`, and every cross-width
+there is now an even number of pixels, which at that centre is the only kind
+whose edges land on pixel boundaries: an odd width puts its two edges on two
+pixel centres and leaves the fill rule to decide, and a width under one pixel
+passes between them and draws nothing. The laser's core is 2, its glow 6, its
+caps 4 and 6; the light barrier's core is 2, its glow 4, its caps 2 and 4.
+Measured on the oracle's `lava` and `night` scenes, for a beam pointing left, one
+pointing right and one pointing down: the core lit cell pixel 7 alone before and
+lights 7 and 8 equally now, with the glow symmetric about them.
 
-- **Give the ruby a middle column and shift the beam onto it.** Three columns
-  instead of two, and the drawn core moves one pixel to meet it. This is art in
-  every shipped skin and in both laser variants - and the `space` skin's laser
-  carries no red at all, so "ruby" there is whatever colour that skin gives it.
-  The cell has room (the ruby uses columns 6 to 9 of 16), so no sheet layout
-  moves. The catch is the rotation: `Engine::renderSprite` takes `halfSize` and
-  `otherHalf` as 8 and 8 for an even sprite, so the axis of `90 * dir` sits
-  exactly on the cell's centre line, and a middle column at 7.5 lands on 8.5
-  once the sprite is turned. So the shift has to depend on `dir` - and a
-  third-party skin that keeps the old even art would then be drawn wrong, since
-  the offset would be a claim about pixels the code cannot see.
-- **Make the core two pixels wide, about the cell's centre line.** Draw the core
-  at 8.0 rather than 7.5 with a width of 2.0, so it covers pixels 7 and 8 - the
-  two the aperture is built around. No art changes, one offset for all four
-  values of `dir` because the centre line is what the rotation turns about, and
-  nothing depends on how a skin drew its lens. The beam gets visibly thicker,
-  which is the whole of the question: a ruby laser with a two-pixel core, or a
-  one-pixel core aimed at a widened ruby.
-
-Whichever it is, the light barrier wants it too: same 7.5, same even lens, and
-its faint 0.5-pixel core shows the offset more plainly than the laser's.
-
-The constraint: `beam` feeds the hit test - `isFreeAt2`, `reflectLaser`, the
-object hits and their `destroyTime` countdown - and the drawing alike, so the
-fix is an offset in the render path only, applied where `beamPoints` is built or
-in the translate, and never to `beam` itself. Three things move with the core or
-the beam comes apart: the outer glow (6.5 pixels on the laser, 2.5 on the
-barrier), the discs that cap the far end (7.0 and 3.0, 1.5 and 3.0), and
-`Level::renderBeamShines(beam, sp, ...)`, which lights the surroundings from the
-same list. The oracle's `night` and `lava` scenes show both kinds of beam and
-will move by design; anything else moving is the hit test having changed.
+What must not be undone: the traced points are untouched, because the hit test
+reads the same list - `isFreeAt2`, `reflectLaser` and the `destroyTime`
+countdown. `Level::renderBeamShines` needed nothing, since it already re-bases
+the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
+`renderShine` centres its disc on the cell.
 
 56. Drive the character with the mouse
 --------------------------------------
