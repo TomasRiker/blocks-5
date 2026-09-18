@@ -130,17 +130,17 @@ namespace
 
 		const float theta = s / radius;
 		const float edge = direction * (0.5f * NOTE_HEIGHT - rolled);
-		p.y = edge + direction * radius * sin(theta);
+		p.y = edge + direction * radius * sinf(theta);
 
 		// Top edge towards the viewer, bottom edge away from them - the way the
 		// 16x16 sprite on the field shows it. direction is -1 at the top and +1
 		// at the bottom.
-		p.depth = -direction * radius * (1.0f - cos(theta));
+		p.depth = -direction * radius * (1.0f - cosf(theta));
 
 		// Past the quarter turn the paper shows its back. At exactly that point
 		// it stands edge-on, which is why the jump costs nothing.
 		p.back = (theta > 0.5f * PI);
-		p.shade = SHADE_EDGE + (1.0f - SHADE_EDGE) * fabs(cos(theta));
+		p.shade = SHADE_EDGE + (1.0f - SHADE_EDGE) * fabsf(cosf(theta));
 		return p;
 	}
 }

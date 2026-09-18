@@ -29,7 +29,7 @@ void Exit::updateSprites()
 {
 	// The exit. With enough diamonds it pulses.
 	float alpha = 1.0f;
-	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85f + 0.15f * cos(static_cast<float>(level.counter) * 0.4f);
+	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85f + 0.15f * cosf(static_cast<float>(level.counter) * 0.4f);
 	sprites.add(Vec2i(224, 32), Vec4f(1.0f, 1.0f, 1.0f, alpha));
 }
 

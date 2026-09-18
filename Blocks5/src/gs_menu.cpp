@@ -89,7 +89,7 @@ void GS_Menu::onRender()
 		// added after the reduction and the sum wrapped again: it is
 		// bounded by its own sine, so whole periods stay whole periods.
 		float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
-		x += 2.0f * sin(wrapAngle(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
+		x += 2.0f * sinf(clockPhase(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 		Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);

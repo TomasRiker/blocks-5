@@ -115,14 +115,14 @@ void Laser::onRender(RenderLayer layer,
 
 			float x = static_cast<float>(counter) * 0.8f;
 			Vec4f color;
-			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.25f, 0.0f, on * deathCountDown * (0.2f + 0.05f * sin(x)));
-			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.4f * on * deathCountDown * (0.2f + 0.05f * sin(x)));
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.25f, 0.0f, on * deathCountDown * (0.2f + 0.05f * sinf(x)));
+			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.4f * on * deathCountDown * (0.2f + 0.05f * sinf(x)));
 			renderer.polyline(beamPoints, 6.0f, color);
 			renderer.point(p, 6.0f, color);
 
 			const float green = 0.625f + 0.025f * glowJitter;
-			if(layer == RL_EFFECT) color = Vec4f(1.0f, green, 0.0f, on * deathCountDown * (0.9f + 0.1f * cos(x)));
-			else color = Vec4f(0.0f, green, 0.0f, 0.4f * on * deathCountDown * (0.9f + 0.1f * cos(x)));
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, green, 0.0f, on * deathCountDown * (0.9f + 0.1f * cosf(x)));
+			else color = Vec4f(0.0f, green, 0.0f, 0.4f * on * deathCountDown * (0.9f + 0.1f * cosf(x)));
 			renderer.polyline(beamPoints, 2.0f, color);
 			renderer.point(p, 4.0f, color);
 
@@ -332,7 +332,7 @@ void Laser::onUpdate()
 				p.position = beamPos + Vec2f(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
 											 BEAM_DRAW_OFFSET + random(-2.0f, 2.0f));
 				const float r = random(0.0f, 6.283f);
-				p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+				p.velocity = random(3.0f, 6.0f) * Vec2f(sinf(r), cosf(r));
 				p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 0.0f, on * 0.9f);
 				p.deltaColor = Vec4f(0.5f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);

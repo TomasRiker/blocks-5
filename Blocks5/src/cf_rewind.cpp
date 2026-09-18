@@ -79,7 +79,7 @@ namespace
 
 	float wrap(float value, float range)
 	{
-		value = fmod(value, range);
+		value = fmodf(value, range);
 		return (value < 0.0f) ? value + range : value;
 	}
 }

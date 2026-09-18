@@ -77,11 +77,13 @@ std::string localizeString(const std::string& text);
 std::string loadString(const std::string& id);
 std::vector<Vec2i> bresenham(const Vec2i& p1, const Vec2i& p2);
 
-// Seconds since the first call. double, because the value keeps growing for
-// as long as the session lasts while what is read off it is the difference
-// of two readings, a few milliseconds: a float's step is already 244 us an
-// hour in and 7.8 ms after a day, more than a whole frame.
-double getExactTime();
+// Microseconds since the first call, as an integer. The value keeps growing
+// for as long as the session lasts while what is read off it is the
+// difference of two readings, a few thousand of these - and a count cannot
+// drift at all, where a float of seconds steps by 244 us an hour in and
+// 7.8 ms after a day, more than a whole frame, and a double only pushes that
+// out instead of removing it. 2^64 microseconds is 584 thousand years.
+uint64 getExactTimeUS();
 uint getExactTimeMS();
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -91,7 +93,7 @@ uint getExactTimeMS();
 // do it where they stand.
 void openURL(const std::string& url);
 #endif
-void writeProfileLine(const std::string& name, double dt, double avgTime);
+void writeProfileLine(const std::string& name, float dt, float avgTime);
 
 // The two keys a player means by "Enter": the big one and the one on the
 // numeric keypad. A keyboard has two and nothing in this game distinguishes
@@ -105,26 +107,38 @@ inline bool isReturnKey(int key)
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
 }
 
-// The three below all reduce a quantity that grows with a clock, and they
-// exist because nothing may carry such a quantity in a float. The clock is an
-// exact integer - Level::time and GS_Menu::time in milliseconds, Lava::anim in
-// ticks - and everything the weather scrolls or wobbles by is rate * clock +
-// base, a straight line in it. Formed in a float that line goes coarse as it
-// grows: a float's step passes one millisecond of a level's clock about five
-// hours in, and the rain, which scrolls twenty texels a tick, is the first to
-// go visibly steppy. So the line is formed and reduced here, in double, from
-// the integer the caller still has; what comes back is inside one period and
-// is a float, and its precision no longer depends on how long the level has
-// been running. These are the only doubles the game's own arithmetic needs.
-const double TWO_PI = 6.283185307179586476925286766559;
-
-// The phase of an animation driven by a clock, reduced to one turn. Exact:
-// a sine is periodic in 2*pi, so dropping whole turns cannot move it. Each
-// caller passes its own rate, because that is what the reduction is against -
-// the lava's two wobbles run at 0.1 and 0.05 a tick and reduce separately.
-inline float wrapAngle(uint ticks, float perTick, float base)
+// Everything the game animates by is rate * clock + base, a straight line in a
+// counter that is an exact integer - Level::time and GS_Menu::time in
+// milliseconds, Lava::anim and SDL_GetTicks in ticks. The three below form
+// that line; only two of them reduce it, and which is which is the whole
+// point.
+//
+// All of it is float, and the limit that puts on it was measured rather than
+// guessed. The clouds scroll one texel a tick: that step comes out exactly
+// 1.0000 for as long as twelve hours in a single level, is 0.5 to 1.5 after a
+// day and collapses to a stutter of 0 to 2 after three. Level::time starts
+// again at every level, and nobody plays one for a day - so the float costs
+// nothing a player can reach, and a double here would buy only a number that
+// looks tidier in a probe.
+// The argument of an animation's sine or cosine: rate * ticks + base, and
+// deliberately NOT reduced to a turn on the way out.
+//
+// Reducing it here is the obvious thing and it is wrong. sinf and cosf do
+// their own argument reduction, against the real pi to as many bits as it
+// takes, and come out 3e-08 from the true sine at every clock value this game
+// can reach. A fmodf by a float 2*pi beforehand reduces against a constant
+// that is itself 1.7e-07 off, and the error grows with the number of turns
+// thrown away: measured against the exact sine of the same float, 3.9e-05 one
+// minute into a level, 2.0e-03 after an hour, 0.14 after three days. The
+// library is better at this than the caller, so let it do it.
+//
+// What a float does cost here is the product: it goes coarse when the clock
+// gets big, which no reduction afterwards can undo. That is a twelve-hour
+// problem in a single level - see scrollOffset - and Level::time starts again
+// at every level.
+inline float clockPhase(uint ticks, float perTick, float base)
 {
-	return static_cast<float>(fmod(static_cast<double>(perTick) * ticks + base, TWO_PI));
+	return perTick * static_cast<float>(ticks) + base;
 }
 
 // The same for a quantity whose period is not a turn: a scrolling texture
@@ -138,9 +152,9 @@ inline float wrapAngle(uint ticks, float perTick, float base)
 // drift turns visibly steppy about a minute in and gets worse from there.
 inline float scrollOffset(uint ticks, float perTick, float base, float period)
 {
-	const double value = static_cast<double>(perTick) * ticks + base;
-	if(period <= 0.0f) return static_cast<float>(value);
-	return static_cast<float>(fmod(value, static_cast<double>(period)));
+	const float value = perTick * static_cast<float>(ticks) + base;
+	if(period <= 0.0f) return value;
+	return fmodf(value, period);
 }
 
 // The same reduction for an offset that is already small: what scrollOffset
@@ -165,16 +179,16 @@ inline Vec2i roundToVec2i(const Vec2f& v)
 extern bool writingCrashLog;
 
 #define BEGIN_PROFILE(NAME) \
-	static double profile_accumTime_##NAME = 0.0; \
+	static float profile_accumTime_##NAME = 0.0f; \
 	static uint profile_numMeasurements_##NAME = 0; \
-	const double profile_t0_##NAME = getExactTime();
+	const uint64 profile_t0_##NAME = getExactTimeUS();
 
 #define END_PROFILE(NAME) \
 	{ \
-		const double profile_dt_##NAME = getExactTime() - profile_t0_##NAME; \
+		const float profile_dt_##NAME = 1.0e-6f * static_cast<float>(getExactTimeUS() - profile_t0_##NAME); \
 		profile_accumTime_##NAME += profile_dt_##NAME; \
 		++profile_numMeasurements_##NAME; \
-		writeProfileLine(#NAME, profile_dt_##NAME, profile_accumTime_##NAME / profile_numMeasurements_##NAME); \
+		writeProfileLine(#NAME, profile_dt_##NAME, profile_accumTime_##NAME / static_cast<float>(profile_numMeasurements_##NAME)); \
 	}
 
 #endif

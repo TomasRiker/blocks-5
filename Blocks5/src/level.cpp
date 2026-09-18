@@ -651,8 +651,8 @@ void Level::render()
 	if(cameraShake > 0.0f)
 	{
 		// shake the camera
-		offset.x = static_cast<int>(sin(static_cast<float>(counter) * 1.5f) * cameraShake);
-		offset.y = static_cast<int>(cos(static_cast<float>(counter) * 1.5f) * 5.0f * cameraShake);
+		offset.x = static_cast<int>(sinf(static_cast<float>(counter) * 1.5f) * cameraShake);
+		offset.y = static_cast<int>(cosf(static_cast<float>(counter) * 1.5f) * 5.0f * cameraShake);
 	}
 	else offset = Vec2i(0, 0);
 
@@ -757,7 +757,7 @@ void Level::render()
 			// 0.02 * s of it - so each reduces from the clock rather than
 			// from a value that has already grown. Rain scrolls twenty texels
 			// a tick and is the first of these to go steppy without it.
-			const float angle = 15.0f + sin(wrapAngle(time, 0.02f * s[i], 2.0f * s[i] * fi + fi));
+			const float angle = 15.0f + sinf(clockPhase(time, 0.02f * s[i], 2.0f * s[i] * fi + fi));
 			const float y = scrollOffset(time, 1.0f, 100.0f * fi, static_cast<float>(p_rain->getSize().y));
 
 			Mat4 scroll = Mat4::scaling(rain.texelScale.x, rain.texelScale.y, 1.0f);
@@ -787,10 +787,10 @@ void Level::render()
 			// and y is not, but both are wrapped: the snow translates on both
 			// axes, and one rule is easier to keep right than two.
 			const float f = 0.1f * (1.0f + 1.0f / (1.0f + fi));
-			const float phase = wrapAngle(time, 0.001f * f, fi);
-			const float x = wrapTextureOffset(500.0f * sin(phase), p_snow->getSize().x);
+			const float phase = clockPhase(time, 0.001f * f, fi);
+			const float x = wrapTextureOffset(500.0f * sinf(phase), p_snow->getSize().x);
 			const float y = wrapTextureOffset(
-				scrollOffset(time, 0.15f, 0.0f, static_cast<float>(p_snow->getSize().y)) + 300.0f * cos(phase),
+				scrollOffset(time, 0.15f, 0.0f, static_cast<float>(p_snow->getSize().y)) + 300.0f * cosf(phase),
 				p_snow->getSize().y);
 
 			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0f);
@@ -818,7 +818,7 @@ void Level::render()
 			// added after the reduction and the sum wrapped again: it is
 			// bounded by its own sine, so whole periods stay whole periods.
 			float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
-			x += 2.0f * sin(wrapAngle(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
+			x += 2.0f * sinf(clockPhase(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 			Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);
@@ -982,7 +982,7 @@ void Level::update()
 				p.sizeOnTexture = Vec2b(16, 16);
 				p.position = p_exit->getPosition() * 16 + Vec2i(8, 8);
 				const float r = random(0.0f, 6.283f);
-				p.velocity = random(2.0f, 5.0f) * Vec2f(sin(r), cos(r));
+				p.velocity = random(2.0f, 5.0f) * Vec2f(sinf(r), cosf(r));
 				p.color = Vec4f(random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.25f, 0.9f));
 				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
@@ -1036,7 +1036,7 @@ void Level::update()
 								for(int i = 0; i < 8; i++)
 								{
 									const float r = random(0.0f, 6.283f);
-									p.velocity = random(2.0f, 3.0f) * Vec2f(sin(r), cos(r));
+									p.velocity = random(2.0f, 3.0f) * Vec2f(sinf(r), cosf(r));
 									p_rainParticleSystem->addParticle(p);
 								}
 							}
@@ -1249,8 +1249,8 @@ namespace
 	// glow's size is below what a frame can hold, let alone the eye.
 	float pointJitter(float seed, int index)
 	{
-		float h = sin(seed * 12.9898f + index * 78.233f) * 43758.5453f;
-		h -= floor(h);
+		float h = sinf(seed * 12.9898f + index * 78.233f) * 43758.5453f;
+		h -= floorf(h);
 		return h * 2.0f - 1.0f;
 	}
 }
@@ -2378,11 +2378,11 @@ void Level::renderToxicEffect()
 			else
 			{
 				const float p = phase[x][y];
-				grid[x][y] += r * Vec2f(sin(p + t), cos(p + t));
-				color[x][y] = Vec4f(0.85f + 0.15f * sin(p + 0.31f + 1.1f * t),
-								    0.85f + 0.15f * cos(p + 0.94f + 1.42f * t),
-									0.85f + 0.15f * sin(p + 1.46f + 1.27f * t),
-					                min(toxic, 1.0f) * (0.75f + 0.25f * sin(p + 0.71f + 1.23f * t)));
+				grid[x][y] += r * Vec2f(sinf(p + t), cosf(p + t));
+				color[x][y] = Vec4f(0.85f + 0.15f * sinf(p + 0.31f + 1.1f * t),
+								    0.85f + 0.15f * cosf(p + 0.94f + 1.42f * t),
+									0.85f + 0.15f * sinf(p + 1.46f + 1.27f * t),
+					                min(toxic, 1.0f) * (0.75f + 0.25f * sinf(p + 0.71f + 1.23f * t)));
 			}
 		}
 	}

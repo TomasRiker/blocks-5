@@ -78,13 +78,13 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// kept.
 			float x = static_cast<float>(counter) * 0.8f;
 			Vec4f color;
-			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.1f, 0.0f, 0.2f + 0.05f * sin(x));
-			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.2f * (0.2f + 0.05f * sin(x)));
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.1f, 0.0f, 0.2f + 0.05f * sinf(x));
+			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.2f * (0.2f + 0.05f * sinf(x)));
 			renderer.polyline(beamPoints, 4.0f, color);
 			renderer.point(p, 4.0f, color);
 
-			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.225f + 0.025f * glowJitter, 0.0f, 0.3f + 0.1f * cos(x));
-			else color = Vec4f(0.0f, 0.625f + 0.025f * glowJitter, 0.0f, 0.2f * (0.9f + 0.1f * cos(x)));
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.225f + 0.025f * glowJitter, 0.0f, 0.3f + 0.1f * cosf(x));
+			else color = Vec4f(0.0f, 0.625f + 0.025f * glowJitter, 0.0f, 0.2f * (0.9f + 0.1f * cosf(x)));
 			renderer.polyline(beamPoints, 2.0f, color);
 			renderer.point(p, 2.0f, color);
 

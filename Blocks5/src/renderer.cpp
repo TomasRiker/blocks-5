@@ -563,8 +563,8 @@ void Renderer::sprite(const Vec2f& position, const Vec2i& halfSize, const Vec2i&
 	if(rotation != 0.0f)
 	{
 		const float a = rotation * (3.1415926535897932384626433832795f / 180.0f);
-		c = scaling * cos(a);
-		s = scaling * sin(a);
+		c = scaling * cosf(a);
+		s = scaling * sinf(a);
 	}
 
 	// The box is whole pixels and the transform below is not, so both halves

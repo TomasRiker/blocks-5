@@ -110,7 +110,7 @@ Engine::Engine()
 	renderDraws = 0;
 	renderedFrames = 0;
 	sceneTick = 0;
-	lastFrameBegin = 0.0;
+	lastFrameBegin = 0;
 	swallowedReturn = false;
 	windowedSize = Vec2i(0, 0);      // 0 = nothing chosen yet, init() decides
 	windowedPosition = Vec2i(0, 0);
@@ -890,7 +890,7 @@ void Engine::mainLoopIteration()
 		// glXSwapBuffers - hence SWAP as a phase of its own. In the browser
 		// the swap does nothing at all and the compositing happens after this
 		// function returns, so nothing here sees the GPU. See framestats.h.
-		const double frameBegin = getExactTime();
+		const uint64 frameBegin = getExactTimeUS();
 		float phases[FrameStats::FS_NUM_PHASES];
 		for(int i = 0; i < FrameStats::FS_NUM_PHASES; i++) phases[i] = 0.0f;
 
@@ -933,7 +933,7 @@ void Engine::mainLoopIteration()
 		// render
 		if(appActive && (timeProcessed || frozenFrame))
 		{
-			const double renderBegin = getExactTime();
+			const uint64 renderBegin = getExactTimeUS();
 			bindFrameBuffer();
 #ifdef BLOCKS5_TEST_HOOKS
 			const uint realTime = time;
@@ -943,7 +943,7 @@ void Engine::mainLoopIteration()
 #ifdef BLOCKS5_TEST_HOOKS
 			if(frozenFrame) time = realTime;
 #endif
-			phases[FrameStats::FS_RENDER] = static_cast<float>((getExactTime() - renderBegin) * 1000.0);
+			phases[FrameStats::FS_RENDER] = 0.001f * static_cast<float>(getExactTimeUS() - renderBegin);
 			frameRendered = true;
 		}
 
@@ -1122,7 +1122,7 @@ void Engine::mainLoopIteration()
 			SDL_Delay(50);
 			// Or the first frame after the return would report the whole
 			// inactive stretch as its interval.
-			lastFrameBegin = 0.0;
+			lastFrameBegin = 0;
 			continue;
 		}
 
@@ -1137,7 +1137,7 @@ void Engine::mainLoopIteration()
 
 		// move
 		timeProcessed = 0;
-		const double updateBegin = getExactTime();
+		const uint64 updateBegin = getExactTimeUS();
 		while(timeToProcess >= logicRate)
 		{
 #ifdef BLOCKS5_TEST_HOOKS
@@ -1221,7 +1221,7 @@ void Engine::mainLoopIteration()
 #endif
 		}
 
-		phases[FrameStats::FS_UPDATE] = static_cast<float>((getExactTime() - updateBegin) * 1000.0);
+		phases[FrameStats::FS_UPDATE] = 0.001f * static_cast<float>(getExactTimeUS() - updateBegin);
 
 		if(crossfadeTime == -0.51f)
 		{
@@ -1321,15 +1321,15 @@ void Engine::mainLoopIteration()
 			}
 
 			// put the framebuffer on the screen
-			const double presentBegin = getExactTime();
+			const uint64 presentBegin = getExactTimeUS();
 			unbindFrameBuffer();
 			presentFrame();
-			const double swapBegin = getExactTime();
-			phases[FrameStats::FS_PRESENT] = static_cast<float>((swapBegin - presentBegin) * 1000.0);
+			const uint64 swapBegin = getExactTimeUS();
+			phases[FrameStats::FS_PRESENT] = 0.001f * static_cast<float>(swapBegin - presentBegin);
 
 			// show the rendered frame
 			SDL_GL_SwapBuffers();
-			phases[FrameStats::FS_SWAP] = static_cast<float>((getExactTime() - swapBegin) * 1000.0);
+			phases[FrameStats::FS_SWAP] = 0.001f * static_cast<float>(getExactTimeUS() - swapBegin);
 		}
 
 		Uint32 end = SDL_GetTicks();
@@ -1340,10 +1340,10 @@ void Engine::mainLoopIteration()
 		// carries the wait with it, which is what makes the two different
 		// numbers worth having side by side.
 		{
-			const double frameEnd = getExactTime();
-			phases[FrameStats::FS_TOTAL] = static_cast<float>((frameEnd - frameBegin) * 1000.0);
-			if(lastFrameBegin > 0.0)
-				phases[FrameStats::FS_INTERVAL] = static_cast<float>((frameBegin - lastFrameBegin) * 1000.0);
+			const uint64 frameEnd = getExactTimeUS();
+			phases[FrameStats::FS_TOTAL] = 0.001f * static_cast<float>(frameEnd - frameBegin);
+			if(lastFrameBegin > 0)
+				phases[FrameStats::FS_INTERVAL] = 0.001f * static_cast<float>(frameBegin - lastFrameBegin);
 			lastFrameBegin = frameBegin;
 			frameStats.addFrame(phases);
 		}
@@ -3737,8 +3737,8 @@ Vec2i Engine::getCursorPosition() const
 		const Vec2f warped = warpToSource(n * 2.0f - Vec2f(1.0f, 1.0f));
 		n = (warped + Vec2f(1.0f, 1.0f)) * 0.5f;
 
-		position.x = static_cast<int>(floor(n.x * screenSize.x));
-		position.y = static_cast<int>(floor(n.y * screenSize.y));
+		position.x = static_cast<int>(floorf(n.x * screenSize.x));
+		position.y = static_cast<int>(floorf(n.y * screenSize.y));
 	}
 
 	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
@@ -3770,8 +3770,8 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 		const Vec2f out = warpToOutput(n * 2.0f - Vec2f(1.0f, 1.0f));
 		n = (out + Vec2f(1.0f, 1.0f)) * 0.5f;
 
-		temp.x = x + static_cast<int>(floor(n.x * w));
-		temp.y = y + static_cast<int>(floor(n.y * h));
+		temp.x = x + static_cast<int>(floorf(n.x * w));
+		temp.y = y + static_cast<int>(floorf(n.y * h));
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);

@@ -3,7 +3,10 @@
 
 /*** General vector class for vectors over arbitrary types with arbitrary dimension ***/
 
-// Helper for taking the square root
+// Helper for taking the square root. One specialization per type, because
+// an unqualified ::sqrt is the C one and takes a double: a float handed to it
+// widens, goes through the double routine and narrows back, which is three
+// times the work for a length and not one bit more accurate.
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
@@ -12,11 +15,20 @@ template<typename T> struct VecHelper
 	}
 };
 
+template<> struct VecHelper<float>
+{
+	static float sqrt(float x)
+	{
+		// Qualified, or it would find this function again.
+		return ::sqrtf(x);
+	}
+};
+
 template<> struct VecHelper<int>
 {
 	static int sqrt(int x)
 	{
-		return static_cast<int>(::sqrt(static_cast<float>(x)));
+		return static_cast<int>(::sqrtf(static_cast<float>(x)));
 	}
 };
 
@@ -363,8 +375,8 @@ struct Mat4
 	static Mat4 perspective(float fovy, float aspect, float zNear, float zFar)
 	{
 		const float radians = fovy / 2.0f * 3.14159265358979323846f / 180.0f;
-		const float sine = sin(radians);
-		const float cotangent = cos(radians) / sine;
+		const float sine = sinf(radians);
+		const float cotangent = cosf(radians) / sine;
 		const float deltaZ = zFar - zNear;
 		Mat4 r = identity();
 		r.m[0] = cotangent / aspect;

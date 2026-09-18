@@ -49,7 +49,7 @@ void Projectile::onRender(RenderLayer layer,
 	else if(layer == RL_LIGHT)
 	{
 		// make the projectile shine
-		const float s = fabs(life);
+		const float s = fabsf(life);
 		level.renderShine(0.5f * s, 0.4f * s, positionInPixels - Vec2f(8.0f, 8.0f));
 	}
 }
@@ -150,7 +150,7 @@ void Projectile::onUpdate()
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = positionInPixels;
 						const float r = random(0.0f, 6.283f);
-						p.velocity = random(0.25f, 1.0f) * Vec2f(sin(r), cos(r));
+						p.velocity = random(0.25f, 1.0f) * Vec2f(sinf(r), cosf(r));
 						float c = random(0.75f, 1.0f);
 						p.color = Vec4f(c, c, c, random(0.15f, 0.2f));
 						p.deltaColor = -p.color / static_cast<float>(p.lifetime);
@@ -171,7 +171,7 @@ void Projectile::onUpdate()
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = positionInPixels;
 						const float r = random(0.0f, 6.283f);
-						p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+						p.velocity = random(3.0f, 6.0f) * Vec2f(sinf(r), cosf(r));
 						p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 0.0f, 0.9f);
 						p.deltaColor = Vec4f(0.5f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
@@ -201,7 +201,7 @@ void Projectile::onUpdate()
 
 							p.position = hitPosition + Vec2f(offset) - Vec2f(8.0f, 8.0f) + Vec2i(random(-2, 2), random(-2, 2));
 							const float r = random(0.0f, 6.283f);
-							p.velocity = random(2.0f, 5.0f) * Vec2f(sin(r), cos(r));
+							p.velocity = random(2.0f, 5.0f) * Vec2f(sinf(r), cosf(r));
 							p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
 							p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 							p.rotation = random(0.0f, 10.0f);

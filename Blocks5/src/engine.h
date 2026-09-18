@@ -542,7 +542,7 @@ private:
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between
 	// them.
-	double lastFrameBegin;
+	uint64 lastFrameBegin;
 	uint time;
 	Vec2i screenSize;
 	Vec2i screenPow2Size;

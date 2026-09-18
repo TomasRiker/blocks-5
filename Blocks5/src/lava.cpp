@@ -62,8 +62,8 @@ void Lava::onRender(RenderLayer layer,
 		Renderer& renderer = Renderer::inst();
 		const RenderState state = renderer.state();
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(16.0f, 0.0f), Vec2f(16.0f, 16.0f), Vec2f(0.0f, 16.0f)};
-		Vec2f shift(2.0f * sin(wrapAngle(anim, 0.1f, 0.0f)),
-					3.0f * cos(wrapAngle(anim, 0.05f, 0.0f)));
+		Vec2f shift(2.0f * sinf(clockPhase(anim, 0.1f, 0.0f)),
+					3.0f * cosf(clockPhase(anim, 0.05f, 0.0f)));
 		float a[4];
 		if(layer == RL_LAVA_BACK) getAlpha1(position, a);
 		else if(layer == RL_LAVA_FRONT) getAlpha2(position, a);
@@ -296,10 +296,10 @@ void Lava::getAlpha1(const Vec2i& where,
 {
 	float po = 0.3f * (where.x + where.y);
 	float x = 0.1f * anim;
-	p_out[0] = 1.0f + 0.1f * sin(po + x);
-	p_out[1] = 1.0f + 0.1f * sin(po + 0.3f + x);
-	p_out[2] = 1.0f + 0.1f * sin(po + 0.6f + x);
-	p_out[3] = 1.0f + 0.1f * sin(po + 0.3f + x);
+	p_out[0] = 1.0f + 0.1f * sinf(po + x);
+	p_out[1] = 1.0f + 0.1f * sinf(po + 0.3f + x);
+	p_out[2] = 1.0f + 0.1f * sinf(po + 0.6f + x);
+	p_out[3] = 1.0f + 0.1f * sinf(po + 0.3f + x);
 }
 
 void Lava::getAlpha2(const Vec2i& where,
@@ -307,8 +307,8 @@ void Lava::getAlpha2(const Vec2i& where,
 {
 	float po = 0.3f * (where.x + where.y);
 	float x = 0.1f * anim;
-	p_out[0] = 0.5f + 0.5f * cos(po + x);
-	p_out[1] = 0.5f + 0.5f * cos(po + 0.3f + x);
-	p_out[2] = 0.5f + 0.5f * cos(po + 0.6f + x);
-	p_out[3] = 0.5f + 0.5f * cos(po + 0.3f + x);
+	p_out[0] = 0.5f + 0.5f * cosf(po + x);
+	p_out[1] = 0.5f + 0.5f * cosf(po + 0.3f + x);
+	p_out[2] = 0.5f + 0.5f * cosf(po + 0.6f + x);
+	p_out[3] = 0.5f + 0.5f * cosf(po + 0.3f + x);
 }

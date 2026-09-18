@@ -50,16 +50,16 @@ namespace
 		if(sprite.rotation != 0.0f)
 		{
 			const float a = sprite.rotation * degToRad;
-			const float c = cos(a);
-			const float s = sin(a);
+			const float c = cosf(a);
+			const float s = sinf(a);
 			m.x =  c * d.x + s * d.y;
 			m.y = -s * d.x + c * d.y;
 		}
 
 		const Vec2f t(half.x + (sprite.mirrorX ? -m.x : m.x), half.y + m.y);
 
-		const int tx = static_cast<int>(floor(t.x));
-		const int ty = static_cast<int>(floor(t.y));
+		const int tx = static_cast<int>(floorf(t.x));
+		const int ty = static_cast<int>(floorf(t.y));
 		if(tx < 0 || ty < 0 || tx >= sprite.size.x || ty >= sprite.size.y) return false;
 
 		*p_texelOut = Vec2i(tx, ty);
@@ -141,8 +141,8 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		if(sprite.rotation != 0.0f)
 		{
 			const float a = sprite.rotation * degToRad;
-			c = cos(a);
-			s = sin(a);
+			c = cosf(a);
+			s = sinf(a);
 		}
 
 		// Rotate the four corners. The mirroring maps the set of corners onto
@@ -159,10 +159,10 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		}
 	}
 
-	*p_minOut = Vec2i(static_cast<int>(floor(lo.x + footprintEpsilon)),
-					  static_cast<int>(floor(lo.y + footprintEpsilon)));
-	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x - footprintEpsilon)),
-					  static_cast<int>(ceil(hi.y - footprintEpsilon)));
+	*p_minOut = Vec2i(static_cast<int>(floorf(lo.x + footprintEpsilon)),
+					  static_cast<int>(floorf(lo.y + footprintEpsilon)));
+	*p_maxOut = Vec2i(static_cast<int>(ceilf(hi.x - footprintEpsilon)),
+					  static_cast<int>(ceilf(hi.y - footprintEpsilon)));
 }
 
 int Sprites::getTryCount(int numParticles) const

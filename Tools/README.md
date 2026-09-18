@@ -80,12 +80,15 @@ to be checked in for it: the headers mingw and OpenAL Soft file under other
 names (`<Windows.h>`, `<Shlobj.h>`, `<al.h>`) are written as forwarding headers
 into a throwaway directory.
 
-One warning counts as an error: an integer handed to a float, which MSVC
-reports as C4244 at the project's warning level and this compiler only under
-`-Wconversion`. The run fails on a file that has one and prints the lines;
-everything else `-Wconversion` says is dropped. What passes is a conversion of
-the whole vector, `static_cast<Vec2f>(v)`, or a `static_cast<float>` of the one
-value - the conversion written out, which is what the warning asks for.
+Two warnings count as errors: an integer handed to a float, and a double handed
+to a float. MSVC reports both as C4244 at the project's warning level and this
+compiler only under `-Wconversion`. The run fails on a file that has one and
+prints the lines; everything else `-Wconversion` says is dropped. What passes is
+a conversion of the whole vector, `static_cast<Vec2f>(v)`, or a
+`static_cast<float>` of the one value - the conversion written out, which is what
+the warning asks for. The double family catches the unqualified `sin`, `cos` and
+`floor`: those are the C ones, they take a double, and `sinf` and its cousins are
+the spelling that keeps a float a float.
 
 ## What else runs
 

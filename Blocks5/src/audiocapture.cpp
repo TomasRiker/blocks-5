@@ -813,7 +813,7 @@ int AudioCaptureImpl::threadProc()
 	if(!initOK) return 0;
 
 	bool started = false;
-	double captureStart = 0.0;
+	uint64 captureStart = 0;
 	short buffer[k_readSamples * 2];
 
 	while(!quit)
@@ -824,7 +824,7 @@ int AudioCaptureImpl::threadProc()
 			// throw away everything still lying around from last time
 			clearRing();
 			samplesWritten = 0;
-			captureStart = getExactTime();
+			captureStart = getExactTimeUS();
 		}
 		else if(!capturing && started)
 		{
@@ -849,7 +849,7 @@ int AudioCaptureImpl::threadProc()
 		// A suspended sink delivers nothing - module-suspend-on-idle is loaded
 		// by default - and pa_simple_read then waits. Fill the gap by the
 		// clock, keeping the audio track as long as the video.
-		padToClock((long long)((getExactTime() - captureStart) * sampleRate));
+		padToClock(static_cast<long long>(getExactTimeUS() - captureStart) * sampleRate / 1000000);
 	}
 
 	return 0;

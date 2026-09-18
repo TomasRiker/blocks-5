@@ -50,11 +50,11 @@ void CF_Zoom::render(float t,
 
 		float s;
 		if(tc > 0.81649f) s = 1.0f;
-		else s = sin(1.5f * tc * tc * 1.5707963267948966192313216916398f);
+		else s = sinf(1.5f * tc * tc * 1.5707963267948966192313216916398f);
 		Vec2f camPos = s * targetPos;
 		float z = -1.0f + 0.99f * tc;
 		float r = tc * tc * 1.5f;
-		const Mat4 modelview = Mat4::lookAt(camPos.x, camPos.y, z, camPos.x, camPos.y, 0.0f, -sin(r), -cos(r), 0.0f);
+		const Mat4 modelview = Mat4::lookAt(camPos.x, camPos.y, z, camPos.x, camPos.y, 0.0f, -sinf(r), -cosf(r), 0.0f);
 
 		// draw the image
 		drawImage3D(imageID, projection * modelview, corners, uvs,

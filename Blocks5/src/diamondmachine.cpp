@@ -172,7 +172,7 @@ namespace
 	float travelDistance(float speed, float damping, int life)
 	{
 		if(damping == 1.0f) return speed * life;
-		return speed * (1.0f - pow(damping, static_cast<float>(life))) / (1.0f - damping);
+		return speed * (1.0f - powf(damping, static_cast<float>(life))) / (1.0f - damping);
 	}
 }
 
@@ -226,7 +226,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		// not scatter. At the exact centre there is no direction; one is
 		// rolled for there.
 		const Vec2f radial = start - middle;
-		float angle = (radial.length() > 0.5f) ? atan2(radial.y, radial.x)
+		float angle = (radial.length() > 0.5f) ? atan2f(radial.y, radial.x)
 											   : random(0.0f, 6.2832f);
 
 		const Vec4f hot = sampled * OUT_BRIGHT;
@@ -239,7 +239,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
-		p.velocity = Vec2f(cos(angle), sin(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
+		p.velocity = Vec2f(cosf(angle), sinf(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
 		// Not sampled.a: that is DEBRIS_ALPHA and therefore a quarter. A piece
 		// of debris may be pale; a spark shines.
 		const Vec4f begin(hot.r, hot.g, hot.b, OUT_ALPHA);
@@ -274,9 +274,9 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		// sees which belongs to which; what counts is the shape of the cloud.
 		const float radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
 											 OUT_DAMPING, OUT_LIFE);
-		const float angle = atan2(landing.y - middle.y, landing.x - middle.x);
+		const float angle = atan2f(landing.y - middle.y, landing.x - middle.x);
 		const Vec2f start = middle + Vec2f(fromOffset.x - 8.0f, fromOffset.y - 8.0f)
-								   + Vec2f(cos(angle), sin(angle)) * radius;
+								   + Vec2f(cosf(angle), sinf(angle)) * radius;
 
 		// As long as the conversion has left, plus one tick: then they all
 		// arrive together, and in exactly the frame in which the block is seen
@@ -293,7 +293,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		// The damping from the wanted increase, giving the approach the same
 		// shape at any duration: d^moves = inAccel.
-		const float d = pow(IN_ACCEL, 1.0f / static_cast<float>(moves));
+		const float d = powf(IN_ACCEL, 1.0f / static_cast<float>(moves));
 
 		// The v0 with which the spark stands exactly on its target after its
 		// last move. Without gravity, or it would miss.
@@ -441,7 +441,7 @@ void DiamondMachine::abortConversion()
 			const float d = p.damping;
 			const float k = (d == 1.0f)
 				? 1.0f / elapsed
-				: (1.0f - d) / (1.0f - pow(d, static_cast<float>(elapsed)));
+				: (1.0f - d) / (1.0f - powf(d, static_cast<float>(elapsed)));
 			p.velocity += shift * k;
 		}
 

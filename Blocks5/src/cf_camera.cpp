@@ -17,8 +17,8 @@ void CF_Camera::render(float t,
 	// one four units above it.
 	const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
 
-	float s1 = sin(t * 1.5707963267948966192313216916398f);
-	float s2 = sin(t * 3.1415926535897932384626433832795f);
+	float s1 = sinf(t * 1.5707963267948966192313216916398f);
+	float s2 = sinf(t * 3.1415926535897932384626433832795f);
 	float y = s1 * s1 * s1 * s1 * s1 * s1 * 4.0f;
 	float l = y + s2 * s2 * s2 * s2 * 4.0f;
 

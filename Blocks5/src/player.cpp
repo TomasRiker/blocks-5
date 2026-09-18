@@ -535,7 +535,7 @@ void Player::activate()
 			p.sizeOnTexture = Vec2b(16, 16);
 			p.position = position * 16 + Vec2i(8, 8);
 			const float r = random(0.0f, 6.283f);
-			p.velocity = random(2.0f, 3.0f) * Vec2f(sin(r), cos(r));
+			p.velocity = random(2.0f, 3.0f) * Vec2f(sinf(r), cosf(r));
 			p.color = Vec4f(random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.6f, 0.9f));
 			p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);

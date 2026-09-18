@@ -148,9 +148,9 @@ void PresentProgram::use(const PresentContext& context) const
 		// destination rectangle. That is exactly what one would nearest-upscale
 		// by before going back down - the shader does both.
 		const float x = static_cast<float>(max(1, static_cast<int>(
-			ceil(static_cast<float>(context.rectSize.x) / context.frameSize.x))));
+			ceilf(static_cast<float>(context.rectSize.x) / context.frameSize.x))));
 		const float y = static_cast<float>(max(1, static_cast<int>(
-			ceil(static_cast<float>(context.rectSize.y) / context.frameSize.y))));
+			ceilf(static_cast<float>(context.rectSize.y) / context.frameSize.y))));
 		glExtUniform2f(prescale, x, y);
 	}
 }

@@ -396,7 +396,7 @@ Objects (731d13b):
 - **lightbarriersender.cpp** - `counter` advances once per tick, outside the
   beam loop, as the laser's does (the author's decision: the pulse runs at one
   rate whatever the beam's length).
-- **lightning.cpp** - the secondary branch walks a `Vec2d`.
+- **lightning.cpp** - the secondary branch walks a `Vec2f`.
 - **elevator.cpp, electronics.cpp** - the TinyXML locals start at 0.
 - **presets.cpp** - the "Damage" branch tests `p_element`; the six electronics
   branches construct after the attribute block, so a preset asked for without

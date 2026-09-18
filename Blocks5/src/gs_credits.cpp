@@ -25,7 +25,7 @@ void GS_Credits::onRender()
 		// of the frame is left as it is.
 		Renderer::ColorMaskScope colorOnly(true, true, true, false);
 
-		Vec3f color(0.05f + 0.05f * sin(t * 0.26f), 0.05f + 0.05f * cos(t * 0.31f), 0.05f + 0.05f * sin(t * 0.413f));
+		Vec3f color(0.05f + 0.05f * sinf(t * 0.26f), 0.05f + 0.05f * cosf(t * 0.31f), 0.05f + 0.05f * sinf(t * 0.413f));
 		{
 			// a gradient, darkest at the top and bottom and twice as light in
 			// the middle
@@ -196,9 +196,9 @@ void GS_Credits::onUpdate()
 	cameraDir += Vec3f(random(-0.002f, 0.002f), random(-0.002f, 0.002f), random(-0.002f, 0.002f));
 
 	float t = 0.001f * time;
-	cameraDir.x += 0.01f * sin(t * 0.1f);
-	cameraDir.y += 0.01f * sin(0.5f + t * 0.05f);
-	cameraDir.z += 0.01f * cos(0.5f + t * 0.075f);
+	cameraDir.x += 0.01f * sinf(t * 0.1f);
+	cameraDir.y += 0.01f * sinf(0.5f + t * 0.05f);
+	cameraDir.z += 0.01f * cosf(0.5f + t * 0.075f);
 	cameraDir.normalize();
 
 	updateStars();

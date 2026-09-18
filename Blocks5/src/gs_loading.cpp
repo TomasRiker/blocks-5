@@ -35,7 +35,7 @@ void GS_Loading::onRender()
 		// Gentle pulsing, or the line would read as a frozen still. The logo
 		// stays off: its entrance belongs to the intro and only sets off
 		// together with the jingle.
-		const Vec4f color(1.0f, 1.0f, 1.0f, 0.65f + 0.35f * sin(waitTime * 0.004f));
+		const Vec4f color(1.0f, 1.0f, 1.0f, 0.65f + 0.35f * sinf(waitTime * 0.004f));
 		const std::string text = localizeString("$WEB_CLICK_TO_START");
 
 		Vec2i dim;

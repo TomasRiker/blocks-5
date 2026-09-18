@@ -1281,27 +1281,44 @@ in sixteen million. `Vec2d` and `Vec4d` are gone, their typedefs with them, and
 so is the seam they sat on: 274 `Vec2d`, 360 `Vec4d` and 14 `static_cast<Vec4f>`
 down to none, 54 `static_cast<double>` down to two.
 
-Twenty-five mentions of `double` are left, in five files, and only one of them
-is a value: the wall clock and the frame timings (`getExactTime`, `FrameStats`,
-the recorder's timestamps, the profile macros), which grow for as long as the
-session lasts while what is read off them is the difference of two readings, so
-a float's step is already 244 us an hour in and 7.8 ms after a day. The rest are
-inside two functions and one JavaScript call.
+**Two mentions of `double` are left in the whole of `Blocks5/src`**, and both are
+the same thing: `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript
+number is an IEEE double and nothing else will do. The game's own arithmetic has
+none.
 
-The two functions are the interesting part, and they are what let everything
-else be a float. Every growing quantity the game animates by is `rate * clock +
-base`, a straight line in a counter that is an exact integer - `Level::time` and
-`GS_Menu::time` in milliseconds, `Lava::anim` and `SDL_GetTicks` in ticks. So
-`scrollOffset` and `wrapAngle` (`util.h`) form that line and reduce it in one
-step, in `double`, from the integer the caller still holds, and hand back a
-`float` inside one period. Both reductions are exact - whole periods of a
-texture under `GL_REPEAT` sample the same texel, and whole turns cannot move a
-sine - and the precision of what comes out no longer depends on how long the
-level has been running. Held in a float instead, the clouds step one texel a
-tick at first, half a texel after a day and nothing at all after ten: they
-freeze. Through the helpers the step is 1.000000 texels a tick out to 24 days.
-Nine call sites go through them: the five weather and title scrollers, the
-lava's scroll and its two wobbles, and the CRT filter's flicker and crawl.
+Two changes got the last of them out. The wall clock became an **integer**:
+`getExactTimeUS` counts microseconds since the first call, because every caller
+reads the difference of two readings and a count cannot drift at all, where a
+float of seconds steps by 244 us an hour in and a double only pushes that out
+instead of removing it. Windows has `QueryPerformanceCounter`'s int64 and POSIX
+`tv_sec`/`tv_nsec`, so two of the three platforms never see a floating-point
+value; the browser converts once from `emscripten_get_now`, which is a JS number.
+
+And every growing animation is formed from that integer: each is `rate * clock +
+base`, a straight line in an exact counter, and `clockPhase`, `scrollOffset` and
+`wrapTextureOffset` (`util.h`) are where that happens. All three are `float`,
+which was measured rather than assumed: the clouds' one-texel-a-tick step comes
+out exactly 1.0000 for as long as twelve hours in a single level, 0.5 to 1.5
+after a day, a stutter after three, and `Level::time` restarts at every level.
+
+Only the texture offsets reduce. A sine's argument does **not**: `sinf` and
+`cosf` reduce against the real pi themselves and land 3e-08 from the true value
+at any clock, where a `fmodf` by a float 2*pi first divides by a constant that is
+1.7e-07 out and drifts with the turns discarded - 2.0e-03 after an hour in a
+level. A texture offset is the opposite case: its period is exactly
+representable, so the reduction is exact, and the wrap is what the shader needs
+rather than the CPU. Nine call sites use the three: the five weather and title
+scrollers, the lava's scroll and its two wobbles, and the CRT filter's flicker
+and crawl.
+
+The last class was invisible to a search for the word `double`. An unqualified
+`sin(x)` on a float is the **C** function: `<cmath>` puts the float overloads in
+`std::` and `<math.h>` puts only the double ones in the global namespace, so the
+call widened to double, went through the double routine and narrowed back. 164
+call sites across 33 files now read `sinf`, `cosf`, `floorf` and their cousins,
+`Vec::length` takes `sqrtf`, and no object in the game refers to a double libm
+function any more. `Tools/syntax.sh` gained the matching gate: a double handed
+to a float now fails the run exactly as an integer handed to one does.
 
 `Mat4` is `float` throughout. It still keeps the order of operations of the GL
 and GLU calls it stands for, which costs nothing and makes the two readable

@@ -98,7 +98,7 @@ void Bomb::onUpdate()
 
 						p.position = position * 16 + offset;
 						const float r = random(0.0f, 6.283f);
-						p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+						p.velocity = random(3.0f, 6.0f) * Vec2f(sinf(r), cosf(r));
 						p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
 						p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
@@ -182,7 +182,7 @@ void Bomb::onUpdate()
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
 					const float r = random(0.0f, 6.283f);
-					p.velocity = random(13.0f, 15.0f) * Vec2f(sin(r), cos(r));
+					p.velocity = random(13.0f, 15.0f) * Vec2f(sinf(r), cosf(r));
 					p.color = Vec4f(1.0f, 1.0f, 1.0f, 0.2f);
 					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -0.2f / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
@@ -202,7 +202,7 @@ void Bomb::onUpdate()
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
 					const float r = random(0.0f, 6.283f);
-					p.velocity = random(1.0f, 8.0f) * Vec2f(sin(r), cos(r));
+					p.velocity = random(1.0f, 8.0f) * Vec2f(sinf(r), cosf(r));
 					p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 1.0f, random(0.05f, 0.15f));
 					const float dc = -1.0f / (p.lifetime + random(-25, 25));
 					p.deltaColor = Vec4f(dc, dc, dc, -p.color.a / p.lifetime);
@@ -224,7 +224,7 @@ void Bomb::onUpdate()
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
 					const float r = random(0.0f, 6.283f);
-					p.velocity = random(0.0f, 5.0f) * Vec2f(sin(r), cos(r));
+					p.velocity = random(0.0f, 5.0f) * Vec2f(sinf(r), cosf(r));
 					p.color = Vec4f(random(0.75f, 1.0f), random(0.4f, 0.75f), random(0.0f, 0.25f), 0.2f);
 					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -0.25f / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);

@@ -386,7 +386,7 @@ void Object::update()
 		if(x <= 0.5f)
 		{
 			float r = 7.0f + 15.0f * x;
-			Vec2f o(r * sin(x * 18.0f), -r * cos(x * 18.0f));
+			Vec2f o(r * sinf(x * 18.0f), -r * cosf(x * 18.0f));
 
 			p.lifetime = 60;
 			p.damping = 0.9f;
@@ -433,7 +433,7 @@ void Object::update()
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = teleportingTo * 16 + Vec2i(random(6, 10), random(6, 10));
 						const float r = random(0.0f, 6.283f);
-						p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+						p.velocity = random(3.0f, 6.0f) * Vec2f(sinf(r), cosf(r));
 						p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 0.0f, 0.9f);
 						p.deltaColor = Vec4f(0.5f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
@@ -881,7 +881,7 @@ void Object::burst()
 
 		p.position = position * 16 + offset;
 		const float r = random(0.0f, 6.283f);
-		p.velocity = random(2.0f, 5.0f) * Vec2f(sin(r), cos(r));
+		p.velocity = random(2.0f, 5.0f) * Vec2f(sinf(r), cosf(r));
 		p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, 0.5f);
 		p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);

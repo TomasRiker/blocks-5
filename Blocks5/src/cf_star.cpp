@@ -27,7 +27,7 @@ void CF_Star::renderStar(const Vec4f& color)
 	for(int i = 0; i < 2 * n; i++)
 	{
 		float radius = (i % 2) ? innerRadius : outerRadius;
-		v[i] = Vec2f(sin(angle) * radius, -cos(angle) * radius);
+		v[i] = Vec2f(sinf(angle) * radius, -cosf(angle) * radius);
 		angle += angleStep;
 	}
 

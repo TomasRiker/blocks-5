@@ -55,7 +55,7 @@ void Enemy::updateSprites()
 		// it faces; the debris gets the angle unrounded.
 		int f[] = {0, 1, 0, 2};
 		int frame = f[(anim / 4) % 4];
-		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0f * shownDir + 10.0f * sin(anim / 4.0f);
+		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0f * shownDir + 10.0f * sinf(anim / 4.0f);
 	}
 	else if(subType == 1)
 	{
@@ -148,7 +148,7 @@ void Enemy::onUpdate()
 	{
 		int oldDir = dir;
 
-		if(moveCounter-- <= 0 && fabs(shownDir - dir) < 0.4f)
+		if(moveCounter-- <= 0 && fabsf(shownDir - dir) < 0.4f)
 		{
 			int r = random(0, 8);
 			if(interest >= 10000) r = random(0, 40);
@@ -391,7 +391,7 @@ void Enemy::onUpdate()
 			p.positionOnTexture = Vec2b(32, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
 			const float r = random(0.0f, 6.283f);
-			const Vec2f vr(sin(r), cos(r));
+			const Vec2f vr(sinf(r), cosf(r));
 			p.position = position * 16 + Vec2f(7.5f, 7.5f - height) + 7.5f * vr;
 			p.velocity = vr;
 			p.color = Vec4f(random(0.5f, 1.0f), random(0.8f, 1.0f), random(0.0f, 0.25f), random(0.2f, 0.4f));
@@ -437,7 +437,7 @@ void Enemy::onCollect(Player* p_player)
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				float a = random(0.0f, 1000.0f);
-				p.velocity = Vec2f(sin(a), cos(a)) * random(0.05f, 1.0f);
+				p.velocity = Vec2f(sinf(a), cosf(a)) * random(0.05f, 1.0f);
 				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
@@ -482,7 +482,7 @@ void Enemy::onCollect(Player* p_player)
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
 				float a = random(0.0f, 1000.0f);
-				p.velocity = Vec2f(sin(a), cos(a)) * random(0.05f, 1.0f);
+				p.velocity = Vec2f(sinf(a), cosf(a)) * random(0.05f, 1.0f);
 				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
 				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);

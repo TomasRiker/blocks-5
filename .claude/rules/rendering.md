@@ -269,14 +269,17 @@ number and samples the same texel. Verified against the real matrix order — bi
 the translate and the rotate — for the four weather scrollers, deviation 0.000e+00 at offsets up to
 900000. The period is the *texture's* own size, since a skin brings its own art.
 
-**The reduction runs off the clock, not off the value**, and that is what lets every one of these be a
-`float`. Each scroller's offset is `rate · clock + base`, a straight line in a counter that is an exact
-integer — `Level::time` and `GS_Menu::time` in milliseconds, `Lava::anim` in ticks — so `scrollOffset`
-(`util.h`) forms that line and reduces it in one step, in `double`, from the integer the caller still
-holds. Held in a `float` instead the line goes coarse as it grows: measured, the clouds step one texel a
-tick at the start, half a texel after a day and **nothing at all after ten** — they freeze. Through the
-helper the step is 1.000000 texels a tick out to 24 days. A wobble bounded by its own sine is added
-afterwards and the sum reduced again, which is exact for the same reason.
+**The reduction runs off the clock, not off a value that has been kept.** Each scroller's offset is
+`rate · clock + base`, a straight line in a counter that is an exact integer — `Level::time` and
+`GS_Menu::time` in milliseconds, `Lava::anim` and `SDL_GetTicks` in ticks — so `scrollOffset` (`util.h`)
+forms that line and reduces it in one step from the integer the caller still holds. A wobble bounded by
+its own sine is added afterwards and the sum reduced again, which is exact for the same reason.
+
+All of it is `float`, and the limit that puts on it is measured rather than assumed. The clouds scroll
+one texel a tick, and that step comes out **exactly 1.0000 for as long as twelve hours in one level**;
+after a day it is 0.5 to 1.5 and after three it collapses to a stutter of 0 to 2. `Level::time` starts
+again at every level, so the float costs nothing a player can reach — this is a game, and a `double`
+here would buy only a tidier number in a probe.
 
 **The lava is the one whose period is not the texture**, and getting it wrong is a jump of half a tile.
 Its four cousins scroll through the matrix they hand `scrolledQuad`; `Lava::onRender` writes the texels into its quad's uv itself,
@@ -290,18 +293,23 @@ the wobble every time it came round, while a turn cannot move a sine at all. Mea
 0..900000, both signs and both axes, the sampled fraction agrees to 4e-12 of a texel; a wrap at 16 puts
 the front pass out by exactly 0.5.
 
-**A phase gets the same treatment, at a turn.** `wrapAngle` (`util.h`) is `scrollOffset` with 2π for a
-period, and it is exact for a different reason: a sine *is* periodic in a turn, so dropping whole ones
-cannot move it. Each caller passes its own rate, because the rate is what the reduction is against — the
-lava's two wobbles run at 0.1 and 0.05 a tick and reduce separately. What comes back is a `float` in
-[0, 2π), an argument whose precision no longer depends on how long the level has been running; carried
-unreduced in a `float` the rain's would have a ULP of 4 radians. The counters themselves are what runs
-out in the end: `Level::time` is `int` and undefined after **24.9 days** in one level, `GS_Menu::time`
-and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a level or the menu.
+**A phase is emphatically *not* reduced**, and `clockPhase` (`util.h`) exists to say so where a reader
+would otherwise reach for the obvious. `sinf` and `cosf` reduce their own argument, against the real π
+to as many bits as it takes, and land 3e-08 from the true sine at every clock value this game can
+reach. Reducing by a `float` 2π first reduces against a constant that is itself 1.7e-07 out, and the
+error grows with the turns thrown away: measured against the exact sine of the same float, 3.9e-05 one
+minute into a level, **2.0e-03 after an hour**, 0.14 after three days. The library is better at this
+than its caller. A texture offset is the opposite case and does reduce, because its period — 512
+texels, or the CRT's eight seconds — is exactly representable, so `fmodf` divides by the right number
+and is exact; and because the wrap is what the *shader* needs, not the CPU.
 
-The same two helpers hold every growing quantity in the game, which is why nothing outside them needs a
-`double`: the five scrollers, the lava's two wobbles, and the CRT filter's flicker and scan-line crawl,
-which repeat every eight seconds and every one (`upscalers.md`).
+The counters are what runs out in the end: `Level::time` is `int` and undefined after **24.9 days** in
+one level, `GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a
+level or the menu. Nine call sites go through the three helpers: the five scrollers, the lava's scroll
+and its two wobbles, and the CRT filter's flicker and scan-line crawl (`upscalers.md`). With those in
+place and the wall clock an integer, **`double` is gone from the game's own arithmetic** — the two left
+in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE double
+and nothing else will do.
 
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture as pure
 black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL error, and the default is

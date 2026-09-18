@@ -16,7 +16,7 @@ void CF_Cube::render(float t,
 	// A cube with the old image on its front and the new one on its left,
 	// turned a quarter while the camera pulls back and in again.
 	const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
-	Mat4 modelview = Mat4::lookAt(0.0f, 0.0f, -2.0f - sin(t * 3.1415926535897932384626433832795f), 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	Mat4 modelview = Mat4::lookAt(0.0f, 0.0f, -2.0f - sinf(t * 3.1415926535897932384626433832795f), 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 	modelview.rotate(90.0f * t, 0.0f, 1.0f, 0.0f);
 
 	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));

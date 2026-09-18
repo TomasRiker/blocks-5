@@ -117,8 +117,8 @@ bool Mirror::reflectProjectile(Vec2f& velocity)
 	switch(this->dir % 4)
 	{
 	case 0:
-		if((velocity.x > epsilon && fabs(velocity.y) < epsilon) ||
-		   (fabs(velocity.x) < epsilon && velocity.y > epsilon))
+		if((velocity.x > epsilon && fabsf(velocity.y) < epsilon) ||
+		   (fabsf(velocity.x) < epsilon && velocity.y > epsilon))
 		{
 			temp = velocity.x;
 			velocity.x = -velocity.y;
@@ -127,8 +127,8 @@ bool Mirror::reflectProjectile(Vec2f& velocity)
 		}
 		break;
 	case 1:
-		if((velocity.x < -epsilon && fabs(velocity.y) < epsilon) ||
-		   (fabs(velocity.x) < epsilon && velocity.y > epsilon))
+		if((velocity.x < -epsilon && fabsf(velocity.y) < epsilon) ||
+		   (fabsf(velocity.x) < epsilon && velocity.y > epsilon))
 		{
 			temp = velocity.x;
 			velocity.x = velocity.y;
@@ -137,8 +137,8 @@ bool Mirror::reflectProjectile(Vec2f& velocity)
 		}
 		break;
 	case 2:
-		if((velocity.x < -epsilon && fabs(velocity.y) < epsilon) ||
-		   (fabs(velocity.x) < epsilon && velocity.y < -epsilon))
+		if((velocity.x < -epsilon && fabsf(velocity.y) < epsilon) ||
+		   (fabsf(velocity.x) < epsilon && velocity.y < -epsilon))
 		{
 			temp = velocity.x;
 			velocity.x = -velocity.y;
@@ -147,8 +147,8 @@ bool Mirror::reflectProjectile(Vec2f& velocity)
 		}
 		break;
 	case 3:
-		if((velocity.x > epsilon && fabs(velocity.y) < epsilon) ||
-		   (fabs(velocity.x) < epsilon && velocity.y < -epsilon))
+		if((velocity.x > epsilon && fabsf(velocity.y) < epsilon) ||
+		   (fabsf(velocity.x) < epsilon && velocity.y < -epsilon))
 		{
 			temp = velocity.x;
 			velocity.x = velocity.y;

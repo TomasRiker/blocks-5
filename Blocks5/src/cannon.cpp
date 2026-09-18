@@ -150,7 +150,7 @@ bool Cannon::fire()
 
 	// Not finished aiming yet?
 	float dd = static_cast<float>(dir) - shownDir;
-	if(fabs(dd) > 0.1f) return false;
+	if(fabsf(dd) > 0.1f) return false;
 
 	// compute the direction vectors
 	Vec2f up, right;

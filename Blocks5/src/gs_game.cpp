@@ -265,7 +265,7 @@ void GS_Game::onRender()
 	renderIconFlash(*p_level, "Diamond", Vec2i(32, 416), 1);
 	sprintf(text, "%d/%d", nd, p_level->getNumDiamondsNeeded());
 	float alpha;
-	if(nd >= p_level->getNumDiamondsNeeded()) alpha = 0.7f + 0.3f * sin(static_cast<float>(p_level->counter) * 0.4f);
+	if(nd >= p_level->getNumDiamondsNeeded()) alpha = 0.7f + 0.3f * sinf(static_cast<float>(p_level->counter) * 0.4f);
 	else alpha = 1.0f;
 	p_font->renderText(text, Vec2i(66, 416), Vec4f(1.0f, 1.0f, 1.0f, alpha));
 
@@ -284,7 +284,7 @@ void GS_Game::onRender()
 			float t = static_cast<float>(engine.getTime()) / 1000.0f;
 			float x = min(0.5f, 0.002f * c);
 			float f = c < 375.0f ? 2.0f : 4.0f;
-			float s = sin(6.282f * f * t);
+			float s = sinf(6.282f * f * t);
 			Vec4f color(1.0f, 1.0f - x, 1.0f - x, 0.7f + 0.4f * s);
 			float scaling = 1.0f + min(0.2f, 0.002f * c) * s;
 			engine.renderSprite(p_misc, Vec2i(168, 416), Vec2i(0, 0), Vec2i(48, 48), color, false, 0.0f, scaling);
@@ -335,10 +335,10 @@ void GS_Game::onRender()
 	if(paused)
 	{
 		float t = 0.001f * engine.getTime();
-		float r = 0.5f + 0.5f * sin(3.0f * t);
-		float g = 0.5f + 0.5f * cos(4.27f * t);
-		float b = 0.5f + 0.5f * sin(5.13f * t);
-		float a = 0.7f + 0.3f * sin(6.26f * t);
+		float r = 0.5f + 0.5f * sinf(3.0f * t);
+		float g = 0.5f + 0.5f * cosf(4.27f * t);
+		float b = 0.5f + 0.5f * sinf(5.13f * t);
+		float a = 0.7f + 0.3f * sinf(6.26f * t);
 		p_font->renderText("Pause", pausePosition, Vec4f(r, g, b, a));
 	}
 }
@@ -570,7 +570,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	paused = false;
 	pausePosition = Vec2f(320.0f, 200.0f);
 	const float r = random(0.0f, 6.2832f);
-	pauseVelocity = Vec2f(sin(r), cos(r));
+	pauseVelocity = Vec2f(sinf(r), cosf(r));
 
 	// load the level
 	p_level = new Level;
