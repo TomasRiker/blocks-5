@@ -50,12 +50,12 @@ void GUI_RadioButton::onRender()
 		Vec2i dim;
 		std::string title = localizeString(this->title);
 		p_font->measureText(title, &dim, 0);
-		p_font->renderText(title, (size - dim) / 2, active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
+		p_font->renderText(title, (size - dim) / 2, active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 
 		if(p_image)
 		{
 			// render the image
-			Engine::inst().renderSprite(p_image, Vec2i(0, 0), positionOnTexture, size, Vec4d(1.0));
+			Engine::inst().renderSprite(p_image, Vec2i(0, 0), positionOnTexture, size, Vec4f(1.0f));
 		}
 	}
 	else
@@ -69,7 +69,7 @@ void GUI_RadioButton::onRender()
 			{
 				// draw the checkmark
 				Vec2i offset = (size - Vec2i(16, 16)) / 2;
-				Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(48, 224), Vec2i(16, 16), Vec4d(1.0));
+				Engine::inst().renderSprite(gui.getSkin(), offset, Vec2i(48, 224), Vec2i(16, 16), Vec4f(1.0f));
 			}
 		}
 		else
@@ -101,7 +101,7 @@ void GUI_RadioButton::onRender()
 		Vec2i dim;
 		std::string title = localizeString(this->title);
 		p_font->measureText(title, &dim, 0);
-		p_font->renderText(title, Vec2i(size.x + 10, (size.y - dim.y) / 2), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
+		p_font->renderText(title, Vec2i(size.x + 10, (size.y - dim.y) / 2), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 	}
 }
 

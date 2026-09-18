@@ -161,9 +161,9 @@ void TileSet::writeTile(uint id,
 
 	// TILE_SIZE is the tile's edge in the picture and in the texture alike,
 	// which is why one constant does for both here.
-	const double s = TILE_SIZE;
-	const double x = position.x, y = position.y;
-	const double u = tile.position.x, v = tile.position.y;
+	const float s = TILE_SIZE;
+	const float x = position.x, y = position.y;
+	const float u = tile.position.x, v = tile.position.y;
 
 	out.push_back(QuadVertex(x,     y,     u,     v));
 	out.push_back(QuadVertex(x + s, y,     u + s, v));

@@ -301,8 +301,8 @@ struct AudioCaptureImpl : public AudioRing
 	bool srcFloat;
 
 	// resampler state (capture thread only)
-	double resampleStep;
-	double resamplePos;
+	float resampleStep;
+	float resamplePos;
 	float prevLeft;
 	float prevRight;
 	bool havePrev;
@@ -323,8 +323,8 @@ AudioCaptureImpl::AudioCaptureImpl()
 	, srcBits(32)
 	, srcBlockAlign(8)
 	, srcFloat(true)
-	, resampleStep(1.0)
-	, resamplePos(0.0)
+	, resampleStep(1.0f)
+	, resamplePos(0.0f)
 	, prevLeft(0.0f)
 	, prevRight(0.0f)
 	, havePrev(false)
@@ -357,7 +357,7 @@ bool AudioCaptureImpl::setupSourceFormat(const WAVEFORMATEX* p_format)
 	if(!srcFloat && srcBits != 16 && srcBits != 24 && srcBits != 32) return false;
 	if(srcBlockAlign < srcChannels * (srcBits / 8)) return false;
 
-	resampleStep = (double)srcRate / (double)sampleRate;
+	resampleStep = (float)srcRate / (float)sampleRate;
 	return true;
 }
 
@@ -401,14 +401,14 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 		{
 			prevLeft = left;
 			prevRight = right;
-			resamplePos = 0.0;
+			resamplePos = 0.0f;
 			havePrev = true;
 		}
 
 		// interpolate linearly between the previous and the current device sample.
 		// At an equal sample rate resampleStep is exactly 1.0 and every sample comes
 		// through unchanged.
-		while(resamplePos < 1.0)
+		while(resamplePos < 1.0f)
 		{
 			const float t = (float)resamplePos;
 			scratch[2 * numInScratch    ] = floatToShort(prevLeft  + (left  - prevLeft ) * t);
@@ -422,7 +422,7 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 			}
 			resamplePos += resampleStep;
 		}
-		resamplePos -= 1.0;
+		resamplePos -= 1.0f;
 		prevLeft = left;
 		prevRight = right;
 	}
@@ -514,7 +514,7 @@ int AudioCaptureImpl::threadProc()
 				// throw away everything still lying around from last time
 				clearRing();
 				havePrev = false;
-				resamplePos = 0.0;
+				resamplePos = 0.0f;
 				samplesWritten = 0;
 				p_audioClient->Reset();
 				QueryPerformanceCounter(&captureStart);

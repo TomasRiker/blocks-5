@@ -32,8 +32,8 @@ private:
 	int time;
 	int load;
 	bool soundPlayed;
-	double logoSize;
-	double logoSizeVel;
+	float logoSize;
+	float logoSizeVel;
 #ifdef __EMSCRIPTEN__
 	bool waitingForClick;   // the browser blocks audio until the first gesture
 	int waitTime;           // wait time in ms, drives the pulsing too

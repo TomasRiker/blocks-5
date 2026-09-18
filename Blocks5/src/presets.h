@@ -14,7 +14,7 @@ public:
 	Presets(Level& level, Texture* p_sprites);
 	~Presets();
 
-	void renderPreset(const std::string& name, const Vec2i& position, const Vec4d& color = Vec4d(1.0));
+	void renderPreset(const std::string& name, const Vec2i& position, const Vec4f& color = Vec4f(1.0f));
 	Object* instancePreset(const std::string& name, const Vec2i& position, TiXmlElement* p_element, bool fromEditor = false);
 	const std::vector<std::string>& getPresetNames() const;
 

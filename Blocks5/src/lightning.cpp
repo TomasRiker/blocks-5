@@ -7,11 +7,11 @@ Lightning::Lightning()
 {
 	// There is no lightning bolt yet. Without this, update() would scale an
 	// uninitialised value until the first generate().
-	alpha = 0.0;
+	alpha = 0.0f;
 
 	// Until the first generate() there is nothing to draw, and drawPass() is
 	// asked for a size before it is asked for any geometry.
-	for(int pass = 0; pass < 2; pass++) passes[pass].pointSize = 0.0;
+	for(int pass = 0; pass < 2; pass++) passes[pass].pointSize = 0.0f;
 
 	p_lineTexture = Manager<Texture>::inst().request("lightning.png");
 }
@@ -23,20 +23,20 @@ Lightning::~Lightning()
 
 void Lightning::generate()
 {
-	alpha = random(1.0, 3.5);
+	alpha = random(1.0f, 3.5f);
 	branches.clear();
 
 	// generate the main branch
 	Branch mb;
-	mb.thickness = 4.0;
-	Vec2d pos = Vec2d(random(50.0, 590.0), random(-200.0, -50.0));
-	Vec2d dir(0.0, 1.0);
+	mb.thickness = 4.0f;
+	Vec2f pos = Vec2f(random(50.0f, 590.0f), random(-200.0f, -50.0f));
+	Vec2f dir(0.0f, 1.0f);
 	int length = random(15, 25);
 	for(int i = 0; i < length; i++)
 	{
 		mb.points.push_back(pos);
-		pos += random(20.0, 30.0) * dir;
-		dir += Vec2d(random(-0.3, 0.3), random(-0.1, 0.3));
+		pos += random(20.0f, 30.0f) * dir;
+		dir += Vec2f(random(-0.3f, 0.3f), random(-0.1f, 0.3f));
 		dir.normalize();
 	}
 
@@ -72,15 +72,15 @@ void Lightning::generate()
 
 void Lightning::render()
 {
-	if(alpha < 1.0 / 256.0) return;
+	if(alpha < 1.0f / 256.0f) return;
 
-	drawPass(0, Vec4f(0.4f, 0.2f, 1.0f, static_cast<float>(0.2 * alpha)));
-	drawPass(1, Vec4f(1.0f, 1.0f, 0.75f, static_cast<float>(0.85 * alpha)));
+	drawPass(0, Vec4f(0.4f, 0.2f, 1.0f, static_cast<float>(0.2f * alpha)));
+	drawPass(1, Vec4f(1.0f, 1.0f, 0.75f, static_cast<float>(0.85f * alpha)));
 }
 
 void Lightning::update()
 {
-	alpha *= 0.85;
+	alpha *= 0.85f;
 }
 
 void Lightning::buildPass(int pass)
@@ -88,7 +88,7 @@ void Lightning::buildPass(int pass)
 	Pass& p = passes[pass];
 	p.mainBranch.clear();
 	p.otherBranches.clear();
-	p.pointSize = 0.0;
+	p.pointSize = 0.0f;
 	if(branches.empty()) return;
 
 	// main branch
@@ -123,18 +123,18 @@ void Lightning::drawPass(int pass, const Vec4f& color)
 	}
 }
 
-double Lightning::branchWidth(const Branch& branch,
+float Lightning::branchWidth(const Branch& branch,
 							  int pass) const
 {
-	double width;
-	if(pass == 0) width = branch.thickness * 7.5;
-	else width = branch.thickness * 1.5;
+	float width;
+	if(pass == 0) width = branch.thickness * 7.5f;
+	else width = branch.thickness * 1.5f;
 	// The texture only has stripes for the widths 1 to 19.
-	return clamp(width, 1.0, 19.0);
+	return clamp(width, 1.0f, 19.0f);
 }
 
 void Lightning::buildBranch(const Branch& branch,
-							double width,
+							float width,
 							std::vector<QuadVertex>& out)
 {
 	LineJoint joint;
@@ -149,49 +149,49 @@ Lightning::Branch Lightning::generateSecondaryBranch(const Branch& b,
 													 int maxLength)
 {
 	Branch r;
-	r.thickness = 0.25 * b.thickness;
+	r.thickness = 0.25f * b.thickness;
 
 	// find two consecutive points
 	int start = random(0, static_cast<int>(b.points.size()) - 2);
-	Vec2d pos = b.points[start];
-	Vec2d dir = (b.points[start + 1] - b.points[start]).normalize();
+	Vec2f pos = b.points[start];
+	Vec2f dir = (b.points[start + 1] - b.points[start]).normalize();
 	int length = random(minLength, maxLength);
 	for(int i = 0; i < length; i++)
 	{
 		r.points.push_back(pos);
-		pos += random(10.0, 15.0) * dir;
-		dir += Vec2d(random(-0.4, 0.4), random(-0.4, 0.4));
+		pos += random(10.0f, 15.0f) * dir;
+		dir += Vec2f(random(-0.4f, 0.4f), random(-0.4f, 0.4f));
 		dir.normalize();
 	}
 
 	return r;
 }
 
-void Lightning::addLine(Vec2d p1,
-						Vec2d p2,
-						double width,
+void Lightning::addLine(Vec2f p1,
+						Vec2f p2,
+						float width,
 						LineJoint& joint,
 						std::vector<QuadVertex>& out)
 {
 	// tbl has 19 entries (widths 1 to 19). The texture is 256 pixels wide and
 	// has no room for a width of 20: the clamp is to 19 and never to 20,
 	// since tbl[19] would be one past the end.
-	width = clamp(width + 0.5, 1.0, 19.0);
+	width = clamp(width + 0.5f, 1.0f, 19.0f);
 	int w = static_cast<int>(width);
 
 	const int tbl[] = {2, 6, 11, 17, 24, 32, 41, 51, 62, 74, 87, 101, 116, 132, 149, 167, 186, 206, 227};
 
-	Vec2d halfAxis = (p2 - p1).normalize() * 0.5;
+	Vec2f halfAxis = (p2 - p1).normalize() * 0.5f;
 
-	halfAxis = Vec2d(halfAxis.y * -width, halfAxis.x * width);
+	halfAxis = Vec2f(halfAxis.y * -width, halfAxis.x * width);
 
 	int u = tbl[w - 1];
 
 	// The first two corners join onto the previous segment where there is one,
 	// so that consecutive segments of a branch share an edge and the seam does
 	// not show.
-	const Vec2d start1 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner2 : p1 - halfAxis;
-	const Vec2d start2 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner1 : p1 + halfAxis;
+	const Vec2f start1 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner2 : p1 - halfAxis;
+	const Vec2f start2 = (joint.valid && joint.lastEndPoint == p1) ? joint.lastCorner1 : p1 + halfAxis;
 
 	joint.valid = true;
 	joint.lastEndPoint = p2;

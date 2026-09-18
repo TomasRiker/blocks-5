@@ -67,27 +67,27 @@
    shader and as a double beside it. The curvature goes through the mouse
    (warpToSource/warpToOutput), the other two into getOverscan(). */
 
-#define CRT_CURVE_X 0.10
-#define CRT_CURVE_Y 0.13
+#define CRT_CURVE_X 0.10f
+#define CRT_CURVE_Y 0.13f
 /* Half the width of the raster's soft edge, in source rows; rasterMask fades
    out over two of them. */
-#define CRT_EDGE_ROWS 1.0
+#define CRT_EDGE_ROWS 1.0f
 /* Convergence offset per beam at the edge of the picture, in source columns.
    In full at the shader constant of the same name. */
-#define CRT_CONVERGENCE_MAX 1.6
+#define CRT_CONVERGENCE_MAX 1.6f
 /* Line periods per second with the flicker at full; see CRAWL_JITTER. */
-#define CRT_CRAWL_SPEED 1.2
+#define CRT_CRAWL_SPEED 1.2f
 /* After this many seconds the flicker repeats exactly. This too stands twice -
    in the shader and in present(), which takes the clock modulo it. */
-#define CRT_FLICKER_CYCLE 8.0
+#define CRT_FLICKER_CYCLE 8.0f
 #define CRT_STR2(x) #x
 #define CRT_STR(x) CRT_STR2(x)
 
-static const double crtCurveX = CRT_CURVE_X;
-static const double crtCurveY = CRT_CURVE_Y;
-static const double crtEdgeRows = CRT_EDGE_ROWS;
-static const double crtConvergenceMax = CRT_CONVERGENCE_MAX;
-static const double crtCrawlSpeed = CRT_CRAWL_SPEED;
+static const float crtCurveX = CRT_CURVE_X;
+static const float crtCurveY = CRT_CURVE_Y;
+static const float crtEdgeRows = CRT_EDGE_ROWS;
+static const float crtConvergenceMax = CRT_CONVERGENCE_MAX;
+static const float crtCrawlSpeed = CRT_CRAWL_SPEED;
 
 static const char* p_crtFragmentShader =
 	"#ifdef GL_ES\n"
@@ -102,7 +102,7 @@ static const char* p_crtFragmentShader =
 	/* Tuning constants. Everything that gives this filter its character. */
 	/* ------------------------------------------------------------------ */
 
-	/* Which tube. 1.0 = VGA monitor, all 480 lines, no gaps (hence at 2x
+	/* Which tube. 1.0f = VGA monitor, all 480 lines, no gaps (hence at 2x
 	   practically no visible stripes). 2.0 = pretend 240 lines arrive: the
 	   console look, visible at 2x as well. Values in between are allowed but
 	   look like a fault. */
@@ -112,7 +112,7 @@ static const char* p_crtFragmentShader =
 	   deeper and harder stripes. 0.5 is strong, 0.8 gentle. */
 	"const float BEAM_WIDTH = 0.55;\n"
 
-	/* The mask, in OUTPUT PIXELS per RGB triple. 3.0 is a real stripe mask:
+	/* The mask, in OUTPUT PIXELS per RGB triple. 3.0f is a real stripe mask:
 	   one pixel red, one green, one blue. At 2x that beats against the source
 	   raster (period 2) into a pattern of period 6; 2.0 or 4.0 are calmer
 	   there. */
@@ -214,7 +214,7 @@ static const char* p_crtFragmentShader =
 	   them hang off the clock alone, never off the previous frame - the fault
 	   xBR foundered on cannot arise here. Values with the slider at full;
 	   where the bar is unwanted, set HUM_DEPTH to 0. */
-	/* Measured, the three terms together give 1.7% peak-to-peak between frames
+	/* Measured, the three terms together give 1.7f% peak-to-peak between frames
 	   with both sliders at full. */
 	"const float FLICKER_DEPTH = 0.0367;\n"  /* fast brightness shimmer */
 	"const float HUM_DEPTH     = 0.0147;\n"  /* depth of the rolling bar */
@@ -242,7 +242,7 @@ static const char* p_crtFragmentShader =
 	   and wraps seamlessly by itself. */
 	"const float CRAWL_JITTER = 0.05;\n"
 
-	/* Gamma. A tube had about 2.4; in between everything is computed in linear
+	/* Gamma. A tube had about 2.4f; in between everything is computed in linear
 	   light, or the halo turns into grey haze. */
 	"const float GAMMA_IN  = 2.4;\n"
 	"const float GAMMA_OUT = 2.2;\n"
@@ -518,12 +518,12 @@ U_Crt::U_Crt()
 	// tree, and present() fills it in before every frame anyway - the value
 	// here is only for the first logic tick, which already converts the mouse.
 	frameSize = Vec2i(640, 480);
-	scanline = 0.5;
-	curvature = 0.5;
-	bloom = 0.5;
-	flicker = 0.5;
-	scanFlicker = 0.5;
-	convergence = 0.5;
+	scanline = 0.5f;
+	curvature = 0.5f;
+	bloom = 0.5f;
+	flicker = 0.5f;
+	scanFlicker = 0.5f;
+	convergence = 0.5f;
 }
 
 U_Crt::~U_Crt()
@@ -570,19 +570,19 @@ void U_Crt::present(const PresentContext& context)
 	// stops when the game pauses; a screen flickers anyway. The cycle is
 	// CRT_FLICKER_CYCLE and every frequency in it is a whole multiple of it,
 	// leaving nothing to jump at the wrap.
-	const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
+	const float seconds = static_cast<float>(SDL_GetTicks()) * 0.001f;
 	PresentProgram::setUniform(locTime, fmod(seconds, CRT_FLICKER_CYCLE));
 
 	// The scan-line crawl is the one term computed here: it is a ramp, not an
 	// oscillation, and its slope depends on the slider - from the
 	// already-wrapped clock the phase would jump at every wrap.
 	PresentProgram::setUniform(locScanPhase,
-							   fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0));
+							   fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0f));
 
 	program.drawQuad(context);
 }
 
-double U_Crt::getOverscan() const
+float U_Crt::getOverscan() const
 {
 	// How far the raster stands back from the edge of the glass, in fractions
 	// of half the picture width. With a flat tube not at all: the picture then
@@ -611,32 +611,32 @@ double U_Crt::getOverscan() const
 	// The price is paid the moment the slider leaves its stop: at a 2x window
 	// the picture steps back by six output pixels. A flat tube is pixel-exact,
 	// a curved one is inset.
-	if(curvature <= 0.0) return 0.0;
+	if(curvature <= 0.0f) return 0.0f;
 
-	const double fade   = 2.0 * (crtEdgeRows * 2.0 / frameSize.y);
-	const double fringe = 2.0 * crtConvergenceMax / frameSize.x;
+	const float fade   = 2.0f * (crtEdgeRows * 2.0f / frameSize.y);
+	const float fringe = 2.0f * crtConvergenceMax / frameSize.x;
 	return fade + fringe;
 }
 
-Vec2d U_Crt::warpToSource(const Vec2d& p) const
+Vec2f U_Crt::warpToSource(const Vec2f& p) const
 {
 	// Exactly the formula from the shader above. p and the return value run
 	// from -1 to 1, measured from the centre of the picture.
-	if(curvature <= 0.0) return p;
+	if(curvature <= 0.0f) return p;
 
-	const double a = curvature * crtCurveX;
-	const double b = curvature * crtCurveY;
-	const double k = 1.0 + getOverscan();
-	return Vec2d(p.x * (1.0 + a * p.y * p.y) * k,
-				 p.y * (1.0 + b * p.x * p.x) * k);
+	const float a = curvature * crtCurveX;
+	const float b = curvature * crtCurveY;
+	const float k = 1.0f + getOverscan();
+	return Vec2f(p.x * (1.0f + a * p.y * p.y) * k,
+				 p.y * (1.0f + b * p.x * p.x) * k);
 }
 
-Vec2d U_Crt::warpToOutput(const Vec2d& s) const
+Vec2f U_Crt::warpToOutput(const Vec2f& s) const
 {
-	if(curvature <= 0.0) return s;
+	if(curvature <= 0.0f) return s;
 
-	const double a = curvature * crtCurveX;
-	const double b = curvature * crtCurveY;
+	const float a = curvature * crtCurveX;
+	const float b = curvature * crtCurveY;
 
 	// The inverse. The pair of equations is coupled - x depends on y and vice
 	// versa - and has no closed form; as a fixed point
@@ -655,26 +655,26 @@ Vec2d U_Crt::warpToOutput(const Vec2d& s) const
 	// non-identity warp and 0.5% of positions land on a neighbouring tile -
 	// the minimum window size, where the effect has no room to work anyway.
 	// The overscan is a smooth factor and is taken back out beforehand.
-	const double k = 1.0 + getOverscan();
-	const double u = s.x / k;
-	const double v = s.y / k;
+	const float k = 1.0f + getOverscan();
+	const float u = s.x / k;
+	const float v = s.y / k;
 
-	double x = u;
-	double y = v;
+	float x = u;
+	float y = v;
 	for(int i = 0; i < 8; i++)
 	{
-		x = u / (1.0 + a * y * y);
-		y = v / (1.0 + b * x * x);
+		x = u / (1.0f + a * y * y);
+		y = v / (1.0f + b * x * x);
 	}
-	return Vec2d(x, y);
+	return Vec2f(x, y);
 }
 
-void U_Crt::setScanline(double value)    { scanline = clamp(value, 0.0, 1.0); }
-void U_Crt::setCurvature(double value)   { curvature = clamp(value, 0.0, 1.0); }
-void U_Crt::setBloom(double value)       { bloom = clamp(value, 0.0, 1.0); }
-void U_Crt::setFlicker(double value)     { flicker = clamp(value, 0.0, 1.0); }
-void U_Crt::setScanFlicker(double value) { scanFlicker = clamp(value, 0.0, 1.0); }
-void U_Crt::setConvergence(double value) { convergence = clamp(value, 0.0, 1.0); }
+void U_Crt::setScanline(float value)    { scanline = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setCurvature(float value)   { curvature = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setBloom(float value)       { bloom = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setFlicker(float value)     { flicker = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setScanFlicker(float value) { scanFlicker = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setConvergence(float value) { convergence = clamp(value, 0.0f, 1.0f); }
 
 void U_Crt::loadConfig(TiXmlElement* p_config)
 {
@@ -684,13 +684,13 @@ void U_Crt::loadConfig(TiXmlElement* p_config)
 	// Read only what is there and reset nothing: the options dialog's Cancel
 	// button calls loadConfig() in the middle of the game, and on a first
 	// start the file does not exist at all yet.
-	double value = 0.0;
-	if(p_crt->QueryDoubleAttribute("scanline", &value) == TIXML_SUCCESS)    setScanline(value);
-	if(p_crt->QueryDoubleAttribute("curvature", &value) == TIXML_SUCCESS)   setCurvature(value);
-	if(p_crt->QueryDoubleAttribute("bloom", &value) == TIXML_SUCCESS)       setBloom(value);
-	if(p_crt->QueryDoubleAttribute("flicker", &value) == TIXML_SUCCESS)     setFlicker(value);
-	if(p_crt->QueryDoubleAttribute("scanFlicker", &value) == TIXML_SUCCESS) setScanFlicker(value);
-	if(p_crt->QueryDoubleAttribute("convergence", &value) == TIXML_SUCCESS) setConvergence(value);
+	float value = 0.0f;
+	if(p_crt->QueryFloatAttribute("scanline", &value) == TIXML_SUCCESS)    setScanline(value);
+	if(p_crt->QueryFloatAttribute("curvature", &value) == TIXML_SUCCESS)   setCurvature(value);
+	if(p_crt->QueryFloatAttribute("bloom", &value) == TIXML_SUCCESS)       setBloom(value);
+	if(p_crt->QueryFloatAttribute("flicker", &value) == TIXML_SUCCESS)     setFlicker(value);
+	if(p_crt->QueryFloatAttribute("scanFlicker", &value) == TIXML_SUCCESS) setScanFlicker(value);
+	if(p_crt->QueryFloatAttribute("convergence", &value) == TIXML_SUCCESS) setConvergence(value);
 }
 
 void U_Crt::saveConfig(TiXmlElement* p_config)

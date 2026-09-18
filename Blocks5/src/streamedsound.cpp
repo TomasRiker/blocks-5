@@ -15,11 +15,11 @@ StreamedSound::StreamedSound(const std::string& filename) : Resource(filename)
 #ifndef __EMSCRIPTEN__
 	p_stopSignal = 0;
 #endif
-	volume = pitch = 1.0;
-	volumeSlideSpeed = 0.0;
-	pitchSlideSpeed = 0.0;
+	volume = pitch = 1.0f;
+	volumeSlideSpeed = 0.0f;
+	pitchSlideSpeed = 0.0f;
 	stopAtSlideEnd = false;
-	loopBegin = 0.0;
+	loopBegin = 0.0f;
 	loopBeginInSlices = 0;
 
 	p_stream = AudioStream::open(filename);
@@ -107,34 +107,34 @@ void StreamedSound::resume()
 	alSourcePlay(sourceID);
 }
 
-double StreamedSound::getVolume() const
+float StreamedSound::getVolume() const
 {
 	return volume;
 }
 
-void StreamedSound::setVolume(double volume)
+void StreamedSound::setVolume(float volume)
 {
 	this->volume = volume;
 	if(sourceID) alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getEffectiveMusicVolume()));
 }
 
-double StreamedSound::getPitch() const
+float StreamedSound::getPitch() const
 {
 	return pitch;
 }
 
-void StreamedSound::setPitch(double pitch)
+void StreamedSound::setPitch(float pitch)
 {
 	this->pitch = pitch;
 	if(sourceID) alSourcef(sourceID, AL_PITCH, static_cast<float>(pitch));
 }
 
-double StreamedSound::getLoopBegin() const
+float StreamedSound::getLoopBegin() const
 {
 	return loopBegin;
 }
 
-void StreamedSound::setLoopBegin(double loopBegin)
+void StreamedSound::setLoopBegin(float loopBegin)
 {
 	this->loopBegin = loopBegin;
 	loopBeginInSlices = secondsToSlices(loopBegin);
@@ -150,18 +150,18 @@ void StreamedSound::seekStream(uint position)
 	p_stream->seek(position);
 }
 
-uint StreamedSound::secondsToSlices(double t) const
+uint StreamedSound::secondsToSlices(float t) const
 {
 	return static_cast<uint>(t * p_stream->getSampleRate());
 }
 
-void StreamedSound::slideVolume(double targetVolume,
-								double volumeSlideSpeed)
+void StreamedSound::slideVolume(float targetVolume,
+								float volumeSlideSpeed)
 {
-	if(targetVolume < 0.0)
+	if(targetVolume < 0.0f)
 	{
 		// Stop afterwards!
-		targetVolume = 0.0;
+		targetVolume = 0.0f;
 		stopAtSlideEnd = true;
 	}
 	else stopAtSlideEnd = false;
@@ -170,8 +170,8 @@ void StreamedSound::slideVolume(double targetVolume,
 	this->volumeSlideSpeed = volumeSlideSpeed;
 }
 
-void StreamedSound::slidePitch(double targetPitch,
-							   double pitchSlideSpeed)
+void StreamedSound::slidePitch(float targetPitch,
+							   float pitchSlideSpeed)
 {
 	this->targetPitch = targetPitch;
 	this->pitchSlideSpeed = pitchSlideSpeed;
@@ -187,14 +187,14 @@ bool StreamedSound::update()
 	if(playing && !finish) pumpBuffers();
 #endif
 
-	if(volumeSlideSpeed > 0.0)
+	if(volumeSlideSpeed > 0.0f)
 	{
-		double currentVolume = getVolume();
-		double newVolume = currentVolume * (1.0 - volumeSlideSpeed) + targetVolume * volumeSlideSpeed;
-		if(abs(targetVolume - newVolume) < 0.01)
+		float currentVolume = getVolume();
+		float newVolume = currentVolume * (1.0f - volumeSlideSpeed) + targetVolume * volumeSlideSpeed;
+		if(abs(targetVolume - newVolume) < 0.01f)
 		{
 			newVolume = targetVolume;
-			volumeSlideSpeed = 0.0;
+			volumeSlideSpeed = 0.0f;
 
 			if(stopAtSlideEnd)
 			{
@@ -206,14 +206,14 @@ bool StreamedSound::update()
 		setVolume(newVolume);
 	}
 
-	if(pitchSlideSpeed > 0.0)
+	if(pitchSlideSpeed > 0.0f)
 	{
-		double currentPitch = getPitch();
-		double newPitch = currentPitch * (1.0 - pitchSlideSpeed) + targetPitch * pitchSlideSpeed;
-		if(abs(targetPitch - newPitch) < 0.01)
+		float currentPitch = getPitch();
+		float newPitch = currentPitch * (1.0f - pitchSlideSpeed) + targetPitch * pitchSlideSpeed;
+		if(abs(targetPitch - newPitch) < 0.01f)
 		{
 			newPitch = targetPitch;
-			pitchSlideSpeed = 0.0;
+			pitchSlideSpeed = 0.0f;
 		}
 
 		setPitch(newPitch);

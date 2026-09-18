@@ -136,7 +136,7 @@ bool Presets::getPresetSprites(const std::string& name,
 
 void Presets::renderPreset(const std::string& name,
 						   const Vec2i& position,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	Engine& engine = Engine::inst();
 
@@ -689,8 +689,8 @@ Object* Presets::instancePreset(const std::string& name,
 	// object types that only ever occur in saved games
 	else if(name == "Damage")
 	{
-		double rotation = -1.0;
-		if(p_element) p_element->QueryDoubleAttribute("rotation", &rotation);
+		float rotation = -1.0f;
+		if(p_element) p_element->QueryFloatAttribute("rotation", &rotation);
 		p_theObject = new Damage(level, position, rotation);
 	}
 	else if(name == "ToxicGas")
@@ -699,7 +699,7 @@ Object* Presets::instancePreset(const std::string& name,
 	}
 	else if(name == "Projectile")
 	{
-		p_theObject = new Projectile(level, position * 16, Vec2d(0.0));
+		p_theObject = new Projectile(level, position * 16, Vec2f(0.0f));
 	}
 
 	if(p_theObject)

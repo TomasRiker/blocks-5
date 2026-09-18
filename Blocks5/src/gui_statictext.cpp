@@ -6,7 +6,7 @@
 IMPL_CTOR(GUI_StaticText)
 {
 	text = "StaticText";
-	color = Vec4d(1.0, 1.0, 1.0, 1.0);
+	color = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 	wordWrap = false;
 	centerText = false;
 }
@@ -54,10 +54,10 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 	e = p_element->FirstChildElement("Color");
 	if(e)
 	{
-		e->QueryDoubleAttribute("r", &color.r);
-		e->QueryDoubleAttribute("g", &color.g);
-		e->QueryDoubleAttribute("b", &color.b);
-		e->QueryDoubleAttribute("a", &color.a);
+		e->QueryFloatAttribute("r", &color.r);
+		e->QueryFloatAttribute("g", &color.g);
+		e->QueryFloatAttribute("b", &color.b);
+		e->QueryFloatAttribute("a", &color.a);
 	}
 
 	if(p_element->FirstChildElement("WordWrap")) wordWrap = true;

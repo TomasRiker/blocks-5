@@ -26,12 +26,12 @@ void Hotel::updateSprites()
 }
 
 void Hotel::onRender(RenderLayer layer,
-					 const Vec4d& color)
+					 const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.4, 0.4 + 0.05 * glowJitter);
+		level.renderShine(0.4f, 0.4f + 0.05f * glowJitter);
 	}
 }
 
@@ -46,9 +46,9 @@ void Hotel::onUpdate()
 	p.positionOnTexture = Vec2b(0, 0);
 	p.sizeOnTexture = Vec2b(16, 16);
 	p.position = position * 16 + Vec2i(random(11, 13), 2);
-	p.velocity = Vec2d(random(-0.25, 0.25), -0.5);
-	p.color = Vec4d(0.25, 0.25, 0.25, random(0.15, 0.25));
-	p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+	p.velocity = Vec2f(random(-0.25f, 0.25f), -0.5f);
+	p.color = Vec4f(0.25f, 0.25f, 0.25f, random(0.15f, 0.25f));
+	p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 	p.rotation = random(0.0f, 10.0f);
 	p.deltaRotation = random(-0.1f, 0.1f);
 	p.size = random(0.2f, 0.3f);
@@ -63,7 +63,7 @@ void Hotel::onUpdate()
 
 		if(state == 1)
 		{
-			say("$G_HOTEL_WELCOME", 0.5);
+			say("$G_HOTEL_WELCOME", 0.5f);
 			p_hotelToSave = this;
 		}
 	}
@@ -95,10 +95,10 @@ void Hotel::onRemove()
 
 void Hotel::onSave()
 {
-	say("$G_HOTEL_GOODBYE", 2.0);
+	say("$G_HOTEL_GOODBYE", 2.0f);
 
 	state = -1;
 	p_hotelToSave = 0;
 
-	Engine::inst().playSound("hotel.ogg", false, 0.0, 100);
+	Engine::inst().playSound("hotel.ogg", false, 0.0f, 100);
 }

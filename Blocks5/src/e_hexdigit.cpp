@@ -23,21 +23,21 @@ E_HexDigit::~E_HexDigit()
 void E_HexDigit::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(192, 608)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(192, 608)).rotation = 90.0f * dir;
 	if(value != -1)
 	{
-		sprites.add(Vec2i(32 * (value % 8), 640 + 32 * (value / 8))).rotation = 90.0 * dir;
+		sprites.add(Vec2i(32 * (value % 8), 640 + 32 * (value / 8))).rotation = 90.0f * dir;
 	}
 }
 
 void E_HexDigit::onRender(RenderLayer layer,
-						  const Vec4d& color)
+						  const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.5, 0.5 + 0.05 * glowJitter);
+		level.renderShine(0.5f, 0.5f + 0.05f * glowJitter);
 	}
 }
 

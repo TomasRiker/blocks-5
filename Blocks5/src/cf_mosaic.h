@@ -11,7 +11,7 @@ public:
 	CF_Mosaic();
 	~CF_Mosaic();
 
-	void render(double t, uint oldImageID, uint newImageID);
+	void render(float t, uint oldImageID, uint newImageID);
 
 private:
 	uint bufferID;

@@ -11,11 +11,11 @@ public:
 	Mirror(Level& level, const Vec2i& position, int subType, int dir);
 	~Mirror();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);
-	bool reflectProjectile(Vec2d& velocity);
+	bool reflectProjectile(Vec2f& velocity);
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 	std::string getToolTip() const;

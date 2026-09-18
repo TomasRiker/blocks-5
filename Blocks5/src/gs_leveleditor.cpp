@@ -767,7 +767,7 @@ public:
 			ParameterBlock p;
 			p.set("levelDocument", editor.p_level->save());
 			editor.engine.pushGameState("GS_Game", p);
-			editor.engine.crossfade(new CF_Mosaic, 0.85);
+			editor.engine.crossfade(new CF_Mosaic, 0.85f);
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Help")
 		{
@@ -917,7 +917,7 @@ public:
 		{
 			if(!editor.wasChanged() || confirmed)
 			{
-				editor.engine.crossfade(new CF_Star, 0.85);
+				editor.engine.crossfade(new CF_Star, 0.85f);
 				editor.engine.popGameState();
 			}
 			else
@@ -1168,7 +1168,7 @@ void GS_LevelEditor::onRender()
 		// highlight the selected pin and the start pin: frames through the
 		// pixel centres
 		renderer.push();
-		renderer.translate(0.5, 0.5);
+		renderer.translate(0.5f, 0.5f);
 
 		if(p_currentPin)
 		{
@@ -1221,7 +1221,7 @@ void GS_LevelEditor::onRender()
 
 	// render the selected category
 	renderer.push();
-	renderer.translate(245.0, 428.0);
+	renderer.translate(245.0f, 428.0f);
 	p_currentCat->render();
 
 	// render the selection
@@ -1237,7 +1237,7 @@ void GS_LevelEditor::onRender()
 		GUI_MultiLineEditBox* p_box = static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"]);
 		p_hint->setText(p_box->getText());
 		p_hint->setPreviewLanguage(languageAtCursor(p_box->getText(), p_box->getCursor()));
-		p_hint->render(RL_HINT_PREVIEW, Vec2i(0, 0), Vec4d(1.0));
+		p_hint->render(RL_HINT_PREVIEW, Vec2i(0, 0), Vec4f(1.0f));
 	}
 }
 
@@ -1316,7 +1316,7 @@ void GS_LevelEditor::onLeave(const ParameterBlock& context)
 
 void GS_LevelEditor::onGetFocus()
 {
-	engine.playMusic("menu.ogg", 0.0, true);
+	engine.playMusic("menu.ogg", 0.0f, true);
 
 	gui["LevelEditor"]->focus();
 }

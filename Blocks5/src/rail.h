@@ -13,7 +13,7 @@ public:
 	Rail(Level& level, const Vec2i& position, int subType, int dir);
 	~Rail();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);

@@ -9,7 +9,7 @@ ActivatorBlock::ActivatorBlock(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_GRAVITY | (shielded ? 0 : OF_DESTROYABLE) | OF_ACTIVATOR | OF_TRANSPORTABLE | OF_CONVERTABLE | OF_BLOCK_GAS;
-	interpolation = 0.3;
+	interpolation = 0.3f;
 	destroyTime = 1;
 	this->shielded = shielded;
 }
@@ -25,7 +25,7 @@ void ActivatorBlock::updateSprites()
 }
 
 void ActivatorBlock::onRender(RenderLayer layer,
-							  const Vec4d& color)
+							  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }

@@ -21,24 +21,24 @@ namespace
 	//
 	// Ten rather than seven because this is a distance and not a speed: over
 	// 1.5 seconds, seven heights would read as leisurely rather than frantic.
-	const double ROLL_SCREENS = 10.0;
+	const float ROLL_SCREENS = 10.0f;
 
 	// Over what part of the end the transport brakes and the vertical hold
 	// locks again. Without it the garbled picture would stop with a cut.
-	const double SETTLE = 0.18;
+	const float SETTLE = 0.18f;
 
 	// Sideways offset per strip: the head meets the track at an angle, and
 	// every line therefore starts a little early or a little late.
-	const double TRACKING_JITTER = 2.5;
+	const float TRACKING_JITTER = 2.5f;
 
 	// And the same at the seam, where the two source images meet - the
 	// tracking is at its worst there.
-	const double SEAM_SHIFT = 16.0;
+	const float SEAM_SHIFT = 16.0f;
 
 	// How frayed the seam is, as a fraction of the picture height. A sharp
 	// seam would show an edge travelling across the picture with the finished
 	// new picture behind it - exactly what is to be hidden here.
-	const double SEAM_WIDTH = 0.30;
+	const float SEAM_WIDTH = 0.30f;
 
 	// Noise bars: where the head lands between two tracks there is no picture
 	// at all but snow. How many there are depends on the speed of the tape.
@@ -50,8 +50,8 @@ namespace
 	// wash does half the work: VHS puts the colour under the picture as a
 	// carrier of its own, and that does not survive the spooling - a picture
 	// in search is almost grey.
-	const double SNOW_ALPHA = 0.16;
-	const double WASH_ALPHA = 0.22;
+	const float SNOW_ALPHA = 0.16f;
+	const float WASH_ALPHA = 0.22f;
 
 	// Edge length of the noise image. A power of two, because it is tiled.
 	const int NOISE_SIZE = 256;
@@ -77,10 +77,10 @@ namespace
 	// knows no crossfade: it switches.
 	const uint OSD_BLINK_MS = 500;
 
-	double wrap(double value, double range)
+	float wrap(float value, float range)
 	{
 		value = fmod(value, range);
-		return (value < 0.0) ? value + range : value;
+		return (value < 0.0f) ? value + range : value;
 	}
 }
 
@@ -93,7 +93,7 @@ CF_Rewind::CF_Rewind()
 	// that triggers it: there is only one way in here, and nobody can
 	// therefore have the one without the other. It runs a little longer than
 	// the crossfade to keep the run-down from being cut off with the picture.
-	Engine::inst().playSound("rewind.ogg", false, 0.0, 100);
+	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100);
 
 	// Snow, once and for all. Grey, not coloured: what the head picks up
 	// between two tracks is noise with no colour carrier.
@@ -125,7 +125,7 @@ void CF_Rewind::drawStrip(uint imageID,
 						  int y,
 						  int height,
 						  int sourceY,
-						  double shift) const
+						  float shift) const
 {
 	// The texture coordinates are in pixels, as the image's state is sampled.
 	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
@@ -138,7 +138,7 @@ void CF_Rewind::drawStrip(uint imageID,
 
 void CF_Rewind::drawSnow(int y,
 						 int height,
-						 double alpha) const
+						 float alpha) const
 {
 	const float u = random(0.0f, 1.0f);
 	const float v = random(0.0f, 1.0f);
@@ -177,7 +177,7 @@ void CF_Rewind::drawSnow(int y,
    in behind the tape path. It
    stands steady while everything else tears - and that is exactly what makes
    the garbled picture read as a machine. */
-void CF_Rewind::render(double t,
+void CF_Rewind::render(float t,
 					   uint oldImageID,
 					   uint newImageID)
 {
@@ -185,29 +185,29 @@ void CF_Rewind::render(double t,
 	Renderer::inst().setBlend(BM_NORMAL);
 
 	// The tape spins up and brakes again.
-	const double eased = t * t * (3.0 - 2.0 * t);
-	const double roll = eased * ROLL_SCREENS * screenSize.y;
+	const float eased = t * t * (3.0f - 2.0f * t);
+	const float roll = eased * ROLL_SCREENS * screenSize.y;
 
 	// And at the end the picture settles: tracking, snow and wash go back
 	// while the tape coasts to a stop.
-	const double settle = clamp((1.0 - t) / SETTLE, 0.0, 1.0);
+	const float settle = clamp((1.0f - t) / SETTLE, 0.0f, 1.0f);
 
 	// The seam travels up through the picture: the tape runs backwards. Over
 	// SEAM_WIDTH chance decides, to keep it from being an edge.
-	const double seam = (1.0 + SEAM_WIDTH) * (1.0 - t) - 0.5 * SEAM_WIDTH;
+	const float seam = (1.0f + SEAM_WIDTH) * (1.0f - t) - 0.5f * SEAM_WIDTH;
 
 	for(int y = 0; y < screenSize.y; y += STRIP_HEIGHT)
 	{
 		const int height = min(STRIP_HEIGHT, screenSize.y - y);
-		const double where = static_cast<double>(y) / screenSize.y;
+		const float where = static_cast<float>(y) / screenSize.y;
 
 		// Above and below the seam the answer is clear, in between it is not.
-		const double distance = (where - seam) / SEAM_WIDTH;
-		const bool useNew = (distance + random(-0.5, 0.5) > 0.0);
+		const float distance = (where - seam) / SEAM_WIDTH;
+		const bool useNew = (distance + random(-0.5f, 0.5f) > 0.0f);
 
 		// How bad the tracking is here: worst at the seam.
-		const double closeness = clamp(1.0 - fabs(distance), 0.0, 1.0);
-		const double shift = settle * (random(-TRACKING_JITTER, TRACKING_JITTER)
+		const float closeness = clamp(1.0f - fabsf(distance), 0.0f, 1.0f);
+		const float shift = settle * (random(-TRACKING_JITTER, TRACKING_JITTER)
 									 + closeness * random(-SEAM_SHIFT, SEAM_SHIFT));
 
 		// The row this strip shows. Wrapped by hand and not left to the
@@ -234,9 +234,9 @@ void CF_Rewind::render(double t,
 	// The bars travel downward and are fully opaque: no picture lies there.
 	for(int i = 0; i < NOISE_BARS; i++)
 	{
-		const double speed = 0.6 + 0.5 * i;
+		const float speed = 0.6f + 0.5f * i;
 		const int height = random(NOISE_BAR_MIN, NOISE_BAR_MAX);
-		const int y = static_cast<int>(wrap((static_cast<double>(i) / NOISE_BARS + eased * speed)
+		const int y = static_cast<int>(wrap((static_cast<float>(i) / NOISE_BARS + eased * speed)
 											* screenSize.y, screenSize.y));
 		drawSnow(y, min(height, screenSize.y - y), settle);
 	}
@@ -258,13 +258,13 @@ void CF_Rewind::render(double t,
 	if(p_osd)
 	{
 		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 112),
-							Vec2i(OSD_TEXT_WIDTH, OSD_HEIGHT), Vec4d(1.0));
+							Vec2i(OSD_TEXT_WIDTH, OSD_HEIGHT), Vec4f(1.0f));
 
 		if(((SDL_GetTicks() - startTicks) / OSD_BLINK_MS) % 2 == 0)
 		{
 			engine.renderSprite(p_osd, Vec2i(OSD_X + OSD_TEXT_WIDTH, OSD_Y),
 								Vec2i(OSD_TEXT_WIDTH, 112),
-								Vec2i(OSD_ARROWS_WIDTH, OSD_HEIGHT), Vec4d(1.0));
+								Vec2i(OSD_ARROWS_WIDTH, OSD_HEIGHT), Vec4f(1.0f));
 		}
 	}
 }

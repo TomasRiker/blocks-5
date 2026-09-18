@@ -19,16 +19,16 @@ Fire::~Fire()
 void Fire::updateSprites()
 {
 	// fire
-	sprites.add(Vec2i((anim / 5 % 8) * 32, 320), Vec4d(1.0, 1.0, 1.0, 0.5));
+	sprites.add(Vec2i((anim / 5 % 8) * 32, 320), Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
 }
 
 void Fire::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.5, 1.0 + 0.05 * sin(anim / 5.0) + 0.05 * glowJitter);
+		level.renderShine(0.5f, 1.0f + 0.05f * sin(anim / 5.0f) + 0.05f * glowJitter);
 	}
 }
 
@@ -44,10 +44,10 @@ void Fire::onUpdate()
 	p.positionOnTexture = Vec2b(32, 0);
 	p.sizeOnTexture = Vec2b(16, 16);
 	p.position = position * 16 + Vec2i(random(6, 10), random(6, 10));
-	p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));
-	p.color = Vec4d(random(0.5, 1.0), random(0.8, 1.0), random(0.0, 0.25), random(0.2, 0.4));
-	const double dc = -1.5 / (p.lifetime + random(-25, 25));
-	p.deltaColor = Vec4d(dc, dc, dc, -p.color.a / p.lifetime);
+	p.velocity = Vec2f(random(-0.5f, 0.5f), random(-0.5f, 0.5f));
+	p.color = Vec4f(random(0.5f, 1.0f), random(0.8f, 1.0f), random(0.0f, 0.25f), random(0.2f, 0.4f));
+	const float dc = -1.5f / (p.lifetime + random(-25, 25));
+	p.deltaColor = Vec4f(dc, dc, dc, -p.color.a / p.lifetime);
 	p.rotation = random(0.0f, 10.0f);
 	p.deltaRotation = random(-0.1f, 0.1f);
 	p.size = random(0.5f, 0.9f);
@@ -69,9 +69,9 @@ void Fire::onUpdate()
 			p_obj->setDestroyTime(p_obj->getDestroyTime() - 1);
 			if(!p_obj->getDestroyTime())
 			{
-				p_obj->disappear(0.2);
+				p_obj->disappear(0.2f);
 
-				Engine::inst().playSound("vaporize.ogg", false, 0.15);
+				Engine::inst().playSound("vaporize.ogg", false, 0.15f);
 
 				// debris
 				const Sprites& debris = p_obj->getSprites();
@@ -83,14 +83,14 @@ void Fire::onUpdate()
 					p.gravity = -0.1f;
 					p.positionOnTexture = Vec2b(96, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
-					Vec4d sampled;
+					Vec4f sampled;
 					Vec2i offset;
 					if(!debris.sample(&sampled, &offset)) continue;
 
 					p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
+					p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 					p.color = sampled;
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.5f, 1.5f);
@@ -112,15 +112,15 @@ void Fire::onUpdate()
 						p.positionOnTexture = Vec2b(0, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
 
-						Vec4d sampled;
+						Vec4f sampled;
 						Vec2i offset;
 						if(!ownDebris.sample(&sampled, &offset)) continue;
 
 						p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-						p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));
+						p.velocity = Vec2f(random(-0.5f, 0.5f), random(-0.5f, 0.5f));
 						p.color = sampled;
-						const double dc = -0.5 / (p.lifetime + random(-25, 25));
-						p.deltaColor = Vec4d(dc, dc, dc, -p.color.a / p.lifetime);
+						const float dc = -0.5f / (p.lifetime + random(-25, 25));
+						p.deltaColor = Vec4f(dc, dc, dc, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.6f, 0.9f);
@@ -129,7 +129,7 @@ void Fire::onUpdate()
 						else p_fireParticleSystem->addParticle(p);
 					}
 
-					disappear(0.2);
+					disappear(0.2f);
 				}
 			}
 		}

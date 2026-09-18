@@ -185,7 +185,7 @@ void ParticleSystem::update()
 
 void ParticleSystem::addParticle(const Particle& particle)
 {
-	const double particleDensity = Engine::inst().getParticleDensity();
+	const float particleDensity = Engine::inst().getParticleDensity();
 	if(particleDensity != 1.0 && mt.rand() > 0.25 + 0.75 * particleDensity) return;
 
 	particles.push_back(particle);
@@ -193,7 +193,7 @@ void ParticleSystem::addParticle(const Particle& particle)
 
 ParticleSystem::Particle* ParticleSystem::getNewParticle()
 {
-	const double particleDensity = Engine::inst().getParticleDensity();
+	const float particleDensity = Engine::inst().getParticleDensity();
 	if(particleDensity != 1.0 && mt.rand() > 0.25 + 0.75 * particleDensity) return 0;
 
 	particles.push_back(Particle());

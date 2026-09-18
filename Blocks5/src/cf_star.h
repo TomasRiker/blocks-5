@@ -11,7 +11,7 @@ public:
 	CF_Star();
 	~CF_Star();
 
-	void render(double t, uint oldImageID, uint newImageID);
+	void render(float t, uint oldImageID, uint newImageID);
 
 private:
 	void renderStar(const Vec4f& color);

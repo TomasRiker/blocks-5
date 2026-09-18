@@ -11,7 +11,7 @@ public:
 	E_LightBulb(Level& level, const Vec2i& position, int dir);
 	~E_LightBulb();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	bool changeInEditor(int mod);
 	void doLogic();

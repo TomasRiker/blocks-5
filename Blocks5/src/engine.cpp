@@ -56,7 +56,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 // The value stands here and not in the options: it is a property of the
 // mixture, not a matter of taste. The player's own sliders are untouched and
 // still read 100%.
-const double MASTER_HEADROOM = 0.45;
+const float MASTER_HEADROOM = 0.45f;
 
 Engine::Engine()
 {
@@ -77,8 +77,8 @@ Engine::Engine()
 	grabDeadline = 0;
 	grabHasDeadline = false;
 	p_crossfade = 0;
-	crossfadeTime = -1.0;
-	crossfadeDuration = 0.0;
+	crossfadeTime = -1.0f;
+	crossfadeDuration = 0.0f;
 	p_videoRecorder = 0;
 	p_audioCapture = 0;
 	p_muteIconTexture = 0;
@@ -675,7 +675,7 @@ bool Engine::init(const std::string& windowCaption,
 	// Headroom for the mix. The individual sources stay as they are - only the
 	// finished mix gets quieter, and it does that before OpenAL Soft clamps it
 	// to [-1, 1].
-	alListenerf(AL_GAIN, static_cast<float>(MASTER_HEADROOM));
+	alListenerf(AL_GAIN, MASTER_HEADROOM);
 
 	printfLog("* Initializing GUI ...\n");
 	if(!GUI::inst().init())
@@ -736,7 +736,7 @@ void Engine::exit()
 
 	// delete the crossfade and the textures - before the managers go, since a
 	// crossfade may hold a resource of theirs (CF_Rewind's OSD picture)
-	crossfade(0, 0.0);
+	crossfade(0, 0.0f);
 	Renderer::inst().deleteTexture(oldImageID);
 	Renderer::inst().deleteTexture(newImageID);
 
@@ -1146,7 +1146,7 @@ void Engine::mainLoopIteration()
 			// still be answered, or it could neither take its picture nor
 			// quit the game - but nothing else of the tick happens, and time
 			// does not move, so every frame from here on is the same one.
-			TestHooks::checkFreeze(sceneTick, p_crossfade ? static_cast<int>(crossfadeTime * 1000.0) : -1);
+			TestHooks::checkFreeze(sceneTick, p_crossfade ? static_cast<int>(crossfadeTime * 1000.0f) : -1);
 			if(TestHooks::frozen())
 			{
 #ifndef __EMSCRIPTEN__
@@ -1223,39 +1223,39 @@ void Engine::mainLoopIteration()
 
 		phases[FrameStats::FS_UPDATE] = static_cast<float>((getExactTime() - updateBegin) * 1000.0);
 
-		if(crossfadeTime == -0.51)
+		if(crossfadeTime == -0.51f)
 		{
 			// save the old image. The framebuffer has to be bound explicitly
 			// for that: without a logic tick nothing is rendered, and then the
 			// screen is still bound - which WebGL clears before every frame.
 			bindFrameBuffer();
 			captureFrame(oldImageID);
-			crossfadeTime = -0.5;
+			crossfadeTime = -0.5f;
 		}
-		else if(crossfadeTime >= -0.5 && frameRendered)
+		else if(crossfadeTime >= -0.5f && frameRendered)
 		{
 			// fetch the current image and draw the crossfade over it
 			captureFrame(newImageID);
-			p_crossfade->render(max(0.0, crossfadeTime / crossfadeDuration), oldImageID, newImageID);
+			p_crossfade->render(max(0.0f, crossfadeTime / crossfadeDuration), oldImageID, newImageID);
 		}
 
 		if(timeProcessed)
 		{
 			// update the crossfade
-			if(crossfadeTime >= 0.0)
+			if(crossfadeTime >= 0.0f)
 			{
-				crossfadeTime += 0.001 * timeProcessed;
+				crossfadeTime += 0.001f * timeProcessed;
 				if(crossfadeTime > crossfadeDuration)
 				{
 					// The crossfade is over!
-					crossfadeTime = -1.0;
-					crossfadeDuration = 0.0;
+					crossfadeTime = -1.0f;
+					crossfadeDuration = 0.0f;
 					delete p_crossfade;
 					p_crossfade = 0;
 				}
 			}
-			else if(crossfadeTime == -0.5) crossfadeTime = -0.25;
-			else if(crossfadeTime == -0.25) crossfadeTime = 0.0;
+			else if(crossfadeTime == -0.5f) crossfadeTime = -0.25f;
+			else if(crossfadeTime == -0.25f) crossfadeTime = 0.0f;
 		}
 
 		if(frameRendered)
@@ -1399,21 +1399,21 @@ namespace
 
 	// Hold times where showToast names none. An error stands longer, because
 	// it has to be read and usually acted on as well.
-	const double TOAST_SECONDS_OK    = 2.0;
-	const double TOAST_SECONDS_ERROR = 4.0;
+	const float TOAST_SECONDS_OK    = 2.0f;
+	const float TOAST_SECONDS_ERROR = 4.0f;
 }
 
 void Engine::showToast(ToastType type,
 					   const std::string& text,
-					   double duration,
+					   float duration,
 					   bool suppressSound)
 {
-	if(duration <= 0.0) duration = (type == TOAST_ERROR) ? TOAST_SECONDS_ERROR : TOAST_SECONDS_OK;
-	const uint durationMS = static_cast<uint>(duration * 1000.0);
+	if(duration <= 0.0f) duration = (type == TOAST_ERROR) ? TOAST_SECONDS_ERROR : TOAST_SECONDS_OK;
+	const uint durationMS = static_cast<uint>(duration * 1000.0f);
 
 	// The sound hangs off the click and not off the message: it comes even
 	// when the same message already stands and merely stays longer.
-	if(type == TOAST_ERROR && !suppressSound) playSound("teleport_failed.ogg", false, 0.0, 100);
+	if(type == TOAST_ERROR && !suppressSound) playSound("teleport_failed.ogg", false, 0.0f, 100);
 
 	// If the same message already stands, no second copy but the longer hold
 	// time of the two. One that is already sliding out does not count.
@@ -1442,8 +1442,8 @@ void Engine::showToast(ToastType type,
 	toast.phase = 0;
 	toast.phaseTime = 0;
 	toast.duration = durationMS;
-	toast.y = -static_cast<double>(TOAST_HEIGHT);
-	toast.targetY = 0.0;
+	toast.y = -static_cast<float>(TOAST_HEIGHT);
+	toast.targetY = 0.0f;
 	toasts.push_back(toast);
 
 	reflowToasts();
@@ -1457,7 +1457,7 @@ void Engine::reflowToasts()
 	for(std::list<Toast>::reverse_iterator i = toasts.rbegin(); i != toasts.rend(); ++i)
 	{
 		if(i->phase == 2) continue;
-		i->targetY = static_cast<double>(slot * TOAST_HEIGHT);
+		i->targetY = static_cast<float>(slot * TOAST_HEIGHT);
 		slot++;
 	}
 }
@@ -1468,7 +1468,7 @@ void Engine::updateToasts()
 
 	// A toast gets this far in one tick: one bar height in the time of a fade.
 	// A change of slot therefore takes as long as the slide in.
-	const double step = static_cast<double>(TOAST_HEIGHT) * logicRate / TOAST_FADE;
+	const float step = static_cast<float>(TOAST_HEIGHT) * logicRate / TOAST_FADE;
 
 	bool slotsFreed = false;
 
@@ -1526,24 +1526,24 @@ void Engine::renderToasts()
 	{
 		// Fading in and out goes together with the movement: the bar is not
 		// fully opaque, and a sudden disappearance would show.
-		double alpha = 1.0;
-		if(i->phase == 0) alpha = static_cast<double>(i->phaseTime) / TOAST_FADE;
-		else if(i->phase == 2) alpha = 1.0 - static_cast<double>(i->phaseTime) / TOAST_FADE;
-		alpha = clamp(alpha, 0.0, 1.0);
+		float alpha = 1.0f;
+		if(i->phase == 0) alpha = static_cast<float>(i->phaseTime) / TOAST_FADE;
+		else if(i->phase == 2) alpha = 1.0f - static_cast<float>(i->phaseTime) / TOAST_FADE;
+		alpha = clamp(alpha, 0.0f, 1.0f);
 
-		const Vec3d color = i->type == TOAST_ERROR ? Vec3d(0.5, 0.0, 0.0) : Vec3d(0.0, 0.5, 0.0);
+		const Vec3f color = i->type == TOAST_ERROR ? Vec3f(0.5f, 0.0f, 0.0f) : Vec3f(0.0f, 0.5f, 0.0f);
 
 		renderer.push();
-		renderer.translate(0.0, floor(i->y + 0.5));
+		renderer.translate(0.0f, floorf(i->y + 0.5f));
 
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, TOAST_HEIGHT), Vec2f(0.0f, TOAST_HEIGHT)};
-		const Vec4f top(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), static_cast<float>(0.75 * alpha));
-		const Vec4f bottom(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), static_cast<float>(0.9 * alpha));
+		const Vec4f top(color.r, color.g, color.b, 0.75f * alpha);
+		const Vec4f bottom(color.r, color.g, color.b, 0.9f * alpha);
 		const Vec4f colors[4] = {top, top, bottom, bottom};
 		renderer.quad(corners, colors);
-		renderer.hairline(Vec2f(0.0f, TOAST_HEIGHT), Vec2f(640.0f, TOAST_HEIGHT), Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9 * alpha)));
+		renderer.hairline(Vec2f(0.0f, TOAST_HEIGHT), Vec2f(640.0f, TOAST_HEIGHT), Vec4f(0.0f, 0.0f, 0.0f, 0.9f * alpha));
 
-		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4d(1.0, 1.0, 1.0, alpha));
+		if(p_font) p_font->renderText(localizeString(i->text), Vec2i(10, 9), Vec4f(1.0f, 1.0f, 1.0f, alpha));
 
 		renderer.pop();
 	}
@@ -2603,12 +2603,12 @@ void Engine::handleResize(int width, int height)
 	if(!fullScreen && !isWindowMaximized()) windowedSize = displaySize;
 }
 
-Vec2d Engine::warpToSource(const Vec2d& p) const
+Vec2f Engine::warpToSource(const Vec2f& p) const
 {
 	return p_wantedUpscaler->warpToSource(p);
 }
 
-Vec2d Engine::warpToOutput(const Vec2d& p) const
+Vec2f Engine::warpToOutput(const Vec2f& p) const
 {
 	return p_wantedUpscaler->warpToOutput(p);
 }
@@ -2617,13 +2617,13 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 {
 	// The largest possible 4:3 rectangle in the window, centred. What is left
 	// over goes black - black bars rather than a distorted picture.
-	double scale = min(static_cast<double>(displaySize.x) / screenSize.x,
-					   static_cast<double>(displaySize.y) / screenSize.y);
+	float scale = min(static_cast<float>(displaySize.x) / screenSize.x,
+					  static_cast<float>(displaySize.y) / screenSize.y);
 
 	// Sharp needs an integer step. At a fractional factor nearest doubles some
 	// source pixels and not others - uneven stroke widths, ragged lettering.
 	// Below 1:1 there is no such step.
-	if(p_wantedUpscaler->wantsIntegerScale() && scale >= 1.0) scale = floor(scale);
+	if(p_wantedUpscaler->wantsIntegerScale() && scale >= 1.0f) scale = floorf(scale);
 
 	w = static_cast<int>(screenSize.x * scale);
 	h = static_cast<int>(screenSize.y * scale);
@@ -2648,7 +2648,7 @@ void Engine::presentFrame()
 	glDisable(GL_SCISSOR_TEST);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glBindTexture(GL_TEXTURE_2D, frameTextureID);
@@ -2679,17 +2679,17 @@ void Engine::presentFrame()
 
 void Engine::drawOverlays()
 {
-	if(p_muteIconTexture && getEffectiveSoundVolume() == 0.0 && getEffectiveMusicVolume() == 0.0)
+	if(p_muteIconTexture && getEffectiveSoundVolume() == 0.0f && getEffectiveMusicVolume() == 0.0f)
 	{
 		renderSprite(p_muteIconTexture, Vec2i(5, 5),
-					 muteIconPositionOnTexture, muteIconSize, Vec4d(1.0, 1.0, 1.0, 0.75));
+					 muteIconPositionOnTexture, muteIconSize, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
 	}
 
 	if(p_recordingIconTexture && p_videoRecorder &&
 	   ((getExactTimeMS() - recordingStartTime) / 500) % 2)
 	{
 		renderSprite(p_recordingIconTexture, Vec2i(screenSize.x - recordingIconSize.x - 5, 5),
-					 recordingIconPositionOnTexture, recordingIconSize, Vec4d(1.0, 1.0, 1.0, 0.75));
+					 recordingIconPositionOnTexture, recordingIconSize, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
 	}
 
 	if(performanceShown) drawPerformance();
@@ -2770,7 +2770,7 @@ void Engine::drawPerformance()
 
 	for(int i = 0; i < 3; i++)
 	{
-		p_font->renderText(line[i], Vec2i(6, top + 4 + i * lineHeight), Vec4d(1.0, 1.0, 1.0, 1.0));
+		p_font->renderText(line[i], Vec2i(6, top + 4 + i * lineHeight), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 	}
 }
 
@@ -2874,13 +2874,13 @@ bool Engine::screenshot()
 #endif
 }
 
-void Engine::renderSprite(const Vec2d& position,
+void Engine::renderSprite(const Vec2f& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
-						  const Vec4d& color,
+						  const Vec4f& color,
 						  bool mirrorX,
-						  double rotation,
-						  double scaling)
+						  float rotation,
+						  float scaling)
 {
 	if(renderSuppressed) return;
 
@@ -2913,20 +2913,20 @@ void Engine::enableFlushAll()
 }
 
 void Engine::renderSprite(Texture* p_sprite,
-						  const Vec2d& position,
+						  const Vec2f& position,
 						  const Vec2i& positionOnTexture,
 						  const Vec2i& size,
-						  const Vec4d& color,
+						  const Vec4f& color,
 						  bool mirrorX,
-						  double rotation,
-						  double scaling)
+						  float rotation,
+						  float scaling)
 {
 	Renderer::inst().setTexture(p_sprite->ref());
 	renderSprite(position, positionOnTexture, size, color, mirrorX, rotation, scaling);
 }
 
 void Engine::renderSprites(const Sprites& sprites,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	const int numSprites = sprites.getCount();
 	for(int i = 0; i < numSprites; i++)
@@ -2943,7 +2943,7 @@ void Engine::renderSprites(const Sprites& sprites,
 
 SoundInstance* Engine::playSound(const std::string& filename,
 								 bool loop,
-								 double pitchSpectrum,
+								 float pitchSpectrum,
 								 int priority,
 								 bool forceCreation)
 {
@@ -2958,7 +2958,7 @@ SoundInstance* Engine::playSound(const std::string& filename,
 		// the generator's sequence - which every tick of a level runs
 		// through in order - depend on how the machine bunched its ticks:
 		// the same level came out differently from one run to the next.
-		const double pitch = pitchSpectrum != 0.0 ? 1.0 + random(-pitchSpectrum, pitchSpectrum) : 1.0;
+		const float pitch = pitchSpectrum != 0.0f ? 1.0f + random(-pitchSpectrum, pitchSpectrum) : 1.0f;
 
 		SoundInstance* p_inst = p_sound->createInstance(forceCreation);
 		p_sound->release();
@@ -2966,7 +2966,7 @@ SoundInstance* Engine::playSound(const std::string& filename,
 		if(p_inst)
 		{
 			// set the pitch
-			if(pitchSpectrum != 0.0) p_inst->setPitch(pitch);
+			if(pitchSpectrum != 0.0f) p_inst->setPitch(pitch);
 
 			// set the priority
 			p_inst->setPriority(priority);
@@ -3092,7 +3092,7 @@ void Engine::processGameStateChanges()
 }
 
 void Engine::playMusic(const std::string& filename,
-					   double loopBegin,
+					   float loopBegin,
 					   bool resumeWhereStopped)
 {
 	// Does the music have to change?
@@ -3115,9 +3115,9 @@ void Engine::playMusic(const std::string& filename,
 					if(it != musicStoppedAt.end()) p_currentMusic->seekStream(it->second);
 				}
 
-				p_currentMusic->setVolume(0.0);
-				p_currentMusic->play(loopBegin != -1.0);
-				p_currentMusic->slideVolume(1.0, 0.02);
+				p_currentMusic->setVolume(0.0f);
+				p_currentMusic->play(loopBegin != -1.0f);
+				p_currentMusic->slideVolume(1.0f, 0.02f);
 				p_currentMusic->setLoopBegin(loopBegin);
 			}
 			else
@@ -3140,7 +3140,7 @@ void Engine::stopMusic()
 		// the audio stream's read cursor)
 		musicStoppedAt[currentMusicFilename] = p_currentMusic->tellStream();
 
-		p_currentMusic->slideVolume(-1.0, 0.02);
+		p_currentMusic->slideVolume(-1.0f, 0.02f);
 		p_currentMusic = 0;
 	}
 
@@ -3730,12 +3730,12 @@ Vec2i Engine::getCursorPosition() const
 	computePresentRect(x, y, w, h);
 	if(w > 0 && h > 0)
 	{
-		Vec2d n((position.x + 0.5 - x) / w, (position.y + 0.5 - y) / h);
+		Vec2f n((position.x + 0.5f - x) / w, (position.y + 0.5f - y) / h);
 
 		// The same curvature as in the shader: the cursor sits on the glass.
 		// Without curvature warpToSource returns the coordinate unchanged.
-		const Vec2d warped = warpToSource(n * 2.0 - Vec2d(1.0, 1.0));
-		n = (warped + Vec2d(1.0, 1.0)) * 0.5;
+		const Vec2f warped = warpToSource(n * 2.0f - Vec2f(1.0f, 1.0f));
+		n = (warped + Vec2f(1.0f, 1.0f)) * 0.5f;
 
 		position.x = static_cast<int>(floor(n.x * screenSize.x));
 		position.y = static_cast<int>(floor(n.y * screenSize.y));
@@ -3763,12 +3763,12 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 	computePresentRect(x, y, w, h);
 	if(w > 0 && h > 0)
 	{
-		Vec2d n((temp.x + 0.5) / screenSize.x, (temp.y + 0.5) / screenSize.y);
+		Vec2f n((temp.x + 0.5f) / screenSize.x, (temp.y + 0.5f) / screenSize.y);
 
 		// The way back through the curvature. With the CRT filter off this
 		// is the identity.
-		const Vec2d out = warpToOutput(n * 2.0 - Vec2d(1.0, 1.0));
-		n = (out + Vec2d(1.0, 1.0)) * 0.5;
+		const Vec2f out = warpToOutput(n * 2.0f - Vec2f(1.0f, 1.0f));
+		n = (out + Vec2f(1.0f, 1.0f)) * 0.5f;
 
 		temp.x = x + static_cast<int>(floor(n.x * w));
 		temp.y = y + static_cast<int>(floor(n.y * h));
@@ -3842,16 +3842,16 @@ const Vec2i& Engine::getDisplaySize() const
 }
 
 void Engine::crossfade(Crossfade* p_crossfade,
-					   double duration,
+					   float duration,
 					   bool immediately)
 {
-	if(!p_crossfade || duration <= 0.0)
+	if(!p_crossfade || duration <= 0.0f)
 	{
 		// cancel the crossfade
 		delete this->p_crossfade;
 		this->p_crossfade = 0;
-		crossfadeTime = -1.0;
-		crossfadeDuration = 0.0;
+		crossfadeTime = -1.0f;
+		crossfadeDuration = 0.0f;
 	}
 	else
 	{
@@ -3859,7 +3859,7 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		// otherwise be leaked with whatever textures it holds
 		delete this->p_crossfade;
 		this->p_crossfade = p_crossfade;
-		crossfadeTime = -0.51;
+		crossfadeTime = -0.51f;
 		crossfadeDuration = duration;
 	}
 
@@ -3869,7 +3869,7 @@ void Engine::crossfade(Crossfade* p_crossfade,
 		// of whatever is bound right now.
 		bindFrameBuffer();
 		captureFrame(oldImageID);
-		crossfadeTime = -0.5;
+		crossfadeTime = -0.5f;
 	}
 }
 
@@ -3934,8 +3934,8 @@ void Engine::loadConfig()
 {
 	// With no <Language> in config.xml the system decides.
 	language = detectSystemLanguage();
-	soundVolume = musicVolume = 1.0;
-	particleDensity = 1.0;
+	soundVolume = musicVolume = 1.0f;
+	particleDensity = 1.0f;
 	details = 2;
 
 	TiXmlDocument doc;
@@ -4024,7 +4024,7 @@ void Engine::loadConfig()
 		if(p_soundVolume)
 		{
 			const char* p_text = p_soundVolume->GetText();
-			if(p_text) setSoundVolume(atof(p_text));
+			if(p_text) setSoundVolume(static_cast<float>(atof(p_text)));
 		}
 
 		// read the music volume
@@ -4032,7 +4032,7 @@ void Engine::loadConfig()
 		if(p_musicVolume)
 		{
 			const char* p_text = p_musicVolume->GetText();
-			if(p_text) setMusicVolume(atof(p_text));
+			if(p_text) setMusicVolume(static_cast<float>(atof(p_text)));
 		}
 
 		// read the details
@@ -4181,44 +4181,44 @@ void Engine::setLanguage(const std::string& language)
 	this->language = language;
 }
 
-double Engine::getSoundVolume() const
+float Engine::getSoundVolume() const
 {
 	return soundVolume;
 }
 
-void Engine::setSoundVolume(double soundVolume)
+void Engine::setSoundVolume(float soundVolume)
 {
-	soundVolume = clamp(soundVolume, 0.0, 1.0);
+	soundVolume = clamp(soundVolume, 0.0f, 1.0f);
 
 	this->soundVolume = soundVolume;
 	volumeChanged = true;
 }
 
-double Engine::getMusicVolume() const
+float Engine::getMusicVolume() const
 {
 	return musicVolume;
 }
 
-void Engine::setMusicVolume(double musicVolume)
+void Engine::setMusicVolume(float musicVolume)
 {
-	musicVolume = clamp(musicVolume, 0.0, 1.0);
+	musicVolume = clamp(musicVolume, 0.0f, 1.0f);
 
 	this->musicVolume = musicVolume;
 	volumeChanged = true;
 }
 
-double Engine::getEffectiveSoundVolume() const
+float Engine::getEffectiveSoundVolume() const
 {
 	// The mute key and a lost focus silence the output here rather than by
 	// writing 0 into the setting: the options dialog and config.xml keep
 	// seeing the volume the user chose, and neither can overwrite the
 	// other's idea of it.
-	return muted || !appActive ? 0.0 : soundVolume;
+	return muted || !appActive ? 0.0f : soundVolume;
 }
 
-double Engine::getEffectiveMusicVolume() const
+float Engine::getEffectiveMusicVolume() const
 {
-	return muted || !appActive ? 0.0 : musicVolume;
+	return muted || !appActive ? 0.0f : musicVolume;
 }
 
 bool Engine::wasVolumeChanged() const
@@ -4240,19 +4240,19 @@ void Engine::setDetails(int details)
 {
 	this->details = details;
 
-	if(details == 0) setParticleDensity(0.333);
-	else if(details == 1) setParticleDensity(0.666);
-	else setParticleDensity(1.0);
+	if(details == 0) setParticleDensity(0.333f);
+	else if(details == 1) setParticleDensity(0.666f);
+	else setParticleDensity(1.0f);
 }
 
-double Engine::getParticleDensity() const
+float Engine::getParticleDensity() const
 {
 	return particleDensity;
 }
 
-void Engine::setParticleDensity(double particleDensity)
+void Engine::setParticleDensity(float particleDensity)
 {
-	particleDensity = clamp(particleDensity, 0.0, 1.0);
+	particleDensity = clamp(particleDensity, 0.0f, 1.0f);
 
 	this->particleDensity = particleDensity;
 }
@@ -4298,19 +4298,19 @@ void Engine::loadSoundVolumes(const std::string& filename)
 		p_elem = p_elem->NextSiblingElement("Sound"))
 	{
 		const char* p_file = p_elem->Attribute("file");
-		double volume = 1.0;
-		if(p_file && p_elem->Attribute("volume", &volume)) soundVolumes[p_file] = volume;
+		float volume = 1.0f;
+		if(p_file && p_elem->QueryFloatAttribute("volume", &volume) == TIXML_SUCCESS) soundVolumes[p_file] = volume;
 	}
 
 	printfLog("* %u sound volume(s) read from \"%s\".\n",
 			  static_cast<uint>(soundVolumes.size()), filename.c_str());
 }
 
-double Engine::getSoundVolumeFactor(const std::string& filename) const
+float Engine::getSoundVolumeFactor(const std::string& filename) const
 {
-	const std::unordered_map<std::string, double>::const_iterator i =
+	const std::unordered_map<std::string, float>::const_iterator i =
 		soundVolumes.find(filename);
-	return (i == soundVolumes.end()) ? 1.0 : i->second;
+	return (i == soundVolumes.end()) ? 1.0f : i->second;
 }
 
 void Engine::loadStringDB(const std::string& filename)
@@ -4660,9 +4660,9 @@ void Engine::updateCursorSize()
 	// picture pixel for pixel too.
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
-	const double scale = screenSize.x ? static_cast<double>(w) / screenSize.x : 1.0;
+	const float scale = screenSize.x ? static_cast<float>(w) / screenSize.x : 1.0f;
 
-	const int wanted = scale >= 1.5 ? 2 : 1;
+	const int wanted = scale >= 1.5f ? 2 : 1;
 	if(wanted == cursorScale) return;
 
 	SDL_Cursor* p_cursor = wanted == 2 ? p_cursor2x : p_cursor1x;

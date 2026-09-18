@@ -116,7 +116,7 @@ protected:
 	bool visible;
 	bool active;
 	bool fill;
-	Vec4d fillColor;
+	Vec4f fillColor;
 	std::string toolTip;
 	bool toolTipOnly;
 	int tabStop;

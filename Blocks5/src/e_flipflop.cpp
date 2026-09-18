@@ -49,11 +49,11 @@ E_FlipFlop::~E_FlipFlop()
 void E_FlipFlop::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(64 * subType + 32 * value, 544)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(64 * subType + 32 * value, 544)).rotation = 90.0f * dir;
 }
 
 void E_FlipFlop::onRender(RenderLayer layer,
-						  const Vec4d& color)
+						  const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

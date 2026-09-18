@@ -60,7 +60,6 @@ bool equalsNoCase(const char* p_a, const char* p_b);
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);
-double random(double min, double max);
 
 // Seed the one generator all four of those draw from. Only the test build
 // calls it, and only where B5_SEED asks: a shipped game wants MTRand's own
@@ -111,20 +110,20 @@ inline bool isReturnKey(int key)
 // offset/2048 texels, so the drift turns visibly steppy about a minute in and
 // gets worse from there. Keeping the offset inside one period keeps the
 // precision constant.
-inline double wrapTextureOffset(double offset, int period)
+inline float wrapTextureOffset(float offset, int period)
 {
 	if(period <= 0) return offset;
-	return fmod(offset, static_cast<double>(period));
+	return fmodf(offset, static_cast<float>(period));
 }
 
 // To the nearest whole pixel, both signs alike. A plain conversion to Vec2i
 // cuts towards zero, so adding 0.5 first - the obvious rounding - rounds up
 // above zero and down below it, and a symmetric movement comes out a pixel
 // short on one side.
-inline Vec2i roundToVec2i(const Vec2d& v)
+inline Vec2i roundToVec2i(const Vec2f& v)
 {
-	return Vec2i(static_cast<int>(floor(v.x + 0.5)),
-				 static_cast<int>(floor(v.y + 0.5)));
+	return Vec2i(static_cast<int>(floor(v.x + 0.5f)),
+				 static_cast<int>(floor(v.y + 0.5f)));
 }
 
 extern bool writingCrashLog;

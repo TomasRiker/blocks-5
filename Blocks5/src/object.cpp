@@ -14,8 +14,8 @@
 // fifth less per logic tick, off below 1/256 - 25 ticks, half a second. Both
 // are a matter of taste, which is why they live here. extern, because the
 // HUD icons light up with the same numbers.
-extern const double FLASH_STRENGTH = 1.0;
-extern const double FLASH_DECAY = 0.8;
+extern const float FLASH_STRENGTH = 1.0f;
+extern const float FLASH_DECAY = 0.8f;
 
 // Where a beam is drawn, against where its emitter traced it. Laser and
 // LightBarrierSender both start at getShownPositionInPixels() + 7.5, the
@@ -34,12 +34,12 @@ extern const double FLASH_DECAY = 0.8;
 // puts its two edges exactly on two pixel centres, where the fill rule decides
 // what is lit, and a width below one pixel passes between two centres and
 // draws nothing at all.
-extern const double BEAM_DRAW_OFFSET = 0.5;
+extern const float BEAM_DRAW_OFFSET = 0.5f;
 
 // What is left to see of a block at the end of the conversion. Not 0: it is
 // solid until the last tick, and an invisible obstacle would be a bug and not
 // an effect.
-static const double CONVERSION_GHOST = 0.22;
+static const float CONVERSION_GHOST = 0.22f;
 
 int Object::nextFallingDepth = 1000000;
 
@@ -48,36 +48,36 @@ Object::Object(Level& level,
 {
 	level.addObject(this);
 	position = shownPosition = Vec2i(0, 0);
-	noCollect = 0.0;
+	noCollect = 0.0f;
 	flags = 0;
 	ghost = false;
 	destroyTime = 0;
-	deathCountDown = 1.0;
-	glowJitter = 0.0;
-	conversionProgress = 0.0;
-	deathSpeed = 0.0;
-	newDeathCountDown = 1.0;
-	newDeathSpeed = 0.0;
+	deathCountDown = 1.0f;
+	glowJitter = 0.0f;
+	conversionProgress = 0.0f;
+	deathSpeed = 0.0f;
+	newDeathCountDown = 1.0f;
+	newDeathSpeed = 0.0f;
 	newDeathTime = -1;
-	interpolation = 0.3;
+	interpolation = 0.3f;
 	collisionSound = "";
 	moved = false;
 	lastMoveDir = Vec2i(0, 0);
-	teleporting = 0.0;
+	teleporting = 0.0f;
 	teleportFailed = false;
 	oldDepth = depth;
-	falling = 0.0;
+	falling = 0.0f;
 	mass = 0;
 	uid = 0;
 	fall = 0;
 	lastHashedAt = -1;
 	removed = false;
-	flashAmount = 0.0;
+	flashAmount = 0.0f;
 	flashLayer = RL_MAIN;
 	renderLayers = 0;
 	sayText = "";
-	sayTime = 0.0;
-	sayAlpha = 0.0;
+	sayTime = 0.0f;
+	sayAlpha = 0.0f;
 	shadowPass = false;
 	slideDir = -1;
 	slideMove = false;
@@ -90,13 +90,13 @@ Object::~Object()
 
 void Object::render(RenderLayer layer,
 					const Vec2i& offset,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	// The block of a running conversion goes pale. CONVERSION_GHOST is what is
 	// left of it: it must not disappear entirely, because it can be pushed
 	// right up to the last moment.
-	const double converting = 1.0 - conversionProgress * (1.0 - CONVERSION_GHOST);
-	Vec4d realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
+	const float converting = 1.0f - conversionProgress * (1.0f - CONVERSION_GHOST);
+	Vec4f realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
 
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
@@ -112,31 +112,31 @@ void Object::render(RenderLayer layer,
 
 		if(layer != RL_LIGHT)
 		{
-			double o = -16.0;
-			if(getType() == "Enemy") o = -17.0;
+			float o = -16.0f;
+			if(getType() == "Enemy") o = -17.0f;
 
-			if(teleporting > 0.0)
+			if(teleporting > 0.0f)
 			{
-				double y = 1.0 + teleporting * teleporting * 500.0;
-				renderer.translate(0.0, y * o + 16.0);
-				renderer.scale(1.0, y);
-				realColor *= 1.0 - teleporting;
+				float y = 1.0f + teleporting * teleporting * 500.0f;
+				renderer.translate(0.0f, y * o + 16.0f);
+				renderer.scale(1.0f, y);
+				realColor *= 1.0f - teleporting;
 			}
-			else if(teleporting < 0.0)
+			else if(teleporting < 0.0f)
 			{
-				double y = 1.0 + teleporting * teleporting * 500.0;
-				renderer.translate(0.0, y * o + 16.0);
-				renderer.scale(1.0, y);
-				realColor *= 1.0 + teleporting;
+				float y = 1.0f + teleporting * teleporting * 500.0f;
+				renderer.translate(0.0f, y * o + 16.0f);
+				renderer.scale(1.0f, y);
+				realColor *= 1.0f + teleporting;
 			}
-			else if(falling > 0.0)
+			else if(falling > 0.0f)
 			{
-				double f = 1.0 / (1.0 + 4.0 * falling);
-				double size = 16.0 * f;
-				double add = (16.0 - size) * 0.5;
+				float f = 1.0f / (1.0f + 4.0f * falling);
+				float size = 16.0f * f;
+				float add = (16.0f - size) * 0.5f;
 				renderer.translate(add, add);
 				renderer.scale(f, f);
-				renderer.rotate(falling * 120.0);
+				renderer.rotate(falling * 120.0f);
 				realColor.r *= f;
 				realColor.g *= f;
 				realColor.b *= f;
@@ -156,15 +156,15 @@ void Object::render(RenderLayer layer,
 	// Only on the layer the object has just drawn its sprite on, and not in
 	// the shadow pass: that one goes through with black RGB, and an additive
 	// pass would turn it into a bright spot in the middle of the shadow.
-	if(flashAmount > 0.0 && layer == flashLayer && !shadowPass)
+	if(flashAmount > 0.0f && layer == flashLayer && !shadowPass)
 	{
 		renderer.setBlend(BM_ADDITIVE);
-		Engine::inst().renderSprites(sprites, Vec4d(flashAmount, flashAmount, flashAmount, realColor.a));
+		Engine::inst().renderSprites(sprites, Vec4f(flashAmount, flashAmount, flashAmount, realColor.a));
 		renderer.setBlend(BM_NORMAL);
 	}
 
 	if(layer == RL_OVERLAY &&
-	   sayTime > 0.0 &&
+	   sayTime > 0.0f &&
 	   !sayText.empty())
 	{
 		Font* p_font = GUI::inst().getFont();
@@ -185,15 +185,15 @@ void Object::render(RenderLayer layer,
 
 		renderer.push();
 
-		renderer.translate(8.0, 8.0);
-		if(mirrorX == -1) renderer.scale(-1.0, 1.0);
-		if(mirrorY == -1) renderer.scale(1.0, -1.0);
-		renderer.translate(8.0, 8.0);
+		renderer.translate(8.0f, 8.0f);
+		if(mirrorX == -1) renderer.scale(-1.0f, 1.0f);
+		if(mirrorY == -1) renderer.scale(1.0f, -1.0f);
+		renderer.translate(8.0f, 8.0f);
 
 		// The tail is a triangle: a quad with its last corner doubled draws
 		// it and a second triangle of no area.
-		const float top = static_cast<float>(0.85 * sayAlpha);
-		const float bottom = static_cast<float>(0.6 * sayAlpha);
+		const float top = static_cast<float>(0.85f * sayAlpha);
+		const float bottom = static_cast<float>(0.6f * sayAlpha);
 		const Vec4f fill(0.75f, 0.75f, 1.0f, top);
 		const float right = static_cast<float>(15 + dim.x - 25);
 		const float low = static_cast<float>(15 + dim.y);
@@ -212,14 +212,14 @@ void Object::render(RenderLayer layer,
 		outline.push_back(Vec2f(-10.0f, low));
 		outline.push_back(Vec2f(-10.0f, 15.0f));
 		outline.push_back(Vec2f(5.0f, 15.0f));
-		renderer.polyline(outline, 1.0f, Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9 * sayAlpha)), true);
+		renderer.polyline(outline, 1.0f, Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9f * sayAlpha)), true);
 
 		renderer.pop();
 
 		Vec2i textPosition(3 * mirrorX, 28 * mirrorY);
 		if(mirrorX == -1) textPosition.x -= dim.x - 10;
 		if(mirrorY == -1) textPosition.y -= dim.y - 10;
-		p_font->renderText(str, Vec2i(8, 7) + textPosition, Vec4d(1.0, 1.0, 1.0, sayAlpha));
+		p_font->renderText(str, Vec2i(8, 7) + textPosition, Vec4f(1.0f, 1.0f, 1.0f, sayAlpha));
 
 		p_font->popOptions();
 	}
@@ -229,27 +229,27 @@ void Object::render(RenderLayer layer,
 
 void Object::update()
 {
-	if(noCollect > 0.0)
+	if(noCollect > 0.0f)
 	{
-		noCollect -= 0.02;
-		if(noCollect < 0.0) noCollect = 0.0;
+		noCollect -= 0.02f;
+		if(noCollect < 0.0f) noCollect = 0.0f;
 	}
 
-	if(sayTime > 0.0)
+	if(sayTime > 0.0f)
 	{
-		if(sayTime < 0.25) sayAlpha = sayTime * 4.0;
+		if(sayTime < 0.25f) sayAlpha = sayTime * 4.0f;
 		else
 		{
-			sayAlpha += 4.0 * 0.02;
-			sayAlpha = min(sayAlpha, 1.0);
+			sayAlpha += 4.0f * 0.02f;
+			sayAlpha = min(sayAlpha, 1.0f);
 		}
 
-		sayTime -= 0.02;
-		if(sayTime < 0.0)
+		sayTime -= 0.02f;
+		if(sayTime < 0.0f)
 		{
 			sayText = "";
-			sayTime = 0.0;
-			sayAlpha = 0.0;
+			sayTime = 0.0f;
+			sayAlpha = 0.0f;
 		}
 	}
 
@@ -259,20 +259,20 @@ void Object::update()
 		onUpdate();
 
 		// run the death countdown down
-		deathCountDown -= deathSpeed * 0.02;
+		deathCountDown -= deathSpeed * 0.02f;
 		return;
 	}
 
 	if(isAlive() &&
-	   teleporting == 0.0 &&
-	   falling == 0.0)
+	   teleporting == 0.0f &&
+	   falling == 0.0f)
 	{
 		if(fall == -1)
 		{
 			fall = 0;
 
 			// play the collision sound
-			Engine::inst().playSound(collisionSound, false, 0.15, -100);
+			Engine::inst().playSound(collisionSound, false, 0.15f, -100);
 
 			// The object has collided with another object. Which one is it?
 			Object* p_obj = level.getFrontObjectAt(position + Vec2i(0, 1));
@@ -312,7 +312,7 @@ void Object::update()
 		}
 
 		// Is the object collectable, and is a player here?
-		if(flags & OF_COLLECTABLE && noCollect == 0.0)
+		if(flags & OF_COLLECTABLE && noCollect == 0.0f)
 		{
 			std::vector<Object*> objects = level.getObjectsAt2(position);
 			for(std::vector<Object*>::const_iterator it = objects.begin();
@@ -337,21 +337,21 @@ void Object::update()
 	}
 
 	// update the shown position
-	double i;
-	if(level.isElectricityOn() && level.getElevatorAt(position)) i = 0.12;
+	float i;
+	if(level.isElectricityOn() && level.getElevatorAt(position)) i = 0.12f;
 	else i = interpolation;
 
 	if(onConveyorBelt)
 	{
-		i = 0.12;
+		i = 0.12f;
 		onConveyorBelt--;
 	}
 
-	if(i == -1.0)
+	if(i == -1.0f)
 	{
-		Vec2d dir = Vec2d(position) - shownPosition;
-		double l = dir.length();
-		double stepSize = 0.02 * (50.0 / 15.0);
+		Vec2f dir = Vec2f(position) - shownPosition;
+		float l = dir.length();
+		float stepSize = 0.02f * (50.0f / 15.0f);
 
 		if(l >= stepSize)
 		{
@@ -361,7 +361,7 @@ void Object::update()
 	}
 	else
 	{
-		shownPosition = shownPosition * (1.0 - i) + Vec2d(position) * i;
+		shownPosition = shownPosition * (1.0f - i) + Vec2f(position) * i;
 	}
 
 	// run the death countdown down
@@ -372,21 +372,21 @@ void Object::update()
 		newDeathTime = -1;
 	}
 
-	deathCountDown -= deathSpeed * 0.02;
+	deathCountDown -= deathSpeed * 0.02f;
 
-	if(teleporting != 0.0)
+	if(teleporting != 0.0f)
 	{
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
 
-		double x;
-		if(teleporting > 0.0) x = teleporting;
-		else x = teleporting + 1.0;
+		float x;
+		if(teleporting > 0.0f) x = teleporting;
+		else x = teleporting + 1.0f;
 
-		if(x <= 0.5)
+		if(x <= 0.5f)
 		{
-			double r = 7.0 + 15.0 * x;
-			Vec2d o(r * sin(x * 18.0), -r * cos(x * 18.0));
+			float r = 7.0f + 15.0f * x;
+			Vec2f o(r * sin(x * 18.0f), -r * cos(x * 18.0f));
 
 			p.lifetime = 60;
 			p.damping = 0.9f;
@@ -395,8 +395,8 @@ void Object::update()
 			p.sizeOnTexture = Vec2b(16, 16);
 			p.position = position * 16 + Vec2i(8, 8) + o;
 			p.velocity = o * 0.01f;
-			p.color = Vec4d(0.1, 0.1, 1.0, 0.6);
-			p.deltaColor = Vec4d(2.0, 1.0, -2.0, 0.4) / p.lifetime;
+			p.color = Vec4f(0.1f, 0.1f, 1.0f, 0.6f);
+			p.deltaColor = Vec4f(2.0f, 1.0f, -2.0f, 0.4f) / p.lifetime;
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.5f, 0.75f);
@@ -405,10 +405,10 @@ void Object::update()
 		}
 
 		// teleport
-		if(teleporting > 0.0)
+		if(teleporting > 0.0f)
 		{
-			teleporting += 0.02;
-			if(teleporting > 1.0)
+			teleporting += 0.02f;
+			if(teleporting > 1.0f)
 			{
 				// change the position
 				if(level.isFreeAt(teleportingTo))
@@ -421,7 +421,7 @@ void Object::update()
 				else
 				{
 					teleportFailed = true;
-					Engine::inst().playSound("teleport_failed.ogg", false, 0.0, 100);
+					Engine::inst().playSound("teleport_failed.ogg", false, 0.0f, 100);
 
 					// glowing particles
 					for(int i = 0; i < 100; i++)
@@ -432,10 +432,10 @@ void Object::update()
 						p.positionOnTexture = Vec2b(32, 32);
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = teleportingTo * 16 + Vec2i(random(6, 10), random(6, 10));
-						const double r = random(0.0, 6.283);
-						p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
-						p.color = Vec4d(random(0.5, 1.0), random(0.5, 1.0), 0.0, 0.9);
-						p.deltaColor = Vec4d(0.5, 0.0, 0.0, -p.color.a / p.lifetime);
+						const float r = random(0.0f, 6.283f);
+						p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+						p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 0.0f, 0.9f);
+						p.deltaColor = Vec4f(0.5f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.15f, 0.25f);
@@ -444,22 +444,22 @@ void Object::update()
 					}
 				}
 
-				teleporting = -1.0;
-				Engine::inst().playSound("teleport_end.ogg", false, 0.0, 100);
+				teleporting = -1.0f;
+				Engine::inst().playSound("teleport_end.ogg", false, 0.0f, 100);
 			}
 		}
-		else if(teleporting < 0.0)
+		else if(teleporting < 0.0f)
 		{
-			teleporting += 0.02;
-			if(teleporting > 0.0)
+			teleporting += 0.02f;
+			if(teleporting > 0.0f)
 			{
-				teleporting = 0.0;
+				teleporting = 0.0f;
 				setDepth(oldDepth);
 			}
 		}
 	}
 
-	if(teleporting == 0.0 && falling == 0.0 && isAlive() && !ghost)
+	if(teleporting == 0.0f && falling == 0.0f && isAlive() && !ghost)
 	{
 		// Is there a hole below us?
 		uint tileID = level.getTileAt(0, position);
@@ -498,12 +498,12 @@ void Object::update()
 
 				// work out the distances
 				Elevator* p_closestElevator = 0;
-				double closestDist = 0.0;
+				float closestDist = 0.0f;
 				for(std::list<Elevator*>::const_iterator i = elevators.begin(); i != elevators.end(); ++i)
 				{
 					if((*i)->getPosition() != position - lastMoveDir)
 					{
-						double dist = ((*i)->shownPosition - position).lengthSq();
+						float dist = ((*i)->shownPosition - position).lengthSq();
 						if(!p_closestElevator || dist < closestDist) p_closestElevator = *i, closestDist = dist;
 					}
 				}
@@ -511,7 +511,7 @@ void Object::update()
 				if(p_closestElevator)
 				{
 					// Is the nearest elevator close enough?
-					if(closestDist <= 0.5)
+					if(closestDist <= 0.5f)
 					{
 						Vec2i d = p_closestElevator->getPosition() - position;
 						Vec2i d1, d2;
@@ -547,17 +547,17 @@ void Object::update()
 			if(!dontFall)
 			{
 				// Yes, fall!
-				Engine::inst().playSound("falling.ogg", false, 0.0, 100);
-				falling = 0.0001;
+				Engine::inst().playSound("falling.ogg", false, 0.0f, 100);
+				falling = 0.0001f;
 				ghost = true;
 				setDepth(nextFallingDepth--);
 			}
 		}
 	}
-	else if(falling > 0.0)
+	else if(falling > 0.0f)
 	{
-		falling += 0.02;
-		if(falling > 1.0 && isAlive()) disappear(0.2);
+		falling += 0.02f;
+		if(falling > 1.0f && isAlive()) disappear(0.2f);
 	}
 }
 
@@ -566,7 +566,7 @@ void Object::onRemove()
 }
 
 void Object::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 }
 
@@ -580,7 +580,7 @@ void Object::onElectricitySwitch(bool on)
 
 void Object::onCollect(Player* p_player)
 {
-	disappear(0.2);
+	disappear(0.2f);
 }
 
 void Object::onTouchedByPlayer(Player* p_player)
@@ -596,7 +596,7 @@ void Object::onExplosion()
 	if(flags & OF_DESTROYABLE)
 	{
 		// destroy the object
-		disappear(0.2);
+		disappear(0.2f);
 	}
 }
 
@@ -606,7 +606,7 @@ bool Object::move(const Vec2i& dir,
 	if(slideDir != -1 && !slideMove) return false;
 
 	if(dir.isZero()) return true;
-	if(force < mass || moved || teleporting != 0.0) return false;
+	if(force < mass || moved || teleporting != 0.0f) return false;
 	if(!level.isValidPosition(position + dir)) return false;
 
 	if(dir.x && !dir.y && isPushedFromAbove() && level.isElectricityOn())
@@ -846,7 +846,7 @@ bool Object::reflectLaser(Vec2i& dir,
 	return false;
 }
 
-bool Object::reflectProjectile(Vec2d& velocity)
+bool Object::reflectProjectile(Vec2f& velocity)
 {
 	return false;
 }
@@ -858,7 +858,7 @@ void Object::onFire()
 void Object::burst()
 {
 	// burst
-	Engine::inst().playSound(burstSound, false, 0.1, 100);
+	Engine::inst().playSound(burstSound, false, 0.1f, 100);
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
 	const Sprites& debris = getSprites();
@@ -875,15 +875,15 @@ void Object::burst()
 		// throws less debris than a big one, without that having to be set
 		// anywhere. The spot doubles as the starting point, which keeps the
 		// cloud in the object's shape.
-		Vec4d sampled;
+		Vec4f sampled;
 		Vec2i offset;
 		if(!debris.sample(&sampled, &offset)) continue;
 
 		p.position = position * 16 + offset;
-		const double r = random(0.0, 6.283);
-		p.velocity = random(2.0, 5.0) * Vec2d(sin(r), cos(r));
-		p.color = sampled + Vec4d(0.0, 0.0, 0.0, 0.5);
-		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+		const float r = random(0.0f, 6.283f);
+		p.velocity = random(2.0f, 5.0f) * Vec2f(sin(r), cos(r));
+		p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, 0.5f);
+		p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
 		p.size = random(0.5f, 0.8f);
@@ -891,7 +891,7 @@ void Object::burst()
 		p_particleSystem->addParticle(p);
 	}
 
-	disappear(0.2);
+	disappear(0.2f);
 }
 
 bool Object::changeInEditor(int mod)
@@ -914,13 +914,13 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	// %f in sscanf writes a float, but shownPosition is a Vec2d: that
+	// %f in sscanf writes a float, but shownPosition is a Vec2f: that
 	// overwrites four of eight bytes and leaves the others untouched. The same
-	// bug as in cannon.cpp; MSVC reports it as C4477. QueryDoubleAttribute
-	// reads the double correctly and leaves the value alone when the attribute
+	// bug as in cannon.cpp; MSVC reports it as C4477. QueryFloatAttribute
+	// reads the float correctly and leaves the value alone when the attribute
 	// is missing.
-	p_element->QueryDoubleAttribute("shownPositionX", &shownPosition.x);
-	p_element->QueryDoubleAttribute("shownPositionY", &shownPosition.y);
+	p_element->QueryFloatAttribute("shownPositionX", &shownPosition.x);
+	p_element->QueryFloatAttribute("shownPositionY", &shownPosition.y);
 }
 
 void Object::frameBegin()
@@ -938,21 +938,21 @@ void Object::frameBegin()
 	// update() - that is, after this frameBegin(). isAlive() alone still says
 	// "alive" in the tick after, and that is exactly where it would be
 	// cleared.
-	if(isAlive() && newDeathTime == -1) conversionProgress = 0.0;
+	if(isAlive() && newDeathTime == -1) conversionProgress = 0.0f;
 
 	// The decay belongs here and not in onBeforeRender(): that runs per frame,
 	// and the flash would otherwise hang off the frame rate.
-	if(flashAmount > 0.0)
+	if(flashAmount > 0.0f)
 	{
 		flashAmount *= FLASH_DECAY;
-		if(flashAmount < 1.0 / 256.0) flashAmount = 0.0;
+		if(flashAmount < 1.0f / 256.0f) flashAmount = 0.0f;
 	}
 
 	// And the glow's unsteadiness for the same reason - see glowJitter. Drawn
 	// for every object rather than only for the ones that glow, because a
 	// draw from the shared generator has to happen the same number of times
 	// whatever is on screen, or a frame stops being reproducible from a seed.
-	glowJitter = random(-1.0, 1.0);
+	glowJitter = random(-1.0f, 1.0f);
 }
 
 void Object::flash()
@@ -966,31 +966,31 @@ void Object::flash()
 	renderLayers |= flashLayer;
 }
 
-void Object::disappear(double duration)
+void Object::disappear(float duration)
 {
-	if(duration == 0.0)
+	if(duration == 0.0f)
 	{
-		deathCountDown = -1.0;
-		deathSpeed = 0.0;
+		deathCountDown = -1.0f;
+		deathSpeed = 0.0f;
 	}
 	else
 	{
-		deathCountDown = 0.9999;
-		deathSpeed = 1.0 / duration;
+		deathCountDown = 0.9999f;
+		deathSpeed = 1.0f / duration;
 	}
 }
 
-void Object::disappearNextFrame(double duration)
+void Object::disappearNextFrame(float duration)
 {
-	if(duration == 0.0)
+	if(duration == 0.0f)
 	{
-		newDeathCountDown = -1.0;
-		newDeathSpeed = 0.0;
+		newDeathCountDown = -1.0f;
+		newDeathSpeed = 0.0f;
 	}
 	else
 	{
-		newDeathCountDown = 0.9999;
-		newDeathSpeed = 1.0 / duration;
+		newDeathCountDown = 0.9999f;
+		newDeathSpeed = 1.0f / duration;
 	}
 
 	newDeathTime = level.time + 1;
@@ -1039,7 +1039,7 @@ bool Object::isPushedWithDeadlyWeight()
 }
 
 void Object::say(const std::string& text,
-				 double duration)
+				 float duration)
 {
 	sayText = text;
 	sayTime = duration;
@@ -1079,16 +1079,16 @@ void Object::warpTo(const Vec2i& position)
 
 void Object::teleportTo(const Vec2i& position)
 {
-	if(teleporting != 0.0) return;
+	if(teleporting != 0.0f) return;
 
-	teleporting = 0.02;
+	teleporting = 0.02f;
 	teleportingTo = position;
 
 	// While teleporting the object has to be in front of all the others.
 	oldDepth = depth;
 	setDepth(-100);
 
-	Engine::inst().playSound("teleport_begin.ogg", false, 0.0, 100);
+	Engine::inst().playSound("teleport_begin.ogg", false, 0.0f, 100);
 }
 
 bool Object::hasMoved() const
@@ -1096,19 +1096,19 @@ bool Object::hasMoved() const
 	return moved;
 }
 
-const Vec2d& Object::getRealShownPosition() const
+const Vec2f& Object::getRealShownPosition() const
 {
 	return shownPosition;
 }
 
 Vec2i Object::getShownPosition() const
 {
-	return Vec2d(0.5, 0.5) + shownPosition;
+	return Vec2f(0.5f, 0.5f) + shownPosition;
 }
 
 Vec2i Object::getShownPositionInPixels() const
 {
-	return Vec2d(0.5, 0.5) + shownPosition * 16.0;
+	return Vec2f(0.5f, 0.5f) + shownPosition * 16.0f;
 }
 
 uint Object::getFlags() const
@@ -1153,12 +1153,12 @@ void Object::setDestroyTime(int destroyTime)
 
 bool Object::isAlive() const
 {
-	return deathCountDown == 1.0;
+	return deathCountDown == 1.0f;
 }
 
 bool Object::toBeRemoved() const
 {
-	return deathCountDown <= 0.0;
+	return deathCountDown <= 0.0f;
 }
 
 void Object::setCollisionSound(const std::string& collisionSound)
@@ -1168,7 +1168,7 @@ void Object::setCollisionSound(const std::string& collisionSound)
 
 bool Object::isTeleporting() const
 {
-	return teleporting != 0.0;
+	return teleporting != 0.0f;
 }
 
 bool Object::hasTeleportFailed() const
@@ -1178,7 +1178,7 @@ bool Object::hasTeleportFailed() const
 
 bool Object::isFalling() const
 {
-	return falling > 0.0;
+	return falling > 0.0f;
 }
 
 void Object::onBeforeRender()
@@ -1233,25 +1233,25 @@ void Object::setToolTip(const std::string& toolTip)
 	this->toolTip = toolTip;
 }
 
-Vec4d Object::getStdColor(uint color)
+Vec4f Object::getStdColor(uint color)
 {
 	switch(color % 6)
 	{
 	case 0:
-		return Vec4d(0.9, 0.9, 0.9, 1.0);
+		return Vec4f(0.9f, 0.9f, 0.9f, 1.0f);
 	case 1:
-		return Vec4d(0.4, 0.9, 0.4, 1.0);
+		return Vec4f(0.4f, 0.9f, 0.4f, 1.0f);
 	case 2:
-		return Vec4d(0.4, 0.4, 0.9, 1.0);
+		return Vec4f(0.4f, 0.4f, 0.9f, 1.0f);
 	case 3:
-		return Vec4d(0.4, 0.9, 0.9, 1.0);
+		return Vec4f(0.4f, 0.9f, 0.9f, 1.0f);
 	case 4:
-		return Vec4d(0.9, 0.9, 0.4, 1.0);
+		return Vec4f(0.9f, 0.9f, 0.4f, 1.0f);
 	case 5:
-		return Vec4d(0.9, 0.4, 0.9, 1.0);
+		return Vec4f(0.9f, 0.4f, 0.9f, 1.0f);
 	}
 
-	return Vec4d(0.0, 0.0, 0.0, 0.0);
+	return Vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 Vec2i Object::intToDir(int dir)

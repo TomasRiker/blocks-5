@@ -58,8 +58,8 @@ private:
 	uint showCursor;
 	bool ignoreNextCursorMovement;
 	bool paused;
-	Vec2d pausePosition;
-	Vec2d pauseVelocity;
+	Vec2f pausePosition;
+	Vec2f pauseVelocity;
 };
 
 #endif

@@ -46,7 +46,7 @@ struct PresentProgram
 
 	// Set a uniform if it exists. Otherwise a filter that comments out a line
 	// of its shader gets GL_INVALID_OPERATION instead of nothing.
-	static void setUniform(int location, double value);
+	static void setUniform(int location, float value);
 
 	uint id;
 	// One line each: Tools/verify.py looks for "Type Name;" and would miss a
@@ -98,8 +98,8 @@ public:
 	// filter that does not distort the picture returns its argument unchanged.
 	// Both sit on the 20 ms tick and on every recorded frame - a virtual
 	// call is fine, a lookup by name would not be.
-	virtual Vec2d warpToSource(const Vec2d& p) const { return p; }
-	virtual Vec2d warpToOutput(const Vec2d& s) const { return s; }
+	virtual Vec2f warpToSource(const Vec2f& p) const { return p; }
+	virtual Vec2f warpToOutput(const Vec2f& s) const { return s; }
 
 	// Is this filter really distorting the picture right now? The test hook
 	// reports it, which is how a test notices that its window coordinates no

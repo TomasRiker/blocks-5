@@ -24,7 +24,7 @@ void ToxicWaste::updateSprites()
 }
 
 void ToxicWaste::onRender(RenderLayer layer,
-						  const Vec4d& color)
+						  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -35,7 +35,7 @@ void ToxicWaste::onUpdate()
 
 void ToxicWaste::onExplosion()
 {
-	disappear(0.2);
+	disappear(0.2f);
 
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
@@ -50,10 +50,10 @@ void ToxicWaste::onExplosion()
 		else p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = position * 16 + Vec2i(random(6, 10), random(6, 10));
-		const double r = random(0.0, 6.283);
-		p.velocity = random(0.0, 3.0) * Vec2d(sin(r), cos(r));
-		p.color = Vec4d(random(0.4, 1.0), random(0.75, 1.0), random(0.0, 0.5), random(0.15, 0.4));
-		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+		const float r = random(0.0f, 6.283f);
+		p.velocity = random(0.0f, 3.0f) * Vec2f(sin(r), cos(r));
+		p.color = Vec4f(random(0.4f, 1.0f), random(0.75f, 1.0f), random(0.0f, 0.5f), random(0.15f, 0.4f));
+		p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.05f, 0.05f);
 		p.size = random(0.3f, 1.0f);
@@ -72,7 +72,7 @@ bool ToxicWaste::reflectLaser(Vec2i& dir,
 	return false;
 }
 
-bool ToxicWaste::reflectProjectile(Vec2d& velocity)
+bool ToxicWaste::reflectProjectile(Vec2f& velocity)
 {
 	onExplosion();
 	return false;

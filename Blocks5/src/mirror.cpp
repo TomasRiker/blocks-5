@@ -10,7 +10,7 @@ Mirror::Mirror(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_DESTROYABLE | OF_TRANSPORTABLE;
-	interpolation = 0.3;
+	interpolation = 0.3f;
 	destroyTime = 50;
 
 	// subType comes out of the level file unchecked (presets.cpp), and only
@@ -35,11 +35,11 @@ Mirror::~Mirror()
 void Mirror::updateSprites()
 {
 	// mirror
-	sprites.add(Vec2i(160, subType == 0 ? 160 : 352)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(160, subType == 0 ? 160 : 352)).rotation = 90.0f * dir;
 }
 
 void Mirror::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -106,12 +106,12 @@ bool Mirror::reflectLaser(Vec2i& dir,
 	return false;
 }
 
-bool Mirror::reflectProjectile(Vec2d& velocity)
+bool Mirror::reflectProjectile(Vec2f& velocity)
 {
 	if(subType != 1) return false;
 
-	double temp;
-	const double epsilon = 0.001;
+	float temp;
+	const float epsilon = 0.001f;
 	bool reflected = false;
 
 	switch(this->dir % 4)

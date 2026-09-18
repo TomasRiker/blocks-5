@@ -131,12 +131,6 @@ int random(int min,
 	return min + mt.randInt(max - min);
 }
 
-double random(double min,
-			  double max)
-{
-	return min + mt.rand(max - min);
-}
-
 float random(float min,
 			 float max)
 {

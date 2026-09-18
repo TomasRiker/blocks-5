@@ -13,7 +13,7 @@ StdObject::StdObject(Level& level,
 	warpTo(position);
 	this->flags = flags;
 	this->positionOnTexture = positionOnTexture;
-	interpolation = 0.3;
+	interpolation = 0.3f;
 	numFrames = 1;
 	animSpeed = 1;
 	anim = random(0, 100000);
@@ -34,12 +34,12 @@ void StdObject::updateSprites()
 }
 
 void StdObject::onRender(RenderLayer layer,
-						 const Vec4d& color)
+						 const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT && glow)
 	{
-		level.renderShine(0.35, 0.35 + 0.05 * glowJitter);
+		level.renderShine(0.35f, 0.35f + 0.05f * glowJitter);
 	}
 }
 
@@ -59,10 +59,10 @@ void StdObject::onCollect(Player* p_player)
 	if(collectSoundFilename.length())
 	{
 		// play the sound
-		Engine::inst().playSound(collectSoundFilename, false, 0.15, 100);
+		Engine::inst().playSound(collectSoundFilename, false, 0.15f, 100);
 	}
 
-	disappear(0.2);
+	disappear(0.2f);
 }
 
 void StdObject::setAnimation(int numFrames,

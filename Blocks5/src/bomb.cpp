@@ -27,15 +27,15 @@ void Bomb::updateSprites()
 }
 
 void Bomb::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
 		if(!(flags & OF_COLLECTABLE) &&
-		   deathCountDown != 1.0)
+		   deathCountDown != 1.0f)
 		{
-			level.renderShine(deathCountDown * 5.0, deathCountDown * 3.0);
+			level.renderShine(deathCountDown * 5.0f, deathCountDown * 3.0f);
 		}
 	}
 }
@@ -48,7 +48,7 @@ void Bomb::onUpdate()
 		else
 		{
 			// smoke
-			double c = static_cast<double>(countDown) / 150.0;
+			float c = static_cast<float>(countDown) / 150.0f;
 			ParticleSystem* p_particleSystem = level.getParticleSystem();
 			ParticleSystem* p_fireParticleSystem = level.getFireParticleSystem();
 			ParticleSystem::Particle p;
@@ -58,9 +58,9 @@ void Bomb::onUpdate()
 			p.positionOnTexture = Vec2b(0, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
 			p.position = position * 16 + Vec2i(11, 4);
-			p.velocity = Vec2d(random(-0.5, 0.5), -1.0);
-			p.color = Vec4d(c, c, c, 0.2);
-			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.2 / p.lifetime);
+			p.velocity = Vec2f(random(-0.5f, 0.5f), -1.0f);
+			p.color = Vec4f(c, c, c, 0.2f);
+			p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -0.2f / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.3f, 0.5f);
@@ -71,10 +71,10 @@ void Bomb::onUpdate()
 			if(!countDown)
 			{
 				// Explosion!
-				disappear(0.2);
-				level.addCameraShake(1.0);
-				level.addFlash(2.0);
-				Engine::inst().playSound("explosion.ogg", false, 0.15, 100);
+				disappear(0.2f);
+				level.addCameraShake(1.0f);
+				level.addFlash(2.0f);
+				Engine::inst().playSound("explosion.ogg", false, 0.15f, 100);
 
 				// The bomb bursts apart too and needs its own block for it:
 				// the loop below picks its victims with getFrontObjectAt,
@@ -92,15 +92,15 @@ void Bomb::onUpdate()
 						p.positionOnTexture = Vec2b(96, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
 
-						Vec4d sampled;
+						Vec4f sampled;
 						Vec2i offset;
 						if(!debris.sample(&sampled, &offset)) continue;
 
 						p.position = position * 16 + offset;
-						const double r = random(0.0, 6.283);
-						p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
-						p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
-						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+						const float r = random(0.0f, 6.283f);
+						p.velocity = random(3.0f, 6.0f) * Vec2f(sin(r), cos(r));
+						p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
+						p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.5f, 1.0f);
@@ -154,14 +154,14 @@ void Bomb::onUpdate()
 								p.positionOnTexture = Vec2b(96, 0);
 								p.sizeOnTexture = Vec2b(16, 16);
 
-								Vec4d sampled;
+								Vec4f sampled;
 								Vec2i offset;
 								if(!p_sprites->sample(&sampled, &offset)) continue;
 
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-								p.velocity = random(4.0, 7.0) * Vec2d(x, y).normalize() + Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
-								p.color = sampled + Vec4d(0.0, 0.0, 0.0, random(0.3, 0.5));
-								p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+								p.velocity = random(4.0f, 7.0f) * Vec2f(x, y).normalize() + Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
+								p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
+								p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);
 								p.deltaRotation = random(-0.1f, 0.1f);
 								p.size = random(0.5f, 1.0f);
@@ -181,10 +181,10 @@ void Bomb::onUpdate()
 					p.positionOnTexture = Vec2b(0, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
-					const double r = random(0.0, 6.283);
-					p.velocity = random(13.0, 15.0) * Vec2d(sin(r), cos(r));
-					p.color = Vec4d(1.0, 1.0, 1.0, 0.2);
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.2 / p.lifetime);
+					const float r = random(0.0f, 6.283f);
+					p.velocity = random(13.0f, 15.0f) * Vec2f(sin(r), cos(r));
+					p.color = Vec4f(1.0f, 1.0f, 1.0f, 0.2f);
+					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -0.2f / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.3f, 0.5f);
@@ -201,11 +201,11 @@ void Bomb::onUpdate()
 					p.positionOnTexture = Vec2b(32, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
-					const double r = random(0.0, 6.283);
-					p.velocity = random(1.0, 8.0) * Vec2d(sin(r), cos(r));
-					p.color = Vec4d(random(0.5, 1.0), random(0.5, 1.0), 1.0, random(0.05, 0.15));
-					const double dc = -1.0 / (p.lifetime + random(-25, 25));
-					p.deltaColor = Vec4d(dc, dc, dc, -p.color.a / p.lifetime);
+					const float r = random(0.0f, 6.283f);
+					p.velocity = random(1.0f, 8.0f) * Vec2f(sin(r), cos(r));
+					p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 1.0f, random(0.05f, 0.15f));
+					const float dc = -1.0f / (p.lifetime + random(-25, 25));
+					p.deltaColor = Vec4f(dc, dc, dc, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.025f, 0.025f);
 					p.size = random(0.3f, 0.7f);
@@ -223,10 +223,10 @@ void Bomb::onUpdate()
 					p.positionOnTexture = Vec2b(64, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8, 8);
-					const double r = random(0.0, 6.283);
-					p.velocity = random(0.0, 5.0) * Vec2d(sin(r), cos(r));
-					p.color = Vec4d(random(0.75, 1.0), random(0.4, 0.75), random(0.0, 0.25), 0.2);
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -0.25 / p.lifetime);
+					const float r = random(0.0f, 6.283f);
+					p.velocity = random(0.0f, 5.0f) * Vec2f(sin(r), cos(r));
+					p.color = Vec4f(random(0.75f, 1.0f), random(0.4f, 0.75f), random(0.0f, 0.25f), 0.2f);
+					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -0.25f / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.05f, 0.05f);
 					p.size = random(0.5f, 0.8f);
@@ -242,9 +242,9 @@ void Bomb::onCollect(Player* p_player)
 {
 	// give the bomb to the player
 	p_player->addInventory(0, 1);
-	disappear(0.2);
+	disappear(0.2f);
 
-	Engine::inst().playSound("bomb.ogg", false, 0.15, 100);
+	Engine::inst().playSound("bomb.ogg", false, 0.15f, 100);
 }
 
 void Bomb::onExplosion()
@@ -264,7 +264,7 @@ bool Bomb::reflectLaser(Vec2i& dir,
 	return false;
 }
 
-bool Bomb::reflectProjectile(Vec2d& velocity)
+bool Bomb::reflectProjectile(Vec2f& velocity)
 {
 	onExplosion();
 	return false;

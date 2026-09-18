@@ -28,19 +28,19 @@ void Exit::onRemove()
 void Exit::updateSprites()
 {
 	// The exit. With enough diamonds it pulses.
-	double alpha = 1.0;
-	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85 + 0.15 * cos(static_cast<double>(level.counter) * 0.4);
-	sprites.add(Vec2i(224, 32), Vec4d(1.0, 1.0, 1.0, alpha));
+	float alpha = 1.0f;
+	if(level.getNumDiamondsCollected() >= level.getNumDiamondsNeeded()) alpha = 0.85f + 0.15f * cos(static_cast<float>(level.counter) * 0.4f);
+	sprites.add(Vec2i(224, 32), Vec4f(1.0f, 1.0f, 1.0f, alpha));
 }
 
 void Exit::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(ghost) return;
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.5, 0.4 + 0.05 * glowJitter);
+		level.renderShine(0.5f, 0.4f + 0.05f * glowJitter);
 	}
 }
 
@@ -54,11 +54,11 @@ void Exit::onUpdate()
 	{
 		// Level done.
 		level.finished = true;
-		Engine::inst().playSound("finished.ogg", false, 0.0, 100);
+		Engine::inst().playSound("finished.ogg", false, 0.0f, 100);
 
 		if(level.isInMenu())
 		{
-			p_obj->disappear(0.25);
+			p_obj->disappear(0.25f);
 		}
 	}
 }

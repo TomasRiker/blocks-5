@@ -160,7 +160,7 @@ void Sound::update()
 	}
 }
 
-double Sound::getVolumeFactor() const
+float Sound::getVolumeFactor() const
 {
 	return volumeFactor;
 }

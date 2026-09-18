@@ -21,8 +21,8 @@ public:
 private:
 	struct Branch
 	{
-		double thickness;
-		std::vector<Vec2d> points;
+		float thickness;
+		std::vector<Vec2f> points;
 	};
 
 	// Joint state between two consecutive line segments of a branch. Every
@@ -31,7 +31,7 @@ private:
 	{
 		LineJoint() : valid(false) {}
 		bool valid;
-		Vec2d lastEndPoint, lastCorner1, lastCorner2;
+		Vec2f lastEndPoint, lastCorner1, lastCorner2;
 	};
 
 	// One pass of the bolt as built geometry. Two of them are built when the
@@ -43,20 +43,20 @@ private:
 	{
 		std::vector<QuadVertex> mainBranch;
 		std::vector<QuadVertex> otherBranches;
-		Vec2d endPoint;
-		double pointSize;
+		Vec2f endPoint;
+		float pointSize;
 	};
 
-	double alpha;
+	float alpha;
 	std::vector<Branch> branches;
 	Pass passes[2];
 
 	void buildPass(int pass);
 	void drawPass(int pass, const Vec4f& color);
-	double branchWidth(const Branch& branch, int pass) const;
-	void buildBranch(const Branch& branch, double width, std::vector<QuadVertex>& out);
+	float branchWidth(const Branch& branch, int pass) const;
+	void buildBranch(const Branch& branch, float width, std::vector<QuadVertex>& out);
 	Branch generateSecondaryBranch(const Branch& b, int minLength, int maxLength);
-	void addLine(Vec2d p1, Vec2d p2, double width, LineJoint& joint, std::vector<QuadVertex>& out);
+	void addLine(Vec2f p1, Vec2f p2, float width, LineJoint& joint, std::vector<QuadVertex>& out);
 
 	Texture* p_lineTexture;
 };

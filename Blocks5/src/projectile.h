@@ -8,20 +8,20 @@
 class Projectile : public Object
 {
 public:
-	Projectile(Level& level, const Vec2d& positionInPixels, const Vec2d& velocity);
+	Projectile(Level& level, const Vec2f& positionInPixels, const Vec2f& velocity);
 	~Projectile();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void onUpdate();
 	void saveExtendedAttributes(TiXmlElement* p_target);
 	void loadExtendedAttributes(TiXmlElement* p_element);
 
 private:
-	Vec2d positionInPixels;
-	Vec2d velocity;
-	double speed;
-	double distance;
-	double life;
+	Vec2f positionInPixels;
+	Vec2f velocity;
+	float speed;
+	float distance;
+	float life;
 	int reflectionCounter;
 };
 

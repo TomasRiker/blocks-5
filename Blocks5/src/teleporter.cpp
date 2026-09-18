@@ -33,11 +33,11 @@ Teleporter::~Teleporter()
 void Teleporter::updateSprites()
 {
 	// teleporter
-	sprites.add(Vec2i((anim / 3 % 8) * 32, 64), subType == 0 ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.0, 1.0, 1.0, 1.0));
+	sprites.add(Vec2i((anim / 3 % 8) * 32, 64), subType == 0 ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void Teleporter::onRender(RenderLayer layer,
-						  const Vec4d& color)
+						  const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 	if(layer == RL_EDITOR)
@@ -50,11 +50,11 @@ void Teleporter::onRender(RenderLayer layer,
 			Vec2i t = (targetPosition - position) * 16 + Vec2i(7, 7);
 			const Vec2f tip(static_cast<Vec2f>(t));
 			renderer.line(Vec2f(7.0f, 7.0f), tip, 1.0f, color);
-			Vec2d y(targetPosition - position);
+			Vec2f y(targetPosition - position);
 			y.normalize();
-			Vec2d x(-y.y, y.x);
-			Vec2d p1 = Vec2d(t.x, t.y) - 10.0 * y - 10.0 * x;
-			Vec2d p2 = Vec2d(t.x, t.y) - 10.0 * y + 10.0 * x;
+			Vec2f x(-y.y, y.x);
+			Vec2f p1 = Vec2f(t.x, t.y) - 10.0f * y - 10.0f * x;
+			Vec2f p2 = Vec2f(t.x, t.y) - 10.0f * y + 10.0f * x;
 			renderer.line(static_cast<Vec2f>(p1), tip, 1.0f, color);
 			renderer.line(tip, static_cast<Vec2f>(p2), 1.0f, color);
 		}
@@ -84,7 +84,7 @@ void Teleporter::onUpdate()
 				}
 				else
 				{
-					Engine::inst().playSound("teleport_failed.ogg", false, 0.0, 100);
+					Engine::inst().playSound("teleport_failed.ogg", false, 0.0f, 100);
 				}
 			}
 		}

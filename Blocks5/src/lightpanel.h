@@ -11,7 +11,7 @@ public:
 	LightPanel(Level& level, const Vec2i& position, int subType);
 	~LightPanel();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

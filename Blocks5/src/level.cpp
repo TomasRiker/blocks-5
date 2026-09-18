@@ -51,11 +51,11 @@ Level::Level()
 	inCat = false;
 	inPreview = false;
 	inMenu = false;
-	cameraShake = 0.0;
-	flash = 0.0;
-	flashJitter = 0.0;
-	actualFlash = 0.0;
-	toxic = 0.0;
+	cameraShake = 0.0f;
+	flash = 0.0f;
+	flashJitter = 0.0f;
+	actualFlash = 0.0f;
+	toxic = 0.0f;
 	finished = false;
 	bufferID = 0;
 
@@ -84,7 +84,7 @@ Level::Level()
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("rain.ogg");
 		p_rainSoundInst = p_sound->createInstance(true);
-		p_rainSoundInst->setVolume(0.0);
+		p_rainSoundInst->setVolume(0.0f);
 		p_sound->release();
 	}
 
@@ -93,7 +93,7 @@ Level::Level()
 	{
 		Sound* p_sound = Manager<Sound>::inst().request("thunderstorm.ogg");
 		p_thunderstormSoundInst = p_sound->createInstance(true);
-		p_thunderstormSoundInst->setVolume(0.0);
+		p_thunderstormSoundInst->setVolume(0.0f);
 		p_sound->release();
 	}
 
@@ -180,7 +180,7 @@ void Level::clear()
 	Engine::inst().sceneTick = 0;
 	numDiamondsNeeded = 0;
 	numDiamondsCollected = 0;
-	hudIconFlash[0] = hudIconFlash[1] = 0.0;
+	hudIconFlash[0] = hudIconFlash[1] = 0.0f;
 	electricityOn = false;
 	nightVision = false;
 	raining = false;
@@ -191,11 +191,11 @@ void Level::clear()
 	title = "";
 	musicFilename = "";
 	for(int i = 0; i < SKIN_MAX; i++) skin[i] = requestedSkin[i] = "";
-	cameraShake = 0.0;
-	flash = 0.0;
-	flashJitter = 0.0;
-	actualFlash = 0.0;
-	toxic = 0.0;
+	cameraShake = 0.0f;
+	flash = 0.0f;
+	flashJitter = 0.0f;
+	actualFlash = 0.0f;
+	toxic = 0.0f;
 	finished = false;
 	lightningCounter = random(50, 150);
 }
@@ -609,13 +609,13 @@ void Level::render()
 				if(!inEditor)
 				{
 					p_rainSoundInst->play(true);
-					p_rainSoundInst->slideVolume(0.5, 0.03);
+					p_rainSoundInst->slideVolume(0.5f, 0.03f);
 					rainSoundOn = true;
 				}
 			}
 			else
 			{
-				p_rainSoundInst->slideVolume(-1.0, 0.03);
+				p_rainSoundInst->slideVolume(-1.0f, 0.03f);
 				rainSoundOn = false;
 			}
 		}
@@ -627,13 +627,13 @@ void Level::render()
 				if(!inEditor)
 				{
 					p_thunderstormSoundInst->play(true);
-					p_thunderstormSoundInst->slideVolume(0.5, 0.03);
+					p_thunderstormSoundInst->slideVolume(0.5f, 0.03f);
 					thunderstormSoundOn = true;
 				}
 			}
 			else
 			{
-				p_thunderstormSoundInst->slideVolume(-1.0, 0.03);
+				p_thunderstormSoundInst->slideVolume(-1.0f, 0.03f);
 				thunderstormSoundOn = false;
 			}
 		}
@@ -648,11 +648,11 @@ void Level::render()
 	}
 
 	Vec2i offset;
-	if(cameraShake > 0.0)
+	if(cameraShake > 0.0f)
 	{
 		// shake the camera
-		offset.x = static_cast<int>(sin(static_cast<double>(counter) * 1.5) * cameraShake);
-		offset.y = static_cast<int>(cos(static_cast<double>(counter) * 1.5) * 5.0 * cameraShake);
+		offset.x = static_cast<int>(sin(static_cast<float>(counter) * 1.5f) * cameraShake);
+		offset.y = static_cast<int>(cos(static_cast<float>(counter) * 1.5f) * 5.0f * cameraShake);
 	}
 	else offset = Vec2i(0, 0);
 
@@ -663,7 +663,7 @@ void Level::render()
 	sortObjects();
 
 	// render the background
-	renderTiles(0, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
+	renderTiles(0, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 	// The lava edges write the stencil wherever they have any alpha at all
 	// and nothing into the colour; the lava then draws only where they did
@@ -676,7 +676,7 @@ void Level::render()
 		Renderer::DiscardTransparentScope discard;
 		Renderer::StencilWriteScope write(1);
 		Renderer::ColorMaskScope mask(false, false, false, false);
-		renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+		renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 	}
 	p_lavaEdges->release();
 	Engine& engine = Engine::inst();
@@ -685,20 +685,20 @@ void Level::render()
 	{
 		Renderer::StencilTestScope test(0);
 		renderer.setTexture(p_lava[0]->ref());
-		renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+		renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 		renderer.setBlend(BM_ADDITIVE);
 		renderer.setTexture(p_lava[1]->ref());
-		renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+		renderObjects(RL_LAVA_FRONT, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 		renderer.setBlend(BM_NORMAL);
 	}
 
 	// render the background objects
-	renderObjects(RL_FLOOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_FLOOR, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 
 	// render the electronics connections
 	renderer.push();
-	renderer.translate(0.5, 0.5);
-	renderObjects(RL_WIRE, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderer.translate(0.5f, 0.5f);
+	renderObjects(RL_WIRE, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 	renderer.pop();
 
 	// render the rain particle system
@@ -710,7 +710,7 @@ void Level::render()
 	int numSamples = 2;
 	int details = engine.getDetails();
 	if(details == 0) start = 2, numSamples = 1;
-	Vec4d shadowColor(0.0, 0.0, 0.0, 0.7 / numSamples);
+	Vec4f shadowColor(0.0f, 0.0f, 0.0f, 0.7f / numSamples);
 	for(int i = 0; i < numSamples; i++)
 	{
 		renderTiles(1, samples[start + i], shadowColor);
@@ -718,8 +718,8 @@ void Level::render()
 	}
 
 	// render the middle ground
-	renderTiles(1, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0));
-	renderObjects(RL_MAIN, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderTiles(1, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+	renderObjects(RL_MAIN, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 
 	// render the particle systems
 	renderer.setBlend(BM_ADDITIVE);
@@ -728,9 +728,9 @@ void Level::render()
 	p_particleSystem->render();
 
 	// render the special effect layer
-	renderObjects(RL_EFFECT, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_EFFECT, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 
-	if(inEditor && !inCat && !inPreview) renderObjects(RL_EDITOR, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	if(inEditor && !inCat && !inPreview) renderObjects(RL_EDITOR, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 
 	// The weather: layers of one picture each, scrolling on top of the
 	// picture's own scale through a texture matrix of their own, which the
@@ -744,23 +744,23 @@ void Level::render()
 
 		int start = 2;
 		int numLayers = 3;
-		double alpha = 0.12;
-		if(details == 0) start = 1, numLayers = 1, alpha = 0.2;
-		else if(details == 1) start = 2, numLayers = 2, alpha = 0.16;
+		float alpha = 0.12f;
+		if(details == 0) start = 1, numLayers = 1, alpha = 0.2f;
+		else if(details == 1) start = 2, numLayers = 2, alpha = 0.16f;
 
 		for(int i = start; i > start - numLayers; i--)
 		{
-			double y = 100.0 * i + 1000.0 * 0.001 * time;
-			double s[] = {1.0, 0.5, 0.25};
-			double angle = 15.0 + sin(0.02 * y * s[i] + i);
+			float y = 100.0f * i + 1000.0f * 0.001f * time;
+			float s[] = {1.0f, 0.5f, 0.25f};
+			float angle = 15.0f + sin(0.02f * y * s[i] + i);
 			// After the angle, which reads the unwrapped offset. Rain scrolls
 			// twenty texels a tick, so it is the first of these to go steppy.
 			y = wrapTextureOffset(y, p_rain->getSize().y);
 
-			Mat4 scroll = Mat4::scaling(rain.texelScale.x, rain.texelScale.y, 1.0);
+			Mat4 scroll = Mat4::scaling(rain.texelScale.x, rain.texelScale.y, 1.0f);
 			scroll.scale(s[i], s[i], s[i]);
-			scroll.translate(0.0, -y / s[i], 0.0);
-			scroll.rotate(angle, 0.0, 0.0, 1.0);
+			scroll.translate(0.0f, -y / s[i], 0.0f);
+			scroll.rotate(angle, 0.0f, 0.0f, 1.0f);
 			renderer.scrolledQuad(rain.id, scroll, screen, screen, Vec4f(0.8f, 0.8f, 0.8f, static_cast<float>(alpha)));
 		}
 	}
@@ -773,25 +773,25 @@ void Level::render()
 		int numLayers = 3;
 		if(details == 0) numLayers = 1;
 		else if(details == 1) numLayers = 2;
-		double alphaFactor = 3.0 / static_cast<double>(numLayers);
+		float alphaFactor = 3.0f / static_cast<float>(numLayers);
 
 		for(int i = numLayers - 1; i >= 0; i--)
 		{
-			double s[] = {1.0, 1.5, 1.75};
-			double t = 0.001 * time;
-			double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
-			double x = 500.0 * sin(t * f + i);
-			double y = 150.0 * t + 300.0 * cos(t * f + i);
+			float s[] = {1.0f, 1.5f, 1.75f};
+			float t = 0.001f * time;
+			float f = 0.1f * (1.0f + 1.0f / (1.0f + i));
+			float x = 500.0f * sin(t * f + i);
+			float y = 150.0f * t + 300.0f * cos(t * f + i);
 			// x is bounded by its own sine and y is not, but both are wrapped:
 			// the snow translates on both axes, and one rule is easier to keep
 			// right than two.
 			x = wrapTextureOffset(x, p_snow->getSize().x);
 			y = wrapTextureOffset(y, p_snow->getSize().y);
 
-			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0);
-			scroll.translate(-x, -y, 0.0);
+			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0f);
+			scroll.translate(-x, -y, 0.0f);
 			scroll.scale(s[i], s[i], s[i]);
-			renderer.scrolledQuad(snow.id, scroll, screen, screen, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.65 * alphaFactor)));
+			renderer.scrolledQuad(snow.id, scroll, screen, screen, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.65f * alphaFactor)));
 		}
 	}
 
@@ -806,18 +806,18 @@ void Level::render()
 
 		for(int i = numLayers - 1; i >= 0; i--)
 		{
-			double s[] = {1.0, 0.5, 0.25};
-			double x = 100.0 * i + 50.0 * 0.001 * time;
-			x += 2.0 * sin(0.02 * x * s[i] + i);
+			float s[] = {1.0f, 0.5f, 0.25f};
+			float x = 100.0f * i + 50.0f * 0.001f * time;
+			x += 2.0f * sin(0.02f * x * s[i] + i);
 			// After the wobble, whose phase has to follow the unwrapped offset.
 			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
-			Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0);
-			scroll.scale(s[i], s[i] * 2.0, s[i]);
-			scroll.translate(-x / s[i], 0.0, 0.0);
-			scroll.rotate(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
-			const float c = static_cast<float>(1.0 - 0.05 * i);
-			const float a = static_cast<float>(0.175 - 0.05 * i);
+			Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);
+			scroll.scale(s[i], s[i] * 2.0f, s[i]);
+			scroll.translate(-x / s[i], 0.0f, 0.0f);
+			scroll.rotate(15.0f + 5.0f * i, 0.0f, 0.0f, 1.0f);
+			const float c = static_cast<float>(1.0f - 0.05f * i);
+			const float a = static_cast<float>(0.175f - 0.05f * i);
 			renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 		}
 	}
@@ -826,7 +826,7 @@ void Level::render()
 	if(lightColor != Vec3i(255, 255, 255))
 	{
 		renderer.setBlend(BM_MULTIPLY);
-		const Vec3d tint = Vec3d(1.0 / 255.0) * lightColor;
+		const Vec3f tint = Vec3f(1.0f / 255.0f) * lightColor;
 		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f),
 					  Vec4f(static_cast<float>(tint.r), static_cast<float>(tint.g), static_cast<float>(tint.b), 1.0f));
 		renderer.setBlend(BM_NORMAL);
@@ -835,7 +835,7 @@ void Level::render()
 	// Thunderstorm
 	if(!inEditor && thunderstorm) lightning.render();
 
-	if(toxic > 0.1)
+	if(toxic > 0.1f)
 	{
 		renderToxicEffect();
 	}
@@ -851,20 +851,20 @@ void Level::render()
 			renderer.setBlend(BM_ZERO);
 			renderer.rect(screen[0], screen[2], Vec4f(0.0f, 0.0f, 0.0f, 0.0f));
 			renderer.setBlend(BM_ADD_ALL);
-			renderObjects(RL_LIGHT, Vec2i(0, 0), Vec4d(1.0), false);
+			renderObjects(RL_LIGHT, Vec2i(0, 0), Vec4f(1.0f), false);
 			if(thunderstorm) lightning.render();
 		}
 		{
 			// darken everything unlit
 			Renderer::ColorMaskScope colorOnly(true, true, true, false);
-			const float c = static_cast<float>(21.0 / 255.0);
+			const float c = static_cast<float>(21.0f / 255.0f);
 			renderer.setBlend(BM_DARKEN_UNLIT);
 			renderer.rect(screen[0], screen[2], Vec4f(c, c, c, c));
 			renderer.setBlend(BM_NORMAL);
 		}
 
 		// render the sparkle layer
-		renderObjects(RL_SPARKLE, Vec2i(0, 0), Vec4d(1.0), false);
+		renderObjects(RL_SPARKLE, Vec2i(0, 0), Vec4f(1.0f), false);
 
 		// render the noise
 		renderer.setBlend(BM_MULTIPLY);
@@ -880,13 +880,13 @@ void Level::render()
 	}
 
 	// render the layer on which overlays are shown
-	renderObjects(RL_OVERLAY, Vec2i(0, 0), Vec4d(1.0, 1.0, 1.0, 1.0), false);
+	renderObjects(RL_OVERLAY, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
 
-	if(flash > 0.0)
+	if(flash > 0.0f)
 	{
 		// draw the flash
-		const Vec4f color = nightVision ? Vec4f(0.0f, 1.0f, 0.0f, static_cast<float>(min(0.75, actualFlash)))
-										: Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(min(0.5, actualFlash)));
+		const Vec4f color = nightVision ? Vec4f(0.0f, 1.0f, 0.0f, static_cast<float>(min(0.75f, actualFlash)))
+										: Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(min(0.5f, actualFlash)));
 		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f), color);
 	}
 
@@ -923,10 +923,10 @@ void Level::update()
 	// And the icons in the HUD fade on the same tick as the objects.
 	for(int i = 0; i < 2; i++)
 	{
-		if(hudIconFlash[i] > 0.0)
+		if(hudIconFlash[i] > 0.0f)
 		{
 			hudIconFlash[i] *= FLASH_DECAY;
-			if(hudIconFlash[i] < 1.0 / 256.0) hudIconFlash[i] = 0.0;
+			if(hudIconFlash[i] < 1.0f / 256.0f) hudIconFlash[i] = 0.0f;
 		}
 	}
 
@@ -960,7 +960,7 @@ void Level::update()
 		{
 			// make the exit appear
 			p_exit->setGhost(false);
-			Engine::inst().playSound("exit.ogg", false, 0.0, 100);
+			Engine::inst().playSound("exit.ogg", false, 0.0f, 100);
 
 			// stars
 			ParticleSystem::Particle p;
@@ -972,10 +972,10 @@ void Level::update()
 				p.positionOnTexture = Vec2b(0, 32);
 				p.sizeOnTexture = Vec2b(16, 16);
 				p.position = p_exit->getPosition() * 16 + Vec2i(8, 8);
-				const double r = random(0.0, 6.283);
-				p.velocity = random(2.0, 5.0) * Vec2d(sin(r), cos(r));
-				p.color = Vec4d(random(0.75, 1.0), random(0.75, 1.0), random(0.75, 1.0), random(0.25, 0.9));
-				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+				const float r = random(0.0f, 6.283f);
+				p.velocity = random(2.0f, 5.0f) * Vec2f(sin(r), cos(r));
+				p.color = Vec4f(random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.25f, 0.9f));
+				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.25f, 0.8f);
@@ -1016,9 +1016,9 @@ void Level::update()
 								p.positionOnTexture = Vec2b(96, 32);
 								p.sizeOnTexture = Vec2b(16, 16);
 								p.position = 16 * pos + Vec2i(random(0, 15), random(0, 15));
-								const double c = random(0.4, 0.6);
-								p.color = Vec4d(c, c, c, random(0.1, 0.2));
-								p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+								const float c = random(0.4f, 0.6f);
+								p.color = Vec4f(c, c, c, random(0.1f, 0.2f));
+								p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);
 								p.deltaRotation = random(-0.1f, 0.1f);
 								p.size = random(0.25f, 0.3f);
@@ -1026,8 +1026,8 @@ void Level::update()
 
 								for(int i = 0; i < 8; i++)
 								{
-									const double r = random(0.0, 6.283);
-									p.velocity = random(2.0, 3.0) * Vec2d(sin(r), cos(r));
+									const float r = random(0.0f, 6.283f);
+									p.velocity = random(2.0f, 3.0f) * Vec2f(sin(r), cos(r));
 									p_rainParticleSystem->addParticle(p);
 								}
 							}
@@ -1048,14 +1048,14 @@ void Level::update()
 
 			if(lightningCounter == 10)
 			{
-				addFlash(random(1.5, 3.0));
-				flashJitter = random(0.5, 1.0);
-				Engine::inst().playSound("thunder.ogg", false, 0.2, 100);
+				addFlash(random(1.5f, 3.0f));
+				flashJitter = random(0.5f, 1.0f);
+				Engine::inst().playSound("thunder.ogg", false, 0.2f, 100);
 			}
 			else if(random(0, 700) == 0)
 			{
-				addFlash(random(0.5, 1.0));
-				flashJitter = random(0.5, 1.0);
+				addFlash(random(0.5f, 1.0f));
+				flashJitter = random(0.5f, 1.0f);
 			}
 		}
 		else
@@ -1065,29 +1065,29 @@ void Level::update()
 		}
 	}
 
-	if(cameraShake > 0.0)
+	if(cameraShake > 0.0f)
 	{
-		cameraShake -= 0.02;
-		if(cameraShake < 0.0) cameraShake = 0.0;
+		cameraShake -= 0.02f;
+		if(cameraShake < 0.0f) cameraShake = 0.0f;
 	}
 
-	if(flash > 0.0)
+	if(flash > 0.0f)
 	{
-		flash *= 0.8;
-		if(flash < 1.0 / 256.0)
+		flash *= 0.8f;
+		if(flash < 1.0f / 256.0f)
 		{
-			flash = 0.0;
-			flashJitter = 0.0;
+			flash = 0.0f;
+			flashJitter = 0.0f;
 		}
 
-		actualFlash = flash * random(1.0 - flashJitter, 1.0 + flashJitter);
+		actualFlash = flash * random(1.0f - flashJitter, 1.0f + flashJitter);
 	}
-	else actualFlash = 0.0;
+	else actualFlash = 0.0f;
 
-	if(toxic > 0.0)
+	if(toxic > 0.0f)
 	{
-		toxic *= 0.95;
-		if(toxic < 1.0 / 256.0) toxic = 0.0;
+		toxic *= 0.95f;
+		if(toxic < 1.0f / 256.0f) toxic = 0.0f;
 	}
 
 	counter++;
@@ -1104,7 +1104,7 @@ void Level::update()
 
 void Level::renderTiles(int layer,
 						const Vec2i& offset,
-						const Vec4d& color)
+						const Vec4f& color)
 {
 	if(Engine::inst().isRenderSuppressed()) return;
 
@@ -1157,7 +1157,7 @@ void Level::renderTiles(int layer,
 
 void Level::renderObjects(RenderLayer layer,
 						  const Vec2i& offset,
-						  const Vec4d& color,
+						  const Vec4f& color,
 						  bool shadow)
 {
 	// The passes that bring a texture of their own: the wires draw untextured
@@ -1194,8 +1194,8 @@ void Level::sortObjects()
 			else if(d1 < d2) return false;
 			else
 			{
-				const double y1 = o1->getRealShownPosition().y;
-				const double y2 = o2->getRealShownPosition().y;
+				const float y1 = o1->getRealShownPosition().y;
+				const float y2 = o2->getRealShownPosition().y;
 				if(y1 < y2) return true;
 				else if(y1 > y2) return false;
 			}
@@ -1207,11 +1207,11 @@ void Level::sortObjects()
 	std::sort(objects.begin(), objects.end(), cmp);
 }
 
-void Level::renderShine(double intensity,
-						double size,
-						const Vec2d& offset)
+void Level::renderShine(float intensity,
+						float size,
+						const Vec2f& offset)
 {
-	Engine::inst().renderSprite(p_shine, offset + Vec2d(-56.0, -56.0), Vec2i(0, 0), Vec2i(128, 128), Vec4d(intensity), false, 0.0, size);
+	Engine::inst().renderSprite(p_shine, offset + Vec2f(-56.0f, -56.0f), Vec2i(0, 0), Vec2i(128, 128), Vec4f(intensity), false, 0.0f, size);
 }
 
 namespace
@@ -1231,20 +1231,20 @@ namespace
 	// beam's length moves with its mirrors. In a shipped build there is no
 	// per-frame reseed, so those draws shift the sequence the logic reads.
 	// The hash is the usual fract(sin(x) * large): no state, no draws.
-	double pointJitter(double seed, int index)
+	float pointJitter(float seed, int index)
 	{
-		double h = sin(seed * 12.9898 + index * 78.233) * 43758.5453;
+		float h = sin(seed * 12.9898f + index * 78.233f) * 43758.5453f;
 		h -= floor(h);
-		return h * 2.0 - 1.0;
+		return h * 2.0f - 1.0f;
 	}
 }
 
-void Level::renderBeamShines(const std::list<Vec2d>& beam,
+void Level::renderBeamShines(const std::list<Vec2f>& beam,
 							 const Vec2i& origin,
-							 double intensity,
-							 double size,
-							 double jitter,
-							 double seed)
+							 float intensity,
+							 float size,
+							 float jitter,
+							 float seed)
 {
 	if(beam.empty()) return;
 
@@ -1261,12 +1261,12 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 	// one place along a beam the light really is brightest - and a stride of
 	// four would land on it three times in four by luck alone. So are the two
 	// ends: the emitter, and whatever the beam stops against.
-	Vec2d previous(0.0);
+	Vec2f previous(0.0f);
 	int n = 0;
 
-	for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, n++)
+	for(std::list<Vec2f>::const_iterator i = beam.begin(); i != beam.end(); ++i, n++)
 	{
-		std::list<Vec2d>::const_iterator after = i;
+		std::list<Vec2f>::const_iterator after = i;
 		++after;
 
 		bool corner = (i == beam.begin() || after == beam.end());
@@ -1277,8 +1277,8 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 			// the mirror's own centre, so the step into a corner is shorter
 			// than a whole one and two steps of unequal length along one
 			// straight run would otherwise read as a turn.
-			const Vec2d in(*i - previous);
-			const Vec2d out(*after - *i);
+			const Vec2f in(*i - previous);
+			const Vec2f out(*after - *i);
 			corner = (in.x * out.y != in.y * out.x);
 		}
 
@@ -1286,7 +1286,7 @@ void Level::renderBeamShines(const std::list<Vec2d>& beam,
 		if(n % 4 && !corner) continue;
 
 		renderShine(intensity, size + jitter * pointJitter(seed, n),
-					*i - origin - Vec2d(7.5, 7.5));
+					*i - origin - Vec2f(7.5, 7.5));
 	}
 }
 
@@ -1322,7 +1322,7 @@ bool Level::isFreeAt2(const Vec2i& positionInPixels,
 					  Object* p_except,
 					  Object** pp_objectOut,
 					  Vec2i* p_tileOut,
-					  double radiusSq)
+					  float radiusSq)
 {
 	Vec2i position = positionInPixels / 16;
 	*pp_objectOut = 0;
@@ -1350,7 +1350,7 @@ bool Level::isFreeAt2(const Vec2i& positionInPixels,
 	// test the objects around it
 	const Vec2i p[] = {Vec2i(0, 0), Vec2i(-2, 0), Vec2i(-1, 0), Vec2i(1, 0), Vec2i(2, 0), Vec2i(0, -2), Vec2i(0, -1), Vec2i(0, 1), Vec2i(0, 2)};
 	Object* p_closestObject = 0;
-	double closestDist = 0.0;
+	float closestDist = 0.0f;
 	for(int i = 0; i < sizeof(p) / sizeof(Vec2i); i++)
 	{
 		const std::vector<Object*>& allObjectsHere = getAllObjectsAt(position + p[i]);
@@ -1365,7 +1365,7 @@ bool Level::isFreeAt2(const Vec2i& positionInPixels,
 			   !p_obj->isTeleporting() &&
 			   !p_obj->isFalling())
 			{
-				const double dist = (static_cast<Vec2d>(p_obj->getShownPositionInPixels()) + Vec2d(7.5, 7.5) - positionInPixels).lengthSq();
+				const float dist = (static_cast<Vec2f>(p_obj->getShownPositionInPixels()) + Vec2f(7.5f, 7.5f) - positionInPixels).lengthSq();
 				if(dist <= radiusSq && (!p_closestObject || dist < closestDist))
 				{
 					p_closestObject = p_obj;
@@ -1483,11 +1483,11 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 }
 
 std::vector<Object*> Level::getObjectsAt2(const Vec2i& position,
-										  double radiusSq)
+										  float radiusSq)
 {
 	std::vector<Object*> result;
 
-	Vec2d positionInPixels = Vec2d(7.5, 7.5) + position * 16;
+	Vec2f positionInPixels = Vec2f(7.5f, 7.5f) + position * 16;
 	Vec2i p[] = {Vec2i(0, 0), Vec2i(-2, 0), Vec2i(-1, 0), Vec2i(1, 0), Vec2i(2, 0), Vec2i(0, -2), Vec2i(0, -1), Vec2i(0, 1), Vec2i(0, 2)};
 	for(int i = 0; i < sizeof(p) / sizeof(Vec2i); i++)
 	{
@@ -1497,7 +1497,7 @@ std::vector<Object*> Level::getObjectsAt2(const Vec2i& position,
 			Object* const p_obj = *j;
 			if(p_obj->isAlive() && !p_obj->isGhost() && !(p_obj->getFlags() & Object::OF_PROXY))
 			{
-				const double dist = (static_cast<Vec2d>(p_obj->getShownPositionInPixels()) + Vec2d(7.5, 7.5) - positionInPixels).lengthSq();
+				const float dist = (static_cast<Vec2f>(p_obj->getShownPositionInPixels()) + Vec2f(7.5f, 7.5f) - positionInPixels).lengthSq();
 				if(dist <= radiusSq) result.push_back(p_obj);
 			}
 		}
@@ -1657,7 +1657,7 @@ void Level::turnArrows()
 		}
 	}
 
-	if(playSound) Engine::inst().playSound("magnet.ogg", false, 0.15, 100);
+	if(playSound) Engine::inst().playSound("magnet.ogg", false, 0.15f, 100);
 }
 
 bool Level::changeBarrages(uint color)
@@ -1676,14 +1676,14 @@ bool Level::changeBarrages(uint color)
 				{
 					// change every previous barrage back
 					for(std::vector<Barrage*>::const_iterator j = changed.begin(); j != changed.end(); ++j) (*j)->change();
-					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0, 100);
+					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0f, 100);
 					return false;
 				}
 			}
 		}
 	}
 
-	if(!changed.empty()) Engine::inst().playSound("barrageswitch.ogg", false, 0.0, 100);
+	if(!changed.empty()) Engine::inst().playSound("barrageswitch.ogg", false, 0.0f, 100);
 	return true;
 }
 
@@ -1709,14 +1709,14 @@ bool Level::changeBarrages2(uint color,
 						(*j)->change(!up);
 					}
 
-					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0, 100);
+					Engine::inst().playSound("barrageswitch_failed.ogg", false, 0.0f, 100);
 					return false;
 				}
 			}
 		}
 	}
 
-	if(!changed.empty()) Engine::inst().playSound("barrageswitch.ogg", false, 0.0, 100);
+	if(!changed.empty()) Engine::inst().playSound("barrageswitch.ogg", false, 0.0f, 100);
 	return true;
 }
 
@@ -1735,7 +1735,7 @@ int Level::fireCannons(uint color)
 		}
 	}
 
-	if(c) Engine::inst().playSound("cannon_fire.ogg", false, 0.05, 100);
+	if(c) Engine::inst().playSound("cannon_fire.ogg", false, 0.05f, 100);
 
 	return c;
 }
@@ -1756,7 +1756,7 @@ int Level::rotateCannons(uint color)
 		}
 	}
 
-	if(c) Engine::inst().playSound("cannon_turn.ogg", false, 0.05);
+	if(c) Engine::inst().playSound("cannon_turn.ogg", false, 0.05f);
 
 	return c;
 }
@@ -1811,7 +1811,7 @@ bool Level::loadErrorLevel()
 		Engine::inst().showToast(Engine::TOAST_ERROR,
 								 localizeString("$ERROR_LEVEL_INVALID") + " \"" +
 								 (slash == std::string::npos ? wanted : wanted.substr(slash + 1)) + "\"",
-								 0.0, inPreview);
+								 0.0f, inPreview);
 	}
 
 	loadingErrorLevel = true;
@@ -2001,9 +2001,9 @@ void Level::flashHudIcon(uint index)
 	if(index < 2) hudIconFlash[index] = FLASH_STRENGTH;
 }
 
-double Level::getHudIconFlash(uint index) const
+float Level::getHudIconFlash(uint index) const
 {
-	return (index < 2) ? hudIconFlash[index] : 0.0;
+	return (index < 2) ? hudIconFlash[index] : 0.0f;
 }
 
 void Level::setNumDiamondsCollected(uint numDiamondsCollected)
@@ -2283,25 +2283,25 @@ void Level::setMusicFilename(const std::string& musicFilename)
 	this->musicFilename = musicFilename;
 }
 
-void Level::addCameraShake(double value)
+void Level::addCameraShake(float value)
 {
 	cameraShake += value;
-	cameraShake = min(cameraShake, 4.0);
+	cameraShake = min(cameraShake, 4.0f);
 }
 
-void Level::addFlash(double value)
+void Level::addFlash(float value)
 {
 	flash += value;
 }
 
-void Level::addToxic(double value)
+void Level::addToxic(float value)
 {
 	toxic += value;
 }
 
 void Level::renderToxicEffect()
 {
-	static double phase[65][41];
+	static float phase[65][41];
 	static bool tablesInitialized = false;
 
 	if(!tablesInitialized)
@@ -2315,12 +2315,12 @@ void Level::renderToxicEffect()
 		// how many frames the process had rendered by then. Noise from a
 		// fixed seed is the same noise, and now the same on every run.
 		MTRand table(0x70C1);
-		double temp[65][41];
+		float temp[65][41];
 		for(int x = 0; x <= 64; x++)
 		{
 			for(int y = 0; y <= 40; y++)
 			{
-				temp[x][y] = table.rand(2.5);
+				temp[x][y] = table.rand(2.5f);
 			}
 		}
 
@@ -2328,7 +2328,7 @@ void Level::renderToxicEffect()
 		{
 			for(int y = 1; y < 40; y++)
 			{
-				phase[x][y] = (1.0 / 9.0) *
+				phase[x][y] = (1.0f / 9.0f) *
 							  (temp[x - 1][y - 1] + temp[x][y - 1] + temp[x + 1][y - 1] +
 							   temp[x - 1][y] + temp[x][y] + temp[x + 1][y] +
 							   temp[x - 1][y + 1] + temp[x][y + 1] + temp[x + 1][y + 1]);
@@ -2342,18 +2342,18 @@ void Level::renderToxicEffect()
 	// the grid samples in pixels.
 	engine.captureFrame(bufferID);
 
-	const double t = static_cast<double>(time) / 1000.0;
-	const double r = min(6.0, toxic * 6.0);
+	const float t = static_cast<float>(time) / 1000.0f;
+	const float r = min(6.0f, toxic * 6.0f);
 
 	// build the grid
-	Vec2d grid[65][41];
-	Vec4d color[65][41];
+	Vec2f grid[65][41];
+	Vec4f color[65][41];
 	for(int x = 0; x <= 64; x++)
 	{
 		for(int y = 0; y <= 40; y++)
 		{
 			grid[x][y] = Vec2i(x * 10, y * 10);
-			color[x][y] = Vec4d(1.0);
+			color[x][y] = Vec4f(1.0f);
 
 			if(!x || !y || x == 64 || y == 40)
 			{
@@ -2361,12 +2361,12 @@ void Level::renderToxicEffect()
 			}
 			else
 			{
-				const double p = phase[x][y];
-				grid[x][y] += r * Vec2d(sin(p + t), cos(p + t));
-				color[x][y] = Vec4d(0.85 + 0.15 * sin(p + 0.31 + 1.1 * t),
-								    0.85 + 0.15 * cos(p + 0.94 + 1.42 * t),
-									0.85 + 0.15 * sin(p + 1.46 + 1.27 * t),
-					                min(toxic, 1.0) * (0.75 + 0.25 * sin(p + 0.71 + 1.23 * t)));
+				const float p = phase[x][y];
+				grid[x][y] += r * Vec2f(sin(p + t), cos(p + t));
+				color[x][y] = Vec4f(0.85f + 0.15f * sin(p + 0.31f + 1.1f * t),
+								    0.85f + 0.15f * cos(p + 0.94f + 1.42f * t),
+									0.85f + 0.15f * sin(p + 1.46f + 1.27f * t),
+					                min(toxic, 1.0f) * (0.75f + 0.25f * sin(p + 0.71f + 1.23f * t)));
 			}
 		}
 	}
@@ -2551,7 +2551,7 @@ void Level::loadSkin(bool forceReload)
 		{
 			Engine::inst().showToast(Engine::TOAST_ERROR,
 									 localizeString("$ERROR_SKIN_MISSING") + " \"" + *i + "\"",
-									 0.0, inPreview);
+									 0.0f, inPreview);
 		}
 	}
 }

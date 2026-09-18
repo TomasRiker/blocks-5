@@ -16,7 +16,7 @@ public:
 	Hint(Level& level, const Vec2i& position, const std::string& text);
 	~Hint();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	void onRemove();
@@ -45,12 +45,12 @@ private:
 
 	// The paper as a strip of quads: flat in the middle, rolled up at the top
 	// and at the bottom. unroll runs from 0 (fully rolled up) to 1 (flat).
-	void renderNote(const Vec4d& color, double unroll) const;
-	void renderNoteMesh(const RenderState& state, const Vec4d& color, double unroll) const;
+	void renderNote(const Vec4f& color, float unroll) const;
+	void renderNoteMesh(const RenderState& state, const Vec4f& color, float unroll) const;
 
 	std::string text;
-	double alpha;
-	double shownAlpha;
+	float alpha;
+	float shownAlpha;
 	Font* p_font;
 	Texture* p_sprite;
 	Vec2i targetPosition;
@@ -67,7 +67,7 @@ private:
 
 	// The roll: by logic ticks and not by shownAlpha, which only approaches its
 	// target and never arrives.
-	double unroll;
+	float unroll;
 	int activeTicks;
 
 	// The rustle of the paper in motion, held only to fade it out when the

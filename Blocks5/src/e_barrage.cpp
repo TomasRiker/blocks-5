@@ -28,11 +28,11 @@ void E_Barrage::updateSprites()
 	if(shownState == 5) positionOnTexture = Vec2i(0, 704);
 	else if(shownState > 0) positionOnTexture = Vec2i(32, 704);
 	else positionOnTexture = Vec2i(64, 704);
-	sprites.add(positionOnTexture).rotation = 90.0 * dir;
+	sprites.add(positionOnTexture).rotation = 90.0f * dir;
 }
 
 void E_Barrage::onRender(RenderLayer layer,
-						 const Vec4d& color)
+						 const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

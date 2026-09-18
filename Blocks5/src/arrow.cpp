@@ -12,8 +12,8 @@ Arrow::Arrow(Level& level,
 	flags = OF_MASSIVE | OF_FIXED | OF_ARROWTYPE;
 	this->dir = dir;
 	shownDir = dir;
-	dirVel = 0.0;
-	shownAlpha = 0.6;
+	dirVel = 0.0f;
+	shownAlpha = 0.6f;
 	counter = 0;
 }
 
@@ -24,22 +24,22 @@ Arrow::~Arrow()
 void Arrow::updateSprites()
 {
 	// Arrow
-	Sprite& sprite = sprites.add(Vec2i(96, 0), Vec4d(1.0, 1.0, 1.0, shownAlpha));
-	sprite.rotation = 90.0 * shownDir;
+	Sprite& sprite = sprites.add(Vec2i(96, 0), Vec4f(1.0f, 1.0f, 1.0f, shownAlpha));
+	sprite.rotation = 90.0f * shownDir;
 }
 
 void Arrow::onRender(RenderLayer layer,
-					 const Vec4d& color)
+					 const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
 
 void Arrow::onUpdate()
 {
-	shownDir += dirVel * 0.02;
-	double d = static_cast<double>(dir) - shownDir;
-	dirVel += d * 2.0;
-	dirVel *= 0.9;
+	shownDir += dirVel * 0.02f;
+	float d = static_cast<float>(dir) - shownDir;
+	dirVel += d * 2.0f;
+	dirVel *= 0.9f;
 
 	bool active = false;
 	Player* p_player = level.getActivePlayer();
@@ -63,17 +63,17 @@ void Arrow::onUpdate()
 		}
 	}
 
-	double alpha = 0.6;
+	float alpha = 0.6f;
 	if(active)
 	{
-		if((counter / 20) % 2) alpha = 0.8;
-		else alpha = 1.0;
+		if((counter / 20) % 2) alpha = 0.8f;
+		else alpha = 1.0f;
 		counter++;
 	}
 	else counter = 0;
 
-	const double interpolation = 0.3;
-	shownAlpha = shownAlpha * (1.0 - interpolation) + alpha * interpolation;
+	const float interpolation = 0.3f;
+	shownAlpha = shownAlpha * (1.0f - interpolation) + alpha * interpolation;
 }
 
 bool Arrow::allowMovement(const Vec2i& dir)
@@ -116,6 +116,6 @@ void Arrow::turn()
 	if(dir >= 4)
 	{
 		dir -= 4;
-		shownDir -= 4.0;
+		shownDir -= 4.0f;
 	}
 }

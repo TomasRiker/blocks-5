@@ -440,7 +440,7 @@ void Renderer::pop()
 	if(transforms.size() > 1) transforms.pop_back();
 }
 
-void Renderer::translate(double x, double y)
+void Renderer::translate(float x, float y)
 {
 	// In float, and in Mesa's order of operations for glTranslated - the
 	// products first, the old translation last - so that the same corner
@@ -451,7 +451,7 @@ void Renderer::translate(double x, double y)
 	t.ty = t.m10 * fx + t.m11 * fy + t.ty;
 }
 
-void Renderer::scale(double x, double y)
+void Renderer::scale(float x, float y)
 {
 	Transform& t = transforms.back();
 	const float fx = static_cast<float>(x), fy = static_cast<float>(y);
@@ -460,7 +460,7 @@ void Renderer::scale(double x, double y)
 	t.translationOnly = false;
 }
 
-void Renderer::rotate(double degrees)
+void Renderer::rotate(float degrees)
 {
 	float s, c;
 	Mat4::rotationTerms(degrees, &s, &c);
@@ -481,9 +481,9 @@ void Renderer::loadIdentity()
 	t.translationOnly = true;
 }
 
-void Renderer::bakePoint(double x, double y, float* p_outX, float* p_outY) const
+void Renderer::bakePoint(float x, float y, float* p_outX, float* p_outY) const
 {
-	// The float matrix entries promote to double and the sum rounds once, to
+	// The float matrix entries promote to float and the sum rounds once, to
 	// float - the arithmetic GL's own vertex stage does with a float matrix,
 	// kept so that a baked corner is the float the oracle's frames were
 	// drawn with.
@@ -525,7 +525,7 @@ void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Ve
 	if(flushAll) flush(FR_EXPLICIT);
 }
 
-void Renderer::submit(const RenderState& s, const double* p_x, const double* p_y,
+void Renderer::submit(const RenderState& s, const float* p_x, const float* p_y,
 					  const float* p_u, const float* p_v, const Vec4f* p_colors)
 {
 	Vec2f positions[4], uvs[4];
@@ -537,7 +537,7 @@ void Renderer::submit(const RenderState& s, const double* p_x, const double* p_y
 	pushQuad(s, positions, uvs, p_colors);
 }
 
-void Renderer::submitFlat(const double* p_x, const double* p_y, const Vec4f& color)
+void Renderer::submitFlat(const float* p_x, const float* p_y, const Vec4f& color)
 {
 	const float u[4] = {BLOCK_U, BLOCK_U, BLOCK_U, BLOCK_U};
 	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
@@ -545,34 +545,34 @@ void Renderer::submitFlat(const double* p_x, const double* p_y, const Vec4f& col
 	submit(flatState(), p_x, p_y, u, v, colors);
 }
 
-void Renderer::sprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
+void Renderer::sprite(const Vec2f& position, const Vec2i& halfSize, const Vec2i& otherHalf,
 					  int u0, int u1, int v0, int v1,
-					  const Vec4d& color, double rotation, double scaling)
+					  const Vec4f& color, float rotation, float scaling)
 {
-	// The sprite's own transform in double, as the batch always did it:
+	// The sprite's own transform in float, as the batch always did it:
 	// rotate, then scale, then translate to the centre. Mirroring is already
 	// in the texture coordinates.
-	double c = scaling;
-	double s = 0.0;
-	if(rotation != 0.0)
+	float c = scaling;
+	float s = 0.0f;
+	if(rotation != 0.0f)
 	{
-		const double a = rotation * (3.1415926535897932384626433832795 / 180.0);
+		const float a = rotation * (3.1415926535897932384626433832795f / 180.0f);
 		c = scaling * cos(a);
 		s = scaling * sin(a);
 	}
 
-	const double tx = position.x + halfSize.x;
-	const double ty = position.y + halfSize.y;
+	const float tx = position.x + halfSize.x;
+	const float ty = position.y + halfSize.y;
 	// Widened one at a time and not inside the braces: a braced initializer
 	// list forbids a narrowing conversion, and clang says so where gcc does not.
-	const double left = -halfSize.x, right = otherHalf.x;
-	const double top = -halfSize.y, bottom = otherHalf.y;
-	const double lx[4] = {left, right, right, left};
-	const double ly[4] = {top, top, bottom, bottom};
+	const float left = -halfSize.x, right = otherHalf.x;
+	const float top = -halfSize.y, bottom = otherHalf.y;
+	const float lx[4] = {left, right, right, left};
+	const float ly[4] = {top, top, bottom, bottom};
 	const float u[4] = {static_cast<float>(u0), static_cast<float>(u1), static_cast<float>(u1), static_cast<float>(u0)};
 	const float v[4] = {static_cast<float>(v0), static_cast<float>(v0), static_cast<float>(v1), static_cast<float>(v1)};
 
-	double x[4], y[4];
+	float x[4], y[4];
 	for(int i = 0; i < 4; i++)
 	{
 		x[i] = tx + c * lx[i] - s * ly[i];
@@ -589,7 +589,7 @@ void Renderer::quads(const RenderState& s, const QuadVertex* p_vertices, uint co
 	const Vec4f colors[4] = {color, color, color, color};
 	for(uint q = 0; q + 4 <= count; q += 4)
 	{
-		double x[4], y[4];
+		float x[4], y[4];
 		float u[4], v[4];
 		for(int i = 0; i < 4; i++)
 		{
@@ -606,7 +606,7 @@ void Renderer::quads(const RenderState& s, const Vertex* p_vertices, uint count)
 {
 	for(uint q = 0; q + 4 <= count; q += 4)
 	{
-		double x[4], y[4];
+		float x[4], y[4];
 		float u[4], v[4];
 		Vec4f colors[4];
 		for(int i = 0; i < 4; i++)
@@ -629,7 +629,7 @@ void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p
 
 void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f* p_colors)
 {
-	double x[4], y[4];
+	float x[4], y[4];
 	float u[4], v[4];
 	for(int i = 0; i < 4; i++)
 	{
@@ -648,7 +648,7 @@ void Renderer::scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec
 
 void Renderer::quad(const Vec2f* p_corners, const Vec4f* p_colors)
 {
-	double x[4], y[4];
+	float x[4], y[4];
 	const float u[4] = {BLOCK_U, BLOCK_U, BLOCK_U, BLOCK_U};
 	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
 	for(int i = 0; i < 4; i++)
@@ -665,7 +665,7 @@ void Renderer::triangles(const RenderState& s, const Vertex* p_vertices, uint co
 	// keeps the three vertices in the order given.
 	for(uint t = 0; t + 3 <= count; t += 3)
 	{
-		double x[4], y[4];
+		float x[4], y[4];
 		float u[4], v[4];
 		Vec4f colors[4];
 		for(int i = 0; i < 4; i++)
@@ -687,7 +687,7 @@ void Renderer::triangles(const Vec2f* p_positions, const Vec4f* p_colors, uint c
 	const float v[4] = {BLOCK_V, BLOCK_V, BLOCK_V, BLOCK_V};
 	for(uint t = 0; t + 3 <= count; t += 3)
 	{
-		double x[4], y[4];
+		float x[4], y[4];
 		Vec4f colors[4];
 		for(int i = 0; i < 4; i++)
 		{
@@ -753,8 +753,8 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 
 void Renderer::rect(const Vec2f& min, const Vec2f& max, const Vec4f& color)
 {
-	const double x[4] = {min.x, max.x, max.x, min.x};
-	const double y[4] = {min.y, min.y, max.y, max.y};
+	const float x[4] = {min.x, max.x, max.x, min.x};
+	const float y[4] = {min.y, min.y, max.y, max.y};
 	submitFlat(x, y, color);
 }
 
@@ -762,7 +762,7 @@ void Renderer::quads(const Vec2f* p_positions, uint count, const Vec4f& color)
 {
 	for(uint q = 0; q + 4 <= count; q += 4)
 	{
-		double x[4], y[4];
+		float x[4], y[4];
 		for(int i = 0; i < 4; i++)
 		{
 			x[i] = p_positions[q + i].x;
@@ -808,20 +808,20 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 			const float dot = prevUp.x * dir.y - prevUp.y * dir.x;
 			if(dot > 0.0f)
 			{
-				const double x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
-				const double y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
+				const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
+				const float y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
 				submitFlat(x, y, color);
 			}
 			else if(dot < 0.0f)
 			{
-				const double x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
-				const double y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
+				const float x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
+				const float y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
 				submitFlat(x, y, color);
 			}
 		}
 
-		const double x[4] = {a.x + up.x, b.x + up.x, b.x - up.x, a.x - up.x};
-		const double y[4] = {a.y + up.y, b.y + up.y, b.y - up.y, a.y - up.y};
+		const float x[4] = {a.x + up.x, b.x + up.x, b.x - up.x, a.x - up.x};
+		const float y[4] = {a.y + up.y, b.y + up.y, b.y - up.y, a.y - up.y};
 		submitFlat(x, y, color);
 
 		prevDir = dir;
@@ -833,8 +833,8 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 void Renderer::point(const Vec2f& p, float size, const Vec4f& color)
 {
 	const float half = size * 0.5f;
-	const double x[4] = {p.x - half, p.x + half, p.x + half, p.x - half};
-	const double y[4] = {p.y - half, p.y - half, p.y + half, p.y + half};
+	const float x[4] = {p.x - half, p.x + half, p.x + half, p.x - half};
+	const float y[4] = {p.y - half, p.y - half, p.y + half, p.y + half};
 	const float u[4] = {DISC_U0, DISC_U1, DISC_U1, DISC_U0};
 	const float v[4] = {DISC_V0, DISC_V0, DISC_V1, DISC_V1};
 	const Vec4f colors[4] = {color, color, color, color};
@@ -939,8 +939,8 @@ void Renderer::dashes(const std::vector<Vec2f>& points, float width, const Vec4f
 				const float run = min(on - inPattern, length - at);
 				const Vec2f from(a.x + dir.x * at, a.y + dir.y * at);
 				const Vec2f to(a.x + dir.x * (at + run), a.y + dir.y * (at + run));
-				const double x[4] = {from.x + up.x, to.x + up.x, to.x - up.x, from.x - up.x};
-				const double y[4] = {from.y + up.y, to.y + up.y, to.y - up.y, from.y - up.y};
+				const float x[4] = {from.x + up.x, to.x + up.x, to.x - up.x, from.x - up.x};
+				const float y[4] = {from.y + up.y, to.y + up.y, to.y - up.y, from.y - up.y};
 				submitFlat(x, y, color);
 				at += run;
 			}

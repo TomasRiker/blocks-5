@@ -27,7 +27,7 @@ namespace
 	const int TEXT_WIDTH = 230;
 
 	const int SHADOW_OFFSET = 5;
-	const double SHADOW_ALPHA = 0.3;
+	const float SHADOW_ALPHA = 0.3f;
 
 	// How the note rolls up. ROLL_LENGTH is the fraction of the sheet that is
 	// rolled in at the top and the bottom while it flies in; ROLL_TURNS how
@@ -43,8 +43,8 @@ namespace
 	// roll can therefore be drawn back to front and covers itself correctly.
 	// Beyond that the end would come round to the rear again, and without a
 	// depth buffer - which this pass does not have - it would still lie on top.
-	const double ROLL_LENGTH = 0.30;
-	const double ROLL_TURNS = 0.50;
+	const float ROLL_LENGTH = 0.30f;
+	const float ROLL_TURNS = 0.50f;
 
 	// How fine. The rolls get the subdivision, the flat middle needs none:
 	// there is nothing to curve there.
@@ -53,23 +53,23 @@ namespace
 	// Focal length in pixels, for the perspective divide done by hand: what
 	// lies nearer the viewer gets bigger. Without it the roll would be nothing
 	// but a squashed strip.
-	const double PERSPECTIVE = 700.0;
+	const float PERSPECTIVE = 700.0f;
 
 	// And how far to the left of the axis the viewer stands. What comes
 	// towards them therefore moves right - the slant the 16x16 sprite has as
 	// well. The offset is e * (f - 1), which is what a laterally displaced eye
 	// sees, and zero in the plane of the sheet (f = 1): the flat note stays
 	// pixel on pixel.
-	const double VIEW_OFFSET_X = 300.0;
+	const float VIEW_OFFSET_X = 300.0f;
 
-	const double PI = 3.1415926535897932384626433832795;
+	const float PI = 3.1415926535897932384626433832795f;
 
 	// How bright the paper stands where it shows the viewer its edge. What
 	// counts is the surface normal, not the angle of rotation: on the back you
 	// are looking at the other face, whose normal points back at the viewer,
 	// hence |cos| and not cos. Fully turned towards them is 1.0, front and
 	// back alike.
-	const double SHADE_EDGE = 0.75;
+	const float SHADE_EDGE = 0.75f;
 
 	// When the note unrolls and how long it takes, both in logic ticks from
 	// the moment the field is stepped onto. At 20 ticks it is at 96% of its
@@ -82,7 +82,7 @@ namespace
 	// way left covered each tick: at 0.3 the volume halves every two ticks,
 	// is inaudible after seven - 140 ms - and the slide ends by the
 	// thirteenth.
-	const double SCROLL_FADE_SPEED = 0.3;
+	const float SCROLL_FADE_SPEED = 0.3f;
 
 	// On leaving, the note rolls up again at the same speed it opened at. It
 	// stays where it is until it is done (onUpdate); nothing hurries it.
@@ -90,57 +90,57 @@ namespace
 
 	// From when the note counts as arrived and is rounded to whole pixels:
 	// half a pixel over the screen diagonal of 800.
-	const double SNAP_RESIDUAL = 0.5 / 800.0;
+	const float SNAP_RESIDUAL = 0.5f / 800.0f;
 
 	// How far along the flight the note fades in and out; from there it is
 	// fully opaque. Transparent paper with an opaque, unwritten back
 	// contradicts itself, and there is nothing to see through it anyway.
-	const double FADE_UNTIL = 0.5;
+	const float FADE_UNTIL = 0.5f;
 
 	// A point on the paper. py runs from 0 (top edge) to NOTE_HEIGHT.
 	struct NotePoint
 	{
-		double y;       // position in the picture, from the note's centre
-		double depth;   // how far in front of the sheet plane, nearer the viewer
-		double shade;   // how bright the paper stands here
+		float y;       // position in the picture, from the note's centre
+		float depth;   // how far in front of the sheet plane, nearer the viewer
+		float shade;   // how bright the paper stands here
 		bool back;      // is the back facing the viewer?
 	};
 
-	NotePoint rollPoint(double py,
-						double unroll)
+	NotePoint rollPoint(float py,
+						float unroll)
 	{
 		NotePoint p;
-		p.y = py - 0.5 * NOTE_HEIGHT;
-		p.depth = 0.0;
-		p.shade = 1.0;
+		p.y = py - 0.5f * NOTE_HEIGHT;
+		p.depth = 0.0f;
+		p.shade = 1.0f;
 		p.back = false;
 
-		const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
-		if(rolled < 1.0) return p;   // flat: nothing left to curve
+		const float rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0f - unroll);
+		if(rolled < 1.0f) return p;   // flat: nothing left to curve
 
-		const double thetaMax = ROLL_TURNS * 2.0 * PI;
-		const double radius = rolled / thetaMax;
+		const float thetaMax = ROLL_TURNS * 2.0f * PI;
+		const float radius = rolled / thetaMax;
 
 		// Arc length from the crease where the paper lifts off the plane.
-		double s = 0.0;
-		double direction = 0.0;
-		if(py < rolled)                      { s = rolled - py;                     direction = -1.0; }
-		else if(py > NOTE_HEIGHT - rolled)   { s = py - (NOTE_HEIGHT - rolled);     direction = 1.0; }
+		float s = 0.0f;
+		float direction = 0.0f;
+		if(py < rolled)                      { s = rolled - py;                     direction = -1.0f; }
+		else if(py > NOTE_HEIGHT - rolled)   { s = py - (NOTE_HEIGHT - rolled);     direction = 1.0f; }
 		else return p;
 
-		const double theta = s / radius;
-		const double edge = direction * (0.5 * NOTE_HEIGHT - rolled);
+		const float theta = s / radius;
+		const float edge = direction * (0.5f * NOTE_HEIGHT - rolled);
 		p.y = edge + direction * radius * sin(theta);
 
 		// Top edge towards the viewer, bottom edge away from them - the way the
 		// 16x16 sprite on the field shows it. direction is -1 at the top and +1
 		// at the bottom.
-		p.depth = -direction * radius * (1.0 - cos(theta));
+		p.depth = -direction * radius * (1.0f - cos(theta));
 
 		// Past the quarter turn the paper shows its back. At exactly that point
 		// it stands edge-on, which is why the jump costs nothing.
-		p.back = (theta > 0.5 * PI);
-		p.shade = SHADE_EDGE + (1.0 - SHADE_EDGE) * fabs(cos(theta));
+		p.back = (theta > 0.5f * PI);
+		p.shade = SHADE_EDGE + (1.0f - SHADE_EDGE) * fabs(cos(theta));
 		return p;
 	}
 }
@@ -153,8 +153,8 @@ Hint::Hint(Level& level,
 	warpTo(position);
 	flags = OF_FIXED | OF_TRANSPORTABLE | OF_COLLECTABLE;
 	this->text = text;
-	alpha = shownAlpha = 0.0;
-	unroll = 0.0;
+	alpha = shownAlpha = 0.0f;
+	unroll = 0.0f;
 	activeTicks = 0;
 	dismissed = false;
 	noteTexture = 0;
@@ -168,7 +168,7 @@ Hint::Hint(Level& level,
 
 	Font::Options options = p_font->getOptions();
 	options.charSpacing = -1;
-	options.lineSpacing = 0.95;
+	options.lineSpacing = 0.95f;
 	options.shadows = 1;
 	p_font->setOptions(options);
 }
@@ -200,7 +200,7 @@ void Hint::fadeScrollSound()
 	// would hold an audio source for the rest of the level. At zero it plays
 	// itself out inaudibly and goes the ordinary way. The pointer is dropped
 	// either way - the fade is the last thing the note has to do with it.
-	if(Sound::isLiveInstance(p_scrollSound)) p_scrollSound->slideVolume(0.0, SCROLL_FADE_SPEED);
+	if(Sound::isLiveInstance(p_scrollSound)) p_scrollSound->slideVolume(0.0f, SCROLL_FADE_SPEED);
 	p_scrollSound = 0;
 }
 
@@ -247,14 +247,14 @@ void Hint::bakeNote(const std::string& inLanguage)
 	Renderer::inst().setBlend(BM_BAKE);
 
 	Renderer::inst().setTexture(p_sprite->ref());
-	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
+	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4f(1.0f));
 
 	// The same sheet once more beside it, this time without the text: that is
 	// the back. Nothing is mirrored - the paper curls about a horizontal axis,
 	// and left stays left.
-	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4d(1.0));
+	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4f(1.0f));
 
-	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4d(1.0));
+	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4f(1.0f));
 
 	Renderer::inst().setBlend(BM_NORMAL);
 	engine.endRenderToTexture();
@@ -264,35 +264,35 @@ void Hint::bakeNote(const std::string& inLanguage)
 }
 
 void Hint::renderNoteMesh(const RenderState& state,
-						  const Vec4d& color,
-						  double unroll) const
+						  const Vec4f& color,
+						  float unroll) const
 {
 	// Back to front, the only order there is without a depth buffer. The
 	// bottom roll goes away to the rear, its outer end therefore lying
 	// furthest back; the top one comes forward. Each splits at the quarter
 	// turn into a front and a back section, and the seam has to fall on a
 	// vertex - or one quad would drag its texture across both panels.
-	const double uWidth = static_cast<double>(NOTE_WIDTH) / NOTE_TEXTURE_W;
-	const double uBack = static_cast<double>(BACK_PANEL_X) / NOTE_TEXTURE_W;
-	const double rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0 - unroll);
-	const double flatTop = (rolled < 1.0) ? 0.0 : rolled;
-	const double flatBottom = NOTE_HEIGHT - flatTop;
+	const float uWidth = static_cast<float>(NOTE_WIDTH) / NOTE_TEXTURE_W;
+	const float uBack = static_cast<float>(BACK_PANEL_X) / NOTE_TEXTURE_W;
+	const float rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0f - unroll);
+	const float flatTop = (rolled < 1.0f) ? 0.0f : rolled;
+	const float flatBottom = NOTE_HEIGHT - flatTop;
 
 	// Arc up to the quarter turn: radius * PI/2, i.e. flatTop / (4*ROLL_TURNS).
 	// Where the roll does not reach that far, the back drops out as an empty
 	// section - as it does for the flat sheet, where flatTop is 0 itself.
-	const double half = min(flatTop, flatTop / (ROLL_TURNS * 4.0));
+	const float half = min(flatTop, flatTop / (ROLL_TURNS * 4.0f));
 
 	// [from, to] on the paper, how fine, and which panel of the texture.
 	const int NUM_SECTIONS = 5;
-	double sections[NUM_SECTIONS][2];
+	float sections[NUM_SECTIONS][2];
 	int steps[NUM_SECTIONS];
 	bool back[NUM_SECTIONS];
 	sections[0][0] = NOTE_HEIGHT;         sections[0][1] = flatBottom + half; steps[0] = ROLL_BANDS / 2; back[0] = true;
 	sections[1][0] = flatBottom + half;   sections[1][1] = flatBottom;        steps[1] = ROLL_BANDS / 2; back[1] = false;
 	sections[2][0] = flatTop;             sections[2][1] = flatBottom;        steps[2] = 1;              back[2] = false;
 	sections[3][0] = flatTop;             sections[3][1] = flatTop - half;    steps[3] = ROLL_BANDS / 2; back[3] = false;
-	sections[4][0] = flatTop - half;      sections[4][1] = 0.0;               steps[4] = ROLL_BANDS / 2; back[4] = true;
+	sections[4][0] = flatTop - half;      sections[4][1] = 0.0f;               steps[4] = ROLL_BANDS / 2; back[4] = true;
 
 	// Each band of the strip is two triangles, split as a triangle strip
 	// splits them - from the left edge of one row to the right edge of the
@@ -302,32 +302,32 @@ void Hint::renderNoteMesh(const RenderState& state,
 	std::vector<Vertex> triangles;
 	for(int section = 0; section < NUM_SECTIONS; section++)
 	{
-		const double from = sections[section][0];
-		const double to = sections[section][1];
+		const float from = sections[section][0];
+		const float to = sections[section][1];
 		if(from == to) continue;
 
-		const double u0 = back[section] ? uBack : 0.0;
-		const double u1 = u0 + uWidth;
+		const float u0 = back[section] ? uBack : 0.0f;
+		const float u1 = u0 + uWidth;
 
 		Vertex left, right, previousLeft, previousRight;
 		for(int k = 0; k <= steps[section]; k++)
 		{
-			const double py = from + (to - from) * k / steps[section];
+			const float py = from + (to - from) * k / steps[section];
 			const NotePoint np = rollPoint(py, unroll);
 
-			const double f = PERSPECTIVE / (PERSPECTIVE - np.depth);
-			const double x = 0.5 * NOTE_WIDTH * f;
-			const double y = np.y * f;
-			const double dx = VIEW_OFFSET_X * (f - 1.0);
+			const float f = PERSPECTIVE / (PERSPECTIVE - np.depth);
+			const float x = 0.5f * NOTE_WIDTH * f;
+			const float y = np.y * f;
+			const float dx = VIEW_OFFSET_X * (f - 1.0f);
 			// The other way round: drawing used (0,0) at the TOP left, and a
 			// texture starts at the bottom. In the texture the note stands
 			// upside down, exactly like the game's own frame in the
 			// framebuffer object.
-			const double t = 1.0 - py / NOTE_TEXTURE_H;
+			const float t = 1.0f - py / NOTE_TEXTURE_H;
 
 			// Premultiplied: the colour already carries the alpha in itself,
 			// and the vertex colour we paint with has to take it along.
-			const double b = np.shade * color.a;
+			const float b = np.shade * color.a;
 			const Vec4f shaded(static_cast<float>(color.r * b), static_cast<float>(color.g * b),
 							   static_cast<float>(color.b * b), static_cast<float>(color.a));
 			left.position = Vec2f(static_cast<float>(dx - x), static_cast<float>(y));
@@ -353,8 +353,8 @@ void Hint::renderNoteMesh(const RenderState& state,
 	if(!triangles.empty()) renderer.triangles(state, &triangles[0], static_cast<uint>(triangles.size()));
 }
 
-void Hint::renderNote(const Vec4d& color,
-					  double unroll) const
+void Hint::renderNote(const Vec4f& color,
+					  float unroll) const
 {
 	// The identity and not a texel scale: the mesh samples a fraction of
 	// its own baked sheet rather than a count of texels. Blended
@@ -365,22 +365,22 @@ void Hint::renderNote(const Vec4d& color,
 	// The shadow is the same paper in black, offset a little way.
 	renderer.push();
 	renderer.translate(SHADOW_OFFSET, SHADOW_OFFSET);
-	renderNoteMesh(state, Vec4d(0.0, 0.0, 0.0, color.a * SHADOW_ALPHA), unroll);
+	renderNoteMesh(state, Vec4f(0.0f, 0.0f, 0.0f, color.a * SHADOW_ALPHA), unroll);
 	renderer.pop();
 
 	renderNoteMesh(state, color, unroll);
 }
 
 void Hint::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_OVERLAY || layer == RL_HINT_PREVIEW)
 	{
-		double r = (0.85 - shownAlpha) * 45.0;
-		double i = shownAlpha / 0.85;
-		double s = i;
-		double a = clamp(i / FADE_UNTIL, 0.0, 1.0);
+		float r = (0.85f - shownAlpha) * 45.0f;
+		float i = shownAlpha / 0.85f;
+		float s = i;
+		float a = clamp(i / FADE_UNTIL, 0.0f, 1.0f);
 
 		// RL_HINT_PREVIEW is the preview in the level editor: fully unrolled, centred.
 		// That is a display matter and must not change targetPosition -
@@ -391,8 +391,8 @@ void Hint::onRender(RenderLayer layer,
 		// means flat: then both rolls drop out of renderNoteMesh() and leave
 		// the single quad.
 		Vec2i target = targetPosition;
-		double shownUnroll = level.isHintScroll() ? unroll : 1.0;
-		if(layer == RL_HINT_PREVIEW) a = 1.0, r = 0.0, i = 1.0, s = 1.0, target = Vec2i(320, 200), shownUnroll = 1.0;
+		float shownUnroll = level.isHintScroll() ? unroll : 1.0f;
+		if(layer == RL_HINT_PREVIEW) a = 1.0f, r = 0.0f, i = 1.0f, s = 1.0f, target = Vec2i(320, 200), shownUnroll = 1.0f;
 
 		// Arrived means exactly arrived: shownAlpha only approaches 0.85, and
 		// scale, angle and position would stay fractions off for ever, with
@@ -400,11 +400,11 @@ void Hint::onRender(RenderLayer layer,
 		// SNAP_RESIDUAL they are therefore rounded to exactly 1, exactly 0 and
 		// exactly targetPosition - which is a Vec2i, and the corners of the
 		// strip in renderNoteMesh() are whole numbers anyway.
-		if(1.0 - i < SNAP_RESIDUAL) i = 1.0, s = 1.0, r = 0.0;
+		if(1.0f - i < SNAP_RESIDUAL) i = 1.0f, s = 1.0f, r = 0.0f;
 
 		// a, and not shownAlpha: the editor forces a to 1 above and drives
 		// shownAlpha not at all, since it never runs Level::update().
-		if(a > 1.0 / 255.0)
+		if(a > 1.0f / 255.0f)
 		{
 			// Sheet and writing bake into one texture, so the writing turns and
 			// rolls up with the paper; re-made whenever the text changes.
@@ -415,10 +415,10 @@ void Hint::onRender(RenderLayer layer,
 			Vec2i p = -getShownPositionInPixels();
 			renderer.translate(p.x, p.y);
 
-			Vec4d realColor(color.r, color.g, color.b, color.a * a);
+			Vec4f realColor(color.r, color.g, color.b, color.a * a);
 
 			renderer.push();
-			Vec2d sp = (1.0 - i) * static_cast<Vec2d>(getShownPositionInPixels()) + i * static_cast<Vec2d>(target);
+			Vec2f sp = (1.0f - i) * static_cast<Vec2f>(getShownPositionInPixels()) + i * static_cast<Vec2f>(target);
 			renderer.translate(sp.x, sp.y);
 			renderer.scale(s, s);
 			renderer.rotate(r);
@@ -455,7 +455,7 @@ void Hint::onUpdate()
 		// No pitch spread: it would draw from the level's generator and shift
 		// every random number after it, and the note is one event, not a
 		// dozen blocks landing at once.
-		Engine::inst().playSound("hint.ogg", false, 0.0, 100);
+		Engine::inst().playSound("hint.ogg", false, 0.0f, 100);
 	}
 
 	// The unrolling runs by the clock and not by shownAlpha: that only
@@ -466,9 +466,9 @@ void Hint::onUpdate()
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
 	else if(level.isHintScroll()) { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
 	else { activeTicks = 0; }
-	const double before = unroll;
-	unroll = clamp(static_cast<double>(activeTicks - UNROLL_START) /
-				   (UNROLL_END - UNROLL_START), 0.0, 1.0);
+	const float before = unroll;
+	unroll = clamp(static_cast<float>(activeTicks - UNROLL_START) /
+				   (UNROLL_END - UNROLL_START), 0.0f, 1.0f);
 
 	// The paper's motion this tick, and the rustle that goes with it: one
 	// when the paper sets off unrolling, one when it sets off rolling up,
@@ -484,18 +484,18 @@ void Hint::onUpdate()
 		if(direction != 0)
 		{
 			fadeScrollSound();
-			if(level.isHintScroll()) p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0, 100);
+			if(level.isHintScroll()) p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0f, 100);
 		}
 		scrollDirection = direction;
 	}
 
 	// Roll up first, then disappear - hence the rolling above. While anything
 	// is still left to roll up, the note stays fully visible and in place.
-	alpha = (open || unroll > 0.0) ? 0.85 : 0.0;
-	shownAlpha = 0.15 * alpha + 0.85 * shownAlpha;
-	if(shownAlpha <= 1.0 / 255.0)
+	alpha = (open || unroll > 0.0f) ? 0.85f : 0.0f;
+	shownAlpha = 0.15f * alpha + 0.85f * shownAlpha;
+	if(shownAlpha <= 1.0f / 255.0f)
 	{
-		shownAlpha = 0.0;
+		shownAlpha = 0.0f;
 		releaseNoteTexture();
 	}
 }

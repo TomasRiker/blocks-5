@@ -38,8 +38,8 @@ void GUI_ScrollBar::onRender()
 			// draw the arrows
 			Engine& engine = Engine::inst();
 			int offset = (size.x - 16) / 2;
-			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 0.0);
-			engine.renderSprite(gui.getSkin(), Vec2i(offset, size.y - size.x + offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 180.0);
+			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4f(1.0f), false, 0.0f);
+			engine.renderSprite(gui.getSkin(), Vec2i(offset, size.y - size.x + offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4f(1.0f), false, 180.0f);
 
 			// draw the drag bar
 			gui.renderFrame(Vec2i(0, dragBarY), Vec2i(size.x, dragBarHeight), dragging ? Vec2i(48, 96) : Vec2i(0, 96));
@@ -53,8 +53,8 @@ void GUI_ScrollBar::onRender()
 			// draw the arrows
 			Engine& engine = Engine::inst();
 			int offset = (size.y - 16) / 2;
-			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 270.0);
-			engine.renderSprite(gui.getSkin(), Vec2i(size.x - size.y + offset, offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4d(1.0), false, 90.0);
+			engine.renderSprite(gui.getSkin(), Vec2i(offset, offset), pushedUp ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4f(1.0f), false, 270.0f);
+			engine.renderSprite(gui.getSkin(), Vec2i(size.x - size.y + offset, offset), pushedDown ? Vec2i(16, 224) : Vec2i(0, 224), Vec2i(16, 16), Vec4f(1.0f), false, 90.0f);
 
 			// draw the drag bar
 			gui.renderFrame(Vec2i(dragBarY, 0), Vec2i(dragBarHeight, size.y), dragging ? Vec2i(48, 96) : Vec2i(0, 96));
@@ -86,19 +86,19 @@ void GUI_ScrollBar::onRender()
 		const Vec4f farColors[3] = {grey, dark, dark};
 		renderer.push();
 		renderer.translate(thickness / 2, thickness / 2);
-		renderer.scale(0.5 * thickness, 0.5 * thickness);
+		renderer.scale(0.5f * thickness, 0.5f * thickness);
 		renderer.triangles(dir ? leftward : upward, nearColors, 3);
 		renderer.pop();
 		renderer.push();
 		if(!dir)
 		{
 			renderer.translate(thickness / 2, length - thickness / 2);
-			renderer.scale(0.5 * thickness, -0.5 * thickness);
+			renderer.scale(0.5f * thickness, -0.5f * thickness);
 		}
 		else
 		{
 			renderer.translate(length - thickness / 2, thickness / 2);
-			renderer.scale(-0.5 * thickness, 0.5 * thickness);
+			renderer.scale(-0.5f * thickness, 0.5f * thickness);
 		}
 		renderer.triangles(dir ? leftward : upward, farColors, 3);
 		renderer.pop();
@@ -279,13 +279,13 @@ void GUI_ScrollBar::updateValues()
 
 		if(!dir)
 		{
-			dragBarHeight = static_cast<int>(static_cast<double>(pageSize) / areaSize * (size.y - 2 * size.x));
-			dragBarY = size.x + static_cast<int>(static_cast<double>(scroll) / (areaSize - pageSize) * (size.y - 2 * size.x - dragBarHeight));
+			dragBarHeight = static_cast<int>(static_cast<float>(pageSize) / areaSize * (size.y - 2 * size.x));
+			dragBarY = size.x + static_cast<int>(static_cast<float>(scroll) / (areaSize - pageSize) * (size.y - 2 * size.x - dragBarHeight));
 		}
 		else
 		{
-			dragBarHeight = static_cast<int>(static_cast<double>(pageSize) / areaSize * (size.x - 2 * size.y));
-			dragBarY = size.y + static_cast<int>(static_cast<double>(scroll) / (areaSize - pageSize) * (size.x - 2 * size.y - dragBarHeight));
+			dragBarHeight = static_cast<int>(static_cast<float>(pageSize) / areaSize * (size.x - 2 * size.y));
+			dragBarY = size.y + static_cast<int>(static_cast<float>(scroll) / (areaSize - pageSize) * (size.x - 2 * size.y - dragBarHeight));
 		}
 	}
 }
@@ -299,12 +299,12 @@ void GUI_ScrollBar::setDragBarY(int dragBarY)
 	if(!dir)
 	{
 		this->dragBarY = clamp(dragBarY, size.x, size.y - size.x - dragBarHeight);
-		scroll = static_cast<int>(static_cast<double>((areaSize - pageSize) * (size.x - this->dragBarY)) / (dragBarHeight + 2 * size.x - size.y));
+		scroll = static_cast<int>(static_cast<float>((areaSize - pageSize) * (size.x - this->dragBarY)) / (dragBarHeight + 2 * size.x - size.y));
 	}
 	else
 	{
 		this->dragBarY = clamp(dragBarY, size.y, size.x - size.y - dragBarHeight);
-		scroll = static_cast<int>(static_cast<double>((areaSize - pageSize) * (size.y - this->dragBarY)) / (dragBarHeight + 2 * size.y - size.x));
+		scroll = static_cast<int>(static_cast<float>((areaSize - pageSize) * (size.y - this->dragBarY)) / (dragBarHeight + 2 * size.y - size.x));
 	}
 
 	scroll = clamp(scroll, 0, areaSize - pageSize);

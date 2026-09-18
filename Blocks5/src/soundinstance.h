@@ -15,13 +15,13 @@ public:
 	void pause();
 	void resume();
 
-	double getVolume() const;
-	void setVolume(double volume);
-	double getPitch() const;
-	void setPitch(double pitch);
+	float getVolume() const;
+	void setVolume(float volume);
+	float getPitch() const;
+	void setPitch(float pitch);
 
-	void slideVolume(double targetVolume, double volumeSlideSpeed);
-	void slidePitch(double targetPitch, double pitchSlideSpeed);
+	void slideVolume(float targetVolume, float volumeSlideSpeed);
+	void slidePitch(float targetPitch, float pitchSlideSpeed);
 
 	int getPriority() const;
 	void setPriority(int priority);
@@ -40,12 +40,12 @@ private:
 	uint timestamp;
 	int priority;
 	bool looping;
-	double volume;
-	double pitch;
-	double targetVolume;
-	double targetPitch;
-	double volumeSlideSpeed;
-	double pitchSlideSpeed;
+	float volume;
+	float pitch;
+	float targetVolume;
+	float targetPitch;
+	float volumeSlideSpeed;
+	float pitchSlideSpeed;
 	bool pauseAtSlideEnd;
 };
 

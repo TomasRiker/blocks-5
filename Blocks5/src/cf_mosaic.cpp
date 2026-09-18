@@ -13,13 +13,13 @@ CF_Mosaic::~CF_Mosaic()
 	Renderer::inst().deleteTexture(bufferID);
 }
 
-void CF_Mosaic::render(double t,
+void CF_Mosaic::render(float t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	double x = t - 0.5;
-	double s = 0.01 + 3.96 * x * x;
-	Vec2i size = s * static_cast<Vec2d>(screenSize);
+	float x = t - 0.5f;
+	float s = 0.01f + 3.96f * x * x;
+	Vec2i size = s * static_cast<Vec2f>(screenSize);
 
 	Renderer& renderer = Renderer::inst();
 	const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
@@ -28,7 +28,7 @@ void CF_Mosaic::render(double t,
 	const Vec2f shrunk[4] = {Vec2f(0.0f, 0.0f), Vec2f(part.x, 0.0f), part, Vec2f(0.0f, part.y)};
 
 	// render a shrunk-down version of the image
-	renderer.quad(imageState(t <= 0.5 ? oldImageID : newImageID), shrunk, screen, white);
+	renderer.quad(imageState(t <= 0.5f ? oldImageID : newImageID), shrunk, screen, white);
 
 	// copy into the texture
 	Engine::inst().captureFrame(bufferID);

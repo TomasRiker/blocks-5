@@ -24,8 +24,8 @@ public:
 
 	INLINE_GETTER(std::string, getText, text);
 	INLINE_SETTER(std::string, setText, text);
-	INLINE_GETTER(Vec4d, getColor, color);
-	INLINE_SETTER(Vec4d, setColor, color);
+	INLINE_GETTER(Vec4f, getColor, color);
+	INLINE_SETTER(Vec4f, setColor, color);
 	INLINE_GETTER(bool, getWordWrap, wordWrap);
 	INLINE_SETTER(bool, setWordWrap, wordWrap);
 	INLINE_GETTER(bool, getCenterText, centerText);
@@ -33,7 +33,7 @@ public:
 
 private:
 	std::string text;
-	Vec4d color;
+	Vec4f color;
 	bool wordWrap;
 	bool centerText;
 };

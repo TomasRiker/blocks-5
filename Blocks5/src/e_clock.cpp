@@ -20,11 +20,11 @@ E_Clock::~E_Clock()
 void E_Clock::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(192, 544)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(192, 544)).rotation = 90.0f * dir;
 }
 
 void E_Clock::onRender(RenderLayer layer,
-					   const Vec4d& color)
+					   const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

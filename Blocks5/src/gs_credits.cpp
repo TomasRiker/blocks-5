@@ -18,19 +18,19 @@ void GS_Credits::onRender()
 {
 	Renderer& renderer = Renderer::inst();
 	renderer.setBlend(BM_NORMAL);
-	double t = 0.001 * time;
+	float t = 0.001f * time;
 
 	{
 		// The colour channels only, up to the darkness at the end: the alpha
 		// of the frame is left as it is.
 		Renderer::ColorMaskScope colorOnly(true, true, true, false);
 
-		Vec3d color(0.05 + 0.05 * sin(t * 0.26), 0.05 + 0.05 * cos(t * 0.31), 0.05 + 0.05 * sin(t * 0.413));
+		Vec3f color(0.05f + 0.05f * sin(t * 0.26f), 0.05f + 0.05f * cos(t * 0.31f), 0.05f + 0.05f * sin(t * 0.413f));
 		{
 			// a gradient, darkest at the top and bottom and twice as light in
 			// the middle
 			const Vec4f edge(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), 1.0f);
-			const Vec4f middle(static_cast<float>(color.r * 2.0), static_cast<float>(color.g * 2.0), static_cast<float>(color.b * 2.0), 1.0f);
+			const Vec4f middle(static_cast<float>(color.r * 2.0f), static_cast<float>(color.g * 2.0f), static_cast<float>(color.b * 2.0f), 1.0f);
 			const Vec2f upper[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 240.0f), Vec2f(0.0f, 240.0f)};
 			const Vec4f upperColors[4] = {edge, edge, middle, middle};
 			renderer.quad(upper, upperColors);
@@ -47,77 +47,77 @@ void GS_Credits::onRender()
 		const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
 		renderer.quad(RenderState(engine.getFrameCopyRef(bufferID), BM_NORMAL), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
 
-		const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 500.0);
-		Vec3d lookAt = cameraPos + cameraDir;
-		const Mat4 view = Mat4::lookAt(cameraPos.x, cameraPos.y, cameraPos.z, lookAt.x, lookAt.y, lookAt.z, 0.0, 1.0, 0.0);
+		const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 500.0f);
+		Vec3f lookAt = cameraPos + cameraDir;
+		const Mat4 view = Mat4::lookAt(cameraPos.x, cameraPos.y, cameraPos.z, lookAt.x, lookAt.y, lookAt.z, 0.0f, 1.0f, 0.0f);
 		renderStars(projection, view);
 
 		engine.captureFrame(bufferID);
 
-		Vec4d textColors[] = {Vec4d(1.0, 1.0, 1.0, 1.0),
-							  Vec4d(1.0, 0.9, 0.9, 1.0),
-							  Vec4d(0.9, 1.0, 0.9, 1.0),
-							  Vec4d(0.9, 0.9, 1.0, 1.0),
-							  Vec4d(1.0, 1.0, 0.9, 1.0),
-							  Vec4d(0.9, 1.0, 1.0, 1.0),
-							  Vec4d(1.0, 0.9, 1.0, 1.0)};
+		Vec4f textColors[] = {Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
+							  Vec4f(1.0f, 0.9f, 0.9f, 1.0f),
+							  Vec4f(0.9f, 1.0f, 0.9f, 1.0f),
+							  Vec4f(0.9f, 0.9f, 1.0f, 1.0f),
+							  Vec4f(1.0f, 1.0f, 0.9f, 1.0f),
+							  Vec4f(0.9f, 1.0f, 1.0f, 1.0f),
+							  Vec4f(1.0f, 0.9f, 1.0f, 1.0f)};
 
 		struct
 		{
 			Vec2i position;
 			std::string title;
 			std::string text;
-			double start;
-			double duration;
+			float start;
+			float duration;
 		} texts[] = {
 
 		Vec2i(0, 0),
 		"",
 		"$C_THANKS_FOR_PLAYING",
-		2.0,
-		5.0,
+		2.0f,
+		5.0f,
 
 		Vec2i(100, 100),
 		"$C_PROGRAMMING",
 		"David Scherfgen",
-		6.0,
-		5.0,
+		6.0f,
+		5.0f,
 
 		Vec2i(-100, -100),
 		"$C_GRAPHICS",
 		"David Scherfgen\nPatrick Jerusalem\nin2ear Productions",
-		10.0,
-		7.0,
+		10.0f,
+		7.0f,
 
 		Vec2i(-100, 100),
 		"$C_SOUND_EFFECTS",
 		"David Scherfgen\nin2ear Productions\nTobias Roesener",
-		16.0,
-		7.0,
+		16.0f,
+		7.0f,
 
 		Vec2i(100, -100),
 		"$C_MUSIC",
 		"in2ear Productions\nPatrick Jerusalem\nDavid Scherfgen",
-		22.0,
-		7.0,
+		22.0f,
+		7.0f,
 
 		Vec2i(-150, -150),
 		"$C_TESTERS",
 		"Tobias Roesener\nPatrick Jerusalem\nRolf Scherfgen\nGertrud Scherfgen\nFelix Scherfgen\nEckehard Kirmas\nIngmar Baum\nMartin Linnartz\nJan Hapke\nWilhelm Mail\xE4nder\nDennis Kleine-Arndt\nGuido Kie\xDFling\nChristian Ewald\nAlbert Kalchmair\nBernhard Kalchmair",
-		28.0,
-		10.0,
+		28.0f,
+		10.0f,
 
 		Vec2i(75, -200),
 		"$C_TESTERS_SPPRO",
 		"Abrexxes\nAnf\xE4nger\nbabelfish\nbig_muff\nBlack-Panther\nChase\nCodingCat\nDas Gurke\nDragonFlame\nFOGX\nFred\ngrek40\nHelmut\nkaid\nLemming\nmatthias\nPaul_C.\nRiddick\nSteveKr\nThomasS",
-		31.0,
-		10.0,
+		31.0f,
+		10.0f,
 
 		Vec2i(0, 0),
 		"",
 		"$C_STAY_TUNED",
-		45.0,
-		8.0
+		45.0f,
+		8.0f
 		};
 
 		for(int i = 0; i < sizeof(texts) / sizeof(texts[0]); i++)
@@ -132,52 +132,52 @@ void GS_Credits::onRender()
 				p_font->measureText(title, &titleSize, 0);
 				p_font->measureText(text, &textSize, 0);
 
-				double alpha = 2.0 * (t - texts[i].start) / texts[i].duration;
-				double scaling = 0.75 + 0.25 * alpha;
-				Vec2d offset(0.0, 0.0);
-				if(alpha > 1.0)
+				float alpha = 2.0f * (t - texts[i].start) / texts[i].duration;
+				float scaling = 0.75f + 0.25f * alpha;
+				Vec2f offset(0.0f, 0.0f);
+				if(alpha > 1.0f)
 				{
-					scaling = 1.0 + 2.0 * (alpha - 1.0);
-					alpha = 2.0 - alpha;
+					scaling = 1.0f + 2.0f * (alpha - 1.0f);
+					alpha = 2.0f - alpha;
 					alpha *= alpha;
-					offset -= Vec2d(6.0, 8.0) * (scaling - 1.0);
+					offset -= Vec2f(6.0f, 8.0f) * (scaling - 1.0f);
 				}
 
 				renderer.push();
-				renderer.translate(320.0 + offset.x, 225.0 + offset.y);
+				renderer.translate(320.0f + offset.x, 225.0f + offset.y);
 				renderer.translate(texts[i].position.x, texts[i].position.y);
-				renderer.translate(titleSize.x / -2, 0.0);
+				renderer.translate(titleSize.x / -2, 0.0f);
 
 				Font::Options options = p_font->getOptions();
 				options.shadows = 0;
 				options.charSpacing = 2;
 				options.charScaling = scaling;
-				options.lineSpacing = (i == 5 || i == 6) ? 0.75 : 1.0;
+				options.lineSpacing = (i == 5 || i == 6) ? 0.75f : 1.0f;
 				p_font->setOptions(options);
 				// Not cached: charScaling is animated, so this key belongs to this
 				// frame and to no other.
-				p_font->renderText(title, Vec2i(0, 0), Vec4d(0.75, 0.75, 1.0, alpha), false);
+				p_font->renderText(title, Vec2i(0, 0), Vec4f(0.75f, 0.75f, 1.0f, alpha), false);
 
 				renderer.pop();
 				renderer.push();
 
-				renderer.translate(320.0 + offset.x, 255.0 + offset.y);
+				renderer.translate(320.0f + offset.x, 255.0f + offset.y);
 				renderer.translate(texts[i].position.x, texts[i].position.y);
-				renderer.translate(textSize.x / -2, 0.0);
+				renderer.translate(textSize.x / -2, 0.0f);
 
 				// Uncached for the same reason as the title above: scaling is
 				// 0.75 + 0.25 * alpha and both draws are laid out under it.
-				p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4d(1.0, 1.0, 1.0, alpha), false);
+				p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4f(1.0f, 1.0f, 1.0f, alpha), false);
 
 				renderer.pop();
 			}
 		}
 	}
 
-	double darkness = 0.0;
-	if(t < 0.0) darkness = -0.5 * t;
-	else if(t > 53.0) darkness = 0.5 * (t - 53.0);
-	if(darkness > 0.0)
+	float darkness = 0.0f;
+	if(t < 0.0f) darkness = -0.5f * t;
+	else if(t > 53.0f) darkness = 0.5f * (t - 53.0f);
+	if(darkness > 0.0f)
 	{
 		renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(darkness)));
 	}
@@ -191,14 +191,14 @@ void GS_Credits::onUpdate()
 	// that it never goes negative.
 	engine.sceneTick = static_cast<uint>(time + 2000);
 
-	cameraPos += 0.02 * 50.0 * cameraDir * speed;
+	cameraPos += 0.02f * 50.0f * cameraDir * speed;
 
-	cameraDir += Vec3d(random(-0.002, 0.002), random(-0.002, 0.002), random(-0.002, 0.002));
+	cameraDir += Vec3f(random(-0.002f, 0.002f), random(-0.002f, 0.002f), random(-0.002f, 0.002f));
 
-	double t = 0.001 * time;
-	cameraDir.x += 0.01 * sin(t * 0.1);
-	cameraDir.y += 0.01 * sin(0.5 + t * 0.05);
-	cameraDir.z += 0.01 * cos(0.5 + t * 0.075);
+	float t = 0.001f * time;
+	cameraDir.x += 0.01f * sin(t * 0.1f);
+	cameraDir.y += 0.01f * sin(0.5f + t * 0.05f);
+	cameraDir.z += 0.01f * cos(0.5f + t * 0.075f);
 	cameraDir.normalize();
 
 	updateStars();
@@ -235,8 +235,8 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	// create the texture for the effect buffer
 	bufferID = engine.createFrameCopyTexture(false, true);
 
-	cameraPos = Vec3d(0.0, 0.0, 0.0);
-	cameraDir = Vec3d(0.0, 0.0, 1.0);
+	cameraPos = Vec3f(0.0f, 0.0f, 0.0f);
+	cameraDir = Vec3f(0.0f, 0.0f, 1.0f);
 }
 
 void GS_Credits::onLeave(const ParameterBlock& context)
@@ -253,7 +253,7 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 void GS_Credits::onGetFocus()
 {
 	SDL_ShowCursor(0);
-	engine.playMusic("credits.ogg", -1.0);
+	engine.playMusic("credits.ogg", -1.0f);
 }
 
 void GS_Credits::onLoseFocus()
@@ -273,12 +273,12 @@ void GS_Credits::renderStars(const Mat4& projection,
 		Mat4 modelview = view;
 		modelview.translate(i->position.x, i->position.y, i->position.z);
 		modelview.scale(i->size, i->size, i->size);
-		modelview.rotate(i->rotation.x, 1.0, 0.0, 0.0);
-		modelview.rotate(i->rotation.y, 0.0, 1.0, 0.0);
-		modelview.rotate(i->rotation.z, 0.0, 0.0, 1.0);
+		modelview.rotate(i->rotation.x, 1.0f, 0.0f, 0.0f);
+		modelview.rotate(i->rotation.y, 0.0f, 1.0f, 0.0f);
+		modelview.rotate(i->rotation.z, 0.0f, 0.0f, 1.0f);
 
-		double distSq = (i->position - cameraPos).lengthSq();
-		double alpha = 1.0 / (1.0 + 0.001 * distSq);
+		float distSq = (i->position - cameraPos).lengthSq();
+		float alpha = 1.0f / (1.0f + 0.001f * distSq);
 
 		const Vec2f t = static_cast<Vec2f>(i->positionOnTexture);
 		Vertex3 vertices[4];
@@ -296,11 +296,11 @@ void GS_Credits::updateStars()
 	// remove the stars that are no longer visible
 	for(std::list<Star>::iterator i = stars.begin(); i != stars.end();)
 	{
-		i->rotation += 0.02 * i->deltaRotation;
+		i->rotation += 0.02f * i->deltaRotation;
 
-		Vec3d d = i->position - cameraPos;
-		double dot = d ^ cameraDir;
-		if(dot <= 0.0) i = stars.erase(i);
+		Vec3f d = i->position - cameraPos;
+		float dot = d ^ cameraDir;
+		if(dot <= 0.0f) i = stars.erase(i);
 		else i++;
 	}
 
@@ -308,13 +308,13 @@ void GS_Credits::updateStars()
 	while(stars.size() < 400)
 	{
 		Star s;
-		Vec3d n(random(-1.0, 1.0), random(-1.0, 1.0), random(-1.0, 1.0));
-		double l = n.length();
-		n /= l + 0.001;
-		s.position = cameraPos + random(time == 0 ? 0.0 : 150.0, 200.0) * cameraDir + random(10.0, 80.0) * n;
-		s.size = random(1.0, 2.0);
-		s.rotation = Vec3d(random(0.0, 10.0), random(0.0, 10.0), random(0.0, 10.0));
-		s.deltaRotation = Vec3d(random(-100.0, 100.0), random(-100.0, 100.0), random(-100.0, 100.0));
+		Vec3f n(random(-1.0f, 1.0f), random(-1.0f, 1.0f), random(-1.0f, 1.0f));
+		float l = n.length();
+		n /= l + 0.001f;
+		s.position = cameraPos + random(time == 0 ? 0.0f : 150.0f, 200.0f) * cameraDir + random(10.0f, 80.0f) * n;
+		s.size = random(1.0f, 2.0f);
+		s.rotation = Vec3f(random(0.0f, 10.0f), random(0.0f, 10.0f), random(0.0f, 10.0f));
+		s.deltaRotation = Vec3f(random(-100.0f, 100.0f), random(-100.0f, 100.0f), random(-100.0f, 100.0f));
 		s.positionOnTexture = 32 * Vec2i(random(0, 7), random(0, 23));
 		stars.push_back(s);
 	}

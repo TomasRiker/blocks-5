@@ -6,7 +6,7 @@
 class Texture;
 
 // Opacity a debris particle starts with.
-const double DEBRIS_ALPHA = 0.25;
+const float DEBRIS_ALPHA = 0.25f;
 
 // Tries per desired particle; the dial for the density of the cloud.
 const int DEBRIS_TRIES_PER_PARTICLE = 2;
@@ -20,9 +20,9 @@ struct Sprite
 	Vec2i positionOnTexture;
 	Vec2i size;
 	Vec2i offset;
-	Vec4d color;
+	Vec4f color;
 	bool mirrorX;
-	double rotation;
+	float rotation;
 
 	Sprite();
 };
@@ -36,7 +36,7 @@ public:
 
 	void clear();
 	Sprite& add(const Vec2i& positionOnTexture);
-	Sprite& add(const Vec2i& positionOnTexture, const Vec4d& color);
+	Sprite& add(const Vec2i& positionOnTexture, const Vec4f& color);
 
 	int getCount() const;
 	const Sprite& operator [] (int index) const;
@@ -53,7 +53,7 @@ public:
 
 	// Rejection sampling for the colour of a debris particle. false means:
 	// there is nothing at the spot the try landed on.
-	bool sample(Vec4d* p_colorOut, Vec2i* p_offsetOut) const;
+	bool sample(Vec4f* p_colorOut, Vec2i* p_offsetOut) const;
 
 private:
 	Sprite sprites[MAX_SPRITES];

@@ -49,7 +49,7 @@ bool GUI::init()
 	p_skin = Manager<Texture>::inst().request("gui.png");
 
 	texID = 0;
-	setOpacity(0.85);
+	setOpacity(0.85f);
 
 	cursorPos = oldCursorPos = Engine::inst().getCursorPosition();
 	oldRawCursorPos = Engine::inst().getRawCursorPosition();
@@ -89,7 +89,7 @@ void GUI::exit()
 
 void GUI::render()
 {
-	if(opacity == 1.0 || opacity == 0.0) return;
+	if(opacity == 1.0f || opacity == 0.0f) return;
 
 	// Drawn onto a cleared frame and copied off it, so that display() can
 	// put the whole of it back over the game at the chosen opacity.
@@ -125,16 +125,16 @@ void GUI::renderToolTip()
 			renderer.rect(min, max, Vec4f(1.0f, 1.0f, 0.5f, 0.9f));
 			renderer.hairlineRect(min, max, Vec4f(0.0f, 0.0f, 0.0f, 0.9f));
 
-			p_toolTipFont->renderText(toolTip, ttPos + Vec2i(3, 3), Vec4d(1.0));
+			p_toolTipFont->renderText(toolTip, ttPos + Vec2i(3, 3), Vec4f(1.0f));
 		}
 	}
 }
 
 void GUI::display()
 {
-	if(opacity == 0.0 || (opacity != 1.0 && !GUI_Element::numElementsRendered)) return;
+	if(opacity == 0.0f || (opacity != 1.0f && !GUI_Element::numElementsRendered)) return;
 
-	if(opacity == 1.0)
+	if(opacity == 1.0f)
 	{
 		Renderer::inst().setBlend(BM_NORMAL);
 
@@ -430,24 +430,24 @@ Font* GUI::getToolTipFont()
 	return p_toolTipFont;
 }
 
-double GUI::getOpacity() const
+float GUI::getOpacity() const
 {
 	return opacity;
 }
 
-void GUI::setOpacity(double opacity)
+void GUI::setOpacity(float opacity)
 {
-	opacity = clamp(opacity, 0.0, 1.0);
+	opacity = clamp(opacity, 0.0f, 1.0f);
 	this->opacity = opacity;
 
-	if(opacity == 1.0 && texID)
+	if(opacity == 1.0f && texID)
 	{
 		// delete the texture
 		Renderer::inst().deleteTexture(texID);
 		texID = 0;
 	}
 
-	if(opacity != 1.0 && !texID)
+	if(opacity != 1.0f && !texID)
 	{
 		// create the texture, with alpha: the GUI is drawn onto nothing
 		texID = Engine::inst().createFrameCopyTexture(true, true);

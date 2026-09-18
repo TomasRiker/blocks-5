@@ -27,7 +27,7 @@ ToxicGas::ToxicGas(Level& level,
 		p_sound->release();
 		if(p_soundInst)
 		{
-			p_soundInst->setVolume(0.0);
+			p_soundInst->setVolume(0.0f);
 			p_soundInst->play(true);
 		}
 
@@ -70,10 +70,10 @@ void ToxicGas::onUpdate()
 		else p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = position * 16 + Vec2i(random(2, 14), random(2, 14));
-		const double r = random(0.0, 6.283);
-		p.velocity = random(0.0, 1.0) * Vec2d(sin(r), cos(r));
-		p.color = Vec4d(random(0.4, 1.0), random(0.75, 1.0), random(0.0, 0.5), random(0.5, 1.5));
-		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+		const float r = random(0.0f, 6.283f);
+		p.velocity = random(0.0f, 1.0f) * Vec2f(sin(r), cos(r));
+		p.color = Vec4f(random(0.4f, 1.0f), random(0.75f, 1.0f), random(0.0f, 0.5f), random(0.5f, 1.5f));
+		p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.05f, 0.05f);
 		p.size = 0.01f;
@@ -87,7 +87,7 @@ void ToxicGas::onUpdate()
 	{
 		if((*i)->getFlags() & OF_BLOCK_GAS)
 		{
-			disappear(0.0);
+			disappear(0.0f);
 			return;
 		}
 	}
@@ -145,6 +145,6 @@ void ToxicGas::updateSound()
 	// jumping: from the 0 the first cloud starts it at, 0.05 per tick has it
 	// most of the way up after half a second and settled after one and a
 	// half. Larger is quicker.
-	const double volume = 1.0 / (40.0 * 20.0) * numInstances;
-	p_soundInst->slideVolume(clamp(volume, 0.5, 1.0), 0.05);
+	const float volume = 1.0f / (40.0f * 20.0f) * numInstances;
+	p_soundInst->slideVolume(clamp(volume, 0.5f, 1.0f), 0.05f);
 }

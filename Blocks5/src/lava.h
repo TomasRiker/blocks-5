@@ -11,15 +11,15 @@ public:
 	Lava(Level& level, const Vec2i& position, int dir);
 	~Lava();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void onUpdate();
 	void frameBegin();
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 
 private:
-	void getAlpha1(const Vec2i& where, double* p_out);
-	void getAlpha2(const Vec2i& where, double* p_out);
+	void getAlpha1(const Vec2i& where, float* p_out);
+	void getAlpha2(const Vec2i& where, float* p_out);
 
 	int anim;
 	int dir;

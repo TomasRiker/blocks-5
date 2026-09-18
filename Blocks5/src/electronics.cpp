@@ -55,17 +55,17 @@ void Electronics::updateSprites()
 }
 
 void Electronics::onRender(RenderLayer layer,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	if(layer == RL_WIRE)
 	{
-		const Vec4d wireColor[] = {Vec4d(0.35, 0.3, 0.3, 1.0),
-								   Vec4d(0.3, 0.35, 0.3, 1.0),
-								   Vec4d(0.3, 0.3, 0.35, 1.0),
-								   Vec4d(0.35, 0.35, 0.3, 1.0),
-								   Vec4d(0.35, 0.3, 0.35, 1.0),
-								   Vec4d(0.3, 0.35, 0.35, 1.0),
-								   Vec4d(0.35, 0.35, 0.35, 1.0)};
+		const Vec4f wireColor[] = {Vec4f(0.35f, 0.3f, 0.3f, 1.0f),
+								   Vec4f(0.3f, 0.35f, 0.3f, 1.0f),
+								   Vec4f(0.3f, 0.3f, 0.35f, 1.0f),
+								   Vec4f(0.35f, 0.35f, 0.3f, 1.0f),
+								   Vec4f(0.35f, 0.3f, 0.35f, 1.0f),
+								   Vec4f(0.3f, 0.35f, 0.35f, 1.0f),
+								   Vec4f(0.35f, 0.35f, 0.35f, 1.0f)};
 
 		Renderer& renderer = Renderer::inst();
 

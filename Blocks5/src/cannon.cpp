@@ -28,31 +28,31 @@ void Cannon::updateSprites()
 {
 	// Base and barrel. The barrel turns smoothly with shownDir, the base
 	// does not.
-	const Vec4d realColor = getStdColor(this->color);
+	const Vec4f realColor = getStdColor(this->color);
 	sprites.add(Vec2i(96, 416), realColor);
 
 	int frame;
 	if(reload <= 25) frame = 0;
 	else if(reload <= 30) frame = 2;
 	else frame = 1;
-	sprites.add(Vec2i(128 + frame * 32, 416), realColor).rotation = 90.0 * shownDir;
+	sprites.add(Vec2i(128 + frame * 32, 416), realColor).rotation = 90.0f * shownDir;
 }
 
 void Cannon::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
 		if(reload)
 		{
-			double s = static_cast<double>(reload) / 100;
+			float s = static_cast<float>(reload) / 100;
 			s *= s;
 			s *= s;
 			s *= s;
 			s *= s;
-			const Vec2d up = 6 * intToDir(dir);
-			level.renderShine(s * 2.0, s * 2.0, up);
+			const Vec2f up = 6 * intToDir(dir);
+			level.renderShine(s * 2.0f, s * 2.0f, up);
 		}
 	}
 }
@@ -60,17 +60,17 @@ void Cannon::onRender(RenderLayer layer,
 void Cannon::onUpdate()
 {
 	// aim the cannon
-	double dd = static_cast<double>(dir) - shownDir;
-	if(dd > 2.0) shownDir += 4.0;
-	else if(dd < -2.0) shownDir -= 4.0;
-	dd = static_cast<double>(dir) - shownDir;
-	if(dd > 0.03) shownDir += 0.03;
-	else if(dd < -0.03) shownDir -= 0.03;
+	float dd = static_cast<float>(dir) - shownDir;
+	if(dd > 2.0f) shownDir += 4.0f;
+	else if(dd < -2.0f) shownDir -= 4.0f;
+	dd = static_cast<float>(dir) - shownDir;
+	if(dd > 0.03f) shownDir += 0.03f;
+	else if(dd < -0.03f) shownDir -= 0.03f;
 	else shownDir = dir;
 
 	if(reload)
 	{
-		Vec2d up = intToDir(dir);
+		Vec2f up = intToDir(dir);
 
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
 		ParticleSystem::Particle p;
@@ -81,10 +81,10 @@ void Cannon::onUpdate()
 		p.gravity = 0.005f;
 		p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
-		p.position = Vec2d(7.5, 7.5) + 6.0 * up + shownPosition * 16.0;
-		p.velocity = Vec2d(random(-0.25, 0.25), -1.0);
-		double c = random(0.75, 1.0);
-		p.color = Vec4d(c, c, c, random(0.15, 0.2));
+		p.position = Vec2f(7.5f, 7.5f) + 6.0f * up + shownPosition * 16.0f;
+		p.velocity = Vec2f(random(-0.25f, 0.25f), -1.0f);
+		float c = random(0.75f, 1.0f);
+		p.color = Vec4f(c, c, c, random(0.15f, 0.2f));
 		p.deltaColor = -p.color / static_cast<float>(p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
@@ -132,12 +132,12 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Object::loadExtendedAttributes(p_element);
 
-	// QueryDoubleAttribute, not sscanf with %f: %f writes a float, and
-	// shownDir is a double, which leaves four of its eight bytes standing.
-	// QueryDoubleAttribute reads the double correctly and leaves shownDir
+	// QueryFloatAttribute, not sscanf with %f: %f writes a float, and
+	// shownDir is a float, which leaves four of its eight bytes standing.
+	// QueryFloatAttribute reads the float correctly and leaves shownDir
 	// alone where the attribute is missing - Attribute() would hand a null
 	// pointer straight into sscanf there.
-	p_element->QueryDoubleAttribute("shownDir", &shownDir);
+	p_element->QueryFloatAttribute("shownDir", &shownDir);
 }
 
 uint Cannon::getColor() const
@@ -151,21 +151,21 @@ bool Cannon::fire()
 	if(reload) return false;
 
 	// Not finished aiming yet?
-	double dd = static_cast<double>(dir) - shownDir;
-	if(fabs(dd) > 0.1) return false;
+	float dd = static_cast<float>(dir) - shownDir;
+	if(fabs(dd) > 0.1f) return false;
 
 	// compute the direction vectors
-	Vec2d up, right;
+	Vec2f up, right;
 	switch(dir % 4)
 	{
-	case 0: up = Vec2d(0.0, -1.0), right = Vec2d(1.0, 0.0); break;
-	case 1: up = Vec2d(1.0, 0.0), right = Vec2d(0.0, 1.0); break;
-	case 2: up = Vec2d(0.0, 1.0), right = Vec2d(-1.0, 0.0); break;
-	case 3: up = Vec2d(-1.0, 0.0), right = Vec2d(0.0, -1.0); break;
+	case 0: up = Vec2f(0.0f, -1.0f), right = Vec2f(1.0f, 0.0f); break;
+	case 1: up = Vec2f(1.0f, 0.0f), right = Vec2f(0.0f, 1.0f); break;
+	case 2: up = Vec2f(0.0f, 1.0f), right = Vec2f(-1.0f, 0.0f); break;
+	case 3: up = Vec2f(-1.0f, 0.0f), right = Vec2f(0.0f, -1.0f); break;
 	}
 
 	// fire the projectile
-	new Projectile(level, Vec2d(7.5, 7.5) + 5.0 * up + shownPosition * 16.0, up * 1200.0);
+	new Projectile(level, Vec2f(7.5f, 7.5f) + 5.0f * up + shownPosition * 16.0f, up * 1200.0f);
 
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;
@@ -178,9 +178,9 @@ bool Cannon::fire()
 		p.gravity = 0.005f;
 		p.positionOnTexture = Vec2b(64, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
-		p.position = Vec2d(7.5, 7.5) + 5.0 * up + shownPosition * 16.0;
-		p.velocity = random(4.0, 7.0) * up + Vec2d(random(-1.0, 1.0), 0.0);
-		p.color = Vec4d(1.0, 1.0, 1.0, random(0.15, 0.25));
+		p.position = Vec2f(7.5f, 7.5f) + 5.0f * up + shownPosition * 16.0f;
+		p.velocity = random(4.0f, 7.0f) * up + Vec2f(random(-1.0f, 1.0f), 0.0f);
+		p.color = Vec4f(1.0f, 1.0f, 1.0f, random(0.15f, 0.25f));
 		p.deltaColor = -p.color / static_cast<float>(p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
@@ -188,10 +188,10 @@ bool Cannon::fire()
 		p.deltaSize = random(0.01f, 0.05f);
 		p_particleSystem->addParticle(p);
 
-		p.velocity = random(4.0, 7.0) * right + Vec2d(0.0, random(-1.0, 1.0));
+		p.velocity = random(4.0f, 7.0f) * right + Vec2f(0.0f, random(-1.0f, 1.0f));
 		p_particleSystem->addParticle(p);
 
-		p.velocity = random(4.0, 7.0) * -right + Vec2d(0.0, random(-1.0, 1.0));
+		p.velocity = random(4.0f, 7.0f) * -right + Vec2f(0.0f, random(-1.0f, 1.0f));
 		p_particleSystem->addParticle(p);
 	}
 

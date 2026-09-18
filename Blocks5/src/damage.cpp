@@ -4,13 +4,13 @@
 
 Damage::Damage(Level& level,
 			   const Vec2i& position,
-			   double rotation) : Object(level, 400)
+			   float rotation) : Object(level, 400)
 {
 	renderLayers = RL_FLOOR;
 	type = "Damage";
 	warpTo(position);
 	flags = 0;
-	if(rotation == -1.0) this->rotation = random(0.0, 360.0);
+	if(rotation == -1.0f) this->rotation = random(0.0f, 360.0f);
 	else this->rotation = rotation;
 	ghost = true;
 }
@@ -29,7 +29,7 @@ void Damage::updateSprites()
 }
 
 void Damage::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }

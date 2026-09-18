@@ -32,8 +32,8 @@ public:
 	{
 		int tabSize;
 		int charSpacing;
-		double lineSpacing;
-		double charScaling;
+		float lineSpacing;
+		float charScaling;
 		int shadows;
 		int italic;
 	};
@@ -42,7 +42,7 @@ public:
 	void cleanUp();
 
 	// cache=false for a string whose layout will not be asked for again.
-	void renderText(const std::string& text, const Vec2i& position, const Vec4d& color,
+	void renderText(const std::string& text, const Vec2i& position, const Vec4f& color,
 					bool cache = true);
 	// p_outCharPositions gets one position per byte of the text and one
 	// behind it, always text.length() + 1 of them.

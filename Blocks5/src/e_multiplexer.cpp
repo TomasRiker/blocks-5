@@ -25,11 +25,11 @@ E_Multiplexer::~E_Multiplexer()
 void E_Multiplexer::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(value == -1 ? 0 : (value == 0 ? 32 : 64), 576)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(value == -1 ? 0 : (value == 0 ? 32 : 64), 576)).rotation = 90.0f * dir;
 }
 
 void E_Multiplexer::onRender(RenderLayer layer,
-							 const Vec4d& color)
+							 const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

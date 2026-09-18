@@ -26,7 +26,7 @@ Player::Player(Level& level,
 	destroyTime = 1;
 	burstSound = "player_burst.ogg";
 
-	interpolation = 0.3;
+	interpolation = 0.3f;
 	this->character = character;
 	this->active = false;
 	if(active) activate();
@@ -53,8 +53,8 @@ Player::Player(Level& level,
 
 			if(p_toxicSoundInst)
 			{
-				p_toxicSoundInst->setVolume(0.0);
-				p_toxicSoundInst->setPitch(0.1);
+				p_toxicSoundInst->setVolume(0.0f);
+				p_toxicSoundInst->setPitch(0.1f);
 				p_toxicSoundInst->play(true);
 				p_toxicSoundInst->pause();
 			}
@@ -65,8 +65,8 @@ Player::Player(Level& level,
 
 			if(p_maskSoundInst)
 			{
-				p_maskSoundInst->setVolume(0.0);
-				p_maskSoundInst->setPitch(0.1);
+				p_maskSoundInst->setVolume(0.0f);
+				p_maskSoundInst->setPitch(0.1f);
 				p_maskSoundInst->play(true);
 				p_maskSoundInst->pause();
 			}
@@ -84,10 +84,10 @@ void Player::onRemove()
 {
 	if(level.getActivePlayer() == this && p_toxicSoundInst && p_maskSoundInst)
 	{
-		p_toxicSoundInst->slideVolume(-1.0, 0.1);
-		p_toxicSoundInst->slidePitch(1.0, 0.1);
-		p_maskSoundInst->slideVolume(-1.0, 0.2);
-		p_maskSoundInst->slidePitch(1.0, 0.2);
+		p_toxicSoundInst->slideVolume(-1.0f, 0.1f);
+		p_toxicSoundInst->slidePitch(1.0f, 0.1f);
+		p_maskSoundInst->slideVolume(-1.0f, 0.2f);
+		p_maskSoundInst->slidePitch(1.0f, 0.2f);
 	}
 
 	deactivate();
@@ -120,7 +120,7 @@ void Player::updateSprites()
 }
 
 void Player::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_EFFECT)
@@ -130,8 +130,8 @@ void Player::onRender(RenderLayer layer,
 			// render the censor bar
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
-			renderer.translate(8.0, 8.0);
-			renderer.rotate(10.0);
+			renderer.translate(8.0f, 8.0f);
+			renderer.rotate(10.0f);
 			const Vec4f grey(0.15f, 0.15f, 0.15f, 1.0f);
 			renderer.rect(Vec2f(-35.0f, -13.0f), Vec2f(35.0f, 13.0f), grey);
 			std::vector<Vec2f> frame;
@@ -146,13 +146,13 @@ void Player::onRender(RenderLayer layer,
 			std::string text = localizeString("$G_CENSORED");
 			Vec2i dim;
 			p_font->measureText(text, &dim, 0);
-			p_font->renderText(text, Vec2i(8, 7) + dim / -2, Vec4d(0.85, 0.15, 0.15, 1.0));
+			p_font->renderText(text, Vec2i(8, 7) + dim / -2, Vec4f(0.85f, 0.15f, 0.15f, 1.0f));
 			renderer.setTexture(level.getSpritesTexture()->ref());
 		}
 	}
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(active ? 1.0 : 0.5, (active ? 1.0 : 0.5) + 0.05 * glowJitter);
+		level.renderShine(active ? 1.0f : 0.5f, (active ? 1.0f : 0.5f) + 0.05f * glowJitter);
 	}
 }
 
@@ -237,13 +237,13 @@ void Player::onUpdate()
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
-						Engine::inst().playSound("bomb_plant.ogg", false, 0.15, 100);
+						Engine::inst().playSound("bomb_plant.ogg", false, 0.15f, 100);
 						p_bomb->setFlags(p_bomb->getFlags() & ~OF_COLLECTABLE);
 						inventory[0]--;
 					}
 					else
 					{
-						p_bomb->disappear(0.0);
+						p_bomb->disappear(0.0f);
 					}
 
 					plantBomb = 20;
@@ -257,13 +257,13 @@ void Player::onUpdate()
 					Object* p_bomb = level.getPresets()->instancePreset("Bomb", position, 0);
 					if(p_bomb->move(dir))
 					{
-						Engine::inst().playSound("bomb_plant.ogg", false, 0.15, 100);
+						Engine::inst().playSound("bomb_plant.ogg", false, 0.15f, 100);
 						inventory[0]--;
-						p_bomb->noCollect = 0.25;
+						p_bomb->noCollect = 0.25f;
 					}
 					else
 					{
-						p_bomb->disappear(0.0);
+						p_bomb->disappear(0.0f);
 					}
 
 					plantBomb = 20;
@@ -288,9 +288,9 @@ void Player::onUpdate()
 			p.positionOnTexture = Vec2b(64, 32);
 			p.sizeOnTexture = Vec2b(16, 16);
 			p.position = position * 16 + Vec2i(8 + random(-2, 2), random(-6, 0));
-			p.velocity = Vec2d(random(-0.25, 0.25), -0.6);
-			p.color = Vec4d(random(0.8, 1.0), random(0.8, 1.0), random(0.8, 1.0), 0.8);
-			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+			p.velocity = Vec2f(random(-0.25f, 0.25f), -0.6f);
+			p.color = Vec4f(random(0.8f, 1.0f), random(0.8f, 1.0f), random(0.8f, 1.0f), 0.8f);
+			p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 			p.rotation = random(-0.5f, 0.5f);
 			p.deltaRotation = random(-0.01f, 0.01f);
 			p.size = random(0.6f, 0.8f);
@@ -308,7 +308,7 @@ bool Player::move(const Vec2i& dir,
 	if(moved) return false;
 	if(!level.isValidPosition(position + dir)) return false;
 
-	interpolation = 0.3;
+	interpolation = 0.3f;
 
 	int tileType = 0;
 	if(level.isFreeAt(position + dir, &tileType))
@@ -341,7 +341,7 @@ bool Player::move(const Vec2i& dir,
 						if(!deadlyWeight)
 						{
 							push = 5;
-							interpolation = 0.25;
+							interpolation = 0.25f;
 						}
 
 						return true;
@@ -374,7 +374,7 @@ bool Player::move(const Vec2i& dir,
 					{
 						// It worked.
 
-						Engine::inst().playSound("push.ogg", false, 0.2);
+						Engine::inst().playSound("push.ogg", false, 0.2f);
 
 						lastMoveDir = dir;
 						handleSliding();
@@ -386,7 +386,7 @@ bool Player::move(const Vec2i& dir,
 							lastMoveDir = dir;
 							level.hashObject(this);
 							push = 5;
-							interpolation = 0.25;
+							interpolation = 0.25f;
 							return true;
 						}
 						else slideDir = -2;
@@ -521,7 +521,7 @@ void Player::activate()
 		// Sound
 		char soundName[256];
 		sprintf(soundName, "character%d.ogg", character + 1);
-		Engine::inst().playSound(soundName, false, 0.15, 100);
+		Engine::inst().playSound(soundName, false, 0.15f, 100);
 
 		// Stars
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
@@ -534,10 +534,10 @@ void Player::activate()
 			p.positionOnTexture = Vec2b(0, 32);
 			p.sizeOnTexture = Vec2b(16, 16);
 			p.position = position * 16 + Vec2i(8, 8);
-			const double r = random(0.0, 6.283);
-			p.velocity = random(2.0, 3.0) * Vec2d(sin(r), cos(r));
-			p.color = Vec4d(random(0.75, 1.0), random(0.75, 1.0), random(0.75, 1.0), random(0.6, 0.9));
-			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+			const float r = random(0.0f, 6.283f);
+			p.velocity = random(2.0f, 3.0f) * Vec2f(sin(r), cos(r));
+			p.color = Vec4f(random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.75f, 1.0f), random(0.6f, 0.9f));
+			p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.25f, 0.5f);
@@ -629,13 +629,13 @@ void Player::updateToxicSound()
 	if(contamination >= 50)
 	{
 		p_toxicSoundInst->resume();
-		p_toxicSoundInst->slideVolume(1.0, 0.05);
-		p_toxicSoundInst->slidePitch(1.0, 0.05);
+		p_toxicSoundInst->slideVolume(1.0f, 0.05f);
+		p_toxicSoundInst->slidePitch(1.0f, 0.05f);
 	}
 	else
 	{
-		p_toxicSoundInst->slideVolume(-1.0, 0.1);
-		p_toxicSoundInst->slidePitch(1.0, 0.1);
+		p_toxicSoundInst->slideVolume(-1.0f, 0.1f);
+		p_toxicSoundInst->slidePitch(1.0f, 0.1f);
 	}
 }
 
@@ -647,12 +647,12 @@ void Player::updateMaskSound()
 	if(inventory[2])
 	{
 		p_maskSoundInst->resume();
-		p_maskSoundInst->slideVolume(1.0, 0.2);
-		p_maskSoundInst->slidePitch(1.0, 0.2);
+		p_maskSoundInst->slideVolume(1.0f, 0.2f);
+		p_maskSoundInst->slidePitch(1.0f, 0.2f);
 	}
 	else
 	{
-		p_maskSoundInst->slideVolume(-1.0, 0.2);
-		p_maskSoundInst->slidePitch(1.0, 0.2);
+		p_maskSoundInst->slideVolume(-1.0f, 0.2f);
+		p_maskSoundInst->slidePitch(1.0f, 0.2f);
 	}
 }
