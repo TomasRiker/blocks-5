@@ -110,12 +110,14 @@ public:
 		// The same press both wakes a character and takes hold of it, so the
 		// one that woke somebody up can go straight on to drag them. Set
 		// nowhere else: dragging has to begin on a character, and this is the
-		// one place that knows a press landed on one. A press that did not is
-		// a press on something, which is read off a local rather than off the
-		// flag, since the second button of a two-button grip lands wherever
-		// the cursor has got to by then.
+		// one place that knows a press landed on one.
+		//
+		// A press that did not is a press on something - unless a character is
+		// already being held, where the buttons mean bombs and the second one
+		// of a grip lands wherever the cursor has got to by then. Which is why
+		// the character is read off a local and the grip off the flag.
 		if(onPlayer) game.dragFromPlayer = true;
-		else game.bumpCell(c);
+		else if(!game.dragFromPlayer) game.bumpCell(c);
 	}
 
 	void onMouseMove(const Vec2i& movement,
