@@ -302,18 +302,20 @@ void Player::onUpdate()
 }
 
 bool Player::move(const Vec2i& dir,
-				  bool deadlyWeight)
+				  bool deadlyWeight,
+				  bool simulate)
 {
-	if(slideDir != -1 && !slideMove) return false;
+	if(!simulate && slideDir != -1 && !slideMove) return false;
 	if(dir.isZero()) return true;
-	if(moved) return false;
+	if(!simulate && moved) return false;
 	if(!level.isValidPosition(position + dir)) return false;
 
-	interpolation = 0.3f;
+	if(!simulate) interpolation = 0.3f;
 
 	int tileType = 0;
 	if(level.isFreeAt(position + dir, &tileType))
 	{
+		if(simulate) return true;
 		position += dir;
 		moved = true;
 		lastMoveDir = dir;
@@ -331,6 +333,8 @@ bool Player::move(const Vec2i& dir,
 			{
 				if(!push || deadlyWeight)
 				{
+					if(simulate) return static_cast<Player*>(p_obj)->move(dir, true, true);
+
 					if(static_cast<Player*>(p_obj)->move(dir, true))
 					{
 						position += dir;
@@ -354,6 +358,7 @@ bool Player::move(const Vec2i& dir,
 			if(p_obj->getFlags() & OF_COLLECTABLE)
 			{
 				// collect the object
+				if(simulate) return true;
 				position += dir;
 				moved = true;
 				lastMoveDir = dir;
@@ -370,7 +375,9 @@ bool Player::move(const Vec2i& dir,
 				bool pushed = p_obj->isPushedFromAbove();
 				if((pushed && !dir.y) || !pushed)
 				{
-					// try to push the object
+					// try to push the object - and the chain behind it
+					if(simulate) return p_obj->move(dir, 10, true);
+
 					if(p_obj->move(dir, 10))
 					{
 						// It worked.
@@ -401,6 +408,7 @@ bool Player::move(const Vec2i& dir,
 				if(p_obj->allowMovement(dir))
 				{
 					// The move is fine.
+					if(simulate) return true;
 					position += dir;
 					moved = true;
 					lastMoveDir = dir;
@@ -410,6 +418,10 @@ bool Player::move(const Vec2i& dir,
 				}
 			}
 
+			// Nothing above said yes. Bumping into a switch is what a walk
+			// into it does; a question about it does nothing at all.
+			if(simulate) return false;
+
 			if(!touch)
 			{
 				p_obj->onTouchedByPlayer(this);
@@ -418,51 +430,7 @@ bool Player::move(const Vec2i& dir,
 		}
 	}
 
-	slideDir = -1;
-	return false;
-}
-
-// It asks about the geometry and not about this tick: whether the character
-// has already moved or is sliding decides when a step lands, not whether the
-// way is open, and the drag that asks holds a key rather than tapping it - a
-// key dropped for one tick would start the repeat that paces it all over
-// again.
-//
-// The answer stops one cell deep on purpose. Whether a pushable block really
-// gives way depends on the whole chain behind it, and a character leaning on
-// a block that will not move is what the keyboard does too; what the drag has
-// to be kept away from is the wall it could lean on for as long as the button
-// is held.
-bool Player::canMove(const Vec2i& dir)
-{
-	if(dir.isZero()) return true;
-	if(!level.isValidPosition(position + dir)) return false;
-
-	int tileType = 0;
-	if(level.isFreeAt(position + dir, &tileType)) return true;
-
-	// A solid tile is the end of it. Anything else that says no is an object,
-	// and an object may still give way.
-	if(tileType == 1 || tileType == 2) return false;
-
-	Object* p_obj = level.getFrontObjectAt(position + dir);
-	if(!p_obj) return false;
-
-	// Another character is pushed aside, and something collectable is simply
-	// walked into.
-	if(p_obj->getType() == "Player") return !push;
-	if(p_obj->getFlags() & OF_COLLECTABLE) return true;
-
-	// Pushable: not fixed, not already carrying a deadly weight, and nothing
-	// held down from above goes anywhere but sideways.
-	if(!push && !(p_obj->getFlags() & OF_FIXED) && !p_obj->isPushedWithDeadlyWeight())
-	{
-		if(!p_obj->isPushedFromAbove() || !dir.y) return true;
-	}
-
-	// A one-way arrow lets the character through its own way.
-	if(p_obj->getFlags() & OF_ARROWTYPE) return p_obj->allowMovement(dir);
-
+	if(!simulate) slideDir = -1;
 	return false;
 }
 

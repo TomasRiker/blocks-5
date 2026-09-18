@@ -48,14 +48,32 @@ runs out, so the path is two straight legs and never a staircase. A staircase is
 allowing it would be an advantage for nothing. The leg that begins takes whichever axis is further off.
 
 And **a direction the character cannot go is never commanded**: `GameState::canMouseDragStep` asks
-`Player::canMove`, and a leg that has walked into something is over as surely as one that has run out, so
-the other axis takes over — which is what walks the character round an obstacle. Held against the wall
-instead, the key would keep that leg alive for as long as the button was down, and the axis that could
-still move would never get its turn. `canMove` answers about the geometry and not about this tick —
-whether the character has already moved or is sliding decides when a step lands, not whether the way is
-open, and a key dropped for one tick would restart the repeat that paces the walk. And it stops one cell
-deep: whether a pushable block really gives way depends on the whole chain behind it, and leaning on a
-block that will not move is what the keyboard does too.
+`Player::move(dir, false, true)`, and a leg that has walked into something is over as surely as one that
+has run out, so the other axis takes over — which is what walks the character round an obstacle. Held
+against the wall instead, the key would keep that leg alive for as long as the button was down, and the
+axis that could still move would never get its turn.
+
+**That question is `move()` itself in `simulate` mode**, not a second opinion beside it. Every path
+returns at the point where it would otherwise commit, and the push recurses in simulate mode too, so a
+chain of pushable blocks against a wall answers no at whatever depth the wall stands — while a single
+block with room behind it still answers yes, because a drag that could not push would be worse than one
+that leans. Nothing else would stay true: the decisions are 200 lines in `Object::move` and another 119
+in `Player::move`, and a predicate written beside them starts agreeing and ends disagreeing.
+
+**Why ask at all, rather than hold the key and see whether anything moved?** Because trying is not free.
+A walk into a switch or a magnet *works* it — that is what `onTouchedByPlayer` is for — so a drag
+that routed around an obstacle by bumping it would flip whatever it brushed, which is exactly what the
+click below is meant to be the only way of doing. A failed push downward can burst what it lands on. And
+while a bomb button is held the character does not move at all (`Player::onUpdate` takes the bomb branch),
+so there would be no answer to read.
+
+Two of `move()`'s early-outs are skipped when asking, and that is deliberate. Whether the character has
+already moved this tick, and whether it is sliding, decide *when* a step lands rather than whether the way
+is open; the drag holds its key across ticks, and an answer that flickered with the tick would hand its leg
+to the other axis and back. `updateVKs()` also runs before `Level::update` clears `moved`, so in simulate
+mode that flag is always the previous tick's. The one place the answer is generous is a push onto ice: the
+pushed object starts sliding instead of stepping, so the real `move()` reports false while the way is in
+fact opening.
 
 **A click works what the character is standing next to.** With blocked directions no longer commanded, a
 switch or a magnet would otherwise be out of a mouse player's reach: both are solid and fixed and do their
@@ -64,8 +82,8 @@ press that did *not* land on a character, and has two guards and no more — ort
 what "walk into it" means, and only where the character cannot go there, so a click is never a step and
 never a push. What happens then is left to `Player::move`, and that is the point: a click reaches exactly
 what a walk that way reaches, whatever the case. A panel falls out of it for nothing, being walked *onto*
-rather than into, so `canMove` says yes and the click works nothing — which is what a panel is for. So
-does a switch standing on a solid tile, which `move` refuses to touch through.
+rather than into, so the simulated move says yes and the click works nothing — which is what a panel is
+for. So does a switch standing on a solid tile, which `move` refuses to touch through.
 
 **Which buttons the drag carries is latched when it sets off**, not read per tick, and that is the one
 thing here that would be a bug the other way: on the way into a two-button grip there is a tick with only

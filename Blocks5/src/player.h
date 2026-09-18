@@ -17,11 +17,9 @@ public:
 	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
-	bool move(const Vec2i& dir, bool deadlyWeight = false);
-
-	// Whether move() would get anywhere, without doing any of it. It is
-	// the question the mouse drag asks before it commands a direction.
-	bool canMove(const Vec2i& dir);
+	// simulate is Object::move's: whether it would get anywhere, doing none of
+	// it. The mouse drag asks that before it commands a direction.
+	bool move(const Vec2i& dir, bool deadlyWeight = false, bool simulate = false);
 
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);

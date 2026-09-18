@@ -408,7 +408,7 @@ bool GS_Game::canMouseDragStep(const Vec2i& dir)
 {
 	if(!p_level) return false;
 	Player* p_player = p_level->getActivePlayer();
-	return p_player ? p_player->canMove(dir) : false;
+	return p_player ? p_player->move(dir, false, true) : false;
 }
 
 // Clicking on something the character is standing next to works it: a switch
@@ -436,7 +436,7 @@ void GS_Game::bumpCell(const Vec2i& cell)
 
 	const Vec2i dir = cell - p_player->getPosition();
 	if(abs(dir.x) + abs(dir.y) != 1) return;
-	if(p_player->canMove(dir)) return;
+	if(p_player->move(dir, false, true)) return;
 
 	p_player->move(dir);
 }

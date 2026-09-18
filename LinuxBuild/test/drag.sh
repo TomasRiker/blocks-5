@@ -28,6 +28,9 @@ mkdir -p "$B5_PRIVATE_HOME/levels"
 printf 0 > "$B5_PRIVATE_HOME/.update_checker"
 printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 
+#  row 3:      #    ##M      <- a loose block, then two against a wall
+#  row 4:  MMMMMMMMMMM        <- the floor they stand on, or they would fall
+#
 #  7         10 11   13        <- the column the wall stands in, then the
 #  M                              character, the switch it can reach and the
 #  M          B  S     S          one it cannot; P is the panel below it.
@@ -35,7 +38,14 @@ printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 #
 # The wall is five rows tall and open above and below, so a leg walking west
 # is stopped by it while a leg walking north is not - which is the whole
-# point: the drag has to notice the first and hand over to the second.
+# point: the drag has to notice the first and hand over to the second. The lane
+# up at rows 3 and 4 asks the same question of objects rather than tiles: one
+# block gives way, a chain of them against a wall does not, and only a drag
+# that walks the chain can tell those apart before it leans on it. Pushing the
+# loose block east is what builds that chain, so the first test sets up the
+# second. The floor under them is not decoration: a block with nothing beneath
+# it falls out of the lane before the character ever arrives, and the test then
+# passes on an empty row - which is how the first draft of it lied.
 python3 - "$B5_PRIVATE_HOME/levels/drag.xml" <<'PY'
 import sys
 path = sys.argv[1]
@@ -43,12 +53,17 @@ W, H = 40, 25
 def tiles(y):
     row = ['M' if (x in (0, W - 1) or y in (0, H - 1)) else ' ' for x in range(W)]
     if 8 <= y <= 12: row[7] = 'M'
+    if y == 4: row[14:25] = ['M'] * 11
+    if y == 3: row[23] = 'M'
     return ''.join(row)
 rows = lambda f: ''.join('<Row>%s</Row>' % f(y) for y in range(H))
 objects = ('<Object type="Player" x="10" y="10" character="0" active="1"/>'
            '<Object type="LightSwitch" x="11" y="10"/>'
            '<Object type="LightSwitch" x="13" y="10"/>'
-           '<Object type="LightPanel" x="10" y="11" subType="0"/>')
+           '<Object type="LightPanel" x="10" y="11" subType="0"/>'
+           '<Object type="Block" x="16" y="3"/>'
+           '<Object type="Block" x="21" y="3"/>'
+           '<Object type="Block" x="22" y="3"/>')
 head = ('<?xml version="1.0" ?><Level title="!drag" '
         'skin0="" skin1="" skin2="" skin3="" skin4="" skin5="" skin6="" '
         'skin7="" skin8="" skin9="" skin10="" width="40" height="25" '
@@ -196,5 +211,33 @@ if [ "$(b5_cell)" = "[10, 11]" ] && [ "$(b5_dark)" = "True" ]; then
 	b5_ok "walked onto the panel, and standing on it put the lights out"
 else
 	b5_note "the panel was not reached or not triggered: $(b5_cell), dark $(b5_dark)"
+fi
+# Up into the block lane, and then east: the loose block has room behind it, so
+# the character pushes it along and walks on. A chain test that broke an
+# ordinary push would be no use.
+b5_dragTo 10 11 14 3 3.5
+xdotool mouseup 1; sleep 1.0
+atLane=$(b5_cell)
+[ "$atLane" = "[14, 3]" ] || b5_note "could not reach the block lane: $atLane"
+b5_dragTo 14 3 19 3 3.5
+xdotool mouseup 1; sleep 1.0
+pushed=$(b5_cell)
+if [ "$pushed" = "[19, 3]" ]; then
+	b5_ok "it pushed the loose block ahead of it and walked on to $pushed"
+else
+	b5_note "the push did not carry the character along: $pushed"
+fi
+
+# That push left three blocks in a row against the wall at x = 23, and no
+# character can shift those. The leg east is over before it starts, so the leg
+# north takes it round - where a drag that only looks one cell deep sees a
+# block that "can be pushed" and leans on it until the button comes up.
+b5_dragTo 19 3 24 1 3.5
+xdotool mouseup 1; sleep 1.0
+around=$(b5_cell)
+if [ "$around" = "[24, 1]" ]; then
+	b5_ok "a chain of blocks with a wall behind it ended the leg, and it got round to $around"
+else
+	b5_note "the blocked chain did not hand over to the other axis: $around"
 fi
 b5_finish
