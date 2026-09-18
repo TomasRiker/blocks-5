@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48 and 51. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48, 51, 55, 56 and 57. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1218,6 +1218,83 @@ atlas, is the half left, and the tag `render-baseline` marks the last
 immediate-mode binary.
 
 
+55. The laser beam does not look as if it left the middle of the emitter
+------------------------------------------------------------------------
+Seen, not yet measured: the beam reads as sitting a little beside the barrel of
+the sprite it comes out of. The numbers involved: `Laser::onUpdate` starts the
+trace at `Vec2d(7.5, 7.5) + getShownPositionInPixels()`, the centre of the cell,
+steps along `beamDir` - four pixels at a time after the first - and keeps the
+points in `beam`; `Laser::onRender` translates by `-sp` and draws `beamPoints`
+as a 6.5-pixel polyline with a 7-pixel disc at the far end, and
+`Level::renderBeamShines(beam, sp, ...)` lights the surroundings from the same
+list. The emitter sprite (`sprites.png` at (0, 192), rotated by `90 * dir`) has
+its red barrel two columns wide about the centre line, so the suspects are the
+half pixel between that barrel and the 7.5 the trace starts on, the polyline's
+own rounding, and the rotation for the four values of `dir`; `LightBarrierSender`
+is the same shape at 2.5 pixels and will show the same thing if the cause is
+shared.
+
+The constraint: `beam` feeds the hit test - `isFreeAt2`, `reflectLaser`, the
+object hits and their `destroyTime` countdown - and the drawing alike, so the
+fix is an offset in the render path only, applied where `beamPoints` is built
+or in the translate, per `dir` if the sprite asks for it, and never to `beam`
+itself. The oracle's `night` and `lava` scenes show laser beams and will move by
+design; anything else moving is the hit test having changed.
+
+
+56. Drive the character with the mouse
+--------------------------------------
+Drag to move: a drag on the active character in a direction is a step in that
+direction, held for as long as the drag goes on, the way a held key repeats. A
+drag with the right button plants a bomb in that direction, and a drag with both
+buttons puts one down there - the two things `Player::onUpdate` already does for
+a direction with `$A_PLANT_BOMB` (Shift) or `$A_PUT_DOWN_BOMB` (Ctrl) held.
+
+Where it enters: input is two layers (`input.md`) - physical keys, axes and hats
+become virtual keys, and a named action binds two of those. `Player` reads
+`wasActionPressed("$A_LEFT")` per tick and `isActionDown` for the two bomb
+modifiers, and nothing below that layer is visible to it. The joystick shows the
+shape to copy: a hat becomes four virtual keys with structural ids
+(`Joystick1 H1NE`), sampled once per tick by `updateVKs`. A mouse drag is a
+device of the same kind - four directional keys and the button modifiers, set by
+a recogniser in `Engine` from the raw cursor movement and the button state, with
+ids of their own so that `config.xml` can name them - and `main.cpp` binds them
+as the secondary keys of `$A_LEFT` and the rest, which is what lets the options
+dialog show and rebind them like everything else. The game side exists: the
+game GUI's `onMouseDown` in `gs_game.cpp` already activates the player under the
+cursor, `showCursor` fades the pointer, and the pause rule holds, so the press
+that starts a drag while paused is spent on resuming. A drag is a press followed
+by movement past a threshold from the press point, not a click, so activating a
+character by clicking it stays as it is; whether the drag has to start on the
+character or may start anywhere is the one decision left to taste.
+
+
+57. One floating-point type
+---------------------------
+The game computes in doubles and draws in floats: `Vec2d` and `Vec4d` through
+the objects and the level, `Vec2f` and `Vec4f` in the `Renderer`'s vertex, and
+the seam between them is 61 `static_cast<Vec2f>`, 14 `static_cast<Vec4f>`, 197
+`static_cast<float>` and 56 `static_cast<double>` across the sources (755
+`double`s against 462 `float`s); "Fix some type conversion warnings" is the
+latest commit of a kind that has no end while both types stay. The values are
+pixels (at most 640), cells (40 by 25), fractions of a tick and colour
+components, and a float's 24-bit mantissa holds all of them exactly or to a part
+in sixteen million. So: `float` everywhere, and `double` only where a value
+provably needs it - and those are few and nameable: the wall clock and the frame
+timings (`getExactTime`, `FrameStats`), the recorder's audio and video
+timestamps, anything that accumulates over a session.
+
+What goes with it: `Vec2d` and `Vec4d` become `Vec2f` and `Vec4f` wherever they
+mean geometry or colour, and the casts between them go; `random()` keeps its
+three overloads and the double one loses its callers; TinyXML hands out `double`
+(21 `QueryDoubleAttribute` sites), so a load converts once at that edge; OpenAL
+takes floats already. Two things to keep: `Tools/syntax.sh`'s gate - an integer
+handed to a float fails it - stays and reaches further; and the oracle will move
+on every scene, since the arithmetic changes in its last bit, so the change goes
+in stages, each proved against the previous one and re-baselined as the renderer
+was (`render-baseline`, `testing.md`).
+
+
 How these connect
 -----------------
    19 (controls) <--> 22 (tap radius): the pad answers the keys, 22 the buttons
@@ -1241,6 +1318,12 @@ How these connect
 
    38 (gestures) <--> 39 (editor strokes, done): both are code that was correct
                       only because a mouse never teleports
+
+   38 (gestures) <--> 56 (mouse drag): one recogniser for a drag, whether it
+                      scrolls a list or steers Bob
+
+   54 (the renderer, done) <--> 57 (one float type): the renderer computes in
+                      floats already; 57 brings the game up to meet it
 
 What left the tree along the way: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`,
 `zlib1.dll`, the four ffmpeg DLLs, `oalinst.exe`, `vcredist_x86.exe`,
