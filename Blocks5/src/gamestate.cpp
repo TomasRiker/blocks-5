@@ -51,6 +51,11 @@ bool GameState::getMouseDragCells(Vec2i* p_actor,
 	return false;
 }
 
+bool GameState::canMouseDragStep(const Vec2i& dir)
+{
+	return true;
+}
+
 const std::string& GameState::getName() const
 {
 	return name;

@@ -1582,6 +1582,7 @@ Plant bomb		%BINDING{$A_PLANT_BOMB} + direction
 Put bomb down		%BINDING{$A_PUT_DOWN_BOMB} + direction
 Move via mouse		Drag character with left mouse button
 Bombs via mouse		Drag with right/both mouse buttons
+Use switch via mouse		Click switch next to the character
 Switch character		%BINDING{$A_SWITCH_CHARACTER} or click at character
 Restart level		%BINDING{$A_RESTART_LEVEL}
 Restart from hotel		%BINDING{$A_RESTART_FROM_HOTEL}
@@ -1605,6 +1606,7 @@ Bombe legen und zünden	%BINDING{$A_PLANT_BOMB} + Richtung
 Bombe ablegen		%BINDING{$A_PUT_DOWN_BOMB} + Richtung
 Bewegen per Maus		Spielfigur mit linker Maustaste ziehen
 Bomben per Maus		Mit rechter/beiden Maustasten ziehen
+Schalter per Maus		Schalter neben der Spielfigur anklicken
 Spielfigur wechseln		%BINDING{$A_SWITCH_CHARACTER} oder Spielfigur anklicken
 Level neu starten		%BINDING{$A_RESTART_LEVEL}
 Vom Hotel aus neu starten	%BINDING{$A_RESTART_FROM_HOTEL}

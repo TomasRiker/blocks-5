@@ -72,13 +72,23 @@ would trip that check.
 
 ## The frame oracle
 
-`LinuxBuild/test/drag.sh` is the one test that reads the *level* rather than the GUI. A mouse drag steers
-a character, so no widget can be asked whether it worked; the hook's `state` therefore reports `player`,
-the cell the active character stands on, or `[-1, -1]` with no level running. The test drives a real
-drag with `b5_drag` and compares that cell before and after. It exists because the feature shipped once
-without working at all — the bindings were registered before `Engine::init` had built the virtual-key
-table — and because the obvious check does not work: it rains in level 1, so two frames differ by a
-million pixels whether or not anybody walked.
+`LinuxBuild/test/drag.sh` is the one test that reads the *level* rather than the GUI. The mouse gestures
+steer a character, so no widget can be asked whether they worked; the hook's `state` therefore reports
+`player`, the cell the active character stands on (`[-1, -1]` with no level running), and `nightVision`,
+which is what a light switch does — of the eight switches the one whose effect is a single bit rather
+than something to be recognised in a picture. It exists because the feature shipped once without working
+at all — the bindings were registered before `Engine::init` had built the virtual-key table — and
+because the obvious check does not work: it rains in level 1, so two frames differ by a million pixels
+whether or not anybody walked.
+
+It plays **a level of its own**, written by the script for the same reason `frames.sh` writes its scenes:
+the geometry *is* the test. A wall five rows tall and open above and below, so that a leg walking west is
+stopped by it while one walking north is not — which is what proves a blocked leg hands over to the
+other axis rather than leaning on the wall; a switch beside where the character starts and another three
+cells off; and a panel under its feet, which must be walked onto and not clicked. In a shipped level all
+of that would be whatever happened to lie near the start, and an assertion about it would be a statement
+about level 1. The private `XDG_DATA_HOME` is frames.sh's arrangement exactly: it puts the level first in
+the single-levels list and keeps the developer's own levels and progress out of it.
 
 `LinuxBuild/test/frames.sh` renders nineteen named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what

@@ -3405,6 +3405,20 @@ bool Engine::wasActionReleased(const std::string& name) const
 	return p_action ? ((p_action->data & 4) ? true : false) : false;
 }
 
+// One cell along `axis` (0 for x, 1 for y) toward the cursor, and nothing
+// where that axis has already arrived.
+static Vec2i dragStep(int axis,
+					  const Vec2i& away)
+{
+	Vec2i step(0, 0);
+	if(axis == 0)
+	{
+		if(away.x) step.x = (away.x < 0) ? -1 : 1;
+	}
+	else if(away.y) step.y = (away.y < 0) ? -1 : 1;
+	return step;
+}
+
 // The drag names a cell rather than a direction: the character walks to
 // whatever the cursor is over and keeps going while a button is held. That
 // costs nothing in here - the four direction keys are held exactly as a
@@ -3419,6 +3433,11 @@ bool Engine::wasActionReleased(const std::string& name) const
 // each tick draws a staircase, and while that is no faster than the two
 // straight legs it is a path nobody would walk by hand on the keyboard, so it
 // would be an advantage for nothing.
+//
+// Two more belong to the game rather than to the gesture, and are asked of
+// the game state: whether there is anybody to steer, which includes the press
+// having landed on a character, and whether the way a leg wants to go is open
+// at all (getMouseDragCells, canMouseDragStep).
 void Engine::updateMouseDrag()
 {
 	const bool leftButton = isButtonDown(SDL_BUTTON_LEFT);
@@ -3455,15 +3474,29 @@ void Engine::updateMouseDrag()
 
 			// A leg begins where there is no axis yet or the one being walked
 			// has run out, and it takes whichever is further off.
-			if(dragAxis == -1
-			   || (dragAxis == 0 && away.x == 0)
-			   || (dragAxis == 1 && away.y == 0))
+			int axis = dragAxis;
+			if(axis == -1
+			   || (axis == 0 && away.x == 0)
+			   || (axis == 1 && away.y == 0))
 			{
-				dragAxis = (abs(away.x) >= abs(away.y)) ? 0 : 1;
+				axis = (abs(away.x) >= abs(away.y)) ? 0 : 1;
 			}
 
-			if(dragAxis == 0) step.x = (away.x < 0) ? -1 : 1;
-			else step.y = (away.y < 0) ? -1 : 1;
+			step = dragStep(axis, away);
+			if(!p_gs->canMouseDragStep(step))
+			{
+				// A leg that has walked into something is over as surely as
+				// one that has run out, and the other axis is what takes the
+				// character around the obstacle. Where that is blocked too,
+				// or has arrived already, the drag commands nothing at all
+				// rather than leaning on the wall for as long as the button
+				// is held.
+				axis = 1 - axis;
+				step = dragStep(axis, away);
+				if(!p_gs->canMouseDragStep(step)) step = Vec2i(0, 0);
+			}
+
+			dragAxis = step.isZero() ? -1 : axis;
 		}
 	}
 

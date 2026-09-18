@@ -18,6 +18,11 @@ public:
 	void updateSprites();
 	void onUpdate();
 	bool move(const Vec2i& dir, bool deadlyWeight = false);
+
+	// Whether move() would get anywhere, without doing any of it. It is
+	// the question the mouse drag asks before it commands a direction.
+	bool canMove(const Vec2i& dir);
+
 	bool changeInEditor(int mod);
 	void saveAttributes(TiXmlElement* p_target);
 	void saveExtendedAttributes(TiXmlElement* p_target);

@@ -1248,9 +1248,13 @@ the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
 56. Drive the character with the mouse  - **DONE**
 --------------------------------------------------
 Drag a character to the tile it should go to and it walks there while the
-button stays down. A drag carrying the right button plants a bomb in the
-direction of the step, one carrying both puts a bomb down there - the two
-things `Player::onUpdate` already did for a direction with Shift or Ctrl held.
+button stays down. The drag begins on the character - the same press that
+wakes one up takes hold of it, and a drag from empty ground steers nobody. A
+drag carrying the right button plants a bomb in the direction of the step, one
+carrying both puts a bomb down there - the two things `Player::onUpdate`
+already did for a direction with Shift or Ctrl held. And a click on what the
+character is standing next to works it, which is how a switch is reached with
+the mouse.
 
 It is a device rather than a special case: `Engine::updateMouseDrag` sets six
 virtual keys the way a joystick hat's four are polled, and `Player` still only
@@ -1258,15 +1262,30 @@ ever asks for the action. What the engine cannot know is where anybody is, so
 `GameState::getMouseDragCells` hands it the active character's cell and the
 cursor's, and only `GS_Game` answers.
 
-Three decisions the work turned on. The keys are **held, never pulsed**: a
+Four decisions the work turned on. The keys are **held, never pulsed**: a
 press landing while an action's repeat counts down goes into that action's
 buffer and is played out later, so pulsing would stack steps up and walk on
 after the player let go. **One axis moves at a time**, committed until it runs
 out, so the path is two straight legs - a staircase is no faster, but it is a
 path nobody would walk by hand on the keyboard, so allowing it would be an
-advantage for nothing. And the **buttons are latched** when the drag sets off:
-on the way into a two-button grip there is a tick with only the right button
-down, which is the gesture for a *lit* bomb.
+advantage for nothing. **A direction the character cannot go is never
+commanded** (`canMouseDragStep`, `Player::canMove`): a leg that has walked into
+something is over as surely as one that has run out, and the other axis takes
+over and walks round the obstacle - held against the wall instead, the key
+would keep the leg alive and the axis that could still move would never get its
+turn. And the **buttons are latched** when the drag sets off: on the way into a
+two-button grip there is a tick with only the right button down, which is the
+gesture for a *lit* bomb.
+
+That last rule is what the click is for. A switch or a magnet is solid and
+fixed and does its whole job in `onTouchedByPlayer`, which is reached by
+walking into it, so refusing blocked directions would have put them out of a
+mouse player's reach. `GS_Game::bumpCell` has two guards - orthogonally
+adjacent, and only where the character *cannot* go there, so a click is never a
+step and never a push - and leaves the rest to `Player::move`, which is the
+point: a click reaches exactly what a walk that way reaches. A panel falls out
+of it for nothing, being walked onto rather than into; so does a switch behind
+a solid tile, which `move` refuses to touch through.
 
 Two more that fell out of the plan rather than into it. The drag binds as an
 action's **third** source, because both real slots are taken on all six actions
@@ -1276,9 +1295,10 @@ the six keys sit directly behind the keyboard block so that their base is a
 constant: `main.cpp` registers its actions before `Engine::init` builds the
 table, and a base discovered during init is still `-1` when the binding is
 made. That one shipped broken once, silently, which is why
-`LinuxBuild/test/drag.sh` exists - it reads the character's cell out of the
-test hook, because a drag steers the level and no widget can be asked whether
-it worked.
+`LinuxBuild/test/drag.sh` exists - it reads the character's cell and the state
+of the lights out of the test hook, because these gestures steer the level and
+no widget can be asked whether they worked, and it plays a level of its own,
+because the geometry a drag has to walk round is the test.
 
 Two things drop a drag: the menu opening (`Game.ShowMenu`, which Escape and the
 on-screen button both go through) and losing focus, which now clears the held

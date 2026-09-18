@@ -30,6 +30,14 @@ public:
 	// one at the end is a step taken after the player let go.
 	virtual bool getMouseDragCells(Vec2i* p_actor, Vec2i* p_target);
 
+	// Whether the character a drag is steering can take one step this way. A
+	// direction it cannot go must not be commanded at all: the key would hold
+	// the character against the wall for as long as the button is, and since a
+	// leg ends when it runs out, the axis that could still walk around the
+	// obstacle would never get its turn. Asked only of a state that answered
+	// getMouseDragCells.
+	virtual bool canMouseDragStep(const Vec2i& dir);
+
 	const std::string& getName() const;
 
 protected:

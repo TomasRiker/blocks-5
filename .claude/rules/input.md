@@ -29,18 +29,43 @@ silent — the drag simply does nothing, because the indices it lands on are key
 **The drag names a cell, not a direction.** The character walks to whatever the cursor is over and keeps
 going while a button is held. The cells come from the game state, not from `Engine`, which has no idea
 what a level is: `GameState::getMouseDragCells` is asked for the active character's cell and the cursor's,
-and only `GS_Game` answers — with a level running, nobody paused, no menu over it, and the press having
+and only `GS_Game` answers — with a level running, nobody paused, no menu over it, the press having
 landed on the field rather than on a widget (the GUI remembers what it went to, and for the play area that
-is the `GameGUI` itself). It is asked from `updateVKs()` and not computed in `onUpdate()`, which runs
-*after* `updateActions()`: a step decided there would reach the character a tick late at both ends, and the
-late one at the end is a step taken after the player let go.
+is the `GameGUI` itself), and the press having landed **on a character**. A drag is a command to the one
+the player took hold of, so dragging from empty ground steers nobody; `GameGUI::onMouseDown` is the one
+place that knows a press landed on a character, being already there to wake it up — the same press does
+both — and what it sets lives until the last button comes up rather than until the next press, because
+the second button of a two-button grip lands wherever the cursor has got to by then. It is asked from
+`updateVKs()` and not computed in `onUpdate()`, which runs *after* `updateActions()`: a step decided there
+would reach the character a tick late at both ends, and the late one at the end is a step taken after the
+player let go.
 
-**Two rules keep it honest.** The keys are *held* and never pulsed — a press that lands while an action's
+**Three rules keep it honest.** The keys are *held* and never pulsed — a press that lands while an action's
 repeat is counting down goes into that action's buffer and is played out later, so a pulsed key would
-stack steps up and walk on after the button came up. And **one axis moves at a time**, committed until it
+stack steps up and walk on after the button came up. **One axis moves at a time**, committed until it
 runs out, so the path is two straight legs and never a staircase. A staircase is no faster than the legs
 — the same number of steps either way — but it is a path nobody would walk by hand on the keyboard, so
 allowing it would be an advantage for nothing. The leg that begins takes whichever axis is further off.
+
+And **a direction the character cannot go is never commanded**: `GameState::canMouseDragStep` asks
+`Player::canMove`, and a leg that has walked into something is over as surely as one that has run out, so
+the other axis takes over — which is what walks the character round an obstacle. Held against the wall
+instead, the key would keep that leg alive for as long as the button was down, and the axis that could
+still move would never get its turn. `canMove` answers about the geometry and not about this tick —
+whether the character has already moved or is sliding decides when a step lands, not whether the way is
+open, and a key dropped for one tick would restart the repeat that paces the walk. And it stops one cell
+deep: whether a pushable block really gives way depends on the whole chain behind it, and leaning on a
+block that will not move is what the keyboard does too.
+
+**A click works what the character is standing next to.** With blocked directions no longer commanded, a
+switch or a magnet would otherwise be out of a mouse player's reach: both are solid and fixed and do their
+whole job in `onTouchedByPlayer`, which is reached by walking into them. `GS_Game::bumpCell` takes the
+press that did *not* land on a character, and has two guards and no more — orthogonally adjacent, which is
+what "walk into it" means, and only where the character cannot go there, so a click is never a step and
+never a push. What happens then is left to `Player::move`, and that is the point: a click reaches exactly
+what a walk that way reaches, whatever the case. A panel falls out of it for nothing, being walked *onto*
+rather than into, so `canMove` says yes and the click works nothing — which is what a panel is for. So
+does a switch standing on a solid tile, which `move` refuses to touch through.
 
 **Which buttons the drag carries is latched when it sets off**, not read per tick, and that is the one
 thing here that would be a bug the other way: on the way into a two-button grip there is a tick with only

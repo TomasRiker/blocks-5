@@ -27,6 +27,7 @@ public:
 	void onRender();
 	void onUpdate();
 	bool getMouseDragCells(Vec2i* p_actor, Vec2i* p_target);
+	bool canMouseDragStep(const Vec2i& dir);
 	void onEnter(const ParameterBlock& context);
 	void onLeave(const ParameterBlock& context);
 	void onGetFocus();
@@ -39,6 +40,10 @@ public:
 
 private:
 	int loadLevel();
+
+	// Work whatever the active character is standing next to, the way a walk
+	// into it would. GameGUI's press is the only caller.
+	void bumpCell(const Vec2i& cell);
 
 	// The file the running level came from. Only the single levels show it;
 	// remembered rather than looked up, because levelNumber already stands one
@@ -58,6 +63,16 @@ private:
 	Campaign* p_currentCampaign;
 	uint showCursor;
 	bool ignoreNextCursorMovement;
+
+	// Did the press that is being held land on a character? A drag is a
+	// command to the one the player grabbed, so it has to start on it -
+	// dragging from empty ground steers nobody. Set by the press that
+	// found one, which is the same press that wakes it up, and cleared
+	// when the last button comes up rather than on the next press,
+	// because the second button of a two-button grip lands wherever the
+	// cursor has got to by then.
+	bool dragFromPlayer;
+
 	bool paused;
 	Vec2f pausePosition;
 	Vec2f pauseVelocity;
