@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51, 55, 56 and 57. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48, 51, 56 and 57. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1218,29 +1218,32 @@ atlas, is the half left, and the tag `render-baseline` marks the last
 immediate-mode binary.
 
 
-55. The laser beam does not look as if it left the middle of the emitter
-------------------------------------------------------------------------
-Seen, not yet measured: the beam reads as sitting a little beside the barrel of
-the sprite it comes out of. The numbers involved: `Laser::onUpdate` starts the
-trace at `Vec2d(7.5, 7.5) + getShownPositionInPixels()`, the centre of the cell,
-steps along `beamDir` - four pixels at a time after the first - and keeps the
-points in `beam`; `Laser::onRender` translates by `-sp` and draws `beamPoints`
-as a 6.5-pixel polyline with a 7-pixel disc at the far end, and
-`Level::renderBeamShines(beam, sp, ...)` lights the surroundings from the same
-list. The emitter sprite (`sprites.png` at (0, 192), rotated by `90 * dir`) has
-its red barrel two columns wide about the centre line, so the suspects are the
-half pixel between that barrel and the 7.5 the trace starts on, the polyline's
-own rounding, and the rotation for the four values of `dir`; `LightBarrierSender`
-is the same shape at 2.5 pixels and will show the same thing if the cause is
-shared.
+55. The laser beam leaves the emitter half a pixel beside its ruby  - **DONE**
+------------------------------------------------------------------------------
+A parity problem rather than a rounding one. Both emitters trace from
+`getShownPositionInPixels() + 7.5`, the centre of pixel 7, while a 16-pixel cell
+has its centre on the boundary between pixels 7 and 8 - and that boundary is the
+line the art is drawn about: the laser's ruby has its two strong columns at 7 and
+8, and the light barrier's lens is symmetric to the pixel about it in all four
+shipped skins. A quad lights a pixel whose centre falls inside it, so the core
+lit column 7 alone and the beam left the emitter beside its ruby.
 
-The constraint: `beam` feeds the hit test - `isFreeAt2`, `reflectLaser`, the
-object hits and their `destroyTime` countdown - and the drawing alike, so the
-fix is an offset in the render path only, applied where `beamPoints` is built
-or in the translate, per `dir` if the sprite asks for it, and never to `beam`
-itself. The oracle's `night` and `lava` scenes show laser beams and will move by
-design; anything else moving is the hit test having changed.
+The drawing adds `BEAM_DRAW_OFFSET` (`object.h`, the reasoning in `object.cpp`)
+in `Laser::onRender` and `LightBarrierSender::onRender`, and every cross-width
+there is now an even number of pixels, which at that centre is the only kind
+whose edges land on pixel boundaries: an odd width puts its two edges on two
+pixel centres and leaves the fill rule to decide, and a width under one pixel
+passes between them and draws nothing. The laser's core is 2, its glow 6, its
+caps 4 and 6; the light barrier's core is 2, its glow 4, its caps 2 and 4.
+Measured on the oracle's `lava` and `night` scenes, for a beam pointing left, one
+pointing right and one pointing down: the core lit cell pixel 7 alone before and
+lights 7 and 8 equally now, with the glow symmetric about them.
 
+What must not be undone: the traced points are untouched, because the hit test
+reads the same list - `isFreeAt2`, `reflectLaser` and the `destroyTime`
+countdown. `Level::renderBeamShines` needed nothing, since it already re-bases
+the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
+`renderShine` centres its disc on the cell.
 
 56. Drive the character with the mouse
 --------------------------------------
