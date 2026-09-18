@@ -163,7 +163,7 @@ void TileSet::writeTile(uint id,
 	// which is why one constant does for both here.
 	const float s = TILE_SIZE;
 	const float x = position.x, y = position.y;
-	const float u = tile.position.x, v = tile.position.y;
+	const float u = static_cast<float>(tile.position.x), v = static_cast<float>(tile.position.y);
 
 	out.push_back(QuadVertex(x,     y,     u,     v));
 	out.push_back(QuadVertex(x + s, y,     u + s, v));

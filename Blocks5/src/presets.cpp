@@ -144,7 +144,7 @@ void Presets::renderPreset(const std::string& name,
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
 	renderer.loadIdentity();
-	renderer.translate(position.x, position.y);
+	renderer.translate(static_cast<float>(position.x), static_cast<float>(position.y));
 
 	Vec2i t = texCoords[name];
 	bool mirrorX = t.x < 0;

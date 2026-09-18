@@ -76,6 +76,11 @@ void printfLog(const char* p_format, ...);
 std::string localizeString(const std::string& text);
 std::string loadString(const std::string& id);
 std::vector<Vec2i> bresenham(const Vec2i& p1, const Vec2i& p2);
+
+// Seconds since the first call. double, because the value keeps growing for
+// as long as the session lasts while what is read off it is the difference
+// of two readings, a few milliseconds: a float's step is already 244 us an
+// hour in and 7.8 ms after a day, more than a whole frame.
 double getExactTime();
 uint getExactTimeMS();
 

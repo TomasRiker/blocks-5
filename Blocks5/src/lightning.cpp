@@ -74,8 +74,8 @@ void Lightning::render()
 {
 	if(alpha < 1.0f / 256.0f) return;
 
-	drawPass(0, Vec4f(0.4f, 0.2f, 1.0f, static_cast<float>(0.2f * alpha)));
-	drawPass(1, Vec4f(1.0f, 1.0f, 0.75f, static_cast<float>(0.85f * alpha)));
+	drawPass(0, Vec4f(0.4f, 0.2f, 1.0f, 0.2f * alpha));
+	drawPass(1, Vec4f(1.0f, 1.0f, 0.75f, 0.85f * alpha));
 }
 
 void Lightning::update()
@@ -115,7 +115,7 @@ void Lightning::drawPass(int pass, const Vec4f& color)
 	// The end point of the main branch, as a single point of the same width.
 	// It goes between the two batches and not after them, because the other
 	// branches are drawn over it.
-	renderer.point(static_cast<Vec2f>(p.endPoint), static_cast<float>(p.pointSize), color);
+	renderer.point(p.endPoint, p.pointSize, color);
 
 	if(!p.otherBranches.empty())
 	{
@@ -124,7 +124,7 @@ void Lightning::drawPass(int pass, const Vec4f& color)
 }
 
 float Lightning::branchWidth(const Branch& branch,
-							  int pass) const
+							 int pass) const
 {
 	float width;
 	if(pass == 0) width = branch.thickness * 7.5f;
@@ -198,8 +198,8 @@ void Lightning::addLine(Vec2f p1,
 	joint.lastCorner1 = p2 + halfAxis;
 	joint.lastCorner2 = p2 - halfAxis;
 
-	out.push_back(QuadVertex(start1.x, start1.y, u, 0));
-	out.push_back(QuadVertex(start2.x, start2.y, u + w + 2, 0));
-	out.push_back(QuadVertex(joint.lastCorner1.x, joint.lastCorner1.y, u + w + 2, 16));
-	out.push_back(QuadVertex(joint.lastCorner2.x, joint.lastCorner2.y, u, 16));
+	out.push_back(QuadVertex(start1.x, start1.y, static_cast<float>(u), 0.0f));
+	out.push_back(QuadVertex(start2.x, start2.y, static_cast<float>(u + w + 2), 0.0f));
+	out.push_back(QuadVertex(joint.lastCorner1.x, joint.lastCorner1.y, static_cast<float>(u + w + 2), 16.0f));
+	out.push_back(QuadVertex(joint.lastCorner2.x, joint.lastCorner2.y, static_cast<float>(u), 16.0f));
 }

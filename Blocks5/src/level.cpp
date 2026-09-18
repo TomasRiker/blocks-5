@@ -657,7 +657,7 @@ void Level::render()
 	else offset = Vec2i(0, 0);
 
 	renderer.push();
-	renderer.translate(offset.x, offset.y);
+	renderer.translate(static_cast<float>(offset.x), static_cast<float>(offset.y));
 
 	// sort the objects
 	sortObjects();
@@ -761,7 +761,7 @@ void Level::render()
 			scroll.scale(s[i], s[i], s[i]);
 			scroll.translate(0.0f, -y / s[i], 0.0f);
 			scroll.rotate(angle, 0.0f, 0.0f, 1.0f);
-			renderer.scrolledQuad(rain.id, scroll, screen, screen, Vec4f(0.8f, 0.8f, 0.8f, static_cast<float>(alpha)));
+			renderer.scrolledQuad(rain.id, scroll, screen, screen, Vec4f(0.8f, 0.8f, 0.8f, alpha));
 		}
 	}
 
@@ -791,7 +791,7 @@ void Level::render()
 			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0f);
 			scroll.translate(-x, -y, 0.0f);
 			scroll.scale(s[i], s[i], s[i]);
-			renderer.scrolledQuad(snow.id, scroll, screen, screen, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.65f * alphaFactor)));
+			renderer.scrolledQuad(snow.id, scroll, screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 0.65f * alphaFactor));
 		}
 	}
 
@@ -816,8 +816,8 @@ void Level::render()
 			scroll.scale(s[i], s[i] * 2.0f, s[i]);
 			scroll.translate(-x / s[i], 0.0f, 0.0f);
 			scroll.rotate(15.0f + 5.0f * i, 0.0f, 0.0f, 1.0f);
-			const float c = static_cast<float>(1.0f - 0.05f * i);
-			const float a = static_cast<float>(0.175f - 0.05f * i);
+			const float c = 1.0f - 0.05f * i;
+			const float a = 0.175f - 0.05f * i;
 			renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 		}
 	}
@@ -828,7 +828,7 @@ void Level::render()
 		renderer.setBlend(BM_MULTIPLY);
 		const Vec3f tint = Vec3f(1.0f / 255.0f) * lightColor;
 		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f),
-					  Vec4f(static_cast<float>(tint.r), static_cast<float>(tint.g), static_cast<float>(tint.b), 1.0f));
+					  Vec4f(tint.r, tint.g, tint.b, 1.0f));
 		renderer.setBlend(BM_NORMAL);
 	}
 
@@ -857,7 +857,7 @@ void Level::render()
 		{
 			// darken everything unlit
 			Renderer::ColorMaskScope colorOnly(true, true, true, false);
-			const float c = static_cast<float>(21.0f / 255.0f);
+			const float c = 21.0f / 255.0f;
 			renderer.setBlend(BM_DARKEN_UNLIT);
 			renderer.rect(screen[0], screen[2], Vec4f(c, c, c, c));
 			renderer.setBlend(BM_NORMAL);
@@ -885,8 +885,8 @@ void Level::render()
 	if(flash > 0.0f)
 	{
 		// draw the flash
-		const Vec4f color = nightVision ? Vec4f(0.0f, 1.0f, 0.0f, static_cast<float>(min(0.75f, actualFlash)))
-										: Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(min(0.5f, actualFlash)));
+		const Vec4f color = nightVision ? Vec4f(0.0f, 1.0f, 0.0f, min(0.75f, actualFlash))
+										: Vec4f(1.0f, 1.0f, 1.0f, min(0.5f, actualFlash));
 		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f), color);
 	}
 
@@ -1115,7 +1115,7 @@ void Level::renderTiles(int layer,
 
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
-	renderer.translate(offset.x, offset.y);
+	renderer.translate(static_cast<float>(offset.x), static_cast<float>(offset.y));
 
 	std::vector<QuadVertex>& vertices = tileVertices[layer];
 
@@ -1150,7 +1150,7 @@ void Level::renderTiles(int layer,
 	}
 
 	p_tileSet->drawVertices(vertices.empty() ? 0 : &vertices[0],
-							static_cast<uint>(vertices.size()), static_cast<Vec4f>(color));
+							static_cast<uint>(vertices.size()), color);
 
 	renderer.pop();
 }
@@ -1286,7 +1286,7 @@ void Level::renderBeamShines(const std::list<Vec2f>& beam,
 		if(n % 4 && !corner) continue;
 
 		renderShine(intensity, size + jitter * pointJitter(seed, n),
-					*i - origin - Vec2f(7.5, 7.5));
+					*i - origin - Vec2f(7.5f, 7.5f));
 	}
 }
 
@@ -2320,7 +2320,7 @@ void Level::renderToxicEffect()
 		{
 			for(int y = 0; y <= 40; y++)
 			{
-				temp[x][y] = table.rand(2.5f);
+				temp[x][y] = static_cast<float>(table.rand(2.5f));
 			}
 		}
 
@@ -2385,8 +2385,8 @@ void Level::renderToxicEffect()
 			for(int k = 0; k < 4; k++)
 			{
 				p_vertex->position = static_cast<Vec2f>(Vec2i(cx[k] * 10, cy[k] * 10));
-				p_vertex->uv = static_cast<Vec2f>(grid[cx[k]][cy[k]]);
-				p_vertex->color = static_cast<Vec4f>(color[cx[k]][cy[k]]);
+				p_vertex->uv = grid[cx[k]][cy[k]];
+				p_vertex->color = color[cx[k]][cy[k]];
 				p_vertex++;
 			}
 		}

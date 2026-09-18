@@ -159,7 +159,7 @@ void Bomb::onUpdate()
 								if(!p_sprites->sample(&sampled, &offset)) continue;
 
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-								p.velocity = random(4.0f, 7.0f) * Vec2f(x, y).normalize() + Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
+								p.velocity = random(4.0f, 7.0f) * static_cast<Vec2f>(Vec2i(x, y)).normalize() + Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 								p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
 								p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);

@@ -11,7 +11,7 @@ Arrow::Arrow(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_ARROWTYPE;
 	this->dir = dir;
-	shownDir = dir;
+	shownDir = static_cast<float>(dir);
 	dirVel = 0.0f;
 	shownAlpha = 0.6f;
 	counter = 0;
@@ -97,7 +97,7 @@ bool Arrow::changeInEditor(int mod)
 {
 	dir++;
 	dir %= 4;
-	shownDir = dir;
+	shownDir = static_cast<float>(dir);
 
 	return true;
 }

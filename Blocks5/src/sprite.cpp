@@ -24,10 +24,12 @@ namespace
 	const float degToRad = 3.1415926535897932384626433832795f / 180.0f;
 
 	// What the footprint is trimmed by before floor() and ceil() go at it.
-	// cos(90 degrees) is 6.1e-17 and not 0, the left edge of a quarter turn
-	// comes out as -8.9e-16, and the cell would be 17x17 for no reason -
+	// cos(90 degrees) is -4.4e-8 and not 0, the left edge of a quarter turn
+	// comes out as -4.8e-7, and the cell would be 17x17 for no reason -
 	// getTryCount() works from the area and would roll 13% more debris than the
-	// same sprite unrotated.
+	// same sprite unrotated. The error grows with the sprite's half-width, and
+	// the one sprite larger than a cell - the burnt ground - is turned by an
+	// arbitrary angle, where no edge lands on a whole number to begin with.
 	const float footprintEpsilon = 1.0e-6f;
 
 	// Trace the spot in object coordinates back into the cell renderSprite

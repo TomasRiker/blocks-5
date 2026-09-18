@@ -105,7 +105,7 @@ void Lava::onRender(RenderLayer layer,
 			// anim and its two periods divide neither the tile nor each
 			// other, so wrapping what feeds those sines would jog the wobble
 			// every time it came round.
-			const float scroll = wrapTextureOffset(anim, SCROLL_PERIOD);
+			const float scroll = wrapTextureOffset(static_cast<float>(anim), SCROLL_PERIOD);
 
 			Vec2f t;
 			switch(ndir % 4)
@@ -118,16 +118,16 @@ void Lava::onRender(RenderLayer layer,
 
 			t += shift;
 
-			const Vec4f colors[4] = {Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[0] * tl)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[1] * tr)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[2] * br)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[3] * bl))};
+			const Vec4f colors[4] = {Vec4f(1.0f, 1.0f, 1.0f, a[0] * tl),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[1] * tr),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[2] * br),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[3] * bl)};
 
 			if(layer == RL_LAVA_FRONT) t /= 2.0f;
-			const Vec2f uvs[4] = {static_cast<Vec2f>(Vec2f(t.x, t.y)),
-								  static_cast<Vec2f>(Vec2f(t.x + 16.0f, t.y)),
-								  static_cast<Vec2f>(Vec2f(t.x + 16.0f, t.y + 16.0f)),
-								  static_cast<Vec2f>(Vec2f(t.x, t.y + 16.0f))};
+			const Vec2f uvs[4] = {Vec2f(t.x, t.y),
+								  Vec2f(t.x + 16.0f, t.y),
+								  Vec2f(t.x + 16.0f, t.y + 16.0f),
+								  Vec2f(t.x, t.y + 16.0f)};
 			renderer.quad(state, corners, uvs, colors);
 		}
 	}

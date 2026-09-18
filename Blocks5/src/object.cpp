@@ -103,11 +103,11 @@ void Object::render(RenderLayer layer,
 
 	if(!(flags & OF_PROXY))
 	{
-		if(layer == RL_WIRE) renderer.translate(offset.x, offset.y);
+		if(layer == RL_WIRE) renderer.translate(static_cast<float>(offset.x), static_cast<float>(offset.y));
 		else
 		{
-			Vec2i sp = getShownPositionInPixels();
-			renderer.translate(sp.x + offset.x, sp.y + offset.y);
+			Vec2i sp = getShownPositionInPixels() + offset;
+			renderer.translate(static_cast<float>(sp.x), static_cast<float>(sp.y));
 		}
 
 		if(layer != RL_LIGHT)
@@ -192,8 +192,8 @@ void Object::render(RenderLayer layer,
 
 		// The tail is a triangle: a quad with its last corner doubled draws
 		// it and a second triangle of no area.
-		const float top = static_cast<float>(0.85f * sayAlpha);
-		const float bottom = static_cast<float>(0.6f * sayAlpha);
+		const float top = 0.85f * sayAlpha;
+		const float bottom = 0.6f * sayAlpha;
 		const Vec4f fill(0.75f, 0.75f, 1.0f, top);
 		const float right = static_cast<float>(15 + dim.x - 25);
 		const float low = static_cast<float>(15 + dim.y);
@@ -212,7 +212,7 @@ void Object::render(RenderLayer layer,
 		outline.push_back(Vec2f(-10.0f, low));
 		outline.push_back(Vec2f(-10.0f, 15.0f));
 		outline.push_back(Vec2f(5.0f, 15.0f));
-		renderer.polyline(outline, 1.0f, Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(0.9f * sayAlpha)), true);
+		renderer.polyline(outline, 1.0f, Vec4f(0.0f, 0.0f, 0.0f, 0.9f * sayAlpha), true);
 
 		renderer.pop();
 
@@ -914,11 +914,10 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	// %f in sscanf writes a float, but shownPosition is a Vec2f: that
-	// overwrites four of eight bytes and leaves the others untouched. The same
-	// bug as in cannon.cpp; MSVC reports it as C4477. QueryFloatAttribute
-	// reads the float correctly and leaves the value alone when the attribute
-	// is missing.
+	// QueryFloatAttribute and not Attribute() with sscanf: it leaves the value
+	// alone where the attribute is missing, and there the shown position is
+	// already the grid position the preset warped the object to - Attribute()
+	// would hand a null pointer straight into sscanf instead.
 	p_element->QueryFloatAttribute("shownPositionX", &shownPosition.x);
 	p_element->QueryFloatAttribute("shownPositionY", &shownPosition.y);
 }
