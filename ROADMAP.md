@@ -1247,34 +1247,43 @@ the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
 
 56. Drive the character with the mouse  - **DONE**
 --------------------------------------------------
-Drag to move: a drag in a direction walks the active character that way for as
-long as it is held, because the action layer's own repeat makes the steps
-exactly as it does for a held arrow key. A drag carrying the right button plants
-a bomb in that direction and one carrying both puts a bomb down there - the two
-things `Player::onUpdate` already did for `$A_PLANT_BOMB` (Shift) or
-`$A_PUT_DOWN_BOMB` (Ctrl) held.
+Drag a character to the tile it should go to and it walks there while the
+button stays down. A drag carrying the right button plants a bomb in the
+direction of the step, one carrying both puts a bomb down there - the two
+things `Player::onUpdate` already did for a direction with Shift or Ctrl held.
 
-It is a device, not a special case: `Engine::updateMouseDrag` is a recogniser of
-the same kind as the joystick hat, setting six virtual keys with structural ids
-(`Mouse DragW`, `DragB12`, …), and `Player` still only ever asks for the action.
-Two things came out differently from the plan. The drag binds as an action's
-**third** source rather than as a secondary key, because both real slots are
-taken on all six actions and worth keeping (`$A_LEFT` is Left and KP4) and a
-gesture is its own binding anyway - so `tertiary` is set from `main.cpp` and
-neither the options dialog nor `config.xml` knows it exists. And **the buttons
-are latched when the drag begins** rather than read per tick: on the way into a
-two-button grip there is a tick with only the right button down, which is the
-gesture for a *lit* bomb, so a live reading would hand the player one where they
-asked for a bomb put down safely.
+It is a device rather than a special case: `Engine::updateMouseDrag` sets six
+virtual keys the way a joystick hat's four are polled, and `Player` still only
+ever asks for the action. What the engine cannot know is where anybody is, so
+`GameState::getMouseDragCells` hands it the active character's cell and the
+cursor's, and only `GS_Game` answers.
 
-The drag may start anywhere, which was the decision left open: the active
-character is the one that walks, as with the keyboard. A click is still a click
-below the six-pixel threshold and still activates the character under it. Two
-things drop a drag - the menu opening (`Game.ShowMenu`, which Escape and the
+Three decisions the work turned on. The keys are **held, never pulsed**: a
+press landing while an action's repeat counts down goes into that action's
+buffer and is played out later, so pulsing would stack steps up and walk on
+after the player let go. **One axis moves at a time**, committed until it runs
+out, so the path is two straight legs - a staircase is no faster, but it is a
+path nobody would walk by hand on the keyboard, so allowing it would be an
+advantage for nothing. And the **buttons are latched** when the drag sets off:
+on the way into a two-button grip there is a tick with only the right button
+down, which is the gesture for a *lit* bomb.
+
+Two more that fell out of the plan rather than into it. The drag binds as an
+action's **third** source, because both real slots are taken on all six actions
+and worth keeping, and a gesture is its own binding - so `tertiary` is set from
+`main.cpp` and neither the options dialog nor `config.xml` knows it exists. And
+the six keys sit directly behind the keyboard block so that their base is a
+constant: `main.cpp` registers its actions before `Engine::init` builds the
+table, and a base discovered during init is still `-1` when the binding is
+made. That one shipped broken once, silently, which is why
+`LinuxBuild/test/drag.sh` exists - it reads the character's cell out of the
+test hook, because a drag steers the level and no widget can be asked whether
+it worked.
+
+Two things drop a drag: the menu opening (`Game.ShowMenu`, which Escape and the
 on-screen button both go through) and losing focus, which now clears the held
 mouse buttons as it already cleared the held keys, since no release arrives for
 either. `input.md` has the rest, and the in-game help lists both gestures.
-
 
 57. One floating-point type  - **DONE**
 ---------------------------------------

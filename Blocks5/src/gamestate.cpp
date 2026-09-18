@@ -45,6 +45,12 @@ void GameState::onAppLoseFocus()
 {
 }
 
+bool GameState::getMouseDragCells(Vec2i* p_actor,
+								  Vec2i* p_target)
+{
+	return false;
+}
+
 const std::string& GameState::getName() const
 {
 	return name;

@@ -1,15 +1,18 @@
 #!/bin/bash
-# drag.sh - does a mouse drag actually walk a character?
+# drag.sh - does dragging a character to a tile walk it there, and does it
+# stop the moment the button comes up?
 #
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/drag.sh
 #
-# The one thing the GUI harness cannot answer by asking: a drag steers the
-# level, not a widget, so what it proves has to be read off the picture. It
-# drags the active character a long way to the right and compares the two
-# screenshots - a character that walked moves its own pixels, and one whose
-# binding never reached the action layer moves none.
+# The one test that reads the level rather than the GUI: a drag steers the
+# field, so no widget can be asked whether it worked, and the picture cannot
+# be asked either - it rains in level 1, so two frames differ by a million
+# pixels whether anybody walked or not. The hook reports the active
+# character's cell instead.
 set -u
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.sh"
+
+b5_cell() { b5_dump; b5_json "d['player']"; }
 
 trap b5_stop EXIT
 b5_start
@@ -26,25 +29,43 @@ b5_click SelectLevel.PlayLevel
 b5_waitForState GS_Game
 sleep 2
 
-# Where the character stands before and after. Read as a number and not off
-# the picture: it rains in this level, so a frame differs from the one before
-# it by a million pixels whether anybody walked or not.
-b5_dump
-from=$(b5_json "d['player']")
-b5_ok "the active character is at $from"
-[ "$from" = "[-1, -1]" ] && b5_note "no character is active - the drag has nothing to steer"
+start=$(b5_cell)
+b5_ok "the active character is at $start"
+[ "$start" = "[-1, -1]" ] && b5_note "nobody is active - the drag has nothing to steer"
 
-# Press on open ground and pull left, well past the six-pixel threshold and
-# far enough that the direction cannot be read as the other axis. It may start
-# anywhere: the drag steers whoever is active, as the keyboard does.
-b5_drag 320 200 140 200
-b5_dump
-to=$(b5_json "d['player']")
-b5_ok "and afterwards at $to"
+# Press on the character's own cell, so the drag begins with nowhere to go,
+# then pull the cursor to a tile well to the left and hold it there. The
+# character should walk towards that tile for as long as the button is down.
+cx=$(b5_json "d['player'][0] * 16 + 8")
+cy=$(b5_json "d['player'][1] * 16 + 8")
+b5_mouseAt "$cx" "$cy"
+xdotool mousedown 1
+sleep 0.3
+b5_mouseAt $((cx - 96)) "$cy"
+sleep 1.5
 
-if [ "$from" = "$to" ]; then
-	b5_note "the drag did not move the character at all"
+held=$(b5_cell)
+b5_ok "while the button is held it has reached $held"
+[ "$held" = "$start" ] && b5_note "the drag did not move the character at all"
+
+# Let go, and look twice. Anything still queued in the action buffer would be
+# played out over the next second, which is exactly what a pulsed key rather
+# than a held one would leave behind.
+xdotool mouseup 1
+atRelease=$(b5_cell)
+sleep 1.5
+settled=$(b5_cell)
+
+if [ "$atRelease" = "$settled" ]; then
+	b5_ok "it stopped where the button came up, at $settled"
 else
-	b5_ok "the drag walked the character"
+	b5_note "it walked on after the release: $atRelease then $settled"
+fi
+
+# The walk is one axis at a time, so a leg along x may not drift in y.
+if [ "$(b5_json "d['player'][1]")" = "$(echo "$start" | sed 's/.*, //; s/\]//')" ]; then
+	b5_ok "the row never changed - the leg stayed on one axis"
+else
+	b5_note "the row changed during a leg along x"
 fi
 b5_finish

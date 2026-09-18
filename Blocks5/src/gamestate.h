@@ -21,6 +21,15 @@ public:
 	virtual void onAppGetFocus();
 	virtual void onAppLoseFocus();
 
+	// Where a mouse drag would steer: the cell the active character stands on
+	// and the cell under the cursor. Only GS_Game has either, and only while a
+	// level is running with somebody awake - everything else says no and the
+	// drag stands still. Engine::updateMouseDrag asks, from updateVKs() and
+	// not from onUpdate(), which runs after updateActions(): a step decided
+	// there would reach the character a tick late at both ends, and the late
+	// one at the end is a step taken after the player let go.
+	virtual bool getMouseDragCells(Vec2i* p_actor, Vec2i* p_target);
+
 	const std::string& getName() const;
 
 protected:

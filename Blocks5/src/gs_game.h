@@ -26,6 +26,7 @@ public:
 
 	void onRender();
 	void onUpdate();
+	bool getMouseDragCells(Vec2i* p_actor, Vec2i* p_target);
 	void onEnter(const ParameterBlock& context);
 	void onLeave(const ParameterBlock& context);
 	void onGetFocus();

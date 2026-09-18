@@ -16,21 +16,36 @@ options dialog, where *Reset selected* and *Reset all* work off `Action`'s `defa
 `defaultSecondary` and grey out without a selection.
 
 **The mouse drag is a device, not a special case in the game.** `Engine::updateMouseDrag` is a recogniser
-of the same kind as the joystick hat: it watches the cursor and the buttons and sets six virtual keys
-(`Mouse DragW`, `DragE`, `DragN`, `DragS`, `DragB2`, `DragB12`), and `main.cpp` binds those to `$A_LEFT`
-and the five other actions the drag feeds. `Player` asks for the action and never learns a mouse exists.
+of the same kind as the joystick hat: it sets six virtual keys (`Mouse DragW`, `DragE`, `DragN`, `DragS`,
+`DragB2`, `DragB12`), and `main.cpp` binds those to `$A_LEFT` and the five other actions the drag feeds.
+`Player` asks for the action and never learns a mouse exists.
 
-A press becomes a drag when the cursor leaves the press point by `DRAG_THRESHOLD` game pixels — six, a
-little over a third of a cell — so a click is still a click and still activates the character under it,
-which is what `GameGUI::onMouseDown` has always done. The direction is the dominant axis of the whole
-offset from the press point, so the drag steers without being let go of, and holding it out walks: the
-action layer's own repeat makes the steps, exactly as for a held arrow key. Coming back to the press
-point leaves no direction down, which stops.
+The six sit **directly behind the keyboard block** in `virtualKeys`, so their base is `SDLK_LAST` whatever
+joysticks turn up. That is not tidiness: `main.cpp` registers its actions *before* `Engine::init` builds
+the table, so a binding has to be nameable before the table exists. A keyboard key manages it because its
+index is its own key code; these manage it by having a base that is a constant. Getting that wrong is
+silent — the drag simply does nothing, because the indices it lands on are key codes that are never down.
 
-**Which buttons the drag carries is latched when it begins**, not read per tick, and that is the one
-thing here that would be a bug the other way: on the way into a two-button grip there is a tick with
-only the right button down, and that is the gesture for a *lit* bomb — the player would get one where
-they asked for a bomb put down safely.
+**The drag names a cell, not a direction.** The character walks to whatever the cursor is over and keeps
+going while a button is held. The cells come from the game state, not from `Engine`, which has no idea
+what a level is: `GameState::getMouseDragCells` is asked for the active character's cell and the cursor's,
+and only `GS_Game` answers — with a level running, nobody paused, no menu over it, and the press having
+landed on the field rather than on a widget (the GUI remembers what it went to, and for the play area that
+is the `GameGUI` itself). It is asked from `updateVKs()` and not computed in `onUpdate()`, which runs
+*after* `updateActions()`: a step decided there would reach the character a tick late at both ends, and the
+late one at the end is a step taken after the player let go.
+
+**Two rules keep it honest.** The keys are *held* and never pulsed — a press that lands while an action's
+repeat is counting down goes into that action's buffer and is played out later, so a pulsed key would
+stack steps up and walk on after the button came up. And **one axis moves at a time**, committed until it
+runs out, so the path is two straight legs and never a staircase. A staircase is no faster than the legs
+— the same number of steps either way — but it is a path nobody would walk by hand on the keyboard, so
+allowing it would be an advantage for nothing. The leg that begins takes whichever axis is further off.
+
+**Which buttons the drag carries is latched when it sets off**, not read per tick, and that is the one
+thing here that would be a bug the other way: on the way into a two-button grip there is a tick with only
+the right button down, and that is the gesture for a *lit* bomb — the player would get one where they
+asked for a bomb put down safely.
 
 The drag is bound as an action's **third** source. Both real slots are taken on all six actions and
 worth keeping (`$A_LEFT` is Left and KP4, `$A_PLANT_BOMB` is either Shift), and a gesture is its own
@@ -39,10 +54,12 @@ binding: `tertiary` is set from `main.cpp`, never offered by the options dialog 
 
 **Two things drop a drag.** The game menu opening calls `Engine::cancelMouseDrag` — through
 `Game.ShowMenu`, the one funnel Escape and the on-screen button both take — because a drag is a command
-to a character and the menu is not; it blocks until every button is released, or the next movement under
-the open menu would begin a fresh drag and the character would walk on when the menu closed. And losing
-focus clears the held *buttons* as it already cleared the held keys, since no release arrives for
-either: a button let go of in another window would otherwise still be steering on the way back.
+to a character and the menu is not; it blocks until every button is released, or the character would walk
+on the moment the menu closed. And losing focus clears the held *buttons* as it already cleared the held
+keys, since no release arrives for either: a button let go of in another window would otherwise still be
+steering on the way back.
+
+`LinuxBuild/test/drag.sh` is what proves any of it (`testing.md`).
 
 **Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
 `wasAnyButtonPressed` read the same per-tick bits. Coming back from another window is what makes it worth

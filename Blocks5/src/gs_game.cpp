@@ -350,6 +350,32 @@ void GS_Game::onRender()
 	}
 }
 
+bool GS_Game::getMouseDragCells(Vec2i* p_actor,
+								Vec2i* p_target)
+{
+	if(!p_level || paused || p_level->isInPreview()) return false;
+	if(GUI::inst()["Game.MenuPane"]->isVisible()) return false;
+
+	// Only a press that landed on the field. The GUI remembers what the press
+	// went to, and for the play area that is the GameGUI itself - anything
+	// else is a widget with its own job, the Menu button or a pad key, and
+	// steering off one of those would walk the character while the player is
+	// aiming at something quite different.
+	GUI_Element* p_down = GUI::inst().getMouseDownElement();
+	if(!p_down || p_down->getFullName() != "Game") return false;
+
+	Player* p_player = p_level->getActivePlayer();
+	if(!p_player) return false;
+
+	*p_actor = p_player->getPosition();
+
+	// The same arithmetic GameGUI::onMouseDown uses to find a character under
+	// the cursor. The level's own offset is camera shake and nothing else -
+	// the field is never scrolled - so there is none to take off here.
+	*p_target = Engine::inst().getCursorPosition() / 16;
+	return true;
+}
+
 void GS_Game::onUpdate()
 {
 	if(switchTimer) switchTimer--;
