@@ -124,7 +124,10 @@ void Lava::onRender(RenderLayer layer,
 									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[3] * bl))};
 
 			if(layer == RL_LAVA_FRONT) t /= 2.0;
-			const Vec2f uvs[4] = {Vec2f(t.x, t.y), Vec2f(t.x + 16.0, t.y), Vec2f(t.x + 16.0, t.y + 16.0), Vec2f(t.x, t.y + 16.0)};
+			const Vec2f uvs[4] = {static_cast<Vec2f>(Vec2d(t.x, t.y)),
+								  static_cast<Vec2f>(Vec2d(t.x + 16.0, t.y)),
+								  static_cast<Vec2f>(Vec2d(t.x + 16.0, t.y + 16.0)),
+								  static_cast<Vec2f>(Vec2d(t.x, t.y + 16.0))};
 			renderer.quad(state, corners, uvs, colors);
 		}
 	}

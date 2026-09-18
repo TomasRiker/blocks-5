@@ -140,10 +140,10 @@ void CF_Rewind::drawSnow(int y,
 						 int height,
 						 double alpha) const
 {
-	const double u = random(0.0, 1.0);
-	const double v = random(0.0, 1.0);
-	const double du = static_cast<double>(screenSize.x) / NOISE_SIZE;
-	const double dv = static_cast<double>(height) / NOISE_SIZE;
+	const float u = random(0.0f, 1.0f);
+	const float v = random(0.0f, 1.0f);
+	const float du = static_cast<float>(screenSize.x) / static_cast<float>(NOISE_SIZE);
+	const float dv = static_cast<float>(height) / static_cast<float>(NOISE_SIZE);
 
 	Renderer& renderer = Renderer::inst();
 	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
