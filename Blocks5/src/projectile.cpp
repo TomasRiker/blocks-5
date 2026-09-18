@@ -33,16 +33,16 @@ void Projectile::onRender(RenderLayer layer,
 		float traceLength = min(distance, 0.035f * speed);
 
 		Renderer& renderer = Renderer::inst();
-		const Vec2f tail(static_cast<Vec2f>(positionInPixels - traceLength * velocity));
-		const Vec2f head(static_cast<Vec2f>(positionInPixels));
+		const Vec2f tail(positionInPixels - traceLength * velocity);
+		const Vec2f head(positionInPixels);
 
 		// render the glow
 		renderer.setBlend(BM_ADDITIVE);
-		renderer.line(tail, head, 5.0f, Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(0.1f * min(life, 1.0f))));
+		renderer.line(tail, head, 5.0f, Vec4f(1.0f, 1.0f, 1.0f, 0.1f * min(life, 1.0f)));
 		renderer.setBlend(BM_NORMAL);
 
 		// render the projectile
-		const Vec4f color(1.0f, 0.75f, 0.1f, static_cast<float>(life));
+		const Vec4f color(1.0f, 0.75f, 0.1f, life);
 		renderer.line(tail, head, 2.0f, color);
 		renderer.point(head, 2.0f, color);
 	}

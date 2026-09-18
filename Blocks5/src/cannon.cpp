@@ -16,7 +16,7 @@ Cannon::Cannon(Level& level,
 	destroyTime = 125;
 	this->color = color;
 	this->dir = dir;
-	shownDir = dir;
+	shownDir = static_cast<float>(dir);
 	reload = 0;
 }
 
@@ -66,7 +66,7 @@ void Cannon::onUpdate()
 	dd = static_cast<float>(dir) - shownDir;
 	if(dd > 0.03f) shownDir += 0.03f;
 	else if(dd < -0.03f) shownDir -= 0.03f;
-	else shownDir = dir;
+	else shownDir = static_cast<float>(dir);
 
 	if(reload)
 	{
@@ -107,7 +107,7 @@ bool Cannon::changeInEditor(int mod)
 	{
 		dir++;
 		dir %= 4;
-		shownDir = dir;
+		shownDir = static_cast<float>(dir);
 	}
 
 	return true;
@@ -132,11 +132,9 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Object::loadExtendedAttributes(p_element);
 
-	// QueryFloatAttribute, not sscanf with %f: %f writes a float, and
-	// shownDir is a float, which leaves four of its eight bytes standing.
-	// QueryFloatAttribute reads the float correctly and leaves shownDir
-	// alone where the attribute is missing - Attribute() would hand a null
-	// pointer straight into sscanf there.
+	// QueryFloatAttribute rather than Attribute() and sscanf: it leaves
+	// shownDir alone where the attribute is missing, whereas Attribute()
+	// would hand a null pointer straight into sscanf there.
 	p_element->QueryFloatAttribute("shownDir", &shownDir);
 }
 

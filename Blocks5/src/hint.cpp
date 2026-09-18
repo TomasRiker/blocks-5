@@ -328,13 +328,12 @@ void Hint::renderNoteMesh(const RenderState& state,
 			// Premultiplied: the colour already carries the alpha in itself,
 			// and the vertex colour we paint with has to take it along.
 			const float b = np.shade * color.a;
-			const Vec4f shaded(static_cast<float>(color.r * b), static_cast<float>(color.g * b),
-							   static_cast<float>(color.b * b), static_cast<float>(color.a));
-			left.position = Vec2f(static_cast<float>(dx - x), static_cast<float>(y));
-			left.uv = Vec2f(static_cast<float>(u0), static_cast<float>(t));
+			const Vec4f shaded(color.r * b, color.g * b, color.b * b, color.a);
+			left.position = Vec2f(dx - x, y);
+			left.uv = Vec2f(u0, t);
 			left.color = shaded;
-			right.position = Vec2f(static_cast<float>(dx + x), static_cast<float>(y));
-			right.uv = Vec2f(static_cast<float>(u1), static_cast<float>(t));
+			right.position = Vec2f(dx + x, y);
+			right.uv = Vec2f(u1, t);
 			right.color = shaded;
 
 			if(k)
@@ -412,7 +411,7 @@ void Hint::onRender(RenderLayer layer,
 
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
-			Vec2i p = -getShownPositionInPixels();
+			Vec2f p = static_cast<Vec2f>(-getShownPositionInPixels());
 			renderer.translate(p.x, p.y);
 
 			Vec4f realColor(color.r, color.g, color.b, color.a * a);

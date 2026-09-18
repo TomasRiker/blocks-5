@@ -100,7 +100,7 @@ void Laser::onRender(RenderLayer layer,
 				// third on does a point that keeps it add nothing.
 				if(n < 2 || i == last || dir != oldDir)
 				{
-					beamPoints.push_back(static_cast<Vec2f>(p));
+					beamPoints.push_back(p);
 				}
 			}
 
@@ -117,14 +117,14 @@ void Laser::onRender(RenderLayer layer,
 			Vec4f color;
 			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.25f, 0.0f, on * deathCountDown * (0.2f + 0.05f * sin(x)));
 			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.4f * on * deathCountDown * (0.2f + 0.05f * sin(x)));
-			renderer.polyline(beamPoints, 6.0f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 6.0f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 6.0f, color);
+			renderer.point(p, 6.0f, color);
 
 			const float green = 0.625f + 0.025f * glowJitter;
 			if(layer == RL_EFFECT) color = Vec4f(1.0f, green, 0.0f, on * deathCountDown * (0.9f + 0.1f * cos(x)));
 			else color = Vec4f(0.0f, green, 0.0f, 0.4f * on * deathCountDown * (0.9f + 0.1f * cos(x)));
-			renderer.polyline(beamPoints, 2.0f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 4.0f, static_cast<Vec4f>(color));
+			renderer.polyline(beamPoints, 2.0f, color);
+			renderer.point(p, 4.0f, color);
 
 			renderer.pop();
 		}

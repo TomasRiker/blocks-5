@@ -78,7 +78,7 @@ void Electronics::onRender(RenderLayer layer,
 			for(std::set<Pin*>::const_iterator j = connectedPins.begin(); j != connectedPins.end(); ++j)
 			{
 				const Pin* p_pin2 = *j;
-				renderer.polyline(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, static_cast<Vec4f>(wireColor[n++ % 7]));
+				renderer.polyline(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, wireColor[n++ % 7]);
 			}
 		}
 	}

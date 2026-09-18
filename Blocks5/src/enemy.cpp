@@ -15,7 +15,7 @@ Enemy::Enemy(Level& level,
 	setMass(1);
 	this->subType = subType;
 	this->dir = dir;
-	shownDir = dir;
+	shownDir = static_cast<float>(dir);
 	anim = 0;
 	moveCounter = 40;
 	thinkCounter = 40;
@@ -85,7 +85,7 @@ void Enemy::onRender(RenderLayer layer,
 			// matter of the pass and therefore does not belong in the sprites.
 			// Object::render brackets the whole thing in a push of its own.
 			if(shadowPass) realColor.a /= 1.0f + 0.25f * height;
-			else Renderer::inst().translate(0.0f, static_cast<int>(-height));
+			else Renderer::inst().translate(0.0f, static_cast<float>(static_cast<int>(-height)));
 		}
 
 		Engine::inst().renderSprites(sprites, realColor);
@@ -511,7 +511,7 @@ bool Enemy::changeInEditor(int mod)
 	{
 		dir++;
 		dir %= 4;
-		shownDir = dir;
+		shownDir = static_cast<float>(dir);
 	}
 	else
 	{

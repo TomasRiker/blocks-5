@@ -220,7 +220,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		Vec2i offset;
 		if(!block.sample(&sampled, &offset)) continue;
 
-		const Vec2f start = origin + Vec2f(offset.x, offset.y);
+		const Vec2f start = origin + static_cast<Vec2f>(offset);
 
 		// Away from the centre of the field - the block falls apart, it does
 		// not scatter. At the exact centre there is no direction; one is
@@ -234,7 +234,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		ParticleSystem::Particle p;
 		p.lifetime = OUT_LIFE;
-		p.damping = static_cast<float>(OUT_DAMPING);
+		p.damping = OUT_DAMPING;
 		p.gravity = 0.0f;
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
@@ -247,8 +247,8 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.deltaColor = (cold - begin) / static_cast<float>(OUT_LIFE);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(OUT_SIZE);
-		p.deltaSize = static_cast<float>(-OUT_SIZE / (OUT_LIFE * 1.3f));
+		p.size = OUT_SIZE;
+		p.deltaSize = -OUT_SIZE / (OUT_LIFE * 1.3f);
 		p.id = sparkId;
 		p_sys->addParticle(p);
 	}
@@ -266,7 +266,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		Vec2i fromOffset;
 		if(!block.sample(&from, &fromOffset)) continue;
 
-		const Vec2f landing = origin + Vec2f(landOffset.x, landOffset.y);
+		const Vec2f landing = origin + static_cast<Vec2f>(landOffset);
 
 		// Start somewhere in the cloud the outward sparks leave behind: the
 		// same distribution, only rolled for again rather than remembered.
@@ -311,7 +311,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		ParticleSystem::Particle p;
 		p.lifetime = static_cast<ushort>(life);
-		p.damping = static_cast<float>(d);
+		p.damping = d;
 		p.gravity = 0.0f;
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
@@ -321,7 +321,7 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		p.deltaColor = (end - begin) / static_cast<float>(moves);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(IN_SIZE);
+		p.size = IN_SIZE;
 		p.deltaSize = 0.0f;
 		p.id = sparkId;
 		p_sys->addParticle(p);

@@ -53,10 +53,10 @@ void Teleporter::onRender(RenderLayer layer,
 			Vec2f y(targetPosition - position);
 			y.normalize();
 			Vec2f x(-y.y, y.x);
-			Vec2f p1 = Vec2f(t.x, t.y) - 10.0f * y - 10.0f * x;
-			Vec2f p2 = Vec2f(t.x, t.y) - 10.0f * y + 10.0f * x;
-			renderer.line(static_cast<Vec2f>(p1), tip, 1.0f, color);
-			renderer.line(tip, static_cast<Vec2f>(p2), 1.0f, color);
+			Vec2f p1 = tip - 10.0f * y - 10.0f * x;
+			Vec2f p2 = tip - 10.0f * y + 10.0f * x;
+			renderer.line(p1, tip, 1.0f, color);
+			renderer.line(tip, p2, 1.0f, color);
 		}
 	}
 }
