@@ -72,6 +72,10 @@ Engine::Engine()
 
 	frameTime = 0;
 	time = 0;
+	mouseDragVK = -1;
+	dragButtons = 0;
+	dragging = false;
+	dragBlocked = false;
 	grabbingKey = false;
 	grabResult = GRAB_WAITING;
 	grabDeadline = 0;
@@ -431,6 +435,34 @@ bool Engine::init(const std::string& windowCaption,
 
 			joysticks.push_back(p_joystick);
 			index++;
+		}
+	}
+
+	// The mouse drag is a device like the others: six virtual keys that
+	// updateMouseDrag() sets from the cursor and the buttons, so that nothing
+	// above the input layer learns a mouse can steer a character. The ids are
+	// structural, as the joysticks' are. They carry no $ID because nothing
+	// shows them: the drag is bound from main.cpp as an action's third source,
+	// which the options dialog does not offer - a gesture is its own binding.
+	mouseDragVK = static_cast<int>(virtualKeys.size());
+	{
+		static const char* p_ids[NUM_MOUSE_DRAG_VKS] =
+			{"Mouse DragW", "Mouse DragE", "Mouse DragN", "Mouse DragS",
+			 "Mouse DragB2", "Mouse DragB12"};
+		static const char* p_names[NUM_MOUSE_DRAG_VKS] =
+			{"Mouse drag left", "Mouse drag right", "Mouse drag up",
+			 "Mouse drag down", "Mouse drag, right button",
+			 "Mouse drag, both buttons"};
+		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
+		{
+			VirtualKey vk;
+			vk.device = VK_DEVICE_MOUSE;
+			vk.key = i;
+			vk.id = p_ids[i];
+			vk.name = p_names[i];
+			vk.niceName = p_names[i];
+			vk.down = false;
+			virtualKeys.push_back(vk);
 		}
 	}
 
@@ -818,8 +850,16 @@ void Engine::handleAppFocus(bool gained)
 	}
 
 	// No release arrives after a change of focus. A key left standing as held
-	// here would never yield a key press again.
-	for(int i = 0; i < NUM_KEY_SLOTS; i++) keyHeld[i] = false;
+	// here would never yield a key press again, and a mouse button left down
+	// is worse than that: the drag recogniser reads it every tick, so a button
+	// let go of in another window would still be steering a character on the
+	// way back. Both are cleared, and updateMouseDrag() ends the drag by
+	// itself on the next tick because nothing is held any more.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
+	{
+		keyHeld[i] = false;
+		buttonData[i] &= ~1;
+	}
 
 	GameState* p_gs = getGameState();
 	if(p_gs) p_gs->onAppLoseFocus();
@@ -3298,6 +3338,7 @@ Action* Engine::registerAction(const std::string& name,
 	p_action->name = name;
 	p_action->primary = primary;
 	p_action->secondary = secondary;
+	p_action->tertiary = -1;
 	p_action->repeats = true;
 	p_action->delay = 240;
 	p_action->interval = 80;
@@ -3358,8 +3399,98 @@ bool Engine::wasActionReleased(const std::string& name) const
 	return p_action ? ((p_action->data & 4) ? true : false) : false;
 }
 
+// How far the cursor must leave the press point, in the game's own pixels,
+// before a press counts as a drag. A cell is sixteen of them, so this is well
+// under half of one: far enough that a click with an unsteady hand stays a
+// click, near enough that the character sets off when the player means it.
+// Raise it if clicks turn into steps, lower it if the first step feels late.
+static const int DRAG_THRESHOLD = 6;
+
+void Engine::updateMouseDrag()
+{
+	const bool left = isButtonDown(SDL_BUTTON_LEFT);
+	const bool right = isButtonDown(SDL_BUTTON_RIGHT);
+	const int buttons = (left ? 1 : 0) | (right ? 2 : 0);
+
+	if(!buttons)
+	{
+		// Every button up ends the drag and clears a block, so the next press
+		// is free to start a new one.
+		dragging = false;
+		dragButtons = 0;
+		dragBlocked = false;
+	}
+
+	if(!buttons || dragBlocked)
+	{
+		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
+		{
+			virtualKeys[mouseDragVK + i].down = false;
+		}
+		return;
+	}
+
+	const Vec2i cursor = getCursorPosition();
+
+	if(!dragging)
+	{
+		// Where the press landed is measured from here. The buttons are read
+		// again every tick until the drag begins, because somebody reaching
+		// for both of them presses one a moment before the other and the pair
+		// is what they meant.
+		if(!dragButtons) dragOrigin = cursor;
+		dragButtons = buttons;
+
+		const Vec2i offset = cursor - dragOrigin;
+		if(abs(offset.x) < DRAG_THRESHOLD && abs(offset.y) < DRAG_THRESHOLD) return;
+		dragging = true;
+	}
+
+	// The direction is the dominant axis of the whole offset from the press
+	// point, so a drag can be steered without letting go: pull further out and
+	// the character keeps walking, swing across and it turns. Holding it there
+	// is what walks - the action layer's own repeat makes the steps, exactly
+	// as it does for a held arrow key - and coming back to the press point
+	// leaves no direction down at all, which stops.
+	const Vec2i offset = cursor - dragOrigin;
+	const bool horizontal = abs(offset.x) >= abs(offset.y);
+	virtualKeys[mouseDragVK + MOUSE_DRAG_LEFT].down = horizontal && offset.x < 0;
+	virtualKeys[mouseDragVK + MOUSE_DRAG_RIGHT].down = horizontal && offset.x > 0;
+	virtualKeys[mouseDragVK + MOUSE_DRAG_UP].down = !horizontal && offset.y < 0;
+	virtualKeys[mouseDragVK + MOUSE_DRAG_DOWN].down = !horizontal && offset.y > 0;
+
+	// What the drag carries was settled when it began and does not change
+	// while it runs. Reading it live would be a trap: on the way into a
+	// two-button grip there is a tick with only the right button down, and
+	// that is the gesture for a *lit* bomb - the player would get one where
+	// they asked for a bomb put down safely.
+	virtualKeys[mouseDragVK + MOUSE_DRAG_PLANT].down = (dragButtons == 2);
+	virtualKeys[mouseDragVK + MOUSE_DRAG_PUT_DOWN].down = (dragButtons == 3);
+}
+
+int Engine::getMouseDragVK(int which) const
+{
+	if(which < 0 || which >= NUM_MOUSE_DRAG_VKS) return -1;
+	return mouseDragVK + which;
+}
+
+void Engine::cancelMouseDrag()
+{
+	dragging = false;
+	dragButtons = 0;
+	// Blocked, not merely ended: the buttons are still held, and without this
+	// the next movement would begin a fresh drag under the open menu.
+	dragBlocked = true;
+	for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
+	{
+		virtualKeys[mouseDragVK + i].down = false;
+	}
+}
+
 void Engine::updateVKs()
 {
+	updateMouseDrag();
+
 	// poll the keyboard and the joysticks
 	SDL_PumpEvents();
 #ifdef __EMSCRIPTEN__
@@ -3374,7 +3505,11 @@ void Engine::updateVKs()
 		++it)
 	{
 		VirtualKey& vk = *it;
-		if(vk.device == -1)
+		if(vk.device == VK_DEVICE_MOUSE)
+		{
+			// set by updateMouseDrag() above, not polled
+		}
+		else if(vk.device == -1)
 		{
 			// key
 			vk.down = p_keys[vk.key] ? true : false;
@@ -3436,6 +3571,7 @@ void Engine::updateActions()
 		bool down = false;
 		if(a.primary != -1) down |= virtualKeys[a.primary].down;
 		if(a.secondary != -1) down |= virtualKeys[a.secondary].down;
+		if(a.tertiary != -1) down |= virtualKeys[a.tertiary].down;
 
 		if(down) a.data |= 1;
 		else a.data &= ~1;
