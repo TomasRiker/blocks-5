@@ -15,6 +15,35 @@ named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and seconda
 options dialog, where *Reset selected* and *Reset all* work off `Action`'s `defaultPrimary` and
 `defaultSecondary` and grey out without a selection.
 
+**The mouse drag is a device, not a special case in the game.** `Engine::updateMouseDrag` is a recogniser
+of the same kind as the joystick hat: it watches the cursor and the buttons and sets six virtual keys
+(`Mouse DragW`, `DragE`, `DragN`, `DragS`, `DragB2`, `DragB12`), and `main.cpp` binds those to `$A_LEFT`
+and the five other actions the drag feeds. `Player` asks for the action and never learns a mouse exists.
+
+A press becomes a drag when the cursor leaves the press point by `DRAG_THRESHOLD` game pixels — six, a
+little over a third of a cell — so a click is still a click and still activates the character under it,
+which is what `GameGUI::onMouseDown` has always done. The direction is the dominant axis of the whole
+offset from the press point, so the drag steers without being let go of, and holding it out walks: the
+action layer's own repeat makes the steps, exactly as for a held arrow key. Coming back to the press
+point leaves no direction down, which stops.
+
+**Which buttons the drag carries is latched when it begins**, not read per tick, and that is the one
+thing here that would be a bug the other way: on the way into a two-button grip there is a tick with
+only the right button down, and that is the gesture for a *lit* bomb — the player would get one where
+they asked for a bomb put down safely.
+
+The drag is bound as an action's **third** source. Both real slots are taken on all six actions and
+worth keeping (`$A_LEFT` is Left and KP4, `$A_PLANT_BOMB` is either Shift), and a gesture is its own
+binding: `tertiary` is set from `main.cpp`, never offered by the options dialog and never written to
+`config.xml`, so none of the binding machinery above has to know about it.
+
+**Two things drop a drag.** The game menu opening calls `Engine::cancelMouseDrag` — through
+`Game.ShowMenu`, the one funnel Escape and the on-screen button both take — because a drag is a command
+to a character and the menu is not; it blocks until every button is released, or the next movement under
+the open menu would begin a fresh drag and the character would walk on when the menu closed. And losing
+focus clears the held *buttons* as it already cleared the held keys, since no release arrives for
+either: a button let go of in another window would otherwise still be steering on the way back.
+
 **Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
 `wasAnyButtonPressed` read the same per-tick bits. Coming back from another window is what makes it worth
 having, since `onAppLoseFocus` pauses and the click that returns is then the one that resumes. The press is

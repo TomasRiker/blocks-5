@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51 and 56. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48 and 51. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1245,31 +1245,35 @@ countdown. `Level::renderBeamShines` needed nothing, since it already re-bases
 the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
 `renderShine` centres its disc on the cell.
 
-56. Drive the character with the mouse
---------------------------------------
-Drag to move: a drag on the active character in a direction is a step in that
-direction, held for as long as the drag goes on, the way a held key repeats. A
-drag with the right button plants a bomb in that direction, and a drag with both
-buttons puts one down there - the two things `Player::onUpdate` already does for
-a direction with `$A_PLANT_BOMB` (Shift) or `$A_PUT_DOWN_BOMB` (Ctrl) held.
+56. Drive the character with the mouse  - **DONE**
+--------------------------------------------------
+Drag to move: a drag in a direction walks the active character that way for as
+long as it is held, because the action layer's own repeat makes the steps
+exactly as it does for a held arrow key. A drag carrying the right button plants
+a bomb in that direction and one carrying both puts a bomb down there - the two
+things `Player::onUpdate` already did for `$A_PLANT_BOMB` (Shift) or
+`$A_PUT_DOWN_BOMB` (Ctrl) held.
 
-Where it enters: input is two layers (`input.md`) - physical keys, axes and hats
-become virtual keys, and a named action binds two of those. `Player` reads
-`wasActionPressed("$A_LEFT")` per tick and `isActionDown` for the two bomb
-modifiers, and nothing below that layer is visible to it. The joystick shows the
-shape to copy: a hat becomes four virtual keys with structural ids
-(`Joystick1 H1NE`), sampled once per tick by `updateVKs`. A mouse drag is a
-device of the same kind - four directional keys and the button modifiers, set by
-a recogniser in `Engine` from the raw cursor movement and the button state, with
-ids of their own so that `config.xml` can name them - and `main.cpp` binds them
-as the secondary keys of `$A_LEFT` and the rest, which is what lets the options
-dialog show and rebind them like everything else. The game side exists: the
-game GUI's `onMouseDown` in `gs_game.cpp` already activates the player under the
-cursor, `showCursor` fades the pointer, and the pause rule holds, so the press
-that starts a drag while paused is spent on resuming. A drag is a press followed
-by movement past a threshold from the press point, not a click, so activating a
-character by clicking it stays as it is; whether the drag has to start on the
-character or may start anywhere is the one decision left to taste.
+It is a device, not a special case: `Engine::updateMouseDrag` is a recogniser of
+the same kind as the joystick hat, setting six virtual keys with structural ids
+(`Mouse DragW`, `DragB12`, …), and `Player` still only ever asks for the action.
+Two things came out differently from the plan. The drag binds as an action's
+**third** source rather than as a secondary key, because both real slots are
+taken on all six actions and worth keeping (`$A_LEFT` is Left and KP4) and a
+gesture is its own binding anyway - so `tertiary` is set from `main.cpp` and
+neither the options dialog nor `config.xml` knows it exists. And **the buttons
+are latched when the drag begins** rather than read per tick: on the way into a
+two-button grip there is a tick with only the right button down, which is the
+gesture for a *lit* bomb, so a live reading would hand the player one where they
+asked for a bomb put down safely.
+
+The drag may start anywhere, which was the decision left open: the active
+character is the one that walks, as with the keyboard. A click is still a click
+below the six-pixel threshold and still activates the character under it. Two
+things drop a drag - the menu opening (`Game.ShowMenu`, which Escape and the
+on-screen button both go through) and losing focus, which now clears the held
+mouse buttons as it already cleared the held keys, since no release arrives for
+either. `input.md` has the rest, and the in-game help lists both gestures.
 
 
 57. One floating-point type  - **DONE**

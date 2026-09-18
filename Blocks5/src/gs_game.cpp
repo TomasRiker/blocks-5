@@ -166,6 +166,13 @@ public:
 		const std::string& name = p_element->getFullName();
 		if(name == "Game.ShowMenu")
 		{
+			// Opening the menu is a drop. A drag is a command to a character
+			// and the menu is not, so a button still held while the player
+			// reads it must not walk anybody; the drag starts again with the
+			// next press. This is the one funnel - Escape and the button on
+			// screen both arrive here.
+			game.engine.cancelMouseDrag();
+
 			getChild("MenuPane.Menu")->focus();
 			getChild("MenuPane.Menu.Continue")->activate();
 			if(game.p_saveGame) getChild("MenuPane.Menu.RestartFromHotel")->activate();

@@ -21,6 +21,8 @@ struct Action
 	std::string name;
 	int primary;
 	int secondary;
+	// A third source, bound in main.cpp alone; see there.
+	int tertiary;
 	// Does the action keep firing while the key is held? For walking yes -
 	// delay until the first repeat, then every interval. Not for a toggle like
 	// F12: that one must fire exactly once per press.
@@ -40,6 +42,10 @@ struct Action
 	int countDown;
 	int buffered;
 };
+
+// -1 is the keyboard and 0 and up a joystick; this one is set rather than
+// polled, so updateVKs() leaves it to updateMouseDrag().
+const int VK_DEVICE_MOUSE = -2;
 
 struct VirtualKey
 {
@@ -280,6 +286,23 @@ public:
 	const std::vector<Action*>& getActionsVector() const;
 	int getKeyboardVK(SDLKey key) const;
 
+	// The keys updateMouseDrag() sets; PLANT carries the right button and
+	// PUT_DOWN both.
+	enum
+	{
+		MOUSE_DRAG_LEFT,
+		MOUSE_DRAG_RIGHT,
+		MOUSE_DRAG_UP,
+		MOUSE_DRAG_DOWN,
+		MOUSE_DRAG_PLANT,
+		MOUSE_DRAG_PUT_DOWN,
+		NUM_MOUSE_DRAG_VKS
+	};
+	int getMouseDragVK(int which) const;
+
+	// Drop whatever the mouse was dragging; see engine.cpp.
+	void cancelMouseDrag();
+
 	// The id a key is stored under in config.xml. The VK number is no good for
 	// that: it is an index into virtualKeys and hangs off SDLK_LAST and off
 	// which joysticks were plugged in at startup.
@@ -302,6 +325,7 @@ public:
 	bool wasActionPressed(const std::string& name) const;
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
+	void updateMouseDrag();
 	void updateActions();
 	// Wait for a key press, to bind an action. A state and not a loop of its
 	// own: in the browser only the return to the page fills the event queue.
@@ -521,6 +545,12 @@ private:
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
+	// The recogniser's six keys and its state; updateMouseDrag() has the rules.
+	int mouseDragVK;
+	Vec2i dragOrigin;
+	int dragButtons;
+	bool dragging;
+	bool dragBlocked;
 	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;
 	// The key event and whether it is the repeat of a held key. An edit box

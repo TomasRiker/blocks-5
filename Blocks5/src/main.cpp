@@ -544,21 +544,35 @@ int runTheGame(int argc,
 
 	printfLog("Initializing engine ...\n");
 
-	// define the game actions
+	// define the game actions.
+	//
+	// The six the mouse drag feeds get it as a third source rather than as a
+	// secondary key, because both of their real slots are taken and worth
+	// keeping - $A_LEFT is Left and KP4, $A_PLANT_BOMB is either Shift - and a
+	// gesture is its own binding anyway: nobody reassigns "drag" to something
+	// else, so it is not offered in the options dialog and not written to
+	// config.xml. Player only ever asks for the action, and so never learns
+	// that a mouse can steer it.
 	Action* p_action = engine.registerAction("$A_LEFT", engine.getKeyboardVK(SDLK_LEFT), engine.getKeyboardVK(SDLK_KP4));
 	p_action->resetsActions.push_back("$A_UP");
 	p_action->resetsActions.push_back("$A_DOWN");
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_LEFT);
 	p_action = engine.registerAction("$A_RIGHT", engine.getKeyboardVK(SDLK_RIGHT), engine.getKeyboardVK(SDLK_KP6));
 	p_action->resetsActions.push_back("$A_UP");
 	p_action->resetsActions.push_back("$A_DOWN");
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_RIGHT);
 	p_action = engine.registerAction("$A_UP", engine.getKeyboardVK(SDLK_UP), engine.getKeyboardVK(SDLK_KP8));
 	p_action->resetsActions.push_back("$A_LEFT");
 	p_action->resetsActions.push_back("$A_RIGHT");
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_UP);
 	p_action = engine.registerAction("$A_DOWN", engine.getKeyboardVK(SDLK_DOWN), engine.getKeyboardVK(SDLK_KP2));
 	p_action->resetsActions.push_back("$A_LEFT");
 	p_action->resetsActions.push_back("$A_RIGHT");
-	engine.registerAction("$A_PLANT_BOMB", engine.getKeyboardVK(SDLK_LSHIFT), engine.getKeyboardVK(SDLK_RSHIFT));
-	engine.registerAction("$A_PUT_DOWN_BOMB", engine.getKeyboardVK(SDLK_LCTRL), engine.getKeyboardVK(SDLK_RCTRL));
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_DOWN);
+	p_action = engine.registerAction("$A_PLANT_BOMB", engine.getKeyboardVK(SDLK_LSHIFT), engine.getKeyboardVK(SDLK_RSHIFT));
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PLANT);
+	p_action = engine.registerAction("$A_PUT_DOWN_BOMB", engine.getKeyboardVK(SDLK_LCTRL), engine.getKeyboardVK(SDLK_RCTRL));
+	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PUT_DOWN);
 	engine.registerAction("$A_SWITCH_CHARACTER", engine.getKeyboardVK(SDLK_TAB));
 	engine.registerAction("$A_SAVE_IN_HOTEL", engine.getKeyboardVK(SDLK_RETURN), engine.getKeyboardVK(SDLK_KP_ENTER));
 	p_action = engine.registerAction("$A_RESTART_LEVEL", engine.getKeyboardVK(SDLK_F5));
