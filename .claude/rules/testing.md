@@ -72,6 +72,14 @@ would trip that check.
 
 ## The frame oracle
 
+`LinuxBuild/test/drag.sh` is the one test that reads the *level* rather than the GUI. A mouse drag steers
+a character, so no widget can be asked whether it worked; the hook's `state` therefore reports `player`,
+the cell the active character stands on, or `[-1, -1]` with no level running. The test drives a real
+drag with `b5_drag` and compares that cell before and after. It exists because the feature shipped once
+without working at all — the bindings were registered before `Engine::init` had built the virtual-key
+table — and because the obvious check does not work: it rains in level 1, so two frames differ by a
+million pixels whether or not anybody walked.
+
 `LinuxBuild/test/frames.sh` renders nineteen named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth

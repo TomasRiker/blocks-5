@@ -545,8 +545,7 @@ private:
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
-	// The recogniser's six keys and its state; updateMouseDrag() has the rules.
-	int mouseDragVK;
+	// The recogniser's state; updateMouseDrag() has the rules.
 	Vec2i dragOrigin;
 	int dragButtons;
 	bool dragging;

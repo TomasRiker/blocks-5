@@ -124,6 +124,18 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   be a guess that is wrong in the other language. `w`/`h` of 0 — the default — is still never hit. An
   image needs none of this: it already has the size of the sprite it shows.
 
+**Three functions compute where a tab lands, and they have to agree.** `buildText` draws, `measureText`
+sizes and `adjustText` wraps, and a tab advances to the next multiple of `options.tabSize` in all three —
+which is only obvious in the first, whose cursor is a `Vec2i`, so `x += t; x /= t; x *= t` snaps by
+integer division. Written the same way over a float cursor the three steps **cancel**: `(x + t) / t * t`
+is `x + t`, and a tab merely adds its own width. `adjustText` had a third answer again, counting a tab as
+an ordinary character — `charInfo['\t']` is 66 wide in this font, neither the stop nor nothing.
+
+What a disagreement costs is a wrap in the wrong place, and nothing else: the line is *drawn* at the real
+stop, so the page looks as though it broke early for no reason. A help row of a label, two tabs and a
+value was measured 42 px wider than it is drawn, which was the whole margin one word needed. The `help`
+oracle scene is what catches it, since it is the tree's only tabbed text that gets rendered.
+
 **Text written to a fixed place has to be measured first.** `Font::renderText` neither wraps nor clips,
 so a level whose title is longer than the space kept for it draws over whatever is beside it — in the
 select screen across the description column and off the right edge, in the status bar across the Menu
