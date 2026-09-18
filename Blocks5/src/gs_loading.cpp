@@ -18,6 +18,8 @@ static const int HINT_GAP = 16;
 
 GS_Loading::GS_Loading() : GameState("GS_Loading"), engine(Engine::inst())
 {
+	p_font = 0;
+	p_logo = 0;
 }
 
 GS_Loading::~GS_Loading()

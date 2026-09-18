@@ -258,6 +258,17 @@ private:
 
 GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false), dragFromPlayer(false)
 {
+	// A state stands on the stack from the moment it is pushed, and onEnter() -
+	// which builds all of this - runs only at the next processGameStateChanges().
+	// getGameState() therefore names this state while none of it exists yet, and
+	// whoever asks in that window reads what the heap happened to leave here. The
+	// test hook did exactly that, and a level pointer of rubbish took the game
+	// down with it.
+	p_level = 0;
+	p_selectLevel = 0;
+	p_misc = 0;
+	p_originalLevel = 0;
+	p_saveGame = 0;
 }
 
 GS_Game::~GS_Game()

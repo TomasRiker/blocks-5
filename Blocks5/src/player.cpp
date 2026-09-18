@@ -32,6 +32,7 @@ Player::Player(Level& level,
 	if(active) activate();
 	touch = 0;
 	push = 0;
+	p_bomb = 0;
 	walk = level.isInMenu() ? 0 : 40;
 	plantBomb = level.isInMenu() ? 0 : 40;
 	censored = false;

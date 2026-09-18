@@ -53,6 +53,8 @@ GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML
 	p_clouds = 0;
 	p_background = 0;
 	p_titleLevel = 0;
+	p_options = 0;
+	p_help = 0;
 	levelSaved = false;
 	pendingExportKind = 0;
 	pendingExport = false;

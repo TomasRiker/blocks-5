@@ -932,29 +932,45 @@ def check_config():
 
 @check('ctor_init')
 def check_ctor_init():
-    """Scalar members that the constructor does not set.
+    """Scalar and pointer members that the constructor does not set.
 
     That is exactly what presentVertexBuffer depended on: without a
     framebuffer object, Engine::exit() read a random value and took it for a
     GL name.
 
     The search runs per class that has a constructor of its own in the .cpp,
-    and only in that constructor's body. If it leaves out the majority of the
-    members, the class follows a different rule - objects get their fields
-    from readAttributes() - and the check stays silent.
+    and only in that constructor's body.
 
-    Only what has come in since the state before this collaboration is judged.
-    A member that was there back then is set somewhere before the first read -
-    init(), loadConfig(), setLogicRate() - and has been for ten years."""
+    Scalars are judged leniently, because most of them were set somewhere
+    before the first read - init(), loadConfig(), setLogicRate() - and have
+    been for ten years: a constructor that leaves out the majority of them
+    follows a different rule (objects get their fields from readAttributes())
+    and says nothing, and only what has come in since the state before this
+    collaboration is reported.
+
+    Pointers get neither exemption, and that is measured rather than strict
+    for its own sake. A pointer is a crash where a scalar is a wrong number,
+    and the window is wider than it looks: a game state stands on the stack
+    from the moment it is pushed, while onEnter() - which builds everything it
+    owns - runs only at the next processGameStateChanges(), so getGameState()
+    names a state whose members are still whatever the heap left there. That
+    is how GS_Game::p_level took the game down when the test hook asked a
+    freshly pushed state for its level. Both exemptions would have hidden it:
+    GS_Game sets one of its six pointers in the constructor, and p_level has
+    been there for years. A pointer member is spelled p_ (CLAUDE.md), which is
+    what makes it findable here whatever its type."""
     scalar = re.compile(
         r'^\s*(?:unsigned\s+|signed\s+)?'
         r'(bool|char|short|int|long|float|double|uint|uchar|ushort|ulong|size_t)\s+'
         r'([a-z_]\w*)\s*;\s*(?://.*)?$')
+    pointer = re.compile(
+        r'^\s*(?:const\s+)?[A-Za-z_]\w*(?:\s*<[^;]*>)?\s*\*\s*'
+        r'(p_[A-Za-z_]\w*)\s*;\s*(?://.*)?$')
 
     def classes(htext):
-        """(name, members) per class. Members of a nested struct belong to
-        whatever declares them and stay outside - they sit one brace level
-        deeper."""
+        """(name, scalars, pointers) per class. Members of a nested struct
+        belong to whatever declares them and stay outside - they sit one brace
+        level deeper."""
         out, stack, depth = [], [], 0
         pending = None
         for line in htext.split('\n'):
@@ -964,19 +980,22 @@ def check_ctor_init():
             opens = line.count('{')
             closes = line.count('}')
             if opens and pending is not None:
-                stack.append((pending, depth + 1, []))
+                stack.append((pending, depth + 1, [], []))
                 pending = None
             if stack and depth == stack[-1][1]:
                 mm = scalar.match(line)
                 if mm and 'static' not in line and 'const' not in line:
                     stack[-1][2].append(mm.group(2))
+                mp = pointer.match(line)
+                if mp and 'static' not in line:
+                    stack[-1][3].append(mp.group(1))
             depth += opens - closes
             while stack and depth < stack[-1][1]:
-                name, _, members = stack.pop()
-                out.append((name, members))
+                name, _, members, pointers = stack.pop()
+                out.append((name, members, pointers))
         while stack:
-            name, _, members = stack.pop()
-            out.append((name, members))
+            name, _, members, pointers = stack.pop()
+            out.append((name, members, pointers))
         return out
 
     def ctor_body(text, cls):
@@ -1015,8 +1034,8 @@ def check_ctor_init():
             continue
         text = strip_comments(read(cpp))
         rel = os.path.relpath(header, ROOT).replace(os.sep, '/')
-        for cls, members in classes(read(header)):
-            if not members:
+        for cls, members, pointers in classes(read(header)):
+            if not members and not pointers:
                 continue
             body = ctor_body(text, cls)
             if body is None:
@@ -1024,13 +1043,14 @@ def check_ctor_init():
             missing = [m for m in members if not is_set(m, body)]
             # If the constructor sets fewer than half of them, the class
             # follows a different rule and the check says nothing about it.
-            if len(missing) * 2 > len(members):
-                continue
-            was = original_lines(rel)
-            missing = [m for m in missing
-                       if not any(re.search(r'\b%s\s*(\[|;)' % re.escape(m), l) for l in was)]
-            for m in missing:
-                bad.append('%s: %s::%s is not set in the constructor' % (rel, cls, m))
+            if len(missing) * 2 <= len(members):
+                was = original_lines(rel)
+                for m in [m for m in missing
+                          if not any(re.search(r'\b%s\s*(\[|;)' % re.escape(m), l) for l in was)]:
+                    bad.append('%s: %s::%s is not set in the constructor' % (rel, cls, m))
+            for m in pointers:
+                if not is_set(m, body):
+                    bad.append('%s: %s::%s is not set in the constructor' % (rel, cls, m))
     return bad
 
 

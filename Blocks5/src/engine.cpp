@@ -80,6 +80,14 @@ Engine::Engine()
 	grabDeadline = 0;
 	grabHasDeadline = false;
 	p_crossfade = 0;
+	p_display = 0;
+	p_audioDevice = 0;
+	p_audioContext = 0;
+	p_currentMusic = 0;
+	p_stateToBeEntered = 0;
+	p_stateToGetFocus = 0;
+	p_stateToLoseFocus = 0;
+	p_recordingIconTexture = 0;
 	crossfadeTime = -1.0f;
 	crossfadeDuration = 0.0f;
 	p_videoRecorder = 0;

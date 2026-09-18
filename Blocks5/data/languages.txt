@@ -93,6 +93,13 @@ $ERROR_CAMPAIGN_INVALID
 §en:ERROR: Missing or damaged campaign:
 §de:FEHLER: Fehlende oder beschädigte Kampagne:
 
+$ERROR_NO_BUILT_IN_CAMPAIGN
+// Shown on entering the level selection when the game's own campaign is
+// not there at all. Its archive is a build product, so this is what a
+// tree that was cloned but never packed looks like from inside the game.
+§en:ERROR: The game's own campaign is missing.
+§de:FEHLER: Die Kampagne des Spiels fehlt.
+
 $LOADING
 // Message displayed in the beginning when the game is loading
 §en:Loading ... Please wait ...
