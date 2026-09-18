@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48 and 51. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48, 51 and 58. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1359,6 +1359,43 @@ two differ for 41% of corners but by at most 0.000488 px, so 0.89% survive the
 It is four calls a quad in the renderer's hottest arithmetic, so the exactness
 is not worth buying (`rendering.md`).
 
+
+58. A collected item should go to the character, not just fade
+--------------------------------------------------------------
+A diamond, a bomb, a syringe or a gas mask vanishes on the spot: `onCollect`
+calls `disappear(0.2f)` and `Object::render` multiplies the alpha by
+`deathCountDown`, so ten ticks later it is gone from where it lay. Nothing
+carries the eye from the item to the character who now has it, and the two
+counters at the bottom left flash for a pickup the player never saw move.
+
+Make it fly instead - towards the character over those same ten ticks, and
+turning and shrinking a little on the way out. The fade is already the clock:
+`deathCountDown` runs 1 to 0 over the `disappear` duration and is the one
+number the whole effect can hang off, so nothing new has to be counted.
+
+Where it enters: the four are `StdObject`s with a `setCollectData` in
+`presets.cpp` - diamond to inventory 1, the mask 2, the syringe 3 - plus the
+bomb, which has an `onCollect` of its own. What moves is the *shown* position
+alone. The logical collection has already happened by then (`addInventory`
+runs first, and the cell is free the moment `onCollect` returns), so this is
+presentation and can touch nothing that decides anything. `Object::render`
+already draws at the shown position and already has a rotation and a scaling
+argument to hand.
+
+Two things to get right. The target has to be read each tick rather than
+snapshotted: the player keeps walking during those ten ticks, and an item
+aimed at where they *were* drifts off behind them. And nothing in a render
+path may draw a random number (`objects.md`), so if the flight wants any
+scatter it comes from `frameBegin()` or the tick, not from the draw.
+
+It ends where `Player::addInventory` already flashes the HUD icon
+(`Level::flashHudIcon`), which is the natural place to aim at and would tie
+the two halves of the same event together - the item arrives, the counter
+lights.
+
+No oracle scene can catch this: a collected item is as transient as `Damage`
+and `Projectile`, which no palette level can place. It is a look-at-it change
+and goes to the author unbuilt, like a glow or a timing.
 
 How these connect
 -----------------
