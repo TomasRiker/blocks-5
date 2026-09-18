@@ -121,7 +121,7 @@ Each is a rewording, and the fix is in the entry.
   ever read. `gs_selectlevel.cpp`: `onRender()` dereferences
   `p_currentCampaign` unguarded on an invariant `loadLevel()` keeps and nothing
   states. `gui_window.cpp`: the local `title` shadows the member. `laser.cpp`:
-  `onElectricitySwitch(bool on)` shadows the member `double on`; the debris of
+  `onElectricitySwitch(bool on)` shadows the member `float on`; the debris of
   a destroyed object starts from the beam's cell rather than the object's
   position as `lava.cpp` does. `lava.cpp`: the debris loop's `int i` shadows
   the live iterator.
@@ -202,7 +202,7 @@ Still open: worth knowing, not worth a change
 - `Level::getTileAt()` answers `-1` as a `uint` for an off-map cell, which
   `TileSet::getTileInfo()` maps to `badTile` and the editor's autotiler reads
   as "no neighbour" - so 0 is not the fix; a sentence at both ends is.
-- `SoundInstance::update()` calls `abs()` on doubles; the floating overload is
+- `SoundInstance::update()` calls `abs()` on floats; the floating overload is
   the one in scope through `pch.h` (checked with the build's own flags).
 - `tileset.h`'s "all nine tileset.xml in the tree" counts the four skin
   archives, as its own enumeration says; five are in Git.
@@ -396,7 +396,7 @@ Objects (731d13b):
 - **lightbarriersender.cpp** - `counter` advances once per tick, outside the
   beam loop, as the laser's does (the author's decision: the pulse runs at one
   rate whatever the beam's length).
-- **lightning.cpp** - the secondary branch walks a `Vec2d`.
+- **lightning.cpp** - the secondary branch walks a `Vec2f`.
 - **elevator.cpp, electronics.cpp** - the TinyXML locals start at 0.
 - **presets.cpp** - the "Damage" branch tests `p_element`; the six electronics
   branches construct after the attribute block, so a preset asked for without
@@ -468,7 +468,7 @@ Kept with the reason, so the alarm is not raised twice.
 - **`Object`'s "five of the seven switches" draw white**: verified against the
   seven `flash()` callers; only the barrage switch and the cannon switch tint.
 - **`Options::handleClick` writes before dispatching**: the documented design.
-- **`SoundInstance`'s `abs()` on doubles**: the floating overload, checked.
+- **`SoundInstance`'s `abs()` on floats**: the floating overload, checked.
 - **`tileset.h`'s nine `tileset.xml`**: counts the archives, as it says.
 - **`u_crt.h`'s two overscan units**: different steps of one computation.
 - **`u_smooth.h`'s pronoun**, `exit.cpp`'s dropped exclamation marks,

@@ -23,7 +23,7 @@ void Barrage2Panel::updateSprites()
 }
 
 void Barrage2Panel::onRender(RenderLayer layer,
-							 const Vec4d& color)
+							 const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }

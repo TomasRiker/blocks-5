@@ -8,16 +8,16 @@
 class Damage : public Object
 {
 public:
-	Damage(Level& level, const Vec2i& position, double rotation = -1.0);
+	Damage(Level& level, const Vec2i& position, float rotation = -1.0f);
 	~Damage();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	void saveAttributes(TiXmlElement* p_target);
 
 private:
-	double rotation;
+	float rotation;
 };
 
 #endif

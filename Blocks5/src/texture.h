@@ -45,7 +45,7 @@ public:
 	// Without that, the debris sampling would depend on every caller making
 	// this promise before the first sweep.
 	void keepInMemory();
-	Vec4d getPixel(const Vec2i& where) const;
+	Vec4f getPixel(const Vec2i& where) const;
 
 	// Are the pixels still in memory? freeUnkeptPixels() hands back everything
 	// keepInMemory() was not called on, and getPixel() then returns transparent
@@ -77,7 +77,7 @@ private:
 	// matrix this game ever samples a sprite under is that diagonal and
 	// nothing else, so it is kept as the two numbers it is made of rather
 	// than as sixteen.
-	Vec2d texelScale;
+	Vec2f texelScale;
 	Texture* p_parent;
 };
 

@@ -14,21 +14,23 @@ Sprite::Sprite()
 	positionOnTexture = Vec2i(0, 0);
 	size = Vec2i(SIZE, SIZE);
 	offset = Vec2i(0, 0);
-	color = Vec4d(1.0, 1.0, 1.0, 1.0);
+	color = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 	mirrorX = false;
-	rotation = 0.0;
+	rotation = 0.0f;
 }
 
 namespace
 {
-	const double degToRad = 3.1415926535897932384626433832795 / 180.0;
+	const float degToRad = 3.1415926535897932384626433832795f / 180.0f;
 
 	// What the footprint is trimmed by before floor() and ceil() go at it.
-	// cos(90 degrees) is 6.1e-17 and not 0, the left edge of a quarter turn
-	// comes out as -8.9e-16, and the cell would be 17x17 for no reason -
+	// cos(90 degrees) is -4.4e-8 and not 0, the left edge of a quarter turn
+	// comes out as -4.8e-7, and the cell would be 17x17 for no reason -
 	// getTryCount() works from the area and would roll 13% more debris than the
-	// same sprite unrotated.
-	const double footprintEpsilon = 1.0e-6;
+	// same sprite unrotated. The error grows with the sprite's half-width, and
+	// the one sprite larger than a cell - the burnt ground - is turned by an
+	// arbitrary angle, where no edge lands on a whole number to begin with.
+	const float footprintEpsilon = 1.0e-6f;
 
 	// Trace the spot in object coordinates back into the cell renderSprite
 	// fetched it from: first the offset, then the inverse rotation, then the
@@ -40,24 +42,24 @@ namespace
 					const Vec2i& point,
 					Vec2i* p_texelOut)
 	{
-		const Vec2d half(0.5 * sprite.size.x, 0.5 * sprite.size.y);
-		const Vec2d d(point.x + 0.5 - sprite.offset.x - half.x,
-					  point.y + 0.5 - sprite.offset.y - half.y);
+		const Vec2f half(0.5f * sprite.size.x, 0.5f * sprite.size.y);
+		const Vec2f d(point.x + 0.5f - sprite.offset.x - half.x,
+					  point.y + 0.5f - sprite.offset.y - half.y);
 
-		Vec2d m(d);
-		if(sprite.rotation != 0.0)
+		Vec2f m(d);
+		if(sprite.rotation != 0.0f)
 		{
-			const double a = sprite.rotation * degToRad;
-			const double c = cos(a);
-			const double s = sin(a);
+			const float a = sprite.rotation * degToRad;
+			const float c = cosf(a);
+			const float s = sinf(a);
 			m.x =  c * d.x + s * d.y;
 			m.y = -s * d.x + c * d.y;
 		}
 
-		const Vec2d t(half.x + (sprite.mirrorX ? -m.x : m.x), half.y + m.y);
+		const Vec2f t(half.x + (sprite.mirrorX ? -m.x : m.x), half.y + m.y);
 
-		const int tx = static_cast<int>(floor(t.x));
-		const int ty = static_cast<int>(floor(t.y));
+		const int tx = static_cast<int>(floorf(t.x));
+		const int ty = static_cast<int>(floorf(t.y));
 		if(tx < 0 || ty < 0 || tx >= sprite.size.x || ty >= sprite.size.y) return false;
 
 		*p_texelOut = Vec2i(tx, ty);
@@ -88,7 +90,7 @@ Sprite& Sprites::add(const Vec2i& positionOnTexture)
 }
 
 Sprite& Sprites::add(const Vec2i& positionOnTexture,
-					 const Vec4d& color)
+					 const Vec4f& color)
 {
 	Sprite& sprite = add(positionOnTexture);
 	sprite.color = color;
@@ -125,31 +127,31 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		return;
 	}
 
-	Vec2d lo(1.0e9, 1.0e9);
-	Vec2d hi(-1.0e9, -1.0e9);
+	Vec2f lo(1.0e9f, 1.0e9f);
+	Vec2f hi(-1.0e9f, -1.0e9f);
 
 	for(int i = 0; i < numSprites; i++)
 	{
 		const Sprite& sprite = sprites[i];
-		const Vec2d half(0.5 * sprite.size.x, 0.5 * sprite.size.y);
-		const Vec2d centre(sprite.offset.x + half.x, sprite.offset.y + half.y);
+		const Vec2f half(0.5f * sprite.size.x, 0.5f * sprite.size.y);
+		const Vec2f centre(sprite.offset.x + half.x, sprite.offset.y + half.y);
 
-		double c = 1.0;
-		double s = 0.0;
-		if(sprite.rotation != 0.0)
+		float c = 1.0f;
+		float s = 0.0f;
+		if(sprite.rotation != 0.0f)
 		{
-			const double a = sprite.rotation * degToRad;
-			c = cos(a);
-			s = sin(a);
+			const float a = sprite.rotation * degToRad;
+			c = cosf(a);
+			s = sinf(a);
 		}
 
 		// Rotate the four corners. The mirroring maps the set of corners onto
 		// itself and changes nothing about the footprint.
 		for(int k = 0; k < 4; k++)
 		{
-			const double x = (k & 1) ? half.x : -half.x;
-			const double y = (k & 2) ? half.y : -half.y;
-			const Vec2d p(centre.x + c * x - s * y, centre.y + s * x + c * y);
+			const float x = (k & 1) ? half.x : -half.x;
+			const float y = (k & 2) ? half.y : -half.y;
+			const Vec2f p(centre.x + c * x - s * y, centre.y + s * x + c * y);
 			lo.x = min(lo.x, p.x);
 			lo.y = min(lo.y, p.y);
 			hi.x = max(hi.x, p.x);
@@ -157,10 +159,10 @@ void Sprites::getFootprint(Vec2i* p_minOut,
 		}
 	}
 
-	*p_minOut = Vec2i(static_cast<int>(floor(lo.x + footprintEpsilon)),
-					  static_cast<int>(floor(lo.y + footprintEpsilon)));
-	*p_maxOut = Vec2i(static_cast<int>(ceil(hi.x - footprintEpsilon)),
-					  static_cast<int>(ceil(hi.y - footprintEpsilon)));
+	*p_minOut = Vec2i(static_cast<int>(floorf(lo.x + footprintEpsilon)),
+					  static_cast<int>(floorf(lo.y + footprintEpsilon)));
+	*p_maxOut = Vec2i(static_cast<int>(ceilf(hi.x - footprintEpsilon)),
+					  static_cast<int>(ceilf(hi.y - footprintEpsilon)));
 }
 
 int Sprites::getTryCount(int numParticles) const
@@ -172,10 +174,10 @@ int Sprites::getTryCount(int numParticles) const
 	const int reference = Sprite::SIZE * Sprite::SIZE;
 	if(area <= reference) return numParticles * DEBRIS_TRIES_PER_PARTICLE;
 
-	return static_cast<int>((static_cast<double>(numParticles * DEBRIS_TRIES_PER_PARTICLE) * area) / reference);
+	return static_cast<int>((static_cast<float>(numParticles * DEBRIS_TRIES_PER_PARTICLE) * area) / reference);
 }
 
-bool Sprites::sample(Vec4d* p_colorOut,
+bool Sprites::sample(Vec4f* p_colorOut,
 					 Vec2i* p_offsetOut) const
 {
 	// Without sprites, or without pixels in memory, there is no debris: a tile
@@ -202,7 +204,7 @@ bool Sprites::sample(Vec4d* p_colorOut,
 	// drawing: what lies in front covers by a share of its opacity. covered is
 	// that share, accumulated - measuring one threshold against it is the same
 	// as rolling for each sprite separately.
-	double covered = 0.0;
+	float covered = 0.0f;
 	for(int i = numSprites - 1; i >= 0; i--)
 	{
 		const Sprite& sprite = sprites[i];
@@ -210,15 +212,15 @@ bool Sprites::sample(Vec4d* p_colorOut,
 		Vec2i texel;
 		if(!mapToTexel(sprite, point, &texel)) continue;
 
-		const Vec4d pixel = p_texture->getPixel(sprite.positionOnTexture + texel);
-		covered += (1.0 - covered) * pixel.a * sprite.color.a;
+		const Vec4f pixel = p_texture->getPixel(sprite.positionOnTexture + texel);
+		covered += (1.0f - covered) * pixel.a * sprite.color.a;
 
 		// Accept with the probability of the opacity. A fully opaque pixel
 		// therefore fails in one of 256 cases; that cannot be seen and saves
 		// the special case.
-		if(threshold < static_cast<uint>(covered * 255.0))
+		if(threshold < static_cast<uint>(covered * 255.0f))
 		{
-			*p_colorOut = Vec4d(pixel.r * sprite.color.r,
+			*p_colorOut = Vec4f(pixel.r * sprite.color.r,
 								pixel.g * sprite.color.g,
 								pixel.b * sprite.color.b,
 								DEBRIS_ALPHA);

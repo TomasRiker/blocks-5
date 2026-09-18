@@ -18,7 +18,7 @@ GUI_Element::GUI_Element(const std::string& name,
 	visible = true;
 	active = true;
 	fill = false;
-	fillColor = Vec4d(0.0, 0.0, 0.0, 1.0);
+	fillColor = Vec4f(0.0f, 0.0f, 0.0f, 1.0f);
 	toolTipOnly = false;
 	tabStop = -1;
 	linkedElement = "";
@@ -45,7 +45,7 @@ void GUI_Element::render()
 
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
-	renderer.translate(position.x, position.y);
+	renderer.translate(static_cast<float>(position.x), static_cast<float>(position.y));
 
 	// render itself
 	onRender();
@@ -88,7 +88,7 @@ void GUI_Element::onRender()
 {
 	if(fill)
 	{
-		Renderer::inst().rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), static_cast<Vec4f>(fillColor));
+		Renderer::inst().rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), fillColor);
 	}
 }
 
@@ -421,10 +421,10 @@ void GUI_Element::readAttributes(TiXmlElement* p_element)
 	if(e)
 	{
 		fill = true;
-		e->Attribute("r", &fillColor.r);
-		e->Attribute("g", &fillColor.g);
-		e->Attribute("b", &fillColor.b);
-		e->Attribute("a", &fillColor.a);
+		e->QueryFloatAttribute("r", &fillColor.r);
+		e->QueryFloatAttribute("g", &fillColor.g);
+		e->QueryFloatAttribute("b", &fillColor.b);
+		e->QueryFloatAttribute("a", &fillColor.a);
 	}
 }
 

@@ -18,11 +18,11 @@ E_BlockDetector::~E_BlockDetector()
 void E_BlockDetector::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(224, 576)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(224, 576)).rotation = 90.0f * dir;
 }
 
 void E_BlockDetector::onRender(RenderLayer layer,
-							   const Vec4d& color)
+							   const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

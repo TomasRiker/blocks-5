@@ -60,7 +60,6 @@ bool equalsNoCase(const char* p_a, const char* p_b);
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);
-double random(double min, double max);
 
 // Seed the one generator all four of those draw from. Only the test build
 // calls it, and only where B5_SEED asks: a shipped game wants MTRand's own
@@ -77,7 +76,14 @@ void printfLog(const char* p_format, ...);
 std::string localizeString(const std::string& text);
 std::string loadString(const std::string& id);
 std::vector<Vec2i> bresenham(const Vec2i& p1, const Vec2i& p2);
-double getExactTime();
+
+// Microseconds since the first call, as an integer. The value keeps growing
+// for as long as the session lasts while what is read off it is the
+// difference of two readings, a few thousand of these - and a count cannot
+// drift at all, where a float of seconds steps by 244 us an hour in and
+// 7.8 ms after a day, more than a whole frame, and a double only pushes that
+// out instead of removing it. 2^64 microseconds is 584 thousand years.
+uint64 getExactTimeUS();
 uint getExactTimeMS();
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -87,7 +93,7 @@ uint getExactTimeMS();
 // do it where they stand.
 void openURL(const std::string& url);
 #endif
-void writeProfileLine(const std::string& name, double dt, double avgTime);
+void writeProfileLine(const std::string& name, float dt, float avgTime);
 
 // The two keys a player means by "Enter": the big one and the one on the
 // numeric keypad. A keyboard has two and nothing in this game distinguishes
@@ -101,45 +107,88 @@ inline bool isReturnKey(int key)
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
 }
 
-// Reduces a scrolling texture offset, in texels, to one period of the texture.
-// Exact under GL_REPEAT: whole periods move the finished coordinate by a whole
-// number and it samples the same texel. It is needed because the weather and
-// the title clouds scroll by an offset that has been growing since the level
-// began, and a texture coordinate reaches the fragment shader as a varying at
-// that shader's float precision - highp where the browser has it, mediump on
-// a phone that has not, ten mantissa bits. The step it quantizes to is
-// offset/2048 texels, so the drift turns visibly steppy about a minute in and
-// gets worse from there. Keeping the offset inside one period keeps the
-// precision constant.
-inline double wrapTextureOffset(double offset, int period)
+// Everything the game animates by is rate * clock + base, a straight line in a
+// counter that is an exact integer - Level::time and GS_Menu::time in
+// milliseconds, Lava::anim and SDL_GetTicks in ticks. The three below form
+// that line; only two of them reduce it, and which is which is the whole
+// point.
+//
+// All of it is float, and the limit that puts on it was measured rather than
+// guessed. The clouds scroll one texel a tick: that step comes out exactly
+// 1.0000 for as long as twelve hours in a single level, is 0.5 to 1.5 after a
+// day and collapses to a stutter of 0 to 2 after three. Level::time starts
+// again at every level, and nobody plays one for a day - so the float costs
+// nothing a player can reach, and a double here would buy only a number that
+// looks tidier in a probe.
+// The argument of an animation's sine or cosine: rate * ticks + base, and
+// deliberately NOT reduced to a turn on the way out.
+//
+// Reducing it here is the obvious thing and it is wrong. sinf and cosf do
+// their own argument reduction, against the real pi to as many bits as it
+// takes, and come out 3e-08 from the true sine at every clock value this game
+// can reach. A fmodf by a float 2*pi beforehand reduces against a constant
+// that is itself 1.7e-07 off, and the error grows with the number of turns
+// thrown away: measured against the exact sine of the same float, 3.9e-05 one
+// minute into a level, 2.0e-03 after an hour, 0.14 after three days. The
+// library is better at this than the caller, so let it do it.
+//
+// What a float does cost here is the product: it goes coarse when the clock
+// gets big, which no reduction afterwards can undo. That is a twelve-hour
+// problem in a single level - see scrollOffset - and Level::time starts again
+// at every level.
+inline float clockPhase(uint ticks, float perTick, float base)
+{
+	return perTick * static_cast<float>(ticks) + base;
+}
+
+// The same for a quantity whose period is not a turn: a scrolling texture
+// offset in texels, or the CRT filter's flicker, which repeats every eight
+// seconds and whose crawl repeats every one. Exact for a texture under
+// GL_REPEAT, since whole periods move the finished coordinate by a whole
+// number and it samples the same texel. It is needed there because a texture
+// coordinate reaches the fragment shader as a varying at that shader's float
+// precision - highp where the browser has it, mediump on a phone that has not,
+// ten mantissa bits. The step it quantizes to is offset/2048 texels, so the
+// drift turns visibly steppy about a minute in and gets worse from there.
+inline float scrollOffset(uint ticks, float perTick, float base, float period)
+{
+	const float value = perTick * static_cast<float>(ticks) + base;
+	if(period <= 0.0f) return value;
+	return fmodf(value, period);
+}
+
+// The same reduction for an offset that is already small: what scrollOffset
+// returned, plus a wobble bounded by its own sine. Whole periods are still
+// whole periods, and nothing here has grown.
+inline float wrapTextureOffset(float offset, int period)
 {
 	if(period <= 0) return offset;
-	return fmod(offset, static_cast<double>(period));
+	return fmodf(offset, static_cast<float>(period));
 }
 
 // To the nearest whole pixel, both signs alike. A plain conversion to Vec2i
 // cuts towards zero, so adding 0.5 first - the obvious rounding - rounds up
 // above zero and down below it, and a symmetric movement comes out a pixel
 // short on one side.
-inline Vec2i roundToVec2i(const Vec2d& v)
+inline Vec2i roundToVec2i(const Vec2f& v)
 {
-	return Vec2i(static_cast<int>(floor(v.x + 0.5)),
-				 static_cast<int>(floor(v.y + 0.5)));
+	return Vec2i(static_cast<int>(floor(v.x + 0.5f)),
+				 static_cast<int>(floor(v.y + 0.5f)));
 }
 
 extern bool writingCrashLog;
 
 #define BEGIN_PROFILE(NAME) \
-	static double profile_accumTime_##NAME = 0.0; \
+	static float profile_accumTime_##NAME = 0.0f; \
 	static uint profile_numMeasurements_##NAME = 0; \
-	const double profile_t0_##NAME = getExactTime();
+	const uint64 profile_t0_##NAME = getExactTimeUS();
 
 #define END_PROFILE(NAME) \
 	{ \
-		const double profile_dt_##NAME = getExactTime() - profile_t0_##NAME; \
+		const float profile_dt_##NAME = 1.0e-6f * static_cast<float>(getExactTimeUS() - profile_t0_##NAME); \
 		profile_accumTime_##NAME += profile_dt_##NAME; \
 		++profile_numMeasurements_##NAME; \
-		writeProfileLine(#NAME, profile_dt_##NAME, profile_accumTime_##NAME / profile_numMeasurements_##NAME); \
+		writeProfileLine(#NAME, profile_dt_##NAME, profile_accumTime_##NAME / static_cast<float>(profile_numMeasurements_##NAME)); \
 	}
 
 #endif

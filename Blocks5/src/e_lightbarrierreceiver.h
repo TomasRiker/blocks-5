@@ -11,7 +11,7 @@ public:
 	E_LightBarrierReceiver(Level& level, const Vec2i& position, int dir);
 	~E_LightBarrierReceiver();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void frameBegin();
 	bool changeInEditor(int mod);

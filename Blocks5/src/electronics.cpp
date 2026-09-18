@@ -55,17 +55,17 @@ void Electronics::updateSprites()
 }
 
 void Electronics::onRender(RenderLayer layer,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	if(layer == RL_WIRE)
 	{
-		const Vec4d wireColor[] = {Vec4d(0.35, 0.3, 0.3, 1.0),
-								   Vec4d(0.3, 0.35, 0.3, 1.0),
-								   Vec4d(0.3, 0.3, 0.35, 1.0),
-								   Vec4d(0.35, 0.35, 0.3, 1.0),
-								   Vec4d(0.35, 0.3, 0.35, 1.0),
-								   Vec4d(0.3, 0.35, 0.35, 1.0),
-								   Vec4d(0.35, 0.35, 0.35, 1.0)};
+		const Vec4f wireColor[] = {Vec4f(0.35f, 0.3f, 0.3f, 1.0f),
+								   Vec4f(0.3f, 0.35f, 0.3f, 1.0f),
+								   Vec4f(0.3f, 0.3f, 0.35f, 1.0f),
+								   Vec4f(0.35f, 0.35f, 0.3f, 1.0f),
+								   Vec4f(0.35f, 0.3f, 0.35f, 1.0f),
+								   Vec4f(0.3f, 0.35f, 0.35f, 1.0f),
+								   Vec4f(0.35f, 0.35f, 0.35f, 1.0f)};
 
 		Renderer& renderer = Renderer::inst();
 
@@ -78,7 +78,7 @@ void Electronics::onRender(RenderLayer layer,
 			for(std::set<Pin*>::const_iterator j = connectedPins.begin(); j != connectedPins.end(); ++j)
 			{
 				const Pin* p_pin2 = *j;
-				renderer.polyline(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, static_cast<Vec4f>(wireColor[n++ % 7]));
+				renderer.polyline(Pin::getConnectionPath(p_pin1, p_pin2), 1.5f, wireColor[n++ % 7]);
 			}
 		}
 	}

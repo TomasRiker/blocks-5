@@ -35,7 +35,7 @@ void GS_Loading::onRender()
 		// Gentle pulsing, or the line would read as a frozen still. The logo
 		// stays off: its entrance belongs to the intro and only sets off
 		// together with the jingle.
-		const Vec4d color(1.0, 1.0, 1.0, 0.65 + 0.35 * sin(waitTime * 0.004));
+		const Vec4f color(1.0f, 1.0f, 1.0f, 0.65f + 0.35f * sinf(waitTime * 0.004f));
 		const std::string text = localizeString("$WEB_CLICK_TO_START");
 
 		Vec2i dim;
@@ -78,7 +78,7 @@ void GS_Loading::onRender()
 
 	renderer.push();
 	renderer.loadIdentity();
-	renderer.translate(320.0, 220.0);
+	renderer.translate(320.0f, 220.0f);
 	renderer.scale(logoSize, logoSize);
 
 	if(p_logo)
@@ -96,7 +96,7 @@ void GS_Loading::onRender()
 		std::string text = localizeString("$LOADING");
 		Vec2i dim;
 		p_font->measureText(text, &dim, 0);
-		p_font->renderText(text, Vec2i(320 - dim.x / 2, 440), Vec4d(1.0));
+		p_font->renderText(text, Vec2i(320 - dim.x / 2, 440), Vec4f(1.0f));
 	}
 }
 
@@ -170,9 +170,9 @@ void GS_Loading::onUpdate()
 #endif
 		}
 
-		logoSizeVel += 0.02 * 80.0 * (1.0 - logoSize);
-		logoSize += 0.02 * logoSizeVel;
-		logoSizeVel *= 0.8;
+		logoSizeVel += 0.02f * 80.0f * (1.0f - logoSize);
+		logoSize += 0.02f * logoSizeVel;
+		logoSizeVel *= 0.8f;
 	}
 
 	if(time >= 3000)
@@ -190,7 +190,7 @@ void GS_Loading::onUpdate()
 		else if(load == 2)
 		{
 			engine.setGameState("GS_Menu");
-			engine.crossfade(new CF_Mosaic, 1.0);
+			engine.crossfade(new CF_Mosaic, 1.0f);
 			load = 3;
 		}
 	}
@@ -214,8 +214,8 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 
 	if(p_logo) time = 0;
 	else time = 3000;
-	logoSize = 0.0;
-	logoSizeVel = 0.0;
+	logoSize = 0.0f;
+	logoSizeVel = 0.0f;
 	load = 0;
 
 	// Without a logo the jingle would otherwise still play: time is already

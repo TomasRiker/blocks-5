@@ -15,15 +15,15 @@ public:
 	CF_Rewind();
 	~CF_Rewind();
 
-	void render(double t, uint oldImageID, uint newImageID);
+	void render(float t, uint oldImageID, uint newImageID);
 
 private:
 	// One strip of picture, right across the screen: row y on the screen shows
 	// row sourceY of the source image, slipped sideways by shift pixels.
-	void drawStrip(uint imageID, int y, int height, int sourceY, double shift) const;
+	void drawStrip(uint imageID, int y, int height, int sourceY, float shift) const;
 
 	// One strip of snow. Every call rolls for a fresh spot in the noise image.
-	void drawSnow(int y, int height, double alpha) const;
+	void drawSnow(int y, int height, float alpha) const;
 
 	uint noiseID;
 

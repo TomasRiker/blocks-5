@@ -27,11 +27,11 @@ void E_LightBarrierReceiver::frameBegin()
 void E_LightBarrierReceiver::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(96, 608)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(96, 608)).rotation = 90.0f * dir;
 }
 
 void E_LightBarrierReceiver::onRender(RenderLayer layer,
-									  const Vec4d& color)
+									  const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

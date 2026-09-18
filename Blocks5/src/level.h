@@ -56,30 +56,30 @@ public:
 
 	void render();
 	void update();
-	void renderTiles(int layer, const Vec2i& offset, const Vec4d& color);
-	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4d& color, bool shadow);
+	void renderTiles(int layer, const Vec2i& offset, const Vec4f& color);
+	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4f& color, bool shadow);
 	void sortObjects();
 	// The offset is added inside the caller's own matrix, which is why it is not
 	// called a position: it is where the glow sits relative to the cell the
 	// object is already drawn in. A laser wants one per four pixels of beam and
 	// a light barrier one per pixel, and a matrix bracket each would be the
 	// most expensive thing in the frame.
-	void renderShine(double intensity, double size, const Vec2d& offset = Vec2d(0.0));
+	void renderShine(float intensity, float size, const Vec2f& offset = Vec2f(0.0f));
 	// The light a laser or a light barrier lays along its beam. Drawn inside
 	// the object's own matrix, so the points are taken relative to origin.
 	// Each shine's size varies by up to jitter, differently along the beam and
 	// steady for as long as seed is - pass the object's per-tick glowJitter.
-	void renderBeamShines(const std::list<Vec2d>& beam, const Vec2i& origin,
-						  double intensity, double size, double jitter, double seed);
+	void renderBeamShines(const std::list<Vec2f>& beam, const Vec2i& origin,
+						  float intensity, float size, float jitter, float seed);
 	bool isFreeAt(const Vec2i& position, int* p_tileTypeOut = 0);
-	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, double radiusSq = 74.0);
+	bool isFreeAt2(const Vec2i& positionInPixels, Object* p_except, Object** pp_objectOut, Vec2i* p_tileOut, float radiusSq = 74.0f);
 	Object* getFrontObjectAt(const Vec2i& position);
 	Object* getBackObjectAt(const Vec2i& position);
 	Elevator* getElevatorAt(const Vec2i& position);
 	Rail* getRailAt(const Vec2i& position);
 	Player* getPlayerAt(const Vec2i& position);
 	std::vector<Object*> getObjectsAt(const Vec2i& position);
-	std::vector<Object*> getObjectsAt2(const Vec2i& position, double radiusSq = 74.0);
+	std::vector<Object*> getObjectsAt2(const Vec2i& position, float radiusSq = 74.0f);
 	const std::vector<Object*>& getAllObjectsAt(const Vec2i& position);
 	void addObject(Object* p_object);
 	void removeObject(Object* p_object);
@@ -155,7 +155,7 @@ public:
 	// something - the same gesture with which a switch answers a press. The
 	// index is the inventory's: 0 the bomb, 1 the diamond.
 	void flashHudIcon(uint index);
-	double getHudIconFlash(uint index) const;
+	float getHudIconFlash(uint index) const;
 	uint getNumDiamondsCollected() const;
 	bool isElectricityOn() const;
 	void setElectricityOn(bool electricityOn);
@@ -173,9 +173,9 @@ public:
 	void setLightColor(const Vec3i& lightColor);
 	const std::string& getMusicFilename() const;
 	void setMusicFilename(const std::string& musicFilename);
-	void addCameraShake(double value);
-	void addFlash(double value);
-	void addToxic(double value);
+	void addCameraShake(float value);
+	void addFlash(float value);
+	void addToxic(float value);
 	void invalidate();
 
 	std::string getSkinFilename(uint index);
@@ -267,21 +267,21 @@ private:
 	Texture* p_particleSprites;
 	uint numDiamondsNeeded;
 	uint numDiamondsCollected;
-	double hudIconFlash[2];
+	float hudIconFlash[2];
 	bool electricityOn;
 	bool nightVision;
 	bool raining;
 	bool cloudy;
 	bool snowing;
 	bool thunderstorm;
-	double cameraShake;
-	double flash;
-	double flashJitter;
-	double actualFlash;
+	float cameraShake;
+	float flash;
+	float flashJitter;
+	float actualFlash;
 	Vec3i lightColor;
 	std::string musicFilename;
 	uint bufferID;
-	double toxic;
+	float toxic;
 	uint lightningCounter;
 	Lightning lightning;
 

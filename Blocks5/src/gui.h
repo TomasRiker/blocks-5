@@ -28,8 +28,8 @@ public:
 	GUI_Element* getRoot();
 	Font* getFont();
 	Font* getToolTipFont();
-	double getOpacity() const;
-	void setOpacity(double opacity);
+	float getOpacity() const;
+	void setOpacity(float opacity);
 	Texture* getSkin();
 	void setSkin(Texture* p_skin);
 	const Vec2i& getCursorPos() const;
@@ -56,7 +56,7 @@ private:
 	Font* p_font;
 	Font* p_toolTipFont;
 	uint texID;
-	double opacity;
+	float opacity;
 	Texture* p_skin;
 
 	// Valid only during an onKeyEvent(); isKeyRepeat() reads it.

@@ -9,15 +9,15 @@ CF_Cube::~CF_Cube()
 {
 }
 
-void CF_Cube::render(double t,
+void CF_Cube::render(float t,
 					 uint oldImageID,
 					 uint newImageID)
 {
 	// A cube with the old image on its front and the new one on its left,
 	// turned a quarter while the camera pulls back and in again.
-	const Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);
-	Mat4 modelview = Mat4::lookAt(0.0, 0.0, -2.0 - sin(t * 3.1415926535897932384626433832795), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	modelview.rotate(90.0 * t, 0.0, 1.0, 0.0);
+	const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
+	Mat4 modelview = Mat4::lookAt(0.0f, 0.0f, -2.0f - sinf(t * 3.1415926535897932384626433832795f), 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	modelview.rotate(90.0f * t, 0.0f, 1.0f, 0.0f);
 
 	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
@@ -32,6 +32,6 @@ void CF_Cube::render(double t,
 	drawImage3D(oldImageID, projection * modelview, face, uvs, white, true);
 
 	// draw the left face of the cube
-	modelview.rotate(-90.0, 0.0, 1.0, 0.0);
+	modelview.rotate(-90.0f, 0.0f, 1.0f, 0.0f);
 	drawImage3D(newImageID, projection * modelview, face, uvs, white, true);
 }

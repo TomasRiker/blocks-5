@@ -76,14 +76,21 @@ projection, an identity transform and no scissor, and `endTarget` puts all three
 **The transform is baked in `float`, in GL's own arithmetic, and that is what makes a frame byte-exact.**
 `Renderer::push`, `pop`, `translate`, `scale`, `rotate` and `loadIdentity` keep a 2D affine stack of
 `float` entries, as GL's matrix stack was; a translate composes as Mesa's `glTranslated` does — the
-products first, the old translation last — and a rotate takes its sine and cosine as Mesa does, the angle
-to `float`, the radians in `double`, `sinf` and `cosf`, which is why a right angle has a cosine of
--4.4e-8 and not 0. A corner is then the `float` entries promoted to `double`, summed, and rounded to
-`float` once — the arithmetic GL's own vertex stage does with a float matrix, so that a baked corner is
-the float the oracle's frames were drawn with. The projection is the one matrix left to the GPU, as a uniform; `Mat4::ortho` (`vec.h`) builds the same
-numbers `gluOrtho2D` did. The same `Mat4` does GL's arithmetic for every other matrix the game once
-asked GL for: `gluPerspective`'s and `gluLookAt`'s entries, Mesa's in-place translate, scale and rotate,
-its left-to-right float sums in a product. The four 3D crossfades and the credits' stars hand
+products first, the old translation last — and a rotate takes its radians and then `sinf` and `cosf`,
+which is why a right angle has a cosine of -4.4e-8 and not 0: the radians round to `float` before the
+trigonometry, and forming them in `double` first moves a point at a 320-pixel radius by 0.000163 px. A corner is then summed in `float` and rounded at every step, the arithmetic GL's own
+vertex stage does with a float matrix. Promoting the entries and rounding the sum once instead is the
+exact way and buys nothing measurable: over 20 million rotated and scaled transforms the two differ for
+41% of corners but by at most 0.000488 px, so 0.89% survive the 1/256 subpixel grid the rasterizer snaps
+a vertex to and no oracle scene moves a single pixel — against four calls a quad in the renderer's
+hottest arithmetic, paid for on every phone. The projection is the one matrix left to the GPU, as a
+uniform; `Mat4::ortho` (`vec.h`) builds the same numbers `gluOrtho2D` did. The same `Mat4` stands in for
+every other matrix the game once asked GL for — `gluPerspective`, `gluLookAt`, the in-place translate,
+scale and rotate, the left-to-right sums in a product — keeping each call's *order* of operations, which
+costs nothing and makes the two readable against each other, but not its precision: `Mat4` is `float`
+throughout where GL and GLU were `double` in places. The one entry that reaches is `gluPerspective`'s
+depth row, `m[10]` and `m[14]`; `m[0]` and `m[5]`, which put a corner on the screen, read neither near
+nor far and come out bit for bit the same. The four 3D crossfades and the credits' stars hand
 `Renderer::quads3D` a matrix built that way with the projection in it, one draw a call, and the rain,
 the snow and the clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which
 is applied to the corners' uv in the order the fixed-function vertex stage summed it.
@@ -260,9 +267,19 @@ crosses the same line in two seconds. Nothing is wrong on any desktop, which is 
 Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a whole
 number and samples the same texel. Verified against the real matrix order — bind's `1/w,1/h`, the scale,
 the translate and the rotate — for the four weather scrollers, deviation 0.000e+00 at offsets up to
-900000. Two things to keep right: the wrap goes **after** the `sin` that reads the same offset, whose
-phase has to follow the unwrapped value, and the period is the *texture's* own size, since a skin brings
-its own art.
+900000. The period is the *texture's* own size, since a skin brings its own art.
+
+**The reduction runs off the clock, not off a value that has been kept.** Each scroller's offset is
+`rate · clock + base`, a straight line in a counter that is an exact integer — `Level::time` and
+`GS_Menu::time` in milliseconds, `Lava::anim` and `SDL_GetTicks` in ticks — so `scrollOffset` (`util.h`)
+forms that line and reduces it in one step from the integer the caller still holds. A wobble bounded by
+its own sine is added afterwards and the sum reduced again, which is exact for the same reason.
+
+All of it is `float`, and the limit that puts on it is measured rather than assumed. The clouds scroll
+one texel a tick, and that step comes out **exactly 1.0000 for as long as twelve hours in one level**;
+after a day it is 0.5 to 1.5 and after three it collapses to a stutter of 0 to 2. `Level::time` starts
+again at every level, so the float costs nothing a player can reach — this is a game, and a `double`
+here would buy only a tidier number in a probe.
 
 **The lava is the one whose period is not the texture**, and getting it wrong is a jump of half a tile.
 Its four cousins scroll through the matrix they hand `scrolledQuad`; `Lava::onRender` writes the texels into its quad's uv itself,
@@ -270,18 +287,29 @@ on a 16x16 sub-texture cut out of the skin's sprite sheet by `createSubTexture` 
 its own, so `GL_REPEAT` wraps at 16. But the front pass halves the *whole* coordinate (`t /= 2.0`) before
 it draws, so a jump of 16 moves that pass by eight texels and only 32 moves it by a period.
 `SCROLL_PERIOD` is therefore twice the tile, also exact for the back pass at two periods. The `shift`
-beside it is `2·sin(0.1·anim)` and `3·cos(0.05·anim)`, and `anim` stays unwrapped for it: neither period
-divides 32, so wrapping what feeds them would jog the wobble every time it came round. Measured over
-`anim` 0..900000, both signs and both axes, the sampled fraction agrees to 4e-12 of a texel; the same
-wrap at 16 puts the front pass out by exactly 0.5.
+beside it is `2·sin(0.1·anim)` and `3·cos(0.05·anim)`, and each of those reduces at a **turn** rather
+than at the tile: neither wobble period divides 32, so reducing what feeds them by the tile would jog
+the wobble every time it came round, while a turn cannot move a sine at all. Measured over `anim`
+0..900000, both signs and both axes, the sampled fraction agrees to 4e-12 of a texel; a wrap at 16 puts
+the front pass out by exactly 0.5.
 
-**The angle those sines are given needs no such care.** They are `double` throughout, so one ULP at
-argument *A* is `A/2^52`: the snow's argument grows at 0.2 rad/s and its sine is scaled by 500 pixels, so
-half a pixel of error needs 1.7e-3 rad and arrives in about **700 000 years**; after 25 days of rain — the
-fastest — one ULP is 9.6e-9 rad. What runs out first is the millisecond counter feeding it: `Level::time`
-is `int` and undefined after **24.9 days** in one level, `GS_Menu::time` and `Engine::time` are `uint` and
-wrap at 49.7; all three reset on entering a level or the menu. In `float` the same rain argument would have
-a ULP of 4 radians — the `mediump` distinction above, two steps further along.
+**A phase is emphatically *not* reduced**, and `clockPhase` (`util.h`) exists to say so where a reader
+would otherwise reach for the obvious. `sinf` and `cosf` reduce their own argument, against the real π
+to as many bits as it takes, and land 3e-08 from the true sine at every clock value this game can
+reach. Reducing by a `float` 2π first reduces against a constant that is itself 1.7e-07 out, and the
+error grows with the turns thrown away: measured against the exact sine of the same float, 3.9e-05 one
+minute into a level, **2.0e-03 after an hour**, 0.14 after three days. The library is better at this
+than its caller. A texture offset is the opposite case and does reduce, because its period — 512
+texels, or the CRT's eight seconds — is exactly representable, so `fmodf` divides by the right number
+and is exact; and because the wrap is what the *shader* needs, not the CPU.
+
+The counters are what runs out in the end: `Level::time` is `int` and undefined after **24.9 days** in
+one level, `GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a
+level or the menu. Nine call sites go through the three helpers: the five scrollers, the lava's scroll
+and its two wobbles, and the CRT filter's flicker and scan-line crawl (`upscalers.md`). With those in
+place and the wall clock an integer, **`double` is gone from the game's own arithmetic** — the two left
+in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE double
+and nothing else will do.
 
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture as pure
 black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL error, and the default is

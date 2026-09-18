@@ -22,12 +22,12 @@ void LightSwitch::updateSprites()
 }
 
 void LightSwitch::onRender(RenderLayer layer,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.35, 0.25 + 0.05 * glowJitter);
+		level.renderShine(0.35f, 0.25f + 0.05f * glowJitter);
 	}
 }
 
@@ -44,13 +44,13 @@ void LightSwitch::onTouchedByPlayer(Player* p_player)
 
 	if(nv)
 	{
-		Engine::inst().playSound("light_off.ogg", false, 0.0, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3d(0.0, 0.0, 0.0), 0.1), 1.4);
+		Engine::inst().playSound("light_off.ogg", false, 0.0f, 100);
+		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(0.0f, 0.0f, 0.0f), 0.1f), 1.4f);
 	}
 	else
 	{
-		Engine::inst().playSound("light_on.ogg", false, 0.0, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3d(1.0, 1.0, 1.0), 0.1), 1.4);
+		Engine::inst().playSound("light_on.ogg", false, 0.0f, 100);
+		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(1.0f, 1.0f, 1.0f), 0.1f), 1.4f);
 	}
 }
 

@@ -11,13 +11,13 @@ public:
 	Bomb(Level& level, const Vec2i& position);
 	~Bomb();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);
 	void onExplosion();
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);
-	bool reflectProjectile(Vec2d& velocity);
+	bool reflectProjectile(Vec2f& velocity);
 	void onFire();
 
 private:

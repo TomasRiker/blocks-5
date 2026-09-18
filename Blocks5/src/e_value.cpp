@@ -21,11 +21,11 @@ E_Value::~E_Value()
 void E_Value::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(32 * value, 608)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(32 * value, 608)).rotation = 90.0f * dir;
 }
 
 void E_Value::onRender(RenderLayer layer,
-					   const Vec4d& color)
+					   const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

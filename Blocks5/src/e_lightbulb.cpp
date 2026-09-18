@@ -21,17 +21,17 @@ E_LightBulb::~E_LightBulb()
 void E_LightBulb::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(on ? 160 : 128, 608)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(on ? 160 : 128, 608)).rotation = 90.0f * dir;
 }
 
 void E_LightBulb::onRender(RenderLayer layer,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_LIGHT && on)
 	{
-		level.renderShine(1.0, 1.5 + 0.05 * glowJitter);
+		level.renderShine(1.0f, 1.5f + 0.05f * glowJitter);
 	}
 }
 

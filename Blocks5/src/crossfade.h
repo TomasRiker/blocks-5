@@ -9,7 +9,7 @@ public:
 	Crossfade();
 	virtual ~Crossfade();
 
-	virtual void render(double t, uint oldImageID, uint newImageID);
+	virtual void render(float t, uint oldImageID, uint newImageID);
 
 protected:
 	// The two frame copies as render states: sampled with the frame's

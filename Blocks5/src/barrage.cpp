@@ -31,7 +31,7 @@ void Barrage::updateSprites()
 }
 
 void Barrage::onRender(RenderLayer layer,
-					   const Vec4d& color)
+					   const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }

@@ -82,24 +82,28 @@ void GS_Menu::onRender()
 	const TextureRef clouds = p_clouds->ref();
 	for(int i = 2; i >= 0; i--)
 	{
-		double s[] = {1.0, 0.5, 0.25};
-		double x = 100.0 * i + 50.0 * 0.001 * time;
-		x += 2.0 * sin(0.02 * x * s[i] + i);
-		// After the wobble, whose phase has to follow the unwrapped offset.
+		float s[] = {1.0f, 0.5f, 0.25f};
+		const float fi = static_cast<float>(i);
+		// The offset is 100 * i + 0.05 * time and the wobble reads
+		// 0.02 * s of it, so both are a line in the clock. The wobble is
+		// added after the reduction and the sum wrapped again: it is
+		// bounded by its own sine, so whole periods stay whole periods.
+		float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
+		x += 2.0f * sinf(clockPhase(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
-		Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0);
+		Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);
 		scroll.scale(s[i], s[i], s[i]);
-		scroll.translate(-x / s[i], 0.0, 0.0);
-		scroll.rotate(15.0 + 5.0 * i, 0.0, 0.0, 1.0);
-		const float c = static_cast<float>(1.0 - 0.05 * i);
-		const float a = static_cast<float>(0.4 - 0.05 * i);
+		scroll.translate(-x / s[i], 0.0f, 0.0f);
+		scroll.rotate(15.0f + 5.0f * i, 0.0f, 0.0f, 1.0f);
+		const float c = 1.0f - 0.05f * i;
+		const float a = 0.4f - 0.05f * i;
 		renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 	}
 
 	// render the title level
 	renderer.push();
-	renderer.translate(0.0, 65.0);
+	renderer.translate(0.0f, 65.0f);
 	p_titleLevel->render();
 	renderer.pop();
 
@@ -318,7 +322,7 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 
 void GS_Menu::onGetFocus()
 {
-	engine.playMusic("menu.ogg", 0.0, true);
+	engine.playMusic("menu.ogg", 0.0f, true);
 
 	// load the title level
 	p_titleLevel = new Level;
@@ -352,17 +356,17 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	if(name == "Menu.StartGame")
 	{
 		engine.pushGameState("GS_SelectLevel");
-		engine.crossfade(new CF_Star, 0.85);
+		engine.crossfade(new CF_Star, 0.85f);
 	}
 	else if(name == "Menu.LevelEditor")
 	{
 		engine.pushGameState("GS_LevelEditor");
-		engine.crossfade(new CF_Star, 0.85);
+		engine.crossfade(new CF_Star, 0.85f);
 	}
 	else if(name == "Menu.CampaignEditor")
 	{
 		engine.pushGameState("GS_CampaignEditor");
-		engine.crossfade(new CF_Star, 0.85);
+		engine.crossfade(new CF_Star, 0.85f);
 	}
 	else if(name == "Menu.Options")
 	{

@@ -26,11 +26,11 @@ E_PulsePanel::~E_PulsePanel()
 void E_PulsePanel::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(160 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(160 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0f * dir;
 }
 
 void E_PulsePanel::onRender(RenderLayer layer,
-							const Vec4d& color)
+							const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);

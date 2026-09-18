@@ -21,11 +21,11 @@ Rail::~Rail()
 void Rail::updateSprites()
 {
 	// rail
-	sprites.add(Vec2i(subType * 32, 384)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(subType * 32, 384)).rotation = 90.0f * dir;
 }
 
 void Rail::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }

@@ -131,12 +131,6 @@ int random(int min,
 	return min + mt.randInt(max - min);
 }
 
-double random(double min,
-			  double max)
-{
-	return min + mt.rand(max - min);
-}
-
 float random(float min,
 			 float max)
 {
@@ -397,39 +391,62 @@ std::vector<Vec2i> bresenham(const Vec2i& p1,
 	return points;
 }
 
-double getExactTime()
+uint64 getExactTimeUS()
 {
 #ifdef _WIN32
 	static bool initialized = false;
 	static LARGE_INTEGER startTime;
-	static double invFrequency;
+	static LONGLONG frequency;
 
 	if(!initialized)
 	{
-		LARGE_INTEGER frequency;
-		QueryPerformanceFrequency(&frequency);
-		invFrequency = 1.0 / frequency.QuadPart;
+		LARGE_INTEGER f;
+		QueryPerformanceFrequency(&f);
+		frequency = f.QuadPart;
 		QueryPerformanceCounter(&startTime);
 		initialized = true;
 	}
 
 	LARGE_INTEGER t;
 	QueryPerformanceCounter(&t);
-	return (t.QuadPart - startTime.QuadPart) * invFrequency;
+	const LONGLONG ticks = t.QuadPart - startTime.QuadPart;
+	// Whole seconds and remainder apart, rather than ticks * 1000000 /
+	// frequency: the counter runs at 10 MHz on current Windows, where that
+	// product leaves the range of a signed 64-bit integer after eleven days.
+	// The remainder is below one second, so its own product cannot.
+	return static_cast<uint64>(ticks / frequency) * 1000000
+	     + static_cast<uint64>((ticks % frequency) * 1000000 / frequency);
 #elif defined(__EMSCRIPTEN__)
-	return emscripten_get_now() * 0.001;
+	// The one platform where the clock passes through a floating-point value,
+	// and it has to: emscripten_get_now() hands back a JavaScript number,
+	// which is an IEEE double, in milliseconds.
+	return static_cast<uint64>(emscripten_get_now() * 1000.0);
 #else
 	// CLOCK_MONOTONIC and not CLOCK_REALTIME: what is measured are intervals,
 	// and those must not change because somebody sets the clock.
+	static bool initialized = false;
+	static struct timespec startTime;
+
+	if(!initialized)
+	{
+		clock_gettime(CLOCK_MONOTONIC, &startTime);
+		initialized = true;
+	}
+
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
-	return t.tv_sec + t.tv_nsec * 1.0e-9;
+	// Signed, and summed before the cast: the nanoseconds of the later
+	// reading are regularly the smaller of the two, and that difference is
+	// negative while the whole is not.
+	const long long seconds = static_cast<long long>(t.tv_sec) - startTime.tv_sec;
+	const long long nanoseconds = static_cast<long long>(t.tv_nsec) - startTime.tv_nsec;
+	return static_cast<uint64>(seconds * 1000000 + nanoseconds / 1000);
 #endif
 }
 
 uint getExactTimeMS()
 {
-	return static_cast<uint>(getExactTime() * 1000.0);
+	return static_cast<uint>(getExactTimeUS() / 1000);
 }
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -451,17 +468,19 @@ void openURL(const std::string& url)
 #endif
 
 void writeProfileLine(const std::string& name,
-					  double dt,
-					  double avgTime)
+					  float dt,
+					  float avgTime)
 
 {
 	std::string line(name + ": ");
 	line += std::string(30 - line.length(), ' ');
 	char temp[32];
-	sprintf(temp, "dt: %lf ms", dt * 1000.0);
+	// %f and not %lf: a float promotes to double in a variadic call, which is
+	// what both of these conversions read.
+	sprintf(temp, "dt: %f ms", dt * 1000.0f);
 	line += temp;
 	line += std::string(50 - line.length(), ' ');
-	sprintf(temp, "avg: %lf ms", avgTime * 1000.0);
+	sprintf(temp, "avg: %f ms", avgTime * 1000.0f);
 	line += temp;
 	printfLog("%s\n", line.c_str());
 }

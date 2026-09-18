@@ -26,14 +26,14 @@ public:
 	void onUpdate();
 	INLINE_GETTER(Vec2i, getPositionOnTexture, positionOnTexture);
 	INLINE_SETTER(Vec2i, setPositionOnTexture, positionOnTexture);
-	INLINE_GETTER(Vec4d, getColor, color);
-	INLINE_SETTER(Vec4d, setColor, color);
+	INLINE_GETTER(Vec4f, getColor, color);
+	INLINE_SETTER(Vec4f, setColor, color);
 
 private:
 	std::string imageFilename;
 	std::string rawImageFilename;
 	Vec2i positionOnTexture;
-	Vec4d color;
+	Vec4f color;
 	Texture* p_image;
 };
 

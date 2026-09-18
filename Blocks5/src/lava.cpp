@@ -26,7 +26,7 @@ Lava::~Lava()
 }
 
 void Lava::onRender(RenderLayer layer,
-					const Vec4d& color)
+					const Vec4f& color)
 {
 	if(layer == RL_LAVA_EDGE)
 	{
@@ -41,19 +41,19 @@ void Lava::onRender(RenderLayer layer,
 		uint b = level.getAIFlags(position + Vec2i(0, 1)) & 4;
 		uint br = level.getAIFlags(position + Vec2i(1, 1)) & 4;
 
-		if(!l && !t && !tl)	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(16, 16), Vec4d(1.0));
-		if(!t)				engine.renderSprite(Vec2i(0, 0), Vec2i(16, 0), Vec2i(16, 16), Vec4d(1.0));
-		if(!r && !t && !tr)	engine.renderSprite(Vec2i(0, 0), Vec2i(32, 0), Vec2i(16, 16), Vec4d(1.0));
-		if(!l)				engine.renderSprite(Vec2i(0, 0), Vec2i(0, 16), Vec2i(16, 16), Vec4d(1.0));
-		if(!r)				engine.renderSprite(Vec2i(0, 0), Vec2i(32, 16), Vec2i(16, 16), Vec4d(1.0));
-		if(!l && !b && !bl)	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 32), Vec2i(16, 16), Vec4d(1.0));
-		if(!b)				engine.renderSprite(Vec2i(0, 0), Vec2i(16, 32), Vec2i(16, 16), Vec4d(1.0));
-		if(!r && !b && !br)	engine.renderSprite(Vec2i(0, 0), Vec2i(32, 32), Vec2i(16, 16), Vec4d(1.0));
+		if(!l && !t && !tl)	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(16, 16), Vec4f(1.0f));
+		if(!t)				engine.renderSprite(Vec2i(0, 0), Vec2i(16, 0), Vec2i(16, 16), Vec4f(1.0f));
+		if(!r && !t && !tr)	engine.renderSprite(Vec2i(0, 0), Vec2i(32, 0), Vec2i(16, 16), Vec4f(1.0f));
+		if(!l)				engine.renderSprite(Vec2i(0, 0), Vec2i(0, 16), Vec2i(16, 16), Vec4f(1.0f));
+		if(!r)				engine.renderSprite(Vec2i(0, 0), Vec2i(32, 16), Vec2i(16, 16), Vec4f(1.0f));
+		if(!l && !b && !bl)	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 32), Vec2i(16, 16), Vec4f(1.0f));
+		if(!b)				engine.renderSprite(Vec2i(0, 0), Vec2i(16, 32), Vec2i(16, 16), Vec4f(1.0f));
+		if(!r && !b && !br)	engine.renderSprite(Vec2i(0, 0), Vec2i(32, 32), Vec2i(16, 16), Vec4f(1.0f));
 
-		if(l && t && !tl)	engine.renderSprite(Vec2i(0, 0), Vec2i(64, 16), Vec2i(16, 16), Vec4d(1.0));
-		if(l && b && !bl)	engine.renderSprite(Vec2i(0, 0), Vec2i(64, 0), Vec2i(16, 16), Vec4d(1.0));
-		if(r && t && !tr)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 16), Vec2i(16, 16), Vec4d(1.0));
-		if(r && b && !br)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 0), Vec2i(16, 16), Vec4d(1.0));
+		if(l && t && !tl)	engine.renderSprite(Vec2i(0, 0), Vec2i(64, 16), Vec2i(16, 16), Vec4f(1.0f));
+		if(l && b && !bl)	engine.renderSprite(Vec2i(0, 0), Vec2i(64, 0), Vec2i(16, 16), Vec4f(1.0f));
+		if(r && t && !tr)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 16), Vec2i(16, 16), Vec4f(1.0f));
+		if(r && b && !br)	engine.renderSprite(Vec2i(0, 0), Vec2i(48, 0), Vec2i(16, 16), Vec4f(1.0f));
 	}
 	else if(layer == RL_LAVA_BACK || layer == RL_LAVA_FRONT)
 	{
@@ -62,8 +62,9 @@ void Lava::onRender(RenderLayer layer,
 		Renderer& renderer = Renderer::inst();
 		const RenderState state = renderer.state();
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(16.0f, 0.0f), Vec2f(16.0f, 16.0f), Vec2f(0.0f, 16.0f)};
-		Vec2d shift(2.0 * sin(0.1 * anim), 3.0 * cos(0.05 * anim));
-		double a[4];
+		Vec2f shift(2.0f * sinf(clockPhase(anim, 0.1f, 0.0f)),
+					3.0f * cosf(clockPhase(anim, 0.05f, 0.0f)));
+		float a[4];
 		if(layer == RL_LAVA_BACK) getAlpha1(position, a);
 		else if(layer == RL_LAVA_FRONT) getAlpha2(position, a);
 
@@ -72,68 +73,69 @@ void Lava::onRender(RenderLayer layer,
 
 		for(int i = 0; i < numPasses; i++)
 		{
-			double tl = 1.0, tr = 1.0, br = 1.0, bl = 1.0;
+			float tl = 1.0f, tr = 1.0f, br = 1.0f, bl = 1.0f;
 			int ndir = dir;
 
 			if(i == 1)
 			{
 				switch(dir)
 				{
-				case 4: ndir += 3, tl = 1.0, tr = 1.0, br = 0.0, bl = 0.0; break;
-				case 5: ndir += 3, tl = 0.0, tr = 1.0, br = 1.0, bl = 0.0; break;
-				case 6: ndir += 3, tl = 0.0, tr = 0.0, br = 1.0, bl = 1.0; break;
-				case 7: ndir += 3, tl = 1.0, tr = 0.0, br = 0.0, bl = 1.0; break;
+				case 4: ndir += 3, tl = 1.0f, tr = 1.0f, br = 0.0f, bl = 0.0f; break;
+				case 5: ndir += 3, tl = 0.0f, tr = 1.0f, br = 1.0f, bl = 0.0f; break;
+				case 6: ndir += 3, tl = 0.0f, tr = 0.0f, br = 1.0f, bl = 1.0f; break;
+				case 7: ndir += 3, tl = 1.0f, tr = 0.0f, br = 0.0f, bl = 1.0f; break;
 
-				case 8: ndir += 1, tl = 1.0, tr = 1.0, br = 0.0, bl = 0.0; break;
-				case 9: ndir += 1, tl = 0.0, tr = 1.0, br = 1.0, bl = 0.0; break;
-				case 10: ndir += 1, tl = 0.0, tr = 0.0, br = 1.0, bl = 1.0; break;
-				case 11: ndir += 1, tl = 1.0, tr = 0.0, br = 0.0, bl = 1.0; break;
+				case 8: ndir += 1, tl = 1.0f, tr = 1.0f, br = 0.0f, bl = 0.0f; break;
+				case 9: ndir += 1, tl = 0.0f, tr = 1.0f, br = 1.0f, bl = 0.0f; break;
+				case 10: ndir += 1, tl = 0.0f, tr = 0.0f, br = 1.0f, bl = 1.0f; break;
+				case 11: ndir += 1, tl = 1.0f, tr = 0.0f, br = 0.0f, bl = 1.0f; break;
 
-				case 12: ndir += 2, tl = 0.0, tr = 1.0, br = 1.0, bl = 0.0; break;
-				case 13: ndir += 2, tl = 0.0, tr = 0.0, br = 1.0, bl = 1.0; break;
-				case 14: ndir += 2, tl = 1.0, tr = 0.0, br = 0.0, bl = 1.0; break;
-				case 15: ndir += 2, tl = 1.0, tr = 1.0, br = 0.0, bl = 0.0; break;
+				case 12: ndir += 2, tl = 0.0f, tr = 1.0f, br = 1.0f, bl = 0.0f; break;
+				case 13: ndir += 2, tl = 0.0f, tr = 0.0f, br = 1.0f, bl = 1.0f; break;
+				case 14: ndir += 2, tl = 1.0f, tr = 0.0f, br = 0.0f, bl = 1.0f; break;
+				case 15: ndir += 2, tl = 1.0f, tr = 1.0f, br = 0.0f, bl = 0.0f; break;
 
-				case 16: ndir += 2, tl = 1.0, tr = 0.0, br = 0.0, bl = 1.0; break;
-				case 17: ndir += 2, tl = 1.0, tr = 1.0, br = 0.0, bl = 0.0; break;
-				case 18: ndir += 2, tl = 0.0, tr = 1.0, br = 1.0, bl = 0.0; break;
-				case 19: ndir += 2, tl = 0.0, tr = 0.0, br = 1.0, bl = 1.0; break;
+				case 16: ndir += 2, tl = 1.0f, tr = 0.0f, br = 0.0f, bl = 1.0f; break;
+				case 17: ndir += 2, tl = 1.0f, tr = 1.0f, br = 0.0f, bl = 0.0f; break;
+				case 18: ndir += 2, tl = 0.0f, tr = 1.0f, br = 1.0f, bl = 0.0f; break;
+				case 19: ndir += 2, tl = 0.0f, tr = 0.0f, br = 1.0f, bl = 1.0f; break;
 				}
 			}
 
-			// Only the scroll is wrapped. The shift above reads the same
-			// anim and its two periods divide neither the tile nor each
-			// other, so wrapping what feeds those sines would jog the wobble
-			// every time it came round.
-			const double scroll = wrapTextureOffset(anim, SCROLL_PERIOD);
+			// The scroll wraps at the tile, the shift above at a turn, and
+			// each has to be its own: anim's two wobble periods divide
+			// neither the tile nor each other, so reducing what feeds those
+			// sines by the tile would jog the wobble every time it came
+			// round. A turn cannot, since a sine is periodic in it.
+			const float scroll = scrollOffset(anim, 1.0f, 0.0f, SCROLL_PERIOD);
 
-			Vec2d t;
+			Vec2f t;
 			switch(ndir % 4)
 			{
-			case 0: t = Vec2d(0.0, scroll); break;
-			case 1: t = Vec2d(-scroll, 0.0); break;
-			case 2: t = Vec2d(0.0, -scroll); break;
-			case 3: t = Vec2d(scroll, 0.0); break;
+			case 0: t = Vec2f(0.0f, scroll); break;
+			case 1: t = Vec2f(-scroll, 0.0f); break;
+			case 2: t = Vec2f(0.0f, -scroll); break;
+			case 3: t = Vec2f(scroll, 0.0f); break;
 			}
 
 			t += shift;
 
-			const Vec4f colors[4] = {Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[0] * tl)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[1] * tr)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[2] * br)),
-									 Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(a[3] * bl))};
+			const Vec4f colors[4] = {Vec4f(1.0f, 1.0f, 1.0f, a[0] * tl),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[1] * tr),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[2] * br),
+									 Vec4f(1.0f, 1.0f, 1.0f, a[3] * bl)};
 
-			if(layer == RL_LAVA_FRONT) t /= 2.0;
-			const Vec2f uvs[4] = {static_cast<Vec2f>(Vec2d(t.x, t.y)),
-								  static_cast<Vec2f>(Vec2d(t.x + 16.0, t.y)),
-								  static_cast<Vec2f>(Vec2d(t.x + 16.0, t.y + 16.0)),
-								  static_cast<Vec2f>(Vec2d(t.x, t.y + 16.0))};
+			if(layer == RL_LAVA_FRONT) t /= 2.0f;
+			const Vec2f uvs[4] = {Vec2f(t.x, t.y),
+								  Vec2f(t.x + 16.0f, t.y),
+								  Vec2f(t.x + 16.0f, t.y + 16.0f),
+								  Vec2f(t.x, t.y + 16.0f)};
 			renderer.quad(state, corners, uvs, colors);
 		}
 	}
 	else if(layer == RL_LIGHT)
 	{
-		level.renderShine(0.75, 0.35 + 0.05 * glowJitter);
+		level.renderShine(0.75f, 0.35f + 0.05f * glowJitter);
 	}
 
 	if(layer == RL_EDITOR)
@@ -160,8 +162,8 @@ void Lava::onRender(RenderLayer layer,
 		{
 			Renderer& renderer = Renderer::inst();
 			renderer.push();
-			renderer.translate(7.5, 7.5);
-			renderer.rotate(90.0 * (dir % 4));
+			renderer.translate(7.5f, 7.5f);
+			renderer.rotate(90.0f * (dir % 4));
 			const Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
 			const int* p = ARROWS[shape];
 			for(int i = 0; i < ARROW_LENGTH[shape]; i += 4)
@@ -188,9 +190,9 @@ void Lava::onUpdate()
 		p.positionOnTexture = Vec2b(0, 0);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = position * 16 + Vec2i(random(0, 15), random(0, 15));
-		p.velocity = Vec2d(random(-0.5, 0.5), random(-0.5, 0.5));
-		p.color = Vec4d(random(0.9, 1.0), random(0.9, 1.0), random(0.9, 1.0), random(0.75, 1.0));
-		p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+		p.velocity = Vec2f(random(-0.5f, 0.5f), random(-0.5f, 0.5f));
+		p.color = Vec4f(random(0.9f, 1.0f), random(0.9f, 1.0f), random(0.9f, 1.0f), random(0.75f, 1.0f));
+		p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 		p.rotation = random(0.0f, 10.0f);
 		p.deltaRotation = random(-0.1f, 0.1f);
 		p.size = random(0.75f, 1.2f);
@@ -225,9 +227,9 @@ void Lava::onUpdate()
 				p_obj->setDestroyTime(p_obj->getDestroyTime() - 1);
 				if(!p_obj->getDestroyTime())
 				{
-					p_obj->disappear(0.2);
+					p_obj->disappear(0.2f);
 
-					Engine::inst().playSound("vaporize.ogg", false, 0.15);
+					Engine::inst().playSound("vaporize.ogg", false, 0.15f);
 
 					// debris
 					const Sprites& debris = p_obj->getSprites();
@@ -239,14 +241,14 @@ void Lava::onUpdate()
 						p.gravity = -0.1f;
 						p.positionOnTexture = Vec2b(96, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
-						Vec4d sampled;
+						Vec4f sampled;
 						Vec2i offset;
 						if(!debris.sample(&sampled, &offset)) continue;
 
 						p.position = p_obj->getPosition() * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-						p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
+						p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 						p.color = sampled;
-						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+						p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.5f, 1.5f);
@@ -290,23 +292,23 @@ void Lava::saveAttributes(TiXmlElement* p_target)
 }
 
 void Lava::getAlpha1(const Vec2i& where,
-					 double* p_out)
+					 float* p_out)
 {
-	double po = 0.3 * (where.x + where.y);
-	double x = 0.1 * anim;
-	p_out[0] = 1.0 + 0.1 * sin(po + x);
-	p_out[1] = 1.0 + 0.1 * sin(po + 0.3 + x);
-	p_out[2] = 1.0 + 0.1 * sin(po + 0.6 + x);
-	p_out[3] = 1.0 + 0.1 * sin(po + 0.3 + x);
+	float po = 0.3f * (where.x + where.y);
+	float x = 0.1f * anim;
+	p_out[0] = 1.0f + 0.1f * sinf(po + x);
+	p_out[1] = 1.0f + 0.1f * sinf(po + 0.3f + x);
+	p_out[2] = 1.0f + 0.1f * sinf(po + 0.6f + x);
+	p_out[3] = 1.0f + 0.1f * sinf(po + 0.3f + x);
 }
 
 void Lava::getAlpha2(const Vec2i& where,
-					 double* p_out)
+					 float* p_out)
 {
-	double po = 0.3 * (where.x + where.y);
-	double x = 0.1 * anim;
-	p_out[0] = 0.5 + 0.5 * cos(po + x);
-	p_out[1] = 0.5 + 0.5 * cos(po + 0.3 + x);
-	p_out[2] = 0.5 + 0.5 * cos(po + 0.6 + x);
-	p_out[3] = 0.5 + 0.5 * cos(po + 0.3 + x);
+	float po = 0.3f * (where.x + where.y);
+	float x = 0.1f * anim;
+	p_out[0] = 0.5f + 0.5f * cosf(po + x);
+	p_out[1] = 0.5f + 0.5f * cosf(po + 0.3f + x);
+	p_out[2] = 0.5f + 0.5f * cosf(po + 0.6f + x);
+	p_out[3] = 0.5f + 0.5f * cosf(po + 0.3f + x);
 }

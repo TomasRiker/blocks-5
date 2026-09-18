@@ -22,7 +22,7 @@ void CannonPanel::updateSprites()
 }
 
 void CannonPanel::onRender(RenderLayer layer,
-						   const Vec4d& color)
+						   const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }

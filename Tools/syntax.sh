@@ -74,6 +74,7 @@ for f in $FILES; do
     out=$(cd "$SRC" && i686-w64-mingw32-g++ $FLAGS $INC "$f" 2>&1)
     rc=$?
     narrowed=$(echo "$out" | grep -E "conversion from '[^']*(char|short|int|long)[^']*' to 'float'" | grep -v 'long double')
+    widened=$(echo "$out" | grep -E "conversion from 'double' to 'float'")
     if [ $rc -ne 0 ]; then
         # Once more with the warnings off, so that what is printed is the error.
         echo "### $f"
@@ -82,6 +83,10 @@ for f in $FILES; do
     elif [ -n "$narrowed" ]; then
         echo "### $f: an integer handed to a float, which MSVC reports as C4244"
         echo "$narrowed"
+        fail=1
+    elif [ -n "$widened" ]; then
+        echo "### $f: a double handed to a float, which MSVC reports as C4244 too"
+        echo "$widened"
         fail=1
     fi
 done

@@ -91,33 +91,33 @@ std::vector<Vec2f> Pin::getConnectionPath(const Pin* p_pin1,
 {
 	std::vector<Vec2f> path;
 
-	Vec2d x0 = p_pin1->getScreenPosition();
-	Vec2d x1 = p_pin2->getScreenPosition();
+	Vec2f x0 = p_pin1->getScreenPosition();
+	Vec2f x1 = p_pin2->getScreenPosition();
 	const Vec2i& pin1 = p_pin1->getObject()->transformToScreen(p_pin1->getPosition());
 	const Vec2i& pin2 = p_pin2->getObject()->transformToScreen(p_pin2->getPosition());
-	Vec2d m0, m1;
-	if(pin1.x == 0) m0 = Vec2d(-1.0, 0.0);
-	else if(pin1.y == 0) m0 = Vec2d(0.0, -1.0);
-	else if(pin1.x == 15) m0 = Vec2d(1.0, 0.0);
-	else if(pin1.y == 15) m0 = Vec2d(0.0, 1.0);
-	if(pin2.x == 0) m1 = Vec2d(-1.0, 0.0);
-	else if(pin2.y == 0) m1 = Vec2d(0.0, -1.0);
-	else if(pin2.x == 15) m1 = Vec2d(1.0, 0.0);
-	else if(pin2.y == 15) m1 = Vec2d(0.0, 1.0);
+	Vec2f m0, m1;
+	if(pin1.x == 0) m0 = Vec2f(-1.0f, 0.0f);
+	else if(pin1.y == 0) m0 = Vec2f(0.0f, -1.0f);
+	else if(pin1.x == 15) m0 = Vec2f(1.0f, 0.0f);
+	else if(pin1.y == 15) m0 = Vec2f(0.0f, 1.0f);
+	if(pin2.x == 0) m1 = Vec2f(-1.0f, 0.0f);
+	else if(pin2.y == 0) m1 = Vec2f(0.0f, -1.0f);
+	else if(pin2.x == 15) m1 = Vec2f(1.0f, 0.0f);
+	else if(pin2.y == 15) m1 = Vec2f(0.0f, 1.0f);
 
-	m0 *= 60.0;
-	m1 *= -60.0;
+	m0 *= 60.0f;
+	m1 *= -60.0f;
 
 	// cubic spline
-	const Vec2d a(m0 + m1 + 2.0 * (x0 - x1));
-	const Vec2d b(-2.0 * m0 - m1 - 3.0 * (x0 - x1));
-	const Vec2d c(m0);
-	const Vec2d d(x0);
+	const Vec2f a(m0 + m1 + 2.0f * (x0 - x1));
+	const Vec2f b(-2.0f * m0 - m1 - 3.0f * (x0 - x1));
+	const Vec2f c(m0);
+	const Vec2f d(x0);
 
 	for(int i = 0; i <= 1000; i += 100)
 	{
-		double t = 0.001 * i;
-		const Vec2d p(a * (t * t * t) + b * (t * t) + c * t + d);
+		float t = 0.001f * i;
+		const Vec2f p(a * (t * t * t) + b * (t * t) + c * t + d);
 		path.push_back(p);
 	}
 

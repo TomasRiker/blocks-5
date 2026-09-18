@@ -9,10 +9,10 @@ SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 	timestamp = ~0;
 	priority = 0;
 	looping = false;
-	volume = targetVolume = 1.0;
-	pitch = targetPitch = 1.0;
-	volumeSlideSpeed = 0.0;
-	pitchSlideSpeed = 0.0;
+	volume = targetVolume = 1.0f;
+	pitch = targetPitch = 1.0f;
+	volumeSlideSpeed = 0.0f;
+	pitchSlideSpeed = 0.0f;
 	pauseAtSlideEnd = false;
 
 	// create the audio source
@@ -22,8 +22,8 @@ SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 		// plug in the audio buffer
 		alSourcei(sourceID, AL_BUFFER, sound.bufferID);
 
-		setVolume(1.0);
-		setPitch(1.0);
+		setVolume(1.0f);
+		setPitch(1.0f);
 
 		timestamp = Engine::inst().getTime();
 	}
@@ -68,12 +68,12 @@ void SoundInstance::resume()
 	alSourcePlay(sourceID);
 }
 
-double SoundInstance::getVolume() const
+float SoundInstance::getVolume() const
 {
 	return volume;
 }
 
-void SoundInstance::setVolume(double volume)
+void SoundInstance::setVolume(float volume)
 {
 	if(!sourceID) return;
 
@@ -81,30 +81,30 @@ void SoundInstance::setVolume(double volume)
 	// The sound's own factor comes in here and not into volume: this is the one
 	// place where a volume reaches OpenAL, which makes it apply to
 	// slideVolume() and to every caller that sets volume itself.
-	alSourcef(sourceID, AL_GAIN, static_cast<float>(
-		volume * sound.getVolumeFactor() * Engine::inst().getEffectiveSoundVolume()));
+	alSourcef(sourceID, AL_GAIN,
+		volume * sound.getVolumeFactor() * Engine::inst().getEffectiveSoundVolume());
 }
 
-double SoundInstance::getPitch() const
+float SoundInstance::getPitch() const
 {
 	return pitch;
 }
 
-void SoundInstance::setPitch(double pitch)
+void SoundInstance::setPitch(float pitch)
 {
 	if(!sourceID) return;
 
 	this->pitch = pitch;
-	alSourcef(sourceID, AL_PITCH, static_cast<float>(pitch));
+	alSourcef(sourceID, AL_PITCH, pitch);
 }
 
-void SoundInstance::slideVolume(double targetVolume,
-								double volumeSlideSpeed)
+void SoundInstance::slideVolume(float targetVolume,
+								float volumeSlideSpeed)
 {
-	if(targetVolume < 0.0)
+	if(targetVolume < 0.0f)
 	{
 		// Pause afterwards!
-		targetVolume = 0.0;
+		targetVolume = 0.0f;
 		pauseAtSlideEnd = true;
 	}
 	else pauseAtSlideEnd = false;
@@ -113,8 +113,8 @@ void SoundInstance::slideVolume(double targetVolume,
 	this->volumeSlideSpeed = volumeSlideSpeed;
 }
 
-void SoundInstance::slidePitch(double targetPitch,
-							   double pitchSlideSpeed)
+void SoundInstance::slidePitch(float targetPitch,
+							   float pitchSlideSpeed)
 {
 	this->targetPitch = targetPitch;
 	this->pitchSlideSpeed = pitchSlideSpeed;
@@ -149,14 +149,14 @@ void SoundInstance::update()
 
 	if(Engine::inst().wasVolumeChanged()) setVolume(getVolume());
 
-	if(volumeSlideSpeed > 0.0)
+	if(volumeSlideSpeed > 0.0f)
 	{
-		double currentVolume = getVolume();
-		double newVolume = currentVolume * (1.0 - volumeSlideSpeed) + targetVolume * volumeSlideSpeed;
-		if(abs(targetVolume - newVolume) < 0.01)
+		float currentVolume = getVolume();
+		float newVolume = currentVolume * (1.0f - volumeSlideSpeed) + targetVolume * volumeSlideSpeed;
+		if(abs(targetVolume - newVolume) < 0.01f)
 		{
 			newVolume = targetVolume;
-			volumeSlideSpeed = 0.0;
+			volumeSlideSpeed = 0.0f;
 
 			if(pauseAtSlideEnd)
 			{
@@ -169,14 +169,14 @@ void SoundInstance::update()
 		setVolume(newVolume);
 	}
 
-	if(pitchSlideSpeed > 0.0)
+	if(pitchSlideSpeed > 0.0f)
 	{
-		double currentPitch = getPitch();
-		double newPitch = currentPitch * (1.0 - pitchSlideSpeed) + targetPitch * pitchSlideSpeed;
-		if(abs(targetPitch - newPitch) < 0.01)
+		float currentPitch = getPitch();
+		float newPitch = currentPitch * (1.0f - pitchSlideSpeed) + targetPitch * pitchSlideSpeed;
+		if(abs(targetPitch - newPitch) < 0.01f)
 		{
 			newPitch = targetPitch;
-			pitchSlideSpeed = 0.0;
+			pitchSlideSpeed = 0.0f;
 		}
 
 		setPitch(newPitch);

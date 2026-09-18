@@ -46,11 +46,11 @@ void E_Gate::updateSprites()
 	Electronics::updateSprites();
 	Vec2i t(32 + 32 * subType, 512);
 	if(subType == 7) t = Vec2i(224, 544);
-	sprites.add(t).rotation = 90.0 * dir;
+	sprites.add(t).rotation = 90.0f * dir;
 }
 
 void E_Gate::onRender(RenderLayer layer,
-					  const Vec4d& color)
+					  const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

@@ -3,7 +3,10 @@
 
 /*** General vector class for vectors over arbitrary types with arbitrary dimension ***/
 
-// Helper for taking the square root
+// Helper for taking the square root. One specialization per type, because
+// an unqualified ::sqrt is the C one and takes a double: a float handed to it
+// widens, goes through the double routine and narrows back, which is three
+// times the work for a length and not one bit more accurate.
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
@@ -12,11 +15,20 @@ template<typename T> struct VecHelper
 	}
 };
 
+template<> struct VecHelper<float>
+{
+	static float sqrt(float x)
+	{
+		// Qualified, or it would find this function again.
+		return ::sqrtf(x);
+	}
+};
+
 template<> struct VecHelper<int>
 {
 	static int sqrt(int x)
 	{
-		return static_cast<int>(::sqrt(static_cast<float>(x)));
+		return static_cast<int>(::sqrtf(static_cast<float>(x)));
 	}
 };
 
@@ -310,10 +322,10 @@ template<typename T, int DIM> Vec<T, DIM> operator * (T lhs, const Vec<T, DIM>& 
 // A 4x4 float matrix in OpenGL's column-major order - the layout
 // glUniformMatrix4fv takes as it is, which is what it exists for. The
 // renderer's projection is one, and the 3D crossfades and the credits bake
-// theirs with it: every operation here does Mesa's arithmetic for the GL
-// call it stands for - float entries, its order of operations, its sine
-// and cosine - so that a corner transformed by one lands where GL's own
-// matrix stack put it (.claude/rules/rendering.md).
+// theirs with it. Each operation stands for the GL call it is named after and
+// keeps that call's order of operations, which costs nothing and makes the
+// two easy to read against each other; it is float throughout, where GL's own
+// matrix stack was double in places (.claude/rules/rendering.md).
 struct Mat4
 {
 	float m[16];
@@ -339,7 +351,7 @@ struct Mat4
 	}
 
 	// glScaled on the identity, which stores the three factors as they are.
-	static Mat4 scaling(double x, double y, double z)
+	static Mat4 scaling(float x, float y, float z)
 	{
 		Mat4 r = identity();
 		r.scale(x, y, z);
@@ -355,32 +367,38 @@ struct Mat4
 							 m[1] * p.x + m[5] * p.y + m[9] * 0.0f + m[13]);
 	}
 
-	// gluPerspective's matrix: built in double as GLU builds it, then each
-	// entry to float, which is what glMultMatrixd did with it.
-	static Mat4 perspective(double fovy, double aspect, double zNear, double zFar)
+	// gluPerspective's matrix. GLU builds it in double and this does not,
+	// which reaches only the two entries that read zNear and zFar: m[10] and
+	// m[14], the depth row. What puts a corner on the screen is m[0] and
+	// m[5] - the cotangent of half the field of view, over the aspect - and
+	// those read neither, so they come out bit for bit the same.
+	static Mat4 perspective(float fovy, float aspect, float zNear, float zFar)
 	{
-		const double radians = fovy / 2 * 3.14159265358979323846 / 180;
-		const double sine = sin(radians);
-		const double cotangent = cos(radians) / sine;
-		const double deltaZ = zFar - zNear;
+		const float radians = fovy / 2.0f * 3.14159265358979323846f / 180.0f;
+		const float sine = sinf(radians);
+		const float cotangent = cosf(radians) / sine;
+		const float deltaZ = zFar - zNear;
 		Mat4 r = identity();
-		r.m[0] = static_cast<float>(cotangent / aspect);
-		r.m[5] = static_cast<float>(cotangent);
-		r.m[10] = static_cast<float>(-(zFar + zNear) / deltaZ);
+		r.m[0] = cotangent / aspect;
+		r.m[5] = cotangent;
+		r.m[10] = -(zFar + zNear) / deltaZ;
 		r.m[11] = -1.0f;
-		r.m[14] = static_cast<float>(-2 * zNear * zFar / deltaZ);
+		r.m[14] = -2.0f * zNear * zFar / deltaZ;
 		r.m[15] = 0.0f;
 		return r;
 	}
 
 	// gluLookAt on the identity: GLU's own float arithmetic for the three
-	// axes, its glMultMatrixf, then its glTranslated of the eye.
-	static Mat4 lookAt(double eyeX, double eyeY, double eyeZ,
-					   double centerX, double centerY, double centerZ,
-					   double upX, double upY, double upZ)
+	// axes, its glMultMatrixf, then its glTranslated of the eye. GLU takes
+	// doubles and does the work in GLfloat, which is why these can be float
+	// without moving an entry - a float difference formed in double and
+	// rounded back is the float difference.
+	static Mat4 lookAt(float eyeX, float eyeY, float eyeZ,
+					   float centerX, float centerY, float centerZ,
+					   float upX, float upY, float upZ)
 	{
-		float forward[3] = {static_cast<float>(centerX - eyeX), static_cast<float>(centerY - eyeY), static_cast<float>(centerZ - eyeZ)};
-		float up[3] = {static_cast<float>(upX), static_cast<float>(upY), static_cast<float>(upZ)};
+		float forward[3] = {centerX - eyeX, centerY - eyeY, centerZ - eyeZ};
+		float up[3] = {upX, upY, upZ};
 		float side[3];
 		normalize3(forward);
 		cross3(forward, up, side);
@@ -397,50 +415,48 @@ struct Mat4
 	}
 
 	// glTranslated: the products first, the old translation last, in float.
-	void translate(double x, double y, double z)
+	void translate(float x, float y, float z)
 	{
-		const float fx = static_cast<float>(x), fy = static_cast<float>(y), fz = static_cast<float>(z);
-		m[12] = m[0] * fx + m[4] * fy + m[8] * fz + m[12];
-		m[13] = m[1] * fx + m[5] * fy + m[9] * fz + m[13];
-		m[14] = m[2] * fx + m[6] * fy + m[10] * fz + m[14];
-		m[15] = m[3] * fx + m[7] * fy + m[11] * fz + m[15];
+		m[12] = m[0] * x + m[4] * y + m[8] * z + m[12];
+		m[13] = m[1] * x + m[5] * y + m[9] * z + m[13];
+		m[14] = m[2] * x + m[6] * y + m[10] * z + m[14];
+		m[15] = m[3] * x + m[7] * y + m[11] * z + m[15];
 	}
 
 	// glScaled: the three columns scaled in place.
-	void scale(double x, double y, double z)
+	void scale(float x, float y, float z)
 	{
-		const float fx = static_cast<float>(x), fy = static_cast<float>(y), fz = static_cast<float>(z);
 		for(int i = 0; i < 4; i++)
 		{
-			m[i] *= fx;
-			m[4 + i] *= fy;
-			m[8 + i] *= fz;
+			m[i] *= x;
+			m[4 + i] *= y;
+			m[8 + i] *= z;
 		}
 	}
 
 	// glRotated about one of the three axes, which is every rotation this
 	// game asks for: Mesa's special case for each, multiplied on.
-	void rotate(double degrees, double x, double y, double z)
+	void rotate(float degrees, float x, float y, float z)
 	{
 		float s, c;
 		rotationTerms(degrees, &s, &c);
 		Mat4 r = identity();
-		if(x == 0.0 && y == 0.0)
+		if(x == 0.0f && y == 0.0f)
 		{
 			r.m[0] = c; r.m[5] = c;
-			if(z < 0.0) { r.m[4] = s; r.m[1] = -s; }
+			if(z < 0.0f) { r.m[4] = s; r.m[1] = -s; }
 			else { r.m[4] = -s; r.m[1] = s; }
 		}
-		else if(x == 0.0 && z == 0.0)
+		else if(x == 0.0f && z == 0.0f)
 		{
 			r.m[0] = c; r.m[10] = c;
-			if(y < 0.0) { r.m[8] = -s; r.m[2] = s; }
+			if(y < 0.0f) { r.m[8] = -s; r.m[2] = s; }
 			else { r.m[8] = s; r.m[2] = -s; }
 		}
 		else
 		{
 			r.m[5] = c; r.m[10] = c;
-			if(x < 0.0) { r.m[9] = s; r.m[6] = -s; }
+			if(x < 0.0f) { r.m[9] = s; r.m[6] = -s; }
 			else { r.m[9] = -s; r.m[6] = s; }
 		}
 		*this = *this * r;
@@ -463,22 +479,24 @@ struct Mat4
 		return r;
 	}
 
-	// Mesa's sine and cosine for glRotated: the angle to float first, the
-	// radians in double, sinf and cosf - which is why a right angle has a
-	// cosine of -4.4e-8 and not 0.
-	static void rotationTerms(double degrees, float* p_sin, float* p_cos)
+	// Mesa's sine and cosine for glRotated, in float: the radians round to
+	// float before the trigonometry either way, which is why a right angle
+	// has a cosine of -4.4e-8 and not 0. Forming them in double first and
+	// rounding once buys a different last bit and nothing else - measured, it
+	// moves a point at a 320-pixel radius by 0.000163 px, where the grid the
+	// rasterizer snaps a vertex to is 1/256 of one.
+	static void rotationTerms(float degrees, float* p_sin, float* p_cos)
 	{
-		const float angle = static_cast<float>(degrees);
-		const double radians = angle * 3.14159265358979323846 / 180.0;
-		*p_sin = sinf(static_cast<float>(radians));
-		*p_cos = cosf(static_cast<float>(radians));
+		const float radians = degrees * 3.14159265358979323846f / 180.0f;
+		*p_sin = sinf(radians);
+		*p_cos = cosf(radians);
 	}
 
 private:
-	// GLU's helpers: the length through double sqrt, the division in float.
+	// GLU's helpers, in float.
 	static void normalize3(float* v)
 	{
-		const float r = static_cast<float>(sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]));
+		const float r = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 		if(r == 0.0f) return;
 		v[0] /= r;
 		v[1] /= r;

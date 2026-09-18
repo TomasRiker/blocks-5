@@ -29,10 +29,10 @@ private:
 
 	struct Star
 	{
-		Vec3d position;
-		double size;
-		Vec3d rotation;
-		Vec3d deltaRotation;
+		Vec3f position;
+		float size;
+		Vec3f rotation;
+		Vec3f deltaRotation;
 		Vec2i positionOnTexture;
 	};
 
@@ -41,8 +41,8 @@ private:
 	Level* p_level;
 	Texture* p_sprites;
 	int time;
-	Vec3d cameraPos;
-	Vec3d cameraDir;
+	Vec3f cameraPos;
+	Vec3f cameraDir;
 	std::list<Star> stars;
 	uint bufferID;
 	int speed;

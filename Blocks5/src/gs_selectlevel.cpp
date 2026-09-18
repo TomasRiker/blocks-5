@@ -43,8 +43,8 @@ void GS_SelectLevel::onRender()
 		{
 			Renderer::ScissorScope clip(Vec2i(280, 60), Vec2i(320, 200));
 			renderer.push();
-			renderer.translate(280.0, 60.0);
-			renderer.scale(0.5, 0.5);
+			renderer.translate(280.0f, 60.0f);
+			renderer.scale(0.5f, 0.5f);
 			p_currentLevel->render();
 			renderer.pop();
 		}
@@ -80,7 +80,7 @@ void GS_SelectLevel::onRender()
 			single ? formatSingleLevelCaption(fitted, member)
 				   : formatLevelCaption(currentLevel + 1, fitted), captionWidth);
 		p_font->measureText(caption, &dim, 0);
-		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4d(1.0));
+		p_font->renderText(caption, Vec2i(440 - dim.x / 2, 270), Vec4f(1.0f));
 	}
 	else
 	{
@@ -104,13 +104,13 @@ void GS_SelectLevel::onRender()
 
 			Vec2i dim;
 			p_font->measureText(text, &dim, 0);
-			p_font->renderText(text, Vec2i(280 + 160, 60 + 100) - dim / 2, Vec4d(1.0));
+			p_font->renderText(text, Vec2i(280 + 160, 60 + 100) - dim / 2, Vec4f(1.0f));
 
 			status = 0;
 		}
 
 		Vec2i positionOnTexture(status * 40, 60);
-		engine.renderSprite(p_misc, Vec2i(280 + 320 - 20, 60 + 200 - 20), positionOnTexture, Vec2i(39, 39), Vec4d(1.0));
+		engine.renderSprite(p_misc, Vec2i(280 + 320 - 20, 60 + 200 - 20), positionOnTexture, Vec2i(39, 39), Vec4f(1.0f));
 	}
 
 	// The bar counts completed levels. The single levels carry no progress,
@@ -122,20 +122,20 @@ void GS_SelectLevel::onRender()
 		renderer.rect(barMin, barMax, Vec4f(0.0f, 0.0f, 0.0f, 0.5f));
 
 		uint n = getNumLevelsCompleted();
-		double p = static_cast<double>(n) / static_cast<double>(p_currentCampaign->getLevels().size());
-		int pi = static_cast<int>(p * 220.0);
+		float p = static_cast<float>(n) / static_cast<float>(p_currentCampaign->getLevels().size());
+		int pi = static_cast<int>(p * 220.0f);
 
 		if(n)
 		{
-			double r = 1.0 - p;
-			double g = p;
-			r = max(0.2, r);
-			g = max(0.2, g);
+			float r = 1.0f - p;
+			float g = p;
+			r = max(0.2f, r);
+			g = max(0.2f, g);
 
 			// Its own corner order, from the moving end back to the fixed
 			// one, so the fade runs across the bar as it did.
-			const Vec4f front(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.9f);
-			const Vec4f back(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.5f);
+			const Vec4f front(r, g, 0.0f, 0.9f);
+			const Vec4f back(r, g, 0.0f, 0.5f);
 			const float right = static_cast<float>(40 + pi);
 			const Vec2f corners[4] = {Vec2f(right, 240.0f), Vec2f(right, 260.0f), Vec2f(40.0f, 260.0f), Vec2f(40.0f, 240.0f)};
 			const Vec4f colors[4] = {front, front, back, back};
@@ -146,7 +146,7 @@ void GS_SelectLevel::onRender()
 		char text[256] = "";
 		sprintf(text, "%d/%d", n, static_cast<int>(p_currentCampaign->getLevels().size()));
 		p_font->measureText(text, &dim, 0);
-		p_font->renderText(text, Vec2i(150, 249) - dim / 2, Vec4d(1.0));
+		p_font->renderText(text, Vec2i(150, 249) - dim / 2, Vec4f(1.0f));
 
 		renderer.hairlineRect(barMin, barMax, Vec4f(0.0f, 0.0f, 0.0f, 0.5f));
 	}
@@ -313,7 +313,7 @@ void GS_SelectLevel::onLeave(const ParameterBlock& context)
 
 void GS_SelectLevel::onGetFocus()
 {
-	engine.playMusic("menu.ogg", 0.0, true);
+	engine.playMusic("menu.ogg", 0.0f, true);
 
 	// Here and not in onEnter(): coming back from a played level is a pop, and
 	// popGameState() gives the state underneath the focus without entering it
@@ -481,12 +481,12 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 			p.set("campaign", p_currentCampaign);
 			p.set("levelNumber", currentLevel);
 			engine.pushGameState("GS_Game", p);
-			engine.crossfade(new CF_Cube, 0.85);
+			engine.crossfade(new CF_Cube, 0.85f);
 		}
 	}
 	else if(name == "SelectLevel.Quit")
 	{
-		engine.crossfade(new CF_Star, 0.85);
+		engine.crossfade(new CF_Star, 0.85f);
 		engine.popGameState();
 	}
 }

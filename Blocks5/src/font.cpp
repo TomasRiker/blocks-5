@@ -111,8 +111,8 @@ Font::Font(const std::string& filename) : Resource(filename)
 	// default options
 	options.tabSize = 80;
 	options.charSpacing = 0;
-	options.lineSpacing = 1.0;
-	options.charScaling = 1.0;
+	options.lineSpacing = 1.0f;
+	options.charScaling = 1.0f;
 	options.shadows = 2;
 	options.italic = 0;
 
@@ -350,7 +350,7 @@ void Font::cleanUp()
 
 void Font::renderText(const std::string& text,
 					  const Vec2i& position,
-					  const Vec4d& color,
+					  const Vec4f& color,
 					  bool cache)
 {
 	// cache=false is for a string whose layout will not be asked for again.
@@ -365,7 +365,7 @@ void Font::renderText(const std::string& text,
 
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
-	renderer.translate(position.x, position.y);
+	renderer.translate(static_cast<float>(position.x), static_cast<float>(position.y));
 
 	// draw the shadow if wanted
 	if(options.shadows)
@@ -374,20 +374,20 @@ void Font::renderText(const std::string& text,
 		if(options.shadows == 2) { samples.push_back(Vec2i(2, 1)); samples.push_back(Vec2i(1, 2)); }
 		else if(options.shadows == 1) { samples.push_back(Vec2i(1, 0)); samples.push_back(Vec2i(0, 1)); }
 		int numSamples = static_cast<int>(samples.size());
-		Vec4d shadowColor(0.0, 0.0, 0.0, 0.7 / numSamples);
+		Vec4f shadowColor(0.0f, 0.0f, 0.0f, 0.7f / numSamples);
 		shadowColor.a *= color.a;
 
 		for(int i = 0; i < numSamples; i++)
 		{
 			renderer.push();
-			renderer.translate(samples[i].x, samples[i].y);
-			drawText(entry, static_cast<Vec4f>(shadowColor));
+			renderer.translate(static_cast<float>(samples[i].x), static_cast<float>(samples[i].y));
+			drawText(entry, shadowColor);
 			renderer.pop();
 		}
 	}
 
 	// draw the string
-	drawText(entry, static_cast<Vec4f>(color));
+	drawText(entry, color);
 
 	renderer.pop();
 }
@@ -582,16 +582,21 @@ void Font::buildText(const std::string& text,
 			// Only the two top corners carry the italic lean: a slanted glyph
 			// is drawn that many pixels further along at its top than at its
 			// foot, while the cursor advances by the upright width.
-			const double w = options.charScaling * info.size.x;
-			const double h = options.charScaling * info.size.y;
-			const double x = cursor.x, y = cursor.y, lean = options.italic;
+			const float w = options.charScaling * info.size.x;
+			const float h = options.charScaling * info.size.y;
+			const float x = static_cast<float>(cursor.x), y = static_cast<float>(cursor.y);
+			const float lean = static_cast<float>(options.italic);
 			const Vec2i& t = info.position;
 			const Vec2i& ts = info.size;
 
-			glyphs.push_back(QuadVertex(x + lean,     y,     t.x,        t.y));
-			glyphs.push_back(QuadVertex(x + w + lean, y,     t.x + ts.x, t.y));
-			glyphs.push_back(QuadVertex(x + w,        y + h, t.x + ts.x, t.y + ts.y));
-			glyphs.push_back(QuadVertex(x,            y + h, t.x,        t.y + ts.y));
+			// The glyph's texture edges are whole texels, added up as such.
+			const float u0 = static_cast<float>(t.x), v0 = static_cast<float>(t.y);
+			const float u1 = static_cast<float>(t.x + ts.x), v1 = static_cast<float>(t.y + ts.y);
+
+			glyphs.push_back(QuadVertex(x + lean,     y,     u0, v0));
+			glyphs.push_back(QuadVertex(x + w + lean, y,     u1, v0));
+			glyphs.push_back(QuadVertex(x + w,        y + h, u1, v1));
+			glyphs.push_back(QuadVertex(x,            y + h, u0, v1));
 
 			// The advance is the unscaled width: the scaling stretches the
 			// glyph and not the setting.
@@ -763,8 +768,8 @@ void Font::measureText(const std::string& text,
 		}
 	}
 
-	Vec2d cursor(0, 0);
-	Vec2d maximum(0, lineHeight);
+	Vec2f cursor(0.0f, 0.0f);
+	Vec2f maximum(0.0f, static_cast<float>(lineHeight));
 
 	// As in buildText(): <h> ends with this text at the latest.
 	size_t openTags = 0;
@@ -787,7 +792,7 @@ void Font::measureText(const std::string& text,
 		{
 			// line break
 			cursor.x = 0;
-			cursor.y += static_cast<double>(lineHeight) * options.lineSpacing;
+			cursor.y += static_cast<float>(lineHeight) * options.lineSpacing;
 			maximum.y = max(maximum.y, cursor.y + lineHeight);
 		}
 		else if(c == '\t')

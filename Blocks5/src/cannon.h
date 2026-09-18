@@ -11,7 +11,7 @@ public:
 	Cannon(Level& level, const Vec2i& position, uint color, int dir);
 	~Cannon();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
@@ -26,7 +26,7 @@ public:
 private:
 	uint color;
 	int dir;
-	double shownDir;
+	float shownDir;
 	int reload;
 };
 

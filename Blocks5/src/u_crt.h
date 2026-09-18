@@ -29,33 +29,33 @@ public:
 
 	void present(const PresentContext& context);
 
-	Vec2d warpToSource(const Vec2d& p) const;
-	Vec2d warpToOutput(const Vec2d& s) const;
+	Vec2f warpToSource(const Vec2f& p) const;
+	Vec2f warpToOutput(const Vec2f& s) const;
 
 	// How far the raster stands back from the edge of the glass, in fractions
 	// of half the picture width - room for the soft edge and the colour
 	// fringes at the edge midpoints too. At curvature 0 it is 0, and the
 	// picture then covers exactly what the other filters cover.
-	double getOverscan() const;
-	bool distortsCursor() const { return curvature > 0.0; }
+	float getOverscan() const;
+	bool distortsCursor() const { return curvature > 0.0f; }
 
 	void loadConfig(TiXmlElement* p_config);
 	void saveConfig(TiXmlElement* p_config);
 
 	// The sliders, 0..1 each; they take effect at once, with no recompile of
 	// the shader. 0 means "effect off" on every one of them.
-	double getScanline() const { return scanline; }
-	double getCurvature() const { return curvature; }
-	double getBloom() const { return bloom; }
-	double getFlicker() const { return flicker; }
-	double getScanFlicker() const { return scanFlicker; }
-	double getConvergence() const { return convergence; }
-	void setScanline(double value);
-	void setCurvature(double value);
-	void setBloom(double value);
-	void setFlicker(double value);
-	void setScanFlicker(double value);
-	void setConvergence(double value);
+	float getScanline() const { return scanline; }
+	float getCurvature() const { return curvature; }
+	float getBloom() const { return bloom; }
+	float getFlicker() const { return flicker; }
+	float getScanFlicker() const { return scanFlicker; }
+	float getConvergence() const { return convergence; }
+	void setScanline(float value);
+	void setCurvature(float value);
+	void setBloom(float value);
+	void setFlicker(float value);
+	void setScanFlicker(float value);
+	void setConvergence(float value);
 
 protected:
 	const char* getFragmentSource() const;
@@ -78,12 +78,12 @@ private:
 	// it to convert source rows and columns into fractions of the picture.
 	Vec2i frameSize;
 
-	double scanline;
-	double curvature;
-	double bloom;
-	double flicker;
-	double scanFlicker;
-	double convergence;
+	float scanline;
+	float curvature;
+	float bloom;
+	float flicker;
+	float scanFlicker;
+	float convergence;
 };
 
 #endif

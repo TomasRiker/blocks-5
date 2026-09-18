@@ -272,7 +272,7 @@ public:
 		{
 			if(!editor.wasChanged() || confirmed)
 			{
-				editor.engine.crossfade(new CF_Star, 0.85);
+				editor.engine.crossfade(new CF_Star, 0.85f);
 				editor.engine.popGameState();
 			}
 			else
@@ -505,7 +505,7 @@ void GS_CampaignEditor::onLeave(const ParameterBlock& context)
 
 void GS_CampaignEditor::onGetFocus()
 {
-	engine.playMusic("menu.ogg", 0.0, true);
+	engine.playMusic("menu.ogg", 0.0f, true);
 
 	gui["CampaignEditor"]->focus();
 }

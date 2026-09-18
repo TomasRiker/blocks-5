@@ -11,7 +11,7 @@ public:
 	Arrow(Level& level, const Vec2i& position, int dir);
 	~Arrow();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool allowMovement(const Vec2i& dir);
@@ -22,9 +22,9 @@ public:
 
 private:
 	int dir;
-	double shownDir;
-	double dirVel;
-	double shownAlpha;
+	float shownDir;
+	float dirVel;
+	float shownAlpha;
 	int counter;
 };
 

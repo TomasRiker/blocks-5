@@ -29,7 +29,7 @@ public:
 	// How loud this sound plays relative to its file - 1.0 if it is not in
 	// data/sounds.xml. Looked up once at construction and not on every
 	// playback, since the table never changes again.
-	double getVolumeFactor() const;
+	float getVolumeFactor() const;
 
 	static uint getFreeSource();
 
@@ -40,7 +40,7 @@ private:
 	static bool forceReload() { return false; }
 
 	uint bufferID;
-	double volumeFactor;
+	float volumeFactor;
 	std::set<SoundInstance*> instances;
 	uint lastInstanceCreatedAt;
 	static std::set<SoundInstance*> allInstances;

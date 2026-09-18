@@ -60,12 +60,12 @@ private:
 	std::string rawImageFilename;
 	Vec2i positionOnTexture;
 	Vec2i clickedPositionOnTexture;
-	Vec4d stdColor;
-	Vec4d hoverColor;
-	Vec4d currentColor;
-	double stdScaling;
-	double hoverScaling;
-	double currentScaling;
+	Vec4f stdColor;
+	Vec4f hoverColor;
+	Vec4f currentColor;
+	float stdScaling;
+	float hoverScaling;
+	float currentScaling;
 	Texture* p_image;
 
 	sigslot::signal1<GUI_Element*> clicked;

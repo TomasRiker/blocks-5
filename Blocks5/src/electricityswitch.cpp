@@ -21,7 +21,7 @@ void ElectricitySwitch::updateSprites()
 }
 
 void ElectricitySwitch::onRender(RenderLayer layer,
-								 const Vec4d& color)
+								 const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -35,7 +35,7 @@ void ElectricitySwitch::onTouchedByPlayer(Player* p_player)
 	flash();
 
 	level.setElectricityOn(!level.isElectricityOn());
-	Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
+	Engine::inst().playSound("electricityswitch.ogg", false, 0.15f, 100);
 }
 
 void ElectricitySwitch::onCollision(Object* p_obj)

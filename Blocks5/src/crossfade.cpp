@@ -13,7 +13,7 @@ Crossfade::~Crossfade()
 {
 }
 
-void Crossfade::render(double t,
+void Crossfade::render(float t,
 					   uint oldImageID,
 					   uint newImageID)
 {

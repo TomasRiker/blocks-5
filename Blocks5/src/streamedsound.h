@@ -18,19 +18,19 @@ public:
 	void pause();
 	void resume();
 
-	double getVolume() const;
-	void setVolume(double volume);
-	double getPitch() const;
-	void setPitch(double pitch);
-	double getLoopBegin() const;
-	void setLoopBegin(double loopBegin);
+	float getVolume() const;
+	void setVolume(float volume);
+	float getPitch() const;
+	void setPitch(float pitch);
+	float getLoopBegin() const;
+	void setLoopBegin(float loopBegin);
 	uint tellStream() const;
 	void seekStream(uint position);
 
-	uint secondsToSlices(double t) const;
+	uint secondsToSlices(float t) const;
 
-	void slideVolume(double targetVolume, double volumeSlideSpeed);
-	void slidePitch(double targetPitch, double pitchSlideSpeed);
+	void slideVolume(float targetVolume, float volumeSlideSpeed);
+	void slidePitch(float targetPitch, float pitchSlideSpeed);
 	bool update();
 
 private:
@@ -71,15 +71,15 @@ private:
 	// browser. It never crosses a thread boundary; hence no volatile.
 	bool finish;
 
-	double volume;
-	double pitch;
-	double targetVolume;
-	double targetPitch;
-	double volumeSlideSpeed;
-	double pitchSlideSpeed;
+	float volume;
+	float pitch;
+	float targetVolume;
+	float targetPitch;
+	float volumeSlideSpeed;
+	float pitchSlideSpeed;
 	bool stopAtSlideEnd;
 
-	double loopBegin;
+	float loopBegin;
 	uint loopBeginInSlices;
 };
 

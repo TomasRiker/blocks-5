@@ -9,7 +9,7 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	doKeepInMemory = false;
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
-	texelScale = Vec2d(1.0, 1.0);
+	texelScale = Vec2f(1.0f, 1.0f);
 	p_parent = 0;
 
 	reload();
@@ -24,7 +24,7 @@ Texture::Texture(Texture* p_parent,
 	doKeepInMemory = false;
 	this->offset = offset;
 	this->size = size;
-	texelScale = Vec2d(1.0, 1.0);
+	texelScale = Vec2f(1.0f, 1.0f);
 	this->p_parent = p_parent;
 
 	loadSubTexture(p_parent, offset, size);
@@ -92,7 +92,7 @@ void Texture::reload()
 	if(size.y == -1) size.y = p_surface->h;
 
 	checkDimensions();
-	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
+	texelScale = Vec2f(1.0f / size.x, 1.0f / size.y);
 
 	// set up the OpenGL texture: raw, in a bracket, so that what was queued
 	// before goes up first and the renderer forgets the binding afterwards
@@ -142,7 +142,7 @@ void Texture::cleanUp()
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, Vec2f(static_cast<float>(texelScale.x), static_cast<float>(texelScale.y)));
+	return TextureRef(texID, texelScale);
 }
 
 uint Texture::createGLTexture(const Vec2i& size,
@@ -187,7 +187,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	this->size = size;
 
 	checkDimensions();
-	texelScale = Vec2d(1.0 / size.x, 1.0 / size.y);
+	texelScale = Vec2f(1.0f / size.x, 1.0f / size.y);
 
 	// set up the OpenGL texture, raw in a bracket as in reload()
 	Renderer::DirectGL direct;
@@ -262,9 +262,9 @@ bool Texture::hasPixels() const
 	return p_rgba != 0;
 }
 
-Vec4d Texture::getPixel(const Vec2i& where) const
+Vec4f Texture::getPixel(const Vec2i& where) const
 {
-	if(!p_rgba) return Vec4d(0.0);
+	if(!p_rgba) return Vec4f(0.0f);
 
 	uint pitchInPixels = p_rgba->pitch / p_rgba->format->BytesPerPixel;
 	uint pixel = reinterpret_cast<const uint*>(p_rgba->pixels)[where.y * pitchInPixels + where.x];
@@ -272,8 +272,8 @@ Vec4d Texture::getPixel(const Vec2i& where) const
 	uint g = (pixel & p_rgba->format->Gmask) >> p_rgba->format->Gshift;
 	uint b = (pixel & p_rgba->format->Bmask) >> p_rgba->format->Bshift;
 	uint a = (pixel & p_rgba->format->Amask) >> p_rgba->format->Ashift;
-	double c = 1.0 / 255.0;
-	return Vec4d(c * r, c * g, c * b, c * a);
+	float c = 1.0f / 255.0f;
+	return Vec4f(c * r, c * g, c * b, c * a);
 }
 
 void Texture::applyWrapMode() const

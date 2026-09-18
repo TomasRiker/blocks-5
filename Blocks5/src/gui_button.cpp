@@ -15,12 +15,12 @@ IMPL_CTOR(GUI_Button)
 	clickedPositionOnTexture = Vec2i(0, 0);
 	p_image = 0;
 
-	stdColor = Vec4d(1.0, 1.0, 1.0, 0.85);
-	hoverColor = Vec4d(1.0, 1.0, 1.0, 1.0);
+	stdColor = Vec4f(1.0f, 1.0f, 1.0f, 0.85f);
+	hoverColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 	currentColor = stdColor;
 
-	stdScaling = 1.0;
-	hoverScaling = 1.0;
+	stdScaling = 1.0f;
+	hoverScaling = 1.0f;
 	currentScaling = stdScaling;
 }
 
@@ -63,7 +63,7 @@ void GUI_Button::onRender()
 
 				Renderer& renderer = Renderer::inst();
 				renderer.push();
-				renderer.translate(size.x / 2, size.y / 2);
+				renderer.translate(static_cast<float>(size.x / 2), static_cast<float>(size.y / 2));
 				renderer.scale(currentScaling, currentScaling);
 				Engine::inst().renderSprite(p_image, -size / 2, t, size, currentColor);
 				renderer.pop();
@@ -91,12 +91,12 @@ void GUI_Button::onRender()
 
 	if(style == 0)
 	{
-		p_font->renderText(title, (size - dim) / 2 + Vec2i(0, offset), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
+		p_font->renderText(title, (size - dim) / 2 + Vec2i(0, offset), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 
 		if(p_image)
 		{
 			// render the image
-			Engine::inst().renderSprite(p_image, Vec2i(0, offset), positionOnTexture, size, Vec4d(1.0));
+			Engine::inst().renderSprite(p_image, Vec2i(0, offset), positionOnTexture, size, Vec4f(1.0f));
 		}
 	}
 	else
@@ -105,14 +105,14 @@ void GUI_Button::onRender()
 		// the same: the element has a border around the image, and counting
 		// that border in pushes every caption in the main menu down by
 		// exactly that border.
-		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - imageInset + 2), active ? currentColor : Vec4d(0.5, 0.5, 0.5, 1.0));
+		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - imageInset + 2), active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 	}
 }
 
 void GUI_Button::onUpdate()
 {
-	currentColor = 0.85 * currentColor + 0.15 * (mouseOver ? hoverColor : stdColor);
-	currentScaling = 0.85 * currentScaling + 0.15 * (mouseOver ? hoverScaling : stdScaling);
+	currentColor = 0.85f * currentColor + 0.15f * (mouseOver ? hoverColor : stdColor);
+	currentScaling = 0.85f * currentScaling + 0.15f * (mouseOver ? hoverScaling : stdScaling);
 
 	// Resolving it at load time is not enough: the donate button carries
 	// $MM_DONATE_BUTTON_FILENAME, and a player who switches the language in

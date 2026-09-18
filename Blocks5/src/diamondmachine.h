@@ -13,7 +13,7 @@ public:
 	DiamondMachine(Level& level, const Vec2i& position);
 	~DiamondMachine();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 

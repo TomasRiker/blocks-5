@@ -16,7 +16,7 @@ Elevator::Elevator(Level& level,
 	warpTo(position);
 	flags = OF_FIXED | OF_ELEVATOR;
 	this->dir = dir;
-	this->interpolation = 0.12;
+	this->interpolation = 0.12f;
 	moveCounter = 0;
 	newDir = dir;
 	origDir = dir;
@@ -35,8 +35,8 @@ Elevator::Elevator(Level& level,
 
 			if(p_soundInst)
 			{
-				p_soundInst->setVolume(0.0);
-				p_soundInst->setPitch(0.1);
+				p_soundInst->setVolume(0.0f);
+				p_soundInst->setPitch(0.1f);
 				p_soundInst->play(true);
 				p_soundInst->pause();
 			}
@@ -74,7 +74,7 @@ void Elevator::updateSprites()
 }
 
 void Elevator::onRender(RenderLayer layer,
-						const Vec4d& color)
+						const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -213,13 +213,13 @@ void Elevator::onElectricitySwitch(bool on)
 	if(on)
 	{
 		p_soundInst->resume();
-		p_soundInst->slideVolume(0.4, 0.1);
-		p_soundInst->slidePitch(1.0, 0.1);
+		p_soundInst->slideVolume(0.4f, 0.1f);
+		p_soundInst->slidePitch(1.0f, 0.1f);
 	}
 	else
 	{
-		p_soundInst->slideVolume(-1.0, 0.05);
-		p_soundInst->slidePitch(0.1, 0.05);
+		p_soundInst->slideVolume(-1.0f, 0.05f);
+		p_soundInst->slidePitch(0.1f, 0.05f);
 	}
 
 	soundChanged = true;

@@ -50,14 +50,14 @@ void GUI_ListBox::onRender()
 	Renderer::ScissorScope clip(getAbsPosition() + Vec2i(2, 2), size - Vec2i(4, 4));
 
 	renderer.push();
-	renderer.translate(0.0, -scroll);
+	renderer.translate(0.0f, static_cast<float>(-scroll));
 
 	// render the list items
 	int y = 2;
 	int h = p_font->getLineHeight();
 	for(std::vector<ListItem>::const_iterator i = items.begin(); i != items.end(); ++i)
 	{
-		p_font->renderText(localizeString(i->text), Vec2i(4, y), active ? Vec4d(1.0, 1.0, 1.0, 1.0) : Vec4d(0.5, 0.5, 0.5, 1.0));
+		p_font->renderText(localizeString(i->text), Vec2i(4, y), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 		y += h;
 	}
 

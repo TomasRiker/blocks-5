@@ -13,9 +13,8 @@ class ParticleSystem
 public:
 	// The numbers are byte offsets. The blank line separates what render()
 	// reads from what only update() needs: the first six members are enough
-	// for a vertex and fit into one cache line together. Everything is single
-	// precision (float), not double - a Vec4f is one 16-byte access and a
-	// single vector addition, a Vec4d would be two. sizeof(Particle) = 80.
+	// for a vertex and fit into one cache line together. A colour is a Vec4f:
+	// one 16-byte access and a single vector addition. sizeof(Particle) = 80.
 	struct Particle
 	{
 		float rotation;				//  0

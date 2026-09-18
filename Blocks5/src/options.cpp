@@ -71,10 +71,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->setChecked();
 
 	// set the current sound volume
-	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0 * engine.getSoundVolume()));
+	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0f * engine.getSoundVolume()));
 
 	// set the current music volume
-	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0 * engine.getMusicVolume()));
+	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0f * engine.getMusicVolume()));
 
 	// set the current details
 	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->setChecked();
@@ -94,17 +94,17 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// Fetch the slider settings from the Engine, 0..1 as 0..100.
 	U_Crt& crt = engine.getCrt();
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->setScroll(
-		static_cast<int>(100.0 * crt.getScanline()));
+		static_cast<int>(100.0f * crt.getScanline()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->setScroll(
-		static_cast<int>(100.0 * crt.getCurvature()));
+		static_cast<int>(100.0f * crt.getCurvature()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->setScroll(
-		static_cast<int>(100.0 * crt.getBloom()));
+		static_cast<int>(100.0f * crt.getBloom()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->setScroll(
-		static_cast<int>(100.0 * crt.getFlicker()));
+		static_cast<int>(100.0f * crt.getFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->setScroll(
-		static_cast<int>(100.0 * crt.getScanFlicker()));
+		static_cast<int>(100.0f * crt.getScanFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->setScroll(
-		static_cast<int>(100.0 * crt.getConvergence()));
+		static_cast<int>(100.0f * crt.getConvergence()));
 	getChild("CrtOptions")->hide();
 
 	// Start with no selection. setSelection() reports only a real change: if
@@ -194,10 +194,10 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.English"))->isChecked()) engine.setLanguage("en");
 
 		// save the sound volume
-		engine.setSoundVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->getScroll());
+		engine.setSoundVolume((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->getScroll());
 
 		// save the music volume
-		engine.setMusicVolume((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->getScroll());
+		engine.setMusicVolume((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->getScroll());
 
 		// save the details
 		if(static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->isChecked()) engine.setDetails(0);
@@ -220,12 +220,12 @@ void Options::handleClick(GUI_Element* p_element)
 		// The CRT sliders take effect at once - dragging one has to show what it
 		// does. Cancel takes them back through loadConfig().
 		U_Crt& crt = engine.getCrt();
-		crt.setScanline((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
-		crt.setCurvature((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
-		crt.setBloom((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->getScroll());
-		crt.setFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
-		crt.setScanFlicker((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
-		crt.setConvergence((1.0 / 100.0) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
+		crt.setScanline((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->getScroll());
+		crt.setCurvature((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->getScroll());
+		crt.setBloom((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->getScroll());
+		crt.setFlicker((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
+		crt.setScanFlicker((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
+		crt.setConvergence((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
 
 		if(name == "CrtSettings")
 		{

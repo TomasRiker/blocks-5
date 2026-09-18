@@ -34,9 +34,8 @@ struct Vertex3
 // built array can be drawn several times under another colour and offset.
 struct QuadVertex
 {
-	QuadVertex(double px, double py, double u, double v)
-		: position(static_cast<float>(px), static_cast<float>(py)),
-		  uv(static_cast<float>(u), static_cast<float>(v)) {}
+	QuadVertex(float px, float py, float u, float v)
+		: position(px, py), uv(u, v) {}
 
 	Vec2f position;
 	Vec2f uv;
@@ -101,9 +100,9 @@ public:
 	// breaks a batch.
 	void push();
 	void pop();
-	void translate(double x, double y);
-	void scale(double x, double y);
-	void rotate(double degrees);
+	void translate(float x, float y);
+	void scale(float x, float y);
+	void rotate(float degrees);
 	void loadIdentity();
 
 	// --- drawing -------------------------------------------------------------
@@ -112,9 +111,9 @@ public:
 	// colours as given (the program clamps them to 0..1).
 
 	// A sprite as Engine::renderSprite defines it, under the current state.
-	void sprite(const Vec2d& position, const Vec2i& halfSize, const Vec2i& otherHalf,
+	void sprite(const Vec2f& position, const Vec2i& halfSize, const Vec2i& otherHalf,
 				int u0, int u1, int v0, int v1,
-				const Vec4d& color, double rotation, double scaling);
+				const Vec4f& color, float rotation, float scaling);
 
 	// A built array of quads under one colour: the tile grid, the font, the
 	// GUI's frames.
@@ -274,9 +273,9 @@ private:
 		Vec2i scissorSize;
 	};
 
-	void submit(const RenderState& s, const double* p_x, const double* p_y,
+	void submit(const RenderState& s, const float* p_x, const float* p_y,
 				const float* p_u, const float* p_v, const Vec4f* p_colors);
-	void submitFlat(const double* p_x, const double* p_y, const Vec4f& color);
+	void submitFlat(const float* p_x, const float* p_y, const Vec4f& color);
 	// A quad already in the target's pixels.
 	void pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors);
 	void requireState(const RenderState& s);
@@ -284,7 +283,7 @@ private:
 	void applyState();
 	void draw();
 	void checkRecord();
-	void bakePoint(double x, double y, float* p_outX, float* p_outY) const;
+	void bakePoint(float x, float y, float* p_outX, float* p_outY) const;
 	RenderState flatState() const;
 	void bindReal(uint id);
 	void applyBlendMode(BlendMode blend);

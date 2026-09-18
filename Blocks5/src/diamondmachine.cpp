@@ -84,8 +84,8 @@ namespace
 	//
 	// diamondmachine.ogg lasts exactly the two seconds of the conversion, so
 	// what is left to fade is whatever the abort came early enough to leave.
-	const double SOUND_FADE_SPEED = 0.04;
-	const double SOUND_FADE_PITCH = 0.35;
+	const float SOUND_FADE_SPEED = 0.04f;
+	const float SOUND_FADE_PITCH = 0.35f;
 
 	// Every inward spark lives exactly as long as the conversion has left -
 	// no matter when it sets off. They therefore do not arrive spread over a
@@ -103,60 +103,60 @@ namespace
 	const int SPARK_SPRITE_Y = 32;
 
 	// Outward: the block falls apart.
-	const double OUT_RATE     = 6.0;   // sparks per tick at full rate
-	const double OUT_SPEED_MIN = 0.5;
-	const double OUT_SPEED_MAX = 1.1;
-	const double OUT_DAMPING  = 0.95;  // below 1: brakes
-	const double OUT_BRIGHT   = 1.0;   // brightness in the first tick
-	const double OUT_END      = 1.0;   // brightness in the last
-	const double OUT_ALPHA    = 0.85;  // opacity at the start
-	const int    OUT_LIFE     = 27;
-	const double OUT_SIZE     = 0.42;
+	const float OUT_RATE     = 6.0f;   // sparks per tick at full rate
+	const float OUT_SPEED_MIN = 0.5f;
+	const float OUT_SPEED_MAX = 1.1f;
+	const float OUT_DAMPING  = 0.95f;  // below 1: brakes
+	const float OUT_BRIGHT   = 1.0f;   // brightness in the first tick
+	const float OUT_END      = 1.0f;   // brightness in the last
+	const float OUT_ALPHA    = 0.85f;  // opacity at the start
+	const int   OUT_LIFE     = 27;
+	const float OUT_SIZE     = 0.42f;
 
 	// Inward: the diamond is put together.
-	const double IN_RATE   = 4.0;
+	const float IN_RATE   = 4.0f;
 	// How much faster a spark is at the end of its flight than at the start.
 	// The damping is computed from it, because the lifetime is only fixed
 	// when the spark sets off - the approach then looks the same at any
 	// duration: creep for a long time, snap shut at the end.
-	const double IN_ACCEL  = 3.0;
-	const double IN_START  = 1.4;      // start colour brightness, see below
-	const double IN_BRIGHT = 1.0;      // brightness on impact
-	const double IN_ALPHA  = 0.85;     // opacity on impact
-	const double IN_SIZE   = 0.38;
+	const float IN_ACCEL  = 3.0f;
+	const float IN_START  = 1.4f;      // start colour brightness, see below
+	const float IN_BRIGHT = 1.0f;      // brightness on impact
+	const float IN_ALPHA  = 0.85f;     // opacity on impact
+	const float IN_SIZE   = 0.38f;
 
 	// Fraction of the full rate. Both ramps are linear and not switched: a
 	// hard changeover would show the middle as a plateau with both
 	// directions running flat out at once, rather than as a handover.
-	double outRamp(int counter)
+	float outRamp(int counter)
 	{
-		if(counter < 0 || counter >= SPARK_OUT_END) return 0.0;
-		if(counter < SPARK_OUT_FULL) return 1.0;
-		return static_cast<double>(SPARK_OUT_END - counter) /
-			   static_cast<double>(SPARK_OUT_END - SPARK_OUT_FULL);
+		if(counter < 0 || counter >= SPARK_OUT_END) return 0.0f;
+		if(counter < SPARK_OUT_FULL) return 1.0f;
+		return static_cast<float>(SPARK_OUT_END - counter) /
+			   static_cast<float>(SPARK_OUT_END - SPARK_OUT_FULL);
 	}
 
-	double inRamp(int counter)
+	float inRamp(int counter)
 	{
-		if(counter < SPARK_IN_START || counter > SPARK_IN_END) return 0.0;
-		if(counter >= SPARK_IN_FULL) return 1.0;
-		return static_cast<double>(counter - SPARK_IN_START) /
-			   static_cast<double>(SPARK_IN_FULL - SPARK_IN_START);
+		if(counter < SPARK_IN_START || counter > SPARK_IN_END) return 0.0f;
+		if(counter >= SPARK_IN_FULL) return 1.0f;
+		return static_cast<float>(counter - SPARK_IN_START) /
+			   static_cast<float>(SPARK_IN_FULL - SPARK_IN_START);
 	}
 
 	// A whole number of sparks out of a fractional rate.
-	int spawnCount(double rate)
+	int spawnCount(float rate)
 	{
 		int n = static_cast<int>(rate);
-		if(random(0.0, 1.0) < rate - n) n++;
+		if(random(0.0f, 1.0f) < rate - n) n++;
 		return n;
 	}
 
 	// How likely a smoke cloud is in this tick.
-	double smokeRate(int counter)
+	float smokeRate(int counter)
 	{
-		if(counter >= SPARK_OUT_END) return 0.0;
-		return 0.3;
+		if(counter >= SPARK_OUT_END) return 0.0f;
+		return 0.3f;
 	}
 
 	// The id for the sparks of one conversion. The high bit is always set:
@@ -169,10 +169,10 @@ namespace
 	}
 
 	// The distance travelled after n ticks, see above.
-	double travelDistance(double speed, double damping, int life)
+	float travelDistance(float speed, float damping, int life)
 	{
-		if(damping == 1.0) return speed * life;
-		return speed * (1.0 - pow(damping, static_cast<double>(life))) / (1.0 - damping);
+		if(damping == 1.0f) return speed * life;
+		return speed * (1.0f - powf(damping, static_cast<float>(life))) / (1.0f - damping);
 	}
 }
 
@@ -210,45 +210,45 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 	// The field above the machine, in pixels: that is where the block
 	// stands, and where the diamond will stand later.
-	const Vec2d origin(position.x * 16.0, (position.y - 1) * 16.0);
-	const Vec2d middle = origin + Vec2d(8.0, 8.0);
+	const Vec2f origin(position.x * 16.0f, (position.y - 1) * 16.0f);
+	const Vec2f middle = origin + Vec2f(8.0f, 8.0f);
 
 	int n = spawnCount(OUT_RATE * outRamp(counter));
 	for(int i = 0; i < n; i++)
 	{
-		Vec4d sampled;
+		Vec4f sampled;
 		Vec2i offset;
 		if(!block.sample(&sampled, &offset)) continue;
 
-		const Vec2d start = origin + Vec2d(offset.x, offset.y);
+		const Vec2f start = origin + static_cast<Vec2f>(offset);
 
 		// Away from the centre of the field - the block falls apart, it does
 		// not scatter. At the exact centre there is no direction; one is
 		// rolled for there.
-		const Vec2d radial = start - middle;
-		double angle = (radial.length() > 0.5) ? atan2(radial.y, radial.x)
-											   : random(0.0, 6.2832);
+		const Vec2f radial = start - middle;
+		float angle = (radial.length() > 0.5f) ? atan2f(radial.y, radial.x)
+											   : random(0.0f, 6.2832f);
 
-		const Vec4d hot = sampled * OUT_BRIGHT;
-		const Vec4d cold(sampled.r * OUT_END, sampled.g * OUT_END, sampled.b * OUT_END, 0.0);
+		const Vec4f hot = sampled * OUT_BRIGHT;
+		const Vec4f cold(sampled.r * OUT_END, sampled.g * OUT_END, sampled.b * OUT_END, 0.0f);
 
 		ParticleSystem::Particle p;
 		p.lifetime = OUT_LIFE;
-		p.damping = static_cast<float>(OUT_DAMPING);
+		p.damping = OUT_DAMPING;
 		p.gravity = 0.0f;
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
-		p.velocity = Vec2d(cos(angle), sin(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
+		p.velocity = Vec2f(cosf(angle), sinf(angle)) * random(OUT_SPEED_MIN, OUT_SPEED_MAX);
 		// Not sampled.a: that is DEBRIS_ALPHA and therefore a quarter. A piece
 		// of debris may be pale; a spark shines.
-		const Vec4d begin(hot.r, hot.g, hot.b, OUT_ALPHA);
+		const Vec4f begin(hot.r, hot.g, hot.b, OUT_ALPHA);
 		p.color = begin;
-		p.deltaColor = (cold - begin) / static_cast<double>(OUT_LIFE);
+		p.deltaColor = (cold - begin) / static_cast<float>(OUT_LIFE);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(OUT_SIZE);
-		p.deltaSize = static_cast<float>(-OUT_SIZE / (OUT_LIFE * 1.3));
+		p.size = OUT_SIZE;
+		p.deltaSize = -OUT_SIZE / (OUT_LIFE * 1.3f);
 		p.id = sparkId;
 		p_sys->addParticle(p);
 	}
@@ -258,25 +258,25 @@ void DiamondMachine::spawnSparks(Object* p_block)
 	n = spawnCount(IN_RATE * inRamp(counter));
 	for(int i = 0; i < n; i++)
 	{
-		Vec4d target;
+		Vec4f target;
 		Vec2i landOffset;
 		if(!diamond.sample(&target, &landOffset)) continue;
 
-		Vec4d from;
+		Vec4f from;
 		Vec2i fromOffset;
 		if(!block.sample(&from, &fromOffset)) continue;
 
-		const Vec2d landing = origin + Vec2d(landOffset.x, landOffset.y);
+		const Vec2f landing = origin + static_cast<Vec2f>(landOffset);
 
 		// Start somewhere in the cloud the outward sparks leave behind: the
 		// same distribution, only rolled for again rather than remembered.
 		// Pairing up individual sparks does not matter - among dozens nobody
 		// sees which belongs to which; what counts is the shape of the cloud.
-		const double radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
+		const float radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
 											 OUT_DAMPING, OUT_LIFE);
-		const double angle = atan2(landing.y - middle.y, landing.x - middle.x);
-		const Vec2d start = middle + Vec2d(fromOffset.x - 8.0, fromOffset.y - 8.0)
-								   + Vec2d(cos(angle), sin(angle)) * radius;
+		const float angle = atan2f(landing.y - middle.y, landing.x - middle.x);
+		const Vec2f start = middle + Vec2f(fromOffset.x - 8.0f, fromOffset.y - 8.0f)
+								   + Vec2f(cosf(angle), sinf(angle)) * radius;
 
 		// As long as the conversion has left, plus one tick: then they all
 		// arrive together, and in exactly the frame in which the block is seen
@@ -293,11 +293,11 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		// The damping from the wanted increase, giving the approach the same
 		// shape at any duration: d^moves = inAccel.
-		const double d = pow(IN_ACCEL, 1.0 / static_cast<double>(moves));
+		const float d = powf(IN_ACCEL, 1.0f / static_cast<float>(moves));
 
 		// The v0 with which the spark stands exactly on its target after its
 		// last move. Without gravity, or it would miss.
-		const double k = (1.0 - d) / (1.0 - IN_ACCEL);
+		const float k = (1.0f - d) / (1.0f - IN_ACCEL);
 
 		// The start colour is over-bright, and that is not decoration: a linear
 		// ramp from a blue to the diamond's warm white passes straight through
@@ -305,23 +305,23 @@ void DiamondMachine::spawnSparks(Object* p_block)
 		// that. Started above 1 the strong channels stay clamped while the
 		// weak one catches up; the path then goes through white. For the same
 		// block the green cast falls to 0.05.
-		const Vec4d begin(from.r * IN_START, from.g * IN_START, from.b * IN_START, 0.0);
-		const Vec4d end(target.r * IN_BRIGHT, target.g * IN_BRIGHT,
+		const Vec4f begin(from.r * IN_START, from.g * IN_START, from.b * IN_START, 0.0f);
+		const Vec4f end(target.r * IN_BRIGHT, target.g * IN_BRIGHT,
 						target.b * IN_BRIGHT, IN_ALPHA);
 
 		ParticleSystem::Particle p;
 		p.lifetime = static_cast<ushort>(life);
-		p.damping = static_cast<float>(d);
+		p.damping = d;
 		p.gravity = 0.0f;
 		p.positionOnTexture = Vec2b(SPARK_SPRITE_X, SPARK_SPRITE_Y);
 		p.sizeOnTexture = Vec2b(16, 16);
 		p.position = start;
 		p.velocity = (landing - start) * k;
 		p.color = begin;
-		p.deltaColor = (end - begin) / static_cast<double>(moves);
+		p.deltaColor = (end - begin) / static_cast<float>(moves);
 		p.rotation = 0.0f;
 		p.deltaRotation = 0.0f;
-		p.size = static_cast<float>(IN_SIZE);
+		p.size = IN_SIZE;
 		p.deltaSize = 0.0f;
 		p.id = sparkId;
 		p_sys->addParticle(p);
@@ -368,7 +368,7 @@ void DiamondMachine::abortConversion()
 	{
 		if(Sound::isLiveInstance(p_soundInst))
 		{
-			p_soundInst->slideVolume(0.0, SOUND_FADE_SPEED);
+			p_soundInst->slideVolume(0.0f, SOUND_FADE_SPEED);
 			p_soundInst->slidePitch(SOUND_FADE_PITCH, SOUND_FADE_SPEED);
 		}
 		p_soundInst = 0;
@@ -380,10 +380,10 @@ void DiamondMachine::abortConversion()
 	// *logical* cell and not its shown one: it is pushed over several ticks,
 	// and by the time the sparks arrive it is already there.
 	Object* p_block = findLivingBlock();
-	Vec2d shift(0.0, 0.0);
+	Vec2f shift(0.0f, 0.0f);
 	if(p_block)
-		shift = Vec2d((p_block->getPosition().x - position.x) * 16.0,
-					  (p_block->getPosition().y - (position.y - 1)) * 16.0);
+		shift = Vec2f((p_block->getPosition().x - position.x) * 16.0f,
+					  (p_block->getPosition().y - (position.y - 1)) * 16.0f);
 
 	// Backwards means: every delta reverses, and the damping becomes its
 	// reciprocal, because it is a factor and not a summand. The velocity
@@ -438,10 +438,10 @@ void DiamondMachine::abortConversion()
 		// a parallel shift.
 		if(!inward && elapsed && !shift.isZero())
 		{
-			const double d = p.damping;
-			const double k = (d == 1.0)
-				? 1.0 / elapsed
-				: (1.0 - d) / (1.0 - pow(d, static_cast<double>(elapsed)));
+			const float d = p.damping;
+			const float k = (d == 1.0f)
+				? 1.0f / elapsed
+				: (1.0f - d) / (1.0f - powf(d, static_cast<float>(elapsed)));
 			p.velocity += shift * k;
 		}
 
@@ -467,7 +467,7 @@ void DiamondMachine::updateSprites()
 }
 
 void DiamondMachine::onRender(RenderLayer layer,
-							  const Vec4d& color)
+							  const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -496,9 +496,9 @@ void DiamondMachine::onUpdate()
 					// particle per tick there is therefore always a haze over
 					// everything and the sparks disappear into it. The last
 					// quarter belongs to the collecting alone.
-					Vec4d sampled;
+					Vec4f sampled;
 					Vec2i offset;
-					if(random(0.0, 1.0) < smokeRate(counter) &&
+					if(random(0.0f, 1.0f) < smokeRate(counter) &&
 					   p_obj->getSprites().sample(&sampled, &offset))
 					{
 						ParticleSystem* p_particleSystem = level.getParticleSystem();
@@ -510,9 +510,9 @@ void DiamondMachine::onUpdate()
 						p.positionOnTexture = Vec2b(0, 0);
 						p.sizeOnTexture = Vec2b(16, 16);
 						p.position = position * 16 - Vec2i(0, 16) + offset;
-						p.velocity = Vec2d(random(-0.5, 0.5), -1.0);
+						p.velocity = Vec2f(random(-0.5f, 0.5f), -1.0f);
 						p.color = sampled;
-						p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+						p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 						p.rotation = random(0.0f, 10.0f);
 						p.deltaRotation = random(-0.1f, 0.1f);
 						p.size = random(0.3f, 0.5f);
@@ -529,7 +529,7 @@ void DiamondMachine::onUpdate()
 					// touched only here and now; p_objOnMe stays a pointer
 					// that is only ever compared across ticks.
 					p_obj->setConversionProgress(
-						clamp(static_cast<double>(counter) / CONVERSION_TICKS, 0.0, 1.0));
+						clamp(static_cast<float>(counter) / CONVERSION_TICKS, 0.0f, 1.0f));
 
 					spawnSparks(p_obj);
 
@@ -539,7 +539,7 @@ void DiamondMachine::onUpdate()
 						// Kept, so that an abort can slide it down. It is a
 						// one-shot, so it may well have been reaped before
 						// then - Sound::isLiveInstance is what asks.
-						p_soundInst = Engine::inst().playSound("diamondmachine.ogg", false, 0.0, 100);
+						p_soundInst = Engine::inst().playSound("diamondmachine.ogg", false, 0.0f, 100);
 					}
 				}
 				else
@@ -557,7 +557,7 @@ void DiamondMachine::onUpdate()
 					// Object::frameBegin), leaving no more than a breath over
 					// the finished diamond. Half a second would be an eternity
 					// for that.
-					p_obj->disappearNextFrame(0.15);
+					p_obj->disappearNextFrame(0.15f);
 					level.getPresets()->instancePreset("Diamond", position - Vec2i(0, 1), 0);
 //					level.addNewObjects();
 					counter = -1;

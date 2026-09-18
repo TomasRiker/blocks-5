@@ -15,7 +15,7 @@ Enemy::Enemy(Level& level,
 	setMass(1);
 	this->subType = subType;
 	this->dir = dir;
-	shownDir = dir;
+	shownDir = static_cast<float>(dir);
 	anim = 0;
 	moveCounter = 40;
 	thinkCounter = 40;
@@ -25,8 +25,8 @@ Enemy::Enemy(Level& level,
 	targetPosition = Vec2i(-1, -1);
 	interest = 0;
 	contamination = 100;
-	height = 0.0;
-	vy = 0.0;
+	height = 0.0f;
+	vy = 0.0f;
 	invisibility = 0;
 
 	if(subType == 0)
@@ -55,7 +55,7 @@ void Enemy::updateSprites()
 		// it faces; the debris gets the angle unrounded.
 		int f[] = {0, 1, 0, 2};
 		int frame = f[(anim / 4) % 4];
-		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0 * shownDir + 10.0 * sin(anim / 4.0);
+		sprites.add(Vec2i(frame * 32, 416)).rotation = 90.0f * shownDir + 10.0f * sinf(anim / 4.0f);
 	}
 	else if(subType == 1)
 	{
@@ -67,13 +67,13 @@ void Enemy::updateSprites()
 }
 
 void Enemy::onRender(RenderLayer layer,
-					 const Vec4d& color)
+					 const Vec4f& color)
 {
-	Vec4d realColor = color;
+	Vec4f realColor = color;
 
 	if(invisibility)
 	{
-		realColor.a -= 0.1 * invisibility;
+		realColor.a -= 0.1f * invisibility;
 	}
 
 	if(layer == RL_MAIN)
@@ -84,8 +84,8 @@ void Enemy::onRender(RenderLayer layer,
 			// its shadow stays on the ground and grows fainter. That is a
 			// matter of the pass and therefore does not belong in the sprites.
 			// Object::render brackets the whole thing in a push of its own.
-			if(shadowPass) realColor.a /= 1.0 + 0.25 * height;
-			else Renderer::inst().translate(0.0, static_cast<int>(-height));
+			if(shadowPass) realColor.a /= 1.0f + 0.25f * height;
+			else Renderer::inst().translate(0.0f, static_cast<float>(static_cast<int>(-height)));
 		}
 
 		Engine::inst().renderSprites(sprites, realColor);
@@ -94,7 +94,7 @@ void Enemy::onRender(RenderLayer layer,
 	{
 		if(subType == 1)
 		{
-			if(interest >= 10000) level.renderShine(0.6, 0.4 + 0.05 * glowJitter);
+			if(interest >= 10000) level.renderShine(0.6f, 0.4f + 0.05f * glowJitter);
 		}
 	}
 }
@@ -148,7 +148,7 @@ void Enemy::onUpdate()
 	{
 		int oldDir = dir;
 
-		if(moveCounter-- <= 0 && fabs(shownDir - dir) < 0.4)
+		if(moveCounter-- <= 0 && fabsf(shownDir - dir) < 0.4f)
 		{
 			int r = random(0, 8);
 			if(interest >= 10000) r = random(0, 40);
@@ -198,7 +198,7 @@ void Enemy::onUpdate()
 				interest = 0;
 			}
 
-			while(dir < 0) dir += 4, shownDir += 4.0;
+			while(dir < 0) dir += 4, shownDir += 4.0f;
 			dir %= 4;
 
 			moveCounter = random(4, 7);
@@ -206,17 +206,17 @@ void Enemy::onUpdate()
 
 		if(anim) anim--;
 
-		double dd = static_cast<double>(dir) - shownDir;
-		if(dd > 2.0) shownDir += 4.0;
-		else if(dd < -2.0) shownDir -= 4.0;
-		shownDir = 0.125 * dir + 0.875 * shownDir;
+		float dd = static_cast<float>(dir) - shownDir;
+		if(dd > 2.0f) shownDir += 4.0f;
+		else if(dd < -2.0f) shownDir -= 4.0f;
+		shownDir = 0.125f * dir + 0.875f * shownDir;
 
 		if(!soundCounter)
 		{
 			if(oldDir != dir)
 			{
 				// play the scratching sound
-				Engine::inst().playSound("enemy1_turn.ogg", false, 0.1, -100);
+				Engine::inst().playSound("enemy1_turn.ogg", false, 0.1f, -100);
 				soundCounter = random(15, 55);
 			}
 		}
@@ -231,7 +231,7 @@ void Enemy::onUpdate()
 				std::string sound;
 				if(s == 0) sound = "enemy1_burp1.ogg";
 				else if(s == 1) sound = "enemy1_burp2.ogg";
-				Engine::inst().playSound(sound, false, 0.1);
+				Engine::inst().playSound(sound, false, 0.1f);
 
 				// create the burp particles
 				ParticleSystem* p_particleSystem = level.getParticleSystem();
@@ -244,9 +244,9 @@ void Enemy::onUpdate()
 					p.positionOnTexture = Vec2b(96, 32);
 					p.sizeOnTexture = Vec2b(16, 16);
 					p.position = position * 16 + Vec2i(8 + random(-4, 4), 6);
-					p.velocity = Vec2d(random(-0.5, 0.5), random(-1.0, -0.5));
-					p.color = Vec4d(random(0.8, 1.0), random(0.8, 1.0), random(0.8, 1.0), 0.25);
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+					p.velocity = Vec2f(random(-0.5f, 0.5f), random(-1.0f, -0.5f));
+					p.color = Vec4f(random(0.8f, 1.0f), random(0.8f, 1.0f), random(0.8f, 1.0f), 0.25f);
+					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 					p.rotation = random(-0.5f, 0.5f);
 					p.deltaRotation = random(-0.05f, 0.05f);
 					p.size = random(0.2f, 1.0f);
@@ -342,23 +342,23 @@ void Enemy::onUpdate()
 			moveCounter = random(4, 7);
 		}
 
-		if(height == 0.0)
+		if(height == 0.0f)
 		{
 			if(!(randomInt() % 25))
 			{
-				vy = random(40.0, 80.0);
-				height = 0.5;
+				vy = random(40.0f, 80.0f);
+				height = 0.5f;
 			}
 		}
 		else
 		{
-			height += 0.02 * vy;
-			vy -= 0.02 * 400.0;
+			height += 0.02f * vy;
+			vy -= 0.02f * 400.0f;
 
-			if(height < 0.5)
+			if(height < 0.5f)
 			{
-				height = 0.0;
-				vy = 0.0;
+				height = 0.0f;
+				vy = 0.0f;
 			}
 		}
 
@@ -367,7 +367,7 @@ void Enemy::onUpdate()
 		if(!(randomInt() % pr))
 		{
 			// play the laugh
-			Engine::inst().playSound("enemy2_laugh.ogg", false, 0.15, -100);
+			Engine::inst().playSound("enemy2_laugh.ogg", false, 0.15f, -100);
 		}
 
 		if(interest >= 40000)
@@ -375,7 +375,7 @@ void Enemy::onUpdate()
 			if(!(randomInt() % 200))
 			{
 				// play the growl
-				Engine::inst().playSound("enemy2_growl.ogg", false, 0.15, -100);
+				Engine::inst().playSound("enemy2_growl.ogg", false, 0.15f, -100);
 			}
 		}
 
@@ -390,13 +390,13 @@ void Enemy::onUpdate()
 			p.gravity = -0.04f;
 			p.positionOnTexture = Vec2b(32, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
-			const double r = random(0.0, 6.283);
-			const Vec2d vr(sin(r), cos(r));
-			p.position = position * 16 + Vec2d(7.5, 7.5 - height) + 7.5 * vr;
+			const float r = random(0.0f, 6.283f);
+			const Vec2f vr(sinf(r), cosf(r));
+			p.position = position * 16 + Vec2f(7.5f, 7.5f - height) + 7.5f * vr;
 			p.velocity = vr;
-			p.color = Vec4d(random(0.5, 1.0), random(0.8, 1.0), random(0.0, 0.25), random(0.2, 0.4));
-			const double dc = -1.5 / (p.lifetime + random(-25, 25));
-			p.deltaColor = Vec4d(dc, dc, dc, -p.color.a / p.lifetime);
+			p.color = Vec4f(random(0.5f, 1.0f), random(0.8f, 1.0f), random(0.0f, 0.25f), random(0.2f, 0.4f));
+			const float dc = -1.5f / (p.lifetime + random(-25, 25));
+			p.deltaColor = Vec4f(dc, dc, dc, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.5f, 0.9f);
@@ -431,16 +431,16 @@ void Enemy::onCollect(Player* p_player)
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
 
-				Vec4d sampled;
+				Vec4f sampled;
 				Vec2i offset;
 				if(!debris.sample(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-				double a = random(0.0, 1000.0);
-				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
+				float a = random(0.0f, 1000.0f);
+				p.velocity = Vec2f(sinf(a), cosf(a)) * random(0.05f, 1.0f);
 				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
-				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.3f, 0.5f);
@@ -448,8 +448,8 @@ void Enemy::onCollect(Player* p_player)
 				p_particleSystem->addParticle(p);
 			}
 
-			Engine::inst().playSound("enemy1_eat.ogg", false, 0.1);
-			p_player->disappear(1.5);
+			Engine::inst().playSound("enemy1_eat.ogg", false, 0.1f);
+			p_player->disappear(1.5f);
 			p_player->censored = true;
 			moveCounter = 130;
 			eatCounter = 130;
@@ -476,16 +476,16 @@ void Enemy::onCollect(Player* p_player)
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
 
-				Vec4d sampled;
+				Vec4f sampled;
 				Vec2i offset;
 				if(!debris.sample(&sampled, &offset)) continue;
 
 				p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-				double a = random(0.0, 1000.0);
-				p.velocity = Vec2d(sin(a), cos(a)) * random(0.05, 1.0);
+				float a = random(0.0f, 1000.0f);
+				p.velocity = Vec2f(sinf(a), cosf(a)) * random(0.05f, 1.0f);
 				p.color = sampled;
 				p.color.a *= random(0.5f, 1.2f);
-				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.3f, 0.5f);
@@ -493,8 +493,8 @@ void Enemy::onCollect(Player* p_player)
 				p_particleSystem->addParticle(p);
 			}
 
-			Engine::inst().playSound("enemy2_eat.ogg", false, 0.1);
-			p_player->disappear(1.5);
+			Engine::inst().playSound("enemy2_eat.ogg", false, 0.1f);
+			p_player->disappear(1.5f);
 			p_player->censored = true;
 			moveCounter = 130;
 			eatCounter = 130;
@@ -511,7 +511,7 @@ bool Enemy::changeInEditor(int mod)
 	{
 		dir++;
 		dir %= 4;
-		shownDir = dir;
+		shownDir = static_cast<float>(dir);
 	}
 	else
 	{

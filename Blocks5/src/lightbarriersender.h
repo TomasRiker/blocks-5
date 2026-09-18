@@ -11,7 +11,7 @@ public:
 	LightBarrierSender(Level& level, const Vec2i& position, int dir);
 	~LightBarrierSender();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
@@ -20,7 +20,7 @@ public:
 private:
 	int dir;
 	int counter;
-	std::list<Vec2d> beam;
+	std::list<Vec2f> beam;
 	// The corners of the beam, for the renderer's polyline.
 	std::vector<Vec2f> beamPoints;
 };

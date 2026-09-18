@@ -8,14 +8,14 @@
 class CF_ColorBlend : public Crossfade
 {
 public:
-	CF_ColorBlend(const Vec3d& color, double timing = 0.5);
+	CF_ColorBlend(const Vec3f& color, float timing = 0.5f);
 	~CF_ColorBlend();
 
-	void render(double t, uint oldImageID, uint newImageID);
+	void render(float t, uint oldImageID, uint newImageID);
 
 private:
-	const Vec3d color;
-	const double timing;
+	const Vec3f color;
+	const float timing;
 };
 
 #endif

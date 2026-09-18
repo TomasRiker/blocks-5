@@ -11,7 +11,7 @@ public:
 	CF_Blend();
 	~CF_Blend();
 
-	void render(double t, uint oldImageID, uint newImageID);
+	void render(float t, uint oldImageID, uint newImageID);
 };
 
 #endif

@@ -220,16 +220,16 @@ public:
 	// any one: the options dialog sets its six sliders, and the main menu
 	// offers it once.
 	U_Crt& getCrt() const { return *p_crt; }
-	// A Vec2d position, so that a sprite off the grid needs no glTranslated of
+	// A Vec2f position, so that a sprite off the grid needs no glTranslated of
 	// its own - see Level::renderShine.
-	void renderSprite(const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
-	void renderSprite(Texture* p_sprite, const Vec2d& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4d& color, bool mirrorX = false, double rotation = 0.0, double scaling = 1.0);
+	void renderSprite(const Vec2f& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4f& color, bool mirrorX = false, float rotation = 0.0f, float scaling = 1.0f);
+	void renderSprite(Texture* p_sprite, const Vec2f& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4f& color, bool mirrorX = false, float rotation = 0.0f, float scaling = 1.0f);
 
 	// Draw all sprites of an object. color is the colour of the render pass;
 	// each sprite's own tint comes on top of it.
-	void renderSprites(const Sprites& sprites, const Vec4d& color);
+	void renderSprites(const Sprites& sprites, const Vec4f& color);
 
-	SoundInstance* playSound(const std::string& filename, bool loop = false, double pitchSpectrum = 0.0, int priority = 0, bool forceCreation = false);
+	SoundInstance* playSound(const std::string& filename, bool loop = false, float pitchSpectrum = 0.0f, int priority = 0, bool forceCreation = false);
 
 	void registerGameState(GameState* p_gs);
 	GameState* findGameState(const std::string& gs);
@@ -239,7 +239,7 @@ public:
 	GameState* getGameState();
 	void processGameStateChanges();
 
-	void playMusic(const std::string& filename, double loopBegin = 0.0, bool resumeWhereStopped = false);
+	void playMusic(const std::string& filename, float loopBegin = 0.0f, bool resumeWhereStopped = false);
 	void stopMusic();
 
 	bool isKeyDown(SDLKey key) const;
@@ -344,7 +344,7 @@ public:
 	TextureRef getFrameCopyRef(uint textureID) const;
 	const Vec2i& getDisplaySize() const;
 
-	void crossfade(Crossfade* p_crossfade, double duration, bool immediately = false);
+	void crossfade(Crossfade* p_crossfade, float duration, bool immediately = false);
 
 	void loadConfig();
 	void saveConfig();
@@ -354,18 +354,18 @@ public:
 	// config.xml names no language at all - see loadConfig().
 	static std::string detectSystemLanguage();
 	void publishLanguage();
-	double getSoundVolume() const;
-	void setSoundVolume(double soundVolume);
-	double getMusicVolume() const;
-	void setMusicVolume(double musicVolume);
-	double getEffectiveSoundVolume() const;
-	double getEffectiveMusicVolume() const;
+	float getSoundVolume() const;
+	void setSoundVolume(float soundVolume);
+	float getMusicVolume() const;
+	void setMusicVolume(float musicVolume);
+	float getEffectiveSoundVolume() const;
+	float getEffectiveMusicVolume() const;
 	bool wasVolumeChanged() const;
 	bool isAppActive() const;
 	int getDetails() const;
 	void setDetails(int details);
-	double getParticleDensity() const;
-	void setParticleDensity(double particleDensity);
+	float getParticleDensity() const;
+	void setParticleDensity(float particleDensity);
 
 	void setMuteIcon(Texture* p_texture, const Vec2i& positionOnTexture, const Vec2i& size);
 	void setRecordingIcon(Texture* p_texture, const Vec2i& positionOnTexture, const Vec2i& size);
@@ -383,7 +383,7 @@ public:
 	// quietly encoded sound would have less level for the same computing cost.
 	// Anything not listed in data/sounds.xml gets 1.0.
 	void loadSoundVolumes(const std::string& filename);
-	double getSoundVolumeFactor(const std::string& filename) const;
+	float getSoundVolumeFactor(const std::string& filename) const;
 	std::string loadString(const std::string& id) const;
 
 	AudioCapture* getAudioCapture();
@@ -402,7 +402,7 @@ public:
 		TOAST_ERROR
 	};
 
-	void showToast(ToastType type, const std::string& text, double duration = 0.0, bool suppressSound = false);
+	void showToast(ToastType type, const std::string& text, float duration = 0.0f, bool suppressSound = false);
 
 private:
 	Engine();
@@ -428,8 +428,8 @@ private:
 		int phase;          // 0 = in, 1 = standing, 2 = out
 		uint phaseTime;     // ms in this section
 		uint duration;      // ms for section 1
-		double y;           // where the toast currently sits
-		double targetY;     // where it wants to go
+		float y;            // where the toast currently sits
+		float targetY;      // where it wants to go
 	};
 
 	void setupCursor();
@@ -473,8 +473,8 @@ private:
 	// coordinates run from -1 to 1 measured from the centre of the picture.
 	// Only the CRT filter really warps anything, all the others return what
 	// they were given.
-	Vec2d warpToSource(const Vec2d& p) const;
-	Vec2d warpToOutput(const Vec2d& p) const;
+	Vec2f warpToSource(const Vec2f& p) const;
+	Vec2f warpToOutput(const Vec2f& p) const;
 
 	// Oldest first, and that is the order they are drawn in: a dying toast
 	// slides behind its younger neighbour and not over it.
@@ -542,7 +542,7 @@ private:
 	// between two. A member and not a static in the loop, because in the
 	// browser one turn is one call and nothing may live on the stack between
 	// them.
-	double lastFrameBegin;
+	uint64 lastFrameBegin;
 	uint time;
 	Vec2i screenSize;
 	Vec2i screenPow2Size;
@@ -559,8 +559,8 @@ private:
 	uint oldImageID;
 	uint newImageID;
 	Crossfade* p_crossfade;
-	double crossfadeTime;
-	double crossfadeDuration;
+	float crossfadeTime;
+	float crossfadeDuration;
 	StreamedSound* p_currentMusic;
 	std::string currentMusicFilename;
 	std::unordered_map<std::string, uint> musicStoppedAt;
@@ -600,8 +600,8 @@ private:
 	ParameterBlock context;
 
 	std::string language;
-	double soundVolume;
-	double musicVolume;
+	float soundVolume;
+	float musicVolume;
 	bool volumeChanged;
 	// Focus gained or lost, from whichever event.
 	void handleAppFocus(bool gained);
@@ -613,7 +613,7 @@ private:
 
 	bool muted;
 	int details;
-	double particleDensity;
+	float particleDensity;
 	Texture* p_muteIconTexture;
 	Vec2i muteIconPositionOnTexture;
 	Vec2i muteIconSize;
@@ -622,7 +622,7 @@ private:
 	Vec2i recordingIconSize;
 
 	std::unordered_map<std::string, std::string> stringDB;
-	std::unordered_map<std::string, double> soundVolumes;
+	std::unordered_map<std::string, float> soundVolumes;
 	uint timePlayed;
 	bool doScreenshot;
 };

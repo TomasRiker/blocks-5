@@ -11,11 +11,11 @@
 // How brightly something lights up and how fast that fades; the numbers are
 // in object.cpp. Not only objects light up with them - the HUD icons do too
 // (gs_game.cpp), and those must look exactly the same.
-extern const double FLASH_STRENGTH;
-extern const double FLASH_DECAY;
+extern const float FLASH_STRENGTH;
+extern const float FLASH_DECAY;
 
 // Where a beam is drawn against where its emitter traced it; see object.cpp.
-extern const double BEAM_DRAW_OFFSET;
+extern const float BEAM_DRAW_OFFSET;
 
 class Player;
 
@@ -50,7 +50,7 @@ public:
 	Object(Level& level, int depth);
 	virtual ~Object();
 
-	void render(RenderLayer layer, const Vec2i& offset, const Vec4d& color);
+	void render(RenderLayer layer, const Vec2i& offset, const Vec4f& color);
 	void update();
 	virtual void onRemove();
 
@@ -65,7 +65,7 @@ public:
 	// that.
 	virtual void onBeforeRender();
 
-	virtual void onRender(RenderLayer layer, const Vec4d& color);
+	virtual void onRender(RenderLayer layer, const Vec4f& color);
 	virtual void onUpdate();
 	virtual void onElectricitySwitch(bool on);
 	virtual void onCollect(Player* p_player);
@@ -75,7 +75,7 @@ public:
 	virtual bool move(const Vec2i& dir, uint force = ~0);
 	virtual bool allowMovement(const Vec2i& dir);
 	virtual bool reflectLaser(Vec2i& dir, bool lightBarrier = false);
-	virtual bool reflectProjectile(Vec2d& velocity);
+	virtual bool reflectProjectile(Vec2f& velocity);
 	virtual void onFire();
 	virtual void burst();
 
@@ -91,13 +91,13 @@ public:
 	virtual void loadExtendedAttributes(TiXmlElement* p_element);
 
 	virtual void frameBegin();
-	void disappear(double duration);
-	void disappearNextFrame(double duration);
+	void disappear(float duration);
+	void disappearNextFrame(float duration);
 
 	bool isPushedFromAbove();
 	bool isPushedWithDeadlyWeight();
 
-	void say(const std::string& text, double duration);
+	void say(const std::string& text, float duration);
 
 	const std::string& getType() const;
 	void setType(const std::string& type);
@@ -106,7 +106,7 @@ public:
 	void warpTo(const Vec2i& position);
 	void teleportTo(const Vec2i& position);
 	bool hasMoved() const;
-	const Vec2d& getRealShownPosition() const;
+	const Vec2f& getRealShownPosition() const;
 	Vec2i getShownPosition() const;
 	Vec2i getShownPositionInPixels() const;
 	uint getFlags() const;
@@ -167,7 +167,7 @@ public:
 	// The one exception is in frameBegin(): a dying block keeps its value, or
 	// the successful conversion would be the loudest case of snapping back
 	// there is.
-	void setConversionProgress(double progress) { conversionProgress = progress; }
+	void setConversionProgress(float progress) { conversionProgress = progress; }
 
 	uint getMass() const;
 	void setMass(uint mass);
@@ -176,7 +176,7 @@ public:
 	virtual std::string getToolTip() const;
 	void setToolTip(const std::string& toolTip);
 
-	static Vec4d getStdColor(uint color);
+	static Vec4f getStdColor(uint color);
 	static Vec2i intToDir(int dir);
 	static int dirToInt(const Vec2i& dir);
 
@@ -186,8 +186,8 @@ public:
 	bool removed;
 	int onConveyorBelt;
 	bool shadowPass;
-	double noCollect;
-	double flashAmount;
+	float noCollect;
+	float flashAmount;
 
 	// A random value in [-1, 1] that the shines and the two beams vary their
 	// brightness by, redrawn once per tick in frameBegin() and never in
@@ -197,9 +197,9 @@ public:
 	// the part that is visible - while an object's own draws move together.
 	// Never updated (an editor palette, a preview) it keeps the 0 it was
 	// built with, which is the brightness the caller asked for.
-	double glowJitter;
+	float glowJitter;
 
-	double conversionProgress;
+	float conversionProgress;
 
 protected:
 	void handleSliding();
@@ -215,32 +215,32 @@ protected:
 	Level& level;
 	std::string type;
 	Vec2i position;
-	Vec2d shownPosition;
+	Vec2f shownPosition;
 	uint flags;
 	int depth;
 	bool ghost;
 	int destroyTime;
-	double deathCountDown;
-	double deathSpeed;
-	double newDeathCountDown;
-	double newDeathSpeed;
+	float deathCountDown;
+	float deathSpeed;
+	float newDeathCountDown;
+	float newDeathSpeed;
 	int newDeathTime;
-	double interpolation;
+	float interpolation;
 	std::string collisionSound;
 	bool moved;
 	Vec2i lastMoveDir;
-	double teleporting;
+	float teleporting;
 	Vec2i teleportingTo;
 	bool teleportFailed;
 	int oldDepth;
-	double falling;
+	float falling;
 	uint mass;
 	uint uid;
 	std::string burstSound;
 	int fall;
 	std::string sayText;
-	double sayTime;
-	double sayAlpha;
+	float sayTime;
+	float sayAlpha;
 	std::string toolTip;
 	int slideDir;
 	bool slideMove;

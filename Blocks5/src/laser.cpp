@@ -19,7 +19,7 @@ Laser::Laser(Level& level,
 	destroyTime = 125;
 	this->dir = dir;
 	counter = 0;
-	on = 0.0;
+	on = 0.0f;
 
 	if(!level.isInEditor())
 	{
@@ -34,8 +34,8 @@ Laser::Laser(Level& level,
 
 			if(p_soundInst)
 			{
-				p_soundInst->setVolume(0.0);
-				p_soundInst->setPitch(0.1);
+				p_soundInst->setVolume(0.0f);
+				p_soundInst->setPitch(0.1f);
 				p_soundInst->play(true);
 				p_soundInst->pause();
 			}
@@ -65,30 +65,30 @@ void Laser::onRemove()
 void Laser::updateSprites()
 {
 	// Laser
-	sprites.add(Vec2i(level.isElectricityOn() ? 32 : 0, 192)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(level.isElectricityOn() ? 32 : 0, 192)).rotation = 90.0f * dir;
 }
 
 void Laser::onRender(RenderLayer layer,
-					 const Vec4d& color)
+					 const Vec4f& color)
 {
 	Vec2i sp = getShownPositionInPixels();
 
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 	else if(layer == RL_EFFECT || layer == RL_SPARKLE)
 	{
-		if(on > 0.0 && !beam.empty())
+		if(on > 0.0f && !beam.empty())
 		{
-			Vec2d oldDir(0.0);
-			Vec2d oldP(0.0);
-			Vec2d dir(0.0);
-			Vec2d p(0.0);
+			Vec2f oldDir(0.0f);
+			Vec2f oldP(0.0f);
+			Vec2f dir(0.0f);
+			Vec2f p(0.0f);
 
 			beamPoints.clear();
 
-			std::list<Vec2d>::const_iterator last = beam.end();
+			std::list<Vec2f>::const_iterator last = beam.end();
 			last--;
 			uint n = 0;
-			for(std::list<Vec2d>::const_iterator i = beam.begin(); i != beam.end(); ++i, ++n)
+			for(std::list<Vec2f>::const_iterator i = beam.begin(); i != beam.end(); ++i, ++n)
 			{
 				oldP = p;
 				oldDir = dir;
@@ -100,7 +100,7 @@ void Laser::onRender(RenderLayer layer,
 				// third on does a point that keeps it add nothing.
 				if(n < 2 || i == last || dir != oldDir)
 				{
-					beamPoints.push_back(static_cast<Vec2f>(p));
+					beamPoints.push_back(p);
 				}
 			}
 
@@ -113,18 +113,18 @@ void Laser::onRender(RenderLayer layer,
 			// and six for the glow, two more to each side of it.
 			renderer.translate(-sp.x + BEAM_DRAW_OFFSET, -sp.y + BEAM_DRAW_OFFSET);
 
-			double x = static_cast<double>(counter) * 0.8;
-			Vec4d color;
-			if(layer == RL_EFFECT) color = Vec4d(1.0, 0.25, 0.0, on * deathCountDown * (0.2 + 0.05 * sin(x)));
-			else color = Vec4d(0.0, 0.25, 0.0, 0.4 * on * deathCountDown * (0.2 + 0.05 * sin(x)));
-			renderer.polyline(beamPoints, 6.0f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 6.0f, static_cast<Vec4f>(color));
+			float x = static_cast<float>(counter) * 0.8f;
+			Vec4f color;
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.25f, 0.0f, on * deathCountDown * (0.2f + 0.05f * sinf(x)));
+			else color = Vec4f(0.0f, 0.25f, 0.0f, 0.4f * on * deathCountDown * (0.2f + 0.05f * sinf(x)));
+			renderer.polyline(beamPoints, 6.0f, color);
+			renderer.point(p, 6.0f, color);
 
-			const double green = 0.625 + 0.025 * glowJitter;
-			if(layer == RL_EFFECT) color = Vec4d(1.0, green, 0.0, on * deathCountDown * (0.9 + 0.1 * cos(x)));
-			else color = Vec4d(0.0, green, 0.0, 0.4 * on * deathCountDown * (0.9 + 0.1 * cos(x)));
-			renderer.polyline(beamPoints, 2.0f, static_cast<Vec4f>(color));
-			renderer.point(static_cast<Vec2f>(p), 4.0f, static_cast<Vec4f>(color));
+			const float green = 0.625f + 0.025f * glowJitter;
+			if(layer == RL_EFFECT) color = Vec4f(1.0f, green, 0.0f, on * deathCountDown * (0.9f + 0.1f * cosf(x)));
+			else color = Vec4f(0.0f, green, 0.0f, 0.4f * on * deathCountDown * (0.9f + 0.1f * cosf(x)));
+			renderer.polyline(beamPoints, 2.0f, color);
+			renderer.point(p, 4.0f, color);
 
 			renderer.pop();
 		}
@@ -133,7 +133,7 @@ void Laser::onRender(RenderLayer layer,
 	{
 		// The jitter ramps with the beam, so a laser coming on brightens
 		// evenly instead of flickering at full depth from the first tick.
-		if(on > 0.0) level.renderBeamShines(beam, sp, 0.25, on * 0.4, on * 0.05, glowJitter);
+		if(on > 0.0f) level.renderBeamShines(beam, sp, 0.25f, on * 0.4f, on * 0.05f, glowJitter);
 	}
 }
 
@@ -147,7 +147,7 @@ void Laser::onUpdate()
 	const bool burst = destroyTime > 0 && destroyTime < 5 && --destroyTime == 0;
 	if(burst)
 	{
-		Engine::inst().playSound("vaporize.ogg", false, 0.15);
+		Engine::inst().playSound("vaporize.ogg", false, 0.15f);
 
 		// debris
 		ParticleSystem* p_particleSystem = level.getParticleSystem();
@@ -162,14 +162,14 @@ void Laser::onUpdate()
 			p.positionOnTexture = Vec2b(96, 0);
 			p.sizeOnTexture = Vec2b(16, 16);
 
-			Vec4d sampled;
+			Vec4f sampled;
 			Vec2i offset;
 			if(!debris.sample(&sampled, &offset)) continue;
 
 			p.position = position * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-			p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
+			p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 			p.color = sampled;
-			p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+			p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 			p.rotation = random(0.0f, 10.0f);
 			p.deltaRotation = random(-0.1f, 0.1f);
 			p.size = random(0.5f, 1.5f);
@@ -177,15 +177,15 @@ void Laser::onUpdate()
 			p_particleSystem->addParticle(p);
 		}
 
-		disappear(0.2);
+		disappear(0.2f);
 	}
 
 	beam.clear();
-	if(on > 0.0)
+	if(on > 0.0f)
 	{
 		// compute the beam
 		Vec2i beamDir = numberToDir(dir);
-		Vec2d beamPos = Vec2d(7.5, 7.5) + getShownPositionInPixels();
+		Vec2f beamPos = Vec2f(7.5f, 7.5f) + getShownPositionInPixels();
 		Vec2i beamPosF;
 		beam.push_back(beamPos);
 		beamPos += beamDir;
@@ -216,8 +216,8 @@ void Laser::onUpdate()
 				if(p_obj)
 				{
 					// An object blocks the way.
-					if(beamDir.x) beamPos.x = 7.5 + p_obj->getShownPositionInPixels().x;
-					else if(beamDir.y) beamPos.y = 7.5 + p_obj->getShownPositionInPixels().y;
+					if(beamDir.x) beamPos.x = 7.5f + p_obj->getShownPositionInPixels().x;
+					else if(beamDir.y) beamPos.y = 7.5f + p_obj->getShownPositionInPixels().y;
 					beam.back() = beamPos;
 
 					if(p_obj->reflectLaser(beamDir))
@@ -230,7 +230,7 @@ void Laser::onUpdate()
 						p_obj->setDestroyTime(p_obj->getDestroyTime() - 1);
 						if(!p_obj->getDestroyTime())
 						{
-							p_obj->disappear(0.2);
+							p_obj->disappear(0.2f);
 							destroyed = true;
 							p_sprites = &p_obj->getSprites();
 						}
@@ -257,8 +257,8 @@ void Laser::onUpdate()
 						}
 					}
 
-					if(beamDir.x) beamPos.x = 7.5 + tileHit.x * 16;
-					else if(beamDir.y) beamPos.y = 7.5 + tileHit.y * 16;
+					if(beamDir.x) beamPos.x = 7.5f + tileHit.x * 16;
+					else if(beamDir.y) beamPos.y = 7.5f + tileHit.y * 16;
 					beam.back() = beamPos;
 
 					if(tileInfo.type == 1)
@@ -302,10 +302,10 @@ void Laser::onUpdate()
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = beamPos + Vec2d(BEAM_DRAW_OFFSET, BEAM_DRAW_OFFSET);
-				p.velocity = Vec2d(random(-0.25, 0.25), -1.0);
-				p.color = Vec4d(0.0, 0.0, 0.0, on * 0.2);
-				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+				p.position = beamPos + Vec2f(BEAM_DRAW_OFFSET, BEAM_DRAW_OFFSET);
+				p.velocity = Vec2f(random(-0.25f, 0.25f), -1.0f);
+				p.color = Vec4f(0.0f, 0.0f, 0.0f, on * 0.2f);
+				p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.3f, 0.5f);
@@ -329,12 +329,12 @@ void Laser::onUpdate()
 				// fire, the toxic waste, an object arriving from a teleporter
 				// - it is added to position * 16, and the eight in it is the
 				// half cell that carries that corner to its centre.
-				p.position = beamPos + Vec2d(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
+				p.position = beamPos + Vec2f(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
 											 BEAM_DRAW_OFFSET + random(-2.0f, 2.0f));
-				const double r = random(0.0, 6.283);
-				p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
-				p.color = Vec4d(random(0.5, 1.0), random(0.5, 1.0), 0.0, on * 0.9);
-				p.deltaColor = Vec4d(0.5, 0.0, 0.0, -p.color.a / p.lifetime);
+				const float r = random(0.0f, 6.283f);
+				p.velocity = random(3.0f, 6.0f) * Vec2f(sinf(r), cosf(r));
+				p.color = Vec4f(random(0.5f, 1.0f), random(0.5f, 1.0f), 0.0f, on * 0.9f);
+				p.deltaColor = Vec4f(0.5f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 				p.rotation = random(0.0f, 10.0f);
 				p.deltaRotation = random(-0.1f, 0.1f);
 				p.size = random(0.1f, 0.2f);
@@ -345,7 +345,7 @@ void Laser::onUpdate()
 
 			if(destroyed && p_sprites)
 			{
-				Engine::inst().playSound("vaporize.ogg", false, 0.15);
+				Engine::inst().playSound("vaporize.ogg", false, 0.15f);
 
 				// debris
 				int n = p_sprites->getTryCount(random(50, 80));
@@ -357,14 +357,14 @@ void Laser::onUpdate()
 					p.positionOnTexture = Vec2b(96, 0);
 					p.sizeOnTexture = Vec2b(16, 16);
 
-					Vec4d sampled;
+					Vec4f sampled;
 					Vec2i offset;
 					if(!p_sprites->sample(&sampled, &offset)) continue;
 
 					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-					p.velocity = Vec2d(random(-0.2, 0.2), random(-0.2, 0.2));
+					p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 					p.color = sampled;
-					p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
+					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 					p.rotation = random(0.0f, 10.0f);
 					p.deltaRotation = random(-0.1f, 0.1f);
 					p.size = random(0.5f, 1.5f);
@@ -378,9 +378,9 @@ void Laser::onUpdate()
 		counter++;
 	}
 
-	if(level.isElectricityOn()) on += 0.2;
-	else on -= 0.2;
-	on = clamp(on, 0.0, 1.0);
+	if(level.isElectricityOn()) on += 0.2f;
+	else on -= 0.2f;
+	on = clamp(on, 0.0f, 1.0f);
 }
 
 void Laser::onElectricitySwitch(bool on)
@@ -392,13 +392,13 @@ void Laser::onElectricitySwitch(bool on)
 	if(on)
 	{
 		p_soundInst->resume();
-		p_soundInst->slideVolume(0.25, 0.2);
-		p_soundInst->slidePitch(1.0, 0.2);
+		p_soundInst->slideVolume(0.25f, 0.2f);
+		p_soundInst->slidePitch(1.0f, 0.2f);
 	}
 	else
 	{
-		p_soundInst->slideVolume(-1.0, 0.1);
-		p_soundInst->slidePitch(0.1, 0.1);
+		p_soundInst->slideVolume(-1.0f, 0.1f);
+		p_soundInst->slidePitch(0.1f, 0.1f);
 	}
 
 	soundChanged = true;
@@ -408,7 +408,7 @@ void Laser::frameBegin()
 {
 	Object::frameBegin();
 
-	for(std::list<Vec2d>::const_iterator it = beam.begin();
+	for(std::list<Vec2f>::const_iterator it = beam.begin();
 		it != beam.end();
 		++it)
 	{

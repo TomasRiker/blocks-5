@@ -26,8 +26,8 @@ namespace
 	// it stays with the slices.
 	void crossfadeRestart(Engine& engine)
 	{
-		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5);
-		else engine.crossfade(new CF_Slices, 0.85);
+		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5f);
+		else engine.crossfade(new CF_Slices, 0.85f);
 	}
 
 	// Light up a HUD icon exactly the way an object in the level does
@@ -38,12 +38,12 @@ namespace
 						 const Vec2i& position,
 						 uint index)
 	{
-		const double f = level.getHudIconFlash(index);
-		if(f <= 0.0) return;
+		const float f = level.getHudIconFlash(index);
+		if(f <= 0.0f) return;
 
 		Engine& engine = Engine::inst();
 		Renderer::inst().setBlend(BM_ADDITIVE);
-		level.getPresets()->renderPreset(p_preset, position, Vec4d(f, f, f, 1.0));
+		level.getPresets()->renderPreset(p_preset, position, Vec4f(f, f, f, 1.0f));
 		Renderer::inst().setBlend(BM_NORMAL);
 	}
 }
@@ -217,8 +217,8 @@ public:
 		}
 		else if(name == "Game.MenuPane.Menu.Quit")
 		{
-			if(game.cameFromEditor) game.engine.crossfade(new CF_Mosaic, 0.85);
-			else game.engine.crossfade(new CF_Cube, 0.85);
+			if(game.cameFromEditor) game.engine.crossfade(new CF_Mosaic, 0.85f);
+			else game.engine.crossfade(new CF_Cube, 0.85f);
 			game.engine.popGameState();
 		}
 		else if(name == "Game.MenuPane.Quit")
@@ -264,10 +264,10 @@ void GS_Game::onRender()
 	p_level->getPresets()->renderPreset("Diamond", Vec2i(32, 416));
 	renderIconFlash(*p_level, "Diamond", Vec2i(32, 416), 1);
 	sprintf(text, "%d/%d", nd, p_level->getNumDiamondsNeeded());
-	double alpha;
-	if(nd >= p_level->getNumDiamondsNeeded()) alpha = 0.7 + 0.3 * sin(static_cast<double>(p_level->counter) * 0.4);
-	else alpha = 1.0;
-	p_font->renderText(text, Vec2i(66, 416), Vec4d(1.0, 1.0, 1.0, alpha));
+	float alpha;
+	if(nd >= p_level->getNumDiamondsNeeded()) alpha = 0.7f + 0.3f * sinf(static_cast<float>(p_level->counter) * 0.4f);
+	else alpha = 1.0f;
+	p_font->renderText(text, Vec2i(66, 416), Vec4f(1.0f, 1.0f, 1.0f, alpha));
 
 	Player* p_player = p_level->getActivePlayer();
 	if(p_player)
@@ -275,19 +275,19 @@ void GS_Game::onRender()
 		p_level->getPresets()->renderPreset("Bomb", Vec2i(32, 448));
 		renderIconFlash(*p_level, "Bomb", Vec2i(32, 448), 0);
 		sprintf(text, "%d", p_player->getInventory(0));
-		p_font->renderText(text, Vec2i(66, 448), Vec4d(1.0, 1.0, 1.0, 1.0));
+		p_font->renderText(text, Vec2i(66, 448), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
-		double c = static_cast<double>(p_player->getContamination());
-		if(c > 0.0)
+		float c = static_cast<float>(p_player->getContamination());
+		if(c > 0.0f)
 		{
 			Engine& engine = Engine::inst();
-			double t = static_cast<double>(engine.getTime()) / 1000.0;
-			double x = min(0.5, 0.002 * c);
-			double f = c < 375.0 ? 2.0 : 4.0;
-			double s = sin(6.282 * f * t);
-			Vec4d color(1.0, 1.0 - x, 1.0 - x, 0.7 + 0.4 * s);
-			double scaling = 1.0 + min(0.2, 0.002 * c) * s;
-			engine.renderSprite(p_misc, Vec2i(168, 416), Vec2i(0, 0), Vec2i(48, 48), color, false, 0.0, scaling);
+			float t = static_cast<float>(engine.getTime()) / 1000.0f;
+			float x = min(0.5f, 0.002f * c);
+			float f = c < 375.0f ? 2.0f : 4.0f;
+			float s = sinf(6.282f * f * t);
+			Vec4f color(1.0f, 1.0f - x, 1.0f - x, 0.7f + 0.4f * s);
+			float scaling = 1.0f + min(0.2f, 0.002f * c) * s;
+			engine.renderSprite(p_misc, Vec2i(168, 416), Vec2i(0, 0), Vec2i(48, 48), color, false, 0.0f, scaling);
 		}
 	}
 
@@ -324,22 +324,22 @@ void GS_Game::onRender()
 
 	Vec2i dim;
 	p_font->measureText(caption, &dim, 0);
-	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4d(1.0, 1.0, 1.0, 1.0));
+	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 	if(engine.isKeyDown(SDLK_f))
 	{
 		sprintf(text, "Frame: %d ms", engine.getFrameTime());
-		p_font->renderText(text, Vec2i(10, 10), Vec4d(1.0, 1.0, 1.0, 0.5));
+		p_font->renderText(text, Vec2i(10, 10), Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
 	}
 
 	if(paused)
 	{
-		double t = 0.001 * engine.getTime();
-		double r = 0.5 + 0.5 * sin(3.0 * t);
-		double g = 0.5 + 0.5 * cos(4.27 * t);
-		double b = 0.5 + 0.5 * sin(5.13 * t);
-		double a = 0.7 + 0.3 * sin(6.26 * t);
-		p_font->renderText("Pause", pausePosition, Vec4d(r, g, b, a));
+		float t = 0.001f * engine.getTime();
+		float r = 0.5f + 0.5f * sinf(3.0f * t);
+		float g = 0.5f + 0.5f * cosf(4.27f * t);
+		float b = 0.5f + 0.5f * sinf(5.13f * t);
+		float a = 0.7f + 0.3f * sinf(6.26f * t);
+		p_font->renderText("Pause", pausePosition, Vec4f(r, g, b, a));
 	}
 }
 
@@ -425,13 +425,13 @@ void GS_Game::onUpdate()
 		{
 			if(c >= 50)
 			{
-				p_level->addToxic(0.05);
+				p_level->addToxic(0.05f);
 			}
 
 			if(random(0, 2000 + c) >= 2000)
 			{
 				// play the Geiger counter sound
-				Engine::inst().playSound("geiger.ogg", false, 0.2);
+				Engine::inst().playSound("geiger.ogg", false, 0.2f);
 			}
 		}
 	}
@@ -471,7 +471,7 @@ void GS_Game::onUpdate()
 		if(status == 1)
 		{
 			targetOut = p_level->getActivePlayer()->getShownPositionInPixels() + Vec2i(8, 8);
-			Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
+			Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0f);
 		}
 		else
 		{
@@ -491,12 +491,12 @@ void GS_Game::onUpdate()
 				{
 					// The game is over.
 					Engine::inst().setGameState("GS_Credits");
-					Engine::inst().crossfade(new CF_ColorBlend(Vec3d(0.0, 0.0, 0.0), 0.5), 2.0);
+					Engine::inst().crossfade(new CF_ColorBlend(Vec3f(0.0f, 0.0f, 0.0f), 0.5f), 2.0f);
 				}
 				else
 				{
 					Engine::inst().popGameState();
-					Engine::inst().crossfade(new CF_ColorBlend(Vec3d(0.0, 0.0, 0.0), 0.5), 2.0);
+					Engine::inst().crossfade(new CF_ColorBlend(Vec3f(0.0f, 0.0f, 0.0f), 0.5f), 2.0f);
 					if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber - 1);
 				}
 			}
@@ -504,19 +504,19 @@ void GS_Game::onUpdate()
 			{
 				// The next level is the bonus level.
 				Engine::inst().popGameState();
-				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
+				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0f);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber);
 			}
 			else if(status == 0)
 			{
 				// error
-				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
+				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0f);
 				if(p_selectLevel) p_selectLevel->setCurrentLevel(levelNumber - 1);
 			}
 			else if(status == -3)
 			{
 				Engine::inst().popGameState();
-				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0);
+				Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0f);
 			}
 		}
 	}
@@ -539,23 +539,23 @@ void GS_Game::onUpdate()
 
 	if(paused)
 	{
-		pausePosition += 0.02 * 190.0 * pauseVelocity;
+		pausePosition += 0.02f * 190.0f * pauseVelocity;
 
-		if(pausePosition.x < 0.0 || pausePosition.x > 600.0)
+		if(pausePosition.x < 0.0f || pausePosition.x > 600.0f)
 		{
-			pauseVelocity.x *= -1.0;
-			pauseVelocity.y += random(-0.2, 0.2);
+			pauseVelocity.x *= -1.0f;
+			pauseVelocity.y += random(-0.2f, 0.2f);
 			pauseVelocity.normalize();
 		}
 
-		if(pausePosition.y < 0.0 || pausePosition.y > 382.0)
+		if(pausePosition.y < 0.0f || pausePosition.y > 382.0f)
 		{
-			pauseVelocity.y *= -1.0;
-			pauseVelocity.x += random(-0.2, 0.2);
+			pauseVelocity.y *= -1.0f;
+			pauseVelocity.x += random(-0.2f, 0.2f);
 			pauseVelocity.normalize();
 		}
 
-		pausePosition += 0.02 * 10.0 * pauseVelocity;
+		pausePosition += 0.02f * 10.0f * pauseVelocity;
 	}
 }
 
@@ -568,9 +568,9 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	p_saveGame = 0;
 	levelFilename = "";
 	paused = false;
-	pausePosition = Vec2d(320.0, 200.0);
-	const double r = random(0.0, 6.2832);
-	pauseVelocity = Vec2d(sin(r), cos(r));
+	pausePosition = Vec2f(320.0f, 200.0f);
+	const float r = random(0.0f, 6.2832f);
+	pauseVelocity = Vec2f(sinf(r), cosf(r));
 
 	// load the level
 	p_level = new Level;

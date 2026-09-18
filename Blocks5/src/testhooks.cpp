@@ -53,7 +53,7 @@ namespace
 
 	// Two decimals: a frame is milliseconds and the interesting differences
 	// here are fractions of one.
-	void appendFixed(std::string& out, double value)
+	void appendFixed(std::string& out, float value)
 	{
 		char buffer[32];
 		sprintf(buffer, "%.2f", value);

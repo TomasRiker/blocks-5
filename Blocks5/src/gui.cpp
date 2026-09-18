@@ -49,7 +49,7 @@ bool GUI::init()
 	p_skin = Manager<Texture>::inst().request("gui.png");
 
 	texID = 0;
-	setOpacity(0.85);
+	setOpacity(0.85f);
 
 	cursorPos = oldCursorPos = Engine::inst().getCursorPosition();
 	oldRawCursorPos = Engine::inst().getRawCursorPosition();
@@ -89,7 +89,7 @@ void GUI::exit()
 
 void GUI::render()
 {
-	if(opacity == 1.0 || opacity == 0.0) return;
+	if(opacity == 1.0f || opacity == 0.0f) return;
 
 	// Drawn onto a cleared frame and copied off it, so that display() can
 	// put the whole of it back over the game at the chosen opacity.
@@ -125,16 +125,16 @@ void GUI::renderToolTip()
 			renderer.rect(min, max, Vec4f(1.0f, 1.0f, 0.5f, 0.9f));
 			renderer.hairlineRect(min, max, Vec4f(0.0f, 0.0f, 0.0f, 0.9f));
 
-			p_toolTipFont->renderText(toolTip, ttPos + Vec2i(3, 3), Vec4d(1.0));
+			p_toolTipFont->renderText(toolTip, ttPos + Vec2i(3, 3), Vec4f(1.0f));
 		}
 	}
 }
 
 void GUI::display()
 {
-	if(opacity == 0.0 || (opacity != 1.0 && !GUI_Element::numElementsRendered)) return;
+	if(opacity == 0.0f || (opacity != 1.0f && !GUI_Element::numElementsRendered)) return;
 
-	if(opacity == 1.0)
+	if(opacity == 1.0f)
 	{
 		Renderer::inst().setBlend(BM_NORMAL);
 
@@ -150,7 +150,7 @@ void GUI::display()
 		const Vec2f screenSize = static_cast<Vec2f>(engine.getScreenSize());
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f), screenSize, Vec2f(0.0f, screenSize.y)};
 		Renderer::inst().quad(RenderState(engine.getFrameCopyRef(texID), BM_NORMAL), corners, corners,
-							  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(opacity)));
+							  Vec4f(1.0f, 1.0f, 1.0f, opacity));
 	}
 }
 
@@ -357,11 +357,15 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 				tileSize.x = lastFillTileSize.x;
 			}
 
-			// render the tile
-			quads.push_back(QuadVertex(cursor.x, cursor.y, texCoords.x, texCoords.y));
-			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y, texCoords.x + tileSize.x, texCoords.y));
-			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y + tileSize.y, texCoords.x + tileSize.x, texCoords.y + tileSize.y));
-			quads.push_back(QuadVertex(cursor.x, cursor.y + tileSize.y, texCoords.x, texCoords.y + tileSize.y));
+			// Render the tile; its edges and texels are whole numbers, added up as such.
+			const float x0 = static_cast<float>(cursor.x), y0 = static_cast<float>(cursor.y);
+			const float x1 = static_cast<float>(cursor.x + tileSize.x), y1 = static_cast<float>(cursor.y + tileSize.y);
+			const float u0 = static_cast<float>(texCoords.x), v0 = static_cast<float>(texCoords.y);
+			const float u1 = static_cast<float>(texCoords.x + tileSize.x), v1 = static_cast<float>(texCoords.y + tileSize.y);
+			quads.push_back(QuadVertex(x0, y0, u0, v0));
+			quads.push_back(QuadVertex(x1, y0, u1, v0));
+			quads.push_back(QuadVertex(x1, y1, u1, v1));
+			quads.push_back(QuadVertex(x0, y1, u0, v1));
 
 			cursor.x += tileSize.x;
 		}
@@ -430,24 +434,24 @@ Font* GUI::getToolTipFont()
 	return p_toolTipFont;
 }
 
-double GUI::getOpacity() const
+float GUI::getOpacity() const
 {
 	return opacity;
 }
 
-void GUI::setOpacity(double opacity)
+void GUI::setOpacity(float opacity)
 {
-	opacity = clamp(opacity, 0.0, 1.0);
+	opacity = clamp(opacity, 0.0f, 1.0f);
 	this->opacity = opacity;
 
-	if(opacity == 1.0 && texID)
+	if(opacity == 1.0f && texID)
 	{
 		// delete the texture
 		Renderer::inst().deleteTexture(texID);
 		texID = 0;
 	}
 
-	if(opacity != 1.0 && !texID)
+	if(opacity != 1.0f && !texID)
 	{
 		// create the texture, with alpha: the GUI is drawn onto nothing
 		texID = Engine::inst().createFrameCopyTexture(true, true);

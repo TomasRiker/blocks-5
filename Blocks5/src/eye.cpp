@@ -13,7 +13,7 @@ Eye::Eye(Level& level,
 	warpTo(position);
 	flags = OF_FIXED | OF_DESTROYABLE | OF_NO_SHADOW;
 	this->dir = dir;
-	viewDir = Vec2d(0.0, 0.1);
+	viewDir = Vec2f(0.0f, 0.1f);
 	closed = 0;
 }
 
@@ -32,12 +32,12 @@ void Eye::updateSprites()
 		// Rounded, not truncated: offset is a Vec2i, and a plain conversion of
 		// 0.5 + 3*viewDir cuts towards zero - the pupil moved three pixels one
 		// way and two the other.
-		sprites.add(Vec2i(192, 448)).offset = roundToVec2i(3.0 * viewDir);
+		sprites.add(Vec2i(192, 448)).offset = roundToVec2i(3.0f * viewDir);
 	}
 }
 
 void Eye::onRender(RenderLayer layer,
-				   const Vec4d& color)
+				   const Vec4f& color)
 {
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);
 }
@@ -48,18 +48,18 @@ void Eye::onUpdate()
 	if(p_player)
 	{
 		// find the vector to the player
-		Vec2d playerPos = static_cast<Vec2d>(p_player->getShownPositionInPixels()) + Vec2d(7.5, 7.5);
-		Vec2d myPos = static_cast<Vec2d>(getShownPositionInPixels()) + Vec2d(7.5, 7.5);
-		Vec2d targetDir = playerPos - myPos;
-		double distSq = targetDir.lengthSq();
-		if(distSq > 1.0)
+		Vec2f playerPos = static_cast<Vec2f>(p_player->getShownPositionInPixels()) + Vec2f(7.5f, 7.5f);
+		Vec2f myPos = static_cast<Vec2f>(getShownPositionInPixels()) + Vec2f(7.5f, 7.5f);
+		Vec2f targetDir = playerPos - myPos;
+		float distSq = targetDir.lengthSq();
+		if(distSq > 1.0f)
 		{
 			targetDir.normalize();
-			viewDir = 0.9 * viewDir + 0.1 * targetDir;
+			viewDir = 0.9f * viewDir + 0.1f * targetDir;
 			viewDir.normalize();
 		}
 
-		if(!closed && distSq < 300.0)
+		if(!closed && distSq < 300.0f)
 		{
 			closed = random(100, 105);
 			TiXmlElement enemy("");
@@ -71,7 +71,7 @@ void Eye::onUpdate()
 	}
 	else
 	{
-		viewDir += 0.2 * Vec2d(-viewDir.y, viewDir.x);
+		viewDir += 0.2f * Vec2f(-viewDir.y, viewDir.x);
 		viewDir.normalize();
 	}
 

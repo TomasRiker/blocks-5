@@ -11,7 +11,7 @@ public:
 	Eye(Level& level, const Vec2i& position, int dir);
 	~Eye();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	bool changeInEditor(int mod);
@@ -19,7 +19,7 @@ public:
 
 private:
 	int dir;
-	Vec2d viewDir;
+	Vec2f viewDir;
 	int closed;
 };
 

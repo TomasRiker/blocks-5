@@ -22,11 +22,11 @@ E_PulseSwitch::~E_PulseSwitch()
 void E_PulseSwitch::updateSprites()
 {
 	Electronics::updateSprites();
-	sprites.add(Vec2i(96 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0 * dir;
+	sprites.add(Vec2i(96 + ((32 * pulseValue) + (value == pulseValue ? 32 : 0)) % 64, 704)).rotation = 90.0f * dir;
 }
 
 void E_PulseSwitch::onRender(RenderLayer layer,
-							 const Vec4d& color)
+							 const Vec4f& color)
 {
 	Electronics::onRender(layer, color);
 	if(layer == RL_MAIN) Engine::inst().renderSprites(sprites, color);

@@ -11,7 +11,7 @@ public:
 	Enemy(Level& level, const Vec2i& position, int subType, int dir);
 	~Enemy();
 
-	void onRender(RenderLayer layer, const Vec4d& color);
+	void onRender(RenderLayer layer, const Vec4f& color);
 	void updateSprites();
 	void onUpdate();
 	void onCollect(Player* p_player);
@@ -34,12 +34,12 @@ private:
 	int soundCounter;
 	int eatCounter;
 	int burpCounter;
-	double shownDir;
+	float shownDir;
 	Vec2i targetPosition;
 	int interest;
 	int contamination;
-	double height;
-	double vy;
+	float height;
+	float vy;
 	int invisibility;
 };
 

@@ -22,7 +22,7 @@ void ElectricityPanel::updateSprites()
 }
 
 void ElectricityPanel::onRender(RenderLayer layer,
-								const Vec4d& color)
+								const Vec4f& color)
 {
 	if(layer == RL_FLOOR) Engine::inst().renderSprites(sprites, color);
 }
@@ -46,11 +46,11 @@ void ElectricityPanel::onTriggered(Object* p_sender)
 	if(subType == 0 && !eo)
 	{
 		level.setElectricityOn(true);
-		Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
+		Engine::inst().playSound("electricityswitch.ogg", false, 0.15f, 100);
 	}
 	else if(subType == 1 && eo)
 	{
 		level.setElectricityOn(false);
-		Engine::inst().playSound("electricityswitch.ogg", false, 0.15, 100);
+		Engine::inst().playSound("electricityswitch.ogg", false, 0.15f, 100);
 	}
 }

@@ -70,10 +70,14 @@ to put a compiler over the Windows code from here. Three files never go through 
 crash handler behind `#if defined(_WIN32) && !defined(_DEBUG)` — true under mingw, false under emcc. It
 needs nothing checked in: the headers mingw and OpenAL Soft file differently (`<Windows.h>`,
 `<Shlobj.h>`, `<al.h>`) are generated into a temp directory. It compiles with `-Wconversion` and drops
-everything that says except one family, which fails the run: **an integer handed to a float**. MSVC
-reports that as C4244 at the project's level 3, mingw only under `-Wconversion`, and it arrived one
-line per build as the files happened to recompile - an int vector's component given to a float
-vector's constructor every time, in code that had compiled clean here. `static_cast<Vec2f>(v)` is the
-spelling that says it on purpose, `static_cast<float>(n)` for a single value. For a warning sweep add
+everything that says except two families, either of which fails the run: **an integer handed to a
+float**, and **a double handed to a float**. MSVC reports both as C4244 at the project's level 3, mingw
+only under `-Wconversion`. The first arrived one line per build as the files happened to recompile - an
+int vector's component given to a float vector's constructor every time, in code that had compiled clean
+here. `static_cast<Vec2f>(v)` is the spelling that says it on purpose, `static_cast<float>(n)` for a
+single value. The second is what keeps the tree's one floating type one: with no `double` left to
+declare, a double arrives only out of a library call, and the family it catches is the unqualified
+`sin`, `cos` and `floor`, which are the C ones and take a double - so a float widens, goes through the
+double routine and narrows back. `sinf` and its cousins are the spelling that does not. For a warning sweep add
 `-Wall -Wextra` and compare against the same sweep before your change, because the tree emits
 thousands of warnings that were all there in 2015.
