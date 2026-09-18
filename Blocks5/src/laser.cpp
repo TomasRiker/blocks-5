@@ -302,7 +302,7 @@ void Laser::onUpdate()
 				p.gravity = 0.005f;
 				p.positionOnTexture = Vec2b(0, 0);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = beamPos;
+				p.position = beamPos + Vec2d(BEAM_DRAW_OFFSET, BEAM_DRAW_OFFSET);
 				p.velocity = Vec2d(random(-0.25, 0.25), -1.0);
 				p.color = Vec4d(0.0, 0.0, 0.0, on * 0.2);
 				p.deltaColor = Vec4d(0.0, 0.0, 0.0, -p.color.a / p.lifetime);
@@ -321,7 +321,16 @@ void Laser::onUpdate()
 				p.gravity = 0.1f;
 				p.positionOnTexture = Vec2b(32, 32);
 				p.sizeOnTexture = Vec2b(16, 16);
-				p.position = beamPos + Vec2f(random(6.0f, 10.0f), random(6.0f, 10.0f));
+				// Two pixels of scatter about the point the beam ends on, and
+				// nothing more: a particle's position is its centre, since
+				// ParticleSystem::render builds the quad around it, and
+				// beamPos is a point in the level rather than a cell's corner.
+				// Where the same scatter is written "+ random(6, 10)" - the
+				// fire, the toxic waste, an object arriving from a teleporter
+				// - it is added to position * 16, and the eight in it is the
+				// half cell that carries that corner to its centre.
+				p.position = beamPos + Vec2d(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
+											 BEAM_DRAW_OFFSET + random(-2.0f, 2.0f));
 				const double r = random(0.0, 6.283);
 				p.velocity = random(3.0, 6.0) * Vec2d(sin(r), cos(r));
 				p.color = Vec4d(random(0.5, 1.0), random(0.5, 1.0), 0.0, on * 0.9);
