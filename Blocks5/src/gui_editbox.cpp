@@ -55,7 +55,7 @@ void GUI_EditBox::onRender()
 	if(scroll < 0) scroll = 0;
 
 	renderer.push();
-	renderer.translate(-scroll, 0.0f);
+	renderer.translate(static_cast<float>(-scroll), 0.0f);
 
 	// write the text
 	int py = (size.y - dim.y) / 2;
@@ -80,9 +80,9 @@ void GUI_EditBox::onRender()
 		}
 
 		// draw the caret
-		float alpha = 0.6f + 0.4f * sin(0.02f * Engine::inst().getTime());
+		const float alpha = 0.6f + 0.4f * sinf(0.02f * Engine::inst().getTime());
 		renderer.hairline(static_cast<Vec2f>(c + Vec2i(0, py + 1)), static_cast<Vec2f>(c + Vec2i(0, py + 1 + p_font->getLineHeight())),
-						  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha)));
+						  Vec4f(1.0f, 1.0f, 1.0f, alpha));
 	}
 
 	renderer.pop();

@@ -115,10 +115,16 @@ inline bool isReturnKey(int key)
 // offset/2048 texels, so the drift turns visibly steppy about a minute in and
 // gets worse from there. Keeping the offset inside one period keeps the
 // precision constant.
-inline float wrapTextureOffset(float offset, int period)
+//
+// It is also the one arithmetic in the game that is not float. What grows
+// here is the offset itself: a float's step passes one millisecond of a
+// level's clock about five hours into the same level, and the rain, which
+// scrolls twenty texels a tick, is the first to go steppy. What leaves is
+// inside one period, so every caller takes it as a float again.
+inline double wrapTextureOffset(double offset, int period)
 {
 	if(period <= 0) return offset;
-	return fmodf(offset, static_cast<float>(period));
+	return fmod(offset, static_cast<double>(period));
 }
 
 // To the nearest whole pixel, both signs alike. A plain conversion to Vec2i

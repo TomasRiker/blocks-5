@@ -78,10 +78,13 @@ projection, an identity transform and no scissor, and `endTarget` puts all three
 `float` entries, as GL's matrix stack was; a translate composes as Mesa's `glTranslated` does — the
 products first, the old translation last — and a rotate takes its sine and cosine as Mesa does, the angle
 to `float`, the radians in `double`, `sinf` and `cosf`, which is why a right angle has a cosine of
--4.4e-8 and not 0. A corner is then the `float` entries promoted to `double`, summed, and rounded to
-`float` once — the arithmetic GL's own vertex stage does with a float matrix, so that a baked corner is
-the float the oracle's frames were drawn with. The projection is the one matrix left to the GPU, as a uniform; `Mat4::ortho` (`vec.h`) builds the same
-numbers `gluOrtho2D` did. The same `Mat4` does GL's arithmetic for every other matrix the game once
+-4.4e-8 and not 0. A corner is then summed in `float` and rounded at every step, the arithmetic GL's own
+vertex stage does with a float matrix. Promoting the entries and rounding the sum once instead is the
+exact way and buys nothing measurable: over 20 million rotated and scaled transforms the two differ for
+41% of corners but by at most 0.000488 px, so 0.89% survive the 1/256 subpixel grid the rasterizer snaps
+a vertex to and no oracle scene moves a single pixel — against four calls a quad in the renderer's
+hottest arithmetic, paid for on every phone. The projection is the one matrix left to the GPU, as a
+uniform; `Mat4::ortho` (`vec.h`) builds the same numbers `gluOrtho2D` did. The same `Mat4` does GL's arithmetic for every other matrix the game once
 asked GL for: `gluPerspective`'s and `gluLookAt`'s entries, Mesa's in-place translate, scale and rotate,
 its left-to-right float sums in a product. The four 3D crossfades and the credits' stars hand
 `Renderer::quads3D` a matrix built that way with the projection in it, one draw a call, and the rain,
@@ -275,13 +278,18 @@ divides 32, so wrapping what feeds them would jog the wobble every time it came 
 `anim` 0..900000, both signs and both axes, the sampled fraction agrees to 4e-12 of a texel; the same
 wrap at 16 puts the front pass out by exactly 0.5.
 
-**The angle those sines are given needs no such care.** They are `double` throughout, so one ULP at
-argument *A* is `A/2^52`: the snow's argument grows at 0.2 rad/s and its sine is scaled by 500 pixels, so
-half a pixel of error needs 1.7e-3 rad and arrives in about **700 000 years**; after 25 days of rain — the
-fastest — one ULP is 9.6e-9 rad. What runs out first is the millisecond counter feeding it: `Level::time`
+**The angle those sines are given is the one arithmetic in the game that is not `float`.** They are
+`double` throughout, so one ULP at argument *A* is `A/2^52`: the snow's argument grows at 0.2 rad/s and
+its sine is scaled by 500 pixels, so half a pixel of error needs 1.7e-3 rad and arrives in about
+**700 000 years**; after 25 days of rain — the fastest — one ULP is 9.6e-9 rad. What runs out first is the millisecond counter feeding it: `Level::time`
 is `int` and undefined after **24.9 days** in one level, `GS_Menu::time` and `Engine::time` are `uint` and
 wrap at 49.7; all three reset on entering a level or the menu. In `float` the same rain argument would have
-a ULP of 4 radians — the `mediump` distinction above, two steps further along.
+a ULP of 4 radians — the `mediump` distinction above, two steps further along — and the offset itself
+would pass one millisecond of a level's clock about five hours in, which is what `wrapTextureOffset`
+stays `double` for. The lava's wobble is the one that needs none of this: `anim` is a count of ticks
+rather than a clock, so `0.1f·anim` is a single rounding, and half a pixel of the three-pixel cosine
+needs a ULP of 3.3 rad — about 5.6e8 ticks, 130 days in one level, where the `int` itself runs out at
+497.
 
 An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture as pure
 black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL error, and the default is

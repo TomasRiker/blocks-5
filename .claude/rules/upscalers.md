@@ -54,7 +54,7 @@ Three things about it are not that file's business and live here:
 - **The barrel distortion goes through the mouse**, so it reaches `Engine`: `Engine::warpToSource` and
   `warpToOutput` forward to the filter, and the base class returns what it was given, so no caller asks
   what kind of filter is on. `CRT_CURVE_X`/`CRT_CURVE_Y` are `#define`d once and stringified into the
-  GLSL *and* read as C++ doubles, so the shader and the cursor cannot drift apart.
+  GLSL *and* read as C++ floats, so the shader and the cursor cannot drift apart.
 
 **Restarting a level rewinds the tape**, but only with the CRT filter on: `CF_Rewind` (`cf_rewind.cpp`)
 instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On sharp or sharp-fit the game does

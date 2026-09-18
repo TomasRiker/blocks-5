@@ -56,7 +56,7 @@ void GUI_MultiLineEditBox::onRender()
 	Vec2i c = textCharPositions[cursor];
 
 	renderer.push();
-	renderer.translate(-scroll.x, -scroll.y);
+	renderer.translate(static_cast<float>(-scroll.x), static_cast<float>(-scroll.y));
 
 	// write the text
 	p_font->renderText(text, Vec2i(4, 2), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
@@ -80,7 +80,7 @@ void GUI_MultiLineEditBox::onRender()
 		}
 
 		// draw the caret
-		const float alpha = static_cast<float>(0.6f + 0.4f * sin(0.02f * Engine::inst().getTime()));
+		const float alpha = 0.6f + 0.4f * sinf(0.02f * Engine::inst().getTime());
 		const Vec4f color = active ? Vec4f(1.0f, 1.0f, 1.0f, alpha) : Vec4f(0.5f, 0.5f, 0.5f, alpha);
 		renderer.hairline(static_cast<Vec2f>(c + Vec2i(0, 1)), static_cast<Vec2f>(c + Vec2i(0, 1 + p_font->getLineHeight())), color);
 	}

@@ -64,30 +64,33 @@
    version 100 knows neither of them. */
 
 /* What the shader and the C++ side both need stands here once: as text in the
-   shader and as a double beside it. The curvature goes through the mouse
+   shader and as a number C++ reads beside it. None of these macros carries an
+   f, because the very same characters are compiled as GLSL, which has no float
+   suffix and would call one a syntax error; the conversion to float is made
+   where C++ uses the value. The curvature goes through the mouse
    (warpToSource/warpToOutput), the other two into getOverscan(). */
 
-#define CRT_CURVE_X 0.10f
-#define CRT_CURVE_Y 0.13f
+#define CRT_CURVE_X 0.10
+#define CRT_CURVE_Y 0.13
 /* Half the width of the raster's soft edge, in source rows; rasterMask fades
    out over two of them. */
-#define CRT_EDGE_ROWS 1.0f
+#define CRT_EDGE_ROWS 1.0
 /* Convergence offset per beam at the edge of the picture, in source columns.
    In full at the shader constant of the same name. */
-#define CRT_CONVERGENCE_MAX 1.6f
+#define CRT_CONVERGENCE_MAX 1.6
 /* Line periods per second with the flicker at full; see CRAWL_JITTER. */
-#define CRT_CRAWL_SPEED 1.2f
+#define CRT_CRAWL_SPEED 1.2
 /* After this many seconds the flicker repeats exactly. This too stands twice -
    in the shader and in present(), which takes the clock modulo it. */
-#define CRT_FLICKER_CYCLE 8.0f
+#define CRT_FLICKER_CYCLE 8.0
 #define CRT_STR2(x) #x
 #define CRT_STR(x) CRT_STR2(x)
 
-static const float crtCurveX = CRT_CURVE_X;
-static const float crtCurveY = CRT_CURVE_Y;
-static const float crtEdgeRows = CRT_EDGE_ROWS;
-static const float crtConvergenceMax = CRT_CONVERGENCE_MAX;
-static const float crtCrawlSpeed = CRT_CRAWL_SPEED;
+static const float crtCurveX = static_cast<float>(CRT_CURVE_X);
+static const float crtCurveY = static_cast<float>(CRT_CURVE_Y);
+static const float crtEdgeRows = static_cast<float>(CRT_EDGE_ROWS);
+static const float crtConvergenceMax = static_cast<float>(CRT_CONVERGENCE_MAX);
+static const float crtCrawlSpeed = static_cast<float>(CRT_CRAWL_SPEED);
 
 static const char* p_crtFragmentShader =
 	"#ifdef GL_ES\n"
@@ -102,7 +105,7 @@ static const char* p_crtFragmentShader =
 	/* Tuning constants. Everything that gives this filter its character. */
 	/* ------------------------------------------------------------------ */
 
-	/* Which tube. 1.0f = VGA monitor, all 480 lines, no gaps (hence at 2x
+	/* Which tube. 1.0 = VGA monitor, all 480 lines, no gaps (hence at 2x
 	   practically no visible stripes). 2.0 = pretend 240 lines arrive: the
 	   console look, visible at 2x as well. Values in between are allowed but
 	   look like a fault. */
@@ -112,7 +115,7 @@ static const char* p_crtFragmentShader =
 	   deeper and harder stripes. 0.5 is strong, 0.8 gentle. */
 	"const float BEAM_WIDTH = 0.55;\n"
 
-	/* The mask, in OUTPUT PIXELS per RGB triple. 3.0f is a real stripe mask:
+	/* The mask, in OUTPUT PIXELS per RGB triple. 3.0 is a real stripe mask:
 	   one pixel red, one green, one blue. At 2x that beats against the source
 	   raster (period 2) into a pattern of period 6; 2.0 or 4.0 are calmer
 	   there. */
@@ -185,7 +188,7 @@ static const char* p_crtFragmentShader =
 	   numbers come from the macros below - the shader and the mouse conversion
 	   in engine.cpp have to compute the same curvature, and a pair of numbers
 	   that has to be maintained in two places drifts apart eventually. The
-	   preprocessor puts the same text in here that C++ sees as a double. */
+	   preprocessor puts the same text in here that C++ sees as a float. */
 	"const float CURVE_X = " CRT_STR(CRT_CURVE_X) ";\n"
 	"const float CURVE_Y = " CRT_STR(CRT_CURVE_Y) ";\n"
 	/* Half the width of the raster's soft edge, in source rows. From the macro
@@ -214,7 +217,7 @@ static const char* p_crtFragmentShader =
 	   them hang off the clock alone, never off the previous frame - the fault
 	   xBR foundered on cannot arise here. Values with the slider at full;
 	   where the bar is unwanted, set HUM_DEPTH to 0. */
-	/* Measured, the three terms together give 1.7f% peak-to-peak between frames
+	/* Measured, the three terms together give 1.7% peak-to-peak between frames
 	   with both sliders at full. */
 	"const float FLICKER_DEPTH = 0.0367;\n"  /* fast brightness shimmer */
 	"const float HUM_DEPTH     = 0.0147;\n"  /* depth of the rolling bar */
@@ -242,7 +245,7 @@ static const char* p_crtFragmentShader =
 	   and wraps seamlessly by itself. */
 	"const float CRAWL_JITTER = 0.05;\n"
 
-	/* Gamma. A tube had about 2.4f; in between everything is computed in linear
+	/* Gamma. A tube had about 2.4; in between everything is computed in linear
 	   light, or the halo turns into grey haze. */
 	"const float GAMMA_IN  = 2.4;\n"
 	"const float GAMMA_OUT = 2.2;\n"
@@ -570,14 +573,19 @@ void U_Crt::present(const PresentContext& context)
 	// stops when the game pauses; a screen flickers anyway. The cycle is
 	// CRT_FLICKER_CYCLE and every frequency in it is a whole multiple of it,
 	// leaving nothing to jump at the wrap.
-	const float seconds = static_cast<float>(SDL_GetTicks()) * 0.001f;
-	PresentProgram::setUniform(locTime, fmod(seconds, CRT_FLICKER_CYCLE));
+	//
+	// The one value here that has to be double: SDL_GetTicks() counts up to
+	// 49.7 days, and a float second of it is worth less than a frame after
+	// three - the flicker would begin to step. Both terms below are reduced
+	// to a small range, which is what the shader is given.
+	const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
+	PresentProgram::setUniform(locTime, static_cast<float>(fmod(seconds, CRT_FLICKER_CYCLE)));
 
 	// The scan-line crawl is the one term computed here: it is a ramp, not an
 	// oscillation, and its slope depends on the slider - from the
 	// already-wrapped clock the phase would jump at every wrap.
-	PresentProgram::setUniform(locScanPhase,
-							   fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0f));
+	PresentProgram::setUniform(locScanPhase, static_cast<float>(
+		fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0)));
 
 	program.drawQuad(context);
 }

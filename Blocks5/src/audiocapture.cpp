@@ -410,7 +410,7 @@ void AudioCaptureImpl::convertAndPush(const BYTE* p_data, int numFrames, bool si
 		// through unchanged.
 		while(resamplePos < 1.0f)
 		{
-			const float t = (float)resamplePos;
+			const float t = resamplePos;
 			scratch[2 * numInScratch    ] = floatToShort(prevLeft  + (left  - prevLeft ) * t);
 			scratch[2 * numInScratch + 1] = floatToShort(prevRight + (right - prevRight) * t);
 			numInScratch++;

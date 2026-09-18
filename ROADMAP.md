@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51, 56 and 57. Everything else is done.
+36, 37, 38, 40, 41, 46, 47, 48, 51 and 56. Everything else is done.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1272,30 +1272,56 @@ character by clicking it stays as it is; whether the drag has to start on the
 character or may start anywhere is the one decision left to taste.
 
 
-57. One floating-point type
----------------------------
-The game computes in doubles and draws in floats: `Vec2d` and `Vec4d` through
-the objects and the level, `Vec2f` and `Vec4f` in the `Renderer`'s vertex, and
-the seam between them is 61 `static_cast<Vec2f>`, 14 `static_cast<Vec4f>`, 197
-`static_cast<float>` and 56 `static_cast<double>` across the sources (755
-`double`s against 462 `float`s); "Fix some type conversion warnings" is the
-latest commit of a kind that has no end while both types stay. The values are
+57. One floating-point type  - **DONE**
+---------------------------------------
+One type for everything the game measures, and it is `float`. The values are
 pixels (at most 640), cells (40 by 25), fractions of a tick and colour
 components, and a float's 24-bit mantissa holds all of them exactly or to a part
-in sixteen million. So: `float` everywhere, and `double` only where a value
-provably needs it - and those are few and nameable: the wall clock and the frame
-timings (`getExactTime`, `FrameStats`), the recorder's audio and video
-timestamps, anything that accumulates over a session.
+in sixteen million. `Vec2d` and `Vec4d` are gone, their typedefs with them, and
+so is the seam they sat on: 274 `Vec2d`, 360 `Vec4d` and 14 `static_cast<Vec4f>`
+down to none, 54 `static_cast<double>` down to two.
 
-What goes with it: `Vec2d` and `Vec4d` become `Vec2f` and `Vec4f` wherever they
-mean geometry or colour, and the casts between them go; `random()` keeps its
-three overloads and the double one loses its callers; TinyXML hands out `double`
-(21 `QueryDoubleAttribute` sites), so a load converts once at that edge; OpenAL
-takes floats already. Two things to keep: `Tools/syntax.sh`'s gate - an integer
-handed to a float fails it - stays and reaches further; and the oracle will move
-on every scene, since the arithmetic changes in its last bit, so the change goes
-in stages, each proved against the previous one and re-baselined as the renderer
-was (`render-baseline`, `testing.md`).
+Sixty-five mentions of `double` are left, in nine files, and they fall in three
+groups - each one a value a float provably cannot carry. The wall clock and the
+frame timings (`getExactTime`, `FrameStats`, the recorder's timestamps): the
+value grows for as long as the session lasts while what is read off it is the
+difference of two readings, and a float's step is already 244 us an hour in and
+7.8 ms after a day. The scrolling offsets (`wrapTextureOffset` and its five
+callers, the weather and the title clouds): the offset grows with the level's
+clock, and a float's step passes one millisecond of it about five hours in, the
+rain going steppy first at twenty texels a tick. And `Mat4`'s `perspective`,
+`lookAt` and in-place operations, which reproduce GLU's own double arithmetic so
+that a matrix is the numbers GL built - that is where a right angle's cosine of
+-4.4e-8 comes from.
+
+`static_cast<float>` went the other way, 201 to 225, and that is the gate
+working rather than the change failing: an integer widening to a `double` is
+silent in C++, but to a `float` it is MSVC's C4244 and GCC's `-Wconversion`, so
+every int-to-float site the change created had to be written out. This is
+`Tools/syntax.sh`'s gate reaching further, as the plan expected. TinyXML's 21
+`QueryDoubleAttribute` became `QueryFloatAttribute`, the one edge where the
+conversion could invert a test rather than round a number: it returns a status
+code where `Attribute()` returns a pointer, and a site converted without
+noticing that silently stopped reading `sounds.xml`.
+
+Nine of the oracle's nineteen scenes moved, none by more than 8 channel levels
+of 255, all of it speckle dominated by single levels. Three causes, and each is
+now a fact about the game rather than a defect. `pointJitter`, the
+`fract(sin(x) * large)` hash the beam shines take their per-point size from,
+resolves 1/1024 in float against the double's 1/2^36, so it draws different but
+equally uniform values - measured over 200 points of each of 2001 seeds: rms
+0.5772 against the ideal 0.5774, deciles flat within 3%, neighbours correlated
+at -0.002. That is `night`, `select`, and the `cube` that captures them. The
+credits' stars round to a different subpixel. And a literal reading `0.1f` where
+it read `0.1` moves a phase by a part in 10^8, which is the lava, the star wipe,
+the toxic grid, the CRT filter and the options dialog, 8 to 40 pixels each.
+
+The renderer's own corner baking stayed `float` on the same standard, measured
+rather than assumed: against a sum promoted to `double` and rounded once, the
+two differ for 41% of corners but by at most 0.000488 px, so 0.89% survive the
+1/256 subpixel grid the rasterizer snaps to and no oracle scene moves a pixel.
+It is four calls a quad in the renderer's hottest arithmetic, so the exactness
+is not worth buying (`rendering.md`).
 
 
 How these connect

@@ -115,7 +115,7 @@ float StreamedSound::getVolume() const
 void StreamedSound::setVolume(float volume)
 {
 	this->volume = volume;
-	if(sourceID) alSourcef(sourceID, AL_GAIN, static_cast<float>(volume * Engine::inst().getEffectiveMusicVolume()));
+	if(sourceID) alSourcef(sourceID, AL_GAIN, volume * Engine::inst().getEffectiveMusicVolume());
 }
 
 float StreamedSound::getPitch() const
@@ -126,7 +126,7 @@ float StreamedSound::getPitch() const
 void StreamedSound::setPitch(float pitch)
 {
 	this->pitch = pitch;
-	if(sourceID) alSourcef(sourceID, AL_PITCH, static_cast<float>(pitch));
+	if(sourceID) alSourcef(sourceID, AL_PITCH, pitch);
 }
 
 float StreamedSound::getLoopBegin() const

@@ -83,8 +83,8 @@ void GS_Menu::onRender()
 	for(int i = 2; i >= 0; i--)
 	{
 		float s[] = {1.0f, 0.5f, 0.25f};
-		float x = 100.0f * i + 50.0f * 0.001f * time;
-		x += 2.0f * sin(0.02f * x * s[i] + i);
+		double x = 100.0 * i + 50.0 * 0.001 * time;
+		x += 2.0 * sin(0.02 * x * s[i] + i);
 		// After the wobble, whose phase has to follow the unwrapped offset.
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
@@ -92,8 +92,8 @@ void GS_Menu::onRender()
 		scroll.scale(s[i], s[i], s[i]);
 		scroll.translate(-x / s[i], 0.0f, 0.0f);
 		scroll.rotate(15.0f + 5.0f * i, 0.0f, 0.0f, 1.0f);
-		const float c = static_cast<float>(1.0f - 0.05f * i);
-		const float a = static_cast<float>(0.4f - 0.05f * i);
+		const float c = 1.0f - 0.05f * i;
+		const float a = 0.4f - 0.05f * i;
 		renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
 	}
 

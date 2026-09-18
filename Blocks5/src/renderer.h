@@ -35,8 +35,7 @@ struct Vertex3
 struct QuadVertex
 {
 	QuadVertex(float px, float py, float u, float v)
-		: position(static_cast<float>(px), static_cast<float>(py)),
-		  uv(static_cast<float>(u), static_cast<float>(v)) {}
+		: position(px, py), uv(u, v) {}
 
 	Vec2f position;
 	Vec2f uv;

@@ -103,7 +103,7 @@ namespace
 		float y;       // position in the picture, from the note's centre
 		float depth;   // how far in front of the sheet plane, nearer the viewer
 		float shade;   // how bright the paper stands here
-		bool back;      // is the back facing the viewer?
+		bool back;     // is the back facing the viewer?
 	};
 
 	NotePoint rollPoint(float py,

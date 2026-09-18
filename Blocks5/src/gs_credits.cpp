@@ -29,8 +29,8 @@ void GS_Credits::onRender()
 		{
 			// a gradient, darkest at the top and bottom and twice as light in
 			// the middle
-			const Vec4f edge(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), 1.0f);
-			const Vec4f middle(static_cast<float>(color.r * 2.0f), static_cast<float>(color.g * 2.0f), static_cast<float>(color.b * 2.0f), 1.0f);
+			const Vec4f edge(color.r, color.g, color.b, 1.0f);
+			const Vec4f middle(color.r * 2.0f, color.g * 2.0f, color.b * 2.0f, 1.0f);
 			const Vec2f upper[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 240.0f), Vec2f(0.0f, 240.0f)};
 			const Vec4f upperColors[4] = {edge, edge, middle, middle};
 			renderer.quad(upper, upperColors);
@@ -145,8 +145,8 @@ void GS_Credits::onRender()
 
 				renderer.push();
 				renderer.translate(320.0f + offset.x, 225.0f + offset.y);
-				renderer.translate(texts[i].position.x, texts[i].position.y);
-				renderer.translate(titleSize.x / -2, 0.0f);
+				renderer.translate(static_cast<float>(texts[i].position.x), static_cast<float>(texts[i].position.y));
+				renderer.translate(static_cast<float>(titleSize.x / -2), 0.0f);
 
 				Font::Options options = p_font->getOptions();
 				options.shadows = 0;
@@ -162,8 +162,8 @@ void GS_Credits::onRender()
 				renderer.push();
 
 				renderer.translate(320.0f + offset.x, 255.0f + offset.y);
-				renderer.translate(texts[i].position.x, texts[i].position.y);
-				renderer.translate(textSize.x / -2, 0.0f);
+				renderer.translate(static_cast<float>(texts[i].position.x), static_cast<float>(texts[i].position.y));
+				renderer.translate(static_cast<float>(textSize.x / -2), 0.0f);
 
 				// Uncached for the same reason as the title above: scaling is
 				// 0.75 + 0.25 * alpha and both draws are laid out under it.
@@ -179,7 +179,7 @@ void GS_Credits::onRender()
 	else if(t > 53.0f) darkness = 0.5f * (t - 53.0f);
 	if(darkness > 0.0f)
 	{
-		renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec4f(0.0f, 0.0f, 0.0f, static_cast<float>(darkness)));
+		renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec4f(0.0f, 0.0f, 0.0f, darkness));
 	}
 }
 
@@ -191,7 +191,7 @@ void GS_Credits::onUpdate()
 	// that it never goes negative.
 	engine.sceneTick = static_cast<uint>(time + 2000);
 
-	cameraPos += 0.02f * 50.0f * cameraDir * speed;
+	cameraPos += 0.02f * 50.0f * cameraDir * static_cast<float>(speed);
 
 	cameraDir += Vec3f(random(-0.002f, 0.002f), random(-0.002f, 0.002f), random(-0.002f, 0.002f));
 
@@ -286,7 +286,7 @@ void GS_Credits::renderStars(const Mat4& projection,
 		vertices[1].position = Vec3f(0.5f, 0.5f, 0.0f);   vertices[1].uv = t + Vec2f(16.0f, 0.0f);
 		vertices[2].position = Vec3f(0.5f, -0.5f, 0.0f);  vertices[2].uv = t + Vec2f(16.0f, 16.0f);
 		vertices[3].position = Vec3f(-0.5f, -0.5f, 0.0f); vertices[3].uv = t + Vec2f(0.0f, 16.0f);
-		for(int k = 0; k < 4; k++) vertices[k].color = Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha));
+		for(int k = 0; k < 4; k++) vertices[k].color = Vec4f(1.0f, 1.0f, 1.0f, alpha);
 		Renderer::inst().quads3D(state, projection * modelview, vertices, 4, false);
 	}
 }

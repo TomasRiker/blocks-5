@@ -234,7 +234,7 @@ std::vector<std::string> list(Kind kind)
 	// in the game folder, what the player made or imported in the user
 	// directory. A name can occur only once - nothing can be saved or
 	// imported under a shipped name - hence the union needs no rule of its
-	// own for that, and the comparison further down catches the float insert.
+	// own for that, and the comparison further down catches the double insert.
 	FileSystem& fs = FileSystem::inst();
 
 	// The progress database is one file with one name, and only ever in the

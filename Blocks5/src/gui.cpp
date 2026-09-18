@@ -150,7 +150,7 @@ void GUI::display()
 		const Vec2f screenSize = static_cast<Vec2f>(engine.getScreenSize());
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(screenSize.x, 0.0f), screenSize, Vec2f(0.0f, screenSize.y)};
 		Renderer::inst().quad(RenderState(engine.getFrameCopyRef(texID), BM_NORMAL), corners, corners,
-							  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(opacity)));
+							  Vec4f(1.0f, 1.0f, 1.0f, opacity));
 	}
 }
 
@@ -357,11 +357,15 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 				tileSize.x = lastFillTileSize.x;
 			}
 
-			// render the tile
-			quads.push_back(QuadVertex(cursor.x, cursor.y, texCoords.x, texCoords.y));
-			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y, texCoords.x + tileSize.x, texCoords.y));
-			quads.push_back(QuadVertex(cursor.x + tileSize.x, cursor.y + tileSize.y, texCoords.x + tileSize.x, texCoords.y + tileSize.y));
-			quads.push_back(QuadVertex(cursor.x, cursor.y + tileSize.y, texCoords.x, texCoords.y + tileSize.y));
+			// Render the tile; its edges and texels are whole numbers, added up as such.
+			const float x0 = static_cast<float>(cursor.x), y0 = static_cast<float>(cursor.y);
+			const float x1 = static_cast<float>(cursor.x + tileSize.x), y1 = static_cast<float>(cursor.y + tileSize.y);
+			const float u0 = static_cast<float>(texCoords.x), v0 = static_cast<float>(texCoords.y);
+			const float u1 = static_cast<float>(texCoords.x + tileSize.x), v1 = static_cast<float>(texCoords.y + tileSize.y);
+			quads.push_back(QuadVertex(x0, y0, u0, v0));
+			quads.push_back(QuadVertex(x1, y0, u1, v0));
+			quads.push_back(QuadVertex(x1, y1, u1, v1));
+			quads.push_back(QuadVertex(x0, y1, u0, v1));
 
 			cursor.x += tileSize.x;
 		}

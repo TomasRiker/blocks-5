@@ -45,7 +45,7 @@ void GUI_Element::render()
 
 	Renderer& renderer = Renderer::inst();
 	renderer.push();
-	renderer.translate(position.x, position.y);
+	renderer.translate(static_cast<float>(position.x), static_cast<float>(position.y));
 
 	// render itself
 	onRender();
@@ -88,7 +88,7 @@ void GUI_Element::onRender()
 {
 	if(fill)
 	{
-		Renderer::inst().rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), static_cast<Vec4f>(fillColor));
+		Renderer::inst().rect(Vec2f(0.0f, 0.0f), static_cast<Vec2f>(size), fillColor);
 	}
 }
 

@@ -63,7 +63,7 @@ void GUI_Button::onRender()
 
 				Renderer& renderer = Renderer::inst();
 				renderer.push();
-				renderer.translate(size.x / 2, size.y / 2);
+				renderer.translate(static_cast<float>(size.x / 2), static_cast<float>(size.y / 2));
 				renderer.scale(currentScaling, currentScaling);
 				Engine::inst().renderSprite(p_image, -size / 2, t, size, currentColor);
 				renderer.pop();

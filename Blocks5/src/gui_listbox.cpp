@@ -50,7 +50,7 @@ void GUI_ListBox::onRender()
 	Renderer::ScissorScope clip(getAbsPosition() + Vec2i(2, 2), size - Vec2i(4, 4));
 
 	renderer.push();
-	renderer.translate(0.0f, -scroll);
+	renderer.translate(0.0f, static_cast<float>(-scroll));
 
 	// render the list items
 	int y = 2;
@@ -93,7 +93,7 @@ void GUI_ListBox::onMouseDown(const Vec2i& position,
 			{
 				if(selection == doubleClickItem)
 				{
-					// float click
+					// double click
 					if(p_submitButton) p_submitButton->click();
 					doubleClickTime = 0;
 				}

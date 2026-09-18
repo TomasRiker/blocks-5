@@ -134,8 +134,8 @@ void GS_SelectLevel::onRender()
 
 			// Its own corner order, from the moving end back to the fixed
 			// one, so the fade runs across the bar as it did.
-			const Vec4f front(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.9f);
-			const Vec4f back(static_cast<float>(r), static_cast<float>(g), 0.0f, 0.5f);
+			const Vec4f front(r, g, 0.0f, 0.9f);
+			const Vec4f back(r, g, 0.0f, 0.5f);
 			const float right = static_cast<float>(40 + pi);
 			const Vec2f corners[4] = {Vec2f(right, 240.0f), Vec2f(right, 260.0f), Vec2f(40.0f, 260.0f), Vec2f(40.0f, 240.0f)};
 			const Vec4f colors[4] = {front, front, back, back};

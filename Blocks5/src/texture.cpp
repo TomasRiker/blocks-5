@@ -142,7 +142,7 @@ void Texture::cleanUp()
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, Vec2f(static_cast<float>(texelScale.x), static_cast<float>(texelScale.y)));
+	return TextureRef(texID, texelScale);
 }
 
 uint Texture::createGLTexture(const Vec2i& size,

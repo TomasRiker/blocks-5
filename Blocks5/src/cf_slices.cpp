@@ -37,12 +37,12 @@ void CF_Slices::render(float t,
 		const Vec2f uvs[4] = {Vec2f(right, 0.0f), Vec2f(left, 0.0f), Vec2f(left, bottom), Vec2f(right, bottom)};
 
 		// draw the front face
-		float c = static_cast<float>(1.0f - angle / 180.0f);
+		float c = 1.0f - angle / 180.0f;
 		drawImage3D(oldImageID, projection * modelview, face, uvs, Vec4f(c, c, c, 1.0f), true);
 
 		// draw the back face
 		modelview.rotate(180.0f, 0.0f, 1.0f, 0.0f);
-		c = static_cast<float>(angle / 180.0f);
+		c = angle / 180.0f;
 		drawImage3D(newImageID, projection * modelview, face, uvs, Vec4f(c, c, c, 1.0f), true);
 	}
 }

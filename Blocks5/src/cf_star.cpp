@@ -36,8 +36,8 @@ void CF_Star::renderStar(const Vec4f& color)
 	for(int i = 0; i < 2 * n; i++)
 	{
 		positions[i * 3] = Vec2f(0.0f, 0.0f);
-		positions[i * 3 + 1] = static_cast<Vec2f>(v[i]);
-		positions[i * 3 + 2] = static_cast<Vec2f>(v[(i + 1) % (2 * n)]);
+		positions[i * 3 + 1] = v[i];
+		positions[i * 3 + 2] = v[(i + 1) % (2 * n)];
 		colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = color;
 	}
 	Renderer::inst().triangles(positions, colors, 2 * n * 3);
@@ -59,7 +59,7 @@ void CF_Star::render(float t,
 	// draw the star (border)
 	const Vec4f black(0.0f, 0.0f, 0.0f, 1.0f);
 	renderer.push();
-	renderer.translate(screenSize.x / 2, screenSize.y / 2);
+	renderer.translate(static_cast<float>(screenSize.x / 2), static_cast<float>(screenSize.y / 2));
 	float size = t * t * 2 * screenSize.x;
 	renderer.scale(size, size);
 	renderer.rotate(t * 180.0f);
@@ -78,6 +78,6 @@ void CF_Star::render(float t,
 	// draw the new image into the masked area
 	{
 		Renderer::StencilTestScope test(1);
-		drawImage(newImageID, Vec4f(static_cast<float>(t), static_cast<float>(t * t), static_cast<float>(t * t * t), 1.0f));
+		drawImage(newImageID, Vec4f(t, t * t, t * t * t, 1.0f));
 	}
 }

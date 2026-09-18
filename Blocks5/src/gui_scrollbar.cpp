@@ -84,20 +84,22 @@ void GUI_ScrollBar::onRender()
 		const Vec2f leftward[3] = {Vec2f(-0.5f, 0.0f), Vec2f(0.5f, -0.5f), Vec2f(0.5f, 0.5f)};
 		const Vec4f nearColors[3] = {dark, grey, grey};
 		const Vec4f farColors[3] = {grey, dark, dark};
+		const float nearCentre = static_cast<float>(thickness / 2);
+		const float farCentre = static_cast<float>(length - thickness / 2);
 		renderer.push();
-		renderer.translate(thickness / 2, thickness / 2);
+		renderer.translate(nearCentre, nearCentre);
 		renderer.scale(0.5f * thickness, 0.5f * thickness);
 		renderer.triangles(dir ? leftward : upward, nearColors, 3);
 		renderer.pop();
 		renderer.push();
 		if(!dir)
 		{
-			renderer.translate(thickness / 2, length - thickness / 2);
+			renderer.translate(nearCentre, farCentre);
 			renderer.scale(0.5f * thickness, -0.5f * thickness);
 		}
 		else
 		{
-			renderer.translate(length - thickness / 2, thickness / 2);
+			renderer.translate(farCentre, nearCentre);
 			renderer.scale(-0.5f * thickness, 0.5f * thickness);
 		}
 		renderer.triangles(dir ? leftward : upward, farColors, 3);

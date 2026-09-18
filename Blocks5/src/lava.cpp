@@ -105,7 +105,7 @@ void Lava::onRender(RenderLayer layer,
 			// anim and its two periods divide neither the tile nor each
 			// other, so wrapping what feeds those sines would jog the wobble
 			// every time it came round.
-			const float scroll = wrapTextureOffset(static_cast<float>(anim), SCROLL_PERIOD);
+			const float scroll = static_cast<float>(wrapTextureOffset(anim, SCROLL_PERIOD));
 
 			Vec2f t;
 			switch(ndir % 4)

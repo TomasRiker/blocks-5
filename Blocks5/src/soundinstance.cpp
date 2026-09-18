@@ -81,8 +81,8 @@ void SoundInstance::setVolume(float volume)
 	// The sound's own factor comes in here and not into volume: this is the one
 	// place where a volume reaches OpenAL, which makes it apply to
 	// slideVolume() and to every caller that sets volume itself.
-	alSourcef(sourceID, AL_GAIN, static_cast<float>(
-		volume * sound.getVolumeFactor() * Engine::inst().getEffectiveSoundVolume()));
+	alSourcef(sourceID, AL_GAIN,
+		volume * sound.getVolumeFactor() * Engine::inst().getEffectiveSoundVolume());
 }
 
 float SoundInstance::getPitch() const
@@ -95,7 +95,7 @@ void SoundInstance::setPitch(float pitch)
 	if(!sourceID) return;
 
 	this->pitch = pitch;
-	alSourcef(sourceID, AL_PITCH, static_cast<float>(pitch));
+	alSourcef(sourceID, AL_PITCH, pitch);
 }
 
 void SoundInstance::slideVolume(float targetVolume,

@@ -58,11 +58,11 @@ void CF_Zoom::render(float t,
 
 		// draw the image
 		drawImage3D(imageID, projection * modelview, corners, uvs,
-					Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(1.0f - 0.5f * tc * tc)), false);
+					Vec4f(1.0f, 1.0f, 1.0f, 1.0f - 0.5f * tc * tc), false);
 
 		ts += 0.01f;
 	}
 
 	// draw the colour quad
-	drawColor(Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(t * t)));
+	drawColor(Vec4f(1.0f, 1.0f, 1.0f, t * t));
 }

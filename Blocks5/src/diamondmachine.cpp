@@ -110,7 +110,7 @@ namespace
 	const float OUT_BRIGHT   = 1.0f;   // brightness in the first tick
 	const float OUT_END      = 1.0f;   // brightness in the last
 	const float OUT_ALPHA    = 0.85f;  // opacity at the start
-	const int    OUT_LIFE     = 27;
+	const int   OUT_LIFE     = 27;
 	const float OUT_SIZE     = 0.42f;
 
 	// Inward: the diamond is put together.

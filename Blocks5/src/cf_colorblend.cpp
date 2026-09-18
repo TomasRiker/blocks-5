@@ -22,6 +22,5 @@ void CF_ColorBlend::render(float t,
 	// on its own slope. One slope for both is right only at timing = 0.5;
 	// the light panel's 0.1 would otherwise start 89% opaque.
 	const float alpha = t < timing ? t / timing : (1.0f - t) / (1.0f - timing);
-	drawColor(Vec4f(static_cast<float>(color.r), static_cast<float>(color.g),
-					static_cast<float>(color.b), static_cast<float>(alpha)));
+	drawColor(Vec4f(color.r, color.g, color.b, alpha));
 }

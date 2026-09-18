@@ -124,7 +124,7 @@ void PresentProgram::destroy()
 void PresentProgram::setUniform(int location,
 								float value)
 {
-	if(location >= 0) glExtUniform1f(location, static_cast<float>(value));
+	if(location >= 0) glExtUniform1f(location, value);
 }
 
 void PresentProgram::use(const PresentContext& context) const

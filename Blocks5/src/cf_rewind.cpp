@@ -130,7 +130,7 @@ void CF_Rewind::drawStrip(uint imageID,
 	// The texture coordinates are in pixels, as the image's state is sampled.
 	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
 	const Vec2f corners[4] = {Vec2f(0.0f, top), Vec2f(right, top), Vec2f(right, bottom), Vec2f(0.0f, bottom)};
-	const float u0 = static_cast<float>(shift), u1 = static_cast<float>(shift + screenSize.x);
+	const float u0 = shift, u1 = shift + right;
 	const float v0 = static_cast<float>(sourceY), v1 = static_cast<float>(sourceY + height);
 	const Vec2f uvs[4] = {Vec2f(u0, v0), Vec2f(u1, v0), Vec2f(u1, v1), Vec2f(u0, v1)};
 	Renderer::inst().quad(imageState(imageID), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
@@ -150,7 +150,7 @@ void CF_Rewind::drawSnow(int y,
 	const Vec2f corners[4] = {Vec2f(0.0f, top), Vec2f(right, top), Vec2f(right, bottom), Vec2f(0.0f, bottom)};
 	const Vec2f uvs[4] = {Vec2f(u, v), Vec2f(u + du, v), Vec2f(u + du, v + dv), Vec2f(u, v + dv)};
 	renderer.quad(RenderState(TextureRef(noiseID, NOISE_TEXEL_SCALE), renderer.state().blend), corners, uvs,
-				  Vec4f(1.0f, 1.0f, 1.0f, static_cast<float>(alpha)));
+				  Vec4f(1.0f, 1.0f, 1.0f, alpha));
 }
 
 /* Why a rewind and not just any effect: on a restart the game jumps from the
@@ -213,7 +213,7 @@ void CF_Rewind::render(float t,
 		// The row this strip shows. Wrapped by hand and not left to the
 		// texture's GL_REPEAT: the picture fills only 480 of the 512 rows,
 		// the rest of the power of two has never been written.
-		const int sourceY = static_cast<int>(wrap(y + roll, screenSize.y));
+		const int sourceY = static_cast<int>(wrap(y + roll, static_cast<float>(screenSize.y)));
 		const int overlap = sourceY + height - screenSize.y;
 
 		const uint imageID = useNew ? newImageID : oldImageID;
@@ -237,7 +237,7 @@ void CF_Rewind::render(float t,
 		const float speed = 0.6f + 0.5f * i;
 		const int height = random(NOISE_BAR_MIN, NOISE_BAR_MAX);
 		const int y = static_cast<int>(wrap((static_cast<float>(i) / NOISE_BARS + eased * speed)
-											* screenSize.y, screenSize.y));
+											* screenSize.y, static_cast<float>(screenSize.y)));
 		drawSnow(y, min(height, screenSize.y - y), settle);
 	}
 
@@ -247,7 +247,7 @@ void CF_Rewind::render(float t,
 	Renderer::inst().setBlend(BM_NORMAL);
 
 	// --- The grey wash -----------------------------------------------------
-	drawColor(Vec4f(0.62f, 0.63f, 0.60f, static_cast<float>(settle * WASH_ALPHA)));
+	drawColor(Vec4f(0.62f, 0.63f, 0.60f, settle * WASH_ALPHA));
 
 	// --- The on-screen display ---------------------------------------------
 	// It belongs to the recorder's character generator and not to the tape: it
