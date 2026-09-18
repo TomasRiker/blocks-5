@@ -750,14 +750,15 @@ void Level::render()
 
 		for(int i = start; i > start - numLayers; i--)
 		{
-			// double, as the two below are: the offset grows with the level's
-			// clock and the angle reads it unwrapped - see wrapTextureOffset.
-			double y = 100.0 * i + 1000.0 * 0.001 * time;
 			float s[] = {1.0f, 0.5f, 0.25f};
-			float angle = static_cast<float>(15.0 + sin(0.02 * y * s[i] + i));
-			// After the angle, which reads the unwrapped offset. Rain scrolls
-			// twenty texels a tick, so it is the first of these to go steppy.
-			y = wrapTextureOffset(y, p_rain->getSize().y);
+			const float fi = static_cast<float>(i);
+			// Both the offset and the angle are a straight line in the
+			// level's clock - the offset is 100 * i + time, the angle reads
+			// 0.02 * s of it - so each reduces from the clock rather than
+			// from a value that has already grown. Rain scrolls twenty texels
+			// a tick and is the first of these to go steppy without it.
+			const float angle = 15.0f + sin(wrapAngle(time, 0.02f * s[i], 2.0f * s[i] * fi + fi));
+			const float y = scrollOffset(time, 1.0f, 100.0f * fi, static_cast<float>(p_rain->getSize().y));
 
 			Mat4 scroll = Mat4::scaling(rain.texelScale.x, rain.texelScale.y, 1.0f);
 			scroll.scale(s[i], s[i], s[i]);
@@ -780,15 +781,17 @@ void Level::render()
 		for(int i = numLayers - 1; i >= 0; i--)
 		{
 			float s[] = {1.0f, 1.5f, 1.75f};
-			double t = 0.001 * time;
-			double f = 0.1 * (1.0 + 1.0 / (1.0 + i));
-			double x = 500.0 * sin(t * f + i);
-			double y = 150.0 * t + 300.0 * cos(t * f + i);
-			// x is bounded by its own sine and y is not, but both are wrapped:
-			// the snow translates on both axes, and one rule is easier to keep
-			// right than two.
-			x = wrapTextureOffset(x, p_snow->getSize().x);
-			y = wrapTextureOffset(y, p_snow->getSize().y);
+			const float fi = static_cast<float>(i);
+			// The phase runs at 0.001 * f a millisecond and the fall at 0.15
+			// texels, both lines in the clock. x is bounded by its own sine
+			// and y is not, but both are wrapped: the snow translates on both
+			// axes, and one rule is easier to keep right than two.
+			const float f = 0.1f * (1.0f + 1.0f / (1.0f + fi));
+			const float phase = wrapAngle(time, 0.001f * f, fi);
+			const float x = wrapTextureOffset(500.0f * sin(phase), p_snow->getSize().x);
+			const float y = wrapTextureOffset(
+				scrollOffset(time, 0.15f, 0.0f, static_cast<float>(p_snow->getSize().y)) + 300.0f * cos(phase),
+				p_snow->getSize().y);
 
 			Mat4 scroll = Mat4::scaling(snow.texelScale.x, snow.texelScale.y, 1.0f);
 			scroll.translate(-x, -y, 0.0f);
@@ -809,9 +812,13 @@ void Level::render()
 		for(int i = numLayers - 1; i >= 0; i--)
 		{
 			float s[] = {1.0f, 0.5f, 0.25f};
-			double x = 100.0 * i + 50.0 * 0.001 * time;
-			x += 2.0 * sin(0.02 * x * s[i] + i);
-			// After the wobble, whose phase has to follow the unwrapped offset.
+			const float fi = static_cast<float>(i);
+			// The offset is 100 * i + 0.05 * time and the wobble reads
+			// 0.02 * s of it, so both are a line in the clock. The wobble is
+			// added after the reduction and the sum wrapped again: it is
+			// bounded by its own sine, so whole periods stay whole periods.
+			float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
+			x += 2.0f * sin(wrapAngle(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 			x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 			Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);

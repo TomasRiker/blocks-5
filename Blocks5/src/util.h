@@ -105,26 +105,51 @@ inline bool isReturnKey(int key)
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
 }
 
-// Reduces a scrolling texture offset, in texels, to one period of the texture.
-// Exact under GL_REPEAT: whole periods move the finished coordinate by a whole
-// number and it samples the same texel. It is needed because the weather and
-// the title clouds scroll by an offset that has been growing since the level
-// began, and a texture coordinate reaches the fragment shader as a varying at
-// that shader's float precision - highp where the browser has it, mediump on
-// a phone that has not, ten mantissa bits. The step it quantizes to is
-// offset/2048 texels, so the drift turns visibly steppy about a minute in and
-// gets worse from there. Keeping the offset inside one period keeps the
-// precision constant.
-//
-// It is also the one arithmetic in the game that is not float. What grows
-// here is the offset itself: a float's step passes one millisecond of a
-// level's clock about five hours into the same level, and the rain, which
-// scrolls twenty texels a tick, is the first to go steppy. What leaves is
-// inside one period, so every caller takes it as a float again.
-inline double wrapTextureOffset(double offset, int period)
+// The three below all reduce a quantity that grows with a clock, and they
+// exist because nothing may carry such a quantity in a float. The clock is an
+// exact integer - Level::time and GS_Menu::time in milliseconds, Lava::anim in
+// ticks - and everything the weather scrolls or wobbles by is rate * clock +
+// base, a straight line in it. Formed in a float that line goes coarse as it
+// grows: a float's step passes one millisecond of a level's clock about five
+// hours in, and the rain, which scrolls twenty texels a tick, is the first to
+// go visibly steppy. So the line is formed and reduced here, in double, from
+// the integer the caller still has; what comes back is inside one period and
+// is a float, and its precision no longer depends on how long the level has
+// been running. These are the only doubles the game's own arithmetic needs.
+const double TWO_PI = 6.283185307179586476925286766559;
+
+// The phase of an animation driven by a clock, reduced to one turn. Exact:
+// a sine is periodic in 2*pi, so dropping whole turns cannot move it. Each
+// caller passes its own rate, because that is what the reduction is against -
+// the lava's two wobbles run at 0.1 and 0.05 a tick and reduce separately.
+inline float wrapAngle(uint ticks, float perTick, float base)
+{
+	return static_cast<float>(fmod(static_cast<double>(perTick) * ticks + base, TWO_PI));
+}
+
+// The same for a quantity whose period is not a turn: a scrolling texture
+// offset in texels, or the CRT filter's flicker, which repeats every eight
+// seconds and whose crawl repeats every one. Exact for a texture under
+// GL_REPEAT, since whole periods move the finished coordinate by a whole
+// number and it samples the same texel. It is needed there because a texture
+// coordinate reaches the fragment shader as a varying at that shader's float
+// precision - highp where the browser has it, mediump on a phone that has not,
+// ten mantissa bits. The step it quantizes to is offset/2048 texels, so the
+// drift turns visibly steppy about a minute in and gets worse from there.
+inline float scrollOffset(uint ticks, float perTick, float base, float period)
+{
+	const double value = static_cast<double>(perTick) * ticks + base;
+	if(period <= 0.0f) return static_cast<float>(value);
+	return static_cast<float>(fmod(value, static_cast<double>(period)));
+}
+
+// The same reduction for an offset that is already small: what scrollOffset
+// returned, plus a wobble bounded by its own sine. Whole periods are still
+// whole periods, and nothing here has grown.
+inline float wrapTextureOffset(float offset, int period)
 {
 	if(period <= 0) return offset;
-	return fmod(offset, static_cast<double>(period));
+	return fmodf(offset, static_cast<float>(period));
 }
 
 // To the nearest whole pixel, both signs alike. A plain conversion to Vec2i

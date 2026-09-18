@@ -83,9 +83,13 @@ void GS_Menu::onRender()
 	for(int i = 2; i >= 0; i--)
 	{
 		float s[] = {1.0f, 0.5f, 0.25f};
-		double x = 100.0 * i + 50.0 * 0.001 * time;
-		x += 2.0 * sin(0.02 * x * s[i] + i);
-		// After the wobble, whose phase has to follow the unwrapped offset.
+		const float fi = static_cast<float>(i);
+		// The offset is 100 * i + 0.05 * time and the wobble reads
+		// 0.02 * s of it, so both are a line in the clock. The wobble is
+		// added after the reduction and the sum wrapped again: it is
+		// bounded by its own sine, so whole periods stay whole periods.
+		float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
+		x += 2.0f * sin(wrapAngle(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
 
 		Mat4 scroll = Mat4::scaling(clouds.texelScale.x, clouds.texelScale.y, 1.0f);

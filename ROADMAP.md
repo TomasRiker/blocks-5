@@ -1281,18 +1281,33 @@ in sixteen million. `Vec2d` and `Vec4d` are gone, their typedefs with them, and
 so is the seam they sat on: 274 `Vec2d`, 360 `Vec4d` and 14 `static_cast<Vec4f>`
 down to none, 54 `static_cast<double>` down to two.
 
-Sixty-five mentions of `double` are left, in nine files, and they fall in three
-groups - each one a value a float provably cannot carry. The wall clock and the
-frame timings (`getExactTime`, `FrameStats`, the recorder's timestamps): the
-value grows for as long as the session lasts while what is read off it is the
-difference of two readings, and a float's step is already 244 us an hour in and
-7.8 ms after a day. The scrolling offsets (`wrapTextureOffset` and its five
-callers, the weather and the title clouds): the offset grows with the level's
-clock, and a float's step passes one millisecond of it about five hours in, the
-rain going steppy first at twenty texels a tick. And `Mat4`'s `perspective`,
-`lookAt` and in-place operations, which reproduce GLU's own double arithmetic so
-that a matrix is the numbers GL built - that is where a right angle's cosine of
--4.4e-8 comes from.
+Twenty-five mentions of `double` are left, in five files, and only one of them
+is a value: the wall clock and the frame timings (`getExactTime`, `FrameStats`,
+the recorder's timestamps, the profile macros), which grow for as long as the
+session lasts while what is read off them is the difference of two readings, so
+a float's step is already 244 us an hour in and 7.8 ms after a day. The rest are
+inside two functions and one JavaScript call.
+
+The two functions are the interesting part, and they are what let everything
+else be a float. Every growing quantity the game animates by is `rate * clock +
+base`, a straight line in a counter that is an exact integer - `Level::time` and
+`GS_Menu::time` in milliseconds, `Lava::anim` and `SDL_GetTicks` in ticks. So
+`scrollOffset` and `wrapAngle` (`util.h`) form that line and reduce it in one
+step, in `double`, from the integer the caller still holds, and hand back a
+`float` inside one period. Both reductions are exact - whole periods of a
+texture under `GL_REPEAT` sample the same texel, and whole turns cannot move a
+sine - and the precision of what comes out no longer depends on how long the
+level has been running. Held in a float instead, the clouds step one texel a
+tick at first, half a texel after a day and nothing at all after ten: they
+freeze. Through the helpers the step is 1.000000 texels a tick out to 24 days.
+Nine call sites go through them: the five weather and title scrollers, the
+lava's scroll and its two wobbles, and the CRT filter's flicker and crawl.
+
+`Mat4` is `float` throughout. It still keeps the order of operations of the GL
+and GLU calls it stands for, which costs nothing and makes the two readable
+against each other, but not their precision - the only entries that differ are
+`gluPerspective`'s depth row, `m[10]` and `m[14]`, while `m[0]` and `m[5]`,
+which put a corner on the screen, read neither near nor far and are identical.
 
 `static_cast<float>` went the other way, 201 to 225, and that is the gate
 working rather than the change failing: an integer widening to a `double` is

@@ -62,7 +62,8 @@ void Lava::onRender(RenderLayer layer,
 		Renderer& renderer = Renderer::inst();
 		const RenderState state = renderer.state();
 		const Vec2f corners[4] = {Vec2f(0.0f, 0.0f), Vec2f(16.0f, 0.0f), Vec2f(16.0f, 16.0f), Vec2f(0.0f, 16.0f)};
-		Vec2f shift(2.0f * sin(0.1f * anim), 3.0f * cos(0.05f * anim));
+		Vec2f shift(2.0f * sin(wrapAngle(anim, 0.1f, 0.0f)),
+					3.0f * cos(wrapAngle(anim, 0.05f, 0.0f)));
 		float a[4];
 		if(layer == RL_LAVA_BACK) getAlpha1(position, a);
 		else if(layer == RL_LAVA_FRONT) getAlpha2(position, a);
@@ -101,11 +102,12 @@ void Lava::onRender(RenderLayer layer,
 				}
 			}
 
-			// Only the scroll is wrapped. The shift above reads the same
-			// anim and its two periods divide neither the tile nor each
-			// other, so wrapping what feeds those sines would jog the wobble
-			// every time it came round.
-			const float scroll = static_cast<float>(wrapTextureOffset(anim, SCROLL_PERIOD));
+			// The scroll wraps at the tile, the shift above at a turn, and
+			// each has to be its own: anim's two wobble periods divide
+			// neither the tile nor each other, so reducing what feeds those
+			// sines by the tile would jog the wobble every time it came
+			// round. A turn cannot, since a sine is periodic in it.
+			const float scroll = scrollOffset(anim, 1.0f, 0.0f, SCROLL_PERIOD);
 
 			Vec2f t;
 			switch(ndir % 4)

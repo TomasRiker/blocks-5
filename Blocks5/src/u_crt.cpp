@@ -574,18 +574,20 @@ void U_Crt::present(const PresentContext& context)
 	// CRT_FLICKER_CYCLE and every frequency in it is a whole multiple of it,
 	// leaving nothing to jump at the wrap.
 	//
-	// The one value here that has to be double: SDL_GetTicks() counts up to
-	// 49.7 days, and a float second of it is worth less than a frame after
-	// three - the flicker would begin to step. Both terms below are reduced
-	// to a small range, which is what the shader is given.
-	const double seconds = static_cast<double>(SDL_GetTicks()) * 0.001;
-	PresentProgram::setUniform(locTime, static_cast<float>(fmod(seconds, CRT_FLICKER_CYCLE)));
+	// Both terms come out of SDL_GetTicks() reduced to a small range, which
+	// is what the shader is given. They go through scrollOffset rather than
+	// off a float count of seconds because that counter runs up to 49.7 days,
+	// where a float second is worth less than a frame after three and the
+	// flicker would begin to step.
+	PresentProgram::setUniform(locTime,
+		scrollOffset(SDL_GetTicks(), 0.001f, 0.0f, CRT_FLICKER_CYCLE));
 
 	// The scan-line crawl is the one term computed here: it is a ramp, not an
 	// oscillation, and its slope depends on the slider - from the
-	// already-wrapped clock the phase would jump at every wrap.
-	PresentProgram::setUniform(locScanPhase, static_cast<float>(
-		fmod(seconds * crtCrawlSpeed * scanFlicker, 1.0)));
+	// already-wrapped clock the phase would jump at every wrap, so it reduces
+	// from the clock itself at its own rate.
+	PresentProgram::setUniform(locScanPhase,
+		scrollOffset(SDL_GetTicks(), 0.001f * crtCrawlSpeed * scanFlicker, 0.0f, 1.0f));
 
 	program.drawQuad(context);
 }
