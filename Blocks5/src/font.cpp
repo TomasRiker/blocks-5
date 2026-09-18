@@ -797,9 +797,14 @@ void Font::measureText(const std::string& text,
 		}
 		else if(c == '\t')
 		{
-			cursor.x += options.tabSize;
-			cursor.x /= options.tabSize;
-			cursor.x *= options.tabSize;
+			// The stop buildText() advances to, arrived at the same way: there
+			// the cursor is a Vec2i and these are integer operations, which is
+			// what snaps the position to a multiple of tabSize. In float they
+			// cancel - (x + t) / t * t is x + t - so a tab would merely add
+			// its own width, a measured line would come out up to a whole stop
+			// wider than the one drawn, and adjustText() would wrap it early.
+			const int stop = (static_cast<int>(cursor.x) + options.tabSize) / options.tabSize;
+			cursor.x = static_cast<float>(stop * options.tabSize);
 			maximum.x = max(maximum.x, cursor.x);
 		}
 		else if(c == HALF_SPACE)
@@ -935,6 +940,15 @@ std::string Font::adjustText(const std::string& text,
 		{
 			// line break
 			cursorX = 0;
+		}
+		else if(c == '\t')
+		{
+			// The stop buildText() draws to. Without this a tab counted as an
+			// ordinary character - charInfo['\t'] is 66 wide in this font,
+			// which is neither the stop nor nothing - and every tabbed line
+			// was measured against a width it is not drawn at.
+			const int stop = (cursorX + options.tabSize) / options.tabSize;
+			cursorX = stop * options.tabSize;
 		}
 		else
 		{

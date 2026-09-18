@@ -72,7 +72,6 @@ Engine::Engine()
 
 	frameTime = 0;
 	time = 0;
-	mouseDragVK = -1;
 	dragButtons = 0;
 	dragging = false;
 	dragBlocked = false;
@@ -322,6 +321,41 @@ bool Engine::init(const std::string& windowCaption,
 		virtualKeys.push_back(vk);
 	}
 
+	// The six keys of the mouse drag, and they sit exactly here for a reason:
+	// main.cpp registers its actions before Engine::init runs, so a binding
+	// has to be nameable before this table exists. A keyboard key manages it
+	// because its index is its own key code (getKeyboardVK), and these manage
+	// it by following the keyboard block immediately - the loop above has just
+	// pushed SDLK_LAST of them - so the base is SDLK_LAST whatever joysticks
+	// turn up afterwards. getMouseDragVK() returns that without reading this.
+	//
+	// updateMouseDrag() sets them from the cursor and the buttons, the way a
+	// joystick hat's four are polled, so that nothing above the input layer
+	// learns a mouse can steer a character. The ids are structural, as the
+	// joysticks' are, and carry no $ID because nothing shows them: the drag is
+	// bound as an action's third source, which the options dialog does not
+	// offer - a gesture is its own binding.
+	{
+		static const char* p_ids[NUM_MOUSE_DRAG_VKS] =
+			{"Mouse DragW", "Mouse DragE", "Mouse DragN", "Mouse DragS",
+			 "Mouse DragB2", "Mouse DragB12"};
+		static const char* p_names[NUM_MOUSE_DRAG_VKS] =
+			{"Mouse drag left", "Mouse drag right", "Mouse drag up",
+			 "Mouse drag down", "Mouse drag, right button",
+			 "Mouse drag, both buttons"};
+		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
+		{
+			VirtualKey vk;
+			vk.device = VK_DEVICE_MOUSE;
+			vk.key = i;
+			vk.id = p_ids[i];
+			vk.name = p_names[i];
+			vk.niceName = p_names[i];
+			vk.down = false;
+			virtualKeys.push_back(vk);
+		}
+	}
+
 	// open every joystick
 	int n = SDL_NumJoysticks();
 	int index = 0;
@@ -435,34 +469,6 @@ bool Engine::init(const std::string& windowCaption,
 
 			joysticks.push_back(p_joystick);
 			index++;
-		}
-	}
-
-	// The mouse drag is a device like the others: six virtual keys that
-	// updateMouseDrag() sets from the cursor and the buttons, so that nothing
-	// above the input layer learns a mouse can steer a character. The ids are
-	// structural, as the joysticks' are. They carry no $ID because nothing
-	// shows them: the drag is bound from main.cpp as an action's third source,
-	// which the options dialog does not offer - a gesture is its own binding.
-	mouseDragVK = static_cast<int>(virtualKeys.size());
-	{
-		static const char* p_ids[NUM_MOUSE_DRAG_VKS] =
-			{"Mouse DragW", "Mouse DragE", "Mouse DragN", "Mouse DragS",
-			 "Mouse DragB2", "Mouse DragB12"};
-		static const char* p_names[NUM_MOUSE_DRAG_VKS] =
-			{"Mouse drag left", "Mouse drag right", "Mouse drag up",
-			 "Mouse drag down", "Mouse drag, right button",
-			 "Mouse drag, both buttons"};
-		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
-		{
-			VirtualKey vk;
-			vk.device = VK_DEVICE_MOUSE;
-			vk.key = i;
-			vk.id = p_ids[i];
-			vk.name = p_names[i];
-			vk.niceName = p_names[i];
-			vk.down = false;
-			virtualKeys.push_back(vk);
 		}
 	}
 
@@ -3425,7 +3431,7 @@ void Engine::updateMouseDrag()
 	{
 		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
 		{
-			virtualKeys[mouseDragVK + i].down = false;
+			virtualKeys[getMouseDragVK(i)].down = false;
 		}
 		return;
 	}
@@ -3454,24 +3460,27 @@ void Engine::updateMouseDrag()
 	// leaves no direction down at all, which stops.
 	const Vec2i offset = cursor - dragOrigin;
 	const bool horizontal = abs(offset.x) >= abs(offset.y);
-	virtualKeys[mouseDragVK + MOUSE_DRAG_LEFT].down = horizontal && offset.x < 0;
-	virtualKeys[mouseDragVK + MOUSE_DRAG_RIGHT].down = horizontal && offset.x > 0;
-	virtualKeys[mouseDragVK + MOUSE_DRAG_UP].down = !horizontal && offset.y < 0;
-	virtualKeys[mouseDragVK + MOUSE_DRAG_DOWN].down = !horizontal && offset.y > 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_LEFT)].down = horizontal && offset.x < 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_RIGHT)].down = horizontal && offset.x > 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_UP)].down = !horizontal && offset.y < 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_DOWN)].down = !horizontal && offset.y > 0;
 
 	// What the drag carries was settled when it began and does not change
 	// while it runs. Reading it live would be a trap: on the way into a
 	// two-button grip there is a tick with only the right button down, and
 	// that is the gesture for a *lit* bomb - the player would get one where
 	// they asked for a bomb put down safely.
-	virtualKeys[mouseDragVK + MOUSE_DRAG_PLANT].down = (dragButtons == 2);
-	virtualKeys[mouseDragVK + MOUSE_DRAG_PUT_DOWN].down = (dragButtons == 3);
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_PLANT)].down = (dragButtons == 2);
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_PUT_DOWN)].down = (dragButtons == 3);
 }
 
 int Engine::getMouseDragVK(int which) const
 {
 	if(which < 0 || which >= NUM_MOUSE_DRAG_VKS) return -1;
-	return mouseDragVK + which;
+	// Not read off virtualKeys: main.cpp asks before Engine::init has built
+	// it. The six are pushed directly behind the keyboard block, so the base
+	// is the length of that block.
+	return static_cast<int>(SDLK_LAST) + which;
 }
 
 void Engine::cancelMouseDrag()
@@ -3483,7 +3492,7 @@ void Engine::cancelMouseDrag()
 	dragBlocked = true;
 	for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
 	{
-		virtualKeys[mouseDragVK + i].down = false;
+		virtualKeys[getMouseDragVK(i)].down = false;
 	}
 }
 

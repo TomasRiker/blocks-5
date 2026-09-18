@@ -1580,8 +1580,8 @@ Move up			%BINDING{$A_UP}
 Move down		%BINDING{$A_DOWN}
 Plant bomb		%BINDING{$A_PLANT_BOMB} + direction
 Put bomb down		%BINDING{$A_PUT_DOWN_BOMB} + direction
-Move with the mouse		drag the character
-Bombs with the mouse	drag with the right / both buttons
+Move with the mouse		Drag the character with the left button
+Bombs with the mouse	Drag with the right/both buttons
 Switch character		%BINDING{$A_SWITCH_CHARACTER} or click at character
 Restart level		%BINDING{$A_RESTART_LEVEL}
 Restart from hotel		%BINDING{$A_RESTART_FROM_HOTEL}

@@ -18,6 +18,7 @@
 #include "gui.h"
 #include "gui_element.h"
 #include "gui_button.h"
+#include "player.h"
 #include "particlesystem.h"
 #include "framestats.h"
 #include "font.h"
@@ -350,6 +351,21 @@ namespace
 			out += ",\"over500\":";
 			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, 500.0f)));
 			out += "}";
+		}
+
+		// The cell the active character stands on, or -1,-1 where no level is
+		// running or nobody is awake. It is the one thing about a level that
+		// the GUI report cannot stand in for: a drag steers the field rather
+		// than a widget, so a test that asks whether a gesture walked anybody
+		// has nothing else to read.
+		{
+			GameState* p_game = engine.getGameState();
+			Level* p_lvl = (p_game && p_game->getName() == "GS_Game")
+						   ? static_cast<GS_Game*>(p_game)->getLevel() : 0;
+			Player* p_player = p_lvl ? p_lvl->getActivePlayer() : 0;
+			const Vec2i cell = p_player ? p_player->getPosition() : Vec2i(-1, -1);
+			out += ",";
+			appendPoint(out, "player", cell.x, cell.y);
 		}
 
 		out += ",\"mouseDown\":\"";
