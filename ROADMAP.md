@@ -1658,17 +1658,20 @@ coordinates.
 | `hintfont.png` | 512x256 | 508x247 | `hintfont.xml` |
 | `particles.png` | 128x128 | 112x80 | measured only; check before cutting |
 | `shine.png` | 128x128 | whole | |
-| `sprites.png` | 256x1024 | 256x**752** | the object sheet; art ends at 720 |
+| `sprites.png` | 256x1024 | 256x**720** | the object sheet, and exactly where its art ends |
 | `tileset.png` | 128x128 | whole | `tileset.xml`, all four skins |
 | `rain`, `snow`, `clouds`, `noise` | | **do not crop** | the first three tile, so the period is the size; the noise is sampled whole |
 
 **Two things found on the way, each its own small item.**
 
-`sprites.png` has to keep 752 rows although the art ends at 720, because
-`E_HexDigit` computes `32*(value%8), 640 + 32*(value/8)` and `value` can pass
-15, so it draws rows 704 and **736** - and no skin has art there. Today that
-draws nothing; cut the sheet to 720 and it would sample the gutter instead, so
-invisible becomes visible. Clamp the value and 720 is safe.
+`E_HexDigit` read each of its four inputs as a *number* rather than as a logic
+level, and an `E_Value` or an `E_PulseSwitch` carries 0 to 7 - so the four
+summed could reach 105, and `32*(value%8), 640 + 32*(value/8)` is then four
+hundred rows below the sheet. Measured before the fix, the palette alone drove
+it to rows 704 and **736**, where no skin has art. Reading each input as a level,
+the way the gates' `&&` and `||` already do, bounds the sum at 15 by
+construction; the deepest row any quad now reaches is **720**, which is exactly
+where the art ends.
 
 `title.png` was requested in `GS_Loading::loadGraphics()` and drawn nowhere -
 no code path, no `<Image>`, no localized filename - and never released either.
