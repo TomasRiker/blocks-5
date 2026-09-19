@@ -43,7 +43,7 @@
 
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCENES="menu options crt manager star editor help editbox editor-select editor-connect select cube night plain lava toxic hint loading credits"
+SCENES="menu options crt manager star editor help editbox editor-select editor-connect select cube night plain lava toxic hint loading credits credits-plain"
 
 if [ "$1" = "--list" ]; then echo $SCENES; exit 0; fi
 
@@ -518,26 +518,46 @@ if wanted loading; then
 	b5_waitForState GS_Menu
 fi
 
-# The credits draw their own last frame back into the next one, so the
-# picture depends on how many frames were rendered and not only on the tick:
-# lockstep makes those the same number. Their clock starts two seconds before
-# zero and the oracle's tick counts from there.
+# The ending. "full" asks for it outright, because GS_Credits otherwise reads
+# a progress file and the private home has none - so without the word this
+# would be the plain version below and the star field would go untested.
 #
-# 6000 and not the 3000 this started at, which was the lead-in: the stars and
-# the gradient with no text over them at all, so the font laid nothing out
-# and the block table was walked for nothing. At 6000 a block is up and
-# fading in - the thanks where the shipped campaign has been finished and the
-# programming credit where it has not, which is the only difference between
-# the two versions this frame can see. That text is the one in the game
-# nothing caches (its charScaling is animated), so it is also the only scene
-# that draws the uncached path.
+# The stars draw their own last frame back into the next one, so the picture
+# depends on how many frames were rendered and not only on the tick: lockstep
+# makes those the same number. The clock starts two seconds before zero and
+# the oracle's tick counts from there.
+#
+# 6000 and not the 3000 this started at, which was the lead-in: the gradient
+# and the stars with no text over them at all, so the font laid nothing out
+# and the block table was walked for nothing. At 6000 the thanks is up and
+# fading in, under the animated charScaling that is the one text in the game
+# nothing caches.
 if wanted credits; then
 	b5_ask "lockstep 1" >/dev/null
-	b5_ask "state GS_Credits" >/dev/null
+	b5_ask "state GS_Credits full" >/dev/null
 	b5_waitForState GS_Credits
 	b5_frame credits 6000
 	b5_release
 	b5_ask "lockstep 0" >/dev/null
+	b5_ask "state GS_Menu" >/dev/null
+	b5_waitForState GS_Menu
+fi
+
+# The plain version, which is what a player who has not finished the shipped
+# campaign gets: no word, so GS_Credits asks the database and the private home
+# answers no. Text on black - the thanks dropped, so 6000 is the programming
+# credit, at a charScaling held at 1 and therefore cached.
+#
+# No lockstep, and that is the point rather than an omission: with nothing
+# drawn back out of the last frame the picture belongs to the tick alone, so
+# the scene is reproducible without pinning the frame count, and reaching tick
+# 6000 costs seconds instead of a minute. It also enters the credits a second
+# time in the same run, which is what proves onEnter starts from nothing.
+if wanted credits-plain; then
+	b5_ask "state GS_Credits" >/dev/null
+	b5_waitForState GS_Credits
+	b5_frame credits-plain 6000
+	b5_release
 	b5_ask "state GS_Menu" >/dev/null
 	b5_waitForState GS_Menu
 fi

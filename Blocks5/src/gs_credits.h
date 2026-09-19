@@ -24,6 +24,7 @@ public:
 	void onLoseFocus();
 
 private:
+	void renderStarField(float t);
 	void renderStars(const Mat4& projection, const Mat4& view);
 	void updateStars();
 
@@ -61,6 +62,11 @@ private:
 	float shift;
 	float fadeAt;
 	float endAt;
+
+	// Whether a click or a key may be taken as the player asking to leave.
+	// False for the tick the screen is entered in, which still holds the
+	// press that opened it.
+	bool exitArmed;
 };
 
 #endif

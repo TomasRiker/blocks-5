@@ -79,34 +79,11 @@ void GS_Credits::onRender()
 		// of the frame is left as it is.
 		Renderer::ColorMaskScope colorOnly(true, true, true, false);
 
-		Vec3f color(0.05f + 0.05f * sinf(t * 0.26f), 0.05f + 0.05f * cosf(t * 0.31f), 0.05f + 0.05f * sinf(t * 0.413f));
-		{
-			// a gradient, darkest at the top and bottom and twice as light in
-			// the middle
-			const Vec4f edge(color.r, color.g, color.b, 1.0f);
-			const Vec4f middle(color.r * 2.0f, color.g * 2.0f, color.b * 2.0f, 1.0f);
-			const Vec2f upper[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 240.0f), Vec2f(0.0f, 240.0f)};
-			const Vec4f upperColors[4] = {edge, edge, middle, middle};
-			renderer.quad(upper, upperColors);
-			const Vec2f lower[4] = {Vec2f(0.0f, 240.0f), Vec2f(640.0f, 240.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
-			const Vec4f lowerColors[4] = {middle, middle, edge, edge};
-			renderer.quad(lower, lowerColors);
-		}
-
-		const Vec2i& screenSize = engine.getScreenSize();
-
-		// The last frame's stars at three quarters, which is what makes the
-		// trails; the scale puts the texture coordinates in pixels.
-		const Vec2f s = static_cast<Vec2f>(screenSize);
-		const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
-		renderer.quad(RenderState(engine.getFrameCopyRef(bufferID), BM_NORMAL), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
-
-		const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 500.0f);
-		Vec3f lookAt = cameraPos + cameraDir;
-		const Mat4 view = Mat4::lookAt(cameraPos.x, cameraPos.y, cameraPos.z, lookAt.x, lookAt.y, lookAt.z, 0.0f, 1.0f, 0.0f);
-		renderStars(projection, view);
-
-		engine.captureFrame(bufferID);
+		// The frame buffer is not cleared between frames - the ending covers
+		// it with its gradient - so the plain version has to lay the black
+		// down itself rather than leave what was there.
+		if(full) renderStarField(t);
+		else renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 
 		for(int i = 0; i < NUM_BLOCKS; i++)
 		{
@@ -123,15 +100,26 @@ void GS_Credits::onRender()
 				p_font->measureText(title, &titleSize, 0);
 				p_font->measureText(text, &textSize, 0);
 
+				// A block's life is one number running 0 to 2: in over the
+				// first half, out over the second, where squaring the
+				// remainder makes the leaving quick and then slow. The ending
+				// also scales the letters with it - three quarters up to full
+				// on the way in, then away to three times, drifting up and
+				// left so that the growth reads as coming at the viewer. The
+				// plain version has neither: it is text on black, where a
+				// per-character zoom would be the only thing moving.
 				float alpha = 2.0f * (t - blockStart) / p_blocks[i].duration;
-				float scaling = 0.75f + 0.25f * alpha;
+				float scaling = full ? 0.75f + 0.25f * alpha : 1.0f;
 				Vec2f offset(0.0f, 0.0f);
 				if(alpha > 1.0f)
 				{
-					scaling = 1.0f + 2.0f * (alpha - 1.0f);
+					if(full)
+					{
+						scaling = 1.0f + 2.0f * (alpha - 1.0f);
+						offset -= Vec2f(6.0f, 8.0f) * (scaling - 1.0f);
+					}
 					alpha = 2.0f - alpha;
 					alpha *= alpha;
-					offset -= Vec2f(6.0f, 8.0f) * (scaling - 1.0f);
 				}
 
 				renderer.push();
@@ -145,9 +133,11 @@ void GS_Credits::onRender()
 				options.charScaling = scaling;
 				options.lineSpacing = p_blocks[i].lineSpacing;
 				p_font->setOptions(options);
-				// Not cached: charScaling is animated, so this key belongs to this
-				// frame and to no other.
-				p_font->renderText(title, Vec2i(0, 0), Vec4f(0.75f, 0.75f, 1.0f, alpha), false);
+				// Cached only where the layout stands still. The ending
+				// animates charScaling, which is part of the cache key, so
+				// every frame builds a key no other will ask for; the plain
+				// version holds it at 1 and every frame hits.
+				p_font->renderText(title, Vec2i(0, 0), Vec4f(0.75f, 0.75f, 1.0f, alpha), !full);
 
 				renderer.pop();
 				renderer.push();
@@ -156,9 +146,9 @@ void GS_Credits::onRender()
 				renderer.translate(static_cast<float>(p_blocks[i].x), static_cast<float>(p_blocks[i].y));
 				renderer.translate(static_cast<float>(textSize.x / -2), 0.0f);
 
-				// Uncached for the same reason as the title above: scaling is
-				// 0.75 + 0.25 * alpha and both draws are laid out under it.
-				p_font->renderText(text, Vec2i(0, 0), p_blockColors[i % NUM_BLOCK_COLORS] * Vec4f(1.0f, 1.0f, 1.0f, alpha), false);
+				// Cached on the same terms as the title above: both draws are
+				// laid out under the one scaling.
+				p_font->renderText(text, Vec2i(0, 0), p_blockColors[i % NUM_BLOCK_COLORS] * Vec4f(1.0f, 1.0f, 1.0f, alpha), !full);
 
 				renderer.pop();
 			}
@@ -182,17 +172,23 @@ void GS_Credits::onUpdate()
 	// that it never goes negative.
 	engine.sceneTick = static_cast<uint>(time + 2000);
 
-	cameraPos += 0.02f * 50.0f * cameraDir * static_cast<float>(speed);
+	// The flight through the star field is the ending's, so nothing steers a
+	// camera or keeps four hundred stars alive for a screen that is text on
+	// black.
+	if(full)
+	{
+		cameraPos += 0.02f * 50.0f * cameraDir * static_cast<float>(speed);
 
-	cameraDir += Vec3f(random(-0.002f, 0.002f), random(-0.002f, 0.002f), random(-0.002f, 0.002f));
+		cameraDir += Vec3f(random(-0.002f, 0.002f), random(-0.002f, 0.002f), random(-0.002f, 0.002f));
 
-	float t = 0.001f * time;
-	cameraDir.x += 0.01f * sinf(t * 0.1f);
-	cameraDir.y += 0.01f * sinf(0.5f + t * 0.05f);
-	cameraDir.z += 0.01f * cosf(0.5f + t * 0.075f);
-	cameraDir.normalize();
+		const float ct = 0.001f * time;
+		cameraDir.x += 0.01f * sinf(ct * 0.1f);
+		cameraDir.y += 0.01f * sinf(0.5f + ct * 0.05f);
+		cameraDir.z += 0.01f * cosf(0.5f + ct * 0.075f);
+		cameraDir.normalize();
 
-	updateStars();
+		updateStars();
+	}
 
 	// The fast-forward is let go of a second before the fade, so that the end
 	// is watched at the speed it was written at whatever was done before it.
@@ -210,24 +206,48 @@ void GS_Credits::onUpdate()
 	}
 	if(time == static_cast<int>(endAt * 1000.0f)) engine.setGameState("GS_Menu");
 
-	if(engine.wasKeyPressed(SDLK_RETURN) ||
-	   engine.wasKeyPressed(SDLK_KP_ENTER) ||
-	   engine.wasKeyPressed(SDLK_ESCAPE) ||
-	   engine.wasKeyPressed(SDLK_SPACE))
+	// The four keys a player reaches for to be done with a screen. In the
+	// ending they hurry it, because it is something to watch and cutting it
+	// off is not what somebody who has just won is asking for; in the plain
+	// version they end it, as does any click, because that one is a screen
+	// offered from the menu - it keeps the cursor, and there is nothing to
+	// fast-forward through when the way out is the point.
+	const bool keyPressed = engine.wasKeyPressed(SDLK_RETURN) ||
+							engine.wasKeyPressed(SDLK_KP_ENTER) ||
+							engine.wasKeyPressed(SDLK_ESCAPE) ||
+							engine.wasKeyPressed(SDLK_SPACE);
+
+	if(full)
 	{
-		speed = 5;
-		time /= 100;
-		time *= 100;
+		if(keyPressed)
+		{
+			speed = 5;
+			time /= 100;
+			time *= 100;
+		}
+	}
+	else
+	{
+		// Never in the tick the screen was entered in: a menu entry answers
+		// a click or a Return, GUI::update() dispatches it,
+		// processGameStateChanges() runs onEnter and onUpdate follows, all
+		// inside the tick whose press bits are cleared only at its foot - so
+		// whatever opened the screen is still standing when it first asks.
+		if(exitArmed && (keyPressed || engine.wasAnyButtonPressed()))
+			engine.setGameState("GS_Menu");
+		exitArmed = true;
 	}
 }
 
 void GS_Credits::onEnter(const ParameterBlock& context)
 {
-	// Which of the two runs is decided here and asked of nobody: both ways in
-	// - the menu and the last level of the shipped campaign - would otherwise
-	// have to carry the answer, and the one after the campaign knows it only
-	// because the level it has just finished is already in the database.
-	full = Campaign::isBuiltInCompleted();
+	// Which of the two runs, said by the caller or worked out here. Nothing
+	// has to say it: both ways in that a player takes - a Credits entry in
+	// the menu, and the last level of the shipped campaign - leave it, and
+	// the one after the campaign is right for free, because the level just
+	// finished is already in the database. The keys that name a version
+	// outright are the author's (gs_menu.cpp), and the frame oracle's.
+	full = context.has("full") ? context.get<bool>("full") : Campaign::isBuiltInCompleted();
 
 	// Everything the short version shows moves up by the gap the blocks it
 	// drops leave at the front, so that the names begin after the same
@@ -254,15 +274,29 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 
 	time = -2000;
 	speed = 1;
+	exitArmed = false;
 	p_font = Manager<Font>::inst().request("credits_font.xml");
-	p_level = new Level;
-	p_level->setInEditor(true);
-	p_level->load("title.xml");
-	p_sprites = p_level->getSpritesTexture();
 
-	// create the texture for the effect buffer
-	bufferID = engine.createFrameCopyTexture(false, true);
+	// The star field and the buffer its trails come back out of belong to the
+	// ending alone, and the level is loaded only because the stars are cut
+	// from its sprite sheet - so the plain version loads none of the three.
+	p_level = 0;
+	p_sprites = 0;
+	bufferID = 0;
+	if(full)
+	{
+		p_level = new Level;
+		p_level->setInEditor(true);
+		p_level->load("title.xml");
+		p_sprites = p_level->getSpritesTexture();
 
+		// create the texture for the effect buffer
+		bufferID = engine.createFrameCopyTexture(false, true);
+	}
+
+	// Emptied rather than left: a second visit would otherwise begin with the
+	// stars the first one ended on, standing wherever the camera left them.
+	stars.clear();
 	cameraPos = Vec3f(0.0f, 0.0f, 0.0f);
 	cameraDir = Vec3f(0.0f, 0.0f, 1.0f);
 }
@@ -274,13 +308,15 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 	delete p_level;
 	p_level = 0;
 	p_sprites = 0;
-	Renderer::inst().deleteTexture(bufferID);
+	if(bufferID) Renderer::inst().deleteTexture(bufferID);
 	bufferID = 0;
 }
 
 void GS_Credits::onGetFocus()
 {
-	SDL_ShowCursor(0);
+	// The ending takes the screen and the pointer with it; the plain version
+	// is a screen to click out of, so the cursor stays where it can be seen.
+	if(full) SDL_ShowCursor(0);
 
 	// The short version leaves the music alone: it is run from the menu, the
 	// menu's own track is playing, and swapping it for the ending's would
@@ -292,6 +328,42 @@ void GS_Credits::onGetFocus()
 void GS_Credits::onLoseFocus()
 {
 	SDL_ShowCursor(1);
+}
+
+void GS_Credits::renderStarField(float t)
+{
+	Renderer& renderer = Renderer::inst();
+
+	Vec3f color(0.05f + 0.05f * sinf(t * 0.26f), 0.05f + 0.05f * cosf(t * 0.31f), 0.05f + 0.05f * sinf(t * 0.413f));
+	{
+		// a gradient, darkest at the top and bottom and twice as light in
+		// the middle
+		const Vec4f edge(color.r, color.g, color.b, 1.0f);
+		const Vec4f middle(color.r * 2.0f, color.g * 2.0f, color.b * 2.0f, 1.0f);
+		const Vec2f upper[4] = {Vec2f(0.0f, 0.0f), Vec2f(640.0f, 0.0f), Vec2f(640.0f, 240.0f), Vec2f(0.0f, 240.0f)};
+		const Vec4f upperColors[4] = {edge, edge, middle, middle};
+		renderer.quad(upper, upperColors);
+		const Vec2f lower[4] = {Vec2f(0.0f, 240.0f), Vec2f(640.0f, 240.0f), Vec2f(640.0f, 480.0f), Vec2f(0.0f, 480.0f)};
+		const Vec4f lowerColors[4] = {middle, middle, edge, edge};
+		renderer.quad(lower, lowerColors);
+	}
+
+	const Vec2i& screenSize = engine.getScreenSize();
+
+	// The last frame's stars at three quarters, which is what makes the
+	// trails; the scale puts the texture coordinates in pixels.
+	const Vec2f s = static_cast<Vec2f>(screenSize);
+	const Vec2f screen[4] = {Vec2f(0.0f, 0.0f), Vec2f(s.x, 0.0f), s, Vec2f(0.0f, s.y)};
+	renderer.quad(RenderState(engine.getFrameCopyRef(bufferID), BM_NORMAL), screen, screen, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
+
+	const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 500.0f);
+	Vec3f lookAt = cameraPos + cameraDir;
+	const Mat4 view = Mat4::lookAt(cameraPos.x, cameraPos.y, cameraPos.z, lookAt.x, lookAt.y, lookAt.z, 0.0f, 1.0f, 0.0f);
+	renderStars(projection, view);
+
+	// Before the text and after the stars: what is copied is what the next
+	// frame draws back as trails, and the names are not meant to smear.
+	engine.captureFrame(bufferID);
 }
 
 void GS_Credits::renderStars(const Mat4& projection,

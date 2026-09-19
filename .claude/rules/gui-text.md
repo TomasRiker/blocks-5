@@ -29,8 +29,10 @@ wraps at 49.7 days and then makes every standing entry look newer than every fre
 what it has just built, for ever.
 
 **`renderText` takes a `cache` flag for a string whose layout will not be asked for again**, a parameter and
-never part of the key (which would double every entry asked for both ways). One caller uses it: the credits,
+never part of the key (which would double every entry asked for both ways). One caller uses it: the credits' ending,
 whose `charScaling` is `0.75 + 0.25 * alpha` and animated, so both draws build a key no frame will reuse.
+The plain version of that screen holds the scaling at 1 and therefore caches like everything else, which
+is the shape of the flag — it belongs to the call and not to the screen.
 Measured over six seconds of credits, **212 evictions → 0**. Everywhere else the cache was already working:
 across the five oracle scenes plus the help page every lookup hits, with zero evictions, and the most it
 ever holds is 825 quads / 52 KB. The memory was never the problem; the unit and the missing ceiling were.

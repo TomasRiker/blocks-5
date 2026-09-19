@@ -115,16 +115,27 @@ crossfade has reached that many milliseconds, and `lockstep 1` makes every itera
 `cube` and `star` scenes are that; measured without lockstep the cube froze at level tick 540 on one run
 and 500 on the next. The credits need lockstep for a different reason: they draw their own last frame back
 into the next one, so their picture depends on how many frames were rendered, not only on the tick.
-`state <name>` switches game state by name, which is how the credits and the logo screen are reached.
+`state <name>` switches game state by name, which is how the credits and the logo screen are reached, and
+one word after the name is a boolean parameter set to true in the context the state is entered with.
 
-**The `credits` scene takes the short version**, and that follows from the private home rather than from
-anything the scene asks for: `GS_Credits::onEnter` runs the whole ending only where the shipped campaign
-has been finished, and a home written fresh per run has no progress in it. So the block standing at the
-scene's tick is the *programming* credit, where a player who has won would see `$C_THANKS_FOR_PLAYING`
-— the short version drops that block and shifts everything up by the four seconds it occupied. Covering
-the full version too would need a `ProgressDB` seeded with the campaign's 42 levels, which no scene does
-today; what this one proves is that the timeline is laid out and the text drawn at all, which is what the
-two versions share.
+**The credits are two scenes, because they are two screens.** `GS_Credits::onEnter` runs the ending only
+where the shipped campaign has been finished, and a home written fresh per run has no progress in it — so
+`credits` says `state GS_Credits full` and gets the ending, and `credits-plain` says nothing and gets
+what a player who has not won sees. Seeding a `ProgressDB` with the campaign's 42 levels would be the
+other way to reach the first, and the parameter is a line against a fixture.
+
+The two are different pictures and not one with a switch: `credits` is the gradient, the star field and
+the motion-blur buffer under `$C_THANKS_FOR_PLAYING` at an animated `charScaling`, which is the one text
+in the game nothing caches; `credits-plain` is the *programming* credit on flat black at a scaling held
+at 1. Only the first needs `lockstep`, since only it draws its own last frame back into the next one —
+which is also why the second reaches tick 6000 in seconds where the first takes a minute. Running second,
+`credits-plain` is a re-entry into a state the run has already left once, which is what proves `onEnter`
+starts from nothing.
+
+**What neither can see is which key asked for which**, so `smoke.sh` drives the two chords and reads the
+answer off the one behaviour that separates the versions: a click or Escape leaves the plain credits,
+where the ending takes neither as an exit. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
+with `SDL_GetKeyState` — see the two-input-layers trap above.
 
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
 `--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own

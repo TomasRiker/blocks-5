@@ -208,6 +208,50 @@ b5_waitForState GS_SelectLevel
 b5_key Escape
 b5_expectState GS_Menu
 
+# --- The credits, both versions ---------------------------------------------
+# Which one runs is the whole of the feature and the frame oracle cannot see
+# it: the picture at a named tick proves each version draws what it should,
+# not that the key asked for that one. So this drives the two chords and reads
+# the answer off the one behaviour that tells them apart - a click or Escape
+# leaves the plain version, where the ending takes neither as an exit.
+#
+# The chords are held well past a frame. GS_Menu::onUpdate reads them with
+# SDL_GetKeyState, which answers from the last pump, and that is once per
+# rendered frame - a fifth of a second under llvmpipe, where b5_key holds 60
+# ms and would fall between two.
+credits_chord()   # $1 the modifiers, "shift" or "ctrl shift"
+{
+	local m
+	for m in $1; do xdotool keydown "$m"; done
+	sleep 0.1; xdotool keydown c; sleep 0.6; xdotool keyup c; sleep 0.1
+	for m in $1; do xdotool keyup "$m"; done
+	sleep 1.5
+}
+
+credits_chord "shift"
+b5_waitForState GS_Credits
+b5_clickAt 320 240
+b5_expectState GS_Menu
+b5_ok "Shift+C ran the plain credits and a click left them"
+
+credits_chord "shift"
+b5_waitForState GS_Credits
+b5_key Escape
+b5_expectState GS_Menu
+b5_ok "and so does a key"
+
+credits_chord "ctrl shift"
+b5_waitForState GS_Credits
+b5_clickAt 320 240
+b5_key Escape
+b5_expectState GS_Credits
+b5_ok "Ctrl+Shift+C ran the ending, which neither a click nor a key cuts off"
+# Out through the hook rather than the keyboard: Escape there only
+# fast-forwards, and the ending is fifty-eight seconds long even at five times
+# speed.
+b5_ask "state GS_Menu" >/dev/null
+b5_waitForState GS_Menu
+
 # --- Fullscreen and back ----------------------------------------------------
 # That goes through the window manager, not through SDL - see
 # LinuxBuild/linux_window.cpp.
