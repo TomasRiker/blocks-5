@@ -726,6 +726,7 @@
     <ClCompile Include="src\streamedsound.cpp" />
     <ClCompile Include="src\testhooks.cpp" />
     <ClCompile Include="src\texture.cpp" />
+    <ClCompile Include="src\textureatlas.cpp" />
     <ClCompile Include="src\transfer.cpp" />
     <ClCompile Include="src\u_crt.cpp" />
     <ClCompile Include="src\u_sharp.cpp" />
@@ -866,6 +867,7 @@
     <ClInclude Include="src\streamedsound.h" />
     <ClInclude Include="src\testhooks.h" />
     <ClInclude Include="src\texture.h" />
+    <ClInclude Include="src\textureatlas.h" />
     <ClInclude Include="src\transfer.h" />
     <ClInclude Include="src\typedefs.h" />
     <ClInclude Include="src\u_all.h" />

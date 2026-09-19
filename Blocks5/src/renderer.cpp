@@ -1068,6 +1068,14 @@ void Renderer::clearStencil()
 	glClear(GL_STENCIL_BUFFER_BIT);
 }
 
+void Renderer::copyRegion(uint textureId, const Vec2i& destination, const Vec2i& source, const Vec2i& size)
+{
+	flush(FR_EXPLICIT);
+	bindReal(textureId);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, destination.x, destination.y, source.x, source.y, size.x, size.y);
+	bindReal(current.texture.id);
+}
+
 void Renderer::copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size)
 {
 	flush(FR_EXPLICIT);

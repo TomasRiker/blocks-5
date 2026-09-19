@@ -39,6 +39,12 @@ public:
 	// right, only not packed.
 	void reuseWithOptions(int options);
 
+	// The atlas has moved this picture to another page, or another place in
+	// the same one. Only the texel scale and the origin change: uv is written
+	// in the picture's own texels everywhere in the tree, so no cache built
+	// from it has to be told.
+	void movedTo(uint pageID, const Vec2i& origin);
+
 	// A GL texture that is not a picture from a file: the frame copies and
 	// the rewind's noise, from pixels or empty where p_pixels is 0, RGBA or
 	// RGB, sampled linearly or not, clamped or repeating. The one place a
@@ -83,6 +89,9 @@ private:
 	// Sets GL_TEXTURE_WRAP_S/T from the declared wrap mode. Must run while the
 	// texture is bound.
 	void applyWrapMode() const;
+	// The pixels are ready; this decides where they go - a page shared with
+	// other pictures, or a GL texture of this one's own - and uploads them.
+	void place();
 	void checkDimensions();
 	void freePixels();
 
@@ -98,7 +107,15 @@ private:
 	// nothing else, so it is kept as the two numbers it is made of rather
 	// than as sixteen.
 	Vec2f texelScale;
+	// Where this picture begins inside texID, which is (0, 0) for a texture of
+	// its own. Together with texelScale - 1/pageEdge when it is in a page,
+	// 1/size when it is not - that is the whole of what a caller's texels have
+	// to be put through.
+	Vec2f uvOrigin;
 	WrapMode wrapMode;
+	// False while the picture lives in an atlas page, which is not this
+	// object's to delete: cleanUp() gives the rectangle back instead.
+	bool ownsTexture;
 	Texture* p_parent;
 };
 

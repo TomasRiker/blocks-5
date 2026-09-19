@@ -27,6 +27,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "gamestate.h"
 #include "soundinstance.h"
 #include "texture.h"
+#include "textureatlas.h"
 #include "sprite.h"
 #include "font.h"
 #include "sound.h"
@@ -788,6 +789,9 @@ void Engine::exit()
 	Manager<TileSet>::inst().exit();
 	Manager<Font>::inst().exit();
 	Manager<Texture>::inst().exit();
+	// After the pictures, or every one of them would give its rectangle back
+	// to an atlas whose pages were already deleted.
+	TextureAtlas::inst().exit();
 	Manager<Sound>::inst().exit();
 	Manager<StreamedSound>::inst().exit();
 
@@ -1745,6 +1749,13 @@ void Engine::update()
 	// the two callers that do ask to keep them (the tile set and the level's
 	// sprites, for the debris sampling) ask before this runs.
 	Texture::freeUnkeptPixels();
+
+	// And where the atlas has holes worth closing, close them here: the
+	// renderer holds nothing at this point in the tick, so the copies that
+	// move a picture from one page to another land where they are meant to.
+	// Here rather than at the moment a picture is given back, because a skin
+	// change gives eleven back and asks for eleven more in the same breath.
+	TextureAtlas::inst().repackIfWorthwhile();
 
 	// The on-screen pad labels its buttons with the names of the keys they
 	// send, and those names are translated, so it has to be told which

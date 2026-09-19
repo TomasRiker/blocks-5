@@ -178,6 +178,11 @@ public:
 	// destination, after a flush.
 	void copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size);
 
+	// The same copy from a corner of the target other than its origin: what
+	// moves a picture from one atlas page to another. Source and destination
+	// are both in GL's coordinates, so nothing is flipped on the way.
+	void copyRegion(uint textureId, const Vec2i& destination, const Vec2i& source, const Vec2i& size);
+
 	// --- the rare state, as scopes ------------------------------------------
 	//
 	// Each flushes at both ends and puts the previous value back. Drawing
