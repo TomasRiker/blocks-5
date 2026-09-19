@@ -1453,42 +1453,51 @@ It is four calls a quad in the renderer's hottest arithmetic, so the exactness
 is not worth buying (`rendering.md`).
 
 
-58. A collected item should go to the character, not just fade
---------------------------------------------------------------
-A diamond, a bomb, a syringe or a gas mask vanishes on the spot: `onCollect`
+58. A collected item should go to the character, not just fade - **DONE**
+--------------------------------------------------------------------------
+A diamond, a bomb, a syringe or a gas mask vanished on the spot: `onCollect`
 calls `disappear(0.2f)` and `Object::render` multiplies the alpha by
-`deathCountDown`, so ten ticks later it is gone from where it lay. Nothing
-carries the eye from the item to the character who now has it, and the two
-counters at the bottom left flash for a pickup the player never saw move.
+`deathCountDown`, so ten ticks later it was gone from where it lay. Nothing
+carried the eye from the item to the character who now had it, and the two
+counters at the bottom left flashed for a pickup the player never saw move.
 
-Make it fly instead - towards the character over those same ten ticks, and
-turning and shrinking a little on the way out. The fade is already the clock:
-`deathCountDown` runs 1 to 0 over the `disappear` duration and is the one
-number the whole effect can hang off, so nothing new has to be counted.
+It flies now, over those same ten ticks, turning and shrinking on the way out.
+`Object::render` has a `collectFlight` branch beside the `falling` and
+`teleporting` ones, and it hangs off the fade that was already there:
+`1 - deathCountDown` is how far along the flight is, so nothing new is counted
+and the two halves cannot come apart. What moves is the **shown position
+alone** - the item was taken the moment `onCollect` returned, the cell is free,
+and the order `Level::update` sorts and paints in reads the logical position,
+so none of it is visible to anything that decides anything.
 
-Where it enters: the four are `StdObject`s with a `setCollectData` in
-`presets.cpp` - diamond to inventory 1, the mask 2, the syringe 3 - plus the
-bomb, which has an `onCollect` of its own. What moves is the *shown* position
-alone. The logical collection has already happened by then (`addInventory`
-runs first, and the cell is free the moment `onCollect` returns), so this is
-presentation and can touch nothing that decides anything. `Object::render`
-already draws at the shown position and already has a rotation and a scaling
-argument to hand.
+**Three numbers, all of them taste**, at the top of `object.cpp` with which way
+to turn each: `COLLECT_EASE` (2.0) is the power the flight is eased with, 1
+being a straight line and higher hanging longer where the item lay before
+arriving faster; `COLLECT_SHRINK` (0.4) is how much of its size it has left at
+the end; `COLLECT_SPIN` (180) is the turn it makes, in degrees, and 0 is none.
+The turn is about the middle of the cell and not the corner the matrix stands
+on, or the item swings away from the player it is being drawn into.
 
-Two things to get right. The target has to be read each tick rather than
-snapshotted: the player keeps walking during those ten ticks, and an item
-aimed at where they *were* drifts off behind them. And nothing in a render
-path may draw a random number (`objects.md`), so if the flight wants any
-scatter it comes from `frameBegin()` or the tick, not from the draw.
+**Two things it had to get right**, both named in this entry before it was
+done. The target is read every tick rather than snapshotted, because the player
+walks on during the flight and an item aimed at where they were drifts off
+behind them - and it is read by **UID** (`Level::getObjectByUID`, new and used
+by this alone) rather than held as a pointer, since ten ticks is long enough
+for a player to be blown up inside them and `removeOldObjects()` to delete it.
+A collector that goes simply stops moving the target, and the item finishes on
+the last place it was seen. Nothing in the flight draws a random number.
 
-It ends where `Player::addInventory` already flashes the HUD icon
-(`Level::flashHudIcon`), which is the natural place to aim at and would tie
-the two halves of the same event together - the item arrives, the counter
-lights.
+**Where it starts is the one thing this entry had wrong.** Not `onCollect`:
+three classes override it and `StdObject`'s turns a second gas mask down,
+leaving it lying, so a flight begun there would send an item that was never
+taken. It begins where the collect is *noticed*, in `Object::update`, under
+`!isAlive()` - `disappear()` being the one thing every accepting path does, the
+bomb's own `onCollect` included.
 
-No oracle scene can catch this: a collected item is as transient as `Damage`
-and `Projectile`, which no palette level can place. It is a look-at-it change
-and goes to the author unbuilt, like a glow or a timing.
+No oracle scene catches it, as this entry said: a collected item is as
+transient as `Damage` and `Projectile`, which no palette level can place. All
+twenty scenes are byte-identical, which is the whole of what a check can say
+here; the look went to the author.
 
 59. The help screen's text runs out of its box - **DONE**, by one line
 -----------------------------------------------------------------------

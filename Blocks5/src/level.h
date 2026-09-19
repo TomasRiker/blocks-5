@@ -138,6 +138,12 @@ public:
 	bool isHintScroll() const;
 	Presets* getPresets();
 	const std::vector<Object*>& getObjects() const;
+
+	// The object with this UID, or 0 where it has been deleted. A UID is
+	// never reused (Level::addNewObjects counts up), so this is the way to
+	// hold on to an object across ticks without holding a pointer that its
+	// removal would leave dangling.
+	Object* getObjectByUID(uint uid) const;
 	Player* getActivePlayer();
 
 	// Close whatever the player is currently being shown on their own field -
