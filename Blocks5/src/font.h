@@ -115,7 +115,7 @@ private:
 		Vec2i dimensions;
 	};
 
-	Font(const std::string& filename);
+	Font(const std::string& filename, int options);
 	~Font();
 
 	static bool forceReload() { return false; }

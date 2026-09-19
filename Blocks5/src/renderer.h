@@ -128,8 +128,19 @@ public:
 	// A quad whose texture coordinates go through a matrix first, in the
 	// float arithmetic GL's texture matrix used: the weather and the menu's
 	// clouds scroll that way. The matrix starts from the texture's texel
-	// scale (Mat4::scaling), as the matrix under a bind did.
-	void scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
+	// scale (Mat4::scaling), as the matrix under a bind did, so what reaches
+	// the stream is already normalised and no origin can be added to it - the
+	// whole texture is the picture. That is only true of a texture nothing
+	// shares, which is what WM_REPEAT declares, and checkTiling() below is
+	// what holds a caller to it.
+	void scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
+
+	// A quad that samples more than one copy of its picture, cut at the
+	// picture's edges into quads that each sample one, so that a tiling
+	// picture can live in an atlas page. size is the picture's own size in
+	// texels; renderer.cpp has what the uv may and may not be.
+	void tiledQuad(const RenderState& s, const Vec2f& size, const Vec2f* p_corners,
+				   const Vec2f* p_uvs, const Vec4f* p_colors);
 
 	// One quad from four corners in order, one colour or a colour a corner;
 	// the last is flat with a colour a corner, the GUI's gradients.
@@ -173,6 +184,11 @@ public:
 	// The target's pixels from its origin, size wide, into a texture at
 	// destination, after a flush.
 	void copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size);
+
+	// The same copy from a corner of the target other than its origin: what
+	// moves a picture from one atlas page to another. Source and destination
+	// are both in GL's coordinates, so nothing is flipped on the way.
+	void copyRegion(uint textureId, const Vec2i& destination, const Vec2i& source, const Vec2i& size);
 
 	// --- the rare state, as scopes ------------------------------------------
 	//
@@ -283,6 +299,7 @@ private:
 	void applyState();
 	void draw();
 	void checkRecord();
+	void checkTiling(const RenderState& s, const float* p_u, const float* p_v);
 	void bakePoint(float x, float y, float* p_outX, float* p_outY) const;
 	RenderState flatState() const;
 	void bindReal(uint id);

@@ -100,7 +100,7 @@ void GS_Menu::onRender()
 		scroll.rotate(15.0f + 5.0f * i, 0.0f, 0.0f, 1.0f);
 		const float c = 1.0f - 0.05f * i;
 		const float a = 0.4f - 0.05f * i;
-		renderer.scrolledQuad(clouds.id, scroll, screen, screen, Vec4f(c, c, c, a));
+		renderer.scrolledQuad(clouds, scroll, screen, screen, Vec4f(c, c, c, a));
 	}
 
 	// render the title level
@@ -218,7 +218,7 @@ void GS_Menu::onUpdate()
 void GS_Menu::onEnter(const ParameterBlock& context)
 {
 	// load the images
-	p_clouds = Manager<Texture>::inst().request("clouds.png");
+	p_clouds = Manager<Texture>::inst().request("clouds.png", Texture::WM_REPEAT);
 	p_background = Manager<Texture>::inst().request("menu.png");
 
 	// build the menu

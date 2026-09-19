@@ -34,7 +34,7 @@ public:
 	bool update();
 
 private:
-	StreamedSound(const std::string& filename);
+	StreamedSound(const std::string& filename, int options);
 	~StreamedSound();
 
 	int threadProc();

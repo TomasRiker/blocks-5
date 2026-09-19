@@ -1,8 +1,9 @@
 #include "pch.h"
 #include "texture.h"
+#include "textureatlas.h"
 #include "filesystem.h"
 
-Texture::Texture(const std::string& filename) : Resource(filename)
+Texture::Texture(const std::string& filename, int options) : Resource(filename)
 {
 	p_rgba = 0;
 	texID = 0;
@@ -10,6 +11,10 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
 	texelScale = Vec2f(1.0f, 1.0f);
+	uvOrigin = Vec2f(0.0f, 0.0f);
+	wrapMode = static_cast<WrapMode>(options & WRAP_MASK);
+	neverPack = (options & NEVER_PACK) != 0;
+	ownsTexture = true;
 	p_parent = 0;
 
 	reload();
@@ -17,7 +22,8 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 
 Texture::Texture(Texture* p_parent,
 				 const Vec2i& offset,
-				 const Vec2i& size) : Resource(p_parent->filename)
+				 const Vec2i& size,
+				 WrapMode wrapMode) : Resource(p_parent->filename)
 {
 	p_rgba = 0;
 	texID = 0;
@@ -25,6 +31,10 @@ Texture::Texture(Texture* p_parent,
 	this->offset = offset;
 	this->size = size;
 	texelScale = Vec2f(1.0f, 1.0f);
+	uvOrigin = Vec2f(0.0f, 0.0f);
+	this->wrapMode = wrapMode;
+	neverPack = false;
+	ownsTexture = true;
 	this->p_parent = p_parent;
 
 	loadSubTexture(p_parent, offset, size);
@@ -53,6 +63,53 @@ namespace
 		}
 		Renderer::DirectGL direct;
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_rgba->w, p_rgba->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_rgba->pixels);
+		return true;
+	}
+
+	// The same picture into a rectangle of a page, with a texel of gutter all
+	// round it. Linear filtering reaches one texel past the coordinate it was
+	// given and no further - there are no mipmaps in this game - so a copy of
+	// the picture's own edge there is exactly what GL_CLAMP_TO_EDGE returned,
+	// and a copy of the opposite edge exactly what GL_REPEAT returned. The
+	// same texel value, not a near one.
+	//
+	// Built as one padded block and uploaded once rather than as nine calls
+	// round the edges: the columns are not contiguous in the source, so they
+	// would have to be gathered into a buffer anyway.
+	bool uploadPadded(uint pageID, const Vec2i& origin, const SDL_Surface* p_rgba, bool wrap, const char* p_name)
+	{
+		if(p_rgba->pitch != p_rgba->w * 4)
+		{
+			printfLog("+ ERROR: The image \"%s\" has a pitch of %d bytes for a width of %d, which the upload cannot take.\n",
+					  p_name, p_rgba->pitch, p_rgba->w);
+			return false;
+		}
+
+		const int g = TextureAtlas::GUTTER;
+		const int w = p_rgba->w;
+		const int h = p_rgba->h;
+		const int paddedW = w + 2 * g;
+		const int paddedH = h + 2 * g;
+		std::vector<uint> padded(static_cast<uint>(paddedW * paddedH));
+		const uint* p_source = reinterpret_cast<const uint*>(p_rgba->pixels);
+		for(int y = 0; y < paddedH; y++)
+		{
+			int sy = y - g;
+			if(wrap) sy = (sy + h) % h;
+			else sy = (sy < 0) ? 0 : ((sy >= h) ? h - 1 : sy);
+			for(int x = 0; x < paddedW; x++)
+			{
+				int sx = x - g;
+				if(wrap) sx = (sx + w) % w;
+				else sx = (sx < 0) ? 0 : ((sx >= w) ? w - 1 : sx);
+				padded[y * paddedW + x] = p_source[sy * w + sx];
+			}
+		}
+
+		Renderer::DirectGL direct;
+		glBindTexture(GL_TEXTURE_2D, pageID);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x - g, origin.y - g, paddedW, paddedH,
+						GL_RGBA, GL_UNSIGNED_BYTE, &padded[0]);
 		return true;
 	}
 }
@@ -92,16 +149,6 @@ void Texture::reload()
 	if(size.y == -1) size.y = p_surface->h;
 
 	checkDimensions();
-	texelScale = Vec2f(1.0f / size.x, 1.0f / size.y);
-
-	// set up the OpenGL texture: raw, in a bracket, so that what was queued
-	// before goes up first and the renderer forgets the binding afterwards
-	Renderer::DirectGL direct;
-	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	applyWrapMode();
 
 	// convert into the correct format
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
@@ -118,8 +165,49 @@ void Texture::reload()
 	// lock the image
 	SDL_LockSurface(p_rgba);
 
-	// copy the image data into the texture
+	// The pixels come first and the texture afterwards, because which texture
+	// it is depends on them fitting somewhere.
+	place();
+}
+
+void Texture::place()
+{
+	TextureAtlas& atlas = TextureAtlas::inst();
+	TextureAtlas::Slot slot;
+	if(!neverPack && wrapMode != WM_REPEAT && atlas.reserve(this, size, &slot))
+	{
+		// In a page: uv reads in page texels from the picture's corner, and
+		// the caller goes on writing its own.
+		ownsTexture = false;
+		texID = slot.pageID;
+		const float edge = static_cast<float>(atlas.getPageEdge());
+		texelScale = Vec2f(1.0f / edge, 1.0f / edge);
+		uvOrigin = Vec2f(static_cast<float>(slot.origin.x) / edge, static_cast<float>(slot.origin.y) / edge);
+		if(!uploadPadded(texID, slot.origin, p_rgba, wrapMode == WM_WRAP, filename.c_str())) error = 1;
+		return;
+	}
+
+	// A texture of its own: raw, in a bracket, so that what was queued before
+	// goes up first and the renderer forgets the binding afterwards.
+	ownsTexture = true;
+	texelScale = Vec2f(1.0f / size.x, 1.0f / size.y);
+	uvOrigin = Vec2f(0.0f, 0.0f);
+
+	Renderer::DirectGL direct;
+	glGenTextures(1, &texID);
+	glBindTexture(GL_TEXTURE_2D, texID);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	applyWrapMode();
 	if(!uploadRGBA(p_rgba, filename.c_str())) error = 1;
+}
+
+void Texture::movedTo(uint pageID, const Vec2i& origin)
+{
+	const float edge = static_cast<float>(TextureAtlas::inst().getPageEdge());
+	texID = pageID;
+	texelScale = Vec2f(1.0f / edge, 1.0f / edge);
+	uvOrigin = Vec2f(static_cast<float>(origin.x) / edge, static_cast<float>(origin.y) / edge);
 }
 
 void Texture::cleanUp()
@@ -134,15 +222,35 @@ void Texture::cleanUp()
 
 	if(texID)
 	{
-		// delete the texture
-		Renderer::inst().deleteTexture(texID);
+		// A page belongs to the atlas and is not this picture's to delete.
+		if(ownsTexture) Renderer::inst().deleteTexture(texID);
+		else TextureAtlas::inst().giveBack(this);
 		texID = 0;
+		ownsTexture = true;
 	}
 }
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, texelScale);
+	return TextureRef(texID, texelScale, uvOrigin, wrapMode == WM_REPEAT);
+}
+
+Texture::WrapMode Texture::getWrapMode() const
+{
+	return wrapMode;
+}
+
+void Texture::reuseWithOptions(int options)
+{
+	const bool wantsRepeat = static_cast<WrapMode>(options & WRAP_MASK) == WM_REPEAT && wrapMode != WM_REPEAT;
+	const bool wantsOut = (options & NEVER_PACK) != 0 && !neverPack;
+	if(!wantsRepeat && !wantsOut) return;
+
+	printfLog("> INFO: The image \"%s\" is now wanted %s; reloading.\n", filename.c_str(),
+			  wantsRepeat ? "with tiling" : "outside the atlas");
+	if(wantsRepeat) wrapMode = WM_REPEAT;
+	if(wantsOut) neverPack = true;
+	if(texID) reload();
 }
 
 uint Texture::createGLTexture(const Vec2i& size,
@@ -170,11 +278,12 @@ uint Texture::createGLTexture(const Vec2i& size,
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
-								   const Vec2i& size)
+								   const Vec2i& size,
+								   WrapMode wrapMode)
 {
 	if(!doKeepInMemory) return 0;
 
-	return new Texture(this, offset, size);
+	return new Texture(this, offset, size, wrapMode);
 }
 
 void Texture::loadSubTexture(Texture* p_parent,
@@ -187,15 +296,6 @@ void Texture::loadSubTexture(Texture* p_parent,
 	this->size = size;
 
 	checkDimensions();
-	texelScale = Vec2f(1.0f / size.x, 1.0f / size.y);
-
-	// set up the OpenGL texture, raw in a bracket as in reload()
-	Renderer::DirectGL direct;
-	glGenTextures(1, &texID);
-	glBindTexture(GL_TEXTURE_2D, texID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	applyWrapMode();
 
 	// copy the wanted part
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
@@ -212,8 +312,7 @@ void Texture::loadSubTexture(Texture* p_parent,
 	// lock the image
 	SDL_LockSurface(p_rgba);
 
-	// copy the image data into the texture
-	if(!uploadRGBA(p_rgba, filename.c_str())) error = 1;
+	place();
 
 	// A sub-texture is not in the Manager, so freeUnkeptPixels() never reaches
 	// it - and nothing asks to keep one, since createSubTexture() is called on
@@ -279,29 +378,37 @@ Vec4f Texture::getPixel(const Vec2i& where) const
 void Texture::applyWrapMode() const
 {
 	Renderer::DirectGL direct;
-	// WebGL 1 treats a texture whose edge lengths are not powers of two as
-	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
-	// Otherwise every access returns black - not as an error but silently.
-	// The default is GL_REPEAT, and rain, snow and clouds rest on it: they
-	// tile by a scrolling texture matrix, and wrapTextureOffset() keeps that
-	// offset inside one period precisely because REPEAT makes a whole period
-	// an exact no-op. Therefore do not switch it across the board, but exactly
-	// where REPEAT could never have worked anyway.
+	// GL_REPEAT is a fresh texture's default and only WM_REPEAT wants it: the
+	// rain, the snow and the clouds scroll without bound, and
+	// wrapTextureOffset() reduces that offset to one period precisely because
+	// REPEAT makes a whole period an exact no-op.
 	//
-	// The game's own art is all power of two, which leaves imported skins as
-	// the only case here. Deliberately under Windows too, where NPOT with
-	// REPEAT would work: otherwise a 300x200 rain would tile for the author
-	// and not for his players.
-	if(nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
+	// Everything else is clamped, WM_WRAP included: a picture the renderer
+	// tiles for itself is cut so that no piece reads past an edge, and it
+	// lives in a page, where GL_REPEAT would wrap to the far side of the page
+	// rather than to the far side of the picture.
+	//
+	// WebGL 1 forces the same hand for a non-power-of-two texture: it is
+	// complete only sampled with CLAMP_TO_EDGE and without mipmaps, and
+	// otherwise every access returns black, silently and with no GL error. The
+	// game's own art is all power of two, so this is imported skins alone -
+	// deliberately under Windows too, where NPOT with REPEAT would work,
+	// because a 300x200 rain that tiled for its author and not for his players
+	// is the worse failure.
+	if(wrapMode == WM_REPEAT && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void Texture::checkDimensions()
 {
+	// Only a GL_REPEAT picture has to be a power of two, and only because
+	// WebGL 1 will not repeat anything else (applyWrapMode above). Every other
+	// one is complete at any size on every platform this builds for.
+	if(wrapMode != WM_REPEAT) return;
 	if(nextPow2(size.x) != size.x || nextPow2(size.y) != size.y)
 	{
-		// This could cause trouble.
-		printfLog("- WARNING: Creating non-pow2 texture! Filename=\"%s\", Size=%dx%d\n", filename.c_str(), size.x, size.y);
+		printfLog("- WARNING: The image \"%s\" is %dx%d, which is not a power of two, so it cannot tile in a browser and will be clamped.\n",
+				  filename.c_str(), size.x, size.y);
 	}
 }

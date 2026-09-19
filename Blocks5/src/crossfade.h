@@ -27,7 +27,10 @@ protected:
 					 const Vec2f* p_uvs, const Vec4f& color, bool cullBackFaces) const;
 
 	Vec2i screenSize;
-	Vec2f screenTexelScale;
+	// The whole ref the engine hands out for a frame copy, not just its texel
+	// scale: that ref's y is negative, so it wraps rather than clamps, and a
+	// ref rebuilt from the scale alone would lose the flag that says so.
+	TextureRef screenRef;
 };
 
 #endif

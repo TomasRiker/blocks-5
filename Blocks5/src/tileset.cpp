@@ -3,7 +3,7 @@
 #include "filesystem.h"
 #include "texture.h"
 
-TileSet::TileSet(const std::string& filename) : Resource(filename)
+TileSet::TileSet(const std::string& filename, int) : Resource(filename)
 {
 	p_texture = 0;
 

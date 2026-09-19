@@ -34,7 +34,7 @@ public:
 	static uint getFreeSource();
 
 private:
-	Sound(const std::string& filename);
+	Sound(const std::string& filename, int options);
 	~Sound();
 
 	static bool forceReload() { return false; }

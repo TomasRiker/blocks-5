@@ -36,7 +36,7 @@ public:
 		Sprites sprites;
 	};
 
-	TileSet(const std::string& filename);
+	TileSet(const std::string& filename, int options);
 	~TileSet();
 
 	void reload();

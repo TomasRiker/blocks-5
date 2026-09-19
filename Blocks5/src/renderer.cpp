@@ -521,14 +521,23 @@ void Renderer::requireState(const RenderState& s)
 void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors)
 {
 	requireState(s);
+	float u[4], v[4];
 	for(int i = 0; i < 4; i++)
 	{
 		Vertex vertex;
 		vertex.position = p_positions[i];
-		vertex.uv = Vec2f(p_uvs[i].x * s.texture.texelScale.x, p_uvs[i].y * s.texture.texelScale.y);
+		// The one line that turns a caller's texels into the coordinate GL
+		// samples with, which is why the atlas offset is added here and
+		// nowhere else: a cache that holds uv in its own picture's texels -
+		// the tile grid, the font, the lightning - goes on being right after
+		// the picture has been moved inside a page.
+		u[i] = p_uvs[i].x * s.texture.texelScale.x + s.texture.uvOrigin.x;
+		v[i] = p_uvs[i].y * s.texture.texelScale.y + s.texture.uvOrigin.y;
+		vertex.uv = Vec2f(u[i], v[i]);
 		vertex.color = p_colors[i];
 		stream.push_back(vertex);
 	}
+	checkTiling(s, u, v);
 	if(flushAll) flush(FR_EXPLICIT);
 }
 
@@ -644,11 +653,89 @@ void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p
 	submit(s, x, y, u, v, p_colors);
 }
 
-void Renderer::scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
+void Renderer::scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
 {
 	Vec2f uvs[4];
 	for(int i = 0; i < 4; i++) uvs[i] = textureMatrix.transformPoint2D(p_uvs[i]);
-	quad(RenderState(TextureRef(textureId, Vec2f(1.0f, 1.0f)), current.blend), p_corners, uvs, color);
+	// A scale of one and no origin: the matrix has already done both.
+	quad(RenderState(TextureRef(texture.id, Vec2f(1.0f, 1.0f), Vec2f(0.0f, 0.0f), texture.tiles), current.blend),
+		 p_corners, uvs, color);
+}
+
+namespace
+{
+	// The value at (u, v) of a quad's four corners, in the order every quad in
+	// this game gives them: top left, top right, bottom right, bottom left.
+	template<typename T> T cornerLerp(const T* p_corners, float u, float v)
+	{
+		const T top = p_corners[0] + (p_corners[1] - p_corners[0]) * u;
+		const T bottom = p_corners[3] + (p_corners[2] - p_corners[3]) * u;
+		return top + (bottom - top) * v;
+	}
+}
+
+// What lets a tiling picture live in an atlas page: GL_REPEAT wraps at the
+// texture's edge, and inside a page the texture is the page, so the wrapping
+// is done here instead by cutting the quad where the picture ends.
+//
+// size is the picture's own size in texels, which is not 1/texelScale any more
+// - in a page that is the page's edge. The uv must be an axis-aligned
+// rectangle running the same way as the corners, corner 0 against corner 2,
+// which is what a tile drawn over a cell is; a rotated one would need cuts
+// that are not axis-aligned in screen space, and those are not quads.
+void Renderer::tiledQuad(const RenderState& s, const Vec2f& size, const Vec2f* p_corners,
+						 const Vec2f* p_uvs, const Vec4f* p_colors)
+{
+	const Vec2f low(min(p_uvs[0].x, p_uvs[2].x), min(p_uvs[0].y, p_uvs[2].y));
+	const Vec2f high(max(p_uvs[0].x, p_uvs[2].x), max(p_uvs[0].y, p_uvs[2].y));
+	const Vec2f span = high - low;
+	if(span.x <= 0.0f || span.y <= 0.0f || size.x <= 0.0f || size.y <= 0.0f) return;
+
+	// One piece per copy of the picture the quad reaches into. The lava, which
+	// is the only caller, spans exactly one copy at an offset, so this is four
+	// pieces where the offset is not a whole number of texels and one where it
+	// is.
+	const int firstX = static_cast<int>(floorf(low.x / size.x));
+	const int lastX = static_cast<int>(ceilf(high.x / size.x)) - 1;
+	const int firstY = static_cast<int>(floorf(low.y / size.y));
+	const int lastY = static_cast<int>(ceilf(high.y / size.y)) - 1;
+
+	for(int cellY = firstY; cellY <= lastY; cellY++)
+	{
+		const float cellLowY = max(low.y, static_cast<float>(cellY) * size.y);
+		const float cellHighY = min(high.y, static_cast<float>(cellY + 1) * size.y);
+		if(cellHighY <= cellLowY) continue;
+
+		for(int cellX = firstX; cellX <= lastX; cellX++)
+		{
+			const float cellLowX = max(low.x, static_cast<float>(cellX) * size.x);
+			const float cellHighX = min(high.x, static_cast<float>(cellX + 1) * size.x);
+			if(cellHighX <= cellLowX) continue;
+
+			// Where this piece sits inside the whole quad, 0 to 1 on each
+			// axis. The corners and the colours are read at those fractions,
+			// so a colour that ran across the quad goes on running across the
+			// pieces.
+			const float u0 = (cellLowX - low.x) / span.x;
+			const float u1 = (cellHighX - low.x) / span.x;
+			const float v0 = (cellLowY - low.y) / span.y;
+			const float v1 = (cellHighY - low.y) / span.y;
+
+			const Vec2f corners[4] = {cornerLerp(p_corners, u0, v0), cornerLerp(p_corners, u1, v0),
+									  cornerLerp(p_corners, u1, v1), cornerLerp(p_corners, u0, v1)};
+			const Vec4f colors[4] = {cornerLerp(p_colors, u0, v0), cornerLerp(p_colors, u1, v0),
+									 cornerLerp(p_colors, u1, v1), cornerLerp(p_colors, u0, v1)};
+
+			// Back into the picture's own texels, which is what every caller
+			// writes and what pushQuad expects.
+			const Vec2f from(cellLowX - static_cast<float>(cellX) * size.x,
+							 cellLowY - static_cast<float>(cellY) * size.y);
+			const Vec2f to(cellHighX - static_cast<float>(cellX) * size.x,
+						   cellHighY - static_cast<float>(cellY) * size.y);
+			const Vec2f uvs[4] = {from, Vec2f(to.x, from.y), to, Vec2f(from.x, to.y)};
+			quad(s, corners, uvs, colors);
+		}
+	}
 }
 
 void Renderer::quad(const Vec2f* p_corners, const Vec4f* p_colors)
@@ -741,8 +828,8 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 		baked.assign(p_vertices + q, p_vertices + q + n);
 		for(uint i = 0; i < n; i++)
 		{
-			baked[i].uv.x *= s.texture.texelScale.x;
-			baked[i].uv.y *= s.texture.texelScale.y;
+			baked[i].uv.x = baked[i].uv.x * s.texture.texelScale.x + s.texture.uvOrigin.x;
+			baked[i].uv.y = baked[i].uv.y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		}
 		glExtBufferData(GL_ARRAY_BUFFER, n * sizeof(Vertex3), &baked[0], GL_STREAM_DRAW);
 		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(n / 4 * 6), GL_UNSIGNED_SHORT, reinterpret_cast<const void*>(0));
@@ -1057,6 +1144,14 @@ void Renderer::clearStencil()
 	glClear(GL_STENCIL_BUFFER_BIT);
 }
 
+void Renderer::copyRegion(uint textureId, const Vec2i& destination, const Vec2i& source, const Vec2i& size)
+{
+	flush(FR_EXPLICIT);
+	bindReal(textureId);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, destination.x, destination.y, source.x, source.y, size.x, size.y);
+	bindReal(current.texture.id);
+}
+
 void Renderer::copyFrame(uint textureId, const Vec2i& destination, const Vec2i& size)
 {
 	flush(FR_EXPLICIT);
@@ -1233,6 +1328,41 @@ void Renderer::checkRecord()
 }
 #else
 void Renderer::checkRecord()
+{
+}
+#endif
+
+#if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
+void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* p_v)
+{
+	// A quad that samples outside its own picture relies on GL_REPEAT, and
+	// only a texture declared Texture::WM_REPEAT has it. Anything else is a
+	// picture that may one day share a page, where the coordinate would land
+	// in whatever was packed beside it - so the rule is checked on every quad
+	// rather than argued about, and frames.sh fails on the line.
+	//
+	// The builtin white texture (id 0) is exempt: flat geometry samples the
+	// centre of one texel inside it and never moves.
+	static int reported = 0;
+	if(reported >= 20 || s.texture.tiles || !s.texture.id) return;
+
+	float lo = p_u[0], hi = p_u[0];
+	for(int i = 0; i < 4; i++)
+	{
+		lo = min(lo, min(p_u[i], p_v[i]));
+		hi = max(hi, max(p_u[i], p_v[i]));
+	}
+	// A texel's worth of slack, so that a coordinate that lands on the far
+	// edge by rounding is not a finding: clamping and repeating agree there.
+	const float slack = max(s.texture.texelScale.x, s.texture.texelScale.y);
+	if(lo >= -slack && hi <= 1.0f + slack) return;
+
+	reported++;
+	printfLog("+ ERROR: a quad samples %.3f .. %.3f of texture %u, which was not declared as tiling.\n",
+			  lo, hi, s.texture.id);
+}
+#else
+void Renderer::checkTiling(const RenderState&, const float*, const float*)
 {
 }
 #endif

@@ -88,8 +88,24 @@ namespace
 
 #endif
 
+namespace
+{
+	// Read once by init(). Zero until then, which no caller can observe: the
+	// game stops in init() where the machine cannot do what it needs.
+	int theMaxTextureSize = 0;
+}
+
+int GLExtensions::maxTextureSize()
+{
+	return theMaxTextureSize;
+}
+
 void GLExtensions::init()
 {
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &theMaxTextureSize);
+	printfLog("  GL: the largest texture this machine takes is %dx%d.\n",
+			  theMaxTextureSize, theMaxTextureSize);
+
 #ifdef __EMSCRIPTEN__
 
 	// Framebuffer objects, shaders and vertex buffers are all core in WebGL 1,

@@ -109,10 +109,10 @@ stamped the same payload hashes.
 ------------------------------------------------
 This entry named the immediate-mode renderer and the browser's GL emulation as
 the cost, and proposed batching the sprites first and a programmable pipeline
-after. Both happened: the sprite batch, then item 54's renderer under
-everything. What is left of the list is item 51, the atlas, and one unmeasured
-knob: `WebBuild/build.sh` passes no `-msimd128`, so the shipped wasm holds no
-vector instructions at all.
+after. All of it happened: the sprite batch, then item 54's renderer under
+everything, then item 51's atlas under that. What is left of the list is one
+unmeasured knob: `WebBuild/build.sh` passes no `-msimd128`, so the shipped wasm
+holds no vector instructions at all.
 
 
 9. Stop needing the Visual C++ redistributable  - **DONE**
@@ -1183,52 +1183,78 @@ game gives up, written once per platform, in English because it runs before
 `languages.txt` is loaded.
 
 
-51. Throw every small texture into one atlas so a bind stops breaking the batch
----------------------------------------------------------------------------------
-The renderer batches until the texture or the blend changes, and in a dialog the
-texture changes at every step down it - the skin's frames, then a string, then
-an icon - which is what `byReason.texture` in the test hook's `batch` counts and
-what a `frames.sh` run prints per scene: in `options` 65 of the 71 draws a frame
-end on a texture change, in `menu` 26 of 29. An atlas removes the cut at its source:
-pictures that share a binding need no flush between them, so sprites and tiles
-could be drawn together, and so could the GUI and the font. **That number, the
-flushes a scene pays for texture changes alone, is what decides this item**, and
-it is measured now rather than guessed.
+51. Throw every small texture into one atlas so a bind stops breaking the batch  - **DONE**
+--------------------------------------------------------------------------------------------
+The renderer batches until the texture or the blend changes, and the texture was
+what changed: 18 of a level frame's 24 draws, 26 of the menu's 29. `TextureAtlas`
+puts the pictures that can share into pages of 2048 square, capped by
+`GL_MAX_TEXTURE_SIZE` and added on demand up to four, and the draws a frame fell
+to this:
 
-**Which textures are worth it is not obvious, and the sizes decide it.** The big
-ones are full-screen backdrops bound once a frame - `background.png` at
-1024x1024, `menu.png`, `selectlevel.png`, `title.png` and `campaigneditor.png` at
-1024x512, `buttons.png` at 512x1024 - and atlassing one of those gains nothing
-while filling the sheet. What is bound over and over is small: a played level's
-`tileset.png` (128x128), `sprites.png` (256x1024), `particles.png` and
-`shine.png` (128x128 each), plus `data/font.png` (512x256), `gui.png` and
-`misc.png` (256x256), `icons.png` (256x128), `lava_edges.png` (128x64) and
-`lightning.png` (256x16). Those ten are 618496 texels between them, 59% of a
-single 1024x1024 sheet, so the whole of what a level and its HUD draw from fits
-in one atlas with room for the padding, and that is the version to build.
+    menu    29.0 -> 6.0      night   24.0 -> 14.0
+    plain   16.4 -> 7.4      lava    24.2 -> 14.2
+    toxic   21.0 -> 10.0
 
-**Four of a level's textures can never go in**, and they are exactly the ones
-that look like they should: `rain.png`, `snow.png`, `clouds.png` and `noise.png`
-are scrolled under `GL_REPEAT` without bound, which wraps the whole texture and
-not a region of one. The lava is the same case one step further along -
-`createSubTexture` cuts a real 16x16 texture out of the skin's sheet precisely so
-that `GL_REPEAT` wraps at 16.
+**The page size is not the largest the machine would give**, and that was
+measured rather than assumed. The resident set - `data/` and one skin - is 32
+pictures and 8.7 Mtexel, of which 6.2 can be packed; two 2048 pages hold that,
+where one 4096 page would allocate 64 MB to keep 25 MB of pictures. llvmpipe
+reports 16384 and SwiftShader 8192, so two pages is what every machine tested
+gets; the GL 2.0 spec guarantees only 64, which is why it is asked at startup
+(`GLExtensions::maxTextureSize`) instead of assumed.
 
-**The mechanics are cheap now.** Every caller writes uv in texels and the
-renderer normalises at submission through `TextureRef::texelScale`, so an atlas
-is a per-`Texture` origin and scale within its sheet instead of an id of its own
-- the same multiply, with an offset added, in the one place it already happens.
-The tile and font caches keep their 16-byte `QuadVertex`; their uv is normalised
-once when an entry is built, which is where the atlas offset would go too.
+**A picture says at its request whether it tiles**, because that is the one
+thing which decides whether it can share. `Manager<T>::request` carries the
+resource type's options, and `Texture::WrapMode` is three:
 
-Two smaller things that bite. Every game texture is `GL_LINEAR`, so regions need
-a gutter or a duplicated edge row, since anything drawn at other than 1:1 - a
-particle, a teleport squash, the hint note turning - will fetch across a
-boundary. And an imported skin brings a `sprites.png` of a size nobody promised,
-so the sheet has to be packed at runtime when the skin loads rather than at
-build time; nothing in the tree asks `GL_MAX_TEXTURE_SIZE` today, and a 1024
-atlas needs no such question while a 2048 one does.
+    WM_CLAMP   nothing samples outside the picture; gutter copies its own edge
+    WM_WRAP    Renderer::tiledQuad cuts it; gutter copies the opposite edge; packs
+    WM_REPEAT  GL wraps it, so it needs a texture of its own
 
+Only the weather is `WM_REPEAT` - rain, snow and the two clouds, whose uv is
+rotated with the scroll, so the cuts a split would need are not axis-aligned in
+screen space and the pieces would not be quads. The lava's two 16x16 tiles are
+`WM_WRAP` and sit in a page with the sprite sheet they were cut from: they span
+exactly one copy at an offset, so `tiledQuad` cuts each into two or four pieces
+that sample one copy each.
+
+**The gutter is exact, not a fudge.** Linear filtering reaches one texel past
+the coordinate it was given and there are no mipmaps anywhere in this game, so a
+copy of the picture's own edge returns the same texel `GL_CLAMP_TO_EDGE`
+returned, and a copy of the opposite edge the same texel `GL_REPEAT` returned.
+
+**And the sampling is bit for bit what it was**, because a page's edge is a
+power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and
+their sum is exactly `(px + origin)/pageEdge`. All twenty oracle scenes are
+byte-identical with the atlas live, which is what proves the gutter and the
+arithmetic together rather than arguing them.
+
+**Nothing had to be told a picture had moved**, and that is the property the
+whole design rests on: uv is written in the picture's own texels everywhere in
+the tree and turned into the page's in `Renderer::pushQuad`, the one line every
+quad passes through. So the tile grid's cache, the font's and the lightning's
+stay valid across a repack, and no `layerDirty` is set.
+
+**Fragmentation is repacked, and only when the room is needed.** A rectangle
+given back is joined to any neighbour it makes a rectangle with; where a
+reservation still cannot be met from the pieces, `Engine::update` repacks at the
+top of the next tick - a point where the renderer holds nothing - by copying
+each rectangle with its gutter to its new page with `glCopyTexSubImage2D`, both
+ends in GL's own coordinates so nothing is flipped, and telling each picture
+where it now is. Without the joining a smoke run repacked seven times; with it,
+once, settling at two pages.
+
+**A test-hooks build checks the rule on every quad** (`Renderer::checkTiling`):
+a quad may sample outside [0,1] only from a texture declared `WM_REPEAT`. It
+found one the twenty oracle scenes do not - `Crossfade` kept the frame copy's
+texel scale and rebuilt a bare ref from it, dropping the flag that says that
+ref's negative y wraps on purpose.
+
+What is left of the texture changes is the four weather pictures and the frame
+copies. Cropping the art would shrink the pages further, but not safely as a
+blanket pass: a free crop moves the origin of 11 of the 28 packable pictures,
+seven of them sheets addressed by hardcoded source coordinates, and trimming
+only the right and bottom recovers 40 percentage points of the 41.
 
 52. Documentation that describes one file belongs in that file  - **DONE**
 -----------------------------------------------------------------------------
@@ -1273,9 +1299,9 @@ now: points became discs from the built-in texture; the lightning's trapezoids
 split along the other diagonal than an array-drawn quad did; the editor's
 smoothed lines became one-pixel hairlines; and a corner or an interpolated texel
 on a rounding boundary lands one level over where the vertex stage's float order
-differs from the fixed function's. Items 42 and 44 went with it; item 51, the
-atlas, is the half left, and the tag `render-baseline` marks the last
-immediate-mode binary.
+differs from the fixed function's. Items 42 and 44 went with it, and item 51's
+atlas came after it on the ground it laid; the tag `render-baseline` marks the
+last immediate-mode binary.
 
 
 55. The laser beam leaves the emitter half a pixel beside its ruby  - **DONE**
@@ -1582,3 +1608,74 @@ What left the tree along the way: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`,
 `gl_immediate.cpp`, `gl_compat.cpp`, `glstate.*`, `quadarray.*` and GLU. What
 ships now is three executables, **one** DLL that needs nothing but Windows, and
 the data.
+
+60. Crop the art to the rectangles that are actually drawn
+-----------------------------------------------------------
+Item 51's pages are 6.2 Mtexel of pictures of which a good half is never
+sampled: the sheets are powers of two with the art in one corner, and the
+backdrops are 1024x512 for a 640x480 picture. Cropping the sources to what the
+code addresses takes the packable set from **5.30 M to 2.88 Mtexel, 46% off**,
+and with that everything a session needs fits in **one 2048 page at 68.6%** -
+against two pages and a repack today.
+
+**What "used" means here is what the code can address, not where the picture is
+opaque**, and those differ in both directions: some buttons carry a deliberate
+transparent margin, and `E_HexDigit` samples two rows that no skin has art in
+(below). The sizes below come from the declarations that own them -
+`tileset.xml`, the four font XMLs, the `u`/`v` on every `<Image>` in the dialog
+XMLs - and from the source rectangles in the code, measured against an
+instrumented run of all twenty oracle scenes, `smoke.sh` and `drag.sh` as a
+cross-check.
+
+**Every crop keeps the origin at (0, 0) and trims right and bottom only.**
+Moving an origin would shift every hardcoded source coordinate in the tree, and
+nothing would say so: seven of these are sheets addressed by literal
+coordinates.
+
+| `data/` | stored | used | fixed by |
+| --- | --- | --- | --- |
+| `buttons.png` | 512x1024 | 260x640 | menu/game/leveleditor/selectlevel.xml |
+| `campaigneditor.png` | 1024x512 | 640x480 | backdrop over the screen |
+| `credits_font.png` | 512x512 | 503x392 | `credits_font.xml` |
+| `donate_button_de/en.png` | 128x64 | 100x43 | `menu.xml` button w/h |
+| `donate_de/en.png` | 512x512 | 398x270 | `menu.xml` StaticImage |
+| `font.png` | 512x256 | 509x186 | `font.xml` |
+| `gui.png` | 256x256 | 192x240 | nine-slice frames, widget glyphs |
+| `icons.png` | 256x128 | 220x100 | `help.xml`, `leveleditor.xml` |
+| `languages.png` | 256x64 | 144x48 | `options.xml` |
+| `lava_edges.png` | 128x64 | 80x48 | `lava.cpp`, twelve pieces |
+| `lightning.png` | 256x16 | 248x16 | `lightning.cpp` (measured) |
+| `logo.png` | 512x512 | whole | the splash, and `NEVER_PACK` |
+| `menu.png`, `selectlevel.png` | 1024x512 | 640x480 | backdrops |
+| `misc.png` | 256x256 | 218x176 | rewind OSD, 218x64 at (0,112) |
+| `tooltip_font.png` | 512x128 | 507x105 | `tooltip_font.xml` |
+| `window.png` | 32x32 | - | the window icon, not a texture |
+
+| `levels/skins/*` | stored | used | fixed by |
+| --- | --- | --- | --- |
+| `background.png` | 1024x1024 | 640x**560** | 640x480 backdrop *plus* the 640x80 HUD strip at v 480..560 (`GS_Game::onRender`) |
+| `hint.png` | 512x512 | 300x400 | `hint.cpp` NOTE_WIDTH/HEIGHT |
+| `hintfont.png` | 512x256 | 508x247 | `hintfont.xml` |
+| `particles.png` | 128x128 | 112x80 | measured only; check before cutting |
+| `shine.png` | 128x128 | whole | |
+| `sprites.png` | 256x1024 | 256x**720** | the object sheet, and exactly where its art ends |
+| `tileset.png` | 128x128 | whole | `tileset.xml`, all four skins |
+| `rain`, `snow`, `clouds`, `noise` | | **do not crop** | the first three tile, so the period is the size; the noise is sampled whole |
+
+**Two things found on the way, each its own small item.**
+
+`E_HexDigit` read each of its four inputs as a *number* rather than as a logic
+level, and an `E_Value` or an `E_PulseSwitch` carries 0 to 7 - so the four
+summed could reach 105, and `32*(value%8), 640 + 32*(value/8)` is then four
+hundred rows below the sheet. Measured before the fix, the palette alone drove
+it to rows 704 and **736**, where no skin has art. Reading each input as a level,
+the way the gates' `&&` and `||` already do, bounds the sum at 15 by
+construction; the deepest row any quad now reaches is **720**, which is exactly
+where the art ends.
+
+`title.png` was requested in `GS_Loading::loadGraphics()` and drawn nowhere -
+no code path, no `<Image>`, no localized filename - and never released either.
+It is the artwork `background.png` was built from rather than anything the game
+shows; the picture the loading screen draws is `logo.png`. Both the file and the
+request are gone, and half a megatexel with them.
+

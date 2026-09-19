@@ -11,17 +11,34 @@
 // compare.
 
 // A GL texture and how its texels map onto uv: every caller writes uv in
-// texels, and the renderer multiplies by this at submission, in float - the
-// multiply a texture matrix would do in the vertex stage. An id of 0 is the
-// renderer's own white texel, which is what "texturing off" means to a
-// shader.
+// texels, and the renderer multiplies by texelScale and adds uvOrigin at
+// submission, in float - the multiply and the offset a texture matrix would
+// do in the vertex stage. An id of 0 is the renderer's own white texel, which
+// is what "texturing off" means to a shader.
+//
+// uvOrigin is where the picture begins inside the GL texture, which is (0, 0)
+// for a texture of its own and the corner of its rectangle for one that
+// shares a page with others. Callers never see it: they write uv in their own
+// picture's texels either way, which is what lets a cache built before the
+// move stay valid after it.
+//
+// tiles says the picture is sampled outside its own edges and relies on
+// GL_REPEAT, which is why it cannot share a page: a coordinate past the edge
+// would land in whatever was packed next door. It is what a texture was
+// declared as at load (Texture::WM_REPEAT), carried to the one place that can
+// check it.
 struct TextureRef
 {
-	TextureRef() : id(0), texelScale(1.0f, 1.0f) {}
-	TextureRef(uint id, const Vec2f& texelScale) : id(id), texelScale(texelScale) {}
+	TextureRef() : id(0), texelScale(1.0f, 1.0f), uvOrigin(0.0f, 0.0f), tiles(false) {}
+	TextureRef(uint id, const Vec2f& texelScale)
+		: id(id), texelScale(texelScale), uvOrigin(0.0f, 0.0f), tiles(false) {}
+	TextureRef(uint id, const Vec2f& texelScale, const Vec2f& uvOrigin, bool tiles)
+		: id(id), texelScale(texelScale), uvOrigin(uvOrigin), tiles(tiles) {}
 
 	uint id;
 	Vec2f texelScale;
+	Vec2f uvOrigin;
+	bool tiles;
 };
 
 // The eight blend functions the tree uses, by name: a mode maps onto one
@@ -51,8 +68,10 @@ struct RenderState
 
 	RenderState with(BlendMode other) const { return RenderState(texture, other); }
 
-	// The texel scale is a function of the id and rides along for the bake,
-	// so two states are the same state when the id and the blend agree.
+	// The texel scale, the origin and the tiling flag are all functions of
+	// the picture and ride along for the bake, so two states are the same
+	// state when the id and the blend agree - and two pictures on one atlas
+	// page share an id, which is the whole point: they batch together.
 	bool operator == (const RenderState& rhs) const
 	{
 		return texture.id == rhs.texture.id && blend == rhs.blend;
