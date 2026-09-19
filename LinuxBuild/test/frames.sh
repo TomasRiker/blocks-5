@@ -522,11 +522,20 @@ fi
 # picture depends on how many frames were rendered and not only on the tick:
 # lockstep makes those the same number. Their clock starts two seconds before
 # zero and the oracle's tick counts from there.
+#
+# 6000 and not the 3000 this started at, which was the lead-in: the stars and
+# the gradient with no text over them at all, so the font laid nothing out
+# and the block table was walked for nothing. At 6000 a block is up and
+# fading in - the thanks where the shipped campaign has been finished and the
+# programming credit where it has not, which is the only difference between
+# the two versions this frame can see. That text is the one in the game
+# nothing caches (its charScaling is animated), so it is also the only scene
+# that draws the uncached path.
 if wanted credits; then
 	b5_ask "lockstep 1" >/dev/null
 	b5_ask "state GS_Credits" >/dev/null
 	b5_waitForState GS_Credits
-	b5_frame credits 3000
+	b5_frame credits 6000
 	b5_release
 	b5_ask "lockstep 0" >/dev/null
 	b5_ask "state GS_Menu" >/dev/null

@@ -46,6 +46,15 @@ private:
 	std::list<Star> stars;
 	uint bufferID;
 	int speed;
+
+	// The full ending, or the names alone: gs_credits.cpp decides in onEnter
+	// and the three numbers below are laid out from it - what the blocks that
+	// are shown move up by, when the fade to black begins, and when the state
+	// hands back to the menu. All three in seconds, as the block table is.
+	bool full;
+	float shift;
+	float fadeAt;
+	float endAt;
 };
 
 #endif

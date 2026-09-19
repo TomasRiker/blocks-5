@@ -490,36 +490,52 @@ campaign's full path and would have silently reset everyone's 42 levels; it keys
 on the bare filename now. `filesystem.md` has the rest.
 
 
-27. A Credits button in the main menu
---------------------------------------
-There is no way to see the credits except by finishing the shipped campaign - or
-by knowing that **Shift+C in the main menu** already runs them (`gs_menu.cpp`).
-The entry should be a visible one, in the style of the `Website` link at the top
-right of `menu.xml` rather than a ninth big button, with two presentations chosen
-by whether the player has earned the first:
+27. A Credits button in the main menu - **DONE** but for the line itself
+-------------------------------------------------------------------------
+The credits are reachable by finishing the shipped campaign or by knowing that
+**Shift+C in the main menu** runs them (`gs_menu.cpp`). The visible entry - a
+`Credits` line at the foot of `menu.xml` in the style of the `Website` link - is
+the author's to add, and it needs nothing of this: `setGameState("GS_Credits")`
+is the whole of it, and both ways in already take that path. What this item was
+really about is the second presentation, and `GS_Credits` now has two versions of
+itself:
 
-- **Finished the shipped campaign** - the whole sequence, exactly as it runs
-  after the last level today.
-- **Not finished** - the names only, as scrolling text, without
+- **Finished the shipped campaign** - the whole sequence, and byte-for-byte the
+  one that ran after the last level before this item: proved by forcing the flag
+  on and comparing the oracle's `credits` frame against the previous binary's.
+- **Not finished** - the same blocks, the same fading and zooming, without
   `$C_THANKS_FOR_PLAYING` and `$C_STAY_TUNED`, which address someone who has just
-  won and give away that there is an ending to reach.
+  won and give away that there is an ending to reach. Not scrolling text, which
+  would have been a second layout for nothing: what the two versions differ in is
+  which blocks are shown, and everything else falls out of that.
 
-The fragile half this entry once named is gone: `GS_Game` asks
-`Transfer::isBuiltIn` whether the campaign is the shipped one, not a hardcoded
-path. Deciding "finished" from the menu needs the bar the game uses, which is not
-simply "all levels": `GS_Game::loadLevel` treats `getLevels().size() - 1` as the
-count when the campaign has a bonus level. So the test is
-`ProgressDB::getNumLevelsCompleted` against the number of non-bonus levels, and
-the menu would have to `Campaign::load` the shipped one to learn it - cheap, it
-reads only `campaign.xml`, but a load the menu does not do today.
+**Who decides, and where.** `Campaign::isBuiltInCompleted()` answers it, asked
+once in `onEnter` so that neither way in has to carry it - and the way in from the
+last level knows it only because the level it has just finished is already in the
+database. The bar is not simply "all levels": where the campaign
+has a bonus level it is `getLevels().size() - 1`, the count that unlocks that
+level in `GS_Game::loadLevel` and `GS_SelectLevel::getLevelStatus` alike. The
+bonus is extra rather than the end of the run, so beating the other forty-one
+counts - and a player who did reach the credits by playing is past the bar either
+way, since the level just finished is written to the database before `GS_Game`
+hands over. Every answer but yes is false, and the ways to get one - no archive,
+an archive that will not parse, an empty campaign, no progress at all - are all
+the same to the caller.
 
-What the second presentation costs: `GS_Credits` is not a scroll and has no
-notion of a mode. `onRender` builds a local table of eight blocks - position,
-title, text, start time, duration - fading and zooming over a starfield with a
-motion-blur buffer, and the clock is hardcoded against it: the fade to black at
-53 s, three `character*.ogg` at 55, 56 and 57, `setGameState("GS_Menu")` at 58;
-Return, Escape and Space fast-forward rather than skip. A names-only variant is a
-second layout and a second timeline, and the table has to leave `onRender` first.
+**The timeline is laid out rather than written down.** The table of eight blocks
+left `onRender` for the file scope and grew two fields, `lineSpacing` (which was
+`i == 5 || i == 6`) and `ending`, which marks the two blocks the short version
+drops. `onEnter` then computes three numbers from whatever is left: `shift`, the
+gap at the front the dropped blocks leave, so the names begin after the same
+lead-in rather than after four seconds of empty stars; `fadeAt`, when the last
+block shown has gone; and `endAt`, the fade plus five seconds in the full version,
+which is what the three `character*.ogg` goodbyes need, and two otherwise. Full
+gives 0 / 53 / 58, which is exactly what was hardcoded; short gives 4 / 37 / 39.
+
+**The music is the other half of "minimalistic".** The short version does not play
+`credits.ogg`: it is run from the menu, the menu's own track is playing, and
+swapping it would announce an ending the player has not reached - and stop the
+menu music dead on the way back, since `playMusic` resumes a track it never left.
 
 
 28. Video recording in the browser
