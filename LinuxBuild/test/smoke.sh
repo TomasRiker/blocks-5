@@ -231,6 +231,44 @@ b5_click Menu.StartGame
 b5_waitForState GS_SelectLevel
 b5_click SelectLevel.PlayLevel
 b5_waitForState GS_Game
+
+# Restarting the level five times over must leave one transition running, not
+# five queued behind each other. $A_RESTART_LEVEL used to carry a delay and an
+# interval of a second without turning the repeat off, which made it an
+# auto-fire action: a second press inside that second went into the repeat's
+# five-deep buffer and was played out a second later, so mashing F5 restarted
+# the level - and began the transition again over the one still running - for
+# seconds after the last press.
+#
+# What is asked is not how long it takes, which would be a timing assertion
+# under whatever load the machine is under, but whether the transition's own
+# clock ever runs backwards afterwards. It can only do that if a second one
+# began, which is the bug exactly.
+#
+# F5 is read off the key state once a tick, so it has to be held past a
+# rendered frame - a fifth of a second under llvmpipe.
+b5_mashRestart()
+{
+	local i last now
+	for i in 1 2 3 4 5; do
+		xdotool keydown F5; sleep 0.3; xdotool keyup F5; sleep 0.2
+	done
+	last=-1
+	for i in $(seq 1 40); do
+		b5_dump || b5_hookFailed
+		now=$(b5_json "d['crossfade']")
+		[ "$now" = "-1" ] && break
+		if [ "$last" != "-1" ] && [ "$now" -lt "$last" ]; then
+			b5_note "the restart transition went back from ${last}ms to ${now}ms - a second one began"
+			return
+		fi
+		last=$now
+		sleep 0.15
+	done
+	b5_ok "five restarts ran one transition through, ending at ${last}ms"
+}
+b5_mashRestart
+b5_expectState GS_Game
 sleep 2
 
 b5_key Escape

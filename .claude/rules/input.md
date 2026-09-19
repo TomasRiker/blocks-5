@@ -104,6 +104,26 @@ steering on the way back.
 
 `LinuxBuild/test/drag.sh` is what proves any of it (`testing.md`).
 
+**An action either repeats while the key is held or fires once per press, and the restarts are the
+second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that
+arrives while a repeating action's `countDown` is running does not fire — it goes into a **buffer five
+deep** and is played out one `interval` later, and again, until the buffer is empty. That is right for
+walking, where a step pressed a moment early should still be taken. It is wrong for anything that is not
+a step.
+
+`$A_RESTART_LEVEL` and `$A_RESTART_FROM_HOTEL` had a `delay` and an `interval` of a second and never
+turned the repeat off, so they were auto-fire actions with that buffer: five quick presses of F5
+restarted the level for seconds after the last one, each restart beginning the rewind again over the one
+still running — which is what "the transition stacks" was. Measured through the crossfade's own clock:
+**3.2 s of transition after five presses let go, against 1.6 s after one**, the clock resetting twice
+after the last press. Holding the key restarted once a second for as long as it was held. Both fire once
+per press now, as `$A_TOGGLE_MUTE`, `$A_CAPTURE_SCREENSHOT` and `$A_TOGGLE_CAPTURE_VIDEO` already did.
+
+Turning the repeat off removes the lockout with it, and that is deliberate rather than an oversight —
+`updateActions` says so where it sets `countDown`: a lockout without a repeat would send a second press
+inside the delay into a buffer that only the repeat ever empties, so it would not count at all. Once per
+press means every press.
+
 **Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
 `wasAnyButtonPressed` read the same per-tick bits. Coming back from another window is what makes it worth
 having, since `onAppLoseFocus` pauses and the click that returns is then the one that resumes. The press is

@@ -143,6 +143,15 @@ answer off the one behaviour that separates the versions: a click or Escape leav
 where the ending takes neither as an exit. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
 with `SDL_GetKeyState` — see the two-input-layers trap above.
 
+**A transition's own clock is in the dump**, as `crossfade`: milliseconds into a running one, negative
+through its lead-in and -1 where there is none — the same number `freeze fade` stops on. It is what makes
+the length of a transition measurable rather than something counted under the breath, and `smoke.sh` uses
+it for the one bug it was written for: five quick presses of F5 must run **one** transition through, so
+the check is not how long that takes — a timing assertion under whatever load the machine is under — but
+whether the clock ever runs *backwards* afterwards. It can only do that if a second transition began,
+which is the bug exactly. Proved against the code that had it: "the restart transition went back from
+679ms to 80ms".
+
 **A static text reports how big it is**, and that is what `smoke.sh` asks the help with. The frame around
 a help page is a fixed 580x370; what goes in it is written by hand in `languages.txt`, wrapped at display
 time, and carries `%BINDING` markers that expand to whatever the player rebound them to — so "it fits" is

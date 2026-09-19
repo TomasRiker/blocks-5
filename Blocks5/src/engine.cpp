@@ -4057,6 +4057,16 @@ const Vec2i& Engine::getDisplaySize() const
 	return displaySize;
 }
 
+// Milliseconds into a running transition, negative through its lead-in and -1
+// where there is none - the same number checkFreeze() is handed. Nothing in
+// the game asks; the test hook reports it, which is what makes the length of a
+// transition something a harness can measure rather than something somebody
+// counts under their breath while pressing a key.
+int Engine::getCrossfadeProgressMs() const
+{
+	return p_crossfade ? static_cast<int>(crossfadeTime * 1000.0f) : -1;
+}
+
 void Engine::crossfade(Crossfade* p_crossfade,
 					   float duration,
 					   bool immediately)
