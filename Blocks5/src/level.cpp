@@ -65,6 +65,8 @@ Level::Level()
 	p_noise = 0;
 	noiseOffset1 = Vec2i(0, 0);
 	noiseOffset2 = Vec2i(0, 0);
+	noiseWindow1 = Vec2i(0, 0);
+	noiseWindow2 = Vec2i(0, 0);
 	p_shine = 0;
 	p_rain = 0;
 	p_clouds = 0;
@@ -878,10 +880,15 @@ void Level::render()
 		// render the noise
 		renderer.setBlend(BM_MULTIPLY);
 		renderer.setTexture(p_noise->ref());
+		// The windows update() cut, and not a second copy of their size: the
+		// two have to agree, and the tick is where the texture's real size
+		// was asked about.
 		const Vec2f o1 = static_cast<Vec2f>(noiseOffset1);
 		const Vec2f o2 = static_cast<Vec2f>(noiseOffset2);
-		const Vec2f uv1[4] = {o1, o1 + Vec2f(200.0f, 0.0f), o1 + Vec2f(200.0f, 160.0f), o1 + Vec2f(0.0f, 160.0f)};
-		const Vec2f uv2[4] = {o2, o2 + Vec2f(300.0f, 0.0f), o2 + Vec2f(300.0f, 240.0f), o2 + Vec2f(0.0f, 240.0f)};
+		const Vec2f w1 = static_cast<Vec2f>(noiseWindow1);
+		const Vec2f w2 = static_cast<Vec2f>(noiseWindow2);
+		const Vec2f uv1[4] = {o1, o1 + Vec2f(w1.x, 0.0f), o1 + w1, o1 + Vec2f(0.0f, w1.y)};
+		const Vec2f uv2[4] = {o2, o2 + Vec2f(w2.x, 0.0f), o2 + w2, o2 + Vec2f(0.0f, w2.y)};
 		const Vec4f green(0.4f, 1.0f, 0.4f, 1.0f);
 		renderer.quad(renderer.state(), screen, uv1, green);
 		renderer.quad(renderer.state(), screen, uv2, green);
@@ -906,10 +913,25 @@ void Level::update()
 {
 	clearAIFlags(Vec2i(-1, -1));
 
-	// The night vision's noise, on the tick like everything else that moves.
-	// The two spans are the quads' own in render().
-	noiseOffset1 = Vec2i(random(0, 512 - 200), random(0, 512 - 160));
-	noiseOffset2 = Vec2i(random(0, 512 - 300), random(0, 512 - 240));
+	// The night vision's noise, on the tick like everything else that moves:
+	// two windows cut out of the noise texture at a fresh place every tick and
+	// stretched over the screen.
+	//
+	// Both the window and where it may start come from the texture that is
+	// really there. They were 200x160 and 300x240 at random(0, 512 - span),
+	// against a 512 that is what the shipped noise happens to be - so a skin
+	// bringing a smaller one ran the window off the edge, and what came back
+	// depended on whether its edges were powers of two: a wrap where they
+	// were, a smeared clamp where they were not. Neither is the effect. It is
+	// also what an atlas could not survive, since sampling past an edge there
+	// reads whatever was packed next door (ROADMAP 51).
+	const Vec2i noiseSize = p_noise ? p_noise->getSize() : Vec2i(0, 0);
+	noiseWindow1 = Vec2i(min(200, noiseSize.x), min(160, noiseSize.y));
+	noiseWindow2 = Vec2i(min(300, noiseSize.x), min(240, noiseSize.y));
+	noiseOffset1 = Vec2i(random(0, noiseSize.x - noiseWindow1.x),
+						 random(0, noiseSize.y - noiseWindow1.y));
+	noiseOffset2 = Vec2i(random(0, noiseSize.x - noiseWindow2.x),
+						 random(0, noiseSize.y - noiseWindow2.y));
 
 	// remove the old objects, add the new ones
 	removeOldObjects();
