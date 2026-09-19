@@ -1955,6 +1955,16 @@ Presets* Level::getPresets()
 	return p_presets;
 }
 
+Object* Level::getObjectByUID(uint uid) const
+{
+	if(!uid) return 0;
+	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
+	{
+		if((*i)->getUID() == uid) return *i;
+	}
+	return 0;
+}
+
 const std::vector<Object*>& Level::getObjects() const
 {
 	return objects;

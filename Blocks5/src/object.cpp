@@ -17,6 +17,21 @@
 extern const float FLASH_STRENGTH = 1.0f;
 extern const float FLASH_DECAY = 0.8f;
 
+// The flight a collected item makes towards whoever took it. It rides on the
+// fade that was already there - disappear(0.2f), ten ticks - so nothing new
+// is counted, and it moves the shown position alone: the item was taken the
+// moment onCollect() returned, and none of this is read by anything that
+// decides anything.
+//
+// All three are a matter of taste, and which way to turn them: EASE is the
+// power the flight is eased with, 1 being a straight line and higher hanging
+// longer where the item lay before arriving faster; SHRINK is how much of its
+// size it has left at the end; SPIN is the turn it makes on the way, in
+// degrees, and 0 is none.
+const float COLLECT_EASE = 2.0f;
+const float COLLECT_SHRINK = 0.4f;
+const float COLLECT_SPIN = 180.0f;
+
 // Where a beam is drawn, against where its emitter traced it. Laser and
 // LightBarrierSender both start at getShownPositionInPixels() + 7.5, the
 // centre of pixel 7 - but a 16-pixel cell has its centre on the boundary
@@ -53,6 +68,9 @@ Object::Object(Level& level,
 	ghost = false;
 	destroyTime = 0;
 	deathCountDown = 1.0f;
+	collectFlight = false;
+	collectorUID = 0;
+	collectTarget = Vec2f(0.0f, 0.0f);
 	glowJitter = 0.0f;
 	conversionProgress = 0.0f;
 	deathSpeed = 0.0f;
@@ -140,6 +158,33 @@ void Object::render(RenderLayer layer,
 				realColor.r *= f;
 				realColor.g *= f;
 				realColor.b *= f;
+			}
+			else if(collectFlight)
+			{
+				// deathCountDown is the clock: 1 where the item was taken and
+				// 0 where it has gone, so 1 - it is how far along the flight
+				// is. The fade rides on the same number a few lines above,
+				// which is what ties the two halves together without counting
+				// anything twice.
+				// Written out rather than clamp()ed: that one returns a
+				// reference to whichever argument won, and handing it a
+				// temporary is a line nobody should have to think about.
+				// deathCountDown starts at 0.9999, so only the top end can
+				// be passed, by the tick that takes it below zero.
+				float t = 1.0f - deathCountDown;
+				if(t > 1.0f) t = 1.0f;
+				const float e = powf(t, COLLECT_EASE);
+				const Vec2f d = (collectTarget - shownPosition) * 16.0f * e;
+				const float f = 1.0f - (1.0f - COLLECT_SHRINK) * e;
+
+				// About the middle of the cell and not the corner the matrix
+				// stands on, or the item would swing away from the player it
+				// is being drawn into rather than turning where it flies.
+				renderer.translate(d.x, d.y);
+				renderer.translate(8.0f, 8.0f);
+				renderer.rotate(e * COLLECT_SPIN);
+				renderer.scale(f, f);
+				renderer.translate(-8.0f, -8.0f);
 			}
 		}
 	}
@@ -326,6 +371,14 @@ void Object::update()
 					if(d.lengthSq() <= 36)
 					{
 						onCollect(p_player);
+
+						// Only where the item really went. Three classes
+						// override onCollect() and StdObject's turns a second
+						// gas mask down, leaving it lying - and an item that
+						// is not disappearing has no flight to make. isAlive()
+						// is exactly that question: disappear() is the one
+						// thing every accepting path does.
+						if(!isAlive()) beginCollectFlight(p_player);
 						break;
 					}
 				}
@@ -373,6 +426,19 @@ void Object::update()
 	}
 
 	deathCountDown -= deathSpeed * 0.02f;
+
+	// Where the item is flying to, in cells as shownPosition is, read every
+	// tick rather than snapshotted:
+	// the player walks on during those ten ticks, and one aimed at where they
+	// were drifts off behind them. A collector that has been removed inside
+	// the flight simply stops moving the target, and the item finishes on the
+	// last place it was seen.
+	if(collectFlight)
+	{
+		const Object* p_collector = level.getObjectByUID(collectorUID);
+		if(p_collector) collectTarget = p_collector->shownPosition;
+		else collectorUID = 0;
+	}
 
 	if(teleporting != 0.0f)
 	{
@@ -994,6 +1060,21 @@ void Object::flash()
 	// out: a mask may name a layer the object is not drawing on this frame,
 	// and may never omit one it is.
 	renderLayers |= flashLayer;
+}
+
+// Called from Object::update() where the collect is noticed, and not from
+// onCollect(): three classes override that one and StdObject's turns a second
+// gas mask down, leaving it lying.
+//
+// The collector is held by UID and not by pointer. Ten ticks is long enough
+// for a player to be blown up inside them, and a pointer kept across that is
+// a crash waiting for one unlucky explosion; a UID is never reused, so the
+// lookup answering 0 means exactly "that object is gone".
+void Object::beginCollectFlight(const Object* p_collector)
+{
+	collectFlight = true;
+	collectorUID = p_collector->getUID();
+	collectTarget = p_collector->shownPosition;
 }
 
 void Object::disappear(float duration)

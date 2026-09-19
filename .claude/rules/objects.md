@@ -84,6 +84,22 @@ pressed, and the two counters at the bottom left give the same one when a diamon
 `GS_Game`'s HUD pass draws the preset a second time under the same additive blend. The two constants live in
 `object.cpp` and are `extern` so the icons cannot drift away from the objects.
 
+**A collected item flies to whoever took it**, instead of going out where it lay. `Object::render` has a
+`collectFlight` branch beside the `falling` and `teleporting` ones, and it rides on the fade that was
+already there: `disappear(0.2f)` runs `deathCountDown` from 1 to 0 over ten ticks, so `1 - deathCountDown`
+is how far along the flight is and nothing new is counted. It moves the **shown position alone** — the
+item was taken the moment `onCollect` returned, the cell is free, and the sort order `Level::update`
+paints in reads the logical position, so none of this is visible to anything that decides anything.
+`COLLECT_EASE`, `COLLECT_SHRINK` and `COLLECT_SPIN` at the top of `object.cpp` are the three numbers.
+
+Two things it has to get right. The target is read **every tick** rather than snapshotted, because the
+player walks on during those ten ticks and an item aimed at where they were drifts off behind them — and
+it is read by **UID** through `Level::getObjectByUID`, not held as a pointer, since ten ticks is long
+enough for a player to be blown up inside them. A collector that goes simply stops moving the target. And
+the flight starts where the collect is *noticed*, in `Object::update`, and not in `onCollect`: three
+classes override that one and `StdObject`'s turns a second gas mask down and leaves it lying, so the test
+is `!isAlive()` — `disappear()` is the one thing every accepting path does.
+
 **The diamond machine** (`diamondmachine.cpp`) takes a block apart into sparks in its own colours, sampled
 texel by texel through the debris mechanism, and brings more sparks back in to build the diamond; an aborted
 conversion runs them backwards. The file carries the derivations — the travel formula the outward cloud and

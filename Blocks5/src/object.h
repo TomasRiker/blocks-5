@@ -93,6 +93,8 @@ public:
 
 	virtual void frameBegin();
 	void disappear(float duration);
+
+	void beginCollectFlight(const Object* p_collector);
 	void disappearNextFrame(float duration);
 
 	bool isPushedFromAbove();
@@ -223,6 +225,11 @@ protected:
 	int destroyTime;
 	float deathCountDown;
 	float deathSpeed;
+
+	// The flight a collected item makes to whoever took it (object.cpp).
+	bool collectFlight;
+	uint collectorUID;
+	Vec2f collectTarget;
 	float newDeathCountDown;
 	float newDeathSpeed;
 	int newDeathTime;
