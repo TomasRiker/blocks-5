@@ -241,6 +241,8 @@ private:
 	// glowJitter and their flash both live on the tick.
 	Vec2i noiseOffset1;
 	Vec2i noiseOffset2;
+	Vec2i noiseWindow1;
+	Vec2i noiseWindow2;
 	Texture* p_shine;
 	Texture* p_rain;
 	Texture* p_clouds;
