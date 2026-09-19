@@ -263,10 +263,12 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	// screen fades up from black, and two more before the thanks, which is an
 	// establishing shot. The plain version's are two seconds of black fading
 	// up from black and two of black, which is four seconds nobody can tell
-	// from a game that has hung - so its first block is there from the start
-	// and the clock starts at zero rather than two seconds before it.
+	// from a game that has hung - so its clock starts at zero rather than two
+	// seconds before it, and half a second is all the lead-in it keeps: the
+	// star wipe it arrives behind takes 0.85 s, and a name fading up under a
+	// wipe that is still running reads as one thing happening rather than two.
 	time = full ? -2000 : 0;
-	const float firstBlockAt = full ? p_blocks[0].start : 0.0f;
+	const float firstBlockAt = full ? p_blocks[0].start : 0.5f;
 
 	shift = 0.0f;
 	for(int i = 0; i < NUM_BLOCKS; i++)

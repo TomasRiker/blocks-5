@@ -540,17 +540,19 @@ drops. `onEnter` then computes three numbers from whatever is left: `shift`, wha
 the first block shown is moved to and everything behind it with it; `fadeAt`,
 when the last block shown has gone; and `endAt`, the fade plus five seconds in
 the ending, which is what the three `character*.ogg` goodbyes need. Full gives
-0 / 53 / 58, which is exactly what was hardcoded; plain gives 6 / 35 / 36.
+0 / 53 / 58, which is exactly what was hardcoded; plain gives 5.5 / 35.5 / 36.5.
 
 **A lead-in needs something to lead in to.** The ending opens on two seconds of
 star field while the screen fades up from black and two more before the thanks,
 which is an establishing shot. The same four seconds in the plain version are
 black fading up from black and then black, which nobody can tell from a game
-that has hung - so its clock starts at 0 rather than at -2000 and its first
-block is up from the first tick. The tail goes the same way: the fade to black
-over a screen that is already black is a fade from black to black, so it gets
-one second as a beat before the star wipe where the ending gets five. 39 seconds
-of which 6 were nothing, to 36 of which none are.
+that has hung - so its clock starts at 0 rather than at -2000, and the lead-in
+it keeps is half a second: the star wipe it arrives behind takes 0.85 s, and a
+name fading up under a wipe that is still running reads as one thing rather than
+two. The tail goes the same way: the fade to black over a screen that is already
+black is a fade from black to black, so it gets one second as a beat before the
+wipe out, where the ending gets five. 39 seconds of which 6 were nothing, to
+36.5 of which the first half second is the wipe coming in.
 
 **Both ways in and out of the menu take the star wipe**, the one the menu goes
 behind everywhere else (`CF_Star`, 0.85 s). Out is both exits, the clock running
