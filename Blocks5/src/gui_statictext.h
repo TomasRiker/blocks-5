@@ -20,6 +20,15 @@ public:
 	bool containsPoint(const Vec2i& position);
 	INLINE_GETTYPE("GUI_StaticText");
 
+	// The text as it reaches the screen - localized, its bindings expanded
+	// and wrapped to the element's width - and how big that is. Three callers
+	// need the same answer and a second copy of the rule would be a second
+	// answer: the render, the hit test, and the test hook, which reports the
+	// size so that a page grown out of the box it stands in is a failed
+	// assertion rather than something somebody notices in a screenshot.
+	std::string getDrawnText();
+	Vec2i measureDrawnText();
+
 	void readAttributes(TiXmlElement* p_element);
 
 	INLINE_GETTER(std::string, getText, text);

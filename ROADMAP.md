@@ -1490,45 +1490,50 @@ No oracle scene can catch this: a collected item is as transient as `Damage`
 and `Projectile`, which no palette level can place. It is a look-at-it change
 and goes to the author unbuilt, like a glow or a timing.
 
-59. The help screen's text runs out of its box
-----------------------------------------------
-Page 1 of the help does not fit. The frame around the text is `help.xml`'s
-deactivated `EditBox`, 580x355 at (10,35) of a 600x440 window centred in the
-picture - screen rows 55 to 410 - and the page's last row crosses that edge:
-"Window/fullscreen" is cut in half by it and its `Alt`+`Enter` keycaps stand
-about fourteen pixels below the frame, in the strip the OK button sits in.
-Nothing clips, so the text simply spills; the page element is a plain
-`Element`, not one of the three that clip their contents.
+59. The help screen's text runs out of its box - **DONE**, by one line
+-----------------------------------------------------------------------
+Page 1 did not fit. The frame around the text is `help.xml`'s deactivated
+`EditBox`, and at 580x355 it held **23 lines** of the GUI font's 15 px, with the
+text set 5 px inside it at either end. The page draws **24** - 23 hard lines in
+`languages.txt` plus the *Goal* paragraph wrapping to two - so the last row,
+"Window/fullscreen", was sliced in half by the bottom edge and its `Alt`+`Enter`
+keycaps stood in the strip the OK button sits in. Nothing clips, so the text
+simply spilled. Measured the same in **both languages**: German is the longer
+one everywhere else in this file, but that paragraph happens to wrap to two
+lines in each, and the German page is cut at the identical row.
 
-The reason it cannot be settled by deleting a line is that "fits" is not a
-property of the text alone. A page is `$H_HELP_PAGE1..6` in `languages.txt`,
-written once in English and once in German, and German is the longer language;
-`%BINDING{...}` expands to a keycap drawn from the player's *own* binding, so a
-row is as tall and as wide as whatever key they rebound it to - `Right Shift`
-against `F1`. The split into six pages is by hand, and `Help::handleClick`
-hardcodes `page < 6`, so a page that grows has nowhere to go and a page added
-has to be wired in.
+The fix is the window, grown by exactly one line and nothing else: the frame
+355 -> 370, everything below it down 15, the window 440 -> 455. The text keeps
+its 5 px above the first line box and gets 5 px below the last, which is what
+it always had at the top and never had at the bottom.
 
-Four ways, and the first two are the ones worth having:
+**That was the last line the screen can absorb**, and the arithmetic says so:
+455 of 480 leaves 12 px above the window and 13 below (`<Center />` truncates an
+odd half). Another line would be 470 in 480. So the entry the next added row
+makes is not this one again - it is one of the two structural answers, kept
+here for then:
 
 - **Break the pages at the box.** Lay the text out, measure, and start a new
   page where the next line would cross the frame. The page count then follows
-  the text instead of being a constant, `$H_HELP_PAGE*` becomes one document
-  rather than six hand-cut ones, and the German page count may differ from the
-  English without anybody minding. `Font` already returns the height of a laid
-  out string, which is the whole of what this needs.
-- **Clip the page element and give it a scrollbar**, the way the list boxes
-  have one. Cheap, and it is the safety net under the first: even paginated,
-  one unbreakable paragraph could still be taller than the box.
-- Grow the window. 480 - 440 leaves 40 pixels of slack, so this buys two lines
-  and postpones the question.
-- Shrink the font or the line spacing for the help alone. It buys the same two
-  lines and costs legibility on a phone.
+  the text instead of `Help::handleClick`'s hardcoded `page < 6`, and a section
+  that fits stays exactly one page, so five of the six would not move. Worth
+  knowing before doing it: the document is lopsided - page 1 carries 23 hard
+  lines where pages 2 to 6 carry 8, 9, 7, 14 and 5 - so re-flowing the lot
+  would fit it in about half the pages, at the cost of the authored breaks.
+- **Clip the page element and give it a scrollbar.** Listed here once as the
+  safety net under the first, and it is not one: with pagination by line a page
+  cannot overflow, since a single line is never taller than the box. Two
+  navigation models on one screen for a case that cannot arise.
 
-Worth adding with either: a `verify.py` check that every help page fits its box
-at the default bindings, in both languages. `font_metrics` already reads the
-font, so the machinery is there, and the mistake this catches is exactly the
-one that made the entry - a row added to a page that was already full.
+**What guards it now**, since a fixed box means the next row overflows as
+quietly as this one did: `smoke.sh` walks all six pages in both languages and
+asserts each fits, and it is the *game's* answer it reads rather than a second
+implementation of the wrap - the dump reports every `GUI_StaticText`'s laid-out
+size, measured through the element's own font (`GUI_StaticText::measureDrawnText`,
+which `onRender` and `containsPoint` now share). That is what makes it follow a
+language switch and a rebound key, which no static check over `languages.txt`
+could. Proved by running it against the old geometry: "English help page 1 is
+360px of text in 345px of box - 15px past the frame", and the same for German.
 
 How these connect
 -----------------

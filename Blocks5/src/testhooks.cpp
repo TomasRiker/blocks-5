@@ -18,6 +18,7 @@
 #include "gui.h"
 #include "gui_element.h"
 #include "gui_button.h"
+#include "gui_statictext.h"
 #include "player.h"
 #include "particlesystem.h"
 #include "framestats.h"
@@ -149,6 +150,19 @@ namespace
 		out += p_element->isReallyVisible() ? "true" : "false";
 		out += ",\"active\":";
 		out += p_element->isActive() ? "true" : "false";
+
+		// A static text's laid-out size, so that a harness can ask whether it
+		// still fits what it stands in. Measured through the element's own
+		// font and the wrap it really draws under, which is the only answer
+		// that follows a language switch and a rebound key.
+		GUI_StaticText* p_staticText = dynamic_cast<GUI_StaticText*>(p_element);
+		if(p_staticText)
+		{
+			const Vec2i dim = p_staticText->measureDrawnText();
+			out += ",";
+			appendPoint(out, "text", dim.x, dim.y);
+		}
+
 		out += "}";
 
 		const std::list<GUI_Element*>& children = p_element->getChildren();

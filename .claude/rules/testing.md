@@ -143,6 +143,17 @@ answer off the one behaviour that separates the versions: a click or Escape leav
 where the ending takes neither as an exit. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
 with `SDL_GetKeyState` — see the two-input-layers trap above.
 
+**A static text reports how big it is**, and that is what `smoke.sh` asks the help with. The frame around
+a help page is a fixed 580x370; what goes in it is written by hand in `languages.txt`, wrapped at display
+time, and carries `%BINDING` markers that expand to whatever the player rebound them to — so "it fits" is
+not a property anybody can read off the file, and when it stopped being true the only symptom was a row
+sliced in half by the frame's bottom edge. The dump carries each `GUI_StaticText`'s laid-out size, measured
+through the element's own font by the same `measureDrawnText` its `onRender` and `containsPoint` use, so
+the harness compares the game's own answer against the box rather than reimplementing the wrap in shell.
+The walk is done twice, the second time with the language switched to German from the options dialog,
+since German is the longer of the two everywhere else. It was proved against the geometry that was wrong:
+360 px of text in 345 px of box, both languages.
+
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
 `--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
 objects passes through the wrappers at the foot of `testhooks.cpp`; no header carries the define and no

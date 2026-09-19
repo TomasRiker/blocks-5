@@ -15,11 +15,25 @@ GUI_StaticText::~GUI_StaticText()
 {
 }
 
+std::string GUI_StaticText::getDrawnText()
+{
+	std::string str = localizeString(text);
+	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
+	return str;
+}
+
+Vec2i GUI_StaticText::measureDrawnText()
+{
+	Vec2i dim;
+	const std::string str = getDrawnText();
+	p_font->measureText(str, &dim, 0);
+	return dim;
+}
+
 void GUI_StaticText::onRender()
 {
 	// write the text
-	std::string str = localizeString(text);
-	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
+	const std::string str = getDrawnText();
 
 	Vec2i pos(0, 0);
 	if(centerText)
@@ -74,11 +88,7 @@ bool GUI_StaticText::containsPoint(const Vec2i& position)
 {
 	if(size.x >= 0 && size.y >= 0) return GUI_Element::containsPoint(position);
 
-	std::string str = localizeString(text);
-	if(wordWrap && size.x > 0) str = p_font->adjustText(str, size.x);
-
-	Vec2i dim;
-	p_font->measureText(str, &dim, 0);
+	const Vec2i dim = measureDrawnText();
 
 	const int w = (size.x >= 0) ? size.x : dim.x;
 	const int h = (size.y >= 0) ? size.y : dim.y;
