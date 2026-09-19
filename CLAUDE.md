@@ -131,6 +131,11 @@ browser they are core and the header `#define`s them through.
   draw anywhere else would land underneath what was queued before it and a raw state change would
   fool the renderer's record; in `texture.cpp` and `engine.cpp` a raw call stands inside a
   `Renderer::DirectGL` bracket, which flushes first and forgets what GL holds after (`rendering.md`).
+- **A picture declares at its request whether it tiles** (`Texture::WM_CLAMP`, `WM_WRAP`, `WM_REPEAT`),
+  because that decides whether it can share an atlas page with others - `GL_REPEAT` wraps at the
+  texture's edge, and in a page the texture is the page. Only the weather needs a texture of its own.
+  A quad's uv stays inside its own picture unless it came from `Renderer::tiledQuad`, and a test-hooks
+  build fails every quad that does not (`rendering.md`).
 - **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`
   parts, whose base sets `RL_WIRE`; assigning wipes the bit and nothing says so — and a render layer is
   an `RL_*` name, never a number (`rendering.md`).
@@ -235,7 +240,7 @@ and do not repeat it.
 | `checks.md` | `verify.py`, `selftest.py`, `syntax.sh`, `compile_db.sh`, `make_ico.py`, `Tools/README.md` | what `verify.py` looks for and why, `selftest.py`, `syntax.sh` |
 | `testing.md` | `LinuxBuild/test/`, `WebBuild/test/`, the test hooks, `Tools/testlevels/` | driving the game natively, in a browser and on a phone, and every trap in the harnesses |
 | `perf.md` | `framestats.*`, `perf.js`, `pre.js` | what each frame timing means per platform, the overlay's counts, the query knobs |
-| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, texture wrapping |
+| `rendering.md` | `renderer`, `renderstate`, `level`, `texture`, `textureatlas`, `tileset`, `sprite`, `engine`, `particlesystem`, `lava`, `lightning`, the crossfades | the renderer, its scopes and its bracket, what it bakes and why it is byte-exact, the files that own raw GL, browser colour, render layers, the FBO bind rule, the atlas and the three wrap modes |
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |

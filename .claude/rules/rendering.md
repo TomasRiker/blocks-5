@@ -1,6 +1,6 @@
 ---
 paths:
-  - "Blocks5/src/{renderer,renderstate,level,texture,tileset,sprite,particlesystem,lightning,lava,glextensions,engine,crossfade,hint}.{cpp,h}"
+  - "Blocks5/src/{renderer,renderstate,level,texture,textureatlas,tileset,sprite,particlesystem,lightning,lava,glextensions,engine,crossfade,hint}.{cpp,h}"
   - "Blocks5/src/cf_*.{cpp,h}"
   - "Blocks5/src/vec.h"
   - "Blocks5/src/renderlayer.h"
@@ -323,9 +323,51 @@ place and the wall clock an integer, **`double` is gone from the game's own arit
 in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE double
 and nothing else will do.
 
-An imported skin also needs `Texture::applyWrapMode`: WebGL 1 samples a non-power-of-two texture as pure
-black unless its wrap mode is `GL_CLAMP_TO_EDGE`, silently and with no GL error, and the default is
-`GL_REPEAT` — which rain, snow and clouds genuinely need, since `level.cpp` scrolls the texture matrix
-without bound to tile them. So the wrap mode is switched for NPOT textures only, precisely the set where
-`GL_REPEAT` could never have worked. The game's own art is all power-of-two; this exists for imported
-skins alone.
+## The atlas
+
+**Most pictures share a GL texture, because most draws were a texture change** — 18 of a level frame's 24,
+26 of the menu's 29. `TextureAtlas` (`textureatlas.h`) packs them into pages of 2048 square, capped by
+`GLExtensions::maxTextureSize()` and added on demand up to four; a guillotine packer places them biggest
+edge first, and free rectangles are joined back together when they make one. Two pages hold the resident
+set — `data/` and one skin, 8.7 Mtexel of which 6.2 can be packed — where one 4096 page would allocate
+64 MB to keep 25 MB of pictures. Draws a frame: **menu 29 to 6, plain 16.4 to 7.4, toxic 21 to 10, night
+and lava 24 to 14**.
+
+**A picture says at its request whether it tiles**, because that is what decides whether it can share.
+`Manager<T>::request` carries the resource type's options and `Texture::WrapMode` is three: `WM_CLAMP`,
+nothing samples outside it; `WM_WRAP`, `Renderer::tiledQuad` cuts the quad at the picture's edges so that
+every piece samples one copy, which packs; `WM_REPEAT`, GL wraps it at the *texture's* edge, so inside a
+page it would read whatever was packed next door — a texture of its own. Only the weather is `WM_REPEAT`:
+its uv is rotated with the scroll, so the cuts a split would need are not axis-aligned in screen space and
+the pieces would not be quads. The lava's two 16x16 tiles are `WM_WRAP` and sit in a page with the sprite
+sheet they were cut from.
+
+**Every picture gets a texel of gutter, and it is exact rather than a fudge.** Linear filtering reaches one
+texel past the coordinate it was given and there are no mipmaps anywhere in this game, so a copy of the
+picture's own edge returns the same texel `GL_CLAMP_TO_EDGE` returned, and a copy of the opposite edge the
+same texel `GL_REPEAT` returned. **And the sampling is bit for bit what it was**, because a page's edge is a
+power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and their sum is exactly
+`(px + origin)/pageEdge`. All twenty oracle scenes are byte-identical with the atlas live, which proves the
+gutter and the arithmetic together instead of arguing them.
+
+**Nothing has to be told that a picture moved**, and that is what the whole design rests on: uv is written
+in the picture's own texels everywhere in the tree and turned into the page's in `Renderer::pushQuad`, the
+one line every quad passes through, from the `uvOrigin` its `TextureRef` carries. So the tile grid's cache,
+the font's and the lightning's stay valid across a repack and no `layerDirty` is set. A rectangle given back
+is joined to its neighbours; where a reservation still cannot be met from the pieces, `Engine::update`
+repacks at the top of the next tick — a point where the renderer holds nothing — with `glCopyTexSubImage2D`
+page to page, both ends in GL's own coordinates so nothing is flipped. Without the joining a smoke run
+repacked seven times; with it, once.
+
+**A test-hooks build checks the rule on every quad.** `Renderer::checkTiling` fails a quad that samples
+outside [0,1] from a texture not declared `WM_REPEAT`, and `frames.sh` fails on the line. It found one the
+twenty oracle scenes do not: `Crossfade` kept the frame copy's texel scale and rebuilt a bare `TextureRef`
+from it, dropping the flag that says that ref's negative y wraps on purpose.
+
+`Texture::applyWrapMode` is where the three modes become GL's two, and WebGL 1 forces its hand for a
+non-power-of-two picture: it is complete only sampled with `GL_CLAMP_TO_EDGE` and without mipmaps, and
+otherwise every access returns pure black, silently and with no GL error. So a `WM_REPEAT` picture that is
+not a power of two is clamped with a warning — deliberately under Windows too, where NPOT with `GL_REPEAT`
+would work, because a 300x200 rain that tiled for its author and not for his players is the worse failure.
+The game's own art is all power-of-two; this exists for imported skins alone, and only for the weather,
+since nothing else needs `GL_REPEAT` any more.
