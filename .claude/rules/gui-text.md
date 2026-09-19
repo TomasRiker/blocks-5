@@ -163,9 +163,12 @@ array short — two per `<h>`, three per `</h>` — so a caret at the end of suc
 vector.
 
 **`<k>…</k>` is the keycap**, and the font draws the frame. It cannot go in the glyph batch — it carries
-no texture — so the rectangles are collected while the text is laid out and drawn once the batch is
-closed, which also carries them through the two shadow passes with the glyphs; a keycap without the same
-shadow would look pasted on.
+no texture — so the rectangles are collected while the text is laid out and put up as a batch of their
+own, **before** the glyphs (`Font::drawText`, ROADMAP 33). A keycap's box is only as tall as the line it
+stands in, and a font whose capitals reach the top of their box — which a small one cannot always avoid,
+see the two paragraphs below — leaves the frame's top edge running across them; drawn first, the same
+overlap passes behind the letters and stops being visible. Both batches go through the two shadow passes
+with the glyphs; a keycap without the same shadow would look pasted on.
 
 **The frame is drawn on exactly rows `capTop`..`capBottom` of a glyph cell**, two optional `<Font>`
 attributes, and nothing about it is derived from the line. `lineHeight` and `offset` describe the line a

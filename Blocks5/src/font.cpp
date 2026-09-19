@@ -477,18 +477,27 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 void Font::drawText(const StringCacheEntry& entry, const Vec4f& color) const
 {
 	Renderer& renderer = Renderer::inst();
+
+	// The frames go up first, so that the letters are drawn over them. A
+	// keycap's box is only as tall as the line it stands in, and a font whose
+	// capitals reach the top of their box - which a small one cannot always
+	// avoid - leaves the top edge running across them. Behind the glyphs the
+	// same overlap passes under and stops being visible.
+	//
+	// Four thin quads to a frame and not a line loop, because a line's pixel
+	// coverage is a matter of the rasterizer's opinion and every other edge in
+	// this game sits on whole pixels. They carry no texture of their own, so
+	// the font's is bound after them rather than before: state the frames
+	// would only have replaced.
+	if(!entry.keyBoxes.empty())
+	{
+		renderer.quads(&entry.keyBoxes[0], static_cast<uint>(entry.keyBoxes.size()), color);
+	}
+
 	renderer.setTexture(p_texture->ref());
 	if(!entry.glyphs.empty())
 	{
 		renderer.quads(renderer.state(), &entry.glyphs[0], static_cast<uint>(entry.glyphs.size()), color);
-	}
-
-	// Four thin quads to a frame and not a line loop, because a line's pixel
-	// coverage is a matter of the rasterizer's opinion and every other edge in
-	// this game sits on whole pixels.
-	if(!entry.keyBoxes.empty())
-	{
-		renderer.quads(&entry.keyBoxes[0], static_cast<uint>(entry.keyBoxes.size()), color);
 	}
 }
 

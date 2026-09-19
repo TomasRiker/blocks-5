@@ -705,20 +705,27 @@ ahead of the rustle that would have put the sound that far behind the paper.
 Item 30 would give a skin's own panel its own sound.
 
 
-33. Draw the keycap frames behind the text
--------------------------------------------
-A frame is drawn over the letters it surrounds, and where the text sits a row
+33. Draw the keycap frames behind the text  - **DONE**
+--------------------------------------------------------
+A frame was drawn over the letters it surrounds, and where the text sits a row
 high in its box - which a small font cannot always avoid, see the keycap notes in
-`gui-text.md` - the top edge crosses the capitals. Behind the glyphs it would
-pass under them instead, and the same row of overlap would stop being visible.
+`gui-text.md` - the top edge crossed the capitals. `Font::drawText` now puts the
+frame quads up before the glyph quads, so the same overlap passes behind the
+letters and cannot be seen.
 
-The obstacle this entry once named is gone: `Font::buildText` collects the frames
-into the cached entry's `keyBoxes` in the same walk that lays out the glyphs, and
-`drawText` puts up the glyph quads and then the frame quads out of that entry. So
-the change is the order of the two `renderer.quads` calls in `drawText`, and the
-question left is what it looks like - whether a frame passing under a descender
-reads better than one crossing a capital. The frames go through both shadow
-passes with the glyphs either way, or a keycap looks pasted on.
+It came to the two `renderer.quads` calls swapping places, as the entry
+predicted: `buildText` had already collected the frames into the cached entry's
+`keyBoxes` in the same walk that lays out the glyphs. The `setTexture` moved down
+with the glyphs, since the frames carry no texture of their own and were only
+replacing what it had just bound - which is where the editor scene's one draw
+call went.
+
+Measured against the frame oracle: of the nineteen scenes exactly the three with
+a keycap in them moved, and by 37 pixels (`help`), 210 (`hint`) and 3 (`editor`).
+The hint note is where it shows, its font being the one whose letters are taller
+than their line: the frame's top edge ran through the ascenders of `Left Shift`
+and now runs behind them. Draw calls a frame are unchanged in `help` and `hint`,
+and one lower in `editor`.
 
 
 34. Switch the language inside the hint editor  - **DONE**, without a switch
