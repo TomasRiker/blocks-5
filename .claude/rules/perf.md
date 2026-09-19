@@ -97,9 +97,6 @@ Three ways to read it:
   where every quad is its own draw and the milliseconds, the draws and the counts stand at their widest
   at once. That last arm is what the punctuation bought: the same line with a space for every colon and
   wider gaps between the groups measured 665 and lost its tail.
-
-  Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and clears the stats, giving
-  the upper bound of a frame that draws nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
   not clear on read, because the overlay reads the same numbers continuously;
   `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same

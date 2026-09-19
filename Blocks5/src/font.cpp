@@ -359,8 +359,6 @@ void Font::renderText(const std::string& text,
 	// and 212 entries were evicted for text already on its way out. It is a
 	// parameter and never part of the key, which would hold two copies of
 	// every string that is asked for both ways.
-	if(Engine::inst().isRenderSuppressed()) return;
-
 	const StringCacheEntry& entry = lookUpText(text, cache);
 
 	Renderer& renderer = Renderer::inst();

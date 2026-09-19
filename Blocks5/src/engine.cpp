@@ -115,8 +115,6 @@ Engine::Engine()
 	fullScreenOverride = -1;
 	splashSkipped = false;
 	performanceShown = false;
-	renderSuppressed = false;
-	renderSuppressWanted = false;
 	renderDraws = 0;
 	renderedFrames = 0;
 	sceneTick = 0;
@@ -1690,23 +1688,6 @@ void Engine::render()
 	// the browser's canvas - and asking costs two divisions and a comparison.
 	updateCursorSize();
 
-	// An upper bound on what drawing costs, measured by not doing it: with
-	// -perf on and "plant bomb" held, renderTiles(), renderSprite() and
-	// Font::renderText() return at once, so the overlay reads what a frame
-	// would cost if all three were free. A held button and not a switch,
-	// because the phone is where the question matters and has no command
-	// line; the on-screen pad's Bomb sends the Shift that action is bound to.
-	// The statistics are cleared on each edge, or the percentile would mix
-	// suppressed frames with ordinary ones for the twenty seconds the ring
-	// holds at a phone's frame rate, and the button would look inert.
-	const bool suppressWanted = performanceShown && isActionDown("$A_PLANT_BOMB");
-	if(suppressWanted != renderSuppressWanted)
-	{
-		renderSuppressWanted = suppressWanted;
-		frameStats.clear();
-	}
-	renderSuppressed = suppressWanted;
-
 #ifdef BLOCKS5_TEST_HOOKS
 	// Every draw call between here and the end of this function, so that the
 	// present's own quad and showLastFrame() stay out of the count.
@@ -1730,11 +1711,6 @@ void Engine::render()
 	renderToasts();
 
 	renderer.frameEnd();
-
-	// Off before drawOverlays(), which draws -perf's own numbers through the
-	// same Font::renderText this suppresses. Without it the experiment would
-	// hide its own answer.
-	renderSuppressed = false;
 
 #ifdef BLOCKS5_TEST_HOOKS
 	renderDraws += TestHooks::drawCalls - drawsBefore;
@@ -2989,8 +2965,6 @@ void Engine::renderSprite(const Vec2f& position,
 						  float rotation,
 						  float scaling)
 {
-	if(renderSuppressed) return;
-
 	// The quad runs from -halfSize to otherHalf, and the two are only the same
 	// number while the size is even. Taking halfSize for both would draw an odd
 	// sprite one pixel short while its texture coordinates still spanned all

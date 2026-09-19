@@ -1115,8 +1115,6 @@ void Level::renderTiles(int layer,
 						const Vec2i& offset,
 						const Vec4f& color)
 {
-	if(Engine::inst().isRenderSuppressed()) return;
-
 	// Before the matrix is pushed, so that nothing has to be popped again. A
 	// level whose skin would not load has no tile set, and drawing nothing is
 	// what Level::loadSkin's toast already promises the player.
