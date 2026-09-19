@@ -21,6 +21,13 @@ namespace GLExtensions
 	// built on, not features it can do without. There is therefore nothing to
 	// ask afterwards and no availability to branch on.
 	void init();
+
+	// The largest texture this machine will take, in texels of one edge, as
+	// init() read it. A constant of the driver, so it is asked once and here:
+	// this is the file that asks what the machine can do, and asking from
+	// anywhere that draws would be a glGetIntegerv mid-frame, which is what
+	// the DirectGL bracket exists to stop.
+	int maxTextureSize();
 }
 
 // The constants are identical in EXT_framebuffer_object and in the GL 3.0 core,
