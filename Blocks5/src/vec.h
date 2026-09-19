@@ -367,6 +367,19 @@ struct Mat4
 							 m[1] * p.x + m[5] * p.y + m[9] * 0.0f + m[13]);
 	}
 
+	// The first three components of this * (x, y, z, 1), summed the same
+	// way: a corner under a model matrix, for geometry that is baked on the
+	// processor so that several pieces of it can share one draw. The w it
+	// would have is not formed, since the callers pass a matrix built from
+	// translate, scale and rotate alone, whose bottom row is (0, 0, 0, 1) -
+	// a projection belongs in the transform the draw carries, not here.
+	Vec<float, 3> transformPoint3D(const Vec<float, 3>& p) const
+	{
+		return Vec<float, 3>(m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12],
+							 m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13],
+							 m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14]);
+	}
+
 	// gluPerspective's matrix. GLU builds it in double and this does not,
 	// which reaches only the two entries that read zNear and zFar: m[10] and
 	// m[14], the depth row. What puts a corner on the screen is m[0] and

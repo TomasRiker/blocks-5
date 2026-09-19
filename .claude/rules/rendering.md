@@ -91,9 +91,21 @@ costs nothing and makes the two readable against each other, but not its precisi
 throughout where GL and GLU were `double` in places. The one entry that reaches is `gluPerspective`'s
 depth row, `m[10]` and `m[14]`; `m[0]` and `m[5]`, which put a corner on the screen, read neither near
 nor far and come out bit for bit the same. The four 3D crossfades and the credits' stars hand
-`Renderer::quads3D` a matrix built that way with the projection in it, one draw a call, and the rain,
-the snow and the clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which
-is applied to the corners' uv in the order the fixed-function vertex stage summed it.
+`Renderer::quads3D` a matrix built that way with the projection in it, and the rain, the snow and the
+clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which is applied to
+the corners' uv in the order the fixed-function vertex stage summed it.
+
+**`quads3D` takes one matrix per call, so what differs per piece decides the draw count.** A crossfade's
+geometry moves under one matrix and is one call. The credits' four hundred stars each have a model
+transform of their own, which made them four hundred calls of one quad — so `GS_Credits::renderStars`
+puts the four corners through that transform itself (`Mat4::transformPoint3D`, the 3D twin of the texture
+matrix's `transformPoint2D`) and hands the lot over under `projection * view`: 403 draw calls a frame to
+4, the median render 3.39 ms to 2.44 under llvmpipe, and a floor rather than the figure, since a software
+rasterizer pays for fill where a driver and a phone pay per call. It is the same bake the renderer does
+to every 2D quad, one level up. Anything else that grows a per-piece matrix belongs here too; what it
+costs is the last bit, since the corner is then rounded by the model matrix and again by the draw's,
+where it used to be rounded once by the product — 197 of the oracle frame's 307200 pixels, by at most 3
+of 255.
 
 **Three shapes are not quads, and each is one with a rule.** A triangle is a quad whose fourth corner
 repeats the third, so the second triangle of the split has no area — the hint's note mesh, the star

@@ -44,6 +44,12 @@ private:
 	Vec3f cameraPos;
 	Vec3f cameraDir;
 	std::list<Star> stars;
+
+	// The stars' corners, baked once a frame and handed to the renderer in
+	// one draw. Kept rather than built on the stack so that the four hundred
+	// quads are allocated once and not once a frame.
+	std::vector<Vertex3> starVertices;
+
 	uint bufferID;
 	int speed;
 
