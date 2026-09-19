@@ -265,6 +265,12 @@ namespace
 		out += ",\"frozen\":";
 		out += TestHooks::frozen() ? "true" : "false";
 
+		// How far a running transition has got, in milliseconds, or -1 where
+		// there is none: the same number "freeze fade" stops on, so a harness
+		// can measure a transition's length instead of watching for it.
+		out += ",\"crossfade\":";
+		appendInt(out, engine.getCrossfadeProgressMs());
+
 		// What the renderer did since the last resetstats.
 		const Renderer::Stats& batch = Renderer::inst().stats();
 		out += ",\"batch\":{\"flushes\":";

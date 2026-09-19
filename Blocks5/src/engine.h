@@ -366,6 +366,8 @@ public:
 
 	void crossfade(Crossfade* p_crossfade, float duration, bool immediately = false);
 
+	int getCrossfadeProgressMs() const;
+
 	void loadConfig();
 	void saveConfig();
 	const std::string& getLanguage() const;

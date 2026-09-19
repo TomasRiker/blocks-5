@@ -573,17 +573,34 @@ int runTheGame(int argc,
 	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PLANT);
 	p_action = engine.registerAction("$A_PUT_DOWN_BOMB", engine.getKeyboardVK(SDLK_LCTRL), engine.getKeyboardVK(SDLK_RCTRL));
 	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PUT_DOWN);
-	engine.registerAction("$A_SWITCH_CHARACTER", engine.getKeyboardVK(SDLK_TAB));
+	// And the character switch, which repeated on the defaults - 240 ms and
+	// then every 80 - so holding Tab cycled the active character for as long
+	// as it was held. Measured with two of them: the active one alternated
+	// about two and a half times a second, which with two characters is a
+	// flicker and with three is a lottery. GS_Game's own 400 ms throttle went
+	// with the repeat, and with it a hardcoded SDLK_TAB in the key handler
+	// that cleared it - which read the key and not the action, so it did
+	// nothing at all for anybody who had rebound the switch.
+	p_action = engine.registerAction("$A_SWITCH_CHARACTER", engine.getKeyboardVK(SDLK_TAB));
+	p_action->repeats = false;
 	engine.registerAction("$A_SAVE_IN_HOTEL", engine.getKeyboardVK(SDLK_RETURN), engine.getKeyboardVK(SDLK_KP_ENTER));
+	// Once per press, like the three toggles below, and the pause after them
+	// for the same reason. The two restarts carried a delay and an interval
+	// of a second instead, which made them auto-fire actions: a
+	// second press inside that second went into the repeat's buffer, five
+	// deep, and was played out a second later - so mashing F5 restarted the
+	// level for seconds after the last press, each one beginning the rewind
+	// again over the one still running. Measured: the transition was still
+	// going 3.2 s after five presses let go, against 1.6 s after one. Holding
+	// the key restarted once a second for as long as it was held, which is
+	// not a thing a restart key should do either. The pause had 200 and 500
+	// and toggled itself every half second while the key was down.
 	p_action = engine.registerAction("$A_RESTART_LEVEL", engine.getKeyboardVK(SDLK_F5));
-	p_action->delay = 1000;
-	p_action->interval = 1000;
+	p_action->repeats = false;
 	p_action = engine.registerAction("$A_RESTART_FROM_HOTEL", engine.getKeyboardVK(SDLK_F10));
-	p_action->delay = 1000;
-	p_action->interval = 1000;
+	p_action->repeats = false;
 	p_action = engine.registerAction("$A_PAUSE", engine.getKeyboardVK(SDLK_PAUSE));
-	p_action->delay = 200;
-	p_action->interval = 500;
+	p_action->repeats = false;
 
 	// define the engine actions
 	// Toggles, not auto-fire actions: once per press.

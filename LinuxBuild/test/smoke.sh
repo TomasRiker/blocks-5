@@ -231,6 +231,67 @@ b5_click Menu.StartGame
 b5_waitForState GS_SelectLevel
 b5_click SelectLevel.PlayLevel
 b5_waitForState GS_Game
+
+# Restarting the level five times over must leave one transition running, not
+# five queued behind each other. $A_RESTART_LEVEL used to carry a delay and an
+# interval of a second without turning the repeat off, which made it an
+# auto-fire action: a second press inside that second went into the repeat's
+# five-deep buffer and was played out a second later, so mashing F5 restarted
+# the level - and began the transition again over the one still running - for
+# seconds after the last press.
+#
+# What is asked is not how long it takes, which would be a timing assertion
+# under whatever load the machine is under, but whether the transition's own
+# clock ever runs backwards afterwards. It can only do that if a second one
+# began, which is the bug exactly.
+#
+# F5 is read off the key state once a tick, so it has to be held past a
+# rendered frame - a fifth of a second under llvmpipe.
+b5_mashRestart()
+{
+	local i last now
+	for i in 1 2 3 4 5; do
+		xdotool keydown F5; sleep 0.3; xdotool keyup F5; sleep 0.2
+	done
+	last=-1
+	for i in $(seq 1 40); do
+		b5_dump || b5_hookFailed
+		now=$(b5_json "d['crossfade']")
+		[ "$now" = "-1" ] && break
+		if [ "$last" != "-1" ] && [ "$now" -lt "$last" ]; then
+			b5_note "the restart transition went back from ${last}ms to ${now}ms - a second one began"
+			return
+		fi
+		last=$now
+		sleep 0.15
+	done
+	b5_ok "five restarts ran one transition through, ending at ${last}ms"
+}
+b5_mashRestart
+b5_expectState GS_Game
+
+# The pause was the same shape - 200 and 500 with the repeat left on - so
+# holding the key toggled it every half second and a hold ended wherever the
+# arithmetic landed. Held for a second and a half it must simply be paused:
+# under the old numbers that hold fired at 0, 200, 700 and 1200 ms and came
+# out the other side switched off.
+#
+# It is the one key the "any key leaves the pause" rule cannot resume with,
+# since the resume sits in front of the action chain and spends the press - so
+# what this reads is the hold, not a second press.
+xdotool keydown Pause; sleep 1.5; xdotool keyup Pause; sleep 1
+b5_dump || b5_hookFailed
+if [ "$(b5_json "d['paused']")" = "True" ]; then
+	b5_ok "the pause key held for a second and a half left the game paused"
+else
+	b5_note "the pause key held for a second and a half toggled itself back off"
+fi
+b5_key Escape
+b5_dump || b5_hookFailed
+[ "$(b5_json "d['paused']")" = "False" ] \
+	&& b5_ok "and any key resumed it" \
+	|| b5_note "the game is still paused after a keypress"
+b5_expectShown Game.MenuPane.Menu false
 sleep 2
 
 b5_key Escape

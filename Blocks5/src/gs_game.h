@@ -55,7 +55,6 @@ private:
 	GS_SelectLevel* p_selectLevel;
 	Texture* p_misc;
 	int leaveCountDown;
-	int switchTimer;
 	bool cameFromEditor;
 	TiXmlDocument* p_originalLevel;
 	TiXmlDocument* p_saveGame;

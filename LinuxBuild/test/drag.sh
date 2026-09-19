@@ -58,6 +58,10 @@ def tiles(y):
     return ''.join(row)
 rows = lambda f: ''.join('<Row>%s</Row>' % f(y) for y in range(H))
 objects = ('<Object type="Player" x="10" y="10" character="0" active="1"/>'
+           # A second character, parked in a corner well away from everything
+           # the drag assertions touch. It is here for the Tab check at the
+           # foot of this file, which needs somebody to switch to.
+           '<Object type="Player" x="35" y="20" character="1" active="0"/>'
            '<Object type="LightSwitch" x="11" y="10"/>'
            '<Object type="LightSwitch" x="13" y="10"/>'
            '<Object type="LightPanel" x="10" y="11" subType="0"/>'
@@ -240,4 +244,41 @@ if [ "$around" = "[24, 1]" ]; then
 else
 	b5_note "the blocked chain did not hand over to the other axis: $around"
 fi
+# --- Switching characters: once per press ------------------------------------
+# $A_SWITCH_CHARACTER repeated on the action defaults - 240 ms and then every
+# 80 - so holding Tab cycled the active character for as long as it was held,
+# about two and a half times a second once GS_Game's own 400 ms throttle had
+# had its say. With two characters that is a flicker; with three it is a
+# lottery. The throttle is gone with the repeat, and with it a hardcoded
+# SDLK_TAB in the key handler that cleared it - which read the key and not the
+# action, so it did nothing at all for anybody who had rebound the switch.
+#
+# Held, the switch must happen once and stay. Tapped, it must happen every
+# time, which is what the throttle's removal has to not have broken: three
+# taps from the first character have to end on the second.
+# Compared against where the other character stands and not against a cell
+# written down here: the first one has walked a long way by this point in the
+# file, and an assertion naming its starting cell would pass whatever Tab did.
+before=$(b5_cell)
+xdotool keydown Tab; sleep 0.4
+held=$(b5_cell)
+steady=yes
+for i in 1 2 3 4; do sleep 0.3; [ "$(b5_cell)" = "$held" ] || steady=no; done
+xdotool keyup Tab; sleep 0.5
+if [ "$held" != "$before" ] && [ "$steady" = yes ]; then
+	b5_ok "Tab held switched once, from $before to $held, and stayed there"
+else
+	b5_note "Tab held did not switch once and stay: $before -> $held, steady=$steady"
+fi
+
+# Three taps is an odd number of switches, so with two characters the active
+# one has to be the other one again at the end.
+for i in 1 2 3; do xdotool keydown Tab; sleep 0.3; xdotool keyup Tab; sleep 0.3; done
+after=$(b5_cell)
+if [ "$after" != "$held" ]; then
+	b5_ok "and three taps each counted, ending back on $after"
+else
+	b5_note "three taps did not all count: still on $after"
+fi
+
 b5_finish
