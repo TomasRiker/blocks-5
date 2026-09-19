@@ -171,7 +171,8 @@ system and so never appear in the options dialog:
 | key | what it does | where |
 | --- | --- | --- |
 | Alt+Return, Alt+Enter | window / full screen (`isReturnKey` takes both keys) | `engine.cpp` |
-| Shift+C | credits | `gs_menu.cpp` |
+| Shift+C | the plain credits | `gs_menu.cpp` |
+| Ctrl+Shift+C | the ending's credits | `gs_menu.cpp` |
 | Shift+D | turns the donation prompt off for good | `gs_menu.cpp` |
 
 The help is six pages, `$H_HELP_PAGE1` ... `$H_HELP_PAGE6`, built by page number
@@ -492,27 +493,35 @@ on the bare filename now. `filesystem.md` has the rest.
 
 27. A Credits button in the main menu - **DONE** but for the line itself
 -------------------------------------------------------------------------
-The credits are reachable by finishing the shipped campaign or by knowing that
-**Shift+C in the main menu** runs them (`gs_menu.cpp`). The visible entry - a
-`Credits` line at the foot of `menu.xml` in the style of the `Website` link - is
-the author's to add, and it needs nothing of this: `setGameState("GS_Credits")`
-is the whole of it, and both ways in already take that path. What this item was
-really about is the second presentation, and `GS_Credits` now has two versions of
-itself:
+The credits are reachable by finishing the shipped campaign or from the main
+menu. The visible entry - a `Credits` line at the foot of `menu.xml` in the style
+of the `Website` link - is the author's to add, and it needs nothing of this:
+`setGameState("GS_Credits")` is the whole of it, and every way in takes that
+path. What this item was really about is the second presentation, and
+`GS_Credits` now has two versions of itself:
 
 - **Finished the shipped campaign** - the whole sequence, and byte-for-byte the
   one that ran after the last level before this item: proved by forcing the flag
   on and comparing the oracle's `credits` frame against the previous binary's.
-- **Not finished** - the same blocks, the same fading and zooming, without
-  `$C_THANKS_FOR_PLAYING` and `$C_STAY_TUNED`, which address someone who has just
-  won and give away that there is an ending to reach. Not scrolling text, which
-  would have been a second layout for nothing: what the two versions differ in is
-  which blocks are shown, and everything else falls out of that.
+- **Not finished** - the names on flat black. No `$C_THANKS_FOR_PLAYING` and no
+  `$C_STAY_TUNED`, which address someone who has just won and give away that
+  there is an ending to reach; no star field, no gradient and no motion-blur
+  buffer, so nothing flies and nothing is loaded to make it fly - not the
+  `title.xml` the stars are cut from, not the frame-copy texture; no
+  `credits.ogg`; and no per-character zoom, so the blocks only fade in and out.
+  It keeps the mouse cursor and any click leaves it at once, because it is a
+  screen offered from the menu rather than an ending being watched. Not scrolling
+  text, which would have been a second layout for nothing.
 
-**Who decides, and where.** `Campaign::isBuiltInCompleted()` answers it, asked
-once in `onEnter` so that neither way in has to carry it - and the way in from the
-last level knows it only because the level it has just finished is already in the
-database. The bar is not simply "all levels": where the campaign
+**Who decides, and where.** `Campaign::isBuiltInCompleted()` answers it in
+`onEnter`, unless the caller said so outright in the `ParameterBlock`. Nothing a
+player takes has to say it - a `Credits` entry in the menu leaves it, and the way
+in from the last level is right for free, because the level just finished is
+already in the database. Two callers do say it: **Shift+C** in the menu is the
+plain version and **Ctrl+Shift+C** the ending, so that which one the author is
+looking at does not depend on what their own save file holds; and the frame
+oracle's `credits` scene asks for the ending through the same parameter on the
+`state` hook. The bar is not simply "all levels": where the campaign
 has a bonus level it is `getLevels().size() - 1`, the count that unlocks that
 level in `GS_Game::loadLevel` and `GS_SelectLevel::getLevelStatus` alike. The
 bonus is extra rather than the end of the run, so beating the other forty-one
@@ -536,6 +545,15 @@ gives 0 / 53 / 58, which is exactly what was hardcoded; short gives 4 / 37 / 39.
 `credits.ogg`: it is run from the menu, the menu's own track is playing, and
 swapping it would announce an ending the player has not reached - and stop the
 menu music dead on the way back, since `playMusic` resumes a track it never left.
+
+**What the checks cover.** `frames.sh` renders both: `credits` asks for the
+ending and `credits-plain` takes what the private home's empty progress gives.
+Neither can see which *key* asked for which, so `smoke.sh` drives the two chords
+and reads the answer off the one behaviour that separates them - a click leaves
+the plain version and does nothing to the ending. The click is ignored for the
+tick the screen is entered in: a click on a menu entry is dispatched by
+`GUI::update()`, `processGameStateChanges()` runs `onEnter` and `onUpdate`
+follows, all inside the tick whose press bits are cleared only at its foot.
 
 
 28. Video recording in the browser

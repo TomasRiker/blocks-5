@@ -24,6 +24,7 @@ public:
 	void onLoseFocus();
 
 private:
+	void renderStarField(float t);
 	void renderStars(const Mat4& projection, const Mat4& view);
 	void updateStars();
 
@@ -61,6 +62,10 @@ private:
 	float shift;
 	float fadeAt;
 	float endAt;
+
+	// Whether a click may be taken as the player's. False for the tick the
+	// screen is entered in, which still holds the click that opened it.
+	bool clickArmed;
 };
 
 #endif

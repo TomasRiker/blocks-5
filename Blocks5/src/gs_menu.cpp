@@ -132,7 +132,18 @@ void GS_Menu::onUpdate()
 	   (p_keyStates[SDLK_LSHIFT] ||
 	    p_keyStates[SDLK_RSHIFT]))
 	{
-		engine.setGameState("GS_Credits");
+		// Shift+C is the plain credits and Ctrl+Shift+C the ending, said
+		// outright rather than left to Campaign::isBuiltInCompleted(): these
+		// are the keys the author looks at either version with, and which one
+		// that is must not depend on what the machine's save file happens to
+		// hold. A Credits entry in the menu passes nothing and gets the
+		// answer the player has earned. In a browser the second chord is the
+		// developer tools' own, so it may never reach the page - which costs
+		// nothing it is worth working around, the keys being the author's and
+		// Shift+C reaching the page everywhere.
+		ParameterBlock context;
+		context.set("full", p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL] ? true : false);
+		engine.setGameState("GS_Credits", context);
 	}
 	else if(p_keyStates[SDLK_d] &&
 		(p_keyStates[SDLK_LSHIFT] ||

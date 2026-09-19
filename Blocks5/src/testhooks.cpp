@@ -577,8 +577,16 @@ void pollRequests()
 	{
 		// Switch to a named game state, applied at the loop's safe point like
 		// any other change. It is how the harness reaches the credits, which
-		// the menu offers only to a held Shift+C.
-		Engine::inst().setGameState(Argument::of(line + 6));
+		// the menu offers only to a held Shift+C. One word after the name is
+		// a boolean parameter set to true in the context the state is entered
+		// with: "state GS_Credits full" asks for the ending, which is
+		// otherwise decided by a progress file the oracle's private home does
+		// not have. One, because one is what there is to ask for.
+		const std::string arg(Argument::of(line + 6));
+		const std::string::size_type space = arg.find(' ');
+		ParameterBlock context;
+		if(space != std::string::npos) context.set(arg.substr(space + 1), true);
+		Engine::inst().setGameState(arg.substr(0, space), context);
 		answer = "ok\n";
 	}
 	else if(!strncmp(line, "click ", 6))
