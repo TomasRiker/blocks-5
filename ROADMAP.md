@@ -1649,7 +1649,6 @@ coordinates.
 | `menu.png`, `selectlevel.png` | 1024x512 | 640x480 | backdrops |
 | `misc.png` | 256x256 | 218x176 | rewind OSD, 218x64 at (0,112) |
 | `tooltip_font.png` | 512x128 | 507x105 | `tooltip_font.xml` |
-| `title.png` | 1024x512 | **never drawn** | see below |
 | `window.png` | 32x32 | - | the window icon, not a texture |
 
 | `levels/skins/*` | stored | used | fixed by |
@@ -1671,8 +1670,9 @@ coordinates.
 draws nothing; cut the sheet to 720 and it would sample the gutter instead, so
 invisible becomes visible. Clamp the value and 720 is safe.
 
-`title.png` is requested in `GS_Loading::loadGraphics()` and **drawn nowhere** -
+`title.png` was requested in `GS_Loading::loadGraphics()` and drawn nowhere -
 no code path, no `<Image>`, no localized filename - and never released either.
-The picture the loading screen actually draws is `logo.png`. Half a megatexel
-either wants a draw or wants deleting.
+It is the artwork `background.png` was built from rather than anything the game
+shows; the picture the loading screen draws is `logo.png`. Both the file and the
+request are gone, and half a megatexel with them.
 
