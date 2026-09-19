@@ -2817,45 +2817,52 @@ void Engine::drawPerformance()
 	// doing.
 	//
 	// One line, and one grammar for every group in it: a name, a space, its
-	// value. Where a value is slash-separated the name says how to read it,
-	// and there are only two ways it can. A name that is a **unit** - ms,
-	// draws - takes the standing triple, p50/p95/max in that order. A name
-	// that is a **list of parts** - r/u/p/s, late/slow/stall - lines its parts
-	// up with the values one for one. Nothing else appears: no unit glued to a
-	// number, no number before its name, no count spelled out in words in one
-	// place and as a symbol in another.
+	// value. A name that lists parts separated by slashes - 50/95/max,
+	// r/u/p/s, late/slow/stall - lines those parts up with the slashes in the
+	// value, one for one. Nothing else appears: no unit glued to a number, no
+	// number before its name, no count spelled out in words in one place and
+	// as a symbol in another.
 	//
-	// So the four phases are named rather than legended (they are medians, in
-	// the same milliseconds the group before them is: a percentile of a part
-	// would not add up to one of the whole anyway), n is the ring's fill -
-	// 500 once it has run ten seconds - and the three counts are what the
-	// player would have noticed: a frame they did not get, one the game did
-	// not fit in its budget, and one long enough to leave a hole in the music.
-	// perf.md has the thresholds; the line has no room to argue them and they
-	// do not change.
+	// 50/95/max(500) is the one name that scopes more than its own value: the
+	// two triples behind it, milliseconds and draws, are both read against it,
+	// and a single space binds them to it where two spaces separate the groups
+	// of the line. Said once rather than twice, because twice does not fit -
+	// and a triple of numbers nobody can decode is worth less than the width
+	// it takes. In brackets is the ring's fill, the window all of it is over:
+	// 500 once ten seconds have run, less while it fills.
+	//
+	// The four phases are medians, in the same milliseconds as the triple
+	// before them: a percentile of a part would not add up to one of the
+	// whole. The three counts are what the player would have noticed - a frame
+	// they did not get, one the game did not fit into its budget, one long
+	// enough to leave a hole in the music - and perf.md has the thresholds,
+	// which are constants and do not need restating fifty times a second.
 	//
 	// It is written to fit at its widest, not at its usual, because the
 	// numbers grow exactly when something is wrong. Measured against the
-	// font's own advances: 513 px of 640 as it usually reads, 633 with
-	// four-figure milliseconds, four-figure draws and three-figure counts
-	// together.
+	// font's own advances: 560 px of 640 as it usually reads and 580 with a
+	// level load's stall still in the window. The one case that does not fit
+	// is -flushall on a slow machine, at 665: there every quad is its own
+	// draw, so the draws go to four figures while the milliseconds are there
+	// too, and the tail of the last count is cut off. The bracketed 500 costs
+	// 28 px of that; without it the same arm measures 637.
 	const float budget = static_cast<float>(logicRate);
 	char line[160];
 	snprintf(line, sizeof(line),
-			 "fps %.0f  ms %.1f/%.1f/%.1f  r/u/p/s %.1f/%.1f/%.1f/%.1f"
-			 "  draws %.0f/%.0f/%.0f  n %u  late/slow/stall %u/%u/%u",
+			 "fps %.0f  50/95/max(%u) ms %.1f/%.1f/%.1f draws %.0f/%.0f/%.0f"
+			 "  r/u/p/s %.1f/%.1f/%.1f/%.1f  late/slow/stall %u/%u/%u",
 			 interval > 0.0f ? 1000.0f / interval : 0.0f,
+			 frameStats.getCount(),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 100),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 50),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 95),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 100),
 			 frameStats.getPercentile(FrameStats::FS_RENDER, 50),
 			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
 			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
 			 frameStats.getPercentile(FrameStats::FS_SWAP, 50),
-			 frameStats.getPercentile(FrameStats::FS_DRAWS, 50),
-			 frameStats.getPercentile(FrameStats::FS_DRAWS, 95),
-			 frameStats.getPercentile(FrameStats::FS_DRAWS, 100),
-			 frameStats.getCount(),
 			 frameStats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));

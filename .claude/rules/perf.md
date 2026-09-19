@@ -69,23 +69,34 @@ Three ways to read it:
   the line: this stands over the game while the game is what is being measured. It reads
 
   ```
-  fps 50  ms 16.3/19.5/62.8  r/u/p/s 1.4/0.1/8.2/6.0  draws 23/35/36  n 500  late/slow/stall 1/12/0
+  fps 50  50/95/max(500) ms 16.9/20.2/56.1 draws 23/35/36  r/u/p/s 1.4/0.1/8.4/6.2  late/slow/stall 1/32/0
   ```
 
-  **One grammar, and two ways a slash can be read.** Every group is a name, a space, its value. A name
-  that is a *unit* — `ms`, `draws` — takes the standing triple, p50/p95/max in that order. A name that
-  is a *list of parts* — `r/u/p/s`, `late/slow/stall` — lines its parts up with the values one for one.
-  There is no third form: no unit glued to a number, no number before its name, no count spelled as a
-  word here and as a symbol there. `r/u/p/s` are render, update, present and swap at their **median**, in
-  the same milliseconds as the group before them — a percentile of a part would not add up to one of the
-  whole. `n` is the ring's fill, 500 once ten seconds have run. The three counts are what the player
-  would have noticed: a frame they did not get (interval over two ticks), one the game did not fit into
-  its budget (work over one), and one long enough to leave a hole in the music (work over 500 ms) — the
-  thresholds live here rather than in the line, and they do not change.
+  **One grammar.** Every group is a name, a space, its value; a name that lists parts separated by slashes
+  — `50/95/max`, `r/u/p/s`, `late/slow/stall` — lines those parts up with the slashes in the value, one
+  for one. There is no second form: no unit glued to a number, no number before its name, no count
+  spelled as a word here and as a symbol there.
+
+  `50/95/max(500)` is the one name that scopes more than its own value: **both** triples behind it, the
+  milliseconds and the draws, are read against it, and a single space binds them to it where two spaces
+  separate the line's groups. Said once rather than twice because twice does not fit — and a triple
+  nobody can decode is worth less than the width it takes. In brackets is the ring's fill, the window
+  every number on the line is over: 500 once ten seconds have run, less while it fills. `r/u/p/s` are render, update, present and swap
+  at their **median**, in the same milliseconds as the triple before them: a percentile of a part would
+  not add up to one of the whole. The three counts are what the player would have noticed: a frame they
+  did not get (interval over two ticks), one the game did not fit into its budget (work over one), and
+  one long enough to leave a hole in the music (work over 500 ms). The thresholds live here rather than
+  in the line, being constants.
 
   It is written to fit at its *widest*, not at its usual, because the numbers grow exactly when something
-  is wrong: measured against the font's own advances, 513 px of 640 as above and 633 with four-figure
-  milliseconds, four-figure draws (which `-flushall` alone can bring) and three-figure counts together.
+  is wrong. Measured against the font's own advances and confirmed on screen: **560 px of 640** as above,
+  580 with a level load's stall still inside the window. **One arm does not fit**: `-flushall` on a slow
+  machine, at 665, where every quad is its own draw, so four-figure draws stand beside four-figure
+  milliseconds and three-figure counts, and the tail of the last count is cut off. The bracketed window
+  costs 28 px of that — the same arm measures 637 without it — and buying it back would mean giving up
+  a measurement: `present` and `swap` read as one number natively (see above), so `r/u/p` in place of
+  `r/u/p/s` would fit at 630.
+
   Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and clears the stats, giving
   the upper bound of a frame that draws nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
