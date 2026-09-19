@@ -2816,23 +2816,34 @@ void Engine::drawPerformance()
 	// natively the decoder thread fills the queue whatever the main thread is
 	// doing.
 	//
-	// Every number in one line, in the order they are read in: what the player
-	// got, what a frame cost, where that went, how many draws the renderer
-	// asked for, and what the window holds. Both triples are p50/p95/max,
-	// which the line says once rather than twice; r/u/p/s are the four phases
-	// at their median, where a percentile of a part would not add up to one of
-	// the whole anyway.
+	// One line, and one grammar for every group in it: a name, a space, its
+	// value. Where a value is slash-separated the name says how to read it,
+	// and there are only two ways it can. A name that is a **unit** - ms,
+	// draws - takes the standing triple, p50/p95/max in that order. A name
+	// that is a **list of parts** - r/u/p/s, late/slow/stall - lines its parts
+	// up with the values one for one. Nothing else appears: no unit glued to a
+	// number, no number before its name, no count spelled out in words in one
+	// place and as a symbol in another.
 	//
-	// It is written to fit at its widest, not at its usual: the numbers grow
-	// exactly when something is wrong, which is when the line has to stay
-	// readable. Measured against the font's own advances, the line above is
-	// 526 px of 640 as it usually reads and 614 with three-figure milliseconds,
-	// three-figure draws and hundreds of frames lost.
+	// So the four phases are named rather than legended (they are medians, in
+	// the same milliseconds the group before them is: a percentile of a part
+	// would not add up to one of the whole anyway), n is the ring's fill -
+	// 500 once it has run ten seconds - and the three counts are what the
+	// player would have noticed: a frame they did not get, one the game did
+	// not fit in its budget, and one long enough to leave a hole in the music.
+	// perf.md has the thresholds; the line has no room to argue them and they
+	// do not change.
+	//
+	// It is written to fit at its widest, not at its usual, because the
+	// numbers grow exactly when something is wrong. Measured against the
+	// font's own advances: 513 px of 640 as it usually reads, 633 with
+	// four-figure milliseconds, four-figure draws and three-figure counts
+	// together.
 	const float budget = static_cast<float>(logicRate);
 	char line[160];
 	snprintf(line, sizeof(line),
-			 "%.0ffps  ms(50/95/max) %.1f/%.1f/%.1f  r%.1f u%.1f p%.1f s%.1f"
-			 "  draws %.0f/%.0f/%.0f  %uf %u lost %u>%.0f %u>500",
+			 "fps %.0f  ms %.1f/%.1f/%.1f  r/u/p/s %.1f/%.1f/%.1f/%.1f"
+			 "  draws %.0f/%.0f/%.0f  n %u  late/slow/stall %u/%u/%u",
 			 interval > 0.0f ? 1000.0f / interval : 0.0f,
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
@@ -2847,7 +2858,6 @@ void Engine::drawPerformance()
 			 frameStats.getCount(),
 			 frameStats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
-			 budget,
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
 	// The strip is as wide as the line and no wider, so that what it covers is
