@@ -35,6 +35,13 @@ public:
 	// measure at all of the hardware. INTERVAL minus TOTAL is what is left for
 	// it: if the frame rate falls while TOTAL stays flat, the time is going
 	// somewhere this cannot see.
+	//
+	// DRAWS is the odd one out and rides here for the ring's sake: it is a
+	// count and not a duration, the draw calls the renderer made in that turn
+	// of the loop. Everything this class does to a column - the ring, the
+	// percentiles, the threshold count - is the same work whatever the column
+	// means, and a second ring beside this one would be that work written
+	// twice.
 	enum Phase
 	{
 		FS_INTERVAL = 0,
@@ -43,16 +50,17 @@ public:
 		FS_UPDATE,
 		FS_PRESENT,
 		FS_SWAP,
+		FS_DRAWS,
 		FS_NUM_PHASES
 	};
 
-	// Enough for eight seconds at sixty frames, which is the stretch anybody
-	// looks at, and 12 KB.
-	static const uint CAPACITY = 512;
+	// Ten seconds at the fifty frames a second the loop aims for, which is the
+	// stretch anybody looks at, and 14 KB.
+	static const uint CAPACITY = 500;
 
 	FrameStats();
 
-	// Milliseconds, in the order of the enum.
+	// One row in the order of the enum: milliseconds, and DRAWS a plain count.
 	void addFrame(const float* p_phases);
 	void clear();
 

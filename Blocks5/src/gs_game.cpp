@@ -358,12 +358,6 @@ void GS_Game::onRender()
 	p_font->measureText(caption, &dim, 0);
 	p_font->renderText(caption, Vec2i(384 - dim.x / 2, 432), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
-	if(engine.isKeyDown(SDLK_f))
-	{
-		sprintf(text, "Frame: %d ms", engine.getFrameTime());
-		p_font->renderText(text, Vec2i(10, 10), Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
-	}
-
 	if(paused)
 	{
 		float t = 0.001f * engine.getTime();

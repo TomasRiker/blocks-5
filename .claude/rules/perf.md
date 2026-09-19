@@ -7,10 +7,18 @@ paths:
 
 # Measuring a frame
 
-`FrameStats` (`framestats.h`) keeps the last 512 frames' timings — interval start to start, how long the
-turn held the main thread, and render, update and present inside it — and answers p50, p95 and maximum.
-Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded always:
-four clock reads a frame.
+`FrameStats` (`framestats.h`) keeps the last **500** frames — ten seconds at the fifty a second the loop
+aims for — and answers p50, p95 and maximum of each column: interval start to start, how long the turn
+held the main thread, render, update and present inside it, and the draw calls the renderer made in that
+turn. Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded
+always: four clock reads a frame.
+
+**The draw count rides in the same ring as the timings**, as one more column of the same sample row. It is
+a count and not a duration, but everything the class does to a column — the ring, the sort, the
+percentile, the threshold — is the same work whatever the column means, so a second ring beside it would
+be that code written twice. It is the renderer's own counter (`Renderer::stats().draws`), which runs in
+every build, and not the link-time wrappers, which are a test-hooks build only; an iteration that rendered
+nothing contributes a zero, exactly as it contributes a zero render time.
 
 **`render` and `present` are what *issuing* the draw calls costs, not what drawing them does.** GL is
 asynchronous, so the work is paid for wherever the pipeline is next made to catch up — and where that is
@@ -38,7 +46,8 @@ alone would have reported nothing wrong at 26 fps.
 The interval is counted against **two** ticks and the work against one, and that asymmetry is load-bearing.
 The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoopIteration` — so
 an interval threshold of one tick sits on the number the code is targeting and a millisecond of timer
-granularity trips it: the menu read **277 of 512 frames late while not one had been dropped**. A frame
+granularity trips it: the menu read **277 of 512 frames late while not one had been dropped** (measured
+when the window was 512 frames). A frame
 actually lost is an interval of two. The work has no such problem, because nothing aims it anywhere; one
 tick is simply the budget.
 
@@ -55,9 +64,20 @@ as one that overran.
 
 Three ways to read it:
 
-- **`-perf`** / `?perf=1` draws the numbers in the bottom corner — the phone's only way, since the block
-  lands in a screenshot. Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and
-  clears the stats, giving the upper bound of a frame that draws nothing.
+- **`-perf`** / `?perf=1` draws the numbers along the bottom — the phone's only way, since the strip
+  lands in a screenshot. **One line in the tooltip font**, the small one, and a black strip only as wide as
+  the line: this stands over the game while the game is what is being measured. It reads
+
+  ```
+  50fps  ms(50/95/max) 16.3/19.0/69.7  r1.4 u0.1 p8.1 s6.0  draws 22/35/36  500f 1 lost 4>20 0>500
+  ```
+
+  — frame rate, the whole frame's three figures, the four phases at their median, the draws' three
+  figures, and the window with what went over. It is written to fit at its *widest*, not at its usual: 526
+  px of 640 as above and 614 with three-figure milliseconds, three-figure draws and hundreds of frames
+  lost, because the numbers grow exactly when something is wrong. Holding `$A_PLANT_BOMB` while it is on
+  suppresses the game's own drawing and clears the stats, giving the upper bound of a frame that draws
+  nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
   not clear on read, because the overlay reads the same numbers continuously;
   `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same

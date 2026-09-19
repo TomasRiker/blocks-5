@@ -351,7 +351,6 @@ public:
 
 	uint getLogicRate() const;
 	void setLogicRate(uint logicRate);
-	uint getFrameTime() const;
 	uint getTime() const;
 
 	// Pins the generator for a level about to load; empty in a normal build.
@@ -562,7 +561,6 @@ private:
 	std::queue<QueuedKeyEvent> keyEventQueue;
 	std::unordered_map<std::string, GameState*> gameStates;
 	std::stack<GameState*> currentGameStates;
-	uint frameTime;
 	FrameStats frameStats;
 	bool performanceShown;
 	bool renderSuppressed;
