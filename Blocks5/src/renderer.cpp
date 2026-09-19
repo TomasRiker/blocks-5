@@ -662,6 +662,82 @@ void Renderer::scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix
 		 p_corners, uvs, color);
 }
 
+namespace
+{
+	// The value at (u, v) of a quad's four corners, in the order every quad in
+	// this game gives them: top left, top right, bottom right, bottom left.
+	template<typename T> T cornerLerp(const T* p_corners, float u, float v)
+	{
+		const T top = p_corners[0] + (p_corners[1] - p_corners[0]) * u;
+		const T bottom = p_corners[3] + (p_corners[2] - p_corners[3]) * u;
+		return top + (bottom - top) * v;
+	}
+}
+
+// What lets a tiling picture live in an atlas page: GL_REPEAT wraps at the
+// texture's edge, and inside a page the texture is the page, so the wrapping
+// is done here instead by cutting the quad where the picture ends.
+//
+// size is the picture's own size in texels, which is not 1/texelScale any more
+// - in a page that is the page's edge. The uv must be an axis-aligned
+// rectangle running the same way as the corners, corner 0 against corner 2,
+// which is what a tile drawn over a cell is; a rotated one would need cuts
+// that are not axis-aligned in screen space, and those are not quads.
+void Renderer::tiledQuad(const RenderState& s, const Vec2f& size, const Vec2f* p_corners,
+						 const Vec2f* p_uvs, const Vec4f* p_colors)
+{
+	const Vec2f low(min(p_uvs[0].x, p_uvs[2].x), min(p_uvs[0].y, p_uvs[2].y));
+	const Vec2f high(max(p_uvs[0].x, p_uvs[2].x), max(p_uvs[0].y, p_uvs[2].y));
+	const Vec2f span = high - low;
+	if(span.x <= 0.0f || span.y <= 0.0f || size.x <= 0.0f || size.y <= 0.0f) return;
+
+	// One piece per copy of the picture the quad reaches into. The lava, which
+	// is the only caller, spans exactly one copy at an offset, so this is four
+	// pieces where the offset is not a whole number of texels and one where it
+	// is.
+	const int firstX = static_cast<int>(floorf(low.x / size.x));
+	const int lastX = static_cast<int>(ceilf(high.x / size.x)) - 1;
+	const int firstY = static_cast<int>(floorf(low.y / size.y));
+	const int lastY = static_cast<int>(ceilf(high.y / size.y)) - 1;
+
+	for(int cellY = firstY; cellY <= lastY; cellY++)
+	{
+		const float cellLowY = max(low.y, static_cast<float>(cellY) * size.y);
+		const float cellHighY = min(high.y, static_cast<float>(cellY + 1) * size.y);
+		if(cellHighY <= cellLowY) continue;
+
+		for(int cellX = firstX; cellX <= lastX; cellX++)
+		{
+			const float cellLowX = max(low.x, static_cast<float>(cellX) * size.x);
+			const float cellHighX = min(high.x, static_cast<float>(cellX + 1) * size.x);
+			if(cellHighX <= cellLowX) continue;
+
+			// Where this piece sits inside the whole quad, 0 to 1 on each
+			// axis. The corners and the colours are read at those fractions,
+			// so a colour that ran across the quad goes on running across the
+			// pieces.
+			const float u0 = (cellLowX - low.x) / span.x;
+			const float u1 = (cellHighX - low.x) / span.x;
+			const float v0 = (cellLowY - low.y) / span.y;
+			const float v1 = (cellHighY - low.y) / span.y;
+
+			const Vec2f corners[4] = {cornerLerp(p_corners, u0, v0), cornerLerp(p_corners, u1, v0),
+									  cornerLerp(p_corners, u1, v1), cornerLerp(p_corners, u0, v1)};
+			const Vec4f colors[4] = {cornerLerp(p_colors, u0, v0), cornerLerp(p_colors, u1, v0),
+									 cornerLerp(p_colors, u1, v1), cornerLerp(p_colors, u0, v1)};
+
+			// Back into the picture's own texels, which is what every caller
+			// writes and what pushQuad expects.
+			const Vec2f from(cellLowX - static_cast<float>(cellX) * size.x,
+							 cellLowY - static_cast<float>(cellY) * size.y);
+			const Vec2f to(cellHighX - static_cast<float>(cellX) * size.x,
+						   cellHighY - static_cast<float>(cellY) * size.y);
+			const Vec2f uvs[4] = {from, Vec2f(to.x, from.y), to, Vec2f(from.x, to.y)};
+			quad(s, corners, uvs, colors);
+		}
+	}
+}
+
 void Renderer::quad(const Vec2f* p_corners, const Vec4f* p_colors)
 {
 	float x[4], y[4];
@@ -1260,7 +1336,7 @@ void Renderer::checkRecord()
 void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* p_v)
 {
 	// A quad that samples outside its own picture relies on GL_REPEAT, and
-	// only a texture declared Texture::WM_TILES has it. Anything else is a
+	// only a texture declared Texture::WM_REPEAT has it. Anything else is a
 	// picture that may one day share a page, where the coordinate would land
 	// in whatever was packed beside it - so the rule is checked on every quad
 	// rather than argued about, and frames.sh fails on the line.

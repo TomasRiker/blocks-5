@@ -25,7 +25,7 @@
 // tiles says the picture is sampled outside its own edges and relies on
 // GL_REPEAT, which is why it cannot share a page: a coordinate past the edge
 // would land in whatever was packed next door. It is what a texture was
-// declared as at load (Texture::WM_TILES), carried to the one place that can
+// declared as at load (Texture::WM_REPEAT), carried to the one place that can
 // check it.
 struct TextureRef
 {

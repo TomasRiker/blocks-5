@@ -2477,8 +2477,8 @@ void Level::loadSkin(bool forceReload)
 
 	// copy the lava out
 	Texture* p_oldLava[2] = {p_lava[0], p_lava[1]};
-	p_lava[0] = p_sprites->createSubTexture(Vec2i(0, 480), Vec2i(16, 16), Texture::WM_TILES);
-	p_lava[1] = p_sprites->createSubTexture(Vec2i(32, 480), Vec2i(16, 16), Texture::WM_TILES);
+	p_lava[0] = p_sprites->createSubTexture(Vec2i(0, 480), Vec2i(16, 16), Texture::WM_WRAP);
+	p_lava[1] = p_sprites->createSubTexture(Vec2i(32, 480), Vec2i(16, 16), Texture::WM_WRAP);
 	if(p_oldLava[0]) p_oldLava[0]->release();
 	if(p_oldLava[1]) p_oldLava[1]->release();
 
@@ -2494,17 +2494,17 @@ void Level::loadSkin(bool forceReload)
 
 	// load the rain
 	Texture* p_oldRain = p_rain;
-	p_rain = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_RAIN), Texture::WM_TILES);
+	p_rain = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_RAIN), Texture::WM_REPEAT);
 	if(p_oldRain) p_oldRain->release();
 
 	// load the clouds
 	Texture* p_oldClouds = p_clouds;
-	p_clouds = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_CLOUDS), Texture::WM_TILES);
+	p_clouds = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_CLOUDS), Texture::WM_REPEAT);
 	if(p_oldClouds) p_oldClouds->release();
 
 	// load the snow
 	Texture* p_oldSnow = p_snow;
-	p_snow = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SNOW), Texture::WM_TILES);
+	p_snow = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SNOW), Texture::WM_REPEAT);
 	if(p_oldSnow) p_oldSnow->release();
 
 	// load the background image

@@ -13,13 +13,27 @@ class Texture : public Resource<Texture>
 public:
 	// How the picture is sampled outside its own edges, given at the request
 	// rather than set afterwards: it decides how the texture is built, and
-	// that has to be known before the upload. A tiling picture needs a GL
-	// texture to itself, because GL_REPEAT wraps at the texture's edge and
-	// not at the picture's - so it can never share a page with others.
+	// that has to be known before the upload. Two of the three are the GL
+	// modes of the same name; the middle one is the renderer wrapping the
+	// picture itself, which is what lets a tiling picture share a page.
 	enum WrapMode
 	{
-		WM_CLAMP = 0, // nothing samples this outside its own edges
-		WM_TILES      // scrolled without bound; GL_REPEAT is what makes it tile
+		// Nothing samples this outside its own edges. Inside a page its
+		// gutter copies its own edge, which is what GL_CLAMP_TO_EDGE returned.
+		WM_CLAMP = 0,
+
+		// Tiled, but by Renderer::tiledQuad, which cuts the quad at the
+		// picture's edges so that every piece samples one copy of it. No
+		// piece reads past an edge, so this packs like a clamped one, and its
+		// gutter copies the *opposite* edge - which is what GL_REPEAT
+		// returned for the one texel linear filtering reaches there.
+		WM_WRAP,
+
+		// Tiled by GL_REPEAT, which wraps at the texture's edge and not at
+		// the picture's, so this needs a GL texture to itself and can never
+		// share a page. The weather: scrolled without bound and rotated with
+		// it, so the cuts a split would need are not axis-aligned.
+		WM_REPEAT
 	};
 
 	void reload();
@@ -32,7 +46,7 @@ public:
 	WrapMode getWrapMode() const;
 
 	// A second request for a picture already loaded, with the wrap mode that
-	// request asked for. Only an upgrade to WM_TILES does anything, and it
+	// request asked for. Only an upgrade to WM_REPEAT does anything, and it
 	// reloads for the same reason keepInMemory() does: the flag alone does
 	// not move a texture that has already been built the other way. The other
 	// direction needs nothing - a tiling texture drawn without tiling is

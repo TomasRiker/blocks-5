@@ -172,7 +172,7 @@ void Texture::place()
 {
 	TextureAtlas& atlas = TextureAtlas::inst();
 	TextureAtlas::Slot slot;
-	if(wrapMode == WM_CLAMP && atlas.reserve(this, size, &slot))
+	if(wrapMode != WM_REPEAT && atlas.reserve(this, size, &slot))
 	{
 		// In a page: uv reads in page texels from the picture's corner, and
 		// the caller goes on writing its own.
@@ -181,7 +181,7 @@ void Texture::place()
 		const float edge = static_cast<float>(atlas.getPageEdge());
 		texelScale = Vec2f(1.0f / edge, 1.0f / edge);
 		uvOrigin = Vec2f(static_cast<float>(slot.origin.x) / edge, static_cast<float>(slot.origin.y) / edge);
-		if(!uploadPadded(texID, slot.origin, p_rgba, false, filename.c_str())) error = 1;
+		if(!uploadPadded(texID, slot.origin, p_rgba, wrapMode == WM_WRAP, filename.c_str())) error = 1;
 		return;
 	}
 
@@ -230,7 +230,7 @@ void Texture::cleanUp()
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, texelScale, uvOrigin, wrapMode == WM_TILES);
+	return TextureRef(texID, texelScale, uvOrigin, wrapMode == WM_REPEAT);
 }
 
 Texture::WrapMode Texture::getWrapMode() const
@@ -240,11 +240,11 @@ Texture::WrapMode Texture::getWrapMode() const
 
 void Texture::reuseWithOptions(int options)
 {
-	if(static_cast<WrapMode>(options) != WM_TILES || wrapMode == WM_TILES) return;
+	if(static_cast<WrapMode>(options) != WM_REPEAT || wrapMode == WM_REPEAT) return;
 
 	printfLog("> INFO: The image \"%s\" was loaded without tiling and is now wanted with it; reloading.\n",
 			  filename.c_str());
-	wrapMode = WM_TILES;
+	wrapMode = WM_REPEAT;
 	if(texID) reload();
 }
 
@@ -373,16 +373,15 @@ Vec4f Texture::getPixel(const Vec2i& where) const
 void Texture::applyWrapMode() const
 {
 	Renderer::DirectGL direct;
-	// GL_REPEAT is a fresh texture's default and only WM_TILES wants it: rain,
-	// snow, the clouds and the lava tile by a scrolling coordinate, and
+	// GL_REPEAT is a fresh texture's default and only WM_REPEAT wants it: the
+	// rain, the snow and the clouds scroll without bound, and
 	// wrapTextureOffset() reduces that offset to one period precisely because
 	// REPEAT makes a whole period an exact no-op.
 	//
-	// Everything else is clamped, and that costs nothing to say: what is
-	// declared WM_CLAMP never samples outside its own edges, so the two modes
-	// draw the same picture today. Saying it is what lets such a texture share
-	// a page with others later, where a coordinate that ran past an edge would
-	// read whatever was packed next door instead of wrapping.
+	// Everything else is clamped, WM_WRAP included: a picture the renderer
+	// tiles for itself is cut so that no piece reads past an edge, and it
+	// lives in a page, where GL_REPEAT would wrap to the far side of the page
+	// rather than to the far side of the picture.
 	//
 	// WebGL 1 forces the same hand for a non-power-of-two texture: it is
 	// complete only sampled with CLAMP_TO_EDGE and without mipmaps, and
@@ -391,17 +390,17 @@ void Texture::applyWrapMode() const
 	// deliberately under Windows too, where NPOT with REPEAT would work,
 	// because a 300x200 rain that tiled for its author and not for his players
 	// is the worse failure.
-	if(wrapMode == WM_TILES && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
+	if(wrapMode == WM_REPEAT && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void Texture::checkDimensions()
 {
-	// Only a tiling picture has to be a power of two, and only because WebGL 1
-	// will not repeat anything else (applyWrapMode above). A clamped one is
-	// complete at any size on every platform this builds for.
-	if(wrapMode != WM_TILES) return;
+	// Only a GL_REPEAT picture has to be a power of two, and only because
+	// WebGL 1 will not repeat anything else (applyWrapMode above). Every other
+	// one is complete at any size on every platform this builds for.
+	if(wrapMode != WM_REPEAT) return;
 	if(nextPow2(size.x) != size.x || nextPow2(size.y) != size.y)
 	{
 		printfLog("- WARNING: The image \"%s\" is %dx%d, which is not a power of two, so it cannot tile in a browser and will be clamped.\n",

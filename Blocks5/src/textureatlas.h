@@ -15,9 +15,11 @@ class Texture;
 // texel scale and the origin the picture's TextureRef carries.
 //
 // That is exactly why the wrap mode is declared at the request
-// (Texture::WM_TILES): GL_REPEAT wraps at the *texture's* edge, so a tiling
-// picture in a page would read whatever was packed next door. Those keep a
-// texture of their own.
+// (Texture::WM_REPEAT): GL_REPEAT wraps at the *texture's* edge, so a picture
+// in a page would read whatever was packed next door. Those keep a texture of
+// their own. A picture the renderer tiles itself (WM_WRAP) does share a page,
+// because Renderer::tiledQuad cuts the quad so that no piece reads past an
+// edge; its gutter copies the opposite edge rather than its own.
 //
 // Sampling is bit for bit what it was, and the reason is that a page's edge is
 // a power of two: px/pageEdge and origin/pageEdge are both exact in float and

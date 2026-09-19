@@ -218,7 +218,7 @@ void GS_Menu::onUpdate()
 void GS_Menu::onEnter(const ParameterBlock& context)
 {
 	// load the images
-	p_clouds = Manager<Texture>::inst().request("clouds.png", Texture::WM_TILES);
+	p_clouds = Manager<Texture>::inst().request("clouds.png", Texture::WM_REPEAT);
 	p_background = Manager<Texture>::inst().request("menu.png");
 
 	// build the menu

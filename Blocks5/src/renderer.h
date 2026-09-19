@@ -131,9 +131,16 @@ public:
 	// scale (Mat4::scaling), as the matrix under a bind did, so what reaches
 	// the stream is already normalised and no origin can be added to it - the
 	// whole texture is the picture. That is only true of a texture nothing
-	// shares, which is what WM_TILES declares, and checkTiling() below is
+	// shares, which is what WM_REPEAT declares, and checkTiling() below is
 	// what holds a caller to it.
 	void scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
+
+	// A quad that samples more than one copy of its picture, cut at the
+	// picture's edges into quads that each sample one, so that a tiling
+	// picture can live in an atlas page. size is the picture's own size in
+	// texels; renderer.cpp has what the uv may and may not be.
+	void tiledQuad(const RenderState& s, const Vec2f& size, const Vec2f* p_corners,
+				   const Vec2f* p_uvs, const Vec4f* p_colors);
 
 	// One quad from four corners in order, one colour or a colour a corner;
 	// the last is flat with a colour a corner, the GUI's gradients.

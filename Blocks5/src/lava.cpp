@@ -130,7 +130,12 @@ void Lava::onRender(RenderLayer layer,
 								  Vec2f(t.x + 16.0f, t.y),
 								  Vec2f(t.x + 16.0f, t.y + 16.0f),
 								  Vec2f(t.x, t.y + 16.0f)};
-			renderer.quad(state, corners, uvs, colors);
+			// Exactly one copy of the tile at an offset, so the renderer cuts
+			// it into the two or four pieces that each sample one copy. That
+			// is what lets the tile sit in an atlas page with the sprites it
+			// was cut from, rather than needing GL_REPEAT and a texture of its
+			// own - the lava passes then cost no texture change at all.
+			renderer.tiledQuad(state, Vec2f(16.0f, 16.0f), corners, uvs, colors);
 		}
 	}
 	else if(layer == RL_LIGHT)
