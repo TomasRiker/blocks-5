@@ -2,7 +2,7 @@
 #include "texture.h"
 #include "filesystem.h"
 
-Texture::Texture(const std::string& filename) : Resource(filename)
+Texture::Texture(const std::string& filename, int options) : Resource(filename)
 {
 	p_rgba = 0;
 	texID = 0;
@@ -10,6 +10,7 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 	offset = Vec2i(0, 0);
 	size = Vec2i(-1, -1);
 	texelScale = Vec2f(1.0f, 1.0f);
+	wrapMode = static_cast<WrapMode>(options);
 	p_parent = 0;
 
 	reload();
@@ -17,7 +18,8 @@ Texture::Texture(const std::string& filename) : Resource(filename)
 
 Texture::Texture(Texture* p_parent,
 				 const Vec2i& offset,
-				 const Vec2i& size) : Resource(p_parent->filename)
+				 const Vec2i& size,
+				 WrapMode wrapMode) : Resource(p_parent->filename)
 {
 	p_rgba = 0;
 	texID = 0;
@@ -25,6 +27,7 @@ Texture::Texture(Texture* p_parent,
 	this->offset = offset;
 	this->size = size;
 	texelScale = Vec2f(1.0f, 1.0f);
+	this->wrapMode = wrapMode;
 	this->p_parent = p_parent;
 
 	loadSubTexture(p_parent, offset, size);
@@ -142,7 +145,24 @@ void Texture::cleanUp()
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, texelScale);
+	// The origin is the texture's own corner for as long as every picture has
+	// a GL texture to itself.
+	return TextureRef(texID, texelScale, Vec2f(0.0f, 0.0f), wrapMode == WM_TILES);
+}
+
+Texture::WrapMode Texture::getWrapMode() const
+{
+	return wrapMode;
+}
+
+void Texture::reuseWithOptions(int options)
+{
+	if(static_cast<WrapMode>(options) != WM_TILES || wrapMode == WM_TILES) return;
+
+	printfLog("> INFO: The image \"%s\" was loaded without tiling and is now wanted with it; reloading.\n",
+			  filename.c_str());
+	wrapMode = WM_TILES;
+	if(texID) reload();
 }
 
 uint Texture::createGLTexture(const Vec2i& size,
@@ -170,11 +190,12 @@ uint Texture::createGLTexture(const Vec2i& size,
 }
 
 Texture* Texture::createSubTexture(const Vec2i& offset,
-								   const Vec2i& size)
+								   const Vec2i& size,
+								   WrapMode wrapMode)
 {
 	if(!doKeepInMemory) return 0;
 
-	return new Texture(this, offset, size);
+	return new Texture(this, offset, size, wrapMode);
 }
 
 void Texture::loadSubTexture(Texture* p_parent,
@@ -279,29 +300,38 @@ Vec4f Texture::getPixel(const Vec2i& where) const
 void Texture::applyWrapMode() const
 {
 	Renderer::DirectGL direct;
-	// WebGL 1 treats a texture whose edge lengths are not powers of two as
-	// complete only if it is sampled with CLAMP_TO_EDGE and without mipmaps.
-	// Otherwise every access returns black - not as an error but silently.
-	// The default is GL_REPEAT, and rain, snow and clouds rest on it: they
-	// tile by a scrolling texture matrix, and wrapTextureOffset() keeps that
-	// offset inside one period precisely because REPEAT makes a whole period
-	// an exact no-op. Therefore do not switch it across the board, but exactly
-	// where REPEAT could never have worked anyway.
+	// GL_REPEAT is a fresh texture's default and only WM_TILES wants it: rain,
+	// snow, the clouds and the lava tile by a scrolling coordinate, and
+	// wrapTextureOffset() reduces that offset to one period precisely because
+	// REPEAT makes a whole period an exact no-op.
 	//
-	// The game's own art is all power of two, which leaves imported skins as
-	// the only case here. Deliberately under Windows too, where NPOT with
-	// REPEAT would work: otherwise a 300x200 rain would tile for the author
-	// and not for his players.
-	if(nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
+	// Everything else is clamped, and that costs nothing to say: what is
+	// declared WM_CLAMP never samples outside its own edges, so the two modes
+	// draw the same picture today. Saying it is what lets such a texture share
+	// a page with others later, where a coordinate that ran past an edge would
+	// read whatever was packed next door instead of wrapping.
+	//
+	// WebGL 1 forces the same hand for a non-power-of-two texture: it is
+	// complete only sampled with CLAMP_TO_EDGE and without mipmaps, and
+	// otherwise every access returns black, silently and with no GL error. The
+	// game's own art is all power of two, so this is imported skins alone -
+	// deliberately under Windows too, where NPOT with REPEAT would work,
+	// because a 300x200 rain that tiled for its author and not for his players
+	// is the worse failure.
+	if(wrapMode == WM_TILES && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void Texture::checkDimensions()
 {
+	// Only a tiling picture has to be a power of two, and only because WebGL 1
+	// will not repeat anything else (applyWrapMode above). A clamped one is
+	// complete at any size on every platform this builds for.
+	if(wrapMode != WM_TILES) return;
 	if(nextPow2(size.x) != size.x || nextPow2(size.y) != size.y)
 	{
-		// This could cause trouble.
-		printfLog("- WARNING: Creating non-pow2 texture! Filename=\"%s\", Size=%dx%d\n", filename.c_str(), size.x, size.y);
+		printfLog("- WARNING: The image \"%s\" is %dx%d, which is not a power of two, so it cannot tile in a browser and will be clamped.\n",
+				  filename.c_str(), size.x, size.y);
 	}
 }

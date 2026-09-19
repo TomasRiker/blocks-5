@@ -38,6 +38,12 @@ public:
 		return timestamp;
 	}
 
+	// A request for a resource that is already loaded carries its options
+	// again, and they have to agree with the ones it was built under. Only
+	// Texture has any, and only Texture hides this - the call is resolved on
+	// T*, so the empty one costs nothing anywhere else.
+	void reuseWithOptions(int) {}
+
 protected:
 	Resource(const std::string& filename) : filename(filename)
 	{

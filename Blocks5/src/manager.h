@@ -46,16 +46,22 @@ public:
 		return p_newestResource;
 	}
 
+	// options are the resource type's own - Texture reads them as a
+	// Texture::WrapMode and the other four ignore them. They are given here
+	// rather than set afterwards because they decide how the resource is
+	// built: a texture that tiles cannot share an atlas page, and that has to
+	// be known before it is uploaded rather than after.
 	T* request(const std::string& filename,
-			   bool forceReload = false)
+			   int options = 0)
 	{
-		if(!T::forceReload() && !forceReload)
+		if(!T::forceReload())
 		{
 			// object already loaded?
 			T* p_resource = find(filename);
 			if(p_resource)
 			{
 				// yes, raise the reference counter and return the loaded object
+				p_resource->reuseWithOptions(options);
 				p_resource->refCounter++;
 				return p_resource;
 			}
@@ -67,7 +73,7 @@ public:
 #endif
 
 		// load the object afresh and return it
-		T* p_item = new T(filename);
+		T* p_item = new T(filename, options);
 		if(p_item->error)
 		{
 			printfLog("+ ERROR: Could not load resource \"%s\" (Error: %d).\n",

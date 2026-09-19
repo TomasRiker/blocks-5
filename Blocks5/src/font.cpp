@@ -98,7 +98,7 @@ namespace
 	}
 }
 
-Font::Font(const std::string& filename) : Resource(filename)
+Font::Font(const std::string& filename, int) : Resource(filename)
 {
 	liveFonts.push_back(this);
 

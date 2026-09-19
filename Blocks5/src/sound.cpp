@@ -6,7 +6,7 @@
 
 std::set<SoundInstance*> Sound::allInstances;
 
-Sound::Sound(const std::string& filename) : Resource(filename)
+Sound::Sound(const std::string& filename, int) : Resource(filename)
 {
 	bufferID = 0;
 	lastInstanceCreatedAt = 0;

@@ -4,7 +4,7 @@
 #include "audiostream.h"
 #include "engine.h"
 
-StreamedSound::StreamedSound(const std::string& filename) : Resource(filename)
+StreamedSound::StreamedSound(const std::string& filename, int) : Resource(filename)
 {
 	p_stream = 0;
 	p_buffer = 0;

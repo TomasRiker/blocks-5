@@ -128,8 +128,12 @@ public:
 	// A quad whose texture coordinates go through a matrix first, in the
 	// float arithmetic GL's texture matrix used: the weather and the menu's
 	// clouds scroll that way. The matrix starts from the texture's texel
-	// scale (Mat4::scaling), as the matrix under a bind did.
-	void scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
+	// scale (Mat4::scaling), as the matrix under a bind did, so what reaches
+	// the stream is already normalised and no origin can be added to it - the
+	// whole texture is the picture. That is only true of a texture nothing
+	// shares, which is what WM_TILES declares, and checkTiling() below is
+	// what holds a caller to it.
+	void scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
 
 	// One quad from four corners in order, one colour or a colour a corner;
 	// the last is flat with a colour a corner, the GUI's gradients.
@@ -283,6 +287,7 @@ private:
 	void applyState();
 	void draw();
 	void checkRecord();
+	void checkTiling(const RenderState& s, const float* p_u, const float* p_v);
 	void bakePoint(float x, float y, float* p_outX, float* p_outY) const;
 	RenderState flatState() const;
 	void bindReal(uint id);

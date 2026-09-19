@@ -11,6 +11,17 @@ class Texture : public Resource<Texture>
 	friend class Manager<Texture>;
 
 public:
+	// How the picture is sampled outside its own edges, given at the request
+	// rather than set afterwards: it decides how the texture is built, and
+	// that has to be known before the upload. A tiling picture needs a GL
+	// texture to itself, because GL_REPEAT wraps at the texture's edge and
+	// not at the picture's - so it can never share a page with others.
+	enum WrapMode
+	{
+		WM_CLAMP = 0, // nothing samples this outside its own edges
+		WM_TILES      // scrolled without bound; GL_REPEAT is what makes it tile
+	};
+
 	void reload();
 	void cleanUp();
 
@@ -18,6 +29,15 @@ public:
 	// which is what makes texture coordinates read in its own texels.
 	TextureRef ref() const;
 	const Vec2i& getSize() const;
+	WrapMode getWrapMode() const;
+
+	// A second request for a picture already loaded, with the wrap mode that
+	// request asked for. Only an upgrade to WM_TILES does anything, and it
+	// reloads for the same reason keepInMemory() does: the flag alone does
+	// not move a texture that has already been built the other way. The other
+	// direction needs nothing - a tiling texture drawn without tiling is
+	// right, only not packed.
+	void reuseWithOptions(int options);
 
 	// A GL texture that is not a picture from a file: the frame copies and
 	// the rewind's noise, from pixels or empty where p_pixels is 0, RGBA or
@@ -37,7 +57,7 @@ public:
 	// keep one.
 	static void freeUnkeptPixels();
 
-	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size);
+	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size, WrapMode wrapMode);
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 
 	// Keep the pixels in memory for getPixel() to read. Reloads the texture if
@@ -54,14 +74,14 @@ public:
 	bool hasPixels() const;
 
 private:
-	Texture(const std::string& filename);
+	Texture(const std::string& filename, int options);
 	// A part of another picture, for createSubTexture(): copies the region
 	// straight out of the parent's pixels, without decoding the file first.
-	Texture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
+	Texture(Texture* p_parent, const Vec2i& offset, const Vec2i& size, WrapMode wrapMode);
 	~Texture();
 
-	// Sets GL_TEXTURE_WRAP_S/T if the edge lengths are not powers of two. Must
-	// run while the texture is bound.
+	// Sets GL_TEXTURE_WRAP_S/T from the declared wrap mode. Must run while the
+	// texture is bound.
 	void applyWrapMode() const;
 	void checkDimensions();
 	void freePixels();
@@ -78,6 +98,7 @@ private:
 	// nothing else, so it is kept as the two numbers it is made of rather
 	// than as sixteen.
 	Vec2f texelScale;
+	WrapMode wrapMode;
 	Texture* p_parent;
 };
 

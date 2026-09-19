@@ -6,7 +6,7 @@ Crossfade::Crossfade()
 {
 	Engine& engine = Engine::inst();
 	screenSize = engine.getScreenSize();
-	screenTexelScale = engine.getFrameCopyRef(0).texelScale;
+	screenRef = engine.getFrameCopyRef(0);
 }
 
 Crossfade::~Crossfade()
@@ -21,7 +21,7 @@ void Crossfade::render(float t,
 
 RenderState Crossfade::imageState(uint imageID) const
 {
-	return RenderState(TextureRef(imageID, screenTexelScale), BM_NORMAL);
+	return RenderState(TextureRef(imageID, screenRef.texelScale, screenRef.uvOrigin, screenRef.tiles), BM_NORMAL);
 }
 
 void Crossfade::drawImage(uint imageID,

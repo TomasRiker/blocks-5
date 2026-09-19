@@ -521,14 +521,23 @@ void Renderer::requireState(const RenderState& s)
 void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors)
 {
 	requireState(s);
+	float u[4], v[4];
 	for(int i = 0; i < 4; i++)
 	{
 		Vertex vertex;
 		vertex.position = p_positions[i];
-		vertex.uv = Vec2f(p_uvs[i].x * s.texture.texelScale.x, p_uvs[i].y * s.texture.texelScale.y);
+		// The one line that turns a caller's texels into the coordinate GL
+		// samples with, which is why the atlas offset is added here and
+		// nowhere else: a cache that holds uv in its own picture's texels -
+		// the tile grid, the font, the lightning - goes on being right after
+		// the picture has been moved inside a page.
+		u[i] = p_uvs[i].x * s.texture.texelScale.x + s.texture.uvOrigin.x;
+		v[i] = p_uvs[i].y * s.texture.texelScale.y + s.texture.uvOrigin.y;
+		vertex.uv = Vec2f(u[i], v[i]);
 		vertex.color = p_colors[i];
 		stream.push_back(vertex);
 	}
+	checkTiling(s, u, v);
 	if(flushAll) flush(FR_EXPLICIT);
 }
 
@@ -644,11 +653,13 @@ void Renderer::quad(const RenderState& s, const Vec2f* p_corners, const Vec2f* p
 	submit(s, x, y, u, v, p_colors);
 }
 
-void Renderer::scrolledQuad(uint textureId, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
+void Renderer::scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color)
 {
 	Vec2f uvs[4];
 	for(int i = 0; i < 4; i++) uvs[i] = textureMatrix.transformPoint2D(p_uvs[i]);
-	quad(RenderState(TextureRef(textureId, Vec2f(1.0f, 1.0f)), current.blend), p_corners, uvs, color);
+	// A scale of one and no origin: the matrix has already done both.
+	quad(RenderState(TextureRef(texture.id, Vec2f(1.0f, 1.0f), Vec2f(0.0f, 0.0f), texture.tiles), current.blend),
+		 p_corners, uvs, color);
 }
 
 void Renderer::quad(const Vec2f* p_corners, const Vec4f* p_colors)
@@ -741,8 +752,8 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 		baked.assign(p_vertices + q, p_vertices + q + n);
 		for(uint i = 0; i < n; i++)
 		{
-			baked[i].uv.x *= s.texture.texelScale.x;
-			baked[i].uv.y *= s.texture.texelScale.y;
+			baked[i].uv.x = baked[i].uv.x * s.texture.texelScale.x + s.texture.uvOrigin.x;
+			baked[i].uv.y = baked[i].uv.y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		}
 		glExtBufferData(GL_ARRAY_BUFFER, n * sizeof(Vertex3), &baked[0], GL_STREAM_DRAW);
 		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(n / 4 * 6), GL_UNSIGNED_SHORT, reinterpret_cast<const void*>(0));
@@ -1233,6 +1244,41 @@ void Renderer::checkRecord()
 }
 #else
 void Renderer::checkRecord()
+{
+}
+#endif
+
+#if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
+void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* p_v)
+{
+	// A quad that samples outside its own picture relies on GL_REPEAT, and
+	// only a texture declared Texture::WM_TILES has it. Anything else is a
+	// picture that may one day share a page, where the coordinate would land
+	// in whatever was packed beside it - so the rule is checked on every quad
+	// rather than argued about, and frames.sh fails on the line.
+	//
+	// The builtin white texture (id 0) is exempt: flat geometry samples the
+	// centre of one texel inside it and never moves.
+	static int reported = 0;
+	if(reported >= 20 || s.texture.tiles || !s.texture.id) return;
+
+	float lo = p_u[0], hi = p_u[0];
+	for(int i = 0; i < 4; i++)
+	{
+		lo = min(lo, min(p_u[i], p_v[i]));
+		hi = max(hi, max(p_u[i], p_v[i]));
+	}
+	// A texel's worth of slack, so that a coordinate that lands on the far
+	// edge by rounding is not a finding: clamping and repeating agree there.
+	const float slack = max(s.texture.texelScale.x, s.texture.texelScale.y);
+	if(lo >= -slack && hi <= 1.0f + slack) return;
+
+	reported++;
+	printfLog("+ ERROR: a quad samples %.3f .. %.3f of texture %u, which was not declared as tiling.\n",
+			  lo, hi, s.texture.id);
+}
+#else
+void Renderer::checkTiling(const RenderState&, const float*, const float*)
 {
 }
 #endif

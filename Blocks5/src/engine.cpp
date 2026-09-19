@@ -4039,8 +4039,12 @@ TextureRef Engine::getFrameCopyRef(uint textureID) const
 	// reasons at once: the game's y runs downward where GL's texture y runs
 	// up, and the copy sits at the top of the pow2 texture rather than at its
 	// origin - under GL_REPEAT a negative coordinate wraps to exactly that
-	// band.
-	return TextureRef(textureID, Vec2f(1.0f / static_cast<float>(screenPow2Size.x), -1.0f / static_cast<float>(screenPow2Size.y)));
+	// band. That wrap is the reason the ref says it tiles: it is a render
+	// target read back rather than a picture from a file, so no atlas could
+	// hold it anyway, but the renderer's check has to be told so.
+	return TextureRef(textureID,
+					  Vec2f(1.0f / static_cast<float>(screenPow2Size.x), -1.0f / static_cast<float>(screenPow2Size.y)),
+					  Vec2f(0.0f, 0.0f), true);
 }
 
 void Engine::readFrame(uchar* p_rgba)
