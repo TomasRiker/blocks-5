@@ -69,33 +69,34 @@ Three ways to read it:
   the line: this stands over the game while the game is what is being measured. It reads
 
   ```
-  fps 50  50/95/max(500) ms 16.9/20.2/56.1 draws 23/35/36  r/u/p/s 1.4/0.1/8.4/6.2  late/slow/stall 1/32/0
+  fps:50 50/95/max(500): ms:16.6/19.7/53.6 draws:22/32/34 r:1.4 u:0.1 p:8.3 s:6.1 late:1 slow:16 stall:0
   ```
 
-  **One grammar.** Every group is a name, a space, its value; a name that lists parts separated by slashes
-  — `50/95/max`, `r/u/p/s`, `late/slow/stall` — lines those parts up with the slashes in the value, one
-  for one. There is no second form: no unit glued to a number, no number before its name, no count
-  spelled as a word here and as a symbol there.
+  **One grammar: name, colon, value.** A token that *ends* in a colon is a heading instead, and what
+  follows it is read against it until the next one — which is how the two triples say once, rather than
+  twice, that they are p50, p95 and the maximum. In brackets is the ring's fill, the window every number
+  on the line is over: 500 once ten seconds have run, less while it fills.
 
-  `50/95/max(500)` is the one name that scopes more than its own value: **both** triples behind it, the
-  milliseconds and the draws, are read against it, and a single space binds them to it where two spaces
-  separate the line's groups. Said once rather than twice because twice does not fit — and a triple
-  nobody can decode is worth less than the width it takes. In brackets is the ring's fill, the window
-  every number on the line is over: 500 once ten seconds have run, less while it fills. `r/u/p/s` are render, update, present and swap
-  at their **median**, in the same milliseconds as the triple before them: a percentile of a part would
-  not add up to one of the whole. The three counts are what the player would have noticed: a frame they
-  did not get (interval over two ticks), one the game did not fit into its budget (work over one), and
-  one long enough to leave a hole in the music (work over 500 ms). The thresholds live here rather than
-  in the line, being constants.
+  **The colon is what lets a single space separate the tokens.** It binds a name to its value more
+  tightly than any amount of space, so nothing needs a wider gap to group it and nothing is glued
+  together to save one. It is also narrower than the space it replaces — 3 px against 5 — which is why
+  the four phases can afford a name each (`r:` `u:` `p:` `s:`) where they shared one before.
+
+  `r`/`u`/`p`/`s` are render, update, present and swap at their **median**, in the same milliseconds as
+  the triple before them: a percentile of a part would not add up to one of the whole. The three counts
+  are what the player would have noticed: `late`, a frame they did not get (**interval** over two ticks,
+  40 ms); `slow`, one the game did not fit into its budget (**work** over one tick); `stall`, one long
+  enough to leave a hole in the music (**work** over 500 ms, Emscripten's audio lookahead — natively
+  almost always 0, since the decoder thread fills the queue whatever the main thread does). The
+  thresholds live here rather than in the line, being constants — and they cannot be written as one
+  ladder, because the first counts a different series from the other two.
 
   It is written to fit at its *widest*, not at its usual, because the numbers grow exactly when something
-  is wrong. Measured against the font's own advances and confirmed on screen: **560 px of 640** as above,
-  580 with a level load's stall still inside the window. **One arm does not fit**: `-flushall` on a slow
-  machine, at 665, where every quad is its own draw, so four-figure draws stand beside four-figure
-  milliseconds and three-figure counts, and the tail of the last count is cut off. The bracketed window
-  costs 28 px of that — the same arm measures 637 without it — and buying it back would mean giving up
-  a measurement: `present` and `swap` read as one number natively (see above), so `r/u/p` in place of
-  `r/u/p/s` would fit at 630.
+  is wrong. Measured against the font's own advances and confirmed on screen: **531 px of 640** as above,
+  548 with a level load's stall still inside the window, and **633** under `-flushall` on a slow machine,
+  where every quad is its own draw and the milliseconds, the draws and the counts stand at their widest
+  at once. That last arm is what the punctuation bought: the same line with a space for every colon and
+  wider gaps between the groups measured 665 and lost its tail.
 
   Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and clears the stats, giving
   the upper bound of a frame that draws nothing.

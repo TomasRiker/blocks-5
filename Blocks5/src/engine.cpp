@@ -2816,41 +2816,40 @@ void Engine::drawPerformance()
 	// natively the decoder thread fills the queue whatever the main thread is
 	// doing.
 	//
-	// One line, and one grammar for every group in it: a name, a space, its
-	// value. A name that lists parts separated by slashes - 50/95/max,
-	// r/u/p/s, late/slow/stall - lines those parts up with the slashes in the
-	// value, one for one. Nothing else appears: no unit glued to a number, no
-	// number before its name, no count spelled out in words in one place and
-	// as a symbol in another.
+	// One line, and one grammar for every token in it: name, colon, value. A
+	// token that *ends* in a colon is a heading instead, and what follows it
+	// is read against it until the next one - which is how the two triples say
+	// once, rather than twice, that they are p50, p95 and the maximum. In
+	// brackets is the ring's fill, the window all of it is over: 500 once ten
+	// seconds have run, less while it fills.
 	//
-	// 50/95/max(500) is the one name that scopes more than its own value: the
-	// two triples behind it, milliseconds and draws, are both read against it,
-	// and a single space binds them to it where two spaces separate the groups
-	// of the line. Said once rather than twice, because twice does not fit -
-	// and a triple of numbers nobody can decode is worth less than the width
-	// it takes. In brackets is the ring's fill, the window all of it is over:
-	// 500 once ten seconds have run, less while it fills.
+	// The colon is what lets one space separate the tokens: it binds a name to
+	// its value more tightly than any amount of space, so nothing has to be
+	// grouped by a wider gap and nothing is glued together to save one. It is
+	// also narrower than the space it replaces - 3 px against 5 - which is why
+	// the four phases can afford a name each here where they shared one
+	// before.
 	//
-	// The four phases are medians, in the same milliseconds as the triple
-	// before them: a percentile of a part would not add up to one of the
-	// whole. The three counts are what the player would have noticed - a frame
-	// they did not get, one the game did not fit into its budget, one long
-	// enough to leave a hole in the music - and perf.md has the thresholds,
-	// which are constants and do not need restating fifty times a second.
+	// The phases are medians, in the same milliseconds as the triple before
+	// them: a percentile of a part would not add up to one of the whole. The
+	// three counts are what the player would have noticed - a frame they did
+	// not get, one the game did not fit into its budget, one long enough to
+	// leave a hole in the music - and perf.md has the thresholds, which are
+	// constants and do not need restating fifty times a second.
 	//
 	// It is written to fit at its widest, not at its usual, because the
 	// numbers grow exactly when something is wrong. Measured against the
-	// font's own advances: 560 px of 640 as it usually reads and 580 with a
-	// level load's stall still in the window. The one case that does not fit
-	// is -flushall on a slow machine, at 665: there every quad is its own
-	// draw, so the draws go to four figures while the milliseconds are there
-	// too, and the tail of the last count is cut off. The bracketed 500 costs
-	// 28 px of that; without it the same arm measures 637.
+	// font's own advances: 531 px of 640 as it usually reads, 548 with a level
+	// load's stall still in the window, and 633 under -flushall on a slow
+	// machine, where every quad is its own draw and the milliseconds, the
+	// draws and the counts stand at their widest at once. That last arm is the
+	// one the spaces used to cost: the same line with a space for every colon
+	// and wider gaps between the groups measured 665, and lost its tail.
 	const float budget = static_cast<float>(logicRate);
 	char line[160];
 	snprintf(line, sizeof(line),
-			 "fps %.0f  50/95/max(%u) ms %.1f/%.1f/%.1f draws %.0f/%.0f/%.0f"
-			 "  r/u/p/s %.1f/%.1f/%.1f/%.1f  late/slow/stall %u/%u/%u",
+			 "fps:%.0f 50/95/max(%u): ms:%.1f/%.1f/%.1f draws:%.0f/%.0f/%.0f"
+			 " r:%.1f u:%.1f p:%.1f s:%.1f late:%u slow:%u stall:%u",
 			 interval > 0.0f ? 1000.0f / interval : 0.0f,
 			 frameStats.getCount(),
 			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
