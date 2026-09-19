@@ -548,12 +548,12 @@ fi
 # answers no. Text on black - the thanks dropped, so this is the programming
 # credit, at a charScaling held at 1 and therefore cached.
 #
-# 4000 where the ending's frame is 6000, and the two are not comparable: this
+# 4500 where the ending's frame is 6000, and the two are not comparable: this
 # version's clock starts at zero rather than two seconds before it, since it
 # has no star field to fade up and nothing to establish, so sceneTick begins
-# at 2000 and 4000 is two seconds in - the programming credit four fifths of
-# the way through its fade. Clear of 2.5 s, where the fade turns round and the
-# frame would sit on the branch it turns on.
+# at 2000 and 4500 is two and a half seconds in - the programming credit four
+# fifths of the way through its fade, which begins half a second in. Clear of
+# the point the fade turns round on, where the frame would sit on a branch.
 #
 # No lockstep, and that is the point rather than an omission: with nothing
 # drawn back out of the last frame the picture belongs to the tick alone, so
@@ -564,7 +564,7 @@ fi
 if wanted credits-plain; then
 	b5_ask "state GS_Credits" >/dev/null
 	b5_waitForState GS_Credits
-	b5_frame credits-plain 4000
+	b5_frame credits-plain 4500
 	b5_release
 	b5_ask "state GS_Menu" >/dev/null
 	b5_waitForState GS_Menu
