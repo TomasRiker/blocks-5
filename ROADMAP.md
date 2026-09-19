@@ -1187,47 +1187,135 @@ game gives up, written once per platform, in English because it runs before
 ---------------------------------------------------------------------------------
 The renderer batches until the texture or the blend changes, and in a dialog the
 texture changes at every step down it - the skin's frames, then a string, then
-an icon - which is what `byReason.texture` in the test hook's `batch` counts and
-what a `frames.sh` run prints per scene: in `options` 65 of the 71 draws a frame
-end on a texture change, in `menu` 26 of 29. An atlas removes the cut at its source:
-pictures that share a binding need no flush between them, so sprites and tiles
-could be drawn together, and so could the GUI and the font. **That number, the
-flushes a scene pays for texture changes alone, is what decides this item**, and
+an icon. `byReason.texture` in the test hook's `batch` counts it and `frames.sh`
+prints it per scene; measured on the current binary, it is nearly all of what
+ends a batch anywhere:
+
+| scene | draws/frame | texture flushes | everything else | texture's share |
+| --- | --- | --- | --- | --- |
+| `manager` | 57.2 | 36592 | 4160 | 88% |
+| `options` | 71.2 | 17485 | 1395 | 91% |
+| `help` | 73.0 | 845 | 104 | 81% |
+| `lava` | 24.3 | 12392 | 3396 | 75% |
+| `select` | 28.0 | 2057 | 1210 | 61% |
+
+An atlas removes the cut at its source: pictures that share a binding need no
+flush between them, so tiles and sprites are drawn together, and so are a
+dialog's frames and its captions. **That column is what decides this item**, and
 it is measured now rather than guessed.
 
-**Which textures are worth it is not obvious, and the sizes decide it.** The big
-ones are full-screen backdrops bound once a frame - `background.png` at
-1024x1024, `menu.png`, `selectlevel.png`, `title.png` and `campaigneditor.png` at
-1024x512, `buttons.png` at 512x1024 - and atlassing one of those gains nothing
-while filling the sheet. What is bound over and over is small: a played level's
-`tileset.png` (128x128), `sprites.png` (256x1024), `particles.png` and
-`shine.png` (128x128 each), plus `data/font.png` (512x256), `gui.png` and
-`misc.png` (256x256), `icons.png` (256x128), `lava_edges.png` (128x64) and
-`lightning.png` (256x16). Those ten are 618496 texels between them, 59% of a
-single 1024x1024 sheet, so the whole of what a level and its HUD draw from fits
-in one atlas with room for the padding, and that is the version to build.
+**The mechanism is one line, and that is not luck.** Every caller writes uv in
+the picture's own texels and hands a `TextureRef`; `Renderer::pushQuad` is the
+single place any of it is normalised:
 
-**Four of a level's textures can never go in**, and they are exactly the ones
-that look like they should: `rain.png`, `snow.png`, `clouds.png` and `noise.png`
-are scrolled under `GL_REPEAT` without bound, which wraps the whole texture and
-not a region of one. The lava is the same case one step further along -
-`createSubTexture` cuts a real 16x16 texture out of the skin's sheet precisely so
-that `GL_REPEAT` wraps at 16.
+```cpp
+vertex.uv = Vec2f(p_uvs[i].x * s.texture.texelScale.x, p_uvs[i].y * s.texture.texelScale.y);
+```
 
-**The mechanics are cheap now.** Every caller writes uv in texels and the
-renderer normalises at submission through `TextureRef::texelScale`, so an atlas
-is a per-`Texture` origin and scale within its sheet instead of an id of its own
-- the same multiply, with an offset added, in the one place it already happens.
-The tile and font caches keep their 16-byte `QuadVertex`; their uv is normalised
-once when an entry is built, which is where the atlas offset would go too.
+Relocating a picture inside a bigger one is therefore `+ uvOrigin` on that line
+and a third member on `TextureRef`, zero for a texture that owns its GL name.
+**No call site changes at all.** Nor does either geometry cache: the tile grid
+and the font both hold `QuadVertex` with uv **in texels** - they are normalised
+at submission, not when the entry is built - so a picture can move without a
+cache being emptied. `sprites.png` is already an atlas of 16x16 cells addressed
+that way; this is the same idea one level up.
 
-Two smaller things that bite. Every game texture is `GL_LINEAR`, so regions need
-a gutter or a duplicated edge row, since anything drawn at other than 1:1 - a
-particle, a teleport squash, the hint note turning - will fetch across a
-boundary. And an imported skin brings a `sprites.png` of a size nobody promised,
-so the sheet has to be packed at runtime when the skin loads rather than at
-build time; nothing in the tree asks `GL_MAX_TEXTURE_SIZE` today, and a 1024
-atlas needs no such question while a 2048 one does.
+**Fonts go in with no special case.** A font's PNG is an ordinary
+`Manager<Texture>` request (`font.cpp`), drawn at fixed uv and never tiled, and
+the alternation that ends most batches is precisely skin-then-font.
+
+**What can never go in, and how each one is known.** Four textures are scrolled
+under `GL_REPEAT` without bound - `rain.png`, `snow.png`, `clouds.png` through
+`Renderer::scrolledQuad`, and the rewind's `noise.png`, which writes its uv in
+fractions of the image rather than in texels. `GL_REPEAT` wraps a whole texture
+and not a region of one. The lava is the same case one step further along:
+`createSubTexture` cuts a real 16x16 texture out of the skin's sheet precisely
+so that the wrap lands at 16. Render targets - the frame copies, the offscreen
+pool, the framebuffer - never go through `Texture` at all and are out by
+construction.
+
+So a texture declares that it tiles, at `request()`, and the declaration is
+checkable rather than trusted: `scrolledQuad` should take a `TextureRef` instead
+of a raw id and fail loudly on a non-zero `uvOrigin`, the way `checkRecord`
+fails on a wrong record. A tiling texture that got packed would otherwise show
+as a wrong picture somewhere nobody was looking.
+
+**Reload is where robust is won**, and the property that makes it cheap is
+already true: **nothing stores a `TextureRef` across frames**. Every draw asks
+`p_texture->ref()` fresh - the font at its `setTexture`, the tile grid per pass,
+`Engine::renderSprite`, the credits, the crossfades - and the only kept refs are
+the renderer's own in-flight state and `getFrameCopyRef`, which is a render
+target. So a repack cannot leave a stale reference anywhere, provided the batch
+in flight is flushed first, which is exactly what `Renderer::DirectGL` already
+does on construction.
+
+Given that, the policy is the simple one rather than the clever one:
+
+- **Allocate on load, free on release, repack only when an allocation fails.**
+  A skin change is `Manager<Texture>::reload()` - release everything, load
+  everything - so it repacks once, inside the load it was already paying for.
+- **A same-size reload moves nothing.** A skin change usually replaces a
+  128x128 `tileset.png` with another 128x128 one: `glTexSubImage2D` over the
+  same region and no repack at all. Only a different size frees and reallocates.
+- **A repack re-decodes rather than keeping a second copy.** `freeUnkeptPixels()`
+  hands the decoded pixels back once a tick, so the atlas has no copy to pack
+  from - and keeping one would double the memory of every packed texture for an
+  event that happens at a level load. Re-reading the files is what the skin
+  change is already doing.
+
+**The size of the source art: agreed on the goal, not on the order.** Every one
+of the 49 PNGs in the tree has both edges a power of two, and 32% of the
+15.7 Mtexels that allocates is padding - the four 1024x1024 backgrounds hold a
+640x560 picture, `buttons.png` is 512x1024 for 251x632, the three 1024x512
+screens hold 640x480. But cropping is not a mechanical pre-step: **15 of the 49
+have ink that does not start at (0,0)**, and for the sheets those offsets are
+load-bearing - `font.xml` opens with `<Character code="0" x="2" y="0"/>`, and
+`sprites.png` is addressed by a grid that `presets.cpp` and every level file
+agree on. Cropping one of those means rewriting its coordinates.
+
+So crop the **single pictures** - backgrounds, the screens, the donate images,
+the hint sheets, which are also the biggest wins - as a trailing crop, one file
+at a time, with the oracle proving each one moves no pixel. And do it **after**
+the atlas rather than before: once the packer exists the padding costs atlas
+space and nothing else, so the crop becomes an optimisation with a number on it
+instead of a prerequisite. The packer itself must **not** crop on alpha: a
+transparent texel inside a sheet is still a texel somebody's uv addresses.
+
+**Rounding up to a power of two belongs in the upload, and it does not do what
+it looks like it does.** `checkDimensions` warns about a non-power-of-two
+texture and carries on; `applyWrapMode` then quietly turns `GL_REPEAT` into
+`GL_CLAMP_TO_EDGE` for it, because WebGL 1 samples a NPOT texture as pure black
+otherwise. Padding the upload to the next power of two fixes the *sampling*
+case - an imported sheet of any size works everywhere, which is also what makes
+cropping the source art safe - but it **cannot** fix the tiling case: repeating
+a padded texture repeats the padding. A skin whose `rain.png` is 300x200 needs
+the art to be a power of two or it needs resampling, and the right answer there
+is to say so in a toast naming the file rather than to clamp in silence. Worth
+doing on its own account, independently of this item, and worth writing down
+that it buys nothing for the four that tile.
+
+**The one real risk is the gutter.** Every texture from a file is `GL_LINEAR`,
+and while a sprite drawn 1:1 on whole pixels samples texel centres exactly,
+anything drawn otherwise does not: a falling object, a collected item on its
+way to the character, a teleport squash, the hint note turning, the credits'
+stars. At a region's edge such a draw fetches across the boundary. Inside a
+sheet that is already true today and the packing preserves it, since a sheet
+goes in whole; what changes is the **outermost edge of each source texture**,
+which today repeats or clamps and afterwards meets a neighbour. A gutter of one
+or two texels, filled by duplicating the edge rather than with transparent
+black, makes that edge behave as `CLAMP_TO_EDGE`. Whether any scene notices is
+a question for the oracle and not for this paragraph.
+
+**How it is proved.** All twenty `frames.sh` scenes byte-identical, which for
+this item is a hard constraint rather than a nicety - an atlas that moves a
+pixel has a bleed. The `byReason` column above is the win, `perf.js` says what
+the browser makes of it, and `GL_MAX_TEXTURE_SIZE` is asked nowhere in the tree
+today: a 1024 page needs no such question, a 2048 one does.
+
+**Build it in stages**, each provable on its own: the `uvOrigin` term and the
+`TILES` declaration first, with every texture still standalone and the oracle
+unchanged; then the packer with one page and the level's ten small textures;
+then the GUI and the fonts; then the crops.
 
 
 52. Documentation that describes one file belongs in that file  - **DONE**
