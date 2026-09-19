@@ -5,6 +5,57 @@
 #include "texture.h"
 #include "level.h"
 #include "cf_all.h"
+#include "campaign.h"
+
+namespace
+{
+	// The blocks the credits show, in the order they appear, with the seconds
+	// of the full version: start is when a block begins to fade in, duration
+	// how long it has before it has gone again, and consecutive blocks
+	// deliberately overlap - the two tester lists stand side by side for most
+	// of theirs.
+	//
+	// ending marks the two that address a player who has just won. They are
+	// left out of the version the menu runs before the shipped campaign is
+	// finished: "thanks for playing" is addressed to somebody who has, and
+	// "stay tuned" gives away that there is an ending to reach at all.
+	struct CreditsBlock
+	{
+		int x;
+		int y;
+		const char* p_title;
+		const char* p_text;
+		float start;
+		float duration;
+		float lineSpacing;
+		bool ending;
+	};
+
+	const CreditsBlock p_blocks[] =
+	{
+		{0, 0, "", "$C_THANKS_FOR_PLAYING", 2.0f, 5.0f, 1.0f, true},
+		{100, 100, "$C_PROGRAMMING", "David Scherfgen", 6.0f, 5.0f, 1.0f, false},
+		{-100, -100, "$C_GRAPHICS", "David Scherfgen\nPatrick Jerusalem\nin2ear Productions", 10.0f, 7.0f, 1.0f, false},
+		{-100, 100, "$C_SOUND_EFFECTS", "David Scherfgen\nin2ear Productions\nTobias Roesener", 16.0f, 7.0f, 1.0f, false},
+		{100, -100, "$C_MUSIC", "in2ear Productions\nPatrick Jerusalem\nDavid Scherfgen", 22.0f, 7.0f, 1.0f, false},
+		{-150, -150, "$C_TESTERS", "Tobias Roesener\nPatrick Jerusalem\nRolf Scherfgen\nGertrud Scherfgen\nFelix Scherfgen\nEckehard Kirmas\nIngmar Baum\nMartin Linnartz\nJan Hapke\nWilhelm Mail\xE4nder\nDennis Kleine-Arndt\nGuido Kie\xDFling\nChristian Ewald\nAlbert Kalchmair\nBernhard Kalchmair", 28.0f, 10.0f, 0.75f, false},
+		{75, -200, "$C_TESTERS_SPPRO", "Abrexxes\nAnf\xE4nger\nbabelfish\nbig_muff\nBlack-Panther\nChase\nCodingCat\nDas Gurke\nDragonFlame\nFOGX\nFred\ngrek40\nHelmut\nkaid\nLemming\nmatthias\nPaul_C.\nRiddick\nSteveKr\nThomasS", 31.0f, 10.0f, 0.75f, false},
+		{0, 0, "", "$C_STAY_TUNED", 45.0f, 8.0f, 1.0f, true}
+	};
+	const int NUM_BLOCKS = sizeof(p_blocks) / sizeof(p_blocks[0]);
+
+	// A colour a block, so that two standing together are told apart by more
+	// than their position. By the block's place in the table and not in what
+	// is shown, or the short version would recolour everything it inherits.
+	const Vec4f p_blockColors[] = {Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
+								   Vec4f(1.0f, 0.9f, 0.9f, 1.0f),
+								   Vec4f(0.9f, 1.0f, 0.9f, 1.0f),
+								   Vec4f(0.9f, 0.9f, 1.0f, 1.0f),
+								   Vec4f(1.0f, 1.0f, 0.9f, 1.0f),
+								   Vec4f(0.9f, 1.0f, 1.0f, 1.0f),
+								   Vec4f(1.0f, 0.9f, 1.0f, 1.0f)};
+	const int NUM_BLOCK_COLORS = sizeof(p_blockColors) / sizeof(p_blockColors[0]);
+}
 
 GS_Credits::GS_Credits() : GameState("GS_Credits"), engine(Engine::inst())
 {
@@ -57,85 +108,22 @@ void GS_Credits::onRender()
 
 		engine.captureFrame(bufferID);
 
-		Vec4f textColors[] = {Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
-							  Vec4f(1.0f, 0.9f, 0.9f, 1.0f),
-							  Vec4f(0.9f, 1.0f, 0.9f, 1.0f),
-							  Vec4f(0.9f, 0.9f, 1.0f, 1.0f),
-							  Vec4f(1.0f, 1.0f, 0.9f, 1.0f),
-							  Vec4f(0.9f, 1.0f, 1.0f, 1.0f),
-							  Vec4f(1.0f, 0.9f, 1.0f, 1.0f)};
-
-		struct
+		for(int i = 0; i < NUM_BLOCKS; i++)
 		{
-			Vec2i position;
-			std::string title;
-			std::string text;
-			float start;
-			float duration;
-		} texts[] = {
+			if(p_blocks[i].ending && !full) continue;
 
-		Vec2i(0, 0),
-		"",
-		"$C_THANKS_FOR_PLAYING",
-		2.0f,
-		5.0f,
-
-		Vec2i(100, 100),
-		"$C_PROGRAMMING",
-		"David Scherfgen",
-		6.0f,
-		5.0f,
-
-		Vec2i(-100, -100),
-		"$C_GRAPHICS",
-		"David Scherfgen\nPatrick Jerusalem\nin2ear Productions",
-		10.0f,
-		7.0f,
-
-		Vec2i(-100, 100),
-		"$C_SOUND_EFFECTS",
-		"David Scherfgen\nin2ear Productions\nTobias Roesener",
-		16.0f,
-		7.0f,
-
-		Vec2i(100, -100),
-		"$C_MUSIC",
-		"in2ear Productions\nPatrick Jerusalem\nDavid Scherfgen",
-		22.0f,
-		7.0f,
-
-		Vec2i(-150, -150),
-		"$C_TESTERS",
-		"Tobias Roesener\nPatrick Jerusalem\nRolf Scherfgen\nGertrud Scherfgen\nFelix Scherfgen\nEckehard Kirmas\nIngmar Baum\nMartin Linnartz\nJan Hapke\nWilhelm Mail\xE4nder\nDennis Kleine-Arndt\nGuido Kie\xDFling\nChristian Ewald\nAlbert Kalchmair\nBernhard Kalchmair",
-		28.0f,
-		10.0f,
-
-		Vec2i(75, -200),
-		"$C_TESTERS_SPPRO",
-		"Abrexxes\nAnf\xE4nger\nbabelfish\nbig_muff\nBlack-Panther\nChase\nCodingCat\nDas Gurke\nDragonFlame\nFOGX\nFred\ngrek40\nHelmut\nkaid\nLemming\nmatthias\nPaul_C.\nRiddick\nSteveKr\nThomasS",
-		31.0f,
-		10.0f,
-
-		Vec2i(0, 0),
-		"",
-		"$C_STAY_TUNED",
-		45.0f,
-		8.0f
-		};
-
-		for(int i = 0; i < sizeof(texts) / sizeof(texts[0]); i++)
-		{
-			if(t > texts[i].start && t < texts[i].start + texts[i].duration)
+			const float blockStart = p_blocks[i].start - shift;
+			if(t > blockStart && t < blockStart + p_blocks[i].duration)
 			{
-				std::string title = localizeString(texts[i].title);
-				std::string text = localizeString(texts[i].text);
+				std::string title = localizeString(p_blocks[i].p_title);
+				std::string text = localizeString(p_blocks[i].p_text);
 
 				Vec2i titleSize;
 				Vec2i textSize;
 				p_font->measureText(title, &titleSize, 0);
 				p_font->measureText(text, &textSize, 0);
 
-				float alpha = 2.0f * (t - texts[i].start) / texts[i].duration;
+				float alpha = 2.0f * (t - blockStart) / p_blocks[i].duration;
 				float scaling = 0.75f + 0.25f * alpha;
 				Vec2f offset(0.0f, 0.0f);
 				if(alpha > 1.0f)
@@ -148,14 +136,14 @@ void GS_Credits::onRender()
 
 				renderer.push();
 				renderer.translate(320.0f + offset.x, 225.0f + offset.y);
-				renderer.translate(static_cast<float>(texts[i].position.x), static_cast<float>(texts[i].position.y));
+				renderer.translate(static_cast<float>(p_blocks[i].x), static_cast<float>(p_blocks[i].y));
 				renderer.translate(static_cast<float>(titleSize.x / -2), 0.0f);
 
 				Font::Options options = p_font->getOptions();
 				options.shadows = 0;
 				options.charSpacing = 2;
 				options.charScaling = scaling;
-				options.lineSpacing = (i == 5 || i == 6) ? 0.75f : 1.0f;
+				options.lineSpacing = p_blocks[i].lineSpacing;
 				p_font->setOptions(options);
 				// Not cached: charScaling is animated, so this key belongs to this
 				// frame and to no other.
@@ -165,12 +153,12 @@ void GS_Credits::onRender()
 				renderer.push();
 
 				renderer.translate(320.0f + offset.x, 255.0f + offset.y);
-				renderer.translate(static_cast<float>(texts[i].position.x), static_cast<float>(texts[i].position.y));
+				renderer.translate(static_cast<float>(p_blocks[i].x), static_cast<float>(p_blocks[i].y));
 				renderer.translate(static_cast<float>(textSize.x / -2), 0.0f);
 
 				// Uncached for the same reason as the title above: scaling is
 				// 0.75 + 0.25 * alpha and both draws are laid out under it.
-				p_font->renderText(text, Vec2i(0, 0), textColors[i % (sizeof(textColors) / sizeof(textColors[0]))] * Vec4f(1.0f, 1.0f, 1.0f, alpha), false);
+				p_font->renderText(text, Vec2i(0, 0), p_blockColors[i % NUM_BLOCK_COLORS] * Vec4f(1.0f, 1.0f, 1.0f, alpha), false);
 
 				renderer.pop();
 			}
@@ -179,7 +167,7 @@ void GS_Credits::onRender()
 
 	float darkness = 0.0f;
 	if(t < 0.0f) darkness = -0.5f * t;
-	else if(t > 53.0f) darkness = 0.5f * (t - 53.0f);
+	else if(t > fadeAt) darkness = 0.5f * (t - fadeAt);
 	if(darkness > 0.0f)
 	{
 		renderer.rect(Vec2f(0.0f, 0.0f), Vec2f(640.0f, 480.0f), Vec4f(0.0f, 0.0f, 0.0f, darkness));
@@ -206,13 +194,21 @@ void GS_Credits::onUpdate()
 
 	updateStars();
 
-	if(time >= 54 * 1000) speed = 1;
+	// The fast-forward is let go of a second before the fade, so that the end
+	// is watched at the speed it was written at whatever was done before it.
+	if(time >= static_cast<int>((fadeAt + 1.0f) * 1000.0f)) speed = 1;
 	time += 20 * speed;
 
-	if(time == 55 * 1000) engine.playSound("character1.ogg");
-	if(time == 56 * 1000) engine.playSound("character2.ogg");
-	if(time == 57 * 1000) engine.playSound("character3.ogg");
-	if(time == 58 * 1000) engine.setGameState("GS_Menu");
+	// The three characters say goodbye into the black, two, three and four
+	// seconds after the fade begins. They belong to the ending and not to the
+	// names, so the short version has nobody to say it and no reason to wait.
+	if(full)
+	{
+		if(time == static_cast<int>((fadeAt + 2.0f) * 1000.0f)) engine.playSound("character1.ogg");
+		if(time == static_cast<int>((fadeAt + 3.0f) * 1000.0f)) engine.playSound("character2.ogg");
+		if(time == static_cast<int>((fadeAt + 4.0f) * 1000.0f)) engine.playSound("character3.ogg");
+	}
+	if(time == static_cast<int>(endAt * 1000.0f)) engine.setGameState("GS_Menu");
 
 	if(engine.wasKeyPressed(SDLK_RETURN) ||
 	   engine.wasKeyPressed(SDLK_KP_ENTER) ||
@@ -227,6 +223,35 @@ void GS_Credits::onUpdate()
 
 void GS_Credits::onEnter(const ParameterBlock& context)
 {
+	// Which of the two runs is decided here and asked of nobody: both ways in
+	// - the menu and the last level of the shipped campaign - would otherwise
+	// have to carry the answer, and the one after the campaign knows it only
+	// because the level it has just finished is already in the database.
+	full = Campaign::isBuiltInCompleted();
+
+	// Everything the short version shows moves up by the gap the blocks it
+	// drops leave at the front, so that the names begin after the same
+	// lead-in the thanks had rather than after four seconds of empty stars.
+	shift = 0.0f;
+	for(int i = 0; i < NUM_BLOCKS; i++)
+	{
+		if(p_blocks[i].ending && !full) continue;
+		shift = p_blocks[i].start - p_blocks[0].start;
+		break;
+	}
+
+	// The fade to black begins when the last block shown has gone, and the
+	// state hands back to the menu after it: five seconds in the full
+	// version, which is what the three goodbyes need, and two otherwise,
+	// which is the fade itself and nothing more.
+	fadeAt = 0.0f;
+	for(int i = 0; i < NUM_BLOCKS; i++)
+	{
+		if(p_blocks[i].ending && !full) continue;
+		fadeAt = max(fadeAt, p_blocks[i].start + p_blocks[i].duration - shift);
+	}
+	endAt = fadeAt + (full ? 5.0f : 2.0f);
+
 	time = -2000;
 	speed = 1;
 	p_font = Manager<Font>::inst().request("credits_font.xml");
@@ -256,7 +281,12 @@ void GS_Credits::onLeave(const ParameterBlock& context)
 void GS_Credits::onGetFocus()
 {
 	SDL_ShowCursor(0);
-	engine.playMusic("credits.ogg", -1.0f);
+
+	// The short version leaves the music alone: it is run from the menu, the
+	// menu's own track is playing, and swapping it for the ending's would
+	// announce an ending the player has not reached - and stop the menu music
+	// dead on the way back, since playMusic() resumes a track it never left.
+	if(full) engine.playMusic("credits.ogg", -1.0f);
 }
 
 void GS_Credits::onLoseFocus()
@@ -267,31 +297,54 @@ void GS_Credits::onLoseFocus()
 void GS_Credits::renderStars(const Mat4& projection,
 							 const Mat4& view)
 {
-	// Each star a unit quad under a matrix of its own, one draw each, in
-	// the sprite sheet's texels.
+	// Every star in one draw. quads3D takes one matrix per call, so a star
+	// that carried its own modelview into it was a flush, a buffer upload
+	// and a glDrawElements of its own: 403 draw calls a frame at 1.1 quads
+	// to a draw, where the busiest screen in the game otherwise asks for 29.
+	// What is per star is the model transform alone, and it is affine, so
+	// the four corners are put through it here - which is the arithmetic the
+	// renderer already does to every 2D quad it bakes - and projection *
+	// view, the same for all of them, rides on the draw. Measured over 500
+	// frames of the running screen under llvmpipe: 403 draw calls a frame to
+	// 4, and the median render 3.39 ms to 2.44. Read that as a floor - a
+	// software rasterizer spends its time filling, where a real driver and a
+	// phone pay most of it per call.
+	//
+	// The order is the list's, back to front, and one draw keeps it: the
+	// index buffer runs straight through the stream, so the stars blend in
+	// the order they were handed in exactly as they did one draw each. What
+	// moves is the last bit: the corner is rounded once by the model matrix
+	// and again by projection * view where it used to be rounded once by the
+	// product of all three, which redraws 197 of the oracle frame's 307200
+	// pixels by at most 3 of 255.
 	const RenderState state(p_sprites->ref(), BM_NORMAL);
 
+	starVertices.clear();
 	for(std::list<Star>::reverse_iterator i = stars.rbegin(); i != stars.rend(); ++i)
 	{
-		Mat4 modelview = view;
-		modelview.translate(i->position.x, i->position.y, i->position.z);
-		modelview.scale(i->size, i->size, i->size);
-		modelview.rotate(i->rotation.x, 1.0f, 0.0f, 0.0f);
-		modelview.rotate(i->rotation.y, 0.0f, 1.0f, 0.0f);
-		modelview.rotate(i->rotation.z, 0.0f, 0.0f, 1.0f);
+		Mat4 model = Mat4::identity();
+		model.translate(i->position.x, i->position.y, i->position.z);
+		model.scale(i->size, i->size, i->size);
+		model.rotate(i->rotation.x, 1.0f, 0.0f, 0.0f);
+		model.rotate(i->rotation.y, 0.0f, 1.0f, 0.0f);
+		model.rotate(i->rotation.z, 0.0f, 0.0f, 1.0f);
 
 		float distSq = (i->position - cameraPos).lengthSq();
 		float alpha = 1.0f / (1.0f + 0.001f * distSq);
 
 		const Vec2f t = static_cast<Vec2f>(i->positionOnTexture);
 		Vertex3 vertices[4];
-		vertices[0].position = Vec3f(-0.5f, 0.5f, 0.0f);  vertices[0].uv = t;
-		vertices[1].position = Vec3f(0.5f, 0.5f, 0.0f);   vertices[1].uv = t + Vec2f(16.0f, 0.0f);
-		vertices[2].position = Vec3f(0.5f, -0.5f, 0.0f);  vertices[2].uv = t + Vec2f(16.0f, 16.0f);
-		vertices[3].position = Vec3f(-0.5f, -0.5f, 0.0f); vertices[3].uv = t + Vec2f(0.0f, 16.0f);
+		vertices[0].position = model.transformPoint3D(Vec3f(-0.5f, 0.5f, 0.0f));  vertices[0].uv = t;
+		vertices[1].position = model.transformPoint3D(Vec3f(0.5f, 0.5f, 0.0f));   vertices[1].uv = t + Vec2f(16.0f, 0.0f);
+		vertices[2].position = model.transformPoint3D(Vec3f(0.5f, -0.5f, 0.0f));  vertices[2].uv = t + Vec2f(16.0f, 16.0f);
+		vertices[3].position = model.transformPoint3D(Vec3f(-0.5f, -0.5f, 0.0f)); vertices[3].uv = t + Vec2f(0.0f, 16.0f);
 		for(int k = 0; k < 4; k++) vertices[k].color = Vec4f(1.0f, 1.0f, 1.0f, alpha);
-		Renderer::inst().quads3D(state, projection * modelview, vertices, 4, false);
+		starVertices.insert(starVertices.end(), vertices, vertices + 4);
 	}
+
+	if(starVertices.empty()) return;
+	Renderer::inst().quads3D(state, projection * view, &starVertices[0],
+							 static_cast<uint>(starVertices.size()), false);
 }
 
 void GS_Credits::updateStars()

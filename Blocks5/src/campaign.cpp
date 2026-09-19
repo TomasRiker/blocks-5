@@ -2,6 +2,7 @@
 #include "campaign.h"
 #include "engine.h"
 #include "filesystem.h"
+#include "progressdb.h"
 #include "util.h"
 
 const std::string pw = "[3Cs18Ab0bV0Aat3Wf27le1ZM12kt0Xs05Aa4PX1EyI2V112Jr26v2GZO3dN0Ec91hk024P3cA32bc3GZ07Em4bf34st4320F7d13S00wd4Mg1ANn4SF2EO94Hz13Qq0LO18iY4Qy2C8r2XF28Bh]";
@@ -30,6 +31,11 @@ namespace
 		std::string source;
 	};
 
+	// The shipped campaign is one archive with one name, and that name is
+	// known here twice over: a level of any campaign can name its music, and
+	// the credits ask whether this one has been finished.
+	const char* const p_builtInPath = "levels/campaigns/blocks.zip";
+
 	// The prefix with which a level names a music track of the shipped
 	// campaign: musicFilename="blocks:music2.ogg".
 	const char* const p_builtInMusicPrefix = "blocks:";
@@ -54,7 +60,7 @@ std::string Campaign::resolveMusicPath(const std::string& musicFilename,
 	const std::string member(musicFilename.substr(strlen(p_builtInMusicPrefix)));
 	if(!isSafeMemberName(member)) return "";
 
-	return FileSystem::inst().resolveContentPath("levels/campaigns/blocks.zip") + pw + "/" + member;
+	return FileSystem::inst().resolveContentPath(p_builtInPath) + pw + "/" + member;
 }
 
 Campaign::LevelRef Campaign::makeLooseRef(const std::string& filename)
@@ -80,6 +86,42 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 	// 2. Content: decrypt, parse the XML, and at least one level.
 	Campaign check;
 	return check.load(archivePath, true) && !check.getLevels().empty();
+}
+
+// The bar is not simply "all levels": where the campaign has a bonus level it
+// is getLevels().size() - 1, the count that unlocks that level in both
+// GS_Game::loadLevel and GS_SelectLevel::getLevelStatus. The bonus is extra
+// rather than the end of the run, so a player who has beaten the other
+// forty-one has finished the campaign whether or not they went on to it - and
+// one who did reach the credits by playing is past this bar either way, since
+// the level just finished is written to the database before GS_Game hands
+// over. Asked of the database and not of a flag, so that an imported progress
+// file counts exactly as playing would.
+//
+// Every answer but "yes" is false, and the ways to get one are all the same
+// to the caller: no archive (a tree that was never packed), an archive that
+// will not parse, an empty campaign, no progress at all.
+bool Campaign::isBuiltInCompleted()
+{
+	FileSystem& fs = FileSystem::inst();
+	const std::string path(fs.resolveContentPath(p_builtInPath));
+	if(!fs.fileExists(path + "/campaign.xml")) return false;
+
+	// Quiet: a campaign that will not load says so with a toast where the
+	// player asked for it, and this is a question nobody asked out loud.
+	Campaign campaign;
+	if(!campaign.load(path, true)) return false;
+
+	const size_t levels = campaign.getLevels().size();
+	const size_t needed = (campaign.hasBonusLevel() && levels) ? levels - 1 : levels;
+	if(!needed) return false;
+
+	const ProgressDB::Progress progress = ProgressDB::inst().query();
+	const ProgressDB::Progress::const_iterator entry =
+		progress.find(ProgressDB::keyFor(campaign.getFilename()));
+	const size_t completed = (entry == progress.end()) ? 0 : entry->second.size();
+
+	return completed >= needed;
 }
 
 Campaign::Campaign()

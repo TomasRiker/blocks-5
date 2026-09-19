@@ -117,6 +117,15 @@ and 500 on the next. The credits need lockstep for a different reason: they draw
 into the next one, so their picture depends on how many frames were rendered, not only on the tick.
 `state <name>` switches game state by name, which is how the credits and the logo screen are reached.
 
+**The `credits` scene takes the short version**, and that follows from the private home rather than from
+anything the scene asks for: `GS_Credits::onEnter` runs the whole ending only where the shipped campaign
+has been finished, and a home written fresh per run has no progress in it. So the block standing at the
+scene's tick is the *programming* credit, where a player who has won would see `$C_THANKS_FOR_PLAYING`
+— the short version drops that block and shifts everything up by the four seconds it occupied. Covering
+the full version too would need a `ProgressDB` seeded with the campaign's 42 levels, which no scene does
+today; what this one proves is that the timeline is laid out and the text drawn at all, which is what the
+two versions share.
+
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
 `--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own
 objects passes through the wrappers at the foot of `testhooks.cpp`; no header carries the define and no

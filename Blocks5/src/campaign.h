@@ -35,6 +35,11 @@ public:
 	// diamond it goes back to the selection instead of to the next level.
 	bool isSingleLevels() const;
 
+	// Has the player finished the campaign the game ships with? The credits
+	// ask, to decide which of their two versions to run; campaign.cpp says
+	// what counts as finished and why every other answer is false.
+	static bool isBuiltInCompleted();
+
 	// Where a musicFilename points. sourceDir is the directory holding the
 	// level's ordinary tracks - "<home>levels/" for a loose level,
 	// "<campaign>.zip[pw]/" for one out of an archive. A name beginning with

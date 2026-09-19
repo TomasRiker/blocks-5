@@ -97,9 +97,6 @@ Three ways to read it:
   where every quad is its own draw and the milliseconds, the draws and the counts stand at their widest
   at once. That last arm is what the punctuation bought: the same line with a space for every colon and
   wider gaps between the groups measured 665 and lost its tail.
-
-  Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and clears the stats, giving
-  the upper bound of a frame that draws nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
   not clear on read, because the overlay reads the same numbers continuously;
   `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same
@@ -125,8 +122,9 @@ moves the interval; on a phone, where the main thread *is* the limit, it is the 
 **What the renderer redesign bought, in these numbers**, measured with this method on the same scenes and
 ticks before and after, so that a later change is read against them. Draw calls per rendered frame on the
 desktop, immediate mode against the renderer: `menu` 47 → 29, `options` 209 → 71, `manager` 256 → 58,
-`select` 80 → 28, `night` 55 → 24, `lava` 86 → 24; `credits` stays at 403, one `quads3D` draw per star
-under its own matrix. The browser's title demo under swiftshader: main-thread work per frame 1.70 → 1.10
+`select` 80 → 28, `night` 55 → 24, `lava` 86 → 24. `credits` stayed at 403 through that redesign, one
+`quads3D` draw per star under its own matrix, and went to 4 later when `renderStars` began baking the
+model transform into the corners itself (`rendering.md`) — median render 3.39 → 2.44 ms. The browser's title demo under swiftshader: main-thread work per frame 1.70 → 1.10
 ms, WebGL draw calls 48.6 → 30.6, and the page's JavaScript 30% smaller once the emulation went. What ends
 a batch now is the texture — the skin's and the fonts' taking turns down a dialog — and the scissor scope a
 window, an edit box or a list opens for its children, which is what `byReason` reports and what the atlas
