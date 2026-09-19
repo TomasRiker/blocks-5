@@ -25,7 +25,7 @@ float FrameStats::getPercentile(Phase phase,
 	if(!count) return 0.0f;
 
 	// Sorted into a copy rather than in place: the ring is the record and the
-	// next frame appends to it whatever anybody is asking. 512 floats is a
+	// next frame appends to it whatever anybody is asking. 500 floats is a
 	// tenth of a millisecond to sort and this is asked once per report, not
 	// once per frame.
 	std::vector<float> values;

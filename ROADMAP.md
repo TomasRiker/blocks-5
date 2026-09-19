@@ -173,7 +173,6 @@ system and so never appear in the options dialog:
 | Alt+Return, Alt+Enter | window / full screen (`isReturnKey` takes both keys) | `engine.cpp` |
 | Shift+C | credits | `gs_menu.cpp` |
 | Shift+D | turns the donation prompt off for good | `gs_menu.cpp` |
-| F (held, in game) | frame time overlay | `gs_game.cpp` |
 
 The help is six pages, `$H_HELP_PAGE1` ... `$H_HELP_PAGE6`, built by page number
 in `help.cpp` and capped at 6 there; each has a `§en:` and a `§de:` body.

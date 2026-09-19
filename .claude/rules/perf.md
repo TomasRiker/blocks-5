@@ -7,10 +7,18 @@ paths:
 
 # Measuring a frame
 
-`FrameStats` (`framestats.h`) keeps the last 512 frames' timings — interval start to start, how long the
-turn held the main thread, and render, update and present inside it — and answers p50, p95 and maximum.
-Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded always:
-four clock reads a frame.
+`FrameStats` (`framestats.h`) keeps the last **500** frames — ten seconds at the fifty a second the loop
+aims for — and answers p50, p95 and maximum of each column: interval start to start, how long the turn
+held the main thread, render, update and present inside it, and the draw calls the renderer made in that
+turn. Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded
+always: four clock reads a frame.
+
+**The draw count rides in the same ring as the timings**, as one more column of the same sample row. It is
+a count and not a duration, but everything the class does to a column — the ring, the sort, the
+percentile, the threshold — is the same work whatever the column means, so a second ring beside it would
+be that code written twice. It is the renderer's own counter (`Renderer::stats().draws`), which runs in
+every build, and not the link-time wrappers, which are a test-hooks build only; an iteration that rendered
+nothing contributes a zero, exactly as it contributes a zero render time.
 
 **`render` and `present` are what *issuing* the draw calls costs, not what drawing them does.** GL is
 asynchronous, so the work is paid for wherever the pipeline is next made to catch up — and where that is
@@ -38,7 +46,8 @@ alone would have reported nothing wrong at 26 fps.
 The interval is counted against **two** ticks and the work against one, and that asymmetry is load-bearing.
 The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoopIteration` — so
 an interval threshold of one tick sits on the number the code is targeting and a millisecond of timer
-granularity trips it: the menu read **277 of 512 frames late while not one had been dropped**. A frame
+granularity trips it: the menu read **277 of 512 frames late while not one had been dropped** (measured
+when the window was 512 frames). A frame
 actually lost is an interval of two. The work has no such problem, because nothing aims it anywhere; one
 tick is simply the budget.
 
@@ -55,9 +64,42 @@ as one that overran.
 
 Three ways to read it:
 
-- **`-perf`** / `?perf=1` draws the numbers in the bottom corner — the phone's only way, since the block
-  lands in a screenshot. Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and
-  clears the stats, giving the upper bound of a frame that draws nothing.
+- **`-perf`** / `?perf=1` draws the numbers along the bottom — the phone's only way, since the strip
+  lands in a screenshot. **One line in the tooltip font**, the small one, and a black strip only as wide as
+  the line: this stands over the game while the game is what is being measured. It reads
+
+  ```
+  fps:50 50/95/max(500): ms:16.6/19.7/53.6 draws:22/32/34 r:1.4 u:0.1 p:8.3 s:6.1 late:1 slow:16 stall:0
+  ```
+
+  **One grammar: name, colon, value.** A token that *ends* in a colon is a heading instead, and what
+  follows it is read against it until the next one — which is how the two triples say once, rather than
+  twice, that they are p50, p95 and the maximum. In brackets is the ring's fill, the window every number
+  on the line is over: 500 once ten seconds have run, less while it fills.
+
+  **The colon is what lets a single space separate the tokens.** It binds a name to its value more
+  tightly than any amount of space, so nothing needs a wider gap to group it and nothing is glued
+  together to save one. It is also narrower than the space it replaces — 3 px against 5 — which is why
+  the four phases can afford a name each (`r:` `u:` `p:` `s:`) where they shared one before.
+
+  `r`/`u`/`p`/`s` are render, update, present and swap at their **median**, in the same milliseconds as
+  the triple before them: a percentile of a part would not add up to one of the whole. The three counts
+  are what the player would have noticed: `late`, a frame they did not get (**interval** over two ticks,
+  40 ms); `slow`, one the game did not fit into its budget (**work** over one tick); `stall`, one long
+  enough to leave a hole in the music (**work** over 500 ms, Emscripten's audio lookahead — natively
+  almost always 0, since the decoder thread fills the queue whatever the main thread does). The
+  thresholds live here rather than in the line, being constants — and they cannot be written as one
+  ladder, because the first counts a different series from the other two.
+
+  It is written to fit at its *widest*, not at its usual, because the numbers grow exactly when something
+  is wrong. Measured against the font's own advances and confirmed on screen: **531 px of 640** as above,
+  548 with a level load's stall still inside the window, and **633** under `-flushall` on a slow machine,
+  where every quad is its own draw and the milliseconds, the draws and the counts stand at their widest
+  at once. That last arm is what the punctuation bought: the same line with a space for every colon and
+  wider gaps between the groups measured 665 and lost its tail.
+
+  Holding `$A_PLANT_BOMB` while it is on suppresses the game's own drawing and clears the stats, giving
+  the upper bound of a frame that draws nothing.
 - **The test hook's `frames`** in the JSON, for a desktop harness, without the overlay's own cost. It does
   not clear on read, because the overlay reads the same numbers continuously;
   `blocks5_testResetStats()` (`resetstats` natively) begins a measurement. Beside it, over the same

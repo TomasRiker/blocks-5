@@ -70,7 +70,6 @@ Engine::Engine()
 		buttonData[i] = 0;
 	}
 
-	frameTime = 0;
 	time = 0;
 	dragButtons = 0;
 	dragAxis = -1;
@@ -948,6 +947,12 @@ void Engine::mainLoopIteration()
 		float phases[FrameStats::FS_NUM_PHASES];
 		for(int i = 0; i < FrameStats::FS_NUM_PHASES; i++) phases[i] = 0.0f;
 
+		// The renderer's own counter, which runs in every build - the draw
+		// calls counted at the link are a test-hooks build only. It is
+		// cumulative and reset from outside (the test hook does), so what
+		// belongs to this iteration is the difference across it.
+		const uint drawsAtStart = Renderer::inst().stats().draws;
+
 #ifdef __EMSCRIPTEN__
 		// SDL 1.2 makes no SDL_VIDEORESIZE out of a change of canvas size;
 		// looking once per frame catches both the window and the API.
@@ -1387,7 +1392,6 @@ void Engine::mainLoopIteration()
 		}
 
 		Uint32 end = SDL_GetTicks();
-		if(frameRendered) frameTime = end - start;
 
 		// TOTAL stops here and not after the SDL_Delay below: what is wanted
 		// is the work, not the waiting. INTERVAL is start to start and so
@@ -1398,6 +1402,19 @@ void Engine::mainLoopIteration()
 			phases[FrameStats::FS_TOTAL] = 0.001f * static_cast<float>(frameEnd - frameBegin);
 			if(lastFrameBegin > 0)
 				phases[FrameStats::FS_INTERVAL] = 0.001f * static_cast<float>(frameBegin - lastFrameBegin);
+			// An iteration that rendered nothing drew nothing, and the zero
+			// belongs in the ring: the timings of such an iteration are
+			// recorded the same way, and a percentile over the frames that
+			// happened to render would answer a different question from the
+			// one beside it.
+			//
+			// The counter can also have been reset since the capture - the
+			// test hook answers `resetstats` from inside this very iteration -
+			// and an unsigned difference across that would put four billion in
+			// the ring rather than a number anybody could read past.
+			const uint drawsNow = Renderer::inst().stats().draws;
+			phases[FrameStats::FS_DRAWS] =
+				static_cast<float>(drawsNow >= drawsAtStart ? drawsNow - drawsAtStart : 0);
 			lastFrameBegin = frameBegin;
 			frameStats.addFrame(phases);
 		}
@@ -2765,25 +2782,16 @@ void Engine::drawOverlays()
 // slide past once and are how the game reports a fault.
 void Engine::drawPerformance()
 {
-	Font* p_font = GUI::inst().getFont();
+	// The small font, and everything on one line: this stands over the game
+	// while the game is what is being measured, and a block of three lines in
+	// the GUI font covers a tenth of the picture.
+	Font* p_font = GUI::inst().getToolTipFont();
 	if(!p_font) return;
 
 	// The frame rate off the interval and the rest off the work: the two
 	// differ whenever something else sets the pace, which in the browser
 	// requestAnimationFrame always does.
 	const float interval = frameStats.getPercentile(FrameStats::FS_INTERVAL, 50);
-
-	char line[3][96];
-	snprintf(line[0], sizeof(line[0]), "%.0f fps   frame %.1f %.1f %.1f ms  (50/95/max)",
-			 interval > 0.0f ? 1000.0f / interval : 0.0f,
-			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
-			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
-			 frameStats.getPercentile(FrameStats::FS_TOTAL, 100));
-	snprintf(line[1], sizeof(line[1]), "render %.1f  update %.1f  present %.1f  swap %.1f",
-			 frameStats.getPercentile(FrameStats::FS_RENDER, 50),
-			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
-			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
-			 frameStats.getPercentile(FrameStats::FS_SWAP, 50));
 	// The budget is the logic rate - 20 ms, fifty frames a second - and the
 	// two counts answer different questions. A frame whose *interval* went
 	// over is one the player did not get; one whose *work* went over is one
@@ -2807,25 +2815,70 @@ void Engine::drawPerformance()
 	// longer than that is a hole in the music - in the browser only, since
 	// natively the decoder thread fills the queue whatever the main thread is
 	// doing.
+	//
+	// One line, and one grammar for every token in it: name, colon, value. A
+	// token that *ends* in a colon is a heading instead, and what follows it
+	// is read against it until the next one - which is how the two triples say
+	// once, rather than twice, that they are p50, p95 and the maximum. In
+	// brackets is the ring's fill, the window all of it is over: 500 once ten
+	// seconds have run, less while it fills.
+	//
+	// The colon is what lets one space separate the tokens: it binds a name to
+	// its value more tightly than any amount of space, so nothing has to be
+	// grouped by a wider gap and nothing is glued together to save one. It is
+	// also narrower than the space it replaces - 3 px against 5 - which is why
+	// the four phases can afford a name each here where they shared one
+	// before.
+	//
+	// The phases are medians, in the same milliseconds as the triple before
+	// them: a percentile of a part would not add up to one of the whole. The
+	// three counts are what the player would have noticed - a frame they did
+	// not get, one the game did not fit into its budget, one long enough to
+	// leave a hole in the music - and perf.md has the thresholds, which are
+	// constants and do not need restating fifty times a second.
+	//
+	// It is written to fit at its widest, not at its usual, because the
+	// numbers grow exactly when something is wrong. Measured against the
+	// font's own advances: 531 px of 640 as it usually reads, 548 with a level
+	// load's stall still in the window, and 633 under -flushall on a slow
+	// machine, where every quad is its own draw and the milliseconds, the
+	// draws and the counts stand at their widest at once. That last arm is the
+	// one the spaces used to cost: the same line with a space for every colon
+	// and wider gaps between the groups measured 665, and lost its tail.
 	const float budget = static_cast<float>(logicRate);
-	snprintf(line[2], sizeof(line[2]), "%u frames: %u dropped, %u work >%.0f ms, %u >500 ms",
+	char line[160];
+	snprintf(line, sizeof(line),
+			 "fps:%.0f 50/95/max(%u): ms:%.1f/%.1f/%.1f draws:%.0f/%.0f/%.0f"
+			 " r:%.1f u:%.1f p:%.1f s:%.1f late:%u slow:%u stall:%u",
+			 interval > 0.0f ? 1000.0f / interval : 0.0f,
 			 frameStats.getCount(),
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 50),
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 95),
+			 frameStats.getPercentile(FrameStats::FS_TOTAL, 100),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 50),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 95),
+			 frameStats.getPercentile(FrameStats::FS_DRAWS, 100),
+			 frameStats.getPercentile(FrameStats::FS_RENDER, 50),
+			 frameStats.getPercentile(FrameStats::FS_UPDATE, 50),
+			 frameStats.getPercentile(FrameStats::FS_PRESENT, 50),
+			 frameStats.getPercentile(FrameStats::FS_SWAP, 50),
 			 frameStats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
-			 budget,
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
-	const int lineHeight = p_font->getLineHeight();
-	const int height = 3 * lineHeight + 8;
+	// The strip is as wide as the line and no wider, so that what it covers is
+	// only what it has to.
+	Vec2i dimensions;
+	p_font->measureText(line, &dimensions, 0);
+	const int height = p_font->getLineHeight() + 4;
 	const int top = screenSize.y - height;
 
 	Renderer::inst().setBlend(BM_NORMAL);
-	Renderer::inst().rect(Vec2f(0.0f, static_cast<float>(top)), static_cast<Vec2f>(screenSize), Vec4f(0.0f, 0.0f, 0.0f, 0.7f));
+	Renderer::inst().rect(Vec2f(0.0f, static_cast<float>(top)),
+						  Vec2f(static_cast<float>(dimensions.x + 8), static_cast<float>(screenSize.y)),
+						  Vec4f(0.0f, 0.0f, 0.0f, 0.7f));
 
-	for(int i = 0; i < 3; i++)
-	{
-		p_font->renderText(line[i], Vec2i(6, top + 4 + i * lineHeight), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
-	}
+	p_font->renderText(line, Vec2i(4, top + 2), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
@@ -3980,11 +4033,6 @@ uint Engine::getLogicRate() const
 void Engine::setLogicRate(uint logicRate)
 {
 	this->logicRate = logicRate;
-}
-
-uint Engine::getFrameTime() const
-{
-	return frameTime;
 }
 
 uint Engine::getTime() const
