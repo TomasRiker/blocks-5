@@ -133,8 +133,8 @@ which is also why the second reaches tick 6000 in seconds where the first takes 
 starts from nothing.
 
 **What neither can see is which key asked for which**, so `smoke.sh` drives the two chords and reads the
-answer off the one behaviour that separates the versions: a click leaves the plain credits and does
-nothing to the ending. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
+answer off the one behaviour that separates the versions: a click or Escape leaves the plain credits,
+where the ending takes neither as an exit. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
 with `SDL_GetKeyState` — see the two-input-layers trap above.
 
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with

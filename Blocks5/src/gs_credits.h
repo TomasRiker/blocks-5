@@ -63,9 +63,10 @@ private:
 	float fadeAt;
 	float endAt;
 
-	// Whether a click may be taken as the player's. False for the tick the
-	// screen is entered in, which still holds the click that opened it.
-	bool clickArmed;
+	// Whether a click or a key may be taken as the player asking to leave.
+	// False for the tick the screen is entered in, which still holds the
+	// press that opened it.
+	bool exitArmed;
 };
 
 #endif

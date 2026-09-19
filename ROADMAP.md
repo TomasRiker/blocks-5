@@ -509,9 +509,11 @@ path. What this item was really about is the second presentation, and
   buffer, so nothing flies and nothing is loaded to make it fly - not the
   `title.xml` the stars are cut from, not the frame-copy texture; no
   `credits.ogg`; and no per-character zoom, so the blocks only fade in and out.
-  It keeps the mouse cursor and any click leaves it at once, because it is a
-  screen offered from the menu rather than an ending being watched. Not scrolling
-  text, which would have been a second layout for nothing.
+  It keeps the mouse cursor, and any click or any of the four keys the ending
+  fast-forwards on - Return, Num Enter, Escape, Space - leaves it at once,
+  because it is a screen offered from the menu rather than an ending being
+  watched. Not scrolling text, which would have been a second layout for
+  nothing.
 
 **Who decides, and where.** `Campaign::isBuiltInCompleted()` answers it in
 `onEnter`, unless the caller said so outright in the `ParameterBlock`. Nothing a
@@ -549,11 +551,12 @@ menu music dead on the way back, since `playMusic` resumes a track it never left
 **What the checks cover.** `frames.sh` renders both: `credits` asks for the
 ending and `credits-plain` takes what the private home's empty progress gives.
 Neither can see which *key* asked for which, so `smoke.sh` drives the two chords
-and reads the answer off the one behaviour that separates them - a click leaves
-the plain version and does nothing to the ending. The click is ignored for the
-tick the screen is entered in: a click on a menu entry is dispatched by
-`GUI::update()`, `processGameStateChanges()` runs `onEnter` and `onUpdate`
-follows, all inside the tick whose press bits are cleared only at its foot.
+and reads the answer off the one behaviour that separates them - a click or
+Escape leaves the plain version, where the ending takes neither as an exit. Both
+are ignored for the tick the screen is entered in: a menu entry answers a click
+or a Return, `GUI::update()` dispatches it, `processGameStateChanges()` runs
+`onEnter` and `onUpdate` follows, all inside the tick whose press bits are
+cleared only at its foot.
 
 
 28. Video recording in the browser

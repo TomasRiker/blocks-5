@@ -212,8 +212,8 @@ b5_expectState GS_Menu
 # Which one runs is the whole of the feature and the frame oracle cannot see
 # it: the picture at a named tick proves each version draws what it should,
 # not that the key asked for that one. So this drives the two chords and reads
-# the answer off the one behaviour that tells them apart - a click leaves the
-# plain version and does nothing to the ending.
+# the answer off the one behaviour that tells them apart - a click or Escape
+# leaves the plain version, where the ending takes neither as an exit.
 #
 # The chords are held well past a frame. GS_Menu::onUpdate reads them with
 # SDL_GetKeyState, which answers from the last pump, and that is once per
@@ -234,13 +234,21 @@ b5_clickAt 320 240
 b5_expectState GS_Menu
 b5_ok "Shift+C ran the plain credits and a click left them"
 
+credits_chord "shift"
+b5_waitForState GS_Credits
+b5_key Escape
+b5_expectState GS_Menu
+b5_ok "and so does a key"
+
 credits_chord "ctrl shift"
 b5_waitForState GS_Credits
 b5_clickAt 320 240
+b5_key Escape
 b5_expectState GS_Credits
-b5_ok "Ctrl+Shift+C ran the ending, which a click does not interrupt"
-# Out through the hook rather than the keyboard: Escape only fast-forwards,
-# and the ending is fifty-eight seconds long even at five times speed.
+b5_ok "Ctrl+Shift+C ran the ending, which neither a click nor a key cuts off"
+# Out through the hook rather than the keyboard: Escape there only
+# fast-forwards, and the ending is fifty-eight seconds long even at five times
+# speed.
 b5_ask "state GS_Menu" >/dev/null
 b5_waitForState GS_Menu
 

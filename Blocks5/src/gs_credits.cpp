@@ -206,27 +206,36 @@ void GS_Credits::onUpdate()
 	}
 	if(time == static_cast<int>(endAt * 1000.0f)) engine.setGameState("GS_Menu");
 
-	if(engine.wasKeyPressed(SDLK_RETURN) ||
-	   engine.wasKeyPressed(SDLK_KP_ENTER) ||
-	   engine.wasKeyPressed(SDLK_ESCAPE) ||
-	   engine.wasKeyPressed(SDLK_SPACE))
-	{
-		speed = 5;
-		time /= 100;
-		time *= 100;
-	}
+	// The four keys a player reaches for to be done with a screen. In the
+	// ending they hurry it, because it is something to watch and cutting it
+	// off is not what somebody who has just won is asking for; in the plain
+	// version they end it, as does any click, because that one is a screen
+	// offered from the menu - it keeps the cursor, and there is nothing to
+	// fast-forward through when the way out is the point.
+	const bool keyPressed = engine.wasKeyPressed(SDLK_RETURN) ||
+							engine.wasKeyPressed(SDLK_KP_ENTER) ||
+							engine.wasKeyPressed(SDLK_ESCAPE) ||
+							engine.wasKeyPressed(SDLK_SPACE);
 
-	// Any click leaves the plain version at once - it is offered from the
-	// menu and keeps the cursor, so a click is the obvious way out. Never in
-	// the first tick, though: a click on a menu entry is dispatched by
-	// GUI::update(), processGameStateChanges() runs onEnter and onUpdate
-	// follows, all inside the tick whose press bits are cleared only at its
-	// foot - so the click that opened the screen is still standing when it
-	// first asks.
-	if(!full)
+	if(full)
 	{
-		if(clickArmed && engine.wasAnyButtonPressed()) engine.setGameState("GS_Menu");
-		clickArmed = true;
+		if(keyPressed)
+		{
+			speed = 5;
+			time /= 100;
+			time *= 100;
+		}
+	}
+	else
+	{
+		// Never in the tick the screen was entered in: a menu entry answers
+		// a click or a Return, GUI::update() dispatches it,
+		// processGameStateChanges() runs onEnter and onUpdate follows, all
+		// inside the tick whose press bits are cleared only at its foot - so
+		// whatever opened the screen is still standing when it first asks.
+		if(exitArmed && (keyPressed || engine.wasAnyButtonPressed()))
+			engine.setGameState("GS_Menu");
+		exitArmed = true;
 	}
 }
 
@@ -265,7 +274,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 
 	time = -2000;
 	speed = 1;
-	clickArmed = false;
+	exitArmed = false;
 	p_font = Manager<Font>::inst().request("credits_font.xml");
 
 	// The star field and the buffer its trails come back out of belong to the
