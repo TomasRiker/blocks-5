@@ -90,6 +90,51 @@ b5_click OptionsPane.Options.SharpFit
 b5_click OptionsPane.Options.OK
 b5_expectShown OptionsPane.Options false
 
+# --- Help: every page still fits its box ------------------------------------
+# The frame around a help page is a fixed 580x370, and what has to fit in it is
+# written by hand in languages.txt, wrapped at display time, and carries
+# %BINDING markers that expand to whatever the player rebound them to. So "it
+# fits" is not a property anybody can read off the file, and when it stopped
+# being true the only symptom was a row sliced in half by the frame's bottom
+# edge - which is what this screen looked like until the box grew by a line.
+#
+# The height is the game's own answer, not a second implementation of the wrap:
+# a dump reports every static text's laid-out size, measured through the
+# element's own font. The text sits 5 px inside the box, so it has to end 5 px
+# short of the other edge.
+b5_helpPagesFit()   # $1 what to call the language in the message
+{
+	local p textH boxH room worst=0
+	b5_click Menu.Help
+	for p in 1 2 3 4 5 6; do
+		b5_dump || b5_hookFailed
+		textH=$(b5_json "el('HelpPane.Help.Page.Text')['text'][1]")
+		boxH=$(b5_json "el('HelpPane.Help.Page')['rect'][3]")
+		room=$((boxH - 10))
+		if [ "$textH" -gt "$room" ]; then
+			b5_note "$1 help page $p is ${textH}px of text in ${room}px of box - $((textH - room))px past the frame"
+		fi
+		[ "$textH" -gt "$worst" ] && worst=$textH
+		[ "$p" = 6 ] || b5_click HelpPane.Help.NextPage
+	done
+	b5_click HelpPane.Help.OK
+	b5_expectShown HelpPane.Help false
+	b5_ok "$1 help: six pages, the fullest ${worst}px of $((boxH - 10))px"
+}
+b5_helpPagesFit English
+
+# And again in the other language, which is the half nobody has in front of
+# them: German is the longer of the two everywhere else in this file. The radio
+# applies at once (Options::handleClick calls setLanguage), so there is nothing
+# to confirm but the dialog itself.
+b5_click Menu.Options
+b5_click OptionsPane.Options.German
+b5_click OptionsPane.Options.OK
+b5_helpPagesFit German
+b5_click Menu.Options
+b5_click OptionsPane.Options.English
+b5_click OptionsPane.Options.OK
+
 # --- Manager: step through the five kinds -----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager

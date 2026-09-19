@@ -124,7 +124,12 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
 - **A `<StaticText>` label can size its own hit area.** Give it `w="-1" h="-1"` and it matches the text
   it actually draws, re-measured per frame so it follows a language switch; a hand-written width would
   be a guess that is wrong in the other language. `w`/`h` of 0 — the default — is still never hit. An
-  image needs none of this: it already has the size of the sprite it shows.
+  image needs none of this: it already has the size of the sprite it shows. What "the text it actually
+  draws" is — localized, bindings expanded, wrapped to the element's width — is `getDrawnText()`, and
+  `measureDrawnText()` is how big that is. Three callers need the same answer and a second copy of the
+  rule would be a second answer: the render, the hit test, and the test hook, which reports the size so
+  that a page grown out of its box fails an assertion instead of being noticed in a screenshot
+  (`testing.md`).
 
 **Three functions compute where a tab lands, and they have to agree.** `buildText` draws, `measureText`
 sizes and `adjustText` wraps, and a tab advances to the next multiple of `options.tabSize` in all three —
