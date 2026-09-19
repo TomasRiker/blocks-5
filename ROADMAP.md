@@ -1608,3 +1608,71 @@ What left the tree along the way: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`,
 `gl_immediate.cpp`, `gl_compat.cpp`, `glstate.*`, `quadarray.*` and GLU. What
 ships now is three executables, **one** DLL that needs nothing but Windows, and
 the data.
+
+60. Crop the art to the rectangles that are actually drawn
+-----------------------------------------------------------
+Item 51's pages are 6.2 Mtexel of pictures of which a good half is never
+sampled: the sheets are powers of two with the art in one corner, and the
+backdrops are 1024x512 for a 640x480 picture. Cropping the sources to what the
+code addresses takes the packable set from **5.30 M to 2.88 Mtexel, 46% off**,
+and with that everything a session needs fits in **one 2048 page at 68.6%** -
+against two pages and a repack today.
+
+**What "used" means here is what the code can address, not where the picture is
+opaque**, and those differ in both directions: some buttons carry a deliberate
+transparent margin, and `E_HexDigit` samples two rows that no skin has art in
+(below). The sizes below come from the declarations that own them -
+`tileset.xml`, the four font XMLs, the `u`/`v` on every `<Image>` in the dialog
+XMLs - and from the source rectangles in the code, measured against an
+instrumented run of all twenty oracle scenes, `smoke.sh` and `drag.sh` as a
+cross-check.
+
+**Every crop keeps the origin at (0, 0) and trims right and bottom only.**
+Moving an origin would shift every hardcoded source coordinate in the tree, and
+nothing would say so: seven of these are sheets addressed by literal
+coordinates.
+
+| `data/` | stored | used | fixed by |
+| --- | --- | --- | --- |
+| `buttons.png` | 512x1024 | 260x640 | menu/game/leveleditor/selectlevel.xml |
+| `campaigneditor.png` | 1024x512 | 640x480 | backdrop over the screen |
+| `credits_font.png` | 512x512 | 503x392 | `credits_font.xml` |
+| `donate_button_de/en.png` | 128x64 | 100x43 | `menu.xml` button w/h |
+| `donate_de/en.png` | 512x512 | 398x270 | `menu.xml` StaticImage |
+| `font.png` | 512x256 | 509x186 | `font.xml` |
+| `gui.png` | 256x256 | 192x240 | nine-slice frames, widget glyphs |
+| `icons.png` | 256x128 | 220x100 | `help.xml`, `leveleditor.xml` |
+| `languages.png` | 256x64 | 144x48 | `options.xml` |
+| `lava_edges.png` | 128x64 | 80x48 | `lava.cpp`, twelve pieces |
+| `lightning.png` | 256x16 | 248x16 | `lightning.cpp` (measured) |
+| `logo.png` | 512x512 | whole | the splash, and `NEVER_PACK` |
+| `menu.png`, `selectlevel.png` | 1024x512 | 640x480 | backdrops |
+| `misc.png` | 256x256 | 218x176 | rewind OSD, 218x64 at (0,112) |
+| `tooltip_font.png` | 512x128 | 507x105 | `tooltip_font.xml` |
+| `title.png` | 1024x512 | **never drawn** | see below |
+| `window.png` | 32x32 | - | the window icon, not a texture |
+
+| `levels/skins/*` | stored | used | fixed by |
+| --- | --- | --- | --- |
+| `background.png` | 1024x1024 | 640x**560** | 640x480 backdrop *plus* the 640x80 HUD strip at v 480..560 (`GS_Game::onRender`) |
+| `hint.png` | 512x512 | 300x400 | `hint.cpp` NOTE_WIDTH/HEIGHT |
+| `hintfont.png` | 512x256 | 508x247 | `hintfont.xml` |
+| `particles.png` | 128x128 | 112x80 | measured only; check before cutting |
+| `shine.png` | 128x128 | whole | |
+| `sprites.png` | 256x1024 | 256x**752** | the object sheet; art ends at 720 |
+| `tileset.png` | 128x128 | whole | `tileset.xml`, all four skins |
+| `rain`, `snow`, `clouds`, `noise` | | **do not crop** | the first three tile, so the period is the size; the noise is sampled whole |
+
+**Two things found on the way, each its own small item.**
+
+`sprites.png` has to keep 752 rows although the art ends at 720, because
+`E_HexDigit` computes `32*(value%8), 640 + 32*(value/8)` and `value` can pass
+15, so it draws rows 704 and **736** - and no skin has art there. Today that
+draws nothing; cut the sheet to 720 and it would sample the gutter instead, so
+invisible becomes visible. Clamp the value and 720 is safe.
+
+`title.png` is requested in `GS_Loading::loadGraphics()` and **drawn nowhere** -
+no code path, no `<Image>`, no localized filename - and never released either.
+The picture the loading screen actually draws is `logo.png`. Half a megatexel
+either wants a draw or wants deleting.
+

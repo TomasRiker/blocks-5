@@ -210,7 +210,7 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	p_logo = 0;
 	if(!skipSplash)
 	{
-		p_logo = Manager<Texture>::inst().request("logo.png");
+		p_logo = Manager<Texture>::inst().request("logo.png", Texture::WM_CLAMP | Texture::NEVER_PACK);
 		Manager<Sound>::inst().request("logo.ogg");
 	}
 
@@ -254,7 +254,7 @@ void GS_Loading::loadGraphics()
 	// load the images
 	printfLog("Loading graphics ...\n");
 	Manager<Texture>& texMgr = Manager<Texture>::inst();
-	texMgr.request("title.png");
+	texMgr.request("title.png", Texture::WM_CLAMP | Texture::NEVER_PACK);
 	Texture* p_misc = texMgr.request("misc.png");
 	texMgr.request("icons.png");
 	texMgr.request("languages.png");

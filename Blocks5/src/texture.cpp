@@ -12,7 +12,8 @@ Texture::Texture(const std::string& filename, int options) : Resource(filename)
 	size = Vec2i(-1, -1);
 	texelScale = Vec2f(1.0f, 1.0f);
 	uvOrigin = Vec2f(0.0f, 0.0f);
-	wrapMode = static_cast<WrapMode>(options);
+	wrapMode = static_cast<WrapMode>(options & WRAP_MASK);
+	neverPack = (options & NEVER_PACK) != 0;
 	ownsTexture = true;
 	p_parent = 0;
 
@@ -32,6 +33,7 @@ Texture::Texture(Texture* p_parent,
 	texelScale = Vec2f(1.0f, 1.0f);
 	uvOrigin = Vec2f(0.0f, 0.0f);
 	this->wrapMode = wrapMode;
+	neverPack = false;
 	ownsTexture = true;
 	this->p_parent = p_parent;
 
@@ -172,7 +174,7 @@ void Texture::place()
 {
 	TextureAtlas& atlas = TextureAtlas::inst();
 	TextureAtlas::Slot slot;
-	if(wrapMode != WM_REPEAT && atlas.reserve(this, size, &slot))
+	if(!neverPack && wrapMode != WM_REPEAT && atlas.reserve(this, size, &slot))
 	{
 		// In a page: uv reads in page texels from the picture's corner, and
 		// the caller goes on writing its own.
@@ -240,11 +242,14 @@ Texture::WrapMode Texture::getWrapMode() const
 
 void Texture::reuseWithOptions(int options)
 {
-	if(static_cast<WrapMode>(options) != WM_REPEAT || wrapMode == WM_REPEAT) return;
+	const bool wantsRepeat = static_cast<WrapMode>(options & WRAP_MASK) == WM_REPEAT && wrapMode != WM_REPEAT;
+	const bool wantsOut = (options & NEVER_PACK) != 0 && !neverPack;
+	if(!wantsRepeat && !wantsOut) return;
 
-	printfLog("> INFO: The image \"%s\" was loaded without tiling and is now wanted with it; reloading.\n",
-			  filename.c_str());
-	wrapMode = WM_REPEAT;
+	printfLog("> INFO: The image \"%s\" is now wanted %s; reloading.\n", filename.c_str(),
+			  wantsRepeat ? "with tiling" : "outside the atlas");
+	if(wantsRepeat) wrapMode = WM_REPEAT;
+	if(wantsOut) neverPack = true;
 	if(texID) reload();
 }
 

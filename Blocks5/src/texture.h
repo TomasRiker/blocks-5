@@ -36,6 +36,18 @@ public:
 		WM_REPEAT
 	};
 
+	// Everything a request may say about a picture: a wrap mode, and flags on
+	// top of it. The wrap mode is the low byte, so a caller writes
+	// Texture::WM_CLAMP | Texture::NEVER_PACK and both arrive.
+	//
+	// NEVER_PACK keeps a picture out of the atlas whatever its wrap mode. A
+	// page is the wrong home for one that is drawn on the loading screen and
+	// then not again: it would hold half a megatexel for the rest of the
+	// session, and giving it back leaves a hole the atlas has to repack
+	// around. The pages are for what a frame draws over and over.
+	static const int WRAP_MASK = 0xff;
+	static const int NEVER_PACK = 0x100;
+
 	void reload();
 	void cleanUp();
 
@@ -45,12 +57,13 @@ public:
 	const Vec2i& getSize() const;
 	WrapMode getWrapMode() const;
 
-	// A second request for a picture already loaded, with the wrap mode that
-	// request asked for. Only an upgrade to WM_REPEAT does anything, and it
-	// reloads for the same reason keepInMemory() does: the flag alone does
-	// not move a texture that has already been built the other way. The other
-	// direction needs nothing - a tiling texture drawn without tiling is
-	// right, only not packed.
+	// A second request for a picture already loaded, with the options that
+	// request asked for. Only the stricter direction does anything - to
+	// WM_REPEAT, or to NEVER_PACK - and it reloads for the same reason
+	// keepInMemory() does: the flag alone does not move a texture that has
+	// already been built the other way. The other direction needs nothing: a
+	// tiling texture drawn without tiling is right, only not packed, and a
+	// picture kept out of a page draws the same as one in it.
 	void reuseWithOptions(int options);
 
 	// The atlas has moved this picture to another page, or another place in
@@ -127,6 +140,7 @@ private:
 	// to be put through.
 	Vec2f uvOrigin;
 	WrapMode wrapMode;
+	bool neverPack;
 	// False while the picture lives in an atlas page, which is not this
 	// object's to delete: cleanUp() gives the rectangle back instead.
 	bool ownsTexture;

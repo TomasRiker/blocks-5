@@ -133,7 +133,8 @@ browser they are core and the header `#define`s them through.
   `Renderer::DirectGL` bracket, which flushes first and forgets what GL holds after (`rendering.md`).
 - **A picture declares at its request whether it tiles** (`Texture::WM_CLAMP`, `WM_WRAP`, `WM_REPEAT`),
   because that decides whether it can share an atlas page with others - `GL_REPEAT` wraps at the
-  texture's edge, and in a page the texture is the page. Only the weather needs a texture of its own.
+  texture's edge, and in a page the texture is the page. Only the weather needs a texture of its own,
+  and `Texture::NEVER_PACK` beside the mode keeps one out for any other reason.
   A quad's uv stays inside its own picture unless it came from `Renderer::tiledQuad`, and a test-hooks
   build fails every quad that does not (`rendering.md`).
 - **A class whose ancestor already put bits in `renderLayers` adds with `|=`** — the `Electronics`

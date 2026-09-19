@@ -337,7 +337,10 @@ and lava 24 to 14**.
 `Manager<T>::request` carries the resource type's options and `Texture::WrapMode` is three: `WM_CLAMP`,
 nothing samples outside it; `WM_WRAP`, `Renderer::tiledQuad` cuts the quad at the picture's edges so that
 every piece samples one copy, which packs; `WM_REPEAT`, GL wraps it at the *texture's* edge, so inside a
-page it would read whatever was packed next door — a texture of its own. Only the weather is `WM_REPEAT`:
+page it would read whatever was packed next door — a texture of its own. `Texture::NEVER_PACK` beside
+the mode keeps a picture out for a reason that is not wrapping: the loading screen's `logo.png` and
+`title.png` are drawn once and never again, and half a megatexel apiece is the wrong thing to hold a page
+slot for — or to leave a hole in one when it goes. Only the weather is `WM_REPEAT`:
 its uv is rotated with the scroll, so the cuts a split would need are not axis-aligned in screen space and
 the pieces would not be quads. The lava's two 16x16 tiles are `WM_WRAP` and sit in a page with the sprite
 sheet they were cut from.
