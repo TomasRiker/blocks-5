@@ -286,7 +286,13 @@ if [ "$(b5_json "d['paused']")" = "True" ]; then
 else
 	b5_note "the pause key held for a second and a half toggled itself back off"
 fi
-b5_key Escape
+# Space and not Escape, although both resume: the resume spends the press for
+# the action chain alone, and the game menu hangs off Escape in GameGUI's own
+# key handler, which runs whatever onUpdate did with the press. So Escape
+# resumes and opens the menu in one go - right for a player, since the menu is
+# a pause of its own, but it would leave the menu standing and put every
+# Escape below this out by one.
+b5_key space
 b5_dump || b5_hookFailed
 [ "$(b5_json "d['paused']")" = "False" ] \
 	&& b5_ok "and any key resumed it" \
