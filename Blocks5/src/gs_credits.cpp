@@ -8,6 +8,9 @@
 
 GS_Credits::GS_Credits() : GameState("GS_Credits"), engine(Engine::inst())
 {
+	p_font = 0;
+	p_level = 0;
+	p_sprites = 0;
 }
 
 GS_Credits::~GS_Credits()

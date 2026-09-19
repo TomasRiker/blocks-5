@@ -258,6 +258,7 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 	// self-made ones with the player. Transfer::list() already unites them,
 	// in the right order and sorted.
 	const std::vector<std::string> files(Transfer::list(Transfer::KIND_CAMPAIGN));
+	bool shippedCampaign = false;
 	for(std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
 	{
 		const std::string path(fs.resolveContentPath("levels/campaigns/" + *i));
@@ -270,9 +271,18 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 			GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
 			p_listBox->addItem(item);
 			campaigns.push_back(p_campaign);
+			if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN, *i)) shippedCampaign = true;
 		}
 		else delete p_campaign;
 	}
+
+	// The game's own campaign is one archive in the game folder, and that
+	// archive is a build product: a tree that was cloned but never packed has
+	// every other file and not that one, and the list then simply comes up
+	// without it - forty-two levels missing and nothing saying so. A broken one
+	// says its own piece through Campaign::load, so this is only about the case
+	// where nothing shipped turned up at all.
+	if(!shippedCampaign) engine.showToast(Engine::TOAST_ERROR, "$ERROR_NO_BUILT_IN_CAMPAIGN");
 
 	// And last the single levels from the level folder, if there are any: a
 	// campaign that exists as no file. It comes last because the shipped

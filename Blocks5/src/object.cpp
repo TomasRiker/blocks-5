@@ -600,13 +600,32 @@ void Object::onExplosion()
 	}
 }
 
+// simulate takes every decision this function takes and performs none of
+// them: each path returns at the point where it would otherwise commit, and
+// the push recurses in simulate mode too, so the answer covers a whole chain
+// of pushable objects against a wall. A mouse drag asks it before it holds a
+// direction key down, because the alternative - hold the key and see whether
+// anything moved - is not free: a walk into a switch or a magnet *works* it,
+// and the character would flip whatever it brushed while the drag routed
+// around it.
+//
+// Two of the early-outs are skipped when asking, and that is deliberate.
+// Whether the object has already moved in this tick, and whether it is
+// sliding, decide *when* a step lands rather than whether the way is open;
+// the caller holds its key across ticks, and an answer that flickered with
+// the tick would hand its leg to the other axis and back. A push onto ice is
+// the one place the answer is generous: the pushed object starts sliding
+// instead of stepping, so the real move() reports false while the way is in
+// fact opening.
 bool Object::move(const Vec2i& dir,
-				  uint force)
+				  uint force,
+				  bool simulate)
 {
-	if(slideDir != -1 && !slideMove) return false;
+	if(!simulate && slideDir != -1 && !slideMove) return false;
 
 	if(dir.isZero()) return true;
-	if(force < mass || moved || teleporting != 0.0f) return false;
+	if(force < mass || teleporting != 0.0f) return false;
+	if(!simulate && moved) return false;
 	if(!level.isValidPosition(position + dir)) return false;
 
 	if(dir.x && !dir.y && isPushedFromAbove() && level.isElectricityOn())
@@ -633,6 +652,7 @@ bool Object::move(const Vec2i& dir,
 	int tileType = 0;
 	if(level.isFreeAt(np, &tileType))
 	{
+		if(simulate) return true;
 		position = np;
 		moved = true;
 	}
@@ -645,6 +665,7 @@ bool Object::move(const Vec2i& dir,
 			if((flags & OF_COLLECTABLE) && p_obj->getType() == "Player")
 			{
 				// Then it is OK.
+				if(simulate) return true;
 				position += dir;
 				moved = true;
 			}
@@ -652,6 +673,7 @@ bool Object::move(const Vec2i& dir,
 			else if((flags & OF_ELEVATOR) && (p_obj->getFlags() & OF_TRANSPORTABLE))
 			{
 				// Then it is OK.
+				if(simulate) return true;
 				position += dir;
 				moved = true;
 			}
@@ -664,6 +686,11 @@ bool Object::move(const Vec2i& dir,
 				}
 				else
 				{
+					// The push, and the whole chain behind it: whatever stands
+					// there is asked the same question with what is left of the
+					// force.
+					if(simulate) return p_obj->move(dir, force - mass, true);
+
 					p_obj->onConveyorBelt = max(onConveyorBelt, p_obj->onConveyorBelt);
 
 					if(p_obj->move(dir, force - mass))
@@ -727,6 +754,10 @@ bool Object::move(const Vec2i& dir,
 			}
 		}
 	}
+
+	// Nothing above said yes, and everything below here is what a move does -
+	// or does instead of moving, which a question must not do either.
+	if(simulate) return false;
 
 	if(moved)
 	{

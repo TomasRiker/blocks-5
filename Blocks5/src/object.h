@@ -72,7 +72,8 @@ public:
 	virtual void onTouchedByPlayer(Player* p_player);
 	virtual void onCollision(Object* p_obj);
 	virtual void onExplosion();
-	virtual bool move(const Vec2i& dir, uint force = ~0);
+	// simulate asks whether it would get anywhere and does none of it (object.cpp).
+	virtual bool move(const Vec2i& dir, uint force = ~0, bool simulate = false);
 	virtual bool allowMovement(const Vec2i& dir);
 	virtual bool reflectLaser(Vec2i& dir, bool lightBarrier = false);
 	virtual bool reflectProjectile(Vec2f& velocity);

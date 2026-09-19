@@ -94,6 +94,7 @@ public:
 		game.showCursor = 200;
 
 		// Did the click land on a player?
+		bool onPlayer = false;
 		Vec2i c = game.engine.getCursorPosition() / 16;
 		std::vector<Object*> objects = game.p_level->getObjectsAt(c);
 		for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
@@ -102,8 +103,21 @@ public:
 			if(p_obj->getType() == "Player")
 			{
 				static_cast<Player*>(p_obj)->activate();
+				onPlayer = true;
 			}
 		}
+
+		// The same press both wakes a character and takes hold of it, so the
+		// one that woke somebody up can go straight on to drag them. Set
+		// nowhere else: dragging has to begin on a character, and this is the
+		// one place that knows a press landed on one.
+		//
+		// A press that did not is a press on something - unless a character is
+		// already being held, where the buttons mean bombs and the second one
+		// of a grip lands wherever the cursor has got to by then. Which is why
+		// the character is read off a local and the grip off the flag.
+		if(onPlayer) game.dragFromPlayer = true;
+		else if(!game.dragFromPlayer) game.bumpCell(c);
 	}
 
 	void onMouseMove(const Vec2i& movement,
@@ -242,8 +256,19 @@ private:
 	Help* p_help;
 };
 
-GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false)
+GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false), dragFromPlayer(false)
 {
+	// A state stands on the stack from the moment it is pushed, and onEnter() -
+	// which builds all of this - runs only at the next processGameStateChanges().
+	// getGameState() therefore names this state while none of it exists yet, and
+	// whoever asks in that window reads what the heap happened to leave here. The
+	// test hook did exactly that, and a level pointer of rubbish took the game
+	// down with it.
+	p_level = 0;
+	p_selectLevel = 0;
+	p_misc = 0;
+	p_originalLevel = 0;
+	p_saveGame = 0;
 }
 
 GS_Game::~GS_Game()
@@ -350,9 +375,84 @@ void GS_Game::onRender()
 	}
 }
 
+bool GS_Game::getMouseDragCells(Vec2i* p_actor,
+								Vec2i* p_target)
+{
+	if(!p_level || paused || p_level->isInPreview()) return false;
+	if(GUI::inst()["Game.MenuPane"]->isVisible()) return false;
+
+	// Only a press that landed on the field. The GUI remembers what the press
+	// went to, and for the play area that is the GameGUI itself - anything
+	// else is a widget with its own job, the Menu button or a pad key, and
+	// steering off one of those would walk the character while the player is
+	// aiming at something quite different.
+	GUI_Element* p_down = GUI::inst().getMouseDownElement();
+	if(!p_down || p_down->getFullName() != "Game") return false;
+
+	// And it has to have landed on a character.
+	if(!dragFromPlayer) return false;
+
+	Player* p_player = p_level->getActivePlayer();
+	if(!p_player) return false;
+
+	*p_actor = p_player->getPosition();
+
+	// The same arithmetic GameGUI::onMouseDown uses to find a character under
+	// the cursor. The level's own offset is camera shake and nothing else -
+	// the field is never scrolled - so there is none to take off here.
+	*p_target = Engine::inst().getCursorPosition() / 16;
+	return true;
+}
+
+bool GS_Game::canMouseDragStep(const Vec2i& dir)
+{
+	if(!p_level) return false;
+	Player* p_player = p_level->getActivePlayer();
+	return p_player ? p_player->move(dir, false, true) : false;
+}
+
+// Clicking on something the character is standing next to works it: a switch
+// or a magnet is solid and fixed and does its whole job in onTouchedByPlayer,
+// which is reached by walking into it, and a drag that refuses blocked
+// directions would otherwise put them out of a mouse player's reach.
+//
+// The two guards are the whole rule. Orthogonally adjacent, because that is
+// what "walk into it" means; and only where the character *cannot* go there,
+// so that a click is never a step and never a push - a panel is walked onto
+// rather than into, and stays a place to stand on.
+//
+// What happens then is left to move() rather than worked out here, and that
+// is the point: a click can reach exactly what a walk in that direction
+// reaches, whatever the case. A switch standing on a solid tile is the one
+// worth naming - move() refuses to touch through the tile, so the click does
+// nothing either, just as walking into it would.
+void GS_Game::bumpCell(const Vec2i& cell)
+{
+	if(!p_level || paused || p_level->isInPreview()) return;
+	if(GUI::inst()["Game.MenuPane"]->isVisible()) return;
+
+	Player* p_player = p_level->getActivePlayer();
+	if(!p_player) return;
+
+	const Vec2i dir = cell - p_player->getPosition();
+	if(abs(dir.x) + abs(dir.y) != 1) return;
+	if(p_player->move(dir, false, true)) return;
+
+	p_player->move(dir);
+}
+
 void GS_Game::onUpdate()
 {
 	if(switchTimer) switchTimer--;
+
+	// The hold on a character lasts until the last button is up. No release
+	// says which press it ends, and there is not one for every press either -
+	// losing the focus clears the buttons outright - so the state of the
+	// buttons is what it is read off.
+	if(!engine.isButtonDown(SDL_BUTTON_LEFT) && !engine.isButtonDown(SDL_BUTTON_RIGHT))
+	{
+		dragFromPlayer = false;
+	}
 
 	bool menuVisible = GUI::inst()["Game.MenuPane"]->isVisible();
 
@@ -641,6 +741,10 @@ void GS_Game::onGetFocus()
 {
 	gui["Game"]->focus();
 	showCursor = 200;
+
+	// Nothing was held when the state was away, whatever was held when it
+	// left: onUpdate, which is where that is noticed, did not run.
+	dragFromPlayer = false;
 }
 
 void GS_Game::onLoseFocus()

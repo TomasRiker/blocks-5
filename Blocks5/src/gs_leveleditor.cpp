@@ -1090,6 +1090,13 @@ private:
 
 GS_LevelEditor::GS_LevelEditor() : GameState("GS_LevelEditor"), engine(Engine::inst()), pipetteObjectAttributes("")
 {
+	p_level = 0;
+	p_currentCat = 0;
+	p_clipboard = 0;
+	p_teleporter = 0;
+	p_hint = 0;
+	p_currentPin = 0;
+	p_startPin = 0;
 }
 
 GS_LevelEditor::~GS_LevelEditor()

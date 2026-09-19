@@ -546,9 +546,9 @@ private:
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	// The recogniser's state; updateMouseDrag() has the rules.
-	Vec2i dragOrigin;
 	int dragButtons;
-	bool dragging;
+	// 0 for a leg along x, 1 for one along y, -1 for none.
+	int dragAxis;
 	bool dragBlocked;
 	std::unordered_map<std::string, Action*> actions;
 	std::vector<Action*> actionsVector;

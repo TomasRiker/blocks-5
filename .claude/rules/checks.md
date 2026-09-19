@@ -49,6 +49,17 @@ id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitia
 comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
 ten years is not a finding, and reporting it every run is how a check gets ignored.
 
+**`ctor_init` takes back both of its exemptions for a pointer**, and that is measured rather than
+strict for its own sake. A scalar left uninitialised is a wrong number; a pointer is a crash, and the
+window is wider than it looks: a game state stands on the stack from the moment `pushGameState` puts it
+there, while `onEnter` — which builds everything it owns — runs only at the next
+`processGameStateChanges()`. So `getGameState()` names a state whose members are still whatever the heap
+left in them. `GS_Game::p_level` was such a member for years, and the test hook asking a freshly pushed
+state for its level is what finally read it: a segfault that appeared in one working tree and not in
+another, since the value depends on what the allocator had put there. Both exemptions would have hidden
+it — the constructor set one of the six pointers, and the member is far older than the baseline.
+A pointer is found by its `p_` spelling, which is the one thing the naming convention buys the checks.
+
 **Two of the checks police the renderer's convention** (ROADMAP 54). `raw_gl`
 reads the whole tree with comments and strings blanked and reports every `gl*`, `glu*` or `glExt*`
 call outside `RAW_GL_FILES`, the files that own raw GL - which is also what keeps display lists, wide

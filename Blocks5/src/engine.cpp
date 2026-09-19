@@ -73,13 +73,21 @@ Engine::Engine()
 	frameTime = 0;
 	time = 0;
 	dragButtons = 0;
-	dragging = false;
+	dragAxis = -1;
 	dragBlocked = false;
 	grabbingKey = false;
 	grabResult = GRAB_WAITING;
 	grabDeadline = 0;
 	grabHasDeadline = false;
 	p_crossfade = 0;
+	p_display = 0;
+	p_audioDevice = 0;
+	p_audioContext = 0;
+	p_currentMusic = 0;
+	p_stateToBeEntered = 0;
+	p_stateToGetFocus = 0;
+	p_stateToLoseFocus = 0;
+	p_recordingIconTexture = 0;
 	crossfadeTime = -1.0f;
 	crossfadeDuration = 0.0f;
 	p_videoRecorder = 0;
@@ -3405,73 +3413,114 @@ bool Engine::wasActionReleased(const std::string& name) const
 	return p_action ? ((p_action->data & 4) ? true : false) : false;
 }
 
-// How far the cursor must leave the press point, in the game's own pixels,
-// before a press counts as a drag. A cell is sixteen of them, so this is well
-// under half of one: far enough that a click with an unsteady hand stays a
-// click, near enough that the character sets off when the player means it.
-// Raise it if clicks turn into steps, lower it if the first step feels late.
-static const int DRAG_THRESHOLD = 6;
+// One cell along `axis` (0 for x, 1 for y) toward the cursor, and nothing
+// where that axis has already arrived.
+static Vec2i dragStep(int axis,
+					  const Vec2i& away)
+{
+	Vec2i step(0, 0);
+	if(axis == 0)
+	{
+		if(away.x) step.x = (away.x < 0) ? -1 : 1;
+	}
+	else if(away.y) step.y = (away.y < 0) ? -1 : 1;
+	return step;
+}
 
+// The drag names a cell rather than a direction: the character walks to
+// whatever the cursor is over and keeps going while a button is held. That
+// costs nothing in here - the four direction keys are held exactly as a
+// finger holds an arrow key, so the step cadence, the opposing-action rule
+// and the rest of the action layer apply unchanged.
+//
+// Two rules are worth the words. The keys are *held* and never pulsed: a
+// press that lands while an action's repeat is counting down goes into its
+// buffer (updateActions) and is played out later, so a pulsed key would stack
+// steps up and walk on after the player let go. And only one axis moves at a
+// time, committed until it runs out - stepping whichever axis is further off
+// each tick draws a staircase, and while that is no faster than the two
+// straight legs it is a path nobody would walk by hand on the keyboard, so it
+// would be an advantage for nothing.
+//
+// Two more belong to the game rather than to the gesture, and are asked of
+// the game state: whether there is anybody to steer, which includes the press
+// having landed on a character, and whether the way a leg wants to go is open
+// at all (getMouseDragCells, canMouseDragStep).
 void Engine::updateMouseDrag()
 {
-	const bool left = isButtonDown(SDL_BUTTON_LEFT);
-	const bool right = isButtonDown(SDL_BUTTON_RIGHT);
-	const int buttons = (left ? 1 : 0) | (right ? 2 : 0);
+	const bool leftButton = isButtonDown(SDL_BUTTON_LEFT);
+	const bool rightButton = isButtonDown(SDL_BUTTON_RIGHT);
+	const int buttons = (leftButton ? 1 : 0) | (rightButton ? 2 : 0);
 
 	if(!buttons)
 	{
-		// Every button up ends the drag and clears a block, so the next press
-		// is free to start a new one.
-		dragging = false;
+		// Every button up ends the drag and clears a block, so that the next
+		// press is free to start a new one.
 		dragButtons = 0;
+		dragAxis = -1;
 		dragBlocked = false;
 	}
 
-	if(!buttons || dragBlocked)
+	Vec2i actor, target;
+	GameState* p_gs = getGameState();
+	const bool steering = buttons && !dragBlocked
+						  && p_gs && p_gs->getMouseDragCells(&actor, &target);
+
+	Vec2i step(0, 0);
+	if(!steering) dragAxis = -1;
+	else
 	{
-		for(int i = 0; i < NUM_MOUSE_DRAG_VKS; i++)
+		const Vec2i away = target - actor;
+		if(away.isZero()) dragAxis = -1;
+		else
 		{
-			virtualKeys[getMouseDragVK(i)].down = false;
+			// The buttons are read again every tick until the character has
+			// somewhere to go, because somebody reaching for both of them
+			// presses one a moment before the other and the pair is what they
+			// meant.
+			if(!dragButtons) dragButtons = buttons;
+
+			// A leg begins where there is no axis yet or the one being walked
+			// has run out, and it takes whichever is further off.
+			int axis = dragAxis;
+			if(axis == -1
+			   || (axis == 0 && away.x == 0)
+			   || (axis == 1 && away.y == 0))
+			{
+				axis = (abs(away.x) >= abs(away.y)) ? 0 : 1;
+			}
+
+			step = dragStep(axis, away);
+			if(!p_gs->canMouseDragStep(step))
+			{
+				// A leg that has walked into something is over as surely as
+				// one that has run out, and the other axis is what takes the
+				// character around the obstacle. Where that is blocked too,
+				// or has arrived already, the drag commands nothing at all
+				// rather than leaning on the wall for as long as the button
+				// is held.
+				axis = 1 - axis;
+				step = dragStep(axis, away);
+				if(!p_gs->canMouseDragStep(step)) step = Vec2i(0, 0);
+			}
+
+			dragAxis = step.isZero() ? -1 : axis;
 		}
-		return;
 	}
 
-	const Vec2i cursor = getCursorPosition();
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_LEFT)].down = step.x < 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_RIGHT)].down = step.x > 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_UP)].down = step.y < 0;
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_DOWN)].down = step.y > 0;
 
-	if(!dragging)
-	{
-		// Where the press landed is measured from here. The buttons are read
-		// again every tick until the drag begins, because somebody reaching
-		// for both of them presses one a moment before the other and the pair
-		// is what they meant.
-		if(!dragButtons) dragOrigin = cursor;
-		dragButtons = buttons;
-
-		const Vec2i offset = cursor - dragOrigin;
-		if(abs(offset.x) < DRAG_THRESHOLD && abs(offset.y) < DRAG_THRESHOLD) return;
-		dragging = true;
-	}
-
-	// The direction is the dominant axis of the whole offset from the press
-	// point, so a drag can be steered without letting go: pull further out and
-	// the character keeps walking, swing across and it turns. Holding it there
-	// is what walks - the action layer's own repeat makes the steps, exactly
-	// as it does for a held arrow key - and coming back to the press point
-	// leaves no direction down at all, which stops.
-	const Vec2i offset = cursor - dragOrigin;
-	const bool horizontal = abs(offset.x) >= abs(offset.y);
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_LEFT)].down = horizontal && offset.x < 0;
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_RIGHT)].down = horizontal && offset.x > 0;
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_UP)].down = !horizontal && offset.y < 0;
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_DOWN)].down = !horizontal && offset.y > 0;
-
-	// What the drag carries was settled when it began and does not change
+	// What the drag carries was settled when it set off and does not change
 	// while it runs. Reading it live would be a trap: on the way into a
 	// two-button grip there is a tick with only the right button down, and
 	// that is the gesture for a *lit* bomb - the player would get one where
 	// they asked for a bomb put down safely.
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_PLANT)].down = (dragButtons == 2);
-	virtualKeys[getMouseDragVK(MOUSE_DRAG_PUT_DOWN)].down = (dragButtons == 3);
+	const bool carrying = !step.isZero();
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_PLANT)].down = carrying && (dragButtons == 2);
+	virtualKeys[getMouseDragVK(MOUSE_DRAG_PUT_DOWN)].down = carrying && (dragButtons == 3);
 }
 
 int Engine::getMouseDragVK(int which) const
@@ -3485,8 +3534,8 @@ int Engine::getMouseDragVK(int which) const
 
 void Engine::cancelMouseDrag()
 {
-	dragging = false;
 	dragButtons = 0;
+	dragAxis = -1;
 	// Blocked, not merely ended: the buttons are still held, and without this
 	// the next movement would begin a fresh drag under the open menu.
 	dragBlocked = true;

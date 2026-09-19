@@ -1247,34 +1247,69 @@ the beam onto the cell's centre: it subtracts the 7.5 the trace added, and
 
 56. Drive the character with the mouse  - **DONE**
 --------------------------------------------------
-Drag to move: a drag in a direction walks the active character that way for as
-long as it is held, because the action layer's own repeat makes the steps
-exactly as it does for a held arrow key. A drag carrying the right button plants
-a bomb in that direction and one carrying both puts a bomb down there - the two
-things `Player::onUpdate` already did for `$A_PLANT_BOMB` (Shift) or
-`$A_PUT_DOWN_BOMB` (Ctrl) held.
+Drag a character to the tile it should go to and it walks there while the
+button stays down. The drag begins on the character - the same press that
+wakes one up takes hold of it, and a drag from empty ground steers nobody. A
+drag carrying the right button plants a bomb in the direction of the step, one
+carrying both puts a bomb down there - the two things `Player::onUpdate`
+already did for a direction with Shift or Ctrl held. And a click on what the
+character is standing next to works it, which is how a switch is reached with
+the mouse.
 
-It is a device, not a special case: `Engine::updateMouseDrag` is a recogniser of
-the same kind as the joystick hat, setting six virtual keys with structural ids
-(`Mouse DragW`, `DragB12`, …), and `Player` still only ever asks for the action.
-Two things came out differently from the plan. The drag binds as an action's
-**third** source rather than as a secondary key, because both real slots are
-taken on all six actions and worth keeping (`$A_LEFT` is Left and KP4) and a
-gesture is its own binding anyway - so `tertiary` is set from `main.cpp` and
-neither the options dialog nor `config.xml` knows it exists. And **the buttons
-are latched when the drag begins** rather than read per tick: on the way into a
+It is a device rather than a special case: `Engine::updateMouseDrag` sets six
+virtual keys the way a joystick hat's four are polled, and `Player` still only
+ever asks for the action. What the engine cannot know is where anybody is, so
+`GameState::getMouseDragCells` hands it the active character's cell and the
+cursor's, and only `GS_Game` answers.
+
+Four decisions the work turned on. The keys are **held, never pulsed**: a
+press landing while an action's repeat counts down goes into that action's
+buffer and is played out later, so pulsing would stack steps up and walk on
+after the player let go. **One axis moves at a time**, committed until it runs
+out, so the path is two straight legs - a staircase is no faster, but it is a
+path nobody would walk by hand on the keyboard, so allowing it would be an
+advantage for nothing. **A direction the character cannot go is never
+commanded** (`canMouseDragStep`, and `move()` itself in `simulate` mode): a leg
+that has walked into something is over as surely as one that has run out, and
+the other axis takes over and walks round the obstacle - held against the wall
+instead, the key would keep the leg alive and the axis that could still move
+would never get its turn. `simulate` takes every decision `move()` takes and
+performs none of them, the recursion into the pushed object included, so a
+chain of blocks against a wall answers no at whatever depth the wall stands
+while a single block with room behind it still answers yes. Asking beats trying
+because trying is not free: a walk into a switch *works* it, so a drag that
+felt its way round an obstacle would flip whatever it brushed. And the
+**buttons are latched** when the drag sets off: on the way into a
 two-button grip there is a tick with only the right button down, which is the
-gesture for a *lit* bomb, so a live reading would hand the player one where they
-asked for a bomb put down safely.
+gesture for a *lit* bomb.
 
-The drag may start anywhere, which was the decision left open: the active
-character is the one that walks, as with the keyboard. A click is still a click
-below the six-pixel threshold and still activates the character under it. Two
-things drop a drag - the menu opening (`Game.ShowMenu`, which Escape and the
+That last rule is what the click is for. A switch or a magnet is solid and
+fixed and does its whole job in `onTouchedByPlayer`, which is reached by
+walking into it, so refusing blocked directions would have put them out of a
+mouse player's reach. `GS_Game::bumpCell` has two guards - orthogonally
+adjacent, and only where the character *cannot* go there, so a click is never a
+step and never a push - and leaves the rest to `Player::move`, which is the
+point: a click reaches exactly what a walk that way reaches. A panel falls out
+of it for nothing, being walked onto rather than into; so does a switch behind
+a solid tile, which `move` refuses to touch through.
+
+Two more that fell out of the plan rather than into it. The drag binds as an
+action's **third** source, because both real slots are taken on all six actions
+and worth keeping, and a gesture is its own binding - so `tertiary` is set from
+`main.cpp` and neither the options dialog nor `config.xml` knows it exists. And
+the six keys sit directly behind the keyboard block so that their base is a
+constant: `main.cpp` registers its actions before `Engine::init` builds the
+table, and a base discovered during init is still `-1` when the binding is
+made. That one shipped broken once, silently, which is why
+`LinuxBuild/test/drag.sh` exists - it reads the character's cell and the state
+of the lights out of the test hook, because these gestures steer the level and
+no widget can be asked whether they worked, and it plays a level of its own,
+because the geometry a drag has to walk round is the test.
+
+Two things drop a drag: the menu opening (`Game.ShowMenu`, which Escape and the
 on-screen button both go through) and losing focus, which now clears the held
 mouse buttons as it already cleared the held keys, since no release arrives for
 either. `input.md` has the rest, and the in-game help lists both gestures.
-
 
 57. One floating-point type  - **DONE**
 ---------------------------------------
@@ -1396,6 +1431,46 @@ lights.
 No oracle scene can catch this: a collected item is as transient as `Damage`
 and `Projectile`, which no palette level can place. It is a look-at-it change
 and goes to the author unbuilt, like a glow or a timing.
+
+59. The help screen's text runs out of its box
+----------------------------------------------
+Page 1 of the help does not fit. The frame around the text is `help.xml`'s
+deactivated `EditBox`, 580x355 at (10,35) of a 600x440 window centred in the
+picture - screen rows 55 to 410 - and the page's last row crosses that edge:
+"Window/fullscreen" is cut in half by it and its `Alt`+`Enter` keycaps stand
+about fourteen pixels below the frame, in the strip the OK button sits in.
+Nothing clips, so the text simply spills; the page element is a plain
+`Element`, not one of the three that clip their contents.
+
+The reason it cannot be settled by deleting a line is that "fits" is not a
+property of the text alone. A page is `$H_HELP_PAGE1..6` in `languages.txt`,
+written once in English and once in German, and German is the longer language;
+`%BINDING{...}` expands to a keycap drawn from the player's *own* binding, so a
+row is as tall and as wide as whatever key they rebound it to - `Right Shift`
+against `F1`. The split into six pages is by hand, and `Help::handleClick`
+hardcodes `page < 6`, so a page that grows has nowhere to go and a page added
+has to be wired in.
+
+Four ways, and the first two are the ones worth having:
+
+- **Break the pages at the box.** Lay the text out, measure, and start a new
+  page where the next line would cross the frame. The page count then follows
+  the text instead of being a constant, `$H_HELP_PAGE*` becomes one document
+  rather than six hand-cut ones, and the German page count may differ from the
+  English without anybody minding. `Font` already returns the height of a laid
+  out string, which is the whole of what this needs.
+- **Clip the page element and give it a scrollbar**, the way the list boxes
+  have one. Cheap, and it is the safety net under the first: even paginated,
+  one unbreakable paragraph could still be taller than the box.
+- Grow the window. 480 - 440 leaves 40 pixels of slack, so this buys two lines
+  and postpones the question.
+- Shrink the font or the line spacing for the help alone. It buys the same two
+  lines and costs legibility on a phone.
+
+Worth adding with either: a `verify.py` check that every help page fits its box
+at the default bindings, in both languages. `font_metrics` already reads the
+font, so the machinery is there, and the mistake this catches is exactly the
+one that made the entry - a row added to a page that was already full.
 
 How these connect
 -----------------

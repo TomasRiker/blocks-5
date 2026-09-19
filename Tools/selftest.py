@@ -172,9 +172,9 @@ def c_raw_gl_bind(p):
 
 @case('raw_gl', 'Blocks5/src/cf_cube.cpp')
 def c_raw_gl_glu(p):
-    p.replace('\tconst Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);',
+    p.replace('\tconst Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);',
               '\tgluPerspective(90.0, 1.0, 0.1, 100.0);\n'
-              '\tconst Mat4 projection = Mat4::perspective(90.0, 1.0, 0.1, 100.0);')
+              '\tconst Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);')
 
 
 @case('raw_gl', 'Blocks5/src/gs_credits.cpp')
@@ -356,6 +356,15 @@ def c_ctor(p):
     # The first of the three places is the one in the constructor.
     p.replace('\tframeDepthStencilID = 0;\n\trenderTargetID = 0;\n',
               '\tframeDepthStencilID = 0;\n')
+
+
+# The pointer half of the same check, which has neither of the exemptions the
+# scalar half grants: GS_Game sets one of its six pointers outside the
+# constructor and p_level is years old, so the majority rule and the baseline
+# would each have hidden the one that actually crashed the game.
+@case('ctor_init', 'Blocks5/src/gs_game.cpp')
+def c_ctor_pointer(p):
+    p.replace('\tp_level = 0;\n\tp_selectLevel = 0;\n', '\tp_selectLevel = 0;\n')
 
 
 @case('assets', 'Blocks5/src/gs_menu.cpp')

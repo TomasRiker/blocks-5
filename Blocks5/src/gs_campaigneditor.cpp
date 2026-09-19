@@ -456,6 +456,8 @@ private:
 
 GS_CampaignEditor::GS_CampaignEditor() : GameState("GS_CampaignEditor"), engine(Engine::inst())
 {
+	p_campaign = 0;
+	p_background = 0;
 }
 
 GS_CampaignEditor::~GS_CampaignEditor()

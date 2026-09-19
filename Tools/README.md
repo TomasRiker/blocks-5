@@ -31,7 +31,7 @@ Exit code 1 as soon as anything is reported.
 | `bindings` | Every `%BINDING{...}` must name an action that `main.cpp` registers. |
 | `xml_attrs` | An attribute written and read nowhere is dead weight or a typo. |
 | `config` | What `Engine::saveConfig` writes must be read back again. |
-| `ctor_init` | Scalar members that the constructor does not set. |
+| `ctor_init` | Scalar and pointer members that the constructor does not set. |
 | `assets` | A filename in the code must exist on disk, spelled exactly so. |
 | `sounds` | Every sound `playSound()` names must be preloaded in `loadSounds()`. |
 | `sound_volumes` | Every sound in `data/sounds.xml` must exist, with a factor under 1. |
@@ -45,6 +45,11 @@ state before the overhaul. Code that already stood there in 2015 and has run
 daily ever since is not a finding, and reporting it at every run is how a
 check gets ignored. The state compared against is `BASELINE` at the top of
 `verify.py`.
+
+`ctor_init` makes one exception to its own leniency: a **pointer** member gets
+neither the baseline nor the majority rule, because a pointer left over from
+the heap is a crash where a scalar is a wrong number. That is not theory - see
+`GS_Game::p_level` in the check's own docstring.
 
 ## selftest.py
 

@@ -366,6 +366,13 @@ namespace
 			const Vec2i cell = p_player ? p_player->getPosition() : Vec2i(-1, -1);
 			out += ",";
 			appendPoint(out, "player", cell.x, cell.y);
+
+			// Whether the lights are out, for the same reason: a switch does
+			// its whole job in onTouchedByPlayer, and of the eight the light
+			// is the one whose effect is a single bit of the level rather
+			// than something that has to be recognised in the picture.
+			out += ",\"nightVision\":";
+			out += (p_lvl && p_lvl->isNightVision()) ? "true" : "false";
 		}
 
 		out += ",\"mouseDown\":\"";

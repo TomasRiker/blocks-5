@@ -90,6 +90,15 @@ That parse trusts nothing, because the Manager imports this file and it is there
 element, no `campaign` attribute and a level index that is negative or absurd are all skipped rather than
 crashing.
 
+**The level select says so when the game's own campaign is not there.** `blocks.zip` is a build
+product: a tree that has been cloned but never packed has every other file and not that one, and the
+campaign box then simply comes up without it — forty-two levels gone and nothing saying why, which is
+exactly how a developer loses an afternoon. `GS_SelectLevel::onEnter` watches whether anything shipped
+loaded (`Transfer::isBuiltIn`) and raises `$ERROR_NO_BUILT_IN_CAMPAIGN` if nothing did. A campaign that
+is present but broken says its own piece from `Campaign::load`, so this one is only about nothing being
+there at all. `LinuxBuild/build.sh` warns about the same file after every build, where the build output
+is scrolling past; the toast is for the run where nobody read it.
+
 **A level somebody sent you is played from the level select screen, not from the editor.**
 `Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in the
 user's level folder, listed last in the campaign box under `$LS_SINGLE_LEVELS`. The editor gives the

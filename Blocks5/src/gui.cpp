@@ -12,6 +12,11 @@ GUI::GUI()
 	p_font = 0;
 	p_toolTipFont = 0;
 	p_skin = 0;
+	p_elementAtCursor = 0;
+	p_oldElementAtCursor = 0;
+	p_focusElement = 0;
+	p_oldFocusElement = 0;
+	p_mouseDownElement = 0;
 	keyRepeat = false;
 }
 

@@ -32,6 +32,7 @@ Player::Player(Level& level,
 	if(active) activate();
 	touch = 0;
 	push = 0;
+	p_bomb = 0;
 	walk = level.isInMenu() ? 0 : 40;
 	plantBomb = level.isInMenu() ? 0 : 40;
 	censored = false;
@@ -301,18 +302,20 @@ void Player::onUpdate()
 }
 
 bool Player::move(const Vec2i& dir,
-				  bool deadlyWeight)
+				  bool deadlyWeight,
+				  bool simulate)
 {
-	if(slideDir != -1 && !slideMove) return false;
+	if(!simulate && slideDir != -1 && !slideMove) return false;
 	if(dir.isZero()) return true;
-	if(moved) return false;
+	if(!simulate && moved) return false;
 	if(!level.isValidPosition(position + dir)) return false;
 
-	interpolation = 0.3f;
+	if(!simulate) interpolation = 0.3f;
 
 	int tileType = 0;
 	if(level.isFreeAt(position + dir, &tileType))
 	{
+		if(simulate) return true;
 		position += dir;
 		moved = true;
 		lastMoveDir = dir;
@@ -330,6 +333,8 @@ bool Player::move(const Vec2i& dir,
 			{
 				if(!push || deadlyWeight)
 				{
+					if(simulate) return static_cast<Player*>(p_obj)->move(dir, true, true);
+
 					if(static_cast<Player*>(p_obj)->move(dir, true))
 					{
 						position += dir;
@@ -353,6 +358,7 @@ bool Player::move(const Vec2i& dir,
 			if(p_obj->getFlags() & OF_COLLECTABLE)
 			{
 				// collect the object
+				if(simulate) return true;
 				position += dir;
 				moved = true;
 				lastMoveDir = dir;
@@ -369,7 +375,9 @@ bool Player::move(const Vec2i& dir,
 				bool pushed = p_obj->isPushedFromAbove();
 				if((pushed && !dir.y) || !pushed)
 				{
-					// try to push the object
+					// try to push the object - and the chain behind it
+					if(simulate) return p_obj->move(dir, 10, true);
+
 					if(p_obj->move(dir, 10))
 					{
 						// It worked.
@@ -400,6 +408,7 @@ bool Player::move(const Vec2i& dir,
 				if(p_obj->allowMovement(dir))
 				{
 					// The move is fine.
+					if(simulate) return true;
 					position += dir;
 					moved = true;
 					lastMoveDir = dir;
@@ -409,6 +418,10 @@ bool Player::move(const Vec2i& dir,
 				}
 			}
 
+			// Nothing above said yes. Bumping into a switch is what a walk
+			// into it does; a question about it does nothing at all.
+			if(simulate) return false;
+
 			if(!touch)
 			{
 				p_obj->onTouchedByPlayer(this);
@@ -417,7 +430,7 @@ bool Player::move(const Vec2i& dir,
 		}
 	}
 
-	slideDir = -1;
+	if(!simulate) slideDir = -1;
 	return false;
 }
 
