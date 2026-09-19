@@ -111,18 +111,29 @@ deep** and is played out one `interval` later, and again, until the buffer is em
 walking, where a step pressed a moment early should still be taken. It is wrong for anything that is not
 a step.
 
-`$A_RESTART_LEVEL` and `$A_RESTART_FROM_HOTEL` had a `delay` and an `interval` of a second and never
-turned the repeat off, so they were auto-fire actions with that buffer: five quick presses of F5
-restarted the level for seconds after the last one, each restart beginning the rewind again over the one
-still running — which is what "the transition stacks" was. Measured through the crossfade's own clock:
-**3.2 s of transition after five presses let go, against 1.6 s after one**, the clock resetting twice
-after the last press. Holding the key restarted once a second for as long as it was held. Both fire once
-per press now, as `$A_TOGGLE_MUTE`, `$A_CAPTURE_SCREENSHOT` and `$A_TOGGLE_CAPTURE_VIDEO` already did.
+**Four actions were on the wrong side of that line**, and all four fire once per press now, as
+`$A_TOGGLE_MUTE`, `$A_CAPTURE_SCREENSHOT` and `$A_TOGGLE_CAPTURE_VIDEO` already did:
+
+- **`$A_RESTART_LEVEL` and `$A_RESTART_FROM_HOTEL`** had a `delay` and an `interval` of a second.
+  Five quick presses of F5 restarted the level for seconds after the last one, each restart beginning
+  the rewind again over the one still running — which is what "the transition stacks" was. Measured
+  through the crossfade's own clock: **3.2 s of transition after five presses let go, against 1.6 s
+  after one**, the clock resetting twice after the last press. Holding the key restarted once a second
+  for as long as it was held.
+- **`$A_PAUSE`** had 200 and 500, so holding the key toggled the pause every half second and a hold
+  ended wherever the arithmetic landed — held a second and a half it fired at 0, 200, 700 and 1200 ms
+  and came out switched off.
+- **`$A_SWITCH_CHARACTER`** was on the defaults, 240 and then every 80, so holding Tab cycled the active
+  character for as long as it was held — measured with two of them, about two and a half times a second
+  once `GS_Game`'s own 400 ms throttle had had its say. That throttle is gone with the repeat, and with
+  it a hardcoded `SDLK_TAB` in the key handler that cleared it on release: it read the *key* and not the
+  action, so it did nothing at all for anybody who had rebound the switch — the one place in the input
+  layer that had forgotten the rule the rest of this file is about.
 
 Turning the repeat off removes the lockout with it, and that is deliberate rather than an oversight —
 `updateActions` says so where it sets `countDown`: a lockout without a repeat would send a second press
 inside the delay into a buffer that only the repeat ever empties, so it would not count at all. Once per
-press means every press.
+press means every press, which is why the throttle could go without tapping Tab getting slower.
 
 **Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
 `wasAnyButtonPressed` read the same per-tick bits. Coming back from another window is what makes it worth

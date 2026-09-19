@@ -152,6 +152,15 @@ whether the clock ever runs *backwards* afterwards. It can only do that if a sec
 which is the bug exactly. Proved against the code that had it: "the restart transition went back from
 679ms to 80ms".
 
+The other two of that family are read the same way, off state the game already reports: `smoke.sh` holds
+the pause key for a second and a half and asserts the dump's `paused`, and `drag.sh` — which has a second
+character parked in a corner for it — holds Tab and asserts the active cell does not move again, then taps
+it three times and asserts it did switch three times. The second half of that one matters as much as the
+first: it is what would catch the removal of `GS_Game`'s throttle having made tapping slower. Both were
+proved against the actions that repeated. **Neither compares against a cell written down in the file** —
+the first character has walked a long way by the time `drag.sh` gets there, so an assertion naming its
+starting cell passes whatever Tab does.
+
 **A static text reports how big it is**, and that is what `smoke.sh` asks the help with. The frame around
 a help page is a fixed 580x370; what goes in it is written by hand in `languages.txt`, wrapped at display
 time, and carries `%BINDING` markers that expand to whatever the player rebound them to — so "it fits" is

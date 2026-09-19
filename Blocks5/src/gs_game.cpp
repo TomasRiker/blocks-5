@@ -150,7 +150,6 @@ public:
 			return;
 		}
 
-		if(event.type == SDL_KEYUP && event.keysym.sym == SDLK_TAB) game.switchTimer = 0;
 		if(!pressed) return;
 
 		// An open hint note gets Return and Escape first. It is as tall as the
@@ -437,7 +436,6 @@ void GS_Game::bumpCell(const Vec2i& cell)
 
 void GS_Game::onUpdate()
 {
-	if(switchTimer) switchTimer--;
 
 	// The hold on a character lasts until the last button is up. No release
 	// says which press it ends, and there is not one for every press either -
@@ -477,12 +475,8 @@ void GS_Game::onUpdate()
 	{
 		if(engine.wasActionPressed("$A_SWITCH_CHARACTER"))
 		{
-			if(!switchTimer)
-			{
-				// select the next player
-				p_level->switchToNextPlayer();
-				switchTimer = 20;
-			}
+			// select the next player
+			p_level->switchToNextPlayer();
 		}
 		else if(engine.wasActionPressed("$A_SAVE_IN_HOTEL"))
 		{
@@ -703,7 +697,6 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	p_misc = Manager<Texture>::inst().request("misc.png");
 
 	leaveCountDown = 50;
-	switchTimer = 0;
 
 	// create the dialog
 	new GameGUI(*this);

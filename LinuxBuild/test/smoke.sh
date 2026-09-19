@@ -269,6 +269,29 @@ b5_mashRestart()
 }
 b5_mashRestart
 b5_expectState GS_Game
+
+# The pause was the same shape - 200 and 500 with the repeat left on - so
+# holding the key toggled it every half second and a hold ended wherever the
+# arithmetic landed. Held for a second and a half it must simply be paused:
+# under the old numbers that hold fired at 0, 200, 700 and 1200 ms and came
+# out the other side switched off.
+#
+# It is the one key the "any key leaves the pause" rule cannot resume with,
+# since the resume sits in front of the action chain and spends the press - so
+# what this reads is the hold, not a second press.
+xdotool keydown Pause; sleep 1.5; xdotool keyup Pause; sleep 1
+b5_dump || b5_hookFailed
+if [ "$(b5_json "d['paused']")" = "True" ]; then
+	b5_ok "the pause key held for a second and a half left the game paused"
+else
+	b5_note "the pause key held for a second and a half toggled itself back off"
+fi
+b5_key Escape
+b5_dump || b5_hookFailed
+[ "$(b5_json "d['paused']")" = "False" ] \
+	&& b5_ok "and any key resumed it" \
+	|| b5_note "the game is still paused after a keypress"
+b5_expectShown Game.MenuPane.Menu false
 sleep 2
 
 b5_key Escape
