@@ -144,6 +144,7 @@ void GS_Menu::onUpdate()
 		ParameterBlock context;
 		context.set("full", p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL] ? true : false);
 		engine.setGameState("GS_Credits", context);
+		engine.crossfade(new CF_Star, 0.85f);
 	}
 	else if(p_keyStates[SDLK_d] &&
 		(p_keyStates[SDLK_LSHIFT] ||

@@ -128,9 +128,15 @@ The two are different pictures and not one with a switch: `credits` is the gradi
 the motion-blur buffer under `$C_THANKS_FOR_PLAYING` at an animated `charScaling`, which is the one text
 in the game nothing caches; `credits-plain` is the *programming* credit on flat black at a scaling held
 at 1. Only the first needs `lockstep`, since only it draws its own last frame back into the next one —
-which is also why the second reaches tick 6000 in seconds where the first takes a minute. Running second,
+which is also why the second costs seconds where the first takes a minute. Running second,
 `credits-plain` is a re-entry into a state the run has already left once, which is what proves `onEnter`
 starts from nothing.
+
+**Their ticks are not comparable**, 6000 against 4000, and that is the versions and not the scenes: the
+plain one's clock starts at 0 where the ending's starts at -2000, since it has no star field to fade up
+and nothing to establish, so `sceneTick` (`time + 2000`) begins at 2000 for it and at 0 for the ending.
+Both land four fifths of the way through a block's fade-in, clear of the half-way point the fade turns
+round on — a frame sitting on that branch would flip between two pictures for a change of a millisecond.
 
 **What neither can see is which key asked for which**, so `smoke.sh` drives the two chords and reads the
 answer off the one behaviour that separates the versions: a click or Escape leaves the plain credits,

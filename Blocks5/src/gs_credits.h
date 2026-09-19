@@ -24,6 +24,7 @@ public:
 	void onLoseFocus();
 
 private:
+	void leaveToMenu();
 	void renderStarField(float t);
 	void renderStars(const Mat4& projection, const Mat4& view);
 	void updateStars();
