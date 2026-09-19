@@ -1224,21 +1224,41 @@ that way; this is the same idea one level up.
 `Manager<Texture>` request (`font.cpp`), drawn at fixed uv and never tiled, and
 the alternation that ends most batches is precisely skin-then-font.
 
-**What can never go in, and how each one is known.** Four textures are scrolled
-under `GL_REPEAT` without bound - `rain.png`, `snow.png`, `clouds.png` through
-`Renderer::scrolledQuad`, and the rewind's `noise.png`, which writes its uv in
-fractions of the image rather than in texels. `GL_REPEAT` wraps a whole texture
-and not a region of one. The lava is the same case one step further along:
-`createSubTexture` cuts a real 16x16 texture out of the skin's sheet precisely
-so that the wrap lands at 16. Render targets - the frame copies, the offscreen
-pool, the framebuffer - never go through `Texture` at all and are out by
-construction.
+**What can never go in, and how each one is known.** `GL_REPEAT` wraps a whole
+texture and not a region of one, so anything that samples outside its own edges
+must own its GL name. Four requests do: the level's `rain.png`, `snow.png` and
+`clouds.png`, and the menu's own `clouds.png`, all four through
+`Renderer::scrolledQuad`. Two more are out by construction and need no rule -
+the lava's pair, where `createSubTexture` cuts a real 16x16 texture out of the
+skin's sheet precisely so that the wrap lands at 16, and the rewind's snow,
+which `createGLTexture` generates and which is therefore not a `Texture` at all.
+Render targets - the frame copies, the offscreen pool, the framebuffer - go the
+same way. Everything else can be packed.
 
-So a texture declares that it tiles, at `request()`, and the declaration is
-checkable rather than trusted: `scrolledQuad` should take a `TextureRef` instead
-of a raw id and fail loudly on a non-zero `uvOrigin`, the way `checkRecord`
-fails on a wrong record. A tiling texture that got packed would otherwise show
-as a wrong picture somewhere nobody was looking.
+**`noise.png` is the one that decides how the check is built.** The night
+vision samples a 200x160 and a 300x240 window out of it at a per-tick random
+offset, through an ordinary `Renderer::quad` and not through `scrolledQuad` -
+and the offset is `random(0, 512 - 200)` against a hardcoded 512. That fits the
+shipped 512x512 file exactly, so the shipped game never samples outside. **An
+imported skin with a smaller noise does**, today, and gets a wrap or a smeared
+clamp depending on whether its edges are powers of two. That is a bug on its own
+account and a one-line fix - take the window from the texture's real size - and
+it has to be made before `noise.png` can be packed, because inside an atlas
+sampling past the edge reads a neighbour.
+
+The lesson is what the check has to be. Auditing `scrolledQuad` would never have
+found this one, so the declaration is guarded at the bottom instead: in a
+test-hooks build **`pushQuad` fails on a uv outside the region of a packed
+texture**, the way `checkRecord` fails on a record that disagrees with GL. That
+catches every way of sampling outside, named or not.
+
+**The declaration itself rides on the deferred packing.** Nothing is packed at
+the moment of the request - the atlas is rebuilt at a safe point once a tick,
+beside `freeUnkeptPixels()` - so `setTiling()` on the line after `request()` is
+still before any decision, and needs no argument threaded through the generic
+`Manager<T>`. It is **monotonic**: tiling wins and is sticky, so two callers
+sharing a file cannot disagree by order, and a texture already packed when
+somebody declares it is evicted rather than mis-drawn.
 
 **Reload is where robust is won**, and the property that makes it cheap is
 already true: **nothing stores a `TextureRef` across frames**. Every draw asks
