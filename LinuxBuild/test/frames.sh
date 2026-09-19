@@ -545,18 +545,26 @@ fi
 
 # The plain version, which is what a player who has not finished the shipped
 # campaign gets: no word, so GS_Credits asks the database and the private home
-# answers no. Text on black - the thanks dropped, so 6000 is the programming
+# answers no. Text on black - the thanks dropped, so this is the programming
 # credit, at a charScaling held at 1 and therefore cached.
+#
+# 4000 where the ending's frame is 6000, and the two are not comparable: this
+# version's clock starts at zero rather than two seconds before it, since it
+# has no star field to fade up and nothing to establish, so sceneTick begins
+# at 2000 and 4000 is two seconds in - the programming credit four fifths of
+# the way through its fade. Clear of 2.5 s, where the fade turns round and the
+# frame would sit on the branch it turns on.
 #
 # No lockstep, and that is the point rather than an omission: with nothing
 # drawn back out of the last frame the picture belongs to the tick alone, so
-# the scene is reproducible without pinning the frame count, and reaching tick
-# 6000 costs seconds instead of a minute. It also enters the credits a second
-# time in the same run, which is what proves onEnter starts from nothing.
+# the scene is reproducible without pinning the frame count, and it costs
+# seconds where the ending's takes a minute. It also enters the credits a
+# second time in the same run, which is what proves onEnter starts from
+# nothing.
 if wanted credits-plain; then
 	b5_ask "state GS_Credits" >/dev/null
 	b5_waitForState GS_Credits
-	b5_frame credits-plain 6000
+	b5_frame credits-plain 4000
 	b5_release
 	b5_ask "state GS_Menu" >/dev/null
 	b5_waitForState GS_Menu

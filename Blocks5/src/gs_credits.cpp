@@ -204,7 +204,7 @@ void GS_Credits::onUpdate()
 		if(time == static_cast<int>((fadeAt + 3.0f) * 1000.0f)) engine.playSound("character2.ogg");
 		if(time == static_cast<int>((fadeAt + 4.0f) * 1000.0f)) engine.playSound("character3.ogg");
 	}
-	if(time == static_cast<int>(endAt * 1000.0f)) engine.setGameState("GS_Menu");
+	if(time >= static_cast<int>(endAt * 1000.0f)) leaveToMenu();
 
 	// The four keys a player reaches for to be done with a screen. In the
 	// ending they hurry it, because it is something to watch and cutting it
@@ -233,10 +233,19 @@ void GS_Credits::onUpdate()
 		// processGameStateChanges() runs onEnter and onUpdate follows, all
 		// inside the tick whose press bits are cleared only at its foot - so
 		// whatever opened the screen is still standing when it first asks.
-		if(exitArmed && (keyPressed || engine.wasAnyButtonPressed()))
-			engine.setGameState("GS_Menu");
+		if(exitArmed && (keyPressed || engine.wasAnyButtonPressed())) leaveToMenu();
 		exitArmed = true;
 	}
+}
+
+void GS_Credits::leaveToMenu()
+{
+	// The same star the menu goes anywhere else behind, and the one it came
+	// in behind. Both ways out take it, the clock running out and the player
+	// saying enough: the second is the one that would otherwise cut, and a
+	// screen that can be left at any moment is exactly where a cut shows.
+	engine.setGameState("GS_Menu");
+	engine.crossfade(new CF_Star, 0.85f);
 }
 
 void GS_Credits::onEnter(const ParameterBlock& context)
@@ -249,30 +258,38 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 	// outright are the author's (gs_menu.cpp), and the frame oracle's.
 	full = context.has("full") ? context.get<bool>("full") : Campaign::isBuiltInCompleted();
 
-	// Everything the short version shows moves up by the gap the blocks it
-	// drops leave at the front, so that the names begin after the same
-	// lead-in the thanks had rather than after four seconds of empty stars.
+	// What the first block shown is moved to, and with it everything behind
+	// it. The ending keeps its lead-in: two seconds of star field while the
+	// screen fades up from black, and two more before the thanks, which is an
+	// establishing shot. The plain version's are two seconds of black fading
+	// up from black and two of black, which is four seconds nobody can tell
+	// from a game that has hung - so its first block is there from the start
+	// and the clock starts at zero rather than two seconds before it.
+	time = full ? -2000 : 0;
+	const float firstBlockAt = full ? p_blocks[0].start : 0.0f;
+
 	shift = 0.0f;
 	for(int i = 0; i < NUM_BLOCKS; i++)
 	{
 		if(p_blocks[i].ending && !full) continue;
-		shift = p_blocks[i].start - p_blocks[0].start;
+		shift = p_blocks[i].start - firstBlockAt;
 		break;
 	}
 
 	// The fade to black begins when the last block shown has gone, and the
-	// state hands back to the menu after it: five seconds in the full
-	// version, which is what the three goodbyes need, and two otherwise,
-	// which is the fade itself and nothing more.
+	// state hands back to the menu after it: five seconds in the ending,
+	// which is what the three goodbyes need. The plain version's last name
+	// has faded out on a screen that was already black, so the fade over it
+	// is a fade from black to black - one second, a beat before the star
+	// wipe, rather than two of watching nothing happen.
 	fadeAt = 0.0f;
 	for(int i = 0; i < NUM_BLOCKS; i++)
 	{
 		if(p_blocks[i].ending && !full) continue;
 		fadeAt = max(fadeAt, p_blocks[i].start + p_blocks[i].duration - shift);
 	}
-	endAt = fadeAt + (full ? 5.0f : 2.0f);
+	endAt = fadeAt + (full ? 5.0f : 1.0f);
 
-	time = -2000;
 	speed = 1;
 	exitArmed = false;
 	p_font = Manager<Font>::inst().request("credits_font.xml");

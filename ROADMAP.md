@@ -536,12 +536,27 @@ the same to the caller.
 **The timeline is laid out rather than written down.** The table of eight blocks
 left `onRender` for the file scope and grew two fields, `lineSpacing` (which was
 `i == 5 || i == 6`) and `ending`, which marks the two blocks the short version
-drops. `onEnter` then computes three numbers from whatever is left: `shift`, the
-gap at the front the dropped blocks leave, so the names begin after the same
-lead-in rather than after four seconds of empty stars; `fadeAt`, when the last
-block shown has gone; and `endAt`, the fade plus five seconds in the full version,
-which is what the three `character*.ogg` goodbyes need, and two otherwise. Full
-gives 0 / 53 / 58, which is exactly what was hardcoded; short gives 4 / 37 / 39.
+drops. `onEnter` then computes three numbers from whatever is left: `shift`, what
+the first block shown is moved to and everything behind it with it; `fadeAt`,
+when the last block shown has gone; and `endAt`, the fade plus five seconds in
+the ending, which is what the three `character*.ogg` goodbyes need. Full gives
+0 / 53 / 58, which is exactly what was hardcoded; plain gives 6 / 35 / 36.
+
+**A lead-in needs something to lead in to.** The ending opens on two seconds of
+star field while the screen fades up from black and two more before the thanks,
+which is an establishing shot. The same four seconds in the plain version are
+black fading up from black and then black, which nobody can tell from a game
+that has hung - so its clock starts at 0 rather than at -2000 and its first
+block is up from the first tick. The tail goes the same way: the fade to black
+over a screen that is already black is a fade from black to black, so it gets
+one second as a beat before the star wipe where the ending gets five. 39 seconds
+of which 6 were nothing, to 36 of which none are.
+
+**Both ways in and out of the menu take the star wipe**, the one the menu goes
+behind everywhere else (`CF_Star`, 0.85 s). Out is both exits, the clock running
+out and the player saying enough: the second is the one that would otherwise cut,
+and a screen that can be left at any moment is exactly where a cut shows. The way
+in from the last level of the campaign keeps its own `CF_ColorBlend`.
 
 **The music is the other half of "minimalistic".** The short version does not play
 `credits.ogg`: it is run from the menu, the menu's own track is playing, and
