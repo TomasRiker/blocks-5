@@ -32,6 +32,12 @@ TextureAtlas::~TextureAtlas()
 
 int TextureAtlas::getPageCount() const { return static_cast<int>(pages.size()); }
 int TextureAtlas::getPageEdge() const { return pageEdge; }
+
+uint TextureAtlas::getPageID(int index) const
+{
+	if(index < 0 || index >= static_cast<int>(pages.size())) return 0;
+	return pages[index].id;
+}
 int TextureAtlas::getRepackCount() const { return repacks; }
 
 int TextureAtlas::getUsedArea() const
