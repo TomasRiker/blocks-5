@@ -13,6 +13,8 @@
 
 #include "renderstate.h"
 
+class Texture;
+
 // The stream vertex: 32 bytes, 2D, transform applied and uv normalised.
 struct Vertex
 {
@@ -332,7 +334,9 @@ private:
 	uint program;
 	uint vertexBuffer;
 	uint indexBuffer;
-	uint whiteTexture;
+	// The block and the disc, a picture like any other so that it can share a
+	// page with the rest: see Renderer::init.
+	Texture* p_builtIn;
 	int uniformProjection;
 	int uniformTexture;
 	int uniformDiscard;

@@ -2,10 +2,11 @@
 #include "renderer.h"
 #include "glextensions.h"
 #include "fatalerror.h"
+#include "texture.h"
 
 // renderer.cpp - what renderer.h promises. The GL side is small on purpose:
-// one program, one texture of its own, two buffers, and a flush that applies
-// only what changed. Everything else is arithmetic on the CPU.
+// one program, two buffers, and a flush that applies only what changed.
+// Everything else is arithmetic on the CPU.
 
 namespace
 {
@@ -152,7 +153,8 @@ Renderer::Renderer()
 	scissorOn = false;
 	scissorPosition = scissorSize = Vec2i(0, 0);
 	targetSize = Vec2i(0, 0);
-	program = vertexBuffer = indexBuffer = whiteTexture = 0;
+	program = vertexBuffer = indexBuffer = 0;
+	p_builtIn = 0;
 	uniformProjection = uniformTexture = uniformDiscard = -1;
 	glKnown = false;
 	glRareKnown = false;
@@ -244,44 +246,6 @@ void Renderer::init()
 	glExtUseProgram(0);
 	glDiscard = false;
 
-	// The built-in texture. Linear filtering and clamping: the block is
-	// sampled at one point and the disc's own edge is what a point's edge
-	// becomes, so neither may bleed into the other or wrap.
-	{
-		std::vector<uchar> pixels(BUILTIN_SIZE * BUILTIN_SIZE * 4, 0);
-		for(int y = 0; y < 16; y++)
-		{
-			for(int x = 0; x < 16; x++)
-			{
-				uchar* p_block = &pixels[(y * BUILTIN_SIZE + x) * 4];
-				p_block[0] = p_block[1] = p_block[2] = p_block[3] = 255;
-
-				// Alpha 1 to a radius of 7, 0 from 8, a ramp between: one
-				// texel of edge, which linear filtering spreads over the
-				// size the point is drawn at. (x, y) is local to the cell.
-				const float dx = static_cast<float>(x) + 0.5f - 8.0f;
-				const float dy = static_cast<float>(y) + 0.5f - 8.0f;
-				const float distance = sqrtf(dx * dx + dy * dy);
-				float alpha = 8.0f - distance;
-				if(alpha < 0.0f) alpha = 0.0f;
-				if(alpha > 1.0f) alpha = 1.0f;
-				uchar* p_disc = &pixels[(y * BUILTIN_SIZE + 16 + x) * 4];
-				p_disc[0] = p_disc[1] = p_disc[2] = 255;
-				p_disc[3] = static_cast<uchar>(alpha * 255.0f + 0.5f);
-			}
-		}
-		glGenTextures(1, &whiteTexture);
-		glBindTexture(GL_TEXTURE_2D, whiteTexture);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BUILTIN_SIZE, BUILTIN_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
-		glBindTexture(GL_TEXTURE_2D, current.texture.id);
-		glBinding = current.texture.id;
-		glBindingKnown = true;
-	}
-
 	// The buffers. The index buffer is built once: 0 1 2, 0 2 3 for every
 	// quad, split along the diagonal from the first corner to the third.
 	// Which diagonal shows wherever an attribute is not affine across the
@@ -306,9 +270,50 @@ void Renderer::init()
 		glExtBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
+	// The built-in picture. Linear filtering and a clamped edge, which is what
+	// a page gives it and what place() gives it when the atlas is full: the
+	// block is sampled at one point and the disc's own edge is what a point's
+	// edge becomes, so neither may bleed into the other or wrap.
+	{
+		std::vector<uchar> pixels(BUILTIN_SIZE * BUILTIN_SIZE * 4, 0);
+		for(int y = 0; y < 16; y++)
+		{
+			for(int x = 0; x < 16; x++)
+			{
+				uchar* p_block = &pixels[(y * BUILTIN_SIZE + x) * 4];
+				p_block[0] = p_block[1] = p_block[2] = p_block[3] = 255;
+
+				// Alpha 1 to a radius of 7, 0 from 8, a ramp between: one
+				// texel of edge, which linear filtering spreads over the
+				// size the point is drawn at. (x, y) is local to the cell.
+				const float dx = static_cast<float>(x) + 0.5f - 8.0f;
+				const float dy = static_cast<float>(y) + 0.5f - 8.0f;
+				const float distance = sqrtf(dx * dx + dy * dy);
+				float alpha = 8.0f - distance;
+				if(alpha < 0.0f) alpha = 0.0f;
+				if(alpha > 1.0f) alpha = 1.0f;
+				uchar* p_disc = &pixels[(y * BUILTIN_SIZE + 16 + x) * 4];
+				p_disc[0] = p_disc[1] = p_disc[2] = 255;
+				p_disc[3] = static_cast<uchar>(alpha * 255.0f + 0.5f);
+			}
+		}
+		// A Texture and not a texture of its own, so that it packs: a flat
+		// quad then carries the same GL name as the pictures around it and
+		// stops ending their batch. It was the last thing in the tree
+		// reaching GL directly for a picture - measured, the untextured pass
+		// alone split a level frame in two.
+		//
+		// This stands at the foot of init() because placing it runs the
+		// atlas, which makes a page, which comes back through
+		// Renderer::DirectGL: everything that call needs is built by now.
+		p_builtIn = Texture::createFromPixels(Vec2i(BUILTIN_SIZE, BUILTIN_SIZE), &pixels[0],
+											  "(renderer built-in)");
+	}
+
 	stream.reserve(4 * 4096);
 	glKnown = false;
-	printfLog("  Renderer: program %u, built-in texture %u, %u quads a draw.\n", program, whiteTexture, MAX_QUADS);
+	printfLog("  Renderer: program %u, built-in in texture %u, %u quads a draw.\n",
+			  program, p_builtIn ? p_builtIn->ref().id : 0, MAX_QUADS);
 }
 
 void Renderer::frameBegin(const Vec2i& size)
@@ -369,7 +374,9 @@ void Renderer::endTarget()
 
 RenderState Renderer::flatState() const
 {
-	return RenderState(TextureRef(0, Vec2f(1.0f / BUILTIN_SIZE, 1.0f / BUILTIN_SIZE)), current.blend);
+	// The picture's own ref, so that uv stays in its texels and pushQuad puts
+	// it wherever the atlas has moved it to.
+	return RenderState(p_builtIn->ref(), current.blend);
 }
 
 // --- the GL calls behind the state -------------------------------------------
@@ -816,7 +823,7 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 		glExtUniform1i(uniformDiscard, discardTransparent ? 1 : 0);
 		glDiscard = discardTransparent;
 	}
-	bindReal(s.texture.id ? s.texture.id : whiteTexture);
+	bindReal(s.texture.id);
 	applyBlendMode(s.blend);
 	if(cullBackFaces) glEnable(GL_CULL_FACE);
 
@@ -1098,7 +1105,7 @@ void Renderer::applyState()
 		glDiscard = discardTransparent;
 	}
 
-	bindReal(s.texture.id ? s.texture.id : whiteTexture);
+	bindReal(s.texture.id);
 	applyBlendMode(s.blend);
 }
 
@@ -1290,7 +1297,7 @@ void Renderer::checkRecord()
 	std::string wrong;
 	GLint value = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &value);
-	if(static_cast<uint>(value) != (s.texture.id ? s.texture.id : whiteTexture)) wrong += " texture";
+	if(static_cast<uint>(value) != s.texture.id) wrong += " texture";
 	GLint blend[4];
 	glGetIntegerv(GL_BLEND_SRC_RGB, &blend[0]);
 	glGetIntegerv(GL_BLEND_DST_RGB, &blend[1]);
