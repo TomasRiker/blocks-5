@@ -10,8 +10,10 @@ undone by accident. How things work now is in `CLAUDE.md` and `.claude/rules/`,
 and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
-Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51 and 58. Everything else is done.
+Open: 6 (the campaign half), 13, 19, 22, 27 (the menu line), 28, 29, 30,
+31 (the slider), 35, 36, 37, 38, 40, 41, 46, 47 and 48. Everything else is done.
+Sixty entries, and nothing checks this line against the headings below it, so an
+item finished and not struck from here goes unnoticed. Read it against them.
 
 
 1. Auto-detect the user's language on first start  - **DONE**

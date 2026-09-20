@@ -30,8 +30,8 @@ class Level
 
 public:
 	// Size and layer count are the same for every level and not a property of
-	// the individual instance: the editor allows nothing else, and all 220
-	// shipped and third-party level files in the tree name exactly these
+	// the individual instance: the editor allows nothing else, and every
+	// shipped and third-party level file in the tree names exactly these
 	// values. The level file still writes them out, to keep it readable on
 	// its own and openable by older versions of the game - but on load they
 	// are only checked, no longer adopted.

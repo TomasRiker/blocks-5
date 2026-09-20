@@ -108,7 +108,7 @@ Everything lives flat in `Blocks5/src`. Layering is by naming prefix, not direct
 `Manager<T>::inst().request(filename)` / `->release()` — ref-counted, keyed by filename, never
 `new`/`delete`d directly.
 
-**Engine** (`engine.cpp`, ~56k) owns the main loop, window, OpenAL, config, localization, screenshots and
+**Engine** (`engine.cpp`, 164k, the biggest file in the tree) owns the main loop, window, OpenAL, config, localization, screenshots and
 video capture. The loop renders as fast as it can but steps logic at a fixed `logicRate` of 20 ms
 (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic tick, so gameplay counts ticks
 rather than measuring dt.
@@ -119,8 +119,8 @@ need the stencil), and `presentFrame` puts that on screen as one letterboxed qua
 coordinate in the tree — the single `glViewport`, the `glScissor` calls, the GUI layouts — therefore stays
 valid whatever size the window is; only `computePresentRect` changes, and the cursor mapping in
 `getCursorPosition`/`setCursorPosition` is its exact inverse. Video capture and screenshots read
-`GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size. `glextensions.cpp` loads ten FBO entry
-points and twenty-five GL 2.0 ones, `glGenFramebuffersEXT` first and the core spelling as fallback; in the
+`GL_COLOR_ATTACHMENT0` at 640x480 and never see the window size. `glextensions.cpp` loads ten framebuffer-object
+entry points and twenty-six more for the shaders and the buffers, `glGenFramebuffersEXT` first and the core spelling as fallback; in the
 browser they are core and the header `#define`s them through.
 
 **Rules every source obeys**, each argued in its rule file:
@@ -186,7 +186,7 @@ browser they are core and the header `#define`s them through.
   constructor of the struct of that name — measured: `clang-rename` asked for the same namespace rename
   leaves that line alone, and `sed` breaks it. The same shape waits wherever a member, a local or a word
   inside a comment or string literal shares a name with the thing being renamed. What saves a blind
-  replacement here is that `Tools/syntax.sh` compiles all 122 sources in seconds, so the mistake is a
+  replacement here is that `Tools/syntax.sh` compiles all 123 sources in seconds, so the mistake is a
   compile error rather than a silent one — but that is a backstop, not a method, and it catches nothing
   that still compiles.
 - **A comment says what the code does and why, never what it used to do.** The reader is looking at the

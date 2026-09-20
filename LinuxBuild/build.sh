@@ -91,10 +91,10 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register"
 # refactoring tool parsing a different program from the one that ships.
 if [ "${1:-}" = "flags" ]; then echo "$CXXFLAGS"; exit 0; fi
 
-# The game's sources without the three that do not come along here:
+# The game's sources without the two that do not come along here:
 #   stackwalker  - Win32 SEH, exists only there
-#   audiocapture - the #else branch is a stub, but it does come along
 #   pch          - the translation unit that creates the PCH under MSVC
+# audiocapture does come along: its #else branch is a stub, but it compiles.
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|pch)\.cpp$')
 SRCS="$SRCS $HERE/linux_window.cpp"
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $LIBS/tinyxml-2.6.2/$f.cpp"; done

@@ -32,13 +32,29 @@ nothing is kept with its reason, because that is what stops the same false
 alarm being raised again.
 
 
+Fixed since, in a later review pass
+-----------------------------------
+Struck from the list below rather than left on it, because an open list that
+carries finished work is the drift this document is about.
+
+- `LinuxBuild/build.sh`: the heading over the source list says two now, and
+  `audiocapture` is named under it as one that does come along.
+- `level.h`: the count of level files is gone rather than corrected - it was
+  220 when the sweep read it and 53 today, and nothing guards it.
+- `platform_stubs.cpp`: the `--wrap` note named `build_asan.sh`, which does not
+  exist; asan is `./build.sh asan`, a mode of the one script with the one link
+  line.
+
+And one that stopped being a finding without anybody fixing it:
+`platform_stubs.cpp`'s "all five call sites" of `SDL_CreateRGBSurface` was four
+at the time of the sweep and is five again, since `Texture::createFromPixels`
+added one. It is left alone, and counted rather than assumed.
+
+
 Still open: comments and documents that disagree with the code
 --------------------------------------------------------------
 Each is a rewording, and the fix is in the entry.
 
-- `LinuxBuild/build.sh`: "without the three that do not come along" and
-  "audiocapture does come along" over a grep that excludes two (stackwalker,
-  pch); audiocapture compiles its Linux branch. Say two.
 - `campaign.h`: `makeLooseRef()` and `loadSingleLevels()` are documented against
   the user's folder alone, while both walk the two content roots.
 - `campaign.cpp`: "clear() sets both as well" over three assignments; and
@@ -91,8 +107,6 @@ Each is a rewording, and the fix is in the entry.
 - `img_load.h`: "zip_data.bat and zip_skins.bat pack nothing but *.png" - they
   pack ogg, dat, xml and txt, and `pack.sh` is unnamed; the point is that no
   other image format ever gets in.
-- `level.h`: "all 220 shipped and third-party level files" - 142 today, every
-  one 40x25; drop the number.
 - `gs_campaigneditor.cpp`: "straight into the IndexedDB ... as in the level
   editor" - the level editor makes no such call, so a level saved in the
   browser waits for the five-second interval. The better fix is the call
@@ -112,8 +126,7 @@ Each is a rewording, and the fix is in the entry.
   what singles 24 out.
 - `platform_stubs.cpp`: "all four call sites ... first switch the surface alpha
   off" - three blit sites, and it is the source's flag, cleared when the parent
-  was made; "all five call sites" of `SDL_CreateRGBSurface` - four; and
-  `build_asan.sh` no longer exists.
+  was made; "all five call sites" of `SDL_CreateRGBSurface` - four;.
 - `testhooks.cpp`: the "where the game sees the cursor" comment sits over
   `appActive`, thirty lines from the `mouseDown` and `cursor` it describes;
   "a stat() on a file" for an `fopen()`.

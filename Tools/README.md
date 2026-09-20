@@ -74,7 +74,7 @@ Compiles every source of the game with `i686-w64-mingw32-g++ -fsyntax-only`. It
 is the only way to put a compiler over the Windows code from here, and it costs
 half a minute.
 
-    sh Tools/syntax.sh              all 122 files
+    sh Tools/syntax.sh              all 123 files
     sh Tools/syntax.sh engine.cpp   only this one
 
 Three files never go through it - `main.cpp`, `videorecorder.cpp` and
@@ -100,7 +100,7 @@ the spelling that keeps a float a float.
     LinuxBuild/build.sh         compiles and links the native build
     LinuxBuild/build.sh hooks   the same with the test hooks, into build-test/
     LinuxBuild/test/smoke.sh    drives the native build through the GUI
-    LinuxBuild/test/frames.sh   nineteen named scenes as byte-reproducible PNGs
+    LinuxBuild/test/frames.sh   twenty named scenes as byte-reproducible PNGs
     WebBuild/build.sh           compiles and links the browser build
     WebBuild/build.sh hooks     the same with the test hooks, into build-test/
     WebBuild/test/smoke.js      drives the browser build through the GUI

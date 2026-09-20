@@ -111,7 +111,7 @@ the same hook (`Blocks5/src/testhooks.cpp`, compiled in by `LinuxBuild/build.sh 
 answering through a file, since there is no JavaScript to call it): the menus, the options
 dialog and the manager open, a played level starts and its menu opens, Alt+Return reaches
 fullscreen and comes back, F11 writes a screenshot, and quitting writes `config.xml`.
-`LinuxBuild/test/frames.sh` renders nineteen named scenes as byte-reproducible PNGs, which is the
+`LinuxBuild/test/frames.sh` renders twenty named scenes as byte-reproducible PNGs, which is the
 oracle a rendering change is checked against.
 
 
