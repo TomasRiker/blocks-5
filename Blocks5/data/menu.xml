@@ -59,6 +59,16 @@
 			<ExtendedStyle />
 			<Title></Title>
 		</Button>
+		<!-- The Credits line at the foot of the picture belongs to menu.png in
+		     the same way the address does, so this button sits over it and
+		     draws nothing either. It passes no parameter, which is the whole
+		     of what it has to get right: GS_Credits::onEnter then asks
+		     Campaign::isBuiltInCompleted() and gives the player the version
+		     they have earned. -->
+		<Button name="Credits" x="293" y="456" w="55" h="22">
+			<ExtendedStyle />
+			<Title></Title>
+		</Button>
 		<Button name="Donate" x="330" y="5" w="100" h="43">
 			<ExtendedStyle />
 			<Title></Title>
