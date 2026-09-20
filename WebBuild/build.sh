@@ -267,7 +267,7 @@ import io, sys
 path, text = sys.argv[1], sys.argv[2]
 page = io.open(path, encoding='utf-8').read()
 if '%%LOADTEXT%%' not in page:
-    raise SystemExit('%s: no %%LOADTEXT%% in the page' % path)
+    raise SystemExit('%s: no %%%%LOADTEXT%%%% in the page' % path)
 io.open(path, 'w', encoding='utf-8', newline='\n').write(page.replace('%%LOADTEXT%%', text))
 PYEOF
 done

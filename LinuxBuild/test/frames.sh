@@ -2,11 +2,18 @@
 # frames.sh - one named scene, one 640x480 PNG, meant to be byte-reproducible.
 #
 # Proved both ways, which is what makes it worth trusting. Two runs at one
-# seed: all nineteen scenes byte-identical. A run at another seed moves
-# fifteen of them, so the seed really does reach the draws a tick and a
-# rendered frame make; editor-connect, hint, loading and plain stay, because
-# nothing in those four is random. An oracle that can only answer
-# "identical" is one that measures nothing. Getting there took five changes
+# seed: all twenty scenes byte-identical. A run at another seed moves sixteen
+# of them, so the seed really does reach the draws a tick and a rendered frame
+# make; credits-plain, editor-connect, hint and loading stay. An oracle that
+# can only answer "identical" is one that measures nothing.
+#
+# Which scenes stay is not a fixed property of them, and this line is worth
+# re-measuring rather than reading: it said plain until the load stream was
+# seeded from B5_SEED (Engine::seedForLoad), and every StdObject takes
+# anim = random(0, 100000) in its constructor, so the diamond and the block in
+# that scene have moved with the seed ever since. Measured at 12345 and 999 on
+# one binary - two builds cannot answer this, however small the diff between
+# them looks. Getting there took five changes
 # to the game itself - .claude/rules/testing.md lists them - and each
 # was a frame that came out differently on a machine that bunched its ticks
 # differently, which is to say on any two machines.

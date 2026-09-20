@@ -47,8 +47,10 @@ std::string sanitizeFilenameStem(const std::string& untrusted,
 // Checks whether a string may be used unchanged as a filename or as the name
 // of an archive member. Anything that could redirect FileSystem::convertPath
 // or evalRelativePath is refused - separators, the drive colon, the archive
-// markers < > [ ], "..", a leading dot or tilde, control characters. Umlauts
-// and spaces stay allowed, or legitimate names would silently vanish.
+// markers < > [ ], "..", a leading dot or tilde, control characters - and so
+// are the four Windows reserves beside them, " | ? *, and anything longer than
+// a hundred characters. Umlauts and spaces stay allowed, or legitimate names
+// would silently vanish.
 bool isSafeMemberName(const std::string& name);
 
 // Case-insensitive comparison, over ASCII only. By hand and neither through

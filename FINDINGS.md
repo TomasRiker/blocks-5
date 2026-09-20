@@ -45,6 +45,18 @@ carries finished work is the drift this document is about.
   exist; asan is `./build.sh asan`, a mode of the one script with the one link
   line.
 
+- `util.h`: `isSafeMemberName()`'s list now names the four Windows reserves
+  beside the others and the hundred-character cap.
+- `cf_star.cpp`: triangles from the centre rather than a fan, since the
+  renderer draws `GL_TRIANGLES` and nothing else.
+- `img_load.h`: the packing scripts do carry ogg, dat, xml and txt; what is
+  true is that no other image format gets in, and `pack.sh` is named with them.
+- `gs_leveleditor.cpp`: per tick, not every frame.
+- `transfer.cpp`: `isBuiltIn()` asks the game folder rather than holding a list
+  of seven, so the rule covers whatever is shipped later.
+- `WebBuild/build.sh`: the missing-token message is escaped and now prints the
+  token it looked for.
+
 And one that stopped being a finding without anybody fixing it:
 `platform_stubs.cpp`'s "all five call sites" of `SDL_CreateRGBSurface` was four
 at the time of the sweep and is five again, since `Texture::createFromPixels`
@@ -72,9 +84,7 @@ Each is a rewording, and the fix is in the entry.
   describe.
 - `LinuxBuild/test/smoke.sh`: the music section restates the Export/Delete rule
   of the levels section thirty lines above; cut it to a pointer.
-- `transfer.cpp`: "the seven names under which the game itself ships
-  something" over an `isBuiltIn()` that asks the disk, not a list; and
-  `list()`'s "nothing can be saved or imported under a shipped name" is false
+- `transfer.cpp`: `list()`'s "nothing can be saved or imported under a shipped name" is false
   for the two example levels, which the `std::find` below handles.
 - `transfer.h`: "both platforms" for three file-dialog paths; `classify()`'s
   "a tileset.xml" where the code wants `sprites.png` beside it.
@@ -85,8 +95,6 @@ Each is a rewording, and the fix is in the entry.
   `maskAvg`/`scanAvg`; a present cost of 7.9 against the table's 7.8 in the
   same file; and two section banners back to back with the first labelling a
   section four lines further down.
-- `util.h`: `isSafeMemberName()`'s doc omits the four other Windows-reserved
-  characters and the 100-character cap the code refuses.
 - `web_bluescreen.cpp`: the comment derives 48em, the CSS says `52em`; say
   which is slack. `web_bluescreen.h`: "under Windows SDL_QUIT quits" is true
   outside the browser altogether, the `#else` stub is dead in every build, and
@@ -102,19 +110,13 @@ Each is a rewording, and the fix is in the entry.
   them; the `:onlytoolset` comment describes a four-character test the guard
   performs as five; and `:doclean`'s "misc\3p_campaigns\*.zip" lacks the
   `Blocks5\` every path below it carries.
-- `WebBuild/build.sh`: the "no %%LOADTEXT%% in the page" message is %-formatted
-  and prints one percent sign each side.
-- `img_load.h`: "zip_data.bat and zip_skins.bat pack nothing but *.png" - they
-  pack ogg, dat, xml and txt, and `pack.sh` is unnamed; the point is that no
-  other image format ever gets in.
 - `gs_campaigneditor.cpp`: "straight into the IndexedDB ... as in the level
   editor" - the level editor makes no such call, so a level saved in the
   browser waits for the five-second interval. The better fix is the call
   itself in the level editor's save path; and `else if(!confirmed)` where the
   `else` already implies it.
-- `gs_leveleditor.cpp`: "keeps the display in step every frame" for an
-  `onUpdate` that runs per tick. `engine.h`: `consumeKeyPress` takes the
-  "pressed in this frame" flag off, which is cleared per tick.
+- `engine.h`: `consumeKeyPress` takes the "pressed in this frame" flag off,
+  which is cleared per tick.
 - `gs_menu.cpp`: the Escape comment names the donation question, not the CRT
   offer pane the condition also tests.
 - `make_text.py`: "the offset from the font.xml as the first row" is returned
@@ -143,8 +145,7 @@ Each is a rewording, and the fix is in the entry.
   same bitrate. `audiocapture.h`: the header states the sample format and not
   the rate contract the code honours.
 - `cf_rewind.cpp`: "How many there are depends on the speed of the tape" over a
-  fixed `NOISE_BARS = 5` - where they sit does. `cf_star.cpp`: "a triangle fan"
-  for plain triangles with the centre repeated. `e_gate.cpp`: "undefined inputs
+  fixed `NOISE_BARS = 5` - where they sit does. `e_gate.cpp`: "undefined inputs
   give an undefined output" over a test that also covers an unconnected one.
   `e_flipflop.cpp`: "unclocked" where the tooltip says "level-triggered".
   `barrage2panel.cpp`: `// switch` on a panel. `barrage2.h` and `barrage.h`

@@ -185,9 +185,11 @@ std::string install(Kind kind,
 	const std::string dir(directoryFor(kind));
 	const std::string name(targetName(kind, untrustedName));
 
-	// The one exception: the seven names under which the game itself ships
-	// something. Overwriting one would take something from the player that
-	// they do not get back.
+	// The one exception: a name the game itself ships something under, which
+	// isBuiltIn answers by asking the game folder rather than by keeping a
+	// list - so it covers everything shipped, whatever is added later.
+	// Overwriting one would take something from the player that they do not
+	// get back.
 	if(isBuiltIn(kind, name))
 	{
 		errorId = "$TR_ERROR_RESERVED";
