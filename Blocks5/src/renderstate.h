@@ -13,8 +13,12 @@
 // A GL texture and how its texels map onto uv: every caller writes uv in
 // texels, and the renderer multiplies by texelScale and adds uvOrigin at
 // submission, in float - the multiply and the offset a texture matrix would
-// do in the vertex stage. An id of 0 is the renderer's own white texel, which
-// is what "texturing off" means to a shader.
+// do in the vertex stage. An id of 0 is no texture at all - what a ref holds
+// before its first bind and after the texture behind it is deleted - and not
+// a picture the renderer substitutes: flat geometry samples the built-in
+// block and disc, which live in an atlas page like every other picture and
+// carry that page's id. Renderer::checkTiling exempts 0 for that reason: with
+// no picture behind it there is no edge to check against.
 //
 // uvOrigin is where the picture begins inside the GL texture, which is (0, 0)
 // for a texture of its own and the corner of its rectangle for one that
@@ -33,6 +37,11 @@
 // nothing else to tell a picture's edge from a page's: with the atlas the two
 // stopped being the same thing, and a check written against [0, 1] stopped
 // meaning what it says.
+//
+// Only Texture::ref() can hand out a ref into a page, and it uses the
+// constructor that takes an extent. The shorter ones leave it at (1, 1),
+// which is the whole of the texture and so right for the refs that use them:
+// a render target read back, and a picture with a texture to itself.
 struct TextureRef
 {
 	TextureRef() : id(0), texelScale(1.0f, 1.0f), uvOrigin(0.0f, 0.0f), uvExtent(1.0f, 1.0f), tiles(false) {}
@@ -77,10 +86,11 @@ struct RenderState
 
 	RenderState with(BlendMode other) const { return RenderState(texture, other); }
 
-	// The texel scale, the origin and the tiling flag are all functions of
-	// the picture and ride along for the bake, so two states are the same
-	// state when the id and the blend agree - and two pictures on one atlas
-	// page share an id, which is the whole point: they batch together.
+	// The texel scale, the origin, the extent and the tiling flag are all
+	// functions of the picture and ride along for the bake and the check, so
+	// two states are the same state when the id and the blend agree - and two
+	// pictures on one atlas page share an id, which is the whole point: they
+	// batch together.
 	bool operator == (const RenderState& rhs) const
 	{
 		return texture.id == rhs.texture.id && blend == rhs.blend;

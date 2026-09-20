@@ -1388,19 +1388,22 @@ void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* 
 	const float loV = s.texture.uvOrigin.y - slackV;
 	const float hiV = s.texture.uvOrigin.y + s.texture.uvExtent.y + slackV;
 
-	float worstU = p_u[0], worstV = p_v[0];
+	// The corner named is the last one found outside, not the furthest: one
+	// corner is enough to point at the quad, and which of four it is tells a
+	// reader nothing the others would not.
+	float badU = p_u[0], badV = p_v[0];
 	bool bad = false;
 	for(int i = 0; i < 4; i++)
 	{
-		if(p_u[i] < loU || p_u[i] > hiU) { bad = true; worstU = p_u[i]; }
-		if(p_v[i] < loV || p_v[i] > hiV) { bad = true; worstV = p_v[i]; }
+		if(p_u[i] < loU || p_u[i] > hiU) { bad = true; badU = p_u[i]; }
+		if(p_v[i] < loV || p_v[i] > hiV) { bad = true; badV = p_v[i]; }
 	}
 	if(!bad) return;
 
 	// In the picture's own texels, which is what the caller wrote and so the
 	// only form it can act on: a page coordinate would name nothing it knows.
-	const float texelU = (worstU - s.texture.uvOrigin.x) / (slackU > 0.0f ? slackU : 1.0f);
-	const float texelV = (worstV - s.texture.uvOrigin.y) / (slackV > 0.0f ? slackV : 1.0f);
+	const float texelU = (badU - s.texture.uvOrigin.x) / (slackU > 0.0f ? slackU : 1.0f);
+	const float texelV = (badV - s.texture.uvOrigin.y) / (slackV > 0.0f ? slackV : 1.0f);
 	reported++;
 	printfLog("+ ERROR: a quad samples texel %.1f, %.1f of a picture %.0f x %.0f in texture %u, "
 			  "which was not declared as tiling.\n",

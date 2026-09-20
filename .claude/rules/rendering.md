@@ -398,9 +398,17 @@ page to page, both ends in GL's own coordinates so nothing is flipped. Without t
 repacked seven times; with it, once.
 
 **A test-hooks build checks the rule on every quad.** `Renderer::checkTiling` fails a quad that samples
-outside [0,1] from a texture not declared `WM_REPEAT`, and `frames.sh` fails on the line. It found one the
-twenty oracle scenes do not: `Crossfade` kept the frame copy's texel scale and rebuilt a bare `TextureRef`
-from it, dropping the flag that says that ref's negative y wraps on purpose.
+outside its own picture from a texture not declared `WM_REPEAT`, and `frames.sh` fails on the line. It
+found one the twenty oracle scenes do not: `Crossfade` kept the frame copy's texel scale and rebuilt a
+bare `TextureRef` from it, dropping the flag that says that ref's negative y wraps on purpose.
+
+**Against the picture and not against [0,1], which stopped being the same thing when the atlas arrived**:
+a page is one texture holding thirty pictures, so a quad can run a long way outside its own without ever
+leaving the page. That is what `TextureRef::uvExtent` is for, and written the page-relative way the check
+was green while a credits star sampled row 752 of a 720-tall `sprites.png` — the bug ROADMAP 60 records,
+which shipped. It runs on `Renderer::quads3D` as well as on `pushQuad`, because that star field is drawn
+by the 3D path and the check covered only the 2D one. Proved by injection: with the old `random(0, 23)`
+put back, the `credits` scene reports `a quad samples texel 192.0, 752.0 of a picture 256 x 720`.
 
 `Texture::applyWrapMode` is where the three modes become GL's two, and WebGL 1 forces its hand for a
 non-power-of-two picture: it is complete only sampled with `GL_CLAMP_TO_EDGE` and without mipmaps, and
