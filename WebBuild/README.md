@@ -294,7 +294,8 @@ technique.
    the blit copied nothing and every texture uploaded fully transparent.
 3. **Emscripten numbers keysyms SDL2-style** (`scancode | 1<<10`), so `SDLK_F7`
    is 1088 and `SDLK_LSHIFT` 1249, against `Engine`'s 512-entry key tables. The
-   overflow read back as Shift+F7, which is the unlock-all-levels cheat.
+   overflow read back as the unlock-all-levels chord, which was Shift+F7 then
+   and is Ctrl+Shift+F7 now.
 4. **`GL_INT` is not a valid vertex-attribute type in WebGL**, and
    **`GL_UNPACK_ROW_LENGTH` does not exist** — both silently ignored after
    raising `INVALID_ENUM`. The upload no longer asks for a row length: a 32-bit

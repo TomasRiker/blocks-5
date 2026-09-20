@@ -106,7 +106,7 @@ public:
 	// The frame as PNG bytes, and the same under a name the caller chose.
 	bool encodeFrame(std::vector<uchar>* p_pngOut);
 	bool writeScreenshot(const std::string& path);
-	// Every atlas page beside the screenshots, one PNG each (-perf, Ctrl+Shift+A).
+	// Every atlas page beside the screenshots, one PNG each (-perf, Ctrl+Shift+F9).
 	void writeAtlasPages();
 	// The frame's pixels, 640x480 RGBA and bottom-up, out of the bound
 	// framebuffer: the screenshot and the video recorder.

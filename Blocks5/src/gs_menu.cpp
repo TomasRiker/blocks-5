@@ -128,27 +128,36 @@ void GS_Menu::onUpdate()
 #else
 	Uint8* p_keyStates = SDL_GetKeyState(0);
 #endif
-	if(p_keyStates[SDLK_c] &&
-	   (p_keyStates[SDLK_LSHIFT] ||
-	    p_keyStates[SDLK_RSHIFT]))
+	// Ctrl+Shift+F2 is the plain credits and Ctrl+Shift+F3 the ending, said
+	// outright rather than left to Campaign::isBuiltInCompleted(): these are
+	// the keys the author looks at either version with, and which one that is
+	// must not depend on what the machine's save file happens to hold. A
+	// Credits entry in the menu passes nothing and gets the answer the player
+	// has earned.
+	//
+	// Function keys because pre.js swallows F1 to F24 in the capture phase and
+	// hands them to the game, so both chords reach the page in a browser -
+	// where every Ctrl+Shift+<letter> is somebody's shortcut and the letter
+	// that is free in Chrome is taken in Firefox. The modifiers are asked of
+	// the keyboard, which is a level, and the key of wasKeyPressed(), which is
+	// the edge that an SDL_KEYDOWN sets: a level test of the key as well would
+	// need holding past a rendered frame, which under llvmpipe is a fifth of a
+	// second.
+	const bool ctrlShiftHeld =
+		(p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL]) &&
+		(p_keyStates[SDLK_LSHIFT] || p_keyStates[SDLK_RSHIFT]);
+	if(ctrlShiftHeld &&
+	   (engine.wasKeyPressed(SDLK_F2) || engine.wasKeyPressed(SDLK_F3)))
 	{
-		// Shift+C is the plain credits and Ctrl+Shift+C the ending, said
-		// outright rather than left to Campaign::isBuiltInCompleted(): these
-		// are the keys the author looks at either version with, and which one
-		// that is must not depend on what the machine's save file happens to
-		// hold. A Credits entry in the menu passes nothing and gets the
-		// answer the player has earned. In a browser the second chord is the
-		// developer tools' own, so it may never reach the page - which costs
-		// nothing it is worth working around, the keys being the author's and
-		// Shift+C reaching the page everywhere.
 		ParameterBlock context;
-		context.set("full", p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL] ? true : false);
+		context.set("full", engine.wasKeyPressed(SDLK_F3));
 		engine.setGameState("GS_Credits", context);
 		engine.crossfade(new CF_Star, 0.85f);
 	}
-	else if(p_keyStates[SDLK_d] &&
-		(p_keyStates[SDLK_LSHIFT] ||
-		p_keyStates[SDLK_RSHIFT]))
+	// Ctrl+Shift+F4 turns the donation question off for good, the same shape
+	// as the two above. Alt+F4 is the only other reader of this key and wants
+	// Alt, which this chord does not hold.
+	else if(ctrlShiftHeld && engine.wasKeyPressed(SDLK_F4))
 	{
 		FileSystem& fs = FileSystem::inst();
 		fs.writeStringToFile("disable", fs.getAppHomeDirectory() + ".donation_asked");

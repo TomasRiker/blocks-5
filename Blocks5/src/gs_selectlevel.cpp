@@ -161,6 +161,7 @@ void GS_SelectLevel::onUpdate()
 	}
 
 	const bool shift = engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT);
+	const bool ctrl = engine.isKeyDown(SDLK_LCTRL) || engine.isKeyDown(SDLK_RCTRL);
 
 	// While the campaign list holds the focus, the four keys it evaluates
 	// itself belong to it - up, down, Home and End. The rest always operates
@@ -172,7 +173,10 @@ void GS_SelectLevel::onUpdate()
 	{
 		handleClick(gui["SelectLevel.Quit"]);
 	}
-	else if(engine.wasKeyPressed(SDLK_F7) && shift)
+	// Ctrl+Shift+F7, the shape every chord the author keeps to himself has:
+	// a function key, because pre.js hands the game all of F1 to F24 and no
+	// browser reserves them the way it reserves the letters.
+	else if(engine.wasKeyPressed(SDLK_F7) && shift && ctrl)
 	{
 		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 		{

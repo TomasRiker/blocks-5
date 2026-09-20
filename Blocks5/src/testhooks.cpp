@@ -597,7 +597,7 @@ void pollRequests()
 	{
 		// Switch to a named game state, applied at the loop's safe point like
 		// any other change. It is how the harness reaches the credits, which
-		// the menu offers only to a held Shift+C. One word after the name is
+		// the menu offers only to Ctrl+Shift+F2 and F3. One word after the name is
 		// a boolean parameter set to true in the context the state is entered
 		// with: "state GS_Credits full" asks for the ending, which is
 		// otherwise decided by a progress file the oracle's private home does
