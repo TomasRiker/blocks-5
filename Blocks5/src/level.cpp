@@ -1211,6 +1211,12 @@ void Level::renderObjects(RenderLayer layer,
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
 	if(!(layer & ownTexture)) Renderer::inst().setTexture(p_sprites->ref());
 
+	// Nothing is on this layer, so the walk below would find nothing. The
+	// texture above is set first and not skipped with it: renderTiles() binds
+	// nothing of its own and draws with whatever is current, so a pass that
+	// draws nothing still has to leave the sprite sheet behind it.
+	if(!(renderLayersPresent & layer)) return;
+
 	// One pass over one layer is one draw of the renderer's, or a few where
 	// an object in the middle of it changes the texture or the blend.
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
