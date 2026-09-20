@@ -1560,8 +1560,8 @@ $C_TESTERS
 
 $C_TESTERS_SPPRO
 // Caption of testers from the spieleprogrammierer.de community
-§en:spieleprogrammierer Community
-§de:spieleprogrammierer-Community
+§en:spieleprogrammierer.de Community
+§de:spieleprogrammierer.de-Community
 
 $C_STAY_TUNED
 // Final message in credits
