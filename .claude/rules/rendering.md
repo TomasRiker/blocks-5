@@ -334,10 +334,11 @@ set — `data/` and one skin, 8.7 Mtexel of which 6.2 can be packed — where on
 and lava 24 to 14**.
 
 **A picture says at its request whether it tiles**, because that is what decides whether it can share.
-`Manager<T>::request` carries the resource type's options and `Texture::WrapMode` is three: `WM_CLAMP`,
-nothing samples outside it; `WM_WRAP`, `Renderer::tiledQuad` cuts the quad at the picture's edges so that
-every piece samples one copy, which packs; `WM_REPEAT`, GL wraps it at the *texture's* edge, so inside a
-page it would read whatever was packed next door — a texture of its own. `Texture::NEVER_PACK` beside
+`Manager<T>::request` carries the resource type's options and `Texture::WrapMode` is two: `WM_WRAP`, every
+quad's uv stays inside the picture — either because nothing samples outside it, or because
+`Renderer::tiledQuad` cut the quad at the picture's edges so that every piece samples one copy — which
+packs; `WM_REPEAT`, GL wraps it at the *texture's* edge, so inside a page it would read whatever was packed
+next door — a texture of its own. `Texture::NEVER_PACK` beside
 the mode keeps a picture out for a reason that is not wrapping: the loading screen's `logo.png` and
 `title.png` are drawn once and never again, and half a megatexel apiece is the wrong thing to hold a page
 slot for — or to leave a hole in one when it goes. Only the weather is `WM_REPEAT`:
@@ -345,10 +346,13 @@ its uv is rotated with the scroll, so the cuts a split would need are not axis-a
 the pieces would not be quads. The lava's two 16x16 tiles are `WM_WRAP` and sit in a page with the sprite
 sheet they were cut from.
 
-**Every picture gets a texel of gutter, and it is exact rather than a fudge.** Linear filtering reaches one
-texel past the coordinate it was given and there are no mipmaps anywhere in this game, so a copy of the
-picture's own edge returns the same texel `GL_CLAMP_TO_EDGE` returned, and a copy of the opposite edge the
-same texel `GL_REPEAT` returned. **And the sampling is bit for bit what it was**, because a page's edge is a
+**Every picture gets a texel of gutter, it carries the opposite edge, and it is exact rather than a fudge.**
+Linear filtering reaches one texel past the coordinate it was given and there are no mipmaps anywhere in
+this game, so that one texel is the whole of what a wrap mode can decide — and `GL_REPEAT` is the only mode
+this game has ever had. `GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T` are set nowhere in its history, from the
+2014 import to the last commit before the renderer work, so every texture ran at GL's default. A gutter that
+copied the picture's own edge would reproduce `GL_CLAMP_TO_EDGE`, which nothing here ever sampled with; one
+that carries the opposite edge returns the same texel `GL_REPEAT` did. **And the sampling is bit for bit what it was**, because a page's edge is a
 power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and their sum is exactly
 `(px + origin)/pageEdge`. All twenty oracle scenes are byte-identical with the atlas live, which proves the
 gutter and the arithmetic together instead of arguing them.
@@ -367,10 +371,12 @@ outside [0,1] from a texture not declared `WM_REPEAT`, and `frames.sh` fails on 
 twenty oracle scenes do not: `Crossfade` kept the frame copy's texel scale and rebuilt a bare `TextureRef`
 from it, dropping the flag that says that ref's negative y wraps on purpose.
 
-`Texture::applyWrapMode` is where the three modes become GL's two, and WebGL 1 forces its hand for a
-non-power-of-two picture: it is complete only sampled with `GL_CLAMP_TO_EDGE` and without mipmaps, and
-otherwise every access returns pure black, silently and with no GL error. So a `WM_REPEAT` picture that is
-not a power of two is clamped with a warning — deliberately under Windows too, where NPOT with `GL_REPEAT`
-would work, because a 300x200 rain that tiled for its author and not for his players is the worse failure.
-The game's own art is all power-of-two; this exists for imported skins alone, and only for the weather,
-since nothing else needs `GL_REPEAT` any more.
+`Texture::applyWrapMode` governs a texture of its own, and it now has one thing to say: leave GL's default
+alone. That default is `GL_REPEAT`, which is what the game always sampled with, and it is what `WM_REPEAT`
+wants outright; for a `WM_WRAP` picture that failed to pack the mode is unobservable beyond that one edge
+texel, where the default is again the faithful answer. WebGL 1 is the exception and is not optional: a
+non-power-of-two texture is complete only sampled with `GL_CLAMP_TO_EDGE` and without mipmaps, and otherwise
+every access returns pure black, silently and with no GL error. So a picture that is not a power of two is
+clamped — with a warning where it was asked to tile — deliberately under Windows too, where NPOT with
+`GL_REPEAT` would work, because a 300x200 rain that tiled for its author and not for his players is the
+worse failure. The game's own art is all power-of-two; this exists for imported skins alone.

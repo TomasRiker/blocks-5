@@ -67,16 +67,19 @@ namespace
 	}
 
 	// The same picture into a rectangle of a page, with a texel of gutter all
-	// round it. Linear filtering reaches one texel past the coordinate it was
-	// given and no further - there are no mipmaps in this game - so a copy of
-	// the picture's own edge there is exactly what GL_CLAMP_TO_EDGE returned,
-	// and a copy of the opposite edge exactly what GL_REPEAT returned. The
+	// round it carrying the picture's opposite edge and corner.
+	//
+	// Linear filtering reaches one texel past the coordinate it was given and
+	// no further - there are no mipmaps in this game - so that one texel is
+	// exactly what GL_REPEAT returned at an edge, which is the only thing this
+	// game has ever sampled with: GL_TEXTURE_WRAP_S and GL_TEXTURE_WRAP_T are
+	// set nowhere in its history, so every texture ran at GL's default. The
 	// same texel value, not a near one.
 	//
 	// Built as one padded block and uploaded once rather than as nine calls
 	// round the edges: the columns are not contiguous in the source, so they
 	// would have to be gathered into a buffer anyway.
-	bool uploadPadded(uint pageID, const Vec2i& origin, const SDL_Surface* p_rgba, bool wrap, const char* p_name)
+	bool uploadPadded(uint pageID, const Vec2i& origin, const SDL_Surface* p_rgba, const char* p_name)
 	{
 		if(p_rgba->pitch != p_rgba->w * 4)
 		{
@@ -94,14 +97,12 @@ namespace
 		const uint* p_source = reinterpret_cast<const uint*>(p_rgba->pixels);
 		for(int y = 0; y < paddedH; y++)
 		{
-			int sy = y - g;
-			if(wrap) sy = (sy + h) % h;
-			else sy = (sy < 0) ? 0 : ((sy >= h) ? h - 1 : sy);
+			// + h before the modulo because y - g is -1 on the first row, and
+			// a negative operand would take the remainder the other way.
+			const int sy = (y - g + h) % h;
 			for(int x = 0; x < paddedW; x++)
 			{
-				int sx = x - g;
-				if(wrap) sx = (sx + w) % w;
-				else sx = (sx < 0) ? 0 : ((sx >= w) ? w - 1 : sx);
+				const int sx = (x - g + w) % w;
 				padded[y * paddedW + x] = p_source[sy * w + sx];
 			}
 		}
@@ -183,7 +184,7 @@ void Texture::place()
 		const float edge = static_cast<float>(atlas.getPageEdge());
 		texelScale = Vec2f(1.0f / edge, 1.0f / edge);
 		uvOrigin = Vec2f(static_cast<float>(slot.origin.x) / edge, static_cast<float>(slot.origin.y) / edge);
-		if(!uploadPadded(texID, slot.origin, p_rgba, wrapMode == WM_WRAP, filename.c_str())) error = 1;
+		if(!uploadPadded(texID, slot.origin, p_rgba, filename.c_str())) error = 1;
 		return;
 	}
 
@@ -378,24 +379,26 @@ Vec4f Texture::getPixel(const Vec2i& where) const
 void Texture::applyWrapMode() const
 {
 	Renderer::DirectGL direct;
-	// GL_REPEAT is a fresh texture's default and only WM_REPEAT wants it: the
-	// rain, the snow and the clouds scroll without bound, and
-	// wrapTextureOffset() reduces that offset to one period precisely because
-	// REPEAT makes a whole period an exact no-op.
+	// A texture of its own, so GL's own wrap applies - and GL_REPEAT, its
+	// default, is what this game has always sampled with, since
+	// GL_TEXTURE_WRAP_S and GL_TEXTURE_WRAP_T are set nowhere in its history.
+	// Leaving the default alone is therefore the faithful answer here, and
+	// leaving it alone is also all WM_REPEAT wants: the rain, the snow and the
+	// clouds scroll without bound, and wrapTextureOffset() reduces that offset
+	// to one period precisely because REPEAT makes a whole period an exact
+	// no-op. For a WM_WRAP picture the mode is unobservable anyway - the
+	// renderer's checkTiling() holds every such quad's uv inside its own
+	// picture - beyond the one texel linear filtering reaches at an outer
+	// edge, which is the texel the default gets right.
 	//
-	// Everything else is clamped, WM_WRAP included: a picture the renderer
-	// tiles for itself is cut so that no piece reads past an edge, and it
-	// lives in a page, where GL_REPEAT would wrap to the far side of the page
-	// rather than to the far side of the picture.
-	//
-	// WebGL 1 forces the same hand for a non-power-of-two texture: it is
-	// complete only sampled with CLAMP_TO_EDGE and without mipmaps, and
-	// otherwise every access returns black, silently and with no GL error. The
-	// game's own art is all power of two, so this is imported skins alone -
+	// WebGL 1 is the exception, and it is not optional: a non-power-of-two
+	// texture is complete only sampled with CLAMP_TO_EDGE and without mipmaps,
+	// and otherwise every access returns black, silently and with no GL error.
+	// The game's own art is all power of two, so this is imported skins alone -
 	// deliberately under Windows too, where NPOT with REPEAT would work,
 	// because a 300x200 rain that tiled for its author and not for his players
 	// is the worse failure.
-	if(wrapMode == WM_REPEAT && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
+	if(nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
