@@ -1127,6 +1127,9 @@ namespace
 	}
 
 	// The red frame around a tile, one corner lighter than the other three.
+	// The closing line runs a pixel past d for the reason Renderer::hairlineRect
+	// gives: without it the bottom left corner is lit by neither the left edge
+	// nor the bottom one.
 	void highlightTile(Renderer& renderer, const Vec2i& p)
 	{
 		const Vec4f light(1.0f, 0.75f, 0.75f, 1.0f), dark(1.0f, 0.15f, 0.15f, 1.0f);
@@ -1135,7 +1138,7 @@ namespace
 		renderer.hairline(a, b, light, dark);
 		renderer.hairline(b, c, dark);
 		renderer.hairline(c, d, dark);
-		renderer.hairline(d, a, dark, light);
+		renderer.hairline(d + Vec2f(0.0f, 1.0f), a, dark, light);
 	}
 
 	// The marching ants around a selection: a black loop a pixel down and

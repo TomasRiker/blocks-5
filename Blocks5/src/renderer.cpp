@@ -994,11 +994,22 @@ void Renderer::hairlineRect(const Vec2f& min, const Vec2f& max, const Vec4f& col
 	// The four lines of a loop drawn clockwise from the top left, each on
 	// its own: where two of them meet on the same pixel it is lit twice, as
 	// GL lit it.
+	//
+	// The closing line runs a pixel further than the corner it returns to,
+	// and without that the loop has a hole. hairline() takes the row a
+	// horizontal line lights with floorf() and the column a vertical one
+	// lights with ceilf() - 1, opposite sides of the same boundary, so a
+	// rectangle from (X, Y) to (X + w, Y + h) covers columns X - 1 .. X + w - 1
+	// but rows Y .. Y + h - one wider than the sides are long. lineSpan() then
+	// gives every side the same half-open interval whichever way it is drawn,
+	// so all four stop at the same end instead of rotating: the top right
+	// corner comes out lit twice and the bottom left, where the left edge's
+	// column meets the bottom edge's row, lit by neither.
 	const Vec2f topRight(max.x, min.y), bottomLeft(min.x, max.y);
 	hairline(min, topRight, color);
 	hairline(topRight, max, color);
 	hairline(max, bottomLeft, color);
-	hairline(bottomLeft, min, color);
+	hairline(bottomLeft + Vec2f(0.0f, 1.0f), min, color);
 }
 
 void Renderer::dashes(const std::vector<Vec2f>& points, float width, const Vec4f& color,
