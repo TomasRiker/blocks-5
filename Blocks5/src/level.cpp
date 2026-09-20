@@ -80,6 +80,12 @@ Level::Level()
 	p_fireParticleSystem = 0;
 	p_rainParticleSystem = 0;
 	p_particleSprites = 0;
+	renderLayersPresent = 0;
+	// Only clear() set this, and the constructor does not call it: a Level
+	// used before its first clear() handed out UIDs counting on from whatever
+	// the stack held. Surfaced by verify.py's ctor_init check, which had been
+	// skipping this class because more than half its members were unset.
+	nextUID = 0;
 
 	// create the rain sound
 	if(!p_rainSoundInst)
@@ -667,24 +673,35 @@ void Level::render()
 	// render the background
 	renderTiles(0, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
+	Engine& engine = Engine::inst();
+
 	// The lava edges write the stencil wherever they have any alpha at all
 	// and nothing into the colour; the lava then draws only where they did
 	// not. Scopes, so that the mask, the stencil and the discard cannot be
 	// left on: each puts the previous state back when it ends.
-	Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
-	renderer.setTexture(p_lavaEdges->ref());
-	renderer.clearStencil();
+	//
+	// Only where there is lava, and the saving is not the three walks over the
+	// objects. clearStencil() is a glClear, and the renderer has to put up
+	// what it is holding before it: in a level without a drop of lava that
+	// flush was the one thing between the backdrop and the tiles, which share
+	// an atlas page and would otherwise be a single draw. Nothing else in a
+	// level frame reads the stencil - the light mask masks colour, and the
+	// star wipe clears its own - so skipping the clear leaves nothing stale
+	// behind for anything to find.
+	if(renderLayersPresent & (RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT))
 	{
-		Renderer::DiscardTransparentScope discard;
-		Renderer::StencilWriteScope write(1);
-		Renderer::ColorMaskScope mask(false, false, false, false);
-		renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
-	}
-	p_lavaEdges->release();
-	Engine& engine = Engine::inst();
+		Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
+		renderer.setTexture(p_lavaEdges->ref());
+		renderer.clearStencil();
+		{
+			Renderer::DiscardTransparentScope discard;
+			Renderer::StencilWriteScope write(1);
+			Renderer::ColorMaskScope mask(false, false, false, false);
+			renderObjects(RL_LAVA_EDGE, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
+		}
+		p_lavaEdges->release();
 
-	// render the lava
-	{
+		// render the lava
 		Renderer::StencilTestScope test(0);
 		renderer.setTexture(p_lava[0]->ref());
 		renderObjects(RL_LAVA_BACK, Vec2i(0, 0), Vec4f(1.0f, 1.0f, 1.0f, 1.0f), false);
@@ -1194,6 +1211,12 @@ void Level::renderObjects(RenderLayer layer,
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
 	if(!(layer & ownTexture)) Renderer::inst().setTexture(p_sprites->ref());
 
+	// Nothing is on this layer, so the walk below would find nothing. The
+	// texture above is set first and not skipped with it: renderTiles() binds
+	// nothing of its own and draws with whatever is current, so a pass that
+	// draws nothing still has to leave the sprite sheet behind it.
+	if(!(renderLayersPresent & layer)) return;
+
 	// One pass over one layer is one draw of the renderer's, or a few where
 	// an object in the middle of it changes the texture or the blend.
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
@@ -1234,6 +1257,13 @@ void Level::sortObjects()
 	} cmp;
 
 	std::sort(objects.begin(), objects.end(), cmp);
+
+	// Which layers have anything on them at all, for the passes that cost
+	// more than the walk they would skip. render() asks it of the lava, whose
+	// stencil clear is a glClear the renderer must flush for.
+	renderLayersPresent = 0;
+	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
+		renderLayersPresent |= (*i)->getRenderLayers();
 }
 
 void Level::renderShine(float intensity,

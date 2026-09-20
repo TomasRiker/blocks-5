@@ -263,6 +263,8 @@ private:
 	std::vector<Object*> emptyObjectList;
 	std::vector<Object*>* p_objectsAt;
 	std::vector<Object*> objects;
+	// Every render layer any object is on, OR'd together in sortObjects().
+	uint renderLayersPresent;
 	std::vector<Object*> objectsToAdd;
 	std::vector<Object*> objectsToRemove;
 	// The last UID given out, per level; addNewObjects() counts on from it.
