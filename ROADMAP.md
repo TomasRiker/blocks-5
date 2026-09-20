@@ -1609,14 +1609,20 @@ What left the tree along the way: `sdl.dll`, `sdl_image.dll`, `libpng15-15.dll`,
 ships now is three executables, **one** DLL that needs nothing but Windows, and
 the data.
 
-60. Crop the art to the rectangles that are actually drawn
------------------------------------------------------------
-Item 51's pages are 6.2 Mtexel of pictures of which a good half is never
+60. Crop the art to the rectangles that are actually drawn  - **DONE**
+----------------------------------------------------------------------
+Item 51's pages were 6.2 Mtexel of pictures of which a good half was never
 sampled: the sheets are powers of two with the art in one corner, and the
-backdrops are 1024x512 for a 640x480 picture. Cropping the sources to what the
-code addresses takes the packable set from **5.30 M to 2.88 Mtexel, 46% off**,
-and with that everything a session needs fits in **one 2048 page at 68.6%** -
-against two pages and a repack today.
+backdrops were 1024x512 for a 640x480 picture. Cropping the sources to what the
+code addresses took the packable set from **5.30 M to 2.88 Mtexel, 46% off**,
+and with it a session now runs on **one 2048 page and no repack at all**, where
+it took two pages and a repack before. Twenty-eight files, 1.91 MB of PNG to
+1.73 MB on disk.
+
+**All twenty oracle scenes are byte-identical across the crop**, which is the
+whole proof: a cut that had taken a texel something draws would have moved a
+pixel. That includes the hint note, the one picture sampled at other than 1:1 -
+it rolls and scales, so its edge texels are weighted rather than hit dead on.
 
 **What "used" means here is what the code can address, not where the picture is
 opaque**, and those differ in both directions: some buttons carry a deliberate
