@@ -348,10 +348,22 @@ sheet they were cut from.
 **Every picture gets a texel of gutter, and it is exact rather than a fudge.** Linear filtering reaches one
 texel past the coordinate it was given and there are no mipmaps anywhere in this game, so a copy of the
 picture's own edge returns the same texel `GL_CLAMP_TO_EDGE` returned, and a copy of the opposite edge the
-same texel `GL_REPEAT` returned. **And the sampling is bit for bit what it was**, because a page's edge is a
-power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and their sum is exactly
-`(px + origin)/pageEdge`. All twenty oracle scenes are byte-identical with the atlas live, which proves the
-gutter and the arithmetic together instead of arguing them.
+same texel `GL_REPEAT` returned. **The arithmetic is exact**, because a page's edge is a power of two:
+`px/pageEdge` and `origin/pageEdge` are both exact in float and their sum is exactly
+`(px + origin)/pageEdge` — measured, 0 mismatches over 200,000 random float32 cases, since scaling by a
+power of two commutes with rounding. All twenty oracle scenes were byte-identical when the atlas went in.
+
+**That is exactness of the formula and not of the picture, and the difference has bitten twice.** What the
+formula does not give is invariance when the *origin changes*, and a repack changes it — so does adding a
+picture, which shifts what the packer does with the rest. Putting the renderer's own 32x32 block and disc
+into a page moved five scenes: one pixel each in `night`, `lava`, `toxic` and `star`, 28 in `credits`, by
+one or two of 255. A bisect kept every other part of that change and marked the picture `NEVER_PACK`, and
+all twenty scenes came back identical, so the page is where it comes from and not the code around it. The
+evidence points at `Renderer::point`, which lays a 16x16 texel disc over a 2 to 6 pixel quad: the vertex uv
+is exact either way, but in a page it is a small delta riding on a large origin and the rasteriser
+interpolates *that* across the primitive. **The atlas is not sampling-neutral for soft, sub-texel
+geometry**, and a byte-identical oracle after a packing change is a result to be pleased about rather than
+one to expect.
 
 **And the clamp gutter is right even though this game never clamped.** That reads backwards, so it is
 written down: `GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T` are set nowhere in the game's history — the 2014
