@@ -66,12 +66,14 @@
 		     Campaign::isBuiltInCompleted() and gives the player the version
 		     they have earned.
 
-		     The rectangle is the word plus a pixel, measured off menu.png
-		     rather than guessed: the text runs x 294..351, y 457..479, and
-		     it reaches the bottom edge of the 480-tall picture, so the height
-		     has to take it to 479 or the last two rows of every letter are
-		     not clickable. -->
-		<Button name="Credits" x="293" y="456" w="60" h="24">
+		     The rectangle is the word exactly, measured off menu.png rather
+		     than guessed: Tools/measure_text_box.py diffed the revision that
+		     brought the line in against the one before it, and the pixels
+		     that changed are the text and nothing else - x 294..351,
+		     y 457..479, glow and antialiasing included. It reaches the bottom
+		     edge of the 480-tall picture, so the height has to take it to 479
+		     or the last two rows of every letter are not clickable. -->
+		<Button name="Credits" x="294" y="457" w="58" h="23">
 			<ExtendedStyle />
 			<Title></Title>
 		</Button>
