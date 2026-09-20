@@ -45,9 +45,16 @@ and it had. `windows_icon` compares its 16x16 image against `data/window.png` an
 the shell asks for; `Tools/make_ico.py` rebuilds it.
 
 **Two checks judge only what changed since `95660bb`**, the last commit before the 2025 overhaul, whose
-id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitialised members. The
-comment-density half of `comments` is an absolute 50% and judges every line. Code that has worked for
-ten years is not a finding, and reporting it every run is how a check gets ignored.
+id is `BASELINE` at the top of `verify.py`: indentation/whitespace, and uninitialised members. Code that
+has worked for ten years is not a finding, and reporting it every run is how a check gets ignored.
+
+**The comment-density half of `comments` judges every file regardless of age, and what it compares is
+not what the phrase suggests**: comment lines against ***code* lines**, not against the whole file. So
+the ceiling of 50% is reached at one comment line to two of code — a file that is half comments by line
+count sits at 100% and is far over. Only files of 100 code lines or more are judged at all, which is why
+several small headers stand at two thirds comment and are never looked at. `engine.h` is at exactly
+50.0% (193 against 386) and passes only because the test is `>`: one more comment line in that file
+fails the run, which is worth knowing before setting out to explain something in it.
 
 **`ctor_init` takes back both of its exemptions for a pointer**, and that is measured rather than
 strict for its own sake. A scalar left uninitialised is a wrong number; a pointer is a crash, and the
@@ -59,6 +66,16 @@ state for its level is what finally read it: a segfault that appeared in one wor
 another, since the value depends on what the allocator had put there. Both exemptions would have hidden
 it — the constructor set one of the six pointers, and the member is far older than the baseline.
 A pointer is found by its `p_` spelling, which is the one thing the naming convention buys the checks.
+
+**The scalar half is gated, and the gate has a blind spot worth knowing about.** A constructor that
+sets fewer than half its scalars is following a different rule — an `Object` gets its fields from
+`readAttributes()` — so the check says nothing about that class at all, and a scalar genuinely missed
+in one of them is missed with it. The gate is a threshold, so a class crosses it by *gaining* a
+member, and `Level` did: measured on the tree at `49a91fa`, taking `nextUID = 0` back out of the
+constructor makes the check report `Level::nextUID`, and taking `renderLayersPresent` out of `level.h`
+as well makes it go quiet again with `nextUID` still unset. So that one member is the whole of why
+`Level` is looked at, and `nextUID` — added during this collaboration, set only in `clear()`, which
+the constructor does not call — sat unread for as long as the class was on the other side of the line.
 
 **Two of the checks police the renderer's convention** (ROADMAP 54). `raw_gl`
 reads the whole tree with comments and strings blanked and reports every `gl*`, `glu*` or `glExt*`
@@ -74,7 +91,7 @@ and exempt.
 byte-for-byte. Run it after touching `verify.py`. Not ceremony: the attribute check was inert when first
 written, because `Attribute(` also matches the tail of `SetAttribute(`.
 
-**`sh Tools/syntax.sh`** compiles all 122 sources with `i686-w64-mingw32-g++ -fsyntax-only`, the only way
+**`sh Tools/syntax.sh`** compiles all 123 sources with `i686-w64-mingw32-g++ -fsyntax-only`, the only way
 to put a compiler over the Windows code from here. Three files never go through it — `main.cpp`,
 `videorecorder.cpp`, `stackwalker.cpp`. The last two are left out of the web build for the same reasons;
 `main.cpp` is compiled there, and the difference is what mingw cannot parse in it: the `__try`/`__except`

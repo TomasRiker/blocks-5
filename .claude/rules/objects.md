@@ -16,7 +16,7 @@ LevelEditor, CampaignEditor, Credits) and is registered by constructing it — t
 name with an optional `ParameterBlock` context, applied at a safe point by `processGameStateChanges()`, not
 immediately.
 
-**Level and objects.** `Level` (`level.cpp`, ~61k) holds two tile layers plus a vector of `Object*` and a
+**Level and objects.** `Level` (`level.cpp`, 78k, the second biggest) holds two tile layers plus a vector of `Object*` and a
 spatial hash (`hashObject`/`getAllObjectsAt`). `Object` (`object.h`) is the base for everything dynamic;
 behaviour is driven by an `OF_*` flag bitmask (`OF_MASSIVE`, `OF_GRAVITY`, `OF_DEADLY`, `OF_ELECTRONICS`, …)
 plus virtual `onUpdate`, `onRender`, `onCollision`, `move`, `reflectLaser`, …. `StdObject` covers the plain

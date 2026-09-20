@@ -269,9 +269,10 @@ const char* SDL_GetKeyName(SDL_Keycode key)
 // implementation and the surface stays registered in SDL.surfaces - a
 // hand-written replacement would break SDL_FreeSurface, which looks it up there.
 //
-// NEEDS -Wl,--wrap=SDL_CreateRGBSurface on the link line of build.sh and
-// build_asan.sh. Without it wasm-ld silently garbage-collects this function as
-// unused, and the bug is back with no warning.
+// NEEDS -Wl,--wrap=SDL_CreateRGBSurface on build.sh's link line, which is the
+// one both the ordinary build and "./build.sh asan" go through. Without it
+// wasm-ld silently garbage-collects this function as unused, and the bug is
+// back with no warning.
 extern "C" SDL_Surface* __real_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
 													Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask);
 

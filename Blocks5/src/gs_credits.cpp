@@ -405,9 +405,9 @@ void GS_Credits::renderStars(const Mat4& projection,
 	// index buffer runs straight through the stream, so the stars blend in
 	// the order they were handed in exactly as they did one draw each. What
 	// moves is the last bit: the corner is rounded once by the model matrix
-	// and again by projection * view where it used to be rounded once by the
-	// product of all three, which redraws 197 of the oracle frame's 307200
-	// pixels by at most 3 of 255.
+	// and again by projection * view, where a draw a star rounds it once by
+	// the product of all three - a difference of 197 of the oracle frame's
+	// 307200 pixels, by at most 3 of 255.
 	const RenderState state(p_sprites->ref(), BM_NORMAL);
 
 	starVertices.clear();

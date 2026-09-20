@@ -2279,9 +2279,10 @@ void Engine::restoreWindowPosition()
 	// size of it, in the same direction each time, and over a run of sessions
 	// the window walks across the desktop.
 	//
-	// It carries two other things that used to be done by hand here: showCmd
-	// is the whole of the maximized state, and a placement that would put the
-	// window on no screen at all is moved back onto one by Windows itself.
+	// It also carries two things that would otherwise be hand-written here:
+	// showCmd is the whole of the maximized state, and a placement that would
+	// put the window on no screen at all is moved back onto one by Windows
+	// itself.
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(wp);
 	if(!GetWindowPlacement(info.window, &wp)) return;
@@ -2790,6 +2791,13 @@ void Engine::drawOverlays()
 // neither the RENDER nor the PRESENT the block reports - and it lands in a
 // screenshot, which on a phone is how the figure gets off the device at all.
 //
+// It does land in TOTAL and in the draw count, which is the figure a reader is
+// likeliest to take for the game's own. Measured on the menu: 5.16 draws a
+// frame without -perf and 6.16 with it. One and not two, because the strip's
+// background comes from the renderer's built-in picture and the text from the
+// font, and since the built-in went into an atlas page those two share a
+// texture and so a draw.
+//
 // The bottom and not the top, although both corners are taken: at the bottom
 // it covers the status bar, whose numbers stand still and can be read by
 // turning the overlay off, and at the top it would cover the toasts, which
@@ -2857,8 +2865,8 @@ void Engine::drawPerformance()
 	// load's stall still in the window, and 633 under -flushall on a slow
 	// machine, where every quad is its own draw and the milliseconds, the
 	// draws and the counts stand at their widest at once. That last arm is the
-	// one the spaces used to cost: the same line with a space for every colon
-	// and wider gaps between the groups measured 665, and lost its tail.
+	// one the spaces would cost: the same line with a space for every colon
+	// and wider gaps between the groups measures 665, and loses its tail.
 	const float budget = static_cast<float>(logicRate);
 	char line[160];
 	snprintf(line, sizeof(line),
@@ -3010,8 +3018,9 @@ void Engine::writeAtlasPages()
 		// of glReadPixels is the picture's last. A page was never rasterized -
 		// uploadPadded() hands glTexSubImage2D the rows top down and they sit
 		// that way - so reading it back gives the top row first, which is the
-		// row PNG wants first. Flipping it here is how the first cut of this
-		// came out upside down.
+		// row PNG wants first. A flip here would stand the page on its head,
+		// which is why the screenshot's own argument must not be copied over
+		// without asking whether its reason applies.
 		if(!encodePNG(&pixels[0], Vec2i(edge, edge), 4, 4, false, &png))
 		{
 			printfLog("+ ERROR: Could not encode atlas page %d.\n", page + 1);

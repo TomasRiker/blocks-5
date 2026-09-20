@@ -10,8 +10,10 @@ undone by accident. How things work now is in `CLAUDE.md` and `.claude/rules/`,
 and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
-Open: 6 (the campaign half), 13, 19, 22, 27, 28, 29, 30, 31 (the slider), 33, 35,
-36, 37, 38, 40, 41, 46, 47, 48, 51 and 58. Everything else is done.
+Open: 6 (the campaign half), 13, 19, 22, 27 (the menu line), 28, 29, 30,
+31 (the slider), 35, 36, 37, 38, 40, 41, 46, 47 and 48. Everything else is done.
+Sixty entries, and nothing checks this line against the headings below it, so an
+item finished and not struck from here goes unnoticed. Read it against them.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -529,9 +531,9 @@ path. What this item was really about is the second presentation, and
 `onEnter`, unless the caller said so outright in the `ParameterBlock`. Nothing a
 player takes has to say it - a `Credits` entry in the menu leaves it, and the way
 in from the last level is right for free, because the level just finished is
-already in the database. Two callers do say it: **Shift+C** in the menu is the
-plain version and **Ctrl+Shift+C** the ending, so that which one the author is
-looking at does not depend on what their own save file holds; and the frame
+already in the database. Two callers do say it: **Ctrl+Shift+F2** in the menu is
+the plain version and **Ctrl+Shift+F3** the ending, so that which one the author
+is looking at does not depend on what their own save file holds; and the frame
 oracle's `credits` scene asks for the ending through the same parameter on the
 `state` hook. The bar is not simply "all levels": where the campaign
 has a bonus level it is `getLevels().size() - 1`, the count that unlocks that
@@ -1236,11 +1238,19 @@ Which of the two a packed picture gets is a live question with a wrong answer
 that looks right, and item 60 is what decides it - the foot of that item has the
 argument and the measurement.
 
-**And the sampling is bit for bit what it was**, because a page's edge is a
-power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and
-their sum is exactly `(px + origin)/pageEdge`. All twenty oracle scenes are
-byte-identical with the atlas live, which is what proves the gutter and the
-arithmetic together rather than arguing them.
+**The arithmetic is exact**, because a page's edge is a power of two:
+`px/pageEdge` and `origin/pageEdge` are both exact in float and their sum is
+exactly `(px + origin)/pageEdge` - measured, 0 mismatches over 200,000 random
+float32 cases, since scaling by a power of two commutes with rounding. All
+twenty oracle scenes were byte-identical when the atlas went in.
+
+**That is the formula being exact and not the picture.** What it does not give
+is invariance when the origin *changes*, and a repack changes it - so does
+adding a picture, which shifts what the packer does with the rest. Packing the
+renderer's own block and disc moved five scenes by a pixel apiece (see the foot
+of item 60). The atlas is not sampling-neutral for soft, sub-texel geometry, and
+a byte-identical oracle after a packing change is a result worth being pleased
+about rather than one to expect.
 
 **Nothing had to be told a picture had moved**, and that is the property the
 whole design rests on: uv is written in the picture's own texels everywhere in
@@ -1689,8 +1699,18 @@ summed could reach 105, and `32*(value%8), 640 + 32*(value/8)` is then four
 hundred rows below the sheet. Measured before the fix, the palette alone drove
 it to rows 704 and **736**, where no skin has art. Reading each input as a level,
 the way the gates' `&&` and `||` already do, bounds the sum at 15 by
-construction; the deepest row any quad now reaches is **720**, which is exactly
-where the art ends.
+construction; the deepest row `E_HexDigit` now reaches is **720**, which is
+exactly where the art ends.
+
+That was said of every quad when it was written, and it was not true of one.
+`Renderer::checkTiling` and the probe the crop was measured with both sat in
+`Renderer::pushQuad`, and the credits' star field goes through
+`Renderer::quads3D`, which neither covered: it picked its row with
+`random(0, 23)`, and `random` is inclusive at both ends, so one star in
+twenty-four asked for row 736 and drew nothing. A 22 there is what makes 720
+true of every path rather than of the instrumented one - and checkTiling now
+runs on the 3D path as well, against the picture's edge rather than the page's,
+so the next one of these is a failed run and not a shipped frame.
 
 `title.png` was requested in `GS_Loading::loadGraphics()` and drawn nowhere -
 no code path, no `<Image>`, no localized filename - and never released either.

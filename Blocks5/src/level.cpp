@@ -81,10 +81,9 @@ Level::Level()
 	p_rainParticleSystem = 0;
 	p_particleSprites = 0;
 	renderLayersPresent = 0;
-	// Only clear() set this, and the constructor does not call it: a Level
-	// used before its first clear() handed out UIDs counting on from whatever
-	// the stack held. Surfaced by verify.py's ctor_init check, which had been
-	// skipping this class because more than half its members were unset.
+	// Here as well as in clear(), which the constructor does not call: a Level
+	// asked for a UID before its first clear() would otherwise count on from
+	// whatever the allocation happened to hold.
 	nextUID = 0;
 
 	// create the rain sound
@@ -1211,10 +1210,14 @@ void Level::renderObjects(RenderLayer layer,
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
 	if(!(layer & ownTexture)) Renderer::inst().setTexture(p_sprites->ref());
 
-	// Nothing is on this layer, so the walk below would find nothing. The
-	// texture above is set first and not skipped with it: renderTiles() binds
-	// nothing of its own and draws with whatever is current, so a pass that
-	// draws nothing still has to leave the sprite sheet behind it.
+	// Nothing is on this layer, so the walk below would find nothing.
+	//
+	// The bind above stands on the near side of this return deliberately. The
+	// renderer's current texture is one global that outlives the call, and
+	// every pass has left the sprite sheet in it since before there was a
+	// walk to skip; returning earlier would make an empty pass leave
+	// something different behind, which is a change to whatever draws next
+	// rather than the walk this is here to save.
 	if(!(renderLayersPresent & layer)) return;
 
 	// One pass over one layer is one draw of the renderer's, or a few where

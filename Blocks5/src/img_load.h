@@ -9,8 +9,10 @@
 // in libs/stb - which drops sdl_image.dll, libpng15-15.dll and zlib1.dll, and
 // lets the Emscripten build use exactly the same code as the Windows build.
 //
-// PNG and JPEG are supported. Every image the game ships is a PNG, and
-// zip_data.bat and zip_skins.bat pack nothing but *.png anyway.
+// PNG and JPEG are supported, and every image the game ships is a PNG. The
+// packing scripts - zip_data.bat, zip_skins.bat and pack.sh - carry ogg, dat,
+// xml and txt as well, so it is not that they pack only pictures; it is that
+// no other image format ever gets into one.
 //
 // The returned surface is always 32 bit RGBA, SDL_SWSURFACE.
 
