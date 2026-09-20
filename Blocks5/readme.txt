@@ -32,6 +32,8 @@ Blocks 5 understands five options. Upper and lower case do not matter.
     -perf          Show in the bottom corner what the last few hundred frames
                    cost, which is a diagnostic and not a feature. In a browser
                    the same thing is reached by adding ?perf=1 to the address.
+                   Ctrl+Shift+T then writes the texture atlas pages into the
+                   screenshots folder, one PNG each.
     -flushall      Draw every quad on its own instead of collecting a whole
                    render pass into one call. Slower, and only of interest if
                    a graphics driver draws the collected form wrongly. In a

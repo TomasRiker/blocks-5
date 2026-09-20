@@ -1781,6 +1781,28 @@ void Engine::update()
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
+	// Ctrl+Shift+T writes the atlas pages out, and only under -perf: this is a
+	// developer key, not a feature, and it has no entry in the bindings for
+	// the same reason - an action would show up in the Options dialog and be
+	// rebindable, which is the opposite of what a diagnostic wants.
+	//
+	// Read the way the menu reads Shift+C, with one difference that matters:
+	// the modifiers are asked of the keyboard, which is a level, but T is
+	// asked of wasKeyPressed(), which is the edge. Level-testing T as well
+	// would write a set of pages every tick the key stayed down - fifty files
+	// a second, each a couple of megabytes.
+	if(performanceShown && wasKeyPressed(SDLK_t))
+	{
+#ifdef __EMSCRIPTEN__
+		Uint8* p_keyStates = SDL_GetKeyboardState(0);
+#else
+		Uint8* p_keyStates = SDL_GetKeyState(0);
+#endif
+		if((p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL]) &&
+		   (p_keyStates[SDLK_LSHIFT] || p_keyStates[SDLK_RSHIFT]))
+			writeAtlasPages();
+	}
+
 	if(wasActionPressed("$A_TOGGLE_MUTE"))
 	{
 		muted = !muted;
@@ -2921,6 +2943,98 @@ bool Engine::writeScreenshot(const std::string& path)
 	fs.closeFile(p_file);
 	if(!saved) printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
 	return saved;
+}
+
+// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+T.
+//
+// A page is a plain texture and not a framebuffer, so it is read the one way
+// that works in every build: attached to a framebuffer of its own for the
+// length of the read. GLES and WebGL have no glGetTexImage, and a native-only
+// path for a developer key would be a branch only one of the three builds ever
+// compiles.
+//
+// Alpha is written as well - encodePNG's 4 to 4 rather than the screenshot's 4
+// to 3 - because what is worth looking at in a page is where the gaps are, and
+// an opaque black hole looks the same as a picture that failed to upload.
+void Engine::writeAtlasPages()
+{
+	TextureAtlas& atlas = TextureAtlas::inst();
+	const int pageCount = atlas.getPageCount();
+	const int edge = atlas.getPageEdge();
+	if(pageCount <= 0 || edge <= 0)
+	{
+		printfLog("> INFO: There is no atlas page to write.\n");
+		return;
+	}
+
+	char dateTime[256];
+	const time_t t = ::time(0);
+	strftime(dateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
+
+	std::vector<uchar> pixels(static_cast<size_t>(edge) * edge * 4);
+	for(int page = 0; page < pageCount; page++)
+	{
+		const uint pageID = atlas.getPageID(page);
+		if(!pageID) continue;
+
+		GLenum status = GL_FRAMEBUFFER_COMPLETE_EXT;
+		{
+			Renderer::DirectGL direct;
+			uint readFrameBuffer = 0;
+			glExtGenFramebuffers(1, &readFrameBuffer);
+			glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, readFrameBuffer);
+			glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+									  GL_TEXTURE_2D, pageID, 0);
+			status = glExtCheckFramebufferStatus(GL_FRAMEBUFFER_EXT);
+			if(status == GL_FRAMEBUFFER_COMPLETE_EXT)
+				glReadPixels(0, 0, edge, edge, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
+			glExtBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+			glExtDeleteFramebuffers(1, &readFrameBuffer);
+		}
+		if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
+		{
+			printfLog("+ ERROR: Atlas page %d could not be read (status 0x%x).\n",
+					  page + 1, static_cast<unsigned>(status));
+			continue;
+		}
+
+		std::vector<uchar> png;
+		if(!encodePNG(&pixels[0], Vec2i(edge, edge), 4, 4, true, &png))
+		{
+			printfLog("+ ERROR: Could not encode atlas page %d.\n", page + 1);
+			continue;
+		}
+
+		char name[512] = "";
+		sprintf(name, "%s_atlas_%d.png", dateTime, page + 1);
+
+#ifdef __EMSCRIPTEN__
+		// Where the screenshot goes, and for its reason: there is no directory
+		// in the browser this would belong in.
+		char downloadName[512] = "";
+		sprintf(downloadName, "blocks5_%s", name);
+		WebTransfer::downloadBytes(&png[0], static_cast<uint>(png.size()), downloadName);
+		printfLog("> INFO: Atlas page %d of %d offered as \"%s\".\n", page + 1, pageCount, downloadName);
+#else
+		FileSystem& fs = FileSystem::inst();
+		const std::string path = fs.getAppHomeDirectory() + "screenshots/" + name;
+		File* p_file = fs.openFile(path, FileSystem::FM_WRITE);
+		if(!p_file)
+		{
+			printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+			continue;
+		}
+		const uint numBytes = static_cast<uint>(png.size());
+		const bool saved = p_file->write(&png[0], numBytes) == numBytes && p_file->finish();
+		fs.closeFile(p_file);
+		if(saved) printfLog("> INFO: Atlas page %d of %d written to \"%s\".\n", page + 1, pageCount, path.c_str());
+		else printfLog("+ ERROR: Could not write \"%s\".\n", path.c_str());
+#endif
+	}
+
+	// The game's own target back: the read bound a framebuffer over it, and the
+	// rest of this frame expects the one the frame is being drawn into.
+	bindFrameBuffer();
 }
 
 bool Engine::screenshot()
