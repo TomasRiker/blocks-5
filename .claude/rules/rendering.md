@@ -330,8 +330,13 @@ and nothing else will do.
 `GLExtensions::maxTextureSize()` and added on demand up to four; a guillotine packer places them biggest
 edge first, and free rectangles are joined back together when they make one. Two pages hold the resident
 set — `data/` and one skin, 8.7 Mtexel of which 6.2 can be packed — where one 4096 page would allocate
-64 MB to keep 25 MB of pictures. Draws a frame: **menu 29 to 6, plain 16.4 to 7.4, toxic 21 to 10, night
-and lava 24 to 14**.
+64 MB to keep 25 MB of pictures. Draws a frame when the atlas went in: **menu 29 to 6, plain 16.4 to 7.4,
+toxic 21 to 10, night and lava 24 to 14**. Two later changes took them further and the figures are worth
+re-reading rather than carrying — measured on the oracle at seed 12345, **menu 5.0, plain 3.4, toxic 7.0,
+night 11.0, lava 12.0**. What moved them is the lava's stencil pass, skipped where a level has no lava,
+and the renderer's own block and disc going into a page: the first is a `glClear` the renderer had to
+flush for in every level, and the second stopped every crossing between flat and textured drawing from
+ending a batch.
 
 **A picture says at its request whether it tiles**, because that is what decides whether it can share.
 `Manager<T>::request` carries the resource type's options and `Texture::WrapMode` is three: `WM_CLAMP`,

@@ -90,7 +90,7 @@ of that would be whatever happened to lie near the start, and an assertion about
 about level 1. The private `XDG_DATA_HOME` is frames.sh's arrangement exactly: it puts the level first in
 the single-levels list and keeps the developer's own levels and progress out of it.
 
-`LinuxBuild/test/frames.sh` renders nineteen named scenes as 640x480 PNGs meant to be byte-identical
+`LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth
 knowing before adding one. Three things do it, and every scene needs all three: `B5_SEED` seeds the
@@ -209,7 +209,7 @@ the X server it started, because a `FAILED` from inside a function otherwise lea
 **Two binaries are compared by running the oracle twice, each in a home of its own.** A worktree of the
 other commit is built with `Blocks5/pack.sh data --no-optipng && LinuxBuild/build.sh hooks`, and its run
 gets `B5_DISPLAY`, `B5_SHOTS` and `B5_FRAMES_XDG` of its own, because two runs cannot share a display, a
-shots directory or a home; then `cmp` over the nineteen PNGs says which scenes moved, and a pixel diff of
+shots directory or a home; then `cmp` over the twenty PNGs says which scenes moved, and a pixel diff of
 one says where. The tag `render-baseline` marks the last immediate-mode binary, the one the renderer
 redesign was measured against, so that comparison can still be made.
 

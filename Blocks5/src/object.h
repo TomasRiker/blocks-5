@@ -118,8 +118,8 @@ public:
 	// Which layers this object may draw on, as bits from renderlayer.h. Level
 	// walks the passes and skips an object whose bit is clear, which is most
 	// of them on most passes: with twelve layers and one drawing on one or two
-	// of them, the walk used to spend eleven twelfths of itself on a matrix
-	// bracket and a virtual call that drew nothing.
+	// of them, eleven twelfths of an unconditional walk would be a matrix
+	// bracket and a virtual call that draw nothing.
 	//
 	// A plain member and not a virtual, so that asking is a load rather than a
 	// call - and, more to the point, so that a subclass cannot answer

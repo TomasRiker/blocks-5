@@ -112,7 +112,7 @@ public:
 		sprintf(s, "%s: %d", localizeString("$LE_DIAMONDS").c_str(), editor.p_level->getNumDiamondsNeeded());
 		static_cast<GUI_StaticText*>(getChild("NumDiamondsNeeded"))->setText(s);
 
-		// setChecked, not check: this keeps the display in step every frame.
+		// setChecked, not check: this keeps the display in step every tick.
 		// With check(), an Undo that toggles the electricity would fire the
 		// changed signal on the next frame, and the handler would promptly
 		// create a fresh undo point and throw the redo list away.
