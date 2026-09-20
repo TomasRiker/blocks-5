@@ -1781,17 +1781,23 @@ void Engine::update()
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
-	// Ctrl+Shift+T writes the atlas pages out, and only under -perf: this is a
+	// Ctrl+Shift+A writes the atlas pages out, and only under -perf: this is a
 	// developer key, not a feature, and it has no entry in the bindings for
 	// the same reason - an action would show up in the Options dialog and be
 	// rebindable, which is the opposite of what a diagnostic wants.
 	//
 	// Read the way the menu reads Shift+C, with one difference that matters:
-	// the modifiers are asked of the keyboard, which is a level, but T is
-	// asked of wasKeyPressed(), which is the edge. Level-testing T as well
+	// the modifiers are asked of the keyboard, which is a level, but A is
+	// asked of wasKeyPressed(), which is the edge. Level-testing A as well
 	// would write a set of pages every tick the key stayed down - fifty files
 	// a second, each a couple of megabytes.
-	if(performanceShown && wasKeyPressed(SDLK_t))
+	//
+	// An edit box with the focus takes Ctrl+A as select-all whatever Shift is
+	// doing (gui_editbox.cpp), so under -perf the chord does both. It is left
+	// that way: guarding it would put knowledge of the GUI's focus into the
+	// engine's key handling for a developer key, and neither half of what
+	// happens is destructive.
+	if(performanceShown && wasKeyPressed(SDLK_a))
 	{
 #ifdef __EMSCRIPTEN__
 		Uint8* p_keyStates = SDL_GetKeyboardState(0);
@@ -2945,7 +2951,7 @@ bool Engine::writeScreenshot(const std::string& path)
 	return saved;
 }
 
-// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+T.
+// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+A.
 //
 // A page is a plain texture and not a framebuffer, so it is read the one way
 // that works in every build: attached to a framebuffer of its own for the
