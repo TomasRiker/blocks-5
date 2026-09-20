@@ -462,7 +462,11 @@ void GS_Credits::updateStars()
 		s.size = random(1.0f, 2.0f);
 		s.rotation = Vec3f(random(0.0f, 10.0f), random(0.0f, 10.0f), random(0.0f, 10.0f));
 		s.deltaRotation = Vec3f(random(-100.0f, 100.0f), random(-100.0f, 100.0f), random(-100.0f, 100.0f));
-		s.positionOnTexture = 32 * Vec2i(random(0, 7), random(0, 23));
+		// Twenty-three rows of the sheet and not twenty-four: random(min, max)
+		// is inclusive at both ends - MTRand::randInt(n) gives [0, n] - so a 23
+		// here picked a cell at row 736, which is below the last row the art
+		// reaches. One star in twenty-four drew nothing.
+		s.positionOnTexture = 32 * Vec2i(random(0, 7), random(0, 22));
 		stars.push_back(s);
 	}
 }
