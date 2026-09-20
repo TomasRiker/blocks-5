@@ -2999,7 +2999,15 @@ void Engine::writeAtlasPages()
 		}
 
 		std::vector<uchar> png;
-		if(!encodePNG(&pixels[0], Vec2i(edge, edge), 4, 4, true, &png))
+		// Not bottom-up, where the screenshot is. The difference is what the
+		// pixels went through: a frame is rasterized under frameBegin's
+		// ortho(0, w, h, 0), whose y runs the other way, so its first row out
+		// of glReadPixels is the picture's last. A page was never rasterized -
+		// uploadPadded() hands glTexSubImage2D the rows top down and they sit
+		// that way - so reading it back gives the top row first, which is the
+		// row PNG wants first. Flipping it here is how the first cut of this
+		// came out upside down.
+		if(!encodePNG(&pixels[0], Vec2i(edge, edge), 4, 4, false, &png))
 		{
 			printfLog("+ ERROR: Could not encode atlas page %d.\n", page + 1);
 			continue;
