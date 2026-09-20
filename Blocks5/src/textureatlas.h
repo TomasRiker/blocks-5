@@ -17,9 +17,9 @@ class Texture;
 // That is exactly why the wrap mode is declared at the request
 // (Texture::WM_REPEAT): GL_REPEAT wraps at the *texture's* edge, so a picture
 // in a page would read whatever was packed next door. Those keep a texture of
-// their own. Everything else shares a page - including a picture the renderer
-// tiles itself, because Renderer::tiledQuad cuts the quad so that no piece
-// reads past an edge.
+// their own. A picture the renderer tiles itself (WM_WRAP) does share a page,
+// because Renderer::tiledQuad cuts the quad so that no piece reads past an
+// edge; its gutter copies the opposite edge rather than its own.
 //
 // Sampling is bit for bit what it was, and the reason is that a page's edge is
 // a power of two: px/pageEdge and origin/pageEdge are both exact in float and
@@ -30,12 +30,11 @@ class TextureAtlas : public Singleton<TextureAtlas>
 	friend class Singleton<TextureAtlas>;
 
 public:
-	// A texel of gutter all round every picture, carrying its opposite edge.
-	// Linear filtering reaches one texel past the coordinate it was given and
-	// no further - there are no mipmaps anywhere in this game - so that one
-	// texel is exactly what GL_REPEAT would have returned, which is the only
-	// thing this game ever sampled with: GL_TEXTURE_WRAP_S and _T are set
-	// nowhere in its history. Not approximately: the same texel value.
+	// A texel of gutter all round every picture. Linear filtering reaches one
+	// texel past the coordinate it was given and no further - there are no
+	// mipmaps anywhere in this game - so one texel of the picture's own edge,
+	// copied outwards, is exactly what GL_CLAMP_TO_EDGE would have returned.
+	// Not approximately: the same texel value.
 	static const int GUTTER = 1;
 
 	// Where a picture ended up. pageID 0 means it is not in a page at all and

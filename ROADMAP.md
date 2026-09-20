@@ -1205,29 +1205,23 @@ gets; the GL 2.0 spec guarantees only 64, which is why it is asked at startup
 
 **A picture says at its request whether it tiles**, because that is the one
 thing which decides whether it can share. `Manager<T>::request` carries the
-resource type's options, and `Texture::WrapMode` is two:
+resource type's options, and `Texture::WrapMode` is three:
 
-    WM_WRAP    every quad's uv stays inside the picture, either by itself or
-               because Renderer::tiledQuad cut the quad at its edges; packs
+    WM_CLAMP   nothing samples outside the picture; gutter copies its own edge
+    WM_WRAP    Renderer::tiledQuad cuts it; gutter copies the opposite edge; packs
     WM_REPEAT  GL wraps it, so it needs a texture of its own
 
 Only the weather is `WM_REPEAT` - rain, snow and the two clouds, whose uv is
 rotated with the scroll, so the cuts a split would need are not axis-aligned in
-screen space and the pieces would not be quads. The lava's two 16x16 tiles sit
-in a page with the sprite sheet they were cut from: they span exactly one copy
-at an offset, so `tiledQuad` cuts each into two or four pieces that sample one
-copy each.
+screen space and the pieces would not be quads. The lava's two 16x16 tiles are
+`WM_WRAP` and sit in a page with the sprite sheet they were cut from: they span
+exactly one copy at an offset, so `tiledQuad` cuts each into two or four pieces
+that sample one copy each.
 
-**The gutter is exact, not a fudge, and it carries the opposite edge.** Linear
-filtering reaches one texel past the coordinate it was given and there are no
-mipmaps anywhere in this game, so that one texel is the whole of what a wrap
-mode decides - and `GL_REPEAT` is the only mode this game has ever had.
-`GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T` are set nowhere in its history: the
-2014 import has eight `glTexParameteri` calls and all eight are the min and mag
-filters, and `95660bb`, the last commit before this work, has none either. So
-every texture ran at GL's default. A gutter copying the picture's own edge would
-return what `GL_CLAMP_TO_EDGE` returned, a mode nothing here ever sampled with;
-one copying the opposite edge returns what `GL_REPEAT` did.
+**The gutter is exact, not a fudge.** Linear filtering reaches one texel past
+the coordinate it was given and there are no mipmaps anywhere in this game, so a
+copy of the picture's own edge returns the same texel `GL_CLAMP_TO_EDGE`
+returned, and a copy of the opposite edge the same texel `GL_REPEAT` returned.
 
 **And the sampling is bit for bit what it was**, because a page's edge is a
 power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and
