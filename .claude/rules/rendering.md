@@ -353,6 +353,29 @@ power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and th
 `(px + origin)/pageEdge`. All twenty oracle scenes are byte-identical with the atlas live, which proves the
 gutter and the arithmetic together instead of arguing them.
 
+**And the clamp gutter is right even though this game never clamped.** That reads backwards, so it is
+written down: `GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T` are set nowhere in the game's history — the 2014
+import has eight `glTexParameteri` calls and all eight are the min and mag filters, and `95660bb`, the last
+commit before the renderer work, has none either. Every texture ran at GL's default of `GL_REPEAT`; the
+clamping in `applyWrapMode` arrived with `a37ff2e`, for WebGL 1's non-power-of-two rule. So a gutter that
+wraps looks like the faithful one, and it was tried.
+
+It is not, and item 60 is why. `GL_REPEAT` was harmless in 2015 **because the sheets had transparent
+margins to wrap into**, and the crop deleted exactly those margins:
+
+    sprites.png  pre-crop   256x1024   last row 1023: max alpha   0
+    sprites.png  post-crop  256x 720   last row  719: max alpha 231
+
+A fragment at v = 0 of the credits star sheet's first cell blends `(0, 159, 0, 134)` — opaque green art —
+where 2015 blended `(255, 255, 255, 0)`. The oracle moves eight of the twenty scenes on a wrapping gutter,
+`credits.png` by 82 of 255 over 462 pixels, and `star`, `lava`, `toxic`, `night`, `manager`, `select` and
+`cube` by two to nine. Rotated and scaled quads reach an outer edge routinely — the credits stars through
+`quads3D`, the crossfades, the night vision's noise sampled whole — so this is not a corner nobody visits.
+
+The clamp gutter therefore preserves the behaviour 2015 *had*, while wrapping would restore the mode it ran
+in and a bleed it never suffered. Which is also why the three modes do not collapse into two: `WM_WRAP`
+earns its place for pieces that genuinely tile, whose opposite edge is their own art.
+
 **Nothing has to be told that a picture moved**, and that is what the whole design rests on: uv is written
 in the picture's own texels everywhere in the tree and turned into the page's in `Renderer::pushQuad`, the
 one line every quad passes through, from the `uvOrigin` its `TextureRef` carries. So the tile grid's cache,
