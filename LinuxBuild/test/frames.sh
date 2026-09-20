@@ -574,9 +574,19 @@ fi
 # that disagrees with what OpenGL is really holding - a hooks build reads the
 # state back after every draw. A wrong record is a wrong picture somewhere
 # nobody was looking, and a message in a log nobody reads is not a check.
+#
+# Both files, because neither alone is the whole run. run.log is the game's
+# stdout and carries what the X server and the loader say as well, which the
+# game never sees; log.txt is the game's own and is written a line at a time,
+# so it survives a kill that leaves stdout's last buffer unwritten. This check
+# read run.log alone while stdout was still block-buffered, and answered from
+# a file that ended ten lines in, inside SDL's startup - green because there
+# was nothing in it to be red about.
 echo
-grep -q "ERROR" "$B5_OUT/run.log" \
-	&& b5_note "ERROR in the log: $(grep -m3 ERROR "$B5_OUT/run.log" | tr '\n' ' ')" \
+B5_LOGS="$B5_OUT/run.log"
+[ -f "$B5_PRIVATE_HOME/log.txt" ] && B5_LOGS="$B5_LOGS $B5_PRIVATE_HOME/log.txt"
+grep -qs "ERROR" $B5_LOGS \
+	&& b5_note "ERROR in the log: $(grep -hm3 ERROR $B5_LOGS | tr '\n' ' ')" \
 	|| b5_ok "no error line in the log"
 
 echo "frames in $B5_OUTDIR"
