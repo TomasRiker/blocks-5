@@ -179,8 +179,8 @@ def c_raw_gl_glu(p):
 
 @case('raw_gl', 'Blocks5/src/gs_credits.cpp')
 def c_raw_gl_ext(p):
-    p.replace('\t\tengine.captureFrame(bufferID);',
-              '\t\tglExtUseProgram(0);\n\t\tengine.captureFrame(bufferID);')
+    p.replace('engine.captureFrame(bufferID);',
+              'glExtUseProgram(0);\n\tengine.captureFrame(bufferID);')
 
 
 # A call split over two lines, which a line-at-a-time search cannot see.
