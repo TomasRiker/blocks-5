@@ -154,9 +154,10 @@ void GS_Menu::onUpdate()
 		engine.setGameState("GS_Credits", context);
 		engine.crossfade(new CF_Star, 0.85f);
 	}
-	else if(p_keyStates[SDLK_d] &&
-		(p_keyStates[SDLK_LSHIFT] ||
-		p_keyStates[SDLK_RSHIFT]))
+	// Ctrl+Shift+F4 turns the donation question off for good, the same shape
+	// as the two above. Alt+F4 is the only other reader of this key and wants
+	// Alt, which this chord does not hold.
+	else if(ctrlShiftHeld && engine.wasKeyPressed(SDLK_F4))
 	{
 		FileSystem& fs = FileSystem::inst();
 		fs.writeStringToFile("disable", fs.getAppHomeDirectory() + ".donation_asked");
