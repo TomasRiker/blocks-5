@@ -64,8 +64,14 @@
 		     draws nothing either. It passes no parameter, which is the whole
 		     of what it has to get right: GS_Credits::onEnter then asks
 		     Campaign::isBuiltInCompleted() and gives the player the version
-		     they have earned. -->
-		<Button name="Credits" x="293" y="456" w="55" h="22">
+		     they have earned.
+
+		     The rectangle is the word plus a pixel, measured off menu.png
+		     rather than guessed: the text runs x 294..351, y 457..479, and
+		     it reaches the bottom edge of the 480-tall picture, so the height
+		     has to take it to 479 or the last two rows of every letter are
+		     not clickable. -->
+		<Button name="Credits" x="293" y="456" w="60" h="24">
 			<ExtendedStyle />
 			<Title></Title>
 		</Button>
