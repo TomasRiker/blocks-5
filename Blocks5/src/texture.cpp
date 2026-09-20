@@ -273,7 +273,11 @@ void Texture::cleanUp()
 
 TextureRef Texture::ref() const
 {
-	return TextureRef(texID, texelScale, uvOrigin, wrapMode == WM_REPEAT);
+	// The extent is what checkTiling needs to know where this picture ends,
+	// which inside a page is nowhere near where the texture does.
+	return TextureRef(texID, texelScale, uvOrigin,
+					  Vec2f(size.x * texelScale.x, size.y * texelScale.y),
+					  wrapMode == WM_REPEAT);
 }
 
 Texture::WrapMode Texture::getWrapMode() const
