@@ -40,6 +40,47 @@ Texture::Texture(Texture* p_parent,
 	loadSubTexture(p_parent, offset, size);
 }
 
+Texture::Texture(const Vec2i& size, const uchar* p_pixels, const std::string& name) : Resource(name)
+{
+	p_rgba = 0;
+	texID = 0;
+	doKeepInMemory = false;
+	offset = Vec2i(0, 0);
+	this->size = size;
+	texelScale = Vec2f(1.0f, 1.0f);
+	uvOrigin = Vec2f(0.0f, 0.0f);
+	wrapMode = WM_CLAMP;
+	neverPack = false;
+	ownsTexture = true;
+	p_parent = 0;
+
+	// Straight into a surface of the layout place() expects - RGBA in that
+	// order, one byte each - and then the ordinary road: place() packs it if
+	// the atlas will have it and gives it a texture of its own if not.
+	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32,
+								  0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+	if(!p_rgba)
+	{
+		printfLog("+ ERROR: No surface for the picture \"%s\".\n", name.c_str());
+		error = 1;
+		return;
+	}
+	SDL_SetAlpha(p_rgba, 0, 0);
+	SDL_LockSurface(p_rgba);
+	memcpy(p_rgba->pixels, p_pixels, static_cast<size_t>(size.x) * size.y * 4);
+
+	place();
+
+	// Nothing reads these again: this picture is not in the Manager, so the
+	// sweep never reaches it, and nothing asks it for a pixel.
+	freePixels();
+}
+
+Texture* Texture::createFromPixels(const Vec2i& size, const uchar* p_rgba, const std::string& name)
+{
+	return new Texture(size, p_rgba, name);
+}
+
 Texture::~Texture()
 {
 	cleanUp();

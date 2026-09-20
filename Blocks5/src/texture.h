@@ -79,6 +79,14 @@ public:
 	// file; Renderer::deleteTexture takes it back.
 	static uint createGLTexture(const Vec2i& size, const uchar* p_pixels, bool withAlpha, bool smooth, bool clamp);
 
+	// A picture that came from memory rather than from a file, for the
+	// renderer's built-in block and disc. It goes through place() like any
+	// other, so it packs, it moves with a repack and it gives its rectangle
+	// back - none of which a raw GL texture of its own would do. Not in the
+	// Manager: there is no filename to key it on, and nothing ever asks for it
+	// a second time. The caller owns it.
+	static Texture* createFromPixels(const Vec2i& size, const uchar* p_rgba, const std::string& name);
+
 	// Hand the decoded pixels back for every texture that was not asked to
 	// keep them. Once a logic tick, from Engine::update().
 	//
@@ -108,6 +116,7 @@ public:
 
 private:
 	Texture(const std::string& filename, int options);
+	Texture(const Vec2i& size, const uchar* p_rgba, const std::string& name);
 	// A part of another picture, for createSubTexture(): copies the region
 	// straight out of the parent's pixels, without decoding the file first.
 	Texture(Texture* p_parent, const Vec2i& offset, const Vec2i& size, WrapMode wrapMode);
