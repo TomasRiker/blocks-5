@@ -838,6 +838,15 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 			baked[i].uv.x = baked[i].uv.x * s.texture.texelScale.x + s.texture.uvOrigin.x;
 			baked[i].uv.y = baked[i].uv.y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		}
+		// The same rule as a 2D quad's, checked here because this path does
+		// not go through pushQuad. Leaving it out is how a credits star came
+		// to sample a row of sprites.png the art does not reach, and ship.
+		for(uint q4 = 0; q4 + 4 <= n; q4 += 4)
+		{
+			const float u[4] = {baked[q4].uv.x, baked[q4 + 1].uv.x, baked[q4 + 2].uv.x, baked[q4 + 3].uv.x};
+			const float v[4] = {baked[q4].uv.y, baked[q4 + 1].uv.y, baked[q4 + 2].uv.y, baked[q4 + 3].uv.y};
+			checkTiling(s, u, v);
+		}
 		glExtBufferData(GL_ARRAY_BUFFER, n * sizeof(Vertex3), &baked[0], GL_STREAM_DRAW);
 		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(n / 4 * 6), GL_UNSIGNED_SHORT, reinterpret_cast<const void*>(0));
 		counters.draws++;
@@ -1354,30 +1363,51 @@ void Renderer::checkRecord()
 void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* p_v)
 {
 	// A quad that samples outside its own picture relies on GL_REPEAT, and
-	// only a texture declared Texture::WM_REPEAT has it. Anything else is a
-	// picture that may one day share a page, where the coordinate would land
+	// only a texture declared Texture::WM_REPEAT has it. Anything else lands
 	// in whatever was packed beside it - so the rule is checked on every quad
 	// rather than argued about, and frames.sh fails on the line.
 	//
-	// The builtin white texture (id 0) is exempt: flat geometry samples the
-	// centre of one texel inside it and never moves.
+	// Against the *picture* and not the texture, which stopped being the same
+	// thing when the atlas arrived: a page is one texture holding thirty
+	// pictures, so [0, 1] is the page's edge and a quad can run a long way
+	// past its own picture without ever reaching it. Written the old way this
+	// check was green while a credits star sampled a row of sprites.png that
+	// the art does not reach.
+	//
+	// Each axis on its own, because a picture in a page has a different
+	// origin and a different extent in u than in v.
 	static int reported = 0;
 	if(reported >= 20 || s.texture.tiles || !s.texture.id) return;
 
-	float lo = p_u[0], hi = p_u[0];
+	// A texel's worth of slack, so that a coordinate that lands on the far
+	// edge by rounding is not a finding: clamping and repeating agree there,
+	// and so does the gutter.
+	const float slackU = s.texture.texelScale.x, slackV = s.texture.texelScale.y;
+	const float loU = s.texture.uvOrigin.x - slackU;
+	const float hiU = s.texture.uvOrigin.x + s.texture.uvExtent.x + slackU;
+	const float loV = s.texture.uvOrigin.y - slackV;
+	const float hiV = s.texture.uvOrigin.y + s.texture.uvExtent.y + slackV;
+
+	float worstU = p_u[0], worstV = p_v[0];
+	bool bad = false;
 	for(int i = 0; i < 4; i++)
 	{
-		lo = min(lo, min(p_u[i], p_v[i]));
-		hi = max(hi, max(p_u[i], p_v[i]));
+		if(p_u[i] < loU || p_u[i] > hiU) { bad = true; worstU = p_u[i]; }
+		if(p_v[i] < loV || p_v[i] > hiV) { bad = true; worstV = p_v[i]; }
 	}
-	// A texel's worth of slack, so that a coordinate that lands on the far
-	// edge by rounding is not a finding: clamping and repeating agree there.
-	const float slack = max(s.texture.texelScale.x, s.texture.texelScale.y);
-	if(lo >= -slack && hi <= 1.0f + slack) return;
+	if(!bad) return;
 
+	// In the picture's own texels, which is what the caller wrote and so the
+	// only form it can act on: a page coordinate would name nothing it knows.
+	const float texelU = (worstU - s.texture.uvOrigin.x) / (slackU > 0.0f ? slackU : 1.0f);
+	const float texelV = (worstV - s.texture.uvOrigin.y) / (slackV > 0.0f ? slackV : 1.0f);
 	reported++;
-	printfLog("+ ERROR: a quad samples %.3f .. %.3f of texture %u, which was not declared as tiling.\n",
-			  lo, hi, s.texture.id);
+	printfLog("+ ERROR: a quad samples texel %.1f, %.1f of a picture %.0f x %.0f in texture %u, "
+			  "which was not declared as tiling.\n",
+			  texelU, texelV,
+			  s.texture.uvExtent.x / (slackU > 0.0f ? slackU : 1.0f),
+			  s.texture.uvExtent.y / (slackV > 0.0f ? slackV : 1.0f),
+			  s.texture.id);
 }
 #else
 void Renderer::checkTiling(const RenderState&, const float*, const float*)

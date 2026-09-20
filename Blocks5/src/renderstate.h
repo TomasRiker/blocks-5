@@ -27,17 +27,26 @@
 // would land in whatever was packed next door. It is what a texture was
 // declared as at load (Texture::WM_REPEAT), carried to the one place that can
 // check it.
+//
+// uvExtent is how much of the GL texture the picture occupies, (1, 1) for one
+// that owns its texture. It exists for Renderer::checkTiling, which has
+// nothing else to tell a picture's edge from a page's: with the atlas the two
+// stopped being the same thing, and a check written against [0, 1] stopped
+// meaning what it says.
 struct TextureRef
 {
-	TextureRef() : id(0), texelScale(1.0f, 1.0f), uvOrigin(0.0f, 0.0f), tiles(false) {}
+	TextureRef() : id(0), texelScale(1.0f, 1.0f), uvOrigin(0.0f, 0.0f), uvExtent(1.0f, 1.0f), tiles(false) {}
 	TextureRef(uint id, const Vec2f& texelScale)
-		: id(id), texelScale(texelScale), uvOrigin(0.0f, 0.0f), tiles(false) {}
+		: id(id), texelScale(texelScale), uvOrigin(0.0f, 0.0f), uvExtent(1.0f, 1.0f), tiles(false) {}
 	TextureRef(uint id, const Vec2f& texelScale, const Vec2f& uvOrigin, bool tiles)
-		: id(id), texelScale(texelScale), uvOrigin(uvOrigin), tiles(tiles) {}
+		: id(id), texelScale(texelScale), uvOrigin(uvOrigin), uvExtent(1.0f, 1.0f), tiles(tiles) {}
+	TextureRef(uint id, const Vec2f& texelScale, const Vec2f& uvOrigin, const Vec2f& uvExtent, bool tiles)
+		: id(id), texelScale(texelScale), uvOrigin(uvOrigin), uvExtent(uvExtent), tiles(tiles) {}
 
 	uint id;
 	Vec2f texelScale;
 	Vec2f uvOrigin;
+	Vec2f uvExtent;
 	bool tiles;
 };
 
