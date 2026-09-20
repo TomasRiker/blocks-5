@@ -321,16 +321,6 @@ const std::string detectInitializedVersion()
 int runTheGame(int argc,
 			   char** pp_argv)
 {
-	// Line by line, because stdout is block-buffered the moment it is a pipe
-	// or a file rather than a terminal, and every harness redirects it. What
-	// the buffer still held when the process was killed was simply lost: a
-	// twenty minute run came out as the first ten lines, ending inside SDL's
-	// startup - and frames.sh reads that redirect to decide whether the run
-	// logged an error, so it was answering from a file the run never reached
-	// the end of. log.txt escaped it by accident, being reopened and closed
-	// around every line.
-	setvbuf(stdout, 0, _IOLBF, 0);
-
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 	const std::string versionInitialized(detectInitializedVersion());

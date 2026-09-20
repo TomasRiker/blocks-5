@@ -292,8 +292,24 @@ void printfLog(const char* p_format,
 	strftime(datetime, 32, "%H:%M:%S", localtime(&t));
 	std::string finalLogText(std::string(datetime) + " // " + text);
 
-	// output
+	// output. Flushed at once, because stdout is block-buffered the moment it
+	// is a pipe or a file rather than a terminal - and it always is: SDL 1.2
+	// points it at stdout.txt under Windows, and every harness redirects it.
+	// Whatever the buffer still held when the run was killed was simply lost,
+	// so a twenty minute run came out as its first ten lines, ending inside
+	// SDL's startup - and frames.sh reads that to decide whether the run
+	// logged an error. log.txt escaped only by accident, being reopened and
+	// closed around every line.
+	//
+	// A flush here and not setvbuf() at startup, which is what this was first
+	// written as and which cost a Windows release its launch. setvbuf takes a
+	// size the MSVC runtime validates against a documented 2..INT_MAX, and
+	// rejecting it calls the invalid parameter handler, which ends the
+	// process; glibc reads the same 0 as "pick a size". It must also run
+	// before any I/O on the stream, and SDL has already written to stdout by
+	// the time main() is reached. A flush has neither constraint.
 	printf("%s", finalLogText.c_str());
+	fflush(stdout);
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");
 	FILE* p_file = fopen(logFilename.c_str(), "at");
 	if(p_file)
