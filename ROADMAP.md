@@ -1222,6 +1222,9 @@ that sample one copy each.
 the coordinate it was given and there are no mipmaps anywhere in this game, so a
 copy of the picture's own edge returns the same texel `GL_CLAMP_TO_EDGE`
 returned, and a copy of the opposite edge the same texel `GL_REPEAT` returned.
+Which of the two a packed picture gets is a live question with a wrong answer
+that looks right, and item 60 is what decides it - the foot of that item has the
+argument and the measurement.
 
 **And the sampling is bit for bit what it was**, because a page's edge is a
 power of two: `px/pageEdge` and `origin/pageEdge` are both exact in float and
@@ -1706,4 +1709,53 @@ are the same bytes, compared RGBA-exact in both skins. That is not the same as
 "transparent either way": the fire system draws `BM_ADDITIVE`, where a texel at
 alpha 0 still adds its colour. 7.4 ktexel off a loaded skin, which is nothing
 beside item 60's 2.4 M - what the cut buys is the caveat, not the memory.
+
+
+**The crop is also what fixed the gutter's wrap mode, and the answer is not the
+one the history suggests.** This was tried, merged and reverted, so it is written
+down rather than left as a closed pull request.
+
+`GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T` are set nowhere in this game's
+history. The 2014 import has eight `glTexParameteri` calls and all eight are the
+min and mag filters; `95660bb`, the last commit before the renderer work, has
+none either. Every texture ran at GL's default of `GL_REPEAT`, and the clamping
+in `Texture::applyWrapMode` arrived only with `a37ff2e`, for WebGL 1's
+non-power-of-two rule. So a gutter carrying the opposite edge reads as the
+faithful one and a clamping gutter as the impostor.
+
+It is the other way round, because of the crop above:
+
+    sprites.png  pre-crop   256x1024   last row 1023: max alpha   0
+    sprites.png  post-crop  256x 720   last row  719: max alpha 231
+
+`GL_REPEAT` was harmless in 2015 because every sheet had a transparent margin to
+wrap into. Cropping to what the code addresses removed exactly those margins, so
+a wrapping gutter now pulls real art across an edge. At v = 0 of the credits star
+sheet's first cell it blends `(0, 159, 0, 134)`, opaque green, where 2015 blended
+`(255, 255, 255, 0)`, nothing at all. The oracle moves eight of the twenty scenes
+on it - `credits.png` by 82 of 255 over 462 pixels, and `star`, `lava`, `toxic`,
+`night`, `manager`, `select` and `cube` by two to nine. The gutter is not the
+unvisited corner it sounds like either: rotated and scaled quads reach an outer
+edge routinely, the credits stars through `quads3D`, the crossfades, and the
+night vision's noise sampled whole.
+
+So **the clamping gutter preserves the behaviour 2015 had, while wrapping would
+restore the mode it ran in together with a bleed it never suffered**, and all
+three wrap modes keep their place - `WM_WRAP` for pieces that genuinely tile,
+whose opposite edge is their own art.
+
+Padding the sheets back out by a texel is the obvious rescue and does not work.
+The pad's colour matters as much as its alpha, because the sampler averages RGBA
+before anything blends: 2015's margin was a uniform `(255, 255, 255, 0)`,
+transparent *white*, against which row 0 filters to about `(179, 129, 129, 120)`
+where a transparent-black pad gives `(52, 2, 2, 120)` - the same alpha over a
+pink edge or a dark red one. It is not two files either, since 39 of the 62
+pictures have a non-transparent last row or column. And it would not collapse the
+modes: with a margin in place a clamping gutter still returns row 0 unchanged
+while a wrapping one fades it.
+
+What padding plus a wrapping gutter *would* restore is real, and it is a question
+about how the game should look rather than about correctness: in 2015 the
+outermost row and column of every sheet were faded, because they blended into the
+empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
 
