@@ -60,6 +60,16 @@ another, since the value depends on what the allocator had put there. Both exemp
 it — the constructor set one of the six pointers, and the member is far older than the baseline.
 A pointer is found by its `p_` spelling, which is the one thing the naming convention buys the checks.
 
+**The scalar half is gated, and the gate has a blind spot worth knowing about.** A constructor that
+sets fewer than half its scalars is following a different rule — an `Object` gets its fields from
+`readAttributes()` — so the check says nothing about that class at all, and a scalar genuinely missed
+in one of them is missed with it. The gate is a threshold, so a class crosses it by *gaining* a
+member, and `Level` did: measured on the tree at `49a91fa`, taking `nextUID = 0` back out of the
+constructor makes the check report `Level::nextUID`, and taking `renderLayersPresent` out of `level.h`
+as well makes it go quiet again with `nextUID` still unset. So that one member is the whole of why
+`Level` is looked at, and `nextUID` — added during this collaboration, set only in `clear()`, which
+the constructor does not call — sat unread for as long as the class was on the other side of the line.
+
 **Two of the checks police the renderer's convention** (ROADMAP 54). `raw_gl`
 reads the whole tree with comments and strings blanked and reports every `gl*`, `glu*` or `glExt*`
 call outside `RAW_GL_FILES`, the files that own raw GL - which is also what keeps display lists, wide
