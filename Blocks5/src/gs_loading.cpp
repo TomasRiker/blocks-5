@@ -210,7 +210,7 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	p_logo = 0;
 	if(!skipSplash)
 	{
-		p_logo = Manager<Texture>::inst().request("logo.png", Texture::WM_WRAP | Texture::NEVER_PACK);
+		p_logo = Manager<Texture>::inst().request("logo.png", Texture::WM_CLAMP | Texture::NEVER_PACK);
 		Manager<Sound>::inst().request("logo.ogg");
 	}
 
