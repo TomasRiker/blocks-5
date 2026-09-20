@@ -171,9 +171,18 @@ system and so never appear in the options dialog:
 | key | what it does | where |
 | --- | --- | --- |
 | Alt+Return, Alt+Enter | window / full screen (`isReturnKey` takes both keys) | `engine.cpp` |
-| Shift+C | the plain credits | `gs_menu.cpp` |
-| Ctrl+Shift+C | the ending's credits | `gs_menu.cpp` |
+| Ctrl+Shift+F2 | the plain credits | `gs_menu.cpp` |
+| Ctrl+Shift+F3 | the ending's credits | `gs_menu.cpp` |
+| Ctrl+Shift+F7 | unlocks every level of the campaign | `gs_selectlevel.cpp` |
+| Ctrl+Shift+F9 | writes the atlas pages out (`-perf` only) | `engine.cpp` |
 | Shift+D | turns the donation prompt off for good | `gs_menu.cpp` |
+
+**The four that are the author's own are `Ctrl+Shift+F<n>`, and the function key
+is the point.** `pre.js` swallows F1 to F24 in the capture phase and hands them
+to the game, so the chord reaches the page in a browser; every
+`Ctrl+Shift+<letter>` is somebody's shortcut instead, and the letters free in
+Chrome are taken in Firefox. F2, F3, F7 and F9 are the ones the bindable actions
+leave alone - those take F1, F5, F10, F11 and F12, and Alt+F4 quits.
 
 The help is six pages, `$H_HELP_PAGE1` ... `$H_HELP_PAGE6`, built by page number
 in `help.cpp` and capped at 6 there; each has a `§en:` and a `§de:` body.

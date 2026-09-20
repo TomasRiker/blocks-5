@@ -54,11 +54,14 @@ fi
 b5_click Menu.StartGame
 b5_waitForState GS_SelectLevel
 
-# Shift+F7 unlocks the whole campaign. Without it the walk stops at the first
-# level nobody has solved, because the arrow buttons grey out with it.
-xdotool keydown --clearmodifiers shift; sleep 0.1
-xdotool key --clearmodifiers F7; sleep 0.1
-xdotool keyup --clearmodifiers shift; sleep 1.5
+# Ctrl+Shift+F7 unlocks the whole campaign. Without it the walk stops at the
+# first level nobody has solved, because the arrow buttons grey out with it.
+# The modifiers are held across the key and neither carries --clearmodifiers,
+# which would drop the very modifiers being held.
+xdotool keydown ctrl; sleep 0.1
+xdotool keydown shift; sleep 0.1
+xdotool keydown F7; sleep 0.2; xdotool keyup F7; sleep 0.1
+xdotool keyup shift; xdotool keyup ctrl; sleep 1.5
 
 # The peak over one level, and the order is what makes it mean anything: clear
 # first, then load the level, then dwell. A level that throws its whole load in

@@ -140,8 +140,10 @@ round on — a frame sitting on that branch would flip between two pictures for 
 
 **What neither can see is which key asked for which**, so `smoke.sh` drives the two chords and reads the
 answer off the one behaviour that separates the versions: a click or Escape leaves the plain credits,
-where the ending takes neither as an exit. The chords are held past a rendered frame, because `GS_Menu::onUpdate` reads them
-with `SDL_GetKeyState` — see the two-input-layers trap above.
+where the ending takes neither as an exit. Ctrl+Shift+F2 is the plain one and Ctrl+Shift+F3 the ending;
+the *modifiers* are held across the key, because `GS_Menu::onUpdate` reads those with `SDL_GetKeyState` —
+see the two-input-layers trap above — while the function key itself it reads with `wasKeyPressed()`, the
+edge an `SDL_KEYDOWN` sets, so a short press inside the hold is seen however long a frame is taking.
 
 **A transition's own clock is in the dump**, as `crossfade`: milliseconds into a running one, negative
 through its lead-in and -1 where there is none — the same number `freeze fade` stops on. It is what makes

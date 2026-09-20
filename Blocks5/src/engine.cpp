@@ -1781,17 +1781,22 @@ void Engine::update()
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
-	// Ctrl+Shift+T writes the atlas pages out, and only under -perf: this is a
-	// developer key, not a feature, and it has no entry in the bindings for
+	// Ctrl+Shift+F9 writes the atlas pages out, and only under -perf: this is
+	// a developer key, not a feature, and it has no entry in the bindings for
 	// the same reason - an action would show up in the Options dialog and be
 	// rebindable, which is the opposite of what a diagnostic wants.
 	//
-	// Read the way the menu reads Shift+C, with one difference that matters:
-	// the modifiers are asked of the keyboard, which is a level, but T is
-	// asked of wasKeyPressed(), which is the edge. Level-testing T as well
-	// would write a set of pages every tick the key stayed down - fifty files
-	// a second, each a couple of megabytes.
-	if(performanceShown && wasKeyPressed(SDLK_t))
+	// A function key, as every chord the author keeps to himself is: pre.js
+	// swallows F1 to F24 in the capture phase and hands them to the game,
+	// where a Ctrl+Shift+<letter> is somebody's browser shortcut whichever
+	// letter is picked. F9 because the bindable actions take F1, F5, F10, F11
+	// and F12, Alt+F4 quits, and Ctrl+Shift+F7 unlocks a campaign.
+	//
+	// The modifiers are asked of the keyboard, which is a level, but F9 of
+	// wasKeyPressed(), which is the edge. Level-testing F9 as well would write
+	// a set of pages every tick the key stayed down - fifty files a second,
+	// each a couple of megabytes.
+	if(performanceShown && wasKeyPressed(SDLK_F9))
 	{
 #ifdef __EMSCRIPTEN__
 		Uint8* p_keyStates = SDL_GetKeyboardState(0);
@@ -2945,7 +2950,7 @@ bool Engine::writeScreenshot(const std::string& path)
 	return saved;
 }
 
-// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+T.
+// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+F9.
 //
 // A page is a plain texture and not a framebuffer, so it is read the one way
 // that works in every build: attached to a framebuffer of its own for the

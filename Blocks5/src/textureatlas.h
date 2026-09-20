@@ -68,7 +68,7 @@ public:
 	// For the log and the test hook.
 	int getPageCount() const;
 	int getPageEdge() const;
-	// The GL name of a page, so that -perf's Ctrl+Shift+T can read one back
+	// The GL name of a page, so that -perf's Ctrl+Shift+F9 can read one back
 	// and write it out. Nothing else needs it: a picture reaches its page
 	// through its own TextureRef.
 	uint getPageID(int index) const;
