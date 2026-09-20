@@ -95,6 +95,31 @@ the warning asks for. The double family catches the unqualified `sin`, `cos` and
 `floor`: those are the C ones, they take a double, and `sinf` and its cousins are
 the spelling that keeps a float a float.
 
+## measure_text_box.py
+
+Where a piece of text sits in a picture, for sizing the invisible buttons that
+sit over `menu.png`'s own lettering - the address at the top right and the
+Credits line at the foot. Two versions of the picture, one with the text and one
+without:
+
+    python3 Tools/measure_text_box.py with.png without.png [x y w h]
+
+The pixels that differ are the text and nothing else, glow and antialiasing
+included, which is the extent a button over it has to cover. It prints that box
+in the attribute form `menu.xml` wants, with no margin added - the visible
+extent is what a click should reach, and a button wider than its word takes
+presses from the art beside it. Give the current rectangle as four numbers and
+it says what that rectangle clips.
+
+Thresholding one picture cannot do this, and menu.png is why: the address sits
+on a background that is dark in places and light in others, so no brightness cut
+separates the text from the art under it. The difference does, because the art
+under it is the same in both files.
+
+It was checked against an answer that was already known - the Credits line,
+whose first rectangle was 55x22 - and reported the 137 pixels of it that fell
+outside, 38 to the right and 101 below.
+
 ## What else runs
 
     LinuxBuild/build.sh         compiles and links the native build
