@@ -295,19 +295,18 @@ void printfLog(const char* p_format,
 	// output. Flushed at once, because stdout is block-buffered the moment it
 	// is a pipe or a file rather than a terminal - and it always is: SDL 1.2
 	// points it at stdout.txt under Windows, and every harness redirects it.
-	// Whatever the buffer still held when the run was killed was simply lost,
-	// so a twenty minute run came out as its first ten lines, ending inside
-	// SDL's startup - and frames.sh reads that to decide whether the run
-	// logged an error. log.txt escaped only by accident, being reopened and
-	// closed around every line.
+	// A run that is killed loses whatever the buffer still held, which is
+	// exactly the tail saying what it was doing when it died. log.txt never
+	// had the problem, being reopened and closed around every line.
 	//
-	// A flush here and not setvbuf() at startup, which is what this was first
-	// written as and which cost a Windows release its launch. setvbuf takes a
-	// size the MSVC runtime validates against a documented 2..INT_MAX, and
-	// rejecting it calls the invalid parameter handler, which ends the
-	// process; glibc reads the same 0 as "pick a size". It must also run
-	// before any I/O on the stream, and SDL has already written to stdout by
-	// the time main() is reached. A flush has neither constraint.
+	// A flush per line and not setvbuf(stdout, 0, _IOLBF, 0) at startup, which
+	// is the shorter way and unusable here on two counts. The MSVC runtime
+	// validates that size against a documented 2..INT_MAX and sends a
+	// violation to the invalid parameter handler, which ends the process,
+	// where glibc reads the same 0 as "pick a size for me"; and it has to run
+	// before any I/O on the stream, which SDL has already done by the time
+	// main() is reached. A flush has neither constraint, and this game logs at
+	// startup and hardly at all while it runs.
 	printf("%s", finalLogText.c_str());
 	fflush(stdout);
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");

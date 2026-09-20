@@ -42,6 +42,19 @@ built ANSI by SDL's own project, so `CharacterSet` never mattered; now that its 
 code never depended on Unicode: `MessageBoxA`, `ShellExecuteA` explicitly, no `TCHAR`, `TEXT()` or
 `wchar_t` outside vendored `stackwalker.cpp`. `SDL_win32_main.c` keeps `#undef UNICODE` as a guard.
 
+**What nothing here can check is a runtime contract in the Microsoft CRT, and on the startup path that
+failure is silent.** MSVC validates arguments glibc accepts and hands a violation to the invalid
+parameter handler, which *ends the process* rather than returning an error — so the console window
+opens and shuts with nothing in it, nothing in `stdout.txt` or `stderr.txt` and nothing in `log.txt`,
+because the statement that would have written a line is the one that died. The measured case is
+`setvbuf(stdout, 0, _IOLBF, 0)` at the head of `runTheGame()`: glibc reads the 0 as "choose a size for
+me", MSVC documents 2..INT_MAX for `_IOLBF` and rejects it. `Tools/syntax.sh` compiles `main.cpp` and
+the Windows-only sources, which is the most any check here can do; a contract is not a compile error.
+The same call carries the other trap on that path — SDL 1.2 points stdout at `stdout.txt` before
+`main()` is reached, so anything documented as "before any I/O on this stream" has already missed its
+window. A libc call added to the startup path is Windows-risky by default, and worth saying so about
+where it merges rather than after.
+
 **SDL is compiled from source**, all 67 files of the Win32 subset from `libs/sdl-1.2.15/src` — the
 set SDL's own `VisualC/SDL/SDL.vcproj` builds. Needs one include directory, `winmm.lib` and
 `dxguid.lib`, and `DECLSPEC=` among the defines (`begin_code.h` guards it with `#ifndef` and would

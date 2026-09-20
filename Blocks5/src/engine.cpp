@@ -2785,6 +2785,13 @@ void Engine::drawOverlays()
 // neither the RENDER nor the PRESENT the block reports - and it lands in a
 // screenshot, which on a phone is how the figure gets off the device at all.
 //
+// It does land in TOTAL and in the draw count, which is the figure a reader is
+// likeliest to take for the game's own. Measured on the menu: 5.16 draws a
+// frame without -perf and 6.16 with it. One and not two, because the strip's
+// background comes from the renderer's built-in picture and the text from the
+// font, and since the built-in went into an atlas page those two share a
+// texture and so a draw.
+//
 // The bottom and not the top, although both corners are taken: at the bottom
 // it covers the status bar, whose numbers stand still and can be read by
 // turning the overlay off, and at the top it would cover the toasts, which
