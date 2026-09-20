@@ -1662,7 +1662,7 @@ coordinates.
 | `background.png` | 1024x1024 | 640x**560** | 640x480 backdrop *plus* the 640x80 HUD strip at v 480..560 (`GS_Game::onRender`) |
 | `hint.png` | 512x512 | 300x400 | `hint.cpp` NOTE_WIDTH/HEIGHT |
 | `hintfont.png` | 512x256 | 508x247 | `hintfont.xml` |
-| `particles.png` | 128x128 | 112x80 | measured only; check before cutting |
+| `particles.png` | 128x128 | 112x80 | nine 16x16 cells on a 32-pixel grid: every `positionOnTexture` in the tree |
 | `shine.png` | 128x128 | whole | |
 | `sprites.png` | 256x1024 | 256x**720** | the object sheet, and exactly where its art ends |
 | `tileset.png` | 128x128 | whole | `tileset.xml`, all four skins |
@@ -1684,4 +1684,26 @@ no code path, no `<Image>`, no localized filename - and never released either.
 It is the artwork `background.png` was built from rather than anything the game
 shows; the picture the loading screen draws is `logo.png`. Both the file and the
 request are gone, and half a megatexel with them.
+
+**`particles.png`, derived rather than probed.** The table above carried it as
+"measured only", because a runtime probe reports a lower bound: it sees the
+cells a run happened to draw. From the code the answer is the same and is an
+upper bound. Every `ParticleSystem::Particle` in the tree - thirty-four
+assignments over fifteen files - sets `positionOnTexture` to one of nine
+constants with a `sizeOnTexture` of 16x16, and `ParticleSystem::render` writes
+exactly that rectangle: `size` scales the quad's half-axes and `rotation` builds
+its corners, so neither reaches the uv. All three systems take the same picture
+(`level.cpp`), so there is no second sheet to account for. Nine cells on a
+32-pixel grid, the furthest at (96, 64), is 112x80 - and an alpha map of the art
+lights those nine and nothing else. `blocks_02` and `blocks_03` carry an empty
+`default_particles.png`, the marker that means "the default skin's", so
+`blocks_01` and `space` are the only two files there are to cut.
+
+What had to be checked rather than argued is the gutter. The crop's right and
+bottom edges are edges linear filtering reaches across, and after the cut the
+atlas holds a clamp copy of the edge texel where the removed texel stood. They
+are the same bytes, compared RGBA-exact in both skins. That is not the same as
+"transparent either way": the fire system draws `BM_ADDITIVE`, where a texel at
+alpha 0 still adds its colour. 7.4 ktexel off a loaded skin, which is nothing
+beside item 60's 2.4 M - what the cut buys is the caveat, not the memory.
 
