@@ -13,11 +13,20 @@ paths:
 # Packing data.zip, the skins and the campaign
 
 **`Blocks5/pack.sh` is all four in one, without Windows**, using the distribution's `7za` and
-`optipng` and refusing to start without either. `7za` and not Info-ZIP's `zip -P`, although both
-write traditional ZipCrypto: Info-ZIP sets bit 3 of the general purpose flags, writes sizes in a
-trailing data descriptor, and takes its check byte from the time of day rather than the CRC.
-`./pack.sh` does everything; `data`, `skins`, `campaign` narrow it; `--no-optipng` skips the slow
-step.
+`optipng`. Only `7za` is required and its absence stops the script; `optipng` and `python3` are each
+a note and a step skipped, since what they change is the size of the archive and not whether the game
+can read it. `7za` and not Info-ZIP's `zip -P`, although both write traditional ZipCrypto: Info-ZIP
+sets bit 3 of the general purpose flags, writes sizes in a trailing data descriptor, and takes its
+check byte from the time of day rather than the CRC.
+`./pack.sh` does everything; `data`, `skins`, `campaign` narrow it; `--optipng` adds the slow step.
+
+**`optipng` is opt-in, and that is not about the time it takes.** It works in place, on the tracked
+PNGs in `data/` and `levels/skins/*/` rather than on copies headed for the archive, so asking for it
+leaves those files modified in the working tree: same pixels, different bytes. Measured over the five
+it touches, the whole saving is 169 bytes. A step whose output is archives that are not in Git has no
+business dirtying files that are, so it happens only when asked - as `/optipng` is in `Build.bat`,
+which gives the same reason. `--no-optipng` is rejected by name rather than as an unknown argument,
+because it asks for what happens anyway and a caller deserves to be told which way the default went.
 
 **`levels/campaigns/blocks.zip` is a build product**, and why it must be rebuilt matters before
 editing a level: `Campaign::load` serves a campaign's levels loose wherever all of them lie in

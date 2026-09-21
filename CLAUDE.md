@@ -24,8 +24,8 @@ and the three vendored-library fixes the toolset needed.
 `Build.bat` at the repo root does the whole thing from a fresh clone — finds MSBuild, checks the toolset,
 builds `Blocks5.sln` for `Win32`, and packs `data.zip` and `levels/skins/*.zip`, gitignored build products
 the game cannot start without; `Build.bat /?` lists its options. `Blocks5/pack.sh` packs the same archives
-without Windows (`./pack.sh`, narrowed by `data`, `skins` or `campaign`; `--no-optipng` skips the slow
-step), and `levels/campaigns/blocks.zip` is a build product like the rest — so a level edited and not packed
+without Windows (`./pack.sh`, narrowed by `data`, `skins` or `campaign`; `--optipng` adds the slow
+step, off by default because it rewrites tracked PNGs in place), and `levels/campaigns/blocks.zip` is a build product like the rest — so a level edited and not packed
 changes what a developer sees and nothing a player sees. `build-windows.md` and `packing.md` have the rest.
 
 The game must run with `Blocks5\` as working directory (VS's default `$(ProjectDir)`) because it opens

@@ -209,7 +209,7 @@ the X server it started, because a `FAILED` from inside a function otherwise lea
 `:88`, which the next run refuses to start over.
 
 **Two binaries are compared by running the oracle twice, each in a home of its own.** A worktree of the
-other commit is built with `Blocks5/pack.sh data --no-optipng && LinuxBuild/build.sh hooks`, and its run
+other commit is built with `Blocks5/pack.sh data && LinuxBuild/build.sh hooks`, and its run
 gets `B5_DISPLAY`, `B5_SHOTS` and `B5_FRAMES_XDG` of its own, because two runs cannot share a display, a
 shots directory or a home; then `cmp` over the twenty PNGs says which scenes moved, and a pixel diff of
 one says where. The tag `render-baseline` marks the last immediate-mode binary, the one the renderer

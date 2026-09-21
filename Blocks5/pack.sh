@@ -6,14 +6,17 @@
 # the skin archives are build products that are not in Git; without them the
 # game will not start.
 #
-#   ./pack.sh                  everything, with optipng
-#   ./pack.sh --no-optipng     without the slow step
+#   ./pack.sh                  everything
+#   ./pack.sh --optipng        and squeeze the PNGs first: lossless, slow, and
+#                              it rewrites files that are under version control,
+#                              so it is off by default - as /optipng is in
+#                              Build.bat
 #   ./pack.sh data             data.zip only
 #   ./pack.sh skins            the skins only
 #   ./pack.sh campaign         levels/campaigns/blocks.zip only
 #
-# 7za is required; optipng is optional and is skipped where it is missing. On
-# Debian and Ubuntu:
+# 7za is required; optipng is only reached by asking for it, and is skipped
+# with a note where it is missing. On Debian and Ubuntu:
 #
 #   sudo apt install p7zip-full optipng
 #
@@ -34,11 +37,21 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_PASSWORD=argonhydroxid267
 SKIN_PASSWORD=trockeneiskaefer
 
-optimize=1
+# Off unless asked for, as /optipng is in Build.bat: it works in place on files
+# that are under version control, so turning it on leaves five tracked PNGs
+# rewritten in the working tree - a diff nobody asked for, out of a step whose
+# whole job is to produce archives that are not in Git at all.
+optimize=0
 what=all
 for arg in "$@"; do
     case "$arg" in
-        --no-optipng) optimize=0 ;;
+        --optipng) optimize=1 ;;
+        # Named rather than left to the line below, because it asks for what
+        # now happens anyway: a caller passing it is better told that than
+        # left to read "unknown" and wonder which way the default went.
+        --no-optipng)
+            echo "--no-optipng is gone: optipng is off by default, --optipng turns it on"
+            exit 2 ;;
         data|skins|campaign|all) what=$arg ;;
         *) echo "unknown: $arg"; exit 2 ;;
     esac
@@ -58,8 +71,10 @@ if [ $optimize -eq 1 ] && ! command -v optipng >/dev/null 2>&1; then
     optimize=0
 fi
 
-# optipng -o 7 is slow and works in place. It changes only the encoding, never
-# a pixel - the images in the tree are the same afterwards.
+# optipng -o 7 is slow and works in place, on the sources rather than on a copy
+# headed for the archive. It changes only the encoding, never a pixel - so the
+# pictures are the same afterwards and their bytes are not, which is a working
+# tree with tracked files modified in it. That is the whole reason for the flag.
 runOptipng() {
     [ $optimize -eq 1 ] || return 0
     optipng -o 7 -quiet -- *.png
