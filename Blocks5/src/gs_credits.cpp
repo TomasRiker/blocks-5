@@ -401,17 +401,17 @@ void GS_Credits::renderStars(const Mat4& projection,
 	// software rasterizer spends its time filling, where a real driver and a
 	// phone pay most of it per call.
 	//
-	// The order is the list's, back to front, and one draw keeps it: the
-	// index buffer runs straight through the stream, so the stars blend in
-	// the order they were handed in exactly as they did one draw each. What
-	// moves is the last bit: the corner is rounded once by the model matrix
-	// and again by projection * view, where a draw a star rounds it once by
-	// the product of all three - a difference of 197 of the oracle frame's
-	// 307200 pixels, by at most 3 of 255.
+	// The order is the list's, which updateStars() leaves sorted back to
+	// front, and one draw keeps it: the index buffer runs straight through
+	// the stream, so the stars blend in the order they were handed in exactly
+	// as they did one draw each. What moves is the last bit: the corner is
+	// rounded once by the model matrix and again by projection * view, where
+	// a draw a star rounds it once by the product of all three - a difference
+	// of 197 of the oracle frame's 307200 pixels, by at most 3 of 255.
 	const RenderState state(p_sprites->ref(), BM_NORMAL);
 
 	starVertices.clear();
-	for(std::list<Star>::reverse_iterator i = stars.rbegin(); i != stars.rend(); ++i)
+	for(std::list<Star>::const_iterator i = stars.begin(); i != stars.end(); ++i)
 	{
 		Mat4 model = Mat4::identity();
 		model.translate(i->position.x, i->position.y, i->position.z);
@@ -469,4 +469,43 @@ void GS_Credits::updateStars()
 		s.positionOnTexture = 32 * Vec2i(random(0, 7), random(0, 22));
 		stars.push_back(s);
 	}
+
+	// Back to front, because nothing in this game depth-tests: a star is an
+	// alpha-blended quad, and the only thing deciding which of two overlapping
+	// ones looks nearer is the order they are handed to the renderer in.
+	//
+	// The order they are born in is not that order and is not close to it. A
+	// star appears 150 to 200 ahead of the camera with a lateral offset of up
+	// to 80 in a random direction, so it is 70 to 280 away at birth and two
+	// born in the same tick can be 160 apart - against the one unit a tick the
+	// camera gains on them. Measured over the running screen, walking the list
+	// backwards put 52% of all pairs the wrong way round through the lead-in,
+	// where the first four hundred are scattered from 0 to 200, and 21 to 27%
+	// once stars are being recycled; about half of the adjacent pairs were
+	// wrong throughout. Sorted, none are.
+	//
+	// What it is worth is small here and worth saying so: under BM_NORMAL two
+	// orders of the same pair differ by a1 * a2 * (S1 - S2) per pixel, and a
+	// star fades as 1 / (1 + 0.001 * distSq) - 0.01 far out, 0.17 at the 70
+	// it can be born at. Only the ones that have come close, where alpha
+	// approaches 1, can be caught at it, which is why the oracle's frozen
+	// frame moves by 46 of 307200 pixels. The sort costs one pass a tick.
+	//
+	// Here rather than in renderStars(), which would sort once a frame for an
+	// order that can only change when the camera moves - and the camera moves
+	// here. It also keeps the render path from writing to the list it draws.
+	//
+	// By distance from the eye, the same quantity the alpha fades on, so there
+	// is one notion of far on this screen and not two.
+	struct
+	{
+		Vec3f eye;
+		bool operator () (const Star& s1, const Star& s2) const
+		{
+			return (s1.position - eye).lengthSq() > (s2.position - eye).lengthSq();
+		}
+	} cmp;
+
+	cmp.eye = cameraPos;
+	stars.sort(cmp);
 }
