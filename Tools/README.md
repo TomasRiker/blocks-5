@@ -116,9 +116,20 @@ on a background that is dark in places and light in others, so no brightness cut
 separates the text from the art under it. The difference does, because the art
 under it is the same in both files.
 
+The comparison is of premultiplied colour, and it has to be. A fully
+transparent pixel renders the same whatever its RGB says, and two exports of
+one picture disagree about what to leave under an alpha of zero - Photoshop's
+matte is white where the game's own file has the navy it was composited over. A
+plain RGBA difference calls those pixels changed and drags the box out to cover
+them; the script says how many it ignored on that ground, and a large number
+there means the two files came out of different exporters rather than that the
+text is large.
+
 It was checked against an answer that was already known - the Credits line,
-whose first rectangle was 55x22 - and reported the 137 pixels of it that fell
-outside, 38 to the right and 101 below.
+whose first rectangle was 55x22 - and reported the pixels of it that fell
+outside, to the right and below. Both of `menu.png`'s invisible buttons were
+sized with it, and both were wrong before: the Credits line by eleven per cent
+of the word, the address by four rows of its own glow.
 
 ## What else runs
 

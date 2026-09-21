@@ -507,11 +507,13 @@ on the bare filename now. `filesystem.md` has the rest.
 ------------------------------------------------
 The credits are reachable by finishing the shipped campaign or from the main
 menu. The visible entry is a `Credits` line at the foot of `menu.png`, with an
-invisible `Menu.Credits` button over it at 294,457, 58x23, in the style of the
+invisible `Menu.Credits` button over it at 294,457, 57x23, in the style of the
 `Website` link - the picture carries the word, the element carries the click.
 The rectangle is the word exactly, measured with `Tools/measure_text_box.py`
-off the two revisions of the picture either side of the line: x 294..351,
-y 457..479, which touches the bottom edge. It passes no
+off the two revisions of the picture either side of the line: x 294..350,
+y 457..479, which touches the bottom edge. The same measurement put the
+`Website` button right as well - it was four rows short of its own glow. It
+passes no
 `ParameterBlock`, which is the whole of what it has to get right:
 `GS_Credits::onEnter` then falls back on `Campaign::isBuiltInCompleted()` and
 gives the player the version they have earned. What this item was really about

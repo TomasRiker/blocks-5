@@ -14,6 +14,14 @@ right sits on a background that is dark in places and light in others, so no
 brightness cut separates the text from the art under it; the difference does,
 because the art under it is identical in both files.
 
+The comparison is of premultiplied colour, and it has to be. A fully
+transparent pixel renders the same whatever its RGB says, and two exports of
+one picture disagree about what to leave under an alpha of zero - Photoshop's
+matte is white where the game's own file has the navy it was composited over.
+A plain RGBA difference calls those pixels changed and drags the box out to
+cover them: measuring the address that way put 155 invisible pixels in the
+result and made it 272 wide instead of 170.
+
 The rectangle it prints is the box itself, in the attribute form menu.xml wants.
 No margin is added: the visible extent is what a click should reach, and a
 button wider than its word steals presses from the art beside it.
@@ -24,13 +32,24 @@ import numpy as np
 from PIL import Image
 
 
+def premultiplied(rgba):
+    """Colour weighted by alpha, which is what the screen shows. Two pixels
+    that render identically have the same value here whatever their RGB says
+    under a zero alpha."""
+    alpha = rgba[:, :, 3:4]
+    return np.concatenate([rgba[:, :, :3] * alpha // 255, alpha], axis=2)
+
+
 def box(with_text, without_text):
     a = np.asarray(Image.open(with_text).convert("RGBA")).astype(int)
     b = np.asarray(Image.open(without_text).convert("RGBA")).astype(int)
     if a.shape != b.shape:
         raise SystemExit("the two pictures are %dx%d and %dx%d - they have to match"
                          % (a.shape[1], a.shape[0], b.shape[1], b.shape[0]))
-    diff = np.abs(a - b).sum(axis=2)
+    diff = np.abs(premultiplied(a) - premultiplied(b)).sum(axis=2)
+    hidden = (np.abs(a - b).sum(axis=2) > 0).sum() - (diff > 0).sum()
+    if hidden:
+        print("ignored       %d px that differ only where both are transparent" % hidden)
     ys, xs = np.nonzero(diff)
     if len(ys) == 0:
         raise SystemExit("the two pictures are identical - nothing to measure")
