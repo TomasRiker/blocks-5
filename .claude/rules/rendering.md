@@ -107,6 +107,33 @@ costs is the last bit, since the corner is then rounded by the model matrix and 
 where it used to be rounded once by the product — 197 of the oracle frame's 307200 pixels, by at most 3
 of 255.
 
+**Nothing in this game depth-tests, so the order geometry is handed over in *is* the depth order.**
+`GL_DEPTH_TEST` appears in no source in the tree; the framebuffer's renderbuffer is a packed
+depth-stencil only because `cf_star.cpp` and `level.cpp` want the stencil half, and the depth half is
+never written or read. Everything on screen is an alpha-blended quad painted over whatever was queued
+before it, so anything whose pieces can overlap each other has to be submitted back to front, and the
+sort that does it belongs in the code that owns the list rather than in the render path — a render that
+sorts is a render writing to what it draws, and it pays per frame for an order that can only change per
+tick. Three do it: `Level::sortObjects` sorts by depth, shown position and UID before `Level::render`
+paints; the hint note's `ROLL_TURNS` stops at half a turn because past that the unrolling cylinder's own
+bands overlap in an order no submission can fix; and `GS_Credits::updateStars` sorts the four hundred
+stars by distance from the eye.
+
+The credits shipped without that sort, and the shape of it is what the rule is for: the list was walked
+in reverse *birth* order, which reads like depth and is not. A star is born 150 to 200 ahead of the
+camera with a lateral offset of up to 80, so it is 70 to 280 away at birth while the camera gains one
+unit a tick on it — measured, 52% of all pairs were the wrong way round through the lead-in and 21 to
+27% once stars were being recycled, with about half of the adjacent pairs wrong throughout.
+
+What one swapped pair costs is worth knowing, because it decides where this class of bug is visible at
+all. Under `BM_NORMAL` the two orders differ by exactly `a1 * a2 * (S1 - S2)` per pixel — the two alphas
+multiplied, times the difference in colour — so the error vanishes wherever the geometry is faint and is
+the whole picture wherever it is opaque. That is why the note's half turn is a hard limit and the star
+field's disorder went unnoticed for years: a star fades as `1 / (1 + 0.001 * distSq)`, which is 0.01 at
+the far end, and only the ones that have come close enough to approach 1 can be caught at it. The
+oracle's frozen credits frame moves by 46 of 307200 pixels, by at most 3 of 255 — so no oracle scene
+would ever have found this, and none of them is at fault: the oracle only asks whether two runs agree.
+
 **Three shapes are not quads, and each is one with a rule.** A triangle is a quad whose fourth corner
 repeats the third, so the second triangle of the split has no area — the hint's note mesh, the star
 wipe, the scrollbar arrows. A one-pixel line is `Renderer::hairline`, which lights the pixels llvmpipe
