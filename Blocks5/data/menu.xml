@@ -53,9 +53,32 @@
 		</Button>
 		<!-- The address at the top right belongs to menu.png and is not an
 		     element of its own. This button just sits over it and draws
-		     nothing; in the finished picture the text runs from x 474..636,
-		     y 8..22. -->
-		<Button name="Website" x="470" y="4" w="170" h="22">
+		     nothing. The rectangle is what the text actually covers, measured
+		     with Tools/measure_text_box.py against a copy of the picture with
+		     the address taken out: x 470..639, y 4..29. That is wider and
+		     taller than the glyphs, because the address is blue under a white
+		     glow and the glow is part of what a click should reach; it also
+		     runs into the right edge of the picture, so there is no margin on
+		     that side to give. -->
+		<Button name="Website" x="470" y="4" w="170" h="26">
+			<ExtendedStyle />
+			<Title></Title>
+		</Button>
+		<!-- The Credits line at the foot of the picture belongs to menu.png in
+		     the same way the address does, so this button sits over it and
+		     draws nothing either. It passes no parameter, which is the whole
+		     of what it has to get right: GS_Credits::onEnter then asks
+		     Campaign::isBuiltInCompleted() and gives the player the version
+		     they have earned.
+
+		     The rectangle is the word exactly, measured off menu.png rather
+		     than guessed: Tools/measure_text_box.py diffed the revision that
+		     brought the line in against the one before it, and the pixels
+		     that changed are the text and nothing else - x 294..350,
+		     y 457..479, glow and antialiasing included. It reaches the bottom
+		     edge of the 480-tall picture, so the height has to take it to 479
+		     or the last two rows of every letter are not clickable. -->
+		<Button name="Credits" x="294" y="457" w="57" h="23">
 			<ExtendedStyle />
 			<Title></Title>
 		</Button>

@@ -364,6 +364,20 @@ b5_ok "Ctrl+Shift+F3 ran the ending, which neither a click nor a key cuts off"
 b5_ask "state GS_Menu" >/dev/null
 b5_waitForState GS_Menu
 
+# And the way in that a player takes, which is the one the chords above are not:
+# an invisible button over the Credits line in menu.png. It passes no parameter,
+# so which version runs is Campaign::isBuiltInCompleted()'s answer - the plain
+# one here, this home having solved nothing. b5_click is the whole of the check
+# for the button itself: it refuses a name the tree does not have, and it asks
+# the hook whether a click on the middle would really land there before it
+# clicks, so a button covered by something else fails loudly rather than
+# silently doing nothing.
+b5_click Menu.Credits
+b5_waitForState GS_Credits
+b5_clickAt 320 240
+b5_expectState GS_Menu
+b5_ok "the Credits button ran the version the player has earned"
+
 # --- Fullscreen and back ----------------------------------------------------
 # That goes through the window manager, not through SDL - see
 # LinuxBuild/linux_window.cpp.

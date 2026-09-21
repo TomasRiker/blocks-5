@@ -10,8 +10,8 @@ undone by accident. How things work now is in `CLAUDE.md` and `.claude/rules/`,
 and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
-Open: 6 (the campaign half), 13, 19, 22, 27 (the menu line), 28, 29, 30,
-31 (the slider), 35, 36, 37, 38, 40, 41, 46, 47 and 48. Everything else is done.
+Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
+37, 38, 40, 41, 46, 47 and 48. Everything else is done.
 Sixty entries, and nothing checks this line against the headings below it, so an
 item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -503,13 +503,21 @@ campaign's full path and would have silently reset everyone's 42 levels; it keys
 on the bare filename now. `filesystem.md` has the rest.
 
 
-27. A Credits button in the main menu - **DONE** but for the line itself
--------------------------------------------------------------------------
+27. A Credits button in the main menu - **DONE**
+------------------------------------------------
 The credits are reachable by finishing the shipped campaign or from the main
-menu. The visible entry - a `Credits` line at the foot of `menu.xml` in the style
-of the `Website` link - is the author's to add, and it needs nothing of this:
-`setGameState("GS_Credits")` is the whole of it, and every way in takes that
-path. What this item was really about is the second presentation, and
+menu. The visible entry is a `Credits` line at the foot of `menu.png`, with an
+invisible `Menu.Credits` button over it at 294,457, 57x23, in the style of the
+`Website` link - the picture carries the word, the element carries the click.
+The rectangle is the word exactly, measured with `Tools/measure_text_box.py`
+off the two revisions of the picture either side of the line: x 294..350,
+y 457..479, which touches the bottom edge. The same measurement put the
+`Website` button right as well - it was four rows short of its own glow. It
+passes no
+`ParameterBlock`, which is the whole of what it has to get right:
+`GS_Credits::onEnter` then falls back on `Campaign::isBuiltInCompleted()` and
+gives the player the version they have earned. What this item was really about
+is the second presentation, and
 `GS_Credits` now has two versions of itself:
 
 - **Finished the shipped campaign** - the whole sequence, and byte-for-byte the

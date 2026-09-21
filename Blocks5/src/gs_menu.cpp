@@ -241,6 +241,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.Help"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Quit"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Website"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.Credits"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.Donate"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.NoThanks"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.DonatePane.Donate.Donate"])->connectClicked(this, &GS_Menu::handleClick);
@@ -526,6 +527,19 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 #else
 		openURL("https://www.david-scherfgen.de/");
 #endif
+	}
+	else if(name == "Menu.Credits")
+	{
+		// The invisible button over the Credits line in the background image.
+		// No ParameterBlock, and that is the point: GS_Credits::onEnter falls
+		// back on Campaign::isBuiltInCompleted(), so a player who has finished
+		// the shipped campaign gets the ending and everybody else the plain
+		// version. Only the author's chords name a version outright, because
+		// which one they are looking at must not depend on their own save
+		// file. The star is the one the menu goes behind everywhere else, and
+		// the one the credits come back through.
+		engine.setGameState("GS_Credits");
+		engine.crossfade(new CF_Star, 0.85f);
 	}
 	else if(name == "Menu.Donate")
 	{
