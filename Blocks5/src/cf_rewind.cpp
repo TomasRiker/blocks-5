@@ -149,8 +149,10 @@ void CF_Rewind::drawSnow(int y,
 	const float top = static_cast<float>(y), bottom = static_cast<float>(y + height), right = static_cast<float>(screenSize.x);
 	const Vec2f corners[4] = {Vec2f(0.0f, top), Vec2f(right, top), Vec2f(right, bottom), Vec2f(0.0f, bottom)};
 	const Vec2f uvs[4] = {Vec2f(u, v), Vec2f(u + du, v), Vec2f(u + du, v + dv), Vec2f(u, v + dv)};
-	renderer.quad(RenderState(TextureRef(noiseID, NOISE_TEXEL_SCALE), renderer.state().blend), corners, uvs,
-				  Vec4f(1.0f, 1.0f, 1.0f, alpha));
+	// Declared as tiling, because it does: the strip runs over more than one
+	// width of the noise and GL_REPEAT wraps it.
+	const TextureRef noise(noiseID, NOISE_TEXEL_SCALE, Vec2f(0.0f, 0.0f), true);
+	renderer.quad(RenderState(noise, renderer.state().blend), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, alpha));
 }
 
 /* Why a rewind and not just any effect: on a restart the game jumps from the
