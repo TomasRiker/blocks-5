@@ -2706,8 +2706,12 @@ std::string Level::getSkinFilename(uint index)
 							std::string pwFile = archiveFile + "/password.txt";
 							if(fs.fileExists(pwFile))
 							{
-								// Read it in!
+								// Read it in, without trailing whitespace: saved by
+								// hand the file ends in a line break, which is no part
+								// of the password.
 								std::string encryptedPassword = fs.readStringFromFile(pwFile);
+								const size_t last = encryptedPassword.find_last_not_of(" \t\r\n");
+								encryptedPassword.erase(last == std::string::npos ? 0 : last + 1);
 								return archiveFile + "[" + encryptedPassword + "]/" + p_skinFilenames[index];
 							}
 							else

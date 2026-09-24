@@ -429,13 +429,11 @@ void FileSystem::convertPath(const std::string& path,
 					if(j + 1 >= temp.length() || temp[j + 1] != '/') break;
 					filePath = temp.substr(0, i + 4);
 					objectName = temp.substr(j + 2);
-					password = temp.substr(i + 5, j - (i + 5));
 
-					// decrypt the password
-					char* p_temp = new char[password.length() + 1];
-					decryptPassword(password.c_str(), p_temp, primes);
-					password = p_temp;
-					delete[] p_temp;
+					// Text that decrypts to nothing leaves the password empty:
+					// a member stored without one still opens, and any other
+					// fails as under a wrong password - which is what it is.
+					decryptPassword(temp.substr(i + 5, j - (i + 5)), password, primes);
 					return;
 				}
 			}

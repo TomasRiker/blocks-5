@@ -71,8 +71,9 @@ float random(float min, float max);
 void seedRandom(uint seed);
 Vec2i numberToDir(int dir);
 void generatePrimes(uint* p_out, uint maxNum);
+// Reads 7 base-62 digits; the caller has checked they are there.
 uint fromBase62(const char* p_in);
-void decryptPassword(const char* p_in, char* p_out, const uint* p_primes);
+bool decryptPassword(const std::string& in, std::string& out, const uint* p_primes);
 void clearLog();
 void printfLog(const char* p_format, ...);
 std::string localizeString(const std::string& text);
