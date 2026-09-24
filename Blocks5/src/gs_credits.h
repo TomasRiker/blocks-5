@@ -68,6 +68,9 @@ private:
 	// False for the tick the screen is entered in, which still holds the
 	// press that opened it.
 	bool exitArmed;
+
+	// Set once the way out is taken - see leaveToMenu().
+	bool leaving;
 };
 
 #endif

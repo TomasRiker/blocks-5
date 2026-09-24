@@ -62,6 +62,7 @@ GS_Credits::GS_Credits() : GameState("GS_Credits"), engine(Engine::inst())
 	p_font = 0;
 	p_level = 0;
 	p_sprites = 0;
+	leaving = false;
 }
 
 GS_Credits::~GS_Credits()
@@ -240,6 +241,13 @@ void GS_Credits::onUpdate()
 
 void GS_Credits::leaveToMenu()
 {
+	// Once, whichever asks first: the clock and a click can land in the same
+	// tick, and a second setGameState() before the first is carried out takes
+	// the menu it pushed for the state being left - never entered, it would
+	// lose the focus and leave on a title level it does not have.
+	if(leaving) return;
+	leaving = true;
+
 	// The same star the menu goes anywhere else behind, and the one it came
 	// in behind. Both ways out take it, the clock running out and the player
 	// saying enough: the second is the one that would otherwise cut, and a
@@ -294,6 +302,7 @@ void GS_Credits::onEnter(const ParameterBlock& context)
 
 	speed = 1;
 	exitArmed = false;
+	leaving = false;
 	p_font = Manager<Font>::inst().request("credits_font.xml");
 
 	// The star field and the buffer its trails come back out of belong to the
