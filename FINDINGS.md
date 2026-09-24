@@ -57,6 +57,22 @@ carries finished work is the drift this document is about.
 - `WebBuild/build.sh`: the missing-token message is escaped and now prints the
   token it looked for.
 
+Two from the list of things worth knowing turned out to be worth a change:
+
+- `util.cpp`'s `decryptPassword()` was listed as writing fixed buffers with no
+  bound on its input, safe because the only input was two compile-time paths.
+  It was not the only input: `Level::getSkinFilename()` hands it the contents
+  of a skin's `password.txt`, and an imported skin brings its own. A malformed
+  one read past the buffers and a long one wrote past them, both shown under
+  AddressSanitizer. It now refuses anything that is not whole groups of seven
+  base-62 digits and decodes into a `std::string`, bounded throughout.
+- Ctrl+Y was undo and Ctrl+Z redo in the level editor, QWERTZ-natural only
+  where SDL reports a key by its position, which is Windows alone: under Linux
+  and in the browser the same German key meant the opposite. Both now go by the
+  label on the key, as in every other program - Ctrl+Z undo, Ctrl+Y and
+  Ctrl+Shift+Z redo - through `keyLetter()`, and so do cut, copy, paste,
+  select all and save.
+
 And one that stopped being a finding without anybody fixing it:
 `platform_stubs.cpp`'s "all five call sites" of `SDL_CreateRGBSurface` was four
 at the time of the sweep and is five again, since `Texture::createFromPixels`
@@ -208,9 +224,6 @@ Still open: worth knowing, not worth a change
   design, and idempotent.
 - `File_Real` reports `error = 9` for a failed delete, the shared
   delete-failure code both file classes use; callers test truth only.
-- `util.cpp`'s `decryptPassword()` writes fixed buffers with no bound on its
-  input, but the only input is the two compile-time bracketed paths in
-  `main.cpp` and `campaign.cpp`.
 - `E_Gate::doLogic()` still has no `default:` in its switch; the constructor's
   clamp makes every reachable value a case. Cheap insurance, nothing more.
 - `Level::getTileAt()` answers `-1` as a `uint` for an off-map cell, which
@@ -220,7 +233,6 @@ Still open: worth knowing, not worth a change
   the one in scope through `pch.h` (checked with the build's own flags).
 - `tileset.h`'s "all nine tileset.xml in the tree" counts the four skin
   archives, as its own enumeration says; five are in Git.
-- Ctrl+Y is undo and Ctrl+Z redo, QWERTZ-natural and documented in the tooltips.
 
 
 Settled
@@ -477,7 +489,6 @@ Kept with the reason, so the alarm is not raised twice.
   value-switch family do, deliberately.
 - **`file_real.cpp`'s `error = 9`** is the shared delete-failure code, now
   explained in place.
-- **Ctrl+Y undo, Ctrl+Z redo**: documented in the tooltips.
 - **`Hotel`'s welcome refreshed every tick**: a standing display, as above.
 - **`Object`'s "five of the seven switches" draw white**: verified against the
   seven `flash()` callers; only the barrage switch and the cannon switch tint.
