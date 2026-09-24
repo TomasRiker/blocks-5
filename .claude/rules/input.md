@@ -169,3 +169,12 @@ the 136 SDL 1.2 key names that resolve to whatever constant the current build me
 already-structural `Joystick1 B3` / `Joystick1 A2+` / `Joystick1 H1NE` for the rest. Reading tries the number
 first, so a pre-1.2.0 config still loads and is rewritten by name on the next save. An id that resolves to
 nothing — a joystick not connected — becomes "unassigned" rather than a wrong key.
+
+**A letter shortcut goes by the label on the key, and the keysym cannot say that everywhere.** SDL 1.2 on
+Windows translates keys through the US layout (`hLayoutUS` in `SDL_dibevents.c`), so its keysyms are
+*positions*: on a German keyboard the key labelled Z arrives as `SDLK_y`. sdl12-compat under Linux and the
+browser build report the layout's own letter. Every Ctrl+letter shortcut — undo and redo, cut, copy and paste,
+select all, save — and the editor's plain `L` therefore ask `keyLetter()` (`util.h`), which takes the letter
+the layout made of the key from `unicode` where SDL fills it in and from the keysym where it does not. The
+actions need none of this: a binding is taken from the key the player pressed in the options dialog, so it
+matches whatever SDL calls that key, and none of the defaults in `main.cpp` is a letter.

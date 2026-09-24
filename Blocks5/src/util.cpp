@@ -201,6 +201,23 @@ uint fromBase62(const char* p_in)
 	return n;
 }
 
+char keyLetter(const SDL_keysym& keysym)
+{
+	const uint u = keysym.unicode;
+
+	// A control code counts only from a letter key: Tab, Backspace and Return
+	// send codes in the same range - 9, 8 and 13 - without being letters.
+	const bool letterKey = keysym.sym >= SDLK_a && keysym.sym <= SDLK_z;
+	if(u >= 1 && u <= 26) return letterKey ? static_cast<char>('a' + u - 1) : 0;
+	if(u >= 'a' && u <= 'z') return static_cast<char>(u);
+	if(u >= 'A' && u <= 'Z') return static_cast<char>(u - 'A' + 'a');
+
+	// the layout made something else of the key: no letter
+	if(u) return 0;
+
+	return letterKey ? static_cast<char>(keysym.sym) : 0;
+}
+
 namespace
 {
 	bool isBase62Digit(char c)

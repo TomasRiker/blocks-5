@@ -101,11 +101,11 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
 - **A click lands before a character within its first two pixels and after it from the third**, in both
   edit boxes: each measures its characters where they are drawn and adds the same two, so a click means
   the same in either.
-- **A Ctrl combination is handled and done.** Both edit boxes take Ctrl+A, C, X and V in the letter's
-  own `case`, and that case must `break` rather than run on into the character insert below it: what
-  unicode such an event carries is the platform's choice, and under X11 it is the letter itself —
-  measured, Ctrl+A selected everything and typed an "a" over it. Without Ctrl the same case falls
-  through, because the letter is then text like any other.
+- **A Ctrl combination is handled and done.** Both edit boxes take Ctrl+A, C, X and V ahead of the key
+  switch, by the letter `keyLetter()` reads off the key's label (`input.md`), and return rather than run
+  on into the character insert: what unicode such an event carries is the platform's choice, and under
+  X11 it is the letter itself — measured, Ctrl+A selected everything and typed an "a" over it. Without
+  Ctrl the letter is text like any other and goes to the insert.
 - **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
   `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
   testing `size` inline — counts that strip as part of the control. The width is *measured*, not

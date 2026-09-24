@@ -490,16 +490,52 @@ public:
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
+			// The letters go by the label on the key, as shortcuts do in every
+			// other program: Ctrl+Z is undo and Ctrl+Y redo whatever keyboard
+			// they sit on, and so is Ctrl+Shift+Z, the other common spelling of
+			// redo. keyLetter() says why the keysym alone cannot answer that.
+			switch(keyLetter(event.keysym))
+			{
+			case 's':
+				if(ctrl) handleClick(getChild("MenuPane.Menu.Save"));
+				break;
+			case 'l':
+				handleClick(getChild("Layer"));
+				break;
+			case 'z':
+				if(ctrl)
+				{
+					if(shift) editor.redo();
+					else editor.undo();
+				}
+				break;
+			case 'y':
+				if(ctrl) editor.redo();
+				break;
+			case 'c':
+				if(ctrl) editor.copy();
+				break;
+			case 'v':
+				if(ctrl)
+				{
+					editor.createUndoPoint();
+					if(!editor.paste(editor.rectStart)) editor.deleteLastUndoPoint();
+				}
+				break;
+			case 'x':
+				if(ctrl)
+				{
+					if(!editor.copy()) break;
+					editor.createUndoPoint();
+					if(!editor.clear()) editor.deleteLastUndoPoint();
+				}
+				break;
+			}
+
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
 				getChild("MenuPane.Menu")->focus();
-				break;
-			case SDLK_s:
-				if(ctrl) handleClick(getChild("MenuPane.Menu.Save"));
-				break;
-			case SDLK_l:
-				handleClick(getChild("Layer"));
 				break;
 			case SDLK_F5:
 				handleClick(getChild("MenuPane.Menu.Play"));
@@ -514,30 +550,6 @@ public:
 			case SDLK_5: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat4"))->check(); else editor.setMode(4); break;
 			case SDLK_6: if(!shift) editor.setMode(5); break;
 			case SDLK_7: if(!shift) editor.setMode(6); break;
-			case SDLK_y:
-				if(ctrl) editor.undo();
-				break;
-			case SDLK_z:
-				if(ctrl) editor.redo();
-				break;
-			case SDLK_c:
-				if(ctrl) editor.copy();
-				break;
-			case SDLK_v:
-				if(ctrl)
-				{
-					editor.createUndoPoint();
-					if(!editor.paste(editor.rectStart)) editor.deleteLastUndoPoint();
-				}
-				break;
-			case SDLK_x:
-				if(ctrl)
-				{
-					if(!editor.copy()) break;
-					editor.createUndoPoint();
-					if(!editor.clear()) editor.deleteLastUndoPoint();
-				}
-				break;
 			case SDLK_DELETE:
 				editor.createUndoPoint();
 				if(!editor.clear()) editor.deleteLastUndoPoint();

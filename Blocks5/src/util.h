@@ -73,6 +73,16 @@ Vec2i numberToDir(int dir);
 void generatePrimes(uint* p_out, uint maxNum);
 // Reads 7 base-62 digits; the caller has checked they are there.
 uint fromBase62(const char* p_in);
+// The letter a key press stands for, 'a' to 'z', by the label on the key - or
+// 0 where it is no letter. Shortcuts are named by that label in every program,
+// and the keysym cannot say it everywhere: SDL 1.2 on Windows translates keys
+// through the US layout, so on a German keyboard the key labelled Z arrives as
+// SDLK_y. What the layout makes of the key comes in unicode where SDL
+// translates it - under Ctrl on Windows as the control code, Ctrl+Z as 26,
+// under X11 as the letter itself - and elsewhere the keysym, which follows the
+// layout there, is the answer: in the browser a Ctrl combination carries no
+// unicode at all.
+char keyLetter(const SDL_keysym& keysym);
 bool decryptPassword(const std::string& in, std::string& out, const uint* p_primes);
 void clearLog();
 void printfLog(const char* p_format, ...);
