@@ -70,153 +70,50 @@ and sigslot (public domain).
 
 Changelog
 =========
-1.2.0 ... - Blocks 5 can now be played in a web browser, with no installation at
-            all. Your progress, your own levels and your campaigns are stored by
-            the browser, so they survive closing the tab. Recording videos is
-            the only thing the browser version cannot do. Look on the website
-            for the link.
+1.2.0 ... - Blocks 5 now also runs in a web browser, with nothing to install -
+            on a phone or tablet too, with an on-screen pad, and as an app on
+            the home screen. Your progress and your own files are kept by the
+            browser. A native Linux version can be built from the source code.
 
-          - New in the main menu: a button that manages your files, on both the
-            browser version and this one. It brings files in, hands copies
-            out, and deletes what you no longer want.
+          - "Manage files" in the main menu imports, exports and deletes levels,
+            campaigns, music, skins and your progress. Import works out by
+            itself what a file is, and single levels can now be played straight
+            from the level selection.
 
-          - Import takes one file and works out for itself what it is - a level,
-            a campaign, a piece of music or a skin - and puts it where it
-            belongs; the list then shows you where it landed. A file of the
-            same name is replaced, and the game says so. Export hands you a
-            copy of whatever you pick. Delete asks first. Neither import nor
-            delete can touch the levels, the campaign and the skins that come
-            with the game.
+          - The window can be resized freely and keeps the picture's shape.
+            Alt+Enter switches to full screen without changing the screen
+            resolution, and the game remembers how you left it. The new
+            "Scaling" option replaces HQ2X: sharp or smooth pixels, or a CRT
+            monitor with curved glass, scan lines and glow, each to your taste.
 
-          - Music can be brought in this way for the first time. A level can
-            also borrow one of the game's own pieces by writing "blocks:" in
-            front of the name, as in blocks:music2.ogg. A campaign built that
-            way stays small, because that music is already installed.
+          - Drawing is much faster, above all in the browser and on phones. The
+            game now needs a graphics card that can run shaders - anything made
+            since about 2005 - and says so at the start if there is none; on
+            Windows that usually means a graphics driver is missing.
 
-          - The game window can be resized now. Drag its edge to any size you
-            like; the picture keeps its shape and gets black bars where the
-            window does not match. It keeps drawing while you drag, where it
-            used to freeze until you let go, and it can no longer be dragged
-            smaller than the 640x480 the game draws.
+          - Drag a character with the mouse to walk it somewhere, and click
+            something it stands next to, such as a switch, to work it. Collected
+            items fly to whoever took them, switches light up when thrown, hint
+            notes are sheets of paper that unroll with a rustle, and restarting
+            a level under the CRT filter rewinds the tape.
 
-          - Alt+Enter switches between the window and full screen at any time.
-            The game remembers which of the two you left it in, where the window
-            was and how big - and whether it was maximized, which it used to
-            forget, coming back half off the screen.
+          - The help and all messages name the keys you actually chose. In the
+            level editor, Ctrl+Z now undoes and Ctrl+Y redoes on any keyboard.
 
-          - A fresh installation no longer starts at a tiny 640x480. The window
-            opens at the largest whole multiple of that which still leaves room
-            for the taskbar - twice the size on a Full HD screen, four times on
-            a 4K one.
+          - Screenshots are PNG files, in the browser too. Videos are MP4 files
+            and record the game's own sound; the Stereo Mix setup under 1.1.0 is
+            no longer needed.
 
-          - Full screen no longer changes the screen resolution. It is a
-            borderless window the size of the desktop, which is what most games
-            do these days: Alt+Tab is instant and does not rearrange your other
-            windows.
+          - The game starts in the language of your system, and the credits can
+            be watched from the main menu.
 
-          - The mouse pointer is twice as big. It used to be drawn by Windows at
-            a fixed size while everything around it grew with the window, which
-            left it looking tiny.
+          - The installer needs neither the Visual C++ runtime nor OpenAL any
+            more and works without administrator rights. The game brings its own
+            OpenAL Soft, which should end the sound problems some machines had.
 
-          - Screenshots and recorded videos are unaffected by any of this. They
-            are always the clean 640x480 picture, without the scaling and
-            without the bars.
-
-          - Screenshots are PNG files now instead of bitmaps, which makes them
-            about a quarter of the size and something you can send to someone
-            without apologising. In the browser F11 works too; the picture
-            arrives in your downloads.
-
-          - The HQ2X start menu entry is gone, and with it the HQ2X mode. It
-            scaled the picture on the processor, cost about half of the time
-            available for a frame, and changed less than 5% of the pixels. In
-            its place the options now have a "Scaling" setting with four
-            choices:
-
-              Sharp, fitted  crisp pixels at any window size. This is the new
-                             default
-              Sharp          every pixel exactly the same size, so the picture
-                             only grows in whole steps and does not fill the
-                             window
-              Smooth         plain stretching, blurry
-              CRT monitor    the sort of screen the game was written for: a
-                             curved glass tube with a phosphor mask, a glow
-                             around bright things and scan lines
-
-          - "CRT settings ..." beside the list has six sliders: the scan lines,
-            the curvature of the screen, the glow around bright areas, two
-            kinds of flicker - an unsteady brightness, and the scan lines
-            drifting slowly down the picture the way they never quite stood
-            still on a real set - and the colour fringes a set showed toward
-            the edges when its three electron beams were no longer perfectly
-            aligned. Each of the six can be turned all the way down.
-
-          - Blocks 5 now needs a graphics card that can run shaders, which
-            means anything made since about 2005. Where it cannot, the game
-            says so at the start and names what is missing, instead of
-            quietly showing a picture it was not designed for. On Windows the
-            usual cause is not an old card but a missing graphics driver - a
-            fresh installation, safe mode, or a remote desktop session.
-
-          - Video recording now records the game's own sound. Until now it
-            recorded whatever Windows had selected as the recording device,
-            which on most machines is the microphone. The "Stereo Mix" / "What
-            you hear" setup described under version 1.1.0 below is no longer
-            needed.
-
-          - The recordings are MP4 files now, with H.264 video and MP3 sound,
-            instead of AVI. They play in Windows Media Player, in the Photos app
-            and in any browser without installing a codec pack.
-
-          - The game now starts in the language your system is set to, instead
-            of always English. You can still change it in the options; that
-            choice always wins.
-
-          - Escape in the main menu quits the game. It also closes the level
-            editor's menu and its settings, the options and the help, and Enter
-            confirms the settings and the options - the same way clicking OK or
-            Cancel does.
-
-          - Alt+F4 now closes the game, stopping a running video recording
-            properly on the way out.
-
-          - Clicking the text next to a checkbox or a radio button now works the
-            same as clicking the box itself - and so does clicking either of the
-            two language flags in the options. Clicking the caption of a text
-            field puts the cursor into it.
-
-          - Restarting a level with the CRT monitor filter switched on now
-            looks and sounds like a video recorder winding the tape back,
-            with rolling noise bars and "<< REW" in the corner. The other
-            filters keep the old transition.
-
-          - A hint note is a real sheet of paper now. The text is written on it
-            before it flies up, so it turns and grows together with the paper
-            instead of appearing on top of it at the end, and the note arrives
-            rolled up at both ends and unrolls once it has come to rest. Skins
-            whose note is not paper keep it flat - the space skin's display
-            panel does not roll up.
-
-          - Fixed: a hint note could be seen for a fraction of a second at the
-            wrong place before unfolding, usually when stepping onto the same
-            note a second time.
-
-          - Fixed: a cannon that was turning when you saved came back pointing
-            the wrong way after loading.
-
-          - Fixed: in the level editor, switching the electricity on or off
-            could not be undone, and undoing it threw away everything that could
-            be redone.
-
-          - The installer no longer has to install the Visual C++ runtime or
-            OpenAL. The game brings everything it needs, so the download is
-            smaller and there are fewer steps that can go wrong. It also always
-            uses its own copy of OpenAL Soft rather than whatever OpenAL happens
-            to be installed on the computer, which should fix sound problems on
-            machines with an old OpenAL installation.
-
-          - Under the hood: every third-party library is now built from source
-            with a current compiler, and twelve DLLs have left the game folder.
+          - Well over a hundred fixes. Damaged or foreign levels, campaigns,
+            skins and music no longer crash or freeze the game, and a missing
+            skin or piece of music is reported instead of passing in silence.
 
 1.1.2 ... - Joystick hats can now be used to play the game.
 
