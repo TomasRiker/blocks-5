@@ -36,7 +36,7 @@ build produces:
     Blocks5/pack.sh                 everything
     Blocks5/pack.sh data            data.zip only
     Blocks5/pack.sh campaign        levels/campaigns/blocks.zip only
-    Blocks5/pack.sh --no-optipng    without the slow step
+    Blocks5/pack.sh --optipng       and squeeze the PNGs first
 
 **SDL 1.2 today is sdl12-compat**: Debian, Ubuntu and Fedora ship the
 reimplementation of the 1.2 interface on top of SDL 2 under `libsdl1.2-dev`.

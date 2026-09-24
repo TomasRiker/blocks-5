@@ -18,8 +18,9 @@ outside a `Renderer::DirectGL` bracket, a class whose header is not named after 
 written as a number, the version number
 drifting across its four places, a member the constructor never sets, an asset filename not on disk or
 spelled with different case (only Linux minds), a sound `playSound()` names that `gs_loading.cpp` does
-not preload, a non-ASCII byte or CRLF in a source file, `if (` where the tree writes `if(`, a German
-comment among the English. Exit 1 on any finding; `--list` names them, `--only NAME` runs one.
+not preload, a non-ASCII byte or CRLF in a source file, a bare LF in a `.bat`, `if (` where the tree
+writes `if(`, a German comment among the English. Exit 1 on any finding; `--list` names them,
+`--only NAME` runs one.
 `Tools/README.md` has the table.
 
 **The `comments` check reads further than the other twenty-one**, and the reason is a file it did not

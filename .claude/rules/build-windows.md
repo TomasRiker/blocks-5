@@ -69,11 +69,11 @@ zip_skins.bat    :: pack levels\skins\<name>\ into levels\skins\<name>.zip
 stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Release\*.exe)
 ```
 
-`zip_*.bat` run `Tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
-`zip_skins_no_optipng.bat` skip it. Both
-need `Tools\7za.exe`. Those binaries are reached through `%~dp0..\Tools\` rather than relatively,
-because the scripts `PUSHD` into the folder they pack — and, for the XML half of `data.zip`, into
-`%TEMP%`.
+`zip_data.bat` and `zip_skins.bat` run `Tools\optipng` over the PNGs first only when given
+`/optipng`, because it is slow and rewrites tracked files in place; `Build.bat /optipng` passes it on,
+and any other argument is refused before a file is touched. Both need `Tools\7za.exe`. Those binaries
+are reached through `%~dp0..\Tools\` rather than relatively, because the scripts `PUSHD` into the
+folder they pack — and, for the XML half of `data.zip`, into `%TEMP%`.
 
 Installer: `setup\Blocks 5.iss` (Inno Setup). The version number lives in **four** places that must
 stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in the `.iss`, the

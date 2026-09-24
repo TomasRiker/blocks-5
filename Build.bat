@@ -292,14 +292,11 @@ IF "%PACKDATA%"=="0" GOTO nodata
 ECHO.
 ECHO === Packing data.zip, the skin archives and the campaign ===
 IF "%OPTIPNG%"=="1" ECHO     (optipng is on - this takes several minutes)
+SET "OPTIPNG_ARG="
+IF "%OPTIPNG%"=="1" SET "OPTIPNG_ARG=/optipng"
 PUSHD Blocks5
-IF "%OPTIPNG%"=="1" (
-	CALL zip_data.bat
-	CALL zip_skins.bat
-) ELSE (
-	CALL zip_data_no_optipng.bat
-	CALL zip_skins_no_optipng.bat
-)
+CALL zip_data.bat %OPTIPNG_ARG%
+CALL zip_skins.bat %OPTIPNG_ARG%
 CALL zip_campaign.bat
 POPD
 

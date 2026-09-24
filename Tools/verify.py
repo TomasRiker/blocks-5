@@ -90,6 +90,29 @@ def prose_files():
     return out
 
 
+def batch_files():
+    """Every .bat in the tree that is ours - tracked, or new and not ignored.
+
+    Asked of git rather than walked, because stage.bat copies three of them
+    into Blocks5/stage, which is ignored like Release and Debug, and a walk
+    would judge whatever stale copy lies there. Without git, the two
+    directories they live in."""
+    import subprocess
+    try:
+        out = subprocess.check_output(
+            ['git', '-C', ROOT, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+            stderr=subprocess.DEVNULL).decode('latin-1')
+        names = set(n for n in out.split('\0') if n.lower().endswith('.bat'))
+    except Exception:                                            # noqa: BLE001
+        names = set()
+        for base in ('', 'Blocks5'):
+            for f in os.listdir(os.path.join(ROOT, base)):
+                if f.lower().endswith('.bat'):
+                    names.add(os.path.join(base, f) if base else f)
+    # Still in the index but gone from disk: deleted and not yet staged.
+    return sorted(n for n in names if os.path.isfile(os.path.join(ROOT, n)))
+
+
 BASELINE = '95660bb'      # the last commit before this collaboration
 _baseline_cache = {}
 
@@ -254,7 +277,7 @@ def idle_names(names, used, what):
 
 @check('encoding')
 def check_encoding():
-    """Pure ASCII and LF in the sources, CRLF in the shipped files.
+    """Pure ASCII and LF in the sources, CRLF in the shipped files and the .bat.
 
     data/languages.txt and the two readme.txt are Latin-1 with CRLF and are
     shipped that way. One single umlaut in a comment makes the encoding of the
@@ -280,6 +303,16 @@ def check_encoding():
             bad.append('%s: no CRLF - this file is shipped that way' % rel)
         if data.count(b'\n') != data.count(b'\r\n'):
             bad.append('%s: mixed line endings' % rel)
+
+    # Every batch file is CRLF: cmd can miss a label, or land in the wrong
+    # place, when it jumps in a file with bare LF endings - a GOTO that works
+    # until an edit moves the label - and three of them ship (stage.bat copies
+    # them), so they are shipped text files as well. Only a bare LF counts: a
+    # last line without a terminator is what Notepad saves and harms nothing.
+    for rel in batch_files():
+        data = open(os.path.join(ROOT, rel), 'rb').read()
+        if data.count(b'\n') != data.count(b'\r\n'):
+            bad.append('%s: bare LF line endings - every .bat is CRLF' % rel)
     return bad
 
 
