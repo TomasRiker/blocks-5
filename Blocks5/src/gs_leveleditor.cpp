@@ -669,8 +669,7 @@ public:
 			p_newLevel->setInEditor(true);
 			p_newLevel->load(p_doc);
 			delete p_doc;
-			delete editor.p_level;
-			editor.p_level = p_newLevel;
+			editor.replaceLevel(p_newLevel);
 
 			Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_GRAPHICS_RELOADED");
 		}
@@ -812,8 +811,7 @@ public:
 						}
 						else
 						{
-							delete editor.p_level;
-							editor.p_level = p_newLevel;
+							editor.replaceLevel(p_newLevel);
 
 							getChild("MenuPane")->hide();
 							focus();
@@ -824,9 +822,6 @@ public:
 							editor.clearRedo();
 
 							editor.originalFilename = path;
-							editor.p_teleporter = 0;
-							editor.p_hint = 0;
-							editor.p_currentPin = editor.p_startPin = 0;
 							editor.setMode(0);
 						}
 					}
@@ -1364,11 +1359,7 @@ void GS_LevelEditor::undo()
 		p_undone->load(p_old);
 
 		delete p_old;
-		delete p_level;
-		p_level = p_undone;
-
-		p_teleporter = 0;
-		p_hint = 0;
+		replaceLevel(p_undone);
 	}
 }
 
@@ -1385,12 +1376,23 @@ void GS_LevelEditor::redo()
 		p_redone->load(p_old);
 
 		delete p_old;
-		delete p_level;
-		p_level = p_redone;
-
-		p_teleporter = 0;
-		p_hint = 0;
+		replaceLevel(p_redone);
 	}
+}
+
+void GS_LevelEditor::replaceLevel(Level* p_newLevel)
+{
+	// The pins are the objects' own, and so are the teleporter being aimed
+	// and the note being written: all four die with the level. A wire started
+	// in wire mode and then undone would otherwise still be drawn from a pin
+	// that is gone, and the next click on a pin would connect to it.
+	delete p_level;
+	p_level = p_newLevel;
+
+	p_teleporter = 0;
+	p_hint = 0;
+	p_currentPin = 0;
+	p_startPin = 0;
 }
 
 void GS_LevelEditor::clearUndo()
