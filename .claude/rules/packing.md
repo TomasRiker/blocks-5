@@ -25,7 +25,7 @@ PNGs in `data/` and `levels/skins/*/` rather than on copies headed for the archi
 leaves those files modified in the working tree: same pixels, different bytes. Measured over the five
 it touches, the whole saving is 169 bytes. A step whose output is archives that are not in Git has no
 business dirtying files that are, so it happens only when asked - as `/optipng` is in `Build.bat`,
-which gives the same reason. `--no-optipng` is rejected by name rather than as an unknown argument,
+`zip_data.bat` and `zip_skins.bat`, which give the same reason. `--no-optipng` is rejected by name rather than as an unknown argument,
 because it asks for what happens anyway and a caller deserves to be told which way the default went.
 
 **`levels/campaigns/blocks.zip` is a build product**, and why it must be rebuilt matters before
