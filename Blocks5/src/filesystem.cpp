@@ -405,6 +405,12 @@ void FileSystem::convertPath(const std::string& path,
 			{
 				if(temp[j] == '>')
 				{
+					// Only "archive.zip<password>/member" is this syntax. A
+					// path can end on the bracket - a file being imported is
+					// named by whoever made it, and "a.zip[1]" is a name like
+					// any other - and the member would start past the end;
+					// such a path is a plain name.
+					if(j + 1 >= temp.length() || temp[j + 1] != '/') break;
 					filePath = temp.substr(0, i + 4);
 					objectName = temp.substr(j + 2);
 					password = temp.substr(i + 5, j - (i + 5));
@@ -419,6 +425,8 @@ void FileSystem::convertPath(const std::string& path,
 			{
 				if(temp[j] == ']')
 				{
+					// as with the plaintext form above
+					if(j + 1 >= temp.length() || temp[j + 1] != '/') break;
 					filePath = temp.substr(0, i + 4);
 					objectName = temp.substr(j + 2);
 					password = temp.substr(i + 5, j - (i + 5));
