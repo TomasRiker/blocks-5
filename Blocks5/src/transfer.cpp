@@ -16,6 +16,8 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 #endif
 
 namespace
@@ -609,9 +611,9 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 // stdout and return a non-zero exit code on a cancelled dialog. The game
 // therefore has to link neither GTK nor Qt.
 //
-// The import runs alongside: popen() gives a pipe that pollImport() reads tick
-// by tick, keeping the window drawing while the dialog is open. The export
-// cannot do that - doExport() delivers its result at once, which is how
+// The import runs alongside: the dialog writes into a pipe that pollImport()
+// reads tick by tick, keeping the window drawing while the dialog is open. The
+// export cannot do that - doExport() delivers its result at once, which is how
 // transfer.h declares it - and therefore stops the game like the modal dialog
 // under Windows.
 // ---------------------------------------------------------------------------
@@ -622,7 +624,8 @@ namespace
 	std::string pickedName;
 	int   importStatus = STATUS_BUSY;
 	bool  wantDialog = false;
-	FILE* p_importPipe = 0;
+	int   importFd = -1;
+	pid_t importPid = -1;
 	std::string importOutput;
 
 	// Just the base name.
@@ -707,13 +710,68 @@ namespace
 		while(end > 0 && (text[end - 1] == '\n' || text[end - 1] == '\r')) end--;
 		return text.substr(0, end);
 	}
+
+	// The dialog runs with its output on a pipe, and its process id is kept:
+	// popen() would give the stream and not the process, and pclose() on a
+	// dialog that is still open waits until somebody closes it - so giving an
+	// import up as the menu is left would stop the game for as long as the
+	// dialog stays on the screen. "exec" turns the shell into the dialog, so
+	// the id is the dialog's own.
+	//
+	// The line is built before the fork: the game has threads, and between
+	// fork() and exec() the child may only make calls that are safe in a
+	// signal handler, which an allocation is not.
+	bool startDialog(const std::string& command)
+	{
+		const std::string line("exec " + command);
+		int fds[2];
+		if(::pipe(fds) != 0) return false;
+
+		const pid_t pid = ::fork();
+		if(pid < 0)
+		{
+			::close(fds[0]);
+			::close(fds[1]);
+			return false;
+		}
+		if(pid == 0)
+		{
+			::dup2(fds[1], STDOUT_FILENO);
+			::close(fds[0]);
+			::close(fds[1]);
+			::execl("/bin/sh", "sh", "-c", line.c_str(), static_cast<char*>(0));
+			::_exit(127);
+		}
+
+		::close(fds[1]);
+		// Without O_NONBLOCK the game would stand still in read() until the
+		// user closes the dialog - that is exactly what it must not do.
+		::fcntl(fds[0], F_SETFL, ::fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK);
+		importFd = fds[0];
+		importPid = pid;
+		return true;
+	}
+
+	// Closes the pipe and reaps the dialog; its exit code, or -1 where it did
+	// not exit on its own. A dialog being given up is killed first, since one
+	// still open would otherwise be waited for.
+	int endDialog(bool giveUp)
+	{
+		if(giveUp) ::kill(importPid, SIGKILL);
+		::close(importFd);
+		int status = 0;
+		while(::waitpid(importPid, &status, 0) < 0 && errno == EINTR) {}
+		importFd = -1;
+		importPid = -1;
+		return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+	}
 }
 
 bool beginImport()
 {
 	// As under Windows, only make a note: this call sits in the middle of the
 	// GUI's event dispatch.
-	if(wantDialog || p_importPipe) return false;
+	if(wantDialog || importPid > 0) return false;
 	if(findDialog() == DIALOG_NONE) return false;
 	wantDialog = true;
 	return true;
@@ -725,36 +783,26 @@ int pollImport(std::string& path, std::string& untrustedName)
 	{
 		wantDialog = false;
 		importOutput = "";
-		p_importPipe = ::popen(dialogCommand(findDialog(), "").c_str(), "r");
-		if(!p_importPipe) importStatus = STATUS_FAILED;
-		else
-		{
-			// Without O_NONBLOCK the game would stand still in read() until
-			// the user closes the dialog - that is exactly what it must not do.
-			const int fd = ::fileno(p_importPipe);
-			::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
-		}
+		if(!startDialog(dialogCommand(findDialog(), ""))) importStatus = STATUS_FAILED;
 	}
 
-	if(p_importPipe)
+	if(importPid > 0)
 	{
 		char buffer[512];
-		const ssize_t numBytesRead = ::read(::fileno(p_importPipe), buffer, sizeof(buffer));
+		const ssize_t numBytesRead = ::read(importFd, buffer, sizeof(buffer));
 		if(numBytesRead > 0) importOutput.append(buffer, numBytesRead);
 		else if(numBytesRead == 0)
 		{
-			// End of the pipe: the dialog is closed. pclose() delivers the
-			// exit code, and that says whether the user cancelled.
-			const int result = ::pclose(p_importPipe);
-			p_importPipe = 0;
+			// End of the pipe: the dialog is closed, and its exit code says
+			// whether the user cancelled.
+			const int result = endDialog(false);
 			pickedPath = trimmed(importOutput);
 			pickedName = getFilenameFromPath(pickedPath);
 			importStatus = (result == 0 && !pickedPath.empty()) ? STATUS_OK : STATUS_CANCELLED;
 		}
 		else if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
 		{
-			::pclose(p_importPipe);
-			p_importPipe = 0;
+			endDialog(true);
 			importStatus = STATUS_FAILED;
 		}
 	}
@@ -778,11 +826,7 @@ void finishImport()
 void abandonImport()
 {
 	wantDialog = false;
-	if(p_importPipe)
-	{
-		::pclose(p_importPipe);
-		p_importPipe = 0;
-	}
+	if(importPid > 0) endDialog(true);
 	importStatus = STATUS_BUSY;
 	finishImport();
 }

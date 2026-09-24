@@ -69,8 +69,8 @@ point for whoever tries.
 keep: fullscreen asks the window manager with a `_NET_WM_STATE` message and takes
 the answer as an ordinary resize (`LinuxBuild/linux_window.cpp`, its own
 translation unit because Xlib claims `Font`, `Window`, `Screen` and `Cursor` as
-type names); the file dialog is `zenity` or `kdialog` through `popen()`; the
-update check is `curl` or `wget` the same way; and `equalsNoCase()` stays
+type names); the file dialog is `zenity` or `kdialog`, its answer read off a
+pipe; the update check is `curl` or `wget` the same way; and `equalsNoCase()` stays
 hand-rolled because `strcasecmp` follows the locale and Turkish has two i's.
 Audio capture reads the PulseAudio monitor through a `dlopen`'d libpulse, so the
 game starts where PulseAudio is absent. Case sensitivity is a `verify.py` check;
