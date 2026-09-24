@@ -596,10 +596,11 @@ void pollRequests()
 	else if(!strncmp(line, "state ", 6))
 	{
 		// Switch to a named game state, applied at the loop's safe point like
-		// any other change. It is how the harness reaches the credits, which
-		// the menu offers only to Ctrl+Shift+F2 and F3. One word after the name is
-		// a boolean parameter set to true in the context the state is entered
-		// with: "state GS_Credits full" asks for the ending, which is
+		// any other change. It is how the harness reaches the credits in the
+		// version it wants without a click on the menu, whose Credits line
+		// picks the version from the player's progress. One word after the
+		// name is a boolean parameter set to true in the context the state is
+		// entered with: "state GS_Credits full" asks for the ending, which is
 		// otherwise decided by a progress file the oracle's private home does
 		// not have. One, because one is what there is to ask for.
 		const std::string arg(Argument::of(line + 6));

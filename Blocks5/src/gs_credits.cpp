@@ -475,21 +475,18 @@ void GS_Credits::updateStars()
 	// ones looks nearer is the order they are handed to the renderer in.
 	//
 	// The order they are born in is not that order and is not close to it. A
-	// star appears 150 to 200 ahead of the camera with a lateral offset of up
-	// to 80 in a random direction, so it is 70 to 280 away at birth and two
-	// born in the same tick can be 160 apart - against the one unit a tick the
-	// camera gains on them. Measured over the running screen, walking the list
-	// backwards put 52% of all pairs the wrong way round through the lead-in,
-	// where the first four hundred are scattered from 0 to 200, and 21 to 27%
-	// once stars are being recycled; about half of the adjacent pairs were
-	// wrong throughout. Sorted, none are.
+	// star appears 150 to 200 ahead of the camera with an offset of up to 80
+	// in a random direction, so it is 70 to 280 away at birth - against the
+	// one unit a tick the camera gains on it. Walking the list backwards,
+	// newest first, put 52% of all pairs the wrong way round through the
+	// lead-in, whose four hundred are all born in its first tick and so in no
+	// order at all, and 21 to 27% once stars are being recycled; about half
+	// of the adjacent pairs were wrong throughout. Sorted, none are.
 	//
-	// What it is worth is small here and worth saying so: under BM_NORMAL two
-	// orders of the same pair differ by a1 * a2 * (S1 - S2) per pixel, and a
-	// star fades as 1 / (1 + 0.001 * distSq) - 0.01 far out, 0.17 at the 70
-	// it can be born at. Only the ones that have come close, where alpha
-	// approaches 1, can be caught at it, which is why the oracle's frozen
-	// frame moves by 46 of 307200 pixels. The sort costs one pass a tick.
+	// What it is worth is small: under BM_NORMAL two orders of a pair differ
+	// by a1 * a2 * (S1 - S2) per pixel, and a star is faint until it has come
+	// close - the oracle's frozen frame moves by 46 of 307200 pixels. The
+	// sort costs one pass a tick.
 	//
 	// Here rather than in renderStars(), which would sort once a frame for an
 	// order that can only change when the camera moves - and the camera moves
