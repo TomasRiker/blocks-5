@@ -121,9 +121,10 @@ stars by distance from the eye.
 
 The credits shipped without that sort, and the shape of it is what the rule is for: the list was walked
 in reverse *birth* order, which reads like depth and is not. A star is born 150 to 200 ahead of the
-camera with a lateral offset of up to 80, so it is 70 to 280 away at birth while the camera gains one
-unit a tick on it — measured, 52% of all pairs were the wrong way round through the lead-in and 21 to
-27% once stars were being recycled, with about half of the adjacent pairs wrong throughout.
+camera with an offset of up to 80 in a random direction, so it is 70 to 280 away at birth while the
+camera gains one unit a tick on it — measured, 52% of all pairs were the wrong way round through the
+lead-in, whose four hundred are all born in its first tick and so in no order at all, and 21 to 27%
+once stars were being recycled, with about half of the adjacent pairs wrong throughout.
 
 What one swapped pair costs is worth knowing, because it decides where this class of bug is visible at
 all. Under `BM_NORMAL` the two orders differ by exactly `a1 * a2 * (S1 - S2)` per pixel — the two alphas

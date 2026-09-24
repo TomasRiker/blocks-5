@@ -135,6 +135,38 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	// Ctrl pressed?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
+	// The editing shortcuts go by the letter on the key, as in every other
+	// program - keyLetter() says why the keysym alone would not.
+	const char letter = ctrl ? keyLetter(event.keysym) : 0;
+	if(letter == 'a' || letter == 'c' || letter == 'v' || letter == 'x')
+	{
+		if(letter == 'a')
+		{
+			// select all
+			cursor = selStart = selEnd = 0;
+			setCursor(static_cast<uint>(text.length()), true);
+		}
+		else if(letter == 'c' || letter == 'x')
+		{
+			// copy/cut
+			if(selStart != selEnd)
+			{
+				GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
+				if(active && letter == 'x') replaceSelection("");
+			}
+		}
+		else if(active)
+		{
+			// paste
+			const std::string& clipboard = GUI::inst().getClipboard();
+			if(!clipboard.empty()) replaceSelection(clipboard);
+		}
+
+		// Handled, and the letter must not go on to be typed as well -
+		// see GUI_EditBox for the platform that hands over the letter.
+		return;
+	}
+
 	switch(event.keysym.sym)
 	{
 	case SDLK_ESCAPE:
@@ -183,39 +215,6 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	case SDLK_KP_ENTER:
 		if(active) replaceSelection("\n");
 		break;
-	case SDLK_a:
-	case SDLK_c:
-	case SDLK_v:
-	case SDLK_x:
-		if(ctrl)
-		{
-			if(event.keysym.sym == SDLK_a)
-			{
-				// select all
-				cursor = selStart = selEnd = 0;
-				setCursor(static_cast<uint>(text.length()), true);
-			}
-			else if(event.keysym.sym == SDLK_c ||
-					event.keysym.sym == SDLK_x)
-			{
-				// copy/cut
-				if(selStart != selEnd)
-				{
-					GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
-					if(active && event.keysym.sym == SDLK_x) replaceSelection("");
-				}
-			}
-			else if(active && event.keysym.sym == SDLK_v)
-			{
-				// paste
-				const std::string& clipboard = GUI::inst().getClipboard();
-				if(!clipboard.empty()) replaceSelection(clipboard);
-			}
-			// Handled, and the letter must not go on to be typed as well -
-			// see GUI_EditBox for the platform that hands over the letter.
-			break;
-		}
-		// Without Ctrl the letter is text like any other.
 	default:
 		{
 			char c = static_cast<char>(event.keysym.unicode);

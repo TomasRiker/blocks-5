@@ -31,6 +31,9 @@ public:
 	void undo();
 	void redo();
 	void clearUndo();
+	// Puts another level in the place of the current one, which is deleted,
+	// and forgets every pointer into it.
+	void replaceLevel(Level* p_newLevel);
 	void clearRedo();
 	void deleteLastUndoPoint();
 	bool wasChanged();

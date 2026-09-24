@@ -490,16 +490,52 @@ public:
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
+			// The letters go by the label on the key, as shortcuts do in every
+			// other program: Ctrl+Z is undo and Ctrl+Y redo whatever keyboard
+			// they sit on, and so is Ctrl+Shift+Z, the other common spelling of
+			// redo. keyLetter() says why the keysym alone cannot answer that.
+			switch(keyLetter(event.keysym))
+			{
+			case 's':
+				if(ctrl) handleClick(getChild("MenuPane.Menu.Save"));
+				break;
+			case 'l':
+				handleClick(getChild("Layer"));
+				break;
+			case 'z':
+				if(ctrl)
+				{
+					if(shift) editor.redo();
+					else editor.undo();
+				}
+				break;
+			case 'y':
+				if(ctrl) editor.redo();
+				break;
+			case 'c':
+				if(ctrl) editor.copy();
+				break;
+			case 'v':
+				if(ctrl)
+				{
+					editor.createUndoPoint();
+					if(!editor.paste(editor.rectStart)) editor.deleteLastUndoPoint();
+				}
+				break;
+			case 'x':
+				if(ctrl)
+				{
+					if(!editor.copy()) break;
+					editor.createUndoPoint();
+					if(!editor.clear()) editor.deleteLastUndoPoint();
+				}
+				break;
+			}
+
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
 				getChild("MenuPane.Menu")->focus();
-				break;
-			case SDLK_s:
-				if(ctrl) handleClick(getChild("MenuPane.Menu.Save"));
-				break;
-			case SDLK_l:
-				handleClick(getChild("Layer"));
 				break;
 			case SDLK_F5:
 				handleClick(getChild("MenuPane.Menu.Play"));
@@ -514,30 +550,6 @@ public:
 			case SDLK_5: if(shift) static_cast<GUI_RadioButton*>(getChild("Cat4"))->check(); else editor.setMode(4); break;
 			case SDLK_6: if(!shift) editor.setMode(5); break;
 			case SDLK_7: if(!shift) editor.setMode(6); break;
-			case SDLK_y:
-				if(ctrl) editor.undo();
-				break;
-			case SDLK_z:
-				if(ctrl) editor.redo();
-				break;
-			case SDLK_c:
-				if(ctrl) editor.copy();
-				break;
-			case SDLK_v:
-				if(ctrl)
-				{
-					editor.createUndoPoint();
-					if(!editor.paste(editor.rectStart)) editor.deleteLastUndoPoint();
-				}
-				break;
-			case SDLK_x:
-				if(ctrl)
-				{
-					if(!editor.copy()) break;
-					editor.createUndoPoint();
-					if(!editor.clear()) editor.deleteLastUndoPoint();
-				}
-				break;
 			case SDLK_DELETE:
 				editor.createUndoPoint();
 				if(!editor.clear()) editor.deleteLastUndoPoint();
@@ -669,8 +681,7 @@ public:
 			p_newLevel->setInEditor(true);
 			p_newLevel->load(p_doc);
 			delete p_doc;
-			delete editor.p_level;
-			editor.p_level = p_newLevel;
+			editor.replaceLevel(p_newLevel);
 
 			Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_GRAPHICS_RELOADED");
 		}
@@ -812,8 +823,7 @@ public:
 						}
 						else
 						{
-							delete editor.p_level;
-							editor.p_level = p_newLevel;
+							editor.replaceLevel(p_newLevel);
 
 							getChild("MenuPane")->hide();
 							focus();
@@ -824,9 +834,6 @@ public:
 							editor.clearRedo();
 
 							editor.originalFilename = path;
-							editor.p_teleporter = 0;
-							editor.p_hint = 0;
-							editor.p_currentPin = editor.p_startPin = 0;
 							editor.setMode(0);
 						}
 					}
@@ -1364,11 +1371,7 @@ void GS_LevelEditor::undo()
 		p_undone->load(p_old);
 
 		delete p_old;
-		delete p_level;
-		p_level = p_undone;
-
-		p_teleporter = 0;
-		p_hint = 0;
+		replaceLevel(p_undone);
 	}
 }
 
@@ -1385,12 +1388,23 @@ void GS_LevelEditor::redo()
 		p_redone->load(p_old);
 
 		delete p_old;
-		delete p_level;
-		p_level = p_redone;
-
-		p_teleporter = 0;
-		p_hint = 0;
+		replaceLevel(p_redone);
 	}
+}
+
+void GS_LevelEditor::replaceLevel(Level* p_newLevel)
+{
+	// The pins are the objects' own, and so are the teleporter being aimed
+	// and the note being written: all four die with the level. A wire started
+	// in wire mode and then undone would otherwise still be drawn from a pin
+	// that is gone, and the next click on a pin would connect to it.
+	delete p_level;
+	p_level = p_newLevel;
+
+	p_teleporter = 0;
+	p_hint = 0;
+	p_currentPin = 0;
+	p_startPin = 0;
 }
 
 void GS_LevelEditor::clearUndo()

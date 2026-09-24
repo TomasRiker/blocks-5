@@ -736,12 +736,12 @@ $LE_RELOAD_GRAPHICS
 
 $LE_UNDO
 // Tool tip of undo button
-§en:Undo <k>Ctrl</k>·+·<k>Y</k>
+§en:Undo <k>Ctrl</k>·+·<k>Z</k>
 §de:Rückgängig <k>Strg</k>·+·<k>Z</k>
 
 $LE_REDO
 // Tool tip of redo button
-§en:Redo <k>Ctrl</k>·+·<k>Z</k>
+§en:Redo <k>Ctrl</k>·+·<k>Y</k>
 §de:Wiederherstellen <k>Strg</k>·+·<k>Y</k>
 
 $LE_SETTINGS

@@ -341,7 +341,9 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	// delete the menu
 	delete gui["Menu"];
 	delete p_options;
+	p_options = 0;
 	delete p_help;
+	p_help = 0;
 }
 
 void GS_Menu::onGetFocus()

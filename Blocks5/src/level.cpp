@@ -346,8 +346,18 @@ bool Level::load(TiXmlDocument* p_doc,
 		std::list<std::pair<Electronics*, TiXmlElement*> > electronics;
 		while(p_object)
 		{
-			// read the type and the position
-			std::string type = p_object->Attribute("type");
+			// read the type and the position; an Object without a type is a
+			// broken file - one imported from outside may be anything - and
+			// is left out rather than built from a null pointer
+			const char* p_type = p_object->Attribute("type");
+			if(!p_type)
+			{
+				printfLog("+ WARNING: Level \"%s\" has an <Object> without a type. It is left out.\n",
+						  filename.c_str());
+				p_object = p_object->NextSiblingElement("Object");
+				continue;
+			}
+			const std::string type(p_type);
 			Vec2i position;
 			p_object->Attribute("x", &position.x);
 			p_object->Attribute("y", &position.y);
@@ -2706,8 +2716,12 @@ std::string Level::getSkinFilename(uint index)
 							std::string pwFile = archiveFile + "/password.txt";
 							if(fs.fileExists(pwFile))
 							{
-								// Read it in!
+								// Read it in, without trailing whitespace: saved by
+								// hand the file ends in a line break, which is no part
+								// of the password.
 								std::string encryptedPassword = fs.readStringFromFile(pwFile);
+								const size_t last = encryptedPassword.find_last_not_of(" \t\r\n");
+								encryptedPassword.erase(last == std::string::npos ? 0 : last + 1);
 								return archiveFile + "[" + encryptedPassword + "]/" + p_skinFilenames[index];
 							}
 							else

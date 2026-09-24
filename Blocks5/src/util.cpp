@@ -201,51 +201,88 @@ uint fromBase62(const char* p_in)
 	return n;
 }
 
-void decryptPassword(const char* p_in,
-					 char* p_out,
+char keyLetter(const SDL_keysym& keysym)
+{
+	const uint u = keysym.unicode;
+
+	// A control code counts only from a letter key: Tab, Backspace and Return
+	// send codes in the same range - 9, 8 and 13 - without being letters.
+	const bool letterKey = keysym.sym >= SDLK_a && keysym.sym <= SDLK_z;
+	if(u >= 1 && u <= 26) return letterKey ? static_cast<char>('a' + u - 1) : 0;
+	if(u >= 'a' && u <= 'z') return static_cast<char>(u);
+	if(u >= 'A' && u <= 'Z') return static_cast<char>(u - 'A' + 'a');
+
+	// the layout made something else of the key: no letter
+	if(u) return 0;
+
+	return letterKey ? static_cast<char>(keysym.sym) : 0;
+}
+
+namespace
+{
+	bool isBase62Digit(char c)
+	{
+		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+	}
+}
+
+bool decryptPassword(const std::string& in,
+					 std::string& out,
 					 const uint* p_primes)
 {
-	char step1[1024] = "";
-	for(uint i = 0, shift = 0; i < strlen(p_in); i += 7, shift++)
+	// The text between the brackets of an archive path, and so exactly as
+	// trustworthy as the file it came from: a skin carries its own as
+	// password.txt, read out of the archive by Level::getSkinFilename. So it
+	// is measured before it is believed - whole blocks of seven base-62
+	// digits, every record inside them complete - and anything else is no
+	// password at all.
+	out.clear();
+	if(in.empty() || in.length() % 7) return false;
+	for(size_t i = 0; i < in.length(); i++)
 	{
-		// always turn 7 base-62 characters into one 32-bit integer
-		uint n = fromBase62(&p_in[i]);
-
-		// decrypt
-		uint pattern = (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
-		n ^= pattern;
-
-		// write it
-		*(reinterpret_cast<uint*>(&step1[shift * 4])) = n;
+		if(!isBase62Digit(in[i])) return false;
 	}
 
-	char step2[256] = "";
-
-	uint indexIn = 0, indexOut = 0;
-	while(true)
+	// Every seven digits are one 32-bit number, xored with a pattern that
+	// moves with the block, and its four bytes come lowest first: PWEncrypt
+	// reads them as one number straight out of memory, on a little-endian
+	// machine.
+	std::vector<unsigned char> bytes;
+	bytes.reserve(in.length() / 7 * 4);
+	for(uint i = 0, shift = 0; i < in.length(); i += 7, shift++)
 	{
-		// read the number of terms and decrypt it
-		unsigned char numTerms = step1[indexIn++] ^ 0xB6;
-		if(!numTerms) break;
+		uint n = fromBase62(&in[i]);
+		n ^= (0x958B47A6 << (shift % 31)) ^ (0x8D4BA2D4 >> (shift % 17));
+		for(uint b = 0; b < 4; b++) bytes.push_back(static_cast<unsigned char>(n >> (8 * b)));
+	}
 
-		// read the primes and their powers and decrypt them
+	// One record per letter: a count, then that many pairs of a prime's index
+	// and its power, and a count of zero at the end. The index is a byte and
+	// p_primes holds 256, so it cannot leave the table. PWEncrypt cannot write
+	// more than 85 letters, and 255 is where a made-up password stops, since
+	// each letter can ask for 65025 multiplications.
+	size_t at = 0;
+	for(uint letter = 0; ; letter++)
+	{
+		if(at >= bytes.size()) break;
+		const uint numTerms = bytes[at++] ^ 0xB6;
+		if(!numTerms) return true;
+		if(letter >= 255 || bytes.size() - at < 2 * static_cast<size_t>(numTerms)) break;
+
 		uint c = 1;
-		for(uint i = 0; i < numTerms; i++)
+		for(uint t = 0; t < numTerms; t++)
 		{
-			unsigned char prime = step1[indexIn++] ^ 0x4D;
-			unsigned char power = step1[indexIn++] ^ 0xE9;
-
-			// multiply the power in
+			const uint prime = bytes[at++] ^ 0x4D;
+			const uint power = bytes[at++] ^ 0xE9;
 			for(uint j = 0; j < power; j++) c *= p_primes[prime];
 		}
 
-		// decrypt the letter and write it
-		c -= indexOut * 7;
-		step2[indexOut++] = static_cast<char>(c);
+		c -= letter * 7;
+		out += static_cast<char>(c);
 	}
 
-	step2[indexOut] = 0;
-	strcpy(p_out, step2);
+	out.clear();
+	return false;
 }
 
 bool isSafeMemberName(const std::string& name)
