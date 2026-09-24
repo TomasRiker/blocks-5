@@ -143,6 +143,14 @@ namespace
 			*p_last = floorf(start - 0.5f) + 1.0f;
 		}
 	}
+
+	// Whether the pixel k lies in the span lineSpan() gives from start to end.
+	bool lineSpanHas(float start, float end, float k)
+	{
+		float first, last;
+		lineSpan(start, end, &first, &last);
+		return k >= first && k < last;
+	}
 }
 
 Renderer::Renderer()
@@ -1011,20 +1019,33 @@ void Renderer::hairlineRect(const Vec2f& min, const Vec2f& max, const Vec4f& col
 	// its own: where two of them meet on the same pixel it is lit twice, as
 	// GL lit it.
 	//
-	// The bottom line reaches a pixel further than the corner it ends at, and
-	// without that the loop has a hole. hairline() takes the row a
-	// horizontal line lights with floorf() and the column a vertical one
-	// lights with ceilf() - 1, opposite sides of the same boundary, so a
-	// rectangle from (X, Y) to (X + w, Y + h) covers columns X - 1 .. X + w - 1
-	// but rows Y .. Y + h - one wider than the sides are long. lineSpan() then
-	// gives every side the same half-open interval whichever way it is drawn,
-	// so all four stop at the same end instead of rotating: the top right
-	// corner comes out lit twice and the bottom left, where the left edge's
-	// column meets the bottom edge's row, lit by neither.
+	// The bottom line sometimes has to reach a pixel further than the corner
+	// it ends at. hairline() takes the row a horizontal line lights with
+	// floorf() and the column a vertical one lights with ceilf() - 1,
+	// opposite sides of the same boundary, and lineSpan() gives every side
+	// the same half-open interval whichever way it is drawn, so all four stop
+	// at the same end instead of rotating. With the corners on whole pixels
+	// that leaves the bottom left - the left edge's column in the bottom
+	// edge's row - lit by neither line, and the loop has a hole there. With
+	// them on pixel centres, as the editor draws its pin frames, the left
+	// line already reaches that row, and reaching further would light the
+	// pixel twice. So the pixel is asked of the same rules the two lines are
+	// drawn by, where they are drawn - baked - and the bottom line goes one
+	// further only where neither lights it.
 	const Vec2f topRight(max.x, min.y), bottomLeft(min.x, max.y);
+	Vec2f p0, p1, p2;
+	bakePoint(min.x, min.y, &p0.x, &p0.y);
+	bakePoint(max.x, max.y, &p1.x, &p1.y);
+	bakePoint(bottomLeft.x, bottomLeft.y, &p2.x, &p2.y);
+	const float cornerColumn = ceilf(p2.x) - 1.0f;
+	const float cornerRow = floorf(p2.y);
+	const bool leftLightsCorner = lineSpanHas(p2.y, p0.y, cornerRow);
+	const bool bottomLightsCorner = lineSpanHas(p1.x, p2.x, cornerColumn);
+	const bool extend = !leftLightsCorner && !bottomLightsCorner;
+
 	hairline(min, topRight, color);
 	hairline(topRight, max, color);
-	hairline(max, bottomLeft - Vec2f(1.0f, 0.0f), color);
+	hairline(max, extend ? bottomLeft - Vec2f(1.0f, 0.0f) : bottomLeft, color);
 	hairline(bottomLeft, min, color);
 }
 
