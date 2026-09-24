@@ -31,10 +31,19 @@ GUI_Element::~GUI_Element()
 	if(p_parent) p_parent->children.remove(this);
 	while(!children.empty()) delete children.front();
 
+	// Every pointer the GUI keeps to an element from one tick to the next,
+	// the press target included: it outlives the press whenever an element
+	// goes while the button is still down - a drag that finishes a level
+	// deletes the game's GUI in that same tick - and the next move or release
+	// would call into it. The focus is hide()'s; it is checked again after,
+	// because the root, going last, has nothing left to hand the focus to.
 	GUI& gui = GUI::inst();
 	if(gui.p_elementAtCursor == this) gui.p_elementAtCursor = 0;
 	if(gui.p_oldElementAtCursor == this) gui.p_oldElementAtCursor = 0;
+	if(gui.p_mouseDownElement == this) gui.p_mouseDownElement = 0;
+	if(gui.p_oldFocusElement == this) gui.p_oldFocusElement = 0;
 	hide();
+	if(gui.p_focusElement == this) gui.p_focusElement = 0;
 
 	if(p_font) p_font->release();
 }
