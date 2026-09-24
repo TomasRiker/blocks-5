@@ -11,12 +11,8 @@ REM current directory, because the second 7za call runs from %TEMP% whenever
 REM Python is there. One idiom throughout rather than two that differ by three
 REM lines with nothing saying why.
 REM
-REM The py launcher first, then python on the path. Asked with a run that has
-REM nothing to do, and checked with IF ERRORLEVEL rather than with ||: single
-REM line IFs only, no bracketed blocks and no GOTO - this file has LF line
-REM endings (zip_skins.bat and Build.bat have CRLF; there is no rule here, only
-REM what each one happens to carry), and cmd miscounts when it jumps in a file
-REM with LF endings.
+REM The py launcher first, then python on the path, each asked with a run that
+REM has nothing to do.
 SETLOCAL
 SET "PY="
 py -3 -c "" >NUL 2>&1

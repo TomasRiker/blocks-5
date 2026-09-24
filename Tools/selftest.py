@@ -97,6 +97,20 @@ def c_encoding(p):
     p.raw(p.original + b'\n// ein Umlaut: \xe4\n')
 
 
+# A batch file saved with bare LF endings, which is what an editor under Linux
+# writes unless told otherwise.
+@case('encoding', 'Blocks5/zip_campaign.bat')
+def c_encoding_bat(p):
+    p.raw(p.original.replace(b'\r\n', b'\n'))
+
+
+# A last line without its CRLF is what Notepad saves, and harms nothing.
+@case('encoding', 'Blocks5/zip_campaign.bat', quiet=True)
+def c_encoding_bat_unterminated(p):
+    assert p.original.endswith(b'\r\n')
+    p.raw(p.original[:-2])
+
+
 @case('project_files', 'Blocks5/Blocks5.vcxproj')
 def c_project(p):
     p.replace('src\\engine.cpp', 'src\\engine_typo.cpp')

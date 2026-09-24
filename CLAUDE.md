@@ -221,7 +221,9 @@ browser they are core and the header `#define`s them through.
   text: they have to stay byte-exact whatever the source encoding is.
 - Source files use LF — except vendored third-party ones, which keep whatever they shipped with
   (`src/stackwalker.*` is CRLF). Shipped text files (`readme.txt`, `levels/readme.txt`,
-  `data/languages.txt`) are deliberately CRLF.
+  `data/languages.txt`) are deliberately CRLF, and so is every `.bat`: cmd can miss a label when it
+  jumps in a file with bare LF endings, and three of them ship. `verify.py`'s `encoding` check holds
+  both.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE` macros
   are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`, each with a `PROVENANCE.txt` giving its
