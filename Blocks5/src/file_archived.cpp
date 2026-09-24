@@ -3,6 +3,7 @@
 #include "filesystem.h"
 #include <zip.h>
 #include <unzip.h>
+#include <new>
 
 File_Archived::File_Archived(const std::string& archiveFilename,
 							 const std::string& objectName,
@@ -62,15 +63,21 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		}
 		else
 		{
-			// list the files
+			// List the files. minizip copies at most the buffer's worth of a
+			// name but reports its real length, a 16-bit field in the
+			// archive; a name that does not fit is skipped rather than read
+			// past the end of the buffer.
 			int r = unzGoToFirstFile(archive);
 			while(r == UNZ_OK)
 			{
 				unz_file_info info;
 				char temp[256] = "";
-				unzGetCurrentFileInfo(archive, &info, temp, 256, 0, 0, 0, 0);
-				std::string filename(temp, info.size_filename);
-				if(filename.find_first_of('/') == std::string::npos) directory.push_back(filename);
+				if(unzGetCurrentFileInfo(archive, &info, temp, sizeof(temp), 0, 0, 0, 0) != UNZ_OK) break;
+				if(info.size_filename < sizeof(temp))
+				{
+					std::string filename(temp, info.size_filename);
+					if(filename.find_first_of('/') == std::string::npos) directory.push_back(filename);
+				}
 				r = unzGoToNextFile(archive);
 			}
 		}
@@ -83,11 +90,48 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 		// query the file information
 		unz_file_info info;
-		unzGetCurrentFileInfo(archive, &info, 0, 0, 0, 0, 0, 0);
+		if(unzGetCurrentFileInfo(archive, &info, 0, 0, 0, 0, 0, 0) != UNZ_OK)
+		{
+			printfLog("+ ERROR: Could not read the entry of \"%s\" in archive \"%s\".\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str());
+			unzClose(archive);
+			error = 4;
+			return;
+		}
+
+		// The size is the archive's word for it, and an archive may come from
+		// anybody - the Manager imports campaigns and skins, and reads into a
+		// campaign to check it. The largest members are music tracks, two
+		// megabytes in the shipped campaign, and the limit is nearly an hour
+		// of Vorbis at 160 kbit/s. Above it, or where the memory is not there,
+		// the member is refused rather than the allocation throwing, which
+		// nothing here would catch.
+		const uLong MAX_MEMBER_SIZE = 64 * 1024 * 1024;
+		if(info.uncompressed_size > MAX_MEMBER_SIZE)
+		{
+			printfLog("+ ERROR: \"%s\" in archive \"%s\" claims %lu bytes; a member may hold 64 MB at most.\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str(),
+					  static_cast<unsigned long>(info.uncompressed_size));
+			unzClose(archive);
+			error = 11;
+			return;
+		}
 
 		// allocate the memory
-		size = info.uncompressed_size;
-		p_data = new char[size];
+		size = static_cast<uint>(info.uncompressed_size);
+		p_data = new(std::nothrow) char[size ? size : 1];
+		if(!p_data)
+		{
+			printfLog("+ ERROR: Out of memory reading \"%s\" from archive \"%s\".\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str());
+			size = 0;
+			unzClose(archive);
+			error = 11;
+			return;
+		}
 
 		// read the object in
 		int r;
