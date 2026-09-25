@@ -9,16 +9,14 @@
 
 namespace
 {
-	// The note at full size: the picture measures 300x400 and the text starts
-	// a little way inside it. The texture both are drawn into together is a
-	// power of two - WebGL 1 can only handle others with restrictions, and the
-	// sheet fits comfortably inside.
+	// The note at full size, as the picture measures it.
 	const int NOTE_WIDTH = 300;
 	const int NOTE_HEIGHT = 400;
 
-	// Two panels side by side: on the left the sheet with the text, on the
-	// right the same without - only the front is written on. The gap is
-	// generous enough that no texel of one panel bleeds into the other.
+	// The baked texture, a power of two because WebGL 1 restricts the others.
+	// Two panels side by side: the sheet with the text at the left, the same
+	// sheet unwritten at BACK_PANEL_X as its back, far enough apart that no
+	// texel of one bleeds into the other. TEXT_* place the writing.
 	const int NOTE_TEXTURE_W = 1024;
 	const int NOTE_TEXTURE_H = 512;
 	const int BACK_PANEL_X = 512;
@@ -29,46 +27,35 @@ namespace
 	const int SHADOW_OFFSET = 5;
 	const float SHADOW_ALPHA = 0.3f;
 
-	// How the note rolls up. ROLL_LENGTH is the fraction of the sheet that is
-	// rolled in at the top and the bottom while it flies in; ROLL_TURNS how
-	// far it winds itself up in the process.
-	//
-	// Together the two fix the radius: ROLL_LENGTH * NOTE_HEIGHT /
-	// (ROLL_TURNS * 2 * PI). A fatter bead at half a turn therefore means
-	// rolling up more paper. 0.30 leaves the middle 40% of the sheet flat and
-	// makes the radius 38 pixels.
-	//
-	// Half a turn is the limit, and that is not a matter of taste: up to there
-	// every piece of paper on its way outward comes nearer to the viewer; the
-	// roll can therefore be drawn back to front and covers itself correctly.
-	// Beyond that the end would come round to the rear again, and without a
-	// depth buffer - which this pass does not have - it would still lie on top.
+	// ROLL_LENGTH is the fraction of the sheet rolled in at the top and at
+	// the bottom while the note flies in, ROLL_TURNS how far each roll winds.
+	// Fully rolled, the middle 40% is flat and the radius is 38 pixels:
+	// ROLL_LENGTH * NOTE_HEIGHT / (ROLL_TURNS * 2 * PI). Half a turn is a hard
+	// limit, not taste: up to there the depth changes monotonically along
+	// each roll, so drawing it in order paints it back to front. Beyond it
+	// the end curls round behind again, and with no depth test it would be
+	// drawn on top.
 	const float ROLL_LENGTH = 0.30f;
 	const float ROLL_TURNS = 0.50f;
 
-	// How fine. The rolls get the subdivision, the flat middle needs none:
-	// there is nothing to curve there.
+	// Bands per roll. The flat middle is a single band.
 	const int ROLL_BANDS = 48;
 
-	// Focal length in pixels, for the perspective divide done by hand: what
-	// lies nearer the viewer gets bigger. Without it the roll would be nothing
-	// but a squashed strip.
+	// Focal length in pixels for the perspective divide done by hand, which
+	// is what makes the roll read as a cylinder and not a squashed strip.
 	const float PERSPECTIVE = 700.0f;
 
-	// And how far to the left of the axis the viewer stands. What comes
-	// towards them therefore moves right - the slant the 16x16 sprite has as
-	// well. The offset is e * (f - 1), which is what a laterally displaced eye
-	// sees, and zero in the plane of the sheet (f = 1): the flat note stays
-	// pixel on pixel.
+	// How far left of the axis the eye stands, so that what comes towards it
+	// moves right - the slant the 16x16 sprite has. The shift is
+	// VIEW_OFFSET_X * (f - 1), zero in the plane of the sheet (f = 1), so the
+	// flat note stays pixel on pixel.
 	const float VIEW_OFFSET_X = 300.0f;
 
 	const float PI = 3.1415926535897932384626433832795f;
 
-	// How bright the paper stands where it shows the viewer its edge. What
-	// counts is the surface normal, not the angle of rotation: on the back you
-	// are looking at the other face, whose normal points back at the viewer,
-	// hence |cos| and not cos. Fully turned towards them is 1.0, front and
-	// back alike.
+	// Brightness of the paper seen edge-on, rising to 1 where it faces the
+	// viewer. |cos| and not cos: past the quarter turn the viewer sees the
+	// back, whose normal faces them again.
 	const float SHADE_EDGE = 0.75f;
 
 	// When the note unrolls and how long it takes, both in logic ticks from
@@ -77,11 +64,9 @@ namespace
 	const int UNROLL_START = 20;
 	const int UNROLL_END = 40;
 
-	// How fast a rustle goes when its motion is cut short. The slide is
-	// exponential, once per logic tick, and the speed is the fraction of the
-	// way left covered each tick: at 0.3 the volume halves every two ticks,
-	// is inaudible after seven - 140 ms - and the slide ends by the
-	// thirteenth.
+	// How fast a rustle fades when its motion is cut short: the fraction of
+	// the remaining volume taken off each logic tick. At 0.3 it halves every
+	// two ticks, is inaudible after seven (140 ms) and ends by the thirteenth.
 	const float SCROLL_FADE_SPEED = 0.3f;
 
 	// On leaving, the note rolls up again at the same speed it opened at. It
@@ -92,12 +77,13 @@ namespace
 	// half a pixel over the screen diagonal of 800.
 	const float SNAP_RESIDUAL = 0.5f / 800.0f;
 
-	// How far along the flight the note fades in and out; from there it is
-	// fully opaque. Transparent paper with an opaque, unwritten back
-	// contradicts itself, and there is nothing to see through it anyway.
+	// How far along the flight the note fades in and out; beyond that it is
+	// opaque, since transparent paper with an opaque, unwritten back would
+	// contradict itself.
 	const float FADE_UNTIL = 0.5f;
 
-	// A point on the paper. py runs from 0 (top edge) to NOTE_HEIGHT.
+	// A point on the paper, as rollPoint() finds it for py, which runs from 0
+	// (top edge) to NOTE_HEIGHT.
 	struct NotePoint
 	{
 		float y;       // position in the picture, from the note's centre
@@ -175,12 +161,10 @@ Hint::Hint(Level& level,
 
 Hint::~Hint()
 {
-	// onRemove() is the usual way and the only one the browser has, where no
-	// destructor runs; this is the second belt, since handing the texture back
-	// must not hang on one hook. Reaching the Engine from a destructor is safe
-	// only because releaseNoteTexture() bails out where nothing is borrowed: a
-	// note that holds one belongs to a running level, and that level is a local
-	// of main(), which falls before the static Engine.
+	// onRemove() normally hands the texture back; this is the second belt.
+	// Reaching the Engine from here is safe: releaseNoteTexture() returns at
+	// once when nothing is borrowed, the Engine is a static that outlives
+	// every level, and a hand-back after Engine::exit finds the pool empty.
 	releaseNoteTexture();
 }
 
@@ -195,11 +179,10 @@ void Hint::fadeScrollSound()
 {
 	if(!p_scrollSound) return;
 
-	// Slid to zero and not to a negative target, which would pause it at the
-	// end: a paused instance is never AL_STOPPED, so nothing reaps it and it
-	// would hold an audio source for the rest of the level. At zero it plays
-	// itself out inaudibly and goes the ordinary way. The pointer is dropped
-	// either way - the fade is the last thing the note has to do with it.
+	// To zero, not to a negative target, which would pause it at the end: a
+	// paused instance never reaches AL_STOPPED, so nothing reaps it and it
+	// holds an audio source for the rest of the level. At zero it plays out
+	// inaudibly and is reaped as usual.
 	if(Sound::isLiveInstance(p_scrollSound)) p_scrollSound->slideVolume(0.0f, SCROLL_FADE_SPEED);
 	p_scrollSound = 0;
 }
@@ -225,9 +208,8 @@ void Hint::bakeNote(const std::string& inLanguage)
 	const std::string wanted = p_font->adjustText(localized, TEXT_WIDTH);
 	if(noteTexture && wanted == bakedText) return;
 
-	// Its own texture, not a shared one: on the step from one note to its
-	// neighbour both are visible, and the one must not draw into the sheet the
-	// other is reading from.
+	// A texture of its own: stepping from one note to the next shows both,
+	// and one must not bake into the sheet the other is drawn from.
 	const Vec2i size(NOTE_TEXTURE_W, NOTE_TEXTURE_H);
 	const uint target = noteTexture ? noteTexture : engine.acquireOffscreenTexture(size);
 	if(!target) return;
@@ -240,18 +222,16 @@ void Hint::bakeNote(const std::string& inLanguage)
 
 	Renderer::inst().clear(Vec4f(0.0f, 0.0f, 0.0f, 0.0f));
 
-	// The alpha channel has to be right, because the texture is itself blended
-	// again in a moment: the colour arrives weighted (GL_SRC_ALPHA), the alpha
-	// unweighted (GL_ONE). What comes out is premultiplied - and that is
-	// exactly how it is drawn again below.
+	// The texture is blended again when drawn, so its alpha must be right:
+	// the colour arrives weighted by source alpha, the alpha unweighted. The
+	// result is premultiplied, which is how renderNote() draws it.
 	Renderer::inst().setBlend(BM_BAKE);
 
 	Renderer::inst().setTexture(p_sprite->ref());
 	engine.renderSprite(Vec2i(0, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4f(1.0f));
 
-	// The same sheet once more beside it, this time without the text: that is
-	// the back. Nothing is mirrored - the paper curls about a horizontal axis,
-	// and left stays left.
+	// The same sheet again without the text: the back. Not mirrored, since
+	// the paper curls about a horizontal axis and left stays left.
 	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4f(1.0f));
 
 	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4f(1.0f));
@@ -267,11 +247,11 @@ void Hint::renderNoteMesh(const RenderState& state,
 						  const Vec4f& color,
 						  float unroll) const
 {
-	// Back to front, the only order there is without a depth buffer. The
-	// bottom roll goes away to the rear, its outer end therefore lying
-	// furthest back; the top one comes forward. Each splits at the quarter
-	// turn into a front and a back section, and the seam has to fall on a
-	// vertex - or one quad would drag its texture across both panels.
+	// Back to front, since nothing depth-tests: the bottom roll curls away,
+	// so its outer end comes first, and the top roll curls forward, so its
+	// outer end comes last. Each roll splits at the quarter turn into a front
+	// and a back section, and the seam must fall on a vertex, or one band
+	// would stretch its texture across both panels.
 	const float uWidth = static_cast<float>(NOTE_WIDTH) / NOTE_TEXTURE_W;
 	const float uBack = static_cast<float>(BACK_PANEL_X) / NOTE_TEXTURE_W;
 	const float rolled = ROLL_LENGTH * NOTE_HEIGHT * (1.0f - unroll);
@@ -294,10 +274,9 @@ void Hint::renderNoteMesh(const RenderState& state,
 	sections[3][0] = flatTop;             sections[3][1] = flatTop - half;    steps[3] = ROLL_BANDS / 2; back[3] = false;
 	sections[4][0] = flatTop - half;      sections[4][1] = 0.0f;               steps[4] = ROLL_BANDS / 2; back[4] = true;
 
-	// Each band of the strip is two triangles, split as a triangle strip
-	// splits them - from the left edge of one row to the right edge of the
-	// next - because a band is a trapezoid whose texture is not affine
-	// across it, and the diagonal shows.
+	// Two triangles a band, split as a triangle strip splits them, so every
+	// diagonal runs the same way: a band is a trapezoid whose texture is not
+	// affine across it, and the diagonal shows.
 	Renderer& renderer = Renderer::inst();
 	std::vector<Vertex> triangles;
 	for(int section = 0; section < NUM_SECTIONS; section++)
@@ -319,10 +298,9 @@ void Hint::renderNoteMesh(const RenderState& state,
 			const float x = 0.5f * NOTE_WIDTH * f;
 			const float y = np.y * f;
 			const float dx = VIEW_OFFSET_X * (f - 1.0f);
-			// The other way round: drawing used (0,0) at the TOP left, and a
-			// texture starts at the bottom. In the texture the note stands
-			// upside down, exactly like the game's own frame in the
-			// framebuffer object.
+			// Flipped: the bake drew with (0,0) at the top left, and a
+			// texture starts at the bottom, so the note stands upside down in
+			// it, as the game's frame does in the framebuffer object.
 			const float t = 1.0f - py / NOTE_TEXTURE_H;
 
 			// Premultiplied: the colour already carries the alpha in itself,
@@ -381,32 +359,26 @@ void Hint::onRender(RenderLayer layer,
 		float s = i;
 		float a = clamp(i / FADE_UNTIL, 0.0f, 1.0f);
 
-		// RL_HINT_PREVIEW is the preview in the level editor: fully unrolled, centred.
-		// That is a display matter and must not change targetPosition -
-		// otherwise the note points somewhere else in the game afterwards.
+		// RL_HINT_PREVIEW is the level editor's preview: opaque, unrolled and
+		// centred, without touching targetPosition, which the game still uses.
 		//
-		// The note comes rolled up only where the picture is a sheet of paper -
-		// the space skin shows a display panel, and that does not roll. 1.0
-		// means flat: then both rolls drop out of renderNoteMesh() and leave
-		// the single quad.
+		// Only paper rolls (Level::isHintScroll()). A panel, as the space skin
+		// shows, is drawn at 1.0, where both rolls drop out of the mesh.
 		Vec2i target = targetPosition;
 		float shownUnroll = level.isHintScroll() ? unroll : 1.0f;
 		if(layer == RL_HINT_PREVIEW) a = 1.0f, r = 0.0f, i = 1.0f, s = 1.0f, target = Vec2i(320, 200), shownUnroll = 1.0f;
 
-		// Arrived means exactly arrived: shownAlpha only approaches 0.85, and
-		// scale, angle and position would stay fractions off for ever, with
-		// GL_LINEAR mixing every texel of the baked text out of two. Below
-		// SNAP_RESIDUAL they are therefore rounded to exactly 1, exactly 0 and
-		// exactly targetPosition - which is a Vec2i, and the corners of the
-		// strip in renderNoteMesh() are whole numbers anyway.
+		// shownAlpha only approaches 0.85, so scale, angle and position would
+		// stay a fraction off for ever and GL_LINEAR would mix every texel of
+		// the text out of two. Under SNAP_RESIDUAL they snap to exactly 1, 0
+		// and targetPosition, a Vec2i; the mesh's corners are whole numbers.
 		if(1.0f - i < SNAP_RESIDUAL) i = 1.0f, s = 1.0f, r = 0.0f;
 
 		// a, and not shownAlpha: the editor forces a to 1 above and drives
 		// shownAlpha not at all, since it never runs Level::update().
 		if(a > 1.0f / 255.0f)
 		{
-			// Sheet and writing bake into one texture, so the writing turns and
-			// rolls up with the paper; re-made whenever the text changes.
+			// Does nothing while the baked text is still the one wanted.
 			bakeNote(layer == RL_HINT_PREVIEW ? previewLanguage : "");
 
 			Renderer& renderer = Renderer::inst();
@@ -437,31 +409,27 @@ void Hint::onUpdate()
 	Object* p_obj = level.getFrontObjectAt(position);
 	const bool playerIsHere = (p_obj == level.getActivePlayer());
 
-	// A player who walks away has no longer dismissed the note: it opens
-	// again the next time the field is stepped onto.
+	// Walking away ends a dismissal: the note opens again on the next visit.
 	if(!playerIsHere) dismissed = false;
 	const bool open = playerIsHere && !dismissed;
 
-	// The target is decided once, in the tick the note opens. Any later look
-	// at the player position would make it jump to the other side of the
-	// screen as the player steps off the field - exactly while it is
-	// disappearing. Not in onCollect(): that only runs once the player stands
-	// at the centre, and by then the note is already on its way.
+	// The target is decided once, in the tick the note opens: decided later,
+	// it would jump to the other side of the screen as the player steps off
+	// the field. Not in onCollect(), which runs only once the player stands
+	// at the centre, when the note is already on its way.
 	if(open && activeTicks == 0)
 	{
 		updateTargetPosition();
 
 		// No pitch spread: it would draw from the level's generator and shift
-		// every random number after it, and the note is one event, not a
-		// dozen blocks landing at once.
+		// every random number after it.
 		Engine::inst().playSound("hint.ogg", false, 0.0f, 100);
 	}
 
-	// The unrolling runs by the clock and not by shownAlpha: that only
-	// approaches its target and would never quite arrive, leaving the note a
-	// little rolled up for ever. A closed note rolls up first, at the speed
-	// it opened at - where there is paper to roll. The panel of a skin
-	// without the marker has nothing to roll and goes the moment it closes.
+	// By the clock and not by shownAlpha, which never quite arrives and would
+	// leave the note a little rolled up for ever. A closed note rolls up
+	// first, at the speed it opened at, where there is paper to roll; a panel
+	// has nothing to roll and goes the moment it closes.
 	if(open) { if(activeTicks < UNROLL_END) activeTicks++; }
 	else if(level.isHintScroll()) { activeTicks = max(0, activeTicks - ROLL_UP_SPEED); }
 	else { activeTicks = 0; }
@@ -469,14 +437,10 @@ void Hint::onUpdate()
 	unroll = clamp(static_cast<float>(activeTicks - UNROLL_START) /
 				   (UNROLL_END - UNROLL_START), 0.0f, 1.0f);
 
-	// The paper's motion this tick, and the rustle that goes with it: one
-	// when the paper sets off unrolling, one when it sets off rolling up,
-	// whichever way it was moving before. A motion cut short - the note
-	// closed under the unrolling, the player back on the field under the
-	// roll-up - takes its rustle with it, quickly; one that runs to its end
-	// lets the rustle play out. Only where there is paper: a skin without
-	// the hintscroll.txt marker shows a display panel, drawn flat
-	// (onRender), and that makes no sound.
+	// A rustle each time the paper sets off, unrolling or rolling up. A
+	// motion cut short (closed while unrolling, reopened while rolling up)
+	// fades its rustle quickly; one that runs to its end lets it play out.
+	// Only paper rustles: a panel (no hintscroll.txt) is drawn flat.
 	const int direction = unroll > before ? 1 : unroll < before ? -1 : 0;
 	if(direction != scrollDirection)
 	{
@@ -488,8 +452,8 @@ void Hint::onUpdate()
 		scrollDirection = direction;
 	}
 
-	// Roll up first, then disappear - hence the rolling above. While anything
-	// is still left to roll up, the note stays fully visible and in place.
+	// Roll up first, then disappear: while anything is left to roll up, the
+	// note stays fully visible and in place.
 	alpha = (open || unroll > 0.0f) ? 0.85f : 0.0f;
 	shownAlpha = 0.15f * alpha + 0.85f * shownAlpha;
 	if(shownAlpha <= 1.0f / 255.0f)
@@ -516,17 +480,15 @@ void Hint::updateTargetPosition()
 
 void Hint::onCollect(Player* p_player)
 {
-	// Deliberately empty, and that is the only reason it is here at all:
-	// Object::onCollect() would make the note disappear. It stays lying there
-	// and can be read again.
+	// Deliberately empty: Object::onCollect() would make the note disappear,
+	// and it stays to be read again.
 }
 
 bool Hint::dismiss()
 {
-	// Only when there is anything to see at all. Otherwise the note reports
-	// nothing and Escape opens the game menu as always. activeTicks rather
-	// than shownAlpha, because the note is still fading out between two
-	// visits - and that is nothing anybody could close.
+	// Only when the note is showing something; otherwise Escape goes on to
+	// the game menu. activeTicks rather than shownAlpha, which is still
+	// fading out after a visit, when there is nothing to close.
 	if(dismissed || activeTicks <= 0) return false;
 
 	dismissed = true;

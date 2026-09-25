@@ -25,15 +25,14 @@ public:
 	INLINE_GETTER(std::string, getTitle, title);
 	INLINE_SETTER(std::string, setTitle, title);
 	INLINE_GETTER(bool, isChecked, checked);
-	// check() is the user's click: it fires the changed signal. setChecked()
-	// is the display catching up and does not - refreshing a display is
-	// not an input.
+	// check() is the user's click and fires changed. setChecked() is the
+	// display catching up and does not: a refresh is not an input, and a
+	// handler would take it for one.
 	//
-	// Only checked, never newChecked: newChecked is the click in flight. It
-	// is written in onMouseDown and read in onMouseUp, and a frame passes in
-	// between. Clobbering it here swallows the click that is pressed and not
-	// yet released - in the level editor that looks like the electricity
-	// switching itself straight back off.
+	// setChecked() touches only checked. newChecked is the click in flight,
+	// set in onMouseDown and read in onMouseUp, and the level editor calls
+	// setChecked() every tick in between: overwriting it would swallow the
+	// click.
 	void check(bool check);
 	void setChecked(bool check) { checked = check; }
 

@@ -81,13 +81,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getDetails() == 1) static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->setChecked();
 	else if(engine.getDetails() == 2) static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->setChecked();
 
-	// The upscale filter. All four are always there - every one of them works
-	// on every machine the game starts on at all - so the four radio buttons
-	// and the CRT settings button keep the places options.xml gives them, and
-	// this has only to tick the one in use.
-	//
-	// The radio button is named after the filter: "Options." + getName() is
-	// not a convenience but the one place that spells that mapping out.
+	// The upscale filter. All four exist wherever the game starts at all, so
+	// options.xml's layout stands and only the one in use is ticked. Each
+	// radio button is named after its filter's getName(); nothing else maps
+	// one to the other.
 	static_cast<GUI_RadioButton*>(getChild(
 		std::string("Options.") + engine.getUpscaler()->getName()))->setChecked();
 
@@ -107,8 +104,9 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0f * crt.getConvergence()));
 	getChild("CrtOptions")->hide();
 
-	// Start with no selection. setSelection() reports only a real change: if
-	// it already stood at -1, the branch below does not run.
+	// Start with no selection, and reset the key buttons by hand:
+	// setSelection() reports only a real change, and handleClick() ignores
+	// everything while the dialog is hidden.
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->setSelection(-1);
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->setTitle("");
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->setTitle("");
@@ -124,21 +122,19 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 
 void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 {
-	// A repeat is not a second command. That shows above all while the dialog
-	// is waiting for a key for an action: the Escape cancels the wait, and the
-	// repeat after it would close the dialog straight away.
+	// A repeat is not a second command: after an Escape that ends a key grab,
+	// its repeat would otherwise close the dialog straight away.
 	if(event.type == SDL_KEYDOWN && isVisible() && !GUI::inst().isKeyRepeat())
 	{
 		const SDLKey key = event.keysym.sym;
 		if(key == SDLK_ESCAPE || isReturnKey(key))
 		{
-			// The key is spent here. The game states ask Engine::wasKeyPressed()
-			// alongside, and GUI::update() runs first - or the main menu would
-			// see the same Escape and quit the game.
+			// Spent here: the game states ask Engine::wasKeyPressed() after
+			// GUI::update(), and the main menu would quit on the same Escape.
 			Engine::inst().consumeKeyPress(key);
 
-			// The CRT settings window lies on top, and the key therefore belongs
-			// to it first. It has only OK - both keys close it.
+			// The CRT settings window lies on top and gets the key first. Its
+			// only button is OK, so both keys close it.
 			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.Close"));
 			else if(key == SDLK_ESCAPE)             handleClick(getChild("Options.Cancel"));
 			else                                    handleClick(getChild("Options.OK"));
@@ -168,9 +164,8 @@ void Options::applyKeyGrab(int key)
 
 	Engine& engine = Engine::inst();
 
-	// GRAB_TIMED_OUT means nothing was pressed and the binding is left alone.
-	// GRAB_NO_KEY - Escape - clears it; that is the only way to leave an action
-	// unbound.
+	// GRAB_TIMED_OUT leaves the binding alone. GRAB_NO_KEY - Escape - clears
+	// it, the only way to leave an action unbound.
 	const Action* p_action = engine.getAction(what);
 	if(key != Engine::GRAB_TIMED_OUT && p_action)
 	{
@@ -204,8 +199,7 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->isChecked()) engine.setDetails(1);
 		else if(static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->isChecked()) engine.setDetails(2);
 
-		// Save the upscale filter. It takes effect at once: the next frame
-		// already reaches the screen through the new filter.
+		// Save the upscale filter. It takes effect with the next frame.
 		const std::vector<Upscaler*>& upscalers = engine.getUpscalers();
 		for(std::vector<Upscaler*>::const_iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 		{
@@ -266,8 +260,7 @@ void Options::handleClick(GUI_Element* p_element)
 				const Action& action = *(actions[selection]);
 
 				// Already localized, and an unassigned key says so itself, so
-				// what goes on the button is the finished text - "Links" and
-				// not "Keyboard left".
+				// the name goes on the button as it is.
 				p_primary->setTitle(engine.getVKDisplayName(action.primary));
 				p_secondary->setTitle(engine.getVKDisplayName(action.secondary));
 				p_primary->activate();
@@ -281,10 +274,8 @@ void Options::handleClick(GUI_Element* p_element)
 			int selection = p_actions->getSelection();
 			if(selection != -1)
 			{
-				// The button itself says what it is waiting for, and the wait runs
-				// alongside from now on: onUpdate() picks up the result as soon as
-				// it is there. What is held on to is the action's name, not its
-				// number.
+				// The button says it is waiting, and onUpdate() picks up the
+				// result. The action is held by its name, not its number.
 				static_cast<GUI_Button*>(p_element)->setTitle("$O_PRESS_KEY");
 
 				grabButton = name;

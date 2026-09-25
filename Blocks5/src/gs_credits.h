@@ -47,18 +47,17 @@ private:
 	Vec3f cameraDir;
 	std::list<Star> stars;
 
-	// The stars' corners, baked once a frame and handed to the renderer in
-	// one draw. Kept rather than built on the stack so that the four hundred
-	// quads are allocated once and not once a frame.
+	// The stars' corners, rebuilt every frame and drawn in one call; a member
+	// so that their storage is allocated once.
 	std::vector<Vertex3> starVertices;
 
 	uint bufferID;
 	int speed;
 
-	// The full ending, or the names alone: gs_credits.cpp decides in onEnter
-	// and the three numbers below are laid out from it - what the blocks that
-	// are shown move up by, when the fade to black begins, and when the state
-	// hands back to the menu. All three in seconds, as the block table is.
+	// The full ending, or the names alone, decided in onEnter. shift moves the
+	// shown blocks earlier, fadeAt is when the fade to black begins and endAt
+	// when the state hands back to the menu; all in seconds, as the block
+	// table is.
 	bool full;
 	float shift;
 	float fadeAt;

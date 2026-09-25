@@ -15,9 +15,8 @@ namespace
 	// The time scale of the video track, as mp4_h26x_write_init creates it.
 	const uint k_videoTimeScale = 90000;
 
-	// H.264 works in 16x16 macroblocks, and minih264 demands that width and
-	// height divide evenly. The game runs at 640x480, which fits; any other
-	// resolution is rounded down to the next smaller multiple.
+	// minih264 needs width and height in whole 16x16 macroblocks. 640x480
+	// fits; any other size is rounded down.
 	inline int roundDownTo16(int value)
 	{
 		return value & ~15;
@@ -228,12 +227,11 @@ int VideoRecorderImpl::threadProc()
 
 		H264E_run_param_t runParam;
 		memset(&runParam, 0, sizeof(runParam));
-		// 16 would be near lossless and pure waste on a still picture: the
-		// rate control never reaches its limit there, the encoder sits at the
-		// floor, and the menu cost 1976 kbit/s for 46.7 dB. At 22 it is 866
-		// for 41.7 dB, and zoomed in there is no visible difference between
-		// the two. On a moving picture the value changes nothing at all:
-		// there the rate control picks about 25 anyway.
+		// On a still picture the rate control never reaches its limit and the
+		// encoder sits at qp_min: measured on the menu, 16 costs 1976 kbit/s
+		// for 46.7 dB and 22 costs 866 for 41.7 dB, with no visible
+		// difference. A moving picture gets about 25 from the rate control
+		// either way.
 		runParam.qp_min = 22;
 		runParam.qp_max = 42;
 		runParam.desired_frame_bytes = videoBitrate / 8 / (fps ? fps : 30);
@@ -328,20 +326,14 @@ VideoRecorder::VideoRecorder(const std::string& videoFilename,
 	memset(&createParam, 0, sizeof(createParam));
 	createParam.width = p_impl->encodedSize.x;
 	createParam.height = p_impl->encodedSize.y;
-	// A key frame every four seconds. Longer is not a matter of quality: where
-	// the bitrate is the constraint, the length changes nothing (measured
-	// 40.86 to 40.97 dB from one second to eight), and where the quantization
-	// is the constraint, the file merely gets smaller. What the length costs
-	// is the seek granularity - a player can only jump to a key frame.
+	// A key frame every four seconds. The interval hardly touches quality
+	// (measured 40.86 to 40.97 dB from one second to eight); what a longer one
+	// costs is seeking, since a player can only jump to a key frame.
 	createParam.gop = p_impl->fps * 4;
-	// The buffer the rate control hangs on - one second. Without it the rate
-	// control is open: at vbv_size_bytes == 0 minih264 skips both branches
-	// that claw an outlier back afterwards, and desired_frame_bytes is then
-	// only a starting value per frame that a single frame may exceed up to
-	// sixteenfold. Measured on a level with rain, snow, a thunderstorm and a
-	// laser, twenty seconds of it, 616 frames either way: unset the video
-	// comes out at 3073 kbit/s against the 2840 asked for, and with the buffer
-	// at 2849 - an overshoot of 8.2% against one of 0.3%.
+	// A one-second buffer for the rate control. At vbv_size_bytes == 0
+	// minih264 never pulls an outlier back, and one frame may exceed
+	// desired_frame_bytes sixteenfold: measured over twenty seconds of a busy
+	// level, 3073 kbit/s against the 2840 asked for without it, 2849 with it.
 	createParam.num_layers = 1;
 	createParam.vbv_size_bytes = videoBitrate / 8;
 	createParam.max_threads = 0;

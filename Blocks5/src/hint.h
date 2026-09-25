@@ -37,13 +37,12 @@ private:
 	// visible - see onUpdate().
 	void updateTargetPosition();
 
-	// Draw note and text together into one texture. After that the writing is
-	// part of the paper: it flies with it, turns with it and rolls up with it,
-	// instead of appearing on top at the end. inLanguage picks the text's
-	// language, "" the active one.
+	// Draws sheet and text together into one texture, so the writing flies,
+	// turns and rolls with the paper. inLanguage picks the text's language,
+	// "" the active one.
 	void bakeNote(const std::string& inLanguage);
 
-	// The paper as a strip of quads: flat in the middle, rolled up at the top
+	// The paper as a strip of bands: flat in the middle, rolled up at the top
 	// and at the bottom. unroll runs from 0 (fully rolled up) to 1 (flat).
 	void renderNote(const Vec4f& color, float unroll) const;
 	void renderNoteMesh(const RenderState& state, const Vec4f& color, float unroll) const;
@@ -55,10 +54,9 @@ private:
 	Texture* p_sprite;
 	Vec2i targetPosition;
 
-	// The baked texture together with the text it belongs to. It is borrowed
-	// from the Engine and goes back as soon as the note is no longer visible -
-	// otherwise every note ever stepped on would hold on to a whole screen
-	// texture.
+	// The baked texture and the text baked into it. Borrowed from the Engine's
+	// pool and handed back once the note is invisible, or every note ever
+	// stepped on would keep a 1024x512 texture.
 	uint noteTexture;
 	std::string bakedText;
 	std::string previewLanguage;
@@ -70,18 +68,16 @@ private:
 	float unroll;
 	int activeTicks;
 
-	// The rustle of the paper in motion, held only to fade it out when the
-	// motion it belongs to is cut short. Sound deletes an instance the moment
-	// it has played out, so Sound::isLiveInstance() is asked before the
-	// pointer is used. scrollDirection is the paper's motion in the last
-	// tick: 1 unrolling, -1 rolling up, 0 at rest.
+	// The rustle, held only to fade it when its motion is cut short. Sound
+	// deletes an instance once it has played out, so Sound::isLiveInstance()
+	// is asked before the pointer is used. scrollDirection is the paper's
+	// motion in the last tick: 1 unrolling, -1 rolling up, 0 at rest.
 	SoundInstance* p_scrollSound;
 	int scrollDirection;
 	void fadeScrollSound();
 
-	// Dismissed even though the player is still standing on the field. Holds
-	// until they leave it - otherwise the note would open again on the next
-	// tick and the key would have done nothing.
+	// Dismissed with the player still on the field. Holds until they leave,
+	// or the note would open again on the next tick.
 	bool dismissed;
 };
 

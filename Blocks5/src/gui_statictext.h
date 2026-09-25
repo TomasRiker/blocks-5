@@ -12,20 +12,17 @@ public:
 	~GUI_StaticText();
 
 	void onRender();
-	// for="Name" is available on any element (see GUI_Element). A text brings
-	// only what nobody else needs: w or h at -1 means "as large as the text
-	// that is drawn". That is the right thing to give a label - a hand-written
-	// width would be a guess and wrong in the other language. Without w/h (0)
-	// the text is never hit, and that stays the default.
+	// for="Name" works on any element (see GUI_Element). What a text adds is
+	// w or h at -1, "as large as the text that is drawn", which is what a
+	// label wants: a hand-written width would be wrong in the other language.
+	// Without w/h (0) the text is never hit, and that stays the default.
 	bool containsPoint(const Vec2i& position);
 	INLINE_GETTYPE("GUI_StaticText");
 
-	// The text as it reaches the screen - localized, its bindings expanded
-	// and wrapped to the element's width - and how big that is. Three callers
-	// need the same answer and a second copy of the rule would be a second
-	// answer: the render, the hit test, and the test hook, which reports the
-	// size so that a page grown out of the box it stands in is a failed
-	// assertion rather than something somebody notices in a screenshot.
+	// The text as it reaches the screen - localized, its bindings expanded,
+	// wrapped to the element's width - and how big that is. One rule for the
+	// render, the hit test and the test hook, which reports the size so that
+	// a page grown out of its box fails an assertion.
 	std::string getDrawnText();
 	Vec2i measureDrawnText();
 
