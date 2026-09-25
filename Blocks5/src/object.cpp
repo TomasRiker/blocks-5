@@ -10,45 +10,30 @@
 #include "font.h"
 
 // How brightly an object that has called flash() lights up, and how fast that
-// dies away again. The decay is that of the flash in Level::update(): a
-// fifth less per logic tick, off below 1/256 - 25 ticks, half a second. Both
-// are a matter of taste, which is why they live here. extern, because the
-// HUD icons light up with the same numbers.
+// dies away: the decay of Level::update()'s flash, a fifth less per tick and
+// off below 1/256 - 25 ticks, half a second. Both are taste. extern, because
+// the HUD icons light up with the same numbers.
 extern const float FLASH_STRENGTH = 1.0f;
 extern const float FLASH_DECAY = 0.8f;
 
-// The flight a collected item makes towards whoever took it. It rides on the
-// fade that was already there - disappear(0.2f), ten ticks - so nothing new
-// is counted, and it moves the shown position alone: the item was taken the
-// moment onCollect() returned, and none of this is read by anything that
-// decides anything.
-//
-// All three are a matter of taste, and which way to turn them: EASE is the
-// power the flight is eased with, 1 being a straight line and higher hanging
-// longer where the item lay before arriving faster; SHRINK is how much of its
-// size it has left at the end; SPIN is the turn it makes on the way, in
-// degrees, and 0 is none.
+// The flight a collected item makes to whoever took it. It rides on the fade
+// disappear(0.2f) already runs, ten ticks, and moves the shown position
+// alone, which nothing that decides anything reads. All three are taste: EASE
+// is the power the flight is eased with, 1 a straight line and higher
+// lingering where the item lay before arriving faster; SHRINK is the share of
+// its size left at the end; SPIN is the turn on the way, in degrees.
 const float COLLECT_EASE = 2.0f;
 const float COLLECT_SHRINK = 0.4f;
 const float COLLECT_SPIN = 180.0f;
 
-// Where a beam is drawn, against where its emitter traced it. Laser and
-// LightBarrierSender both start at getShownPositionInPixels() + 7.5, the
-// centre of pixel 7 - but a 16-pixel cell has its centre on the boundary
-// between pixels 7 and 8, and that is the line the art is drawn about: the
-// laser's ruby has its two strong columns at 7 and 8, and the light barrier's
-// lens is symmetric to the pixel about the same boundary, in every shipped
-// skin. A quad is rasterised by whether a pixel's centre lies inside it, so a
-// line centred half a pixel to the left of that boundary lights column 7 and
-// not column 8 - which is why the beam looked as if it left the emitter beside
-// its ruby rather than out of it.
-//
-// The traced points cannot move: the hit test reads them. So the drawing adds
-// this, and once a beam is centred on the boundary every cross-width is an
-// even number of pixels. That is not tidiness: at that centre an odd width
-// puts its two edges exactly on two pixel centres, where the fill rule decides
-// what is lit, and a width below one pixel passes between two centres and
-// draws nothing at all.
+// Added to a beam's traced points when it is drawn. Laser and
+// LightBarrierSender trace from getShownPositionInPixels() + 7.5, the centre
+// of pixel 7, but the emitters' art (the laser's ruby, the light barrier's
+// lens) is symmetric about the cell's centre line between pixels 7 and 8 in
+// every shipped skin. The traced points cannot move, since the hit test reads
+// them. Centred on that boundary, every cross-width must be an even number of
+// pixels: an odd width puts both edges on pixel centres, where the fill rule
+// decides, and a width below one pixel lights nothing.
 extern const float BEAM_DRAW_OFFSET = 0.5f;
 
 // What is left to see of a block at the end of the conversion. Not 0: it is
@@ -110,9 +95,7 @@ void Object::render(RenderLayer layer,
 					const Vec2i& offset,
 					const Vec4f& color)
 {
-	// The block of a running conversion goes pale. CONVERSION_GHOST is what is
-	// left of it: it must not disappear entirely, because it can be pushed
-	// right up to the last moment.
+	// A block being converted fades towards CONVERSION_GHOST.
 	const float converting = 1.0f - conversionProgress * (1.0f - CONVERSION_GHOST);
 	Vec4f realColor(color.r, color.g, color.b, color.a * deathCountDown * converting);
 
@@ -161,25 +144,20 @@ void Object::render(RenderLayer layer,
 			}
 			else if(collectFlight)
 			{
-				// deathCountDown is the clock: 1 where the item was taken and
-				// 0 where it has gone, so 1 - it is how far along the flight
-				// is. The fade rides on the same number a few lines above,
-				// which is what ties the two halves together without counting
-				// anything twice.
-				// Written out rather than clamp()ed: that one returns a
-				// reference to whichever argument won, and handing it a
-				// temporary is a line nobody should have to think about.
-				// deathCountDown starts at 0.9999, so only the top end can
-				// be passed, by the tick that takes it below zero.
+				// deathCountDown runs from 1 where the item was taken to 0
+				// where it has gone, so 1 - it is how far along the flight is;
+				// the fade above reads the same number. It starts at 0.9999,
+				// so only the top end can be passed, by the tick that takes it
+				// below zero. Not clamp(): it returns a reference to whichever
+				// argument won, here a temporary.
 				float t = 1.0f - deathCountDown;
 				if(t > 1.0f) t = 1.0f;
 				const float e = powf(t, COLLECT_EASE);
 				const Vec2f d = (collectTarget - shownPosition) * 16.0f * e;
 				const float f = 1.0f - (1.0f - COLLECT_SHRINK) * e;
 
-				// About the middle of the cell and not the corner the matrix
-				// stands on, or the item would swing away from the player it
-				// is being drawn into rather than turning where it flies.
+				// About the cell's centre, not the matrix's corner, so the
+				// item turns where it flies instead of swinging away.
 				renderer.translate(d.x, d.y);
 				renderer.translate(8.0f, 8.0f);
 				renderer.rotate(e * COLLECT_SPIN);
@@ -191,16 +169,12 @@ void Object::render(RenderLayer layer,
 
 	onRender(layer, realColor);
 
-	// The flash, additive. The sprite colour could not carry it: for five of
-	// the seven switches that is the default white, and the vertex stage
-	// clamps a colour at 1 - there is nothing brighter than white in a colour
-	// value. Added on
-	// top there is, and the amount still comes from the sprite's colour,
-	// letting a tinted switch light up in its own colour.
-	//
-	// Only on the layer the object has just drawn its sprite on, and not in
-	// the shadow pass: that one goes through with black RGB, and an additive
-	// pass would turn it into a bright spot in the middle of the shadow.
+	// The flash: the sprites once more, additively. The sprite colour cannot
+	// carry it, since five of the seven switches are already white and the
+	// vertex stage clamps colour at 1; the sprite's colour still scales the
+	// addition, so a tinted switch lights up in its own colour. Only on
+	// flashLayer, and not in the shadow pass, where it would be a bright spot
+	// in the middle of the shadow.
 	if(flashAmount > 0.0f && layer == flashLayer && !shadowPass)
 	{
 		renderer.setBlend(BM_ADDITIVE);
@@ -372,12 +346,10 @@ void Object::update()
 					{
 						onCollect(p_player);
 
-						// Only where the item really went. Three classes
-						// override onCollect() and StdObject's turns a second
-						// gas mask down, leaving it lying - and an item that
-						// is not disappearing has no flight to make. isAlive()
-						// is exactly that question: disappear() is the one
-						// thing every accepting path does.
+						// Only an item that was really taken flies: an
+						// onCollect() may refuse (StdObject's leaves a second
+						// gas mask lying), and disappear() is the one thing
+						// every accepting path does.
 						if(!isAlive()) beginCollectFlight(p_player);
 						break;
 					}
@@ -427,12 +399,9 @@ void Object::update()
 
 	deathCountDown -= deathSpeed * 0.02f;
 
-	// Where the item is flying to, in cells as shownPosition is, read every
-	// tick rather than snapshotted:
-	// the player walks on during those ten ticks, and one aimed at where they
-	// were drifts off behind them. A collector that has been removed inside
-	// the flight simply stops moving the target, and the item finishes on the
-	// last place it was seen.
+	// The flight's target, in cells like shownPosition, is read every tick
+	// because the collector walks on during the ten ticks. One removed in the
+	// meantime leaves the target where it was last seen.
 	if(collectFlight)
 	{
 		const Object* p_collector = level.getObjectByUID(collectorUID);
@@ -666,23 +635,18 @@ void Object::onExplosion()
 	}
 }
 
-// simulate takes every decision this function takes and performs none of
-// them: each path returns at the point where it would otherwise commit, and
-// the push recurses in simulate mode too, so the answer covers a whole chain
-// of pushable objects against a wall. A mouse drag asks it before it holds a
-// direction key down, because the alternative - hold the key and see whether
-// anything moved - is not free: a walk into a switch or a magnet *works* it,
-// and the character would flip whatever it brushed while the drag routed
-// around it.
+// simulate takes every decision and performs none: each path returns where it
+// would otherwise commit, and the push recurses in simulate mode, so the
+// answer covers a whole chain of pushable objects against a wall. The mouse
+// drag asks before it holds a direction key, because trying is not free: a
+// walk into a switch or a magnet works it.
 //
-// Two of the early-outs are skipped when asking, and that is deliberate.
-// Whether the object has already moved in this tick, and whether it is
-// sliding, decide *when* a step lands rather than whether the way is open;
-// the caller holds its key across ticks, and an answer that flickered with
-// the tick would hand its leg to the other axis and back. A push onto ice is
-// the one place the answer is generous: the pushed object starts sliding
-// instead of stepping, so the real move() reports false while the way is in
-// fact opening.
+// Asking skips two early-outs on purpose. Having moved this tick and sliding
+// decide when a step lands, not whether the way is open, and an answer that
+// flickered with the tick would hand the drag's leg to the other axis and
+// back. A push from ice is answered generously: a pusher on ice that nothing
+// presses down (handleSliding()) stays put while the pushed object moves, so
+// the real move() reports false although the way opened.
 bool Object::move(const Vec2i& dir,
 				  uint force,
 				  bool simulate)
@@ -1011,10 +975,8 @@ void Object::saveExtendedAttributes(TiXmlElement* p_target)
 
 void Object::loadExtendedAttributes(TiXmlElement* p_element)
 {
-	// QueryFloatAttribute and not Attribute() with sscanf: it leaves the value
-	// alone where the attribute is missing, and there the shown position is
-	// already the grid position the preset warped the object to - Attribute()
-	// would hand a null pointer straight into sscanf instead.
+	// A missing attribute leaves the value alone, which is then the grid
+	// position the preset warped the object to.
 	p_element->QueryFloatAttribute("shownPositionX", &shownPosition.x);
 	p_element->QueryFloatAttribute("shownPositionY", &shownPosition.y);
 }
@@ -1023,31 +985,24 @@ void Object::frameBegin()
 {
 	moved = false;
 
-	// See setConversionProgress(): clearing it and letting the machine set it
-	// again straight away is the undo nobody can forget. No longer once the
-	// block is dying: then nobody is pushing any more, and at the moment of
-	// the conversion the ghosted block would abruptly stand there as a full
-	// block again over the diamond the sparks have just built.
-	//
-	// newDeathTime has to be asked as well, and the whole case hangs on that:
-	// disappearNextFrame() only records the death, which takes effect in
-	// update() - that is, after this frameBegin(). isAlive() alone still says
-	// "alive" in the tick after, and that is exactly where it would be
-	// cleared.
+	// Cleared every tick and set again by the machine (see
+	// setConversionProgress()), but kept once the block is dying, or the
+	// ghost would stand there as a full block again over the finished
+	// diamond. A death recorded by disappearNextFrame() counts: it takes
+	// effect only in update(), after this, so isAlive() alone would clear
+	// the value in exactly that tick.
 	if(isAlive() && newDeathTime == -1) conversionProgress = 0.0f;
 
-	// The decay belongs here and not in onBeforeRender(): that runs per frame,
-	// and the flash would otherwise hang off the frame rate.
+	// Per tick and not in onBeforeRender(), which runs per frame: the flash
+	// would otherwise last longer on a machine that drops frames.
 	if(flashAmount > 0.0f)
 	{
 		flashAmount *= FLASH_DECAY;
 		if(flashAmount < 1.0f / 256.0f) flashAmount = 0.0f;
 	}
 
-	// And the glow's unsteadiness for the same reason - see glowJitter. Drawn
-	// for every object rather than only for the ones that glow, because a
-	// draw from the shared generator has to happen the same number of times
-	// whatever is on screen, or a frame stops being reproducible from a seed.
+	// See glowJitter. Drawn for every object, glowing or not, so the number
+	// of draws from the shared generator does not depend on what is shown.
 	glowJitter = random(-1.0f, 1.0f);
 }
 
@@ -1055,21 +1010,15 @@ void Object::flash()
 {
 	flashAmount = FLASH_STRENGTH;
 
-	// render() puts the flash on flashLayer, which is not necessarily a layer
-	// this object's own sprites reach. The bit goes in here and never comes
-	// out: a mask may name a layer the object is not drawing on this frame,
-	// and may never omit one it is.
+	// render() draws the flash on flashLayer, which the class's own mask need
+	// not name. The bit is added and never removed (see getRenderLayers()).
 	renderLayers |= flashLayer;
 }
 
-// Called from Object::update() where the collect is noticed, and not from
-// onCollect(): three classes override that one and StdObject's turns a second
-// gas mask down, leaving it lying.
-//
-// The collector is held by UID and not by pointer. Ten ticks is long enough
-// for a player to be blown up inside them, and a pointer kept across that is
-// a crash waiting for one unlucky explosion; a UID is never reused, so the
-// lookup answering 0 means exactly "that object is gone".
+// Called from Object::update() where the collect is noticed, not from
+// onCollect(), which subclasses override and which may refuse. The collector
+// is held by UID, not by pointer: it can be blown up within the ten ticks,
+// and a UID is never reused, so a lookup answering 0 means it is gone.
 void Object::beginCollectFlight(const Object* p_collector)
 {
 	collectFlight = true;
@@ -1155,9 +1104,8 @@ void Object::say(const std::string& text,
 	sayText = text;
 	sayTime = duration;
 
-	// The balloon is render()'s own, not onRender()'s, so the class that set
-	// the mask in its constructor knows nothing about it. As in flash(), the
-	// bit is added and never removed.
+	// The balloon is drawn by render(), not onRender(), so the class's own
+	// mask does not name it. As in flash(), the bit is never removed.
 	renderLayers |= RL_OVERLAY;
 }
 

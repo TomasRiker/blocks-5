@@ -8,9 +8,8 @@
 
 /*** Class for a game object ***/
 
-// How brightly something lights up and how fast that fades; the numbers are
-// in object.cpp. Not only objects light up with them - the HUD icons do too
-// (gs_game.cpp), and those must look exactly the same.
+// How brightly something lights up and how fast that fades (object.cpp).
+// The HUD icons use the same two (Level::flashHudIcon), so they look alike.
 extern const float FLASH_STRENGTH;
 extern const float FLASH_DECAY;
 
@@ -54,15 +53,10 @@ public:
 	void update();
 	virtual void onRemove();
 
-	// Runs once per frame, before Level::render walks the layers. By default
-	// it brings sprites up to date; anything that does its own preparation
-	// here calls Object::onBeforeRender() as well.
-	//
-	// Why not in onRender: that runs once per render layer and frame (RL_MAIN
-	// twice more for the shadows), and the
-	// colour it is handed is the pass's - the shadow colour in the shadow
-	// pass. The sprites carry the object's own tint, which is independent of
-	// that.
+	// Runs once per frame before Level::render walks the layers and by
+	// default rebuilds the sprites; an override calls this one too. Not in
+	// onRender, which runs once per layer (RL_MAIN again per shadow sample)
+	// with the pass's colour, while the sprites carry the object's own tint.
 	virtual void onBeforeRender();
 
 	virtual void onRender(RenderLayer layer, const Vec4f& color);
@@ -80,10 +74,9 @@ public:
 	virtual void onFire();
 	virtual void burst();
 
-	// Close something the player is currently being shown, without having to
-	// leave the field. Only the hint note can do that; anything that shows
-	// nothing answers false, and then the key belongs to whoever would
-	// otherwise have got it - for Escape, the game menu.
+	// Close what the player is being shown without leaving the field; only a
+	// showing hint note can. False passes the key on - Escape then opens the
+	// game menu.
 	virtual bool dismiss() { return false; }
 
 	virtual bool changeInEditor(int mod);
@@ -115,17 +108,11 @@ public:
 	uint getFlags() const;
 	void setFlags(uint flags);
 
-	// Which layers this object may draw on, as bits from renderlayer.h. Level
-	// walks the passes and skips an object whose bit is clear, which is most
-	// of them on most passes: with twelve layers and one drawing on one or two
-	// of them, eleven twelfths of an unconditional walk would be a matrix
-	// bracket and a virtual call that draw nothing.
-	//
-	// A plain member and not a virtual, so that asking is a load rather than a
-	// call - and, more to the point, so that a subclass cannot answer
-	// differently from the onRender it inherits. It may name a layer the
-	// object does not always draw on; it may never omit one it does, so the
-	// bits are only ever added to.
+	// The layers this object may draw on, as RL_* bits; Level::renderObjects
+	// skips an object whose bit is clear. A plain member, not a virtual, so a
+	// subclass cannot answer differently from the onRender it inherits. It
+	// may name a layer the object does not always draw on but never omit one
+	// it does, so bits are only ever added.
 	uint getRenderLayers() const { return renderLayers; }
 	int getDepth() const;
 	void setDepth(int depth);
@@ -140,36 +127,25 @@ public:
 	bool hasTeleportFailed() const;
 	bool isFalling() const;
 
-	// The sprites this object currently consists of - fresh, even if
-	// onBeforeRender has not run yet in this frame. That is exactly the case
-	// when an object is created and bursts in the same tick, and on the very
-	// first tick, which Level::update runs before the first Level::render.
+	// The current sprites, rebuilt on the spot: an object created and burst
+	// in the same tick, or anything on the first tick (Level::update runs
+	// before the first Level::render), has had no onBeforeRender yet.
 	const Sprites& getSprites();
 
-	// Light up briefly. It is meant for the switches: three of them - barrage,
-	// cannon, magnet - have no state of their own and act somewhere else in
-	// the level, and are therefore the same picture before as after. Anything
-	// that wants to light up calls it itself; Object::onTouchedByPlayer does
-	// not, because that runs for every block the player bumps into.
+	// Light up briefly: a switch's acknowledgement, above all for the three
+	// whose picture does not change (barrage, cannon, magnet). Called by
+	// whoever wants it; not from onTouchedByPlayer, which runs for every
+	// block the player bumps into.
 	void flash();
 
-	// How far the conversion in a diamond machine has got, 0 to 1. It makes
-	// the block transparent - but never completely: the block stays solid the
-	// whole time and can still be pushed, and whatever blocks the way has to
-	// be visible.
-	//
-	// The value belongs to the block, not to the machine, and frameBegin()
-	// clears it every tick; the machine sets it again in its update(), which
-	// runs after all the frameBegin() calls. When the machine stops - because
-	// the block has been pushed away, blown up or teleported, or the power
-	// went off - the value stands at zero of its own accord in the next tick,
-	// without anybody having to trigger an undo. That is exactly why the
-	// opacity snaps back instead of fading back: a half-transparent block
-	// sliding away looks like a bug.
-	//
-	// The one exception is in frameBegin(): a dying block keeps its value, or
-	// the successful conversion would be the loudest case of snapping back
-	// there is.
+	// How far a diamond machine's conversion of this block has got, 0 to 1.
+	// render() fades the block towards CONVERSION_GHOST but never to nothing,
+	// since it stays solid and pushable. frameBegin() clears it every tick
+	// and the machine sets it again in its update(), so when the machine
+	// stops (block pushed away, blown up, teleported, power off) it is zero
+	// the next tick with no undo, and the opacity snaps back: a
+	// half-transparent block sliding away looks like a bug. A dying block
+	// keeps its value (frameBegin()).
 	void setConversionProgress(float progress) { conversionProgress = progress; }
 
 	uint getMass() const;
@@ -193,13 +169,12 @@ public:
 	float flashAmount;
 
 	// A random value in [-1, 1] that the shines and the two beams vary their
-	// brightness by, redrawn once per tick in frameBegin() and never in
-	// onRender(), which runs per *frame*: a random() there shimmers at the
-	// frame rate, making the same glow a strobe at 25 fps and a smooth haze
-	// at 200. One value per object, so different objects stay independent -
-	// the part that is visible - while an object's own draws move together.
-	// Never updated (an editor palette, a preview) it keeps the 0 it was
-	// built with, which is the brightness the caller asked for.
+	// brightness by. Redrawn once per tick in frameBegin(), never in a render
+	// path: a random() there would shift the shared generator by however many
+	// frames the machine drew, and the logic would read other numbers. One
+	// value per object, so different objects flicker independently. An
+	// object never updated (an editor palette, a preview) keeps 0, the
+	// brightness the caller asked for.
 	float glowJitter;
 
 	float conversionProgress;

@@ -52,10 +52,9 @@ void GUI_Button::onRender()
 		}
 		else
 		{
-			// With no image the button stays invisible and is clickable all
-			// the same - that is how menu.xml puts a button over the address
-			// belonging to the background image. renderSprite would
-			// otherwise have dereferenced the null pointer.
+			// With no image the button draws nothing and is still clickable:
+			// menu.xml lays such buttons over text that belongs to the
+			// background picture.
 			if(p_image)
 			{
 				Vec2i t = positionOnTexture;
@@ -101,10 +100,8 @@ void GUI_Button::onRender()
 	}
 	else
 	{
-		// Two pixels below the image, not below the element. The two are not
-		// the same: the element has a border around the image, and counting
-		// that border in pushes every caption in the main menu down by
-		// exactly that border.
+		// Two pixels below the image, which ends imageInset above the
+		// element's bottom edge.
 		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - imageInset + 2), active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 	}
 }
@@ -114,11 +111,9 @@ void GUI_Button::onUpdate()
 	currentColor = 0.85f * currentColor + 0.15f * (mouseOver ? hoverColor : stdColor);
 	currentScaling = 0.85f * currentScaling + 0.15f * (mouseOver ? hoverScaling : stdScaling);
 
-	// Resolving it at load time is not enough: the donate button carries
-	// $MM_DONATE_BUTTON_FILENAME, and a player who switches the language in
-	// the options would otherwise see the old button until the next start.
-	// Titles do the same, only at draw time. The texture is still requested
-	// only when a different name really comes out.
+	// Resolved every tick, as titles are at draw time: the donate button's
+	// $MM_DONATE_BUTTON_FILENAME changes with the language. The texture is
+	// requested again only when the name does.
 	if(!rawImageFilename.empty())
 	{
 		const std::string wanted = localizeString(rawImageFilename);

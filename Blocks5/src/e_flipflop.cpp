@@ -69,8 +69,8 @@ void E_FlipFlop::saveAttributes(TiXmlElement* p_target)
 
 std::string E_FlipFlop::getToolTip() const
 {
-	// See e_gate.cpp: assigning a string literal to char* has not been allowed
-	// since C++11, and subType comes out of the level file unchecked.
+	// const, because a string literal is not a char* since C++11. The
+	// constructor already clamps subType; the check below is a backstop.
 	static const char* const p_str[] = {"$TT_FLIP_FLOP_RS",
 										"$TT_FLIP_FLOP_D",
 										"$TT_FLIP_FLOP_JK"};
