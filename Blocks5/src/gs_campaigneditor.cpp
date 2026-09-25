@@ -188,7 +188,7 @@ public:
 							}
 						}
 					}
-					else if(!confirmed)
+					else
 					{
 						getChild("MessageBoxPane.MessageBox.Text1")->show();
 						getChild("MessageBoxPane.MessageBox.Text2")->hide();

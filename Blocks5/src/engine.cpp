@@ -825,7 +825,9 @@ namespace
 	bool   done = false;
 	Uint32 timeToProcess = 0;
 	uint   timeProcessed = 1;
+#ifdef RECORD
 	uint   firstEventRecorded = ~0u;
+#endif
 }
 
 static void emMainLoopIteration(void* p_engine);

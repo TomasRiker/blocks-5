@@ -848,7 +848,7 @@ public:
 							editor.setMode(0);
 						}
 					}
-					else if(!confirmed)
+					else
 					{
 						getChild("MessageBoxPane.MessageBox.Text1")->show();
 						getChild("MessageBoxPane.MessageBox.Text2")->hide();

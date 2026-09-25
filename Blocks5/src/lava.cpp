@@ -236,7 +236,7 @@ void Lava::onUpdate()
 					// debris
 					const Sprites& debris = p_obj->getSprites();
 					int n = debris.getTryCount(random(50, 80));
-					for(int i = 0; i < n; i++)
+					for(int k = 0; k < n; k++)
 					{
 						p.lifetime = static_cast<ushort>(random(60, 120));
 						p.damping = 0.9f;

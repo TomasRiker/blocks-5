@@ -92,7 +92,8 @@ for f in $FILES; do
 done
 
 if [ $fail -eq 0 ]; then
-    echo "$n source files compile without errors, and none hands an integer to a float"
+    if [ "$n" -eq 1 ]; then what="1 source file compiles"; else what="$n source files compile"; fi
+    echo "$what without errors, and none hands an integer to a float"
 else
     echo "### ERROR ###"
 fi

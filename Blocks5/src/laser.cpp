@@ -380,13 +380,13 @@ void Laser::onUpdate()
 	on = clamp(on, 0.0f, 1.0f);
 }
 
-void Laser::onElectricitySwitch(bool on)
+void Laser::onElectricitySwitch(bool switchedOn)
 {
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 
 	// control the sound
-	if(on)
+	if(switchedOn)
 	{
 		p_soundInst->resume();
 		p_soundInst->slideVolume(0.25f, 0.2f);

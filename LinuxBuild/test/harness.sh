@@ -288,7 +288,8 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 byName = {e['path']: e for e in d['elements']}
 def el(name):
-    if name not in byName: raise SystemExit('no element "%s"' % name)
+    # A missing element prints as nothing, like a missing value.
+    if name not in byName: raise SystemExit
     return byName[name]
 try:
     value = eval(sys.argv[2])

@@ -201,8 +201,8 @@ packCampaign() {
 }
 
 fail=0
-[ "$what" = all ] || [ "$what" = data ]  && { packData || fail=1; }
-[ "$what" = all ] || [ "$what" = campaign ] && { packCampaign || fail=1; }
+if [ "$what" = all ] || [ "$what" = data ]; then packData || fail=1; fi
+if [ "$what" = all ] || [ "$what" = campaign ]; then packCampaign || fail=1; fi
 if [ "$what" = all ] || [ "$what" = skins ]; then
     packSkin blocks_01 "$SKIN_PASSWORD" || fail=1
     packSkin blocks_02 "$SKIN_PASSWORD" || fail=1

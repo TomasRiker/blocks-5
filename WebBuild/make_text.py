@@ -90,9 +90,9 @@ def render(font_xml, text):
 
     glyphs = [chars[c] for c in text.encode('latin-1')]
     width = sum(g[2] for g in glyphs)
-    height = max(g[3] for g in glyphs)
     if width == 0:
         raise SystemExit('empty text')
+    height = max(g[3] for g in glyphs)
 
     # Margin for the shadow, and the offset from the font.xml as the first row.
     pad_x = max(dx for dx, _ in SHADOW_OFFSETS)

@@ -51,9 +51,9 @@ void GUI_Window::onRender()
 
 	// write the title
 	Vec2i dim;
-	std::string title = localizeString(this->title);
-	p_font->measureText(title, &dim, 0);
-	p_font->renderText(title, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+	std::string shownTitle = localizeString(this->title);
+	p_font->measureText(shownTitle, &dim, 0);
+	p_font->renderText(shownTitle, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 bool GUI_Window::getClipRect(Vec2i* p_position,

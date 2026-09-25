@@ -95,6 +95,4 @@ void WebBlueScreen::show()
 	emscripten_cancel_main_loop();
 }
 
-#else
-void WebBlueScreen::show() {}
 #endif
