@@ -7,8 +7,7 @@
 
 namespace
 {
-	// 80 columns, like the original. Pure ASCII: the file then means the same
-	// in every encoding.
+	// 80 columns, like the original.
 	const char* p_text =
 		"A problem has been detected and Blocks has been shut down to prevent damage\n"
 		"to your computer.\n"
@@ -67,9 +66,8 @@ void WebBlueScreen::show()
 		var box = document.createElement('div');
 		box.appendChild(pre);
 		box.appendChild(hint);
-		// 80 columns have to fit without getting absurdly large on a big
-		// screen: 0.6em is about the character width of a typewriter font,
-		// giving 80 * 0.6 = 48em of text width.
+		// 80 columns without growing absurdly on a big screen: 0.6em is about
+		// a typewriter font's character width, so the text is 48em wide.
 		box.style.cssText =
 			'font-family:"Lucida Console",Consolas,"Courier New",monospace;' +
 			'font-size:clamp(7px,min(1.55vw,2.6vh),19px);line-height:1.35;' +
@@ -84,9 +82,8 @@ void WebBlueScreen::show()
 			'cursor:none;overflow:hidden;';
 		document.body.appendChild(screen);
 
-		// Restarting here means reloading the page. Locked out briefly: the
-		// click that triggered this must not take the blue screen away again
-		// at once.
+		// Restarting means reloading the page, locked out briefly so that the
+		// click that brought the blue screen up does not take it away again.
 		var armed = false;
 		setTimeout(function(){ armed = true; }, 700);
 		var restart = function(){ if(armed) location.reload(); };

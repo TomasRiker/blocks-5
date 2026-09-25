@@ -1,13 +1,11 @@
 #ifndef _WEB_BLUESCREEN_H
 #define _WEB_BLUESCREEN_H
 
-/* An easter egg for the browser version.
+/* An easter egg for the browser version. A page cannot close its own tab,
+   and a Quit button that does nothing feels like a fault, so the game
+   pretends instead that it has taken the machine down with it.
 
-   "Quit" cannot quit anything there - a program does not close its own tab,
-   and a button that simply does nothing feels like a fault. The game pretends
-   instead that it has taken the machine down with it.
-
-   Emscripten build only; under Windows SDL_QUIT quits the game as always. */
+   Emscripten build only; on the desktop SDL_QUIT quits the game. */
 
 namespace WebBlueScreen
 {

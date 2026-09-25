@@ -31,12 +31,10 @@ public:
 	// scope around the children for it.
 	virtual bool getClipRect(Vec2i* p_position, Vec2i* p_size) const;
 
-	// Any element can point at another one (for="Name"), as <label for="...">
-	// does in a browser. On a checkbox or a radio button a click on the
-	// element toggles the button; on anything else - edit boxes above all - it
-	// moves the focus there. This is not something only a label could do:
-	// the language flags in options.xml are <StaticImage> and belong to their
-	// radio button exactly as the word beside it does.
+	// Any element can point at another one (for="Name"), as <label for> does
+	// in a browser: a click on it toggles a checkbox or radio button target
+	// and focuses any other, an edit box above all. Not only text can be a
+	// label - the language flags in options.xml are <StaticImage>.
 	virtual void onMouseDown(const Vec2i& position, int buttons);
 	virtual void onMouseUp(const Vec2i& position, int buttons);
 	virtual void onMouseEnter(int buttons);
@@ -48,11 +46,10 @@ public:
 	virtual std::string getType() const;
 
 	GUI_Element* getElementAt(const Vec2i& position);
-	// What counts as "hit". The default is the element's own rectangle; a
-	// checkbox or a radio button draws its caption to the right of it and
-	// takes that strip in as well, which makes a click on the text count
-	// exactly like one on the box - as <label> does in a browser. Not const:
-	// the caption's width is measured for it.
+	// What counts as "hit": the element's own rectangle by default. A
+	// checkbox or a radio button adds the caption it draws to its right, so a
+	// click on the text counts like one on the box. Not const: the caption's
+	// width is measured for it.
 	virtual bool containsPoint(const Vec2i& position);
 	void bringToFront();
 	bool isFocused();

@@ -3,10 +3,11 @@
 
 /*** Moving files between the game and the outside world ***/
 
-// Everything here exists on both platforms. The only difference is the file
-// dialog: under Windows it is modal and yields a path the game may read
-// directly; in the browser it is asynchronous and puts a copy into a staging
-// file. beginImport()/pollImport() hide that.
+// Everything here exists on all three platforms; only the file dialog
+// differs. Under Windows it is modal and under Linux a zenity or kdialog
+// process, and both yield a path the game reads where it lies; in the
+// browser it is asynchronous and puts a copy into a staging file.
+// beginImport()/pollImport() hide that.
 
 namespace Transfer
 {
@@ -18,21 +19,19 @@ namespace Transfer
 		KIND_MUSIC,
 		KIND_SKIN,
 
-		// The player's own progress, and unlike the other four not a folder
-		// full of files but one file with one name, lying in the user
-		// directory itself. Nothing of the kind ever ships with the game.
+		// The player's progress: unlike the other four, one file with one
+		// name in the user directory itself, and nothing of it ever ships.
 		KIND_PROGRESS
 	};
 
-	// Works out the kind by content, not by extension: music by the OggS
-	// marker, a level by its XML root, an archive by whether a campaign.xml,
-	// a tileset.xml or a progress.xml lies inside it.
+	// Works out the kind by content: music by the OggS marker, a level by its
+	// XML root, and a .zip by what it holds - campaign.xml, tileset.xml with
+	// sprites.png, or progress.xml.
 	Kind classify(const std::string& path);
 
 	// The name install() would give this file, and whether it would replace
-	// something. Both are what install() itself works with, so the question
-	// can be put to the player before anything is written - which is the
-	// whole reason they are here rather than inside install().
+	// something. install() works with the same two, so the player can be
+	// asked before anything is written.
 	std::string targetName(Kind kind, const std::string& untrustedName);
 	bool wouldReplace(Kind kind, const std::string& untrustedName);
 
@@ -46,9 +45,8 @@ namespace Transfer
 						std::string& errorId,
 						bool* p_replaced = 0);
 
-	// What there is to be had of this kind, from both roots together and
-	// sorted alphabetically: the game folder brings what is shipped, the user
-	// directory what is the player's own.
+	// Everything of this kind from both roots, sorted: the game folder holds
+	// what ships, the user directory what is the player's own.
 	std::vector<std::string> list(Kind kind);
 
 	// Does this file belong to the game? name is the filename with extension,
@@ -90,8 +88,9 @@ namespace Transfer
 	// On leaving the menu: discards a dialog that is still open.
 	void abandonImport();
 
-	// Modal on both sides. false means cancelled or failed; on a plain cancel
-	// errorId stays empty.
+	// Returns its answer at once: a modal dialog on the desktop, a download in
+	// the browser. false means cancelled or failed; on a plain cancel errorId
+	// stays empty.
 	bool doExport(Kind kind, const std::string& name, std::string& errorId);
 }
 

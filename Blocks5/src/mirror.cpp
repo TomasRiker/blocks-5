@@ -14,8 +14,7 @@ Mirror::Mirror(Level& level,
 	destroyTime = 50;
 
 	// subType comes out of the level file unchecked (presets.cpp), and only
-	// 0 and 1 mean anything: the two reflect methods, the sprite and the
-	// tooltip each test for one of the two, so any other value would be a
+	// 0 (laser) and 1 (cannon) mean anything: any other value would be a
 	// mirror that reflects nothing.
 	if(subType < 0 || subType > 1)
 	{
