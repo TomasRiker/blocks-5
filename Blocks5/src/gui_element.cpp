@@ -587,8 +587,9 @@ void GUI_Element::setPosition(const Vec2i& position)
 
 void GUI_Element::setAbsPosition(const Vec2i& absPosition)
 {
-	const Vec2i myAbsPosition = getAbsPosition();
-	setPosition(absPosition - myAbsPosition);
+	// The inverse of getAbsPosition(): the position is relative to the
+	// parent's.
+	setPosition(p_parent ? absPosition - p_parent->getAbsPosition() : absPosition);
 }
 
 const Vec2i& GUI_Element::getSize() const

@@ -655,6 +655,22 @@ namespace
 		return 0;
 	}
 
+	// The last of BREAK_CHARACTERS in text that is not inside a keycap: a key
+	// name such as "Page Up" holds a space, and breaking there would cut the
+	// frame in two. npos where there is none.
+	size_t lastBreakOutsideKeycap(const std::string& text)
+	{
+		size_t found = std::string::npos;
+		bool inKeycap = false;
+		for(size_t i = 0; i < text.length(); i++)
+		{
+			if(text.compare(i, 3, "<k>") == 0) inKeycap = true;
+			else if(text.compare(i, 4, "</k>") == 0) inKeycap = false;
+			else if(!inKeycap && text[i] && strchr(BREAK_CHARACTERS, text[i])) found = i;
+		}
+		return found;
+	}
+
 	// The start of the text up to byte n, then the three dots. A half-cut
 	// element is dropped, and whatever is left open is closed again - by name
 	// and innermost first, since <k> can stand inside <h> - because
@@ -874,7 +890,7 @@ std::string Font::adjustText(const std::string& text,
 				// Break in front of it, at the last space of this line if there
 				// is one. The tail is re-measured rather than counted
 				// backwards, since it may hold a keycap of its own.
-				const size_t lastBreak = out.find_last_of(BREAK_CHARACTERS);
+				const size_t lastBreak = lastBreakOutsideKeycap(out);
 				if(lastBreak != std::string::npos && isBreakSpace(out[lastBreak]))
 				{
 					out[lastBreak] = '\n';
@@ -928,8 +944,10 @@ std::string Font::adjustText(const std::string& text,
 
 			if(currentWidth > maxWidth)
 			{
-				// replace the last space in this line with a line break
+				// Replace the last space in this line with a line break, but
+				// not one inside a keycap, whose end the walk meets first.
 				int back = 0;
+				bool inKeycap = false;
 				std::string::reverse_iterator j;
 				for(j = out.rbegin(); j != out.rend(); j++)
 				{
@@ -939,7 +957,7 @@ std::string Font::adjustText(const std::string& text,
 						j = out.rend();
 						break;
 					}
-					else if(isBreakSpace(d))
+					else if(isBreakSpace(d) && !inKeycap)
 					{
 						*j = '\n';
 						cursorX = back;
@@ -947,12 +965,27 @@ std::string Font::adjustText(const std::string& text,
 					}
 					else
 					{
-						// Backwards too, an element does not count.
+						// Backwards too, <h> draws nothing, while a keycap's
+						// two tags stand for its frame and cost what
+						// measureText() gives them.
 						// out.rend() - j is the index behind it,
 						// because rend() - rbegin() is the text length.
-						const size_t back_tag = (d == '>')
-							? tagEndingAt(out, static_cast<size_t>(out.rend() - j)) : 0;
-						if(back_tag > 0) j += back_tag - 1;
+						const size_t behind = static_cast<size_t>(out.rend() - j);
+						const size_t back_tag = (d == '>') ? tagEndingAt(out, behind) : 0;
+						if(back_tag > 0)
+						{
+							if(out.compare(behind - back_tag, back_tag, "</k>") == 0)
+							{
+								inKeycap = true;
+								back += KEY_BOX_SIDE + options.italic;
+							}
+							else if(out.compare(behind - back_tag, back_tag, "<k>") == 0)
+							{
+								inKeycap = false;
+								back += KEY_BOX_SIDE;
+							}
+							j += back_tag - 1;
+						}
 						else back += getCharacterWidth(d) + options.charSpacing;
 					}
 				}

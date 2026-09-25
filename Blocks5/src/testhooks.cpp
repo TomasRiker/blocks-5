@@ -337,16 +337,17 @@ namespace
 			appendPhase(out, "update", FrameStats::FS_UPDATE);
 			appendPhase(out, "present", FrameStats::FS_PRESENT);
 			appendPhase(out, "swap", FrameStats::FS_SWAP);
-			// Counted against one logic tick: late is the frames whose
-			// interval went over it, lateWork those whose own work did. The
-			// two come apart - a browser at 38 ms a frame on 2.7 ms of work has
-			// all of the first and none of the second. over500 is Emscripten's
-			// Web Audio lookahead, so a frame past it is a hole in the music.
+			// The overlay's three counts, with its thresholds (perf.md): late
+			// is the frames whose interval went over two logic ticks, since
+			// the loop aims at one and a millisecond of timer granularity
+			// would trip that; lateWork those whose own work went over one.
+			// over500 is Emscripten's Web Audio lookahead, so a frame past it
+			// is a hole in the music.
 			const float budget = static_cast<float>(Engine::inst().getLogicRate());
 			out += ",\"budgetMs\":";
 			appendInt(out, static_cast<int>(budget));
 			out += ",\"late\":";
-			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_INTERVAL, budget)));
+			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_INTERVAL, 2.0f * budget)));
 			out += ",\"lateWork\":";
 			appendInt(out, static_cast<int>(stats.getCountOver(FrameStats::FS_TOTAL, budget)));
 			out += ",\"over500\":";

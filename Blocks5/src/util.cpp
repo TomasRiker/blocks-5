@@ -217,6 +217,19 @@ char keyLetter(const SDL_keysym& keysym)
 	return letterKey ? static_cast<char>(keysym.sym) : 0;
 }
 
+char typedCharacter(const SDL_keysym& keysym)
+{
+	const bool ctrl = (keysym.mod & KMOD_LCTRL) || (keysym.mod & KMOD_RCTRL);
+	const bool alt = (keysym.mod & KMOD_LALT) || (keysym.mod & KMOD_RALT);
+	if(ctrl && !alt) return 0;
+
+	// Past Latin-1 a character would be cut to some other one: U+0142, the
+	// Polish l with stroke, to a B.
+	const uint u = keysym.unicode;
+	if((u >= 32 && u < 127) || (u >= 160 && u <= 255)) return static_cast<char>(u);
+	return 0;
+}
+
 namespace
 {
 	bool isBase62Digit(char c)

@@ -26,11 +26,13 @@ bool setFullScreen(bool wantFullScreen)
 	// Under X11 the window manager decides on fullscreen, size and position;
 	// the program asks with this EWMH message to the root window.
 	// XMoveResizeWindow would go past the window manager and behave
-	// differently under each one.
+	// differently under each one. The message names the window the manager
+	// manages: the classic SDL 1.2 draws into a child of it, which the manager
+	// would ignore, while sdl12-compat reports the one window in both fields.
 	XEvent event;
 	memset(&event, 0, sizeof(event));
 	event.type                 = ClientMessage;
-	event.xclient.window       = info.info.x11.window;
+	event.xclient.window       = info.info.x11.wmwindow ? info.info.x11.wmwindow : info.info.x11.window;
 	event.xclient.message_type = XInternAtom(p_display, "_NET_WM_STATE", False);
 	event.xclient.format       = 32;
 	event.xclient.data.l[0]    = wantFullScreen ? 1 : 0;   // _NET_WM_STATE_ADD / _REMOVE

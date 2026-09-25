@@ -198,8 +198,8 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		break;
 	default:
 		{
-			char c = static_cast<char>(event.keysym.unicode);
-			if(active && (c >= 32 || c < 0)) replaceSelection(std::string("") + c);
+			const char c = typedCharacter(event.keysym);
+			if(active && c) replaceSelection(std::string(1, c));
 			break;
 		}
 	}
