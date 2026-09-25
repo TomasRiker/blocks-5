@@ -54,9 +54,8 @@ Texture::Texture(const Vec2i& size, const uchar* p_pixels, const std::string& na
 	ownsTexture = true;
 	p_parent = 0;
 
-	// Straight into a surface of the layout place() expects - RGBA in that
-	// order, one byte each - and then the ordinary road: place() packs it if
-	// the atlas will have it and gives it a texture of its own if not.
+	// Into a surface of the layout place() expects, a byte each of R, G, B and
+	// A; place() then packs it or gives it a texture of its own.
 	p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, size.x, size.y, 32,
 								  0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	if(!p_rgba)
@@ -88,12 +87,10 @@ Texture::~Texture()
 
 namespace
 {
-	// The rows of a 32-bit SDL surface are tight, so the upload needs no
-	// GL_UNPACK_ROW_LENGTH, which WebGL 1 does not have: SDL_CalculatePitch
-	// pads a row to four bytes, which four bytes a pixel already are, and
-	// Emscripten's SDL makes the pitch width * 4 outright. Checked rather
-	// than assumed, since a padded row would arrive skewed with no GL error
-	// to say so.
+	// A 32-bit SDL surface has tight rows (SDL pads a row to four bytes, and
+	// Emscripten's SDL makes the pitch width * 4), so the upload needs no
+	// GL_UNPACK_ROW_LENGTH, which WebGL 1 lacks. Checked anyway: a padded row
+	// would arrive skewed with no GL error to say so.
 	bool uploadRGBA(const SDL_Surface* p_rgba, const char* p_name)
 	{
 		if(p_rgba->pitch != p_rgba->w * 4)
@@ -108,14 +105,10 @@ namespace
 	}
 
 	// The same picture into a rectangle of a page, with a texel of gutter all
-	// round it. Linear filtering reaches one texel past the coordinate it was
-	// given and no further - there are no mipmaps in this game - so a copy of
-	// the picture's own edge there is exactly what GL_CLAMP_TO_EDGE returned,
-	// and a copy of the opposite edge exactly what GL_REPEAT returned. The
-	// same texel value, not a near one.
-	//
-	// Built as one padded block and uploaded once rather than as nine calls
-	// round the edges: the columns are not contiguous in the source, so they
+	// round. Linear filtering reaches one texel past the edge and no further
+	// (there are no mipmaps), so a copy of the picture's own edge samples
+	// exactly as GL_CLAMP_TO_EDGE did, and a copy of the opposite edge as
+	// GL_REPEAT did. One padded block and one upload, since the edge columns
 	// would have to be gathered into a buffer anyway.
 	bool uploadPadded(uint pageID, const Vec2i& origin, const SDL_Surface* p_rgba, bool wrap, const char* p_name)
 	{
@@ -359,10 +352,8 @@ void Texture::loadSubTexture(Texture* p_parent,
 
 	place();
 
-	// A sub-texture is not in the Manager, so freeUnkeptPixels() never reaches
-	// it - and nothing asks to keep one, since createSubTexture() is called on
-	// a parent that was asked and hands the result straight to a caller that
-	// draws it.
+	// A sub-texture is not in the Manager, so freeUnkeptPixels() never
+	// reaches it, and nothing asks to keep one: it frees its own.
 	if(!doKeepInMemory) freePixels();
 }
 
@@ -394,10 +385,9 @@ void Texture::keepInMemory()
 	if(doKeepInMemory) return;
 	doKeepInMemory = true;
 
-	// The pixels are already gone where a tick has passed since the load. The
-	// flag does not bring them back, hence the reload. If nothing could be
-	// loaded at all (texID == 0), a second attempt would only give the same
-	// error.
+	// A tick after the load the sweep has freed the pixels, and the flag does
+	// not bring them back. With texID 0 nothing loaded at all, and a second
+	// attempt would only fail the same way.
 	if(!p_rgba && texID) reload();
 }
 
@@ -423,23 +413,16 @@ Vec4f Texture::getPixel(const Vec2i& where) const
 void Texture::applyWrapMode() const
 {
 	Renderer::DirectGL direct;
-	// GL_REPEAT is a fresh texture's default and only WM_REPEAT wants it: the
-	// rain, the snow and the clouds scroll without bound, and
-	// wrapTextureOffset() reduces that offset to one period precisely because
-	// REPEAT makes a whole period an exact no-op.
+	// GL_REPEAT, a fresh texture's default, only for WM_REPEAT: the weather
+	// scrolls without end, and scrollOffset() and wrapTextureOffset() reduce
+	// it to whole periods because REPEAT makes one an exact no-op. Everything
+	// else is clamped, WM_WRAP too: the renderer cuts it at its edges, and in
+	// a page REPEAT would wrap at the page's edge, not the picture's.
 	//
-	// Everything else is clamped, WM_WRAP included: a picture the renderer
-	// tiles for itself is cut so that no piece reads past an edge, and it
-	// lives in a page, where GL_REPEAT would wrap to the far side of the page
-	// rather than to the far side of the picture.
-	//
-	// WebGL 1 forces the same hand for a non-power-of-two texture: it is
-	// complete only sampled with CLAMP_TO_EDGE and without mipmaps, and
-	// otherwise every access returns black, silently and with no GL error. The
-	// game's own art is all power of two, so this is imported skins alone -
-	// deliberately under Windows too, where NPOT with REPEAT would work,
-	// because a 300x200 rain that tiled for its author and not for his players
-	// is the worse failure.
+	// So is a WM_REPEAT picture that is not a power of two, since WebGL 1
+	// samples one as black, with no GL error, unless it is clamped. The game's
+	// own art is all power of two, so this is imported skins alone, and it is
+	// clamped on every platform so that its author sees what players will.
 	if(wrapMode == WM_REPEAT && nextPow2(size.x) == size.x && nextPow2(size.y) == size.y) return;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

@@ -24,17 +24,14 @@ int nextPow2(int x);
 std::string getFilenameExtension(const std::string& filename);
 std::string setFilenameExtension(const std::string& filename, const std::string& extension);
 
-// "01 - Title", the way it stands in the game and in the level select above
-// the picture. The title comes out of the level file unexamined (level.cpp
-// reads the attribute exactly as it stands) and out of an input field with no
-// length limit - it is therefore arbitrarily long and must never run through a
-// fixed buffer. Only the number goes through one here, and that is a number.
+// "01 - Title", as the game and the level select show it. The title comes
+// unexamined from a level file or an input field and can be any length, so
+// only the number goes through a fixed buffer.
 std::string formatLevelCaption(int number, const std::string& title);
 
-// A single level carries its filename instead of the number: three levels
-// somebody sent you that are all called "Unnamed" are otherwise
-// indistinguishable. Inside a campaign it would be pointless - there every
-// other one would be called "level_2.xml".
+// A single level shows its filename instead of a number: three levels all
+// called "Unnamed" are otherwise indistinguishable. In a campaign the
+// filename would say nothing, since every level there is "level_N.xml".
 std::string formatSingleLevelCaption(const std::string& title, const std::string& filename);
 
 // Turns any filename - including one imported from outside - into a safe name
@@ -44,44 +41,37 @@ std::string formatSingleLevelCaption(const std::string& title, const std::string
 std::string sanitizeFilenameStem(const std::string& untrusted,
                                  const std::string& fallback = "imported");
 
-// Checks whether a string may be used unchanged as a filename or as the name
-// of an archive member. Anything that could redirect FileSystem::convertPath
-// or evalRelativePath is refused - separators, the drive colon, the archive
-// markers < > [ ], "..", a leading dot or tilde, control characters - and so
-// are the four Windows reserves beside them, " | ? *, and anything longer than
-// a hundred characters. Umlauts and spaces stay allowed, or legitimate names
-// would silently vanish.
+// Whether a string may be used unchanged as a filename or archive member
+// name. Refused: anything that could redirect FileSystem::convertPath or
+// evalRelativePath (separators, the drive colon, the archive markers < > [ ],
+// "..", a leading dot or tilde, control characters), the Windows reserves
+// " | ? *, and more than 100 characters. Umlauts and spaces pass, or
+// legitimate names would silently vanish.
 bool isSafeMemberName(const std::string& name);
 
-// Case-insensitive comparison, over ASCII only. By hand and neither through
-// _stricmp - only MSVC knows that one - nor through strcasecmp or tolower:
-// those two hang off the configured locale, and in the Turkish one 'I' is not
-// the upper-case form of 'i'. What is compared here are filenames and
-// command-line switches, and those are the same in every locale.
+// Case-insensitive comparison over ASCII only, by hand: _stricmp is MSVC's
+// alone, and strcasecmp and tolower follow the locale, in which the Turkish
+// 'I' is not the upper case of 'i'. Filenames, command-line switches and
+// upscaler names are the same in every locale.
 bool equalsNoCase(const char* p_a, const char* p_b);
 int randomInt();
 int random(int min, int max);
 float random(float min, float max);
 
-// Seed the one generator all four of those draw from. Only the test build
-// calls it, and only where B5_SEED asks: a shipped game wants MTRand's own
-// seeding from the clock. It is here so that a frame can be made
-// byte-reproducible, which is what lets a change that should move no pixel be
-// proved rather than asserted - see LinuxBuild/test/frames.sh.
+// Seeds the generator the three functions above draw from. Only a test-hooks
+// build calls it, where B5_SEED asks, so that a frame is byte-reproducible
+// (LinuxBuild/test/frames.sh); a shipped game keeps MTRand's own seeding.
 void seedRandom(uint seed);
 Vec2i numberToDir(int dir);
 void generatePrimes(uint* p_out, uint maxNum);
 // Reads 7 base-62 digits; the caller has checked they are there.
 uint fromBase62(const char* p_in);
-// The letter a key press stands for, 'a' to 'z', by the label on the key - or
-// 0 where it is no letter. Shortcuts are named by that label in every program,
-// and the keysym cannot say it everywhere: SDL 1.2 on Windows translates keys
-// through the US layout, so on a German keyboard the key labelled Z arrives as
-// SDLK_y. What the layout makes of the key comes in unicode where SDL
-// translates it - under Ctrl on Windows as the control code, Ctrl+Z as 26,
-// under X11 as the letter itself - and elsewhere the keysym, which follows the
-// layout there, is the answer: in the browser a Ctrl combination carries no
-// unicode at all.
+// The letter on the key's label, 'a' to 'z', or 0 where it is no letter. The
+// keysym cannot always say it: SDL 1.2 on Windows maps keys through the US
+// layout, so a German Z arrives as SDLK_y. Where SDL translates the key,
+// unicode carries the layout's answer (under Ctrl the control code on
+// Windows, Ctrl+Z as 26, and the letter itself under X11); where it does not,
+// as for a Ctrl combination in the browser, the keysym follows the layout.
 char keyLetter(const SDL_keysym& keysym);
 bool decryptPassword(const std::string& in, std::string& out, const uint* p_primes);
 void clearLog();
@@ -90,79 +80,50 @@ std::string localizeString(const std::string& text);
 std::string loadString(const std::string& id);
 std::vector<Vec2i> bresenham(const Vec2i& p1, const Vec2i& p2);
 
-// Microseconds since the first call, as an integer. The value keeps growing
-// for as long as the session lasts while what is read off it is the
-// difference of two readings, a few thousand of these - and a count cannot
-// drift at all, where a float of seconds steps by 244 us an hour in and
-// 7.8 ms after a day, more than a whole frame, and a double only pushes that
-// out instead of removing it. 2^64 microseconds is 584 thousand years.
+// Microseconds since the first call (since the page loaded, in the browser),
+// as an integer: only differences are read off it, and a count loses no
+// precision as it grows, where a float of seconds steps by 244 us an hour in
+// and 7.8 ms after a day. 2^64 us is 584 thousand years.
 uint64 getExactTimeUS();
 uint getExactTimeMS();
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
-// Open an address in the web browser. It exists only here: Windows takes a
-// .url shortcut next to the application, the same one that sits in the start
-// menu, and the browser opens a second tab - both can do it already, and both
-// do it where they stand.
+// Opens an address in the web browser. Linux only: Windows opens the .url
+// shortcut beside the program, and the browser build opens a tab itself.
 void openURL(const std::string& url);
 #endif
 void writeProfileLine(const std::string& name, float dt, float avgTime);
 
-// The two keys a player means by "Enter": the big one and the one on the
-// numeric keypad. A keyboard has two and nothing in this game distinguishes
-// them, so everything that answers to one has to answer to the other -
-// confirming a dialog, playing the selected level, leaving the credits,
-// toggling the fullscreen with Alt. The named actions get this for free,
-// since a binding has a primary and a secondary; these are the places that
-// read the SDL key itself.
+// Either Enter key, the main one or the keypad's: nothing in the game tells
+// them apart. The named actions get both through their two bindings; this is
+// for code that reads the SDL key itself.
 inline bool isReturnKey(int key)
 {
 	return key == SDLK_RETURN || key == SDLK_KP_ENTER;
 }
 
-// Everything the game animates by is rate * clock + base, a straight line in a
-// counter that is an exact integer - Level::time and GS_Menu::time in
-// milliseconds, Lava::anim and SDL_GetTicks in ticks. The three below form
-// that line; only two of them reduce it, and which is which is the whole
-// point.
-//
-// All of it is float, and the limit that puts on it was measured rather than
-// guessed. The clouds scroll one texel a tick: that step comes out exactly
-// 1.0000 for as long as twelve hours in a single level, is 0.5 to 1.5 after a
-// day and collapses to a stutter of 0 to 2 after three. Level::time starts
-// again at every level, and nobody plays one for a day - so the float costs
-// nothing a player can reach, and a double here would buy only a number that
-// looks tidier in a probe.
-// The argument of an animation's sine or cosine: rate * ticks + base, and
-// deliberately NOT reduced to a turn on the way out.
-//
-// Reducing it here is the obvious thing and it is wrong. sinf and cosf do
-// their own argument reduction, against the real pi to as many bits as it
-// takes, and come out 3e-08 from the true sine at every clock value this game
-// can reach. A fmodf by a float 2*pi beforehand reduces against a constant
-// that is itself 1.7e-07 off, and the error grows with the number of turns
-// thrown away: measured against the exact sine of the same float, 3.9e-05 one
-// minute into a level, 2.0e-03 after an hour, 0.14 after three days. The
-// library is better at this than the caller, so let it do it.
-//
-// What a float does cost here is the product: it goes coarse when the clock
-// gets big, which no reduction afterwards can undo. That is a twelve-hour
-// problem in a single level - see scrollOffset - and Level::time starts again
-// at every level.
+// Animation runs on rate * clock + base, a line in an exact integer counter:
+// Level::time, GS_Menu::time and SDL_GetTicks in milliseconds, Lava::anim in
+// ticks. clockPhase and scrollOffset form it in float, which is enough:
+// measured, a scroll of one texel a tick still steps exactly 1.0 after twelve
+// hours in one level, and Level::time starts again with every level.
+
+// The argument of an animation's sine or cosine, deliberately NOT reduced to
+// a turn. sinf and cosf reduce against the exact pi and stay 3e-08 from the
+// true sine at any clock this game reaches; a fmodf by a float 2*pi, itself
+// 1.7e-07 off, errs by 2.0e-03 an hour into a level, and more with every
+// turn it throws away.
 inline float clockPhase(uint ticks, float perTick, float base)
 {
 	return perTick * static_cast<float>(ticks) + base;
 }
 
-// The same for a quantity whose period is not a turn: a scrolling texture
-// offset in texels, or the CRT filter's flicker, which repeats every eight
-// seconds and whose crawl repeats every one. Exact for a texture under
-// GL_REPEAT, since whole periods move the finished coordinate by a whole
-// number and it samples the same texel. It is needed there because a texture
-// coordinate reaches the fragment shader as a varying at that shader's float
-// precision - highp where the browser has it, mediump on a phone that has not,
-// ten mantissa bits. The step it quantizes to is offset/2048 texels, so the
-// drift turns visibly steppy about a minute in and gets worse from there.
+// The same line reduced to one period, for a quantity whose period is not a
+// turn: a scrolling texture offset in texels, or the CRT filter's flicker
+// (eight seconds) and crawl (one). Exact for a repeating texture, since whole
+// periods sample the same texel, and needed there: a phone without highp
+// gives the fragment shader a mediump varying, ten mantissa bits, and an
+// unreduced offset turns visibly steppy within a minute.
 inline float scrollOffset(uint ticks, float perTick, float base, float period)
 {
 	const float value = perTick * static_cast<float>(ticks) + base;
@@ -179,10 +140,9 @@ inline float wrapTextureOffset(float offset, int period)
 	return fmodf(offset, static_cast<float>(period));
 }
 
-// To the nearest whole pixel, both signs alike. A plain conversion to Vec2i
-// cuts towards zero, so adding 0.5 first - the obvious rounding - rounds up
-// above zero and down below it, and a symmetric movement comes out a pixel
-// short on one side.
+// To the nearest whole pixel, both signs alike. Adding 0.5 and converting is
+// right only above zero, since the conversion cuts towards zero, and a
+// symmetric movement would come out a pixel short on one side.
 inline Vec2i roundToVec2i(const Vec2f& v)
 {
 	return Vec2i(static_cast<int>(floor(v.x + 0.5f)),
