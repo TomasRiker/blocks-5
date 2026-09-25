@@ -64,9 +64,9 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		else
 		{
 			// List the files. minizip copies at most the buffer's worth of a
-			// name but reports its real length, a 16-bit field in the
-			// archive; a name that does not fit is skipped rather than read
-			// past the end of the buffer.
+			// name but reports its full length, a 16-bit field in the archive;
+			// a name that does not fit is skipped rather than read past the
+			// end of the buffer.
 			int r = unzGoToFirstFile(archive);
 			while(r == UNZ_OK)
 			{
@@ -100,13 +100,12 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 			return;
 		}
 
-		// The size is the archive's word for it, and an archive may come from
-		// anybody - the Manager imports campaigns and skins, and reads into a
-		// campaign to check it. The largest members are music tracks, two
-		// megabytes in the shipped campaign, and the limit is nearly an hour
-		// of Vorbis at 160 kbit/s. Above it, or where the memory is not there,
-		// the member is refused rather than the allocation throwing, which
-		// nothing here would catch.
+		// The size is the archive's claim, and an archive can come from
+		// anybody: the Manager imports campaigns and skins. The largest real
+		// members are music tracks of about two megabytes; 64 MB is nearly an
+		// hour of Vorbis at 160 kbit/s. Above that, or without the memory, the
+		// member is refused, since nothing here would catch a throwing
+		// allocation.
 		const uLong MAX_MEMBER_SIZE = 64 * 1024 * 1024;
 		if(info.uncompressed_size > MAX_MEMBER_SIZE)
 		{
@@ -424,8 +423,8 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	};
 
 	// The survivors are copied into a side file, which replaces the archive
-	// once it is complete; until then the archive is untouched, so every
-	// failure below leaves it as it was and reports -2.
+	// at the end. Failing to open either file or to parse a record leaves the
+	// archive untouched and reports -2.
 	const std::string tempFilename = archiveFilename + "_";
 	FILE* p_in = fopen(archiveFilename.c_str(), "rb");
 	if(!p_in)
@@ -531,19 +530,17 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		}
 		else
 		{
-			// This file is to be copied, and the whole local record goes
-			// through byte for byte: header, filename, extra field and data.
-			// Rebuilding it from the central directory's copies is what must
-			// not happen - a zip writer may put a different extra field in
-			// each of the two, and the lengths that describe the local record
-			// are the local header's, so writing the central strings under
-			// them reads past the end of the shorter buffer.
+			// Copy the whole local record byte for byte: header, filename,
+			// extra field and data. It must not be rebuilt from the central
+			// directory's copies: a zip writer may put a different extra field
+			// in each, and the local header's lengths would then read past the
+			// end of the shorter buffer.
 			//
-			// The size comes from the central directory, which carries the
-			// true one even where the local header does not. A trailing data
-			// descriptor is still not carried across; nothing this game packs
-			// sets the flag that calls for one, which is also why pack.sh
-			// reaches for 7za rather than Info-ZIP.
+			// The data size comes from the central directory, which carries
+			// the true one even where the local header does not. A trailing
+			// data descriptor is not carried across; nothing this game packs
+			// sets the flag that calls for one, which is also why pack.sh uses
+			// 7za rather than Info-ZIP.
 			LocalFileHeader lfh;
 			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
 			fread(&lfh, 1, sizeof(lfh), p_in);

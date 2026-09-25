@@ -1,12 +1,10 @@
 #include "pch.h"
 #include "testhooks.h"
 
-// testhooks.cpp - the report on the GUI tree that both test paths read.
-//
-// Everything here is platform-independent: it reads out Engine and GUI and
-// builds JSON from that. How the text gets out is elsewhere - in the browser
-// in WebBuild/test_hooks.cpp through Module["b5_test"], under Linux at the
-// bottom in pollRequests() through a file.
+// testhooks.cpp - the report on the GUI tree that both test paths read, built
+// as JSON from Engine and GUI. In the browser it leaves through
+// Module["b5_test"] (WebBuild/test_hooks.cpp), natively through a file in
+// pollRequests() at the bottom.
 
 #ifdef BLOCKS5_TEST_HOOKS
 
@@ -99,11 +97,8 @@ namespace
 	// Game coordinate -> window coordinate, the same arithmetic as in
 	// presentFrame(). Engine::getCursorPosition() is the inverse of it: a
 	// click on the point it delivers lands on exactly this game coordinate.
-	//
-	// The CRT filter's curvature stays out of it: it would come from
-	// warpToOutput(), which is private, and a test that hits buttons runs
-	// without it anyway. Whether something is warping after all is in the
-	// JSON as "crt", for a test to notice when that case arises.
+	// The CRT filter's curvature is left out, since a test that hits buttons
+	// runs without it; "crt" in the JSON says when something warps after all.
 	void gameToWindow(const Vec2i& game, int* p_x, int* p_y)
 	{
 		Engine& engine = Engine::inst();
@@ -151,10 +146,9 @@ namespace
 		out += ",\"active\":";
 		out += p_element->isActive() ? "true" : "false";
 
-		// A static text's laid-out size, so that a harness can ask whether it
-		// still fits what it stands in. Measured through the element's own
-		// font and the wrap it really draws under, which is the only answer
-		// that follows a language switch and a rebound key.
+		// A static text's laid-out size, so a harness can ask whether it still
+		// fits its box. Measured through the element's own font and wrap, the
+		// only answer that follows a language switch and a rebound key.
 		GUI_StaticText* p_staticText = dynamic_cast<GUI_StaticText*>(p_element);
 		if(p_staticText)
 		{
@@ -179,12 +173,10 @@ namespace
 		const Vec2i screen = engine.getScreenSize();
 		const Vec2i display = engine.getDisplaySize();
 
-		// The question can come earlier than one thinks - in the browser the
-		// export stands ready as soon as the module has loaded, long before
-		// main(). Before that screenSize holds a zero, computePresentRect()
-		// divides by it, and the cast of the resulting NaN to int is not a
-		// wrong value in wasm but a trap: the page hangs instead of reporting
-		// an error. Look first whether there is anything to report at all.
+		// In the browser the export can be called before main() has run.
+		// screenSize is then zero, computePresentRect() divides by it, and in
+		// wasm the cast of the resulting NaN to int traps, which hangs the page
+		// instead of reporting an error.
 		if(screen.x <= 0 || screen.y <= 0 || !GUI::inst().getRoot())
 		{
 			return std::string("{\"state\":\"\",\"elements\":[]}\n");
@@ -205,31 +197,25 @@ namespace
 		appendEscaped(out, engine.getLanguage());
 		out += "\",\"filter\":\"";
 		appendEscaped(out, engine.getUpscaler()->getName());
-		// Not "is the CRT filter on" but "is anything warping the picture":
-		// only then are the window coordinates above no longer right. The key
-		// is still called crt - WebBuild/test/harness.js reads it that way.
+		// Whether anything warps the picture, not whether the CRT filter is on:
+		// only then are the window coordinates wrong. The key is named crt
+		// because WebBuild/test/harness.js reads it under that name.
 		out += "\",\"crt\":";
 		out += engine.getUpscaler()->distortsCursor() ? "true" : "false";
 		out += ",\"focus\":\"";
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
-		// Where the game sees the cursor and what it is pressing on. From
-		// outside, a tap that does not arrive otherwise looks exactly like
-		// a button that does not react.
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
 
-		// Whether the game is paused. Only a question at all in the game
-		// state; told apart by name and not with dynamic_cast, as everywhere
-		// in this tree.
+		// Only the game state can be paused. It is recognised by name, the way
+		// game states are told apart throughout the tree.
 		out += ",\"paused\":";
 		out += (p_state && p_state->getName() == "GS_Game"
 				&& static_cast<GS_Game*>(p_state)->isPaused()) ? "true" : "false";
 
-		// Which named actions are down right now. Only the pressed ones, to
-		// keep the report short. That is the only place where it can be seen
-		// from outside whether a key reaches the action layer at all - that
-		// layer reads SDL_GetKeyState and not keyData, which cannot be told
-		// from outside any other way.
+		// The named actions that are down, and only those. This is the one
+		// view of the action layer from outside: it reads SDL_GetKeyState and
+		// not keyData, so nothing else shows whether a key reached it.
 		out += ",\"actionsDown\":[";
 		{
 			const std::vector<Action*>& actions = engine.getActionsVector();
@@ -246,18 +232,17 @@ namespace
 		}
 		out += "]";
 
-		// The largest number of particles one system has had to draw since the
-		// last time this report was asked for, which is what sizes the vertex
-		// buffer in ParticleSystem. Reading it clears it, so a test that dumps
-		// once at the start of a scene and once at the end gets the peak over
-		// exactly that stretch and cannot miss a spike between two polls.
+		// The most particles one system has had to draw since the last dump,
+		// which is what sizes ParticleSystem's vertex buffer. Reading it clears
+		// it, so a dump at the start and one at the end of a scene give the
+		// peak over exactly that stretch.
 		out += ",\"particlePeak\":";
 		appendInt(out, static_cast<int>(ParticleSystem::takePeakCount()));
 
-		// The logic tick, in milliseconds. A test that wants a named frame
-		// waits for this rather than for an interval: it is what the seeded
-		// generator is keyed on, so two runs agree on the picture only where
-		// they agree on this.
+		// time is the engine's logic clock and scene the scene's own
+		// (Engine::sceneTick), both in milliseconds. The seeded generator is
+		// keyed on scene, so a test that wants a named frame waits for that
+		// rather than for an interval.
 		out += ",\"time\":";
 		appendInt(out, static_cast<int>(engine.getTime()));
 		out += ",\"scene\":";
@@ -265,9 +250,9 @@ namespace
 		out += ",\"frozen\":";
 		out += TestHooks::frozen() ? "true" : "false";
 
-		// How far a running transition has got, in milliseconds, or -1 where
-		// there is none: the same number "freeze fade" stops on, so a harness
-		// can measure a transition's length instead of watching for it.
+		// How far a running transition has got in milliseconds, or -1 where
+		// there is none: the number "freeze fade" stops on, which lets a
+		// harness measure a transition's length.
 		out += ",\"crossfade\":";
 		appendInt(out, engine.getCrossfadeProgressMs());
 
@@ -293,13 +278,11 @@ namespace
 			appendInt(out, static_cast<int>(batch.drawsByReason[i]));
 		}
 		out += "}}";
-		// Every draw call render() made, over the frames it made them in -
-		// the number a renderer change is measured by, where the batch's own
-		// count above sees only its own flushes. The count is native only:
-		// it comes from the wrappers at the foot of this file, and in the
-		// browser the harness counts on the WebGL context instead - so the
-		// key is left out there rather than reported as a zero, which would
-		// read as a frame that drew nothing.
+		// Every draw call render() made, over the frames it made them in: the
+		// number a renderer change is measured by. calls comes from the
+		// wrappers at the foot of this file; in the browser, where the harness
+		// counts on the WebGL context, it is left out rather than reported as
+		// a zero that would read as frames drawing nothing.
 		out += ",\"draws\":{\"frames\":";
 		appendInt(out, static_cast<int>(engine.renderedFrames));
 #ifndef __EMSCRIPTEN__
@@ -308,12 +291,12 @@ namespace
 #endif
 		out += "}";
 
-		// What the font's string cache did with the same frames. quads is what
-		// it is holding right now and not a count since the reset - that is
-		// the number the budget is spent in, 64 bytes of glyph geometry to a
-		// character. measures counts every call to measureText(), measureHits
-		// those a laid-out string answered and dimHits those the dimensions
-		// cache did; what is left over are the walks.
+		// What the font caches did over the same frames. The four sizes
+		// (entries, quads, dimEntries, dimBytes) are what the caches hold now,
+		// not counts since the reset; quads is the unit the budget is spent
+		// in, 64 bytes of glyph geometry per character. Of the measures (calls
+		// to measureText()), measureHits were answered by a laid-out string
+		// and dimHits by the dimensions cache; the rest walked the string.
 		const Font::CacheStats& fc = Font::getCacheStats();
 		out += ",\"fontcache\":{\"hits\":";
 		appendInt(out, static_cast<int>(fc.hits));
@@ -339,11 +322,11 @@ namespace
 		appendInt(out, static_cast<int>(fc.quads));
 		out += "}";
 
-		// What the frames since the last resetStats() cost, all in
-		// milliseconds on the main thread. None of it waits for the GPU -
-		// WebGL hands over a command and returns - so these are what the
-		// game and the JavaScript cost, which is the half that starves
-		// the audio and drops the frame.
+		// What the frames since the last resetStats() cost, in milliseconds
+		// on the main thread. In the browser none of it waits for the GPU
+		// (WebGL takes a command and returns), so there these are what the
+		// game and the JavaScript cost, the half that starves the audio and
+		// drops frames. Natively the GPU's share lands in present and swap.
 		{
 			const FrameStats& stats = Engine::inst().getFrameStats();
 			out += ",\"frames\":{\"count\":";
@@ -354,13 +337,11 @@ namespace
 			appendPhase(out, "update", FrameStats::FS_UPDATE);
 			appendPhase(out, "present", FrameStats::FS_PRESENT);
 			appendPhase(out, "swap", FrameStats::FS_SWAP);
-			// Counted against the frame budget, which is the logic rate: a
-			// frame whose interval went over is one the player did not get,
-			// one whose work went over is one the game is responsible for.
-			// Both, because they come apart - a browser at 38 ms a frame on
-			// 2.7 ms of work has none of the second and all of the first.
-			// over500 is the third question: that is Emscripten's Web Audio
-			// lookahead, so a frame past it is a hole in the music.
+			// Counted against one logic tick: late is the frames whose
+			// interval went over it, lateWork those whose own work did. The
+			// two come apart - a browser at 38 ms a frame on 2.7 ms of work has
+			// all of the first and none of the second. over500 is Emscripten's
+			// Web Audio lookahead, so a frame past it is a hole in the music.
 			const float budget = static_cast<float>(Engine::inst().getLogicRate());
 			out += ",\"budgetMs\":";
 			appendInt(out, static_cast<int>(budget));
@@ -373,11 +354,9 @@ namespace
 			out += "}";
 		}
 
-		// The cell the active character stands on, or -1,-1 where no level is
-		// running or nobody is awake. It is the one thing about a level that
-		// the GUI report cannot stand in for: a drag steers the field rather
-		// than a widget, so a test that asks whether a gesture walked anybody
-		// has nothing else to read.
+		// The cell the active character stands on, or -1,-1 with no level
+		// running or nobody awake. A drag steers the field and not a widget,
+		// so this is how a test sees whether a gesture walked anybody.
 		{
 			GameState* p_game = engine.getGameState();
 			Level* p_lvl = (p_game && p_game->getName() == "GS_Game")
@@ -387,14 +366,16 @@ namespace
 			out += ",";
 			appendPoint(out, "player", cell.x, cell.y);
 
-			// Whether the lights are out, for the same reason: a switch does
-			// its whole job in onTouchedByPlayer, and of the eight the light
-			// is the one whose effect is a single bit of the level rather
-			// than something that has to be recognised in the picture.
+			// Whether the lights are out, for the same reason: of what a switch
+			// can do, this is the effect that is a single bit of the level
+			// rather than something to recognise in a picture.
 			out += ",\"nightVision\":";
 			out += (p_lvl && p_lvl->isNightVision()) ? "true" : "false";
 		}
 
+		// What the game is pressing on and where it sees the cursor: without
+		// them a tap that never arrives looks exactly like a button that does
+		// not react.
 		out += ",\"mouseDown\":\"";
 		appendEscaped(out, p_down ? p_down->getFullName() : "");
 		out += "\",";
@@ -517,14 +498,12 @@ std::string hitAt(int x, int y)
 
 #ifndef __EMSCRIPTEN__
 
-// In the browser JavaScript calls the export. Natively there is no such
-// channel, and the request sits in a file instead: the test writes "request",
-// the game reads it once per logic tick, deletes it and puts the answer
-// beside it. It is written under another name first and then renamed, because
-// that is a single step - the test never sees the answer half finished.
-//
-// A stat() on a file that does not exist, fifty times a second, costs nothing,
-// and this path exists only in the test build.
+// Natively there is no JavaScript to call the export, so the request comes
+// through a file. The test publishes "request" by renaming it into place,
+// since a file created and then written can be read empty in between; the
+// game reads it once per logic tick, deletes it and answers in "response",
+// written as response.tmp and renamed so that the test never sees half an
+// answer. An fopen() of a missing file fifty times a second costs nothing.
 void pollRequests()
 {
 	static std::string directory;
@@ -541,17 +520,17 @@ void pollRequests()
 	FILE* p_request = fopen(requestPath.c_str(), "rb");
 	if(!p_request) return;
 
-	// One line per request. The path of a shot alone runs past a hundred
-	// characters in a session's scratchpad directory, and fgets would cut a
-	// longer line short without a word, so the buffer is generous.
+	// One line per request. A shot's path alone can run past a hundred
+	// characters, and fgets cuts a longer line short without a word, so the
+	// buffer is generous.
 	char buffer[1024] = "";
 	if(!fgets(buffer, sizeof(buffer), p_request)) buffer[0] = 0;
 	fclose(p_request);
 	::remove(requestPath.c_str());
 
-	// "#<serial> <request>": the serial goes back on the answer's first
-	// line, which is how the harness tells the answer to this request from
-	// a late one to an earlier request it had given up on.
+	// "#<serial> <request>": the serial goes back on the answer's first line,
+	// so the harness can tell this answer from a late one to an earlier
+	// request it had given up on.
 	std::string serial;
 	const char* line = buffer;
 	if(*line == '#')
@@ -596,13 +575,10 @@ void pollRequests()
 	else if(!strncmp(line, "state ", 6))
 	{
 		// Switch to a named game state, applied at the loop's safe point like
-		// any other change. It is how the harness reaches the credits in the
-		// version it wants without a click on the menu, whose Credits line
-		// picks the version from the player's progress. One word after the
-		// name is a boolean parameter set to true in the context the state is
-		// entered with: "state GS_Credits full" asks for the ending, which is
-		// otherwise decided by a progress file the oracle's private home does
-		// not have. One, because one is what there is to ask for.
+		// any other change. It reaches the credits in the version the harness
+		// wants, where the menu would pick it from the player's progress. One
+		// optional word after the name is set to true in the context the state
+		// is entered with: "state GS_Credits full" asks for the ending.
 		const std::string arg(Argument::of(line + 6));
 		const std::string::size_type space = arg.find(' ');
 		ParameterBlock context;
@@ -612,11 +588,10 @@ void pollRequests()
 	}
 	else if(!strncmp(line, "click ", 6))
 	{
-		// Press a named button from inside the game, clock frozen or not -
-		// which is the one thing a real click cannot be: one that lands on a
-		// named tick. A screen entered this way starts from a picture the
-		// tick decides, and not the harness's timing; the star scene leaves
-		// the menu like this.
+		// Press a named button from inside the game, frozen clock or not.
+		// Unlike a real click it lands on a named tick, so the screen it
+		// opens starts from a picture the tick decides; the star and cube
+		// scenes start their transitions this way.
 		GUI_Element* p_element = GUI::inst()[Argument::of(line + 6)];
 		if(p_element && p_element->getType() == "GUI_Button")
 		{
@@ -628,10 +603,9 @@ void pollRequests()
 	else if(!strncmp(line, "particles", 9))
 	{
 		// Every live particle of the played level's two systems, one per
-		// line: which system, position, ticks left, size, colour. The
-		// diagnostic behind the frame oracle: two frames that differ in a
-		// cloud say that something differed, and this says which particle
-		// and, from its lifetime, when.
+		// line: system, position, ticks left, size, colour. When two oracle
+		// frames differ in a cloud, this says which particle and, from its
+		// lifetime, since when.
 		GameState* p_state = Engine::inst().getGameState();
 		Level* p_level = (p_state && p_state->getName() == "GS_Game")
 						 ? static_cast<GS_Game*>(p_state)->getLevel() : 0;
@@ -678,18 +652,12 @@ void pollRequests()
 
 // What feeds drawCalls. The hooks build links with
 // --wrap=glDrawArrays,--wrap=glDrawElements (LinuxBuild/build.sh), which
-// sends every call to those two from the game's own objects here and leaves
-// the real entry point under its __real_ name. At the link rather than
-// through a macro, so no header carries the define and no other translation
-// unit needs it - and the shipped build has none of this. The two are the
-// whole of what draws in this tree - the renderer with glDrawElements, the
-// present with glDrawArrays - since verify.py's raw_gl check keeps every gl*
-// call to the files that own raw GL, and nothing draws for the game from
-// inside a library, where a wrap could not see it.
-//
-// Not in the browser, where perf.js counts the draws on the WebGL context
-// itself - the same number, since nothing stands between the game and WebGL
-// there.
+// routes every call to those two from the game's own object files here and
+// leaves the real entry point as __real_; at the link, so no header carries a
+// define. The two are all that draws in this tree (the renderer and the
+// present), since verify.py's raw_gl check keeps gl* calls to the files that
+// own raw GL and no library draws for the game. In the browser
+// WebBuild/test/harness.js counts on the WebGL context instead.
 extern "C"
 {
 	void __real_glDrawArrays(GLenum mode, GLint first, GLsizei count);

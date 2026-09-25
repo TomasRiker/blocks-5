@@ -38,12 +38,11 @@ private:
 	Level* p_currentLevel;
 	uint currentLevel;
 
-	// What the progress database said when the screen last got the focus. The
-	// database itself keeps nothing, and the two readers below run inside
-	// onRender(), so asking it per frame would mean opening the archive per
-	// frame. Re-read in onGetFocus(), which is where a played level comes back
-	// to - the screen therefore never shows a level it just saw solved as
-	// unsolved.
+	// What the progress database said when the screen last got the focus.
+	// The database keeps nothing in memory and the two readers below run in
+	// onRender(), so asking it directly would open the archive every frame.
+	// Re-read in onGetFocus(), where a played level returns to, so a level
+	// just solved never shows as unsolved.
 	ProgressDB::Progress progress;
 
 	void refreshProgress();
