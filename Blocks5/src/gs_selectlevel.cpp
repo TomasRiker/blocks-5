@@ -267,9 +267,16 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 		const std::string path(fs.resolveContentPath("levels/campaigns/" + *i));
 		if(!fs.fileExists(path + "/campaign.xml")) continue;
 
-		// load the campaign
+		// Load the campaign. One without a level loads - an older editor could
+		// save one, and a file copied into the folder by hand is never checked
+		// the way an import is - but has nothing to select or play.
 		Campaign* p_campaign = new Campaign;
-		if(p_campaign->load(path))
+		const bool loaded = p_campaign->load(path);
+		if(loaded && p_campaign->getLevels().empty())
+		{
+			printfLog("+ WARNING: Campaign \"%s\" has no levels. It is left out.\n", i->c_str());
+		}
+		if(loaded && !p_campaign->getLevels().empty())
 		{
 			GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
 			p_listBox->addItem(item);

@@ -98,6 +98,17 @@ File_Real::~File_Real()
 	if(p_handle) fclose(p_handle);
 }
 
+bool File_Real::finish()
+{
+	if(mode != FileSystem::FM_WRITE || !p_handle) return false;
+
+	// A write lands in stdio's buffer, and a full disk shows only when the
+	// buffer goes out: here, and not in any result write() gave.
+	const bool closed = fclose(p_handle) == 0;
+	p_handle = 0;
+	return closed;
+}
+
 bool File_Real::isEOF() const
 {
 	return eof;

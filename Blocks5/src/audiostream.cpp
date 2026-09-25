@@ -39,13 +39,14 @@ AudioStream* AudioStream::open(const std::string& filename)
 {
 	AudioStream* p_stream = 0;
 
-	// WAV or OGG?
+	// WAV or OGG? In any case: a track called Theme.OGG is as good as one
+	// called theme.ogg.
 	std::string ext = getFilenameExtension(filename);
-	if(ext == "wav")
+	if(equalsNoCase(ext.c_str(), "wav"))
 	{
 		p_stream = new AS_Wav(filename);
 	}
-	else if(ext == "ogg")
+	else if(equalsNoCase(ext.c_str(), "ogg"))
 	{
 		p_stream = new AS_Ogg(filename);
 	}
@@ -62,6 +63,19 @@ AudioStream* AudioStream::open(const std::string& filename)
 	{
 		printfLog("+ ERROR: Could not create audio stream for file \"%s\".\n",
 				  filename.c_str());
+		delete p_stream;
+		return 0;
+	}
+
+	// The rate is the file's word, and music comes with levels and campaigns
+	// from anybody: StreamedSound sizes its buffer as a quarter second of it,
+	// which a rate near 2^32 turns into gigabytes. 192 kHz is the most any
+	// audio format in use asks for.
+	const uint rate = p_stream->getSampleRate();
+	if(rate < 1000 || rate > 192000)
+	{
+		printfLog("+ ERROR: Audio file \"%s\" claims a sample rate of %u Hz.\n",
+				  filename.c_str(), rate);
 		delete p_stream;
 		return 0;
 	}

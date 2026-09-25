@@ -219,7 +219,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	{
 		// Delete the object. 1 means deleted, -1 deleted and the archive left
 		// empty in the process, 0 not found and -2 an archive that could not
-		// be rewritten - and in the last two cases nothing is gone.
+		// be rewritten.
 		const int r = deleteArchivedFile(archiveFilename, objectName);
 		if(r == 0 || r == -2) error = 9;
 	}
@@ -346,6 +346,8 @@ bool File_Archived::finish()
 				  objectName.c_str(),
 				  archiveFilename.c_str(),
 				  r);
+		zipClose(outArchive, 0);
+		outArchive = 0;
 		return false;
 	}
 
@@ -357,12 +359,27 @@ bool File_Archived::finish()
 				  objectName.c_str(),
 				  archiveFilename.c_str(),
 				  r);
+		zipCloseFileInZip(outArchive);
+		zipClose(outArchive, 0);
+		outArchive = 0;
 		return false;
 	}
 
-	zipCloseFileInZip(outArchive);
-	zipClose(outArchive, 0);
+	// For a member as small as progress.xml these two are where the bytes
+	// reach the disk - the stdio flush and the fclose inside zipClose - so a
+	// full disk shows up here and nowhere else. Closed on the failures above
+	// too: an archive left open has no central directory.
+	const int closedMember = zipCloseFileInZip(outArchive);
+	const int closedArchive = zipClose(outArchive, 0);
 	outArchive = 0;
+	if(closedMember != ZIP_OK || closedArchive != ZIP_OK)
+	{
+		printfLog("+ ERROR: Could not finish file \"%s\" in archive \"%s\" (Error: %d, %d).\n",
+				  objectName.c_str(),
+				  archiveFilename.c_str(),
+				  closedMember, closedArchive);
+		return false;
+	}
 
 	return true;
 }
@@ -423,8 +440,9 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	};
 
 	// The survivors are copied into a side file, which replaces the archive
-	// at the end. Failing to open either file or to parse a record leaves the
-	// archive untouched and reports -2.
+	// at the end. Failing to open either file, to parse a record or to write
+	// the side file whole - a full disk - leaves the archive untouched and
+	// reports -2.
 	const std::string tempFilename = archiveFilename + "_";
 	FILE* p_in = fopen(archiveFilename.c_str(), "rb");
 	if(!p_in)
@@ -482,8 +500,13 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	EndOfCentralDirectory ecd, ecdOut;
 	fread(&ecd, 1, sizeof(ecd), p_in);
 	char* p_globalComment = 0;
-	if(ecd.globalCommentLength) p_globalComment = new char[ecd.globalCommentLength];
+	if(ecd.globalCommentLength)
+	{
+		p_globalComment = new char[ecd.globalCommentLength];
+		fread(p_globalComment, 1, ecd.globalCommentLength, p_in);
+	}
 	ecdOut = ecd;
+	bool written = true;
 
 	fseek(p_in, ecd.centralDirectoryOffset, SEEK_SET);
 
@@ -555,7 +578,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fread(p_record, 1, recordSize, p_in);
 
 			cdeOut.localHeaderOffset = ftell(p_out);
-			fwrite(p_record, 1, recordSize, p_out);
+			written = fwrite(p_record, 1, recordSize, p_out) == recordSize && written;
 			delete[] p_record;
 
 			// remember the entry for the central directory
@@ -573,15 +596,15 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	for(uint i = 0; i < cdOut.size(); i++)
 	{
 		CentralDirectoryEntry& cde = cdOut[i];
-		fwrite(&cde, 1, sizeof(cde), p_out);
+		written = fwrite(&cde, 1, sizeof(cde), p_out) == sizeof(cde) && written;
 
 		char* p_filename = filenameOut[i];
 		char* p_extraField = extraFieldOut[i];
 		char* p_comment = commentOut[i];
 
-		fwrite(p_filename, 1, cde.filenameLength, p_out);
-		if(cde.extraFieldLength) fwrite(p_extraField, 1, cde.extraFieldLength, p_out);
-		if(cde.commentLength) fwrite(p_comment, 1, cde.commentLength, p_out);
+		written = fwrite(p_filename, 1, cde.filenameLength, p_out) == cde.filenameLength && written;
+		if(cde.extraFieldLength) written = fwrite(p_extraField, 1, cde.extraFieldLength, p_out) == cde.extraFieldLength && written;
+		if(cde.commentLength) written = fwrite(p_comment, 1, cde.commentLength, p_out) == cde.commentLength && written;
 
 		delete[] p_filename;
 		delete[] p_extraField;
@@ -589,27 +612,45 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	}
 
 	// write the end record
-	fwrite(&ecdOut, 1, sizeof(ecdOut), p_out);
-	if(ecdOut.globalCommentLength) fwrite(p_globalComment, 1, ecdOut.globalCommentLength, p_out);
+	written = fwrite(&ecdOut, 1, sizeof(ecdOut), p_out) == sizeof(ecdOut) && written;
+	if(ecdOut.globalCommentLength) written = fwrite(p_globalComment, 1, ecdOut.globalCommentLength, p_out) == ecdOut.globalCommentLength && written;
 
 	delete[] p_globalComment;
 
 	fclose(p_in);
-	fclose(p_out);
+	// stdio's buffer goes out here, and with it the last of a full disk.
+	written = fclose(p_out) == 0 && written;
 
-	// delete the old archive
-	remove(archiveFilename.c_str());
-
-	if(ecdOut.totalEntries)
+	if(!ecdOut.totalEntries)
 	{
-		// rename the new file
-		rename(tempFilename.c_str(), archiveFilename.c_str());
-	}
-	else
-	{
-		// delete the new file
+		// Nothing is left in it: the archive goes, the side file with it.
+		remove(archiveFilename.c_str());
 		remove(tempFilename.c_str());
-		result = -1;
+		return -1;
+	}
+
+	if(!written)
+	{
+		printfLog("+ ERROR: Could not write \"%s\"; the archive is left as it was.\n",
+				  tempFilename.c_str());
+		remove(tempFilename.c_str());
+		return -2;
+	}
+
+	// POSIX replaces the old archive in one step; Windows refuses to, and
+	// gets its second try once the old one is gone.
+	if(rename(tempFilename.c_str(), archiveFilename.c_str()) != 0)
+	{
+		const bool removed = remove(archiveFilename.c_str()) == 0;
+		if(rename(tempFilename.c_str(), archiveFilename.c_str()) != 0)
+		{
+			// Where the old archive would not go it stands as it was. Where
+			// it went, the side file is all there is and stays.
+			printfLog("+ ERROR: Could not rename \"%s\" to \"%s\".\n",
+					  tempFilename.c_str(), archiveFilename.c_str());
+			if(!removed) remove(tempFilename.c_str());
+			return -2;
+		}
 	}
 
 	return result;

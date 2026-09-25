@@ -106,7 +106,9 @@ std::string FileSystem::evalPath(const std::string& path) const
 {
 	std::string result = evalRelativePath(path, isAbsolutePath(path) ? "" : getCurrentDir());
 
-	// unify the slashes and remove doubled ones
+	// Unify the slashes and remove doubled ones - but not a leading pair,
+	// which is a network path under Windows (\\server\share, where a
+	// redirected Documents folder can lie) rather than a doubling.
 	std::string clean;
 	bool slash = false;
 	for(uint i = 0; i < result.length(); i++)
@@ -114,7 +116,7 @@ std::string FileSystem::evalPath(const std::string& path) const
 		if(result[i] == '/' || result[i] == '\\')
 		{
 			result[i] = '/';
-			if(slash) continue;
+			if(slash && i > 1) continue;
 			slash = true;
 		}
 		else slash = false;
@@ -128,9 +130,9 @@ std::string FileSystem::getAppHomeDirectory() const
 {
 #ifdef _WIN32
 	// MAX_PATH is the size the call is specified for. Without a Documents
-	// folder only a relative path is left, as under Linux without HOME.
+	// folder, a folder beside the game, as under Linux without HOME.
 	char path[MAX_PATH];
-	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path))) return "./Blocks 5/";
+	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path))) return gameDirectory + "Blocks 5/";
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
 	// Mounted by the page as IDBFS, so that saved games and the player's own
@@ -140,16 +142,21 @@ std::string FileSystem::getAppHomeDirectory() const
 	// The XDG Base Directory Specification: $XDG_DATA_HOME, or where that is
 	// not set, $HOME/.local/share. Lowercase and without a space, because here
 	// the name is a path component and not a title shown in a file manager.
+	// A relative one is to be ignored, the specification says, and here it
+	// would do harm: once main() has mounted data.zip as the current
+	// directory, every relative path is resolved inside the archive, and the
+	// player's files would be written into it.
 	if(const char* p_xdg = ::getenv("XDG_DATA_HOME"))
 	{
-		if(*p_xdg) return std::string(p_xdg) + "/blocks5/";
+		if(*p_xdg == '/') return std::string(p_xdg) + "/blocks5/";
 	}
 	if(const char* p_home = ::getenv("HOME"))
 	{
-		if(*p_home) return std::string(p_home) + "/.local/share/blocks5/";
+		if(*p_home == '/') return std::string(p_home) + "/.local/share/blocks5/";
 	}
-	// Without HOME only a relative path is left.
-	return "./blocks5_home/";
+	// Without a usable HOME, a folder beside the game, and absolute for the
+	// same reason.
+	return gameDirectory + "blocks5_home/";
 #endif
 }
 
@@ -245,11 +252,14 @@ bool FileSystem::copyFile(const std::string& source,
 		return false;
 	}
 
-	uint numBytesWritten = p_dest->write(p_buffer, size);
+	// finish() and not only the write: a member of an archive is compressed
+	// and written there, and a plain file reaches the disk there.
+	const uint numBytesWritten = p_dest->write(p_buffer, size);
+	const bool finished = p_dest->finish();
 	closeFile(p_dest);
 	delete[] p_buffer;
 
-	return numBytesWritten == size;
+	return finished && numBytesWritten == size;
 }
 
 bool FileSystem::renameFile(const std::string& source,
@@ -467,7 +477,7 @@ std::string FileSystem::evalRelativePath(const std::string& path,
 bool FileSystem::isAbsolutePath(const std::string& path) const
 {
 	if(path.empty()) return false;
-	else return path[0] == '/' || (path.length() >= 2 && path[1] == ':');
+	else return path[0] == '/' || path[0] == '\\' || (path.length() >= 2 && path[1] == ':');
 }
 
 std::list<std::string> FileSystem::listDirectory(const std::string& directory)

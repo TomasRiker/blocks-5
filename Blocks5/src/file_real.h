@@ -12,6 +12,7 @@ class File_Real : public File
 public:
 	uint read(void* p_dest, uint numBytes);
 	uint write(const void* p_src, uint numBytes);
+	bool finish();
 	std::list<std::string> listDirectory();
 	bool seek(uint newReadPointer);
 	uint tell() const;

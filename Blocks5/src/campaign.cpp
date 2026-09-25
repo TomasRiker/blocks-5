@@ -416,7 +416,12 @@ bool Campaign::save(const std::string& filename)
 		// reads blocks.zip anyway.
 		if(isBuiltInMusic(track)) continue;
 
-		if(!isSafeMemberName(track) || track == "campaign.xml")
+		// Only a sound file can be a track, which also keeps the name off
+		// campaign.xml and every level_N.xml member - in any case, since
+		// minizip looks a member up without it on Windows.
+		const std::string extension(getFilenameExtension(track));
+		const bool soundFile = equalsNoCase(extension.c_str(), "ogg") || equalsNoCase(extension.c_str(), "wav");
+		if(!isSafeMemberName(track) || !soundFile)
 		{
 			printfLog("+ WARNING: Level \"%s\" names an unusable music file - skipped.\n",
 					  levels[i].source().c_str());
