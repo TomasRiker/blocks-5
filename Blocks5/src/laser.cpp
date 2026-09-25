@@ -321,14 +321,11 @@ void Laser::onUpdate()
 				p.gravity = 0.1f;
 				p.positionOnTexture = Vec2b(32, 32);
 				p.sizeOnTexture = Vec2b(16, 16);
-				// Two pixels of scatter about the point the beam ends on, and
-				// nothing more: a particle's position is its centre, since
-				// ParticleSystem::render builds the quad around it, and
-				// beamPos is a point in the level rather than a cell's corner.
-				// Where the same scatter is written "+ random(6, 10)" - the
-				// fire, the toxic waste, an object arriving from a teleporter
-				// - it is added to position * 16, and the eight in it is the
-				// half cell that carries that corner to its centre.
+				// Two pixels of scatter about the beam's end and no half cell:
+				// a particle's position is its centre, and beamPos is already
+				// a point in the level, not a cell's corner. The
+				// "position * 16 + random(6, 10)" of the fire, the toxic waste
+				// and the teleporter adds the eight that a corner needs.
 				p.position = beamPos + Vec2f(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
 											 BEAM_DRAW_OFFSET + random(-2.0f, 2.0f));
 				const float r = random(0.0f, 6.283f);

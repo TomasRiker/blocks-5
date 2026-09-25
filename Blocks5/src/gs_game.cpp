@@ -19,11 +19,9 @@
 
 namespace
 {
-	// On a restart the game jumps from the current state to the start with
-	// nothing in between. With the CRT filter in front of it that may look
-	// like a video recorder in rewind - which jumps the same way and nobody
-	// minds. Without the filter it would be picture noise for no reason, and
-	// it stays with the slices.
+	// A restart jumps to the start with nothing in between. Under the CRT
+	// filter that reads as a tape rewinding, which jumps the same way; without
+	// it the tape noise would be a costume, so it gets the slices.
 	void crossfadeRestart(Engine& engine)
 	{
 		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5f);
@@ -107,15 +105,11 @@ public:
 			}
 		}
 
-		// The same press both wakes a character and takes hold of it, so the
-		// one that woke somebody up can go straight on to drag them. Set
-		// nowhere else: dragging has to begin on a character, and this is the
-		// one place that knows a press landed on one.
-		//
-		// A press that did not is a press on something - unless a character is
-		// already being held, where the buttons mean bombs and the second one
-		// of a grip lands wherever the cursor has got to by then. Which is why
-		// the character is read off a local and the grip off the flag.
+		// The press that wakes a character also takes hold of it for a drag,
+		// and this is the one place that knows a press landed on one. A press
+		// elsewhere works the cell - unless a character is already held, where
+		// a second button means a bomb and lands wherever the cursor has got
+		// to. Hence the local for this press and the flag for the grip.
 		if(onPlayer) game.dragFromPlayer = true;
 		else if(!game.dragFromPlayer) game.bumpCell(c);
 	}
@@ -152,11 +146,10 @@ public:
 
 		if(!pressed) return;
 
-		// An open hint note gets Return and Escape first. It is as tall as the
-		// play area and covers it, and without this the player would have to
-		// walk off the field to see anything again. With nothing to close,
-		// dismissDisplay() reports false and the key goes its usual way -
-		// Escape therefore on into the game menu.
+		// An open hint note takes Return and Escape first: it covers the play
+		// area, and the player would otherwise have to walk off the field.
+		// With nothing to close, dismissDisplay() is false and Escape goes on
+		// to the game menu.
 		if(event.keysym.sym == SDLK_ESCAPE ||
 		   event.keysym.sym == SDLK_RETURN ||
 		   event.keysym.sym == SDLK_KP_ENTER)
@@ -179,11 +172,9 @@ public:
 		const std::string& name = p_element->getFullName();
 		if(name == "Game.ShowMenu")
 		{
-			// Opening the menu is a drop. A drag is a command to a character
-			// and the menu is not, so a button still held while the player
-			// reads it must not walk anybody; the drag starts again with the
-			// next press. This is the one funnel - Escape and the button on
-			// screen both arrive here.
+			// Opening the menu drops a drag, or a button still held while the
+			// player reads it would walk the character. Escape and the button
+			// on screen both come through here.
 			game.engine.cancelMouseDrag();
 
 			getChild("MenuPane.Menu")->focus();
@@ -257,12 +248,9 @@ private:
 
 GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false), dragFromPlayer(false)
 {
-	// A state stands on the stack from the moment it is pushed, and onEnter() -
-	// which builds all of this - runs only at the next processGameStateChanges().
-	// getGameState() therefore names this state while none of it exists yet, and
-	// whoever asks in that window reads what the heap happened to leave here. The
-	// test hook did exactly that, and a level pointer of rubbish took the game
-	// down with it.
+	// Zeroed here and not only in onEnter(): a pushed state is on the stack,
+	// and getGameState() names it, before processGameStateChanges() runs
+	// onEnter() - and the test hooks ask in that window.
 	p_level = 0;
 	p_selectLevel = 0;
 	p_misc = 0;
@@ -327,11 +315,10 @@ void GS_Game::onRender()
 	// keep three levels of the same name apart.
 	const std::string title = localizeString(p_level->getTitle());
 
-	// The space between the image at 168 (48 wide) and the menu button at 544,
-	// centred on 384 - the button is the tighter side, hence
-	// 2 * (544 - 8 - 384), with the eight as a gap to keep the caption from
-	// touching it. The rest has to go: renderText() clips nothing and would
-	// run across both.
+	// The space between the image at 168 (48 wide) and the menu button at
+	// 544, centred on 384: the button is the tighter side, hence
+	// 2 * (544 - 8 - 384), eight pixels of gap. renderText() clips nothing, so
+	// the rest has to go.
 	const int captionWidth = 304;
 
 	const bool single = !cameFromEditor && p_currentCampaign
@@ -374,11 +361,9 @@ bool GS_Game::getMouseDragCells(Vec2i* p_actor,
 	if(!p_level || paused || p_level->isInPreview()) return false;
 	if(GUI::inst()["Game.MenuPane"]->isVisible()) return false;
 
-	// Only a press that landed on the field. The GUI remembers what the press
-	// went to, and for the play area that is the GameGUI itself - anything
-	// else is a widget with its own job, the Menu button or a pad key, and
-	// steering off one of those would walk the character while the player is
-	// aiming at something quite different.
+	// Only a press that landed on the field, which the GUI remembers as the
+	// GameGUI itself; a press on a widget - the Menu button, a pad key - must
+	// not walk the character.
 	GUI_Element* p_down = GUI::inst().getMouseDownElement();
 	if(!p_down || p_down->getFullName() != "Game") return false;
 
@@ -404,21 +389,13 @@ bool GS_Game::canMouseDragStep(const Vec2i& dir)
 	return p_player ? p_player->move(dir, false, true) : false;
 }
 
-// Clicking on something the character is standing next to works it: a switch
-// or a magnet is solid and fixed and does its whole job in onTouchedByPlayer,
-// which is reached by walking into it, and a drag that refuses blocked
-// directions would otherwise put them out of a mouse player's reach.
-//
-// The two guards are the whole rule. Orthogonally adjacent, because that is
-// what "walk into it" means; and only where the character *cannot* go there,
-// so that a click is never a step and never a push - a panel is walked onto
-// rather than into, and stays a place to stand on.
-//
-// What happens then is left to move() rather than worked out here, and that
-// is the point: a click can reach exactly what a walk in that direction
-// reaches, whatever the case. A switch standing on a solid tile is the one
-// worth naming - move() refuses to touch through the tile, so the click does
-// nothing either, just as walking into it would.
+// Clicking on something the character stands next to works it: a switch or a
+// magnet does its whole job in onTouchedByPlayer, reached by walking into it,
+// and the drag never walks into what it cannot enter. Two guards: orthogonally
+// adjacent, and only where the character cannot go, so a click is never a
+// step or a push (a panel is walked onto and stays a place to stand). The rest
+// is move()'s, so a click reaches exactly what a walk that way would - which
+// for a switch standing on a solid tile is nothing.
 void GS_Game::bumpCell(const Vec2i& cell)
 {
 	if(!p_level || paused || p_level->isInPreview()) return;
@@ -437,10 +414,8 @@ void GS_Game::bumpCell(const Vec2i& cell)
 void GS_Game::onUpdate()
 {
 
-	// The hold on a character lasts until the last button is up. No release
-	// says which press it ends, and there is not one for every press either -
-	// losing the focus clears the buttons outright - so the state of the
-	// buttons is what it is read off.
+	// The hold on a character lasts until the last button is up, read off the
+	// buttons' state: losing the focus clears them without a release event.
 	if(!engine.isButtonDown(SDL_BUTTON_LEFT) && !engine.isButtonDown(SDL_BUTTON_RIGHT))
 	{
 		dragFromPlayer = false;
@@ -461,12 +436,9 @@ void GS_Game::onUpdate()
 		if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
 	}
 
-	// Any key and any click leave the pause, not only the pause key: anyone
-	// who wants to play on reaches for the controls anyway, and after a switch
-	// to another window - which pauses too - the click back into the game is
-	// the natural gesture. The press is spent on that, and the rest of this
-	// block falls away, or the pause key would switch straight back on what it
-	// has just switched off.
+	// Any key or click leaves the pause, so the click back from another
+	// window (which pauses) resumes. The press is spent on that, or the pause
+	// key would switch straight back on what it has just switched off.
 	if(paused && (engine.wasAnyKeyPressed() || engine.wasAnyButtonPressed()))
 	{
 		paused = false;
@@ -510,11 +482,8 @@ void GS_Game::onUpdate()
 	Player* p_player = p_level->getActivePlayer();
 	if(p_player)
 	{
-		// Greater than zero and not merely non-zero: below zero means the
-		// player has collected syringes in reserve and holds out longer. The
-		// player is then not contaminated but better than clean - nothing
-		// crackles, and no toxic gas is spread either. (The screen tint further
-		// up has always had it that way.)
+		// Greater than zero, not non-zero: below zero means syringes in
+		// reserve, better than clean - nothing crackles and no gas spreads.
 		int c = p_player->getContamination();
 		if(c > 0)
 		{
@@ -534,10 +503,9 @@ void GS_Game::onUpdate()
 	// level completed?
 	if(p_level->finished)
 	{
-		// A single level belongs to no campaign: there is nothing to record,
-		// and the next entry is a stranger's level rather than the next step.
-		// Both therefore as with a trial run from the editor - afterwards back
-		// to where the player came from.
+		// A single level belongs to no campaign: nothing to record, and the
+		// next entry is not the next step. So, as after a trial run from the
+		// editor, back to where the player came from.
 		const bool ownLevel = cameFromEditor ||
 							  (p_currentCampaign && p_currentCampaign->isSingleLevels());
 
@@ -574,13 +542,9 @@ void GS_Game::onUpdate()
 
 			if(status == -1)
 			{
-				// The final level is done. The credits exist only for the
-				// shipped campaign - every other one returns to the selection.
-				//
-				// The filename is what is asked about, not the path: the
-				// shipped campaign lives in the game folder, an imported one in
-				// the user directory, and shipped is exactly what
-				// Transfer::isBuiltIn() takes it to be.
+				// The final level is done. Only the shipped campaign ends in
+				// the credits, every other returns to the selection; asked by
+				// filename, which is what Transfer::isBuiltIn() takes.
 				if(Transfer::isBuiltIn(Transfer::KIND_CAMPAIGN,
 									   FileSystem::inst().getPathFilename(p_currentCampaign->getFilename())))
 				{
@@ -678,11 +642,9 @@ void GS_Game::onEnter(const ParameterBlock& context)
 		// save the level
 		p_originalLevel = p_level->save();
 
-		// Play the music. A loose level names a file beside itself, or one of
-		// the shipped campaign's tracks with "blocks:". A trial run from the
-		// editor has no file path: the level stands in memory as a document,
-		// and a track beside it can therefore only be in the player's level
-		// folder.
+		// Play the music: a file beside the level, or a shipped campaign track
+		// with "blocks:". A trial run from the editor is a document with no
+		// path, so "beside it" means the player's level folder.
 		Engine::inst().playMusic(Campaign::resolveMusicPath(p_level->getMusicFilename(),
 														   FileSystem::inst().getAppHomeDirectory() + "levels/"));
 	}
@@ -729,8 +691,8 @@ void GS_Game::onGetFocus()
 	gui["Game"]->focus();
 	showCursor = 200;
 
-	// Nothing was held when the state was away, whatever was held when it
-	// left: onUpdate, which is where that is noticed, did not run.
+	// Forget whatever was held when the focus went: onUpdate, which notices
+	// the release, did not run meanwhile.
 	dragFromPlayer = false;
 }
 

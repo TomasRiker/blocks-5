@@ -38,10 +38,10 @@ public:
 		return timestamp;
 	}
 
-	// A request for a resource that is already loaded carries its options
-	// again, and they have to agree with the ones it was built under. Only
-	// Texture has any, and only Texture hides this - the call is resolved on
-	// T*, so the empty one costs nothing anywhere else.
+	// A request for a resource that is already loaded carries options too.
+	// Only Texture has any, and it hides this with one that reloads when a
+	// later request asks for more (tiling, a texture of its own). The call
+	// is resolved on T*, so this empty one costs nothing anywhere else.
 	void reuseWithOptions(int) {}
 
 protected:

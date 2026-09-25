@@ -82,8 +82,7 @@ void StreamedSound::stop()
 	if(!playing) return;
 
 	// Join the thread first, then stop the source: pumpBuffers() restarts a
-	// source it finds as AL_STOPPED and could therefore overtake an
-	// alSourceStop placed before it.
+	// source it finds AL_STOPPED and would undo a stop issued before.
 	joinDecoderThread();
 	playing = false;
 
@@ -252,12 +251,10 @@ void StreamedSound::pumpBuffers()
 		return;
 	}
 
-	// If the queue runs dry, that stops the source without emptying it - the
-	// refill gives it four fresh buffers, and it stays AL_STOPPED for the rest
-	// of the session. In the browser that is the normal consequence of a tab
-	// switch: a hidden page gets no requestAnimationFrame, and the queue holds
-	// four quarter-seconds. A source halted on purpose must stay halted, which
-	// is why only AL_STOPPED counts as "please restart".
+	// A queue that runs dry stops the source, and refilling it does not start
+	// it again. In the browser a tab switch does that: a hidden page gets no
+	// requestAnimationFrame, and the queue holds one second. Only AL_STOPPED
+	// is restarted, so a source paused on purpose stays paused.
 	int state = AL_PLAYING;
 	alGetSourcei(sourceID, AL_SOURCE_STATE, &state);
 	if(state == AL_STOPPED) alSourcePlay(sourceID);
@@ -285,9 +282,8 @@ void StreamedSound::stream(uint bufferID)
 	alSourceQueueBuffers(sourceID, 1, &bufferID);
 }
 
-// Everything from here on exists only under Windows/Linux. In the browser
-// SDL_CreateThread aborts and SDL_WaitThread calls abort(); its SDL does not
-// know semaphores at all.
+// The decoder thread exists only under Windows and Linux: Emscripten's SDL
+// aborts in SDL_CreateThread and SDL_WaitThread and has no semaphores.
 #ifdef __EMSCRIPTEN__
 
 void StreamedSound::startDecoderThread()
@@ -303,17 +299,15 @@ void StreamedSound::joinDecoderThread()
 
 #else
 
-// How long the decoder thread sleeps between two passes, and the floor that
-// caps how far the pitch below may shorten it.
+// Milliseconds the decoder thread sleeps between two passes, and the floor
+// the pitch below may shorten that to.
 static const uint PUMP_INTERVAL = 100;
 static const uint PUMP_INTERVAL_MIN = 10;
 
 void StreamedSound::startDecoderThread()
 {
-	// The semaphore belongs to this one run and is created and cleaned up
-	// together with the thread. One that outlived the sound could carry a
-	// count over from the previous round, and the next thread would bail out
-	// immediately.
+	// A semaphore per run, made and destroyed with the thread: one kept across
+	// runs could carry a post over and end the next thread at once.
 	p_stopSignal = SDL_CreateSemaphore(0);
 	p_thread = SDL_CreateThread(streamedSoundThreadProc, this);
 }
@@ -336,23 +330,19 @@ int StreamedSound::threadProc()
 	for(int i = 1; i < 4; i++) stream(buffers[i]);
 
 	// The wait doubles as the stop signal: SDL_SemWaitTimeout returns
-	// SDL_MUTEX_TIMEDOUT once the interval has passed, and 0 as soon as
-	// joinDecoderThread() has posted. Anything else (-1) is an error and ends
-	// the thread as well. Stopping is therefore as prompt as the post is,
-	// however long the interval between two passes.
+	// SDL_MUTEX_TIMEDOUT after the interval and 0 as soon as
+	// joinDecoderThread() posts, so a stop is prompt whatever the interval.
+	// An error (-1) ends the thread as well.
 	while(!finish)
 	{
 		pumpBuffers();
 
-		// The queue is four buffers of a quarter second, so one falls free
-		// every 250 ms and a pass leaves the other 750 ms still standing ahead
-		// of the play cursor. Pitch is what turns that into a range rather than
-		// a number: it resamples, so a source at 2x eats the queue twice as
-		// fast, and dividing keeps the margin the same fraction of the queue
-		// whatever the pitch. Only upward - below 1 a buffer lasts longer than
-		// it does here, and waiting longer for it would buy nothing and make
-		// the restart of a dry queue look sluggish. Asked of OpenAL and not
-		// read off the member, which belongs to the main thread.
+		// Four quarter-second buffers: one falls free every 250 ms, and a
+		// pass leaves the other 750 ms queued ahead. A source at 2x pitch eats
+		// the queue twice as fast, so dividing keeps that margin the same
+		// fraction of it. Only upward: below 1 a longer wait buys nothing and
+		// delays the restart of a dry queue. Asked of OpenAL, since the
+		// member belongs to the main thread.
 		float sourcePitch = 1.0f;
 		alGetSourcef(sourceID, AL_PITCH, &sourcePitch);
 		uint interval = PUMP_INTERVAL;

@@ -24,18 +24,17 @@ float FrameStats::getPercentile(Phase phase,
 {
 	if(!count) return 0.0f;
 
-	// Sorted into a copy rather than in place: the ring is the record and the
-	// next frame appends to it whatever anybody is asking. 500 floats is a
-	// tenth of a millisecond to sort and this is asked once per report, not
-	// once per frame.
+	// Sorted into a copy, not in place: the ring is the record, and the next
+	// frame appends to it in order. 500 floats is a tenth of a millisecond to
+	// sort, and the -perf overlay asks eleven times a frame.
 	std::vector<float> values;
 	values.reserve(count);
 	for(uint i = 0; i < count; i++) values.push_back(samples[i][phase]);
 	std::sort(values.begin(), values.end());
 
-	// The nearest-rank definition: the smallest value that at least this share
-	// of the samples is under. It needs no interpolation and cannot invent a
-	// number that was never measured, which for a maximum is the whole point.
+	// Nearest rank: the smallest recorded value that at least this share of
+	// the samples is at or under. No interpolation, so it never reports a
+	// number that was not measured - which for the maximum is the point.
 	if(percentile < 0) percentile = 0;
 	if(percentile > 100) percentile = 100;
 	uint rank = (static_cast<uint>(percentile) * count + 99) / 100;
