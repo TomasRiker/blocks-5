@@ -274,9 +274,10 @@ uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
 	}
 
 #ifdef __EMSCRIPTEN__
-	// Write through to IndexedDB at once, as after every other write in the
-	// browser: otherwise the old copies would stand there again after a
-	// reload, and the run would have the same work to do at every start.
+	// Write through to IndexedDB at once, as after an import, a delete or an
+	// editor's save, rather than at the next five-second sync: otherwise the
+	// old copies would stand there again after a reload, and the run would
+	// have the same work to do at every start.
 	if(retired) WebTransfer::syncHome();
 #endif
 
@@ -290,6 +291,7 @@ const std::string detectInitializedVersion()
 	//    1.0.71:	"Blocks 5" folder exists in the user directory
 	//    1.0.72:	".initialized" file exists
 	// >= 1.0.73:	".initialized" file holds the version number
+	// A "Blocks 5" folder with no file directly in it counts as none.
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
@@ -341,11 +343,12 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			// The game writes config.xml itself on exit. Nothing ships a
-			// template: it would hold nothing but the installer's language and
-			// would never let Engine::detectSystemLanguage() run.
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= copyUpdateCheckerFiles(fs, homeDirectory);
+
+			// No config.xml: the game writes its own, and a template's
+			// <Language> would overrule the one
+			// Engine::detectSystemLanguage() finds, for every player alike.
 
 			// The campaign and the skins stay in the game folder, always as new
 			// as the program; the folders above are where the editors and the

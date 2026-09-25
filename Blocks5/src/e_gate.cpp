@@ -126,7 +126,7 @@ bool E_Gate::changeInEditor(int mod)
 
 void E_Gate::doLogic()
 {
-	// Undefined inputs give an undefined output.
+	// An unconnected or undefined input gives an undefined output.
 	if(!areAllInputsConnected() || isAnyInputUndefined())
 	{
 		setAllOutputsToUndefined();

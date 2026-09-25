@@ -25,7 +25,9 @@ swap otherwise wrote the whole archive a second time; and the progress database'
 `pushCurrentDir`/`popCurrentDir` maintain a search root, which is how `main.cpp` mounts `data.zip[...]` as the
 asset root (the commented-out `fs.pushCurrentDir("data")` beside it switches to loose files for development).
 User-writable state — saves, progress, custom levels, screenshots, videos — lives under
-`getAppHomeDirectory()` = `My Documents\Blocks 5\`, never next to the executable.
+`getAppHomeDirectory()` = `My Documents\Blocks 5\` (under Linux `$XDG_DATA_HOME/blocks5/` or
+`~/.local/share/blocks5/`), and beside the executable only where none of those can be had — an absolute
+path even then, since once `data.zip` is mounted a relative one resolves inside the archive.
 
 **Levels, campaigns and skins have two roots, and the game folder wins.** What ships stays beside the
 executable and is read from there, so it is always as new as the program; the user directory holds only what
@@ -78,13 +80,14 @@ from a played level is a *pop*, and `popGameState` gives the state underneath th
 again, so a level just solved would still be shown unsolved. The count is clamped to the campaign's length, or
 a merged database would draw the bar past its own frame and label it *45/42*.
 
-**A save must not destroy what it is replacing.** Writing a member into a zip rebuilds the archive, and
-`File_Archived` removes the old file before the new one exists (`remove` at `file_archived.cpp:526`), which
-for a one-member archive is every save — so a crash or full disk in that window took everything. The database
-is renamed to `progress.zip.saving` first and that file deleted only once the new one stands; `query()` puts
-it back where the real file is missing or unreadable, and deletes it where the real file reads. The invariant:
-**the backup exists exactly while a save is in flight**, so one found lying about is from a run that died, and
-leaving it would mean the next unrelated fault restores a database months out of date.
+**A save must not destroy what it is replacing.** Writing a member into a zip rebuilds the archive without it
+(`deleteArchivedFile`) and appends the new one, and where the member was the only one the rebuild leaves
+nothing, so the old archive is gone before the new one exists — for the progress database, every save, and a
+crash or full disk in that window took everything. The database is renamed to `progress.zip.saving` first and
+that file deleted only once the new one stands; `query()` puts it back where the real file is missing or
+unreadable, and deletes it where the real file reads. The invariant: **the backup exists exactly while a save
+is in flight**, so one found lying about is from a run that died, and leaving it would mean the next unrelated
+fault restores a database months out of date.
 
 That parse trusts nothing, because the Manager imports this file and it is therefore a stranger's: no root
 element, no `campaign` attribute and a level index that is negative or absurd are all skipped rather than
@@ -100,8 +103,9 @@ there at all. `LinuxBuild/build.sh` warns about the same file after every build,
 is scrolling past; the toast is for the run where nobody read it.
 
 **A level somebody sent you is played from the level select screen, not from the editor.**
-`Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in the
-user's level folder, listed last in the campaign box under `$LS_SINGLE_LEVELS`. The editor gives the
+`Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in both
+level folders — the game's examples and the player's own — listed last in the campaign box under
+`$LS_SINGLE_LEVELS`. The editor gives the
 puzzle away by design — `level.cpp`
 skips the darkness there (`if(nightVision && !inEditor)`) and `teleporter.cpp` draws a line to every
 teleporter's destination.
@@ -159,13 +163,13 @@ offers replacing and merging.
 built on the same two, so the name asked about and the name written cannot drift apart. The whole import
 waits for the answer, `finishImport()` included — in the browser that call deletes the staging file the bytes are in.
 
-**`Transfer::isBuiltIn` keeps no list**; it asks whether the file exists in the game folder —
-and answers no for the seven files that belong to the player. Three callers, all the same rule: an import
-must not take such a name, and neither editor may save under one. Delete goes through `isRemovable`
-instead, the stricter question. `Transfer::list` returns the union of both roots, sorted, and needs no
-rule for a name in both because no path can create one. Case is the file system's problem rather than a
-hand-rolled comparison's, which is right: on Windows `Blocks.zip` *is* `blocks.zip`, and `fileExists`
-says so.
+**`Transfer::isBuiltIn` keeps no list**; it asks whether the file exists in the game folder — and answers no
+for the seven files that belong to the player. Three callers, all the same rule: an import must not take such
+a name, and neither editor may save under one. Delete goes through `isRemovable` instead, the stricter
+question. `Transfer::list` returns the union of both roots, sorted, and lists a name found in both once:
+nothing can be saved or imported under a shipped name, so the only such name is an example level the player
+has saved a copy of. Case is the file system's problem rather than a hand-rolled comparison's, which is right:
+on Windows `Blocks.zip` *is* `blocks.zip`, and `fileExists` says so.
 
 **A finished import updates the open list.** `pollImport` runs every tick from `onUpdate`, because the
 browser's file dialog cannot be modal — so when it completes with the Manager still open, it switches the
@@ -174,12 +178,15 @@ pane deliberately stays open across the file dialog, export included: the Manage
 working in. Escape belongs to the topmost pane: the confirmation first, then the Manager, and only with
 both closed does it quit the game.
 
-**Import takes one file and works out what it is** — `Transfer::classify`, by content and never by
-extension: `OggS` at the front is music, an XML whose root is `<Level>` is a level, and an archive is a
-campaign if it holds `campaign.xml` or a skin if it holds `tileset.xml` and `sprites.png`. Anything else
-is refused. The browser stages the upload outside the home directory (C hands JS all three possible
-staging paths and JS picks one by extension, so C still composes every path), `sanitizeFilenameStem`
-reduces the name to `[A-Za-z0-9_-]`, and only then does anything reach IndexedDB.
+**Import takes one file and works out what it is** — `Transfer::classify`, by content wherever content can
+say: an Ogg page carrying Vorbis's identification header is music (`OggS` alone would take an Opus file the
+game cannot play), an XML whose root is `<Level>` is a level, and a `.zip` in any case is a campaign if it
+holds `campaign.xml`, a skin if it holds `tileset.xml` and `sprites.png` and a progress database if it holds
+`progress.xml`. The archive is the one known by its extension, since that is how `convertPath` sees into one
+at all. Anything else is refused, and so is anything over 48 MiB, on the desktop asked of the disk before a
+byte is read. The browser stages the upload outside the home directory (C hands JS all three possible staging
+paths and JS picks one by extension, so C still composes every path), `sanitizeFilenameStem` reduces the name
+to `[A-Za-z0-9_-]`, and only then does anything reach IndexedDB.
 
 **An import replaces a file of the same name**, for all four kinds alike, and `Transfer::install` is the
 whole rule: sanitized stem, plus the kind's extension, plus a copy. Not a swerve to `stem_2`, because a

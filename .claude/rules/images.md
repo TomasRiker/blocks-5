@@ -61,8 +61,8 @@ The web icons come in three kinds because a launcher does two different things w
 scales one itself for any size the file does not hold, downward included (256 to 40 averages six source
 pixels into one). Where the size is not a multiple of 16 — 20 and 40 — the next scale down is centred with a
 transparent margin rather than rendered at 1.25x, which would double some columns and not others. **24 is
-deliberately absent**: the one size where the next step down is 1x, and that much margin is visible, so
-Windows scales it from the 32. Every entry is a 32bpp DIB (the 256 a PNG), since full 8-bit alpha has worked
+deliberately absent**: its next step down is 1x as 20's is, but at two thirds of the edge rather than four
+fifths, and that much margin is visible, so Windows scales it from the 32. Every entry is a 32bpp DIB (the 256 a PNG), since full 8-bit alpha has worked
 since XP; the 1-bit AND mask is still written alongside for legacy paths that read only that. **No
 power-of-two restriction** on either kind: an `.ico` entry stores each edge in one byte (0 meaning 256), and
 a manifest's `sizes` is free text. `Blocks5/setup/setupicon.ico` is the installer's own graphic — a monitor

@@ -7,8 +7,8 @@
 // effects, not the microphone: WASAPI loopback under Windows (no "Stereo Mix"
 // source needed), the monitor of PulseAudio's default sink under Linux (which
 // pipewire-pulse serves as well). Samples always come out as 16-bit
-// interleaved stereo whatever the device uses; a "sample" here, as in OpenAL,
-// is one left/right pair.
+// interleaved stereo at the rate open() was given, whatever the device uses;
+// a "sample" here, as in OpenAL, is one left/right pair.
 //
 // Where there is nothing to listen in on, open() fails: under Linux without
 // PulseAudio the videos are then silent, and the browser records none.

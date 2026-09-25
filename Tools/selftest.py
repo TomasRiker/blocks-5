@@ -7,8 +7,8 @@ stopped matching what it looks for, without anybody noticing. This script
 therefore injects, for each check, exactly the fault it is meant to catch,
 runs the check, and restores the file.
 
-Every change goes back in a finally, and at the end the file is compared
-byte for byte. If the run breaks off in the wrong place anyway, "git status"
+Every change goes back when its with-block ends (Patch.__exit__), and the
+file is then compared byte for byte. If the run breaks off in the wrong place anyway, "git status"
 helps - every file involved is under version control.
 
     python3 Tools/selftest.py

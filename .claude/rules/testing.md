@@ -58,7 +58,7 @@ has run the tests often enough reaches on its own. Both are one-shot, so no test
 repeatable while they may appear; `.crt_offered` and `.donation_asked` are written exactly as the game
 writes them.
 
-**A request reaches the hook by rename, never by redirection.** The hook polls `request` every frame
+**A request reaches the hook by rename, never by redirection.** The hook polls `request` once a logic tick
 and `echo > request` creates the file empty before it writes, so a poll in that gap reads an empty line,
 answers with a dump under no serial and deletes the file with the real request in it; `b5_ask` then
 waits its five seconds and the scene fails as "could not be written". `b5_ask` writes `request.tmp` and
@@ -111,7 +111,7 @@ take its picture and quit.
 many ticks an iteration bunches is the machine's business — a level load alone is a backlog of several.
 So a frame in a transition needs two things: `freeze fade <ms>` stops at the first tick at which the running
 crossfade has reached that many milliseconds, and `lockstep 1` makes every iteration exactly one tick
-(`Engine::mainLoopIteration` throws the backlog away), which pins the fade to the screen behind it. The
+(the main loop throws the backlog away), which pins the fade to the screen behind it. The
 `cube` and `star` scenes are that; measured without lockstep the cube froze at level tick 540 on one run
 and 500 on the next. The credits need lockstep for a different reason: they draw their own last frame back
 into the next one, so their picture depends on how many frames were rendered, not only on the tick.

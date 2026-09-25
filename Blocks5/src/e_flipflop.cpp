@@ -103,7 +103,7 @@ void E_FlipFlop::doLogic()
 	{
 	case 0:
 		{
-			// RS flip-flop, unclocked
+			// RS flip-flop, level-triggered
 			if(isAnyInputUndefined()) break;
 			int s = getValue(0);
 			int r = getValue(1);

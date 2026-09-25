@@ -6,8 +6,9 @@ REM  Usage:  Build.bat [Release^|Debug] [options]
 REM
 REM    /toolset:vNNN   platform toolset. Without it, the newest one the
 REM                    installed Visual Studio provides; see the note below
-REM    /sdk:VERSION    Windows SDK version for v141 and newer. Without it, 10.0,
-REM                    which MSBuild resolves to the newest installed 10.x
+REM    /sdk:VERSION    Windows SDK version for v141 and newer. Without it, the
+REM                    project files' 10.0, which MSBuild resolves to the
+REM                    newest installed 10.x
 REM    /nodata         do not rebuild data.zip and the skin archives
 REM    /optipng        run Tools\optipng over the PNGs before packing. Lossless
 REM                    but slow, and it rewrites files that are under version
@@ -30,34 +31,16 @@ REM  -----------------
 REM  TESTED: v143 (Visual Studio 2022) and v145. Both were built and run. That
 REM  is the whole list - anything below v143 is reasoning, not a build.
 REM
-REM  There is no /toolset: default any more. The three .vcxproj files ask for
+REM  There is no /toolset: default. The three .vcxproj files ask for
 REM  $(DefaultPlatformToolset), which is whatever the Visual Studio doing the
 REM  build calls its own newest, so a version newer than this script needs no
 REM  change here. /toolset:vNNN still pins one explicitly.
 REM
-REM  This tree stayed pinned to v120 (Visual Studio 2013) for a decade, not by
-REM  choice but by two files: libs\bin\tinyxml_STL.lib and tinyxmld_STL.lib
-REM  carried /FAILIFMISMATCH:"_MSC_VER=1800", so link.exe refused any other
-REM  toolset with LNK2038. They were the only files in libs\bin with any linker
-REM  directive at all. TinyXML 2.6.2 is now compiled from vendored source
-REM  instead and those libraries are gone, so the constraint is gone with them.
-REM
-REM  Getting off v120 needed one more thing, which the tree now has: SDL
-REM  compiled from source out of libs\sdl-1.2.15\src, in place of
-REM  libs\bin\sdlmain.lib and libs\bin\sdl.lib. sdlmain.lib, a pre-UCRT
-REM  library, imported __iob_func, which the Universal CRT removed, so it linked
-REM  only on v120; sdl.dll held the tree's last dependency on MSVCR120.
-REM
-REM  PWEncrypt lost a call to gets() too, which the Universal CRT no longer has,
-REM  and the tree no longer includes ^<hash_map^> at all - stdext::hash_map and
-REM  hash_multimap were replaced by the standard unordered containers, which
-REM  every toolset from v120 on has. libs\msinttypes-r26 went with ffmpeg, the
-REM  only thing that needed it; __STDC_CONSTANT_MACROS and __STDC_LIMIT_MACROS
-REM  went with the shim.
-REM
-REM  Whether v120 or v140 still builds is an open question - the code has no
-REM  dependency that says otherwise, but nobody has tried since the libraries
-REM  came out. The /toolset: plumbing for them is kept for whoever does.
+REM  Nothing in the tree ties it to an older toolset: every library is compiled
+REM  from vendored source but OpenAL Soft, whose DLL and import library pin no
+REM  toolset, and nothing links a CRT from before the Universal CRT. Whether
+REM  v120 or v140 still builds is untested; the /toolset: plumbing for them is
+REM  kept for whoever tries.
 REM ===========================================================================
 
 SETLOCAL ENABLEEXTENSIONS
@@ -377,7 +360,8 @@ REM Deliberately NOT touched:
 REM   *.suo, *.vcxproj.user   the IDE's per-user settings - debugger arguments,
 REM                           working directory. Regenerating those loses work,
 REM                           and they are not compiler output
-REM   misc\3p_campaigns\*.zip  shipped files that happen to be archives, and the
+REM   Blocks5\misc\3p_campaigns\*.zip
+REM                           shipped files that happen to be archives, and the
 REM                           reason the archives below are named one by one: a
 REM                           *.zip sweep under Blocks5\ would take these too
 REM   My Documents\Blocks 5\   saves, progress, screenshots, videos. Nothing the
@@ -480,9 +464,10 @@ POPD
 ENDLOCAL
 EXIT /B 1
 
-REM Keep SHOWTS only if it is a plain vNNN. Everything else - an MSB1001 from an
-REM MSBuild too old to know -getProperty, a v143_xp, a ClangCL - is not a name
-REM this banner should be printing.
+REM Keep SHOWTS only if it looks like a plain vNNN: a v and at most four more
+REM characters. Everything else - an MSB1001 from an MSBuild too old to know
+REM -getProperty, a v143_xp, a ClangCL - is not a name this banner should be
+REM printing.
 :onlytoolset
 IF NOT DEFINED SHOWTS GOTO :EOF
 IF /I NOT "%SHOWTS:~0,1%"=="v" SET "SHOWTS="

@@ -67,7 +67,8 @@ void WebBlueScreen::show()
 		box.appendChild(pre);
 		box.appendChild(hint);
 		// 80 columns without growing absurdly on a big screen: 0.6em is about
-		// a typewriter font's character width, so the text is 48em wide.
+		// a typewriter font's character width, so the text is about 48em
+		// wide, and 52em leaves room for a font a little wider.
 		box.style.cssText =
 			'font-family:"Lucida Console",Consolas,"Courier New",monospace;' +
 			'font-size:clamp(7px,min(1.55vw,2.6vh),19px);line-height:1.35;' +

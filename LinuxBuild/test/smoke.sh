@@ -186,11 +186,7 @@ have=$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")
 	&& b5_ok "KindProgress: Delete enabled=$have, matching the user directory" \
 	|| b5_note "KindProgress: Delete enabled=$have, expected $wantProgress"
 
-# Export and Delete both hang on the selection, but not on the same condition:
-# everything in the list can be exported, only what belongs to the player can
-# be deleted. The list is the union of both roots and alphabetically sorted,
-# and the first entry is selected - if that one lies in the game folder, Delete
-# stays grey.
+# Export and Delete as for the levels above.
 #
 # Whether there is any music there at all depends on where the game is run
 # from. stage.bat says what ships, and it puts only the two example levels into

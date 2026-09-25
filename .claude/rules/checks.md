@@ -53,9 +53,9 @@ has worked for ten years is not a finding, and reporting it every run is how a c
 not what the phrase suggests**: comment lines against ***code* lines**, not against the whole file. So
 the ceiling of 50% is reached at one comment line to two of code — a file that is half comments by line
 count sits at 100% and is far over. Only files of 100 code lines or more are judged at all, which is why
-several small headers stand at two thirds comment and are never looked at. `engine.h` is at exactly
-50.0% (193 against 386) and passes only because the test is `>`: one more comment line in that file
-fails the run, which is worth knowing before setting out to explain something in it.
+several small headers stand at two thirds comment and are never looked at. `renderer.h` stands closest,
+at 49.5% (102 against 206), and the test is `>`: two more comment lines in that file fail the run, which
+is worth knowing before setting out to explain something in it.
 
 **`ctor_init` takes back both of its exemptions for a pointer**, and that is measured rather than
 strict for its own sake. A scalar left uninitialised is a wrong number; a pointer is a crash, and the
@@ -98,7 +98,7 @@ to put a compiler over the Windows code from here. Three files never go through 
 `main.cpp` is compiled there, and the difference is what mingw cannot parse in it: the `__try`/`__except`
 crash handler behind `#if defined(_WIN32) && !defined(_DEBUG)` — true under mingw, false under emcc. It
 needs nothing checked in: the headers mingw and OpenAL Soft file differently (`<Windows.h>`,
-`<Shlobj.h>`, `<al.h>`) are generated into a temp directory. It compiles with `-Wconversion` and drops
+`<Shlobj.h>`, `<al.h>`, `<alc.h>`) are generated into a temp directory. It compiles with `-Wconversion` and drops
 everything that says except two families, either of which fails the run: **an integer handed to a
 float**, and **a double handed to a float**. MSVC reports both as C4244 at the project's level 3, mingw
 only under `-Wconversion`. The first arrived one line per build as the files happened to recompile - an

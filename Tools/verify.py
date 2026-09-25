@@ -904,8 +904,6 @@ def check_xml_attrs():
         for m in rpat.finditer(text):
             readd.add(m.group(1))
 
-    # The GUI reads its attributes through readAttributes(), not through these
-    # names; the XML is written there, not read.
     return ['%s: attribute "%s" is written but read nowhere' % (where, name)
             for name, where in sorted(written.items()) if name not in readd]
 

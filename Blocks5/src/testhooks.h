@@ -42,8 +42,8 @@ namespace TestHooks
 	// where none runs.
 	void checkFreeze(uint tick, int fadeMs);
 	bool frozen();
-	// True exactly once after the clock stops: Engine::mainLoopIteration
-	// then renders the frozen frame once more with getTime() pinned to zero,
+	// True exactly once after the clock stops: the main loop then renders
+	// the frozen frame once more with getTime() pinned to zero,
 	// so the picture does not depend on the harness's timing.
 	bool frozenFrameDue();
 

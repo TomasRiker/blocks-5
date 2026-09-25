@@ -240,7 +240,7 @@ public:
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
-	// Takes the "pressed in this frame" flag off a key, because GUI::update()
+	// Takes the "pressed in this tick" flag off a key, because GUI::update()
 	// runs before the game states and both would see it.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
@@ -611,8 +611,9 @@ private:
 	void handleAppFocus(bool gained);
 
 	// Does the window have the focus? A member and not a loop variable,
-	// because emscripten_set_main_loop calls once per frame and nothing may
-	// live on the stack between them - and because the test hook reports it.
+	// because emscripten_set_main_loop_arg calls once per frame and nothing
+	// may live on the stack between them - and because the test hook reports
+	// it.
 	bool appActive;
 
 	bool muted;

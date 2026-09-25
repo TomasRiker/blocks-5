@@ -818,8 +818,8 @@ void Engine::exit()
 // #define PROFILE_VIDEO_CAPTURE
 
 #ifdef __EMSCRIPTEN__
-// In the browser emscripten_set_main_loop calls one pass per frame, letting
-// the page draw in between - which puts the loop state here.
+// In the browser emscripten_set_main_loop_arg calls one pass per frame,
+// letting the page draw in between - which puts the loop state here.
 namespace
 {
 	bool   done = false;
@@ -1801,7 +1801,7 @@ void Engine::update()
 	++timePlayed;
 
 	// Written down every 30 seconds. In the browser it is the only chance,
-	// because emscripten_set_main_loop never returns and exit() never runs.
+	// because emscripten_set_main_loop_arg never returns and exit() never runs.
 	if(!(timePlayed % 1500)) saveTimePlayed();
 
 #ifdef PROFILE_ENGINE_UPDATE

@@ -409,12 +409,12 @@ static const char* p_crtFragmentShader =
 	"    float maskAvg = (1.0 + (MASK_PITCH - 1.0) * (1.0 - MASK_STRENGTH)) / MASK_PITCH;\n"
 	"    col *= mask / maskAvg;\n"
 
-	/* --- give the light back, edge, gamma ----------------------------- */
 	/* --- flicker, part 2: the brightness ------------------------------ */
 	/* Both terms oscillate about zero; the mean brightness therefore stays
 	   put. */
 	"    col *= 1.0 + Flicker * (HUM_DEPTH * hum + FLICKER_DEPTH * wob);\n"
 
+	/* --- give the light back, edge, gamma ----------------------------- */
 	"    col *= BRIGHTNESS;\n"
 	"    float vig = 1.0 - VIGNETTE * dot(w, w) * 0.5;\n"
 	"    col *= max(vig, 0.0) * vis;\n"

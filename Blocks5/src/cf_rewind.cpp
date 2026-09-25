@@ -35,7 +35,7 @@ namespace
 	const float SEAM_WIDTH = 0.30f;
 
 	// Noise bars: where the head lands between two tracks there is no picture
-	// at all but snow. How many there are depends on the speed of the tape.
+	// at all but snow. Always this many; the speed of the tape moves them.
 	const int NOISE_BARS = 5;
 	const int NOISE_BAR_MIN = 6;
 	const int NOISE_BAR_MAX = 22;

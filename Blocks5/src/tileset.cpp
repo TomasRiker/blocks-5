@@ -139,7 +139,7 @@ void TileSet::reload()
 			info.sprites.add(info.position);
 		}
 
-		// record the tile type
+		// record the tile
 		newTiles[id] = info;
 
 		p_tileElement = p_tileElement->NextSiblingElement("Tile");

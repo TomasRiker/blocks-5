@@ -129,11 +129,11 @@ inline float clockPhase(uint ticks, float perTick, float base)
 }
 
 // The same line reduced to one period, for a quantity whose period is not a
-// turn: a scrolling texture offset in texels, or the CRT filter's flicker
-// (eight seconds) and crawl (one). Exact for a repeating texture, since whole
-// periods sample the same texel, and needed there: a phone without highp
-// gives the fragment shader a mediump varying, ten mantissa bits, and an
-// unreduced offset turns visibly steppy within a minute.
+// turn: a scrolling texture offset in texels, or the CRT filter's crawl (one
+// second). Exact for a repeating texture, since whole periods sample the same
+// texel, and needed there: a phone without highp gives the fragment shader a
+// mediump varying, ten mantissa bits, and an unreduced offset turns visibly
+// steppy within a minute.
 inline float scrollOffset(uint ticks, float perTick, float base, float period)
 {
 	const float value = perTick * static_cast<float>(ticks) + base;

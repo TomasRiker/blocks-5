@@ -34,6 +34,9 @@ void GS_SelectLevel::onRender()
 	renderer.setTexture(p_background->ref());
 	renderer.quad(renderer.state(), screen, screen, white);
 
+	// A level is loaded out of a campaign only (loadLevel()), and a campaign
+	// deselected takes its level with it, so wherever there is a level there
+	// is a campaign below.
 	int status = 0;
 	if(p_currentLevel)
 	{

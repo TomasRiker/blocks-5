@@ -229,10 +229,11 @@ invisible to whoever edits the line. `Engine::getBindingMarkup` writes the same 
 plus that joins a key to a *word* keeps its full space — `%BINDING{$A_PLANT_BOMB} + direction` — so the
 help table shows the hierarchy: tight where keys bind to each other, loose where prose follows.
 
-**A keyboard has two Enter keys and the game tells them apart nowhere.** `isReturnKey` (`util.h`) is the
-one place that says so, and everything reading the SDL key itself goes through it: confirming a dialog,
-playing the selected level, leaving the credits, the level editor's settings, and Alt+Enter for the
-fullscreen. The named actions never needed it — a binding has a primary and a secondary, and
+**A keyboard has two Enter keys and the game tells them apart nowhere.** Everything reading the SDL key
+itself takes both: `isReturnKey` (`util.h`) for confirming the options dialog, the level editor's settings
+and Alt+Enter for the fullscreen; both keys by name where playing the selected level, leaving the credits
+and putting the note away ask `wasKeyPressed` or the event, and in the widgets' own `switch`. The named
+actions never needed it — a binding has a primary and a secondary, and
 `$A_SAVE_IN_HOTEL` has used both since it was written. Both are called `Enter` in both languages — `Enter`
 and `Num Enter` — which is the prefix the other seventeen keypad keys already carry. It is what a PC keycap
 prints (a German board prints the hooked arrow and no word at all) and the word every neighbouring language
@@ -268,9 +269,10 @@ the sound plays again, because the sound answers the click and not the message.
 `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG` elsewhere, and
 answers only `de` or `en` — every one of the 440 IDs in `languages.txt` has an English body and a German
 one and nothing else, so detecting `fr` would give a wholly English game that merely believed otherwise.
-The one `§fr:` and `§es:` in that file are its own header explaining what the tags mean. It runs only when
-`config.xml` has no `<Language>`. Nothing ships a `config.xml` template — not the installer, not the web
-build — which is what leaves the detection a chance to run at all.
+The one `§fr:` and `§es:` in that file are its own header explaining what the tags mean. It runs at every
+load of the configuration, and its answer stands where `config.xml` has no `<Language>`. Nothing ships a
+`config.xml` template — not the installer, not the web build — because a template's `<Language>` would
+overrule the detection for every player alike.
 
 **Localization.** Any user-facing string starting with `$` is an ID resolved against `data/languages.txt`
 by `Engine::localizeString` / the free `loadString` helper. In that file a `$ID` line is followed by

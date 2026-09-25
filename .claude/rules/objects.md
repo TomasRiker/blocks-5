@@ -96,7 +96,7 @@ Two things it has to get right. The target is read **every tick** rather than sn
 player walks on during those ten ticks and an item aimed at where they were drifts off behind them — and
 it is read by **UID** through `Level::getObjectByUID`, not held as a pointer, since ten ticks is long
 enough for a player to be blown up inside them. A collector that goes simply stops moving the target. And
-the flight starts where the collect is *noticed*, in `Object::update`, and not in `onCollect`: three
+the flight starts where the collect is *noticed*, in `Object::update`, and not in `onCollect`: four
 classes override that one and `StdObject`'s turns a second gas mask down and leaves it lying, so the test
 is `!isAlive()` — `disappear()` is the one thing every accepting path does.
 

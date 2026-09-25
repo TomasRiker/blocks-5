@@ -9,8 +9,9 @@
 
 namespace WebBlueScreen
 {
-	// Brings the blue screen up and stops the main loop. A key press or a
-	// click reloads the page - that is the restart the text asks for.
+	// Brings the blue screen up and stops the main loop. A key press, a
+	// click or a touch reloads the page - that is the restart the text asks
+	// for.
 	void show();
 }
 

@@ -94,7 +94,7 @@ def render(font_xml, text):
         raise SystemExit('empty text')
     height = max(g[3] for g in glyphs)
 
-    # Margin for the shadow, and the offset from the font.xml as the first row.
+    # Margin for the shadow.
     pad_x = max(dx for dx, _ in SHADOW_OFFSETS)
     pad_y = max(dy for _, dy in SHADOW_OFFSETS)
     out_w, out_h = width + pad_x, height + pad_y
@@ -145,7 +145,7 @@ def top_inset(width, height, pixels):
 
 
 def as_js(font_xml, ident):
-    """{en:{d:"...",w:183,h:27,t:4},de:{...}} - both languages as a data URI."""
+    """{en:{d:'...',w:183,h:27,t:4},de:{...}} - both languages as a data URI."""
     languages = os.path.join(os.path.dirname(font_xml), 'languages.txt')
     parts = []
     for lang in ('en', 'de'):

@@ -94,7 +94,8 @@ if [ "${1:-}" = "flags" ]; then echo "$CXXFLAGS"; exit 0; fi
 # The game's sources without the two that do not come along here:
 #   stackwalker  - Win32 SEH, exists only there
 #   pch          - the translation unit that creates the PCH under MSVC
-# audiocapture does come along: its #else branch is a stub, but it compiles.
+# audiocapture does come along, with a Linux half of its own: PulseAudio's
+# monitor source, the library dlopen'd so that the build needs no -dev package.
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|pch)\.cpp$')
 SRCS="$SRCS $HERE/linux_window.cpp"
 for f in tinyxml tinyxmlparser tinyxmlerror tinystr; do SRCS="$SRCS $LIBS/tinyxml-2.6.2/$f.cpp"; done
