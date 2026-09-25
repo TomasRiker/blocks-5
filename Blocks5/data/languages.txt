@@ -2501,6 +2501,11 @@ $TR_ERROR_CLICK_AGAIN
 §en:Please click the button again.
 §de:Bitte den Knopf noch einmal anklicken.
 
+$TR_ERROR_NO_DIALOG
+// Linux only, where the file dialogs are these two programs
+§en:ERROR: No file dialog - please install zenity or kdialog.
+§de:FEHLER: Kein Dateidialog - bitte zenity oder kdialog installieren.
+
 // *************
 // DO NOT MODIFY
 // *************

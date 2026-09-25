@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #endif
 
@@ -92,6 +93,12 @@ namespace
 		default:                      return "level";
 		}
 	}
+
+	// 48 MiB, the most an import takes on every platform. The largest thing
+	// that comes in here is a campaign with music, and the shipped one is
+	// 8.3 MB; classify() reads a level whole, and a file picked by mistake
+	// can be a film.
+	const uint MAX_IMPORT_SIZE = 48 * 1024 * 1024;
 }
 
 namespace Transfer
@@ -101,22 +108,29 @@ Kind classify(const std::string& path)
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// 1. Music. Every Ogg page begins with "OggS", the first one included.
+	// 1. Music: an Ogg page whose packet is Vorbis's identification header.
+	//    "OggS" alone would take an Opus or a Theora file too, and the game
+	//    decodes Vorbis only. The page header is 27 bytes and a segment table
+	//    as long as its byte 26 says, and the packet follows.
 	{
 		File* p_file = fs.openFile(path, FileSystem::FM_READ);
 		if(p_file)
 		{
-			char magic[4] = { 0, 0, 0, 0 };
-			const uint got = p_file->read(magic, 4);
+			unsigned char page[27 + 255 + 7];
+			const uint got = p_file->read(page, sizeof(page));
 			fs.closeFile(p_file);
-			if(got == 4 && !memcmp(magic, "OggS", 4)) return KIND_MUSIC;
+			if(got >= 27 && !memcmp(page, "OggS", 4))
+			{
+				const uint packet = 27 + page[26];
+				if(got >= packet + 7 && !memcmp(page + packet, "\x01vorbis", 7)) return KIND_MUSIC;
+			}
 		}
 	}
 
 	// 2. Archives. A ZIP's table of contents is not encrypted, so this works
-	//    without the password. The path must end in ".zip", or
+	//    without the password. The path must end in ".zip", in any case, or
 	//    FileSystem::convertPath does not see an archive in it.
-	if(getFilenameExtension(path) == "zip")
+	if(equalsNoCase(getFilenameExtension(path).c_str(), "zip"))
 	{
 		if(fs.fileExists(path + "/campaign.xml")) return KIND_CAMPAIGN;
 		if(fs.fileExists(path + "/tileset.xml") &&
@@ -370,9 +384,7 @@ namespace
 
 bool beginImport()
 {
-	// 48 MiB. The largest thing that comes in here is a campaign with music;
-	// the shipped one is 8.3 MB.
-	return WebTransfer::openPicker(p_stagingOgg, p_stagingXml, p_stagingZip, 50331648u);
+	return WebTransfer::openPicker(p_stagingOgg, p_stagingXml, p_stagingZip, MAX_IMPORT_SIZE);
 }
 
 int pollImport(std::string& path, std::string& untrustedName)
@@ -445,6 +457,15 @@ namespace
 	{
 		const size_t cut = path.find_last_of("/\\:");
 		return cut == std::string::npos ? path : path.substr(cut + 1);
+	}
+
+	// Asked of the disk and not through File, whose sizes are 32 bits: a film
+	// of five gigabytes would come out there as one.
+	bool isTooBig(const std::string& path)
+	{
+		WIN32_FILE_ATTRIBUTE_DATA data;
+		if(!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &data)) return false;
+		return data.nFileSizeHigh != 0 || data.nFileSizeLow > MAX_IMPORT_SIZE;
 	}
 
 	void buildFilter(char* p_buffer, size_t size)
@@ -530,7 +551,7 @@ int pollImport(std::string& path, std::string& untrustedName)
 		{
 			pickedPath = file;
 			pickedName = getFilenameFromPath(pickedPath);
-			importStatus = STATUS_OK;
+			importStatus = isTooBig(pickedPath) ? STATUS_TOO_BIG : STATUS_OK;
 		}
 		else importStatus = STATUS_CANCELLED;
 	}
@@ -624,6 +645,14 @@ namespace
 		return cut == std::string::npos ? path : path.substr(cut + 1);
 	}
 
+	// As under Windows, asked of the disk rather than through File.
+	bool isTooBig(const std::string& path)
+	{
+		struct stat info;
+		if(::stat(path.c_str(), &info) != 0) return false;
+		return static_cast<unsigned long long>(info.st_size) > MAX_IMPORT_SIZE;
+	}
+
 	// Single quotes for a filename, which under Linux may hold almost any
 	// character. Inside them only an apostrophe ends the string, so each one
 	// closes the quotes, adds an escaped apostrophe and opens them again.
@@ -645,15 +674,14 @@ namespace
 
 	enum Dialog { DIALOG_NONE, DIALOG_ZENITY, DIALOG_KDIALOG };
 
-	// Search once and remember: otherwise the Manager asks the shell twice
-	// on every click.
+	// Found once, remembered: otherwise the Manager asks the shell twice on
+	// every click. Not finding one is not remembered, since the message asks
+	// the player to install one and click again.
 	Dialog findDialog()
 	{
 		static Dialog found = DIALOG_NONE;
-		static bool searched = false;
-		if(!searched)
+		if(found == DIALOG_NONE)
 		{
-			searched = true;
 			if(haveProgram("zenity")) found = DIALOG_ZENITY;
 			else if(haveProgram("kdialog")) found = DIALOG_KDIALOG;
 			else printfLog("Neither zenity nor kdialog is installed - no file dialog available.\n");
@@ -667,16 +695,15 @@ namespace
 		return p_home && *p_home ? p_home : ".";
 	}
 
-	// The command line for one of the two dialogs. An empty suggestion means
-	// "open", otherwise "save as".
-	std::string dialogCommand(Dialog dialog, const std::string& suggestion)
+	// The command line for one of the two dialogs, starting at a directory
+	// for "open" and at the suggested file for "save as".
+	std::string dialogCommand(Dialog dialog, bool save, const std::string& start)
 	{
-		const bool save = !suggestion.empty();
 		if(dialog == DIALOG_ZENITY)
 		{
 			std::string command("zenity --file-selection");
-			if(save) command += " --save --confirm-overwrite --filename=" + shellQuote(homeDir() + "/" + suggestion);
-			else     command += " --filename=" + shellQuote(homeDir() + "/");
+			if(save) command += " --save --confirm-overwrite";
+			command += " --filename=" + shellQuote(start);
 			command += " --title=" + shellQuote(save ? "Blocks 5 - Export" : "Blocks 5 - Import");
 			command += " --file-filter=" + shellQuote("Blocks 5 | *.xml *.zip *.ogg");
 			command += " --file-filter=" + shellQuote("All files | *");
@@ -685,7 +712,7 @@ namespace
 
 		std::string command("kdialog ");
 		command += save ? "--getsavefilename " : "--getopenfilename ";
-		command += shellQuote(homeDir() + "/" + suggestion);
+		command += shellQuote(start);
 		command += " " + shellQuote("*.xml *.zip *.ogg|Blocks 5\n*|All files");
 		return command + " 2>/dev/null";
 	}
@@ -756,10 +783,11 @@ namespace
 bool beginImport()
 {
 	// As under Windows, only make a note: this call sits in the middle of the
-	// GUI's event dispatch.
+	// GUI's event dispatch. Without a dialog program the answer comes through
+	// pollImport() too, since false would ask for a click that cannot help.
 	if(wantDialog || importPid > 0) return false;
-	if(findDialog() == DIALOG_NONE) return false;
-	wantDialog = true;
+	if(findDialog() == DIALOG_NONE) importStatus = STATUS_NO_DIALOG;
+	else wantDialog = true;
 	return true;
 }
 
@@ -769,7 +797,7 @@ int pollImport(std::string& path, std::string& untrustedName)
 	{
 		wantDialog = false;
 		importOutput = "";
-		if(!startDialog(dialogCommand(findDialog(), ""))) importStatus = STATUS_FAILED;
+		if(!startDialog(dialogCommand(findDialog(), false, homeDir() + "/"))) importStatus = STATUS_FAILED;
 	}
 
 	if(importPid > 0)
@@ -785,6 +813,7 @@ int pollImport(std::string& path, std::string& untrustedName)
 			pickedPath = trimmed(importOutput);
 			pickedName = getFilenameFromPath(pickedPath);
 			importStatus = (result == 0 && !pickedPath.empty()) ? STATUS_OK : STATUS_CANCELLED;
+			if(importStatus == STATUS_OK && isTooBig(pickedPath)) importStatus = STATUS_TOO_BIG;
 		}
 		else if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
 		{
@@ -824,36 +853,41 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	const Dialog dialog = findDialog();
 	if(dialog == DIALOG_NONE)
 	{
-		errorId = "$TR_ERROR_FAILED";
+		errorId = "$TR_ERROR_NO_DIALOG";
 		return false;
 	}
 
 	// The name comes from our own directory and already carries its
 	// extension - it serves unchanged as the suggestion.
-	FILE* p_pipe = ::popen(dialogCommand(dialog, name).c_str(), "r");
-	if(!p_pipe)
-	{
-		errorId = "$TR_ERROR_FAILED";
-		return false;
-	}
-
-	std::string output;
-	char buffer[512];
-	size_t numBytesRead;
-	while((numBytesRead = ::fread(buffer, 1, sizeof(buffer), p_pipe)) > 0) output.append(buffer, numBytesRead);
-	const int result = ::pclose(p_pipe);
-
-	std::string target(trimmed(output));
-	if(result != 0 || target.empty()) return false;   // cancelled, not an error
-
-	// Neither kdialog nor zenity appends an extension. Without one the import
-	// dialog's filter would hide the file, and classify() would not take an
-	// archive for one at all: it knows a .zip only by the extension.
 	const std::string extension(extensionFor(kind));
-	if(target.length() < extension.length() ||
-	   target.compare(target.length() - extension.length(), extension.length(), extension) != 0)
+	std::string target(homeDir() + "/" + name);
+	for(;;)
 	{
+		FILE* p_pipe = ::popen(dialogCommand(dialog, true, target).c_str(), "r");
+		if(!p_pipe)
+		{
+			errorId = "$TR_ERROR_FAILED";
+			return false;
+		}
+
+		std::string output;
+		char buffer[512];
+		size_t numBytesRead;
+		while((numBytesRead = ::fread(buffer, 1, sizeof(buffer), p_pipe)) > 0) output.append(buffer, numBytesRead);
+		const int result = ::pclose(p_pipe);
+
+		target = trimmed(output);
+		if(result != 0 || target.empty()) return false;   // cancelled, not an error
+
+		// Neither kdialog nor zenity appends an extension. Without one the
+		// import dialog's filter would hide the file, and classify() would not
+		// take an archive for one at all: it knows a .zip only by the
+		// extension. But the dialog asked before overwriting only the name it
+		// was given, so a completed name that is taken goes back to it.
+		if(target.length() >= extension.length() &&
+		   equalsNoCase(target.c_str() + target.length() - extension.length(), extension.c_str())) break;
 		target += extension;
+		if(!FileSystem::inst().fileExists(target)) break;
 	}
 
 	if(!exportTo(kind, name, target))

@@ -24,9 +24,9 @@ namespace Transfer
 		KIND_PROGRESS
 	};
 
-	// Works out the kind by content: music by the OggS marker, a level by its
-	// XML root, and a .zip by what it holds - campaign.xml, tileset.xml with
-	// sprites.png, or progress.xml.
+	// Works out the kind by content: music by a Vorbis stream's first packet,
+	// a level by its XML root, and a .zip, in any case, by what it holds -
+	// campaign.xml, tileset.xml with sprites.png, or progress.xml.
 	Kind classify(const std::string& path);
 
 	// The name install() would give this file, and whether it would replace
@@ -70,7 +70,10 @@ namespace Transfer
 		STATUS_CANCELLED,
 		STATUS_TOO_BIG,
 		STATUS_UNKNOWN,
-		STATUS_FAILED
+		STATUS_FAILED,
+
+		// Linux with neither zenity nor kdialog installed.
+		STATUS_NO_DIALOG
 	};
 
 	// false means "not possible right now, please click again": the browser

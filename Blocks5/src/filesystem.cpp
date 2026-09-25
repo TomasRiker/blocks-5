@@ -2,6 +2,7 @@
 #include "filesystem.h"
 #include "file_real.h"
 #include "file_archived.h"
+#include <new>
 
 #ifdef _WIN32
 #include <Shlobj.h>
@@ -332,7 +333,15 @@ std::string FileSystem::readStringFromFile(const std::string& filename)
 		closeFile(p_file);
 		return "";
 	}
-	char* p_buffer = new char[size + 1];
+	// Without the memory the file reads as empty: nothing up the stack
+	// catches a throwing allocation.
+	char* p_buffer = new(std::nothrow) char[size + 1];
+	if(!p_buffer)
+	{
+		printfLog("+ ERROR: No memory to read \"%s\" (%u bytes).\n", filename.c_str(), size);
+		closeFile(p_file);
+		return "";
+	}
 	const uint numBytesRead = p_file->read(p_buffer, size);
 	p_buffer[min(size, numBytesRead)] = 0;
 	const std::string text(p_buffer);
@@ -372,10 +381,13 @@ void FileSystem::convertPath(const std::string& path,
 	std::string temp(path);
 	// i + 5 <= length, not i < length - 5, which underflows on a path shorter
 	// than five characters; this form also tests the last position, so a path
-	// ending exactly in ".zip/" is recognised.
+	// ending exactly in ".zip/" is recognised. ".zip" in any case: an archive
+	// picked in a file dialog can be called CAMPAIGN.ZIP.
 	for(uint i = 0; i + 5 <= temp.length(); i++)
 	{
-		if(temp.substr(i, 5) == ".zip/")
+		if(!equalsNoCase(temp.substr(i, 4).c_str(), ".zip")) continue;
+		const char marker = temp[i + 4];
+		if(marker == '/')
 		{
 			// archived file
 			filePath = temp.substr(0, i + 4);
@@ -383,7 +395,7 @@ void FileSystem::convertPath(const std::string& path,
 			password = "";
 			return;
 		}
-		else if(temp.substr(i, 5) == ".zip<")
+		else if(marker == '<')
 		{
 			// archived file with a plaintext password
 			for(uint j = i + 5; j < temp.length(); j++)
@@ -402,7 +414,7 @@ void FileSystem::convertPath(const std::string& path,
 				}
 			}
 		}
-		else if(temp.substr(i, 5) == ".zip[")
+		else if(marker == '[')
 		{
 			// archived file with an encrypted password
 			for(uint j = i + 5; j < temp.length(); j++)

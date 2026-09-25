@@ -602,6 +602,7 @@ void GS_Menu::pollImport()
 		Transfer::finishImport();
 		engine.showToast(Engine::TOAST_ERROR, status == Transfer::STATUS_TOO_BIG ? "$TR_ERROR_TOO_BIG"
 										   : status == Transfer::STATUS_UNKNOWN ? "$TR_ERROR_UNKNOWN"
+										   : status == Transfer::STATUS_NO_DIALOG ? "$TR_ERROR_NO_DIALOG"
 										   : "$TR_ERROR_FAILED");
 		return;
 	}

@@ -23,8 +23,19 @@ File_Real::File_Real(const std::string& filename,
 			return;
 		}
 
+		// A size the 32-bit interface cannot carry is refused rather than
+		// read as some other number, as ftell's -1 past 2 GB where long is 32
+		// bits would be: FileSystem::readStringFromFile allocates size + 1.
 		fseek(p_handle, 0, SEEK_END);
-		size = ftell(p_handle);
+		const long end = ftell(p_handle);
+		if(end < 0 || static_cast<unsigned long>(end) >= 0xFFFFFFFFul)
+		{
+			printfLog("+ ERROR: File \"%s\" is too large to read.\n",
+					  filename.c_str());
+			error = 1;
+			return;
+		}
+		size = static_cast<uint>(end);
 		rewind(p_handle);
 	}
 	else if(mode == FileSystem::FM_WRITE)
