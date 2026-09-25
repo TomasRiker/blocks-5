@@ -157,7 +157,19 @@ void Bomb::onUpdate()
 								if(!p_sprites->sample(&sampled, &offset)) continue;
 
 								p.position = pos * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
-								p.velocity = random(4.0f, 7.0f) * static_cast<Vec2f>(Vec2i(x, y)).normalize() + Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
+
+								// Away from the bomb. Its own cell has no away,
+								// and whoever stood on it - a player on their own
+								// bomb - scatters anywhere rather than by (0, 0)
+								// normalized, which is not a number.
+								Vec2f away;
+								if(x || y) away = static_cast<Vec2f>(Vec2i(x, y)).normalize();
+								else
+								{
+									const float r = random(0.0f, 6.283f);
+									away = Vec2f(sinf(r), cosf(r));
+								}
+								p.velocity = random(4.0f, 7.0f) * away + Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 								p.color = sampled + Vec4f(0.0f, 0.0f, 0.0f, random(0.3f, 0.5f));
 								p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
 								p.rotation = random(0.0f, 10.0f);

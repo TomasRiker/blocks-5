@@ -202,7 +202,6 @@ bool TextureAtlas::reserve(Texture* p_texture,
 		if(attempt || !makePage()) break;
 	}
 
-	compactionWanted = true;
 	return false;
 }
 

@@ -907,9 +907,11 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		dir.x /= length; dir.y /= length;
 		const Vec2f up(dir.y * 0.5f * width, -dir.x * 0.5f * width);
 
-		if(havePrev && prevDir.x * dir.y - prevDir.y * dir.x >= 0.0f)
+		// Both are dot products: the first says the turn is at most ninety
+		// degrees, the second's sign which side of the line is the outside.
+		if(havePrev && prevDir.x * dir.x + prevDir.y * dir.y >= 0.0f)
 		{
-			const float dot = prevUp.x * dir.y - prevUp.y * dir.x;
+			const float dot = prevUp.x * dir.x + prevUp.y * dir.y;
 			if(dot > 0.0f)
 			{
 				const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
