@@ -2419,33 +2419,14 @@ void Level::loadSkin(bool forceReload)
 		}
 	}
 
-	// Load the tiles. Where that fails - a broken tileset.xml, or one imported
-	// with a different tile size - request() returns a null, which most users
-	// of p_tileSet do not check for. A tileset that will not load therefore
-	// falls back to the shipped one.
+	// load the tiles
 	TileSet* p_oldTileSet = p_tileSet;
-	p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
-	if(!p_tileSet && skin[Level::SKIN_TILESET] != p_defaultSkin)
-	{
-		printfLog("+ WARNING: Skin \"%s\" has no usable tileset; falling back to \"%s\".\n",
-				  skin[Level::SKIN_TILESET].c_str(), p_defaultSkin);
-		badSkins.insert(skin[Level::SKIN_TILESET]);
-		skin[Level::SKIN_TILESET] = p_defaultSkin;
-		p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
-	}
+	p_tileSet = requestSkinFile<TileSet>(SKIN_TILESET, badSkins);
 	if(p_oldTileSet) p_oldTileSet->release();
 
 	// load the sprites
 	Texture* p_oldSprites = p_sprites;
-	p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
-	if(!p_sprites && skin[Level::SKIN_SPRITES] != p_defaultSkin)
-	{
-		printfLog("+ WARNING: Skin \"%s\" has no usable sprites; falling back to \"%s\".\n",
-				  skin[Level::SKIN_SPRITES].c_str(), p_defaultSkin);
-		badSkins.insert(skin[Level::SKIN_SPRITES]);
-		skin[Level::SKIN_SPRITES] = p_defaultSkin;
-		p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
-	}
+	p_sprites = requestSkinFile<Texture>(SKIN_SPRITES, badSkins);
 	if(p_sprites) p_sprites->keepInMemory();
 	if(p_oldSprites) p_oldSprites->release();
 
@@ -2458,43 +2439,44 @@ void Level::loadSkin(bool forceReload)
 
 	// load the noise
 	Texture* p_oldNoise = p_noise;
-	p_noise = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_NOISE));
+	p_noise = requestSkinFile<Texture>(SKIN_NOISE, badSkins);
 	if(p_oldNoise) p_oldNoise->release();
 
 	// load the shine
 	Texture* p_oldShine = p_shine;
-	p_shine = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SHINE));
+	p_shine = requestSkinFile<Texture>(SKIN_SHINE, badSkins);
 	if(p_oldShine) p_oldShine->release();
 
 	// load the rain
 	Texture* p_oldRain = p_rain;
-	p_rain = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_RAIN), Texture::WM_REPEAT);
+	p_rain = requestSkinFile<Texture>(SKIN_RAIN, badSkins, Texture::WM_REPEAT);
 	if(p_oldRain) p_oldRain->release();
 
 	// load the clouds
 	Texture* p_oldClouds = p_clouds;
-	p_clouds = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_CLOUDS), Texture::WM_REPEAT);
+	p_clouds = requestSkinFile<Texture>(SKIN_CLOUDS, badSkins, Texture::WM_REPEAT);
 	if(p_oldClouds) p_oldClouds->release();
 
 	// load the snow
 	Texture* p_oldSnow = p_snow;
-	p_snow = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SNOW), Texture::WM_REPEAT);
+	p_snow = requestSkinFile<Texture>(SKIN_SNOW, badSkins, Texture::WM_REPEAT);
 	if(p_oldSnow) p_oldSnow->release();
 
 	// load the background image
 	Texture* p_oldBackground = p_background;
-	p_background = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_BACKGROUND));
+	p_background = requestSkinFile<Texture>(SKIN_BACKGROUND, badSkins);
 	if(p_oldBackground) p_oldBackground->release();
 
 	// Load the hint note. A marker file hintscroll.txt beside the picture says
 	// whether it may roll up; only its existence counts. Beside the picture
 	// and not in tileset.xml, because each skin slot is chosen separately, and
-	// beside the picture really loaded, which getSkinFilename() has already
-	// followed through a default_hint.png marker.
+	// beside the picture really loaded, so it is looked for after the
+	// request: getSkinFilename() follows a default_hint.png marker, and a
+	// picture that will not load has fallen back to the default skin's.
 	Texture* p_oldHint = p_hint;
-	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
-	p_hint = Manager<Texture>::inst().request(hintFile);
+	p_hint = requestSkinFile<Texture>(SKIN_HINT, badSkins);
 	if(p_oldHint) p_oldHint->release();
+	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
 
 	hintScroll = false;
 	const std::string::size_type slash = hintFile.find_last_of('/');
@@ -2505,7 +2487,7 @@ void Level::loadSkin(bool forceReload)
 
 	// load the hint note's font
 	Font* p_oldHintFont = p_hintFont;
-	p_hintFont = Manager<Font>::inst().request(getSkinFilename(Level::SKIN_HINTFONT));
+	p_hintFont = requestSkinFile<Font>(SKIN_HINTFONT, badSkins);
 	if(p_oldHintFont) p_oldHintFont->release();
 
 	// create the object presets
@@ -2515,7 +2497,7 @@ void Level::loadSkin(bool forceReload)
 
 	// initialize the particle systems
 	Texture* p_oldParticleSprites = p_particleSprites;
-	p_particleSprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_PARTICLES));
+	p_particleSprites = requestSkinFile<Texture>(SKIN_PARTICLES, badSkins);
 	if(p_oldParticleSprites) p_oldParticleSprites->release();
 	ParticleSystem* p_oldParticleSystem = p_particleSystem;
 	p_particleSystem = new ParticleSystem(p_particleSprites);
@@ -2549,6 +2531,27 @@ void Level::loadSkin(bool forceReload)
 									 0.0f, inPreview);
 		}
 	}
+}
+
+// A file that is there and will not load - a truncated picture, an archive
+// whose password.txt is wrong, a tileset.xml with another tile size - is as
+// unusable as a missing one, and the pictures, fonts and tiles a level draws
+// are taken as given everywhere they are drawn. So the slot falls back to the
+// shipped skin, as a missing file does, and the skin is reported.
+template<typename T> T* Level::requestSkinFile(uint index,
+											  std::set<std::string>& badSkins,
+											  int options)
+{
+	T* p_resource = Manager<T>::inst().request(getSkinFilename(index), options);
+	if(!p_resource && !skin[index].empty() && skin[index] != p_defaultSkin)
+	{
+		printfLog("+ WARNING: Skin \"%s\" has no usable %s; falling back to \"%s\".\n",
+				  skin[index].c_str(), p_skinFilenames[index], p_defaultSkin);
+		badSkins.insert(skin[index]);
+		skin[index] = p_defaultSkin;
+		p_resource = Manager<T>::inst().request(getSkinFilename(index), options);
+	}
+	return p_resource;
 }
 
 std::string Level::getAlternative(const std::string& filename,

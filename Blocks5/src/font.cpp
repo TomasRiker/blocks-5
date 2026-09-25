@@ -250,12 +250,22 @@ void Font::reload()
 		return;
 	}
 
+	// A skin brings its note's font, and a skin can come from anybody, so a
+	// document without its <Font> or its image is a broken file rather than a
+	// null pointer to walk into.
 	TiXmlHandle docHandle(&doc);
 	TiXmlHandle fontHandle = docHandle.FirstChildElement("Font");
 	TiXmlElement* p_fontElement = fontHandle.Element();
+	const char* p_imageFilename = p_fontElement ? p_fontElement->Attribute("image") : 0;
+	if(!p_imageFilename)
+	{
+		printfLog("+ ERROR: Font XML file \"%s\" has no <Font> element with an image.\n",
+				  filename.c_str());
+		error = 3;
+		return;
+	}
 
-	// read the image filename, line height and offset
-	const char* p_imageFilename = p_fontElement->Attribute("image");
+	// read the line height and offset
 	p_fontElement->Attribute("lineHeight", &lineHeight);
 	p_fontElement->Attribute("offset", &offset);
 
@@ -270,11 +280,14 @@ void Font::reload()
 	p_fontElement->Attribute("capTop", &capTop);
 	p_fontElement->Attribute("capBottom", &capBottom);
 
-	// process all child elements
+	// Process all child elements. A character the file leaves out has no
+	// glyph, whatever a previous load of it said, and one that leaves out an
+	// attribute gets 0 rather than whatever the stack held.
+	for(int i = 0; i < 256; i++) charInfo[i].position = charInfo[i].size = Vec2i(0, 0);
 	TiXmlElement* p_charElement = p_fontElement->FirstChildElement("Character");
 	while(p_charElement)
 	{
-		int code, x, y, w, h;
+		int code = -1, x = 0, y = 0, w = 0, h = 0;
 		p_charElement->Attribute("code", &code);
 		p_charElement->Attribute("x", &x);
 		p_charElement->Attribute("y", &y);
@@ -468,6 +481,8 @@ void Font::drawText(const StringCacheEntry& entry, const Vec4f& color) const
 		renderer.quads(&entry.keyBoxes[0], static_cast<uint>(entry.keyBoxes.size()), color);
 	}
 
+	// None where a reload failed - the editor's Refresh over a broken skin.
+	if(!p_texture) return;
 	renderer.setTexture(p_texture->ref());
 	if(!entry.glyphs.empty())
 	{

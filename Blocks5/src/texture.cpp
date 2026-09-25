@@ -333,6 +333,14 @@ void Texture::loadSubTexture(Texture* p_parent,
 	this->offset = offset;
 	this->size = size;
 
+	// A parent whose picture would not load again - the editor's Refresh
+	// over a broken sprites.png - has no pixels to copy from.
+	if(!p_parent->p_rgba)
+	{
+		error = 1;
+		return;
+	}
+
 	checkDimensions();
 
 	// copy the wanted part
@@ -398,7 +406,10 @@ bool Texture::hasPixels() const
 
 Vec4f Texture::getPixel(const Vec2i& where) const
 {
-	if(!p_rgba) return Vec4f(0.0f);
+	// The coordinates come from a skin's tileset.xml and from sprite regions
+	// of a fixed layout, and a skin can bring a smaller picture: outside it,
+	// the answer is nothing, as for a picture without pixels.
+	if(!p_rgba || where.x < 0 || where.y < 0 || where.x >= p_rgba->w || where.y >= p_rgba->h) return Vec4f(0.0f);
 
 	uint pitchInPixels = p_rgba->pitch / p_rgba->format->BytesPerPixel;
 	uint pixel = reinterpret_cast<const uint*>(p_rgba->pixels)[where.y * pitchInPixels + where.x];

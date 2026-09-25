@@ -182,6 +182,7 @@ public:
 	void allocateTiles();
 	bool loadErrorLevel();
 	void loadSkin(bool forceReload = false);
+	template<typename T> T* requestSkinFile(uint index, std::set<std::string>& badSkins, int options = 0);
 
 	int counter;
 	// Milliseconds since the level was loaded, 20 to a tick. Signed, so it is
