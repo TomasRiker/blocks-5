@@ -76,11 +76,9 @@ void Bomb::onUpdate()
 				level.addFlash(2.0f);
 				Engine::inst().playSound("explosion.ogg", false, 0.15f, 100);
 
-				// The bomb bursts apart too and needs its own block for it:
-				// the loop below picks its victims with getFrontObjectAt,
-				// which skips anything that has already called disappear() -
-				// precisely the bomb. Without this block an explosion that
-				// hits nothing would throw no debris at all.
+				// The bomb's own debris needs a block of its own: the loop
+				// below finds its victims with getFrontObjectAt(), which
+				// skips anything that has called disappear(), the bomb too.
 				{
 					const Sprites& debris = getSprites();
 					const int numTries = debris.getTryCount(random(30, 40));

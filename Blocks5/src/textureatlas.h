@@ -7,38 +7,35 @@
 
 class Texture;
 
-// Nearly every draw call this game makes is a texture change (measured: 18 of
-// a level frame's 24), so the fewer GL textures there are, the fewer draws.
-// A picture that never samples outside its own edges can live inside a bigger
-// one without noticing: uv is written in the picture's own texels either way,
-// and Renderer::pushQuad turns those into the page's coordinates with the
-// texel scale and the origin the picture's TextureRef carries.
+// Without pages most draw calls are texture changes (measured: 18 of a level
+// frame's 24), so fewer GL textures means fewer draws. A picture that never
+// samples outside its own edges can live inside a bigger one unnoticed: uv is
+// written in the picture's own texels, and Renderer::pushQuad turns those into
+// the page's with the texel scale and origin its TextureRef carries.
 //
-// That is exactly why the wrap mode is declared at the request
-// (Texture::WM_REPEAT): GL_REPEAT wraps at the *texture's* edge, so a picture
-// in a page would read whatever was packed next door. Those keep a texture of
-// their own. A picture the renderer tiles itself (WM_WRAP) does share a page,
-// because Renderer::tiledQuad cuts the quad so that no piece reads past an
-// edge; its gutter copies the opposite edge rather than its own.
+// That is why the wrap mode is declared at the request: GL_REPEAT wraps at the
+// *texture's* edge, so a WM_REPEAT picture in a page would read whatever was
+// packed next door, and it keeps a texture of its own. A WM_WRAP picture does
+// share a page, because Renderer::tiledQuad cuts the quad so that no piece
+// reads past an edge; its gutter copies the opposite edge rather than its own.
 //
-// Sampling is bit for bit what it was, and the reason is that a page's edge is
-// a power of two: px/pageEdge and origin/pageEdge are both exact in float and
-// their sum is exactly (px + origin)/pageEdge, so a quad lands on the same
-// texel it landed on before. The frame oracle is what holds that claim.
+// The page coordinate is exact because a page's edge is a power of two:
+// px/pageEdge and origin/pageEdge are both exact in float, and their sum
+// rounds exactly as (px + origin)/pageEdge does.
 class TextureAtlas : public Singleton<TextureAtlas>
 {
 	friend class Singleton<TextureAtlas>;
 
 public:
 	// A texel of gutter all round every picture. Linear filtering reaches one
-	// texel past the coordinate it was given and no further - there are no
-	// mipmaps anywhere in this game - so one texel of the picture's own edge,
-	// copied outwards, is exactly what GL_CLAMP_TO_EDGE would have returned.
-	// Not approximately: the same texel value.
+	// texel past its coordinate and no further, and there are no mipmaps, so
+	// the picture's edge copied outwards returns exactly the texel
+	// GL_CLAMP_TO_EDGE would.
 	static const int GUTTER = 1;
 
-	// Where a picture ended up. pageID 0 means it is not in a page at all and
-	// has a GL texture of its own - a tiling one, or one too big to pack.
+	// Where a picture ended up. pageID 0 means it is in no page and has a GL
+	// texture of its own: a WM_REPEAT or NEVER_PACK one, or one that found no
+	// room.
 	struct Slot
 	{
 		Slot() : pageID(0), origin(0, 0) {}
@@ -52,14 +49,14 @@ public:
 	// caller makes a texture of its own.
 	bool reserve(Texture* p_texture, const Vec2i& size, Slot* p_slot);
 
-	// Give a picture's rectangle back. The rectangle is remembered as free and
-	// the atlas as fragmented; nothing moves here, because a skin change
-	// releases eleven pictures in a row and reloads them, and compacting after
-	// each would be eleven repacks for the same answer.
+	// Give a picture's rectangle back to its page's free list. Nothing moves
+	// here: a skin change releases eleven pictures in a row and reloads them,
+	// and compacting after each would be eleven repacks for the same answer.
 	void giveBack(Texture* p_texture);
 
-	// Compact, if the holes are worth the work. Called once a logic tick from
-	// Engine::update(), which is a point where the renderer holds nothing.
+	// Compact if a reservation has failed since the last call. Called once a
+	// logic tick from Engine::update(), a point where the renderer holds
+	// nothing.
 	void repackIfWorthwhile();
 
 	// Delete the pages. Native only, like every other teardown.
@@ -108,8 +105,8 @@ private:
 	// makes a rectangle with. Without that the list only ever grows finer and
 	// the atlas fragments itself out of room in a few screen changes.
 	void addFreeRect(Page& page, const Rect& rect);
-	// Guillotine: the free rectangle that wastes least, split in two. Nothing
-	// is coalesced on the way out, which is what the repack is for.
+	// Guillotine: the free rectangle that wastes least, split in two, and the
+	// two pieces handed back through addFreeRect().
 	bool takeRect(Page& page, const Vec2i& size, Vec2i* p_origin);
 	void repack();
 
