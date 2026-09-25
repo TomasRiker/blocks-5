@@ -3,7 +3,7 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include "web_audio.h"
-// Defined further down, next to setFullScreen().
+// Defined further down, with the other browser fullscreen helpers.
 static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*);
 #endif
 #ifdef _WIN32
@@ -40,23 +40,15 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "videorecorder.h"
 #include "audiocapture.h"
 
-// Headroom for the audio mix. The game plays music and a dozen effects, each
-// source at full volume, and the sum stood above the ceiling: measured in the
-// menu, where the demo keeps adding bombs and lasers, -8.8 LUFS at a peak of
-// 0 dBFS - and 0.73% of all samples lay against the limit and were therefore
-// clipped by OpenAL Soft. That is audible as distortion, in the game and in
-// a recording alike.
-//
-// 0.45 brings that to -15.5 LUFS at a peak of -0.9 dBFS. Two standards decide
-// the number: a peak no higher than -1 dBTP, because a lossy encoder - MP3
-// for the videos here - can overshoot on decoding, and a loudness of -14 to
-// -16 LUFS, which is where the video portals normalise anyway. Measured
-// afterwards: exactly one single sample out of four million against the limit
-// instead of 29369.
-//
-// The value stands here and not in the options: it is a property of the
-// mixture, not a matter of taste. The player's own sliders are untouched and
-// still read 100%.
+// Headroom for the audio mix. Music and a dozen effects at full volume sum past
+// the ceiling: measured in the menu demo, -8.8 LUFS at a peak of 0 dBFS, with
+// 0.73% of all samples clipped by OpenAL Soft - audible distortion, in the game
+// and in a recording alike. 0.45 gives -15.5 LUFS at a peak of -0.9 dBFS, and
+// one sample in four million at the limit instead of 29369. Two standards pick
+// the number: a peak no higher than -1 dBTP, since a lossy encoder (the videos'
+// MP3) can overshoot on decoding, and -14 to -16 LUFS, where the video portals
+// normalise anyway. A property of the mixture, not a matter of taste, so not an
+// option: the player's own sliders are untouched and still read 100%.
 const float MASTER_HEADROOM = 0.45f;
 
 Engine::Engine()
@@ -222,15 +214,11 @@ namespace
 		return temp;
 	}
 
-	// What a key is called where the player reads it, as opposed to the id
-	// above, which config.xml holds and which can never be translated. Only the
-	// keys somebody is likely to bind are in here; everything else falls back
-	// to SDL's own name.
-	//
-	// The ids are spelled out and not composed from the key name, because
-	// verify.py collects "$..." literals out of the source: an id that
-	// languages.txt does not have is then a failed check rather than a player
-	// reading "$VK_KEYBOARD_LEFT" off a button.
+	// What the player reads for a key, as against the id above, which
+	// config.xml holds and so can never be translated. Only keys somebody is
+	// likely to bind; the rest fall back to SDL's own name. The ids are spelled
+	// out rather than composed so that verify.py, which collects "$..."
+	// literals, fails on one that languages.txt lacks.
 	const struct { int key; const char* p_id; } p_keyDisplayNames[] =
 	{
 		{SDLK_LEFT, "$VK_KEYBOARD_LEFT"},           {SDLK_RIGHT, "$VK_KEYBOARD_RIGHT"},
@@ -290,8 +278,7 @@ bool Engine::init(const std::string& windowCaption,
 	// counts, never defaultFullScreen again.
 	fullScreen = defaultFullScreen;
 #ifdef __EMSCRIPTEN__
-	// The Fullscreen API cannot be triggered without a real key press; in the
-	// browser there is therefore no fullscreen at startup.
+	// The Fullscreen API needs a user gesture, so the browser starts windowed.
 	fullScreen = false;
 #endif
 	// Load the configuration. Sets windowedSize if the file says anything
@@ -327,20 +314,14 @@ bool Engine::init(const std::string& windowCaption,
 		virtualKeys.push_back(vk);
 	}
 
-	// The six keys of the mouse drag, and they sit exactly here for a reason:
-	// main.cpp registers its actions before Engine::init runs, so a binding
-	// has to be nameable before this table exists. A keyboard key manages it
-	// because its index is its own key code (getKeyboardVK), and these manage
-	// it by following the keyboard block immediately - the loop above has just
-	// pushed SDLK_LAST of them - so the base is SDLK_LAST whatever joysticks
-	// turn up afterwards. getMouseDragVK() returns that without reading this.
-	//
-	// updateMouseDrag() sets them from the cursor and the buttons, the way a
-	// joystick hat's four are polled, so that nothing above the input layer
-	// learns a mouse can steer a character. The ids are structural, as the
-	// joysticks' are, and carry no $ID because nothing shows them: the drag is
-	// bound as an action's third source, which the options dialog does not
-	// offer - a gesture is its own binding.
+	// The six keys of the mouse drag, directly behind the keyboard block:
+	// main.cpp registers its actions before init() runs, so a binding must be
+	// nameable before this table exists. A keyboard VK is its own key code;
+	// these have the constant base SDLK_LAST whatever joysticks turn up
+	// (getMouseDragVK). updateMouseDrag() sets them as a hat's four are
+	// polled, so nothing above the input layer learns a mouse can steer. The
+	// ids are structural and carry no $ID: the drag is an action's third
+	// source, which the options dialog never shows.
 	{
 		static const char* p_ids[NUM_MOUSE_DRAG_VKS] =
 			{"Mouse DragW", "Mouse DragE", "Mouse DragN", "Mouse DragS",
@@ -498,13 +479,11 @@ bool Engine::init(const std::string& windowCaption,
 	// initialize OpenGL
 	printfLog("* Initializing OpenGL ...\n");
 
-	// A colour buffer and nothing else is asked of the window: the game
-	// renders into its framebuffer object, whose texture, depth and stencil
-	// are its own, and the window only ever receives the present. Nor is
-	// there a GL version to ask for - SDL 1.2 has no such attribute, the
-	// context is whatever the driver gives a legacy request, and
-	// GLExtensions::init resolves what the game needs out of it and stops
-	// where something is missing.
+	// Only a colour buffer: the game draws into its framebuffer object, which
+	// has its own depth and stencil, and the window receives only the present.
+	// SDL 1.2 cannot ask for a GL version; GLExtensions::init resolves what the
+	// game needs from whatever context the driver gives, and stops where
+	// something is missing.
 	SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
@@ -579,9 +558,9 @@ bool Engine::init(const std::string& windowCaption,
 #endif
 
 #ifdef __EMSCRIPTEN__
-	// Only a real key press may trigger the Fullscreen API, hence at the DOM.
-	// The first gesture of all, and the pad's button, are the page's own
-	// business - pre.js and touch_controls.js.
+	// The Fullscreen API wants a real gesture, so Alt+Return is taken at the
+	// DOM. The first gesture of all and the pad's button are the page's own
+	// business (pre.js, touch_controls.js).
 	emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE,
 									engineFullScreenHotkey);
 #endif
@@ -654,8 +633,8 @@ bool Engine::init(const std::string& windowCaption,
 		return false;
 	}
 
-	// OpenAL can only record input devices, that is the microphone. What is
-	// needed is the output - hence WASAPI's loopback mode.
+	// OpenAL records only input devices, the microphone; a video needs the
+	// output, so audiocapture.cpp takes it by loopback.
 	p_audioCapture = new AudioCapture;
 	if(p_audioCapture->open(48000))
 	{
@@ -685,25 +664,18 @@ bool Engine::init(const std::string& windowCaption,
 	alcProcessContext(p_audioContext);
 
 #ifdef __EMSCRIPTEN__
-	// Emscripten's OpenAL turns queued buffers into Web Audio nodes from a
-	// setInterval on the main thread, and schedules only 0.1 s ahead. A frame
-	// longer than that leaves the streamed music with nothing scheduled and
-	// tears a hole in it - so the gaps arrive at the frame rate rather than on
-	// the quarter-second buffer boundaries, which is what tells this apart
-	// from a queue that is simply not being refilled.
+	// Emscripten's OpenAL schedules queued buffers as Web Audio nodes from a
+	// main-thread setInterval, only 0.1 s ahead, so a longer frame tears a hole
+	// in the streamed music - at the frame rate, not on the quarter-second
+	// buffer boundaries a starved queue would show. Half a second costs two
+	// more nodes on the one streaming source and no latency, since stopping,
+	// pausing and restarting go through AL.stopSourceAudio, which stops every
+	// scheduled node. Past one second there is nothing left to schedule: that
+	// is all four queued buffers hold. The effects are single nodes, never
+	// rescheduled.
 	//
-	// Half a second costs two more AudioBufferSourceNodes on the one streaming
-	// source there is, and no latency anywhere: stopping, pausing and
-	// restarting all go through stopSourceAudio(), which stops every scheduled
-	// node outright. Past one second there would be nothing left to schedule -
-	// that is all the audio the four queued buffers hold. The effects need
-	// none of it either way, since a looping one is a single node with
-	// loop = true and a one-shot is its whole buffer in one node, and neither
-	// is ever rescheduled.
-	//
-	// QUEUE_LOOKAHEAD belongs to Emscripten - read out of emsdk 6.0.8 - and an
-	// upgrade may move it, so the value is read back rather than assumed and
-	// the log line is what says whether it took.
+	// QUEUE_LOOKAHEAD is Emscripten's (read out of emsdk 6.0.8) and may move,
+	// so the value is read back and the log line says whether it took.
 	const double WEB_AUDIO_LOOKAHEAD = 0.5;
 	const double lookahead = EM_ASM_DOUBLE(
 	{
@@ -864,12 +836,11 @@ void Engine::handleAppFocus(bool gained)
 		return;
 	}
 
-	// No release arrives after a change of focus. A key left standing as held
-	// here would never yield a key press again, and a mouse button left down
-	// is worse than that: the drag recogniser reads it every tick, so a button
-	// let go of in another window would still be steering a character on the
-	// way back. Both are cleared, and updateMouseDrag() ends the drag by
-	// itself on the next tick because nothing is held any more.
+	// Nothing promises a release for what was held as the focus went: SDL 1.2
+	// posts button-ups only on minimizing, and the drag recogniser reads the
+	// buttons every tick, so a button let go of in another window would still
+	// steer on the way back. Held keys are forgotten too, so the next key-down
+	// is a press. updateMouseDrag() ends the drag on its next tick.
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyHeld[i] = false;
@@ -938,21 +909,18 @@ void Engine::mainLoopIteration()
 #endif
 		Uint32 start = SDL_GetTicks();
 
-		// What this turn of the loop costs, in milliseconds. RENDER and
-		// PRESENT are what *issuing* the draw calls costs; GL is asynchronous
-		// and the drawing itself is paid for wherever the pipeline is next
-		// made to catch up, which natively is the flush inside
-		// glXSwapBuffers - hence SWAP as a phase of its own. In the browser
-		// the swap does nothing at all and the compositing happens after this
-		// function returns, so nothing here sees the GPU. See framestats.h.
+		// What this turn costs, in ms. RENDER and PRESENT time the issuing of
+		// the draw calls; the GPU is paid for wherever the pipeline next
+		// catches up, natively the flush inside the swap, hence SWAP of its
+		// own. In the browser the page composites after this returns, so
+		// nothing here sees the GPU. See framestats.h.
 		const uint64 frameBegin = getExactTimeUS();
 		float phases[FrameStats::FS_NUM_PHASES];
 		for(int i = 0; i < FrameStats::FS_NUM_PHASES; i++) phases[i] = 0.0f;
 
-		// The renderer's own counter, which runs in every build - the draw
-		// calls counted at the link are a test-hooks build only. It is
-		// cumulative and reset from outside (the test hook does), so what
-		// belongs to this iteration is the difference across it.
+		// The renderer's own draw counter, which every build has, unlike the
+		// link-time count of a test-hooks build. It is cumulative and reset
+		// from outside, so this turn's share is the difference across it.
 		const uint drawsAtStart = Renderer::inst().stats().draws;
 
 #ifdef __EMSCRIPTEN__
@@ -979,13 +947,11 @@ void Engine::mainLoopIteration()
 		bool frameRendered = false;
 
 #ifdef BLOCKS5_TEST_HOOKS
-		// The frame the harness photographs is rendered once more after the
-		// clock stopped, with the engine's own clock pinned to zero for the
-		// length of that one render: the caret, the editor's marching ants and
-		// the contamination pulse read getTime(), which counts ticks since the
-		// program started and so stands at whatever the harness's timing made
-		// it. Pinned and not skipped, because a scene's every other clock is
-		// already deterministic and the picture should be too.
+		// The harness photographs a frame rendered after the clock stopped,
+		// with the engine's clock pinned to zero for that one render: the
+		// caret, the editor's marching ants and the contamination pulse read
+		// getTime(), which counts from startup and so stands wherever the
+		// harness's timing left it.
 		const bool frozenFrame = TestHooks::frozenFrameDue();
 #else
 		const bool frozenFrame = false;
@@ -1020,10 +986,8 @@ void Engine::mainLoopIteration()
 				break;
 #ifdef __EMSCRIPTEN__
 			// Emscripten's SDL reports focus and visibility as
-			// SDL_WINDOWEVENT - an SDL 2 shape - and never sends an
-			// SDL_ACTIVEEVENT. Without this branch the game in the browser
-			// learns nothing of it and would simply keep running in the
-			// background instead of halting as it does everywhere else.
+			// SDL_WINDOWEVENT, an SDL 2 shape, and never sends
+			// SDL_ACTIVEEVENT; without this the browser build never halts.
 			case SDL_WINDOWEVENT:
 				switch(event.window.event)
 				{
@@ -1040,20 +1004,15 @@ void Engine::mainLoopIteration()
 				}
 				break;
 #endif
-			// A block of its own: a variable created inside a case would
-			// otherwise not be allowed to live across the next case label.
+			// Braced, so the locals do not cross the next case label.
 			case SDL_KEYDOWN:
 				{
-				// Is this the repeat of a held key?
-				// SDL_EnableKeyRepeat(140, 60) keeps sending further
-				// SDL_KEYDOWN for a key nobody released, and those are not a
-				// new key press. This stands before the two key combinations
-				// below, because those are commands too: a held Alt+Return
-				// would otherwise toggle the fullscreen every 60 ms.
-				//
-				// keyHeld is set here already, keyData only further down -
-				// the two combinations swallow their key, and swallowed
-				// means this too: wasKeyPressed() does not see it.
+				// A repeat (SDL's, 140/60 ms, or the browser's own) is a
+				// key-down for a key nobody released, not a new press. Decided
+				// before the two combinations below, which are commands too: a
+				// held Alt+Return would otherwise toggle the fullscreen every
+				// 60 ms. keyHeld is set here, keyData further down, so a
+				// swallowed combination never reaches wasKeyPressed().
 				const int keySlot = event.key.keysym.sym;
 				const bool inRange = keySlot >= 0 && keySlot < NUM_KEY_SLOTS;
 				const bool repeat = inRange && keyHeld[keySlot];
@@ -1075,10 +1034,8 @@ void Engine::mainLoopIteration()
 					break;
 				}
 #endif
-				// Alt+Return toggles the fullscreen and is swallowed; the
-				// game must never see a bare Return in it. The keypad's Enter
-				// counts, because a keyboard has two of these keys and nothing
-				// here tells them apart.
+				// Alt+Return toggles the fullscreen and is swallowed, so the
+				// game never sees a bare Return. Either Enter key counts.
 				if(isReturnKey(event.key.keysym.sym) &&
 				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
 				{
@@ -1091,18 +1048,15 @@ void Engine::mainLoopIteration()
 
 				if(inRange)
 				{
-					// The press bit only on the first press: otherwise
-					// wasKeyPressed() would report a new press every 60 ms,
-					// and an Escape held for a fifth of a second would close
-					// the options dialog and quit the game right after -
-					// consumeKeyPress() covers only the same tick, the
-					// repeat comes in a later one.
+					// The press bit only on a fresh press: a repeat in a later
+					// tick would read as a new one, and an Escape held a fifth
+					// of a second would close the options dialog and then quit
+					// - consumeKeyPress() covers only the same tick.
 					if(!repeat) keyData[keySlot] |= 2;
 					keyData[keySlot] |= 1;
 				}
-				// The repeat itself stays: it goes to the GUI through this
-				// queue, and a text field wants it. Anything that does not
-				// want it can tell from the flag.
+				// Repeats are queued all the same, flagged: a text field
+				// wants them, a command skips them.
 				{
 					QueuedKeyEvent queued = { event.key, repeat };
 					keyEventQueue.push(queued);
@@ -1110,10 +1064,8 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_KEYUP:
-				// keyHeld describes the keyboard and not the command, hence
-				// before every special case: the swallowed Alt+Return jumps
-				// straight out, and the key would otherwise stand as held
-				// for ever.
+				// Before every special case: keyHeld describes the keyboard,
+				// and the swallowed Alt+Return leaves early.
 				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
 					keyHeld[event.key.keysym.sym] = false;
 
@@ -1135,11 +1087,8 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				// The position here too and not only on SDL_MOUSEMOTION: a
-				// finger produces no motion at all. Emscripten's SDL makes an
-				// SDL_MOUSEBUTTONDOWN out of touchstart and writes the spot
-				// into it; without that the cursor on a tap would never land
-				// where the finger did.
+				// The position here too: a finger makes no motion event, only
+				// the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes of touchstart.
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
@@ -1202,11 +1151,10 @@ void Engine::mainLoopIteration()
 		while(timeToProcess >= logicRate)
 		{
 #ifdef BLOCKS5_TEST_HOOKS
-			// Asked before the tick runs, so the clock stops on exactly the
-			// tick that was asked for. While it is stopped the harness must
-			// still be answered, or it could neither take its picture nor
-			// quit the game - but nothing else of the tick happens, and time
-			// does not move, so every frame from here on is the same one.
+			// Asked before the tick, so the clock stops on exactly the tick
+			// asked for. A frozen clock still answers the harness, or it could
+			// neither take its picture nor quit, but nothing else of the tick
+			// runs and every frame from here on is the same one.
 			TestHooks::checkFreeze(sceneTick, p_crossfade ? static_cast<int>(crossfadeTime * 1000.0f) : -1);
 			if(TestHooks::frozen())
 			{
@@ -1253,8 +1201,6 @@ void Engine::mainLoopIteration()
 				buttonData[i] &= ~(2 | 4);
 			}
 
-			// One queue, once - not once per key slot, which is what it read
-			// as with the closing brace one line further down.
 			while(!keyEventQueue.empty()) keyEventQueue.pop();
 
 			// reset the action data
@@ -1274,10 +1220,9 @@ void Engine::mainLoopIteration()
 
 #ifdef BLOCKS5_TEST_HOOKS
 			// One tick per rendered frame while the harness asks for it, so
-			// that a screen which draws its own last frame back into the next
-			// one - the credits - sees the same frames on a machine that
-			// drops some as on one that drops none. The backlog is thrown
-			// away rather than caught up with later, which is the point.
+			// that a screen drawing its last frame into the next (the
+			// credits) sees the same frames however many a machine drops.
+			// The backlog is thrown away, not caught up.
 			if(TestHooks::lockstep()) { timeToProcess = 0; break; }
 #endif
 		}
@@ -1339,12 +1284,9 @@ void Engine::mainLoopIteration()
 
 					if(SDL_ShowCursor(-1))
 					{
-						// Draw the mouse cursor into the buffer by hand. Always
-						// at its designed size: what gets recorded is the
-						// 640x480 frame whatever the window is doing, and in
-						// that the cursor is 16x16. What the system draws on
-						// the screen beside it can be twice as large - see
-						// updateCursorSize().
+						// The cursor is drawn in by hand at its design size: the
+						// recording is the 640x480 frame, in which it is 16x16,
+						// whatever the system draws on screen.
 						const Vec2i cursorPosition(getCursorPosition());
 						for(int dy = 0; dy < 16 && cursorPosition.y + dy < screenSize.y; ++dy)
 						{
@@ -1395,25 +1337,18 @@ void Engine::mainLoopIteration()
 
 		Uint32 end = SDL_GetTicks();
 
-		// TOTAL stops here and not after the SDL_Delay below: what is wanted
-		// is the work, not the waiting. INTERVAL is start to start and so
-		// carries the wait with it, which is what makes the two different
-		// numbers worth having side by side.
+		// TOTAL ends before the SDL_Delay below: the work, not the wait.
+		// INTERVAL, start to start, carries the wait.
 		{
 			const uint64 frameEnd = getExactTimeUS();
 			phases[FrameStats::FS_TOTAL] = 0.001f * static_cast<float>(frameEnd - frameBegin);
 			if(lastFrameBegin > 0)
 				phases[FrameStats::FS_INTERVAL] = 0.001f * static_cast<float>(frameBegin - lastFrameBegin);
-			// An iteration that rendered nothing drew nothing, and the zero
-			// belongs in the ring: the timings of such an iteration are
-			// recorded the same way, and a percentile over the frames that
-			// happened to render would answer a different question from the
-			// one beside it.
-			//
-			// The counter can also have been reset since the capture - the
-			// test hook answers `resetstats` from inside this very iteration -
-			// and an unsigned difference across that would put four billion in
-			// the ring rather than a number anybody could read past.
+			// An iteration that rendered nothing records its zero, as its
+			// timings do, or the percentile would answer another question. The
+			// counter may have been reset since the capture (the test hook's
+			// resetstats runs inside this iteration), and an unsigned
+			// difference across that would read four billion.
 			const uint drawsNow = Renderer::inst().stats().draws;
 			phases[FrameStats::FS_DRAWS] =
 				static_cast<float>(drawsNow >= drawsAtStart ? drawsNow - drawsAtStart : 0);
@@ -1652,12 +1587,10 @@ const uint LOAD_STREAM = 0x40000000;
 void Engine::seedForLoad()
 {
 #ifdef BLOCKS5_TEST_HOOKS
-	// A level's objects draw from the generator in their constructors - a
-	// Diamond's animation phase is random(0, 100000) - and a load happens
-	// between ticks, which is exactly where neither per-tick stream reaches.
-	// Those draws would otherwise continue a sequence whose length depends on
-	// how many frames the machine managed on the way to the load, so the same
-	// diamond stood on a different animation frame from one run to the next.
+	// A level's objects draw from the generator in their constructors (a
+	// Diamond's animation phase), and a load happens between ticks, where
+	// neither per-tick stream reaches: those draws would continue a sequence
+	// as long as the frames the machine managed on the way to the load.
 	if(testSeed()) seedRandom(testSeed() * 2 + LOAD_STREAM);
 #endif
 }
@@ -1669,27 +1602,19 @@ void Engine::render()
 #endif
 
 #ifdef BLOCKS5_TEST_HOOKS
-	// One random stream per rendered frame, keyed on the scene's tick and on
-	// nothing else. A rendered frame makes draws of its own - the night
-	// vision's two noise offsets, a particle's colour - and a slow machine
-	// renders fewer frames than it runs ticks (the render is gated on a tick
-	// having run, so there is never more than one per tick and there can be
-	// fewer), so without this the picture at a given tick depends on how many
-	// frames the machine dropped on the way there. The odd half of the pair;
-	// update() takes the even one, which keeps the logic one stream per tick
-	// whatever the renderer does.
-	//
-	// sceneTick and not getTime(), because the engine's clock counts from
-	// startup and a harness's click lands at whatever tick the machine got to
-	// - so two runs would freeze with the level at two different ages. A
-	// level's clock starts at zero when the level loads.
+	// One random stream per rendered frame, keyed on sceneTick alone: a frame
+	// draws numbers of its own (the night vision's noise, a particle's colour)
+	// and a slow machine renders fewer frames than it runs ticks, so without
+	// this the picture at a tick would depend on the frames dropped on the
+	// way. The odd half of the pair; update() takes the even one. sceneTick
+	// and not getTime(), which counts from startup where a scene's clock
+	// starts at zero with the scene.
 	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2 + 1);
 #endif
 
-	// Does the mouse cursor still match what is on the screen? Asked once a
-	// frame rather than hung off events: the answer changes in more places
-	// than one wants to remember - window size, fullscreen, a filter change,
-	// the browser's canvas - and asking costs two divisions and a comparison.
+	// Does the cursor still match the picture's scale? Asked every frame:
+	// window size, fullscreen, filter and canvas all move the answer, and
+	// asking costs two divisions and a comparison.
 	updateCursorSize();
 
 #ifdef BLOCKS5_TEST_HOOKS
@@ -1750,19 +1675,14 @@ void Engine::update()
 	// sprites, for the debris sampling) ask before this runs.
 	Texture::freeUnkeptPixels();
 
-	// And where the atlas has holes worth closing, close them here: the
-	// renderer holds nothing at this point in the tick, so the copies that
-	// move a picture from one page to another land where they are meant to.
-	// Here rather than at the moment a picture is given back, because a skin
-	// change gives eleven back and asks for eleven more in the same breath.
+	// The atlas closes its holes here, where the renderer holds nothing, so
+	// the page-to-page copies land where they should - not as each picture is
+	// given back, since a skin change gives back eleven and asks for eleven.
 	TextureAtlas::inst().repackIfWorthwhile();
 
-	// The on-screen pad labels its buttons with the names of the keys they
-	// send, and those names are translated, so it has to be told which
-	// language the game settled on. Asked here rather than pushed from the
-	// places that assign it, because there are four of them - the detection,
-	// the config, the options dialog and the string-table fallback - and a
-	// fifth would be added one day without a call.
+	// The on-screen pad labels its buttons with translated key names, so it
+	// has to follow the language. Asked here rather than pushed from every
+	// place that assigns the language, which are several and would grow.
 	publishLanguage();
 
 	// update the virtual keys and actions
@@ -1781,21 +1701,13 @@ void Engine::update()
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
-	// Ctrl+Shift+F9 writes the atlas pages out, and only under -perf: this is
-	// a developer key, not a feature, and it has no entry in the bindings for
-	// the same reason - an action would show up in the Options dialog and be
-	// rebindable, which is the opposite of what a diagnostic wants.
-	//
-	// A function key, as every chord the author keeps to himself is: pre.js
-	// swallows F1 to F24 in the capture phase and hands them to the game,
-	// where a Ctrl+Shift+<letter> is somebody's browser shortcut whichever
-	// letter is picked. F9 because the bindable actions take F1, F5, F10, F11
-	// and F12, Alt+F4 quits, and Ctrl+Shift+F7 unlocks a campaign.
-	//
-	// The modifiers are asked of the keyboard, which is a level, but F9 of
-	// wasKeyPressed(), which is the edge. Level-testing F9 as well would write
-	// a set of pages every tick the key stayed down - fifty files a second,
-	// each a couple of megabytes.
+	// Ctrl+Shift+F9 writes the atlas pages out, under -perf only: a developer
+	// key, so no action, which the options dialog would list as rebindable. A
+	// function key because pre.js hands F1 to F24 to the game where any
+	// Ctrl+Shift+letter is some browser's shortcut; F9 because the actions
+	// take F1, F5, F10, F11 and F12, Alt+F4 quits and Ctrl+Shift+F7 unlocks a
+	// campaign. F9 is read as an edge and the modifiers as a level, or a held
+	// key would write pages fifty times a second.
 	if(performanceShown && wasKeyPressed(SDLK_F9))
 	{
 #ifdef __EMSCRIPTEN__
@@ -1926,8 +1838,8 @@ void Engine::createUpscalerGL()
 {
 	Renderer::DirectGL direct;
 	// WebGL forbids vertex data out of application memory, it has to be a
-	// buffer. Four vertices, refilled every frame; every filter that uses a
-	// shader shares this one.
+	// buffer. Four vertices, refilled every frame, shared by all four
+	// filters.
 	glExtGenBuffers(1, &presentVertexBuffer);
 	if(!presentVertexBuffer)
 	{
@@ -1937,12 +1849,10 @@ void Engine::createUpscalerGL()
 				   "update is the thing to try.");
 	}
 
-	// Four filters, each a program: two bring a fragment shader of their own,
-	// two draw through the base class's pass-through. A driver that resolved
-	// every GL 2.0 entry point and then will not compile one of them is
-	// broken rather than old, so this ends the program as well - leaving a
-	// filter out instead is what the whole of the rest of this file no
-	// longer has to reckon with.
+	// Four filters, each a program: SharpFit and CRT bring a fragment shader
+	// of their own, Sharp and Smooth use the base class's pass-through. A
+	// driver that resolved every GL 2.0 entry point and still will not
+	// compile one is broken rather than old, and that ends the program too.
 	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
 	{
 		if((*i)->createGL()) continue;
@@ -2157,10 +2067,8 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent* p_even
 
 static void emscriptenSetFullScreen(bool fullScreen)
 {
-	// Not emscripten_request_fullscreen_strategy("#canvas"): that promotes the
-	// canvas itself, and the browser then paints only it. The on-screen pad
-	// sits beside it and would be invisible. b5_setFullscreen takes the root
-	// element that holds both instead; the canvas fills the page anyway.
+	// The root element, not the canvas: the browser paints only the
+	// fullscreen element, and the on-screen pad is the canvas's sibling.
 	EM_ASM({ Module['b5_setFullscreen']($0); }, fullScreen ? 1 : 0);
 }
 
@@ -2240,16 +2148,11 @@ void Engine::rememberWindowPlacement()
 		if(w >= screenSize.x && h >= screenSize.y) windowedSize = Vec2i(w, h);
 	}
 
-	// Both rectangles, because they are not in the same coordinate system and
-	// the difference between them is the whole of the trap this function and
-	// restoreWindowPosition() are written around: rcNormalPosition is in
-	// *workspace* coordinates - the work area, with the taskbar and any docked
-	// toolbar taken out of it - where GetWindowRect gives *screen* ones. The
-	// two agree exactly while the work area begins at the top left corner of
-	// the monitor, which is what a taskbar along the bottom or the right
-	// gives, and that is why the difference is invisible on almost every
-	// machine. Written down rather than reasoned about: nothing that builds
-	// this tree can run it.
+	// Both rectangles go to the log: rcNormalPosition is in workspace
+	// coordinates (the work area, without the taskbar), GetWindowRect in
+	// screen ones, and the two differ by the work area's offset - nothing on
+	// almost every machine, the whole trap on one with the taskbar at the top
+	// or left. The log is the only way to read that off a machine.
 	RECT onScreen = { 0, 0, 0, 0 };
 	GetWindowRect(info.window, &onScreen);
 	printfLog("  Window: normal %d,%d %dx%d, on screen %d,%d, maximized %d\n",
@@ -2271,27 +2174,19 @@ void Engine::restoreWindowPosition()
 	SDL_VERSION(&info.version);
 	if(!SDL_GetWMInfo(&info) || !info.window) return;
 
-	// SetWindowPlacement and not SetWindowPos, because what was saved is
-	// rcNormalPosition and that is in workspace coordinates while SetWindowPos
-	// takes screen ones. The two only round-trip while the work area starts at
-	// the top left corner of the monitor; where it does not - a taskbar along
-	// the top or the left - every save and restore shifts the window by the
-	// size of it, in the same direction each time, and over a run of sessions
-	// the window walks across the desktop.
-	//
-	// It also carries two things that would otherwise be hand-written here:
-	// showCmd is the whole of the maximized state, and a placement that would
-	// put the window on no screen at all is moved back onto one by Windows
-	// itself.
+	// SetWindowPlacement and not SetWindowPos: rcNormalPosition is in
+	// workspace coordinates and SetWindowPos takes screen ones, so with the
+	// taskbar at the top or left every save and restore would shift the
+	// window by its size until it walked into the corner. It also replays
+	// showCmd, the whole of the maximized state, and moves a window that would
+	// land on no screen back onto one.
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(wp);
 	if(!GetWindowPlacement(info.window, &wp)) return;
 
-	// rcNormalPosition is a window rect and windowedSize a client area, so the
-	// frame has to be added back: AdjustWindowRectEx on an empty rectangle is
-	// exactly what the border costs, and this is rememberWindowPlacement()'s
-	// own arithmetic run backwards. Where it fails the rectangle keeps the size
-	// it already had.
+	// rememberWindowPlacement()'s arithmetic backwards: the frame, from
+	// AdjustWindowRectEx on an empty rectangle, goes back onto the client
+	// size. Where that fails the rectangle keeps the size it had.
 	LONG width  = wp.rcNormalPosition.right  - wp.rcNormalPosition.left;
 	LONG height = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
 	RECT frame = { 0, 0, 0, 0 };
@@ -2308,11 +2203,10 @@ void Engine::restoreWindowPosition()
 	wp.rcNormalPosition.right  = windowedPosition.x + width;
 	wp.rcNormalPosition.bottom = windowedPosition.y + height;
 
-	// The maximized state is part of the placement rather than a separate
-	// ShowWindow(), and replaying it costs the caller nothing: DIB_ResizeWindow
-	// does its whole body inside if(!SDL_windowid && !IsZoomed(SDL_Window)), so
-	// the SDL_SetVideoMode that follows moves no window while this one is
-	// maximized - it resizes SDL's own surface and the viewport and stops.
+	// Replaying the maximized state costs the caller nothing: DIB_ResizeWindow
+	// does its whole body inside if(!SDL_windowid && !IsZoomed(SDL_Window)),
+	// so the SDL_SetVideoMode that follows moves no maximized window, only
+	// SDL's own surface and the viewport.
 	wp.showCmd = maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
 	SetWindowPlacement(info.window, &wp);
 #endif
@@ -2329,10 +2223,9 @@ bool Engine::isWindowMaximized() const
 }
 
 #ifdef _WIN32
-// Windows stops the application for as long as the user holds the window
-// border or the title bar: DefWindowProc runs a message loop of its own and
-// the main loop sits stuck in SDL_PollEvent. The only thing still running
-// is the window procedure, and one of ours therefore goes in front of SDL's.
+// While the user holds the window border or the title bar, DefWindowProc runs
+// a message loop of its own and the main loop sits in SDL_PollEvent; only the
+// window procedure still runs, so one of ours goes in front of SDL's.
 static WNDPROC p_sdlWindowProc = 0;
 static const UINT_PTR SIZEMOVE_TIMER_ID = 0xB5;
 
@@ -2389,8 +2282,8 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	case WM_GETMINMAXINFO:
 		{
 			// handleResize() clamps up to 640x480 anyway; this tells Windows
-			// as much during the drag already. Chain first, then change:
-			// DefWindowProc fills in four other members of the structure.
+			// as much during the drag already. Chain first, then change, so
+			// the minimum stands whatever SDL's procedure does.
 			const LRESULT result = CallWindowProc(p_sdlWindowProc, hwnd, msg, wParam, lParam);
 
 			const Vec2i minimum = engine.getMinimumWindowSize();
@@ -2533,11 +2426,10 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 	// window is the one case where it is not what the caller asked for.
 	Vec2i clientSize = size;
 
-	// SDL's flags are deliberately left alone: SDL_FULLSCREEN or SDL_NOFRAME
-	// force DIB_SetVideoMode onto the slow path, and that calls
-	// WIN_GL_ShutDown - the GL context and every texture would be gone. The
-	// same holds under X11, for the same reason: X11_SetVideoMode rebuilds the
-	// window for a mode change.
+	// SDL's flags are left alone: SDL_FULLSCREEN or SDL_NOFRAME send
+	// DIB_SetVideoMode down the slow path, whose WIN_GL_ShutDown takes the GL
+	// context and every texture with it. The same holds under X11, where
+	// X11_SetVideoMode rebuilds the window for a mode change.
 #ifdef _WIN32
 	SDL_SysWMinfo info;
 	SDL_VERSION(&info.version);
@@ -2546,15 +2438,9 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		HWND hwnd = info.window;
 		if(wantFullScreen)
 		{
-			// Only the first time: a second pass would remember the WS_POPUP
-			// that is already set - there would be no way out of fullscreen.
-			//
-			// The style is all that is kept here. Where the window stood and
-			// whether it was maximized belongs to setFullScreen(), which asks
-			// rememberWindowPlacement() before it switches: GetWindowRect on a
-			// maximized window gives the maximized frame, whose corner hangs
-			// off the screen, and it answers in screen coordinates where the
-			// rest of this pair works in the workspace ones.
+			// Only the first time: a second pass would save the WS_POPUP and
+			// leave no way out. Only the style is kept here; setFullScreen()
+			// took the placement before it switched.
 			if(!savedWindowStyle) savedWindowStyle = static_cast<long>(GetWindowLong(hwnd, GWL_STYLE));
 
 			SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
@@ -2565,20 +2451,16 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		}
 		else if(savedWindowStyle && windowedPositionKnown)
 		{
-			// The style first, because restoreWindowPosition() computes the
-			// frame from the style that is set when it runs. It then puts the
-			// position, the size and the maximized state back through the same
-			// API that took them, which is what keeps the workspace
-			// coordinates of rcNormalPosition round-tripping.
+			// The style first: restoreWindowPosition() computes the frame from
+			// the style set when it runs, and puts position, size and the
+			// maximized state back through the API that took them.
 			SetWindowLong(hwnd, GWL_STYLE, savedWindowStyle);
 			restoreWindowPosition();
 			savedWindowStyle = 0;
 
-			// The size the window actually became, and not the one the caller
-			// offered: setFullScreen() has only the *windowed* size to hand
-			// over, and a window that has just come back maximized is the size
-			// of the work area instead. Passing the windowed size on would
-			// resize the maximize away in the same breath as restoring it.
+			// The size the window became, not the windowed size the caller
+			// passed: a window just restored maximized is the size of the work
+			// area, and passing the windowed size on would undo the maximize.
 			RECT client;
 			if(GetClientRect(hwnd, &client) && client.right > 0 && client.bottom > 0)
 			{
@@ -2611,11 +2493,9 @@ void Engine::applyWindowStyle(bool wantFullScreen, const Vec2i& size)
 		}
 	}
 #elif !defined(__EMSCRIPTEN__)
-	// Under X11 the window manager decides how large a fullscreen window
-	// becomes and where it sits. Once it has accepted the request there is
-	// nothing left to do here: the new size is not settled yet and arrives in
-	// a moment as SDL_VIDEORESIZE. Forcing it now would mean letting
-	// SDL_SetVideoMode work against the window manager.
+	// Under X11 the window manager decides size and position. Once it has
+	// accepted the request, the new size arrives as SDL_VIDEORESIZE; forcing
+	// one now would set SDL_SetVideoMode against the window manager.
 	if(LinuxWindow::setFullScreen(wantFullScreen)) return;
 #endif
 
@@ -2641,10 +2521,8 @@ void Engine::setFullScreen(bool wantFullScreen)
 #endif
 	if(!initialized || fullScreen == wantFullScreen) { fullScreen = wantFullScreen; return; }
 
-	// Going fullscreen takes the windowed placement away - the window becomes
-	// the screen-sized popup - so Engine::exit() would find nothing left to
-	// read. It is taken here instead, while the window is still the one
-	// config.xml is about.
+	// Going fullscreen takes the windowed placement away, so it is taken now,
+	// while the window is still the one config.xml is about.
 	if(wantFullScreen) rememberWindowPlacement();
 
 	fullScreen = wantFullScreen;
@@ -2662,9 +2540,9 @@ void Engine::setFullScreen(bool wantFullScreen)
 void Engine::handleResize(int width, int height)
 {
 #ifndef __EMSCRIPTEN__
-	// The window may not become smaller than the internal picture: below that
-	// Sharp has no integer step left. In the browser the canvas sets the size,
-	// and pushing against that ended in an infinite loop.
+	// Never smaller than the internal picture: below that Sharp has no integer
+	// step. In the browser the page sets the canvas size, and the picture has
+	// to fit whatever that is.
 	if(width  < screenSize.x) width  = screenSize.x;
 	if(height < screenSize.y) height = screenSize.y;
 #endif
@@ -2722,12 +2600,11 @@ void Engine::presentFrame()
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 
-	// Raw, inside a bracket: whatever the overlays queued goes up first, and
-	// the renderer forgets what GL holds at the end and applies all of it
-	// again at its next flush - the blend enable, the tests, the mask - so
-	// nothing switched here has to be put back. The mask is set rather than
-	// assumed: a scope that closed after the frame's last draw leaves its
-	// mask in GL until that next flush, which comes after this.
+	// Raw, inside a bracket: what the overlays queued goes up first, and the
+	// renderer applies all of its state again at its next flush, so nothing
+	// switched here needs putting back. The colour mask is set, not assumed: a
+	// scope that closed after the frame's last draw leaves its mask in GL
+	// until that flush.
 	Renderer::DirectGL direct;
 	glDisable(GL_BLEND);
 	glDisable(GL_STENCIL_TEST);
@@ -2781,32 +2658,17 @@ void Engine::drawOverlays()
 	if(performanceShown) drawPerformance();
 }
 
-// What the last few hundred frames cost, in the bottom left corner. This is
-// how the numbers are read on a phone: there is no console there and no test
-// harness, and how long a frame took is precisely what cannot be measured from
-// outside. In a desktop browser the same numbers come out of the test hook
-// instead, and then without the cost of drawing them.
-//
-// drawOverlays() runs after the frame and before the present, so this lands in
-// neither the RENDER nor the PRESENT the block reports - and it lands in a
-// screenshot, which on a phone is how the figure gets off the device at all.
-//
-// It does land in TOTAL and in the draw count, which is the figure a reader is
-// likeliest to take for the game's own. Measured on the menu: 5.16 draws a
-// frame without -perf and 6.16 with it. One and not two, because the strip's
-// background comes from the renderer's built-in picture and the text from the
-// font, and since the built-in went into an atlas page those two share a
-// texture and so a draw.
-//
-// The bottom and not the top, although both corners are taken: at the bottom
-// it covers the status bar, whose numbers stand still and can be read by
-// turning the overlay off, and at the top it would cover the toasts, which
-// slide past once and are how the game reports a fault.
+// What the last few hundred frames cost, along the bottom (-perf): the one way
+// to read them on a phone, where the strip lands in a screenshot; a desktop
+// harness reads the test hook instead. Drawn after render() and before the
+// present, so it counts in neither r: nor p: but in ms: and draws: - one draw
+// (5.16 against 6.16 in the menu), as the strip and the text share an atlas
+// page. At the bottom it covers the status bar; at the top it would cover the
+// toasts, which pass once and report faults.
 void Engine::drawPerformance()
 {
-	// The small font, and everything on one line: this stands over the game
-	// while the game is what is being measured, and a block of three lines in
-	// the GUI font covers a tenth of the picture.
+	// The small font on one line: this stands over the game while the game is
+	// what is being measured.
 	Font* p_font = GUI::inst().getToolTipFont();
 	if(!p_font) return;
 
@@ -2814,59 +2676,14 @@ void Engine::drawPerformance()
 	// differ whenever something else sets the pace, which in the browser
 	// requestAnimationFrame always does.
 	const float interval = frameStats.getPercentile(FrameStats::FS_INTERVAL, 50);
-	// The budget is the logic rate - 20 ms, fifty frames a second - and the
-	// two counts answer different questions. A frame whose *interval* went
-	// over is one the player did not get; one whose *work* went over is one
-	// this game is responsible for. They come apart exactly where it matters:
-	// under swiftshader the browser ran at 38 ms a frame on 2.7 ms of work,
-	// so counting the work alone would have reported nothing wrong while the
-	// game ran at 26 fps.
-	//
-	// **The interval is counted against two ticks and the work against one**,
-	// and the asymmetry is the whole point. The loop aims each iteration at
-	// exactly one tick - the SDL_Delay at the foot of mainLoopIteration - so
-	// an interval threshold of one tick sits on the number the code is
-	// targeting, and a millisecond of timer granularity trips it: measured in
-	// the menu, 277 of 512 frames read as late while not one had been dropped.
-	// A frame the player actually lost is an interval of two. The work has no
-	// such problem, because nothing aims it anywhere: one tick is simply the
-	// budget a frame has to fit inside.
-	//
-	// 500 ms is a third question. That is what Emscripten's OpenAL has
-	// scheduled ahead (AL.QUEUE_LOOKAHEAD, raised in initOpenAL), so a frame
-	// longer than that is a hole in the music - in the browser only, since
-	// natively the decoder thread fills the queue whatever the main thread is
-	// doing.
-	//
-	// One line, and one grammar for every token in it: name, colon, value. A
-	// token that *ends* in a colon is a heading instead, and what follows it
-	// is read against it until the next one - which is how the two triples say
-	// once, rather than twice, that they are p50, p95 and the maximum. In
-	// brackets is the ring's fill, the window all of it is over: 500 once ten
-	// seconds have run, less while it fills.
-	//
-	// The colon is what lets one space separate the tokens: it binds a name to
-	// its value more tightly than any amount of space, so nothing has to be
-	// grouped by a wider gap and nothing is glued together to save one. It is
-	// also narrower than the space it replaces - 3 px against 5 - which is why
-	// the four phases can afford a name each here where they shared one
-	// before.
-	//
-	// The phases are medians, in the same milliseconds as the triple before
-	// them: a percentile of a part would not add up to one of the whole. The
-	// three counts are what the player would have noticed - a frame they did
-	// not get, one the game did not fit into its budget, one long enough to
-	// leave a hole in the music - and perf.md has the thresholds, which are
-	// constants and do not need restating fifty times a second.
-	//
-	// It is written to fit at its widest, not at its usual, because the
-	// numbers grow exactly when something is wrong. Measured against the
-	// font's own advances: 531 px of 640 as it usually reads, 548 with a level
-	// load's stall still in the window, and 633 under -flushall on a slow
-	// machine, where every quad is its own draw and the milliseconds, the
-	// draws and the counts stand at their widest at once. That last arm is the
-	// one the spaces would cost: the same line with a space for every colon
-	// and wider gaps between the groups measures 665, and loses its tail.
+	// perf.md has the grammar and the thresholds. The budget is the logic
+	// rate. late: counts intervals over two ticks, since the loop aims at
+	// exactly one (the SDL_Delay at the foot of mainLoop) and timer
+	// granularity alone trips a one-tick threshold: 277 of 512 menu frames,
+	// none dropped. slow: counts work over one tick. stall: counts work over
+	// 500 ms, what Emscripten's OpenAL schedules ahead (AL.QUEUE_LOOKAHEAD,
+	// raised in init()), a hole in the music in the browser only. The line
+	// fits at its widest: 633 px of 640 under -flushall on a slow machine.
 	const float budget = static_cast<float>(logicRate);
 	char line[160];
 	snprintf(line, sizeof(line),
@@ -2888,8 +2705,7 @@ void Engine::drawPerformance()
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, budget),
 			 frameStats.getCountOver(FrameStats::FS_TOTAL, 500.0f));
 
-	// The strip is as wide as the line and no wider, so that what it covers is
-	// only what it has to.
+	// The strip is as wide as the line and no wider.
 	Vec2i dimensions;
 	p_font->measureText(line, &dimensions, 0);
 	const int height = p_font->getLineHeight() + 4;
@@ -2909,19 +2725,13 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 	// display settings and do not belong in the file.
 	const Vec2i shotSize(screenSize);
 
-	// GL_RGBA and not GL_RGB or GL_BGR: that is the only combination WebGL 1
-	// allows too. Only the three colour channels of it reach the file - see
-	// img_save.h, the alpha would be a quarter more for nothing but 255. The
-	// encoder flips the rows along the way; no second buffer is needed.
+	// GL_RGBA, the one combination WebGL 1 also allows. Only the three colour
+	// channels reach the file (img_save.h), and the encoder flips the rows.
 	std::vector<uchar> pixels(static_cast<size_t>(shotSize.x) * shotSize.y * 4);
-	// The frame belongs to the game's own framebuffer, so this binds it rather
-	// than reading GL_COLOR_ATTACHMENT0 of whatever happens to be bound. The
-	// two callers inside the main loop have it bound already - the screenshot
-	// key and the video recorder both sit in the frameRendered block, above
-	// the unbindFrameBuffer() that precedes the present - but a caller from
-	// anywhere else does not, and the attachment it would read then is not
-	// this game's picture. It also puts the viewport back to 640x480, which
-	// is the size this read assumes.
+	// Bound here, not assumed: the main loop's callers have it bound already,
+	// but one from anywhere else (the test hook's frozen frame) would read
+	// whatever attachment stands bound. It also puts back the 640x480
+	// viewport this read assumes.
 	bindFrameBuffer();
 	readFrame(&pixels[0]);
 
@@ -2937,9 +2747,7 @@ bool Engine::encodeFrame(std::vector<uchar>* p_pngOut)
 bool Engine::writeScreenshot(const std::string& path)
 {
 	// The frame oracle's half of screenshot(): a name the caller chose instead
-	// of the dated one, and no sound. It goes through FileSystem like every
-	// other write, so the browser's IDBFS path works too if a test ever wants
-	// it.
+	// of the dated one, and no sound.
 	std::vector<uchar> png;
 	if(!encodeFrame(&png)) return false;
 
@@ -2958,17 +2766,11 @@ bool Engine::writeScreenshot(const std::string& path)
 	return saved;
 }
 
-// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+F9.
-//
-// A page is a plain texture and not a framebuffer, so it is read the one way
-// that works in every build: attached to a framebuffer of its own for the
-// length of the read. GLES and WebGL have no glGetTexImage, and a native-only
-// path for a developer key would be a branch only one of the three builds ever
-// compiles.
-//
-// Alpha is written as well - encodePNG's 4 to 4 rather than the screenshot's 4
-// to 3 - because what is worth looking at in a page is where the gaps are, and
-// an opaque black hole looks the same as a picture that failed to upload.
+// One PNG per atlas page, beside the screenshots, for -perf's Ctrl+Shift+F9. A
+// page is read through a framebuffer of its own, the one way every build has:
+// GLES and WebGL have no glGetTexImage. Alpha is kept (4 channels to 4, where
+// the screenshot writes 3), because what a page shows is where the gaps are,
+// and an opaque black hole looks like a picture that failed to upload.
 void Engine::writeAtlasPages()
 {
 	TextureAtlas& atlas = TextureAtlas::inst();
@@ -3012,15 +2814,10 @@ void Engine::writeAtlasPages()
 		}
 
 		std::vector<uchar> png;
-		// Not bottom-up, where the screenshot is. The difference is what the
-		// pixels went through: a frame is rasterized under frameBegin's
-		// ortho(0, w, h, 0), whose y runs the other way, so its first row out
-		// of glReadPixels is the picture's last. A page was never rasterized -
-		// uploadPadded() hands glTexSubImage2D the rows top down and they sit
-		// that way - so reading it back gives the top row first, which is the
-		// row PNG wants first. A flip here would stand the page on its head,
-		// which is why the screenshot's own argument must not be copied over
-		// without asking whether its reason applies.
+		// Not flipped, unlike the screenshot: a frame is rasterized under
+		// frameBegin's ortho(0, w, h, 0), so its first row read back is the
+		// picture's last, but a page was never rasterized - uploadPadded()
+		// wrote its rows top down, and they come back top row first.
 		if(!encodePNG(&pixels[0], Vec2i(edge, edge), 4, 4, false, &png))
 		{
 			printfLog("+ ERROR: Could not encode atlas page %d.\n", page + 1);
@@ -3069,10 +2866,9 @@ bool Engine::screenshot()
 	strftime(screenshotDateTime, 256, "%Y-%m-%d@%H-%M-%S", localtime(&t));
 
 #ifdef __EMSCRIPTEN__
-	// In the browser there is no directory the picture would belong in: the
-	// IndexedDB is there for saved games, and putting a picture in it would
-	// mean filling the player's quota with something they never get to see
-	// again. It goes straight into their downloads instead.
+	// In the browser the picture goes straight to the downloads: IndexedDB
+	// holds the saves, and a picture there would fill the player's quota with
+	// something they never see again.
 	char downloadName[512] = "";
 	sprintf(downloadName, "blocks5_%s.png", screenshotDateTime);
 	WebTransfer::downloadBytes(&png[0], static_cast<uint>(png.size()), downloadName);
@@ -3112,21 +2908,16 @@ void Engine::renderSprite(const Vec2f& position,
 						  float rotation,
 						  float scaling)
 {
-	// The quad runs from -halfSize to otherHalf, and the two are only the same
-	// number while the size is even. Taking halfSize for both would draw an odd
-	// sprite one pixel short while its texture coordinates still spanned all
-	// size texels, so the picture is resampled and a row of it falls out: at
-	// 39x39 texel 19 is never reached. Only the centre stays truncated, which
-	// keeps the corners on whole pixels and a nearest-sampled sprite sharp - at
-	// an odd size that puts the axis of the rotation half a pixel off the
-	// middle, which is the cheaper of the two errors.
+	// The quad runs from -halfSize to otherHalf, which differ for an odd size:
+	// halving both would draw an odd sprite a pixel short while its uv still
+	// spanned every texel, resampling a row away (at 39x39, texel 19). The
+	// centre stays truncated, which keeps the corners on whole pixels; an odd
+	// sprite then rotates about a point half a pixel off its middle.
 	const Vec2i halfSize(size / 2);
 	const Vec2i otherHalf(size - halfSize);
 
-	// Mirroring swaps the texture coordinates instead of scaling x by -1, and
-	// that is not the same thing once the quad is no longer symmetric about its
-	// centre: the scale reflects the footprint as well, which moves an odd
-	// sprite a pixel to the left of where the unmirrored one stands.
+	// Mirroring swaps the u coordinates rather than scaling x by -1, which
+	// would also reflect an odd quad's footprint and move it a pixel left.
 	const int u0 = positionOnTexture.x + (mirrorX ? size.x : 0);
 	const int u1 = positionOnTexture.x + (mirrorX ? 0 : size.x);
 	const int v0 = positionOnTexture.y;
@@ -3180,12 +2971,10 @@ SoundInstance* Engine::playSound(const std::string& filename,
 	Sound* p_sound = Manager<Sound>::inst().request(filename);
 	if(p_sound)
 	{
-		// The pitch is drawn whether or not the instance comes.
-		// Sound::createInstance drops a one-shot that follows the same sound
-		// within ten milliseconds of wall time, and a draw behind that made
-		// the generator's sequence - which every tick of a level runs
-		// through in order - depend on how the machine bunched its ticks:
-		// the same level came out differently from one run to the next.
+		// The pitch is drawn whether or not an instance comes:
+		// Sound::createInstance drops a one-shot within 10 ms of wall time of
+		// the same sound, and a draw behind that would make the level's random
+		// sequence depend on how the machine bunched its ticks.
 		const float pitch = pitchSpectrum != 0.0f ? 1.0f + random(-pitchSpectrum, pitchSpectrum) : 1.0f;
 
 		SoundInstance* p_inst = p_sound->createInstance(forceCreation);
@@ -3305,17 +3094,11 @@ void Engine::processGameStateChanges()
 
 	p_stateToBeEntered = p_stateToGetFocus = p_stateToLoseFocus = 0;
 
-	// An edge belongs to the state that ran at the moment it got measured.
-	// The new one does not inherit it, because in this tick updateActions() ran
-	// long before it and GUI::update() only triggered the change afterwards.
-	//
-	// Otherwise one key would do two things at once: F5 means "play" in the
-	// editor and "restart the level" in the game, and one press would trigger
-	// both - the editor pushes GS_Game, and its first onUpdate() in the same
-	// tick would see the edge still standing and restart the level it had just
-	// loaded at once, rewind crossfade and all in place of the mosaic. The same
-	// holds for Return, which starts in the level selection and saves at the
-	// hotel in the game.
+	// An edge belongs to the state that ran when it was measured, not to one
+	// entered in this tick after updateActions() ran. Otherwise one press does
+	// two things: F5 plays in the editor, which pushes GS_Game, whose first
+	// onUpdate() in the same tick would restart the level at once. Return,
+	// which starts in the level selection and saves at the hotel, likewise.
 	if(changing) clearActionEdges();
 }
 
@@ -3552,10 +3335,8 @@ void Engine::changeAction(const std::string& name,
 	p_action->primary = primary;
 	p_action->secondary = secondary;
 
-	// The new key is as a rule still down - the player has only just pressed it
-	// to bind it. Without the state being brought up to date here, the next
-	// updateActions() would see a fresh edge and the action would fire once
-	// immediately.
+	// The new key is usually still down, having just been pressed to bind it;
+	// without this the next updateActions() would see an edge and fire.
 	syncActionDown(*p_action);
 }
 
@@ -3601,25 +3382,14 @@ static Vec2i dragStep(int axis,
 	return step;
 }
 
-// The drag names a cell rather than a direction: the character walks to
-// whatever the cursor is over and keeps going while a button is held. That
-// costs nothing in here - the four direction keys are held exactly as a
-// finger holds an arrow key, so the step cadence, the opposing-action rule
-// and the rest of the action layer apply unchanged.
-//
-// Two rules are worth the words. The keys are *held* and never pulsed: a
-// press that lands while an action's repeat is counting down goes into its
-// buffer (updateActions) and is played out later, so a pulsed key would stack
-// steps up and walk on after the player let go. And only one axis moves at a
-// time, committed until it runs out - stepping whichever axis is further off
-// each tick draws a staircase, and while that is no faster than the two
-// straight legs it is a path nobody would walk by hand on the keyboard, so it
-// would be an advantage for nothing.
-//
-// Two more belong to the game rather than to the gesture, and are asked of
-// the game state: whether there is anybody to steer, which includes the press
-// having landed on a character, and whether the way a leg wants to go is open
-// at all (getMouseDragCells, canMouseDragStep).
+// The drag names a cell, not a direction, and holds the four direction keys
+// as a finger holds an arrow key, so the action layer applies unchanged
+// (input.md). The keys are held, never pulsed: a press during an action's
+// repeat countdown is buffered and played out later, so pulsing would walk on
+// after the button came up. One axis moves at a time, committed until it runs
+// out: a staircase is no faster than two legs, but nobody walks it on the
+// keyboard. The game state says whom to steer and whether a leg's way is open
+// (getMouseDragCells, canMouseDragStep).
 void Engine::updateMouseDrag()
 {
 	const bool leftButton = isButtonDown(SDL_BUTTON_LEFT);
@@ -3648,10 +3418,8 @@ void Engine::updateMouseDrag()
 		if(away.isZero()) dragAxis = -1;
 		else
 		{
-			// The buttons are read again every tick until the character has
-			// somewhere to go, because somebody reaching for both of them
-			// presses one a moment before the other and the pair is what they
-			// meant.
+			// Latched only once the character has somewhere to go: a hand
+			// reaching for both buttons presses one a moment first.
 			if(!dragButtons) dragButtons = buttons;
 
 			// A leg begins where there is no axis yet or the one being walked
@@ -3667,12 +3435,10 @@ void Engine::updateMouseDrag()
 			step = dragStep(axis, away);
 			if(!p_gs->canMouseDragStep(step))
 			{
-				// A leg that has walked into something is over as surely as
-				// one that has run out, and the other axis is what takes the
-				// character around the obstacle. Where that is blocked too,
-				// or has arrived already, the drag commands nothing at all
-				// rather than leaning on the wall for as long as the button
-				// is held.
+				// A leg that walks into something is over, and the other axis
+				// takes the character round the obstacle. Where that is
+				// blocked or arrived too, the drag commands nothing rather
+				// than lean on the wall.
 				axis = 1 - axis;
 				step = dragStep(axis, away);
 				if(!p_gs->canMouseDragStep(step)) step = Vec2i(0, 0);
@@ -3687,11 +3453,9 @@ void Engine::updateMouseDrag()
 	virtualKeys[getMouseDragVK(MOUSE_DRAG_UP)].down = step.y < 0;
 	virtualKeys[getMouseDragVK(MOUSE_DRAG_DOWN)].down = step.y > 0;
 
-	// What the drag carries was settled when it set off and does not change
-	// while it runs. Reading it live would be a trap: on the way into a
-	// two-button grip there is a tick with only the right button down, and
-	// that is the gesture for a *lit* bomb - the player would get one where
-	// they asked for a bomb put down safely.
+	// What the drag carries was latched when it set off: read live, the tick
+	// with only the right button down on the way into a two-button grip would
+	// light a bomb the player meant to put down safely.
 	const bool carrying = !step.isZero();
 	virtualKeys[getMouseDragVK(MOUSE_DRAG_PLANT)].down = carrying && (dragButtons == 2);
 	virtualKeys[getMouseDragVK(MOUSE_DRAG_PUT_DOWN)].down = carrying && (dragButtons == 3);
@@ -3700,9 +3464,8 @@ void Engine::updateMouseDrag()
 int Engine::getMouseDragVK(int which) const
 {
 	if(which < 0 || which >= NUM_MOUSE_DRAG_VKS) return -1;
-	// Not read off virtualKeys: main.cpp asks before Engine::init has built
-	// it. The six are pushed directly behind the keyboard block, so the base
-	// is the length of that block.
+	// Not read off virtualKeys: main.cpp asks before init() builds it. The six
+	// sit directly behind the keyboard block.
 	return static_cast<int>(SDLK_LAST) + which;
 }
 
@@ -3814,9 +3577,8 @@ void Engine::updateActions()
 			if(!a.countDown)
 			{
 				a.data |= 2;
-				// No repeat, no lockout either: otherwise a second press
-				// within delay would not count at all, because it would land
-				// in the buffer below and that is only there for the repeat.
+				// No repeat, no lockout: the buffer below is only for the
+				// repeat, so a second press within the delay would be lost.
 				a.countDown = a.repeats ? a.delay : 0;
 
 				// reset the opposing actions
@@ -3891,10 +3653,9 @@ void Engine::updateActions()
 
 void Engine::flushInput()
 {
-	// First get rid of what has piled up - but only keys and mouse. Everything
-	// else has to stay, above all SDL_VIDEORESIZE.
-	// SDL_PeepEvents takes different things: SDL 1.2 a bitmask, Emscripten's
-	// reimplementation the SDL 2 shape - and there only *one* event per call.
+	// Drop the queued key and mouse events and nothing else, SDL_VIDEORESIZE
+	// above all. SDL 1.2's SDL_PeepEvents takes a mask, Emscripten's the SDL 2
+	// range - and there one event per call.
 	SDL_Event events[32];
 	SDL_PumpEvents();
 #ifdef __EMSCRIPTEN__
@@ -3918,15 +3679,11 @@ void Engine::flushInput()
 	}
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 
-	// Do not clear keyHeld; bring it up to date. Either alternative would be
-	// wrong: a release can be among the discarded events, and then the key
-	// would stay held for ever - while clearing it outright makes a held key
-	// look like a fresh press at the next event. During a key grab this runs
-	// every tick, where it shows up at once. So the keyboard itself is asked.
-	//
-	// SDL says how long its array is: NUM_KEY_SLOTS is SDLK_LAST, so 1536 under
-	// Emscripten's headers, while SDL 2 sits underneath there and its array
-	// only reaches SDL_NUM_SCANCODES.
+	// keyHeld is refreshed from the keyboard rather than kept or cleared: a
+	// discarded release would leave a key held for ever, and clearing turns a
+	// held key into a fresh press at the next event - which a key grab,
+	// running this every tick, shows at once. The length is SDL's own, which
+	// need not be NUM_KEY_SLOTS: Emscripten's SDL reports 0x10000.
 	int numKeys = 0;
 #ifdef __EMSCRIPTEN__
 	Uint8* p_keys = SDL_GetKeyboardState(&numKeys);
@@ -4181,14 +3938,11 @@ void Engine::captureFrame(uint textureID)
 
 TextureRef Engine::getFrameCopyRef(uint textureID) const
 {
-	// What a screen-sized copy of the frame is sampled with, for texture
-	// coordinates given in the game's own pixels. The y is negative for two
-	// reasons at once: the game's y runs downward where GL's texture y runs
-	// up, and the copy sits at the top of the pow2 texture rather than at its
-	// origin - under GL_REPEAT a negative coordinate wraps to exactly that
-	// band. That wrap is the reason the ref says it tiles: it is a render
-	// target read back rather than a picture from a file, so no atlas could
-	// hold it anyway, but the renderer's check has to be told so.
+	// Samples a screen-sized copy of the frame in the game's own pixels. The
+	// y scale is negative because the game's y runs down where the texture's
+	// runs up, and the copy sits in the top band of the pow2 texture, which a
+	// negative coordinate reaches through GL_REPEAT - hence the ref says it
+	// tiles, for the renderer's check.
 	return TextureRef(textureID,
 					  Vec2f(1.0f / static_cast<float>(screenPow2Size.x), -1.0f / static_cast<float>(screenPow2Size.y)),
 					  Vec2f(0.0f, 0.0f), true);
@@ -4209,10 +3963,8 @@ const Vec2i& Engine::getDisplaySize() const
 }
 
 // Milliseconds into a running transition, negative through its lead-in and -1
-// where there is none - the same number checkFreeze() is handed. Nothing in
-// the game asks; the test hook reports it, which is what makes the length of a
-// transition something a harness can measure rather than something somebody
-// counts under their breath while pressing a key.
+// where there is none - the number checkFreeze() is handed. Only the test hook
+// asks, so that a harness can measure a transition's length.
 int Engine::getCrossfadeProgressMs() const
 {
 	return p_crossfade ? static_cast<int>(crossfadeTime * 1000.0f) : -1;
@@ -4250,10 +4002,9 @@ void Engine::crossfade(Crossfade* p_crossfade,
 	}
 }
 
-// Tells the page's on-screen pad which language to label its buttons in. A
-// static and not a member because it is the memory of one singleton talking to
-// one page, and it keeps the string from crossing into JavaScript every tick
-// for the whole run. Nothing outside the browser has a pad to tell.
+// Tells the page's on-screen pad which language to label its buttons in. The
+// memory is a static, one singleton talking to one page, and keeps the string
+// from crossing into JavaScript every tick. Only the browser has a pad.
 void Engine::publishLanguage()
 {
 #ifdef __EMSCRIPTEN__
@@ -4352,11 +4103,10 @@ void Engine::loadConfig()
 			(*i)->loadConfig(p_config);
 		}
 
-		// The window: position, size, maximized, fullscreen. All four apply at
-		// the next start - during play the player switches for themselves.
-		// Only before the window exists: read while the game runs - the options
-		// dialog's Cancel reloads the file - it would overwrite what handleResize()
-		// and applyWindowStyle() know about the window that is actually up.
+		// The window's position, size, maximized and fullscreen state, read
+		// only before the window exists: the options dialog's Cancel reloads
+		// this file while the game runs, and would overwrite what
+		// handleResize() and applyWindowStyle() know about the real window.
 		TiXmlElement* p_window = p_config->FirstChildElement("Window");
 		if(p_window && !initialized)
 		{
@@ -4460,8 +4210,8 @@ void Engine::loadConfig()
 		}
 	}
 
-	// If loadConfig() is ever called when the list already stands, the
-	// follow-up is due at once.
+	// Called again by the options dialog's Cancel, when the table already
+	// stands: the follow-up is due at once.
 	if(!virtualKeys.empty())
 	{
 		resolveActionKeys();
@@ -4484,7 +4234,7 @@ void Engine::saveConfig()
 	p_language->LinkEndChild(new TiXmlText(language));
 	p_config->LinkEndChild(p_language);
 
-	// Write the upscaling filter - the wish, not what this machine makes of it.
+	// write the upscaling filter
 	TiXmlElement* p_upscaler = new TiXmlElement("Upscaler");
 	p_upscaler->LinkEndChild(new TiXmlText(p_wantedUpscaler->getName()));
 	p_config->LinkEndChild(p_upscaler);
@@ -5021,20 +4771,10 @@ SDL_Cursor* Engine::createCursor(int factor) const
 
 void Engine::updateCursorSize()
 {
-	// The system draws the cursor in window pixels while the game's picture is
-	// scaled - so the right size hangs on how large the picture currently
-	// stands on the screen. Measured against the rectangle presentFrame()
-	// fills and not against the window: Sharp snaps to whole scale steps, and
-	// then the picture is smaller than the window.
-	//
-	// Called once per frame from render(); only changed when something really
-	// changes.
-	//
-	// There are 16 and 32 pixels to choose from - no cursor takes anything
-	// larger. At a scale s, 16*s would be right, so the one landing closer to
-	// it is taken: |32 - 16s| < |16 - 16s| holds from s = 1.5. At exactly 1 and
-	// exactly 2 - where almost everyone sits - the chosen one lines up with the
-	// picture pixel for pixel too.
+	// The system draws the cursor in window pixels, so its size follows the
+	// rectangle presentFrame() fills, not the window: Sharp snaps to whole
+	// steps. Of 16 and 32, the one nearer 16*s: 32 from s = 1.5. At exactly 1
+	// and 2, where almost everyone sits, it matches the picture pixel for pixel.
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 	const float scale = screenSize.x ? static_cast<float>(w) / screenSize.x : 1.0f;
