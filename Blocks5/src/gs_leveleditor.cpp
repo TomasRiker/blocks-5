@@ -112,29 +112,19 @@ public:
 		sprintf(s, "%s: %d", localizeString("$LE_DIAMONDS").c_str(), editor.p_level->getNumDiamondsNeeded());
 		static_cast<GUI_StaticText*>(getChild("NumDiamondsNeeded"))->setText(s);
 
-		// setChecked, not check: this keeps the display in step every tick.
-		// With check(), an Undo that toggles the electricity would fire the
-		// changed signal on the next frame, and the handler would promptly
-		// create a fresh undo point and throw the redo list away.
+		// setChecked, not check(): the box catching up with the level is not a
+		// click and must not fire changed.
 		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->setChecked(editor.p_level->isElectricityOn());
 	}
 
 	void onMouseDown(const Vec2i& position,
 					 int buttons)
 	{
-		// A press is where a stroke begins, and oldCursor has to say so.
-		// onMouseMove interpolates from it, so that dragging faster than the
-		// events arrive still leaves a continuous line; with a mouse nothing
-		// more is needed, because the button-less moves between two strokes
-		// keep it under the pointer by themselves. A finger makes no such
-		// moves - it lifts at one corner and presses at the other - and the
-		// first move of the new stroke would then draw all the way back to
-		// where the last one ended.
-		//
-		// Here and not in onMouseUp, because a touch can be cancelled without
-		// an up ever arriving; a press starts a stroke whatever came before
-		// it. And only a real one: the presses below are the interpolation
-		// itself, and resetting on those would undo it.
+		// A press starts a stroke, and onMouseMove interpolates from oldCursor.
+		// A finger makes no moves between strokes, so without this a stroke
+		// would begin with a line from where the last one ended. Here and not
+		// in onMouseUp, which a cancelled touch never sends; and only on a
+		// real press, since the interpolation calls this function too.
 		if(realDown) oldCursor = position / 16;
 
 		bool shift = editor.engine.isKeyDown(SDLK_LSHIFT) || editor.engine.isKeyDown(SDLK_RSHIFT);
@@ -435,14 +425,12 @@ public:
 
 	void onKeyEvent(const SDL_KeyboardEvent& event)
 	{
-		// Every key here is a command, not input: a repeat is therefore worth
-		// nothing. Without that, a held Escape opens and closes the menu over
-		// and over.
+		// Every key here is a command, so a repeat is dropped: a held Escape
+		// would open and close the menu over and over.
 		if(GUI::inst().isKeyRepeat()) return;
 
-		// The dialogs on top come first. Escape and Return mean Cancel and OK
-		// there, as they do everywhere else; the editor underneath then never
-		// gets to see the key at all.
+		// The dialogs on top come first, Escape and Return meaning Cancel and
+		// OK there.
 		if(event.type == SDL_KEYDOWN)
 		{
 			if(getChild("SettingsPane")->isVisible())
@@ -473,9 +461,8 @@ public:
 					!getChild("MessageBoxPane")->isVisible() &&
 					event.keysym.sym == SDLK_ESCAPE)
 			{
-				// The menu has only OK, and Escape therefore closes it. But not
-				// while a confirmation or the hint dialog stands over it: those
-				// belong to the menu and would be left standing alone.
+				// Escape closes the menu, whose only button is OK - but not
+				// under one of its confirmations, which would be left alone.
 				handleClick(getChild("MenuPane.Menu.OK"));
 				return;
 			}
@@ -490,10 +477,9 @@ public:
 			bool shift = (event.keysym.mod & KMOD_LSHIFT) || (event.keysym.mod & KMOD_RSHIFT);
 			bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
-			// The letters go by the label on the key, as shortcuts do in every
-			// other program: Ctrl+Z is undo and Ctrl+Y redo whatever keyboard
-			// they sit on, and so is Ctrl+Shift+Z, the other common spelling of
-			// redo. keyLetter() says why the keysym alone cannot answer that.
+			// Letters go by the label on the key, whatever the layout
+			// (keyLetter() says why the keysym cannot): Ctrl+Z undoes, Ctrl+Y
+			// and Ctrl+Shift+Z redo.
 			switch(keyLetter(event.keysym))
 			{
 			case 's':
@@ -852,8 +838,7 @@ public:
 			}
 			else
 			{
-				// With no filename nothing would otherwise happen here at all -
-				// the click would go nowhere and nobody would learn why.
+				// No filename: say so rather than let the click do nothing.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -865,10 +850,9 @@ public:
 			{
 				const std::string basename(setFilenameExtension(filename, "xml"));
 
-				// Saving always goes to the user directory - and never under a
-				// name the game itself ships: such a file could never even be
-				// loaded again, because the game folder answers first and would
-				// always hand back the shipped level.
+				// Saving goes to the user directory, and never under a shipped
+				// name: the game folder answers first, so such a file could
+				// never be loaded again.
 				if(Transfer::isBuiltIn(Transfer::KIND_LEVEL, basename))
 				{
 					Engine::inst().showToast(Engine::TOAST_ERROR, "$TR_ERROR_RESERVED");
@@ -910,8 +894,7 @@ public:
 			}
 			else
 			{
-				// With no filename nothing would otherwise happen here at all -
-				// the click would go nowhere and nobody would learn why.
+				// No filename: say so rather than let the click do nothing.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -1133,12 +1116,10 @@ namespace
 		return "";
 	}
 
-	// The red frame around a tile, one corner lighter than the other three.
-	// The bottom edge reaches a pixel past d for the reason
-	// Renderer::hairlineRect gives: without it the bottom left corner is lit by
-	// neither the left edge nor the bottom one. That edge and not the left one,
-	// because it is a single colour - lengthening the left edge would stretch
-	// its dark-to-light ramp over seventeen pixels and shift every step of it.
+	// The red frame around a tile, lighter at the top left. The bottom edge
+	// reaches a pixel past d, or the bottom left corner is lit by neither edge
+	// (Renderer::hairlineRect says why). That edge because it is one colour:
+	// lengthening the left one would stretch its ramp and shift every step.
 	void highlightTile(Renderer& renderer, const Vec2i& p)
 	{
 		const Vec4f light(1.0f, 0.75f, 0.75f, 1.0f), dark(1.0f, 0.15f, 0.15f, 1.0f);
@@ -1394,10 +1375,9 @@ void GS_LevelEditor::redo()
 
 void GS_LevelEditor::replaceLevel(Level* p_newLevel)
 {
-	// The pins are the objects' own, and so are the teleporter being aimed
-	// and the note being written: all four die with the level. A wire started
-	// in wire mode and then undone would otherwise still be drawn from a pin
-	// that is gone, and the next click on a pin would connect to it.
+	// The two pins, the teleporter being aimed and the note being written all
+	// belong to the old level's objects and die with it. A wire started and
+	// then undone would otherwise be drawn from, and connected to, a freed pin.
 	delete p_level;
 	p_level = p_newLevel;
 
@@ -1558,11 +1538,8 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					}
 				}
 
-				// No note there. Never delete rails here - and nothing at all
-				// with shift held, which is what it means in the two branches
-				// above and therefore has to mean here: a note was the one
-				// thing that cleared the cell it was put into whether shift
-				// was held or not.
+				// No note there. Clear the cell except for rails, and with
+				// shift held nothing at all, as in the two branches above.
 				if(!shift)
 				{
 					p_level->clearPosition(where, "Rail");

@@ -46,11 +46,10 @@ public:
 		return p_newestResource;
 	}
 
-	// options are the resource type's own - Texture reads them as a
-	// Texture::WrapMode and the other four ignore them. They are given here
-	// rather than set afterwards because they decide how the resource is
-	// built: a texture that tiles cannot share an atlas page, and that has to
-	// be known before it is uploaded rather than after.
+	// options are the resource type's own: Texture reads a WrapMode and
+	// NEVER_PACK from them, the other four ignore them. They come with the
+	// request because they decide how the resource is built - whether a
+	// texture may share an atlas page must be known before its upload.
 	T* request(const std::string& filename,
 			   int options = 0)
 	{
@@ -80,10 +79,9 @@ public:
 					  filename.c_str(),
 					  p_item->error);
 
-			// Deleting it is what makes every Resource's destructor have to
-			// survive its own failed load: the constructor sets error and
-			// returns early, so the destructor runs over however much of the
-			// object was built.
+			// So every Resource destructor must survive a failed load: the
+			// constructor sets error and returns early, and this delete runs
+			// the destructor over whatever was built.
 			delete p_item;
 			return 0;
 		}

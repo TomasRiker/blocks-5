@@ -9,8 +9,8 @@ Lightning::Lightning()
 	// uninitialised value until the first generate().
 	alpha = 0.0f;
 
-	// Until the first generate() there is nothing to draw, and drawPass() is
-	// asked for a size before it is asked for any geometry.
+	// The passes start empty, and drawPass() returns on an empty one before it
+	// reads the size; this only keeps the size from starting undefined.
 	for(int pass = 0; pass < 2; pass++) passes[pass].pointSize = 0.0f;
 
 	p_lineTexture = Manager<Texture>::inst().request("lightning.png");
@@ -173,9 +173,8 @@ void Lightning::addLine(Vec2f p1,
 						LineJoint& joint,
 						std::vector<QuadVertex>& out)
 {
-	// tbl has 19 entries (widths 1 to 19). The texture is 256 pixels wide and
-	// has no room for a width of 20: the clamp is to 19 and never to 20,
-	// since tbl[19] would be one past the end.
+	// tbl is the u of the stripe for each width from 1 to 19. The 256-pixel
+	// texture has no room for a 20th, so the clamp stops at 19.
 	width = clamp(width + 0.5f, 1.0f, 19.0f);
 	int w = static_cast<int>(width);
 
