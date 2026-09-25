@@ -82,10 +82,9 @@ Sound::Sound(const std::string& filename, int) : Resource(filename)
 
 Sound::~Sound()
 {
-	// delete all instances, and take them out of the list of all of them:
-	// getFreeSource() walks that one and dereferences every entry, so a sound
-	// released while its instances were still listed would leave it reading
-	// freed memory the next time the source pool ran dry.
+	// Delete all instances and take them out of allInstances as well:
+	// getFreeSource() dereferences every entry there once the source pool
+	// runs dry.
 	for(std::set<SoundInstance*>::const_iterator i = instances.begin(); i != instances.end(); ++i)
 	{
 		allInstances.erase(*i);
@@ -98,21 +97,17 @@ Sound::~Sound()
 
 SoundInstance* Sound::createInstance(bool forceCreation)
 {
-	// The same sound twice within 10 ms is one too many: a dozen falling blocks
-	// trigger the same impact a dozen times in one tick, and laid on top of
-	// each other that is not louder, it is broken. The lockout applies to the
-	// one-shots from Engine::playSound(), which can take a 0 as well - one
-	// impact out of twelve simply drops out.
+	// The same sound twice within 10 ms is one too many: a dozen blocks landing
+	// in one tick make the same impact a dozen times, and stacked up that is
+	// not louder but broken. The one-shots from Engine::playSound() are what
+	// the lockout is for, and they can live with the 0.
 	//
-	// The looping sounds ask with forceCreation, and that is not a luxury.
-	// They hold their one instance in a static that goes to 0 with the last
-	// object and is refilled by the first object of the next level - and
-	// between those two moments lies nothing but the building of the new
-	// level. Measured on toxic and mask, the only two that sit in every level:
-	// 12 and 13 ms. The lockout stands at 10. Two milliseconds of slack on
-	// this machine, none on a faster one, and behind it a level whose
-	// ambience never starts: the holders test the 0 they would get, and
-	// nothing refills the static until the last object is gone.
+	// The looping sounds must ask with forceCreation. Each holds its instance
+	// in a static that the last object of a level empties and the first
+	// object of the next refills, with only the building of the new level in
+	// between: 12 and 13 ms measured for toxic and mask, which every level
+	// has, against the 10 ms lockout. On a faster machine they would get a 0,
+	// and nothing refills the static until the last object is gone.
 	if(!forceCreation)
 	{
 		uint t = SDL_GetTicks();
@@ -124,9 +119,8 @@ SoundInstance* Sound::createInstance(bool forceCreation)
 	if(!p_inst->sourceID)
 	{
 		// No source, and no one-shot to take one from. An instance without
-		// one would be reaped at the next update(), and an object keeping the
-		// pointer across ticks would then call into freed memory - so nothing
-		// plays, and the caller learns so from the 0.
+		// one would be reaped at the next update() under an object still
+		// holding the pointer, so the caller gets a 0 instead.
 		delete p_inst;
 		return 0;
 	}

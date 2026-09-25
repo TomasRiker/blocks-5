@@ -8,11 +8,10 @@ E_Gate::E_Gate(Level& level,
 			   int dir) : Electronics(level, position, dir)
 {
 	renderLayers |= RL_MAIN;
-	// subType comes out of the level file unchecked (presets.cpp), and levels
-	// travel between players. Four things downstream index on it: the pin count
-	// just below, the sprite region in updateSprites(), the switch in doLogic()
-	// and the tooltip table. Catching it once here is what keeps all four safe,
-	// and 0 is what getToolTip() has always fallen back to.
+	// subType comes unchecked out of a level file (presets.cpp), which may be
+	// anybody's. The pin count below, the sprite region, doLogic()'s switch
+	// and the tooltip table all depend on it, so it is clamped once here; 0
+	// is also getToolTip()'s fallback.
 	if(subType < 0 || subType > 7)
 	{
 		printfLog("+ WARNING: Gate with subType %d, which does not exist. Treating it as AND.\n",
@@ -65,8 +64,6 @@ void E_Gate::saveAttributes(TiXmlElement* p_target)
 
 std::string E_Gate::getToolTip() const
 {
-	// const, because a string literal is not a char*: that has not been allowed
-	// since C++11 - MSVC merely warned about it, GCC and Clang reject it.
 	static const char* const p_str[] = {"$TT_GATE_AND",
 										"$TT_GATE_NAND",
 										"$TT_GATE_OR",
@@ -76,9 +73,9 @@ std::string E_Gate::getToolTip() const
 										"$TT_GATE_NOT",
 										"$TT_GATE_PASS_THROUGH"};
 
-	// The constructor clamps subType into range, so this cannot fire today. It
-	// stays as the backstop for a ninth gate type added without extending the
-	// table: a wrong tooltip rather than a read past the end.
+	// The constructor clamps subType; this is the backstop for a gate type
+	// added without extending the table - a wrong tooltip rather than a read
+	// past the end.
 	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
 		return p_str[0];
 

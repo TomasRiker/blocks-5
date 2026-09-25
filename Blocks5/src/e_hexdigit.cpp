@@ -57,13 +57,11 @@ void E_HexDigit::doLogic()
 	if(isAnyInputUndefined()) value = -1;
 	else
 	{
-		// Each input is read as a logic level rather than as its number, which
-		// is the coercion the gates' &&, || and ! already make of theirs. A
-		// Value or a PulseSwitch carries 0 to 7, and taken as numbers four of
-		// those add up to 105 - which as a sprite index is 32*(105%8),
-		// 640+32*(105/8), four hundred rows off the bottom of the sheet. Read
-		// as levels the sum is 0 to 15 and cannot be anything else, which is
-		// what the sixteen digits of the picture are.
+		// Each input counts as a logic level, as the gates' &&, || and ! read
+		// theirs, not as its number: a Value or PulseSwitch passes on whatever
+		// its level file says, and weighted as numbers the inputs could index
+		// far off the sprite sheet. As levels the sum is 0 to 15, the sixteen
+		// digits of the picture.
 		value = (getValue(0) ? 1 : 0)
 			  + (getValue(1) ? 2 : 0)
 			  + (getValue(2) ? 4 : 0)
