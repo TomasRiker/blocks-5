@@ -10,17 +10,11 @@ namespace
 	// that 160 strips have to be drawn and not 480.
 	const int STRIP_HEIGHT = 3;
 
-	// How far the picture travels during the rewind, in picture heights. The
-	// tape races and therefore the picture rolls - at that speed the vertical
-	// hold no longer keeps up.
-	//
-	// A whole number, and not an arbitrary one: the offset then lands back on
-	// a multiple of the picture height - zero - exactly as the crossfade ends.
-	// At 6.5 the picture would sit half a screen out and jump straight when
-	// the effect stops.
-	//
-	// Ten rather than seven because this is a distance and not a speed: over
-	// 1.5 seconds, seven heights would read as leisurely rather than frantic.
+	// How far the picture rolls over the whole effect, in picture heights: at
+	// search speed the vertical hold cannot keep up. A whole number, so the
+	// offset lands on zero exactly as the crossfade ends; at 6.5 the picture
+	// would sit half a screen out and then jump. A distance, not a speed: over
+	// 1.5 seconds, seven heights read as leisurely, ten as frantic.
 	const float ROLL_SCREENS = 10.0f;
 
 	// Over what part of the end the transport brakes and the vertical hold
@@ -46,10 +40,9 @@ namespace
 	const int NOISE_BAR_MIN = 6;
 	const int NOISE_BAR_MAX = 22;
 
-	// The snow over the whole picture and the grey wash on top of it. The
-	// wash does half the work: VHS puts the colour under the picture as a
-	// carrier of its own, and that does not survive the spooling - a picture
-	// in search is almost grey.
+	// The snow over the whole picture and the grey wash on top. The wash does
+	// half the work: VHS carries colour on a separate low-frequency signal
+	// that does not survive the search, so a picture in search is almost grey.
 	const float SNOW_ALPHA = 0.16f;
 	const float WASH_ALPHA = 0.22f;
 
@@ -65,10 +58,10 @@ namespace
 	const int OSD_X = 50;
 	const int OSD_Y = 50;
 
-	// And how the 218x64 strip at (0,112) of misc.png is divided up: the word on the left, the two
-	// triangles next to it on the right. The height is that of the whole
-	// image; whatever is empty below draws nothing, and this therefore
-	// copes with taller lettering too.
+	// How the 218x64 strip at (0,112) of misc.png divides: the word on the
+	// left, the two triangles to its right. The height is the strip's full 64
+	// rows; rows the lettering leaves empty draw nothing, so taller lettering
+	// fits without a change here.
 	const int OSD_TEXT_WIDTH = 162;
 	const int OSD_ARROWS_WIDTH = 56;
 	const int OSD_HEIGHT = 64;
@@ -89,10 +82,9 @@ CF_Rewind::CF_Rewind()
 	p_osd = Manager<Texture>::inst().request("misc.png");
 	startTicks = SDL_GetTicks();
 
-	// The transport. The sound belongs to the effect and not to the place
-	// that triggers it: there is only one way in here, and nobody can
-	// therefore have the one without the other. It runs a little longer than
-	// the crossfade to keep the run-down from being cut off with the picture.
+	// The transport's sound, played here rather than by the caller so picture
+	// and sound cannot be had separately. It runs a little longer than the
+	// crossfade, so the run-down is not cut off with the picture.
 	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100);
 
 	// Snow, once and for all. Grey, not coloured: what the head picks up
@@ -115,8 +107,7 @@ CF_Rewind::CF_Rewind()
 
 CF_Rewind::~CF_Rewind()
 {
-	// The Engine deletes the crossfade in the main loop; the GL context is
-	// therefore still up.
+	// The Engine deletes a crossfade only while the GL context still stands.
 	Renderer::inst().deleteTexture(noiseID);
 	if(p_osd) p_osd->release();
 }
@@ -155,30 +146,19 @@ void CF_Rewind::drawSnow(int y,
 	renderer.quad(RenderState(noise, renderer.state().blend), corners, uvs, Vec4f(1.0f, 1.0f, 1.0f, alpha));
 }
 
-/* Why a rewind and not just any effect: on a restart the game jumps from the
-   current state to the beginning with nothing in between. A video recorder in
-   picture search does exactly the same and nobody minds - because the tape
-   runs faster than the head can follow a track, and every strip of the
-   picture is therefore read from a different place on the tape, which is to
-   say from a different moment. Strips of two pictures side by side are not a
-   trick standing in for something the game never had; they are what a
-   recorder actually puts out.
+/* Why a rewind: a restart jumps from the current state to the beginning with
+   nothing in between, and a recorder in picture search does the same and is
+   forgiven. Its tape runs faster than the head can follow a track, so every
+   strip of the picture is read from a different place on the tape - a
+   different moment - and strips of two pictures side by side are what a
+   recorder really puts out. The rest follows: snow where the head crosses
+   between tracks, a picture that rolls because the vertical hold cannot keep
+   up, lines slipped sideways by the head's angle, and a grey wash because the
+   colour does not survive the speed.
 
-   What follows from that, and what hides the cut:
-
-   - Nothing lies between the tracks; snow comes through there instead. Those
-     are the noise bars travelling through the picture.
-   - The vertical hold no longer keeps up, and the picture rolls.
-   - The head meets the track at an angle, and every line slips a little
-     sideways - the picture frays.
-   - VHS carries the colour separately and at a low frequency under the
-     picture; that does not survive the search. Hence the grey wash.
-
-   One thing must NOT jitter: the on-screen display, "REWIND" and its two
-   arrows. It comes from the recorder's own character generator and is mixed
-   in behind the tape path. It
-   stands steady while everything else tears - and that is exactly what makes
-   the garbled picture read as a machine. */
+   The on-screen display must NOT jitter: it comes from the recorder's
+   character generator, mixed in behind the tape path, and that one steady
+   thing is what makes the garbled picture read as a machine. */
 void CF_Rewind::render(float t,
 					   uint oldImageID,
 					   uint newImageID)
@@ -252,11 +232,9 @@ void CF_Rewind::render(float t,
 	drawColor(Vec4f(0.62f, 0.63f, 0.60f, settle * WASH_ALPHA));
 
 	// --- The on-screen display ---------------------------------------------
-	// It belongs to the recorder's character generator and not to the tape: it
-	// therefore neither fades in nor out and takes no part in settle. The word
-	// stands the whole time, the arrows blink - hard, as if switched, and
-	// counted from the start of the effect, which is what makes them start
-	// visible.
+	// Not part of the tape, so it never fades and takes no part in settle.
+	// The word stands throughout; the arrows blink hard, counted from the
+	// effect's start so they begin visible.
 	if(p_osd)
 	{
 		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 112),

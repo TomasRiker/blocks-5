@@ -7,7 +7,7 @@ TileSet::TileSet(const std::string& filename, int) : Resource(filename)
 {
 	p_texture = 0;
 
-	// Before reload(), which starts every tile from badTile.
+	// Before reload(), which starts each <Tile> it reads from badTile.
 	badTile.position = Vec2i(-1, -1);
 	badTile.type = -1;
 	badTile.destroyTime = 0;
@@ -94,13 +94,12 @@ void TileSet::reload()
 	{
 		TileInfo info = badTile;
 
-		// The id is the attribute's first character taken as a byte, which is
-		// the whole id space: a level stores one id per character of its <Row>
-		// strings, and tiles[] is sized 256 for exactly that. Through unsigned
-		// char, or a tile named with a non-ASCII character would sign-extend
-		// to a huge index and be written far outside the array. A skin can
-		// come from a stranger, so a <Tile> carrying no id at all is a broken
-		// file rather than a null pointer to walk into.
+		// The id is the attribute's first byte, which is the whole id space: a
+		// level stores one id per character of its <Row> strings, hence
+		// tiles[256]. Read as unsigned char, or a non-ASCII id would
+		// sign-extend and index far outside the array. A skin can come from a
+		// stranger, so a <Tile> without an id is a broken file, not a null
+		// pointer to walk into.
 		const char* p_id = p_tileElement->Attribute("id");
 		if(!p_id || !*p_id)
 		{

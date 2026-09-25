@@ -153,11 +153,9 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			if(!clipboard.empty()) replaceSelection(clipboard);
 		}
 
-		// Handled, and the letter must not go on to be typed as well.
-		// What unicode a Ctrl combination carries is the platform's
-		// choice - under X11 it is the letter itself, measured: Ctrl+A
-		// selected everything and put an "a" in its place - so that
-		// cannot be left to the unicode test below.
+		// Handled, and not typed as well: under X11 a Ctrl combination
+		// carries the letter itself as its unicode, which the insert below
+		// would take.
 		return;
 	}
 
@@ -187,17 +185,15 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		break;
 	case SDLK_RETURN:
 	case SDLK_KP_ENTER:
-		// With no button of its own for it, Return belongs to the dialog, where
-		// it means OK - otherwise nothing would ever arrive there from inside
-		// an edit box. The button only on a fresh press, though - it is a
+		// Unless an active box has a submit button, Return goes to the dialog,
+		// where it means OK. The button fires only on a fresh press, being a
 		// command.
 		if(active && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_ESCAPE:
-		// Escape is never an input. In the default branch it would be dropped
-		// silently by the unicode < 32 test, and the dialog behind would never
-		// see it.
+		// Escape is never input: the default branch would drop it silently
+		// (unicode < 32), and the dialog behind would never see it.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	default:

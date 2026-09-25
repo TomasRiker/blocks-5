@@ -16,41 +16,41 @@ public:
 		std::string source() const { return sourceDir + member; }
 
 		std::string name;        // text from campaign.xml, display only
-		std::string sourceDir;   // "<home>levels/" or "<campaign>.zip[pw]/"
+		std::string sourceDir;   // a levels/ folder or "<campaign>.zip[pw]/"
 		std::string member;      // filename or name of the archive member
 		bool fromArchive;
 	};
 
-	// Reference to a loose file in the user's level folder.
+	// Reference to a loose level file, in whichever level folder holds it.
 	static LevelRef makeLooseRef(const std::string& filename);
 
-	// The individual levels in the user's folder as a campaign that exists as
-	// no file: that is how a level somebody sent you gets played without
-	// opening it in the editor, which does not show the darkness and draws in
-	// the teleporters' destinations. Returns false if there is nothing there.
+	// The loose levels of both level folders (the game's examples and the
+	// player's own) as a campaign that exists as no file, so that a level
+	// somebody sent you can be played rather than opened in the editor, which
+	// shows no darkness and draws in the teleporters' targets. Returns false
+	// if there are none.
 	bool loadSingleLevels();
 
 	// Is this that campaign? It carries no progress: everything is unlocked
-	// from the start, nothing is recorded as finished, and after the last
-	// diamond it goes back to the selection instead of to the next level.
+	// from the start, nothing is recorded as finished, and a finished level
+	// returns to the selection instead of going on to the next.
 	bool isSingleLevels() const;
 
-	// Has the player finished the campaign the game ships with? The credits
-	// ask, to decide which of their two versions to run; campaign.cpp says
-	// what counts as finished and why every other answer is false.
+	// Has the player finished the shipped campaign? The credits ask, to pick
+	// which of their two versions to run; campaign.cpp says what counts.
 	static bool isBuiltInCompleted();
 
 	// Where a musicFilename points. sourceDir is the directory holding the
-	// level's ordinary tracks - "<home>levels/" for a loose level,
+	// level's ordinary tracks - a levels/ folder for a loose level,
 	// "<campaign>.zip[pw]/" for one out of an archive. A name beginning with
 	// "blocks:" means a track of the shipped campaign and sourceDir does not
 	// matter; save() therefore does not pack such a track either.
 	static std::string resolveMusicPath(const std::string& musicFilename,
 										const std::string& sourceDir);
 
-	// Accept an archive handed in from outside. Split into checking and
-	// storing, which lets the caller tell "that is not a campaign" from "the
-	// copy failed".
+	// Is an archive handed in from outside a campaign with at least one
+	// level? Checking is kept apart from storing, so the caller can tell
+	// "that is not a campaign" from "the copy failed".
 	static bool isImportableArchive(const std::string& archivePath);
 
 	Campaign();
@@ -58,9 +58,9 @@ public:
 
 	void clear();
 
-	// quiet suppresses the error message. Only isImportableArchive() needs
-	// that: something that never claimed to be a campaign is not a broken one
-	// either.
+	// quiet suppresses the error toast (the log line stays), for the callers
+	// that only ask: isImportableArchive(), since something that never claimed
+	// to be a campaign is not a broken one, and isBuiltInCompleted().
 	bool load(const std::string& filename, bool quiet = false);
 	bool loadInfo(TiXmlDocument* p_doc);
 	bool save(const std::string& filename);

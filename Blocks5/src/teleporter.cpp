@@ -13,8 +13,9 @@ Teleporter::Teleporter(Level& level,
 	this->targetPosition = targetPosition;
 
 	// subType comes out of the level file unchecked (presets.cpp), and only
-	// 0 and 1 mean anything: onUpdate() teleports nobody through any other
-	// value, while the sprite and the tooltip would still claim one kind.
+	// 0 and 1 mean anything: through any other value onUpdate() teleports
+	// nobody, while the sprite shows the no-player kind and there is no
+	// tooltip.
 	if(subType < 0 || subType > 1)
 	{
 		printfLog("+ WARNING: Teleporter with subType %d, which does not exist. Treating it as one for everybody.\n",
