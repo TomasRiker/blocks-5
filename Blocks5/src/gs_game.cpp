@@ -135,9 +135,12 @@ public:
 		{
 			// Escape closes the menu again, as in the level editor. But only
 			// the menu itself: with options or help standing over it,
-			// "MenuPane.Menu" is hidden and the key belongs to the dialog.
+			// "MenuPane.Menu" is hidden and the key belongs to the dialog. And
+			// it is Continue, so not while that is greyed out because nobody
+			// is left to play.
 			if(pressed && event.keysym.sym == SDLK_ESCAPE &&
-			   getChild("MenuPane.Menu")->isReallyVisible())
+			   getChild("MenuPane.Menu")->isReallyVisible() &&
+			   getChild("MenuPane.Menu.Continue")->isActive())
 			{
 				handleClick(getChild("MenuPane.Menu.Continue"));
 			}
@@ -530,10 +533,13 @@ void GS_Game::onUpdate()
 		levelNumber++;
 		int status;
 		if(ownLevel) status = -3;
-		else status = loadLevel();
+		else status = loadLevel(true);
 		if(status == 1)
 		{
-			targetOut = p_level->getActivePlayer()->getShownPositionInPixels() + Vec2i(8, 8);
+			// Nothing makes a level have an active character, and the zoom
+			// then ends in the middle.
+			Player* p_player = p_level->getActivePlayer();
+			targetOut = p_player ? p_player->getShownPositionInPixels() + Vec2i(8, 8) : Vec2i(320, 240);
 			Engine::inst().crossfade(new CF_Zoom(targetIn, targetOut), 3.0f);
 		}
 		else
@@ -652,7 +658,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	{
 		levelNumber = context.get<uint>("levelNumber");
 		p_currentCampaign = context.get<Campaign*>("campaign");
-		loadLevel();
+		loadLevel(false);
 	}
 
 	// load the images
@@ -707,13 +713,18 @@ void GS_Game::onAppLoseFocus()
 	paused = true;
 }
 
-int GS_Game::loadLevel()
+int GS_Game::loadLevel(bool checkBonus)
 {
 	delete p_saveGame;
 	p_saveGame = 0;
 
-	// Is this the last level, and does the campaign have a bonus level?
-	if(levelNumber == p_currentCampaign->getLevels().size() - 1 &&
+	// Is this the last level, and does the campaign have a bonus level? Asked
+	// only on the way on from a finished level: a level picked in the
+	// selection is one the selection offered, and it offers a bonus level
+	// once solved - which a merged progress can say of the bonus level
+	// alone - so refusing it here would leave nothing loaded.
+	if(checkBonus &&
+	   levelNumber == p_currentCampaign->getLevels().size() - 1 &&
 	   p_currentCampaign->hasBonusLevel())
 	{
 		// Were fewer levels completed than required?
@@ -749,12 +760,12 @@ int GS_Game::loadLevel()
 	Level* p_oldLevel = p_level;
 	p_level = new Level;
 	bool r = p_level->load(ref.source());
-	if(r)
-	{
-		// save the level
-		delete p_originalLevel;
-		p_originalLevel = p_level->save();
-	}
+
+	// What a restart goes back to, the error level included where the file
+	// would not load: kept from before, it would be the previous level
+	// restarted under this one's number, or no level at all.
+	delete p_originalLevel;
+	p_originalLevel = p_level->save();
 
 	delete p_oldLevel;
 

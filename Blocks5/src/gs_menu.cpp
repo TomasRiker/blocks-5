@@ -288,23 +288,26 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	// load the keyboard data for the demo
 	keyData.clear();
+	// A tick, then key and data pairs up to a ~0, then the next tick. Every
+	// read is checked: isEOF() only turns true once a read has run past the
+	// end, and a failed read leaves its variable as it was - a file that
+	// stopped between a key and its ~0 would push that key for ever.
 	File* p_file = FileSystem::inst().openFile("demo1.dat", FileSystem::FM_READ);
-	while(!p_file->isEOF())
+	if(p_file)
 	{
 		uint t;
-		p_file->read(&t, 4);
-		while(true)
+		while(p_file->read(&t, 4) == 4)
 		{
 			uint key;
 			int data;
-			p_file->read(&key, 4);
-			if(key == ~0) break;
-			p_file->read(&data, 4);
-			keyData[t].push_back(translateRecordedKey(key));
-			keyData[t].push_back(data);
+			while(p_file->read(&key, 4) == 4 && key != ~0u && p_file->read(&data, 4) == 4)
+			{
+				keyData[t].push_back(translateRecordedKey(key));
+				keyData[t].push_back(data);
+			}
 		}
+		FileSystem::inst().closeFile(p_file);
 	}
-	FileSystem::inst().closeFile(p_file);
 
 	SDL_ShowCursor(1);
 }
@@ -324,6 +327,15 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	// Give up a file dialog that is still open, or in the browser it keeps
 	// the channel occupied until the page's five-minute timeout.
 	Transfer::abandonImport();
+
+	// And a question still open, which Ctrl+Shift+F2 leaves the menu under:
+	// its answer could come to nothing now, and a confirmMode left standing
+	// would keep pollImport() waiting on it for the rest of the run.
+	confirmMode = CONFIRM_NONE;
+	pendingDeleteName = "";
+	pendingImportPath = "";
+	pendingImportName = "";
+	pendingExport = false;
 
 	// delete the menu
 	delete gui["Menu"];

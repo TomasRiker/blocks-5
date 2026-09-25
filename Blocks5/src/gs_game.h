@@ -38,7 +38,7 @@ public:
 	bool isPaused() const { return paused; }
 
 private:
-	int loadLevel();
+	int loadLevel(bool checkBonus);
 
 	// Work whatever the active character is standing next to, the way a walk
 	// into it would. GameGUI's press is the only caller.

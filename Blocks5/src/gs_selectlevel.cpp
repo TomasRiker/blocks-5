@@ -215,9 +215,10 @@ void GS_SelectLevel::onUpdate()
 }
 
 // Keys get the same limits as the mouse: a locked level cannot be played with
-// Return either, and the single levels have no "next to do". Neither
-// handleClick() nor GUI_Button::click() checks that; for the mouse the GUI
-// does.
+// Return either, and the single levels have no "next to do". handleClick()
+// checks neither, and is called straight rather than through
+// GUI_Button::click(), which refuses a deactivated button but not a hidden
+// one.
 void GS_SelectLevel::pressButton(GUI_Element* p_button)
 {
 	if(p_button->isActive() && p_button->isReallyVisible()) handleClick(p_button);

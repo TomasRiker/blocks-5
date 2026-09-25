@@ -149,6 +149,12 @@ void GUI_Button::onMouseLeave(int buttons)
 
 void GUI_Button::click()
 {
+	// A deactivated button does nothing, whoever clicks it: a press that began
+	// while it was active can be released after, as when the level selection
+	// steps on to a locked level under a held Play, and Return reaches a
+	// submit button through an edit box or a list.
+	if(!active) return;
+
 	// fire the clicked signal
 	clicked(this);
 }

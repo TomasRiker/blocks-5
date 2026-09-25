@@ -426,7 +426,7 @@ void GS_Credits::updateStars()
 		Vec3f n(random(-1.0f, 1.0f), random(-1.0f, 1.0f), random(-1.0f, 1.0f));
 		float l = n.length();
 		n /= l + 0.001f;
-		s.position = cameraPos + random(time == 0 ? 0.0f : 150.0f, 200.0f) * cameraDir + random(10.0f, 80.0f) * n;
+		s.position = cameraPos + random(150.0f, 200.0f) * cameraDir + random(10.0f, 80.0f) * n;
 		s.size = random(1.0f, 2.0f);
 		s.rotation = Vec3f(random(0.0f, 10.0f), random(0.0f, 10.0f), random(0.0f, 10.0f));
 		s.deltaRotation = Vec3f(random(-100.0f, 100.0f), random(-100.0f, 100.0f), random(-100.0f, 100.0f));
