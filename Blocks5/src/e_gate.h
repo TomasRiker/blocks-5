@@ -19,6 +19,9 @@ public:
 	void doLogic();
 
 protected:
+	bool hasOneInput() const;
+	void createInputs();
+
 	int subType;
 };
 

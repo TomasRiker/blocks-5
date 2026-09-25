@@ -26,14 +26,22 @@ public:
 	void onLeave(const ParameterBlock& context);
 	void onGetFocus();
 	void onLoseFocus();
+	void onAppLoseFocus();
 
 	void createUndoPoint();
+	// An undo point from a copy of the level taken before a change that may
+	// not happen, for where the copy is thrown away if it does not: a
+	// createUndoPoint() taken back would have cleared the redo list and, with
+	// the list full, dropped its oldest step.
+	void pushUndoPoint(TiXmlDocument* p_before);
 	void undo();
+	void rollback();
 	void redo();
 	void clearUndo();
 	// Puts another level in the place of the current one, which is deleted,
 	// and forgets every pointer into it.
 	void replaceLevel(Level* p_newLevel);
+	void forgetPickedObjects();
 	void clearRedo();
 	void deleteLastUndoPoint();
 	bool wasChanged();
@@ -44,7 +52,7 @@ public:
 	void draw(const Vec2i& where, bool shift = false);
 	void erase(const Vec2i& where, bool shift = false);
 	void clear(const Vec2i& where, bool allLayers = false);
-	bool modify(const Vec2i& where, int buttons, bool shift);
+	bool modify(const Vec2i& where, int buttons, bool shift, bool press);
 	void transition(const Vec2i& where);
 	bool copy();
 	bool paste(const Vec2i& where);
@@ -77,6 +85,9 @@ private:
 	Vec2i rectStart;
 	Vec2i rectEnd;
 	int drawStartButtons;
+	// Whether the stroke under way has an undo point yet: cleared at every
+	// press in the level, set by every undo point made.
+	bool strokeHasUndoPoint;
 	Vec2i clipboardSize;
 	FieldInClipboard* p_clipboard;
 

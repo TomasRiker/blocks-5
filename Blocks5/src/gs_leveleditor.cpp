@@ -14,6 +14,9 @@
 #include "cf_all.h"
 #include "filesystem.h"
 #include "help.h"
+#ifdef __EMSCRIPTEN__
+#include "web_transfer.h"
+#endif
 
 class LevelEditorGUI : public GUI_Element, public sigslot::has_slots<>
 {
@@ -133,6 +136,15 @@ public:
 		{
 			Vec2i p = position / 16;
 
+			if(realDown) editor.strokeHasUndoPoint = false;
+
+			// The gaps a drag fills in come through here as well (realDown
+			// false). A stroke the other button cancelled, which leaves no
+			// drawStartButtons, must not go on painting under them without an
+			// undo point.
+			if(!realDown && !editor.drawStartButtons &&
+			   (editor.currentMode == 0 || editor.currentMode == 3)) return;
+
 			if(editor.currentMode == 0)
 			{
 				if(realDown)
@@ -141,7 +153,7 @@ public:
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
 						// Yes.
-						editor.undo();
+						editor.rollback();
 						editor.drawStartButtons = 0;
 						buttons = 0;
 					}
@@ -168,18 +180,21 @@ public:
 			{
 				if(buttons & 1)
 				{
-					if(realDown) editor.createUndoPoint();
+					// One undo point per stroke, made at its first change: the
+					// press may change nothing where a cell the drag crosses
+					// does.
+					TiXmlDocument* p_before = editor.strokeHasUndoPoint ? 0 : editor.p_level->save();
 
+					bool changed = true;
 					if(editor.p_teleporter)
 					{
 						// set the teleporter's target position
 						editor.p_teleporter->setTargetPosition(p);
 					}
-					else
-					{
-						// modify
-						if(!editor.modify(p, buttons, shift)) editor.deleteLastUndoPoint();
-					}
+					else changed = editor.modify(p, buttons, shift, realDown);
+
+					if(changed && p_before) editor.pushUndoPoint(p_before);
+					else delete p_before;
 				}
 			}
 			else if(editor.currentMode == 2 || editor.currentMode == 4)
@@ -211,7 +226,7 @@ public:
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
 						// Yes.
-						editor.undo();
+						editor.rollback();
 						editor.drawStartButtons = 0;
 						buttons = 0;
 					}
@@ -252,8 +267,11 @@ public:
 					}
 				}
 			}
-			else if(editor.currentMode == 6)
+			else if(editor.currentMode == 6 && realDown)
 			{
+				// Only the press: pins are clicked, not painted, and the
+				// drag's gap filling would connect the pin just picked to
+				// itself.
 				if(editor.p_currentPin)
 				{
 					if(buttons & 1)
@@ -468,7 +486,12 @@ public:
 			}
 		}
 
-		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
+		// Not under a pane either: a key the menu, its help or the file
+		// search does not use is passed on to here, and would change the level
+		// behind it.
+		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() &&
+		   !getChild("MessageBoxPane")->isVisible() && !getChild("MenuPane")->isVisible() &&
+		   !getChild("SearchPane")->isVisible())
 		{
 			// Only a key press matters here.
 			if(event.type != SDL_KEYDOWN) return;
@@ -575,7 +598,7 @@ public:
 							editor.p_clipboard = p_oldClipboard;
 							editor.clipboardSize = oldClipboardSize;
 
-							if(!r) editor.undo();
+							if(!r) editor.rollback();
 						}
 					}
 					else
@@ -590,6 +613,12 @@ public:
 								if(np.x >= 0 && np.y >= 0 && np.x < Level::WIDTH && np.y < Level::HEIGHT)
 								{
 									editor.createUndoPoint();
+
+									// What stands in the target cell is deleted
+									// below, and a wire's pins or the teleporter
+									// being aimed may belong to it.
+									editor.forgetPickedObjects();
+
 									if(shift)
 									{
 										// copy the object
@@ -731,9 +760,7 @@ public:
 				focus();
 
 				editor.originalFilename = "";
-				editor.p_teleporter = 0;
-				editor.p_hint = 0;
-				editor.p_currentPin = editor.p_startPin = 0;
+				editor.forgetPickedObjects();
 				editor.setMode(0);
 			}
 			else
@@ -752,9 +779,7 @@ public:
 			getChild("MenuPane")->hide();
 			focus();
 
-			editor.p_teleporter = 0;
-			editor.p_hint = 0;
-			editor.p_currentPin = editor.p_startPin = 0;
+			editor.forgetPickedObjects();
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Play")
 		{
@@ -883,6 +908,11 @@ public:
 						focus();
 
 						editor.originalFilename = path;
+#ifdef __EMSCRIPTEN__
+						// Straight into the IndexedDB, not waiting for the next
+						// five-second interval.
+						WebTransfer::syncHome();
+#endif
 
 						Engine::inst().showToast(Engine::TOAST_OK, "$LE_INFO_LEVEL_SAVED");
 					}
@@ -988,7 +1018,7 @@ public:
 		}
 		else if(name == "LevelEditor.SettingsPane.Settings.Cancel")
 		{
-			editor.undo();
+			editor.rollback();
 			getChild("SettingsPane")->hide();
 			focus();
 		}
@@ -1008,7 +1038,10 @@ public:
 		}
 		else if(name == "LevelEditor.EditHintPane.EditHint.Cancel")
 		{
-			editor.undo();
+			editor.rollback();
+			// Also where there was nothing to undo: the preview draws the
+			// note while this is set, and the note may be erased later.
+			editor.p_hint = 0;
 			getChild("EditHintPane")->hide();
 			focus();
 		}
@@ -1278,6 +1311,7 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 	oldMode = -1;
 	rectStart = rectEnd = Vec2i(-1, -1);
 	drawStartButtons = 0;
+	strokeHasUndoPoint = false;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
 
@@ -1326,10 +1360,25 @@ void GS_LevelEditor::onLoseFocus()
 	gui["LevelEditor"]->hide();
 }
 
+// The stroke ends here. Nothing promises a release for a button held as the
+// focus went, and the next press would otherwise count as the other button
+// cancelling a stroke that is long finished, or aim a teleporter.
+void GS_LevelEditor::onAppLoseFocus()
+{
+	drawStartButtons = 0;
+	p_teleporter = 0;
+}
+
 void GS_LevelEditor::createUndoPoint()
 {
+	pushUndoPoint(p_level->save());
+}
+
+void GS_LevelEditor::pushUndoPoint(TiXmlDocument* p_before)
+{
 	clearRedo();
-	undoList.push_front(p_level->save());
+	undoList.push_front(p_before);
+	strokeHasUndoPoint = true;
 
 	// cap at 64 steps
 	while(undoList.size() > 64)
@@ -1356,6 +1405,20 @@ void GS_LevelEditor::undo()
 	}
 }
 
+// Takes back an action that turned out not to happen - a cancelled stroke or
+// dialog, a move that did not fit - as undo() does, but leaves nothing to
+// redo: it was no step of the player's. Its own undo point was the one taken.
+void GS_LevelEditor::rollback()
+{
+	if(undoList.empty()) return;
+	undo();
+	if(!redoList.empty())
+	{
+		delete redoList.front();
+		redoList.erase(redoList.begin());
+	}
+}
+
 void GS_LevelEditor::redo()
 {
 	if(!redoList.empty())
@@ -1375,12 +1438,17 @@ void GS_LevelEditor::redo()
 
 void GS_LevelEditor::replaceLevel(Level* p_newLevel)
 {
-	// The two pins, the teleporter being aimed and the note being written all
-	// belong to the old level's objects and die with it. A wire started and
-	// then undone would otherwise be drawn from, and connected to, a freed pin.
 	delete p_level;
 	p_level = p_newLevel;
+	forgetPickedObjects();
+}
 
+// The two pins, the teleporter being aimed and the note being written belong
+// to the level's objects, and whatever deletes those has to drop them: a wire
+// started and then undone would otherwise be drawn from, and connected to, a
+// freed pin.
+void GS_LevelEditor::forgetPickedObjects()
+{
 	p_teleporter = 0;
 	p_hint = 0;
 	p_currentPin = 0;
@@ -1527,7 +1595,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 							// Probably a slip. Instead of deleting the note, go into modify mode.
 							oldMode = currentMode;
 							setMode(1);
-							modify(where, 1, false);
+							modify(where, 1, false, true);
 							return;
 						}
 						else
@@ -1565,7 +1633,7 @@ void GS_LevelEditor::draw(const Vec2i& where,
 					// go into modify mode at once
 					oldMode = currentMode;
 					setMode(1);
-					modify(where, 1, false);
+					modify(where, 1, false, true);
 				}
 			}
 		}
@@ -1608,13 +1676,19 @@ void GS_LevelEditor::clear(const Vec2i& where,
 
 bool GS_LevelEditor::modify(const Vec2i& where,
 							int buttons,
-							bool shift)
+							bool shift,
+							bool press)
 {
 	// Is there an object here?
 	Object* p_obj = p_level->getFrontObjectAt(where);
 	if(p_obj)
 	{
 		const std::string& type = p_obj->getType();
+
+		// Aimed and written from a press only: a drag that crosses one is on
+		// its way somewhere else.
+		if(!press && (type == "Teleporter" || type == "Hint")) return false;
+
 		if(type == "Teleporter")
 		{
 			p_teleporter = static_cast<Teleporter*>(p_obj);

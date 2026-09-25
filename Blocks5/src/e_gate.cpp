@@ -21,8 +21,23 @@ E_Gate::E_Gate(Level& level,
 
 	this->subType = subType;
 
-	// create the inputs
-	if(subType == 6 || subType == 7)
+	createInputs();
+	createPin(10, Vec2i(15, 8), PT_OUTPUT);
+}
+
+bool E_Gate::hasOneInput() const
+{
+	// NOT and pass-through
+	return subType == 6 || subType == 7;
+}
+
+void E_Gate::createInputs()
+{
+	// Deleting a pin breaks its connections.
+	for(uint i = 0; i < inputPins.size(); i++) delete inputPins[i];
+	inputPins.clear();
+
+	if(hasOneInput())
 	{
 		createPin(0, Vec2i(0, 8), PT_INPUT);
 	}
@@ -31,9 +46,6 @@ E_Gate::E_Gate(Level& level,
 		createPin(0, Vec2i(0, 5), PT_INPUT);
 		createPin(1, Vec2i(0, 10), PT_INPUT);
 	}
-
-	// create the output
-	createPin(10, Vec2i(15, 8), PT_OUTPUT);
 }
 
 E_Gate::~E_Gate()
@@ -91,8 +103,22 @@ bool E_Gate::changeInEditor(int mod)
 	}
 	else
 	{
+		// Between a two-input gate and NOT or pass-through the inputs are
+		// built anew, since they sit elsewhere. Input 0 is there in both and
+		// keeps its wire; input 1's goes, as the next load would drop it.
+		const bool oneInput = hasOneInput();
 		subType++;
 		subType %= 8;
+		if(hasOneInput() != oneInput)
+		{
+			// Copied out first: deleting the pin empties its set.
+			const Pin* p_input = getPinByID(0);
+			std::set<Pin*> sources;
+			if(p_input) sources = p_input->getConnectedPins();
+
+			createInputs();
+			for(std::set<Pin*>::const_iterator i = sources.begin(); i != sources.end(); ++i) Pin::connect(*i, getPinByID(0));
+		}
 	}
 
 	return true;
