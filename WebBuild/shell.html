@@ -97,11 +97,9 @@
     setTimeout(function () { if (boot.parentNode) boot.parentNode.removeChild(boot); }, 450);
   }
 
-  // German or English, by the same rule the game uses in
-  // Engine::detectSystemLanguage: walk navigator.languages and take the first
-  // tag that is one or the other. Only those two exist - every string in
-  // data/languages.txt has an English body and a German one and nothing else -
-  // so everything else is English.
+  // German or English, by Engine::detectSystemLanguage's rule: the first tag
+  // in navigator.languages that is one of the two. data/languages.txt has no
+  // third language, so anything else is English.
   var german = (function () {
     var list = navigator.languages || [navigator.language || ''];
     for (var i = 0; i < list.length; i++) {
@@ -112,12 +110,11 @@
     return false;
   })();
 
-  // The line is the game's own $LOADING, drawn in the game's own font: the page
-  // stands before data.zip and before any GL context, so it cannot render that
-  // font itself. build.sh does it instead (WebBuild/make_text.py) and stamps the
-  // two images in here, in their real pixels, which this then blows up by a
-  // whole factor. Same rule as the icons - replication at an integer factor,
-  // never a resize - and one fewer request than a file would cost.
+  // The line is the game's own $LOADING in the game's own font, which the page
+  // cannot render: it stands before data.zip and any GL context. build.sh draws
+  // both languages (WebBuild/make_text.py) and stamps them in here at their real
+  // pixels, as data URIs that cost no request, and drawMessage blows them up by
+  // a whole factor, the icons' rule: replication, never a resize.
   var TEXTS = %%LOADTEXT%%;
   var MESSAGE = TEXTS[german ? 'de' : 'en'];
   var GAP_ABOVE = 20;               // same as div#b5_msg { margin-top }
@@ -135,18 +132,17 @@
     msg.textContent = '';
     msg.appendChild(img);
 
-    // The glyphs start t rows below the top edge of the image, and that gap
-    // grows with the scale. Left alone it makes the space above the line look
-    // wider than the one under Bob, so Bob gets the same amount added rather
-    // than the line being pulled up.
+    // The glyphs start t.t rows below the image's top edge, a gap that grows
+    // with the scale and would make the space above the line wider than the
+    // one under Bob; Bob gets the same amount added rather than the line
+    // being pulled up.
     var icon = document.querySelector('div#b5_boot > img');
     if (icon) icon.style.marginBottom = (GAP_ABOVE + t.t * scale) + 'px';
   }
 
-  // The bar fills in whole blocks rather than continuously. n blocks carry only
-  // n-1 gaps, so the track is sized to that and not to a round 240: otherwise a
-  // full bar stops three pixels short of its own right edge, on the gap that
-  // belongs after the last block.
+  // The bar fills in whole blocks. n blocks carry only n-1 gaps, so the track
+  // is sized to that rather than a round 240, or a full bar would stop on a
+  // gap, three pixels short of its right edge.
   var BLOCK = 9, GAP = 3, CELL = BLOCK + GAP;
   var BAR_MAX = 240;
   var progress = 0;
@@ -208,10 +204,9 @@
 
   // Losing the GL context is a real event on a phone: the browser may drop it
   // while the tab is in the background. The game cannot rebuild its textures,
-  // the framebuffer object and the two shader programs from where it stands,
-  // so say what happened rather than leaving a frozen picture. An alert(),
-  // which is what Emscripten's own shell does here, cannot be dismissed on a
-  // phone without losing the page anyway.
+  // framebuffer object and shader programs from where it stands, so say so
+  // rather than leave a frozen picture. Not an alert(), as Emscripten's own
+  // shell has: a phone cannot dismiss one without losing the page anyway.
   Module.canvas.addEventListener('webglcontextlost', function (e) {
     e.preventDefault();
     var d = document.createElement('div');
@@ -232,12 +227,11 @@
       // the HTTP cache, or a stale sw.js keeps serving a stale payload and the
       // page can never learn that a new build exists.
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
-        // And ask straight away whether a newer one exists. The browser is
-        // supposed to check this on every navigation, but how soon it really
-        // does is its own business - measured here, a reload onto a new build
-        // left the old worker in place for over half a minute. The page itself
-        // is already current at that point, because index.html is fetched from
-        // the network; it is the offline copy that would lag behind.
+        // And ask at once whether a newer one exists: the browser's own check
+        // on navigation is not prompt (measured, a reload onto a new build
+        // kept the old worker for over half a minute). The page is current
+        // either way, since index.html comes from the network; it is the
+        // offline copy that would lag behind.
         if (reg && reg.update) reg.update().catch(function () {});
       }).catch(function (e) {
         console.warn('[blocks5] service worker registration failed:', e);
@@ -246,8 +240,8 @@
   }
 })();
 </script>
-<!-- The on-screen pad. An ordinary page file and no part of the stamped
-     payload: it only sends key events and knows nothing of the game. ?pad=on
+<!-- The on-screen pad: a page file, stamped apart from the payload by
+     build.sh; it only sends key events and knows nothing of the game. ?pad=on
      forces it on, ?pad=off switches it off. -->
 <script src="touch_controls.js"></script>
 {{{ SCRIPT }}}

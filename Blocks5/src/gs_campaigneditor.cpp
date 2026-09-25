@@ -13,10 +13,10 @@
 
 namespace
 {
-	// The list box runs every entry through localizeString: a leading '$'
-	// would be a string ID, 0xA7 a language tag. In somebody else's campaign
-	// a level's name comes from somebody else's file - defuse it for DISPLAY.
-	// It is saved unchanged.
+	// The list box runs every entry through localizeString, where a leading
+	// '$' is a string ID and 0xA7 a language tag, and a level's name comes
+	// from somebody else's campaign file: defused for display, saved
+	// unchanged.
 	std::string displaySafe(const std::string& name)
 	{
 		std::string result(name, 0, min<size_t>(name.length(), 64));
@@ -87,11 +87,10 @@ public:
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
-				// The key is spent here. Quit switches to GS_Menu, and
-				// Engine::update() applies that in this same tick: the menu
-				// would come up immediately afterwards, see the same Escape
-				// through wasKeyPressed() and quit the game. For the same
-				// reason as in Options::onKeyEvent().
+				// The key is spent here: Quit returns to GS_Menu within this
+				// tick, and the menu would see the same Escape through
+				// wasKeyPressed() and quit the game. As in
+				// Options::onKeyEvent().
 				Engine::inst().consumeKeyPress(event.keysym.sym);
 				handleClick(getChild("Quit"));
 				break;
@@ -204,8 +203,7 @@ public:
 			}
 			else
 			{
-				// With no filename nothing would otherwise happen here at all -
-				// the click would go nowhere and nobody would learn why.
+				// Without a filename the click would silently do nothing.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}
@@ -263,8 +261,7 @@ public:
 			}
 			else
 			{
-				// With no filename nothing would otherwise happen here at all -
-				// the click would go nowhere and nobody would learn why.
+				// Without a filename the click would silently do nothing.
 				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
 			}
 		}

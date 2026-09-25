@@ -130,11 +130,11 @@ public:
 	// A quad whose texture coordinates go through a matrix first, in the
 	// float arithmetic GL's texture matrix used: the weather and the menu's
 	// clouds scroll that way. The matrix starts from the texture's texel
-	// scale (Mat4::scaling), as the matrix under a bind did, so what reaches
-	// the stream is already normalised and no origin can be added to it - the
-	// whole texture is the picture. That is only true of a texture nothing
-	// shares, which is what WM_REPEAT declares, and checkTiling() below is
-	// what holds a caller to it.
+	// scale (Mat4::scaling), so what reaches the stream is already normalised
+	// and no origin can be added to it: the whole texture must be the
+	// picture. That is only true of a texture nothing shares, which is what
+	// WM_REPEAT declares, and checkTiling() cannot hold a caller to it: the
+	// ref built here keeps neither the picture's origin nor its extent.
 	void scrolledQuad(const TextureRef& texture, const Mat4& textureMatrix, const Vec2f* p_corners, const Vec2f* p_uvs, const Vec4f& color);
 
 	// A quad that samples more than one copy of its picture, cut at the
@@ -266,8 +266,9 @@ private:
 
 	// Put up everything queued, under the state it was queued against. Every
 	// flush is one of this file's own: a state change, a scope, a full
-	// stream, a clear, a copy, a 3D draw, a target switch, the frame's end
-	// or a DirectGL bracket opening - nothing outside asks for one.
+	// stream, a clear, a copy, a texture deletion, a 3D draw, a target
+	// switch, -flushall, the frame's end or a DirectGL bracket opening -
+	// nothing outside asks for one.
 	void flush(FlushReason reason = FR_EXPLICIT);
 
 	// Forget what GL is holding, and nothing else; the bracket's destructor.
