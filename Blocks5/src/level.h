@@ -29,18 +29,13 @@ class Level
 	friend class Exit;
 
 public:
-	// Size and layer count are the same for every level and not a property of
-	// the individual instance: the editor allows nothing else, and every
-	// shipped and third-party level file in the tree names exactly these
-	// values. The level file still writes them out, to keep it readable on
-	// its own and openable by older versions of the game - but on load they
-	// are only checked, no longer adopted.
+	// Fixed for every level: the editor allows nothing else, and every level
+	// file in the tree has these values. A file still records them, for older
+	// versions of the game; load() checks them rather than adopting them.
 	//
-	// Separate ints rather than a Vec2i, to let the value stand here in the
-	// header: an integral static const member may be initialised inside the
-	// class and is therefore a constant expression in every translation unit.
-	// A Vec2i needs a definition in a .cpp and is, to every other file, only
-	// a symbol that has to be read.
+	// Separate ints rather than a Vec2i: an integral static const member
+	// initialised in the class is a constant expression in every translation
+	// unit, where a Vec2i would need a definition in a .cpp.
 	static const int WIDTH = 40;
 	static const int HEIGHT = 25;
 	static const int NUM_LAYERS = 2;
@@ -59,11 +54,9 @@ public:
 	void renderTiles(int layer, const Vec2i& offset, const Vec4f& color);
 	void renderObjects(RenderLayer layer, const Vec2i& offset, const Vec4f& color, bool shadow);
 	void sortObjects();
-	// The offset is added inside the caller's own matrix, which is why it is not
-	// called a position: it is where the glow sits relative to the cell the
-	// object is already drawn in. A laser wants one per four pixels of beam and
-	// a light barrier one per pixel, and a matrix bracket each would be the
-	// most expensive thing in the frame.
+	// The offset is not a position: it places the glow relative to the cell
+	// the object is drawn in, inside the caller's matrix, so that the many
+	// glows along a beam (renderBeamShines) need no matrix bracket each.
 	void renderShine(float intensity, float size, const Vec2f& offset = Vec2f(0.0f));
 	// The light a laser or a light barrier lays along its beam. Drawn inside
 	// the object's own matrix, so the points are taken relative to origin.
@@ -139,10 +132,10 @@ public:
 	Presets* getPresets();
 	const std::vector<Object*>& getObjects() const;
 
-	// The object with this UID, or 0 where it has been deleted. A UID is
-	// never reused (Level::addNewObjects counts up), so this is the way to
-	// hold on to an object across ticks without holding a pointer that its
-	// removal would leave dangling.
+	// The object with this UID, or 0 where it has been deleted. No UID is
+	// reused while the level stands (addNewObjects() counts up, only clear()
+	// starts over), so this is the way to hold on to an object across ticks
+	// without a pointer that its removal would leave dangling.
 	Object* getObjectByUID(uint uid) const;
 	Player* getActivePlayer();
 
@@ -192,11 +185,8 @@ public:
 
 	int counter;
 	// Milliseconds since the level was loaded, 20 to a tick. Signed, so it is
-	// undefined after 24.9 days in one level - where GS_Menu's and Engine's
-	// own counters are uint and merely wrap, at 49.7. Neither is reachable by
-	// playing; both need a machine left on one screen for weeks. Making this
-	// uint too would turn the undefined case into a defined one, and is worth
-	// folding into the next edit here rather than doing on its own.
+	// undefined after 24.9 days in one level, where GS_Menu's and Engine's
+	// uint counters merely wrap, at 49.7; neither is reachable by playing.
 	int time;
 	bool finished;
 	std::set<Electronics*> allElectronics;
@@ -234,11 +224,10 @@ private:
 	Texture* p_lava[2];
 	Texture* p_noise;
 
-	// Where the two night-vision noise quads are cut from, redrawn once per
-	// logic tick by update() and not per frame. A random() in render() makes
-	// the noise crawl at the frame rate, so the same effect is a coarse
-	// flicker at 25 fps and a fine hiss at 200 - the same reason the objects'
-	// glowJitter and their flash both live on the tick.
+	// Where the two night-vision noise quads are cut from, drawn once a tick
+	// by update() and not in render(): a random() in the render path would
+	// shift the shared generator the logic reads by however many frames were
+	// drawn. The objects' glowJitter lives on the tick for the same reason.
 	Vec2i noiseOffset1;
 	Vec2i noiseOffset2;
 	Vec2i noiseWindow1;
@@ -252,12 +241,10 @@ private:
 	Font* p_hintFont;
 	bool hintScroll;
 	uint layerDirty;
-	// The grid as vertices, one array per layer, built only when layerDirty
-	// says the layer changed. They hold the layer's own coordinates, so the
-	// offset and the colour of a pass stay outside and the two shadow samples
-	// and the picture are three draws of one array. A full layer is 1000 tiles
-	// and so 64 KB; a palette level is nearly empty and costs nearly nothing,
-	// which matters because the editor holds six Levels at once.
+	// The grid as vertices, one array per layer, rebuilt only when layerDirty
+	// says the layer changed. Layer coordinates and no colour, so the two
+	// shadow samples and the picture are three draws of one array. A full
+	// layer is 1000 tiles, 64 KB; the editor's five palettes are nearly empty.
 	std::vector<QuadVertex> tileVertices[NUM_LAYERS];
 	Presets* p_presets;
 	std::vector<Object*> emptyObjectList;

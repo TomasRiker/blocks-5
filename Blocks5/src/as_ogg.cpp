@@ -4,9 +4,8 @@
 
 AS_Ogg::AS_Ogg(const std::string& filename)
 {
-	// The destructor clears this whatever happened here, and the path below
-	// that gives up before ov_open_callbacks leaves it untouched. Zeroed is
-	// exactly the state ov_clear() itself leaves behind, so clearing one is a
+	// Zeroed first: the destructor calls ov_clear() however far this got, and
+	// on a zeroed handle - the state ov_clear() itself leaves - that is a
 	// no-op rather than a walk through uninitialised pointers.
 	memset(&vorbisFile, 0, sizeof(vorbisFile));
 
