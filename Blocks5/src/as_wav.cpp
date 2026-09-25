@@ -42,11 +42,10 @@ AS_Wav::AS_Wav(const std::string& filename)
 	bool fmtChunkFound = false;
 	bool dataChunkFound = false;
 
-	// Every chunk size is the file's word, and a campaign carries the music
-	// its levels name, so the file may be anybody's. Where a chunk ends is
-	// therefore reckoned in 64 bits and held to the file: in 32 a size near
-	// 4 GB wraps round to a place before the chunk, and the walk reads the
-	// same header for ever.
+	// Chunk sizes come from the file, and a campaign brings the music its
+	// levels name, so the file may be anybody's. A chunk's end is therefore
+	// computed in 64 bits and held to the file: in 32 a size near 4 GB wraps
+	// to before the chunk, and the walk reads the same header for ever.
 	const uint64 fileSize = p_file->getSize();
 
 	// search the file for the format and the data chunk

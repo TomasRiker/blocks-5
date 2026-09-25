@@ -2,73 +2,54 @@
 #include "u_crt.h"
 #include "glextensions.h"
 
-/* A monitor from the nineties, reimplemented in the present pass.
+/* A monitor from the nineties, drawn in the present pass.
 
-   The filter reconstructs nothing. It lays a rendering over the frame as
-   drawn, and is honest about what it does. It is stable too: an edge-directed
-   filter like xBR is a set of step() decisions against thresholds, and a
-   colour difference of 1/255 under a semi-transparent dialog flips them -
-   measured, 1% of the pixels moved by up to 154. Here there is no threshold
-   and no edge detection, only smooth functions of the source colour and the
-   position: move the input by 1 and the output moves by about 1.
+   No thresholds and no edge detection, only smooth functions of the source
+   colour and the position, so moving the input by 1 moves the output by about
+   1. An edge-directed filter's step() decisions flip when a semi-transparent
+   dialog moves a colour by 1/255, and the picture flickers.
 
-   WHICH MONITOR? That is the real question, and it sits in exactly one number,
-   SCANLINE_PERIOD.
+   WHICH MONITOR is one number, SCANLINE_PERIOD. Gaps between the lines belong
+   to 240p: a console drew 240 lines into a 480-line raster and the phosphor
+   between them stayed dark. A VGA monitor at 640x480 drew all 480 lines with
+   overlapping beam profiles and had no gaps. 1.0 renders that monitor, the
+   honest reference for a 640x480 Windows game; 2.0 pretends 240 lines arrive
+   and gives the console look most people mean by "CRT". At period 1 and a 2x
+   window both output rows of a line sit equally far from its centre and no
+   stripe shows at all, so only period 2 gives visible structure at 2x. The
+   scan-line slider fades the effect in; the period decides which effect.
 
-   Visible gaps between the lines are an artifact of 240p: a console drew 240
-   lines into a 480-line raster, and in between the phosphor stayed dark. A VGA
-   monitor at 640x480 drew all 480 lines and their beam profiles overlapped -
-   there were no gaps. Blocks 5 is a 640x480 Windows game; its honest reference
-   is the beige 15-inch monitor, not the television with the console attached.
-   SCANLINE_PERIOD = 1.0 renders that. 2.0 pretends 240 lines arrive and gives
-   the console look most people today mean by "CRT".
+   RESOLUTION. Nearly everyone plays at exactly 2x (1280x960):
+   getDefaultWindowSize() gives 2x on 1080p and 1440p and 3x only from 1600p.
+   So the mask sits in the output raster, not the source raster, as a real
+   shadow mask belongs to the glass: MASK_PITCH is in output pixels and stays
+   equally fine at every factor.
 
-   That is no small matter of appearance: at period 1 and a window of double
-   the size, both output rows sit equally far from the line centre, leaving no
-   stripe visible at all - physically right and useless as an effect. Only
-   period 2 produces a visible structure at 2x. The scan-line slider fades the
-   effect in; the period decides which effect it fades into.
-
-   RESOLUTION. Almost everyone plays at exactly 2x (1280x960): on 1080p and
-   1440p getDefaultWindowSize() gives 2x, and only 1600p gets 3x. Two output
-   pixels per source pixel is not much. The mask therefore sits in the *output*
-   raster and not in the source raster - a real shadow mask belongs to the
-   glass and does not change when you switch resolution. MASK_PITCH is given in
-   output pixels and stays equally fine at every factor.
-
-   DISTORTION. The glass of a tube curved outward. The mapping goes from output
-   pixel to source pixel, because that is exactly the direction a fragment
-   shader asks in:
+   DISTORTION. The mapping runs from output to source pixel, the direction a
+   fragment shader asks in, with both in -1..1 from the picture's centre:
 
        src.x = out.x * (1 + a*out.y^2)
        src.y = out.y * (1 + b*out.x^2)
 
-   with out and src in -1..1 from the centre of the picture. Only the corners
-   move outward; this mapping leaves the edge midpoints where they are.
+   Only the corners move out; the edge midpoints stay put. That is what
+   getOverscan() is for: without it the picture reaches the last output row
+   at the edge midpoints, and what the shader draws outside the picture - the
+   raster's soft edge, the convergence fringe - has nowhere to go. At
+   curvature 0 it is 0 and the picture covers exactly what the other filters
+   cover (measured: zero shift in either axis against sharp-fit).
 
-   That is what the overscan on top of it is for (getOverscan()): without it
-   the picture would reach the last output row at the edge midpoints, and
-   everything the shader draws outside the picture - the soft edge of the
-   raster, the convergence fringe, the halo - would have nowhere to go. The
-   whole raster therefore steps back from the edge of the glass, just far
-   enough for both to fit. At curvature 0 it is 0, and the picture then covers
-   exactly what the other filters cover - measured, zero shift in either axis
-   against sharp-fit.
+   warpToSource()/warpToOutput() repeat the mapping in C++ for the mouse, the
+   inverse as a fixed-point iteration; change one and change the other.
 
-   The same mapping stands once more in C++ in warpToSource()/warpToOutput(),
-   because the mouse position has to go through it; the inverse is a
-   fixed-point iteration. Change it here and you change it there too.
+   No #version: the source compiles as GLSL 110 on the desktop and as GLSL ES
+   100, which has no array constants and no loops with a variable bound. */
 
-   No #version: 110 on the desktop, 100 on the embedded shading language,
-   compiled as both. No array constants and no loops with a variable bound -
-   version 100 knows neither of them. */
-
-/* What the shader and the C++ side both need stands here once: as text in the
-   shader and as a number C++ reads beside it. None of these macros carries an
-   f, because the very same characters are compiled as GLSL, which has no float
-   suffix and would call one a syntax error; the conversion to float is made
-   where C++ uses the value. The curvature goes through the mouse
-   (warpToSource/warpToOutput), the other two into getOverscan(). */
+/* Numbers the shader and C++ both need, written once: stringified into the
+   shader and read as floats beside it, so the two cannot drift apart. No f
+   suffix, since the same characters compile as GLSL, which has none. The
+   curvature also warps the mouse (warpToSource/warpToOutput), the edge and
+   the convergence size getOverscan(), and present() wraps its clock at the
+   flicker cycle. CRT_CRAWL_SPEED is the exception: only present() reads it. */
 
 #define CRT_CURVE_X 0.10
 #define CRT_CURVE_Y 0.13
@@ -76,12 +57,13 @@
    out over two of them. */
 #define CRT_EDGE_ROWS 1.0
 /* Convergence offset per beam at the edge of the picture, in source columns.
-   In full at the shader constant of the same name. */
+   Explained at the shader constant of the same name. */
 #define CRT_CONVERGENCE_MAX 1.6
-/* Line periods per second with the flicker at full; see CRAWL_JITTER. */
+/* Scan-line crawl in line periods per second with the scan-flicker slider at
+   full; see CRAWL_JITTER. */
 #define CRT_CRAWL_SPEED 1.2
-/* After this many seconds the flicker repeats exactly. This too stands twice -
-   in the shader and in present(), which takes the clock modulo it. */
+/* The flicker repeats exactly after this many seconds; present() wraps the
+   clock at it. */
 #define CRT_FLICKER_CYCLE 8.0
 #define CRT_STR2(x) #x
 #define CRT_STR(x) CRT_STR2(x)
@@ -105,20 +87,19 @@ static const char* p_crtFragmentShader =
 	/* Tuning constants. Everything that gives this filter its character. */
 	/* ------------------------------------------------------------------ */
 
-	/* Which tube. 1.0 = VGA monitor, all 480 lines, no gaps (hence at 2x
-	   practically no visible stripes). 2.0 = pretend 240 lines arrive: the
-	   console look, visible at 2x as well. Values in between are allowed but
-	   look like a fault. */
+	/* Which tube, see the top of the file: 1.0 a VGA monitor, no stripes at
+	   2x; 2.0 the 240-line console look. Values between look like a fault. */
 	"const float SCANLINE_PERIOD = 2.0;\n"
 
 	/* Width of the electron beam, in line pitches. Smaller = narrower beam =
 	   deeper and harder stripes. 0.5 is strong, 0.8 gentle. */
 	"const float BEAM_WIDTH = 0.55;\n"
 
-	/* The mask, in OUTPUT PIXELS per RGB triple. 3.0 is a real stripe mask:
-	   one pixel red, one green, one blue. At 2x that beats against the source
-	   raster (period 2) into a pattern of period 6; 2.0 or 4.0 are calmer
-	   there. */
+	/* The mask, in OUTPUT PIXELS per RGB triple: a stripe mask, one pixel
+	   red, one green, one blue. At 2x it beats against the source raster
+	   (period 2) into a pattern of period 6. The mask code below lights red
+	   on stripe 0, green on 1 and blue on every other, so a pitch other than
+	   3.0 tints the picture. */
 	"const float MASK_PITCH = 3.0;\n"
 	/* How dark the stripes that are not currently excited become. 0 = no mask,
 	   1 = the other two channels fully off (far too much). 0.3 is plainly
@@ -126,24 +107,16 @@ static const char* p_crtFragmentShader =
 	"const float MASK_STRENGTH = 0.30;\n"
 
 	/* Halation: light scatters in the glass and comes back as a soft halo.
-	   Only what is brighter than the threshold glows - dark areas stay sharp,
-	   and that asymmetry is exactly what tells it apart from a blur. Radius in
-	   source pixels.
+	   Only what is brighter than the threshold glows, so dark areas stay
+	   sharp - the asymmetry that tells it from a blur. Radius in source
+	   pixels. BLOOM_STRENGTH is the value with the Bloom slider at full; at 0
+	   the whole block is compiled away. Measured off a bright spot: +23 grey
+	   levels at the centre, +4 at 70 output pixels.
 
-	   BLOOM_STRENGTH is the value with the slider at full; the slider (uniform
-	   Bloom) scales it. Set to 0 the whole block is compiled away - see
-	   below.
-
-	   Measured off a bright spot: +23 grey levels at the centre, falling to +4
-	   at 70 output pixels. The taps sit on TWO rings, four axial and four
-	   diagonal - eight on one radius makes a hard-edged ring rather than a
-	   glow.
-
-	   What the filter costs, as ratios of one present on a software
-	   rasterizer: nearest 1.0, bilinear 1.3, sharp-fit 1.35, crt 7.8. The
-	   halation is about half of that - with BLOOM_STRENGTH at 0 the same
-	   measurement reads 4.2. On real hardware all of them are noise, but the
-	   browser build can land on a software path. */
+	   Cost as ratios of one present on a software rasterizer: nearest 1.0,
+	   bilinear 1.3, sharp-fit 1.35, crt 7.8, and 4.2 with BLOOM_STRENGTH at
+	   0 - the halation is about half. Noise on real hardware, but the browser
+	   build can land on a software path. */
 	"const float BLOOM_STRENGTH  = 0.38;\n"
 	"const float BLOOM_THRESHOLD = 0.22;\n"
 	"const float BLOOM_RADIUS    = 2.5;\n"   /* inner ring, source pixels */
@@ -154,41 +127,29 @@ static const char* p_crtFragmentShader =
 	   0 = as sharp as sharp-fit. */
 	"const float SOFTNESS = 0.35;\n"
 
-	/* Convergence. A colour tube has three electron beams, and they never meet
-	   the mask at exactly the same place: in the centre they are converged,
-	   and toward the rim they drift apart, because the deflection is largest
-	   there. That shows up as a red and a blue fringe on vertical edges,
-	   nothing in the middle and most at the edge.
-
-	   That is expressly *not* chromatic aberration - that happens in a lens,
-	   because glass bends wavelengths differently, and a tube has none. Here
-	   three pictures simply lie side by side.
-
-	   With the slider at full the value is the displacement *of each beam* at
-	   the left and right edge of the picture, in source pixels; red and blue
-	   move against each other, which makes the visible fringe twice as wide. A
-	   well-adjusted set stayed below it, a tired cheap set reached one or two
-	   triads in the corners, which is one or two source pixels here. Set to 0
-	   the block is compiled away, as with the halation. */
+	/* Convergence. A colour tube's three beams never meet the mask at exactly
+	   the same place: converged in the centre, they drift apart toward the
+	   rim, where the deflection is largest - a red and a blue fringe on
+	   vertical edges, none in the middle. Not chromatic aberration, which
+	   needs a lens: three pictures lie side by side. The value is each beam's
+	   offset at the left and right edge with the slider at full, in source
+	   pixels; red and blue move against each other, so the visible fringe is
+	   twice as wide. A well-adjusted set stayed below that, a tired cheap one
+	   reached one or two triads in the corners, one or two source pixels
+	   here. At 0 the block is compiled away. */
 	"const float CONVERGENCE_MAX = " CRT_STR(CRT_CONVERGENCE_MAX) ";\n"
 
-	/* Measured off the shader, at the slider's default the outermost output
-	   column keeps 89% of its red; at full slider the outermost three keep
-	   49%, 76% and 95%, while green and blue do not move at all - that is
-	   rasterMask being evaluated at each channel's own source point.
+	/* Measured at the slider's default, the outermost output column keeps
+	   89% of its red; at full slider the outermost three keep 49%, 76% and
+	   95%, with green and blue untouched - rasterMask evaluated at each
+	   channel's own source point. How far red lags blue on a finished frame:
+	   within a tenth of a pixel at 0; at full slider -5.3 output pixels at
+	   the left edge, -0.3 in the middle and +4.4 at the right, the
+	   antisymmetric ramp asked for. */
 
-	   Measured on a finished frame by asking how far the red channel lags the
-	   blue (which needs no second frame, so the moving title demo does not
-	   matter): at 0 within a tenth of a pixel everywhere; at full slider -5.3
-	   output pixels at the left edge, -0.3 in the middle and +4.4 at the
-	   right - the antisymmetric ramp the shader asks for. */
-
-	/* Curvature with the slider at full. Lottes takes 1/32 and 1/24; here it
-	   may go further, since the slider does not normally sit at the stop. The
-	   numbers come from the macros below - the shader and the mouse conversion
-	   in engine.cpp have to compute the same curvature, and a pair of numbers
-	   that has to be maintained in two places drifts apart eventually. The
-	   preprocessor puts the same text in here that C++ sees as a float. */
+	/* Curvature with the slider at full. Lottes takes 1/32 and 1/24; this may
+	   go further, since the slider rarely sits at the stop. From the
+	   CRT_CURVE_* macros above, which the mouse conversion reads as well. */
 	"const float CURVE_X = " CRT_STR(CRT_CURVE_X) ";\n"
 	"const float CURVE_Y = " CRT_STR(CRT_CURVE_Y) ";\n"
 	/* Half the width of the raster's soft edge, in source rows. From the macro
@@ -200,61 +161,44 @@ static const char* p_crtFragmentShader =
 	/* Vignette. 0 = off. */
 	"const float VIGNETTE = 0.22;\n"
 
-	/* Flicker, the way an old television had it. It is two things, and each
-	   has a slider of its own, because they are very much wanted separately:
-
-	   "Flicker" (uniform Flicker) is the fast shimmer of the *brightness* -
-	   three oscillations at about 12, 19 and 29 Hz that keep re-overlapping
-	   and never fall into a pattern - plus, much weaker, the mains hum: a
-	   broad, dark bar that rolls slowly down the picture, because the mains
-	   frequency beats against the frame frequency.
-
-	   "Scan flicker" (uniform ScanFlicker) concerns the *position* of the
-	   lines: they drift slowly downward and shimmer as they go. See
-	   CRAWL_JITTER.
-
-	   Every term has mean zero and therefore costs no brightness, and all of
-	   them hang off the clock alone, never off the previous frame - the fault
-	   xBR foundered on cannot arise here. Values with the slider at full;
-	   where the bar is unwanted, set HUM_DEPTH to 0. */
-	/* Measured, the three terms together give 1.7% peak-to-peak between frames
-	   with both sliders at full. */
+	/* Flicker, two effects with a slider each, since they are wanted apart.
+	   Flicker shimmers the *brightness*: three oscillations at about 12, 19
+	   and 29 Hz that never fall into a pattern, plus a much weaker mains hum,
+	   a broad dark bar rolling slowly up the picture as the mains frequency
+	   beats against the frame rate. ScanFlicker moves the *lines*: they drift
+	   slowly down and shimmer, see CRAWL_JITTER. Every term has mean zero, so
+	   costs no brightness, and depends on the clock alone, never on the
+	   previous frame. Values with the slider at full; HUM_DEPTH 0 removes the
+	   bar. Measured with both sliders at full, the terms give 1.7%
+	   peak-to-peak between frames. */
 	"const float FLICKER_DEPTH = 0.0367;\n"  /* fast brightness shimmer */
 	"const float HUM_DEPTH     = 0.0147;\n"  /* depth of the rolling bar */
 	"const float HUM_BARS      = 0.75;\n"    /* how many bars fit the picture */
 	"const float HUM_ROLLS     = 3.0;\n"     /* runs per FLICKER_CYCLE */
-	/* After this many seconds the flicker repeats exactly. All the frequencies
-	   below are whole multiples of it, which makes the transition seamless and
-	   lets the clock start over on every run - otherwise float would go coarse
-	   eventually. From the macro above, because present() has to take the
-	   clock modulo the same value. */
+	/* The flicker repeats exactly after this many seconds: every frequency
+	   below is a whole number of runs per cycle, so the clock wraps without a
+	   seam and Time stays small, where float keeps its precision. From the
+	   macro above, because present() wraps the clock at the same value. */
 	"const float FLICKER_CYCLE = " CRT_STR(CRT_FLICKER_CYCLE) ";\n"
 
-	/* The line structure does not stand still. On a real tube it drifts slowly
-	   downward - the scan-line crawl, because the line and frame frequencies
-	   never go into an exact ratio - and shimmers a little as it does. Without
-	   that the stripes look painted on.
-
-	   CRAWL_SPEED is in line periods per second with the slider at full and is
-	   the only value computed on the CPU: the phase has to come from the
-	   unwrapped clock, or it would jump by fract(Flicker * speed) of a period
-	   at every wrap. That is why the number stands once more below as a macro,
-	   like the curvature.
-	   CRAWL_JITTER is the fast shimmer of the phase, in periods - that runs in
-	   the shader, because it is an oscillation with a whole-number frequency
-	   and wraps seamlessly by itself. */
+	/* On a real tube the lines drift slowly down - the scan-line crawl, as
+	   line and frame frequency never stand in an exact ratio - and shimmer as
+	   they go; without that the stripes look painted on. The crawl
+	   (CRT_CRAWL_SPEED) is the one term computed on the CPU, as ScanPhase:
+	   its slope follows the slider, so a phase from the wrapped Time would
+	   jump at every wrap. CRAWL_JITTER, the shimmer in periods, runs here,
+	   since an oscillation of whole-number frequency wraps by itself. */
 	"const float CRAWL_JITTER = 0.05;\n"
 
 	/* Gamma. A tube had about 2.4; in between everything is computed in linear
 	   light, or the halo turns into grey haze. */
 	"const float GAMMA_IN  = 2.4;\n"
 	"const float GAMMA_OUT = 2.2;\n"
-	/* Purely a matter of taste. Mask and stripes do take light away, but the
-	   shader below computes that back out itself (MASK_AVG and SCAN_AVG), and
-	   from the constants - change something above and the brightness comes
-	   back on its own, with nothing to adjust here. 1.0 = as bright as with no
-	   filter. Measured, the scan-line slider moves the mean brightness of a
-	   frame by 0.5% from one end of its travel to the other. */
+	/* Purely a matter of taste: 1.0 is as bright as with no filter. The light
+	   mask and stripes take away is given back below from the constants
+	   (maskAvg and scanAvg), so changing them needs nothing here. Measured,
+	   the scan-line slider moves a frame's mean brightness by 0.5% over its
+	   whole travel. */
 	"const float BRIGHTNESS = 1.0;\n"
 
 	/* ------------------------------------------------------------------ */
@@ -274,11 +218,10 @@ static const char* p_crtFragmentShader =
 	"uniform float ScanPhase;\n"    /* scan-line crawl, 0..1 periods */
 	"varying vec2 texCoord;\n"
 
-	/* Fetch one texel, with the same piecewise linear remapping as sharp-fit,
-	   only softened by SOFTNESS. The ramp at the pixel boundary is 1/N source
-	   pixels wide there; here it gets wider, and that is exactly the limited
-	   bandwidth. Vertically it stays sharp - a tube ran soft across and sharp
-	   down. */
+	/* One texel through sharp-fit's piecewise linear remapping, softened by
+	   SOFTNESS: sharp-fit's ramp at a pixel border is 1/N source pixels wide,
+	   this one is wider, and that is the limited bandwidth. Vertically it
+	   stays sharp - a tube ran soft across and sharp down. */
 	"vec3 fetch(vec2 uv)\n"
 	"{\n"
 	"    vec2 texel = uv * FrameSize;\n"
@@ -292,35 +235,15 @@ static const char* p_crtFragmentShader =
 	"    return texture2D(decal, p / TextureSize).rgb;\n"
 	"}\n"
 
-	/* The halo does not need the sharp remapping from fetch() - a soft image
-	   of a soft image - which saves the ramp arithmetic eight times over.
-
-	   The averaging happens in *linear* light, though, and per tap. Averaging
-	   first and converting afterwards leaves no visible halo at all: the ring
-	   around a bright spot is a mixture of bright and dark, and pow() on that
-	   mean pushes it far below the threshold. The mean belongs in linear
-	   light, where light actually adds.
-
-	   The conversion is x*x rather than pow(x, GAMMA_IN) - gamma 2.0 instead
-	   of 2.4. For a soft halo the difference is meaningless, and it costs a
-	   multiplication instead of a pow(); eight of those per output pixel would
-	   otherwise be the most expensive item in the whole shader. */
 	"vec3 toLinear(vec3 c) { return pow(max(c, vec3(0.0)), vec3(GAMMA_IN)); }\n"
 
-	/* The edge of the raster, as the distance function of a rounded rectangle:
-	   1 inside, 0 outside, and between them an edge two edge wide.
-
-	   wc is the source point *this channel* reads, not the output point. That
-	   is what counts: a colour tube paints three rasters, and if the red one
-	   is narrower than the green one then the red picture ends first - that is
-	   exactly how you spot a misconverged set, before you look at any edge
-	   inside the picture.
-
-	   The rectangle is edge larger than the picture, which puts the edge
-	   entirely outside it: inside every point is untouched, and without
-	   curvature the picture is point for point as large as with every other
-	   filter. The room to fade out is made by the overscan, see
-	   getOverscan(). */
+	/* The raster's edge as the distance function of a rounded rectangle: 1
+	   inside, 0 outside, a transition 2 * edge wide between. wc is the source
+	   point *this channel* reads, not the output point: a colour tube paints
+	   three rasters, and where red's is narrower the red picture ends first,
+	   which is how a misconverged set gives itself away. The rectangle is
+	   edge larger than the picture, so the transition lies wholly outside it
+	   and the picture is untouched; getOverscan() makes the room. */
 	"float rasterMask(vec2 wc, float r, float edge)\n"
 	"{\n"
 	"    vec2  q  = abs(wc) - (1.0 - r + edge);\n"
@@ -328,6 +251,9 @@ static const char* p_crtFragmentShader =
 	"    return 1.0 - smoothstep(-edge, edge, sd);\n"
 	"}\n"
 
+	/* The halo's fetch. No sharp remapping as in fetch(): a soft image of a
+	   soft image does not need it, which saves the ramp arithmetic eight
+	   times over. */
 	"vec3 fetchRaw(vec2 uv)\n"
 	"{\n"
 	"    vec2 p = clamp(uv * FrameSize, vec2(0.5), FrameSize - 0.5);\n"
@@ -346,16 +272,15 @@ static const char* p_crtFragmentShader =
 	"    float b = Curvature * CURVE_Y;\n"
 	"    vec2 w = vec2(p.x * (1.0 + a * p.y * p.y),\n"
 	"                  p.y * (1.0 + b * p.x * p.x));\n"
-	/* And one step further out, keeping the raster off the edge of the glass.
-	   The factor arrives ready-made from getOverscan(); with a flat tube it is
-	   0 and this line does nothing. */
+	/* One step further out, keeping the raster off the glass's edge. The
+	   factor comes from getOverscan(); on a flat tube it is 0. */
 	"    w *= 1.0 + Overscan;\n"
 	"    vec2 suv = w * 0.5 + 0.5;\n"
 
 	/* --- convergence, part one: how far red and blue are off ---------- */
-	/* Up here because the edge already needs it. cx is the offset per beam in
-	   texture coordinates, cw the same in w - red reads cx further right, which
-	   puts its picture cx further left. */
+	/* Up here because the edge needs it. cx is each beam's offset in suv, cw
+	   the same in w; red reads cx further right, which puts its picture cx
+	   further left. */
 	"    float cx = Convergence * CONVERGENCE_MAX * w.x / FrameSize.x;\n"
 	"    float cw = 2.0 * cx;\n"
 	"    bool  converge = (CONVERGENCE_MAX > 0.0 && Convergence > 0.0);\n"
@@ -386,24 +311,17 @@ static const char* p_crtFragmentShader =
 	"    vec3 col = (g0 * c0 + g1 * c1) / gs;\n"
 
 	/* --- convergence, part two: red and blue off to the side ---------- */
-	/* Green stays put and is thereby the reference colour, the colour a set got
-	   converged on at the bench. Red and blue are shifted against each other,
-	   proportional to w.x - hence zero in the middle and largest at the edge.
-	   The edge of the raster is already set per channel above; only the content
-	   is added here.
+	/* Green stays put as the reference a set was converged on; red and blue
+	   shift against each other in proportion to w.x. The edge per channel is
+	   set above; this adds the content. Horizontal only: a vertical offset
+	   would need its own rows and beam profile per channel, eight fetches
+	   instead of four, and the line structure all but hides it.
 
-	   Horizontal only, although a beam could sit off vertically too: that
-	   would need its own two rows and its own beam profile per channel, eight
-	   fetches instead of four, and the line structure of the tube hides a
-	   vertical shift almost entirely anyway. The fringe anybody remembers
-	   stands on vertical edges.
-
-	   Four extra fetches - the resampling triples, and that is paid for,
-	   because the slider sits at 0.5 like the others. Measured on llvmpipe at
-	   1280x960, a presentFrame() then costs 30.6 instead of 25.3 ms, a fifth
-	   more; on a real graphics card it is nothing. The if hands all of it back
-	   to anyone who turns the slider right down: the condition is the same for
-	   the whole draw call. */
+	   The four extra fetches triple the resampling, paid for because the
+	   slider defaults to 0.5: measured on llvmpipe at 1280x960,
+	   presentFrame() costs 30.6 instead of 25.3 ms, nothing on a real
+	   graphics card. The if hands it all back at slider 0, since the
+	   condition is the same for the whole draw call. */
 	"    if(converge)\n"
 	"    {\n"
 	"        vec3 r0 = toLinear(fetch(vec2(suv.x + cx, rowc / FrameSize.y)));\n"
@@ -415,17 +333,18 @@ static const char* p_crtFragmentShader =
 	"    }\n"
 
 	/* --- halation ----------------------------------------------------- */
-	/* Eight taps on a ring. The halo is soft and the star shape does not show
-	   in it. It is at the same time the most expensive part of the shader -
-	   measured, just under half - which is why it sits inside an if on a
-	   constant: set BLOOM_STRENGTH to 0 and the compiler throws the whole block
-	   away (measured: 7.9 then falls to 4.2). */
+	/* The dearest part of the shader, about half its cost, so it sits in an
+	   if on a constant: BLOOM_STRENGTH 0 compiles the block away. */
 	"    if(BLOOM_STRENGTH > 0.0 && Bloom > 0.0)\n"
 	"    {\n"
-	/* Two rings instead of one, at the same number of taps: four axial on the
-	   inner one, four diagonal on the outer one. Eight taps on a single radius
-	   give a hard-edged ring rather than a halo; with two radii it falls off
-	   softly over the whole distance. */
+	/* Eight taps on two rings, four axial on the inner and four diagonal on
+	   the outer: eight on one radius make a hard-edged ring, two radii fall
+	   off softly. Each tap goes to linear light before the average, where
+	   light actually adds; averaged first, the ring round a bright spot is a
+	   mix of bright and dark whose pow() falls far below the threshold, and
+	   no halo shows. As x*x, gamma 2.0 rather than GAMMA_IN: meaningless for
+	   a soft halo, and eight pow() calls would be the dearest item in the
+	   shader. */
 	"    vec2 br = BLOOM_RADIUS / FrameSize;\n"
 	"    vec2 bo = br * BLOOM_OUTER;\n"
 	"    vec3 t0 = fetchRaw(suv + vec2( br.x,  0.0));\n"
@@ -443,11 +362,10 @@ static const char* p_crtFragmentShader =
 	"    }\n"
 
 	/* --- flicker, part 1: the terms ----------------------------------- */
-	/* They are needed twice - for the brightness further down and for the
-	   position of the lines right here - hence compute them once. All the
-	   frequencies are whole runs per FLICKER_CYCLE, letting the clock wrap
-	   seamlessly; 97, 151 and 233 per 8 s are about 12, 19 and 29 Hz, and they
-	   are coprime, which keeps the superposition from repeating any earlier. */
+	/* Needed twice, for the brightness below and the line position here.
+	   Every frequency is a whole number of runs per FLICKER_CYCLE, so the
+	   clock wraps seamlessly; 97, 151 and 233 per 8 s are about 12, 19 and
+	   29 Hz, coprime so that their sum repeats no sooner. */
 	"    float hum = 0.0;\n"
 	"    float wob = 0.0;\n"
 	"    if(Flicker > 0.0 || ScanFlicker > 0.0)\n"
@@ -460,22 +378,19 @@ static const char* p_crtFragmentShader =
 	"    }\n"
 
 	/* --- line structure ----------------------------------------------- */
-	/* Distance to the nearest line centre, measured in periods. At period 1
-	   both output rows sit equally far away at 2x and nothing is visible; that
-	   is right, and it is the reason for SCANLINE_PERIOD.
-
-	   ScanPhase pushes the whole pattern slowly downward, CRAWL_JITTER makes
-	   it shimmer as it goes. With Scanline at 0 both drop out by themselves -
-	   there are then no lines that could crawl. */
+	/* dc is the distance to the nearest line centre, 0 on it and 1 midway
+	   between two. At period 1 and 2x both output rows sit equally far off
+	   and nothing shows, which is right and the reason for SCANLINE_PERIOD.
+	   ScanPhase moves the pattern slowly down, CRAWL_JITTER makes it
+	   shimmer; at Scanline 0 both drop out with the lines. */
 	"    float ph = sy / SCANLINE_PERIOD + ScanPhase + ScanFlicker * CRAWL_JITTER * wob;\n"
 	"    float dc = abs(fract(ph) - 0.5) * 2.0;\n"
 	"    float k  = BEAM_WIDTH * BEAM_WIDTH * 4.0;\n"
 	"    float beam = exp(-(dc * dc) / k);\n"
-	/* The mean of the profile over one period, approximated with five sample
-	   points. That gives beam/SCAN_AVG a mean of 1, and mix(1, ., S) keeps it
-	   for every slider setting - the stripes therefore cost no brightness,
-	   however narrow the beam is set. All the inputs are constants, which the
-	   compiler folds away. */
+	/* The profile's mean over one period, from five samples. beam / scanAvg
+	   then averages 1 and mix(1, ., Scanline) keeps that at every setting, so
+	   the stripes cost no brightness however narrow the beam. The inputs are
+	   constants, which the compiler folds. */
 	"    float scanAvg = (exp(-0.01 / k) + exp(-0.09 / k) + exp(-0.25 / k)\n"
 	"                   + exp(-0.49 / k) + exp(-0.81 / k)) * 0.2;\n"
 	"    col *= mix(1.0, beam / max(scanAvg, 1e-3), Scanline);\n"
@@ -517,9 +432,9 @@ U_Crt::U_Crt()
 	locOverscan = -1;
 	locTime = -1;
 	locScanPhase = -1;
-	// The overscan hangs off the frame size. It is 640x480 throughout the
-	// tree, and present() fills it in before every frame anyway - the value
-	// here is only for the first logic tick, which already converts the mouse.
+	// The overscan depends on the frame size, 640x480 throughout the tree.
+	// present() sets it every frame; this value serves the first logic tick,
+	// which converts the mouse before any present().
 	frameSize = Vec2i(640, 480);
 	scanline = 0.5f;
 	curvature = 0.5f;
@@ -569,23 +484,17 @@ void U_Crt::present(const PresentContext& context)
 	frameSize = context.frameSize;
 	PresentProgram::setUniform(locOverscan, getOverscan());
 
-	// The wall clock, not Engine::getTime() - that counts logic ticks and
-	// stops when the game pauses; a screen flickers anyway. The cycle is
-	// CRT_FLICKER_CYCLE and every frequency in it is a whole multiple of it,
-	// leaving nothing to jump at the wrap.
-	//
-	// Both terms come out of SDL_GetTicks() reduced to a small range, which
-	// is what the shader is given. They go through scrollOffset rather than
-	// off a float count of seconds because that counter runs up to 49.7 days,
-	// where a float second is worth less than a frame after three and the
-	// flicker would begin to step.
+	// The wall clock, not Engine::getTime(), which counts logic ticks and
+	// stops with them; a screen flickers anyway. scrollOffset() wraps it at
+	// CRT_FLICKER_CYCLE, a whole number of runs of every frequency in the
+	// shader, so nothing jumps at the wrap and the shader's sin() arguments
+	// stay small.
 	PresentProgram::setUniform(locTime,
 		scrollOffset(SDL_GetTicks(), 0.001f, 0.0f, CRT_FLICKER_CYCLE));
 
-	// The scan-line crawl is the one term computed here: it is a ramp, not an
-	// oscillation, and its slope depends on the slider - from the
-	// already-wrapped clock the phase would jump at every wrap, so it reduces
-	// from the clock itself at its own rate.
+	// The scan-line crawl is a ramp whose slope follows the slider, so it
+	// cannot come from the wrapped Time without jumping at every wrap: it is
+	// reduced from the clock at its own rate.
 	PresentProgram::setUniform(locScanPhase,
 		scrollOffset(SDL_GetTicks(), 0.001f * crtCrawlSpeed * scanFlicker, 0.0f, 1.0f));
 
@@ -594,33 +503,22 @@ void U_Crt::present(const PresentContext& context)
 
 float U_Crt::getOverscan() const
 {
-	// How far the raster stands back from the edge of the glass, in fractions
-	// of half the picture width. With a flat tube not at all: the picture then
-	// sits point for point where it does with every other filter, and that is
-	// exactly the point of the slider's zero setting.
+	// How far the raster stands back from the glass's edge, in fractions of
+	// half the picture width. Zero on a flat tube, where the picture sits
+	// point for point where every other filter puts it. Otherwise it makes
+	// room for what the shader draws outside the picture: the raster's soft
+	// edge, fading over twice EDGE_ROWS source rows, and the offset between
+	// the red and blue rasters. The curvature leaves the edge midpoints in
+	// place, and there both would be cut off - measured without it: 0 black
+	// rows above the picture at the top centre, 20 at nine tenths out; with
+	// it, 2 rising to 26, the picture fading in over the next four. At the
+	// right edge with convergence at full, red's raster dies at output
+	// column 1274, green's at 1277, and blue's still burns at 1279.
 	//
-	// Otherwise there has to be room beside it for what the shader draws
-	// outside the picture: the soft edge of the raster, which fades out over
-	// twice EDGE_ROWS source rows, and the convergence offset by which the red
-	// and the blue raster stand apart at the edge. Without that gap both are
-	// cut off at the edge midpoint - there the curvature leaves the pixel
-	// where it is, while it pushes it outward toward the corners.
-	//
-	// One single value for both axes, or the pixels would no longer be square:
-	// horizontally the sum is needed, vertically only the first term, and the
-	// rest is black surround there.
-	//
-	// Measured without it: 0 black rows above the picture at the top centre, 4
-	// a quarter of the way out, 20 at nine tenths - soft and rounded
-	// everywhere, guillotined at four places. With it: 2 rows at the top
-	// centre rising to 26, the picture fading in over the next four. And at
-	// the right edge with the convergence at full, red's raster dies at output
-	// column 1274, green's at 1277 and blue's is still burning at 1279, which
-	// is the whole point of giving each channel its own rasterMask.
-	//
-	// The price is paid the moment the slider leaves its stop: at a 2x window
-	// the picture steps back by six output pixels. A flat tube is pixel-exact,
-	// a curved one is inset.
+	// One value for both axes, or the pixels would stop being square: the
+	// sum is needed across, the fade alone down, the rest is black surround.
+	// It is a step: the moment the slider leaves 0, a 2x window's picture
+	// steps back by six output pixels top and bottom and eight at the sides.
 	if(curvature <= 0.0f) return 0.0f;
 
 	const float fade   = 2.0f * (crtEdgeRows * 2.0f / frameSize.y);
@@ -648,23 +546,20 @@ Vec2f U_Crt::warpToOutput(const Vec2f& s) const
 	const float a = curvature * crtCurveX;
 	const float b = curvature * crtCurveY;
 
-	// The inverse. The pair of equations is coupled - x depends on y and vice
-	// versa - and has no closed form; as a fixed point
+	// The inverse. The two equations are coupled and have no closed form; as
+	// a fixed point
 	//
 	//     x <- u / (1 + a*y^2)      y <- v / (1 + b*x^2)
 	//
-	// it contracts very fast: after eight rounds the error is under 2.3e-4
-	// pixels even at an absurd curvature, and under 1e-5 at anything the
-	// slider can reach.
-	//
-	// That is what keeps the cursor honest. Both directions map pixel centres
-	// and floor rather than left edges and truncation, so get(set(g)) == g
-	// exactly: measured, 0 of 34240 positions off, at curvature 0, 0.25, 0.5
-	// and 1.0 and at three window sizes. The one exception is exactly 1x,
-	// where 640 window pixels and 640 game pixels cannot both hold a
-	// non-identity warp and 0.5% of positions land on a neighbouring tile -
-	// the minimum window size, where the effect has no room to work anyway.
-	// The overscan is a smooth factor and is taken back out beforehand.
+	// it contracts fast: after eight rounds the error is under 2.3e-4 pixels
+	// at an absurd curvature and under 1e-5 anywhere the slider reaches.
+	// Engine's cursor mapping takes pixel centres and floors in both
+	// directions, so get(set(g)) == g exactly: measured, 0 of 34240 positions
+	// off at curvature 0, 0.25, 0.5 and 1.0 and three window sizes. The one
+	// exception is exactly 1x, the minimum window, where 640 window pixels
+	// and 640 game pixels cannot both hold a non-identity warp and 0.5% of
+	// positions land on a neighbouring tile. The overscan is a plain factor
+	// and comes off first.
 	const float k = 1.0f + getOverscan();
 	const float u = s.x / k;
 	const float v = s.y / k;

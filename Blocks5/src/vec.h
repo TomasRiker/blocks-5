@@ -3,14 +3,15 @@
 
 /*** General vector class for vectors over arbitrary types with arbitrary dimension ***/
 
-// Helper for taking the square root. One specialization per type, because
-// an unqualified ::sqrt is the C one and takes a double: a float handed to it
-// widens, goes through the double routine and narrows back, which is three
-// times the work for a length and not one bit more accurate.
+// The square root, specialised per type so that a float length calls sqrtf:
+// ::sqrt may be the C function on double, and a float handed to it widens,
+// takes the double routine and narrows back - three times the work for a
+// length and not one bit more accurate.
 template<typename T> struct VecHelper
 {
 	static T sqrt(T x)
 	{
+		// Qualified, or it would find this function again.
 		return ::sqrt(x);
 	}
 };
@@ -19,7 +20,6 @@ template<> struct VecHelper<float>
 {
 	static float sqrt(float x)
 	{
-		// Qualified, or it would find this function again.
 		return ::sqrtf(x);
 	}
 };
@@ -319,13 +319,12 @@ template<typename T, int DIM> Vec<T, DIM> operator * (T lhs, const Vec<T, DIM>& 
 	return rhs * lhs;
 }
 
-// A 4x4 float matrix in OpenGL's column-major order - the layout
-// glUniformMatrix4fv takes as it is, which is what it exists for. The
-// renderer's projection is one, and the 3D crossfades and the credits bake
-// theirs with it. Each operation stands for the GL call it is named after and
-// keeps that call's order of operations, which costs nothing and makes the
-// two easy to read against each other; it is float throughout, where GL's own
-// matrix stack was double in places (.claude/rules/rendering.md).
+// A 4x4 float matrix in OpenGL's column-major order, the layout
+// glUniformMatrix4fv takes as it is. The renderer's projection is one, and
+// the 3D crossfades and the credits build theirs with it. Each operation
+// stands for the GL call it is named after and keeps that call's order of
+// operations, so the two read side by side; it is float throughout, where GL
+// and GLU work in double in places (.claude/rules/rendering.md).
 struct Mat4
 {
 	float m[16];
@@ -368,11 +367,10 @@ struct Mat4
 	}
 
 	// The first three components of this * (x, y, z, 1), summed the same
-	// way: a corner under a model matrix, for geometry that is baked on the
-	// processor so that several pieces of it can share one draw. The w it
-	// would have is not formed, since the callers pass a matrix built from
-	// translate, scale and rotate alone, whose bottom row is (0, 0, 0, 1) -
-	// a projection belongs in the transform the draw carries, not here.
+	// way: a corner under a model matrix, baked on the CPU so that many
+	// pieces share one draw. No w: the matrix is built from translate, scale
+	// and rotate alone, whose bottom row is (0, 0, 0, 1); a projection
+	// belongs in the transform the draw carries.
 	Vec<float, 3> transformPoint3D(const Vec<float, 3>& p) const
 	{
 		return Vec<float, 3>(m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12],
@@ -380,11 +378,11 @@ struct Mat4
 							 m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14]);
 	}
 
-	// gluPerspective's matrix. GLU builds it in double and this does not,
-	// which reaches only the two entries that read zNear and zFar: m[10] and
-	// m[14], the depth row. What puts a corner on the screen is m[0] and
-	// m[5] - the cotangent of half the field of view, over the aspect - and
-	// those read neither, so they come out bit for bit the same.
+	// gluPerspective's matrix. GLU builds it in double and this in float,
+	// which reaches only the depth row, m[10] and m[14], the entries that
+	// read zNear and zFar. m[0] and m[5], the cotangent of half the field of
+	// view over the aspect, put a corner on the screen, read neither, and
+	// come out bit for bit the same.
 	static Mat4 perspective(float fovy, float aspect, float zNear, float zFar)
 	{
 		const float radians = fovy / 2.0f * 3.14159265358979323846f / 180.0f;
@@ -403,9 +401,9 @@ struct Mat4
 
 	// gluLookAt on the identity: GLU's own float arithmetic for the three
 	// axes, its glMultMatrixf, then its glTranslated of the eye. GLU takes
-	// doubles and does the work in GLfloat, which is why these can be float
-	// without moving an entry - a float difference formed in double and
-	// rounded back is the float difference.
+	// doubles but works in GLfloat, so float parameters move no entry: a
+	// float difference formed in double and rounded back is the float
+	// difference.
 	static Mat4 lookAt(float eyeX, float eyeY, float eyeZ,
 					   float centerX, float centerY, float centerZ,
 					   float upX, float upY, float upZ)
@@ -493,11 +491,10 @@ struct Mat4
 	}
 
 	// Mesa's sine and cosine for glRotated, in float: the radians round to
-	// float before the trigonometry either way, which is why a right angle
-	// has a cosine of -4.4e-8 and not 0. Forming them in double first and
-	// rounding once buys a different last bit and nothing else - measured, it
-	// moves a point at a 320-pixel radius by 0.000163 px, where the grid the
-	// rasterizer snaps a vertex to is 1/256 of one.
+	// float before the trigonometry either way, which is why a right angle's
+	// cosine is -4.4e-8 and not 0. Forming them in double and rounding once
+	// changes the last bit and nothing else: measured, 0.000163 px at a
+	// 320-pixel radius, against the rasterizer's 1/256-pixel vertex grid.
 	static void rotationTerms(float degrees, float* p_sin, float* p_cos)
 	{
 		const float radians = degrees * 3.14159265358979323846f / 180.0f;
