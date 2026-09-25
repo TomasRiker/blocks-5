@@ -10,6 +10,7 @@ StreamedSound::StreamedSound(const std::string& filename, int) : Resource(filena
 	p_buffer = 0;
 	sourceID = 0;
 	p_thread = 0;
+	p_streamLock = SDL_CreateMutex();
 	playing = false;
 	finish = false;
 #ifndef __EMSCRIPTEN__
@@ -54,6 +55,7 @@ StreamedSound::~StreamedSound()
 	stop();
 	delete p_stream;
 	delete[] p_buffer;
+	if(p_streamLock) SDL_DestroyMutex(p_streamLock);
 }
 
 void StreamedSound::play(bool loop)
@@ -141,7 +143,10 @@ void StreamedSound::setLoopBegin(float loopBegin)
 
 uint StreamedSound::tellStream() const
 {
-	return p_stream->tell();
+	SDL_mutexP(p_streamLock);
+	const uint position = p_stream->tell();
+	SDL_mutexV(p_streamLock);
+	return position;
 }
 
 void StreamedSound::seekStream(uint position)
@@ -151,7 +156,9 @@ void StreamedSound::seekStream(uint position)
 
 uint StreamedSound::secondsToSlices(float t) const
 {
-	return static_cast<uint>(t * p_stream->getSampleRate());
+	// A negative time is 0: a loop begin of -1 means "does not loop", and a
+	// negative float converted to uint is undefined.
+	return t > 0.0f ? static_cast<uint>(t * p_stream->getSampleRate()) : 0;
 }
 
 void StreamedSound::slideVolume(float targetVolume,
@@ -264,6 +271,7 @@ void StreamedSound::stream(uint bufferID)
 {
 	// read
 	uint numSlices = bufferSize / p_stream->getSliceSize();
+	SDL_mutexP(p_streamLock);
 	uint numSlicesRead = p_stream->read(p_buffer, numSlices);
 	if(numSlicesRead != numSlices)
 	{
@@ -274,6 +282,7 @@ void StreamedSound::stream(uint bufferID)
 		}
 		else finish = true;
 	}
+	SDL_mutexV(p_streamLock);
 
 	// fill with data
 	alBufferData(bufferID, p_stream->getOpenALBufferFormat(), p_buffer, numSlicesRead * p_stream->getSliceSize(), p_stream->getSampleRate());

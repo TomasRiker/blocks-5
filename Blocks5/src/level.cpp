@@ -87,23 +87,13 @@ Level::Level()
 	// whatever the allocation happened to hold.
 	nextUID = 0;
 
-	// create the rain sound
-	if(!p_rainSoundInst)
-	{
-		Sound* p_sound = Manager<Sound>::inst().request("rain.ogg");
-		p_rainSoundInst = p_sound->createInstance(true);
-		p_rainSoundInst->setVolume(0.0f);
-		p_sound->release();
-	}
-
-	// create the thunderstorm sound
-	if(!p_thunderstormSoundInst)
-	{
-		Sound* p_sound = Manager<Sound>::inst().request("thunderstorm.ogg");
-		p_thunderstormSoundInst = p_sound->createInstance(true);
-		p_thunderstormSoundInst->setVolume(0.0f);
-		p_sound->release();
-	}
+	// Create the rain and thunderstorm sounds, played and paused at once as
+	// Player does with its loops: an instance that has never played counts as
+	// a one-shot, and a one-shot is what Sound::getFreeSource() takes a source
+	// from when the pool runs dry - which deletes the instance under the
+	// static that holds it.
+	if(!p_rainSoundInst) p_rainSoundInst = createPausedLoop("rain.ogg");
+	if(!p_thunderstormSoundInst) p_thunderstormSoundInst = createPausedLoop("thunderstorm.ogg");
 
 	Engine&	engine = Engine::inst();
 
@@ -631,14 +621,17 @@ void Level::render()
 			{
 				if(!inEditor)
 				{
-					p_rainSoundInst->play(true);
-					p_rainSoundInst->slideVolume(0.5f, 0.03f);
+					if(p_rainSoundInst)
+					{
+						p_rainSoundInst->play(true);
+						p_rainSoundInst->slideVolume(0.5f, 0.03f);
+					}
 					rainSoundOn = true;
 				}
 			}
 			else
 			{
-				p_rainSoundInst->slideVolume(-1.0f, 0.03f);
+				if(p_rainSoundInst) p_rainSoundInst->slideVolume(-1.0f, 0.03f);
 				rainSoundOn = false;
 			}
 		}
@@ -649,14 +642,17 @@ void Level::render()
 			{
 				if(!inEditor)
 				{
-					p_thunderstormSoundInst->play(true);
-					p_thunderstormSoundInst->slideVolume(0.5f, 0.03f);
+					if(p_thunderstormSoundInst)
+					{
+						p_thunderstormSoundInst->play(true);
+						p_thunderstormSoundInst->slideVolume(0.5f, 0.03f);
+					}
 					thunderstormSoundOn = true;
 				}
 			}
 			else
 			{
-				p_thunderstormSoundInst->slideVolume(-1.0f, 0.03f);
+				if(p_thunderstormSoundInst) p_thunderstormSoundInst->slideVolume(-1.0f, 0.03f);
 				thunderstormSoundOn = false;
 			}
 		}
@@ -2552,6 +2548,21 @@ template<typename T> T* Level::requestSkinFile(uint index,
 		p_resource = Manager<T>::inst().request(getSkinFilename(index), options);
 	}
 	return p_resource;
+}
+
+// 0 where there is no source for it, as for Player's loops.
+SoundInstance* Level::createPausedLoop(const std::string& filename)
+{
+	Sound* p_sound = Manager<Sound>::inst().request(filename);
+	if(!p_sound) return 0;
+	SoundInstance* p_inst = p_sound->createInstance(true);
+	p_sound->release();
+	if(!p_inst) return 0;
+
+	p_inst->setVolume(0.0f);
+	p_inst->play(true);
+	p_inst->pause();
+	return p_inst;
 }
 
 std::string Level::getAlternative(const std::string& filename,

@@ -6,6 +6,8 @@ SoundInstance::SoundInstance(Sound& sound) : sound(sound)
 {
 	// Every member before the source is asked for, so that an instance that
 	// gets none is still a whole object for the delete that follows.
+	static uint lastSerial = 0;
+	serial = ++lastSerial;
 	timestamp = ~0;
 	priority = 0;
 	looping = false;

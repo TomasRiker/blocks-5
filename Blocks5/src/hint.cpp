@@ -145,6 +145,7 @@ Hint::Hint(Level& level,
 	dismissed = false;
 	noteTexture = 0;
 	p_scrollSound = 0;
+	scrollSerial = 0;
 	scrollDirection = 0;
 	// Vec2i has no initialising default constructor.
 	targetPosition = Vec2i(320, 200);
@@ -183,7 +184,7 @@ void Hint::fadeScrollSound()
 	// paused instance never reaches AL_STOPPED, so nothing reaps it and it
 	// holds an audio source for the rest of the level. At zero it plays out
 	// inaudibly and is reaped as usual.
-	if(Sound::isLiveInstance(p_scrollSound)) p_scrollSound->slideVolume(0.0f, SCROLL_FADE_SPEED);
+	if(Sound::isLiveInstance(p_scrollSound, scrollSerial)) p_scrollSound->slideVolume(0.0f, SCROLL_FADE_SPEED);
 	p_scrollSound = 0;
 }
 
@@ -447,7 +448,11 @@ void Hint::onUpdate()
 		if(direction != 0)
 		{
 			fadeScrollSound();
-			if(level.isHintScroll()) p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0f, 100);
+			if(level.isHintScroll())
+			{
+				p_scrollSound = Engine::inst().playSound("hintscroll.ogg", false, 0.0f, 100);
+				scrollSerial = p_scrollSound ? p_scrollSound->getSerial() : 0;
+			}
 		}
 		scrollDirection = direction;
 	}

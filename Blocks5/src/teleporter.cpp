@@ -84,11 +84,15 @@ void Teleporter::onUpdate()
 			Object* p_obj = *i;
 			if(p_obj == this) continue;
 
-			if(std::find(objectsOnMe.begin(), objectsOnMe.end(), p_obj) == objectsOnMe.end() ||
-			   (p_obj->hasTeleportFailed() && level.isFreeAt(targetPosition)))
+			// The retry is only for an object this teleporter takes at all: one
+			// it refuses, still marked from a failed teleport elsewhere, would
+			// otherwise be refused, and the refusal heard, every tick it stays.
+			const bool takes = subType == 0 ||
+							   (subType == 1 && p_obj->getType() != "Player" && p_obj->getType() != "Enemy");
+			const bool arrived = std::find(objectsOnMe.begin(), objectsOnMe.end(), p_obj) == objectsOnMe.end();
+			if(arrived || (takes && p_obj->hasTeleportFailed() && level.isFreeAt(targetPosition)))
 			{
-				if(subType == 0 ||
-				   (subType == 1 && p_obj->getType() != "Player" && p_obj->getType() != "Enemy"))
+				if(takes)
 				{
 					// teleport the object
 					p_obj->teleportTo(targetPosition);

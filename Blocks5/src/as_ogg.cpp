@@ -68,6 +68,10 @@ uint AS_Ogg::read(void* p_dest,
 	{
 		int currentStream = 0;
 		int n = ov_read(&vorbisFile, p_cursor, numBytesLeft, 0, 2, 1, &currentStream);
+		// A gap in the data - a damaged or missing page - is reported once and
+		// decoding goes on after it; ended here, a looping track would start
+		// again at every flaw.
+		if(n == OV_HOLE) continue;
 		if(!n)
 		{
 			// End of file!

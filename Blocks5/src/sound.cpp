@@ -159,9 +159,11 @@ float Sound::getVolumeFactor() const
 	return volumeFactor;
 }
 
-bool Sound::isLiveInstance(SoundInstance* p_instance)
+bool Sound::isLiveInstance(SoundInstance* p_instance, uint serial)
 {
-	return p_instance && allInstances.find(p_instance) != allInstances.end();
+	// The serial is read only once the set has vouched for the pointer.
+	return p_instance && allInstances.find(p_instance) != allInstances.end() &&
+		   p_instance->getSerial() == serial;
 }
 
 const std::set<SoundInstance*>& Sound::getInstances() const

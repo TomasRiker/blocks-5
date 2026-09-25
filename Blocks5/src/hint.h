@@ -70,9 +70,11 @@ private:
 
 	// The rustle, held only to fade it when its motion is cut short. Sound
 	// deletes an instance once it has played out, so Sound::isLiveInstance()
-	// is asked before the pointer is used. scrollDirection is the paper's
-	// motion in the last tick: 1 unrolling, -1 rolling up, 0 at rest.
+	// is asked, with the serial, before the pointer is used. scrollDirection
+	// is the paper's motion in the last tick: 1 unrolling, -1 rolling up, 0 at
+	// rest.
 	SoundInstance* p_scrollSound;
+	uint scrollSerial;
 	int scrollDirection;
 	void fadeScrollSound();
 

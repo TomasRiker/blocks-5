@@ -38,6 +38,7 @@ private:
 	ushort sparkId;
 	int counter;
 	SoundInstance* p_soundInst;
+	uint soundSerial;
 };
 
 #endif

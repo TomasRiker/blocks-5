@@ -179,6 +179,7 @@ public:
 
 	std::string getSkinFilename(uint index);
 	static std::string getAlternative(const std::string& filename, const std::string& dir1, const std::string& dir2);
+	static SoundInstance* createPausedLoop(const std::string& filename);
 	void allocateTiles();
 	bool loadErrorLevel();
 	void loadSkin(bool forceReload = false);

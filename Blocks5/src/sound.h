@@ -19,11 +19,12 @@ public:
 
 	const std::set<SoundInstance*>& getInstances() const;
 
-	// Is this still a live instance? One is deleted once its sound has played
-	// out or its source was taken, so whatever keeps the pointer across ticks
-	// (the diamond machine and the hint, to slide their sound down) has to
-	// ask before touching it again.
-	static bool isLiveInstance(SoundInstance* p_instance);
+	// Is this still the live instance it was? One is deleted once its sound
+	// has played out or its source was taken, so whatever keeps the pointer
+	// across ticks (the diamond machine and the hint, to slide their sound
+	// down) has to ask before touching it again - with the serial it took
+	// along, since a newer instance can be allocated at the same address.
+	static bool isLiveInstance(SoundInstance* p_instance, uint serial);
 
 	// How loud this sound plays relative to its file, 1.0 if it is not in
 	// data/sounds.xml. Looked up once at construction; the table never

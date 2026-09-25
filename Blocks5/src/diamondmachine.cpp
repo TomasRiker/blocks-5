@@ -164,6 +164,7 @@ DiamondMachine::DiamondMachine(Level& level,
 	counter = -1;
 	sparkId = 0;
 	p_soundInst = 0;
+	soundSerial = 0;
 }
 
 DiamondMachine::~DiamondMachine()
@@ -333,7 +334,7 @@ void DiamondMachine::abortConversion()
 	// one-shot.
 	if(p_soundInst)
 	{
-		if(Sound::isLiveInstance(p_soundInst))
+		if(Sound::isLiveInstance(p_soundInst, soundSerial))
 		{
 			p_soundInst->slideVolume(0.0f, SOUND_FADE_SPEED);
 			p_soundInst->slidePitch(SOUND_FADE_PITCH, SOUND_FADE_SPEED);
@@ -494,6 +495,7 @@ void DiamondMachine::onUpdate()
 						// one-shot, so it may well have been reaped before
 						// then - Sound::isLiveInstance is what asks.
 						p_soundInst = Engine::inst().playSound("diamondmachine.ogg", false, 0.0f, 100);
+						soundSerial = p_soundInst ? p_soundInst->getSerial() : 0;
 					}
 				}
 				else
