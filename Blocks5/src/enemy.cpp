@@ -13,9 +13,19 @@ Enemy::Enemy(Level& level,
 	renderLayers = RL_MAIN | RL_LIGHT;
 	warpTo(position);
 	setMass(1);
+
+	// subType comes out of the level file unchecked (presets.cpp), and only 0
+	// and 1 mean anything: any other value would be an enemy that neither
+	// draws nor moves.
+	if(subType < 0 || subType > 1)
+	{
+		printfLog("+ WARNING: Enemy with subType %d, which does not exist. Treating it as 0.\n", subType);
+		subType = 0;
+	}
+
 	this->subType = subType;
-	this->dir = dir;
-	shownDir = static_cast<float>(dir);
+	this->dir = wrapIndex(dir, 4);
+	shownDir = static_cast<float>(this->dir);
 	anim = 0;
 	moveCounter = 40;
 	thinkCounter = 40;

@@ -9,7 +9,7 @@ LightBarrierSender::LightBarrierSender(Level& level,
 	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT | RL_SPARKLE;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_TRANSPORTABLE;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	counter = 0;
 }
 

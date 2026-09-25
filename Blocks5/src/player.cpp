@@ -27,7 +27,8 @@ Player::Player(Level& level,
 	burstSound = "player_burst.ogg";
 
 	interpolation = 0.3f;
-	this->character = character;
+	// three characters; the level file may say anything
+	this->character = character % 3;
 	this->active = false;
 	if(active) activate();
 	touch = 0;

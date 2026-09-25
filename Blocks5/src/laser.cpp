@@ -17,7 +17,7 @@ Laser::Laser(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	counter = 0;
 	on = 0.0f;
 

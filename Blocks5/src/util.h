@@ -63,6 +63,11 @@ float random(float min, float max);
 // (LinuxBuild/test/frames.sh); a shipped game keeps MTRand's own seeding.
 void seedRandom(uint seed);
 Vec2i numberToDir(int dir);
+// A value that goes round - a direction, a rail's shape - reduced to 0 to
+// count - 1, as the editor's rotation reduces it. For what a level file
+// brings, which may be anybody's: a negative value makes "% count" negative
+// too, and then it matches no case.
+inline int wrapIndex(int value, int count) { return ((value % count) + count) % count; }
 void generatePrimes(uint* p_out, uint maxNum);
 // Reads 7 base-62 digits; the caller has checked they are there.
 uint fromBase62(const char* p_in);
@@ -138,6 +143,16 @@ inline float wrapTextureOffset(float offset, int period)
 {
 	if(period <= 0) return offset;
 	return fmodf(offset, static_cast<float>(period));
+}
+
+// Whether a float is a number and not a NaN or an infinity, read off its
+// bits: the Windows release build compiles /fp:fast, under which a comparison
+// with a NaN need not come out false. For values out of a file.
+inline bool isFiniteFloat(float value)
+{
+	uint bits;
+	memcpy(&bits, &value, sizeof(bits));
+	return (bits & 0x7F800000u) != 0x7F800000u;
 }
 
 // To the nearest whole pixel, both signs alike. Adding 0.5 and converting is

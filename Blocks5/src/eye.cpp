@@ -12,7 +12,7 @@ Eye::Eye(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_DESTROYABLE | OF_NO_SHADOW;
-	this->dir = dir;
+	this->dir = dir > 0 ? 1 : -1;
 	viewDir = Vec2f(0.0f, 0.1f);
 	closed = 0;
 }

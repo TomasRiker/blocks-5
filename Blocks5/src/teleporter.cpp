@@ -23,6 +23,16 @@ Teleporter::Teleporter(Level& level,
 		subType = 0;
 	}
 
+	// So does the target. Off the grid nothing can stand, and the teleport
+	// would put its object nowhere; such a teleporter points at itself and
+	// sends nothing anywhere.
+	if(!level.isValidPosition(targetPosition))
+	{
+		printfLog("+ WARNING: Teleporter at (%d, %d) with its target (%d, %d) outside the level. It gets none.\n",
+				  position.x, position.y, targetPosition.x, targetPosition.y);
+		this->targetPosition = position;
+	}
+
 	this->subType = subType;
 	anim = 0;
 }

@@ -21,7 +21,7 @@ E_FlipFlop::E_FlipFlop(Level& level,
 	}
 
 	this->subType = subType;
-	this->value = value;
+	this->value = value ? 1 : 0;
 
 	// create the pins
 	switch(subType)
@@ -119,7 +119,7 @@ void E_FlipFlop::doLogic()
 			int d = getValue(0);
 			int clk = getValue(1);
 			int oldClk = getOldValue(1);
-			if(clk && !oldClk) value = d;
+			if(clk && !oldClk) value = d ? 1 : 0;
 			break;
 		}
 

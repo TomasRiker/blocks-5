@@ -11,7 +11,7 @@ CannonSwitch::CannonSwitch(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED;
-	this->subType = subType;
+	this->subType = subType ? 1 : 0;
 	this->color = color;
 }
 

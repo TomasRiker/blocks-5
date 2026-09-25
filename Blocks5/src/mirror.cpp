@@ -24,7 +24,7 @@ Mirror::Mirror(Level& level,
 	}
 
 	this->subType = subType;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 }
 
 Mirror::~Mirror()

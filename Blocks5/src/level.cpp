@@ -355,9 +355,19 @@ bool Level::load(TiXmlDocument* p_doc,
 				continue;
 			}
 			const std::string type(p_type);
-			Vec2i position;
-			p_object->Attribute("x", &position.x);
-			p_object->Attribute("y", &position.y);
+			// The same for a position that is missing, is not a number or
+			// lies off the grid: TinyXML leaves the int untouched then, and
+			// the object would stand wherever the stack put it.
+			Vec2i position(0, 0);
+			if(p_object->QueryIntAttribute("x", &position.x) != TIXML_SUCCESS ||
+			   p_object->QueryIntAttribute("y", &position.y) != TIXML_SUCCESS ||
+			   !isValidPosition(position))
+			{
+				printfLog("+ WARNING: Level \"%s\" has a \"%s\" without a valid position. It is left out.\n",
+						  filename.c_str(), p_type);
+				p_object = p_object->NextSiblingElement("Object");
+				continue;
+			}
 
 			// instance the object
 			Object* p_theObject = p_presets->instancePreset(type, position, p_object);

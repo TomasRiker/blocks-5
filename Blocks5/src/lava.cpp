@@ -16,7 +16,7 @@ Lava::Lava(Level& level,
 	renderLayers = RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT | RL_EDITOR | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED | OF_DONT_FALL | OF_NO_SHADOW;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 20);
 	anim = 0;
 }
 
