@@ -108,8 +108,9 @@ public:
 	// The filter creates its element itself, so the element name stands in
 	// u_*.cpp, where Tools/verify.py's config check sees both halves together.
 	// Runs without a GL context, and may come more than once: the options
-	// dialog's Cancel calls loadConfig() mid-game. Read only what is there
-	// and reset nothing.
+	// dialog's Cancel calls loadConfig() mid-game to take back what it
+	// changed. p_config is 0 where there is no file, and whatever it does not
+	// say goes back to the filter's default.
 	virtual void loadConfig(TiXmlElement* p_config);
 	virtual void saveConfig(TiXmlElement* p_config);
 

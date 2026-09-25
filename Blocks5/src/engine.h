@@ -69,7 +69,10 @@ struct VirtualKey
 		: device(-1)
 		, key(-1)
 		, axis(-1)
+		, positive(false)
 		, hat(-1)
+		, hatDir(0)
+		, down(false)
 	{
 	}
 };

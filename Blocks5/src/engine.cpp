@@ -490,13 +490,14 @@ bool Engine::init(const std::string& windowCaption,
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	if(!windowIconFilename.empty())
+	// Load the icon. Without it the game goes on: the file is in data.zip,
+	// and a missing or broken data.zip is better reported by whatever needs
+	// it next than by a crash here, before anything useful is in the log.
+	File* p_iconFile = windowIconFilename.empty() ? 0 : FileSystem::inst().openFile(windowIconFilename);
+	SDL_Surface* p_iconSurface = p_iconFile ? IMG_Load_RW(p_iconFile->getRWOps(), 1) : 0;
+	if(p_iconSurface)
 	{
-		// load the icon
-		FileSystem& fs = FileSystem::inst();
-		File* p_file = fs.openFile(windowIconFilename);
-		SDL_RWops* p_rwOps = p_file->getRWOps();
-		SDL_Surface* p_surface = IMG_Load_RW(p_rwOps, 1);
+		SDL_Surface* p_surface = p_iconSurface;
 		SDL_Surface* p_rgba = SDL_CreateRGBSurface(SDL_SWSURFACE, p_surface->w, p_surface->h, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
 		SDL_SetAlpha(p_surface, 0, 0);
 		SDL_BlitSurface(p_surface, 0, p_rgba, 0);
@@ -734,8 +735,17 @@ void Engine::exit()
 		p_videoRecorder = 0;
 	}
 
-	// leave the current game state
-	setGameState("");
+	// Leave every game state, now and not at a next tick that never comes:
+	// setGameState() only queues the change, and an onLeave() that never ran
+	// would leave behind what it gives up - the menu's open file dialog, for
+	// one, which under Linux is a program of its own and outlived the game.
+	// Not after a crash the handler caught: the game states were locals of
+	// the frame it unwound, and this runs from the destructor.
+	if(!writingCrashLog)
+	{
+		setGameState("");
+		processGameStateChanges();
+	}
 
 	// shut down the GUI
 	printfLog("* Shutting down GUI ...\n");
@@ -1129,7 +1139,11 @@ void Engine::mainLoopIteration()
 			showLastFrame();
 
 			updateSounds();
+#ifndef __EMSCRIPTEN__
+			// Not in the browser, where requestAnimationFrame sets the pace
+			// and SDL_Delay is a busy-wait on the main thread.
 			SDL_Delay(50);
+#endif
 			// Or the first frame after the return would report the whole
 			// inactive stretch as its interval.
 			lastFrameBegin = 0;
@@ -2059,7 +2073,9 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent* p_even
 {
 	if(p_event->altKey && p_event->keyCode == 13)
 	{
-		Engine::inst().toggleFullScreen();
+		// Swallowed on a repeat too, but toggled only on the press: a held
+		// Alt+Return would otherwise enter and leave the fullscreen by turns.
+		if(!p_event->repeat) Engine::inst().toggleFullScreen();
 		return EM_TRUE;
 	}
 	return EM_FALSE;
@@ -3126,10 +3142,12 @@ void Engine::playMusic(const std::string& filename,
 					if(it != musicStoppedAt.end()) p_currentMusic->seekStream(it->second);
 				}
 
+				// The loop begin before play(), which starts the decoder
+				// thread that reads it.
+				p_currentMusic->setLoopBegin(loopBegin);
 				p_currentMusic->setVolume(0.0f);
 				p_currentMusic->play(loopBegin != -1.0f);
 				p_currentMusic->slideVolume(1.0f, 0.02f);
-				p_currentMusic->setLoopBegin(loopBegin);
 			}
 			else
 			{
@@ -3833,14 +3851,16 @@ void Engine::repairLostBindings()
 
 void Engine::limitActionKeys()
 {
-	// limit the actions' indices
+	// Limit the actions' indices at both ends: config.xml can say anything,
+	// and -1, unbound, is the only negative one that means something.
+	const int numKeys = static_cast<int>(virtualKeys.size());
 	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
 		Action& a = *(it->second);
-		if(a.primary >= static_cast<int>(virtualKeys.size())) a.primary = -1;
-		if(a.secondary >= static_cast<int>(virtualKeys.size())) a.secondary = -1;
+		if(a.primary < -1 || a.primary >= numKeys) a.primary = -1;
+		if(a.secondary < -1 || a.secondary >= numKeys) a.secondary = -1;
 	}
 }
 
@@ -4060,17 +4080,31 @@ std::string Engine::detectSystemLanguage()
 
 void Engine::loadConfig()
 {
-	// With no <Language> in config.xml the system decides.
+	// Every setting the file can hold starts from its default, so that what
+	// the file leaves out - all of it, before the first OK writes one - is the
+	// default and not whatever stood before: the options dialog's Cancel
+	// reloads this to take back what the dialog changed. The volumes through
+	// their setters, so that a sound already playing hears of them. With no
+	// <Language> the system decides.
 	language = detectSystemLanguage();
-	soundVolume = musicVolume = 1.0f;
-	particleDensity = 1.0f;
-	details = 2;
+	setSoundVolume(1.0f);
+	setMusicVolume(1.0f);
+	setDetails(2);
+	p_wantedUpscaler = p_sharpFit;
+	resetActions();
 
+	// A file that is missing or will not parse reads as an empty one.
 	TiXmlDocument doc;
 	doc.LoadFile(FileSystem::inst().getAppHomeDirectory() + "config.xml");
-	if(doc.ErrorId()) return;
+	TiXmlElement* p_config = doc.ErrorId() ? 0 : doc.FirstChildElement("Config");
 
-	TiXmlElement* p_config = doc.FirstChildElement("Config");
+	// Each filter starts from its own defaults too and reads its own element,
+	// whether it is the chosen one or not.
+	for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
+	{
+		(*i)->loadConfig(p_config);
+	}
+
 	if(p_config)
 	{
 		// read the language
@@ -4094,13 +4128,6 @@ void Engine::loadConfig()
 			else printfLog("  Unknown <Upscaler> \"%s\" in config.xml; using %s.\n",
 						   p_upscaler->GetText() ? p_upscaler->GetText() : "",
 						   p_wantedUpscaler->getName());
-		}
-
-		// And whatever the filters themselves have to set - each reads its own
-		// element, even when it is not the chosen one.
-		for(std::vector<Upscaler*>::iterator i = upscalers.begin(); i != upscalers.end(); ++i)
-		{
-			(*i)->loadConfig(p_config);
 		}
 
 		// The window's position, size, maximized and fullscreen state, read
@@ -4203,10 +4230,6 @@ void Engine::loadConfig()
 
 				p_action = p_action->NextSiblingElement("Action");
 			}
-		}
-		else
-		{
-			resetActions();
 		}
 	}
 
@@ -4315,6 +4338,9 @@ float Engine::getSoundVolume() const
 
 void Engine::setSoundVolume(float soundVolume)
 {
+	// config.xml can say "nan", which clamp() lets through and OpenAL refuses
+	// as a gain, leaving every source at full volume and every fade undone.
+	if(!isFiniteFloat(soundVolume)) soundVolume = 1.0f;
 	soundVolume = clamp(soundVolume, 0.0f, 1.0f);
 
 	this->soundVolume = soundVolume;
@@ -4328,6 +4354,8 @@ float Engine::getMusicVolume() const
 
 void Engine::setMusicVolume(float musicVolume)
 {
+	// As for the sounds.
+	if(!isFiniteFloat(musicVolume)) musicVolume = 1.0f;
 	musicVolume = clamp(musicVolume, 0.0f, 1.0f);
 
 	this->musicVolume = musicVolume;
@@ -4365,6 +4393,10 @@ int Engine::getDetails() const
 
 void Engine::setDetails(int details)
 {
+	// 0 to 2 as the options dialog offers them: config.xml can say anything,
+	// and Lightning::generate takes the value as a loop bound.
+	if(details < 0) details = 0;
+	if(details > 2) details = 2;
 	this->details = details;
 
 	if(details == 0) setParticleDensity(0.333f);

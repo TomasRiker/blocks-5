@@ -421,6 +421,20 @@ static const char* p_crtFragmentShader =
 	"    gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / GAMMA_OUT)), 1.0);\n"
 	"}\n";
 
+namespace
+{
+	// Where every slider starts, and where one goes back to when config.xml
+	// does not name it.
+	const float SLIDER_DEFAULT = 0.5f;
+
+	// clamp() lets a NaN through, both of its comparisons being false, and
+	// config.xml can hold one: TinyXML reads "nan" as a float.
+	float sliderValue(float value)
+	{
+		return isFiniteFloat(value) ? clamp(value, 0.0f, 1.0f) : SLIDER_DEFAULT;
+	}
+}
+
 U_Crt::U_Crt()
 {
 	locScanline = -1;
@@ -436,12 +450,7 @@ U_Crt::U_Crt()
 	// present() sets it every frame; this value serves the first logic tick,
 	// which converts the mouse before any present().
 	frameSize = Vec2i(640, 480);
-	scanline = 0.5f;
-	curvature = 0.5f;
-	bloom = 0.5f;
-	flicker = 0.5f;
-	scanFlicker = 0.5f;
-	convergence = 0.5f;
+	scanline = curvature = bloom = flicker = scanFlicker = convergence = SLIDER_DEFAULT;
 }
 
 U_Crt::~U_Crt()
@@ -485,12 +494,14 @@ void U_Crt::present(const PresentContext& context)
 	PresentProgram::setUniform(locOverscan, getOverscan());
 
 	// The wall clock, not Engine::getTime(), which counts logic ticks and
-	// stops with them; a screen flickers anyway. scrollOffset() wraps it at
+	// stops with them; a screen flickers anyway. Wrapped at
 	// CRT_FLICKER_CYCLE, a whole number of runs of every frequency in the
 	// shader, so nothing jumps at the wrap and the shader's sin() arguments
-	// stay small.
-	PresentProgram::setUniform(locTime,
-		scrollOffset(SDL_GetTicks(), 0.001f, 0.0f, CRT_FLICKER_CYCLE));
+	// stay small - and wrapped as an integer, before it becomes a float, or
+	// after a day and a half of running a float second no longer holds the
+	// millisecond and the 29 Hz term starts to step.
+	const uint cycleMs = static_cast<uint>(CRT_FLICKER_CYCLE * 1000.0f);
+	PresentProgram::setUniform(locTime, 0.001f * static_cast<float>(SDL_GetTicks() % cycleMs));
 
 	// The scan-line crawl is a ramp whose slope follows the slider, so it
 	// cannot come from the wrapped Time without jumping at every wrap: it is
@@ -574,21 +585,22 @@ Vec2f U_Crt::warpToOutput(const Vec2f& s) const
 	return Vec2f(x, y);
 }
 
-void U_Crt::setScanline(float value)    { scanline = clamp(value, 0.0f, 1.0f); }
-void U_Crt::setCurvature(float value)   { curvature = clamp(value, 0.0f, 1.0f); }
-void U_Crt::setBloom(float value)       { bloom = clamp(value, 0.0f, 1.0f); }
-void U_Crt::setFlicker(float value)     { flicker = clamp(value, 0.0f, 1.0f); }
-void U_Crt::setScanFlicker(float value) { scanFlicker = clamp(value, 0.0f, 1.0f); }
-void U_Crt::setConvergence(float value) { convergence = clamp(value, 0.0f, 1.0f); }
+void U_Crt::setScanline(float value)    { scanline = sliderValue(value); }
+void U_Crt::setCurvature(float value)   { curvature = sliderValue(value); }
+void U_Crt::setBloom(float value)       { bloom = sliderValue(value); }
+void U_Crt::setFlicker(float value)     { flicker = sliderValue(value); }
+void U_Crt::setScanFlicker(float value) { scanFlicker = sliderValue(value); }
+void U_Crt::setConvergence(float value) { convergence = sliderValue(value); }
 
 void U_Crt::loadConfig(TiXmlElement* p_config)
 {
-	TiXmlElement* p_crt = p_config->FirstChildElement("CrtUpscaler");
+	// The defaults for what the file does not say, and for everything where
+	// there is no file (p_config 0): the options dialog's Cancel reloads the
+	// configuration to take back what the sliders changed.
+	scanline = curvature = bloom = flicker = scanFlicker = convergence = SLIDER_DEFAULT;
+	TiXmlElement* p_crt = p_config ? p_config->FirstChildElement("CrtUpscaler") : 0;
 	if(!p_crt) return;
 
-	// Read only what is there and reset nothing: the options dialog's Cancel
-	// button calls loadConfig() in the middle of the game, and on a first
-	// start the file does not exist at all yet.
 	float value = 0.0f;
 	if(p_crt->QueryFloatAttribute("scanline", &value) == TIXML_SUCCESS)    setScanline(value);
 	if(p_crt->QueryFloatAttribute("curvature", &value) == TIXML_SUCCESS)   setCurvature(value);
