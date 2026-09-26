@@ -31,10 +31,12 @@ public:
 	// scope around the children for it.
 	virtual bool getClipRect(Vec2i* p_position, Vec2i* p_size) const;
 
-	// Any element can point at another one (for="Name"), as <label for> does
-	// in a browser: a click on it toggles a checkbox or radio button target
-	// and focuses any other, an edit box above all. Not only text can be a
-	// label - the language flags in options.xml are <StaticImage>.
+	// An element that keeps these handlers can point at another one
+	// (for="Name"), as <label for> does in a browser: a click on it toggles a
+	// checkbox or radio button target and focuses any other, an edit box above
+	// all. Not only text can be a label - the language flags in options.xml
+	// are <StaticImage>. A button, a box or a list overrides them and so
+	// ignores a for.
 	virtual void onMouseDown(const Vec2i& position, int buttons);
 	virtual void onMouseUp(const Vec2i& position, int buttons);
 	virtual void onMouseEnter(int buttons);

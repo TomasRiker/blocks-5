@@ -378,11 +378,11 @@ struct Mat4
 							 m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14]);
 	}
 
-	// gluPerspective's matrix. GLU builds it in double and this in float,
-	// which reaches only the depth row, m[10] and m[14], the entries that
-	// read zNear and zFar. m[0] and m[5], the cotangent of half the field of
-	// view over the aspect, put a corner on the screen, read neither, and
-	// come out bit for bit the same.
+	// gluPerspective's matrix. GLU builds it in double and this in float. At
+	// 90 degrees, which every caller but CF_Zoom asks for, the cotangent in
+	// m[0] and m[5] is exactly 1 either way and only the depth row, m[10] and
+	// m[14], can differ; at CF_Zoom's narrower angles m[0] and m[5] can
+	// differ from GLU's in the last bit or two as well.
 	static Mat4 perspective(float fovy, float aspect, float zNear, float zFar)
 	{
 		const float radians = fovy / 2.0f * 3.14159265358979323846f / 180.0f;

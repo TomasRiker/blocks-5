@@ -88,10 +88,10 @@ in it no longer compiles. Everything Xlib-specific therefore stays in here.
   dialog under Windows.
 
 - **The update check** calls `curl` or `wget` instead of bringing an HTTPS
-  client of its own. It is off as shipped (`.update_checker` in the user
-  directory) and, when it finds something, says so only in the log: the engine
-  is not running yet at that point, and there is therefore neither a toast bar
-  nor a dialog.
+  client of its own. It is on as shipped - the game folder's `.update_checker`,
+  which a first start copies into the user directory, holds a `1` - and, when
+  it finds something, says so only in the log: the engine is not running yet
+  at that point, and there is therefore neither a toast bar nor a dialog.
 
 - **No crash handler.** The one under Windows is SEH, and that does not exist
   here.
@@ -132,10 +132,10 @@ own, and not a directory with anything else in it.
 
     LinuxBuild/build.sh hooks && LinuxBuild/test/undo.sh
 
-Works every tool, key and dialog of the level editor once changing the level
-and once changing nothing, and reads the undo and redo depths the hook reports
-after each: a change is one step however many cells it touched, and nothing
-changed is no step and leaves the redo list standing.
+Works the level editor's tools, keys and dialogs, most of them once changing
+the level and once changing nothing, and reads the undo and redo depths the
+hook reports after each: a change is one step however many cells it touched,
+and nothing changed is no step and leaves the redo list standing.
 
 ### Counting particles
 

@@ -21,8 +21,9 @@ every build, and not the link-time wrappers, which are a test-hooks build only; 
 nothing contributes a zero, exactly as it contributes a zero render time.
 
 **The overlay's own draw is in that count, and the phase timings do not say so.** `drawOverlays()` runs
-after `render()` and before the present, so what it costs falls outside `r:` and `p:` while landing
-inside `ms:` and inside `draws:` — which is the one a reader is likeliest to take for the game's own.
+after `render()` and before the present, so building the overlay falls outside `r:` and `p:` while landing
+inside `ms:`, and its one draw is issued at the flush that opens the present, inside `p:` and inside
+`draws:` — which is the one a reader is likeliest to take for the game's own.
 Measured on the menu, same scene and same seed: **5.16 draws a frame without `-perf` and 6.16 with it**.
 One and not two, because the strip's background comes from the renderer's built-in block and its text
 from the font, and those have shared an atlas page since the built-in went into one. Subtract the one

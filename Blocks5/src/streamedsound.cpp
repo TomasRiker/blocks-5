@@ -151,7 +151,9 @@ uint StreamedSound::tellStream() const
 
 void StreamedSound::seekStream(uint position)
 {
+	SDL_mutexP(p_streamLock);
 	p_stream->seek(position);
+	SDL_mutexV(p_streamLock);
 }
 
 uint StreamedSound::secondsToSlices(float t) const

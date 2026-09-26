@@ -531,10 +531,11 @@ void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Ve
 	{
 		Vertex vertex;
 		vertex.position = p_positions[i];
-		// The one line that turns a caller's texels into the coordinate GL
-		// samples with, so the atlas origin is added here and nowhere else: a
-		// cache holding uv in its own picture's texels (the tile grid, the
-		// font, the lightning) stays right when a repack moves the picture.
+		// Where a caller's texels become the coordinate GL samples with -
+		// quads3D repeats it for its own path - so no caller adds the atlas
+		// origin itself: a cache holding uv in its own picture's texels (the
+		// tile grid, the font, the lightning) stays right when a repack moves
+		// the picture.
 		u[i] = p_uvs[i].x * s.texture.texelScale.x + s.texture.uvOrigin.x;
 		v[i] = p_uvs[i].y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		vertex.uv = Vec2f(u[i], v[i]);

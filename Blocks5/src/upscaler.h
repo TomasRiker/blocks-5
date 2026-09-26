@@ -94,8 +94,8 @@ public:
 	// The same mapping as in the filter's own shader, in both directions; the
 	// coordinates run from -1 to 1 out from the centre of the picture. A
 	// filter that does not distort the picture returns its argument unchanged.
-	// Both run on every tick and every recorded frame, so a virtual call and
-	// not a lookup by name.
+	// warpToSource() runs on every tick and every recorded frame, so a
+	// virtual call and not a lookup by name.
 	virtual Vec2f warpToSource(const Vec2f& p) const { return p; }
 	virtual Vec2f warpToOutput(const Vec2f& s) const { return s; }
 

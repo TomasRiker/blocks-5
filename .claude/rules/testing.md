@@ -92,8 +92,9 @@ the single-levels list and keeps the developer's own levels and progress out of 
 
 `LinuxBuild/test/undo.sh` reads the level editor's `undo` and `redo` depths off the dump, the only
 place they show: an undo step that changed nothing looks like any other until Ctrl+Z visibly does
-nothing, and by then it has cleared the redo list. The tools, keys and dialogs are worked once changing
-the level and once not; which of the two it was, `GS_LevelEditor::endChange` decides from the level's XML.
+nothing, and by then it has cleared the redo list. The tools, keys and dialogs are worked, most of them
+once changing the level and once not; which of the two it was, `GS_LevelEditor::endChange` decides from
+the level's XML.
 
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
@@ -192,12 +193,13 @@ In the browser the same key comes from `WebBuild/test/harness.js`, which counts 
 renderer's draws and the present's, one to one, with no emulation in between — and `resetStats()` starts
 both counters in one evaluate so no frame falls between them.
 
-**The CRT settings button leaves the filter on, and a fresh home cannot take it back.** The button
-switches to the CRT filter there and then, and the dialog's Cancel undoes it through `loadConfig()` —
-which returns early where there is no `config.xml`, and a harness run starts from a home that has none.
-The filter then stays on with its curvature, every later click is warped off its element, and what that
-looks like is a scene three steps later failing on a button that "is not visible". The `crt` scene clicks
-the previous filter's own radio button before Cancel, under the name the dump reports as `filter`.
+**The CRT settings button switches the filter on there and then**, and only the dialog's Cancel takes it
+back, through `loadConfig()`: every setting starts from its default and then reads `config.xml`, so on a
+harness run's fresh home, which has none, Cancel lands on the default filter and not necessarily on the
+one that was on. A filter left on with its curvature warps every later click off its element, and what
+that looks like is a scene three steps later failing on a button that "is not visible". The `crt` scene
+therefore clicks the previous filter's own radio button before Cancel, under the name the dump reports as
+`filter`, and does not rest on the default being it.
 
 Scenes are driven by element name where there is one and by game coordinate where there is not:
 `b5_clickAt` and `b5_mouseAt` take a 640x480 coordinate and map it through the present rectangle, which is

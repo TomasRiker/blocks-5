@@ -5,10 +5,11 @@
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/undo.sh
 #
 # The hook reports the editor's undo and redo depths, which no picture shows,
-# and every assertion below is that pair. A step that changes nothing is the
-# failure worth a test: Ctrl+Z then visibly does nothing, and the step clears
-# the redo list on its way in. The tools, keys and dialogs that change the
-# level are worked here, most of them once changing it and once not.
+# and every assertion below is that pair, bar the two that the note's editor
+# opened. A step that changes nothing is the failure worth a test: Ctrl+Z then
+# visibly does nothing, and the step clears the redo list on its way in. The
+# tools, keys and dialogs that change the level are worked here, most of them
+# once changing it and once not.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

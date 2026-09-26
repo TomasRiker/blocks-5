@@ -22,15 +22,15 @@ on `visualViewport` resizes too — that is how a phone reports the address bar 
 handles `webglcontextlost`, a real event when a tab goes to the background, by saying so instead of
 freezing: the game cannot rebuild its textures and its FBO from where it stands.
 
-**Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default
-for F1 to F24 in the capture phase, ahead of every other listener, and SDL still receives the key: they
-are bindable actions like any other key and the
-desktop build answers to all of them — a player who knows the game must not find half of them missing, and
-taking a named few would be the worst of both. Left alone, F1 opens the browser's help, F5 reloads the page
-and loses the level, F10 reaches for the menu bar, F11 goes fullscreen and F12 opens the developer tools.
-Nothing is lost: Ctrl+R and the address bar still reload, Ctrl+Shift+I still opens the tools, and
-fullscreen is Alt+Enter as on the desktop. Whether a browser hands a page F11 and F12 at all is its own
-decision; asking costs nothing where the answer is no.
+**Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default for
+F1 to F24 in the capture phase on window, ahead of SDL's listeners and the browser's own action, and SDL
+still receives the key: they are bindable actions like any other key and the desktop build answers to all of
+them — a player who knows the game must not find half of them missing, and taking a named few would be the
+worst of both. Left alone, F1 opens the browser's help, F5 reloads the page and loses the level, F10 reaches
+for the menu bar, F11 goes fullscreen and F12 opens the developer tools. Nothing is lost: Ctrl+R and the
+address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Enter as on the desktop.
+Whether a browser hands a page F11 and F12 at all is its own decision; asking costs nothing where the answer
+is no.
 
 **Which is why the click prompt names Alt+Enter.** The first gesture takes the fullscreen, but the way back
 into it on a keyboard is that chord, which nobody guesses unaided, so `$WEB_FULLSCREEN_HINT` sits under

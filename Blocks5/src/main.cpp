@@ -141,7 +141,7 @@ std::string getCurrentVersion()
 #else
 	// No HTTP client of our own: TLS would be one more library for sixteen
 	// bytes. curl or wget is on nearly every Linux; where neither is, the
-	// check is skipped - it is off as shipped anyway.
+	// check is skipped.
 	const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 	const char* const p_url = "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
 
@@ -172,9 +172,9 @@ std::string getCurrentVersion()
 namespace
 {
 	// The update checker's two switches, needed at the first installation
-	// and on two update paths. The .bat files ship only under Windows;
-	// .update_checker itself is a one-character text file any editor can
-	// change.
+	// and on two update paths. Only under Windows are the .bat files copied,
+	// a batch file running nowhere else; .update_checker itself is a
+	// one-character text file any editor can change.
 	bool copyUpdateCheckerFiles(FileSystem& fs, const std::string& homeDirectory)
 	{
 		bool success = true;
@@ -234,9 +234,9 @@ bool isNewer(const std::string& version1,
 
 // Set aside copies of shipped files in the user directory, where earlier
 // versions copied the shipped content on the first start. The game folder
-// comes first, so such a copy would be unreachable and only appear twice in
-// the Manager's list. The player files (FileSystem::getPlayerFiles) are not
-// shipped content and stay.
+// comes first, so such a copy could never be loaded, and the Manager, which
+// lists the name once as the shipped file's, would not delete it. The player
+// files (FileSystem::getPlayerFiles) are not shipped content and stay.
 //
 // Renamed, not deleted: nobody can tell from outside whether one was edited.
 // .bak takes them out of every list, since every lister filters on the exact
@@ -487,8 +487,6 @@ int runTheGame(int argc,
 #elif !defined(__EMSCRIPTEN__)
 			// Only the log: the engine is not running yet, so there is no toast
 			// or dialog, and a browser nobody asked for must not spring open.
-			// Whoever switched the check on did so in a text file and reads
-			// these lines too.
 			printfLog("%s", str.str().c_str());
 			printfLog("https://www.david-scherfgen.de/meine-spiele/blocks-5/\n\n");
 #endif
@@ -641,7 +639,9 @@ int main(int argc,
 		// The trace is in the log, which printfLog() closes after every line.
 		// Nothing after a crash is to be trusted, so the process ends here:
 		// returning would run the static destructors, the engine's whole
-		// shutdown among them, over whatever the crash damaged.
+		// shutdown among them, over whatever the crash damaged. What that
+		// gives up is the window placement and a video being recorded, whose
+		// index is written only when it closes.
 		TerminateProcess(GetCurrentProcess(), 1);
 		return 1;
 	}

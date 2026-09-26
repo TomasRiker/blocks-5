@@ -73,9 +73,9 @@ at the **top** of the function, before the enter/leave dispatch and before the b
 the bottom, which would dispatch every click to whatever had been under the cursor at the end of the
 *previous* logic tick. With a mouse that is invisible: you cannot click where the pointer is not, and
 between arriving over a button and pressing it there is always at least one 20 ms tick. A finger has no
-such gap. The other half is in `Engine`: a touch produces no `SDL_MOUSEMOTION` at all, so both button
-events take the position from the event too, not only the motion event. Either half alone changes
-nothing; the pair is what makes a tap land.
+such gap. The other half is in `Engine`: a finger lands with no `SDL_MOUSEMOTION` before it, so both
+button events take the position from the event too, not only the motion event. Either half alone
+changes nothing; the pair is what makes a tap land.
 
 **A mouse-move event has to mean the mouse moved**, which is not the same question as whether
 `cursorPos` changed. That position comes from `Engine::getCursorPosition()` and therefore through the
@@ -120,7 +120,8 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   gets the focus, because forwarding a position measured against the *label* would drop an edit box's
   caret in an arbitrary place. The attribute is read in `GUI_Element::load`, which is not virtual:
   `readAttributes` is, and no subclass chains up to the base version, so a `for=` parsed there would
-  work on some element types and silently vanish on others.
+  work on some element types and silently vanish on others. It acts through `GUI_Element`'s own mouse
+  handlers, which a button, a box, a list or a window overrides — on those it is carried and ignored.
 - **A `<StaticText>` label can size its own hit area.** Give it `w="-1" h="-1"` and it matches the text
   it actually draws, re-measured per frame so it follows a language switch; a hand-written width would
   be a guess that is wrong in the other language. `w`/`h` of 0 — the default — is still never hit. An
@@ -267,7 +268,7 @@ the sound plays again, because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage` asks
 `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG` elsewhere, and
-answers only `de` or `en` — every one of the 440 IDs in `languages.txt` has an English body and a German
+answers only `de` or `en` — every one of the 441 IDs in `languages.txt` has an English body and a German
 one and nothing else, so detecting `fr` would give a wholly English game that merely believed otherwise.
 The one `§fr:` and `§es:` in that file are its own header explaining what the tags mean. It runs at every
 load of the configuration, and its answer stands where `config.xml` has no `<Language>`. Nothing ships a

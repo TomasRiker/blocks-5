@@ -4,8 +4,9 @@
 // test_hooks.cpp - how the test dump gets out in the browser: as a string in
 // Module["b5_test"] or Module["b5_hit"] for Playwright (test/README.md). What
 // is reported is Blocks5/src/testhooks.cpp's, the same on both platforms.
-// Only ./build.sh hooks builds it; without -DBLOCKS5_TEST_HOOKS the
-// translation unit is empty.
+// Every build compiles it, and only ./build.sh hooks defines
+// BLOCKS5_TEST_HOOKS; without it the translation unit is empty, so nothing
+// may stand outside the #if.
 
 #if defined(__EMSCRIPTEN__) && defined(BLOCKS5_TEST_HOOKS)
 

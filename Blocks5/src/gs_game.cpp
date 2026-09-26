@@ -365,8 +365,8 @@ bool GS_Game::getMouseDragCells(Vec2i* p_actor,
 	if(GUI::inst()["Game.MenuPane"]->isVisible()) return false;
 
 	// Only a press that landed on the field, which the GUI remembers as the
-	// GameGUI itself; a press on a widget - the Menu button, a pad key - must
-	// not walk the character.
+	// GameGUI itself; a press on a widget such as the Menu button must not
+	// walk the character.
 	GUI_Element* p_down = GUI::inst().getMouseDownElement();
 	if(!p_down || p_down->getFullName() != "Game") return false;
 

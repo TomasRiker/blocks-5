@@ -54,9 +54,10 @@ public:
 	// and compacting after each would be eleven repacks for the same answer.
 	void giveBack(Texture* p_texture);
 
-	// Compact if a reservation has failed since the last call. Called once a
-	// logic tick from Engine::update(), a point where the renderer holds
-	// nothing.
+	// Compact if, since the last call, a picture found no room although the
+	// free rectangles added up to enough: a repack cannot make room that is
+	// not there. Called once a logic tick from Engine::update(), a point
+	// where the renderer holds nothing.
 	void repackIfWorthwhile();
 
 	// Delete the pages. Native only, like every other teardown.

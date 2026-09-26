@@ -88,9 +88,10 @@ uniform; `Mat4::ortho` (`vec.h`) builds the same numbers `gluOrtho2D` did. The s
 every other matrix the game once asked GL for — `gluPerspective`, `gluLookAt`, the in-place translate,
 scale and rotate, the left-to-right sums in a product — keeping each call's *order* of operations, which
 costs nothing and makes the two readable against each other, but not its precision: `Mat4` is `float`
-throughout where GL and GLU were `double` in places. The one entry that reaches is `gluPerspective`'s
-depth row, `m[10]` and `m[14]`; `m[0]` and `m[5]`, which put a corner on the screen, read neither near
-nor far and come out bit for bit the same. The four 3D crossfades and the credits' stars hand
+throughout where GL and GLU were `double` in places. Where that reaches is `gluPerspective`: at the 90
+degrees every caller but `CF_Zoom` asks for, its cotangent is exactly 1 either way and only the depth row,
+`m[10]` and `m[14]`, can differ; at `CF_Zoom`'s narrower angles `m[0]` and `m[5]`, which put a corner on
+the screen, can differ in their last bit or two as well. The four 3D crossfades and the credits' stars hand
 `Renderer::quads3D` a matrix built that way with the projection in it, and the rain, the snow and the
 clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which is applied to
 the corners' uv in the order the fixed-function vertex stage summed it.

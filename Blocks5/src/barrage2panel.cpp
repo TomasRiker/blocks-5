@@ -8,7 +8,7 @@ Barrage2Panel::Barrage2Panel(Level& level,
 							 uint color) : Panel(level, position)
 {
 	renderLayers = RL_FLOOR;
-	this->subType = subType;
+	this->subType = subType ? 1 : 0;
 	this->color = color;
 }
 

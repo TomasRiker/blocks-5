@@ -123,9 +123,9 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
   `beginRenderToTexture`) so the writing belongs to the sheet and flies, turns and rolls with it. It is
   composed with `glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`,
   which leaves the colour premultiplied, so it is drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
-- **The texture belongs to the Engine, not the note**, and that is not tidiness: it falls with the framebuffer
-  object, which `Engine::exit` destroys while the GL context still stands, whereas an `Object` is destroyed
-  only after `main()` has returned. It is a **pool** because two notes overlap while one fades out, and
+- **The texture belongs to the Engine, not the note**, and that is not tidiness: the Engine deletes it with
+  the framebuffer object, which `Engine::exit` destroys while the GL context still stands, and a note only
+  hands its texture back for the next one. It is a **pool** because two notes overlap while one fades out, and
   sharing one texture meant a full render-to-texture, an FBO switch and a read-after-write stall per visible
   note per frame.
 - **At rest the sheet is drawn at exactly 1:1 on whole pixels**, which is what `SNAP_RESIDUAL` is for: an

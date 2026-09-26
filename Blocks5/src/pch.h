@@ -30,10 +30,10 @@
 #include "util.h"
 #include "manager.h"
 
-// After vec.h and SDL_opengl.h, whose types it names. Here rather than per
-// file because every source that draws reaches Renderer, the one way to put
-// a pixel on the screen; verify.py's raw_gl check keeps every gl* call to the
-// few files that own raw GL.
+// After vec.h, typedefs.h and singleton.h, whose types it names. Here rather
+// than per file because every source that draws reaches Renderer, the one way
+// to put a pixel on the screen; verify.py's raw_gl check keeps every gl* call
+// to the few files that own raw GL.
 #include "renderer.h"
 
 #endif

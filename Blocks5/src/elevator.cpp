@@ -258,8 +258,10 @@ void Elevator::loadExtendedAttributes(TiXmlElement* p_element)
 
 	// As any level may carry these: a direction outside 0 to 3 would leave
 	// onUpdate()'s step undefined, and a wait below 0 or past the longest
-	// one would stop the elevator for good.
-	moveCounter = clamp(moveCounter, 0, 60);
+	// one would stop the elevator for good. The longest is 61, not 60: one
+	// that turns round inside the update of the elevator behind it gets that
+	// update's ++ on top.
+	moveCounter = clamp(moveCounter, 0, 61);
 	newDir = wrapIndex(newDir, 4);
 	origDir = wrapIndex(origDir, 4);
 

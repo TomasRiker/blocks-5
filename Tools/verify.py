@@ -1356,7 +1356,7 @@ def check_font_metrics():
     The frame around a <k>...</k> is drawn on exactly rows capTop..capBottom
     of a glyph cell, and those default to the line box - lineHeight and offset
     - which is where a font's ink normally sits. A font is free to sit
-    elsewhere: the note's font ends its writing five rows above the foot of
+    elsewhere: the note's font ends its writing nine rows above the foot of
     its line box, and the tooltip font's key names are taller than its line in
     both directions. The two attributes say where the ink really is, and this
     is what stops them from going stale when the art is redrawn, since nothing

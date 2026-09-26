@@ -72,8 +72,8 @@ already moved this tick, and whether it is sliding, decide *when* a step lands r
 is open; the drag holds its key across ticks, and an answer that flickered with the tick would hand its leg
 to the other axis and back. `updateVKs()` also runs before `Level::update` clears `moved`, so in simulate
 mode that flag is always the previous tick's. The one place the answer is generous is a push made from
-ice: the pushed object goes, but the character standing on the ice stays where it is (`slideDir` -2), so
-the real `move()` reports false while the way is in fact opening.
+ice: the pushed object goes, but the character standing on the ice stays where it is, so the real `move()`
+reports false while the way is in fact opening.
 
 **A click works what the character is standing next to.** With blocked directions no longer commanded, a
 switch or a magnet would otherwise be out of a mouse player's reach: both are solid and fixed and do their

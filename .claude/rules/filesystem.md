@@ -100,10 +100,10 @@ crashing.
 product: a tree that has been cloned but never packed has every other file and not that one, and the
 campaign box then simply comes up without it — forty-two levels gone and nothing saying why, which is
 exactly how a developer loses an afternoon. `GS_SelectLevel::onEnter` watches whether anything shipped
-loaded (`Transfer::isBuiltIn`) and raises `$ERROR_NO_BUILT_IN_CAMPAIGN` if nothing did. A campaign that
-is present but broken says its own piece from `Campaign::load`, so this one is only about nothing being
-there at all. `LinuxBuild/build.sh` warns about the same file after every build, where the build output
-is scrolling past; the toast is for the run where nobody read it.
+loaded (`Transfer::isBuiltIn`) and raises `$ERROR_NO_BUILT_IN_CAMPAIGN` if nothing did — also after
+`Campaign::load`'s own toast where the campaign is there but broken, since what the player needs to hear
+is that the list lacks it. `LinuxBuild/build.sh` warns about the same file after every build, where the
+build output is scrolling past; the toast is for the run where nobody read it.
 
 **A level somebody sent you is played from the level select screen, not from the editor.**
 `Campaign::loadSingleLevels` builds a campaign that exists as no file: every loose `*.xml` in both

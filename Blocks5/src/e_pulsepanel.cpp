@@ -79,7 +79,9 @@ void E_PulsePanel::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Electronics::loadExtendedAttributes(p_element);
 
+	// 0 or 1, as the constructor holds it: the part passes it on for a tick.
 	p_element->Attribute("value", &value);
+	value = value ? 1 : 0;
 }
 
 std::string E_PulsePanel::getToolTip() const

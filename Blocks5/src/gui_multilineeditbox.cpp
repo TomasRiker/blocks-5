@@ -162,8 +162,8 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			if(!clipboard.empty()) replaceSelection(clipboard);
 		}
 
-		// Handled, and the letter must not go on to be typed as well -
-		// see GUI_EditBox for the platform that hands over the letter.
+		// Handled, and the letter must not go on to be typed as well - see
+		// GUI_EditBox.
 		return;
 	}
 

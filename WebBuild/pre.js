@@ -84,8 +84,8 @@ Module['b5_sync'] = (function () {
 // Every function key belongs to the game, all of them bindable (web.md);
 // otherwise F1 would open the browser's help, F5 reload and lose the level,
 // F10 reach for the menu bar, F11 go fullscreen and F12 open the tools. The
-// default is cancelled in the capture phase, ahead of every other listener;
-// SDL still receives the key.
+// default is cancelled in the capture phase on window, ahead of SDL's
+// listeners and the browser's own action; SDL still receives the key.
 window.addEventListener('keydown', function (e) {
   if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key) ||
       (e.keyCode >= 112 && e.keyCode <= 135)) e.preventDefault();

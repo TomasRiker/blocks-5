@@ -153,9 +153,9 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 			if(!clipboard.empty()) replaceSelection(clipboard);
 		}
 
-		// Handled, and not typed as well: under X11 a Ctrl combination
-		// carries the letter itself as its unicode, which the insert below
-		// would take.
+		// Handled, and not typed as well: typedCharacter() below drops the
+		// key's own letter under Ctrl alone, but not under Ctrl with Alt,
+		// which is AltGr to Windows.
 		return;
 	}
 

@@ -128,8 +128,8 @@ public:
 	bool isFalling() const;
 
 	// The current sprites, rebuilt on the spot: an object created and burst
-	// in the same tick, or anything on the first tick (Level::update runs
-	// before the first Level::render), has had no onBeforeRender yet.
+	// in the same tick, or one asked before its level was first drawn, has
+	// had no onBeforeRender yet.
 	const Sprites& getSprites();
 
 	// Light up briefly: a switch's acknowledgement, above all for the three
@@ -142,9 +142,9 @@ public:
 	// render() fades the block towards CONVERSION_GHOST but never to nothing,
 	// since it stays solid and pushable. frameBegin() clears it every tick
 	// and the machine sets it again in its update(), so when the machine
-	// stops (block pushed away, blown up, teleported, power off) it is zero
-	// the next tick with no undo, and the opacity snaps back: a
-	// half-transparent block sliding away looks like a bug. A dying block
+	// stops (block pushed away, teleported, power off) it is zero the next
+	// tick with no undo, and the opacity snaps back: a half-transparent block
+	// sliding away looks like a bug. A dying block, blown up or converted,
 	// keeps its value (frameBegin()).
 	void setConversionProgress(float progress) { conversionProgress = progress; }
 

@@ -15,15 +15,17 @@
    overlapping beam profiles and had no gaps. 1.0 renders that monitor, the
    honest reference for a 640x480 Windows game; 2.0 pretends 240 lines arrive
    and gives the console look most people mean by "CRT". At period 1 and a 2x
-   window both output rows of a line sit equally far from its centre and no
-   stripe shows at all, so only period 2 gives visible structure at 2x. The
-   scan-line slider fades the effect in; the period decides which effect.
+   window both output rows of a line sit equally far from its centre, so no
+   stripe shows while the crawl rests and the stripes pulse as it moves: only
+   period 2 gives steady structure at 2x. The scan-line slider fades the
+   effect in; the period decides which effect.
 
-   RESOLUTION. Nearly everyone plays at exactly 2x (1280x960):
-   getDefaultWindowSize() gives 2x on 1080p and 1440p and 3x only from 1600p.
-   So the mask sits in the output raster, not the source raster, as a real
-   shadow mask belongs to the glass: MASK_PITCH is in output pixels and stays
-   equally fine at every factor.
+   RESOLUTION. The factor is rarely one to build on: the default window is 2x
+   (1280x960) on 1080p and 1440p and 3x from 1600p, but fullscreen, where the
+   Release build starts, fills a 1080p screen at 2.25x. So the mask sits in
+   the output raster, not the source raster, as a real shadow mask belongs to
+   the glass: MASK_PITCH is in output pixels and stays equally fine at every
+   factor.
 
    DISTORTION. The mapping runs from output to source pixel, the direction a
    fragment shader asks in, with both in -1..1 from the picture's centre:
@@ -87,8 +89,9 @@ static const char* p_crtFragmentShader =
 	/* Tuning constants. Everything that gives this filter its character. */
 	/* ------------------------------------------------------------------ */
 
-	/* Which tube, see the top of the file: 1.0 a VGA monitor, no stripes at
-	   2x; 2.0 the 240-line console look. Values between look like a fault. */
+	/* Which tube, see the top of the file: 1.0 a VGA monitor, no steady
+	   stripes at 2x; 2.0 the 240-line console look. Values between look like
+	   a fault. */
 	"const float SCANLINE_PERIOD = 2.0;\n"
 
 	/* Width of the electron beam, in line pitches. Smaller = narrower beam =
@@ -167,8 +170,9 @@ static const char* p_crtFragmentShader =
 	   a broad dark bar rolling slowly up the picture as the mains frequency
 	   beats against the frame rate. ScanFlicker moves the *lines*: they drift
 	   slowly down and shimmer, see CRAWL_JITTER. Every term has mean zero, so
-	   costs no brightness, and depends on the clock alone, never on the
-	   previous frame. Values with the slider at full; HUM_DEPTH 0 removes the
+	   costs no brightness, and none reads the previous frame's picture; all
+	   but the drift hang off the clock alone, and the drift is the one value
+	   present() keeps. Values with the slider at full; HUM_DEPTH 0 removes the
 	   bar. Measured with both sliders at full, the terms give 1.7%
 	   peak-to-peak between frames. */
 	"const float FLICKER_DEPTH = 0.0367;\n"  /* fast brightness shimmer */
@@ -380,7 +384,8 @@ static const char* p_crtFragmentShader =
 	/* --- line structure ----------------------------------------------- */
 	/* dc is the distance to the nearest line centre, 0 on it and 1 midway
 	   between two. At period 1 and 2x both output rows sit equally far off
-	   and nothing shows, which is right and the reason for SCANLINE_PERIOD.
+	   while the crawl rests, and nothing shows but a pulse as it moves: the
+	   reason for SCANLINE_PERIOD.
 	   ScanPhase moves the pattern slowly down, CRAWL_JITTER makes it
 	   shimmer; at Scanline 0 both drop out with the lines. */
 	"    float ph = sy / SCANLINE_PERIOD + ScanPhase + ScanFlicker * CRAWL_JITTER * wob;\n"
@@ -500,8 +505,8 @@ void U_Crt::present(const PresentContext& context)
 	// CRT_FLICKER_CYCLE, a whole number of runs of every frequency in the
 	// shader, so nothing jumps at the wrap and the shader's sin() arguments
 	// stay small - and wrapped as an integer, before it becomes a float, or
-	// after a day and a half of running a float second no longer holds the
-	// millisecond and the 29 Hz term starts to step.
+	// after four and a half hours of running a float second no longer holds
+	// the millisecond and the 29 Hz term starts to step.
 	const uint cycleMs = static_cast<uint>(CRT_FLICKER_CYCLE * 1000.0f);
 	PresentProgram::setUniform(locTime, 0.001f * static_cast<float>(SDL_GetTicks() % cycleMs));
 
@@ -511,9 +516,13 @@ void U_Crt::present(const PresentContext& context)
 	// formed as slope times clock: that product is a float which loses the
 	// millisecond after four and a half hours of running, and one step of
 	// the slider would throw the lines by a random part of a period. The
-	// unsigned difference is right across the clock's wrap.
+	// unsigned difference is right across the clock's wrap. With the slider
+	// at 0 the lines rest where the design puts them, at phase 0, and not
+	// wherever the crawl had got to.
 	const uint now = SDL_GetTicks();
-	crawlPhase = fmodf(crawlPhase + 0.001f * crtCrawlSpeed * scanFlicker * static_cast<float>(now - crawlTicks), 1.0f);
+	if(scanFlicker > 0.0f)
+		crawlPhase = fmodf(crawlPhase + 0.001f * crtCrawlSpeed * scanFlicker * static_cast<float>(now - crawlTicks), 1.0f);
+	else crawlPhase = 0.0f;
 	crawlTicks = now;
 	PresentProgram::setUniform(locScanPhase, crawlPhase);
 
@@ -526,8 +535,9 @@ float U_Crt::getOverscan() const
 	// half the picture width. Zero on a flat tube, where the picture sits
 	// point for point where every other filter puts it. Otherwise it makes
 	// room for what the shader draws outside the picture: the raster's soft
-	// edge, fading over twice EDGE_ROWS source rows, and the offset between
-	// the red and blue rasters. The curvature leaves the edge midpoints in
+	// edge, fading over twice EDGE_ROWS source rows, and one beam's
+	// convergence offset, by which blue at the right edge and red at the left
+	// reach past green. The curvature leaves the edge midpoints in
 	// place, and there both would be cut off - measured without it: 0 black
 	// rows above the picture at the top centre, 20 at nine tenths out; with
 	// it, 2 rising to 26, the picture fading in over the next four. At the
