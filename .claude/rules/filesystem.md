@@ -186,7 +186,7 @@ say: an Ogg page carrying Vorbis's identification header is music (`OggS` alone 
 game cannot play), an XML whose root is `<Level>` is a level, and a `.zip` in any case is a campaign if it
 holds `campaign.xml`, a skin if it holds `tileset.xml` and `sprites.png` and a progress database if it holds
 `progress.xml`. The archive is the one known by its extension, since that is how `convertPath` sees into one
-at all. Anything else is refused, and so is anything over 48 MiB, on the desktop asked of the disk before a
+at all. Anything else is refused, and so is anything over 64 MiB, on the desktop asked of the disk before a
 byte is read. The browser stages the upload outside the home directory (C hands JS all three possible staging
 paths and JS picks one by extension, so C still composes every path), `sanitizeFilenameStem` reduces the name
 to `[A-Za-z0-9_-]`, and only then does anything reach IndexedDB.
