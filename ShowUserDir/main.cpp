@@ -7,14 +7,25 @@ int WINAPI WinMain(HINSTANCE inst,
 				   char* p_cmdLine,
 				   int showCmd)
 {
-	// MAX_PATH is the size the call is specified for.
+	// Where the game puts it (FileSystem::getAppHomeDirectory): in the
+	// Documents folder, and without one beside the game, which is where this
+	// program lies as well. S_OK and not SUCCEEDED: the ANSI call answers a
+	// folder that does not exist with S_FALSE, a success code. MAX_PATH is
+	// the size both calls are specified for.
 	char path[MAX_PATH];
-	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path)))
+	std::string homeDirectory;
+	if(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path) == S_OK) homeDirectory = std::string(path) + "\\Blocks 5";
+	else
 	{
-		MessageBoxA(0, "Windows could not say where the Documents folder is.", "Error!", MB_OK | MB_ICONERROR);
-		return 1;
+		const DWORD length = GetModuleFileNameA(0, path, MAX_PATH);
+		if(length == 0 || length >= MAX_PATH)
+		{
+			MessageBoxA(0, "Windows could not say where the Documents folder is.", "Error!", MB_OK | MB_ICONERROR);
+			return 1;
+		}
+		const std::string exe(path, length);
+		homeDirectory = exe.substr(0, exe.find_last_of("\\/") + 1) + "Blocks 5";
 	}
-	const std::string homeDirectory(std::string(path) + "\\Blocks 5");
 
 	if(GetFileAttributesA(homeDirectory.c_str()) == INVALID_FILE_ATTRIBUTES)
 	{

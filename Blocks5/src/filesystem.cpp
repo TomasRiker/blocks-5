@@ -131,9 +131,11 @@ std::string FileSystem::getAppHomeDirectory() const
 {
 #ifdef _WIN32
 	// MAX_PATH is the size the call is specified for. Without a Documents
-	// folder, a folder beside the game, as under Linux without HOME.
+	// folder, a folder beside the game, as under Linux without HOME - and
+	// S_OK is the test, not SUCCEEDED: the ANSI call answers a folder that
+	// does not exist with S_FALSE, a success code.
 	char path[MAX_PATH];
-	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path))) return gameDirectory + "Blocks 5/";
+	if(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path) != S_OK) return gameDirectory + "Blocks 5/";
 	return std::string(path) + "/Blocks 5/";
 #elif defined(__EMSCRIPTEN__)
 	// Mounted by the page as IDBFS, so that saved games and the player's own
@@ -375,6 +377,22 @@ void FileSystem::pushCurrentDir(const std::string& dir)
 	dirStack.push(evalPath(dir + "/"));
 }
 
+namespace
+{
+	// Asked of the disk itself: the virtual file system would read such a
+	// path as an archive, which is the question being decided.
+	bool isDirectoryOnDisk(const std::string& path)
+	{
+#ifdef _WIN32
+		const DWORD attributes = GetFileAttributesA(path.c_str());
+		return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+#else
+		struct stat info;
+		return ::stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+#endif
+	}
+}
+
 void FileSystem::convertPath(const std::string& path,
 							 std::string& filePath,
 							 std::string& objectName,
@@ -383,11 +401,15 @@ void FileSystem::convertPath(const std::string& path,
 	std::string temp(path);
 	// i + 5 <= length, not i < length - 5, which underflows on a path shorter
 	// than five characters; this form also tests the last position, so a path
-	// ending exactly in ".zip/" is recognised. ".zip" in any case: an archive
-	// picked in a file dialog can be called CAMPAIGN.ZIP.
+	// ending exactly in ".zip/" is recognised. ".zip" in any case, since an
+	// archive picked in a file dialog can be called CAMPAIGN.ZIP - but in any
+	// other case than the game's own only where it is not a folder, or a
+	// Windows domain profile such as "bob.ZIP" would turn the whole user
+	// directory into an archive.
 	for(uint i = 0; i + 5 <= temp.length(); i++)
 	{
 		if(!equalsNoCase(temp.substr(i, 4).c_str(), ".zip")) continue;
+		if(temp.compare(i, 4, ".zip") != 0 && isDirectoryOnDisk(temp.substr(0, i + 4))) continue;
 		const char marker = temp[i + 4];
 		if(marker == '/')
 		{
