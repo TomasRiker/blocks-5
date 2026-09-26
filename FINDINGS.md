@@ -108,9 +108,9 @@ them:
 - `diamondmachine.cpp`: the animation's frame and last frame are the named
   `FRAME_TICKS` and `LAST_FRAME_AT` beside the timetable, where the
   literals 20 and 80 stood.
-- `laser.cpp`: the debris of a destroyed object starts where the object was
-  drawn - for one moving into the beam, no longer the cell the beam's tip was
-  in - and a tile's at its own cell.
+- `laser.cpp`: the debris of a destroyed object starts at its shown position,
+  which for one moving into the beam is no longer the cell the beam's tip was
+  in (a devil's hop is left out), and a tile's at its own cell.
 - `presets.cpp`: the type stays "Amboss", being in every level file; its
   tooltip id is `$TT_ANVIL`, and the English tooltip says "Anvil" where it
   said "Ambos".
@@ -225,8 +225,8 @@ Settled
 - **videorecorder.cpp** - `vbv_size_bytes` is set, and the comment describes
   the measured effect of setting it. (d4bb8d9)
 - **Tools/verify.py** - the dead `pch.cpp` branch is gone; docstrings and
-  messages are English; the GUI-exception sentence is the one thing left
-  (above). (37b6e3b, later)
+  messages are English; the GUI-exception sentence went in the second
+  sweep. (37b6e3b, 1fab908)
 - **gui_editbox.cpp, gui_multilineeditbox.cpp** - the Ctrl block ends in
   `break`, with the platform reason beside it, so Ctrl+A no longer types an
   "a"; `getIndexAt()` measures at the offset the text is drawn at.
@@ -275,9 +275,10 @@ Engine and sound (c8adb02):
   rectangle, as its inverse does.
 - **sound.cpp** - `createInstance()` deletes an instance that got no source
   and returns 0, so no object can keep a pointer the next `update()` reaps;
-  the five holders guard the 0 (`elevator.cpp` and `player.cpp` gained theirs),
-  and the comment on `forceCreation` says what a 0 costs now: a level whose
-  ambience never starts, not a crash (2af6608).
+  the five holders guard the 0 (`player.cpp` gained its guards here,
+  `elevator.cpp` and the laser theirs in 731d13b), and the comment on
+  `forceCreation` says what a 0 costs now: a level whose ambience never
+  starts, not a crash (2af6608).
 - **soundinstance.cpp** - the constructor sets every member before asking for
   a source.
 - **streamedsound.cpp** - `stop()` clears `sourceID`.

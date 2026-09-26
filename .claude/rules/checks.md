@@ -54,8 +54,8 @@ not what the phrase suggests**: comment lines against ***code* lines**, not agai
 the ceiling of 50% is reached at one comment line to two of code — a file that is half comments by line
 count sits at 100% and is far over. Only files of 100 code lines or more are judged at all, which is why
 several small headers stand at two thirds comment and are never looked at. `renderer.h` stands closest,
-at 49.5% (102 against 206), and the test is `>`: two more comment lines in that file fail the run, which
-is worth knowing before setting out to explain something in it.
+at 49.0% (102 against 208), and the test is `>`: three more comment lines in that file fail the run,
+which is worth knowing before setting out to explain something in it.
 
 **`ctor_init` takes back both of its exemptions for a pointer**, and that is measured rather than
 strict for its own sake. A scalar left uninitialised is a wrong number; a pointer is a crash, and the

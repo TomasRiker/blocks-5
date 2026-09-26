@@ -78,10 +78,10 @@ the window does; a screenshot carries no cursor. `createCursor(factor)` builds t
 and 32; `updateCursorSize` picks from the width of the rect `presentFrame` fills, not from the window, because
 `Sharp` snaps to whole steps and between scale 1.5 and 2 shows the picture unscaled where other filters nearly
 double it. `render` asks once a frame rather than hanging off events: the answer moves on a resize, fullscreen
-toggle, filter change and the browser's canvas alike, and asking costs two divisions and a comparison. Two
-sizes exist, so the choice is which of 16 and 32 lands closer to 16·s: `|32 − 16s| < |16 − 16s|` from **s =
-1.5**. At exactly 1 and 2, where `getDefaultWindowSize` puts almost everyone, the chosen one is pixel-exact.
-Measured at 1.40/1.50/1.60: 16, 32, 32.
+toggle, filter change and the browser's canvas alike, and asking is one `computePresentRect` and a division.
+Two sizes exist, so the choice is which of 16 and 32 lands closer to 16·s: `|32 − 16s| < |16 − 16s|` from
+**s = 1.5**. At exactly 1 and 2, where `getDefaultWindowSize` puts almost everyone, the chosen one is
+pixel-exact. Measured at 1.40/1.50/1.60: 16, 32, 32.
 
 **The first gesture takes the fullscreen, on every device, and never again on its own.** `pre.js` listens in
 the capture phase for the events that carry a *transient user activation*, which the Fullscreen API demands:
