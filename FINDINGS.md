@@ -112,7 +112,7 @@ them:
   drawn - for one moving into the beam, no longer the cell the beam's tip was
   in - and a tile's at its own cell.
 - `presets.cpp`: the type stays "Amboss", being in every level file; its
-  tooltip id is `$TT_AMBOSS`, and the English tooltip says "Anvil" where it
+  tooltip id is `$TT_ANVIL`, and the English tooltip says "Anvil" where it
   said "Ambos".
 
 

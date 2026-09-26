@@ -1060,7 +1060,7 @@ $TT_SPIKE
 §en:Spikes¶(gravity; deadly when falling)
 §de:Speere¶(Gravitation; tödlich, wenn sie fallen)
 
-$TT_AMBOSS
+$TT_ANVIL
 // Tool tip for the anvil, whose type is Amboss
 §en:Anvil¶(gravity; deadly)
 §de:Amboss¶(Gravitation; tödlich)
