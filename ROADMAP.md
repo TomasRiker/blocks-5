@@ -11,9 +11,9 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
-37, 38, 40, 41, 46, 47 and 48. Everything else is done.
-Sixty entries, and nothing checks this line against the headings below it, so an
-item finished and not struck from here goes unnoticed. Read it against them.
+37, 38, 40, 41, 46, 48 and 61. Everything else is done.
+Sixty-one entries, and nothing checks this line against the headings below it, so
+an item finished and not struck from here goes unnoticed. Read it against them.
 
 
 1. Auto-detect the user's language on first start  - **DONE**
@@ -1130,26 +1130,13 @@ throwing the first buffers away. Both are a restructuring of the ring and its
 clock-based padding rather than a fix.
 
 
-47. tellStream() reads the decoder thread's position without a lock
----------------------------------------------------------------------
-`Engine::stopMusic()` calls `p_currentMusic->tellStream()`, which is
-`ov_pcm_tell(&vorbisFile)`, on a `StreamedSound` whose decoder thread is still
-running - the volume slide that ends it happens afterwards. That thread is
-inside `ov_read` and `ov_pcm_seek` on the same `OggVorbis_File`, so the main
-thread reads a field the decoder thread writes with nothing between them.
-
-`ov_pcm_tell` is `return vf->pcm_offset;` on an aligned 64-bit field, so on
-every platform this ships to the load is atomic in practice and the worst real
-outcome is a resume position a fraction of a second stale - which the caller's
-own comment already allows for (*"more or less, this just asks the audio
-stream's read cursor"*). It is still a data race by the language's definition,
-and `threadProc` right beside it already takes the trouble to ask OpenAL for
-the pitch rather than read the member, *"which belongs to the main thread"* -
-so the ownership rule is stated in the file and this is the one place that
-breaks it. The cheap answer is a `pcmOffset` the decoder thread publishes under
-the mutex the ring already has; the honest one is to say in the file that the
-read is deliberate and why it is safe here. Item 31's resume, which now reads
-that position, makes the answer worth having.
+47. tellStream() reads the decoder thread's position without a lock  - **DONE**
+-------------------------------------------------------------------------------
+`StreamedSound` holds `p_streamLock` around every read, seek and tell of its
+stream, so `Engine::stopMusic()` asking the position while the decoder thread is
+still inside `ov_read` is no longer a data race: libvorbis keeps no lock of its
+own. The format getters read constants and go without, and in the browser, which
+has no decoder thread, the mutex costs nothing (c9726cf; the seek in 781456b).
 
 
 48. adjustText can break a line inside a keycap whose key name has a space
@@ -1796,4 +1783,47 @@ What padding plus a wrapping gutter *would* restore is real, and it is a questio
 about how the game should look rather than about correctness: in 2015 the
 outermost row and column of every sheet were faded, because they blended into the
 empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
+
+
+61. Switch the update check in the options
+------------------------------------------
+The check is off as shipped (`Blocks5/.update_checker` holds `0`), and a player
+who wants it on has no way to say so inside the game. The setting is the one
+character in the user directory's `.update_checker`, which `runTheGame` reads at
+every start - before `Engine::init`, before `config.xml` and before `data.zip` is
+mounted. Three things write it today: the first start, which copies the game
+folder's file there; the installer's `EnableUpdateChecker` task, which writes
+only the game folder's file and so reaches only a first start - ticking the box
+in a later installation changes nothing for a player who already has a user
+directory; and `update_checker_enable.bat` and `update_checker_disable.bat`,
+which the first start copies into the user directory, under Windows only. Under
+Linux the one way is to edit the file.
+
+What the option needs:
+
+- A checkbox in `data/options.xml`, with a `$O_...` label and tooltip in
+  `languages.txt` in both languages. The window is full at 340x465: the gap
+  under the two key buttons in the right-hand column is the likeliest place,
+  or the window grows. The tooltip should say it takes effect at the next
+  start, since the check runs once, before the menu.
+- `Options` reads `.update_checker` when the dialog opens and writes it on OK,
+  not on Cancel, through `FileSystem::writeStringToFile` - the value is the
+  user directory's file and not part of `config.xml`. Keeping the file as the
+  one place leaves the installer's task and the two `.bat` files working as
+  they are; moving the value into `config.xml` would have `runTheGame` parse it
+  before the engine exists and the installer write XML, for nothing.
+- Hidden in the browser, where `getCurrentVersion()` returns nothing and a new
+  build arrives through the service worker. The dialog has no platform-specific
+  element yet, so this is the first `__EMSCRIPTEN__` in `options.cpp`.
+- Under Linux the check needs `curl` or `wget`. Without either the box would do
+  nothing; greyed out, with a tooltip saying why, is kinder than hidden.
+
+Worth deciding with it: whether the answer should reach the player inside the
+game. The check runs before the engine, so under Windows it is a `MessageBoxA`
+in front of the window and under Linux a line in the log that nobody reads - a
+Linux player who ticks the box would never hear of an update. Running it after
+`Engine::init` and answering with a toast would give every platform the same
+answer; the thread and its two-second limit could stay as they are. And whether
+the two `.bat` files still ship once the option exists: they cost nothing, and
+an old user directory has them anyway.
 

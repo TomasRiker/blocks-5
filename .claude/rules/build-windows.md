@@ -81,6 +81,15 @@ banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus th
 `src/resources.rc`, which is what Explorer shows and a crash log reports. The `.rc` had been missed
 before and sat at 1.1.1 through the whole of 1.1.2.
 
+**The update check ships off.** `Blocks5\.update_checker` holds `0`; `stage.bat` puts it into the tree an
+unpacked game runs from, and the first start copies it into the user directory, whose copy is the one
+`runTheGame` reads at every start. The installer's `EnableUpdateChecker` task starts unticked, and its
+`[Run]` entries reset the game folder's copy with `update_checker_disable.bat` before
+`update_checker_enable.bat` sets it for the tick. The game folder's copy reaches a user directory only at
+its first start (or on the way up from 1.0.7x), so ticking the box in a later installation changes
+nothing for a player who already has one; the two `.bat` files, which that first start copies into the
+user directory as well, switch it there. ROADMAP 61 is the switch in the options dialog.
+
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to
 be used without the router. Because the app directory beats `system32` in the DLL search order, the game
