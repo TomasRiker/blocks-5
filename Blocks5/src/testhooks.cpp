@@ -12,6 +12,7 @@
 #include "upscaler.h"
 #include "gamestate.h"
 #include "gs_game.h"
+#include "gs_leveleditor.h"
 #include "level.h"
 #include "gui.h"
 #include "gui_element.h"
@@ -212,6 +213,15 @@ namespace
 		out += ",\"paused\":";
 		out += (p_state && p_state->getName() == "GS_Game"
 				&& static_cast<GS_Game*>(p_state)->isPaused()) ? "true" : "false";
+
+		// The level editor's undo and redo depths, which say what a step
+		// there saved and which no picture shows; -1 in any other state.
+		const GS_LevelEditor* p_editor = (p_state && p_state->getName() == "GS_LevelEditor")
+										 ? static_cast<const GS_LevelEditor*>(p_state) : 0;
+		out += ",\"undo\":";
+		appendInt(out, p_editor ? static_cast<int>(p_editor->getUndoDepth()) : -1);
+		out += ",\"redo\":";
+		appendInt(out, p_editor ? static_cast<int>(p_editor->getRedoDepth()) : -1);
 
 		// The named actions that are down, and only those. This is the one
 		// view of the action layer from outside: it reads SDL_GetKeyState and

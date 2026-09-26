@@ -90,6 +90,11 @@ of that would be whatever happened to lie near the start, and an assertion about
 about level 1. The private `XDG_DATA_HOME` is frames.sh's arrangement exactly: it puts the level first in
 the single-levels list and keeps the developer's own levels and progress out of it.
 
+`LinuxBuild/test/undo.sh` reads the level editor's `undo` and `redo` depths off the dump, the only
+place they show: an undo step that changed nothing looks like any other until Ctrl+Z visibly does
+nothing, and by then it has cleared the redo list. The tools, keys and dialogs are worked once changing
+the level and once not; which of the two it was, `GS_LevelEditor::endChange` decides from the level's XML.
+
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth

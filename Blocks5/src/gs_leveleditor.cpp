@@ -136,14 +136,12 @@ public:
 		{
 			Vec2i p = position / 16;
 
-			if(realDown) editor.strokeHasUndoPoint = false;
-
 			// The gaps a drag fills in come through here as well (realDown
-			// false). A stroke the other button cancelled, which leaves no
-			// drawStartButtons, must not go on painting under them without an
-			// undo point.
-			if(!realDown && !editor.drawStartButtons &&
-			   (editor.currentMode == 0 || editor.currentMode == 3)) return;
+			// false), and belong to the stroke's change. Where that has ended -
+			// cancelled by the other button, undone, cut short by a lost focus
+			// - they change nothing.
+			if(!realDown && !editor.p_changeBefore &&
+			   (editor.currentMode == 0 || editor.currentMode == 1 || editor.currentMode == 3)) return;
 
 			if(editor.currentMode == 0)
 			{
@@ -153,26 +151,25 @@ public:
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
 						// Yes.
-						editor.rollback();
+						editor.cancelChange();
 						editor.drawStartButtons = 0;
 						buttons = 0;
 					}
 					else
 					{
 						editor.drawStartButtons = buttons;
+						editor.beginChange();
 					}
 				}
 
 				if(buttons & 1)
 				{
 					// apply the pen
-					if(realDown) editor.createUndoPoint();
 					editor.draw(p, shift);
 				}
 				else if(buttons & 3)
 				{
 					// eraser
-					if(realDown) editor.createUndoPoint();
 					editor.erase(p, shift);
 				}
 			}
@@ -180,21 +177,15 @@ public:
 			{
 				if(buttons & 1)
 				{
-					// One undo point per stroke, made at its first change: the
-					// press may change nothing where a cell the drag crosses
-					// does.
-					TiXmlDocument* p_before = editor.strokeHasUndoPoint ? 0 : editor.p_level->save();
+					// The stroke is one change, from the press to the release.
+					if(realDown) editor.beginChange();
 
-					bool changed = true;
 					if(editor.p_teleporter)
 					{
 						// set the teleporter's target position
 						editor.p_teleporter->setTargetPosition(p);
 					}
-					else changed = editor.modify(p, buttons, shift, realDown);
-
-					if(changed && p_before) editor.pushUndoPoint(p_before);
-					else delete p_before;
+					else editor.modify(p, buttons, shift, realDown);
 				}
 			}
 			else if(editor.currentMode == 2 || editor.currentMode == 4)
@@ -226,20 +217,20 @@ public:
 					if(editor.drawStartButtons && editor.drawStartButtons != buttons)
 					{
 						// Yes.
-						editor.rollback();
+						editor.cancelChange();
 						editor.drawStartButtons = 0;
 						buttons = 0;
 					}
 					else
 					{
 						editor.drawStartButtons = buttons;
+						editor.beginChange();
 					}
 				}
 
 				if(buttons)
 				{
 					// create the transition
-					if(realDown) editor.createUndoPoint();
 					editor.transition(p);
 				}
 			}
@@ -279,14 +270,10 @@ public:
 						if(editor.p_startPin)
 						{
 							// connect
-							editor.createUndoPoint();
-							bool r = Pin::connect(editor.p_startPin, editor.p_currentPin);
-							if(!r)
-							{
-								Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_INVALID_CONNECTION");
-
-								editor.deleteLastUndoPoint();
-							}
+							editor.beginChange();
+							const bool r = Pin::connect(editor.p_startPin, editor.p_currentPin);
+							editor.endChange();
+							if(!r) Engine::inst().showToast(Engine::TOAST_ERROR, "$LE_ERROR_INVALID_CONNECTION");
 
 							editor.p_currentPin = editor.p_startPin = 0;
 						}
@@ -297,8 +284,9 @@ public:
 						if(editor.p_currentPin->isConnected())
 						{
 							// disconnect all of this pin's connections
-							editor.createUndoPoint();
+							editor.beginChange();
 							editor.p_currentPin->disconnectAll();
+							editor.endChange();
 							editor.p_currentPin = editor.p_startPin = 0;
 						}
 					}
@@ -342,6 +330,10 @@ public:
 
 		editor.p_teleporter = 0;
 
+		// The stroke's change ends with it - but not one a dialog holds, the
+		// note being written or the settings, which end with OK or Cancel.
+		if(!dialogOpen()) editor.endChange();
+
 		if(editor.currentMode == 2 || editor.currentMode == 4)
 		{
 			// order the rectangle's corners from top left to bottom right
@@ -356,7 +348,7 @@ public:
 			// draw the rectangle
 			if(editor.rectStart.x != -1)
 			{
-				editor.createUndoPoint();
+				editor.beginChange();
 
 				for(int x = editor.rectStart.x; x <= editor.rectEnd.x; x++)
 				{
@@ -367,6 +359,7 @@ public:
 					}
 				}
 
+				editor.endChange();
 				editor.rectStart = editor.rectEnd = Vec2i(-1, -1);
 			}
 		}
@@ -527,16 +520,18 @@ public:
 			case 'v':
 				if(ctrl)
 				{
-					editor.createUndoPoint();
-					if(!editor.paste(editor.rectStart)) editor.deleteLastUndoPoint();
+					editor.beginChange();
+					editor.paste(editor.rectStart);
+					editor.endChange();
 				}
 				break;
 			case 'x':
 				if(ctrl)
 				{
 					if(!editor.copy()) break;
-					editor.createUndoPoint();
-					if(!editor.clear()) editor.deleteLastUndoPoint();
+					editor.beginChange();
+					editor.clear();
+					editor.endChange();
 				}
 				break;
 			}
@@ -560,8 +555,9 @@ public:
 			case SDLK_6: if(!shift) editor.setMode(5); break;
 			case SDLK_7: if(!shift) editor.setMode(6); break;
 			case SDLK_DELETE:
-				editor.createUndoPoint();
-				if(!editor.clear()) editor.deleteLastUndoPoint();
+				editor.beginChange();
+				editor.clear();
+				editor.endChange();
 				break;
 			case SDLK_LEFT:
 			case SDLK_RIGHT:
@@ -589,7 +585,7 @@ public:
 							editor.clipboardSize = Vec2i(0, 0);
 							editor.p_clipboard = 0;
 
-							editor.createUndoPoint();
+							editor.beginChange();
 							bool r = editor.copy();
 							r &= editor.clear();
 							r &= editor.paste(pMin + dir);
@@ -598,7 +594,8 @@ public:
 							editor.p_clipboard = p_oldClipboard;
 							editor.clipboardSize = oldClipboardSize;
 
-							if(!r) editor.rollback();
+							if(r) editor.endChange();
+							else editor.cancelChange();
 						}
 					}
 					else
@@ -612,7 +609,7 @@ public:
 								Vec2i np = p + dir;
 								if(np.x >= 0 && np.y >= 0 && np.x < Level::WIDTH && np.y < Level::HEIGHT)
 								{
-									editor.createUndoPoint();
+									editor.beginChange();
 
 									// What stands in the target cell is deleted
 									// below, and a wire's pins or the teleporter
@@ -643,6 +640,7 @@ public:
 										p_obj->warpTo(p + dir);
 									}
 
+									editor.endChange();
 									editor.engine.setCursorPosition(editor.engine.getCursorPosition() + 16 * dir);
 								}
 							}
@@ -664,27 +662,25 @@ public:
 		}
 		else if(name == "LevelEditor.NumDiamondsNeeded-")
 		{
-			int n = editor.p_level->getNumDiamondsNeeded();
+			const int n = editor.p_level->getNumDiamondsNeeded();
 			if(n)
 			{
-				n--;
-				editor.p_level->setNumDiamondsNeeded(n);
+				editor.beginChange();
+				editor.p_level->setNumDiamondsNeeded(n - 1);
+				editor.endChange();
 			}
 		}
 		else if(name == "LevelEditor.NumDiamondsNeeded+")
 		{
+			editor.beginChange();
 			editor.p_level->setNumDiamondsNeeded(editor.p_level->getNumDiamondsNeeded() + 1);
+			editor.endChange();
 		}
 		else if(name == "LevelEditor.ElectricityOn")
 		{
-			// Only when something really changes - an undo point for a state
-			// that already holds costs an undo step and the whole redo list.
-			const bool on = static_cast<GUI_CheckBox*>(p_element)->isChecked();
-			if(on != editor.p_level->isElectricityOn())
-			{
-				editor.createUndoPoint();
-				editor.p_level->setElectricityOn(on);
-			}
+			editor.beginChange();
+			editor.p_level->setElectricityOn(static_cast<GUI_CheckBox*>(p_element)->isChecked());
+			editor.endChange();
 		}
 		else if(name == "LevelEditor.Refresh")
 		{
@@ -726,8 +722,10 @@ public:
 				static_cast<GUI_EditBox*>(getChild(elementName))->setText(editor.p_level->getSkin(i));
 			}
 
+			// The dialog changes the level as its controls move, and OK or
+			// Cancel ends the change.
 			getChild("SettingsPane.Settings")->focus();
-			editor.createUndoPoint();
+			editor.beginChange();
 		}
 		else if(name == "LevelEditor.ShowMenu")
 		{
@@ -773,13 +771,13 @@ public:
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Clear")
 		{
-			editor.createUndoPoint();
-
+			editor.beginChange();
 			editor.p_level->clean();
+			editor.forgetPickedObjects();
+			editor.endChange();
+
 			getChild("MenuPane")->hide();
 			focus();
-
-			editor.forgetPickedObjects();
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Play")
 		{
@@ -1011,6 +1009,7 @@ public:
 				r |= editor.p_level->setSkin(i, static_cast<GUI_EditBox*>(getChild(elementName))->getText());
 			}
 
+			editor.endChange();
 			getChild("SettingsPane")->hide();
 			focus();
 
@@ -1018,7 +1017,7 @@ public:
 		}
 		else if(name == "LevelEditor.SettingsPane.Settings.Cancel")
 		{
-			editor.rollback();
+			editor.cancelChange();
 			getChild("SettingsPane")->hide();
 			focus();
 		}
@@ -1026,6 +1025,7 @@ public:
 		if(name == "LevelEditor.EditHintPane.EditHint.OK")
 		{
 			editor.p_hint->setText(static_cast<GUI_MultiLineEditBox*>(getChild("EditHintPane.EditHint.Text"))->getText());
+			editor.endChange();
 			editor.p_hint = 0;
 			getChild("EditHintPane")->hide();
 			focus();
@@ -1038,9 +1038,9 @@ public:
 		}
 		else if(name == "LevelEditor.EditHintPane.EditHint.Cancel")
 		{
-			editor.rollback();
-			// Also where there was nothing to undo: the preview draws the
-			// note while this is set, and the note may be erased later.
+			editor.cancelChange();
+			// Also where there was no change to take back: the preview draws
+			// the note while this is set, and the note may be erased later.
 			editor.p_hint = 0;
 			getChild("EditHintPane")->hide();
 			focus();
@@ -1088,6 +1088,13 @@ public:
 		}
 	}
 
+	// A dialog that holds the level's change under way: the note editor and
+	// the settings end it themselves, with OK or Cancel.
+	bool dialogOpen()
+	{
+		return getChild("EditHintPane")->isVisible() || getChild("SettingsPane")->isVisible();
+	}
+
 	void updateToolTips()
 	{
 		for(int x = 0; x < 24; x++)
@@ -1120,6 +1127,7 @@ GS_LevelEditor::GS_LevelEditor() : GameState("GS_LevelEditor"), engine(Engine::i
 	p_hint = 0;
 	p_currentPin = 0;
 	p_startPin = 0;
+	p_changeBefore = 0;
 }
 
 GS_LevelEditor::~GS_LevelEditor()
@@ -1311,7 +1319,7 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 	oldMode = -1;
 	rectStart = rectEnd = Vec2i(-1, -1);
 	drawStartButtons = 0;
-	strokeHasUndoPoint = false;
+	p_changeBefore = 0;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
 
@@ -1362,23 +1370,68 @@ void GS_LevelEditor::onLoseFocus()
 
 // The stroke ends here. Nothing promises a release for a button held as the
 // focus went, and the next press would otherwise count as the other button
-// cancelling a stroke that is long finished, or aim a teleporter.
+// cancelling a stroke that is long finished, or aim a teleporter. A change a
+// dialog holds stays open for its OK or Cancel.
 void GS_LevelEditor::onAppLoseFocus()
 {
 	drawStartButtons = 0;
 	p_teleporter = 0;
+	if(!gui["LevelEditor.EditHintPane"]->isVisible() && !gui["LevelEditor.SettingsPane"]->isVisible()) endChange();
 }
 
-void GS_LevelEditor::createUndoPoint()
+void GS_LevelEditor::beginChange()
 {
-	pushUndoPoint(p_level->save());
+	endChange();
+	p_changeBefore = p_level->save();
 }
 
-void GS_LevelEditor::pushUndoPoint(TiXmlDocument* p_before)
+void GS_LevelEditor::endChange()
+{
+	if(!p_changeBefore) return;
+	TiXmlDocument* p_before = p_changeBefore;
+	p_changeBefore = 0;
+	if(levelDiffers(p_before)) pushUndoPoint(p_before);
+	else delete p_before;
+}
+
+void GS_LevelEditor::cancelChange()
+{
+	if(!p_changeBefore) return;
+	Level* p_before = new Level;
+	p_before->setInEditor(true);
+	p_before->load(p_changeBefore);
+	delete p_changeBefore;
+	p_changeBefore = 0;
+	replaceLevel(p_before);
+}
+
+// By the XML a save writes, which is what an undo point holds and what
+// wasChanged() compares too: save() sorts the objects first, so the same
+// level always reads the same.
+bool GS_LevelEditor::levelDiffers(const TiXmlDocument* p_doc)
+{
+	TiXmlDocument* p_now = p_level->save();
+	std::string before, now;
+	before << *p_doc;
+	now << *p_now;
+	delete p_now;
+	return before != now;
+}
+
+uint GS_LevelEditor::getUndoDepth() const
+{
+	return static_cast<uint>(undoList.size());
+}
+
+uint GS_LevelEditor::getRedoDepth() const
+{
+	return static_cast<uint>(redoList.size());
+}
+
+void GS_LevelEditor::pushUndoPoint(TiXmlDocument* p_doc)
 {
 	clearRedo();
-	undoList.push_front(p_before);
-	strokeHasUndoPoint = true;
+	undoList.push_front(p_doc);
 
 	// cap at 64 steps
 	while(undoList.size() > 64)
@@ -1390,6 +1443,9 @@ void GS_LevelEditor::pushUndoPoint(TiXmlDocument* p_before)
 
 void GS_LevelEditor::undo()
 {
+	// A stroke still under way is a step of its own, undone first.
+	endChange();
+
 	if(!undoList.empty())
 	{
 		redoList.push_front(p_level->save());
@@ -1405,22 +1461,11 @@ void GS_LevelEditor::undo()
 	}
 }
 
-// Takes back an action that turned out not to happen - a cancelled stroke or
-// dialog, a move that did not fit - as undo() does, but leaves nothing to
-// redo: it was no step of the player's. Its own undo point was the one taken.
-void GS_LevelEditor::rollback()
-{
-	if(undoList.empty()) return;
-	undo();
-	if(!redoList.empty())
-	{
-		delete redoList.front();
-		redoList.erase(redoList.begin());
-	}
-}
-
 void GS_LevelEditor::redo()
 {
+	// One under way is a new step, and there is nothing left to redo.
+	endChange();
+
 	if(!redoList.empty())
 	{
 		undoList.push_front(p_level->save());
@@ -1457,6 +1502,9 @@ void GS_LevelEditor::forgetPickedObjects()
 
 void GS_LevelEditor::clearUndo()
 {
+	delete p_changeBefore;
+	p_changeBefore = 0;
+
 	while(!undoList.empty())
 	{
 		delete undoList.front();
@@ -1470,15 +1518,6 @@ void GS_LevelEditor::clearRedo()
 	{
 		delete redoList.front();
 		redoList.erase(redoList.begin());
-	}
-}
-
-void GS_LevelEditor::deleteLastUndoPoint()
-{
-	if(!undoList.empty())
-	{
-		delete undoList.front();
-		undoList.erase(undoList.begin());
 	}
 }
 
@@ -1628,7 +1667,9 @@ void GS_LevelEditor::draw(const Vec2i& where,
 				bool isHint = objectType == "Hint";
 				if(isTeleporter || isHint)
 				{
-					createUndoPoint();
+					// The placement is a step of its own, and aiming the
+					// teleporter or writing the note the next change.
+					beginChange();
 
 					// go into modify mode at once
 					oldMode = currentMode;
@@ -1674,38 +1715,33 @@ void GS_LevelEditor::clear(const Vec2i& where,
 	p_level->removeOldObjects();
 }
 
-bool GS_LevelEditor::modify(const Vec2i& where,
+void GS_LevelEditor::modify(const Vec2i& where,
 							int buttons,
 							bool shift,
 							bool press)
 {
 	// Is there an object here?
 	Object* p_obj = p_level->getFrontObjectAt(where);
-	if(p_obj)
+	if(!p_obj) return;
+
+	const std::string& type = p_obj->getType();
+
+	// Aimed and written from a press only: a drag that crosses one is on its
+	// way somewhere else.
+	if(!press && (type == "Teleporter" || type == "Hint")) return;
+
+	if(type == "Teleporter")
 	{
-		const std::string& type = p_obj->getType();
-
-		// Aimed and written from a press only: a drag that crosses one is on
-		// its way somewhere else.
-		if(!press && (type == "Teleporter" || type == "Hint")) return false;
-
-		if(type == "Teleporter")
-		{
-			p_teleporter = static_cast<Teleporter*>(p_obj);
-			return true;
-		}
-		else if(type == "Hint")
-		{
-			p_hint = static_cast<Hint*>(p_obj);
-			drawStartButtons = 0;
-			gui["LevelEditor.EditHintPane.EditHint.Text"]->focus();
-			static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->setText(p_hint->getText());
-			return true;
-		}
-
-		return p_obj->changeInEditor(shift ? 1 : 0);
+		p_teleporter = static_cast<Teleporter*>(p_obj);
 	}
-	else return false;
+	else if(type == "Hint")
+	{
+		p_hint = static_cast<Hint*>(p_obj);
+		drawStartButtons = 0;
+		gui["LevelEditor.EditHintPane.EditHint.Text"]->focus();
+		static_cast<GUI_MultiLineEditBox*>(gui["LevelEditor.EditHintPane.EditHint.Text"])->setText(p_hint->getText());
+	}
+	else p_obj->changeInEditor(shift ? 1 : 0);
 }
 
 void GS_LevelEditor::transition(const Vec2i& where)

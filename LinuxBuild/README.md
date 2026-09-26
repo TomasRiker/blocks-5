@@ -51,6 +51,8 @@ that the Visual Studio project compiles.
     linux_window.h      their interface, with no Xlib in it
     test/harness.sh     start the game and drive it by element names
     test/smoke.sh       one round through the GUI
+    test/drag.sh        the mouse gestures on the field, a drag and a click
+    test/undo.sh        the level editor's undo list, one step per change
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
@@ -125,6 +127,15 @@ through Escape.
 `B5_SHOTS` says where the images go (default `/tmp/blocks5-smoke`). **That
 directory is deleted and created afresh at the start** - so name one of your
 own, and not a directory with anything else in it.
+
+### The editor's undo list
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/undo.sh
+
+Works every tool, key and dialog of the level editor once changing the level
+and once changing nothing, and reads the undo and redo depths the hook reports
+after each: a change is one step however many cells it touched, and nothing
+changed is no step and leaves the redo list standing.
 
 ### Counting particles
 
