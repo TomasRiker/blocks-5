@@ -6,15 +6,12 @@
 
 namespace
 {
-	// A page is 2048 square where the machine allows it, which is 16 MB of
-	// RGBA. Not the largest the machine would take: the whole resident set of
-	// pictures is about 6.2 Mtexel, so two of these hold it with a fifth to
-	// spare, where one 4096 page would allocate 64 MB to keep 25 MB of
-	// content - forty wasted megabytes on a phone, for nothing.
-	//
-	// Four is the ceiling on pages, so a runaway cannot eat the graphics
-	// memory; a picture that finds no room simply keeps a texture of its own,
-	// which is what the game did with all of them until now.
+	// A page is 2048 square where the machine allows it, 16 MB of RGBA, and
+	// not the largest it would take: the resident set of pictures is about
+	// 6.2 Mtexel, which two of these hold with a fifth to spare, where one
+	// 4096 page would allocate 64 MB to keep 25 MB. At most four pages, so a
+	// runaway cannot eat the graphics memory; a picture that finds no room
+	// keeps a texture of its own.
 	const int MAX_PAGE_EDGE = 2048;
 	const int MAX_PAGES = 4;
 }
@@ -192,11 +189,10 @@ bool TextureAtlas::reserve(Texture* p_texture,
 			return true;
 		}
 
-		// No page had room for it. Where the room existed but was in pieces,
-		// a repack would have found it - but not here, in the middle of a
-		// load: it is asked for at the top of the next tick, where the
-		// renderer holds nothing and a skin change's eleven reloads have all
-		// been and gone.
+		// No page had room. Where the room existed but in pieces, a repack
+		// would find it - not here, in the middle of a load, but at the top of
+		// the next tick, when the renderer holds nothing and a skin change's
+		// eleven reloads are done.
 		int freeArea = 0;
 		for(uint i = 0; i < pages.size(); i++)
 			for(uint j = 0; j < pages[i].freeRects.size(); j++)
@@ -206,7 +202,6 @@ bool TextureAtlas::reserve(Texture* p_texture,
 		if(attempt || !makePage()) break;
 	}
 
-	compactionWanted = true;
 	return false;
 }
 
@@ -219,10 +214,9 @@ void TextureAtlas::giveBack(Texture* p_texture)
 		addFreeRect(pages[entries[i].page], entries[i].rect);
 		entries.erase(entries.begin() + i);
 
-		// No compacting here, however big the hole: a hole costs nothing
-		// until something needs the room, and the free list finds it again by
-		// itself. What a skin change does is give eleven pictures back and ask
-		// for eleven of the same sizes, and that has to cost nothing at all.
+		// No compacting here: a hole costs nothing until something needs the
+		// room, and a skin change gives eleven pictures back only to ask for
+		// eleven of the same sizes.
 		return;
 	}
 }
@@ -303,12 +297,10 @@ void TextureAtlas::repack()
 		return;
 	}
 
-	// Move the texels page to page, each rectangle with its gutter, so the
-	// gutter travels rather than being built again. glCopyTexSubImage2D reads
-	// and writes in GL's own coordinates at both ends, which is why this is a
-	// copy and not a render pass: a render pass would go through a projection
-	// whose y runs the other way, and getting that wrong is a picture that is
-	// upside down in one place and right in every other.
+	// Copy the texels page to page, each rectangle with its gutter. A copy and
+	// not a render pass: glCopyTexSubImage2D works in GL's own coordinates at
+	// both ends, where a render pass would go through a projection whose y
+	// runs the other way.
 	Engine& engine = Engine::inst();
 	Renderer& renderer = Renderer::inst();
 	for(uint p = 0; p < pages.size(); p++)

@@ -2,11 +2,10 @@
 #include "cf_star.h"
 
 // The star has 5 points, an outer radius of 1.0 and an inner radius of 0.4.
-// The contour is concave, and WebGL has neither the GLU tessellator nor
-// display lists. Because the centre lies in the core of the polygon (inner
-// radius > 0), triangles from the centre cover the star exactly: 10 of them,
-// no tessellator, no list. A list and not a fan - the renderer draws
-// GL_TRIANGLES and nothing else, so the centre is repeated per triangle.
+// The contour is concave, but the centre lies in the core of the polygon
+// (inner radius > 0), so 10 triangles from the centre cover it exactly and
+// no tessellator is needed. The renderer draws GL_TRIANGLES and no fans, so
+// the centre is repeated in every triangle.
 
 CF_Star::CF_Star()
 {

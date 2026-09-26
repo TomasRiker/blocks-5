@@ -13,13 +13,24 @@ Teleporter::Teleporter(Level& level,
 	this->targetPosition = targetPosition;
 
 	// subType comes out of the level file unchecked (presets.cpp), and only
-	// 0 and 1 mean anything: onUpdate() teleports nobody through any other
-	// value, while the sprite and the tooltip would still claim one kind.
+	// 0 and 1 mean anything: through any other value onUpdate() teleports
+	// nobody, while the sprite shows the no-player kind and there is no
+	// tooltip.
 	if(subType < 0 || subType > 1)
 	{
 		printfLog("+ WARNING: Teleporter with subType %d, which does not exist. Treating it as one for everybody.\n",
 				  subType);
 		subType = 0;
+	}
+
+	// So does the target. Off the grid nothing can stand, and the teleport
+	// would put its object nowhere; such a teleporter points at itself and
+	// sends nothing anywhere.
+	if(!level.isValidPosition(targetPosition))
+	{
+		printfLog("+ WARNING: Teleporter at (%d, %d) with its target (%d, %d) outside the level. It gets none.\n",
+				  position.x, position.y, targetPosition.x, targetPosition.y);
+		this->targetPosition = position;
 	}
 
 	this->subType = subType;
@@ -73,11 +84,15 @@ void Teleporter::onUpdate()
 			Object* p_obj = *i;
 			if(p_obj == this) continue;
 
-			if(std::find(objectsOnMe.begin(), objectsOnMe.end(), p_obj) == objectsOnMe.end() ||
-			   (p_obj->hasTeleportFailed() && level.isFreeAt(targetPosition)))
+			// The retry is only for an object this teleporter takes at all: one
+			// it refuses, still marked from a failed teleport elsewhere, would
+			// otherwise be refused, and the refusal heard, every tick it stays.
+			const bool takes = subType == 0 ||
+							   (subType == 1 && p_obj->getType() != "Player" && p_obj->getType() != "Enemy");
+			const bool arrived = std::find(objectsOnMe.begin(), objectsOnMe.end(), p_obj) == objectsOnMe.end();
+			if(arrived || (takes && p_obj->hasTeleportFailed() && level.isFreeAt(targetPosition)))
 			{
-				if(subType == 0 ||
-				   (subType == 1 && p_obj->getType() != "Player" && p_obj->getType() != "Enemy"))
+				if(takes)
 				{
 					// teleport the object
 					p_obj->teleportTo(targetPosition);

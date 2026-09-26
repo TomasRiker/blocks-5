@@ -37,9 +37,9 @@ public:
 
 	// Is the key just arriving in onKeyEvent() the repeat of a held one?
 	// Anything that reads it as a command - Escape, Return, the editors'
-	// shortcuts - must skip such a repeat, or a held finger triggers the
-	// command again every 60 ms. An edit box and a list, by contrast, want
-	// them and do not ask at all.
+	// shortcuts - must skip such a repeat, or a held key triggers the command
+	// again every 60 ms. Edit boxes and the list want repeats for typing and
+	// moving, and ask only before Return clicks a submit button.
 	bool isKeyRepeat() const;
 	void setFocusElement(GUI_Element* p_element);
 	GUI_Element* getOldFocusElement();

@@ -12,8 +12,8 @@ E_PulsePanel::E_PulsePanel(Level& level,
 	flags &= ~OF_MASSIVE;
 	flashLayer = RL_FLOOR;
 
-	this->pulseValue = pulseValue;
-	value = !pulseValue;
+	this->pulseValue = pulseValue ? 1 : 0;
+	value = !this->pulseValue;
 
 	// create the output
 	createPin(10, Vec2i(8, 15), PT_OUTPUT);

@@ -79,16 +79,14 @@ std::string getCurrentVersion()
 		// The version the server names, or "" when anything went wrong.
 		static std::string fetch()
 		{
-			// The version number belongs in the agent string: the server log
-			// then says which version is asking. Older installations still send
-			// the bare name without the bracket.
+			// The version in the agent string tells the server log which
+			// version is asking.
 			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
 			if(!inet) return "";
 
-			// InternetOpenUrl does not need to be told INTERNET_FLAG_SECURE -
-			// it reads the scheme from the address - but written out it shows
-			// that https is deliberate here.
+			// The https scheme implies INTERNET_FLAG_SECURE; written out, it
+			// says the https is deliberate.
 			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
 											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
 			if(!url)
@@ -141,16 +139,14 @@ std::string getCurrentVersion()
 #elif defined(__EMSCRIPTEN__)
 	return "";  // no update check in the browser build
 #else
-	// No HTTP client of our own: that would be TLS, and linking one more
-	// library for sixteen bytes is not worth it. curl and wget are on just
-	// about every Linux, and where neither is, the query simply does not
-	// happen - it can be switched off anyway and is off as shipped.
+	// No HTTP client of our own: TLS would be one more library for sixteen
+	// bytes. curl or wget is on nearly every Linux; where neither is, the
+	// check is skipped - it is off as shipped anyway.
 	const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
 	const char* const p_url = "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
 
-	// The two-second limit is the same as under Windows, but here it is the
-	// job of the program that makes the query. Both write only to stdout and
-	// are otherwise silent.
+	// The same two-second limit as under Windows, kept by the tool itself.
+	// Both print nothing but the answer to stdout.
 	std::string command = "curl -fsS --max-time 2 -A '" + agent + "' '" + p_url + "' 2>/dev/null";
 	if(::system("command -v curl >/dev/null 2>&1") != 0)
 	{
@@ -175,11 +171,10 @@ std::string getCurrentVersion()
 
 namespace
 {
-	// The two switches for the update checker, needed three times - at the
-	// first installation and on two update paths. The .bat files ship only
-	// under Windows: a batch file cannot be run anywhere else, and
-	// .update_checker is a text file with one character in it that any
-	// editor can change.
+	// The update checker's two switches, needed at the first installation
+	// and on two update paths. The .bat files ship only under Windows;
+	// .update_checker itself is a one-character text file any editor can
+	// change.
 	bool copyUpdateCheckerFiles(FileSystem& fs, const std::string& homeDirectory)
 	{
 		bool success = true;
@@ -227,30 +222,26 @@ namespace
 bool isNewer(const std::string& version1,
 			 const std::string& version2)
 {
-	// Compare as numbers and not as strings: a trailing newline, an error
-	// page from the server or simply "1.10.0" against "1.9.0" would
-	// otherwise produce an "update available" for somebody who has the
-	// newest version. Anything that cannot be read as a version number is
-	// never newer - a suffix like "1.3.0-beta" therefore falls through too.
+	// As numbers, not strings: a trailing newline, an error page or "1.10.0"
+	// against "1.9.0" would otherwise offer an update to somebody who has the
+	// newest. What is not a version number, "1.3.0-beta" included, is never
+	// newer.
 	const long v1 = parseVersion(version1);
 	const long v2 = parseVersion(version2);
 	if(v1 < 0 || v2 < 0) return false;
 	return v1 > v2;
 }
 
-// Set aside the copies of the shipped files in the user directory.
+// Set aside copies of shipped files in the user directory, where earlier
+// versions copied the shipped content on the first start. The game folder
+// comes first, so such a copy would be unreachable and only appear twice in
+// the Manager's list. The player files (FileSystem::getPlayerFiles) are not
+// shipped content and stay.
 //
-// Older installations copied everything the game ships into the user
-// directory once, on the first start. It lives in the game folder now and is
-// read from there, and the game folder comes first: those old copies would
-// be unreachable and would only appear twice in the Manager's list.
-//
-// Renamed and not deleted: from outside there is no telling whether somebody
-// has changed one of them. A player who called their own level
-// "example01.xml" must be able to find it again. The extension .bak takes them
-// out of every list, because every lister filters on the exact extension, and
-// out of the archive path as well: FileSystem::convertPath() recognises an
-// archive by ".zip/", not by ".zip".
+// Renamed, not deleted: nobody can tell from outside whether one was edited.
+// .bak takes them out of every list, since every lister filters on the exact
+// extension, and out of the archive path, since FileSystem::convertPath()
+// recognises an archive by ".zip/", not ".zip".
 uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
 {
 	static const char* p_subdirs[] = { "levels/", "levels/campaigns/", "levels/skins/" };
@@ -283,9 +274,10 @@ uint retireShadowingCopies(FileSystem& fs, const std::string& homeDirectory)
 	}
 
 #ifdef __EMSCRIPTEN__
-	// Write through to IndexedDB at once, as after every other write in the
-	// browser: otherwise the old copies would stand there again after a
-	// reload, and the run would have the same work to do at every start.
+	// Write through to IndexedDB at once, as after an import, a delete or an
+	// editor's save, rather than at the next five-second sync: otherwise the
+	// old copies would stand there again after a reload, and the run would
+	// have the same work to do at every start.
 	if(retired) WebTransfer::syncHome();
 #endif
 
@@ -299,13 +291,15 @@ const std::string detectInitializedVersion()
 	//    1.0.71:	"Blocks 5" folder exists in the user directory
 	//    1.0.72:	".initialized" file exists
 	// >= 1.0.73:	".initialized" file holds the version number
+	// A "Blocks 5" folder with no file directly in it counts as none.
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
 	if(fs.listDirectory(homeDirectory).empty())
 	{
-		// TODO: The "progress.zip" from the VirtualStore is not found! Why not? It used to work!
+		// TODO: a progress.zip that UAC redirected into the VirtualStore is
+		// not found here.
 		if(!fs.fileExists("progress.zip")) return "not_played";
 		else return "<= 1.0.7";
 	}
@@ -349,25 +343,19 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "levels/skins");
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
-			// The game writes config.xml itself on exit. Nothing ships a
-			// template: it would hold nothing but the installer's language and
-			// would never let Engine::detectSystemLanguage() run.
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
 			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
-			// The campaign and the skins are not copied over: they stay in the
-			// game folder and are read from there, which keeps them always
-			// exactly as new as the program beside them. The folders are
-			// created all the same, because that is where the editors and the
-			// import write.
-			//
-			// The five readme.txt are copied: they explain the player's own
-			// folders to them, and because the game never reads them, without
-			// this copy they would sit in no folder at all. The two example
-			// levels stand beside them in the list and are deliberately not
-			// copied - they are visible and loadable straight out of the game
-			// folder, and a player who changes one and saves it gets their own
-			// version by itself. Only on the very first start.
+			// No config.xml: the game writes its own, and a template's
+			// <Language> would overrule the one
+			// Engine::detectSystemLanguage() finds, for every player alike.
+
+			// The campaign and the skins stay in the game folder, always as new
+			// as the program; the folders above are where the editors and the
+			// import write. Of the player files only the five readme.txt are
+			// copied: nothing reads them, so without the copy they would be in
+			// no folder at all. The example levels load from the game folder
+			// until the player saves their own.
 			for(const FileSystem::PlayerFile* p_file = FileSystem::getPlayerFiles();
 				p_file->p_path; p_file++)
 			{
@@ -497,11 +485,10 @@ int runTheGame(int argc,
 				return 0;
 			}
 #elif !defined(__EMSCRIPTEN__)
-			// No window: the engine is not running yet, and there is therefore
-			// neither a toast bar nor a dialog, and a browser nobody asked for
-			// would simply spring open at startup. The query can be switched
-			// off anyway and is off as shipped - anyone who switched it on did
-			// that in a text file and sees these lines as well.
+			// Only the log: the engine is not running yet, so there is no toast
+			// or dialog, and a browser nobody asked for must not spring open.
+			// Whoever switched the check on did so in a text file and reads
+			// these lines too.
 			printfLog("%s", str.str().c_str());
 			printfLog("https://www.david-scherfgen.de/meine-spiele/blocks-5/\n\n");
 #endif
@@ -544,15 +531,12 @@ int runTheGame(int argc,
 
 	printfLog("Initializing engine ...\n");
 
-	// define the game actions.
+	// define the game actions
 	//
-	// The six the mouse drag feeds get it as a third source rather than as a
-	// secondary key, because both of their real slots are taken and worth
-	// keeping - $A_LEFT is Left and KP4, $A_PLANT_BOMB is either Shift - and a
-	// gesture is its own binding anyway: nobody reassigns "drag" to something
-	// else, so it is not offered in the options dialog and not written to
-	// config.xml. Player only ever asks for the action, and so never learns
-	// that a mouse can steer it.
+	// The six the mouse drag feeds take it as a third source: both real slots
+	// are taken and worth keeping, and a gesture is its own binding, never
+	// offered in the options dialog or written to config.xml. Player only
+	// asks for the action and never learns that a mouse can steer it.
 	Action* p_action = engine.registerAction("$A_LEFT", engine.getKeyboardVK(SDLK_LEFT), engine.getKeyboardVK(SDLK_KP4));
 	p_action->resetsActions.push_back("$A_UP");
 	p_action->resetsActions.push_back("$A_DOWN");
@@ -573,28 +557,16 @@ int runTheGame(int argc,
 	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PLANT);
 	p_action = engine.registerAction("$A_PUT_DOWN_BOMB", engine.getKeyboardVK(SDLK_LCTRL), engine.getKeyboardVK(SDLK_RCTRL));
 	p_action->tertiary = engine.getMouseDragVK(Engine::MOUSE_DRAG_PUT_DOWN);
-	// And the character switch, which repeated on the defaults - 240 ms and
-	// then every 80 - so holding Tab cycled the active character for as long
-	// as it was held. Measured with two of them: the active one alternated
-	// about two and a half times a second, which with two characters is a
-	// flicker and with three is a lottery. GS_Game's own 400 ms throttle went
-	// with the repeat, and with it a hardcoded SDLK_TAB in the key handler
-	// that cleared it - which read the key and not the action, so it did
-	// nothing at all for anybody who had rebound the switch.
+	// Once per press: on the default repeat (240 ms, then every 80) a held
+	// Tab would cycle the active character for as long as it was held.
 	p_action = engine.registerAction("$A_SWITCH_CHARACTER", engine.getKeyboardVK(SDLK_TAB));
 	p_action->repeats = false;
 	engine.registerAction("$A_SAVE_IN_HOTEL", engine.getKeyboardVK(SDLK_RETURN), engine.getKeyboardVK(SDLK_KP_ENTER));
-	// Once per press, like the three toggles below, and the pause after them
-	// for the same reason. The two restarts carried a delay and an interval
-	// of a second instead, which made them auto-fire actions: a
-	// second press inside that second went into the repeat's buffer, five
-	// deep, and was played out a second later - so mashing F5 restarted the
-	// level for seconds after the last press, each one beginning the rewind
-	// again over the one still running. Measured: the transition was still
-	// going 3.2 s after five presses let go, against 1.6 s after one. Holding
-	// the key restarted once a second for as long as it was held, which is
-	// not a thing a restart key should do either. The pause had 200 and 500
-	// and toggled itself every half second while the key was down.
+	// The two restarts and the pause fire once per press, like the toggles
+	// below. A repeating action buffers presses made during its delay, five
+	// deep, and plays them out later: mashing F5 would go on restarting after
+	// the last press, each rewind beginning again over the one running, and a
+	// held pause key would toggle on and off.
 	p_action = engine.registerAction("$A_RESTART_LEVEL", engine.getKeyboardVK(SDLK_F5));
 	p_action->repeats = false;
 	p_action = engine.registerAction("$A_RESTART_FROM_HOTEL", engine.getKeyboardVK(SDLK_F10));
@@ -609,11 +581,10 @@ int runTheGame(int argc,
 	p_action = engine.registerAction("$A_CAPTURE_SCREENSHOT", engine.getKeyboardVK(SDLK_F11));
 	p_action->repeats = false;
 #ifndef __EMSCRIPTEN__
-	// There is no video recording in the web build, and the action is
-	// therefore not registered there at all - it would otherwise stand
-	// uselessly in the key binding list. The query in Engine::update stays
-	// unchanged: getAction() returns 0 for an unknown name. Screenshots do
-	// exist there; they are only downloaded instead of stored.
+	// No video recording in the web build, so the action is not registered
+	// there and does not stand uselessly in the binding list; Engine::update
+	// may still ask, since an unknown action is never pressed. Screenshots
+	// exist there too, downloaded instead of stored.
 	p_action = engine.registerAction("$A_TOGGLE_CAPTURE_VIDEO", engine.getKeyboardVK(SDLK_F12));
 	p_action->repeats = false;
 #endif
@@ -667,6 +638,11 @@ int main(int argc,
 	}
 	__except(expFilter(GetExceptionInformation(), GetExceptionCode()))
 	{
+		// The trace is in the log, which printfLog() closes after every line.
+		// Nothing after a crash is to be trusted, so the process ends here:
+		// returning would run the static destructors, the engine's whole
+		// shutdown among them, over whatever the crash damaged.
+		TerminateProcess(GetCurrentProcess(), 1);
 		return 1;
 	}
 #else

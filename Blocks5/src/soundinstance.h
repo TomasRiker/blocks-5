@@ -30,12 +30,16 @@ public:
 	void update();
 	bool toBeRemoved() const;
 
+	// Different for every instance ever created; see Sound::isLiveInstance().
+	uint getSerial() const { return serial; }
+
 private:
 	SoundInstance(Sound& sound);
 	~SoundInstance();
 
 	Sound& sound;
 	uint sourceID;
+	uint serial;
 
 	uint timestamp;
 	int priority;

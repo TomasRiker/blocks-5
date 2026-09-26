@@ -39,10 +39,9 @@ namespace
 
 	// No #version, as in upscaler.cpp: 110 on the desktop, 100 in the browser,
 	// and this compiles as both. a_position is a vec4 fed with two components,
-	// which GL completes to (x, y, 0, 1) - the one program serves a 3D vertex
-	// with a stride switch. The clamp is the desktop's fixed-function clamp of
-	// a vertex colour, now on every platform: the game hands colours above 1
-	// on purpose and relied on it.
+	// which GL completes to (x, y, 0, 1), so the one program serves a 3D vertex
+	// with a stride switch. The clamp is fixed function's clamp of a vertex
+	// colour, on every platform: the game hands in colours above 1 on purpose.
 	const char* const p_vertexShader =
 		"attribute vec4 a_position;\n"
 		"attribute vec2 a_uv;\n"
@@ -124,12 +123,11 @@ namespace
 	}
 
 	// The pixels a one-pixel GL line lit along its length, measured on
-	// llvmpipe: a pixel whose centre lies in the half-open span from the
-	// start point (inclusive) to the end point (exclusive) in the direction
-	// of travel - so a line on whole coordinates covers [start, end)
-	// whichever way it runs, and one through pixel centres lights the pixel
-	// it starts in and not the one it ends in. Returns the [first, last)
-	// pixel span.
+	// llvmpipe: those whose centre lies in the half-open span from the start
+	// point (inclusive) to the end point (exclusive). So a line on whole
+	// coordinates lights the same pixels whichever way it runs, and one
+	// through pixel centres lights the pixel it starts in and not the one it
+	// ends in. Returns the [first, last) pixel span.
 	void lineSpan(float start, float end, float* p_first, float* p_last)
 	{
 		if(start <= end)
@@ -245,23 +243,22 @@ void Renderer::init()
 	uniformTexture = glExtGetUniformLocation(program, "u_texture");
 	uniformDiscard = glExtGetUniformLocation(program, "u_discard");
 
-	// The two uniforms that never move again: the sampler is unit 0 and the
-	// discard starts off. Uniforms live in the program, not in the context,
-	// so nothing outside this file can change them.
+	// The sampler is unit 0 for good and the discard starts off. Uniforms
+	// live in the program, not in the context, so nothing outside this file
+	// can change them.
 	glExtUseProgram(program);
 	glExtUniform1i(uniformTexture, 0);
 	glExtUniform1i(uniformDiscard, 0);
 	glExtUseProgram(0);
 	glDiscard = false;
 
-	// The buffers. The index buffer is built once: 0 1 2, 0 2 3 for every
-	// quad, split along the diagonal from the first corner to the third.
-	// Which diagonal shows wherever an attribute is not affine across the
-	// quad - the lava's four alphas, the lightning's trapezoids - and Mesa
-	// splits a GL_QUADS quad along this one and an array's quad along the
-	// other. The oracle's frames hold GL_QUADS almost everywhere, so this is
-	// the diagonal that keeps them, and the lightning, the one array-drawn
-	// quad, is the cost: up to twelve levels inside the bolt.
+	// The buffers. The index buffer is built once: 0 1 2, 0 2 3 a quad, split
+	// from the first corner to the third. The diagonal shows wherever an
+	// attribute is not affine across the quad (the lava's alphas, the
+	// lightning's trapezoids). Mesa splits a GL_QUADS quad along this one and
+	// an array's quad along the other; the oracle's quads are mostly GL_QUADS,
+	// so this one is kept, and the lightning, drawn from an array, is off by
+	// up to twelve levels inside the bolt.
 	glExtGenBuffers(1, &vertexBuffer);
 	glExtGenBuffers(1, &indexBuffer);
 	{
@@ -305,15 +302,12 @@ void Renderer::init()
 				p_disc[3] = static_cast<uchar>(alpha * 255.0f + 0.5f);
 			}
 		}
-		// A Texture and not a texture of its own, so that it packs: a flat
-		// quad then carries the same GL name as the pictures around it and
-		// stops ending their batch. It was the last thing in the tree
-		// reaching GL directly for a picture - measured, the untextured pass
-		// alone split a level frame in two.
+		// A Texture, so that it packs: a flat quad then carries the same GL
+		// name as the pictures around it and does not end their batch.
 		//
-		// This stands at the foot of init() because placing it runs the
-		// atlas, which makes a page, which comes back through
-		// Renderer::DirectGL: everything that call needs is built by now.
+		// At the foot of init() because placing it runs the atlas, which
+		// makes a page through Renderer::DirectGL: everything that call needs
+		// is built by now.
 		p_builtIn = Texture::createFromPixels(Vec2i(BUILTIN_SIZE, BUILTIN_SIZE), &pixels[0],
 											  "(renderer built-in)");
 	}
@@ -497,18 +491,14 @@ void Renderer::loadIdentity()
 void Renderer::bakePoint(float x, float y, float* p_outX, float* p_outY) const
 {
 	// The arithmetic a GL vertex stage does with a float matrix: float
-	// throughout, rounded at every step. The transform is baked on the CPU
-	// and has to land where the matrix would have put it on the GPU.
+	// throughout, rounded at every step, so a corner lands where the matrix
+	// would have put it on the GPU.
 	//
-	// Promoting the entries and rounding the sum once instead is the obvious
-	// way to be exact, and it is not worth it here. Measured over 20 million
-	// rotated and scaled transforms, the two sums differ for 41% of corners,
-	// but the worst gap is 0.000488 px - so after the 1/256 subpixel grid the
-	// rasterizer snaps a vertex to, 0.89% of corners are left, and across all
-	// nineteen oracle scenes not one pixel comes out different. This is the
-	// renderer's hottest arithmetic, four calls a quad and 16384 quads a
-	// draw, and it pays for the exactness in the browser, where the batching
-	// is worth the most.
+	// Promoting the entries and rounding the sum once would be exact and buys
+	// nothing: over 20 million rotated and scaled transforms the two differ
+	// for 41% of corners but by at most 0.000488 px, 0.89% survive the
+	// rasterizer's 1/256 subpixel snap, and no oracle scene moves a pixel.
+	// This is the renderer's hottest arithmetic, four calls a quad.
 	const Transform& t = transforms.back();
 	if(t.translationOnly)
 	{
@@ -542,10 +532,9 @@ void Renderer::pushQuad(const RenderState& s, const Vec2f* p_positions, const Ve
 		Vertex vertex;
 		vertex.position = p_positions[i];
 		// The one line that turns a caller's texels into the coordinate GL
-		// samples with, which is why the atlas offset is added here and
-		// nowhere else: a cache that holds uv in its own picture's texels -
-		// the tile grid, the font, the lightning - goes on being right after
-		// the picture has been moved inside a page.
+		// samples with, so the atlas origin is added here and nowhere else: a
+		// cache holding uv in its own picture's texels (the tile grid, the
+		// font, the lightning) stays right when a repack moves the picture.
 		u[i] = p_uvs[i].x * s.texture.texelScale.x + s.texture.uvOrigin.x;
 		v[i] = p_uvs[i].y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		vertex.uv = Vec2f(u[i], v[i]);
@@ -693,8 +682,8 @@ namespace
 // texture's edge, and inside a page the texture is the page, so the wrapping
 // is done here instead by cutting the quad where the picture ends.
 //
-// size is the picture's own size in texels, which is not 1/texelScale any more
-// - in a page that is the page's edge. The uv must be an axis-aligned
+// size is the picture's own size in texels, which in a page is not
+// 1/texelScale: that is the page's edge. The uv must be an axis-aligned
 // rectangle running the same way as the corners, corner 0 against corner 2,
 // which is what a tile drawn over a cell is; a rotated one would need cuts
 // that are not axis-aligned in screen space, and those are not quads.
@@ -706,10 +695,10 @@ void Renderer::tiledQuad(const RenderState& s, const Vec2f& size, const Vec2f* p
 	const Vec2f span = high - low;
 	if(span.x <= 0.0f || span.y <= 0.0f || size.x <= 0.0f || size.y <= 0.0f) return;
 
-	// One piece per copy of the picture the quad reaches into. The lava, which
-	// is the only caller, spans exactly one copy at an offset, so this is four
-	// pieces where the offset is not a whole number of texels and one where it
-	// is.
+	// One piece per copy of the picture the quad reaches into. The lava, the
+	// only caller, spans exactly one copy at an offset: four pieces, two where
+	// the offset is a whole number of copies on one axis, one where it is on
+	// both.
 	const int firstX = static_cast<int>(floorf(low.x / size.x));
 	const int lastX = static_cast<int>(ceilf(high.x / size.x)) - 1;
 	const int firstY = static_cast<int>(floorf(low.y / size.y));
@@ -847,8 +836,7 @@ void Renderer::quads3D(const RenderState& s, const Mat4& transform, const Vertex
 			baked[i].uv.y = baked[i].uv.y * s.texture.texelScale.y + s.texture.uvOrigin.y;
 		}
 		// The same rule as a 2D quad's, checked here because this path does
-		// not go through pushQuad. Leaving it out is how a credits star came
-		// to sample a row of sprites.png the art does not reach, and ship.
+		// not go through pushQuad.
 		for(uint q4 = 0; q4 + 4 <= n; q4 += 4)
 		{
 			const float u[4] = {baked[q4].uv.x, baked[q4 + 1].uv.x, baked[q4 + 2].uv.x, baked[q4 + 3].uv.x};
@@ -899,15 +887,16 @@ void Renderer::line(const Vec2f& a, const Vec2f& b, float width, const Vec4f& co
 void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec4f& color, bool closed)
 {
 	// One quad per segment, half the width to either side, and at a turn of
-	// up to ninety degrees a wedge on the outside of the corner - a quad with
-	// two corners on the point, which is a triangle - between the two
-	// segments' ends, so a beam has no notch where it bends. A closed loop
-	// gets its last segment and no wedge at the seam.
+	// up to ninety degrees a wedge on the outside of the corner between the
+	// two segments' ends, so a beam has no notch where it bends. A closed
+	// loop's seam is a corner like the others, joined once the last segment
+	// has come round to the first.
 	const size_t n = points.size();
 	if(n < 2) return;
 	const size_t segments = closed ? n : n - 1;
 
 	Vec2f prevDir(0.0f, 0.0f), prevUp(0.0f, 0.0f);
+	Vec2f firstDir(0.0f, 0.0f), firstUp(0.0f, 0.0f), seam(0.0f, 0.0f);
 	bool havePrev = false;
 	for(size_t i = 0; i < segments; i++)
 	{
@@ -919,21 +908,12 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		dir.x /= length; dir.y /= length;
 		const Vec2f up(dir.y * 0.5f * width, -dir.x * 0.5f * width);
 
-		if(havePrev && prevDir.x * dir.y - prevDir.y * dir.x >= 0.0f)
+		if(havePrev) joinWedge(a, prevDir, prevUp, dir, up, color);
+		else
 		{
-			const float dot = prevUp.x * dir.y - prevUp.y * dir.x;
-			if(dot > 0.0f)
-			{
-				const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
-				const float y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
-				submitFlat(x, y, color);
-			}
-			else if(dot < 0.0f)
-			{
-				const float x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
-				const float y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
-				submitFlat(x, y, color);
-			}
+			firstDir = dir;
+			firstUp = up;
+			seam = a;
 		}
 
 		const float x[4] = {a.x + up.x, b.x + up.x, b.x - up.x, a.x - up.x};
@@ -943,6 +923,32 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		prevDir = dir;
 		prevUp = up;
 		havePrev = true;
+	}
+
+	if(closed && havePrev) joinWedge(seam, prevDir, prevUp, firstDir, firstUp, color);
+}
+
+// The wedge at a, where a segment going in prevDir meets one going in dir: a
+// quad with two corners on the point, which is a triangle, on the outside of
+// a turn of at most ninety degrees. Both tests are dot products - the first
+// says how far the line turns, the second's sign which side is the outside.
+void Renderer::joinWedge(const Vec2f& a, const Vec2f& prevDir, const Vec2f& prevUp,
+						 const Vec2f& dir, const Vec2f& up, const Vec4f& color)
+{
+	if(prevDir.x * dir.x + prevDir.y * dir.y < 0.0f) return;
+
+	const float dot = prevUp.x * dir.x + prevUp.y * dir.y;
+	if(dot > 0.0f)
+	{
+		const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
+		const float y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
+		submitFlat(x, y, color);
+	}
+	else if(dot < 0.0f)
+	{
+		const float x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
+		const float y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
+		submitFlat(x, y, color);
 	}
 }
 
@@ -1016,22 +1022,17 @@ void Renderer::hairline(const Vec2f& a, const Vec2f& b, const Vec4f& colorA, con
 void Renderer::hairlineRect(const Vec2f& min, const Vec2f& max, const Vec4f& color)
 {
 	// The four lines of a loop drawn clockwise from the top left, each on
-	// its own: where two of them meet on the same pixel it is lit twice, as
-	// GL lit it.
+	// its own, so a pixel two of them share is lit twice, as GL lit it.
 	//
-	// The bottom line sometimes has to reach a pixel further than the corner
-	// it ends at. hairline() takes the row a horizontal line lights with
-	// floorf() and the column a vertical one lights with ceilf() - 1,
-	// opposite sides of the same boundary, and lineSpan() gives every side
-	// the same half-open interval whichever way it is drawn, so all four stop
-	// at the same end instead of rotating. With the corners on whole pixels
-	// that leaves the bottom left - the left edge's column in the bottom
-	// edge's row - lit by neither line, and the loop has a hole there. With
-	// them on pixel centres, as the editor draws its pin frames, the left
-	// line already reaches that row, and reaching further would light the
-	// pixel twice. So the pixel is asked of the same rules the two lines are
-	// drawn by, where they are drawn - baked - and the bottom line goes one
-	// further only where neither lights it.
+	// hairline() puts a horizontal line on the row floorf() gives and a
+	// vertical one on the column ceilf() - 1 gives, opposite sides of a
+	// boundary, and lineSpan() stops every side at the same end whichever
+	// way it runs. With the corners on whole pixels that leaves the
+	// bottom-left pixel (the left edge's column, the bottom edge's row) lit
+	// by neither line; on pixel centres, as the editor draws its pin frames,
+	// the left line already lights it. So that pixel is tested, baked,
+	// against both lines' rules, and the bottom line reaches one further
+	// only where neither lights it.
 	const Vec2f topRight(max.x, min.y), bottomLeft(min.x, max.y);
 	Vec2f p0, p1, p2;
 	bakePoint(min.x, min.y, &p0.x, &p0.y);
@@ -1329,7 +1330,7 @@ Renderer::DirectGL::~DirectGL()
 void Renderer::checkRecord()
 {
 	// After a draw: what GL is holding against what the renderer applied.
-	// The first few disagreements are reported and the rest counted, or a
+	// The first twenty disagreements are reported and the rest dropped, or a
 	// wrong record would flood the log at every flush.
 	static int reported = 0;
 	if(reported >= 20) return;
@@ -1383,20 +1384,15 @@ void Renderer::checkRecord()
 #if defined(BLOCKS5_TEST_HOOKS) && !defined(__EMSCRIPTEN__)
 void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* p_v)
 {
-	// A quad that samples outside its own picture relies on GL_REPEAT, and
-	// only a texture declared Texture::WM_REPEAT has it. Anything else lands
-	// in whatever was packed beside it - so the rule is checked on every quad
-	// rather than argued about, and frames.sh fails on the line.
+	// A quad that samples outside its own picture relies on GL_REPEAT, which
+	// only a ref that tiles has (a Texture::WM_REPEAT picture, the frame
+	// copy); anything else lands in whatever was packed beside it. Checked on
+	// every quad, and frames.sh fails on the line.
 	//
-	// Against the *picture* and not the texture, which stopped being the same
-	// thing when the atlas arrived: a page is one texture holding thirty
-	// pictures, so [0, 1] is the page's edge and a quad can run a long way
-	// past its own picture without ever reaching it. Written the old way this
-	// check was green while a credits star sampled a row of sprites.png that
-	// the art does not reach.
-	//
-	// Each axis on its own, because a picture in a page has a different
-	// origin and a different extent in u than in v.
+	// Against the picture and not the texture: a page holds many pictures,
+	// so [0, 1] is the page's edge, a long way past the picture's own. Each
+	// axis on its own, because a picture in a page has a different origin
+	// and extent in u than in v.
 	static int reported = 0;
 	if(reported >= 20 || s.texture.tiles || !s.texture.id) return;
 
@@ -1409,9 +1405,8 @@ void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* 
 	const float loV = s.texture.uvOrigin.y - slackV;
 	const float hiV = s.texture.uvOrigin.y + s.texture.uvExtent.y + slackV;
 
-	// The corner named is the last one found outside, not the furthest: one
-	// corner is enough to point at the quad, and which of four it is tells a
-	// reader nothing the others would not.
+	// Names the last coordinate found outside on each axis, not the
+	// furthest: one is enough to point at the quad.
 	float badU = p_u[0], badV = p_v[0];
 	bool bad = false;
 	for(int i = 0; i < 4; i++)
@@ -1421,8 +1416,7 @@ void Renderer::checkTiling(const RenderState& s, const float* p_u, const float* 
 	}
 	if(!bad) return;
 
-	// In the picture's own texels, which is what the caller wrote and so the
-	// only form it can act on: a page coordinate would name nothing it knows.
+	// In the picture's own texels, which is what the caller wrote.
 	const float texelU = (badU - s.texture.uvOrigin.x) / (slackU > 0.0f ? slackU : 1.0f);
 	const float texelV = (badV - s.texture.uvOrigin.y) / (slackV > 0.0f ? slackV : 1.0f);
 	reported++;

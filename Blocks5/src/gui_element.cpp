@@ -31,12 +31,11 @@ GUI_Element::~GUI_Element()
 	if(p_parent) p_parent->children.remove(this);
 	while(!children.empty()) delete children.front();
 
-	// Every pointer the GUI keeps to an element from one tick to the next,
-	// the press target included: it outlives the press whenever an element
-	// goes while the button is still down - a drag that finishes a level
-	// deletes the game's GUI in that same tick - and the next move or release
-	// would call into it. The focus is hide()'s; it is checked again after,
-	// because the root, going last, has nothing left to hand the focus to.
+	// Forget every pointer the GUI keeps from one tick to the next, the press
+	// target included: an element can go while the button is still down (a
+	// drag that finishes a level deletes the game's GUI), and the next move or
+	// release would call into it. hide() hands the focus to the root; the
+	// root itself, going last, clears it below.
 	GUI& gui = GUI::inst();
 	if(gui.p_elementAtCursor == this) gui.p_elementAtCursor = 0;
 	if(gui.p_oldElementAtCursor == this) gui.p_oldElementAtCursor = 0;
@@ -117,17 +116,11 @@ GUI_Element* GUI_Element::getLinkedTarget()
 	return p_parent->getChild(linkedElement);
 }
 
-// A toggle and an edit box want different things.
-//
-// A check box and a radio button get the whole set of mouse events: they only
-// toggle on release if they believe themselves to be "under the mouse", and
-// the target lights up while the mouse stands over the label - exactly the
-// right feedback.
-//
-// Everything else - above all edit boxes - gets the focus instead. Forwarding
-// the mouse position would be wrong there: it is measured against the label,
-// and an edit box sets its caret from it, which then lands somewhere in the
-// text.
+// A checkbox or radio button target gets every mouse event: it toggles on
+// release only while it believes the mouse is over it, and it lights up while
+// the mouse is on the label. Anything else - an edit box above all - gets the
+// focus instead, since a position measured against the label would put the
+// caret anywhere in the text.
 static bool wantsTheWholeClick(GUI_Element* p_target)
 {
 	const std::string type = p_target->getType();
@@ -343,10 +336,9 @@ bool GUI_Element::load(const std::string& filename)
 
 bool GUI_Element::load(TiXmlElement* p_element)
 {
-	// for="Name", as in a browser. One attribute is enough for it - it is a
-	// name, not content. Read here and not in readAttributes: that one is
-	// virtual, and none of the derived classes calls the base class version -
-	// a for= parsed there would vanish for some element types.
+	// for="Name" is read here and not in readAttributes: that one is virtual
+	// and no derived class calls the base version, so a for= parsed there
+	// would vanish for some element types.
 	const char* p_for = p_element->Attribute("for");
 	if(p_for) setLinkedElement(p_for);
 
@@ -556,9 +548,8 @@ std::string GUI_Element::getFullName() const
 {
 	std::string fullName = name;
 	GUI_Element* p_element = p_parent;
-	// Check for null as well: the root itself and everything that does not
-	// hang below it would otherwise run past p_parent == 0 and read on
-	// through memory.
+	// The null check is for an element without a parent - the root itself -
+	// whose chain the loop would otherwise walk off the end of.
 	while(p_element && p_element != GUI::inst().getRoot())
 	{
 		fullName = p_element->getName() + "." + fullName;
@@ -596,8 +587,9 @@ void GUI_Element::setPosition(const Vec2i& position)
 
 void GUI_Element::setAbsPosition(const Vec2i& absPosition)
 {
-	const Vec2i myAbsPosition = getAbsPosition();
-	setPosition(absPosition - myAbsPosition);
+	// The inverse of getAbsPosition(): the position is relative to the
+	// parent's.
+	setPosition(p_parent ? absPosition - p_parent->getAbsPosition() : absPosition);
 }
 
 const Vec2i& GUI_Element::getSize() const

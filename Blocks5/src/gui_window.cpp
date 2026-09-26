@@ -51,9 +51,9 @@ void GUI_Window::onRender()
 
 	// write the title
 	Vec2i dim;
-	std::string title = localizeString(this->title);
-	p_font->measureText(title, &dim, 0);
-	p_font->renderText(title, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+	std::string shownTitle = localizeString(this->title);
+	p_font->measureText(shownTitle, &dim, 0);
+	p_font->renderText(shownTitle, Vec2i((size.x - dim.x) / 2, 3 + offset), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 bool GUI_Window::getClipRect(Vec2i* p_position,
@@ -99,14 +99,11 @@ void GUI_Window::onMouseUp(const Vec2i& position,
 
 void GUI_Window::onMouseLeave(int buttons)
 {
-	// Only once the button has gone. A window being dragged is left behind by
-	// a quick mouse as a matter of course: the cursor is read once per logic
-	// tick and the window follows it in that same tick, so a movement wider
-	// than the window puts the cursor outside it until the next one - and
-	// ending the drag there would drop the window in the middle of a gesture
-	// the hand is still making. The moves keep arriving meanwhile, because
-	// GUI::update() delivers them to the element the button went down on as
-	// well as to the one under the cursor.
+	// Only once the button is up. A quick drag leaves the window behind for a
+	// tick: GUI::update() dispatches the leave before the move the window
+	// follows, so ending the drag here would drop the window mid-gesture. The
+	// moves keep arriving meanwhile, since GUI::update() delivers them to the
+	// element the button went down on as well as to the one under the cursor.
 	if(!(buttons & 1)) moving = false;
 }
 

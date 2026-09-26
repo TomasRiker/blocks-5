@@ -3,11 +3,10 @@
 #include "engine.h"
 #include "particlesystem.h"
 
-// The flow scrolls one texel a tick and never stops, so the offset is reduced
-// to whole periods of the picture before it reaches GL - see wrapTextureOffset
-// for what an unbounded one does to a phone. Twice the 16-texel tile and not
-// once, because the front pass halves the whole coordinate: a jump of 16 would
-// move that pass by half a tile, where 32 moves it by exactly one.
+// The flow scrolls one texel a tick and never stops, so scrollOffset reduces
+// the offset to whole periods and it stays small in float. Twice the 16-texel
+// tile and not once, because the front pass halves the whole coordinate: a
+// jump of 16 would move that pass by half a tile, where 32 moves it by one.
 const int SCROLL_PERIOD = 32;
 
 Lava::Lava(Level& level,
@@ -17,7 +16,7 @@ Lava::Lava(Level& level,
 	renderLayers = RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT | RL_EDITOR | RL_LIGHT;
 	warpTo(position);
 	flags = OF_FIXED | OF_DONT_FALL | OF_NO_SHADOW;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 20);
 	anim = 0;
 }
 
@@ -102,11 +101,10 @@ void Lava::onRender(RenderLayer layer,
 				}
 			}
 
-			// The scroll wraps at the tile, the shift above at a turn, and
-			// each has to be its own: anim's two wobble periods divide
-			// neither the tile nor each other, so reducing what feeds those
-			// sines by the tile would jog the wobble every time it came
-			// round. A turn cannot, since a sine is periodic in it.
+			// The scroll wraps at SCROLL_PERIOD, and the shift above is left
+			// to sinf and cosf: neither wobble period divides SCROLL_PERIOD,
+			// so feeding them the reduced anim would jog the wobble at every
+			// wrap.
 			const float scroll = scrollOffset(anim, 1.0f, 0.0f, SCROLL_PERIOD);
 
 			Vec2f t;
@@ -130,11 +128,10 @@ void Lava::onRender(RenderLayer layer,
 								  Vec2f(t.x + 16.0f, t.y),
 								  Vec2f(t.x + 16.0f, t.y + 16.0f),
 								  Vec2f(t.x, t.y + 16.0f)};
-			// Exactly one copy of the tile at an offset, so the renderer cuts
-			// it into the two or four pieces that each sample one copy. That
-			// is what lets the tile sit in an atlas page with the sprites it
-			// was cut from, rather than needing GL_REPEAT and a texture of its
-			// own - the lava passes then cost no texture change at all.
+			// One tile's worth of uv at an offset, which tiledQuad cuts into
+			// pieces that each sample one copy. That lets the tile share an
+			// atlas page with the sprites it was cut from, rather than need
+			// GL_REPEAT and a texture of its own.
 			renderer.tiledQuad(state, Vec2f(16.0f, 16.0f), corners, uvs, colors);
 		}
 	}
@@ -239,7 +236,7 @@ void Lava::onUpdate()
 					// debris
 					const Sprites& debris = p_obj->getSprites();
 					int n = debris.getTryCount(random(50, 80));
-					for(int i = 0; i < n; i++)
+					for(int k = 0; k < n; k++)
 					{
 						p.lifetime = static_cast<ushort>(random(60, 120));
 						p.damping = 0.9f;

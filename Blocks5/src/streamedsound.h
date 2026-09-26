@@ -52,23 +52,29 @@ private:
 	uint bufferSize;
 	char* p_buffer;
 
-	// p_thread is the decoder thread and nothing else, and always 0 in the
-	// browser; whether this sound is running is what playing says.
+	// The decoder thread, always 0 in the browser; whether the sound is
+	// running is what playing says.
 	SDL_Thread* p_thread;
 	bool playing;
 
 #ifndef __EMSCRIPTEN__
-	// Counted up when the decoder thread is to stop. SDL 1.2 has no atomic
-	// types, and a volatile bool is not synchronisation; a semaphore is both
-	// at once - the signal and the wait between two passes.
-	// Under Windows/Linux a real kernel object sits behind it, not the loop
-	// with 1 ms pauses that SDL_mutex.h warns about for other systems.
+	// Posted to stop the decoder thread, and the thread's wait between two
+	// passes: SDL 1.2 has no atomics, and a volatile bool is no
+	// synchronisation. A kernel semaphore under Windows and Linux, not the
+	// 1 ms polling loop SDL_mutex.h warns of on other systems.
 	SDL_sem* p_stopSignal;
 #endif
 
-	// Is the stream at its end? Only whatever fills the buffers writes and
-	// reads this - the decoder thread under Windows/Linux, update() in the
-	// browser. It never crosses a thread boundary; hence no volatile.
+	// Held around every use of p_stream from the time the decoder thread may
+	// run: tellStream() is asked on the main thread while the thread reads
+	// and seeks the same stream, and libvorbis keeps no lock of its own. In
+	// the browser, which has no such thread, Emscripten's SDL makes it a
+	// no-op.
+	SDL_mutex* p_streamLock;
+
+	// Is the stream at its end? Only whatever fills the buffers touches it -
+	// the decoder thread natively (play() sets it before starting the
+	// thread), update() in the browser - so it needs no synchronisation.
 	bool finish;
 
 	float volume;

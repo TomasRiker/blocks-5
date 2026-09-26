@@ -21,10 +21,9 @@ extern const char* p_localVersion;
 
 namespace
 {
-	// demo1.dat holds raw key numbers - SDL 1.2's, the ones the recording
-	// came from. Emscripten's SDL counts differently: SDLK_LEFT is 1104
-	// there and not 276. The table maps the recorded number onto the
-	// constant *this* build means.
+	// demo1.dat holds SDL 1.2's raw key numbers, and Emscripten's SDL counts
+	// differently (SDLK_LEFT is 1104 there, not 276). The table maps each
+	// recorded number onto the constant *this* build means.
 	struct RecordedKey
 	{
 		uint recorded;
@@ -86,10 +85,9 @@ void GS_Menu::onRender()
 	{
 		float s[] = {1.0f, 0.5f, 0.25f};
 		const float fi = static_cast<float>(i);
-		// The offset is 100 * i + 0.05 * time and the wobble reads
-		// 0.02 * s of it, so both are a line in the clock. The wobble is
-		// added after the reduction and the sum wrapped again: it is
-		// bounded by its own sine, so whole periods stay whole periods.
+		// The offset (100 * i + 0.05 * time) and the wobble's phase (0.02 * s
+		// of the offset) are both linear in the clock. The wobble, bounded by
+		// its sine, is added after the reduction and the sum wrapped again.
 		float x = scrollOffset(time, 0.05f, 100.0f * fi, static_cast<float>(p_clouds->getSize().x));
 		x += 2.0f * sinf(clockPhase(time, 0.001f * s[i], 2.0f * s[i] * fi + fi));
 		x = wrapTextureOffset(x, p_clouds->getSize().x);
@@ -117,8 +115,7 @@ void GS_Menu::onRender()
 void GS_Menu::onUpdate()
 {
 	// The file dialogs run here, not in the click handler: under Windows they
-	// are modal and would otherwise start a second message loop inside the
-	// GUI.
+	// are modal and would start a second message loop inside the GUI.
 	pollImport();
 	pollExport();
 
@@ -128,21 +125,13 @@ void GS_Menu::onUpdate()
 #else
 	Uint8* p_keyStates = SDL_GetKeyState(0);
 #endif
-	// Ctrl+Shift+F2 is the plain credits and Ctrl+Shift+F3 the ending, said
-	// outright rather than left to Campaign::isBuiltInCompleted(): these are
-	// the keys the author looks at either version with, and which one that is
-	// must not depend on what the machine's save file happens to hold. A
-	// Credits entry in the menu passes nothing and gets the answer the player
-	// has earned.
-	//
-	// Function keys because pre.js swallows F1 to F24 in the capture phase and
-	// hands them to the game, so both chords reach the page in a browser -
-	// where every Ctrl+Shift+<letter> is somebody's shortcut and the letter
-	// that is free in Chrome is taken in Firefox. The modifiers are asked of
-	// the keyboard, which is a level, and the key of wasKeyPressed(), which is
-	// the edge that an SDL_KEYDOWN sets: a level test of the key as well would
-	// need holding past a rendered frame, which under llvmpipe is a fifth of a
-	// second.
+	// Ctrl+Shift+F2 is the plain credits and Ctrl+Shift+F3 the ending, named
+	// outright so that what the author sees does not depend on the save file;
+	// the Credits entry gets what the player has earned. Function keys,
+	// because pre.js keeps F1 to F24 from the browser while every
+	// Ctrl+Shift+<letter> is some browser's shortcut. The key is
+	// wasKeyPressed()'s edge: a level test would need it held past a rendered
+	// frame, a fifth of a second under llvmpipe.
 	const bool ctrlShiftHeld =
 		(p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL]) &&
 		(p_keyStates[SDLK_LSHIFT] || p_keyStates[SDLK_RSHIFT]);
@@ -154,20 +143,19 @@ void GS_Menu::onUpdate()
 		engine.setGameState("GS_Credits", context);
 		engine.crossfade(new CF_Star, 0.85f);
 	}
-	// Ctrl+Shift+F4 turns the donation question off for good, the same shape
-	// as the two above. Alt+F4 is the only other reader of this key and wants
-	// Alt, which this chord does not hold.
+	// Ctrl+Shift+F4 turns the donation question off for good. Alt+F4, the one
+	// other reader of this key, wants Alt instead.
 	else if(ctrlShiftHeld && engine.wasKeyPressed(SDLK_F4))
 	{
 		FileSystem& fs = FileSystem::inst();
 		fs.writeStringToFile("disable", fs.getAppHomeDirectory() + ".donation_asked");
 	}
 
-	// Escape quits the game. It must stand *before* the demo playback: just
-	// below, wasKeyPressed() reads the recording and no longer the keyboard.
-	// Not while the donation question is open, and not when Options or Help
-	// have just used the key themselves - they unregister it with
-	// consumeKeyPress(), because GUI::update() runs before onUpdate().
+	// Escape quits the game. It must come before the demo playback, after
+	// which wasKeyPressed() reads the recording rather than the keyboard. Not
+	// while the donation or CRT question is open, nor when Options or Help
+	// have just used the key: they consumeKeyPress() it, since GUI::update()
+	// runs before onUpdate().
 	if(engine.wasKeyPressed(SDLK_ESCAPE) &&
 	   !gui["Menu.DonatePane"]->isVisible() &&
 	   !gui["Menu.CrtPane"]->isVisible())
@@ -190,16 +178,16 @@ void GS_Menu::onUpdate()
 		}
 	}
 
-	// From here on the keyboard belongs to the demo. SDLK_LAST, not 512:
-	// Emscripten's SDL counts up to 1536 and the arrow keys sit beyond 512
-	// there - uncleared, one of them would stay pressed for ever.
+	// From here on the keyboard belongs to the demo. All of SDLK_LAST:
+	// Emscripten's SDL counts up to 1536 with the arrow keys beyond 512, and
+	// one left uncleared would stay pressed for ever.
 	for(int i = 0; i < SDLK_LAST; i++)
 	{
 		engine.setKeyData(static_cast<SDLKey>(i), 0);
 	}
 
-	// The recording replays half a second in. Before that there is nothing
-	// to find, and time - 500 must not wrap.
+	// The recording replays half a second in: before that there is nothing
+	// to find, and time - 500 would wrap.
 	std::unordered_map<uint, std::list<uint> >::const_iterator i =
 		time >= 500 ? keyData.find(time - 500) : keyData.end();
 	if(i != keyData.end())
@@ -269,9 +257,9 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	FileSystem& fs = FileSystem::inst();
 
-	// Offer the CRT filter once: on a first start after the installation and
-	// equally after an update, because the marker file exists nowhere before
-	// 1.2.0. Not to somebody who has it on already.
+	// Offer the CRT filter once: on the first start of a fresh installation,
+	// or of an update from before 1.2.0, which never wrote the marker. Not to
+	// somebody who has it on already.
 	const std::string crtOfferedPath(fs.getAppHomeDirectory() + ".crt_offered");
 	const bool offerCrt = engine.getUpscaler() != &engine.getCrt() &&
 						  !fs.fileExists(crtOfferedPath);
@@ -284,10 +272,9 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 		const uint lastAskedForDonation = static_cast<uint>(atoi(lastAskedForDonationStr.c_str()));
 		const uint timePlayed = engine.getTimePlayed();
 
-		// Both numbers are unsigned: if .donation_asked holds a larger one
-		// than .time_played, the difference overflows and the donation window
-		// would come up at every start.
-		// Not both at once - the donation question comes next time.
+		// Unsigned: a .donation_asked larger than the time played would wrap
+		// the difference and ask at every start. Never together with the CRT
+		// offer; the donation question then waits for the next start.
 		if(!offerCrt &&
 		   timePlayed >= lastAskedForDonation &&
 		   timePlayed - lastAskedForDonation >= 60 * (60 * 60 * 3))
@@ -301,23 +288,26 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 
 	// load the keyboard data for the demo
 	keyData.clear();
+	// A tick, then key and data pairs up to a ~0, then the next tick. Every
+	// read is checked: isEOF() only turns true once a read has run past the
+	// end, and a failed read leaves its variable as it was - a file that
+	// stopped between a key and its ~0 would push that key for ever.
 	File* p_file = FileSystem::inst().openFile("demo1.dat", FileSystem::FM_READ);
-	while(!p_file->isEOF())
+	if(p_file)
 	{
 		uint t;
-		p_file->read(&t, 4);
-		while(true)
+		while(p_file->read(&t, 4) == 4)
 		{
 			uint key;
 			int data;
-			p_file->read(&key, 4);
-			if(key == ~0) break;
-			p_file->read(&data, 4);
-			keyData[t].push_back(translateRecordedKey(key));
-			keyData[t].push_back(data);
+			while(p_file->read(&key, 4) == 4 && key != ~0u && p_file->read(&data, 4) == 4)
+			{
+				keyData[t].push_back(translateRecordedKey(key));
+				keyData[t].push_back(data);
+			}
 		}
+		FileSystem::inst().closeFile(p_file);
 	}
-	FileSystem::inst().closeFile(p_file);
 
 	SDL_ShowCursor(1);
 }
@@ -334,9 +324,18 @@ void GS_Menu::onLeave(const ParameterBlock& context)
 	p_titleLevel = 0;
 	levelSaved = false;
 
-	// Give up a file dialog that is still open, or it keeps the channel
-	// occupied until the browser discards it itself after five minutes.
+	// Give up a file dialog that is still open, or in the browser it keeps
+	// the channel occupied until the page's five-minute timeout.
 	Transfer::abandonImport();
+
+	// And a question still open, which Ctrl+Shift+F2 leaves the menu under:
+	// its answer could come to nothing now, and a confirmMode left standing
+	// would keep pollImport() waiting on it for the rest of the run.
+	confirmMode = CONFIRM_NONE;
+	pendingDeleteName = "";
+	pendingImportPath = "";
+	pendingImportName = "";
+	pendingExport = false;
 
 	// delete the menu
 	delete gui["Menu"];
@@ -413,8 +412,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			name == "Menu.ManagerPane.Manager.KindProgress" ||
 			name == "Menu.ManagerPane.Manager.Refresh")
 	{
-		// Re-read on a change of kind and on request: while the pane is open
-		// the directory can have changed.
+		// Re-read on a change of kind and on request: the directory can change
+		// while the pane is open.
 		refreshManagerList();
 	}
 	else if(name == "Menu.ManagerPane.Manager.Items")
@@ -429,8 +428,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	}
 	else if(name == "Menu.ManagerPane.Manager.Import")
 	{
-		// One file, four possible meanings - Transfer::classify works out
-		// which from the content. The pane stays open meanwhile.
+		// One file, five possible kinds - Transfer::classify works out which
+		// from the content. The pane stays open meanwhile.
 		if(!Transfer::beginImport()) engine.showToast(Engine::TOAST_ERROR, "$TR_ERROR_CLICK_AGAIN");
 	}
 	else if(name == "Menu.ManagerPane.Manager.Export")
@@ -438,15 +437,15 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1)
 		{
-			// Nothing of this kind is there yet. The button is deactivated,
-			// but the list's Return key arrives here as well.
+			// Nothing selected. The button is deactivated then, and the list
+			// submits only a selection; this is the guard behind both.
 			engine.showToast(Engine::TOAST_ERROR, "$TR_NOTHING_TO_EXPORT");
 			return;
 		}
 
-		// Only note it down - the dialog runs a round later in pollExport(),
-		// for the same reason as the import. The pane stays open: the Manager
-		// is a place you keep working in.
+		// Only note it down; the dialog runs a round later in pollExport(), as
+		// the import's does. The pane stays open: the Manager is a place you
+		// keep working in.
 		pendingExportKind = currentManagerKind();
 		pendingExportName = p_list->getSelectedItemText();
 		pendingExport = true;
@@ -456,14 +455,14 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		GUI_ListBox* p_list = static_cast<GUI_ListBox*>(gui["Menu.ManagerPane.Manager.Items"]);
 		if(p_list->getSelection() == -1) return;
 
-		// The one thing in the Manager that cannot be undone - hence the
-		// question first. What gets deleted is settled from here on.
+		// The one thing in the Manager that cannot be undone, hence the
+		// question; what gets deleted is settled here.
 		confirmMode = CONFIRM_DELETE;
 		pendingDeleteKind = currentManagerKind();
 		pendingDeleteName = p_list->getSelectedItemText();
 
-		// Deleting the progress is not the same as deleting a file that can
-		// be imported again, and the question says so.
+		// Deleting the progress is not deleting a file that can be imported
+		// again, and the question says so.
 		askConfirmation(pendingDeleteKind == Transfer::KIND_PROGRESS
 						? "$TR_CONFIRM_DELETE_PROGRESS" : "$TR_CONFIRM_DELETE",
 						"$YES", "$NO", false);
@@ -501,9 +500,9 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	}
 	else if(name == "Menu.ConfirmPane.Confirm.No")
 	{
-		// An import that was refused still has to be let go of: in the
-		// browser the bytes lie in a staging file, and nothing else deletes
-		// it once pollImport() has handed it over.
+		// A refused import still has to be let go of: in the browser its
+		// bytes lie in a staging file that nothing else deletes once
+		// pollImport() has handed it over.
 		const bool wasImport = (confirmMode == CONFIRM_OVERWRITE);
 		closeConfirmation();
 		if(wasImport) Transfer::finishImport();
@@ -518,13 +517,12 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	{
 		// The invisible button over the address in the background image.
 #if defined(__EMSCRIPTEN__)
-		// _blank keeps the game running in its own tab. The click is only one
-		// frame back, hence the popup blocker lets the window through.
+		// _blank keeps the game running in its own tab. The click is only a
+		// frame back, so the popup blocker lets the window through.
 		EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, "https://www.david-scherfgen.de/");
 #elif defined(_WIN32)
-		// As with the donate button: under Windows the address lives in a
-		// .url file beside the application, and that file is in the Start
-		// menu too.
+		// As with the donate button, under Windows the address lives in a .url
+		// file beside the application, which is in the Start menu too.
 		ShellExecuteA(0, "open", "Scherfgen-Software Website.url", 0, 0, SW_SHOWMAXIMIZED);
 #else
 		openURL("https://www.david-scherfgen.de/");
@@ -533,13 +531,10 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 	else if(name == "Menu.Credits")
 	{
 		// The invisible button over the Credits line in the background image.
-		// No ParameterBlock, and that is the point: GS_Credits::onEnter falls
-		// back on Campaign::isBuiltInCompleted(), so a player who has finished
-		// the shipped campaign gets the ending and everybody else the plain
-		// version. Only the author's chords name a version outright, because
-		// which one they are looking at must not depend on their own save
-		// file. The star is the one the menu goes behind everywhere else, and
-		// the one the credits come back through.
+		// No ParameterBlock on purpose: GS_Credits::onEnter then asks
+		// Campaign::isBuiltInCompleted(), so a player who has finished the
+		// shipped campaign gets the ending. The star is the transition the
+		// menu uses everywhere, and the one the credits come back through.
 		engine.setGameState("GS_Credits");
 		engine.crossfade(new CF_Star, 0.85f);
 	}
@@ -556,8 +551,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			engine.saveConfig();
 		}
 
-		// Asked either way. The marker file only records that it happened;
-		// its contents are read nowhere.
+		// Asked either way. The marker records only that; its contents are
+		// read nowhere.
 		FileSystem& fs = FileSystem::inst();
 		fs.writeStringToFile("1", fs.getAppHomeDirectory() + ".crt_offered");
 
@@ -586,15 +581,13 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 			const std::string urlPath(std::string("Donate (") + engine.getLanguage() + ").url");
 			ShellExecuteA(0, "open", urlPath.c_str(), 0, 0, SW_SHOWMAXIMIZED);
 #else
-			// There is no directory for a .url shortcut beside the
-			// application here; the address must match the one in
-			// "Donate (<language>).url".
+			// No .url shortcut beside the application here; the address must
+			// match the one in "Donate (<language>).url".
 			const std::string url = engine.getLanguage() == "de"
 				? "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UUFVK97YL6ZHY"
 				: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FMADXSNPDGRCW";
 #ifdef __EMSCRIPTEN__
-			// _blank keeps the game running in its own tab. The click is only
-			// one frame back, hence the popup blocker lets it through.
+			// As for the website: _blank, and the click is only a frame back.
 			EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
 #else
 			openURL(url);
@@ -606,10 +599,9 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 
 void GS_Menu::pollImport()
 {
-	// Not while a question is on the screen. pollImport() latches its answer
-	// once, so asking for it here would take the import out of Transfer's
-	// hands and put its question over the one the player is still looking at.
-	// Leaving it in the pipe costs a tick or two and nothing else.
+	// Not while a question is open: Transfer::pollImport() hands its answer
+	// over once, and taking it now would put a second question over the
+	// first. It waits in Transfer until the open one is settled.
 	if(confirmMode != CONFIRM_NONE) return;
 
 	std::string path, untrustedName;
@@ -622,6 +614,7 @@ void GS_Menu::pollImport()
 		Transfer::finishImport();
 		engine.showToast(Engine::TOAST_ERROR, status == Transfer::STATUS_TOO_BIG ? "$TR_ERROR_TOO_BIG"
 										   : status == Transfer::STATUS_UNKNOWN ? "$TR_ERROR_UNKNOWN"
+										   : status == Transfer::STATUS_NO_DIALOG ? "$TR_ERROR_NO_DIALOG"
 										   : "$TR_ERROR_FAILED");
 		return;
 	}
@@ -634,9 +627,9 @@ void GS_Menu::pollImport()
 		return;
 	}
 
-	// Something of the player's would be gone. Ask first - and hold the whole
-	// import back until the answer, finishImport() included, since in the
-	// browser that deletes the staging file the bytes are in.
+	// Something of the player's would be gone. Ask first, and hold the whole
+	// import back until the answer - finishImport() included, since in the
+	// browser it deletes the staging file the bytes are in.
 	if(Transfer::wouldReplace(kind, untrustedName))
 	{
 		confirmMode = CONFIRM_OVERWRITE;
@@ -644,11 +637,10 @@ void GS_Menu::pollImport()
 		pendingImportPath = path;
 		pendingImportName = untrustedName;
 
-		// Only a progress database can be taken into the one already there;
-		// for everything else there is nothing to combine.
+		// Only a progress database can be merged into the one already there.
 		const bool progress = (kind == Transfer::KIND_PROGRESS);
-		// Named after what they do, not after yes and no: neither is an answer
-		// to a question that offers replacing and merging.
+		// Named after what they do: yes and no are no answer to a question
+		// that offers replacing and merging.
 		askConfirmation(progress ? localizeString("$TR_CONFIRM_MERGE")
 								 : localizeString("$TR_CONFIRM_OVERWRITE") + " \"" +
 								   Transfer::targetName(kind, untrustedName) + "\"",
@@ -675,9 +667,8 @@ void GS_Menu::completeImport(int kind,
 		return;
 	}
 
-	// If the Manager is still open, the player is looking at the very list
-	// the file has moved into - hence switch to its kind, re-read the list
-	// and select the new entry.
+	// A Manager still open shows the list the file has just moved into:
+	// switch to its kind, re-read the list and select the new entry.
 	if(gui["Menu.ManagerPane"]->isVisible())
 	{
 		setManagerKind(kind);
@@ -689,18 +680,16 @@ void GS_Menu::completeImport(int kind,
 		updateManagerButtons();
 	}
 
-	// If something got replaced, that is exactly the message: the file that
-	// lay under this name before is gone.
+	// A replacement is the message: the file under this name before is gone.
 	if(replaced)
 	{
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_REPLACED") + " \"" + name + "\"");
 		return;
 	}
 
-	// For a level, music and a skin the assigned name is what the player has
-	// to enter somewhere next - hence report it as well. It consists only of
-	// [A-Za-z0-9_-] plus the extension and can therefore hold no
-	// localization marker.
+	// A level, music or skin is reported with the name it was given, which
+	// the player will enter somewhere next. It is [A-Za-z0-9_-] plus the
+	// extension, so it can hold no localization marker.
 	switch(kind)
 	{
 	case Transfer::KIND_CAMPAIGN:
@@ -710,14 +699,14 @@ void GS_Menu::completeImport(int kind,
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_MUSIC") + " \"" + name + "\"");
 		break;
 	case Transfer::KIND_SKIN:
-		// Without ".zip" and without the dot: the way the name goes into a
-		// skin slot. setFilenameExtension leaves the dot in place.
+		// Without ".zip" and the dot, as the name goes into a skin slot;
+		// setFilenameExtension would leave the dot in place.
 		engine.showToast(Engine::TOAST_OK, localizeString("$TR_IMPORTED_SKIN") + " \"" +
 										   name.substr(0, name.find_last_of('.')) + "\"");
 		break;
 	case Transfer::KIND_PROGRESS:
-		// No name with this one: there is only ever the one file, and saying
-		// "progress.zip" would tell the player nothing they can use.
+		// No name: there is only the one file, and "progress.zip" would tell
+		// the player nothing they can use.
 		engine.showToast(Engine::TOAST_OK, "$TR_IMPORTED_PROGRESS");
 		break;
 	default:
@@ -728,9 +717,9 @@ void GS_Menu::completeImport(int kind,
 
 void GS_Menu::mergeImport(const std::string& path)
 {
-	// classify() only asked whether the archive lists a progress.xml, which
-	// the table of contents answers without opening it. Reading it can still
-	// fail, and an empty union would then be reported as a merge that worked.
+	// classify() only asked the table of contents for a progress.xml. Reading
+	// it can still fail, and an empty union would then pass for a merge that
+	// worked.
 	if(!ProgressDB::canRead(path))
 	{
 		Transfer::finishImport();
@@ -738,9 +727,8 @@ void GS_Menu::mergeImport(const std::string& path)
 		return;
 	}
 
-	// The union, and no code of its own for it: read the imported database
-	// and mark everything in it as solved. markSolved() reads the player's
-	// own file first, so what comes out holds both.
+	// The union needs no code of its own: mark everything in the imported
+	// database solved, and markSolved() adds it to the player's own.
 	ProgressDB& db = ProgressDB::inst();
 	const ProgressDB::Progress other(db.query(path));
 
@@ -756,7 +744,7 @@ void GS_Menu::mergeImport(const std::string& path)
 	const bool ok = db.markSolved(solved);
 
 	// Only now: in the browser this deletes the staging file the database was
-	// read out of a moment ago.
+	// just read from.
 	Transfer::finishImport();
 
 	if(ok) engine.showToast(Engine::TOAST_OK, "$TR_MERGED");
@@ -790,10 +778,9 @@ void GS_Menu::closeConfirmation()
 {
 	gui["Menu.ConfirmPane"]->hide();
 
-	// Only back to the Manager if it is still open. focus() shows what it
-	// focuses and every parent of it, so on a file dialog the player left the
-	// Manager during - which is what the asynchronous ones allow - this would
-	// open the pane again by itself.
+	// Back to the Manager only if it is still open: focus() shows every
+	// parent of what it focuses, and would reopen a pane the player closed
+	// while an asynchronous file dialog was up.
 	if(gui["Menu.ManagerPane"]->isVisible()) gui["Menu.ManagerPane.Manager"]->focus();
 	else                                     gui["Menu"]->focus();
 
@@ -834,8 +821,8 @@ int GS_Menu::currentManagerKind() const
 
 void GS_Menu::setManagerKind(int kind)
 {
-	// check() and not setChecked(): the change should act as if somebody had
-	// clicked it. The caller re-reads the list afterwards anyway.
+	// check() and not setChecked(): as if clicked. It fires only on a change,
+	// so the caller re-reads the list anyway.
 	const char* p_name = "Menu.ManagerPane.Manager.KindLevel";
 	switch(kind)
 	{
@@ -860,8 +847,8 @@ void GS_Menu::refreshManagerList()
 	}
 	p_list->setSelection(items.empty() ? -1 : 0);
 
-	// setSelection() reports only when the index really changes. The content
-	// can be a different one regardless, hence by hand here.
+	// By hand: setSelection() reports only a change of index, and the
+	// content can differ under the same index.
 	updateManagerButtons();
 }
 
@@ -874,10 +861,9 @@ void GS_Menu::updateManagerButtons()
 	if(haveSelection) p_export->activate();
 	else              p_export->deactivate();
 
-	// What the game ships is listed - it can be exported - but it cannot be
-	// deleted: the skin a level names would otherwise be gone, and the game
-	// delivers no replacement. With the two example levels there is nothing
-	// to delete until the player has saved one of them themselves.
+	// What the game ships is listed and can be exported, but not deleted: the
+	// skin a level names would be gone, with nothing to replace it. An
+	// example level has nothing to delete until the player has saved one.
 	const bool canDelete = haveSelection &&
 						   Transfer::isRemovable(static_cast<Transfer::Kind>(currentManagerKind()),
 												 p_list->getSelectedItemText());

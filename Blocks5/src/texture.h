@@ -12,106 +12,78 @@ class Texture : public Resource<Texture>
 
 public:
 	// How the picture is sampled outside its own edges, given at the request
-	// rather than set afterwards: it decides how the texture is built, and
-	// that has to be known before the upload. Two of the three are the GL
-	// modes of the same name; the middle one is the renderer wrapping the
-	// picture itself, which is what lets a tiling picture share a page.
+	// because it decides how the texture is built before the upload.
 	enum WrapMode
 	{
 		// Nothing samples this outside its own edges. Inside a page its
 		// gutter copies its own edge, which is what GL_CLAMP_TO_EDGE returned.
 		WM_CLAMP = 0,
 
-		// Tiled, but by Renderer::tiledQuad, which cuts the quad at the
-		// picture's edges so that every piece samples one copy of it. No
-		// piece reads past an edge, so this packs like a clamped one, and its
-		// gutter copies the *opposite* edge - which is what GL_REPEAT
-		// returned for the one texel linear filtering reaches there.
+		// Tiled by Renderer::tiledQuad, which cuts the quad at the picture's
+		// edges, so it packs like a clamped one. Its gutter copies the
+		// *opposite* edge, which is what GL_REPEAT returned there.
 		WM_WRAP,
 
-		// Tiled by GL_REPEAT, which wraps at the texture's edge and not at
-		// the picture's, so this needs a GL texture to itself and can never
-		// share a page. The weather: scrolled without bound and rotated with
-		// it, so the cuts a split would need are not axis-aligned.
+		// Tiled by GL_REPEAT, which wraps at the texture's edge, so this gets
+		// a GL texture of its own. The weather: its uv rotates as it scrolls,
+		// so the cuts tiledQuad would need are not axis-aligned.
 		WM_REPEAT
 	};
 
-	// Everything a request may say about a picture: a wrap mode, and flags on
-	// top of it. The wrap mode is the low byte, so a caller writes
-	// Texture::WM_CLAMP | Texture::NEVER_PACK and both arrive.
-	//
-	// NEVER_PACK keeps a picture out of the atlas whatever its wrap mode. A
-	// page is the wrong home for one that is drawn on the loading screen and
-	// then not again: it would hold half a megatexel for the rest of the
-	// session, and giving it back leaves a hole the atlas has to repack
-	// around. The pages are for what a frame draws over and over.
+	// A request's options: the wrap mode in the low byte and flags above it,
+	// as in Texture::WM_CLAMP | Texture::NEVER_PACK. NEVER_PACK keeps a
+	// picture out of the atlas: one drawn on the loading screen and never
+	// again, like logo.png, would hold its room in a page for the rest of the
+	// session, or leave a hole in it when given back.
 	static const int WRAP_MASK = 0xff;
 	static const int NEVER_PACK = 0x100;
 
 	void reload();
 	void cleanUp();
 
-	// The picture as a render state names it: the GL name and 1/w, 1/h,
-	// which is what makes texture coordinates read in its own texels.
+	// The picture as a render state names it: the GL name, the texel scale
+	// and origin that turn its own texels into uv, and its extent.
 	TextureRef ref() const;
 	const Vec2i& getSize() const;
 	WrapMode getWrapMode() const;
 
-	// A second request for a picture already loaded, with the options that
-	// request asked for. Only the stricter direction does anything - to
-	// WM_REPEAT, or to NEVER_PACK - and it reloads for the same reason
-	// keepInMemory() does: the flag alone does not move a texture that has
-	// already been built the other way. The other direction needs nothing: a
-	// tiling texture drawn without tiling is right, only not packed, and a
-	// picture kept out of a page draws the same as one in it.
+	// A second request for a loaded picture, with that request's options.
+	// Only the stricter direction reloads - to WM_REPEAT or to NEVER_PACK -
+	// since the texture was built the other way; the reverse draws right as is.
 	void reuseWithOptions(int options);
 
-	// The atlas has moved this picture to another page, or another place in
-	// the same one. Only the texel scale and the origin change: uv is written
-	// in the picture's own texels everywhere in the tree, so no cache built
+	// The atlas has moved this picture. Only the page and the origin change:
+	// uv is written in the picture's own texels everywhere, so no cache built
 	// from it has to be told.
 	void movedTo(uint pageID, const Vec2i& origin);
 
-	// A GL texture that is not a picture from a file: the frame copies and
-	// the rewind's noise, from pixels or empty where p_pixels is 0, RGBA or
-	// RGB, sampled linearly or not, clamped or repeating. The one place a
-	// texture is made besides reload(), so that the upload stays in this
-	// file; Renderer::deleteTexture takes it back.
+	// A GL texture that is not a picture from a file - the atlas pages, the
+	// framebuffer and the frame copies, the offscreen targets, the rewind's
+	// noise - from pixels or empty where p_pixels is 0. It is here so that the
+	// upload stays in this file; Renderer::deleteTexture takes it back.
 	static uint createGLTexture(const Vec2i& size, const uchar* p_pixels, bool withAlpha, bool smooth, bool clamp);
 
-	// A picture that came from memory rather than from a file, for the
-	// renderer's built-in block and disc. It goes through place() like any
-	// other, so it packs, it moves with a repack and it gives its rectangle
-	// back - none of which a raw GL texture of its own would do. Not in the
-	// Manager: there is no filename to key it on, and nothing ever asks for it
-	// a second time. The caller owns it.
+	// A picture from memory, for the renderer's built-in block and disc. It
+	// goes through place() like any other, so it packs and moves with a
+	// repack. Not in the Manager, having no filename; the caller owns it.
 	static Texture* createFromPixels(const Vec2i& size, const uchar* p_rgba, const std::string& name);
 
-	// Hand the decoded pixels back for every texture that was not asked to
-	// keep them. Once a logic tick, from Engine::update().
-	//
-	// Not at the end of reload(): both keepInMemory() callers ask immediately
-	// after their request(), and each would then force a second load. And not
-	// inside bind(), which is called thousands of times a frame and is about
-	// drawing. A sub-texture frees at the end of its own load instead: it is
-	// not in the Manager, so no sweep reaches it, and nothing ever asks to
-	// keep one.
+	// Frees the decoded pixels of every texture not asked to keep them, once
+	// a logic tick from Engine::update(). Not at the end of reload(): both
+	// keepInMemory() callers ask right after their request(), which would then
+	// load twice. A sub-texture frees its own, since no sweep reaches it.
 	static void freeUnkeptPixels();
 
 	Texture* createSubTexture(const Vec2i& offset, const Vec2i& size, WrapMode wrapMode);
 	void loadSubTexture(Texture* p_parent, const Vec2i& offset, const Vec2i& size);
 
-	// Keep the pixels in memory for getPixel() to read. Reloads the texture if
-	// the sweep has already freed them - the flag alone brings nothing back.
-	// Without that, the debris sampling would depend on every caller making
-	// this promise before the first sweep.
+	// Keeps the pixels for getPixel(), reloading if the sweep has already
+	// freed them, so that no caller has to ask before the first sweep.
 	void keepInMemory();
 	Vec4f getPixel(const Vec2i& where) const;
 
-	// Are the pixels still in memory? freeUnkeptPixels() hands back everything
-	// keepInMemory() was not called on, and getPixel() then returns transparent
-	// black for everything - no error, simply wrong. Anything that reads pixels
-	// asks first.
+	// Whether the pixels are still in memory. Without them getPixel() returns
+	// transparent black and no error, so anything that reads pixels asks first.
 	bool hasPixels() const;
 
 private:
@@ -138,15 +110,11 @@ private:
 	Vec2i offset;
 	Vec2i size;
 	bool doKeepInMemory;
-	// What one texel of this picture is worth, 1/w and 1/h. Every texture
-	// matrix this game ever samples a sprite under is that diagonal and
-	// nothing else, so it is kept as the two numbers it is made of rather
-	// than as sixteen.
+	// One texel in uv: 1/w and 1/h of the GL texture the picture lives in,
+	// so 1/pageEdge when it is packed.
 	Vec2f texelScale;
-	// Where this picture begins inside texID, which is (0, 0) for a texture of
-	// its own. Together with texelScale - 1/pageEdge when it is in a page,
-	// 1/size when it is not - that is the whole of what a caller's texels have
-	// to be put through.
+	// Where this picture begins inside texID, in uv; (0, 0) for a texture of
+	// its own. A caller's texels become uv as texels * texelScale + uvOrigin.
 	Vec2f uvOrigin;
 	WrapMode wrapMode;
 	bool neverPack;

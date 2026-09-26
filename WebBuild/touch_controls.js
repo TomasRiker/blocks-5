@@ -1,22 +1,17 @@
 // touch_controls.js - an on-screen pad for playing without a keyboard.
 //
-// It dispatches ordinary keydown/keyup events on the document, which is the
-// one route that reaches the game's named actions: Engine::updateVKs reads
-// SDL_GetKeyState, and Emscripten's SDL updates that array from DOM key
-// events. Engine::setKeyData would only reach the raw key layer - the GUI and
-// the title demo - and movement would stay dead. See ROADMAP item 19.
+// It dispatches ordinary keydown/keyup events on the document, the one route
+// into the game's named actions: Engine::updateVKs reads SDL_GetKeyState,
+// which Emscripten's SDL updates from DOM key events, while
+// Engine::setKeyData reaches only the raw key layer (the GUI, the title
+// demo). The action layer maps the key, so a rebinding is followed for free.
 //
-// Nothing about the game changes. The pad sends a key, the action layer maps
-// it, so a rebinding in the options dialog is followed for free.
+// The key is held exactly as long as the finger, so a tap is one step and a
+// held finger repeats: the movement actions keep registerAction's defaults,
+// a delay of 240 ms and an interval of 80.
 //
-// Stepping versus running needs no logic here either. The movement actions
-// keep registerAction's defaults, delay 240 and interval 80, so a tap is one
-// press - one step - and a held finger starts repeating after 240 ms. Holding
-// the key for exactly as long as the finger is down gives both.
-//
-// Where it sits: the game is 4:3 inside a phone's much wider screen, so there
-// are two black bars, 162 px on an iPhone 14 and 183 px on a Pixel 7. That is
-// more than enough for a pad, and it covers nothing. Only where the bars are
+// The game is 4:3 on a much wider phone screen, so the pad sits in the black
+// bars, 162 px on an iPhone 14 and 183 px on a Pixel 7. Only where they are
 // too narrow does it lie over the picture, at reduced opacity.
 (function () {
   'use strict';
@@ -36,32 +31,24 @@
     esc:    { key: 'Escape',     code: 'Escape',      keyCode: 27 }
   };
 
-  // What each button says, and it says which key it sends rather than what
-  // that key does. The pad dispatches a fixed key and the action layer maps
-  // it, so a rebinding in the options dialog changes the meaning and not the
-  // label - and the game goes on naming these keys by name in its hints, its
-  // help table and the options dialog, so the button a thumb is on has to
-  // read the same as the sentence that mentions it.
-  //
-  // The words are the game's own, from data/languages.txt, shortened: its
-  // $VK_KEYBOARD_LCTRL is "Left Ctrl" / "Strg links", which no round button
-  // can hold and which would claim a side the pad does not have. Every
-  // language is spelled out even where two of them agree, because a third one
-  // will not, and a map with holes in it is where that goes wrong.
-  //
-  // The four arrows stay symbols: they are drawn, not written, and an arrow
-  // needs no translating. ROADMAP item 40 is the other half of this - a
-  // symbol for the action beside the name of the key.
+  // Each button names the key it sends, not what the key does: the key is
+  // fixed and the action layer maps it, so a rebinding changes the meaning
+  // and not the label, and the game's hints, help and options name keys the
+  // same way. The words are data/languages.txt's, shortened: its
+  // $VK_KEYBOARD_LCTRL, "Left Ctrl" / "Strg links", fits no round button and
+  // names a side the pad does not have. Every language lists every key, even
+  // where it agrees with another: a map with holes is where a third language
+  // would go wrong. The arrows are drawn, not written. ROADMAP item 40 would
+  // add a symbol for the action beside the key's name.
   var LABELS = {
     en: { shift: 'Shift', ctrl: 'Ctrl', tab: 'Tab', f5: 'F5', f10: 'F10', esc: 'Esc' },
     de: { shift: 'Shift', ctrl: 'Strg', tab: 'Tab', f5: 'F5', f10: 'F10', esc: 'Esc' }
   };
 
-  // The game decides, and says so through Engine::publishLanguage() as soon as
-  // it knows - which is after this file has run and again whenever the options
-  // dialog changes it. Until then, the same walk over navigator.languages that
-  // Engine::detectSystemLanguage and the boot screen make, so the pad is never
-  // unlabelled and is already right for almost everybody.
+  // The game's language arrives through Engine::publishLanguage(), after this
+  // file has run and again whenever the options change it. Until then, the
+  // same walk over navigator.languages that Engine::detectSystemLanguage and
+  // the boot screen make.
   function detectLanguage() {
     var list = navigator.languages || [navigator.language || ''];
     for (var i = 0; i < list.length; i++) {
@@ -72,10 +59,9 @@
     return 'en';
   }
 
-  // A finger can lift faster than the game looks. Engine::update runs every
-  // 20 ms and samples the keyboard once per run, so a press shorter than that
-  // can fall between two samples and be lost. Holding every press for at least
-  // this long makes a quick tap always worth one step.
+  // The game samples the keyboard once per 20 ms tick, so a shorter press can
+  // fall between two samples and be lost; every press is held at least this
+  // long, which makes a quick tap always worth one step.
   var MIN_HOLD_MS = 70;
 
   var held = {};        // name -> timestamp of the keydown
@@ -276,8 +262,8 @@
   dpad.addEventListener('pointerup', dpadUp);
   dpad.addEventListener('pointercancel', dpadUp);
 
-  // Created empty and labelled a line later, so that there is exactly one
-  // place where a label is chosen.
+  // Created empty and labelled below by setPadLanguage, the one place where a
+  // label is chosen.
   var bShift = button('shift', true);
   var bCtrl  = button('ctrl',  true);
   // Tab switches character: a gameplay button, not one of the three careful
@@ -305,8 +291,9 @@
   setPadLanguage(detectLanguage());
 
   // --- layout --------------------------------------------------------------
-  // The same arithmetic the game uses in computePresentRect: the picture is
-  // 640x480 scaled to fit, centred, and what is left over is the bar.
+  // computePresentRect's arithmetic: the picture is 640x480 scaled to fit and
+  // centred, and what is left over is the bar. The Sharp filter's integer
+  // scale step is left out; it can only widen the bars.
 
   function layout() {
     var w = window.innerWidth, h = window.innerHeight;
@@ -381,11 +368,12 @@
   }
 
   // --- when to show it -----------------------------------------------------
-  // There is no way to ask whether a physical keyboard exists. maxTouchPoints,
-  // (pointer: coarse) and the Keyboard API all describe pointers or layouts,
-  // never presence, and a laptop can have a touchscreen too. So: guess from the
-  // pointer, then correct from behaviour - a real keypress hides it, a touch
-  // brings it back. ?pad=on / ?pad=off overrides and is remembered.
+  // No API says whether a physical keyboard exists (maxTouchPoints, (pointer:
+  // coarse) and the Keyboard API describe pointers and layouts), and a laptop
+  // can have a touchscreen. So: guess from the pointer, then correct from
+  // behaviour - a real keypress hides the pad, a touch brings it back - and
+  // remember the correction. ?pad=on or ?pad=off overrides and is remembered;
+  // ?pad=auto goes back to guessing.
 
   var visible = false;
 

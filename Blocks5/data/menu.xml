@@ -5,10 +5,10 @@
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
 		<!-- The cells in buttons.png are 80x80 (large buttons) and 50x50
-		     (small ones), packed with no gaps: unpressed at column 0, pressed
-		     at column 80 and 210 respectively. In both states the disc sits
-		     centred in the cell, so x/y are offset up and to the left by the
-		     border: 8 pixels for the large ones, 9 for the small. -->
+		     (small ones), packed with no gaps: unpressed at column 0 and 160,
+		     pressed at column 80 and 210 respectively. In both states the
+		     disc sits centred in the cell, so x/y are offset up and to the
+		     left by the border: 8 pixels for the large ones, 9 for the small. -->
 		<Button name="StartGame" x="12" y="97" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>

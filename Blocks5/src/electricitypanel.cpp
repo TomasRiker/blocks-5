@@ -8,7 +8,7 @@ ElectricityPanel::ElectricityPanel(Level& level,
 								   int subType) : Panel(level, position)
 {
 	renderLayers = RL_FLOOR;
-	this->subType = subType;
+	this->subType = subType ? 1 : 0;
 }
 
 ElectricityPanel::~ElectricityPanel()

@@ -20,8 +20,7 @@ public:
 	GS_Game();
 	~GS_Game();
 
-	// The level being played, for the test hook's particle dump; 0 outside
-	// a level.
+	// The level being played, for the test hooks; 0 outside a level.
 	Level* getLevel() const { return p_level; }
 
 	void onRender();
@@ -39,7 +38,7 @@ public:
 	bool isPaused() const { return paused; }
 
 private:
-	int loadLevel();
+	int loadLevel(bool checkBonus);
 
 	// Work whatever the active character is standing next to, the way a walk
 	// into it would. GameGUI's press is the only caller.
@@ -63,12 +62,9 @@ private:
 	uint showCursor;
 	bool ignoreNextCursorMovement;
 
-	// Did the press that is being held land on a character? A drag is a
-	// command to the one the player grabbed, so it has to start on it -
-	// dragging from empty ground steers nobody. Set by the press that
-	// found one, which is the same press that wakes it up, and cleared
-	// when the last button comes up rather than on the next press,
-	// because the second button of a two-button grip lands wherever the
+	// Did the press being held land on a character? A drag steers only the
+	// one grabbed. Cleared when the last button comes up, not by the next
+	// press: the second button of a two-button grip lands wherever the
 	// cursor has got to by then.
 	bool dragFromPlayer;
 

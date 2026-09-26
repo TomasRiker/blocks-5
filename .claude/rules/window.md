@@ -72,16 +72,16 @@ bottom. `-windowed`/`-fullscreen` set the state for that start rather than overr
 through the Fullscreen API from a real DOM keydown — the main loop's own events do not count as a user
 gesture — and the main loop reads the canvas size once a frame.
 
-**The mouse cursor follows the scale; the framebuffer has nothing to do with it.** The arrow is drawn once
-at 16x16 — the size it was designed as, and the size the video recorder and `screenshot()` stamp into the
-640x480 frame whatever the window does. `createCursor(factor)` builds the two the system can draw, 16 and
-32; `updateCursorSize` picks from the width of the rect `presentFrame` fills, not from the window, because
-`Sharp` snaps to whole steps and between scale 1.5 and 2 shows the picture unscaled where other filters
-nearly double it. `render` asks once a frame rather than hanging off events: the answer moves on a resize,
-fullscreen toggle, filter change and the browser's canvas alike, and asking costs two divisions and a
-comparison. Two sizes exist, so the choice is which of 16 and 32 lands closer to 16·s: `|32 − 16s| < |16 −
-16s|` from **s = 1.5**. At exactly 1 and 2, where `getDefaultWindowSize` puts almost everyone, the chosen
-one is pixel-exact. Measured at 1.40/1.50/1.60: 16, 32, 32.
+**The mouse cursor follows the scale; the framebuffer has nothing to do with it.** The arrow is drawn once at
+16x16 — the size it was designed as, and the size the video recorder stamps into the 640x480 frame whatever
+the window does; a screenshot carries no cursor. `createCursor(factor)` builds the two the system can draw, 16
+and 32; `updateCursorSize` picks from the width of the rect `presentFrame` fills, not from the window, because
+`Sharp` snaps to whole steps and between scale 1.5 and 2 shows the picture unscaled where other filters nearly
+double it. `render` asks once a frame rather than hanging off events: the answer moves on a resize, fullscreen
+toggle, filter change and the browser's canvas alike, and asking costs two divisions and a comparison. Two
+sizes exist, so the choice is which of 16 and 32 lands closer to 16·s: `|32 − 16s| < |16 − 16s|` from **s =
+1.5**. At exactly 1 and 2, where `getDefaultWindowSize` puts almost everyone, the chosen one is pixel-exact.
+Measured at 1.40/1.50/1.60: 16, 32, 32.
 
 **The first gesture takes the fullscreen, on every device, and never again on its own.** `pre.js` listens in
 the capture phase for the events that carry a *transient user activation*, which the Fullscreen API demands:

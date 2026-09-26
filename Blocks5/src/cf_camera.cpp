@@ -13,8 +13,9 @@ void CF_Camera::render(float t,
 					   uint oldImageID,
 					   uint newImageID)
 {
-	// The camera looks along the y axis, from the old image up to the new
-	// one four units above it.
+	// The camera stands one unit before the images, where the 90 degree view
+	// frames a 2x2 image exactly, and rises along y from the old image to the
+	// new one four units above, looking ahead of itself on the way.
 	const Mat4 projection = Mat4::perspective(90.0f, 1.0f, 0.1f, 100.0f);
 
 	float s1 = sinf(t * 1.5707963267948966192313216916398f);

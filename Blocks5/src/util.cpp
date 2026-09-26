@@ -124,9 +124,8 @@ void seedRandom(uint seed)
 int random(int min,
 		   int max)
 {
-	// An empty span is empty and not huge: MTRand::randInt() takes a uint32,
-	// and a negative max - min would become four billion there, with an
-	// arbitrary number far outside [min, max] coming out.
+	// MTRand::randInt() takes a uint32, where a negative max - min would
+	// become four billion and the result would leave [min, max].
 	if(max <= min) return min;
 	return min + mt.randInt(max - min);
 }
@@ -218,6 +217,19 @@ char keyLetter(const SDL_keysym& keysym)
 	return letterKey ? static_cast<char>(keysym.sym) : 0;
 }
 
+char typedCharacter(const SDL_keysym& keysym)
+{
+	const bool ctrl = (keysym.mod & KMOD_LCTRL) || (keysym.mod & KMOD_RCTRL);
+	const bool alt = (keysym.mod & KMOD_LALT) || (keysym.mod & KMOD_RALT);
+	if(ctrl && !alt) return 0;
+
+	// Past Latin-1 a character would be cut to some other one: U+0142, the
+	// Polish l with stroke, to a B.
+	const uint u = keysym.unicode;
+	if((u >= 32 && u < 127) || (u >= 160 && u <= 255)) return static_cast<char>(u);
+	return 0;
+}
+
 namespace
 {
 	bool isBase62Digit(char c)
@@ -230,12 +242,10 @@ bool decryptPassword(const std::string& in,
 					 std::string& out,
 					 const uint* p_primes)
 {
-	// The text between the brackets of an archive path, and so exactly as
-	// trustworthy as the file it came from: a skin carries its own as
-	// password.txt, read out of the archive by Level::getSkinFilename. So it
-	// is measured before it is believed - whole blocks of seven base-62
-	// digits, every record inside them complete - and anything else is no
-	// password at all.
+	// The text between an archive path's brackets, as trustworthy as the file
+	// it came from: a skin carries its own as password.txt, which
+	// Level::getSkinFilename reads. Only whole blocks of seven base-62 digits
+	// holding complete records are a password at all.
 	out.clear();
 	if(in.empty() || in.length() % 7) return false;
 	for(size_t i = 0; i < in.length(); i++)
@@ -243,10 +253,9 @@ bool decryptPassword(const std::string& in,
 		if(!isBase62Digit(in[i])) return false;
 	}
 
-	// Every seven digits are one 32-bit number, xored with a pattern that
-	// moves with the block, and its four bytes come lowest first: PWEncrypt
-	// reads them as one number straight out of memory, on a little-endian
-	// machine.
+	// Seven digits make one 32-bit number, xored with a pattern that moves
+	// with the block. Its bytes come lowest first: PWEncrypt reads the four
+	// as one number straight out of memory, on a little-endian machine.
 	std::vector<unsigned char> bytes;
 	bytes.reserve(in.length() / 7 * 4);
 	for(uint i = 0, shift = 0; i < in.length(); i += 7, shift++)
@@ -293,9 +302,8 @@ bool isSafeMemberName(const std::string& name)
 
 	for(size_t i = 0; i < name.length(); i++)
 	{
-		// The XML these names come out of is ISO-8859-1: without the
-		// reinterpretation as unsigned, every umlaut would be negative and would
-		// fail the control character test.
+		// Unsigned: these names come out of ISO-8859-1 XML, and as a signed
+		// char every umlaut would be negative and fail the control test.
 		const unsigned char c = static_cast<unsigned char>(name[i]);
 		if(c < 0x20 || c == 0x7F) return false;
 		if(strchr("/\\:<>[]\"|?*", c)) return false;
@@ -329,21 +337,12 @@ void printfLog(const char* p_format,
 	strftime(datetime, 32, "%H:%M:%S", localtime(&t));
 	std::string finalLogText(std::string(datetime) + " // " + text);
 
-	// output. Flushed at once, because stdout is block-buffered the moment it
-	// is a pipe or a file rather than a terminal - and it always is: SDL 1.2
-	// points it at stdout.txt under Windows, and every harness redirects it.
-	// A run that is killed loses whatever the buffer still held, which is
-	// exactly the tail saying what it was doing when it died. log.txt never
-	// had the problem, being reopened and closed around every line.
-	//
-	// A flush per line and not setvbuf(stdout, 0, _IOLBF, 0) at startup, which
-	// is the shorter way and unusable here on two counts. The MSVC runtime
-	// validates that size against a documented 2..INT_MAX and sends a
-	// violation to the invalid parameter handler, which ends the process,
-	// where glibc reads the same 0 as "pick a size for me"; and it has to run
-	// before any I/O on the stream, which SDL has already done by the time
-	// main() is reached. A flush has neither constraint, and this game logs at
-	// startup and hardly at all while it runs.
+	// Flushed at once: stdout is a file or a pipe here (SDL 1.2 points it at
+	// stdout.txt under Windows, the harnesses redirect it), so it is block
+	// buffered, and a run that is killed would lose the lines saying what it
+	// was doing. Not setvbuf(stdout, 0, _IOLBF, 0) at startup: the MSVC
+	// runtime ends the process over a size of 0, and SDL has written to the
+	// stream before main() anyway.
 	printf("%s", finalLogText.c_str());
 	fflush(stdout);
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");
@@ -462,16 +461,14 @@ uint64 getExactTimeUS()
 	LARGE_INTEGER t;
 	QueryPerformanceCounter(&t);
 	const LONGLONG ticks = t.QuadPart - startTime.QuadPart;
-	// Whole seconds and remainder apart, rather than ticks * 1000000 /
-	// frequency: the counter runs at 10 MHz on current Windows, where that
-	// product leaves the range of a signed 64-bit integer after eleven days.
-	// The remainder is below one second, so its own product cannot.
+	// Whole seconds and remainder apart: at the 10 MHz current Windows counts
+	// in, ticks * 1000000 overflows a signed 64-bit integer after about eleven
+	// days, and the remainder, below one second, cannot.
 	return static_cast<uint64>(ticks / frequency) * 1000000
 	     + static_cast<uint64>((ticks % frequency) * 1000000 / frequency);
 #elif defined(__EMSCRIPTEN__)
-	// The one platform where the clock passes through a floating-point value,
-	// and it has to: emscripten_get_now() hands back a JavaScript number,
-	// which is an IEEE double, in milliseconds.
+	// The one clock that passes through floating point, because
+	// emscripten_get_now() is a JavaScript number: a double, in milliseconds.
 	return static_cast<uint64>(emscripten_get_now() * 1000.0);
 #else
 	// CLOCK_MONOTONIC and not CLOCK_REALTIME: what is measured are intervals,
@@ -504,10 +501,9 @@ uint getExactTimeMS()
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 void openURL(const std::string& url)
 {
-	// xdg-open is what every desktop environment brings along and what points
-	// at the configured browser. Only addresses from the program arrive here,
-	// but the call goes through a shell, and an apostrophe in one would end
-	// the argument - do not let one through in the first place.
+	// xdg-open reaches the configured browser on every desktop. It runs
+	// through a shell, where an apostrophe would end the quoted argument, so
+	// one is refused although only the program's own addresses arrive here.
 	if(url.find('\'') != std::string::npos)
 	{
 		printfLog("Refusing to open a URL containing a quote: %s\n", url.c_str());

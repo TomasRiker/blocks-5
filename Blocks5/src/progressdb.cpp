@@ -9,11 +9,9 @@ namespace
 	// The one member of the archive.
 	const char* const p_member = "/progress.xml";
 
-	// A level index this large belongs to no campaign anybody has built, and
-	// the set is keyed by it: a file claiming level="2000000000" would
-	// otherwise cost the memory of every entry up to it the moment somebody
-	// counted them. Levels come from a stranger's file since the Manager
-	// imports one.
+	// A level index this large belongs to no campaign (one loads 500 levels at
+	// most), so it can only come from a damaged or foreign file, and the
+	// Manager imports foreign ones.
 	const int MAX_LEVEL = 10000;
 }
 
@@ -32,9 +30,9 @@ std::string ProgressDB::getFilename()
 
 std::string ProgressDB::getBackupFilename()
 {
-	// It exists only while a save is in flight, so finding one means the last
-	// save did not finish. Not the ".bak" that retireShadowingCopies writes,
-	// which means the opposite - a copy set aside for good.
+	// Exists only while a save is in flight, so finding one means the last
+	// save did not finish. Not ".bak", which retireShadowingCopies writes for
+	// the opposite: a copy set aside for good.
 	return getFilename() + ".saving";
 }
 
@@ -49,11 +47,10 @@ bool ProgressDB::read(const std::string& filename,
 	doc.SetCondenseWhiteSpace(false);
 	doc.Parse(xml.c_str());
 
-	// Nothing here may be taken on trust. The Manager imports this file, so it
-	// comes from a stranger: the archive may hold no such member (which leaves
-	// the string empty), the document may not parse, the root may be something
-	// else, a campaign may carry no name and a level index may be negative or
-	// absurd.
+	// Nothing here is trusted, since the Manager imports this file: the member
+	// may be missing (an empty string), the document may not parse, the root
+	// may be something else, a campaign may carry no name and a level index
+	// may be negative or absurd.
 	TiXmlElement* p_progressDB = doc.FirstChildElement("ProgressDB");
 	if(!p_progressDB) return false;
 
@@ -126,11 +123,11 @@ ProgressDB::Progress ProgressDB::query(const std::string& filename,
 	const bool readable = read(path, progress);
 	bool intact = true;
 
-	// Reading is the only place that can put a half-finished save right, so it
-	// is the place that does it. Both halves matter: a backup left standing
-	// beside a database that reads perfectly well is from a run that died long
-	// ago, and keeping it would mean that any later damage restores a database
-	// months out of date instead of reporting a fault.
+	// Reading is where an interrupted save is put right, both ways: the backup
+	// goes back where the database is missing or unreadable, and is deleted
+	// where the database reads - left beside a good one it is from a run that
+	// died long ago, and any later damage would restore a database months out
+	// of date instead of reporting a fault.
 	if(own)
 	{
 		const std::string backup(getBackupFilename());
@@ -145,14 +142,14 @@ ProgressDB::Progress ProgressDB::query(const std::string& filename,
 
 				// A backup that does not read either leaves nothing to
 				// protect, so this stays intact: the next save may write over
-				// it, which is the only way out of that state.
+				// it, the only way out of that state.
 				read(path, progress);
 			}
 			else
 			{
-				// The player's whole progress is still standing under the
-				// backup's name. Saying so is what stops the caller writing
-				// an empty database over it.
+				// The player's whole progress still stands under the backup's
+				// name; saying so stops the caller writing an empty database
+				// over it.
 				printfLog("+ ERROR: The backup could not be put back.\n");
 				intact = false;
 			}
@@ -173,18 +170,16 @@ bool ProgressDB::markSolved(const std::vector<std::pair<std::string, uint> >& so
 
 	FileSystem& fs = FileSystem::inst();
 
-	// The disk first: this adds to what is there now, not to what was there
-	// when the screen was opened. That is also what makes two of these unable
-	// to lose each other's entries - and what makes a merge need no code of
-	// its own.
+	// The disk first, so this adds to what is there now: two calls cannot lose
+	// each other's entries, and a merge needs no code of its own.
 	bool intact = false;
 	Progress progress = query(std::string(), &intact);
 
 	if(!intact)
 	{
-		// An interrupted save that could not be put back. What came back is
-		// empty, and writing it would put that emptiness where the player's
-		// progress still is.
+		// An interrupted save that could not be put back: what came back is
+		// empty, and writing it would destroy the progress still standing
+		// under the backup's name.
 		printfLog("+ ERROR: The progress database is not in a state to be written to.\n");
 		return false;
 	}
@@ -200,10 +195,10 @@ bool ProgressDB::markSolved(const std::vector<std::pair<std::string, uint> >& so
 	const std::string path(getFilename());
 	const std::string backup(getBackupFilename());
 
-	// The old database steps aside rather than being written over. Putting a
+	// The old database steps aside rather than being written over: putting a
 	// member into a zip rebuilds the archive, and File_Archived deletes the old
-	// file before the new one exists - so without this a crash or a full disk
-	// in that window would leave the player with nothing at all.
+	// file before the new one exists, so a crash or a full disk in that window
+	// would leave the player with nothing.
 	bool placedBackup = false;
 	if(fs.fileExists(path))
 	{
@@ -217,9 +212,8 @@ bool ProgressDB::markSolved(const std::vector<std::pair<std::string, uint> >& so
 
 	if(write(progress))
 	{
-		// Only the one this call put there. Deleting a backup on the strength
-		// of having written something would throw away whatever an earlier
-		// interrupted save left behind.
+		// Only a backup this call put there; any other is an earlier
+		// interrupted save's and not this call's to throw away.
 		if(placedBackup) fs.deleteFile(backup);
 		return true;
 	}
@@ -237,9 +231,9 @@ bool ProgressDB::installFrom(const std::string& source)
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// An interrupted save is brought into the open first, so that what gets
-	// replaced is what the player would have had - and so that the backup is
-	// not left standing for a later query to take for a fresh interruption.
+	// An interrupted save is put right first, so that what gets replaced is
+	// what the player would have had and no stale backup is left for a later
+	// query to take for a fresh interruption.
 	bool intact = false;
 	query(std::string(), &intact);
 	if(!intact) return false;
@@ -247,9 +241,8 @@ bool ProgressDB::installFrom(const std::string& source)
 	const std::string path(getFilename());
 	const std::string backup(getBackupFilename());
 
-	// The same step aside as a save, and for the same reason: copyFile opens
-	// the destination with "wb", so without this a copy that fails halfway
-	// leaves neither the old database nor the new one.
+	// The same step aside as a save: copyFile opens the destination with "wb",
+	// so a copy that fails halfway would leave neither database.
 	bool placedBackup = false;
 	if(fs.fileExists(path))
 	{
@@ -275,9 +268,9 @@ bool ProgressDB::exists()
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// Either name. Right after an interrupted save the whole database is
-	// standing under the backup's, and answering "there is none" would offer
-	// an import without the question that protects it.
+	// Either name: right after an interrupted save the whole database stands
+	// under the backup's, and "there is none" would let an import replace it
+	// without asking.
 	return fs.fileExists(getFilename()) || fs.fileExists(getBackupFilename());
 }
 
@@ -285,16 +278,15 @@ bool ProgressDB::remove()
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// The backup goes with it. Left behind, the next query would take it for
-	// an interrupted save and put the deleted database back.
+	// The backup goes too, or the next query would take it for an interrupted
+	// save and put the deleted database back.
 	fs.deleteFile(getBackupFilename());
 	return fs.deleteFile(getFilename());
 }
 
 bool ProgressDB::isProgressArchive(const std::string& filename)
 {
-	// No password: a zip's table of contents lies open, and asking whether the
-	// member is there needs nothing more. That is what lets a file be
+	// No password: a zip's table of contents lies open, so a file can be
 	// recognised before anybody decides to trust it.
 	return FileSystem::inst().fileExists(filename + p_member);
 }
@@ -307,16 +299,14 @@ bool ProgressDB::canRead(const std::string& filename)
 
 std::string ProgressDB::keyFor(const std::string& campaign)
 {
-	// The bare filename, not the path. A campaign is identified by its name -
-	// the same view under which Transfer::install() replaces a file of the
-	// same name instead of putting one beside it - and progress then survives
-	// the file changing folder: the shipped campaign moved out of the user
-	// directory into the game folder, and an import moves somebody else's the
-	// other way. With the full path as the key, either would silently lose
-	// every completed level.
+	// The bare filename, not the path, as Transfer::install() identifies a
+	// campaign too. Progress then survives the file changing folder - the
+	// shipped campaign lives in the game folder, an imported one in the user
+	// directory - and a database written with full paths still reads right,
+	// its keys stripped on the way in.
 	//
-	// Case is not folded, and that is deliberate: under Linux "Blocks.zip" and
-	// "blocks.zip" are two different campaigns, and folding them would join
-	// two sets of completed levels that have nothing to do with each other.
+	// Case is deliberately not folded: under Linux "Blocks.zip" and
+	// "blocks.zip" are two campaigns, and joining their solved sets could not
+	// be undone.
 	return FileSystem::inst().getPathFilename(campaign);
 }

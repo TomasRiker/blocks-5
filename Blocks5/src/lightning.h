@@ -34,11 +34,10 @@ private:
 		Vec2f lastEndPoint, lastCorner1, lastCorner2;
 	};
 
-	// One pass of the bolt as built geometry. Two of them are built when the
-	// bolt is generated and then drawn unchanged for the forty or so frames it
-	// takes to fade - only the colour and the alpha move. The main branch is
-	// kept apart from the rest because the point that caps it is drawn between
-	// the two, with the texture off.
+	// One pass of the bolt as built geometry. Both are built when the bolt is
+	// generated and drawn unchanged while it fades; only colour and alpha
+	// move. The main branch is kept apart because the point capping it, the
+	// renderer's own disc, is drawn between it and the other branches.
 	struct Pass
 	{
 		std::vector<QuadVertex> mainBranch;

@@ -15,8 +15,8 @@ Cannon::Cannon(Level& level,
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
 	this->color = color;
-	this->dir = dir;
-	shownDir = static_cast<float>(dir);
+	this->dir = wrapIndex(dir, 4);
+	shownDir = static_cast<float>(this->dir);
 	reload = 0;
 }
 
@@ -136,6 +136,12 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 	// shownDir alone where the attribute is missing, whereas Attribute()
 	// would hand a null pointer straight into sscanf there.
 	p_element->QueryFloatAttribute("shownDir", &shownDir);
+
+	// onUpdate() closes a gap of more than two quarter turns by four per
+	// tick, and fire() waits for it: a barrel a level file puts far off
+	// would not fire for hours. A saved game's is never that far from dir.
+	const float aim = static_cast<float>(dir);
+	if(!isFiniteFloat(shownDir) || fabsf(shownDir - aim) > 4.0f) shownDir = aim;
 }
 
 uint Cannon::getColor() const
@@ -163,7 +169,7 @@ bool Cannon::fire()
 	}
 
 	// fire the projectile
-	new Projectile(level, Vec2f(7.5f, 7.5f) + 5.0f * up + shownPosition * 16.0f, up * 1200.0f);
+	new Projectile(level, Vec2f(7.5f, 7.5f) + 5.0f * up + shownPosition * 16.0f, up * Projectile::CANNON_SPEED);
 
 	ParticleSystem* p_particleSystem = level.getParticleSystem();
 	ParticleSystem::Particle p;

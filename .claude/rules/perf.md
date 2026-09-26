@@ -11,7 +11,7 @@ paths:
 aims for — and answers p50, p95 and maximum of each column: interval start to start, how long the turn
 held the main thread, render, update and present inside it, and the draw calls the renderer made in that
 turn. Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded
-always: four clock reads a frame.
+always: nine clock reads a frame.
 
 **The draw count rides in the same ring as the timings**, as one more column of the same sample row. It is
 a count and not a duration, but everything the class does to a column — the ring, the sort, the
@@ -53,7 +53,7 @@ responsible for. Under swiftshader the browser ran at 38 ms a frame on 2.7 ms of
 alone would have reported nothing wrong at 26 fps.
 
 The interval is counted against **two** ticks and the work against one, and that asymmetry is load-bearing.
-The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoopIteration` — so
+The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoop` — so
 an interval threshold of one tick sits on the number the code is targeting and a millisecond of timer
 granularity trips it: the menu read **277 of 512 frames late while not one had been dropped** (measured
 when the window was 512 frames). A frame

@@ -34,8 +34,9 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
     exit 2
 }
 
-# The game writes <Windows.h>, <Shellapi.h>, <Shlobj.h> and <al.h>; mingw and
-# OpenAL Soft file them under other names, and Linux is strict about case. A
+# The game writes <Windows.h>, <Shlobj.h>, <al.h> and <alc.h>; mingw and
+# OpenAL Soft file them under other names, and Linux is strict about case.
+# Shellapi and VersionHelpers stand for spellings MSVC would take as well. A
 # handful of forwarding headers in a throwaway directory are enough - nothing
 # has to be checked in for it.
 SHIM=$(mktemp -d)
@@ -92,7 +93,8 @@ for f in $FILES; do
 done
 
 if [ $fail -eq 0 ]; then
-    echo "$n source files compile without errors, and none hands an integer to a float"
+    if [ "$n" -eq 1 ]; then what="1 source file compiles"; else what="$n source files compile"; fi
+    echo "$what without errors, and none hands an integer to a float"
 else
     echo "### ERROR ###"
 fi

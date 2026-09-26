@@ -17,7 +17,7 @@ Laser::Laser(Level& level,
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_DESTROYABLE | OF_TRANSPORTABLE;
 	destroyTime = 125;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	counter = 0;
 	on = 0.0f;
 
@@ -193,6 +193,10 @@ void Laser::onUpdate()
 		bool destroyed = false;
 		bool infinity = false;
 		const Sprites* p_sprites = 0;
+		// Where what the beam destroyed stood, for its debris: an object where
+		// it was drawn, which for one moving into the beam is not the cell the
+		// beam's tip is in, and a tile at its cell.
+		Vec2i debrisAt(0, 0);
 		int z = 0;
 
 		while(true)
@@ -233,6 +237,7 @@ void Laser::onUpdate()
 							p_obj->disappear(0.2f);
 							destroyed = true;
 							p_sprites = &p_obj->getSprites();
+							debrisAt = p_obj->getShownPositionInPixels();
 						}
 					}
 					else
@@ -254,6 +259,7 @@ void Laser::onUpdate()
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
 							p_sprites = &tileInfo.sprites;
+							debrisAt = tileHit * 16;
 						}
 					}
 
@@ -321,14 +327,11 @@ void Laser::onUpdate()
 				p.gravity = 0.1f;
 				p.positionOnTexture = Vec2b(32, 32);
 				p.sizeOnTexture = Vec2b(16, 16);
-				// Two pixels of scatter about the point the beam ends on, and
-				// nothing more: a particle's position is its centre, since
-				// ParticleSystem::render builds the quad around it, and
-				// beamPos is a point in the level rather than a cell's corner.
-				// Where the same scatter is written "+ random(6, 10)" - the
-				// fire, the toxic waste, an object arriving from a teleporter
-				// - it is added to position * 16, and the eight in it is the
-				// half cell that carries that corner to its centre.
+				// Two pixels of scatter about the beam's end and no half cell:
+				// a particle's position is its centre, and beamPos is already
+				// a point in the level, not a cell's corner. The
+				// "position * 16 + random(6, 10)" of the fire, the toxic waste
+				// and the teleporter adds the eight that a corner needs.
 				p.position = beamPos + Vec2f(BEAM_DRAW_OFFSET + random(-2.0f, 2.0f),
 											 BEAM_DRAW_OFFSET + random(-2.0f, 2.0f));
 				const float r = random(0.0f, 6.283f);
@@ -361,7 +364,7 @@ void Laser::onUpdate()
 					Vec2i offset;
 					if(!p_sprites->sample(&sampled, &offset)) continue;
 
-					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
+					p.position = debrisAt + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 					p.color = sampled;
 					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
@@ -383,13 +386,13 @@ void Laser::onUpdate()
 	on = clamp(on, 0.0f, 1.0f);
 }
 
-void Laser::onElectricitySwitch(bool on)
+void Laser::onElectricitySwitch(bool switchedOn)
 {
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 
 	// control the sound
-	if(on)
+	if(switchedOn)
 	{
 		p_soundInst->resume();
 		p_soundInst->slideVolume(0.25f, 0.2f);

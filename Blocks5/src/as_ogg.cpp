@@ -4,9 +4,8 @@
 
 AS_Ogg::AS_Ogg(const std::string& filename)
 {
-	// The destructor clears this whatever happened here, and the path below
-	// that gives up before ov_open_callbacks leaves it untouched. Zeroed is
-	// exactly the state ov_clear() itself leaves behind, so clearing one is a
+	// Zeroed first: the destructor calls ov_clear() however far this got, and
+	// on a zeroed handle - the state ov_clear() itself leaves - that is a
 	// no-op rather than a walk through uninitialised pointers.
 	memset(&vorbisFile, 0, sizeof(vorbisFile));
 
@@ -69,6 +68,10 @@ uint AS_Ogg::read(void* p_dest,
 	{
 		int currentStream = 0;
 		int n = ov_read(&vorbisFile, p_cursor, numBytesLeft, 0, 2, 1, &currentStream);
+		// A gap in the data - a damaged or missing page - is reported once and
+		// decoding goes on after it; ended here, a looping track would start
+		// again at every flaw.
+		if(n == OV_HOLE) continue;
 		if(!n)
 		{
 			// End of file!

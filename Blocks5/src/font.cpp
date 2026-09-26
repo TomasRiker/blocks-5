@@ -4,36 +4,30 @@
 #include "texture.h"
 #include "engine.h"
 
-// The <k> box - a keycap drawn around a key's name, so that "press Esc" reads
-// as a key and not as a word. The padding keeps the frame off the glyphs
-// inside it and the gap keeps it off the words either side; without the second
-// the frame touches both neighbours. Both are in the font's own pixels, so a
-// keycap in the tooltip font comes out proportionally smaller.
+// The <k> keycap, a frame drawn around a key's name. The padding keeps the
+// frame off the glyphs inside it, the gap off the words either side. Both are
+// in the font's own pixels, so a keycap in the tooltip font comes out
+// proportionally smaller.
 const int KEY_BOX_PAD = 3;
 const int KEY_BOX_GAP = 2;
 
-// What one side of a box costs the line, frame included. The right side costs
-// options.italic on top of it: an italic glyph leans right, its top drawn that
-// many pixels further along than its foot, so the last letter of a keycap
-// stands outside a frame that ends where the cursor does. The left side needs
-// nothing, because the first letter's foot is still on the cursor.
+// What one side of a keycap costs the line, frame included. The right side
+// costs options.italic more: an italic glyph's top leans that far right of its
+// foot, so a frame ending at the cursor would cut the last letter. The left
+// side needs nothing, since the first letter's foot stands on the cursor.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
 
-// How many laid-out strings a font keeps. Every screen in the game stays well
-// under it, and one that did not would simply rebuild its oldest string.
-// Quads and not entries, and one budget for every font rather than one each.
-// A quad is four QuadVertex of 16 bytes, so this is 512 KB of glyph geometry,
-// against a measured worst case of 825 quads with every screen the game has
-// visited still in the cache. It is a ceiling and not a target.
+// The geometry cache's budget, in quads and shared by every font. A quad is
+// four 16-byte QuadVertex, so this is 512 KB, against a measured worst case of
+// 825 quads with every screen the game has visited still cached. A ceiling and
+// not a target: a screen over it would simply rebuild its oldest string.
 const size_t QUAD_BUDGET = 8192;
 
-// And what the dimensions of strings nothing draws may cost, in bytes of key
-// and entry. Measured, no screen in the game comes near it: the help page,
-// which is the most text this game wraps at once, holds 22 entries and 1.1 KB,
-// and the five scenes the frame oracle walks hold six between them. It is a
-// ceiling for the one case that could grow without one - stepping through a
-// campaign measures a fresh set of fitText() candidates per level, and a
-// folder of single levels has no length anybody promised.
+// The dimensions cache's budget, in bytes of key and entry, shared the same
+// way. The help page, the most text the game wraps at once, measured 22
+// entries and 1.1 KB. A ceiling for the one case that could grow without one:
+// stepping through a campaign measures fresh fitText() candidates per level,
+// and a folder of single levels has no promised length.
 const size_t DIM_BUDGET = 65536;
 
 Font::CacheStats Font::cacheStats = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -42,8 +36,7 @@ uint Font::lruClock = 0;
 
 size_t Font::entryQuads(const StringCacheEntry& entry)
 {
-	// Four vertices to a quad in both, and the keycap frames are four thin
-	// quads apiece rather than a line loop.
+	// Four vertices to a quad in both arrays.
 	return (entry.glyphs.size() + entry.keyBoxes.size()) / 4;
 }
 
@@ -155,9 +148,8 @@ bool Font::makeRoom(size_t quads)
 			}
 		}
 
-		// Nothing left to give: the budget is smaller than one string wants,
-		// which the guard above has already ruled out, so this cannot happen -
-		// but a loop that can spin for ever is worth one comparison.
+		// Cannot happen after the guard above, but a loop that could spin for
+		// ever is worth one comparison.
 		if(!p_oldestFont) return false;
 
 		cacheStats.evictions++;
@@ -171,8 +163,8 @@ bool Font::makeRoom(size_t quads)
 
 size_t Font::dimEntryBytes(const std::string& key)
 {
-	// The key is the whole of it: the entry itself is two numbers and a
-	// counter, and the map's own node is a constant nobody here can name.
+	// The key and the entry. The map's own per-node overhead is left out,
+	// since nothing here can name it.
 	return key.length() + sizeof(DimCacheEntry);
 }
 
@@ -241,6 +233,8 @@ void Font::forgetDimensions(const std::string& key)
 
 void Font::reload()
 {
+	// This drops the caches too: the glyph rectangles may move, and every
+	// laid-out string with them.
 	cleanUp();
 
 	// load the XML document
@@ -256,33 +250,44 @@ void Font::reload()
 		return;
 	}
 
+	// A skin brings its note's font, and a skin can come from anybody, so a
+	// document without its <Font> or its image is a broken file rather than a
+	// null pointer to walk into.
 	TiXmlHandle docHandle(&doc);
 	TiXmlHandle fontHandle = docHandle.FirstChildElement("Font");
 	TiXmlElement* p_fontElement = fontHandle.Element();
+	const char* p_imageFilename = p_fontElement ? p_fontElement->Attribute("image") : 0;
+	if(!p_imageFilename)
+	{
+		printfLog("+ ERROR: Font XML file \"%s\" has no <Font> element with an image.\n",
+				  filename.c_str());
+		error = 3;
+		return;
+	}
 
-	// read the image filename, line height and offset
-	const char* p_imageFilename = p_fontElement->Attribute("image");
+	// read the line height and offset
 	p_fontElement->Attribute("lineHeight", &lineHeight);
 	p_fontElement->Attribute("offset", &offset);
 
-	// Where the letters sit inside a glyph cell: the row a capital begins at
-	// and the row the writing ends on. Both are optional and both default to
-	// the line box, which is where a font's ink normally sits - the two fonts
-	// in data/ measure out to exactly that. A font may hang its line lower
-	// than its ink, though, and the note's font does: without the correction
-	// its keycap frame sits under the word instead of around it. verify.py's
-	// font_metrics check reads both out of the image and reports a font whose
-	// figures do not describe it.
+	// The rows of a glyph cell a keycap frame runs over: the row a capital
+	// begins at and the row the writing ends on. Both are optional and
+	// default to the line box, where font.xml and credits_font.xml have their
+	// ink; the note's font hangs its line lower than its writing and has to
+	// say so. verify.py's font_metrics check reads both out of the image and
+	// reports figures that do not describe it.
 	capTop = -offset;
 	capBottom = -offset + lineHeight - 1;
 	p_fontElement->Attribute("capTop", &capTop);
 	p_fontElement->Attribute("capBottom", &capBottom);
 
-	// process all child elements
+	// Process all child elements. A character the file leaves out has no
+	// glyph, whatever a previous load of it said, and one that leaves out an
+	// attribute gets 0 rather than whatever the stack held.
+	for(int i = 0; i < 256; i++) charInfo[i].position = charInfo[i].size = Vec2i(0, 0);
 	TiXmlElement* p_charElement = p_fontElement->FirstChildElement("Character");
 	while(p_charElement)
 	{
-		int code, x, y, w, h;
+		int code = -1, x = 0, y = 0, w = 0, h = 0;
 		p_charElement->Attribute("code", &code);
 		p_charElement->Attribute("x", &x);
 		p_charElement->Attribute("y", &y);
@@ -310,9 +315,6 @@ void Font::reload()
 		error = 2;
 		return;
 	}
-
-	// The glyph rectangles have just moved, so every laid-out string is stale.
-	// cleanUp() above has already emptied it; this is where the reason lives.
 }
 
 void Font::dropCache()
@@ -353,12 +355,11 @@ void Font::renderText(const std::string& text,
 					  const Vec4f& color,
 					  bool cache)
 {
-	// cache=false is for a string whose layout will not be asked for again.
-	// The credits animate charScaling, so every frame of them builds a key no
-	// frame will use twice: measured over six seconds, 0% of 244 lookups hit
-	// and 212 entries were evicted for text already on its way out. It is a
-	// parameter and never part of the key, which would hold two copies of
-	// every string that is asked for both ways.
+	// cache=false is for a string whose layout will not be asked for again,
+	// like the credits' ending, whose animated charScaling makes a fresh key
+	// every frame (measured over six seconds: 0 of 244 lookups hit, 212
+	// evictions). A parameter and not part of the key, which would hold two
+	// copies of a string asked for both ways.
 	const StringCacheEntry& entry = lookUpText(text, cache);
 
 	Renderer& renderer = Renderer::inst();
@@ -392,13 +393,10 @@ void Font::renderText(const std::string& text,
 
 const std::string& Font::cacheKey(const std::string& text)
 {
-	// The options go in one at a time rather than as the bytes of a struct: a
-	// struct carries its padding with it, padding bytes are indeterminate, and
-	// two identical option sets would then be free to hash apart.
-	//
-	// shadows is deliberately absent. renderText() draws the shadow by drawing
-	// the same arrays again at an offset, so it changes nothing that is built,
-	// and a key that split on it would hold two copies of every string.
+	// The options go in one at a time rather than as the struct's bytes, whose
+	// padding is indeterminate and would let two equal option sets hash apart.
+	// shadows is left out: the shadow is the same arrays drawn again at an
+	// offset, so it changes nothing that is built.
 	cacheKeyBuffer.clear();
 	appendRaw(cacheKeyBuffer, options.tabSize);
 	appendRaw(cacheKeyBuffer, options.charSpacing);
@@ -428,30 +426,27 @@ const Font::StringCacheEntry& Font::lookUpText(const std::string& text, bool cac
 		// buffer, so nothing held across it survives.
 		const std::string key = cacheKey(text);
 
-		// Built once to learn what it costs, then kept if the budget can be
-		// made to hold it. Laying it out twice would be the obvious way to
-		// avoid the copy and is the more expensive one.
+		// Laid out into the scratch entry to learn what it costs, and swapped
+		// into the cache if the budget can be made to hold it.
 		buildText(text, scratchEntry.glyphs, scratchEntry.keyBoxes);
 
 		if(makeRoom(entryQuads(scratchEntry)))
 		{
 			// Measured before the insertion, because measureText() reads this
 			// same cache: an entry already standing in it but not yet measured
-			// would answer with whatever was in the field.
-			//
-			// The walk costs one miss and saves every later measure of this
-			// string, which is why a string laid out into the scratch entry is
-			// not measured at all - it has no later.
+			// would answer with whatever was in the field. A string drawn from
+			// the scratch entry is not measured at all: it has no later
+			// measure to save.
 			Vec2i dimensions;
 			measureText(text, &dimensions, 0);
 
-			// A reference into an unordered_map stays valid across a later
-			// insertion, which is what lets renderText() hold this one over
-			// three draws.
 			// The geometry entry answers every later measure of this string,
 			// so a dimensions entry the walk above left behind is dead weight.
 			forgetDimensions(key);
 
+			// A reference into an unordered_map survives a rehash, and only
+			// makeRoom() and dropCache() erase, so renderText() can hold this
+			// one over its three draws.
 			StringCacheEntry& created = stringCache[key];
 			created.lastUsed = ++lruClock;
 			created.dimensions = dimensions;
@@ -476,22 +471,18 @@ void Font::drawText(const StringCacheEntry& entry, const Vec4f& color) const
 {
 	Renderer& renderer = Renderer::inst();
 
-	// The frames go up first, so that the letters are drawn over them. A
-	// keycap's box is only as tall as the line it stands in, and a font whose
-	// capitals reach the top of their box - which a small one cannot always
-	// avoid - leaves the top edge running across them. Behind the glyphs the
-	// same overlap passes under and stops being visible.
-	//
-	// Four thin quads to a frame and not a line loop, because a line's pixel
-	// coverage is a matter of the rasterizer's opinion and every other edge in
-	// this game sits on whole pixels. They carry no texture of their own, so
-	// the font's is bound after them rather than before: state the frames
-	// would only have replaced.
+	// The frames go up first, so that the letters are drawn over them: a
+	// frame's top edge can lie on the row the capitals begin at (capTop), and
+	// behind the glyphs the overlap does not show. Four thin quads to a frame
+	// and not a line loop, because a line's pixel coverage is the rasterizer's
+	// choice and every other edge in this game sits on whole pixels.
 	if(!entry.keyBoxes.empty())
 	{
 		renderer.quads(&entry.keyBoxes[0], static_cast<uint>(entry.keyBoxes.size()), color);
 	}
 
+	// None where a reload failed - the editor's Refresh over a broken skin.
+	if(!p_texture) return;
 	renderer.setTexture(p_texture->ref());
 	if(!entry.glyphs.empty())
 	{
@@ -506,28 +497,24 @@ void Font::buildText(const std::string& text,
 	glyphs.clear();
 	keyBoxes.clear();
 
-	// One quad per byte is the ceiling and nearly the floor: every character
-	// emits exactly one, and only a line break, a tab, a half space and the
-	// bytes of <h>/<k> emit none. An entry is built into fresh vectors, so
-	// without this a long string grows through a dozen reallocations every
-	// time it is laid out.
+	// One quad per byte at most: only a line break, a tab, a half space and
+	// the markup emit none. The scratch vectors are fresh whenever the last
+	// entry was kept, and a long string would otherwise grow through a dozen
+	// reallocations.
 	glyphs.reserve(text.length() * 4);
 
 	Vec2i cursor(0, offset);
 
-	// The options stack belongs to the font and not to the text, but <h> holds
-	// only within this one string - one string is laid out at a time, and an
-	// <h> could therefore not act across that boundary at all. The counter
-	// keeps the two apart: without it a missing </h> would turn every further
-	// text in the game italic, and an extra one would pop the caller's own
-	// saved options or reach into an empty stack.
+	// <h> holds only within this string, but it pushes onto the font's own
+	// options stack. The counter keeps the two apart: without it a missing
+	// </h> would leave every later text italic, and an extra one would pop the
+	// caller's saved options or top() an empty stack.
 	size_t openTags = 0;
 
-	// A keycap frame carries no texture and so cannot go into the glyph batch.
-	// The rectangles are collected here and turned into quads once the walk is
-	// over, and drawText() then draws them with the glyphs - a keycap without
-	// the same shadow would look pasted on. openBoxes holds the left edge and
-	// the line top of every <k> not yet closed.
+	// A keycap frame is flat and so cannot join the glyph batch: the
+	// rectangles are collected here, turned into quads after the walk, and
+	// drawn by drawText() through the same shadow passes as the glyphs.
+	// openBoxes holds the left edge and top row of every <k> still open.
 	std::vector<Vec4i> boxes;
 	std::vector<Vec2i> openBoxes;
 	const Vec2i keyBoxRows = getKeyBoxRows();
@@ -668,12 +655,26 @@ namespace
 		return 0;
 	}
 
+	// The last of BREAK_CHARACTERS in text that is not inside a keycap: a key
+	// name such as "Page Up" holds a space, and breaking there would cut the
+	// frame in two. npos where there is none.
+	size_t lastBreakOutsideKeycap(const std::string& text)
+	{
+		size_t found = std::string::npos;
+		bool inKeycap = false;
+		for(size_t i = 0; i < text.length(); i++)
+		{
+			if(text.compare(i, 3, "<k>") == 0) inKeycap = true;
+			else if(text.compare(i, 4, "</k>") == 0) inKeycap = false;
+			else if(!inKeycap && text[i] && strchr(BREAK_CHARACTERS, text[i])) found = i;
+		}
+		return found;
+	}
+
 	// The start of the text up to byte n, then the three dots. A half-cut
-	// element drops entirely and anything left open is closed again: <h>
-	// pushes something onto a stack that only </h> takes off, and that stack
-	// belongs to the font and not to the text - a cut-off <h> would turn every
-	// further text in the game italic. The open ones are remembered by name
-	// and closed in reverse, since <k> can stand inside <h>.
+	// element is dropped, and whatever is left open is closed again - by name
+	// and innermost first, since <k> can stand inside <h> - because
+	// measureText() counts a keycap's right side only at its </k>.
 	std::string cutWithEllipsis(const std::string& text, size_t n)
 	{
 		std::string open;
@@ -707,13 +708,10 @@ std::string Font::fitText(const std::string& text,
 	measureText(text, &dim, 0);
 	if(dim.x <= maxWidth) return text;
 
-	// Binary search over the length, measuring the whole candidate including
-	// the dots every time. The character positions from measureText() would
-	// give the place in one pass, but not the width: that is not cursor.x but
-	// the maximum over cursor.x + character width + italic slant, a line break
-	// resets cursor.x anyway, and how wide the three dots come out depends on
-	// whether an <h> is open at the cut. Measuring the whole candidate asks
-	// exactly what the answer is supposed to be.
+	// Binary search over the length, measuring each whole candidate, dots
+	// included. The character positions would find the cut in one pass but
+	// not the width, which is the widest line's cursor plus glyph width plus
+	// slant, and the dots come out wider where an <h> is open at the cut.
 	size_t lo = 0, hi = text.length();
 	while(lo < hi)
 	{
@@ -731,19 +729,15 @@ void Font::measureText(const std::string& text,
 					   std::vector<Vec2i>* p_outCharPositions,
 					   const Vec2i& offset)
 {
-	// Counted beside the cache's own three: fitText() runs a binary search
-	// with one of these per probe, and adjustText() one per run and per line,
-	// so what the walks cost is not read off the hit rate of the drawing.
+	// Counted apart from the drawing's hits: fitText() measures once per
+	// probe and adjustText() once per run and per line.
 	cacheStats.measures++;
 
-	// A string that has been drawn has already been walked, and the entry that
-	// holds its geometry holds the answer to this too. That covers every GUI
-	// widget, each of which measures its own caption in the onRender() that
-	// draws it.
-	//
-	// Only where nothing but the size is wanted. The character positions
-	// depend on the offset, which is no part of the key, and are asked for by
-	// the four edit boxes alone - one of which is on screen at a time.
+	// A string that has been drawn has already been walked, and its geometry
+	// entry holds the answer: that covers every GUI widget, each of which
+	// measures its caption in the onRender() that draws it. Only where
+	// nothing but the size is wanted: the character positions depend on the
+	// offset, which is no part of the key, and only the edit boxes ask.
 	const bool sizeOnly = p_outDimensions && !p_outCharPositions;
 	if(sizeOnly)
 	{
@@ -758,13 +752,10 @@ void Font::measureText(const std::string& text,
 			return;
 		}
 
-		// And the strings nothing draws. adjustText() asks for the same runs
-		// and the same line tails on every frame it wraps the same text, and
-		// fitText()'s binary search for the same candidates - so these hit for
-		// the same reason the drawn ones do, while never being laid out.
-		//
-		// Nothing stands between the two lookups that could build a key, so
-		// the reference above is still this text's.
+		// And the strings nothing draws: the runs and line tails adjustText()
+		// measures and fitText()'s candidates, asked for again on every frame
+		// the same text is wrapped or fitted. Nothing between the two lookups
+		// builds a key, so the reference above is still this text's.
 		std::unordered_map<std::string, DimCacheEntry>::iterator dim = dimCache.find(key);
 		if(dim != dimCache.end())
 		{
@@ -785,12 +776,9 @@ void Font::measureText(const std::string& text,
 	{
 		uint r = static_cast<uint>(text.length() - i - 1);
 
-		// One position per byte, not per pass. The edit boxes look up here
-		// under the same byte index their caret sits at, and an <h> is three
-		// bytes long in a single pass: the loop therefore first fills in what
-		// the previous pass skipped. The cursor still stands exactly where it
-		// did before the element, which has no width - a caret inside an <h>
-		// stands at the place the element does.
+		// One position per byte, not per pass: the edit boxes index this by
+		// their caret's byte, and a tag is consumed in a single pass. The
+		// bytes a pass skipped get the cursor as the tag left it.
 		if(p_outCharPositions)
 			while(p_outCharPositions->size() <= i) p_outCharPositions->push_back(cursor + offset);
 
@@ -804,12 +792,10 @@ void Font::measureText(const std::string& text,
 		}
 		else if(c == '\t')
 		{
-			// The stop buildText() advances to, arrived at the same way: there
-			// the cursor is a Vec2i and these are integer operations, which is
-			// what snaps the position to a multiple of tabSize. In float they
-			// cancel - (x + t) / t * t is x + t - so a tab would merely add
-			// its own width, a measured line would come out up to a whole stop
-			// wider than the one drawn, and adjustText() would wrap it early.
+			// The stop buildText() advances to. There the integer division on
+			// a Vec2i snaps to a multiple of tabSize; on this float cursor the
+			// same steps would cancel ((x + t) / t * t is x + t) and measure
+			// the line wider than it is drawn.
 			const int stop = (static_cast<int>(cursor.x) + options.tabSize) / options.tabSize;
 			cursor.x = static_cast<float>(stop * options.tabSize);
 			maximum.x = max(maximum.x, cursor.x);
@@ -887,12 +873,9 @@ std::string Font::adjustText(const std::string& text,
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
-		// A keycap is one atom. The frame around it is a box, and a box cannot
-		// be broken across two lines, so the whole run moves down together -
-		// which is what any typesetter does with an inline box and what keeps
-		// the renderer from ever having to draw half a frame. It is measured
-		// here rather than walked character by character because the padding
-		// either side belongs to its width.
+		// A keycap is one atom: its frame cannot be broken across two lines,
+		// so the whole run moves down together. It is measured rather than
+		// walked, because the padding either side belongs to its width.
 		if(text.compare(i, 3, "<k>") == 0)
 		{
 			const size_t close = text.find("</k>", i);
@@ -907,7 +890,7 @@ std::string Font::adjustText(const std::string& text,
 				// Break in front of it, at the last space of this line if there
 				// is one. The tail is re-measured rather than counted
 				// backwards, since it may hold a keycap of its own.
-				const size_t lastBreak = out.find_last_of(BREAK_CHARACTERS);
+				const size_t lastBreak = lastBreakOutsideKeycap(out);
 				if(lastBreak != std::string::npos && isBreakSpace(out[lastBreak]))
 				{
 					out[lastBreak] = '\n';
@@ -928,10 +911,9 @@ std::string Font::adjustText(const std::string& text,
 			continue;
 		}
 
-		// <h> and </h> draw nothing: they do not count toward the line width
-		// and pass through untouched. A hard break would otherwise cut right
-		// into one and turn the element into visible text - "<h>Kopf</h>" would
-		// come out as "<h>Kopf<" and "/h>".
+		// Markup draws nothing: it passes through untouched and does not count
+		// toward the line width, and a hard break cutting into a tag would
+		// turn it into visible text.
 		const size_t tag = tagLength(text, i);
 		if(tag > 0)
 		{
@@ -950,10 +932,8 @@ std::string Font::adjustText(const std::string& text,
 		}
 		else if(c == '\t')
 		{
-			// The stop buildText() draws to. Without this a tab counted as an
-			// ordinary character - charInfo['\t'] is 66 wide in this font,
-			// which is neither the stop nor nothing - and every tabbed line
-			// was measured against a width it is not drawn at.
+			// The stop buildText() draws to, not the width of charInfo['\t'],
+			// which is 66 in font.xml.
 			const int stop = (cursorX + options.tabSize) / options.tabSize;
 			cursorX = stop * options.tabSize;
 		}
@@ -964,8 +944,10 @@ std::string Font::adjustText(const std::string& text,
 
 			if(currentWidth > maxWidth)
 			{
-				// replace the last space in this line with a line break
+				// Replace the last space in this line with a line break, but
+				// not one inside a keycap, whose end the walk meets first.
 				int back = 0;
+				bool inKeycap = false;
 				std::string::reverse_iterator j;
 				for(j = out.rbegin(); j != out.rend(); j++)
 				{
@@ -975,7 +957,7 @@ std::string Font::adjustText(const std::string& text,
 						j = out.rend();
 						break;
 					}
-					else if(isBreakSpace(d))
+					else if(isBreakSpace(d) && !inKeycap)
 					{
 						*j = '\n';
 						cursorX = back;
@@ -983,12 +965,27 @@ std::string Font::adjustText(const std::string& text,
 					}
 					else
 					{
-						// Backwards too, an element does not count.
+						// Backwards too, <h> draws nothing, while a keycap's
+						// two tags stand for its frame and cost what
+						// measureText() gives them.
 						// out.rend() - j is the index behind it,
 						// because rend() - rbegin() is the text length.
-						const size_t back_tag = (d == '>')
-							? tagEndingAt(out, static_cast<size_t>(out.rend() - j)) : 0;
-						if(back_tag > 0) j += back_tag - 1;
+						const size_t behind = static_cast<size_t>(out.rend() - j);
+						const size_t back_tag = (d == '>') ? tagEndingAt(out, behind) : 0;
+						if(back_tag > 0)
+						{
+							if(out.compare(behind - back_tag, back_tag, "</k>") == 0)
+							{
+								inKeycap = true;
+								back += KEY_BOX_SIDE + options.italic;
+							}
+							else if(out.compare(behind - back_tag, back_tag, "<k>") == 0)
+							{
+								inKeycap = false;
+								back += KEY_BOX_SIDE;
+							}
+							j += back_tag - 1;
+						}
 						else back += getCharacterWidth(d) + options.charSpacing;
 					}
 				}
@@ -1013,14 +1010,10 @@ std::string Font::adjustText(const std::string& text,
 
 Vec2i Font::getKeyBoxRows() const
 {
-	// Exactly the rows the font asks for. capTop and capBottom are the frame
-	// itself, not a hint about where to centre one of some other height, and
-	// the line cannot stand in for them in either direction: the note's font
-	// hangs its line five rows below its writing, while the tooltip font's
-	// letters are taller than its line - "Backspace" reaches a row above the
-	// capitals and a row below the baseline, and a ten-row line has room for
-	// neither. A frame that keeps the line's height is therefore unplaceable
-	// in a small font whatever it is centred on.
+	// capTop and capBottom are the frame itself, not a hint where to centre
+	// one of the line's height: the note's font hangs its line five rows below
+	// its writing, and the tooltip font's key names are taller than its
+	// ten-row line, so a frame of the line's height fits neither.
 	return Vec2i(capTop, max(1, capBottom - capTop + 1));
 }
 
@@ -1047,11 +1040,9 @@ const Font::Options& Font::getOptions() const
 void Font::setOptions(const Font::Options& options)
 {
 	// Nothing to invalidate: every option the layout depends on is part of the
-	// cache key, so a string laid out under other options is a different entry
-	// rather than a wrong one. That matters because the callers change options
-	// constantly - a speech balloon sets italic and puts it back on every frame
-	// it is on screen, and the credits animate charScaling - and a font that
-	// emptied its cache on each of those would keep none of the GUI's strings.
+	// cache key. Callers change options every frame - a speech balloon sets
+	// italic and puts it back, the credits' ending animates charScaling - and
+	// a cache emptied on each change would keep none of the GUI's strings.
 	this->options = options;
 }
 

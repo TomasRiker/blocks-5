@@ -12,7 +12,7 @@ Electronics::Electronics(Level& level,
 	renderLayers = RL_WIRE;
 	warpTo(position);
 	flags = OF_FIXED | OF_MASSIVE | OF_ELECTRONICS;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	renderBox = true;
 
 	if(!level.isInEditor() && !level.isInCat()) level.allElectronics.insert(this);

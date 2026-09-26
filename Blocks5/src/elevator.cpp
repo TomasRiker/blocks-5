@@ -15,11 +15,11 @@ Elevator::Elevator(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_ELEVATOR;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	this->interpolation = 0.12f;
 	moveCounter = 0;
-	newDir = dir;
-	origDir = dir;
+	newDir = this->dir;
+	origDir = this->dir;
 	blink = false;
 
 	if(!level.isInEditor())
@@ -255,6 +255,14 @@ void Elevator::loadExtendedAttributes(TiXmlElement* p_element)
 	p_element->Attribute("moveCounter", &moveCounter);
 	p_element->Attribute("newDir", &newDir);
 	p_element->Attribute("origDir", &origDir);
+
+	// As any level may carry these: a direction outside 0 to 3 would leave
+	// onUpdate()'s step undefined, and a wait below 0 or past the longest
+	// one would stop the elevator for good.
+	moveCounter = clamp(moveCounter, 0, 60);
+	newDir = wrapIndex(newDir, 4);
+	origDir = wrapIndex(origDir, 4);
+
 	int blink = 0;
 	p_element->Attribute("blink", &blink);
 	this->blink = blink ? true : false;

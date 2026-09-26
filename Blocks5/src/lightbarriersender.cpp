@@ -9,7 +9,7 @@ LightBarrierSender::LightBarrierSender(Level& level,
 	renderLayers = RL_MAIN | RL_EFFECT | RL_LIGHT | RL_SPARKLE;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_TRANSPORTABLE;
-	this->dir = dir;
+	this->dir = wrapIndex(dir, 4);
 	counter = 0;
 }
 
@@ -66,16 +66,13 @@ void LightBarrierSender::onRender(RenderLayer layer,
 			// the core, four for the glow.
 			renderer.translate(-sp.x + BEAM_DRAW_OFFSET, -sp.y + BEAM_DRAW_OFFSET);
 
-			// The sparkle pass is what the night vision shows of the beam:
-			// it is drawn after the quad that darkens everything unlit, so it
-			// is the one part not multiplied down by the light field. In
-			// daylight this beam is a thin faint thing beside the laser's,
-			// deliberately, and scaling that down again the way the laser
-			// scales its own leaves nothing to see in the dark. So it is the
-			// laser's colours here at half its factor - the same kind of beam
-			// a step behind it, rather than the ninth of it that scaling this
-			// object's own daylight beam gives - and only its own width is
-			// kept.
+			// The sparkle pass is what night vision shows of the beam: it is
+			// drawn after the quad that darkens everything unlit, so the light
+			// field does not multiply it down. The daylight beam is faint
+			// beside the laser's on purpose, and scaling it down again as the
+			// laser scales its own would leave nothing to see in the dark, so
+			// this is the laser's sparkle colour at half its factor, with only
+			// this beam's own widths kept.
 			float x = static_cast<float>(counter) * 0.8f;
 			Vec4f color;
 			if(layer == RL_EFFECT) color = Vec4f(1.0f, 0.1f, 0.0f, 0.2f + 0.05f * sinf(x));

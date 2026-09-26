@@ -34,6 +34,9 @@ void GS_SelectLevel::onRender()
 	renderer.setTexture(p_background->ref());
 	renderer.quad(renderer.state(), screen, screen, white);
 
+	// A level is loaded out of a campaign only (loadLevel()), and a campaign
+	// deselected takes its level with it, so wherever there is a level there
+	// is a campaign below.
 	int status = 0;
 	if(p_currentLevel)
 	{
@@ -61,10 +64,9 @@ void GS_SelectLevel::onRender()
 		// description and right off the picture: renderText() clips nothing.
 		const int captionWidth = 320;
 
-		// Only the title is shortened. The number and the filename are what
-		// tells two levels of the same name apart, and they therefore stay
-		// whole - how much is left for the title is what the same caption
-		// with an empty one says.
+		// Only the title is shortened: the number and the filename tell two
+		// levels of the same name apart. The title gets whatever the same
+		// caption with an empty title leaves.
 		const bool single = p_currentCampaign->isSingleLevels();
 		const std::string member = single
 			? p_currentCampaign->getLevels()[currentLevel].member : std::string();
@@ -132,8 +134,8 @@ void GS_SelectLevel::onRender()
 			r = max(0.2f, r);
 			g = max(0.2f, g);
 
-			// Its own corner order, from the moving end back to the fixed
-			// one, so the fade runs across the bar as it did.
+			// Corners from the moving end back to the fixed one, so the fade
+			// runs from the bar's front to its start.
 			const Vec4f front(r, g, 0.0f, 0.9f);
 			const Vec4f back(r, g, 0.0f, 0.5f);
 			const float right = static_cast<float>(40 + pi);
@@ -163,19 +165,19 @@ void GS_SelectLevel::onUpdate()
 	const bool shift = engine.isKeyDown(SDLK_LSHIFT) || engine.isKeyDown(SDLK_RSHIFT);
 	const bool ctrl = engine.isKeyDown(SDLK_LCTRL) || engine.isKeyDown(SDLK_RCTRL);
 
-	// While the campaign list holds the focus, the four keys it evaluates
-	// itself belong to it - up, down, Home and End. The rest always operates
-	// the dialog: the list does not know left and right at all, and forwards
-	// Return anyway for want of a submit button.
+	// While the campaign list holds the focus, the four keys it handles
+	// itself - up, down, Home and End - are left to it. The rest always drive
+	// the dialog: the list ignores left and right and forwards Return for
+	// want of a submit button.
 	const bool listHasKeys = gui["SelectLevel.Campaigns"]->isFocusedIndirectly();
 
 	if(engine.wasKeyPressed(SDLK_ESCAPE))
 	{
 		handleClick(gui["SelectLevel.Quit"]);
 	}
-	// Ctrl+Shift+F7, the shape every chord the author keeps to himself has:
-	// a function key, because pre.js hands the game all of F1 to F24 and no
-	// browser reserves them the way it reserves the letters.
+	// Ctrl+Shift+F7, one of the author's private chords, which all use a
+	// function key: pre.js hands the game F1 to F24, and no browser reserves
+	// those the way it reserves the letters.
 	else if(engine.wasKeyPressed(SDLK_F7) && shift && ctrl)
 	{
 		if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
@@ -215,17 +217,18 @@ void GS_SelectLevel::onUpdate()
 	}
 }
 
-// What the keyboard triggers must have the same limits as the mouse: a locked
-// level cannot be played with Return either, and there is no "next to do"
-// button for the single levels. click() checks neither - with the mouse the
-// GUI catches it beforehand.
+// Keys get the same limits as the mouse: a locked level cannot be played with
+// Return either, and the single levels have no "next to do". handleClick()
+// checks neither, and is called straight rather than through
+// GUI_Button::click(), which refuses a deactivated button but not a hidden
+// one.
 void GS_SelectLevel::pressButton(GUI_Element* p_button)
 {
 	if(p_button->isActive() && p_button->isReallyVisible()) handleClick(p_button);
 }
 
-// One campaign forward or back. setSelection() fires changed(), which is
-// what runs handleClick() afterwards and with it everything else.
+// One campaign forward or back. setSelection() fires changed(), which runs
+// handleClick() and with it everything else.
 void GS_SelectLevel::selectCampaign(int delta)
 {
 	const int count = static_cast<int>(campaigns.size());
@@ -268,9 +271,16 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 		const std::string path(fs.resolveContentPath("levels/campaigns/" + *i));
 		if(!fs.fileExists(path + "/campaign.xml")) continue;
 
-		// load the campaign
+		// Load the campaign. One without a level loads - an older editor could
+		// save one, and a file copied into the folder by hand is never checked
+		// the way an import is - but has nothing to select or play.
 		Campaign* p_campaign = new Campaign;
-		if(p_campaign->load(path))
+		const bool loaded = p_campaign->load(path);
+		if(loaded && p_campaign->getLevels().empty())
+		{
+			printfLog("+ WARNING: Campaign \"%s\" has no levels. It is left out.\n", i->c_str());
+		}
+		if(loaded && !p_campaign->getLevels().empty())
 		{
 			GUI_ListBox::ListItem item(p_campaign->getTitle(), 0);
 			p_listBox->addItem(item);
@@ -280,17 +290,15 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 		else delete p_campaign;
 	}
 
-	// The game's own campaign is one archive in the game folder, and that
-	// archive is a build product: a tree that was cloned but never packed has
-	// every other file and not that one, and the list then simply comes up
-	// without it - forty-two levels missing and nothing saying so. A broken one
-	// says its own piece through Campaign::load, so this is only about the case
-	// where nothing shipped turned up at all.
+	// The game's own campaign is an archive in the game folder and a build
+	// product, so a tree cloned but never packed lacks it and the list would
+	// silently come up without it. A broken one reports itself through
+	// Campaign::load; this covers only nothing shipped turning up at all.
 	if(!shippedCampaign) engine.showToast(Engine::TOAST_ERROR, "$ERROR_NO_BUILT_IN_CAMPAIGN");
 
-	// And last the single levels from the level folder, if there are any: a
-	// campaign that exists as no file. It comes last because the shipped
-	// campaign is what a new player is looking for.
+	// Last, the single levels from the level folder if there are any: a
+	// campaign that exists as no file. Last because the shipped campaign is
+	// what a new player is looking for.
 	Campaign* p_single = new Campaign;
 	if(p_single->loadSingleLevels())
 	{
@@ -351,10 +359,10 @@ uint GS_SelectLevel::getNumLevelsCompleted() const
 		progress.find(ProgressDB::keyFor(p_currentCampaign->getFilename()));
 	const uint completed = (i == progress.end()) ? 0 : static_cast<uint>(i->second.size());
 
-	// Never more than the campaign holds. A merged database can carry levels
+	// Never more than the campaign holds: a merged database can carry levels
 	// of a campaign that has since become shorter, or of another campaign of
-	// the same name, and the count drives a progress bar that would then be
-	// drawn past its own frame and a label that would read "45/42".
+	// the same name, and the bar would then run past its frame and read
+	// "45/42".
 	const uint total = static_cast<uint>(p_currentCampaign->getLevels().size());
 	return min(completed, total);
 }
@@ -396,10 +404,10 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 		if(p_currentCampaign) desc = p_currentCampaign->getDescription();
 		static_cast<GUI_StaticText*>(gui["SelectLevel.CampaignDescription"])->setText(desc);
 
-		// "Next to do" looks for the next level not yet completed. Among the
-		// single levels that is all of them, and the button would have no
-		// business there; likewise the label above the progress bar, which
-		// onRender() does not draw there in the first place.
+		// "Next to do" looks for the next level not yet completed, which among
+		// the single levels is all of them, so there the button is hidden -
+		// and so is the label above the progress bar, which onRender() does
+		// not draw there either.
 		const bool single = p_currentCampaign && p_currentCampaign->isSingleLevels();
 		if(single)
 		{
@@ -526,9 +534,9 @@ void GS_SelectLevel::loadLevel()
 		p_oldLevel->removeOldObjects();
 	}
 
-	// The entry knows for itself where it lies - in the campaign's archive
-	// or as a loose file in the level folder. Composing "level_N.xml" by hand
-	// would work only for the first case.
+	// The entry knows where it lies, in the campaign's archive or as a loose
+	// file in the level folder; composing "level_N.xml" by hand would work
+	// only for the first.
 	p_currentLevel = new Level;
 	p_currentLevel->setInPreview(true);
 	p_currentLevel->load(p_currentCampaign->getLevels()[currentLevel].source());
@@ -570,9 +578,8 @@ void GS_SelectLevel::updateNote()
 {
 	GUI_StaticText* p_note = static_cast<GUI_StaticText*>(gui["SelectLevel.Note"]);
 
-	// The same reasoning as for the progress bar: the note lists what is
-	// unlocked and still unsolved, and among the single levels that is every
-	// one of them.
+	// Not for the single levels, as with the progress bar: the note lists
+	// what is unlocked and still unsolved, which there is every level.
 	std::string text;
 	if(p_currentCampaign && !p_currentCampaign->isSingleLevels())
 	{

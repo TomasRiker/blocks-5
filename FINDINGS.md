@@ -24,9 +24,8 @@ Many entries came in twice (the first reader's and the second's), so the 174
 open entries were about 120 distinct things. A branch straight after the check
 then fixed everything that was worth a change in code - the eleven wrong
 behaviours a player could meet, the latent hazards, the dead code, and the
-three the author was asked to decide - so what is still open is comments and
-documents that say one thing while the code does another, and a short list of
-things worth knowing. Both come first; the settled record follows in short
+three the author was asked to decide - so what is still open is a short list
+of things worth knowing. It comes first; the settled record follows in short
 form, each fix with the commit that made it. A finding that turned out to be
 nothing is kept with its reason, because that is what stops the same false
 alarm being raised again.
@@ -78,124 +77,43 @@ And one that stopped being a finding without anybody fixing it:
 at the time of the sweep and is five again, since `Texture::createFromPixels`
 added one. It is left alone, and counted rather than assumed.
 
+The second sweep, the one that condensed every comment in the tree, took the
+rest of the list with it, checked item by item against the tree: thirty of
+its entries had been reworded into truth by the condensing itself, and the
+others were fixed on the way. `main.cpp` counts an empty home folder as none
+and keeps the config.xml note off the progress.zip copy; `smoke.sh` points
+back instead of repeating a rule; `u_crt.cpp`'s banner labels its own
+section; `web_bluescreen` says which of 48em and 52em is slack, takes the
+touch it listens for into its header and lost its dead stub; `syntax.sh` and
+`checks.md` name the shims that matter, and the count has its singular;
+`Build.bat` keeps what is true of the toolset, not its history, says what
+decides /sdk:, how long a vNNN may be and where the campaigns lie;
+`engine.h` counts per tick; `make_text.py`, `make_icon.py` and `make_ico.py`
+say what they do, and `images.md` with them; `gs_loading.h`, `sounds.xml`,
+`audiocapture.h`, `cf_rewind.cpp`, `e_gate.cpp`, `e_flipflop.cpp`,
+`barrage2panel.cpp`, `barrage.h`, `barrage2.h`, `game.xml`,
+`leveleditor.xml`, `menu.xml`, `selftest.py`, `smoke.js` and `input.md` say
+what the code does; `engine.cpp` names the main loop call it makes and keeps
+the recorder's variable behind `RECORD` in the browser too; `verify.py` lost
+a sentence about an exclusion it never had; `harness.sh` gives the hold what
+was measured, not a model; `gs_selectlevel.cpp` states the invariant its
+render leans on; the two editors lost an `else if` their `if` implies; and
+`gui_window.cpp`, `laser.cpp` and `lava.cpp` no longer shadow a name
+(clang-rename). `pack.sh` writes its two branches as the `if` beside them.
 
-Still open: comments and documents that disagree with the code
---------------------------------------------------------------
-Each is a rewording, and the fix is in the entry.
 
-- `campaign.h`: `makeLooseRef()` and `loadSingleLevels()` are documented against
-  the user's folder alone, while both walk the two content roots.
-- `campaign.cpp`: "clear() sets both as well" over three assignments; and
-  `makeMemberName()`'s "(campaign.cpp, save())" names its own file.
-- `diamondmachine.h`: `sparkId` "marks the inward sparks" - both loops stamp
-  it, and `abortConversion()` tells the kinds apart by the sign of
-  `deltaColor.a`. `diamondmachine.cpp`: "d^moves = inAccel" for `IN_ACCEL`; the
-  timetable diagram closes the inward bar at 80 while `SPARK_IN_END` is 92;
-  `SPARK_IN_MIN_LIFE` (8) can never bind while `SPARK_IN_END` stays 92; "the
-  last quarter belongs to the collecting alone" is the last fifth; and
-  `updateSprites` hardcodes the diagram's 80.
-- `main.cpp`: the version table says "no Blocks 5 folder" where the code tests
-  `listDirectory().empty()`, so an existing empty folder is `not_played`; and
-  the config.xml comment sits over the `progress.zip` copy it does not
-  describe.
-- `LinuxBuild/test/smoke.sh`: the music section restates the Export/Delete rule
-  of the levels section thirty lines above; cut it to a pointer.
-- `transfer.cpp`: `list()`'s "nothing can be saved or imported under a shipped name" is false
-  for the two example levels, which the `std::find` below handles.
-- `transfer.h`: "both platforms" for three file-dialog paths; `classify()`'s
-  "a tileset.xml" where the code wants `sprites.png` beside it.
-- `u_crt.cpp`: the block over `toLinear()` claims `x*x`, which is the halation
-  taps' arithmetic, not the function's (`pow(GAMMA_IN)`); "the macros below"
-  and "once more below as a macro" for macros above; "the mouse conversion in
-  engine.cpp" for a formula that lives in this file; `MASK_AVG`/`SCAN_AVG` for
-  `maskAvg`/`scanAvg`; a present cost of 7.9 against the table's 7.8 in the
-  same file; and two section banners back to back with the first labelling a
-  section four lines further down.
-- `web_bluescreen.cpp`: the comment derives 48em, the CSS says `52em`; say
-  which is slack. `web_bluescreen.h`: "under Windows SDL_QUIT quits" is true
-  outside the browser altogether, the `#else` stub is dead in every build, and
-  "a key press or a click" omits the touch the code also takes.
-- `Tools/syntax.sh`: the comment names four of the six generated shims, two of
-  which are idle (`shellapi` is written lowercase in the sources,
-  `VersionHelpers.h` appears only in `stackwalker.cpp`, which the script never
-  compiles) while `alc.h` is needed by every file; and "1 source files".
-  `checks.md` names three.
-- `Build.bat`: the `/sdk:` header line describes an outcome the project files
-  produce, not something the script passes; the header's lines 38-56 are the
-  archaeology of constraints that no longer exist, with line 474 pointing at
-  them; the `:onlytoolset` comment describes a four-character test the guard
-  performs as five; and `:doclean`'s "misc\3p_campaigns\*.zip" lacks the
-  `Blocks5\` every path below it carries.
-- `gs_campaigneditor.cpp`: "straight into the IndexedDB ... as in the level
-  editor" - the level editor makes no such call, so a level saved in the
-  browser waits for the five-second interval. The better fix is the call
-  itself in the level editor's save path; and `else if(!confirmed)` where the
-  `else` already implies it.
-- `engine.h`: `consumeKeyPress` takes the "pressed in this frame" flag off,
-  which is cleared per tick.
-- `gs_menu.cpp`: the Escape comment names the donation question, not the CRT
-  offer pane the condition also tests.
-- `make_text.py`: "the offset from the font.xml as the first row" is returned
-  and discarded, never applied; the empty-text `SystemExit` is unreachable
-  behind a `max()` that raises first; `as_js`'s docstring writes `d:"..."` for
-  a `d:'...'` the code emits. `make_icon.py`'s usage omits the third
-  positional argument `main()` accepts; `make_ico.py`'s "the one size where
-  the next integer step down would be 1x" holds for 20 as well - the margin is
-  what singles 24 out.
-- `platform_stubs.cpp`: "all four call sites ... first switch the surface alpha
-  off" - three blit sites, and it is the source's flag, cleared when the parent
-  was made; "all five call sites" of `SDL_CreateRGBSurface` - four;.
-- `testhooks.cpp`: the "where the game sees the cursor" comment sits over
-  `appActive`, thirty lines from the `mouseDown` and `cursor` it describes;
-  "a stat() on a file" for an `fopen()`.
-- `gs_loading.cpp`: `gestureTime` is documented as a time and only its sign is
-  ever read. `gs_selectlevel.cpp`: `onRender()` dereferences
-  `p_currentCampaign` unguarded on an invariant `loadLevel()` keeps and nothing
-  states. `gui_window.cpp`: the local `title` shadows the member. `laser.cpp`:
-  `onElectricitySwitch(bool on)` shadows the member `float on`; the debris of
-  a destroyed object starts from the beam's cell rather than the object's
-  position as `lava.cpp` does. `lava.cpp`: the debris loop's `int i` shadows
-  the live iterator.
-- `streamedsound.cpp`: "stops the source without emptying it" - the queue.
-  `sounds.xml`: "less signal level for the same computational load" - the
-  same bitrate. `audiocapture.h`: the header states the sample format and not
-  the rate contract the code honours.
-- `cf_rewind.cpp`: "How many there are depends on the speed of the tape" over a
-  fixed `NOISE_BARS = 5` - where they sit does. `e_gate.cpp`: "undefined inputs
-  give an undefined output" over a test that also covers an unconnected one.
-  `e_flipflop.cpp`: "unclocked" where the tooltip says "level-triggered".
-  `barrage2panel.cpp`: `// switch` on a panel. `barrage2.h` and `barrage.h`
-  carry the same header and name no variant. `tileset.cpp`: "record the tile
-  type" over the whole `TileInfo`. `texture.cpp`: "Creating non-pow2 texture!
-  This could cause trouble" for the case `applyWrapMode()` exists to support.
-- `game.xml` and `leveleditor.xml`: the Quit button's comment accounts for the
-  three pixels past the top and not the two past the right edge. `menu.xml`:
-  "unpressed at column 0" holds for the large cells; the small ones sit at 160.
-- `engine.cpp`: two comments name `emscripten_set_main_loop` for a call to
-  `emscripten_set_main_loop_arg` whose trailing `1` is load-bearing;
-  `firstEventRecorded` sits unconditionally in the browser namespace and under
-  `#ifdef RECORD` natively.
-- `options.cpp`: the "start with no selection" comment gives a reason that
-  cannot arise, since the pane is hidden throughout `show()`.
-- `pre.js`: "the on-screen controls" where everything else says the pad.
-- `presets.cpp`: the type is spelled "Amboss" and its tooltip id `$TT_AMBOS`;
-  the type name is in every level file, so if anything moves it is the id.
-- `Tools/verify.py`: the sentence about a GUI exception in `check_xml_attrs`
-  describes an exclusion that is neither implemented nor needed.
-  `Tools/selftest.py`: "goes back in a finally" for a `Patch.__exit__`.
-  `LinuxBuild/test/harness.sh`: the 60 ms hold's explanation does not follow
-  from its own model (a longer hold makes a poll landing inside the window
-  more likely, not less; what the measurement supports is that press and
-  release are drained by one poll and the hold stays under the 140 ms repeat
-  delay); and the `no element` message is discarded by the `except SystemExit`
-  three lines below it.
-- `WebBuild/test/smoke.js`: "the four buttons below it are disabled" - three,
-  and `input.md` says the same of *Reset all*, which stays clickable because
-  resetting all needs no selection; "SDL_WINDOWEVENT ... which the game does
-  not listen for" - it does, and the same script tests the branch; what is
-  true is that nothing polls it while the tab is hidden.
-- `Blocks5/pack.sh`: the data and campaign branches are `[ ] || [ ] && { }`
-  beside an `if` for the same decision - correct, unexplained.
+The last three were decisions rather than rewordings, and the author made
+them:
+
+- `diamondmachine.cpp`: the animation's frame and last frame are the named
+  `FRAME_TICKS` and `LAST_FRAME_AT` beside the timetable, where the
+  literals 20 and 80 stood.
+- `laser.cpp`: the debris of a destroyed object starts where the object was
+  drawn - for one moving into the beam, no longer the cell the beam's tip was
+  in - and a tile's at its own cell.
+- `presets.cpp`: the type stays "Amboss", being in every level file; its
+  tooltip id is `$TT_ANVIL`, and the English tooltip says "Anvil" where it
+  said "Ambos".
 
 
 Still open: worth knowing, not worth a change

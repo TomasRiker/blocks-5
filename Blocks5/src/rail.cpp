@@ -10,8 +10,8 @@ Rail::Rail(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_FIXED | OF_RAIL;
-	this->subType = subType;
-	this->dir = dir;
+	this->subType = wrapIndex(subType, 7);
+	this->dir = wrapIndex(dir, 4);
 }
 
 Rail::~Rail()

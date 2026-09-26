@@ -1,29 +1,19 @@
 // pre.js - browser-side setup that must happen before main() runs.
 
-// Two knobs on the query string, both diagnostics. They live here because a
-// phone has no console, no command line and no test harness: typing a URL is
-// the only way to reach them, and it is the same URL on a desktop.
+// Two diagnostic knobs on the query string, the one way to reach them on a
+// phone. Both become command-line arguments and nothing else:
 //
-//   ?perf=1       put the frame timings on the screen. It becomes the -perf
-//                 the desktop build takes on its command line, so both
-//                 platforms run one piece of code. Turning a query string into
-//                 argv is Emscripten's own idiom - see its emrun_prejs.js.
+//   ?perf=1       -perf, the frame timings on the screen.
+//   ?flushall=1   -flushall, every quad put up on its own: the arm to compare
+//                 the batching against, in the same binary.
 //
-//   ?flushall=1   becomes -flushall, which makes the renderer put every quad
-//                 up on its own instead of batching it. That is the arm to
-//                 compare the batching against, and it is a query string
-//                 rather than a build flag so that both arms are one binary.
-//
-// Both become arguments and nothing else. A knob that had to set a Module.*
-// property Emscripten reads would also have to name it in build.sh's
-// -sINCOMING_MODULE_JS_API, or the start aborts on it with ASSERTIONS on.
+// A knob that set a Module property Emscripten reads would also have to be
+// named in -sINCOMING_MODULE_JS_API, or the start aborts under ASSERTIONS.
 (function () {
   var query;
   try { query = new URLSearchParams(location.search); } catch (e) { return; }
 
-  // Present and not switched off. A bare query.get() would read "0" as on,
-  // since every non-empty string is truthy - and ?perf=0 asking for the
-  // overlay is the opposite of what anybody types it for.
+  // Present and not switched off: ?perf=0 must not read as on.
   function wants(name) {
     if (!query.has(name)) return false;
     var v = query.get(name).toLowerCase();
@@ -56,12 +46,9 @@ Module['preRun'].push(function () {
   }
 });
 
-// Saves, progress and imported levels live in IndexedDB, and a browser is
-// allowed to throw that away when it is short of room - which on a phone is a
-// question of when, not whether. Asking makes the origin's storage persistent
-// where the browser is willing; it grants it silently once the page looks like
-// something the user meant to keep (installed to the home screen, bookmarked,
-// visited often) and otherwise says no, which costs nothing.
+// Ask that the IndexedDB holding every save not be evicted when the browser
+// runs short of room. It is granted silently once the page looks kept
+// (installed, bookmarked, visited often) and otherwise refused, at no cost.
 (function () {
   try {
     if (navigator.storage && navigator.storage.persist) {
@@ -94,38 +81,25 @@ Module['b5_sync'] = (function () {
   return function () { if (running) again = true; else run(); };
 })();
 
-// Every function key belongs to the game here, not to the browser. They are
-// bindable like any other key and the desktop build answers to all of them, so
-// a player who knows the game must not find half of them missing; taking a
-// named few and leaving the rest would be the worst of both. Swallowed in the
-// capture phase, before SDL or the browser sees them - F1 would otherwise open
-// the browser's help, F5 reload the page and lose the level, F10 reach for the
-// menu bar, F11 go fullscreen and F12 open the developer tools.
-//
-// Nothing is lost by it: fullscreen is Alt+Enter, the same idiom as on the
-// desktop and the one the loading screen names, while Ctrl+R and the address
-// bar still reload and Ctrl+Shift+I still opens the tools. Whether a browser
-// hands a page F11 and F12 at all is its own decision - asking costs nothing
-// where the answer is no.
+// Every function key belongs to the game, all of them bindable (web.md);
+// otherwise F1 would open the browser's help, F5 reload and lose the level,
+// F10 reach for the menu bar, F11 go fullscreen and F12 open the tools. The
+// default is cancelled in the capture phase, ahead of every other listener;
+// SDL still receives the key.
 window.addEventListener('keydown', function (e) {
   if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key) ||
       (e.keyCode >= 112 && e.keyCode <= 135)) e.preventDefault();
 }, true);
 
-// The other half of "the music stopped when I switched tabs". A hidden page
-// gets no requestAnimationFrame, so the game cannot refill the OpenAL queue and
-// the source runs dry; StreamedSound::pumpBuffers restarts it when the page
-// comes back. What it cannot restart is the AudioContext: Chrome suspends the
-// one belonging to a backgrounded page, and Emscripten's own unlocker
-// (autoResumeAudioContext in libcore.js) registers its listeners with
-// { once: true } and spent them on the very first click of the session. Nobody
-// would ever resume it again, so do it here - on every return to the page, and
-// from a real DOM event rather than from inside the main loop, which is exactly
-// what is not running yet at that moment.
+// The AudioContext follows the page's visibility. Chrome suspends it in a
+// backgrounded page, and Emscripten's own unlocker (autoResumeAudioContext in
+// libcore.js) listens with { once: true } and is spent by the first click;
+// StreamedSound::pumpBuffers restarts a queue that ran dry, but not the
+// context. So it is resumed here on every return, from a DOM event, since the
+// main loop is not running yet at that moment.
 (function () {
-  // AL is the library object from libopenal.js; --pre-js lands in the same
-  // scope, and it is only looked at when an event fires, long after the
-  // runtime has defined it.
+  // AL is libopenal.js's library object, in scope for --pre-js and only
+  // looked at once an event fires.
   function ctx() {
     try { return AL.currentCtx && AL.currentCtx.audioCtx; } catch (e) { return null; }
   }
@@ -133,16 +107,10 @@ window.addEventListener('keydown', function (e) {
     var c = ctx();
     if (c && c.state === 'suspended') c.resume().catch(function () {});
   }
-  // A hidden page is a stopped game: requestAnimationFrame does not fire, so
-  // no logic tick runs and nothing in the engine can react. Muting is the
-  // engine's own answer to losing focus, but it cannot work here twice over -
-  // Emscripten's SDL reports a hidden page as SDL_WINDOWEVENT and the game
-  // listens for SDL 1.2's SDL_ACTIVEEVENT, and the volume change would be
-  // applied by the very per-tick pass that has stopped. So the page does it,
-  // from the DOM event, one layer below the engine: suspending the context
-  // freezes every source at once. Without it the music dies on its own when
-  // its queue runs dry, while a looping effect - a laser - keeps buzzing in a
-  // tab nobody is looking at.
+  // A hidden page gets no requestAnimationFrame, so the engine never even
+  // polls the event that would mute it, and its per-tick volume pass has
+  // stopped. Suspending the context freezes every source at once; without
+  // it a looping effect - a laser - keeps sounding in a hidden tab.
   function suspend() {
     var c = ctx();
     if (c && c.state === 'running') c.suspend().catch(function () {});
@@ -155,23 +123,17 @@ window.addEventListener('keydown', function (e) {
   Module['b5_resumeAudio'] = resume;
 })();
 
-// Fullscreen goes on the root element, never on the canvas. Only the fullscreen
-// element and its descendants are painted, so with the canvas itself promoted
-// the on-screen controls - a sibling of it - simply vanish, while still
-// reporting a full-size bounding rect, which is why this survived a test that
-// only measured. From <html> both are inside, and the canvas is 100%/100% of
-// the page anyway, so it fills the screen without anyone resizing it.
-//
-// It has to be called under a transient user activation: from the first
-// gesture below, from the pad's button or from the Alt+Return callback at the
-// DOM. Returns whether a request was made at all.
+// Fullscreen goes on the root element, never on the canvas: only the
+// fullscreen element and its descendants are painted, and the on-screen pad
+// is the canvas's sibling (window.md). The canvas is 100% of the page anyway.
+// Call it under a transient user activation - the first gesture, the pad's
+// button, the Alt+Return handler. Returns whether a request was made at all.
 Module['b5_setFullscreen'] = function (on) {
   try {
     if (on) {
-      // Without transient activation the request is refused, and a phone does
-      // not necessarily grant it as early as touchstart. Say nothing then: a
-      // rejected promise per touch would only fill the console. This is the
-      // same test Emscripten's own doRequestFullscreen makes before deferring.
+      // Without activation the request is refused - a phone may not grant it
+      // as early as touchstart - so none is made, rather than a rejected
+      // promise per touch. Emscripten's doRequestFullscreen tests the same.
       if (navigator.userActivation && !navigator.userActivation.isActive) return false;
       var el = document.documentElement;
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
@@ -197,21 +159,12 @@ Module['b5_toggleFullscreen'] = function () {
 };
 
 // The first gesture takes the fullscreen, on every device, and never again on
-// its own: a swipe or a long Escape out of it is meant, and Alt+Return or the
-// pad's button bring it back. No guess about the device is involved. The one
-// that stood here, a coarse pointer and no fine one, called a Galaxy with no
-// pen and no mouse a notebook and left it under the address bar.
-//
-// The events are the ones that carry the activation the API demands: a mouse
-// button going down, a finger or a pen lifting, a key other than Escape. The
-// loading screen already stops for a gesture, so nobody pays an extra one. The
-// listeners stay armed until a request was actually made, in case the first
-// event arrives without activation after all.
-//
-// The AudioContext is resumed from the same event, and not only in
-// GS_Loading: going fullscreen turns a phone to landscape, the rotation makes
-// the browser cancel the touch in flight, and SDL then never sees the press
-// that was the gesture.
+// its own: leaving by a swipe or a long Escape is meant (window.md). These are
+// the events that carry the activation the API demands - a mouse button going
+// down, a finger or pen lifting, a key other than Escape - and the listeners
+// stay armed until a request was actually made. The AudioContext is resumed
+// here too: turning to landscape cancels the touch in flight, and SDL never
+// sees the press GS_Loading waits for.
 (function () {
   var types = ['mousedown', 'pointerup', 'touchend', 'keydown'];
   function first(e) {
@@ -225,12 +178,10 @@ Module['b5_toggleFullscreen'] = function () {
   types.forEach(function (t) { window.addEventListener(t, first, true); });
 })();
 
-// Escape stays with the game while fullscreen, where the browser allows it:
-// the menu, the note and the dialogs all hang off that key, and the browser's
-// own exit would otherwise take the first press. Chromium alone has the API;
-// it asks for a long Escape to leave instead and says so in its own bubble.
-// Firefox and Safari keep their exit, and the game gets its Escape on the
-// next press. Every path swallows the failure, as with the orientation.
+// Escape stays with the game while fullscreen where the browser allows it,
+// since the menu, the note and the dialogs hang off that key. Only Chromium
+// has the Keyboard Lock, and it then wants a long Escape to leave; elsewhere
+// the browser's exit takes the first press. Every failure is swallowed.
 Module['b5_lockEscape'] = function () {
   var k = navigator.keyboard;
   if (!k || !k.lock) return;
@@ -244,16 +195,11 @@ Module['b5_lockEscape'] = function () {
   } catch (e) {}
 };
 
-// Landscape, and only while the game holds the screen. The lock is refused
-// unless the document is fullscreen, which is why this hangs off the change
-// event rather than off the request: on Android the promise rejects if the two
-// are the wrong way round. It rejects on a desktop in any case - there is no
-// orientation to lock - so every path here swallows the failure, and it is
-// simply attempted on every entry: a tablet held upright gets the picture the
-// right way round like a phone does.
-//
-// The manifest asks for landscape as well, but that only counts once the game
-// has been installed to the home screen. This is the same answer for the page.
+// Landscape, only while fullscreen: the lock is refused unless the document
+// already is, hence the change event rather than the request. It rejects on a
+// desktop, so every failure is swallowed, and it is tried on every entry, so
+// a tablet held upright turns like a phone. The manifest's landscape counts
+// only for an installed app.
 Module['b5_lockOrientation'] = function () {
   var o = window.screen && screen.orientation;
   if (!o) return;
@@ -268,17 +214,13 @@ Module['b5_lockOrientation'] = function () {
   }
 };
 
-// The canvas fills the page and follows the browser window. The game renders
-// 640x480 into a framebuffer object and letterboxes that into whatever size the
-// canvas is, so nothing here has to know about the game's own resolution - it
-// only has to keep the drawing buffer the same size as the element. Engine's
-// main loop reads the canvas size once a frame and picks the change up from
-// there, which also catches the Fullscreen API without a second code path.
+// Keeps the drawing buffer the size of the element. The game letterboxes its
+// 640x480 frame into whatever size the canvas is, and the main loop reads the
+// canvas size once a frame, which also catches the Fullscreen API.
 Module['b5_fitCanvas'] = function () {
   var c = Module['canvas'];
   if (!c) return;
-  // 100% of the page in both states, because it is the page that goes
-  // fullscreen and not the canvas - see b5_setFullscreen.
+  // 100% in both states: the page goes fullscreen, not the canvas.
   c.style.width = '100%';
   c.style.height = '100%';
   var r = c.getBoundingClientRect();
@@ -289,9 +231,7 @@ Module['b5_fitCanvas'] = function () {
 
 Module['postRun'] = Module['postRun'] || [];
 Module['postRun'].push(function () {
-  // The page itself is shell.html, which already gives the canvas the whole
-  // viewport in CSS and suppresses the browser's own touch gestures. What is
-  // left here is keeping the drawing buffer in step with the element.
+  // shell.html sizes the canvas in CSS; this keeps its drawing buffer in step.
   var c = Module['canvas'];
   if (c) {
     window.addEventListener('resize', Module['b5_fitCanvas']);

@@ -1060,9 +1060,9 @@ $TT_SPIKE
 §en:Spikes¶(gravity; deadly when falling)
 §de:Speere¶(Gravitation; tödlich, wenn sie fallen)
 
-$TT_AMBOS
-// Tool tip for ambos
-§en:Ambos¶(gravity; deadly)
+$TT_ANVIL
+// Tool tip for the anvil, whose type is Amboss
+§en:Anvil¶(gravity; deadly)
 §de:Amboss¶(Gravitation; tödlich)
 
 $TT_GRASS
@@ -2500,6 +2500,11 @@ $TR_ERROR_RESERVED
 $TR_ERROR_CLICK_AGAIN
 §en:Please click the button again.
 §de:Bitte den Knopf noch einmal anklicken.
+
+$TR_ERROR_NO_DIALOG
+// Linux only, where the file dialogs are these two programs
+§en:ERROR: No file dialog - please install zenity or kdialog.
+§de:FEHLER: Kein Dateidialog - bitte zenity oder kdialog installieren.
 
 // *************
 // DO NOT MODIFY

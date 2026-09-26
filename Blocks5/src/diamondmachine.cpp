@@ -6,99 +6,80 @@
 #include "sound.h"
 #include "soundinstance.h"
 
-/* The conversion's shower of sparks.
+/* The conversion's shower of sparks. The block is taken apart and put back
+   together rather than faded out: sparks fly outward in its colours, then
+   sparks come back from the cloud they leave, taking on the diamond's colour
+   where they land.
 
-   A block is not faded out and replaced by a diamond; it is taken apart and
-   put back together: first sparks fly outward in the block's colours, then
-   from the cloud they leave behind sparks come back, taking on the colour
-   the diamond has where they land and expire.
+   TIMETABLE, in ticks of the machine's counter, which runs to 100; its
+   animation frame changes at 20, 40, 60 and 80 (FRAME_TICKS, LAST_FRAME_AT),
+   so sparks and animation share one clock:
 
-   TIMETABLE. The machine counts a hundred ticks, and its own animation frame
-   changes at 20, 40, 60 and 80 - the fifth stands still from 80 to 100. The
-   phases hang off that, which keeps the animation and the sparks off two
-   separate clocks:
+       outward   emitted 0 to 53, each living 27 ticks: the last gone by 80
+       inward    emitted 20 to 92, every one landing at 100
+       visible   outward alone to 20, both to 80, inward alone to 100
 
-       tick      0        20              53        80          100
-       outward   |=== emitted ===========|                            flies to 80
-       inward             |=== emitted ==============|                flies to 100
-       visible   out only | both ------------------- | in only  |
+   Outward emission stops a whole lifetime before 80 (80 - 27 = 53), leaving
+   the end to the collecting. Inward the lifetime is worked out so a spark
+   lands at 100 whenever it sets off; after 92 the time left would be a flash
+   on the spot rather than a flight.
 
-   A spark lives on after it has been emitted, and the two ends are computed
-   from that. Outward, emission has to stop a whole lifetime before 80
-   (80 - 27 = 53), leaving the end nothing but collecting. Inward, every
-   spark lands at 100 whenever it sets off - the lifetime is worked out for
-   that - and 92 is the point from which the time left would no longer be a
-   flight but a flash on the spot.
+   LANDING EXACTLY. The integrator is position += velocity, then velocity *=
+   damping, so n moves cover v0 * (1 - d^n) / (1 - d). Outward that says
+   where the cloud ends, and so where inward sparks may start; inward, solved
+   for v0, it lands a spark exactly on its target. d below 1 brakes, above 1
+   accelerates: the way out peters out, the way in sucks the spark in.
 
-   LANDING EXACTLY. The integrator is position += velocity; velocity *=
-   damping. Over n ticks a spark covers v0 * (1 - d^n) / (1 - d), and the
-   formula serves both directions: outward it says where the cloud ends - and
-   with it where the inward sparks may start - and inward it gives the v0
-   with which one arrives exactly on its target. d below 1 brakes, d above 1
-   accelerates; that is why the way out peters out and the way in sucks the
-   spark in.
-
-   DUST, NOT EMBERS. An outward spark carries the plain colour of the texel
-   it came from and only grows paler - OUT_BRIGHT and OUT_END are both 1.
-   Glowing sparks read as welding, and the machine is handed rock, ice and
-   grass as readily as metal. For the same reason there are many, large and
-   slow ones rather than fewer, smaller and faster: this is meant to be a
-   block falling apart.
-
-   Nothing here is blended additively. There the result depends on the
-   background, and the same brown would be an ember over rock and a glaring
-   yellow over grass. Inward the colour still starts above 1, where GL clamps
-   it to [0,1] - but that is not a glow; it is the way around a green cast,
-   and the reason stands where it is computed.
+   DUST, NOT EMBERS. An outward spark keeps the plain colour of its texel and
+   only its opacity falls (OUT_BRIGHT and OUT_END are both 1): glowing sparks
+   read as welding, and the machine takes rock, ice and grass as readily as
+   metal. Hence also many large slow sparks rather than fewer small fast
+   ones - a block falling apart. No spark is blended additively, where the
+   same brown would be an ember over rock and glaring yellow over grass. An
+   inward spark's colour starts above 1 and is clamped, not to glow but to
+   avoid a green cast; the reason stands where it is computed.
 
    ABORT. The block can be pushed away, blown up or switched off at the last
-   moment. The sparks must not vanish then, which would be a hole in the
-   middle of the motion: they run their own way back, with a mirrored
-   lifetime, and what is still outstanding decides how long that takes
-   (abortConversion()). For the machine to find them again they carry its id:
-   Particle::id, the one field that stays 0 everywhere else in the game.
-
-   The inward sparks always turn round - they were flying at a diamond that
-   is not coming. The outward ones depend on whether the block still exists:
-   pushed aside, or standing still because the power is off, and they fly
-   back to it and are sucked in again; destroyed, and they fly on untouched,
-   because then flying apart is exactly right.
- */
+   moment. The sparks must not vanish then, which would tear a hole in the
+   motion: abortConversion() runs them back with a mirrored lifetime, as long
+   as each has already flown. The inward ones always turn round - the diamond
+   is not coming. The outward ones fly back into the block while it stands,
+   pushed aside or unpowered, and fly on untouched once it is destroyed,
+   since then flying apart is right. The machine finds its sparks by
+   Particle::id, the one field that stays 0 everywhere else in the game. */
 
 namespace
 {
 	// The phases, in ticks of the machine's counter.
 	const int CONVERSION_TICKS = 100;  // then the block becomes the diamond
+	const int FRAME_TICKS      = 20;   // the machine's animation, a frame each
+	const int LAST_FRAME_AT    = 80;   // and held from here
 	const int SPARK_OUT_FULL = 20;
 	const int SPARK_OUT_END  = 53;
 	const int SPARK_IN_START = 20;
 	const int SPARK_IN_FULL  = 60;
 	const int SPARK_IN_END   = 92;
 
-	// The sound of a conversion that is not going to happen. The slides are
-	// exponential and run once per logic tick, so the speed is the fraction
-	// of the way left that is covered each tick: at 0.04 the volume halves
-	// every 17 ticks, a third of a second, and is inaudible after about one.
-	// The pitch runs down with it, which is the sound a machine makes as it
-	// loses what it was doing.
-	//
-	// diamondmachine.ogg lasts exactly the two seconds of the conversion, so
-	// what is left to fade is whatever the abort came early enough to leave.
+	// The sound of a conversion that is not going to happen: volume and
+	// pitch run down together, a machine losing what it was doing. The
+	// slides are exponential, once per logic tick, the speed being the
+	// fraction of the way left covered each tick: at 0.04 the volume halves
+	// every 17 ticks, a third of a second. diamondmachine.ogg lasts exactly
+	// the conversion's two seconds, so only what the abort left is faded.
 	const float SOUND_FADE_SPEED = 0.04f;
 	const float SOUND_FADE_PITCH = 0.35f;
 
-	// Every inward spark lives exactly as long as the conversion has left -
-	// no matter when it sets off. They therefore do not arrive spread over a
-	// minute but all in the same instant, and that instant is the one the
-	// diamond stands in. The last ones still need some distance.
+	// Every inward spark lives exactly as long as the conversion has left,
+	// whenever it sets off, so they all arrive in the instant the diamond
+	// appears. A floor for the last ones, which still need some distance; at
+	// SPARK_IN_END 92 the shortest life is 9, so it does not bite.
 	const int SPARK_IN_MIN_LIFE = 8;
 
-	// The image in particles.png, in pixels, and the only choice there is
-	// here: the particle is multiplied by its texture region. (32,0) looks
-	// right as a solid blob but is a pre-coloured orange (231,152,41) - a
-	// cyan spark on it comes out olive. The only one that is neutral and
-	// dense at once is (32,32): a round disc in pure white. (0,32) would be
-	// a white four-pointed star, should it ever have to sparkle.
+	// The sprite in particles.png, in pixels. A particle is multiplied by its
+	// texture region, so it must be neutral: (32,0) is a solid blob but
+	// pre-coloured - orange (231,152,41) in blocks_01 - and turns a cyan
+	// spark olive. (32,32), a white disc, is the only one both neutral and
+	// dense; (0,32) is a white five-pointed star, should it ever sparkle.
 	const int SPARK_SPRITE_X = 32;
 	const int SPARK_SPRITE_Y = 32;
 
@@ -115,10 +96,10 @@ namespace
 
 	// Inward: the diamond is put together.
 	const float IN_RATE   = 4.0f;
-	// How much faster a spark is at the end of its flight than at the start.
-	// The damping is computed from it, because the lifetime is only fixed
-	// when the spark sets off - the approach then looks the same at any
-	// duration: creep for a long time, snap shut at the end.
+	// How much faster a spark ends its flight than it starts. The damping is
+	// derived from it per spark, since the lifetime is fixed only at take-off,
+	// so the approach looks the same at any duration: a long creep, then a
+	// snap.
 	const float IN_ACCEL  = 3.0f;
 	const float IN_START  = 1.4f;      // start colour brightness, see below
 	const float IN_BRIGHT = 1.0f;      // brightness on impact
@@ -159,16 +140,15 @@ namespace
 		return 0.3f;
 	}
 
-	// The id for the sparks of one conversion. The high bit is always set:
-	// everything else in the game carries 0, and no id can therefore ever
-	// collide with ordinary particles - not even the very first one.
+	// The id for one conversion's sparks. The high bit is always set, so no
+	// id is ever the 0 every other particle carries.
 	ushort nextSparkId()
 	{
 		static uint counter = 0;
 		return static_cast<ushort>(0x8000u | (++counter & 0x7FFFu));
 	}
 
-	// The distance travelled after n ticks, see above.
+	// The distance covered in n = life moves, see LANDING EXACTLY above.
 	float travelDistance(float speed, float damping, int life)
 	{
 		if(damping == 1.0f) return speed * life;
@@ -186,6 +166,7 @@ DiamondMachine::DiamondMachine(Level& level,
 	counter = -1;
 	sparkId = 0;
 	p_soundInst = 0;
+	soundSerial = 0;
 }
 
 DiamondMachine::~DiamondMachine()
@@ -268,43 +249,39 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 		const Vec2f landing = origin + static_cast<Vec2f>(landOffset);
 
-		// Start somewhere in the cloud the outward sparks leave behind: the
-		// same distribution, only rolled for again rather than remembered.
-		// Pairing up individual sparks does not matter - among dozens nobody
-		// sees which belongs to which; what counts is the shape of the cloud.
+		// Start somewhere in the cloud the outward sparks leave: the same
+		// distribution rolled again, not remembered - among dozens nobody sees
+		// which spark is which, only the cloud's shape.
 		const float radius = travelDistance(random(OUT_SPEED_MIN, OUT_SPEED_MAX),
 											 OUT_DAMPING, OUT_LIFE);
 		const float angle = atan2f(landing.y - middle.y, landing.x - middle.x);
 		const Vec2f start = middle + Vec2f(fromOffset.x - 8.0f, fromOffset.y - 8.0f)
 								   + Vec2f(cosf(angle), sinf(angle)) * radius;
 
-		// As long as the conversion has left, plus one tick: then they all
-		// arrive together, and in exactly the frame in which the block is seen
-		// for the last time. Only in the next one is the diamond there and the
-		// sparks gone - otherwise the handover would fall into a gap in which
-		// neither one nor the other could be seen.
+		// As long as the conversion has left, plus one tick: they all arrive
+		// in the frame that shows the block for the last time, and the next
+		// shows the diamond and no sparks. Without the extra tick the handover
+		// would fall into a gap showing neither.
 		const int life = max(SPARK_IN_MIN_LIFE, CONVERSION_TICKS - counter + 1);
 
-		// A particle does not move in its last tick: that update only counts
-		// down and erases. The arithmetic therefore uses the distances it
-		// really covers - otherwise it would stop exactly one short of the
-		// target, and because it accelerates, that is the longest one.
+		// A particle does not move in its last update, which only counts down
+		// and erases, so the arithmetic counts moves. Counting ticks would
+		// stop it one move short, and accelerating, that is its longest.
 		const int moves = life - 1;
 
 		// The damping from the wanted increase, giving the approach the same
-		// shape at any duration: d^moves = inAccel.
+		// shape at any duration: d^moves = IN_ACCEL.
 		const float d = powf(IN_ACCEL, 1.0f / static_cast<float>(moves));
 
 		// The v0 with which the spark stands exactly on its target after its
 		// last move. Without gravity, or it would miss.
 		const float k = (1.0f - d) / (1.0f - IN_ACCEL);
 
-		// The start colour is over-bright, and that is not decoration: a linear
-		// ramp from a blue to the diamond's warm white passes straight through
-		// green - measured 0.16 of green cast at t=0.6, and plainly visible at
-		// that. Started above 1 the strong channels stay clamped while the
-		// weak one catches up; the path then goes through white. For the same
-		// block the green cast falls to 0.05.
+		// Over-bright on purpose: a linear ramp from a blue to the diamond's
+		// warm white passes through green (measured 0.16 of green cast at
+		// t = 0.6, plainly visible). Started above 1, the strong channels stay
+		// clamped while the weak one catches up and the path runs through
+		// white; for the same block the cast falls to 0.05.
 		const Vec4f begin(from.r * IN_START, from.g * IN_START, from.b * IN_START, 0.0f);
 		const Vec4f end(target.r * IN_BRIGHT, target.g * IN_BRIGHT,
 						target.b * IN_BRIGHT, IN_ALPHA);
@@ -330,13 +307,10 @@ void DiamondMachine::spawnSparks(Object* p_block)
 
 Object* DiamondMachine::findLivingBlock()
 {
-	// The block that started the conversion - if it still exists. The search
-	// runs over the object list rather than reaching through p_objOnMe,
-	// because in exactly the interesting case that pointer is worth nothing
-	// any more: a destroyed block is deleted at the start of a tick.
-	// isAlive() is false while it collapses in on itself, and anything
-	// teleported away is somewhere else entirely - both count as "no longer
-	// there".
+	// The block that started the conversion, if it still exists. Looked for
+	// in the object list rather than read through p_objOnMe, which dangles in
+	// exactly the interesting case: a destroyed block is deleted at the start
+	// of a tick. One collapsing (!isAlive()) or teleporting counts as gone.
 	if(!p_objOnMe) return 0;
 
 	const std::vector<Object*>& all = level.getObjects();
@@ -354,19 +328,15 @@ void DiamondMachine::abortConversion()
 {
 	counter = -1;
 
-	// The machine loses what it was doing, and its sound goes down with it:
-	// quieter and slower at once, which is the shape everything uses for
-	// something running out of power.
-	//
-	// Slid to zero and not to a negative target, although that would pause it
-	// at the end: a paused instance is never AL_STOPPED, so nothing reaps it
-	// and it would hold an audio source for the rest of the level. At zero it
-	// plays itself out inaudibly and goes the ordinary way. The pointer is
-	// dropped either way - it is one-shot, and after this nothing here has any
-	// business with it.
+	// The sound runs down with the machine, quieter and lower at once. Slid
+	// to zero, not to a negative target, which would pause it at the end: a
+	// paused instance is never AL_STOPPED, so nothing reaps it and it holds an
+	// audio source for the rest of the level. At zero it plays out inaudibly
+	// and is reaped as usual. The pointer is dropped either way; it is a
+	// one-shot.
 	if(p_soundInst)
 	{
-		if(Sound::isLiveInstance(p_soundInst))
+		if(Sound::isLiveInstance(p_soundInst, soundSerial))
 		{
 			p_soundInst->slideVolume(0.0f, SOUND_FADE_SPEED);
 			p_soundInst->slidePitch(SOUND_FADE_PITCH, SOUND_FADE_SPEED);
@@ -385,14 +355,12 @@ void DiamondMachine::abortConversion()
 		shift = Vec2f((p_block->getPosition().x - position.x) * 16.0f,
 					  (p_block->getPosition().y - (position.y - 1)) * 16.0f);
 
-	// Backwards means: every delta reverses, and the damping becomes its
-	// reciprocal, because it is a factor and not a summand. The velocity
-	// gets that reciprocal on top, because the integrator shifts before it
-	// damps - without it the way back would be a tick out of step and would
-	// miss the starting point. Only gravity cannot be reversed exactly this
-	// way (it is added after the damping, not before); flipping its sign is
-	// an approximation, and the one variant with gravity finds a slightly
-	// different arc on the way back.
+	// Backwards: every delta changes sign and the damping, a factor, becomes
+	// its reciprocal. The velocity is divided by the damping as well, since
+	// the integrator moves before it damps; without that the way back runs a
+	// tick out of step and misses the start. Gravity, added after the
+	// damping, only reverses approximately by a sign flip; none of the
+	// machine's sparks has any.
 	ParticleSystem* p_sys = level.getParticleSystem();
 	for(ParticleSystem::ParticleList::iterator i = p_sys->begin();
 		i != p_sys->end(); ++i)
@@ -404,17 +372,13 @@ void DiamondMachine::abortConversion()
 		// one fades in along its way, the other fades out.
 		const bool inward = (p.deltaColor.a > 0.0f);
 
-		// A destroyed block has nothing left for the debris to fly back into,
-		// and the debris flies on as if nothing had happened. The inward sparks
-		// always turn round: they were flying at a diamond, and it is not
-		// coming in any case.
+		// Without the block the outward sparks fly on; the inward ones always
+		// turn round.
 		if(!inward && !p_block) continue;
 
-		// The mirrored lifetime: as many ticks as the spark has already been
-		// flying. One that has just set off is over at once; one nearly home
-		// has the whole way in front of it. Inward it is in the opacity, which
-		// has grown from 0 by deltaColor.a per tick; outward the whole duration
-		// is known, and what is left of it is lifetime.
+		// The mirrored lifetime: as many moves as the spark has made. Inward
+		// that is in the opacity, grown from 0 by deltaColor.a a move; outward
+		// it is OUT_LIFE less the lifetime left.
 		uint elapsed = 0;
 		if(inward) elapsed = static_cast<uint>(p.color.a / p.deltaColor.a + 0.5f);
 		else if(p.lifetime < OUT_LIFE) elapsed = OUT_LIFE - p.lifetime;
@@ -431,11 +395,11 @@ void DiamondMachine::abortConversion()
 		p.deltaSize = -p.deltaSize;
 		p.deltaRotation = -p.deltaRotation;
 
-		// The way back hits the starting point, but the block may be standing
-		// somewhere else by now. One addend on the velocity translates the
-		// whole trajectory by exactly that offset - the same travel formula as
-		// for the approach, solved for v0: no distortion of the trajectory,
-		// a parallel shift.
+		// The way back ends at the starting point, but the block may stand
+		// elsewhere by now. One addend on the velocity, the travel formula
+		// solved for v0, moves the end point by exactly that offset; it decays
+		// with the same damping, so the offset is taken on in proportion to
+		// the way covered.
 		if(!inward && elapsed && !shift.isZero())
 		{
 			const float d = p.damping;
@@ -445,9 +409,8 @@ void DiamondMachine::abortConversion()
 			p.velocity += shift * k;
 		}
 
-		// One tick more than moves: the last update only counts down and
-		// erases, it no longer moves anything. And 0 would be fatal here - the
-		// counter is unsigned and would wrap.
+		// One more than the moves, since the last update only erases. Never
+		// 0: the update decrements first, and the unsigned counter would wrap.
 		p.lifetime = static_cast<ushort>(elapsed + 1);
 	}
 
@@ -461,7 +424,7 @@ void DiamondMachine::updateSprites()
 	if(level.isElectricityOn())
 	{
 		if(counter == -1) positionOnTexture.x = 32;
-		else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
+		else positionOnTexture.x = 64 + 32 * (min(counter, LAST_FRAME_AT) / FRAME_TICKS);
 	}
 	sprites.add(positionOnTexture);
 }
@@ -484,18 +447,14 @@ void DiamondMachine::onUpdate()
 			{
 				if(p_obj == p_objOnMe)
 				{
-					// Smoke. The colour comes from the block's image; if the
-					// sample lands on a transparent spot only this one
-					// particle is dropped - the counter below runs on, or the
-					// conversion time would hang on the image's coverage and
-					// be a different one every time.
+					// Smoke, coloured from the block's image. A sample on a
+					// transparent spot drops only this particle; the counter
+					// runs on, or the conversion's duration would depend on
+					// the image's coverage.
 					//
-					// Thin, and at the end none at all: a smoke cloud lives
-					// eighty to a hundred and twenty ticks and grows while it
-					// does, a spark lives less than thirty and shrinks. At one
-					// particle per tick there is therefore always a haze over
-					// everything and the sparks disappear into it. The last
-					// quarter belongs to the collecting alone.
+					// Thin, and none after SPARK_OUT_END: a smoke cloud lives
+					// 80 to 120 ticks and grows, a spark under 30 and shrinks,
+					// so at one cloud a tick a haze would hide the sparks.
 					Vec4f sampled;
 					Vec2i offset;
 					if(random(0.0f, 1.0f) < smokeRate(counter) &&
@@ -521,13 +480,11 @@ void DiamondMachine::onUpdate()
 						else p_fireParticleSystem->addParticle(p);
 					}
 
-					// How far the conversion has got, pressed into the block's
-					// hand - it draws itself paler. Fresh every tick, because
-					// it clears the value in its own frameBegin(); a machine
-					// that stops pushing lets it stand full again by itself.
-					// p_obj comes straight out of getFrontObjectAt() and is
-					// touched only here and now; p_objOnMe stays a pointer
-					// that is only ever compared across ticks.
+					// The block draws itself paler by the progress. Set every
+					// tick, since the block clears it in its own frameBegin():
+					// a machine that stops lets it stand full again by itself.
+					// p_obj is fresh from getFrontObjectAt() and used only
+					// now; p_objOnMe is only ever compared across ticks.
 					p_obj->setConversionProgress(
 						clamp(static_cast<float>(counter) / CONVERSION_TICKS, 0.0f, 1.0f));
 
@@ -540,6 +497,7 @@ void DiamondMachine::onUpdate()
 						// one-shot, so it may well have been reaped before
 						// then - Sound::isLiveInstance is what asks.
 						p_soundInst = Engine::inst().playSound("diamondmachine.ogg", false, 0.0f, 100);
+						soundSerial = p_soundInst ? p_soundInst->getSerial() : 0;
 					}
 				}
 				else
@@ -552,19 +510,19 @@ void DiamondMachine::onUpdate()
 
 				if(counter >= CONVERSION_TICKS)
 				{
-					// The block is converted. It disappears fast: it stands at
-					// CONVERSION_GHOST and keeps that while dying too (see
-					// Object::frameBegin), leaving no more than a breath over
-					// the finished diamond. Half a second would be an eternity
-					// for that.
+					// The block is converted. It goes fast, keeping its
+					// CONVERSION_GHOST pallor while dying (Object::frameBegin),
+					// no more than a breath over the finished diamond.
 					p_obj->disappearNextFrame(0.15f);
+					// This only queues the diamond for the level's next
+					// addNewObjects(); adding it now would disturb
+					// Level::update()'s walk over the objects.
 					level.getPresets()->instancePreset("Diamond", position - Vec2i(0, 1), 0);
-//					level.addNewObjects();
 					counter = -1;
 
-					// No abortConversion(): the inward sparks arrived and
-					// expired in this very tick. The id is merely put aside for
-					// the next conversion to get one of its own.
+					// No abortConversion(): the inward sparks make their last
+					// move later in this tick and expire in the next. The id
+					// is only cleared, so the next conversion gets its own.
 					sparkId = 0;
 
 					// The sound is let go of rather than stopped: the machine

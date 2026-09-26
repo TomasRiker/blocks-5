@@ -18,9 +18,8 @@ public:
 	void onUpdate();
 
 private:
-	// The shower of sparks for one tick. The block comes fresh from
-	// getFrontObjectAt() and is touched only here and now - p_objOnMe stays a
-	// pointer that is only ever compared across ticks.
+	// The shower of sparks for one tick. p_block comes fresh from
+	// getFrontObjectAt(); p_objOnMe is only ever compared across ticks.
 	void spawnSparks(Object* p_block);
 
 	// The conversion has fallen through. Runs the machine's own sparks
@@ -33,12 +32,13 @@ private:
 
 	Object* p_objOnMe;
 
-	// The id the inward sparks of this conversion are marked with; 0 while
-	// none is running. It is how abortConversion() finds them again in the
-	// particle system, where everything else in the game carries 0.
+	// The id this conversion's sparks carry, outward and inward alike; 0
+	// while none is running. It is how abortConversion() finds them again in
+	// the particle system, where everything else in the game carries 0.
 	ushort sparkId;
 	int counter;
 	SoundInstance* p_soundInst;
+	uint soundSerial;
 };
 
 #endif

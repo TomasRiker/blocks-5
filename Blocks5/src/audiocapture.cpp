@@ -1,27 +1,23 @@
 #include "pch.h"
 #include "audiocapture.h"
 
-// What a recorded video needs is what the machine is *playing*, and OpenAL
-// cannot give it: alcCaptureOpenDevice opens an *input* device, so recording
-// through it would put the microphone into every video. So this is a loopback
-// capture instead - WASAPI's loopback mode on the default render endpoint
-// under Windows, the monitor source of the default sink under Linux. Both end
-// at 16-bit stereo 48 kHz, which is what videorecorder.cpp wants, so the ring
-// buffer, the reader side and the silence padding below are shared and only
-// the two threadProcs differ.
-//
-// The browser has no loopback at all; there open() fails and videos are silent.
+// A loopback capture, because OpenAL's alcCaptureOpenDevice opens an *input*
+// device and would put the microphone into every video: WASAPI loopback on
+// the default render endpoint under Windows, the monitor source of the
+// default sink under Linux. Both deliver 16-bit stereo at the rate open() was
+// given (48 kHz, what videorecorder.cpp wants), so the ring buffer, the
+// silence padding and the reader side are shared and only the capture side
+// differs. In the browser open() always fails; nothing records video there.
 
 namespace
 {
-	// Size of the ring buffer in seconds. The recorder fetches the samples
-	// only when a video frame is finished, that is every ~33 ms; a few
-	// seconds of slack bridge longer stalls (a level change) too.
+	// Ring buffer size in seconds. The recorder drains it once per video
+	// frame (~33 ms); the slack covers longer stalls such as a level change.
 	const int k_ringBufferSeconds = 4;
 
 	// How far the ring buffer may fall behind real time before it is padded
-	// with silence. Must be well above the capture's packet rate (~10 ms), or
-	// it pads while real data is about to arrive.
+	// with silence. Must be well above the capture's packet interval (~10 ms),
+	// or it pads while real data is about to arrive.
 	const int k_silenceSlackMS = 60;
 
 	// Insert at most this much silence in one go (in seconds)
@@ -29,11 +25,8 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-// The ring buffer. It stands ahead of the platform split because it is the
-// same on both: what the capture delivers is 16-bit stereo samples either way,
-// and only the path there differs - WASAPI's loopback mode under Windows, the
-// monitor source of the default sink under Linux. The capture thread writes,
-// the recorder reads, the mutex separates the two.
+// The ring buffer, shared by every platform. The capture thread writes, the
+// recorder's thread reads, the mutex separates the two.
 // ---------------------------------------------------------------------------
 
 struct AudioRing
@@ -54,10 +47,9 @@ struct AudioRing
 	// Append numSamples of silence.
 	void pushSilence(int numSamples);
 
-	// Fill the gap by the clock. While nothing is playing, the audio service
-	// stops and delivers no packets at all; without this the audio track would
-	// be shorter than the video. expected is the number of samples that should
-	// have arrived since the start.
+	// Pad with silence up to expected, the number of samples that should have
+	// arrived since the start by the clock: while nothing plays, no packets
+	// come at all, and the audio track would fall short of the video.
 	void padToClock(long long expected);
 
 	// The reader side, called by the recorder from another thread.
@@ -244,9 +236,9 @@ void AudioRing::read(short* p_buffer, int numSamples)
 
 namespace
 {
-	// KSDATAFORMAT_SUBTYPE_PCM and KSDATAFORMAT_SUBTYPE_IEEE_FLOAT. They otherwise
-	// live in <ksmedia.h>, which drags in the whole kernel-streaming apparatus; only
-	// these two GUIDs are needed here.
+	// KSDATAFORMAT_SUBTYPE_PCM and KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, written out
+	// rather than taken from <ksmedia.h> and the kernel-streaming headers it
+	// drags in.
 	const GUID k_subformatPCM       = { 0x00000001, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } };
 	const GUID k_subformatIEEEFloat = { 0x00000003, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } };
 
@@ -487,9 +479,8 @@ int AudioCaptureImpl::threadProc()
 	initResult = hr;
 	initOK = comInitialized && SUCCEEDED(hr) && p_captureClient != 0;
 
-	// The main thread waits for this signal and reads initOK. printfLog must not
-	// be used here: it has a static buffer and is not thread-safe, which is why
-	// only the result is left behind.
+	// The main thread waits for this signal, then reads initOK and logs.
+	// printfLog is not used here: its static buffer is not thread-safe.
 	SDL_SemPost(p_initSemaphore);
 
 	if(initOK)
@@ -549,8 +540,8 @@ int AudioCaptureImpl::threadProc()
 				if(hr == AUDCLNT_S_BUFFER_EMPTY) break;
 				if(FAILED(hr)) { deviceLost = true; break; }
 
-				// With AUDCLNT_BUFFERFLAGS_SILENT p_data points at nothing, but
-				// the samples still have to be counted.
+				// With AUDCLNT_BUFFERFLAGS_SILENT the packet's data is to be
+				// ignored as silence, but its frames still count.
 				convertAndPush(p_data, (int)numFrames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
 				p_captureClient->ReleaseBuffer(numFrames);
 			}
@@ -669,21 +660,16 @@ void AudioCapture::stop()
 #elif !defined(__EMSCRIPTEN__)
 
 // ---------------------------------------------------------------------------
-// Linux. What WASAPI calls loopback mode is a monitor in PulseAudio: every
-// output sink has a source of the same name that listens in on what is going
-// out. "@DEFAULT_MONITOR@" is the default sink's, which saves enumerating
-// anything. PipeWire brings the same interface along with pipewire-pulse, and
-// the one path therefore covers both.
+// Linux. What WASAPI calls loopback is a PulseAudio sink's monitor source, and
+// "@DEFAULT_MONITOR@" names the default sink's, so nothing is enumerated.
+// pipewire-pulse serves the same interface.
 //
-// libpulse is loaded at runtime rather than linked against: the game still
-// starts where PulseAudio is absent - the videos are then silent. For the same
-// reason the handful of declarations needed here are written out by hand
-// instead of taken from <pulse/simple.h>: otherwise the build would need
-// libpulse-dev.
+// libpulse is dlopen'd, and the few declarations this file needs are written
+// out rather than taken from <pulse/simple.h>: the game still starts without
+// PulseAudio (videos are then silent), and the build needs no libpulse-dev.
 //
-// pa_simple is told which format to deliver - S16LE, stereo, 48 kHz - and the
-// server converts. That is why neither the format conversion nor the
-// resampler of the Windows side exists here.
+// pa_simple is asked for S16LE stereo at the ring's rate and the server
+// converts, so there is no format conversion or resampler on this side.
 // ---------------------------------------------------------------------------
 
 #include <dlfcn.h>
@@ -753,9 +739,9 @@ namespace
 		}
 	};
 
-	// How many samples are fetched at once. pa_simple_read waits until that
-	// many are there, and it must not be too many - the thread would otherwise
-	// hang too long on shutdown. 10 ms is what WASAPI delivers per packet too.
+	// Samples per read: 10 ms at 48 kHz, a WASAPI packet's worth.
+	// pa_simple_read blocks until that many are there, so a larger read would
+	// hold up shutdown.
 	const int k_readSamples = 480;
 }
 
@@ -773,8 +759,8 @@ struct AudioCaptureImpl : public AudioRing
 	SDL_sem* p_initSemaphore;
 	bool initOK;
 	int initError;
-	// A read that failed, left for the main thread to log: printfLog is not
-	// thread-safe, as the Windows half says at its own signal.
+	// A failed read's error, left for logReadError(): printfLog is not
+	// thread-safe.
 	volatile int readError;
 
 	volatile bool quit;
@@ -846,9 +832,9 @@ int AudioCaptureImpl::threadProc()
 		push(buffer, k_readSamples);
 		samplesWritten += k_readSamples;
 
-		// A suspended sink delivers nothing - module-suspend-on-idle is loaded
-		// by default - and pa_simple_read then waits. Fill the gap by the
-		// clock, keeping the audio track as long as the video.
+		// A suspended sink (module-suspend-on-idle is loaded by default)
+		// delivers nothing and pa_simple_read waits; pad the gap by the clock
+		// so the audio track stays as long as the video.
 		padToClock(static_cast<long long>(getExactTimeUS() - captureStart) * sampleRate / 1000000);
 	}
 
@@ -914,7 +900,9 @@ bool AudioCapture::open(uint sampleRate)
 	return true;
 }
 
-// The thread's read failure, logged from here on the main thread, once.
+// Logs the capture thread's read failure, once. close() calls it on the main
+// thread; stop() on the recorder's thread, but only while the main thread
+// waits for that thread to end, so the two never log at the same time.
 static void logReadError(AudioCaptureImpl* p_impl)
 {
 	if(!p_impl->readError) return;
@@ -970,19 +958,11 @@ void AudioCapture::stop()
 #else
 
 // ---------------------------------------------------------------------------
-// Browser. A stub, because nothing is recorded there:
-// $A_TOGGLE_CAPTURE_VIDEO does not exist in the web build at all. The ring
-// buffer stays unopened, and the shared reader side below then delivers
-// silence.
-//
-// Not because a page could not listen in on its own output - it can. In
-// Emscripten's OpenAL every source hangs off AL.currentCtx.gain and that in
-// turn off ctx.destination; one extra connection from that sum node to a
-// createMediaStreamDestination() delivers exactly the finished mix, the same
-// thing WASAPI loopback under Windows and the monitor source under Linux are
-// needed for. What would remain is pushing the blocks from there into the
-// AudioRing as 16 bit stereo 48 kHz, out of an AudioWorklet. See ROADMAP,
-// item 28.
+// Browser: a stub, since the web build records no video
+// ($A_TOGGLE_CAPTURE_VIDEO is not registered there). The ring stays unopened
+// and the shared reader side delivers silence. A page could hear its own mix -
+// every OpenAL source there hangs off AL.currentCtx.gain - which is the route
+// ROADMAP item 28 describes.
 // ---------------------------------------------------------------------------
 
 struct AudioCaptureImpl : public AudioRing
@@ -1032,7 +1012,7 @@ void AudioCapture::stop()
 #endif
 
 // ---------------------------------------------------------------------------
-// The reader side belongs to both: it only reads the ring buffer.
+// The reader side, shared by every platform: it only reads the ring buffer.
 // ---------------------------------------------------------------------------
 
 int AudioCapture::getNumSamplesReady()

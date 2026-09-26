@@ -45,11 +45,11 @@ from make_icon import read_png, write_png            # noqa: E402
 # come with 125% DPI, 64 with 200%, and 256 is the tile of the "Extra large
 # icons" view.
 #
-# 24 is deliberately absent. It is the one size where the next integer step
-# down would be 1x: 16 pixels of 24, two thirds of the edge and barely half
-# the area. That much margin is visible. Windows scales 24 down from the 32
-# instead - smooth, but at full size, and at this one place that is the lesser
-# evil.
+# 24 is deliberately absent. Its next integer step down is 1x, as 20's is,
+# but 16 pixels of 24 is two thirds of the edge and barely half the area,
+# where 20 keeps four fifths. That much margin is visible. Windows scales 24
+# down from the 32 instead - smooth, but at full size, and at this one place
+# that is the lesser evil.
 DEFAULT_SIZES = (16, 20, 32, 40, 48, 64, 256)
 
 

@@ -13,8 +13,8 @@ static const uint MAX_LEVELS = 500;
 
 namespace
 {
-	// The members of a campaign archive have always been named after their
-	// position in the list, not after the level (campaign.cpp, save()).
+	// A campaign archive names its members after their position in the list,
+	// never after the level: entry i is level_{i+1}.xml.
 	std::string makeMemberName(uint index)
 	{
 		char temp[64] = "";
@@ -31,9 +31,8 @@ namespace
 		std::string source;
 	};
 
-	// The shipped campaign is one archive with one name, and that name is
-	// known here twice over: a level of any campaign can name its music, and
-	// the credits ask whether this one has been finished.
+	// The shipped campaign's archive, for "blocks:" music and for
+	// isBuiltInCompleted().
 	const char* const p_builtInPath = "levels/campaigns/blocks.zip";
 
 	// The prefix with which a level names a music track of the shipped
@@ -88,19 +87,14 @@ bool Campaign::isImportableArchive(const std::string& archivePath)
 	return check.load(archivePath, true) && !check.getLevels().empty();
 }
 
-// The bar is not simply "all levels": where the campaign has a bonus level it
-// is getLevels().size() - 1, the count that unlocks that level in both
-// GS_Game::loadLevel and GS_SelectLevel::getLevelStatus. The bonus is extra
-// rather than the end of the run, so a player who has beaten the other
-// forty-one has finished the campaign whether or not they went on to it - and
-// one who did reach the credits by playing is past this bar either way, since
-// the level just finished is written to the database before GS_Game hands
-// over. Asked of the database and not of a flag, so that an imported progress
-// file counts exactly as playing would.
-//
-// Every answer but "yes" is false, and the ways to get one are all the same
-// to the caller: no archive (a tree that was never packed), an archive that
-// will not parse, an empty campaign, no progress at all.
+// Finished means every level but the bonus one: getLevels().size() - 1 where
+// there is a bonus level, the count that unlocks it in GS_Game::loadLevel and
+// GS_SelectLevel::getLevelStatus, since the bonus is extra rather than the
+// end of the run. A player who reached the credits by playing is past it
+// either way: GS_Game records the last level before it hands over. Asked of
+// the database rather than a flag, so an imported progress counts exactly as
+// playing would. No archive (an unpacked tree), one that will not parse, an
+// empty campaign and no progress all answer false.
 bool Campaign::isBuiltInCompleted()
 {
 	FileSystem& fs = FileSystem::inst();
@@ -126,8 +120,8 @@ bool Campaign::isBuiltInCompleted()
 
 Campaign::Campaign()
 {
-	// clear() sets both as well, but only once somebody calls it: until then
-	// getNumUnlockedLevels() would answer a random value.
+	// clear() sets all three too, but only once somebody calls it; until then
+	// getNumUnlockedLevels() would answer garbage.
 	numUnlockedLevels = 1;
 	iHaveABonusLevel = false;
 	singleLevels = false;
@@ -149,12 +143,10 @@ void Campaign::clear()
 	singleLevels = false;
 }
 
-// Just the title out of a level file, without building the level. It is an
-// attribute of the root element, but the whole document has to be parsed for
-// it; at the four to twenty-five kilobytes of a level file that is cheaper than
-// a Level::load with all its objects and skins. The return value is already
-// localized, because the sorting runs on it - and the default title of an
-// unnamed file carries both languages in one string.
+// Just the title out of a level file, without building the level: a parse of
+// the whole document (4 to 25 KB), still far cheaper than a Level::load with
+// its objects and skins. Returned localized, because the sorting runs on it
+// and the default title carries both languages in one string.
 static std::string readLevelTitle(const std::string& source)
 {
 	TiXmlDocument doc;
@@ -167,11 +159,10 @@ static std::string readLevelTitle(const std::string& source)
 	return localizeString(p_title);
 }
 
-// By the title as it stands on the screen - and not by the filename, which
-// hardly anybody reads. Upper and lower case count alike, or every title
-// starting with a capital would come first and the lower-case ones after them;
-// by hand and not through tolower, because that hangs off the locale. On equal
-// titles the filename decides, which is what makes the order an order at all.
+// By the title as shown, not by the filename. Case-insensitive, or every
+// capitalized title would sort before the lower-case ones; folded by hand,
+// since tolower depends on the locale. Equal titles fall back to the
+// filename, which makes the order total.
 static bool byTitle(const Campaign::LevelRef& a,
 					const Campaign::LevelRef& b)
 {
@@ -250,9 +241,8 @@ bool Campaign::load(const std::string& filename,
 	}
 	else if(loadInfo(&doc)) return true;
 
-	// All three failure paths meet here - broken XML, a missing <Campaign>,
-	// too many levels. What is named is the bare filename: the full path is
-	// the archive's, password and all.
+	// All three failure paths meet here: broken XML, no <Campaign>, too many
+	// levels. The toast names the archive's filename, not its whole path.
 	if(!quiet)
 	{
 		const std::string::size_type slash = filename.find_last_of('/');
@@ -311,12 +301,11 @@ bool Campaign::loadInfo(TiXmlDocument* p_doc)
 			p_level = p_level->NextSiblingElement("Level");
 		}
 
-		// 2. Where do the levels come from? If ALL the originals lie loose in
-		//    the level folder, the campaign originated here and keeps being
-		//    served from the loose files. Otherwise it came from elsewhere, and
-		//    then ALL the levels are read out of the archive: entry i is member
-		//    level_{i+1}.xml. All or nothing, or a foreign campaign would
-		//    quietly pick up a level of the user's carrying the same name.
+		// 2. Where do the levels come from? If ALL of them lie loose in the
+		//    level folder, the campaign was made here and is served from the
+		//    loose files; otherwise ALL come out of the archive, entry i as
+		//    member level_{i+1}.xml. All or nothing, or a foreign campaign
+		//    would quietly pick up a level of the user's with the same name.
 		FileSystem& fs = FileSystem::inst();
 
 		bool allLoose = !names.empty();
@@ -391,9 +380,9 @@ bool Campaign::save(const std::string& filename)
 	std::vector<MusicRef> music;
 	for(uint i = 0; i < levels.size(); i++)
 	{
-		// Is this a level at all? The root node is enough, and the music name is
-		// read along with it. readStringFromFile stops at the first null byte -
-		// irrelevant for XML, and the bytes themselves travel by copyFile below.
+		// Is this a level at all? The root node is enough and brings the music
+		// name along. readStringFromFile stops at a null byte, harmless for
+		// XML, and the bytes themselves travel by copyFile below.
 		const std::string levelXML(fs.readStringFromFile(levels[i].source()));
 		TiXmlDocument doc;
 		doc.SetCondenseWhiteSpace(false);
@@ -414,9 +403,9 @@ bool Campaign::save(const std::string& filename)
 			return false;
 		}
 
-		// Remember the music filename. The name stands in a possibly foreign
-		// file and must therefore not be appended to a path unchecked -
-		// otherwise the archive packs whatever the attacker names.
+		// Remember the music filename. It comes from a possibly foreign file
+		// and is checked before it joins a path, or the archive would pack
+		// whatever an attacker names.
 		const char* p_music = p_levelNode->Attribute("musicFilename");
 		if(!p_music || !*p_music) continue;
 
@@ -427,7 +416,12 @@ bool Campaign::save(const std::string& filename)
 		// reads blocks.zip anyway.
 		if(isBuiltInMusic(track)) continue;
 
-		if(!isSafeMemberName(track) || track == "campaign.xml")
+		// Only a sound file can be a track, which also keeps the name off
+		// campaign.xml and every level_N.xml member - in any case, since a
+		// member is looked up without it.
+		const std::string extension(getFilenameExtension(track));
+		const bool soundFile = equalsNoCase(extension.c_str(), "ogg") || equalsNoCase(extension.c_str(), "wav");
+		if(!isSafeMemberName(track) || !soundFile)
 		{
 			printfLog("+ WARNING: Level \"%s\" names an unusable music file - skipped.\n",
 					  levels[i].source().c_str());
@@ -438,10 +432,12 @@ bool Campaign::save(const std::string& filename)
 		entry.member = track;
 		entry.source = levels[i].sourceDir + track;
 
+		// One member however the name is cased: the archive is read without
+		// case, so two names that differ only there would be one track.
 		bool known = false;
 		for(uint j = 0; j < music.size(); j++)
 		{
-			if(music[j].member != entry.member) continue;
+			if(!equalsNoCase(music[j].member.c_str(), entry.member.c_str())) continue;
 			known = true;
 			if(music[j].source != entry.source)
 			{
@@ -468,9 +464,9 @@ bool Campaign::save(const std::string& filename)
 		}
 	}
 
-	// Swap. A rename where the platform can do one, which is the whole archive
-	// - megabytes for a campaign with its music - not written a second time,
-	// and the old file replaced in one step rather than truncated and refilled.
+	// Swap, by a rename where the platform can: the archive (megabytes with
+	// its music) is not written a second time, and the old file is replaced in
+	// one step rather than truncated and refilled.
 	if(!fs.renameFile(temp, filename))
 	{
 		fs.deleteFile(temp);

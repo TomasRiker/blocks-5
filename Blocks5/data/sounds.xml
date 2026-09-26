@@ -4,7 +4,7 @@
      The .wav stays the unaltered source at full resolution and the .ogg is
      produced from it one to one (Tools/encode_sounds.py); the factor belongs
      in the mix, not in the file. Encoding it quieter would also be worse:
-     the encoder would get less signal level for the same computational load.
+     the encoder would spend the same bitrate on less signal.
 
      Anything not listed here plays at 1.0.
 

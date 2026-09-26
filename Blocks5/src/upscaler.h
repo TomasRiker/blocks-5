@@ -22,18 +22,17 @@ struct PresentContext
 	uint vertexBuffer;    // WebGL forbids vertex data from application memory
 };
 
-// A compiled present program. All of them share the vertex shader - the only
-// text in upscaler.cpp - while each filter brings its own fragment source.
-// Only the four uniforms that *every* one of them has live here; a filter
-// that needs more fetches them itself. There is therefore not a single one
-// here that sits at -1 for half the filters.
+// A compiled present program. All of them share the vertex shader in
+// upscaler.cpp, and each filter brings its own fragment source. The four
+// uniforms here are the ones SharpFit and the CRT filter both have; the plain
+// program Sharp and Smooth draw through has only decal, and use() skips a
+// location of -1. A filter that needs more fetches them itself.
 struct PresentProgram
 {
 	PresentProgram();
 
 	// p_name appears in the error message and nowhere else. A second call
-	// clears the old program away first: in the browser the GL context can be
-	// lost.
+	// deletes the old program first.
 	bool create(const char* p_fragmentSource, const char* p_name);
 	void destroy();
 
@@ -44,8 +43,8 @@ struct PresentProgram
 	// Draw the destination rect as two triangles and clean up the state.
 	void drawQuad(const PresentContext& context) const;
 
-	// Set a uniform if it exists. Otherwise a filter that comments out a line
-	// of its shader gets GL_INVALID_OPERATION instead of nothing.
+	// Set a uniform if the shader has it: one with a line commented out may
+	// not.
 	static void setUniform(int location, float value);
 
 	uint id;
@@ -73,10 +72,9 @@ public:
 	// Create and tear down GL state, both only with a standing context and
 	// both allowed more than once. The base class compiles the filter's
 	// fragment shader into program; a filter with uniforms of its own fetches
-	// their locations after that, and they stay valid exactly as long as the
-	// program does. False from createGL() ends the game: every one of these
-	// four has to work, or the options dialog would be offering a picture the
-	// machine cannot draw.
+	// their locations after that, valid exactly as long as the program is.
+	// False from createGL() ends the game: the options dialog offers all
+	// four, so every one has to work.
 	virtual bool createGL();
 	virtual void destroyGL();
 
@@ -96,8 +94,8 @@ public:
 	// The same mapping as in the filter's own shader, in both directions; the
 	// coordinates run from -1 to 1 out from the centre of the picture. A
 	// filter that does not distort the picture returns its argument unchanged.
-	// Both sit on the 20 ms tick and on every recorded frame - a virtual
-	// call is fine, a lookup by name would not be.
+	// Both run on every tick and every recorded frame, so a virtual call and
+	// not a lookup by name.
 	virtual Vec2f warpToSource(const Vec2f& p) const { return p; }
 	virtual Vec2f warpToOutput(const Vec2f& s) const { return s; }
 
@@ -107,11 +105,12 @@ public:
 	virtual bool distortsCursor() const { return false; }
 
 	// Read the filter's own settings from <Config> and write them back there.
-	// The filter creates its element itself - that is why the element name
-	// stands in u_*.cpp and not in the Engine, and why Tools/verify.py sees
-	// both halves together. Runs without a GL context, and may come more than
-	// once: the options dialog's Cancel button calls loadConfig() too, in the
-	// middle of the game. Read only what is there and reset nothing.
+	// The filter creates its element itself, so the element name stands in
+	// u_*.cpp, where Tools/verify.py's config check sees both halves together.
+	// Runs without a GL context, and may come more than once: the options
+	// dialog's Cancel calls loadConfig() mid-game to take back what it
+	// changed. p_config is 0 where there is no file, and whatever it does not
+	// say goes back to the filter's default.
 	virtual void loadConfig(TiXmlElement* p_config);
 	virtual void saveConfig(TiXmlElement* p_config);
 

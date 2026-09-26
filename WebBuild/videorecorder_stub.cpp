@@ -1,14 +1,10 @@
 // videorecorder_stub.cpp - an inert VideoRecorder for the web build.
 //
-// The real videorecorder.cpp would be portable as far as its libraries go -
-// minih264, shine and minimp4 are all plain C - but it encodes in a thread of
-// its own, and there is none here: SDL_CreateThread aborts under Emscripten,
-// SDL_WaitThread calls abort(), and its SDL has no semaphores at all (see
-// streamedsound.cpp). On top of that comes the audio, which audiocapture.cpp
-// does not deliver in the browser.
-//
-// Both are solvable, and the way there probably does not lead through here at
-// all: the browser can encode by itself. See ROADMAP item 28.
+// The real videorecorder.cpp's libraries are plain C and would port, but it
+// encodes on a thread of its own and Emscripten's SDL has none: its
+// SDL_CreateThread aborts and it has no semaphores (see streamedsound.cpp).
+// Nor does audiocapture.cpp deliver any audio in the browser. ROADMAP item 28
+// has the likelier route: let the browser encode.
 #include "pch.h"
 #include "videorecorder.h"
 

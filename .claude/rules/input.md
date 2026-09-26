@@ -13,7 +13,7 @@ paths:
 named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and secondary VK. Gameplay queries
 `wasActionPressed(name)` / `isActionDown(name)`; bindings are registered in `main.cpp` and remappable in the
 options dialog, where *Reset selected* and *Reset all* work off `Action`'s `defaultPrimary` and
-`defaultSecondary` and grey out without a selection.
+`defaultSecondary`; *Reset selected* greys out without a selection, *Reset all* needs none.
 
 **The mouse drag is a device, not a special case in the game.** `Engine::updateMouseDrag` is a recogniser
 of the same kind as the joystick hat: it sets six virtual keys (`Mouse DragW`, `DragE`, `DragN`, `DragS`,
@@ -71,9 +71,9 @@ Two of `move()`'s early-outs are skipped when asking, and that is deliberate. Wh
 already moved this tick, and whether it is sliding, decide *when* a step lands rather than whether the way
 is open; the drag holds its key across ticks, and an answer that flickered with the tick would hand its leg
 to the other axis and back. `updateVKs()` also runs before `Level::update` clears `moved`, so in simulate
-mode that flag is always the previous tick's. The one place the answer is generous is a push onto ice: the
-pushed object starts sliding instead of stepping, so the real `move()` reports false while the way is in
-fact opening.
+mode that flag is always the previous tick's. The one place the answer is generous is a push made from
+ice: the pushed object goes, but the character standing on the ice stays where it is (`slideDir` -2), so
+the real `move()` reports false while the way is in fact opening.
 
 **A click works what the character is standing next to.** With blocked directions no longer commanded, a
 switch or a magnet would otherwise be out of a mouse player's reach: both are solid and fixed and do their

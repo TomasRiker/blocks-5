@@ -1,8 +1,7 @@
 // linux_window.cpp - the fullscreen switch under X11.
 //
-// Its own translation unit, because <X11/Xlib.h> comes in here: it makes Font,
-// Window, Screen and Cursor type names of its own, and engine.cpp uses the
-// game's classes of the same name right after the include.
+// Its own translation unit because <X11/Xlib.h>, which SDL_syswm.h brings in,
+// declares a Font type of its own that collides with the game's Font class.
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <cstring>
@@ -20,20 +19,20 @@ bool setFullScreen(bool wantFullScreen)
 
 	Display* p_display = info.info.x11.display;
 
-	// SDL draws from a thread of its own; every Xlib call from outside belongs
-	// between these two.
+	// SDL may pump X events on a thread of its own, which these lock
+	// (SDL_syswm.h); every Xlib call on its display belongs between the two.
 	if(info.info.x11.lock_func) info.info.x11.lock_func();
 
-	// A program does not put its own window into fullscreen under X11 - it
-	// tells the window manager that it wants one, and the window manager
-	// decides on size and position. The way to do that is this message to the
-	// root window, as described in the EWMH; every window manager of the last
-	// twenty years understands it. XMoveResizeWindow instead would go past the
-	// window manager and behave differently under every single one.
+	// Under X11 the window manager decides on fullscreen, size and position;
+	// the program asks with this EWMH message to the root window.
+	// XMoveResizeWindow would go past the window manager and behave
+	// differently under each one. The message names the window the manager
+	// manages: the classic SDL 1.2 draws into a child of it, which the manager
+	// would ignore, while sdl12-compat reports the one window in both fields.
 	XEvent event;
 	memset(&event, 0, sizeof(event));
 	event.type                 = ClientMessage;
-	event.xclient.window       = info.info.x11.window;
+	event.xclient.window       = info.info.x11.wmwindow ? info.info.x11.wmwindow : info.info.x11.window;
 	event.xclient.message_type = XInternAtom(p_display, "_NET_WM_STATE", False);
 	event.xclient.format       = 32;
 	event.xclient.data.l[0]    = wantFullScreen ? 1 : 0;   // _NET_WM_STATE_ADD / _REMOVE

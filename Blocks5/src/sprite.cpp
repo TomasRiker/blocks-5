@@ -23,21 +23,18 @@ namespace
 {
 	const float degToRad = 3.1415926535897932384626433832795f / 180.0f;
 
-	// What the footprint is trimmed by before floor() and ceil() go at it.
-	// cos(90 degrees) is -4.4e-8 and not 0, the left edge of a quarter turn
-	// comes out as -4.8e-7, and the cell would be 17x17 for no reason -
-	// getTryCount() works from the area and would roll 13% more debris than the
-	// same sprite unrotated. The error grows with the sprite's half-width, and
-	// the one sprite larger than a cell - the burnt ground - is turned by an
-	// arbitrary angle, where no edge lands on a whole number to begin with.
+	// What the footprint is trimmed by before floor() and ceil(). cos(90
+	// degrees) is -4.4e-8 and not 0, so a quarter turn's left edge comes out
+	// at -4.8e-7 and the cell at 17x17: 13% more debris from getTryCount().
+	// The error grows with the half-width, but the one sprite larger than a
+	// cell, the burnt ground, turns by arbitrary angles anyway.
 	const float footprintEpsilon = 1.0e-6f;
 
 	// Trace the spot in object coordinates back into the cell renderSprite
-	// fetched it from: first the offset, then the inverse rotation, then the
-	// mirroring, which is its own inverse. Because it is the same matrix in the
-	// same frame of reference, the result holds whichever way the y axis
-	// points. Computed with pixel centres and floor() - otherwise every
-	// rotation would lose half a row of pixels.
+	// fetched it from: the offset, the inverse rotation, then the mirroring,
+	// which is its own inverse. The same matrix in the same frame of
+	// reference, so it holds whichever way y points. Pixel centres and
+	// floor(), or every rotation would lose half a row of pixels.
 	bool mapToTexel(const Sprite& sprite,
 					const Vec2i& point,
 					Vec2i* p_texelOut)
@@ -190,10 +187,9 @@ bool Sprites::sample(Vec4f* p_colorOut,
 	const int h = hi.y - lo.y;
 	if(w <= 0 || h <= 0) return false;
 
-	// A single random number is enough. randomInt() is mt.randInt(0x7FFFFFFF),
-	// and with a mask of all ones MTRand::randInt(n) only masks - leaving 31
-	// unspent Mersenne Twister bits. Eight of them for the threshold, the
-	// remaining 23 for the spot.
+	// One random number is enough: randomInt() is mt.randInt(0x7FFFFFFF),
+	// which for an all-ones n only masks, so all 31 bits are uniform. Eight go
+	// to the threshold, the other 23 to the spot.
 	const uint r = static_cast<uint>(randomInt());
 	const uint threshold = r & 255;
 	const uint where = r >> 8;

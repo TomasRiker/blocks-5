@@ -10,17 +10,12 @@
 class Texture;
 
 // A space of half a space's width, and a space in every other respect. It
-// stands between the keycaps that belong together - the two keys of one
-// action, and the two keys of a chord - where a full space either side of the
-// slash or the plus pushes them apart, since each keycap already carries the
-// padding of its own frame.
-//
-// A byte rather than an element like <k>, because a break is a matter of
-// characters: adjustText() looks backwards for the last one it may cut at, and
-// an element would have to be taught to be a break as well as to be skipped.
-// The middle dot, because that is the character an editor shows a space as,
-// and because it can be typed into languages.txt where the chords are written
-// out - the same idiom as the pilcrow that means a line break there.
+// stands between keycaps that belong together (the two keys of an action, or
+// of a chord), where a full space would push them apart, since each keycap
+// already carries its frame's padding. A byte and not an element like <k>,
+// because adjustText() looks backwards for a character it may break at. The
+// middle dot, because it can be typed into languages.txt, where the chords
+// are written out, as the pilcrow is for a line break.
 const unsigned char HALF_SPACE = '\xB7';
 
 class Font : public Resource<Font>

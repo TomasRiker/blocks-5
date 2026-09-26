@@ -22,8 +22,9 @@ on `visualViewport` resizes too — that is how a phone reports the address bar 
 handles `webglcontextlost`, a real event when a tab goes to the background, by saying so instead of
 freezing: the game cannot rebuild its textures and its FBO from where it stands.
 
-**Every function key belongs to the game, not to the browser.** `pre.js` swallows F1 to F24 in the capture
-phase, before SDL or the browser sees them, because they are bindable actions like any other key and the
+**Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default
+for F1 to F24 in the capture phase, ahead of every other listener, and SDL still receives the key: they
+are bindable actions like any other key and the
 desktop build answers to all of them — a player who knows the game must not find half of them missing, and
 taking a named few would be the worst of both. Left alone, F1 opens the browser's help, F5 reloads the page
 and loses the level, F10 reaches for the menu bar, F11 goes fullscreen and F12 opens the developer tools.
@@ -121,7 +122,7 @@ suspends the `AudioContext` on `visibilitychange`, one layer below the engine, w
 once. Without it the music dies on its own when its queue runs dry while every looping effect — a laser above
 all — keeps sounding in a tab nobody is looking at.
 
-`appActive` is an `Engine` member rather than a local in `mainLoop` because `emscripten_set_main_loop` calls
+`appActive` is an `Engine` member rather than a local in `mainLoop` because `emscripten_set_main_loop_arg` calls
 one iteration per frame, so nothing may live on the stack between them — and because the test hook reports
 it, which is what makes any of this checkable.
 
@@ -155,4 +156,4 @@ Quit button never sees.
 screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT` case in
 `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it. It mutes OpenAL, builds
 a DOM overlay above the canvas (leaving fullscreen first, or the overlay would sit behind it) and calls
-`emscripten_cancel_main_loop`. Any key or click after a 700 ms arming delay reloads the page.
+`emscripten_cancel_main_loop`. Any key, click or touch after a 700 ms arming delay reloads the page.

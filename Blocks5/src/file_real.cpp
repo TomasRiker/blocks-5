@@ -23,8 +23,19 @@ File_Real::File_Real(const std::string& filename,
 			return;
 		}
 
+		// A size the 32-bit interface cannot carry is refused rather than
+		// read as some other number, as ftell's -1 past 2 GB where long is 32
+		// bits would be: FileSystem::readStringFromFile allocates size + 1.
 		fseek(p_handle, 0, SEEK_END);
-		size = ftell(p_handle);
+		const long end = ftell(p_handle);
+		if(end < 0 || static_cast<unsigned long>(end) >= 0xFFFFFFFFul)
+		{
+			printfLog("+ ERROR: File \"%s\" is too large to read.\n",
+					  filename.c_str());
+			error = 1;
+			return;
+		}
+		size = static_cast<uint>(end);
 		rewind(p_handle);
 	}
 	else if(mode == FileSystem::FM_WRITE)
@@ -79,10 +90,8 @@ File_Real::File_Real(const std::string& filename,
 	}
 	else if(mode == FileSystem::FM_DELETE)
 	{
-		// remove() returns 0 once the file is gone. Without this check
-		// FileSystem::deleteFile() reports success even when nothing has been
-		// deleted - a read-only or open file stays where it is and the Manager
-		// says it is gone.
+		// remove() returns 0 only once the file is gone. A read-only or open
+		// file stays, and FileSystem::deleteFile() must not report it deleted.
 		if(remove(filename.c_str()) != 0) error = 9;
 	}
 	else
@@ -98,6 +107,17 @@ File_Real::File_Real(const std::string& filename,
 File_Real::~File_Real()
 {
 	if(p_handle) fclose(p_handle);
+}
+
+bool File_Real::finish()
+{
+	if(mode != FileSystem::FM_WRITE || !p_handle) return false;
+
+	// A write lands in stdio's buffer, and a full disk shows only when the
+	// buffer goes out: here, and not in any result write() gave.
+	const bool closed = fclose(p_handle) == 0;
+	p_handle = 0;
+	return closed;
 }
 
 bool File_Real::isEOF() const

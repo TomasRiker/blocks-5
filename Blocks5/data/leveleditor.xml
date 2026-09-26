@@ -161,8 +161,9 @@
 			</Button>
 		</Window>
 		<!-- x/y are offset up and to the left by the 8-pixel border. That the
-		     cell sticks three pixels past the edge of the picture does not
-		     matter: there is nothing but border up there anyway. -->
+		     cell sticks three pixels past the top of the picture and two past
+		     the right does not matter: there is nothing but border out there
+		     anyway. -->
 		<Button name="Quit" x="562" y="-3" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>

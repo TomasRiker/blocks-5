@@ -49,12 +49,10 @@ const int VK_DEVICE_MOUSE = -2;
 
 struct VirtualKey
 {
-	// name is what SDL calls it and id is what stands in config.xml, which must
-	// mean the same everywhere and so can never be translated. niceName is the
-	// third thing, and the only one a player ever reads: a $ID for a key that
-	// has a localized name, the plain text for one that does not, and for a
-	// joystick the part after the device word. It is an id and not the finished
-	// text because the language can change while the game runs.
+	// name is SDL's; id is what config.xml holds, the same everywhere and so
+	// never translated; niceName is what a player reads - a $ID where the key
+	// has a localized name, else plain text, and for a joystick the part after
+	// the device word. An id, not finished text: the language can change.
 	std::string name;
 	std::string id;
 	std::string niceName;
@@ -71,7 +69,10 @@ struct VirtualKey
 		: device(-1)
 		, key(-1)
 		, axis(-1)
+		, positive(false)
 		, hat(-1)
+		, hatDir(0)
+		, down(false)
 	{
 	}
 };
@@ -111,11 +112,9 @@ public:
 	// The frame's pixels, 640x480 RGBA and bottom-up, out of the bound
 	// framebuffer: the screenshot and the video recorder.
 	void readFrame(uchar* p_rgba);
-	// renderDraws is every draw call render() made - each glDrawElements of
-	// the renderer's - counted by the link-time wrappers at the foot of
-	// testhooks.cpp in a native test-hooks build and never otherwise, over
-	// renderedFrames frames. Unconditional members: one behind
-	// BLOCKS5_TEST_HOOKS would give the class two sizes.
+	// Every draw call render() made over renderedFrames frames, counted by the
+	// link-time wrappers in testhooks.cpp, in a native test-hooks build only.
+	// Unconditional, or BLOCKS5_TEST_HOOKS would give the class two sizes.
 	uint renderDraws;
 	uint renderedFrames;
 	uint sceneTick;
@@ -135,24 +134,18 @@ public:
 	bool beginRenderToTexture(uint textureID, const Vec2i& size);
 	void endRenderToTexture();
 
-	// Borrow a texture to draw into and hand it back again. The textures
-	// belong to the Engine and not to the borrower: they fall with the
-	// framebuffer, that is while the GL context still stands, whereas an object
-	// is torn down only long after that context is gone. acquire gives 0 where
-	// it does not work.
-	//
-	// A pool and not one texture, because two hint notes overlap while one
-	// fades out and the next fades in, and both would then show the same text.
+	// Borrow a texture to draw into and hand it back. The Engine owns them, so
+	// they fall with the framebuffer while the GL context stands, where an
+	// object is torn down only long after. acquire gives 0 where it does not
+	// work. A pool: two hint notes overlap while one fades out and the next in.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
 	// Where in the window the 640x480 picture goes: centred, aspect kept. The
 	// inverse for the mouse position uses exactly this too.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
 
-	// Fullscreen is nothing but a special size plus a style change on the
-	// Win32 window behind SDL's back; SDL's flags therefore stay
-	// SDL_OPENGL | SDL_RESIZABLE for the whole life of the process, or the GL
-	// context dies.
+	// -windowed/-fullscreen. Fullscreen is a size and a window style set
+	// behind SDL's back; SDL's flags never change, or the GL context dies.
 	void overrideFullScreen(bool wantFullScreen) { fullScreenOverride = wantFullScreen ? 1 : 0; }
 
 	// -nosplash. To be called before init(), like overrideFullScreen().
@@ -163,10 +156,8 @@ public:
 	// the batching and the bisecting tool for an ordering bug.
 	void enableFlushAll();
 
-	// -perf: put what the last few hundred frames cost on the screen. The
-	// timings are recorded either way - four clock reads a frame - and this
-	// only decides whether anybody sees them, which a phone has no other way
-	// to do.
+	// -perf: show what the last few hundred frames cost. They are recorded
+	// either way (nine clock reads a frame); a phone has no other view of them.
 	void showPerformance() { performanceShown = true; }
 	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
 	// Forget everything that has piled up in keys and mouse buttons: after
@@ -221,12 +212,12 @@ public:
 	const std::vector<Upscaler*>& getUpscalers() const { return upscalers; }
 	// The filter for its name out of config.xml; 0 if none is called that.
 	Upscaler* findUpscaler(const char* p_name) const;
-	// The CRT filter by name. Two places need exactly this filter and not just
-	// any one: the options dialog sets its six sliders, and the main menu
-	// offers it once.
+	// The CRT filter by name, for the three places that want it and not just
+	// any: the options dialog's six sliders, the main menu's one-time offer,
+	// and the rewind transition a restart gets under it (gs_game.cpp).
 	U_Crt& getCrt() const { return *p_crt; }
-	// A Vec2f position, so that a sprite off the grid needs no glTranslated of
-	// its own - see Level::renderShine.
+	// A Vec2f position, so that a sprite off the grid needs no translate of its
+	// own - see Level::renderShine.
 	void renderSprite(const Vec2f& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4f& color, bool mirrorX = false, float rotation = 0.0f, float scaling = 1.0f);
 	void renderSprite(Texture* p_sprite, const Vec2f& position, const Vec2i& positionOnTexture, const Vec2i& size, const Vec4f& color, bool mirrorX = false, float rotation = 0.0f, float scaling = 1.0f);
 
@@ -249,7 +240,7 @@ public:
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
-	// Takes the "pressed in this frame" flag off a key, because GUI::update()
+	// Takes the "pressed in this tick" flag off a key, because GUI::update()
 	// runs before the game states and both would see it.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
@@ -272,11 +263,10 @@ public:
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
-	// The next key event. p_repeat says whether it comes from SDL's key repeat
-	// rather than from a fresh press: anything that reads the key as a command
-	// - Escape, Return, the editors' shortcuts - must skip such an event, or a
-	// finger left on the key fires the command again every 60 ms. An edit box
-	// and a list, on the other hand, want it.
+	// The next key event. p_repeat says whether it is SDL's key repeat rather
+	// than a fresh press: a command (Escape, Return, the editors' shortcuts)
+	// must skip a repeat, or a held key fires it every 60 ms; an edit box and a
+	// list want it.
 	bool getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat = 0);
 	bool isGUIFocused();
 	void unfocusGUI();
@@ -374,7 +364,7 @@ public:
 	void saveConfig();
 	const std::string& getLanguage() const;
 	void setLanguage(const std::string& language);
-	// What the system speaks, boiled down to "de" or "en". Asked only where
+	// What the system speaks, boiled down to "de" or "en". Used only where
 	// config.xml names no language at all - see loadConfig().
 	static std::string detectSystemLanguage();
 	void publishLanguage();
@@ -402,10 +392,9 @@ public:
 	// The same in a named language; the editor's preview asks for the one under its caret.
 	std::string localizeString(const std::string& text, const std::string& inLanguage);
 
-	// Sounds that are to play quieter than their file is. The factor belongs
-	// in the mix and not in the ogg: the .wav stays the unaltered source, and a
-	// quietly encoded sound would have less level for the same computing cost.
-	// Anything not listed in data/sounds.xml gets 1.0.
+	// Sounds that are to play quieter than their file. The factor belongs in
+	// the mix, not in the ogg: the .wav stays the unaltered source. Anything
+	// not listed in data/sounds.xml gets 1.0.
 	void loadSoundVolumes(const std::string& filename);
 	float getSoundVolumeFactor(const std::string& filename) const;
 	std::string loadString(const std::string& id) const;
@@ -416,10 +405,9 @@ public:
 	void saveTimePlayed();
 
 	// A short message that slides in at the top of the picture. duration is
-	// the hold time in seconds without the sliding in and out; 0 takes the
-	// type's own value. An error plays teleport_failed.ogg unless suppressSound
-	// stops it. The same message a second time only extends the first one's
-	// hold time.
+	// the hold time in seconds without the slides; 0 takes the type's own. An
+	// error plays teleport_failed.ogg unless suppressSound. The same message
+	// again extends the standing one's hold time instead of stacking.
 	enum ToastType
 	{
 		TOAST_OK = 0,
@@ -432,10 +420,9 @@ private:
 	Engine();
 	~Engine();
 
-	// The lookup and the language choice, without the binding expansion. It
-	// recurses - a $ID resolves to a body that is looked up again, and a
-	// missing German body falls back to the English one - and expanding on the
-	// way out of every one of those would be work done several times over.
+	// The lookup and the language choice, without the binding expansion: it
+	// recurses ($ID to body, German to the English fallback), and expanding on
+	// the way out of each would repeat the work.
 	std::string localizeStringRaw(const std::string& text);
 
 	// Replaces %BINDING{$A_...} and %BINDING_OPTIONAL_RIGHT{$A_...} with the
@@ -477,8 +464,8 @@ private:
 	// framebuffer, with bars and filter. No logic tick and nothing redrawn.
 	void showLastFrame();
 
-	// Sets window style and size without touching SDL's flags. The style
-	// change itself is Win32; the size always goes through handleResize().
+	// Sets window style and size without touching SDL's flags: Win32 directly,
+	// X11 through the window manager; the size always ends in handleResize().
 	void applyWindowStyle(bool wantFullScreen, const Vec2i& size);
 
 	// The window's placement for config.xml, through GetWindowPlacement and
@@ -493,10 +480,8 @@ private:
 	void unhookWindowProc();          // and take it out again
 #endif
 
-	// The mapping of the currently effective filter, in both directions; the
-	// coordinates run from -1 to 1 measured from the centre of the picture.
-	// Only the CRT filter really warps anything, all the others return what
-	// they were given.
+	// The filter's mapping both ways, in coordinates from -1 to 1 about the
+	// picture's centre. Only the CRT filter warps; the rest return their input.
 	Vec2f warpToSource(const Vec2f& p) const;
 	Vec2f warpToOutput(const Vec2f& p) const;
 
@@ -523,7 +508,7 @@ private:
 	bool  windowedPositionKnown;
 	bool  maximized;           // was the window maximized on exit?
 #ifdef _WIN32
-	bool inSizeMove;           // user is holding the border or the title bar
+	bool inSizeMove;           // a border drag or a file dialog holds the loop
 #endif
 	long savedWindowStyle;     // Win32: the style before fullscreen
 	SDL_Surface* p_display;
@@ -531,16 +516,13 @@ private:
 	AudioCapture* p_audioCapture;
 	ALCcontext* p_audioContext;
 	uint logicRate;
-	// The tables are indexed with the SDL keysym directly, and that counts
-	// differently depending on the SDL header. Hence SDLK_LAST as the size, and
-	// every index checked.
+	// Indexed by the SDL keysym, whose range depends on the SDL header: hence
+	// SDLK_LAST as the size, and every index checked.
 	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 under SDL 1.2, 1536 with Emscripten's headers
 	int keyData[NUM_KEY_SLOTS];
-	// Is the key really under a finger right now? This lives here and not as a
-	// bit in keyData, because keyData is zeroed from outside twice -
-	// flushInput() clears it, and GS_Menu::onUpdate overwrites it every tick
-	// with the recorded demo. A state that has to hold across several ticks
-	// cannot live there.
+	// Is the key physically down? Not a bit in keyData, which is overwritten
+	// wholesale: flushInput() clears it, and GS_Menu::onUpdate replays the demo
+	// into it every tick. A state that must hold across ticks cannot live there.
 	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
 	std::vector<SDL_Joystick*> joysticks;
@@ -564,20 +546,18 @@ private:
 	std::stack<GameState*> currentGameStates;
 	FrameStats frameStats;
 	bool performanceShown;
-	// The start of the previous turn of the main loop, for the interval
-	// between two. A member and not a static in the loop, because in the
-	// browser one turn is one call and nothing may live on the stack between
-	// them.
+	// The start of the previous turn of the main loop, for the interval. A
+	// member, because in the browser a turn is one call and nothing may live
+	// on the stack between them.
 	uint64 lastFrameBegin;
 	uint time;
 	Vec2i screenSize;
 	Vec2i screenPow2Size;
 	Vec2i displaySize;
 	Vec2i cursorPosition;
-	// The mouse cursor at its design size. 0 is black, 1 white, -1 transparent.
-	// Screenshots and videos draw it themselves and always from this: they
-	// capture the 640x480 frame, in which it is exactly this size. What the
-	// system draws stands beside it in two sizes.
+	// The mouse cursor at its design size: 0 black, 1 white, -1 transparent.
+	// A video recording draws it from this into the 640x480 frame, where it is
+	// exactly this size; the system's two cursors are built from it.
 	int cursorImage[16][16];
 	SDL_Cursor* p_cursor1x;
 	SDL_Cursor* p_cursor2x;
@@ -605,11 +585,9 @@ private:
 		bool lent;
 	};
 	std::vector<OffscreenTexture> offscreenTextures;
-	// The four filters. upscalers owns them and holds the options dialog's
-	// order. Two are named beside it because two places want exactly that one
-	// and not whichever is in use: SharpFit is the default, and the CRT
-	// filter has its own six sliders. Sharp and Smooth are reached like any
-	// other, through the vector or by name.
+	// The four filters; upscalers owns them, in the options dialog's order.
+	// SharpFit is named beside it as the default, the CRT filter for the
+	// places that want it by name (getCrt).
 	std::vector<Upscaler*> upscalers;
 	U_SharpFit* p_sharpFit;
 	U_Crt* p_crt;
@@ -633,8 +611,9 @@ private:
 	void handleAppFocus(bool gained);
 
 	// Does the window have the focus? A member and not a loop variable,
-	// because emscripten_set_main_loop calls once per frame and nothing may
-	// live on the stack between them - and because the test hook reports it.
+	// because emscripten_set_main_loop_arg calls once per frame and nothing
+	// may live on the stack between them - and because the test hook reports
+	// it.
 	bool appActive;
 
 	bool muted;

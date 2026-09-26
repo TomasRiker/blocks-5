@@ -257,7 +257,7 @@ b5_ask()
 	serial="#$(date +%s%N)"
 	rm -f "$B5_TEST_DIR/response"
 	# Written under another name and renamed into place, because the game
-	# polls for the file every frame and a redirection creates it empty
+	# polls for the file every tick and a redirection creates it empty
 	# before writing it: read in that gap, the request is an empty line the
 	# hook answers with a dump under no serial, deleting the file with the
 	# real request in it, and this ask waits its five seconds for nothing.
@@ -288,7 +288,8 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 byName = {e['path']: e for e in d['elements']}
 def el(name):
-    if name not in byName: raise SystemExit('no element "%s"' % name)
+    # A missing element prints as nothing, like a missing value.
+    if name not in byName: raise SystemExit
     return byName[name]
 try:
     value = eval(sys.argv[2])
@@ -317,9 +318,9 @@ b5_shot() { ffmpeg -loglevel error -f x11grab -video_size ${B5_SCREEN_W}x${B5_SC
 # only once per frame, hence every 200 ms. If a run falls between the press and
 # the release of an "xdotool key" that lets go again at once, the game sees only
 # the press - and at the next run SDL_EnableKeyRepeat(140, 60) posts a repeat
-# that arrives as a second key press. Measured, every fifth press arrived twice.
-# 60 ms is long enough for one run to see both events and short enough for the
-# repeat not to bite.
+# that arrives as a second key press. Measured, every fifth press arrived twice;
+# held 60 ms, none of eight did, and 60 ms stays well under the 140 ms delay
+# before a repeat.
 b5_key()  { xdotool keydown --clearmodifiers "$1"; sleep 0.06; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 b5_hold() { xdotool keydown --clearmodifiers "$1"; sleep 0.4; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 

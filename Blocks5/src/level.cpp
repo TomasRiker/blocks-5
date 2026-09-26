@@ -28,7 +28,8 @@ SoundInstance* Level::p_thunderstormSoundInst = 0;
 bool Level::rainSoundOn = false;
 bool Level::thunderstormSoundOn = false;
 // The fallback skin: used where a file of the wanted skin is missing (that is
-// what the "default_" markers are for) and where it will not load.
+// what the "default_" markers are for), and where its tileset or its sprites
+// will not load.
 const char* p_defaultSkin = "blocks_01";
 
 // A level file that will not load shows this one instead of an empty level:
@@ -86,23 +87,13 @@ Level::Level()
 	// whatever the allocation happened to hold.
 	nextUID = 0;
 
-	// create the rain sound
-	if(!p_rainSoundInst)
-	{
-		Sound* p_sound = Manager<Sound>::inst().request("rain.ogg");
-		p_rainSoundInst = p_sound->createInstance(true);
-		p_rainSoundInst->setVolume(0.0f);
-		p_sound->release();
-	}
-
-	// create the thunderstorm sound
-	if(!p_thunderstormSoundInst)
-	{
-		Sound* p_sound = Manager<Sound>::inst().request("thunderstorm.ogg");
-		p_thunderstormSoundInst = p_sound->createInstance(true);
-		p_thunderstormSoundInst->setVolume(0.0f);
-		p_sound->release();
-	}
+	// Create the rain and thunderstorm sounds, played and paused at once as
+	// Player does with its loops: an instance that has never played counts as
+	// a one-shot, and a one-shot is what Sound::getFreeSource() takes a source
+	// from when the pool runs dry - which deletes the instance under the
+	// static that holds it.
+	if(!p_rainSoundInst) p_rainSoundInst = createPausedLoop("rain.ogg");
+	if(!p_thunderstormSoundInst) p_thunderstormSoundInst = createPausedLoop("thunderstorm.ogg");
 
 	Engine&	engine = Engine::inst();
 
@@ -178,12 +169,10 @@ void Level::clear()
 
 	counter = 0;
 	time = 0;
-	// The frame oracle's clock starts over with the level, before its first
-	// tick: Engine::update seeds that tick on the clock as it stands, and
-	// what stood was the previous level's last tick - a number the harness's
-	// timing decided. A gas cloud's first particles then landed in different
-	// slots from one run to the next, and the order of alpha-blended
-	// particles is the order they are drawn in.
+	// The frame oracle's clock starts over with the level: Engine::update
+	// seeds each tick on it, and the previous level's last tick - whatever
+	// the harness's timing made of it - would change which slots a gas
+	// cloud's first particles take, and so the order they are drawn in.
 	Engine::inst().sceneTick = 0;
 	numDiamondsNeeded = 0;
 	numDiamondsCollected = 0;
@@ -273,14 +262,12 @@ bool Level::load(TiXmlDocument* p_doc,
 
 	if(!dontReallyLoad) loadSkin();
 
-	// Size and layer count are fixed (Level::WIDTH, HEIGHT, NUM_LAYERS). The
-	// file names them anyway, and here it is taken at its word: otherwise the
-	// rows of a 60x40 file would land in a 40x25 grid. A missing attribute
-	// counts as correct, because TiXmlElement::Attribute leaves the value
-	// untouched.
-	// Get the memory first, then check: of the fourteen call sites of load(),
-	// only two look at the return value, and an abort must therefore leave no
-	// half-built level behind.
+	// Size and layer count are fixed (WIDTH, HEIGHT, NUM_LAYERS). The file
+	// names them anyway and is taken at its word, or the rows of a 60x40 file
+	// would land in a 40x25 grid. A missing attribute counts as correct, since
+	// TiXmlElement::Attribute then leaves the value untouched.
+	// The memory comes first: most callers ignore load()'s result, so an
+	// abort must leave no half-built level behind.
 	allocateTiles();
 
 	int fileWidth = WIDTH, fileHeight = HEIGHT, fileNumLayers = NUM_LAYERS;
@@ -358,9 +345,19 @@ bool Level::load(TiXmlDocument* p_doc,
 				continue;
 			}
 			const std::string type(p_type);
-			Vec2i position;
-			p_object->Attribute("x", &position.x);
-			p_object->Attribute("y", &position.y);
+			// The same for a position that is missing, is not a number or
+			// lies off the grid: TinyXML leaves the int untouched then, and
+			// the object would stand wherever the stack put it.
+			Vec2i position(0, 0);
+			if(p_object->QueryIntAttribute("x", &position.x) != TIXML_SUCCESS ||
+			   p_object->QueryIntAttribute("y", &position.y) != TIXML_SUCCESS ||
+			   !isValidPosition(position))
+			{
+				printfLog("+ WARNING: Level \"%s\" has a \"%s\" without a valid position. It is left out.\n",
+						  filename.c_str(), p_type);
+				p_object = p_object->NextSiblingElement("Object");
+				continue;
+			}
 
 			// instance the object
 			Object* p_theObject = p_presets->instancePreset(type, position, p_object);
@@ -602,10 +599,9 @@ TiXmlDocument* Level::save()
 
 void Level::render()
 {
-	// Bring the appearance of every object up to date once per frame. Twelve
-	// layers then go over it and draw nothing but what stands here - anything
-	// that updated in onRender instead would do it fourteen times over, and
-	// with the colour of the pass it happens to be in.
+	// Bring the appearance of every object up to date once per frame, before
+	// the passes: an update in onRender would run once for every pass the
+	// object is on, each time under that pass's colour.
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 	{
 		(*i)->onBeforeRender();
@@ -625,14 +621,17 @@ void Level::render()
 			{
 				if(!inEditor)
 				{
-					p_rainSoundInst->play(true);
-					p_rainSoundInst->slideVolume(0.5f, 0.03f);
+					if(p_rainSoundInst)
+					{
+						p_rainSoundInst->play(true);
+						p_rainSoundInst->slideVolume(0.5f, 0.03f);
+					}
 					rainSoundOn = true;
 				}
 			}
 			else
 			{
-				p_rainSoundInst->slideVolume(-1.0f, 0.03f);
+				if(p_rainSoundInst) p_rainSoundInst->slideVolume(-1.0f, 0.03f);
 				rainSoundOn = false;
 			}
 		}
@@ -643,14 +642,17 @@ void Level::render()
 			{
 				if(!inEditor)
 				{
-					p_thunderstormSoundInst->play(true);
-					p_thunderstormSoundInst->slideVolume(0.5f, 0.03f);
+					if(p_thunderstormSoundInst)
+					{
+						p_thunderstormSoundInst->play(true);
+						p_thunderstormSoundInst->slideVolume(0.5f, 0.03f);
+					}
 					thunderstormSoundOn = true;
 				}
 			}
 			else
 			{
-				p_thunderstormSoundInst->slideVolume(-1.0f, 0.03f);
+				if(p_thunderstormSoundInst) p_thunderstormSoundInst->slideVolume(-1.0f, 0.03f);
 				thunderstormSoundOn = false;
 			}
 		}
@@ -687,16 +689,12 @@ void Level::render()
 	// The lava edges write the stencil wherever they have any alpha at all
 	// and nothing into the colour; the lava then draws only where they did
 	// not. Scopes, so that the mask, the stencil and the discard cannot be
-	// left on: each puts the previous state back when it ends.
+	// left on.
 	//
-	// Only where there is lava, and the saving is not the three walks over the
-	// objects. clearStencil() is a glClear, and the renderer has to put up
-	// what it is holding before it: in a level without a drop of lava that
-	// flush was the one thing between the backdrop and the tiles, which share
-	// an atlas page and would otherwise be a single draw. Nothing else in a
-	// level frame reads the stencil - the light mask masks colour, and the
-	// star wipe clears its own - so skipping the clear leaves nothing stale
-	// behind for anything to find.
+	// Only where there is lava: clearStencil() is a glClear the renderer must
+	// flush for, and that flush would split the backdrop and the tiles, which
+	// share an atlas page, into two draws. Nothing else in a level frame reads
+	// the stencil - the light mask masks colour, the star wipe clears its own.
 	if(renderLayersPresent & (RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT))
 	{
 		Texture* p_lavaEdges = Manager<Texture>::inst().request("lava_edges.png");
@@ -780,11 +778,10 @@ void Level::render()
 		{
 			float s[] = {1.0f, 0.5f, 0.25f};
 			const float fi = static_cast<float>(i);
-			// Both the offset and the angle are a straight line in the
-			// level's clock - the offset is 100 * i + time, the angle reads
-			// 0.02 * s of it - so each reduces from the clock rather than
-			// from a value that has already grown. Rain scrolls twenty texels
-			// a tick and is the first of these to go steppy without it.
+			// The offset, 100 * i + time, is reduced from the level's clock
+			// rather than from a value that has already grown: rain scrolls
+			// twenty texels a tick and is the first to go steppy without it.
+			// The angle's phase reads 0.02 * s of the same clock.
 			const float angle = 15.0f + sinf(clockPhase(time, 0.02f * s[i], 2.0f * s[i] * fi + fi));
 			const float y = scrollOffset(time, 1.0f, 100.0f * fi, static_cast<float>(p_rain->getSize().y));
 
@@ -941,16 +938,9 @@ void Level::update()
 
 	// The night vision's noise, on the tick like everything else that moves:
 	// two windows cut out of the noise texture at a fresh place every tick and
-	// stretched over the screen.
-	//
-	// Both the window and where it may start come from the texture that is
-	// really there. They were 200x160 and 300x240 at random(0, 512 - span),
-	// against a 512 that is what the shipped noise happens to be - so a skin
-	// bringing a smaller one ran the window off the edge, and what came back
-	// depended on whether its edges were powers of two: a wrap where they
-	// were, a smeared clamp where they were not. Neither is the effect. It is
-	// also what an atlas could not survive, since sampling past an edge there
-	// reads whatever was packed next door (ROADMAP 51).
+	// stretched over the screen. Their size and range come from the texture
+	// really loaded, since a skin may bring one smaller than 300x240: past its
+	// edge a sample wraps or smears, and in an atlas page reads the neighbour.
 	const Vec2i noiseSize = p_noise ? p_noise->getSize() : Vec2i(0, 0);
 	noiseWindow1 = Vec2i(min(200, noiseSize.x), min(160, noiseSize.y));
 	noiseWindow2 = Vec2i(min(300, noiseSize.x), min(240, noiseSize.y));
@@ -964,11 +954,10 @@ void Level::update()
 	addNewObjects();
 
 	// Walked in the order render() paints in - depth, shown position, UID -
-	// whether or not a frame was rendered since the last tick. render() sorts
-	// the vector for its own sake, and a tick that runs straight after
-	// another, the machine catching up, would otherwise walk the objects in
-	// the order the spawns appended them: which gas cell got which of a
-	// tick's random draws then depended on the frame rate.
+	// whether or not a frame was rendered since the last tick: a tick right
+	// after another would otherwise walk the spawns in the order they were
+	// appended, and which gas cell got which random draw would depend on the
+	// frame rate.
 	sortObjects();
 
 	// Begin the frame
@@ -1150,12 +1139,11 @@ void Level::update()
 	counter++;
 	time += 20;
 
-	// The clock the frame oracle runs on - see Engine::sceneTick. Reported
-	// from here because a level is the only thing in the game with a clock
-	// that starts at zero when the screen does. Not behind
-	// BLOCKS5_TEST_HOOKS: that define reaches engine.cpp and testhooks.cpp
-	// and no other translation unit, so a guard here would simply never
-	// compile.
+	// The clock the frame oracle runs on - see Engine::sceneTick. A level is
+	// the one thing with a clock that starts at zero when the screen does.
+	// Not behind BLOCKS5_TEST_HOOKS: the builds pass that define to
+	// engine.cpp, renderer.cpp and the test-hook sources only, so a guarded
+	// line here would never be compiled.
 	Engine::inst().sceneTick = static_cast<uint>(time);
 }
 
@@ -1163,9 +1151,9 @@ void Level::renderTiles(int layer,
 						const Vec2i& offset,
 						const Vec4f& color)
 {
-	// Before the matrix is pushed, so that nothing has to be popped again. A
-	// level whose skin would not load has no tile set, and drawing nothing is
-	// what Level::loadSkin's toast already promises the player.
+	// Before the matrix is pushed, so that nothing has to be popped again.
+	// There is no tile set only where not even the default skin's would load,
+	// and loadSkin()'s toast has already told the player.
 	if(!isValidLayer(layer) || !p_tileSet) return;
 
 	Renderer& renderer = Renderer::inst();
@@ -1174,20 +1162,15 @@ void Level::renderTiles(int layer,
 
 	std::vector<QuadVertex>& vertices = tileVertices[layer];
 
-	// Built only where layerDirty says the grid changed. Six places set that
-	// mask - load(), allocateTiles(), setTileAt(), setTileSet(), invalidate()
-	// and loadSkin() - which between them cover every way a tile or the picture
-	// it is cut from can move. A tile id alone would not: the texture
-	// coordinates come from the TileSet, so a skin change moves every tile
-	// without moving a single id.
+	// Built only where layerDirty says the grid changed. load(),
+	// allocateTiles(), setTileAt(), setTileSet(), invalidate() and loadSkin()
+	// set it, which covers every way a tile or the picture it is cut from can
+	// move - a skin change moves every tile without changing a single id.
 	if(layerDirty & (1 << layer))
 	{
-		// Not reserved to WIDTH * HEIGHT * 4, though that is the ceiling and is
-		// known here: clear() keeps the capacity, so a layer reaches the size it
-		// needs on its first build and never allocates again, and a full one
-		// ends up holding the same 64 KB either way. Reserving would only add
-		// it to the five palette levels the editor keeps alongside, which are
-		// nearly empty.
+		// Not reserved: clear() keeps the capacity, so a layer grows to its
+		// size once and never allocates again, and reserving the 64 KB
+		// ceiling would only cost the editor's five nearly empty palettes.
 		vertices.clear();
 
 		for(int x = 0; x < WIDTH; x++)
@@ -1220,14 +1203,10 @@ void Level::renderObjects(RenderLayer layer,
 	const uint ownTexture = RL_WIRE | RL_LAVA_EDGE | RL_LAVA_BACK | RL_LAVA_FRONT;
 	if(!(layer & ownTexture)) Renderer::inst().setTexture(p_sprites->ref());
 
-	// Nothing is on this layer, so the walk below would find nothing.
-	//
-	// The bind above stands on the near side of this return deliberately. The
-	// renderer's current texture is one global that outlives the call, and
-	// every pass has left the sprite sheet in it since before there was a
-	// walk to skip; returning earlier would make an empty pass leave
-	// something different behind, which is a change to whatever draws next
-	// rather than the walk this is here to save.
+	// Nothing on this layer, nothing to walk. The bind above comes first on
+	// purpose: the renderer's current texture outlives the call and every
+	// pass leaves the sprite sheet in it, so an empty pass must not leave
+	// something else behind for whatever draws next.
 	if(!(renderLayersPresent & layer)) return;
 
 	// One pass over one layer is one draw of the renderer's, or a few where
@@ -1271,9 +1250,9 @@ void Level::sortObjects()
 
 	std::sort(objects.begin(), objects.end(), cmp);
 
-	// Which layers have anything on them at all, for the passes that cost
-	// more than the walk they would skip. render() asks it of the lava, whose
-	// stencil clear is a glClear the renderer must flush for.
+	// Which layers have anything on them at all: renderObjects() skips the
+	// walk of an empty one, and render() the lava's stencil clear, a glClear
+	// the renderer must flush for.
 	renderLayersPresent = 0;
 	for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 		renderLayersPresent |= (*i)->getRenderLayers();
@@ -1289,27 +1268,17 @@ void Level::renderShine(float intensity,
 namespace
 {
 	// A value in [-1, 1] for one point of a beam: steady for as long as the
-	// seed is, different from its neighbours along the beam.
+	// seed is, different from its neighbours along the beam. The caller's bare
+	// glowJitter would make every point breathe in unison, which reads as the
+	// beam pulsing rather than light scattering along it; a random() per point
+	// would draw from the shared generator the logic reads, and a varying
+	// number of times, since the beam's length moves with its mirrors. The
+	// hash is the usual fract(sin(x) * large): no state, no draws.
 	//
-	// One value for the whole object - the caller's bare glowJitter - is what
-	// this replaces, and it is the thing to keep away from: every point of the
-	// beam then breathes in unison, which reads as the beam pulsing rather
-	// than as light scattering along it.
-	//
-	// A random() per point would look the same as this and is what stood here
-	// before. What it costs is not shimmer - the loop renders at most once per
-	// tick, so it cannot shimmer faster than the jitter is meant to - but
-	// draws from the shared generator, a variable number of them, since the
-	// beam's length moves with its mirrors. In a shipped build there is no
-	// per-frame reseed, so those draws shift the sequence the logic reads.
-	// The hash is the usual fract(sin(x) * large): no state, no draws.
-	//
-	// The fraction keeps ten bits in float, so it resolves 1/1024 where a
-	// double resolved 1/2^36. Measured over 200 points of each of 2001 seeds,
-	// that is still a hash: uniform on [-1, 1] (rms 0.5772 against the ideal
-	// 0.5774), deciles flat within 3%, neighbours correlated at -0.002, and
-	// 0.2% of neighbouring pairs equal. A thousand levels of a nudge to a
-	// glow's size is below what a frame can hold, let alone the eye.
+	// In float the fraction resolves 1/1024. Measured over 200 points of each
+	// of 2001 seeds it is still a hash: uniform on [-1, 1] (rms 0.5772 against
+	// the ideal 0.5774), deciles flat within 3%, neighbours correlated at
+	// -0.002, 0.2% of neighbouring pairs equal.
 	float pointJitter(float seed, int index)
 	{
 		float h = sinf(seed * 12.9898f + index * 78.233f) * 43758.5453f;
@@ -1328,18 +1297,16 @@ void Level::renderBeamShines(const std::list<Vec2f>& beam,
 	if(beam.empty()) return;
 
 	// A beam holds a point every four pixels, and a glow on every fourth of
-	// them is what carries the light along it. What such a line lays down
-	// goes as intensity * size / spacing, and the size is the delicate half:
-	// the disc is 128 * size pixels across, so below about 0.25 the next
-	// glow's centre falls outside it and the field beads instead of running.
-	// The night vision darkens the picture by the alpha this field writes, so
-	// a beam lying between two glows that no longer meet comes out dark
-	// rather than dim.
+	// them carries the light along it. The field goes as intensity * size /
+	// spacing, and the size is the delicate half: the disc is 128 * size
+	// pixels across, so below about 0.25 the next glow's centre falls outside
+	// it, and since the night vision darkens by this field, the beam between
+	// two glows that no longer meet comes out dark rather than dim.
 	//
-	// The corners are drawn whatever the count. A corner is a mirror - the
-	// one place along a beam the light really is brightest - and a stride of
-	// four would land on it three times in four by luck alone. So are the two
-	// ends: the emitter, and whatever the beam stops against.
+	// The corners are drawn whatever the count: a corner is a mirror, the one
+	// place along a beam the light really is brightest, and a stride of four
+	// would miss it three times in four. So are the two ends: the emitter, and
+	// whatever the beam stops against.
 	Vec2f previous(0.0f);
 	int n = 0;
 
@@ -1481,21 +1448,6 @@ Object* Level::getFrontObjectAt(const Vec2i& position)
 	}
 
 	return p_minObj;
-
-/*	Object* p_minObj = 0;
-
-	// Any objects there? Return the one with the smallest depth.
-	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
-	{
-		Object* p_obj = *i;
-		if(p_obj->isAlive() && !p_obj->isGhost() && p_obj->getPosition() == position)
-		{
-			if(!p_minObj) p_minObj = p_obj;
-			else if(p_obj->getDepth() < p_minObj->getDepth()) p_minObj = p_obj;
-		}
-	}
-
-	return p_minObj;*/
 }
 
 Object* Level::getBackObjectAt(const Vec2i& position)
@@ -1516,21 +1468,6 @@ Object* Level::getBackObjectAt(const Vec2i& position)
 	}
 
 	return p_maxObj;
-
-/*	Object* p_maxObj = 0;
-
-	// Any objects there? Return the one with the greatest depth.
-	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
-	{
-		Object* p_obj = *i;
-		if(p_obj->isAlive() && !p_obj->isGhost() && p_obj->getPosition() == position)
-		{
-			if(!p_maxObj) p_maxObj = p_obj;
-			else if(p_obj->getDepth() > p_maxObj->getDepth()) p_maxObj = p_obj;
-		}
-	}
-
-	return p_maxObj;*/
 }
 
 std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
@@ -1550,15 +1487,6 @@ std::vector<Object*> Level::getObjectsAt(const Vec2i& position)
 	}
 
 	return result;
-
-/*	std::set<Object*> list;
-	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
-	{
-		Object* p_obj = *i;
-		if(p_obj->isAlive() && !p_obj->isGhost() && p_obj->getPosition() == position) list.insert(p_obj);
-	}
-
-	return list;*/
 }
 
 std::vector<Object*> Level::getObjectsAt2(const Vec2i& position,
@@ -1608,18 +1536,6 @@ Elevator* Level::getElevatorAt(const Vec2i& position)
 	}
 
 	return 0;
-
-/*	// Is there an elevator there?
-	for(std::list<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
-	{
-		Object* p_obj = *i;
-		if(p_obj->isAlive() && !p_obj->isGhost() && p_obj->getPosition() == position && p_obj->getType() == "Elevator")
-		{
-			return static_cast<Elevator*>(p_obj);
-		}
-	}
-
-	return 0;*/
 }
 
 Rail* Level::getRailAt(const Vec2i& position)
@@ -1866,24 +1782,20 @@ bool Level::setSkin(uint index,
 	return true;
 }
 
-// The error level takes the place of a file that will not load. The caller's
-// filename is restored afterwards: it stands in the log lines and must go on
-// naming the file that had been meant, not the stand-in.
-//
-// All three of load()'s failure paths meet here - broken XML, a missing
-// <Level>, the wrong size - and the message therefore stands here too.
+// The error level takes the place of a file that will not load; all three of
+// load()'s failure paths (broken XML, no <Level>, the wrong size) meet here,
+// and so does the message. The caller's filename is restored afterwards, so
+// the log lines go on naming the file that was meant.
 bool Level::loadErrorLevel()
 {
 	if(loadingErrorLevel) return false;
 
 	const std::string wanted(filename);
 
-	// The palette levels cat<N>.xml belong to the game and are not the file
-	// somebody wanted to open; for them it stays at the log entry. In the
-	// preview the message comes without a sound, or stepping through a broken
-	// campaign would play the error sound at every key press. What is named is
-	// the bare filename - the full path leads through the archive, password
-	// and all.
+	// Not for the palette levels cat<N>.xml, which belong to the game. In the
+	// preview without a sound, or stepping through a broken campaign would
+	// beep at every key press. Only the bare filename: the full path leads
+	// through the archive, password and all.
 	if(!inCat)
 	{
 		const std::string::size_type slash = wanted.find_last_of('/');
@@ -2122,16 +2034,12 @@ void Level::addObject(Object* p_object)
 
 void Level::removeObject(Object* p_object)
 {
-	// Unregistering may happen exactly once. onRemove() runs at once, the
-	// deletion only at the next removeOldObjects() - in between, the object
-	// still stands in objects and is caught again by every further
-	// removeObject(), such as by clean() (F5) or by clearPosition() in the
-	// same tick.
-	//
-	// Player::numInstances is a uint: the second removal turns 0 into
-	// 0xFFFFFFFF, after which numInstances is never 1 again and no player
-	// creates the sound instances for toxic gas and gas mask any more. Laser,
-	// elevator, conveyor belt and toxic gas count the same way.
+	// onRemove() must run exactly once. The deletion waits for the next
+	// removeOldObjects(), and until then clean() (F5) or clearPosition() can
+	// reach the object again. Player, Laser, Elevator, ConveyorBelt and
+	// ToxicGas count their instances down in onRemove(), in a uint that a
+	// second call would wrap: Player's would never read 1 again, and no
+	// player would create the toxic and mask sounds.
 	if(p_object->removed) return;
 	p_object->removed = true;
 
@@ -2146,11 +2054,10 @@ void Level::addNewObjects()
 	// add the new objects
 	objects.insert(objects.end(), objectsToAdd.begin(), objectsToAdd.end());
 
-	// Hash the new objects and give them their UIDs, from a counter of the
-	// level's own so that no two objects ever share one: the UID is the
-	// last word in sortObjects()' comparison, and with a duplicate in it
-	// two objects of one depth and row have no order - the sort then puts
-	// them either way round, and a tick walks them in whichever it was.
+	// Hash the new objects and number them from the level's own counter, so
+	// that no two share a UID: it is the last word in sortObjects()'
+	// comparison, and a duplicate leaves two objects of one depth and row in
+	// no order, walked by a tick in whichever the sort chose.
 	for(std::vector<Object*>::const_iterator i = objectsToAdd.begin(); i != objectsToAdd.end(); ++i)
 	{
 		hashObject(*i);
@@ -2398,11 +2305,9 @@ void Level::renderToxicEffect()
 		tablesInitialized = true;
 
 		// From a generator of its own with a fixed seed, not from random():
-		// the table is built once, on the first frame that needs it, and the
-		// shared generator stands then wherever the frames before it left it
-		// - so the same level came out with a different table depending on
-		// how many frames the process had rendered by then. Noise from a
-		// fixed seed is the same noise, and now the same on every run.
+		// the table is built on the first frame that needs it, where the
+		// shared generator stands wherever the frames before it left it, so
+		// the table would differ from run to run.
 		MTRand table(0x70C1);
 		float temp[65][41];
 		for(int x = 0; x <= 64; x++)
@@ -2510,33 +2415,14 @@ void Level::loadSkin(bool forceReload)
 		}
 	}
 
-	// Load the tiles. Where that fails - a broken tileset.xml, or one imported
-	// with a different tile size - request() returns a null, and the 13 places
-	// that touch p_tileSet afterwards without checking would crash. A skin
-	// that will not load therefore falls back to the shipped one.
+	// load the tiles
 	TileSet* p_oldTileSet = p_tileSet;
-	p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
-	if(!p_tileSet && skin[Level::SKIN_TILESET] != p_defaultSkin)
-	{
-		printfLog("+ WARNING: Skin \"%s\" has no usable tileset; falling back to \"%s\".\n",
-				  skin[Level::SKIN_TILESET].c_str(), p_defaultSkin);
-		badSkins.insert(skin[Level::SKIN_TILESET]);
-		skin[Level::SKIN_TILESET] = p_defaultSkin;
-		p_tileSet = Manager<TileSet>::inst().request(getSkinFilename(Level::SKIN_TILESET));
-	}
+	p_tileSet = requestSkinFile<TileSet>(SKIN_TILESET, badSkins);
 	if(p_oldTileSet) p_oldTileSet->release();
 
 	// load the sprites
 	Texture* p_oldSprites = p_sprites;
-	p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
-	if(!p_sprites && skin[Level::SKIN_SPRITES] != p_defaultSkin)
-	{
-		printfLog("+ WARNING: Skin \"%s\" has no usable sprites; falling back to \"%s\".\n",
-				  skin[Level::SKIN_SPRITES].c_str(), p_defaultSkin);
-		badSkins.insert(skin[Level::SKIN_SPRITES]);
-		skin[Level::SKIN_SPRITES] = p_defaultSkin;
-		p_sprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SPRITES));
-	}
+	p_sprites = requestSkinFile<Texture>(SKIN_SPRITES, badSkins);
 	if(p_sprites) p_sprites->keepInMemory();
 	if(p_oldSprites) p_oldSprites->release();
 
@@ -2549,45 +2435,44 @@ void Level::loadSkin(bool forceReload)
 
 	// load the noise
 	Texture* p_oldNoise = p_noise;
-	p_noise = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_NOISE));
+	p_noise = requestSkinFile<Texture>(SKIN_NOISE, badSkins);
 	if(p_oldNoise) p_oldNoise->release();
 
 	// load the shine
 	Texture* p_oldShine = p_shine;
-	p_shine = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SHINE));
+	p_shine = requestSkinFile<Texture>(SKIN_SHINE, badSkins);
 	if(p_oldShine) p_oldShine->release();
 
 	// load the rain
 	Texture* p_oldRain = p_rain;
-	p_rain = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_RAIN), Texture::WM_REPEAT);
+	p_rain = requestSkinFile<Texture>(SKIN_RAIN, badSkins, Texture::WM_REPEAT);
 	if(p_oldRain) p_oldRain->release();
 
 	// load the clouds
 	Texture* p_oldClouds = p_clouds;
-	p_clouds = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_CLOUDS), Texture::WM_REPEAT);
+	p_clouds = requestSkinFile<Texture>(SKIN_CLOUDS, badSkins, Texture::WM_REPEAT);
 	if(p_oldClouds) p_oldClouds->release();
 
 	// load the snow
 	Texture* p_oldSnow = p_snow;
-	p_snow = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_SNOW), Texture::WM_REPEAT);
+	p_snow = requestSkinFile<Texture>(SKIN_SNOW, badSkins, Texture::WM_REPEAT);
 	if(p_oldSnow) p_oldSnow->release();
 
 	// load the background image
 	Texture* p_oldBackground = p_background;
-	p_background = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_BACKGROUND));
+	p_background = requestSkinFile<Texture>(SKIN_BACKGROUND, badSkins);
 	if(p_oldBackground) p_oldBackground->release();
 
-	// Load the hint note. A marker file beside the picture says whether it may
-	// roll up - contents ignored, only its existence counts. It belongs beside
-	// the picture and not in the tileset.xml, because each skin slot is chosen
-	// separately: a level can take its tiles from one skin and its note from
-	// another. And because getSkinFilename() has already followed the
-	// default_hint.png link, what counts here is the file beside the picture
-	// that is really loaded.
+	// Load the hint note. A marker file hintscroll.txt beside the picture says
+	// whether it may roll up; only its existence counts. Beside the picture
+	// and not in tileset.xml, because each skin slot is chosen separately, and
+	// beside the picture really loaded, so it is looked for after the
+	// request: getSkinFilename() follows a default_hint.png marker, and a
+	// picture that will not load has fallen back to the default skin's.
 	Texture* p_oldHint = p_hint;
-	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
-	p_hint = Manager<Texture>::inst().request(hintFile);
+	p_hint = requestSkinFile<Texture>(SKIN_HINT, badSkins);
 	if(p_oldHint) p_oldHint->release();
+	const std::string hintFile = getSkinFilename(Level::SKIN_HINT);
 
 	hintScroll = false;
 	const std::string::size_type slash = hintFile.find_last_of('/');
@@ -2598,7 +2483,7 @@ void Level::loadSkin(bool forceReload)
 
 	// load the hint note's font
 	Font* p_oldHintFont = p_hintFont;
-	p_hintFont = Manager<Font>::inst().request(getSkinFilename(Level::SKIN_HINTFONT));
+	p_hintFont = requestSkinFile<Font>(SKIN_HINTFONT, badSkins);
 	if(p_oldHintFont) p_oldHintFont->release();
 
 	// create the object presets
@@ -2608,7 +2493,7 @@ void Level::loadSkin(bool forceReload)
 
 	// initialize the particle systems
 	Texture* p_oldParticleSprites = p_particleSprites;
-	p_particleSprites = Manager<Texture>::inst().request(getSkinFilename(Level::SKIN_PARTICLES));
+	p_particleSprites = requestSkinFile<Texture>(SKIN_PARTICLES, badSkins);
 	if(p_oldParticleSprites) p_oldParticleSprites->release();
 	ParticleSystem* p_oldParticleSystem = p_particleSystem;
 	p_particleSystem = new ParticleSystem(p_particleSprites);
@@ -2630,10 +2515,9 @@ void Level::loadSkin(bool forceReload)
 		Manager<Font>::inst().reload();
 	}
 
-	// Say that something is missing. Not for the editor's palette - it is
-	// itself a level and loads the same skin five times over. In the level
-	// select preview the message stays silent, or a broken campaign would play
-	// the error sound at every key press.
+	// Say what is missing. Not for the editor's palettes, which load the same
+	// skin five times over; in the level select preview without a sound, or a
+	// broken campaign would beep at every key press.
 	if(!inCat)
 	{
 		for(std::set<std::string>::const_iterator i = badSkins.begin(); i != badSkins.end(); ++i)
@@ -2643,6 +2527,42 @@ void Level::loadSkin(bool forceReload)
 									 0.0f, inPreview);
 		}
 	}
+}
+
+// A file that is there and will not load - a truncated picture, an archive
+// whose password.txt is wrong, a tileset.xml with another tile size - is as
+// unusable as a missing one, and the pictures, fonts and tiles a level draws
+// are taken as given everywhere they are drawn. So the slot falls back to the
+// shipped skin, as a missing file does, and the skin is reported.
+template<typename T> T* Level::requestSkinFile(uint index,
+											  std::set<std::string>& badSkins,
+											  int options)
+{
+	T* p_resource = Manager<T>::inst().request(getSkinFilename(index), options);
+	if(!p_resource && !skin[index].empty() && skin[index] != p_defaultSkin)
+	{
+		printfLog("+ WARNING: Skin \"%s\" has no usable %s; falling back to \"%s\".\n",
+				  skin[index].c_str(), p_skinFilenames[index], p_defaultSkin);
+		badSkins.insert(skin[index]);
+		skin[index] = p_defaultSkin;
+		p_resource = Manager<T>::inst().request(getSkinFilename(index), options);
+	}
+	return p_resource;
+}
+
+// 0 where there is no source for it, as for Player's loops.
+SoundInstance* Level::createPausedLoop(const std::string& filename)
+{
+	Sound* p_sound = Manager<Sound>::inst().request(filename);
+	if(!p_sound) return 0;
+	SoundInstance* p_inst = p_sound->createInstance(true);
+	p_sound->release();
+	if(!p_inst) return 0;
+
+	p_inst->setVolume(0.0f);
+	p_inst->play(true);
+	p_inst->pause();
+	return p_inst;
 }
 
 std::string Level::getAlternative(const std::string& filename,

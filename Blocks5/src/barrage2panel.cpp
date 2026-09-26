@@ -18,7 +18,7 @@ Barrage2Panel::~Barrage2Panel()
 
 void Barrage2Panel::updateSprites()
 {
-	// switch
+	// panel
 	sprites.add(Vec2i(subType ? 224 : 192, 256), getStdColor(this->color));
 }
 
