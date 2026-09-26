@@ -24,9 +24,8 @@ Many entries came in twice (the first reader's and the second's), so the 174
 open entries were about 120 distinct things. A branch straight after the check
 then fixed everything that was worth a change in code - the eleven wrong
 behaviours a player could meet, the latent hazards, the dead code, and the
-three the author was asked to decide - so what is still open is comments and
-documents that say one thing while the code does another, and a short list of
-things worth knowing. Both come first; the settled record follows in short
+three the author was asked to decide - so what is still open is a short list
+of things worth knowing. It comes first; the settled record follows in short
 form, each fix with the commit that made it. A finding that turned out to be
 nothing is kept with its reason, because that is what stops the same false
 alarm being raised again.
@@ -103,18 +102,18 @@ render leans on; the two editors lost an `else if` their `if` implies; and
 (clang-rename). `pack.sh` writes its two branches as the `if` beside them.
 
 
-Still open: comments and documents that disagree with the code
---------------------------------------------------------------
-Three, each a decision rather than a rewording.
+The last three were decisions rather than rewordings, and the author made
+them:
 
-- `diamondmachine.cpp`: `updateSprites` counts the animation frames with the
-  timetable's 80 and 20 as literals. The header now names the one clock both
-  run on; a constant would hold them together.
-- `laser.cpp`: the debris of a destroyed object starts from the beam's cell
-  rather than the object's position, as `lava.cpp`'s does. A behaviour, so it
-  is the author's.
-- `presets.cpp`: the type is spelled "Amboss" and its tooltip id `$TT_AMBOS`;
-  the type name is in every level file, so if anything moves it is the id.
+- `diamondmachine.cpp`: the animation's frame and last frame are the named
+  `FRAME_TICKS` and `LAST_FRAME_AT` beside the timetable, where the
+  literals 20 and 80 stood.
+- `laser.cpp`: the debris of a destroyed object starts where the object was
+  drawn - for one moving into the beam, no longer the cell the beam's tip was
+  in - and a tile's at its own cell.
+- `presets.cpp`: the type stays "Amboss", being in every level file; its
+  tooltip id is `$TT_AMBOSS`, and the English tooltip says "Anvil" where it
+  said "Ambos".
 
 
 Still open: worth knowing, not worth a change
