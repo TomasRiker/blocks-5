@@ -345,8 +345,10 @@ public:
 
 		if(editor.currentMode == 2)
 		{
-			// draw the rectangle
-			if(editor.rectStart.x != -1)
+			// Draw the rectangle - only one whose stroke is still under way: a
+			// lost focus ends it, and the release that comes later belongs to
+			// another press, a palette click as like as not.
+			if(editor.rectStart.x != -1 && editor.drawStartButtons)
 			{
 				editor.beginChange();
 
@@ -360,8 +362,8 @@ public:
 				}
 
 				editor.endChange();
-				editor.rectStart = editor.rectEnd = Vec2i(-1, -1);
 			}
+			editor.rectStart = editor.rectEnd = Vec2i(-1, -1);
 		}
 
 		if(editor.currentMode == 5)
@@ -467,15 +469,36 @@ public:
 					return;
 				}
 			}
-			else if(getChild("MenuPane")->isVisible() &&
-					!getChild("EditHintPane")->isVisible() &&
-					!getChild("MessageBoxPane")->isVisible() &&
-					event.keysym.sym == SDLK_ESCAPE)
+			else if(getChild("MenuPane")->isVisible() && !getChild("MessageBoxPane")->isVisible())
 			{
-				// Escape closes the menu, whose only button is OK - but not
-				// under one of its confirmations, which would be left alone.
-				handleClick(getChild("MenuPane.Menu.OK"));
-				return;
+				// Escape closes the file search where it stands over the menu,
+				// and otherwise the menu, through OK, its one plain way out -
+				// but not under one of its confirmations, which would be left
+				// alone. The help takes its own Escape.
+				if(event.keysym.sym == SDLK_ESCAPE)
+				{
+					if(getChild("SearchPane")->isVisible()) handleClick(getChild("SearchPane.Search.Cancel"));
+					else handleClick(getChild("MenuPane.Menu.OK"));
+					return;
+				}
+
+				// The two shortcuts its buttons show work with the menu open,
+				// where nothing stands over it; the level's own keys stay shut
+				// out below.
+				if(!getChild("SearchPane")->isVisible() && !p_help->isVisible())
+				{
+					const bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
+					if(event.keysym.sym == SDLK_F5)
+					{
+						handleClick(getChild("MenuPane.Menu.Play"));
+						return;
+					}
+					if(ctrl && keyLetter(event.keysym) == 's')
+					{
+						handleClick(getChild("MenuPane.Menu.Save"));
+						return;
+					}
+				}
 			}
 		}
 
@@ -1374,9 +1397,21 @@ void GS_LevelEditor::onLoseFocus()
 // dialog holds stays open for its OK or Cancel.
 void GS_LevelEditor::onAppLoseFocus()
 {
+	// No release comes for a button held now, so the stroke ends here: its
+	// rectangle, the teleporter it was aiming and, unless a dialog holds them,
+	// its change and the mode it had borrowed.
 	drawStartButtons = 0;
 	p_teleporter = 0;
-	if(!gui["LevelEditor.EditHintPane"]->isVisible() && !gui["LevelEditor.SettingsPane"]->isVisible()) endChange();
+	if(currentMode == 2) rectStart = rectEnd = Vec2i(-1, -1);
+	if(!gui["LevelEditor.EditHintPane"]->isVisible() && !gui["LevelEditor.SettingsPane"]->isVisible())
+	{
+		endChange();
+		if(oldMode != -1)
+		{
+			setMode(oldMode);
+			oldMode = -1;
+		}
+	}
 }
 
 void GS_LevelEditor::beginChange()
