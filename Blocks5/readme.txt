@@ -111,6 +111,10 @@ Changelog
             more and works without administrator rights. The game brings its own
             OpenAL Soft, which should end the sound problems some machines had.
 
+          - A new installation no longer looks for new versions at startup
+            unless you tick that in the installer. update_checker_enable.bat
+            in your user directory switches it on later.
+
           - Well over a hundred fixes. Damaged or foreign levels, campaigns,
             skins and music no longer crash or freeze the game, and a missing
             skin or piece of music is reported instead of passing in silence.

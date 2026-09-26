@@ -44,7 +44,7 @@ german.UninstallBlocks5=Blocks 5 deinstallieren
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
 
 [Tasks]
-Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"
+Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
 
