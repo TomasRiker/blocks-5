@@ -1094,8 +1094,9 @@ void Engine::mainLoopIteration()
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				// The position here too: a finger makes no motion event, only
-				// the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes of touchstart.
+				// The position here too: a finger lands with no motion event
+				// before it, only the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes
+				// of touchstart.
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
@@ -1613,19 +1614,19 @@ void Engine::render()
 #endif
 
 #ifdef BLOCKS5_TEST_HOOKS
-	// One random stream per rendered frame, keyed on sceneTick alone: a frame
-	// draws numbers of its own (the night vision's noise, a particle's colour)
-	// and a slow machine renders fewer frames than it runs ticks, so without
-	// this the picture at a tick would depend on the frames dropped on the
-	// way. The odd half of the pair; update() takes the even one. sceneTick
-	// and not getTime(), which counts from startup where a scene's clock
-	// starts at zero with the scene.
+	// One random stream per rendered frame, keyed on sceneTick alone: nothing
+	// in the render path should draw (objects.md), and should a draw slip in,
+	// a slow machine renders fewer frames than it runs ticks, so the picture
+	// at a tick would depend on the frames dropped on the way. The odd half
+	// of the pair; update() takes the even one. sceneTick and not getTime(),
+	// which counts from startup where a scene's clock starts at zero with the
+	// scene.
 	if(testSeed()) seedRandom(testSeed() * 2 + sceneTick * 2 + 1);
 #endif
 
 	// Does the cursor still match the picture's scale? Asked every frame:
 	// window size, fullscreen, filter and canvas all move the answer, and
-	// asking costs two divisions and a comparison.
+	// asking is one computePresentRect() and a division.
 	updateCursorSize();
 
 #ifdef BLOCKS5_TEST_HOOKS
@@ -2673,11 +2674,12 @@ void Engine::drawOverlays()
 
 // What the last few hundred frames cost, along the bottom (-perf): the one way
 // to read them on a phone, where the strip lands in a screenshot; a desktop
-// harness reads the test hook instead. Drawn after render() and before the
-// present, so it counts in neither r: nor p: but in ms: and draws: - one draw
-// (5.16 against 6.16 in the menu), as the strip and the text share an atlas
-// page. At the bottom it covers the status bar; at the top it would cover the
-// toasts, which pass once and report faults.
+// harness reads the test hook instead. Built after render() and before the
+// present, so building it counts in neither r: nor p: but in ms:; its one draw
+// (5.16 against 6.16 in the menu, the strip and the text sharing an atlas
+// page) counts in draws:, and is issued at the flush that opens the present,
+// so in p:. At the bottom it covers the status bar; at the top it would cover
+// the toasts, which pass once and report faults.
 void Engine::drawPerformance()
 {
 	// The small font on one line: this stands over the game while the game is
@@ -4040,9 +4042,9 @@ void Engine::publishLanguage()
 
 std::string Engine::detectSystemLanguage()
 {
-	// Only "de" or "en". Of the 440 strings in data/languages.txt exactly one
-	// has a French body and one a Spanish, so detecting "fr" here would give an
-	// English game with a French label.
+	// Only "de" or "en": every string in data/languages.txt has those two
+	// bodies and no other, so detecting "fr" here would give an English game
+	// with a French label.
 #if defined(__EMSCRIPTEN__)
 	const int german = EM_ASM_INT({
 		var list = navigator.languages || [navigator.language || ""];
@@ -4802,8 +4804,10 @@ void Engine::updateCursorSize()
 {
 	// The system draws the cursor in window pixels, so its size follows the
 	// rectangle presentFrame() fills, not the window: Sharp snaps to whole
-	// steps. Of 16 and 32, the one nearer 16*s: 32 from s = 1.5. At exactly 1
-	// and 2, where almost everyone sits, it matches the picture pixel for pixel.
+	// steps. Of 16 and 32 - none larger: createCursor()'s masks hold 32x32,
+	// and SDL 1.2 under Windows refuses a cursor past SM_CXCURSOR - the one
+	// nearer 16*s: 32 from s = 1.5. At exactly 1 and 2, where almost everyone
+	// sits, it matches the picture pixel for pixel.
 	int x, y, w, h;
 	computePresentRect(x, y, w, h);
 	const float scale = screenSize.x ? static_cast<float>(w) / screenSize.x : 1.0f;

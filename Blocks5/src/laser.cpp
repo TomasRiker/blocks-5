@@ -193,9 +193,10 @@ void Laser::onUpdate()
 		bool destroyed = false;
 		bool infinity = false;
 		const Sprites* p_sprites = 0;
-		// Where what the beam destroyed stood, for its debris: an object where
-		// it was drawn, which for one moving into the beam is not the cell the
-		// beam's tip is in, and a tile at its cell.
+		// Where what the beam destroyed stood, for its debris: an object at
+		// its shown position (a devil's hop aside), which for one moving into
+		// the beam is not the cell the beam's tip is in, and a tile at its
+		// cell.
 		Vec2i debrisAt(0, 0);
 		int z = 0;
 

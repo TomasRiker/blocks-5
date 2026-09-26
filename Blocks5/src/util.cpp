@@ -347,8 +347,9 @@ void printfLog(const char* p_format,
 	// stdout.txt under Windows, the harnesses redirect it), so it is block
 	// buffered, and a run that is killed would lose the lines saying what it
 	// was doing. Not setvbuf(stdout, 0, _IOLBF, 0) at startup: the MSVC
-	// runtime ends the process over a size of 0, and SDL has written to the
-	// stream before main() anyway.
+	// runtime ends the process over a size of 0, and under Windows SDL has
+	// reopened the stream and set its buffering before main(), which a
+	// setvbuf has to precede.
 	printf("%s", finalLogText.c_str());
 	fflush(stdout);
 	const std::string logFilename(FileSystem::inst().getAppHomeDirectory() + "log.txt");

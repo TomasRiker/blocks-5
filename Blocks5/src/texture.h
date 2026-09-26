@@ -25,8 +25,9 @@ public:
 		WM_WRAP,
 
 		// Tiled by GL_REPEAT, which wraps at the texture's edge, so this gets
-		// a GL texture of its own. The weather: its uv rotates as it scrolls,
-		// so the cuts tiledQuad would need are not axis-aligned.
+		// a GL texture of its own. The weather: the rain's and the clouds' uv
+		// is rotated, so the cuts tiledQuad would need are not axis-aligned;
+		// the snow, only scaled and scrolled, is declared the same way.
 		WM_REPEAT
 	};
 

@@ -94,8 +94,8 @@ $ERROR_CAMPAIGN_INVALID
 §de:FEHLER: Fehlende oder beschädigte Kampagne:
 
 $ERROR_NO_BUILT_IN_CAMPAIGN
-// Shown on entering the level selection when the game's own campaign is
-// not there at all. Its archive is a build product, so this is what a
+// Shown on entering the level selection when the game's own campaign did
+// not make it into the list. Its archive is a build product, so this is what a
 // tree that was cloned but never packed looks like from inside the game.
 §en:ERROR: The game's own campaign is missing.
 §de:FEHLER: Die Kampagne des Spiels fehlt.

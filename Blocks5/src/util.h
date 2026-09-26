@@ -30,8 +30,9 @@ std::string setFilenameExtension(const std::string& filename, const std::string&
 std::string formatLevelCaption(int number, const std::string& title);
 
 // A single level shows its filename instead of a number: three levels all
-// called "Unnamed" are otherwise indistinguishable. In a campaign the
-// filename would say nothing, since every level there is "level_N.xml".
+// called "Unnamed" are otherwise indistinguishable. In a campaign the number
+// already tells them apart, and a level out of its archive would show only
+// "level_N.xml".
 std::string formatSingleLevelCaption(const std::string& title, const std::string& filename);
 
 // Turns any filename - including one imported from outside - into a safe name

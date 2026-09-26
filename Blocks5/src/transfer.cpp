@@ -459,8 +459,9 @@ namespace
 		return cut == std::string::npos ? path : path.substr(cut + 1);
 	}
 
-	// Asked of the disk and not through File, whose sizes are 32 bits: a film
-	// of five gigabytes would come out there as one.
+	// Asked of the disk and not through File, which refuses a file its 32-bit
+	// size cannot carry: the player is to hear that the file is too big, not
+	// that it could not be read.
 	bool isTooBig(const std::string& path)
 	{
 		WIN32_FILE_ATTRIBUTE_DATA data;

@@ -6,8 +6,8 @@
 
 // The <k> keycap, a frame drawn around a key's name. The padding keeps the
 // frame off the glyphs inside it, the gap off the words either side. Both are
-// in the font's own pixels, so a keycap in the tooltip font comes out
-// proportionally smaller.
+// plain pixels, the same in every font: a keycap follows its font only in the
+// frame's height (capTop..capBottom) and the name inside it.
 const int KEY_BOX_PAD = 3;
 const int KEY_BOX_GAP = 2;
 

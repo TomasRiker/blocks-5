@@ -292,8 +292,9 @@ void GS_SelectLevel::onEnter(const ParameterBlock& context)
 
 	// The game's own campaign is an archive in the game folder and a build
 	// product, so a tree cloned but never packed lacks it and the list would
-	// silently come up without it. A broken one reports itself through
-	// Campaign::load; this covers only nothing shipped turning up at all.
+	// silently come up without it. The toast comes whenever no shipped
+	// campaign made it into the list, so one that is there but broken gets it
+	// after Campaign::load's own.
 	if(!shippedCampaign) engine.showToast(Engine::TOAST_ERROR, "$ERROR_NO_BUILT_IN_CAMPAIGN");
 
 	// Last, the single levels from the level folder if there are any: a

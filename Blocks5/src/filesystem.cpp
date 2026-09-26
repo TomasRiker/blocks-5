@@ -199,8 +199,9 @@ File* FileSystem::openFile(const std::string& filename,
 		else p_file = new File_Archived(filePath, objectName, password, mode);
 	}
 
-	// Did an error occur? An empty path gets an empty filePath from
-	// convertPath() and constructs nothing at all.
+	// Did an error occur? Nothing is constructed where convertPath() gives an
+	// empty filePath - an empty path, but only before main() pushes data.zip:
+	// after that an empty path is the current directory, data.zip itself.
 	if(!p_file) return 0;
 	if(p_file->getError())
 	{

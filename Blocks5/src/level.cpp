@@ -28,8 +28,8 @@ SoundInstance* Level::p_thunderstormSoundInst = 0;
 bool Level::rainSoundOn = false;
 bool Level::thunderstormSoundOn = false;
 // The fallback skin: used where a file of the wanted skin is missing (that is
-// what the "default_" markers are for), and where its tileset or its sprites
-// will not load.
+// what the "default_" markers are for), and where one is there and will not
+// load (requestSkinFile()).
 const char* p_defaultSkin = "blocks_01";
 
 // A level file that will not load shows this one instead of an empty level:
@@ -346,8 +346,9 @@ bool Level::load(TiXmlDocument* p_doc,
 			}
 			const std::string type(p_type);
 			// The same for a position that is missing, is not a number or
-			// lies off the grid: TinyXML leaves the int untouched then, and
-			// the object would stand wherever the stack put it.
+			// lies off the grid: TinyXML leaves the int at its 0 for the first
+			// two, which would stand the object in the top row or the left
+			// column, and one off the grid stands where no cell holds it.
 			Vec2i position(0, 0);
 			if(p_object->QueryIntAttribute("x", &position.x) != TIXML_SUCCESS ||
 			   p_object->QueryIntAttribute("y", &position.y) != TIXML_SUCCESS ||
@@ -1139,8 +1140,9 @@ void Level::update()
 	counter++;
 	time += 20;
 
-	// The clock the frame oracle runs on - see Engine::sceneTick. A level is
-	// the one thing with a clock that starts at zero when the screen does.
+	// The clock the frame oracle runs on - see Engine::sceneTick: the level's
+	// own, which starts at zero with the screen, as GS_Loading and GS_Credits
+	// report theirs.
 	// Not behind BLOCKS5_TEST_HOOKS: the builds pass that define to
 	// engine.cpp, renderer.cpp and the test-hook sources only, so a guarded
 	// line here would never be compiled.
@@ -1152,8 +1154,9 @@ void Level::renderTiles(int layer,
 						const Vec4f& color)
 {
 	// Before the matrix is pushed, so that nothing has to be popped again.
-	// There is no tile set only where not even the default skin's would load,
-	// and loadSkin()'s toast has already told the player.
+	// There is no tile set only where not even the default skin's would load;
+	// loadSkin() has toasted the skin the level asked for if it was another
+	// one, and the log has the rest.
 	if(!isValidLayer(layer) || !p_tileSet) return;
 
 	Renderer& renderer = Renderer::inst();
@@ -1275,10 +1278,11 @@ namespace
 	// number of times, since the beam's length moves with its mirrors. The
 	// hash is the usual fract(sin(x) * large): no state, no draws.
 	//
-	// In float the fraction resolves 1/1024. Measured over 200 points of each
-	// of 2001 seeds it is still a hash: uniform on [-1, 1] (rms 0.5772 against
-	// the ideal 0.5774), deciles flat within 3%, neighbours correlated at
-	// -0.002, 0.2% of neighbouring pairs equal.
+	// In float the fraction resolves 1/256 where |h| passes 32768, nearly half
+	// the points, and 1/512 over most of the rest. Measured over 200 points of
+	// each of 2001 seeds it is still a hash: uniform on [-1, 1] (rms 0.5772
+	// against the ideal 0.5774), deciles flat within 3%, neighbours correlated
+	// at -0.002, 0.2% of neighbouring pairs equal.
 	float pointJitter(float seed, int index)
 	{
 		float h = sinf(seed * 12.9898f + index * 78.233f) * 43758.5453f;

@@ -397,9 +397,9 @@ void DiamondMachine::abortConversion()
 
 		// The way back ends at the starting point, but the block may stand
 		// elsewhere by now. One addend on the velocity, the travel formula
-		// solved for v0, moves the end point by exactly that offset; it decays
-		// with the same damping, so the offset is taken on in proportion to
-		// the way covered.
+		// solved for v0, moves the end point by exactly that offset; it is
+		// scaled by the same damping as the rest of the velocity, so the
+		// offset is taken on in proportion to the way covered.
 		if(!inward && elapsed && !shift.isZero())
 		{
 			const float d = p.damping;

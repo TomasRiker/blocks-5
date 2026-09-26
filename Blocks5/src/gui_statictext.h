@@ -12,7 +12,8 @@ public:
 	~GUI_StaticText();
 
 	void onRender();
-	// for="Name" works on any element (see GUI_Element). What a text adds is
+	// for="Name" works on any element that keeps GUI_Element's mouse
+	// handlers - a text, an image, a plain element. What a text adds is
 	// w or h at -1, "as large as the text that is drawn", which is what a
 	// label wants: a hand-written width would be wrong in the other language.
 	// Without w/h (0) the text is never hit, and that stays the default.

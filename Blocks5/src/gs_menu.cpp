@@ -847,8 +847,9 @@ void GS_Menu::refreshManagerList()
 	}
 	p_list->setSelection(items.empty() ? -1 : 0);
 
-	// By hand: setSelection() reports only a change of index, and the
-	// content can differ under the same index.
+	// By hand: clear() drops the selection without a word and setSelection()
+	// reports only a change of index, so an empty list would leave Export and
+	// Delete as the previous list set them.
 	updateManagerButtons();
 }
 

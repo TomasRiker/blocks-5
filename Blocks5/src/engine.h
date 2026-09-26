@@ -134,10 +134,11 @@ public:
 	bool beginRenderToTexture(uint textureID, const Vec2i& size);
 	void endRenderToTexture();
 
-	// Borrow a texture to draw into and hand it back. The Engine owns them, so
-	// they fall with the framebuffer while the GL context stands, where an
-	// object is torn down only long after. acquire gives 0 where it does not
-	// work. A pool: two hint notes overlap while one fades out and the next in.
+	// Borrow a texture to draw into and hand it back. The Engine owns them and
+	// deletes them with the framebuffer, while the GL context stands; a
+	// borrower only hands one back, and the next note gets it again. acquire
+	// gives 0 where it does not work. A pool: two hint notes overlap while one
+	// fades out and the next in.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
 	// Where in the window the 640x480 picture goes: centred, aspect kept. The
@@ -263,10 +264,10 @@ public:
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
-	// The next key event. p_repeat says whether it is SDL's key repeat rather
-	// than a fresh press: a command (Escape, Return, the editors' shortcuts)
-	// must skip a repeat, or a held key fires it every 60 ms; an edit box and a
-	// list want it.
+	// The next key event. p_repeat says whether it is a key repeat (SDL's, or
+	// the browser's own) rather than a fresh press: a command (Escape, Return,
+	// the editors' shortcuts) must skip a repeat, or a held key fires it again
+	// at the repeat rate; an edit box and a list want it.
 	bool getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat = 0);
 	bool isGUIFocused();
 	void unfocusGUI();
