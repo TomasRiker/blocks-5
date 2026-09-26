@@ -887,15 +887,16 @@ void Renderer::line(const Vec2f& a, const Vec2f& b, float width, const Vec4f& co
 void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec4f& color, bool closed)
 {
 	// One quad per segment, half the width to either side, and at a turn of
-	// up to ninety degrees a wedge on the outside of the corner - a quad with
-	// two corners on the point, which is a triangle - between the two
-	// segments' ends, so a beam has no notch where it bends. A closed loop
-	// gets its last segment and no wedge at the seam.
+	// up to ninety degrees a wedge on the outside of the corner between the
+	// two segments' ends, so a beam has no notch where it bends. A closed
+	// loop's seam is a corner like the others, joined once the last segment
+	// has come round to the first.
 	const size_t n = points.size();
 	if(n < 2) return;
 	const size_t segments = closed ? n : n - 1;
 
 	Vec2f prevDir(0.0f, 0.0f), prevUp(0.0f, 0.0f);
+	Vec2f firstDir(0.0f, 0.0f), firstUp(0.0f, 0.0f), seam(0.0f, 0.0f);
 	bool havePrev = false;
 	for(size_t i = 0; i < segments; i++)
 	{
@@ -907,23 +908,12 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		dir.x /= length; dir.y /= length;
 		const Vec2f up(dir.y * 0.5f * width, -dir.x * 0.5f * width);
 
-		// Both are dot products: the first says the turn is at most ninety
-		// degrees, the second's sign which side of the line is the outside.
-		if(havePrev && prevDir.x * dir.x + prevDir.y * dir.y >= 0.0f)
+		if(havePrev) joinWedge(a, prevDir, prevUp, dir, up, color);
+		else
 		{
-			const float dot = prevUp.x * dir.x + prevUp.y * dir.y;
-			if(dot > 0.0f)
-			{
-				const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
-				const float y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
-				submitFlat(x, y, color);
-			}
-			else if(dot < 0.0f)
-			{
-				const float x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
-				const float y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
-				submitFlat(x, y, color);
-			}
+			firstDir = dir;
+			firstUp = up;
+			seam = a;
 		}
 
 		const float x[4] = {a.x + up.x, b.x + up.x, b.x - up.x, a.x - up.x};
@@ -933,6 +923,32 @@ void Renderer::polyline(const std::vector<Vec2f>& points, float width, const Vec
 		prevDir = dir;
 		prevUp = up;
 		havePrev = true;
+	}
+
+	if(closed && havePrev) joinWedge(seam, prevDir, prevUp, firstDir, firstUp, color);
+}
+
+// The wedge at a, where a segment going in prevDir meets one going in dir: a
+// quad with two corners on the point, which is a triangle, on the outside of
+// a turn of at most ninety degrees. Both tests are dot products - the first
+// says how far the line turns, the second's sign which side is the outside.
+void Renderer::joinWedge(const Vec2f& a, const Vec2f& prevDir, const Vec2f& prevUp,
+						 const Vec2f& dir, const Vec2f& up, const Vec4f& color)
+{
+	if(prevDir.x * dir.x + prevDir.y * dir.y < 0.0f) return;
+
+	const float dot = prevUp.x * dir.x + prevUp.y * dir.y;
+	if(dot > 0.0f)
+	{
+		const float x[4] = {a.x, a.x, a.x - up.x, a.x - prevUp.x};
+		const float y[4] = {a.y, a.y, a.y - up.y, a.y - prevUp.y};
+		submitFlat(x, y, color);
+	}
+	else if(dot < 0.0f)
+	{
+		const float x[4] = {a.x, a.x, a.x + prevUp.x, a.x + up.x};
+		const float y[4] = {a.y, a.y, a.y + prevUp.y, a.y + up.y};
+		submitFlat(x, y, color);
 	}
 }
 

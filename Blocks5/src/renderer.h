@@ -295,6 +295,8 @@ private:
 	void submit(const RenderState& s, const float* p_x, const float* p_y,
 				const float* p_u, const float* p_v, const Vec4f* p_colors);
 	void submitFlat(const float* p_x, const float* p_y, const Vec4f& color);
+	void joinWedge(const Vec2f& a, const Vec2f& prevDir, const Vec2f& prevUp,
+				   const Vec2f& dir, const Vec2f& up, const Vec4f& color);
 	// A quad already in the target's pixels.
 	void pushQuad(const RenderState& s, const Vec2f* p_positions, const Vec2f* p_uvs, const Vec4f* p_colors);
 	void requireState(const RenderState& s);
