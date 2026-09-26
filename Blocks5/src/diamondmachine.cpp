@@ -12,8 +12,8 @@
    where they land.
 
    TIMETABLE, in ticks of the machine's counter, which runs to 100; its
-   animation frame changes at 20, 40, 60 and 80, so sparks and animation
-   share one clock:
+   animation frame changes at 20, 40, 60 and 80 (FRAME_TICKS, LAST_FRAME_AT),
+   so sparks and animation share one clock:
 
        outward   emitted 0 to 53, each living 27 ticks: the last gone by 80
        inward    emitted 20 to 92, every one landing at 100
@@ -52,6 +52,8 @@ namespace
 {
 	// The phases, in ticks of the machine's counter.
 	const int CONVERSION_TICKS = 100;  // then the block becomes the diamond
+	const int FRAME_TICKS      = 20;   // the machine's animation, a frame each
+	const int LAST_FRAME_AT    = 80;   // and held from here
 	const int SPARK_OUT_FULL = 20;
 	const int SPARK_OUT_END  = 53;
 	const int SPARK_IN_START = 20;
@@ -422,7 +424,7 @@ void DiamondMachine::updateSprites()
 	if(level.isElectricityOn())
 	{
 		if(counter == -1) positionOnTexture.x = 32;
-		else positionOnTexture.x = 64 + 32 * (min(counter, 80) / 20);
+		else positionOnTexture.x = 64 + 32 * (min(counter, LAST_FRAME_AT) / FRAME_TICKS);
 	}
 	sprites.add(positionOnTexture);
 }
