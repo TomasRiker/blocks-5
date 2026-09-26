@@ -141,7 +141,7 @@ OBJS=""
 for f in $CSRCS; do n=$((n+1)); o=$(compile "$f" "$CFLAGS") || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS;  do
   n=$((n+1))
-  # Only the three that get anything out of it. It is not in CXXFLAGS, or
+  # Only the four that get anything out of it. It is not in CXXFLAGS, or
   # switching between the two kinds of build would recompile every unit -
   # the two output directories keep them apart anyway.
   extra=""
