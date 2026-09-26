@@ -139,9 +139,19 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 
 	// onUpdate() closes a gap of more than two quarter turns by four per
 	// tick, and fire() waits for it: a barrel a level file puts far off
-	// would not fire for hours. A saved game's is never that far from dir.
+	// would not fire for hours. Whole turns are the same picture, so the gap
+	// is reduced to the two quarter turns either side - where a saved game's
+	// own gap, up to about five after quick switching, would have landed in
+	// its next tick anyway.
 	const float aim = static_cast<float>(dir);
-	if(!isFiniteFloat(shownDir) || fabsf(shownDir - aim) > 4.0f) shownDir = aim;
+	if(!isFiniteFloat(shownDir)) shownDir = aim;
+	else
+	{
+		float gap = fmodf(shownDir - aim, 4.0f);
+		if(gap > 2.0f) gap -= 4.0f;
+		else if(gap < -2.0f) gap += 4.0f;
+		shownDir = aim + gap;
+	}
 }
 
 uint Cannon::getColor() const

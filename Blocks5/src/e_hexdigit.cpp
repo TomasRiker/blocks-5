@@ -58,10 +58,10 @@ void E_HexDigit::doLogic()
 	else
 	{
 		// Each input counts as a logic level, as the gates' &&, || and ! read
-		// theirs, not as its number: a Value or PulseSwitch passes on whatever
-		// its level file says, and weighted as numbers the inputs could index
-		// far off the sprite sheet. As levels the sum is 0 to 15, the sixteen
-		// digits of the picture.
+		// theirs, not as its number: a pin's saved value is whatever the level
+		// file says, and weighted as numbers the inputs could index far off
+		// the sprite sheet. As levels the sum is 0 to 15, the sixteen digits
+		// of the picture.
 		value = (getValue(0) ? 1 : 0)
 			  + (getValue(1) ? 2 : 0)
 			  + (getValue(2) ? 4 : 0)
