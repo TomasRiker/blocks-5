@@ -193,6 +193,10 @@ void Laser::onUpdate()
 		bool destroyed = false;
 		bool infinity = false;
 		const Sprites* p_sprites = 0;
+		// Where what the beam destroyed stood, for its debris: an object where
+		// it was drawn, which for one moving into the beam is not the cell the
+		// beam's tip is in, and a tile at its cell.
+		Vec2i debrisAt(0, 0);
 		int z = 0;
 
 		while(true)
@@ -233,6 +237,7 @@ void Laser::onUpdate()
 							p_obj->disappear(0.2f);
 							destroyed = true;
 							p_sprites = &p_obj->getSprites();
+							debrisAt = p_obj->getShownPositionInPixels();
 						}
 					}
 					else
@@ -254,6 +259,7 @@ void Laser::onUpdate()
 							level.setTileAt(1, tileHit, 0);
 							destroyed = true;
 							p_sprites = &tileInfo.sprites;
+							debrisAt = tileHit * 16;
 						}
 					}
 
@@ -358,7 +364,7 @@ void Laser::onUpdate()
 					Vec2i offset;
 					if(!p_sprites->sample(&sampled, &offset)) continue;
 
-					p.position = beamPosF * 16 + offset + Vec2i(random(-2, 2), random(-2, 2));
+					p.position = debrisAt + offset + Vec2i(random(-2, 2), random(-2, 2));
 					p.velocity = Vec2f(random(-0.2f, 0.2f), random(-0.2f, 0.2f));
 					p.color = sampled;
 					p.deltaColor = Vec4f(0.0f, 0.0f, 0.0f, -p.color.a / p.lifetime);
