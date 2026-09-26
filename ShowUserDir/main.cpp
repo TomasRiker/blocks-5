@@ -7,8 +7,13 @@ int WINAPI WinMain(HINSTANCE inst,
 				   char* p_cmdLine,
 				   int showCmd)
 {
-	char path[256];
-	SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path);
+	// MAX_PATH is the size the call is specified for.
+	char path[MAX_PATH];
+	if(FAILED(SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, 0, 0, path)))
+	{
+		MessageBoxA(0, "Windows could not say where the Documents folder is.", "Error!", MB_OK | MB_ICONERROR);
+		return 1;
+	}
 	const std::string homeDirectory(std::string(path) + "\\Blocks 5");
 
 	if(GetFileAttributesA(homeDirectory.c_str()) == INVALID_FILE_ATTRIBUTES)

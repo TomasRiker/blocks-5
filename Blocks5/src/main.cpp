@@ -638,6 +638,11 @@ int main(int argc,
 	}
 	__except(expFilter(GetExceptionInformation(), GetExceptionCode()))
 	{
+		// The trace is in the log, which printfLog() closes after every line.
+		// Nothing after a crash is to be trusted, so the process ends here:
+		// returning would run the static destructors, the engine's whole
+		// shutdown among them, over whatever the crash damaged.
+		TerminateProcess(GetCurrentProcess(), 1);
 		return 1;
 	}
 #else

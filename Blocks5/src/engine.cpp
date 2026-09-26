@@ -739,13 +739,8 @@ void Engine::exit()
 	// setGameState() only queues the change, and an onLeave() that never ran
 	// would leave behind what it gives up - the menu's open file dialog, for
 	// one, which under Linux is a program of its own and outlived the game.
-	// Not after a crash the handler caught: the game states were locals of
-	// the frame it unwound, and this runs from the destructor.
-	if(!writingCrashLog)
-	{
-		setGameState("");
-		processGameStateChanges();
-	}
+	setGameState("");
+	processGameStateChanges();
 
 	// shut down the GUI
 	printfLog("* Shutting down GUI ...\n");
