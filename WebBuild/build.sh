@@ -27,7 +27,7 @@ if [ "${1:-}" = "hooks" ]; then HOOKS="-DBLOCKS5_TEST_HOOKS"; OUT="$HERE/build-t
 # because a copy drifts: the last one still compiled libvorbis's misc.c.
 OPT="-O2"
 ASSERT=1
-MEMORY=50331648
+MEMORY=67108864
 if [ "${1:-}" = "asan" ]; then
     OPT="-O1 -g2 -fsanitize=address"; ASSERT=2; MEMORY=536870912; OUT="$HERE/build-asan"
 fi
@@ -185,12 +185,13 @@ PRELOAD="--preload-file $WEBROOT@/"
 [ -f "$GAME/levels/skins/blocks_01.zip" ] || echo "(warning: the skin archives are missing - run Blocks5/pack.sh skins)"
 echo "webroot: $(du -sh "$WEBROOT" | cut -f1)"
 
-# -sINITIAL_MEMORY: 48 MiB, measured and not guessed. Started at 16 MiB the heap
-# grows exactly once, to 40 MiB, and stays there - through the loading screen,
-# the menu, the options, the manager, the level editor, the level select and
-# half a minute of a played level. Reserving more generously costs a tab on a
-# phone before the menu is up. ALLOW_MEMORY_GROWTH stays on; an unusually large
-# level therefore has room.
+# -sINITIAL_MEMORY: 64 MiB, over a need that was measured and not guessed.
+# Started at 16 MiB the heap grows exactly once, to 40 MiB, and stays there -
+# through the loading screen, the menu, the options, the manager, the level
+# editor, the level select and half a minute of a played level. The rest is
+# room to spare, and not much more of it: reserving generously costs a tab on
+# a phone before the menu is up. ALLOW_MEMORY_GROWTH stays on; an unusually
+# large level therefore has room.
 #
 # -sSTACK_SIZE: minizip's zipOpen3 puts a zip64_internal on the stack, and that
 # struct embeds a 64 KiB compression buffer (zip.c:150, Z_BUFSIZE). Emscripten's

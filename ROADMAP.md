@@ -380,13 +380,13 @@ is worse than no check, and this one cost a day of looking at zip files.
 --------------------------------------------------------------------------------------
 `shell.html` replaces Emscripten's desktop page: the viewport meta,
 `touch-action: none`, `overscroll-behavior: none`; `-sINITIAL_MEMORY` down from
-256 MiB to a measured 48; `manifest.json` and `sw.js` for an installable, offline,
-cached app (`web.md` has the stamp-and-cache story); `navigator.storage.persist()`
-for the saves. Two bugs in the game came out of the touch test, and either fix
-alone changes nothing: `GUI::update()` recomputed `p_elementAtCursor` at the
-bottom, so a click went to whatever had been under the cursor a tick earlier, and
-`Engine` only took the cursor position from `SDL_MOUSEMOTION`, which a touch never
-produces.
+256 MiB to 64, over a measured need of 40; `manifest.json` and `sw.js` for an
+installable, offline, cached app (`web.md` has the stamp-and-cache story);
+`navigator.storage.persist()` for the saves. Two bugs in the game came out of the
+touch test, and either fix alone changes nothing: `GUI::update()` recomputed
+`p_elementAtCursor` at the bottom, so a click went to whatever had been under the
+cursor a tick earlier, and `Engine` only took the cursor position from
+`SDL_MOUSEMOTION`, which a touch never produces.
 
 
 22. A finger is not a point: hit testing with a tap radius

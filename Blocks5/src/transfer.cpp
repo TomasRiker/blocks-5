@@ -98,9 +98,10 @@ namespace
 	// that comes in here is a campaign with music - the shipped one is
 	// 8.3 MB, and this is room for a dozen full-length songs; classify()
 	// reads a level whole, and a file picked by mistake can be a film. The
-	// browser pays the most: a 63 MiB campaign held about 150 MiB more while
-	// it came in and 90 MiB more after, since IDBFS keeps the home directory
-	// in memory and the copy grows the wasm memory, which never shrinks.
+	// browser pays the most: a 63 MiB campaign held 140 to 210 MiB more while
+	// it came in and 75 to 90 MiB more after, since IDBFS keeps the home
+	// directory in memory and the copy grows the wasm memory, which never
+	// shrinks.
 	const uint MAX_IMPORT_SIZE = 64 * 1024 * 1024;
 }
 

@@ -106,9 +106,9 @@ place the same read gives `workerStart` 79.7 and the new bytes arrive). The
 worker's network-first branch is what keeps the page working offline; freshness is the URL's job, and the
 header's only where there can be no stamp.
 
-**`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap grows exactly
-once, to 40 MiB, and stays there through the loading screen, menu, editors and a played level. Reserving far
-more is on a phone the most likely reason a tab dies before the menu appears.
+**`-sINITIAL_MEMORY` is 64 MiB, over a need that was measured.** Started at 16 MiB the heap grows exactly
+once, to 40 MiB, and stays there through the loading screen, menu, editors and a played level; the rest is
+room to spare. Reserving far more is on a phone the most likely reason a tab dies before the menu appears.
 `ALLOW_MEMORY_GROWTH` stays on, so an unusually large level still has room.
 
 **Losing focus takes two answers in the browser, not one.** Emscripten's SDL reports focus and visibility as
