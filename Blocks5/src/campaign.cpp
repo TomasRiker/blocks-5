@@ -417,8 +417,8 @@ bool Campaign::save(const std::string& filename)
 		if(isBuiltInMusic(track)) continue;
 
 		// Only a sound file can be a track, which also keeps the name off
-		// campaign.xml and every level_N.xml member - in any case, since
-		// minizip looks a member up without it on Windows.
+		// campaign.xml and every level_N.xml member - in any case, since a
+		// member is looked up without it.
 		const std::string extension(getFilenameExtension(track));
 		const bool soundFile = equalsNoCase(extension.c_str(), "ogg") || equalsNoCase(extension.c_str(), "wav");
 		if(!isSafeMemberName(track) || !soundFile)
@@ -432,10 +432,12 @@ bool Campaign::save(const std::string& filename)
 		entry.member = track;
 		entry.source = levels[i].sourceDir + track;
 
+		// One member however the name is cased: the archive is read without
+		// case, so two names that differ only there would be one track.
 		bool known = false;
 		for(uint j = 0; j < music.size(); j++)
 		{
-			if(music[j].member != entry.member) continue;
+			if(!equalsNoCase(music[j].member.c_str(), entry.member.c_str())) continue;
 			known = true;
 			if(music[j].source != entry.source)
 			{

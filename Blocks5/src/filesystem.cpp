@@ -276,13 +276,15 @@ bool FileSystem::renameFile(const std::string& source,
 	if(!sourcePath.empty() && sourceObject.empty() &&
 	   !destPath.empty() && destObject.empty())
 	{
-		// The destination gives way only after the first attempt has failed:
-		// POSIX replaces it in one atomic step, and deleting it beforehand
-		// would open a window in which neither name exists. Windows refuses
-		// the replacement, which is what the second attempt is for.
+		// The destination is replaced in one step and never deleted first,
+		// which would open a window in which neither name exists: rename()
+		// does that under POSIX, and under Windows, whose rename() refuses an
+		// existing destination, MoveFileEx.
+#ifdef _WIN32
+		if(MoveFileExA(sourcePath.c_str(), destPath.c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
+#else
 		if(rename(sourcePath.c_str(), destPath.c_str()) == 0) return true;
-		if(fileExists(dest) && deleteFile(dest) &&
-		   rename(sourcePath.c_str(), destPath.c_str()) == 0) return true;
+#endif
 	}
 
 	// The copy has to be complete before the original goes, or a failure

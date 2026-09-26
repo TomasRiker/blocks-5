@@ -44,8 +44,12 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 		if(!listMode)
 		{
-			// find the object
-			int r = unzLocateFile(archive, objectName.c_str(), 0);
+			// Found without case on every platform, where minizip's default
+			// ignores it under Windows alone: an archive must hold the same
+			// members wherever it is played. deleteArchivedFile() matches
+			// without case too, and Campaign::save() stores one of two track
+			// names that differ only there.
+			int r = unzLocateFile(archive, objectName.c_str(), 2);
 			if(r != UNZ_OK)
 			{
 				if(!testMode)
@@ -179,11 +183,12 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		bool objectExists = false;
 		if(archiveExists)
 		{
-			// Does the archived file exist already?
+			// Does the archived file exist already? Without case, as when
+			// reading.
 			unzFile temp = unzOpen(archiveFilename.c_str());
 			if(temp)
 			{
-				int r = unzLocateFile(temp, objectName.c_str(), 0);
+				int r = unzLocateFile(temp, objectName.c_str(), 2);
 				if(r == UNZ_OK) objectExists = true;
 				unzClose(temp);
 			}
@@ -637,20 +642,21 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		return -2;
 	}
 
-	// POSIX replaces the old archive in one step; Windows refuses to, and
-	// gets its second try once the old one is gone.
-	if(rename(tempFilename.c_str(), archiveFilename.c_str()) != 0)
+	// The side file takes the archive's place in one step, so that there is
+	// never a moment with neither: rename() under POSIX, and under Windows,
+	// whose rename() refuses an existing target, MoveFileEx. A replacement
+	// that fails leaves the archive as it was.
+#ifdef _WIN32
+	const bool replaced = MoveFileExA(tempFilename.c_str(), archiveFilename.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
+#else
+	const bool replaced = rename(tempFilename.c_str(), archiveFilename.c_str()) == 0;
+#endif
+	if(!replaced)
 	{
-		const bool removed = remove(archiveFilename.c_str()) == 0;
-		if(rename(tempFilename.c_str(), archiveFilename.c_str()) != 0)
-		{
-			// Where the old archive would not go it stands as it was. Where
-			// it went, the side file is all there is and stays.
-			printfLog("+ ERROR: Could not rename \"%s\" to \"%s\".\n",
-					  tempFilename.c_str(), archiveFilename.c_str());
-			if(!removed) remove(tempFilename.c_str());
-			return -2;
-		}
+		printfLog("+ ERROR: Could not replace \"%s\"; the archive is left as it was.\n",
+				  archiveFilename.c_str());
+		remove(tempFilename.c_str());
+		return -2;
 	}
 
 	return result;

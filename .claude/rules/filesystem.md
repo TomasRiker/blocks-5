@@ -13,14 +13,17 @@ paths:
 **Virtual filesystem.** `FileSystem::openFile` serves either a real file or a member of a zip archive,
 selected by path syntax: `archive.zip/file.png` (no password), `archive.zip<plaintextpw>/file.png`, or
 `archive.zip[encryptedpw]/file.png` (password encrypted with `PWEncrypt`; see `decryptPassword` in
-`util.cpp`).
+`util.cpp`). A member is found without case on every platform, where minizip's own default ignores it
+under Windows alone: an archive has to hold the same members wherever it is played, so a campaign stores
+one track for two names that differ only in case.
 
 **`renameFile` renames where the platform can and copies where it cannot** — across a mount, since the browser
 stages an upload outside the home directory, and for a member inside an archive, which has no name on disk.
-The destination gives way only after the first attempt has failed: POSIX replaces it in one atomic step and
-deleting it beforehand would open a window in which neither name exists, while Windows refuses the replacement
-and needs the second try. Three callers want exactly that — `retireShadowingCopies`; `Campaign::save`, whose
-swap otherwise wrote the whole archive a second time; and the progress database's crash-safety file.
+The destination is replaced in one step and never deleted first, which would open a window in which neither
+name exists: `rename()` does that under POSIX, and `MoveFileEx` under Windows, whose `rename()` refuses an
+existing destination; `deleteArchivedFile` puts its side file in place the same way. Three callers want
+exactly that — `retireShadowingCopies`; `Campaign::save`, whose swap otherwise wrote the whole archive a
+second time; and the progress database's crash-safety file.
 
 `pushCurrentDir`/`popCurrentDir` maintain a search root, which is how `main.cpp` mounts `data.zip[...]` as the
 asset root (the commented-out `fs.pushCurrentDir("data")` beside it switches to loose files for development).
