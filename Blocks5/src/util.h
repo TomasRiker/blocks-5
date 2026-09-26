@@ -79,9 +79,10 @@ uint fromBase62(const char* p_in);
 // as for a Ctrl combination in the browser, the keysym follows the layout.
 char keyLetter(const SDL_keysym& keysym);
 // The character a key press types into a text box, or 0. Printable Latin-1
-// only, which is what the font draws, and nothing under Ctrl without Alt:
-// X11 hands Ctrl+S over with the s as its unicode, while Ctrl with Alt is
-// how Windows reports AltGr, which types the @ and the braces.
+// only, which is what the font draws, and under Ctrl without Alt not the
+// key's own character: X11 hands Ctrl+S over with the s as its unicode,
+// while Ctrl with Alt is how Windows reports AltGr, which types the @ and the
+// braces.
 char typedCharacter(const SDL_keysym& keysym);
 bool decryptPassword(const std::string& in, std::string& out, const uint* p_primes);
 void clearLog();

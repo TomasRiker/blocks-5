@@ -219,15 +219,21 @@ char keyLetter(const SDL_keysym& keysym)
 
 char typedCharacter(const SDL_keysym& keysym)
 {
-	const bool ctrl = (keysym.mod & KMOD_LCTRL) || (keysym.mod & KMOD_RCTRL);
-	const bool alt = (keysym.mod & KMOD_LALT) || (keysym.mod & KMOD_RALT);
-	if(ctrl && !alt) return 0;
-
 	// Past Latin-1 a character would be cut to some other one: U+0142, the
 	// Polish l with stroke, to a B.
 	const uint u = keysym.unicode;
-	if((u >= 32 && u < 127) || (u >= 160 && u <= 255)) return static_cast<char>(u);
-	return 0;
+	if(!((u >= 32 && u < 127) || (u >= 160 && u <= 255))) return 0;
+
+	// Under Ctrl without Alt the key's own character belongs to a shortcut,
+	// and X11 hands it over as the unicode: Ctrl+S with an s. Whatever else a
+	// layout makes of Ctrl is typed - Ctrl with Alt is how Windows reports
+	// AltGr, and Canadian Multilingual reaches its third level through Right
+	// Ctrl alone.
+	const bool ctrl = (keysym.mod & KMOD_LCTRL) || (keysym.mod & KMOD_RCTRL);
+	const bool alt = (keysym.mod & KMOD_LALT) || (keysym.mod & KMOD_RALT);
+	const uint lower = (u >= 'A' && u <= 'Z') ? u - 'A' + 'a' : u;
+	if(ctrl && !alt && lower == static_cast<uint>(keysym.sym)) return 0;
+	return static_cast<char>(u);
 }
 
 namespace
