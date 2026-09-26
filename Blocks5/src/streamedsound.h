@@ -65,11 +65,11 @@ private:
 	SDL_sem* p_stopSignal;
 #endif
 
-	// Held around every use of p_stream from the time the decoder thread may
-	// run: tellStream() is asked on the main thread while the thread reads
-	// and seeks the same stream, and libvorbis keeps no lock of its own. In
-	// the browser, which has no such thread, Emscripten's SDL makes it a
-	// no-op.
+	// Held around every read, seek and tell of p_stream: tellStream() is
+	// asked on the main thread while the decoder thread reads and seeks the
+	// same stream, and libvorbis keeps no lock of its own. The format getters
+	// read constants and go without. In the browser, which has no such
+	// thread, Emscripten's SDL makes it a no-op.
 	SDL_mutex* p_streamLock;
 
 	// Is the stream at its end? Only whatever fills the buffers touches it -

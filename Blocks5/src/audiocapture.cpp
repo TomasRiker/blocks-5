@@ -832,9 +832,10 @@ int AudioCaptureImpl::threadProc()
 		push(buffer, k_readSamples);
 		samplesWritten += k_readSamples;
 
-		// A suspended sink (module-suspend-on-idle is loaded by default)
-		// delivers nothing and pa_simple_read waits; pad the gap by the clock
-		// so the audio track stays as long as the video.
+		// A sink that delivers nothing leaves pa_simple_read waiting - one
+		// suspended by hand or gone, since this stream itself keeps it from
+		// suspending on idle; pad the gap by the clock so the audio track
+		// stays as long as the video.
 		padToClock(static_cast<long long>(getExactTimeUS() - captureStart) * sampleRate / 1000000);
 	}
 

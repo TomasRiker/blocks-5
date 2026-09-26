@@ -69,8 +69,8 @@ AudioStream* AudioStream::open(const std::string& filename)
 
 	// The rate is the file's word, and music comes with levels and campaigns
 	// from anybody: StreamedSound sizes its buffer as a quarter second of it,
-	// which a rate near 2^32 turns into gigabytes. 192 kHz is the most any
-	// audio format in use asks for.
+	// which a rate near 2^32 turns into gigabytes. 192 kHz is the highest
+	// rate in common use; anything above is refused rather than trusted.
 	const uint rate = p_stream->getSampleRate();
 	if(rate < 1000 || rate > 192000)
 	{
