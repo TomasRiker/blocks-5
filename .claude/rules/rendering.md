@@ -312,10 +312,9 @@ the translate and the rotate — for the four weather scrollers, deviation 0.000
 
 **The reduction runs off the clock, not off a value that has been kept.** Each scroller's offset is
 `rate · clock + base`, a straight line in a counter that is an exact integer — `Level::time` and
-`GS_Menu::time` in milliseconds, `Lava::anim` in ticks, `SDL_GetTicks` in milliseconds — so
-`scrollOffset` forms that line and reduces it in one step from the integer the caller still holds. A
-wobble bounded by its own sine is added afterwards and the sum reduced again, which is exact for the same
-reason.
+`GS_Menu::time` in milliseconds, `Lava::anim` in ticks — so `scrollOffset` forms that line and reduces
+it in one step from the integer the caller still holds. A wobble bounded by its own sine is added
+afterwards and the sum reduced again, which is exact for the same reason.
 
 All of it is `float`, and the limit that puts on it is measured rather than assumed. The clouds scroll
 one texel a tick, and that step comes out **exactly 1.0000 for as long as twelve hours in one level**;
@@ -342,18 +341,20 @@ to as many bits as it takes, and land 3e-08 from the true sine at every clock va
 reach. Reducing by a `float` 2π first reduces against a constant that is itself 1.7e-07 out, and the
 error grows with the turns thrown away: measured against the exact sine of the same float, 3.9e-05 one
 minute into a level, **2.0e-03 after an hour**, 0.14 after three days. The library is better at this
-than its caller. A texture offset is the opposite case and does reduce, because its period — 512
-texels, or the CRT crawl's one second — is exactly representable, so `fmodf` divides by the right number
-and is exact; and because the wrap is what the *shader* needs, not the CPU.
+than its caller. A texture offset is the opposite case and does reduce, because its period, a texture's
+size in texels, is exactly representable, so `fmodf` divides by the right number and is exact; and
+because the wrap is what the *shader* needs, not the CPU.
 
 The counters are what runs out in the end: `Level::time` is `int` and undefined after **24.9 days** in one
 level, `GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a level
-or the menu. The three helpers serve the five scrollers, the lava's two wobbles and the CRT filter's
-scan-line crawl (`upscalers.md`); the CRT's flicker reduces the millisecond clock as an
-integer, before it becomes a float, since its fastest term is the one a float second stops resolving
-first. With those in place and the wall clock an integer, **`double` is gone from the game's own
-arithmetic** — the two left in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a
-JavaScript number is an IEEE double and nothing else will do.
+or the menu. The three helpers serve the five scrollers and the lava's two wobbles. The CRT filter runs
+on the wall clock, which nothing resets: its flicker reduces the millisecond clock as an integer, before
+it becomes a float, since its fastest term is the one a float second stops resolving first, and its
+scan-line crawl is the one value kept, moved by each present's share of the clock, because its slope
+follows a slider and slope times clock would throw the lines about whenever the slider moved. With those
+in place and the wall clock an integer, **`double` is gone from the game's own arithmetic** — the two
+left in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE
+double and nothing else will do.
 
 ## The atlas
 

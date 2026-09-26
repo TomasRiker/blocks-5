@@ -113,10 +113,10 @@ inline bool isReturnKey(int key)
 }
 
 // Animation runs on rate * clock + base, a line in an exact integer counter:
-// Level::time, GS_Menu::time and SDL_GetTicks in milliseconds, Lava::anim in
-// ticks. clockPhase and scrollOffset form it in float, which is enough:
-// measured, a scroll of one texel a tick still steps exactly 1.0 after twelve
-// hours in one level, and Level::time starts again with every level.
+// Level::time and GS_Menu::time in milliseconds, Lava::anim in ticks.
+// clockPhase and scrollOffset form it in float, which is enough: measured, a
+// scroll of one texel a tick still steps exactly 1.0 after twelve hours in
+// one level, and Level::time starts again with every level.
 
 // The argument of an animation's sine or cosine, deliberately NOT reduced to
 // a turn. sinf and cosf reduce against the exact pi and stay 3e-08 from the
@@ -129,11 +129,10 @@ inline float clockPhase(uint ticks, float perTick, float base)
 }
 
 // The same line reduced to one period, for a quantity whose period is not a
-// turn: a scrolling texture offset in texels, or the CRT filter's crawl (one
-// second). Exact for a repeating texture, since whole periods sample the same
-// texel, and needed there: a phone without highp gives the fragment shader a
-// mediump varying, ten mantissa bits, and an unreduced offset turns visibly
-// steppy within a minute.
+// turn: a scrolling texture offset in texels. Exact for a repeating texture,
+// since whole periods sample the same texel, and needed there: a phone
+// without highp gives the fragment shader a mediump varying, ten mantissa
+// bits, and an unreduced offset turns visibly steppy within a minute.
 inline float scrollOffset(uint ticks, float perTick, float base, float period)
 {
 	const float value = perTick * static_cast<float>(ticks) + base;

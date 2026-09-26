@@ -77,6 +77,9 @@ private:
 	// The frame size as it last stood in the PresentContext; getOverscan() uses
 	// it to convert source rows and columns into fractions of the picture.
 	Vec2i frameSize;
+	// The scan-line crawl in line periods, and the clock it last moved at.
+	float crawlPhase;
+	uint crawlTicks;
 
 	float scanline;
 	float curvature;

@@ -450,6 +450,8 @@ U_Crt::U_Crt()
 	// present() sets it every frame; this value serves the first logic tick,
 	// which converts the mouse before any present().
 	frameSize = Vec2i(640, 480);
+	crawlPhase = 0.0f;
+	crawlTicks = 0;
 	scanline = curvature = bloom = flicker = scanFlicker = convergence = SLIDER_DEFAULT;
 }
 
@@ -504,10 +506,16 @@ void U_Crt::present(const PresentContext& context)
 	PresentProgram::setUniform(locTime, 0.001f * static_cast<float>(SDL_GetTicks() % cycleMs));
 
 	// The scan-line crawl is a ramp whose slope follows the slider, so it
-	// cannot come from the wrapped Time without jumping at every wrap: it is
-	// reduced from the clock at its own rate.
-	PresentProgram::setUniform(locScanPhase,
-		scrollOffset(SDL_GetTicks(), 0.001f * crtCrawlSpeed * scanFlicker, 0.0f, 1.0f));
+	// cannot come from the wrapped Time without jumping at every wrap. It is
+	// kept, and moved by each present's share of the clock, rather than
+	// formed as slope times clock: that product is a float which loses the
+	// millisecond after four and a half hours of running, and one step of
+	// the slider would throw the lines by a random part of a period. The
+	// unsigned difference is right across the clock's wrap.
+	const uint now = SDL_GetTicks();
+	crawlPhase = fmodf(crawlPhase + 0.001f * crtCrawlSpeed * scanFlicker * static_cast<float>(now - crawlTicks), 1.0f);
+	crawlTicks = now;
+	PresentProgram::setUniform(locScanPhase, crawlPhase);
 
 	program.drawQuad(context);
 }
