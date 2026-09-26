@@ -88,7 +88,7 @@ INC="-I$GAME/src -I$HERE -I$GEN
      -I$GAME/libs/zlib-1.3.1/contrib/minizip"
 
 CFLAGS="$OPT -DTIXML_USE_STL -sUSE_SDL=1 $INC"
-CXXFLAGS="$CFLAGS -std=c++14 -Wno-register -include $HERE/compat.h"
+CXXFLAGS="$CFLAGS -std=c++14 -Wno-register"
 
 # The game's sources, minus the three that cannot come along:
 #   stackwalker  - the SEH crash handler, Win32 only

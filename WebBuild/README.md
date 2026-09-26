@@ -125,7 +125,6 @@ since the star is a fixed shape a fan covers exactly.
 | file | what it does |
 |---|---|
 | `build.sh` | the whole build; also stages the runtime tree, mirroring `stage.bat` |
-| `compat.h` | force-included; the MSVC CRT spellings `_stricmp` and `_strnicmp` |
 | `platform_stubs.cpp` | SDL cursors, surface locking, a real `SDL_UpperBlit`, SDL 1.2's key names, and the pixel-format fields `SDL_CreateRGBSurface` leaves unset |
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
 | `web_transfer.cpp` | the download/file-picker bridge under `Blocks5/src/transfer.cpp`: Blobs, `<input type="file">` staged by extension, `FS.syncfs` |
