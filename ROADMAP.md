@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
-37, 38, 40, 41, 46, 48 and 61. Everything else is done.
+37, 38, 40, 41, 46 and 48. Everything else is done.
 Sixty-one entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -1788,45 +1788,27 @@ outermost row and column of every sheet were faded, because they blended into th
 empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
 
 
-61. Switch the update check in the options
-------------------------------------------
-The check is off as shipped (`Blocks5/.update_checker` holds `0`), and a player
-who wants it on has no way to say so inside the game. The setting is the one
-character in the user directory's `.update_checker`, which `runTheGame` reads at
-every start - before `Engine::init`, before `config.xml` and before `data.zip` is
-mounted. Three things write it today: the first start, which copies the game
-folder's file there; the installer's `EnableUpdateChecker` task, which writes
-only the game folder's file and so reaches only a first start - ticking the box
-in a later installation changes nothing for a player who already has a user
-directory; and `update_checker_enable.bat` and `update_checker_disable.bat`,
-which the first start copies into the user directory, under Windows only. Under
-Linux the one way is to edit the file.
+61. Switch the update check in the options  - **DONE**
+------------------------------------------------------
+The check is off as shipped (`Blocks5/.update_checker` holds `0`), and the
+options dialog now switches it: a box under the two key buttons, *Check for
+updates at every start*, whose tooltip says it takes effect at the next start,
+since the check runs once, before the menu. The setting stays the one
+character in the user directory's `.update_checker`, which `runTheGame` reads
+before `Engine::init`: `Options` reads it whenever the dialog opens and writes
+it on OK where it changed, so the installer's `EnableUpdateChecker` task and
+the two `.bat` files go on working on the same file. Hidden in the browser,
+where there is no check; under Linux greyed out, with the reason in its
+tooltip, where neither `curl` nor `wget` is installed - `haveProgram`
+(`util.h`) is the one way the start, the Manager's file dialogs and the box
+ask.
 
-What the option needs:
-
-- A checkbox in `data/options.xml`, with a `$O_...` label and tooltip in
-  `languages.txt` in both languages. The window is full at 340x465: the gap
-  under the two key buttons in the right-hand column is the likeliest place,
-  or the window grows. The tooltip should say it takes effect at the next
-  start, since the check runs once, before the menu.
-- `Options` reads `.update_checker` when the dialog opens and writes it on OK,
-  not on Cancel, through `FileSystem::writeStringToFile` - the value is the
-  user directory's file and not part of `config.xml`. Keeping the file as the
-  one place leaves the installer's task and the two `.bat` files working as
-  they are; moving the value into `config.xml` would have `runTheGame` parse it
-  before the engine exists and the installer write XML, for nothing.
-- Hidden in the browser, where `getCurrentVersion()` returns nothing and a new
-  build arrives through the service worker. The dialog has no platform-specific
-  element yet, so this is the first `__EMSCRIPTEN__` in `options.cpp`.
-- Under Linux the check needs `curl` or `wget`. Without either the box would do
-  nothing; greyed out, with a tooltip saying why, is kinder than hidden.
-
-Worth deciding with it: whether the answer should reach the player inside the
-game. The check runs before the engine, so under Windows it is a `MessageBoxA`
-in front of the window and under Linux a line in the log that nobody reads - a
-Linux player who ticks the box would never hear of an update. Running it after
-`Engine::init` and answering with a toast would give every platform the same
-answer; the thread and its two-second limit could stay as they are. And whether
-the two `.bat` files still ship once the option exists: they cost nothing, and
-an old user directory has them anyway.
+Still open, and worth deciding: whether the answer should reach the player
+inside the game. The check runs before the engine, so under Windows it is a
+`MessageBoxA` in front of the window and under Linux a line in the log that
+nobody reads - a Linux player who ticks the box will not hear of an update.
+Running it after `Engine::init` and answering with a toast would give every
+platform the same answer; the thread and its two-second limit could stay as
+they are. And whether the two `.bat` files still ship now that the option
+exists: they cost nothing, and an old user directory has them anyway.
 

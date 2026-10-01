@@ -103,6 +103,9 @@ uint getExactTimeMS();
 // Opens an address in the web browser. Linux only: Windows opens the .url
 // shortcut beside the program, and the browser build opens a tab itself.
 void openURL(const std::string& url);
+// Whether a program is installed, as the shell finds it on the PATH: the
+// file dialogs' zenity and kdialog, and the update check's curl and wget.
+bool haveProgram(const char* p_name);
 #endif
 void writeProfileLine(const std::string& name, float dt, float avgTime);
 

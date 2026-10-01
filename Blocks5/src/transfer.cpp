@@ -672,11 +672,6 @@ namespace
 		return quoted + "'";
 	}
 
-	bool haveProgram(const char* p_name)
-	{
-		return ::system((std::string("command -v ") + p_name + " >/dev/null 2>&1").c_str()) == 0;
-	}
-
 	enum Dialog { DIALOG_NONE, DIALOG_ZENITY, DIALOG_KDIALOG };
 
 	// Found once, remembered: otherwise the Manager asks the shell twice on

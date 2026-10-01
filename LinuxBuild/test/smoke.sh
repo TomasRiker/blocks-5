@@ -41,6 +41,19 @@ for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey Opti
 		|| b5_ok "$name is disabled with no selection"
 done
 
+# The update check's box is there, and enabled exactly where curl or wget is,
+# which is what the check asks. Looked at and not clicked: a click and OK
+# write .update_checker, and this may be the developer's own user directory.
+b5_expectShown OptionsPane.Options.UpdateCheck
+if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
+	want=True; state=enabled; why="curl or wget is installed"
+else
+	want=False; state=disabled; why="neither curl nor wget is installed"
+fi
+[ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = "$want" ] \
+	&& b5_ok "the update check box is $state: $why" \
+	|| b5_note "the update check box is not $state, although $why"
+
 # Escape belongs to the dialog, not to the menu under it - otherwise it quits
 # the game instead of closing the dialog.
 b5_key Escape

@@ -126,6 +126,20 @@
       <Title/>
       <Font>tooltip_font.xml</Font>
     </Button>
+    <!-- The update check, beside the two reset buttons: a box with its label
+         beside it, two lines in the small font, since neither language fits
+         the column on one. Options.cpp hides both in the browser and greys
+         them under Linux where neither curl nor wget is installed. -->
+    <CheckBox name="UpdateCheck" x="190" y="367" w="14" h="14">
+      <Title></Title>
+      <ToolTip>$O_UPDATE_CHECK_TIP</ToolTip>
+    </CheckBox>
+    <StaticText name="UpdateCheckLabel" x="212" y="366" w="118" h="26" for="UpdateCheck">
+      <Text>$O_UPDATE_CHECK</Text>
+      <Font>tooltip_font.xml</Font>
+      <WordWrap />
+      <ToolTip>$O_UPDATE_CHECK_TIP</ToolTip>
+    </StaticText>
 
     <Button name="OK" x="10" y="425" w="155" h="30">
 			<Title>OK</Title>

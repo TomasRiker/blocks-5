@@ -90,9 +90,10 @@ in it no longer compiles. Everything Xlib-specific therefore stays in here.
 - **The update check** calls `curl` or `wget` instead of bringing an HTTPS
   client of its own. It is off as shipped - the game folder's
   `.update_checker`, which a first start copies into the user directory,
-  holds a `0`, and a `1` written over that copy switches it on - and, when it
-  finds something, says so only in the log: the engine is not running yet at
-  that point, and there is therefore neither a toast bar nor a dialog.
+  holds a `0` - and the box in the options dialog switches it on, greyed out
+  where neither tool is installed. When it finds something it says so only
+  in the log: the engine is not running yet at that point, and there is
+  therefore neither a toast bar nor a dialog.
 
 - **No crash handler.** The one under Windows is SEH, and that does not exist
   here.

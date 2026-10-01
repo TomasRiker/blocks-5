@@ -1,11 +1,29 @@
 #include "pch.h"
 #include "options.h"
 #include "engine.h"
+#include "filesystem.h"
 #include "gui_all.h"
 #include "u_all.h"
 
 namespace
 {
+#ifndef __EMSCRIPTEN__
+	// The update check's switch: the first character of .update_checker in
+	// the user directory. main() reads it at every start before the engine
+	// exists, which is why it is that file and not config.xml - and the
+	// installer's task and the two .bat files go on writing the same one.
+	std::string updateCheckerPath()
+	{
+		return FileSystem::inst().getAppHomeDirectory() + ".update_checker";
+	}
+
+	bool isUpdateCheckOn()
+	{
+		const std::string status = FileSystem::inst().readStringFromFile(updateCheckerPath());
+		return !status.empty() && status[0] == '1';
+	}
+#endif
+
 	// A setting of 0..1 as a slider's 0..100. Rounded, not cut: handleClick()
 	// stores a position as 0.01f times it, and 100.0f times that comes out a
 	// hair under the position for 22 of the 101, so a cut would show one less
@@ -58,6 +76,13 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	{
 		p_actions->addItem(GUI_ListBox::ListItem((*it)->name.c_str()));
 	}
+
+#ifdef __EMSCRIPTEN__
+	// No update check in the browser: a new build arrives through the
+	// service worker, and getCurrentVersion() answers nothing there.
+	getChild("Options.UpdateCheck")->hide();
+	getChild("Options.UpdateCheckLabel")->hide();
+#endif
 
 	p_focusWhenClosed = 0;
 	grabButton = "";
@@ -128,6 +153,26 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->deactivate();
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->deactivate();
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->deactivate();
+
+#ifndef __EMSCRIPTEN__
+	// The update check, read afresh at every opening: the two .bat files may
+	// have switched it since.
+	GUI_CheckBox* p_updateCheck = static_cast<GUI_CheckBox*>(getChild("Options.UpdateCheck"));
+	p_updateCheck->setChecked(isUpdateCheckOn());
+#ifndef _WIN32
+	// Under Linux the check asks curl or wget, and without either the box
+	// would do nothing: greyed out then, with the reason in its tooltip.
+	// Asked at every opening, so that a tool installed meanwhile counts.
+	GUI_StaticText* p_updateCheckLabel = static_cast<GUI_StaticText*>(getChild("Options.UpdateCheckLabel"));
+	const bool canCheck = haveProgram("curl") || haveProgram("wget");
+	if(canCheck) p_updateCheck->activate();
+	else p_updateCheck->deactivate();
+	p_updateCheckLabel->setColor(canCheck ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+	const char* const p_toolTip = canCheck ? "$O_UPDATE_CHECK_TIP" : "$O_UPDATE_CHECK_NO_TOOL";
+	p_updateCheck->setToolTip(p_toolTip);
+	p_updateCheckLabel->setToolTip(p_toolTip);
+#endif
+#endif
 
 	grabButton = "";
 	grabAction = "";
@@ -321,6 +366,12 @@ void Options::handleClick(GUI_Element* p_element)
 		{
 			getChild("CrtOptions")->hide();
 			engine.saveConfig();
+#ifndef __EMSCRIPTEN__
+			// Written only where it changes, so a file the .bat files wrote
+			// stays as they wrote it.
+			const bool updateCheck = static_cast<GUI_CheckBox*>(getChild("Options.UpdateCheck"))->isChecked();
+			if(updateCheck != isUpdateCheckOn()) FileSystem::inst().writeStringToFile(updateCheck ? "1" : "0", updateCheckerPath());
+#endif
 
 			hide();
 			if(p_focusWhenClosed) p_focusWhenClosed->focus();

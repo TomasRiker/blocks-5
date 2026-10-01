@@ -148,10 +148,10 @@ std::string getCurrentVersion()
 	// The same two-second limit as under Windows, kept by the tool itself.
 	// Both print nothing but the answer to stdout.
 	std::string command = "curl -fsS --max-time 2 -A '" + agent + "' '" + p_url + "' 2>/dev/null";
-	if(::system("command -v curl >/dev/null 2>&1") != 0)
+	if(!haveProgram("curl"))
 	{
 		command = "wget -q -T 2 -t 1 -U '" + agent + "' -O - '" + p_url + "' 2>/dev/null";
-		if(::system("command -v wget >/dev/null 2>&1") != 0) return "";
+		if(!haveProgram("wget")) return "";
 	}
 
 	FILE* p_pipe = ::popen(command.c_str(), "r");
