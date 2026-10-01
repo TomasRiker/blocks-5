@@ -282,11 +282,16 @@ private:
 	// What render() draws: nightVision, except while a change has not yet
 	// closed its cover. The cover's ticks are -1 with no change running, and
 	// lightChangeFrom is the cover a change starts closing from - nothing, or
-	// where a change still running had got to.
+	// where a change still running had got to. lightOpenTicks counts from the
+	// change of light, -1 before it, and lightCoverDrawn says that a frame has
+	// shown the whole cover over the old light, which is what the change
+	// waits for.
 	bool shownNightVision;
 	int lightChangeTicks;
 	Vec3f lightChangeColor;
 	Vec4f lightChangeFrom;
+	int lightOpenTicks;
+	bool lightCoverDrawn;
 	bool raining;
 	bool cloudy;
 	bool snowing;
