@@ -192,8 +192,14 @@ void GUI_ScrollBar::onMouseDown(const Vec2i& position,
 		}
 		else if(!dragging)
 		{
-			if(!dir) setDragBarY(position.y);
-			else setDragBarY(position.x);
+			// A click on the track puts the middle of the drag bar under the
+			// cursor, as far as setDragBarY() lets it go, and the press goes
+			// on as a drag. Stopped at an end, the bar still lies under the
+			// cursor, so the point taken hold of is simply where that is.
+			const int along = dir ? position.x : position.y;
+			setDragBarY(along - dragBarHeight / 2);
+			dragging = true;
+			dragOffset = along - dragBarY;
 		}
 	}
 }
