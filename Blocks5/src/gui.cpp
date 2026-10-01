@@ -270,7 +270,8 @@ void GUI::update()
 
 void GUI::renderFrame(const Vec2i& targetPosition,
 					  const Vec2i& size,
-					  const Vec2i& positionOnTexture)
+					  const Vec2i& positionOnTexture,
+					  const Vec4f& color)
 {
 	if(!p_skin) return;
 
@@ -377,7 +378,7 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 
 	Renderer& renderer = Renderer::inst();
 	renderer.setTexture(p_skin->ref());
-	renderer.quads(renderer.state(), &quads[0], static_cast<uint>(quads.size()), Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+	renderer.quads(renderer.state(), &quads[0], static_cast<uint>(quads.size()), color);
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)

@@ -112,9 +112,13 @@ Changelog
             more and works without administrator rights. The game brings its own
             OpenAL Soft, which should end the sound problems some machines had.
 
-          - A new installation no longer looks for new versions at startup
-            unless you tick that in the installer. update_checker_enable.bat
-            in your user directory switches it on later.
+          - The version number at the top left of the main menu is now a
+            button that asks the website for a newer version and shows the
+            answer. A new version makes it flash, and a click then opens the
+            download page. With the box in the options ticked it asks at every
+            start, in the background: nothing waits for it, and no window pops
+            up. The installer's box sets what new players start with, and a new
+            installation does not ask unless told to.
 
           - Well over a hundred fixes. Damaged or foreign levels, campaigns,
             skins and music no longer crash or freeze the game, and a missing

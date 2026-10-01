@@ -75,13 +75,11 @@ export B5_SEED="${B5_SEED:-12345}"
 rm -rf "$XDG_DATA_HOME"
 mkdir -p "$B5_PRIVATE_HOME/levels" "$B5_PRIVATE_HOME/screenshots"
 
-# Written before the first start rather than left to it, because each of them
-# is a way the picture or the run could depend on something outside the game.
-# .update_checker asks the website for the current version, which is a network
-# round trip in front of the window - and on a machine without the network it
-# is a stall of unknown length. .initialized skips the version-migration
-# branch, which has nothing to do on a fresh directory but does list it.
-printf 0 > "$B5_PRIVATE_HOME/.update_checker"
+# Written before the first start rather than left to it: .initialized skips
+# the version-migration branch, which has nothing to do on a fresh directory
+# but does list it. The update check needs nothing - it is off where
+# config.xml does not say otherwise, so the menu's button reads "Check for
+# updates" in every run and no answer from the network reaches a picture.
 printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 
 # The oracle levels. Written here rather than committed, because their whole

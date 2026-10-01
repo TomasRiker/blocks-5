@@ -3,11 +3,25 @@
 #include "engine.h"
 #include "texture.h"
 
+namespace
+{
+	// The flashing button, for the author to tune: how long one pulse takes in
+	// logic ticks (50 to the second), and the colour the frame takes on at its
+	// height. The skin's frame is nearly white, so the colour is what it
+	// turns; alpha is how far, 0 leaving the frame as it is and 1 all the way.
+	// A longer period is calmer, a lower alpha fainter.
+	const uint FLASH_PERIOD_TICKS = 50;
+	const Vec4f FLASH_COLOR(1.0f, 0.7f, 0.15f, 0.85f);
+	const float TWO_PI = 6.28318531f;
+}
+
 IMPL_CTOR(GUI_Button)
 {
 	title = "Button";
 	pushed = false;
 	mouseOver = false;
+	flashing = false;
+	flashTicks = 0;
 
 	style = 0;
 	imageInset = 0;
@@ -47,8 +61,22 @@ void GUI_Button::onRender()
 		if(style == 0)
 		{
 			// draw the button
-			gui.renderFrame(Vec2i(0, 0), size, pushed && mouseOver ? Vec2i(48, 96) : Vec2i(0, 96));
+			const Vec2i frame = pushed && mouseOver ? Vec2i(48, 96) : Vec2i(0, 96);
+			gui.renderFrame(Vec2i(0, 0), size, frame);
 			offset = -1;
+
+			if(flashing)
+			{
+				// The same frame once more on top, tinted, its opacity a pulse
+				// that swells from nothing to FLASH_COLOR's alpha and back.
+				// Tinted and blended rather than added, since adding to a frame
+				// this light only reaches white.
+				const float phase = static_cast<float>(flashTicks % FLASH_PERIOD_TICKS) /
+									static_cast<float>(FLASH_PERIOD_TICKS);
+				const float pulse = 0.5f - 0.5f * cosf(TWO_PI * phase);
+				gui.renderFrame(Vec2i(0, 0), size, frame,
+								Vec4f(FLASH_COLOR.x, FLASH_COLOR.y, FLASH_COLOR.z, FLASH_COLOR.w * pulse));
+			}
 		}
 		else
 		{
@@ -84,13 +112,13 @@ void GUI_Button::onRender()
 	}
 
 	// write the title
+	const std::string title = localizeString(this->title);
 	Vec2i dim;
-	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
 
 	if(style == 0)
 	{
-		p_font->renderText(title, (size - dim) / 2 + Vec2i(0, offset), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+		renderTitle(title, (size.y - dim.y) / 2 + offset, active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 
 		if(p_image)
 		{
@@ -102,12 +130,50 @@ void GUI_Button::onRender()
 	{
 		// Two pixels below the image, which ends imageInset above the
 		// element's bottom edge.
-		p_font->renderText(title, Vec2i((size.x - dim.x) / 2, size.y - imageInset + 2), active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+		renderTitle(title, size.y - imageInset + 2, active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 	}
+}
+
+void GUI_Button::renderTitle(const std::string& localized,
+							 int top,
+							 const Vec4f& color)
+{
+	// The step from one line to the next that Font::buildText() takes.
+	const int lineStep = static_cast<int>(p_font->getOptions().lineSpacing * static_cast<float>(p_font->getLineHeight()));
+
+	size_t begin = 0;
+	for(int line = 0; ; line++)
+	{
+		const size_t end = localized.find_first_of("\n\xB6", begin);
+		const std::string text(localized, begin, end == std::string::npos ? std::string::npos : end - begin);
+
+		Vec2i dim;
+		p_font->measureText(text, &dim, 0);
+		p_font->renderText(text, Vec2i((size.x - dim.x) / 2, top + line * lineStep), color);
+
+		if(end == std::string::npos) break;
+		begin = end + 1;
+	}
+}
+
+Vec2i GUI_Button::measureTitle()
+{
+	Vec2i dim;
+	p_font->measureText(localizeString(title), &dim, 0);
+	return dim;
+}
+
+void GUI_Button::setFlashing(bool flashing)
+{
+	this->flashing = flashing;
 }
 
 void GUI_Button::onUpdate()
 {
+	// Counted here rather than read off a clock, so that the pulse starts from
+	// nothing whenever the flashing does.
+	flashTicks = flashing ? flashTicks + 1 : 0;
+
 	currentColor = 0.85f * currentColor + 0.15f * (mouseOver ? hoverColor : stdColor);
 	currentScaling = 0.85f * currentScaling + 0.15f * (mouseOver ? hoverScaling : stdScaling);
 

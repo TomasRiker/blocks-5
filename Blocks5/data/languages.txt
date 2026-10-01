@@ -154,6 +154,38 @@ $MM_DONATE_NO_THANKS
 §en:No, thanks
 §de:Nein, danke
 
+$MM_UPDATE_CHECK
+// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 62 pixels a line in the tooltip font, the width of "Wiederholen", which the button is made to fit. One line or two each; one goes on the button's third line, below an empty second
+§en:Check for¶Update
+§de:Auf Update¶prüfen
+
+$MM_UPDATE_CHECKING
+§en:Checking ...
+§de:Prüfe ...
+
+$MM_UPDATE_UP_TO_DATE
+§en:Up to date
+§de:Aktuell
+
+$MM_UPDATE_AVAILABLE
+// The button then flashes, and a click opens the download page
+§en:Update¶available!
+§de:Update¶verfügbar!
+
+$MM_UPDATE_FAILED
+// No answer from the website, or not one that makes sense; a click asks again
+§en:Error¶Retry
+§de:Fehler¶Wiederholen
+
+$MM_UPDATE_NEW_VERSION
+// The tooltip with an update out: this, the new version's number, and the next line
+§en:New version:
+§de:Neue Version:
+
+$MM_UPDATE_OPEN_PAGE
+§en:A click opens the download page.
+§de:Ein Klick öffnet die Download-Seite.
+
 // *******
 // OPTIONS
 // *******
@@ -313,6 +345,24 @@ $O_SECONDARY_KEY
 // Secondary key
 §en:Secondary:
 §de:Sekundär:
+
+$O_UPDATE_CHECK
+// Options: the box that has the game ask the Blocks 5 website at every
+// start whether there is a newer version. Wraps to two lines in a narrow
+// column.
+§en:Check for updates at every start
+§de:Bei jedem Start nach Updates suchen
+
+$O_UPDATE_CHECK_TIP
+// Tooltip of the update check box: the check runs once, before the menu.
+§en:Takes effect at the next start.
+§de:Wirkt ab dem nächsten Start.
+
+$O_UPDATE_CHECK_NO_TOOL
+// Tooltip of the update check box under Linux, greyed out because neither
+// curl nor wget is installed to ask the website with.
+§en:Needs curl or wget, and neither is installed.
+§de:Braucht curl oder wget, und keins von beiden ist installiert.
 
 $O_NOT_ASSIGNED
 // not assigned
@@ -2334,7 +2384,7 @@ $MM_CRT_TRY
 $MM_MANAGE
 // Main menu: button that opens the file manager (import, export, delete)
 §en:Manage files
-§de: Dateien¶verwalten
+§de:Dateien¶verwalten
 
 $TR_MANAGER_TITLE
 §en:Manage files

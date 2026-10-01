@@ -122,6 +122,7 @@ Engine::Engine()
 #endif
 	savedWindowStyle = 0;
 	muted = false;
+	checkForUpdates = false;
 	timePlayed = 0;
 	doScreenshot = false;
 }
@@ -4086,10 +4087,23 @@ void Engine::loadConfig()
 	// reloads this to take back what the dialog changed. The volumes through
 	// their setters, so that a sound already playing hears of them. With no
 	// <Language> the system decides.
+	//
+	// The update check's default is the installation's: the installer writes
+	// its box, ticked or not, beside the game as .update_checker, '1' for on,
+	// and so did every version before 1.2.0. It is what a player starts with,
+	// from their first start until config.xml says otherwise, which it does
+	// from their first exit on. With none - unpacked by hand, under Linux, in
+	// the browser - off.
 	language = detectSystemLanguage();
 	setSoundVolume(1.0f);
 	setMusicVolume(1.0f);
 	setDetails(2);
+	{
+		FileSystem& fs = FileSystem::inst();
+		const std::string defaultPath(fs.getGameDirectory() + ".update_checker");
+		const std::string choice(fs.fileExists(defaultPath) ? fs.readStringFromFile(defaultPath) : "");
+		checkForUpdates = !choice.empty() && choice[0] == '1';
+	}
 	p_wantedUpscaler = p_sharpFit;
 	resetActions();
 
@@ -4197,6 +4211,14 @@ void Engine::loadConfig()
 			if(p_text) setDetails(atoi(p_text));
 		}
 
+		// Read the update check. Anything but 1 is off.
+		TiXmlElement* p_checkForUpdates = p_config->FirstChildElement("CheckForUpdates");
+		if(p_checkForUpdates)
+		{
+			const char* p_text = p_checkForUpdates->GetText();
+			checkForUpdates = p_text && atoi(p_text) == 1;
+		}
+
 		// read the controls
 		TiXmlElement* p_controls = p_config->FirstChildElement("Controls");
 		if(p_controls)
@@ -4243,7 +4265,7 @@ void Engine::loadConfig()
 	}
 }
 
-void Engine::saveConfig()
+bool Engine::saveConfig()
 {
 	TiXmlDocument doc;
 
@@ -4303,6 +4325,12 @@ void Engine::saveConfig()
 	p_details->LinkEndChild(new TiXmlText(temp));
 	p_config->LinkEndChild(p_details);
 
+	// Write the update check. Also in the browser, which never checks: the
+	// file stays the same on every platform.
+	TiXmlElement* p_checkForUpdates = new TiXmlElement("CheckForUpdates");
+	p_checkForUpdates->LinkEndChild(new TiXmlText(checkForUpdates ? "1" : "0"));
+	p_config->LinkEndChild(p_checkForUpdates);
+
 	// write the controls
 	TiXmlElement* p_controls = new TiXmlElement("Controls");
 	for(size_t i = 0; i < actionsVector.size(); i++)
@@ -4317,7 +4345,7 @@ void Engine::saveConfig()
 
 	doc.LinkEndChild(p_config);
 
-	doc.SaveFile(FileSystem::inst().getAppHomeDirectory() + "config.xml");
+	return doc.SaveFile(FileSystem::inst().getAppHomeDirectory() + "config.xml");
 }
 
 const std::string& Engine::getLanguage() const
@@ -4389,6 +4417,16 @@ bool Engine::isAppActive() const
 int Engine::getDetails() const
 {
 	return details;
+}
+
+bool Engine::getCheckForUpdates() const
+{
+	return checkForUpdates;
+}
+
+void Engine::setCheckForUpdates(bool checkForUpdates)
+{
+	this->checkForUpdates = checkForUpdates;
 }
 
 void Engine::setDetails(int details)

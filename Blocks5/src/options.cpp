@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "gui_all.h"
 #include "u_all.h"
+#include "updatecheck.h"
 
 namespace
 {
@@ -58,6 +59,13 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	{
 		p_actions->addItem(GUI_ListBox::ListItem((*it)->name.c_str()));
 	}
+
+#ifdef __EMSCRIPTEN__
+	// No update check in the browser: a new build arrives through the
+	// service worker, and updatecheck.h is empty there.
+	getChild("Options.UpdateCheck")->hide();
+	getChild("Options.UpdateCheckLabel")->hide();
+#endif
 
 	p_focusWhenClosed = 0;
 	grabButton = "";
@@ -128,6 +136,24 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->deactivate();
 	static_cast<GUI_Button*>(getChild("Options.PrimaryKey"))->deactivate();
 	static_cast<GUI_Button*>(getChild("Options.SecondaryKey"))->deactivate();
+
+#ifndef __EMSCRIPTEN__
+	GUI_CheckBox* p_updateCheck = static_cast<GUI_CheckBox*>(getChild("Options.UpdateCheck"));
+	p_updateCheck->setChecked(engine.getCheckForUpdates());
+#ifndef _WIN32
+	// Under Linux the check asks curl or wget, and without either the box
+	// would do nothing: greyed out then, with the reason in its tooltip.
+	// Asked at every opening, so that a tool installed meanwhile counts.
+	GUI_StaticText* p_updateCheckLabel = static_cast<GUI_StaticText*>(getChild("Options.UpdateCheckLabel"));
+	const bool canCheck = UpdateCheck::isPossible();
+	if(canCheck) p_updateCheck->activate();
+	else p_updateCheck->deactivate();
+	p_updateCheckLabel->setColor(canCheck ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+	const char* const p_toolTip = canCheck ? "$O_UPDATE_CHECK_TIP" : "$O_UPDATE_CHECK_NO_TOOL";
+	p_updateCheck->setToolTip(p_toolTip);
+	p_updateCheckLabel->setToolTip(p_toolTip);
+#endif
+#endif
 
 	grabButton = "";
 	grabAction = "";
@@ -320,6 +346,12 @@ void Options::handleClick(GUI_Element* p_element)
 		else if(name == "OK")
 		{
 			getChild("CrtOptions")->hide();
+#ifndef __EMSCRIPTEN__
+			// Read on OK alone, unlike the settings above: nothing shows it
+			// before the next start, and the box reports no click, so a Cancel
+			// after ticking it alone would find nothing to take back.
+			engine.setCheckForUpdates(static_cast<GUI_CheckBox*>(getChild("Options.UpdateCheck"))->isChecked());
+#endif
 			engine.saveConfig();
 
 			hide();

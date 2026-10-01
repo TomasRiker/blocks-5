@@ -520,6 +520,11 @@ void openURL(const std::string& url)
 	const std::string command = "xdg-open '" + url + "' >/dev/null 2>&1 &";
 	if(::system(command.c_str()) != 0) printfLog("Could not open %s\n", url.c_str());
 }
+
+bool haveProgram(const char* p_name)
+{
+	return ::system((std::string("command -v ") + p_name + " >/dev/null 2>&1").c_str()) == 0;
+}
 #endif
 
 void writeProfileLine(const std::string& name,

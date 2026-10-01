@@ -732,6 +732,7 @@
     <ClCompile Include="src\u_sharp.cpp" />
     <ClCompile Include="src\u_sharpfit.cpp" />
     <ClCompile Include="src\u_smooth.cpp" />
+    <ClCompile Include="src\updatecheck.cpp" />
     <ClCompile Include="src\upscaler.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\videorecorder.cpp" />
@@ -875,6 +876,7 @@
     <ClInclude Include="src\u_sharp.h" />
     <ClInclude Include="src\u_sharpfit.h" />
     <ClInclude Include="src\u_smooth.h" />
+    <ClInclude Include="src\updatecheck.h" />
     <ClInclude Include="src\upscaler.h" />
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\vec.h" />

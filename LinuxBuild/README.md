@@ -87,12 +87,12 @@ in it no longer compiles. Everything Xlib-specific therefore stays in here.
   how `transfer.h` declares it - and therefore stops the game like the modal
   dialog under Windows.
 
-- **The update check** calls `curl` or `wget` instead of bringing an HTTPS
-  client of its own. It is off as shipped - the game folder's
-  `.update_checker`, which a first start copies into the user directory,
-  holds a `0`, and a `1` written over that copy switches it on - and, when it
-  finds something, says so only in the log: the engine is not running yet at
-  that point, and there is therefore neither a toast bar nor a dialog.
+- **The update check** runs `curl` or `wget` instead of bringing an HTTPS
+  client of its own, as a process of its own that the menu asks once a tick,
+  so nothing waits for it. It is off unless the box in the options dialog
+  says otherwise (`<CheckForUpdates>` in `config.xml`), and the version button
+  at the top left of the menu asks on a click either way. Both are greyed out
+  where neither tool is installed, with the reason in the tooltip.
 
 - **No crash handler.** The one under Windows is SEH, and that does not exist
   here.

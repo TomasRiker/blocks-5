@@ -364,7 +364,8 @@ public:
 	int getCrossfadeProgressMs() const;
 
 	void loadConfig();
-	void saveConfig();
+	// Whether config.xml could be written.
+	bool saveConfig();
 	const std::string& getLanguage() const;
 	void setLanguage(const std::string& language);
 	// What the system speaks, boiled down to "de" or "en". Used only where
@@ -381,6 +382,11 @@ public:
 	bool isAppActive() const;
 	int getDetails() const;
 	void setDetails(int details);
+	// Whether the game asks the website for a newer version at every start.
+	// Where config.xml does not say, the installation's default decides
+	// (loadConfig); main.cpp takes in an older version's own switch.
+	bool getCheckForUpdates() const;
+	void setCheckForUpdates(bool checkForUpdates);
 	float getParticleDensity() const;
 	void setParticleDensity(float particleDensity);
 
@@ -621,6 +627,7 @@ private:
 
 	bool muted;
 	int details;
+	bool checkForUpdates;
 	float particleDensity;
 	Texture* p_muteIconTexture;
 	Vec2i muteIconPositionOnTexture;

@@ -19,7 +19,6 @@ export XDG_DATA_HOME="${B5_UNDO_XDG:-/tmp/blocks5-undo-xdg}"
 B5_PRIVATE_HOME="$XDG_DATA_HOME/blocks5"
 rm -rf "$XDG_DATA_HOME"
 mkdir -p "$B5_PRIVATE_HOME/levels"
-printf 0 > "$B5_PRIVATE_HOME/.update_checker"
 printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 
 source "$B5_HERE/harness.sh"

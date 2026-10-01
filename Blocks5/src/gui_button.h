@@ -29,6 +29,16 @@ public:
 	INLINE_GETTER(std::string, getTitle, title);
 	INLINE_SETTER(std::string, setTitle, title);
 
+	// How big onRender() draws the title, every line of it. The test hook
+	// reports it, so that a caption grown out of its button fails a test
+	// rather than a look.
+	Vec2i measureTitle();
+
+	// A pulse over the frame for as long as it is on, for what the player
+	// must not miss: the menu's update button with a new version out.
+	void setFlashing(bool flashing);
+	bool isFlashing() const { return flashing; }
+
 	INLINE_GETTER(std::string, getImageFilename, imageFilename);
 	void setImageFilename(const std::string& imageFilename);
 	// The name as it stands in the XML. If it is a $ID it can point to a
@@ -43,9 +53,18 @@ public:
 	INLINE_CONNECTOR(connectClicked, clicked);
 
 private:
+	// Every line centred on its own, the block's top at top. Centring the
+	// block alone would leave the lines flush left inside it, so a two-line
+	// caption whose second line changes would move its first one with it.
+	void renderTitle(const std::string& localized, int top, const Vec4f& color);
+
 	std::string title;
 	bool pushed;
 	bool mouseOver;
+
+	bool flashing;
+	// Ticks since the flashing began; the pulse is a function of this alone.
+	uint flashTicks;
 
 	int style;
 
