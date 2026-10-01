@@ -107,6 +107,14 @@
   root.setAttribute('style', 'position:fixed;left:0;top:0;right:0;bottom:0;' +
                              'pointer-events:none;z-index:10;display:none');
 
+  // A finger held on a control is a long press, which the browser answers
+  // with its context menu - and on Android with a short vibration. The
+  // preventDefault() on pointerdown does not stop it: that cancels only the
+  // emulated mouse events. The canvas refuses the menu in shell.html, but the
+  // pad lies beside the canvas rather than in it, so it refuses it here, for
+  // every control at once, since the event bubbles up to the root.
+  root.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
   var CSS =
     'div#b5pad .b5btn{position:absolute;pointer-events:auto;touch-action:none;' +
     '-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;' +
