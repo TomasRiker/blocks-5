@@ -13,7 +13,7 @@
 # to everything but curl, wget or both, and stand-ins for a curl that hangs and
 # for an xdg-open that only writes down what it was asked to open.
 #
-# Eleven starts of the game, so a few minutes under llvmpipe.
+# Twelve starts of the game, so a few minutes under llvmpipe.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -441,7 +441,7 @@ quit
 
 # --- 5. no curl, no wget -----------------------------------------------------
 # Nothing to ask with: the version alone in the corner, the label of before
-# 1.2.0, and the options' box greyed out. Nothing says what is missing.
+# 1.2.0, and no box in the options. Nothing says what is missing.
 export PATH="$WORK/notools"
 : > "$WORK/requests"
 freshHome 1.2.0
@@ -461,15 +461,26 @@ b5_dump
 	|| b5_note "a click on the hidden button started a check (state $(b5_json "d['updateCheck']"))"
 b5_click Menu.Options
 b5_dump
-[ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = False ] \
-	&& b5_ok "the options' box is disabled" || b5_note "the options' box is enabled without curl and wget"
-[ "$(b5_json "[e['path'] for e in d['elements'] if e.get('toolTip') and e['path'].startswith('OptionsPane.Options.UpdateCheck')]")" = "[]" ] \
-	&& b5_ok "and has no tooltip, there being nothing it would take effect on" \
-	|| b5_note "the greyed box has a tooltip: $(b5_json "repr(el('OptionsPane.Options.UpdateCheck').get('toolTip'))")"
+[ "$(b5_json "not el('OptionsPane.Options.UpdateCheck')['shown'] and not el('OptionsPane.Options.UpdateCheckLabel')['shown']")" = True ] \
+	&& b5_ok "the options' box and its label are hidden" \
+	|| b5_note "the options' box is shown: $(b5_json "el('OptionsPane.Options.UpdateCheck')['shown']"), its label: $(b5_json "el('OptionsPane.Options.UpdateCheckLabel')['shown']")"
 [ "$(b5_json "[e['path'] for e in d['elements'] if 'curl' in e.get('toolTip', '') or 'wget' in e.get('toolTip', '')]")" = "[]" ] \
 	&& b5_ok "no tooltip names curl or wget" \
 	|| b5_note "tooltips name curl or wget: $(b5_json "[e['path'] for e in d['elements'] if 'curl' in e.get('toolTip', '') or 'wget' in e.get('toolTip', '')]")"
 b5_key Escape
+quit
+
+# A player who switched the check on keeps it, though nothing here can ask:
+# the box is hidden and not cleared, so OK writes what config.xml said. The
+# check at the start fails at once, with nothing to show it.
+freshHome 1.2.0
+writeConfig '<CheckForUpdates>1</CheckForUpdates>'
+start no-tools-on
+waitUpdate "$FAILED" "failed" 5
+b5_click Menu.Options
+b5_click OptionsPane.Options.OK
+[ "$(config)" = 1 ] && b5_ok "OK keeps the player's on, the box hidden" \
+	|| b5_note "config.xml says $(config) after OK with the box hidden"
 quit
 
 # --- 6. a curl that never answers -------------------------------------------

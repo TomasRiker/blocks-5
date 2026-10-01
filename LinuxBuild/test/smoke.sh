@@ -70,19 +70,21 @@ for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey Opti
 		|| b5_ok "$name is disabled with no selection"
 done
 
-# The update check's box is there, and enabled exactly where curl or wget is,
-# which is what the check asks. Looked at and not clicked: a click and OK
+# The update check's box and its label are there exactly where curl or wget
+# is, which is what the check asks. Looked at and not clicked: a click and OK
 # write config.xml, and this may be the developer's own user directory.
 # update.sh clicks it, in a home of its own.
-b5_expectShown OptionsPane.Options.UpdateCheck
+box="el('OptionsPane.Options.UpdateCheck')"; label="el('OptionsPane.Options.UpdateCheckLabel')"
 if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
-	want=True; state=enabled; why="curl or wget is installed"
+	expect="$box['shown'] and $box['active'] and $label['shown']"
+	state="shown and enabled"; why="curl or wget is installed"
 else
-	want=False; state=disabled; why="neither curl nor wget is installed"
+	expect="not $box['shown'] and not $label['shown']"
+	state=hidden; why="neither curl nor wget is installed"
 fi
-[ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = "$want" ] \
-	&& b5_ok "the update check box is $state: $why" \
-	|| b5_note "the update check box is not $state, although $why"
+[ "$(b5_json "$expect")" = True ] \
+	&& b5_ok "the update check box and its label are $state: $why" \
+	|| b5_note "the update check box and its label are not $state, although $why"
 
 # Escape belongs to the dialog, not to the menu under it - otherwise it quits
 # the game instead of closing the dialog.

@@ -1802,8 +1802,8 @@ not; with a new version out the button flashes and a click opens the download
 page instead. It is disabled while it asks. Where nothing can ask - in the
 browser, and under Linux with neither tool installed - the plain label of
 before stands in its place, the version and nothing else: `menu.xml` holds
-both and `GS_Menu::onEnter` hides one. The options' box is greyed out there,
-without a tooltip, and nothing names the missing tools.
+both and `GS_Menu::onEnter` hides one. The options' box is hidden there too,
+and nothing names the missing tools.
 
 `.update_checker` beside the game keeps the meaning it had before 1.2.0: the
 installation's default, which the installer writes from its box - *Enable
