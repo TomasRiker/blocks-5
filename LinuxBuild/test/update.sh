@@ -1,7 +1,8 @@
 #!/bin/bash
 # update.sh - the update check: the menu's version button in every state and
-# both languages, the switch in config.xml, and how a .update_checker left by
-# the installer or by a version before 1.2.0 is taken in.
+# both languages, the plain label in its place where nothing can ask, the
+# switch in config.xml, and how a .update_checker left by the installer or by
+# a version before 1.2.0 is taken in.
 #
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/update.sh
 #
@@ -197,18 +198,18 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is
 {
 	local got
-	got=$(b5_json "el('Menu.Version')['title'] == 'v1.2.0\u00b6' + $1")
+	got=$(b5_json "el('Menu.VersionButton')['title'] == 'v1.2.0\u00b6' + $1")
 	[ "$got" = "True" ] && b5_ok "$4: the caption says $1" \
-		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.Version')['title'])"), not $1"
-	[ "$(b5_json "len(el('Menu.Version')['title'].split('\u00b6')) == 3")" = True ] \
+		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.VersionButton')['title'])"), not $1"
+	[ "$(b5_json "len(el('Menu.VersionButton')['title'].split('\u00b6')) == 3")" = True ] \
 		&& b5_ok "$4: three lines, the version on the first" || b5_note "$4: not three lines"
-	[ "$(b5_json "el('Menu.Version')['active']")" = "$2" ] \
+	[ "$(b5_json "el('Menu.VersionButton')['active']")" = "$2" ] \
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
-	[ "$(b5_json "el('Menu.Version')['flashing']")" = "$3" ] \
+	[ "$(b5_json "el('Menu.VersionButton')['flashing']")" = "$3" ] \
 		&& b5_ok "$4: flashing is $3" || b5_note "$4: flashing is not $3"
-	got=$(b5_json "(lambda w, h, W, H: (w - W) // 2 >= 2 and (w - W) // 2 + W <= w - 4 and (h - H) // 2 - 1 >= 2 and (h - H) // 2 + H <= h - 3)(el('Menu.Version')['rect'][2], el('Menu.Version')['rect'][3], el('Menu.Version')['titleSize'][0], el('Menu.Version')['titleSize'][1])")
-	[ "$got" = "True" ] && b5_ok "$4: the caption fits ($(b5_json "el('Menu.Version')['titleSize']") in $(b5_json "el('Menu.Version')['rect'][2:]"))" \
-		|| b5_note "$4: the caption, $(b5_json "el('Menu.Version')['titleSize']"), does not fit $(b5_json "el('Menu.Version')['rect'][2:]")"
+	got=$(b5_json "(lambda w, h, W, H: (w - W) // 2 >= 2 and (w - W) // 2 + W <= w - 4 and (h - H) // 2 - 1 >= 2 and (h - H) // 2 + H <= h - 3)(el('Menu.VersionButton')['rect'][2], el('Menu.VersionButton')['rect'][3], el('Menu.VersionButton')['titleSize'][0], el('Menu.VersionButton')['titleSize'][1])")
+	[ "$got" = "True" ] && b5_ok "$4: the caption fits ($(b5_json "el('Menu.VersionButton')['titleSize']") in $(b5_json "el('Menu.VersionButton')['rect'][2:]"))" \
+		|| b5_note "$4: the caption, $(b5_json "el('Menu.VersionButton')['titleSize']"), does not fit $(b5_json "el('Menu.VersionButton')['rect'][2:]")"
 }
 
 # The button's pixels in a screenshot, as raw RGB beside it.
@@ -216,7 +217,7 @@ buttonShot()   # $1 shot name
 {
 	b5_shot "$1"
 	local crop
-	crop=$(b5_json "'%d:%d:%d:%d' % (el('Menu.Version')['win'][2], el('Menu.Version')['win'][3], el('Menu.Version')['win'][0] + $B5_CX, el('Menu.Version')['win'][1] + $B5_CY)")
+	crop=$(b5_json "'%d:%d:%d:%d' % (el('Menu.VersionButton')['win'][2], el('Menu.VersionButton')['win'][3], el('Menu.VersionButton')['win'][0] + $B5_CX, el('Menu.VersionButton')['win'][1] + $B5_CY)")
 	ffmpeg -loglevel error -y -i "$B5_OUT/$1.png" -vf "crop=$crop" -f rawvideo -pix_fmt rgb24 "$B5_OUT/$1.rgb"
 }
 
@@ -234,11 +235,12 @@ PY
 }
 
 # A click on the version button by coordinate rather than by name, for the
-# one case b5_click refuses: the button while it is disabled.
+# two cases b5_click refuses: the button while it is disabled, and where it is
+# hidden.
 clickVersionAnyway()
 {
-	b5_clickAt "$(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] // 2")" \
-	           "$(b5_json "el('Menu.Version')['rect'][1] + el('Menu.Version')['rect'][3] // 2")"
+	b5_clickAt "$(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] // 2")" \
+	           "$(b5_json "el('Menu.VersionButton')['rect'][1] + el('Menu.VersionButton')['rect'][3] // 2")"
 }
 
 # Every state there is to see, in the language the home is set to: before any
@@ -256,7 +258,7 @@ allStates()   # $1 the language's lines as Python literals: check, checking, up 
 	expectButton "$check" True False "before any question"
 
 	serve '1.2.0\n' 'sleep 4'
-	b5_click Menu.Version
+	b5_click Menu.VersionButton
 	b5_dump
 	expectButton "$checking" False False "while asking"
 	before=$(requests)
@@ -267,22 +269,22 @@ allStates()   # $1 the language's lines as Python literals: check, checking, up 
 	expectButton "$upToDate" True False "the same version"
 
 	serve '<html>no</html>'
-	b5_click Menu.Version
+	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
 	expectButton "$failed" True False "garbage"
 
 	serve '1.3.0.1.2.3.4.5.6.7.8.9\n'
-	b5_click Menu.Version
+	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
 	expectButton "$failed" True False "an answer too long"
 
 	serve '' 404
-	b5_click Menu.Version
+	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
 	expectButton "$failed" True False "an HTTP error"
 
 	serve '1.3.0\r\n'
-	b5_click Menu.Version
+	b5_click Menu.VersionButton
 	waitUpdate "$AVAILABLE" "available"
 	expectButton "$available" True True "a newer version"
 }
@@ -294,11 +296,16 @@ start english
 grep -q "Not checking for updates" "$B5_OUT/run.log" && b5_ok "the log says the check is off" \
 	|| b5_note "the log does not say the check is off"
 
-# The button stays clear of the logo, which begins at x 86 in menu.png.
+# The button where the check can ask, and not the label that stands in for it
+# where nothing can. It stays clear of the logo, which begins at x 86 in
+# menu.png.
 b5_dump
-[ "$(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] <= 83")" = True ] \
-	&& b5_ok "the button ends at $(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] - 1"), clear of the logo" \
-	|| b5_note "the button reaches $(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] - 1"), into the logo at 86"
+[ "$(b5_json "el('Menu.VersionButton')['shown'] and not el('Menu.Version')['shown']")" = True ] \
+	&& b5_ok "the button is shown and the label is not" \
+	|| b5_note "the button is shown: $(b5_json "el('Menu.VersionButton')['shown']"), the label: $(b5_json "el('Menu.Version')['shown']")"
+[ "$(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] <= 83")" = True ] \
+	&& b5_ok "the button ends at $(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] - 1"), clear of the logo" \
+	|| b5_note "the button reaches $(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] - 1"), into the logo at 86"
 
 # The flashing as drawn, measured below against this: the same button, not
 # flashing, the same in every shot - the frame hides the clouds moving behind.
@@ -312,9 +319,9 @@ allStates "'Check for\u00b6Update'" "'\u00b6Checking ...'" "'\u00b6Up to date'" 
 
 # The new version is in the tooltip, and the agent string names this one.
 b5_dump
-[ "$(b5_json "el('Menu.Version')['toolTip'] == 'New version: 1.3.0\u00b6A click opens the download page.'")" = True ] \
+[ "$(b5_json "el('Menu.VersionButton')['toolTip'] == 'New version: 1.3.0\u00b6A click opens the download page.'")" = True ] \
 	&& b5_ok "the tooltip names the new version" \
-	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.Version').get('toolTip'))")"
+	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.VersionButton').get('toolTip'))")"
 grep -q "Scherfgen-Software Blocks 5 (1.2.0)" "$WORK/requests" && b5_ok "the agent string names the version" \
 	|| b5_note "the agent string is wrong: $(tail -1 "$WORK/requests")"
 
@@ -329,7 +336,7 @@ changed=$(mostChanged flash1 flash2 flash3 flash4 flash5)
 
 # With an update out, a click opens the download page and asks nothing.
 before=$(requests)
-b5_click Menu.Version
+b5_click Menu.VersionButton
 sleep 1
 [ "$(cat "$WORK/opened" 2>/dev/null)" = "https://www.david-scherfgen.de/meine-spiele/blocks-5/" ] \
 	&& b5_ok "a click opens the download page" \
@@ -433,20 +440,35 @@ grep -q "config.xml could not be written" "$B5_OUT/run.log" && b5_ok "and the lo
 quit
 
 # --- 5. no curl, no wget -----------------------------------------------------
-# The button cannot ask and says why.
+# Nothing to ask with: the version alone in the corner, the label of before
+# 1.2.0, and the options' box greyed out. Nothing says what is missing.
 export PATH="$WORK/notools"
 : > "$WORK/requests"
 freshHome 1.2.0
 start no-tools
-expectButton "'Check for\u00b6Update'" False False "without curl and wget"
 b5_dump
-[ "$(b5_json "el('Menu.Version').get('toolTip')")" = "Needs curl or wget, and neither is installed." ] \
-	&& b5_ok "the tooltip says what is missing" \
-	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.Version').get('toolTip'))")"
+[ "$(b5_json "el('Menu.Version')['shown'] and not el('Menu.VersionButton')['shown']")" = True ] \
+	&& b5_ok "the label stands in the button's place" \
+	|| b5_note "the label is shown: $(b5_json "el('Menu.Version')['shown']"), the button: $(b5_json "el('Menu.VersionButton')['shown']")"
+[ "$(b5_json "el('Menu.Version')['text'][0] > 0")" = True ] \
+	&& b5_ok "the label holds the version" || b5_note "the label is empty"
+# Where the hidden button lies, a click starts nothing. Even a check that could
+# not run would show, as an immediate failure.
+clickVersionAnyway
+sleep 1
+b5_dump
+[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && b5_ok "a click where the button would be starts nothing" \
+	|| b5_note "a click on the hidden button started a check (state $(b5_json "d['updateCheck']"))"
 b5_click Menu.Options
 b5_dump
 [ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = False ] \
-	&& b5_ok "the options' box is disabled too" || b5_note "the options' box is enabled without curl and wget"
+	&& b5_ok "the options' box is disabled" || b5_note "the options' box is enabled without curl and wget"
+[ "$(b5_json "[e['path'] for e in d['elements'] if e.get('toolTip') and e['path'].startswith('OptionsPane.Options.UpdateCheck')]")" = "[]" ] \
+	&& b5_ok "and has no tooltip, there being nothing it would take effect on" \
+	|| b5_note "the greyed box has a tooltip: $(b5_json "repr(el('OptionsPane.Options.UpdateCheck').get('toolTip'))")"
+[ "$(b5_json "[e['path'] for e in d['elements'] if 'curl' in e.get('toolTip', '') or 'wget' in e.get('toolTip', '')]")" = "[]" ] \
+	&& b5_ok "no tooltip names curl or wget" \
+	|| b5_note "tooltips name curl or wget: $(b5_json "[e['path'] for e in d['elements'] if 'curl' in e.get('toolTip', '') or 'wget' in e.get('toolTip', '')]")"
 b5_key Escape
 quit
 
@@ -465,7 +487,7 @@ first=$(head -1 "$WORK/hang.pids")
 waitUpdate "$FAILED" "failed" 20
 expectButton "'Error\u00b6Retry'" True False "given up on"
 kill -0 "$first" 2>/dev/null && b5_note "the hanging curl was not killed" || b5_ok "the hanging curl was killed and reaped"
-b5_click Menu.Version
+b5_click Menu.VersionButton
 b5_dump
 expectButton "'\u00b6Checking ...'" False False "asking again"
 second=$(tail -1 "$WORK/hang.pids")
@@ -480,7 +502,7 @@ export PATH="$WORK/nocurl"
 serve '1.2.0\n'
 freshHome 1.2.0
 start wget
-b5_click Menu.Version
+b5_click Menu.VersionButton
 waitUpdate "$UP_TO_DATE" "up to date"
 grep -qi "wget" "$WORK/requests" && b5_note "wget sent its own agent string" \
 	|| b5_ok "wget asks, with the game's agent string"
@@ -500,9 +522,9 @@ B5_ARGS="-updatecheckversion 1.1.2"
 start pretend
 B5_ARGS=""
 waitUpdate "$AVAILABLE" "available"
-[ "$(b5_json "el('Menu.Version')['title'] == 'v1.1.2\u00b6Update\u00b6available!'")" = True ] \
+[ "$(b5_json "el('Menu.VersionButton')['title'] == 'v1.1.2\u00b6Update\u00b6available!'")" = True ] \
 	&& b5_ok "the real version offered as an update to the one given" \
-	|| b5_note "the button says $(b5_json "repr(el('Menu.Version')['title'])")"
+	|| b5_note "the button says $(b5_json "repr(el('Menu.VersionButton')['title'])")"
 grep -q "Scherfgen-Software Blocks 5 (1.1.2)" "$WORK/requests" && b5_ok "the agent string names the version given" \
 	|| b5_note "the agent string is $(tail -1 "$WORK/requests")"
 grep -q "Initializing/Updating" "$B5_OUT/run.log" && b5_ok "the migration ran by the real version" \

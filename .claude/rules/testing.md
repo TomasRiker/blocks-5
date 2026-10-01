@@ -103,8 +103,9 @@ too long, an HTTP error, or nothing for four seconds. So every state of the menu
 demand, in both languages, and what it asserts is the dump's: `updateCheck` (`UpdateCheck::State` by
 number), a button's `title`, `titleSize` and `flashing`, a checkbox's `checked` and any element's
 `toolTip`. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
-machine without them, a `curl` that execs `sleep` for a check that never answers, and an `xdg-open` that
-writes its argument down for the download page being opened. The installation's default is a
+machine without them - the one that gets the plain label `Menu.Version` where `Menu.VersionButton` would
+be, told apart by the dump's `shown` - a `curl` that execs `sleep` for a check that never answers, and an
+`xdg-open` that writes its argument down for the download page being opened. The installation's default is a
 `.update_checker` beside the game, which here is the working tree, so the script's trap deletes it
 whatever happens. And a `config.xml` that cannot be written is a symlink into a folder that is not
 there: not even root writes through it, and it reads as missing, where a folder of that name would have
