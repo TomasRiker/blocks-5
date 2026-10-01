@@ -4,6 +4,18 @@
 #include "gui_all.h"
 #include "u_all.h"
 
+namespace
+{
+	// A setting of 0..1 as a slider's 0..100. Rounded, not cut: handleClick()
+	// stores a position as 0.01f times it, and 100.0f times that comes out a
+	// hair under the position for 22 of the 101, so a cut would show one less
+	// than was set, and the next OK would save it.
+	int sliderPosition(float value)
+	{
+		return static_cast<int>(100.0f * value + 0.5f);
+	}
+}
+
 Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, Vec2i(0, 0), Vec2i(640, 480))
 {
 	load("options.xml");
@@ -72,10 +84,10 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	else if(engine.getLanguage() == "de") static_cast<GUI_RadioButton*>(getChild("Options.German"))->setChecked();
 
 	// set the current sound volume
-	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(static_cast<int>(100.0f * engine.getSoundVolume()));
+	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(sliderPosition(engine.getSoundVolume()));
 
 	// set the current music volume
-	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(static_cast<int>(100.0f * engine.getMusicVolume()));
+	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(sliderPosition(engine.getMusicVolume()));
 
 	// set the current details
 	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->setChecked();
@@ -92,19 +104,19 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// Fetch the slider settings from the Engine, 0..1 as 0..100.
 	U_Crt& crt = engine.getCrt();
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Scan"))->setScroll(
-		static_cast<int>(100.0f * crt.getScanline()));
+		sliderPosition(crt.getScanline()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Curve"))->setScroll(
-		static_cast<int>(100.0f * crt.getCurvature()));
+		sliderPosition(crt.getCurvature()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Bloom"))->setScroll(
-		static_cast<int>(100.0f * crt.getBloom()));
+		sliderPosition(crt.getBloom()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->setScroll(
-		static_cast<int>(100.0f * crt.getFlicker()));
+		sliderPosition(crt.getFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->setScroll(
-		static_cast<int>(100.0f * crt.getScanFlicker()));
+		sliderPosition(crt.getScanFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->setScroll(
-		static_cast<int>(100.0f * crt.getConvergence()));
+		sliderPosition(crt.getConvergence()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Rewind"))->setScroll(
-		static_cast<int>(100.0f * crt.getRewind()));
+		sliderPosition(crt.getRewind()));
 	getChild("CrtOptions")->hide();
 
 	// Start with no selection, and reset the key buttons by hand:
