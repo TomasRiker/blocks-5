@@ -57,7 +57,7 @@
 			<Text>$O_UPSCALER_CRT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
-		<Button name="CrtSettings" x="210" y="130" w="115" h="18">
+		<Button name="CrtSettings" x="210" y="130" w="120" h="18">
 			<Title>$O_CRT_SETTINGS</Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>
