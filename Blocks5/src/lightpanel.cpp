@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "lightpanel.h"
 #include "engine.h"
-#include "cf_all.h"
 
 LightPanel::LightPanel(Level& level,
 					   const Vec2i& position,
@@ -49,14 +48,12 @@ void LightPanel::onTriggered(Object* p_sender)
 	bool nv = level.isNightVision();
 	if(subType == 0 && !nv)
 	{
-		level.setNightVision(true);
+		level.changeNightVision(true);
 		Engine::inst().playSound("light_off.ogg", false, 0.0f, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(0.0f, 0.0f, 0.0f), 0.1f), 1.4f);
 	}
 	else if(subType == 1 && nv)
 	{
-		level.setNightVision(false);
+		level.changeNightVision(false);
 		Engine::inst().playSound("light_on.ogg", false, 0.0f, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(1.0f, 1.0f, 1.0f), 0.1f), 1.4f);
 	}
 }
