@@ -194,12 +194,14 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 # (w - W) / 2 to a pixel past its end, and the block a pixel high and reaching a
 # row below its last line with a descender. The caption is a Python literal,
 # so that a German letter can be written as an escape.
-expectButton()   # $1 second line, $2 active, $3 flashing, $4 what this is
+expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is
 {
 	local got
 	got=$(b5_json "el('Menu.Version')['title'] == 'v1.2.0\u00b6' + $1")
 	[ "$got" = "True" ] && b5_ok "$4: the caption says $1" \
 		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.Version')['title'])"), not $1"
+	[ "$(b5_json "len(el('Menu.Version')['title'].split('\u00b6')) == 3")" = True ] \
+		&& b5_ok "$4: three lines, the version on the first" || b5_note "$4: not three lines"
 	[ "$(b5_json "el('Menu.Version')['active']")" = "$2" ] \
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
 	[ "$(b5_json "el('Menu.Version')['flashing']")" = "$3" ] \
@@ -306,7 +308,7 @@ for i in 1 2 3; do buttonShot "still$i"; sleep 0.2; done
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check for\u00b6Updates'" "'Checking ...'" "'Up to date'" "'Error\u00b6Retry'" "'Update\u00b6available!'"
+allStates "'Check for\u00b6Update'" "'\u00b6Checking ...'" "'\u00b6Up to date'" "'Error\u00b6Retry'" "'Update\u00b6available!'"
 
 # The new version is in the tooltip, and the agent string names this one.
 b5_dump
@@ -360,7 +362,7 @@ quit
 freshHome 1.2.0
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Auf Updates\u00b6pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'Fehler\u00b6Wiederholen'" "'Update\u00b6verf\u00fcgbar!'"
+allStates "'Auf Update\u00b6pr\u00fcfen'" "'\u00b6Pr\u00fcfe ...'" "'\u00b6Aktuell'" "'Fehler\u00b6Wiederholen'" "'Update\u00b6verf\u00fcgbar!'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
@@ -436,7 +438,7 @@ export PATH="$WORK/notools"
 : > "$WORK/requests"
 freshHome 1.2.0
 start no-tools
-expectButton "'Check for\u00b6Updates'" False False "without curl and wget"
+expectButton "'Check for\u00b6Update'" False False "without curl and wget"
 b5_dump
 [ "$(b5_json "el('Menu.Version').get('toolTip')")" = "Needs curl or wget, and neither is installed." ] \
 	&& b5_ok "the tooltip says what is missing" \
@@ -465,7 +467,7 @@ expectButton "'Error\u00b6Retry'" True False "given up on"
 kill -0 "$first" 2>/dev/null && b5_note "the hanging curl was not killed" || b5_ok "the hanging curl was killed and reaped"
 b5_click Menu.Version
 b5_dump
-expectButton "'Checking ...'" False False "asking again"
+expectButton "'\u00b6Checking ...'" False False "asking again"
 second=$(tail -1 "$WORK/hang.pids")
 [ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
 quit

@@ -155,9 +155,9 @@ $MM_DONATE_NO_THANKS
 §de:Nein, danke
 
 $MM_UPDATE_CHECK
-// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 65 pixels a line in the tooltip font, the width of "Auf Updates", which the button is made to fit
-§en:Check for¶Updates
-§de:Auf Updates¶prüfen
+// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 62 pixels a line in the tooltip font, the width of "Wiederholen", which the button is made to fit. One line or two each; one goes on the button's third line, below an empty second
+§en:Check for¶Update
+§de:Auf Update¶prüfen
 
 $MM_UPDATE_CHECKING
 §en:Checking ...

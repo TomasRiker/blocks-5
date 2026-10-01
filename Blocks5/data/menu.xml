@@ -7,15 +7,17 @@
 		     answered with a newer version. Fixed in size, so that it does not
 		     change shape with the state, and as tight as three lines allow,
 		     tucked into the corner clear of the logo, which begins at x 86.
+		     Every state takes all three lines, the version on the first, so
+		     nothing moves from one to the next.
 		     The frame in gui.png is a pixel thick on the left and at the top
 		     and two on the right and at the bottom, and a line W wide is drawn
-		     from (w - W) / 2 to one pixel past its end with the shadow: 72
-		     leaves the widest, "Auf Updates" at 65, two pixels clear on the
+		     from (w - W) / 2 to one pixel past its end with the shadow: 69
+		     leaves the widest, "Wiederholen" at 62, two pixels clear on the
 		     left and one on the right. The text sits a pixel high
 		     (GUI_Button::onRender), so 36 leaves the version one row below the
 		     top and a descender in the third line, shadow and all, on the last
 		     row inside. -->
-		<Button name="Version" x="0" y="0" w="72" h="36">
+		<Button name="Version" x="0" y="0" w="69" h="36">
 			<Title></Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>

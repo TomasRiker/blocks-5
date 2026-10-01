@@ -1795,8 +1795,9 @@ The check is off unless switched on, and the switch is `<CheckForUpdates>` in
 The check runs in the background - a thread under Windows, `curl` or `wget` as
 a process of its own under Linux (`updatecheck.cpp`) - and the main menu gives
 the answer: the version is a button tucked into the top left corner, *v1.2.0*
-over *Check for Updates*, *Checking ...*, *Up to date*, *Error / Retry* or
-*Update available!*, as tight as three lines allow. A click asks, ticked box or
+over *Check for Update*, *Checking ...*, *Up to date*, *Error / Retry* or
+*Update available!*, as tight as three lines allow - and on all three in every
+state, the version on the first, so that nothing moves. A click asks, ticked box or
 not; with a new version out the button flashes and a click opens the download
 page instead. It is disabled while it asks, and under Linux where neither tool
 is installed, with the reason in its tooltip; in the browser, which has no
