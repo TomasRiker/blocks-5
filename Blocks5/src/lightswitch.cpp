@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "lightswitch.h"
 #include "engine.h"
-#include "cf_all.h"
 
 LightSwitch::LightSwitch(Level& level,
 						 const Vec2i& position) : Object(level, 1)
@@ -40,18 +39,8 @@ void LightSwitch::onTouchedByPlayer(Player* p_player)
 	flash();
 
 	bool nv = !level.isNightVision();
-	level.setNightVision(nv);
-
-	if(nv)
-	{
-		Engine::inst().playSound("light_off.ogg", false, 0.0f, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(0.0f, 0.0f, 0.0f), 0.1f), 1.4f);
-	}
-	else
-	{
-		Engine::inst().playSound("light_on.ogg", false, 0.0f, 100);
-		Engine::inst().crossfade(new CF_ColorBlend(Vec3f(1.0f, 1.0f, 1.0f), 0.1f), 1.4f);
-	}
+	level.changeNightVision(nv);
+	Engine::inst().playSound(nv ? "light_off.ogg" : "light_on.ogg", false, 0.0f, 100);
 }
 
 void LightSwitch::onCollision(Object* p_obj)

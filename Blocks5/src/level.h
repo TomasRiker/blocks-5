@@ -159,7 +159,17 @@ public:
 	bool isElectricityOn() const;
 	void setElectricityOn(bool electricityOn);
 	bool isNightVision() const;
+	// At once: loading a level and the editor.
 	void setNightVision(bool nightVision);
+	// As a light panel or switch turns the light off or on. nightVision itself
+	// changes at once, so the logic and the switch's own sprite answer to it
+	// straight away; the picture keeps the old light while a cover closes over
+	// it, black for the light going off and white for it coming on, changes
+	// under the whole cover and is uncovered again. The cover lies over
+	// everything the level draws and runs on the ticks, so the player is
+	// seen walking on throughout and the change cannot miss the moment the
+	// cover is whole.
+	void changeNightVision(bool nightVision);
 	bool isRaining() const;
 	void setRaining(bool raining);
 	bool isCloudy() const;
@@ -269,6 +279,14 @@ private:
 	float hudIconFlash[2];
 	bool electricityOn;
 	bool nightVision;
+	// What render() draws: nightVision, except while a change has not yet
+	// closed its cover. The cover's ticks are -1 with no change running, and
+	// lightChangeFrom is the cover a change starts closing from - nothing, or
+	// where a change still running had got to.
+	bool shownNightVision;
+	int lightChangeTicks;
+	Vec3f lightChangeColor;
+	Vec4f lightChangeFrom;
 	bool raining;
 	bool cloudy;
 	bool snowing;
@@ -290,6 +308,7 @@ private:
 	static bool thunderstormSoundOn;
 
 	void renderToxicEffect();
+	Vec4f lightChangeCover() const;
 };
 
 #endif

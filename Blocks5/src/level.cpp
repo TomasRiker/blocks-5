@@ -40,6 +40,16 @@ bool loadingErrorLevel = false;
 
 const char* p_skinFilenames[] = {"tileset.xml", "sprites.png", "particles.png", "background.png", "hint.png", "hintfont.xml", "noise.png", "shine.png", "rain.png", "clouds.png", "snow.png"};
 
+// How long the cover of changeNightVision() takes to close over the old light
+// and to open over the new one, in ticks: 140 ms and 1.26 s. The light changes
+// in the tick after the cover is whole, not in the same one, so that the frame
+// standing on screen while the first frame of the new light is drawn is the
+// whole cover - drawn for the first time, night vision's blend and mask states
+// can cost a driver tens of milliseconds, measured 45 to 85 under llvmpipe.
+const int LIGHT_CLOSE_TICKS = 7;
+const int LIGHT_SWITCH_TICK = LIGHT_CLOSE_TICKS + 1;
+const int LIGHT_OPEN_TICKS = 63;
+
 Level::Level()
 {
 	p_activePlayer = 0;
@@ -59,6 +69,10 @@ Level::Level()
 	toxic = 0.0f;
 	finished = false;
 	bufferID = 0;
+	shownNightVision = false;
+	lightChangeTicks = -1;
+	lightChangeColor = Vec3f(0.0f, 0.0f, 0.0f);
+	lightChangeFrom = Vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
 	p_tileSet = 0;
 	p_sprites = 0;
@@ -178,7 +192,8 @@ void Level::clear()
 	numDiamondsCollected = 0;
 	hudIconFlash[0] = hudIconFlash[1] = 0.0f;
 	electricityOn = false;
-	nightVision = false;
+	nightVision = shownNightVision = false;
+	lightChangeTicks = -1;
 	raining = false;
 	cloudy = false;
 	snowing = false;
@@ -876,7 +891,7 @@ void Level::render()
 	}
 
 	// Night vision
-	if(nightVision && !inEditor)
+	if(shownNightVision && !inEditor)
 	{
 		const Vec2f screen[4] = {Vec2f(-100.0f, -100.0f), Vec2f(740.0f, -100.0f), Vec2f(740.0f, 580.0f), Vec2f(-100.0f, 580.0f)};
 		{
@@ -925,9 +940,16 @@ void Level::render()
 	if(flash > 0.0f)
 	{
 		// draw the flash
-		const Vec4f color = nightVision ? Vec4f(0.0f, 1.0f, 0.0f, min(0.75f, actualFlash))
-										: Vec4f(1.0f, 1.0f, 1.0f, min(0.5f, actualFlash));
+		const Vec4f color = shownNightVision ? Vec4f(0.0f, 1.0f, 0.0f, min(0.75f, actualFlash))
+											 : Vec4f(1.0f, 1.0f, 1.0f, min(0.5f, actualFlash));
 		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f), color);
+	}
+
+	// The light changing: the cover over everything above
+	if(lightChangeTicks >= 0)
+	{
+		renderer.setBlend(BM_NORMAL);
+		renderer.rect(Vec2f(-100.0f, -100.0f), Vec2f(740.0f, 580.0f), lightChangeCover());
 	}
 
 	renderer.pop();
@@ -1135,6 +1157,15 @@ void Level::update()
 	{
 		toxic *= 0.95f;
 		if(toxic < 1.0f / 256.0f) toxic = 0.0f;
+	}
+
+	// The light changing: the picture takes the new light in the tick after
+	// the cover is whole, and the cover is gone once it has opened again.
+	if(lightChangeTicks >= 0)
+	{
+		lightChangeTicks++;
+		if(lightChangeTicks == LIGHT_SWITCH_TICK) shownNightVision = nightVision;
+		if(lightChangeTicks >= LIGHT_SWITCH_TICK + LIGHT_OPEN_TICKS) lightChangeTicks = -1;
 	}
 
 	counter++;
@@ -2220,7 +2251,35 @@ bool Level::isNightVision() const
 
 void Level::setNightVision(bool nightVision)
 {
+	this->nightVision = shownNightVision = nightVision;
+	lightChangeTicks = -1;
+}
+
+void Level::changeNightVision(bool nightVision)
+{
+	// A change still running hands on its cover, so that a second one in
+	// quick succession goes on from where the first had got to, turning the
+	// colour as it closes, rather than jumping.
+	const Vec3f color = nightVision ? Vec3f(0.0f, 0.0f, 0.0f) : Vec3f(1.0f, 1.0f, 1.0f);
+	lightChangeFrom = lightChangeTicks >= 0 ? lightChangeCover() : Vec4f(color.r, color.g, color.b, 0.0f);
+	lightChangeColor = color;
+	lightChangeTicks = 0;
 	this->nightVision = nightVision;
+}
+
+Vec4f Level::lightChangeCover() const
+{
+	const Vec4f whole(lightChangeColor.r, lightChangeColor.g, lightChangeColor.b, 1.0f);
+	if(lightChangeTicks < LIGHT_CLOSE_TICKS)
+	{
+		const float closed = static_cast<float>(lightChangeTicks) / static_cast<float>(LIGHT_CLOSE_TICKS);
+		return lightChangeFrom + (whole - lightChangeFrom) * closed;
+	}
+
+	if(lightChangeTicks <= LIGHT_SWITCH_TICK) return whole;
+
+	const float opened = static_cast<float>(lightChangeTicks - LIGHT_SWITCH_TICK) / static_cast<float>(LIGHT_OPEN_TICKS);
+	return Vec4f(whole.r, whole.g, whole.b, 1.0f - opened);
 }
 
 bool Level::isRaining() const
