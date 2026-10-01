@@ -127,10 +127,10 @@
       <Font>tooltip_font.xml</Font>
     </Button>
 
-    <Button name="OK" x="10" y="425" w="135" h="30">
+    <Button name="OK" x="10" y="425" w="155" h="30">
 			<Title>OK</Title>
 		</Button>
-		<Button name="Cancel" x="155" y="425" w="135" h="30">
+		<Button name="Cancel" x="175" y="425" w="155" h="30">
 			<Title>$CANCEL</Title>
 		</Button>
 	</Window>
