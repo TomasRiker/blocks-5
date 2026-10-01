@@ -12,7 +12,7 @@
 		     a click asks the website, or opens the download page once it has
 		     answered with a newer version. Fixed in size, so that it does not
 		     change shape with the state, and as tight as three lines allow,
-		     tucked into the corner clear of the logo, which begins at x 86.
+		     tucked into the corner clear of the logo, which begins at x 106.
 		     Every state takes all three lines, the version on the first, so
 		     nothing moves from one to the next.
 		     The frame in gui.png is a pixel thick on the left and at the top

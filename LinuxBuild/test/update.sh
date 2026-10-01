@@ -297,15 +297,15 @@ grep -q "Not checking for updates" "$B5_OUT/run.log" && b5_ok "the log says the 
 	|| b5_note "the log does not say the check is off"
 
 # The button where the check can ask, and not the label that stands in for it
-# where nothing can. It stays clear of the logo, which begins at x 86 in
+# where nothing can. It stays clear of the logo, which begins at x 106 in
 # menu.png.
 b5_dump
 [ "$(b5_json "el('Menu.VersionButton')['shown'] and not el('Menu.Version')['shown']")" = True ] \
 	&& b5_ok "the button is shown and the label is not" \
 	|| b5_note "the button is shown: $(b5_json "el('Menu.VersionButton')['shown']"), the label: $(b5_json "el('Menu.Version')['shown']")"
-[ "$(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] <= 83")" = True ] \
+[ "$(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] <= 103")" = True ] \
 	&& b5_ok "the button ends at $(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] - 1"), clear of the logo" \
-	|| b5_note "the button reaches $(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] - 1"), into the logo at 86"
+	|| b5_note "the button reaches $(b5_json "el('Menu.VersionButton')['rect'][0] + el('Menu.VersionButton')['rect'][2] - 1"), into the logo at 106"
 
 # The flashing as drawn, measured below against this: the same button, not
 # flashing, the same in every shot - the frame hides the clouds moving behind.
