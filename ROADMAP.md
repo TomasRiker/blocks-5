@@ -1790,26 +1790,26 @@ empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
 
 61. Switch the update check in the options  - **DONE**
 ------------------------------------------------------
-The check is off unless the player switches it on, and the switch is
-`<CheckForUpdates>` in `config.xml`: a box in the options dialog, *Check for
-updates at every start*. The check runs in the background - a thread under
-Windows, `curl` or `wget` as a process of its own under Linux
-(`updatecheck.cpp`) - and the main menu gives the answer: the version at the
-top left is a button of up to three lines, *v1.2.0* over *Check for Updates*,
-*Checking ...*, *Up to date*, *Error / Retry* or *UPDATE AVAILABLE!*, narrow
-enough to end before the logo. A click asks, ticked box or not; with a new
-version out the button flashes and a click opens the download page instead.
-It is disabled while it asks, and under Linux where neither tool is installed,
-with the reason in its tooltip; in the browser, which has no check, it names
-the version and nothing else.
+The check is off unless switched on, and the switch is `<CheckForUpdates>` in
+`config.xml`: a box in the options dialog, *Check for updates at every start*.
+The check runs in the background - a thread under Windows, `curl` or `wget` as
+a process of its own under Linux (`updatecheck.cpp`) - and the main menu gives
+the answer: the version is a button tucked into the top left corner, *v1.2.0*
+over *Check for Updates*, *Checking ...*, *Up to date*, *Error / Retry* or
+*Update available!*, as tight as three lines allow. A click asks, ticked box or
+not; with a new version out the button flashes and a click opens the download
+page instead. It is disabled while it asks, and under Linux where neither tool
+is installed, with the reason in its tooltip; in the browser, which has no
+check, it names the version and nothing else.
 
-`.update_checker` in the user directory is only a message to the game now,
-taken into `config.xml` at the next start and deleted: a version before 1.2.0
-kept its switch there, and the installer writes one with its box's answer for
-somebody who has not played yet - told by the `config.xml` there being missing,
-since a player has a setting of their own that the box would overrule. The two
-`.bat` files that switched the check are gone - from an installation by
-`[InstallDelete]`, from the user directory at the first start of 1.2.0.
-`LinuxBuild/test/update.sh` drives every state against a server of its own;
-the installer's `[Code]` has not been through Inno Setup here.
+`.update_checker` beside the game keeps the meaning it had before 1.2.0: the
+installation's default, which the installer writes from its box - *Enable
+checking for updates by default*, always offered - ticked or not. A player
+starts with it until their own setting is in `config.xml`, from their first
+exit on. A `.update_checker` in the user directory is an old version's
+per-player switch, taken into `config.xml` and deleted once that is seen
+written. The two `.bat` files that switched the check are gone - from an
+installation by `[InstallDelete]`, from the user directory at the first start
+of 1.2.0. `LinuxBuild/test/update.sh` drives every state against a server of
+its own; the installer's `[Code]` has not been through Inno Setup here.
 

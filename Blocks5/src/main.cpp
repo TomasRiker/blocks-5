@@ -50,14 +50,12 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 namespace
 {
 #ifndef __EMSCRIPTEN__
-	// The update check's switch is <CheckForUpdates> in config.xml. A
-	// .update_checker in the user directory - '1' for on, anything else for
-	// off - is only how a choice made outside the game gets there, taken in at
-	// the next start and deleted: a version before 1.2.0 kept its switch in
-	// one, and the installer leaves one with its box's answer for somebody who
-	// has not played yet, which it tells by the config.xml there not being
-	// (setup/Blocks 5.iss). A .update_checker beside the game is what versions
-	// before 1.2.0 shipped and is read by nobody.
+	// The update check's switch is <CheckForUpdates> in config.xml, and where
+	// that does not say yet, the installation's default stands in for it
+	// (Engine::loadConfig). A .update_checker in the user directory - '1' for
+	// on, anything else for off - is the switch a version before 1.2.0 kept
+	// there: taken into config.xml and deleted, but deleted only once
+	// config.xml is seen written, or a full disk would lose the choice.
 	void adoptUpdateCheckChoice(Engine& engine, FileSystem& fs)
 	{
 		const std::string path(fs.getAppHomeDirectory() + ".update_checker");
@@ -68,8 +66,14 @@ namespace
 		printfLog("Update check %s, as \"%s\" says.\n",
 				  engine.getCheckForUpdates() ? "on" : "off", path.c_str());
 
-		if(!fs.deleteFile(path)) printfLog("+ WARNING: Could not delete \"%s\".\n", path.c_str());
-		engine.saveConfig();
+		if(!engine.saveConfig() || !fs.fileExists(fs.getAppHomeDirectory() + "config.xml"))
+		{
+			printfLog("+ WARNING: config.xml could not be written; \"%s\" stays.\n", path.c_str());
+		}
+		else if(!fs.deleteFile(path))
+		{
+			printfLog("+ WARNING: Could not delete \"%s\".\n", path.c_str());
+		}
 	}
 #endif
 }
@@ -133,16 +137,12 @@ const std::string detectInitializedVersion()
 	//    1.0.71:	"Blocks 5" folder exists in the user directory
 	//    1.0.72:	".initialized" file exists
 	// >= 1.0.73:	".initialized" file holds the version number
-	// A "Blocks 5" folder with no file directly in it counts as none, and so
-	// does one holding nothing but a .update_checker: the installer leaves
-	// that for somebody who has not played yet (adoptUpdateCheckChoice).
+	// A "Blocks 5" folder with no file directly in it counts as none.
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
-	std::list<std::string> files(fs.listDirectory(homeDirectory));
-	files.remove(".update_checker");
-	if(files.empty())
+	if(fs.listDirectory(homeDirectory).empty())
 	{
 		// TODO: a progress.zip that UAC redirected into the VirtualStore is
 		// not found here.

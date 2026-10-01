@@ -12,7 +12,7 @@
 # to everything but curl, wget or both, and stand-ins for a curl that hangs and
 # for an xdg-open that only writes down what it was asked to open.
 #
-# Eight starts of the game, so a few minutes under llvmpipe.
+# Ten starts of the game, so a few minutes under llvmpipe.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -187,10 +187,13 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 	return 1
 }
 
-# The button as the dump has it: the caption's second line, whether it can be
-# clicked and whether it flashes. And that the caption fits: four pixels clear
-# of the frame on either side, three above and below. The line is a Python
-# literal, so that a German letter can be written as an escape.
+# The button as the dump has it: the caption below the version, whether it
+# can be clicked and whether it flashes. And that the caption fits the frame
+# with a pixel to spare, as menu.xml works it out: a frame a pixel thick on the
+# left and at the top and two on the right and at the bottom, a line drawn from
+# (w - W) / 2 to a pixel past its end, and the block a pixel high and reaching a
+# row below its last line with a descender. The caption is a Python literal,
+# so that a German letter can be written as an escape.
 expectButton()   # $1 second line, $2 active, $3 flashing, $4 what this is
 {
 	local got
@@ -201,7 +204,7 @@ expectButton()   # $1 second line, $2 active, $3 flashing, $4 what this is
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
 	[ "$(b5_json "el('Menu.Version')['flashing']")" = "$3" ] \
 		&& b5_ok "$4: flashing is $3" || b5_note "$4: flashing is not $3"
-	got=$(b5_json "el('Menu.Version')['titleSize'][0] + 8 <= el('Menu.Version')['rect'][2] and el('Menu.Version')['titleSize'][1] + 6 <= el('Menu.Version')['rect'][3]")
+	got=$(b5_json "(lambda w, h, W, H: (w - W) // 2 >= 2 and (w - W) // 2 + W <= w - 4 and (h - H) // 2 - 1 >= 2 and (h - H) // 2 + H <= h - 3)(el('Menu.Version')['rect'][2], el('Menu.Version')['rect'][3], el('Menu.Version')['titleSize'][0], el('Menu.Version')['titleSize'][1])")
 	[ "$got" = "True" ] && b5_ok "$4: the caption fits ($(b5_json "el('Menu.Version')['titleSize']") in $(b5_json "el('Menu.Version')['rect'][2:]"))" \
 		|| b5_note "$4: the caption, $(b5_json "el('Menu.Version')['titleSize']"), does not fit $(b5_json "el('Menu.Version')['rect'][2:]")"
 }
@@ -303,7 +306,7 @@ for i in 1 2 3; do buttonShot "still$i"; sleep 0.2; done
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check for\u00b6Updates'" "'Checking ...'" "'Up to date'" "'Error\u00b6Retry'" "'UPDATE\u00b6AVAILABLE!'"
+allStates "'Check for\u00b6Updates'" "'Checking ...'" "'Up to date'" "'Error\u00b6Retry'" "'Update\u00b6available!'"
 
 # The new version is in the tooltip, and the agent string names this one.
 b5_dump
@@ -357,14 +360,16 @@ quit
 freshHome 1.2.0
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Auf Updates\u00b6pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'Fehler\u00b6Wiederholen'" "'UPDATE\u00b6VERF\u00dcGBAR!'"
+allStates "'Auf Updates\u00b6pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'Fehler\u00b6Wiederholen'" "'Update\u00b6verf\u00fcgbar!'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
-# Taken into config.xml and deleted, and the check runs at once.
+# Taken into config.xml over what that says and deleted, and the check runs at
+# once.
 : > "$WORK/requests"
 serve '1.3.0\n'
 freshHome 1.2.0
+writeConfig '<CheckForUpdates>0</CheckForUpdates>'
 printf '1 \r\n' > "$B5_PRIVATE_HOME/.update_checker"
 start adopt-home
 [ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the user directory's .update_checker is still there" \
@@ -372,7 +377,7 @@ start adopt-home
 [ "$(config)" = 1 ] && b5_ok "config.xml has taken it in" || b5_note "config.xml says $(config)"
 waitUpdate "$AVAILABLE" "available"
 [ "$(requests)" -eq 1 ] && b5_ok "the check ran at the start, once" || b5_note "$(requests) requests at the start"
-expectButton "'UPDATE\u00b6AVAILABLE!'" True True "after a check at the start"
+expectButton "'Update\u00b6available!'" True True "after a check at the start"
 quit
 
 # And from config.xml alone at the next start.
@@ -383,36 +388,47 @@ waitUpdate "$UP_TO_DATE" "up to date"
 [ "$(requests)" -eq 1 ] && b5_ok "config.xml switches the check on by itself" || b5_note "$(requests) requests at the start"
 quit
 
-# --- 4. the installer's answer, on a first start --------------------------
-# What the installer leaves for somebody who has not played: a home holding
-# nothing but a .update_checker. That must still count as a first start - the
-# folders laid out, nothing taken for an old version's - and the answer must be
-# taken in. A .update_checker beside the game, which versions before 1.2.0
-# shipped, says the opposite and is read by nobody.
+# --- 4. the installation's default -----------------------------------------
+# The installer writes its box beside the game, and a player starts with it -
+# from the first start until config.xml says otherwise. The game folder is the
+# working tree here, so the trap deletes the file whatever happens.
 : > "$WORK/requests"
 serve '1.2.0\n'
-rm -rf "$XDG_DATA_HOME"
-mkdir -p "$B5_PRIVATE_HOME"
-printf '1' > "$B5_PRIVATE_HOME/.update_checker"
-printf '0' > "$GAME_SIGNAL"
-B5_FRESH_HOME=1
-start first-start
-unset B5_FRESH_HOME
-grep -Eq "Last played: +not_played" "$B5_OUT/run.log" && b5_ok "a home holding only the installer's answer is a first start" \
-	|| b5_note "the first start took the home for $(sed -n 's/.*Last played: *//p' "$B5_OUT/run.log" | head -1)"
-[ -d "$B5_PRIVATE_HOME/screenshots" ] && [ -d "$B5_PRIVATE_HOME/levels/skins" ] \
-	&& b5_ok "the first start laid out the folders" || b5_note "the first start did not lay out the folders"
-[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the installer's .update_checker is still there" \
-	|| b5_ok "the installer's .update_checker is gone"
-[ "$(config)" = 1 ] && b5_ok "config.xml has the installer's answer" || b5_note "config.xml says $(config)"
-[ -e "$GAME_SIGNAL" ] && b5_ok "the game folder's .update_checker is left alone" \
-	|| b5_note "the game folder's .update_checker was taken"
+freshHome 1.2.0
+printf '1' > "$GAME_SIGNAL"
+start default-new
 waitUpdate "$UP_TO_DATE" "up to date"
-[ "$(requests)" -eq 1 ] && b5_ok "and the check ran at the start" || b5_note "$(requests) requests at the start"
-# The CRT offer comes with a first start; out of the way before Escape.
-b5_click Menu.CrtPane.Crt.NoThanks
+[ "$(requests)" -eq 1 ] && b5_ok "a new player starts with the installation's on" \
+	|| b5_note "$(requests) requests at a new player's start"
+quit
+[ "$(config)" = 1 ] && b5_ok "and keeps it in config.xml from the first exit on" || b5_note "config.xml says $(config)"
+[ -e "$GAME_SIGNAL" ] && b5_ok "the installation's default stays for the next player" \
+	|| b5_note "the installation's default was deleted"
+
+# A player's own setting is theirs, whatever the installation says.
+: > "$WORK/requests"
+freshHome 1.2.0
+writeConfig '<CheckForUpdates>0</CheckForUpdates>'
+start default-own
+b5_dump
+[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && [ "$(requests)" -eq 0 ] \
+	&& b5_ok "a player's own off stands against the installation's on" \
+	|| b5_note "the installation's default overruled the player's own setting"
 quit
 rm -f "$GAME_SIGNAL"
+
+# An old version's switch is deleted only once config.xml holds it. A
+# config.xml that points into a folder that is not there cannot be written,
+# not even by root, and reads as missing.
+freshHome 1.2.0
+ln -s "$B5_PRIVATE_HOME/missing/config.xml" "$B5_PRIVATE_HOME/config.xml"
+printf '1' > "$B5_PRIVATE_HOME/.update_checker"
+start unwritable
+[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_ok "the old switch stays where config.xml cannot be written" \
+	|| b5_note "the old switch was deleted although config.xml could not be written"
+grep -q "config.xml could not be written" "$B5_OUT/run.log" && b5_ok "and the log says why" \
+	|| b5_note "the log does not say why the old switch stays"
+quit
 
 # --- 5. no curl, no wget -----------------------------------------------------
 # The button cannot ask and says why.

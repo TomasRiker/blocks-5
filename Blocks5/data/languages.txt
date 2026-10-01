@@ -155,7 +155,7 @@ $MM_DONATE_NO_THANKS
 §de:Nein, danke
 
 $MM_UPDATE_CHECK
-// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 70 pixels a line in the tooltip font, or the button reaches into the logo
+// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 65 pixels a line in the tooltip font, the width of "Auf Updates", which the button is made to fit
 §en:Check for¶Updates
 §de:Auf Updates¶prüfen
 
@@ -169,8 +169,8 @@ $MM_UPDATE_UP_TO_DATE
 
 $MM_UPDATE_AVAILABLE
 // The button then flashes, and a click opens the download page
-§en:UPDATE¶AVAILABLE!
-§de:UPDATE¶VERFÜGBAR!
+§en:Update¶available!
+§de:Update¶verfügbar!
 
 $MM_UPDATE_FAILED
 // No answer from the website, or not one that makes sense; a click asks again

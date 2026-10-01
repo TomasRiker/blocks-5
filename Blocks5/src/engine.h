@@ -364,7 +364,8 @@ public:
 	int getCrossfadeProgressMs() const;
 
 	void loadConfig();
-	void saveConfig();
+	// Whether config.xml could be written.
+	bool saveConfig();
 	const std::string& getLanguage() const;
 	void setLanguage(const std::string& language);
 	// What the system speaks, boiled down to "de" or "en". Used only where
@@ -382,8 +383,8 @@ public:
 	int getDetails() const;
 	void setDetails(int details);
 	// Whether the game asks the website for a newer version at every start.
-	// Off unless the player, the installer or an older version's own switch
-	// said otherwise; main.cpp takes the last two in.
+	// Where config.xml does not say, the installation's default decides
+	// (loadConfig); main.cpp takes in an older version's own switch.
 	bool getCheckForUpdates() const;
 	void setCheckForUpdates(bool checkForUpdates);
 	float getParticleDensity() const;

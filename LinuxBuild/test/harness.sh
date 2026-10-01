@@ -72,15 +72,10 @@ b5_start()
 	# one that version 1.0.71 created, and that update path adds only videos/.
 	# A first start into the folder the markers below need would therefore
 	# come up without screenshots/ and levels/, and F11 would fail on it.
-	#
-	# B5_FRESH_HOME=1 leaves the home as the test made it, for a test of the
-	# first start itself; the CRT offer then comes up over the menu.
-	if [ -z "${B5_FRESH_HOME:-}" ]; then
-		mkdir -p "$B5_HOME/levels/campaigns" "$B5_HOME/levels/skins" \
-		         "$B5_HOME/screenshots" "$B5_HOME/videos"
-		[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
-		[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
-	fi
+	mkdir -p "$B5_HOME/levels/campaigns" "$B5_HOME/levels/skins" \
+	         "$B5_HOME/screenshots" "$B5_HOME/videos"
+	[ -f "$B5_HOME/.crt_offered" ]   || echo -n "1"       > "$B5_HOME/.crt_offered"
+	[ -f "$B5_HOME/.donation_asked" ] || echo -n "disable" > "$B5_HOME/.donation_asked"
 
 	# A run that was killed - a timeout, a Ctrl-C - leaves its Xvfb and its
 	# lock file standing. The next Xvfb then exits at once because the display

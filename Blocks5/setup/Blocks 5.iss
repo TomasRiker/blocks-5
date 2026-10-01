@@ -32,27 +32,25 @@ english.WindowedMode=Blocks 5 (windowed mode)
 english.VisitBlocks5Website=Visit Blocks 5 Website
 english.VisitScherfgenWebsite=Visit Scherfgen-Software Website
 english.UninstallBlocks5=Uninstall Blocks 5
-english.EnableUpdateChecker=When launching the game, automatically check for updates
+english.EnableUpdateChecker=Enable checking for updates by default
 german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
 german.WindowedMode=Blocks 5 (Fenstermodus)
 german.VisitBlocks5Website=Blocks 5-Webseite besuchen
 german.VisitScherfgenWebsite=Scherfgen-Software-Webseite besuchen
 german.UninstallBlocks5=Blocks 5 deinstallieren
-german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
+german.EnableUpdateChecker=Update-Suche als Voreinstellung einschalten
 
 [Tasks]
-Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked; Check: IsNewPlayer
+Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
 
 ; Left behind by versions before 1.2.0, which switched the update check with
-; these and shipped a .update_checker beside the game; the switch is in the
-; game's options now, and nothing reads that file any more.
+; them; each player switches it in the game's options now.
 [InstallDelete]
 Type: files; Name: "{app}\update_checker_disable.bat"
 Type: files; Name: "{app}\update_checker_enable.bat"
-Type: files; Name: "{app}\.update_checker"
 
 [Files]
 Source: "..\stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -72,56 +70,24 @@ Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
 Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
 
-; What the code below wrote for a player who then never started the game: the
-; answer, and the folder it made for it if nothing else is in there. A game
-; that has started has taken the file in and deleted it already.
+; Written by the code below, so the uninstaller does not know of it by itself.
 [UninstallDelete]
-Type: files; Name: "{userdocs}\Blocks 5\.update_checker"
-Type: dirifempty; Name: "{userdocs}\Blocks 5"
+Type: files; Name: "{app}\.update_checker"
 
 [Code]
-var
-  UserDir: String;
-  HasPlayed: Boolean;
-
-// The folder the game keeps the player's files in, found as the game finds it
-// (FileSystem::getAppHomeDirectory): CSIDL_MYDOCUMENTS, which is {userdocs},
-// with "Blocks 5" in it. config.xml is there from the first start on, in every
-// version that had the folder at all, so it says whether this user has played.
-// Where Windows names no Documents folder the game uses one beside itself,
-// and the installer leaves that alone.
-function InitializeSetup: Boolean;
-begin
-  try
-    UserDir := ExpandConstant('{userdocs}\Blocks 5');
-  except
-    UserDir := '';
-  end;
-  HasPlayed := (UserDir = '') or FileExists(UserDir + '\config.xml');
-  Result := True;
-end;
-
-// The update check's box is offered to somebody who has not played yet. A
-// player has a setting of their own in the game's options, and a box would
-// overrule it whichever way it started, for anybody who just clicked through.
-function IsNewPlayer: Boolean;
-begin
-  Result := not HasPlayed;
-end;
-
-// The update check is the game's own setting, in config.xml. For a new player
-// the installer leaves the box's answer, ticked or not, in the folder the game
-// will use, and the game takes it in at its first start and deletes it
-// (main.cpp, adoptUpdateCheckChoice). In the user's folder rather than beside
-// the game, so that it reaches the one who answered and nobody else.
+// The EnableUpdateChecker box sets the installation's default for the update
+// check, ticked or not, as .update_checker beside the game: '1' or '0'. Every
+// player starts with it, until their config.xml holds a setting of their own,
+// which it does from their first exit on (Engine::loadConfig). Written on
+// every installation, an update's included, and left there for the next new
+// player.
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Choice: String;
 begin
-  if (CurStep = ssPostInstall) and not HasPlayed then
+  if CurStep = ssPostInstall then
   begin
     if WizardIsTaskSelected('EnableUpdateChecker') then Choice := '1' else Choice := '0';
-    ForceDirectories(UserDir);
-    SaveStringToFile(UserDir + '\.update_checker', Choice, False);
+    SaveStringToFile(ExpandConstant('{app}\.update_checker'), Choice, False);
   end;
 end;

@@ -4087,11 +4087,23 @@ void Engine::loadConfig()
 	// reloads this to take back what the dialog changed. The volumes through
 	// their setters, so that a sound already playing hears of them. With no
 	// <Language> the system decides.
+	//
+	// The update check's default is the installation's: the installer writes
+	// its box, ticked or not, beside the game as .update_checker, '1' for on,
+	// and so did every version before 1.2.0. It is what a player starts with,
+	// from their first start until config.xml says otherwise, which it does
+	// from their first exit on. With none - unpacked by hand, under Linux, in
+	// the browser - off.
 	language = detectSystemLanguage();
 	setSoundVolume(1.0f);
 	setMusicVolume(1.0f);
 	setDetails(2);
-	checkForUpdates = false;
+	{
+		FileSystem& fs = FileSystem::inst();
+		const std::string defaultPath(fs.getGameDirectory() + ".update_checker");
+		const std::string choice(fs.fileExists(defaultPath) ? fs.readStringFromFile(defaultPath) : "");
+		checkForUpdates = !choice.empty() && choice[0] == '1';
+	}
 	p_wantedUpscaler = p_sharpFit;
 	resetActions();
 
@@ -4199,7 +4211,7 @@ void Engine::loadConfig()
 			if(p_text) setDetails(atoi(p_text));
 		}
 
-		// Read the update check. Anything but 1 is off, as the default is.
+		// Read the update check. Anything but 1 is off.
 		TiXmlElement* p_checkForUpdates = p_config->FirstChildElement("CheckForUpdates");
 		if(p_checkForUpdates)
 		{
@@ -4253,7 +4265,7 @@ void Engine::loadConfig()
 	}
 }
 
-void Engine::saveConfig()
+bool Engine::saveConfig()
 {
 	TiXmlDocument doc;
 
@@ -4333,7 +4345,7 @@ void Engine::saveConfig()
 
 	doc.LinkEndChild(p_config);
 
-	doc.SaveFile(FileSystem::inst().getAppHomeDirectory() + "config.xml");
+	return doc.SaveFile(FileSystem::inst().getAppHomeDirectory() + "config.xml");
 }
 
 const std::string& Engine::getLanguage() const
