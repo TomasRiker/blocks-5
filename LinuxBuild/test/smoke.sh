@@ -27,6 +27,24 @@ if [ "$(b5_json "el('Menu.CrtPane.Crt.NoThanks')['shown']")" = "True" ]; then
 fi
 b5_shot 1-menu
 
+# The version button: this version on its first line, and enabled where curl
+# or wget is, unless a check is running just now - the developer's own
+# config.xml may have started one. Looked at and not clicked, since that
+# would ask the website; update.sh clicks it against a server of its own.
+b5_dump
+version=$(sed -n 's/.*p_localVersion = "\([^"]*\)".*/\1/p' "$B5_GAME/src/main.cpp")
+[ "$(b5_json "el('Menu.Version')['title'].split('\u00b6')[0].endswith(' $version')")" = True ] \
+	&& b5_ok "the version button names $version" \
+	|| b5_note "the version button says $(b5_json "repr(el('Menu.Version')['title'])")"
+if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
+	want=$(b5_json "d['updateCheck'] != 1")
+else
+	want=False
+fi
+[ "$(b5_json "el('Menu.Version')['active']")" = "$want" ] \
+	&& b5_ok "the version button's active is $want, as the tools and the check say" \
+	|| b5_note "the version button's active is not $want"
+
 # --- Options: open, look, close again ---------------------------------------
 b5_click Menu.Options
 b5_expectShown OptionsPane.Options
@@ -43,7 +61,8 @@ done
 
 # The update check's box is there, and enabled exactly where curl or wget is,
 # which is what the check asks. Looked at and not clicked: a click and OK
-# write .update_checker, and this may be the developer's own user directory.
+# write config.xml, and this may be the developer's own user directory.
+# update.sh clicks it, in a home of its own.
 b5_expectShown OptionsPane.Options.UpdateCheck
 if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
 	want=True; state=enabled; why="curl or wget is installed"

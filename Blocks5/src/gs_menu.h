@@ -28,6 +28,11 @@ public:
 	void handleClick(GUI_Element* p_element);
 
 private:
+	// The version at the top left, and under it what the update check is
+	// doing, written every tick from UpdateCheck's state. Also a button: a
+	// click asks, or with a new version out opens the page to get it from.
+	void updateVersionButton();
+
 	// The Manager: import, export, delete. The browser's file dialog answers
 	// asynchronously, the Windows one is modal - pollImport() hides the
 	// difference.
@@ -60,6 +65,10 @@ private:
 	Options* p_options;
 	Help* p_help;
 	uint time;
+
+	// Whether this machine can check at all - under Linux only with curl or
+	// wget installed. Asked on entering the menu, since it asks the shell.
+	bool updateCheckPossible;
 
 	// The export waits one round, as the import does: under Windows the file
 	// dialog starts a second message loop, which must not begin in the middle

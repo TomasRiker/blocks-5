@@ -96,6 +96,22 @@ nothing, and by then it has cleared the redo list. The tools, keys and dialogs a
 once changing the level and once not; which of the two it was, `GS_LevelEditor::endChange` decides from
 the level's XML.
 
+**`LinuxBuild/test/update.sh` never asks the website.** A hooks build takes the update check's address
+from `B5_UPDATE_URL` — `updatecheck.cpp` is the fourth file `build.sh hooks` compiles with the define —
+and the script answers there from a server of its own: the same version, a newer one, garbage, an answer
+too long, an HTTP error, or nothing for four seconds. So every state of the menu's version button comes on
+demand, in both languages, and what it asserts is the dump's: `updateCheck` (`UpdateCheck::State` by
+number), a button's `title`, `titleSize` and `flashing`, a checkbox's `checked` and any element's
+`toolTip`. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
+machine without them, a `curl` that execs `sleep` for a check that never answers, and an `xdg-open` that
+writes its argument down for the download page being opened. The installer's `.update_checker` lies
+beside the game, which here is the working tree, so the script's trap deletes it whatever happens.
+
+Two traps cost a run each. The server is started from a subshell, because `b5_stop` ends in a bare
+`wait`, which waits for every job of the shell — a server started with `&` among them, for ever. And the
+menu comes in through a transition, so the button is photographed only once the dump's `crossfade` is
+-1; before that the control shots of a button standing still differed, being shots of the transition.
+
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth

@@ -154,6 +154,43 @@ $MM_DONATE_NO_THANKS
 §en:No, thanks
 §de:Nein, danke
 
+$MM_VERSION
+// Main menu, top left: the update button's first line is this word and the version number
+§en:Version
+§de:Version
+
+$MM_UPDATE_CHECK
+// Its second line, before anything has been asked: a click asks the website for the newest version
+§en:Check for updates
+§de:Nach Updates suchen
+
+$MM_UPDATE_CHECKING
+§en:Checking for updates ...
+§de:Suche nach Updates ...
+
+$MM_UPDATE_UP_TO_DATE
+§en:Up to date
+§de:Auf neuestem Stand
+
+$MM_UPDATE_AVAILABLE
+// The button then flashes, and a click opens the download page
+§en:Update available!
+§de:Update verfügbar!
+
+$MM_UPDATE_FAILED
+// No answer from the website, or not one that makes sense; a click asks again
+§en:Error - Retry
+§de:Fehler - Wiederholen
+
+$MM_UPDATE_NEW_VERSION
+// The tooltip with an update out: this, the new version's number, and the next line
+§en:New version:
+§de:Neue Version:
+
+$MM_UPDATE_OPEN_PAGE
+§en:A click opens the download page.
+§de:Ein Klick öffnet die Download-Seite.
+
 // *******
 // OPTIONS
 // *******
@@ -2352,7 +2389,7 @@ $MM_CRT_TRY
 $MM_MANAGE
 // Main menu: button that opens the file manager (import, export, delete)
 §en:Manage files
-§de: Dateien¶verwalten
+§de:Dateien¶verwalten
 
 $TR_MANAGER_TITLE
 §en:Manage files

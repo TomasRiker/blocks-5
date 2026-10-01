@@ -20,7 +20,10 @@ public:
 	void display();
 	void update();
 
-	void renderFrame(const Vec2i& targetPosition, const Vec2i& size, const Vec2i& positionOnTexture);
+	// A skin frame, its texels times color: a flashing button draws a tinted
+	// copy over its own.
+	void renderFrame(const Vec2i& targetPosition, const Vec2i& size, const Vec2i& positionOnTexture,
+					 const Vec4f& color = Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 	GUI_Element* getElement(const std::string& fullName);
 	GUI_Element* operator [] (const std::string& fullName);

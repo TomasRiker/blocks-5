@@ -17,11 +17,13 @@
 #include "gui.h"
 #include "gui_element.h"
 #include "gui_button.h"
+#include "gui_checkbox.h"
 #include "gui_statictext.h"
 #include "player.h"
 #include "particlesystem.h"
 #include "framestats.h"
 #include "font.h"
+#include "updatecheck.h"
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
@@ -147,6 +149,14 @@ namespace
 		out += ",\"active\":";
 		out += p_element->isActive() ? "true" : "false";
 
+		// The tooltip as the player reads it, where there is one.
+		if(!p_element->getToolTip().empty())
+		{
+			out += ",\"toolTip\":\"";
+			appendEscaped(out, localizeString(p_element->getToolTip()));
+			out += "\"";
+		}
+
 		// A static text's laid-out size, so a harness can ask whether it still
 		// fits its box. Measured through the element's own font and wrap, the
 		// only answer that follows a language switch and a rebound key.
@@ -156,6 +166,28 @@ namespace
 			const Vec2i dim = p_staticText->measureDrawnText();
 			out += ",";
 			appendPoint(out, "text", dim.x, dim.y);
+		}
+
+		// A button's caption as drawn, localized, and how big it is, for the
+		// same question; and whether it flashes, which no single picture
+		// tells.
+		GUI_Button* p_button = dynamic_cast<GUI_Button*>(p_element);
+		if(p_button)
+		{
+			const Vec2i dim = p_button->measureTitle();
+			out += ",\"title\":\"";
+			appendEscaped(out, localizeString(p_button->getTitle()));
+			out += "\",";
+			appendPoint(out, "titleSize", dim.x, dim.y);
+			out += ",\"flashing\":";
+			out += p_button->isFlashing() ? "true" : "false";
+		}
+
+		GUI_CheckBox* p_checkBox = dynamic_cast<GUI_CheckBox*>(p_element);
+		if(p_checkBox)
+		{
+			out += ",\"checked\":";
+			out += p_checkBox->isChecked() ? "true" : "false";
 		}
 
 		out += "}";
@@ -207,6 +239,13 @@ namespace
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
+
+#ifndef __EMSCRIPTEN__
+		// The update check's state by number, UpdateCheck::State, so that a
+		// test does not have to read it out of a caption in two languages.
+		out += ",\"updateCheck\":";
+		appendInt(out, static_cast<int>(UpdateCheck::getState()));
+#endif
 
 		// Only the game state can be paused. It is recognised by name, the way
 		// game states are told apart throughout the tree.

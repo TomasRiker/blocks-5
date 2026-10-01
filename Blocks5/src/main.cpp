@@ -10,16 +10,12 @@
 #include "gs_loading.h"
 #include "gui.h"
 #include "cf_all.h"
+#include "updatecheck.h"
 #ifdef __EMSCRIPTEN__
 #include "web_transfer.h"
 #endif
 #ifdef _WIN32
 #include "stackwalker.h"
-#endif
-
-#ifdef _WIN32
-#include <shellapi.h>
-#include <wininet.h>
 #endif
 
 const char* p_localVersion = "1.2.0";
@@ -51,185 +47,43 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 }
 #endif // _WIN32
 
-std::string getCurrentVersion()
-{
-#ifdef _WIN32
-	struct Task
-	{
-		Task() : refs(2)
-		{
-		}
-
-		// Freed by whichever of the two lets go last, the caller or the
-		// thread: the caller gives up after two seconds, and the thread may
-		// still be about to write its result then.
-		static void release(Task* p_task)
-		{
-			if(InterlockedDecrement(&p_task->refs) == 0) delete p_task;
-		}
-
-		static DWORD WINAPI threadProc(void* p_param)
-		{
-			Task* p_task = reinterpret_cast<Task*>(p_param);
-			p_task->currentVersion = fetch();
-			release(p_task);
-			return 0;
-		}
-
-		// The version the server names, or "" when anything went wrong.
-		static std::string fetch()
-		{
-			// The version in the agent string tells the server log which
-			// version is asking.
-			const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
-			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
-			if(!inet) return "";
-
-			// The https scheme implies INTERNET_FLAG_SECURE; written out, it
-			// says the https is deliberate.
-			HINTERNET url = InternetOpenUrlA(inet, "https://www.david-scherfgen.de/stuff/blocks-5/version.txt",
-											 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
-			if(!url)
-			{
-				InternetCloseHandle(inet);
-				return "";
-			}
-
-			char buffer[17] = {0};
-			DWORD numBytesRead = 0;
-			if(!InternetReadFile(url,
-				buffer,
-				16,
-				&numBytesRead))
-			{
-				InternetCloseHandle(url);
-				InternetCloseHandle(inet);
-				return "";
-			}
-
-			buffer[numBytesRead] = 0;
-			if(numBytesRead == 16) buffer[0] = 0;
-
-			InternetCloseHandle(url);
-			InternetCloseHandle(inet);
-
-			return buffer;
-		}
-
-		std::string currentVersion;
-		volatile LONG refs;
-	};
-
-	// Run the query in a thread and allow it two seconds at most. The result
-	// counts only when the thread was seen to finish: then its writes are
-	// done, and the wait is what makes them visible here.
-	Task* p_task = new Task;
-	DWORD threadID;
-	HANDLE thread = CreateThread(0, 0, Task::threadProc, p_task, 0, &threadID);
-	if(!thread)
-	{
-		delete p_task;
-		return "";
-	}
-	const bool finished = WaitForSingleObject(thread, 2000) == WAIT_OBJECT_0;
-	CloseHandle(thread);
-	const std::string currentVersion = finished ? p_task->currentVersion : "";
-	Task::release(p_task);
-	return currentVersion;
-#elif defined(__EMSCRIPTEN__)
-	return "";  // no update check in the browser build
-#else
-	// No HTTP client of our own: TLS would be one more library for sixteen
-	// bytes. curl or wget is on nearly every Linux; where neither is, the
-	// check is skipped.
-	const std::string agent = std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
-	const char* const p_url = "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
-
-	// The same two-second limit as under Windows, kept by the tool itself.
-	// Both print nothing but the answer to stdout.
-	std::string command = "curl -fsS --max-time 2 -A '" + agent + "' '" + p_url + "' 2>/dev/null";
-	if(!haveProgram("curl"))
-	{
-		command = "wget -q -T 2 -t 1 -U '" + agent + "' -O - '" + p_url + "' 2>/dev/null";
-		if(!haveProgram("wget")) return "";
-	}
-
-	FILE* p_pipe = ::popen(command.c_str(), "r");
-	if(!p_pipe) return "";
-
-	char buffer[17] = {0};
-	const size_t numBytesRead = ::fread(buffer, 1, 16, p_pipe);
-	::pclose(p_pipe);
-
-	// As under Windows: sixteen bytes mean there is more there than a
-	// version number - then the answer is not the one expected.
-	if(numBytesRead == 16) return "";
-	buffer[numBytesRead] = 0;
-	return buffer;
-#endif
-}
-
 namespace
 {
-	// The update checker's two switches, needed at the first installation
-	// and on two update paths. Only under Windows are the .bat files copied,
-	// a batch file running nowhere else; .update_checker itself is a
-	// one-character text file any editor can change.
-	bool copyUpdateCheckerFiles(FileSystem& fs, const std::string& homeDirectory)
+#ifndef __EMSCRIPTEN__
+	// The update check's switch is <CheckForUpdates> in config.xml. A
+	// .update_checker - '1' for on, anything else for off - is only how a
+	// choice made outside the game gets there, taken in once and deleted.
+	// Two places can hold one: the user directory, where a version before
+	// 1.2.0 kept its switch, and the game folder, where the installer writes
+	// the box it showed, ticked or not. The game folder's is read only on the
+	// first start of a new version, because an installation for all users
+	// leaves it where the game may not delete it, and it is read second,
+	// because installing is the newer of the two acts.
+	void adoptUpdateCheckChoices(Engine& engine, FileSystem& fs, bool newVersion)
 	{
-		bool success = true;
-#ifdef _WIN32
-		success &= fs.copyFile("update_checker_disable.bat", homeDirectory + "update_checker_disable.bat");
-		success &= fs.copyFile("update_checker_enable.bat", homeDirectory + "update_checker_enable.bat");
-#endif
-		if(fs.fileExists(".update_checker")) success &= fs.copyFile(".update_checker", homeDirectory + ".update_checker");
-		return success;
-	}
-
-	// "1.2.0" to 1002000, and anything that is not a version number to -1.
-	// Up to three groups, a missing one counts as 0, whitespace before and
-	// after is allowed.
-	long parseVersion(const std::string& text)
-	{
-		size_t i = 0;
-		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
-
-		long part[3] = { 0, 0, 0 };
-		int n = 0;
-		bool anyDigit = false;
-		while(n < 3)
+		const std::string paths[2] =
 		{
-			if(i >= text.length() || !isdigit(static_cast<unsigned char>(text[i]))) break;
-			long value = 0;
-			while(i < text.length() && isdigit(static_cast<unsigned char>(text[i])))
-			{
-				value = value * 10 + (text[i++] - '0');
-				if(value > 999) return -1;
-			}
-			part[n++] = value;
-			anyDigit = true;
-			if(i < text.length() && text[i] == '.') ++i;
-			else break;
+			fs.getAppHomeDirectory() + ".update_checker",
+			fs.getGameDirectory() + ".update_checker"
+		};
+
+		bool adopted = false;
+		for(int i = 0; i < (newVersion ? 2 : 1); i++)
+		{
+			if(!fs.fileExists(paths[i])) continue;
+
+			const std::string choice(fs.readStringFromFile(paths[i]));
+			engine.setCheckForUpdates(!choice.empty() && choice[0] == '1');
+			adopted = true;
+			printfLog("Update check %s, as \"%s\" says.\n",
+					  engine.getCheckForUpdates() ? "on" : "off", paths[i].c_str());
+
+			if(!fs.deleteFile(paths[i])) printfLog("+ WARNING: Could not delete \"%s\".\n", paths[i].c_str());
 		}
 
-		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
-		if(!anyDigit || i != text.length()) return -1;
-
-		return part[0] * 1000000 + part[1] * 1000 + part[2];
+		if(adopted) engine.saveConfig();
 	}
-}
-
-bool isNewer(const std::string& version1,
-			 const std::string& version2)
-{
-	// As numbers, not strings: a trailing newline, an error page or "1.10.0"
-	// against "1.9.0" would otherwise offer an update to somebody who has the
-	// newest. What is not a version number, "1.3.0-beta" included, is never
-	// newer.
-	const long v1 = parseVersion(version1);
-	const long v2 = parseVersion(version2);
-	if(v1 < 0 || v2 < 0) return false;
-	return v1 > v2;
+#endif
 }
 
 // Set aside copies of shipped files in the user directory, where earlier
@@ -344,7 +198,6 @@ int runTheGame(int argc,
 			success &= fs.createDirectory(homeDirectory + "screenshots");
 			success &= fs.createDirectory(homeDirectory + "videos");
 			if(versionInitialized == "<= 1.0.7") success &= fs.copyFile("progress.zip", homeDirectory + "progress.zip");
-			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
 			// No config.xml: the game writes its own, and a template's
 			// <Language> would overrule the one
@@ -402,7 +255,6 @@ int runTheGame(int argc,
 				versionInitialized == "1.0.72")
 		{
 			fs.deleteFile(homeDirectory + "updates.no");
-			success &= copyUpdateCheckerFiles(fs, homeDirectory);
 
 			success &= fs.createDirectory(homeDirectory + "videos");
 			success &= fs.copyFile("videos/readme.txt", homeDirectory + "videos/readme.txt");
@@ -412,9 +264,6 @@ int runTheGame(int argc,
 		else if(versionInitialized == "1.0.73")
 		{
 			fs.deleteFile(homeDirectory + "updates.no");
-			success &= copyUpdateCheckerFiles(fs, homeDirectory);
-
-			if(!success) errorMsg = "Could not migrate all settings!";
 		}
 
 		// On every version change, not only on the jump to 1.2.0: the run
@@ -422,6 +271,15 @@ int runTheGame(int argc,
 		// 1.2.0 to 1.2.1 can bring along a copy that 1.2.0 could not clear
 		// away. On a fresh installation there is nothing to find.
 		if(versionInitialized != "not_played") retireShadowingCopies(fs, homeDirectory);
+
+#ifdef _WIN32
+		// The two .bat files that switched the update check before 1.2.0, and
+		// which a first start copied into the user directory. The switch is
+		// the options dialog's now, and one of them run would only leave a
+		// .update_checker for the next start to take in.
+		fs.deleteFile(homeDirectory + "update_checker_disable.bat");
+		fs.deleteFile(homeDirectory + "update_checker_enable.bat");
+#endif
 
 		if(success)
 		{
@@ -455,47 +313,6 @@ int runTheGame(int argc,
 			printfLog("%s\n", errorMsg.c_str());
 			if(severeError) return 1;
 		}
-	}
-
-	if(!fs.fileExists(homeDirectory + ".update_checker")) fs.writeStringToFile("0", homeDirectory + ".update_checker");
-	const std::string updateCheckerStatus(fs.readStringFromFile(homeDirectory + ".update_checker"));
-	if(!updateCheckerStatus.empty() && updateCheckerStatus[0] == '1')
-	{
-		printfLog("Checking for update ...\n");
-
-		// is there a new version?
-		std::string currentVersion = getCurrentVersion();
-		if(currentVersion.empty()) printfLog("Could not detect current version!\n");
-		else printfLog("Current game version:   %s\n", currentVersion.c_str());
-		if(!currentVersion.empty() &&
-		   isNewer(currentVersion, p_localVersion))
-		{
-			std::ostringstream str;
-			str << "A new version of Blocks 5 is available.\r\n";
-			str << "Installed version: " << p_localVersion << "\r\n";
-			str << "New version: " << currentVersion << "\r\n\r\n";
-			str << "Do you want to visit the Blocks 5 website now?" << "\r\n\r\n";
-
-#ifdef _WIN32
-			int answer = MessageBoxA(0, str.str().c_str(), "Update available!", MB_YESNO | MB_ICONINFORMATION);
-			if(answer == IDYES)
-			{
-				// open the page
-				ShellExecuteA(0, "open", "Blocks 5 Website.url", NULL, NULL, SW_SHOWNORMAL);
-				return 0;
-			}
-#elif !defined(__EMSCRIPTEN__)
-			// Only the log: the engine is not running yet, so there is no toast
-			// or dialog, and a browser nobody asked for must not spring open.
-			printfLog("%s", str.str().c_str());
-			printfLog("https://www.david-scherfgen.de/meine-spiele/blocks-5/\n\n");
-#endif
-		}
-	}
-	else
-	{
-		// No automatic updates!
-		printfLog("Not checking for update!\n");
 	}
 
 	// read the data out of the encrypted archive
@@ -593,6 +410,14 @@ int runTheGame(int argc,
 		return 1;
 	}
 
+#ifndef __EMSCRIPTEN__
+	// After init(), which has read config.xml, and as early as that: the menu
+	// shows the answer, and it asks for it once a tick.
+	adoptUpdateCheckChoices(engine, fs, versionInitialized != p_localVersion);
+	if(engine.getCheckForUpdates()) UpdateCheck::start();
+	else printfLog("Not checking for updates.\n");
+#endif
+
 	// load the localization
 	engine.loadStringDB("languages.txt");
 
@@ -613,6 +438,11 @@ int runTheGame(int argc,
 
 	printfLog("Entering main loop ...\n");
 	engine.mainLoop();
+
+#ifndef __EMSCRIPTEN__
+	// A check still running ends with the game, not after it.
+	UpdateCheck::abort();
+#endif
 
 	printfLog("Shutting down the engine ...\n");
 	engine.exit();

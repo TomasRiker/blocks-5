@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
 	<Element name="Menu" x="0" y="0" w="640" h="480">
-		<StaticText name="Version" x="5" y="5">
+		<!-- The version and, under it, what the update check is doing, which
+		     GS_Menu::updateVersionButton() writes every tick. A button, because
+		     a click asks the website, or opens the download page once it has
+		     answered with a newer version. Fixed in size, so that it does not
+		     change shape with the second line: as wide as the longest of those
+		     needs in either language. -->
+		<Button name="Version" x="5" y="5" w="140" h="30">
+			<Title></Title>
 			<Font>tooltip_font.xml</Font>
-		</StaticText>
+		</Button>
 		<!-- The cells in buttons.png are 80x80 (large buttons) and 50x50
 		     (small ones), packed with no gaps: unpressed at column 0 and 160,
 		     pressed at column 80 and 210 respectively. In both states the

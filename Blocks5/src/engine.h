@@ -381,6 +381,11 @@ public:
 	bool isAppActive() const;
 	int getDetails() const;
 	void setDetails(int details);
+	// Whether the game asks the website for a newer version at every start.
+	// Off unless the player, the installer or an older version's own switch
+	// said otherwise; main.cpp takes the last two in.
+	bool getCheckForUpdates() const;
+	void setCheckForUpdates(bool checkForUpdates);
 	float getParticleDensity() const;
 	void setParticleDensity(float particleDensity);
 
@@ -621,6 +626,7 @@ private:
 
 	bool muted;
 	int details;
+	bool checkForUpdates;
 	float particleDensity;
 	Texture* p_muteIconTexture;
 	Vec2i muteIconPositionOnTexture;

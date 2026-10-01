@@ -122,6 +122,7 @@ Engine::Engine()
 #endif
 	savedWindowStyle = 0;
 	muted = false;
+	checkForUpdates = false;
 	timePlayed = 0;
 	doScreenshot = false;
 }
@@ -4090,6 +4091,7 @@ void Engine::loadConfig()
 	setSoundVolume(1.0f);
 	setMusicVolume(1.0f);
 	setDetails(2);
+	checkForUpdates = false;
 	p_wantedUpscaler = p_sharpFit;
 	resetActions();
 
@@ -4195,6 +4197,14 @@ void Engine::loadConfig()
 		{
 			const char* p_text = p_details->GetText();
 			if(p_text) setDetails(atoi(p_text));
+		}
+
+		// Read the update check. Anything but 1 is off, as the default is.
+		TiXmlElement* p_checkForUpdates = p_config->FirstChildElement("CheckForUpdates");
+		if(p_checkForUpdates)
+		{
+			const char* p_text = p_checkForUpdates->GetText();
+			checkForUpdates = p_text && atoi(p_text) == 1;
 		}
 
 		// read the controls
@@ -4303,6 +4313,12 @@ void Engine::saveConfig()
 	p_details->LinkEndChild(new TiXmlText(temp));
 	p_config->LinkEndChild(p_details);
 
+	// Write the update check. Also in the browser, which never checks: the
+	// file stays the same on every platform.
+	TiXmlElement* p_checkForUpdates = new TiXmlElement("CheckForUpdates");
+	p_checkForUpdates->LinkEndChild(new TiXmlText(checkForUpdates ? "1" : "0"));
+	p_config->LinkEndChild(p_checkForUpdates);
+
 	// write the controls
 	TiXmlElement* p_controls = new TiXmlElement("Controls");
 	for(size_t i = 0; i < actionsVector.size(); i++)
@@ -4389,6 +4405,16 @@ bool Engine::isAppActive() const
 int Engine::getDetails() const
 {
 	return details;
+}
+
+bool Engine::getCheckForUpdates() const
+{
+	return checkForUpdates;
+}
+
+void Engine::setCheckForUpdates(bool checkForUpdates)
+{
+	this->checkForUpdates = checkForUpdates;
 }
 
 void Engine::setDetails(int details)

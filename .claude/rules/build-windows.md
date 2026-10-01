@@ -81,15 +81,17 @@ banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus th
 `src/resources.rc`, which is what Explorer shows and a crash log reports. The `.rc` had been missed
 before and sat at 1.1.1 through the whole of 1.1.2.
 
-**The update check ships off.** `Blocks5\.update_checker` holds `0`; `stage.bat` puts it into the tree an
-unpacked game runs from, and the first start copies it into the user directory, whose copy is the one
-`runTheGame` reads at every start. The installer's `EnableUpdateChecker` task starts unticked, and its
-`[Run]` entries reset the game folder's copy with `update_checker_disable.bat` before
-`update_checker_enable.bat` sets it for the tick. The game folder's copy reaches a user directory only at
-its first start (or on the way up from 1.0.7x), so ticking the box in a later installation changes
-nothing for a player who already has one; the two `.bat` files, which that first start copies into the
-user directory as well, switch it there, and so does the box in the options dialog, which writes the same
-file.
+**The update check ships off, and its switch is `<CheckForUpdates>` in `config.xml`.** The installer's
+`EnableUpdateChecker` task starts unticked, and its `[Code]` writes the box's answer either way, `1` or
+`0`, into `{app}\.update_checker`; the game takes that in on its first start of the new version and
+deletes it where it may (`adoptUpdateCheckChoices` in `main.cpp`). Only on that start, because an
+installation for all users leaves the file where a player cannot delete it — and after a
+`.update_checker` that a version before 1.2.0 left in the user directory, because installing is the
+newer act. `[UninstallDelete]` takes the file away again, since the uninstaller knows only what was
+installed, and `[InstallDelete]` removes the two `.bat` files that switched the check before 1.2.0 from
+an installation updated in place; their copies in the user directory go at the game's first start of
+1.2.0. Left alone on an update, the box therefore switches off a check the player had on: Inno's
+`UsePreviousTasks` presets it to the last installation's choice, not to what the player set since.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to

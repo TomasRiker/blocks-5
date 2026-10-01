@@ -26,7 +26,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [CustomMessages]
-english.Configuring=Configuring Blocks 5 ...
 english.ShowReadme=Show readme file
 english.ShowUserDirectory=Show user directory (screenshots, videos, levels)
 english.WindowedMode=Blocks 5 (windowed mode)
@@ -34,7 +33,6 @@ english.VisitBlocks5Website=Visit Blocks 5 Website
 english.VisitScherfgenWebsite=Visit Scherfgen-Software Website
 english.UninstallBlocks5=Uninstall Blocks 5
 english.EnableUpdateChecker=When launching the game, automatically check for updates
-german.Configuring=Konfiguriere Blocks 5 ...
 german.ShowReadme=Readme-Datei anzeigen (englisch)
 german.ShowUserDirectory=Benutzerverzeichnis anzeigen (Screenshots, Videos, Levels)
 german.WindowedMode=Blocks 5 (Fenstermodus)
@@ -47,6 +45,13 @@ german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates such
 Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
+
+; Left behind by versions before 1.2.0, which switched the update check with
+; them. The switch is in the game's options now, and the EnableUpdateChecker
+; box only tells the game once, through the code at the end.
+[InstallDelete]
+Type: files; Name: "{app}\update_checker_disable.bat"
+Type: files; Name: "{app}\update_checker_enable.bat"
 
 [Files]
 Source: "..\stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -63,7 +68,25 @@ Name: "{group}\{cm:UninstallBlocks5}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app}"; Tasks: CreateDesktopIcon
 
 [Run]
-Filename: "{app}\update_checker_disable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden
-Filename: "{app}\update_checker_enable.bat"; StatusMsg: "{cm:Configuring}"; Flags: runhidden; Tasks: EnableUpdateChecker
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
 Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
+
+; Written by the code below, so the uninstaller does not know of it by itself.
+[UninstallDelete]
+Type: files; Name: "{app}\.update_checker"
+
+[Code]
+// The update check is the game's own setting, in config.xml. The installer
+// leaves its box's answer beside the game, ticked or not, and the game takes
+// it in at its first start of this version and deletes the file where it may
+// (main.cpp, adoptUpdateCheckChoices).
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Choice: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    if WizardIsTaskSelected('EnableUpdateChecker') then Choice := '1' else Choice := '0';
+    SaveStringToFile(ExpandConstant('{app}\.update_checker'), Choice, False);
+  end;
+end;

@@ -1,6 +1,5 @@
 IF EXIST stage RMDIR /S /Q stage
 IF NOT EXIST stage MKDIR stage
-COPY .update_checker stage
 COPY "Blocks 5 Website.url" stage
 COPY "Scherfgen-Software Website.url" stage
 COPY ..\Release\blocks5.exe stage
@@ -12,8 +11,6 @@ COPY ..\Release\pwencrypt.exe stage
 COPY readme.txt stage
 COPY ..\LICENSE.txt stage
 COPY ..\Release\showuserdir.exe stage
-COPY update_checker_disable.bat stage
-COPY update_checker_enable.bat stage
 COPY windowed.bat stage
 MKDIR stage\levels
 COPY levels\example01.xml stage\levels

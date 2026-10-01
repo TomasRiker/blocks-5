@@ -157,8 +157,6 @@ echo "### compiled $total translation units OK ###"
 WEBROOT="$OUT/webroot"
 rm -rf "$WEBROOT"; mkdir -p "$WEBROOT/levels/campaigns" "$WEBROOT/levels/skins" "$WEBROOT/screenshots" "$WEBROOT/videos"
 cp "$GAME/data.zip"                    "$WEBROOT/"           2>/dev/null
-cp "$GAME/.update_checker"             "$WEBROOT/"           2>/dev/null
-cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
 # Exactly the three files stage.bat puts into levels/. A levels/*.xml plus
 # levels/*.ogg glob would reach into the author's working directory: the 42
 # source levels and the 11 music tracks blocks.zip is built from, all 53 of them

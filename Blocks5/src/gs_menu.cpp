@@ -10,6 +10,7 @@
 #include "filesystem.h"
 #include "transfer.h"
 #include "progressdb.h"
+#include "updatecheck.h"
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -55,6 +56,7 @@ GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML
 	p_options = 0;
 	p_help = 0;
 	levelSaved = false;
+	updateCheckPossible = false;
 	pendingExportKind = 0;
 	pendingExport = false;
 	confirmMode = CONFIRM_NONE;
@@ -118,6 +120,11 @@ void GS_Menu::onUpdate()
 	// are modal and would start a second message loop inside the GUI.
 	pollImport();
 	pollExport();
+
+#ifndef __EMSCRIPTEN__
+	UpdateCheck::poll();
+#endif
+	updateVersionButton();
 
 
 #ifdef __EMSCRIPTEN__
@@ -221,7 +228,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	// build the menu
 	gui.getRoot()->load("menu.xml");
 
-	static_cast<GUI_StaticText*>(gui["Menu.Version"])->setText(p_localVersion);
+	static_cast<GUI_Button*>(gui["Menu.Version"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.StartGame"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.LevelEditor"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.CampaignEditor"])->connectClicked(this, &GS_Menu::handleClick);
@@ -254,6 +261,11 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Yes"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Merge"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.No"])->connectClicked(this, &GS_Menu::handleClick);
+
+#ifndef __EMSCRIPTEN__
+	updateCheckPossible = UpdateCheck::isPossible();
+#endif
+	updateVersionButton();
 
 	FileSystem& fs = FileSystem::inst();
 
@@ -375,10 +387,69 @@ void GS_Menu::onLoseFocus()
 	gui["Menu"]->hide();
 }
 
+void GS_Menu::updateVersionButton()
+{
+	GUI_Button* p_button = static_cast<GUI_Button*>(gui["Menu.Version"]);
+	const std::string version = localizeString("$MM_VERSION") + " " + p_localVersion;
+
+#ifdef __EMSCRIPTEN__
+	// No update check in the browser, so the version alone and nothing to
+	// click: the page is always the newest.
+	p_button->setTitle(version);
+	p_button->deactivate();
+#else
+	const UpdateCheck::State state = UpdateCheck::getState();
+	const char* p_line = "$MM_UPDATE_CHECK";
+	std::string toolTip;
+
+	if(!updateCheckPossible)
+	{
+		// The offer stays, disabled below, so that the tooltip has something
+		// to say what is missing for.
+		toolTip = "$O_UPDATE_CHECK_NO_TOOL";
+	}
+	else if(state == UpdateCheck::STATE_CHECKING) p_line = "$MM_UPDATE_CHECKING";
+	else if(state == UpdateCheck::STATE_UP_TO_DATE) p_line = "$MM_UPDATE_UP_TO_DATE";
+	else if(state == UpdateCheck::STATE_FAILED) p_line = "$MM_UPDATE_FAILED";
+	else if(state == UpdateCheck::STATE_AVAILABLE)
+	{
+		p_line = "$MM_UPDATE_AVAILABLE";
+		toolTip = localizeString("$MM_UPDATE_NEW_VERSION") + " " + UpdateCheck::getNewVersion() +
+				  "\xB6" + localizeString("$MM_UPDATE_OPEN_PAGE");
+	}
+
+	p_button->setTitle(version + "\xB6" + localizeString(p_line));
+	p_button->setToolTip(toolTip);
+	p_button->setFlashing(updateCheckPossible && state == UpdateCheck::STATE_AVAILABLE);
+	if(updateCheckPossible && state != UpdateCheck::STATE_CHECKING) p_button->activate();
+	else p_button->deactivate();
+#endif
+}
+
 void GS_Menu::handleClick(GUI_Element* p_element)
 {
 	const std::string& name = p_element->getFullName();
-	if(name == "Menu.StartGame")
+	if(name == "Menu.Version")
+	{
+#ifndef __EMSCRIPTEN__
+		// With a new version out, the page it comes from; otherwise ask, also
+		// again after an answer.
+		if(UpdateCheck::getState() == UpdateCheck::STATE_AVAILABLE)
+		{
+#ifdef _WIN32
+			// As for the other addresses, the .url file beside the application,
+			// which the Start menu has too.
+			ShellExecuteA(0, "open", "Blocks 5 Website.url", 0, 0, SW_SHOWMAXIMIZED);
+#else
+			openURL("https://www.david-scherfgen.de/meine-spiele/blocks-5/");
+#endif
+		}
+		else UpdateCheck::start();
+
+		updateVersionButton();
+#endif
+	}
+	else if(name == "Menu.StartGame")
 	{
 		engine.pushGameState("GS_SelectLevel");
 		engine.crossfade(new CF_Star, 0.85f);
