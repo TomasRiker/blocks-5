@@ -154,8 +154,8 @@ packSkin() { # $1=name  $2=password ("" for none)
 # level and forgetting this step therefore changes nothing a player sees, and
 # nothing anywhere says so.
 #
-# Every member has a source: the levels are levels/level_NN.xml, the ten music
-# tracks are the loose ones beside them, and campaign.xml lies in a folder of
+# Every member has a source: the levels are levels/level_NN.xml, the eleven
+# music tracks are the loose ones beside them, and campaign.xml lies in a folder of
 # its own next to the archive, the way a skin's sources do. Nothing is taken out
 # of the archive being replaced, which could not work anyway - it is a build
 # product and not in Git.
@@ -184,7 +184,7 @@ packCampaign() {
         rm -rf "$staged"; return 1; }
 
     i=1
-    while [ $i -le 10 ]; do
+    while [ $i -le 11 ]; do
         src="$dir/music$i.ogg"
         [ -f "$src" ] || { echo "  $src is missing"; rm -rf "$staged"; return 1; }
         cp "$src" "$staged/" || { rm -rf "$staged"; return 1; }

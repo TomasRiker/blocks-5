@@ -37,11 +37,19 @@ developer sees and nothing a player sees, with no error anywhere. `pack.sh campa
 the way `makeMemberName` reads them back — entry *i* is `level_{i+1}.xml`, so the padded names in
 `campaign.xml` are display text only.
 
-**All 53 members have a source in the tree**, which is what lets the archive be untracked: 42 levels
-and ten music tracks loose in `levels/`, `campaign.xml` in `levels/campaigns/blocks/` — a source
+**All 54 members have a source in the tree**, which is what lets the archive be untracked: 42 levels
+and eleven music tracks loose in `levels/`, `campaign.xml` in `levels/campaigns/blocks/` — a source
 folder beside the archive, the same idiom as `levels/skins/<name>/`. Neither script reaches into the
 archive it replaces, which cannot work once the file is a build product. Verified against the last
-committed archive: same 53 members, every one byte-identical.
+committed archive: the same members, every one byte-identical.
+
+**The music is Ogg Vorbis at quality −1, 45 kbit/s nominal**, the setting the first ten were exported
+with from Adobe Audition. A track that arrives as a WAV keeps it beside its OGG as the source
+(`music3.wav`, `music11.wav`). `music11.ogg` is `oggenc -q -1` over its WAV lowered by 0.50 dB: that
+puts it at −13.98 LUFS, the median of the other ten (−12.0 to −17.7), and keeps every decoded sample
+under full scale, where the encoder lifts the peaks by about 1.3 dB at this bitrate. No fades — the
+tracks loop from their first sample — and an encode decodes to exactly as many samples as its WAV
+holds, which is what keeps the loop seamless.
 
 **XML and `languages.txt` reach `data.zip` without their comments.** `Tools/strip_comments.py` writes
 stripped copies into a staging directory the packing scripts pack from, which is why `pack.sh` and

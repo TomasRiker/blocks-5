@@ -161,7 +161,7 @@ cp "$GAME/.update_checker"             "$WEBROOT/"           2>/dev/null
 cp "$GAME"/update_checker_*.bat        "$WEBROOT/"           2>/dev/null
 # Exactly the three files stage.bat puts into levels/. A levels/*.xml plus
 # levels/*.ogg glob would reach into the author's working directory: the 42
-# source levels and the 10 music tracks blocks.zip is built from, all 52 of them
+# source levels and the 11 music tracks blocks.zip is built from, all 53 of them
 # a second time in the package and byte-identical to a member of the archive -
 # 8.3 of the 21 MiB the browser loads, for nothing. None of them is needed:
 # gs_game.cpp fetches the campaign music out of blocks.zip itself, and the two
