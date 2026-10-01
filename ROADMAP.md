@@ -1794,24 +1794,22 @@ The check is off unless the player switches it on, and the switch is
 `<CheckForUpdates>` in `config.xml`: a box in the options dialog, *Check for
 updates at every start*. The check runs in the background - a thread under
 Windows, `curl` or `wget` as a process of its own under Linux
-(`updatecheck.cpp`) - and the main menu gives the answer: the version number
-at the top left is a button whose second line reads *Check for updates*,
-*Checking for updates ...*, *Up to date*, *Error - Retry* or *Update
-available!*. A click asks, ticked box or not; with a new version out the button
-flashes and a click opens the download page instead. It is disabled while it
-asks, and under Linux where neither tool is installed, with the reason in its
-tooltip; in the browser, which has no check, it names the version and nothing
-else.
+(`updatecheck.cpp`) - and the main menu gives the answer: the version at the
+top left is a button of up to three lines, *v1.2.0* over *Check for Updates*,
+*Checking ...*, *Up to date*, *Error / Retry* or *UPDATE AVAILABLE!*, narrow
+enough to end before the logo. A click asks, ticked box or not; with a new
+version out the button flashes and a click opens the download page instead.
+It is disabled while it asks, and under Linux where neither tool is installed,
+with the reason in its tooltip; in the browser, which has no check, it names
+the version and nothing else.
 
-`.update_checker` is only a message to the game now, taken into `config.xml`
-once and deleted: a version before 1.2.0 left one in the user directory, and
-the installer writes one beside the game with its box's answer, ticked or not.
-That box is offered on a first installation only, told by the uninstaller's
-registry key: on an update the player has a setting of their own, and a box
-would overrule it whichever way it started, so an update writes nothing and
-removes an earlier answer. The two `.bat` files that switched the check are
-gone - from an installation by `[InstallDelete]`, from the user directory at
-the first start of 1.2.0. `LinuxBuild/test/update.sh` drives every state
-against a server of its own; the installer's `[Code]` has not been through
-Inno Setup here.
+`.update_checker` in the user directory is only a message to the game now,
+taken into `config.xml` at the next start and deleted: a version before 1.2.0
+kept its switch there, and the installer writes one with its box's answer for
+somebody who has not played yet - told by the `config.xml` there being missing,
+since a player has a setting of their own that the box would overrule. The two
+`.bat` files that switched the check are gone - from an installation by
+`[InstallDelete]`, from the user directory at the first start of 1.2.0.
+`LinuxBuild/test/update.sh` drives every state against a server of its own;
+the installer's `[Code]` has not been through Inno Setup here.
 

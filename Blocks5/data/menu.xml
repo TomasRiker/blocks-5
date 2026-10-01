@@ -5,9 +5,11 @@
 		     GS_Menu::updateVersionButton() writes every tick. A button, because
 		     a click asks the website, or opens the download page once it has
 		     answered with a newer version. Fixed in size, so that it does not
-		     change shape with the second line: as wide as the longest of those
-		     needs in either language. -->
-		<Button name="Version" x="5" y="5" w="140" h="30">
+		     change shape with the state: three lines high, and wide enough for
+		     the longest line in either language, VERFUEGBAR! at 70 pixels -
+		     and no wider, since the logo in menu.png begins at x 86 (measured
+		     off its alpha, from y 26 down). Ending at 80 leaves it five clear. -->
+		<Button name="Version" x="3" y="3" w="78" h="36">
 			<Title></Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>

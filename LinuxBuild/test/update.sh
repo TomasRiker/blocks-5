@@ -194,7 +194,7 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 expectButton()   # $1 second line, $2 active, $3 flashing, $4 what this is
 {
 	local got
-	got=$(b5_json "el('Menu.Version')['title'] == 'Version 1.2.0\u00b6' + $1")
+	got=$(b5_json "el('Menu.Version')['title'] == 'v1.2.0\u00b6' + $1")
 	[ "$got" = "True" ] && b5_ok "$4: the caption says $1" \
 		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.Version')['title'])"), not $1"
 	[ "$(b5_json "el('Menu.Version')['active']")" = "$2" ] \
@@ -289,6 +289,12 @@ start english
 grep -q "Not checking for updates" "$B5_OUT/run.log" && b5_ok "the log says the check is off" \
 	|| b5_note "the log does not say the check is off"
 
+# The button stays clear of the logo, which begins at x 86 in menu.png.
+b5_dump
+[ "$(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] <= 83")" = True ] \
+	&& b5_ok "the button ends at $(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] - 1"), clear of the logo" \
+	|| b5_note "the button reaches $(b5_json "el('Menu.Version')['rect'][0] + el('Menu.Version')['rect'][2] - 1"), into the logo at 86"
+
 # The flashing as drawn, measured below against this: the same button, not
 # flashing, the same in every shot - the frame hides the clouds moving behind.
 b5_clientOrigin
@@ -297,7 +303,7 @@ for i in 1 2 3; do buttonShot "still$i"; sleep 0.2; done
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check for updates'" "'Checking for updates ...'" "'Up to date'" "'Error - Retry'" "'Update available!'"
+allStates "'Check for\u00b6Updates'" "'Checking ...'" "'Up to date'" "'Error\u00b6Retry'" "'UPDATE\u00b6AVAILABLE!'"
 
 # The new version is in the tooltip, and the agent string names this one.
 b5_dump
@@ -351,7 +357,7 @@ quit
 freshHome 1.2.0
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Nach Updates suchen'" "'Suche nach Updates ...'" "'Auf neuestem Stand'" "'Fehler - Wiederholen'" "'Update verf\u00fcgbar!'"
+allStates "'Auf Updates\u00b6pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'Fehler\u00b6Wiederholen'" "'UPDATE\u00b6VERF\u00dcGBAR!'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
@@ -366,7 +372,7 @@ start adopt-home
 [ "$(config)" = 1 ] && b5_ok "config.xml has taken it in" || b5_note "config.xml says $(config)"
 waitUpdate "$AVAILABLE" "available"
 [ "$(requests)" -eq 1 ] && b5_ok "the check ran at the start, once" || b5_note "$(requests) requests at the start"
-expectButton "'Update available!'" True True "after a check at the start"
+expectButton "'UPDATE\u00b6AVAILABLE!'" True True "after a check at the start"
 quit
 
 # And from config.xml alone at the next start.
@@ -377,70 +383,73 @@ waitUpdate "$UP_TO_DATE" "up to date"
 [ "$(requests)" -eq 1 ] && b5_ok "config.xml switches the check on by itself" || b5_note "$(requests) requests at the start"
 quit
 
-# --- 4. the installer's word over an old version's ---------------------------
-# A new version's first start: the user directory says on, the game folder,
-# which the installer wrote, says off. The installer is the newer act.
+# --- 4. the installer's answer, on a first start --------------------------
+# What the installer leaves for somebody who has not played: a home holding
+# nothing but a .update_checker. That must still count as a first start - the
+# folders laid out, nothing taken for an old version's - and the answer must be
+# taken in. A .update_checker beside the game, which versions before 1.2.0
+# shipped, says the opposite and is read by nobody.
 : > "$WORK/requests"
-freshHome 1.1.2
+serve '1.2.0\n'
+rm -rf "$XDG_DATA_HOME"
+mkdir -p "$B5_PRIVATE_HOME"
 printf '1' > "$B5_PRIVATE_HOME/.update_checker"
 printf '0' > "$GAME_SIGNAL"
-start installer-off
-[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the user directory's .update_checker is still there" \
-	|| b5_ok "the user directory's .update_checker is gone"
-[ -e "$GAME_SIGNAL" ] && b5_note "the game folder's .update_checker is still there" \
-	|| b5_ok "the game folder's .update_checker is gone"
-[ "$(config)" = 0 ] && b5_ok "the installer's off wins" || b5_note "config.xml says $(config)"
-b5_dump
-[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && [ "$(requests)" -eq 0 ] && b5_ok "and nothing is asked" \
-	|| b5_note "the check ran although the installer said off"
+B5_FRESH_HOME=1
+start first-start
+unset B5_FRESH_HOME
+grep -Eq "Last played: +not_played" "$B5_OUT/run.log" && b5_ok "a home holding only the installer's answer is a first start" \
+	|| b5_note "the first start took the home for $(sed -n 's/.*Last played: *//p' "$B5_OUT/run.log" | head -1)"
+[ -d "$B5_PRIVATE_HOME/screenshots" ] && [ -d "$B5_PRIVATE_HOME/levels/skins" ] \
+	&& b5_ok "the first start laid out the folders" || b5_note "the first start did not lay out the folders"
+[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the installer's .update_checker is still there" \
+	|| b5_ok "the installer's .update_checker is gone"
+[ "$(config)" = 1 ] && b5_ok "config.xml has the installer's answer" || b5_note "config.xml says $(config)"
+[ -e "$GAME_SIGNAL" ] && b5_ok "the game folder's .update_checker is left alone" \
+	|| b5_note "the game folder's .update_checker was taken"
+waitUpdate "$UP_TO_DATE" "up to date"
+[ "$(requests)" -eq 1 ] && b5_ok "and the check ran at the start" || b5_note "$(requests) requests at the start"
+# The CRT offer comes with a first start; out of the way before Escape.
+b5_click Menu.CrtPane.Crt.NoThanks
 quit
+rm -f "$GAME_SIGNAL"
 
-# --- 5. no curl, no wget; and the game folder's word on no new version --------
-# The button cannot ask and says why. The installer's file is read only on
-# the first start of a new version, since an installation for all users
-# leaves it where it cannot be deleted - so here it stays, unread.
+# --- 5. no curl, no wget -----------------------------------------------------
+# The button cannot ask and says why.
 export PATH="$WORK/notools"
 : > "$WORK/requests"
 freshHome 1.2.0
-printf '1' > "$GAME_SIGNAL"
 start no-tools
-expectButton "'Check for updates'" False False "without curl and wget"
+expectButton "'Check for\u00b6Updates'" False False "without curl and wget"
 b5_dump
 [ "$(b5_json "el('Menu.Version').get('toolTip')")" = "Needs curl or wget, and neither is installed." ] \
 	&& b5_ok "the tooltip says what is missing" \
 	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.Version').get('toolTip'))")"
-[ -e "$GAME_SIGNAL" ] && b5_ok "the game folder's .update_checker is left alone on the same version" \
-	|| b5_note "the game folder's .update_checker was taken on the same version"
-[ "$(config)" = none ] && b5_ok "and config.xml is not written" || b5_note "config.xml says $(config)"
 b5_click Menu.Options
 b5_dump
 [ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = False ] \
 	&& b5_ok "the options' box is disabled too" || b5_note "the options' box is enabled without curl and wget"
 b5_key Escape
 quit
-rm -f "$GAME_SIGNAL"
 
-# --- 6. the installer's on; a curl that never answers -------------------------
+# --- 6. a curl that never answers -------------------------------------------
 # The game gives up after twelve seconds and kills it, and a check still
 # running when the game quits ends with it.
 export PATH="$WORK/hang:$ORIGINAL_PATH"
 : > "$WORK/hang.pids"
-freshHome 1.1.2
-printf '1\n' > "$GAME_SIGNAL"
+freshHome 1.2.0
+writeConfig '<CheckForUpdates>1</CheckForUpdates>'
 start hang
-[ -e "$GAME_SIGNAL" ] && b5_note "the game folder's .update_checker is still there" \
-	|| b5_ok "the game folder's .update_checker is gone"
-[ "$(config)" = 1 ] && b5_ok "the installer's on is in config.xml" || b5_note "config.xml says $(config)"
 first=$(head -1 "$WORK/hang.pids")
 [ -n "$first" ] && b5_ok "the check started with the game" || b5_note "no check started"
 # Given up on wherever the twelve seconds ran out - during the loading screen,
 # which does not poll, the menu's first poll finds them over.
 waitUpdate "$FAILED" "failed" 20
-expectButton "'Error - Retry'" True False "given up on"
+expectButton "'Error\u00b6Retry'" True False "given up on"
 kill -0 "$first" 2>/dev/null && b5_note "the hanging curl was not killed" || b5_ok "the hanging curl was killed and reaped"
 b5_click Menu.Version
 b5_dump
-expectButton "'Checking for updates ...'" False False "asking again"
+expectButton "'Checking ...'" False False "asking again"
 second=$(tail -1 "$WORK/hang.pids")
 [ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
 quit

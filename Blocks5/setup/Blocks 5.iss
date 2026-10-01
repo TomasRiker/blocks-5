@@ -42,15 +42,13 @@ german.UninstallBlocks5=Blocks 5 deinstallieren
 german.EnableUpdateChecker=Beim Starten des Spiels automatisch nach Updates suchen
 
 [Tasks]
-Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked; Check: IsFirstInstall
+Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked; Check: IsNewPlayer
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
 
-; The two .bat files are left behind by versions before 1.2.0, which switched
-; the update check with them; the switch is in the game's options now.
-; .update_checker is an earlier installation's answer to the EnableUpdateChecker
-; box, which an installation for all users leaves where the game cannot delete
-; it. An update says nothing, so it has to go before the game sees it again.
+; Left behind by versions before 1.2.0, which switched the update check with
+; these and shipped a .update_checker beside the game; the switch is in the
+; game's options now, and nothing reads that file any more.
 [InstallDelete]
 Type: files; Name: "{app}\update_checker_disable.bat"
 Type: files; Name: "{app}\update_checker_enable.bat"
@@ -74,47 +72,56 @@ Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
 Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
 
-; Written by the code below, so the uninstaller does not know of it by itself.
+; What the code below wrote for a player who then never started the game: the
+; answer, and the folder it made for it if nothing else is in there. A game
+; that has started has taken the file in and deleted it already.
 [UninstallDelete]
-Type: files; Name: "{app}\.update_checker"
+Type: files; Name: "{userdocs}\Blocks 5\.update_checker"
+Type: dirifempty; Name: "{userdocs}\Blocks 5"
 
 [Code]
 var
-  FirstInstall: Boolean;
+  UserDir: String;
+  HasPlayed: Boolean;
 
-// Whether Blocks 5 has been installed here before, by the uninstaller's key: in
-// the machine's hive or the user's, after how the earlier installation ran.
-// AppId is not set, so Inno names the key after AppName, as it always has.
-// Asked before anything is installed, because the installation writes the key.
+// The folder the game keeps the player's files in, found as the game finds it
+// (FileSystem::getAppHomeDirectory): CSIDL_MYDOCUMENTS, which is {userdocs},
+// with "Blocks 5" in it. config.xml is there from the first start on, in every
+// version that had the folder at all, so it says whether this user has played.
+// Where Windows names no Documents folder the game uses one beside itself,
+// and the installer leaves that alone.
 function InitializeSetup: Boolean;
-var
-  Key: String;
 begin
-  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Blocks 5_is1';
-  FirstInstall := not RegKeyExists(HKLM, Key) and not RegKeyExists(HKCU, Key);
+  try
+    UserDir := ExpandConstant('{userdocs}\Blocks 5');
+  except
+    UserDir := '';
+  end;
+  HasPlayed := (UserDir = '') or FileExists(UserDir + '\config.xml');
   Result := True;
 end;
 
-// The update check's box is offered on a first installation only. On an update
-// the player has a setting of their own in the game's options, and a box would
+// The update check's box is offered to somebody who has not played yet. A
+// player has a setting of their own in the game's options, and a box would
 // overrule it whichever way it started, for anybody who just clicked through.
-function IsFirstInstall: Boolean;
+function IsNewPlayer: Boolean;
 begin
-  Result := FirstInstall;
+  Result := not HasPlayed;
 end;
 
-// The update check is the game's own setting, in config.xml. On a first
-// installation the installer leaves the box's answer beside the game, ticked
-// or not, and the game takes it in at its first start and deletes the file
-// where it may (main.cpp, adoptUpdateCheckChoices). On an update it writes
-// nothing at all, and [InstallDelete] has taken away an earlier answer.
+// The update check is the game's own setting, in config.xml. For a new player
+// the installer leaves the box's answer, ticked or not, in the folder the game
+// will use, and the game takes it in at its first start and deletes it
+// (main.cpp, adoptUpdateCheckChoice). In the user's folder rather than beside
+// the game, so that it reaches the one who answered and nobody else.
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Choice: String;
 begin
-  if (CurStep = ssPostInstall) and FirstInstall then
+  if (CurStep = ssPostInstall) and not HasPlayed then
   begin
     if WizardIsTaskSelected('EnableUpdateChecker') then Choice := '1' else Choice := '0';
-    SaveStringToFile(ExpandConstant('{app}\.update_checker'), Choice, False);
+    ForceDirectories(UserDir);
+    SaveStringToFile(UserDir + '\.update_checker', Choice, False);
   end;
 end;

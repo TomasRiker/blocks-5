@@ -104,8 +104,11 @@ demand, in both languages, and what it asserts is the dump's: `updateCheck` (`Up
 number), a button's `title`, `titleSize` and `flashing`, a checkbox's `checked` and any element's
 `toolTip`. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
 machine without them, a `curl` that execs `sleep` for a check that never answers, and an `xdg-open` that
-writes its argument down for the download page being opened. The installer's `.update_checker` lies
-beside the game, which here is the working tree, so the script's trap deletes it whatever happens.
+writes its argument down for the download page being opened. One run is a real first start, into a
+home holding nothing but the installer's `.update_checker`, which must still count as one:
+`B5_FRESH_HOME=1` makes `b5_start` leave the home as the test made it, CRT offer and all. The same run
+puts a `.update_checker` beside the game, as versions before 1.2.0 shipped one, to prove nothing reads
+it — and since the game folder is the working tree, the script's trap deletes it whatever happens.
 
 Two traps cost a run each. The server is started from a subshell, because `b5_stop` ends in a bare
 `wait`, which waits for every job of the shell — a server started with `&` among them, for ever. And the

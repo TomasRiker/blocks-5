@@ -390,7 +390,8 @@ void GS_Menu::onLoseFocus()
 void GS_Menu::updateVersionButton()
 {
 	GUI_Button* p_button = static_cast<GUI_Button*>(gui["Menu.Version"]);
-	const std::string version = localizeString("$MM_VERSION") + " " + p_localVersion;
+	// "v1.2.0", short enough for a button that ends before the logo begins.
+	const std::string version = std::string("v") + p_localVersion;
 
 #ifdef __EMSCRIPTEN__
 	// No update check in the browser, so the version alone and nothing to

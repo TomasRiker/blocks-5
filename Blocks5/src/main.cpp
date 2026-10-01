@@ -51,37 +51,25 @@ namespace
 {
 #ifndef __EMSCRIPTEN__
 	// The update check's switch is <CheckForUpdates> in config.xml. A
-	// .update_checker - '1' for on, anything else for off - is only how a
-	// choice made outside the game gets there, taken in once and deleted.
-	// Two places can hold one: the user directory, where a version before
-	// 1.2.0 kept its switch, and the game folder, where a first installation
-	// writes its box's answer, ticked or not; an update writes none. The game
-	// folder's is read only on the first start of a new version, because an
-	// installation for all users leaves it where the game may not delete it,
-	// and it is read second, because installing is the newer of the two acts.
-	void adoptUpdateCheckChoices(Engine& engine, FileSystem& fs, bool newVersion)
+	// .update_checker in the user directory - '1' for on, anything else for
+	// off - is only how a choice made outside the game gets there, taken in at
+	// the next start and deleted: a version before 1.2.0 kept its switch in
+	// one, and the installer leaves one with its box's answer for somebody who
+	// has not played yet, which it tells by the config.xml there not being
+	// (setup/Blocks 5.iss). A .update_checker beside the game is what versions
+	// before 1.2.0 shipped and is read by nobody.
+	void adoptUpdateCheckChoice(Engine& engine, FileSystem& fs)
 	{
-		const std::string paths[2] =
-		{
-			fs.getAppHomeDirectory() + ".update_checker",
-			fs.getGameDirectory() + ".update_checker"
-		};
+		const std::string path(fs.getAppHomeDirectory() + ".update_checker");
+		if(!fs.fileExists(path)) return;
 
-		bool adopted = false;
-		for(int i = 0; i < (newVersion ? 2 : 1); i++)
-		{
-			if(!fs.fileExists(paths[i])) continue;
+		const std::string choice(fs.readStringFromFile(path));
+		engine.setCheckForUpdates(!choice.empty() && choice[0] == '1');
+		printfLog("Update check %s, as \"%s\" says.\n",
+				  engine.getCheckForUpdates() ? "on" : "off", path.c_str());
 
-			const std::string choice(fs.readStringFromFile(paths[i]));
-			engine.setCheckForUpdates(!choice.empty() && choice[0] == '1');
-			adopted = true;
-			printfLog("Update check %s, as \"%s\" says.\n",
-					  engine.getCheckForUpdates() ? "on" : "off", paths[i].c_str());
-
-			if(!fs.deleteFile(paths[i])) printfLog("+ WARNING: Could not delete \"%s\".\n", paths[i].c_str());
-		}
-
-		if(adopted) engine.saveConfig();
+		if(!fs.deleteFile(path)) printfLog("+ WARNING: Could not delete \"%s\".\n", path.c_str());
+		engine.saveConfig();
 	}
 #endif
 }
@@ -145,12 +133,16 @@ const std::string detectInitializedVersion()
 	//    1.0.71:	"Blocks 5" folder exists in the user directory
 	//    1.0.72:	".initialized" file exists
 	// >= 1.0.73:	".initialized" file holds the version number
-	// A "Blocks 5" folder with no file directly in it counts as none.
+	// A "Blocks 5" folder with no file directly in it counts as none, and so
+	// does one holding nothing but a .update_checker: the installer leaves
+	// that for somebody who has not played yet (adoptUpdateCheckChoice).
 
 	FileSystem& fs = FileSystem::inst();
 	const std::string homeDirectory(fs.getAppHomeDirectory());
 
-	if(fs.listDirectory(homeDirectory).empty())
+	std::list<std::string> files(fs.listDirectory(homeDirectory));
+	files.remove(".update_checker");
+	if(files.empty())
 	{
 		// TODO: a progress.zip that UAC redirected into the VirtualStore is
 		// not found here.
@@ -413,7 +405,7 @@ int runTheGame(int argc,
 #ifndef __EMSCRIPTEN__
 	// After init(), which has read config.xml, and as early as that: the menu
 	// shows the answer, and it asks for it once a tick.
-	adoptUpdateCheckChoices(engine, fs, versionInitialized != p_localVersion);
+	adoptUpdateCheckChoice(engine, fs);
 	if(engine.getCheckForUpdates()) UpdateCheck::start();
 	else printfLog("Not checking for updates.\n");
 #endif

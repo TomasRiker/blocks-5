@@ -33,7 +33,7 @@ b5_shot 1-menu
 # would ask the website; update.sh clicks it against a server of its own.
 b5_dump
 version=$(sed -n 's/.*p_localVersion = "\([^"]*\)".*/\1/p' "$B5_GAME/src/main.cpp")
-[ "$(b5_json "el('Menu.Version')['title'].split('\u00b6')[0].endswith(' $version')")" = True ] \
+[ "$(b5_json "el('Menu.Version')['title'].split('\u00b6')[0] == 'v$version'")" = True ] \
 	&& b5_ok "the version button names $version" \
 	|| b5_note "the version button says $(b5_json "repr(el('Menu.Version')['title'])")"
 if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then

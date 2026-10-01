@@ -82,18 +82,19 @@ banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus th
 before and sat at 1.1.1 through the whole of 1.1.2.
 
 **The update check ships off, and its switch is `<CheckForUpdates>` in `config.xml`.** The installer's
-`EnableUpdateChecker` box is offered on a first installation only — not where the uninstaller's key
-`Blocks 5_is1` stands in either hive, which `InitializeSetup` asks before the installation writes it —
-because on an update the player has a setting of their own, and a box would overrule it whichever way it
-started. Its `[Code]` then writes the answer either way, `1` or `0`, into `{app}\.update_checker`, and
-the game takes that in on its first start of the new version and deletes it where it may
-(`adoptUpdateCheckChoices` in `main.cpp`): only on that start, because an installation for all users
-leaves the file where a player cannot delete it, and after a `.update_checker` that a version before
-1.2.0 left in the user directory, because installing is the newer act. On an update the installer
-writes nothing, and `[InstallDelete]` removes an earlier installation's file, which the game would
-otherwise take in again at the next new version, and the two `.bat` files that switched the check
-before 1.2.0; their copies in the user directory go at the game's first start of 1.2.0.
-`[UninstallDelete]` takes the file away as well, since the uninstaller knows only what was installed.
+`EnableUpdateChecker` box is offered only to somebody who has not played yet, which `InitializeSetup`
+tells by `config.xml` being missing from `{userdocs}\Blocks 5` — the folder `getAppHomeDirectory` uses,
+`CSIDL_MYDOCUMENTS` being `{userdocs}`, and one every version with that folder has written a
+`config.xml` into from its first start on. A player has a setting of their own, and a box would
+overrule it whichever way it started. For a new player `[Code]` writes the answer either way, `1` or
+`0`, as `.update_checker` into that same folder, so that it reaches the one who answered and nobody
+else; the game takes it in at its next start and deletes it (`adoptUpdateCheckChoice` in `main.cpp`),
+and a home holding nothing but that file still counts as a first start (`detectInitializedVersion`).
+An installation run under another account — an administrator's, given over the shoulder — asks about
+and writes to that account's folder. `[UninstallDelete]` takes the file and the folder it made away
+for a player who never started the game, and `[InstallDelete]` removes what versions before 1.2.0 left
+beside the game: the two `.bat` files that switched the check and a `.update_checker` nothing reads
+any more. The `.bat` files' copies in the user directory go at the game's first start of 1.2.0.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to
