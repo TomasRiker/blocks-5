@@ -70,7 +70,7 @@ b5_click Menu.Options
 b5_expectShown OptionsPane.Options
 b5_click OptionsPane.Options.CrtSettings
 b5_expectShown OptionsPane.CrtOptions
-for slider in Scan Curve Bloom Flicker ScanFlicker Converge; do
+for slider in Scan Curve Bloom Flicker ScanFlicker Converge Rewind; do
 	b5_expectShown "OptionsPane.CrtOptions.$slider"
 done
 b5_shot 3b-crt

@@ -12,7 +12,14 @@ class Texture;
 class CF_Rewind : public Crossfade
 {
 public:
-	CF_Rewind();
+	// The CRT settings' rewind slider, 0..1, as the share of the full-length
+	// effect a rewind takes: 0 for none at all, and above it from half the
+	// full length up to all of it.
+	static float lengthFor(float slider);
+	// The crossfade's duration in seconds at a length lengthFor() gave.
+	static float durationFor(float length);
+
+	explicit CF_Rewind(float length);
 	~CF_Rewind();
 
 	void render(float t, uint oldImageID, uint newImageID);
@@ -28,10 +35,8 @@ private:
 	uint noiseID;
 
 	// The recorder's on-screen display: "REWIND" on the left, two triangles
-	// on the right. startTicks times the arrows' blinking from the effect's
-	// start, so they begin visible rather than in an arbitrary phase.
+	// on the right.
 	Texture* p_osd;
-	uint startTicks;
 };
 
 #endif

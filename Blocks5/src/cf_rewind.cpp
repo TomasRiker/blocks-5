@@ -5,6 +5,12 @@
 
 namespace
 {
+	// The full-length effect in seconds, where the CRT settings' slider stands
+	// at the top. Everything render() draws runs on the crossfade's own clock,
+	// t from 0 to 1, so a shorter rewind is the same one played faster; the
+	// constructor speeds the sound up by as much.
+	const float FULL_DURATION = 1.5f;
+
 	// How tall a strip is: a few rows, fine enough that the seam between the
 	// two source images nowhere stands as a straight edge, and coarse enough
 	// that 160 strips have to be drawn and not 480.
@@ -13,8 +19,9 @@ namespace
 	// How far the picture rolls over the whole effect, in picture heights: at
 	// search speed the vertical hold cannot keep up. A whole number, so the
 	// offset lands on zero exactly as the crossfade ends; at 6.5 the picture
-	// would sit half a screen out and then jump. A distance, not a speed: over
-	// 1.5 seconds, seven heights read as leisurely, ten as frantic.
+	// would sit half a screen out and then jump. A distance, not a speed, so a
+	// shorter rewind rolls faster: over the full 1.5 seconds, seven heights
+	// read as leisurely, ten as frantic.
 	const float ROLL_SCREENS = 10.0f;
 
 	// Over what part of the end the transport brakes and the vertical hold
@@ -66,9 +73,11 @@ namespace
 	const int OSD_ARROWS_WIDTH = 56;
 	const int OSD_HEIGHT = 64;
 
-	// How long the arrows are on and off each time. A character generator
-	// knows no crossfade: it switches.
-	const uint OSD_BLINK_MS = 500;
+	// How often the arrows switch over the whole effect: on, off and on again,
+	// half a second each at full length. Counted on the crossfade's clock, so
+	// they begin visible and blink faster in a shorter rewind. A character
+	// generator knows no crossfade: it switches.
+	const int OSD_PHASES = 3;
 
 	float wrap(float value, float range)
 	{
@@ -77,15 +86,28 @@ namespace
 	}
 }
 
-CF_Rewind::CF_Rewind()
+float CF_Rewind::lengthFor(float slider)
+{
+	// Not "slider <= 0", which a NaN would get past.
+	if(!(slider > 0.0f)) return 0.0f;
+	return 0.5f + 0.5f * min(slider, 1.0f);
+}
+
+float CF_Rewind::durationFor(float length)
+{
+	return FULL_DURATION * length;
+}
+
+CF_Rewind::CF_Rewind(float length)
 {
 	p_osd = Manager<Texture>::inst().request("misc.png");
-	startTicks = SDL_GetTicks();
 
 	// The transport's sound, played here rather than by the caller so picture
 	// and sound cannot be had separately. It runs a little longer than the
-	// crossfade, so the run-down is not cut off with the picture.
-	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100);
+	// crossfade, so the run-down is not cut off with the picture, and a
+	// shorter rewind plays it faster by as much - pitch and all, as a faster
+	// tape sounds. Held to the range lengthFor() gives.
+	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100, false, 1.0f / clamp(length, 0.5f, 1.0f));
 
 	// Snow, once and for all. Grey, not coloured: what the head picks up
 	// between two tracks is noise with no colour carrier.
@@ -233,14 +255,14 @@ void CF_Rewind::render(float t,
 
 	// --- The on-screen display ---------------------------------------------
 	// Not part of the tape, so it never fades and takes no part in settle.
-	// The word stands throughout; the arrows blink hard, counted from the
-	// effect's start so they begin visible.
+	// The word stands throughout; the arrows blink hard, and t of 1 belongs
+	// to the last phase rather than starting one more.
 	if(p_osd)
 	{
 		engine.renderSprite(p_osd, Vec2i(OSD_X, OSD_Y), Vec2i(0, 112),
 							Vec2i(OSD_TEXT_WIDTH, OSD_HEIGHT), Vec4f(1.0f));
 
-		if(((SDL_GetTicks() - startTicks) / OSD_BLINK_MS) % 2 == 0)
+		if(min(static_cast<int>(t * static_cast<float>(OSD_PHASES)), OSD_PHASES - 1) % 2 == 0)
 		{
 			engine.renderSprite(p_osd, Vec2i(OSD_X + OSD_TEXT_WIDTH, OSD_Y),
 								Vec2i(OSD_TEXT_WIDTH, 112),

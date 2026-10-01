@@ -6,8 +6,9 @@
 /*** "CRT monitor" - a screen from the nineties ***/
 
 // Everything that gives this filter its character is a const at the top of the
-// shader in u_crt.cpp, meant to be edited; the six sliders here are the ones
-// that are matters of taste rather than tuning.
+// shader in u_crt.cpp, meant to be edited; the sliders here are the ones that
+// are matters of taste rather than tuning. Six reach the shader, and the
+// seventh is how long restarting a level rewinds the tape (CF_Rewind).
 //
 // The barrel distortion goes through the mouse as well: warpToSource() is the
 // shader's formula once more in C++, warpToOutput() its inverse, and
@@ -43,19 +44,22 @@ public:
 	void saveConfig(TiXmlElement* p_config);
 
 	// The sliders, 0..1 each; they take effect at once, with no recompile of
-	// the shader. 0 means "effect off" on every one of them.
+	// the shader, the rewind at the next restart. 0 means "effect off" on
+	// every one of them.
 	float getScanline() const { return scanline; }
 	float getCurvature() const { return curvature; }
 	float getBloom() const { return bloom; }
 	float getFlicker() const { return flicker; }
 	float getScanFlicker() const { return scanFlicker; }
 	float getConvergence() const { return convergence; }
+	float getRewind() const { return rewind; }
 	void setScanline(float value);
 	void setCurvature(float value);
 	void setBloom(float value);
 	void setFlicker(float value);
 	void setScanFlicker(float value);
 	void setConvergence(float value);
+	void setRewind(float value);
 
 protected:
 	const char* getFragmentSource() const;
@@ -87,6 +91,7 @@ private:
 	float flicker;
 	float scanFlicker;
 	float convergence;
+	float rewind;
 };
 
 #endif

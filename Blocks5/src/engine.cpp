@@ -2979,26 +2979,27 @@ SoundInstance* Engine::playSound(const std::string& filename,
 								 bool loop,
 								 float pitchSpectrum,
 								 int priority,
-								 bool forceCreation)
+								 bool forceCreation,
+								 float pitch)
 {
 	if(!filename.length()) return 0;
 
 	Sound* p_sound = Manager<Sound>::inst().request(filename);
 	if(p_sound)
 	{
-		// The pitch is drawn whether or not an instance comes:
+		// The spread is drawn whether or not an instance comes:
 		// Sound::createInstance drops a one-shot within 10 ms of wall time of
 		// the same sound, and a draw behind that would make the level's random
 		// sequence depend on how the machine bunched its ticks.
-		const float pitch = pitchSpectrum != 0.0f ? 1.0f + random(-pitchSpectrum, pitchSpectrum) : 1.0f;
+		const float spread = pitchSpectrum != 0.0f ? 1.0f + random(-pitchSpectrum, pitchSpectrum) : 1.0f;
 
 		SoundInstance* p_inst = p_sound->createInstance(forceCreation);
 		p_sound->release();
 
 		if(p_inst)
 		{
-			// set the pitch
-			if(pitchSpectrum != 0.0f) p_inst->setPitch(pitch);
+			// set the pitch, before play() so no part of it plays at another
+			if(pitch * spread != 1.0f) p_inst->setPitch(pitch * spread);
 
 			// set the priority
 			p_inst->setPriority(priority);
