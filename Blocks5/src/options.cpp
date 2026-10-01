@@ -29,6 +29,7 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Rewind"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("CrtOptions.Close"))->connectClicked(this, &Options::handleClick);
 	static_cast<GUI_ListBox*>(getChild("Options.Actions"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_Button*>(getChild("Options.ResetSelected"))->connectClicked(this, &Options::handleClick);
@@ -102,6 +103,8 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 		static_cast<int>(100.0f * crt.getScanFlicker()));
 	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->setScroll(
 		static_cast<int>(100.0f * crt.getConvergence()));
+	static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Rewind"))->setScroll(
+		static_cast<int>(100.0f * crt.getRewind()));
 	getChild("CrtOptions")->hide();
 
 	// Start with no selection, and reset the key buttons by hand:
@@ -220,6 +223,7 @@ void Options::handleClick(GUI_Element* p_element)
 		crt.setFlicker((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Flicker"))->getScroll());
 		crt.setScanFlicker((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.ScanFlicker"))->getScroll());
 		crt.setConvergence((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Converge"))->getScroll());
+		crt.setRewind((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("CrtOptions.Rewind"))->getScroll());
 
 		if(name == "CrtSettings")
 		{

@@ -21,10 +21,13 @@ namespace
 {
 	// A restart jumps to the start with nothing in between. Under the CRT
 	// filter that reads as a tape rewinding, which jumps the same way; without
-	// it the tape noise would be a costume, so it gets the slices.
+	// it the tape noise would be a costume, so it gets the slices - as it does
+	// where the CRT settings' rewind slider stands at 0.
 	void crossfadeRestart(Engine& engine)
 	{
-		if(engine.getUpscaler() == &engine.getCrt()) engine.crossfade(new CF_Rewind, 1.5f);
+		const float length = CF_Rewind::lengthFor(engine.getCrt().getRewind());
+		if(engine.getUpscaler() == &engine.getCrt() && length > 0.0f)
+			engine.crossfade(new CF_Rewind(length), CF_Rewind::durationFor(length));
 		else engine.crossfade(new CF_Slices, 0.85f);
 	}
 

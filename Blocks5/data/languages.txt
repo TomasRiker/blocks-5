@@ -277,6 +277,13 @@ $O_CRT_CONVERGENCE
 §en:Color fringes (convergence error):
 §de:Farbsäume (Konvergenzfehler):
 
+$O_CRT_REWIND
+// Label above the rewind slider in the CRT settings: how long restarting a
+// level rewinds the tape. 0 turns the effect off, and a restart then has the
+// transition it has without the CRT filter.
+§en:Rewind on restart, length (0 = off):
+§de:Zurückspulen beim Neustart, Dauer (0 = aus):
+
 $O_CONTROLS
 // Caption of the controls section
 §en:Controls:

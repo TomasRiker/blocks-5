@@ -161,7 +161,10 @@ search really puts out, and everything else follows from the physics
 (`cf_rewind.cpp`). The `REWIND` and its two arrows in the corner must not move
 with any of it: they come from the recorder's own character generator, and that
 one steady thing is what makes the mess read as a machine. `ROLL_SCREENS` is a whole number so the
-roll lands back on zero exactly when the crossfade ends.
+roll lands back on zero exactly when the crossfade ends. How long it takes is a
+seventh slider behind *CRT settings ...*: at 0 a restart gets the slices, and
+above that the rewind runs from half its full 1.5 seconds to all of it, three
+quarters by default.
 
 
 12. Tell the player about the hardcoded keys  - **DONE**, it already did

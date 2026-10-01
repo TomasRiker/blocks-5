@@ -214,7 +214,7 @@ public:
 	// The filter for its name out of config.xml; 0 if none is called that.
 	Upscaler* findUpscaler(const char* p_name) const;
 	// The CRT filter by name, for the three places that want it and not just
-	// any: the options dialog's six sliders, the main menu's one-time offer,
+	// any: the options dialog's sliders, the main menu's one-time offer,
 	// and the rewind transition a restart gets under it (gs_game.cpp).
 	U_Crt& getCrt() const { return *p_crt; }
 	// A Vec2f position, so that a sprite off the grid needs no translate of its
@@ -226,7 +226,9 @@ public:
 	// each sprite's own tint comes on top of it.
 	void renderSprites(const Sprites& sprites, const Vec4f& color);
 
-	SoundInstance* playSound(const std::string& filename, bool loop = false, float pitchSpectrum = 0.0f, int priority = 0, bool forceCreation = false);
+	// pitch is the speed it plays at, 1 as recorded; pitchSpectrum varies that
+	// at random by up to its own share either way.
+	SoundInstance* playSound(const std::string& filename, bool loop = false, float pitchSpectrum = 0.0f, int priority = 0, bool forceCreation = false, float pitch = 1.0f);
 
 	void registerGameState(GameState* p_gs);
 	GameState* findGameState(const std::string& gs);

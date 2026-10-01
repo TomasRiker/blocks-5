@@ -136,7 +136,7 @@
 	     no room left in the options window - none may be taller than 480.
 	     The sliders take effect at once; Cancel fetches the old values
 	     back through loadConfig(). -->
-	<Window name="CrtOptions" w="300" h="364">
+	<Window name="CrtOptions" w="300" h="412">
 		<Title>$O_CRT_SETTINGS_TITLE</Title>
 		<Center />
 		<Hidden />
@@ -188,7 +188,15 @@
 		<ScrollBar name="Converge" x="12" y="290" w="235" h="16">
 			<Receiver>ConvergeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
-		<Button name="Close" x="85" y="322" w="130" h="26">
+		<StaticText name="RewindText" x="12" y="322" w="270" h="14">
+			<Text>$O_CRT_REWIND</Text>
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
+		<StaticText name="RewindValue" x="258" y="338"><Text></Text></StaticText>
+		<ScrollBar name="Rewind" x="12" y="338" w="235" h="16">
+			<Receiver>RewindValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
+		</ScrollBar>
+		<Button name="Close" x="85" y="370" w="130" h="26">
 			<Title>OK</Title>
 		</Button>
 	</Window>

@@ -457,7 +457,7 @@ U_Crt::U_Crt()
 	frameSize = Vec2i(640, 480);
 	crawlPhase = 0.0f;
 	crawlTicks = 0;
-	scanline = curvature = bloom = flicker = scanFlicker = convergence = SLIDER_DEFAULT;
+	scanline = curvature = bloom = flicker = scanFlicker = convergence = rewind = SLIDER_DEFAULT;
 }
 
 U_Crt::~U_Crt()
@@ -609,13 +609,14 @@ void U_Crt::setBloom(float value)       { bloom = sliderValue(value); }
 void U_Crt::setFlicker(float value)     { flicker = sliderValue(value); }
 void U_Crt::setScanFlicker(float value) { scanFlicker = sliderValue(value); }
 void U_Crt::setConvergence(float value) { convergence = sliderValue(value); }
+void U_Crt::setRewind(float value)      { rewind = sliderValue(value); }
 
 void U_Crt::loadConfig(TiXmlElement* p_config)
 {
 	// The defaults for what the file does not say, and for everything where
 	// there is no file (p_config 0): the options dialog's Cancel reloads the
 	// configuration to take back what the sliders changed.
-	scanline = curvature = bloom = flicker = scanFlicker = convergence = SLIDER_DEFAULT;
+	scanline = curvature = bloom = flicker = scanFlicker = convergence = rewind = SLIDER_DEFAULT;
 	TiXmlElement* p_crt = p_config ? p_config->FirstChildElement("CrtUpscaler") : 0;
 	if(!p_crt) return;
 
@@ -626,6 +627,7 @@ void U_Crt::loadConfig(TiXmlElement* p_config)
 	if(p_crt->QueryFloatAttribute("flicker", &value) == TIXML_SUCCESS)     setFlicker(value);
 	if(p_crt->QueryFloatAttribute("scanFlicker", &value) == TIXML_SUCCESS) setScanFlicker(value);
 	if(p_crt->QueryFloatAttribute("convergence", &value) == TIXML_SUCCESS) setConvergence(value);
+	if(p_crt->QueryFloatAttribute("rewind", &value) == TIXML_SUCCESS)      setRewind(value);
 }
 
 void U_Crt::saveConfig(TiXmlElement* p_config)
@@ -637,5 +639,6 @@ void U_Crt::saveConfig(TiXmlElement* p_config)
 	p_crt->SetDoubleAttribute("flicker", flicker);
 	p_crt->SetDoubleAttribute("scanFlicker", scanFlicker);
 	p_crt->SetDoubleAttribute("convergence", convergence);
+	p_crt->SetDoubleAttribute("rewind", rewind);
 	p_config->LinkEndChild(p_crt);
 }
