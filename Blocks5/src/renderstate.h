@@ -3,45 +3,31 @@
 
 /*** What a quad is drawn under, as far as it can differ from quad to quad ***/
 
-// Two things alternate from one quad to the next inside a render pass: the
-// texture it samples and the blend it is composited with. Everything rarer -
-// the colour mask, the stencil, the scissor, the target - is a bracket around
-// a whole group of quads and lives as a scope on the Renderer (renderer.h),
-// so that this stays two fields and comparing two states stays one 64-bit
-// compare.
+// Only the texture and the blend alternate from quad to quad inside a pass.
+// Everything rarer - colour mask, stencil, scissor, target - is a scope on the
+// Renderer (renderer.h) around a group of quads, so this stays two fields and
+// an equality test two compares.
 
-// A GL texture and how its texels map onto uv: every caller writes uv in
-// texels, and the renderer multiplies by texelScale and adds uvOrigin at
-// submission, in float - the multiply and the offset a texture matrix would
-// do in the vertex stage. An id of 0 is no texture at all - what a ref holds
-// before its first bind and after the texture behind it is deleted - and not
-// a picture the renderer substitutes: flat geometry samples the built-in
-// block and disc, which live in an atlas page like every other picture and
-// carry that page's id. Renderer::checkTiling exempts 0 for that reason: with
-// no picture behind it there is no edge to check against.
+// A GL texture and how its texels map onto uv. Callers write uv in their own
+// picture's texels; Renderer::pushQuad multiplies by texelScale and adds
+// uvOrigin, in float. An id of 0 is no texture at all (a default ref, or one
+// whose texture was deleted), not a stand-in: flat geometry samples the
+// renderer's built-in block and disc, which sit in an atlas page and carry its
+// id. Renderer::checkTiling skips 0, having no picture edge to check against.
 //
-// uvOrigin is where the picture begins inside the GL texture, which is (0, 0)
-// for a texture of its own and the corner of its rectangle for one that
-// shares a page with others. Callers never see it: they write uv in their own
-// picture's texels either way, which is what lets a cache built before the
-// move stay valid after it.
+// uvOrigin is where the picture starts inside the GL texture: (0, 0) for a
+// texture of its own, its rectangle's corner in a shared page. Callers never
+// see it, which keeps a cache of uv valid when a repack moves the picture.
 //
-// tiles says the picture is sampled outside its own edges and relies on
-// GL_REPEAT, which is why it cannot share a page: a coordinate past the edge
-// would land in whatever was packed next door. It is what a texture was
-// declared as at load (Texture::WM_REPEAT), carried to the one place that can
-// check it.
+// tiles: the picture is sampled past its edges and relies on GL_REPEAT
+// (declared Texture::WM_REPEAT), which wraps at the texture's edge, so it
+// cannot share a page. uvExtent is how much of the GL texture the picture
+// covers, (1, 1) for a texture of its own; in a page the picture's edge is not
+// the texture's, and checkTiling needs it.
 //
-// uvExtent is how much of the GL texture the picture occupies, (1, 1) for one
-// that owns its texture. It exists for Renderer::checkTiling, which has
-// nothing else to tell a picture's edge from a page's: with the atlas the two
-// stopped being the same thing, and a check written against [0, 1] stopped
-// meaning what it says.
-//
-// Only Texture::ref() can hand out a ref into a page, and it uses the
-// constructor that takes an extent. The shorter ones leave it at (1, 1),
-// which is the whole of the texture and so right for the refs that use them:
-// a render target read back, and a picture with a texture to itself.
+// Only Texture::ref() hands out a ref into a page, through the constructor
+// with an extent. The shorter ones leave (1, 1), right for their users: a
+// render target read back, and a picture with a texture to itself.
 struct TextureRef
 {
 	TextureRef() : id(0), texelScale(1.0f, 1.0f), uvOrigin(0.0f, 0.0f), uvExtent(1.0f, 1.0f), tiles(false) {}
@@ -86,11 +72,9 @@ struct RenderState
 
 	RenderState with(BlendMode other) const { return RenderState(texture, other); }
 
-	// The texel scale, the origin, the extent and the tiling flag are all
-	// functions of the picture and ride along for the bake and the check, so
-	// two states are the same state when the id and the blend agree - and two
-	// pictures on one atlas page share an id, which is the whole point: they
-	// batch together.
+	// Scale, origin, extent and tiling follow from the picture and ride along
+	// for the bake and the check. Only id and blend decide, so two pictures on
+	// one atlas page are one state and batch together.
 	bool operator == (const RenderState& rhs) const
 	{
 		return texture.id == rhs.texture.id && blend == rhs.blend;

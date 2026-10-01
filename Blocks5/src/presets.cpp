@@ -374,7 +374,7 @@ Object* Presets::instancePreset(const std::string& name,
 		p_obj->setDestroyTime(120);
 		p_obj->setMass(1000);
 		p_theObject = p_obj;
-		p_theObject->setToolTip("$TT_AMBOS");
+		p_theObject->setToolTip("$TT_ANVIL");
 	}
 	else if(name == "LightPanel")
 	{

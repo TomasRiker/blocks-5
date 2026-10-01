@@ -21,7 +21,7 @@ E_FlipFlop::E_FlipFlop(Level& level,
 	}
 
 	this->subType = subType;
-	this->value = value;
+	this->value = value ? 1 : 0;
 
 	// create the pins
 	switch(subType)
@@ -69,8 +69,8 @@ void E_FlipFlop::saveAttributes(TiXmlElement* p_target)
 
 std::string E_FlipFlop::getToolTip() const
 {
-	// See e_gate.cpp: assigning a string literal to char* has not been allowed
-	// since C++11, and subType comes out of the level file unchecked.
+	// const, because a string literal is not a char* since C++11. The
+	// constructor already clamps subType; the check below is a backstop.
 	static const char* const p_str[] = {"$TT_FLIP_FLOP_RS",
 										"$TT_FLIP_FLOP_D",
 										"$TT_FLIP_FLOP_JK"};
@@ -103,7 +103,7 @@ void E_FlipFlop::doLogic()
 	{
 	case 0:
 		{
-			// RS flip-flop, unclocked
+			// RS flip-flop, level-triggered
 			if(isAnyInputUndefined()) break;
 			int s = getValue(0);
 			int r = getValue(1);
@@ -119,7 +119,7 @@ void E_FlipFlop::doLogic()
 			int d = getValue(0);
 			int clk = getValue(1);
 			int oldClk = getOldValue(1);
-			if(clk && !oldClk) value = d;
+			if(clk && !oldClk) value = d ? 1 : 0;
 			break;
 		}
 

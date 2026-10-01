@@ -81,11 +81,11 @@ b5_shot 3b-crt
 b5_click OptionsPane.CrtOptions.Close
 b5_expectShown OptionsPane.CrtOptions false
 
-# And put the filter back explicitly, not through Cancel: that calls
-# loadConfig(), and on a first run there is no config.xml yet that would have
-# anything to take back. With the CRT filter left on, the next run would see a
-# curved picture - and the test hook does not account for the curvature, so
-# every click would land in the wrong place.
+# And put the filter back explicitly and save it, not through Cancel: that
+# restores whatever config.xml holds, or the defaults where there is none yet,
+# and the next run has to find a flat picture whatever the developer had set -
+# the test hook does not account for the curvature, so every click would land
+# in the wrong place.
 b5_click OptionsPane.Options.SharpFit
 b5_click OptionsPane.Options.OK
 b5_expectShown OptionsPane.Options false
@@ -186,11 +186,7 @@ have=$(b5_json "el('Menu.ManagerPane.Manager.Delete')['active']")
 	&& b5_ok "KindProgress: Delete enabled=$have, matching the user directory" \
 	|| b5_note "KindProgress: Delete enabled=$have, expected $wantProgress"
 
-# Export and Delete both hang on the selection, but not on the same condition:
-# everything in the list can be exported, only what belongs to the player can
-# be deleted. The list is the union of both roots and alphabetically sorted,
-# and the first entry is selected - if that one lies in the game folder, Delete
-# stays grey.
+# Export and Delete as for the levels above.
 #
 # Whether there is any music there at all depends on where the game is run
 # from. stage.bat says what ships, and it puts only the two example levels into

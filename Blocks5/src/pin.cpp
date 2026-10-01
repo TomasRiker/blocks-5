@@ -95,7 +95,7 @@ std::vector<Vec2f> Pin::getConnectionPath(const Pin* p_pin1,
 	Vec2f x1 = p_pin2->getScreenPosition();
 	const Vec2i& pin1 = p_pin1->getObject()->transformToScreen(p_pin1->getPosition());
 	const Vec2i& pin2 = p_pin2->getObject()->transformToScreen(p_pin2->getPosition());
-	Vec2f m0, m1;
+	Vec2f m0(0.0f, 0.0f), m1(0.0f, 0.0f);
 	if(pin1.x == 0) m0 = Vec2f(-1.0f, 0.0f);
 	else if(pin1.y == 0) m0 = Vec2f(0.0f, -1.0f);
 	else if(pin1.x == 15) m0 = Vec2f(1.0f, 0.0f);

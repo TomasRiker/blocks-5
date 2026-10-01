@@ -64,8 +64,8 @@ void GUI_ScrollBar::onRender()
 	{
 		// The same picture along either axis: a background, a button at each
 		// end with an arrow pointing outward, and the drag bar between them.
-		// Along the bar's axis a is the position and b the thickness; the
-		// corner helper turns the two back into x and y.
+		// corner() turns a position along the bar and one across it into x
+		// and y.
 		Renderer& renderer = Renderer::inst();
 		const int thickness = dir ? size.y : size.x;
 		const int length = dir ? size.x : size.y;
@@ -213,9 +213,8 @@ void GUI_ScrollBar::onMouseMove(const Vec2i& position,
 {
 	if(dragging)
 	{
-		// dragOffset is the point on the drag bar the hand took hold of, and
-		// the cursor stays exactly there. Without it the drag bar would jump
-		// under the hand on the first drag.
+		// The point the hand took hold of stays under the cursor, or the bar
+		// would jump on the first move.
 		if(!dir) setDragBarY(position.y - dragOffset);
 		else setDragBarY(position.x - dragOffset);
 	}

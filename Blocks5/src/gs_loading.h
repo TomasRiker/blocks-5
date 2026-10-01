@@ -37,7 +37,7 @@ private:
 #ifdef __EMSCRIPTEN__
 	bool waitingForClick;   // the browser blocks audio until the first gesture
 	int waitTime;           // wait time in ms, drives the pulsing too
-	int gestureTime;        // waitTime of the first input, otherwise -1
+	int gestureTime;        // waitTime of the first input, -1 before it; only its sign is read
 #endif
 };
 

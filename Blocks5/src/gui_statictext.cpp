@@ -79,11 +79,10 @@ void GUI_StaticText::readAttributes(TiXmlElement* p_element)
 	if(p_element->FirstChildElement("CenterText")) centerText = true;
 }
 
-// w or h set to -1: the hit area is as big as the text that is actually
-// drawn. Measured here and not once at load time, because the caption hangs
-// off the language - a width remembered at startup would be wrong after a
-// switch. That costs one measureText() per frame for the elements the cursor
-// is currently over.
+// w or h set to -1: the hit area is as big as the text actually drawn.
+// Measured here and not at load time, because a language switch changes the
+// caption. That costs a measureText() a tick for each such text whose parent
+// the cursor is over.
 bool GUI_StaticText::containsPoint(const Vec2i& position)
 {
 	if(size.x >= 0 && size.y >= 0) return GUI_Element::containsPoint(position);

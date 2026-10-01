@@ -1,35 +1,30 @@
 // sw.js - the offline cache for the browser build.
 //
-// The three payload files belong together. blocks5-<build>.js carries a table
-// of absolute byte offsets into blocks5-<build>.data, and its EM_ASM fragments
-// sit at addresses that fit exactly one blocks5-<build>.wasm. Handed out in
-// mismatched pairs the game aborts - "No EM_ASM constant found at address ..."
-// is what that looks like from the console.
+// The three payload files must never be mixed: blocks5-<build>.js holds
+// absolute byte offsets into blocks5-<build>.data, and its EM_ASM fragments sit
+// at addresses that fit exactly one blocks5-<build>.wasm. A mismatched set
+// aborts with "No EM_ASM constant found at address ...".
 //
-// The build's stamp in those three filenames is what makes that impossible:
-// what lies under such a URL never changes, so no cache on the way - this one,
-// the browser's own, a proxy, mod_pagespeed - can serve one build's JavaScript
-// beside another build's wasm. It is also why the two halves below are cached
-// in opposite directions:
+// The build's stamp in those filenames makes each such URL immutable, so no
+// cache on the way (this one, the browser's, a proxy, mod_pagespeed) can serve
+// one build's JavaScript beside another's wasm. Hence the two halves below are
+// cached in opposite directions:
 //
-//   stamped payload   cache first. It is immutable, so asking the network
-//                     could only ever confirm what is already here.
+//   stamped payload   cache first: it is immutable, so the network could only
+//                     confirm what is already here.
 //   everything else   network first, cache as the fallback. index.html cannot
-//                     carry a stamp - it is the entry point, and it is where
-//                     the current stamp is written down - so serving it from
-//                     the cache would mean nobody ever learns that a new build
-//                     exists. Without a network it still comes from the cache.
+//                     carry a stamp - it is where the current stamp is written
+//                     down - so serving it from the cache would hide every new
+//                     build. Offline it still comes from the cache.
 //
-// skipWaiting and clients.claim are safe for the same reason: a page that has
-// booted holds stamped URLs, so a worker taking over behind it cannot hand it
-// a different build halfway through.
+// skipWaiting and clients.claim are safe for the same reason: a booted page
+// holds stamped URLs, so a worker taking over cannot hand it another build
+// halfway through.
 //
-// %%VERSION%% is replaced by build.sh with a hash of the three files, so the
-// cache name changes exactly when the payload does and never otherwise.
+// build.sh replaces %%VERSION%% with a hash of the three files, so the cache
+// name changes exactly when the payload does.
 var BUILD = '%%VERSION%%';
-// The pad's own stamp. Separate from BUILD because touch_controls.js is not one
-// of the three files BUILD hashes, so the two move independently - which is the
-// whole point of giving it a stamp at all.
+// The pad's own stamp, a hash of touch_controls.js, which BUILD does not cover.
 var PAD = '%%PAD%%';
 var CACHE = 'blocks5-' + BUILD;
 
@@ -82,11 +77,11 @@ self.addEventListener('fetch', function (e) {
 	}
 
 	if (STAMPED.test(url.pathname)) {
-		// Only this build's own payload belongs in this cache store. While a
-		// new worker installs, the old one is still answering, and without this
-		// line it would pull the new build's files into its own store, which is
-		// about to be deleted - both payloads on disk for the duration.
-		// It lets anything stamped for another build through untouched instead.
+		// Only this build's own payload belongs in this store. While a new
+		// worker installs, the old one still answers, and without this line
+		// it would pull the new build's files into its own store, which is
+		// about to be deleted. Anything stamped for another build passes
+		// through untouched.
 		if (!MINE.test(url.pathname)) return;
 
 		e.respondWith(caches.open(CACHE).then(function (c) {
@@ -97,16 +92,13 @@ self.addEventListener('fetch', function (e) {
 		return;
 	}
 
-	// Network first - but a worker cannot make that true on its own, and it is
-	// worth knowing why before trying. A subresource the browser's own HTTP
-	// cache still considers fresh is served from there without this handler
-	// ever running: measured on a reload, touch_controls.js came back with
-	// workerStart 0, transferSize 0 and deliveryType "cache". So fetching it
-	// here with cache 'no-cache' fixes nothing - by the time this code runs,
-	// the HTTP cache has already declined to answer. What decides it is the
-	// Cache-Control the server sends, which is why WebBuild/htaccess names
-	// every unstamped file and not a chosen few. This branch is what keeps the
-	// page working offline; freshness is the header's job.
+	// Network first, as far as a worker can make it so. A subresource the
+	// browser's HTTP cache still considers fresh is served from there without
+	// this handler running (measured on a reload: workerStart 0, transferSize
+	// 0, deliveryType "cache"), so a cache: 'no-cache' fetch here would change
+	// nothing. Freshness is the job of the server's Cache-Control, which is
+	// why WebBuild/htaccess names every unstamped file; this branch keeps the
+	// page working offline.
 	e.respondWith(caches.open(CACHE).then(function (c) {
 		return fetch(req).then(function (res) {
 			return keep(c, res);

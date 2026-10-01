@@ -24,9 +24,8 @@ uint ParticleSystem::peakCount = 0;
 
 Vertex* ParticleSystem::vertexBuffer()
 {
-	// A function-local static rather than a member: it costs no allocation,
-	// no destruction order and no lifetime question, and the array is plain
-	// enough that zeroed storage is a valid starting state.
+	// A function-local static: no allocation, no destruction order, and
+	// zeroed storage is a valid starting state.
 	static Vertex buffer[VERTEX_BUFFER_SIZE];
 	return buffer;
 }
@@ -54,9 +53,9 @@ void ParticleSystem::render()
 	const uint count = static_cast<uint>(particles.size());
 	if(count > peakCount) peakCount = count;
 
-	// The pass bound the picture and set the blend; the buffer is filled
-	// and handed to the renderer in one piece, or in several where a frame
-	// has more particles than it holds.
+	// The texture is set above and the blend by the caller; the buffer is
+	// filled and handed to the renderer in one piece, or in several where a
+	// frame has more particles than it holds.
 	Renderer& renderer = Renderer::inst();
 	const RenderState state = renderer.state();
 	Vertex* const p_vertexBuffer = vertexBuffer();
@@ -85,16 +84,14 @@ void ParticleSystem::render()
 		const float cosR = cosf(p.rotation);
 		const Vec2f halfSize = static_cast<Vec2f>(p.sizeOnTexture) * 0.5f * p.size;
 
-		// The two half-axes of the quad. They are perpendicular, but each keeps
-		// its own length, so the second cannot be had by swapping the first
-		// one's components - that would give a square whatever sprite went in.
+		// The quad's two half-axes: perpendicular, but each with its own
+		// length, so the second is not the first with its components swapped -
+		// that would make every sprite square.
 		const Vec2f halfX(halfSize.x * cosR, -halfSize.x * sinR);
 		const Vec2f halfY(halfSize.y * sinR, halfSize.y * cosR);
 
-		// The quad is walked as an outline instead of being measured out from
-		// the centre four times over: only the first corner is built from the
-		// axes, and each of the others is one vector addition onto a corner
-		// that is already there.
+		// Only the first corner is built from the axes; each of the others is
+		// one vector addition onto a corner already built.
 		const Vec2f edgeX = halfX + halfX;
 		const Vec2f edgeY = halfY + halfY;
 		const Vec2f corner0 = p.position - halfX - halfY;
@@ -108,10 +105,9 @@ void ParticleSystem::render()
 			p_vertex = p_vertexBuffer;
 		}
 
-		// deltaColor runs a particle's colour past 1 on purpose - the teleport
-		// swirl takes its red to 2.1, and the three spark bursts add half a level
-		// of it a tick until the particle has shrunk away, which lands between
-		// 5.5 and 25.5 - and the renderer's program is what cuts it off.
+		// A colour past 1 is deliberate - the teleport swirl's red reaches 2.1,
+		// the three spark bursts' 5.5 to 25.5 - and the renderer's program
+		// clamps it.
 		p_vertex[0].color = p_vertex[1].color = p_vertex[2].color = p_vertex[3].color = p.color;
 		p_vertex[0].position = corner0;
 		p_vertex[0].uv = p.positionOnTexture;
@@ -131,9 +127,8 @@ void ParticleSystem::render()
 #endif
 }
 
-// Off like every other PROFILE_ toggle in the tree. Switched on, every run
-// writes a line to the log and to the console, which during play means
-// continuously.
+// Off like every other PROFILE_ toggle: switched on, every call logs a line,
+// which during play means continuously.
 // #define PROFILE_PARTICLESYSTEM_UPDATE
 #define PREFETCH_UPDATE
 

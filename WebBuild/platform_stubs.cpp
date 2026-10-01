@@ -16,30 +16,25 @@ SDL_Cursor* SDL_GetCursor(void)         { return NULL; }
 void        SDL_FreeCursor(SDL_Cursor*) {}
 
 // --- Locking SDL surfaces -------------------------------------------------------
-// Emscripten implements SDL_UnlockSurface as `assert(!SDL.GL)` and refuses
+// Emscripten implements SDL_UnlockSurface as `assert(!SDL.GL)` and so refuses
 // exactly the one mode this game uses. Every surface locked here is an
-// SDL_SWSURFACE the game created itself, whose `pixels` is always valid - the
-// lock is therefore a formality, one that real SDL leaves empty too. Defining
-// them here makes wasm-ld resolve against these versions and never pull the JS
-// ones in.
+// SDL_SWSURFACE the game created itself, whose `pixels` is always valid, so the
+// lock is a formality, as it is in real SDL. Defined here, wasm-ld resolves
+// against these and never pulls the JS ones in.
 int  SDL_LockSurface(SDL_Surface*)   { return 0; }
 void SDL_UnlockSurface(SDL_Surface*) {}
 
 // --- Copying surfaces -----------------------------------------------------------
 // Emscripten implements SDL_BlitSurface on a 2D canvas: drawImage from the
-// source canvas, then read back into the pixel buffer. That works only for
-// surfaces the SDL layer built itself from an image, because only those have a
-// canvas behind them.
+// source canvas, then read back into the pixel buffer. Only surfaces the SDL
+// layer built itself from an image have a canvas behind them, and every
+// surface this game blits is written straight into memory (by stb_image in
+// img_load.cpp or into an SDL_CreateRGBSurface), so the blit would silently
+// copy nothing and every texture would arrive fully transparent.
 //
-// Every surface this game blits is written straight into memory - by stb_image
-// in img_load.cpp or by SDL_CreateRGBSurface - leaving the source canvas empty
-// and the blit silently doing nothing. Every texture would arrive fully
-// transparent, which looks like "textures do not work".
-//
-// All four call sites copy 32-bit RGBA to 32-bit RGBA and first switch the
-// surface alpha off with SDL_SetAlpha(s, 0, 0), which in SDL 1.2 means "do not
-// blend, copy pixels". A plain row-by-row copy is therefore the right meaning
-// and not an approximation of it.
+// All three call sites copy 32-bit RGBA to 32-bit RGBA with the surface alpha
+// switched off by SDL_SetAlpha(s, 0, 0), which in SDL 1.2 means "do not blend,
+// copy pixels". A plain row-by-row copy is therefore the exact meaning.
 extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
                              SDL_Surface* p_dst, SDL_Rect* p_dstRect)
 {
@@ -80,18 +75,17 @@ extern "C" int SDL_UpperBlit(SDL_Surface* p_src, const SDL_Rect* p_srcRect,
 
 // --- SDL_GetKeyName -------------------------------------------------------------
 // Emscripten's own answers only for a-z and 0-9 and returns an empty string for
-// everything else. None of the default bindings - arrows, shift, tab, return,
-// F5 - is a letter or a digit, and the gap therefore hit every one of them.
+// every other key, which includes every default binding (arrows, shift, tab,
+// return, F5).
 //
-// The table is SDL 1.2.15's own, out of
-// libs/sdl-1.2.15/src/events/SDL_keyboard.c, which this tree ships and the
-// Windows build compiles - both builds therefore name a key the same way. The
-// SDLK_WORLD_0..95 entries are missing because Emscripten brings SDL2 headers
-// with a 1.2 compatibility layer and does not declare them; they are the Latin-1
-// dead keys, which no binding here uses.
+// The table is SDL 1.2.15's own, from
+// libs/sdl-1.2.15/src/events/SDL_keyboard.c, which the Windows build compiles,
+// so both builds name a key the same way. SDLK_WORLD_0..95 (the Latin-1 dead
+// keys, which no binding uses) are missing because Emscripten's SDL2 headers
+// with their 1.2 compatibility layer do not declare them.
 //
-// Nothing hangs off the text: config.xml stores ids, never names. This is what
-// the options dialog shows, and nothing else.
+// Nothing hangs off the text: config.xml stores ids, never names, and the name
+// is only shown to the player, for a key Engine's display table does not list.
 static const char* keynames[SDLK_LAST];
 
 static void initKeyNames(void)
@@ -251,28 +245,25 @@ const char* SDL_GetKeyName(SDL_Keycode key)
 } // extern "C"
 
 // --- Completing SDL_PixelFormat -------------------------------------------------
-// SDL.makeSurface in libsdl.js creates the SDL_PixelFormat and writes only eight
-// of its members: format, palette, BitsPerPixel, BytesPerPixel and the four
-// masks. Rloss..Aloss and Rshift..Ashift are left unwritten and hold whatever the
-// memory block's previous tenant left behind - zero on a fresh heap, but measured
-// as 171 and 120 once dlmalloc starts reusing blocks. libsdl.js never reads these
-// members; filling them here cannot disturb the JS layer.
+// SDL.makeSurface in libsdl.js writes only eight members of the
+// SDL_PixelFormat: format, palette, BitsPerPixel, BytesPerPixel and the four
+// masks. Rloss..Aloss and Rshift..Ashift hold whatever the heap block held
+// before - zero on a fresh heap, measured as 171 and 120 once dlmalloc reuses
+// blocks. libsdl.js never reads them, so filling them here cannot disturb it.
 //
-// Texture::getPixel is the source of every debris colour. With those members
+// Texture::getPixel, the source of every debris colour, shifts by them. At
 // zero, green comes out 256 times and blue 65536 times too large and both
-// clamp - the debris would be a cyan-white wash. With garbage in them, wasm
-// masks the shift distance modulo 32, and the debris comes out black.
+// clamp, a cyan-white wash; with garbage in them wasm takes the shift distance
+// modulo 32 and the debris comes out black.
 //
-// wasm-ld's --wrap handles all five call sites with no change to the game code:
-// references to SDL_CreateRGBSurface go to __wrap_SDL_CreateRGBSurface, __real_
-// back to the original. The module therefore still pulls in Emscripten's JS
-// implementation and the surface stays registered in SDL.surfaces - a
-// hand-written replacement would break SDL_FreeSurface, which looks it up there.
+// wasm-ld's --wrap sends all five call sites here with no change to the game
+// code, and __real_ reaches the original, so Emscripten's JS still registers
+// the surface in SDL.surfaces, where SDL_FreeSurface looks it up; a
+// hand-written replacement would break that.
 //
-// NEEDS -Wl,--wrap=SDL_CreateRGBSurface on build.sh's link line, which is the
-// one both the ordinary build and "./build.sh asan" go through. Without it
-// wasm-ld silently garbage-collects this function as unused, and the bug is
-// back with no warning.
+// NEEDS -Wl,--wrap=SDL_CreateRGBSurface on build.sh's link line, which the
+// ordinary build and "./build.sh asan" share. Without it wasm-ld silently drops
+// this function as unused.
 extern "C" SDL_Surface* __real_SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth,
 													Uint32 rMask, Uint32 gMask, Uint32 bMask, Uint32 aMask);
 

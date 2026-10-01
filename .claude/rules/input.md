@@ -13,7 +13,7 @@ paths:
 named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and secondary VK. Gameplay queries
 `wasActionPressed(name)` / `isActionDown(name)`; bindings are registered in `main.cpp` and remappable in the
 options dialog, where *Reset selected* and *Reset all* work off `Action`'s `defaultPrimary` and
-`defaultSecondary` and grey out without a selection.
+`defaultSecondary`; *Reset selected* greys out without a selection, *Reset all* needs none.
 
 **The mouse drag is a device, not a special case in the game.** `Engine::updateMouseDrag` is a recogniser
 of the same kind as the joystick hat: it sets six virtual keys (`Mouse DragW`, `DragE`, `DragN`, `DragS`,
@@ -71,9 +71,9 @@ Two of `move()`'s early-outs are skipped when asking, and that is deliberate. Wh
 already moved this tick, and whether it is sliding, decide *when* a step lands rather than whether the way
 is open; the drag holds its key across ticks, and an answer that flickered with the tick would hand its leg
 to the other axis and back. `updateVKs()` also runs before `Level::update` clears `moved`, so in simulate
-mode that flag is always the previous tick's. The one place the answer is generous is a push onto ice: the
-pushed object starts sliding instead of stepping, so the real `move()` reports false while the way is in
-fact opening.
+mode that flag is always the previous tick's. The one place the answer is generous is a push made from
+ice: the pushed object goes, but the character standing on the ice stays where it is, so the real `move()`
+reports false while the way is in fact opening.
 
 **A click works what the character is standing next to.** With blocked directions no longer commanded, a
 switch or a magnet would otherwise be out of a mouse player's reach: both are solid and fixed and do their
@@ -169,3 +169,12 @@ the 136 SDL 1.2 key names that resolve to whatever constant the current build me
 already-structural `Joystick1 B3` / `Joystick1 A2+` / `Joystick1 H1NE` for the rest. Reading tries the number
 first, so a pre-1.2.0 config still loads and is rewritten by name on the next save. An id that resolves to
 nothing — a joystick not connected — becomes "unassigned" rather than a wrong key.
+
+**A letter shortcut goes by the label on the key, and the keysym cannot say that everywhere.** SDL 1.2 on
+Windows translates keys through the US layout (`hLayoutUS` in `SDL_dibevents.c`), so its keysyms are
+*positions*: on a German keyboard the key labelled Z arrives as `SDLK_y`. sdl12-compat under Linux and the
+browser build report the layout's own letter. Every Ctrl+letter shortcut — undo and redo, cut, copy and paste,
+select all, save — and the editor's plain `L` therefore ask `keyLetter()` (`util.h`), which takes the letter
+the layout made of the key from `unicode` where SDL fills it in and from the keysym where it does not. The
+actions need none of this: a binding is taken from the key the player pressed in the options dialog, so it
+matches whatever SDL calls that key, and none of the defaults in `main.cpp` is a letter.

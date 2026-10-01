@@ -30,9 +30,11 @@ ToxicGas::ToxicGas(Level& level,
 			p_soundInst->setVolume(0.0f);
 			p_soundInst->play(true);
 		}
-
-		updateSound();
 	}
+
+	// Every new cloud, not only the first, or the hiss would stay where the
+	// first put it however far the gas spread.
+	updateSound();
 }
 
 ToxicGas::~ToxicGas()

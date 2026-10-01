@@ -3,48 +3,40 @@
 
 /* "SharpFit" - the nearest look at a fractional scale.
 
-   Conceptually: nearest-upscale the 640x480 frame by the smallest integer
-   factor N that makes it at least as large as the destination rectangle, then
-   resample that result down to the actual size. Nearest on its own needs an
-   integer ratio, or it doubles some source pixels and not others; here the
-   fractional remainder falls into the second step, where all it produces is a
-   soft edge about a pixel wide instead of uneven stroke widths.
+   In effect: nearest-upscale the 640x480 frame by the smallest integer N that
+   makes it at least as large as the destination, then resample that down to
+   the actual size. Nearest alone needs an integer ratio or it doubles some
+   source pixels and not others; here the fractional remainder falls into the
+   second step, where it makes a soft edge about a pixel wide instead of
+   uneven stroke widths.
 
-   Two passes are not needed. Bilinear over a nearest-upscaled image is
-   piecewise linear: constant within a source pixel, and at every pixel border
-   a ramp exactly 1/N source pixels wide. The hardware delivers precisely that
-   if the original texture is sampled bilinearly and the texture coordinate is
-   first put through the same piecewise linear function - one fetch instead of
-   two passes, and exactly the same result.
-
-   The remapping, one-dimensional, with s = the position within the source
-   pixel (0..1):
+   One fetch does both. Bilinear over a nearest-upscaled image is piecewise
+   linear: constant within a source pixel, with a ramp exactly 1/N source
+   pixels wide at every border. Sampling the original texture bilinearly
+   after putting the coordinate through that same function gives exactly
+   that. In one dimension, with s the position within the source pixel
+   (0..1):
 
        d    = s - 0.5                       distance from the pixel centre
        flat = 0.5 - 0.5 / N                 half the width of the flat part
        f    = (d - clamp(d, -flat, flat)) * N + 0.5
 
-   For |d| <= flat, f is 0.5, exactly the pixel centre: the hardware delivers
-   the texel unchanged, as sharp as nearest. Outside that, f runs linearly to 0
-   or to 1, which is the ramp at the pixel border. At N = 1 the flat part
-   disappears and ordinary bilinear is left.
+   For |d| <= flat, f is 0.5, the texel centre, as sharp as nearest; beyond
+   that f runs linearly to 0 or 1, the ramp. At N = 1 the flat part vanishes
+   and plain bilinear is left. Checked against a real two-pass version:
+   pixel-identical at integer scales, and at fractional ones at most 1 apart
+   in a channel - the 8-bit rounding of the intermediate image, which only
+   the two-pass version has.
 
-   Verified against a real two-pass implementation: pixel-identical at an
-   integer scale, and at fractional ones the largest channel difference is 1 -
-   the 8-bit rounding in the intermediate image the two-pass version has and
-   this one does not.
+   It MUST sample with GL_LINEAR: the hardware interpolation is the second
+   half of the filter. With GL_NEAREST the remapped coordinate lands back on
+   the texel it started from and the result is plain nearest.
 
-   It MUST be sampled with GL_LINEAR. The hardware interpolation is not a
-   nicety here, it is the second half of the filter; with GL_NEAREST the
-   remapped coordinate lands back on the texel it started from and the whole
-   thing degenerates to plain nearest at a fractional scale.
+   Known in emulator circles as "sharp bilinear" (Themaister, libretro);
+   derived afresh here, no code borrowed.
 
-   The same arithmetic is known in emulator circles as "sharp bilinear"
-   (Themaister, libretro); it is derived afresh here, and none of the code
-   is borrowed.
-
-   No #version: 110 on the desktop, 100 on the embedded shading language, and
-   the source compiles as both. */
+   No #version: the source compiles as GLSL 110 on the desktop and as GLSL ES
+   100. */
 static const char* p_sharpFitFragmentShader =
 	"#ifdef GL_ES\n"
 	"#ifdef GL_FRAGMENT_PRECISION_HIGH\n"

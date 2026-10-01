@@ -332,11 +332,12 @@ if wanted menu; then
 fi
 if needs options crt; then
 	# The CRT settings button switches the filter on there and then, and
-	# Cancel takes that back through loadConfig() - which on this run's
-	# fresh home has no config.xml to load and so takes back nothing. Left
-	# on, the CRT's curvature warps every later click off its element; the
-	# filter that was on is therefore clicked back by its own radio button,
-	# named as the dump names the filter.
+	# Cancel takes that back through loadConfig() - to the defaults on this
+	# run's fresh home, which has no config.xml. Left on, the CRT's
+	# curvature warps every later click off its element; the filter that was
+	# on is therefore clicked back by its own radio button first, named as
+	# the dump names the filter, so the scene does not rest on the default
+	# being it.
 	b5_dump
 	FILTER=$(b5_json "d['filter']")
 	b5_click Menu.Options

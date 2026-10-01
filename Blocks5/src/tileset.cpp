@@ -22,6 +22,11 @@ TileSet::~TileSet()
 
 void TileSet::reload()
 {
+	// The whole file is read before anything is replaced. A level draws from
+	// this tileset every frame and the editor's Refresh reloads it in place,
+	// so a reload that fails keeps what the last one loaded rather than
+	// leaving a tileset without a texture.
+
 	// load the XML document
 	std::string text = FileSystem::inst().readStringFromFile(filename);
 	TiXmlDocument doc;
@@ -74,8 +79,8 @@ void TileSet::reload()
 	// load the texture
 	std::string dir = FileSystem::inst().getPathDirectory(filename);
 	std::string imageFilename = dir + (dir.empty() ? "" : "/") + std::string(p_imageFilename);
-	p_texture = Manager<Texture>::inst().request(imageFilename);
-	if(!p_texture)
+	Texture* p_newTexture = Manager<Texture>::inst().request(imageFilename);
+	if(!p_newTexture)
 	{
 		printfLog("+ ERROR: Could not load tileset texture \"%s\" for tileset \"%s\".\n",
 				  p_imageFilename,
@@ -84,9 +89,13 @@ void TileSet::reload()
 		return;
 	}
 
-	p_texture->keepInMemory();
+	p_newTexture->keepInMemory();
 
-	maxTileID = 0;
+	// Every tile starts from badTile, whatever a previous load said: a skin
+	// need not define every id a level or the editor's palette uses (space
+	// has no x and y), and one it leaves out must read as no tile.
+	std::vector<TileInfo> newTiles(256, badTile);
+	uint newMaxTileID = 0;
 
 	// process all child elements
 	TiXmlElement* p_tileElement = p_tileSetElement->FirstChildElement("Tile");
@@ -94,24 +103,24 @@ void TileSet::reload()
 	{
 		TileInfo info = badTile;
 
-		// The id is the attribute's first character taken as a byte, which is
-		// the whole id space: a level stores one id per character of its <Row>
-		// strings, and tiles[] is sized 256 for exactly that. Through unsigned
-		// char, or a tile named with a non-ASCII character would sign-extend
-		// to a huge index and be written far outside the array. A skin can
-		// come from a stranger, so a <Tile> carrying no id at all is a broken
-		// file rather than a null pointer to walk into.
+		// The id is the attribute's first byte, which is the whole id space: a
+		// level stores one id per character of its <Row> strings, hence
+		// tiles[256]. Read as unsigned char, or a non-ASCII id would
+		// sign-extend and index far outside the array. A skin can come from a
+		// stranger, so a <Tile> without an id is a broken file, not a null
+		// pointer to walk into.
 		const char* p_id = p_tileElement->Attribute("id");
 		if(!p_id || !*p_id)
 		{
 			printfLog("+ ERROR: Tileset \"%s\" has a <Tile> without an id.\n",
 					  filename.c_str());
+			p_newTexture->release();
 			error = 6;
 			return;
 		}
 
 		const uint id = static_cast<unsigned char>(*p_id);
-		maxTileID = max(maxTileID, id);
+		newMaxTileID = max(newMaxTileID, id);
 
 		// read the position
 		p_tileElement->Attribute("x", &info.position.x);
@@ -126,15 +135,22 @@ void TileSet::reload()
 			p_tileElement->Attribute("destroyTime", &info.destroyTime);
 
 			// Where the debris takes its colour from: the tile's image.
-			info.sprites.setTexture(p_texture);
+			info.sprites.setTexture(p_newTexture);
 			info.sprites.add(info.position);
 		}
 
-		// record the tile type
-		tiles[id] = info;
+		// record the tile
+		newTiles[id] = info;
 
 		p_tileElement = p_tileElement->NextSiblingElement("Tile");
 	}
+
+	// Let go of the previous load's texture only now: where both are the
+	// same picture, the request above holds it through the release.
+	cleanUp();
+	p_texture = p_newTexture;
+	for(int i = 0; i < 256; i++) tiles[i] = newTiles[i];
+	maxTileID = newMaxTileID;
 }
 
 void TileSet::cleanUp()

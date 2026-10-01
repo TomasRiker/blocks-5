@@ -11,7 +11,7 @@ paths:
 aims for — and answers p50, p95 and maximum of each column: interval start to start, how long the turn
 held the main thread, render, update and present inside it, and the draw calls the renderer made in that
 turn. Percentiles, not a mean, because what tears the audio or drops a beat lives in the tail. Recorded
-always: four clock reads a frame.
+always: nine clock reads a frame.
 
 **The draw count rides in the same ring as the timings**, as one more column of the same sample row. It is
 a count and not a duration, but everything the class does to a column — the ring, the sort, the
@@ -21,8 +21,9 @@ every build, and not the link-time wrappers, which are a test-hooks build only; 
 nothing contributes a zero, exactly as it contributes a zero render time.
 
 **The overlay's own draw is in that count, and the phase timings do not say so.** `drawOverlays()` runs
-after `render()` and before the present, so what it costs falls outside `r:` and `p:` while landing
-inside `ms:` and inside `draws:` — which is the one a reader is likeliest to take for the game's own.
+after `render()` and before the present, so building the overlay falls outside `r:` and `p:` while landing
+inside `ms:`, and its one draw is issued at the flush that opens the present, inside `p:` and inside
+`draws:` — which is the one a reader is likeliest to take for the game's own.
 Measured on the menu, same scene and same seed: **5.16 draws a frame without `-perf` and 6.16 with it**.
 One and not two, because the strip's background comes from the renderer's built-in block and its text
 from the font, and those have shared an atlas page since the built-in went into one. Subtract the one
@@ -53,7 +54,7 @@ responsible for. Under swiftshader the browser ran at 38 ms a frame on 2.7 ms of
 alone would have reported nothing wrong at 26 fps.
 
 The interval is counted against **two** ticks and the work against one, and that asymmetry is load-bearing.
-The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoopIteration` — so
+The loop aims every iteration at exactly one tick — the `SDL_Delay` at the foot of `mainLoop` — so
 an interval threshold of one tick sits on the number the code is targeting and a millisecond of timer
 granularity trips it: the menu read **277 of 512 frames late while not one had been dropped** (measured
 when the window was 512 frames). A frame

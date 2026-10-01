@@ -10,8 +10,8 @@ Arrow::Arrow(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_ARROWTYPE;
-	this->dir = dir;
-	shownDir = static_cast<float>(dir);
+	this->dir = wrapIndex(dir, 4);
+	shownDir = static_cast<float>(this->dir);
 	dirVel = 0.0f;
 	shownAlpha = 0.6f;
 	counter = 0;

@@ -16,13 +16,16 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #endif
 
 namespace
 {
-	// Where the four kinds live - the same path twice: once under the user
-	// directory, where the game reads them, and once relative to the working
-	// directory, where the shipped ones sit.
+	// Where the four folder kinds live, the same relative path under both
+	// roots: the game folder for what ships, the user directory for the
+	// player's own.
 	std::string subdirectoryFor(Transfer::Kind kind)
 	{
 		switch(kind)
@@ -35,11 +38,10 @@ namespace
 		}
 	}
 
-	// The progress database is the one kind with no folder of its own: it
-	// lies in the user directory itself. It is named here rather than given
-	// an empty subdirectory, because an empty one would make list() read the
-	// game folder's own root - where data.zip lies - and point remove() at
-	// whatever it found there.
+	// The kind's folder in the user directory. The progress database lies in
+	// the user directory itself and is named outright: an empty subdirectory
+	// would make list() read the game folder's root, where data.zip lies, and
+	// point remove() at whatever it found there.
 	std::string directoryFor(Transfer::Kind kind)
 	{
 		if(kind == Transfer::KIND_PROGRESS) return FileSystem::inst().getAppHomeDirectory();
@@ -64,16 +66,14 @@ namespace
 
 	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 	{
-		// A plain copy, nothing else. For skins too, and there above all: three
-		// of the four shipped ones are packed with a password, and decrypting
-		// them on the way out would be a back door around the very protection
-		// they are packed for. The recipient can still use the archive - the
-		// password rides along inside it as password.txt, and
-		// Level::getSkinFilename reads it out there.
+		// A plain copy, skins included: three of the four shipped skins are
+		// packed with a password, and decrypting them on the way out would
+		// bypass that protection. The recipient can still use one, since the
+		// password rides along as password.txt and Level::getSkinFilename
+		// reads it from there.
 		FileSystem& fs = FileSystem::inst();
-		// Over both roots, because the export can be run on what the game
-		// ships as well - except for the progress database, of which the game
-		// ships nothing and which has no subdirectory to resolve.
+		// Over both roots, since what ships can be exported too. The progress
+		// database ships nothing and has no subdirectory to resolve.
 		const std::string source(kind == Transfer::KIND_PROGRESS
 								 ? directoryFor(kind) + name
 								 : fs.resolveContentPath(subdirectoryFor(kind) + name));
@@ -81,9 +81,8 @@ namespace
 		return fs.copyFile(source, destPath);
 	}
 
-	// The name used when nothing is left of the wanted one - because it
-	// consists of nothing but characters sanitizeFilenameStem() does not let
-	// through, say.
+	// The stem used when sanitizeFilenameStem() leaves nothing of the wanted
+	// name.
 	const char* defaultStemFor(Transfer::Kind kind)
 	{
 		switch(kind)
@@ -94,6 +93,16 @@ namespace
 		default:                      return "level";
 		}
 	}
+
+	// 64 MiB, the most an import takes on every platform. The largest thing
+	// that comes in here is a campaign with music - the shipped one is
+	// 8.3 MB, and this is room for a dozen full-length songs; classify()
+	// reads a level whole, and a file picked by mistake can be a film. The
+	// browser pays the most: a 63 MiB campaign held 140 to 210 MiB more while
+	// it came in and 75 to 90 MiB more after, since IDBFS keeps the home
+	// directory in memory and the copy grows the wasm memory, which never
+	// shrinks.
+	const uint MAX_IMPORT_SIZE = 64 * 1024 * 1024;
 }
 
 namespace Transfer
@@ -103,24 +112,29 @@ Kind classify(const std::string& path)
 {
 	FileSystem& fs = FileSystem::inst();
 
-	// 1. Music. Every Ogg page begins with "OggS", the first one included.
-	//    That is cheaper and more honest than looking at the file extension.
+	// 1. Music: an Ogg page whose packet is Vorbis's identification header.
+	//    "OggS" alone would take an Opus or a Theora file too, and the game
+	//    decodes Vorbis only. The page header is 27 bytes and a segment table
+	//    as long as its byte 26 says, and the packet follows.
 	{
 		File* p_file = fs.openFile(path, FileSystem::FM_READ);
 		if(p_file)
 		{
-			char magic[4] = { 0, 0, 0, 0 };
-			const uint got = p_file->read(magic, 4);
+			unsigned char page[27 + 255 + 7];
+			const uint got = p_file->read(page, sizeof(page));
 			fs.closeFile(p_file);
-			if(got == 4 && !memcmp(magic, "OggS", 4)) return KIND_MUSIC;
+			if(got >= 27 && !memcmp(page, "OggS", 4))
+			{
+				const uint packet = 27 + page[26];
+				if(got >= packet + 7 && !memcmp(page + packet, "\x01vorbis", 7)) return KIND_MUSIC;
+			}
 		}
 	}
 
-	// 2. Archives. Looking inside works even for encrypted members without
-	//    the password, because a ZIP's table of contents lies open. This
-	//    check requires path to end in ".zip", or FileSystem::convertPath
-	//    does not recognise the archive.
-	if(getFilenameExtension(path) == "zip")
+	// 2. Archives. A ZIP's table of contents is not encrypted, so this works
+	//    without the password. The path must end in ".zip", in any case, or
+	//    FileSystem::convertPath does not see an archive in it.
+	if(equalsNoCase(getFilenameExtension(path).c_str(), "zip"))
 	{
 		if(fs.fileExists(path + "/campaign.xml")) return KIND_CAMPAIGN;
 		if(fs.fileExists(path + "/tileset.xml") &&
@@ -146,9 +160,9 @@ std::string targetName(Kind kind, const std::string& untrustedName)
 	if(kind == KIND_NONE) return "";
 
 	// The progress database has one name and one place, so the wish counts
-	// for nothing: a second one beside it would be a file the game never
-	// reads. For the other four the wanted name is cut down to [A-Za-z0-9_-]
-	// and given the kind's extension.
+	// for nothing: a second file beside it would never be read. For the other
+	// four the wanted stem is reduced to [A-Za-z0-9_-] and given the kind's
+	// extension.
 	if(kind == KIND_PROGRESS) return FileSystem::inst().getPathFilename(ProgressDB::getFilename());
 
 	return sanitizeFilenameStem(untrustedName, defaultStemFor(kind)) + extensionFor(kind);
@@ -159,10 +173,10 @@ bool wouldReplace(Kind kind, const std::string& untrustedName)
 	const std::string name(targetName(kind, untrustedName));
 	if(name.empty()) return false;
 
-	// The user directory and not both roots: that is where install() writes,
-	// and a name the game folder holds is refused outright rather than
-	// replaced. For the progress database either name counts, or an import
-	// right after an interrupted save would replace it without asking.
+	// Only the user directory: that is where install() writes, and a name the
+	// game folder holds is refused rather than replaced. For the progress
+	// database the backup of an interrupted save counts too, or an import
+	// right after one would replace it without asking.
 	if(kind == KIND_PROGRESS) return ProgressDB::inst().exists();
 
 	return FileSystem::inst().fileExists(directoryFor(kind) + name);
@@ -185,11 +199,10 @@ std::string install(Kind kind,
 	const std::string dir(directoryFor(kind));
 	const std::string name(targetName(kind, untrustedName));
 
-	// The one exception: a name the game itself ships something under, which
-	// isBuiltIn answers by asking the game folder rather than by keeping a
-	// list - so it covers everything shipped, whatever is added later.
-	// Overwriting one would take something from the player that they do not
-	// get back.
+	// The one exception is a name the game ships something under: the game
+	// folder wins, so a file of that name in the user directory could never
+	// be loaded. isBuiltIn asks the game folder rather than a list, so it
+	// covers whatever ships later.
 	if(isBuiltIn(kind, name))
 	{
 		errorId = "$TR_ERROR_RESERVED";
@@ -232,11 +245,10 @@ std::vector<std::string> list(Kind kind)
 	std::vector<std::string> result;
 	if(kind == KIND_NONE) return result;
 
-	// Both roots together, since both are playable: what the game ships sits
-	// in the game folder, what the player made or imported in the user
-	// directory. A name can occur only once - nothing can be saved or
-	// imported under a shipped name - hence the union needs no rule of its
-	// own for that, and the comparison further down catches the double insert.
+	// Both roots, since both are playable. Nothing can be saved or imported
+	// under a shipped name, so a name stands in both only for an example
+	// level the player has saved a copy of (FileSystem::getPlayerFiles); the
+	// find below lists it once.
 	FileSystem& fs = FileSystem::inst();
 
 	// The progress database is one file with one name, and only ever in the
@@ -279,10 +291,10 @@ bool isBuiltIn(Kind kind, const std::string& name)
 	if(kind == KIND_PROGRESS) return false;
 	const std::string sub(subdirectoryFor(kind));
 	if(sub.empty()) return false;
-	// Not a list but the disk: shipped is whatever lies in the game folder.
-	// On Windows "Blocks.zip" is the same file as "blocks.zip", and because
-	// the file system there does not tell them apart, fileExists() answers
-	// yes to the differently spelled name too - which is exactly right here.
+	// Not a list but the disk: shipped is whatever lies in the game folder,
+	// less the player's own files (FileSystem::getPlayerFiles). Case is the
+	// file system's business, and rightly so: on Windows "Blocks.zip" is
+	// "blocks.zip".
 	return FileSystem::inst().isShippedContent(sub + name);
 }
 
@@ -337,7 +349,7 @@ bool remove(Kind kind, const std::string& name, std::string& errorId)
 }
 
 // ---------------------------------------------------------------------------
-// The file dialog. Two worlds, one interface.
+// The file dialog: three platforms, one interface.
 // ---------------------------------------------------------------------------
 
 #ifdef __EMSCRIPTEN__
@@ -376,9 +388,7 @@ namespace
 
 bool beginImport()
 {
-	// 48 MiB. The largest thing that comes in here is a campaign with music;
-	// the shipped one is 8.3 MB.
-	return WebTransfer::openPicker(p_stagingOgg, p_stagingXml, p_stagingZip, 50331648u);
+	return WebTransfer::openPicker(p_stagingOgg, p_stagingXml, p_stagingZip, MAX_IMPORT_SIZE);
 }
 
 int pollImport(std::string& path, std::string& untrustedName)
@@ -453,6 +463,16 @@ namespace
 		return cut == std::string::npos ? path : path.substr(cut + 1);
 	}
 
+	// Asked of the disk and not through File, which refuses a file its 32-bit
+	// size cannot carry: the player is to hear that the file is too big, not
+	// that it could not be read.
+	bool isTooBig(const std::string& path)
+	{
+		WIN32_FILE_ATTRIBUTE_DATA data;
+		if(!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &data)) return false;
+		return data.nFileSizeHigh != 0 || data.nFileSizeLow > MAX_IMPORT_SIZE;
+	}
+
 	void buildFilter(char* p_buffer, size_t size)
 	{
 		// Doubly null-terminated list, the way the Common Dialog API wants it.
@@ -482,12 +502,11 @@ namespace
 		return GetActiveWindow();
 	}
 
-	// A file dialog brings a foreign message loop with it: the game's main
-	// loop stands still while it is open. The window stays visible because
-	// the window procedure keeps drawing meanwhile - the same machinery as
-	// when the window border is dragged. The dialog belongs to the game
-	// window (hwndOwner), and Windows always keeps a window with an owner
-	// above it, even above a borderless fullscreen window.
+	// A file dialog runs a message loop of its own, and the main loop stands
+	// still meanwhile; the window procedure keeps the picture fresh as while
+	// the border is dragged (Engine::beginForeignMessageLoop). Owned by the
+	// game window, the dialog stays above it, even above a borderless
+	// fullscreen one.
 	struct ModalScope
 	{
 		ModalScope()  { Engine::inst().beginForeignMessageLoop(); }
@@ -537,7 +556,7 @@ int pollImport(std::string& path, std::string& untrustedName)
 		{
 			pickedPath = file;
 			pickedName = getFilenameFromPath(pickedPath);
-			importStatus = STATUS_OK;
+			importStatus = isTooBig(pickedPath) ? STATUS_TOO_BIG : STATUS_OK;
 		}
 		else importStatus = STATUS_CANCELLED;
 	}
@@ -603,17 +622,15 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 #else
 
 // ---------------------------------------------------------------------------
-// Linux. There is no file dialog in the standard library and none in SDL 1.2;
-// every desktop environment instead ships a small program that does exactly
-// that - zenity under GNOME, kdialog under KDE. Both write the chosen path to
-// stdout and return a non-zero exit code on a cancelled dialog. The game
-// therefore has to link neither GTK nor Qt.
+// Linux. Neither the standard library nor SDL 1.2 has a file dialog, so the
+// desktop's own program runs it: zenity under GNOME, kdialog under KDE. Both
+// print the chosen path and exit non-zero on a cancel, and the game links
+// neither GTK nor Qt.
 //
-// The import runs alongside: popen() gives a pipe that pollImport() reads tick
-// by tick, keeping the window drawing while the dialog is open. The export
-// cannot do that - doExport() delivers its result at once, which is how
-// transfer.h declares it - and therefore stops the game like the modal dialog
-// under Windows.
+// The import runs alongside the game: pollImport() reads the dialog's pipe
+// tick by tick, so the window keeps drawing. The export cannot, since
+// doExport() returns its answer at once (transfer.h), and so it stops the
+// game like the Windows dialog.
 // ---------------------------------------------------------------------------
 
 namespace
@@ -622,7 +639,8 @@ namespace
 	std::string pickedName;
 	int   importStatus = STATUS_BUSY;
 	bool  wantDialog = false;
-	FILE* p_importPipe = 0;
+	int   importFd = -1;
+	pid_t importPid = -1;
 	std::string importOutput;
 
 	// Just the base name.
@@ -632,11 +650,17 @@ namespace
 		return cut == std::string::npos ? path : path.substr(cut + 1);
 	}
 
-	// Everything that goes into a command line here is a filename - and
-	// under Linux a filename may contain almost any character, the
-	// apostrophe included. Inside single quotes an apostrophe is the only
-	// thing that ends the string; leaving them for it and entering them
-	// again afterwards is the usual answer.
+	// As under Windows, asked of the disk rather than through File.
+	bool isTooBig(const std::string& path)
+	{
+		struct stat info;
+		if(::stat(path.c_str(), &info) != 0) return false;
+		return static_cast<unsigned long long>(info.st_size) > MAX_IMPORT_SIZE;
+	}
+
+	// Single quotes for a filename, which under Linux may hold almost any
+	// character. Inside them only an apostrophe ends the string, so each one
+	// closes the quotes, adds an escaped apostrophe and opens them again.
 	std::string shellQuote(const std::string& text)
 	{
 		std::string quoted("'");
@@ -655,15 +679,14 @@ namespace
 
 	enum Dialog { DIALOG_NONE, DIALOG_ZENITY, DIALOG_KDIALOG };
 
-	// Search once and remember: otherwise the Manager asks the shell twice
-	// on every click.
+	// Found once, remembered: otherwise the Manager asks the shell twice on
+	// every click. Not finding one is not remembered, since the message asks
+	// the player to install one and click again.
 	Dialog findDialog()
 	{
 		static Dialog found = DIALOG_NONE;
-		static bool searched = false;
-		if(!searched)
+		if(found == DIALOG_NONE)
 		{
-			searched = true;
 			if(haveProgram("zenity")) found = DIALOG_ZENITY;
 			else if(haveProgram("kdialog")) found = DIALOG_KDIALOG;
 			else printfLog("Neither zenity nor kdialog is installed - no file dialog available.\n");
@@ -677,16 +700,15 @@ namespace
 		return p_home && *p_home ? p_home : ".";
 	}
 
-	// The command line for one of the two dialogs. An empty suggestion means
-	// "open", otherwise "save as".
-	std::string dialogCommand(Dialog dialog, const std::string& suggestion)
+	// The command line for one of the two dialogs, starting at a directory
+	// for "open" and at the suggested file for "save as".
+	std::string dialogCommand(Dialog dialog, bool save, const std::string& start)
 	{
-		const bool save = !suggestion.empty();
 		if(dialog == DIALOG_ZENITY)
 		{
 			std::string command("zenity --file-selection");
-			if(save) command += " --save --confirm-overwrite --filename=" + shellQuote(homeDir() + "/" + suggestion);
-			else     command += " --filename=" + shellQuote(homeDir() + "/");
+			if(save) command += " --save --confirm-overwrite";
+			command += " --filename=" + shellQuote(start);
 			command += " --title=" + shellQuote(save ? "Blocks 5 - Export" : "Blocks 5 - Import");
 			command += " --file-filter=" + shellQuote("Blocks 5 | *.xml *.zip *.ogg");
 			command += " --file-filter=" + shellQuote("All files | *");
@@ -695,7 +717,7 @@ namespace
 
 		std::string command("kdialog ");
 		command += save ? "--getsavefilename " : "--getopenfilename ";
-		command += shellQuote(homeDir() + "/" + suggestion);
+		command += shellQuote(start);
 		command += " " + shellQuote("*.xml *.zip *.ogg|Blocks 5\n*|All files");
 		return command + " 2>/dev/null";
 	}
@@ -707,15 +729,70 @@ namespace
 		while(end > 0 && (text[end - 1] == '\n' || text[end - 1] == '\r')) end--;
 		return text.substr(0, end);
 	}
+
+	// Runs the dialog with its output on a pipe and keeps its process id.
+	// popen() gives no id, and pclose() on a dialog still open waits for it,
+	// so giving an import up on leaving the menu would stop the game until
+	// the dialog closed. "exec" turns the shell into the dialog, so the id is
+	// the dialog's own.
+	//
+	// The line is built before the fork: the game has threads, and between
+	// fork() and exec() the child may only make async-signal-safe calls,
+	// which an allocation is not.
+	bool startDialog(const std::string& command)
+	{
+		const std::string line("exec " + command);
+		int fds[2];
+		if(::pipe(fds) != 0) return false;
+
+		const pid_t pid = ::fork();
+		if(pid < 0)
+		{
+			::close(fds[0]);
+			::close(fds[1]);
+			return false;
+		}
+		if(pid == 0)
+		{
+			::dup2(fds[1], STDOUT_FILENO);
+			::close(fds[0]);
+			::close(fds[1]);
+			::execl("/bin/sh", "sh", "-c", line.c_str(), static_cast<char*>(0));
+			::_exit(127);
+		}
+
+		::close(fds[1]);
+		// Non-blocking, or pollImport()'s read() would stop the game until the
+		// dialog closes.
+		::fcntl(fds[0], F_SETFL, ::fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK);
+		importFd = fds[0];
+		importPid = pid;
+		return true;
+	}
+
+	// Closes the pipe and reaps the dialog; its exit code, or -1 where it did
+	// not exit on its own. A dialog being given up is killed first, since one
+	// still open would otherwise be waited for.
+	int endDialog(bool giveUp)
+	{
+		if(giveUp) ::kill(importPid, SIGKILL);
+		::close(importFd);
+		int status = 0;
+		while(::waitpid(importPid, &status, 0) < 0 && errno == EINTR) {}
+		importFd = -1;
+		importPid = -1;
+		return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+	}
 }
 
 bool beginImport()
 {
 	// As under Windows, only make a note: this call sits in the middle of the
-	// GUI's event dispatch.
-	if(wantDialog || p_importPipe) return false;
-	if(findDialog() == DIALOG_NONE) return false;
-	wantDialog = true;
+	// GUI's event dispatch. Without a dialog program the answer comes through
+	// pollImport() too, since false would ask for a click that cannot help.
+	if(wantDialog || importPid > 0) return false;
+	if(findDialog() == DIALOG_NONE) importStatus = STATUS_NO_DIALOG;
+	else wantDialog = true;
 	return true;
 }
 
@@ -725,36 +802,27 @@ int pollImport(std::string& path, std::string& untrustedName)
 	{
 		wantDialog = false;
 		importOutput = "";
-		p_importPipe = ::popen(dialogCommand(findDialog(), "").c_str(), "r");
-		if(!p_importPipe) importStatus = STATUS_FAILED;
-		else
-		{
-			// Without O_NONBLOCK the game would stand still in read() until
-			// the user closes the dialog - that is exactly what it must not do.
-			const int fd = ::fileno(p_importPipe);
-			::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
-		}
+		if(!startDialog(dialogCommand(findDialog(), false, homeDir() + "/"))) importStatus = STATUS_FAILED;
 	}
 
-	if(p_importPipe)
+	if(importPid > 0)
 	{
 		char buffer[512];
-		const ssize_t numBytesRead = ::read(::fileno(p_importPipe), buffer, sizeof(buffer));
+		const ssize_t numBytesRead = ::read(importFd, buffer, sizeof(buffer));
 		if(numBytesRead > 0) importOutput.append(buffer, numBytesRead);
 		else if(numBytesRead == 0)
 		{
-			// End of the pipe: the dialog is closed. pclose() delivers the
-			// exit code, and that says whether the user cancelled.
-			const int result = ::pclose(p_importPipe);
-			p_importPipe = 0;
+			// End of the pipe: the dialog is closed, and its exit code says
+			// whether the user cancelled.
+			const int result = endDialog(false);
 			pickedPath = trimmed(importOutput);
 			pickedName = getFilenameFromPath(pickedPath);
 			importStatus = (result == 0 && !pickedPath.empty()) ? STATUS_OK : STATUS_CANCELLED;
+			if(importStatus == STATUS_OK && isTooBig(pickedPath)) importStatus = STATUS_TOO_BIG;
 		}
 		else if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
 		{
-			::pclose(p_importPipe);
-			p_importPipe = 0;
+			endDialog(true);
 			importStatus = STATUS_FAILED;
 		}
 	}
@@ -778,11 +846,7 @@ void finishImport()
 void abandonImport()
 {
 	wantDialog = false;
-	if(p_importPipe)
-	{
-		::pclose(p_importPipe);
-		p_importPipe = 0;
-	}
+	if(importPid > 0) endDialog(true);
 	importStatus = STATUS_BUSY;
 	finishImport();
 }
@@ -794,36 +858,41 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	const Dialog dialog = findDialog();
 	if(dialog == DIALOG_NONE)
 	{
-		errorId = "$TR_ERROR_FAILED";
+		errorId = "$TR_ERROR_NO_DIALOG";
 		return false;
 	}
 
 	// The name comes from our own directory and already carries its
 	// extension - it serves unchanged as the suggestion.
-	FILE* p_pipe = ::popen(dialogCommand(dialog, name).c_str(), "r");
-	if(!p_pipe)
-	{
-		errorId = "$TR_ERROR_FAILED";
-		return false;
-	}
-
-	std::string output;
-	char buffer[512];
-	size_t numBytesRead;
-	while((numBytesRead = ::fread(buffer, 1, sizeof(buffer), p_pipe)) > 0) output.append(buffer, numBytesRead);
-	const int result = ::pclose(p_pipe);
-
-	std::string target(trimmed(output));
-	if(result != 0 || target.empty()) return false;   // cancelled, not an error
-
-	// Neither kdialog nor zenity appends an extension. Without one the file
-	// could not be read back in later - classify() does look inside the file,
-	// but the import dialog filters by extension.
 	const std::string extension(extensionFor(kind));
-	if(target.length() < extension.length() ||
-	   target.compare(target.length() - extension.length(), extension.length(), extension) != 0)
+	std::string target(homeDir() + "/" + name);
+	for(;;)
 	{
+		FILE* p_pipe = ::popen(dialogCommand(dialog, true, target).c_str(), "r");
+		if(!p_pipe)
+		{
+			errorId = "$TR_ERROR_FAILED";
+			return false;
+		}
+
+		std::string output;
+		char buffer[512];
+		size_t numBytesRead;
+		while((numBytesRead = ::fread(buffer, 1, sizeof(buffer), p_pipe)) > 0) output.append(buffer, numBytesRead);
+		const int result = ::pclose(p_pipe);
+
+		target = trimmed(output);
+		if(result != 0 || target.empty()) return false;   // cancelled, not an error
+
+		// Neither kdialog nor zenity appends an extension. Without one the
+		// import dialog's filter would hide the file, and classify() would not
+		// take an archive for one at all: it knows a .zip only by the
+		// extension. But the dialog asked before overwriting only the name it
+		// was given, so a completed name that is taken goes back to it.
+		if(target.length() >= extension.length() &&
+		   equalsNoCase(target.c_str() + target.length() - extension.length(), extension.c_str())) break;
 		target += extension;
+		if(!FileSystem::inst().fileExists(target)) break;
 	}
 
 	if(!exportTo(kind, name, target))

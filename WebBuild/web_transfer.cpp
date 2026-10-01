@@ -4,9 +4,8 @@
 #include "filesystem.h"
 #include <emscripten.h>
 
-// EM_ASM bodies run through the C preprocessor, where a single apostrophe
-// (even '' ) is a broken character literal - use nothing but double quotes
-// in the JS.
+// EM_ASM bodies go through the C preprocessor, where an apostrophe starts a
+// character literal: the JS uses double quotes only.
 
 namespace
 {
@@ -81,11 +80,10 @@ bool openPicker(const std::string& stagingOgg,
 {
 	if(busy) return false;
 
-	// The click comes out of the SDL event queue and therefore no longer out
-	// of the DOM handler (libsdl.js:1455). The file dialog needs a valid user
-	// activation, though; the browser keeps one for ~5 s, which covers that
-	// one frame of delay. Where it has plainly expired, say "click again"
-	// honestly rather than failing silently.
+	// The click arrives through SDL's event queue, a frame after the DOM
+	// handler (libsdl.js:1455), and the dialog needs a user activation; the
+	// browser keeps one for about 5 s. Where it has expired, fail, so that
+	// the caller can ask for another click.
 	if(EM_ASM_INT({
 		return (navigator.userActivation && !navigator.userActivation.isActive) ? 1 : 0;
 	})) return false;
@@ -167,8 +165,7 @@ bool openPicker(const std::string& stagingOgg,
 			if (input.parentNode) input.remove();
 		};
 		input.click();
-		// Browsers without a "cancel" event would otherwise tie the button up
-		// for ever. The game never blocks - it only polls.
+		// Without a "cancel" event a dismissed dialog would stay busy for ever.
 		setTimeout(function() { if (!finished) done(2, null); }, 300000);
 	}, stagingOgg.c_str(), stagingXml.c_str(), stagingZip.c_str(), (int)maxBytes);
 

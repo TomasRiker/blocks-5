@@ -55,6 +55,17 @@ void fatalError(const std::string& title, const std::string& message)
 	// depends on for the file dialogs. execlp() and not system(): the message
 	// carries strings the graphics driver wrote, and an argument handed
 	// straight to the program needs no quoting and cannot become a command.
+	// zenity does read its text as Pango markup, though, and a shader log
+	// holds < and &: unescaped, the box would come up empty.
+	std::string markup;
+	for(size_t i = 0; i < message.length(); i++)
+	{
+		if(message[i] == '&') markup += "&amp;";
+		else if(message[i] == '<') markup += "&lt;";
+		else if(message[i] == '>') markup += "&gt;";
+		else markup += message[i];
+	}
+
 	bool shown = false;
 	for(int attempt = 0; attempt < 2 && !shown; attempt++)
 	{
@@ -65,7 +76,7 @@ void fatalError(const std::string& title, const std::string& message)
 			if(attempt == 0)
 			{
 				execlp("zenity", "zenity", "--error",
-					   "--title", title.c_str(), "--text", message.c_str(),
+					   "--title", title.c_str(), "--text", markup.c_str(),
 					   static_cast<char*>(0));
 			}
 			else

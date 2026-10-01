@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """make_icon.py - blows data/window.png up for the web app, pixel by pixel.
 
-    python3 make_icon.py <in.png> <out.png> [--scale N] [--canvas N]
+    python3 make_icon.py <in.png> <out.png> [canvas] [--scale N] [--canvas N]
                          [--background RRGGBB]
+
+A third plain argument is the canvas, as --canvas gives it.
 
 The page's icon is the one the game window carries: Bob's face, 32x32. A phone
 scales an image that small up itself for the home screen and takes a smoothing

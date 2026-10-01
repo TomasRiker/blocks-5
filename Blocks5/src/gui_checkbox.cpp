@@ -89,14 +89,10 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 	}
 }
 
-// The caption belongs to the control. It is drawn in onRender() at
-// Vec2i(size.x + 10, ...), and exactly that strip counts here - a click on
-// the text toggles, as <label for="..."> does in a browser.
-//
-// Measured, not assumed: a strip wider than the text would steal clicks from
-// whatever stands to the right of it (options.xml puts language and detail
-// radios in three tight columns). An empty title measures 0, leaving just the
-// box - the filter buttons with a label of their own (for="...") are unaffected.
+// The caption drawn at size.x + 10 counts as part of the control, as a
+// <label for> does in a browser. Its width is measured, since a wider strip
+// would steal clicks from whatever stands to the right. An empty title
+// measures 0 and leaves just the box, for a toggle labelled by a for= text.
 bool GUI_CheckBox::containsPoint(const Vec2i& position)
 {
 	if(GUI_Element::containsPoint(position)) return true;

@@ -3,7 +3,7 @@
 
 #include "object.h"
 
-/*** Class for a barrage ***/
+/*** Class for a barrage of type B, which a Barrage2Panel works ***/
 
 class Barrage2 : public Object
 {

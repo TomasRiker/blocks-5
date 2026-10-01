@@ -174,23 +174,19 @@ void GUI::update()
 	cursorPos = engine.getCursorPosition();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
 
-	// A mouse-move event has to mean the mouse moved. cursorPos comes from
-	// getCursorPosition() and therefore through the CRT filter's barrel
-	// distortion: dragging its curvature slider shifts the mapping under the
-	// hand holding it, and the cursor travels in the picture with nothing
-	// having stirred. Such a phantom move would otherwise become a new slider
-	// value, that value a new curvature, and the slider would flip back and
-	// forth between two values at the logic rate. Demand both, then: the mouse
-	// must have moved, and it must have landed on another pixel in the process.
+	// A mouse-move event has to mean the mouse moved. cursorPos passes through
+	// the CRT filter's barrel distortion, so dragging its curvature slider
+	// moves the cursor in the picture under a still hand; that phantom move
+	// would set a new value, hence a new curvature, and the slider would flip
+	// between two values at the logic rate. So both are demanded: the cursor
+	// moved in the window, and its game-space position landed on another pixel.
 	const Vec2i rawCursorPos = engine.getRawCursorPosition();
 	const bool cursorMoved = rawCursorPos != oldRawCursorPos && cursorPos != oldCursorPos;
 	oldRawCursorPos = rawCursorPos;
 
-	// The element under the cursor belongs here, before the click handling,
-	// not at the end of the function: a finger lands with no move before it,
-	// and cursor and press therefore arrive in the same tick. Were it computed
-	// further down, the press would still go to whatever lay under the cursor
-	// before.
+	// Before the click handling: a finger lands with no move before it, so
+	// cursor and press arrive in the same tick, and the press must go to what
+	// is under the finger now rather than to what was under the cursor before.
 	p_oldElementAtCursor = p_elementAtCursor;
 	p_elementAtCursor = p_root->getElementAt(cursorPos);
 

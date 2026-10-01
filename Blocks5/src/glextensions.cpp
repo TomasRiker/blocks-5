@@ -54,13 +54,11 @@ namespace
 		return p_proc;
 	}
 
-	// The game cannot run without any of these, so a missing one is the end
-	// rather than something to report. The message is the whole of what the
-	// player can act on: the OpenGL version and the renderer name say which
-	// machine this is, and "GDI Generic" there is Windows saying no graphics
-	// driver is in play at all - a fresh installation, safe mode, or a remote
-	// desktop session. It is deliberately English: init() runs before
-	// main() loads languages.txt, so there is no string table yet.
+	// A missing group ends the game. The message is all the player can act
+	// on: GL_VERSION and GL_RENDERER say which machine this is, and "GDI
+	// Generic" there means Windows has no graphics driver in play (a fresh
+	// installation, safe mode, a remote desktop). English, because init()
+	// runs before main() loads languages.txt.
 	void require(bool present, const char* p_what)
 	{
 		if(present) return;
@@ -90,8 +88,7 @@ namespace
 
 namespace
 {
-	// Read once by init(). Zero until then, which no caller can observe: the
-	// game stops in init() where the machine cannot do what it needs.
+	// Read by init(), which runs before anything asks for it.
 	int theMaxTextureSize = 0;
 }
 
@@ -141,8 +138,8 @@ void GLExtensions::init()
 	        glExtFramebufferRenderbuffer && glExtCheckFramebufferStatus,
 	        "framebuffer objects");
 
-	// GL 2.0: the shaders the present filters are, and the vertex buffers they
-	// draw out of.
+	// GL 2.0: the programs the renderer and the present filters draw with, and
+	// the vertex buffers they draw from.
 	glExtCreateShader             = reinterpret_cast<PFNGLCREATESHADERPROC>(SDL_GL_GetProcAddress("glCreateShader"));
 	glExtShaderSource             = reinterpret_cast<PFNGLSHADERSOURCEPROC>(SDL_GL_GetProcAddress("glShaderSource"));
 	glExtCompileShader            = reinterpret_cast<PFNGLCOMPILESHADERPROC>(SDL_GL_GetProcAddress("glCompileShader"));

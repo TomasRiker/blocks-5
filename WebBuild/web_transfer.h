@@ -24,20 +24,16 @@ namespace WebTransfer
 	// Hands the content of vfsPath to the browser as a download.
 	void download(const std::string& vfsPath, const std::string& downloadName);
 
-	// The same for something that is not a file at all - a screenshot, say,
-	// which has nowhere to go in the browser: the IndexedDB is there for saved
-	// games and not as a picture store.
+	// The same for a PNG in memory, such as a screenshot: the IndexedDB is for
+	// saved games, not a picture store.
 	void downloadBytes(const void* p_data, unsigned int numBytes,
 	                   const std::string& downloadName);
 
-	// Opens the file dialog. The caller hands over all three possible targets
-	// and JS picks one of them by extension, so C still composes every path.
-	// All three must end in their own extension (FileSystem::convertPath
-	// recognises an archive by ".zip/") and must NOT lie under the home
-	// directory, so a rejected file never reaches the IndexedDB in the first
-	// place.
-	// Returns false if a dialog is already running or the browser sees no
-	// user activation right now.
+	// Opens the file dialog. JS picks one of the three staging paths by the
+	// file's extension, so C still composes every path. Each must end in its
+	// own extension (FileSystem::convertPath recognises an archive by ".zip/")
+	// and lie outside the home directory, so a rejected file never reaches
+	// the IndexedDB. False while a dialog is open or without user activation.
 	bool openPicker(const std::string& stagingOgg,
 	                const std::string& stagingXml,
 	                const std::string& stagingZip,
@@ -48,11 +44,12 @@ namespace WebTransfer
 	int pollImport(std::string& untrustedName);
 
 	// Discards a dialog that is still open: a file picked after this is
-	// neither written nor reported. The caller clears the staging files
-	// away itself - it named them, after all.
+	// neither written nor reported. The caller, which named the staging
+	// files, deletes them.
 	void abandon();
 
-	// Forces an FS.syncfs to land an import in IndexedDB at once.
+	// Writes the home directory through to IndexedDB now, not at the next
+	// periodic flush.
 	void syncHome();
 }
 

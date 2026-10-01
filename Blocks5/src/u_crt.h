@@ -5,9 +5,9 @@
 
 /*** "CRT monitor" - a screen from the nineties ***/
 
-// Everything that gives this filter its character is a const above the shader
-// in u_crt.cpp, meant to be edited; the six sliders here are the ones that are
-// matters of taste rather than tuning.
+// Everything that gives this filter its character is a const at the top of the
+// shader in u_crt.cpp, meant to be edited; the six sliders here are the ones
+// that are matters of taste rather than tuning.
 //
 // The barrel distortion goes through the mouse as well: warpToSource() is the
 // shader's formula once more in C++, warpToOutput() its inverse, and
@@ -61,9 +61,9 @@ protected:
 	const char* getFragmentSource() const;
 
 private:
-	// The uniform locations that exist only here. One per line so that
-	// Tools/verify.py sees them - it overlooks a collected declaration,
-	// and that is exactly what "convergence" depended on.
+	// The uniform locations that exist only here. One per line: the
+	// constructor check in Tools/verify.py reads "Type name;" and misses a
+	// combined declaration.
 	int locScanline;
 	int locCurvature;
 	int locBloom;
@@ -77,6 +77,9 @@ private:
 	// The frame size as it last stood in the PresentContext; getOverscan() uses
 	// it to convert source rows and columns into fractions of the picture.
 	Vec2i frameSize;
+	// The scan-line crawl in line periods, and the clock it last moved at.
+	float crawlPhase;
+	uint crawlTicks;
 
 	float scanline;
 	float curvature;

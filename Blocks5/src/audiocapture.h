@@ -3,19 +3,15 @@
 
 /*** Class for capturing the system audio ***/
 
-// Records what the default playback device is putting out, i.e. the game's
-// music and sound effects - and not the microphone. Under Windows that goes
-// through WASAPI's loopback mode; for that the device does not have to be set
-// up as a recording source ("Stereo Mix" or similar). Under Linux through the
-// monitor of PulseAudio's default sink, which is the same thing and which
-// PipeWire with pipewire-pulse serves just as well.
+// Records what the default playback device plays - the game's music and
+// effects, not the microphone: WASAPI loopback under Windows (no "Stereo Mix"
+// source needed), the monitor of PulseAudio's default sink under Linux (which
+// pipewire-pulse serves as well). Samples always come out as 16-bit
+// interleaved stereo at the rate open() was given, whatever the device uses;
+// a "sample" here, as in OpenAL, is one left/right pair.
 //
-// The samples always come out as 16 bit stereo interleaved, whatever format
-// the device itself works in. A "sample" here, as in OpenAL, is a pair of a
-// left and a right channel.
-//
-// Where there is nothing to listen in on - in the browser, or under Linux
-// without PulseAudio - open() fails and the videos stay silent.
+// Where there is nothing to listen in on, open() fails: under Linux without
+// PulseAudio the videos are then silent, and the browser records none.
 
 struct AudioCaptureImpl;
 

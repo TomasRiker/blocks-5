@@ -8,7 +8,7 @@ E_Value::E_Value(Level& level,
 				 int dir) : Electronics(level, position, dir)
 {
 	renderLayers |= RL_MAIN;
-	this->value = value;
+	this->value = value ? 1 : 0;
 
 	// create the output
 	createPin(10, Vec2i(8, 15), PT_OUTPUT);

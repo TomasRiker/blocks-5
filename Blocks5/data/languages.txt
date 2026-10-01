@@ -94,8 +94,8 @@ $ERROR_CAMPAIGN_INVALID
 §de:FEHLER: Fehlende oder beschädigte Kampagne:
 
 $ERROR_NO_BUILT_IN_CAMPAIGN
-// Shown on entering the level selection when the game's own campaign is
-// not there at all. Its archive is a build product, so this is what a
+// Shown on entering the level selection when the game's own campaign did
+// not make it into the list. Its archive is a build product, so this is what a
 // tree that was cloned but never packed looks like from inside the game.
 §en:ERROR: The game's own campaign is missing.
 §de:FEHLER: Die Kampagne des Spiels fehlt.
@@ -736,12 +736,12 @@ $LE_RELOAD_GRAPHICS
 
 $LE_UNDO
 // Tool tip of undo button
-§en:Undo <k>Ctrl</k>·+·<k>Y</k>
+§en:Undo <k>Ctrl</k>·+·<k>Z</k>
 §de:Rückgängig <k>Strg</k>·+·<k>Z</k>
 
 $LE_REDO
 // Tool tip of redo button
-§en:Redo <k>Ctrl</k>·+·<k>Z</k>
+§en:Redo <k>Ctrl</k>·+·<k>Y</k>
 §de:Wiederherstellen <k>Strg</k>·+·<k>Y</k>
 
 $LE_SETTINGS
@@ -1060,9 +1060,9 @@ $TT_SPIKE
 §en:Spikes¶(gravity; deadly when falling)
 §de:Speere¶(Gravitation; tödlich, wenn sie fallen)
 
-$TT_AMBOS
-// Tool tip for ambos
-§en:Ambos¶(gravity; deadly)
+$TT_ANVIL
+// Tool tip for the anvil, whose type is Amboss
+§en:Anvil¶(gravity; deadly)
 §de:Amboss¶(Gravitation; tödlich)
 
 $TT_GRASS
@@ -2500,6 +2500,11 @@ $TR_ERROR_RESERVED
 $TR_ERROR_CLICK_AGAIN
 §en:Please click the button again.
 §de:Bitte den Knopf noch einmal anklicken.
+
+$TR_ERROR_NO_DIALOG
+// Linux only, where the file dialogs are these two programs
+§en:ERROR: No file dialog - please install zenity or kdialog.
+§de:FEHLER: Kein Dateidialog - bitte zenity oder kdialog installieren.
 
 // *************
 // DO NOT MODIFY

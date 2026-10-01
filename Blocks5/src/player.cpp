@@ -27,7 +27,8 @@ Player::Player(Level& level,
 	burstSound = "player_burst.ogg";
 
 	interpolation = 0.3f;
-	this->character = character;
+	// three characters; the level file may say anything
+	this->character = character % 3;
 	this->active = false;
 	if(active) activate();
 	touch = 0;
@@ -488,6 +489,14 @@ void Player::loadExtendedAttributes(TiXmlElement* p_element)
 	p_element->Attribute("touch", &touch);
 	p_element->Attribute("push", &push);
 	p_element->Attribute("plantBomb", &plantBomb);
+
+	// As any level may carry these, held to what onUpdate() and move() set
+	// them to: a negative wait never counts down to 0 and would lock the
+	// player out for good.
+	walk = clamp(walk, 0, 40);
+	plantBomb = clamp(plantBomb, 0, 40);
+	touch = clamp(touch, 0, 20);
+	push = clamp(push, 0, 5);
 
 	updateToxicSound();
 	updateMaskSound();

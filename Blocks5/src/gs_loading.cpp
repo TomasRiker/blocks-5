@@ -11,8 +11,8 @@
 #endif
 
 #ifdef __EMSCRIPTEN__
-// Between the pulsing line and the fullscreen hint under it. Far enough that
-// the two read as a message and an aside rather than as one paragraph.
+// Between the pulsing line and the fullscreen hint under it: enough that the
+// two read as a message and an aside, not as one paragraph.
 static const int HINT_GAP = 16;
 #endif
 
@@ -34,16 +34,15 @@ void GS_Loading::onRender()
 #ifdef __EMSCRIPTEN__
 	if(waitingForClick)
 	{
-		// Gentle pulsing, or the line would read as a frozen still. The logo
-		// stays off: its entrance belongs to the intro and only sets off
-		// together with the jingle.
+		// Gentle pulsing, or the line would read as a frozen still. No logo
+		// yet: its entrance belongs to the intro and starts with the jingle.
 		const Vec4f color(1.0f, 1.0f, 1.0f, 0.65f + 0.35f * sinf(waitTime * 0.004f));
 		const std::string text = localizeString("$WEB_CLICK_TO_START");
 
 		Vec2i dim;
 		p_font->measureText(text, &dim, 0);
 
-		// Centre each line on its own - after a break renderText starts again
+		// Each line centred on its own: after a break renderText starts again
 		// at position.x, flush left.
 		int y = 240 - dim.y / 2;
 		for(size_t begin = 0; begin <= text.length(); )
@@ -60,11 +59,10 @@ void GS_Loading::onRender()
 			begin = end + 1;
 		}
 
-		// The first gesture takes the fullscreen, but the way back into it is
-		// Alt+Enter, which is not a guess anybody makes, so it is said here - in
-		// the tooltip font, because it is an aside and not the message. Not
-		// where the on-screen pad is up: that has a button for it, and there is
-		// no Alt to press anyway.
+		// The first gesture takes the fullscreen, but nobody guesses that
+		// Alt+Enter is the way back into it, so it is said here, in the tooltip
+		// font as an aside. Not where the on-screen pad is up: that has a
+		// button for it, and there is no Alt to press.
 		Font* p_hintFont = GUI::inst().getToolTipFont();
 		if(p_hintFont && !engine.isPadShown())
 		{
@@ -109,13 +107,12 @@ void GS_Loading::onUpdate()
 	{
 		waitTime += 20;
 
-		// Every input counts as a gesture. Emscripten hangs its own resume on
-		// the first mousedown/keydown/touchstart but uses it up even when the
-		// resume fails (once: true in autoResumeAudioContext), hence the
-		// follow-up here. Only real mouse buttons (1-3); 4 and 5 are the
-		// wheel, and the browser does not count scrolling as a gesture - it
-		// would only arm the emergency brake below without unblocking the
-		// audio.
+		// Every input counts as a gesture. Emscripten's own resume hangs off
+		// the first mousedown/keydown/touchstart and is spent even when it
+		// fails (once: true in autoResumeAudioContext), hence the follow-up
+		// here. Only mouse buttons 1-3: 4 and 5 are the wheel, which the
+		// browser does not count as a gesture, so it would end the wait below
+		// without unblocking the audio.
 		bool input = false;
 		for(uint button = SDL_BUTTON_LEFT; button <= SDL_BUTTON_RIGHT; button++)
 			if(engine.wasButtonPressed(button)) input = true;
@@ -130,17 +127,14 @@ void GS_Loading::onUpdate()
 			if(gestureTime < 0) gestureTime = waitTime;
 		}
 
-		// Once the gesture is there it goes on in the same tick - it does not
-		// wait for the audio. That is the difference between "the tap
-		// registered" and "the screen is still blinking": resume() returns a
-		// promise, and on a phone two seconds can pass before it settles,
-		// while the line keeps pulsing and the player taps a second time. The
-		// jingle loses nothing by it: it hangs off time >= 1000 and, for its
-		// part, waits briefly for the audio below.
+		// A gesture goes on in the same tick without waiting for the audio:
+		// resume() returns a promise that can take two seconds to settle on a
+		// phone, with the line still pulsing and the player tapping again. The
+		// jingle, at time >= 1000, waits briefly for the audio itself.
 		//
-		// Without a gesture it goes on as well once the audio is free of its
-		// own accord: the click may have landed beside the canvas, where only
-		// the browser saw it.
+		// Without a gesture it goes on once the audio is free of its own
+		// accord: the click may have landed beside the canvas, where only the
+		// browser saw it.
 		if(gestureTime >= 0 || !WebAudio::isSuspended()) waitingForClick = false;
 
 		return;
@@ -150,8 +144,7 @@ void GS_Loading::onUpdate()
 	time += 20;
 
 	// The clock the frame oracle runs on, as Level::update and the credits
-	// report theirs - this screen's starts at zero on entry and the logo,
-	// the jingle and the loading line all hang off it.
+	// report theirs; the logo, the jingle and the loading line hang off it.
 	engine.sceneTick = static_cast<uint>(time);
 
 	if(time >= 1000)
@@ -159,10 +152,10 @@ void GS_Loading::onUpdate()
 		if(!soundPlayed)
 		{
 #ifdef __EMSCRIPTEN__
-			// The context needs a few milliseconds after the gesture. A
-			// second of slack has passed here, which is almost always
-			// enough; if not, it waits until 2000 and then gives up, or the
-			// jingle would fire only as the menu comes up.
+			// The context needs a few milliseconds after the gesture, and
+			// the second that has passed is almost always enough. Otherwise
+			// it waits until 2000 and gives up, or the jingle would fire
+			// only as the menu comes up.
 			const bool ready = !WebAudio::isSuspended();
 			if(ready) engine.playSound("logo.ogg");
 			if(ready || time >= 2000) soundPlayed = true;
@@ -202,10 +195,9 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 {
 	p_font = GUI::inst().getFont();
 
-	// -nosplash does not request logo and jingle in the first place.
-	// Everything else follows by itself: without a logo, time starts at 3000
-	// and the whole intro falls away - the same path the game takes anyway
-	// when logo.png will not load.
+	// -nosplash does not request logo and jingle at all. The rest follows:
+	// without a logo time starts at 3000 and the intro falls away, the same
+	// path the game takes when logo.png will not load.
 	const bool skipSplash = Engine::inst().isSplashSkipped();
 	p_logo = 0;
 	if(!skipSplash)
@@ -220,9 +212,9 @@ void GS_Loading::onEnter(const ParameterBlock& context)
 	logoSizeVel = 0.0f;
 	load = 0;
 
-	// Without a logo the jingle would otherwise still play: time is already
-	// over the threshold and the first tick fires it. -nosplash does not want
-	// that; where only the file is missing, the jingle still plays.
+	// Without a logo time is already past the jingle's threshold, and the
+	// first tick would play it. -nosplash does not want that; where only the
+	// file is missing, the jingle still plays.
 	soundPlayed = skipSplash;
 
 #ifdef __EMSCRIPTEN__

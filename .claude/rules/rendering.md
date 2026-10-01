@@ -88,9 +88,10 @@ uniform; `Mat4::ortho` (`vec.h`) builds the same numbers `gluOrtho2D` did. The s
 every other matrix the game once asked GL for — `gluPerspective`, `gluLookAt`, the in-place translate,
 scale and rotate, the left-to-right sums in a product — keeping each call's *order* of operations, which
 costs nothing and makes the two readable against each other, but not its precision: `Mat4` is `float`
-throughout where GL and GLU were `double` in places. The one entry that reaches is `gluPerspective`'s
-depth row, `m[10]` and `m[14]`; `m[0]` and `m[5]`, which put a corner on the screen, read neither near
-nor far and come out bit for bit the same. The four 3D crossfades and the credits' stars hand
+throughout where GL and GLU were `double` in places. Where that reaches is `gluPerspective`: at the 90
+degrees every caller but `CF_Zoom` asks for, its cotangent is exactly 1 either way and only the depth row,
+`m[10]` and `m[14]`, can differ; at `CF_Zoom`'s narrower angles `m[0]` and `m[5]`, which put a corner on
+the screen, can differ in their last bit or two as well. The four 3D crossfades and the credits' stars hand
 `Renderer::quads3D` a matrix built that way with the projection in it, and the rain, the snow and the
 clouds hand `scrolledQuad` a texture matrix built from the picture's texel scale, which is applied to
 the corners' uv in the order the fixed-function vertex stage summed it.
@@ -106,6 +107,34 @@ to every 2D quad, one level up. Anything else that grows a per-piece matrix belo
 costs is the last bit, since the corner is then rounded by the model matrix and again by the draw's,
 where it used to be rounded once by the product — 197 of the oracle frame's 307200 pixels, by at most 3
 of 255.
+
+**Nothing in this game depth-tests, so the order geometry is handed over in *is* the depth order.**
+`GL_DEPTH_TEST` appears in no source in the tree; the framebuffer's renderbuffer is a packed
+depth-stencil only because `cf_star.cpp` and `level.cpp` want the stencil half, and the depth half is
+never written or read. Everything on screen is an alpha-blended quad painted over whatever was queued
+before it, so anything whose pieces can overlap each other has to be submitted back to front, and the
+sort that does it belongs in the code that owns the list rather than in the render path — a render that
+sorts is a render writing to what it draws, and it pays per frame for an order that can only change per
+tick. Three do it: `Level::sortObjects` sorts by depth, shown position and UID before `Level::render`
+paints; the hint note's `ROLL_TURNS` stops at half a turn because past that the unrolling cylinder's own
+bands overlap in an order no submission can fix; and `GS_Credits::updateStars` sorts the four hundred
+stars by distance from the eye.
+
+The credits shipped without that sort, and the shape of it is what the rule is for: the list was walked
+in reverse *birth* order, which reads like depth and is not. A star is born 150 to 200 ahead of the
+camera with an offset of up to 80 in a random direction, so it is 70 to 280 away at birth while the
+camera gains one unit a tick on it — measured, 52% of all pairs were the wrong way round through the
+lead-in, whose four hundred are all born in its first tick and so in no order at all, and 21 to 27%
+once stars were being recycled, with about half of the adjacent pairs wrong throughout.
+
+What one swapped pair costs is worth knowing, because it decides where this class of bug is visible at
+all. Under `BM_NORMAL` the two orders differ by exactly `a1 * a2 * (S1 - S2)` per pixel — the two alphas
+multiplied, times the difference in colour — so the error vanishes wherever the geometry is faint and is
+the whole picture wherever it is opaque. That is why the note's half turn is a hard limit and the star
+field's disorder went unnoticed for years: a star fades as `1 / (1 + 0.001 * distSq)`, which is 0.01 at
+the far end, and only the ones that have come close enough to approach 1 can be caught at it. The
+oracle's frozen credits frame moves by 46 of 307200 pixels, by at most 3 of 255 — so no oracle scene
+would ever have found this, and none of them is at fault: the oracle only asks whether two runs agree.
 
 **Three shapes are not quads, and each is one with a rule.** A triangle is a quad whose fourth corner
 repeats the third, so the second triangle of the split has no area — the hint's note mesh, the star
@@ -266,15 +295,16 @@ inside a `frameRendered` block, so it read the default framebuffer, which WebGL 
 It calls `bindFrameBuffer()` first, right on either platform: the FBO holds the last frame that *was*
 rendered, which is exactly the screen being faded out.
 
-**A scrolling texture offset is reduced to one period, and that is a phone bug.** `wrapTextureOffset`
-(`util.h`) is called on all five scrollers — the menu's title clouds, the level's rain, snow and clouds,
-and the lava — because each scrolls by an offset that has been growing since the level began. A texture
-coordinate reaches the fragment shader as a *varying* at that shader's float precision, and the renderer's
-fragment shader asks for `highp` only where `GL_FRAGMENT_PRECISION_HIGH` says the browser has it; a phone
-without it gets `mediump`: ten mantissa bits, which a desktop GPU implements as fp32 and the phone actually
-honours. The step it quantizes to is **offset/2048 texels**, so the clouds — moving one texel a tick —
-drift smoothly for about forty seconds and then go visibly steppy, and the rain, at twenty texels a tick,
-crosses the same line in two seconds. Nothing is wrong on any desktop, which is what makes it hard to see.
+**A scrolling texture offset is reduced to one period, and that is a phone bug.** `scrollOffset`
+(`util.h`) reduces all five scrollers — the menu's title clouds, the level's rain, snow and clouds, and
+the lava — and `wrapTextureOffset` the three with a wobble added on top, because each scrolls by an offset
+that has been growing since the level began. A texture coordinate reaches the fragment shader as a
+*varying* at that shader's float precision, and the renderer's fragment shader asks for `highp` only where
+`GL_FRAGMENT_PRECISION_HIGH` says the browser has it; a phone without it gets `mediump`: ten mantissa
+bits, which a desktop GPU implements as fp32 and the phone actually honours. The step it quantizes to is
+**offset/2048 texels**, so the clouds — moving one texel a tick — drift smoothly for about forty seconds
+and then go visibly steppy, and the rain, at twenty texels a tick, crosses the same line in two seconds.
+Nothing is wrong on any desktop, which is what makes it hard to see.
 
 Subtracting whole periods is **exact** under `GL_REPEAT`: it moves the finished coordinate by a whole
 number and samples the same texel. Verified against the real matrix order — bind's `1/w,1/h`, the scale,
@@ -283,9 +313,9 @@ the translate and the rotate — for the four weather scrollers, deviation 0.000
 
 **The reduction runs off the clock, not off a value that has been kept.** Each scroller's offset is
 `rate · clock + base`, a straight line in a counter that is an exact integer — `Level::time` and
-`GS_Menu::time` in milliseconds, `Lava::anim` and `SDL_GetTicks` in ticks — so `scrollOffset` (`util.h`)
-forms that line and reduces it in one step from the integer the caller still holds. A wobble bounded by
-its own sine is added afterwards and the sum reduced again, which is exact for the same reason.
+`GS_Menu::time` in milliseconds, `Lava::anim` in ticks — so `scrollOffset` forms that line and reduces
+it in one step from the integer the caller still holds. A wobble bounded by its own sine is added
+afterwards and the sum reduced again, which is exact for the same reason.
 
 All of it is `float`, and the limit that puts on it is measured rather than assumed. The clouds scroll
 one texel a tick, and that step comes out **exactly 1.0000 for as long as twelve hours in one level**;
@@ -294,16 +324,17 @@ again at every level, so the float costs nothing a player can reach — this is 
 here would buy only a tidier number in a probe.
 
 **The lava is the one whose period is not the texture**, and getting it wrong is a jump of half a tile.
-Its four cousins scroll through the matrix they hand `scrolledQuad`; `Lava::onRender` writes the texels into its quad's uv itself,
-on a 16x16 sub-texture cut out of the skin's sprite sheet by `createSubTexture` — a real 16x16 texture of
-its own, so `GL_REPEAT` wraps at 16. But the front pass halves the *whole* coordinate (`t /= 2.0`) before
-it draws, so a jump of 16 moves that pass by eight texels and only 32 moves it by a period.
-`SCROLL_PERIOD` is therefore twice the tile, also exact for the back pass at two periods. The `shift`
-beside it is `2·sin(0.1·anim)` and `3·cos(0.05·anim)`, and each of those reduces at a **turn** rather
-than at the tile: neither wobble period divides 32, so reducing what feeds them by the tile would jog
-the wobble every time it came round, while a turn cannot move a sine at all. Measured over `anim`
-0..900000, both signs and both axes, the sampled fraction agrees to 4e-12 of a texel; a wrap at 16 puts
-the front pass out by exactly 0.5.
+Its four cousins scroll through the matrix they hand `scrolledQuad`; `Lava::onRender` writes the texels
+into its quad's uv itself, on a 16x16 tile cut out of the skin's sprite sheet by `createSubTexture`, and
+`Renderer::tiledQuad` cuts the quad at the tile's edges so that every piece samples one copy — a period of
+16, and a uv rebased per piece, so what the reduction protects here is the float the CPU forms rather than
+the shader's varying. But the front pass halves the *whole* coordinate (`t /= 2.0`) before it draws, so a
+jump of 16 moves that pass by eight texels and only 32 moves it by a period. `SCROLL_PERIOD` is therefore
+twice the tile, also exact for the back pass at two periods. The `shift` beside it is `2·sin(0.1·anim)`
+and `3·cos(0.05·anim)`, and each of those reduces at a **turn** rather than at the tile: neither wobble
+period divides 32, so reducing what feeds them by the tile would jog the wobble every time it came round,
+while a turn cannot move a sine at all. Measured over `anim` 0..900000, both signs and both axes, the
+sampled fraction agrees to 4e-12 of a texel; a wrap at 16 puts the front pass out by exactly 0.5.
 
 **A phase is emphatically *not* reduced**, and `clockPhase` (`util.h`) exists to say so where a reader
 would otherwise reach for the obvious. `sinf` and `cosf` reduce their own argument, against the real π
@@ -311,17 +342,20 @@ to as many bits as it takes, and land 3e-08 from the true sine at every clock va
 reach. Reducing by a `float` 2π first reduces against a constant that is itself 1.7e-07 out, and the
 error grows with the turns thrown away: measured against the exact sine of the same float, 3.9e-05 one
 minute into a level, **2.0e-03 after an hour**, 0.14 after three days. The library is better at this
-than its caller. A texture offset is the opposite case and does reduce, because its period — 512
-texels, or the CRT's eight seconds — is exactly representable, so `fmodf` divides by the right number
-and is exact; and because the wrap is what the *shader* needs, not the CPU.
+than its caller. A texture offset is the opposite case and does reduce, because its period, a texture's
+size in texels, is exactly representable, so `fmodf` divides by the right number and is exact; and
+because the wrap is what the *shader* needs, not the CPU.
 
-The counters are what runs out in the end: `Level::time` is `int` and undefined after **24.9 days** in
-one level, `GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a
-level or the menu. Nine call sites go through the three helpers: the five scrollers, the lava's scroll
-and its two wobbles, and the CRT filter's flicker and scan-line crawl (`upscalers.md`). With those in
-place and the wall clock an integer, **`double` is gone from the game's own arithmetic** — the two left
-in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE double
-and nothing else will do.
+The counters are what runs out in the end: `Level::time` is `int` and undefined after **24.9 days** in one
+level, `GS_Menu::time` and `Engine::time` are `uint` and wrap at 49.7; all three reset on entering a level
+or the menu. The three helpers serve the five scrollers and the lava's two wobbles. The CRT filter runs
+on the wall clock, which nothing resets: its flicker reduces the millisecond clock as an integer, before
+it becomes a float, since its fastest term is the one a float second stops resolving first, and its
+scan-line crawl is the one value kept, moved by each present's share of the clock, because its slope
+follows a slider and slope times clock would throw the lines about whenever the slider moved. With those
+in place and the wall clock an integer, **`double` is gone from the game's own arithmetic** — the two
+left in the tree are `EM_ASM_DOUBLE` and the lookahead beside it, where a JavaScript number is an IEEE
+double and nothing else will do.
 
 ## The atlas
 
@@ -343,9 +377,9 @@ ending a batch.
 nothing samples outside it; `WM_WRAP`, `Renderer::tiledQuad` cuts the quad at the picture's edges so that
 every piece samples one copy, which packs; `WM_REPEAT`, GL wraps it at the *texture's* edge, so inside a
 page it would read whatever was packed next door — a texture of its own. `Texture::NEVER_PACK` beside
-the mode keeps a picture out for a reason that is not wrapping: the loading screen's `logo.png` and
-`title.png` are drawn once and never again, and half a megatexel apiece is the wrong thing to hold a page
-slot for — or to leave a hole in one when it goes. Only the weather is `WM_REPEAT`:
+the mode keeps a picture out for a reason that is not wrapping: the loading screen's `logo.png` is drawn
+once and never again, and a quarter of a megatexel is the wrong thing to hold a page slot for — or to
+leave a hole in one when it goes. Only the weather is `WM_REPEAT`:
 its uv is rotated with the scroll, so the cuts a split would need are not axis-aligned in screen space and
 the pieces would not be quads. The lava's two 16x16 tiles are `WM_WRAP` and sit in a page with the sprite
 sheet they were cut from.

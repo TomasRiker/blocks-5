@@ -22,14 +22,15 @@ on `visualViewport` resizes too — that is how a phone reports the address bar 
 handles `webglcontextlost`, a real event when a tab goes to the background, by saying so instead of
 freezing: the game cannot rebuild its textures and its FBO from where it stands.
 
-**Every function key belongs to the game, not to the browser.** `pre.js` swallows F1 to F24 in the capture
-phase, before SDL or the browser sees them, because they are bindable actions like any other key and the
-desktop build answers to all of them — a player who knows the game must not find half of them missing, and
-taking a named few would be the worst of both. Left alone, F1 opens the browser's help, F5 reloads the page
-and loses the level, F10 reaches for the menu bar, F11 goes fullscreen and F12 opens the developer tools.
-Nothing is lost: Ctrl+R and the address bar still reload, Ctrl+Shift+I still opens the tools, and
-fullscreen is Alt+Enter as on the desktop. Whether a browser hands a page F11 and F12 at all is its own
-decision; asking costs nothing where the answer is no.
+**Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default for
+F1 to F24 in the capture phase on window, ahead of SDL's listeners and the browser's own action, and SDL
+still receives the key: they are bindable actions like any other key and the desktop build answers to all of
+them — a player who knows the game must not find half of them missing, and taking a named few would be the
+worst of both. Left alone, F1 opens the browser's help, F5 reloads the page and loses the level, F10 reaches
+for the menu bar, F11 goes fullscreen and F12 opens the developer tools. Nothing is lost: Ctrl+R and the
+address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is Alt+Enter as on the desktop.
+Whether a browser hands a page F11 and F12 at all is its own decision; asking costs nothing where the answer
+is no.
 
 **Which is why the click prompt names Alt+Enter.** The first gesture takes the fullscreen, but the way back
 into it on a keyboard is that chord, which nobody guesses unaided, so `$WEB_FULLSCREEN_HINT` sits under
@@ -105,9 +106,9 @@ place the same read gives `workerStart` 79.7 and the new bytes arrive). The
 worker's network-first branch is what keeps the page working offline; freshness is the URL's job, and the
 header's only where there can be no stamp.
 
-**`-sINITIAL_MEMORY` is 48 MiB, and that number was measured.** Started at 16 MiB the heap grows exactly
-once, to 40 MiB, and stays there through the loading screen, menu, editors and a played level. Reserving far
-more is on a phone the most likely reason a tab dies before the menu appears.
+**`-sINITIAL_MEMORY` is 64 MiB, over a need that was measured.** Started at 16 MiB the heap grows exactly
+once, to 40 MiB, and stays there through the loading screen, menu, editors and a played level; the rest is
+room to spare. Reserving far more is on a phone the most likely reason a tab dies before the menu appears.
 `ALLOW_MEMORY_GROWTH` stays on, so an unusually large level still has room.
 
 **Losing focus takes two answers in the browser, not one.** Emscripten's SDL reports focus and visibility as
@@ -121,7 +122,7 @@ suspends the `AudioContext` on `visibilitychange`, one layer below the engine, w
 once. Without it the music dies on its own when its queue runs dry while every looping effect — a laser above
 all — keeps sounding in a tab nobody is looking at.
 
-`appActive` is an `Engine` member rather than a local in `mainLoop` because `emscripten_set_main_loop` calls
+`appActive` is an `Engine` member rather than a local in `mainLoop` because `emscripten_set_main_loop_arg` calls
 one iteration per frame, so nothing may live on the stack between them — and because the test hook reports
 it, which is what makes any of this checkable.
 
@@ -155,4 +156,4 @@ Quit button never sees.
 screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT` case in
 `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it. It mutes OpenAL, builds
 a DOM overlay above the canvas (leaving fullscreen first, or the overlay would sit behind it) and calls
-`emscripten_cancel_main_loop`. Any key or click after a 700 ms arming delay reloads the page.
+`emscripten_cancel_main_loop`. Any key, click or touch after a 700 ms arming delay reloads the page.

@@ -8,11 +8,10 @@ E_Gate::E_Gate(Level& level,
 			   int dir) : Electronics(level, position, dir)
 {
 	renderLayers |= RL_MAIN;
-	// subType comes out of the level file unchecked (presets.cpp), and levels
-	// travel between players. Four things downstream index on it: the pin count
-	// just below, the sprite region in updateSprites(), the switch in doLogic()
-	// and the tooltip table. Catching it once here is what keeps all four safe,
-	// and 0 is what getToolTip() has always fallen back to.
+	// subType comes unchecked out of a level file (presets.cpp), which may be
+	// anybody's. The pin count below, the sprite region, doLogic()'s switch
+	// and the tooltip table all depend on it, so it is clamped once here; 0
+	// is also getToolTip()'s fallback.
 	if(subType < 0 || subType > 7)
 	{
 		printfLog("+ WARNING: Gate with subType %d, which does not exist. Treating it as AND.\n",
@@ -22,8 +21,23 @@ E_Gate::E_Gate(Level& level,
 
 	this->subType = subType;
 
-	// create the inputs
-	if(subType == 6 || subType == 7)
+	createInputs();
+	createPin(10, Vec2i(15, 8), PT_OUTPUT);
+}
+
+bool E_Gate::hasOneInput() const
+{
+	// NOT and pass-through
+	return subType == 6 || subType == 7;
+}
+
+void E_Gate::createInputs()
+{
+	// Deleting a pin breaks its connections.
+	for(uint i = 0; i < inputPins.size(); i++) delete inputPins[i];
+	inputPins.clear();
+
+	if(hasOneInput())
 	{
 		createPin(0, Vec2i(0, 8), PT_INPUT);
 	}
@@ -32,9 +46,6 @@ E_Gate::E_Gate(Level& level,
 		createPin(0, Vec2i(0, 5), PT_INPUT);
 		createPin(1, Vec2i(0, 10), PT_INPUT);
 	}
-
-	// create the output
-	createPin(10, Vec2i(15, 8), PT_OUTPUT);
 }
 
 E_Gate::~E_Gate()
@@ -65,8 +76,6 @@ void E_Gate::saveAttributes(TiXmlElement* p_target)
 
 std::string E_Gate::getToolTip() const
 {
-	// const, because a string literal is not a char*: that has not been allowed
-	// since C++11 - MSVC merely warned about it, GCC and Clang reject it.
 	static const char* const p_str[] = {"$TT_GATE_AND",
 										"$TT_GATE_NAND",
 										"$TT_GATE_OR",
@@ -76,9 +85,9 @@ std::string E_Gate::getToolTip() const
 										"$TT_GATE_NOT",
 										"$TT_GATE_PASS_THROUGH"};
 
-	// The constructor clamps subType into range, so this cannot fire today. It
-	// stays as the backstop for a ninth gate type added without extending the
-	// table: a wrong tooltip rather than a read past the end.
+	// The constructor clamps subType; this is the backstop for a gate type
+	// added without extending the table - a wrong tooltip rather than a read
+	// past the end.
 	if(subType < 0 || subType >= static_cast<int>(sizeof(p_str) / sizeof(p_str[0])))
 		return p_str[0];
 
@@ -94,8 +103,22 @@ bool E_Gate::changeInEditor(int mod)
 	}
 	else
 	{
+		// Between a two-input gate and NOT or pass-through the inputs are
+		// built anew, since they sit elsewhere. Input 0 is there in both and
+		// keeps its wire; input 1's goes, as the next load would drop it.
+		const bool oneInput = hasOneInput();
 		subType++;
 		subType %= 8;
+		if(hasOneInput() != oneInput)
+		{
+			// Copied out first: deleting the pin empties its set.
+			const Pin* p_input = getPinByID(0);
+			std::set<Pin*> sources;
+			if(p_input) sources = p_input->getConnectedPins();
+
+			createInputs();
+			for(std::set<Pin*>::const_iterator i = sources.begin(); i != sources.end(); ++i) Pin::connect(*i, getPinByID(0));
+		}
 	}
 
 	return true;
@@ -103,7 +126,7 @@ bool E_Gate::changeInEditor(int mod)
 
 void E_Gate::doLogic()
 {
-	// Undefined inputs give an undefined output.
+	// An unconnected or undefined input gives an undefined output.
 	if(!areAllInputsConnected() || isAnyInputUndefined())
 	{
 		setAllOutputsToUndefined();

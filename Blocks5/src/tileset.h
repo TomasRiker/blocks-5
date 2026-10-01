@@ -15,12 +15,9 @@ class TileSet : public Resource<TileSet>
 	friend class Manager<TileSet>;
 
 public:
-	// A tile is 16x16, always. The editor knows nothing else, all nine
-	// tileset.xml in the tree - the four shipped skins, their archives and the
-	// third-party lego skin - name exactly that size, and reload() rejects a
-	// file that claims otherwise. A single number because tiles are square;
-	// that way the value stands here in the header and needs no definition in
-	// the .cpp.
+	// A tile is 16x16, always: the editor knows nothing else, every tileset
+	// in the tree (the four shipped skins and the third-party lego skin) names
+	// exactly that size, and reload() rejects a file that claims otherwise.
 	static const int TILE_SIZE = 16;
 
 	struct TileInfo
@@ -29,10 +26,9 @@ public:
 		int type;
 		int destroyTime;
 
-		// The tile's image, which the debris takes its colour from. Exactly one
-		// sprite, unrotated and untinted - there is nothing composite about a
-		// tile. For a tile that is not destroyable at all the list stays empty,
-		// and then no debris appears either.
+		// The tile's image, which debris takes its colour from: one sprite,
+		// unrotated and untinted. Empty for a tile that cannot be destroyed,
+		// which then leaves no debris.
 		Sprites sprites;
 	};
 

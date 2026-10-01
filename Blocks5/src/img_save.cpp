@@ -28,9 +28,8 @@ namespace
 	}
 
 	// Predict a row and write the deviation. a is the left neighbour, b the one
-	// above, c the one above left; outside the image all three are 0. Type 4 is
-	// the Paeth predictor: of the three it takes the one that comes closest to
-	// a+b-c.
+	// above, c the one above left, all 0 outside the image. Type 4 is the Paeth
+	// predictor: whichever of the three comes closest to a+b-c.
 	void applyFilter(int type, const uchar* p_row, const uchar* p_prev,
 					 uint bpp, uint stride, uchar* p_dest)
 	{
@@ -61,10 +60,9 @@ namespace
 		}
 	}
 
-	// Which filter is best for this row is decided by the sum of magnitudes over
-	// the filtered bytes read as signed numbers. That is the rule of thumb from
-	// libpng, and it is worth its twenty lines: measured on a real screenshot,
-	// 239 instead of 283 KB.
+	// The best filter for a row is the one whose bytes, read as signed, have
+	// the smallest sum of magnitudes - libpng's rule of thumb, and worth its
+	// twenty lines: 239 instead of 283 KB on a real screenshot.
 	uint filterScore(const uchar* p_line, uint stride)
 	{
 		uint sum = 0;
@@ -93,8 +91,7 @@ bool encodePNG(const uchar* p_pixels, const Vec2i& size,
 	const uint srcBpp = static_cast<uint>(srcChannels);
 	const uint stride = width * bpp;
 
-	// Every row gets its filter byte in front of it; that is the stream that
-	// gets compressed.
+	// Every row with its filter byte in front: the stream that is compressed.
 	std::vector<uchar> raw(static_cast<size_t>(stride + 1) * height);
 	std::vector<uchar> candidate(stride);
 	std::vector<uchar> best(stride);
@@ -107,8 +104,8 @@ bool encodePNG(const uchar* p_pixels, const Vec2i& size,
 		const uchar* p_source =
 			p_pixels + static_cast<size_t>(bottomUp ? (height - 1 - y) : y) * width * srcBpp;
 
-		// Surplus channels are dropped here, before the filtering - afterwards
-		// the prediction would already have run at the wrong spacing.
+		// Surplus channels are dropped before the filtering, or the
+		// prediction would run at the wrong spacing.
 		const uchar* p_row = p_source;
 		if(srcBpp != bpp)
 		{

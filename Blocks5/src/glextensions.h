@@ -1,38 +1,29 @@
 #ifndef GLEXTENSIONS_H
 #define GLEXTENSIONS_H
 
-// The GL entry points that go beyond GL 1.1.
-//
-// Everything else the game calls - textures, blending, the tests, clears and
-// reads - is GL 1.1 and comes straight out of opengl32.dll under Windows.
-// Framebuffer objects, shaders and buffers do not: under Windows they have to
-// be fetched through SDL_GL_GetProcAddress, in the browser they are core in
-// WebGL 1.
-//
-// Hence two paths behind one interface: under Emscripten the names here are
-// direct declarations of the real functions, under Windows function pointers
-// that init() fills in.
+// The GL entry points beyond GL 1.1: framebuffer objects, shaders and
+// buffers. Everything else the game calls is GL 1.1 and linked directly,
+// except glBlendFuncSeparate, which Renderer::init fetches itself. In the
+// browser these are core WebGL 1 and the names below are the real functions;
+// natively they are function pointers that init() fetches through
+// SDL_GL_GetProcAddress, since opengl32.dll under Windows exports GL 1.1 only.
 
 namespace GLExtensions
 {
 	// Call once the GL context is up. Resolves everything below and ends the
-	// program with a message where a driver cannot supply it: framebuffer
-	// objects, GL 2.0 shaders and vertex buffer objects are what this game is
-	// built on, not features it can do without. There is therefore nothing to
-	// ask afterwards and no availability to branch on.
+	// program with a message where the driver lacks any of it: framebuffer
+	// objects, GL 2.0 shaders and vertex buffers are requirements, so there
+	// is no availability to branch on afterwards.
 	void init();
 
-	// The largest texture this machine will take, in texels of one edge, as
-	// init() read it. A constant of the driver, so it is asked once and here:
-	// this is the file that asks what the machine can do, and asking from
-	// anywhere that draws would be a glGetIntegerv mid-frame, which is what
-	// the DirectGL bracket exists to stop.
+	// The largest texture edge the driver takes, in texels, read once by
+	// init(). Asked here because the atlas that needs it may make no raw GL
+	// call (verify.py's raw_gl).
 	int maxTextureSize();
 }
 
-// The constants are identical in EXT_framebuffer_object and in the GL 3.0 core,
-// only named differently. SDL 1.2.15 ships a glext.h from 2011; what is missing
-// from it is here.
+// Fallbacks for a header that lacks them; the values are the same in
+// EXT_framebuffer_object and in GL 3.0 core, only the names differ.
 #ifndef GL_FRAMEBUFFER_EXT
 #define GL_FRAMEBUFFER_EXT                0x8D40
 #define GL_RENDERBUFFER_EXT               0x8D41
@@ -42,7 +33,10 @@ namespace GLExtensions
 #define GL_FRAMEBUFFER_COMPLETE_EXT       0x8CD5
 #endif
 
-// EXT_packed_depth_stencil is younger than the shipped glext.h.
+// EXT_packed_depth_stencil is younger than the glext.h in the vendored SDL
+// 1.2.15 (version 29, from 2005). GL_DEPTH_STENCIL_ATTACHMENT_EXT is the
+// tree's own name for WebGL's combined attachment point (core GL 3.0's
+// GL_DEPTH_STENCIL_ATTACHMENT); the extension has none.
 #ifndef GL_DEPTH24_STENCIL8_EXT
 #define GL_DEPTH24_STENCIL8_EXT           0x88F0
 #endif
@@ -55,9 +49,9 @@ namespace GLExtensions
 
 #ifdef __EMSCRIPTEN__
 
-// Core in WebGL 1. GL/gl.h still does not declare them - that is the GL 1.x
-// header - and putting GLES2/gl2.h beside it throws type conflicts. Declare
-// them here instead; the link goes against Emscripten's GL library.
+// Core in WebGL 1 but not declared by GL/gl.h, the GL 1.x header, and
+// GLES2/gl2.h beside it conflicts on types. Declared here and linked against
+// Emscripten's GL library.
 extern "C"
 {
 	void   glGenFramebuffers(GLsizei, GLuint*);

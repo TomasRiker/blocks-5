@@ -69,17 +69,26 @@ zip_skins.bat    :: pack levels\skins\<name>\ into levels\skins\<name>.zip
 stage.bat        :: build a redistributable tree in Blocks5\stage (needs ..\Release\*.exe)
 ```
 
-`zip_*.bat` run `Tools\optipng` first, which is slow; `zip_data_no_optipng.bat` and
-`zip_skins_no_optipng.bat` skip it. Both
-need `Tools\7za.exe`. Those binaries are reached through `%~dp0..\Tools\` rather than relatively,
-because the scripts `PUSHD` into the folder they pack — and, for the XML half of `data.zip`, into
-`%TEMP%`.
+`zip_data.bat` and `zip_skins.bat` run `Tools\optipng` over the PNGs first only when given
+`/optipng`, because it is slow and rewrites tracked files in place; `Build.bat /optipng` passes it on,
+and any other argument is refused before a file is touched. Both need `Tools\7za.exe`. Those binaries
+are reached through `%~dp0..\Tools\` rather than relatively, because the scripts `PUSHD` into the
+folder they pack — and, for the XML half of `data.zip`, into `%TEMP%`.
 
 Installer: `setup\Blocks 5.iss` (Inno Setup). The version number lives in **four** places that must
 stay in sync — `p_localVersion` in `src/main.cpp`, `AppVersion`/`OutputBaseFilename` in the `.iss`, the
 banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus the two string values in
 `src/resources.rc`, which is what Explorer shows and a crash log reports. The `.rc` had been missed
 before and sat at 1.1.1 through the whole of 1.1.2.
+
+**The update check ships off.** `Blocks5\.update_checker` holds `0`; `stage.bat` puts it into the tree an
+unpacked game runs from, and the first start copies it into the user directory, whose copy is the one
+`runTheGame` reads at every start. The installer's `EnableUpdateChecker` task starts unticked, and its
+`[Run]` entries reset the game folder's copy with `update_checker_disable.bat` before
+`update_checker_enable.bat` sets it for the tick. The game folder's copy reaches a user directory only at
+its first start (or on the way up from 1.0.7x), so ticking the box in a later installation changes
+nothing for a player who already has one; the two `.bat` files, which that first start copies into the
+user directory as well, switch it there. ROADMAP 61 is the switch in the options dialog.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to

@@ -30,7 +30,8 @@ const zlib = require('zlib');
 	await h.expectShown(page, 'OptionsPane.Options');
 	await h.shot(page, 'smoke-2-options');
 
-	// Without a selection in the list the four buttons below it are disabled.
+	// Without a selection in the list the three buttons that act on one are
+	// disabled; Reset all needs none.
 	const opts = await h.dump(page);
 	for (const name of ['OptionsPane.Options.PrimaryKey', 'OptionsPane.Options.SecondaryKey',
 	                    'OptionsPane.Options.ResetSelected']) {
@@ -44,7 +45,7 @@ const zlib = require('zlib');
 	await h.expectShown(page, 'OptionsPane.Options', false);
 	await h.expectState(page, 'GS_Menu');
 
-	// --- Manager: step through the four kinds ---------------------------------
+	// --- Manager: step through the five kinds ---------------------------------
 	await h.clickPath(page, 'Menu.Manager');
 	await h.expectShown(page, 'Menu.ManagerPane.Manager');
 	for (const kind of ['KindLevel', 'KindCampaign', 'KindMusic', 'KindSkin', 'KindProgress']) {
@@ -82,11 +83,11 @@ const zlib = require('zlib');
 	await h.shot(page, 'smoke-4-back');
 
 	// A tab in the background must be silent. The game cannot see to that
-	// itself: without requestAnimationFrame no logic tick runs, and Emscripten's
-	// SDL reports a hidden page as SDL_WINDOWEVENT anyway, which the game does
-	// not listen for. The page therefore suspends the AudioContext - without it
-	// the music falls silent on its own once its queue runs dry, but a
-	// continuous sound like the laser would keep going.
+	// itself: without requestAnimationFrame no logic tick runs, so the
+	// SDL_WINDOWEVENT Emscripten's SDL posts for a hidden page waits unread
+	// until the tab comes back. The page therefore suspends the AudioContext -
+	// without it the music falls silent on its own once its queue runs dry,
+	// but a continuous sound like the laser would keep going.
 	//
 	// Headless Chromium has no real tab visibility; bringToFront leaves
 	// document.hidden at false. What is dispatched is therefore exactly the

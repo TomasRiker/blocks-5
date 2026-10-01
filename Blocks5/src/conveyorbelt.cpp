@@ -14,7 +14,7 @@ ConveyorBelt::ConveyorBelt(Level& level,
 	renderLayers = RL_MAIN;
 	warpTo(position);
 	flags = OF_MASSIVE | OF_FIXED | OF_BLOCK_GAS;
-	this->dir = dir;
+	this->dir = dir < 0 ? -1 : 1;
 	anim = random(0, 6);
 	p_objOnMe = 0;
 	counter = 0;

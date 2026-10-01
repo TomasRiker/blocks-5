@@ -7,8 +7,8 @@
 
 class Texture;
 
-// Restarting a level looks like a video recorder in rewind. Why exactly that
-// hides the cut is written above render() in cf_rewind.cpp.
+// Restarting a level looks like a video recorder rewinding; cf_rewind.cpp says
+// above render() why that hides the cut.
 class CF_Rewind : public Crossfade
 {
 public:
@@ -27,10 +27,9 @@ private:
 
 	uint noiseID;
 
-	// The recorder's on-screen display as an image: "REWIND" on the left, the
-	// two triangles on the right. And when the effect started, which keeps the
-	// arrows blinking in time from the first second rather than in an arbitrary
-	// phase.
+	// The recorder's on-screen display: "REWIND" on the left, two triangles
+	// on the right. startTicks times the arrows' blinking from the effect's
+	// start, so they begin visible rather than in an arbitrary phase.
 	Texture* p_osd;
 	uint startTicks;
 };

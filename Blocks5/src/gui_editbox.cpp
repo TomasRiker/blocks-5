@@ -126,6 +126,39 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	// Ctrl pressed?
 	bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 
+	// The editing shortcuts go by the letter on the key, as in every other
+	// program - keyLetter() says why the keysym alone would not.
+	const char letter = ctrl ? keyLetter(event.keysym) : 0;
+	if(letter == 'a' || letter == 'c' || letter == 'v' || letter == 'x')
+	{
+		if(letter == 'a')
+		{
+			// select all
+			cursor = selStart = selEnd = 0;
+			setCursor(static_cast<uint>(text.length()), true);
+		}
+		else if(letter == 'c' || letter == 'x')
+		{
+			// copy/cut
+			if(selStart != selEnd)
+			{
+				GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
+				if(active && letter == 'x') replaceSelection("");
+			}
+		}
+		else if(active)
+		{
+			// paste
+			const std::string& clipboard = GUI::inst().getClipboard();
+			if(!clipboard.empty()) replaceSelection(clipboard);
+		}
+
+		// Handled, and not typed as well: typedCharacter() below drops the
+		// key's own letter under Ctrl alone, but not under Ctrl with Alt,
+		// which is AltGr to Windows.
+		return;
+	}
+
 	switch(event.keysym.sym)
 	{
 	case SDLK_TAB:
@@ -152,59 +185,21 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		break;
 	case SDLK_RETURN:
 	case SDLK_KP_ENTER:
-		// With no button of its own for it, Return belongs to the dialog, where
-		// it means OK - otherwise nothing would ever arrive there from inside
-		// an edit box. The button only on a fresh press, though - it is a
+		// Unless an active box has a submit button, Return goes to the dialog,
+		// where it means OK. The button fires only on a fresh press, being a
 		// command.
 		if(active && p_submitButton) { if(!GUI::inst().isKeyRepeat()) p_submitButton->click(); }
 		else if(p_parent) p_parent->onKeyEvent(event);
 		break;
 	case SDLK_ESCAPE:
-		// Escape is never an input. In the default branch it would be dropped
-		// silently by the unicode < 32 test, and the dialog behind would never
-		// see it.
+		// Escape is never input: the default branch would drop it silently
+		// (unicode < 32), and the dialog behind would never see it.
 		if(p_parent) p_parent->onKeyEvent(event);
 		break;
-	case SDLK_a:
-	case SDLK_c:
-	case SDLK_v:
-	case SDLK_x:
-		if(ctrl)
-		{
-			if(event.keysym.sym == SDLK_a)
-			{
-				// select all
-				cursor = selStart = selEnd = 0;
-				setCursor(static_cast<uint>(text.length()), true);
-			}
-			else if(event.keysym.sym == SDLK_c ||
-					event.keysym.sym == SDLK_x)
-			{
-				// copy/cut
-				if(selStart != selEnd)
-				{
-					GUI::inst().setClipboard(std::string(text.begin() + selStart, text.begin() + selEnd));
-					if(active && event.keysym.sym == SDLK_x) replaceSelection("");
-				}
-			}
-			else if(active && event.keysym.sym == SDLK_v)
-			{
-				// paste
-				const std::string& clipboard = GUI::inst().getClipboard();
-				if(!clipboard.empty()) replaceSelection(clipboard);
-			}
-			// Handled, and the letter must not go on to be typed as well.
-			// What unicode a Ctrl combination carries is the platform's
-			// choice - under X11 it is the letter itself, measured: Ctrl+A
-			// selected everything and put an "a" in its place - so that
-			// cannot be left to the unicode test below.
-			break;
-		}
-		// Without Ctrl the letter is text like any other.
 	default:
 		{
-			char c = static_cast<char>(event.keysym.unicode);
-			if(active && (c >= 32 || c < 0)) replaceSelection(std::string("") + c);
+			const char c = typedCharacter(event.keysym);
+			if(active && c) replaceSelection(std::string(1, c));
 			break;
 		}
 	}

@@ -4,17 +4,13 @@
 /*** The passes Level::render makes over the objects ***/
 
 // A render layer is a pass, not a depth: Level::render walks these in the order
-// written below and asks every object to draw whatever it has on that one.
-// Sorting within a pass is Level::sortObjects' business.
+// written below - all but the last, which the level editor draws itself - and
+// asks every object to draw what it has on that one. The order within a pass
+// is Level::sortObjects' business.
 //
-// The values are single bits, so that an object's set of layers is the OR of
-// the ones it draws on and testing a pass against it is one AND - see
-// Object::getRenderLayers(). That puts a ceiling of 32 layers on this list,
-// which is twenty away and would be a different design anyway.
-//
-// The order is the order the passes run in, which is the order a reader wants
-// them. Nothing outside the program sees the values - a level file stores an
-// object's type and position, never a layer - so they can be renumbered freely.
+// Single bits, so an object's set is the OR of the layers it draws on and a
+// pass tests it with one AND (Object::getRenderLayers()); 32 at most. No file
+// stores a layer, so the values can be renumbered freely.
 enum RenderLayer
 {
 	RL_LAVA_EDGE	= 0x001,	// the lava outline, drawn into the stencil buffer

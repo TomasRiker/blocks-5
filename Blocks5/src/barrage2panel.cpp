@@ -8,7 +8,7 @@ Barrage2Panel::Barrage2Panel(Level& level,
 							 uint color) : Panel(level, position)
 {
 	renderLayers = RL_FLOOR;
-	this->subType = subType;
+	this->subType = subType ? 1 : 0;
 	this->color = color;
 }
 
@@ -18,7 +18,7 @@ Barrage2Panel::~Barrage2Panel()
 
 void Barrage2Panel::updateSprites()
 {
-	// switch
+	// panel
 	sprites.add(Vec2i(subType ? 224 : 192, 256), getStdColor(this->color));
 }
 

@@ -181,7 +181,7 @@ void GUI_ListBox::removeItem(int where)
 	items.erase(items.begin() + where);
 
 	if(selection == where) selection = -1;
-	else if(selection < where) selection--;
+	else if(selection > where) selection--;
 
 	updateScrollBar();
 }

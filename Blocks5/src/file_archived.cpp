@@ -3,6 +3,7 @@
 #include "filesystem.h"
 #include <zip.h>
 #include <unzip.h>
+#include <new>
 
 File_Archived::File_Archived(const std::string& archiveFilename,
 							 const std::string& objectName,
@@ -43,8 +44,12 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 		if(!listMode)
 		{
-			// find the object
-			int r = unzLocateFile(archive, objectName.c_str(), 0);
+			// Found without case on every platform, where minizip's default
+			// ignores it under Windows alone: an archive must hold the same
+			// members wherever it is played. deleteArchivedFile() matches
+			// without case too, and Campaign::save() stores one of two track
+			// names that differ only there.
+			int r = unzLocateFile(archive, objectName.c_str(), 2);
 			if(r != UNZ_OK)
 			{
 				if(!testMode)
@@ -62,15 +67,21 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		}
 		else
 		{
-			// list the files
+			// List the files. minizip copies at most the buffer's worth of a
+			// name but reports its full length, a 16-bit field in the archive;
+			// a name that does not fit is skipped rather than read past the
+			// end of the buffer.
 			int r = unzGoToFirstFile(archive);
 			while(r == UNZ_OK)
 			{
 				unz_file_info info;
 				char temp[256] = "";
-				unzGetCurrentFileInfo(archive, &info, temp, 256, 0, 0, 0, 0);
-				std::string filename(temp, info.size_filename);
-				if(filename.find_first_of('/') == std::string::npos) directory.push_back(filename);
+				if(unzGetCurrentFileInfo(archive, &info, temp, sizeof(temp), 0, 0, 0, 0) != UNZ_OK) break;
+				if(info.size_filename < sizeof(temp))
+				{
+					std::string filename(temp, info.size_filename);
+					if(filename.find_first_of('/') == std::string::npos) directory.push_back(filename);
+				}
 				r = unzGoToNextFile(archive);
 			}
 		}
@@ -83,11 +94,47 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 
 		// query the file information
 		unz_file_info info;
-		unzGetCurrentFileInfo(archive, &info, 0, 0, 0, 0, 0, 0);
+		if(unzGetCurrentFileInfo(archive, &info, 0, 0, 0, 0, 0, 0) != UNZ_OK)
+		{
+			printfLog("+ ERROR: Could not read the entry of \"%s\" in archive \"%s\".\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str());
+			unzClose(archive);
+			error = 4;
+			return;
+		}
+
+		// The size is the archive's claim, and an archive can come from
+		// anybody: the Manager imports campaigns and skins. The largest real
+		// members are music tracks of about two megabytes; 64 MB is nearly an
+		// hour of Vorbis at 160 kbit/s. Above that, or without the memory, the
+		// member is refused, since nothing here would catch a throwing
+		// allocation.
+		const uLong MAX_MEMBER_SIZE = 64 * 1024 * 1024;
+		if(info.uncompressed_size > MAX_MEMBER_SIZE)
+		{
+			printfLog("+ ERROR: \"%s\" in archive \"%s\" claims %lu bytes; a member may hold 64 MB at most.\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str(),
+					  static_cast<unsigned long>(info.uncompressed_size));
+			unzClose(archive);
+			error = 11;
+			return;
+		}
 
 		// allocate the memory
-		size = info.uncompressed_size;
-		p_data = new char[size];
+		size = static_cast<uint>(info.uncompressed_size);
+		p_data = new(std::nothrow) char[size ? size : 1];
+		if(!p_data)
+		{
+			printfLog("+ ERROR: Out of memory reading \"%s\" from archive \"%s\".\n",
+					  objectName.c_str(),
+					  archiveFilename.c_str());
+			size = 0;
+			unzClose(archive);
+			error = 11;
+			return;
+		}
 
 		// read the object in
 		int r;
@@ -136,11 +183,12 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 		bool objectExists = false;
 		if(archiveExists)
 		{
-			// Does the archived file exist already?
+			// Does the archived file exist already? Without case, as when
+			// reading.
 			unzFile temp = unzOpen(archiveFilename.c_str());
 			if(temp)
 			{
-				int r = unzLocateFile(temp, objectName.c_str(), 0);
+				int r = unzLocateFile(temp, objectName.c_str(), 2);
 				if(r == UNZ_OK) objectExists = true;
 				unzClose(temp);
 			}
@@ -176,7 +224,7 @@ File_Archived::File_Archived(const std::string& archiveFilename,
 	{
 		// Delete the object. 1 means deleted, -1 deleted and the archive left
 		// empty in the process, 0 not found and -2 an archive that could not
-		// be rewritten - and in the last two cases nothing is gone.
+		// be rewritten.
 		const int r = deleteArchivedFile(archiveFilename, objectName);
 		if(r == 0 || r == -2) error = 9;
 	}
@@ -303,6 +351,8 @@ bool File_Archived::finish()
 				  objectName.c_str(),
 				  archiveFilename.c_str(),
 				  r);
+		zipClose(outArchive, 0);
+		outArchive = 0;
 		return false;
 	}
 
@@ -314,12 +364,27 @@ bool File_Archived::finish()
 				  objectName.c_str(),
 				  archiveFilename.c_str(),
 				  r);
+		zipCloseFileInZip(outArchive);
+		zipClose(outArchive, 0);
+		outArchive = 0;
 		return false;
 	}
 
-	zipCloseFileInZip(outArchive);
-	zipClose(outArchive, 0);
+	// For a member as small as progress.xml these two are where the bytes
+	// reach the disk - the stdio flush and the fclose inside zipClose - so a
+	// full disk shows up here and nowhere else. Closed on the failures above
+	// too: an archive left open has no central directory.
+	const int closedMember = zipCloseFileInZip(outArchive);
+	const int closedArchive = zipClose(outArchive, 0);
 	outArchive = 0;
+	if(closedMember != ZIP_OK || closedArchive != ZIP_OK)
+	{
+		printfLog("+ ERROR: Could not finish file \"%s\" in archive \"%s\" (Error: %d, %d).\n",
+				  objectName.c_str(),
+				  archiveFilename.c_str(),
+				  closedMember, closedArchive);
+		return false;
+	}
 
 	return true;
 }
@@ -380,8 +445,9 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	};
 
 	// The survivors are copied into a side file, which replaces the archive
-	// once it is complete; until then the archive is untouched, so every
-	// failure below leaves it as it was and reports -2.
+	// at the end. Failing to open either file, to parse a record or to write
+	// the side file whole - a full disk - leaves the archive untouched and
+	// reports -2.
 	const std::string tempFilename = archiveFilename + "_";
 	FILE* p_in = fopen(archiveFilename.c_str(), "rb");
 	if(!p_in)
@@ -439,8 +505,13 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	EndOfCentralDirectory ecd, ecdOut;
 	fread(&ecd, 1, sizeof(ecd), p_in);
 	char* p_globalComment = 0;
-	if(ecd.globalCommentLength) p_globalComment = new char[ecd.globalCommentLength];
+	if(ecd.globalCommentLength)
+	{
+		p_globalComment = new char[ecd.globalCommentLength];
+		fread(p_globalComment, 1, ecd.globalCommentLength, p_in);
+	}
 	ecdOut = ecd;
+	bool written = true;
 
 	fseek(p_in, ecd.centralDirectoryOffset, SEEK_SET);
 
@@ -487,19 +558,17 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 		}
 		else
 		{
-			// This file is to be copied, and the whole local record goes
-			// through byte for byte: header, filename, extra field and data.
-			// Rebuilding it from the central directory's copies is what must
-			// not happen - a zip writer may put a different extra field in
-			// each of the two, and the lengths that describe the local record
-			// are the local header's, so writing the central strings under
-			// them reads past the end of the shorter buffer.
+			// Copy the whole local record byte for byte: header, filename,
+			// extra field and data. It must not be rebuilt from the central
+			// directory's copies: a zip writer may put a different extra field
+			// in each, and the local header's lengths would then read past the
+			// end of the shorter buffer.
 			//
-			// The size comes from the central directory, which carries the
-			// true one even where the local header does not. A trailing data
-			// descriptor is still not carried across; nothing this game packs
-			// sets the flag that calls for one, which is also why pack.sh
-			// reaches for 7za rather than Info-ZIP.
+			// The data size comes from the central directory, which carries
+			// the true one even where the local header does not. A trailing
+			// data descriptor is not carried across; nothing this game packs
+			// sets the flag that calls for one, which is also why pack.sh uses
+			// 7za rather than Info-ZIP.
 			LocalFileHeader lfh;
 			fseek(p_in, cde.localHeaderOffset, SEEK_SET);
 			fread(&lfh, 1, sizeof(lfh), p_in);
@@ -514,7 +583,7 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 			fread(p_record, 1, recordSize, p_in);
 
 			cdeOut.localHeaderOffset = ftell(p_out);
-			fwrite(p_record, 1, recordSize, p_out);
+			written = fwrite(p_record, 1, recordSize, p_out) == recordSize && written;
 			delete[] p_record;
 
 			// remember the entry for the central directory
@@ -532,15 +601,15 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	for(uint i = 0; i < cdOut.size(); i++)
 	{
 		CentralDirectoryEntry& cde = cdOut[i];
-		fwrite(&cde, 1, sizeof(cde), p_out);
+		written = fwrite(&cde, 1, sizeof(cde), p_out) == sizeof(cde) && written;
 
 		char* p_filename = filenameOut[i];
 		char* p_extraField = extraFieldOut[i];
 		char* p_comment = commentOut[i];
 
-		fwrite(p_filename, 1, cde.filenameLength, p_out);
-		if(cde.extraFieldLength) fwrite(p_extraField, 1, cde.extraFieldLength, p_out);
-		if(cde.commentLength) fwrite(p_comment, 1, cde.commentLength, p_out);
+		written = fwrite(p_filename, 1, cde.filenameLength, p_out) == cde.filenameLength && written;
+		if(cde.extraFieldLength) written = fwrite(p_extraField, 1, cde.extraFieldLength, p_out) == cde.extraFieldLength && written;
+		if(cde.commentLength) written = fwrite(p_comment, 1, cde.commentLength, p_out) == cde.commentLength && written;
 
 		delete[] p_filename;
 		delete[] p_extraField;
@@ -548,27 +617,46 @@ int File_Archived::deleteArchivedFile(const std::string& archiveFilename,
 	}
 
 	// write the end record
-	fwrite(&ecdOut, 1, sizeof(ecdOut), p_out);
-	if(ecdOut.globalCommentLength) fwrite(p_globalComment, 1, ecdOut.globalCommentLength, p_out);
+	written = fwrite(&ecdOut, 1, sizeof(ecdOut), p_out) == sizeof(ecdOut) && written;
+	if(ecdOut.globalCommentLength) written = fwrite(p_globalComment, 1, ecdOut.globalCommentLength, p_out) == ecdOut.globalCommentLength && written;
 
 	delete[] p_globalComment;
 
 	fclose(p_in);
-	fclose(p_out);
+	// stdio's buffer goes out here, and with it the last of a full disk.
+	written = fclose(p_out) == 0 && written;
 
-	// delete the old archive
-	remove(archiveFilename.c_str());
-
-	if(ecdOut.totalEntries)
+	if(!ecdOut.totalEntries)
 	{
-		// rename the new file
-		rename(tempFilename.c_str(), archiveFilename.c_str());
-	}
-	else
-	{
-		// delete the new file
+		// Nothing is left in it: the archive goes, the side file with it.
+		remove(archiveFilename.c_str());
 		remove(tempFilename.c_str());
-		result = -1;
+		return -1;
+	}
+
+	if(!written)
+	{
+		printfLog("+ ERROR: Could not write \"%s\"; the archive is left as it was.\n",
+				  tempFilename.c_str());
+		remove(tempFilename.c_str());
+		return -2;
+	}
+
+	// The side file takes the archive's place in one step, so that there is
+	// never a moment with neither: rename() under POSIX, and under Windows,
+	// whose rename() refuses an existing target, MoveFileEx. A replacement
+	// that fails leaves the archive as it was.
+#ifdef _WIN32
+	const bool replaced = MoveFileExA(tempFilename.c_str(), archiveFilename.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
+#else
+	const bool replaced = rename(tempFilename.c_str(), archiveFilename.c_str()) == 0;
+#endif
+	if(!replaced)
+	{
+		printfLog("+ ERROR: Could not replace \"%s\"; the archive is left as it was.\n",
+				  archiveFilename.c_str());
+		remove(tempFilename.c_str());
+		return -2;
 	}
 
 	return result;

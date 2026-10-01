@@ -42,6 +42,9 @@ void E_Clock::loadExtendedAttributes(TiXmlElement* p_element)
 	Electronics::loadExtendedAttributes(p_element);
 
 	p_element->Attribute("value", &value);
+
+	// The count goes round ten ticks, and any level may carry it.
+	value = wrapIndex(value, 10);
 }
 
 bool E_Clock::changeInEditor(int mod)

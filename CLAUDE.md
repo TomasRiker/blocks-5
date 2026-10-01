@@ -24,8 +24,8 @@ and the three vendored-library fixes the toolset needed.
 `Build.bat` at the repo root does the whole thing from a fresh clone — finds MSBuild, checks the toolset,
 builds `Blocks5.sln` for `Win32`, and packs `data.zip` and `levels/skins/*.zip`, gitignored build products
 the game cannot start without; `Build.bat /?` lists its options. `Blocks5/pack.sh` packs the same archives
-without Windows (`./pack.sh`, narrowed by `data`, `skins` or `campaign`; `--no-optipng` skips the slow
-step), and `levels/campaigns/blocks.zip` is a build product like the rest — so a level edited and not packed
+without Windows (`./pack.sh`, narrowed by `data`, `skins` or `campaign`; `--optipng` adds the slow
+step, off by default because it rewrites tracked PNGs in place), and `levels/campaigns/blocks.zip` is a build product like the rest — so a level edited and not packed
 changes what a developer sees and nothing a player sees. `build-windows.md` and `packing.md` have the rest.
 
 The game must run with `Blocks5\` as working directory (VS's default `$(ProjectDir)`) because it opens
@@ -221,7 +221,9 @@ browser they are core and the header `#define`s them through.
   text: they have to stay byte-exact whatever the source encoding is.
 - Source files use LF — except vendored third-party ones, which keep whatever they shipped with
   (`src/stackwalker.*` is CRLF). Shipped text files (`readme.txt`, `levels/readme.txt`,
-  `data/languages.txt`) are deliberately CRLF.
+  `data/languages.txt`) are deliberately CRLF, and so is every `.bat`: cmd can miss a label when it
+  jumps in a file with bare LF endings, and three of them ship. `verify.py`'s `encoding` check holds
+  both.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE` macros
   are available for timing a block.
 - Third-party libraries are vendored under `Blocks5/libs`, each with a `PROVENANCE.txt` giving its

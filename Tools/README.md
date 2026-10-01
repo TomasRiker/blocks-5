@@ -17,7 +17,7 @@ Exit code 1 as soon as anything is reported.
 
 | check | what it checks |
 | --- | --- |
-| `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files. |
+| `encoding` | Pure ASCII and LF in the sources, CRLF in the shipped files and in every `.bat`. |
 | `project_files` | A new source file must be in the `.vcxproj` and in its `.filters`. |
 | `hooks_layout` | No `BLOCKS5_TEST_HOOKS` conditional in a header - the define reaches two translation units, so a member behind it gives its class two sizes. |
 | `render_layers` | A render layer is named, never a number. |

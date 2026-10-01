@@ -4,6 +4,8 @@
 #include "tileset.h"
 #include "particlesystem.h"
 
+const float Projectile::CANNON_SPEED = 1200.0f;
+
 Projectile::Projectile(Level& level,
 					   const Vec2f& positionInPixels,
 					   const Vec2f& velocity) : Object(level, 0)
@@ -15,7 +17,9 @@ Projectile::Projectile(Level& level,
 	this->positionInPixels = positionInPixels;
 	this->velocity = velocity;
 	speed = velocity.length();
-	this->velocity.normalize();
+	// A shot placed from a level file starts still, and a zero vector
+	// normalised is a NaN.
+	if(speed > 0.0f) this->velocity /= speed;
 	distance = 0.0f;
 	life = 1.0f;
 	reflectionCounter = 3;
@@ -294,6 +298,7 @@ void Projectile::loadExtendedAttributes(TiXmlElement* p_element)
 {
 	Object::loadExtendedAttributes(p_element);
 
+	const Vec2f cell = positionInPixels;
 	p_element->QueryFloatAttribute("positionInPixelsX", &positionInPixels.x);
 	p_element->QueryFloatAttribute("positionInPixelsY", &positionInPixels.y);
 	p_element->QueryFloatAttribute("velocityX", &velocity.x);
@@ -302,4 +307,29 @@ void Projectile::loadExtendedAttributes(TiXmlElement* p_element)
 	p_element->QueryFloatAttribute("distance", &distance);
 	p_element->QueryFloatAttribute("life", &life);
 	p_element->Attribute("reflectionCounter", &reflectionCounter);
+
+	// Any level file can carry these, and it may be anybody's. onUpdate()
+	// walks a flight four pixels at a time, so a speed too large to count down
+	// in fours would never finish a tick; a cannon fires at CANNON_SPEED and a
+	// reflection only slows a shot down. The direction is not normalised, as a
+	// bounce halves it on purpose, but it is held to a length a shot can have,
+	// and the position to around the level, since both end in an int. Around,
+	// because a shot fading after it left the grid stands outside it and a
+	// saved game keeps it there; one further out is let go at once.
+	speed = isFiniteFloat(speed) && speed > 0.0f ? min(speed, CANNON_SPEED) : 0.0f;
+	if(!isFiniteFloat(velocity.x) || !isFiniteFloat(velocity.y) ||
+	   fabsf(velocity.x) > 2.0f || fabsf(velocity.y) > 2.0f)
+	{
+		velocity = Vec2f(0.0f, 0.0f);
+		speed = 0.0f;
+	}
+
+	const float w = Level::WIDTH * 16.0f, h = Level::HEIGHT * 16.0f;
+	if(!isFiniteFloat(positionInPixels.x) || !isFiniteFloat(positionInPixels.y) ||
+	   positionInPixels.x < -w || positionInPixels.x >= 2.0f * w ||
+	   positionInPixels.y < -h || positionInPixels.y >= 2.0f * h)
+	{
+		positionInPixels = cell;
+		life = 0.001f;
+	}
 }

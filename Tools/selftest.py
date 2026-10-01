@@ -7,8 +7,8 @@ stopped matching what it looks for, without anybody noticing. This script
 therefore injects, for each check, exactly the fault it is meant to catch,
 runs the check, and restores the file.
 
-Every change goes back in a finally, and at the end the file is compared
-byte for byte. If the run breaks off in the wrong place anyway, "git status"
+Every change goes back when its with-block ends (Patch.__exit__), and the
+file is then compared byte for byte. If the run breaks off in the wrong place anyway, "git status"
 helps - every file involved is under version control.
 
     python3 Tools/selftest.py
@@ -95,6 +95,20 @@ def case(name, rel, quiet=False):
 @case('encoding', 'Blocks5/src/util.h')
 def c_encoding(p):
     p.raw(p.original + b'\n// ein Umlaut: \xe4\n')
+
+
+# A batch file saved with bare LF endings, which is what an editor under Linux
+# writes unless told otherwise.
+@case('encoding', 'Blocks5/zip_campaign.bat')
+def c_encoding_bat(p):
+    p.raw(p.original.replace(b'\r\n', b'\n'))
+
+
+# A last line without its CRLF is what Notepad saves, and harms nothing.
+@case('encoding', 'Blocks5/zip_campaign.bat', quiet=True)
+def c_encoding_bat_unterminated(p):
+    assert p.original.endswith(b'\r\n')
+    p.raw(p.original[:-2])
 
 
 @case('project_files', 'Blocks5/Blocks5.vcxproj')

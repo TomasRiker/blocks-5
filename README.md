@@ -72,7 +72,7 @@ same archive as under Windows):
 
     sudo apt install p7zip-full optipng
     Blocks5/pack.sh                 everything
-    Blocks5/pack.sh --no-optipng    skip the slow step
+    Blocks5/pack.sh --optipng       and squeeze the PNGs first
 
 The port is the same source as the Windows build: eight `#ifdef` branches, plus one
 translation unit for the fullscreen switch, which goes through the window manager

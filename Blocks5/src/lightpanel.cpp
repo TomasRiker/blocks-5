@@ -8,7 +8,7 @@ LightPanel::LightPanel(Level& level,
 					   int subType) : Panel(level, position)
 {
 	renderLayers = RL_FLOOR | RL_LIGHT;
-	this->subType = subType;
+	this->subType = subType ? 1 : 0;
 }
 
 LightPanel::~LightPanel()
