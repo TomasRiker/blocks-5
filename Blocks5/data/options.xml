@@ -65,12 +65,15 @@
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
 		</StaticText>
+		<!-- At 100 a value ends at 330, where the key buttons below end:
+		     "100" is 24 pixels wide in this font. Each slider keeps its
+		     distance to its value. -->
 		<StaticText name="Static5" x="10" y="160"><Text>$O_VOLUME_EFFECTS</Text></StaticText>
-		<StaticText name="SoundVolumeValue" x="300" y="160"><Text></Text></StaticText>
-		<ScrollBar name="SoundVolume" x="70" y="160" w="220" h="16"><Receiver>SoundVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
+		<StaticText name="SoundVolumeValue" x="306" y="160"><Text></Text></StaticText>
+		<ScrollBar name="SoundVolume" x="76" y="160" w="220" h="16"><Receiver>SoundVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
 		<StaticText name="Static6" x="10" y="180"><Text>$O_VOLUME_MUSIC</Text></StaticText>
-		<StaticText name="MusicVolumeValue" x="300" y="180"><Text></Text></StaticText>
-		<ScrollBar name="MusicVolume" x="70" y="180" w="220" h="16"><Receiver>MusicVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
+		<StaticText name="MusicVolumeValue" x="306" y="180"><Text></Text></StaticText>
+		<ScrollBar name="MusicVolume" x="76" y="180" w="220" h="16"><Receiver>MusicVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
 
 		<StaticText name="Static7" x="10" y="210">
 			<Text>$O_DETAILS</Text>
@@ -124,10 +127,10 @@
       <Font>tooltip_font.xml</Font>
     </Button>
 
-    <Button name="OK" x="10" y="425" w="135" h="30">
+    <Button name="OK" x="10" y="425" w="155" h="30">
 			<Title>OK</Title>
 		</Button>
-		<Button name="Cancel" x="155" y="425" w="135" h="30">
+		<Button name="Cancel" x="175" y="425" w="155" h="30">
 			<Title>$CANCEL</Title>
 		</Button>
 	</Window>
