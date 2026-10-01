@@ -201,8 +201,8 @@ expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 wh
 	got=$(b5_json "el('Menu.VersionButton')['title'] == 'v1.2.0\u00b6' + $1")
 	[ "$got" = "True" ] && b5_ok "$4: the caption says $1" \
 		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.VersionButton')['title'])"), not $1"
-	[ "$(b5_json "len(el('Menu.VersionButton')['title'].split('\u00b6')) == 3")" = True ] \
-		&& b5_ok "$4: three lines, the version on the first" || b5_note "$4: not three lines"
+	[ "$(b5_json "len(el('Menu.VersionButton')['title'].split('\u00b6')) == 2")" = True ] \
+		&& b5_ok "$4: two lines, the version on the first" || b5_note "$4: not two lines"
 	[ "$(b5_json "el('Menu.VersionButton')['active']")" = "$2" ] \
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
 	[ "$(b5_json "el('Menu.VersionButton')['flashing']")" = "$3" ] \
@@ -315,7 +315,7 @@ for i in 1 2 3; do buttonShot "still$i"; sleep 0.2; done
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check for\u00b6Update'" "'\u00b6Checking ...'" "'\u00b6Up to date'" "'Error\u00b6Retry'" "'Update\u00b6available!'"
+allStates "'Check update'" "'Checking ...'" "'Up to date'" "'ERROR!'" "'UPDATE!'"
 
 # The new version is in the tooltip, and the agent string names this one.
 b5_dump
@@ -369,7 +369,7 @@ quit
 freshHome 1.2.0
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Auf Update\u00b6pr\u00fcfen'" "'\u00b6Pr\u00fcfe ...'" "'\u00b6Aktuell'" "'Fehler\u00b6Wiederholen'" "'Update\u00b6verf\u00fcgbar!'"
+allStates "'Update pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'FEHLER!'" "'UPDATE!'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
@@ -386,7 +386,7 @@ start adopt-home
 [ "$(config)" = 1 ] && b5_ok "config.xml has taken it in" || b5_note "config.xml says $(config)"
 waitUpdate "$AVAILABLE" "available"
 [ "$(requests)" -eq 1 ] && b5_ok "the check ran at the start, once" || b5_note "$(requests) requests at the start"
-expectButton "'Update\u00b6available!'" True True "after a check at the start"
+expectButton "'UPDATE!'" True True "after a check at the start"
 quit
 
 # And from config.xml alone at the next start.
@@ -496,11 +496,11 @@ first=$(head -1 "$WORK/hang.pids")
 # Given up on wherever the twelve seconds ran out - during the loading screen,
 # which does not poll, the menu's first poll finds them over.
 waitUpdate "$FAILED" "failed" 20
-expectButton "'Error\u00b6Retry'" True False "given up on"
+expectButton "'ERROR!'" True False "given up on"
 kill -0 "$first" 2>/dev/null && b5_note "the hanging curl was not killed" || b5_ok "the hanging curl was killed and reaped"
 b5_click Menu.VersionButton
 b5_dump
-expectButton "'\u00b6Checking ...'" False False "asking again"
+expectButton "'Checking ...'" False False "asking again"
 second=$(tail -1 "$WORK/hang.pids")
 [ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
 quit
@@ -533,7 +533,7 @@ B5_ARGS="-updatecheckversion 1.1.2"
 start pretend
 B5_ARGS=""
 waitUpdate "$AVAILABLE" "available"
-[ "$(b5_json "el('Menu.VersionButton')['title'] == 'v1.1.2\u00b6Update\u00b6available!'")" = True ] \
+[ "$(b5_json "el('Menu.VersionButton')['title'] == 'v1.1.2\u00b6UPDATE!'")" = True ] \
 	&& b5_ok "the real version offered as an update to the one given" \
 	|| b5_note "the button says $(b5_json "repr(el('Menu.VersionButton')['title'])")"
 grep -q "Scherfgen-Software Blocks 5 (1.1.2)" "$WORK/requests" && b5_ok "the agent string names the version given" \

@@ -155,9 +155,9 @@ $MM_DONATE_NO_THANKS
 §de:Nein, danke
 
 $MM_UPDATE_CHECK
-// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. At most 62 pixels a line in the tooltip font, the width of "Wiederholen", which the button is made to fit. One line or two each; one goes on the button's third line, below an empty second
-§en:Check for¶Update
-§de:Auf Update¶prüfen
+// Main menu, top left: the update button, the version number over this. Before anything has been asked; a click asks the website for the newest version. One line of at most 75 pixels in the tooltip font, the width the button is made to fit, and so are the four below
+§en:Check update
+§de:Update prüfen
 
 $MM_UPDATE_CHECKING
 §en:Checking ...
@@ -169,13 +169,13 @@ $MM_UPDATE_UP_TO_DATE
 
 $MM_UPDATE_AVAILABLE
 // The button then flashes, and a click opens the download page
-§en:Update¶available!
-§de:Update¶verfügbar!
+§en:UPDATE!
+§de:UPDATE!
 
 $MM_UPDATE_FAILED
 // No answer from the website, or not one that makes sense; a click asks again
-§en:Error¶Retry
-§de:Fehler¶Wiederholen
+§en:ERROR!
+§de:FEHLER!
 
 $MM_UPDATE_NEW_VERSION
 // The tooltip with an update out: this, the new version's number, and the next line

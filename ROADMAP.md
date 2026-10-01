@@ -1795,15 +1795,14 @@ The check is off unless switched on, and the switch is `<CheckForUpdates>` in
 The check runs in the background - a thread under Windows, `curl` or `wget` as
 a process of its own under Linux (`updatecheck.cpp`) - and the main menu gives
 the answer: the version is a button tucked into the top left corner, *v1.2.0*
-over *Check for Update*, *Checking ...*, *Up to date*, *Error / Retry* or
-*Update available!*, as tight as three lines allow - and on all three in every
-state, the version on the first, so that nothing moves. A click asks, ticked box or
-not; with a new version out the button flashes and a click opens the download
-page instead. It is disabled while it asks. Where nothing can ask - in the
-browser, and under Linux with neither tool installed - the plain label of
-before stands in its place, the version and nothing else: `menu.xml` holds
-both and `GS_Menu::onEnter` hides one. The options' box is hidden there too,
-and nothing names the missing tools.
+over *Check update*, *Checking ...*, *Up to date*, *ERROR!* or *UPDATE!*: two
+lines in every state, the version over a status of one, so that nothing moves.
+A click asks, ticked box or not; with a new version out the button flashes and
+a click opens the download page instead. It is disabled while it asks. Where
+nothing can ask - in the browser, and under Linux with neither tool installed -
+the plain label of before stands in its place, the version and nothing else:
+`menu.xml` holds both and `GS_Menu::onEnter` hides one. The options' box is
+hidden there too, and nothing names the missing tools.
 
 `.update_checker` beside the game keeps the meaning it had before 1.2.0: the
 installation's default, which the installer writes from its box - *Enable
@@ -1837,13 +1836,13 @@ installed and played, so that the update in place is tried as well:
 4. **A new player** - another Windows account, or `Documents\Blocks 5` renamed
    away for the test - starts with the box's answer. Ticked: the check runs at
    the start, so the version button reaches *Up to date* without a click, and
-   the options box is ticked. Not ticked: the button says *Check for Update* and
-   the options box is clear. Once that player has quit, a reinstall with the box
-   the other way changes nothing for them.
+   the options box is ticked. Not ticked: the button says *Check update* and the
+   options box is clear. Once that player has quit, a reinstall with the box the
+   other way changes nothing for them.
 5. **The check itself**, WinINet on a thread of its own: started in the
    installation folder as `blocks5.exe -updatecheckversion 1.0.0`, the game has
-   the button flash *Update available!* with the website's version in its
-   tooltip, and a click opens the download page through `Blocks 5 Website.url`.
+   the button flash *UPDATE!* with the website's version in its tooltip, and a
+   click opens the download page through `Blocks 5 Website.url`.
 6. **Uninstalling** takes `.update_checker` along (`[UninstallDelete]`), so the
    installation folder does not stay behind for one file.
 
