@@ -8,7 +8,7 @@ REM level edited and not packed changes what a developer sees and nothing a
 REM player sees, with no error anywhere.
 REM
 REM Every member has a source in the tree and none is taken out of the archive
-REM being replaced: the levels are levels\level_NN.xml, the ten music tracks
+REM being replaced: the levels are levels\level_NN.xml, the eleven music tracks
 REM are the loose ones beside them, and campaign.xml lies in a folder of its
 REM own next to the archive, the way a skin's sources do.
 REM
