@@ -334,6 +334,13 @@ int runTheGame(int argc,
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
 		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
 		else if(equalsNoCase(p_arg, "-flushAll")) engine.enableFlushAll();
+#ifndef __EMSCRIPTEN__
+		// In no readme: the author's way to see an update offered without
+		// publishing one. The update check alone takes the version that
+		// follows for the one running; .initialized was written above with
+		// p_localVersion, and the migration went by that too.
+		else if(equalsNoCase(p_arg, "-updateCheckVersion") && i + 1 < argc) UpdateCheck::setVersion(pp_argv[++i]);
+#endif
 	}
 
 	printfLog("Initializing engine ...\n");

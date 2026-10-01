@@ -39,7 +39,10 @@ bisecting tool for an ordering bug; `?flushall=1` is the same switch in the brow
 `-perf`. `-nosplash`
 skips the logo and jingle by *not requesting* `logo.png`, the path `GS_Loading` already takes when the
 texture will not load; only `soundPlayed` has to start `true`, because the jingle hangs off the time
-threshold rather than the logo.
+threshold rather than the logo. A sixth, `-updatecheckversion <x.y.z>`, is the author's and deliberately
+in no readme: the update check and the menu's version button take that for the version running, so an
+offered update can be seen without publishing one, and nothing else does — `.initialized` and the
+migration go by the real version.
 
 **Framebuffer objects, GL 2.0 shaders and vertex buffer objects are requirements; the game says so and
 stops where one is missing** (`GLExtensions::init`, `createFrameBuffer`, `createUpscalerGL`), so there is

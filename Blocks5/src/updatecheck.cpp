@@ -32,11 +32,14 @@ namespace
 	std::string newVersion;
 	uint startTicks = 0;
 
+	// Empty for the game's own; see getVersion().
+	std::string versionOverride;
+
 	// The version in the agent string tells the server log which version is
 	// asking.
 	std::string userAgent()
 	{
-		return std::string("Scherfgen-Software Blocks 5 (") + p_localVersion + ")";
+		return std::string("Scherfgen-Software Blocks 5 (") + UpdateCheck::getVersion() + ")";
 	}
 
 	std::string versionURL()
@@ -100,7 +103,7 @@ namespace
 		{
 			fail("the answer is no version number");
 		}
-		else if(latest > parseVersion(p_localVersion))
+		else if(latest > parseVersion(UpdateCheck::getVersion()))
 		{
 			// For the tooltip, without the line break around it.
 			const size_t first = answer.find_first_not_of(" \t\r\n");
@@ -397,6 +400,24 @@ UpdateCheck::State UpdateCheck::getState()
 const std::string& UpdateCheck::getNewVersion()
 {
 	return newVersion;
+}
+
+void UpdateCheck::setVersion(const std::string& version)
+{
+	if(parseVersion(version) < 0)
+	{
+		printfLog("Update check: \"%s\" is no version number, so the game's own stands.\n", version.c_str());
+		return;
+	}
+	printfLog("Update check: taking %s for the version running.\n", version.c_str());
+	versionOverride = version;
+}
+
+const std::string& UpdateCheck::getVersion()
+{
+	static const std::string own(p_localVersion);
+	if(versionOverride.empty()) return own;
+	return versionOverride;
 }
 
 #endif

@@ -45,6 +45,15 @@ namespace UpdateCheck
 
 	State getState();
 	const std::string& getNewVersion();
+
+	// The version the check takes for the one running: what it compares the
+	// answer with, what its agent string names and what the menu's button
+	// shows. The game's own unless -updatecheckversion says otherwise
+	// (main.cpp), which is how an offered update can be seen without
+	// publishing one. Nothing else takes it, .initialized least of all.
+	// setVersion() ignores what is not a version number.
+	void setVersion(const std::string& version);
+	const std::string& getVersion();
 }
 
 #endif

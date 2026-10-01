@@ -12,7 +12,7 @@
 # to everything but curl, wget or both, and stand-ins for a curl that hangs and
 # for an xdg-open that only writes down what it was asked to open.
 #
-# Ten starts of the game, so a few minutes under llvmpipe.
+# Eleven starts of the game, so a few minutes under llvmpipe.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -486,5 +486,29 @@ grep -qi "wget" "$WORK/requests" && b5_note "wget sent its own agent string" \
 	|| b5_ok "wget asks, with the game's agent string"
 quit
 export PATH="$ORIGINAL_PATH"
+
+# --- 8. the author's -updatecheckversion ---------------------------------------
+# The update check takes the version given for the one running, and nothing
+# else does. Given the very version .initialized names, a version check that
+# took it too would see no change: the migration must run all the same and
+# .initialized must get the real version.
+: > "$WORK/requests"
+serve '1.2.0\n'
+freshHome 1.1.2
+writeConfig '<CheckForUpdates>1</CheckForUpdates>'
+B5_ARGS="-updatecheckversion 1.1.2"
+start pretend
+B5_ARGS=""
+waitUpdate "$AVAILABLE" "available"
+[ "$(b5_json "el('Menu.Version')['title'] == 'v1.1.2\u00b6Update\u00b6available!'")" = True ] \
+	&& b5_ok "the real version offered as an update to the one given" \
+	|| b5_note "the button says $(b5_json "repr(el('Menu.Version')['title'])")"
+grep -q "Scherfgen-Software Blocks 5 (1.1.2)" "$WORK/requests" && b5_ok "the agent string names the version given" \
+	|| b5_note "the agent string is $(tail -1 "$WORK/requests")"
+grep -q "Initializing/Updating" "$B5_OUT/run.log" && b5_ok "the migration ran by the real version" \
+	|| b5_note "the migration did not run"
+[ "$(cat "$B5_PRIVATE_HOME/.initialized")" = 1.2.0 ] && b5_ok ".initialized has the real version" \
+	|| b5_note ".initialized says $(cat "$B5_PRIVATE_HOME/.initialized")"
+quit
 
 b5_finish

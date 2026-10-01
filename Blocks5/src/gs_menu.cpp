@@ -390,15 +390,16 @@ void GS_Menu::onLoseFocus()
 void GS_Menu::updateVersionButton()
 {
 	GUI_Button* p_button = static_cast<GUI_Button*>(gui["Menu.Version"]);
-	// "v1.2.0", short enough for a button that ends before the logo begins.
-	const std::string version = std::string("v") + p_localVersion;
 
 #ifdef __EMSCRIPTEN__
 	// No update check in the browser, so the version alone and nothing to
 	// click: the page is always the newest.
-	p_button->setTitle(version);
+	p_button->setTitle(std::string("v") + p_localVersion);
 	p_button->deactivate();
 #else
+	// "v1.2.0", short enough for the corner. The update check's version, so
+	// that -updatecheckversion shows here as what the answer was compared to.
+	const std::string version = std::string("v") + UpdateCheck::getVersion();
 	const UpdateCheck::State state = UpdateCheck::getState();
 	const char* p_line = "$MM_UPDATE_CHECK";
 	std::string toolTip;
