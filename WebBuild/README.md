@@ -59,7 +59,7 @@ uncompressed, four bytes of overhead. 14.1 MiB, of which
 | `levels/campaigns/blocks.zip` | 8.93 MiB — the 42 levels and all eleven music tracks |
 | `data.zip` | 3.49 MiB — every sprite, dialog, font and sound effect |
 | `levels/skins/*.zip` | 1.61 MiB — the four skins |
-| the rest | 12 KiB — two example levels, five readmes and the update check's three files |
+| the rest | 12 KiB — two example levels and five readmes |
 
 Nothing here compresses further over the wire: it is Ogg Vorbis, PNG and
 deflated zip all the way down. The music is 32 minutes of stereo at an average
