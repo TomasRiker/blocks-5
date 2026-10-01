@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
 	<Element name="Menu" x="0" y="0" w="640" h="480">
+		<!-- The version alone, where no update check can run: in the browser,
+		     and under Linux with neither curl nor wget installed.
+		     GS_Menu::onEnter shows either this or the button below. -->
+		<StaticText name="Version" x="5" y="5">
+			<Font>tooltip_font.xml</Font>
+		</StaticText>
 		<!-- The version and, under it, what the update check is doing, which
 		     GS_Menu::updateVersionButton() writes every tick. A button, because
 		     a click asks the website, or opens the download page once it has
 		     answered with a newer version. Fixed in size, so that it does not
 		     change shape with the state, and as tight as three lines allow,
-		     tucked into the corner clear of the logo, which begins at x 86.
+		     tucked into the corner clear of the logo, which begins at x 106.
 		     Every state takes all three lines, the version on the first, so
 		     nothing moves from one to the next.
 		     The frame in gui.png is a pixel thick on the left and at the top
@@ -17,7 +23,7 @@
 		     (GUI_Button::onRender), so 36 leaves the version one row below the
 		     top and a descender in the third line, shadow and all, on the last
 		     row inside. -->
-		<Button name="Version" x="0" y="0" w="69" h="36">
+		<Button name="VersionButton" x="0" y="0" w="69" h="36">
 			<Title></Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>

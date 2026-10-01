@@ -128,8 +128,8 @@
     </Button>
     <!-- The update check, beside the two reset buttons: a box with its label
          beside it, two lines in the small font, since neither language fits
-         the column on one. Options.cpp hides both in the browser and greys
-         them under Linux where neither curl nor wget is installed. -->
+         the column on one. Options.cpp hides both in the browser, and under
+         Linux where neither curl nor wget is installed. -->
     <CheckBox name="UpdateCheck" x="190" y="367" w="14" h="14">
       <Title></Title>
       <ToolTip>$O_UPDATE_CHECK_TIP</ToolTip>

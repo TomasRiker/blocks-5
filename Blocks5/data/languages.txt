@@ -354,15 +354,9 @@ $O_UPDATE_CHECK
 §de:Bei jedem Start nach Updates suchen
 
 $O_UPDATE_CHECK_TIP
-// Tooltip of the update check box: the check runs once, before the menu.
+// Tooltip of the update check box: the check runs once, at the start.
 §en:Takes effect at the next start.
 §de:Wirkt ab dem nächsten Start.
-
-$O_UPDATE_CHECK_NO_TOOL
-// Tooltip of the update check box under Linux, greyed out because neither
-// curl nor wget is installed to ask the website with.
-§en:Needs curl or wget, and neither is installed.
-§de:Braucht curl oder wget, und keins von beiden ist installiert.
 
 $O_NOT_ASSIGNED
 // not assigned

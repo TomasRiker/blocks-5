@@ -142,16 +142,19 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	p_updateCheck->setChecked(engine.getCheckForUpdates());
 #ifndef _WIN32
 	// Under Linux the check asks curl or wget, and without either the box
-	// would do nothing: greyed out then, with the reason in its tooltip.
-	// Asked at every opening, so that a tool installed meanwhile counts.
-	GUI_StaticText* p_updateCheckLabel = static_cast<GUI_StaticText*>(getChild("Options.UpdateCheckLabel"));
-	const bool canCheck = UpdateCheck::isPossible();
-	if(canCheck) p_updateCheck->activate();
-	else p_updateCheck->deactivate();
-	p_updateCheckLabel->setColor(canCheck ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
-	const char* const p_toolTip = canCheck ? "$O_UPDATE_CHECK_TIP" : "$O_UPDATE_CHECK_NO_TOOL";
-	p_updateCheck->setToolTip(p_toolTip);
-	p_updateCheckLabel->setToolTip(p_toolTip);
+	// would do nothing: hidden then, as in the browser. Asked at every
+	// opening, so that a tool installed meanwhile counts.
+	GUI_Element* p_updateCheckLabel = getChild("Options.UpdateCheckLabel");
+	if(UpdateCheck::isPossible())
+	{
+		p_updateCheck->show();
+		p_updateCheckLabel->show();
+	}
+	else
+	{
+		p_updateCheck->hide();
+		p_updateCheckLabel->hide();
+	}
 #endif
 #endif
 

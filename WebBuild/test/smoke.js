@@ -25,6 +25,20 @@ const zlib = require('zlib');
 		document.fullscreenElement ? document.fullscreenElement.tagName : null);
 	if (fsTag !== 'HTML') h.note('the first click did not take the page fullscreen (' + fsTag + ')');
 
+	// The version alone in the corner, as a label: the browser has no update
+	// check, so the button that offers one stays hidden (GS_Menu::onEnter).
+	const menu = await h.dump(page);
+	const versionLabel = h.find(menu, 'Menu.Version');
+	const versionButton = h.find(menu, 'Menu.VersionButton');
+	if (!versionLabel.shown || versionButton.shown) {
+		h.note('the version label is ' + (versionLabel.shown ? '' : 'not ') + 'shown, the button ' +
+		       (versionButton.shown ? '' : 'not ') + 'shown');
+	} else if (!(versionLabel.text[0] > 0)) {
+		h.note('the version label is empty');
+	} else {
+		console.log('  . the version stands in the corner as a label, with no button');
+	}
+
 	// --- options: open, close again -------------------------------------------
 	await h.clickPath(page, 'Menu.Options');
 	await h.expectShown(page, 'OptionsPane.Options');

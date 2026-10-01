@@ -27,23 +27,34 @@ if [ "$(b5_json "el('Menu.CrtPane.Crt.NoThanks')['shown']")" = "True" ]; then
 fi
 b5_shot 1-menu
 
-# The version button: this version on its first line, and enabled where curl
-# or wget is, unless a check is running just now - the developer's own
-# config.xml may have started one. Looked at and not clicked, since that
-# would ask the website; update.sh clicks it against a server of its own.
+# The version: where curl or wget is, the button with this version on its
+# first line, enabled unless a check is running just now - the developer's own
+# config.xml may have started one; where neither is, the plain label in its
+# place. Looked at and not clicked, since that would ask the website;
+# update.sh clicks it against a server of its own.
 b5_dump
 version=$(sed -n 's/.*p_localVersion = "\([^"]*\)".*/\1/p' "$B5_GAME/src/main.cpp")
-[ "$(b5_json "el('Menu.Version')['title'].split('\u00b6')[0] == 'v$version'")" = True ] \
-	&& b5_ok "the version button names $version" \
-	|| b5_note "the version button says $(b5_json "repr(el('Menu.Version')['title'])")"
 if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
-	want=$(b5_json "d['updateCheck'] != 1")
+	shown=Menu.VersionButton; hidden=Menu.Version
 else
-	want=False
+	shown=Menu.Version; hidden=Menu.VersionButton
 fi
-[ "$(b5_json "el('Menu.Version')['active']")" = "$want" ] \
-	&& b5_ok "the version button's active is $want, as the tools and the check say" \
-	|| b5_note "the version button's active is not $want"
+[ "$(b5_json "el('$shown')['shown'] and not el('$hidden')['shown']")" = True ] \
+	&& b5_ok "$shown is shown and $hidden is not" \
+	|| b5_note "$shown is shown: $(b5_json "el('$shown')['shown']"), $hidden: $(b5_json "el('$hidden')['shown']")"
+if [ "$shown" = Menu.VersionButton ]; then
+	[ "$(b5_json "el('Menu.VersionButton')['title'].split('\u00b6')[0] == 'v$version'")" = True ] \
+		&& b5_ok "the version button names $version" \
+		|| b5_note "the version button says $(b5_json "repr(el('Menu.VersionButton')['title'])")"
+	want=$(b5_json "d['updateCheck'] != 1")
+	[ "$(b5_json "el('Menu.VersionButton')['active']")" = "$want" ] \
+		&& b5_ok "the version button's active is $want, as the check says" \
+		|| b5_note "the version button's active is not $want"
+else
+	[ "$(b5_json "el('Menu.Version')['text'][0] > 0")" = True ] \
+		&& b5_ok "the label holds the version" \
+		|| b5_note "the label is empty"
+fi
 
 # --- Options: open, look, close again ---------------------------------------
 b5_click Menu.Options
@@ -59,19 +70,21 @@ for name in OptionsPane.Options.PrimaryKey OptionsPane.Options.SecondaryKey Opti
 		|| b5_ok "$name is disabled with no selection"
 done
 
-# The update check's box is there, and enabled exactly where curl or wget is,
-# which is what the check asks. Looked at and not clicked: a click and OK
+# The update check's box and its label are there exactly where curl or wget
+# is, which is what the check asks. Looked at and not clicked: a click and OK
 # write config.xml, and this may be the developer's own user directory.
 # update.sh clicks it, in a home of its own.
-b5_expectShown OptionsPane.Options.UpdateCheck
+box="el('OptionsPane.Options.UpdateCheck')"; label="el('OptionsPane.Options.UpdateCheckLabel')"
 if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
-	want=True; state=enabled; why="curl or wget is installed"
+	expect="$box['shown'] and $box['active'] and $label['shown']"
+	state="shown and enabled"; why="curl or wget is installed"
 else
-	want=False; state=disabled; why="neither curl nor wget is installed"
+	expect="not $box['shown'] and not $label['shown']"
+	state=hidden; why="neither curl nor wget is installed"
 fi
-[ "$(b5_json "el('OptionsPane.Options.UpdateCheck')['active']")" = "$want" ] \
-	&& b5_ok "the update check box is $state: $why" \
-	|| b5_note "the update check box is not $state, although $why"
+[ "$(b5_json "$expect")" = True ] \
+	&& b5_ok "the update check box and its label are $state: $why" \
+	|| b5_note "the update check box and its label are not $state, although $why"
 
 # Escape belongs to the dialog, not to the menu under it - otherwise it quits
 # the game instead of closing the dialog.

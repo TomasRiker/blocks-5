@@ -70,6 +70,10 @@ LinuxBuild/build.sh          the native build compiles and links with GCC
 cd WebBuild && ./build.sh    the browser port actually builds and links
 ```
 
+A fresh container has no Emscripten SDK, which is a minute's install and not a reason to leave the
+browser unbuilt: `WebBuild/build.sh` looks in `/home/user/emsdk`, where `WebBuild/README.md`'s
+clone-and-install line puts it when run in `/home/user`.
+
 Three ways to *run* it: `LinuxBuild/test/smoke.sh` natively, `WebBuild/test/smoke.js` in a desktop
 browser, `WebBuild/test/mobile.js` in an emulated phone. `checks.md` says what `verify.py` looks for,
 `testing.md` how the harnesses drive the game and where they lie, `perf.md` what a frame timing means.

@@ -123,8 +123,8 @@ void GS_Menu::onUpdate()
 
 #ifndef __EMSCRIPTEN__
 	UpdateCheck::poll();
-#endif
 	updateVersionButton();
+#endif
 
 
 #ifdef __EMSCRIPTEN__
@@ -228,7 +228,7 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	// build the menu
 	gui.getRoot()->load("menu.xml");
 
-	static_cast<GUI_Button*>(gui["Menu.Version"])->connectClicked(this, &GS_Menu::handleClick);
+	static_cast<GUI_Button*>(gui["Menu.VersionButton"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.StartGame"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.LevelEditor"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.CampaignEditor"])->connectClicked(this, &GS_Menu::handleClick);
@@ -262,10 +262,14 @@ void GS_Menu::onEnter(const ParameterBlock& context)
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.Merge"])->connectClicked(this, &GS_Menu::handleClick);
 	static_cast<GUI_Button*>(gui["Menu.ConfirmPane.Confirm.No"])->connectClicked(this, &GS_Menu::handleClick);
 
+	// The button where a check can run, and the version alone where none can.
+	static_cast<GUI_StaticText*>(gui["Menu.Version"])->setText(p_localVersion);
 #ifndef __EMSCRIPTEN__
 	updateCheckPossible = UpdateCheck::isPossible();
-#endif
 	updateVersionButton();
+#endif
+	if(updateCheckPossible) gui["Menu.Version"]->hide();
+	else gui["Menu.VersionButton"]->hide();
 
 	FileSystem& fs = FileSystem::inst();
 
@@ -387,16 +391,14 @@ void GS_Menu::onLoseFocus()
 	gui["Menu"]->hide();
 }
 
+#ifndef __EMSCRIPTEN__
 void GS_Menu::updateVersionButton()
 {
-	GUI_Button* p_button = static_cast<GUI_Button*>(gui["Menu.Version"]);
+	// Hidden then, with the version alone in its place (onEnter).
+	if(!updateCheckPossible) return;
 
-#ifdef __EMSCRIPTEN__
-	// No update check in the browser, so the version alone and nothing to
-	// click: the page is always the newest.
-	p_button->setTitle(std::string("v") + p_localVersion);
-	p_button->deactivate();
-#else
+	GUI_Button* p_button = static_cast<GUI_Button*>(gui["Menu.VersionButton"]);
+
 	// "v1.2.0", short enough for the corner. The update check's version, so
 	// that -updatecheckversion shows here as what the answer was compared to.
 	const std::string version = std::string("v") + UpdateCheck::getVersion();
@@ -404,13 +406,7 @@ void GS_Menu::updateVersionButton()
 	const char* p_line = "$MM_UPDATE_CHECK";
 	std::string toolTip;
 
-	if(!updateCheckPossible)
-	{
-		// The offer stays, disabled below, so that the tooltip has something
-		// to say what is missing for.
-		toolTip = "$O_UPDATE_CHECK_NO_TOOL";
-	}
-	else if(state == UpdateCheck::STATE_CHECKING) p_line = "$MM_UPDATE_CHECKING";
+	if(state == UpdateCheck::STATE_CHECKING) p_line = "$MM_UPDATE_CHECKING";
 	else if(state == UpdateCheck::STATE_UP_TO_DATE) p_line = "$MM_UPDATE_UP_TO_DATE";
 	else if(state == UpdateCheck::STATE_FAILED) p_line = "$MM_UPDATE_FAILED";
 	else if(state == UpdateCheck::STATE_AVAILABLE)
@@ -427,16 +423,16 @@ void GS_Menu::updateVersionButton()
 	if(status.find_first_of("\n\xB6") == std::string::npos) status = "\xB6" + status;
 	p_button->setTitle(version + "\xB6" + status);
 	p_button->setToolTip(toolTip);
-	p_button->setFlashing(updateCheckPossible && state == UpdateCheck::STATE_AVAILABLE);
-	if(updateCheckPossible && state != UpdateCheck::STATE_CHECKING) p_button->activate();
+	p_button->setFlashing(state == UpdateCheck::STATE_AVAILABLE);
+	if(state != UpdateCheck::STATE_CHECKING) p_button->activate();
 	else p_button->deactivate();
-#endif
 }
+#endif
 
 void GS_Menu::handleClick(GUI_Element* p_element)
 {
 	const std::string& name = p_element->getFullName();
-	if(name == "Menu.Version")
+	if(name == "Menu.VersionButton")
 	{
 #ifndef __EMSCRIPTEN__
 		// With a new version out, the page it comes from; otherwise ask, also

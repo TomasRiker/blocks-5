@@ -91,8 +91,9 @@ in it no longer compiles. Everything Xlib-specific therefore stays in here.
   client of its own, as a process of its own that the menu asks once a tick,
   so nothing waits for it. It is off unless the box in the options dialog
   says otherwise (`<CheckForUpdates>` in `config.xml`), and the version button
-  at the top left of the menu asks on a click either way. Both are greyed out
-  where neither tool is installed, with the reason in the tooltip.
+  at the top left of the menu asks on a click either way. Where neither tool
+  is installed, the box is hidden and the menu shows the version alone, as a
+  plain label, in the button's place.
 
 - **No crash handler.** The one under Windows is SEH, and that does not exist
   here.
