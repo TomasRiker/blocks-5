@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
-37, 38, 40, 41, 46 and 48. Everything else is done.
+37, 38, 40, 41, 46, 48 and 61 (a try on Windows). Everything else is done.
 Sixty-one entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -1788,8 +1788,8 @@ outermost row and column of every sheet were faded, because they blended into th
 empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
 
 
-61. Switch the update check in the options  - **DONE**
-------------------------------------------------------
+61. Switch the update check in the options  - **DONE**, untried on Windows
+--------------------------------------------------------------------------
 The check is off unless switched on, and the switch is `<CheckForUpdates>` in
 `config.xml`: a box in the options dialog, *Check for updates at every start*.
 The check runs in the background - a thread under Windows, `curl` or `wget` as
@@ -1812,5 +1812,36 @@ per-player switch, taken into `config.xml` and deleted once that is seen
 written. The two `.bat` files that switched the check are gone - from an
 installation by `[InstallDelete]`, from the user directory at the first start
 of 1.2.0. `LinuxBuild/test/update.sh` drives every state against a server of
-its own; the installer's `[Code]` has not been through Inno Setup here.
+its own.
+
+**Still open: a try on Windows.** None of the Windows half has run: the
+container it was written in has no Inno Setup, and `Tools/syntax.sh` only
+compiles the game. One sitting covers it, best on a machine with 1.1.x
+installed and played, so that the update in place is tried as well:
+
+1. **The setup compiles**, and its page of additional tasks offers *Enable
+   checking for updates by default* (*Update-Suche als Voreinstellung
+   einschalten*), unticked.
+2. **Installed over 1.1.x**: `update_checker_enable.bat` and
+   `update_checker_disable.bat` are gone from the installation folder, and its
+   `.update_checker` holds `1` if the box was ticked and `0` if not. Installed
+   again with the box the other way, it follows.
+3. **A 1.1.x player** has a `.update_checker` of their own in
+   `Documents\Blocks 5`, the shipped one copied there at their first start and
+   rewritten by the `.bat` files. After the first start of 1.2.0 it is gone,
+   `<CheckForUpdates>` in `config.xml` says the same, and the two `.bat` copies
+   beside it are gone too. Running `update_checker_enable.bat` there before the
+   update makes it a `1`, the case worth seeing.
+4. **A new player** - another Windows account, or `Documents\Blocks 5` renamed
+   away for the test - starts with the box's answer. Ticked: the check runs at
+   the start, so the version button reaches *Up to date* without a click, and
+   the options box is ticked. Not ticked: the button says *Check for Update* and
+   the options box is clear. Once that player has quit, a reinstall with the box
+   the other way changes nothing for them.
+5. **The check itself**, WinINet on a thread of its own: started in the
+   installation folder as `blocks5.exe -updatecheckversion 1.0.0`, the game has
+   the button flash *Update available!* with the website's version in its
+   tooltip, and a click opens the download page through `Blocks 5 Website.url`.
+6. **Uninstalling** takes `.update_checker` along (`[UninstallDelete]`), so the
+   installation folder does not stay behind for one file.
 
