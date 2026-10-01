@@ -82,16 +82,18 @@ banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus th
 before and sat at 1.1.1 through the whole of 1.1.2.
 
 **The update check ships off, and its switch is `<CheckForUpdates>` in `config.xml`.** The installer's
-`EnableUpdateChecker` task starts unticked, and its `[Code]` writes the box's answer either way, `1` or
-`0`, into `{app}\.update_checker`; the game takes that in on its first start of the new version and
-deletes it where it may (`adoptUpdateCheckChoices` in `main.cpp`). Only on that start, because an
-installation for all users leaves the file where a player cannot delete it — and after a
-`.update_checker` that a version before 1.2.0 left in the user directory, because installing is the
-newer act. `[UninstallDelete]` takes the file away again, since the uninstaller knows only what was
-installed, and `[InstallDelete]` removes the two `.bat` files that switched the check before 1.2.0 from
-an installation updated in place; their copies in the user directory go at the game's first start of
-1.2.0. Left alone on an update, the box therefore switches off a check the player had on: Inno's
-`UsePreviousTasks` presets it to the last installation's choice, not to what the player set since.
+`EnableUpdateChecker` box is offered on a first installation only — not where the uninstaller's key
+`Blocks 5_is1` stands in either hive, which `InitializeSetup` asks before the installation writes it —
+because on an update the player has a setting of their own, and a box would overrule it whichever way it
+started. Its `[Code]` then writes the answer either way, `1` or `0`, into `{app}\.update_checker`, and
+the game takes that in on its first start of the new version and deletes it where it may
+(`adoptUpdateCheckChoices` in `main.cpp`): only on that start, because an installation for all users
+leaves the file where a player cannot delete it, and after a `.update_checker` that a version before
+1.2.0 left in the user directory, because installing is the newer act. On an update the installer
+writes nothing, and `[InstallDelete]` removes an earlier installation's file, which the game would
+otherwise take in again at the next new version, and the two `.bat` files that switched the check
+before 1.2.0; their copies in the user directory go at the game's first start of 1.2.0.
+`[UninstallDelete]` takes the file away as well, since the uninstaller knows only what was installed.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to

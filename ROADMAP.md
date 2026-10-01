@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
-37, 38, 40, 41, 46, 48 and 61 (the installer's box). Everything else is done.
+37, 38, 40, 41, 46 and 48. Everything else is done.
 Sixty-one entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -1788,8 +1788,8 @@ outermost row and column of every sheet were faded, because they blended into th
 empty margin. They have been crisp since `a37ff2e`, before the atlas existed.
 
 
-61. Switch the update check in the options  - **DONE**, and preset the installer's box
---------------------------------------------------------------------------------------
+61. Switch the update check in the options  - **DONE**
+------------------------------------------------------
 The check is off unless the player switches it on, and the switch is
 `<CheckForUpdates>` in `config.xml`: a box in the options dialog, *Check for
 updates at every start*. The check runs in the background - a thread under
@@ -1804,15 +1804,14 @@ tooltip; in the browser, which has no check, it names the version and nothing
 else.
 
 `.update_checker` is only a message to the game now, taken into `config.xml`
-once and deleted: the installer writes one beside the game with its box's
-answer, ticked or not, and a version before 1.2.0 left one in the user
-directory. The two `.bat` files that switched it are gone - from an
-installation by `[InstallDelete]`, from the user directory at the first start
-of 1.2.0. `LinuxBuild/test/update.sh` drives every state against a server of
-its own.
-
-Still open: the installer's box starts unticked, so an update installed with it
-left alone switches off a check the player had on. Inno's `UsePreviousTasks`
-presets it to the last installation's choice and not to what the player has
-set since; reading `config.xml` in the installer's `[Code]` would close that.
+once and deleted: a version before 1.2.0 left one in the user directory, and
+the installer writes one beside the game with its box's answer, ticked or not.
+That box is offered on a first installation only, told by the uninstaller's
+registry key: on an update the player has a setting of their own, and a box
+would overrule it whichever way it started, so an update writes nothing and
+removes an earlier answer. The two `.bat` files that switched the check are
+gone - from an installation by `[InstallDelete]`, from the user directory at
+the first start of 1.2.0. `LinuxBuild/test/update.sh` drives every state
+against a server of its own; the installer's `[Code]` has not been through
+Inno Setup here.
 

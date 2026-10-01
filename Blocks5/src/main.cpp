@@ -54,11 +54,11 @@ namespace
 	// .update_checker - '1' for on, anything else for off - is only how a
 	// choice made outside the game gets there, taken in once and deleted.
 	// Two places can hold one: the user directory, where a version before
-	// 1.2.0 kept its switch, and the game folder, where the installer writes
-	// the box it showed, ticked or not. The game folder's is read only on the
-	// first start of a new version, because an installation for all users
-	// leaves it where the game may not delete it, and it is read second,
-	// because installing is the newer of the two acts.
+	// 1.2.0 kept its switch, and the game folder, where a first installation
+	// writes its box's answer, ticked or not; an update writes none. The game
+	// folder's is read only on the first start of a new version, because an
+	// installation for all users leaves it where the game may not delete it,
+	// and it is read second, because installing is the newer of the two acts.
 	void adoptUpdateCheckChoices(Engine& engine, FileSystem& fs, bool newVersion)
 	{
 		const std::string paths[2] =

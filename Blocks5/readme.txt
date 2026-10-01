@@ -115,10 +115,10 @@ Changelog
           - The version number at the top left of the main menu is now a
             button that asks the website for a newer version and shows the
             answer. A new version makes it flash, and a click then opens the
-            download page. With the box in the options or in the installer
-            ticked, it asks at every start, in the background - nothing waits
-            for it, and no window pops up. A new installation does not ask
-            unless told to.
+            download page. With the box in the options ticked - or in the
+            installer, which asks on a first installation only - it asks at
+            every start, in the background: nothing waits for it, and no
+            window pops up. A new installation does not ask unless told to.
 
           - Well over a hundred fixes. Damaged or foreign levels, campaigns,
             skins and music no longer crash or freeze the game, and a missing
