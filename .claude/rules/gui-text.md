@@ -142,6 +142,32 @@ are feel, for the author to tune on a device. Which press is a finger's, `Engine
 page is handed as touches is a finger to Emscripten's SDL and gets the reach, which a precise tap never
 notices, since a hit stays a hit.
 
+**A finger drags a list; a mouse does not.** A finger has no wheel and the scroll bar is 16 pixels wide, so
+a list scrolls under a finger dragged on its items, as on a phone. An element that does that says where:
+`GUI_Element::pansAt`, as `isClickTarget` says where it takes a press - a list on its items, its scroll
+bar being a child that takes its own presses. **A finger's press there is held back from the element**
+(`GUI::update`), because whether it is a tap or the start of a drag only its moves can tell, and a list
+that selected on the press would select an item with every scroll and set off whatever its selection does -
+a campaign's preview loaded in the select screen, the Manager's buttons changed. A finger that lifts within
+the slop (8 reference pixels, Android's) tapped: the element gets the press, where it landed, and the
+release together in that tick, so a list selects on release, and a double tap is two of those within the
+double-click time, counted from release to release. Further, the finger pans: from then on the element
+hears `onPan` for every move and never the press. It follows from the edge of the slop and not from the
+press, or a list would jump by the slop the moment it started to follow; it moves by as much as the finger
+and its scroll bar clamps it, so a finger that went past an end and turns back moves it back at once. The
+gesture stays with the element wherever the finger goes, as a mouse's press stays with its element.
+
+**Let go of while it moves, the element glides on**, at the speed the finger lifted at - measured over its
+last 100 ms, and none if it held still for the last 60 - and slows down until it stops or reaches an end,
+where `onPan` says it did not move. `GUI` runs the glide. Any press stops it, and one on the gliding element
+only catches it: lifted, it taps nothing. A key or the wheel stops it too, since what they do to a list
+would be fought by a glide. The slop and the glide's three constants are at the top of `gui.cpp` and are
+feel, for the author to tune on a device.
+
+A mouse keeps what it had: its press selects at once, and dragging it over a list scrolls nothing, as a
+desktop list never did. The multi-line edit box scrolls too and does not pan, since a finger dragged in it
+selects text; a `pansAt` and an `onPan` are all it would take.
+
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 
 - **`check()` is the user's click and fires `changed`; `setChecked()` is the display catching up and

@@ -19,6 +19,7 @@
 #include "gui_button.h"
 #include "gui_checkbox.h"
 #include "gui_radiobutton.h"
+#include "gui_listbox.h"
 #include "gui_scrollbar.h"
 #include "gui_statictext.h"
 #include "player.h"
@@ -200,6 +201,21 @@ namespace
 		{
 			out += ",\"scroll\":";
 			appendInt(out, p_scrollBar->getScroll());
+		}
+
+		// A list's: how far it is scrolled, in pixels, which item is selected
+		// (-1 for none), how many it holds and how tall one is.
+		GUI_ListBox* p_listBox = dynamic_cast<GUI_ListBox*>(p_element);
+		if(p_listBox)
+		{
+			out += ",\"scroll\":";
+			appendInt(out, p_listBox->getScroll());
+			out += ",\"selection\":";
+			appendInt(out, p_listBox->getSelection());
+			out += ",\"items\":";
+			appendInt(out, static_cast<int>(p_listBox->getItems().size()));
+			out += ",\"lineHeight\":";
+			appendInt(out, p_listBox->getLineHeight());
 		}
 
 		out += "}";

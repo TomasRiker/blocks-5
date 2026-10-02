@@ -96,6 +96,37 @@ private:
 	// while the finger is within reach of it and it is on screen.
 	bool fingerHolds;
 
+	// A finger's press on an element that pans (GUI_Element::pansAt), held
+	// back from it while the finger may still be tapping: the element, 0 when
+	// no finger is on one. Past the slop it pans (`panning`), and then hears
+	// onPan for every move. Caught, the press stopped a glide of that element
+	// and is no tap when it lifts.
+	GUI_Element* p_panElement;
+	bool panning;
+	bool panCaught;
+	// The press in the element's coordinates, for a tap's onMouseDown; where
+	// it was on the screen (pointFor) and how far the finger may go from
+	// there and still tap, in game pixels; the point the element followed
+	// last; and the finger's point at the end of each of the last ticks,
+	// newest first, for its speed when it lifts.
+	Vec2i panPress;
+	Vec2i panStart;
+	float panSlop;
+	Vec2i panPoint;
+	static const int PAN_TRAIL = 6;
+	Vec2i panTrail[PAN_TRAIL];
+	int panTrailLength;
+
+	// An element let go of while it was panning glides on: the element, 0 for
+	// none, its speed in game pixels a tick, the fraction of a pixel it has
+	// yet to move, the share of the speed a tick keeps, and the speed it
+	// stops below.
+	GUI_Element* p_glideElement;
+	Vec2f glideSpeed;
+	Vec2f glideRest;
+	float glideKeep;
+	float glideStop;
+
 	// Whether a finger at this point still reaches the element: somewhere
 	// within its reach the element is what a press would hit.
 	bool fingerReaches(GUI_Element* p_element, const Vec2i& point);
@@ -103,6 +134,12 @@ private:
 	// the press's offset for the element that press went to, the cursor's
 	// own for any other.
 	Vec2i pointFor(GUI_Element* p_element) const;
+	// The panning finger at this point: past the slop the element follows it.
+	void followPan(const Vec2i& point);
+	// The panning finger lifted: a tap, or the speed for a glide.
+	void releasePan();
+	// One tick of the glide.
+	void glide();
 };
 
 #endif

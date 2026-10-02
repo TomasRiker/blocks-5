@@ -18,8 +18,9 @@
 # near miss, a finger that wobbles and one that slides away, a slider dragged
 # beside its bar, a near miss of a greyed-out button, a finger landing under a
 # title bar, a tap between two buttons, a tap on the level beside one, a held
-# button covered by a menu - and a second start without the finger shows that
-# a mouse is as exact as it ever was.
+# button covered by a menu. A list is dragged, tapped, flicked and caught. And
+# a last start without the finger shows that a mouse is as exact as it ever
+# was, and still selects on the press.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -412,7 +413,142 @@ pressAt 168 402
 	|| b5_note "a press under the second character left $(cell) the active one"
 b5_stop
 
-# --- 3. a mouse ------------------------------------------------------------------
+# --- 3. a list: a finger drags it --------------------------------------------
+# A finger has no wheel, so it scrolls a list by dragging it: the list follows
+# once the finger has moved further than a tap may (8 game pixels here),
+# selects nothing on the way, and glides on when let go of while moving. Its
+# press selects on release, as a tap. The campaign editor's list of levels,
+# made long with levels written for it, so that a glide has room to run, and
+# a double tap there adds a level, which the other list counts.
+writeLevels()
+{
+	local i
+	for i in $(seq -w 1 160); do
+		cp "$B5_HERE/../../Blocks5/levels/example01.xml" "$B5_PRIVATE_HOME/levels/list$i.xml"
+	done
+}
+start list writeLevels
+b5_click Menu.CampaignEditor
+b5_waitForState GS_CampaignEditor
+settle
+L=CampaignEditor.AvailableLevels
+list() { b5_dump; b5_json "'%d %d %d' % tuple(el('$L')[k] for k in ('scroll', 'selection', 'items'))"; }
+read ax ay aw ah <<< "$(rect $L)"
+line=$(b5_json "el('$L')['lineHeight']")
+x=$((ax + 60))
+# The item a press at y means, with the list scrolled by s.
+itemAt() { echo $(( ($1 - ay - 2 + $2) / line )); }
+# A finger put down at x y0, slid through the given ys and lifted after a rest
+# there, so that it lifts still and nothing glides.
+slide()   # y0 y...
+{
+	b5_mouseAt $x "$1"; xdotool mousedown 1; sleep 0.4
+	shift
+	local y
+	for y in "$@"; do b5_mouseAt $x "$y"; done
+	sleep 0.6; xdotool mouseup 1; sleep 1
+}
+
+read s sel n <<< "$(list)"
+[ "$s $sel" = "0 -1" ] || b5_note "the list did not start at its top with nothing selected: $s $sel"
+[ "$n" -gt 200 ] || b5_note "the list holds $n levels, not the 160 written and the shipped ones"
+slide $((ay + 150)) $((ay + 125)) $((ay + 100)) $((ay + 75)) $((ay + 50))
+read s sel n <<< "$(list)"
+[ "$s" -eq 92 ] && b5_ok "a finger dragged up 100 pixels scrolls the list 92, from the edge of the slop" \
+	|| b5_note "a finger dragged up 100 pixels scrolled the list to $s, not 92"
+[ "$sel" -eq -1 ] && b5_ok "and selects nothing" || b5_note "a drag selected item $sel"
+
+# Clamped at an end, the list follows the finger back at once, not after it
+# has made up the way it went past: 92 down past the top, then 30 back.
+slide $((ay + 40)) $((ay + 77)) $((ay + 115)) $((ay + 152)) $((ay + 190)) $((ay + 175)) $((ay + 160))
+read s sel n <<< "$(list)"
+[ "$s" -eq 30 ] && b5_ok "dragged down past the top and back up 30, the list comes back 30" \
+	|| b5_note "dragged down past the top and back up 30, the list stands at $s"
+
+want=$(itemAt $((ay + 60)) "$s")
+pressAt $x $((ay + 60))
+read s sel n <<< "$(list)"
+[ "$sel" -eq "$want" ] && b5_ok "a tap selects the item under the finger ($want)" \
+	|| b5_note "a tap selected item $sel, not $want"
+
+# Within the slop a finger still taps; slid past it sideways, it neither taps
+# nor drags, the list being one that scrolls up and down.
+want=$(itemAt $((ay + 100)) "$s")
+b5_mouseAt $x $((ay + 100)); xdotool mousedown 1; sleep 0.4
+b5_mouseAt $((x + 5)) $((ay + 103)); sleep 0.4; xdotool mouseup 1; sleep 1
+read s2 sel n <<< "$(list)"
+[ "$sel $s2" = "$want $s" ] && b5_ok "one that wobbles 6 pixels, within the slop, still taps ($want)" \
+	|| b5_note "a wobble within the slop left item $sel selected at $s2, not $want at $s"
+b5_mouseAt $x $((ay + 140)); xdotool mousedown 1; sleep 0.4
+b5_mouseAt $((x + 30)) $((ay + 140)); sleep 0.6; xdotool mouseup 1; sleep 1
+read s2 sel2 n <<< "$(list)"
+[ "$sel2 $s2" = "$sel $s" ] && b5_ok "one slid 30 pixels sideways neither taps nor scrolls" \
+	|| b5_note "a slide sideways left item $sel2 selected at $s2, not $sel at $s"
+
+# The list keeps the gesture when the finger leaves it: 80 up, the last 50
+# above its top edge, out of the finger's reach.
+read s sel n <<< "$(list)"
+slide $((ay + 30)) $((ay + 10)) $((ay - 10)) $((ay - 30)) $((ay - 50))
+read s2 sel2 n <<< "$(list)"
+[ "$s2" -eq $((s + 72)) ] && b5_ok "a finger dragged on past the list's top edge keeps scrolling it" \
+	|| b5_note "a finger dragged past the list's top edge scrolled it from $s to $s2, not $((s + 72))"
+
+# Let go of while moving, the list glides on and comes to rest by itself; a
+# press stops it where it is and selects nothing - it only caught the list.
+# The flick goes through xdotool alone, a twentieth of a second a step, with
+# the release on the last move as a flick lifts, and one logic tick a frame
+# (lockstep), so that every tick of it sees where the finger is: in a frame
+# that runs several, only the first does, and a finger read still for three
+# ticks has stopped before it lifted.
+b5_ask "lockstep 1" > /dev/null
+b5_dump; b5_clientOrigin
+pt() { b5_json "'%d %d' % ($B5_CX + d['present'][0] + int(($1 + 0.5) * d['present'][2] / d['screen'][2]), $B5_CY + d['present'][1] + int(($2 + 0.5) * d['present'][3] / d['screen'][3]))"; }
+p0=$(pt $x $((ay + 170))); p1=$(pt $x $((ay + 150))); p2=$(pt $x $((ay + 130)))
+p3=$(pt $x $((ay + 110))); p4=$(pt $x $((ay + 90)))
+# 80 up in four steps; the list follows 72 of it before it is let go.
+flick()
+{
+	xdotool mousemove $p0 mousedown 1; sleep 0.4
+	xdotool mousemove $p1; sleep 0.05; xdotool mousemove $p2; sleep 0.05; xdotool mousemove $p3; sleep 0.05
+	xdotool mousemove $p4 mouseup 1
+}
+read s sel n <<< "$(list)"
+flick
+sleep 0.2; read g1 x1 x2 <<< "$(list)"
+sleep 0.2; read g2 x1 x2 <<< "$(list)"
+[ "$g1" -gt $((s + 72)) ] && [ "$g2" -gt "$g1" ] \
+	&& b5_ok "let go while moving, the list glides on past where the finger left it ($((s + 72)), $g1, $g2)" \
+	|| b5_note "let go while moving, the list stood at $g1 and $g2, the finger having left it at $((s + 72))"
+sleep 3; read r1 x1 x2 <<< "$(list)"
+sleep 0.5; read r2 x1 x2 <<< "$(list)"
+[ "$r1" -eq "$r2" ] && [ "$r1" -gt "$g2" ] && b5_ok "and comes to rest by itself ($r1)" \
+	|| b5_note "the gliding list stood at $r1 and then $r2, having been at $g2"
+read s sel n <<< "$(list)"
+flick
+sleep 0.1; xdotool mousedown 1
+sleep 0.2; read h1 x1 x2 <<< "$(list)"
+sleep 0.4; read h2 x1 x2 <<< "$(list)"
+xdotool mouseup 1; sleep 1
+read c csel x2 <<< "$(list)"
+[ "$h1" -gt $((s + 72)) ] && [ "$h1 $c" = "$h2 $h2" ] \
+	&& b5_ok "a finger put on the gliding list stops it there ($h1) and holds it" \
+	|| b5_note "a finger put on the gliding list held it at $h1, then $h2, and it stood at $c after"
+[ "$csel" -eq "$sel" ] && b5_ok "and selects nothing when it lifts" \
+	|| b5_note "the press that stopped the glide selected item $csel, where $sel was"
+b5_ask "lockstep 0" > /dev/null
+
+# Two quick taps on an item are a double click: the list's submit button,
+# here Add, which moves the level into the campaign's list.
+added() { b5_dump; b5_json "el('CampaignEditor.CampaignLevels')['items']"; }
+before=$(added)
+b5_mouseAt $x $((ay + 40))
+xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 0.1
+xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
+[ "$(added)" -eq $((before + 1)) ] && b5_ok "a double tap adds the level, as a double click does" \
+	|| b5_note "a double tap left the campaign with $(added) levels, from $before"
+b5_stop
+
+# --- 4. a mouse ------------------------------------------------------------------
 unset B5_FINGER
 start mouse
 pressAt 471 55
@@ -426,6 +562,20 @@ read px py pw ph <<< "$(rect Menu.Options)"
 pressAt $((px + pw / 2)) $((py + ph / 2))
 [ "$(shown OptionsPane.Options)" = True ] && b5_ok "and a mouse on the button opens them, so its presses arrive" \
 	|| b5_note "a mouse on the options button did not open them"
+
+# A mouse's press on a list selects at once, and a mouse dragged over the list
+# does not scroll it: the gesture that does is a finger's.
+A=OptionsPane.Options.Actions
+read qx qy qw qh <<< "$(rect $A)"
+want=$(( (20 - 2) / $(b5_json "el('$A')['lineHeight']") ))
+b5_mouseAt $((qx + 40)) $((qy + 20)); xdotool mousedown 1; sleep 0.4
+b5_dump; pressed=$(b5_json "el('$A')['selection']")
+b5_mouseAt $((qx + 40)) $((qy + 60)); sleep 0.4; xdotool mouseup 1; sleep 1
+b5_dump
+[ "$pressed" -eq "$want" ] && b5_ok "a mouse's press on a list selects item $want while still held" \
+	|| b5_note "a mouse's press on a list had item $pressed selected while held, not $want"
+[ "$(b5_json "el('$A')['scroll']")" -eq 0 ] && b5_ok "and dragging the mouse over the list does not scroll it" \
+	|| b5_note "dragging the mouse over the list scrolled it to $(b5_json "el('$A')['scroll']")"
 closeOptions
 b5_stop
 

@@ -18,6 +18,27 @@ namespace
 	const float TOUCH_RADIUS = 16.0f;
 	const float TOUCH_MARGIN = 4.0f;
 
+	// How far a finger on an element that pans may move from where it pressed
+	// and still tap, in reference pixels - Android's touch slop. Further, it
+	// pans the element (GUI_Element::pansAt).
+	const float TOUCH_SLOP = 8.0f;
+
+	// An element let go of while it pans glides on and slows down, keeping
+	// this share of its speed a second; iOS's scroll views keep 0.135. Let go
+	// of slower than GLIDE_START, in reference pixels a second, it stays where
+	// it is, and below GLIDE_STOP it stops. All three are feel, for the author
+	// to tune on a device: a larger GLIDE_KEEP glides further and longer, a
+	// larger GLIDE_START leaves more slow releases where they are.
+	const float GLIDE_KEEP = 0.1f;
+	const float GLIDE_START = 50.0f;
+	const float GLIDE_STOP = 10.0f;
+
+	// A finger that held still this long, in milliseconds, before it lifted
+	// meant to leave the element where it is, however fast it moved before:
+	// Android's 40, rounded up to three ticks, since in a slow frame two ticks
+	// can pass with the finger's position read only in the first.
+	const int STILL_TIME = 60;
+
 	// The reach in game pixels, bounded so that a canvas squeezed to the size
 	// of a stamp cannot ask for a search the size of the screen.
 	float touchReach()
@@ -92,6 +113,13 @@ GUI::GUI()
 	p_fingerElement = 0;
 	fingerOffset = Vec2i(0, 0);
 	fingerHolds = false;
+	p_panElement = 0;
+	panning = panCaught = false;
+	panSlop = 0.0f;
+	panTrailLength = 0;
+	p_glideElement = 0;
+	glideSpeed = glideRest = Vec2f(0.0f, 0.0f);
+	glideKeep = glideStop = 0.0f;
 	keyRepeat = false;
 }
 
@@ -140,6 +168,8 @@ bool GUI::init()
 	p_fingerElement = 0;
 	fingerOffset = Vec2i(0, 0);
 	fingerHolds = false;
+	p_panElement = 0;
+	p_glideElement = 0;
 	noMoveCounter = 0;
 
 	initialized = true;
@@ -247,6 +277,21 @@ void GUI::update()
 	const int buttonsPressed = (engine.wasButtonPressed(1) ? 1 : 0) | (engine.wasButtonPressed(3) ? 2 : 0);
 	const int buttonsReleased = (engine.wasButtonReleased(1) ? 1 : 0) | (engine.wasButtonReleased(3) ? 2 : 0);
 
+	// A glide goes on by itself until a press anywhere, a key or the element
+	// leaving the screen stops it. A press on the gliding element itself only
+	// catches it, so it taps nothing when it lifts (releasePan).
+	GUI_Element* p_caught = 0;
+	if(p_glideElement)
+	{
+		if(buttonsPressed)
+		{
+			p_caught = p_glideElement;
+			p_glideElement = 0;
+		}
+		else if(!p_glideElement->isReallyVisible()) p_glideElement = 0;
+		else glide();
+	}
+
 	// update the mouse position and the element under it
 	oldCursorPos = cursorPos;
 	cursorPos = engine.getCursorPosition();
@@ -314,15 +359,36 @@ void GUI::update()
 		{
 			p_focusElement = p_elementAtCursor;
 			if(p_elementAtCursor->isActive()) p_elementAtCursor->bringToFront();
-			p_elementAtCursor->onMouseDown(relCursorPos, buttonsPressed);
-			/* if(buttonsPressed & 1) */ p_mouseDownElement = p_elementAtCursor;
+
+			// A finger on an element that pans may be tapping it or starting
+			// to drag it, which only its moves can tell, so the element does
+			// not hear of the press yet (followPan, releasePan): a list that
+			// selected on the press would select an item with every scroll,
+			// and set off whatever its selection does.
+			if(engine.wasFingerPress() && buttonsPressed == 1 && p_elementAtCursor->pansAt(relCursorPos))
+			{
+				p_panElement = p_elementAtCursor;
+				panning = false;
+				panCaught = p_elementAtCursor == p_caught;
+				panPress = relCursorPos;
+				panStart = panPoint = pointFor(p_elementAtCursor);
+				panSlop = TOUCH_SLOP * engine.getReferencePixelScale();
+				panTrailLength = 0;
+				p_mouseDownElement = 0;
+			}
+			else
+			{
+				p_elementAtCursor->onMouseDown(relCursorPos, buttonsPressed);
+				/* if(buttonsPressed & 1) */ p_mouseDownElement = p_elementAtCursor;
+			}
 		}
 
 		if(buttonsDown & 1) noMoveCounter = 10;
 
 		if(buttonsReleased)
 		{
-			p_elementAtCursor->onMouseUp(relCursorPos, buttonsReleased);
+			// The element a finger pans hears of its release from releasePan.
+			if(p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseUp(relCursorPos, buttonsReleased);
 
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
@@ -343,8 +409,9 @@ void GUI::update()
 			// lifted, and a window pressed on its title bar would follow it.
 			const Vec2i movement = buttonsPressed ? Vec2i(0, 0) : cursorMovement;
 
-			// tell the element about it
-			p_elementAtCursor->onMouseMove(relCursorPos, movement, buttonsDown);
+			// tell the element about it - not one a finger pans, which
+			// follows it through onPan
+			if(p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseMove(relCursorPos, movement, buttonsDown);
 
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
@@ -352,6 +419,22 @@ void GUI::update()
 				// inform the element under the cursor at the time of the press
 				p_mouseDownElement->onMouseMove(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), movement, buttonsDown);
 			}
+		}
+	}
+
+	// The finger on an element that pans, wherever the finger is now: the
+	// element keeps the gesture, as a mouse's press keeps its element when
+	// the mouse leaves it. A tap whose press and release came in one tick is
+	// handed over here in that tick. Up without a release in this tick, the
+	// release went by unseen - the window lost the focus - and the gesture
+	// with it; held on to, every later move of the mouse would pan.
+	if(p_panElement)
+	{
+		if(!p_panElement->isReallyVisible() || !((buttonsDown & 1) || (buttonsReleased & 1))) p_panElement = 0;
+		else
+		{
+			followPan(pointFor(p_panElement));
+			if(p_panElement && (buttonsReleased & 1)) releasePan();
 		}
 	}
 
@@ -368,6 +451,7 @@ void GUI::update()
 	SDL_KeyboardEvent event;
 	while(engine.getKeyEvent(&event, &keyRepeat))
 	{
+		if(event.type == SDL_KEYDOWN) p_glideElement = 0;
 		if(p_focusElement) p_focusElement->onKeyEvent(event);
 	}
 	keyRepeat = false;
@@ -378,7 +462,11 @@ void GUI::update()
 		int wheel = 0;
 		if(engine.wasButtonPressed(SDL_BUTTON_WHEELUP)) wheel = -1;
 		else if(engine.wasButtonPressed(SDL_BUTTON_WHEELDOWN)) wheel = 1;
-		if(wheel) p_elementAtCursor->onMouseWheel(wheel);
+		if(wheel)
+		{
+			p_glideElement = 0;
+			p_elementAtCursor->onMouseWheel(wheel);
+		}
 	}
 
 	if(!cursorMoved) noMoveCounter = min<uint>(20, noMoveCounter + 1);
@@ -472,6 +560,86 @@ bool GUI::fingerReaches(GUI_Element* p_element, const Vec2i& point)
 Vec2i GUI::pointFor(GUI_Element* p_element) const
 {
 	return p_element == p_fingerElement ? cursorPos + fingerOffset : cursorPos;
+}
+
+void GUI::followPan(const Vec2i& point)
+{
+	if(!panning)
+	{
+		const Vec2f moved = static_cast<Vec2f>(point - panStart);
+		const float distance = moved.length();
+		if(distance <= panSlop) return;
+
+		// From the edge of the slop and not from the press, or the element
+		// would jump by the whole slop the moment it starts to follow.
+		panning = true;
+		const Vec2f edge = moved * (panSlop / distance);
+		panPoint = panStart + Vec2i(static_cast<int>(floorf(edge.x + 0.5f)), static_cast<int>(floorf(edge.y + 0.5f)));
+	}
+
+	const Vec2i movement = point - panPoint;
+	if(movement.x || movement.y) p_panElement->onPan(movement);
+	panPoint = point;
+
+	for(int i = PAN_TRAIL - 1; i > 0; i--) panTrail[i] = panTrail[i - 1];
+	panTrail[0] = point;
+	if(panTrailLength < PAN_TRAIL) panTrailLength++;
+}
+
+void GUI::releasePan()
+{
+	if(!panning)
+	{
+		// A tap - unless all it did was catch the element gliding: the press
+		// where it landed and the release, in one tick. The press can take
+		// the element away - a double click that closes its dialog - and the
+		// destructor then clears p_panElement.
+		if(!panCaught)
+		{
+			p_panElement->onMouseDown(panPress, 1);
+			if(p_panElement) p_panElement->onMouseUp(pointFor(p_panElement) - p_panElement->getAbsPosition(), 1);
+		}
+		p_panElement = 0;
+		return;
+	}
+
+	GUI_Element* p_element = p_panElement;
+	p_panElement = 0;
+
+	// The speed it lifted at, over the last ticks - none if it held still
+	// before it lifted.
+	Engine& engine = Engine::inst();
+	const int rate = static_cast<int>(engine.getLogicRate());
+	const int still = STILL_TIME / rate;
+	if(panTrailLength > still)
+	{
+		bool held = true;
+		for(int i = 1; i <= still; i++) if(panTrail[i] != panTrail[0]) held = false;
+		if(held) return;
+	}
+	const int ticks = panTrailLength - 1;
+	if(ticks < 1) return;
+	const Vec2f speed = static_cast<Vec2f>(panTrail[0] - panTrail[ticks]) / static_cast<float>(ticks);
+	const float perTick = engine.getReferencePixelScale() * static_cast<float>(rate) / 1000.0f;
+	if(speed.length() < GLIDE_START * perTick) return;
+
+	p_glideElement = p_element;
+	glideSpeed = speed;
+	glideRest = Vec2f(0.0f, 0.0f);
+	glideKeep = powf(GLIDE_KEEP, static_cast<float>(rate) / 1000.0f);
+	glideStop = GLIDE_STOP * perTick;
+}
+
+void GUI::glide()
+{
+	glideRest += glideSpeed;
+	const Vec2i step(static_cast<int>(floorf(glideRest.x + 0.5f)), static_cast<int>(floorf(glideRest.y + 0.5f)));
+	glideRest -= static_cast<Vec2f>(step);
+	glideSpeed *= glideKeep;
+
+	// An element at an end stays put, and the glide is over.
+	if((step.x || step.y) && !p_glideElement->onPan(step)) p_glideElement = 0;
+	else if(glideSpeed.length() < glideStop) p_glideElement = 0;
 }
 
 void GUI::renderFrame(const Vec2i& targetPosition,
