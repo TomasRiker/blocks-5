@@ -519,9 +519,14 @@ sleep 0.2; read g2 x1 x2 <<< "$(list)"
 [ "$g1" -gt $((s + 72)) ] && [ "$g2" -gt "$g1" ] \
 	&& b5_ok "let go while moving, the list glides on past where the finger left it ($((s + 72)), $g1, $g2)" \
 	|| b5_note "let go while moving, the list stood at $g1 and $g2, the finger having left it at $((s + 72))"
-sleep 3; read r1 x1 x2 <<< "$(list)"
-sleep 0.5; read r2 x1 x2 <<< "$(list)"
-[ "$r1" -eq "$r2" ] && [ "$r1" -gt "$g2" ] && b5_ok "and comes to rest by itself ($r1)" \
+# Under lockstep a tick is a frame, so how long the glide takes is the
+# renderer's business: asked until two answers half a second apart agree.
+r2=-1
+for i in $(seq 1 40); do
+	sleep 0.5; r1=$r2; read r2 x1 x2 <<< "$(list)"
+	[ "$r1" = "$r2" ] && break
+done
+[ "$r1" = "$r2" ] && [ "$r2" -gt "$g2" ] && b5_ok "and comes to rest by itself ($r2)" \
 	|| b5_note "the gliding list stood at $r1 and then $r2, having been at $g2"
 read s sel n <<< "$(list)"
 flick
