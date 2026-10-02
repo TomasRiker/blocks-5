@@ -37,6 +37,12 @@ extern "C"
 	{
 		EM_ASM({ Module["b5_hit"] = UTF8ToString($0); }, TestHooks::hitAt(x, y).c_str());
 	}
+
+	// What a finger there would press, as TestHooks::touchAt() writes it.
+	EMSCRIPTEN_KEEPALIVE void blocks5_testTouchAt(int x, int y)
+	{
+		EM_ASM({ Module["b5_touch"] = UTF8ToString($0); }, TestHooks::touchAt(x, y).c_str());
+	}
 }
 
 #endif

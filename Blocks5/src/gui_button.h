@@ -21,6 +21,7 @@ public:
 	void onMouseEnter(int buttons);
 	void onMouseLeave(int buttons);
 	INLINE_GETTYPE("GUI_Button");
+	bool isClickTarget(const Vec2i&) { return true; }
 
 	void click();
 

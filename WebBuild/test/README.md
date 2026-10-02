@@ -58,7 +58,10 @@ changed `index.html` still arrives on an ordinary reload, and a reload with the
 network switched off. Plus a real tap through `Input.dispatchTouchEvent` that
 has to reach `Menu.Options` - `page.touchscreen.tap()` is as useless as
 `page.mouse.click()`, because a press and a release in the same millisecond
-fall between two logic ticks.
+fall between two logic ticks. And a finger is not a point: a tap at the corner
+of that button's cell, outside the square it is hit on, still opens the options
+(`GUI::pickTouchTarget`), where a real mouse there misses - after which a mouse
+press on the button itself shows that the mouse's presses arrive at all.
 
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the
@@ -171,10 +174,11 @@ same.
 
 The level editor interpolates between the previous cursor cell and this one, so
 that dragging faster than the events arrive still leaves a continuous stroke.
-That makes it the one place where a **finger** and a mouse are not the same
-input: a mouse cannot lift at one corner and press at the other without moving
-across everything in between, and moving is exactly what keeps the previous cell
-current.
+That makes it a place where a **finger** and a mouse are not the same input: a
+mouse cannot lift at one corner and press at the other without moving across
+everything in between, and moving is exactly what keeps the previous cell
+current. (The other is that a finger's press is given a reach, which `mobile.js`
+checks.)
 
 `page.mouse.down()` presses wherever the last `move` left the pointer, so
 Playwright's own API can never produce the case. CDP can:

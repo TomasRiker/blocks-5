@@ -22,6 +22,7 @@ public:
 	bool containsPoint(const Vec2i& position);
 	void onMouseLeave(int buttons);
 	INLINE_GETTYPE("GUI_RadioButton");
+	bool isClickTarget(const Vec2i&) { return true; }
 
 	void readAttributes(TiXmlElement* p_element);
 

@@ -101,7 +101,7 @@ from `B5_UPDATE_URL` — `updatecheck.cpp` is the fourth file `build.sh hooks` c
 and the script answers there from a server of its own: the same version, a newer one, garbage, an answer
 too long, an HTTP error, or nothing for four seconds. So every state of the menu's version button comes on
 demand, in both languages, and what it asserts is the dump's: `updateCheck` (`UpdateCheck::State` by
-number), a button's `title`, `titleSize` and `flashing`, a checkbox's `checked` and any element's
+number), a button's `title`, `titleSize` and `flashing`, a toggle's `checked` and any element's
 `toolTip`. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
 machine without them - the one that gets the plain label `Menu.Version` where `Menu.VersionButton` would
 be and no box in the options, told apart by the dump's `shown` - a `curl` that execs `sleep` for a check
@@ -115,6 +115,40 @@ Two traps cost a run each. The server is started from a subshell, because `b5_st
 `wait`, which waits for every job of the shell — a server started with `&` among them, for ever. And the
 menu comes in through a transition, so the button is photographed only once the dump's `crossfade` is
 -1; before that the control shots of a button standing still differed, being shots of the transition.
+
+**`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
+`B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
+of 16 game pixels and a margin of 4 whatever the window's size. The hook answers `touch x y` with what a
+finger there would press, at which point and whether that is a move, and `touchsweep x0 y0 x1 y1 step`
+with a line a point - what a mouse would hit, what the finger presses and at which point, and what a mouse
+would hit at that point - in one tick, where thousands of single asks would cost a tick each. The sweeps
+hold every answer against rules that must never break: a hit on a control stays on it, a press on the
+level stays on the level, a moved press lands on what it picked, within reach and never behind the pane in
+front, and every point of the grid is answered. **A press moved within one element is a move too** - off a
+window's body onto its title bar, off the editor's toolbar onto its level - so the rules check the point
+as well as the element, and so does `touch`.
+
+What no rule can see is a press left where it should have moved, which breaks none of them, so the real
+presses after the sweeps name their cases one by one: a near miss, a wobble, a slide away; a moved press
+within an element, under the options' title bar and on the toolbar under the editor's level, landing right
+across from the finger; a near miss of a greyed-out button, which does nothing rather than press the one
+beside it; a slider dragged beside its bar against one dragged on it; a finger landing under a title bar,
+which must leave the window where it stood; a tap between two of the Manager's kinds; a press on the
+editor's level over the undo button; a stroke started under the level, which must go on along its bottom
+row - read off the game's own frame (`shot`), since nothing else reports a tile; a held button that a pane
+then covers, which must not fire; and, in a level written by the script, a press under a character on the
+bottom row, which must take hold of it. A second start without `B5_FINGER` shows the mouse as exact as
+before, and then that it was there and pressing: a press of it on the button does open the options. Which
+radio button is checked comes from the dump's `checked`, which a radio button reports as a checkbox does,
+and a slider's value from its `scroll`.
+
+**A finger lands with its press**, and `pressAt`, like every harness click, moves first and presses after
+a rest - so its press tick has no jump in it, and nothing a finger's jump upsets can show there. `landAt`
+sends the move and the press in one `xdotool` call, back to back, so the game drains the two together as
+it does a touch's. And a key pressed while a mouse button is held must not go through `b5_key`: its
+`--clearmodifiers` lets go of held buttons for the length of the key and presses them again after, a
+release and a fresh press the game takes for the hand's own, so a button held through the key fires - for
+a mouse as much as for a finger.
 
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
@@ -311,10 +345,13 @@ cache holds the payload, and a reload with the network off still boots. **`isMob
 is what makes any of it mean something** — without it Chromium lays out at the window width and the
 viewport meta has nothing to do.
 
-The one check about the game rather than the page is a real touch: `touchStart`, a wait, `touchEnd`,
+The checks about the game rather than the page use a real touch: `touchStart`, a wait, `touchEnd`,
 through `Input.dispatchTouchEvent` over CDP. That found the click-ordering bug in `GUI::update()`; the
 dump reports `cursor` and `mouseDown` so a tap that does not arrive can be told from a button that does
-not react.
+not react. The same touch at the corner of the options button's cell - outside the square, inset 8 in
+it, that the button is hit on - has to open the options, and a real mouse there must not, though the
+mouse was there and a press of it on the button does open them; `blocks5_testTouchAt` puts what the
+picker says into `Module["b5_touch"]`, as `touch x y` answers it natively.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions

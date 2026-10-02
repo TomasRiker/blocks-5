@@ -104,6 +104,28 @@ steering on the way back.
 
 `LinuxBuild/test/drag.sh` is what proves any of it (`testing.md`).
 
+**A finger's press is known as one where the platform says so**, and `Engine::wasFingerPress` reports it
+for the tick, cleared with the other press edges; the GUI gives such a press a reach (`gui-text.md`). In
+the browser Emscripten's SDL queues an `SDL_FINGERDOWN` with the `SDL_MOUSEBUTTONDOWN` it makes of every
+touch, in one handler, so the two are drained in one tick - **and one with every mouse press too**, ahead
+of it, from the device `SDL_TOUCH_MOUSEID`, which is no finger: taken for one, every mouse press in a
+desktop browser would get a reach, and `mobile.js`'s mouse beside the options button is what notices. The
+id arrives as -1 in a 64-bit field and is compared on its low 32 bits, which is the only way it equals
+the `Uint32` constant. A stylus the page is handed as touches is a finger there; Emscripten's SDL says
+nothing of `touchType`.
+
+Under Windows the mouse message Windows makes of a touch carries a signature in `GetMessageExtraInfo()` -
+`0xFF515700` under the mask `0xFFFFFF00`, bit 7 set for a finger and clear for a pen, which is as precise
+as a mouse and stays one - and `engineWindowProc` reads it off every left and right press. **It cannot
+simply mark the tick**: SDL pumps the window's messages inside a tick too (`updateVKs`, `flushInput`), and
+the press such a pump queues is only drained by the main loop's next poll, a tick later - a mark set on
+the message and cleared with that tick would be gone before its press arrived, and the press would be a
+mouse's. So `noteButtonMessage` leaves the answer for the press itself, which takes it when it is drained;
+every press is answered, a mouse's as no, so that nothing a dropped press left behind reaches the next,
+and `flushInput` throws the answer away with the press. Under X11 SDL 1.2 cannot tell, and a finger stays
+a mouse. The first finger's press is logged once, the one sign apart from how taps land that a machine
+marks them.
+
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that
 arrives while a repeating action's `countDown` is running does not fire — it goes into a **buffer five

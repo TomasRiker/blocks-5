@@ -65,6 +65,14 @@ bool GUI_Window::getClipRect(Vec2i* p_position,
 	return true;
 }
 
+// Where a press starts a move, as below: the title bar. The rest of a window
+// is the ground its controls stand on, and a finger that misses one of them
+// there is moved onto it.
+bool GUI_Window::isClickTarget(const Vec2i& position)
+{
+	return position.y <= 20;
+}
+
 void GUI_Window::onMouseDown(const Vec2i& position,
 							 int buttons)
 {
