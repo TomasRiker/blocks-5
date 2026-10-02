@@ -11,19 +11,19 @@
 		     GS_Menu::updateVersionButton() writes every tick. A button, because
 		     a click asks the website, or opens the download page once it has
 		     answered with a newer version. Fixed in size, so that it does not
-		     change shape with the state, and as tight as three lines allow,
+		     change shape with the state, and as low as two lines allow,
 		     tucked into the corner clear of the logo, which begins at x 106.
-		     Every state takes all three lines, the version on the first, so
-		     nothing moves from one to the next.
+		     Every state takes both lines, the version over a status of one,
+		     so nothing moves from one to the next.
 		     The frame in gui.png is a pixel thick on the left and at the top
 		     and two on the right and at the bottom, and a line W wide is drawn
-		     from (w - W) / 2 to one pixel past its end with the shadow: 69
-		     leaves the widest, "Wiederholen" at 62, two pixels clear on the
+		     from (w - W) / 2 to one pixel past its end with the shadow: 82
+		     leaves the widest, "Update pruefen" at 75, two pixels clear on the
 		     left and one on the right. The text sits a pixel high
-		     (GUI_Button::onRender), so 36 leaves the version one row below the
-		     top and a descender in the third line, shadow and all, on the last
-		     row inside. -->
-		<Button name="VersionButton" x="0" y="0" w="69" h="36">
+		     (GUI_Button::onRender), so 26 leaves the version one row below the
+		     top and a descender in the second line, shadow and all, on the
+		     last row inside. -->
+		<Button name="VersionButton" x="0" y="0" w="82" h="26">
 			<Title></Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>

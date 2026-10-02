@@ -416,12 +416,10 @@ void GS_Menu::updateVersionButton()
 				  "\xB6" + localizeString("$MM_UPDATE_OPEN_PAGE");
 	}
 
-	// Three lines in every state, the version always on the first: a status of
-	// one line goes on the third and leaves the second empty, or the version
-	// would move whenever a status of one line followed one of two.
-	std::string status(localizeString(p_line));
-	if(status.find_first_of("\n\xB6") == std::string::npos) status = "\xB6" + status;
-	p_button->setTitle(version + "\xB6" + status);
+	// Two lines in every state, the version over a status of one line, so
+	// nothing moves from one state to the next. Localized here, since a title
+	// is looked up only where the whole of it is a $ID.
+	p_button->setTitle(version + "\xB6" + localizeString(p_line));
 	p_button->setToolTip(toolTip);
 	p_button->setFlashing(state == UpdateCheck::STATE_AVAILABLE);
 	if(state != UpdateCheck::STATE_CHECKING) p_button->activate();
