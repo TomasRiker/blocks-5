@@ -456,6 +456,14 @@ Both hang off the one line in `GUI::update()` that computes `p_elementAtCursor`.
 `WebBuild/test/mobile.js` is where this gets its test: tap a few pixels *outside*
 a small button and expect it to fire.
 
+**Windows touchscreens are part of it, and need a try on one.** Windows turns a
+touch into mouse messages for a program that registered for nothing else, and
+marks each of them: `GetMessageExtraInfo()` carries the pen and touch signature,
+`0xFF515700` under the mask `0xFFFFFF00`. The engine's window procedure can read
+it off the press, so a finger there gets the same treatment as in the browser.
+Nothing in the container this is written in can try that; the author's Lenovo
+convertible can, and it has to before this item counts as done.
+
 
 23. The hint note should be a sheet of paper  - **DONE**
 --------------------------------------------------------
