@@ -18,9 +18,10 @@
 # near miss, a finger that wobbles and one that slides away, a slider dragged
 # beside its bar, a near miss of a greyed-out button, a finger landing under a
 # title bar, a tap between two buttons, a tap on the level beside one, a held
-# button covered by a menu. A list is dragged, tapped, flicked and caught. And
-# a last start without the finger shows that a mouse is as exact as it ever
-# was, and still selects on the press.
+# button covered by a menu. A list is dragged, tapped, flicked and caught, and
+# a multi-line edit box dragged and tapped. And a last start without the
+# finger shows that a mouse is as exact as it ever was, and still selects on
+# the press and by dragging over a text.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -413,7 +414,7 @@ pressAt 168 402
 	|| b5_note "a press under the second character left $(cell) the active one"
 b5_stop
 
-# --- 3. a list: a finger drags it --------------------------------------------
+# --- 3. a list and a text: a finger drags them -------------------------------
 # A finger has no wheel, so it scrolls a list by dragging it: the list follows
 # once the finger has moved further than a tap may (8 game pixels here),
 # selects nothing on the way, and glides on when let go of while moving. Its
@@ -551,6 +552,47 @@ xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 0.1
 xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
 [ "$(added)" -eq $((before + 1)) ] && b5_ok "a double tap adds the level, as a double click does" \
 	|| b5_note "a double tap left the campaign with $(added) levels, from $before"
+
+# A multi-line edit box pans the same way, up and down: the campaign's
+# description, given twelve lines of seven characters each - "lineNN" and
+# the break - and its caret put at the top. Dragged up 100 it scrolls 92,
+# its caret stays and nothing is selected; a tap then puts the caret at the
+# start of the line under the finger and moves nothing.
+fillText()   # element
+{
+	local i
+	b5_click "$1"
+	b5_chord ctrl a
+	# Line by line, the break as a key of its own: xdotool types a newline
+	# in its text as nothing the game takes for Return.
+	for i in $(seq -w 1 12); do
+		xdotool type --delay 120 "line$i"
+		[ "$i" = 12 ] || { xdotool keydown Return; sleep 0.06; xdotool keyup Return; sleep 0.2; }
+	done
+	sleep 1
+	b5_chord ctrl Home
+}
+text() { b5_dump; b5_json "'%d %d %d %d' % (el('$1')['scroll'][1], el('$1')['caret'], el('$1')['selected'][0], el('$1')['selected'][1])"; }
+D=CampaignEditor.Description
+fillText $D
+read tx ty tw th <<< "$(rect $D)"
+read s caret s0 s1 <<< "$(text $D)"
+[ "$s $caret $s0 $s1" = "0 0 0 0" ] || b5_note "the description did not stand at its top with the caret there: $s $caret $s0 $s1"
+# From above the horizontal scroll bar, which takes the box's bottom 16 rows.
+b5_mouseAt $((tx + 40)) $((ty + 60)); xdotool mousedown 1; sleep 0.4
+for y in 35 10 -15 -40; do b5_mouseAt $((tx + 40)) $((ty + y)); done
+sleep 0.6; xdotool mouseup 1; sleep 1
+read s caret s0 s1 <<< "$(text $D)"
+[ "$s" -eq 92 ] && b5_ok "a finger dragged up 100 pixels in a multi-line edit box scrolls it 92" \
+	|| b5_note "a finger dragged up 100 pixels in a multi-line edit box scrolled it to $s, not 92"
+[ "$caret $s0 $s1" = "0 0 0" ] && b5_ok "and moves no caret and selects no text" \
+	|| b5_note "a finger's drag in a multi-line edit box left the caret at $caret and $s0..$s1 selected"
+lh=$(b5_json "el('$D')['lineHeight']")
+k=$(( (16 - 2 + s + lh - 1) / lh ))
+pressAt $((tx + 3)) $((ty + 2 + k * lh - s + lh / 2))
+read s2 caret s0 s1 <<< "$(text $D)"
+[ "$caret $s2" = "$((7 * k)) $s" ] && b5_ok "a tap puts the caret at the start of the line tapped ($caret)" \
+	|| b5_note "a tap on line $k put the caret at $caret with the text at $s2, not $((7 * k)) at $s"
 b5_stop
 
 # --- 4. a mouse ------------------------------------------------------------------
@@ -582,6 +624,19 @@ b5_dump
 [ "$(b5_json "el('$A')['scroll']")" -eq 0 ] && b5_ok "and dragging the mouse over the list does not scroll it" \
 	|| b5_note "dragging the mouse over the list scrolled it to $(b5_json "el('$A')['scroll']")"
 closeOptions
+
+# And a mouse dragged over the lines of a multi-line edit box selects them, as
+# it always did, and scrolls nothing.
+b5_click Menu.CampaignEditor
+b5_waitForState GS_CampaignEditor
+settle
+fillText $D
+read tx ty tw th <<< "$(rect $D)"
+b5_mouseAt $((tx + 40)) $((ty + 10)); xdotool mousedown 1; sleep 0.4
+b5_mouseAt $((tx + 40)) $((ty + 40)); sleep 0.4; xdotool mouseup 1; sleep 1
+read s caret s0 s1 <<< "$(text $D)"
+[ "$s0" -lt "$s1" ] && [ "$s" -eq 0 ] && b5_ok "a mouse dragged over a multi-line edit box selects $s0..$s1 and scrolls nothing" \
+	|| b5_note "a mouse dragged over a multi-line edit box selected $s0..$s1 with the text at $s"
 b5_stop
 
 b5_finish

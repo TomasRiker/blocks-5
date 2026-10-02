@@ -470,7 +470,9 @@ scales it, about four millimetres:
    nothing at the spot beside the menu button from step 2.
 9. **A list** (item 38): in the options, the list of actions dragged up with a
    finger follows it and selects nothing; a tap on it selects; a flick glides on,
-   and a finger put on it while it glides stops it there and selects nothing.
+   and a finger put on it while it glides stops it there and selects nothing. A
+   hint's text in the level editor, longer than its box, scrolls the same way, and
+   a tap in it puts the caret there.
 
 Windows takes a finger dragged straight up or down for its own pan gesture unless
 told otherwise, so the window turns that off as every gesture begins
@@ -967,9 +969,11 @@ undone by accident:
 - **The bar stays a control.** A mouse has no other way down a list but the
   wheel, and the bar costs a finger nothing now that the items move.
 
-The multi-line edit box scrolls and does not pan: a finger dragged in it selects
-text, and which of the two that should be is a question of its own. `touch.sh`
-and `mobile.js` have the checks.
+The multi-line edit box pans too, up and down: a finger dragged in its text
+scrolls it and a tap puts the caret, so a finger selects text with Shift and the
+arrows rather than by dragging, which a mouse still does. Each element's step is
+`GUI_ScrollBar::scrollBy` on the bar it scrolls. `touch.sh` and `mobile.js` have
+the checks.
 
 
 39. The level editor paints a line to wherever the finger last was  - **DONE**

@@ -20,6 +20,7 @@
 #include "gui_checkbox.h"
 #include "gui_radiobutton.h"
 #include "gui_listbox.h"
+#include "gui_multilineeditbox.h"
 #include "gui_scrollbar.h"
 #include "gui_statictext.h"
 #include "player.h"
@@ -215,7 +216,23 @@ namespace
 			out += ",\"items\":";
 			appendInt(out, static_cast<int>(p_listBox->getItems().size()));
 			out += ",\"lineHeight\":";
-			appendInt(out, p_listBox->getLineHeight());
+			appendInt(out, p_listBox->getFont()->getLineHeight());
+		}
+
+		// A multi-line edit box's: how far its text is scrolled, in pixels,
+		// where the caret is and what is selected, as character indices, and
+		// how tall a line is.
+		GUI_MultiLineEditBox* p_textBox = dynamic_cast<GUI_MultiLineEditBox*>(p_element);
+		if(p_textBox)
+		{
+			out += ",";
+			appendPoint(out, "scroll", p_textBox->getScroll().x, p_textBox->getScroll().y);
+			out += ",\"caret\":";
+			appendInt(out, static_cast<int>(p_textBox->getCursor()));
+			out += ",";
+			appendPoint(out, "selected", static_cast<int>(p_textBox->getSelectionStart()), static_cast<int>(p_textBox->getSelectionEnd()));
+			out += ",\"lineHeight\":";
+			appendInt(out, p_textBox->getFont()->getLineHeight());
 		}
 
 		out += "}";

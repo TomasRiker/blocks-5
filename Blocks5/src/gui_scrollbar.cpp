@@ -239,6 +239,13 @@ void GUI_ScrollBar::setScroll(int scroll)
 	changed(this);
 }
 
+bool GUI_ScrollBar::scrollBy(int amount)
+{
+	const int before = scroll;
+	setScroll(scroll + amount);
+	return scroll != before;
+}
+
 void GUI_ScrollBar::setAreaSize(int areaSize)
 {
 	if(this->areaSize == areaSize) return;

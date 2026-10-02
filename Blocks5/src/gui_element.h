@@ -115,6 +115,7 @@ public:
 	void setToolTipOnly(bool toolTipOnly);
 	int getTabStop() const;
 	void setTabStop(int tabStop);
+	INLINE_PGETTER(Font*, getFont, p_font);
 	INLINE_GETTER(std::string, getLinkedElement, linkedElement);
 	INLINE_SETTER(std::string, setLinkedElement, linkedElement);
 

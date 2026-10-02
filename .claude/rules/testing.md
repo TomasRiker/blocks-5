@@ -165,6 +165,15 @@ a press that took that long arrived. The mouse's start shows the other half: its
 still held, and dragging it scrolls nothing. Against the list before it panned, nine of the twelve checks
 fail; the tap, the wobble and the double tap pass, as they should.
 
+The campaign's description is the multi-line edit box of that run, given twelve lines of seven
+characters, so that line *k* begins at character 7*k*: dragged up 100 it scrolls 92 and leaves caret and
+selection alone, and a tap at a line's left edge puts the caret at its start. The dump reports such a box's
+`scroll` as a pair, its `caret` and its `selected` as character indices, and its `lineHeight`. Two traps
+in filling it: `xdotool type` types a newline in its text as nothing the game takes for Return, so the
+lines are typed one by one with Return pressed between them; and the box's bottom 16 rows are its
+horizontal scroll bar, which takes a press there for itself. With the mouse a drag over the lines still
+selects them.
+
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth

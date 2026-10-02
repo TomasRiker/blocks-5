@@ -41,9 +41,8 @@ public:
 	int findItem(const std::string& text);
 	void clear();
 	INLINE_GETTER(int, getSelection, selection);
-	// How far the items are scrolled up, in pixels, and how tall one is.
+	// How far the items are scrolled up, in pixels.
 	INLINE_GETTER(int, getScroll, scroll);
-	int getLineHeight() const;
 	ListItem* getSelectedItem();
 	std::string getSelectedItemText();
 	const std::vector<ListItem>& getItems() const;

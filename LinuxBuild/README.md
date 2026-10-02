@@ -156,9 +156,11 @@ started under the level, a held button a menu then covers, and a character
 taken hold of from the status bar in a level the script writes. A third start
 drags the campaign editor's list of levels, made long with levels the script
 writes: a drag scrolls it to the pixel and selects nothing, a tap selects, a
-flick glides on and a finger put on it stops it. A last start without the
-finger shows that a mouse is as exact as before, and that it still selects on
-the press and scrolls nothing by dragging.
+flick glides on and a finger put on it stops it; and the campaign's
+description, a multi-line edit box, scrolls under a drag and takes a tap's
+caret. A last start without the finger shows that a mouse is as exact as
+before, and that it still selects on the press, in a list and in a text, and
+scrolls nothing by dragging.
 
 ### Counting particles
 

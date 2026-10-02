@@ -142,10 +142,11 @@ are feel, for the author to tune on a device. Which press is a finger's, `Engine
 page is handed as touches is a finger to Emscripten's SDL and gets the reach, which a precise tap never
 notices, since a hit stays a hit.
 
-**A finger drags a list; a mouse does not.** A finger has no wheel and the scroll bar is 16 pixels wide, so
-a list scrolls under a finger dragged on its items, as on a phone. An element that does that says where:
-`GUI_Element::pansAt`, as `isClickTarget` says where it takes a press - a list on its items, its scroll
-bar being a child that takes its own presses. **A finger's press there is held back from the element**
+**A finger drags a list or a text; a mouse does not.** A finger has no wheel and a scroll bar is 16 pixels
+wide, so a list scrolls under a finger dragged on its items and a multi-line edit box under one dragged on
+its text, as on a phone. An element that does that says where: `GUI_Element::pansAt`, as `isClickTarget`
+says where it takes a press - a list on its items, an edit box on its text, their scroll bars being
+children that take their own presses. **A finger's press there is held back from the element**
 (`GUI::update`), because whether it is a tap or the start of a drag only its moves can tell, and a list
 that selected on the press would select an item with every scroll and set off whatever its selection does -
 a campaign's preview loaded in the select screen, the Manager's buttons changed. A finger that lifts within
@@ -164,9 +165,15 @@ only catches it: lifted, it taps nothing. A key or the wheel stops it too, since
 would be fought by a glide. The slop and the glide's three constants are at the top of `gui.cpp` and are
 feel, for the author to tune on a device.
 
-A mouse keeps what it had: its press selects at once, and dragging it over a list scrolls nothing, as a
-desktop list never did. The multi-line edit box scrolls too and does not pan, since a finger dragged in it
-selects text; a `pansAt` and an `onPan` are all it would take.
+What an element does with a step is its own and takes one line: it moves its scroll bar by it,
+`GUI_ScrollBar::scrollBy`, which clamps, says whether anything moved and so stops a glide at an end - the
+list by the finger's vertical step, the edit box by the same. **The edit box pans up and down only**: no
+drag is quite straight, and where a line is wider than the box its text would wobble sideways under every
+one; the horizontal bar and the caret reach the end of a long line. A tap there puts the caret where it
+landed, so a finger no longer selects text by dragging - Shift with the arrows does, on a keyboard.
+
+A mouse keeps what it had: its press on a list selects at once, and dragging it over a list scrolls
+nothing, as a desktop list never did; dragged over a text it selects.
 
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 

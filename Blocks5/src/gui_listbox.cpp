@@ -121,12 +121,8 @@ void GUI_ListBox::onMouseWheel(int dir)
 
 bool GUI_ListBox::onPan(const Vec2i& movement)
 {
-	// The items go with the finger, as far as the scroll bar lets them: one
-	// moved past an end and turned back moves them back at once.
-	const int before = scroll;
-	scroll -= movement.y;
-	updateScrollBar();
-	return scroll != before;
+	// The items go with the finger, as far as the scroll bar lets them.
+	return p_scrollBar->scrollBy(-movement.y);
 }
 
 void GUI_ListBox::onKeyEvent(const SDL_KeyboardEvent& event)
@@ -269,11 +265,6 @@ void GUI_ListBox::setSelection(int selection)
 
 	// fire the signal
 	changed(this);
-}
-
-int GUI_ListBox::getLineHeight() const
-{
-	return p_font->getLineHeight();
 }
 
 int GUI_ListBox::getIndexAt(const Vec2i& position)
