@@ -53,6 +53,7 @@ that the Visual Studio project compiles.
     test/smoke.sh       one round through the GUI
     test/drag.sh        the mouse gestures on the field, a drag and a click
     test/undo.sh        the level editor's undo list, one step per change
+    test/touch.sh       a finger's near misses: what it is moved onto, and what not
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
@@ -138,6 +139,19 @@ Works the level editor's tools, keys and dialogs, most of them once changing
 the level and once changing nothing, and reads the undo and redo depths the
 hook reports after each: a change is one step however many cells it touched,
 and nothing changed is no step and leaves the redo list standing.
+
+### A finger
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/touch.sh
+
+There is no touchscreen here, so the harness lends the game a finger:
+`B5_FINGER=1` makes every press of a hooks build a finger's, with a reach of
+16 game pixels whatever the window's size. Sweeps ask the picker about every
+few pixels of the menu, the options, the Manager and the level editor and hold
+each answer against the rules `GUI::pickTouchTarget` must keep; real presses
+then try a near miss, a wobble, a slide away, a slider dragged beside its bar,
+a tap between two buttons and one on the level beside a button. A second start
+without the finger shows that a mouse is as exact as before.
 
 ### Counting particles
 

@@ -29,6 +29,7 @@ public:
 	void onMouseWheel(int dir);
 	void onKeyEvent(const SDL_KeyboardEvent& event);
 	INLINE_GETTYPE("GUI_ListBox");
+	bool isClickTarget(const Vec2i&) { return true; }
 
 	void addItem(const ListItem& item, int where = -1);
 	void removeItem(int where);

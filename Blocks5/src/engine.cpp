@@ -62,6 +62,7 @@ Engine::Engine()
 		keyHeld[i] = false;
 		buttonData[i] = 0;
 	}
+	fingerPress = false;
 
 	time = 0;
 	dragButtons = 0;
@@ -1101,7 +1102,22 @@ void Engine::mainLoopIteration()
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
+#ifdef BLOCKS5_TEST_HOOKS
+				// The harness has no finger: B5_FINGER makes every press one.
+				if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
+#endif
 				break;
+#ifdef __EMSCRIPTEN__
+			case SDL_FINGERDOWN:
+				// Queued right behind the SDL_MOUSEBUTTONDOWN Emscripten's SDL
+				// makes of the same touch, so it lands in the same tick. It
+				// queues one behind every mouse press as well, from the device
+				// SDL_TOUCH_MOUSEID, which is no finger. The low 32 bits are
+				// compared: the id is that Uint32 in a 64-bit field, which the
+				// JavaScript side may as well have written as -1.
+				if(static_cast<Uint32>(event.tfinger.touchId) != SDL_TOUCH_MOUSEID) noteFingerPress();
+				break;
+#endif
 			case SDL_MOUSEBUTTONUP:
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
@@ -1213,6 +1229,7 @@ void Engine::mainLoopIteration()
 				keyData[i] &= ~(2 | 4);
 				buttonData[i] &= ~(2 | 4);
 			}
+			fingerPress = false;
 
 			while(!keyEventQueue.empty()) keyEventQueue.pop();
 
@@ -2294,6 +2311,19 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		}
 		break;
 
+	case WM_LBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+		{
+			// A program that registered for nothing else gets a touch as mouse
+			// messages, and Windows marks those: MI_WP_SIGNATURE under its mask
+			// for pen and touch alike, and bit 7 set for a finger. A pen is as
+			// precise as a mouse and stays one. Noted before SDL's procedure
+			// below queues the press, so press and note share a tick.
+			const DWORD extra = static_cast<DWORD>(GetMessageExtraInfo());
+			if((extra & 0xFFFFFF00u) == 0xFF515700u && (extra & 0x80u)) engine.noteFingerPress();
+		}
+		break;
+
 	case WM_GETMINMAXINFO:
 		{
 			// handleResize() clamps up to 640x480 anyway; this tells Windows
@@ -3260,6 +3290,53 @@ bool Engine::wasButtonReleased(uint button) const
 {
 	if(button >= NUM_KEY_SLOTS) return false;
 	return buttonData[button] & 4 ? true : false;
+}
+
+bool Engine::wasFingerPress() const
+{
+	return fingerPress;
+}
+
+void Engine::noteFingerPress()
+{
+	// Once, so that a log says whether this machine marks a finger's press
+	// at all - under Windows the one sign of that apart from how taps land.
+	static bool logged = false;
+	if(!logged)
+	{
+		printfLog("A finger's press: touches get a reach from here on.\n");
+		logged = true;
+	}
+	fingerPress = true;
+}
+
+float Engine::getReferencePixelScale() const
+{
+#ifdef BLOCKS5_TEST_HOOKS
+	if(TestHooks::fingerScale() > 0.0f) return TestHooks::fingerScale();
+#endif
+
+	int x, y, w, h;
+	computePresentRect(x, y, w, h);
+	if(w <= 0) return 1.0f;
+
+	// Window pixels per reference pixel. Under Windows one: a program that
+	// declares no DPI awareness is handed 96-DPI coordinates, and Windows
+	// scales its window to the screen. In the browser the drawing buffer's
+	// pixels per CSS pixel, which b5_fitCanvas (pre.js) keeps at one - asked
+	// rather than assumed, so that a buffer sized in device pixels changes
+	// nothing here.
+	float windowPixels = 1.0f;
+#ifdef __EMSCRIPTEN__
+	windowPixels = static_cast<float>(EM_ASM_DOUBLE({
+		var c = Module['canvas'];
+		if (!c) return 1;
+		var r = c.getBoundingClientRect();
+		return r.width > 0 ? c.width / r.width : 1;
+	}));
+#endif
+
+	return windowPixels * static_cast<float>(screenSize.x) / static_cast<float>(w);
 }
 
 bool Engine::getKeyEvent(SDL_KeyboardEvent* p_out, bool* p_repeat)

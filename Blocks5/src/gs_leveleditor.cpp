@@ -120,6 +120,14 @@ public:
 		static_cast<GUI_CheckBox*>(getChild("ElectricityOn"))->setChecked(editor.p_level->isElectricityOn());
 	}
 
+	// Where onMouseDown below does something: the level and the palette. A
+	// finger there paints or picks exactly where it is; one that misses a
+	// button on the rest of the toolbar is moved onto the button.
+	bool isClickTarget(const Vec2i& position)
+	{
+		return position.y < 400 || (position.y >= 428 && position.x >= 245);
+	}
+
 	void onMouseDown(const Vec2i& position,
 					 int buttons)
 	{

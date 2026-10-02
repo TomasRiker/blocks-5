@@ -266,6 +266,17 @@ public:
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
+	// Whether the press this tick came from a finger rather than a mouse or a
+	// pen, which GUI::update() gives a reach. Known in the browser, from the
+	// SDL_FINGERDOWN Emscripten's SDL queues behind the press it makes of a
+	// touch, and under Windows, from the signature on the mouse message it
+	// makes of one (engineWindowProc); under X11 a finger is a mouse.
+	bool wasFingerPress() const;
+	void noteFingerPress();
+	// Game pixels per reference pixel - the CSS pixel in the browser, the
+	// 96-DPI pixel under Windows, which declares no DPI awareness - so that a
+	// finger's reach, a physical length, can be given in reference pixels.
+	float getReferencePixelScale() const;
 	// The next key event. p_repeat says whether it is a key repeat (SDL's, or
 	// the browser's own) rather than a fresh press: a command (Escape, Return,
 	// the editors' shortcuts) must skip a repeat, or a held key fires it again
@@ -534,6 +545,8 @@ private:
 	// into it every tick. A state that must hold across ticks cannot live there.
 	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
+	// A press edge like buttonData's, cleared with them each tick.
+	bool fingerPress;
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	// The recogniser's state; updateMouseDrag() has the rules.

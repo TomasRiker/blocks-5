@@ -10,8 +10,9 @@ undone by accident. How things work now is in `CLAUDE.md` and `.claude/rules/`,
 and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
-Open: 6 (the campaign half), 13, 19, 22, 28, 29, 30, 31 (the slider), 35, 36,
-37, 38, 40, 41, 46, 48 and 61 (a try on Windows). Everything else is done.
+Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
+slider), 35, 36, 37, 38, 40, 41, 46, 48 and 61 (a try on Windows). Everything else
+is done.
 Sixty-one entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -392,77 +393,61 @@ cursor a tick earlier, and `Engine` only took the cursor position from
 `SDL_MOUSEMOTION`, which a touch never produces.
 
 
-22. A finger is not a point: hit testing with a tap radius
-----------------------------------------------------------
-Item 21 got taps to land where the finger is. What it did not do is make the
-targets big enough for a finger: `GUI::getElementAt` tests a single point, which
-is right for a mouse and wrong for a fingertip whose contact patch is eight to ten
-millimetres across. The accessibility guidance everybody uses is a minimum target
-of about 44 CSS px.
+22. A finger is not a point: hit testing with a tap radius  - **DONE**, untried on Windows
+------------------------------------------------------------------------------------------
+`GUI::getElementAt` tests a single point, which is right for a mouse and wrong for
+a fingertip: on an emulated Pixel 7 in landscape an eighteen-pixel button is 15 CSS
+pixels on the glass, a third of the 44 the accessibility guidance asks for. A
+finger's press now goes through `GUI::pickTouchTarget` first; `gui-text.md` has the
+rules and `input.md` how a finger is known. What must not be undone by accident:
 
-**The numbers say how far off it is.** The GUI is laid out in the game's 640x480
-space - buttons are eighteen pixels high, the Manager's bottom row is four 92x20
-buttons - and that space is letterboxed into the canvas. On an emulated Pixel 7 in
-landscape the present rect is 549x412, a scale of 0.858, so an eighteen-pixel
-button is **15 CSS px** on the glass: about a third of the recommended minimum. On
-a narrower phone it is worse, because the scale is `min(w/640, h/480)` and the
-height usually binds.
+- **A tap that hit stays.** Where the element under the finger takes a press,
+  enabled or not, nothing is searched: an accurate tap is never reinterpreted, and
+  one on a greyed-out button does not slide onto its neighbour.
+- **The nearest wins, by distance, through `getElementAt`.** Voting by area over a
+  grid, the idea this entry started from, lets a large element outvote a small one
+  beside it; asking `getElementAt` at every point of the search is what gets
+  z-order, panes and hit shapes right without a second copy of them.
+- **A tie is nobody's.** Where a second target is about as near as the first, the
+  tap goes where a mouse's would, which is nowhere, rather than to a guess.
+- **A surface says where it takes a press** (`isClickTarget`). The game's level
+  and the editor's level and palette keep every press that lands on them, so a
+  finger on a level is never moved onto the button beside it.
+- **The cursor is not moved**, only the element and the point it is told of, so
+  the editor puts a tile where the finger is.
+- **A moved gesture moves as a whole.** The element a moved press went to is told
+  every later position moved by the same offset, never the nearest point again:
+  the rings are walked from one angle, so a slider taken hold of beside its bar
+  would slide sideways as the finger drifted.
+- **Only a finger.** A mouse and a pen stay exact.
 
-**What unit the radius lives in.** It is a property of a finger, so it belongs in
-CSS pixels, and the conversion into game coordinates is the inverse of the present
-transform:
+The reach is 16 reference pixels and the margin 4 (`gui.cpp`), for the author to
+tune on a phone. `LinuxBuild/test/touch.sh` lends the game a finger natively, and
+`WebBuild/test/mobile.js` taps a near miss for real.
 
-    scale      = pw / 640.0        // from Engine::computePresentRect
-    radiusGame = radiusCss / scale
+**Still open: a try on Windows.** Windows hands a program that registered for
+nothing else a touch as mouse messages and marks them in `GetMessageExtraInfo()`:
+`0xFF515700` under the mask `0xFFFFFF00`, bit 7 set for a finger and clear for a
+pen. `engineWindowProc` reads it off the press. Nothing in the container this was
+written in can make such a message; the author's Lenovo convertible can, in a
+window and fullscreen:
 
-That is the "the smaller the game renders, the bigger the circle has to be"
-intuition, falling straight out of the transform rather than needing a second
-rule. It works because `b5_fitCanvas` sizes the drawing buffer in CSS pixels, so
-canvas pixels and CSS pixels are the same thing here - **if that ever becomes a
-device-pixel-ratio-sized buffer, this formula changes with it.** With the barrel
-distortion on the radius is not constant across the picture; near the edge it
-should be divided by the local derivative of `warpToSource`, or simply left alone,
-since the CRT filter is a desktop indulgence.
-
-**The sampling idea**: lay a fixed grid over a disc of that radius around the tap,
-run the ordinary `getElementAt` at each sample, and count the votes. It inherits
-everything the point test knows - z-order, and `containsPoint` being virtual so a
-checkbox is hit on its caption too - and a 5x5 or 7x7 grid clipped to the disc is
-21 to 37 lookups once per tap, which is nothing.
-
-Four things to get right, three of which "highest count wins" gets wrong:
-
-- **A large element must not outvote a small one it surrounds.** A pane behind a
-  button wins on area every time. Two composable fixes: count only elements that
-  are active and really visible, and weight each sample by its distance from the
-  centre.
-- **The exact hit still wins.** If the centre sample lands on an active element,
-  take it and do not vote. That makes this a *fallback* for a near miss rather
-  than a reinterpretation of every tap, and it cannot make an accurate tap worse.
-- **Only for touch.** A mouse is exact and must stay exact. SDL 1.2 has no flag,
-  but Emscripten's SDL pushes an `SDL_FINGERDOWN` alongside the synthetic mouse
-  event, so the information is there; failing that, `pre.js` can set one.
-- **The cursor itself must not move.** Only the element receiving the click is
-  chosen by the vote; `cursorPosition` stays where the finger landed, or the level
-  editor would place tiles somewhere other than where you touched.
-
-**The cheaper alternative worth measuring against it**: grow each candidate's hit
-area by the radius, keep those that then contain the point, and pick the one whose
-true distance is smallest. O(elements), no sampling, exactly "the nearest target
-within a finger's reach", and no grid resolution to tune; the sampling version is
-easier to trust where `containsPoint` is overridden into a non-rectangular shape.
-Both hang off the one line in `GUI::update()` that computes `p_elementAtCursor`.
-
-`WebBuild/test/mobile.js` is where this gets its test: tap a few pixels *outside*
-a small button and expect it to fire.
-
-**Windows touchscreens are part of it, and need a try on one.** Windows turns a
-touch into mouse messages for a program that registered for nothing else, and
-marks each of them: `GetMessageExtraInfo()` carries the pen and touch signature,
-`0xFF515700` under the mask `0xFFFFFF00`. The engine's window procedure can read
-it off the press, so a finger there gets the same treatment as in the browser.
-Nothing in the container this is written in can try that; the author's Lenovo
-convertible can, and it has to before this item counts as done.
+1. **The log**, `stdout.txt`, says *A finger's press* once, at the first tap. If it
+   never does, Windows' marking does not reach the game and nothing below can work.
+2. **A near miss**: a tap just outside a menu button's disc, in the corner of its
+   square, presses it, and so does one a few pixels left of the options'
+   update-check box.
+3. **A tie**: a tap in the middle of the gap between two of the Manager's kinds
+   picks neither.
+4. **A level**: in the level editor, a tap on the level's bottom row right over the
+   undo button works the level, not the button.
+5. **Hold and let go**: a press that wobbles on a button still fires; one that
+   slides well off it does not.
+6. **A slider**: the sound volume in the options, taken hold of just above its bar
+   and dragged along it with the finger drifting up and down, follows the finger
+   without jumping.
+7. **The rest stays exact**: the touchpad, a mouse and a pen, if there is one, do
+   nothing in the corner of a menu button's square.
 
 
 23. The hint note should be a sheet of paper  - **DONE**

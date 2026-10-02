@@ -89,6 +89,16 @@ public:
 		if(getChild("MenuPane")->isVisible()) game.showCursor = 200;
 	}
 
+	// The level takes a press - it wakes a character, starts a drag, works a
+	// cell - and the status bar under it does not. So a finger is never moved
+	// off the level onto a button, and one that misses the menu button on the
+	// status bar is moved onto it. The open menu needs no case of its own: its
+	// pane covers the level.
+	bool isClickTarget(const Vec2i& position)
+	{
+		return position.y < Level::HEIGHT * 16;
+	}
+
 	void onMouseDown(const Vec2i& position,
 					 int buttons)
 	{

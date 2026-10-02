@@ -161,6 +161,9 @@ browser they are core and the header `#define`s them through.
   `languages.txt` (`gui-text.md`).
 - **`check()` is the user's click and fires `changed`; `setChecked()` is the display catching up and does
   not** (`gui-text.md`).
+- **An element that does something with a press says where** (`isClickTarget`): a finger that just missed
+  is moved onto the nearest place that says yes, so a new surface that forgets is one a finger slides off
+  onto the button beside it (`gui-text.md`).
 
 ## Conventions
 

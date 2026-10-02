@@ -40,6 +40,11 @@ GUI_Element::~GUI_Element()
 	if(gui.p_elementAtCursor == this) gui.p_elementAtCursor = 0;
 	if(gui.p_oldElementAtCursor == this) gui.p_oldElementAtCursor = 0;
 	if(gui.p_mouseDownElement == this) gui.p_mouseDownElement = 0;
+	if(gui.p_fingerElement == this)
+	{
+		gui.p_fingerElement = 0;
+		gui.fingerHolds = false;
+	}
 	if(gui.p_oldFocusElement == this) gui.p_oldFocusElement = 0;
 	hide();
 	if(gui.p_focusElement == this) gui.p_focusElement = 0;
@@ -245,6 +250,21 @@ std::string GUI_Element::getType() const
 bool GUI_Element::containsPoint(const Vec2i& position)
 {
 	return position.x >= 0 && position.y >= 0 && position.x < size.x && position.y < size.y;
+}
+
+bool GUI_Element::isClickTarget(const Vec2i& position)
+{
+	if(getLinkedTarget()) return true;
+	if(toolTipOnly && p_parent) return p_parent->isClickTarget(this->position + position);
+	return false;
+}
+
+GUI_Element* GUI_Element::getPressReceiver()
+{
+	GUI_Element* p_target = getLinkedTarget();
+	if(p_target) return p_target;
+	if(toolTipOnly && p_parent) return p_parent->getPressReceiver();
+	return this;
 }
 
 GUI_Element* GUI_Element::getElementAt(const Vec2i& position)

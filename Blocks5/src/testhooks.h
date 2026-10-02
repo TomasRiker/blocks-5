@@ -24,6 +24,19 @@ namespace TestHooks
 	// something else lies on top of its target.
 	std::string hitAt(int x, int y);
 
+	// What a finger pressing at this point would press (GUI::pickTouchTarget),
+	// as "name x y moved" or "name x y stays": the element, the point it
+	// would be pressed at, and whether the press was moved - to another
+	// element, or within one, as off a window's body onto its title bar. "-"
+	// for the name where nothing is hit at all.
+	std::string touchAt(int x, int y);
+
+	// The harness's finger. Where B5_FINGER is set, every press counts as a
+	// finger's, and the value is the game pixels per reference pixel
+	// (Engine::getReferencePixelScale), so that the reach does not depend on
+	// the size of the harness's window. 0 where it is not set.
+	float fingerScale();
+
 	// Clear the frame timings and the draw and cache counters. The dump
 	// reports them without clearing, because the -perf overlay reads the same
 	// numbers, so a measurement says here where it begins.

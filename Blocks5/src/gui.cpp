@@ -5,6 +5,49 @@
 #include "texture.h"
 #include "engine.h"
 
+namespace
+{
+	// How far a finger reaches, and how much nearer than any other the
+	// element it meant has to be, in reference pixels
+	// (Engine::getReferencePixelScale): a physical length, the same on a
+	// phone and on a Windows tablet. 16 lifts an 18-pixel button on a phone
+	// in landscape to about the 44 CSS pixels the accessibility guidance asks
+	// for a finger. Both are feel, for the author to tune on a device: a
+	// larger reach catches wider misses, a larger margin leaves more taps
+	// between two targets to nobody.
+	const float TOUCH_RADIUS = 16.0f;
+	const float TOUCH_MARGIN = 4.0f;
+
+	// The rings the search walks out on and the spacing of the points on
+	// each, in game pixels. Below half the narrowest target in the tree, a
+	// 14-pixel checkbox, so none can lie between two points unseen.
+	const float TOUCH_STEP = 2.0f;
+
+	const float TWO_PI = 6.28318531f;
+
+	// Whether a press at this point, in screen coordinates, does something
+	// where it lands.
+	bool takesPress(GUI_Element* p_element, const Vec2i& point)
+	{
+		return p_element->isClickTarget(point - p_element->getAbsPosition());
+	}
+
+	// The points of one ring of the search, staggered from ring to ring so
+	// that two rings do not line their points up along the same rays.
+	void ringPoints(const Vec2i& centre, float radius, int ring, std::vector<Vec2i>& points)
+	{
+		points.clear();
+		const int count = max(8, static_cast<int>(ceilf(TWO_PI * radius / TOUCH_STEP)));
+		const float stagger = (ring & 1) ? 0.5f : 0.0f;
+		for(int k = 0; k < count; k++)
+		{
+			const float angle = TWO_PI * (static_cast<float>(k) + stagger) / static_cast<float>(count);
+			points.push_back(centre + Vec2i(static_cast<int>(floorf(radius * cosf(angle) + 0.5f)),
+											static_cast<int>(floorf(radius * sinf(angle) + 0.5f))));
+		}
+	}
+}
+
 GUI::GUI()
 {
 	initialized = false;
@@ -17,6 +60,9 @@ GUI::GUI()
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
 	p_mouseDownElement = 0;
+	p_fingerElement = 0;
+	fingerOffset = Vec2i(0, 0);
+	fingerHolds = false;
 	keyRepeat = false;
 }
 
@@ -62,6 +108,9 @@ bool GUI::init()
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
 	p_mouseDownElement = 0;
+	p_fingerElement = 0;
+	fingerOffset = Vec2i(0, 0);
+	fingerHolds = false;
 	noMoveCounter = 0;
 
 	initialized = true;
@@ -188,10 +237,35 @@ void GUI::update()
 	// cursor and press arrive in the same tick, and the press must go to what
 	// is under the finger now rather than to what was under the cursor before.
 	p_oldElementAtCursor = p_elementAtCursor;
-	p_elementAtCursor = p_root->getElementAt(cursorPos);
+
+	// A finger's press goes to what it meant (pickTouchTarget), moved by as
+	// much as it took to reach it, and so does the rest of the gesture: the
+	// element it went to is told every position until the finger lifts moved
+	// by that offset (pointFor), so a slider taken hold of beside its bar
+	// follows the finger as it would a mouse that had pressed on it. And that
+	// element stays under the finger while the finger is within reach of it:
+	// a button fires on release only while it believes the cursor is on it,
+	// and a finger wobbling off a small one, or one it only came near, would
+	// cancel its own press. Out of reach, or hidden, it lets go, as a mouse
+	// dragged off a button does. The engine's cursor stays where the finger
+	// is.
+	if(buttonsPressed)
+	{
+		Vec2i landing = cursorPos;
+		p_fingerElement = engine.wasFingerPress() ? pickTouchTarget(cursorPos, &landing) : 0;
+		fingerOffset = landing - cursorPos;
+		fingerHolds = p_fingerElement != 0;
+	}
+	else if(fingerHolds &&
+			(!p_fingerElement->isReallyVisible() || (cursorMoved && !fingerReaches(p_fingerElement, cursorPos))))
+	{
+		fingerHolds = false;
+	}
+
+	p_elementAtCursor = fingerHolds ? p_fingerElement : p_root->getElementAt(cursorPos);
 
 	Vec2i relCursorPos;
-	if(p_elementAtCursor) relCursorPos = cursorPos - p_elementAtCursor->getAbsPosition();
+	if(p_elementAtCursor) relCursorPos = pointFor(p_elementAtCursor) - p_elementAtCursor->getAbsPosition();
 	else relCursorPos = cursorPos;
 	p_oldFocusElement = p_focusElement;
 
@@ -224,7 +298,7 @@ void GUI::update()
 			   p_mouseDownElement != p_elementAtCursor)
 			{
 				// inform the element under the cursor at the time of the press
-				p_mouseDownElement->onMouseUp(cursorPos - p_mouseDownElement->getAbsPosition(), buttonsReleased);
+				p_mouseDownElement->onMouseUp(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), buttonsReleased);
 			}
 
 			p_mouseDownElement = 0;
@@ -240,9 +314,18 @@ void GUI::update()
 			   p_mouseDownElement != p_elementAtCursor)
 			{
 				// inform the element under the cursor at the time of the press
-				p_mouseDownElement->onMouseMove(cursorPos - p_mouseDownElement->getAbsPosition(), cursorMovement, buttonsDown);
+				p_mouseDownElement->onMouseMove(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), cursorMovement, buttonsDown);
 			}
 		}
+	}
+
+	// Off the glass, the gesture is over: from the next tick on, what lies
+	// under the cursor is under it again. A tap whose press and release came
+	// in one tick got both above.
+	if(!buttonsDown)
+	{
+		p_fingerElement = 0;
+		fingerHolds = false;
 	}
 
 	// Keyboard events?
@@ -266,6 +349,156 @@ void GUI::update()
 	else if(p_elementAtCursor != p_oldElementAtCursor && noMoveCounter) noMoveCounter--;
 
 	if(p_elementAtCursor && p_elementAtCursor->getToolTip().empty() && noMoveCounter) --noMoveCounter;
+}
+
+// A finger is not a point. Searched outward from the point in rings, asking
+// at every point of a ring what a press there would hit - getElementAt(), so
+// that z-order, a pane in front, a modal one over everything, a hidden
+// element and every overridden hit shape come out exactly as for a mouse. Of
+// what takes a press there, the nearest wins: by distance, not by how much of
+// the disc it covers, which a large list would win against a small button
+// every time. A label and the box it labels are one target, so a finger
+// between the two is not torn between them.
+GUI_Element* GUI::pickTouchTarget(const Vec2i& point, Vec2i* p_landing)
+{
+	*p_landing = point;
+	if(!p_root) return 0;
+
+	GUI_Element* p_exact = p_root->getElementAt(point);
+
+	// Right on something that takes a press: that, enabled or not. A tap on a
+	// greyed-out button must not slide onto the one beside it, and one on the
+	// level stays on the level - the search is for a near miss and changes
+	// no tap that hit.
+	if(!p_exact || takesPress(p_exact, point)) return p_exact;
+
+	const float scale = Engine::inst().getReferencePixelScale();
+	const float radius = TOUCH_RADIUS * scale;
+	const float margin = TOUCH_MARGIN * scale;
+
+	// The nearest point found of each target, keyed on what a press there
+	// ends up with.
+	struct Candidate
+	{
+		GUI_Element* p_receiver;
+		GUI_Element* p_element;
+		float distance;
+		Vec2i landing;
+	};
+	std::vector<Candidate> candidates;
+	float nearest = -1.0f;
+
+	std::vector<Vec2i> points;
+	for(int ring = 1; ; ring++)
+	{
+		const float ringRadius = min(radius, static_cast<float>(ring) * TOUCH_STEP);
+
+		// Past the nearest find by more than the margin, nothing can change
+		// the answer: anything found from here on is no rival to it.
+		if(nearest >= 0.0f && ringRadius > nearest + margin) break;
+
+		ringPoints(point, ringRadius, ring, points);
+		for(std::vector<Vec2i>::const_iterator i = points.begin(); i != points.end(); ++i)
+		{
+			GUI_Element* p_hit = p_root->getElementAt(*i);
+			if(!p_hit || !p_hit->isActive() || !takesPress(p_hit, *i)) continue;
+
+			GUI_Element* p_receiver = p_hit->getPressReceiver();
+			if(!p_receiver->isActive() || !p_receiver->isReallyVisible()) continue;
+
+			const Vec2i offset = *i - point;
+			const float distance = sqrtf(static_cast<float>(offset.x * offset.x + offset.y * offset.y));
+
+			std::vector<Candidate>::iterator c = candidates.begin();
+			while(c != candidates.end() && c->p_receiver != p_receiver) ++c;
+			if(c == candidates.end())
+			{
+				Candidate candidate = { p_receiver, p_hit, distance, *i };
+				candidates.push_back(candidate);
+			}
+			else if(distance < c->distance)
+			{
+				c->p_element = p_hit;
+				c->distance = distance;
+				c->landing = *i;
+			}
+
+			if(nearest < 0.0f || distance < nearest) nearest = distance;
+		}
+
+		if(ringRadius >= radius) break;
+	}
+
+	if(candidates.empty()) return p_exact;
+
+	const Candidate* p_first = 0;
+	const Candidate* p_second = 0;
+	for(std::vector<Candidate>::const_iterator c = candidates.begin(); c != candidates.end(); ++c)
+	{
+		if(!p_first || c->distance < p_first->distance)
+		{
+			p_second = p_first;
+			p_first = &*c;
+		}
+		else if(!p_second || c->distance < p_second->distance) p_second = &*c;
+	}
+
+	// Two about as near: which one the finger meant is a guess, and a guess
+	// is worse than the dead tap a mouse would have made there.
+	if(p_second && p_second->distance < p_first->distance + margin) return p_exact;
+
+	// The rings find the nearest point only as closely as their spacing
+	// allows. Where the element is hit at the nearest point of its rectangle,
+	// right across from the finger, and takes a press there, that is the
+	// exact answer: a slider or an edit box pressed from beside it is pressed
+	// where the finger is along it, not a ring step to one side. Not where
+	// that point lies further off, as a toggle's rectangle does from a finger
+	// by its caption, nor where it does nothing - a window's body, the
+	// editor's toolbar - since what the rings found there is the title bar or
+	// the level, and that is where the press goes.
+	GUI_Element* p_element = p_first->p_element;
+	*p_landing = p_first->landing;
+	const Vec2i corner = p_element->getAbsPosition();
+	const Vec2i size = p_element->getSize();
+	if(size.x > 0 && size.y > 0)
+	{
+		const int right = corner.x + size.x - 1;
+		const int bottom = corner.y + size.y - 1;
+		const Vec2i across(clamp(point.x, corner.x, right), clamp(point.y, corner.y, bottom));
+		const Vec2i offset = across - point;
+		const float distance = sqrtf(static_cast<float>(offset.x * offset.x + offset.y * offset.y));
+		if(distance <= p_first->distance && p_root->getElementAt(across) == p_element && takesPress(p_element, across))
+		{
+			*p_landing = across;
+		}
+	}
+
+	return p_element;
+}
+
+bool GUI::fingerReaches(GUI_Element* p_element, const Vec2i& point)
+{
+	if(!p_root) return false;
+	if(p_root->getElementAt(point) == p_element) return true;
+
+	const float radius = TOUCH_RADIUS * Engine::inst().getReferencePixelScale();
+	std::vector<Vec2i> points;
+	for(int ring = 1; ; ring++)
+	{
+		const float ringRadius = min(radius, static_cast<float>(ring) * TOUCH_STEP);
+		ringPoints(point, ringRadius, ring, points);
+		for(std::vector<Vec2i>::const_iterator i = points.begin(); i != points.end(); ++i)
+		{
+			if(p_root->getElementAt(*i) == p_element) return true;
+		}
+
+		if(ringRadius >= radius) return false;
+	}
+}
+
+Vec2i GUI::pointFor(GUI_Element* p_element) const
+{
+	return p_element == p_fingerElement ? cursorPos + fingerOffset : cursorPos;
 }
 
 void GUI::renderFrame(const Vec2i& targetPosition,

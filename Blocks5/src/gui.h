@@ -50,6 +50,15 @@ public:
 	const std::string& getClipboard() const;
 	void setClipboard(const std::string& clipboard);
 
+	// What a finger pressing at this point means to press, and where in it:
+	// the element under the point where that takes a press, enabled or not;
+	// otherwise the nearest one that does within a finger's reach, at its
+	// nearest point; otherwise - nothing in reach, or another one about as
+	// near - the element under the point after all, which is what a mouse
+	// would get. update() asks it for a finger's press, the test hooks for
+	// any point.
+	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
+
 private:
 	GUI();
 	~GUI();
@@ -76,6 +85,24 @@ private:
 	GUI_Element* p_mouseDownElement;
 	std::string clipboard;
 	uint noMoveCounter;
+
+	// The element a finger's press went to and how far the press was moved
+	// to reach it, for the whole gesture: that element is told every position
+	// until the finger lifts moved by the same offset (pointFor). 0 for a
+	// mouse's press, and between presses.
+	GUI_Element* p_fingerElement;
+	Vec2i fingerOffset;
+	// Whether that element is still the one under the finger, which it stays
+	// while the finger is within reach of it and it is on screen.
+	bool fingerHolds;
+
+	// Whether a finger at this point still reaches the element: somewhere
+	// within its reach the element is what a press would hit.
+	bool fingerReaches(GUI_Element* p_element, const Vec2i& point);
+	// Where an element is told the cursor is: the finger's position moved by
+	// the press's offset for the element that press went to, the cursor's
+	// own for any other.
+	Vec2i pointFor(GUI_Element* p_element) const;
 };
 
 #endif

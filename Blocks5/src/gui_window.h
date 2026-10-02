@@ -18,6 +18,7 @@ public:
 	void onMouseLeave(int buttons);
 	void onMouseMove(const Vec2i& position, const Vec2i& movement, int buttons);
 	INLINE_GETTYPE("GUI_Window");
+	bool isClickTarget(const Vec2i& position);
 
 	void readAttributes(TiXmlElement* p_element);
 

@@ -21,6 +21,7 @@ public:
 	void onMouseUp(const Vec2i& position, int buttons);
 	void onMouseMove(const Vec2i& position, const Vec2i& movement, int buttons);
 	INLINE_GETTYPE("GUI_ScrollBar");
+	bool isClickTarget(const Vec2i&) { return true; }
 
 	void readAttributes(TiXmlElement* p_element);
 

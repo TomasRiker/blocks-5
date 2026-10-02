@@ -90,6 +90,35 @@ third of the way out is a pixel and a half, and the bar turns 1.7 pixels into on
 have changed **and** the game-space one must have landed on another pixel. `noMoveCounter`, which times
 the tooltips, reads the same answer.
 
+**A finger is not a point.** Its press goes through `GUI::pickTouchTarget` before any element gets it.
+Where the element under the finger takes a press - enabled or not - the press stays there, so a tap that
+hit is never reinterpreted and one on a greyed-out button does not slide onto its neighbour. Otherwise the
+search walks out in rings to the finger's reach and asks `getElementAt` at every point of them, so
+z-order, a pane in front, a modal one over everything and every overridden hit shape come out exactly as
+for a mouse, with no second copy of any of them. The nearest element that takes a press wins - by
+distance, not by how much of the disc it covers, which a list would win against the button beside it
+every time - and where a second is about as near (within the margin) nobody wins: a guess between two is
+worse than the dead tap a mouse makes there. A label and the control it labels count as one
+(`getPressReceiver`), so a finger between the two is not torn between them.
+
+The element the press went to keeps it while the finger stays within reach - a button fires on release
+only while it believes the cursor is on it, and a finger that wobbles, or one that only came near, would
+otherwise cancel its own press - and lets go once the finger slides out of reach or the element is
+hidden, as a mouse dragged off a button does. The engine's cursor is never moved: only the element, and
+the points it is told. The press lands on the nearest point of the element the search found - right
+across from the finger where the element takes a press there, which the rings only come within their
+spacing of - and **the rest of the gesture is moved by as much**, for that element until the finger
+lifts (`GUI::pointFor`), so it follows the finger as it would a mouse that had pressed there. Telling it
+the nearest point at every move is the obvious thing and wrong: the rings are walked from the same angle
+every time, so a slider taken hold of from beside its bar would slide a few pixels to one side and back
+as the finger drifted towards it and away.
+
+The reach (16) and the margin (4) are in reference pixels - the CSS pixel, and the 96-DPI pixel Windows
+hands a program that declares no DPI awareness - converted by `Engine::getReferencePixelScale`, so they
+are one physical length on a phone and on a tablet. Both are feel, for the author to tune on a device.
+Which press is a finger's, `Engine::wasFingerPress` says (`input.md`); a mouse's or a pen's is never
+moved.
+
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 
 - **`check()` is the user's click and fires `changed`; `setChecked()` is the display catching up and
@@ -106,6 +135,14 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   on into the character insert: what unicode such an event carries is the platform's choice, and under
   X11 it is the letter itself — measured, Ctrl+A selected everything and typed an "a" over it. Without
   Ctrl the letter is text like any other and goes to the insert.
+- **An element that does something with a press says where: `isClickTarget`.** It is what a finger that
+  missed may be moved onto. The controls say yes, a label (`for=`) too, a window only on its title bar,
+  where a press starts a move, and an element that only carries a tooltip says what its parent says
+  there. The two surfaces that take presses themselves say where they do - the game on its level, the
+  level editor on its level and its palette - which is also what keeps a finger on a level from being
+  moved onto the button beside it. A new element that takes presses and forgets to say so is a surface a
+  finger slides off onto the nearest button; one that says yes where it does nothing turns near misses of
+  its neighbours into dead taps.
 - **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
   `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
   testing `size` inline — counts that strip as part of the control. The width is *measured*, not

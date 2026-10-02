@@ -18,6 +18,8 @@
 #include "gui_element.h"
 #include "gui_button.h"
 #include "gui_checkbox.h"
+#include "gui_radiobutton.h"
+#include "gui_scrollbar.h"
 #include "gui_statictext.h"
 #include "player.h"
 #include "particlesystem.h"
@@ -183,11 +185,21 @@ namespace
 			out += p_button->isFlashing() ? "true" : "false";
 		}
 
+		// A toggle's state, a checkbox's or a radio button's.
 		GUI_CheckBox* p_checkBox = dynamic_cast<GUI_CheckBox*>(p_element);
-		if(p_checkBox)
+		GUI_RadioButton* p_radioButton = dynamic_cast<GUI_RadioButton*>(p_element);
+		if(p_checkBox || p_radioButton)
 		{
 			out += ",\"checked\":";
-			out += p_checkBox->isChecked() ? "true" : "false";
+			out += (p_checkBox ? p_checkBox->isChecked() : p_radioButton->isChecked()) ? "true" : "false";
+		}
+
+		// A scroll bar's or a slider's value.
+		GUI_ScrollBar* p_scrollBar = dynamic_cast<GUI_ScrollBar*>(p_element);
+		if(p_scrollBar)
+		{
+			out += ",\"scroll\":";
+			appendInt(out, p_scrollBar->getScroll());
 		}
 
 		out += "}";
@@ -546,6 +558,34 @@ std::string hitAt(int x, int y)
 	return p_hit ? p_hit->getFullName() : std::string();
 }
 
+std::string touchAt(int x, int y)
+{
+	GUI& gui = GUI::inst();
+	GUI_Element* p_root = gui.getRoot();
+	if(!p_root) return "-";
+
+	Vec2i landing;
+	GUI_Element* p_picked = gui.pickTouchTarget(Vec2i(x, y), &landing);
+	GUI_Element* p_under = p_root->getElementAt(Vec2i(x, y));
+
+	char buffer[64];
+	const bool moved = p_picked != p_under || landing != Vec2i(x, y);
+	sprintf(buffer, " %d %d %s", landing.x, landing.y, moved ? "moved" : "stays");
+	return (p_picked ? p_picked->getFullName() : std::string("-")) + buffer;
+}
+
+float fingerScale()
+{
+	static float scale = -1.0f;
+	if(scale < 0.0f)
+	{
+		const char* p_value = ::getenv("B5_FINGER");
+		scale = p_value ? static_cast<float>(atof(p_value)) : 0.0f;
+		if(scale < 0.0f) scale = 0.0f;
+	}
+	return scale;
+}
+
 #ifndef __EMSCRIPTEN__
 
 // Natively there is no JavaScript to call the export, so the request comes
@@ -609,7 +649,34 @@ void pollRequests()
 	std::string answer;
 	int x = 0, y = 0;
 	uint freezeMs = 0;
+	int x1 = 0, y1 = 0, step = 0;
 	if(sscanf(line, "hit %d %d", &x, &y) == 2) answer = hitAt(x, y);
+	else if(sscanf(line, "touchsweep %d %d %d %d %d", &x, &y, &x1, &y1, &step) == 5 && step > 0)
+	{
+		// A grid of finger presses in one answer, a line a point: where, what a
+		// mouse would hit there, what the finger presses and at which point,
+		// and what a mouse would hit at that point. One request instead of
+		// thousands, each of which would cost a tick.
+		GUI& gui = GUI::inst();
+		for(int py = y; py <= y1; py += step)
+		{
+			for(int px = x; px <= x1; px += step)
+			{
+				Vec2i landing;
+				GUI_Element* p_picked = gui.pickTouchTarget(Vec2i(px, py), &landing);
+				const std::string under = hitAt(px, py);
+				const std::string landed = hitAt(landing.x, landing.y);
+
+				char where[32], at[32];
+				sprintf(where, "%d %d ", px, py);
+				sprintf(at, " %d %d ", landing.x, landing.y);
+				answer += where + (under.empty() ? std::string("-") : under) + " " +
+						  (p_picked ? p_picked->getFullName() : std::string("-")) + at +
+						  (landed.empty() ? std::string("-") : landed) + "\n";
+			}
+		}
+	}
+	else if(sscanf(line, "touch %d %d", &x, &y) == 2) answer = touchAt(x, y);
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
 	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
 	{

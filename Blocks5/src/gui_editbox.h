@@ -19,6 +19,7 @@ public:
 	void onKeyEvent(const SDL_KeyboardEvent& event);
 	void onTabbedIn();
 	INLINE_GETTYPE("GUI_EditBox");
+	bool isClickTarget(const Vec2i&) { return true; }
 
 	void readAttributes(TiXmlElement* p_element);
 

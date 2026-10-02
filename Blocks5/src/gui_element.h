@@ -53,6 +53,17 @@ public:
 	// click on the text counts like one on the box. Not const: the caption's
 	// width is measured for it.
 	virtual bool containsPoint(const Vec2i& position);
+	// Whether a press at this point, in the element's own coordinates and
+	// inside it, does something: what a finger that just missed may be moved
+	// onto (GUI::pickTouchTarget). A control says yes, and so does a label
+	// (for=); a frame, a text, a picture or a pane says no, and an element
+	// that only carries a tooltip answers what its parent answers there,
+	// since it hands every press on to it.
+	virtual bool isClickTarget(const Vec2i& position);
+	// The element a press on this one ends up with: the control it labels,
+	// the parent an element that only carries a tooltip hands it to, or
+	// itself. Two elements with one receiver are one target to a finger.
+	GUI_Element* getPressReceiver();
 	void bringToFront();
 	bool isFocused();
 	bool isFocusedIndirectly();

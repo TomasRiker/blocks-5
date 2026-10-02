@@ -13,7 +13,8 @@
 //   1. the layout viewport is the device width, not the ~980px default
 //   2. the page cannot be scrolled or zoomed away from the game
 //   3. the canvas covers the viewport
-//   4. a real finger - touchStart, wait, touchEnd - reaches a GUI button
+//   4. a real finger - touchStart, wait, touchEnd - reaches a GUI button,
+//      and one that just misses it is moved onto it, where a mouse misses
 //   5. the manifest is served, parses, and says what an install needs
 //   6. the service worker installs and has the payload in its cache
 //   7. with the network off, a reload still reaches the menu
@@ -102,6 +103,19 @@ async function toPage(page, win) {
 		x: box.left + (win[0] + win[2] / 2) * (box.cssW / box.w),
 		y: box.top + (win[1] + win[3] / 2) * (box.cssH / box.h),
 	};
+}
+
+// A game coordinate to page coordinates, through the present rectangle the
+// dump reports, as b5_mouseAt does natively.
+async function gameToPage(page, d, gx, gy) {
+	const box = await page.evaluate(() => {
+		const r = Module.canvas.getBoundingClientRect();
+		return { left: r.left, top: r.top, cssW: r.width, cssH: r.height,
+		         w: Module.canvas.width, h: Module.canvas.height };
+	});
+	const wx = d.present[0] + (gx + 0.5) * d.present[2] / d.screen[2];
+	const wy = d.present[1] + (gy + 0.5) * d.present[3] / d.screen[3];
+	return { x: box.left + wx * (box.cssW / box.w), y: box.top + wy * (box.cssH / box.h) };
 }
 
 (async () => {
@@ -277,6 +291,44 @@ async function toPage(page, win) {
 		// Back out again - the reload below has to start from the menu.
 		await page.keyboard.press('Escape');
 		await wait(1500);
+
+		// A finger is not a point (GUI::pickTouchTarget). The corner of the
+		// options button's 80x80 cell lies outside the disc it is hit on: a
+		// mouse there misses, a finger there is moved onto the button. The
+		// picker's answer first, then a real touch and a real mouse.
+		d = await dump(page);
+		const corner = await gameToPage(page, d, 471, 55);
+		const picked = await page.evaluate(() => {
+			Module._blocks5_testTouchAt(471, 55);
+			return Module.b5_touch;
+		});
+		if (/^Menu\.Options \d+ \d+ moved$/.test(picked))
+			ok('a finger at the corner of the options button is moved onto it (' + picked + ')');
+		else bad('a finger at the corner of the options button presses ' + picked);
+		await tap(page, cdp, corner.x, corner.y);
+		d = await dump(page);
+		const near = d.elements.find(e => e.path === 'OptionsPane.Options');
+		if (near && near.shown) ok('and a tap there opens the options');
+		else bad('a tap at the corner of the options button did not open them');
+		if (near && near.shown) { await page.keyboard.press('Escape'); await wait(1500); }
+		d = await dump(page);
+		const closed = d.elements.find(e => e.path === 'OptionsPane.Options');
+		if (closed && closed.shown) bad('Escape did not close the options again');
+
+		await page.mouse.move(corner.x, corner.y);
+		await wait(400);
+		await page.mouse.down();
+		await wait(400);
+		await page.mouse.up();
+		await wait(1200);
+		d = await dump(page);
+		const missed = d.elements.find(e => e.path === 'OptionsPane.Options');
+		if (missed && !missed.shown) ok('a mouse there misses them, as before');
+		else {
+			bad('a mouse at the corner of the options button opened them');
+			await page.keyboard.press('Escape');
+			await wait(1500);
+		}
 
 		// --- 6. the service worker ------------------------------------------
 		const sw = await page.evaluate(async () => {
