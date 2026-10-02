@@ -434,6 +434,9 @@ b5_waitForState GS_CampaignEditor
 settle
 L=CampaignEditor.AvailableLevels
 list() { b5_dump; b5_json "'%d %d %d' % tuple(el('$L')[k] for k in ('scroll', 'selection', 'items'))"; }
+# How often the selection has changed: a gesture that selected on the press
+# and put the selection back would end where it began, and show only here.
+changes() { b5_dump; b5_json "el('$L')['changes']"; }
 read ax ay aw ah <<< "$(rect $L)"
 line=$(b5_json "el('$L')['lineHeight']")
 x=$((ax + 60))
@@ -453,11 +456,13 @@ slide()   # y0 y...
 read s sel n <<< "$(list)"
 [ "$s $sel" = "0 -1" ] || b5_note "the list did not start at its top with nothing selected: $s $sel"
 [ "$n" -gt 200 ] || b5_note "the list holds $n levels, not the 160 written and the shipped ones"
+ch=$(changes)
 slide $((ay + 150)) $((ay + 125)) $((ay + 100)) $((ay + 75)) $((ay + 50))
 read s sel n <<< "$(list)"
 [ "$s" -eq 92 ] && b5_ok "a finger dragged up 100 pixels scrolls the list 92, from the edge of the slop" \
 	|| b5_note "a finger dragged up 100 pixels scrolled the list to $s, not 92"
-[ "$sel" -eq -1 ] && b5_ok "and selects nothing" || b5_note "a drag selected item $sel"
+[ "$sel $(changes)" = "-1 $ch" ] && b5_ok "and selects nothing, not even for a moment" \
+	|| b5_note "a drag left item $sel selected, the selection having changed $(( $(changes) - ch )) times"
 
 # Clamped at an end, the list follows the finger back at once, not after it
 # has made up the way it went past: 92 down past the top, then 30 back.
@@ -480,10 +485,11 @@ b5_mouseAt $((x + 5)) $((ay + 103)); sleep 0.4; xdotool mouseup 1; sleep 1
 read s2 sel n <<< "$(list)"
 [ "$sel $s2" = "$want $s" ] && b5_ok "one that wobbles 6 pixels, within the slop, still taps ($want)" \
 	|| b5_note "a wobble within the slop left item $sel selected at $s2, not $want at $s"
+ch=$(changes)
 b5_mouseAt $x $((ay + 140)); xdotool mousedown 1; sleep 0.4
 b5_mouseAt $((x + 30)) $((ay + 140)); sleep 0.6; xdotool mouseup 1; sleep 1
 read s2 sel2 n <<< "$(list)"
-[ "$sel2 $s2" = "$sel $s" ] && b5_ok "one slid 30 pixels sideways neither taps nor scrolls" \
+[ "$sel2 $s2 $(changes)" = "$sel $s $ch" ] && b5_ok "one slid 30 pixels sideways neither taps nor scrolls" \
 	|| b5_note "a slide sideways left item $sel2 selected at $s2, not $sel at $s"
 
 # The list keeps the gesture when the finger leaves it: 80 up, the last 50
@@ -529,17 +535,22 @@ for i in $(seq 1 40); do
 done
 [ "$r1" = "$r2" ] && [ "$r2" -gt "$g2" ] && b5_ok "and comes to rest by itself ($r2)" \
 	|| b5_note "the gliding list stood at $r1 and then $r2, having been at $g2"
+# The same flick again, caught a tenth of a second after it lifts: the list
+# holds still under the finger, short of where the first came to rest by
+# itself - by half that glide at least, or nothing showed it was still going.
+glide=$((r2 - s - 72))
 read s sel n <<< "$(list)"
+ch=$(changes)
 flick
 sleep 0.1; xdotool mousedown 1
 sleep 0.2; read h1 x1 x2 <<< "$(list)"
 sleep 0.4; read h2 x1 x2 <<< "$(list)"
 xdotool mouseup 1; sleep 1
 read c csel x2 <<< "$(list)"
-[ "$h1" -gt $((s + 72)) ] && [ "$h1 $c" = "$h2 $h2" ] \
-	&& b5_ok "a finger put on the gliding list stops it there ($h1) and holds it" \
-	|| b5_note "a finger put on the gliding list held it at $h1, then $h2, and it stood at $c after"
-[ "$csel" -eq "$sel" ] && b5_ok "and selects nothing when it lifts" \
+[ "$h1" -gt $((s + 72)) ] && [ "$h1 $c" = "$h2 $h2" ] && [ $((c - s - 72)) -lt $((glide / 2)) ] \
+	&& b5_ok "a finger put on the gliding list stops it there ($((c - s - 72)) of a $glide-pixel glide) and holds it" \
+	|| b5_note "a finger put on the gliding list held it at $h1, then $h2, and it stood at $c after, $((c - s - 72)) of a $glide-pixel glide"
+[ "$csel $(changes)" = "$sel $ch" ] && b5_ok "and selects nothing when it lifts" \
 	|| b5_note "the press that stopped the glide selected item $csel, where $sel was"
 b5_ask "lockstep 0" > /dev/null
 
@@ -552,6 +563,29 @@ xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 0.1
 xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
 [ "$(added)" -eq $((before + 1)) ] && b5_ok "a double tap adds the level, as a double click does" \
 	|| b5_note "a double tap left the campaign with $(added) levels, from $before"
+
+# On a slow frame the first tap's lift and the second's touch arrive in one
+# tick, the lift first. Sent in one xdotool call, they do here.
+before=$(added)
+xdotool mousedown 1; sleep 0.1; xdotool mouseup 1 mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
+[ "$(added)" -eq $((before + 1)) ] && b5_ok "so does one whose first lift and second touch come in one tick" \
+	|| b5_note "a double tap whose first lift and second touch came in one tick left $(added) levels, from $before"
+
+# A tap held on the list while a pane opens over it taps nothing when it
+# lifts, as a held button lets go once covered: the campaign has changed, so
+# Escape asks whether to quit. Escape without b5_key, whose --clearmodifiers
+# lets go of the held button.
+read s sel n <<< "$(list)"
+ch=$(changes)
+b5_mouseAt $x $((ay + 120)); xdotool mousedown 1; sleep 0.4
+xdotool keydown Escape; sleep 0.06; xdotool keyup Escape; sleep 0.6
+covered=$(shown CampaignEditor.MessageBoxPane)
+xdotool mouseup 1; sleep 1
+read s2 sel2 n <<< "$(list)"
+[ "$covered" = True ] || b5_note "Escape did not ask whether to quit over the list"
+[ "$sel2 $(changes)" = "$sel $ch" ] && b5_ok "a tap held on the list while a pane covers it selects nothing" \
+	|| b5_note "a tap held on the list while a pane covered it selected item $sel2, where $sel was"
+b5_click CampaignEditor.MessageBoxPane.MessageBox.No
 
 # A multi-line edit box pans the same way, up and down: the campaign's
 # description, given twelve lines of seven characters each - "lineNN" and

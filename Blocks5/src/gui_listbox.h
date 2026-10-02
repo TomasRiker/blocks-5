@@ -43,6 +43,9 @@ public:
 	INLINE_GETTER(int, getSelection, selection);
 	// How far the items are scrolled up, in pixels.
 	INLINE_GETTER(int, getScroll, scroll);
+	// How often the selection has changed: what the test dump reports, since
+	// a gesture that selected and put the selection back ends where it began.
+	INLINE_GETTER(uint, getChangeCount, changeCount);
 	ListItem* getSelectedItem();
 	std::string getSelectedItemText();
 	const std::vector<ListItem>& getItems() const;
@@ -67,6 +70,7 @@ private:
 	int doubleClickTime;
 	int doubleClickItem;
 	GUI_Button* p_submitButton;
+	uint changeCount;
 
 	sigslot::signal1<GUI_Element*> changed;
 };

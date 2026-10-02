@@ -22,6 +22,17 @@ on `visualViewport` resizes too — that is how a phone reports the address bar 
 handles `webglcontextlost`, a real event when a tab goes to the background, by saying so instead of
 freezing: the game cannot rebuild its textures and its FBO from where it stands.
 
+**A touch the browser cancels is handed on as a lift.** Turning to landscape cancels the touch in flight,
+and so does any gesture the system takes over, but Emscripten's SDL listens for `touchstart`, `touchmove`
+and `touchend` only: it keeps a cancelled finger in its table of fingers down, and the game's button with
+it. A phone gives the next touch the same identifier, which SDL takes for that finger still down, and makes
+no press of it: left alone, the first tap after a cancel is simply lost, and a list being dragged follows
+the new finger instead. `pre.js` therefore answers `touchcancel`, in the capture phase on window, by
+dispatching a `touchend` carrying the same touches on the same target; SDL reads nothing of the event but
+its type and its touches. Untrusted, it is no gesture the fullscreen request could take, and the pad goes
+by pointer events and never sees it. `mobile.js` shows both halves, and both fail with the handler
+swallowed.
+
 **Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default for
 F1 to F24 in the capture phase on window, ahead of SDL's listeners and the browser's own action, and SDL
 still receives the key: they are bindable actions like any other key and the desktop build answers to all of

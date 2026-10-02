@@ -16,6 +16,7 @@ IMPL_CTOR(GUI_ListBox)
 	p_submitButton = 0;
 	doubleClickTime = 0;
 	doubleClickItem = 0;
+	changeCount = 0;
 }
 
 GUI_ListBox::~GUI_ListBox()
@@ -264,6 +265,7 @@ void GUI_ListBox::setSelection(int selection)
 	updateScrollBar();
 
 	// fire the signal
+	changeCount++;
 	changed(this);
 }
 

@@ -64,7 +64,8 @@ of that button's cell, outside the square it is hit on, still opens the options
 press on the button itself shows that the mouse's presses arrive at all. And a
 finger dragged up the options' list of actions, `touchMove` by `touchMove`,
 scrolls it and selects nothing, where a tap on it then selects the item under
-it.
+it; and after a drag the system cancels, the next touch, on the options'
+Cancel, still presses it and leaves the list where it stood.
 
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the

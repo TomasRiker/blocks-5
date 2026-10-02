@@ -153,17 +153,27 @@ a mouse as much as for a finger.
 **A third start drags a list** (`gui-text.md`): the campaign editor's list of levels, made long with 160
 copies of a shipped level written into the private home, so that a glide has room to run before it reaches
 an end. The dump reports a list's `scroll` in pixels, its `selection`, its `items` and its `lineHeight`,
-from which the script works out which item a tap at a point means. Every drag is checked to the pixel -
-100 up scrolls 92, the slop not counted; past the top and 30 back is 30 - and a tap, a wobble within the
-slop, a slide sideways, a drag on past the list's edge, a glide, a finger stopping one and a double tap
-each by what it selects and where it leaves the list. **The flick runs in `lockstep`**, and through
-`xdotool` alone with the release on the last move: in a frame that runs several ticks only the first sees
-where the finger is, and a finger read still for three ticks has stopped before it lifted, which is no
-flick. And the finger that catches the glide presses a tenth of a second after the release, not after a
-`b5_mouseAt` and its dump: this screen renders at about eighty frames a second, and a glide was over before
-a press that took that long arrived. The mouse's start shows the other half: its press selects while
-still held, and dragging it scrolls nothing. Against the list before it panned, nine of the twelve checks
-fail; the tap, the wobble and the double tap pass, as they should.
+from which the script works out which item a tap at a point means, and its `changes`, how often the
+selection changed: a gesture that selected on the press and put the selection back would end where it
+began and show only there. Every drag is checked to the pixel - 100 up scrolls 92, the slop not counted;
+past the top and 30 back is 30 - and a tap, a wobble within the slop, a slide sideways, a drag on past the
+list's edge, a glide, a finger stopping one and a double tap each by what it selects and where it leaves
+the list. **The flick runs in `lockstep`**, and through `xdotool` alone with the release on the last move:
+in a frame that runs several ticks only the first sees where the finger is, and the speed a flick lifts at
+is measured over ticks. The finger that catches the glide presses a tenth of a second after the release,
+not after a `b5_mouseAt` and its dump: this screen renders at about eighty frames a second, and a glide was
+over before a press that took that long arrived; and the list it stops has to stand short of where the same
+flick came to rest uncaught, by half that glide at least, or nothing showed the glide was still going. The
+mouse's start shows the other half: its press selects while still held, and dragging it scrolls nothing.
+Against the list before it panned, nine of the first twelve checks fail; the tap, the wobble and the double
+tap pass, as they should.
+
+Two checks there stand for bugs a review found in the gesture, and failed against it before they were
+fixed: a double tap whose first lift and second touch are sent in one `xdotool` call, so that they arrive
+in one tick, the lift first, as on a slow frame - it added nothing; and a tap held on the list while
+Escape's question whether to quit opens over it - it selected behind the pane. `mobile.js` has the third: a
+touch the system cancels never lifts as far as Emscripten's SDL tells the game, and the next touch,
+elsewhere, took the list along.
 
 The campaign's description is the multi-line edit box of that run, given twelve lines of seven
 characters, so that line *k* begins at character 7*k*: dragged up 100 it scrolls 92 and leaves caret and
@@ -377,7 +387,11 @@ it, that the button is hit on - has to open the options, and a real mouse there 
 mouse was there and a press of it on the button does open them; `blocks5_testTouchAt` puts what the
 picker says into `Module["b5_touch"]`, as `touch x y` answers it natively. And a finger dragged up the
 options' list of actions in five `touchMove`s, resting before it lifts, has to scroll it by the drag less
-the slop and select nothing, where a tap on it then selects the item under it.
+the slop and select nothing, where a tap on it then selects the item under it; and one dragged down it
+and cancelled (`touchCancel`) must leave it where it stood when the next touch lands on the dialog's
+Cancel, and that touch must still press it. Run against the page without its cancel handler - a capture
+listener added by `addInitScript` swallows the event first - both fail: the list followed the next finger
+and Cancel was never pressed.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions

@@ -160,10 +160,24 @@ gesture stays with the element wherever the finger goes, as a mouse's press stay
 
 **Let go of while it moves, the element glides on**, at the speed the finger lifted at - measured over its
 last 100 ms, and none if it held still for the last 60 - and slows down until it stops or reaches an end,
-where `onPan` says it did not move. `GUI` runs the glide. Any press stops it, and one on the gliding element
-only catches it: lifted, it taps nothing. A key or the wheel stops it too, since what they do to a list
-would be fought by a glide. The slop and the glide's three constants are at the top of `gui.cpp` and are
-feel, for the author to tune on a device.
+where `onPan` says it did not move. `GUI` runs the glide. Any press stops it, and a finger's on the gliding
+element only catches it: lifted, it taps nothing. A key or the wheel stops it too, since what they do to a
+list would be fought by a glide. The slop and the glide's three constants are at the top of `gui.cpp` and
+are feel, for the author to tune on a device. **Held still is measured by the clock, not in ticks**: the
+finger is read once a frame, and in a frame that runs three ticks or more - under twenty frames a second -
+the ticks after its first see no new position, and counted in ticks every flick would read as a finger
+that had stopped.
+
+**A tap still pending lets go once the finger no longer holds the element** - covered by a pane, or out of
+reach - as a held button does: a list would otherwise select behind the pane, and a second tap click its
+submit button there. **And a new press ends the old gesture first.** A release and the next press can
+arrive in one tick, and the button being down again says the release came first, so the old gesture ends
+before the new press is decided - as a tap, or a glide the new press may catch - at the point it was last
+followed to, since the position that tick reports is the new press's; handled the other way round, a
+double tap on a slow frame would be one tap. A press with no release before it means the release never
+came - the window lost the focus mid-drag - and that gesture is dropped; kept, the list would jump to the
+new finger and follow it. A touch the browser cancels is a lift by the time it reaches the game: the page
+hands it on as one (`web.md`).
 
 What an element does with a step is its own and takes one line: it moves its scroll bar by it,
 `GUI_ScrollBar::scrollBy`, which clamps, says whether anything moved and so stops a glide at an end - the

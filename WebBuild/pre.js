@@ -178,6 +178,24 @@ Module['b5_toggleFullscreen'] = function () {
   types.forEach(function (t) { window.addEventListener(t, first, true); });
 })();
 
+// A touch the browser cancels - turning to landscape cancels the one in
+// flight, and so does a gesture the system takes over - ends for Emscripten's
+// SDL only with a touchend, which then never comes: it keeps the finger down
+// and the game's button with it. A phone gives the next touch the same
+// identifier, which SDL takes for that finger still down, and passes on no
+// press for it: the next tap would be lost, and a list being dragged would
+// follow the new finger. A cancel is therefore handed on as the touchend it
+// stands for, of which SDL reads nothing but the type and the touches.
+// Untrusted, it is no gesture the fullscreen request above could take, and
+// the pad, which goes by pointer events, never sees it.
+window.addEventListener('touchcancel', function (e) {
+  var end = new Event('touchend', { bubbles: true, cancelable: true });
+  Object.defineProperty(end, 'changedTouches', { value: e.changedTouches });
+  Object.defineProperty(end, 'touches', { value: e.touches });
+  Object.defineProperty(end, 'targetTouches', { value: e.targetTouches });
+  e.target.dispatchEvent(end);
+}, true);
+
 // Escape stays with the game while fullscreen where the browser allows it,
 // since the menu, the note and the dialogs hang off that key. Only Chromium
 // has the Keyboard Lock, and it then wants a long Escape to leave; elsewhere

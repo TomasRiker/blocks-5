@@ -205,7 +205,8 @@ namespace
 		}
 
 		// A list's: how far it is scrolled, in pixels, which item is selected
-		// (-1 for none), how many it holds and how tall one is.
+		// (-1 for none) and how often that has changed, how many it holds and
+		// how tall one is.
 		GUI_ListBox* p_listBox = dynamic_cast<GUI_ListBox*>(p_element);
 		if(p_listBox)
 		{
@@ -213,6 +214,8 @@ namespace
 			appendInt(out, p_listBox->getScroll());
 			out += ",\"selection\":";
 			appendInt(out, p_listBox->getSelection());
+			out += ",\"changes\":";
+			appendInt(out, static_cast<int>(p_listBox->getChangeCount()));
 			out += ",\"items\":";
 			appendInt(out, static_cast<int>(p_listBox->getItems().size()));
 			out += ",\"lineHeight\":";

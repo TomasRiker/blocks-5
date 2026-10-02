@@ -107,12 +107,14 @@ private:
 	// The press in the element's coordinates, for a tap's onMouseDown; where
 	// it was on the screen (pointFor) and how far the finger may go from
 	// there and still tap, in game pixels; the point the element followed
-	// last; and the finger's point at the end of each of the last ticks,
-	// newest first, for its speed when it lifts.
+	// last, and when by the clock (SDL_GetTicks) it last moved; and the
+	// finger's point at the end of each of the last ticks, newest first, for
+	// its speed when it lifts.
 	Vec2i panPress;
 	Vec2i panStart;
 	float panSlop;
 	Vec2i panPoint;
+	Uint32 panMovedAt;
 	static const int PAN_TRAIL = 6;
 	Vec2i panTrail[PAN_TRAIL];
 	int panTrailLength;
@@ -136,8 +138,9 @@ private:
 	Vec2i pointFor(GUI_Element* p_element) const;
 	// The panning finger at this point: past the slop the element follows it.
 	void followPan(const Vec2i& point);
-	// The panning finger lifted: a tap, or the speed for a glide.
-	void releasePan();
+	// The panning finger lifted, last at this point: a tap, or the speed for
+	// a glide.
+	void releasePan(const Vec2i& point);
 	// One tick of the glide.
 	void glide();
 };
