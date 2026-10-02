@@ -149,8 +149,11 @@ There is no touchscreen here, so the harness lends the game a finger:
 16 game pixels whatever the window's size. Sweeps ask the picker about every
 few pixels of the menu, the options, the Manager and the level editor and hold
 each answer against the rules `GUI::pickTouchTarget` must keep; real presses
-then try a near miss, a wobble, a slide away, a slider dragged beside its bar,
-a tap between two buttons and one on the level beside a button. A second start
+then try each case by name - a near miss, a wobble, a slide away, a greyed-out
+button's neighbour, a slider dragged beside its bar, a finger landing under a
+title bar, a tap between two buttons, the level beside a button, a stroke
+started under the level, a held button a menu then covers, and a character
+taken hold of from the status bar in a level the script writes. A second start
 without the finger shows that a mouse is as exact as before.
 
 ### Counting particles

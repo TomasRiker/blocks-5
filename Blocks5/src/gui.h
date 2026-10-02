@@ -53,10 +53,10 @@ public:
 	// What a finger pressing at this point means to press, and where in it:
 	// the element under the point where that takes a press, enabled or not;
 	// otherwise the nearest one that does within a finger's reach, at its
-	// nearest point; otherwise - nothing in reach, or another one about as
-	// near - the element under the point after all, which is what a mouse
-	// would get. update() asks it for a finger's press, the test hooks for
-	// any point.
+	// nearest pixel; otherwise - nothing in reach, another one about as near,
+	// or the nearest greyed out - the element under the point after all,
+	// which is what a mouse would get. update() asks it for a finger's press,
+	// the test hooks for any point.
 	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
 
 private:

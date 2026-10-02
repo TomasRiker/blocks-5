@@ -104,9 +104,12 @@ public:
 	{
 		game.showCursor = 200;
 
-		// Did the click land on a player?
+		// Did the click land on a player? Where the GUI says it landed, which
+		// for a finger that just missed the level is the nearest cell of it
+		// rather than the status bar under the finger. The GameGUI stands at
+		// 0,0, so its coordinates are the screen's.
 		bool onPlayer = false;
-		Vec2i c = game.engine.getCursorPosition() / 16;
+		Vec2i c = position / 16;
 		std::vector<Object*> objects = game.p_level->getObjectsAt(c);
 		for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
 		{
@@ -391,8 +394,8 @@ bool GS_Game::getMouseDragCells(Vec2i* p_actor,
 
 	*p_actor = p_player->getPosition();
 
-	// The same arithmetic GameGUI::onMouseDown uses to find a character under
-	// the cursor. The level's own offset is camera shake and nothing else -
+	// The cell under the cursor, the arithmetic GameGUI::onMouseDown uses on
+	// the press. The level's own offset is camera shake and nothing else -
 	// the field is never scrolled - so there is none to take off here.
 	*p_target = Engine::inst().getCursorPosition() / 16;
 	return true;

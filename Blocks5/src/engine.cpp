@@ -63,6 +63,7 @@ Engine::Engine()
 		buttonData[i] = 0;
 	}
 	fingerPress = false;
+	fingerPending = false;
 
 	time = 0;
 	dragButtons = 0;
@@ -1102,20 +1103,32 @@ void Engine::mainLoopIteration()
 				cursorPosition = Vec2i(event.button.x, event.button.y);
 				if(event.button.button < NUM_KEY_SLOTS)
 					buttonData[event.button.button] |= (1 | 2);
+				if(event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
+				{
+					// What the window procedure said about this press as SDL
+					// queued it (engineWindowProc), possibly a tick ago.
+					if(fingerPending) fingerPress = true;
+					fingerPending = false;
 #ifdef BLOCKS5_TEST_HOOKS
-				// The harness has no finger: B5_FINGER makes every press one.
-				if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
+					// The harness has no finger: B5_FINGER makes every press one.
+					if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
 #endif
+				}
 				break;
 #ifdef __EMSCRIPTEN__
 			case SDL_FINGERDOWN:
-				// Queued right behind the SDL_MOUSEBUTTONDOWN Emscripten's SDL
-				// makes of the same touch, so it lands in the same tick. It
-				// queues one behind every mouse press as well, from the device
-				// SDL_TOUCH_MOUSEID, which is no finger. The low 32 bits are
-				// compared: the id is that Uint32 in a 64-bit field, which the
-				// JavaScript side may as well have written as -1.
-				if(static_cast<Uint32>(event.tfinger.touchId) != SDL_TOUCH_MOUSEID) noteFingerPress();
+				// Queued with the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes of
+				// the same touch, by one handler, so the two are drained in one
+				// tick. It queues one with every mouse press as well, ahead of
+				// it, from the device SDL_TOUCH_MOUSEID, which is no finger.
+				// The cast is what makes that comparison hold: the JavaScript
+				// side writes the id as -1 into a 64-bit field, which is not the
+				// Uint32 SDL_TOUCH_MOUSEID until it is cut to 32 bits.
+				if(static_cast<Uint32>(event.tfinger.touchId) != SDL_TOUCH_MOUSEID)
+				{
+					logFingerPress();
+					fingerPress = true;
+				}
 				break;
 #endif
 			case SDL_MOUSEBUTTONUP:
@@ -2317,10 +2330,10 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 			// A program that registered for nothing else gets a touch as mouse
 			// messages, and Windows marks those: MI_WP_SIGNATURE under its mask
 			// for pen and touch alike, and bit 7 set for a finger. A pen is as
-			// precise as a mouse and stays one. Noted before SDL's procedure
-			// below queues the press, so press and note share a tick.
+			// precise as a mouse and stays one. Said for a mouse's press too,
+			// so that nothing a dropped press left behind reaches the next.
 			const DWORD extra = static_cast<DWORD>(GetMessageExtraInfo());
-			if((extra & 0xFFFFFF00u) == 0xFF515700u && (extra & 0x80u)) engine.noteFingerPress();
+			engine.noteButtonMessage((extra & 0xFFFFFF00u) == 0xFF515700u && (extra & 0x80u) != 0);
 		}
 		break;
 
@@ -3297,7 +3310,13 @@ bool Engine::wasFingerPress() const
 	return fingerPress;
 }
 
-void Engine::noteFingerPress()
+void Engine::noteButtonMessage(bool finger)
+{
+	if(finger) logFingerPress();
+	fingerPending = finger;
+}
+
+void Engine::logFingerPress()
 {
 	// Once, so that a log says whether this machine marks a finger's press
 	// at all - under Windows the one sign of that apart from how taps land.
@@ -3307,7 +3326,6 @@ void Engine::noteFingerPress()
 		printfLog("A finger's press: touches get a reach from here on.\n");
 		logged = true;
 	}
-	fingerPress = true;
 }
 
 float Engine::getReferencePixelScale() const
@@ -3320,13 +3338,30 @@ float Engine::getReferencePixelScale() const
 	computePresentRect(x, y, w, h);
 	if(w <= 0) return 1.0f;
 
-	// Window pixels per reference pixel. Under Windows one: a program that
-	// declares no DPI awareness is handed 96-DPI coordinates, and Windows
-	// scales its window to the screen. In the browser the drawing buffer's
-	// pixels per CSS pixel, which b5_fitCanvas (pre.js) keeps at one - asked
-	// rather than assumed, so that a buffer sized in device pixels changes
-	// nothing here.
+	// Window pixels per reference pixel, asked rather than assumed. Under
+	// Windows the window's DPI over 96: 96 for a program that declares no DPI
+	// awareness, which this one does not, so one - and the display's own
+	// scale where a compatibility setting overrides that and hands the window
+	// real pixels. GetDpiForWindow is Windows 10's; before it, one. In the
+	// browser the drawing buffer's pixels per CSS pixel, which b5_fitCanvas
+	// (pre.js) keeps at one, so that a buffer sized in device pixels changes
+	// nothing here either.
 	float windowPixels = 1.0f;
+#ifdef _WIN32
+	typedef UINT (WINAPI* GetDpiForWindowFunction)(HWND);
+	static const GetDpiForWindowFunction p_getDpiForWindow = reinterpret_cast<GetDpiForWindowFunction>(
+		reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("user32.dll"), "GetDpiForWindow")));
+	if(p_getDpiForWindow)
+	{
+		SDL_SysWMinfo info;
+		SDL_VERSION(&info.version);
+		if(SDL_GetWMInfo(&info) && info.window)
+		{
+			const UINT dpi = p_getDpiForWindow(info.window);
+			if(dpi > 0) windowPixels = static_cast<float>(dpi) / 96.0f;
+		}
+	}
+#endif
 #ifdef __EMSCRIPTEN__
 	windowPixels = static_cast<float>(EM_ASM_DOUBLE({
 		var c = Module['canvas'];
@@ -3767,12 +3802,15 @@ void Engine::flushInput()
 #endif
 
 	// ... then our own state and its flags. If a mouse button stayed down, the
-	// GUI would read the next release as a click.
+	// GUI would read the next release as a click; and what the window
+	// procedure said about a press just thrown away would go to the next.
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyData[i] = 0;
 		buttonData[i] = 0;
 	}
+	fingerPress = false;
+	fingerPending = false;
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 
 	// keyHeld is refreshed from the keyboard rather than kept or cleared: a

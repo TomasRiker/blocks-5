@@ -93,31 +93,54 @@ the tooltips, reads the same answer.
 **A finger is not a point.** Its press goes through `GUI::pickTouchTarget` before any element gets it.
 Where the element under the finger takes a press - enabled or not - the press stays there, so a tap that
 hit is never reinterpreted and one on a greyed-out button does not slide onto its neighbour. Otherwise the
-search walks out in rings to the finger's reach and asks `getElementAt` at every point of them, so
-z-order, a pane in front, a modal one over everything and every overridden hit shape come out exactly as
-for a mouse, with no second copy of any of them. The nearest element that takes a press wins - by
-distance, not by how much of the disc it covers, which a list would win against the button beside it
+search walks out pixel by pixel to the finger's reach, nearest first, and asks `getElementAt` at every
+one, so z-order, a pane in front, a modal one over everything and every overridden hit shape come out
+exactly as for a mouse, with no second copy of any of them. The nearest element that takes a press wins -
+by distance, not by how much of the disc it covers, which a list would win against the button beside it
 every time - and where a second is about as near (within the margin) nobody wins: a guess between two is
 worse than the dead tap a mouse makes there. A label and the control it labels count as one
 (`getPressReceiver`), so a finger between the two is not torn between them.
 
+**Nearest first is what makes it exact.** The first pixel of a target the walk meets is that target's
+nearest, so every distance, every tie and the point a press lands on are exact. A sampled search - rings
+of points a couple of pixels apart - knows each distance only to within its spacing, and on a large screen
+that is more than the margin itself: 4 reference pixels are under two game pixels in a 1080p fullscreen at
+100%, so the sampling would decide the ties. Measured against an exact reference over every pixel of four
+screens, rings two pixels apart decided 0.15 to 2.2% of the points otherwise; in the editor 1501 presses
+that the rule gives to the level or the palette became dead taps, 1247 of them a single pixel off the
+level.
+
+**A greyed-out target counts as near as it is.** It cannot win, so a finger nearest to it gets the dead
+tap a press on it would get; and it is a rival within the margin like any other. Left out of the search, it
+let a near miss of itself slide onto its neighbour - 1 pixel under the options' greyed-out *Reset
+selected*, the press went to *Reset all*, which resets every key.
+
 The element the press went to keeps it while the finger stays within reach - a button fires on release
 only while it believes the cursor is on it, and a finger that wobbles, or one that only came near, would
 otherwise cancel its own press - and lets go once the finger slides out of reach or the element is
-hidden, as a mouse dragged off a button does. The engine's cursor is never moved: only the element, and
-the points it is told. The press lands on the nearest point of the element the search found - right
-across from the finger where the element takes a press there, which the rings only come within their
-spacing of - and **the rest of the gesture is moved by as much**, for that element until the finger
-lifts (`GUI::pointFor`), so it follows the finger as it would a mouse that had pressed there. Telling it
-the nearest point at every move is the obvious thing and wrong: the rings are walked from the same angle
-every time, so a slider taken hold of from beside its bar would slide a few pixels to one side and back
-as the finger drifted towards it and away.
+hidden or covered, as a mouse dragged off a button does. That is asked every tick, not only when the
+finger moves: a pane opening over a button that a still finger rests on would otherwise leave the button
+pressed under it, to fire when the finger lifts. The engine's cursor is never moved: only the element,
+and the points it is told. The press lands on the element's nearest pixel, and **the rest of the gesture
+is moved by as much**, for that element until the finger lifts (`GUI::pointFor`): the element sees a
+mouse that pressed where the press landed and moved as the finger moves. That is what keeps a stroke the
+editor took from its toolbar onto the level's bottom row going along that row as the finger slides on,
+where the finger's own points leave the level after the first cell.
+
+**A press's own tick moves nothing.** `GUI::update` hands the elements no movement in the tick a press
+arrives. A finger lands with no move before it, so its press comes together with the jump from wherever
+the last one lifted, and a window pressed on its title bar took that jump for a drag: a finger landing
+under the options' title bar threw the window from y 7 to -120, its title bar off the top of the screen.
+For a mouse that tick holds at most a tick's motion, a fiftieth of a second, and whether it came before
+the press or after is not to be told.
 
 The reach (16) and the margin (4) are in reference pixels - the CSS pixel, and the 96-DPI pixel Windows
-hands a program that declares no DPI awareness - converted by `Engine::getReferencePixelScale`, so they
-are one physical length on a phone and on a tablet. Both are feel, for the author to tune on a device.
-Which press is a finger's, `Engine::wasFingerPress` says (`input.md`); a mouse's or a pen's is never
-moved.
+hands a program that declares no DPI awareness, the window's DPI asked rather than assumed - converted by
+`Engine::getReferencePixelScale`, so they are about one physical length on a phone and on a tablet. Both
+are feel, for the author to tune on a device. Which press is a finger's, `Engine::wasFingerPress` says
+(`input.md`). A mouse's press is never moved, nor a pen's under Windows; in the browser a stylus the
+page is handed as touches is a finger to Emscripten's SDL and gets the reach, which a precise tap never
+notices, since a hit stays a hit.
 
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 
@@ -137,12 +160,13 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   Ctrl the letter is text like any other and goes to the insert.
 - **An element that does something with a press says where: `isClickTarget`.** It is what a finger that
   missed may be moved onto. The controls say yes, a label (`for=`) too, a window only on its title bar,
-  where a press starts a move, and an element that only carries a tooltip says what its parent says
-  there. The two surfaces that take presses themselves say where they do - the game on its level, the
-  level editor on its level and its palette - which is also what keeps a finger on a level from being
-  moved onto the button beside it. A new element that takes presses and forgets to say so is a surface a
-  finger slides off onto the nearest button; one that says yes where it does nothing turns near misses of
-  its neighbours into dead taps.
+  where a press starts a move, and an element that only carries a tooltip says what its parent says there.
+  The two surfaces that take presses themselves say where they do - the game on its level, the level
+  editor on its level and its palette - which is also what keeps a finger on a level from being moved onto
+  the button beside it; and both act on the `position` they are handed, not on the engine's cursor, which
+  is where the finger is rather than where its press landed. A new element that takes presses and forgets
+  to say so is a surface a finger slides off onto the nearest button; one that says yes where it does
+  nothing turns near misses of its neighbours into dead taps.
 - **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
   `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
   testing `size` inline — counts that strip as part of the control. The width is *measured*, not

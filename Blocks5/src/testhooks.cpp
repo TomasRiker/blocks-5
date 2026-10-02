@@ -581,7 +581,10 @@ float fingerScale()
 	{
 		const char* p_value = ::getenv("B5_FINGER");
 		scale = p_value ? static_cast<float>(atof(p_value)) : 0.0f;
-		if(scale < 0.0f) scale = 0.0f;
+		// Nothing, nonsense, a negative or NaN is no finger, and "inf" is
+		// not a reach.
+		if(!(scale > 0.0f)) scale = 0.0f;
+		if(scale > 4.0f) scale = 4.0f;
 	}
 	return scale;
 }

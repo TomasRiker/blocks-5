@@ -352,8 +352,9 @@ Still missing:
    cases (autocorrect, IME, the keyboard covering the field) and the least payoff:
    it is only needed for naming a level or a campaign.
 
-2. **Hitting things.** See item 22 - the buttons are the problem the pad does not
-   solve.
+2. **Hitting things.** Item 22 gives a finger a reach in the GUI, so a near
+   miss of a button presses it; what remains is a try on a real phone, to tune
+   the reach and the margin by feel.
 
 3. **Haptic feedback on the pad's buttons.** A glass button gives a finger nothing
    back. `navigator.vibrate` is the whole mechanism, a few milliseconds on
@@ -404,22 +405,35 @@ rules and `input.md` how a finger is known. What must not be undone by accident:
 - **A tap that hit stays.** Where the element under the finger takes a press,
   enabled or not, nothing is searched: an accurate tap is never reinterpreted, and
   one on a greyed-out button does not slide onto its neighbour.
-- **The nearest wins, by distance, through `getElementAt`.** Voting by area over a
-  grid, the idea this entry started from, lets a large element outvote a small one
-  beside it; asking `getElementAt` at every point of the search is what gets
-  z-order, panes and hit shapes right without a second copy of them.
+- **The nearest wins, by distance, through `getElementAt`, nearest pixel first.**
+  Voting by area over a grid, the idea this entry started from, lets a large
+  element outvote a small one beside it; asking `getElementAt` at every pixel of
+  the search is what gets z-order, panes and hit shapes right without a second
+  copy of them, and walking the pixels nearest first is what makes every distance
+  and every tie exact. Rings of sample points decided ties by their own spacing,
+  which on a large screen is more than the margin.
 - **A tie is nobody's.** Where a second target is about as near as the first, the
   tap goes where a mouse's would, which is nowhere, rather than to a guess.
-- **A surface says where it takes a press** (`isClickTarget`). The game's level
-  and the editor's level and palette keep every press that lands on them, so a
-  finger on a level is never moved onto the button beside it.
+- **A greyed-out target is still there.** It cannot win, but it counts as near as
+  it is: left out, a near miss of it slid onto its neighbour, and 1 pixel under the
+  options' greyed-out *Reset selected* pressed *Reset all*.
+- **A surface says where it takes a press** (`isClickTarget`), and acts where the
+  press landed. The game's level and the editor's level and palette keep every
+  press that lands on them, so a finger on a level is never moved onto the button
+  beside it.
 - **The cursor is not moved**, only the element and the point it is told of, so
   the editor puts a tile where the finger is.
 - **A moved gesture moves as a whole.** The element a moved press went to is told
-  every later position moved by the same offset, never the nearest point again:
-  the rings are walked from one angle, so a slider taken hold of beside its bar
-  would slide sideways as the finger drifted.
-- **Only a finger.** A mouse and a pen stay exact.
+  every later position moved by the same offset, as a mouse that pressed where the
+  press landed would be: a stroke started under the editor's level goes on along
+  its bottom row.
+- **A held element lets go when covered**, asked every tick and not only when the
+  finger moves: a still finger on a button a pane then opens over must not fire it.
+- **A press's own tick moves nothing.** A finger's press comes with the jump from
+  wherever the last one lifted, and a window pressed on its title bar took that
+  jump for a drag and left the screen.
+- **Only a finger.** A mouse stays exact, and so does a pen under Windows; in the
+  browser a stylus that arrives as touches counts as a finger.
 
 The reach is 16 reference pixels and the margin 4 (`gui.cpp`), for the author to
 tune on a phone. `LinuxBuild/test/touch.sh` lends the game a finger natively, and
@@ -428,15 +442,19 @@ tune on a phone. `LinuxBuild/test/touch.sh` lends the game a finger natively, an
 **Still open: a try on Windows.** Windows hands a program that registered for
 nothing else a touch as mouse messages and marks them in `GetMessageExtraInfo()`:
 `0xFF515700` under the mask `0xFFFFFF00`, bit 7 set for a finger and clear for a
-pen. `engineWindowProc` reads it off the press. Nothing in the container this was
-written in can make such a message; the author's Lenovo convertible can, in a
-window and fullscreen:
+pen. `engineWindowProc` reads it off every press and leaves the answer for the
+press itself, which SDL may hand over a tick later. Nothing in the container this
+was written in can make such a message; the author's Lenovo convertible can, in a
+window and fullscreen. The reach there is 16 pixels of the desktop as Windows
+scales it, about four millimetres:
 
-1. **The log**, `stdout.txt`, says *A finger's press* once, at the first tap. If it
-   never does, Windows' marking does not reach the game and nothing below can work.
-2. **A near miss**: a tap just outside a menu button's disc, in the corner of its
-   square, presses it, and so does one a few pixels left of the options'
-   update-check box.
+1. **The log**: `log.txt` in `Documents\Blocks 5` - and `stdout.txt` beside the
+   game - says *A finger's press* once, at the first tap. If it never does,
+   Windows' marking does not reach the game and nothing below can work.
+2. **A near miss**: a tap a few pixels left of a menu button's disc, level with its
+   middle, presses it, and so does one a few pixels under the options'
+   update-check box. Diagonally off the disc is no test: the button is hit on the
+   square the disc fills, whose corners stand out past it.
 3. **A tie**: a tap in the middle of the gap between two of the Manager's kinds
    picks neither.
 4. **A level**: in the level editor, a tap on the level's bottom row right over the
@@ -446,8 +464,15 @@ window and fullscreen:
 6. **A slider**: the sound volume in the options, taken hold of just above its bar
    and dragged along it with the finger drifting up and down, follows the finger
    without jumping.
-7. **The rest stays exact**: the touchpad, a mouse and a pen, if there is one, do
-   nothing in the corner of a menu button's square.
+7. **A window stays put**: a tap just under the options' title bar, after a tap
+   somewhere else on the screen, leaves the dialog where it stands.
+8. **The rest stays exact**: the touchpad, a mouse and a pen, if there is one, do
+   nothing at the spot beside the menu button from step 2.
+
+One thing to watch that this item does not cover: Windows may take a finger
+dragged straight up or down for its own pan gesture, since SDL never tells it
+otherwise (`SetGestureConfig`); a slider or an editor stroke dragged vertically
+would then stutter or stop. That would be the next item, not a fault in this one.
 
 
 23. The hint note should be a sheet of paper  - **DONE**

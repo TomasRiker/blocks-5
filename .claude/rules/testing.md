@@ -123,16 +123,32 @@ finger there would press, at which point and whether that is a move, and `touchs
 with a line a point - what a mouse would hit, what the finger presses and at which point, and what a mouse
 would hit at that point - in one tick, where thousands of single asks would cost a tick each. The sweeps
 hold every answer against rules that must never break: a hit on a control stays on it, a press on the
-level stays on the level, a moved press lands on what it picked, within reach and never behind the pane
-in front. **A press moved within one element is a move too** - off a window's body onto its title bar,
-off the editor's toolbar onto its level - so the rules check the point as well as the element, and so
-does `touch`. What no rule can see is a press left where it should have moved, which breaks none of
-them, so two `touch` asks name a move within one element each: under the options' title bar, and on the
-toolbar under the editor's level. Real presses then try the near miss, the wobble, the slide away, a
-slider dragged beside its bar against one dragged on it, a tap between two of the Manager's kinds and
-one on the editor's level over the undo button, and a second start without `B5_FINGER` shows the mouse
-as exact as before. Which radio button is checked comes from the dump's `checked`, which a radio button
-reports as a checkbox does, and a slider's value from its `scroll`.
+level stays on the level, a moved press lands on what it picked, within reach and never behind the pane in
+front, and every point of the grid is answered. **A press moved within one element is a move too** - off a
+window's body onto its title bar, off the editor's toolbar onto its level - so the rules check the point
+as well as the element, and so does `touch`.
+
+What no rule can see is a press left where it should have moved, which breaks none of them, so the real
+presses after the sweeps name their cases one by one: a near miss, a wobble, a slide away; a moved press
+within an element, under the options' title bar and on the toolbar under the editor's level, landing right
+across from the finger; a near miss of a greyed-out button, which does nothing rather than press the one
+beside it; a slider dragged beside its bar against one dragged on it; a finger landing under a title bar,
+which must leave the window where it stood; a tap between two of the Manager's kinds; a press on the
+editor's level over the undo button; a stroke started under the level, which must go on along its bottom
+row - read off the game's own frame (`shot`), since nothing else reports a tile; a held button that a pane
+then covers, which must not fire; and, in a level written by the script, a press under a character on the
+bottom row, which must take hold of it. A second start without `B5_FINGER` shows the mouse as exact as
+before, and then that it was there and pressing: a press of it on the button does open the options. Which
+radio button is checked comes from the dump's `checked`, which a radio button reports as a checkbox does,
+and a slider's value from its `scroll`.
+
+**A finger lands with its press**, and `pressAt`, like every harness click, moves first and presses after
+a rest - so its press tick has no jump in it, and nothing a finger's jump upsets can show there. `landAt`
+sends the move and the press in one `xdotool` call, back to back, so the game drains the two together as
+it does a touch's. And a key pressed while a mouse button is held must not go through `b5_key`: its
+`--clearmodifiers` lets go of held buttons for the length of the key and presses them again after, a
+release and a fresh press the game takes for the hand's own, so a button held through the key fires - for
+a mouse as much as for a finger.
 
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
@@ -332,8 +348,9 @@ viewport meta has nothing to do.
 The checks about the game rather than the page use a real touch: `touchStart`, a wait, `touchEnd`,
 through `Input.dispatchTouchEvent` over CDP. That found the click-ordering bug in `GUI::update()`; the
 dump reports `cursor` and `mouseDown` so a tap that does not arrive can be told from a button that does
-not react. The same touch at the corner of the options button's cell - outside the disc the button is
-hit on - has to open the options, and a real mouse there must not; `blocks5_testTouchAt` puts what the
+not react. The same touch at the corner of the options button's cell - outside the square, inset 8 in
+it, that the button is hit on - has to open the options, and a real mouse there must not, though the
+mouse was there and a press of it on the button does open them; `blocks5_testTouchAt` puts what the
 picker says into `Module["b5_touch"]`, as `touch x y` answers it natively.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:

@@ -268,14 +268,19 @@ public:
 	bool wasButtonReleased(uint button) const;
 	// Whether the press this tick came from a finger rather than a mouse or a
 	// pen, which GUI::update() gives a reach. Known in the browser, from the
-	// SDL_FINGERDOWN Emscripten's SDL queues behind the press it makes of a
-	// touch, and under Windows, from the signature on the mouse message it
-	// makes of one (engineWindowProc); under X11 a finger is a mouse.
+	// SDL_FINGERDOWN Emscripten's SDL queues with the press it makes of a
+	// touch - where a stylus the page is handed as touches counts as one -
+	// and under Windows, from the signature on the mouse message it makes of
+	// one (engineWindowProc); under X11 a finger is a mouse.
 	bool wasFingerPress() const;
-	void noteFingerPress();
+	// Under Windows, whether the left or right press SDL is about to queue is
+	// a finger's: engineWindowProc says so for every one it sees, and the
+	// press takes the answer when the main loop drains it, which can be a tick
+	// later - SDL pumps the window's messages inside a tick too.
+	void noteButtonMessage(bool finger);
 	// Game pixels per reference pixel - the CSS pixel in the browser, the
-	// 96-DPI pixel under Windows, which declares no DPI awareness - so that a
-	// finger's reach, a physical length, can be given in reference pixels.
+	// 96-DPI pixel under Windows - so that a finger's reach, a physical
+	// length, can be given in reference pixels.
 	float getReferencePixelScale() const;
 	// The next key event. p_repeat says whether it is a key repeat (SDL's, or
 	// the browser's own) rather than a fresh press: a command (Escape, Return,
@@ -547,6 +552,10 @@ private:
 	int buttonData[NUM_KEY_SLOTS];
 	// A press edge like buttonData's, cleared with them each tick.
 	bool fingerPress;
+	// What engineWindowProc said about the press SDL has queued and the main
+	// loop not yet drained.
+	bool fingerPending;
+	void logFingerPress();
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	// The recogniser's state; updateMouseDrag() has the rules.

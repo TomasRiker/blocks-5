@@ -293,9 +293,10 @@ async function gameToPage(page, d, gx, gy) {
 		await wait(1500);
 
 		// A finger is not a point (GUI::pickTouchTarget). The corner of the
-		// options button's 80x80 cell lies outside the disc it is hit on: a
-		// mouse there misses, a finger there is moved onto the button. The
-		// picker's answer first, then a real touch and a real mouse.
+		// options button's 80x80 cell lies outside the square, inset 8 in it,
+		// that the button is hit on: a mouse there misses, a finger there is
+		// moved onto the button. The picker's answer first, then a real touch
+		// and a real mouse.
 		d = await dump(page);
 		const corner = await gameToPage(page, d, 471, 55);
 		const picked = await page.evaluate(() => {
@@ -329,6 +330,27 @@ async function gameToPage(page, d, gx, gy) {
 			await page.keyboard.press('Escape');
 			await wait(1500);
 		}
+
+		// Not vacuous: the mouse was there, and a press of it on the button
+		// does open them.
+		if (!d.cursor || Math.abs(d.cursor[0] - 471) > 1 || Math.abs(d.cursor[1] - 55) > 1)
+			bad('the mouse was at ' + JSON.stringify(d.cursor) + ', not at 471,55');
+		const button = d.elements.find(e => e.path === 'Menu.Options');
+		const middle = await gameToPage(page, d, button.rect[0] + (button.rect[2] >> 1), button.rect[1] + (button.rect[3] >> 1));
+		await page.mouse.move(middle.x, middle.y);
+		await wait(400);
+		await page.mouse.down();
+		await wait(400);
+		await page.mouse.up();
+		await wait(1200);
+		d = await dump(page);
+		const opened = d.elements.find(e => e.path === 'OptionsPane.Options');
+		if (opened && opened.shown) {
+			ok('and a mouse on the button opens them, so its presses arrive');
+			await page.keyboard.press('Escape');
+			await wait(1500);
+		}
+		else bad('a mouse on the options button did not open them');
 
 		// --- 6. the service worker ------------------------------------------
 		const sw = await page.evaluate(async () => {
