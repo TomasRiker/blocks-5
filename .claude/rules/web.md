@@ -200,7 +200,9 @@ it, which is what makes any of this checkable.
 
 **Saves ask to be kept.** They live in IndexedDB through IDBFS, which a browser may evict when short of room;
 `navigator.storage.persist()` in `pre.js` asks for that not to happen. The browser grants it silently once
-the page looks like something the user meant to keep and otherwise refuses, which costs nothing.
+the page looks like something the user meant to keep and otherwise refuses, which costs nothing. Their names
+cross into the browser's file system as UTF-8 and come back as the game's Latin-1 (`filesystem.md`), and
+anything that hands the page a path or a file name - an export, a download - converts it the same way.
 
 **In the browser the program never ends, so nothing is ever destroyed.**
 `emscripten_set_main_loop_arg(…, 1)` asks for the simulated infinite loop, which unwinds the stack with a

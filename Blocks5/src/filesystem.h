@@ -75,6 +75,17 @@ public:
 	bool isAbsolutePath(const std::string& path) const;
 	std::list<std::string> listDirectory(const std::string& directory);
 
+	// A name of the game's as the platform's file functions take it, and a
+	// name a directory listing gave back as the game's. The game's text is
+	// Latin-1; the browser's file system takes every path as UTF-8 and lists
+	// names the same way, so there the two convert, and natively the bytes
+	// go as they are. Every path this class and the browser's transfer code
+	// (web_transfer.cpp) hand on passes platformName(), and every name a
+	// listing gives back passes gameName(). The files opened elsewhere - the
+	// log, a video, the test hooks' - have names no player chooses.
+	static std::string platformName(const std::string& name);
+	static std::string gameName(const std::string& name);
+
 private:
 	FileSystem();
 	~FileSystem();

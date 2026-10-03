@@ -30,7 +30,8 @@
 //      field has lost the focus or the sheet has closed under a held key,
 //      but a key let go of there is let go of in the game; a field of several
 //      lines opens two lines high and grows once a keyboard has had its
-//      moment to come up; a drag or a mouse opens no sheet
+//      moment to come up; a drag or a mouse opens no sheet; and file names
+//      typed there beyond ASCII are saved, listed and loaded as typed
 //
 // Number four is the one that needs the wait in the middle. The game samples
 // the mouse once per 20 ms logic tick; a tap that presses and releases in the
@@ -805,6 +806,90 @@ async function gameToPage(page, d, gx, gy) {
 		else bad('Shift held over the sheet: down before ' + shiftBefore + ', the sheet ' + JSON.stringify(sheet) +
 		         ', still down after ' + shiftAfter);
 		if ((await sheetState(page)).open) await tapElement(page, cdp, 'b5_sheet_cancel');
+
+		// A file name beyond ASCII, which a phone's keyboard types as readily
+		// as any other: the game's text is Latin-1, and the browser's file
+		// system takes every path as UTF-8 (FileSystem::platformName). Two
+		// campaigns whose names differ only in an umlaut are two files under
+		// the names typed, the editor's own list gives both back as typed, and
+		// one loads by the name taken from that list.
+		const tapGame = async name => {
+			const at = await toPage(page, d.elements.find(e => e.path === name).win);
+			await tap(page, cdp, at.x, at.y);
+			d = await dump(page);
+		};
+		const tapItem = async (name, i) => {
+			const list = d.elements.find(e => e.path === name);
+			const at = await gameToPage(page, d, list.rect[0] + 40,
+			                            list.rect[1] + 2 - list.scroll + i * list.lineHeight + (list.lineHeight >> 1));
+			await tap(page, cdp, at.x, at.y);
+			d = await dump(page);
+		};
+		const levelCount = () => d.elements.find(e => e.path === 'CampaignEditor.CampaignLevels').items;
+		await tapItem('CampaignEditor.AvailableLevels', 0);
+		await tapGame('CampaignEditor.Add');
+		const names = ['B\u00e4r.zip', 'B\u00f6r.zip'];
+		for (const name of names) {
+			await tap(page, cdp, filenameAt.x, filenameAt.y);
+			await selectAll();
+			await typeText(name);
+			await tapElement(page, cdp, 'b5_sheet_ok');
+			d = await dump(page);
+			await tapGame('CampaignEditor.Save');
+		}
+		const stored = await page.evaluate(() => FS.readdir('/blocks5_home/levels/campaigns'));
+		if (levelCount() === 1 && !question() && names.every(n => stored.indexOf(n) >= 0))
+			ok('campaigns saved as "' + names.join('" and "') + '" are two files under those names');
+		else bad('campaigns saved as "' + names.join('" and "') + '" with ' + levelCount() + ' level(s), the question ' +
+		         (question() ? 'up' : 'down') + ': the folder holds ' + JSON.stringify(stored));
+		await tidy();
+		// A player's files can hold a name the browser once read as UTF-8 from
+		// the game's Latin-1 bytes, U+FFFD where the umlaut was: listed as the
+		// three bytes that character takes, it must stay in the list and load
+		// by that name (FileSystem::platformName).
+		const planted = await page.evaluate(() => {
+			const dir = '/blocks5_home/levels/campaigns/';
+			const source = FS.readdir(dir).filter(n => /\.zip$/.test(n))[0];
+			if (!source) return false;
+			FS.writeFile(dir + 'B\ufffdx.zip', FS.readFile(dir + source));
+			return true;
+		});
+		const old = 'B\u00ef\u00bf\u00bdx.zip';
+		// The list read back an entry at a time: Select puts the one chosen
+		// into the file name, the one place the dump reports the text of.
+		const listed = [];
+		await tapGame('CampaignEditor.Search');
+		const fileCount = d.elements.find(e => e.path === 'CampaignEditor.SearchPane.Search.Files').items;
+		for (let i = 0; i < fileCount; i++) {
+			if (i) await tapGame('CampaignEditor.Search');
+			await tapItem('CampaignEditor.SearchPane.Search.Files', i);
+			await tapGame('CampaignEditor.SearchPane.Search.Select');
+			listed.push(textField('Filename').value);
+		}
+		if (names.every(n => listed.indexOf(n) >= 0)) ok('and the editor\'s list gives both back as typed');
+		else bad('the editor\'s list of campaigns reads ' + JSON.stringify(listed));
+		// Each loaded by the name the list gave it, into an editor emptied
+		// first, so that the level it then holds is the file's.
+		const loadListed = async name => {
+			const which = listed.indexOf(name);
+			await tapGame('CampaignEditor.New');
+			if (which >= 0) {
+				await tapGame('CampaignEditor.Search');
+				await tapItem('CampaignEditor.SearchPane.Search.Files', which);
+				await tapGame('CampaignEditor.SearchPane.Search.Select');
+			}
+			const before = levelCount();
+			await tapGame('CampaignEditor.Load');
+			const loaded = which >= 0 && before === 0 && levelCount() === 1 && textField('Filename').value === name;
+			if (!loaded)
+				bad('loading ' + JSON.stringify(name) + ' from the list (entry ' + which + '): ' + before + ' level(s) before, ' +
+				    levelCount() + ' after, the file name ' + JSON.stringify(textField('Filename').value));
+			await tidy();
+			return loaded;
+		};
+		if (await loadListed(names[0])) ok('and "' + names[0] + '", taken from it, loads');
+		if (planted && await loadListed(old)) ok('as does a file whose name the browser holds with a U+FFFD');
+		else if (!planted) bad('no campaign to copy under a name with a U+FFFD');
 		} catch (e) {
 			bad('the text sheet: ' + e.message);
 		}

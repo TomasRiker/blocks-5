@@ -17,6 +17,19 @@ selected by path syntax: `archive.zip/file.png` (no password), `archive.zip<plai
 under Windows alone: an archive has to hold the same members wherever it is played, so a campaign stores
 one track for two names that differ only in case.
 
+**A file's name is Latin-1 to the game and UTF-8 to the browser.** The game holds all its text in
+Latin-1, file names included — a level or campaign saved as *Bär*, a skin or a track named in a level.
+Under Windows and Linux those bytes go to the file system as they are. Emscripten decodes every path with
+`UTF8ToString` and lists names as UTF-8, and a lone `0xE4` is U+FFFD to it, so unconverted, *Bär* and
+*Bör* would be one file. `FileSystem::platformName` converts every path on its way out — `openFile`
+hands `File_Real` and `File_Archived` the converted one, and `renameFile`, the folder calls and
+`web_transfer.cpp`'s export and staging do the same — and `gameName` every name a listing gives back,
+natively both being the identity. A member of an archive keeps its bytes: the archive holds them and no
+file system sees them. A name the browser holds with a character beyond Latin-1 stays as it is both
+ways, because a player's IndexedDB can hold a file named with a U+FFFD from Latin-1 bytes read as UTF-8,
+and that has to stay a file the game lists and opens. `mobile.js` saves *Bär* and *Bör*, lists and loads
+them, and plants such a name (`testing.md`).
+
 **`renameFile` renames where the platform can and copies where it cannot** — across a mount, since the browser
 stages an upload outside the home directory, and for a member inside an archive, which has no name on disk.
 The destination is replaced in one step and never deleted first, which would open a window in which neither

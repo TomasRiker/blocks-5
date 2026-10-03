@@ -452,6 +452,17 @@ into the sheet the next time. The section has a `try` of its own, so that
 a step that throws leaves the service worker's checks to run, and the context's locale is English, the
 language the captions are compared in.
 
+**File names beyond ASCII are saved, listed and loaded in the same editor** (`filesystem.md`): a level
+added, the campaign saved through the sheet as *Bär.zip* and as *Bör.zip*, `FS.readdir` asked whether
+both stand under those names, the editor's own list read back an entry at a time - its Select puts the
+entry into the file name, which the dump reports - and *Bär.zip* loaded by the name the list gave, into
+an editor emptied with New first. Against the page before the conversion all three failed: the folder
+held one file named `B`, U+FFFD, `r.zip`, the second save asked to overwrite it, and the list read
+`Bï¿½r.zip`, the three bytes of U+FFFD as Latin-1. A copy planted under a name with a U+FFFD in it, as a
+player's IndexedDB can hold one, must be listed as that character's three bytes and load by them; with
+`platformName`'s pass-through for such names taken out, that check alone fails, the file missing from the
+list.
+
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions
 cannot be inferred from anything else. It established that an on-screen pad can drive the game with an

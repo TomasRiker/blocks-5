@@ -72,7 +72,9 @@ description and the file name opens the page's text sheet with that field's
 text, what goes in through `Input.insertText` - an edit and no key, as an
 Android keyboard types - comes back into the game's field on OK as Latin-1,
 and Cancel, Escape, Back (the sheet's `CloseWatcher`, asked to close) and keys
-held or typed around the sheet are tried for what they must not reach.
+held or typed around the sheet are tried for what they must not reach. Two
+campaigns saved under names that differ only in an umlaut must be two files
+under those names, which the editor lists and loads as typed.
 
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the

@@ -25,6 +25,10 @@ namespace WebTransfer
 
 void download(const std::string& vfsPath, const std::string& downloadName)
 {
+	// Both as the page's file system and the download take them: a name the
+	// game holds in Latin-1 arrives there whole (FileSystem::platformName).
+	const std::string path(FileSystem::platformName(vfsPath));
+	const std::string name(FileSystem::platformName(downloadName));
 	EM_ASM({
 		var path = UTF8ToString($0);
 		var name = UTF8ToString($1);
@@ -45,12 +49,13 @@ void download(const std::string& vfsPath, const std::string& downloadName)
 			// Revoking at once aborts the download in some browsers.
 			setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
 		} catch (e) { console.warn("[blocks5] export failed:", e); }
-	}, vfsPath.c_str(), downloadName.c_str());
+	}, path.c_str(), name.c_str());
 }
 
 void downloadBytes(const void* p_data, unsigned int numBytes,
                    const std::string& downloadName)
 {
+	const std::string name(FileSystem::platformName(downloadName));
 	EM_ASM({
 		var name = UTF8ToString($2);
 		try {
@@ -70,7 +75,7 @@ void downloadBytes(const void* p_data, unsigned int numBytes,
 			// Revoking at once aborts the download in some browsers.
 			setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
 		} catch (e) { console.warn("[blocks5] screenshot failed:", e); }
-	}, p_data, numBytes, downloadName.c_str());
+	}, p_data, numBytes, name.c_str());
 }
 
 bool openPicker(const std::string& stagingOgg,
@@ -167,7 +172,8 @@ bool openPicker(const std::string& stagingOgg,
 		input.click();
 		// Without a "cancel" event a dismissed dialog would stay busy for ever.
 		setTimeout(function() { if (!finished) done(2, null); }, 300000);
-	}, stagingOgg.c_str(), stagingXml.c_str(), stagingZip.c_str(), (int)maxBytes);
+	}, FileSystem::platformName(stagingOgg).c_str(), FileSystem::platformName(stagingXml).c_str(),
+	   FileSystem::platformName(stagingZip).c_str(), (int)maxBytes);
 
 	return true;
 }
