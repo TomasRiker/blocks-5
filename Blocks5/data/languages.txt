@@ -2441,8 +2441,9 @@ $TR_CONFIRM_TITLE
 §de:Bitte bestätigen
 
 $TR_CONFIRM_DELETE
-§en:Really delete this file?
-§de:Diese Datei wirklich löschen?
+// Asked before the Manager deletes a file; %FILE% stands for its name
+§en:Really delete the file "%FILE%"?
+§de:Die Datei "%FILE%" wirklich löschen?
 
 $TR_CONFIRM_DELETE_PROGRESS
 // Deleting the progress database is a different matter from deleting a
@@ -2451,9 +2452,10 @@ $TR_CONFIRM_DELETE_PROGRESS
 §de:Deinen Fortschritt wirklich löschen? Jede Kampagne fängt dann wieder von vorne an.
 
 $TR_CONFIRM_OVERWRITE
-// Asked before an import replaces a file of the same name; the name follows
-§en:This file is already there and will be replaced:
-§de:Diese Datei ist schon da und wird ersetzt:
+// Asked before an import replaces a file of the same name; %FILE% stands for
+// that name
+§en:The file "%FILE%" is already there and will be replaced.
+§de:Die Datei "%FILE%" ist schon da und wird ersetzt.
 
 $TR_CONFIRM_MERGE
 // Asked when the file being imported is a progress database and there is
