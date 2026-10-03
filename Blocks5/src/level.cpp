@@ -2019,6 +2019,19 @@ bool Level::dismissDisplay()
 	return false;
 }
 
+bool Level::isDisplayShown()
+{
+	if(!p_activePlayer) return false;
+
+	const std::vector<Object*>& here = getAllObjectsAt(p_activePlayer->getPosition());
+	for(std::vector<Object*>::const_iterator i = here.begin(); i != here.end(); ++i)
+	{
+		if((*i)->isDisplayShown()) return true;
+	}
+
+	return false;
+}
+
 void Level::switchToNextPlayer()
 {
 	Player* p_firstPlayer = 0;

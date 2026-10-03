@@ -35,6 +35,13 @@ public:
 	// answered getMouseDragCells.
 	virtual bool canMouseDragStep(const Vec2i& dir);
 
+	// Offered a tick's fresh press of the game's input (Engine::
+	// wasGameInputPressed) before the actions or the GUI see it. True takes
+	// it whole: no action fires from it, and the GUI's keys and mouse are
+	// flushed. Only GS_Game takes one - to end the pause, or else to put a
+	// hint note away.
+	virtual bool takeInput();
+
 	const std::string& getName() const;
 
 protected:

@@ -94,9 +94,10 @@ Changelog
           - Drag a character with the mouse to walk it somewhere, and click
             something it stands next to, such as a switch, to work it. Collected
             items fly to whoever took them, switches light up when thrown, hint
-            notes are sheets of paper that unroll with a rustle, and restarting
-            a level under the CRT filter rewinds the tape, for as long as the
-            CRT settings say.
+            notes are sheets of paper that unroll with a rustle and go away
+            with a click or Space, and restarting a level under the CRT filter
+            rewinds the tape, for as long as the CRT settings say. The key or
+            click that ends a pause does nothing else.
 
           - The help and all messages name the keys you actually chose. In the
             level editor, Ctrl+Z now undoes and Ctrl+Y redoes on any keyboard.

@@ -150,11 +150,14 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
   scripts rather than swept up as `*.txt`, since `password.txt` is deliberately packed unencrypted in a second
   pass; in `pack.sh` the name is tested for first, because `packInto` drops only *patterns* that match nothing
   and a plain filename survives an empty glob, which broke the `space` archive once.
-- **Return and Escape put the note away** without walking off the field. `Object::dismiss()` is a virtual
-  answering false everywhere except a hint currently showing something, and `Level::dismissDisplay()` asks the
-  objects on the player's own field. The key must be caught in `GameGUI::onKeyEvent` and not `Hint::onUpdate`,
-  because `GUI::update()` runs before `p_gs->onUpdate()` and the game menu would already be open; Escape
-  therefore asks `dismissDisplay()` first and falls through to the menu only when nothing took it.
+- **A click, Return, Escape or Space put the note away** without walking off the field, and do nothing else;
+  every other key is the game's, and an arrow walks off, which closes the note too. `Object::dismiss()` is a
+  virtual answering false everywhere except a hint currently showing something (`isDisplayShown()`, which the
+  test hook reports as `note`), and `Level::dismissDisplay()` asks the objects on the player's own field. It
+  is asked from `GS_Game::takeInput`, before the actions and the GUI have seen the press, because both would
+  act on it in the same tick - Escape would open the menu, a click work the switch beside the note
+  (`input.md`). A note put away stays away until the character leaves its field, or it would open again on the
+  next tick.
 - The mesh is `Renderer::triangles`, two a band in the order a triangle strip lays them, so every band's
   diagonal runs the same way. Nothing in the tree draws a `GL_QUAD_STRIP`, which WebGL does not have, and
   nothing new may: a strip is triangles handed to the renderer.

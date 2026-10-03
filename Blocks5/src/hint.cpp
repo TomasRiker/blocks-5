@@ -491,13 +491,17 @@ void Hint::onCollect(Player* p_player)
 
 bool Hint::dismiss()
 {
-	// Only when the note is showing something; otherwise Escape goes on to
-	// the game menu. activeTicks rather than shownAlpha, which is still
-	// fading out after a visit, when there is nothing to close.
-	if(dismissed || activeTicks <= 0) return false;
+	if(!isDisplayShown()) return false;
 
 	dismissed = true;
 	return true;
+}
+
+bool Hint::isDisplayShown() const
+{
+	// activeTicks rather than shownAlpha, which is still fading out after a
+	// visit, when there is nothing to close.
+	return !dismissed && activeTicks > 0;
 }
 
 void Hint::saveAttributes(TiXmlElement* p_target)

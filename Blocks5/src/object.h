@@ -75,9 +75,11 @@ public:
 	virtual void burst();
 
 	// Close what the player is being shown without leaving the field; only a
-	// showing hint note can. False passes the key on - Escape then opens the
-	// game menu.
+	// showing hint note can. False leaves the press to do what it would have
+	// done (GS_Game::takeInput).
 	virtual bool dismiss() { return false; }
+	// Whether there is something here for dismiss() to close.
+	virtual bool isDisplayShown() const { return false; }
 
 	virtual bool changeInEditor(int mod);
 	virtual void saveAttributes(TiXmlElement* p_target);

@@ -22,6 +22,7 @@ public:
 	void onRemove();
 	void onCollect(Player* p_player);
 	bool dismiss();
+	bool isDisplayShown() const;
 	void saveAttributes(TiXmlElement* p_target);
 
 	const std::string& getText() const;

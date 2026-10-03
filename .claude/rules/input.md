@@ -197,11 +197,29 @@ Turning the repeat off removes the lockout with it, and that is deliberate rathe
 inside the delay into a buffer that only the repeat ever empties, so it would not count at all. Once per
 press means every press, which is why the throttle could go without tapping Tab getting slower.
 
-**Any key and any click leave the pause**, not only the pause key — `wasAnyKeyPressed` and
-`wasAnyButtonPressed` read the same per-tick bits. Coming back from another window is what makes it worth
-having, since `onAppLoseFocus` pauses and the click that returns is then the one that resumes. The press is
-*spent* on resuming, and that ordering is the trick: the resume sits in front of the action chain as its
-`if`, so the pause key cannot switch back on in the same tick what it just switched off.
+**One press does one thing, and the game state may take it before anything else sees it.** `Engine::update`
+offers a tick's fresh press to `GameState::takeInput` after `updateVKs()` and before `updateActions()` and
+`GUI::update()`, and only `GS_Game` takes one, in this order. Paused, **any key or click ends the pause** and
+does nothing else - coming back from another window is what makes that worth having, since `onAppLoseFocus`
+pauses and the click that returns is then the one that resumes. With a hint note open on the active
+character's field, **a click, Return, Escape or Space puts the note away** and does nothing else; every other
+key is the game's, and an arrow walks off the field, which closes the note on the way, so walking on stays one
+press. Otherwise the press acts. A press taken is *spent*: `updateActions(true)` fires no action from it and
+buffers nothing, and `flushInput()` takes it from the GUI - so the key that resumes takes no step, Escape
+opens no menu, and a click works no switch, wakes nobody and takes hold of no character. It is still held: the
+opposing actions are reset and the countdown starts, so a key held on walks once the repeat delay is over, as
+after any first press. The press cannot be dropped where it is used instead, because three layers read it in
+one tick - the actions for `Player`, `GameGUI::onKeyEvent` for Escape, `GameGUI::onMouseDown` for the click -
+and `GUI::update()` runs before `GS_Game::onUpdate()`, so a resume decided there comes after the GUI has acted
+and in the tick the level steps.
+
+**What is offered is the game's own input** (`Engine::wasGameInputPressed`): any mouse button, and any key but
+two kinds. One bound to the engine's own actions - `$A_TOGGLE_MUTE`, `$A_CAPTURE_SCREENSHOT`,
+`$A_TOGGLE_CAPTURE_VIDEO`, which work in every state - so F11 photographs the pause and leaves it. And a
+modifier bound to nothing: Shift and Ctrl count because they are bound to the bombs, while Alt and the Windows
+key belong to the system's chords, and Alt+Return would otherwise end the pause on its way to the fullscreen.
+A joystick is not offered at all, its buttons being no key, so a pause button bound to one still switches both
+ways. The second level of `LinuxBuild/test/drag.sh` checks all of it (`testing.md`).
 
 **Waiting for a key is a state, not a loop.** Clicking a key button sets its caption to `$O_PRESS_KEY` and
 calls `Engine::beginKeyGrab()`; `Options::onUpdate` asks `pollKeyGrab()` each tick and applies the answer —
