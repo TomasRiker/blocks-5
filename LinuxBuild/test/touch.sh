@@ -120,7 +120,9 @@ sweep()   # name "x0 y0 x1 y1 step" [pane] [element:y]
 {
 	local name=$1 grid=$2 pane=${3:-} keeper=${4:-} verdict counts
 	b5_dump || b5_hookFailed
-	b5_ask "touchsweep $grid" > "$B5_OUT/sweep-$name.txt"
+	# Thousands of picks in one tick: the options' 9945 points take five to
+	# six seconds on a slow machine, past what an ask waits by default.
+	b5_ask "touchsweep $grid" 30 > "$B5_OUT/sweep-$name.txt"
 	verdict=$(python3 - "$B5_OUT/dump.json" "$B5_OUT/sweep-$name.txt" "$pane" "$keeper" "$grid" <<'PY'
 import json, math, sys
 d = json.load(open(sys.argv[1]))
